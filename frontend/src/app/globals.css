@@ -115,7 +115,8 @@
   * {
     @apply border-border;
   }
-  html, body {
+  html,
+  body {
     @apply min-h-dvh bg-background text-foreground antialiased;
     font-family: "Inter", system-ui, -apple-system, sans-serif;
   }
@@ -135,11 +136,29 @@ input:-webkit-autofill:focus {
   -webkit-box-shadow: 0 0 0 100px var(--background) inset;
 }
 
-.hide-scrollbar::-webkit-scrollbar { display: none; }
-.hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
 
-::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--primary); border-radius: 0; }
-::-webkit-scrollbar-thumb:hover { background: color-mix(in srgb, var(--primary) 80%, black); }
-* { scrollbar-width: thin; scrollbar-color: var(--primary) transparent; }
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--primary);
+  border-radius: 0;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--primary) 80%, black);
+}
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--primary) transparent;
+}
