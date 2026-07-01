@@ -14,6 +14,8 @@ import {
 } from 'lucide-react'
 import { Link, usePathname } from '@/i18n/navigation'
 import { useTranslations } from 'next-intl'
+import { LanguageSwitcher } from '@/components/shared/language-switcher'
+import { ThemeToggle } from '@/components/shared/theme-toggle'
 
 const navKeys = [
   { href: '/dashboard', key: 'home', icon: LayoutDashboard, exact: true },
@@ -73,7 +75,7 @@ export default function DashboardLayout({
           })}
         </nav>
 
-        <div className="p-3 border-t border-sidebar-border">
+        <div className="p-3 border-t border-sidebar-border space-y-3">
           <div className="flex items-center gap-2 px-2 py-1.5">
             <div className="w-6 h-6 rounded-full bg-gradient-to-br from-primary/30 to-accent/30 flex items-center justify-center text-[10px] font-bold text-primary">
               CF
@@ -81,6 +83,10 @@ export default function DashboardLayout({
             <span className="text-xs text-sidebar-foreground truncate">
               {t('workspace')}
             </span>
+          </div>
+          <div className="flex items-center justify-between gap-2 px-2">
+            <LanguageSwitcher />
+            <ThemeToggle />
           </div>
         </div>
       </aside>
