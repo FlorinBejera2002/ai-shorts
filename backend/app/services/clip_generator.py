@@ -36,39 +36,80 @@ def validate_clip_window(
 def extract_clip(
     input_video: str,
     output_path: str,
-    start: float,
-    end: float,
+    segments: list[dict],
     crf: int = 18,
     preset: str = "fast",
 ) -> bool:
     try:
         validate_video_file(input_video)
         video_duration = get_video_duration(input_video)
-        validate_clip_window(start, end, video_duration)
+        for seg in segments:
+            validate_clip_window(seg["start"], seg["end"], video_duration)
         ensure_dir(Path(output_path).parent)
 
-        cmd = [
-            "ffmpeg",
-            "-y",
-            "-ss",
-            str(start),
-            "-to",
-            str(end),
-            "-i",
-            input_video,
-            "-c:v",
-            "libx264",
-            "-crf",
-            str(crf),
-            "-preset",
-            preset,
-        ]
-        if has_audio_stream(input_video):
-            cmd.extend(["-c:a", "aac"])
+        has_audio = has_audio_stream(input_video)
+
+        if len(segments) == 1:
+            seg = segments[0]
+            cmd = [
+                "ffmpeg", "-y",
+                "-ss", str(seg["start"]),
+                "-to", str(seg["end"]),
+                "-i", input_video,
+                "-c:v", "libx264",
+                "-crf", str(crf),
+                "-preset", preset,
+            ]
+            if has_audio:
+                cmd.extend(["-c:a", "aac"])
+            else:
+                cmd.extend(["-an"])
+            cmd.append(output_path)
+            run_ffmpeg(cmd)
         else:
-            cmd.extend(["-an"])
-        cmd.append(output_path)
-        run_ffmpeg(cmd)
+            # Multi-segment: extract each, then concat
+            temp_files = []
+            try:
+                for i, seg in enumerate(segments):
+                    temp_path = output_path.replace(".mp4", f"_seg{i}.mp4")
+                    cmd = [
+                        "ffmpeg", "-y",
+                        "-ss", str(seg["start"]),
+                        "-to", str(seg["end"]),
+                        "-i", input_video,
+                        "-c:v", "libx264",
+                        "-crf", str(crf),
+                        "-preset", preset,
+                    ]
+                    if has_audio:
+                        cmd.extend(["-c:a", "aac"])
+                    else:
+                        cmd.extend(["-an"])
+                    cmd.append(temp_path)
+                    run_ffmpeg(cmd)
+                    temp_files.append(temp_path)
+
+                # Create concat list file
+                list_path = output_path.replace(".mp4", "_concat.txt")
+                with open(list_path, "w") as f:
+                    for tf in temp_files:
+                        f.write(f"file '{tf}'\n")
+
+                # Concat with stream copy
+                run_ffmpeg([
+                    "ffmpeg", "-y",
+                    "-f", "concat",
+                    "-safe", "0",
+                    "-i", list_path,
+                    "-c", "copy",
+                    output_path,
+                ])
+
+                Path(list_path).unlink(missing_ok=True)
+            finally:
+                for tf in temp_files:
+                    Path(tf).unlink(missing_ok=True)
+
         return True
     except Exception as exc:
         logger.error("FFmpeg clip extraction failed: %s", exc)
@@ -119,13 +160,16 @@ def extract_all_clips(
     for i, clip_data in enumerate(clips_data, start=1):
         try:
             clip = HighlightCandidate.model_validate({**clip_data, "rank": i})
-            validate_clip_window(clip.start, clip.end, video_duration)
+            # Validate each segment individually
+            for seg in clip.segments:
+                validate_clip_window(seg.start, seg.end, video_duration)
         except Exception as exc:
             logger.warning("Skipping invalid clip %s: %s", i, exc)
             continue
 
         output_path = unique_path(output_directory, f"{video_title}-clip-{i}", ".mp4")
-        if not extract_clip(input_video, str(output_path), clip.start, clip.end):
+        clip_segments = [{"start": s.start, "end": s.end} for s in clip.segments]
+        if not extract_clip(input_video, str(output_path), clip_segments):
             continue
 
         thumbnail_path = None
@@ -139,7 +183,7 @@ def extract_all_clips(
             index=i,
             start=clip.start,
             end=clip.end,
-            duration=round(clip.end - clip.start, 3),
+            duration=round(clip.duration, 3),
             title=clip.video_title_for_youtube_short,
             hook_text=clip.viral_hook_text,
             file_path=str(output_path),
@@ -148,10 +192,11 @@ def extract_all_clips(
             resolution=get_video_resolution(output_path),
             thumbnail_path=thumbnail_path,
             metadata={
+                "raw": clip.metadata.get("raw", {}),
                 "video_description_for_tiktok": clip.video_description_for_tiktok,
                 "video_description_for_instagram": clip.video_description_for_instagram,
                 "source": clip.source,
-                "viral_score": clip.metadata.get("viral_score", 0),
+                "viral_score": clip.viral_score,
                 "score_reason": clip.metadata.get("score_reason", ""),
             },
         )
