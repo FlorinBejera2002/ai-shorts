@@ -39,9 +39,19 @@ class TranscriptResult(BaseModel):
     words: list[TranscriptWord] = Field(default_factory=list)
 
 
-class HighlightCandidate(BaseModel):
+class SegmentCandidate(BaseModel):
     start: float = Field(ge=0)
     end: float = Field(gt=0)
+
+    @model_validator(mode="after")
+    def validate_window(self) -> "SegmentCandidate":
+        if self.end <= self.start:
+            raise ValueError("segment end must be greater than start")
+        return self
+
+
+class HighlightCandidate(BaseModel):
+    segments: list[SegmentCandidate]
     rank: int = Field(default=0, ge=0)
     source: Literal["gemini", "fallback"] = "gemini"
     video_description_for_tiktok: str = ""
@@ -50,15 +60,24 @@ class HighlightCandidate(BaseModel):
     viral_hook_text: str = ""
     metadata: dict[str, Any] = Field(default_factory=dict)
 
-    @model_validator(mode="after")
-    def validate_window(self) -> "HighlightCandidate":
-        if self.end <= self.start:
-            raise ValueError("highlight end must be greater than start")
-        return self
+    @property
+    def start(self) -> float:
+        return self.segments[0].start
+
+    @property
+    def end(self) -> float:
+        return self.segments[-1].end
 
     @property
     def duration(self) -> float:
-        return self.end - self.start
+        return sum(s.end - s.start for s in self.segments)
+
+    @model_validator(mode="before")
+    @classmethod
+    def migrate_legacy(cls, data):
+        if isinstance(data, dict) and "start" in data and "end" in data and "segments" not in data:
+            data["segments"] = [{"start": data.pop("start"), "end": data.pop("end")}]
+        return data
 
 
 class ClipOutput(BaseModel):
