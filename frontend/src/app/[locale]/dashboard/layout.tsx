@@ -13,18 +13,19 @@ import {
   Sparkles
 } from 'lucide-react'
 import { Link, usePathname } from '@/i18n/navigation'
+import { useTranslations } from 'next-intl'
 
-const nav = [
-  { href: '/dashboard', label: 'Home', icon: LayoutDashboard, exact: true },
-  { href: '/dashboard/create', label: 'Create', icon: Sparkles },
-  { href: '/dashboard/review', label: 'Review', icon: ListChecks },
-  { href: '/dashboard/clips', label: 'Clips', icon: Film },
-  { href: '/dashboard/analytics', label: 'Analytics', icon: BarChart3 },
-  { href: '/dashboard/brand', label: 'Brand Kit', icon: Palette },
-  { href: '/dashboard/publish', label: 'Publish', icon: Share2 },
-  { href: '/dashboard/history', label: 'History', icon: Clock },
-  { href: '/dashboard/billing', label: 'Billing', icon: CreditCard },
-  { href: '/dashboard/settings', label: 'Settings', icon: Settings }
+const navKeys = [
+  { href: '/dashboard', key: 'home', icon: LayoutDashboard, exact: true },
+  { href: '/dashboard/create', key: 'create', icon: Sparkles },
+  { href: '/dashboard/review', key: 'review', icon: ListChecks },
+  { href: '/dashboard/clips', key: 'clips', icon: Film },
+  { href: '/dashboard/analytics', key: 'analytics', icon: BarChart3 },
+  { href: '/dashboard/brand', key: 'brand', icon: Palette },
+  { href: '/dashboard/publish', key: 'publish', icon: Share2 },
+  { href: '/dashboard/history', key: 'history', icon: Clock },
+  { href: '/dashboard/billing', key: 'billing', icon: CreditCard },
+  { href: '/dashboard/settings', key: 'settings', icon: Settings }
 ]
 
 export default function DashboardLayout({
@@ -33,6 +34,7 @@ export default function DashboardLayout({
   children: React.ReactNode
 }) {
   const pathname = usePathname()
+  const t = useTranslations('nav')
 
   return (
     <div className="flex min-h-dvh">
@@ -49,7 +51,7 @@ export default function DashboardLayout({
         </div>
 
         <nav className="flex-1 px-2 space-y-0.5">
-          {nav.map((item) => {
+          {navKeys.map((item) => {
             const active = item.exact
               ? pathname === item.href
               : pathname.startsWith(item.href)
@@ -65,7 +67,7 @@ export default function DashboardLayout({
                 }`}
               >
                 <Icon className="w-4 h-4 shrink-0" strokeWidth={1.75} />
-                {item.label}
+                {t(item.key)}
               </Link>
             )
           })}
@@ -77,7 +79,7 @@ export default function DashboardLayout({
               CF
             </div>
             <span className="text-xs text-sidebar-foreground truncate">
-              My workspace
+              {t('workspace')}
             </span>
           </div>
         </div>

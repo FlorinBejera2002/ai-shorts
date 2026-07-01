@@ -1,12 +1,17 @@
 import { Link } from '@/i18n/navigation'
 import { Plus } from 'lucide-react'
+import { getTranslations, setRequestLocale } from 'next-intl/server'
 
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/db'
 
 export const runtime = 'nodejs'
 
-export default async function DashboardPage() {
+export default async function DashboardPage({ params }: { params: Promise<{ locale: string }> }) {
+  const { locale } = await params
+  setRequestLocale(locale)
+  const t = await getTranslations('dashboard')
+
   const session = await auth()
   const userId = session?.user?.id
 
@@ -30,11 +35,10 @@ export default async function DashboardPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-lg font-semibold tracking-tight">
-            Welcome back
-            {session?.user?.name ? `, ${session.user.name}` : ''}
+            {t('welcomeUser', { name: session?.user?.name || 'empty' })}
           </h1>
           <p className="mt-0.5 text-xs text-muted-foreground">
-            Here&apos;s your workspace overview
+            {t('overview')}
           </p>
         </div>
         <Link
@@ -42,22 +46,22 @@ export default async function DashboardPage() {
           className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3.5 py-2 text-[13px] font-medium text-primary-foreground transition-opacity hover:opacity-90"
         >
           <Plus className="w-3.5 h-3.5" />
-          New project
+          {t('newProject')}
         </Link>
       </div>
 
       <div className="mt-6 grid grid-cols-3 gap-px rounded-xl bg-border overflow-hidden animate-slide-up">
         {[
-          { label: 'Credits', value: credits },
-          { label: 'Jobs', value: jobCount },
-          { label: 'Clips', value: clipCount },
+          { key: 'creditsLabel', value: credits },
+          { key: 'jobsLabel', value: jobCount },
+          { key: 'clipsLabel', value: clipCount },
         ].map((stat, i) => (
           <div
-            key={stat.label}
+            key={stat.key}
             className="bg-card px-5 py-4"
             style={{ animationDelay: `${i * 60}ms` }}
           >
-            <div className="text-xs text-muted-foreground">{stat.label}</div>
+            <div className="text-xs text-muted-foreground">{t(stat.key)}</div>
             <div className="mt-1 text-xl font-semibold tabular-nums">
               {stat.value}
             </div>
@@ -67,7 +71,7 @@ export default async function DashboardPage() {
 
       <div className="mt-8">
         <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          Recent jobs
+          {t('recentJobs')}
         </h2>
         {recentJobs.length > 0 ? (
           <div className="mt-3 space-y-1">
@@ -100,12 +104,12 @@ export default async function DashboardPage() {
           </div>
         ) : (
           <div className="mt-4 rounded-lg bg-muted/50 px-4 py-8 text-center animate-scale-in">
-            <p className="text-[13px] text-muted-foreground">No jobs yet</p>
+            <p className="text-[13px] text-muted-foreground">{t('noJobs')}</p>
             <Link
               href="/dashboard/create"
               className="mt-2 inline-block text-[13px] font-medium text-primary hover:underline underline-offset-4"
             >
-              Create your first project &rarr;
+              {t('firstProject')}
             </Link>
           </div>
         )}

@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react'
 import { useRouter } from '@/i18n/navigation'
 import { Upload, Link2, Loader2, Linkedin, Smartphone, Youtube, Plus, X, Layers } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 import { useToast } from '@/components/ui/toast'
 
 const platformPresets = [
@@ -43,6 +44,7 @@ const platformPresets = [
 export default function CreatePage() {
   const router = useRouter()
   const toast = useToast()
+  const t = useTranslations('create')
   const [mode, setMode] = useState<'upload' | 'youtube' | 'batch'>('youtube')
   const [filePath, setFilePath] = useState('')
   const [youtubeUrl, setYoutubeUrl] = useState('')
@@ -67,13 +69,13 @@ export default function CreatePage() {
       const res = await fetch('/api/upload', { method: 'POST', body: formData })
       const data = await res.json()
       if (!res.ok) {
-        toast.add('error', data.error ?? data.detail ?? 'Upload failed')
+        toast.add('error', data.error ?? data.detail ?? t('uploadFailed'))
         return
       }
       setFilePath(data.file_path)
-      toast.add('success', 'Video uploaded')
+      toast.add('success', t('videoUploaded'))
     } catch {
-      toast.add('error', 'Upload failed. Check your connection.')
+      toast.add('error', t('uploadFailed'))
     } finally {
       setBusy(false)
     }
@@ -85,7 +87,7 @@ export default function CreatePage() {
     if (mode === 'batch') {
       const urls = batchUrls.map(u => u.trim()).filter(Boolean)
       if (urls.length === 0) {
-        toast.add('error', 'Add at least one URL')
+        toast.add('error', t('addOneUrl'))
         setBusy(false)
         return
       }
@@ -104,14 +106,14 @@ export default function CreatePage() {
         })
         const data = await res.json()
         if (!res.ok) {
-          toast.add('error', data.error ?? data.detail ?? 'Batch creation failed')
+          toast.add('error', data.error ?? data.detail ?? t('addOneUrl'))
           setBusy(false)
           return
         }
-        toast.add('success', `${data.jobs?.length ?? urls.length} jobs queued`)
+        toast.add('success', t('batchQueued', { count: data.jobs?.length ?? urls.length }))
         router.push('/dashboard/history')
       } catch {
-        toast.add('error', 'Failed to create batch')
+        toast.add('error', t('addOneUrl'))
         setBusy(false)
       }
       return
@@ -137,14 +139,14 @@ export default function CreatePage() {
       })
       const data = await res.json()
       if (!res.ok) {
-        toast.add('error', data.error ?? data.detail ?? 'Could not create job')
+        toast.add('error', data.error ?? data.detail ?? t('addOneUrl'))
         setBusy(false)
         return
       }
-      toast.add('success', 'Job queued successfully')
+      toast.add('success', t('jobQueued'))
       router.push(`/dashboard/jobs/${data.id}`)
     } catch {
-      toast.add('error', 'Failed to create job')
+      toast.add('error', t('addOneUrl'))
       setBusy(false)
     }
   }
@@ -181,9 +183,9 @@ export default function CreatePage() {
 
   return (
     <div className="animate-fade-in">
-      <h1 className="text-lg font-semibold tracking-tight">Create clips</h1>
+      <h1 className="text-lg font-semibold tracking-tight">{t('title')}</h1>
       <p className="mt-0.5 text-xs text-muted-foreground">
-        Upload a video, paste a YouTube link, or batch process multiple videos
+        {t('desc')}
       </p>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
@@ -207,7 +209,7 @@ export default function CreatePage() {
                 ) : (
                   <Layers className="w-3.5 h-3.5" />
                 )}
-                {item === 'upload' ? 'Upload' : item === 'youtube' ? 'YouTube' : 'Batch'}
+                {t(item)}
               </button>
             ))}
           </div>
@@ -225,10 +227,10 @@ export default function CreatePage() {
               />
               <Upload className="w-8 h-8 text-muted-foreground mb-3" strokeWidth={1.5} />
               <span className="text-[13px] font-medium">
-                Drop or choose a video
+                {t('dropOrChoose')}
               </span>
               <span className="mt-1 text-xs text-muted-foreground">
-                MP4, MOV, AVI, MKV, WEBM up to 2 GB
+                {t('fileTypes')}
               </span>
               {filePath && (
                 <span className="mt-3 rounded-md bg-primary/10 px-2.5 py-1 text-xs text-primary font-medium">
@@ -240,7 +242,7 @@ export default function CreatePage() {
             <div className="animate-scale-in space-y-2">
               <div className="flex items-center justify-between">
                 <label className="text-xs font-medium text-muted-foreground">
-                  YouTube URLs ({batchUrls.filter(u => u.trim()).length}/20)
+                  {t('batchUrls', { count: batchUrls.filter(u => u.trim()).length })}
                 </label>
                 <button
                   type="button"
@@ -249,7 +251,7 @@ export default function CreatePage() {
                   className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline disabled:opacity-40"
                 >
                   <Plus className="w-3 h-3" />
-                  Add URL
+                  {t('addUrl')}
                 </button>
               </div>
               <div className="space-y-1.5 max-h-80 overflow-y-auto pr-1">
@@ -280,13 +282,13 @@ export default function CreatePage() {
                 className="text-xs font-medium text-muted-foreground"
                 htmlFor="youtube-url"
               >
-                YouTube URL
+                {t('youtubeUrl')}
               </label>
               <input
                 id="youtube-url"
                 value={youtubeUrl}
                 onChange={(e) => setYoutubeUrl(e.target.value)}
-                placeholder="https://youtube.com/watch?v=..."
+                placeholder={t('youtubeUrlPlaceholder')}
                 className="mt-1.5 w-full rounded-lg border border-input bg-card px-3 py-2 text-[13px] placeholder:text-muted-foreground/50 focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all"
               />
             </div>
@@ -296,11 +298,11 @@ export default function CreatePage() {
         <div className="space-y-4 animate-slide-up" style={{ animationDelay: '100ms' }}>
           <div className="rounded-xl bg-card border border-border p-4 space-y-4">
             <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Settings
+              {t('settings')}
             </h2>
 
             <div>
-              <span className="text-[13px] font-medium">Platform preset</span>
+              <span className="text-[13px] font-medium">{t('platformPreset')}</span>
               <div className="mt-2 grid grid-cols-2 gap-1.5">
                 {platformPresets.map((preset) => {
                   const Icon = preset.icon
@@ -325,7 +327,7 @@ export default function CreatePage() {
 
             <div>
               <div className="flex items-center justify-between text-[13px]">
-                <span className="font-medium">Clips per video</span>
+                <span className="font-medium">{t('clipsPerVideo')}</span>
                 <span className="tabular-nums text-muted-foreground">{clips}</span>
               </div>
               <input
@@ -339,7 +341,7 @@ export default function CreatePage() {
             </div>
 
             <div>
-              <span className="text-[13px] font-medium">Aspect ratio</span>
+              <span className="text-[13px] font-medium">{t('aspectRatio')}</span>
               <div className="mt-2 grid grid-cols-3 gap-1.5">
                 {['9:16', '1:1', '16:9'].map((ratio) => (
                   <button
@@ -363,7 +365,7 @@ export default function CreatePage() {
                 className="text-[13px] font-medium"
                 htmlFor="subtitle-style"
               >
-                Subtitles
+                {t('subtitles')}
               </label>
               <select
                 id="subtitle-style"
@@ -371,15 +373,15 @@ export default function CreatePage() {
                 onChange={(e) => setSubtitleStyle(e.target.value)}
                 className="mt-1.5 w-full rounded-lg border border-input bg-card px-3 py-2 text-[13px]"
               >
-                <option value="clean">Clean</option>
-                <option value="bold">Bold</option>
-                <option value="caption-box">Caption box</option>
-                <option value="none">None</option>
+                <option value="clean">{t('subtitleClean')}</option>
+                <option value="bold">{t('subtitleBold')}</option>
+                <option value="caption-box">{t('subtitleCaptionBox')}</option>
+                <option value="none">{t('subtitleNone')}</option>
               </select>
             </div>
 
             <label className="flex items-center justify-between text-[13px] font-medium">
-              Brand kit
+              {t('brandKit')}
               <input
                 type="checkbox"
                 checked={includeBrand}
@@ -390,12 +392,12 @@ export default function CreatePage() {
 
           <div className="flex items-center justify-between rounded-xl bg-muted/80 px-4 py-3">
             <span className="text-xs text-muted-foreground">
-              {mode === 'batch' ? `Cost (${batchUrls.filter(u => u.trim()).length} videos)` : 'Cost'}
+              {mode === 'batch' ? t('costBatch', { count: batchUrls.filter(u => u.trim()).length }) : t('cost')}
             </span>
             <span className="text-[15px] font-semibold tabular-nums">
               {creditCost}{' '}
               <span className="text-xs font-normal text-muted-foreground">
-                credits
+                {t('creditsUnit')}
               </span>
             </span>
           </div>
@@ -409,12 +411,12 @@ export default function CreatePage() {
             {busy ? (
               <>
                 <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                Processing...
+                {t('processing')}
               </>
             ) : mode === 'batch' ? (
-              `Process ${batchUrls.filter(u => u.trim()).length} videos`
+              t('processVideos', { count: batchUrls.filter(u => u.trim()).length })
             ) : (
-              `Generate ${clips} clip${clips > 1 ? 's' : ''}`
+              t('generateClips', { count: clips })
             )}
           </button>
         </div>
