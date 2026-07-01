@@ -1,9 +1,5 @@
-import { NextResponse } from 'next/server'
+import { handlers } from '@/lib/auth'
 
-export function GET() {
-  return NextResponse.json({ message: 'NextAuth — Phase 5' })
-}
+export const runtime = 'nodejs'
 
-export function POST() {
-  return NextResponse.json({ message: 'NextAuth — Phase 5' })
-}
+export const { GET, POST } = handlers

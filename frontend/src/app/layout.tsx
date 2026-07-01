@@ -1,20 +1,24 @@
 import type { Metadata } from 'next'
+import { Toaster } from '@/components/ui/toast'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'ClipForge — AI Video Clipping',
+  title: 'ClipForge - AI Video Clipping',
   description:
-    'Turn long videos into viral clips with AI. Upload, analyze, and generate ready-to-post short-form content.'
+    'Turn long videos into viral clips with AI. Upload, analyze, and generate ready-to-post short-form content.',
 }
 
 export default function RootLayout({
-  children
+  children,
 }: {
   children: React.ReactNode
 }) {
   return (
     <html lang="en" className="dark">
-      <body>{children}</body>
+      <body>
+        {children}
+        <Toaster />
+      </body>
     </html>
   )
 }

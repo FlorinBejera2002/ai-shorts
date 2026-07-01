@@ -1,5 +1,7 @@
-import { NextResponse } from 'next/server'
+import { proxyBackendResponse } from '@/lib/api'
 
-export function GET() {
-  return NextResponse.json({ message: 'Clips API — Phase 3' })
+export const runtime = 'nodejs'
+
+export async function GET() {
+  return proxyBackendResponse('/api/clips')
 }

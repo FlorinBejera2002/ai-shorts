@@ -8,4 +8,157 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
-// Models defined in Phase 5
+model User {
+  id                   String    @id @default(uuid()) @db.Uuid
+  email                String    @unique @db.VarChar(255)
+  name                 String?   @db.VarChar(255)
+  image                String?   @map("avatar_url") @db.VarChar(1024)
+  provider             String    @default("credentials") @db.VarChar(50)
+  providerId           String?   @map("provider_id") @db.VarChar(255)
+  passwordHash         String?   @map("password_hash") @db.VarChar(255)
+  credits              Int       @default(100)
+  plan                 String    @default("free") @db.VarChar(50)
+  stripeCustomerId     String?   @map("stripe_customer_id") @db.VarChar(255)
+  stripeSubscriptionId String?   @map("stripe_subscription_id") @db.VarChar(255)
+  emailVerified        DateTime? @map("email_verified")
+  createdAt            DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  accounts Account[]
+  sessions Session[]
+  jobs     Job[]
+  clips    Clip[]
+  brandKit BrandKit?
+
+  @@map("users")
+}
+
+model Account {
+  userId            String  @map("user_id") @db.Uuid
+  type              String
+  provider          String
+  providerAccountId String  @map("provider_account_id")
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  sessionToken String   @id @map("session_token")
+  userId       String   @map("user_id") @db.Uuid
+  expires      DateTime @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String
+  expires    DateTime @db.Timestamptz(6)
+
+  @@id([identifier, token])
+  @@map("verification_tokens")
+}
+
+model Job {
+  id                String    @id @default(uuid()) @db.Uuid
+  userId            String    @map("user_id") @db.Uuid
+  sourceType        String    @map("source_type") @db.VarChar(50)
+  sourceUrl         String?   @map("source_url") @db.VarChar(2048)
+  sourceFilePath    String?   @map("source_file_path") @db.VarChar(2048)
+  status            String    @default("pending") @db.VarChar(50)
+  progress          Int       @default(0)
+  progressMessage   String?   @map("progress_message") @db.VarChar(512)
+  numClipsRequested Int       @default(5) @map("num_clips_requested")
+  aspectRatio       String    @default("9:16") @map("aspect_ratio") @db.VarChar(20)
+  language          String?   @db.VarChar(50)
+  subtitleStyle     String    @default("default") @map("subtitle_style") @db.VarChar(50)
+  includeBrand      Boolean   @default(false) @map("include_brand")
+  creditsCharged    Int       @default(0) @map("credits_charged")
+  errorMessage      String?   @map("error_message")
+  celeryTaskId      String?   @map("celery_task_id") @db.VarChar(255)
+  startedAt         DateTime? @map("started_at") @db.Timestamptz(6)
+  completedAt       DateTime? @map("completed_at") @db.Timestamptz(6)
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  clips Clip[]
+
+  @@index([userId])
+  @@index([status])
+  @@map("jobs")
+}
+
+model Clip {
+  id            String   @id @default(uuid()) @db.Uuid
+  jobId         String   @map("job_id") @db.Uuid
+  userId        String   @map("user_id") @db.Uuid
+  title         String   @db.VarChar(255)
+  hookText      String?  @map("hook_text") @db.VarChar(255)
+  viralScore    Int      @default(0) @map("viral_score")
+  scoreReason   String?  @map("score_reason")
+  startTime     Float    @map("start_time")
+  endTime       Float    @map("end_time")
+  duration      Float
+  filePath      String   @map("file_path") @db.VarChar(2048)
+  fileUrl       String?  @map("file_url") @db.VarChar(2048)
+  thumbnailPath String?  @map("thumbnail_path") @db.VarChar(2048)
+  thumbnailUrl  String?  @map("thumbnail_url") @db.VarChar(2048)
+  fileSize      Int      @default(0) @map("file_size")
+  resolution    String   @db.VarChar(50)
+  aspectRatio   String   @default("9:16") @map("aspect_ratio") @db.VarChar(20)
+  hasSubtitles  Boolean  @default(false) @map("has_subtitles")
+  transcriptText    String? @map("transcript_text")
+  captionTiktok     String? @map("caption_tiktok")
+  captionInstagram  String? @map("caption_instagram")
+  captionYoutube    String? @map("caption_youtube")
+  suggestedHashtags String? @map("suggested_hashtags")
+  publishedTo       Json?   @map("published_to")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  job  Job  @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([jobId])
+  @@index([userId])
+  @@map("clips")
+}
+
+model BrandKit {
+  id                String   @id @default(uuid()) @db.Uuid
+  userId            String   @unique @map("user_id") @db.Uuid
+  logoPath          String?  @map("logo_path") @db.VarChar(2048)
+  logoUrl           String?  @map("logo_url") @db.VarChar(2048)
+  primaryColor      String   @default("#6366f1") @map("primary_color") @db.VarChar(20)
+  secondaryColor    String   @default("#8b5cf6") @map("secondary_color") @db.VarChar(20)
+  fontFamily        String   @default("Inter") @map("font_family") @db.VarChar(100)
+  subtitleFont      String   @default("Inter Bold") @map("subtitle_font") @db.VarChar(100)
+  subtitleColor     String   @default("#FFFFFF") @map("subtitle_color") @db.VarChar(20)
+  subtitleBgColor   String   @default("#000000") @map("subtitle_bg_color") @db.VarChar(20)
+  subtitleBgOpacity Float    @default(0.7) @map("subtitle_bg_opacity")
+  subtitlePosition  String   @default("bottom") @map("subtitle_position") @db.VarChar(20)
+  introVideoPath    String?  @map("intro_video_path") @db.VarChar(2048)
+  outroVideoPath    String?  @map("outro_video_path") @db.VarChar(2048)
+  watermarkPath     String?  @map("watermark_path") @db.VarChar(2048)
+  watermarkPosition String   @default("bottom-right") @map("watermark_position") @db.VarChar(20)
+  watermarkOpacity  Float    @default(0.8) @map("watermark_opacity")
+  hidePlatformBadge Boolean  @default(false) @map("hide_platform_badge")
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("brand_kits")
+}
