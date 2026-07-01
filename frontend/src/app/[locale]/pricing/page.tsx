@@ -128,7 +128,7 @@ export default async function PricingPage({ params }: { params: Promise<{ locale
                 <p className="mt-1 text-xs text-muted-foreground">{plan.credits}</p>
                 <p className="mt-3 text-[13px] text-muted-foreground">{plan.description}</p>
 
-                <a
+                <Link
                   href="/register"
                   className={`mt-5 flex w-full justify-center rounded-lg px-4 py-2.5 text-[13px] font-semibold transition-opacity hover:opacity-90 ${
                     plan.highlighted
@@ -137,7 +137,7 @@ export default async function PricingPage({ params }: { params: Promise<{ locale
                   }`}
                 >
                   {plan.cta}
-                </a>
+                </Link>
 
                 <ul className="mt-5 space-y-2 border-t border-border pt-5">
                   {plan.features.map((feat: string) => (

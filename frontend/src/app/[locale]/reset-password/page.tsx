@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation'
 import { Film, Loader2, Check, X, ShieldCheck } from 'lucide-react'
 import { useToast } from '@/components/ui/toast'
 import { useTranslations } from 'next-intl'
+import { Link } from '@/i18n/navigation'
 
 export default function ResetPasswordPage() {
   const t = useTranslations('auth')
@@ -73,12 +74,12 @@ function ResetPasswordForm({ t, RULES }: { t: any; RULES: any[] }) {
           <p className="mt-2 text-xs text-muted-foreground">
             {t('resetLinkMissing')}
           </p>
-          <a
+          <Link
             href="/forgot-password"
             className="mt-4 inline-flex text-xs font-medium text-primary hover:underline"
           >
             {t('sendResetLink')}
-          </a>
+          </Link>
         </div>
       </main>
     )
@@ -103,12 +104,12 @@ function ResetPasswordForm({ t, RULES }: { t: any; RULES: any[] }) {
             <p className="mt-2 text-xs text-muted-foreground leading-relaxed">
               {t('resetCompleteDesc')}
             </p>
-            <a
+            <Link
               href="/login"
               className="mt-6 inline-flex rounded-lg bg-primary px-4 py-2.5 text-[13px] font-semibold text-primary-foreground transition-opacity hover:opacity-90"
             >
               {t('signIn')}
-            </a>
+            </Link>
           </div>
         ) : (
           <>

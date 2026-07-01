@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { useRouter } from '@/i18n/navigation'
+import { useRouter, Link } from '@/i18n/navigation'
 import {
   Check,
   Clipboard,
@@ -462,13 +462,13 @@ export function ClipWorkspace({ clip }: ClipWorkspaceProps) {
             Download
           </a>
         )}
-        <a
+        <Link
           href="/dashboard/publish"
           className="inline-flex items-center gap-2 rounded-lg border border-border px-4 py-2.5 text-[13px] font-medium hover:bg-muted"
         >
           <Send className="w-3.5 h-3.5" />
           Publish
-        </a>
+        </Link>
         <button
           type="button"
           onClick={() => void deleteClip()}

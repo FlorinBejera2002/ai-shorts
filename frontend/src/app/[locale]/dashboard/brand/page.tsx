@@ -1,5 +1,6 @@
 'use client'
 
+import { Link } from '@/i18n/navigation'
 import { useToast } from '@/components/ui/toast'
 import {
   AlignVerticalJustifyCenter,
@@ -749,13 +750,13 @@ export default function BrandPage() {
                     : 'White-label exports are included in the Agency plan.'}
                 </p>
                 {!canWhiteLabel && (
-                  <a
+                  <Link
                     href="/dashboard/billing"
                     className="mt-2 inline-flex items-center gap-1 text-[11px] font-medium text-primary hover:underline"
                   >
                     Upgrade to Agency
                     <ArrowUpRight className="w-3 h-3" />
-                  </a>
+                  </Link>
                 )}
               </div>
             </div>

@@ -1,7 +1,7 @@
 import { signIn } from '@/lib/auth'
 import { Film } from 'lucide-react'
 import { AuthError } from 'next-auth'
-import { redirect } from 'next/navigation'
+import { redirect, Link } from '@/i18n/navigation'
 import { getTranslations, setRequestLocale } from 'next-intl/server'
 
 export default async function LoginPage({
@@ -49,7 +49,7 @@ export default async function LoginPage({
               await signIn('google', { redirectTo })
             } catch (error) {
               if (error instanceof AuthError) {
-                redirect(`/login?error=${error.type}`)
+                redirect({ href: `/login?error=${error.type}`, locale })
               }
               throw error
             }
@@ -104,7 +104,7 @@ export default async function LoginPage({
               })
             } catch (error) {
               if (error instanceof AuthError) {
-                redirect(`/login?error=${error.type}`)
+                redirect({ href: `/login?error=${error.type}`, locale })
               }
               throw error
             }
@@ -132,23 +132,23 @@ export default async function LoginPage({
             {t('signIn')}
           </button>
           <div className="flex justify-end">
-            <a
+            <Link
               href="/forgot-password"
               className="text-[11px] text-muted-foreground hover:text-primary transition-colors"
             >
               {t('forgotPassword')}
-            </a>
+            </Link>
           </div>
         </form>
 
         <p className="mt-6 text-center text-xs text-muted-foreground">
           {t('noAccount')}{' '}
-          <a
+          <Link
             href="/register"
             className="font-medium text-primary hover:underline underline-offset-4"
           >
             {t('signUp')}
-          </a>
+          </Link>
         </p>
       </div>
     </main>

@@ -77,12 +77,12 @@ export default function SettingsPage() {
           <div className="space-y-3 text-[13px] text-muted-foreground">
             <p>Manage your profile, change password, and update notification preferences.</p>
             <div className="flex gap-2">
-              <a
+              <Link
                 href="/dashboard/billing"
                 className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-xs font-medium hover:bg-muted transition-colors"
               >
                 Manage subscription
-              </a>
+              </Link>
             </div>
           </div>
         </div>

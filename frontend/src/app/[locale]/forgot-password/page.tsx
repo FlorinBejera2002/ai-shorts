@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { Film, Loader2, Mail } from 'lucide-react'
 import { useToast } from '@/components/ui/toast'
 import { useTranslations } from 'next-intl'
+import { Link } from '@/i18n/navigation'
 
 export default function ForgotPasswordPage() {
   const t = useTranslations('auth')
@@ -53,12 +54,12 @@ export default function ForgotPasswordPage() {
             <p className="mt-2 text-xs text-muted-foreground leading-relaxed">
               {t('checkEmailDesc')}
             </p>
-            <a
+            <Link
               href="/login"
               className="mt-6 inline-flex text-xs font-medium text-primary hover:underline"
             >
               {t('backToLogin')}
-            </a>
+            </Link>
           </div>
         ) : (
           <>
@@ -93,12 +94,12 @@ export default function ForgotPasswordPage() {
             </form>
 
             <p className="mt-6 text-center text-xs text-muted-foreground">
-              <a
+              <Link
                 href="/login"
                 className="font-medium text-primary hover:underline underline-offset-4"
               >
                 {t('backToLogin')}
-              </a>
+              </Link>
             </p>
           </>
         )}
