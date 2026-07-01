@@ -197,7 +197,7 @@ def validate_highlights(
         for existing in selected:
             for new_seg in candidate.segments:
                 for ex_seg in existing.segments:
-                    if new_seg["start"] < ex_seg["end"] and new_seg["end"] > ex_seg["start"]:
+                    if new_seg.start < ex_seg.end and new_seg.end > ex_seg.start:
                         overlaps = True
                         break
                 if overlaps:
