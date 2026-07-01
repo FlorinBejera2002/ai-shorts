@@ -18,6 +18,7 @@ class Job(Base):
     source_type: Mapped[str] = mapped_column(String(50), nullable=False)
     source_url: Mapped[str | None] = mapped_column(String(2048), nullable=True)
     source_file_path: Mapped[str | None] = mapped_column(String(2048), nullable=True)
+    source_video_url: Mapped[str | None] = mapped_column(String(2048), nullable=True)
     status: Mapped[str] = mapped_column(String(50), default="pending", index=True, nullable=False)
     progress: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     progress_message: Mapped[str | None] = mapped_column(String(512), nullable=True)
