@@ -444,5 +444,28 @@
     "light": "Light",
     "dark": "Dark",
     "system": "System"
+  },
+  "editor": {
+    "title": "Edit clip",
+    "back": "Back to clip",
+    "playSegments": "Play segments",
+    "playAll": "Play full video",
+    "addSegment": "Add segment",
+    "deleteSegment": "Delete segment",
+    "moveUp": "Move up",
+    "moveDown": "Move down",
+    "segment": "Segment {number}",
+    "duration": "Duration",
+    "totalDuration": "Total: {duration}",
+    "segments": "{count, plural, one {# segment} other {# segments}}",
+    "export": "Export clip",
+    "exporting": "Exporting...",
+    "exportSuccess": "Clip exported successfully",
+    "exportFailed": "Export failed",
+    "unsavedChanges": "You have unsaved changes. Leave anyway?",
+    "noSource": "Source video not available for this clip",
+    "minDuration": "Total duration must be at least 3 seconds",
+    "maxSegments": "Maximum 10 segments per clip",
+    "segmentsOverlap": "Segments must not overlap"
   }
 }

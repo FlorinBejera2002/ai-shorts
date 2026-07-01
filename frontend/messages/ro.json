@@ -444,5 +444,28 @@
     "light": "Luminoasă",
     "dark": "Întunecată",
     "system": "Sistem"
+  },
+  "editor": {
+    "title": "Editare clip",
+    "back": "Înapoi la clip",
+    "playSegments": "Redă segmentele",
+    "playAll": "Redă videoul complet",
+    "addSegment": "Adaugă segment",
+    "deleteSegment": "Șterge segment",
+    "moveUp": "Mută sus",
+    "moveDown": "Mută jos",
+    "segment": "Segment {number}",
+    "duration": "Durată",
+    "totalDuration": "Total: {duration}",
+    "segments": "{count, plural, one {# segment} other {# segmente}}",
+    "export": "Exportă clip",
+    "exporting": "Se exportă...",
+    "exportSuccess": "Clipul a fost exportat cu succes",
+    "exportFailed": "Exportul a eșuat",
+    "unsavedChanges": "Ai modificări nesalvate. Părăsești pagina?",
+    "noSource": "Videoul sursă nu este disponibil pentru acest clip",
+    "minDuration": "Durata totală trebuie să fie cel puțin 3 secunde",
+    "maxSegments": "Maximum 10 segmente per clip",
+    "segmentsOverlap": "Segmentele nu trebuie să se suprapună"
   }
 }
