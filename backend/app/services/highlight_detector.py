@@ -35,12 +35,20 @@ STRICT EXCLUSIONS:
 - No generic intros/outros or purely sponsorship segments unless they contain the hook.
 - No clips < {min_duration} s or > {max_duration} s.
 
+MULTI-SEGMENT COMPOSITION:
+Each clip can be composed of 1 to 5 non-overlapping segments from different parts of the video.
+Use multiple segments when combining an attention-grabbing hook with a key moment and a strong
+ending would create a more compelling clip. Use a single segment when a continuous moment is
+already strong enough on its own.
+
 OUTPUT — RETURN ONLY VALID JSON (no markdown, no comments). Order clips by predicted performance (best to worst). In the descriptions, ALWAYS include a CTA like "Follow me and comment X and I'll send you the workflow" (especially if discussing an n8n workflow):
 {{
   "shorts": [
     {{
-      "start": <number in seconds, e.g., 12.340>,
-      "end": <number in seconds, e.g., 37.900>,
+      "segments": [
+        {{"start": <number in seconds, e.g., 12.340>, "end": <number in seconds, e.g., 17.900>}},
+        {{"start": <number in seconds, e.g., 25.100>, "end": <number in seconds, e.g., 37.900>}}
+      ],
       "viral_score": <integer 1-10, how likely to go viral>,
       "score_reason": "<one sentence explaining why this clip will perform well>",
       "video_description_for_tiktok": "<description for TikTok oriented to get views>",
@@ -103,27 +111,65 @@ def validate_highlights(
     candidates: list[HighlightCandidate] = []
 
     for rank, item in enumerate(raw.get("shorts", []), start=1):
-        try:
-            start = float(item["start"])
-            end = float(item["end"])
-        except (KeyError, TypeError, ValueError):
+        # Parse segments (new format) or fall back to start/end (legacy)
+        raw_segments = item.get("segments")
+        if not raw_segments:
+            try:
+                start = float(item["start"])
+                end = float(item["end"])
+                raw_segments = [{"start": start, "end": end}]
+            except (KeyError, TypeError, ValueError):
+                continue
+
+        # Validate each segment
+        valid_segments = []
+        skip_candidate = False
+        for seg in raw_segments:
+            try:
+                s = round(float(seg["start"]), 3)
+                e = round(float(seg["end"]), 3)
+            except (KeyError, TypeError, ValueError):
+                skip_candidate = True
+                break
+
+            if s < 0:
+                skip_candidate = True
+                break
+            if e > video_duration and e - video_duration <= 0.5:
+                e = round(video_duration, 3)
+            if e > video_duration:
+                skip_candidate = True
+                break
+
+            seg_duration = e - s
+            if seg_duration < 0.25:
+                skip_candidate = True
+                break
+
+            valid_segments.append({"start": s, "end": e})
+
+        if skip_candidate or not valid_segments:
             continue
 
-        if start < 0:
-            continue
-        if end > video_duration and end - video_duration <= 0.5:
-            end = video_duration
-        if end > video_duration:
+        # Check total duration within limits
+        total_duration = sum(seg["end"] - seg["start"] for seg in valid_segments)
+        if total_duration < settings.min_clip_duration or total_duration > settings.max_clip_duration:
             continue
 
-        duration = end - start
-        if duration < settings.min_clip_duration or duration > settings.max_clip_duration:
+        # Check no internal overlaps (within this candidate)
+        sorted_segs = sorted(valid_segments, key=lambda seg: seg["start"])
+        has_internal_overlap = False
+        for i in range(1, len(sorted_segs)):
+            if sorted_segs[i]["start"] < sorted_segs[i - 1]["end"]:
+                has_internal_overlap = True
+                break
+        if has_internal_overlap:
             continue
 
         candidate = HighlightCandidate(
-            start=round(start, 3),
-            end=round(end, 3),
+            segments=valid_segments,
             rank=rank,
+            viral_score=int(item.get("viral_score") or 0),
             source=item.get("source", "gemini"),
             video_description_for_tiktok=item.get("video_description_for_tiktok", ""),
             video_description_for_instagram=item.get(
@@ -135,21 +181,29 @@ def validate_highlights(
             viral_hook_text=item.get("viral_hook_text", ""),
             metadata={
                 "raw": item,
-                "viral_score": item.get("viral_score", 0),
                 "score_reason": item.get("score_reason", ""),
             },
         )
         candidates.append(candidate)
 
-    candidates.sort(key=lambda clip: clip.rank)
+    # Cross-candidate overlap check
+    candidates.sort(key=lambda c: c.rank)
     selected: list[HighlightCandidate] = []
     for candidate in candidates:
         if len(selected) >= requested:
             break
-        overlaps = any(
-            candidate.start < existing.end and candidate.end > existing.start
-            for existing in selected
-        )
+        # Check if any segment in this candidate overlaps any segment in already-selected candidates
+        overlaps = False
+        for existing in selected:
+            for new_seg in candidate.segments:
+                for ex_seg in existing.segments:
+                    if new_seg["start"] < ex_seg["end"] and new_seg["end"] > ex_seg["start"]:
+                        overlaps = True
+                        break
+                if overlaps:
+                    break
+            if overlaps:
+                break
         if not overlaps:
             selected.append(candidate)
     return selected
@@ -167,9 +221,9 @@ def fallback_highlights(
     if video_duration <= duration:
         return [
             HighlightCandidate(
-                start=0,
-                end=round(video_duration, 3),
+                segments=[{"start": 0, "end": round(video_duration, 3)}],
                 rank=1,
+                viral_score=0,
                 source="fallback",
                 viral_hook_text="Key moment",
                 metadata={"reason": "video shorter than target window"},
@@ -181,9 +235,14 @@ def fallback_highlights(
         midpoint = max(0, (video_duration - duration) / 2)
         return [
             HighlightCandidate(
-                start=round(midpoint, 3),
-                end=round(midpoint + duration, 3),
+                segments=[
+                    {
+                        "start": round(midpoint, 3),
+                        "end": round(midpoint + duration, 3),
+                    }
+                ],
                 rank=1,
+                viral_score=0,
                 source="fallback",
                 viral_hook_text="Key moment",
                 metadata={"reason": "no word timestamps"},
@@ -203,8 +262,7 @@ def fallback_highlights(
     raw = {
         "shorts": [
             {
-                "start": start,
-                "end": end,
+                "segments": [{"start": start, "end": end}],
                 "source": "fallback",
                 "viral_hook_text": "Key moment",
             }
