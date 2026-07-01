@@ -46,7 +46,7 @@ export function SegmentPlayer({ sourceUrl, segments, onTimeUpdate, seekTo }: Seg
       const nextIdx = currentIdx + 1
       if (nextIdx < sortedSegments.length) {
         currentSegmentRef.current = nextIdx
-        video.currentTime = sortedSegments[nextIdx].start
+        video.currentTime = sortedSegments[nextIdx]!.start
       } else {
         video.pause()
         setIsPlaying(false)
@@ -61,7 +61,7 @@ export function SegmentPlayer({ sourceUrl, segments, onTimeUpdate, seekTo }: Seg
 
     if (segmentMode && sortedSegments.length > 0) {
       currentSegmentRef.current = 0
-      video.currentTime = sortedSegments[0].start
+      video.currentTime = sortedSegments[0]!.start
     }
     video.play()
     setIsPlaying(true)

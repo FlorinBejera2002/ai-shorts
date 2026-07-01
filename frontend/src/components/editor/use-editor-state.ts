@@ -63,7 +63,9 @@ function reducer(state: EditorState, action: Action): EditorState {
       const target = direction === 'up' ? index - 1 : index + 1
       if (target < 0 || target >= state.segments.length) return state
       const arr = [...state.segments]
-      ;[arr[index], arr[target]] = [arr[target], arr[index]]
+      const a = arr[index]!
+      const b = arr[target]!
+      ;[arr[index], arr[target]] = [b, a]
       return { ...state, segments: reorder(arr), isDirty: true }
     }
 
@@ -100,7 +102,7 @@ export function useEditorState(initialSegments: Segment[]) {
   const hasOverlap = useCallback(() => {
     const sorted = [...state.segments].sort((a, b) => a.start - b.start)
     for (let i = 1; i < sorted.length; i++) {
-      if (sorted[i].start < sorted[i - 1].end) return true
+      if (sorted[i]!.start < sorted[i - 1]!.end) return true
     }
     return false
   }, [state.segments])

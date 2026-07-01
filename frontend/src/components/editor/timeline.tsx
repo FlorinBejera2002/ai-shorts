@@ -52,6 +52,7 @@ export function Timeline({
       e.preventDefault()
       e.stopPropagation()
       const seg = segments[index]
+      if (!seg) return
       setDrag({ type: mode, index, startX: e.clientX, origStart: seg.start, origEnd: seg.end })
       onSelect(index)
       ;(e.target as HTMLElement).setPointerCapture(e.pointerId)
