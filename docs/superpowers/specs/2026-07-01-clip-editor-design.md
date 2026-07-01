@@ -18,8 +18,14 @@ Add a timeline-based clip editor that lets users view the full source video, see
 
 ### Clip Model — new field
 
+Prisma:
+```prisma
+segments  Json?   @map("segments")   // nullable for backward compatibility
 ```
-segments  Json?   // nullable for backward compatibility
+
+SQLAlchemy:
+```python
+segments: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
 ```
 
 Format:
@@ -33,16 +39,28 @@ Format:
 
 Rules:
 - `segments: null` means legacy single-segment clip — treated as `[{ start: clip.startTime, end: clip.endTime, order: 0 }]`
-- When segments are saved from the editor, `startTime`/`endTime`/`duration` are recalculated: `startTime = min(segments.start)`, `endTime = max(segments.end)`, `duration = sum of individual segment durations`
-- Segments must not overlap
-- Each segment: `start < end`, duration >= 0.25s
-- Total duration >= 3s
+- When segments are saved from the editor, `startTime`/`endTime`/`duration` are recalculated:
+  - `startTime = min(seg.start for seg in segments)` — earliest source timestamp
+  - `endTime = max(seg.end for seg in segments)` — latest source timestamp
+  - `duration = sum(seg.end - seg.start for seg in segments)` — this is the **final video length after concatenation**, not the source timeline span
+- `duration` is always recomputed when segments are updated; it is never user-editable
+- Segments must not overlap (checked after sorting by `start` within each segment)
+- Each segment: `start < end`, individual duration >= 0.25s
+- Total duration (sum of all segments) >= 3s
 - Maximum 10 segments per clip
+
+**Migration strategy:** Alembic migration adds the `segments` column as nullable JSONB. A data migration backfills all existing clips: `segments = [{"start": start_time, "end": end_time, "order": 0}]` for every row where `segments IS NULL`. After migration, all clips have explicit segments.
 
 ### Job Model — new field
 
+Prisma:
+```prisma
+sourceVideoUrl  String?  @map("source_video_url") @db.VarChar(2048)
 ```
-sourceVideoUrl  String?   // public URL to persisted source video
+
+SQLAlchemy:
+```python
+source_video_url: Mapped[str | None] = mapped_column(String(2048), nullable=True)
 ```
 
 Populated after processing. Allows the editor frontend to load the full source video in the player.
@@ -58,24 +76,42 @@ class HighlightCandidate:
 
 To:
 ```python
-class HighlightCandidate:
-    segments: list[SegmentCandidate]  # 1-5 segments per clip
-
-class SegmentCandidate:
+class SegmentCandidate(BaseModel):
     start: float
     end: float
+
+class HighlightCandidate(BaseModel):
+    segments: list[SegmentCandidate]  # 1-5 segments per clip
+    # ... other fields (rank, viral_score, etc.) unchanged
+
+    # Backward-compat accessors for code that uses .start / .end
+    @property
+    def start(self) -> float:
+        return self.segments[0].start
+
+    @property
+    def end(self) -> float:
+        return self.segments[-1].end
+
+    # Pydantic validator: accept legacy {start, end} input and convert
+    @model_validator(mode='before')
+    @classmethod
+    def migrate_legacy(cls, data):
+        if 'start' in data and 'end' in data and 'segments' not in data:
+            data['segments'] = [{'start': data.pop('start'), 'end': data.pop('end')}]
+        return data
 ```
 
-Backward compatible: existing single-segment candidates become `segments: [{ start, end }]`.
+This keeps all existing code that reads `candidate.start` / `candidate.end` working without changes, while new code uses `candidate.segments`.
 
 ---
 
 ## Source Video Persistence
 
-- In `processing_pipeline.py`, after download/copy, the source video is kept permanently (not deleted at cleanup)
-- Source is stored at a predictable path: `media/sources/{job_id}/{original_filename}`
+- In `processing_pipeline.py`, after download/copy, the source video is copied to a persistent location: `{settings.local_media_root}/sources/{job_id}/{original_filename}`
 - Nginx serves it at `/media/sources/{job_id}/{filename}`
-- `Job.sourceVideoUrl` is set to this public URL after processing
+- `Job.source_video_url` is set to this public URL (e.g. `/media/sources/{job_id}/video.mp4`) after processing
+- The source is NOT deleted during cleanup
 - Existing jobs without a persisted source: editor shows "Source video not available" message, export button disabled
 
 ---
@@ -120,19 +156,36 @@ Request:
 
 Response: `{ "task_id": "...", "status": "processing" }`
 
-### Processing Flow (Celery task)
+### Pydantic schema
+
+```python
+class RecutRequest(BaseModel):
+    segments: list[SegmentCandidate]  # reuse SegmentCandidate + add order
+
+class RecutSegment(BaseModel):
+    start: float
+    end: float
+    order: int
+```
+
+### Processing Flow (Celery task: `recut_clip_task`)
 
 1. Validate segments (no overlap, start < end, each >= 0.25s, total >= 3s, within source duration)
-2. Resolve source video path from `Job.sourceFilePath`
-3. If single segment: extract directly with `ffmpeg -ss {start} -to {end}` (existing path)
-4. If multi-segment:
-   a. Extract each segment to a temp file
+2. Sort segments by `order` field — this determines the sequence in the final concatenated video (not source timeline order)
+3. Resolve source video path: `{settings.local_media_root}/sources/{job.id}/{filename}` (derived from `Job.source_file_path` basename). If local file missing, return error
+4. If single segment: extract directly with `ffmpeg -ss {start} -to {end}` (existing path)
+5. If multi-segment:
+   a. Extract each segment to a temp file (ordered by `order`)
    b. Create concat list file
    c. `ffmpeg -f concat -safe 0 -i list.txt -c copy output.mp4` (stream copy if codec compatible, else re-encode CRF 18)
-5. Apply post-processing pipeline (smart crop, subtitles, brand kit) as in existing clip generation
-6. Update Clip in DB: `filePath`, `fileUrl`, `segments`, `startTime`, `endTime`, `duration`, `fileSize`, `resolution`
-7. Generate new thumbnail
-8. Return via Celery result
+6. Apply post-processing pipeline (smart crop, subtitles, brand kit) as in existing clip generation
+7. Update Clip in DB: `filePath`, `fileUrl`, `segments`, `startTime`, `endTime`, `duration`, `fileSize`, `resolution`
+8. Generate new thumbnail
+9. Return via Celery result
+
+### Coexistence with `/trim`
+
+The existing `POST /clips/{clip_id}/trim` endpoint remains for backward compatibility. The new `/recut` endpoint handles both single-segment and multi-segment clips and is the recommended path for all new clients. `/trim` is not deprecated but no new features will be added to it.
 
 ### Security
 
@@ -169,47 +222,48 @@ Updated to pass `candidate.segments` instead of `candidate.start, candidate.end`
    - "Back to clip" link (← navigates to `/dashboard/clips/[id]`)
    - "Export clip" button (primary, right-aligned)
 
-2. **Video Player**
-   - Plays the source video (full, from `job.sourceVideoUrl`)
-   - Standard HTML5 video controls
+2. **Video Player** (`segment-player.tsx`)
+   - Plays the source video (full, from `sourceVideoUrl` included in clip API response)
+   - Standard HTML5 `<video>` element with controls
    - Toggle: "Play segments" (default) / "Play full video"
-   - In "Play segments" mode: player plays only the selected segments in order, skipping gaps between them
-   - Playhead syncs with timeline
+   - **Segment playback implementation:** uses a custom playback loop via `timeupdate` event listener. When in "Play segments" mode, if the current playhead exceeds the current segment's `end`, the player seeks to the next segment's `start` (in `order` sequence). On the last segment's end, playback pauses. This produces a seamless preview of what the exported clip will look like.
+   - Playhead position syncs with timeline bar
 
-3. **Timeline Bar**
+3. **Timeline Bar** (`timeline.tsx`)
    - Horizontal bar representing full source duration (0 → total)
-   - Segments rendered as colored blocks on the timeline
+   - Segments rendered as colored blocks on the timeline (visual blocks, not waveform)
    - Interactions:
      - **Drag left/right edges** of a segment to resize (shorten/extend)
      - **Drag segment body** to move it to a different time position
      - **Click empty area** + "Add segment" to create a 5-second segment at that position
      - **Click segment** to select it (highlighted border), shows delete button
      - **Playhead** (vertical line) tracks current video position
-   - Tick marks below: timestamps at regular intervals (adapts to zoom)
+   - Tick marks below: timestamps at regular intervals (adapts to duration)
    - Minimum segment width enforced visually (0.25s)
 
-4. **Segment List** (below timeline)
-   - Text representation of each segment:
+4. **Segment List** (`segment-list.tsx`, below timeline)
+   - Text representation of each segment, ordered by `order`:
      - `Segment 1: 0:12.5 → 0:25.0 (12.5s)` with ▲▼ reorder buttons and ✕ delete
      - `Segment 2: 1:29.2 → 1:42.7 (13.5s)`
    - "+ Add segment" button at bottom
    - Total duration display: "Total: 26.0s"
+   - Reordering via ▲▼ updates the `order` field in local state only. New order is sent to backend on export.
 
 5. **Export section** (bottom)
    - Summary: "{n} segments, {duration}s total"
    - "Export clip" button → POST `/api/clips/{id}/recut` with current segments
-   - After export: navigate to job progress page or show inline progress
+   - After successful submission: toast with success message, navigate to `/dashboard/jobs/{task_id}` to show real-time progress
 
-### State Management
+### State Management (`use-editor-state.ts`)
 
-- Editor state is local React state (useState/useReducer), not persisted as draft
-- `beforeunload` event listener warns on unsaved changes
-- next-intl router navigation also guarded with confirmation dialog
+- Custom hook using `useReducer` with actions: `SET_SEGMENTS`, `ADD_SEGMENT`, `DELETE_SEGMENT`, `RESIZE_SEGMENT`, `MOVE_SEGMENT`, `REORDER_SEGMENT`
+- Tracks `isDirty` flag (any change from initial state)
+- `beforeunload` event listener warns on unsaved changes when `isDirty`
+- next-intl router navigation also guarded with confirmation dialog when `isDirty`
 
 ### Data Fetching
 
-- Fetch clip data: `GET /api/clips/{id}` — get current segments (or derive from startTime/endTime)
-- Fetch job data: need `sourceVideoUrl` — either join through clip→job relation, or add `sourceVideoUrl` to clip API response
+- `GET /api/clips/{id}` response is extended to include `sourceVideoUrl: string | null` (joined from the related Job record). This avoids a separate API call. The backend `ClipRead` schema adds this field.
 
 ---
 
@@ -279,31 +333,34 @@ Romanian translations follow the same structure with natural Romanian text.
 ## Files Affected
 
 ### Frontend — New
-- `frontend/src/app/[locale]/dashboard/clips/[id]/edit/page.tsx` — editor page
+- `frontend/src/app/[locale]/dashboard/clips/[id]/edit/page.tsx` — editor page (client component)
 - `frontend/src/components/editor/timeline.tsx` — timeline bar component
 - `frontend/src/components/editor/segment-list.tsx` — segment list component
-- `frontend/src/components/editor/segment-player.tsx` — video player with segment-aware playback
-- `frontend/src/components/editor/use-editor-state.ts` — editor state hook (useReducer)
+- `frontend/src/components/editor/segment-player.tsx` — video player with segment-aware playback (uses `timeupdate` event for segment skipping)
+- `frontend/src/components/editor/use-editor-state.ts` — custom hook (useReducer) managing editor state and dirty tracking
 
 ### Frontend — Modified
 - `frontend/src/app/[locale]/dashboard/clips/page.tsx` — add edit button to clip cards
 - `frontend/src/app/[locale]/dashboard/review/page.tsx` — add edit button to clip rows
 - `frontend/src/components/clip/clip-workspace.tsx` — replace Trim section with "Edit on timeline" link
-- `frontend/src/app/api/clips/[id]/recut/route.ts` — new API route proxying to backend
+- `frontend/src/app/api/clips/[id]/recut/route.ts` — new Next.js API route proxying to backend `POST /clips/{id}/recut`
 - `frontend/messages/en.json` — add `editor` namespace
 - `frontend/messages/ro.json` — add `editor` namespace
 - `frontend/prisma/schema.prisma` — add `segments` field to Clip, `sourceVideoUrl` to Job
 
+### Backend — New
+- `backend/alembic/versions/xxxx_add_segments_and_source_video_url.py` — Alembic migration (add columns + backfill segments from startTime/endTime)
+
 ### Backend — Modified
-- `backend/app/models/clip.py` — add `segments` column
-- `backend/app/models/job.py` — add `source_video_url` column
-- `backend/app/schemas/processing.py` — update `HighlightCandidate` to use segments array
-- `backend/app/schemas/clip.py` — add `segments` to read schema, add `RecutRequest` schema
-- `backend/app/services/highlight_detector.py` — update Gemini prompt and response parsing
-- `backend/app/services/clip_generator.py` — update `extract_clip()` for multi-segment concat
-- `backend/app/services/processing_pipeline.py` — persist source video, set `sourceVideoUrl`
-- `backend/app/api/clips_edit.py` — add `POST /clips/{id}/recut` endpoint
-- Alembic migration for new columns
+- `backend/app/models/clip.py` — add `segments` column (JSONB, nullable)
+- `backend/app/models/job.py` — add `source_video_url` column (String, nullable)
+- `backend/app/schemas/processing.py` — add `SegmentCandidate`, update `HighlightCandidate` with segments array + backward-compat validator + property accessors
+- `backend/app/schemas/clip.py` — add `segments` and `sourceVideoUrl` to `ClipRead`, add `RecutRequest`/`RecutSegment` schemas
+- `backend/app/services/highlight_detector.py` — update Gemini prompt and response parsing for multi-segment
+- `backend/app/services/clip_generator.py` — update `extract_clip()` to accept segments list, add concat logic
+- `backend/app/services/processing_pipeline.py` — persist source video to `media/sources/{job_id}/`, set `job.source_video_url`
+- `backend/app/api/clips_edit.py` — add `POST /clips/{clip_id}/recut` endpoint
+- `backend/app/workers/tasks.py` — add `recut_clip_task` Celery task
 
 ---
 
