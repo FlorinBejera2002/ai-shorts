@@ -243,6 +243,62 @@ def trim_clip_task(
         }
 
 
+@celery_app.task(bind=True, name="clipforge.recut_clip")
+def recut_clip_task(
+    self,
+    clip_id: str,
+    segments: list[dict],
+) -> dict[str, Any]:
+    from pathlib import Path
+
+    from app.config import settings
+    from app.services.clip_generator import extract_clip, generate_thumbnail
+    from app.utils.signed_url import make_signed_media_url
+
+    with SyncSessionLocal() as db:
+        clip = db.get(Clip, uuid.UUID(clip_id))
+        if not clip:
+            raise ValueError(f"Clip {clip_id} not found")
+
+        job = db.get(Job, clip.job_id)
+        if not job or not job.source_video_url:
+            raise ValueError("Source video not available")
+
+        # Resolve source video path on disk
+        source_path = str(
+            Path(settings.local_media_root) / "sources" / str(job.id) / "source.mp4"
+        )
+        if not Path(source_path).exists():
+            raise FileNotFoundError("Source video file not found on disk")
+
+        output_dir = Path(settings.local_media_root) / str(job.id) / "clips"
+        output_dir.mkdir(parents=True, exist_ok=True)
+        output_path = str(output_dir / f"recut_{clip_id}.mp4")
+
+        sorted_segs = sorted(segments, key=lambda s: s["order"])
+        success = extract_clip(source_path, output_path, sorted_segs)
+        if not success:
+            raise RuntimeError("FFmpeg extraction failed")
+
+        # Generate thumbnail
+        thumb_path = output_path.replace(".mp4", "_thumb.jpg")
+        generate_thumbnail(output_path, thumb_path, timestamp=1.0)
+
+        # Update clip record
+        clip.file_path = output_path
+        clip.file_url = make_signed_media_url(output_path)
+        clip.segments = segments
+        clip.start_time = min(s["start"] for s in segments)
+        clip.end_time = max(s["end"] for s in segments)
+        clip.duration = sum(s["end"] - s["start"] for s in segments)
+        clip.file_size = Path(output_path).stat().st_size
+        clip.thumbnail_path = thumb_path
+        clip.thumbnail_url = make_signed_media_url(thumb_path)
+        db.commit()
+
+        return {"status": "completed", "clip_id": clip_id}
+
+
 def _mark_job_failed(job_id: str, error_message: str) -> None:
     with SyncSessionLocal() as db:
         job = db.get(Job, uuid.UUID(job_id))

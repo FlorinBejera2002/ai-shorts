@@ -11,8 +11,10 @@ from app.api.rate_limit import limiter
 from app.config import settings
 from app.database import get_db
 from app.models.clip import Clip
+from app.models.job import Job
 from app.models.user import User
-from app.workers.tasks import trim_clip_task
+from app.schemas.clip import RecutRequest
+from app.workers.tasks import recut_clip_task, trim_clip_task
 
 router = APIRouter(prefix="/api/clips", tags=["clips-edit"])
 
@@ -53,3 +55,28 @@ async def trim_clip(
     )
 
     return {"task_id": task.id, "status": "trimming"}
+
+
+@router.post("/{clip_id}/recut", status_code=status.HTTP_202_ACCEPTED)
+@limiter.limit("20/hour")
+async def recut_clip(
+    request: Request,
+    clip_id: UUID,
+    payload: RecutRequest,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> dict:
+    clip = await db.get(Clip, clip_id)
+    if not clip or clip.user_id != user.id:
+        raise HTTPException(status_code=404, detail="Clip not found")
+
+    job = await db.get(Job, clip.job_id)
+    if not job or not job.source_video_url:
+        raise HTTPException(status_code=400, detail="Source video not available")
+
+    task = recut_clip_task.delay(
+        clip_id=str(clip.id),
+        segments=[s.model_dump() for s in payload.segments],
+    )
+
+    return {"task_id": task.id, "status": "processing"}
