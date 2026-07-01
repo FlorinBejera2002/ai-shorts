@@ -119,9 +119,17 @@
     "forgotDesc": "Enter your email to receive a reset link",
     "sendResetLink": "Send reset link",
     "backToLogin": "Back to login",
+    "checkEmailTitle": "Check your email",
+    "checkEmailDesc": "If an account exists with that email, we sent a password reset link. Check your inbox and spam folder.",
+    "sendingLabel": "Sending...",
     "resetTitle": "Set new password",
     "resetDesc": "Enter your new password",
-    "resetButton": "Reset password"
+    "resetButton": "Reset password",
+    "resetCompleteTitle": "Password updated",
+    "resetCompleteDesc": "Your password has been reset. You can now sign in with your new password.",
+    "invalidResetLink": "Invalid reset link",
+    "resetLinkMissing": "This link is missing required parameters. Please request a new one.",
+    "passwordsMatch": "Passwords match"
   },
   "dashboard": {
     "welcomeUser": "Welcome back{name, select, empty {} other {, {name}}}",
@@ -320,7 +328,101 @@
     "startFree": "Start free",
     "startCreating": "Start creating",
     "goPro": "Go Pro",
-    "contactSales": "Contact sales"
+    "contactSales": "Contact sales",
+    "plans": {
+      "free": {
+        "name": "Free",
+        "price": "$0",
+        "period": "forever",
+        "credits": "100 credits",
+        "description": "Try the full pipeline",
+        "features": [
+          "AI highlight detection",
+          "Auto subtitles",
+          "Smart crop (9:16)",
+          "Basic export (720p)",
+          "5 clips per project",
+          "Community support"
+        ]
+      },
+      "creator": {
+        "name": "Creator",
+        "price": "$19",
+        "period": "/month",
+        "credits": "300 credits/mo",
+        "description": "For solo content creators",
+        "features": [
+          "Everything in Free",
+          "Full HD export (1080p)",
+          "20 clips per project",
+          "Batch processing (5 URLs)",
+          "Brand kit (colors & fonts)",
+          "AI social captions",
+          "Trim & re-export",
+          "Priority processing"
+        ]
+      },
+      "pro": {
+        "name": "Pro",
+        "price": "$49",
+        "period": "/month",
+        "credits": "1,000 credits/mo",
+        "description": "For teams & power users",
+        "features": [
+          "Everything in Creator",
+          "Batch processing (20 URLs)",
+          "Custom watermark",
+          "Subtitle styling",
+          "API access",
+          "Priority support",
+          "Analytics dashboard",
+          "Export to all platforms"
+        ]
+      },
+      "agency": {
+        "name": "Agency",
+        "price": "$149",
+        "period": "/month",
+        "credits": "High-volume credits",
+        "description": "White-label for agencies",
+        "features": [
+          "Everything in Pro",
+          "Unlimited batch URLs",
+          "White-label exports",
+          "Team seats (up to 10)",
+          "Custom branding removal",
+          "Dedicated support",
+          "SLA guarantee",
+          "Custom integrations"
+        ]
+      }
+    },
+    "faqs": [
+      {
+        "q": "What counts as a credit?",
+        "a": "Each minute of source video processed uses 1 credit. A 10-minute YouTube video uses 10 credits, regardless of how many clips are generated."
+      },
+      {
+        "q": "Can I cancel anytime?",
+        "a": "Yes. Cancel from your dashboard — no penalties, no hidden fees. Your credits remain active until the end of your billing period."
+      },
+      {
+        "q": "Do unused credits roll over?",
+        "a": "Monthly credits reset each billing cycle. Need more? Purchase one-time credit packs that never expire."
+      },
+      {
+        "q": "What video sources are supported?",
+        "a": "YouTube URLs and direct file uploads (MP4, MOV, WEBM). We support videos up to 4 hours long."
+      },
+      {
+        "q": "How long does processing take?",
+        "a": "Most videos are processed in 2-5 minutes. Pro and Agency plans get priority queue access for faster turnaround."
+      },
+      {
+        "q": "Is my data secure?",
+        "a": "All data is encrypted in transit (TLS 1.3) and at rest. We are GDPR compliant and you can export or delete your data at any time."
+      }
+    ]
   },
   "theme": {
     "light": "Light",

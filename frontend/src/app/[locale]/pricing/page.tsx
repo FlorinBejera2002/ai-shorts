@@ -8,113 +8,57 @@ export default async function PricingPage({ params }: { params: Promise<{ locale
   const t = await getTranslations('pricing')
   const tLanding = await getTranslations('landing')
 
-  const plans = [
-  {
-    name: 'Free',
-    price: '$0',
-    period: 'forever',
-    credits: '100 credits',
-    description: 'Try the full pipeline',
-    icon: Zap,
-    features: [
-      'AI highlight detection',
-      'Auto subtitles',
-      'Smart crop (9:16)',
-      'Basic export (720p)',
-      '5 clips per project',
-      'Community support',
-    ],
-    cta: 'Start free',
-    highlighted: false,
-  },
-  {
-    name: 'Creator',
-    price: '$19',
-    period: '/month',
-    credits: '300 credits/mo',
-    description: 'For solo content creators',
-    icon: Film,
-    features: [
-      'Everything in Free',
-      'Full HD export (1080p)',
-      '20 clips per project',
-      'Batch processing (5 URLs)',
-      'Brand kit (colors & fonts)',
-      'AI social captions',
-      'Trim & re-export',
-      'Priority processing',
-    ],
-    cta: 'Start creating',
-    highlighted: false,
-  },
-  {
-    name: 'Pro',
-    price: '$49',
-    period: '/month',
-    credits: '1,000 credits/mo',
-    description: 'For teams & power users',
-    icon: Crown,
-    features: [
-      'Everything in Creator',
-      'Batch processing (20 URLs)',
-      'Custom watermark',
-      'Subtitle styling',
-      'API access',
-      'Priority support',
-      'Analytics dashboard',
-      'Export to all platforms',
-    ],
-    cta: 'Go Pro',
-    highlighted: true,
-  },
-  {
-    name: 'Agency',
-    price: '$149',
-    period: '/month',
-    credits: 'High-volume credits',
-    description: 'White-label for agencies',
-    icon: Building2,
-    features: [
-      'Everything in Pro',
-      'Unlimited batch URLs',
-      'White-label exports',
-      'Team seats (up to 10)',
-      'Custom branding removal',
-      'Dedicated support',
-      'SLA guarantee',
-      'Custom integrations',
-    ],
-    cta: 'Contact sales',
-    highlighted: false,
-  },
-]
+  const planData = t.raw('plans')
+  const faqData = t.raw('faqs')
 
-const faqs = [
-  {
-    q: 'What counts as a credit?',
-    a: 'Each minute of source video processed uses 1 credit. A 10-minute YouTube video uses 10 credits, regardless of how many clips are generated.',
-  },
-  {
-    q: 'Can I cancel anytime?',
-    a: 'Yes. Cancel from your dashboard — no penalties, no hidden fees. Your credits remain active until the end of your billing period.',
-  },
-  {
-    q: 'Do unused credits roll over?',
-    a: 'Monthly credits reset each billing cycle. Need more? Purchase one-time credit packs that never expire.',
-  },
-  {
-    q: 'What video sources are supported?',
-    a: 'YouTube URLs and direct file uploads (MP4, MOV, WEBM). We support videos up to 4 hours long.',
-  },
-  {
-    q: 'How long does processing take?',
-    a: 'Most videos are processed in 2-5 minutes. Pro and Agency plans get priority queue access for faster turnaround.',
-  },
-  {
-    q: 'Is my data secure?',
-    a: 'All data is encrypted in transit (TLS 1.3) and at rest. We are GDPR compliant and you can export or delete your data at any time.',
-  },
-]
+  const plans = [
+    {
+      name: planData.free.name,
+      price: planData.free.price,
+      period: planData.free.period,
+      credits: planData.free.credits,
+      description: planData.free.description,
+      icon: Zap,
+      features: planData.free.features,
+      cta: t('startFree'),
+      highlighted: false,
+    },
+    {
+      name: planData.creator.name,
+      price: planData.creator.price,
+      period: planData.creator.period,
+      credits: planData.creator.credits,
+      description: planData.creator.description,
+      icon: Film,
+      features: planData.creator.features,
+      cta: t('startCreating'),
+      highlighted: false,
+    },
+    {
+      name: planData.pro.name,
+      price: planData.pro.price,
+      period: planData.pro.period,
+      credits: planData.pro.credits,
+      description: planData.pro.description,
+      icon: Crown,
+      features: planData.pro.features,
+      cta: t('goPro'),
+      highlighted: true,
+    },
+    {
+      name: planData.agency.name,
+      price: planData.agency.price,
+      period: planData.agency.period,
+      credits: planData.agency.credits,
+      description: planData.agency.description,
+      icon: Building2,
+      features: planData.agency.features,
+      cta: t('contactSales'),
+      highlighted: false,
+    },
+  ]
+
+  const faqs = faqData
 
   return (
     <main className="min-h-dvh bg-background">
@@ -196,7 +140,7 @@ const faqs = [
                 </a>
 
                 <ul className="mt-5 space-y-2 border-t border-border pt-5">
-                  {plan.features.map((feat) => (
+                  {plan.features.map((feat: string) => (
                     <li key={feat} className="flex items-start gap-2 text-[13px]">
                       <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-success" />
                       <span>{feat}</span>
@@ -215,7 +159,7 @@ const faqs = [
             {t('faq')}
           </h2>
           <dl className="mt-10 space-y-0 divide-y divide-border">
-            {faqs.map((faq) => (
+            {faqs.map((faq: { q: string; a: string }) => (
               <div key={faq.q} className="py-5">
                 <dt className="text-[14px] font-medium">{faq.q}</dt>
                 <dd className="mt-2 text-[13px] text-muted-foreground leading-relaxed">

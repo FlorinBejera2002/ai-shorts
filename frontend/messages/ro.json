@@ -119,9 +119,17 @@
     "forgotDesc": "Introdu emailul pentru a primi un link de resetare",
     "sendResetLink": "Trimite link de resetare",
     "backToLogin": "Înapoi la autentificare",
+    "checkEmailTitle": "Verifică emailul",
+    "checkEmailDesc": "Dacă un cont există cu acel email, am trimis un link de resetare a parolei. Verifică inbox-ul și folderul spam.",
+    "sendingLabel": "Se trimite...",
     "resetTitle": "Setează parola nouă",
     "resetDesc": "Introdu noua parolă",
-    "resetButton": "Resetează parola"
+    "resetButton": "Resetează parola",
+    "resetCompleteTitle": "Parolă actualizată",
+    "resetCompleteDesc": "Parola ta a fost resetată. Poți acum să te autentifici cu noua parolă.",
+    "invalidResetLink": "Link de resetare invalid",
+    "resetLinkMissing": "Acest link lipsește parametri necesari. Te rugăm să ceri o nouă resetare.",
+    "passwordsMatch": "Parolele se potrivesc"
   },
   "dashboard": {
     "welcomeUser": "Bine ai revenit{name, select, empty {} other {, {name}}}",
@@ -320,7 +328,101 @@
     "startFree": "Începe gratuit",
     "startCreating": "Începe să creezi",
     "goPro": "Treci la Pro",
-    "contactSales": "Contactează vânzări"
+    "contactSales": "Contactează vânzări",
+    "plans": {
+      "free": {
+        "name": "Gratuit",
+        "price": "$0",
+        "period": "pentru totdeauna",
+        "credits": "100 credite",
+        "description": "Încearcă pipeline-ul complet",
+        "features": [
+          "Detectare momente virale cu AI",
+          "Subtitrări automate",
+          "Decupare verticală inteligentă (9:16)",
+          "Export de bază (720p)",
+          "5 clipuri per proiect",
+          "Suport comunitar"
+        ]
+      },
+      "creator": {
+        "name": "Creator",
+        "price": "$19",
+        "period": "/lună",
+        "credits": "300 credite/lună",
+        "description": "Pentru creatori independenți",
+        "features": [
+          "Tot din plan Gratuit",
+          "Export Full HD (1080p)",
+          "20 clipuri per proiect",
+          "Procesare în lot (5 URL-uri)",
+          "Kit de branding (culori și fonturi)",
+          "Descrieri sociale cu AI",
+          "Tăiere și re-export",
+          "Procesare prioritară"
+        ]
+      },
+      "pro": {
+        "name": "Pro",
+        "price": "$49",
+        "period": "/lună",
+        "credits": "1.000 credite/lună",
+        "description": "Pentru echipe și utilizatori avansați",
+        "features": [
+          "Tot din plan Creator",
+          "Procesare în lot (20 URL-uri)",
+          "Watermark personalizat",
+          "Stil subtitrare",
+          "Acces API",
+          "Suport prioritar",
+          "Tablou de bord de analiză",
+          "Export pe toate platformele"
+        ]
+      },
+      "agency": {
+        "name": "Agency",
+        "price": "$149",
+        "period": "/lună",
+        "credits": "Credite pentru volum mare",
+        "description": "White-label pentru agenții",
+        "features": [
+          "Tot din plan Pro",
+          "URL-uri în lot nelimitate",
+          "Exporturi white-label",
+          "Locuri de echipă (până la 10)",
+          "Eliminare branding personalizat",
+          "Suport dedicat",
+          "Garanție SLA",
+          "Integrări personalizate"
+        ]
+      }
+    },
+    "faqs": [
+      {
+        "q": "Ce se numără ca un credit?",
+        "a": "Fiecare minut de video sursă procesată folosește 1 credit. Un videoclip YouTube de 10 minute folosește 10 credite, indiferent de câte clipuri sunt generate."
+      },
+      {
+        "q": "Pot anula oricând?",
+        "a": "Da. Anulează din tabloul tău de bord — fără penalizări, fără costuri ascunse. Creditele tale rămân active până la sfârșitul perioadei de facturare."
+      },
+      {
+        "q": "Creditele neutilizate se transferă?",
+        "a": "Creditele lunare se resetează în fiecare ciclu de facturare. Ai nevoie de mai mult? Cumpără pachete de credite unice care nu expiră niciodată."
+      },
+      {
+        "q": "Ce surse video sunt acceptate?",
+        "a": "URL-uri YouTube și încărcări directe de fișiere (MP4, MOV, WEBM). Suportăm videoclipuri de până la 4 ore."
+      },
+      {
+        "q": "Cât durează procesarea?",
+        "a": "Majoritatea videoclipurilor sunt procesate în 2-5 minute. Planurile Pro și Agency obțin acces la coadă prioritară pentru mai multă viteză."
+      },
+      {
+        "q": "Sunt datele mele în siguranță?",
+        "a": "Toate datele sunt criptate în tranzit (TLS 1.3) și în repaus. Suntem conformi cu GDPR și poți exporta sau șterge datele în orice moment."
+      }
+    ]
   },
   "theme": {
     "light": "Luminoasă",

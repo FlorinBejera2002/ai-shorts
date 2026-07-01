@@ -69,9 +69,9 @@ function ResetPasswordForm({ t, RULES }: { t: any; RULES: any[] }) {
     return (
       <main className="flex min-h-dvh items-center justify-center bg-background p-6">
         <div className="w-full max-w-sm text-center animate-scale-in">
-          <h1 className="text-xl font-semibold tracking-tight">Invalid reset link</h1>
+          <h1 className="text-xl font-semibold tracking-tight">{t('invalidResetLink')}</h1>
           <p className="mt-2 text-xs text-muted-foreground">
-            This link is missing required parameters. Please request a new one.
+            {t('resetLinkMissing')}
           </p>
           <a
             href="/forgot-password"
@@ -99,9 +99,9 @@ function ResetPasswordForm({ t, RULES }: { t: any; RULES: any[] }) {
             <div className="w-12 h-12 rounded-xl bg-success/10 flex items-center justify-center mb-4">
               <ShieldCheck className="w-5 h-5 text-success" />
             </div>
-            <h1 className="text-xl font-semibold tracking-tight">Password updated</h1>
+            <h1 className="text-xl font-semibold tracking-tight">{t('resetCompleteTitle')}</h1>
             <p className="mt-2 text-xs text-muted-foreground leading-relaxed">
-              Your password has been reset. You can now sign in with your new password.
+              {t('resetCompleteDesc')}
             </p>
             <a
               href="/login"
@@ -151,7 +151,7 @@ function ResetPasswordForm({ t, RULES }: { t: any; RULES: any[] }) {
                     className={`flex items-center gap-1.5 text-[11px] transition-colors ${match ? 'text-success' : 'text-muted-foreground'}`}
                   >
                     {match ? <Check className="w-3 h-3" /> : <X className="w-3 h-3" />}
-                    Passwords match
+                    {t('passwordsMatch')}
                   </li>
                 </ul>
               )}

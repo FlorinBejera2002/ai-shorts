@@ -49,9 +49,9 @@ export default function ForgotPasswordPage() {
             <div className="w-12 h-12 rounded-xl bg-success/10 flex items-center justify-center mb-4">
               <Mail className="w-5 h-5 text-success" />
             </div>
-            <h1 className="text-xl font-semibold tracking-tight">Check your email</h1>
+            <h1 className="text-xl font-semibold tracking-tight">{t('checkEmailTitle')}</h1>
             <p className="mt-2 text-xs text-muted-foreground leading-relaxed">
-              {t('forgotDesc')}
+              {t('checkEmailDesc')}
             </p>
             <a
               href="/login"
@@ -84,7 +84,7 @@ export default function ForgotPasswordPage() {
                 {busy ? (
                   <>
                     <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    Sending...
+                    {t('sendingLabel')}
                   </>
                 ) : (
                   t('sendResetLink')
