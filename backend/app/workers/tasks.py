@@ -129,6 +129,7 @@ def _mark_job_completed(job_id: str, result: dict[str, Any]) -> None:
         job.progress = 100
         job.progress_message = "Complete"
         job.completed_at = datetime.now(timezone.utc)
+        job.source_video_url = result.get("source_video_url")
         db.commit()
 
         transcript_text = result.get("transcript", {}).get("text")

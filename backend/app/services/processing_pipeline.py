@@ -129,8 +129,13 @@ def process_video_source(
         transcript=transcript,
         clips=processed_clips,
         errors=errors,
-    )
-    return result.model_dump()
+    ).model_dump()
+
+    # Persist source video URL for clip editor re-cutting
+    source_storage_key = f"sources/{job_id}/source.mp4"
+    result["source_video_url"] = storage.public_url(source_storage_key)
+
+    return result
 
 
 def _prepare_source(source: str, source_type: str, source_dir: Path) -> dict[str, Any]:
