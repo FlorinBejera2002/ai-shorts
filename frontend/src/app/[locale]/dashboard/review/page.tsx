@@ -1,5 +1,5 @@
 import { Link } from '@/i18n/navigation'
-import { ArrowUpRight, CheckCircle2, Film, Sparkles } from 'lucide-react'
+import { CheckCircle2, Film, Scissors, Sparkles } from 'lucide-react'
 import { getTranslations, setRequestLocale } from 'next-intl/server'
 
 import { auth } from '@/lib/auth'
@@ -122,7 +122,7 @@ export default async function ReviewPage({
                   {Math.round(clip.duration)}s
                 </div>
                 <div className="flex items-center justify-end">
-                  <ArrowUpRight className="h-4 w-4 text-muted-foreground" />
+                  <Scissors className="h-4 w-4 text-muted-foreground" />
                 </div>
               </Link>
             ))}

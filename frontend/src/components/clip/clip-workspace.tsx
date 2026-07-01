@@ -284,6 +284,22 @@ export function ClipWorkspace({ clip }: ClipWorkspaceProps) {
         />
       </div>
 
+      <div className="rounded-lg border border-primary/20 bg-card p-4">
+        <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          Timeline editor
+        </h2>
+        <p className="mt-2 text-xs text-muted-foreground">
+          Adjust segment boundaries, reorder clips, and re-export with the visual timeline editor.
+        </p>
+        <Link
+          href={`/dashboard/clips/${clip.id}/edit`}
+          className="mt-3 inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-[13px] font-medium text-primary-foreground transition-opacity hover:opacity-90"
+        >
+          <Scissors className="h-3.5 w-3.5" />
+          Edit on timeline →
+        </Link>
+      </div>
+
       <div className="rounded-lg border border-border bg-card p-4">
         <div className="flex items-center justify-between">
           <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">

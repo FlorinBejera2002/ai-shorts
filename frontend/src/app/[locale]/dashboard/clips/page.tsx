@@ -1,5 +1,5 @@
 import { Link } from '@/i18n/navigation'
-import { Play } from 'lucide-react'
+import { Play, Scissors } from 'lucide-react'
 import { getTranslations, setRequestLocale } from 'next-intl/server'
 
 import { auth } from '@/lib/auth'
@@ -62,8 +62,9 @@ export default async function ClipsPage({
                     <h2 className="text-[13px] font-medium truncate">
                       {clip.title}
                     </h2>
-                    <p className="mt-0.5 text-xs text-muted-foreground">
+                    <p className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
                       {Math.round(clip.duration)}s &middot; {clip.resolution}
+                      <Scissors className="h-3 w-3 opacity-60" />
                     </p>
                   </div>
                   {clip.viralScore > 0 && (
