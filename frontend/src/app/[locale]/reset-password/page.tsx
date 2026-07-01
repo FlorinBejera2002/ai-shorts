@@ -7,6 +7,9 @@ import { useToast } from '@/components/ui/toast'
 import { useTranslations } from 'next-intl'
 import { Link } from '@/i18n/navigation'
 
+type TFunc = ReturnType<typeof useTranslations>
+type PasswordRule = { id: string; label: string; test: (p: string) => boolean }
+
 export default function ResetPasswordPage() {
   const t = useTranslations('auth')
 
@@ -29,7 +32,7 @@ export default function ResetPasswordPage() {
   )
 }
 
-function ResetPasswordForm({ t, RULES }: { t: any; RULES: any[] }) {
+function ResetPasswordForm({ t, RULES }: { t: TFunc; RULES: PasswordRule[] }) {
   const toast = useToast()
   const params = useSearchParams()
   const token = params.get('token') ?? ''

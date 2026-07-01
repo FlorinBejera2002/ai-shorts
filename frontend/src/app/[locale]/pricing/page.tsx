@@ -7,6 +7,7 @@ export default async function PricingPage({ params }: { params: Promise<{ locale
   setRequestLocale(locale)
   const t = await getTranslations('pricing')
   const tLanding = await getTranslations('landing')
+  const tBilling = await getTranslations('billing')
 
   const planData = t.raw('plans')
   const faqData = t.raw('faqs')
@@ -110,7 +111,7 @@ export default async function PricingPage({ params }: { params: Promise<{ locale
               >
                 {plan.highlighted && (
                   <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-primary px-3 py-0.5 text-[10px] font-bold uppercase tracking-wider text-primary-foreground">
-                    {tLanding('mostPopular')}
+                    {tBilling('mostPopular')}
                   </div>
                 )}
                 <div className="flex items-center gap-2">
