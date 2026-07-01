@@ -77,6 +77,7 @@ model Job {
   sourceType        String    @map("source_type") @db.VarChar(50)
   sourceUrl         String?   @map("source_url") @db.VarChar(2048)
   sourceFilePath    String?   @map("source_file_path") @db.VarChar(2048)
+  sourceVideoUrl    String?   @map("source_video_url") @db.VarChar(2048)
   status            String    @default("pending") @db.VarChar(50)
   progress          Int       @default(0)
   progressMessage   String?   @map("progress_message") @db.VarChar(512)
@@ -112,6 +113,7 @@ model Clip {
   startTime     Float    @map("start_time")
   endTime       Float    @map("end_time")
   duration      Float
+  segments      Json?    @map("segments")
   filePath      String   @map("file_path") @db.VarChar(2048)
   fileUrl       String?  @map("file_url") @db.VarChar(2048)
   thumbnailPath String?  @map("thumbnail_path") @db.VarChar(2048)
