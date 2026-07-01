@@ -32,7 +32,11 @@ async def get_clip(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ) -> Clip:
-    clip = await db.get(Clip, clip_id)
+    from sqlalchemy.orm import selectinload
+    result = await db.execute(
+        select(Clip).where(Clip.id == clip_id).options(selectinload(Clip.job))
+    )
+    clip = result.scalar_one_or_none()
     if not clip or clip.user_id != user.id:
         raise HTTPException(status_code=404, detail="Clip not found")
     return clip

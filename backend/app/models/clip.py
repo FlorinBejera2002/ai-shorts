@@ -43,3 +43,8 @@ class Clip(Base):
 
     job = relationship("Job", back_populates="clips")
     user = relationship("User", back_populates="clips")
+
+    @property
+    def source_video_url(self) -> str | None:
+        """Get the source video URL from the related job."""
+        return self.job.source_video_url if self.job else None
