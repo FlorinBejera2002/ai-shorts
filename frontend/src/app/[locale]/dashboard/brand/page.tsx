@@ -1,5 +1,6 @@
 'use client'
 
+import { useTranslations } from 'next-intl'
 import { Link } from '@/i18n/navigation'
 import { useToast } from '@/components/ui/toast'
 import {
@@ -237,6 +238,7 @@ function Switch({
 }
 
 export default function BrandPage() {
+  const t = useTranslations('brand')
   const toast = useToast()
   const [kit, setKit] = useState<BrandKit>(DEFAULTS)
   const [plan, setPlan] = useState('free')
@@ -278,7 +280,7 @@ export default function BrandPage() {
 
   async function save() {
     if (hasInvalidColor) {
-      toast.add('error', 'Fix the invalid color codes before saving')
+      toast.add('error', t('fixColors'))
       return
     }
     setSaving(true)
@@ -289,14 +291,14 @@ export default function BrandPage() {
         headers: { 'Content-Type': 'application/json' }
       })
       if (!res.ok) {
-        toast.add('error', 'Could not save brand kit')
+        toast.add('error', t('saveFailed'))
         return
       }
-      toast.add('success', 'Brand kit saved')
+      toast.add('success', t('kitSaved'))
       setSaved(true)
       setTimeout(() => setSaved(false), 2000)
     } catch {
-      toast.add('error', 'Save failed')
+      toast.add('error', t('saveFailed'))
     } finally {
       setSaving(false)
     }
@@ -308,11 +310,11 @@ export default function BrandPage() {
 
   async function uploadLogo(file: File) {
     if (!LOGO_TYPES.includes(file.type)) {
-      toast.add('error', 'Use PNG, JPG, WEBP or SVG')
+      toast.add('error', t('useFormats'))
       return
     }
     if (file.size > LOGO_MAX_BYTES) {
-      toast.add('error', 'Logo must be under 5MB')
+      toast.add('error', t('logoTooLarge'))
       return
     }
     setLogoBusy(true)
@@ -325,13 +327,13 @@ export default function BrandPage() {
       })
       const data = await res.json()
       if (!res.ok) {
-        toast.add('error', data.detail ?? data.error ?? 'Upload failed')
+        toast.add('error', data.detail ?? data.error ?? t('uploadFailed'))
         return
       }
       update('logoUrl', data.brandKit.logoUrl)
-      toast.add('success', 'Logo uploaded')
+      toast.add('success', t('logoUploaded'))
     } catch {
-      toast.add('error', 'Upload failed')
+      toast.add('error', t('uploadFailed'))
     } finally {
       setLogoBusy(false)
     }
@@ -342,12 +344,12 @@ export default function BrandPage() {
     try {
       const res = await fetch('/api/user/brand/logo', { method: 'DELETE' })
       if (!res.ok) {
-        toast.add('error', 'Could not remove logo')
+        toast.add('error', t('uploadFailed'))
         return
       }
       update('logoUrl', null)
     } catch {
-      toast.add('error', 'Could not remove logo')
+      toast.add('error', t('uploadFailed'))
     } finally {
       setLogoBusy(false)
     }
@@ -380,9 +382,9 @@ export default function BrandPage() {
     <div className="animate-fade-in">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-lg font-semibold tracking-tight">Brand Kit</h1>
+          <h1 className="text-lg font-semibold tracking-tight">{t('title')}</h1>
           <p className="mt-0.5 text-xs text-muted-foreground">
-            Colors, fonts, and watermark settings applied to your clips
+            {t('desc')}
           </p>
         </div>
         <div className="flex gap-2">
@@ -394,13 +396,13 @@ export default function BrandPage() {
             className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-xs font-medium hover:bg-muted transition-colors"
           >
             <RotateCcw className="w-3.5 h-3.5" />
-            Reset
+            {t('common:reset')}
           </button>
           <button
             type="button"
             onClick={() => void save()}
             disabled={saving || hasInvalidColor}
-            title={hasInvalidColor ? 'Fix invalid colors first' : undefined}
+            title={hasInvalidColor ? t('fixColors') : undefined}
             className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
           >
             {saving ? (
@@ -410,7 +412,7 @@ export default function BrandPage() {
             ) : (
               <Save className="w-3.5 h-3.5" />
             )}
-            {saved ? 'Saved' : 'Save'}
+            {saved ? t('common:saved') : t('common:save')}
           </button>
         </div>
       </div>
@@ -420,10 +422,10 @@ export default function BrandPage() {
           <div className="rounded-xl border border-border bg-card p-5 space-y-4">
             <div className="flex items-center gap-2">
               <ImagePlus className="w-4 h-4 text-muted-foreground" />
-              <h2 className="text-[13px] font-semibold">Logo</h2>
+              <h2 className="text-[13px] font-semibold">{t('logo')}</h2>
             </div>
             <p className="text-xs text-muted-foreground">
-              Used as your watermark and across your exported clips.
+              {t('logoDesc')}
             </p>
 
             <input
@@ -443,7 +445,7 @@ export default function BrandPage() {
                 <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-lg border border-border bg-[repeating-conic-gradient(#00000014_0_25%,transparent_0_50%)] bg-[length:12px_12px] p-2">
                   <img
                     src={kit.logoUrl}
-                    alt="Your logo"
+                    alt={t('yourLogo')}
                     className="max-h-full max-w-full object-contain"
                   />
                 </div>
@@ -455,7 +457,7 @@ export default function BrandPage() {
                     className="inline-flex items-center gap-1.5 rounded-lg border border-input px-2.5 py-1.5 text-[11px] font-medium hover:bg-muted transition-colors disabled:opacity-50"
                   >
                     <Upload className="w-3 h-3" />
-                    Replace
+                    {t('replace')}
                   </button>
                   <button
                     type="button"
@@ -464,7 +466,7 @@ export default function BrandPage() {
                     className="inline-flex items-center gap-1.5 rounded-lg border border-input px-2.5 py-1.5 text-[11px] font-medium text-red-500 hover:bg-red-500/10 transition-colors disabled:opacity-50"
                   >
                     <Trash2 className="w-3 h-3" />
-                    Remove
+                    {t('remove')}
                   </button>
                 </div>
               </div>
@@ -491,10 +493,10 @@ export default function BrandPage() {
                   <ImagePlus className="w-5 h-5 text-muted-foreground" />
                 )}
                 <span className="text-xs font-medium">
-                  Click or drag a file to upload
+                  {t('clickOrDrag')}
                 </span>
                 <span className="text-[11px] text-muted-foreground">
-                  PNG, JPG, WEBP or SVG &middot; up to 5MB
+                  {t('logoFormats')}
                 </span>
               </button>
             )}
@@ -504,22 +506,22 @@ export default function BrandPage() {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Palette className="w-4 h-4 text-muted-foreground" />
-                <h2 className="text-[13px] font-semibold">Colors</h2>
+                <h2 className="text-[13px] font-semibold">{t('colors')}</h2>
               </div>
               <button
                 type="button"
                 onClick={swapColors}
-                title="Swap primary and secondary"
+                title={t('swap')}
                 className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
               >
                 <ArrowLeftRight className="w-3.5 h-3.5" />
-                Swap
+                {t('swap')}
               </button>
             </div>
 
             <div>
               <label className="text-xs text-muted-foreground">
-                Palette presets
+                {t('palettePresets')}
               </label>
               <div className="mt-1.5 flex flex-wrap gap-2">
                 {PALETTES.map((p) => {
@@ -559,13 +561,13 @@ export default function BrandPage() {
             <div className="grid grid-cols-2 gap-3">
               <ColorField
                 id="primary-color"
-                label="Primary"
+                label={t('primary')}
                 value={kit.primaryColor}
                 onChange={(v) => update('primaryColor', v)}
               />
               <ColorField
                 id="secondary-color"
-                label="Secondary"
+                label={t('secondary')}
                 value={kit.secondaryColor}
                 onChange={(v) => update('secondaryColor', v)}
               />
@@ -576,7 +578,7 @@ export default function BrandPage() {
                 className="text-xs text-muted-foreground"
                 htmlFor="font-family"
               >
-                Font family
+                {t('fontFamily')}
               </label>
               <select
                 id="font-family"
@@ -596,19 +598,19 @@ export default function BrandPage() {
           <div className="rounded-xl border border-border bg-card p-5 space-y-4">
             <div className="flex items-center gap-2">
               <Captions className="w-4 h-4 text-muted-foreground" />
-              <h2 className="text-[13px] font-semibold">Subtitle style</h2>
+              <h2 className="text-[13px] font-semibold">{t('subtitleStyle')}</h2>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <ColorField
                 id="sub-color"
-                label="Text color"
+                label={t('textColor')}
                 value={kit.subtitleColor}
                 onChange={(v) => update('subtitleColor', v)}
               />
               <ColorField
                 id="sub-bg"
-                label="Background"
+                label={t('background')}
                 value={kit.subtitleBgColor}
                 onChange={(v) => update('subtitleBgColor', v)}
               />
@@ -619,7 +621,7 @@ export default function BrandPage() {
                 className="text-xs text-muted-foreground"
                 htmlFor="sub-font"
               >
-                Subtitle font
+                {t('subtitleFont')}
               </label>
               <select
                 id="sub-font"
@@ -638,7 +640,7 @@ export default function BrandPage() {
             <div>
               <div className="flex items-center justify-between text-[13px]">
                 <span className="text-xs text-muted-foreground">
-                  Background opacity
+                  {t('bgOpacity')}
                 </span>
                 <span className="tabular-nums text-xs">
                   {Math.round(kit.subtitleBgOpacity * 100)}%
@@ -657,9 +659,9 @@ export default function BrandPage() {
             </div>
 
             <div>
-              <label className="text-xs text-muted-foreground">Position</label>
+              <label className="text-xs text-muted-foreground">{t('position')}</label>
               <div className="mt-1 grid grid-cols-3 gap-1.5">
-                {SUBTITLE_POSITIONS.map(({ value, label, icon: Icon }) => (
+                {SUBTITLE_POSITIONS.map(({ value, icon: Icon }) => (
                   <button
                     key={value}
                     type="button"
@@ -671,7 +673,7 @@ export default function BrandPage() {
                     }`}
                   >
                     <Icon className="w-3.5 h-3.5" />
-                    {label}
+                    {t(value as 'top' | 'center' | 'bottom')}
                   </button>
                 ))}
               </div>
@@ -681,19 +683,19 @@ export default function BrandPage() {
           <div className="rounded-xl border border-border bg-card p-5 space-y-4 lg:col-span-3">
             <div className="flex items-center gap-2">
               <Stamp className="w-4 h-4 text-muted-foreground" />
-              <h2 className="text-[13px] font-semibold">Watermark</h2>
+              <h2 className="text-[13px] font-semibold">{t('watermark')}</h2>
             </div>
             <p className="text-xs text-muted-foreground">
-              Your logo appears on every exported clip.
+              {t('watermarkDesc')}
             </p>
 
             <div className="grid gap-4 sm:grid-cols-3">
               <div>
                 <label className="text-xs text-muted-foreground">
-                  Position
+                  {t('position')}
                 </label>
                 <div className="mt-1 grid grid-cols-2 gap-1.5">
-                  {WATERMARK_POSITIONS.map(({ value, label, icon: Icon }) => (
+                  {WATERMARK_POSITIONS.map(({ value, icon: Icon }) => (
                     <button
                       key={value}
                       type="button"
@@ -705,7 +707,7 @@ export default function BrandPage() {
                       }`}
                     >
                       <Icon className="w-3.5 h-3.5" />
-                      {label}
+                      {t(value as 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right')}
                     </button>
                   ))}
                 </div>
@@ -713,7 +715,7 @@ export default function BrandPage() {
 
               <div>
                 <div className="flex items-center justify-between text-[13px]">
-                  <span className="text-xs text-muted-foreground">Opacity</span>
+                  <span className="text-xs text-muted-foreground">{t('opacity')}</span>
                   <span className="tabular-nums text-xs">
                     {Math.round(kit.watermarkOpacity * 100)}%
                   </span>
@@ -736,7 +738,7 @@ export default function BrandPage() {
                     {!canWhiteLabel && (
                       <Lock className="w-3 h-3 text-muted-foreground" />
                     )}
-                    ClipForge badge
+                    {t('platformBadge')}
                   </div>
                   <Switch
                     checked={!canWhiteLabel || !kit.hidePlatformBadge}
@@ -746,15 +748,15 @@ export default function BrandPage() {
                 </div>
                 <p className="mt-1.5 text-[11px] text-muted-foreground">
                   {canWhiteLabel
-                    ? "Show a small 'Made with ClipForge' mark on exports."
-                    : 'White-label exports are included in the Agency plan.'}
+                    ? t('badgeOnDesc')
+                    : t('badgeLockedDesc')}
                 </p>
                 {!canWhiteLabel && (
                   <Link
                     href="/dashboard/billing"
                     className="mt-2 inline-flex items-center gap-1 text-[11px] font-medium text-primary hover:underline"
                   >
-                    Upgrade to Agency
+                    {t('upgradeAgency')}
                     <ArrowUpRight className="w-3 h-3" />
                   </Link>
                 )}
@@ -765,7 +767,7 @@ export default function BrandPage() {
 
         <div className="xl:w-80 shrink-0 w-full">
           <div className="sticky top-6 rounded-xl border border-border bg-card p-5">
-            <h2 className="text-[13px] font-semibold mb-3">Preview</h2>
+            <h2 className="text-[13px] font-semibold mb-3">{t('preview')}</h2>
             <div className="mx-auto max-w-[240px] rounded-[28px] border-4 border-muted bg-black p-1.5 shadow-lg">
               <div
                 className="aspect-[9/16] rounded-[20px] overflow-hidden relative"
@@ -792,7 +794,7 @@ export default function BrandPage() {
                       fontFamily: kit.subtitleFont.split(' ')[0]
                     }}
                   >
-                    Sample subtitle text
+                    {t('sampleSubtitle')}
                   </span>
                 </div>
 
@@ -811,7 +813,7 @@ export default function BrandPage() {
                   {kit.logoUrl ? (
                     <img
                       src={kit.logoUrl}
-                      alt="Your logo"
+                      alt={t('yourLogo')}
                       className="h-6 max-w-[56px] object-contain"
                     />
                   ) : (
@@ -819,20 +821,20 @@ export default function BrandPage() {
                       className="text-[10px] font-bold"
                       style={{ color: kit.primaryColor }}
                     >
-                      Your logo
+                      {t('yourLogo')}
                     </span>
                   )}
                 </div>
 
                 {(!canWhiteLabel || !kit.hidePlatformBadge) && (
                   <div className="absolute bottom-1 left-1/2 -translate-x-1/2 text-[8px] font-semibold text-white/60">
-                    Made with ClipForge
+                    {t('madeWithClipForge')}
                   </div>
                 )}
               </div>
             </div>
             <p className="mt-3 text-center text-[11px] text-muted-foreground">
-              Updates live as you edit
+              {t('previewLive')}
             </p>
           </div>
         </div>

@@ -276,7 +276,8 @@
     "uploadFailed": "Încărcare eșuată",
     "saveFailed": "Salvare eșuată",
     "kitSaved": "Kit branding salvat",
-    "fixColors": "Corectează codurile de culoare invalide înainte de salvare"
+    "fixColors": "Corectează codurile de culoare invalide înainte de salvare",
+    "madeWithClipForge": "Made with ClipForge"
   },
   "billing": {
     "title": "Facturare",

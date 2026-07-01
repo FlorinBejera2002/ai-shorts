@@ -276,7 +276,8 @@
     "uploadFailed": "Upload failed",
     "saveFailed": "Save failed",
     "kitSaved": "Brand kit saved",
-    "fixColors": "Fix the invalid color codes before saving"
+    "fixColors": "Fix the invalid color codes before saving",
+    "madeWithClipForge": "Made with ClipForge"
   },
   "billing": {
     "title": "Billing",
