@@ -1,4 +1,5 @@
 import { notFound } from 'next/navigation'
+import { getTranslations, setRequestLocale } from 'next-intl/server'
 
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/db'
@@ -9,9 +10,13 @@ export const runtime = 'nodejs'
 export default async function ClipDetailPage({
   params,
 }: {
-  params: Promise<{ id: string }>
+  params: Promise<{ id: string; locale: string }>
 }) {
-  const [{ id }, session] = await Promise.all([params, auth()])
+  const { id, locale } = await params
+  setRequestLocale(locale)
+  const t = await getTranslations('clips')
+
+  const session = await auth()
   if (!session?.user?.id) notFound()
 
   const clip = await prisma.clip.findFirst({
@@ -32,7 +37,7 @@ export default async function ClipDetailPage({
             />
           ) : (
             <div className="h-full flex items-center justify-center text-xs text-muted-foreground">
-              No video available
+              {t('common.noVideoAvailable')}
             </div>
           )}
         </div>

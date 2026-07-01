@@ -1,55 +1,20 @@
 import { Check } from 'lucide-react'
+import { getTranslations, setRequestLocale } from 'next-intl/server'
 
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/db'
 
 export const runtime = 'nodejs'
 
-const plans = [
-  {
-    name: 'Free',
-    price: '$0',
-    period: 'forever',
-    credits: '30 credits/mo',
-    features: ['5 clips per job', 'Standard quality', '720p export'],
-    current: true,
-  },
-  {
-    name: 'Creator',
-    price: '$19',
-    period: '/month',
-    credits: '300 credits/mo',
-    features: ['15 clips per job', 'HD quality', '1080p export', 'Brand kit'],
-    highlighted: true,
-  },
-  {
-    name: 'Pro',
-    price: '$49',
-    period: '/month',
-    credits: '1,000 credits/mo',
-    features: [
-      'Unlimited clips per job',
-      '4K quality',
-      'Priority processing',
-      'Brand kit',
-      'API access',
-    ],
-  },
-  {
-    name: 'Agency',
-    price: '$149',
-    period: '/month',
-    credits: 'Unlimited',
-    features: [
-      'Everything in Pro',
-      'Team accounts',
-      'White-label exports',
-      'Dedicated support',
-    ],
-  },
-]
+export default async function BillingPage({
+  params,
+}: {
+  params: Promise<{ locale: string }>
+}) {
+  const { locale } = await params
+  setRequestLocale(locale)
+  const t = await getTranslations('billing')
 
-export default async function BillingPage() {
   const session = await auth()
   const user = session?.user?.id
     ? await prisma.user.findUnique({
@@ -58,12 +23,56 @@ export default async function BillingPage() {
       })
     : null
 
+  const plans = [
+    {
+      name: t('free'),
+      price: '$0',
+      period: t('plans.free.period') ?? 'forever',
+      credits: '30 credits/mo',
+      features: ['5 clips per job', 'Standard quality', '720p export'],
+      current: true,
+    },
+    {
+      name: t('creator'),
+      price: '$19',
+      period: '/month',
+      credits: '300 credits/mo',
+      features: ['15 clips per job', 'HD quality', '1080p export', 'Brand kit'],
+      highlighted: true,
+    },
+    {
+      name: t('pro'),
+      price: '$49',
+      period: '/month',
+      credits: '1,000 credits/mo',
+      features: [
+        'Unlimited clips per job',
+        '4K quality',
+        'Priority processing',
+        'Brand kit',
+        'API access',
+      ],
+    },
+    {
+      name: t('agency'),
+      price: '$149',
+      period: '/month',
+      credits: 'Unlimited',
+      features: [
+        'Everything in Pro',
+        'Team accounts',
+        'White-label exports',
+        'Dedicated support',
+      ],
+    },
+  ]
+
   return (
     <div className="animate-fade-in">
-      <h1 className="text-lg font-semibold tracking-tight">Billing</h1>
+      <h1 className="text-lg font-semibold tracking-tight">{t('title')}</h1>
       <p className="mt-0.5 text-xs text-muted-foreground">
-        {user?.credits ?? 0} credits remaining &middot;{' '}
-        <span className="capitalize">{user?.plan ?? 'free'}</span> plan
+        {t('remaining', { credits: user?.credits ?? 0 })} &middot;{' '}
+        <span className="capitalize">{t(user?.plan ?? 'free')}</span> {t('plan')}
       </p>
 
       <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -81,7 +90,7 @@ export default async function BillingPage() {
               <span className="text-[13px] font-semibold">{plan.name}</span>
               {plan.highlighted && (
                 <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
-                  Popular
+                  {t('popular')}
                 </span>
               )}
             </div>
@@ -114,8 +123,8 @@ export default async function BillingPage() {
               }`}
             >
               {(user?.plan ?? 'free') === plan.name.toLowerCase()
-                ? 'Current plan'
-                : 'Upgrade'}
+                ? t('currentPlan')
+                : t('common.upgrade')}
             </button>
           </div>
         ))}

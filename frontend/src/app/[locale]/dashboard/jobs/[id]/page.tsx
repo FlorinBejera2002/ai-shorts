@@ -4,6 +4,7 @@ import { Link } from '@/i18n/navigation'
 import { useParams } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { Check, ArrowRight, AlertCircle } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 
 type JobStatus = {
   job: {
@@ -20,20 +21,21 @@ type JobStatus = {
   } | null
 }
 
-const steps = [
-  { key: 'pending', label: 'Queued' },
-  { key: 'downloading', label: 'Download' },
-  { key: 'transcribing', label: 'Transcribe' },
-  { key: 'analyzing', label: 'AI Analyze' },
-  { key: 'clipping', label: 'Extract' },
-  { key: 'rendering', label: 'Render' },
-  { key: 'completed', label: 'Done' },
-]
-
 export default function JobProgressPage() {
+  const t = useTranslations('common')
   const params = useParams<{ id: string }>()
   const [status, setStatus] = useState<JobStatus | null>(null)
   const [error, setError] = useState<string | null>(null)
+
+  const steps = [
+    { key: 'pending', label: t('loading') },
+    { key: 'downloading', label: 'Download' },
+    { key: 'transcribing', label: 'Transcribe' },
+    { key: 'analyzing', label: 'AI Analyze' },
+    { key: 'clipping', label: 'Extract' },
+    { key: 'rendering', label: 'Render' },
+    { key: 'completed', label: 'Done' },
+  ]
 
   useEffect(() => {
     let active = true
@@ -64,7 +66,7 @@ export default function JobProgressPage() {
       active = false
       clearInterval(interval)
     }
-  }, [params.id])
+  }, [params.id, t])
 
   const progress = status?.celery_meta?.progress ?? status?.job.progress ?? 0
   const message =
@@ -79,7 +81,7 @@ export default function JobProgressPage() {
   return (
     <div className="max-w-2xl animate-fade-in">
       <div className="flex items-center justify-between">
-        <h1 className="text-lg font-semibold tracking-tight">Processing</h1>
+        <h1 className="text-lg font-semibold tracking-tight">{t('loading')}</h1>
         {isDone && (
           <Link
             href="/dashboard/clips"

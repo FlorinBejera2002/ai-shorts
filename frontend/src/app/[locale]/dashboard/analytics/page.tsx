@@ -1,10 +1,19 @@
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/db'
 import { BarChart3, Clock, Film, TrendingUp, Zap } from 'lucide-react'
+import { getTranslations, setRequestLocale } from 'next-intl/server'
 
 export const runtime = 'nodejs'
 
-export default async function AnalyticsPage() {
+export default async function AnalyticsPage({
+  params,
+}: {
+  params: Promise<{ locale: string }>
+}) {
+  const { locale } = await params
+  setRequestLocale(locale)
+  const t = await getTranslations('analytics')
+
   const session = await auth()
   const userId = session?.user?.id
 
@@ -81,23 +90,23 @@ export default async function AnalyticsPage() {
   const maxBucket = Math.max(...scoreBuckets.map((b) => b.count), 1)
 
   const stats = [
-    { label: 'Total projects', value: totalJobs, icon: Zap },
-    { label: 'Clips generated', value: totalClips, icon: Film },
-    { label: 'Avg viral score', value: avgViralScore, icon: TrendingUp },
-    { label: 'Success rate', value: `${successRate}%`, icon: BarChart3 },
+    { label: t('totalProjects'), value: totalJobs, icon: Zap },
+    { label: t('clipsGenerated'), value: totalClips, icon: Film },
+    { label: t('avgViralScore'), value: avgViralScore, icon: TrendingUp },
+    { label: t('successRate'), value: `${successRate}%`, icon: BarChart3 },
     {
-      label: 'Content created',
+      label: t('contentCreated'),
       value: `${Math.round(totalDuration / 60)}m`,
       icon: Clock,
     },
-    { label: 'Source processed', value: `${totalSourceMinutes}m`, icon: Clock },
+    { label: t('sourceProcessed'), value: `${totalSourceMinutes}m`, icon: Clock },
   ]
 
   return (
     <div className="animate-fade-in">
-      <h1 className="text-lg font-semibold tracking-tight">Analytics</h1>
+      <h1 className="text-lg font-semibold tracking-tight">{t('title')}</h1>
       <p className="mt-0.5 text-xs text-muted-foreground">
-        Overview of your clip generation performance
+        {t('desc')}
       </p>
 
       <div className="mt-6 grid grid-cols-2 gap-px overflow-hidden rounded-lg bg-border sm:grid-cols-3">
@@ -121,7 +130,7 @@ export default async function AnalyticsPage() {
 
       <div className="mt-6 grid gap-4 lg:grid-cols-2">
         <div className="rounded-lg border border-border bg-card p-5">
-          <h2 className="text-[13px] font-semibold">Clips last 7 days</h2>
+          <h2 className="text-[13px] font-semibold">{t('last7Days')}</h2>
           <div className="mt-4 flex items-end gap-2 h-32">
             {clipsByDay.map((day) => (
               <div key={day.label} className="flex-1 flex flex-col items-center gap-1">
@@ -142,7 +151,7 @@ export default async function AnalyticsPage() {
         </div>
 
         <div className="rounded-lg border border-border bg-card p-5">
-          <h2 className="text-[13px] font-semibold">Viral score distribution</h2>
+          <h2 className="text-[13px] font-semibold">{t('scoreDistribution')}</h2>
           {totalClips > 0 ? (
             <div className="mt-4 space-y-3">
               {scoreBuckets.map((bucket) => (
@@ -150,7 +159,7 @@ export default async function AnalyticsPage() {
                   <div className="flex items-center justify-between text-[13px]">
                     <span>{bucket.label}</span>
                     <span className="tabular-nums text-muted-foreground">
-                      {bucket.count} clips
+                      {t('common.clips', { count: bucket.count })}
                     </span>
                   </div>
                   <div className="mt-1 h-1.5 w-full rounded-full bg-muted">
@@ -164,52 +173,52 @@ export default async function AnalyticsPage() {
             </div>
           ) : (
             <p className="mt-4 text-xs text-muted-foreground">
-              No clips yet — generate your first project to see stats.
+              {t('noClipsYet')}
             </p>
           )}
         </div>
       </div>
 
       <div className="mt-4 rounded-lg border border-border bg-card p-5">
-        <h2 className="text-[13px] font-semibold">Performance highlights</h2>
+        <h2 className="text-[13px] font-semibold">{t('performanceHighlights')}</h2>
         <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
           <div>
             <div className="text-[11px] text-muted-foreground uppercase tracking-wider">
-              High-scoring clips
+              {t('highScoring')}
             </div>
             <div className="mt-1 text-xl font-semibold tabular-nums">
               {highScoreClips}
             </div>
-            <div className="text-[11px] text-muted-foreground">score &ge; 80</div>
+            <div className="text-[11px] text-muted-foreground">{t('scoreAbove80')}</div>
           </div>
           <div>
             <div className="text-[11px] text-muted-foreground uppercase tracking-wider">
-              Completion rate
+              {t('completionRate')}
             </div>
             <div className="mt-1 text-xl font-semibold tabular-nums">{successRate}%</div>
             <div className="text-[11px] text-muted-foreground">
-              {completedJobs}/{totalJobs} jobs
+              {completedJobs}/{totalJobs} {t('common.jobs', { count: totalJobs })}
             </div>
           </div>
           <div>
             <div className="text-[11px] text-muted-foreground uppercase tracking-wider">
-              Avg clip length
+              {t('avgClipLength')}
             </div>
             <div className="mt-1 text-xl font-semibold tabular-nums">
               {totalClips > 0 ? Math.round(totalDuration / totalClips) : 0}s
             </div>
-            <div className="text-[11px] text-muted-foreground">per clip</div>
+            <div className="text-[11px] text-muted-foreground">{t('perClip')}</div>
           </div>
           <div>
             <div className="text-[11px] text-muted-foreground uppercase tracking-wider">
-              Time saved
+              {t('timeSaved')}
             </div>
             <div className="mt-1 text-xl font-semibold tabular-nums">
               {totalSourceMinutes > 0
                 ? `~${Math.round(totalSourceMinutes * 3)}m`
                 : '0m'}
             </div>
-            <div className="text-[11px] text-muted-foreground">vs manual editing</div>
+            <div className="text-[11px] text-muted-foreground">{t('vsManual')}</div>
           </div>
         </div>
       </div>

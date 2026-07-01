@@ -18,7 +18,8 @@
     "saved": "Salvat",
     "credits": "{count, plural, one {# credit} other {# credite}}",
     "clips": "{count, plural, one {# clip} other {# clipuri}}",
-    "jobs": "{count, plural, one {# proiect} other {# proiecte}}"
+    "jobs": "{count, plural, one {# proiect} other {# proiecte}}",
+    "noVideoAvailable": "Niciun video disponibil"
   },
   "nav": {
     "home": "Acasă",
@@ -319,7 +320,21 @@
   "publish": {
     "title": "Publică",
     "desc": "Publicare pe rețele sociale",
-    "comingSoon": "În curând"
+    "comingSoon": "În curând în Faza 6"
+  },
+  "review": {
+    "title": "Coadă de revizuire",
+    "desc": "Prioritizează clipurile după scor viral, disponibilitate export și pași lipsă de publicare.",
+    "generateMore": "Generează mai mult",
+    "totalClips": "Total clipuri",
+    "readyToPost": "Gata de publicat",
+    "needsReview": "Necesită revizuire",
+    "clip": "Clip",
+    "viral": "Viral",
+    "readiness": "Disponibilitate",
+    "duration": "Durată",
+    "noClips": "Niciun clip de revizuit încă",
+    "firstProject": "Creează primul tău proiect"
   },
   "pricing": {
     "title": "Prețuri simple și transparente",

@@ -1,12 +1,21 @@
 import { Link } from '@/i18n/navigation'
 import { ChevronRight } from 'lucide-react'
+import { getTranslations, setRequestLocale } from 'next-intl/server'
 
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/db'
 
 export const runtime = 'nodejs'
 
-export default async function HistoryPage() {
+export default async function HistoryPage({
+  params,
+}: {
+  params: Promise<{ locale: string }>
+}) {
+  const { locale } = await params
+  setRequestLocale(locale)
+  const t = await getTranslations('history')
+
   const session = await auth()
   const jobs = session?.user?.id
     ? await prisma.job.findMany({
@@ -19,9 +28,9 @@ export default async function HistoryPage() {
 
   return (
     <div className="animate-fade-in">
-      <h1 className="text-lg font-semibold tracking-tight">History</h1>
+      <h1 className="text-lg font-semibold tracking-tight">{t('title')}</h1>
       <p className="mt-0.5 text-xs text-muted-foreground">
-        {jobs.length} job{jobs.length !== 1 ? 's' : ''} total
+        {t('count', { count: jobs.length })}
       </p>
 
       {jobs.length > 0 ? (
@@ -43,8 +52,8 @@ export default async function HistoryPage() {
                   {job.sourceUrl ?? job.sourceFilePath ?? 'Unknown source'}
                 </div>
                 <div className="flex gap-3 text-xs text-muted-foreground mt-0.5">
-                  <span>{job.numClipsRequested} requested</span>
-                  <span>{job._count.clips} generated</span>
+                  <span>{job.numClipsRequested} {t('requested')}</span>
+                  <span>{job._count.clips} {t('generated')}</span>
                   <span>{job.aspectRatio}</span>
                   <span>{new Date(job.createdAt).toLocaleDateString()}</span>
                 </div>
@@ -68,12 +77,12 @@ export default async function HistoryPage() {
         </div>
       ) : (
         <div className="mt-8 text-center animate-scale-in">
-          <p className="text-[13px] text-muted-foreground">No jobs yet</p>
+          <p className="text-[13px] text-muted-foreground">{t('noJobs')}</p>
           <Link
             href="/dashboard/create"
             className="mt-2 inline-block text-[13px] font-medium text-primary hover:underline underline-offset-4"
           >
-            Create your first project &rarr;
+            {t('firstProject')}
           </Link>
         </div>
       )}

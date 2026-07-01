@@ -1,5 +1,6 @@
 import { Link } from '@/i18n/navigation'
 import { ArrowUpRight, CheckCircle2, Film, Sparkles } from 'lucide-react'
+import { getTranslations, setRequestLocale } from 'next-intl/server'
 
 import { auth } from '@/lib/auth'
 import { getClipReadiness } from '@/lib/clip-readiness'
@@ -7,7 +8,15 @@ import { prisma } from '@/lib/db'
 
 export const runtime = 'nodejs'
 
-export default async function ReviewPage() {
+export default async function ReviewPage({
+  params,
+}: {
+  params: Promise<{ locale: string }>
+}) {
+  const { locale } = await params
+  setRequestLocale(locale)
+  const t = await getTranslations('review')
+
   const session = await auth()
   const clips = session?.user?.id
     ? await prisma.clip.findMany({
@@ -39,9 +48,9 @@ export default async function ReviewPage() {
     <div className="animate-fade-in">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-lg font-semibold tracking-tight">Review queue</h1>
+          <h1 className="text-lg font-semibold tracking-tight">{t('title')}</h1>
           <p className="mt-0.5 text-xs text-muted-foreground">
-            Prioritize clips by viral score, export readiness and missing publishing steps.
+            {t('desc')}
           </p>
         </div>
         <Link
@@ -49,15 +58,15 @@ export default async function ReviewPage() {
           className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3.5 py-2 text-[13px] font-medium text-primary-foreground"
         >
           <Sparkles className="h-3.5 w-3.5" />
-          Generate more
+          {t('generateMore')}
         </Link>
       </div>
 
       <div className="mt-6 grid grid-cols-3 gap-px overflow-hidden rounded-lg bg-border">
         {[
-          { label: 'Total clips', value: rows.length },
-          { label: 'Ready to post', value: readyCount },
-          { label: 'Needs review', value: needsReview },
+          { label: t('totalClips'), value: rows.length },
+          { label: t('readyToPost'), value: readyCount },
+          { label: t('needsReview'), value: needsReview },
         ].map((stat) => (
           <div key={stat.label} className="bg-card px-4 py-3">
             <div className="text-xs text-muted-foreground">{stat.label}</div>
@@ -69,10 +78,10 @@ export default async function ReviewPage() {
       {rows.length > 0 ? (
         <div className="mt-5 overflow-hidden rounded-lg border border-border">
           <div className="grid grid-cols-[1.3fr_0.5fr_0.6fr_0.5fr_40px] gap-3 border-b border-border bg-muted/60 px-3 py-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-            <span>Clip</span>
-            <span>Viral</span>
-            <span>Readiness</span>
-            <span>Duration</span>
+            <span>{t('clip')}</span>
+            <span>{t('viral')}</span>
+            <span>{t('readiness')}</span>
+            <span>{t('duration')}</span>
             <span />
           </div>
           <div className="divide-y divide-border bg-card">
@@ -122,12 +131,12 @@ export default async function ReviewPage() {
       ) : (
         <div className="mt-8 rounded-lg bg-muted/50 px-4 py-10 text-center">
           <Film className="mx-auto h-6 w-6 text-muted-foreground" />
-          <p className="mt-3 text-[13px] text-muted-foreground">No clips to review yet</p>
+          <p className="mt-3 text-[13px] text-muted-foreground">{t('noClips')}</p>
           <Link
             href="/dashboard/create"
             className="mt-2 inline-block text-[13px] font-medium text-primary hover:underline underline-offset-4"
           >
-            Create your first project
+            {t('firstProject')}
           </Link>
         </div>
       )}

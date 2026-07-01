@@ -1,12 +1,21 @@
 import { Link } from '@/i18n/navigation'
 import { Play } from 'lucide-react'
+import { getTranslations, setRequestLocale } from 'next-intl/server'
 
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/db'
 
 export const runtime = 'nodejs'
 
-export default async function ClipsPage() {
+export default async function ClipsPage({
+  params,
+}: {
+  params: Promise<{ locale: string }>
+}) {
+  const { locale } = await params
+  setRequestLocale(locale)
+  const t = await getTranslations('clips')
+
   const session = await auth()
   const clips = session?.user?.id
     ? await prisma.clip.findMany({
@@ -18,9 +27,9 @@ export default async function ClipsPage() {
 
   return (
     <div className="animate-fade-in">
-      <h1 className="text-lg font-semibold tracking-tight">Clips</h1>
+      <h1 className="text-lg font-semibold tracking-tight">{t('title')}</h1>
       <p className="mt-0.5 text-xs text-muted-foreground">
-        {clips.length} clip{clips.length !== 1 ? 's' : ''} generated
+        {t('count', { count: clips.length })}
       </p>
 
       {clips.length > 0 ? (
@@ -59,7 +68,7 @@ export default async function ClipsPage() {
                   </div>
                   {clip.viralScore > 0 && (
                     <span className="shrink-0 rounded-md bg-primary/10 px-1.5 py-0.5 text-[11px] font-semibold text-primary tabular-nums">
-                      {clip.viralScore}/10
+                      {t('viralScore', { score: clip.viralScore })}
                     </span>
                   )}
                 </div>
@@ -70,13 +79,13 @@ export default async function ClipsPage() {
       ) : (
         <div className="mt-8 text-center animate-scale-in">
           <p className="text-[13px] text-muted-foreground">
-            No clips yet
+            {t('noClips')}
           </p>
           <Link
             href="/dashboard/create"
             className="mt-2 inline-block text-[13px] font-medium text-primary hover:underline underline-offset-4"
           >
-            Create your first project &rarr;
+            {t('firstProject')}
           </Link>
         </div>
       )}

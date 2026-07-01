@@ -18,7 +18,8 @@
     "saved": "Saved",
     "credits": "{count, plural, one {# credit} other {# credits}}",
     "clips": "{count, plural, one {# clip} other {# clips}}",
-    "jobs": "{count, plural, one {# job} other {# jobs}}"
+    "jobs": "{count, plural, one {# job} other {# jobs}}",
+    "noVideoAvailable": "No video available"
   },
   "nav": {
     "home": "Home",
@@ -319,7 +320,21 @@
   "publish": {
     "title": "Publish",
     "desc": "Social media publishing",
-    "comingSoon": "Coming soon"
+    "comingSoon": "Coming soon in Phase 6"
+  },
+  "review": {
+    "title": "Review queue",
+    "desc": "Prioritize clips by viral score, export readiness and missing publishing steps.",
+    "generateMore": "Generate more",
+    "totalClips": "Total clips",
+    "readyToPost": "Ready to post",
+    "needsReview": "Needs review",
+    "clip": "Clip",
+    "viral": "Viral",
+    "readiness": "Readiness",
+    "duration": "Duration",
+    "noClips": "No clips to review yet",
+    "firstProject": "Create your first project"
   },
   "pricing": {
     "title": "Simple, transparent pricing",
