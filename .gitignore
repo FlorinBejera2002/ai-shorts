@@ -47,3 +47,6 @@ frontend/prisma/migrations/
 *.log
 coverage/
 .cache/
+
+# Git worktrees
+.worktrees/
