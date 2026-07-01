@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, Link } from '@/i18n/navigation'
 import { Download, Loader2, Shield, Trash2, User } from 'lucide-react'
 import { useToast } from '@/components/ui/toast'
 
@@ -96,9 +96,9 @@ export default function SettingsPage() {
             <p>
               Under GDPR, you have the right to export or delete all your personal data.
               Read our{' '}
-              <a href="/privacy" className="text-primary hover:underline">Privacy Policy</a>
+              <Link href="/privacy" className="text-primary hover:underline">Privacy Policy</Link>
               {' '}and{' '}
-              <a href="/terms" className="text-primary hover:underline">Terms of Service</a>.
+              <Link href="/terms" className="text-primary hover:underline">Terms of Service</Link>.
             </p>
 
             <div className="flex flex-wrap gap-2">

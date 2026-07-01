@@ -1,4 +1,5 @@
 import { Film, Check, Zap, Crown, Building2 } from 'lucide-react'
+import { Link } from '@/i18n/navigation'
 
 const plans = [
   {
@@ -113,22 +114,22 @@ export default function PricingPage() {
     <main className="min-h-dvh bg-background">
       <nav className="border-b border-border">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-          <a href="/" className="flex items-center gap-2">
+          <Link href="/" className="flex items-center gap-2">
             <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center">
               <Film className="w-3.5 h-3.5 text-white" />
             </div>
             <span className="text-[13px] font-semibold tracking-tight">ClipForge</span>
-          </a>
+          </Link>
           <div className="flex items-center gap-3">
-            <a href="/login" className="text-[13px] text-muted-foreground hover:text-foreground transition-colors">
+            <Link href="/login" className="text-[13px] text-muted-foreground hover:text-foreground transition-colors">
               Sign in
-            </a>
-            <a
+            </Link>
+            <Link
               href="/register"
               className="rounded-lg bg-primary px-3.5 py-2 text-[13px] font-medium text-primary-foreground transition-opacity hover:opacity-90"
             >
               Get started
-            </a>
+            </Link>
           </div>
         </div>
       </nav>
@@ -226,12 +227,12 @@ export default function PricingPage() {
             &copy; {new Date().getFullYear()} ClipForge. All rights reserved.
           </p>
           <div className="flex gap-4">
-            <a href="/privacy" className="text-xs text-muted-foreground hover:text-foreground transition-colors">
+            <Link href="/privacy" className="text-xs text-muted-foreground hover:text-foreground transition-colors">
               Privacy
-            </a>
-            <a href="/terms" className="text-xs text-muted-foreground hover:text-foreground transition-colors">
+            </Link>
+            <Link href="/terms" className="text-xs text-muted-foreground hover:text-foreground transition-colors">
               Terms
-            </a>
+            </Link>
           </div>
         </div>
       </footer>

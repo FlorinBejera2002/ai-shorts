@@ -12,8 +12,7 @@ import {
   Share2,
   Sparkles
 } from 'lucide-react'
-import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { Link, usePathname } from '@/i18n/navigation'
 
 const nav = [
   { href: '/dashboard', label: 'Home', icon: LayoutDashboard, exact: true },

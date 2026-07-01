@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter } from '@/i18n/navigation'
 import { Upload, Link2, Loader2, Linkedin, Smartphone, Youtube, Plus, X, Layers } from 'lucide-react'
 import { useToast } from '@/components/ui/toast'
 

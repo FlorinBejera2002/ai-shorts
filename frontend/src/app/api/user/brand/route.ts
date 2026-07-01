@@ -15,7 +15,10 @@ export async function GET() {
 
   const [brandKit, user] = await Promise.all([
     prisma.brandKit.findUnique({ where: { userId: session.user.id } }),
-    prisma.user.findUnique({ where: { id: session.user.id }, select: { plan: true } })
+    prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { plan: true }
+    })
   ])
 
   return NextResponse.json({ brandKit, plan: user?.plan ?? 'free' })

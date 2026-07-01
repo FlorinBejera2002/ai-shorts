@@ -1,4 +1,4 @@
-import Link from 'next/link'
+import { Link } from '@/i18n/navigation'
 import { Play } from 'lucide-react'
 
 import { auth } from '@/lib/auth'

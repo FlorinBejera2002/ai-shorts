@@ -21,8 +21,9 @@ function stripLocale(pathname: string): string {
 
 function extractLocale(pathname: string): string {
   const segments = pathname.split('/').filter(Boolean)
-  if (routing.locales.includes(segments[0] as any)) {
-    return segments[0]
+  const firstSegment = segments[0]
+  if (firstSegment && routing.locales.includes(firstSegment as any)) {
+    return firstSegment
   }
   return routing.defaultLocale
 }

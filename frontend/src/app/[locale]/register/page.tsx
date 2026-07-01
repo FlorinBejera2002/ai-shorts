@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, Link } from '@/i18n/navigation'
 import { Check, Film, Loader2, X } from 'lucide-react'
 import { useToast } from '@/components/ui/toast'
 
@@ -128,9 +128,9 @@ export default function RegisterPage() {
 
         <p className="mt-4 text-center text-[11px] text-muted-foreground/70">
           By creating an account you agree to our{' '}
-          <a href="/terms" className="text-primary hover:underline">Terms</a>
+          <Link href="/terms" className="text-primary hover:underline">Terms</Link>
           {' '}and{' '}
-          <a href="/privacy" className="text-primary hover:underline">Privacy Policy</a>
+          <Link href="/privacy" className="text-primary hover:underline">Privacy Policy</Link>
         </p>
 
         <p className="mt-3 text-center text-xs text-muted-foreground">

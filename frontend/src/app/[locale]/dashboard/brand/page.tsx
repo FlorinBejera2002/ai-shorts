@@ -6,6 +6,7 @@ import {
   AlignVerticalJustifyEnd,
   AlignVerticalJustifyStart,
   ArrowLeftRight,
+  ArrowUpRight,
   Captions,
   Check,
   Copy,
@@ -13,16 +14,21 @@ import {
   CornerDownRight,
   CornerUpLeft,
   CornerUpRight,
+  ImagePlus,
   Loader2,
+  Lock,
   Palette,
   Pipette,
   RotateCcw,
   Save,
-  Stamp
+  Stamp,
+  Trash2,
+  Upload
 } from 'lucide-react'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 type BrandKit = {
+  logoUrl: string | null
   primaryColor: string
   secondaryColor: string
   fontFamily: string
@@ -33,9 +39,11 @@ type BrandKit = {
   subtitlePosition: string
   watermarkPosition: string
   watermarkOpacity: number
+  hidePlatformBadge: boolean
 }
 
 const DEFAULTS: BrandKit = {
+  logoUrl: null,
   primaryColor: '#6366f1',
   secondaryColor: '#8b5cf6',
   fontFamily: 'Inter',
@@ -45,8 +53,14 @@ const DEFAULTS: BrandKit = {
   subtitleBgOpacity: 0.7,
   subtitlePosition: 'bottom',
   watermarkPosition: 'bottom-right',
-  watermarkOpacity: 0.8
+  watermarkOpacity: 0.8,
+  hidePlatformBadge: false
 }
+
+const WHITE_LABEL_PLAN = 'agency'
+const LOGO_MAX_BYTES = 5 * 1024 * 1024
+const LOGO_ACCEPT = 'image/png,image/jpeg,image/webp,image/svg+xml'
+const LOGO_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml']
 
 const FONTS = [
   'Inter',
@@ -192,12 +206,46 @@ function ColorField({
   )
 }
 
+function Switch({
+  checked,
+  onChange,
+  disabled
+}: {
+  checked: boolean
+  onChange: (value: boolean) => void
+  disabled?: boolean
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      disabled={disabled}
+      onClick={() => onChange(!checked)}
+      className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${
+        checked ? 'bg-primary' : 'bg-muted'
+      } ${disabled ? 'cursor-not-allowed opacity-50' : ''}`}
+    >
+      <span
+        className={`absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${
+          checked ? 'translate-x-5' : 'translate-x-0'
+        }`}
+      />
+    </button>
+  )
+}
+
 export default function BrandPage() {
   const toast = useToast()
   const [kit, setKit] = useState<BrandKit>(DEFAULTS)
+  const [plan, setPlan] = useState('free')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [logoBusy, setLogoBusy] = useState(false)
+  const [dragActive, setDragActive] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const canWhiteLabel = plan === WHITE_LABEL_PLAN
 
   const loadKit = useCallback(async () => {
     try {
@@ -205,6 +253,9 @@ export default function BrandPage() {
       const data = await res.json()
       if (data.brandKit) {
         setKit({ ...DEFAULTS, ...data.brandKit })
+      }
+      if (data.plan) {
+        setPlan(data.plan)
       }
     } catch {
       // keep defaults
@@ -254,6 +305,60 @@ export default function BrandPage() {
     setKit((prev) => ({ ...prev, [key]: value }))
   }
 
+  async function uploadLogo(file: File) {
+    if (!LOGO_TYPES.includes(file.type)) {
+      toast.add('error', 'Use PNG, JPG, WEBP or SVG')
+      return
+    }
+    if (file.size > LOGO_MAX_BYTES) {
+      toast.add('error', 'Logo must be under 5MB')
+      return
+    }
+    setLogoBusy(true)
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      const res = await fetch('/api/user/brand/logo', {
+        method: 'POST',
+        body: formData
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        toast.add('error', data.detail ?? data.error ?? 'Upload failed')
+        return
+      }
+      update('logoUrl', data.brandKit.logoUrl)
+      toast.add('success', 'Logo uploaded')
+    } catch {
+      toast.add('error', 'Upload failed')
+    } finally {
+      setLogoBusy(false)
+    }
+  }
+
+  async function removeLogo() {
+    setLogoBusy(true)
+    try {
+      const res = await fetch('/api/user/brand/logo', { method: 'DELETE' })
+      if (!res.ok) {
+        toast.add('error', 'Could not remove logo')
+        return
+      }
+      update('logoUrl', null)
+    } catch {
+      toast.add('error', 'Could not remove logo')
+    } finally {
+      setLogoBusy(false)
+    }
+  }
+
+  function handleLogoDrop(e: React.DragEvent<HTMLButtonElement>) {
+    e.preventDefault()
+    setDragActive(false)
+    const file = e.dataTransfer.files?.[0]
+    if (file) void uploadLogo(file)
+  }
+
   function swapColors() {
     setKit((prev) => ({
       ...prev,
@@ -282,7 +387,9 @@ export default function BrandPage() {
         <div className="flex gap-2">
           <button
             type="button"
-            onClick={() => setKit(DEFAULTS)}
+            onClick={() =>
+              setKit((prev) => ({ ...DEFAULTS, logoUrl: prev.logoUrl }))
+            }
             className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-xs font-medium hover:bg-muted transition-colors"
           >
             <RotateCcw className="w-3.5 h-3.5" />
@@ -308,7 +415,90 @@ export default function BrandPage() {
       </div>
 
       <div className="mt-6 flex flex-col xl:flex-row gap-4 items-start">
-        <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-4 items-start w-full">
+        <div className="flex-1 grid grid-cols-1 lg:grid-cols-3 gap-4 items-start w-full">
+          <div className="rounded-xl border border-border bg-card p-5 space-y-4">
+            <div className="flex items-center gap-2">
+              <ImagePlus className="w-4 h-4 text-muted-foreground" />
+              <h2 className="text-[13px] font-semibold">Logo</h2>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Used as your watermark and across your exported clips.
+            </p>
+
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept={LOGO_ACCEPT}
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0]
+                if (file) void uploadLogo(file)
+                e.target.value = ''
+              }}
+            />
+
+            {kit.logoUrl ? (
+              <div className="flex items-center gap-3">
+                <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-lg border border-border bg-[repeating-conic-gradient(#00000014_0_25%,transparent_0_50%)] bg-[length:12px_12px] p-2">
+                  <img
+                    src={kit.logoUrl}
+                    alt="Your logo"
+                    className="max-h-full max-w-full object-contain"
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <button
+                    type="button"
+                    disabled={logoBusy}
+                    onClick={() => fileInputRef.current?.click()}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-input px-2.5 py-1.5 text-[11px] font-medium hover:bg-muted transition-colors disabled:opacity-50"
+                  >
+                    <Upload className="w-3 h-3" />
+                    Replace
+                  </button>
+                  <button
+                    type="button"
+                    disabled={logoBusy}
+                    onClick={() => void removeLogo()}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-input px-2.5 py-1.5 text-[11px] font-medium text-red-500 hover:bg-red-500/10 transition-colors disabled:opacity-50"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                    Remove
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                type="button"
+                disabled={logoBusy}
+                onClick={() => fileInputRef.current?.click()}
+                onDragOver={(e) => {
+                  e.preventDefault()
+                  setDragActive(true)
+                }}
+                onDragLeave={() => setDragActive(false)}
+                onDrop={handleLogoDrop}
+                className={`flex w-full flex-col items-center justify-center gap-1.5 rounded-lg border-2 border-dashed px-4 py-6 text-center transition-colors ${
+                  dragActive
+                    ? 'border-primary bg-primary/5'
+                    : 'border-input hover:bg-muted'
+                }`}
+              >
+                {logoBusy ? (
+                  <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+                ) : (
+                  <ImagePlus className="w-5 h-5 text-muted-foreground" />
+                )}
+                <span className="text-xs font-medium">
+                  Click or drag a file to upload
+                </span>
+                <span className="text-[11px] text-muted-foreground">
+                  PNG, JPG, WEBP or SVG &middot; up to 5MB
+                </span>
+              </button>
+            )}
+          </div>
+
           <div className="rounded-xl border border-border bg-card p-5 space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -487,16 +677,16 @@ export default function BrandPage() {
             </div>
           </div>
 
-          <div className="rounded-xl border border-border bg-card p-5 space-y-4 lg:col-span-2">
+          <div className="rounded-xl border border-border bg-card p-5 space-y-4 lg:col-span-3">
             <div className="flex items-center gap-2">
               <Stamp className="w-4 h-4 text-muted-foreground" />
               <h2 className="text-[13px] font-semibold">Watermark</h2>
             </div>
             <p className="text-xs text-muted-foreground">
-              Your logo mark appears on every exported clip.
+              Your logo appears on every exported clip.
             </p>
 
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid gap-4 sm:grid-cols-3">
               <div>
                 <label className="text-xs text-muted-foreground">
                   Position
@@ -538,6 +728,36 @@ export default function BrandPage() {
                   className="mt-3 w-full"
                 />
               </div>
+
+              <div className="rounded-lg border border-border p-3">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-1.5 text-xs font-medium">
+                    {!canWhiteLabel && (
+                      <Lock className="w-3 h-3 text-muted-foreground" />
+                    )}
+                    ClipForge badge
+                  </div>
+                  <Switch
+                    checked={!canWhiteLabel || !kit.hidePlatformBadge}
+                    disabled={!canWhiteLabel}
+                    onChange={(value) => update('hidePlatformBadge', !value)}
+                  />
+                </div>
+                <p className="mt-1.5 text-[11px] text-muted-foreground">
+                  {canWhiteLabel
+                    ? "Show a small 'Made with ClipForge' mark on exports."
+                    : 'White-label exports are included in the Agency plan.'}
+                </p>
+                {!canWhiteLabel && (
+                  <a
+                    href="/dashboard/billing"
+                    className="mt-2 inline-flex items-center gap-1 text-[11px] font-medium text-primary hover:underline"
+                  >
+                    Upgrade to Agency
+                    <ArrowUpRight className="w-3 h-3" />
+                  </a>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -550,22 +770,6 @@ export default function BrandPage() {
                 className="aspect-[9/16] rounded-[20px] overflow-hidden relative"
                 style={{ backgroundColor: kit.primaryColor + '20' }}
               >
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div
-                    className="w-14 h-14 rounded-2xl flex items-center justify-center"
-                    style={{
-                      background: `linear-gradient(135deg, ${kit.primaryColor}, ${kit.secondaryColor})`
-                    }}
-                  >
-                    <span
-                      className="text-white text-xl font-bold"
-                      style={{ fontFamily: kit.fontFamily }}
-                    >
-                      CF
-                    </span>
-                  </div>
-                </div>
-
                 <div
                   className={`absolute left-2 right-2 flex justify-center ${
                     kit.subtitlePosition === 'top'
@@ -592,7 +796,7 @@ export default function BrandPage() {
                 </div>
 
                 <div
-                  className={`absolute text-[10px] font-bold ${
+                  className={`absolute ${
                     kit.watermarkPosition === 'top-left'
                       ? 'top-2 left-2'
                       : kit.watermarkPosition === 'top-right'
@@ -601,13 +805,29 @@ export default function BrandPage() {
                           ? 'bottom-2 left-2'
                           : 'bottom-2 right-2'
                   }`}
-                  style={{
-                    opacity: kit.watermarkOpacity,
-                    color: kit.primaryColor
-                  }}
+                  style={{ opacity: kit.watermarkOpacity }}
                 >
-                  ClipForge
+                  {kit.logoUrl ? (
+                    <img
+                      src={kit.logoUrl}
+                      alt="Your logo"
+                      className="h-6 max-w-[56px] object-contain"
+                    />
+                  ) : (
+                    <span
+                      className="text-[10px] font-bold"
+                      style={{ color: kit.primaryColor }}
+                    >
+                      Your logo
+                    </span>
+                  )}
                 </div>
+
+                {(!canWhiteLabel || !kit.hidePlatformBadge) && (
+                  <div className="absolute bottom-1 left-1/2 -translate-x-1/2 text-[8px] font-semibold text-white/60">
+                    Made with ClipForge
+                  </div>
+                )}
               </div>
             </div>
             <p className="mt-3 text-center text-[11px] text-muted-foreground">
