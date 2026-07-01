@@ -4,28 +4,31 @@ import { Suspense, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { Film, Loader2, Check, X, ShieldCheck } from 'lucide-react'
 import { useToast } from '@/components/ui/toast'
-
-const RULES = [
-  { id: 'length', label: 'At least 12 characters', test: (p: string) => p.length >= 12 },
-  { id: 'upper', label: 'One uppercase letter', test: (p: string) => /[A-Z]/.test(p) },
-  { id: 'lower', label: 'One lowercase letter', test: (p: string) => /[a-z]/.test(p) },
-  { id: 'digit', label: 'One digit', test: (p: string) => /\d/.test(p) },
-  { id: 'special', label: 'One special character', test: (p: string) => /[^A-Za-z0-9]/.test(p) },
-]
+import { useTranslations } from 'next-intl'
 
 export default function ResetPasswordPage() {
+  const t = useTranslations('auth')
+
+  const RULES = [
+    { id: 'length', label: t('passwordRules.length'), test: (p: string) => p.length >= 12 },
+    { id: 'upper', label: t('passwordRules.uppercase'), test: (p: string) => /[A-Z]/.test(p) },
+    { id: 'lower', label: t('passwordRules.lowercase'), test: (p: string) => /[a-z]/.test(p) },
+    { id: 'digit', label: t('passwordRules.number'), test: (p: string) => /\d/.test(p) },
+    { id: 'special', label: t('passwordRules.special'), test: (p: string) => /[^A-Za-z0-9]/.test(p) },
+  ]
+
   return (
     <Suspense fallback={
       <main className="flex min-h-dvh items-center justify-center bg-background p-6">
         <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
       </main>
     }>
-      <ResetPasswordForm />
+      <ResetPasswordForm t={t} RULES={RULES} />
     </Suspense>
   )
 }
 
-function ResetPasswordForm() {
+function ResetPasswordForm({ t, RULES }: { t: any; RULES: any[] }) {
   const toast = useToast()
   const params = useSearchParams()
   const token = params.get('token') ?? ''
@@ -74,7 +77,7 @@ function ResetPasswordForm() {
             href="/forgot-password"
             className="mt-4 inline-flex text-xs font-medium text-primary hover:underline"
           >
-            Request new link
+            {t('sendResetLink')}
           </a>
         </div>
       </main>
@@ -104,14 +107,14 @@ function ResetPasswordForm() {
               href="/login"
               className="mt-6 inline-flex rounded-lg bg-primary px-4 py-2.5 text-[13px] font-semibold text-primary-foreground transition-opacity hover:opacity-90"
             >
-              Sign in
+              {t('signIn')}
             </a>
           </div>
         ) : (
           <>
-            <h1 className="text-xl font-semibold tracking-tight">Set new password</h1>
+            <h1 className="text-xl font-semibold tracking-tight">{t('resetTitle')}</h1>
             <p className="mt-1 text-xs text-muted-foreground">
-              Choose a strong password for your account
+              {t('resetDesc')}
             </p>
 
             <form onSubmit={(e) => void submit(e)} className="mt-6 space-y-3">
@@ -119,14 +122,14 @@ function ResetPasswordForm() {
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="New password"
+                placeholder={t('password')}
                 className="w-full rounded-lg border border-input bg-card px-3 py-2.5 text-[13px] placeholder:text-muted-foreground/50 focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all"
               />
               <input
                 type="password"
                 value={confirm}
                 onChange={(e) => setConfirm(e.target.value)}
-                placeholder="Confirm password"
+                placeholder={t('password')}
                 className="w-full rounded-lg border border-input bg-card px-3 py-2.5 text-[13px] placeholder:text-muted-foreground/50 focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all"
               />
 
@@ -164,7 +167,7 @@ function ResetPasswordForm() {
                     Resetting...
                   </>
                 ) : (
-                  'Reset password'
+                  t('resetButton')
                 )}
               </button>
             </form>

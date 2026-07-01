@@ -4,16 +4,18 @@ import { useMemo, useState } from 'react'
 import { useRouter, Link } from '@/i18n/navigation'
 import { Check, Film, Loader2, X } from 'lucide-react'
 import { useToast } from '@/components/ui/toast'
-
-const PASSWORD_RULES = [
-  { label: 'At least 12 characters', test: (p: string) => p.length >= 12 },
-  { label: 'Uppercase letter', test: (p: string) => /[A-Z]/.test(p) },
-  { label: 'Lowercase letter', test: (p: string) => /[a-z]/.test(p) },
-  { label: 'Number', test: (p: string) => /\d/.test(p) },
-  { label: 'Special character', test: (p: string) => /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(p) },
-]
+import { useTranslations } from 'next-intl'
 
 export default function RegisterPage() {
+  const t = useTranslations('auth')
+
+  const PASSWORD_RULES = [
+    { label: t('passwordRules.length'), test: (p: string) => p.length >= 12 },
+    { label: t('passwordRules.uppercase'), test: (p: string) => /[A-Z]/.test(p) },
+    { label: t('passwordRules.lowercase'), test: (p: string) => /[a-z]/.test(p) },
+    { label: t('passwordRules.number'), test: (p: string) => /\d/.test(p) },
+    { label: t('passwordRules.special'), test: (p: string) => /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(p) },
+  ]
   const router = useRouter()
   const toast = useToast()
   const [busy, setBusy] = useState(false)
@@ -24,7 +26,7 @@ export default function RegisterPage() {
 
   async function submit(formData: FormData) {
     if (!allPass) {
-      toast.add('error', 'Password does not meet requirements')
+      toast.add('error', t('passwordWeak'))
       return
     }
     setBusy(true)
@@ -39,14 +41,14 @@ export default function RegisterPage() {
       })
       const data = await res.json()
       if (!res.ok) {
-        toast.add('error', data.error ?? 'Could not create account')
+        toast.add('error', data.error ?? t('errorGeneric'))
         setBusy(false)
         return
       }
-      toast.add('success', 'Account created! Redirecting...')
+      toast.add('success', t('accountCreated'))
       router.push('/login')
     } catch {
-      toast.add('error', 'Something went wrong')
+      toast.add('error', t('errorGeneric'))
       setBusy(false)
     }
   }
@@ -61,9 +63,9 @@ export default function RegisterPage() {
           <span className="text-[15px] font-semibold tracking-tight">ClipForge</span>
         </div>
 
-        <h1 className="text-xl font-semibold tracking-tight">Create account</h1>
+        <h1 className="text-xl font-semibold tracking-tight">{t('createAccount')}</h1>
         <p className="mt-1 text-xs text-muted-foreground">
-          Start with 100 free credits
+          {t('createAccountDesc')}
         </p>
 
         <form
@@ -73,14 +75,14 @@ export default function RegisterPage() {
           <input
             name="name"
             required={true}
-            placeholder="Name"
+            placeholder={t('name')}
             className="w-full rounded-lg border border-input bg-card px-3 py-2.5 text-[13px] placeholder:text-muted-foreground/50 focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all"
           />
           <input
             name="email"
             type="email"
             required={true}
-            placeholder="Email"
+            placeholder={t('email')}
             className="w-full rounded-lg border border-input bg-card px-3 py-2.5 text-[13px] placeholder:text-muted-foreground/50 focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all"
           />
           <div>
@@ -90,7 +92,7 @@ export default function RegisterPage() {
               required={true}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="Password"
+              placeholder={t('password')}
               className="w-full rounded-lg border border-input bg-card px-3 py-2.5 text-[13px] placeholder:text-muted-foreground/50 focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all"
             />
             {password.length > 0 && (
@@ -118,28 +120,28 @@ export default function RegisterPage() {
             {busy ? (
               <>
                 <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                Creating...
+                {t('creating')}
               </>
             ) : (
-              'Create account'
+              t('createAccount')
             )}
           </button>
         </form>
 
         <p className="mt-4 text-center text-[11px] text-muted-foreground/70">
-          By creating an account you agree to our{' '}
-          <Link href="/terms" className="text-primary hover:underline">Terms</Link>
-          {' '}and{' '}
-          <Link href="/privacy" className="text-primary hover:underline">Privacy Policy</Link>
+          {t('agreeTerms')}{' '}
+          <Link href="/terms" className="text-primary hover:underline">{t('termsLink')}</Link>
+          {' '}{t('andText')}{' '}
+          <Link href="/privacy" className="text-primary hover:underline">{t('privacyLink')}</Link>
         </p>
 
         <p className="mt-3 text-center text-xs text-muted-foreground">
-          Already have an account?{' '}
+          {t('hasAccount')}{' '}
           <a
             href="/login"
             className="font-medium text-primary hover:underline underline-offset-4"
           >
-            Sign in
+            {t('signIn')}
           </a>
         </p>
       </div>

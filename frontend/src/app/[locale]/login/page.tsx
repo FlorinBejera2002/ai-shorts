@@ -2,12 +2,18 @@ import { signIn } from '@/lib/auth'
 import { Film } from 'lucide-react'
 import { AuthError } from 'next-auth'
 import { redirect } from 'next/navigation'
+import { getTranslations, setRequestLocale } from 'next-intl/server'
 
 export default async function LoginPage({
+  params,
   searchParams,
 }: {
+  params: Promise<{ locale: string }>
   searchParams: Promise<{ error?: string; callbackUrl?: string }>
 }) {
+  const { locale } = await params
+  setRequestLocale(locale)
+  const t = await getTranslations('auth')
   const { error, callbackUrl } = await searchParams
   const redirectTo = callbackUrl ?? '/dashboard'
 
@@ -21,18 +27,18 @@ export default async function LoginPage({
           <span className="text-[15px] font-semibold tracking-tight">ClipForge</span>
         </div>
 
-        <h1 className="text-xl font-semibold tracking-tight">Welcome back</h1>
+        <h1 className="text-xl font-semibold tracking-tight">{t('welcomeBack')}</h1>
         <p className="mt-1 text-xs text-muted-foreground">
-          Sign in to your workspace
+          {t('signInDesc')}
         </p>
 
         {error && (
           <div className="mt-4 animate-slide-down flex items-center gap-2 rounded-lg border-l-2 border-red-500 bg-red-500/5 px-3 py-2 text-[13px] text-red-400">
             {error === 'CredentialsSignin'
-              ? 'Invalid email or password.'
+              ? t('errorInvalidCredentials')
               : error === 'CallbackRouteError'
-                ? 'Database connection is unavailable. Start the local database and try again.'
-              : 'An error occurred. Please try again.'}
+                ? t('errorDatabase')
+              : t('errorGeneric')}
           </div>
         )}
 
@@ -72,7 +78,7 @@ export default async function LoginPage({
                 fill="#EA4335"
               />
             </svg>
-            Continue with Google
+            {t('continueGoogle')}
           </button>
         </form>
 
@@ -82,7 +88,7 @@ export default async function LoginPage({
           </div>
           <div className="relative flex justify-center">
             <span className="bg-background px-3 text-[11px] text-muted-foreground uppercase tracking-wider">
-              or
+              {t('or')}
             </span>
           </div>
         </div>
@@ -109,39 +115,39 @@ export default async function LoginPage({
             name="email"
             type="email"
             required={true}
-            placeholder="Email"
+            placeholder={t('email')}
             className="w-full rounded-lg border border-input bg-card px-3 py-2.5 text-[13px] placeholder:text-muted-foreground/50 focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all"
           />
           <input
             name="password"
             type="password"
             required={true}
-            placeholder="Password"
+            placeholder={t('password')}
             className="w-full rounded-lg border border-input bg-card px-3 py-2.5 text-[13px] placeholder:text-muted-foreground/50 focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all"
           />
           <button
             type="submit"
             className="w-full rounded-lg bg-primary px-4 py-2.5 text-[13px] font-semibold text-primary-foreground transition-opacity hover:opacity-90"
           >
-            Sign in
+            {t('signIn')}
           </button>
           <div className="flex justify-end">
             <a
               href="/forgot-password"
               className="text-[11px] text-muted-foreground hover:text-primary transition-colors"
             >
-              Forgot password?
+              {t('forgotPassword')}
             </a>
           </div>
         </form>
 
         <p className="mt-6 text-center text-xs text-muted-foreground">
-          Don&apos;t have an account?{' '}
+          {t('noAccount')}{' '}
           <a
             href="/register"
             className="font-medium text-primary hover:underline underline-offset-4"
           >
-            Sign up
+            {t('signUp')}
           </a>
         </p>
       </div>

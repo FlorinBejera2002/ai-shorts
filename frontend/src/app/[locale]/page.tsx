@@ -1,4 +1,5 @@
 import { Link } from '@/i18n/navigation'
+import { getTranslations, setRequestLocale } from 'next-intl/server'
 import {
   Film,
   Sparkles,
@@ -16,68 +17,71 @@ import {
   Palette,
 } from 'lucide-react'
 
-const features = [
-  {
-    icon: Sparkles,
-    title: 'AI highlight detection',
-    desc: 'Gemini 2.5 Flash analyzes your transcript and finds the most viral-worthy moments with hook scoring',
-  },
-  {
-    icon: Scissors,
-    title: 'Smart vertical crop',
-    desc: 'Face and speaker tracking ensures the subject stays centered in 9:16 format',
-  },
-  {
-    icon: Type,
-    title: 'Auto subtitles',
-    desc: 'Whisper transcription with multiple caption styles burned directly into your clips',
-  },
-  {
-    icon: Share2,
-    title: 'AI social captions',
-    desc: 'Auto-generated descriptions and hashtags optimized for TikTok, Instagram, and YouTube',
-  },
-  {
-    icon: Palette,
-    title: 'Brand kit',
-    desc: 'Custom colors, fonts, subtitle styles and watermarks applied consistently across all clips',
-  },
-  {
-    icon: Zap,
-    title: 'Batch processing',
-    desc: 'Process up to 20 YouTube URLs at once — perfect for repurposing entire playlists',
-  },
-]
+export default async function HomePage({ params }: { params: Promise<{ locale: string }> }) {
+  const { locale } = await params
+  setRequestLocale(locale)
+  const t = await getTranslations('landing')
 
-const steps = [
-  {
-    icon: Upload,
-    step: '1',
-    title: 'Upload or paste URL',
-    desc: 'Drop a video file or paste any YouTube link',
-  },
-  {
-    icon: Wand2,
-    step: '2',
-    title: 'AI processes everything',
-    desc: 'Transcription, highlight detection, cropping, subtitles — all automated',
-  },
-  {
-    icon: Download,
-    step: '3',
-    title: 'Review & export',
-    desc: 'Trim, preview, and download your viral-ready short-form clips',
-  },
-]
+  const features = [
+    {
+      icon: Sparkles,
+      title: t('feat1Title'),
+      desc: t('feat1Desc'),
+    },
+    {
+      icon: Scissors,
+      title: t('feat2Title'),
+      desc: t('feat2Desc'),
+    },
+    {
+      icon: Type,
+      title: t('feat3Title'),
+      desc: t('feat3Desc'),
+    },
+    {
+      icon: Share2,
+      title: t('feat4Title'),
+      desc: t('feat4Desc'),
+    },
+    {
+      icon: Palette,
+      title: t('feat5Title'),
+      desc: t('feat5Desc'),
+    },
+    {
+      icon: Zap,
+      title: t('feat6Title'),
+      desc: t('feat6Desc'),
+    },
+  ]
 
-const stats = [
-  { value: '< 5 min', label: 'Processing time' },
-  { value: '9:16', label: 'Auto crop ratio' },
-  { value: '20+', label: 'Clips per batch' },
-  { value: 'GDPR', label: 'Compliant' },
-]
+  const steps = [
+    {
+      icon: Upload,
+      step: '1',
+      title: t('step1Title'),
+      desc: t('step1Desc'),
+    },
+    {
+      icon: Wand2,
+      step: '2',
+      title: t('step2Title'),
+      desc: t('step2Desc'),
+    },
+    {
+      icon: Download,
+      step: '3',
+      title: t('step3Title'),
+      desc: t('step3Desc'),
+    },
+  ]
 
-export default function HomePage() {
+  const stats = [
+    { value: '< 5 min', label: t('statProcessing') },
+    { value: '9:16', label: t('statCrop') },
+    { value: '20+', label: t('statBatch') },
+    { value: 'GDPR', label: t('statGdpr') },
+  ]
   return (
     <main className="min-h-dvh bg-background">
       <nav className="sticky top-0 z-50 border-b border-border/50 bg-background/80 backdrop-blur-md">
@@ -93,19 +97,19 @@ export default function HomePage() {
               href="/pricing"
               className="hidden sm:inline text-[13px] text-muted-foreground hover:text-foreground transition-colors"
             >
-              Pricing
+              {t('pricing')}
             </Link>
             <Link
               href="/login"
               className="text-[13px] font-medium text-muted-foreground hover:text-foreground transition-colors"
             >
-              Sign in
+              {t('signIn')}
             </Link>
             <Link
               href="/register"
               className="rounded-lg bg-primary px-3.5 py-1.5 text-[13px] font-medium text-primary-foreground transition-opacity hover:opacity-90"
             >
-              Get started
+              {t('getStarted')}
             </Link>
           </div>
         </div>
@@ -116,33 +120,31 @@ export default function HomePage() {
         <div className="max-w-2xl animate-slide-up">
           <div className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
             <Sparkles className="w-3 h-3" />
-            AI-powered video clipping
+            {t('badge')}
           </div>
           <h1 className="mt-5 text-4xl font-semibold tracking-tight leading-[1.1] md:text-5xl">
-            Turn long videos into
+            {t('heroTitle1')}
             <br />
             <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-              ready-to-post shorts
+              {t('heroTitle2')}
             </span>
           </h1>
           <p className="mt-5 text-[15px] text-muted-foreground leading-relaxed max-w-lg">
-            Upload a video or paste a YouTube URL. ClipForge transcribes,
-            detects viral hooks, crops for vertical, adds captions, and
-            generates platform-ready clips — in minutes.
+            {t('heroDesc')}
           </p>
           <div className="mt-8 flex flex-wrap items-center gap-3">
             <Link
               href="/register"
               className="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-[13px] font-semibold text-primary-foreground transition-opacity hover:opacity-90"
             >
-              Start free — 100 credits
+              {t('ctaFree')}
               <ArrowRight className="w-3.5 h-3.5" />
             </Link>
             <Link
               href="/pricing"
               className="rounded-lg border border-border px-5 py-2.5 text-[13px] font-medium transition-colors hover:bg-muted"
             >
-              See pricing
+              {t('ctaPricing')}
             </Link>
           </div>
         </div>
@@ -165,9 +167,9 @@ export default function HomePage() {
       {/* How it works */}
       <section className="mx-auto max-w-6xl px-6 py-20">
         <div className="text-center">
-          <h2 className="text-2xl font-semibold tracking-tight">How it works</h2>
+          <h2 className="text-2xl font-semibold tracking-tight">{t('howItWorks')}</h2>
           <p className="mt-2 text-sm text-muted-foreground">
-            Three steps. Zero editing skills required.
+            {t('howItWorksDesc')}
           </p>
         </div>
         <div className="mt-10 grid gap-6 sm:grid-cols-3">
@@ -200,10 +202,10 @@ export default function HomePage() {
         <div className="mx-auto max-w-6xl px-6 py-20">
           <div className="text-center">
             <h2 className="text-2xl font-semibold tracking-tight">
-              Everything you need to go viral
+              {t('featuresTitle')}
             </h2>
             <p className="mt-2 text-sm text-muted-foreground">
-              A complete pipeline from raw footage to platform-ready shorts
+              {t('featuresDesc')}
             </p>
           </div>
           <div className="mt-10 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -237,9 +239,9 @@ export default function HomePage() {
               <Shield className="w-4 h-4 text-success" />
             </div>
             <div>
-              <h3 className="text-[13px] font-semibold">GDPR compliant</h3>
+              <h3 className="text-[13px] font-semibold">{t('trustGdpr')}</h3>
               <p className="mt-0.5 text-xs text-muted-foreground leading-relaxed">
-                Full data export, account deletion, and privacy controls built in
+                {t('trustGdprDesc')}
               </p>
             </div>
           </div>
@@ -248,9 +250,9 @@ export default function HomePage() {
               <Clock className="w-4 h-4 text-primary" />
             </div>
             <div>
-              <h3 className="text-[13px] font-semibold">Fast processing</h3>
+              <h3 className="text-[13px] font-semibold">{t('trustFast')}</h3>
               <p className="mt-0.5 text-xs text-muted-foreground leading-relaxed">
-                Most videos processed in under 5 minutes with priority queue for paid plans
+                {t('trustFastDesc')}
               </p>
             </div>
           </div>
@@ -259,9 +261,9 @@ export default function HomePage() {
               <BarChart3 className="w-4 h-4 text-accent" />
             </div>
             <div>
-              <h3 className="text-[13px] font-semibold">Viral score analytics</h3>
+              <h3 className="text-[13px] font-semibold">{t('trustViral')}</h3>
               <p className="mt-0.5 text-xs text-muted-foreground leading-relaxed">
-                AI-scored clips ranked by viral potential so you post the best content first
+                {t('trustViralDesc')}
               </p>
             </div>
           </div>
@@ -272,39 +274,38 @@ export default function HomePage() {
       <section className="border-t border-border bg-muted/30">
         <div className="mx-auto max-w-6xl px-6 py-20 text-center">
           <h2 className="text-3xl font-semibold tracking-tight">
-            Ready to create viral shorts?
+            {t('finalCtaTitle')}
           </h2>
           <p className="mx-auto mt-3 max-w-md text-sm text-muted-foreground leading-relaxed">
-            Join creators who save hours every week repurposing long-form content into
-            short-form clips that drive engagement.
+            {t('finalCtaDesc')}
           </p>
           <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
             <Link
               href="/register"
               className="inline-flex items-center gap-2 rounded-lg bg-primary px-6 py-3 text-[14px] font-semibold text-primary-foreground transition-opacity hover:opacity-90"
             >
-              Get started for free
+              {t('finalCtaButton')}
               <ArrowRight className="w-4 h-4" />
             </Link>
           </div>
           <p className="mt-4 text-xs text-muted-foreground">
-            100 free credits. No credit card required.
+            {t('finalCtaNote')}
           </p>
         </div>
       </section>
 
       <footer className="border-t border-border">
         <div className="mx-auto max-w-6xl px-6 py-6 flex flex-wrap items-center justify-between gap-4 text-xs text-muted-foreground">
-          <span>&copy; 2026 ClipForge. All rights reserved.</span>
+          <span>{t('footer', { year: new Date().getFullYear() })}</span>
           <div className="flex gap-4">
             <Link href="/pricing" className="hover:text-foreground transition-colors">
-              Pricing
+              {t('pricing')}
             </Link>
             <Link href="/privacy" className="hover:text-foreground transition-colors">
-              Privacy
+              {t('privacy')}
             </Link>
             <Link href="/terms" className="hover:text-foreground transition-colors">
-              Terms
+              {t('terms')}
             </Link>
           </div>
         </div>

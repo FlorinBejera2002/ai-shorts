@@ -3,8 +3,10 @@
 import { useState } from 'react'
 import { Film, Loader2, Mail } from 'lucide-react'
 import { useToast } from '@/components/ui/toast'
+import { useTranslations } from 'next-intl'
 
 export default function ForgotPasswordPage() {
+  const t = useTranslations('auth')
   const toast = useToast()
   const [email, setEmail] = useState('')
   const [busy, setBusy] = useState(false)
@@ -49,21 +51,20 @@ export default function ForgotPasswordPage() {
             </div>
             <h1 className="text-xl font-semibold tracking-tight">Check your email</h1>
             <p className="mt-2 text-xs text-muted-foreground leading-relaxed">
-              If an account exists with that email, we sent a password reset link.
-              Check your inbox and spam folder.
+              {t('forgotDesc')}
             </p>
             <a
               href="/login"
               className="mt-6 inline-flex text-xs font-medium text-primary hover:underline"
             >
-              Back to sign in
+              {t('backToLogin')}
             </a>
           </div>
         ) : (
           <>
-            <h1 className="text-xl font-semibold tracking-tight">Reset password</h1>
+            <h1 className="text-xl font-semibold tracking-tight">{t('forgotTitle')}</h1>
             <p className="mt-1 text-xs text-muted-foreground">
-              Enter your email and we&apos;ll send a reset link
+              {t('forgotDesc')}
             </p>
 
             <form onSubmit={(e) => void submit(e)} className="mt-6 space-y-3">
@@ -72,7 +73,7 @@ export default function ForgotPasswordPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required={true}
-                placeholder="Email"
+                placeholder={t('email')}
                 className="w-full rounded-lg border border-input bg-card px-3 py-2.5 text-[13px] placeholder:text-muted-foreground/50 focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all"
               />
               <button
@@ -86,7 +87,7 @@ export default function ForgotPasswordPage() {
                     Sending...
                   </>
                 ) : (
-                  'Send reset link'
+                  t('sendResetLink')
                 )}
               </button>
             </form>
@@ -96,7 +97,7 @@ export default function ForgotPasswordPage() {
                 href="/login"
                 className="font-medium text-primary hover:underline underline-offset-4"
               >
-                Back to sign in
+                {t('backToLogin')}
               </a>
             </p>
           </>

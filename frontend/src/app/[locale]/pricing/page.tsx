@@ -1,7 +1,14 @@
 import { Film, Check, Zap, Crown, Building2 } from 'lucide-react'
 import { Link } from '@/i18n/navigation'
+import { getTranslations, setRequestLocale } from 'next-intl/server'
 
-const plans = [
+export default async function PricingPage({ params }: { params: Promise<{ locale: string }> }) {
+  const { locale } = await params
+  setRequestLocale(locale)
+  const t = await getTranslations('pricing')
+  const tLanding = await getTranslations('landing')
+
+  const plans = [
   {
     name: 'Free',
     price: '$0',
@@ -109,7 +116,6 @@ const faqs = [
   },
 ]
 
-export default function PricingPage() {
   return (
     <main className="min-h-dvh bg-background">
       <nav className="border-b border-border">
@@ -122,13 +128,13 @@ export default function PricingPage() {
           </Link>
           <div className="flex items-center gap-3">
             <Link href="/login" className="text-[13px] text-muted-foreground hover:text-foreground transition-colors">
-              Sign in
+              {tLanding('signIn')}
             </Link>
             <Link
               href="/register"
               className="rounded-lg bg-primary px-3.5 py-2 text-[13px] font-medium text-primary-foreground transition-opacity hover:opacity-90"
             >
-              Get started
+              {tLanding('getStarted')}
             </Link>
           </div>
         </div>
@@ -137,10 +143,10 @@ export default function PricingPage() {
       <section className="px-6 pt-16 pb-12">
         <div className="mx-auto max-w-6xl text-center">
           <h1 className="text-4xl font-semibold tracking-tight sm:text-5xl">
-            Simple, transparent pricing
+            {t('title')}
           </h1>
           <p className="mx-auto mt-4 max-w-lg text-sm text-muted-foreground leading-relaxed">
-            Start free with 100 credits. Scale as you grow — no hidden fees, no contracts.
+            {t('desc')}
           </p>
         </div>
       </section>
@@ -160,7 +166,7 @@ export default function PricingPage() {
               >
                 {plan.highlighted && (
                   <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-primary px-3 py-0.5 text-[10px] font-bold uppercase tracking-wider text-primary-foreground">
-                    Most popular
+                    {tLanding('mostPopular')}
                   </div>
                 )}
                 <div className="flex items-center gap-2">
@@ -206,7 +212,7 @@ export default function PricingPage() {
       <section className="border-t border-border bg-muted/30 px-6 py-16">
         <div className="mx-auto max-w-3xl">
           <h2 className="text-center text-2xl font-semibold tracking-tight">
-            Frequently asked questions
+            {t('faq')}
           </h2>
           <dl className="mt-10 space-y-0 divide-y divide-border">
             {faqs.map((faq) => (
@@ -224,14 +230,14 @@ export default function PricingPage() {
       <footer className="border-t border-border px-6 py-8">
         <div className="mx-auto flex max-w-6xl items-center justify-between">
           <p className="text-xs text-muted-foreground">
-            &copy; {new Date().getFullYear()} ClipForge. All rights reserved.
+            {tLanding('footer', { year: new Date().getFullYear() })}
           </p>
           <div className="flex gap-4">
             <Link href="/privacy" className="text-xs text-muted-foreground hover:text-foreground transition-colors">
-              Privacy
+              {tLanding('privacy')}
             </Link>
             <Link href="/terms" className="text-xs text-muted-foreground hover:text-foreground transition-colors">
-              Terms
+              {tLanding('terms')}
             </Link>
           </div>
         </div>
