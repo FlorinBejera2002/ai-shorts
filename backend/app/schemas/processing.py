@@ -53,6 +53,7 @@ class SegmentCandidate(BaseModel):
 class HighlightCandidate(BaseModel):
     segments: list[SegmentCandidate]
     rank: int = Field(default=0, ge=0)
+    viral_score: int = Field(default=0, ge=0, le=10)
     source: Literal["gemini", "fallback"] = "gemini"
     video_description_for_tiktok: str = ""
     video_description_for_instagram: str = ""
