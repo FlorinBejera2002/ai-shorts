@@ -257,7 +257,16 @@ source_video_url = f"/media/sources/{job_id}/{source_filename}"
 
 - [ ] **Step 2: Update job record with source_video_url**
 
-After processing completes, update the job's `source_video_url` field in the DB. This should happen in `_mark_job_completed()` in `backend/app/workers/tasks.py` or at the end of `process_video_source()`. Pass the URL through the pipeline result and save it when marking job complete.
+In `backend/app/services/processing_pipeline.py`, add `source_video_url` to the returned `PipelineResult` dict (set it to the URL string after copying the source file).
+
+Then in `backend/app/workers/tasks.py`, inside `_mark_job_completed()`, read `result["source_video_url"]` from the pipeline result and set it on the job record:
+
+```python
+# In _mark_job_completed(), after setting job.status = "completed":
+job.source_video_url = result.get("source_video_url")
+```
+
+This is the single point where the field is persisted to the DB.
 
 - [ ] **Step 3: Commit**
 
@@ -300,8 +309,8 @@ In `extract_json_response()` and `validate_highlights()`, update to parse the ne
 Update validation to check each segment within each candidate:
 - Each segment's start/end within video duration
 - Each segment duration >= min_clip_duration (per segment, not total)
-- No overlaps within a candidate's segments
-- No overlaps across candidates
+- No overlaps within a candidate's segments (sort by start, check `seg[i].start >= seg[i-1].end`)
+- No overlaps across candidates: collect ALL segments from ALL candidates into one flat list, sort by start time, then verify `seg[i].start >= seg[i-1].end`. If any overlap, remove the lower-ranked candidate that contributed the overlapping segment.
 
 - [ ] **Step 4: Commit**
 
@@ -361,9 +370,14 @@ def extract_clip(
     return True
 ```
 
-- [ ] **Step 2: Update extract_all_clips()**
+- [ ] **Step 2: Audit and update all callers of extract_clip()**
 
-Update to pass `candidate.segments` (as list of dicts) instead of `candidate.start, candidate.end`. Convert each `HighlightCandidate`'s segments to the dict format expected by `extract_clip()`.
+Search for all call sites of `extract_clip()` across the codebase (`grep -rn "extract_clip(" backend/`). Update each caller to pass a `segments` list instead of `start`/`end`. Known callers:
+
+- `extract_all_clips()` in `clip_generator.py` — convert `candidate.segments` to list of dicts
+- `trim_clip_task()` in `workers/tasks.py` — wrap `start_time`/`end_time` into `[{"start": start_time, "end": end_time, "order": 0}]`
+
+Any other callers found via grep must also be updated.
 
 - [ ] **Step 3: Commit**
 
@@ -740,6 +754,23 @@ export function useEditorState(initialSegments: Segment[]) {
 
   return { state, dispatch, totalDuration, canExport, hasOverlap }
 }
+
+// Sanitize raw API data into valid Segment[]
+export function parseSegments(
+  raw: unknown,
+  fallbackStart?: number,
+  fallbackEnd?: number
+): Segment[] {
+  if (Array.isArray(raw) && raw.length > 0) {
+    return raw
+      .filter((s: any) => typeof s.start === 'number' && typeof s.end === 'number' && s.end > s.start)
+      .map((s: any, i: number) => ({ start: s.start, end: s.end, order: s.order ?? i }))
+  }
+  if (typeof fallbackStart === 'number' && typeof fallbackEnd === 'number') {
+    return [{ start: fallbackStart, end: fallbackEnd, order: 0 }]
+  }
+  return []
+}
 ```
 
 - [ ] **Step 2: Commit**
@@ -914,12 +945,14 @@ The page:
 5. Export handler: POST to `/api/clips/{id}/recut` with current segments, show toast, navigate on success
 6. Uses `useTranslations('editor')` for all strings
 
-State flow:
-- Player `onTimeUpdate` → updates `currentTime` state → Timeline playhead moves
-- Timeline `onSeek` → sets `seekTo` → Player seeks
-- Timeline drag/resize/move → dispatches to `useEditorState`
-- SegmentList reorder/delete → dispatches to `useEditorState`
-- Both Timeline and SegmentList read from same `state.segments`
+State flow (unidirectional):
+- `currentTime` lives as `useState<number>(0)` in the editor page
+- Player fires `onTimeUpdate(t)` → `setCurrentTime(t)` → Timeline reads `currentTime` prop and moves playhead
+- Timeline fires `onSeek(t)` → page sets `seekTo` state → Player reads `seekTo` prop and calls `videoRef.current.currentTime = seekTo`
+- `seekTo` is cleared after Player processes it (set back to `undefined`) to avoid re-seeking on re-render
+- Timeline drag/resize/move → dispatches to `useEditorState` reducer → new `state.segments` flows to both Timeline and SegmentList
+- SegmentList reorder/delete/add → dispatches to same `useEditorState` reducer
+- Player also reads `state.segments` for segment-mode playback skipping
 
 - [ ] **Step 2: Commit**
 
