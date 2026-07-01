@@ -3,8 +3,10 @@
 import { useTranslations } from 'next-intl'
 import { useState } from 'react'
 import { useRouter, Link } from '@/i18n/navigation'
-import { Download, Loader2, Shield, Trash2, User } from 'lucide-react'
+import { Download, Globe, Loader2, Shield, Trash2, User } from 'lucide-react'
 import { useToast } from '@/components/ui/toast'
+import { LanguageSwitcher } from '@/components/shared/language-switcher'
+import { ThemeToggle } from '@/components/shared/theme-toggle'
 
 export default function SettingsPage() {
   const t = useTranslations('settings')
@@ -81,6 +83,23 @@ export default function SettingsPage() {
               >
                 {t('manageSubscription')}
               </Link>
+            </div>
+          </div>
+        </div>
+
+        <div className="rounded-xl border border-border bg-card p-5">
+          <div className="flex items-center gap-2 mb-3">
+            <Globe className="w-4 h-4 text-muted-foreground" />
+            <h2 className="text-[13px] font-semibold">{t('preferences')}</h2>
+          </div>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <span className="text-[13px]">{t('language')}</span>
+              <LanguageSwitcher />
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-[13px]">{t('theme')}</span>
+              <ThemeToggle />
             </div>
           </div>
         </div>
