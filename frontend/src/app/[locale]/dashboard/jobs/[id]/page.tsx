@@ -47,7 +47,10 @@ export default function JobProgressPage() {
         const data = await res.json()
         if (!active) return
         if (!res.ok) {
-          setError(data.error ?? data.detail ?? 'Could not load job')
+          const msg = typeof data.detail === 'string' ? data.detail
+            : Array.isArray(data.detail) ? data.detail.map((e: { msg?: string }) => e.msg).filter(Boolean).join('; ')
+            : data.error
+          setError(msg || 'Could not load job')
           return
         }
         errorCount = 0

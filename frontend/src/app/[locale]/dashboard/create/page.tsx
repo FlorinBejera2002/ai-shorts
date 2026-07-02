@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { useRouter } from '@/i18n/navigation'
 import { Upload, Link2, Loader2, Linkedin, Smartphone, Youtube, Plus, X, Layers } from 'lucide-react'
 import { useTranslations } from 'next-intl'
@@ -56,6 +56,15 @@ export default function CreatePage() {
   const [platform, setPlatform] = useState('shorts')
   const [busy, setBusy] = useState(false)
 
+  const extractError = useCallback((data: Record<string, unknown>, fallback: string): string => {
+    if (typeof data.error === 'string') return data.error
+    if (typeof data.detail === 'string') return data.detail
+    if (Array.isArray(data.detail) && data.detail.length > 0) {
+      return data.detail.map((e: { msg?: string }) => e.msg ?? '').filter(Boolean).join('; ') || fallback
+    }
+    return fallback
+  }, [])
+
   const creditCost = useMemo(() => {
     const count = mode === 'batch' ? batchUrls.filter(u => u.trim()).length : 1
     return clips * 10 * count
@@ -69,7 +78,7 @@ export default function CreatePage() {
       const res = await fetch('/api/upload', { method: 'POST', body: formData })
       const data = await res.json()
       if (!res.ok) {
-        toast.add('error', data.error ?? data.detail ?? t('uploadFailed'))
+        toast.add('error', extractError(data, t('uploadFailed')))
         return
       }
       setFilePath(data.file_path)
@@ -106,7 +115,7 @@ export default function CreatePage() {
         })
         const data = await res.json()
         if (!res.ok) {
-          toast.add('error', data.error ?? data.detail ?? t('addOneUrl'))
+          toast.add('error', extractError(data, t('addOneUrl')))
           setBusy(false)
           return
         }
@@ -139,7 +148,7 @@ export default function CreatePage() {
       })
       const data = await res.json()
       if (!res.ok) {
-        toast.add('error', data.error ?? data.detail ?? t('addOneUrl'))
+        toast.add('error', extractError(data, t('addOneUrl')))
         setBusy(false)
         return
       }

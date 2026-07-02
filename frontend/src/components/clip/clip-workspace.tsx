@@ -123,7 +123,10 @@ export function ClipWorkspace({ clip }: ClipWorkspaceProps) {
       })
       const data = await res.json()
       if (!res.ok) {
-        toast.add('error', data.error ?? data.detail ?? 'Trim failed')
+        const msg = typeof data.detail === 'string' ? data.detail
+          : Array.isArray(data.detail) ? data.detail.map((e: { msg?: string }) => e.msg).filter(Boolean).join('; ')
+          : data.error
+        toast.add('error', msg || 'Trim failed')
         return
       }
       toast.add('success', 'Clip is being trimmed. Refresh in a moment.')

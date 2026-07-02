@@ -327,7 +327,10 @@ export default function BrandPage() {
       })
       const data = await res.json()
       if (!res.ok) {
-        toast.add('error', data.detail ?? data.error ?? t('uploadFailed'))
+        const msg = typeof data.detail === 'string' ? data.detail
+          : Array.isArray(data.detail) ? data.detail.map((e: { msg?: string }) => e.msg).filter(Boolean).join('; ')
+          : data.error
+        toast.add('error', msg || t('uploadFailed'))
         return
       }
       update('logoUrl', data.brandKit.logoUrl)
