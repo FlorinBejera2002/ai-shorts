@@ -40,6 +40,7 @@ export default function JobProgressPage() {
   useEffect(() => {
     let active = true
     let errorCount = 0
+    let timer: ReturnType<typeof setTimeout>
 
     async function poll() {
       try {
@@ -56,20 +57,29 @@ export default function JobProgressPage() {
         errorCount = 0
         setError(null)
         setStatus(data)
+
+        const jobStatus = data.job?.status
+        if (jobStatus === 'completed' || jobStatus === 'failed' || jobStatus === 'cancelled') {
+          return
+        }
       } catch {
         errorCount++
-        if (errorCount >= 5 && active)
+        if (errorCount >= 5 && active) {
           setError('Connection lost. Please refresh.')
+          return
+        }
+      }
+      if (active) {
+        timer = setTimeout(() => void poll(), 5000)
       }
     }
 
     void poll()
-    const interval = setInterval(() => void poll(), 2000)
     return () => {
       active = false
-      clearInterval(interval)
+      clearTimeout(timer)
     }
-  }, [params.id, t])
+  }, [params.id])
 
   const progress = status?.celery_meta?.progress ?? status?.job.progress ?? 0
   const message =

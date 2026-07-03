@@ -197,6 +197,10 @@ input:-webkit-autofill:focus {
   from { opacity: 0; transform: translateX(100%) scale(0.95); }
   to { opacity: 1; transform: translateX(0) scale(1); }
 }
+@keyframes float {
+  0%, 100% { transform: translateY(-50%); }
+  50% { transform: translateY(calc(-50% - 12px)); }
+}
 
 /* ─── Animation utilities ─── */
 .animate-fade-in { animation: fade-in 0.3s ease both; }
@@ -208,6 +212,15 @@ input:-webkit-autofill:focus {
 .animate-pulse-dot { animation: pulse-dot 2s ease-in-out infinite; }
 .animate-spin { animation: spin 1s linear infinite; }
 .animate-toast-in { animation: toast-in 0.35s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.animate-float { animation: float 6s ease-in-out infinite; }
+
+/* ─── Gradient text ─── */
+.gradient-text {
+  background: linear-gradient(135deg, var(--primary), var(--accent));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
 
 /* ─── Progress bar ─── */
 .progress-bar {

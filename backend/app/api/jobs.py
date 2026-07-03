@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import ipaddress
 import socket
 from datetime import datetime, timezone
@@ -7,7 +5,7 @@ from pathlib import Path
 from urllib.parse import urlparse
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Body, Depends, HTTPException, Request, status
 from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -70,7 +68,7 @@ def calculate_credit_cost(num_clips: int, video_duration_minutes: float | None =
 @limiter.limit("30/hour")
 async def create_job(
     request: Request,
-    payload: JobCreate,
+    payload: JobCreate = Body(),
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ) -> Job:
@@ -190,7 +188,7 @@ async def cancel_job(
 @limiter.limit("5/hour")
 async def create_batch_jobs(
     request: Request,
-    payload: BatchJobCreate,
+    payload: BatchJobCreate = Body(),
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ) -> BatchJobResult:

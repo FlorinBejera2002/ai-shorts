@@ -38,10 +38,11 @@ const nextConfig: NextConfig = {
     ]
   },
   async rewrites() {
+    const mediaHost = process.env.MEDIA_PROXY_HOST ?? 'http://nginx:80'
     return [
       {
         source: '/media/:path*',
-        destination: 'http://nginx:80/media/:path*',
+        destination: `${mediaHost}/media/:path*`,
       },
     ]
   },

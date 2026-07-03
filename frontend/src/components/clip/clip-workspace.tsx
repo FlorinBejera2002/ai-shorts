@@ -80,6 +80,7 @@ export function ClipWorkspace({ clip }: ClipWorkspaceProps) {
     try {
       const response = await fetch(`/api/clips/${clip.id}`, {
         method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title, hookText, transcriptText }),
       })
       const data = await response.json()
@@ -115,6 +116,7 @@ export function ClipWorkspace({ clip }: ClipWorkspaceProps) {
     try {
       const res = await fetch(`/api/clips/${clip.id}/trim`, {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           start_time: trimStart,
           end_time: trimEnd,

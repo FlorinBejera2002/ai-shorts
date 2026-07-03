@@ -14,13 +14,11 @@ import { SegmentList } from '@/components/editor/segment-list'
 interface ClipData {
   id: string
   title: string
-  startTime: number
-  endTime: number
+  start_time: number
+  end_time: number
   duration: number
   segments: any[] | null
-  job: {
-    sourceVideoUrl: string | null
-  }
+  source_video_url: string | null
 }
 
 export default function ClipEditorPage() {
@@ -43,7 +41,7 @@ export default function ClipEditorPage() {
         if (!res.ok) throw new Error('Failed to fetch clip')
         const data = await res.json()
         setClip(data)
-        setVideoDuration(data.job?.sourceDuration ?? data.endTime + 30)
+        setVideoDuration(data.end_time + 30)
       } catch {
         toast.add('error', t('exportFailed'))
       } finally {
@@ -54,7 +52,7 @@ export default function ClipEditorPage() {
   }, [params.id])
 
   const initialSegments = clip
-    ? parseSegments(clip.segments, clip.startTime, clip.endTime)
+    ? parseSegments(clip.segments, clip.start_time, clip.end_time)
     : []
 
   const { state, dispatch, totalDuration, canExport, hasOverlap } = useEditorState(initialSegments)
@@ -62,9 +60,9 @@ export default function ClipEditorPage() {
   // Reinitialize when clip data loads
   useEffect(() => {
     if (clip) {
-      const segs = parseSegments(clip.segments, clip.startTime, clip.endTime)
+      const segs = parseSegments(clip.segments, clip.start_time, clip.end_time)
       dispatch({ type: 'SET_SEGMENTS', segments: segs })
-      setVideoDuration(clip.endTime + 30)
+      setVideoDuration(clip.end_time + 30)
     }
   }, [clip])
 
@@ -124,7 +122,7 @@ export default function ClipEditorPage() {
     )
   }
 
-  if (!clip || !clip.job?.sourceVideoUrl) {
+  if (!clip || !clip.source_video_url) {
     return (
       <div className="flex min-h-[400px] flex-col items-center justify-center gap-4 text-center">
         <p className="text-muted-foreground">{t('noSource')}</p>
@@ -169,7 +167,7 @@ export default function ClipEditorPage() {
 
       {/* Player */}
       <SegmentPlayer
-        sourceUrl={clip.job.sourceVideoUrl}
+        sourceUrl={clip.source_video_url}
         segments={state.segments}
         onTimeUpdate={setCurrentTime}
         seekTo={seekTo}
