@@ -44,6 +44,14 @@ Page stays the state owner; new components under `components/create/`:
 
 All fetches keep the existing `extractError` pattern (string `error` / `detail` / FastAPI array `detail`). Upload XHR maps abort/network/HTTP errors to toasts. oEmbed and filmstrip fail silently to degraded-but-working UI.
 
+## AI Assistant (added 2026-07-07)
+
+Chat with persistent history on both pages; the user describes in natural language how clips should be made and which moments matter.
+
+- **Storage**: `chat_messages` table (user_id, nullable clip_id, context `create|editor`, role, content, `actions` JSONB). Migration `20260707_0001` also adds `jobs.user_instructions` (creator guidance injected into the highlight-detection prompt) and `jobs.transcript_segments` (compact `[{s,e,text}]` chunks persisted at job completion so the editor assistant can map "the moment about X" to seconds).
+- **Backend**: `POST /api/assistant/chat` (Gemini, JSON response `{reply, actions}`; 60/h), `GET/DELETE /api/assistant/history`. Actions are validated server-side: create → `update_settings` (enum/range-checked) + `set_instructions`; editor → `apply_segments` (full replacement list checked against 1–10 / ≥0.25 s / total ≥3 s / no overlap / within duration) + `seek`. Invalid actions are dropped, reply preserved. The model receives the live page state and, in the editor, transcript chunks.
+- **Frontend**: reusable `AssistantChat` panel (history load, optimistic send, action chips, suggestion prompts, clear). Create page maps `update_settings` onto the settings state and shows the accumulated "AI brief" (sent as `user_instructions` with the job). Editor applies `apply_segments` through a new undoable `APPLY_SEGMENTS` reducer action and follows `seek`.
+
 ## Testing
 
-`tsc --noEmit` + `next build` must pass; manual verification via dev server; code-review agent pass at the end.
+`tsc --noEmit` + `next build` must pass; manual verification via dev server; code-review agent pass at the end. Backend verified by `python -m compileall` + importing `app.main` and worker tasks inside the built image; migration applied with `alembic upgrade head`.
