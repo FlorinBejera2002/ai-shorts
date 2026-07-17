@@ -1,7 +1,15 @@
 import { Link } from '@/i18n/navigation'
-import { CheckCircle2, Film, Scissors, Sparkles } from 'lucide-react'
+import {
+  CheckCircle2,
+  Film,
+  Scissors,
+  Sparkles,
+  TrendingUp
+} from 'lucide-react'
 import { getTranslations, setRequestLocale } from 'next-intl/server'
 
+import { EmptyState } from '@/components/ui/empty-state'
+import { PageHeader } from '@/components/ui/page-header'
 import { auth } from '@/lib/auth'
 import { getClipReadiness } from '@/lib/clip-readiness'
 import { prisma } from '@/lib/db'
@@ -9,7 +17,7 @@ import { prisma } from '@/lib/db'
 export const runtime = 'nodejs'
 
 export default async function ReviewPage({
-  params,
+  params
 }: {
   params: Promise<{ locale: string }>
 }) {
@@ -28,116 +36,174 @@ export default async function ReviewPage({
             select: {
               sourceUrl: true,
               sourceFilePath: true,
-              status: true,
-            },
-          },
-        },
+              status: true
+            }
+          }
+        }
       })
     : []
 
   const rows = clips.map((clip) => ({
     clip,
-    readiness: getClipReadiness(clip),
+    readiness: getClipReadiness(clip)
   }))
   const readyCount = rows.filter((row) => row.readiness.score >= 85).length
   const needsReview = rows.filter(
-    (row) => row.readiness.score >= 65 && row.readiness.score < 85,
+    (row) => row.readiness.score >= 65 && row.readiness.score < 85
   ).length
 
   return (
     <div className="animate-fade-in">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-lg font-semibold tracking-tight">{t('title')}</h1>
-          <p className="mt-0.5 text-xs text-muted-foreground">
-            {t('desc')}
-          </p>
-        </div>
-        <Link
-          href="/dashboard/create"
-          className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3.5 py-2 text-[13px] font-medium text-primary-foreground"
-        >
-          <Sparkles className="h-3.5 w-3.5" />
-          {t('generateMore')}
-        </Link>
-      </div>
+      <PageHeader
+        title={t('title')}
+        description={t('desc')}
+        actions={
+          <Link
+            href="/dashboard/create"
+            className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-all hover:opacity-90 hover:shadow-lg hover:shadow-primary/20"
+          >
+            <Sparkles className="h-4 w-4" strokeWidth={1.75} />
+            {t('generateMore')}
+          </Link>
+        }
+      />
 
-      <div className="mt-6 grid grid-cols-3 gap-px overflow-hidden rounded-lg bg-border">
+      {/* Stats cards */}
+      <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-3">
         {[
-          { label: t('totalClips'), value: rows.length },
-          { label: t('readyToPost'), value: readyCount },
-          { label: t('needsReview'), value: needsReview },
-        ].map((stat) => (
-          <div key={stat.label} className="bg-card px-4 py-3">
-            <div className="text-xs text-muted-foreground">{stat.label}</div>
-            <div className="mt-1 text-xl font-semibold tabular-nums">{stat.value}</div>
-          </div>
-        ))}
+          {
+            label: t('totalClips'),
+            value: rows.length,
+            icon: Film,
+            color: 'primary'
+          },
+          {
+            label: t('readyToPost'),
+            value: readyCount,
+            icon: CheckCircle2,
+            color: 'success'
+          },
+          {
+            label: t('needsReview'),
+            value: needsReview,
+            icon: TrendingUp,
+            color: 'accent'
+          }
+        ].map((stat) => {
+          const Icon = stat.icon
+          return (
+            <div
+              key={stat.label}
+              className="rounded-xl border border-border bg-card p-4 hover:border-primary/40 transition-colors"
+            >
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                    {stat.label}
+                  </p>
+                  <p className="mt-2 text-3xl font-bold tracking-tight text-foreground tabular-nums">
+                    {stat.value}
+                  </p>
+                </div>
+                <div
+                  className={`flex h-10 w-10 items-center justify-center rounded-lg ${
+                    stat.color === 'primary'
+                      ? 'bg-primary/10 text-primary'
+                      : stat.color === 'success'
+                        ? 'bg-success/10 text-success'
+                        : 'bg-accent/10 text-accent'
+                  }`}
+                >
+                  <Icon className="h-5 w-5" strokeWidth={1.75} />
+                </div>
+              </div>
+            </div>
+          )
+        })}
       </div>
 
+      {/* Clips table */}
       {rows.length > 0 ? (
-        <div className="mt-5 overflow-hidden rounded-lg border border-border">
-          <div className="grid grid-cols-[1.3fr_0.5fr_0.6fr_0.5fr_40px] gap-3 border-b border-border bg-muted/60 px-3 py-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-            <span>{t('clip')}</span>
-            <span>{t('viral')}</span>
-            <span>{t('readiness')}</span>
-            <span>{t('duration')}</span>
-            <span />
-          </div>
-          <div className="divide-y divide-border bg-card">
-            {rows.map(({ clip, readiness }) => (
-              <Link
-                key={clip.id}
-                href={`/dashboard/clips/${clip.id}`}
-                className="grid grid-cols-[1.3fr_0.5fr_0.6fr_0.5fr_40px] gap-3 px-3 py-3 transition-colors hover:bg-muted/50"
-              >
-                <div className="min-w-0">
-                  <div className="truncate text-[13px] font-medium">{clip.title}</div>
-                  <div className="mt-0.5 truncate text-xs text-muted-foreground">
-                    {clip.hookText ?? clip.job.sourceUrl ?? clip.job.sourceFilePath ?? 'Generated clip'}
+        <div className="mt-8">
+          <div className="rounded-xl border border-border overflow-hidden bg-card">
+            <div className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-4 border-b border-border bg-muted/40 px-5 py-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+              <span>{t('clip')}</span>
+              <span className="text-right">{t('viral')}</span>
+              <span className="text-right">{t('readiness')}</span>
+              <span className="text-right">{t('duration')}</span>
+              <span />
+            </div>
+            <div className="divide-y divide-border">
+              {rows.map(({ clip, readiness }) => (
+                <Link
+                  key={clip.id}
+                  href={`/dashboard/clips/${clip.id}`}
+                  className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-4 px-5 py-4 transition-colors hover:bg-muted/50"
+                >
+                  <div className="min-w-0">
+                    <div className="font-medium text-foreground truncate">
+                      {clip.title}
+                    </div>
+                    <div className="mt-1 truncate text-xs text-muted-foreground">
+                      {clip.hookText ??
+                        clip.job.sourceUrl ??
+                        clip.job.sourceFilePath ??
+                        'Generated clip'}
+                    </div>
                   </div>
-                </div>
-                <div className="flex items-center">
-                  <span className="rounded-md bg-primary/10 px-2 py-1 text-xs font-semibold text-primary tabular-nums">
-                    {clip.viralScore || '-'}
-                  </span>
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-[13px] font-medium tabular-nums">
+                  <div className="flex items-center shrink-0">
+                    <span className="inline-flex items-center gap-1 rounded-lg bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary tabular-nums">
+                      {clip.viralScore ?? '-'}
+                    </span>
+                  </div>
+                  <div className="flex flex-col items-end justify-center gap-1.5 shrink-0">
+                    <span className="text-sm font-medium text-foreground tabular-nums">
                       {readiness.score}
                     </span>
-                    {readiness.score >= 85 && (
-                      <CheckCircle2 className="h-3.5 w-3.5 text-success" />
+                    <div className="progress-bar h-1.5 w-20">
+                      <div
+                        className="progress-bar-fill done"
+                        style={{ width: `${readiness.score}%` }}
+                      />
+                    </div>
+                  </div>
+                  <div className="flex items-center text-sm text-muted-foreground tabular-nums shrink-0">
+                    {Math.round(clip.duration)}s
+                  </div>
+                  <div className="flex items-center justify-center shrink-0">
+                    {readiness.score >= 85 ? (
+                      <CheckCircle2
+                        className="h-5 w-5 text-success"
+                        strokeWidth={1.75}
+                      />
+                    ) : (
+                      <Scissors
+                        className="h-4 w-4 text-muted-foreground"
+                        strokeWidth={1.75}
+                      />
                     )}
                   </div>
-                  <div className="mt-1 progress-bar h-1">
-                    <div
-                      className="progress-bar-fill done"
-                      style={{ width: `${readiness.score}%` }}
-                    />
-                  </div>
-                </div>
-                <div className="flex items-center text-[13px] text-muted-foreground">
-                  {Math.round(clip.duration)}s
-                </div>
-                <div className="flex items-center justify-end">
-                  <Scissors className="h-4 w-4 text-muted-foreground" />
-                </div>
-              </Link>
-            ))}
+                </Link>
+              ))}
+            </div>
           </div>
         </div>
       ) : (
-        <div className="mt-8 rounded-lg bg-muted/50 px-4 py-10 text-center">
-          <Film className="mx-auto h-6 w-6 text-muted-foreground" />
-          <p className="mt-3 text-[13px] text-muted-foreground">{t('noClips')}</p>
-          <Link
-            href="/dashboard/create"
-            className="mt-2 inline-block text-[13px] font-medium text-primary hover:underline underline-offset-4"
-          >
-            {t('firstProject')}
-          </Link>
+        <div className="mt-8">
+          <EmptyState
+            icon={Film}
+            title="No clips to review yet"
+            description="Generate your first project to see clips here. All clips will be ranked by viral potential."
+            action={
+              <Link
+                href="/dashboard/create"
+                className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:opacity-90 transition-all"
+              >
+                <Sparkles className="h-4 w-4" strokeWidth={1.75} />
+                {t('firstProject')}
+              </Link>
+            }
+          />
         </div>
       )}
     </div>

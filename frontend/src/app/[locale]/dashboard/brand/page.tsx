@@ -1,8 +1,8 @@
 'use client'
 
-import { useTranslations } from 'next-intl'
-import { Link } from '@/i18n/navigation'
+import { PageHeader } from '@/components/ui/page-header'
 import { useToast } from '@/components/ui/toast'
+import { Link } from '@/i18n/navigation'
 import {
   AlignVerticalJustifyCenter,
   AlignVerticalJustifyEnd,
@@ -27,6 +27,7 @@ import {
   Trash2,
   Upload
 } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 type BrandKit = {
@@ -327,9 +328,15 @@ export default function BrandPage() {
       })
       const data = await res.json()
       if (!res.ok) {
-        const msg = typeof data.detail === 'string' ? data.detail
-          : Array.isArray(data.detail) ? data.detail.map((e: { msg?: string }) => e.msg).filter(Boolean).join('; ')
-          : data.error
+        const msg =
+          typeof data.detail === 'string'
+            ? data.detail
+            : Array.isArray(data.detail)
+              ? data.detail
+                  .map((e: { msg?: string }) => e.msg)
+                  .filter(Boolean)
+                  .join('; ')
+              : data.error
         toast.add('error', msg || t('uploadFailed'))
         return
       }
@@ -383,42 +390,40 @@ export default function BrandPage() {
 
   return (
     <div className="animate-fade-in">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-lg font-semibold tracking-tight">{t('title')}</h1>
-          <p className="mt-0.5 text-xs text-muted-foreground">
-            {t('desc')}
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={() =>
-              setKit((prev) => ({ ...DEFAULTS, logoUrl: prev.logoUrl }))
-            }
-            className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-xs font-medium hover:bg-muted transition-colors"
-          >
-            <RotateCcw className="w-3.5 h-3.5" />
-            {t('common:reset')}
-          </button>
-          <button
-            type="button"
-            onClick={() => void save()}
-            disabled={saving || hasInvalidColor}
-            title={hasInvalidColor ? t('fixColors') : undefined}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
-          >
-            {saving ? (
-              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-            ) : saved ? (
-              <Check className="w-3.5 h-3.5" />
-            ) : (
-              <Save className="w-3.5 h-3.5" />
-            )}
-            {saved ? t('common:saved') : t('common:save')}
-          </button>
-        </div>
-      </div>
+      <PageHeader
+        title={t('title')}
+        description={t('desc')}
+        actions={
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() =>
+                setKit((prev) => ({ ...DEFAULTS, logoUrl: prev.logoUrl }))
+              }
+              className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-xs font-medium hover:bg-muted transition-colors"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              {t('common:reset')}
+            </button>
+            <button
+              type="button"
+              onClick={() => void save()}
+              disabled={saving || hasInvalidColor}
+              title={hasInvalidColor ? t('fixColors') : undefined}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
+            >
+              {saving ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : saved ? (
+                <Check className="w-3.5 h-3.5" />
+              ) : (
+                <Save className="w-3.5 h-3.5" />
+              )}
+              {saved ? t('common:saved') : t('common:save')}
+            </button>
+          </div>
+        }
+      />
 
       <div className="mt-6 flex flex-col xl:flex-row gap-4 items-start">
         <div className="flex-1 grid grid-cols-1 lg:grid-cols-3 gap-4 items-start w-full">
@@ -427,9 +432,7 @@ export default function BrandPage() {
               <ImagePlus className="w-4 h-4 text-muted-foreground" />
               <h2 className="text-[13px] font-semibold">{t('logo')}</h2>
             </div>
-            <p className="text-xs text-muted-foreground">
-              {t('logoDesc')}
-            </p>
+            <p className="text-xs text-muted-foreground">{t('logoDesc')}</p>
 
             <input
               ref={fileInputRef}
@@ -495,9 +498,7 @@ export default function BrandPage() {
                 ) : (
                   <ImagePlus className="w-5 h-5 text-muted-foreground" />
                 )}
-                <span className="text-xs font-medium">
-                  {t('clickOrDrag')}
-                </span>
+                <span className="text-xs font-medium">{t('clickOrDrag')}</span>
                 <span className="text-[11px] text-muted-foreground">
                   {t('logoFormats')}
                 </span>
@@ -601,7 +602,9 @@ export default function BrandPage() {
           <div className="rounded-xl border border-border bg-card p-5 space-y-4">
             <div className="flex items-center gap-2">
               <Captions className="w-4 h-4 text-muted-foreground" />
-              <h2 className="text-[13px] font-semibold">{t('subtitleStyle')}</h2>
+              <h2 className="text-[13px] font-semibold">
+                {t('subtitleStyle')}
+              </h2>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
@@ -662,7 +665,9 @@ export default function BrandPage() {
             </div>
 
             <div>
-              <label className="text-xs text-muted-foreground">{t('position')}</label>
+              <label className="text-xs text-muted-foreground">
+                {t('position')}
+              </label>
               <div className="mt-1 grid grid-cols-3 gap-1.5">
                 {SUBTITLE_POSITIONS.map(({ value, icon: Icon }) => (
                   <button
@@ -710,7 +715,13 @@ export default function BrandPage() {
                       }`}
                     >
                       <Icon className="w-3.5 h-3.5" />
-                      {t(value as 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right')}
+                      {t(
+                        value as
+                          | 'top-left'
+                          | 'top-right'
+                          | 'bottom-left'
+                          | 'bottom-right'
+                      )}
                     </button>
                   ))}
                 </div>
@@ -718,7 +729,9 @@ export default function BrandPage() {
 
               <div>
                 <div className="flex items-center justify-between text-[13px]">
-                  <span className="text-xs text-muted-foreground">{t('opacity')}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {t('opacity')}
+                  </span>
                   <span className="tabular-nums text-xs">
                     {Math.round(kit.watermarkOpacity * 100)}%
                   </span>
@@ -750,9 +763,7 @@ export default function BrandPage() {
                   />
                 </div>
                 <p className="mt-1.5 text-[11px] text-muted-foreground">
-                  {canWhiteLabel
-                    ? t('badgeOnDesc')
-                    : t('badgeLockedDesc')}
+                  {canWhiteLabel ? t('badgeOnDesc') : t('badgeLockedDesc')}
                 </p>
                 {!canWhiteLabel && (
                   <Link

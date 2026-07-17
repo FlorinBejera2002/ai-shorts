@@ -114,7 +114,7 @@
         "noDuplicateParameters": "error",
         "noEmptyBlockStatements": "error",
         "noExplicitAny": "warn",
-        "noExtraNonNullAssertion": "error",
+        "noExtraNonNullAss  ertion": "error",
         "noFallthroughSwitchClause": "error",
         "noFunctionAssign": "error",
         "noGlobalAssign": "error",

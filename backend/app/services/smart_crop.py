@@ -7,8 +7,6 @@ import cv2
 import numpy as np
 import subprocess
 import logging
-import tempfile
-import os
 from typing import Callable, Optional, List, Tuple, Dict, Any
 from pathlib import Path
 
@@ -485,81 +483,77 @@ def process_video_to_vertical(
         scene_frames = [int(_scene_start_seconds(s) * fps) for s in scenes]
         scene_idx = 0
 
-        logger.info("Processing frames...")
-        with tempfile.TemporaryDirectory() as tmpdir:
-            raw_video_path = os.path.join(tmpdir, 'raw.raw')
-            audio_path = os.path.join(tmpdir, 'audio.aac')
+        # Stream frames straight into a single ffmpeg pass (video from stdin,
+        # audio mapped from the source). The previous approach wrote every
+        # frame uncompressed to a temp file (~6 MB/frame) and ran three ffmpeg
+        # passes — gigabytes of dead disk I/O per clip.
+        logger.info("Processing frames (piped encode)...")
+        encoder = subprocess.Popen(
+            [
+                'ffmpeg',
+                '-f', 'rawvideo', '-pix_fmt', 'bgr24',
+                '-s', f'{output_width}x{output_height}', '-r', str(fps),
+                '-i', 'pipe:0',
+                '-i', input_video,
+                '-map', '0:v:0', '-map', '1:a?',
+                '-c:v', 'libx264', '-crf', '23', '-preset', 'fast',
+                '-c:a', 'aac',
+                '-shortest', '-y', output_video,
+            ],
+            stdin=subprocess.PIPE,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        assert encoder.stdin is not None
 
-            with open(raw_video_path, 'wb') as raw_file:
-                frame_num = 0
-                while True:
-                    ret, frame = cap.read()
-                    if not ret:
-                        break
+        try:
+            frame_num = 0
+            while True:
+                ret, frame = cap.read()
+                if not ret:
+                    break
 
-                    current_strategy = 'TRACK'
-                    if scene_idx < len(strategies):
-                        current_strategy = strategies[scene_idx]
-                        if scene_idx + 1 < len(scene_frames) and frame_num >= scene_frames[scene_idx + 1]:
-                            scene_idx += 1
-                            force_snap = True
-                        else:
-                            force_snap = False
+                current_strategy = 'TRACK'
+                if scene_idx < len(strategies):
+                    current_strategy = strategies[scene_idx]
+                    if scene_idx + 1 < len(scene_frames) and frame_num >= scene_frames[scene_idx + 1]:
+                        scene_idx += 1
+                        force_snap = True
                     else:
                         force_snap = False
+                else:
+                    force_snap = False
 
-                    if current_strategy == 'GENERAL':
-                        output_frame = create_general_frame(frame, output_width, output_height)
-                    else:
-                        force_snap = (scene_idx + 1 < len(scene_frames) and
-                                     frame_num >= scene_frames[scene_idx + 1])
+                if current_strategy == 'GENERAL':
+                    output_frame = create_general_frame(frame, output_width, output_height)
+                else:
+                    force_snap = (scene_idx + 1 < len(scene_frames) and
+                                 frame_num >= scene_frames[scene_idx + 1])
 
-                        if frame_num % 2 == 0:
-                            candidates = detect_face_candidates(frame)
-                            target_box = speaker_tracker.get_target(candidates, frame_num, video_width)
-                            cameraman.update_target(target_box)
+                    if frame_num % 2 == 0:
+                        candidates = detect_face_candidates(frame)
+                        target_box = speaker_tracker.get_target(candidates, frame_num, video_width)
+                        cameraman.update_target(target_box)
 
-                        x1, y1, x2, y2 = cameraman.get_crop_box(force_snap=force_snap)
-                        cropped = frame[y1:y2, x1:x2]
-                        output_frame = cv2.resize(cropped, (output_width, output_height))
+                    x1, y1, x2, y2 = cameraman.get_crop_box(force_snap=force_snap)
+                    cropped = frame[y1:y2, x1:x2]
+                    output_frame = cv2.resize(cropped, (output_width, output_height))
 
-                    raw_file.write(output_frame.tobytes())
+                encoder.stdin.write(output_frame.tobytes())
 
-                    frame_num += 1
-                    if progress_callback:
-                        progress_callback(frame_num, frame_count)
+                frame_num += 1
+                if progress_callback:
+                    progress_callback(frame_num, frame_count)
 
             cap.release()
             cap = None
 
-            logger.info("Extracting audio...")
-            subprocess.run(
-                ['ffmpeg', '-i', input_video, '-vn', '-acodec', 'aac', '-y', audio_path],
-                check=True, capture_output=True, timeout=600,
-            )
-
-            logger.info("Encoding video...")
-            subprocess.run(
-                [
-                    'ffmpeg', '-f', 'rawvideo', '-pix_fmt', 'bgr24',
-                    '-s', f'{output_width}x{output_height}', '-r', str(fps),
-                    '-i', raw_video_path, '-c:v', 'libx264', '-crf', '23',
-                    '-preset', 'fast', '-y', output_video,
-                ],
-                check=True, capture_output=True, timeout=600,
-            )
-
-            logger.info("Merging audio...")
-            temp_output = output_video + '.tmp.mp4'
-            subprocess.run(
-                [
-                    'ffmpeg', '-i', output_video, '-i', audio_path,
-                    '-c:v', 'copy', '-c:a', 'aac',
-                    '-map', '0:v:0', '-map', '1:a:0', '-y', temp_output,
-                ],
-                check=True, capture_output=True, timeout=600,
-            )
-            os.replace(temp_output, output_video)
+            encoder.stdin.close()
+            if encoder.wait(timeout=600) != 0:
+                raise RuntimeError(f"ffmpeg encode failed with code {encoder.returncode}")
+        except BaseException:
+            encoder.kill()
+            raise
 
         logger.info(f"Vertical reframing complete: {output_video}")
         return True

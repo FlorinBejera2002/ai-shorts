@@ -39,19 +39,9 @@ def _get_model():
     return _model
 
 
-def transcribe_video(video_path: str) -> dict[str, Any]:
-    path = Path(video_path)
-    validate_video_file(path)
-    if not has_audio_stream(path):
-        raise ValueError(f"video has no audio stream: {path}")
-
-    model = _get_model()
-    segments_iter, info = model.transcribe(
-        str(path),
-        word_timestamps=True,
-        vad_filter=True,
-    )
-
+def _collect_transcript(
+    segments_iter,
+) -> tuple[list[TranscriptSegment], list[TranscriptWord], list[str]]:
     segments: list[TranscriptSegment] = []
     words: list[TranscriptWord] = []
     text_parts: list[str] = []
@@ -79,6 +69,33 @@ def transcribe_video(video_path: str) -> dict[str, Any]:
                 words=segment_words,
             )
         )
+    return segments, words, text_parts
+
+
+def transcribe_video(video_path: str) -> dict[str, Any]:
+    path = Path(video_path)
+    validate_video_file(path)
+    if not has_audio_stream(path):
+        raise ValueError(f"video has no audio stream: {path}")
+
+    model = _get_model()
+    segments_iter, info = model.transcribe(
+        str(path),
+        word_timestamps=True,
+        vad_filter=True,
+    )
+    segments, words, text_parts = _collect_transcript(segments_iter)
+
+    if not text_parts:
+        # VAD can classify quiet, heavily produced, or music-backed speech as
+        # silence. Retry once without it before declaring the video speechless.
+        logger.warning("VAD found no speech in %s; retrying without VAD", path)
+        segments_iter, info = model.transcribe(
+            str(path),
+            word_timestamps=True,
+            vad_filter=False,
+        )
+        segments, words, text_parts = _collect_transcript(segments_iter)
 
     result = TranscriptResult(
         text=" ".join(text_parts).strip(),
@@ -88,5 +105,7 @@ def transcribe_video(video_path: str) -> dict[str, Any]:
         words=words,
     )
     if not result.text:
-        raise ValueError("transcription produced empty text")
+        raise ValueError(
+            "no speech detected in the video audio — clips need spoken content"
+        )
     return result.model_dump()

@@ -1,14 +1,22 @@
 import { Link } from '@/i18n/navigation'
-import { ChevronRight } from 'lucide-react'
+import {
+  AlertCircle,
+  CheckCircle2,
+  ChevronRight,
+  Clock,
+  XCircle
+} from 'lucide-react'
 import { getTranslations, setRequestLocale } from 'next-intl/server'
 
+import { EmptyState } from '@/components/ui/empty-state'
+import { PageHeader } from '@/components/ui/page-header'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/db'
 
 export const runtime = 'nodejs'
 
 export default async function HistoryPage({
-  params,
+  params
 }: {
   params: Promise<{ locale: string }>
 }) {
@@ -22,19 +30,19 @@ export default async function HistoryPage({
         where: { userId: session.user.id },
         orderBy: { createdAt: 'desc' },
         take: 100,
-        include: { _count: { select: { clips: true } } },
+        include: { _count: { select: { clips: true } } }
       })
     : []
 
   return (
-    <div className="animate-fade-in">
-      <h1 className="text-lg font-semibold tracking-tight">{t('title')}</h1>
-      <p className="mt-0.5 text-xs text-muted-foreground">
-        {t('count', { count: jobs.length })}
-      </p>
+    <div className="animate-fade-in space-y-6">
+      <PageHeader
+        title={t('title')}
+        description={t('count', { count: jobs.length })}
+      />
 
       {jobs.length > 0 ? (
-        <div className="mt-5 space-y-1">
+        <div className="space-y-2">
           {jobs.map((job, i) => (
             <Link
               key={job.id}
@@ -43,61 +51,102 @@ export default async function HistoryPage({
                   ? '/dashboard/clips'
                   : `/dashboard/jobs/${job.id}`
               }
-              className="flex items-center gap-3 rounded-lg px-3 py-2.5 transition-colors hover:bg-muted/50 group animate-slide-up"
+              className="group flex items-center gap-4 rounded-lg border border-border/40 bg-card px-4 py-3 transition-all duration-300 hover:border-primary/30 hover:bg-muted/30 hover:shadow-sm animate-slide-up"
               style={{ animationDelay: `${i * 30}ms` }}
             >
-              <StatusDot status={job.status} />
+              <StatusIcon status={job.status} />
               <div className="min-w-0 flex-1">
-                <div className="text-[13px] font-medium truncate">
+                <div className="text-sm font-semibold text-foreground truncate">
                   {job.sourceUrl ?? job.sourceFilePath ?? 'Unknown source'}
                 </div>
-                <div className="flex gap-3 text-xs text-muted-foreground mt-0.5">
-                  <span>{job.numClipsRequested} {t('requested')}</span>
-                  <span>{job._count.clips} {t('generated')}</span>
+                <div className="mt-1 flex flex-wrap gap-3 text-[11px] text-muted-foreground">
+                  <span className="inline-flex items-center gap-1">
+                    <span className="rounded-full bg-primary/10 px-1.5 py-0.5 font-medium text-primary">
+                      {job.numClipsRequested}
+                    </span>
+                    {t('requested')}
+                  </span>
+                  <span className="inline-flex items-center gap-1">
+                    <span className="rounded-full bg-accent/10 px-1.5 py-0.5 font-medium text-accent">
+                      {job._count.clips}
+                    </span>
+                    {t('generated')}
+                  </span>
                   <span>{job.aspectRatio}</span>
-                  <span>{new Date(job.createdAt).toLocaleDateString()}</span>
+                  <span className="text-muted-foreground/60">
+                    {new Date(job.createdAt).toLocaleDateString(locale, {
+                      year: 'numeric',
+                      month: 'short',
+                      day: 'numeric'
+                    })}
+                  </span>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-3 shrink-0">
                 <span
-                  className={`text-xs font-medium capitalize ${
+                  className={`text-xs font-bold uppercase tracking-wider ${
                     job.status === 'completed'
-                      ? 'text-emerald-500'
+                      ? 'text-emerald-600'
                       : job.status === 'failed'
-                        ? 'text-red-500'
-                        : 'text-muted-foreground'
+                        ? 'text-red-600'
+                        : job.status === 'cancelled'
+                          ? 'text-zinc-600'
+                          : 'text-amber-600'
                   }`}
                 >
                   {job.status}
                 </span>
-                <ChevronRight className="w-3.5 h-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
               </div>
             </Link>
           ))}
         </div>
       ) : (
-        <div className="mt-8 text-center animate-scale-in">
-          <p className="text-[13px] text-muted-foreground">{t('noJobs')}</p>
-          <Link
-            href="/dashboard/create"
-            className="mt-2 inline-block text-[13px] font-medium text-primary hover:underline underline-offset-4"
-          >
-            {t('firstProject')}
-          </Link>
-        </div>
+        <EmptyState
+          icon={Clock}
+          title={t('noJobs')}
+          description="Create your first project to see it here"
+          action={
+            <Link
+              href="/dashboard/create"
+              className="rounded-lg border border-primary/30 bg-primary/10 px-4 py-2 text-sm font-semibold text-primary transition-all hover:border-primary/60 hover:bg-primary/20"
+            >
+              {t('firstProject')}
+            </Link>
+          }
+        />
       )}
     </div>
   )
 }
 
-function StatusDot({ status }: { status: string }) {
-  const color =
-    status === 'completed'
-      ? 'bg-emerald-500'
-      : status === 'failed'
-        ? 'bg-red-500'
-        : status === 'cancelled'
-          ? 'bg-zinc-400'
-          : 'bg-amber-500'
-  return <span className={`inline-flex h-2 w-2 rounded-full ${color} shrink-0`} />
+function StatusIcon({ status }: { status: string }) {
+  const config = {
+    completed: {
+      icon: CheckCircle2,
+      color: 'text-emerald-600',
+      bg: 'bg-emerald-500/10'
+    },
+    failed: { icon: XCircle, color: 'text-red-600', bg: 'bg-red-500/10' },
+    cancelled: {
+      icon: AlertCircle,
+      color: 'text-zinc-600',
+      bg: 'bg-zinc-500/10'
+    },
+    default: { icon: Clock, color: 'text-amber-600', bg: 'bg-amber-500/10' }
+  }
+
+  const {
+    icon: Icon,
+    color,
+    bg
+  } = config[status as keyof typeof config] || config.default
+
+  return (
+    <div
+      className={`flex h-10 w-10 items-center justify-center rounded-lg ${bg}`}
+    >
+      <Icon className={`h-5 w-5 ${color}`} strokeWidth={1.75} />
+    </div>
+  )
 }

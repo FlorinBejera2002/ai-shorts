@@ -17,6 +17,7 @@ class JobCreate(BaseModel):
     include_brand: bool = False
     burn_subtitles: bool = True
     smart_crop: bool = True
+    user_instructions: str | None = Field(default=None, max_length=4000)
 
     @model_validator(mode="after")
     def validate_source(self) -> "JobCreate":
@@ -43,6 +44,7 @@ class JobRead(BaseModel):
     language: str | None = None
     subtitle_style: str
     include_brand: bool
+    user_instructions: str | None = None
     credits_charged: int
     error_message: str | None = None
     celery_task_id: str | None = None
@@ -61,6 +63,7 @@ class BatchJobCreate(BaseModel):
     include_brand: bool = False
     burn_subtitles: bool = True
     smart_crop: bool = True
+    user_instructions: str | None = Field(default=None, max_length=4000)
 
 
 class BatchJobResult(BaseModel):

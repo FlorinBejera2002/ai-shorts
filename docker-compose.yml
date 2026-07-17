@@ -27,6 +27,7 @@ services:
 
   backend:
     build: ./backend
+    image: clipforge-app
     env_file: .env
     depends_on:
       postgres:
@@ -44,11 +45,17 @@ services:
       retries: 3
 
   worker:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile.worker
+    # Same image as backend — built once by the backend service
+    image: clipforge-app
+    command: >
+      celery -A app.workers.celery_app:celery_app worker
+      --loglevel=info
+      --concurrency=${WORKER_CONCURRENCY:-2}
+      --max-tasks-per-child=${WORKER_MAX_TASKS_PER_CHILD:-50}
     env_file: .env
     depends_on:
+      backend:
+        condition: service_started
       postgres:
         condition: service_healthy
       redis:

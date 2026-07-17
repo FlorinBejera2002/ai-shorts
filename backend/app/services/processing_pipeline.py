@@ -28,6 +28,7 @@ def process_video_source(
     burn_subtitles: bool | None = None,
     smart_crop: bool | None = None,
     on_progress: Any | None = None,
+    user_instructions: str | None = None,
 ) -> dict[str, Any]:
     def _progress(status: str, pct: int, msg: str) -> None:
         if on_progress:
@@ -57,6 +58,7 @@ def process_video_source(
         transcript.model_dump(),
         video_duration,
         requested_clips=requested_clips,
+        user_instructions=user_instructions,
     )
 
     _progress("clipping", 60, f"Extracting {len(highlights)} clips")
@@ -69,8 +71,11 @@ def process_video_source(
 
     _progress("rendering", 70, "Smart crop & subtitles")
     processed_clips: list[dict[str, Any]] = []
+    total_clips = max(len(extracted), 1)
     for i, clip in enumerate(extracted, 1):
-        _progress("rendering", 70 + int(20 * i / max(len(extracted), 1)), f"Rendering clip {i}/{len(extracted)}")
+        band_start = 70 + int(20 * (i - 1) / total_clips)
+        band_end = 70 + int(20 * i / total_clips)
+        _progress("rendering", band_start, f"Rendering clip {i}/{len(extracted)}")
         current_path = clip["file_path"]
         try:
             if smart_crop and aspect_ratio == "9:16":
@@ -81,7 +86,31 @@ def process_video_source(
                 )
                 from app.services.smart_crop import process_video_to_vertical
 
-                if process_video_to_vertical(current_path, str(vertical_path)):
+                # Frame-level progress so long renders don't look frozen
+                reported = {"pct": -1}
+                def _render_progress(
+                    current_frame: int,
+                    total_frames: int,
+                    start: int = band_start,
+                    end: int = band_end,
+                    seen: dict = reported,
+                    clip_no: int = i,
+                ) -> None:
+                    if total_frames <= 0:
+                        return
+                    pct = start + int((end - start) * current_frame / total_frames)
+                    if pct != seen["pct"]:
+                        seen["pct"] = pct
+                        _progress(
+                            "rendering",
+                            pct,
+                            f"Rendering clip {clip_no}/{len(extracted)} — "
+                            f"{int(100 * current_frame / total_frames)}%",
+                        )
+
+                if process_video_to_vertical(
+                    current_path, str(vertical_path), progress_callback=_render_progress
+                ):
                     clip["vertical_file_path"] = str(vertical_path)
                     current_path = str(vertical_path)
         except Exception as exc:

@@ -60,6 +60,7 @@ def process_job_task(
     aspect_ratio: str = "9:16",
     burn_subtitles: bool | None = None,
     smart_crop: bool | None = None,
+    user_instructions: str | None = None,
 ) -> dict[str, Any]:
     from app.services.processing_pipeline import process_video_source
 
@@ -83,6 +84,7 @@ def process_job_task(
             burn_subtitles=burn_subtitles,
             smart_crop=smart_crop,
             on_progress=_on_progress,
+            user_instructions=user_instructions,
         )
         _mark_job_completed(job_id, result)
         self.update_state(
@@ -130,6 +132,21 @@ def _mark_job_completed(job_id: str, result: dict[str, Any]) -> None:
         job.progress_message = "Complete"
         job.completed_at = datetime.now(timezone.utc)
         job.source_video_url = result.get("source_video_url")
+        # Compact transcript chunks power the editor AI assistant
+        try:
+            raw_segments = (result.get("transcript") or {}).get("segments") or []
+            compact = [
+                {
+                    "s": round(float(seg.get("start", 0)), 2),
+                    "e": round(float(seg.get("end", 0)), 2),
+                    "text": (seg.get("text") or "").strip(),
+                }
+                for seg in raw_segments
+                if (seg.get("text") or "").strip()
+            ]
+            job.transcript_segments = compact[:2000] or None
+        except (TypeError, ValueError):
+            job.transcript_segments = None
         db.commit()
 
         transcript_text = result.get("transcript", {}).get("text")

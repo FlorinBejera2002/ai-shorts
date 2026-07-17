@@ -1,8 +1,10 @@
-import { Share2 } from 'lucide-react'
+import { EmptyState } from '@/components/ui/empty-state'
+import { PageHeader } from '@/components/ui/page-header'
+import { Share2, Zap } from 'lucide-react'
 import { getTranslations, setRequestLocale } from 'next-intl/server'
 
 export default async function PublishPage({
-  params,
+  params
 }: {
   params: Promise<{ locale: string }>
 }) {
@@ -12,17 +14,20 @@ export default async function PublishPage({
 
   return (
     <div className="animate-fade-in">
-      <h1 className="text-lg font-semibold tracking-tight">{t('title')}</h1>
-      <p className="mt-0.5 text-xs text-muted-foreground">
-        {t('desc')}
-      </p>
-      <div className="mt-10 flex flex-col items-center justify-center text-center">
-        <div className="w-12 h-12 rounded-xl bg-muted flex items-center justify-center">
-          <Share2 className="w-5 h-5 text-muted-foreground" />
-        </div>
-        <p className="mt-3 text-[13px] text-muted-foreground">
-          {t('comingSoon')}
-        </p>
+      <PageHeader title={t('title')} description={t('desc')} />
+
+      <div className="mt-12">
+        <EmptyState
+          icon={Share2}
+          title="Coming soon"
+          description={t('comingSoon')}
+          action={
+            <div className="inline-flex items-center gap-2 rounded-lg bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary">
+              <Zap className="h-3.5 w-3.5" strokeWidth={1.75} />
+              Phase 6 – Direct publishing to social
+            </div>
+          }
+        />
       </div>
     </div>
   )

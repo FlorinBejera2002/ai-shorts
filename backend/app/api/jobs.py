@@ -98,6 +98,7 @@ async def create_job(
         language=payload.language,
         subtitle_style=payload.subtitle_style,
         include_brand=payload.include_brand,
+        user_instructions=payload.user_instructions,
         credits_charged=credits_charged,
     )
     user.credits -= credits_charged
@@ -114,6 +115,7 @@ async def create_job(
             aspect_ratio=payload.aspect_ratio,
             burn_subtitles=payload.burn_subtitles,
             smart_crop=payload.smart_crop,
+            user_instructions=payload.user_instructions,
         )
     except Exception:
         user.credits += credits_charged
@@ -215,6 +217,7 @@ async def create_batch_jobs(
             language=payload.language,
             subtitle_style=payload.subtitle_style,
             include_brand=payload.include_brand,
+            user_instructions=payload.user_instructions,
             credits_charged=per_job_cost,
         )
         user.credits -= per_job_cost
@@ -231,6 +234,7 @@ async def create_batch_jobs(
                 aspect_ratio=payload.aspect_ratio,
                 burn_subtitles=payload.burn_subtitles,
                 smart_crop=payload.smart_crop,
+                user_instructions=payload.user_instructions,
             )
             job.celery_task_id = task.id
             job.progress_message = "Queued for processing"

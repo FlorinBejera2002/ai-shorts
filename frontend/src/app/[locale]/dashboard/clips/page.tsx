@@ -1,14 +1,16 @@
 import { Link } from '@/i18n/navigation'
-import { Play, Scissors } from 'lucide-react'
+import { Film, Play } from 'lucide-react'
 import { getTranslations, setRequestLocale } from 'next-intl/server'
 
+import { EmptyState } from '@/components/ui/empty-state'
+import { PageHeader } from '@/components/ui/page-header'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/db'
 
 export const runtime = 'nodejs'
 
 export default async function ClipsPage({
-  params,
+  params
 }: {
   params: Promise<{ locale: string }>
 }) {
@@ -21,24 +23,24 @@ export default async function ClipsPage({
     ? await prisma.clip.findMany({
         where: { userId: session.user.id },
         orderBy: { createdAt: 'desc' },
-        take: 100,
+        take: 100
       })
     : []
 
   return (
     <div className="animate-fade-in">
-      <h1 className="text-lg font-semibold tracking-tight">{t('title')}</h1>
-      <p className="mt-0.5 text-xs text-muted-foreground">
-        {t('count', { count: clips.length })}
-      </p>
+      <PageHeader
+        title={t('title')}
+        description={t('count', { count: clips.length })}
+      />
 
       {clips.length > 0 ? (
-        <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {clips.map((clip, i) => (
             <Link
               key={clip.id}
               href={`/dashboard/clips/${clip.id}`}
-              className="group relative rounded-xl bg-card border border-border overflow-hidden transition-all hover:border-primary/40 hover:shadow-md hover:shadow-primary/5 animate-slide-up"
+              className="group relative flex flex-col rounded-xl bg-card border border-border overflow-hidden transition-all hover:border-primary/40 hover:shadow-lg hover:shadow-primary/10 animate-slide-up"
               style={{ animationDelay: `${i * 40}ms` }}
             >
               <div className="aspect-video bg-muted relative overflow-hidden">
@@ -47,47 +49,56 @@ export default async function ClipsPage({
                     src={clip.fileUrl}
                     muted={true}
                     preload="metadata"
-                    className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                    className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-110"
                   />
                 ) : null}
-                <div className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/20 transition-colors">
-                  <div className="w-10 h-10 rounded-full bg-white/90 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-200 scale-75 group-hover:scale-100">
-                    <Play className="w-4 h-4 text-black ml-0.5" fill="currentColor" />
+                <div className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/30 transition-colors">
+                  <div className="w-12 h-12 rounded-full bg-white/95 backdrop-blur-sm flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-200 scale-75 group-hover:scale-100 shadow-lg">
+                    <Play
+                      className="w-5 h-5 text-black ml-0.5"
+                      fill="currentColor"
+                    />
                   </div>
                 </div>
               </div>
-              <div className="px-3 py-2.5">
-                <div className="flex items-start justify-between gap-2">
+              <div className="px-4 py-3 flex flex-col flex-1">
+                <div className="flex items-start justify-between gap-2 mb-2">
                   <div className="min-w-0 flex-1">
-                    <h2 className="text-[13px] font-medium truncate">
+                    <h2 className="text-[13px] font-semibold truncate text-foreground">
                       {clip.title}
                     </h2>
-                    <p className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
-                      {Math.round(clip.duration)}s &middot; {clip.resolution}
-                      <Scissors className="h-3 w-3 opacity-60" />
-                    </p>
                   </div>
                   {clip.viralScore > 0 && (
-                    <span className="shrink-0 rounded-md bg-primary/10 px-1.5 py-0.5 text-[11px] font-semibold text-primary tabular-nums">
-                      {t('viralScore', { score: clip.viralScore })}
-                    </span>
+                    <div className="shrink-0 flex items-center gap-1 rounded-full bg-primary/15 px-2 py-1 text-[10px] font-bold text-primary tabular-nums whitespace-nowrap">
+                      <span>🔥</span>
+                      {clip.viralScore}/10
+                    </div>
                   )}
                 </div>
+                <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+                  <span>{Math.round(clip.duration)}s</span>
+                  <span className="text-border">·</span>
+                  <span>{clip.resolution}</span>
+                </p>
               </div>
             </Link>
           ))}
         </div>
       ) : (
-        <div className="mt-8 text-center animate-scale-in">
-          <p className="text-[13px] text-muted-foreground">
-            {t('noClips')}
-          </p>
-          <Link
-            href="/dashboard/create"
-            className="mt-2 inline-block text-[13px] font-medium text-primary hover:underline underline-offset-4"
-          >
-            {t('firstProject')}
-          </Link>
+        <div className="mt-12">
+          <EmptyState
+            icon={Film}
+            title={t('noClips')}
+            description={t('count', { count: 0 })}
+            action={
+              <Link
+                href="/dashboard/create"
+                className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-[13px] font-semibold text-primary-foreground transition-opacity hover:opacity-90"
+              >
+                {t('firstProject')}
+              </Link>
+            }
+          />
         </div>
       )}
     </div>

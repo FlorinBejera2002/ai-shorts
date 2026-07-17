@@ -278,6 +278,7 @@ def detect_highlights(
     api_key: str | None = None,
     model_name: str | None = None,
     requested_clips: int | None = None,
+    user_instructions: str | None = None,
 ) -> list[dict[str, Any]]:
     api_key = api_key or settings.gemini_api_key
     model_name = model_name or settings.gemini_model_name
@@ -291,6 +292,12 @@ def detect_highlights(
         from google import genai
 
         prompt = build_prompt(transcript_result, video_duration, requested_clips)
+        if user_instructions:
+            prompt += (
+                "\n\nCREATOR PRIORITY INSTRUCTIONS (from the video owner — follow"
+                " them when choosing and ranking moments, as long as the time"
+                f" contract above is respected):\n{user_instructions[:4000]}"
+            )
         client = genai.Client(api_key=api_key)
         response = client.models.generate_content(model=model_name, contents=prompt)
         raw = extract_json_response(response.text or "")

@@ -1,8 +1,8 @@
-from __future__ import annotations
-
+# NOTE: no `from __future__ import annotations` here — string annotations cannot
+# be resolved through slowapi's wrapper and break FastAPI request-body modeling
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Body, Depends, HTTPException, Request, status
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -30,7 +30,8 @@ class TrimRequest(BaseModel):
 async def trim_clip(
     request: Request,
     clip_id: UUID,
-    payload: TrimRequest,
+    # Explicit Body(): see assistant.py — slowapi wrapper breaks annotation resolution
+    payload: TrimRequest = Body(),
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ) -> dict:
@@ -62,7 +63,8 @@ async def trim_clip(
 async def recut_clip(
     request: Request,
     clip_id: UUID,
-    payload: RecutRequest,
+    # Explicit Body(): see assistant.py — slowapi wrapper breaks annotation resolution
+    payload: RecutRequest = Body(),
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ) -> dict:

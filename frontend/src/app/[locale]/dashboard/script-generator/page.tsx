@@ -1,31 +1,32 @@
 'use client'
 
-import { useState } from 'react'
-import { useTranslations } from 'next-intl'
+import { PageHeader } from '@/components/ui/page-header'
 import { useToast } from '@/components/ui/toast'
 import {
-  FileText,
-  Sparkles,
-  Video,
-  Camera,
-  MessageSquare,
-  Type,
-  Music,
   ArrowRight,
-  Copy,
-  Download,
+  Camera,
   ChevronDown,
   ChevronUp,
-  Lightbulb,
-  Target,
   Clapperboard,
-  RotateCcw,
-  Hash,
-  Megaphone,
-  Wrench,
   Clock,
+  Copy,
+  Download,
   Eye,
+  FileText,
+  Hash,
+  Lightbulb,
+  Megaphone,
+  MessageSquare,
+  Music,
+  RotateCcw,
+  Sparkles,
+  Target,
+  Type,
+  Video,
+  Wrench
 } from 'lucide-react'
+import { useTranslations } from 'next-intl'
+import { useState } from 'react'
 
 type ScriptScene = {
   scene_number: number
@@ -55,7 +56,7 @@ const PLATFORMS = [
   { value: 'tiktok', label: 'TikTok', icon: '🎵' },
   { value: 'instagram', label: 'Instagram Reels', icon: '📸' },
   { value: 'youtube', label: 'YouTube Shorts', icon: '▶️' },
-  { value: 'linkedin', label: 'LinkedIn', icon: '💼' },
+  { value: 'linkedin', label: 'LinkedIn', icon: '💼' }
 ]
 
 const TONES = [
@@ -64,7 +65,7 @@ const TONES = [
   { value: 'inspirational', key: 'toneInspirational' },
   { value: 'sales', key: 'toneSales' },
   { value: 'storytelling', key: 'toneStorytelling' },
-  { value: 'humorous', key: 'toneHumorous' },
+  { value: 'humorous', key: 'toneHumorous' }
 ]
 
 const STYLES = [
@@ -73,7 +74,7 @@ const STYLES = [
   { value: 'tutorial', key: 'styleTutorial' },
   { value: 'storytelling', key: 'styleStorytelling' },
   { value: 'vlog', key: 'styleVlog' },
-  { value: 'product_demo', key: 'styleProductDemo' },
+  { value: 'product_demo', key: 'styleProductDemo' }
 ]
 
 const DURATIONS = [15, 30, 45, 60, 90, 120, 180]
@@ -113,19 +114,27 @@ export default function ScriptGeneratorPage() {
           tone,
           target_audience: targetAudience.trim(),
           language,
-          style,
-        }),
+          style
+        })
       })
       const data = await res.json()
       if (!res.ok) {
-        const msg = typeof data.detail === 'string' ? data.detail
-          : Array.isArray(data.detail) ? data.detail.map((e: { msg?: string }) => e.msg).filter(Boolean).join('; ')
-          : data.error
+        const msg =
+          typeof data.detail === 'string'
+            ? data.detail
+            : Array.isArray(data.detail)
+              ? data.detail
+                  .map((e: { msg?: string }) => e.msg)
+                  .filter(Boolean)
+                  .join('; ')
+              : data.error
         toast.add('error', msg || t('generateFailed'))
         return
       }
       setScript(data.script)
-      setExpandedScenes(new Set(data.script.scenes.map((_: ScriptScene, i: number) => i)))
+      setExpandedScenes(
+        new Set(data.script.scenes.map((_: ScriptScene, i: number) => i))
+      )
       toast.add('success', t('generateSuccess'))
     } catch {
       toast.add('error', t('generateFailed'))
@@ -164,7 +173,8 @@ export default function ScriptGeneratorPage() {
       lines.push(`**Visual:** ${scene.visual_description}`)
       lines.push(`**Camera:** ${scene.camera_angle} — ${scene.camera_movement}`)
       if (scene.dialogue) lines.push(`**Dialogue:** "${scene.dialogue}"`)
-      if (scene.text_overlay) lines.push(`**Text Overlay:** ${scene.text_overlay}`)
+      if (scene.text_overlay)
+        lines.push(`**Text Overlay:** ${scene.text_overlay}`)
       if (scene.music_mood) lines.push(`**Music:** ${scene.music_mood}`)
       lines.push(`**Transition:** ${scene.transition}`)
       lines.push('')
@@ -191,7 +201,9 @@ export default function ScriptGeneratorPage() {
     lines.push('')
     lines.push(`Hook: ${script.hook}`)
     lines.push(`Total Duration: ${script.total_duration_seconds}s`)
-    lines.push(`Platform: ${PLATFORMS.find((p) => p.value === platform)?.label}`)
+    lines.push(
+      `Platform: ${PLATFORMS.find((p) => p.value === platform)?.label}`
+    )
     lines.push('')
     lines.push('---SCENES---')
     lines.push('')
@@ -201,7 +213,8 @@ export default function ScriptGeneratorPage() {
       lines.push(`  Camera Angle: ${scene.camera_angle}`)
       lines.push(`  Camera Movement: ${scene.camera_movement}`)
       if (scene.dialogue) lines.push(`  Dialogue: "${scene.dialogue}"`)
-      if (scene.text_overlay) lines.push(`  Text Overlay: ${scene.text_overlay}`)
+      if (scene.text_overlay)
+        lines.push(`  Text Overlay: ${scene.text_overlay}`)
       if (scene.music_mood) lines.push(`  Music: ${scene.music_mood}`)
       lines.push(`  Transition: ${scene.transition}`)
       lines.push('')
@@ -222,7 +235,10 @@ export default function ScriptGeneratorPage() {
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `script-${script.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 40)}.txt`
+    a.download = `script-${script.title
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .slice(0, 40)}.txt`
     a.click()
     URL.revokeObjectURL(url)
   }
@@ -240,20 +256,9 @@ export default function ScriptGeneratorPage() {
 
   return (
     <div className="animate-fade-in max-w-6xl mx-auto">
-      {/* Header */}
-      <div className="mb-6">
-        <div className="flex items-center gap-3 mb-1">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center">
-            <Clapperboard className="w-4.5 h-4.5 text-white" strokeWidth={1.75} />
-          </div>
-          <div>
-            <h1 className="text-lg font-semibold">{t('title')}</h1>
-            <p className="text-xs text-muted-foreground">{t('desc')}</p>
-          </div>
-        </div>
-      </div>
+      <PageHeader title={t('title')} description={t('desc')} />
 
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.4fr] gap-6">
+      <div className="mt-8 grid grid-cols-1 lg:grid-cols-[1fr_1.4fr] gap-6">
         {/* Left: Input Form */}
         <div className="space-y-4">
           {/* Topic */}
@@ -327,7 +332,10 @@ export default function ScriptGeneratorPage() {
 
             <div className="space-y-2">
               <label className="text-[13px] font-medium flex items-center gap-2">
-                <MessageSquare className="w-3.5 h-3.5 text-primary" strokeWidth={2} />
+                <MessageSquare
+                  className="w-3.5 h-3.5 text-primary"
+                  strokeWidth={2}
+                />
                 {t('toneLabel')}
               </label>
               <div className="flex flex-wrap gap-1.5">
@@ -390,7 +398,9 @@ export default function ScriptGeneratorPage() {
             </div>
 
             <div className="space-y-2">
-              <label className="text-[13px] font-medium">{t('languageLabel')}</label>
+              <label className="text-[13px] font-medium">
+                {t('languageLabel')}
+              </label>
               <select
                 value={language}
                 onChange={(e) => setLanguage(e.target.value)}
@@ -431,20 +441,32 @@ export default function ScriptGeneratorPage() {
           {!script && !busy && (
             <div className="rounded-xl border border-dashed border-border bg-card/50 flex flex-col items-center justify-center py-20 px-6 text-center">
               <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center mb-4">
-                <FileText className="w-7 h-7 text-primary/50" strokeWidth={1.5} />
+                <FileText
+                  className="w-7 h-7 text-primary/50"
+                  strokeWidth={1.5}
+                />
               </div>
-              <p className="text-sm font-medium text-muted-foreground mb-1">{t('emptyTitle')}</p>
-              <p className="text-xs text-muted-foreground/70 max-w-xs">{t('emptyDesc')}</p>
+              <p className="text-sm font-medium text-muted-foreground mb-1">
+                {t('emptyTitle')}
+              </p>
+              <p className="text-xs text-muted-foreground/70 max-w-xs">
+                {t('emptyDesc')}
+              </p>
             </div>
           )}
 
           {busy && (
             <div className="rounded-xl border border-border bg-card flex flex-col items-center justify-center py-20 px-6 text-center">
               <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center mb-4">
-                <Sparkles className="w-7 h-7 text-primary animate-pulse" strokeWidth={1.5} />
+                <Sparkles
+                  className="w-7 h-7 text-primary animate-pulse"
+                  strokeWidth={1.5}
+                />
               </div>
               <p className="text-sm font-medium mb-1">{t('generatingTitle')}</p>
-              <p className="text-xs text-muted-foreground">{t('generatingDesc')}</p>
+              <p className="text-xs text-muted-foreground">
+                {t('generatingDesc')}
+              </p>
               <div className="mt-4 flex gap-1">
                 {[0, 1, 2].map((i) => (
                   <div
@@ -588,7 +610,7 @@ export default function ScriptGeneratorPage() {
                             icon={<MessageSquare className="w-3.5 h-3.5" />}
                             label={t('dialogueLabel')}
                             value={`"${scene.dialogue}"`}
-                            highlight
+                            highlight={true}
                           />
                         )}
                         {scene.text_overlay && (
@@ -596,7 +618,7 @@ export default function ScriptGeneratorPage() {
                             icon={<Type className="w-3.5 h-3.5" />}
                             label={t('overlayLabel')}
                             value={scene.text_overlay}
-                            highlight
+                            highlight={true}
                           />
                         )}
                         {scene.music_mood && (
@@ -631,7 +653,9 @@ export default function ScriptGeneratorPage() {
                   <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                     {t('captionLabel')}
                   </p>
-                  <p className="text-[13px] whitespace-pre-line">{script.caption}</p>
+                  <p className="text-[13px] whitespace-pre-line">
+                    {script.caption}
+                  </p>
                 </div>
 
                 <div className="border-t border-border pt-3 space-y-2">
@@ -661,7 +685,10 @@ export default function ScriptGeneratorPage() {
                   </p>
                   <ul className="space-y-1">
                     {script.equipment_suggestions.map((eq, i) => (
-                      <li key={i} className="text-[12px] flex items-center gap-2">
+                      <li
+                        key={i}
+                        className="text-[12px] flex items-center gap-2"
+                      >
                         <span className="w-1 h-1 rounded-full bg-primary/60 shrink-0" />
                         {eq}
                       </li>
@@ -676,7 +703,10 @@ export default function ScriptGeneratorPage() {
                   </p>
                   <ul className="space-y-1">
                     {script.filming_tips.map((tip, i) => (
-                      <li key={i} className="text-[12px] flex items-start gap-2">
+                      <li
+                        key={i}
+                        className="text-[12px] flex items-start gap-2"
+                      >
                         <span className="w-1 h-1 rounded-full bg-accent/60 shrink-0 mt-1.5" />
                         {tip}
                       </li>
@@ -696,7 +726,7 @@ function SceneRow({
   icon,
   label,
   value,
-  highlight,
+  highlight
 }: {
   icon: React.ReactNode
   label: string
@@ -709,7 +739,9 @@ function SceneRow({
         {icon}
       </div>
       <div className="min-w-0">
-        <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">{label}</p>
+        <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">
+          {label}
+        </p>
         <p
           className={`text-[13px] ${
             highlight ? 'font-medium text-foreground' : 'text-foreground/80'

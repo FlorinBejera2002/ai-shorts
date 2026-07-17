@@ -6,3 +6,7 @@ __pycache__
 venv
 media
 *.log
+tests
+.env
+.env.*
+Dockerfile*
