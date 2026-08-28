@@ -5,6 +5,7 @@ node_modules/
 
 # Build
 .next/
+.next-prod/
 out/
 dist/
 build/

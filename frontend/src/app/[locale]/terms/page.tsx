@@ -1,29 +1,24 @@
-import { Film } from 'lucide-react'
-import { Link } from '@/i18n/navigation'
+import { PublicNavbar } from '@/components/landing/public-navbar'
+import { getTranslations, setRequestLocale } from 'next-intl/server'
 
 export const metadata = {
   title: 'Terms of Service — ClipForge',
 }
 
-export default function TermsPage() {
+export default async function TermsPage({ params }: { params: Promise<{ locale: string }> }) {
+  const { locale } = await params
+  setRequestLocale(locale)
+  const t = await getTranslations('landing')
+
   return (
-    <main className="min-h-dvh bg-background">
-      <header className="border-b border-border">
-        <div className="mx-auto max-w-3xl px-6 py-4 flex items-center gap-2">
-          <Link href="/" className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center">
-              <Film className="w-3.5 h-3.5 text-white" />
-            </div>
-            <span className="text-[13px] font-semibold tracking-tight">ClipForge</span>
-          </Link>
-        </div>
-      </header>
+    <main className="dark min-h-dvh bg-[#060608] text-white">
+      <PublicNavbar labels={{ pricing: t('pricing'), signIn: t('signIn'), getStarted: t('getStarted') }} />
 
-      <article className="mx-auto max-w-3xl px-6 py-10 animate-fade-in">
-        <h1 className="text-2xl font-semibold tracking-tight">Terms of Service</h1>
-        <p className="mt-2 text-xs text-muted-foreground">Last updated: June 30, 2026</p>
+      <article className="mx-auto max-w-3xl px-6 pb-20 pt-36 animate-fade-in">
+        <h1 className="font-[family-name:var(--font-cinematic)] text-5xl font-medium tracking-[-0.045em]">Terms of Service</h1>
+        <p className="mt-3 font-[family-name:var(--font-studio)] text-xs text-white/30">Last updated: June 30, 2026</p>
 
-        <div className="mt-8 space-y-6 text-[13px] leading-relaxed text-muted-foreground [&_h2]:text-foreground [&_h2]:text-[15px] [&_h2]:font-semibold [&_h2]:mt-8 [&_h2]:mb-3 [&_strong]:text-foreground">
+        <div className="mt-10 space-y-6 font-[family-name:var(--font-studio)] text-[13px] leading-7 text-white/45 [&_h2]:mt-10 [&_h2]:mb-3 [&_h2]:text-[14px] [&_h2]:font-semibold [&_h2]:text-white/85 [&_strong]:text-white/75">
           <p>
             By using ClipForge, you agree to these terms. If you do not agree, do not use the service.
           </p>

@@ -1,228 +1,112 @@
+import { NavLogo } from '@/components/landing/animated-hero'
+import { PublicNavbar } from '@/components/landing/public-navbar'
 import { Link } from '@/i18n/navigation'
 import { Building2, Check, Crown, Film, Zap } from 'lucide-react'
 import { getTranslations, setRequestLocale } from 'next-intl/server'
 
-export default async function PricingPage({
-  params
-}: { params: Promise<{ locale: string }> }) {
+export default async function PricingPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params
   setRequestLocale(locale)
   const t = await getTranslations('pricing')
   const tLanding = await getTranslations('landing')
   const tBilling = await getTranslations('billing')
-
   const planData = t.raw('plans')
-  const faqData = t.raw('faqs')
+  const faqs = t.raw('faqs')
 
   const plans = [
-    {
-      name: planData.free.name,
-      price: planData.free.price,
-      period: planData.free.period,
-      credits: planData.free.credits,
-      description: planData.free.description,
-      icon: Zap,
-      features: planData.free.features,
-      cta: t('startFree'),
-      highlighted: false
-    },
-    {
-      name: planData.creator.name,
-      price: planData.creator.price,
-      period: planData.creator.period,
-      credits: planData.creator.credits,
-      description: planData.creator.description,
-      icon: Film,
-      features: planData.creator.features,
-      cta: t('startCreating'),
-      highlighted: false
-    },
-    {
-      name: planData.pro.name,
-      price: planData.pro.price,
-      period: planData.pro.period,
-      credits: planData.pro.credits,
-      description: planData.pro.description,
-      icon: Crown,
-      features: planData.pro.features,
-      cta: t('goPro'),
-      highlighted: true
-    },
-    {
-      name: planData.agency.name,
-      price: planData.agency.price,
-      period: planData.agency.period,
-      credits: planData.agency.credits,
-      description: planData.agency.description,
-      icon: Building2,
-      features: planData.agency.features,
-      cta: t('contactSales'),
-      highlighted: false
-    }
-  ]
-
-  const faqs = faqData
+    { key: 'free', icon: Zap, cta: t('startFree') },
+    { key: 'creator', icon: Film, cta: t('startCreating') },
+    { key: 'pro', icon: Crown, cta: t('goPro'), highlighted: true },
+    { key: 'agency', icon: Building2, cta: t('contactSales') }
+  ].map((plan) => ({ ...plan, ...planData[plan.key] }))
 
   return (
-    <main className="min-h-dvh bg-background">
-      <nav className="border-b border-border">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-          <Link href="/" className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center">
-              <Film className="w-3.5 h-3.5 text-white" />
-            </div>
-            <span className="text-[13px] font-semibold tracking-tight">
-              ClipForge
-            </span>
-          </Link>
-          <div className="flex items-center gap-3">
-            <Link
-              href="/login"
-              className="text-[13px] text-muted-foreground hover:text-foreground transition-colors"
-            >
-              {tLanding('signIn')}
-            </Link>
-            <Link
-              href="/register"
-              className="rounded-lg bg-primary px-3.5 py-2 text-[13px] font-medium text-primary-foreground transition-opacity hover:opacity-90"
-            >
-              {tLanding('getStarted')}
-            </Link>
-          </div>
-        </div>
-      </nav>
+    <main className="dark min-h-dvh overflow-hidden bg-[#060608] text-white">
+      <PublicNavbar labels={{ pricing: tLanding('pricing'), signIn: tLanding('signIn'), getStarted: tLanding('getStarted') }} />
 
-      <section className="px-6 pt-16 pb-12">
-        <div className="mx-auto max-w-6xl text-center">
-          <h1 className="text-4xl font-semibold tracking-tight sm:text-5xl">
+      <section className="px-6 pb-10 pt-32 sm:pt-36">
+        <div className="mx-auto grid max-w-7xl gap-5 border-b border-white/[0.08] pb-10 md:grid-cols-[1fr_0.75fr] md:items-end">
+          <h1 className="font-[family-name:var(--font-cinematic)] text-5xl font-medium leading-[0.9] tracking-[-0.05em] text-white sm:text-6xl">
             {t('title')}
           </h1>
-          <p className="mx-auto mt-4 max-w-lg text-sm text-muted-foreground leading-relaxed">
-            {t('desc')}
-          </p>
+          <p className="max-w-lg font-[family-name:var(--font-studio)] text-sm leading-7 text-white/40 md:justify-self-end">{t('desc')}</p>
         </div>
       </section>
 
-      <section className="px-6 pb-20">
-        <div className="mx-auto grid max-w-6xl gap-5 md:grid-cols-2 xl:grid-cols-4">
-          {plans.map((plan, idx) => {
+      <section className="px-6 pb-28 pt-2">
+        <div className="mx-auto grid max-w-7xl gap-4 md:grid-cols-2 xl:grid-cols-[repeat(4,minmax(0,1fr))] xl:items-stretch">
+          {plans.map((plan, index) => {
             const Icon = plan.icon
             return (
-              <div
+              <article
                 key={plan.name}
-                className={`relative rounded-xl p-6 transition-all border ${
-                  plan.highlighted
-                    ? 'ring-2 ring-primary ring-offset-2 ring-offset-background border-primary bg-card shadow-xl shadow-primary/10'
-                    : 'border-border bg-card hover:border-border/50 hover:shadow-md'
-                } animate-slide-up`}
-                style={{ animationDelay: `${idx * 50}ms` }}
+                className={`animate-slide-up relative flex min-h-[580px] w-full min-w-0 flex-col overflow-hidden rounded-[24px] border p-6 transition-all duration-300 ${plan.highlighted ? 'border-violet-300/45 bg-[#15101f] shadow-[0_30px_90px_rgba(109,40,217,0.24),inset_0_1px_0_rgba(255,255,255,0.06)]' : 'border-white/[0.14] bg-[#100e14] shadow-[0_22px_55px_rgba(0,0,0,0.28),inset_0_1px_0_rgba(255,255,255,0.045)] hover:-translate-y-1 hover:border-violet-200/25 hover:bg-[#131018] hover:shadow-[0_28px_70px_rgba(0,0,0,0.38)]'}`}
+                style={{ animationDelay: `${index * 70}ms` }}
               >
-                {plan.highlighted && (
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-primary px-4 py-1 text-[10px] font-bold uppercase tracking-wider text-primary-foreground">
-                    {tBilling('mostPopular')}
-                  </div>
-                )}
-
-                <div className="flex items-start justify-between gap-3 mb-4">
-                  <div
-                    className={`flex h-10 w-10 items-center justify-center rounded-xl shrink-0 ${
-                      plan.highlighted ? 'bg-primary/10' : 'bg-muted'
-                    }`}
-                  >
-                    <Icon
-                      className={`w-5 h-5 ${plan.highlighted ? 'text-primary' : 'text-muted-foreground'}`}
-                      strokeWidth={1.75}
-                    />
-                  </div>
-                  <div>
-                    <h2 className="text-base font-semibold text-foreground">
-                      {plan.name}
-                    </h2>
-                    <p className="mt-1 text-xs text-muted-foreground line-clamp-2">
-                      {plan.description}
-                    </p>
-                  </div>
+                <div className={`absolute inset-x-[12%] top-0 h-px bg-gradient-to-r from-transparent to-transparent ${plan.highlighted ? 'via-violet-200/80' : 'via-white/25'}`} />
+                <div className="flex items-center justify-between">
+                  <span className={`flex h-10 w-10 items-center justify-center rounded-full border ${plan.highlighted ? 'border-violet-300/20 bg-violet-400/10 text-violet-200' : 'border-white/10 bg-white/[0.035] text-white/45'}`}>
+                    <Icon className="h-4 w-4" />
+                  </span>
+                  <span className="font-[family-name:var(--font-studio)] text-[9px] font-bold uppercase tracking-[0.18em] text-white/25">0{index + 1}</span>
                 </div>
 
-                <div className="mb-5 pb-5 border-b border-border">
-                  <div className="flex items-baseline gap-1 mb-1">
-                    <span className="text-3xl font-bold text-foreground">
-                      {plan.price}
-                    </span>
-                    <span className="text-sm text-muted-foreground">
-                      {plan.period}
-                    </span>
+                <div className="mt-8">
+                  <div className="flex items-center gap-2">
+                    <h2 className="font-[family-name:var(--font-studio)] text-sm font-semibold uppercase tracking-[0.1em] text-white/85">{plan.name}</h2>
+                    {plan.highlighted && <span className="rounded-full border border-violet-300/20 bg-violet-400/10 px-2 py-1 text-[8px] font-bold uppercase tracking-[0.12em] text-violet-200">{tBilling('mostPopular')}</span>}
                   </div>
-                  <p className="text-xs font-medium text-muted-foreground">
-                    {plan.credits}
-                  </p>
+                  <p className="mt-3 min-h-12 font-[family-name:var(--font-studio)] text-xs leading-6 text-white/35">{plan.description}</p>
                 </div>
 
-                <Link
-                  href="/register"
-                  className={`mb-5 flex w-full justify-center rounded-lg px-4 py-2.5 text-[13px] font-semibold transition-all ${
-                    plan.highlighted
-                      ? 'bg-primary text-primary-foreground hover:opacity-90'
-                      : 'bg-muted text-foreground hover:bg-muted/80'
-                  }`}
-                >
-                  {plan.cta}
-                </Link>
+                <div className="mt-6 border-y border-white/[0.07] py-6">
+                  <div className="flex items-end gap-1.5">
+                    <span className="font-[family-name:var(--font-cinematic)] text-5xl font-medium leading-none tracking-[-0.05em] text-white">{plan.price}</span>
+                    <span className="pb-1 font-[family-name:var(--font-studio)] text-[10px] text-white/30">{plan.period}</span>
+                  </div>
+                  <p className="mt-3 font-[family-name:var(--font-studio)] text-[9px] font-semibold uppercase tracking-[0.14em] text-violet-200/45">{plan.credits}</p>
+                </div>
 
-                <ul className="space-y-2">
-                  {plan.features.map((feat: string) => (
-                    <li
-                      key={feat}
-                      className="flex items-start gap-2 text-[12px] text-muted-foreground"
-                    >
-                      <Check className="mt-1 h-3.5 w-3.5 shrink-0 text-success" />
-                      <span>{feat}</span>
+                <ul className="mt-6 flex-1 space-y-3">
+                  {plan.features.map((feature: string) => (
+                    <li key={feature} className="flex items-start gap-2.5 font-[family-name:var(--font-studio)] text-[11px] leading-5 text-white/42">
+                      <Check className={`mt-0.5 h-3.5 w-3.5 shrink-0 ${plan.highlighted ? 'text-violet-300' : 'text-white/30'}`} />
+                      {feature}
                     </li>
                   ))}
                 </ul>
-              </div>
+
+                <Link href="/register" className={`mt-7 flex min-h-12 items-center justify-center rounded-[13px] border font-[family-name:var(--font-studio)] text-[10px] font-bold uppercase tracking-[0.12em] transition-all ${plan.highlighted ? 'border-white bg-white text-black hover:-translate-y-0.5 hover:shadow-[0_12px_35px_rgba(139,92,246,0.25)]' : 'border-white/10 bg-white/[0.04] text-white/65 hover:border-white/20 hover:bg-white/[0.07] hover:text-white'}`}>
+                  {plan.cta}
+                </Link>
+              </article>
             )
           })}
         </div>
       </section>
 
-      <section className="border-t border-border bg-muted/30 px-6 py-16">
-        <div className="mx-auto max-w-3xl">
-          <h2 className="text-center text-2xl font-semibold tracking-tight">
-            {t('faq')}
-          </h2>
-          <dl className="mt-10 space-y-0 divide-y divide-border">
-            {faqs.map((faq: { q: string; a: string }) => (
-              <div key={faq.q} className="py-5">
-                <dt className="text-[14px] font-medium">{faq.q}</dt>
-                <dd className="mt-2 text-[13px] text-muted-foreground leading-relaxed">
-                  {faq.a}
-                </dd>
+      <section className="border-y border-white/[0.06] bg-[#09080c] px-6 py-28">
+        <div className="mx-auto grid max-w-7xl gap-14 lg:grid-cols-[0.7fr_1.3fr]">
+          <div>
+            <div className="font-[family-name:var(--font-studio)] text-[9px] font-semibold uppercase tracking-[0.28em] text-violet-200/45">Everything before you roll</div>
+            <h2 className="mt-5 max-w-md font-[family-name:var(--font-cinematic)] text-5xl font-medium leading-[0.92] tracking-[-0.045em] text-white sm:text-6xl">{t('faq')}</h2>
+          </div>
+          <dl className="border-t border-white/[0.08]">
+            {faqs.map((faq: { q: string; a: string }, index: number) => (
+              <div key={faq.q} className="grid gap-3 border-b border-white/[0.08] py-6 sm:grid-cols-[32px_0.7fr_1fr] sm:gap-6">
+                <span className="font-[family-name:var(--font-studio)] text-[9px] font-bold tracking-[0.18em] text-white/20">0{index + 1}</span>
+                <dt className="font-[family-name:var(--font-studio)] text-[12px] font-semibold leading-5 text-white/78">{faq.q}</dt>
+                <dd className="font-[family-name:var(--font-studio)] text-xs leading-6 text-white/35">{faq.a}</dd>
               </div>
             ))}
           </dl>
         </div>
       </section>
 
-      <footer className="border-t border-border px-6 py-8">
-        <div className="mx-auto flex max-w-6xl items-center justify-between">
-          <p className="text-xs text-muted-foreground">
-            {tLanding('footer', { year: new Date().getFullYear() })}
-          </p>
-          <div className="flex gap-4">
-            <Link
-              href="/privacy"
-              className="text-xs text-muted-foreground hover:text-foreground transition-colors"
-            >
-              {tLanding('privacy')}
-            </Link>
-            <Link
-              href="/terms"
-              className="text-xs text-muted-foreground hover:text-foreground transition-colors"
-            >
-              {tLanding('terms')}
-            </Link>
-          </div>
+      <footer className="border-t border-white/[0.06] bg-[#050507]">
+        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-6 px-6 py-10 font-[family-name:var(--font-studio)] text-[10px] uppercase tracking-[0.1em] text-white/30">
+          <div className="flex items-center gap-5"><NavLogo /><span className="hidden h-7 w-px bg-white/10 sm:block" /><span className="hidden sm:inline">{tLanding('footer', { year: new Date().getFullYear() })}</span></div>
+          <div className="flex gap-6"><Link href="/privacy" className="transition-colors hover:text-white">{tLanding('privacy')}</Link><Link href="/terms" className="transition-colors hover:text-white">{tLanding('terms')}</Link></div>
         </div>
       </footer>
     </main>

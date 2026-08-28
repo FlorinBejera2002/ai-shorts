@@ -8,7 +8,7 @@ import { type ReactNode, useRef } from 'react'
 export function NavLogo() {
   return (
     <motion.div
-      className="flex items-center gap-2.5"
+      className="flex items-center gap-3"
       initial={{ opacity: 0, x: -16 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
@@ -16,14 +16,15 @@ export function NavLogo() {
       <Image
         src="/logo.webp"
         alt="ClipForge"
-        width={34}
-        height={34}
-        className="rounded-lg"
+        width={32}
+        height={32}
+        className="rounded-[10px] ring-1 ring-white/10 shadow-[0_0_20px_rgba(139,92,246,0.16)]"
         priority={true}
       />
-      <span className="text-[15px] font-bold tracking-tight gradient-text">
-        ClipForge
-      </span>
+      <div className="font-[family-name:var(--font-studio)] leading-none">
+        <span className="block text-[14px] font-bold tracking-[-0.02em] text-white">ClipForge</span>
+        <span className="mt-1 hidden text-[7px] font-semibold uppercase tracking-[0.24em] text-white/30 sm:block">AI editing studio</span>
+      </div>
     </motion.div>
   )
 }
@@ -166,15 +167,15 @@ export function AnimatedStat({
   return (
     <motion.div
       ref={ref}
-      className="text-center py-2"
+      className="px-5 py-7 text-left sm:px-7 sm:py-8"
       initial={{ opacity: 0, y: 16 }}
       animate={isInView ? { opacity: 1, y: 0 } : {}}
       transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
     >
-      <div className="text-3xl font-bold tracking-tight gradient-text">
+      <div className="font-[family-name:var(--font-cinematic)] text-3xl font-medium tracking-[-0.04em] text-white sm:text-4xl">
         {value}
       </div>
-      <div className="mt-1 text-[11px] text-muted-foreground uppercase tracking-[0.15em]">
+      <div className="mt-2 font-[family-name:var(--font-studio)] text-[8px] font-semibold uppercase tracking-[0.2em] text-white/30">
         {label}
       </div>
     </motion.div>
@@ -262,7 +263,7 @@ export function StepCard({
       {!isLast && (
         <div className="hidden sm:block absolute top-1/2 -right-3 w-6 z-20">
           <motion.div
-            className="h-[2px] bg-gradient-to-r from-primary/40 to-accent/40"
+            className="h-[2px] bg-gradient-to-r from-purple-500/40 to-cyan-500/40"
             initial={{ scaleX: 0 }}
             animate={isInView ? { scaleX: 1 } : {}}
             transition={{ duration: 0.6, delay: 0.4, ease: [0.16, 1, 0.3, 1] }}
@@ -271,13 +272,13 @@ export function StepCard({
         </div>
       )}
       <motion.div
-        className="relative rounded-2xl border border-border/60 bg-card/50 backdrop-blur-sm p-8 text-center overflow-hidden transition-all duration-300 hover:border-primary/30 hover:shadow-[0_0_40px_-12px] hover:shadow-primary/15"
+        className="relative min-h-[260px] overflow-hidden rounded-[22px] border border-white/[0.08] bg-[#0a090d] p-7 text-left transition-all duration-300 hover:border-violet-300/20 hover:bg-[#0d0b12]"
         initial={{ opacity: 0, y: 24, scale: 0.96 }}
         animate={isInView ? { opacity: 1, y: 0, scale: 1 } : {}}
         transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
         whileHover={{ y: -4 }}
       >
-        <div className="absolute top-3 right-4 text-[72px] font-black text-primary/[0.04] leading-none select-none">
+        <div className="absolute right-5 top-3 select-none font-[family-name:var(--font-cinematic)] text-[76px] font-medium leading-none text-white/[0.025]">
           {step}
         </div>
         {children}
@@ -298,11 +299,11 @@ export function CtaSection({ children }: { children: ReactNode }) {
   return (
     <section
       ref={ref}
-      className="relative overflow-hidden border-t border-border/40"
+      className="relative overflow-hidden border-t border-white/[0.06]"
     >
       <motion.div className="absolute inset-0 z-0" style={{ y }}>
-        <div className="absolute top-[-30%] left-[20%] w-[50vw] h-[50vw] rounded-full bg-[#6366f1]/6 blur-[100px]" />
-        <div className="absolute bottom-[-20%] right-[10%] w-[40vw] h-[40vw] rounded-full bg-[#d946ef]/5 blur-[80px]" />
+        <div className="absolute top-[-30%] left-[20%] w-[50vw] h-[50vw] rounded-full bg-purple-600/[0.06] blur-[100px]" />
+        <div className="absolute bottom-[-20%] right-[10%] w-[40vw] h-[40vw] rounded-full bg-fuchsia-600/[0.05] blur-[80px]" />
       </motion.div>
       <div className="relative z-10">{children}</div>
     </section>

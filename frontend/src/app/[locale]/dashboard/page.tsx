@@ -76,25 +76,28 @@ export default async function DashboardPage({
   })
 
   return (
-    <div className="animate-fade-in space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="animate-fade-in space-y-8">
+      <div className="relative overflow-hidden border-b border-border pb-7 pt-2">
+        <div className="relative flex items-end justify-between gap-5">
         <div>
-          <h1 className="text-lg font-semibold tracking-tight">
+          <div className="mb-3 flex items-center gap-2 text-[10px] font-bold uppercase tracking-[.22em] text-muted-foreground"><span className="h-1.5 w-1.5 rounded-full bg-primary" />Creator workspace</div>
+          <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
             {t('welcomeUser', {
               name: session?.user?.name ? session.user.name : 'empty',
             })}
           </h1>
-          <p className="mt-0.5 text-xs text-muted-foreground">
+          <p className="mt-2 text-sm text-muted-foreground">
             {t('overview')}
           </p>
         </div>
         <Link
           href="/dashboard/create"
-          className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3.5 py-2 text-[13px] font-medium text-primary-foreground transition-opacity hover:opacity-90"
+          className="group inline-flex items-center gap-2 rounded-lg bg-foreground px-5 py-3 text-[13px] font-semibold text-background transition-all hover:-translate-y-0.5 hover:bg-primary hover:text-primary-foreground hover:shadow-lg"
         >
           <Plus className="w-3.5 h-3.5" />
           {t('newProject')}
         </Link>
+        </div>
       </div>
 
       <StatsBar

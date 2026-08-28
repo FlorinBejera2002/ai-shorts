@@ -37,14 +37,14 @@ export function PasswordInput({
         autoComplete={autoComplete}
         value={value}
         onChange={onChange}
-        className="w-full rounded-xl border border-input bg-card px-4 py-2.5 pr-11 text-[13px] placeholder:text-muted-foreground/40 focus:border-primary focus:ring-2 focus:ring-primary/15 transition-all outline-none"
+        className="w-full rounded-[13px] border border-white/10 bg-white/[0.035] px-4 py-3 pr-11 font-[family-name:var(--font-studio)] text-[13px] text-white outline-none transition-all placeholder:text-white/20 focus:border-violet-300/35 focus:bg-white/[0.05] focus:ring-2 focus:ring-violet-400/10"
       />
       <button
         type="button"
         onClick={() => setVisible((v) => !v)}
         aria-label={visible ? hideLabel : showLabel}
         title={visible ? hideLabel : showLabel}
-        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground/50 hover:text-foreground transition-colors"
+        className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 transition-colors hover:text-white"
       >
         {visible ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
       </button>

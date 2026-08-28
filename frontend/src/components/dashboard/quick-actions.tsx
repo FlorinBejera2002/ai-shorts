@@ -11,28 +11,25 @@ export function QuickActions() {
       href: '/dashboard/create?mode=upload',
       icon: Upload,
       label: t('uploadVideo'),
-      color:
-        'from-amber-500/10 to-amber-500/5 hover:from-amber-500/20 hover:to-amber-500/10'
+      color: 'bg-card hover:bg-card'
     },
     {
       href: '/dashboard/create?mode=youtube',
       icon: Link2,
       label: t('youtubeUrl'),
-      color:
-        'from-red-500/10 to-red-500/5 hover:from-red-500/20 hover:to-red-500/10'
+      color: 'bg-card hover:bg-card'
     },
     {
       href: '/dashboard/create?mode=batch',
       icon: Layers,
       label: t('batchProcess'),
-      color:
-        'from-violet-500/10 to-violet-500/5 hover:from-violet-500/20 hover:to-violet-500/10'
+      color: 'bg-card hover:bg-card'
     }
   ]
 
   return (
     <div>
-      <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+      <h2 className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[.2em] text-muted-foreground before:h-px before:w-8 before:bg-accent">
         {t('quickActions')}
       </h2>
       <div className="mt-4 grid grid-cols-3 gap-3 sm:gap-4">
@@ -40,16 +37,16 @@ export function QuickActions() {
           <Link
             key={href}
             href={href}
-            className={`group relative flex flex-col items-center justify-center gap-2.5 rounded-xl border border-border/60 bg-gradient-to-br ${color} p-5 transition-all duration-300 hover:border-primary/30 hover:shadow-lg hover:shadow-primary/10 active:scale-95 animate-slide-up`}
+            className={`group relative flex min-h-32 flex-col items-start justify-between gap-4 overflow-hidden rounded-xl border border-border/70 ${color} p-5 transition-all duration-500 hover:-translate-y-1 hover:border-foreground/20 hover:shadow-[0_20px_50px_rgba(0,0,0,.08)] active:scale-[.98] animate-slide-up`}
             style={{ animationDelay: `${i * 50}ms` }}
           >
-            <div className="relative flex h-11 w-11 items-center justify-center rounded-lg bg-background/40 backdrop-blur-sm transition-all duration-300 group-hover:bg-background/60">
+            <div className="relative flex h-10 w-10 items-center justify-center rounded-lg border border-border bg-muted/50 text-foreground transition-all duration-500 group-hover:rotate-[8deg] group-hover:border-primary/30 group-hover:bg-primary/10 group-hover:text-primary">
               <Icon
-                className="h-5 w-5 text-primary transition-transform duration-300 group-hover:scale-110"
+                className="h-5 w-5 transition-transform duration-300 group-hover:scale-110"
                 strokeWidth={1.75}
               />
             </div>
-            <span className="text-xs font-semibold text-foreground text-center leading-tight">
+            <span className="font-serif text-base font-semibold text-foreground text-left leading-tight">
               {label}
             </span>
           </Link>

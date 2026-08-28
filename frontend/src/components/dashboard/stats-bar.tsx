@@ -50,22 +50,22 @@ export function StatsBar({
         return (
           <div
             key={stat.label}
-            className="group rounded-xl border border-border bg-card p-4 transition-all duration-300 hover:border-primary/40 hover:shadow-md hover:shadow-primary/5 hover:-translate-y-1 animate-slide-up"
+            className="group relative overflow-hidden rounded-xl border border-border bg-card/90 p-5 transition-all duration-500 hover:-translate-y-1 hover:border-foreground/20 hover:shadow-[0_18px_45px_rgba(0,0,0,.07)] animate-slide-up"
             style={{ animationDelay: `${i * 60}ms` }}
           >
             <div className="flex items-start justify-between">
               <div className="min-w-0 flex-1">
-                <div className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+                <div className="text-[10px] font-bold uppercase tracking-[.18em] text-muted-foreground">
                   {stat.label}
                 </div>
                 <div
-                  className={`mt-2 text-2xl font-bold tabular-nums ${stat.capitalize ? 'capitalize' : ''}`}
+                  className={`mt-3 font-serif text-3xl font-semibold tabular-nums ${stat.capitalize ? 'capitalize' : ''}`}
                 >
                   {stat.value}
                 </div>
               </div>
               <div
-                className={`flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-primary/10 to-accent/10 ${stat.color} shrink-0 opacity-70 transition-opacity group-hover:opacity-100`}
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-border bg-muted/50 text-muted-foreground transition-all duration-500 group-hover:-rotate-6 group-hover:border-primary/30 group-hover:text-primary"
               >
                 <Icon className="h-4 w-4 strokeWidth={1.75}" />
               </div>

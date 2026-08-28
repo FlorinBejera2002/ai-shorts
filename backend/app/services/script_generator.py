@@ -54,7 +54,19 @@ OUTPUT — RETURN ONLY VALID JSON (no markdown, no comments):
       "dialogue": "<exact words spoken in this scene OR [no dialogue] if silent>",
       "text_overlay": "<bold text that appears on screen, max 8 words, or empty string if none>",
       "music_mood": "<upbeat energetic, calm ambient, dramatic tension, trendy beat, lo-fi chill, etc.>",
-      "transition": "<cut, swipe left, zoom transition, jump cut, fade, match cut, whip pan, etc.>"
+      "transition": "<cut, swipe left, zoom transition, jump cut, fade, match cut, whip pan, etc.>",
+      "shot_type": "<close_up, medium_close_up, medium_shot, wide_shot, overhead or detail>",
+      "camera_height": <meters from floor, e.g. 1.55>,
+      "camera_distance": <meters from subject, e.g. 1.8>,
+      "camera_yaw": <horizontal angle in degrees, -45 to 45>,
+      "camera_pitch": <vertical angle in degrees, -25 to 25>,
+      "lens_mm": <smartphone equivalent focal length: 24, 35, 50 or 70>,
+      "subject_action": "<specific body action and gesture synchronized with the line>",
+      "subject_position": [<x>, <y>, <z>],
+      "lighting": "<soft_key_left, window_right, dramatic_backlight, flat_daylight, product_softbox>",
+      "voice_emotion": "<confident, warm, excited, calm, urgent, playful, authoritative>",
+      "voice_pace": <0.75 to 1.35>,
+      "voice_emphasis": ["<important word>", "<important phrase>"]
     }}
   ],
   "call_to_action": "<the closing CTA text — follow, comment, share, link in bio, etc.>",
@@ -139,6 +151,18 @@ def validate_script(raw: dict[str, Any]) -> dict[str, Any]:
                 "text_overlay": scene.get("text_overlay", ""),
                 "music_mood": scene.get("music_mood", ""),
                 "transition": scene.get("transition", "cut"),
+                "shot_type": scene.get("shot_type", "medium_shot"),
+                "camera_height": float(scene.get("camera_height", 1.55)),
+                "camera_distance": float(scene.get("camera_distance", 1.8)),
+                "camera_yaw": float(scene.get("camera_yaw", 0)),
+                "camera_pitch": float(scene.get("camera_pitch", 0)),
+                "lens_mm": int(scene.get("lens_mm", 35)),
+                "subject_action": scene.get("subject_action", "Speak naturally to camera"),
+                "subject_position": scene.get("subject_position", [0, 0, 0]),
+                "lighting": scene.get("lighting", "soft_key_left"),
+                "voice_emotion": scene.get("voice_emotion", "confident"),
+                "voice_pace": min(1.35, max(0.75, float(scene.get("voice_pace", 1.0)))),
+                "voice_emphasis": scene.get("voice_emphasis", [])[:5],
             }
         )
 

@@ -9,6 +9,10 @@ const imageRemoteHosts = (process.env.NEXT_IMAGE_REMOTE_HOSTS ?? '')
   .filter(Boolean)
 
 const nextConfig: NextConfig = {
+  // Keep the production compiler away from the development cache. Running
+  // `next build` while `next dev` is open can otherwise leave mixed vendor
+  // chunks in `.next` and break routes such as the pricing page.
+  distDir: process.env.NODE_ENV === 'production' ? '.next-prod' : '.next',
   output: 'standalone',
   images: {
     remotePatterns: imageRemoteHosts.map((hostname) => ({

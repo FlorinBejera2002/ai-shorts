@@ -13,6 +13,18 @@ class ScriptScene(BaseModel):
     text_overlay: str
     music_mood: str
     transition: str
+    shot_type: str = "medium_shot"
+    camera_height: float = 1.55
+    camera_distance: float = 1.8
+    camera_yaw: float = 0
+    camera_pitch: float = 0
+    lens_mm: int = 35
+    subject_action: str = "Speak naturally to camera"
+    subject_position: list[float] = [0, 0, 0]
+    lighting: str = "soft_key_left"
+    voice_emotion: str = "confident"
+    voice_pace: float = 1.0
+    voice_emphasis: list[str] = []
 
 
 class GeneratedScript(BaseModel):

@@ -14,7 +14,6 @@ export interface MockupLabels {
 
 const EASE = [0.16, 1, 0.3, 1] as const
 
-// ─── Animated waveform bars ───
 function Waveform() {
   const bars = [14, 22, 10, 26, 18, 24, 12, 20]
   return (
@@ -36,7 +35,6 @@ function Waveform() {
   )
 }
 
-// ─── Satellite card floating around the phone ───
 function SatelliteCard({
   children,
   className = '',
@@ -69,7 +67,6 @@ function SatelliteCard({
   )
 }
 
-// ─── The 9:16 phone clip preview ───
 export function ProductMockup({ labels }: { labels: MockupLabels }) {
   const [captionIndex, setCaptionIndex] = useState(0)
   const [progress, setProgress] = useState(0)
@@ -95,90 +92,260 @@ export function ProductMockup({ labels }: { labels: MockupLabels }) {
       animate={{ opacity: 1, scale: 1, y: 0 }}
       transition={{ duration: 0.9, delay: 0.2, ease: EASE }}
     >
-      {/* Ambient glow */}
-      <motion.div
-        className="absolute inset-[-40%] rounded-full pointer-events-none"
-        style={{
-          background:
-            'radial-gradient(circle, color-mix(in srgb, var(--primary) 16%, transparent) 0%, color-mix(in srgb, var(--accent) 8%, transparent) 45%, transparent 70%)'
-        }}
-        animate={{ scale: [1, 1.06, 1], opacity: [0.7, 1, 0.7] }}
-        transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut' }}
-      />
-
-      {/* Phone frame */}
+      {/* Phone body with float animation */}
       <motion.div
         animate={{ y: [0, -10, 0] }}
         transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }}
-        className="relative z-10 w-[250px] sm:w-[270px] aspect-[9/16] rounded-[2.2rem] border border-border/80 bg-zinc-950 shadow-2xl shadow-primary/10 overflow-hidden"
+        className="relative z-10"
       >
-        {/* Fake footage — moving gradient blobs */}
-        <div className="absolute inset-0">
-          <motion.div
-            className="absolute w-[70%] h-[45%] rounded-full blur-3xl"
+        {/* Outer phone chassis */}
+        <div
+          className="relative w-[260px] sm:w-[280px] rounded-[3rem] p-[3px]"
+          style={{
+            background:
+              'linear-gradient(145deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0.05) 50%, rgba(0,0,0,0.2) 100%)',
+            boxShadow:
+              '0 25px 60px -12px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.05), inset 0 1px 0 rgba(255,255,255,0.1)'
+          }}
+        >
+          {/* Side buttons — left */}
+          <div
+            className="absolute -left-[2px] top-[18%] w-[3px] h-[18px] rounded-l-sm"
             style={{
-              background: 'color-mix(in srgb, var(--primary) 55%, transparent)'
+              background:
+                'linear-gradient(180deg, rgba(255,255,255,0.12), rgba(255,255,255,0.04))'
             }}
-            animate={{ x: ['-10%', '55%', '-10%'], y: ['15%', '55%', '15%'] }}
-            transition={{ duration: 11, repeat: Infinity, ease: 'easeInOut' }}
           />
-          <motion.div
-            className="absolute w-[60%] h-[40%] rounded-full blur-3xl"
+          <div
+            className="absolute -left-[2px] top-[28%] w-[3px] h-[30px] rounded-l-sm"
             style={{
-              background: 'color-mix(in srgb, var(--accent) 45%, transparent)'
+              background:
+                'linear-gradient(180deg, rgba(255,255,255,0.12), rgba(255,255,255,0.04))'
             }}
-            animate={{ x: ['60%', '0%', '60%'], y: ['65%', '20%', '65%'] }}
-            transition={{ duration: 13, repeat: Infinity, ease: 'easeInOut' }}
           />
-          <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-transparent to-black/70" />
-        </div>
+          <div
+            className="absolute -left-[2px] top-[40%] w-[3px] h-[30px] rounded-l-sm"
+            style={{
+              background:
+                'linear-gradient(180deg, rgba(255,255,255,0.12), rgba(255,255,255,0.04))'
+            }}
+          />
+          {/* Side button — right (power) */}
+          <div
+            className="absolute -right-[2px] top-[30%] w-[3px] h-[38px] rounded-r-sm"
+            style={{
+              background:
+                'linear-gradient(180deg, rgba(255,255,255,0.12), rgba(255,255,255,0.04))'
+            }}
+          />
 
-        {/* Top chips */}
-        <div className="absolute top-4 left-4 right-4 flex items-center justify-between z-10">
-          <div className="flex items-center gap-1.5 rounded-full bg-black/50 backdrop-blur-sm px-2.5 py-1">
-            <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse-dot" />
-            <span className="text-[10px] font-semibold text-white/90 tracking-wide">
-              9:16
-            </span>
+          {/* Inner bezel */}
+          <div className="rounded-[2.8rem] bg-black overflow-hidden aspect-[9/19.5]">
+            {/* Dynamic Island */}
+            <div className="absolute top-[10px] left-1/2 -translate-x-1/2 z-30">
+              <motion.div
+                className="h-[22px] rounded-full bg-black flex items-center justify-center gap-1.5 px-1"
+                initial={{ width: 90 }}
+                animate={{ width: [90, 100, 90] }}
+                transition={{
+                  duration: 4,
+                  repeat: Infinity,
+                  ease: 'easeInOut'
+                }}
+              >
+                <div className="w-[8px] h-[8px] rounded-full bg-zinc-900 ring-1 ring-zinc-800" />
+                <div className="w-[5px] h-[5px] rounded-full bg-zinc-800" />
+              </motion.div>
+            </div>
+
+            {/* Screen content */}
+            <div className="relative w-full h-full">
+              {/* Fake footage — cinematic gradient blobs */}
+              <div className="absolute inset-0">
+                <motion.div
+                  className="absolute w-[80%] h-[50%] rounded-full blur-[60px]"
+                  style={{
+                    background:
+                      'color-mix(in srgb, var(--primary) 50%, transparent)'
+                  }}
+                  animate={{
+                    x: ['-10%', '45%', '-10%'],
+                    y: ['10%', '50%', '10%']
+                  }}
+                  transition={{
+                    duration: 11,
+                    repeat: Infinity,
+                    ease: 'easeInOut'
+                  }}
+                />
+                <motion.div
+                  className="absolute w-[65%] h-[45%] rounded-full blur-[60px]"
+                  style={{
+                    background:
+                      'color-mix(in srgb, var(--accent) 40%, transparent)'
+                  }}
+                  animate={{
+                    x: ['55%', '5%', '55%'],
+                    y: ['60%', '15%', '60%']
+                  }}
+                  transition={{
+                    duration: 13,
+                    repeat: Infinity,
+                    ease: 'easeInOut'
+                  }}
+                />
+                <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/70" />
+              </div>
+
+              {/* Status bar */}
+              <div className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between px-7 pt-[38px]">
+                <span className="text-[11px] font-semibold text-white/80 tabular-nums">
+                  9:41
+                </span>
+                <div className="flex items-center gap-1">
+                  {/* Signal bars */}
+                  <svg
+                    width="15"
+                    height="10"
+                    viewBox="0 0 15 10"
+                    className="text-white/70"
+                  >
+                    <rect
+                      x="0"
+                      y="7"
+                      width="2.5"
+                      height="3"
+                      rx="0.5"
+                      fill="currentColor"
+                    />
+                    <rect
+                      x="4"
+                      y="5"
+                      width="2.5"
+                      height="5"
+                      rx="0.5"
+                      fill="currentColor"
+                    />
+                    <rect
+                      x="8"
+                      y="2.5"
+                      width="2.5"
+                      height="7.5"
+                      rx="0.5"
+                      fill="currentColor"
+                    />
+                    <rect
+                      x="12"
+                      y="0"
+                      width="2.5"
+                      height="10"
+                      rx="0.5"
+                      fill="currentColor"
+                    />
+                  </svg>
+                  {/* WiFi */}
+                  <svg
+                    width="13"
+                    height="10"
+                    viewBox="0 0 13 10"
+                    className="text-white/70"
+                  >
+                    <path
+                      d="M6.5 9.5a1 1 0 100-2 1 1 0 000 2z"
+                      fill="currentColor"
+                    />
+                    <path
+                      d="M3.8 6.8a3.8 3.8 0 015.4 0"
+                      stroke="currentColor"
+                      strokeWidth="1.2"
+                      strokeLinecap="round"
+                      fill="none"
+                    />
+                    <path
+                      d="M1.5 4.5a6.8 6.8 0 0110 0"
+                      stroke="currentColor"
+                      strokeWidth="1.2"
+                      strokeLinecap="round"
+                      fill="none"
+                    />
+                  </svg>
+                  {/* Battery */}
+                  <div className="flex items-center gap-[1px]">
+                    <div className="w-[18px] h-[9px] rounded-[2px] border border-white/50 p-[1.5px]">
+                      <div className="h-full w-[75%] rounded-[1px] bg-white/70" />
+                    </div>
+                    <div className="w-[1.5px] h-[4px] rounded-r-full bg-white/50" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Recording indicator */}
+              <div className="absolute top-[62px] left-4 z-20 flex items-center gap-1.5 rounded-full bg-black/50 backdrop-blur-sm px-2.5 py-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+                <span className="text-[9px] font-semibold text-white/90 tracking-wider uppercase">
+                  9:16
+                </span>
+              </div>
+
+              {/* Viral score chip */}
+              <motion.div
+                className="absolute top-[62px] right-4 z-20 flex items-center gap-1 rounded-full bg-black/50 backdrop-blur-sm px-2.5 py-1"
+                initial={{ opacity: 0, x: 12 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 1, duration: 0.5, ease: EASE }}
+              >
+                <Flame className="w-3 h-3 text-orange-400" />
+                <span className="text-[10px] font-bold text-white tabular-nums">
+                  94
+                </span>
+              </motion.div>
+
+              {/* Animated captions */}
+              <div className="absolute bottom-[22%] left-4 right-4 z-20 flex justify-center">
+                <AnimatePresence mode="wait">
+                  <motion.p
+                    key={captionIndex}
+                    className="text-center text-[14px] font-extrabold text-white leading-snug [text-shadow:0_2px_10px_rgba(0,0,0,0.8)]"
+                    initial={{ opacity: 0, y: 10, scale: 0.9 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -8, scale: 0.95 }}
+                    transition={{ duration: 0.35, ease: EASE }}
+                  >
+                    <span className="bg-primary/90 box-decoration-clone px-1.5 py-0.5 rounded-md">
+                      {labels.captions[captionIndex]}
+                    </span>
+                  </motion.p>
+                </AnimatePresence>
+              </div>
+
+              {/* Progress bar */}
+              <div className="absolute bottom-[10%] left-5 right-5 z-20">
+                <div className="h-[3px] rounded-full bg-white/15 overflow-hidden">
+                  <motion.div
+                    className="h-full rounded-full"
+                    style={{
+                      width: `${progress}%`,
+                      background:
+                        'linear-gradient(90deg, var(--primary), var(--accent))'
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* Home indicator */}
+              <div className="absolute bottom-[4%] left-1/2 -translate-x-1/2 z-20 w-[35%] h-[4px] rounded-full bg-white/20" />
+            </div>
           </div>
-          <motion.div
-            className="flex items-center gap-1 rounded-full bg-black/50 backdrop-blur-sm px-2.5 py-1"
-            initial={{ opacity: 0, x: 12 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 1, duration: 0.5, ease: EASE }}
-          >
-            <Flame className="w-3 h-3 text-orange-400" />
-            <span className="text-[10px] font-bold text-white">94</span>
-          </motion.div>
         </div>
 
-        {/* Animated captions — TikTok style */}
-        <div className="absolute bottom-[22%] left-4 right-4 z-10 flex justify-center">
-          <AnimatePresence mode="wait">
-            <motion.p
-              key={captionIndex}
-              className="text-center text-[15px] font-extrabold text-white leading-snug [text-shadow:0_2px_10px_rgba(0,0,0,0.8)]"
-              initial={{ opacity: 0, y: 10, scale: 0.9 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: -8, scale: 0.95 }}
-              transition={{ duration: 0.35, ease: EASE }}
-            >
-              <span className="bg-primary/90 box-decoration-clone px-1.5 py-0.5 rounded-md">
-                {labels.captions[captionIndex]}
-              </span>
-            </motion.p>
-          </AnimatePresence>
-        </div>
-
-        {/* Progress bar */}
-        <div className="absolute bottom-5 left-4 right-4 z-10">
-          <div className="h-[3px] rounded-full bg-white/20 overflow-hidden">
-            <div
-              className="h-full rounded-full bg-gradient-to-r from-primary to-accent"
-              style={{ width: `${progress}%` }}
-            />
-          </div>
-        </div>
+        {/* Reflection highlight on glass */}
+        <div
+          className="absolute inset-0 rounded-[3rem] pointer-events-none"
+          style={{
+            background:
+              'linear-gradient(135deg, rgba(255,255,255,0.07) 0%, transparent 40%, transparent 60%, rgba(255,255,255,0.03) 100%)'
+          }}
+        />
       </motion.div>
 
       {/* Satellite cards */}
@@ -242,7 +409,7 @@ export function ProductMockup({ labels }: { labels: MockupLabels }) {
         </div>
       </SatelliteCard>
 
-      {/* Compact fallback row for screens below xl (satellites hidden) */}
+      {/* Compact fallback row for screens below xl */}
       <motion.div
         className="xl:hidden mt-6 flex flex-wrap justify-center gap-2"
         initial={{ opacity: 0, y: 12 }}

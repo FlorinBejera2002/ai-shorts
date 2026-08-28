@@ -3,6 +3,10 @@
 import { PageHeader } from '@/components/ui/page-header'
 import { useToast } from '@/components/ui/toast'
 import {
+  ShootingCoach,
+  type CoachScene
+} from '@/components/script/shooting-coach'
+import {
   ArrowRight,
   Camera,
   ChevronDown,
@@ -28,17 +32,7 @@ import {
 import { useTranslations } from 'next-intl'
 import { useState } from 'react'
 
-type ScriptScene = {
-  scene_number: number
-  duration_seconds: number
-  visual_description: string
-  camera_angle: string
-  camera_movement: string
-  dialogue: string
-  text_overlay: string
-  music_mood: string
-  transition: string
-}
+type ScriptScene = CoachScene
 
 type GeneratedScript = {
   title: string
@@ -537,6 +531,8 @@ export default function ScriptGeneratorPage() {
                   <p className="text-[13px] font-medium">{script.hook}</p>
                 </div>
               </div>
+
+              <ShootingCoach scenes={script.scenes} />
 
               {/* Scene Controls */}
               <div className="flex items-center justify-between">

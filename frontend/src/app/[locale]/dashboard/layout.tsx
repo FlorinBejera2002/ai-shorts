@@ -16,7 +16,15 @@ import {
   X
 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
-import { useEffect, useState } from 'react'
+import {
+  AnimatePresence,
+  motion,
+  useMotionTemplate,
+  useMotionValue,
+  useReducedMotion,
+  useSpring
+} from 'framer-motion'
+import { useEffect, useState, type MouseEvent } from 'react'
 import { LanguageSwitcher } from '@/components/shared/language-switcher'
 import { ThemeToggle } from '@/components/shared/theme-toggle'
 import { Link, usePathname } from '@/i18n/navigation'
@@ -60,10 +68,10 @@ function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
   const t = useTranslations('nav')
 
   return (
-    <nav className="flex-1 overflow-y-auto px-3 py-2 space-y-5">
+    <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-7">
       {navGroups.map((group) => (
         <div key={group.labelKey}>
-          <div className="px-3 pb-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-sidebar-foreground/50">
+          <div className="px-3 pb-2 text-[9px] font-bold uppercase tracking-[0.24em] text-sidebar-foreground/45">
             {t(group.labelKey)}
           </div>
           <div className="space-y-0.5">
@@ -77,20 +85,24 @@ function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
                   key={item.href}
                   href={item.href}
                   onClick={onNavigate}
-                  className={`group relative flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] transition-all duration-150 ${
+                  className={`group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] transition-colors duration-200 ${
                     active
-                      ? 'bg-primary/10 text-primary font-medium'
+                      ? 'text-sidebar-primary-foreground font-semibold'
                       : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
                   }`}
                 >
                   {active && (
-                    <span className="absolute left-0 top-1/2 h-4 w-[3px] -translate-y-1/2 rounded-r-full bg-primary" />
+                    <motion.span
+                      layoutId={`active-nav-${onNavigate ? 'mobile' : 'desktop'}`}
+                      className="absolute inset-0 rounded-lg bg-sidebar-primary"
+                      transition={{ type: 'spring', stiffness: 420, damping: 34, mass: 0.8 }}
+                    />
                   )}
                   <Icon
-                    className={`w-4 h-4 shrink-0 transition-transform duration-150 ${active ? '' : 'group-hover:scale-110'}`}
+                    className={`relative z-10 w-4 h-4 shrink-0 transition-transform duration-300 ${active ? '' : 'group-hover:-rotate-6 group-hover:scale-110'}`}
                     strokeWidth={1.75}
                   />
-                  {t(item.key)}
+                  <span className="relative z-10">{t(item.key)}</span>
                 </Link>
               )
             })}
@@ -104,9 +116,9 @@ function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
 function SidebarFooter() {
   const t = useTranslations('nav')
   return (
-    <div className="p-3 border-t border-sidebar-border space-y-3">
-      <div className="flex items-center gap-2 rounded-lg bg-sidebar-accent/60 px-2.5 py-2">
-        <div className="w-6 h-6 rounded-full bg-gradient-to-br from-primary/30 to-accent/30 flex items-center justify-center text-[10px] font-bold text-primary shrink-0">
+    <div className="p-4 border-t border-sidebar-border space-y-3">
+      <div className="flex items-center gap-2 rounded-xl border border-sidebar-border bg-sidebar-accent/60 px-3 py-2.5">
+        <div className="w-7 h-7 rounded-lg bg-sidebar-primary flex items-center justify-center text-[9px] font-black text-sidebar-primary-foreground shrink-0">
           CF
         </div>
         <span className="text-xs text-sidebar-foreground truncate">
@@ -124,10 +136,10 @@ function SidebarFooter() {
 function Logo() {
   return (
     <Link href="/dashboard" className="flex items-center gap-2">
-      <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-sm shadow-primary/20">
-        <Film className="w-3.5 h-3.5 text-white" />
+      <div className="relative w-8 h-8 rounded-lg border border-sidebar-border bg-sidebar-accent flex items-center justify-center">
+        <Film className="w-4 h-4 text-sidebar-primary-foreground" />
       </div>
-      <span className="text-[13px] font-semibold text-sidebar-accent-foreground tracking-tight">
+      <span className="font-serif text-[17px] font-semibold text-sidebar-accent-foreground tracking-tight">
         ClipForge
       </span>
     </Link>
@@ -141,6 +153,18 @@ export default function DashboardLayout({
 }) {
   const pathname = usePathname()
   const [drawerOpen, setDrawerOpen] = useState(false)
+  const reduceMotion = useReducedMotion()
+  const pointerX = useMotionValue(0)
+  const pointerY = useMotionValue(0)
+  const smoothX = useSpring(pointerX, { stiffness: 120, damping: 24, mass: 0.4 })
+  const smoothY = useSpring(pointerY, { stiffness: 120, damping: 24, mass: 0.4 })
+  const spotlight = useMotionTemplate`radial-gradient(520px circle at ${smoothX}px ${smoothY}px, color-mix(in srgb, var(--primary) 7%, transparent), transparent 72%)`
+
+  const trackPointer = (event: MouseEvent<HTMLElement>) => {
+    const bounds = event.currentTarget.getBoundingClientRect()
+    pointerX.set(event.clientX - bounds.left)
+    pointerY.set(event.clientY - bounds.top + event.currentTarget.scrollTop)
+  }
 
   // Close the mobile drawer on navigation
   useEffect(() => {
@@ -148,10 +172,10 @@ export default function DashboardLayout({
   }, [pathname])
 
   return (
-    <div className="flex min-h-dvh">
+    <div className="flex min-h-dvh bg-background">
       {/* Desktop sidebar */}
-      <aside className="hidden lg:flex w-56 shrink-0 border-r border-sidebar-border bg-sidebar flex-col sticky top-0 h-dvh">
-        <div className="px-4 py-4">
+      <aside className="hidden lg:flex w-64 shrink-0 border-r border-sidebar-border bg-sidebar flex-col sticky top-0 h-dvh shadow-2xl shadow-black/10">
+        <div className="px-5 py-6">
           <Logo />
         </div>
         <SidebarNav />
@@ -199,8 +223,20 @@ export default function DashboardLayout({
           <Logo />
         </header>
 
-        <main className="flex-1 overflow-y-auto">
-          <div className="px-4 sm:px-6 py-6 mx-auto w-full max-w-6xl">{children}</div>
+        <main className="relative flex-1 overflow-y-auto" onMouseMove={trackPointer}>
+          {!reduceMotion && <motion.div className="pointer-events-none absolute inset-0" style={{ background: spotlight }} />}
+          <AnimatePresence mode="wait" initial={false}>
+            <motion.div
+              key={pathname}
+              initial={reduceMotion ? false : { opacity: 0, y: 12, filter: 'blur(5px)' }}
+              animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+              exit={reduceMotion ? undefined : { opacity: 0, y: -7, filter: 'blur(3px)' }}
+              transition={{ duration: 0.48, ease: [0.16, 1, 0.3, 1] }}
+              className="relative mx-auto w-full max-w-[1380px] px-4 py-7 sm:px-8 sm:py-9"
+            >
+              {children}
+            </motion.div>
+          </AnimatePresence>
         </main>
       </div>
     </div>

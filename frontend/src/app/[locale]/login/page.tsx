@@ -21,7 +21,7 @@ export default async function LoginPage({
   const redirectTo = callbackUrl ?? '/dashboard'
 
   return (
-    <main className="flex min-h-dvh">
+    <main className="dark flex min-h-dvh bg-[#060608] text-white">
       <AuthPanel title={t('heroTitle')} desc={t('heroDesc')}>
         <div className="flex items-center gap-6 pt-2">
           <div>
@@ -48,26 +48,27 @@ export default async function LoginPage({
       </AuthPanel>
 
       {/* Right — form */}
-      <div className="flex-1 flex items-center justify-center p-6 bg-background">
-        <div className="w-full max-w-[380px] animate-fade-in">
+      <div className="relative flex flex-1 items-center justify-center overflow-hidden bg-[#060608] p-5 sm:p-8">
+        <div className="pointer-events-none absolute right-[-20%] top-[-20%] h-[520px] w-[520px] rounded-full bg-violet-500/[0.055] blur-[110px]" />
+        <div className="relative w-full max-w-[430px] animate-fade-in rounded-[24px] border border-white/[0.08] bg-[#0b0a0e]/90 p-6 shadow-[0_28px_90px_rgba(0,0,0,0.34),inset_0_1px_0_rgba(255,255,255,0.035)] sm:p-8">
           {/* Mobile logo */}
-          <Link href="/" className="flex lg:hidden items-center gap-2 mb-10">
+          <Link href="/" className="mb-9 flex items-center gap-2 lg:hidden">
             <Image
               src="/logo.webp"
               alt="ClipForge"
               width={32}
               height={32}
-              className="rounded-lg"
+              className="rounded-[10px] ring-1 ring-white/10"
             />
-            <span className="text-[15px] font-bold tracking-tight">
+            <span className="font-[family-name:var(--font-studio)] text-[15px] font-bold tracking-tight text-white">
               ClipForge
             </span>
           </Link>
 
-          <h1 className="text-2xl font-bold tracking-tight">
+          <h1 className="font-[family-name:var(--font-cinematic)] text-4xl font-medium leading-none tracking-[-0.045em] text-white">
             {t('welcomeBack')}
           </h1>
-          <p className="mt-1.5 text-[13px] text-muted-foreground">
+          <p className="mt-3 font-[family-name:var(--font-studio)] text-[12px] leading-6 text-white/35">
             {t('signInDesc')}
           </p>
 
@@ -106,7 +107,7 @@ export default async function LoginPage({
           >
             <button
               type="submit"
-              className="w-full flex items-center justify-center gap-2.5 rounded-xl border border-border bg-card px-4 py-3 text-[13px] font-medium transition-all hover:bg-muted hover:border-border/80 hover:shadow-sm active:scale-[0.98]"
+              className="flex w-full items-center justify-center gap-2.5 rounded-[13px] border border-white/10 bg-white/[0.04] px-4 py-3 font-[family-name:var(--font-studio)] text-[12px] font-medium text-white/70 transition-all hover:border-white/20 hover:bg-white/[0.07] hover:text-white active:scale-[0.98]"
             >
               <svg className="w-[18px] h-[18px]" viewBox="0 0 24 24">
                 <path
@@ -133,10 +134,10 @@ export default async function LoginPage({
           {/* Divider */}
           <div className="relative my-7">
             <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-border" />
+              <div className="w-full border-t border-white/[0.08]" />
             </div>
             <div className="relative flex justify-center">
-              <span className="bg-background px-4 text-[11px] text-muted-foreground uppercase tracking-widest">
+              <span className="bg-[#0b0a0e] px-4 font-[family-name:var(--font-studio)] text-[9px] uppercase tracking-[0.2em] text-white/25">
                 {t('or')}
               </span>
             </div>
@@ -164,7 +165,7 @@ export default async function LoginPage({
             <div className="space-y-1.5">
               <label
                 htmlFor="email"
-                className="text-[12px] font-medium text-foreground/80"
+                className="font-[family-name:var(--font-studio)] text-[10px] font-semibold uppercase tracking-[0.1em] text-white/45"
               >
                 {t('email')}
               </label>
@@ -175,20 +176,20 @@ export default async function LoginPage({
                 required={true}
                 placeholder="name@example.com"
                 autoComplete="email"
-                className="w-full rounded-xl border border-input bg-card px-4 py-2.5 text-[13px] placeholder:text-muted-foreground/40 focus:border-primary focus:ring-2 focus:ring-primary/15 transition-all outline-none"
+                className="w-full rounded-[13px] border border-white/10 bg-white/[0.035] px-4 py-3 font-[family-name:var(--font-studio)] text-[13px] text-white outline-none transition-all placeholder:text-white/20 focus:border-violet-300/35 focus:bg-white/[0.05] focus:ring-2 focus:ring-violet-400/10"
               />
             </div>
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
                 <label
                   htmlFor="password"
-                  className="text-[12px] font-medium text-foreground/80"
+                  className="font-[family-name:var(--font-studio)] text-[10px] font-semibold uppercase tracking-[0.1em] text-white/45"
                 >
                   {t('password')}
                 </label>
                 <Link
                   href="/forgot-password"
-                  className="text-[11px] text-primary/80 hover:text-primary transition-colors"
+                  className="font-[family-name:var(--font-studio)] text-[10px] text-violet-300/65 transition-colors hover:text-violet-200"
                 >
                   {t('forgotPassword')}
                 </Link>
@@ -204,11 +205,11 @@ export default async function LoginPage({
             <SubmitButton label={t('signIn')} pendingLabel={t('signingIn')} />
           </form>
 
-          <p className="mt-8 text-center text-[13px] text-muted-foreground">
+          <p className="mt-7 text-center font-[family-name:var(--font-studio)] text-[12px] text-white/35">
             {t('noAccount')}{' '}
             <Link
               href="/register"
-              className="font-semibold text-primary hover:underline underline-offset-4"
+              className="font-semibold text-violet-300 transition-colors hover:text-violet-200"
             >
               {t('signUp')}
             </Link>
