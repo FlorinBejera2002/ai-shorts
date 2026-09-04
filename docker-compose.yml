@@ -41,6 +41,21 @@ services:
     security_opt: ["no-new-privileges:true"]
     restart: unless-stopped
 
+  migrate:
+    build:
+      context: ./backend
+      target: api
+    image: sneepcut-api
+    command: alembic upgrade head
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-sneepcut}:${DB_PASSWORD:-changeme}@postgres:5432/${POSTGRES_DB:-sneepcut}
+      DIRECT_URL: postgresql://${POSTGRES_USER:-sneepcut}:${DB_PASSWORD:-changeme}@postgres:5432/${POSTGRES_DB:-sneepcut}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
   backend:
     build:
       context: ./backend
@@ -58,6 +73,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     volumes:
       - media_data:/app/media
     expose:
