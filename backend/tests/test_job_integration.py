@@ -9,8 +9,11 @@ from __future__ import annotations
 
 import asyncio
 import os
+import subprocess
+import sys
 import uuid
 from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -23,7 +26,9 @@ from app.api.deps import get_current_user
 from app.database import Base, get_db
 from app.models.brand import BrandKit
 from app.models.job import Job
+from app.models.job_delivery import JobDelivery
 from app.models.user import User
+from app.services import job_delivery
 from app.workers import tasks
 from fastapi import FastAPI, HTTPException
 from sqlalchemy import create_engine, func, inspect, select, text
@@ -95,6 +100,7 @@ def harness(monkeypatch):
         lambda *args: SimpleNamespace(revoke=lambda **kw: None),
     )
     monkeypatch.setattr(tasks, "SyncSessionLocal", sessions)
+    monkeypatch.setattr(job_delivery, "SyncSessionLocal", sessions)
     app = FastAPI()
     app.include_router(jobs.router)
     app.dependency_overrides[get_db] = database
@@ -135,6 +141,8 @@ def harness(monkeypatch):
         seed_job=seed_job,
         sessions=sessions,
         user_id=user_id,
+        database_url=raw,
+        schema=schema,
     )
     asyncio.run(async_engine.dispose())
     sync.dispose()
@@ -164,7 +172,7 @@ def test_concurrent_creation_cannot_overspend(harness):
 
 def test_fast_worker_state_is_not_overwritten_after_publish(harness, monkeypatch):
     def publish(**kwargs):
-        tasks._mark_job_started(kwargs["kwargs"]["job_id"])
+        tasks._mark_job_started(kwargs["kwargs"]["job_id"], str(uuid.uuid4()))
 
     monkeypatch.setattr(jobs.process_job_task, "apply_async", publish)
     response = asyncio.run(harness.request("POST", "/api/jobs", json=PAYLOAD))
@@ -174,7 +182,7 @@ def test_fast_worker_state_is_not_overwritten_after_publish(harness, monkeypatch
     assert response.json()["celery_task_id"]
 
 
-def test_publish_failure_refunds_each_job_exactly_once(harness, monkeypatch):
+def test_publish_failure_keeps_durable_intent_until_cancelled(harness, monkeypatch):
     def fail(**kwargs):
         raise ConnectionError("broker unavailable")
 
@@ -186,22 +194,22 @@ def test_publish_failure_refunds_each_job_exactly_once(harness, monkeypatch):
         )
 
     responses = asyncio.run(run())
-    assert all(r.status_code == 503 for r in responses)
-    assert harness.balance() == 100
+    assert all(r.status_code == 201 for r in responses)
+    assert harness.balance() == 0
     with harness.sessions() as db:
         failed = list(db.scalars(select(Job)))
         assert len(failed) == 2
-        assert all(j.status == "failed" for j in failed)
+        assert all(j.status == "pending" for j in failed)
+        assert db.scalar(select(func.count()).select_from(JobDelivery)) == 2
     for job in failed:
-        with pytest.raises(tasks.JobAlreadyClaimed):
-            tasks._mark_job_started(str(job.id))
-        tasks._mark_job_failed(str(job.id), "duplicate failure")
+        asyncio.run(harness.request("POST", f"/api/jobs/{job.id}/cancel"))
+        asyncio.run(harness.request("POST", f"/api/jobs/{job.id}/cancel"))
     assert harness.balance() == 100
 
 
 def test_ambiguous_publish_does_not_refund_running_job(harness, monkeypatch):
     def publish(**kwargs):
-        tasks._mark_job_started(kwargs["kwargs"]["job_id"])
+        tasks._mark_job_started(kwargs["kwargs"]["job_id"], str(uuid.uuid4()))
         raise ConnectionError("acknowledgement lost after delivery")
 
     monkeypatch.setattr(jobs.process_job_task, "apply_async", publish)
@@ -246,9 +254,9 @@ def test_batch_reports_net_charge_after_partial_publish_failure(harness, monkeyp
         )
     )
     assert response.status_code == 201
-    assert response.json()["total_credits"] == 50
-    assert [j["status"] for j in response.json()["jobs"]] == ["pending", "failed"]
-    assert harness.balance() == 50
+    assert response.json()["total_credits"] == 100
+    assert [j["status"] for j in response.json()["jobs"]] == ["pending", "pending"]
+    assert harness.balance() == 0
 
 
 def test_concurrent_cancellation_and_worker_failure_refund_once(harness):
@@ -366,3 +374,142 @@ def test_badge_removal_requires_server_side_entitlement(harness, plan, hidden):
     brand = tasks._mark_job_started(job_id)["brand_settings"]
     assert brand["apply_brand"] is True
     assert brand["hide_platform_badge"] is hidden
+
+
+def test_outbox_recovers_crash_before_publish_with_exact_options(harness, monkeypatch):
+    monkeypatch.setattr(job_delivery, "publish_job", lambda job_id: False)
+    payload = PAYLOAD | {
+        "smart_crop": False,
+        "burn_subtitles": False,
+        "user_instructions": "Keep the opening",
+    }
+    response = asyncio.run(harness.request("POST", "/api/jobs", json=payload))
+    assert response.status_code == 201
+    with harness.sessions() as db:
+        delivery = db.get(JobDelivery, uuid.UUID(response.json()["id"]))
+        assert delivery.payload["smart_crop"] is False
+        assert delivery.payload["burn_subtitles"] is False
+        assert delivery.payload["user_instructions"] == "Keep the opening"
+        assert delivery.dispatch_count == 0
+    assert harness.balance() == 50
+
+
+def _expired_delivery(harness, *, status="rendering", executions=1):
+    job_id = harness.seed_job(status=status, processing_active=True)
+    token = str(uuid.uuid4())
+    with harness.sessions() as db:
+        db.add(
+            JobDelivery(
+                job_id=uuid.UUID(job_id),
+                payload={"job_id": job_id, "source": "test"},
+                token=token,
+                execution_count=executions,
+                lease_until=datetime.now(timezone.utc) - timedelta(seconds=1),
+            )
+        )
+        db.commit()
+    return job_id, token
+
+
+def test_expired_worker_is_fenced_from_progress_completion_failure_and_finally(harness):
+    job_id, old = _expired_delivery(harness)
+    assert job_delivery.recover_and_dispatch()["recovered"] == 1
+    new = str(uuid.uuid4())
+    tasks._mark_job_started(job_id, new)
+    with pytest.raises(job_delivery.OwnershipLost):
+        tasks._update_job_progress(job_id, "rendering", 99, "stale", old)
+    with pytest.raises(job_delivery.OwnershipLost):
+        tasks._mark_job_completed(job_id, {"clips": []}, old)
+    with pytest.raises(job_delivery.OwnershipLost):
+        tasks._mark_job_failed(job_id, "stale failure", old)
+    tasks._mark_job_processing_inactive(job_id, old)
+    with harness.sessions() as db:
+        assert db.get(Job, uuid.UUID(job_id)).processing_active is True
+        assert db.get(JobDelivery, uuid.UUID(job_id)).token == new
+    assert harness.balance() == 100
+
+
+def test_recovery_exhaustion_refunds_only_once_under_concurrency(harness):
+    job_id, _ = _expired_delivery(harness, executions=job_delivery.MAX_EXECUTIONS)
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        list(pool.map(lambda _: job_delivery.recover_and_dispatch(), range(4)))
+    with harness.sessions() as db:
+        assert db.get(Job, uuid.UUID(job_id)).status == "failed"
+    assert harness.balance() == 150  # fixture seeded, not charged
+
+
+def test_cancelled_expired_worker_never_requeues_or_refunds_again(harness):
+    job_id, _ = _expired_delivery(harness, status="cancelled")
+    assert job_delivery.recover_and_dispatch() == {
+        "dispatched": 0,
+        "recovered": 0,
+        "exhausted": 0,
+    }
+    with harness.sessions() as db:
+        assert not db.get(Job, uuid.UUID(job_id)).processing_active
+    assert harness.balance() == 100
+
+
+def test_unacknowledged_dispatch_is_replayed_without_new_charge(harness, monkeypatch):
+    calls = []
+    monkeypatch.setattr(
+        jobs.process_job_task, "apply_async", lambda **kw: calls.append(kw)
+    )
+    response = asyncio.run(harness.request("POST", "/api/jobs", json=PAYLOAD))
+    job_id = uuid.UUID(response.json()["id"])
+    assert len(calls) == 1
+    with harness.sessions() as db:
+        db.get(JobDelivery, job_id).next_dispatch_at = datetime.now(
+            timezone.utc
+        ) - timedelta(seconds=1)
+        db.commit()
+    assert job_delivery.recover_and_dispatch()["dispatched"] == 1
+    assert len(calls) == 2
+    assert calls[0]["kwargs"] == calls[1]["kwargs"]
+    assert calls[0]["task_id"] == calls[1]["task_id"]
+    assert harness.balance() == 50
+
+
+def test_worker_process_exit_after_claim_can_be_recovered(harness):
+    job_id = harness.seed_job(status="pending")
+    token = str(uuid.uuid4())
+    with harness.sessions() as db:
+        db.add(
+            JobDelivery(
+                job_id=uuid.UUID(job_id), payload={"job_id": job_id, "source": "test"}
+            )
+        )
+        db.commit()
+    script = f"""
+import os
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from app.workers import tasks
+engine = create_engine({harness.database_url!r}, connect_args={{'options': '-csearch_path={harness.schema}'}})
+tasks.SyncSessionLocal = sessionmaker(engine, expire_on_commit=False)
+tasks._mark_job_started({job_id!r}, {token!r})
+os._exit(137)
+"""
+    result = subprocess.run(
+        [sys.executable, "-c", script], cwd=Path(__file__).parents[1], timeout=30
+    )
+    assert result.returncode == 137
+    with harness.sessions() as db:
+        job = db.get(Job, uuid.UUID(job_id))
+        assert job.processing_active
+        delivery = db.get(JobDelivery, job.id)
+        assert delivery.token == token
+        # Advance the lease clock rather than sleeping three minutes.
+        delivery.lease_until = datetime.now(timezone.utc) - timedelta(seconds=1)
+        db.commit()
+    assert job_delivery.recover_and_dispatch()["recovered"] == 1
+
+
+def test_live_lease_is_not_recovered(harness):
+    job_id, _ = _expired_delivery(harness)
+    with harness.sessions() as db:
+        db.get(JobDelivery, uuid.UUID(job_id)).lease_until = datetime.now(
+            timezone.utc
+        ) + timedelta(seconds=60)
+        db.commit()
+    assert job_delivery.recover_and_dispatch()["recovered"] == 0

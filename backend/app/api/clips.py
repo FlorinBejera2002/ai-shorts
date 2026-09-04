@@ -10,6 +10,7 @@ from sqlalchemy.orm import selectinload
 from app.api.deps import get_current_user
 from app.database import get_db
 from app.models.clip import Clip
+from app.models.job import Job
 from app.models.user import User
 from app.schemas.clip import ClipList, ClipRead
 from app.services.storage import get_storage_backend, storage_key_from_reference
@@ -18,7 +19,9 @@ from app.utils.signed_url import make_signed_media_url
 router = APIRouter(prefix="/api/clips", tags=["clips"])
 
 
-def _fresh_read_url(storage, storage_key: str | None, fallback: str | None) -> str | None:
+def _fresh_read_url(
+    storage, storage_key: str | None, fallback: str | None
+) -> str | None:
     key = storage_key or storage_key_from_reference(fallback)
     if not key:
         return fallback
@@ -90,6 +93,12 @@ async def delete_clip(
     if not clip or clip.user_id != user.id:
         raise HTTPException(status_code=404, detail="Clip not found")
 
+    job = await db.get(Job, clip.job_id, with_for_update=True, populate_existing=True)
+    if job and (job.active_edit_tasks or job.processing_active):
+        raise HTTPException(
+            status_code=409, detail="Wait for active processing to finish"
+        )
+
     keys = {
         key
         for value in (
@@ -106,6 +115,8 @@ async def delete_clip(
         storage = get_storage_backend()
         for key in sorted(keys):
             storage.delete_file(key)
+        storage.delete_prefix(f"clips/{clip.job_id}/edits/{clip.id}/")
+        storage.delete_prefix(f"work/{clip.job_id}/edits/{clip.id}/")
     except Exception as exc:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,

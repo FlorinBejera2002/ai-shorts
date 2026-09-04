@@ -5,13 +5,13 @@ import uuid
 from types import SimpleNamespace
 
 import pytest
-from fastapi import HTTPException
-
 from app.api import account, deps
 from app.models.account_deletion_request import AccountDeletionRequest
 from app.models.job import Job
+from app.models.job_delivery import JobDelivery
 from app.models.user import User
 from app.workers import tasks
+from fastapi import HTTPException
 
 
 class _Rows:
@@ -119,9 +119,7 @@ def test_account_cleanup_refuses_while_a_writer_is_active(monkeypatch) -> None:
     )
 
     with pytest.raises(HTTPException) as error:
-        asyncio.run(
-            account.delete_owned_media(user=SimpleNamespace(id=user_id), db=db)
-        )
+        asyncio.run(account.delete_owned_media(user=SimpleNamespace(id=user_id), db=db))
     assert error.value.status_code == 409
     assert "processing_active" in db.last_active_statement
     assert "active_edit_tasks" in db.last_active_statement
@@ -153,6 +151,8 @@ class _WorkerDb:
         return False
 
     def get(self, model, key, **kwargs):
+        if model is JobDelivery:
+            return None
         if model is Job:
             return self.job
         if model is AccountDeletionRequest:

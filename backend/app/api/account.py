@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -14,6 +16,7 @@ from app.models.user import User
 from app.services.storage import get_storage_backend, storage_key_from_reference
 
 router = APIRouter(prefix="/api/account", tags=["account"])
+logger = logging.getLogger(__name__)
 
 TERMINAL_JOB_STATUSES = {"completed", "failed", "cancelled"}
 
@@ -139,12 +142,22 @@ async def delete_owned_media(
             deleted += storage.delete_prefix(prefix)
         except Exception:
             failures += 1
+            logger.warning(
+                "Account media prefix cleanup failed for user %s",
+                user.id,
+                exc_info=True,
+            )
     for key in sorted(candidates):
         try:
             storage.delete_file(key)
             deleted += 1
         except Exception:
             failures += 1
+            logger.warning(
+                "Account media object cleanup failed for user %s",
+                user.id,
+                exc_info=True,
+            )
 
     if failures:
         raise HTTPException(

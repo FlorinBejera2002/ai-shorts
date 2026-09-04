@@ -65,6 +65,19 @@ services:
     volumes:
       - media_data:/app/media
 
+  job-dispatcher:
+    image: sneepcut-app
+    command: python -m app.services.job_delivery
+    env_file: .env
+    depends_on:
+      backend:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
   frontend:
     build: ./frontend
     env_file: .env

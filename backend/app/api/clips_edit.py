@@ -26,7 +26,15 @@ class TrimRequest(BaseModel):
     burn_subtitles: bool = True
 
 
-async def _begin_edit(db: AsyncSession, job: Job, user: User) -> None:
+async def _begin_edit(db: AsyncSession, job: Job, user: User, clip: Clip) -> None:
+    job = await db.get(Job, job.id, with_for_update=True, populate_existing=True)
+    current = await db.get(Clip, clip.id, populate_existing=True)
+    if not job or not current or current.user_id != user.id:
+        raise HTTPException(status_code=404, detail="Clip is no longer available")
+    if job.active_edit_tasks or job.processing_active:
+        raise HTTPException(
+            status_code=409, detail="Wait for active processing to finish"
+        )
     await ensure_account_active(db, user.id)
     result = await db.execute(
         update(Job)
@@ -66,14 +74,19 @@ async def trim_clip(
 
     duration = payload.end_time - payload.start_time
     if duration < 3:
-        raise HTTPException(status_code=400, detail="Trimmed clip must be at least 3 seconds")
+        raise HTTPException(
+            status_code=400, detail="Trimmed clip must be at least 3 seconds"
+        )
     if duration > settings.max_clip_duration:
-        raise HTTPException(status_code=400, detail=f"Clip cannot exceed {settings.max_clip_duration} seconds")
+        raise HTTPException(
+            status_code=400,
+            detail=f"Clip cannot exceed {settings.max_clip_duration} seconds",
+        )
 
     job = await db.get(Job, clip.job_id)
     if not job:
         raise HTTPException(status_code=409, detail="Clip job is no longer available")
-    await _begin_edit(db, job, user)
+    await _begin_edit(db, job, user, clip)
     try:
         task = trim_clip_task.delay(
             clip_id=str(clip.id),
@@ -107,10 +120,12 @@ async def recut_clip(
         raise HTTPException(status_code=404, detail="Clip not found")
 
     job = await db.get(Job, clip.job_id)
-    if not job or not job.source_storage_key:
+    if not job or not (
+        job.source_storage_key or job.source_video_url or job.source_file_path
+    ):
         raise HTTPException(status_code=400, detail="Source video not available")
 
-    await _begin_edit(db, job, user)
+    await _begin_edit(db, job, user, clip)
     try:
         task = recut_clip_task.delay(
             clip_id=str(clip.id),

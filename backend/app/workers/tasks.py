@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -13,7 +13,14 @@ from app.models.account_deletion_request import AccountDeletionRequest
 from app.models.brand import BrandKit
 from app.models.clip import Clip
 from app.models.job import Job
+from app.models.job_delivery import JobDelivery
 from app.models.user import User
+from app.services.job_delivery import (
+    LEASE_SECONDS,
+    Heartbeat,
+    OwnershipLost,
+    assert_owner,
+)
 from app.workers.celery_app import celery_app
 
 logger = logging.getLogger(__name__)
@@ -85,16 +92,22 @@ def process_job_task(
     from app.services.processing_pipeline import process_video_source
 
     claimed = False
+    token = str(uuid.uuid4())
+    heartbeat = None
+    storage_attempt = None
     try:
-        render_options = _mark_job_started(job_id)
+        render_options = _mark_job_started(job_id, token)
+        storage_attempt = render_options.get("attempt_id")
         claimed = True
+        heartbeat = Heartbeat(job_id, token)
+        heartbeat.__enter__()
         self.update_state(
             state="PROGRESS",
             meta={"progress": 5, "message": "Processing started"},
         )
 
         def _on_progress(status: str, pct: int, msg: str) -> None:
-            _update_job_progress(job_id, status, pct, msg)
+            _update_job_progress(job_id, status, pct, msg, token)
             self.update_state(state="PROGRESS", meta={"progress": pct, "message": msg})
 
         result = process_video_source(
@@ -110,30 +123,34 @@ def process_job_task(
             storage_namespace=job_id,
             **render_options,
         )
-        _mark_job_completed(job_id, result)
+        _mark_job_completed(job_id, result, token)
         self.update_state(
             state="PROGRESS",
             meta={"progress": 100, "message": "Processing complete"},
         )
         return result
-    except JobAlreadyClaimed:
+    except (JobAlreadyClaimed, OwnershipLost):
+        if claimed:
+            _cleanup_job_storage(job_id, storage_attempt)
         return {"status": "ignored", "reason": "job_already_claimed_or_terminal"}
     except JobCancelled:
-        _cleanup_job_storage(job_id)
+        _cleanup_job_storage(job_id, storage_attempt)
         return {"status": "cancelled", "reason": "user_cancelled"}
     except AccountDeletionPending:
-        _mark_job_cancelled_for_deletion(job_id)
-        _cleanup_job_storage(job_id)
+        _mark_job_cancelled_for_deletion(job_id, token)
+        _cleanup_job_storage(job_id, storage_attempt)
         return {
             "status": "cancelled",
             "reason": "account_deletion_pending",
         }
     except Exception as exc:
-        _mark_job_failed(job_id, str(exc))
+        _mark_job_failed(job_id, str(exc), token)
         raise
     finally:
+        if heartbeat:
+            heartbeat.__exit__(None, None, None)
         if claimed:
-            _mark_job_processing_inactive(job_id)
+            _mark_job_processing_inactive(job_id, token)
 
 
 def _account_deletion_pending(db, user_id: uuid.UUID) -> bool:
@@ -145,11 +162,14 @@ def _ensure_account_active(db, user_id: uuid.UUID) -> None:
         raise AccountDeletionPending("account deletion is pending")
 
 
-def _update_job_progress(job_id: str, status: str, progress: int, message: str) -> None:
+def _update_job_progress(
+    job_id: str, status: str, progress: int, message: str, token: str | None = None
+) -> None:
     with SyncSessionLocal() as db:
         job = db.get(Job, uuid.UUID(job_id), with_for_update=True)
         if not job:
             raise AccountDeletionPending("job was deleted")
+        assert_owner(db, job, token)
         if job.status == "cancelled":
             raise JobCancelled("job was cancelled")
         if job.status in {"completed", "failed"}:
@@ -161,13 +181,22 @@ def _update_job_progress(job_id: str, status: str, progress: int, message: str) 
         db.commit()
 
 
-def _mark_job_started(job_id: str) -> dict[str, Any]:
+def _mark_job_started(job_id: str, token: str | None = None) -> dict[str, Any]:
     with SyncSessionLocal() as db:
         job = db.get(Job, uuid.UUID(job_id), with_for_update=True)
         if not job:
             raise AccountDeletionPending("job was deleted")
         if job.status != "pending" or job.processing_active:
             raise JobAlreadyClaimed("job is already claimed or terminal")
+        delivery = db.get(JobDelivery, job.id, with_for_update=True)
+        if delivery:
+            if not token:
+                raise OwnershipLost("execution token required")
+            delivery.token = token
+            delivery.execution_count += 1
+            delivery.lease_until = datetime.now(timezone.utc) + timedelta(
+                seconds=LEASE_SECONDS
+            )
         _ensure_account_active(db, job.user_id)
         from app.services.storage import storage_key_from_reference
 
@@ -203,17 +232,21 @@ def _mark_job_started(job_id: str) -> dict[str, Any]:
         job.processing_active = True
         db.commit()
         return {
+            **({"attempt_id": token} if delivery else {}),
             "language": job.language,
             "subtitle_style": job.subtitle_style,
             "brand_settings": brand,
         }
 
 
-def _mark_job_completed(job_id: str, result: dict[str, Any]) -> None:
+def _mark_job_completed(
+    job_id: str, result: dict[str, Any], token: str | None = None
+) -> None:
     with SyncSessionLocal() as db:
         job = db.get(Job, uuid.UUID(job_id), with_for_update=True)
         if not job:
             raise AccountDeletionPending("job was deleted")
+        assert_owner(db, job, token)
         if job.status == "cancelled":
             raise JobCancelled("job was cancelled")
         if job.status in {"completed", "failed"}:
@@ -443,7 +476,7 @@ def recut_clip_task(
             if clip.job_id != tracked_job_id:
                 raise ValueError("Clip does not belong to the tracked job")
             job = db.get(Job, tracked_job_id)
-            if not job or not job.source_storage_key:
+            if not job:
                 raise ValueError("Source video not available")
             _ensure_account_active(db, job.user_id)
 
@@ -460,7 +493,7 @@ def recut_clip_task(
             )
             source_path = _local_storage_input(
                 storage,
-                job.source_storage_key,
+                _recut_source_key(job),
                 None,
                 work_dir / "source.mp4",
             )
@@ -534,6 +567,20 @@ def recut_clip_task(
             _finish_edit_tracking(tracked_job_id)
 
 
+def _recut_source_key(job) -> str:
+    from app.services.storage import storage_key_from_reference
+
+    # Old jobs persisted a signed URL containing a generated storage identifier,
+    # not the database job id. Resolve the recorded reference, never guess a path.
+    key = job.source_storage_key or storage_key_from_reference(job.source_video_url)
+    if not key:
+        key = storage_key_from_reference(job.source_file_path)
+    if not key:
+        raise ValueError("Source video is no longer available for recut")
+    job.source_storage_key = key
+    return key
+
+
 def _local_storage_input(
     storage,
     storage_key: str | None,
@@ -566,36 +613,52 @@ def _finish_edit_tracking(job_id: uuid.UUID) -> None:
         db.commit()
 
 
-def _mark_job_cancelled_for_deletion(job_id: str) -> None:
+def _mark_job_cancelled_for_deletion(job_id: str, token: str | None = None) -> None:
     with SyncSessionLocal() as db:
         job = db.get(Job, uuid.UUID(job_id), with_for_update=True)
         if not job or job.status in {"completed", "failed", "cancelled"}:
             return
+        delivery = db.get(JobDelivery, job.id, with_for_update=True)
+        if delivery and delivery.token is not None:
+            assert_owner(db, job, token)
         job.status = "cancelled"
         job.progress_message = "Cancelled for account deletion"
         job.completed_at = datetime.now(timezone.utc)
         db.commit()
 
 
-def _mark_job_processing_inactive(job_id: str) -> None:
+def _mark_job_processing_inactive(job_id: str, token: str | None = None) -> None:
     with SyncSessionLocal() as db:
-        job = db.get(Job, uuid.UUID(job_id))
+        job = db.get(Job, uuid.UUID(job_id), with_for_update=True)
         if not job or not job.processing_active:
             return
+        try:
+            delivery = assert_owner(db, job, token)
+        except OwnershipLost:
+            return
+        if delivery:
+            delivery.lease_until = None
         job.processing_active = False
         db.commit()
 
 
-def _cleanup_job_storage(job_id: str) -> None:
+def _cleanup_job_storage(job_id: str, token: str | None = None) -> None:
     from app.services.storage import get_storage_backend
 
     storage = get_storage_backend()
-    for prefix in (
+    prefixes = (
         f"sources/{job_id}/",
         f"clips/{job_id}/",
         f"work/{job_id}/",
         f"{job_id}/clips/",
-    ):
+    )
+    if token:
+        prefixes = (
+            f"sources/{job_id}/attempts/{token}/",
+            f"clips/{job_id}/attempts/{token}/",
+            f"work/{job_id}/attempts/{token}/",
+        )
+    for prefix in prefixes:
         try:
             storage.delete_prefix(prefix)
         except Exception:
@@ -606,13 +669,14 @@ def _cleanup_job_storage(job_id: str) -> None:
             )
 
 
-def _mark_job_failed(job_id: str, error_message: str) -> None:
+def _mark_job_failed(job_id: str, error_message: str, token: str | None = None) -> None:
     with SyncSessionLocal() as db:
         job = db.get(Job, uuid.UUID(job_id), with_for_update=True)
         if not job:
             return
         if job.status in {"completed", "failed", "cancelled"}:
             return
+        assert_owner(db, job, token)
         if _account_deletion_pending(db, job.user_id):
             job.status = "cancelled"
             job.progress_message = "Cancelled for account deletion"

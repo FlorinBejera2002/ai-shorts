@@ -46,6 +46,7 @@ def process_video_source(
     language: str | None = None,
     subtitle_style: str = "clean",
     brand_settings: dict | None = None,
+    attempt_id: str | None = None,
 ) -> dict[str, Any]:
     def _progress(status: str, pct: int, msg: str) -> None:
         if on_progress:
@@ -63,6 +64,11 @@ def process_video_source(
 
     job_id = safe_slug(storage_namespace or uuid.uuid4().hex, fallback=uuid.uuid4().hex)
     workspace = create_job_workspace(output_root, job_id)
+    storage_job_key = job_id
+    if attempt_id:
+        attempt_id = str(uuid.UUID(attempt_id))
+        workspace = ensure_dir(workspace / "attempts" / attempt_id)
+        storage_job_key = f"{job_id}/attempts/{attempt_id}"
     source_dir = ensure_dir(workspace / "source")
     clips_dir = ensure_dir(workspace / "clips")
     errors: list[str] = []
@@ -200,7 +206,7 @@ def process_video_source(
         clip["file_size"] = Path(final_media).stat().st_size
         processed_clips.append(clip)
 
-    source_storage_key = f"sources/{job_id}/source.mp4"
+    source_storage_key = f"sources/{storage_job_key}/source.mp4"
     source_storage_path = storage.save_file(source_video.local_path, source_storage_key)
     for clip in processed_clips:
         final_path = (
@@ -208,7 +214,7 @@ def process_video_source(
             or clip.get("vertical_file_path")
             or clip["file_path"]
         )
-        key = f"clips/{job_id}/{Path(final_path).name}"
+        key = f"clips/{storage_job_key}/{Path(final_path).name}"
         storage_path = storage.save_file(final_path, key)
         clip["metadata"]["storage_key"] = key
         clip["metadata"]["storage_path"] = storage_path
@@ -216,7 +222,9 @@ def process_video_source(
 
         thumbnail_path = clip.get("thumbnail_path")
         if thumbnail_path and Path(thumbnail_path).is_file():
-            thumbnail_key = f"clips/{job_id}/thumbnails/{Path(thumbnail_path).name}"
+            thumbnail_key = (
+                f"clips/{storage_job_key}/thumbnails/{Path(thumbnail_path).name}"
+            )
             thumbnail_storage_path = storage.save_file(thumbnail_path, thumbnail_key)
             clip["metadata"]["thumbnail_storage_key"] = thumbnail_key
             clip["metadata"]["thumbnail_storage_path"] = thumbnail_storage_path

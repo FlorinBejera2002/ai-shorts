@@ -2,6 +2,7 @@ import pytest
 from app.services import processing_pipeline, subtitle_burner
 
 
+@pytest.mark.parametrize("attempt_id", [None, "00000000-0000-0000-0000-000000000456"])
 @pytest.mark.parametrize(
     "language,subtitle_style,burn_subtitles,fail_burn",
     [
@@ -11,7 +12,13 @@ from app.services import processing_pipeline, subtitle_burner
     ],
 )
 def test_pipeline_orchestrates_with_mocked_services(
-    monkeypatch, tmp_path, language, subtitle_style, burn_subtitles, fail_burn
+    monkeypatch,
+    tmp_path,
+    language,
+    subtitle_style,
+    burn_subtitles,
+    fail_burn,
+    attempt_id,
 ):
     seen_language = []
     seen_style = []
@@ -136,17 +143,15 @@ def test_pipeline_orchestrates_with_mocked_services(
         language=language,
         subtitle_style=subtitle_style,
         storage_namespace="00000000-0000-0000-0000-000000000123",
+        attempt_id=attempt_id,
     )
     metadata = result["clips"][0]["metadata"]
-    assert result["source_storage_key"] == (
-        "sources/00000000-0000-0000-0000-000000000123/source.mp4"
-    )
-    assert metadata["storage_key"].startswith(
-        "clips/00000000-0000-0000-0000-000000000123/"
-    )
-    assert metadata["thumbnail_storage_key"].startswith(
-        "clips/00000000-0000-0000-0000-000000000123/thumbnails/"
-    )
+    prefix = "00000000-0000-0000-0000-000000000123"
+    if attempt_id:
+        prefix += f"/attempts/{attempt_id}"
+    assert result["source_storage_key"] == f"sources/{prefix}/source.mp4"
+    assert metadata["storage_key"].startswith(f"clips/{prefix}/")
+    assert metadata["thumbnail_storage_key"].startswith(f"clips/{prefix}/thumbnails/")
     assert metadata["public_url"].startswith("/media/clips/")
     assert seen_language == [language]
     assert seen_style == ([subtitle_style] if burn_subtitles else [])

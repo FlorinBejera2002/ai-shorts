@@ -57,7 +57,7 @@ function validateBrandSettings(
       if (typeof field !== 'string' || !COLOR.test(field)) return null
       output[key] = field.toUpperCase()
     } else if (key === 'fontFamily' || key === 'subtitleFont') {
-      if (!validText(field, 100)) return null
+      if (!validText(field, 100) || !/^[A-Za-z0-9 -]+$/.test(field)) return null
       output[key] = field.trim()
     } else if (key === 'subtitlePosition') {
       if (typeof field !== 'string' || !SUBTITLE_POSITIONS.has(field))
@@ -158,7 +158,10 @@ export async function PUT(request: Request) {
       select: { plan: true }
     })
     if (user?.plan !== WHITE_LABEL_PLAN) {
-      payload.hidePlatformBadge = false
+      return NextResponse.json(
+        { error: 'Removing the platform badge requires an Agency plan' },
+        { status: 403 }
+      )
     }
   }
 

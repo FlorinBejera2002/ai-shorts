@@ -17,6 +17,7 @@ from app.config import settings
 from app.database import get_db
 from app.models.account_deletion_request import AccountDeletionRequest
 from app.models.job import Job
+from app.models.job_delivery import JobDelivery
 from app.models.user import User
 from app.schemas.job import (
     BatchJobCreate,
@@ -110,55 +111,29 @@ async def _reserve_credits(db: AsyncSession, user_id: UUID, amount: int) -> None
         raise HTTPException(status_code=402, detail="Insufficient credits")
 
 
-async def _dispatch_job(db: AsyncSession, job: Job, payload) -> bool:
+async def _dispatch_job(db: AsyncSession, job: Job) -> None:
     # Persist task identity before publishing. Never reset status after publish:
     # a fast worker can already have started or even completed the job.
-    try:
-        await run_in_threadpool(
-            process_job_task.apply_async,
-            kwargs={
-                "job_id": str(job.id),
-                "source": job.source_url or job.source_file_path,
-                "source_type": "youtube" if job.source_type == "youtube" else "auto",
-                "requested_clips": job.num_clips_requested,
-                "aspect_ratio": job.aspect_ratio,
-                "burn_subtitles": payload.burn_subtitles,
-                "smart_crop": payload.smart_crop,
-                "user_instructions": job.user_instructions,
-            },
-            task_id=job.celery_task_id,
-        )
-    except Exception:
-        # Publish errors can be ambiguous. Only fail/refund an unclaimed job;
-        # a late delivery will then be rejected by the worker's claim check.
-        refunded = await db.scalar(
-            update(Job)
-            .where(
-                Job.id == job.id,
-                Job.status == "pending",
-                Job.processing_active.is_(False),
-            )
-            .values(
-                status="failed",
-                error_message="Failed to queue processing task",
-                progress_message="Failed",
-                completed_at=datetime.now(timezone.utc),
-            )
-            .returning(Job.credits_charged)
-            .execution_options(synchronize_session=False)
-        )
-        if refunded is not None:
-            await db.execute(
-                update(User)
-                .where(User.id == job.user_id)
-                .values(credits=User.credits + refunded)
-                .execution_options(synchronize_session=False)
-            )
-        await db.commit()
-        await db.refresh(job)
-        return refunded is None
+    from app.services.job_delivery import publish_job
+
+    await run_in_threadpool(publish_job, str(job.id))
     await db.refresh(job)
-    return True
+
+
+def _delivery(job: Job, payload) -> JobDelivery:
+    return JobDelivery(
+        job_id=job.id,
+        payload={
+            "job_id": str(job.id),
+            "source": job.source_url or job.source_file_path,
+            "source_type": "youtube" if job.source_type == "youtube" else "auto",
+            "requested_clips": job.num_clips_requested,
+            "aspect_ratio": job.aspect_ratio,
+            "burn_subtitles": payload.burn_subtitles,
+            "smart_crop": payload.smart_crop,
+            "user_instructions": job.user_instructions,
+        },
+    )
 
 
 @router.post("", response_model=JobRead, status_code=status.HTTP_201_CREATED)
@@ -181,6 +156,7 @@ async def create_job(
     await _reserve_credits(db, user.id, credits_charged)
 
     job = Job(
+        id=uuid4(),
         user_id=user.id,
         source_type=payload.source_type,
         source_url=payload.source_url,
@@ -198,14 +174,11 @@ async def create_job(
         celery_task_id=str(uuid4()),
     )
     db.add(job)
+    db.add(_delivery(job, payload))
     await db.commit()
     await db.refresh(job)
 
-    if not await _dispatch_job(db, job, payload):
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Processing service unavailable",
-        )
+    await _dispatch_job(db, job)
     return job
 
 
@@ -297,6 +270,7 @@ async def create_batch_jobs(
     for url in payload.source_urls:
         per_job_cost = calculate_credit_cost(payload.num_clips_requested)
         job = Job(
+            id=uuid4(),
             user_id=user.id,
             source_type="youtube",
             source_url=url,
@@ -313,15 +287,14 @@ async def create_batch_jobs(
             celery_task_id=str(uuid4()),
         )
         db.add(job)
+        db.add(_delivery(job, payload))
         created_jobs.append(job)
 
     await db.commit()
-    charged_credits = total_credits
     for job in created_jobs:
-        if not await _dispatch_job(db, job, payload):
-            charged_credits -= job.credits_charged
+        await _dispatch_job(db, job)
 
     return BatchJobResult(
         jobs=[JobRead.model_validate(j) for j in created_jobs],
-        total_credits=charged_credits,
+        total_credits=total_credits,
     )
