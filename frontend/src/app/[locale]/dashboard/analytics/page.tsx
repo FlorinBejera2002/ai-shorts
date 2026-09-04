@@ -1,7 +1,7 @@
 import { EmptyState } from '@/components/ui/empty-state'
 import { PageHeader } from '@/components/ui/page-header'
 import { auth } from '@/lib/auth'
-import { prisma } from '@/lib/db'
+import { getPrisma } from '@/lib/db'
 import {
   BarChart3,
   Clock,
@@ -22,9 +22,11 @@ export default async function AnalyticsPage({
   const { locale } = await params
   setRequestLocale(locale)
   const t = await getTranslations('analytics')
+  const common = await getTranslations('common')
 
   const session = await auth()
   const userId = session?.user?.id
+  const prisma = getPrisma()
 
   const [jobs, clips] = await Promise.all([
     userId
@@ -57,12 +59,14 @@ export default async function AnalyticsPage({
   const avgViralScore =
     clips.length > 0
       ? Math.round(
-          clips.reduce((sum, c) => sum + (c.viralScore ?? 0), 0) / clips.length
-        )
+          (clips.reduce((sum, c) => sum + (c.viralScore ?? 0), 0) /
+            clips.length) *
+            10
+        ) / 10
       : 0
   const totalDuration = clips.reduce((sum, c) => sum + (c.duration ?? 0), 0)
   const totalSourceMinutes = Math.round(totalDuration / 60)
-  const highScoreClips = clips.filter((c) => (c.viralScore ?? 0) >= 80).length
+  const highScoreClips = clips.filter((c) => (c.viralScore ?? 0) >= 8).length
   const successRate =
     totalJobs > 0 ? Math.round((completedJobs / totalJobs) * 100) : 0
 
@@ -85,11 +89,11 @@ export default async function AnalyticsPage({
   const maxClips = Math.max(...clipsByDay.map((d) => d.count), 1)
 
   const scoreBuckets = [
-    { label: '90-100', min: 90, max: 101 },
-    { label: '80-89', min: 80, max: 90 },
-    { label: '70-79', min: 70, max: 80 },
-    { label: '60-69', min: 60, max: 70 },
-    { label: '<60', min: 0, max: 60 }
+    { label: '9–10', min: 9, max: 10.01 },
+    { label: '8–8.9', min: 8, max: 9 },
+    { label: '7–7.9', min: 7, max: 8 },
+    { label: '6–6.9', min: 6, max: 7 },
+    { label: '<6', min: 0, max: 6 }
   ].map((b) => ({
     ...b,
     count: clips.filter(
@@ -102,38 +106,32 @@ export default async function AnalyticsPage({
     {
       label: t('totalProjects'),
       value: totalJobs,
-      icon: Zap,
-      color: 'from-amber-500/10 to-amber-500/5'
+      icon: Zap
     },
     {
       label: t('clipsGenerated'),
       value: totalClips,
-      icon: Film,
-      color: 'from-violet-500/10 to-violet-500/5'
+      icon: Film
     },
     {
       label: t('avgViralScore'),
-      value: avgViralScore,
-      icon: TrendingUp,
-      color: 'from-emerald-500/10 to-emerald-500/5'
+      value: `${avgViralScore}/10`,
+      icon: TrendingUp
     },
     {
       label: t('successRate'),
       value: `${successRate}%`,
-      icon: BarChart3,
-      color: 'from-blue-500/10 to-blue-500/5'
+      icon: BarChart3
     },
     {
       label: t('contentCreated'),
       value: `${Math.round(totalDuration / 60)}m`,
-      icon: Clock,
-      color: 'from-pink-500/10 to-pink-500/5'
+      icon: Clock
     },
     {
       label: t('sourceProcessed'),
       value: `${totalSourceMinutes}m`,
-      icon: Clock,
-      color: 'from-cyan-500/10 to-cyan-500/5'
+      icon: Clock
     }
   ]
 
@@ -144,8 +142,8 @@ export default async function AnalyticsPage({
         <div className="mt-12">
           <EmptyState
             icon={Film}
-            title={t('noClipsYet')}
-            description="Start creating clips to see your analytics"
+            title={t('noClipsTitle')}
+            description={t('noClipsYet')}
           />
         </div>
       </div>
@@ -153,43 +151,43 @@ export default async function AnalyticsPage({
   }
 
   return (
-    <div className="animate-fade-in space-y-6">
+    <div className="animate-fade-in space-y-8">
       <PageHeader title={t('title')} description={t('desc')} />
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {stats.map((stat, i) => {
+      <section
+        aria-label={t('title')}
+        className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6"
+      >
+        {stats.map((stat) => {
           const Icon = stat.icon
           return (
             <div
               key={stat.label}
-              className={`rounded-xl border border-border/60 bg-gradient-to-br ${stat.color} p-4 transition-all duration-300 hover:border-border hover:shadow-md hover:-translate-y-0.5 animate-slide-up`}
-              style={{ animationDelay: `${i * 50}ms` }}
+              className="panel-soft flex min-w-0 items-center gap-3 p-4"
             >
-              <div className="flex items-start justify-between">
-                <div>
-                  <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    {stat.label}
-                  </div>
-                  <div className="mt-2 text-3xl font-bold tabular-nums text-foreground">
-                    {stat.value}
-                  </div>
-                </div>
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-background/40 backdrop-blur-sm">
-                  <Icon
-                    className="h-5 w-5 text-primary/70"
-                    strokeWidth={1.75}
-                  />
+              <div className="icon-tile shrink-0 bg-primary/10 text-primary">
+                <Icon className="h-4 w-4" strokeWidth={1.75} />
+              </div>
+              <div className="min-w-0">
+                <div className="section-label truncate">{stat.label}</div>
+                <div className="mt-1 text-xl font-semibold tabular-nums leading-none text-foreground">
+                  {stat.value}
                 </div>
               </div>
             </div>
           )
         })}
-      </div>
+      </section>
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <div className="rounded-xl border border-border/60 bg-gradient-to-br from-primary/5 to-accent/5 p-6">
-          <h2 className="text-sm font-semibold">{t('last7Days')}</h2>
-          <div className="mt-6 flex items-end justify-between gap-1 h-40">
+      <div className="grid gap-4 xl:grid-cols-2">
+        <section className="panel p-5 sm:p-6">
+          <div>
+            <p className="section-label">{t('clipsGenerated')}</p>
+            <h2 className="mt-2 text-lg font-semibold text-foreground">
+              {t('last7Days')}
+            </h2>
+          </div>
+          <div className="mt-8 flex h-44 items-end justify-between gap-2 sm:gap-3">
             {clipsByDay.map((day, i) => {
               const heightPercent = Math.max(
                 (day.count / maxClips) * 100,
@@ -198,24 +196,26 @@ export default async function AnalyticsPage({
               return (
                 <div
                   key={day.label}
-                  className="group flex flex-1 flex-col items-center gap-1.5"
+                  className="group flex h-full flex-1 flex-col items-center gap-1.5"
                   style={{
                     animation: `slide-up 0.5s cubic-bezier(0.16, 1, 0.3, 1) ${i * 80}ms both`
                   }}
                 >
-                  {day.count > 0 && (
-                    <span className="text-[10px] font-semibold tabular-nums text-muted-foreground">
-                      {day.count}
-                    </span>
-                  )}
-                  <div
-                    className="w-full rounded-t-lg bg-gradient-to-t from-primary to-primary/60 transition-all duration-500 hover:from-primary hover:to-primary/50 cursor-pointer"
-                    style={{
-                      height: `${heightPercent}%`,
-                      opacity: day.count > 0 ? 1 : 0.2
-                    }}
-                    title={`${day.label}: ${day.count} clips`}
-                  />
+                  <span
+                    className={`h-4 text-[10px] font-semibold tabular-nums text-muted-foreground ${day.count === 0 ? 'invisible' : ''}`}
+                  >
+                    {day.count}
+                  </span>
+                  <div className="relative min-h-0 w-full flex-1">
+                    <div
+                      className="absolute inset-x-0 bottom-0 w-full rounded-t-lg bg-gradient-to-t from-primary to-accent/70 transition-all duration-500 hover:brightness-110"
+                      style={{
+                        height: `${heightPercent}%`,
+                        opacity: day.count > 0 ? 1 : 0.2
+                      }}
+                      title={`${day.label}: ${common('clips', { count: day.count })}`}
+                    />
+                  </div>
                   <span className="text-[10px] font-medium text-muted-foreground">
                     {day.label}
                   </span>
@@ -223,10 +223,15 @@ export default async function AnalyticsPage({
               )
             })}
           </div>
-        </div>
+        </section>
 
-        <div className="rounded-xl border border-border/60 bg-gradient-to-br from-primary/5 to-accent/5 p-6">
-          <h2 className="text-sm font-semibold">{t('scoreDistribution')}</h2>
+        <section className="panel p-5 sm:p-6">
+          <div>
+            <p className="section-label">{t('avgViralScore')}</p>
+            <h2 className="mt-2 text-lg font-semibold text-foreground">
+              {t('scoreDistribution')}
+            </h2>
+          </div>
           <div className="mt-6 space-y-3">
             {scoreBuckets.map((bucket, i) => (
               <div
@@ -240,10 +245,17 @@ export default async function AnalyticsPage({
                     {bucket.label}
                   </span>
                   <span className="tabular-nums text-sm font-semibold text-muted-foreground">
-                    {t('common.clips', { count: bucket.count })}
+                    {common('clips', { count: bucket.count })}
                   </span>
                 </div>
-                <div className="mt-1.5 h-2 w-full overflow-hidden rounded-full bg-background/40">
+                <div
+                  className="mt-1.5 h-2 w-full overflow-hidden rounded-full bg-muted"
+                  role="progressbar"
+                  aria-label={`${bucket.label}: ${common('clips', { count: bucket.count })}`}
+                  aria-valuemin={0}
+                  aria-valuemax={maxBucket}
+                  aria-valuenow={bucket.count}
+                >
                   <div
                     className="h-full rounded-full bg-gradient-to-r from-primary to-accent transition-all duration-500"
                     style={{ width: `${(bucket.count / maxBucket) * 100}%` }}
@@ -252,23 +264,23 @@ export default async function AnalyticsPage({
               </div>
             ))}
           </div>
-        </div>
+        </section>
       </div>
 
-      <div className="rounded-xl border border-border/60 bg-gradient-to-br from-primary/5 to-accent/5 p-6">
-        <h2 className="text-sm font-semibold">{t('performanceHighlights')}</h2>
-        <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <section>
+        <h2 className="section-label mb-3">{t('performanceHighlights')}</h2>
+        <div className="panel grid sm:grid-cols-2 xl:grid-cols-4">
           {[
             {
               label: t('highScoring'),
               value: highScoreClips,
-              sublabel: t('scoreAbove80'),
+              sublabel: t('scoreAbove8'),
               icon: TrendingUp
             },
             {
               label: t('completionRate'),
               value: `${successRate}%`,
-              sublabel: `${completedJobs}/${totalJobs} ${t('common.jobs', { count: totalJobs })}`,
+              sublabel: `${completedJobs}/${totalJobs} ${common('jobs', { count: totalJobs })}`,
               icon: BarChart3
             },
             {
@@ -294,31 +306,28 @@ export default async function AnalyticsPage({
             return (
               <div
                 key={item.label}
-                className="rounded-lg border border-background bg-background/30 p-4 animate-slide-up"
+                className="flex items-center gap-3 border-b border-border p-4 last:border-b-0 sm:[&:nth-child(odd)]:border-r sm:[&:nth-child(3)]:border-b-0 xl:border-b-0 xl:border-r xl:last:border-r-0 xl:[&:nth-child(3)]:border-r animate-slide-up"
                 style={{ animationDelay: `${i * 60}ms` }}
               >
-                <div className="flex items-start justify-between">
-                  <div>
-                    <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                      {item.label}
-                    </div>
-                    <div className="mt-2 text-2xl font-bold tabular-nums text-foreground">
+                <div className="icon-tile shrink-0 bg-primary/10 text-primary">
+                  <Icon className="h-4 w-4" strokeWidth={1.75} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="section-label truncate">{item.label}</div>
+                  <div className="mt-1 flex flex-wrap items-baseline gap-x-1.5">
+                    <span className="text-xl font-semibold tabular-nums">
                       {item.value}
-                    </div>
-                    <div className="mt-1 text-[11px] text-muted-foreground">
+                    </span>
+                    <span className="text-[11px] text-muted-foreground">
                       {item.sublabel}
-                    </div>
+                    </span>
                   </div>
-                  <Icon
-                    className="h-5 w-5 text-primary/50"
-                    strokeWidth={1.75}
-                  />
                 </div>
               </div>
             )
           })}
         </div>
-      </div>
+      </section>
     </div>
   )
 }

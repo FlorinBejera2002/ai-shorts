@@ -2,21 +2,22 @@
 
 import { Layers, Link2, Sparkles, Upload, X } from 'lucide-react'
 import { useTranslations } from 'next-intl'
-import { useCallback, useMemo, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
+import { Suspense, useCallback, useEffect, useMemo, useState } from 'react'
 
 import {
   type AssistantAction,
   AssistantChat
 } from '@/components/assistant/assistant-chat'
-import { SourceBatch } from '@/components/create/source-batch'
-import { SourceUpload } from '@/components/create/source-upload'
-import { SourceYoutube } from '@/components/create/source-youtube'
 import {
   type AspectRatio,
   type CreateSettings,
   SettingsPanel,
   type SubtitleStyle
 } from '@/components/create/settings-panel'
+import { SourceBatch } from '@/components/create/source-batch'
+import { SourceUpload } from '@/components/create/source-upload'
+import { SourceYoutube } from '@/components/create/source-youtube'
 import { SummaryCard } from '@/components/create/summary-card'
 import { PageHeader } from '@/components/ui/page-header'
 import { useToast } from '@/components/ui/toast'
@@ -25,6 +26,16 @@ import { extractApiError } from '@/lib/api-error'
 import { extractYouTubeId } from '@/lib/youtube'
 
 type SourceMode = 'youtube' | 'upload' | 'batch'
+
+const SOURCE_MODES = [
+  { id: 'youtube', icon: Link2 },
+  { id: 'upload', icon: Upload },
+  { id: 'batch', icon: Layers }
+] as const
+
+function isSourceMode(value: string | null): value is SourceMode {
+  return value === 'youtube' || value === 'upload' || value === 'batch'
+}
 
 interface UploadedFile {
   name: string
@@ -36,12 +47,52 @@ interface UploadedFile {
 const CREDITS_PER_CLIP = 10
 
 export default function CreatePage() {
+  const t = useTranslations('create')
+
+  return (
+    <div className="animate-fade-in">
+      <PageHeader title={t('title')} description={t('desc')} />
+      <Suspense fallback={<CreateWorkflowFallback />}>
+        <CreateWorkflow />
+      </Suspense>
+    </div>
+  )
+}
+
+function CreateWorkflowFallback() {
+  return (
+    <div
+      className="mt-6 grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_23rem]"
+      aria-busy="true"
+    >
+      <div className="skeleton h-[28rem] w-full" />
+      <div className="skeleton h-[36rem] w-full" />
+    </div>
+  )
+}
+
+function StepHeading({ number, title }: { number: number; title: string }) {
+  return (
+    <div className="flex items-center gap-3">
+      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-[11px] font-bold tabular-nums text-primary ring-1 ring-primary/15">
+        {number}
+      </span>
+      <h2 className="text-sm font-semibold text-foreground">{title}</h2>
+    </div>
+  )
+}
+
+function CreateWorkflow() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const toast = useToast()
   const t = useTranslations('create')
   const tAssistant = useTranslations('assistant')
 
-  const [mode, setMode] = useState<SourceMode>('youtube')
+  const requestedMode = searchParams.get('mode')
+  const [mode, setMode] = useState<SourceMode>(() =>
+    isSourceMode(requestedMode) ? requestedMode : 'youtube'
+  )
   const [uploaded, setUploaded] = useState<UploadedFile | null>(null)
   const [youtubeUrl, setYoutubeUrl] = useState('')
   const [batchUrls, setBatchUrls] = useState<string[]>([''])
@@ -56,44 +107,45 @@ export default function CreatePage() {
     smartCrop: true
   })
 
-  const handleAssistantActions = useCallback(
-    (actions: AssistantAction[]) => {
-      for (const action of actions) {
-        if (
-          action.type === 'update_settings' &&
-          typeof action.settings === 'object' &&
-          action.settings !== null
-        ) {
-          const s = action.settings as Record<string, unknown>
-          setSettings((prev) => ({
-            ...prev,
-            ...(typeof s.clips === 'number' ? { clips: s.clips } : {}),
-            ...(typeof s.aspect_ratio === 'string'
-              ? { aspectRatio: s.aspect_ratio as AspectRatio }
-              : {}),
-            ...(typeof s.subtitle_style === 'string'
-              ? { subtitleStyle: s.subtitle_style as SubtitleStyle }
-              : {}),
-            ...(typeof s.include_brand === 'boolean'
-              ? { includeBrand: s.include_brand }
-              : {}),
-            ...(typeof s.smart_crop === 'boolean'
-              ? { smartCrop: s.smart_crop }
-              : {}),
-            ...('language' in s
-              ? { language: typeof s.language === 'string' ? s.language : '' }
-              : {})
-          }))
-        } else if (
-          action.type === 'set_instructions' &&
-          typeof action.instructions === 'string'
-        ) {
-          setAiInstructions(action.instructions)
-        }
+  useEffect(() => {
+    if (isSourceMode(requestedMode)) setMode(requestedMode)
+  }, [requestedMode])
+
+  const handleAssistantActions = useCallback((actions: AssistantAction[]) => {
+    for (const action of actions) {
+      if (
+        action.type === 'update_settings' &&
+        typeof action.settings === 'object' &&
+        action.settings !== null
+      ) {
+        const s = action.settings as Record<string, unknown>
+        setSettings((prev) => ({
+          ...prev,
+          ...(typeof s.clips === 'number' ? { clips: s.clips } : {}),
+          ...(typeof s.aspect_ratio === 'string'
+            ? { aspectRatio: s.aspect_ratio as AspectRatio }
+            : {}),
+          ...(typeof s.subtitle_style === 'string'
+            ? { subtitleStyle: s.subtitle_style as SubtitleStyle }
+            : {}),
+          ...(typeof s.include_brand === 'boolean'
+            ? { includeBrand: s.include_brand }
+            : {}),
+          ...(typeof s.smart_crop === 'boolean'
+            ? { smartCrop: s.smart_crop }
+            : {}),
+          ...('language' in s
+            ? { language: typeof s.language === 'string' ? s.language : '' }
+            : {})
+        }))
+      } else if (
+        action.type === 'set_instructions' &&
+        typeof action.instructions === 'string'
+      ) {
+        setAiInstructions(action.instructions)
       }
-    },
-    []
-  )
+    }
+  }, [])
 
   const validBatchUrls = useMemo(() => {
     const unique: string[] = []
@@ -152,7 +204,9 @@ export default function CreatePage() {
         }
         toast.add(
           'success',
-          t('batchQueued', { count: data.jobs?.length ?? validBatchUrls.length })
+          t('batchQueued', {
+            count: data.jobs?.length ?? validBatchUrls.length
+          })
         )
         router.push('/dashboard/history')
       } catch {
@@ -188,140 +242,92 @@ export default function CreatePage() {
   }
 
   return (
-    <div className="animate-fade-in">
-      <PageHeader title={t('title')} description={t('desc')} />
-
-      <div className="mt-8 grid gap-6 lg:grid-cols-[1fr_320px]">
-        {/* Main content */}
-        <div className="space-y-6">
-          {/* Source selection */}
-          <div className="animate-slide-up rounded-xl border border-border bg-card p-6">
-            <div className="mb-4 flex items-center gap-2">
-              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary/10 text-[11px] font-bold text-primary">
-                1
-              </span>
-              <h2 className="text-sm font-semibold text-foreground">
-                {t('stepSource')}
-              </h2>
-            </div>
-            <div className="flex gap-3">
-              {(
-                [
-                  ['youtube', Link2],
-                  ['upload', Upload],
-                  ['batch', Layers]
-                ] as const
-              ).map(([item, Icon]) => (
-                <button
-                  key={item}
-                  type="button"
-                  onClick={() => setMode(item)}
-                  className={`flex flex-1 items-center justify-center gap-2 rounded-lg border px-4 py-2.5 text-sm font-medium transition-all duration-200 ${
-                    mode === item
-                      ? 'border-primary bg-primary text-primary-foreground shadow-sm shadow-primary/20'
-                      : 'border-border bg-card text-muted-foreground hover:border-primary/40 hover:text-foreground'
-                  }`}
-                >
-                  <Icon className="h-4 w-4" strokeWidth={1.75} />
-                  <span className="hidden sm:inline">{t(item)}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Input area */}
-          {mode === 'upload' ? (
-            <SourceUpload
-              uploaded={uploaded}
-              onUploaded={(file) => {
-                setUploaded(file)
-                if (file) toast.add('success', t('videoUploaded'))
-              }}
-              onError={(message) => toast.add('error', message)}
-            />
-          ) : mode === 'batch' ? (
-            <SourceBatch urls={batchUrls} onChange={setBatchUrls} />
-          ) : (
-            <SourceYoutube url={youtubeUrl} onChange={setYoutubeUrl} />
-          )}
-
-          {/* AI assistant */}
+    <div className="mt-6 grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_23rem]">
+      <section className="panel animate-slide-up overflow-hidden xl:col-start-1 xl:row-start-1">
+        <div className="border-b border-border bg-muted/35 px-4 py-4 sm:px-5">
+          <StepHeading number={1} title={t('stepSource')} />
+        </div>
+        <div className="p-4 sm:p-5">
           <div
-            className="animate-slide-up"
-            style={{ animationDelay: '150ms' }}
+            role="group"
+            aria-label={t('stepSource')}
+            className="grid grid-cols-3 gap-1.5 rounded-xl bg-muted p-1.5"
           >
-            <AssistantChat
-              context="create"
-              getState={() => ({
-                clips: settings.clips,
-                aspect_ratio: settings.aspectRatio,
-                subtitle_style: settings.subtitleStyle,
-                include_brand: settings.includeBrand,
-                language: settings.language || null,
-                smart_crop: settings.smartCrop,
-                instructions: aiInstructions.trim() || null
-              })}
-              onActions={handleAssistantActions}
-              suggestions={[
-                tAssistant('suggestCreate1'),
-                tAssistant('suggestCreate2'),
-                tAssistant('suggestCreate3')
-              ]}
-            />
+            {SOURCE_MODES.map(({ id, icon: Icon }) => (
+              <button
+                key={id}
+                type="button"
+                aria-pressed={mode === id}
+                onClick={() => setMode(id)}
+                className={`flex min-h-12 items-center justify-center gap-2 rounded-lg border px-2 text-xs font-semibold transition-all sm:px-4 sm:text-sm ${
+                  mode === id
+                    ? 'border-primary/25 bg-card text-primary shadow-sm'
+                    : 'border-transparent text-muted-foreground hover:bg-card/60 hover:text-foreground'
+                }`}
+              >
+                <Icon className="h-4 w-4" strokeWidth={1.75} />
+                <span>{t(id)}</span>
+              </button>
+            ))}
+          </div>
+          <div id="create-source-panel">
+            {mode === 'upload' ? (
+              <SourceUpload
+                uploaded={uploaded}
+                onUploaded={(file) => {
+                  setUploaded(file)
+                  if (file) toast.add('success', t('videoUploaded'))
+                }}
+                onError={(message) => toast.add('error', message)}
+              />
+            ) : mode === 'batch' ? (
+              <SourceBatch urls={batchUrls} onChange={setBatchUrls} />
+            ) : (
+              <SourceYoutube url={youtubeUrl} onChange={setYoutubeUrl} />
+            )}
           </div>
         </div>
+      </section>
 
-        {/* Settings sidebar */}
-        <div
-          className="animate-slide-up space-y-4"
-          style={{ animationDelay: '100ms' }}
-        >
-          <div className="flex items-center gap-2">
-            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary/10 text-[11px] font-bold text-primary">
-              2
-            </span>
-            <h2 className="text-sm font-semibold text-foreground">
-              {t('stepStyle')}
-            </h2>
-          </div>
+      <aside
+        className="animate-slide-up space-y-5 xl:sticky xl:top-6 xl:col-start-2 xl:row-span-2 xl:row-start-1"
+        style={{ animationDelay: '100ms' }}
+      >
+        <section className="space-y-3">
+          <StepHeading number={2} title={t('stepStyle')} />
           <SettingsPanel settings={settings} onChange={setSettings} />
+        </section>
 
-          {/* AI brief captured by the assistant, sent with the job */}
-          {aiInstructions.trim() && (
-            <div className="animate-scale-in rounded-xl border border-primary/30 bg-primary/5 p-4">
-              <div className="flex items-start justify-between gap-2">
-                <div className="flex items-center gap-1.5">
-                  <Sparkles
-                    className="h-3.5 w-3.5 text-primary"
-                    strokeWidth={1.75}
-                  />
-                  <h3 className="text-xs font-semibold uppercase tracking-wider text-primary">
-                    {tAssistant('briefTitle')}
-                  </h3>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setAiInstructions('')}
-                  title={tAssistant('briefRemove')}
-                  className="rounded p-0.5 text-muted-foreground transition-colors hover:text-destructive"
-                >
-                  <X className="h-3.5 w-3.5" strokeWidth={1.75} />
-                </button>
+        {/* AI brief captured by the assistant, sent with the job */}
+        {aiInstructions.trim() && (
+          <div className="panel-soft animate-scale-in border-primary/25 bg-primary/5 p-4">
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex items-center gap-1.5">
+                <Sparkles
+                  className="h-3.5 w-3.5 text-primary"
+                  strokeWidth={1.75}
+                />
+                <h3 className="section-label text-primary">
+                  {tAssistant('briefTitle')}
+                </h3>
               </div>
-              <p className="mt-2 whitespace-pre-wrap text-xs leading-relaxed text-foreground/90">
-                {aiInstructions}
-              </p>
+              <button
+                type="button"
+                onClick={() => setAiInstructions('')}
+                title={tAssistant('briefRemove')}
+                className="rounded p-0.5 text-muted-foreground transition-colors hover:text-destructive"
+              >
+                <X className="h-3.5 w-3.5" strokeWidth={1.75} />
+              </button>
             </div>
-          )}
-
-          <div className="flex items-center gap-2 pt-2">
-            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary/10 text-[11px] font-bold text-primary">
-              3
-            </span>
-            <h2 className="text-sm font-semibold text-foreground">
-              {t('stepGenerate')}
-            </h2>
+            <p className="mt-2 whitespace-pre-wrap text-xs leading-relaxed text-foreground/90">
+              {aiInstructions}
+            </p>
           </div>
+        )}
+
+        <section className="space-y-3">
+          <StepHeading number={3} title={t('stepGenerate')} />
           <SummaryCard
             settings={settings}
             videoCount={videoCount}
@@ -331,8 +337,32 @@ export default function CreatePage() {
             isBatch={mode === 'batch'}
             onGenerate={() => void createJob()}
           />
-        </div>
-      </div>
+        </section>
+      </aside>
+
+      <section
+        className="animate-slide-up xl:col-start-1 xl:row-start-2"
+        style={{ animationDelay: '150ms' }}
+      >
+        <AssistantChat
+          context="create"
+          getState={() => ({
+            clips: settings.clips,
+            aspect_ratio: settings.aspectRatio,
+            subtitle_style: settings.subtitleStyle,
+            include_brand: settings.includeBrand,
+            language: settings.language || null,
+            smart_crop: settings.smartCrop,
+            instructions: aiInstructions.trim() || null
+          })}
+          onActions={handleAssistantActions}
+          suggestions={[
+            tAssistant('suggestCreate1'),
+            tAssistant('suggestCreate2'),
+            tAssistant('suggestCreate3')
+          ]}
+        />
+      </section>
     </div>
   )
 }

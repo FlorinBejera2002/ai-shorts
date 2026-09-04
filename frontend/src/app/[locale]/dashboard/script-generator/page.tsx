@@ -1,11 +1,12 @@
 'use client'
 
+import {
+  type CoachScene,
+  ShootingCoach,
+  type ShootingCoachLabels
+} from '@/components/script/shooting-coach'
 import { PageHeader } from '@/components/ui/page-header'
 import { useToast } from '@/components/ui/toast'
-import {
-  ShootingCoach,
-  type CoachScene
-} from '@/components/script/shooting-coach'
 import {
   ArrowRight,
   Camera,
@@ -30,7 +31,7 @@ import {
   Wrench
 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 
 type ScriptScene = CoachScene
 
@@ -76,6 +77,37 @@ const DURATIONS = [15, 30, 45, 60, 90, 120, 180]
 export default function ScriptGeneratorPage() {
   const t = useTranslations('scriptGenerator')
   const toast = useToast()
+  const coachLabels = useMemo<ShootingCoachLabels>(
+    () => ({
+      title: t('coach.title'),
+      preview: t.raw('coach.preview') as string,
+      viewControls: t('coach.viewControls'),
+      viewDirector: t('coach.viewDirector'),
+      viewCamera: t('coach.viewCamera'),
+      viewTop: t('coach.viewTop'),
+      emptyTitle: t('coach.emptyTitle'),
+      emptyDescription: t('coach.emptyDescription'),
+      cameraPosition: t('coach.cameraPosition'),
+      movement: t('coach.movement'),
+      lighting: t('coach.lighting'),
+      performance: t('coach.performance'),
+      creatorAction: t('coach.creatorAction'),
+      dialogue: t('coach.dialogue'),
+      noDialogue: t('coach.noDialogue'),
+      restart: t('coach.restart'),
+      play: t('coach.play'),
+      pause: t('coach.pause'),
+      mute: t('coach.mute'),
+      unmute: t('coach.unmute'),
+      timeline: t('coach.timeline'),
+      timelineScene: t.raw('coach.timelineScene') as string,
+      visualizationLabel: t('coach.visualizationLabel'),
+      focalLength: t('coach.focalLength'),
+      cameraReadout: t.raw('coach.cameraReadout') as string,
+      fovReadout: t.raw('coach.fovReadout') as string
+    }),
+    [t]
+  )
 
   const [topic, setTopic] = useState('')
   const [platform, setPlatform] = useState('tiktok')
@@ -249,19 +281,26 @@ export default function ScriptGeneratorPage() {
   }
 
   return (
-    <div className="animate-fade-in max-w-6xl mx-auto">
+    <div className="mx-auto max-w-7xl animate-fade-in">
       <PageHeader title={t('title')} description={t('desc')} />
 
-      <div className="mt-8 grid grid-cols-1 lg:grid-cols-[1fr_1.4fr] gap-6">
+      <div className="mt-8 grid gap-6 xl:grid-cols-[minmax(18rem,0.85fr)_minmax(0,1.5fr)] xl:items-start">
         {/* Left: Input Form */}
-        <div className="space-y-4">
+        <div className="space-y-4 xl:sticky xl:top-6">
           {/* Topic */}
-          <div className="rounded-xl border border-border bg-card p-4 space-y-3">
-            <label className="text-[13px] font-medium flex items-center gap-2">
-              <Lightbulb className="w-3.5 h-3.5 text-primary" strokeWidth={2} />
+          <div className="panel space-y-3 p-5">
+            <label
+              htmlFor="script-topic"
+              className="text-[13px] font-medium flex items-center gap-2"
+              style={{
+                fontFamily: 'var(--font-studio), "Manrope", sans-serif'
+              }}
+            >
+              <Lightbulb className="h-4 w-4 text-primary" strokeWidth={2} />
               {t('topicLabel')}
             </label>
             <textarea
+              id="script-topic"
               value={topic}
               onChange={(e) => setTopic(e.target.value)}
               placeholder={t('topicPlaceholder')}
@@ -275,9 +314,14 @@ export default function ScriptGeneratorPage() {
           </div>
 
           {/* Platform */}
-          <div className="rounded-xl border border-border bg-card p-4 space-y-3">
-            <label className="text-[13px] font-medium flex items-center gap-2">
-              <Target className="w-3.5 h-3.5 text-primary" strokeWidth={2} />
+          <div className="panel space-y-3 p-5">
+            <label
+              className="text-[13px] font-medium flex items-center gap-2"
+              style={{
+                fontFamily: 'var(--font-studio), "Manrope", sans-serif'
+              }}
+            >
+              <Target className="h-4 w-4 text-primary" strokeWidth={2} />
               {t('platformLabel')}
             </label>
             <div className="grid grid-cols-2 gap-2">
@@ -288,8 +332,8 @@ export default function ScriptGeneratorPage() {
                   onClick={() => setPlatform(p.value)}
                   className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-[12px] font-medium transition-all ${
                     platform === p.value
-                      ? 'border-primary bg-primary/5 text-primary'
-                      : 'border-border bg-background text-foreground hover:border-primary/40'
+                      ? 'border-primary bg-primary/10 text-primary ring-1 ring-primary/20'
+                      : 'border-border bg-card text-foreground hover:border-primary/40 hover:bg-primary/5'
                   }`}
                 >
                   <span>{p.icon}</span>
@@ -300,10 +344,15 @@ export default function ScriptGeneratorPage() {
           </div>
 
           {/* Duration + Tone */}
-          <div className="rounded-xl border border-border bg-card p-4 space-y-4">
+          <div className="panel space-y-5 p-5">
             <div className="space-y-2">
-              <label className="text-[13px] font-medium flex items-center gap-2">
-                <Clock className="w-3.5 h-3.5 text-primary" strokeWidth={2} />
+              <label
+                className="text-[13px] font-medium flex items-center gap-2"
+                style={{
+                  fontFamily: 'var(--font-studio), "Manrope", sans-serif'
+                }}
+              >
+                <Clock className="h-4 w-4 text-primary" strokeWidth={2} />
                 {t('durationLabel')}
               </label>
               <div className="flex flex-wrap gap-1.5">
@@ -314,8 +363,8 @@ export default function ScriptGeneratorPage() {
                     onClick={() => setDuration(d)}
                     className={`rounded-lg border px-3 py-1.5 text-[12px] font-medium transition-all ${
                       duration === d
-                        ? 'border-primary bg-primary/5 text-primary'
-                        : 'border-border bg-background text-foreground hover:border-primary/40'
+                        ? 'border-primary bg-primary/10 text-primary ring-1 ring-primary/20'
+                        : 'border-border bg-card text-foreground hover:border-primary/40 hover:bg-primary/5'
                     }`}
                   >
                     {d}s
@@ -325,9 +374,14 @@ export default function ScriptGeneratorPage() {
             </div>
 
             <div className="space-y-2">
-              <label className="text-[13px] font-medium flex items-center gap-2">
+              <label
+                className="text-[13px] font-medium flex items-center gap-2"
+                style={{
+                  fontFamily: 'var(--font-studio), "Manrope", sans-serif'
+                }}
+              >
                 <MessageSquare
-                  className="w-3.5 h-3.5 text-primary"
+                  className="h-4 w-4 text-primary"
                   strokeWidth={2}
                 />
                 {t('toneLabel')}
@@ -340,8 +394,8 @@ export default function ScriptGeneratorPage() {
                     onClick={() => setTone(tn.value)}
                     className={`rounded-lg border px-3 py-1.5 text-[12px] font-medium transition-all ${
                       tone === tn.value
-                        ? 'border-primary bg-primary/5 text-primary'
-                        : 'border-border bg-background text-foreground hover:border-primary/40'
+                        ? 'border-primary bg-primary/10 text-primary ring-1 ring-primary/20'
+                        : 'border-border bg-card text-foreground hover:border-primary/40 hover:bg-primary/5'
                     }`}
                   >
                     {t(tn.key)}
@@ -352,9 +406,14 @@ export default function ScriptGeneratorPage() {
           </div>
 
           {/* Style */}
-          <div className="rounded-xl border border-border bg-card p-4 space-y-3">
-            <label className="text-[13px] font-medium flex items-center gap-2">
-              <Video className="w-3.5 h-3.5 text-primary" strokeWidth={2} />
+          <div className="panel space-y-3 p-5">
+            <label
+              className="text-[13px] font-medium flex items-center gap-2"
+              style={{
+                fontFamily: 'var(--font-studio), "Manrope", sans-serif'
+              }}
+            >
+              <Video className="h-4 w-4 text-primary" strokeWidth={2} />
               {t('styleLabel')}
             </label>
             <div className="grid grid-cols-2 gap-1.5">
@@ -365,8 +424,8 @@ export default function ScriptGeneratorPage() {
                   onClick={() => setStyle(s.value)}
                   className={`rounded-lg border px-3 py-2 text-[12px] font-medium text-left transition-all ${
                     style === s.value
-                      ? 'border-primary bg-primary/5 text-primary'
-                      : 'border-border bg-background text-foreground hover:border-primary/40'
+                      ? 'border-primary bg-primary/10 text-primary ring-1 ring-primary/20'
+                      : 'border-border bg-card text-foreground hover:border-primary/40 hover:bg-primary/5'
                   }`}
                 >
                   {t(s.key)}
@@ -376,13 +435,20 @@ export default function ScriptGeneratorPage() {
           </div>
 
           {/* Target Audience + Language */}
-          <div className="rounded-xl border border-border bg-card p-4 space-y-4">
+          <div className="panel space-y-5 p-5">
             <div className="space-y-2">
-              <label className="text-[13px] font-medium flex items-center gap-2">
-                <Eye className="w-3.5 h-3.5 text-primary" strokeWidth={2} />
+              <label
+                htmlFor="script-audience"
+                className="text-[13px] font-medium flex items-center gap-2"
+                style={{
+                  fontFamily: 'var(--font-studio), "Manrope", sans-serif'
+                }}
+              >
+                <Eye className="h-4 w-4 text-primary" strokeWidth={2} />
                 {t('audienceLabel')}
               </label>
               <input
+                id="script-audience"
                 type="text"
                 value={targetAudience}
                 onChange={(e) => setTargetAudience(e.target.value)}
@@ -392,10 +458,17 @@ export default function ScriptGeneratorPage() {
             </div>
 
             <div className="space-y-2">
-              <label className="text-[13px] font-medium">
+              <label
+                htmlFor="script-language"
+                className="text-[13px] font-medium"
+                style={{
+                  fontFamily: 'var(--font-studio), "Manrope", sans-serif'
+                }}
+              >
                 {t('languageLabel')}
               </label>
               <select
+                id="script-language"
                 value={language}
                 onChange={(e) => setLanguage(e.target.value)}
                 className="w-full rounded-lg border border-input bg-background px-3 py-2 text-[13px] focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors"
@@ -414,11 +487,11 @@ export default function ScriptGeneratorPage() {
             type="button"
             onClick={handleGenerate}
             disabled={busy || !topic.trim()}
-            className="w-full flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-primary to-accent px-4 py-3 text-[13px] font-semibold text-white transition-all hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
+            className="button-primary w-full disabled:cursor-not-allowed disabled:opacity-40"
           >
             {busy ? (
               <>
-                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary-foreground/30 border-t-primary-foreground" />
                 {t('generating')}
               </>
             ) : (
@@ -431,12 +504,12 @@ export default function ScriptGeneratorPage() {
         </div>
 
         {/* Right: Script Output */}
-        <div className="space-y-4">
+        <div className="min-w-0 space-y-4">
           {!script && !busy && (
-            <div className="rounded-xl border border-dashed border-border bg-card/50 flex flex-col items-center justify-center py-20 px-6 text-center">
-              <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center mb-4">
+            <div className="panel-soft flex min-h-[26rem] flex-col items-center justify-center border-dashed px-6 py-16 text-center">
+              <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10">
                 <FileText
-                  className="w-7 h-7 text-primary/50"
+                  className="h-7 w-7 text-primary/60"
                   strokeWidth={1.5}
                 />
               </div>
@@ -450,10 +523,10 @@ export default function ScriptGeneratorPage() {
           )}
 
           {busy && (
-            <div className="rounded-xl border border-border bg-card flex flex-col items-center justify-center py-20 px-6 text-center">
-              <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center mb-4">
+            <div className="panel flex min-h-[26rem] flex-col items-center justify-center px-6 py-16 text-center">
+              <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10">
                 <Sparkles
-                  className="w-7 h-7 text-primary animate-pulse"
+                  className="h-7 w-7 animate-pulse text-primary"
                   strokeWidth={1.5}
                 />
               </div>
@@ -465,7 +538,7 @@ export default function ScriptGeneratorPage() {
                 {[0, 1, 2].map((i) => (
                   <div
                     key={i}
-                    className="w-2 h-2 rounded-full bg-primary/60 animate-bounce"
+                    className="h-2 w-2 animate-bounce rounded-full bg-primary/60"
                     style={{ animationDelay: `${i * 150}ms` }}
                   />
                 ))}
@@ -476,11 +549,19 @@ export default function ScriptGeneratorPage() {
           {script && (
             <div className="space-y-4 animate-fade-in">
               {/* Script Header */}
-              <div className="rounded-xl border border-border bg-card p-4">
-                <div className="flex items-start justify-between gap-3 mb-3">
-                  <div>
-                    <h2 className="text-base font-semibold">{script.title}</h2>
-                    <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
+              <div className="panel p-5">
+                <div className="mb-4 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="min-w-0">
+                    <h2
+                      className="text-base font-semibold"
+                      style={{
+                        fontFamily:
+                          'var(--font-cinematic), "Bodoni Moda", serif'
+                      }}
+                    >
+                      {script.title}
+                    </h2>
+                    <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
                       <span className="flex items-center gap-1">
                         <Clock className="w-3 h-3" />
                         {script.total_duration_seconds}s
@@ -495,11 +576,11 @@ export default function ScriptGeneratorPage() {
                       </span>
                     </div>
                   </div>
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex flex-wrap items-center gap-2 sm:justify-end">
                     <button
                       type="button"
                       onClick={copyFullScript}
-                      className="flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-[11px] font-medium hover:bg-accent/10 transition-colors"
+                      className="button-secondary min-h-9 px-3 text-[11px]"
                     >
                       <Copy className="w-3 h-3" />
                       {t('copyAll')}
@@ -507,7 +588,7 @@ export default function ScriptGeneratorPage() {
                     <button
                       type="button"
                       onClick={downloadScript}
-                      className="flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-[11px] font-medium hover:bg-accent/10 transition-colors"
+                      className="button-secondary min-h-9 px-3 text-[11px]"
                     >
                       <Download className="w-3 h-3" />
                       {t('download')}
@@ -515,7 +596,7 @@ export default function ScriptGeneratorPage() {
                     <button
                       type="button"
                       onClick={handleReset}
-                      className="flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-[11px] font-medium hover:bg-destructive/10 text-destructive transition-colors"
+                      className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-destructive/25 px-3 text-[11px] font-semibold text-destructive transition-colors hover:bg-destructive/10"
                     >
                       <RotateCcw className="w-3 h-3" />
                       {t('newScript')}
@@ -524,24 +605,28 @@ export default function ScriptGeneratorPage() {
                 </div>
 
                 {/* Hook */}
-                <div className="rounded-lg bg-primary/5 border border-primary/20 p-3">
-                  <p className="text-[11px] font-semibold text-primary uppercase tracking-wide mb-1">
+                <div className="rounded-xl border border-primary/20 bg-primary/5 p-4">
+                  <p className="section-label mb-2 text-primary">
                     {t('hookLabel')}
                   </p>
                   <p className="text-[13px] font-medium">{script.hook}</p>
                 </div>
               </div>
 
-              <ShootingCoach scenes={script.scenes} />
+              <ShootingCoach
+                scenes={script.scenes}
+                labels={coachLabels}
+                speechLanguage={language}
+              />
 
               {/* Scene Controls */}
-              <div className="flex items-center justify-between">
-                <p className="text-[13px] font-medium">{t('scenesLabel')}</p>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <p className="section-label">{t('scenesLabel')}</p>
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
                     onClick={expandAll}
-                    className="text-[11px] text-primary hover:underline"
+                    className="text-[11px] font-semibold text-primary hover:underline"
                   >
                     {t('expandAll')}
                   </button>
@@ -549,7 +634,7 @@ export default function ScriptGeneratorPage() {
                   <button
                     type="button"
                     onClick={collapseAll}
-                    className="text-[11px] text-primary hover:underline"
+                    className="text-[11px] font-semibold text-primary hover:underline"
                   >
                     {t('collapseAll')}
                   </button>
@@ -562,15 +647,15 @@ export default function ScriptGeneratorPage() {
                 return (
                   <div
                     key={scene.scene_number}
-                    className="rounded-xl border border-border bg-card overflow-hidden transition-all"
+                    className="panel overflow-hidden transition-all"
                   >
                     <button
                       type="button"
                       onClick={() => toggleScene(index)}
-                      className="w-full flex items-center justify-between px-4 py-3 hover:bg-accent/5 transition-colors"
+                      className="flex w-full items-center justify-between px-4 py-3 text-left transition-colors hover:bg-muted/70"
                     >
                       <div className="flex items-center gap-3">
-                        <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center text-[11px] font-bold text-primary">
+                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-[11px] font-bold text-primary">
                           {scene.scene_number}
                         </div>
                         <div className="text-left">
@@ -590,7 +675,7 @@ export default function ScriptGeneratorPage() {
                     </button>
 
                     {expanded && (
-                      <div className="px-4 pb-4 space-y-3 border-t border-border pt-3 animate-fade-in">
+                      <div className="space-y-3 border-t border-border px-4 pb-4 pt-4 animate-fade-in">
                         <SceneRow
                           icon={<Eye className="w-3.5 h-3.5" />}
                           label={t('visualLabel')}
@@ -636,26 +721,24 @@ export default function ScriptGeneratorPage() {
               })}
 
               {/* CTA + Caption + Hashtags */}
-              <div className="rounded-xl border border-border bg-card p-4 space-y-4">
+              <div className="panel space-y-5 p-5">
                 <div className="space-y-1">
-                  <p className="text-[11px] font-semibold text-primary uppercase tracking-wide flex items-center gap-1.5">
+                  <p className="section-label flex items-center gap-1.5 text-primary">
                     <Megaphone className="w-3 h-3" />
                     {t('ctaLabel')}
                   </p>
                   <p className="text-[13px]">{script.call_to_action}</p>
                 </div>
 
-                <div className="border-t border-border pt-3 space-y-1">
-                  <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                    {t('captionLabel')}
-                  </p>
+                <div className="space-y-1 border-t border-border pt-4">
+                  <p className="section-label">{t('captionLabel')}</p>
                   <p className="text-[13px] whitespace-pre-line">
                     {script.caption}
                   </p>
                 </div>
 
-                <div className="border-t border-border pt-3 space-y-2">
-                  <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-1.5">
+                <div className="space-y-2 border-t border-border pt-4">
+                  <p className="section-label flex items-center gap-1.5">
                     <Hash className="w-3 h-3" />
                     {t('hashtagsLabel')}
                   </p>
@@ -663,7 +746,7 @@ export default function ScriptGeneratorPage() {
                     {script.hashtags.map((tag) => (
                       <span
                         key={tag}
-                        className="rounded-full bg-primary/10 text-primary px-2.5 py-0.5 text-[11px] font-medium"
+                        className="rounded-full border border-primary/15 bg-primary/10 px-2.5 py-0.5 text-[11px] font-medium text-primary"
                       >
                         #{tag}
                       </span>
@@ -674,8 +757,8 @@ export default function ScriptGeneratorPage() {
 
               {/* Equipment + Tips */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="rounded-xl border border-border bg-card p-4 space-y-2">
-                  <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-1.5">
+                <div className="panel space-y-3 p-5">
+                  <p className="section-label flex items-center gap-1.5">
                     <Wrench className="w-3 h-3" />
                     {t('equipmentLabel')}
                   </p>
@@ -685,15 +768,15 @@ export default function ScriptGeneratorPage() {
                         key={i}
                         className="text-[12px] flex items-center gap-2"
                       >
-                        <span className="w-1 h-1 rounded-full bg-primary/60 shrink-0" />
+                        <span className="h-1 w-1 shrink-0 rounded-full bg-primary/70" />
                         {eq}
                       </li>
                     ))}
                   </ul>
                 </div>
 
-                <div className="rounded-xl border border-border bg-card p-4 space-y-2">
-                  <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-1.5">
+                <div className="panel space-y-3 p-5">
+                  <p className="section-label flex items-center gap-1.5">
                     <Lightbulb className="w-3 h-3" />
                     {t('tipsLabel')}
                   </p>
@@ -703,7 +786,7 @@ export default function ScriptGeneratorPage() {
                         key={i}
                         className="text-[12px] flex items-start gap-2"
                       >
-                        <span className="w-1 h-1 rounded-full bg-accent/60 shrink-0 mt-1.5" />
+                        <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-primary/70" />
                         {tip}
                       </li>
                     ))}
@@ -731,7 +814,7 @@ function SceneRow({
 }) {
   return (
     <div className="flex gap-3">
-      <div className="w-6 h-6 rounded-md bg-muted/50 flex items-center justify-center text-muted-foreground shrink-0 mt-0.5">
+      <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
         {icon}
       </div>
       <div className="min-w-0">

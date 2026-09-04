@@ -90,9 +90,8 @@ export function Timeline({
     return () => observer.disconnect()
   }, [])
 
-  const pps = duration > 0 && containerWidth > 0
-    ? (containerWidth / duration) * zoom
-    : 0
+  const pps =
+    duration > 0 && containerWidth > 0 ? (containerWidth / duration) * zoom : 0
   const innerWidth = duration * pps
 
   const xToTime = useCallback(
@@ -256,9 +255,7 @@ export function Timeline({
     (e: React.MouseEvent) => {
       if (drag) return
       const time = xToTime(e.clientX)
-      const isOnSegment = segments.some(
-        (s) => time >= s.start && time <= s.end
-      )
+      const isOnSegment = segments.some((s) => time >= s.start && time <= s.end)
       if (isOnSegment) return
       onSelect(null)
       onSeek(time)
@@ -269,9 +266,7 @@ export function Timeline({
   const handleTrackDoubleClick = useCallback(
     (e: React.MouseEvent) => {
       const time = xToTime(e.clientX)
-      const isOnSegment = segments.some(
-        (s) => time >= s.start && time <= s.end
-      )
+      const isOnSegment = segments.some((s) => time >= s.start && time <= s.end)
       if (!isOnSegment) onAddAt(time)
     },
     [xToTime, segments, onAddAt]
@@ -300,7 +295,10 @@ export function Timeline({
     TICK_INTERVALS.find((i) => i * pps >= TICK_MIN_SPACING_PX) ??
     TICK_INTERVALS[TICK_INTERVALS.length - 1]!
   const tickCount = pps > 0 ? Math.floor(duration / tickInterval) : 0
-  const ticks = Array.from({ length: tickCount + 1 }, (_, i) => i * tickInterval)
+  const ticks = Array.from(
+    { length: tickCount + 1 },
+    (_, i) => i * tickInterval
+  )
   const preciseTicks = tickInterval < 1
 
   if (duration <= 0) {
@@ -435,7 +433,9 @@ export function Timeline({
                   )}
                   <div
                     className="absolute bottom-0 left-0 top-0 w-2 cursor-col-resize rounded-l-md bg-primary/80 transition-colors hover:bg-primary"
-                    onPointerDown={(e) => handlePointerDown(e, i, 'resize-left')}
+                    onPointerDown={(e) =>
+                      handlePointerDown(e, i, 'resize-left')
+                    }
                   />
                   <div
                     className="absolute inset-y-0 left-2 right-2 cursor-grab active:cursor-grabbing"
@@ -443,7 +443,9 @@ export function Timeline({
                   />
                   <div
                     className="absolute bottom-0 right-0 top-0 w-2 cursor-col-resize rounded-r-md bg-primary/80 transition-colors hover:bg-primary"
-                    onPointerDown={(e) => handlePointerDown(e, i, 'resize-right')}
+                    onPointerDown={(e) =>
+                      handlePointerDown(e, i, 'resize-right')
+                    }
                   />
                 </div>
               )

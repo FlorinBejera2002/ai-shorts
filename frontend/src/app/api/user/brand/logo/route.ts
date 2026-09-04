@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server'
 
 import { backendFetch } from '@/lib/api'
 import { auth } from '@/lib/auth'
-import { prisma } from '@/lib/db'
+import { withFreshBrandLogo } from '@/lib/brand-logo'
+import { createPrismaClient } from '@/lib/db'
 import { rateLimit, rateLimitKey, rateLimitedResponse } from '@/lib/rate-limit'
 
 export const runtime = 'nodejs'
@@ -35,15 +36,39 @@ export async function POST(request: Request) {
     return NextResponse.json(error, { status: response.status })
   }
 
-  const { logo_path, logo_url } = await response.json()
+  const payload: unknown = await response.json()
+  const logoPath =
+    payload &&
+    typeof payload === 'object' &&
+    'logo_path' in payload &&
+    typeof payload.logo_path === 'string'
+      ? payload.logo_path
+      : null
+  const keyParts = logoPath?.split('/') ?? []
+  if (
+    keyParts.length !== 3 ||
+    keyParts[0] !== 'brand' ||
+    keyParts[1] !== session.user.id ||
+    !/^logo-[a-z0-9._-]+\.(?:png|jpe?g|webp)$/i.test(keyParts[2] ?? '')
+  ) {
+    return NextResponse.json(
+      { error: 'Upload returned an invalid storage key' },
+      { status: 502 }
+    )
+  }
 
-  const brandKit = await prisma.brandKit.upsert({
+  const prisma = createPrismaClient()
+  const storedBrandKit = await prisma.brandKit.upsert({
     where: { userId: session.user.id },
-    create: { userId: session.user.id, logoPath: logo_path, logoUrl: logo_url },
-    update: { logoPath: logo_path, logoUrl: logo_url }
+    create: { userId: session.user.id, logoPath, logoUrl: null },
+    update: { logoPath, logoUrl: null }
   })
+  const brandKit = await withFreshBrandLogo(storedBrandKit)
 
-  return NextResponse.json({ brandKit })
+  return NextResponse.json(
+    { brandKit },
+    { headers: { 'Cache-Control': 'private, no-store' } }
+  )
 }
 
 export async function DELETE() {
@@ -52,6 +77,7 @@ export async function DELETE() {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
+  const prisma = createPrismaClient()
   const existing = await prisma.brandKit.findUnique({
     where: { userId: session.user.id }
   })
@@ -74,5 +100,8 @@ export async function DELETE() {
     update: { logoPath: null, logoUrl: null }
   })
 
-  return NextResponse.json({ brandKit })
+  return NextResponse.json(
+    { brandKit },
+    { headers: { 'Cache-Control': 'private, no-store' } }
+  )
 }

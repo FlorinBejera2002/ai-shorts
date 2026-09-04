@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Bootstrap the ClipForge monorepo so `docker compose up` starts all 6 services (postgres, redis, backend, worker, frontend, nginx) with placeholder apps responding to health checks.
+**Goal:** Bootstrap the Sneepcut monorepo so `docker compose up` starts all 6 services (postgres, redis, backend, worker, frontend, nginx) with placeholder apps responding to health checks.
 
 **Architecture:** Monorepo with Next.js 15 frontend, FastAPI backend, Celery worker, PostgreSQL, Redis, and Nginx reverse proxy. All services orchestrated via Docker Compose. Patterns cloned from wib_my-acount (Biome, Zustand, Tailwind v4, CVA, shadcn/ui conventions).
 
@@ -15,14 +15,14 @@
 ### Root level
 | File | Purpose |
 |------|---------|
-| `clipforge/.gitignore` | Git ignore for monorepo (node_modules, __pycache__, .env, etc.) |
-| `clipforge/.env.example` | All environment variables documented with comments |
-| `clipforge/.env` | Actual env file (copied from .env.example, gitignored) |
-| `clipforge/docker-compose.yml` | Production-like orchestration of all 6 services |
-| `clipforge/docker-compose.dev.yml` | Dev overrides with hot reload |
-| `clipforge/nginx/nginx.conf` | Reverse proxy routing frontend/backend/media |
+| `sneepcut/.gitignore` | Git ignore for monorepo (node_modules, __pycache__, .env, etc.) |
+| `sneepcut/.env.example` | All environment variables documented with comments |
+| `sneepcut/.env` | Actual env file (copied from .env.example, gitignored) |
+| `sneepcut/docker-compose.yml` | Production-like orchestration of all 6 services |
+| `sneepcut/docker-compose.dev.yml` | Dev overrides with hot reload |
+| `sneepcut/nginx/nginx.conf` | Reverse proxy routing frontend/backend/media |
 
-### Frontend (`clipforge/frontend/`)
+### Frontend (`sneepcut/frontend/`)
 | File | Purpose |
 |------|---------|
 | `Dockerfile` | Multi-stage build: node:20-alpine → Next.js standalone |
@@ -45,7 +45,7 @@
 | `public/logo.svg` | Placeholder SVG logo |
 | `public/logo-icon.svg` | Placeholder SVG icon |
 
-### Backend (`clipforge/backend/`)
+### Backend (`sneepcut/backend/`)
 | File | Purpose |
 |------|---------|
 | `Dockerfile` | python:3.11-slim with uvicorn |
@@ -67,7 +67,7 @@
 | `alembic/env.py` | Alembic env placeholder |
 | `alembic/script.py.mako` | Alembic template |
 
-### Scripts (`clipforge/scripts/`)
+### Scripts (`sneepcut/scripts/`)
 | File | Purpose |
 |------|---------|
 | `setup.sh` | First-time setup (copy .env, docker compose up) |
@@ -81,13 +81,13 @@
 ### Task 1: Initialize Git Repository & Root Config Files
 
 **Files:**
-- Create: `clipforge/.gitignore`
-- Create: `clipforge/.env.example`
+- Create: `sneepcut/.gitignore`
+- Create: `sneepcut/.env.example`
 
 - [ ] **Step 1: Initialize git repo**
 
 ```bash
-cd C:/Users/flori/Documents/projects/clipforge
+cd C:/Users/flori/Documents/projects/sneepcut
 git init
 ```
 
@@ -150,8 +150,8 @@ coverage/
 ```bash
 # === Database ===
 DB_PASSWORD=changeme
-DATABASE_URL=postgresql://clipforge:changeme@postgres:5432/clipforge
-DIRECT_URL=postgresql://clipforge:changeme@postgres:5432/clipforge
+DATABASE_URL=postgresql://sneepcut:changeme@postgres:5432/sneepcut
+DIRECT_URL=postgresql://sneepcut:changeme@postgres:5432/sneepcut
 
 # === Redis ===
 REDIS_URL=redis://redis:6379/0
@@ -188,11 +188,11 @@ STORAGE_TYPE=local
 # AWS_ACCESS_KEY_ID=
 # AWS_SECRET_ACCESS_KEY=
 # AWS_REGION=auto
-# AWS_S3_BUCKET=clipforge-media
+# AWS_S3_BUCKET=sneepcut-media
 # AWS_ENDPOINT_URL=https://xxx.r2.cloudflarestorage.com
 
 # === App ===
-APP_NAME=ClipForge
+APP_NAME=Sneepcut
 APP_URL=http://localhost
 APP_ENV=development
 MAX_UPLOAD_SIZE_MB=2048
@@ -247,9 +247,9 @@ from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
-    app_name: str = "ClipForge"
+    app_name: str = "Sneepcut"
     app_env: str = "development"
-    database_url: str = "postgresql://clipforge:changeme@postgres:5432/clipforge"
+    database_url: str = "postgresql://sneepcut:changeme@postgres:5432/sneepcut"
     redis_url: str = "redis://redis:6379/0"
     nextauth_secret: str = ""
     gemini_api_key: str = ""
@@ -279,7 +279,7 @@ router = APIRouter()
 
 @router.get("/api/health")
 def health_check():
-    return {"status": "ok", "service": "clipforge-backend", "version": "0.1.0"}
+    return {"status": "ok", "service": "sneepcut-backend", "version": "0.1.0"}
 ```
 
 - [ ] **Step 6: Create app/api/router.py**
@@ -302,7 +302,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.router import api_router
 
 app = FastAPI(
-    title="ClipForge API",
+    title="Sneepcut API",
     version="0.1.0",
     docs_url="/api/docs",
     openapi_url="/api/openapi.json",
@@ -326,7 +326,7 @@ cd backend
 pip install -r requirements.txt
 uvicorn app.main:app --reload --port 8000
 # Visit http://localhost:8000/api/health
-# Expected: {"status":"ok","service":"clipforge-backend","version":"0.1.0"}
+# Expected: {"status":"ok","service":"sneepcut-backend","version":"0.1.0"}
 ```
 
 - [ ] **Step 9: Commit**
@@ -467,7 +467,7 @@ git commit -m "chore: add backend placeholder files for models, schemas, service
 ```ini
 [alembic]
 script_location = alembic
-sqlalchemy.url = postgresql://clipforge:changeme@postgres:5432/clipforge
+sqlalchemy.url = postgresql://sneepcut:changeme@postgres:5432/sneepcut
 
 [loggers]
 keys = root,sqlalchemy,alembic
@@ -658,7 +658,7 @@ git commit -m "chore: add backend and worker Dockerfiles"
 
 ```json
 {
-  "name": "clipforge-frontend",
+  "name": "sneepcut-frontend",
   "private": true,
   "version": "0.1.0",
   "type": "module",
@@ -1204,7 +1204,7 @@ import type { Metadata } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'ClipForge — AI Video Clipping',
+  title: 'Sneepcut — AI Video Clipping',
   description:
     'Turn long videos into viral clips with AI. Upload, analyze, and generate ready-to-post short-form content.'
 }
@@ -1275,7 +1275,7 @@ export const useUiStore = create<UiState>()(
       setTheme: (theme) => set({ theme })
     }),
     {
-      name: 'clipforge-ui',
+      name: 'sneepcut-ui',
       partialize: (state) => ({
         sidebarOpen: state.sidebarOpen,
         theme: state.theme
@@ -1377,7 +1377,7 @@ git commit -m "feat: add design tokens, root layout, utils, UI store, and types"
 export default function HomePage() {
   return (
     <div className="flex min-h-dvh flex-col items-center justify-center gap-4 p-8">
-      <h1 className="text-4xl font-bold">ClipForge</h1>
+      <h1 className="text-4xl font-bold">Sneepcut</h1>
       <p className="text-muted-foreground">
         Turn long videos into viral clips with AI
       </p>
@@ -1442,7 +1442,7 @@ export default function DashboardLayout({
     <div className="flex min-h-dvh">
       <aside className="w-64 border-r border-sidebar-border bg-sidebar p-4">
         <div className="text-lg font-bold text-sidebar-foreground">
-          ClipForge
+          Sneepcut
         </div>
         <nav className="mt-8 space-y-2 text-sm text-sidebar-foreground">
           <a href="/dashboard" className="block rounded p-2 hover:bg-sidebar-accent">Home</a>
@@ -1646,7 +1646,7 @@ datasource db {
 ```svg
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 40" fill="none">
   <rect width="200" height="40" rx="8" fill="#6366f1"/>
-  <text x="100" y="26" text-anchor="middle" fill="white" font-family="system-ui" font-size="18" font-weight="bold">ClipForge</text>
+  <text x="100" y="26" text-anchor="middle" fill="white" font-family="system-ui" font-size="18" font-weight="bold">Sneepcut</text>
 </svg>
 ```
 
@@ -1796,15 +1796,15 @@ services:
   postgres:
     image: postgres:16-alpine
     environment:
-      POSTGRES_DB: clipforge
-      POSTGRES_USER: clipforge
+      POSTGRES_DB: sneepcut
+      POSTGRES_USER: sneepcut
       POSTGRES_PASSWORD: ${DB_PASSWORD:-changeme}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
       - "5432:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U clipforge"]
+      test: ["CMD-SHELL", "pg_isready -U sneepcut"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -1938,7 +1938,7 @@ git commit -m "feat: add Docker Compose orchestration (prod + dev)"
 #!/bin/bash
 set -e
 
-echo "=== ClipForge Setup ==="
+echo "=== Sneepcut Setup ==="
 
 if [ ! -f .env ]; then
   echo "Creating .env from .env.example..."
@@ -1994,7 +1994,7 @@ git commit -m "chore: add setup, seed, and deploy shell scripts"
 - [ ] **Step 1: Install npm dependencies**
 
 ```bash
-cd C:/Users/flori/Documents/projects/clipforge/frontend
+cd C:/Users/flori/Documents/projects/sneepcut/frontend
 npm install
 ```
 
@@ -2017,7 +2017,7 @@ Expected: No errors (warnings acceptable for unused vars in placeholders).
 - [ ] **Step 4: Commit lockfile**
 
 ```bash
-cd C:/Users/flori/Documents/projects/clipforge
+cd C:/Users/flori/Documents/projects/sneepcut
 git add frontend/package-lock.json
 git commit -m "chore: add frontend package-lock.json"
 ```
@@ -2029,7 +2029,7 @@ git commit -m "chore: add frontend package-lock.json"
 - [ ] **Step 1: Build all images**
 
 ```bash
-cd C:/Users/flori/Documents/projects/clipforge
+cd C:/Users/flori/Documents/projects/sneepcut
 docker compose build
 ```
 
@@ -2049,15 +2049,15 @@ sleep 15
 
 # Backend health
 curl http://localhost/api/health
-# Expected: {"status":"ok","service":"clipforge-backend","version":"0.1.0"}
+# Expected: {"status":"ok","service":"sneepcut-backend","version":"0.1.0"}
 
 # Frontend
 curl -s http://localhost | head -5
-# Expected: HTML containing "ClipForge"
+# Expected: HTML containing "Sneepcut"
 
 # Postgres
-docker compose exec postgres psql -U clipforge -c '\l'
-# Expected: lists databases including "clipforge"
+docker compose exec postgres psql -U sneepcut -c '\l'
+# Expected: lists databases including "sneepcut"
 
 # Redis
 docker compose exec redis redis-cli ping

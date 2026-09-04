@@ -1,8 +1,8 @@
-# ClipForge Enterprise Transformation — Implementation Plan
+# Sneepcut Enterprise Transformation — Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Transform ClipForge into a premium SaaS platform with full i18n (EN/RO), dark/light mode toggling, a data-rich professional dashboard, and expanded client customization — while preserving all existing functionality.
+**Goal:** Transform Sneepcut into a premium SaaS platform with full i18n (EN/RO), dark/light mode toggling, a data-rich professional dashboard, and expanded client customization — while preserving all existing functionality.
 
 **Architecture:** next-intl for locale-based routing under `[locale]` segment, next-themes for SSR-safe theme toggling with system preference detection, server-side dashboard widgets with client-side polling for active jobs. All hardcoded UI strings extracted to JSON message files. User preferences stored in a new Prisma model.
 
@@ -194,7 +194,7 @@ Create `frontend/messages/en.json` with all UI strings organized by section:
     "badge": "AI-powered video clipping",
     "heroTitle1": "Turn long videos into",
     "heroTitle2": "ready-to-post shorts",
-    "heroDesc": "Upload a video or paste a YouTube URL. ClipForge transcribes, detects viral hooks, crops for vertical, adds captions, and generates platform-ready clips — in minutes.",
+    "heroDesc": "Upload a video or paste a YouTube URL. Sneepcut transcribes, detects viral hooks, crops for vertical, adds captions, and generates platform-ready clips — in minutes.",
     "ctaFree": "Start free — 100 credits",
     "ctaPricing": "See pricing",
     "pricing": "Pricing",
@@ -232,7 +232,7 @@ Create `frontend/messages/en.json` with all UI strings organized by section:
     "finalCtaDesc": "Join creators who save hours every week repurposing long-form content into short-form clips that drive engagement.",
     "finalCtaButton": "Get started for free",
     "finalCtaNote": "100 free credits. No credit card required.",
-    "footer": "© {year} ClipForge. All rights reserved.",
+    "footer": "© {year} Sneepcut. All rights reserved.",
     "privacy": "Privacy",
     "terms": "Terms",
     "statProcessing": "Processing time",
@@ -407,8 +407,8 @@ Create `frontend/messages/en.json` with all UI strings organized by section:
     "topRight": "Top right",
     "bottomLeft": "Bottom left",
     "bottomRight": "Bottom right",
-    "platformBadge": "ClipForge badge",
-    "badgeOnDesc": "Show a small 'Made with ClipForge' mark on exports.",
+    "platformBadge": "Sneepcut badge",
+    "badgeOnDesc": "Show a small 'Made with Sneepcut' mark on exports.",
     "badgeLockedDesc": "White-label exports are included in the Agency plan.",
     "upgradeAgency": "Upgrade to Agency",
     "preview": "Preview",
@@ -531,7 +531,7 @@ Create `frontend/messages/ro.json` with full Romanian translations. Same structu
     "badge": "Clipuri video cu AI",
     "heroTitle1": "Transformă videoclipuri lungi în",
     "heroTitle2": "scurtmetraje gata de publicat",
-    "heroDesc": "Încarcă un video sau lipește un URL YouTube. ClipForge transcrie, detectează momente virale, decupează vertical, adaugă subtitrări și generează clipuri gata pentru platforme — în câteva minute.",
+    "heroDesc": "Încarcă un video sau lipește un URL YouTube. Sneepcut transcrie, detectează momente virale, decupează vertical, adaugă subtitrări și generează clipuri gata pentru platforme — în câteva minute.",
     "ctaFree": "Începe gratuit — 100 credite",
     "ctaPricing": "Vezi prețurile",
     "pricing": "Prețuri",
@@ -569,7 +569,7 @@ Create `frontend/messages/ro.json` with full Romanian translations. Same structu
     "finalCtaDesc": "Alătură-te creatorilor care economisesc ore în fiecare săptămână transformând conținut lung în clipuri scurte care generează engagement.",
     "finalCtaButton": "Începe gratuit",
     "finalCtaNote": "100 credite gratuite. Fără card de credit.",
-    "footer": "© {year} ClipForge. Toate drepturile rezervate.",
+    "footer": "© {year} Sneepcut. Toate drepturile rezervate.",
     "privacy": "Confidențialitate",
     "terms": "Termeni",
     "statProcessing": "Timp de procesare",
@@ -744,8 +744,8 @@ Create `frontend/messages/ro.json` with full Romanian translations. Same structu
     "topRight": "Dreapta sus",
     "bottomLeft": "Stânga jos",
     "bottomRight": "Dreapta jos",
-    "platformBadge": "Insignă ClipForge",
-    "badgeOnDesc": "Afișează un mic semn 'Made with ClipForge' pe exporturi.",
+    "platformBadge": "Insignă Sneepcut",
+    "badgeOnDesc": "Afișează un mic semn 'Made with Sneepcut' pe exporturi.",
     "badgeLockedDesc": "Exporturile white-label sunt incluse în planul Agency.",
     "upgradeAgency": "Fă upgrade la Agency",
     "preview": "Previzualizare",
@@ -997,7 +997,7 @@ import { Toaster } from '@/components/ui/toast'
 import '../globals.css'
 
 export const metadata: Metadata = {
-  title: 'ClipForge - AI Video Clipping',
+  title: 'Sneepcut - AI Video Clipping',
   description:
     'Turn long videos into viral clips with AI. Upload, analyze, and generate ready-to-post short-form content.',
 }
@@ -1376,7 +1376,7 @@ export const useUiStore = create<UiState>()(
       setSidebarOpen: (open) => set({ sidebarOpen: open }),
     }),
     {
-      name: 'clipforge-ui',
+      name: 'sneepcut-ui',
       partialize: (state) => ({
         sidebarOpen: state.sidebarOpen,
       }),

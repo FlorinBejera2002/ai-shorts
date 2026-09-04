@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import json
 import logging
+import math
 from typing import Any
 
 from app.config import settings
+from app.schemas.script import normalize_camera_movement, normalize_camera_values
 
 logger = logging.getLogger(__name__)
 
@@ -36,9 +38,11 @@ STRICT RULES:
 3. Text overlays must be SHORT (max 8 words) and reinforce the spoken word.
 4. Total scene durations MUST add up to approximately {duration} seconds.
 5. The call-to-action must feel natural, not forced.
-6. ALL output text (title, dialogue, overlays, captions, tips) MUST be in {language_name}.
+6. ALL human-readable output (title, dialogue, overlays, captions, tips and camera_movement) MUST be in {language_name}; machine fields remain the exact tokens specified below.
 7. Equipment suggestions should range from phone-only to professional.
 8. Transitions should be platform-appropriate ({platform} style).
+9. camera_movement is a human-readable filming direction in {language_name}.
+10. camera_movement_type and camera_movement_direction are machine fields. NEVER translate them and use only the exact tokens listed below.
 
 OUTPUT — RETURN ONLY VALID JSON (no markdown, no comments):
 {{
@@ -50,7 +54,9 @@ OUTPUT — RETURN ONLY VALID JSON (no markdown, no comments):
       "duration_seconds": <integer>,
       "visual_description": "<detailed description of what the viewer sees — framing, background, props, lighting>",
       "camera_angle": "<specific angle: close-up face, medium shot waist-up, wide shot full body, overhead, low angle, eye-level, etc.>",
-      "camera_movement": "<static, slow pan left, tilt up, zoom in, tracking shot, handheld shake, dolly in, etc.>",
+      "camera_movement": "<localized human-readable direction for the creator>",
+      "camera_movement_type": "<exact token: static, pan, tilt, zoom, dolly, track or handheld>",
+      "camera_movement_direction": "<exact token: none, left, right, up, down, in or out. Use none for static and handheld; left/right for pan and track; up/down for tilt; in/out for zoom and dolly>",
       "dialogue": "<exact words spoken in this scene OR [no dialogue] if silent>",
       "text_overlay": "<bold text that appears on screen, max 8 words, or empty string if none>",
       "music_mood": "<upbeat energetic, calm ambient, dramatic tension, trendy beat, lo-fi chill, etc.>",
@@ -118,66 +124,107 @@ def build_script_prompt(
 
 def extract_json_response(response_text: str) -> dict[str, Any]:
     text = response_text.strip()
-    if text.startswith("```json"):
-        text = text[7:]
-    if text.startswith("```"):
-        text = text[3:]
-    if text.endswith("```"):
-        text = text[:-3]
+    text = text.removeprefix("```json")
+    text = text.removeprefix("```")
+    text = text.removesuffix("```")
     text = text.strip()
 
     try:
-        return json.loads(text)
+        parsed = json.loads(text)
     except json.JSONDecodeError:
         start = text.find("{")
         end = text.rfind("}")
         if start == -1 or end == -1 or end <= start:
             raise
-        return json.loads(text[start : end + 1])
+        parsed = json.loads(text[start : end + 1])
+    if not isinstance(parsed, dict):
+        raise TypeError("Generated script must be a JSON object")
+    return parsed
+
+
+def _safe_int(value: Any, fallback: int, minimum: int = 1) -> int:
+    if isinstance(value, bool):
+        return fallback
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError, OverflowError):
+        return fallback
+    return max(minimum, parsed)
+
+
+def _safe_float(
+    value: Any,
+    fallback: float,
+    minimum: float,
+    maximum: float,
+) -> float:
+    if isinstance(value, bool):
+        return fallback
+    try:
+        parsed = float(value)
+    except (TypeError, ValueError, OverflowError):
+        return fallback
+    if not math.isfinite(parsed):
+        return fallback
+    return min(maximum, max(minimum, parsed))
+
+
+def _text(value: Any, fallback: str = "") -> str:
+    return value if isinstance(value, str) else fallback
+
+
+def _limited_text_list(value: Any, limit: int) -> list[str]:
+    if not isinstance(value, list):
+        return []
+    return [item for item in value if isinstance(item, str)][:limit]
 
 
 def validate_script(raw: dict[str, Any]) -> dict[str, Any]:
-    scenes = raw.get("scenes", [])
+    raw_scenes = raw.get("scenes")
+    scenes = raw_scenes if isinstance(raw_scenes, list) else []
     validated_scenes = []
-    for i, scene in enumerate(scenes, start=1):
+    for i, raw_scene in enumerate(scenes, start=1):
+        scene = raw_scene if isinstance(raw_scene, dict) else {}
+        camera_values = normalize_camera_values(scene)
+        camera_movement = normalize_camera_movement(scene)
         validated_scenes.append(
             {
-                "scene_number": scene.get("scene_number", i),
-                "duration_seconds": max(1, int(scene.get("duration_seconds", 5))),
-                "visual_description": scene.get("visual_description", ""),
-                "camera_angle": scene.get("camera_angle", "eye-level"),
-                "camera_movement": scene.get("camera_movement", "static"),
-                "dialogue": scene.get("dialogue", ""),
-                "text_overlay": scene.get("text_overlay", ""),
-                "music_mood": scene.get("music_mood", ""),
-                "transition": scene.get("transition", "cut"),
-                "shot_type": scene.get("shot_type", "medium_shot"),
-                "camera_height": float(scene.get("camera_height", 1.55)),
-                "camera_distance": float(scene.get("camera_distance", 1.8)),
-                "camera_yaw": float(scene.get("camera_yaw", 0)),
-                "camera_pitch": float(scene.get("camera_pitch", 0)),
-                "lens_mm": int(scene.get("lens_mm", 35)),
-                "subject_action": scene.get("subject_action", "Speak naturally to camera"),
-                "subject_position": scene.get("subject_position", [0, 0, 0]),
-                "lighting": scene.get("lighting", "soft_key_left"),
-                "voice_emotion": scene.get("voice_emotion", "confident"),
-                "voice_pace": min(1.35, max(0.75, float(scene.get("voice_pace", 1.0)))),
-                "voice_emphasis": scene.get("voice_emphasis", [])[:5],
+                "scene_number": _safe_int(scene.get("scene_number"), i),
+                "duration_seconds": _safe_int(scene.get("duration_seconds"), 5),
+                "visual_description": _text(scene.get("visual_description")),
+                "camera_angle": _text(scene.get("camera_angle"), "eye-level"),
+                "camera_movement": _text(scene.get("camera_movement"), "static"),
+                **camera_movement,
+                "dialogue": _text(scene.get("dialogue")),
+                "text_overlay": _text(scene.get("text_overlay")),
+                "music_mood": _text(scene.get("music_mood")),
+                "transition": _text(scene.get("transition"), "cut"),
+                "shot_type": _text(scene.get("shot_type"), "medium_shot"),
+                **camera_values,
+                "subject_action": _text(
+                    scene.get("subject_action"), "Speak naturally to camera"
+                ),
+                "lighting": _text(scene.get("lighting"), "soft_key_left"),
+                "voice_emotion": _text(scene.get("voice_emotion"), "confident"),
+                "voice_pace": _safe_float(scene.get("voice_pace"), 1.0, 0.75, 1.35),
+                "voice_emphasis": _limited_text_list(scene.get("voice_emphasis"), 5),
             }
         )
 
     total = sum(s["duration_seconds"] for s in validated_scenes)
 
     return {
-        "title": raw.get("title", "Untitled Script"),
-        "hook": raw.get("hook", ""),
+        "title": _text(raw.get("title"), "Untitled Script"),
+        "hook": _text(raw.get("hook")),
         "scenes": validated_scenes,
-        "call_to_action": raw.get("call_to_action", ""),
-        "caption": raw.get("caption", ""),
-        "hashtags": raw.get("hashtags", [])[:10],
+        "call_to_action": _text(raw.get("call_to_action")),
+        "caption": _text(raw.get("caption")),
+        "hashtags": _limited_text_list(raw.get("hashtags"), 10),
         "total_duration_seconds": total,
-        "equipment_suggestions": raw.get("equipment_suggestions", []),
-        "filming_tips": raw.get("filming_tips", []),
+        "equipment_suggestions": _limited_text_list(
+            raw.get("equipment_suggestions"), 20
+        ),
+        "filming_tips": _limited_text_list(raw.get("filming_tips"), 20),
     }
 
 

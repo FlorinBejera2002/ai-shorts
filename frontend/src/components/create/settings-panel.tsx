@@ -104,7 +104,9 @@ function Toggle({
       }`}
     >
       <span
-        className="absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-transform"
+        className={`absolute left-0.5 top-0.5 h-4 w-4 rounded-full shadow-sm transition-all ${
+          checked ? 'bg-primary-foreground' : 'bg-card'
+        }`}
         style={{ transform: checked ? 'translateX(16px)' : 'translateX(0)' }}
       />
     </button>
@@ -138,15 +140,13 @@ export function SettingsPanel({ settings, onChange }: SettingsPanelProps) {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="panel divide-y divide-border overflow-hidden">
       {/* Platform preset */}
-      <div className="rounded-xl border border-border bg-card p-4">
+      <section className="p-4">
         <div className="mb-3 flex items-center justify-between">
-          <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            {t('platformPreset')}
-          </h3>
+          <h3 className="section-label">{t('platformPreset')}</h3>
           {!activePreset && (
-            <span className="rounded-md bg-accent/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-accent">
+            <span className="rounded-md bg-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary">
               {t('customPreset')}
             </span>
           )}
@@ -160,10 +160,11 @@ export function SettingsPanel({ settings, onChange }: SettingsPanelProps) {
                 key={preset.id}
                 type="button"
                 onClick={() => applyPreset(preset)}
-                className={`flex flex-col items-center justify-center gap-1 rounded-lg px-2.5 py-3 text-[11px] font-medium transition-all ${
+                aria-pressed={isActive}
+                className={`flex flex-col items-center justify-center gap-1 rounded-lg border px-2.5 py-3 text-[11px] font-medium transition-all ${
                   isActive
-                    ? 'ring-2 ring-primary bg-primary/10 text-foreground'
-                    : 'border border-border bg-card text-muted-foreground hover:border-primary/40 hover:text-foreground'
+                    ? 'border-primary/30 bg-primary/10 text-primary shadow-sm'
+                    : 'border-border bg-background text-muted-foreground hover:border-primary/40 hover:text-foreground'
                 }`}
               >
                 <Icon className="h-4 w-4" strokeWidth={1.75} />
@@ -175,10 +176,10 @@ export function SettingsPanel({ settings, onChange }: SettingsPanelProps) {
             )
           })}
         </div>
-      </div>
+      </section>
 
       {/* Clips per video */}
-      <div className="rounded-xl border border-border bg-card p-4">
+      <section className="p-4">
         <div className="mb-3 flex items-center justify-between">
           <span className="text-sm font-semibold text-foreground">
             {t('clipsPerVideo')}
@@ -189,6 +190,7 @@ export function SettingsPanel({ settings, onChange }: SettingsPanelProps) {
         </div>
         <input
           type="range"
+          aria-label={t('clipsPerVideo')}
           min={1}
           max={15}
           value={settings.clips}
@@ -201,10 +203,10 @@ export function SettingsPanel({ settings, onChange }: SettingsPanelProps) {
           <span>1</span>
           <span>15</span>
         </div>
-      </div>
+      </section>
 
       {/* Aspect ratio */}
-      <div className="rounded-xl border border-border bg-card p-4">
+      <section className="p-4">
         <h3 className="mb-3 text-sm font-semibold text-foreground">
           {t('aspectRatio')}
         </h3>
@@ -217,10 +219,11 @@ export function SettingsPanel({ settings, onChange }: SettingsPanelProps) {
                 key={ratio}
                 type="button"
                 onClick={() => onChange({ ...settings, aspectRatio: ratio })}
+                aria-pressed={isActive}
                 className={`flex flex-col items-center gap-1.5 rounded-lg border px-2 py-2.5 text-xs font-medium transition-all ${
                   isActive
-                    ? 'border-primary bg-primary/10 text-foreground ring-1 ring-primary'
-                    : 'border-border bg-card text-muted-foreground hover:border-primary/40 hover:text-foreground'
+                    ? 'border-primary/35 bg-primary/10 text-primary shadow-sm'
+                    : 'border-border bg-background text-muted-foreground hover:border-primary/40 hover:text-foreground'
                 }`}
               >
                 <span
@@ -234,10 +237,10 @@ export function SettingsPanel({ settings, onChange }: SettingsPanelProps) {
             )
           })}
         </div>
-      </div>
+      </section>
 
       {/* Subtitle style */}
-      <div className="rounded-xl border border-border bg-card p-4">
+      <section className="p-4">
         <h3 className="mb-3 text-sm font-semibold text-foreground">
           {t('subtitles')}
         </h3>
@@ -256,13 +259,16 @@ export function SettingsPanel({ settings, onChange }: SettingsPanelProps) {
                 key={style}
                 type="button"
                 onClick={() => onChange({ ...settings, subtitleStyle: style })}
+                aria-pressed={isActive}
                 className={`flex flex-col items-center gap-1.5 rounded-lg border px-2 py-2.5 transition-all ${
                   isActive
-                    ? 'border-primary bg-primary/10 ring-1 ring-primary'
-                    : 'border-border bg-card hover:border-primary/40'
+                    ? 'border-primary/35 bg-primary/10 shadow-sm'
+                    : 'border-border bg-background hover:border-primary/40'
                 }`}
               >
-                <span className={`text-[13px] leading-4 ${SUBTITLE_PREVIEWS[style]}`}>
+                <span
+                  className={`text-[13px] leading-4 ${SUBTITLE_PREVIEWS[style]}`}
+                >
                   Abc
                 </span>
                 <span
@@ -276,10 +282,10 @@ export function SettingsPanel({ settings, onChange }: SettingsPanelProps) {
             )
           })}
         </div>
-      </div>
+      </section>
 
       {/* Brand kit */}
-      <div className="rounded-xl border border-border bg-card p-4">
+      <section className="p-4">
         <div className="flex items-center justify-between">
           <div>
             <span className="text-sm font-semibold text-foreground">
@@ -295,14 +301,15 @@ export function SettingsPanel({ settings, onChange }: SettingsPanelProps) {
             label={t('brandKit')}
           />
         </div>
-      </div>
+      </section>
 
       {/* Advanced */}
-      <div className="rounded-xl border border-border bg-card">
+      <section>
         <button
           type="button"
           onClick={() => setAdvancedOpen(!advancedOpen)}
-          className="flex w-full items-center justify-between p-4 text-sm font-semibold text-foreground"
+          aria-expanded={advancedOpen}
+          className="flex w-full items-center justify-between p-4 text-sm font-semibold text-foreground transition-colors hover:bg-muted/45"
         >
           {t('advanced')}
           <ChevronDown
@@ -328,7 +335,7 @@ export function SettingsPanel({ settings, onChange }: SettingsPanelProps) {
                 onChange={(e) =>
                   onChange({ ...settings, language: e.target.value })
                 }
-                className="mt-2 w-full rounded-lg border border-input bg-card px-3 py-2 text-[13px] text-foreground transition-all outline-none focus:border-primary focus:ring-2 focus:ring-primary/15"
+                className="mt-2 w-full rounded-lg border border-input bg-background px-3 py-2 text-[13px] text-foreground transition-all outline-none focus:border-primary focus:ring-2 focus:ring-primary/15"
               >
                 {LANGUAGES.map((lang) => (
                   <option key={lang.value} value={lang.value}>
@@ -340,7 +347,10 @@ export function SettingsPanel({ settings, onChange }: SettingsPanelProps) {
             <div className="flex items-center justify-between">
               <div>
                 <span className="flex items-center gap-1.5 text-xs font-medium text-foreground">
-                  <Sparkles className="h-3.5 w-3.5 text-primary" strokeWidth={1.75} />
+                  <Sparkles
+                    className="h-3.5 w-3.5 text-primary"
+                    strokeWidth={1.75}
+                  />
                   {t('smartCrop')}
                 </span>
                 <p className="mt-0.5 text-[11px] text-muted-foreground">
@@ -355,7 +365,7 @@ export function SettingsPanel({ settings, onChange }: SettingsPanelProps) {
             </div>
           </div>
         )}
-      </div>
+      </section>
     </div>
   )
 }

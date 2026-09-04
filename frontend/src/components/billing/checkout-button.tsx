@@ -1,0 +1,101 @@
+'use client'
+
+import { ArrowUpRight, Loader2 } from 'lucide-react'
+import { useId, useState } from 'react'
+
+import type { BillingLocale, PaidBillingPlanId } from '@/lib/billing'
+
+type CheckoutButtonProps = {
+  planId: PaidBillingPlanId
+  locale: BillingLocale
+  label: string
+  loadingLabel: string
+  errorLabel: string
+  disabled?: boolean
+  emphasized?: boolean
+}
+
+export function CheckoutButton({
+  planId,
+  locale,
+  label,
+  loadingLabel,
+  errorLabel,
+  disabled = false,
+  emphasized = false
+}: CheckoutButtonProps) {
+  const errorId = useId()
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function startCheckout() {
+    if (disabled || loading) return
+
+    setLoading(true)
+    setError(null)
+
+    try {
+      const response = await fetch('/api/stripe/checkout', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ planId, locale })
+      })
+      const data: unknown = await response.json().catch(() => null)
+      const destinationUrl =
+        typeof data === 'object' &&
+        data !== null &&
+        'url' in data &&
+        typeof data.url === 'string'
+          ? data.url
+          : null
+
+      if (!response.ok || !destinationUrl) {
+        throw new Error('Checkout session could not be created')
+      }
+
+      const destination = new URL(destinationUrl)
+      if (destination.protocol !== 'https:') {
+        throw new Error('Invalid billing destination')
+      }
+      window.location.assign(destination.toString())
+    } catch {
+      setError(errorLabel)
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={() => void startCheckout()}
+        disabled={disabled || loading}
+        aria-busy={loading}
+        aria-describedby={error ? errorId : undefined}
+        className={`flex min-h-11 w-full items-center justify-center gap-2 rounded-lg px-3 text-[13px] font-semibold transition-all disabled:cursor-not-allowed disabled:opacity-65 ${
+          emphasized
+            ? 'bg-primary text-primary-foreground hover:-translate-y-0.5 hover:bg-primary/90'
+            : 'border border-border bg-card text-foreground hover:border-primary/35 hover:bg-primary/5 hover:text-primary'
+        }`}
+      >
+        {loading ? (
+          <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+        ) : !disabled ? (
+          <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
+        ) : null}
+        <span>{loading ? loadingLabel : label}</span>
+      </button>
+      {error && (
+        <p
+          id={errorId}
+          className="mt-2 text-center text-[11px] leading-relaxed text-destructive"
+          role="alert"
+        >
+          {error}
+        </p>
+      )}
+    </div>
+  )
+}

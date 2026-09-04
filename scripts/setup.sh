@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-echo "=== ClipForge Setup ==="
+echo "=== Sneepcut Setup ==="
 
 if [ ! -f .env ]; then
   echo "Creating .env from .env.example..."

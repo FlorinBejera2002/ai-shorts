@@ -56,7 +56,10 @@ export function ExportDialog({
         {phase === 'done' ? (
           <div className="text-center">
             <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-success/10">
-              <CheckCircle2 className="h-6 w-6 text-success" strokeWidth={1.75} />
+              <CheckCircle2
+                className="h-6 w-6 text-success"
+                strokeWidth={1.75}
+              />
             </div>
             <h2 className="mt-4 text-base font-semibold text-foreground">
               {t('exportStartedTitle')}
@@ -104,15 +107,23 @@ export function ExportDialog({
 
             <div className="mt-4 space-y-2">
               <div className="flex items-center gap-3 rounded-lg bg-muted/60 px-3 py-2.5">
-                <Film className="h-4 w-4 shrink-0 text-primary" strokeWidth={1.75} />
+                <Film
+                  className="h-4 w-4 shrink-0 text-primary"
+                  strokeWidth={1.75}
+                />
                 <span className="text-[13px] text-foreground">
                   {t('segments', { count: segmentCount })}
                 </span>
               </div>
               <div className="flex items-center gap-3 rounded-lg bg-muted/60 px-3 py-2.5">
-                <Clock className="h-4 w-4 shrink-0 text-primary" strokeWidth={1.75} />
+                <Clock
+                  className="h-4 w-4 shrink-0 text-primary"
+                  strokeWidth={1.75}
+                />
                 <span className="text-[13px] tabular-nums text-foreground">
-                  {t('totalDuration', { duration: `${totalDuration.toFixed(1)}s` })}
+                  {t('totalDuration', {
+                    duration: `${totalDuration.toFixed(1)}s`
+                  })}
                 </span>
               </div>
             </div>

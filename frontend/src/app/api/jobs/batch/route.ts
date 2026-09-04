@@ -13,7 +13,7 @@ export async function POST(request: Request) {
   const limit = await rateLimit({
     key: rateLimitKey(request, `batch:${session.user.id}`),
     limit: 5,
-    windowMs: 60 * 60 * 1000,
+    windowMs: 60 * 60 * 1000
   })
   if (limit.limited) {
     return rateLimitedResponse(limit.resetAt)
@@ -21,6 +21,6 @@ export async function POST(request: Request) {
 
   return proxyBackendResponse('/api/jobs/batch', {
     method: 'POST',
-    body: await request.text(),
+    body: await request.text()
   })
 }

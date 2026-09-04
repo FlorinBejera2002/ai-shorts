@@ -342,7 +342,7 @@ Return shape:
 - [ ] Configure Celery with JSON serialization.
 - [ ] Enable `task_acks_late`, worker lost rejection, and conservative prefetching.
 - [ ] Set soft/hard task time limits for long video jobs.
-- [ ] Add `clipforge.process_video` task that calls `process_video_source`.
+- [ ] Add `sneepcut.process_video` task that calls `process_video_source`.
 - [ ] Keep task return data JSON-serializable.
 - [ ] Keep database job status updates out of Phase 2; that belongs to Phase 3/4.
 

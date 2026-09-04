@@ -1,10 +1,15 @@
 import { ThemeProvider } from '@/components/shared/theme-provider'
 import { Toaster } from '@/components/ui/toast'
 import { routing } from '@/i18n/navigation'
+import {
+  type SiteLocale,
+  buildLocaleMetadata,
+  getLocaleConfig
+} from '@/lib/site-config'
 import type { Metadata } from 'next'
 import { NextIntlClientProvider } from 'next-intl'
 import { getMessages, setRequestLocale } from 'next-intl/server'
-import { Bodoni_Moda, Inter, Manrope, Sora } from 'next/font/google'
+import { Bodoni_Moda, Manrope, Sora } from 'next/font/google'
 import { notFound } from 'next/navigation'
 import '../globals.css'
 
@@ -15,7 +20,7 @@ const sora = Sora({
   weight: ['400', '500', '600', '700', '800']
 })
 
-const inter = Inter({
+const manropeBody = Manrope({
   subsets: ['latin'],
   variable: '--font-body',
   display: 'swap'
@@ -33,19 +38,41 @@ const manrope = Manrope({
   display: 'swap'
 })
 
-export const metadata: Metadata = {
-  title: {
-    default: 'ClipForge — AI Video Clipping',
-    template: '%s · ClipForge'
-  },
-  description:
-    'Turn long videos into viral clips with AI. Upload, analyze, and generate ready-to-post short-form content.',
-  openGraph: {
-    title: 'ClipForge — AI Video Clipping',
-    description:
-      'Turn long videos into viral clips with AI. Upload, analyze, and generate ready-to-post short-form content.',
-    siteName: 'ClipForge',
-    type: 'website'
+export async function generateMetadata({
+  params
+}: {
+  params: Promise<{ locale: string }>
+}): Promise<Metadata> {
+  const { locale: requestedLocale } = await params
+  const locale: SiteLocale = requestedLocale === 'ro' ? 'ro' : 'en'
+  const config = getLocaleConfig(locale)
+
+  return {
+    ...buildLocaleMetadata(locale),
+    title: {
+      default: config.title,
+      template: '%s · Sneepcut'
+    },
+    keywords: [
+      'AI video clipping',
+      'short-form video',
+      'video repurposing',
+      'automatic subtitles'
+    ],
+    category: 'technology',
+    manifest: '/site.webmanifest',
+    icons: {
+      icon: [
+        { url: '/favicon.ico', sizes: 'any' },
+        { url: '/logo-icon.svg', type: 'image/svg+xml' },
+        { url: '/favicon-16x16.png', sizes: '16x16', type: 'image/png' },
+        { url: '/favicon-32x32.png', sizes: '32x32', type: 'image/png' },
+        { url: '/favicon-192x192.png', sizes: '192x192', type: 'image/png' },
+        { url: '/favicon-512x512.png', sizes: '512x512', type: 'image/png' }
+      ],
+      shortcut: '/favicon.ico',
+      apple: '/apple-touch-icon.png'
+    }
   }
 }
 
@@ -53,7 +80,7 @@ export function generateStaticParams() {
   return routing.locales.map((locale) => ({ locale }))
 }
 
-export default async function RootLayout({
+export default async function LocaleLayout({
   children,
   params
 }: {
@@ -69,9 +96,9 @@ export default async function RootLayout({
 
   return (
     <html
-      lang={locale}
+      lang={getLocaleConfig(locale as SiteLocale).languageTag}
       suppressHydrationWarning={true}
-      className={`${sora.variable} ${inter.variable} ${bodoni.variable} ${manrope.variable}`}
+      className={`${sora.variable} ${manropeBody.variable} ${bodoni.variable} ${manrope.variable}`}
     >
       <body className="font-body antialiased">
         <ThemeProvider>

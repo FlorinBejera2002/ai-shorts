@@ -17,7 +17,7 @@ export async function POST(request: Request) {
   const limit = await rateLimit({
     key: rateLimitKey(request, `jobs:${session.user.id}`),
     limit: 30,
-    windowMs: 60 * 60 * 1000,
+    windowMs: 60 * 60 * 1000
   })
   if (limit.limited) {
     return rateLimitedResponse(limit.resetAt)

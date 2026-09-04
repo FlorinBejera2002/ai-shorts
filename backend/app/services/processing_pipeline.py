@@ -29,6 +29,7 @@ def process_video_source(
     smart_crop: bool | None = None,
     on_progress: Any | None = None,
     user_instructions: str | None = None,
+    storage_namespace: str | None = None,
 ) -> dict[str, Any]:
     def _progress(status: str, pct: int, msg: str) -> None:
         if on_progress:
@@ -38,7 +39,7 @@ def process_video_source(
     burn_subtitles = settings.subtitles_enabled if burn_subtitles is None else burn_subtitles
     smart_crop = settings.smart_crop_enabled if smart_crop is None else smart_crop
 
-    job_id = uuid.uuid4().hex
+    job_id = safe_slug(storage_namespace or uuid.uuid4().hex, fallback=uuid.uuid4().hex)
     workspace = create_job_workspace(output_root, job_id)
     source_dir = ensure_dir(workspace / "source")
     clips_dir = ensure_dir(workspace / "clips")
@@ -141,7 +142,10 @@ def process_video_source(
         processed_clips.append(clip)
 
     storage = get_storage_backend()
-    storage.save_file(source_video.local_path, f"sources/{job_id}/source.mp4")
+    source_storage_key = f"sources/{job_id}/source.mp4"
+    source_storage_path = storage.save_file(
+        source_video.local_path, source_storage_key
+    )
     for clip in processed_clips:
         final_path = (
             clip.get("subtitled_file_path")
@@ -150,8 +154,19 @@ def process_video_source(
         )
         key = f"clips/{job_id}/{Path(final_path).name}"
         storage_path = storage.save_file(final_path, key)
+        clip["metadata"]["storage_key"] = key
         clip["metadata"]["storage_path"] = storage_path
         clip["metadata"]["public_url"] = storage.public_url(key)
+
+        thumbnail_path = clip.get("thumbnail_path")
+        if thumbnail_path and Path(thumbnail_path).is_file():
+            thumbnail_key = f"clips/{job_id}/thumbnails/{Path(thumbnail_path).name}"
+            thumbnail_storage_path = storage.save_file(
+                thumbnail_path, thumbnail_key
+            )
+            clip["metadata"]["thumbnail_storage_key"] = thumbnail_key
+            clip["metadata"]["thumbnail_storage_path"] = thumbnail_storage_path
+            clip["metadata"]["thumbnail_url"] = storage.public_url(thumbnail_key)
 
     result = PipelineResult(
         source=source_video,
@@ -160,8 +175,10 @@ def process_video_source(
         errors=errors,
     ).model_dump()
 
-    # Persist source video URL for clip editor re-cutting
-    source_storage_key = f"sources/{job_id}/source.mp4"
+    # Persist a stable storage key. Public URLs are optional presentation data;
+    # signed URLs are generated only at response time and are never stored.
+    result["source_storage_key"] = source_storage_key
+    result["source_storage_path"] = source_storage_path
     result["source_video_url"] = storage.public_url(source_storage_key)
 
     return result

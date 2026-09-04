@@ -16,13 +16,13 @@ export default async function PublishPage({
     <div className="animate-fade-in">
       <PageHeader title={t('title')} description={t('desc')} />
 
-      <div className="mt-12">
+      <div className="mt-8">
         <EmptyState
           icon={Share2}
           title="Coming soon"
           description={t('comingSoon')}
           action={
-            <div className="inline-flex items-center gap-2 rounded-lg bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary">
+            <div className="inline-flex items-center gap-2 rounded-lg border border-primary/20 bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary">
               <Zap className="h-3.5 w-3.5" strokeWidth={1.75} />
               Phase 6 – Direct publishing to social
             </div>

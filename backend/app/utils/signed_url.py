@@ -3,7 +3,6 @@ from __future__ import annotations
 import hashlib
 import hmac
 import time
-from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
 
 from app.config import settings
 
@@ -11,7 +10,11 @@ DEFAULT_EXPIRY = 3600 * 4  # 4 hours
 
 
 def _signing_key() -> bytes:
-    secret = settings.internal_api_key or settings.nextauth_secret or "clipforge-dev-key"
+    secret = settings.internal_api_key or settings.nextauth_secret
+    if not secret:
+        if settings.app_env == "production":
+            raise RuntimeError("A media signing secret is required in production")
+        secret = "sneepcut-dev-key"
     return secret.encode()
 
 
@@ -32,7 +35,12 @@ def verify_signature(path: str, expires: str, sig: str) -> bool:
         return False
 
     message = f"{path}:{exp}"
-    expected = hmac.new(_signing_key(), message.encode(), hashlib.sha256).hexdigest()[:32]
+    try:
+        expected = hmac.new(
+            _signing_key(), message.encode(), hashlib.sha256
+        ).hexdigest()[:32]
+    except RuntimeError:
+        return False
     return hmac.compare_digest(sig, expected)
 
 
@@ -41,7 +49,7 @@ def make_signed_media_url(file_path: str, base_url: str | None = None) -> str:
         return ""
     media_root = settings.local_media_root
     if file_path.startswith(media_root):
-        relative = file_path[len(media_root):]
+        relative = file_path[len(media_root) :]
     else:
         relative = file_path
 

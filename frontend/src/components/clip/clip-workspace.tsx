@@ -1,7 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
-import { useRouter, Link } from '@/i18n/navigation'
+import { Link, useRouter } from '@/i18n/navigation'
 import {
   Check,
   Clipboard,
@@ -10,15 +9,16 @@ import {
   Save,
   Scissors,
   Send,
-  Trash2,
+  Trash2
 } from 'lucide-react'
+import { useMemo, useState } from 'react'
 
+import { useToast } from '@/components/ui/toast'
 import {
   buildSocialCaption,
   getClipReadiness,
-  getPlatformFit,
+  getPlatformFit
 } from '@/lib/clip-readiness'
-import { useToast } from '@/components/ui/toast'
 
 type ClipData = {
   id: string
@@ -48,9 +48,13 @@ export function ClipWorkspace({ clip }: ClipWorkspaceProps) {
   const toast = useToast()
   const [title, setTitle] = useState(clip.title)
   const [hookText, setHookText] = useState(clip.hookText ?? '')
-  const [transcriptText, setTranscriptText] = useState(clip.transcriptText ?? '')
+  const [transcriptText, setTranscriptText] = useState(
+    clip.transcriptText ?? ''
+  )
   const [busy, setBusy] = useState<'save' | 'delete' | 'trim' | null>(null)
-  const [socialTab, setSocialTab] = useState<'tiktok' | 'instagram' | 'youtube'>('tiktok')
+  const [socialTab, setSocialTab] = useState<
+    'tiktok' | 'instagram' | 'youtube'
+  >('tiktok')
   const [trimStart, setTrimStart] = useState(clip.duration > 0 ? 0 : 0)
   const [trimEnd, setTrimEnd] = useState(clip.duration)
   const [showTrim, setShowTrim] = useState(false)
@@ -58,7 +62,7 @@ export function ClipWorkspace({ clip }: ClipWorkspaceProps) {
   const socialCaptions = {
     tiktok: clip.captionTiktok,
     instagram: clip.captionInstagram,
-    youtube: clip.captionYoutube,
+    youtube: clip.captionYoutube
   }
   const hasSocialCaptions = Object.values(socialCaptions).some(Boolean)
 
@@ -67,9 +71,9 @@ export function ClipWorkspace({ clip }: ClipWorkspaceProps) {
       ...clip,
       title,
       hookText: hookText || null,
-      transcriptText: transcriptText || null,
+      transcriptText: transcriptText || null
     }),
-    [clip, hookText, title, transcriptText],
+    [clip, hookText, title, transcriptText]
   )
   const readiness = getClipReadiness(draftClip)
   const platformFit = getPlatformFit(draftClip)
@@ -81,7 +85,7 @@ export function ClipWorkspace({ clip }: ClipWorkspaceProps) {
       const response = await fetch(`/api/clips/${clip.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title, hookText, transcriptText }),
+        body: JSON.stringify({ title, hookText, transcriptText })
       })
       const data = await response.json()
       if (!response.ok) {
@@ -120,14 +124,20 @@ export function ClipWorkspace({ clip }: ClipWorkspaceProps) {
         body: JSON.stringify({
           start_time: trimStart,
           end_time: trimEnd,
-          burn_subtitles: true,
-        }),
+          burn_subtitles: true
+        })
       })
       const data = await res.json()
       if (!res.ok) {
-        const msg = typeof data.detail === 'string' ? data.detail
-          : Array.isArray(data.detail) ? data.detail.map((e: { msg?: string }) => e.msg).filter(Boolean).join('; ')
-          : data.error
+        const msg =
+          typeof data.detail === 'string'
+            ? data.detail
+            : Array.isArray(data.detail)
+              ? data.detail
+                  .map((e: { msg?: string }) => e.msg)
+                  .filter(Boolean)
+                  .join('; ')
+              : data.error
         toast.add('error', msg || 'Trim failed')
         return
       }
@@ -145,7 +155,9 @@ export function ClipWorkspace({ clip }: ClipWorkspaceProps) {
     if (!confirmed) return
     setBusy('delete')
     try {
-      const response = await fetch(`/api/clips/${clip.id}`, { method: 'DELETE' })
+      const response = await fetch(`/api/clips/${clip.id}`, {
+        method: 'DELETE'
+      })
       if (!response.ok) {
         const data = await response.json().catch(() => ({}))
         toast.add('error', data.error ?? 'Could not delete clip')
@@ -162,19 +174,31 @@ export function ClipWorkspace({ clip }: ClipWorkspaceProps) {
   }
 
   return (
-    <aside className="space-y-4 animate-slide-up" style={{ animationDelay: '100ms' }}>
-      <div className="rounded-lg border border-border bg-card p-4">
-        <div className="flex items-center justify-between gap-3">
+    <aside
+      className="space-y-4 animate-slide-up"
+      style={{ animationDelay: '100ms' }}
+    >
+      <div className="panel p-4">
+        <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-              Publishing readiness
-            </p>
+            <p className="section-label">Publishing readiness</p>
             <div className="mt-1 flex items-baseline gap-2">
-              <span className="text-2xl font-semibold tabular-nums">
+              <span
+                className="text-2xl font-semibold tabular-nums"
+                style={{
+                  fontFamily: 'var(--font-cinematic), "Bodoni Moda", serif'
+                }}
+              >
                 {readiness.score}
               </span>
               <span className="text-xs text-muted-foreground">/100</span>
-              <span className="rounded-md bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">
+              <span
+                className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                  readiness.score >= 85
+                    ? 'bg-success/10 text-success'
+                    : 'bg-primary/10 text-primary'
+                }`}
+              >
                 {readiness.label}
               </span>
             </div>
@@ -182,19 +206,28 @@ export function ClipWorkspace({ clip }: ClipWorkspaceProps) {
           {clip.viralScore > 0 && (
             <div className="text-right">
               <p className="text-[11px] text-muted-foreground">Viral score</p>
-              <p className="text-lg font-semibold tabular-nums">{clip.viralScore}/10</p>
+              <p className="text-lg font-semibold tabular-nums">
+                {clip.viralScore}/10
+              </p>
             </div>
           )}
         </div>
-        <div className="mt-3 progress-bar h-1.5">
-          <div className="progress-bar-fill done" style={{ width: `${readiness.score}%` }} />
+        <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-muted">
+          <div
+            className={`h-full rounded-full ${
+              readiness.score >= 85 ? 'bg-success' : 'bg-primary'
+            }`}
+            style={{ width: `${readiness.score}%` }}
+          />
         </div>
-        <div className="mt-3 grid grid-cols-2 gap-1.5">
+        <div className="mt-3 grid gap-1.5 sm:grid-cols-2">
           {readiness.items.map((item) => (
             <div
               key={item.label}
               className={`flex items-center gap-1.5 rounded-md px-2 py-1.5 text-xs ${
-                item.done ? 'bg-success/10 text-success' : 'bg-muted text-muted-foreground'
+                item.done
+                  ? 'bg-success/10 text-success'
+                  : 'bg-muted text-muted-foreground'
               }`}
             >
               <Check className="h-3 w-3" />
@@ -204,21 +237,20 @@ export function ClipWorkspace({ clip }: ClipWorkspaceProps) {
         </div>
       </div>
 
-      <div className="rounded-lg border border-primary/40 bg-card p-4 shadow-sm shadow-primary/5">
-        <div className="flex items-center justify-between gap-3">
+      <div className="panel p-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <h2 className="text-xs font-semibold uppercase tracking-wider text-primary">
-              Edit subtitles
-            </h2>
+            <h2 className="section-label text-primary">Edit subtitles</h2>
             <p className="mt-1 text-xs text-muted-foreground">
-              Correct transcription mistakes here before copying captions or exporting.
+              Correct transcription mistakes here before copying captions or
+              exporting.
             </p>
           </div>
           <button
             type="button"
             onClick={() => void save()}
             disabled={busy !== null}
-            className="inline-flex shrink-0 items-center gap-1.5 rounded-md bg-primary px-2.5 py-1.5 text-xs font-medium text-primary-foreground disabled:opacity-50"
+            className="button-primary shrink-0 rounded-lg px-3 py-2 text-xs disabled:opacity-50"
           >
             {busy === 'save' ? (
               <Loader2 className="h-3 w-3 animate-spin" />
@@ -228,7 +260,11 @@ export function ClipWorkspace({ clip }: ClipWorkspaceProps) {
             Save
           </button>
         </div>
-        <label className="mt-3 block text-xs text-muted-foreground" htmlFor="clip-subtitles">
+        <label
+          className="mt-3 block text-xs text-muted-foreground"
+          htmlFor="clip-subtitles"
+          style={{ fontFamily: 'var(--font-studio), "Manrope", sans-serif' }}
+        >
           Subtitle text / transcript
         </label>
         <textarea
@@ -239,7 +275,7 @@ export function ClipWorkspace({ clip }: ClipWorkspaceProps) {
           rows={12}
           spellCheck={true}
           placeholder="No transcript saved yet. Paste or type corrected subtitle text here."
-          className="mt-1 w-full resize-y rounded-lg border border-input bg-background px-3 py-2 text-[13px] leading-relaxed"
+          className="mt-1 w-full resize-y rounded-lg border border-input bg-background px-3 py-2 text-[13px] leading-relaxed text-foreground outline-none transition-shadow placeholder:text-muted-foreground focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/15"
         />
         <div className="mt-1 flex justify-between text-[11px] text-muted-foreground">
           <span>Saved text is used by transcript copy and caption pack.</span>
@@ -247,16 +283,14 @@ export function ClipWorkspace({ clip }: ClipWorkspaceProps) {
         </div>
       </div>
 
-      <div className="rounded-lg border border-border bg-card p-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Edit metadata
-          </h2>
+      <div className="panel p-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <h2 className="section-label">Edit metadata</h2>
           <button
             type="button"
             onClick={() => void save()}
             disabled={busy !== null}
-            className="inline-flex items-center gap-1.5 rounded-md bg-primary px-2.5 py-1.5 text-xs font-medium text-primary-foreground disabled:opacity-50"
+            className="button-primary rounded-lg px-3 py-2 text-xs disabled:opacity-50"
           >
             {busy === 'save' ? (
               <Loader2 className="h-3 w-3 animate-spin" />
@@ -266,7 +300,11 @@ export function ClipWorkspace({ clip }: ClipWorkspaceProps) {
             Save
           </button>
         </div>
-        <label className="mt-3 block text-xs text-muted-foreground" htmlFor="clip-title">
+        <label
+          className="mt-3 block text-xs text-muted-foreground"
+          htmlFor="clip-title"
+          style={{ fontFamily: 'var(--font-studio), "Manrope", sans-serif' }}
+        >
           Title
         </label>
         <input
@@ -274,9 +312,13 @@ export function ClipWorkspace({ clip }: ClipWorkspaceProps) {
           value={title}
           onChange={(event) => setTitle(event.target.value)}
           maxLength={120}
-          className="mt-1 w-full rounded-lg border border-input bg-background px-3 py-2 text-[13px]"
+          className="mt-1 w-full rounded-lg border border-input bg-background px-3 py-2 text-[13px] text-foreground outline-none transition-shadow focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/15"
         />
-        <label className="mt-3 block text-xs text-muted-foreground" htmlFor="clip-hook">
+        <label
+          className="mt-3 block text-xs text-muted-foreground"
+          htmlFor="clip-hook"
+          style={{ fontFamily: 'var(--font-studio), "Manrope", sans-serif' }}
+        >
           Hook
         </label>
         <textarea
@@ -285,35 +327,32 @@ export function ClipWorkspace({ clip }: ClipWorkspaceProps) {
           onChange={(event) => setHookText(event.target.value)}
           maxLength={220}
           rows={3}
-          className="mt-1 w-full resize-none rounded-lg border border-input bg-background px-3 py-2 text-[13px]"
+          className="mt-1 w-full resize-none rounded-lg border border-input bg-background px-3 py-2 text-[13px] text-foreground outline-none transition-shadow focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/15"
         />
       </div>
 
-      <div className="rounded-lg border border-primary/20 bg-card p-4">
-        <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          Timeline editor
-        </h2>
+      <div className="panel-soft p-4">
+        <h2 className="section-label">Timeline editor</h2>
         <p className="mt-2 text-xs text-muted-foreground">
-          Adjust segment boundaries, reorder clips, and re-export with the visual timeline editor.
+          Adjust segment boundaries, reorder clips, and re-export with the
+          visual timeline editor.
         </p>
         <Link
           href={`/dashboard/clips/${clip.id}/edit`}
-          className="mt-3 inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-[13px] font-medium text-primary-foreground transition-opacity hover:opacity-90"
+          className="button-primary mt-3 rounded-lg"
         >
           <Scissors className="h-3.5 w-3.5" />
           Edit on timeline →
         </Link>
       </div>
 
-      <div className="rounded-lg border border-border bg-card p-4">
+      <div className="panel p-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Trim clip
-          </h2>
+          <h2 className="section-label">Trim clip</h2>
           <button
             type="button"
             onClick={() => setShowTrim(!showTrim)}
-            className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs font-medium hover:bg-muted"
+            className="button-secondary rounded-lg px-3 py-2 text-xs"
           >
             <Scissors className="h-3 w-3" />
             {showTrim ? 'Hide' : 'Edit'}
@@ -321,9 +360,15 @@ export function ClipWorkspace({ clip }: ClipWorkspaceProps) {
         </div>
         {showTrim && (
           <div className="mt-3 space-y-3 animate-slide-down">
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid gap-3 sm:grid-cols-2">
               <div>
-                <label className="text-xs text-muted-foreground" htmlFor="trim-start">
+                <label
+                  className="text-xs text-muted-foreground"
+                  htmlFor="trim-start"
+                  style={{
+                    fontFamily: 'var(--font-studio), "Manrope", sans-serif'
+                  }}
+                >
                   Start (s)
                 </label>
                 <input
@@ -334,11 +379,17 @@ export function ClipWorkspace({ clip }: ClipWorkspaceProps) {
                   max={clip.duration}
                   value={trimStart}
                   onChange={(e) => setTrimStart(Number(e.target.value))}
-                  className="mt-1 w-full rounded-lg border border-input bg-background px-3 py-2 text-[13px] tabular-nums"
+                  className="mt-1 w-full rounded-lg border border-input bg-background px-3 py-2 text-[13px] text-foreground tabular-nums outline-none transition-shadow focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/15"
                 />
               </div>
               <div>
-                <label className="text-xs text-muted-foreground" htmlFor="trim-end">
+                <label
+                  className="text-xs text-muted-foreground"
+                  htmlFor="trim-end"
+                  style={{
+                    fontFamily: 'var(--font-studio), "Manrope", sans-serif'
+                  }}
+                >
                   End (s)
                 </label>
                 <input
@@ -349,19 +400,21 @@ export function ClipWorkspace({ clip }: ClipWorkspaceProps) {
                   max={clip.duration}
                   value={trimEnd}
                   onChange={(e) => setTrimEnd(Number(e.target.value))}
-                  className="mt-1 w-full rounded-lg border border-input bg-background px-3 py-2 text-[13px] tabular-nums"
+                  className="mt-1 w-full rounded-lg border border-input bg-background px-3 py-2 text-[13px] text-foreground tabular-nums outline-none transition-shadow focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/15"
                 />
               </div>
             </div>
             <div className="flex items-center justify-between text-xs text-muted-foreground">
-              <span>New duration: {Math.max(0, trimEnd - trimStart).toFixed(1)}s</span>
+              <span>
+                New duration: {Math.max(0, trimEnd - trimStart).toFixed(1)}s
+              </span>
               <span>Original: {clip.duration.toFixed(1)}s</span>
             </div>
             <button
               type="button"
               onClick={() => void trimClip()}
               disabled={busy !== null || trimEnd - trimStart < 3}
-              className="w-full rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-40 flex items-center justify-center gap-2"
+              className="button-primary w-full rounded-lg text-xs disabled:opacity-40"
             >
               {busy === 'trim' ? (
                 <>
@@ -379,18 +432,16 @@ export function ClipWorkspace({ clip }: ClipWorkspaceProps) {
         )}
       </div>
 
-      <div className="rounded-lg border border-border bg-card p-4">
-        <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          Caption pack
-        </h2>
-        <div className="mt-3 rounded-lg bg-muted/60 p-3 text-[13px] leading-relaxed text-foreground">
+      <div className="panel p-4">
+        <h2 className="section-label">Caption pack</h2>
+        <div className="mt-3 rounded-lg bg-muted/70 p-3 text-[13px] leading-relaxed text-foreground">
           {caption}
         </div>
         <div className="mt-3 flex flex-wrap gap-2">
           <button
             type="button"
             onClick={() => void copyCaption()}
-            className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs font-medium hover:bg-muted"
+            className="button-secondary rounded-lg px-3 py-2 text-xs"
           >
             <Clipboard className="h-3 w-3" />
             Copy caption
@@ -399,7 +450,7 @@ export function ClipWorkspace({ clip }: ClipWorkspaceProps) {
             type="button"
             onClick={() => void copyTranscript()}
             disabled={!transcriptText}
-            className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs font-medium hover:bg-muted disabled:opacity-40"
+            className="button-secondary rounded-lg px-3 py-2 text-xs disabled:opacity-40"
           >
             <Clipboard className="h-3 w-3" />
             Copy transcript
@@ -408,11 +459,9 @@ export function ClipWorkspace({ clip }: ClipWorkspaceProps) {
       </div>
 
       {hasSocialCaptions && (
-        <div className="rounded-lg border border-border bg-card p-4">
-          <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            AI Social captions
-          </h2>
-          <div className="mt-3 flex rounded-lg bg-muted p-0.5">
+        <div className="panel p-4">
+          <h2 className="section-label">AI Social captions</h2>
+          <div className="mt-3 flex rounded-lg bg-muted p-1">
             {(['tiktok', 'instagram', 'youtube'] as const).map((tab) => (
               <button
                 key={tab}
@@ -424,40 +473,59 @@ export function ClipWorkspace({ clip }: ClipWorkspaceProps) {
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
-                {tab === 'tiktok' ? 'TikTok' : tab === 'instagram' ? 'Instagram' : 'YouTube'}
+                {tab === 'tiktok'
+                  ? 'TikTok'
+                  : tab === 'instagram'
+                    ? 'Instagram'
+                    : 'YouTube'}
               </button>
             ))}
           </div>
-          <div className="mt-2 rounded-lg bg-muted/60 p-3 text-[13px] leading-relaxed text-foreground min-h-[60px]">
-            {socialCaptions[socialTab] || 'No caption generated for this platform'}
+          <div className="mt-2 min-h-[60px] rounded-lg bg-muted/70 p-3 text-[13px] leading-relaxed text-foreground">
+            {socialCaptions[socialTab] ||
+              'No caption generated for this platform'}
           </div>
           {clip.suggestedHashtags && (
-            <p className="mt-2 text-xs text-muted-foreground">{clip.suggestedHashtags}</p>
+            <p className="mt-2 text-xs text-muted-foreground">
+              {clip.suggestedHashtags}
+            </p>
           )}
           <button
             type="button"
             onClick={async () => {
               const text = socialCaptions[socialTab]
               if (text) {
-                await navigator.clipboard.writeText(text + (clip.suggestedHashtags ? `\n\n${clip.suggestedHashtags}` : ''))
+                await navigator.clipboard.writeText(
+                  text +
+                    (clip.suggestedHashtags
+                      ? `\n\n${clip.suggestedHashtags}`
+                      : '')
+                )
                 toast.add('success', `${socialTab} caption copied`)
               }
             }}
-            className="mt-2 inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs font-medium hover:bg-muted"
+            className="button-secondary mt-2 rounded-lg px-3 py-2 text-xs"
           >
             <Clipboard className="h-3 w-3" />
-            Copy {socialTab === 'tiktok' ? 'TikTok' : socialTab === 'instagram' ? 'Instagram' : 'YouTube'} caption
+            Copy{' '}
+            {socialTab === 'tiktok'
+              ? 'TikTok'
+              : socialTab === 'instagram'
+                ? 'Instagram'
+                : 'YouTube'}{' '}
+            caption
           </button>
         </div>
       )}
 
-      <div className="rounded-lg border border-border bg-card p-4">
-        <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          Platform fit
-        </h2>
+      <div className="panel p-4">
+        <h2 className="section-label">Platform fit</h2>
         <div className="mt-3 space-y-2">
           {platformFit.map((platform) => (
-            <div key={platform.name} className="flex items-start gap-2 rounded-md bg-muted/50 p-2">
+            <div
+              key={platform.name}
+              className="flex items-start gap-2 rounded-md bg-muted/70 p-2.5"
+            >
               <span
                 className={`mt-1 h-2 w-2 rounded-full ${
                   platform.fit ? 'bg-success' : 'bg-warning'
@@ -465,7 +533,9 @@ export function ClipWorkspace({ clip }: ClipWorkspaceProps) {
               />
               <div>
                 <div className="text-[13px] font-medium">{platform.name}</div>
-                <div className="text-xs text-muted-foreground">{platform.note}</div>
+                <div className="text-xs text-muted-foreground">
+                  {platform.note}
+                </div>
               </div>
             </div>
           ))}
@@ -477,16 +547,13 @@ export function ClipWorkspace({ clip }: ClipWorkspaceProps) {
           <a
             href={clip.fileUrl}
             download={true}
-            className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-[13px] font-medium text-primary-foreground transition-opacity hover:opacity-90"
+            className="button-primary rounded-lg"
           >
             <Download className="w-3.5 h-3.5" />
             Download
           </a>
         )}
-        <Link
-          href="/dashboard/publish"
-          className="inline-flex items-center gap-2 rounded-lg border border-border px-4 py-2.5 text-[13px] font-medium hover:bg-muted"
-        >
+        <Link href="/dashboard/publish" className="button-secondary rounded-lg">
           <Send className="w-3.5 h-3.5" />
           Publish
         </Link>

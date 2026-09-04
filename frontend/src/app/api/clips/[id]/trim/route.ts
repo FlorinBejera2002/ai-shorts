@@ -5,7 +5,7 @@ export const runtime = 'nodejs'
 
 export async function POST(
   request: Request,
-  { params }: { params: Promise<{ id: string }> },
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await auth()
   if (!session?.user?.id) {
@@ -15,6 +15,6 @@ export async function POST(
   const { id } = await params
   return proxyBackendResponse(`/api/clips/${id}/trim`, {
     method: 'POST',
-    body: await request.text(),
+    body: await request.text()
   })
 }

@@ -4,9 +4,10 @@ from uuid import UUID
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Request, status
 from pydantic import BaseModel, Field
+from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_user
+from app.api.deps import ensure_account_active, get_current_user
 from app.api.rate_limit import limiter
 from app.config import settings
 from app.database import get_db
@@ -23,6 +24,27 @@ class TrimRequest(BaseModel):
     start_time: float = Field(ge=0)
     end_time: float = Field(gt=0)
     burn_subtitles: bool = True
+
+
+async def _begin_edit(db: AsyncSession, job: Job, user: User) -> None:
+    await ensure_account_active(db, user.id)
+    result = await db.execute(
+        update(Job)
+        .where(Job.id == job.id, Job.user_id == user.id)
+        .values(active_edit_tasks=Job.active_edit_tasks + 1)
+    )
+    if result.rowcount != 1:
+        raise HTTPException(status_code=409, detail="Job is no longer available")
+    await db.commit()
+
+
+async def _rollback_edit_tracking(db: AsyncSession, job_id: UUID) -> None:
+    await db.execute(
+        update(Job)
+        .where(Job.id == job_id, Job.active_edit_tasks > 0)
+        .values(active_edit_tasks=Job.active_edit_tasks - 1)
+    )
+    await db.commit()
 
 
 @router.post("/{clip_id}/trim", status_code=status.HTTP_202_ACCEPTED)
@@ -48,12 +70,24 @@ async def trim_clip(
     if duration > settings.max_clip_duration:
         raise HTTPException(status_code=400, detail=f"Clip cannot exceed {settings.max_clip_duration} seconds")
 
-    task = trim_clip_task.delay(
-        clip_id=str(clip.id),
-        start_time=payload.start_time,
-        end_time=payload.end_time,
-        burn_subtitles=payload.burn_subtitles,
-    )
+    job = await db.get(Job, clip.job_id)
+    if not job:
+        raise HTTPException(status_code=409, detail="Clip job is no longer available")
+    await _begin_edit(db, job, user)
+    try:
+        task = trim_clip_task.delay(
+            clip_id=str(clip.id),
+            start_time=payload.start_time,
+            end_time=payload.end_time,
+            burn_subtitles=payload.burn_subtitles,
+            job_id=str(job.id),
+        )
+    except Exception as exc:
+        await _rollback_edit_tracking(db, job.id)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Editing service unavailable",
+        ) from exc
 
     return {"task_id": task.id, "status": "trimming"}
 
@@ -73,12 +107,21 @@ async def recut_clip(
         raise HTTPException(status_code=404, detail="Clip not found")
 
     job = await db.get(Job, clip.job_id)
-    if not job or not job.source_video_url:
+    if not job or not job.source_storage_key:
         raise HTTPException(status_code=400, detail="Source video not available")
 
-    task = recut_clip_task.delay(
-        clip_id=str(clip.id),
-        segments=[s.model_dump() for s in payload.segments],
-    )
+    await _begin_edit(db, job, user)
+    try:
+        task = recut_clip_task.delay(
+            clip_id=str(clip.id),
+            segments=[s.model_dump() for s in payload.segments],
+            job_id=str(job.id),
+        )
+    except Exception as exc:
+        await _rollback_edit_tracking(db, job.id)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Editing service unavailable",
+        ) from exc
 
     return {"task_id": task.id, "status": "processing"}

@@ -1,0 +1,3 @@
+# OpenNext uses this selector while previewing through Wrangler. Keep real
+# credentials in the ignored `.dev.vars` or in Next.js `.env` files.
+NEXTJS_ENV=development

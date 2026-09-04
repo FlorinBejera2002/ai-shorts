@@ -10,6 +10,7 @@ class JobCreate(BaseModel):
     source_type: str = Field(pattern="^(upload|youtube|url|local)$")
     source_url: str | None = None
     source_file_path: str | None = None
+    source_storage_key: str | None = None
     num_clips_requested: int = Field(default=5, ge=1, le=15)
     aspect_ratio: str = Field(default="9:16", pattern="^(9:16|1:1|16:9)$")
     language: str | None = None
@@ -48,6 +49,8 @@ class JobRead(BaseModel):
     credits_charged: int
     error_message: str | None = None
     celery_task_id: str | None = None
+    processing_active: bool = False
+    active_edit_tasks: int = 0
     started_at: datetime | None = None
     completed_at: datetime | None = None
     created_at: datetime

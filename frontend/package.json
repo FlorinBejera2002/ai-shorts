@@ -1,12 +1,26 @@
 {
-  "name": "clipforge-frontend",
+  "name": "sneepcut-frontend",
   "private": true,
   "version": "0.1.0",
   "type": "module",
+  "engines": {
+    "node": ">=22.0.0"
+  },
   "scripts": {
     "dev": "next dev",
+    "prebuild": "prisma generate",
     "build": "next build",
     "start": "next start",
+    "preview:cloudflare": "cross-env NEXT_DIST_DIR=.next opennextjs-cloudflare build && opennextjs-cloudflare preview",
+    "deploy:cloudflare": "npm run cloudflare:validate && cross-env NEXT_DIST_DIR=.next opennextjs-cloudflare build && opennextjs-cloudflare deploy -- --keep-vars",
+    "upload:cloudflare": "npm run cloudflare:validate && cross-env NEXT_DIST_DIR=.next opennextjs-cloudflare build && opennextjs-cloudflare upload -- --keep-vars",
+    "cloudflare:types": "wrangler types --include-runtime false --env-interface CloudflareEnv cloudflare-env.d.ts",
+    "cloudflare:dry-run": "npm run cloudflare:validate && cross-env NEXT_DIST_DIR=.next opennextjs-cloudflare build && wrangler deploy --dry-run",
+    "cloudflare:validate": "node scripts/validate-cloudflare-env.mjs",
+    "typecheck": "tsc --noEmit --incremental false",
+    "test": "node --test tests/*.test.mjs",
+    "test:smoke": "node scripts/smoke-frontend.mjs",
+    "test:calendar": "node --test tests/content-calendar-validation.test.mjs",
     "lint": "biome lint ./src",
     "lint:fix": "biome lint --fix ./src",
     "format": "biome format --write ./src",
@@ -15,7 +29,9 @@
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.10.0",
-    "@prisma/client": "^6.10.0",
+    "@opennextjs/cloudflare": "^1.20.6",
+    "@prisma/adapter-pg": "^6.19.3",
+    "@prisma/client": "^6.19.3",
     "@tailwindcss/postcss": "^4.0.0",
     "bcryptjs": "^3.0.2",
     "class-variance-authority": "^0.7.1",
@@ -26,6 +42,7 @@
     "next-auth": "^5.0.0-beta.29",
     "next-intl": "^4.13.1",
     "next-themes": "^0.4.6",
+    "pg": "^8.16.3",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "redis": "^6.0.1",
@@ -37,9 +54,16 @@
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",
     "@types/node": "^22.0.0",
+    "@types/pg": "^8.15.5",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
-    "prisma": "^6.10.0",
-    "typescript": "~5.6.0"
+    "cross-env": "^10.1.0",
+    "prisma": "^6.19.3",
+    "typescript": "~5.6.0",
+    "wrangler": "^4.128.0"
+  },
+  "overrides": {
+    "deepmerge-ts": "8.0.2",
+    "postcss": "8.5.27"
   }
 }

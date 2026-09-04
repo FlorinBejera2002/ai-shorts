@@ -5,7 +5,7 @@ from celery import Celery
 from app.config import settings
 
 celery_app = Celery(
-    "clipforge",
+    "sneepcut",
     broker=settings.celery_broker_url,
     backend=settings.celery_backend_url,
     include=["app.workers.tasks"],
@@ -25,6 +25,6 @@ celery_app.conf.update(
 )
 
 
-@celery_app.task(name="clipforge.health")
+@celery_app.task(name="sneepcut.health")
 def health_check() -> dict[str, str]:
     return {"status": "ok"}

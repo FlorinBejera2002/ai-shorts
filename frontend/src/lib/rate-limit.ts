@@ -1,27 +1,6 @@
-import { createClient, type RedisClientType } from 'redis'
+import { createClient } from 'redis'
 
-let client: RedisClientType | null = null
-let connecting = false
-
-async function getRedis(): Promise<RedisClientType | null> {
-  if (client?.isReady) return client
-  if (connecting) return null
-
-  const url = process.env.REDIS_URL
-  if (!url) return null
-
-  connecting = true
-  try {
-    client = createClient({ url }) as RedisClientType
-    client.on('error', () => {})
-    await client.connect()
-    connecting = false
-    return client
-  } catch {
-    connecting = false
-    return null
-  }
-}
+import { isProductionEnvironment } from '@/lib/environment'
 
 type Bucket = {
   count: number
@@ -42,30 +21,68 @@ type RateLimitResult = {
   resetAt: number
 }
 
-async function redisRateLimit({ key, limit, windowMs }: RateLimitOptions): Promise<RateLimitResult> {
-  const redis = await getRedis()
-  if (!redis) return memoryRateLimit({ key, limit, windowMs })
+async function redisRateLimit({
+  key,
+  limit,
+  windowMs
+}: RateLimitOptions): Promise<RateLimitResult> {
+  const url = process.env.REDIS_URL
+  if (!url) {
+    if (isProductionEnvironment()) {
+      throw new Error('REDIS_URL is required for production rate limiting')
+    }
+    return memoryRateLimit({ key, limit, windowMs })
+  }
 
   const redisKey = `rl:${key}`
   const now = Date.now()
-  const windowSecs = Math.ceil(windowMs / 1000)
+  const redis = createClient({
+    url,
+    socket: {
+      connectTimeout: 5_000,
+      reconnectStrategy: false
+    }
+  })
+  redis.on('error', () => {
+    // The awaited connect/eval path below handles the failure without logging
+    // connection details that can contain credentials.
+  })
 
-  const count = await redis.incr(redisKey)
-  if (count === 1) {
-    await redis.expire(redisKey, windowSecs)
-  }
+  try {
+    await redis.connect()
+    const result = (await redis.eval(
+      `local count = redis.call('INCR', KEYS[1])
+if count == 1 then redis.call('PEXPIRE', KEYS[1], ARGV[1]) end
+local ttl = redis.call('PTTL', KEYS[1])
+return {count, ttl}`,
+      {
+        keys: [redisKey],
+        arguments: [String(windowMs)]
+      }
+    )) as [number, number]
+    const [count, ttl] = result
+    const resetAt = now + (ttl > 0 ? ttl : windowMs)
 
-  const ttl = await redis.ttl(redisKey)
-  const resetAt = now + (ttl > 0 ? ttl * 1000 : windowMs)
-
-  return {
-    limited: count > limit,
-    remaining: Math.max(0, limit - count),
-    resetAt,
+    return {
+      limited: count > limit,
+      remaining: Math.max(0, limit - count),
+      resetAt
+    }
+  } catch (error) {
+    // Sensitive production mutations fail closed if the shared limiter is
+    // unavailable; an isolate-local bucket could otherwise be bypassed.
+    if (isProductionEnvironment()) throw error
+    return memoryRateLimit({ key, limit, windowMs })
+  } finally {
+    redis.destroy()
   }
 }
 
-function memoryRateLimit({ key, limit, windowMs }: RateLimitOptions): RateLimitResult {
+function memoryRateLimit({
+  key,
+  limit,
+  windowMs
+}: RateLimitOptions): RateLimitResult {
   const now = Date.now()
   const bucket = memoryBuckets.get(key)
 
@@ -78,16 +95,21 @@ function memoryRateLimit({ key, limit, windowMs }: RateLimitOptions): RateLimitR
   return {
     limited: bucket.count > limit,
     remaining: Math.max(0, limit - bucket.count),
-    resetAt: bucket.resetAt,
+    resetAt: bucket.resetAt
   }
 }
 
-export async function rateLimit(opts: RateLimitOptions): Promise<RateLimitResult> {
+export async function rateLimit(
+  opts: RateLimitOptions
+): Promise<RateLimitResult> {
   return redisRateLimit(opts)
 }
 
 export function rateLimitKey(request: Request, scope: string) {
-  const forwardedFor = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
+  const forwardedFor = request.headers
+    .get('x-forwarded-for')
+    ?.split(',')[0]
+    ?.trim()
   const realIp = request.headers.get('x-real-ip')?.trim()
   return `${scope}:${forwardedFor || realIp || 'unknown'}`
 }
@@ -98,8 +120,10 @@ export function rateLimitedResponse(resetAt: number) {
     {
       status: 429,
       headers: {
-        'Retry-After': String(Math.max(1, Math.ceil((resetAt - Date.now()) / 1000))),
-      },
-    },
+        'Retry-After': String(
+          Math.max(1, Math.ceil((resetAt - Date.now()) / 1000))
+        )
+      }
+    }
   )
 }

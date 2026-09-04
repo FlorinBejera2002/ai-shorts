@@ -13,13 +13,13 @@ export const useUiStore = create<UiState>()(
       sidebarOpen: true,
       toggleSidebar: () =>
         set((state) => ({ sidebarOpen: !state.sidebarOpen })),
-      setSidebarOpen: (open) => set({ sidebarOpen: open }),
+      setSidebarOpen: (open) => set({ sidebarOpen: open })
     }),
     {
-      name: 'clipforge-ui',
+      name: 'sneepcut-ui',
       partialize: (state) => ({
-        sidebarOpen: state.sidebarOpen,
-      }),
+        sidebarOpen: state.sidebarOpen
+      })
     }
   )
 )

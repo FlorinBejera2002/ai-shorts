@@ -84,6 +84,35 @@ export function SourceUpload({
       }
 
       const duration = await probeDuration(file)
+      let authorization: { uploadUrl: string; token: string | null }
+      try {
+        const response = await fetch('/api/upload/authorize', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            fileName: file.name,
+            fileSize: file.size,
+            contentType: file.type || 'application/octet-stream'
+          })
+        })
+        const data = (await response.json()) as Record<string, unknown>
+        if (
+          !response.ok ||
+          typeof data.uploadUrl !== 'string' ||
+          (data.token !== null && typeof data.token !== 'string')
+        ) {
+          onError(extractApiError(data, t('uploadFailed')))
+          return
+        }
+        authorization = {
+          uploadUrl: data.uploadUrl,
+          token: data.token as string | null
+        }
+      } catch {
+        onError(t('uploadFailed'))
+        return
+      }
+
       setPhase({
         status: 'uploading',
         percent: 0,
@@ -93,8 +122,16 @@ export function SourceUpload({
 
       const xhr = new XMLHttpRequest()
       xhrRef.current = xhr
-      xhr.open('POST', '/api/upload')
+      const directUpload = Boolean(authorization.token)
+      xhr.open(directUpload ? 'PUT' : 'POST', authorization.uploadUrl)
       xhr.responseType = 'json'
+      if (authorization.token) {
+        xhr.setRequestHeader('Authorization', `Bearer ${authorization.token}`)
+        xhr.setRequestHeader(
+          'Content-Type',
+          file.type || 'application/octet-stream'
+        )
+      }
 
       xhr.upload.onprogress = (e) => {
         if (e.lengthComputable) {
@@ -112,7 +149,8 @@ export function SourceUpload({
         const data: Record<string, unknown> =
           xhr.response && typeof xhr.response === 'object' ? xhr.response : {}
         if (xhr.status >= 200 && xhr.status < 300) {
-          const filePath = typeof data.file_path === 'string' ? data.file_path : ''
+          const filePath =
+            typeof data.file_path === 'string' ? data.file_path : ''
           if (!filePath) {
             setPhase({ status: 'idle' })
             onError(t('uploadFailed'))
@@ -137,9 +175,13 @@ export function SourceUpload({
         setPhase({ status: 'idle' })
       }
 
-      const formData = new FormData()
-      formData.set('file', file)
-      xhr.send(formData)
+      if (directUpload) {
+        xhr.send(file)
+      } else {
+        const formData = new FormData()
+        formData.set('file', file)
+        xhr.send(formData)
+      }
     },
     [onError, onUploaded, t]
   )
@@ -161,8 +203,8 @@ export function SourceUpload({
 
   if (uploaded) {
     return (
-      <div className="animate-scale-in rounded-xl border border-border bg-card p-6">
-        <div className="flex items-center gap-4">
+      <div className="mt-5 animate-scale-in border-t border-border pt-5">
+        <div className="flex items-center gap-3 rounded-xl border border-success/25 bg-success/5 p-4 sm:gap-4">
           <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-success/10">
             <FileVideo className="h-5 w-5 text-success" strokeWidth={1.75} />
           </div>
@@ -185,7 +227,7 @@ export function SourceUpload({
               type="button"
               onClick={() => inputRef.current?.click()}
               title={t('replaceFile')}
-              className="rounded-lg border border-border p-2 text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
+              className="rounded-lg border border-border bg-card p-2 text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
             >
               <RefreshCw className="h-3.5 w-3.5" strokeWidth={1.75} />
             </button>
@@ -193,7 +235,7 @@ export function SourceUpload({
               type="button"
               onClick={() => onUploaded(null)}
               title={t('removeFile')}
-              className="rounded-lg border border-border p-2 text-muted-foreground transition-colors hover:border-destructive/30 hover:text-destructive"
+              className="rounded-lg border border-border bg-card p-2 text-muted-foreground transition-colors hover:border-destructive/30 hover:text-destructive"
             >
               <X className="h-3.5 w-3.5" strokeWidth={1.75} />
             </button>
@@ -216,8 +258,8 @@ export function SourceUpload({
 
   if (phase.status === 'uploading') {
     return (
-      <div className="animate-scale-in rounded-xl border border-border bg-card p-6">
-        <div className="flex items-center gap-4">
+      <div className="mt-5 animate-scale-in border-t border-border pt-5">
+        <div className="panel-soft flex items-center gap-3 p-4 sm:gap-4">
           <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary/10">
             <Loader2
               className="h-5 w-5 animate-spin text-primary"
@@ -247,7 +289,7 @@ export function SourceUpload({
             type="button"
             onClick={cancelUpload}
             title={t('cancelUpload')}
-            className="shrink-0 rounded-lg border border-border p-2 text-muted-foreground transition-colors hover:border-destructive/30 hover:text-destructive"
+            className="shrink-0 rounded-lg border border-border bg-card p-2 text-muted-foreground transition-colors hover:border-destructive/30 hover:text-destructive"
           >
             <X className="h-3.5 w-3.5" strokeWidth={1.75} />
           </button>
@@ -264,10 +306,10 @@ export function SourceUpload({
       }}
       onDragLeave={() => setDragActive(false)}
       onDrop={handleDrop}
-      className={`flex min-h-64 cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed p-8 text-center transition-all animate-scale-in ${
+      className={`mt-5 flex min-h-56 cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed p-6 text-center transition-all animate-scale-in sm:min-h-64 sm:p-8 ${
         dragActive
           ? 'border-primary bg-primary/10 scale-[1.01]'
-          : 'border-border bg-card/30 hover:border-primary/60 hover:bg-primary/5'
+          : 'border-border bg-muted/35 hover:border-primary/60 hover:bg-primary/5'
       }`}
     >
       <input

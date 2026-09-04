@@ -1,0 +1,27 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "sneepcut-frontend",
+  "main": ".open-next/worker.js",
+  "keep_names": false,
+  "compatibility_date": "2026-09-03",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  "observability": {
+    "enabled": true
+  },
+  "placement": {
+    "mode": "smart"
+  },
+  "services": [
+    {
+      "binding": "WORKER_SELF_REFERENCE",
+      "service": "sneepcut-frontend"
+    }
+  ],
+  "images": {
+    "binding": "IMAGES"
+  }
+}

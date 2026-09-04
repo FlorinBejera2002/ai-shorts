@@ -11,7 +11,7 @@ import { getTranslations, setRequestLocale } from 'next-intl/server'
 import { EmptyState } from '@/components/ui/empty-state'
 import { PageHeader } from '@/components/ui/page-header'
 import { auth } from '@/lib/auth'
-import { prisma } from '@/lib/db'
+import { getPrisma } from '@/lib/db'
 
 export const runtime = 'nodejs'
 
@@ -25,6 +25,7 @@ export default async function HistoryPage({
   const t = await getTranslations('history')
 
   const session = await auth()
+  const prisma = getPrisma()
   const jobs = session?.user?.id
     ? await prisma.job.findMany({
         where: { userId: session.user.id },
@@ -35,14 +36,14 @@ export default async function HistoryPage({
     : []
 
   return (
-    <div className="animate-fade-in space-y-6">
+    <div className="animate-fade-in space-y-8">
       <PageHeader
         title={t('title')}
         description={t('count', { count: jobs.length })}
       />
 
       {jobs.length > 0 ? (
-        <div className="space-y-2">
+        <div className="space-y-3">
           {jobs.map((job, i) => (
             <Link
               key={job.id}
@@ -51,52 +52,44 @@ export default async function HistoryPage({
                   ? '/dashboard/clips'
                   : `/dashboard/jobs/${job.id}`
               }
-              className="group flex items-center gap-4 rounded-lg border border-border/40 bg-card px-4 py-3 transition-all duration-300 hover:border-primary/30 hover:bg-muted/30 hover:shadow-sm animate-slide-up"
+              className="panel group flex flex-col gap-4 p-4 transition-all duration-200 hover:border-primary/25 hover:bg-muted/50 sm:flex-row sm:items-center animate-slide-up"
               style={{ animationDelay: `${i * 30}ms` }}
             >
-              <StatusIcon status={job.status} />
-              <div className="min-w-0 flex-1">
-                <div className="text-sm font-semibold text-foreground truncate">
-                  {job.sourceUrl ?? job.sourceFilePath ?? 'Unknown source'}
-                </div>
-                <div className="mt-1 flex flex-wrap gap-3 text-[11px] text-muted-foreground">
-                  <span className="inline-flex items-center gap-1">
-                    <span className="rounded-full bg-primary/10 px-1.5 py-0.5 font-medium text-primary">
-                      {job.numClipsRequested}
+              <div className="flex min-w-0 w-full items-start gap-3 sm:w-auto sm:flex-1 sm:items-center">
+                <StatusIcon status={job.status} />
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-sm font-semibold text-foreground">
+                    {job.sourceUrl ?? job.sourceFilePath ?? 'Unknown source'}
+                  </div>
+                  <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[11px] text-muted-foreground">
+                    <span className="inline-flex items-center gap-1.5">
+                      <span className="rounded-full bg-primary/10 px-1.5 py-0.5 font-semibold text-primary">
+                        {job.numClipsRequested}
+                      </span>
+                      {t('requested')}
                     </span>
-                    {t('requested')}
-                  </span>
-                  <span className="inline-flex items-center gap-1">
-                    <span className="rounded-full bg-accent/10 px-1.5 py-0.5 font-medium text-accent">
-                      {job._count.clips}
+                    <span className="inline-flex items-center gap-1.5">
+                      <span className="rounded-full bg-primary/10 px-1.5 py-0.5 font-semibold text-primary">
+                        {job._count.clips}
+                      </span>
+                      {t('generated')}
                     </span>
-                    {t('generated')}
-                  </span>
-                  <span>{job.aspectRatio}</span>
-                  <span className="text-muted-foreground/60">
-                    {new Date(job.createdAt).toLocaleDateString(locale, {
-                      year: 'numeric',
-                      month: 'short',
-                      day: 'numeric'
-                    })}
-                  </span>
+                    <span>{job.aspectRatio}</span>
+                    <span>
+                      {new Date(job.createdAt).toLocaleDateString(locale, {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric'
+                      })}
+                    </span>
+                  </div>
                 </div>
               </div>
-              <div className="flex items-center gap-3 shrink-0">
-                <span
-                  className={`text-xs font-bold uppercase tracking-wider ${
-                    job.status === 'completed'
-                      ? 'text-emerald-600'
-                      : job.status === 'failed'
-                        ? 'text-red-600'
-                        : job.status === 'cancelled'
-                          ? 'text-zinc-600'
-                          : 'text-amber-600'
-                  }`}
-                >
+              <div className="flex w-full shrink-0 items-center justify-between gap-3 border-t border-border pt-3 sm:w-auto sm:border-0 sm:pt-0">
+                <span className={getStatusBadgeClass(job.status)}>
                   {job.status}
                 </span>
-                <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+                <ChevronRight className="h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-foreground" />
               </div>
             </Link>
           ))}
@@ -109,7 +102,7 @@ export default async function HistoryPage({
           action={
             <Link
               href="/dashboard/create"
-              className="rounded-lg border border-primary/30 bg-primary/10 px-4 py-2 text-sm font-semibold text-primary transition-all hover:border-primary/60 hover:bg-primary/20"
+              className="button-primary rounded-lg"
             >
               {t('firstProject')}
             </Link>
@@ -120,20 +113,34 @@ export default async function HistoryPage({
   )
 }
 
+function getStatusBadgeClass(status: string) {
+  const base =
+    'rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.12em]'
+
+  if (status === 'completed') return `${base} bg-success/10 text-success`
+  if (status === 'failed') return `${base} bg-destructive/10 text-destructive`
+  if (status === 'cancelled') return `${base} bg-muted text-muted-foreground`
+  return `${base} bg-warning/10 text-warning`
+}
+
 function StatusIcon({ status }: { status: string }) {
   const config = {
     completed: {
       icon: CheckCircle2,
-      color: 'text-emerald-600',
-      bg: 'bg-emerald-500/10'
+      color: 'text-success',
+      bg: 'bg-success/10'
     },
-    failed: { icon: XCircle, color: 'text-red-600', bg: 'bg-red-500/10' },
+    failed: {
+      icon: XCircle,
+      color: 'text-destructive',
+      bg: 'bg-destructive/10'
+    },
     cancelled: {
       icon: AlertCircle,
-      color: 'text-zinc-600',
-      bg: 'bg-zinc-500/10'
+      color: 'text-muted-foreground',
+      bg: 'bg-muted'
     },
-    default: { icon: Clock, color: 'text-amber-600', bg: 'bg-amber-500/10' }
+    default: { icon: Clock, color: 'text-warning', bg: 'bg-warning/10' }
   }
 
   const {

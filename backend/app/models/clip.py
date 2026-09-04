@@ -4,7 +4,18 @@ import uuid
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, JSON, String, Text, func
+from sqlalchemy import (
+    JSON,
+    Boolean,
+    DateTime,
+    Float,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+    func,
+)
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -13,6 +24,9 @@ from app.database import Base
 
 class Clip(Base):
     __tablename__ = "clips"
+    __table_args__ = (
+        UniqueConstraint("id", "user_id", name="uq_clips_id_user_id"),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     job_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("jobs.id", ondelete="CASCADE"), index=True, nullable=False)
@@ -27,8 +41,12 @@ class Clip(Base):
     segments: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     file_path: Mapped[str] = mapped_column(String(2048), nullable=False)
     file_url: Mapped[str | None] = mapped_column(String(2048), nullable=True)
+    file_storage_key: Mapped[str | None] = mapped_column(String(2048), nullable=True)
     thumbnail_path: Mapped[str | None] = mapped_column(String(2048), nullable=True)
     thumbnail_url: Mapped[str | None] = mapped_column(String(2048), nullable=True)
+    thumbnail_storage_key: Mapped[str | None] = mapped_column(
+        String(2048), nullable=True
+    )
     file_size: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     resolution: Mapped[str] = mapped_column(String(50), nullable=False)
     aspect_ratio: Mapped[str] = mapped_column(String(20), default="9:16", nullable=False)
@@ -43,8 +61,16 @@ class Clip(Base):
 
     job = relationship("Job", back_populates="clips")
     user = relationship("User", back_populates="clips")
+    scheduled_posts = relationship(
+        "ScheduledPost", back_populates="clip", passive_deletes=True
+    )
 
     @property
     def source_video_url(self) -> str | None:
         """Get the source video URL from the related job."""
         return self.job.source_video_url if self.job else None
+
+    @property
+    def source_storage_key(self) -> str | None:
+        """Get the durable source object key from the related job."""
+        return self.job.source_storage_key if self.job else None

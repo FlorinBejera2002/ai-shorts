@@ -71,7 +71,10 @@ export function ShortcutsHelp() {
           </div>
           <div className="mt-3 space-y-1.5">
             {shortcuts.map(([key, label]) => (
-              <div key={key} className="flex items-center justify-between gap-3">
+              <div
+                key={key}
+                className="flex items-center justify-between gap-3"
+              >
                 <span className="text-xs text-muted-foreground">{label}</span>
                 <kbd className="shrink-0 rounded-md border border-border bg-muted px-1.5 py-0.5 font-mono text-[10px] font-medium text-foreground">
                   {key}

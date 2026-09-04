@@ -431,7 +431,7 @@ async def recut_clip(
 - [ ] **Step 2: Add recut_clip_task to tasks.py**
 
 ```python
-@celery_app.task(name="clipforge.recut_clip", bind=True)
+@celery_app.task(name="sneepcut.recut_clip", bind=True)
 def recut_clip_task(self, clip_id: str, segments: list[dict]):
     db = SyncSessionLocal()
     try:

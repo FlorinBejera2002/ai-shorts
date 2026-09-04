@@ -26,48 +26,43 @@ export function StatsBar({
       label: t('jobsLabel'),
       value: jobCount,
       icon: BookOpen,
-      color: 'text-blue-500'
+      color: 'text-primary'
     },
     {
       label: t('clipsLabel'),
       value: clipCount,
       icon: Film,
-      color: 'text-violet-500'
+      color: 'text-sky-500'
     },
     {
       label: t('planLabel'),
       value: plan,
       icon: Crown,
-      color: 'text-emerald-500',
+      color: 'text-indigo-500',
       capitalize: true
     }
   ]
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-      {stats.map((stat, i) => {
+    <div className="grid grid-cols-2 gap-3 animate-fade-in xl:grid-cols-4">
+      {stats.map((stat) => {
         const Icon = stat.icon
         return (
           <div
             key={stat.label}
-            className="group relative overflow-hidden rounded-xl border border-border bg-card/90 p-5 transition-all duration-500 hover:-translate-y-1 hover:border-foreground/20 hover:shadow-[0_18px_45px_rgba(0,0,0,.07)] animate-slide-up"
-            style={{ animationDelay: `${i * 60}ms` }}
+            className="panel-soft flex min-w-0 items-center gap-3 px-4 py-4"
           >
-            <div className="flex items-start justify-between">
-              <div className="min-w-0 flex-1">
-                <div className="text-[10px] font-bold uppercase tracking-[.18em] text-muted-foreground">
-                  {stat.label}
-                </div>
-                <div
-                  className={`mt-3 font-serif text-3xl font-semibold tabular-nums ${stat.capitalize ? 'capitalize' : ''}`}
-                >
-                  {stat.value}
-                </div>
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-card shadow-sm ring-1 ring-border">
+              <Icon className={`h-4 w-4 ${stat.color}`} strokeWidth={1.75} />
+            </div>
+            <div className="min-w-0">
+              <div className="section-label truncate text-[9px]">
+                {stat.label}
               </div>
               <div
-                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-border bg-muted/50 text-muted-foreground transition-all duration-500 group-hover:-rotate-6 group-hover:border-primary/30 group-hover:text-primary"
+                className={`mt-1 text-xl font-semibold tabular-nums leading-tight ${stat.capitalize ? 'capitalize' : ''}`}
               >
-                <Icon className="h-4 w-4 strokeWidth={1.75}" />
+                {stat.value}
               </div>
             </div>
           </div>

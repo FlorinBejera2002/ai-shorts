@@ -9,17 +9,17 @@ ROOT = Path(__file__).resolve().parents[1]
 BACKEND = ROOT / "backend"
 sys.path.insert(0, str(BACKEND))
 
-from app.services.processing_pipeline import process_video_source
-
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Process a local video with ClipForge")
+    parser = argparse.ArgumentParser(description="Process a local video with Sneepcut")
     parser.add_argument("--input", required=True)
     parser.add_argument("--output-root", default=str(ROOT / "media"))
     parser.add_argument("--clips", type=int, default=5)
     parser.add_argument("--no-smart-crop", action="store_true")
     parser.add_argument("--no-subtitles", action="store_true")
     args = parser.parse_args()
+
+    from app.services.processing_pipeline import process_video_source
 
     try:
         result = process_video_source(

@@ -1,19 +1,20 @@
-import { Plus } from 'lucide-react'
-import { getTranslations, setRequestLocale } from 'next-intl/server'
+import { ActiveJobs } from '@/components/dashboard/active-jobs'
+import { QuickActions } from '@/components/dashboard/quick-actions'
+import { RecentClips } from '@/components/dashboard/recent-clips'
+import { StatsBar } from '@/components/dashboard/stats-bar'
+import { TipsPanel } from '@/components/dashboard/tips-panel'
+import { WeeklyChart } from '@/components/dashboard/weekly-chart'
 import { Link } from '@/i18n/navigation'
 import { auth } from '@/lib/auth'
-import { prisma } from '@/lib/db'
-import { StatsBar } from '@/components/dashboard/stats-bar'
-import { QuickActions } from '@/components/dashboard/quick-actions'
-import { ActiveJobs } from '@/components/dashboard/active-jobs'
-import { WeeklyChart } from '@/components/dashboard/weekly-chart'
-import { RecentClips } from '@/components/dashboard/recent-clips'
-import { TipsPanel } from '@/components/dashboard/tips-panel'
+import { getPrisma } from '@/lib/db'
+import { resolveMediaUrl } from '@/lib/signed-url'
+import { Plus } from 'lucide-react'
+import { getTranslations, setRequestLocale } from 'next-intl/server'
 
 export const runtime = 'nodejs'
 
 export default async function DashboardPage({
-  params,
+  params
 }: {
   params: Promise<{ locale: string }>
 }) {
@@ -22,6 +23,7 @@ export default async function DashboardPage({
   const t = await getTranslations('dashboard')
   const session = await auth()
   const userId = session?.user?.id
+  const prisma = getPrisma()
 
   const [jobCount, clipCount, recentClips, brandKit] = userId
     ? await Promise.all([
@@ -36,11 +38,16 @@ export default async function DashboardPage({
             title: true,
             duration: true,
             viralScore: true,
+            filePath: true,
             fileUrl: true,
-            resolution: true,
-          },
+            fileStorageKey: true,
+            thumbnailPath: true,
+            thumbnailUrl: true,
+            thumbnailStorageKey: true,
+            resolution: true
+          }
         }),
-        prisma.brandKit.findUnique({ where: { userId } }),
+        prisma.brandKit.findUnique({ where: { userId } })
       ])
     : [0, 0, [], null]
 
@@ -58,9 +65,9 @@ export default async function DashboardPage({
     ? await prisma.clip.findMany({
         where: {
           userId,
-          createdAt: { gte: last7Days[0] },
+          createdAt: { gte: last7Days[0] }
         },
-        select: { createdAt: true },
+        select: { createdAt: true }
       })
     : []
 
@@ -71,32 +78,32 @@ export default async function DashboardPage({
       label: day.toLocaleDateString(locale, { weekday: 'short' }),
       count: allClipsForChart.filter(
         (c) => new Date(c.createdAt) >= day && new Date(c.createdAt) < next
-      ).length,
+      ).length
     }
   })
 
   return (
-    <div className="animate-fade-in space-y-8">
+    <div className="space-y-7 animate-fade-in">
       <div className="relative overflow-hidden border-b border-border pb-7 pt-2">
         <div className="relative flex items-end justify-between gap-5">
-        <div>
-          <div className="mb-3 flex items-center gap-2 text-[10px] font-bold uppercase tracking-[.22em] text-muted-foreground"><span className="h-1.5 w-1.5 rounded-full bg-primary" />Creator workspace</div>
-          <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-            {t('welcomeUser', {
-              name: session?.user?.name ? session.user.name : 'empty',
-            })}
-          </h1>
-          <p className="mt-2 text-sm text-muted-foreground">
-            {t('overview')}
-          </p>
-        </div>
-        <Link
-          href="/dashboard/create"
-          className="group inline-flex items-center gap-2 rounded-lg bg-foreground px-5 py-3 text-[13px] font-semibold text-background transition-all hover:-translate-y-0.5 hover:bg-primary hover:text-primary-foreground hover:shadow-lg"
-        >
-          <Plus className="w-3.5 h-3.5" />
-          {t('newProject')}
-        </Link>
+          <div>
+            <div className="eyebrow mb-3 flex items-center gap-2 text-primary">
+              <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+              Creator workspace
+            </div>
+            <h1 className="text-3xl font-semibold tracking-[-0.045em] sm:text-4xl">
+              {t('welcomeUser', {
+                name: session?.user?.name ? session.user.name : 'empty'
+              })}
+            </h1>
+            <p className="mt-2 text-sm text-muted-foreground">
+              {t('overview')}
+            </p>
+          </div>
+          <Link href="/dashboard/create" className="button-primary">
+            <Plus className="w-3.5 h-3.5" />
+            {t('newProject')}
+          </Link>
         </div>
       </div>
 
@@ -111,10 +118,27 @@ export default async function DashboardPage({
 
       <div className="grid gap-4 lg:grid-cols-2">
         <ActiveJobs />
-        <WeeklyChart data={chartData} />
+        <WeeklyChart
+          data={chartData}
+          todayLabel={new Date().toLocaleDateString(locale, {
+            weekday: 'short'
+          })}
+        />
       </div>
 
-      <RecentClips clips={recentClips} />
+      <RecentClips
+        clips={recentClips.map((clip) => ({
+          ...clip,
+          fileUrl: resolveMediaUrl(
+            clip.fileStorageKey ?? clip.filePath,
+            clip.fileUrl
+          ),
+          thumbnailUrl: resolveMediaUrl(
+            clip.thumbnailStorageKey ?? clip.thumbnailPath,
+            clip.thumbnailUrl
+          )
+        }))}
+      />
 
       <TipsPanel
         hasSubtitles={true}

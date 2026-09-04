@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, field_validator, model_validator
 
 
 class ClipRead(BaseModel):
@@ -22,8 +22,10 @@ class ClipRead(BaseModel):
     duration: float
     file_path: str
     file_url: str | None = None
+    file_storage_key: str | None = None
     thumbnail_path: str | None = None
     thumbnail_url: str | None = None
+    thumbnail_storage_key: str | None = None
     file_size: int
     resolution: str
     aspect_ratio: str
@@ -33,6 +35,7 @@ class ClipRead(BaseModel):
     created_at: datetime
     segments: list[dict] | None = None
     source_video_url: str | None = None
+    source_storage_key: str | None = None
 
 
 class RecutSegment(BaseModel):

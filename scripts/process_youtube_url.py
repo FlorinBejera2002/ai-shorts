@@ -9,12 +9,9 @@ ROOT = Path(__file__).resolve().parents[1]
 BACKEND = ROOT / "backend"
 sys.path.insert(0, str(BACKEND))
 
-from app.config import settings
-from app.services.processing_pipeline import process_video_source
-
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Process a YouTube URL with ClipForge")
+    parser = argparse.ArgumentParser(description="Process a YouTube URL with Sneepcut")
     parser.add_argument("--url", required=True)
     parser.add_argument("--output-root", default=str(ROOT / "media"))
     parser.add_argument("--clips", type=int, default=5)
@@ -22,6 +19,9 @@ def main() -> int:
     parser.add_argument("--no-smart-crop", action="store_true")
     parser.add_argument("--no-subtitles", action="store_true")
     args = parser.parse_args()
+
+    from app.config import settings
+    from app.services.processing_pipeline import process_video_source
 
     if args.cookies:
         settings.youtube_cookies_path = args.cookies

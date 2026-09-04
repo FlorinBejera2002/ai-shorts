@@ -1,4 +1,4 @@
-# ClipForge Multi-Segment Clip Editor — Design Spec
+# Sneepcut Multi-Segment Clip Editor — Design Spec
 
 ## Overview
 

@@ -1,4 +1,5 @@
 {
+  "name": "sneepcut",
 	"dependencies": {
 		"yarn": "^1.22.22"
 	}

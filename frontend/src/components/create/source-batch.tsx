@@ -52,8 +52,8 @@ export function SourceBatch({ urls, onChange }: SourceBatchProps) {
   )
 
   return (
-    <div className="animate-scale-in space-y-4 rounded-xl border border-border bg-card p-6">
-      <div className="flex items-center justify-between">
+    <div className="mt-5 animate-scale-in space-y-4 border-t border-border pt-5">
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h3 className="text-sm font-semibold text-foreground">
             {t('batchUrls', { count: validCount })}
@@ -66,7 +66,7 @@ export function SourceBatch({ urls, onChange }: SourceBatchProps) {
           type="button"
           onClick={() => urls.length < MAX_URLS && onChange([...urls, ''])}
           disabled={urls.length >= MAX_URLS}
-          className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium text-primary transition-colors hover:bg-primary/5 disabled:opacity-40"
+          className="button-secondary min-h-9 px-3 text-xs disabled:cursor-not-allowed disabled:opacity-40"
         >
           <Plus className="h-3.5 w-3.5" />
           {t('addUrl')}
@@ -81,11 +81,13 @@ export function SourceBatch({ urls, onChange }: SourceBatchProps) {
               <div className="flex gap-2">
                 <div className="relative flex-1">
                   <input
+                    aria-label={`${t('youtubeUrl')} ${index + 1}`}
                     value={row.url}
                     onChange={(e) => updateUrl(index, e.target.value)}
                     placeholder={`https://youtube.com/watch?v=... (${index + 1})`}
                     spellCheck={false}
-                    className={`w-full rounded-lg border bg-card py-2 pl-3 pr-8 text-[13px] placeholder:text-muted-foreground/40 transition-all outline-none focus:ring-2 ${
+                    aria-invalid={invalid || row.duplicate}
+                    className={`w-full rounded-lg border bg-background py-2.5 pl-3 pr-8 text-[13px] text-foreground placeholder:text-muted-foreground/55 transition-all outline-none focus:ring-2 ${
                       invalid || row.duplicate
                         ? 'border-warning/60 focus:border-warning focus:ring-warning/15'
                         : 'border-input focus:border-primary focus:ring-primary/15'
@@ -111,7 +113,10 @@ export function SourceBatch({ urls, onChange }: SourceBatchProps) {
               </div>
               {(invalid || row.duplicate) && (
                 <p className="flex items-center gap-1 pl-1 text-[11px] text-warning">
-                  <AlertCircle className="h-3 w-3 shrink-0" strokeWidth={1.75} />
+                  <AlertCircle
+                    className="h-3 w-3 shrink-0"
+                    strokeWidth={1.75}
+                  />
                   {row.duplicate ? t('duplicateUrl') : t('invalidYoutubeUrl')}
                 </p>
               )}

@@ -1,6 +1,7 @@
 'use client'
 
 import { AuthPanel } from '@/components/auth/auth-panel'
+import { BrandLogo } from '@/components/shared/brand-logo'
 import { useToast } from '@/components/ui/toast'
 import { Link } from '@/i18n/navigation'
 import { ArrowLeft, Check, Loader2, Mail } from 'lucide-react'
@@ -37,15 +38,21 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <main className="flex min-h-dvh">
+    <main className="dark flex min-h-dvh bg-[#060608] text-white">
       <AuthPanel title={t('heroTitle')} desc={t('heroDesc')} />
 
       {/* Right — form */}
-      <div className="flex-1 flex items-center justify-center p-6 bg-background">
-        <div className="w-full max-w-[380px] animate-fade-in">
+      <div className="relative flex flex-1 items-center justify-center overflow-hidden bg-[#060608] p-5 sm:p-8">
+        <div className="pointer-events-none absolute right-[-20%] top-[-20%] h-[520px] w-[520px] rounded-full bg-violet-500/[0.055] blur-[110px]" />
+        <div className="relative w-full max-w-[430px] animate-fade-in rounded-[24px] border border-white/[0.08] bg-[#0b0a0e]/90 p-6 shadow-[0_28px_90px_rgba(0,0,0,0.34),inset_0_1px_0_rgba(255,255,255,0.035)] sm:p-8">
+          {/* Mobile logo */}
+          <Link href="/" className="mb-9 flex items-center gap-2 lg:hidden">
+            <BrandLogo onDark={true} priority={true} />
+          </Link>
+
           <Link
             href="/login"
-            className="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors mb-8"
+            className="mb-8 inline-flex items-center gap-2 font-[family-name:var(--font-studio)] text-[11px] font-medium text-white/35 transition-colors hover:text-white"
           >
             <ArrowLeft className="w-4 h-4" strokeWidth={1.75} />
             {t('backToLogin')}
@@ -53,29 +60,29 @@ export default function ForgotPasswordPage() {
 
           {sent ? (
             <div className="animate-slide-up">
-              <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-success/10 mb-6">
-                <Mail className="w-6 h-6 text-success" strokeWidth={1.75} />
+              <div className="flex h-14 w-14 items-center justify-center rounded-xl border border-emerald-300/15 bg-emerald-500/[0.08] mb-6">
+                <Mail className="w-6 h-6 text-emerald-400" strokeWidth={1.75} />
               </div>
-              <h1 className="text-2xl font-bold tracking-tight">
+              <h1 className="font-[family-name:var(--font-cinematic)] text-4xl font-medium leading-none tracking-[-0.045em] text-white">
                 {t('checkEmailTitle')}
               </h1>
-              <p className="mt-2 text-[13px] text-muted-foreground leading-relaxed">
+              <p className="mt-3 font-[family-name:var(--font-studio)] text-[12px] leading-6 text-white/35">
                 {t('checkEmailDesc')}
               </p>
               <Link
                 href="/login"
-                className="mt-8 inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:opacity-90 transition-all"
+                className="mt-8 inline-flex items-center gap-2 rounded-[13px] border border-white bg-white px-5 py-3 font-[family-name:var(--font-studio)] text-[11px] font-bold uppercase tracking-[0.12em] text-black shadow-[0_14px_35px_rgba(139,92,246,0.16)] transition-all hover:-translate-y-0.5 hover:shadow-[0_18px_45px_rgba(139,92,246,0.28)] active:scale-[0.98]"
               >
                 <Check className="w-4 h-4" strokeWidth={1.75} />
-                Back to sign in
+                {t('backToLogin')}
               </Link>
             </div>
           ) : (
             <>
-              <h1 className="text-2xl font-bold tracking-tight">
+              <h1 className="font-[family-name:var(--font-cinematic)] text-4xl font-medium leading-none tracking-[-0.045em] text-white">
                 {t('forgotTitle')}
               </h1>
-              <p className="mt-1 text-[13px] text-muted-foreground">
+              <p className="mt-3 font-[family-name:var(--font-studio)] text-[12px] leading-6 text-white/35">
                 {t('forgotDesc')}
               </p>
 
@@ -83,7 +90,7 @@ export default function ForgotPasswordPage() {
                 <div className="space-y-1.5">
                   <label
                     htmlFor="email"
-                    className="text-[12px] font-medium text-foreground/80"
+                    className="font-[family-name:var(--font-studio)] text-[10px] font-semibold uppercase tracking-[0.1em] text-white/45"
                   >
                     {t('email')}
                   </label>
@@ -95,13 +102,13 @@ export default function ForgotPasswordPage() {
                     required={true}
                     placeholder="name@example.com"
                     autoComplete="email"
-                    className="w-full rounded-xl border border-input bg-card px-4 py-2.5 text-[13px] placeholder:text-muted-foreground/40 focus:border-primary focus:ring-2 focus:ring-primary/15 transition-all outline-none"
+                    className="w-full rounded-[13px] border border-white/10 bg-white/[0.035] px-4 py-3 font-[family-name:var(--font-studio)] text-[13px] text-white outline-none transition-all placeholder:text-white/20 focus:border-violet-300/35 focus:bg-white/[0.05] focus:ring-2 focus:ring-violet-400/10"
                   />
                 </div>
                 <button
                   type="submit"
                   disabled={busy || !email}
-                  className="w-full rounded-xl bg-primary px-4 py-2.5 text-[13px] font-semibold text-primary-foreground transition-all hover:opacity-90 hover:shadow-lg hover:shadow-primary/20 disabled:cursor-not-allowed disabled:opacity-40 flex items-center justify-center gap-2"
+                  className="flex w-full items-center justify-center gap-2 rounded-[13px] border border-white bg-white px-4 py-3 font-[family-name:var(--font-studio)] text-[11px] font-bold uppercase tracking-[0.12em] text-black shadow-[0_14px_35px_rgba(139,92,246,0.16)] transition-all hover:-translate-y-0.5 hover:shadow-[0_18px_45px_rgba(139,92,246,0.28)] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {busy ? (
                     <>

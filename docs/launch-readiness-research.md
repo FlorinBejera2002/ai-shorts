@@ -1,4 +1,4 @@
-# ClipForge launch readiness research
+# Sneepcut launch readiness research
 
 Last reviewed: 2026-06-30
 

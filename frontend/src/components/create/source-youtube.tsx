@@ -1,8 +1,8 @@
 'use client'
 
 import { AlertCircle, CheckCircle2, X, Youtube } from 'lucide-react'
-import Image from 'next/image'
 import { useTranslations } from 'next-intl'
+import Image from 'next/image'
 import { useEffect, useState } from 'react'
 
 import {
@@ -40,11 +40,8 @@ export function SourceYoutube({ url, onChange }: SourceYoutubeProps) {
   }, [videoId, url])
 
   return (
-    <div className="animate-scale-in rounded-xl border border-border bg-card p-6">
-      <label
-        className="text-sm font-semibold text-foreground"
-        htmlFor="youtube-url"
-      >
+    <div className="mt-5 animate-scale-in border-t border-border pt-5">
+      <label className="section-label" htmlFor="youtube-url">
         {t('youtubeUrl')}
       </label>
       <div className="relative mt-3">
@@ -55,7 +52,8 @@ export function SourceYoutube({ url, onChange }: SourceYoutubeProps) {
           placeholder={t('youtubeUrlPlaceholder')}
           spellCheck={false}
           autoComplete="off"
-          className={`w-full rounded-xl border bg-card py-2.5 pl-4 pr-10 text-[13px] placeholder:text-muted-foreground/40 transition-all outline-none focus:ring-2 ${
+          aria-invalid={isInvalid}
+          className={`w-full rounded-xl border bg-background py-3 pl-4 pr-10 text-[13px] text-foreground placeholder:text-muted-foreground/55 transition-all outline-none focus:ring-2 ${
             isInvalid
               ? 'border-destructive/60 focus:border-destructive focus:ring-destructive/15'
               : 'border-input focus:border-primary focus:ring-primary/15'
@@ -81,8 +79,8 @@ export function SourceYoutube({ url, onChange }: SourceYoutubeProps) {
       )}
 
       {videoId && (
-        <div className="mt-4 flex items-center gap-4 rounded-xl border border-border bg-muted/40 p-3 animate-slide-up">
-          <div className="relative aspect-video w-36 shrink-0 overflow-hidden rounded-lg bg-black">
+        <div className="panel-soft mt-4 flex items-center gap-3 p-3 animate-slide-up sm:gap-4">
+          <div className="relative aspect-video w-28 shrink-0 overflow-hidden rounded-lg bg-black sm:w-36">
             <Image
               src={youtubeThumbnailUrl(videoId)}
               alt=""

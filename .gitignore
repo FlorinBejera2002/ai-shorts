@@ -6,6 +6,9 @@ node_modules/
 # Build
 .next/
 .next-prod/
+.open-next/
+.wrangler/
+.wrangler-config/
 out/
 dist/
 build/
@@ -24,6 +27,9 @@ venv/
 .env
 .env.local
 .env.*.local
+.dev.vars
+frontend/.dev.vars
+*.tsbuildinfo
 
 # IDE
 .vscode/

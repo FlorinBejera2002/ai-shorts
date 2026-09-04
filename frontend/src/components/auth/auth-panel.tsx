@@ -1,6 +1,6 @@
+import { BrandLogo } from '@/components/shared/brand-logo'
 import { Link } from '@/i18n/navigation'
 import { Flame } from 'lucide-react'
-import Image from 'next/image'
 import type { ReactNode } from 'react'
 
 /**
@@ -51,20 +51,13 @@ export function AuthPanel({
 
       <div className="relative z-10 flex w-full flex-col justify-between p-12 xl:p-16">
         <Link href="/" className="flex items-center gap-2.5">
-          <Image
-            src="/logo.webp"
-            alt="ClipForge"
-            width={36}
-            height={36}
-            className="rounded-[10px] ring-1 ring-white/10"
-          />
-          <span className="font-[family-name:var(--font-studio)] text-[15px] font-bold tracking-tight text-white">
-            ClipForge
-          </span>
+          <BrandLogo onDark={true} priority={true} />
         </Link>
 
         <div className="max-w-[76%] space-y-6">
-          <div className="font-[family-name:var(--font-studio)] text-[9px] font-bold uppercase tracking-[.3em] text-violet-200/55">AI post-production studio</div>
+          <div className="font-[family-name:var(--font-studio)] text-[9px] font-bold uppercase tracking-[.3em] text-violet-200/55">
+            AI post-production studio
+          </div>
           <h2 className="font-[family-name:var(--font-cinematic)] text-6xl font-medium leading-[.9] tracking-[-0.05em] text-white">
             {title}
           </h2>
@@ -75,7 +68,7 @@ export function AuthPanel({
         </div>
 
         <p className="font-[family-name:var(--font-studio)] text-[9px] uppercase tracking-[0.14em] text-white/25">
-          &copy; {new Date().getFullYear()} ClipForge
+          &copy; {new Date().getFullYear()} sneepcut
         </p>
       </div>
     </div>

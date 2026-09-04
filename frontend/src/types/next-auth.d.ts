@@ -6,6 +6,7 @@ declare module 'next-auth' {
       id: string
       credits: number
       plan: string
+      authenticatedAt?: number
     } & DefaultSession['user']
   }
 
@@ -18,5 +19,8 @@ declare module 'next-auth/jwt' {
   interface JWT {
     credits?: number
     plan?: string
+    sessionVersion?: number
+    authenticatedAt?: number
+    invalidated?: boolean
   }
 }

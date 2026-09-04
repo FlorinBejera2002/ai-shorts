@@ -2,7 +2,7 @@
 
 ## Overview
 
-Bootstrap the ClipForge monorepo with the full directory tree, Docker orchestration for all 6 services, environment configuration, and Nginx reverse proxy. At completion, `docker compose up` starts everything with placeholder apps responding to health checks.
+Bootstrap the Sneepcut monorepo with the full directory tree, Docker orchestration for all 6 services, environment configuration, and Nginx reverse proxy. At completion, `docker compose up` starts everything with placeholder apps responding to health checks.
 
 ## Exit Criteria
 
@@ -17,7 +17,7 @@ Bootstrap the ClipForge monorepo with the full directory tree, Docker orchestrat
 
 ### Adapted from wib_my-acount patterns
 
-| Pattern | wib_my-acount | ClipForge adaptation |
+| Pattern | wib_my-acount | Sneepcut adaptation |
 |---------|--------------|---------------------|
 | Bundler | Vite + React SPA | Next.js 15 App Router (plan requirement) |
 | State mgmt | Zustand + React Query | Same — Zustand for client, React Query for server |
@@ -47,7 +47,7 @@ Bootstrap the ClipForge monorepo with the full directory tree, Docker orchestrat
 ## Directory Structure
 
 ```
-clipforge/
+sneepcut/
 ├── docker-compose.yml
 ├── docker-compose.dev.yml
 ├── .env.example
@@ -210,15 +210,15 @@ services:
   postgres:
     image: postgres:16-alpine
     environment:
-      POSTGRES_DB: clipforge
-      POSTGRES_USER: clipforge
+      POSTGRES_DB: sneepcut
+      POSTGRES_USER: sneepcut
       POSTGRES_PASSWORD: ${DB_PASSWORD}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
       - "5432:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U clipforge"]
+      test: ["CMD-SHELL", "pg_isready -U sneepcut"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -419,7 +419,7 @@ Minimal FastAPI app with CORS middleware, mounts the API router.
 ```python
 @router.get("/api/health")
 def health_check():
-    return {"status": "ok", "service": "clipforge-backend"}
+    return {"status": "ok", "service": "sneepcut-backend"}
 ```
 
 ### Dockerfile
@@ -452,6 +452,6 @@ Will fail gracefully until Celery is configured in Phase 4.
 1. `docker compose up --build` — all 6 services start
 2. `curl http://localhost` — returns Next.js HTML
 3. `curl http://localhost/api/health` — returns `{"status": "ok"}`
-4. `docker compose exec postgres psql -U clipforge -c '\l'` — DB accessible
+4. `docker compose exec postgres psql -U sneepcut -c '\l'` — DB accessible
 5. `docker compose exec redis redis-cli ping` — returns PONG
 6. Worker container starts (may log Celery not configured — acceptable)

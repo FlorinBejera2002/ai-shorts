@@ -2,15 +2,17 @@ services:
   postgres:
     image: postgres:16-alpine
     environment:
-      POSTGRES_DB: clipforge
-      POSTGRES_USER: clipforge
+      # Defaults preserve existing volumes. New installations set the
+      # Sneepcut values included in .env.example.
+      POSTGRES_DB: ${POSTGRES_DB:-sneepcut}
+      POSTGRES_USER: ${POSTGRES_USER:-sneepcut}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-changeme}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     expose:
       - "5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U clipforge"]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -27,7 +29,7 @@ services:
 
   backend:
     build: ./backend
-    image: clipforge-app
+    image: sneepcut-app
     env_file: .env
     depends_on:
       postgres:
@@ -46,7 +48,7 @@ services:
 
   worker:
     # Same image as backend — built once by the backend service
-    image: clipforge-app
+    image: sneepcut-app
     command: >
       celery -A app.workers.celery_app:celery_app worker
       --loglevel=info

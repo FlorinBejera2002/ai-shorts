@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 
 import { auth } from '@/lib/auth'
-import { prisma } from '@/lib/db'
+import { createPrismaClient } from '@/lib/db'
 
 export const runtime = 'nodejs'
 
@@ -11,6 +11,7 @@ export async function GET() {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
+  const prisma = createPrismaClient()
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
     select: {

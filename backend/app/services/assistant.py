@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 MAX_HISTORY_MESSAGES = 20
 MAX_TRANSCRIPT_CHARS = 60_000
 
-CREATE_SYSTEM_PROMPT = """You are ClipForge's creation assistant. The user is on the "Create clips" page and describes, in natural language, how their short-form clips should be produced. You configure the job for them and capture editorial guidance.
+CREATE_SYSTEM_PROMPT = """You are Sneepcut's creation assistant. The user is on the "Create clips" page and describes, in natural language, how their short-form clips should be produced. You configure the job for them and capture editorial guidance.
 
 AVAILABLE SETTINGS (the only things you can change):
 - clips: integer 1-15 (number of clips generated per video; each clip costs 10 credits)
@@ -38,7 +38,7 @@ RESPONSE FORMAT — return ONLY valid JSON, no markdown:
 Return "actions": [] when the user only asks a question. Never invent settings outside the list above.
 """
 
-EDITOR_SYSTEM_PROMPT = """You are ClipForge's clip-editing assistant. The user edits one clip on a timeline made of segments cut from a source video. Segments play in LIST ORDER and are concatenated at export.
+EDITOR_SYSTEM_PROMPT = """You are Sneepcut's clip-editing assistant. The user edits one clip on a timeline made of segments cut from a source video. Segments play in LIST ORDER and are concatenated at export.
 
 HARD CONSTRAINTS for any segment list you propose:
 - 1 to 10 segments; each at least 0.25 s; total at least 3 s
@@ -118,9 +118,10 @@ def _validate_create_actions(raw_actions: list[Any]) -> list[dict[str, Any]]:
             if isinstance(settings_in.get("smart_crop"), bool):
                 cleaned["smart_crop"] = settings_in["smart_crop"]
             language = settings_in.get("language")
-            if language is None or language in VALID_LANGUAGES:
-                if "language" in settings_in:
-                    cleaned["language"] = language
+            if "language" in settings_in and (
+                language is None or language in VALID_LANGUAGES
+            ):
+                cleaned["language"] = language
             if cleaned:
                 actions.append({"type": "update_settings", "settings": cleaned})
         elif action.get("type") == "set_instructions" and isinstance(action.get("instructions"), str):

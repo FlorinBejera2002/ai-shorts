@@ -42,6 +42,10 @@ export default function JobProgressPage() {
     let errorCount = 0
     let timer: ReturnType<typeof setTimeout>
 
+    function scheduleNextPoll() {
+      if (active) timer = setTimeout(() => void poll(), 5000)
+    }
+
     async function poll() {
       try {
         const res = await fetch(`/api/jobs/${params.id}`, { cache: 'no-store' })
@@ -57,7 +61,12 @@ export default function JobProgressPage() {
                     .filter(Boolean)
                     .join('; ')
                 : data.error
-          setError(msg || '__loadError')
+          errorCount++
+          if (errorCount >= 5) {
+            setError(msg || '__loadError')
+            return
+          }
+          scheduleNextPoll()
           return
         }
         errorCount = 0
@@ -79,9 +88,7 @@ export default function JobProgressPage() {
           return
         }
       }
-      if (active) {
-        timer = setTimeout(() => void poll(), 5000)
-      }
+      scheduleNextPoll()
     }
 
     void poll()
@@ -102,10 +109,10 @@ export default function JobProgressPage() {
   const isFailed = currentStep === 'failed'
 
   return (
-    <div className="max-w-2xl animate-fade-in">
-      <div className="flex items-center justify-between mb-8">
+    <div className="max-w-3xl animate-fade-in">
+      <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-lg font-semibold tracking-tight">
+          <h1 className="text-xl font-semibold tracking-tight text-foreground">
             {t('title')}
           </h1>
           <p className="mt-0.5 text-xs text-muted-foreground">
@@ -115,7 +122,7 @@ export default function JobProgressPage() {
         {isDone && (
           <Link
             href="/dashboard/clips"
-            className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:opacity-90 transition-all"
+            className="button-primary self-start rounded-lg sm:self-auto"
           >
             {t('viewClips')}
             <ArrowRight className="w-4 h-4" strokeWidth={1.75} />
@@ -131,7 +138,7 @@ export default function JobProgressPage() {
             strokeWidth={1.75}
           />
           <div>
-            <p className="text-sm font-medium text-destructive">
+            <p className="text-sm font-medium text-destructive shadow-lg shadow-destructive/5">
               {error === '__loadError'
                 ? t('loadError')
                 : error === '__connectionLost'
@@ -143,24 +150,40 @@ export default function JobProgressPage() {
       )}
 
       {/* Progress info */}
-      <div className="rounded-xl border border-border bg-card p-6 mb-6">
-        <div className="flex items-start justify-between mb-4">
+      <div className="panel mb-6 p-5 sm:p-6">
+        <div className="mb-4 flex items-start justify-between gap-4">
           <div>
-            <p className="text-sm font-semibold text-foreground">{message}</p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              {t('eta', { min: Math.max(1, 5 - Math.floor(progress / 20)) })}
+            <p
+              className="text-sm font-semibold text-foreground"
+              aria-live="polite"
+            >
+              {message}
             </p>
+            {!isDone && !isFailed && (
+              <p className="mt-1 text-xs text-muted-foreground">
+                {t('eta', { min: Math.max(1, 5 - Math.floor(progress / 20)) })}
+              </p>
+            )}
           </div>
           <div className="flex items-baseline gap-1">
-            <span className="text-3xl font-bold text-primary tabular-nums">
+            <span
+              className={`text-3xl font-bold tabular-nums ${isDone ? 'text-success' : 'text-primary'}`}
+            >
               {progress}
             </span>
             <span className="text-sm font-medium text-muted-foreground">%</span>
           </div>
         </div>
-        <div className="progress-bar h-2">
+        <div
+          className="h-2 overflow-hidden rounded-full bg-muted"
+          role="progressbar"
+          aria-label={message}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={Math.min(100, Math.max(0, progress))}
+        >
           <div
-            className={`progress-bar-fill ${isDone ? 'done' : ''}`}
+            className={`h-full rounded-full transition-[width] duration-500 ${isDone ? 'bg-success' : 'bg-primary'}`}
             style={{
               width: `${Math.min(100, Math.max(0, progress))}%`
             }}
@@ -169,19 +192,19 @@ export default function JobProgressPage() {
       </div>
 
       {/* Stepper */}
-      <div className="rounded-xl border border-border bg-card p-6">
+      <div className="panel p-4 sm:p-6">
         <div className="relative">
           {/* Connecting line */}
-          <div className="absolute top-5 left-3 right-3 h-0.5 bg-border pointer-events-none" />
+          <div className="pointer-events-none absolute left-3 right-3 top-5 hidden h-px bg-border lg:block" />
 
-          <div className="relative flex justify-between">
+          <div className="relative grid gap-2 lg:grid-cols-7 lg:gap-1">
             {steps.map((step, i) => {
               const done = i < currentIdx || isDone
               const active = i === currentIdx && !isDone && !isFailed
               return (
                 <div
                   key={step.key}
-                  className="flex flex-col items-center gap-3 animate-slide-up"
+                  className="flex items-center gap-3 rounded-lg px-2 py-2.5 animate-slide-up lg:flex-col lg:bg-transparent lg:px-0 lg:py-0"
                   style={{ animationDelay: `${i * 50}ms` }}
                 >
                   {/* Circle */}
@@ -197,23 +220,23 @@ export default function JobProgressPage() {
                     <div
                       className={`relative flex h-10 w-10 items-center justify-center rounded-full border-2 font-semibold transition-all duration-300 ${
                         done
-                          ? 'border-primary bg-primary text-primary-foreground'
+                          ? 'border-success bg-success text-success-foreground'
                           : active
-                            ? 'border-primary bg-primary/15 text-primary scale-110'
+                            ? 'border-primary bg-primary/10 text-primary lg:scale-110'
                             : 'border-border bg-card text-muted-foreground'
                       }`}
                     >
                       {done ? (
                         <Check className="w-5 h-5" strokeWidth={2.5} />
                       ) : active ? (
-                        <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+                        <div className="h-2 w-2 rounded-full bg-primary animate-pulse" />
                       ) : (
                         <span className="text-xs">{i + 1}</span>
                       )}
                     </div>
                   </div>
                   <span
-                    className={`text-[12px] font-medium text-center leading-tight transition-colors ${
+                    className={`text-left text-[12px] font-medium leading-tight transition-colors lg:text-center ${
                       done || active
                         ? 'text-foreground'
                         : 'text-muted-foreground'
@@ -230,7 +253,7 @@ export default function JobProgressPage() {
 
       {/* Failed state */}
       {isFailed && status?.job.error_message && (
-        <div className="mt-6 animate-slide-up rounded-xl border border-destructive/30 bg-destructive/5 p-5">
+        <div className="mt-6 animate-slide-up rounded-xl border border-destructive/30 bg-destructive/5 p-5 shadow-lg shadow-destructive/5">
           <div className="flex items-start gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-destructive/10 shrink-0">
               <AlertCircle
@@ -252,7 +275,7 @@ export default function JobProgressPage() {
 
       {/* Success state */}
       {isDone && (
-        <div className="mt-6 animate-scale-in rounded-xl border border-success/30 bg-success/5 p-5">
+        <div className="mt-6 animate-scale-in rounded-xl border border-success/30 bg-success/5 p-5 shadow-lg shadow-success/5">
           <div className="flex items-start gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-success/10 shrink-0">
               <Check className="w-5 h-5 text-success" strokeWidth={2.5} />

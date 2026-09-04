@@ -17,28 +17,28 @@ export function getClipReadiness(clip: ClipReadinessInput) {
   const items: ClipReadinessItem[] = [
     {
       label: 'Vertical export',
-      done: clip.aspectRatio === '9:16',
+      done: clip.aspectRatio === '9:16'
     },
     {
       label: 'Short-form length',
-      done: clip.duration >= 15 && clip.duration <= 60,
+      done: clip.duration >= 15 && clip.duration <= 60
     },
     {
       label: 'Captions included',
-      done: clip.hasSubtitles,
+      done: clip.hasSubtitles
     },
     {
       label: 'Hook prepared',
-      done: Boolean(clip.hookText?.trim()),
+      done: Boolean(clip.hookText?.trim())
     },
     {
       label: 'Transcript available',
-      done: Boolean(clip.transcriptText?.trim()),
+      done: Boolean(clip.transcriptText?.trim())
     },
     {
       label: 'Playable export',
-      done: Boolean(clip.fileUrl),
-    },
+      done: Boolean(clip.fileUrl)
+    }
   ]
 
   const completed = items.filter((item) => item.done).length
@@ -49,7 +49,7 @@ export function getClipReadiness(clip: ClipReadinessInput) {
   return {
     score,
     items,
-    label: score >= 85 ? 'Ready' : score >= 65 ? 'Needs review' : 'Needs work',
+    label: score >= 85 ? 'Ready' : score >= 65 ? 'Needs review' : 'Needs work'
   }
 }
 
@@ -58,23 +58,23 @@ export function getPlatformFit(clip: ClipReadinessInput) {
     {
       name: 'TikTok',
       fit: clip.aspectRatio === '9:16' && clip.duration <= 60,
-      note: 'Best with captions, a strong first line and 15-45s pacing.',
+      note: 'Best with captions, a strong first line and 15-45s pacing.'
     },
     {
       name: 'Reels',
       fit: clip.aspectRatio === '9:16' && clip.duration <= 90,
-      note: 'Works well when the hook is clear and visual framing is tight.',
+      note: 'Works well when the hook is clear and visual framing is tight.'
     },
     {
       name: 'Shorts',
       fit: clip.aspectRatio === '9:16' && clip.duration <= 60,
-      note: 'Keep title direct and avoid slow intros.',
+      note: 'Keep title direct and avoid slow intros.'
     },
     {
       name: 'LinkedIn',
       fit: clip.duration <= 120,
-      note: 'Use a more explicit title and context-heavy caption.',
-    },
+      note: 'Use a more explicit title and context-heavy caption.'
+    }
   ]
 }
 
@@ -92,6 +92,6 @@ export function buildSocialCaption(clip: {
   return [
     hook || clip.title,
     context ? `\n${context}` : '',
-    '\n#shorts #reels #contentcreator #videomarketing',
+    '\n#shorts #reels #contentcreator #videomarketing'
   ].join('')
 }

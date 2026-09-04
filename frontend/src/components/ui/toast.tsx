@@ -1,6 +1,7 @@
 'use client'
 
-import { CheckCircle, AlertCircle, Info, AlertTriangle, X } from 'lucide-react'
+import { AlertCircle, AlertTriangle, CheckCircle, Info, X } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 import { create } from 'zustand'
 
 type Toast = {
@@ -24,32 +25,32 @@ export const useToast = create<ToastStore>((set) => ({
       set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) }))
     }, 4000)
   },
-  dismiss: (id) =>
-    set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })),
+  dismiss: (id) => set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) }))
 }))
 
 const iconMap = {
   success: CheckCircle,
   error: AlertCircle,
   warning: AlertTriangle,
-  info: Info,
+  info: Info
 }
 
 const colorMap = {
-  success: 'text-emerald-500',
-  error: 'text-red-500',
-  warning: 'text-amber-500',
-  info: 'text-blue-500',
+  success: 'text-success',
+  error: 'text-destructive',
+  warning: 'text-warning',
+  info: 'text-primary'
 }
 
 const borderMap = {
-  success: 'border-l-emerald-500',
-  error: 'border-l-red-500',
-  warning: 'border-l-amber-500',
-  info: 'border-l-blue-500',
+  success: 'border-l-success',
+  error: 'border-l-destructive',
+  warning: 'border-l-warning',
+  info: 'border-l-primary'
 }
 
 export function Toaster() {
+  const t = useTranslations('common')
   const toasts = useToast((s) => s.toasts)
   const dismiss = useToast((s) => s.dismiss)
 
@@ -69,6 +70,8 @@ export function Toaster() {
               {toast.message}
             </p>
             <button
+              type="button"
+              aria-label={t('close')}
               onClick={() => dismiss(toast.id)}
               className="text-muted-foreground hover:text-foreground transition-colors ml-1 shrink-0 p-0.5"
             >

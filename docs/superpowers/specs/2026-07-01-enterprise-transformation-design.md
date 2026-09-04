@@ -1,8 +1,8 @@
-# ClipForge Enterprise Transformation — Design Spec
+# Sneepcut Enterprise Transformation — Design Spec
 
 ## Overview
 
-Transform ClipForge from a functional MVP into a premium, enterprise-grade SaaS platform. Six sub-projects executed in dependency order, each building on the previous.
+Transform Sneepcut from a functional MVP into a premium, enterprise-grade SaaS platform. Six sub-projects executed in dependency order, each building on the previous.
 
 ## Current State Summary
 
@@ -366,7 +366,7 @@ New `AuditLog` model:
 
 **Agency ($149/mo):**
 - 10000 credits, unlimited everything
-- White-label mode (remove ClipForge branding)
+- White-label mode (remove Sneepcut branding)
 - Team management (up to 20 seats)
 - Custom webhook integrations
 - Dedicated processing priority

@@ -14,19 +14,23 @@ interface ActiveJob {
   progressMessage: string | null
 }
 
+const ACTIVE_STATUSES = [
+  'pending',
+  'downloading',
+  'transcribing',
+  'analyzing',
+  'clipping',
+  'rendering',
+  // Retain legacy worker states while queued jobs transition to the new pipeline.
+  'detecting',
+  'generating',
+  'processing'
+]
+
 export function ActiveJobs() {
   const t = useTranslations('dashboard')
   const [jobs, setJobs] = useState<ActiveJob[]>([])
   const [loading, setLoading] = useState(true)
-
-  const ACTIVE_STATUSES = [
-    'pending',
-    'downloading',
-    'transcribing',
-    'detecting',
-    'generating',
-    'processing'
-  ]
 
   useEffect(() => {
     let mounted = true
@@ -57,115 +61,107 @@ export function ActiveJobs() {
   type StatusInfo = {
     icon: typeof Clock | typeof Loader2
     color: string
-    bg: string
     text: string
   }
 
   const statusMap: Record<string, StatusInfo> = {
     pending: {
       icon: Clock,
-      color: 'text-amber-600',
-      bg: 'bg-amber-500/10',
-      text: 'Pending'
+      color: 'text-amber-600 dark:text-amber-400',
+      text: t('statusPending')
     },
     downloading: {
       icon: Loader2,
-      color: 'text-blue-600',
-      bg: 'bg-blue-500/10',
-      text: 'Downloading'
+      color: 'text-blue-600 dark:text-blue-400',
+      text: t('statusDownloading')
     },
     transcribing: {
       icon: Loader2,
-      color: 'text-indigo-600',
-      bg: 'bg-indigo-500/10',
-      text: 'Transcribing'
+      color: 'text-indigo-600 dark:text-indigo-400',
+      text: t('statusTranscribing')
+    },
+    analyzing: {
+      icon: Loader2,
+      color: 'text-primary',
+      text: t('statusDetecting')
+    },
+    clipping: {
+      icon: Loader2,
+      color: 'text-sky-700 dark:text-sky-400',
+      text: t('statusClipping')
+    },
+    rendering: {
+      icon: Loader2,
+      color: 'text-cyan-700 dark:text-cyan-400',
+      text: t('statusRendering')
     },
     detecting: {
       icon: Loader2,
-      color: 'text-violet-600',
-      bg: 'bg-violet-500/10',
-      text: 'Detecting'
+      color: 'text-primary',
+      text: t('statusDetecting')
     },
     generating: {
       icon: Loader2,
-      color: 'text-purple-600',
-      bg: 'bg-purple-500/10',
-      text: 'Generating'
+      color: 'text-sky-700 dark:text-sky-400',
+      text: t('statusGenerating')
     },
     processing: {
       icon: Loader2,
-      color: 'text-pink-600',
-      bg: 'bg-pink-500/10',
-      text: 'Processing'
+      color: 'text-cyan-700 dark:text-cyan-400',
+      text: t('statusProcessing')
     }
   }
 
-  const getStatusInfo = (status: string): StatusInfo => {
-    return statusMap[status] ?? (statusMap.processing as StatusInfo)
-  }
+  const getStatusInfo = (status: string): StatusInfo =>
+    statusMap[status] ?? (statusMap.processing as StatusInfo)
 
-  if (loading) {
-    return (
-      <div className="rounded-xl border border-border bg-card p-5">
-        <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          {t('activeJobs')}
-        </h2>
+  return (
+    <div className="panel p-5">
+      <h2 className="section-label">{t('activeJobs')}</h2>
+      {loading ? (
         <div className="mt-4 flex justify-center py-4">
           <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
         </div>
-      </div>
-    )
-  }
-
-  return (
-    <div className="rounded-xl border border-border bg-card p-5">
-      <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-        {t('activeJobs')}
-      </h2>
-      {jobs.length > 0 ? (
-        <div className="mt-4 space-y-2.5">
-          {jobs.map((job, i) => {
+      ) : jobs.length > 0 ? (
+        <div className="mt-4 space-y-3">
+          {jobs.map((job) => {
             const statusInfo = getStatusInfo(job.status)
             const StatusIcon = statusInfo.icon
             return (
               <Link
                 key={job.id}
                 href={`/dashboard/jobs/${job.id}`}
-                className="group block rounded-lg border border-transparent bg-muted/30 p-3.5 transition-all duration-300 hover:border-border hover:bg-muted/60 animate-slide-up"
-                style={{ animationDelay: `${i * 40}ms` }}
+                className="group block transition-colors"
               >
-                <div className="flex items-start justify-between gap-3 mb-2">
-                  <div className="min-w-0 flex-1">
-                    <div className="text-[13px] font-semibold text-foreground truncate">
-                      {job.sourceUrl ?? job.sourceFilePath ?? 'Processing...'}
-                    </div>
-                    <div className="mt-0.5 flex items-center gap-2 text-[11px] text-muted-foreground">
-                      <div
-                        className={`flex items-center gap-1 ${statusInfo.color}`}
-                      >
-                        {statusInfo.icon === Loader2 ? (
-                          <StatusIcon className="h-3 w-3 animate-spin" />
-                        ) : (
-                          <StatusIcon className="h-3 w-3" strokeWidth={1.75} />
-                        )}
-                        <span className="capitalize">
-                          {job.progressMessage ?? job.status}
-                        </span>
-                      </div>
-                    </div>
+                <div className="flex items-center justify-between gap-3 mb-1.5">
+                  <div className="min-w-0 flex-1 truncate text-[13px] font-medium text-foreground">
+                    {job.sourceUrl ?? job.sourceFilePath ?? 'Processing...'}
                   </div>
                   <div
-                    className={`flex h-7 w-7 items-center justify-center rounded-lg ${statusInfo.bg}`}
+                    className={`flex shrink-0 items-center gap-1 text-[11px] ${statusInfo.color}`}
                   >
-                    <span className="text-xs font-bold text-foreground">
-                      {Math.min(job.progress, 100)}%
+                    {statusInfo.icon === Loader2 ? (
+                      <StatusIcon className="h-3 w-3 animate-spin" />
+                    ) : (
+                      <StatusIcon className="h-3 w-3" strokeWidth={1.75} />
+                    )}
+                    <span className="hidden sm:inline">
+                      {job.progressMessage ?? statusInfo.text}
                     </span>
+                    <span>{Math.min(job.progress, 100)}%</span>
                   </div>
                 </div>
-                <div className="progress-bar h-1">
+                <div
+                  className="h-1 overflow-hidden rounded-full bg-muted"
+                  role="progressbar"
+                  aria-label={job.progressMessage ?? statusInfo.text}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-valuenow={Math.min(job.progress, 100)}
+                >
                   <div
-                    className={`progress-bar-fill ${job.progress === 100 ? 'done' : ''}`}
-                    style={{ width: `${job.progress}%` }}
+                    className="h-full rounded-full bg-primary transition-all duration-500"
+                    style={{ width: `${Math.min(job.progress, 100)}%` }}
                   />
                 </div>
               </Link>
@@ -173,7 +169,7 @@ export function ActiveJobs() {
           })}
         </div>
       ) : (
-        <p className="mt-4 text-xs text-muted-foreground text-center py-4">
+        <p className="mt-4 py-4 text-center text-xs text-muted-foreground">
           {t('noActiveJobs')}
         </p>
       )}

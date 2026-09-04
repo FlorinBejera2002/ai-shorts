@@ -62,8 +62,8 @@ const DEFAULTS: BrandKit = {
 
 const WHITE_LABEL_PLAN = 'agency'
 const LOGO_MAX_BYTES = 5 * 1024 * 1024
-const LOGO_ACCEPT = 'image/png,image/jpeg,image/webp,image/svg+xml'
-const LOGO_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml']
+const LOGO_ACCEPT = 'image/png,image/jpeg,image/webp'
+const LOGO_TYPES = ['image/png', 'image/jpeg', 'image/webp']
 
 const FONTS = [
   'Inter',
@@ -91,21 +91,21 @@ const SUBTITLE_POSITIONS = [
 ]
 
 const WATERMARK_POSITIONS = [
-  { value: 'top-left', label: 'Top left', icon: CornerUpLeft },
-  { value: 'top-right', label: 'Top right', icon: CornerUpRight },
-  { value: 'bottom-left', label: 'Bottom left', icon: CornerDownLeft },
-  { value: 'bottom-right', label: 'Bottom right', icon: CornerDownRight }
+  { value: 'top-left', label: 'topLeft', icon: CornerUpLeft },
+  { value: 'top-right', label: 'topRight', icon: CornerUpRight },
+  { value: 'bottom-left', label: 'bottomLeft', icon: CornerDownLeft },
+  { value: 'bottom-right', label: 'bottomRight', icon: CornerDownRight }
 ]
 
 const PALETTES = [
   { name: 'Indigo', primary: '#6366f1', secondary: '#8b5cf6' },
   { name: 'Sunset', primary: '#f97316', secondary: '#ec4899' },
   { name: 'Ocean', primary: '#0ea5e9', secondary: '#06b6d4' },
-  { name: 'Forest', primary: '#16a34a', secondary: '#84cc16' },
+  { name: 'Cobalt', primary: '#2563eb', secondary: '#60a5fa' },
   { name: 'Berry', primary: '#e11d48', secondary: '#be185d' },
   { name: 'Midnight', primary: '#1e293b', secondary: '#4f46e5' },
   { name: 'Gold', primary: '#d97706', secondary: '#eab308' },
-  { name: 'Mint', primary: '#10b981', secondary: '#5eead4' },
+  { name: 'Ember', primary: '#c2410c', secondary: '#fb7185' },
   { name: 'Grape', primary: '#7c3aed', secondary: '#c026d3' },
   { name: 'Slate', primary: '#475569', secondary: '#94a3b8' }
 ]
@@ -165,16 +165,19 @@ function ColorField({
           type="color"
           value={valid ? value : '#000000'}
           onChange={(e) => onChange(e.target.value)}
-          className="h-9 w-10 shrink-0 rounded-lg border border-input cursor-pointer bg-transparent p-0.5"
+          className="h-10 w-11 shrink-0 cursor-pointer rounded-lg border border-input bg-transparent p-0.5"
         />
         <input
           type="text"
+          aria-label={`${label} HEX`}
           value={value}
           onChange={(e) => onChange(e.target.value)}
           onBlur={() => setTouched(true)}
           spellCheck={false}
-          className={`min-w-[92px] flex-1 rounded-lg border bg-background px-2.5 py-2 text-[13px] font-mono uppercase ${
-            showError ? 'border-red-500/70 text-red-500' : 'border-input'
+          className={`min-w-[92px] flex-1 rounded-lg border bg-background px-2.5 py-2 text-[13px] font-mono uppercase text-foreground outline-none transition-shadow focus-visible:ring-2 focus-visible:ring-primary/15 ${
+            showError
+              ? 'border-destructive text-destructive'
+              : 'border-input focus-visible:border-primary'
           }`}
         />
         {supportsEyeDropper && (
@@ -182,7 +185,7 @@ function ColorField({
             type="button"
             title="Pick color from screen"
             onClick={() => void pickColor()}
-            className="shrink-0 rounded-lg border border-input p-2 hover:bg-muted transition-colors"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-border bg-card text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
           >
             <Pipette className="w-3.5 h-3.5" />
           </button>
@@ -191,17 +194,17 @@ function ColorField({
           type="button"
           title="Copy hex code"
           onClick={() => void copyHex()}
-          className="shrink-0 rounded-lg border border-input p-2 hover:bg-muted transition-colors"
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-border bg-card text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
         >
           {copied ? (
-            <Check className="w-3.5 h-3.5 text-green-500" />
+            <Check className="h-3.5 w-3.5 text-success" />
           ) : (
             <Copy className="w-3.5 h-3.5" />
           )}
         </button>
       </div>
       {showError && (
-        <p className="mt-1 text-[11px] text-red-500">
+        <p className="mt-1 text-[11px] text-destructive">
           Enter a valid hex color, e.g. #6366F1
         </p>
       )}
@@ -212,17 +215,20 @@ function ColorField({
 function Switch({
   checked,
   onChange,
-  disabled
+  disabled,
+  label
 }: {
   checked: boolean
   onChange: (value: boolean) => void
   disabled?: boolean
+  label: string
 }) {
   return (
     <button
       type="button"
       role="switch"
       aria-checked={checked}
+      aria-label={label}
       disabled={disabled}
       onClick={() => onChange(!checked)}
       className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${
@@ -230,9 +236,9 @@ function Switch({
       } ${disabled ? 'cursor-not-allowed opacity-50' : ''}`}
     >
       <span
-        className={`absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${
-          checked ? 'translate-x-5' : 'translate-x-0'
-        }`}
+        className={`absolute left-0.5 top-0.5 h-5 w-5 rounded-full border border-border/70 shadow-sm transition-all ${
+          checked ? 'bg-primary-foreground' : 'bg-card'
+        } ${checked ? 'translate-x-5' : 'translate-x-0'}`}
       />
     </button>
   )
@@ -240,6 +246,7 @@ function Switch({
 
 export default function BrandPage() {
   const t = useTranslations('brand')
+  const common = useTranslations('common')
   const toast = useToast()
   const [kit, setKit] = useState<BrandKit>(DEFAULTS)
   const [plan, setPlan] = useState('free')
@@ -286,9 +293,10 @@ export default function BrandPage() {
     }
     setSaving(true)
     try {
+      const { logoUrl: _logoUrl, ...brandSettings } = kit
       const res = await fetch('/api/user/brand', {
         method: 'PUT',
-        body: JSON.stringify(kit),
+        body: JSON.stringify(brandSettings),
         headers: { 'Content-Type': 'application/json' }
       })
       if (!res.ok) {
@@ -394,23 +402,23 @@ export default function BrandPage() {
         title={t('title')}
         description={t('desc')}
         actions={
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <button
               type="button"
               onClick={() =>
                 setKit((prev) => ({ ...DEFAULTS, logoUrl: prev.logoUrl }))
               }
-              className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-xs font-medium hover:bg-muted transition-colors"
+              className="button-secondary rounded-lg"
             >
               <RotateCcw className="w-3.5 h-3.5" />
-              {t('common:reset')}
+              {common('reset')}
             </button>
             <button
               type="button"
               onClick={() => void save()}
               disabled={saving || hasInvalidColor}
               title={hasInvalidColor ? t('fixColors') : undefined}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
+              className="button-primary rounded-lg disabled:opacity-50"
             >
               {saving ? (
                 <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -419,18 +427,18 @@ export default function BrandPage() {
               ) : (
                 <Save className="w-3.5 h-3.5" />
               )}
-              {saved ? t('common:saved') : t('common:save')}
+              {saved ? common('saved') : common('save')}
             </button>
           </div>
         }
       />
 
-      <div className="mt-6 flex flex-col xl:flex-row gap-4 items-start">
-        <div className="flex-1 grid grid-cols-1 lg:grid-cols-3 gap-4 items-start w-full">
-          <div className="rounded-xl border border-border bg-card p-5 space-y-4">
+      <div className="mt-8 grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
+        <div className="grid w-full items-start gap-4 lg:grid-cols-2">
+          <section className="panel space-y-4 p-5">
             <div className="flex items-center gap-2">
-              <ImagePlus className="w-4 h-4 text-muted-foreground" />
-              <h2 className="text-[13px] font-semibold">{t('logo')}</h2>
+              <ImagePlus className="h-4 w-4 text-primary" />
+              <h2 className="section-label">{t('logo')}</h2>
             </div>
             <p className="text-xs text-muted-foreground">{t('logoDesc')}</p>
 
@@ -460,7 +468,7 @@ export default function BrandPage() {
                     type="button"
                     disabled={logoBusy}
                     onClick={() => fileInputRef.current?.click()}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-input px-2.5 py-1.5 text-[11px] font-medium hover:bg-muted transition-colors disabled:opacity-50"
+                    className="button-secondary min-h-9 rounded-lg px-3 text-[11px] disabled:opacity-50"
                   >
                     <Upload className="w-3 h-3" />
                     {t('replace')}
@@ -469,7 +477,7 @@ export default function BrandPage() {
                     type="button"
                     disabled={logoBusy}
                     onClick={() => void removeLogo()}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-input px-2.5 py-1.5 text-[11px] font-medium text-red-500 hover:bg-red-500/10 transition-colors disabled:opacity-50"
+                    className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-destructive/30 px-3 text-[11px] font-semibold text-destructive transition-colors hover:bg-destructive/10 disabled:opacity-50"
                   >
                     <Trash2 className="w-3 h-3" />
                     {t('remove')}
@@ -490,7 +498,7 @@ export default function BrandPage() {
                 className={`flex w-full flex-col items-center justify-center gap-1.5 rounded-lg border-2 border-dashed px-4 py-6 text-center transition-colors ${
                   dragActive
                     ? 'border-primary bg-primary/5'
-                    : 'border-input hover:bg-muted'
+                    : 'border-input hover:bg-muted/70'
                 }`}
               >
                 {logoBusy ? (
@@ -504,19 +512,19 @@ export default function BrandPage() {
                 </span>
               </button>
             )}
-          </div>
+          </section>
 
-          <div className="rounded-xl border border-border bg-card p-5 space-y-4">
+          <section className="panel space-y-4 p-5">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Palette className="w-4 h-4 text-muted-foreground" />
-                <h2 className="text-[13px] font-semibold">{t('colors')}</h2>
+                <Palette className="h-4 w-4 text-primary" />
+                <h2 className="section-label">{t('colors')}</h2>
               </div>
               <button
                 type="button"
                 onClick={swapColors}
                 title={t('swap')}
-                className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
               >
                 <ArrowLeftRight className="w-3.5 h-3.5" />
                 {t('swap')}
@@ -546,7 +554,7 @@ export default function BrandPage() {
                       }
                       className={`relative h-9 w-9 rounded-full transition-transform hover:scale-110 ${
                         active
-                          ? 'ring-2 ring-offset-2 ring-offset-card ring-primary'
+                          ? 'ring-2 ring-primary ring-offset-2 ring-offset-card'
                           : ''
                       }`}
                       style={{
@@ -562,7 +570,7 @@ export default function BrandPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid gap-3">
               <ColorField
                 id="primary-color"
                 label={t('primary')}
@@ -588,7 +596,7 @@ export default function BrandPage() {
                 id="font-family"
                 value={kit.fontFamily}
                 onChange={(e) => update('fontFamily', e.target.value)}
-                className="mt-1 w-full rounded-lg border border-input bg-card px-3 py-2 text-[13px]"
+                className="mt-1 w-full rounded-lg border border-input bg-background px-3 py-2 text-[13px] text-foreground outline-none focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/15"
               >
                 {FONTS.map((f) => (
                   <option key={f} value={f} style={{ fontFamily: f }}>
@@ -597,101 +605,106 @@ export default function BrandPage() {
                 ))}
               </select>
             </div>
-          </div>
+          </section>
 
-          <div className="rounded-xl border border-border bg-card p-5 space-y-4">
+          <section className="panel space-y-4 p-5 lg:col-span-2">
             <div className="flex items-center gap-2">
-              <Captions className="w-4 h-4 text-muted-foreground" />
-              <h2 className="text-[13px] font-semibold">
-                {t('subtitleStyle')}
-              </h2>
+              <Captions className="h-4 w-4 text-primary" />
+              <h2 className="section-label">{t('subtitleStyle')}</h2>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <ColorField
-                id="sub-color"
-                label={t('textColor')}
-                value={kit.subtitleColor}
-                onChange={(v) => update('subtitleColor', v)}
-              />
-              <ColorField
-                id="sub-bg"
-                label={t('background')}
-                value={kit.subtitleBgColor}
-                onChange={(v) => update('subtitleBgColor', v)}
-              />
-            </div>
+            <div className="grid gap-5 md:grid-cols-2">
+              <div className="space-y-4">
+                <div className="grid gap-3">
+                  <ColorField
+                    id="sub-color"
+                    label={t('textColor')}
+                    value={kit.subtitleColor}
+                    onChange={(v) => update('subtitleColor', v)}
+                  />
+                  <ColorField
+                    id="sub-bg"
+                    label={t('background')}
+                    value={kit.subtitleBgColor}
+                    onChange={(v) => update('subtitleBgColor', v)}
+                  />
+                </div>
 
-            <div>
-              <label
-                className="text-xs text-muted-foreground"
-                htmlFor="sub-font"
-              >
-                {t('subtitleFont')}
-              </label>
-              <select
-                id="sub-font"
-                value={kit.subtitleFont}
-                onChange={(e) => update('subtitleFont', e.target.value)}
-                className="mt-1 w-full rounded-lg border border-input bg-card px-3 py-2 text-[13px]"
-              >
-                {SUBTITLE_FONTS.map((f) => (
-                  <option key={f} value={f}>
-                    {f}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <div className="flex items-center justify-between text-[13px]">
-                <span className="text-xs text-muted-foreground">
-                  {t('bgOpacity')}
-                </span>
-                <span className="tabular-nums text-xs">
-                  {Math.round(kit.subtitleBgOpacity * 100)}%
-                </span>
-              </div>
-              <input
-                type="range"
-                min={0}
-                max={100}
-                value={Math.round(kit.subtitleBgOpacity * 100)}
-                onChange={(e) =>
-                  update('subtitleBgOpacity', Number(e.target.value) / 100)
-                }
-                className="mt-1 w-full"
-              />
-            </div>
-
-            <div>
-              <label className="text-xs text-muted-foreground">
-                {t('position')}
-              </label>
-              <div className="mt-1 grid grid-cols-3 gap-1.5">
-                {SUBTITLE_POSITIONS.map(({ value, icon: Icon }) => (
-                  <button
-                    key={value}
-                    type="button"
-                    onClick={() => update('subtitlePosition', value)}
-                    className={`flex flex-col items-center gap-1 rounded-lg px-3 py-2 text-xs font-medium transition-all ${
-                      kit.subtitlePosition === value
-                        ? 'bg-primary text-primary-foreground'
-                        : 'bg-muted text-muted-foreground hover:text-foreground'
-                    }`}
+                <div>
+                  <label
+                    className="text-xs text-muted-foreground"
+                    htmlFor="sub-font"
                   >
-                    <Icon className="w-3.5 h-3.5" />
-                    {t(value as 'top' | 'center' | 'bottom')}
-                  </button>
-                ))}
+                    {t('subtitleFont')}
+                  </label>
+                  <select
+                    id="sub-font"
+                    value={kit.subtitleFont}
+                    onChange={(e) => update('subtitleFont', e.target.value)}
+                    className="mt-1 w-full rounded-lg border border-input bg-background px-3 py-2 text-[13px] text-foreground outline-none focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/15"
+                  >
+                    {SUBTITLE_FONTS.map((f) => (
+                      <option key={f} value={f}>
+                        {f}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <div className="flex items-center justify-between text-[13px]">
+                    <span className="text-xs text-muted-foreground">
+                      {t('bgOpacity')}
+                    </span>
+                    <span className="tabular-nums text-xs">
+                      {Math.round(kit.subtitleBgOpacity * 100)}%
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    aria-label={t('bgOpacity')}
+                    min={0}
+                    max={100}
+                    value={Math.round(kit.subtitleBgOpacity * 100)}
+                    onChange={(e) =>
+                      update('subtitleBgOpacity', Number(e.target.value) / 100)
+                    }
+                    className="mt-1 w-full"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs text-muted-foreground">
+                    {t('position')}
+                  </label>
+                  <div className="mt-1 grid grid-cols-3 gap-1.5">
+                    {SUBTITLE_POSITIONS.map(({ value, icon: Icon }) => (
+                      <button
+                        key={value}
+                        type="button"
+                        onClick={() => update('subtitlePosition', value)}
+                        className={`flex flex-col items-center gap-1 rounded-lg px-3 py-2 text-xs font-medium transition-all ${
+                          kit.subtitlePosition === value
+                            ? 'bg-primary text-primary-foreground shadow-sm'
+                            : 'bg-muted text-muted-foreground hover:text-foreground'
+                        }`}
+                      >
+                        <Icon className="w-3.5 h-3.5" />
+                        {t(value as 'top' | 'center' | 'bottom')}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
+          </section>
 
-          <div className="rounded-xl border border-border bg-card p-5 space-y-4 lg:col-span-3">
+          <section className="panel space-y-4 p-5 lg:col-span-2">
             <div className="flex items-center gap-2">
-              <Stamp className="w-4 h-4 text-muted-foreground" />
-              <h2 className="text-[13px] font-semibold">{t('watermark')}</h2>
+              <Stamp className="h-4 w-4 text-primary" />
+              <h2 className="section-label">{t('watermark')}</h2>
             </div>
             <p className="text-xs text-muted-foreground">
               {t('watermarkDesc')}
@@ -703,25 +716,19 @@ export default function BrandPage() {
                   {t('position')}
                 </label>
                 <div className="mt-1 grid grid-cols-2 gap-1.5">
-                  {WATERMARK_POSITIONS.map(({ value, icon: Icon }) => (
+                  {WATERMARK_POSITIONS.map(({ value, label, icon: Icon }) => (
                     <button
                       key={value}
                       type="button"
                       onClick={() => update('watermarkPosition', value)}
                       className={`flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium transition-all ${
                         kit.watermarkPosition === value
-                          ? 'bg-primary text-primary-foreground'
+                          ? 'bg-primary text-primary-foreground shadow-sm'
                           : 'bg-muted text-muted-foreground hover:text-foreground'
                       }`}
                     >
                       <Icon className="w-3.5 h-3.5" />
-                      {t(
-                        value as
-                          | 'top-left'
-                          | 'top-right'
-                          | 'bottom-left'
-                          | 'bottom-right'
-                      )}
+                      {t(label)}
                     </button>
                   ))}
                 </div>
@@ -738,6 +745,7 @@ export default function BrandPage() {
                 </div>
                 <input
                   type="range"
+                  aria-label={t('opacity')}
                   min={10}
                   max={100}
                   value={Math.round(kit.watermarkOpacity * 100)}
@@ -748,7 +756,7 @@ export default function BrandPage() {
                 />
               </div>
 
-              <div className="rounded-lg border border-border p-3">
+              <div className="panel-soft p-3">
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-1.5 text-xs font-medium">
                     {!canWhiteLabel && (
@@ -759,6 +767,7 @@ export default function BrandPage() {
                   <Switch
                     checked={!canWhiteLabel || !kit.hidePlatformBadge}
                     disabled={!canWhiteLabel}
+                    label={t('platformBadge')}
                     onChange={(value) => update('hidePlatformBadge', !value)}
                   />
                 </div>
@@ -768,7 +777,7 @@ export default function BrandPage() {
                 {!canWhiteLabel && (
                   <Link
                     href="/dashboard/billing"
-                    className="mt-2 inline-flex items-center gap-1 text-[11px] font-medium text-primary hover:underline"
+                    className="mt-2 inline-flex items-center gap-1 text-[11px] font-semibold text-primary hover:underline"
                   >
                     {t('upgradeAgency')}
                     <ArrowUpRight className="w-3 h-3" />
@@ -776,13 +785,18 @@ export default function BrandPage() {
                 )}
               </div>
             </div>
-          </div>
+          </section>
         </div>
 
-        <div className="xl:w-80 shrink-0 w-full">
-          <div className="sticky top-6 rounded-xl border border-border bg-card p-5">
-            <h2 className="text-[13px] font-semibold mb-3">{t('preview')}</h2>
-            <div className="mx-auto max-w-[240px] rounded-[28px] border-4 border-muted bg-black p-1.5 shadow-lg">
+        <aside className="w-full xl:sticky xl:top-6">
+          <div className="panel p-5">
+            <div className="mb-4">
+              <p className="section-label">{t('preview')}</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {t('previewLive')}
+              </p>
+            </div>
+            <div className="mx-auto max-w-[240px] rounded-[28px] border-4 border-white/[0.04] bg-black p-1.5 shadow-2xl shadow-black/60">
               <div
                 className="aspect-[9/16] rounded-[20px] overflow-hidden relative"
                 style={{ backgroundColor: kit.primaryColor + '20' }}
@@ -842,16 +856,13 @@ export default function BrandPage() {
 
                 {(!canWhiteLabel || !kit.hidePlatformBadge) && (
                   <div className="absolute bottom-1 left-1/2 -translate-x-1/2 text-[8px] font-semibold text-white/60">
-                    {t('madeWithClipForge')}
+                    {t('madeWithSneepcut')}
                   </div>
                 )}
               </div>
             </div>
-            <p className="mt-3 text-center text-[11px] text-muted-foreground">
-              {t('previewLive')}
-            </p>
           </div>
-        </div>
+        </aside>
       </div>
     </div>
   )

@@ -1,6 +1,15 @@
 'use client'
 
 import {
+  type CameraMovementDirection,
+  type CameraMovementType,
+  type CameraViewMode,
+  type CameraVisualization,
+  buildCameraVisualization,
+  projectCameraSceneAtElapsed
+} from '@/lib/camera-visualization'
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
+import {
   Camera,
   Eye,
   Lightbulb,
@@ -13,8 +22,15 @@ import {
   Volume2,
   VolumeX
 } from 'lucide-react'
-import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import {
+  type KeyboardEvent,
+  useCallback,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState
+} from 'react'
 
 export type CoachScene = {
   scene_number: number
@@ -22,6 +38,8 @@ export type CoachScene = {
   visual_description: string
   camera_angle: string
   camera_movement: string
+  camera_movement_type: CameraMovementType
+  camera_movement_direction: CameraMovementDirection
   dialogue: string
   text_overlay: string
   music_mood: string
@@ -40,18 +58,70 @@ export type CoachScene = {
   voice_emphasis?: string[]
 }
 
-type ViewMode = 'director' | 'camera' | 'top'
+export type ShootingCoachLabels = {
+  title: string
+  preview: string
+  viewControls: string
+  viewDirector: string
+  viewCamera: string
+  viewTop: string
+  emptyTitle: string
+  emptyDescription: string
+  cameraPosition: string
+  movement: string
+  lighting: string
+  performance: string
+  creatorAction: string
+  dialogue: string
+  noDialogue: string
+  restart: string
+  play: string
+  pause: string
+  mute: string
+  unmute: string
+  timeline: string
+  timelineScene: string
+  visualizationLabel: string
+  focalLength: string
+  cameraReadout: string
+  fovReadout: string
+}
 
-const FALLBACK_SCENE: CoachScene = {
-  scene_number: 1,
-  duration_seconds: 5,
-  visual_description: 'Creator facing the camera',
-  camera_angle: 'eye-level',
-  camera_movement: 'static',
-  dialogue: '',
-  text_overlay: '',
-  music_mood: 'calm ambient',
-  transition: 'cut'
+export const DEFAULT_SHOOTING_COACH_LABELS: ShootingCoachLabels = {
+  title: '3D Shooting Coach',
+  preview: 'Director preview · scene {current}/{total}',
+  viewControls: 'Camera visualization view',
+  viewDirector: 'Studio',
+  viewCamera: 'Camera',
+  viewTop: 'Plan',
+  emptyTitle: 'No camera plan yet',
+  emptyDescription:
+    'Generate a script to preview its camera position, framing and movement.',
+  cameraPosition: 'Camera position',
+  movement: 'Movement',
+  lighting: 'Lighting',
+  performance: 'Performance',
+  creatorAction: 'Creator action',
+  dialogue: 'Dialogue',
+  noDialogue: 'Scene without dialogue',
+  restart: 'Restart preview',
+  play: 'Play preview',
+  pause: 'Pause preview',
+  mute: 'Mute preview',
+  unmute: 'Unmute preview',
+  timeline: 'Scene timeline',
+  timelineScene: 'Scene {number}',
+  visualizationLabel:
+    'Projected studio plan showing the camera, subject and field of view',
+  focalLength: 'Lens and field of view',
+  cameraReadout: '{distance}m away · {height}m high',
+  fovReadout: '{lens}mm · {fov}° FOV'
+}
+
+type ShootingCoachProps = {
+  scenes: CoachScene[]
+  labels?: Partial<ShootingCoachLabels>
+  speechLanguage?: string
 }
 
 const emotionPitch: Record<string, number> = {
@@ -68,33 +138,142 @@ function cleanDialogue(text: string) {
   return text.replace(/^\[no dialogue\]$/i, '').replace(/^"|"$/g, '')
 }
 
-export function ShootingCoach({ scenes }: { scenes: CoachScene[] }) {
-  const reduceMotion = useReducedMotion()
+export function ShootingCoach({
+  scenes,
+  labels,
+  speechLanguage = 'en'
+}: ShootingCoachProps) {
+  const copy = useMemo(
+    () => ({ ...DEFAULT_SHOOTING_COACH_LABELS, ...labels }),
+    [labels]
+  )
+  const reduceMotion = useReducedMotion() ?? false
   const [activeIndex, setActiveIndex] = useState(0)
   const [playing, setPlaying] = useState(false)
   const [elapsed, setElapsed] = useState(0)
-  const [view, setView] = useState<ViewMode>('director')
+  const [view, setView] = useState<CameraViewMode>('director')
   const [sound, setSound] = useState(true)
-  const spokenScene = useRef(-1)
+  const [audioEpoch, setAudioEpoch] = useState(0)
+  const spokenScene = useRef('')
   const audioContext = useRef<AudioContext | null>(null)
-  const ambience = useRef<{ oscillator: OscillatorNode; gain: GainNode } | null>(null)
-  const scene = scenes[activeIndex] ?? scenes[0] ?? FALLBACK_SCENE
+  const ambience = useRef<{
+    oscillator: OscillatorNode
+    gain: GainNode
+  } | null>(null)
+  const timelineButtons = useRef<Array<HTMLButtonElement | null>>([])
 
+  const sceneSignature = useMemo(() => JSON.stringify(scenes), [scenes])
   const totalDuration = useMemo(
-    () => scenes.reduce((sum, item) => sum + item.duration_seconds, 0),
+    () => scenes.reduce((sum, item) => sum + sceneDuration(item), 0),
     [scenes]
   )
   const sceneStarts = useMemo(() => {
     let cursor = 0
     return scenes.map((item) => {
       const start = cursor
-      cursor += item.duration_seconds
+      cursor += sceneDuration(item)
       return start
     })
   }, [scenes])
+  const scene = scenes[activeIndex] ?? scenes[0]
+  const playbackEnded = totalDuration > 0 && elapsed >= totalDuration
+  const previousSceneSignature = useRef(sceneSignature)
+
+  const stopAmbience = useCallback((immediate = false) => {
+    const current = ambience.current
+    if (!current) return
+    ambience.current = null
+    const now = audioContext.current?.currentTime ?? 0
+    try {
+      if (immediate) {
+        current.gain.gain.setValueAtTime(0, now)
+        current.oscillator.stop(now)
+      } else {
+        current.gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.12)
+        current.oscillator.stop(now + 0.14)
+      }
+    } catch {
+      // The oscillator may already have stopped during a rapid scene change.
+    }
+  }, [])
+
+  const stopPlaybackAudio = useCallback(
+    (immediate = false) => {
+      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+        window.speechSynthesis.cancel()
+      }
+      stopAmbience(immediate)
+      spokenScene.current = ''
+    },
+    [stopAmbience]
+  )
+
+  const pausePlaybackAudio = useCallback(() => {
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      window.speechSynthesis.pause()
+    }
+    stopAmbience()
+  }, [stopAmbience])
+
+  const startAmbience = useCallback(
+    (mood: string) => {
+      stopAmbience(true)
+      const AudioContextClass = window.AudioContext
+      if (!AudioContextClass) return
+      try {
+        const existing = audioContext.current
+        const context =
+          existing && existing.state !== 'closed'
+            ? existing
+            : new AudioContextClass()
+        audioContext.current = context
+        if (context.state === 'suspended') {
+          void context.resume().catch(() => undefined)
+        }
+        const oscillator = context.createOscillator()
+        const gain = context.createGain()
+        const lowerMood = mood.toLowerCase()
+        oscillator.type = lowerMood.includes('dramatic') ? 'sawtooth' : 'sine'
+        oscillator.frequency.value = lowerMood.includes('upbeat')
+          ? 164
+          : lowerMood.includes('calm')
+            ? 98
+            : 123
+        gain.gain.value = 0.018
+        oscillator.connect(gain).connect(context.destination)
+        oscillator.start()
+        ambience.current = { oscillator, gain }
+      } catch {
+        ambience.current = null
+      }
+    },
+    [stopAmbience]
+  )
 
   useEffect(() => {
-    if (!playing) return
+    if (previousSceneSignature.current === sceneSignature) return
+    previousSceneSignature.current = sceneSignature
+    setActiveIndex(0)
+    setElapsed(0)
+    setPlaying(false)
+    setView('director')
+    stopPlaybackAudio(true)
+  }, [sceneSignature, stopPlaybackAudio])
+
+  useEffect(
+    () => () => {
+      stopPlaybackAudio(true)
+      const context = audioContext.current
+      audioContext.current = null
+      if (context && context.state !== 'closed') {
+        void context.close().catch(() => undefined)
+      }
+    },
+    [stopPlaybackAudio]
+  )
+
+  useEffect(() => {
+    if (!playing || scenes.length === 0 || totalDuration <= 0) return
     let last = performance.now()
     const timer = window.setInterval(() => {
       const now = performance.now()
@@ -103,11 +282,13 @@ export function ShootingCoach({ scenes }: { scenes: CoachScene[] }) {
       setElapsed((current) => {
         const next = current + delta
         if (next >= totalDuration) {
+          setActiveIndex(Math.max(0, scenes.length - 1))
           setPlaying(false)
           return totalDuration
         }
         const nextScene = scenes.findIndex(
-          (item, index) => next < (sceneStarts[index] ?? 0) + item.duration_seconds
+          (item, index) =>
+            next < (sceneStarts[index] ?? 0) + sceneDuration(item)
         )
         if (nextScene >= 0) setActiveIndex(nextScene)
         return next
@@ -117,175 +298,194 @@ export function ShootingCoach({ scenes }: { scenes: CoachScene[] }) {
   }, [playing, sceneStarts, scenes, totalDuration])
 
   useEffect(() => {
-    if (!playing || !sound || spokenScene.current === activeIndex) return
-    spokenScene.current = activeIndex
+    if (!sound || !scene) {
+      stopPlaybackAudio()
+      return
+    }
+    if (!playing) {
+      if (playbackEnded) stopPlaybackAudio()
+      else pausePlaybackAudio()
+      return
+    }
+    const audioSceneKey = String(activeIndex) + ':' + String(audioEpoch)
+    if (spokenScene.current === audioSceneKey) {
+      if ('speechSynthesis' in window && window.speechSynthesis.paused) {
+        window.speechSynthesis.resume()
+      }
+      if (!ambience.current) startAmbience(scene.music_mood)
+      return
+    }
+    spokenScene.current = audioSceneKey
     const line = cleanDialogue(scene.dialogue)
-    if (line && 'speechSynthesis' in window) {
+    if (
+      line &&
+      'speechSynthesis' in window &&
+      typeof SpeechSynthesisUtterance !== 'undefined'
+    ) {
       window.speechSynthesis.cancel()
       const utterance = new SpeechSynthesisUtterance(line)
-      utterance.rate = scene.voice_pace ?? 1
+      utterance.lang = speechLanguage
+      utterance.rate = clamp(scene.voice_pace ?? 1, 0.75, 1.35)
       utterance.pitch = emotionPitch[scene.voice_emotion ?? 'confident'] ?? 1
       utterance.volume = 0.92
-      const romanianVoice = window.speechSynthesis
+      const preferredVoice = window.speechSynthesis
         .getVoices()
-        .find((voice) => voice.lang.toLowerCase().startsWith('ro'))
-      if (romanianVoice) utterance.voice = romanianVoice
+        .find((voice) =>
+          voice.lang.toLowerCase().startsWith(speechLanguage.toLowerCase())
+        )
+      if (preferredVoice) utterance.voice = preferredVoice
       window.speechSynthesis.speak(utterance)
     }
     startAmbience(scene.music_mood)
-  }, [activeIndex, playing, scene, sound])
+  }, [
+    activeIndex,
+    audioEpoch,
+    pausePlaybackAudio,
+    playing,
+    playbackEnded,
+    scene,
+    sound,
+    speechLanguage,
+    startAmbience,
+    stopPlaybackAudio
+  ])
 
-  useEffect(() => {
-    if (!playing || !sound) stopAmbience()
-    return () => {
-      if (!playing) window.speechSynthesis?.cancel()
-    }
-  }, [playing, sound])
-
-  function startAmbience(mood: string) {
-    stopAmbience()
-    const AudioContextClass = window.AudioContext
-    if (!AudioContextClass) return
-    const context = audioContext.current ?? new AudioContextClass()
-    audioContext.current = context
-    const oscillator = context.createOscillator()
-    const gain = context.createGain()
-    const lowerMood = mood.toLowerCase()
-    oscillator.type = lowerMood.includes('dramatic') ? 'sawtooth' : 'sine'
-    oscillator.frequency.value = lowerMood.includes('upbeat') ? 164 : lowerMood.includes('calm') ? 98 : 123
-    gain.gain.value = 0.018
-    oscillator.connect(gain).connect(context.destination)
-    oscillator.start()
-    ambience.current = { oscillator, gain }
-  }
-
-  function stopAmbience() {
-    if (!ambience.current) return
-    ambience.current.gain.gain.exponentialRampToValueAtTime(
-      0.0001,
-      (audioContext.current?.currentTime ?? 0) + 0.15
-    )
-    ambience.current.oscillator.stop((audioContext.current?.currentTime ?? 0) + 0.2)
-    ambience.current = null
-  }
-
-  function seekScene(index: number) {
-    setActiveIndex(index)
-    setElapsed(sceneStarts[index] ?? 0)
-    spokenScene.current = -1
-  }
+  const seekScene = useCallback(
+    (index: number) => {
+      if (scenes.length === 0) return
+      const nextIndex = clamp(Math.round(index), 0, scenes.length - 1)
+      setActiveIndex(nextIndex)
+      setElapsed(sceneStarts[nextIndex] ?? 0)
+      stopPlaybackAudio(true)
+      setAudioEpoch((value) => value + 1)
+    },
+    [sceneStarts, scenes.length, stopPlaybackAudio]
+  )
 
   function restart() {
+    if (scenes.length === 0) return
     setElapsed(0)
     setActiveIndex(0)
-    spokenScene.current = -1
+    stopPlaybackAudio(true)
+    setAudioEpoch((value) => value + 1)
     setPlaying(true)
   }
 
-  const cameraTransform = cameraMotion(scene, playing && !reduceMotion)
-  const stageTransform =
-    view === 'top'
-      ? 'rotateX(65deg) rotateZ(-2deg) scale(.84)'
-      : view === 'camera'
-        ? `translateZ(${Math.min(110, (scene.camera_distance ?? 1.8) * 42)}px) scale(1.28)`
-        : 'rotateX(4deg) rotateY(-7deg)'
+  function togglePlayback() {
+    if (scenes.length === 0) return
+    if (elapsed >= totalDuration) {
+      restart()
+      return
+    }
+    if (playing) pausePlaybackAudio()
+    setPlaying((value) => !value)
+  }
+
+  function toggleSound() {
+    if (sound) stopPlaybackAudio(true)
+    setSound((value) => !value)
+  }
+
+  function handleTimelineKeyDown(
+    event: KeyboardEvent<HTMLButtonElement>,
+    index: number
+  ) {
+    let nextIndex: number | null = null
+    if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
+      nextIndex = Math.min(scenes.length - 1, index + 1)
+    } else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
+      nextIndex = Math.max(0, index - 1)
+    } else if (event.key === 'Home') {
+      nextIndex = 0
+    } else if (event.key === 'End') {
+      nextIndex = scenes.length - 1
+    }
+    if (nextIndex === null) return
+    event.preventDefault()
+    seekScene(nextIndex)
+    timelineButtons.current[nextIndex]?.focus()
+  }
+
+  if (!scene) {
+    return <EmptyShootingCoach labels={copy} reduceMotion={reduceMotion} />
+  }
+
+  const duration = sceneDuration(scene)
+  const projectedScene = projectCameraSceneAtElapsed(
+    scene,
+    elapsed,
+    sceneStarts[activeIndex] ?? 0,
+    duration
+  )
+  const visualization = buildCameraVisualization(projectedScene, view)
+  const current = visualization.scene
 
   return (
-    <section className="overflow-hidden rounded-2xl border border-white/10 bg-[#10120f] text-white shadow-[0_28px_80px_rgba(0,0,0,.2)]">
-      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 px-4 py-3">
-        <div>
-          <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[.22em] text-[#8cd7aa]">
-            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#8cd7aa]" />
-            3D Shooting Coach
-          </div>
-          <p className="mt-1 text-xs text-white/45">Previzualizare regizorală · scena {scene.scene_number}/{scenes.length}</p>
-        </div>
-        <div className="flex items-center rounded-lg border border-white/10 bg-white/[.04] p-1">
-          {([
-            ['director', Rotate3D, 'Studio'],
-            ['camera', Camera, 'Cameră'],
-            ['top', Eye, 'Plan']
-          ] as const).map(([mode, Icon, label]) => (
-            <button
-              key={mode}
-              type="button"
-              onClick={() => setView(mode)}
-              className={`relative flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] font-semibold transition-colors ${view === mode ? 'text-[#10120f]' : 'text-white/50 hover:text-white'}`}
-            >
-              {view === mode && <motion.span layoutId="coach-view" className="absolute inset-0 rounded-md bg-white" />}
-              <Icon className="relative h-3 w-3" />
-              <span className="relative hidden sm:inline">{label}</span>
-            </button>
-          ))}
-        </div>
-      </header>
+    <section
+      aria-label={copy.title}
+      className="overflow-hidden rounded-2xl border border-blue-200/15 bg-[#08111f] text-white shadow-[0_28px_80px_rgba(2,8,23,.28)]"
+    >
+      <CoachHeader
+        activeIndex={activeIndex}
+        labels={copy}
+        reduceMotion={reduceMotion}
+        sceneCount={scenes.length}
+        view={view}
+        onViewChange={setView}
+      />
 
       <div className="grid lg:grid-cols-[minmax(0,1fr)_260px]">
-        <div className="relative min-h-[430px] overflow-hidden bg-[radial-gradient(circle_at_50%_35%,#29322b_0%,#151814_46%,#0c0e0c_100%)] [perspective:900px]">
-          <div className="absolute inset-0 opacity-25 [background-image:linear-gradient(rgba(255,255,255,.08)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.08)_1px,transparent_1px)] [background-size:42px_42px] [mask-image:linear-gradient(to_bottom,transparent,black_40%)]" />
-          <motion.div
-            className="absolute inset-0 [transform-style:preserve-3d]"
-            animate={{ transform: stageTransform }}
-            transition={{ type: 'spring', stiffness: 95, damping: 19 }}
-          >
-            <div className="absolute bottom-[-80px] left-1/2 h-[310px] w-[580px] -translate-x-1/2 rounded-[50%] border border-white/10 bg-white/[.025] [transform:rotateX(72deg)]" />
+        <div className="relative min-h-[340px] overflow-hidden bg-[radial-gradient(circle_at_50%_35%,#20385f_0%,#101d31_46%,#070d18_100%)] sm:min-h-[430px]">
+          <ProjectionStage
+            labels={copy}
+            reduceMotion={reduceMotion}
+            scene={scene}
+            visualization={visualization}
+          />
 
-            <motion.div
-              key={`subject-${scene.scene_number}`}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: playing && !reduceMotion ? [0, -3, 0] : 0 }}
-              transition={{ opacity: { duration: .35 }, y: { duration: 2.4, repeat: Infinity, ease: 'easeInOut' } }}
-              className="absolute bottom-[76px] left-1/2 h-48 w-24 -translate-x-1/2 [transform-style:preserve-3d]"
-            >
-              <div className="absolute left-1/2 top-0 h-12 w-12 -translate-x-1/2 rounded-full border border-white/25 bg-[#d7bea9] shadow-[0_0_35px_rgba(255,255,255,.12)]" />
-              <div className="absolute left-1/2 top-11 h-24 w-20 -translate-x-1/2 rounded-[28px_28px_14px_14px] border border-white/15 bg-[#d5d8cf]" />
-              <motion.div
-                className="absolute left-[-3px] top-14 h-20 w-4 origin-top rounded-full bg-[#d5d8cf]"
-                animate={{ rotate: playing ? [-8, -28, -8] : -8 }}
-                transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}
-              />
-              <motion.div
-                className="absolute right-[-3px] top-14 h-20 w-4 origin-top rounded-full bg-[#d5d8cf]"
-                animate={{ rotate: playing ? [8, 31, 8] : 8 }}
-                transition={{ duration: 2.1, repeat: Infinity, ease: 'easeInOut' }}
-              />
-              <div className="absolute bottom-0 left-6 h-16 w-4 rounded-full bg-[#5c6159]" />
-              <div className="absolute bottom-0 right-6 h-16 w-4 rounded-full bg-[#5c6159]" />
-            </motion.div>
+          <div className="pointer-events-none absolute left-3 top-3 flex max-w-[calc(100%_-_1.5rem)] flex-wrap items-center gap-2 sm:left-4 sm:top-4">
+            <div className="flex items-center gap-2 rounded-lg border border-white/10 bg-black/35 px-2.5 py-1.5 text-[10px] text-white/65 backdrop-blur-md">
+              <Maximize2 className="h-3 w-3 text-[#8eb7ff]" />
+              <span className="truncate capitalize">
+                {(scene.shot_type ?? scene.camera_angle).replace(/_/g, ' ')}
+              </span>
+            </div>
+            <div className="rounded-lg border border-[#6ea8ff]/20 bg-[#07101d]/75 px-2.5 py-1.5 text-[10px] tabular-nums text-[#a9c9ff] backdrop-blur-md">
+              {formatLabel(copy.fovReadout, {
+                lens: formatMeasure(visualization.effectiveLensMm),
+                fov: Math.round(visualization.horizontalFov)
+              })}
+            </div>
+          </div>
 
-            <motion.div
-              className="absolute bottom-24 left-[16%] [transform-style:preserve-3d]"
-              animate={{ transform: cameraTransform }}
-              transition={{ duration: Math.max(1.4, scene.duration_seconds), ease: 'easeInOut', repeat: playing ? Infinity : 0, repeatType: 'mirror' }}
-            >
-              <div className="relative h-24 w-12 rounded-xl border border-white/30 bg-[#272a25] shadow-2xl">
-                <div className="absolute left-2 top-2 h-3 w-3 rounded-full border border-white/20 bg-black" />
-                <div className="absolute right-2 top-2 h-3 w-3 rounded-full border border-white/20 bg-black" />
-                <div className="absolute -right-[170px] top-8 h-12 w-[175px] origin-left bg-gradient-to-r from-[#8cd7aa]/20 to-transparent [clip-path:polygon(0_42%,100%_0,100%_100%,0_58%)]" />
-              </div>
-              <div className="mx-auto h-24 w-1 bg-white/25" />
-              <div className="mx-auto h-1 w-16 bg-white/25" />
-            </motion.div>
-
-            <div className={`absolute left-[58%] top-12 h-28 w-28 rounded-full blur-3xl ${scene.lighting?.includes('back') ? 'bg-orange-300/35' : 'bg-white/25'}`} />
-          </motion.div>
-
-          <div className="absolute left-4 top-4 flex items-center gap-2 rounded-lg border border-white/10 bg-black/30 px-2.5 py-1.5 text-[10px] text-white/60 backdrop-blur-md">
-            <Maximize2 className="h-3 w-3 text-[#8cd7aa]" />
-            {scene.shot_type?.replace(/_/g, ' ') ?? scene.camera_angle} · {scene.lens_mm ?? 35}mm
+          <div className="pointer-events-none absolute bottom-3 left-3 rounded-md border border-white/[.08] bg-black/30 px-2 py-1 font-mono text-[8px] uppercase tracking-[.14em] text-white/40 backdrop-blur-sm sm:bottom-4 sm:left-4 sm:text-[9px]">
+            X {formatCoordinate(visualization.camera.position.x)} · Y{' '}
+            {formatCoordinate(visualization.camera.position.y)} · Z{' '}
+            {formatCoordinate(visualization.camera.position.z)} · YAW{' '}
+            {formatCoordinate(current.cameraYaw + current.cameraPanOffset)}°
           </div>
 
           <AnimatePresence mode="wait">
             {scene.text_overlay && (
               <motion.div
-                key={`${scene.scene_number}-${scene.text_overlay}`}
-                initial={{ opacity: 0, y: 20, scale: .96 }}
+                key={String(scene.scene_number) + '-' + scene.text_overlay}
+                initial={
+                  reduceMotion ? false : { opacity: 0, y: 20, scale: 0.96 }
+                }
                 animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: -14 }}
-                transition={{ delay: .25, duration: .55, ease: [0.16, 1, 0.3, 1] }}
-                className="absolute inset-x-8 bottom-8 text-center"
+                exit={reduceMotion ? undefined : { opacity: 0, y: -14 }}
+                transition={
+                  reduceMotion
+                    ? { duration: 0 }
+                    : {
+                        delay: 0.2,
+                        duration: 0.5,
+                        ease: [0.16, 1, 0.3, 1]
+                      }
+                }
+                className="pointer-events-none absolute inset-x-8 bottom-12 text-center sm:bottom-10"
               >
-                <span className="inline-block max-w-md bg-white px-3 py-1.5 font-serif text-xl font-semibold leading-tight text-black shadow-[5px_5px_0_#8cd7aa]">
+                <span className="inline-block max-w-md bg-white px-3 py-1.5 font-serif text-lg font-semibold leading-tight text-black shadow-[5px_5px_0_#6ea8ff] sm:text-xl">
                   {scene.text_overlay}
                 </span>
               </motion.div>
@@ -293,99 +493,657 @@ export function ShootingCoach({ scenes }: { scenes: CoachScene[] }) {
           </AnimatePresence>
         </div>
 
-        <aside className="space-y-5 border-l border-white/10 bg-white/[.025] p-4">
-          <CoachMetric icon={Camera} label="Poziție cameră" value={`${scene.camera_distance ?? 1.8}m · ${scene.camera_height ?? 1.55}m înălțime`} />
-          <CoachMetric icon={Rotate3D} label="Mișcare" value={scene.camera_movement} />
-          <CoachMetric icon={Lightbulb} label="Lumină" value={(scene.lighting ?? 'soft key left').replace(/_/g, ' ')} />
-          <CoachMetric icon={Volume2} label="Interpretare" value={`${scene.voice_emotion ?? 'confident'} · ${scene.voice_pace ?? 1}×`} />
+        <aside className="space-y-5 border-t border-white/10 bg-white/[.025] p-4 lg:border-l lg:border-t-0">
+          <CoachMetric
+            icon={Camera}
+            label={copy.cameraPosition}
+            value={formatLabel(copy.cameraReadout, {
+              distance: formatMeasure(current.cameraDistance),
+              height: formatMeasure(current.cameraHeight)
+            })}
+          />
+          <CoachMetric
+            icon={Eye}
+            label={copy.focalLength}
+            value={formatLabel(copy.fovReadout, {
+              lens: formatMeasure(visualization.effectiveLensMm),
+              fov: Math.round(visualization.horizontalFov)
+            })}
+          />
+          <CoachMetric
+            icon={Rotate3D}
+            label={copy.movement}
+            value={scene.camera_movement}
+          />
+          <CoachMetric
+            icon={Lightbulb}
+            label={copy.lighting}
+            value={current.lighting.replace(/_/g, ' ')}
+          />
+          <CoachMetric
+            icon={Volume2}
+            label={copy.performance}
+            value={
+              (scene.voice_emotion ?? 'confident') +
+              ' · ' +
+              formatMeasure(scene.voice_pace ?? 1) +
+              '×'
+            }
+          />
           <div className="border-t border-white/10 pt-4">
-            <p className="text-[9px] font-bold uppercase tracking-[.2em] text-white/35">Acțiunea creatorului</p>
-            <p className="mt-2 text-xs leading-relaxed text-white/75">{scene.subject_action ?? scene.visual_description}</p>
+            <p className="text-[9px] font-bold uppercase tracking-[.2em] text-white/35">
+              {copy.creatorAction}
+            </p>
+            <p className="mt-2 text-xs leading-relaxed text-white/75">
+              {scene.subject_action ?? scene.visual_description}
+            </p>
           </div>
-          <div className="rounded-lg border border-[#8cd7aa]/20 bg-[#8cd7aa]/[.06] p-3">
-            <p className="text-[9px] font-bold uppercase tracking-[.18em] text-[#8cd7aa]">Replica</p>
-            <p className="mt-1.5 text-xs leading-relaxed text-white/80">{cleanDialogue(scene.dialogue) || 'Scenă fără dialog'}</p>
+          <div className="rounded-lg border border-[#6ea8ff]/25 bg-[#6ea8ff]/[.08] p-3">
+            <p className="text-[9px] font-bold uppercase tracking-[.18em] text-[#8eb7ff]">
+              {copy.dialogue}
+            </p>
+            <p className="mt-1.5 text-xs leading-relaxed text-white/80">
+              {cleanDialogue(scene.dialogue) || copy.noDialogue}
+            </p>
           </div>
         </aside>
       </div>
 
-      <footer className="border-t border-white/10 bg-black/20 p-4">
-        <div className="flex items-center gap-3">
-          <button type="button" onClick={restart} className="p-2 text-white/50 transition-colors hover:text-white" aria-label="Restart">
+      <footer className="border-t border-white/10 bg-black/20 p-3 sm:p-4">
+        <div className="flex flex-wrap items-center gap-2 sm:flex-nowrap sm:gap-3">
+          <button
+            type="button"
+            onClick={restart}
+            className="rounded-md p-2 text-white/50 transition-colors hover:bg-white/[.06] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#8eb7ff]"
+            aria-label={copy.restart}
+            title={copy.restart}
+          >
             <SkipBack className="h-4 w-4" />
           </button>
           <button
             type="button"
-            onClick={() => {
-              if (elapsed >= totalDuration) restart()
-              else setPlaying((value) => !value)
-            }}
-            className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-black transition-transform hover:scale-105"
-            aria-label={playing ? 'Pause' : 'Play'}
+            onClick={togglePlayback}
+            className={cx(
+              'flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white text-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#8eb7ff] focus-visible:ring-offset-2 focus-visible:ring-offset-[#08111f]',
+              !reduceMotion && 'transition-transform hover:scale-105'
+            )}
+            aria-label={playing ? copy.pause : copy.play}
+            title={playing ? copy.pause : copy.play}
           >
-            {playing ? <Pause className="h-4 w-4 fill-current" /> : <Play className="h-4 w-4 fill-current" />}
+            {playing ? (
+              <Pause className="h-4 w-4 fill-current" />
+            ) : (
+              <Play className="h-4 w-4 fill-current" />
+            )}
           </button>
-          <button type="button" onClick={() => setSound((value) => !value)} className="p-2 text-white/50 transition-colors hover:text-white" aria-label="Toggle sound">
-            {sound ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
+          <button
+            type="button"
+            onClick={toggleSound}
+            className="rounded-md p-2 text-white/50 transition-colors hover:bg-white/[.06] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#8eb7ff]"
+            aria-label={sound ? copy.mute : copy.unmute}
+            title={sound ? copy.mute : copy.unmute}
+          >
+            {sound ? (
+              <Volume2 className="h-4 w-4" />
+            ) : (
+              <VolumeX className="h-4 w-4" />
+            )}
           </button>
-          <div className="min-w-0 flex-1">
+          <div className="order-last min-w-0 basis-full sm:order-none sm:flex-1 sm:basis-auto">
             <div className="mb-2 flex justify-between text-[9px] tabular-nums text-white/35">
-              <span>{formatTime(elapsed)}</span><span>{formatTime(totalDuration)}</span>
+              <span>{formatTime(elapsed)}</span>
+              <span>{formatTime(totalDuration)}</span>
             </div>
-            <div className="relative flex h-8 gap-1">
+            <div
+              className="relative flex h-9 gap-1"
+              role="group"
+              aria-label={copy.timeline}
+            >
               {scenes.map((item, index) => (
                 <button
-                  key={item.scene_number}
+                  key={String(item.scene_number) + '-' + String(index)}
+                  ref={(element) => {
+                    timelineButtons.current[index] = element
+                  }}
                   type="button"
                   onClick={() => seekScene(index)}
-                  style={{ flexGrow: item.duration_seconds }}
-                  className={`group relative overflow-hidden rounded-sm border transition-colors ${index === activeIndex ? 'border-[#8cd7aa]/60 bg-[#8cd7aa]/15' : 'border-white/10 bg-white/[.04] hover:bg-white/[.08]'}`}
-                  aria-label={`Scena ${item.scene_number}`}
+                  onKeyDown={(event) => handleTimelineKeyDown(event, index)}
+                  style={{ flexGrow: sceneDuration(item) }}
+                  className={cx(
+                    'group relative min-w-5 overflow-hidden rounded-sm border transition-colors focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#8eb7ff]',
+                    index === activeIndex
+                      ? 'border-[#6ea8ff]/70 bg-[#6ea8ff]/20'
+                      : 'border-white/10 bg-white/[.04] hover:bg-white/[.08]'
+                  )}
+                  aria-label={formatLabel(copy.timelineScene, {
+                    number: item.scene_number
+                  })}
+                  aria-pressed={index === activeIndex}
+                  tabIndex={index === activeIndex ? 0 : -1}
                 >
-                  <span className="absolute left-1.5 top-1 text-[8px] font-bold text-white/55">{item.scene_number}</span>
+                  <span className="absolute left-1.5 top-1 text-[8px] font-bold text-white/55">
+                    {item.scene_number}
+                  </span>
                   {index === activeIndex && (
-                    <motion.span
-                      className="absolute bottom-0 left-0 h-0.5 bg-[#8cd7aa]"
-                      style={{ width: `${Math.min(100, Math.max(0, ((elapsed - (sceneStarts[index] ?? 0)) / item.duration_seconds) * 100))}%` }}
+                    <span
+                      className="absolute bottom-0 left-0 h-0.5 bg-[#6ea8ff]"
+                      style={{
+                        width:
+                          String(
+                            clamp(
+                              ((elapsed - (sceneStarts[index] ?? 0)) /
+                                sceneDuration(item)) *
+                                100,
+                              0,
+                              100
+                            )
+                          ) + '%'
+                      }}
                     />
                   )}
                 </button>
               ))}
             </div>
           </div>
-          <div className="hidden items-center gap-1.5 text-[9px] text-white/35 sm:flex"><Music2 className="h-3 w-3" />{scene.music_mood}</div>
+          <div className="ml-auto hidden max-w-28 items-center gap-1.5 truncate text-[9px] text-white/35 md:flex">
+            <Music2 className="h-3 w-3 shrink-0" />
+            <span className="truncate">{scene.music_mood}</span>
+          </div>
         </div>
       </footer>
     </section>
   )
 }
 
-function CoachMetric({ icon: Icon, label, value }: { icon: typeof Camera; label: string; value: string }) {
+function CoachHeader({
+  activeIndex,
+  labels,
+  reduceMotion,
+  sceneCount,
+  view,
+  onViewChange
+}: {
+  activeIndex: number
+  labels: ShootingCoachLabels
+  reduceMotion: boolean
+  sceneCount: number
+  view: CameraViewMode
+  onViewChange: (view: CameraViewMode) => void
+}) {
+  const views = [
+    ['director', Rotate3D, labels.viewDirector],
+    ['camera', Camera, labels.viewCamera],
+    ['top', Eye, labels.viewTop]
+  ] as const
+
+  return (
+    <header className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 px-4 py-3">
+      <div>
+        <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[.22em] text-[#8eb7ff]">
+          <span
+            className={cx(
+              'h-1.5 w-1.5 rounded-full bg-[#6ea8ff]',
+              !reduceMotion && 'animate-pulse'
+            )}
+          />
+          {labels.title}
+        </div>
+        <p className="mt-1 text-xs text-white/45">
+          {formatLabel(labels.preview, {
+            current: activeIndex + 1,
+            total: sceneCount
+          })}
+        </p>
+      </div>
+      <div
+        className="flex max-w-full items-center rounded-lg border border-white/10 bg-white/[.04] p-1"
+        role="group"
+        aria-label={labels.viewControls}
+      >
+        {views.map(([mode, Icon, label]) => (
+          <button
+            key={mode}
+            type="button"
+            onClick={() => onViewChange(mode)}
+            className={cx(
+              'relative flex min-h-8 items-center gap-1.5 rounded-md px-2 py-1.5 text-[10px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#8eb7ff] sm:px-2.5',
+              view === mode
+                ? 'text-[#08111f]'
+                : 'text-white/55 hover:text-white'
+            )}
+            aria-label={label}
+            aria-pressed={view === mode}
+            title={label}
+          >
+            {view === mode && (
+              <motion.span
+                layoutId="coach-view"
+                className="absolute inset-0 rounded-md bg-white"
+                transition={reduceMotion ? { duration: 0 } : undefined}
+              />
+            )}
+            <Icon className="relative h-3 w-3 shrink-0" />
+            <span className="relative">{label}</span>
+          </button>
+        ))}
+      </div>
+    </header>
+  )
+}
+
+function EmptyShootingCoach({
+  labels,
+  reduceMotion
+}: {
+  labels: ShootingCoachLabels
+  reduceMotion: boolean
+}) {
+  return (
+    <section
+      aria-label={labels.title}
+      className="overflow-hidden rounded-2xl border border-blue-200/15 bg-[#08111f] text-white shadow-[0_28px_80px_rgba(2,8,23,.28)]"
+    >
+      <header className="border-b border-white/10 px-4 py-3">
+        <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[.22em] text-[#8eb7ff]">
+          <span
+            className={cx(
+              'h-1.5 w-1.5 rounded-full bg-[#6ea8ff]',
+              !reduceMotion && 'animate-pulse'
+            )}
+          />
+          {labels.title}
+        </div>
+      </header>
+      <div className="flex min-h-72 flex-col items-center justify-center bg-[radial-gradient(circle_at_50%_35%,#20385f_0%,#101d31_46%,#070d18_100%)] px-6 text-center">
+        <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-[#6ea8ff]/20 bg-[#6ea8ff]/10 text-[#8eb7ff]">
+          <Rotate3D className="h-7 w-7" />
+        </div>
+        <h3 className="mt-5 text-sm font-semibold">{labels.emptyTitle}</h3>
+        <p className="mt-2 max-w-md text-xs leading-relaxed text-white/50">
+          {labels.emptyDescription}
+        </p>
+      </div>
+    </section>
+  )
+}
+
+function ProjectionStage({
+  labels,
+  reduceMotion,
+  scene,
+  visualization
+}: {
+  labels: ShootingCoachLabels
+  reduceMotion: boolean
+  scene: CoachScene
+  visualization: CameraVisualization
+}) {
+  const rawId = useId().replace(/:/g, '')
+  const backdropGradient = 'coach-backdrop-' + rawId
+  const subjectGradient = 'coach-subject-' + rawId
+  const cameraGradient = 'coach-camera-' + rawId
+  const topView = visualization.view === 'top'
+  const cameraView = visualization.view === 'camera'
+
+  return (
+    <motion.div
+      key={visualization.view + '-' + String(scene.scene_number)}
+      initial={reduceMotion ? false : { opacity: 0, scale: 0.99 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={reduceMotion ? { duration: 0 } : { duration: 0.28 }}
+      className="absolute inset-0"
+    >
+      <svg
+        viewBox={
+          '0 0 ' +
+          String(visualization.width) +
+          ' ' +
+          String(visualization.height)
+        }
+        preserveAspectRatio="xMidYMid meet"
+        className="h-full w-full"
+        role="img"
+        aria-label={labels.visualizationLabel}
+      >
+        <defs>
+          <linearGradient id={backdropGradient} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stopColor="#6ea8ff" stopOpacity="0.12" />
+            <stop offset="1" stopColor="#6ea8ff" stopOpacity="0" />
+          </linearGradient>
+          <linearGradient id={subjectGradient} x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stopColor="#f6f8fc" />
+            <stop offset="1" stopColor="#9eb6d8" />
+          </linearGradient>
+          <linearGradient id={cameraGradient} x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stopColor="#2e4568" />
+            <stop offset="1" stopColor="#101b2d" />
+          </linearGradient>
+          <radialGradient id={'coach-light-' + rawId}>
+            <stop offset="0" stopColor="#ffe5a3" stopOpacity="0.9" />
+            <stop offset="1" stopColor="#ffe5a3" stopOpacity="0" />
+          </radialGradient>
+          <filter
+            id={'coach-glow-' + rawId}
+            x="-100%"
+            y="-100%"
+            width="300%"
+            height="300%"
+          >
+            <feGaussianBlur stdDeviation="5" result="blur" />
+            <feMerge>
+              <feMergeNode in="blur" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+        </defs>
+
+        <rect
+          width={visualization.width}
+          height={visualization.height}
+          fill={'url(#' + backdropGradient + ')'}
+        />
+
+        <g
+          fill="none"
+          stroke="#91b9f8"
+          strokeOpacity={topView ? 0.16 : 0.1}
+          strokeWidth="0.75"
+        >
+          <SvgSegments segments={visualization.floorLines} />
+        </g>
+        <g fill="none" stroke="#d7e6ff" strokeOpacity="0.2" strokeWidth="1.1">
+          <SvgSegments segments={visualization.studioLines} />
+        </g>
+        <g fill="none" stroke="#6ea8ff" strokeOpacity="0.62" strokeWidth="1.25">
+          <SvgSegments segments={visualization.stageLines} />
+        </g>
+
+        {visualization.light.beam && !cameraView && (
+          <line
+            x1={visualization.light.beam.from.x}
+            y1={visualization.light.beam.from.y}
+            x2={visualization.light.beam.to.x}
+            y2={visualization.light.beam.to.y}
+            stroke="#ffe5a3"
+            strokeOpacity="0.24"
+            strokeWidth="1"
+            strokeDasharray="5 7"
+          />
+        )}
+        {visualization.light.position.visible && !cameraView && (
+          <>
+            <circle
+              cx={visualization.light.position.x}
+              cy={visualization.light.position.y}
+              r="24"
+              fill={'url(#coach-light-' + rawId + ')'}
+            />
+            <circle
+              cx={visualization.light.position.x}
+              cy={visualization.light.position.y}
+              r="4"
+              fill="#ffe5a3"
+              filter={'url(#coach-glow-' + rawId + ')'}
+            />
+          </>
+        )}
+
+        {!cameraView && (
+          <g
+            fill="none"
+            stroke="#6ea8ff"
+            strokeOpacity="0.54"
+            strokeWidth="1.2"
+            strokeDasharray="6 5"
+          >
+            <SvgSegments segments={visualization.frustumLines} />
+          </g>
+        )}
+        {visualization.focusLine && (
+          <line
+            x1={visualization.focusLine.from.x}
+            y1={visualization.focusLine.from.y}
+            x2={visualization.focusLine.to.x}
+            y2={visualization.focusLine.to.y}
+            stroke="#f6c96b"
+            strokeOpacity="0.72"
+            strokeWidth="1.2"
+            strokeDasharray="2 5"
+          />
+        )}
+
+        {!cameraView && visualization.cameraRig.body && (
+          <polygon
+            points={polygonPoints(visualization.cameraRig.body)}
+            fill={'url(#' + cameraGradient + ')'}
+            stroke="#bcd5ff"
+            strokeOpacity="0.78"
+            strokeWidth="1.2"
+          />
+        )}
+        {!cameraView && (
+          <g
+            fill="none"
+            stroke="#a9bad3"
+            strokeOpacity="0.68"
+            strokeWidth="1.5"
+          >
+            <SvgSegments segments={visualization.cameraRig.tripod} />
+          </g>
+        )}
+        {!cameraView && visualization.cameraRig.lens.visible && (
+          <circle
+            cx={visualization.cameraRig.lens.x}
+            cy={visualization.cameraRig.lens.y}
+            r={topView ? 4.5 : 3.5}
+            fill="#08111f"
+            stroke="#8eb7ff"
+            strokeWidth="1.5"
+          />
+        )}
+
+        {topView ? (
+          <>
+            <circle
+              cx={visualization.subject.ground.x}
+              cy={visualization.subject.ground.y}
+              r={Math.max(7, visualization.subject.groundRadius)}
+              fill="#d7bea9"
+              stroke="#ffffff"
+              strokeOpacity="0.72"
+              strokeWidth="1.4"
+            />
+            <circle
+              cx={visualization.subject.ground.x}
+              cy={visualization.subject.ground.y}
+              r={Math.max(13, visualization.subject.groundRadius + 7)}
+              fill="none"
+              stroke="#ffffff"
+              strokeOpacity="0.18"
+              strokeWidth="1"
+            />
+          </>
+        ) : (
+          <>
+            {visualization.subject.body && (
+              <polygon
+                points={polygonPoints(visualization.subject.body)}
+                fill={'url(#' + subjectGradient + ')'}
+                stroke="#ffffff"
+                strokeOpacity="0.45"
+                strokeWidth="1"
+              />
+            )}
+            <g
+              fill="none"
+              stroke="#c6d5e8"
+              strokeWidth={cameraView ? 5 : 3.5}
+              strokeLinecap="round"
+            >
+              <SvgSegments segments={visualization.subject.limbs} />
+            </g>
+            {visualization.subject.head.visible && (
+              <circle
+                cx={visualization.subject.head.x}
+                cy={visualization.subject.head.y}
+                r={visualization.subject.headRadius}
+                fill="#d7bea9"
+                stroke="#ffffff"
+                strokeOpacity="0.55"
+                strokeWidth="1"
+              />
+            )}
+          </>
+        )}
+
+        {cameraView && (
+          <g fill="none" pointerEvents="none">
+            <rect
+              x={visualization.width * 0.08}
+              y={visualization.height * 0.08}
+              width={visualization.width * 0.84}
+              height={visualization.height * 0.84}
+              rx="8"
+              stroke="#ffffff"
+              strokeOpacity="0.38"
+              strokeWidth="1"
+            />
+            {[1 / 3, 2 / 3].map((ratio) => (
+              <g key={ratio}>
+                <line
+                  x1={visualization.width * ratio}
+                  y1={visualization.height * 0.08}
+                  x2={visualization.width * ratio}
+                  y2={visualization.height * 0.92}
+                  stroke="#ffffff"
+                  strokeOpacity="0.13"
+                />
+                <line
+                  x1={visualization.width * 0.08}
+                  y1={visualization.height * ratio}
+                  x2={visualization.width * 0.92}
+                  y2={visualization.height * ratio}
+                  stroke="#ffffff"
+                  strokeOpacity="0.13"
+                />
+              </g>
+            ))}
+            <circle
+              cx={visualization.width / 2}
+              cy={visualization.height / 2}
+              r="12"
+              stroke="#f6c96b"
+              strokeOpacity="0.7"
+              strokeWidth="1"
+            />
+            <line
+              x1={visualization.width / 2 - 18}
+              y1={visualization.height / 2}
+              x2={visualization.width / 2 + 18}
+              y2={visualization.height / 2}
+              stroke="#f6c96b"
+              strokeOpacity="0.7"
+            />
+            <line
+              x1={visualization.width / 2}
+              y1={visualization.height / 2 - 18}
+              x2={visualization.width / 2}
+              y2={visualization.height / 2 + 18}
+              stroke="#f6c96b"
+              strokeOpacity="0.7"
+            />
+          </g>
+        )}
+      </svg>
+    </motion.div>
+  )
+}
+
+function SvgSegments({
+  segments
+}: {
+  segments: CameraVisualization['floorLines']
+}) {
+  return segments.map((segment, index) => (
+    <line
+      key={index}
+      x1={segment.from.x}
+      y1={segment.from.y}
+      x2={segment.to.x}
+      y2={segment.to.y}
+      vectorEffect="non-scaling-stroke"
+    />
+  ))
+}
+
+function CoachMetric({
+  icon: Icon,
+  label,
+  value
+}: {
+  icon: typeof Camera
+  label: string
+  value: string
+}) {
   return (
     <div className="flex gap-3">
-      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/[.04] text-[#8cd7aa]"><Icon className="h-3.5 w-3.5" /></div>
-      <div className="min-w-0"><p className="text-[9px] font-bold uppercase tracking-[.16em] text-white/30">{label}</p><p className="mt-1 text-[11px] capitalize leading-relaxed text-white/70">{value}</p></div>
+      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/[.04] text-[#8eb7ff]">
+        <Icon className="h-3.5 w-3.5" />
+      </div>
+      <div className="min-w-0">
+        <p className="text-[9px] font-bold uppercase tracking-[.16em] text-white/30">
+          {label}
+        </p>
+        <p className="mt-1 text-[11px] capitalize leading-relaxed text-white/70">
+          {value}
+        </p>
+      </div>
     </div>
   )
 }
 
-function cameraMotion(scene: CoachScene, animate: boolean) {
-  const yaw = scene.camera_yaw ?? 0
-  const pitch = scene.camera_pitch ?? 0
-  const distance = scene.camera_distance ?? 1.8
-  const base = `translateX(${Math.max(-30, Math.min(80, (2.2 - distance) * 38))}px) translateY(${Math.max(-45, Math.min(35, (1.55 - (scene.camera_height ?? 1.55)) * 80))}px) rotateY(${yaw}deg) rotateX(${pitch}deg)`
-  if (!animate) return base
-  const movement = scene.camera_movement.toLowerCase()
-  if (movement.includes('pan')) return [`${base} translateX(-34px)`, `${base} translateX(38px)`]
-  if (movement.includes('tilt')) return [`${base} translateY(22px)`, `${base} translateY(-34px)`]
-  if (movement.includes('zoom') || movement.includes('dolly')) return [`${base} scale(.88)`, `${base} scale(1.18)`]
-  if (movement.includes('handheld')) return [`${base} rotateZ(-1deg)`, `${base} translate(4px,-3px) rotateZ(1.5deg)`]
-  if (movement.includes('track')) return [`${base} translateX(-30px)`, `${base} translateX(28px)`]
-  return base
+function polygonPoints(polygon: CameraVisualization['subject']['body']) {
+  if (!polygon) return ''
+  return polygon.points
+    .map((point) => String(point.x) + ',' + String(point.y))
+    .join(' ')
+}
+
+function sceneDuration(scene: CoachScene) {
+  return Number.isFinite(scene.duration_seconds) && scene.duration_seconds > 0
+    ? scene.duration_seconds
+    : 1
+}
+
+function formatMeasure(value: number) {
+  return Number(value.toFixed(2)).toString()
+}
+
+function formatCoordinate(value: number) {
+  return (value >= 0 ? '+' : '') + value.toFixed(2)
 }
 
 function formatTime(value: number) {
-  const minutes = Math.floor(value / 60)
-  const seconds = Math.floor(value % 60)
-  return `${minutes}:${seconds.toString().padStart(2, '0')}`
+  const safeValue = Number.isFinite(value) ? Math.max(0, value) : 0
+  const minutes = Math.floor(safeValue / 60)
+  const seconds = Math.floor(safeValue % 60)
+  return String(minutes) + ':' + seconds.toString().padStart(2, '0')
+}
+
+function formatLabel(
+  template: string,
+  values: Record<string, string | number>
+) {
+  return Object.entries(values).reduce(
+    (result, [key, value]) => result.split('{' + key + '}').join(String(value)),
+    template
+  )
+}
+
+function clamp(value: number, minimum: number, maximum: number) {
+  return Math.min(maximum, Math.max(minimum, value))
+}
+
+function cx(...classes: Array<string | false | null | undefined>) {
+  return classes.filter(Boolean).join(' ')
 }

@@ -291,11 +291,16 @@ export function parseSegments(
           typeof s.end === 'number' &&
           s.end > s.start
       )
-      .map((s: { start?: unknown; end?: unknown; order?: unknown }, i: number) => ({
-        start: s.start as number,
-        end: s.end as number,
-        order: typeof s.order === 'number' ? s.order : i
-      }))
+      .map(
+        (
+          s: { start?: unknown; end?: unknown; order?: unknown },
+          i: number
+        ) => ({
+          start: s.start as number,
+          end: s.end as number,
+          order: typeof s.order === 'number' ? s.order : i
+        })
+      )
   }
   if (typeof fallbackStart === 'number' && typeof fallbackEnd === 'number') {
     return [{ start: fallbackStart, end: fallbackEnd, order: 0 }]

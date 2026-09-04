@@ -11,15 +11,18 @@ import {
   SplitSquareHorizontal,
   Undo2
 } from 'lucide-react'
-import { useParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
+import { useParams } from 'next/navigation'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import {
   type AssistantAction,
   AssistantChat
 } from '@/components/assistant/assistant-chat'
-import { ExportDialog, type ExportPhase } from '@/components/editor/export-dialog'
+import {
+  ExportDialog,
+  type ExportPhase
+} from '@/components/editor/export-dialog'
 import { SegmentInspector } from '@/components/editor/segment-inspector'
 import { SegmentList } from '@/components/editor/segment-list'
 import {
@@ -28,13 +31,13 @@ import {
 } from '@/components/editor/segment-player'
 import { ShortcutsHelp } from '@/components/editor/shortcuts-help'
 import { MAX_ZOOM, MIN_ZOOM, Timeline } from '@/components/editor/timeline'
+import { useEditorShortcuts } from '@/components/editor/use-editor-shortcuts'
 import {
   MAX_SEGMENTS,
   MIN_SEGMENT_DURATION,
   parseSegments,
   useEditorState
 } from '@/components/editor/use-editor-state'
-import { useEditorShortcuts } from '@/components/editor/use-editor-shortcuts'
 import { useToast } from '@/components/ui/toast'
 import { Link, useRouter } from '@/i18n/navigation'
 import { extractApiError } from '@/lib/api-error'
@@ -187,7 +190,10 @@ export default function ClipEditorPage() {
 
   const handleZoomStep = useCallback((direction: 1 | -1) => {
     setZoom((z) =>
-      Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, direction === 1 ? z * 1.25 : z * 0.8))
+      Math.min(
+        MAX_ZOOM,
+        Math.max(MIN_ZOOM, direction === 1 ? z * 1.25 : z * 0.8)
+      )
     )
   }, [])
 
@@ -285,7 +291,7 @@ export default function ClipEditorPage() {
         <p className="text-muted-foreground">{t('noSource')}</p>
         <Link
           href={`/dashboard/clips/${params.id}`}
-          className="text-primary hover:underline"
+          className="font-medium text-primary hover:underline"
         >
           {t('back')}
         </Link>
@@ -299,12 +305,12 @@ export default function ClipEditorPage() {
   return (
     <div className="animate-fade-in flex flex-col gap-4">
       {/* Header toolbar */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="panel flex flex-col gap-3 p-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex min-w-0 items-center gap-3">
           <Link
             href={`/dashboard/clips/${params.id}`}
             onClick={handleBack}
-            className="rounded-md p-1.5 transition-colors hover:bg-muted"
+            className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
             aria-label={t('back')}
           >
             <ArrowLeft className="h-5 w-5" strokeWidth={1.75} />
@@ -325,13 +331,13 @@ export default function ClipEditorPage() {
           )}
         </div>
 
-        <div className="flex items-center gap-1.5">
+        <div className="flex flex-wrap items-center gap-1.5">
           <button
             type="button"
             onClick={() => dispatch({ type: 'UNDO' })}
             disabled={!canUndo}
             title={t('undo')}
-            className="rounded-md border border-border p-2 text-muted-foreground transition-colors hover:text-foreground disabled:opacity-30"
+            className="rounded-md border border-border bg-card p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-30"
           >
             <Undo2 className="h-4 w-4" strokeWidth={1.75} />
           </button>
@@ -340,7 +346,7 @@ export default function ClipEditorPage() {
             onClick={() => dispatch({ type: 'REDO' })}
             disabled={!canRedo}
             title={t('redo')}
-            className="rounded-md border border-border p-2 text-muted-foreground transition-colors hover:text-foreground disabled:opacity-30"
+            className="rounded-md border border-border bg-card p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-30"
           >
             <Redo2 className="h-4 w-4" strokeWidth={1.75} />
           </button>
@@ -349,7 +355,7 @@ export default function ClipEditorPage() {
             onClick={handleSplit}
             disabled={!canSplit}
             title={t('splitAtPlayhead')}
-            className="rounded-md border border-border p-2 text-muted-foreground transition-colors hover:text-foreground disabled:opacity-30"
+            className="rounded-md border border-border bg-card p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-30"
           >
             <SplitSquareHorizontal className="h-4 w-4" strokeWidth={1.75} />
           </button>
@@ -361,7 +367,7 @@ export default function ClipEditorPage() {
               setExportOpen(true)
             }}
             disabled={!canExport}
-            className="ml-1.5 flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
+            className="button-primary ml-1.5 rounded-lg disabled:opacity-50"
           >
             <Scissors className="h-4 w-4" strokeWidth={1.75} />
             {t('export')}

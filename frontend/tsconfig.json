@@ -37,6 +37,7 @@
   },
   "include": [
     ".next/types/**/*.ts",
+    "cloudflare-env.d.ts",
     "next-env.d.ts",
     "src",
     ".next-prod/types/**/*.ts"

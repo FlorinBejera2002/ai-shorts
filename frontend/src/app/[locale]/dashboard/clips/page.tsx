@@ -1,104 +1,242 @@
-import { Link } from '@/i18n/navigation'
-import { Film, Play } from 'lucide-react'
+import { Prisma } from '@prisma/client'
+import { Film, SearchX } from 'lucide-react'
 import { getTranslations, setRequestLocale } from 'next-intl/server'
+import { redirect } from 'next/navigation'
 
+import { ClipCard } from '@/components/clips/clip-card'
+import { ClipsLibraryToolbar } from '@/components/clips/clips-library-toolbar'
+import { ClipsPagination } from '@/components/clips/clips-pagination'
 import { EmptyState } from '@/components/ui/empty-state'
 import { PageHeader } from '@/components/ui/page-header'
+import { Link } from '@/i18n/navigation'
 import { auth } from '@/lib/auth'
-import { prisma } from '@/lib/db'
+import {
+  CLIPS_PAGE_SIZE,
+  clipsLibraryHref,
+  hasActiveClipFilters,
+  parseClipsLibraryQuery
+} from '@/lib/clips-library'
+import { getPrisma } from '@/lib/db'
+import { resolveMediaUrl } from '@/lib/signed-url'
 
 export const runtime = 'nodejs'
 
+type PageSearchParams = Record<string, string | string[] | undefined>
+
 export default async function ClipsPage({
-  params
+  params,
+  searchParams
 }: {
   params: Promise<{ locale: string }>
+  searchParams: Promise<PageSearchParams>
 }) {
-  const { locale } = await params
+  const [{ locale }, rawSearchParams] = await Promise.all([
+    params,
+    searchParams
+  ])
   setRequestLocale(locale)
   const t = await getTranslations('clips')
 
   const session = await auth()
-  const clips = session?.user?.id
-    ? await prisma.clip.findMany({
-        where: { userId: session.user.id },
-        orderBy: { createdAt: 'desc' },
-        take: 100
-      })
-    : []
+  if (!session?.user?.id) redirect(`/${locale}/login`)
+  const prisma = getPrisma()
+
+  const query = parseClipsLibraryQuery(rawSearchParams)
+  const where: Prisma.ClipWhereInput = { userId: session.user.id }
+  const and: Prisma.ClipWhereInput[] = []
+
+  if (query.search) {
+    and.push({
+      OR: [
+        { title: { contains: query.search, mode: 'insensitive' } },
+        { hookText: { contains: query.search, mode: 'insensitive' } }
+      ]
+    })
+  }
+  if (query.score === 'high') and.push({ viralScore: { gte: 8 } })
+  if (query.score === 'promising') {
+    and.push({ viralScore: { gte: 5, lt: 8 } })
+  }
+  if (query.score === 'low') and.push({ viralScore: { lt: 5 } })
+  if (query.aspect !== 'all') and.push({ aspectRatio: query.aspect })
+  if (query.subtitles !== 'all') {
+    and.push({ hasSubtitles: query.subtitles === 'yes' })
+  }
+  if (and.length > 0) where.AND = and
+
+  const orderBy: Prisma.ClipOrderByWithRelationInput[] =
+    query.sort === 'oldest'
+      ? [{ createdAt: 'asc' }, { id: 'asc' }]
+      : query.sort === 'score'
+        ? [{ viralScore: 'desc' }, { createdAt: 'desc' }, { id: 'desc' }]
+        : query.sort === 'duration'
+          ? [{ duration: 'desc' }, { createdAt: 'desc' }, { id: 'desc' }]
+          : [{ createdAt: 'desc' }, { id: 'desc' }]
+
+  const total = await prisma.clip.count({ where })
+  const totalPages = Math.max(1, Math.ceil(total / CLIPS_PAGE_SIZE))
+  const currentPage = Math.min(query.page, totalPages)
+  const clips = await prisma.clip.findMany({
+    where,
+    orderBy,
+    skip: (currentPage - 1) * CLIPS_PAGE_SIZE,
+    take: CLIPS_PAGE_SIZE,
+    select: {
+      id: true,
+      title: true,
+      hookText: true,
+      duration: true,
+      viralScore: true,
+      resolution: true,
+      aspectRatio: true,
+      hasSubtitles: true,
+      thumbnailPath: true,
+      thumbnailUrl: true,
+      thumbnailStorageKey: true,
+      createdAt: true
+    }
+  })
+
+  const firstResult = total === 0 ? 0 : (currentPage - 1) * CLIPS_PAGE_SIZE + 1
+  const lastResult = Math.min(total, currentPage * CLIPS_PAGE_SIZE)
+  const filtersActive = hasActiveClipFilters(query)
 
   return (
     <div className="animate-fade-in">
       <PageHeader
         title={t('title')}
-        description={t('count', { count: clips.length })}
+        description={t('count', { count: total })}
+        actions={
+          <Link href="/dashboard/create" className="button-primary">
+            {t('createClip')}
+          </Link>
+        }
+      />
+
+      <ClipsLibraryToolbar
+        query={query}
+        labels={{
+          search: t('searchLabel'),
+          searchPlaceholder: t('searchPlaceholder'),
+          score: t('scoreLabel'),
+          aspect: t('aspectLabel'),
+          subtitles: t('subtitlesLabel'),
+          sort: t('sortLabel'),
+          apply: t('applyFilters'),
+          clear: t('clearFilters')
+        }}
+        scoreOptions={[
+          { value: 'all', label: t('scoreAll') },
+          { value: 'high', label: t('scoreHigh') },
+          { value: 'promising', label: t('scorePromising') },
+          { value: 'low', label: t('scoreLow') }
+        ]}
+        aspectOptions={[
+          { value: 'all', label: t('aspectAll') },
+          { value: '9:16', label: '9:16' },
+          { value: '1:1', label: '1:1' },
+          { value: '16:9', label: '16:9' }
+        ]}
+        subtitleOptions={[
+          { value: 'all', label: t('subtitlesAll') },
+          { value: 'yes', label: t('subtitlesYes') },
+          { value: 'no', label: t('subtitlesNo') }
+        ]}
+        sortOptions={[
+          { value: 'newest', label: t('sortNewest') },
+          { value: 'oldest', label: t('sortOldest') },
+          { value: 'score', label: t('sortScore') },
+          { value: 'duration', label: t('sortDuration') }
+        ]}
       />
 
       {clips.length > 0 ? (
-        <div className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {clips.map((clip, i) => (
-            <Link
-              key={clip.id}
-              href={`/dashboard/clips/${clip.id}`}
-              className="group relative flex flex-col rounded-xl bg-card border border-border overflow-hidden transition-all hover:border-primary/40 hover:shadow-lg hover:shadow-primary/10 animate-slide-up"
-              style={{ animationDelay: `${i * 40}ms` }}
-            >
-              <div className="aspect-video bg-muted relative overflow-hidden">
-                {clip.fileUrl ? (
-                  <video
-                    src={clip.fileUrl}
-                    muted={true}
-                    preload="metadata"
-                    className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-110"
-                  />
-                ) : null}
-                <div className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/30 transition-colors">
-                  <div className="w-12 h-12 rounded-full bg-white/95 backdrop-blur-sm flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-200 scale-75 group-hover:scale-100 shadow-lg">
-                    <Play
-                      className="w-5 h-5 text-black ml-0.5"
-                      fill="currentColor"
-                    />
-                  </div>
-                </div>
-              </div>
-              <div className="px-4 py-3 flex flex-col flex-1">
-                <div className="flex items-start justify-between gap-2 mb-2">
-                  <div className="min-w-0 flex-1">
-                    <h2 className="text-[13px] font-semibold truncate text-foreground">
-                      {clip.title}
-                    </h2>
-                  </div>
-                  {clip.viralScore > 0 && (
-                    <div className="shrink-0 flex items-center gap-1 rounded-full bg-primary/15 px-2 py-1 text-[10px] font-bold text-primary tabular-nums whitespace-nowrap">
-                      <span>🔥</span>
-                      {clip.viralScore}/10
-                    </div>
-                  )}
-                </div>
-                <p className="text-xs text-muted-foreground flex items-center gap-1.5">
-                  <span>{Math.round(clip.duration)}s</span>
-                  <span className="text-border">·</span>
-                  <span>{clip.resolution}</span>
-                </p>
-              </div>
-            </Link>
-          ))}
-        </div>
-      ) : (
-        <div className="mt-12">
-          <EmptyState
-            icon={Film}
-            title={t('noClips')}
-            description={t('count', { count: 0 })}
-            action={
+        <>
+          <div className="mt-6 flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+            <p aria-live="polite">
+              {t('showingResults', {
+                first: firstResult,
+                last: lastResult,
+                total
+              })}
+            </p>
+            {filtersActive && (
               <Link
-                href="/dashboard/create"
-                className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-[13px] font-semibold text-primary-foreground transition-opacity hover:opacity-90"
+                href="/dashboard/clips"
+                className="font-semibold text-primary hover:underline"
               >
-                {t('firstProject')}
+                {t('clearFilters')}
               </Link>
-            }
+            )}
+          </div>
+          <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+            {clips.map((clip, index) => (
+              <ClipCard
+                key={clip.id}
+                index={index}
+                locale={locale}
+                labels={{
+                  open: t('openClip'),
+                  score: t('viralScoreLabel'),
+                  subtitles: t('hasSubtitles')
+                }}
+                clip={{
+                  ...clip,
+                  thumbnailUrl: resolveMediaUrl(
+                    clip.thumbnailStorageKey ?? clip.thumbnailPath,
+                    clip.thumbnailUrl
+                  ),
+                  createdAt: clip.createdAt.toISOString()
+                }}
+              />
+            ))}
+          </div>
+          <ClipsPagination
+            query={{ ...query, page: currentPage }}
+            currentPage={currentPage}
+            totalPages={totalPages}
+            labels={{
+              previous: t('previousPage'),
+              next: t('nextPage'),
+              page: t('paginationLabel')
+            }}
           />
+        </>
+      ) : (
+        <div className="mt-10">
+          {filtersActive ? (
+            <EmptyState
+              icon={SearchX}
+              title={t('noMatches')}
+              description={t('noMatchesDesc')}
+              action={
+                <Link
+                  href={clipsLibraryHref(query, {
+                    search: '',
+                    score: 'all',
+                    aspect: 'all',
+                    subtitles: 'all',
+                    sort: 'newest',
+                    page: 1
+                  })}
+                  className="button-secondary"
+                >
+                  {t('clearFilters')}
+                </Link>
+              }
+            />
+          ) : (
+            <EmptyState
+              icon={Film}
+              title={t('noClips')}
+              description={t('noClipsDesc')}
+              action={
+                <Link href="/dashboard/create" className="button-primary">
+                  {t('firstProject')}
+                </Link>
+              }
+            />
+          )}
         </div>
       )}
     </div>
