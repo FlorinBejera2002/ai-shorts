@@ -5,6 +5,7 @@ import logging
 from pathlib import Path
 
 from app.schemas.processing import SegmentCandidate, TranscriptResult, TranscriptWord
+from app.services.transitions import transition_overlaps
 from app.utils.ffmpeg_utils import run_ffmpeg
 from app.utils.file_utils import ensure_dir
 
@@ -69,26 +70,39 @@ def generate_srt(
     max_chars: int = 24,
     max_duration: float = 2.0,
     source_segments: list[dict] | None = None,
+    transition: str = "cut",
+    transition_duration: float = 0.25,
 ) -> bool:
     try:
         normalized = TranscriptResult.model_validate(transcript)
         if source_segments:
             mapped = []
             offset = 0.0
-            for raw in source_segments:
+            overlaps = transition_overlaps(
+                source_segments, transition, transition_duration
+            )
+            for index, raw in enumerate(source_segments):
                 segment = SegmentCandidate.model_validate(raw)
+                visible_start = segment.start + (
+                    overlaps[index - 1] / 2 if index else 0
+                )
+                visible_end = segment.end - (
+                    overlaps[index] / 2 if index < len(overlaps) else 0
+                )
                 for word in normalized.words:
-                    if word.end > segment.start and word.start < segment.end:
+                    if word.end > visible_start and word.start < visible_end:
                         mapped.append(
                             TranscriptWord(
                                 text=word.text,
                                 start=offset
-                                + max(word.start, segment.start)
+                                + max(word.start, visible_start)
                                 - segment.start,
-                                end=offset + min(word.end, segment.end) - segment.start,
+                                end=offset + min(word.end, visible_end) - segment.start,
                             )
                         )
                 offset += segment.end - segment.start
+                if index < len(overlaps):
+                    offset -= overlaps[index]
             normalized = normalized.model_copy(update={"words": mapped})
             clip_start, clip_end = 0.0, offset
         words = [

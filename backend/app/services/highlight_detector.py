@@ -40,6 +40,10 @@ Each clip can be composed of 1 to 5 non-overlapping segments from different part
 Use multiple segments when combining an attention-grabbing hook with a key moment and a strong
 ending would create a more compelling clip. Use a single segment when a continuous moment is
 already strong enough on its own.
+For multi-segment clips choose transition "cut" (default), "fade", or "dissolve".
+Prefer cut for continuous speech. Use fade/dissolve only at natural pauses;
+transition_duration must be 0.05 to 0.5 seconds (default 0.25). Each transition
+overlaps adjacent segments, reducing output duration by that overlap.
 
 OUTPUT — RETURN ONLY VALID JSON (no markdown, no comments). Order clips by predicted performance (best to worst). In the descriptions, ALWAYS include a CTA like "Follow me and comment X and I'll send you the workflow" (especially if discussing an n8n workflow):
 {{
@@ -50,6 +54,8 @@ OUTPUT — RETURN ONLY VALID JSON (no markdown, no comments). Order clips by pre
         {{"start": <number in seconds, e.g., 25.100>, "end": <number in seconds, e.g., 37.900>}}
       ],
       "viral_score": <integer 1-10, how likely to go viral>,
+      "transition": "cut",
+      "transition_duration": 0.25,
       "score_reason": "<one sentence explaining why this clip will perform well>",
       "video_description_for_tiktok": "<description for TikTok oriented to get views>",
       "video_description_for_instagram": "<description for Instagram oriented to get views>",
@@ -153,7 +159,10 @@ def validate_highlights(
 
         # Check total duration within limits
         total_duration = sum(seg["end"] - seg["start"] for seg in valid_segments)
-        if total_duration < settings.min_clip_duration or total_duration > settings.max_clip_duration:
+        if (
+            total_duration < settings.min_clip_duration
+            or total_duration > settings.max_clip_duration
+        ):
             continue
 
         # Check no internal overlaps (within this candidate)
@@ -166,8 +175,31 @@ def validate_highlights(
         if has_internal_overlap:
             continue
 
+        # Model-generated effect names must never enter a filter graph unchecked.
+        transition = item.get("transition", "cut")
+        transition_duration = item.get("transition_duration", 0.25)
+        if transition not in {"cut", "fade", "dissolve"}:
+            continue
+        if (
+            not isinstance(transition_duration, (float, int))
+            or not 0.05 <= transition_duration <= 0.5
+        ):
+            continue
+        if transition != "cut":
+            total_duration -= sum(
+                min(
+                    transition_duration,
+                    (left["end"] - left["start"]) / 2,
+                    (right["end"] - right["start"]) / 2,
+                )
+                for left, right in zip(sorted_segs, sorted_segs[1:])
+            )
+            if total_duration < settings.min_clip_duration:
+                continue
         candidate = HighlightCandidate(
-            segments=valid_segments,
+            segments=sorted_segs,
+            transition=transition,
+            transition_duration=transition_duration,
             rank=rank,
             viral_score=int(item.get("viral_score") or 0),
             source=item.get("source", "gemini"),
@@ -175,9 +207,7 @@ def validate_highlights(
             video_description_for_instagram=item.get(
                 "video_description_for_instagram", ""
             ),
-            video_title_for_youtube_short=item.get(
-                "video_title_for_youtube_short", ""
-            ),
+            video_title_for_youtube_short=item.get("video_title_for_youtube_short", ""),
             viral_hook_text=item.get("viral_hook_text", ""),
             metadata={
                 "raw": item,
@@ -285,7 +315,9 @@ def detect_highlights(
     if not api_key:
         return [
             clip.model_dump()
-            for clip in fallback_highlights(transcript_result, video_duration, requested_clips)
+            for clip in fallback_highlights(
+                transcript_result, video_duration, requested_clips
+            )
         ]
 
     try:
@@ -310,5 +342,7 @@ def detect_highlights(
 
     return [
         clip.model_dump()
-        for clip in fallback_highlights(transcript_result, video_duration, requested_clips)
+        for clip in fallback_highlights(
+            transcript_result, video_duration, requested_clips
+        )
     ]

@@ -186,6 +186,8 @@ def process_video_source(
                     clip_end=clip["end"],
                     output_path=str(srt_path),
                     source_segments=clip.get("segments"),
+                    transition=clip.get("transition", "cut"),
+                    transition_duration=clip.get("transition_duration", 0.25),
                 ):
                     if not burn(
                         current_path,

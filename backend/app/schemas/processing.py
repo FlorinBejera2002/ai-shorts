@@ -52,6 +52,8 @@ class SegmentCandidate(BaseModel):
 
 class HighlightCandidate(BaseModel):
     segments: list[SegmentCandidate]
+    transition: Literal["cut", "fade", "dissolve"] = "cut"
+    transition_duration: float = Field(default=0.25, ge=0.05, le=0.5)
     rank: int = Field(default=0, ge=0)
     viral_score: int = Field(default=0, ge=0, le=10)
     source: Literal["gemini", "fallback"] = "gemini"
@@ -92,6 +94,8 @@ class ClipOutput(BaseModel):
     end: float = Field(gt=0)
     duration: float = Field(gt=0)
     segments: list[SegmentCandidate] = Field(default_factory=list)
+    transition: Literal["cut", "fade", "dissolve"] = "cut"
+    transition_duration: float = Field(default=0.25, ge=0.05, le=0.5)
     title: str = ""
     hook_text: str = ""
     file_path: str
@@ -120,6 +124,15 @@ class ClipOutput(BaseModel):
             ):
                 raise ValueError("clip segments must be ordered and non-overlapping")
             expected = sum(segment.end - segment.start for segment in self.segments)
+            if self.transition != "cut":
+                expected -= sum(
+                    min(
+                        self.transition_duration,
+                        (left.end - left.start) / 2,
+                        (right.end - right.start) / 2,
+                    )
+                    for left, right in zip(self.segments, self.segments[1:])
+                )
         if abs(self.duration - expected) > 0.01:
             raise ValueError("clip duration must match its selected segments")
         return self

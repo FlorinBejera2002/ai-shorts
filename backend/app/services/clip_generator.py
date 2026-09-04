@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any
 
 from app.schemas.processing import ClipOutput, HighlightCandidate
+from app.services.transitions import render_transitions, transition_overlaps
 from app.utils.ffmpeg_utils import (
     get_video_duration,
     get_video_resolution,
@@ -39,8 +40,11 @@ def extract_clip(
     segments: list[dict],
     crf: int = 18,
     preset: str = "fast",
+    transition: str = "cut",
+    transition_duration: float = 0.25,
 ) -> bool:
     try:
+        transition_overlaps(segments, transition, transition_duration)
         validate_video_file(input_video)
         video_duration = get_video_duration(input_video)
         for seg in segments:
@@ -49,7 +53,19 @@ def extract_clip(
 
         has_audio = has_audio_stream(input_video)
 
-        if len(segments) == 1:
+        if len(segments) > 1 and transition != "cut":
+            render_transitions(
+                input_video,
+                output_path,
+                segments,
+                transition,
+                transition_duration,
+                has_audio,
+                crf,
+                preset,
+                run_ffmpeg,
+            )
+        elif len(segments) == 1:
             seg = segments[0]
             cmd = [
                 "ffmpeg",
@@ -190,7 +206,13 @@ def extract_all_clips(
 
         output_path = unique_path(output_directory, f"{video_title}-clip-{i}", ".mp4")
         clip_segments = [{"start": s.start, "end": s.end} for s in clip.segments]
-        if not extract_clip(input_video, str(output_path), clip_segments):
+        if not extract_clip(
+            input_video,
+            str(output_path),
+            clip_segments,
+            transition=clip.transition,
+            transition_duration=clip.transition_duration,
+        ):
             continue
 
         thumbnail_path = None
@@ -204,8 +226,18 @@ def extract_all_clips(
             index=i,
             start=clip.start,
             end=clip.end,
-            duration=round(clip.duration, 3),
+            duration=round(
+                clip.duration
+                - sum(
+                    transition_overlaps(
+                        clip_segments, clip.transition, clip.transition_duration
+                    )
+                ),
+                3,
+            ),
             segments=clip.segments,
+            transition=clip.transition,
+            transition_duration=clip.transition_duration,
             title=clip.video_title_for_youtube_short,
             hook_text=clip.viral_hook_text,
             file_path=str(output_path),
