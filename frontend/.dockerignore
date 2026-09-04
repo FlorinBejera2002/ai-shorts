@@ -1,6 +1,9 @@
 node_modules
 .next
 .next-prod
+.open-next
+.wrangler
+test-results
 out
 coverage
 npm-debug.log*

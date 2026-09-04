@@ -50,6 +50,9 @@ services:
     cap_drop: ["ALL"]
     pids_limit: 128
     env_file: .env
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-sneepcut}:${DB_PASSWORD:-changeme}@postgres:5432/${POSTGRES_DB:-sneepcut}
+      DIRECT_URL: postgresql://${POSTGRES_USER:-sneepcut}:${DB_PASSWORD:-changeme}@postgres:5432/${POSTGRES_DB:-sneepcut}
     depends_on:
       postgres:
         condition: service_healthy
@@ -72,6 +75,7 @@ services:
     environment:
       PYTHON_BACKEND_URL: http://backend:8000
       LISTEN_ADDR: ":8080"
+      DATABASE_URL: postgresql://${POSTGRES_USER:-sneepcut}:${DB_PASSWORD:-changeme}@postgres:5432/${POSTGRES_DB:-sneepcut}
     depends_on:
       backend:
         condition: service_healthy
@@ -103,6 +107,9 @@ services:
       --concurrency=${WORKER_CONCURRENCY:-2}
       --max-tasks-per-child=${WORKER_MAX_TASKS_PER_CHILD:-50}
     env_file: .env
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-sneepcut}:${DB_PASSWORD:-changeme}@postgres:5432/${POSTGRES_DB:-sneepcut}
+      DIRECT_URL: postgresql://${POSTGRES_USER:-sneepcut}:${DB_PASSWORD:-changeme}@postgres:5432/${POSTGRES_DB:-sneepcut}
     depends_on:
       backend:
         condition: service_started
@@ -114,12 +121,18 @@ services:
       - media_data:/app/media
 
   job-dispatcher:
+    build:
+      context: ./backend
+      target: api
     image: sneepcut-api
     security_opt: ["no-new-privileges:true"]
     cap_drop: ["ALL"]
     pids_limit: 64
     command: python -m app.services.job_delivery
     env_file: .env
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-sneepcut}:${DB_PASSWORD:-changeme}@postgres:5432/${POSTGRES_DB:-sneepcut}
+      DIRECT_URL: postgresql://${POSTGRES_USER:-sneepcut}:${DB_PASSWORD:-changeme}@postgres:5432/${POSTGRES_DB:-sneepcut}
     depends_on:
       backend:
         condition: service_healthy
@@ -132,6 +145,9 @@ services:
   frontend:
     build: ./frontend
     env_file: .env
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-sneepcut}:${DB_PASSWORD:-changeme}@postgres:5432/${POSTGRES_DB:-sneepcut}
+      DIRECT_URL: postgresql://${POSTGRES_USER:-sneepcut}:${DB_PASSWORD:-changeme}@postgres:5432/${POSTGRES_DB:-sneepcut}
     depends_on:
       backend:
         condition: service_healthy

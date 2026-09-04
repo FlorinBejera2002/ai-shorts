@@ -1,5 +1,12 @@
 # syntax=docker/dockerfile:1
-FROM node:22-alpine AS base
+# OpenNext initializes Workerd during `next build`; its Linux binary requires
+# glibc, so Alpine's musl runtime yields a misleading ENOENT at build time.
+FROM node:22-bookworm-slim AS base
+
+# Prisma selects its Debian OpenSSL 3 engine from this runtime dependency.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends openssl \
+    && rm -rf /var/lib/apt/lists/*
 
 FROM base AS deps
 WORKDIR /app
