@@ -3,7 +3,7 @@ from __future__ import annotations
 import hmac
 import uuid
 
-from fastapi import Depends, Header, HTTPException, status
+from fastapi import Depends, Header, HTTPException, Request, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -93,7 +93,18 @@ async def ensure_account_active(db: AsyncSession, user_id: uuid.UUID) -> None:
         )
 
 
+def enforce_content_role(user: User, method: str) -> None:
+    role = getattr(user, "access_role", None)
+    if role not in {"member", "viewer"} or (
+        role == "viewer" and method not in {"GET", "HEAD", "OPTIONS"}
+    ):
+        raise HTTPException(
+            status_code=403, detail="Content modification is not allowed for this role"
+        )
+
+
 async def get_current_user(
+    request: Request,
     x_internal_api_key: str | None = Header(default=None),
     x_user_id: str | None = Header(default=None),
     x_user_email: str | None = Header(default=None),
@@ -106,4 +117,5 @@ async def get_current_user(
         db=db,
     )
     await ensure_account_active(db, user.id)
+    enforce_content_role(user, request.method)
     return user

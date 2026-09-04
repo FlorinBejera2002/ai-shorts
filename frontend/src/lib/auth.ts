@@ -93,6 +93,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth(() => {
               image: true,
               credits: true,
               plan: true,
+              accessRole: true,
               sessionVersion: true
             }
           })
@@ -120,6 +121,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth(() => {
           token.picture = dbUser.image
           token.credits = dbUser.credits
           token.plan = dbUser.plan
+          token.accessRole = dbUser.accessRole
         }
 
         return token
@@ -129,6 +131,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth(() => {
           session.user.id = token.sub
           session.user.credits = Number(token.credits ?? 0)
           session.user.plan = String(token.plan ?? 'free')
+          session.user.accessRole = String(token.accessRole ?? '')
           session.user.authenticatedAt =
             typeof token.authenticatedAt === 'number'
               ? token.authenticatedAt

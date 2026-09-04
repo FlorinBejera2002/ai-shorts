@@ -2,11 +2,13 @@
 
 ## Inventory and delivery boundaries
 
-The Notion backend inventory contained 14 tickets: 3 Done and 11 open. The architecture tickets CF-020 (AI cuts/transitions), CF-040 (Go migration), CF-041 (isolated ML service), and CF-044 (scanning/sandbox/RBAC) contained no requirements or acceptance criteria. The user subsequently authorized researching and selecting their design. Concrete criteria are being recorded on those tickets; no production cutover is implied.
+The Notion backend inventory contained 14 tickets: 3 Done and 11 open. The initially blank architecture tickets received concrete acceptance criteria after the user authorized research and design decisions. Implementation and test evidence are recorded per ticket; no production cutover is implied.
 
 First verified implementation batch: 147 backend tests, 105 frontend tests, TypeScript and Biome checks, plus Chromium/Firefox integration flows passed. These results include actual PostgreSQL, abrupt worker-subprocess exit, FFmpeg and local browser queue/cancel/refund checks; they do not cover later architecture changes until rerun.
 
-This change implements generation-job crash recovery and closes concrete gaps in CF-054 recut sources, CF-058 media cleanup and CF-059 brand validation. Existing CF-055 signed media and CF-060 Stripe protections were rechecked against their tests. CF-057 has tested language, subtitles, aspect ratio, logo and badge support; generic palette/intro/outro semantics remain outside the implemented renderer and must not be presented as complete.
+Subsequent verified work adds upload quarantine/ClamAV, isolated API/ML images, bounded AI transitions, fenced edit recovery, brand palette/typography and database-controlled member/viewer permissions. CF-040 uses an incremental native Go job-control API with explicit Python compatibility for remaining routes, not a claim that all Python code was rewritten. See `go-api-migration.md`, `backend-runtime-isolation.md`, `auto-edit-transitions.md`, `edit-recovery.md` and `brand-rendering.md` for scope and rollout details.
+
+Final local checks: 197 backend tests, 108 frontend tests, Go unit/PostgreSQL tests, TypeScript, browser member/viewer flows and container checks. Chromium and Firefox cover persistence, native Go create/poll/cancel/refund, responsive/localized pages and live viewer write denial. ClamAV accepted a clean fixture and rejected harmless EICAR. The local read-only comparison (100 requests, concurrency 8) measured Python median/p95 30.05/62.84 ms and Go 8.41/17.82 ms; these are not production capacity guarantees.
 
 ## Durable generation jobs
 
@@ -20,8 +22,8 @@ This change implements generation-job crash recovery and closes concrete gaps in
 ## Safe rollout
 
 1. Back up the database. Stop admission of new jobs and drain **all old worker binaries**. They do not implement execution fencing; rolling mixed versions are not safe.
-2. Apply `alembic upgrade head`, including `20260904_0002`, before starting the changed API/worker/dispatcher. This creates a backend-owned delivery table; no destructive data migration or guessed reconstruction of old processing options occurs.
-3. Start the new API and worker image, then `job-dispatcher` from Compose (or supervise `python -m app.services.job_delivery` as a dedicated process). It requires the same database/broker configuration, but no public port or media volume.
+2. Apply `alembic upgrade head`, through `20260904_0004`, before starting changed clients. Migrations add delivery tracking, bounded edit reservations and server-controlled content roles; no guessed reconstruction of old processing options occurs.
+3. Review media-volume ownership for non-root UID 10001; start the separate API/ML images and `job-dispatcher`. Enable the private scanner through the `security` profile for production uploads. The optional `go-api` profile requires a deliberate frontend BACKEND_URL switch; Python remains the default. Do not modify unrelated volumes or production services without deployment authorization.
 4. Verify a staging job, cancellation and a forced worker interruption. Keep host clocks synchronized; lease timestamps currently use UTC process clocks.
 5. Monitor dispatcher logs and database counts of pending jobs, expired leases, `dispatch_count`, `execution_count`, and `last_error`. If Redis is unavailable, pending jobs and their charge remain visible and cancellable.
 
@@ -35,9 +37,9 @@ Legacy jobs without delivery rows are intentionally not replayed: their original
 - Account cleanup logs storage failures and retains its existing deletion checkpoint flow. Local and object-storage adapters have cleanup tests (object-storage calls use controlled mocks, not a live bucket).
 - Brand API tests execute the route with controlled auth/database boundaries: anonymous requests, unknown/ownership fields, malformed values, renderer-unsafe fonts and unauthorized badge removal are rejected; valid writes use only the session owner.
 
-## Remaining work and limits
+## Operational limits
 
-- Generation recovery does not yet cover the separate trim/recut task tracking counters. A hard-killed edit can leave `active_edit_tasks` outstanding; automatic edit recovery and cleanup after such failures remain open under CF-058. Do not reset these counters while an edit could still be running.
+- New trim/recut reservations expire after one hour and are fenced before release. Legacy untagged counters must be reconciled only after confirming old processes stopped; never reset live counters blindly.
 - Partial files from dead attempts are isolated from successful outputs and covered by account-owned prefix cleanup. Automatic time-based orphan garbage collection is not implemented.
-- Full Go migration, ML service isolation, AI transitions and role enforcement are subsequent implementation phases. These tickets remain open until their selected criteria are implemented and verified.
+- Go owns native single-job creation/list/read/cancel. Batch, media, edit and AI assistant routes retain Python compatibility. Historical intro/outro path columns are not exposed as supported brand-editing controls. Roles do not grant cross-account administrative access.
 - Live Stripe/OAuth/storage/publishing, full paid AI/media workloads, production deployment, and production capacity certification were not performed. Refer to `frontend-backend-verification.md` for the previous local browser setup; its statement that generation jobs lack an outbox is superseded by this change.

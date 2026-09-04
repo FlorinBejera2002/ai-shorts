@@ -5,7 +5,7 @@ import vm from 'node:vm'
 import ts from 'typescript'
 
 const source = readFileSync(new URL('../src/app/api/user/brand/route.ts', import.meta.url), 'utf8')
-function route({ authenticated = true, plan = 'free' } = {}) {
+function route({ authenticated = true, plan = 'free', accessRole = 'member' } = {}) {
   const writes = []
   const prisma = {
     user: { findUnique: async () => ({ plan }) },
@@ -13,7 +13,8 @@ function route({ authenticated = true, plan = 'free' } = {}) {
   }
   const modules = {
     'next/server': { NextResponse: { json: (value, options) => Response.json(value, options) } },
-    '@/lib/auth': { auth: async () => authenticated ? { user: { id: 'owner' } } : null },
+    '@/lib/auth': { auth: async () => authenticated ? { user: { id: 'owner', accessRole } } : null },
+    '@/lib/content-permissions': { canWriteContent: session => session?.user?.accessRole === 'member' },
     '@/lib/db': { createPrismaClient: () => prisma },
     '@/lib/brand-logo': { withFreshBrandLogo: async value => value },
     '@/lib/rate-limit': { rateLimit: async () => ({ limited: false }), rateLimitKey: () => 'test' },
@@ -21,7 +22,7 @@ function route({ authenticated = true, plan = 'free' } = {}) {
   }
   const exports = {}
   vm.runInNewContext(ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText,
-    { exports, require: name => { assert.ok(modules[name], name); return modules[name] } })
+    { exports, Response, require: name => { assert.ok(modules[name], name); return modules[name] } })
   return { writes, put: body => exports.PUT(new Request('http://localhost/api/user/brand', {
     method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
   })) }
@@ -54,4 +55,10 @@ test('valid brand fields are normalized and persisted only for the session owner
   assert.equal(api.writes[0].where.userId, 'owner')
   assert.equal(api.writes[0].create.userId, 'owner')
   assert.equal(api.writes[0].update.primaryColor, '#AABBCC')
+})
+
+test('viewer cannot mutate brand settings or promote itself', async () => {
+  const api = route({ accessRole: 'viewer' })
+  assert.equal((await api.put({ primaryColor: '#123456', accessRole: 'member' })).status, 403)
+  assert.equal(api.writes.length, 0)
 })

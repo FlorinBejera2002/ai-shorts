@@ -1,5 +1,6 @@
 import { auth } from '@/lib/auth'
 import { validateScheduledPostPayload } from '@/lib/content-calendar'
+import { canWriteContent } from '@/lib/content-permissions'
 import { createPrismaClient } from '@/lib/db'
 
 import {
@@ -24,6 +25,12 @@ export async function PATCH(request: Request, { params }: RouteContext) {
   const [session, { id }] = await Promise.all([auth(), params])
   if (!session?.user?.id) {
     return jsonResponse({ error: 'Authentication required.' }, { status: 401 })
+  }
+  if (!canWriteContent(session)) {
+    return Response.json(
+      { error: 'This role cannot modify content' },
+      { status: 403 }
+    )
   }
   const prisma = createPrismaClient()
   if (!isValidId(id)) {
@@ -90,6 +97,12 @@ export async function DELETE(request: Request, { params }: RouteContext) {
   const [session, { id }] = await Promise.all([auth(), params])
   if (!session?.user?.id) {
     return jsonResponse({ error: 'Authentication required.' }, { status: 401 })
+  }
+  if (!canWriteContent(session)) {
+    return Response.json(
+      { error: 'This role cannot modify content' },
+      { status: 403 }
+    )
   }
   const prisma = createPrismaClient()
   if (!isValidId(id)) {

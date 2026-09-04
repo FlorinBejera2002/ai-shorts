@@ -65,6 +65,28 @@ services:
       timeout: 5s
       retries: 3
 
+  backend-go:
+    profiles: ["go-api"]
+    build: ./backend-go
+    env_file: .env
+    environment:
+      PYTHON_BACKEND_URL: http://backend:8000
+      LISTEN_ADDR: ":8080"
+    depends_on:
+      backend:
+        condition: service_healthy
+    volumes:
+      - media_data:/app/media:ro
+    expose:
+      - "8080"
+    read_only: true
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: ["ALL"]
+    pids_limit: 64
+    mem_limit: 256m
+    cpus: 1
+    restart: unless-stopped
+
   worker:
     build:
       context: ./backend

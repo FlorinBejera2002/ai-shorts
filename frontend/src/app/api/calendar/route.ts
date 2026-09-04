@@ -3,6 +3,7 @@ import {
   parseCalendarRange,
   validateScheduledPostPayload
 } from '@/lib/content-calendar'
+import { canWriteContent } from '@/lib/content-permissions'
 import { createPrismaClient } from '@/lib/db'
 
 import {
@@ -89,6 +90,12 @@ export async function POST(request: Request) {
   const session = await auth()
   if (!session?.user?.id) {
     return jsonResponse({ error: 'Authentication required.' }, { status: 401 })
+  }
+  if (!canWriteContent(session)) {
+    return Response.json(
+      { error: 'This role cannot modify content' },
+      { status: 403 }
+    )
   }
   const prisma = createPrismaClient()
 

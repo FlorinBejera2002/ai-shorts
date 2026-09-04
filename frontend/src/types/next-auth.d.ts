@@ -7,6 +7,7 @@ declare module 'next-auth' {
       credits: number
       plan: string
       authenticatedAt?: number
+      accessRole?: string
     } & DefaultSession['user']
   }
 

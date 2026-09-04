@@ -1,6 +1,7 @@
 import { backendFetch, proxyBackendResponse } from '@/lib/api'
 import { auth } from '@/lib/auth'
 import { isUuid, validateClipEditPayload } from '@/lib/clips-library'
+import { canWriteContent } from '@/lib/content-permissions'
 import { createPrismaClient } from '@/lib/db'
 import { rateLimit, rateLimitKey, rateLimitedResponse } from '@/lib/rate-limit'
 import { RequestBodyTooLargeError, readBoundedJson } from '@/lib/request-body'
@@ -61,6 +62,12 @@ export async function DELETE(
   if (!session?.user?.id) {
     return Response.json({ error: 'Unauthorized' }, { status: 401 })
   }
+  if (!canWriteContent(session)) {
+    return Response.json(
+      { error: 'This role cannot modify content' },
+      { status: 403 }
+    )
+  }
   if (!isUuid(id)) {
     return Response.json({ error: 'Invalid clip identifier' }, { status: 400 })
   }
@@ -83,6 +90,12 @@ export async function PATCH(
   const [{ id }, session] = await Promise.all([params, auth()])
   if (!session?.user?.id) {
     return Response.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+  if (!canWriteContent(session)) {
+    return Response.json(
+      { error: 'This role cannot modify content' },
+      { status: 403 }
+    )
   }
   if (!isUuid(id)) {
     return Response.json({ error: 'Invalid clip identifier' }, { status: 400 })

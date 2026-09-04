@@ -1,3 +1,4 @@
+import { canWriteContent } from '@/lib/content-permissions'
 import { NextResponse } from 'next/server'
 
 import { backendFetch } from '@/lib/api'
@@ -12,6 +13,12 @@ export async function POST(request: Request) {
   const session = await auth()
   if (!session?.user?.id) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+  if (!canWriteContent(session)) {
+    return Response.json(
+      { error: 'This role cannot modify content' },
+      { status: 403 }
+    )
   }
 
   const limit = await rateLimit({
@@ -75,6 +82,12 @@ export async function DELETE() {
   const session = await auth()
   if (!session?.user?.id) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+  if (!canWriteContent(session)) {
+    return Response.json(
+      { error: 'This role cannot modify content' },
+      { status: 403 }
+    )
   }
 
   const prisma = createPrismaClient()

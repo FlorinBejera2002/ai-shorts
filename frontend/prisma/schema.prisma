@@ -10,6 +10,7 @@ datasource db {
 }
 
 model User {
+  accessRole               String    @default("member") @map("access_role") @db.VarChar(20)
   id                       String    @id @default(uuid()) @db.Uuid
   email                    String    @unique @db.VarChar(255)
   name                     String?   @db.VarChar(255)

@@ -3,6 +3,22 @@
 Implementation in progress under CF041 and CF044. Do not treat this document
 as production acceptance or a completed security audit.
 
+## Server-controlled content roles
+
+Migration 20260904_0004 introduces `users.access_role`, constrained to `member`
+and `viewer`. Existing accounts remain members. Members can modify only their
+own content; viewers can read their own content but cannot create, edit, upload,
+delete, or schedule it. Python and Go enforce this after database authentication;
+Next.js direct database mutations enforce the role refreshed by auth() from the
+database on every session read. Request body/header role claims cannot promote
+an account. No cross-account administrator role or tenant-sharing model is added.
+
+Personal profile, password, billing and account-deletion controls remain available
+to account owners; this role restricts content operations, not access to those
+self-service account controls. Role assignment is an audited operator/database
+action; no self-service role mutation endpoint exists. Apply the additive migration
+before deploying clients that query the field, and verify viewer denial in staging.
+
 ## Verification so far
 
 - 168 backend tests passed, including PostgreSQL and actual FFmpeg rendering.

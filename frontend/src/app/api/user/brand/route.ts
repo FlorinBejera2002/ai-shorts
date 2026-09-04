@@ -1,3 +1,4 @@
+import { canWriteContent } from '@/lib/content-permissions'
 import { NextResponse } from 'next/server'
 
 import { auth } from '@/lib/auth'
@@ -113,6 +114,18 @@ export async function PUT(request: Request) {
   const session = await auth()
   if (!session?.user?.id) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+  if (!canWriteContent(session)) {
+    return Response.json(
+      { error: 'This role cannot modify content' },
+      { status: 403 }
+    )
+  }
+  if (!canWriteContent(session)) {
+    return Response.json(
+      { error: 'This role cannot modify content' },
+      { status: 403 }
+    )
   }
 
   const limit = await rateLimit({

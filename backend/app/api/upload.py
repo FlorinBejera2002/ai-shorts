@@ -22,7 +22,7 @@ from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.datastructures import UploadFile
 
-from app.api.deps import ensure_account_active, get_current_user
+from app.api.deps import enforce_content_role, ensure_account_active, get_current_user
 from app.api.rate_limit import limiter
 from app.config import settings
 from app.database import get_db
@@ -137,10 +137,12 @@ async def get_upload_user(
         if not user:
             raise HTTPException(status_code=401, detail="Invalid upload authorization")
         await ensure_account_active(db, user.id)
+        enforce_content_role(user, request.method)
         request.state.upload_claims = claims
         return user
 
     return await get_current_user(
+        request=request,
         x_internal_api_key=x_internal_api_key,
         x_user_id=x_user_id,
         x_user_email=x_user_email,
