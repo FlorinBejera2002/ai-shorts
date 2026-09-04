@@ -31,6 +31,6 @@ services:
       - ./frontend/tsconfig.json:/app/tsconfig.json
       - ./frontend/postcss.config.mjs:/app/postcss.config.mjs
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3001:3000"
     environment:
       - WATCHPACK_POLLING=true

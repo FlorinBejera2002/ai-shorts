@@ -95,7 +95,7 @@ export default function RegisterPage() {
         <div className="relative w-full max-w-[430px] animate-fade-in rounded-[24px] border border-white/[0.08] bg-[#0b0a0e]/90 p-6 shadow-[0_28px_90px_rgba(0,0,0,0.34),inset_0_1px_0_rgba(255,255,255,0.035)] sm:p-8">
           {/* Mobile logo */}
           <Link href="/" className="mb-9 flex items-center gap-2 lg:hidden">
-            <BrandLogo onDark={true} priority={true} />
+            <BrandLogo onDark={true} />
           </Link>
 
           <h1 className="font-[family-name:var(--font-cinematic)] text-4xl font-medium leading-none tracking-[-0.045em] text-white">

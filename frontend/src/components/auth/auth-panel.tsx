@@ -51,7 +51,7 @@ export function AuthPanel({
 
       <div className="relative z-10 flex w-full flex-col justify-between p-12 xl:p-16">
         <Link href="/" className="flex items-center gap-2.5">
-          <BrandLogo onDark={true} priority={true} />
+          <BrandLogo onDark={true} />
         </Link>
 
         <div className="max-w-[76%] space-y-6">

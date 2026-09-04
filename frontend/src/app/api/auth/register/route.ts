@@ -83,19 +83,18 @@ export async function POST(request: Request) {
     )
   }
 
-  const prisma = createPrismaClient()
-  const existing = await prisma.user.findUnique({ where: { email } })
-  if (existing) {
-    return NextResponse.json(
-      { error: 'Email already registered' },
-      { status: 409, headers: NO_STORE_HEADERS }
-    )
-  }
-
-  const passwordHash = await bcrypt.hash(password, 12)
-  let user
+  let prisma: ReturnType<typeof createPrismaClient> | undefined
   try {
-    user = await prisma.user.create({
+    prisma = createPrismaClient()
+    const existing = await prisma.user.findUnique({ where: { email } })
+    if (existing) {
+      return NextResponse.json(
+        { error: 'Email already registered' },
+        { status: 409, headers: NO_STORE_HEADERS }
+      )
+    }
+    const passwordHash = await bcrypt.hash(password, 12)
+    const user = await prisma.user.create({
       data: {
         email,
         name: name || email.split('@')[0],
@@ -112,6 +111,10 @@ export async function POST(request: Request) {
         plan: true
       }
     })
+    return NextResponse.json(
+      { user },
+      { status: 201, headers: NO_STORE_HEADERS }
+    )
   } catch (error) {
     if (errorCode(error) === 'P2002') {
       return NextResponse.json(
@@ -123,7 +126,9 @@ export async function POST(request: Request) {
       { error: 'Account could not be created' },
       { status: 503, headers: NO_STORE_HEADERS }
     )
+  } finally {
+    await prisma?.$disconnect().catch(() => {
+      // A cleanup error must not replace an already completed registration.
+    })
   }
-
-  return NextResponse.json({ user }, { status: 201, headers: NO_STORE_HEADERS })
 }
