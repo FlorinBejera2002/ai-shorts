@@ -4,7 +4,7 @@ import html
 import logging
 from pathlib import Path
 
-from app.schemas.processing import TranscriptResult
+from app.schemas.processing import SegmentCandidate, TranscriptResult, TranscriptWord
 from app.utils.ffmpeg_utils import run_ffmpeg
 from app.utils.file_utils import ensure_dir
 
@@ -45,11 +45,10 @@ STYLE_PRESETS = {
 
 
 def _format_srt_time(seconds: float) -> str:
-    seconds = max(0, seconds)
-    hours = int(seconds // 3600)
-    minutes = int((seconds % 3600) // 60)
-    secs = int(seconds % 60)
-    millis = int(round((seconds - int(seconds)) * 1000))
+    total = max(0, round(seconds * 1000))
+    whole_seconds, millis = divmod(total, 1000)
+    hours, remainder = divmod(whole_seconds, 3600)
+    minutes, secs = divmod(remainder, 60)
     return f"{hours:02d}:{minutes:02d}:{secs:02d},{millis:03d}"
 
 
@@ -69,13 +68,33 @@ def generate_srt(
     output_path: str,
     max_chars: int = 24,
     max_duration: float = 2.0,
+    source_segments: list[dict] | None = None,
 ) -> bool:
     try:
         normalized = TranscriptResult.model_validate(transcript)
+        if source_segments:
+            mapped = []
+            offset = 0.0
+            for raw in source_segments:
+                segment = SegmentCandidate.model_validate(raw)
+                for word in normalized.words:
+                    if word.end > segment.start and word.start < segment.end:
+                        mapped.append(
+                            TranscriptWord(
+                                text=word.text,
+                                start=offset
+                                + max(word.start, segment.start)
+                                - segment.start,
+                                end=offset + min(word.end, segment.end) - segment.start,
+                            )
+                        )
+                offset += segment.end - segment.start
+            normalized = normalized.model_copy(update={"words": mapped})
+            clip_start, clip_end = 0.0, offset
         words = [
             word
             for word in normalized.words
-            if word.end >= clip_start and word.start <= clip_end
+            if word.end > clip_start and word.start < clip_end
         ]
         if not words:
             logger.warning("No transcript words found for subtitle range")
@@ -187,8 +206,7 @@ def burn_subtitles(
         )
         ensure_dir(Path(output_path).parent)
         subtitle_filter = (
-            f"subtitles='{_escape_subtitle_path(srt_path)}':"
-            f"force_style='{style_str}'"
+            f"subtitles='{_escape_subtitle_path(srt_path)}':force_style='{style_str}'"
         )
         run_ffmpeg(
             [

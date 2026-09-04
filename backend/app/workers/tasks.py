@@ -6,10 +6,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from sqlalchemy import update
+from sqlalchemy import select, update
 
 from app.database import SyncSessionLocal
 from app.models.account_deletion_request import AccountDeletionRequest
+from app.models.brand import BrandKit
 from app.models.clip import Clip
 from app.models.job import Job
 from app.models.user import User
@@ -20,6 +21,14 @@ logger = logging.getLogger(__name__)
 
 class AccountDeletionPending(RuntimeError):
     """Cooperative cancellation signal for work owned by a frozen account."""
+
+
+class JobAlreadyClaimed(RuntimeError):
+    """Duplicate or late delivery; it must not mutate the existing job."""
+
+
+class JobCancelled(RuntimeError):
+    """Cooperative cancellation after an explicit user cancellation."""
 
 
 @celery_app.task(name="sneepcut.placeholder")
@@ -75,8 +84,10 @@ def process_job_task(
 ) -> dict[str, Any]:
     from app.services.processing_pipeline import process_video_source
 
+    claimed = False
     try:
-        _mark_job_started(job_id)
+        render_options = _mark_job_started(job_id)
+        claimed = True
         self.update_state(
             state="PROGRESS",
             meta={"progress": 5, "message": "Processing started"},
@@ -84,9 +95,7 @@ def process_job_task(
 
         def _on_progress(status: str, pct: int, msg: str) -> None:
             _update_job_progress(job_id, status, pct, msg)
-            self.update_state(
-                state="PROGRESS", meta={"progress": pct, "message": msg}
-            )
+            self.update_state(state="PROGRESS", meta={"progress": pct, "message": msg})
 
         result = process_video_source(
             source=source,
@@ -99,6 +108,7 @@ def process_job_task(
             on_progress=_on_progress,
             user_instructions=user_instructions,
             storage_namespace=job_id,
+            **render_options,
         )
         _mark_job_completed(job_id, result)
         self.update_state(
@@ -106,6 +116,11 @@ def process_job_task(
             meta={"progress": 100, "message": "Processing complete"},
         )
         return result
+    except JobAlreadyClaimed:
+        return {"status": "ignored", "reason": "job_already_claimed_or_terminal"}
+    except JobCancelled:
+        _cleanup_job_storage(job_id)
+        return {"status": "cancelled", "reason": "user_cancelled"}
     except AccountDeletionPending:
         _mark_job_cancelled_for_deletion(job_id)
         _cleanup_job_storage(job_id)
@@ -117,7 +132,8 @@ def process_job_task(
         _mark_job_failed(job_id, str(exc))
         raise
     finally:
-        _mark_job_processing_inactive(job_id)
+        if claimed:
+            _mark_job_processing_inactive(job_id)
 
 
 def _account_deletion_pending(db, user_id: uuid.UUID) -> bool:
@@ -131,9 +147,13 @@ def _ensure_account_active(db, user_id: uuid.UUID) -> None:
 
 def _update_job_progress(job_id: str, status: str, progress: int, message: str) -> None:
     with SyncSessionLocal() as db:
-        job = db.get(Job, uuid.UUID(job_id))
+        job = db.get(Job, uuid.UUID(job_id), with_for_update=True)
         if not job:
             raise AccountDeletionPending("job was deleted")
+        if job.status == "cancelled":
+            raise JobCancelled("job was cancelled")
+        if job.status in {"completed", "failed"}:
+            raise JobAlreadyClaimed("job is terminal")
         _ensure_account_active(db, job.user_id)
         job.status = status
         job.progress = progress
@@ -141,27 +161,63 @@ def _update_job_progress(job_id: str, status: str, progress: int, message: str) 
         db.commit()
 
 
-def _mark_job_started(job_id: str) -> None:
+def _mark_job_started(job_id: str) -> dict[str, Any]:
     with SyncSessionLocal() as db:
-        job = db.get(Job, uuid.UUID(job_id))
+        job = db.get(Job, uuid.UUID(job_id), with_for_update=True)
         if not job:
             raise AccountDeletionPending("job was deleted")
+        if job.status != "pending" or job.processing_active:
+            raise JobAlreadyClaimed("job is already claimed or terminal")
         _ensure_account_active(db, job.user_id)
-        if job.status in {"completed", "failed", "cancelled"}:
-            raise RuntimeError(f"job is already terminal: {job.status}")
+        from app.services.storage import storage_key_from_reference
+
+        user = db.get(User, job.user_id)
+        kit = db.scalar(select(BrandKit).where(BrandKit.user_id == job.user_id))
+        brand = {
+            "user_id": str(job.user_id),
+            "apply_brand": bool(job.include_brand and kit),
+            "hide_platform_badge": bool(
+                user and user.plan == "agency" and kit and kit.hide_platform_badge
+            ),
+        }
+        if job.include_brand and kit:
+            brand.update(
+                {
+                    name: getattr(kit, name)
+                    for name in (
+                        "subtitle_font",
+                        "subtitle_color",
+                        "subtitle_bg_color",
+                        "subtitle_bg_opacity",
+                        "subtitle_position",
+                        "watermark_position",
+                        "watermark_opacity",
+                    )
+                }
+            )
+            brand["logo_key"] = storage_key_from_reference(kit.logo_path)
         job.status = "downloading"
         job.progress = 5
         job.progress_message = "Processing started"
         job.started_at = datetime.now(timezone.utc)
         job.processing_active = True
         db.commit()
+        return {
+            "language": job.language,
+            "subtitle_style": job.subtitle_style,
+            "brand_settings": brand,
+        }
 
 
 def _mark_job_completed(job_id: str, result: dict[str, Any]) -> None:
     with SyncSessionLocal() as db:
-        job = db.get(Job, uuid.UUID(job_id))
+        job = db.get(Job, uuid.UUID(job_id), with_for_update=True)
         if not job:
             raise AccountDeletionPending("job was deleted")
+        if job.status == "cancelled":
+            raise JobCancelled("job was cancelled")
+        if job.status in {"completed", "failed"}:
+            raise JobAlreadyClaimed("job is terminal")
         _ensure_account_active(db, job.user_id)
         job.source_storage_key = result.get("source_storage_key")
         job.source_video_url = result.get("source_video_url")
@@ -206,6 +262,11 @@ def _mark_job_completed(job_id: str, result: dict[str, Any]) -> None:
                     start_time=float(clip_data.get("start") or 0),
                     end_time=float(clip_data.get("end") or 0),
                     duration=float(clip_data.get("duration") or 0),
+                    segments=[
+                        {**segment, "order": index}
+                        for index, segment in enumerate(clip_data.get("segments") or [])
+                    ]
+                    or None,
                     file_path=file_path,
                     file_url=metadata.get("public_url"),
                     file_storage_key=file_storage_key,
@@ -324,9 +385,7 @@ def trim_clip_task(
                 raise RuntimeError(f"FFmpeg trim failed: {result.stderr[:500]}")
             _ensure_account_active(db, job.user_id)
 
-            new_storage_key = (
-                f"clips/{job.id}/edits/{clip.id}/trim-{task_token}.mp4"
-            )
+            new_storage_key = f"clips/{job.id}/edits/{clip.id}/trim-{task_token}.mp4"
             storage_path = storage.save_file(output, new_storage_key)
             _ensure_account_active(db, job.user_id)
 
@@ -417,9 +476,7 @@ def recut_clip_task(
             )
             _ensure_account_active(db, job.user_id)
 
-            file_storage_key = (
-                f"clips/{job.id}/edits/{clip.id}/recut-{task_token}.mp4"
-            )
+            file_storage_key = f"clips/{job.id}/edits/{clip.id}/recut-{task_token}.mp4"
             file_storage_path = storage.save_file(output_path, file_storage_key)
             new_storage_keys.append(file_storage_key)
             thumbnail_storage_key: str | None = None
@@ -566,7 +623,10 @@ def _mark_job_failed(job_id: str, error_message: str) -> None:
         job.progress_message = "Failed"
         job.error_message = error_message
         job.completed_at = datetime.now(timezone.utc)
-        user = db.get(User, job.user_id)
-        if user:
-            user.credits += job.credits_charged
+        db.execute(
+            update(User)
+            .where(User.id == job.user_id)
+            .values(credits=User.credits + job.credits_charged)
+            .execution_options(synchronize_session=False)
+        )
         db.commit()

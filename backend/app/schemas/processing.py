@@ -76,7 +76,12 @@ class HighlightCandidate(BaseModel):
     @model_validator(mode="before")
     @classmethod
     def migrate_legacy(cls, data):
-        if isinstance(data, dict) and "start" in data and "end" in data and "segments" not in data:
+        if (
+            isinstance(data, dict)
+            and "start" in data
+            and "end" in data
+            and "segments" not in data
+        ):
             data["segments"] = [{"start": data.pop("start"), "end": data.pop("end")}]
         return data
 
@@ -86,6 +91,7 @@ class ClipOutput(BaseModel):
     start: float = Field(ge=0)
     end: float = Field(gt=0)
     duration: float = Field(gt=0)
+    segments: list[SegmentCandidate] = Field(default_factory=list)
     title: str = ""
     hook_text: str = ""
     file_path: str
@@ -101,8 +107,21 @@ class ClipOutput(BaseModel):
     def validate_window(self) -> "ClipOutput":
         if self.end <= self.start:
             raise ValueError("clip end must be greater than start")
-        if abs(self.duration - (self.end - self.start)) > 0.01:
-            raise ValueError("clip duration must match end - start")
+        expected = self.end - self.start
+        if self.segments:
+            if (
+                self.segments[0].start != self.start
+                or self.segments[-1].end != self.end
+            ):
+                raise ValueError("clip bounds must match its segments")
+            if any(
+                right.start < left.end
+                for left, right in zip(self.segments, self.segments[1:])
+            ):
+                raise ValueError("clip segments must be ordered and non-overlapping")
+            expected = sum(segment.end - segment.start for segment in self.segments)
+        if abs(self.duration - expected) > 0.01:
+            raise ValueError("clip duration must match its selected segments")
         return self
 
 

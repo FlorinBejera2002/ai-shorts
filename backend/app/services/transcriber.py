@@ -6,7 +6,11 @@ from typing import Any
 
 from app.config import settings
 from app.schemas.processing import TranscriptResult, TranscriptSegment, TranscriptWord
-from app.utils.ffmpeg_utils import get_video_duration, has_audio_stream, validate_video_file
+from app.utils.ffmpeg_utils import (
+    get_video_duration,
+    has_audio_stream,
+    validate_video_file,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -72,7 +76,7 @@ def _collect_transcript(
     return segments, words, text_parts
 
 
-def transcribe_video(video_path: str) -> dict[str, Any]:
+def transcribe_video(video_path: str, language: str | None = None) -> dict[str, Any]:
     path = Path(video_path)
     validate_video_file(path)
     if not has_audio_stream(path):
@@ -83,6 +87,7 @@ def transcribe_video(video_path: str) -> dict[str, Any]:
         str(path),
         word_timestamps=True,
         vad_filter=True,
+        language=language or None,
     )
     segments, words, text_parts = _collect_transcript(segments_iter)
 
@@ -94,6 +99,7 @@ def transcribe_video(video_path: str) -> dict[str, Any]:
             str(path),
             word_timestamps=True,
             vad_filter=False,
+            language=language or None,
         )
         segments, words, text_parts = _collect_transcript(segments_iter)
 

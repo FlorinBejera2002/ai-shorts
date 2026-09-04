@@ -54,6 +54,8 @@ frontend/prisma/migrations/
 *.log
 coverage/
 .cache/
+frontend/.next-integration-dev/
+frontend/test-results/
 
 # Git worktrees
 .worktrees/

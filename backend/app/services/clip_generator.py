@@ -52,13 +52,20 @@ def extract_clip(
         if len(segments) == 1:
             seg = segments[0]
             cmd = [
-                "ffmpeg", "-y",
-                "-ss", str(seg["start"]),
-                "-to", str(seg["end"]),
-                "-i", input_video,
-                "-c:v", "libx264",
-                "-crf", str(crf),
-                "-preset", preset,
+                "ffmpeg",
+                "-y",
+                "-ss",
+                str(seg["start"]),
+                "-to",
+                str(seg["end"]),
+                "-i",
+                input_video,
+                "-c:v",
+                "libx264",
+                "-crf",
+                str(crf),
+                "-preset",
+                preset,
             ]
             if has_audio:
                 cmd.extend(["-c:a", "aac"])
@@ -73,13 +80,20 @@ def extract_clip(
                 for i, seg in enumerate(segments):
                     temp_path = output_path.replace(".mp4", f"_seg{i}.mp4")
                     cmd = [
-                        "ffmpeg", "-y",
-                        "-ss", str(seg["start"]),
-                        "-to", str(seg["end"]),
-                        "-i", input_video,
-                        "-c:v", "libx264",
-                        "-crf", str(crf),
-                        "-preset", preset,
+                        "ffmpeg",
+                        "-y",
+                        "-ss",
+                        str(seg["start"]),
+                        "-to",
+                        str(seg["end"]),
+                        "-i",
+                        input_video,
+                        "-c:v",
+                        "libx264",
+                        "-crf",
+                        str(crf),
+                        "-preset",
+                        preset,
                     ]
                     if has_audio:
                         cmd.extend(["-c:a", "aac"])
@@ -96,14 +110,21 @@ def extract_clip(
                         f.write(f"file '{tf}'\n")
 
                 # Concat with stream copy
-                run_ffmpeg([
-                    "ffmpeg", "-y",
-                    "-f", "concat",
-                    "-safe", "0",
-                    "-i", list_path,
-                    "-c", "copy",
-                    output_path,
-                ])
+                run_ffmpeg(
+                    [
+                        "ffmpeg",
+                        "-y",
+                        "-f",
+                        "concat",
+                        "-safe",
+                        "0",
+                        "-i",
+                        list_path,
+                        "-c",
+                        "copy",
+                        output_path,
+                    ]
+                )
 
                 Path(list_path).unlink(missing_ok=True)
             finally:
@@ -184,6 +205,7 @@ def extract_all_clips(
             start=clip.start,
             end=clip.end,
             duration=round(clip.duration, 3),
+            segments=clip.segments,
             title=clip.video_title_for_youtube_short,
             hook_text=clip.viral_hook_text,
             file_path=str(output_path),
@@ -202,7 +224,9 @@ def extract_all_clips(
         )
         extracted_clips.append(metadata.model_dump())
 
-    logger.info("Extracted %s clips from %s candidates", len(extracted_clips), len(clips_data))
+    logger.info(
+        "Extracted %s clips from %s candidates", len(extracted_clips), len(clips_data)
+    )
     return extracted_clips
 
 
