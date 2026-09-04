@@ -1,7 +1,15 @@
 'use client'
 
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle
+} from '@/components/ui/card'
+import { Skeleton } from '@/components/ui/skeleton'
 import { Link } from '@/i18n/navigation'
-import { Clock, Loader2 } from 'lucide-react'
+import { CheckCheck, Clock, Loader2 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useEffect, useState } from 'react'
 
@@ -29,23 +37,27 @@ const ACTIVE_STATUSES = [
 
 export function ActiveJobs() {
   const t = useTranslations('dashboard')
+  const s = useTranslations('dashboard.studio')
   const [jobs, setJobs] = useState<ActiveJob[]>([])
   const [loading, setLoading] = useState(true)
+  const [failed, setFailed] = useState(false)
 
   useEffect(() => {
     let mounted = true
     async function poll() {
       try {
         const res = await fetch('/api/jobs')
+        if (!res.ok) throw new Error('Unable to load jobs')
         if (res.ok && mounted) {
           const data = await res.json()
           const active = (data.jobs ?? []).filter((j: ActiveJob) =>
             ACTIVE_STATUSES.includes(j.status)
           )
           setJobs(active)
+          setFailed(false)
         }
       } catch {
-        // silent — polling will retry
+        if (mounted) setFailed(true)
       } finally {
         if (mounted) setLoading(false)
       }
@@ -116,63 +128,92 @@ export function ActiveJobs() {
     statusMap[status] ?? (statusMap.processing as StatusInfo)
 
   return (
-    <div className="panel p-5">
-      <h2 className="section-label">{t('activeJobs')}</h2>
-      {loading ? (
-        <div className="mt-4 flex justify-center py-4">
-          <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-        </div>
-      ) : jobs.length > 0 ? (
-        <div className="mt-4 space-y-3">
-          {jobs.map((job) => {
-            const statusInfo = getStatusInfo(job.status)
-            const StatusIcon = statusInfo.icon
-            return (
-              <Link
-                key={job.id}
-                href={`/dashboard/jobs/${job.id}`}
-                className="group block transition-colors"
-              >
-                <div className="flex items-center justify-between gap-3 mb-1.5">
-                  <div className="min-w-0 flex-1 truncate text-[13px] font-medium text-foreground">
-                    {job.sourceUrl ?? job.sourceFilePath ?? 'Processing...'}
-                  </div>
-                  <div
-                    className={`flex shrink-0 items-center gap-1 text-[11px] ${statusInfo.color}`}
-                  >
-                    {statusInfo.icon === Loader2 ? (
-                      <StatusIcon className="h-3 w-3 animate-spin" />
-                    ) : (
-                      <StatusIcon className="h-3 w-3" strokeWidth={1.75} />
-                    )}
-                    <span className="hidden sm:inline">
-                      {job.progressMessage ?? statusInfo.text}
-                    </span>
-                    <span>{Math.min(job.progress, 100)}%</span>
-                  </div>
-                </div>
-                <div
-                  className="h-1 overflow-hidden rounded-full bg-muted"
-                  role="progressbar"
-                  aria-label={job.progressMessage ?? statusInfo.text}
-                  aria-valuemin={0}
-                  aria-valuemax={100}
-                  aria-valuenow={Math.min(job.progress, 100)}
+    <Card className="gap-4 shadow-none">
+      <CardHeader>
+        <CardTitle>
+          <h2 className="text-base tracking-tight">{t('activeJobs')}</h2>
+        </CardTitle>
+        <CardDescription className="text-xs">
+          {s('queueDescription')}
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        {failed && (
+          <p role="status" className="mb-3 text-xs text-destructive">
+            {s('queueError')}
+          </p>
+        )}
+        {loading ? (
+          <div
+            className="space-y-3"
+            aria-label={s('queueLoading')}
+            role="status"
+          >
+            <Skeleton className="h-4 w-3/4" />
+            <Skeleton className="h-2 w-full" />
+            <Skeleton className="h-4 w-1/2" />
+          </div>
+        ) : jobs.length > 0 ? (
+          <div className="mt-4 space-y-3">
+            {jobs.map((job) => {
+              const statusInfo = getStatusInfo(job.status)
+              const StatusIcon = statusInfo.icon
+              return (
+                <Link
+                  key={job.id}
+                  href={`/dashboard/jobs/${job.id}`}
+                  className="group block transition-colors"
                 >
+                  <div className="flex items-center justify-between gap-3 mb-1.5">
+                    <div className="min-w-0 flex-1 truncate text-[13px] font-medium text-foreground">
+                      {job.sourceUrl ??
+                        job.sourceFilePath ??
+                        t('statusProcessing')}
+                    </div>
+                    <div
+                      className={`flex shrink-0 items-center gap-1 text-[11px] ${statusInfo.color}`}
+                    >
+                      {statusInfo.icon === Loader2 ? (
+                        <StatusIcon className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <StatusIcon className="h-3 w-3" strokeWidth={1.75} />
+                      )}
+                      <span className="hidden sm:inline">
+                        {job.progressMessage ?? statusInfo.text}
+                      </span>
+                      <span>{Math.min(job.progress, 100)}%</span>
+                    </div>
+                  </div>
                   <div
-                    className="h-full rounded-full bg-primary transition-all duration-500"
-                    style={{ width: `${Math.min(job.progress, 100)}%` }}
-                  />
-                </div>
-              </Link>
-            )
-          })}
-        </div>
-      ) : (
-        <p className="mt-4 py-4 text-center text-xs text-muted-foreground">
-          {t('noActiveJobs')}
-        </p>
-      )}
-    </div>
+                    className="h-1 overflow-hidden rounded-full bg-muted"
+                    role="progressbar"
+                    aria-label={job.progressMessage ?? statusInfo.text}
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-valuenow={Math.min(job.progress, 100)}
+                  >
+                    <div
+                      className="h-full rounded-full bg-primary transition-all duration-500"
+                      style={{ width: `${Math.min(job.progress, 100)}%` }}
+                    />
+                  </div>
+                </Link>
+              )
+            })}
+          </div>
+        ) : !failed ? (
+          <div className="flex flex-col items-center rounded-xl border border-dashed bg-muted/20 px-4 py-7 text-center">
+            <CheckCheck
+              className="mb-3 size-6 text-muted-foreground"
+              strokeWidth={1.5}
+            />
+            <p className="text-xs font-medium">{t('noActiveJobs')}</p>
+            <p className="mt-1.5 text-xs text-muted-foreground">
+              {s('queueEmpty')}
+            </p>
+          </div>
+        ) : null}
+      </CardContent>
+    </Card>
   )
 }

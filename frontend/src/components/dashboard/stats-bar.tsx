@@ -1,73 +1,86 @@
-import { BookOpen, Crown, Film, Zap } from 'lucide-react'
-import { useTranslations } from 'next-intl'
-
-interface StatsBarProps {
-  credits: number
-  jobCount: number
-  clipCount: number
-  plan: string
-}
+import { Card, CardContent } from '@/components/ui/card'
+import { Link } from '@/i18n/navigation'
+import { ArrowUpRight, Clock3, Film, FolderOpen, Zap } from 'lucide-react'
+import { useLocale, useTranslations } from 'next-intl'
 
 export function StatsBar({
   credits,
   jobCount,
   clipCount,
-  plan
-}: StatsBarProps) {
-  const t = useTranslations('dashboard')
+  durationMinutes
+}: {
+  credits: number
+  jobCount: number
+  clipCount: number
+  durationMinutes: number
+}) {
+  const t = useTranslations('dashboard.studio')
+  const locale = useLocale()
   const stats = [
     {
-      label: t('creditsLabel'),
-      value: credits,
-      icon: Zap,
-      color: 'text-amber-500'
-    },
-    {
-      label: t('jobsLabel'),
-      value: jobCount,
-      icon: BookOpen,
-      color: 'text-primary'
-    },
-    {
-      label: t('clipsLabel'),
+      label: t('clips'),
       value: clipCount,
       icon: Film,
-      color: 'text-sky-500'
+      hint: t('clipsHint'),
+      href: '/dashboard/clips',
+      color: 'text-primary bg-primary/10'
     },
     {
-      label: t('planLabel'),
-      value: plan,
-      icon: Crown,
-      color: 'text-indigo-500',
-      capitalize: true
+      label: t('projects'),
+      value: jobCount,
+      icon: FolderOpen,
+      hint: t('projectsHint'),
+      href: '/dashboard/history',
+      color: 'text-sky-600 bg-sky-500/10 dark:text-sky-400'
+    },
+    {
+      label: t('output'),
+      value: durationMinutes,
+      icon: Clock3,
+      hint: t('outputHint'),
+      href: '/dashboard/analytics',
+      color: 'text-violet-600 bg-violet-500/10 dark:text-violet-400'
+    },
+    {
+      label: t('credits'),
+      value: credits,
+      icon: Zap,
+      hint: t('creditsHint'),
+      href: '/dashboard/billing',
+      color: 'text-amber-700 bg-amber-500/10 dark:text-amber-400'
     }
   ]
-
   return (
-    <div className="grid grid-cols-2 gap-3 animate-fade-in xl:grid-cols-4">
-      {stats.map((stat) => {
-        const Icon = stat.icon
-        return (
-          <div
-            key={stat.label}
-            className="panel-soft flex min-w-0 items-center gap-3 px-4 py-4"
-          >
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-card shadow-sm ring-1 ring-border">
-              <Icon className={`h-4 w-4 ${stat.color}`} strokeWidth={1.75} />
-            </div>
-            <div className="min-w-0">
-              <div className="section-label truncate text-[9px]">
-                {stat.label}
-              </div>
-              <div
-                className={`mt-1 text-xl font-semibold tabular-nums leading-tight ${stat.capitalize ? 'capitalize' : ''}`}
+    <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
+      {stats.map(({ label, value, icon: Icon, hint, href, color }) => (
+        <Card
+          key={label}
+          className="group relative gap-0 overflow-hidden py-5 shadow-none transition-colors hover:border-primary/40"
+        >
+          <CardContent className="px-5">
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-xs font-medium text-muted-foreground">
+                {label}
+              </span>
+              <span
+                className={`flex size-8 items-center justify-center rounded-lg ${color}`}
               >
-                {stat.value}
-              </div>
+                <Icon className="size-4" strokeWidth={1.75} />
+              </span>
             </div>
-          </div>
-        )
-      })}
+            <div className="mt-3 text-[2rem] font-semibold leading-none tracking-tight tabular-nums">
+              {value.toLocaleString(locale)}
+            </div>
+            <Link
+              href={href}
+              className="mt-4 flex items-center justify-between gap-2 text-xs text-muted-foreground after:absolute after:inset-0 focus-visible:outline-none focus-visible:after:ring-2 focus-visible:after:ring-ring focus-visible:after:rounded-xl"
+            >
+              <span>{hint}</span>
+              <ArrowUpRight className="size-3.5 shrink-0 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
+            </Link>
+          </CardContent>
+        </Card>
+      ))}
     </div>
   )
 }

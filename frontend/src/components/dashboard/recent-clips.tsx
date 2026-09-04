@@ -26,7 +26,9 @@ export function RecentClips({ clips }: { clips: ClipPreview[] }) {
   return (
     <div>
       <div className="mb-4 flex items-center justify-between">
-        <h2 className="section-label">{t('recentClips')}</h2>
+        <h2 className="text-base font-semibold tracking-tight">
+          {t('recentClips')}
+        </h2>
         <Link
           href="/dashboard/clips"
           className="text-xs font-semibold text-primary transition-colors hover:opacity-75"
