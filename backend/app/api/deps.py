@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hmac
 import uuid
 
 from fastapi import Depends, Header, HTTPException, status
@@ -18,15 +19,20 @@ async def get_authenticated_user(
     x_user_email: str | None = Header(default=None),
     db: AsyncSession = Depends(get_db),
 ) -> User:
-    if settings.internal_api_key and x_internal_api_key != settings.internal_api_key:
+    if settings.internal_api_key and not hmac.compare_digest(
+        (x_internal_api_key or "").encode(), settings.internal_api_key.encode()
+    ):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Invalid internal API key",
         )
-    if settings.app_env == "production" and not settings.internal_api_key:
+    if (
+        settings.app_env.lower() not in {"development", "test", "testing"}
+        and not settings.internal_api_key
+    ):
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Internal API key is required in production",
+            detail="Internal API key is required in this environment",
         )
 
     # An explicit identity is authoritative. In particular, a stale session

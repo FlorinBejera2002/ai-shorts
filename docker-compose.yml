@@ -27,9 +27,28 @@ services:
       timeout: 5s
       retries: 5
 
+  clamav:
+    image: clamav/clamav:stable
+    profiles: ["security"]
+    volumes:
+      - clamav_data:/var/lib/clamav
+      - ./backend/clamav/clamd.conf:/etc/clamav/clamd.conf:ro
+    expose:
+      - "3310"
+    mem_limit: 4g
+    cpus: 2
+    pids_limit: 128
+    security_opt: ["no-new-privileges:true"]
+    restart: unless-stopped
+
   backend:
-    build: ./backend
-    image: sneepcut-app
+    build:
+      context: ./backend
+      target: api
+    image: sneepcut-api
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: ["ALL"]
+    pids_limit: 128
     env_file: .env
     depends_on:
       postgres:
@@ -41,14 +60,21 @@ services:
     expose:
       - "8000"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health', timeout=3)"]
       interval: 10s
       timeout: 5s
       retries: 3
 
   worker:
-    # Same image as backend — built once by the backend service
-    image: sneepcut-app
+    build:
+      context: ./backend
+      target: ml
+    image: sneepcut-ml
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: ["ALL"]
+    pids_limit: 512
+    mem_limit: ${WORKER_MEMORY_LIMIT:-6g}
+    cpus: ${WORKER_CPU_LIMIT:-2}
     command: >
       celery -A app.workers.celery_app:celery_app worker
       --loglevel=info
@@ -66,7 +92,10 @@ services:
       - media_data:/app/media
 
   job-dispatcher:
-    image: sneepcut-app
+    image: sneepcut-api
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: ["ALL"]
+    pids_limit: 64
     command: python -m app.services.job_delivery
     env_file: .env
     depends_on:
@@ -106,3 +135,4 @@ services:
 volumes:
   postgres_data:
   media_data:
+  clamav_data:

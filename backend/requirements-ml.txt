@@ -1,0 +1,11 @@
+-r requirements-api.txt
+yt-dlp
+ffmpeg-python==0.2.*
+opencv-python-headless==4.11.*
+scenedetect==0.7.*
+tqdm==4.67.*
+faster-whisper==1.2.*
+ultralytics==8.4.*
+mediapipe==0.10.*
+torch==2.11.*
+torchvision==0.26.*

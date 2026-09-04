@@ -60,6 +60,10 @@ class Settings(BaseSettings):
     storage_type: str = "local"
     local_media_root: str = "/app/media"
     max_upload_size_mb: int = 2048
+    upload_scanner_enabled: bool = False
+    clamav_host: str = "clamav"
+    clamav_port: int = 3310
+    clamav_timeout_seconds: float = 120.0
     max_video_duration_minutes: int = 120
     default_free_credits: int = 100
     smart_crop_enabled: bool = True

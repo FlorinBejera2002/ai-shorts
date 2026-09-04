@@ -89,9 +89,9 @@ def test_invalid_explicit_user_id_never_falls_back_to_email(user_id) -> None:
 def test_existing_explicit_user_id_remains_authoritative() -> None:
     user = SimpleNamespace(id=uuid.uuid4())
     db = _AuthDb(by_id=user)
-    assert _authenticate(
-        db, user_id=str(user.id), email="different@example.com"
-    ) is user
+    assert (
+        _authenticate(db, user_id=str(user.id), email="different@example.com") is user
+    )
     assert db.email_lookups == 0
 
 
@@ -123,3 +123,16 @@ def test_email_only_development_provisioning_is_preserved() -> None:
     assert user.provider == "header-dev"
     assert db.added == [user]
     assert db.commits == 1
+
+
+@pytest.mark.parametrize("environment", ["production", "staging", "preview"])
+def test_deployed_environment_fails_closed_without_internal_key(
+    monkeypatch, environment
+):
+    monkeypatch.setattr(settings, "app_env", environment)
+    monkeypatch.setattr(settings, "internal_api_key", "")
+    db = _AuthDb(by_id=SimpleNamespace(id=uuid.uuid4()))
+    with pytest.raises(HTTPException) as error:
+        _authenticate(db, user_id=str(uuid.uuid4()))
+    assert error.value.status_code == 503
+    assert db.id_lookups == []

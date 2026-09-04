@@ -27,6 +27,7 @@ from app.api.rate_limit import limiter
 from app.config import settings
 from app.database import get_db
 from app.models.user import User
+from app.services.upload_scanner import require_clean_upload
 from app.utils.file_utils import ensure_dir, safe_slug
 
 router = APIRouter(prefix="/api/upload", tags=["upload"])
@@ -261,6 +262,7 @@ async def upload_video_direct(
             raise ValueError("Upload size does not match authorization")
         if not looks_like_supported_video(bytes(header), suffix):
             raise ValueError("Invalid video file")
+        await require_clean_upload(partial)
         os.replace(partial, destination)
         await ensure_account_active(db, user.id)
     except HTTPException:
@@ -272,10 +274,13 @@ async def upload_video_direct(
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:
         partial.unlink(missing_ok=True)
+        destination.unlink(missing_ok=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Upload could not be stored",
         ) from exc
+    finally:
+        partial.unlink(missing_ok=True)
 
     return {
         "file_path": str(destination),
@@ -342,27 +347,27 @@ async def upload_video(
     destination = upload_dir / filename
     written = 0
 
-    with destination.open("wb") as output:
-        output.write(header)
-        written += len(header)
-        while chunk := await file.read(1024 * 1024):
-            written += len(chunk)
-            if written > max_bytes:
-                destination.unlink(missing_ok=True)
-                raise HTTPException(status_code=413, detail="File too large")
-            output.write(chunk)
-
-    if claims and written != claims["fileSize"]:
-        destination.unlink(missing_ok=True)
-        raise HTTPException(
-            status_code=400, detail="Upload does not match authorization"
-        )
-
+    partial = destination.with_name(f".{destination.name}.part")
     try:
+        with partial.open("xb") as output:
+            output.write(header)
+            written += len(header)
+            while chunk := await file.read(1024 * 1024):
+                written += len(chunk)
+                if written > max_bytes:
+                    raise HTTPException(status_code=413, detail="File too large")
+                output.write(chunk)
+            output.flush()
+            os.fsync(output.fileno())
+        await require_clean_upload(partial)
         await ensure_account_active(db, user.id)
-    except HTTPException:
+        os.replace(partial, destination)
+    except BaseException:
+        partial.unlink(missing_ok=True)
         destination.unlink(missing_ok=True)
         raise
+    finally:
+        await file.close()
 
     return {
         "file_path": str(destination),

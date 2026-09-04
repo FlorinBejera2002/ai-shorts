@@ -11,6 +11,7 @@ from app.api.deps import get_current_user
 from app.api.rate_limit import limiter
 from app.models.user import User
 from app.services.storage import get_storage_backend, storage_key_from_reference
+from app.services.upload_scanner import require_clean_upload
 from app.utils.file_utils import safe_slug
 from app.utils.signed_url import make_signed_media_url
 
@@ -88,9 +89,7 @@ def _owned_logo_key(
     if not key or Path(key).as_posix().rsplit("/", 1)[0] != expected_parent:
         raise HTTPException(status_code=403, detail="Cannot access this file")
     extensions = (
-        DELETABLE_LOGO_EXTENSIONS
-        if allow_legacy_svg
-        else ALLOWED_LOGO_EXTENSIONS
+        DELETABLE_LOGO_EXTENSIONS if allow_legacy_svg else ALLOWED_LOGO_EXTENSIONS
     )
     if Path(key).suffix.lower() not in extensions:
         raise HTTPException(status_code=403, detail="Cannot access this file")
@@ -149,6 +148,7 @@ async def upload_logo(
                     raise HTTPException(status_code=413, detail="Image too large")
                 output.write(chunk)
 
+        await require_clean_upload(temporary_path)
         if not await run_in_threadpool(is_valid_stored_image, temporary_path, suffix):
             raise HTTPException(status_code=400, detail="Invalid image file")
 

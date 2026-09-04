@@ -77,7 +77,12 @@ def validate_user_upload_path(source_file_path: str | None, user: User) -> None:
     media_root = Path(settings.local_media_root).resolve()
     user_upload_root = (media_root / "uploads" / str(user.id)).resolve()
     requested_path = Path(source_file_path).resolve()
-    if user_upload_root not in requested_path.parents:
+    if (
+        requested_path.parent != user_upload_root
+        or requested_path.name.startswith(".")
+        or requested_path.suffix.lower()
+        not in {".mp4", ".mov", ".avi", ".mkv", ".webm"}
+    ):
         raise HTTPException(status_code=400, detail="Invalid uploaded file path")
     if not requested_path.is_file():
         raise HTTPException(status_code=400, detail="Uploaded file was not found")
