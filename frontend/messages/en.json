@@ -168,6 +168,7 @@
     },
     "passwordWeak": "Password does not meet requirements",
     "accountCreated": "Account created! Redirecting...",
+    "accountCreatedSignInRequired": "Your account was created, but automatic sign-in failed. Please sign in to continue.",
     "forgotTitle": "Reset password",
     "forgotDesc": "Enter your email to receive a reset link",
     "sendResetLink": "Send reset link",

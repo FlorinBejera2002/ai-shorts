@@ -6,6 +6,7 @@ import { BrandLogo } from '@/components/shared/brand-logo'
 import { useToast } from '@/components/ui/toast'
 import { Link, useRouter } from '@/i18n/navigation'
 import { Check, Loader2, X } from 'lucide-react'
+import { signIn } from 'next-auth/react'
 import { useTranslations } from 'next-intl'
 import { useState } from 'react'
 
@@ -61,8 +62,20 @@ export default function RegisterPage() {
         setBusy(false)
         return
       }
+      const session = await signIn('credentials', {
+        email: data.user.email,
+        password: String(formData.get('password') ?? ''),
+        redirect: false
+      }).catch(() => null)
+      setPassword('')
+      if (!session?.ok || session.error) {
+        toast.add('error', t('accountCreatedSignInRequired'))
+        router.replace('/login')
+        return
+      }
       toast.add('success', t('accountCreated'))
-      router.push('/login')
+      router.replace('/dashboard')
+      router.refresh()
     } catch {
       toast.add('error', t('errorGeneric'))
       setBusy(false)

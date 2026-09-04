@@ -168,6 +168,7 @@
     },
     "passwordWeak": "Parola nu îndeplinește cerințele",
     "accountCreated": "Cont creat! Se redirecționează...",
+    "accountCreatedSignInRequired": "Contul a fost creat, dar autentificarea automată nu a reușit. Autentifică-te pentru a continua.",
     "forgotTitle": "Resetare parolă",
     "forgotDesc": "Introdu emailul pentru a primi un link de resetare",
     "sendResetLink": "Trimite link de resetare",
