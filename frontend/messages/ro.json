@@ -22,6 +22,12 @@
     "noVideoAvailable": "Niciun video disponibil"
   },
   "nav": {
+    "preferences": "Preferințe",
+    "language": "Limbă",
+    "newProject": "Proiect nou",
+    "collapseSidebar": "Restrânge meniul",
+    "expandSidebar": "Extinde meniul",
+    "navigationDescription": "Navighează în studio, bibliotecă și spațiul de lucru.",
     "home": "Acasă",
     "create": "Creează",
     "review": "Revizuire",

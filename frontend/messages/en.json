@@ -22,6 +22,12 @@
     "noVideoAvailable": "No video available"
   },
   "nav": {
+    "preferences": "Preferences",
+    "language": "Language",
+    "newProject": "New project",
+    "collapseSidebar": "Collapse sidebar",
+    "expandSidebar": "Expand sidebar",
+    "navigationDescription": "Navigate your studio, library and workspace.",
     "home": "Home",
     "create": "Create",
     "review": "Review",

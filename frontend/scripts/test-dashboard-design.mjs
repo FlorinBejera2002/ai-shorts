@@ -5,6 +5,7 @@ import { randomBytes, randomUUID } from 'node:crypto'
 import { mkdir } from 'node:fs/promises'
 import { pathToFileURL } from 'node:url'
 import bcrypt from 'bcryptjs'
+import { checkDesktopSidebar, checkMobileSidebar } from './sidebar-browser-checks.mjs'
 
 assert.equal(process.env.SNEEPCUT_BROWSER_MUTATIONS, 'allow-synthetic-account')
 const playwright = await import(pathToFileURL(process.env.SNEEPCUT_PLAYWRIGHT_MODULE).href)
@@ -30,7 +31,7 @@ try {
   sql(`INSERT INTO users (id,email,name,provider,password_hash,credits,plan) VALUES
     ('${userId}','${email}','Studio Test','credentials','${passwordHash}',100,'free'),
     ('${otherId}','dashboard-design-${otherId}@example.invalid','Other Studio Test','credentials',NULL,100,'free');`)
-  const browser = await playwright.chromium.launch({ headless: true })
+  const browser = await playwright.chromium.launch({ headless: true, args: ['--host-resolver-rules=MAP localhost 127.0.0.1'] })
   browsers.push(browser)
   const context = await browser.newContext({ viewport: { width: 1440, height: 1080 } })
   const page = await context.newPage()
@@ -74,7 +75,8 @@ try {
   await page.locator('summary').filter({ hasText: 'View chart data' }).click()
   assert.equal(await page.getByTestId('status-card').locator('.recharts-pie-sector').count(), 2)
   for (const theme of ['Light','Dark']) {
-    await page.getByRole('button', { name: `Theme: ${theme}`, exact: true }).click()
+    await page.getByRole('button', { name: 'Preferences', exact: true }).click()
+    await page.getByRole('menuitemradio', { name: theme, exact: true }).click()
     await page.waitForFunction(dark => document.documentElement.classList.contains('dark') === dark, theme === 'Dark')
     await page.screenshot({ path: `test-results/dashboard-design/desktop-${theme.toLowerCase()}.png`, fullPage: true })
   }
@@ -82,12 +84,13 @@ try {
   await page.mouse.move(bounds.x + bounds.width * 0.65, bounds.y + bounds.height * 0.45)
   await page.locator('.recharts-tooltip-wrapper').first().waitFor({ state: 'visible' })
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true)
-  await page.getByRole('link', { name: 'New project', exact: true }).click()
+  await page.getByTestId('studio-dashboard').getByRole('link', { name: 'New project', exact: true }).click()
   await page.waitForURL('**/dashboard/create')
   assert.deepEqual(errors, [])
   console.log('Chromium: empty/seeded charts, 7/30/90 filters, keyboard, data table, tooltip, both themes, account isolation and create link passed')
+  await checkDesktopSidebar(page)
 
-  const firefox = await playwright.firefox.launch({ headless: true })
+  const firefox = await playwright.firefox.launch({ headless: true, firefoxUserPrefs: { 'network.dns.disableIPv6': true } })
   browsers.push(firefox)
   const mobile = await firefox.newContext({ storageState: await context.storageState(), viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' })
   const mobilePage = await mobile.newPage()
@@ -103,6 +106,8 @@ try {
   assert.equal(await mobilePage.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true)
   assert.deepEqual(errors, [])
   console.log('Firefox: Romanian, mobile/tablet, reduced motion, chart filter and no horizontal overflow passed')
+  await checkMobileSidebar(mobilePage)
+  assert.deepEqual(errors, [])
 } finally {
   for (const browser of browsers) await browser.close()
   for (const id of [userId, otherId]) assert.match(id, /^[a-f0-9-]{36}$/)

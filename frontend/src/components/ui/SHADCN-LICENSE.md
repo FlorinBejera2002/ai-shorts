@@ -1,5 +1,6 @@
 Upstream components: https://ui.shadcn.com/r/styles/new-york-v4/
 Card, Button, Badge, Chart and Skeleton were adapted to this project's aliases and formatting.
+Sidebar, Sheet, Tooltip, Dropdown Menu, Separator and Input are also adapted from the same registry. Sidebar behavior is customized for localization, persistence, keyboard handling, mobile focus restoration and the 1024px breakpoint.
 
 MIT License
 
