@@ -345,6 +345,7 @@ def trim_clip_task(
     end_time: float,
     burn_subtitles: bool = True,
     job_id: str | None = None,
+    edit_token: str | None = None,
 ) -> dict[str, Any]:
     import subprocess
 
@@ -354,6 +355,7 @@ def trim_clip_task(
 
     tracked_job_id: uuid.UUID | None = None
     new_storage_key: str | None = None
+    task_token = None
     storage = None
     try:
         tracked_job_id = uuid.UUID(job_id) if job_id else None
@@ -368,10 +370,11 @@ def trim_clip_task(
             job = db.get(Job, tracked_job_id)
             if not job:
                 raise ValueError("Job not found")
+            edit_token = _claim_edit(db, job.id, edit_token)
             _ensure_account_active(db, job.user_id)
 
             task_token = safe_slug(
-                getattr(self.request, "id", None) or uuid.uuid4().hex
+                edit_token or getattr(self.request, "id", None) or uuid.uuid4().hex
             )
             work_dir = ensure_dir(
                 Path(settings.local_media_root)
@@ -423,6 +426,7 @@ def trim_clip_task(
             _ensure_account_active(db, job.user_id)
 
             previous_storage_key = clip.file_storage_key
+            _assert_edit_owner(db, job.id, edit_token)
             clip.file_path = storage_path
             clip.file_url = storage.public_url(new_storage_key)
             clip.file_storage_key = new_storage_key
@@ -441,13 +445,15 @@ def trim_clip_task(
                 "file_storage_key": new_storage_key,
                 "duration": clip.duration,
             }
-    except AccountDeletionPending:
+    except (AccountDeletionPending, OwnershipLost):
         if storage and new_storage_key:
             _delete_superseded_object(storage, new_storage_key)
         return {"status": "cancelled", "reason": "account_deletion_pending"}
     finally:
         if tracked_job_id:
-            _finish_edit_tracking(tracked_job_id)
+            if storage and task_token:
+                _cleanup_edit_workspace(storage, tracked_job_id, clip_id, task_token)
+            _finish_edit_tracking(tracked_job_id, edit_token)
 
 
 @celery_app.task(bind=True, name="sneepcut.recut_clip")
@@ -456,6 +462,7 @@ def recut_clip_task(
     clip_id: str,
     segments: list[dict],
     job_id: str | None = None,
+    edit_token: str | None = None,
 ) -> dict[str, Any]:
     from app.config import settings
     from app.services.clip_generator import extract_clip, generate_thumbnail
@@ -464,6 +471,7 @@ def recut_clip_task(
 
     tracked_job_id: uuid.UUID | None = None
     new_storage_keys: list[str] = []
+    task_token = None
     storage = None
     try:
         tracked_job_id = uuid.UUID(job_id) if job_id else None
@@ -478,10 +486,11 @@ def recut_clip_task(
             job = db.get(Job, tracked_job_id)
             if not job:
                 raise ValueError("Source video not available")
+            edit_token = _claim_edit(db, job.id, edit_token)
             _ensure_account_active(db, job.user_id)
 
             task_token = safe_slug(
-                getattr(self.request, "id", None) or uuid.uuid4().hex
+                edit_token or getattr(self.request, "id", None) or uuid.uuid4().hex
             )
             work_dir = ensure_dir(
                 Path(settings.local_media_root)
@@ -529,6 +538,7 @@ def recut_clip_task(
                 for key in (clip.file_storage_key, clip.thumbnail_storage_key)
                 if key
             }
+            _assert_edit_owner(db, job.id, edit_token)
             clip.file_path = file_storage_path
             clip.file_url = storage.public_url(file_storage_key)
             clip.file_storage_key = file_storage_key
@@ -557,14 +567,16 @@ def recut_clip_task(
                 "file_storage_key": file_storage_key,
                 "thumbnail_storage_key": thumbnail_storage_key,
             }
-    except AccountDeletionPending:
+    except (AccountDeletionPending, OwnershipLost):
         if storage:
             for storage_key in new_storage_keys:
                 _delete_superseded_object(storage, storage_key)
         return {"status": "cancelled", "reason": "account_deletion_pending"}
     finally:
         if tracked_job_id:
-            _finish_edit_tracking(tracked_job_id)
+            if storage and task_token:
+                _cleanup_edit_workspace(storage, tracked_job_id, clip_id, task_token)
+            _finish_edit_tracking(tracked_job_id, edit_token)
 
 
 def _recut_source_key(job) -> str:
@@ -603,12 +615,53 @@ def _delete_superseded_object(storage, storage_key: str) -> None:
         logger.warning("Could not remove superseded storage object", exc_info=True)
 
 
-def _finish_edit_tracking(job_id: uuid.UUID) -> None:
+def _cleanup_edit_workspace(storage, job_id, clip_id, token):
+    from app.services.storage import LocalStorage
+
+    try:
+        LocalStorage().delete_prefix(f"work/{job_id}/edits/{clip_id}/{token}")
+    except Exception:
+        logger.warning("Edit workspace cleanup failed for %s", job_id, exc_info=True)
+
+
+def _assert_edit_owner(db, job_id, token):
+    job = db.get(Job, job_id, with_for_update=True, populate_existing=True)
+    if not job:
+        raise OwnershipLost()
+    current = getattr(job, "active_edit_token", None)
+    if token is None and current is None:
+        return job  # Legacy tasks are supported only across a drained rollout.
+    deadline = getattr(job, "edit_deadline", None)
+    if current != token or not deadline or deadline <= datetime.now(timezone.utc):
+        raise OwnershipLost()
+    return job
+
+
+def _claim_edit(db, job_id, reservation):
+    job = _assert_edit_owner(db, job_id, reservation)
+    if reservation is None:
+        return None
+    token = str(uuid.uuid4())
+    job.active_edit_token = token
+    job.edit_deadline = datetime.now(timezone.utc) + timedelta(hours=1)
+    db.commit()
+    return token
+
+
+def _finish_edit_tracking(job_id: uuid.UUID, token: str | None = None) -> None:
     with SyncSessionLocal() as db:
         db.execute(
             update(Job)
-            .where(Job.id == job_id, Job.active_edit_tasks > 0)
-            .values(active_edit_tasks=Job.active_edit_tasks - 1)
+            .where(
+                Job.id == job_id,
+                Job.active_edit_tasks > 0,
+                Job.active_edit_token == token,
+            )
+            .values(
+                active_edit_tasks=Job.active_edit_tasks - 1,
+                active_edit_token=None,
+                edit_deadline=None,
+            )
         )
         db.commit()
 

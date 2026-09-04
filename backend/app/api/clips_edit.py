@@ -1,6 +1,7 @@
 # NOTE: no `from __future__ import annotations` here — string annotations cannot
 # be resolved through slowapi's wrapper and break FastAPI request-body modeling
-from uuid import UUID
+from datetime import datetime, timedelta, timezone
+from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Request, status
 from pydantic import BaseModel, Field
@@ -26,7 +27,7 @@ class TrimRequest(BaseModel):
     burn_subtitles: bool = True
 
 
-async def _begin_edit(db: AsyncSession, job: Job, user: User, clip: Clip) -> None:
+async def _begin_edit(db: AsyncSession, job: Job, user: User, clip: Clip) -> str:
     job = await db.get(Job, job.id, with_for_update=True, populate_existing=True)
     current = await db.get(Clip, clip.id, populate_existing=True)
     if not job or not current or current.user_id != user.id:
@@ -36,21 +37,29 @@ async def _begin_edit(db: AsyncSession, job: Job, user: User, clip: Clip) -> Non
             status_code=409, detail="Wait for active processing to finish"
         )
     await ensure_account_active(db, user.id)
+    token = str(uuid4())
     result = await db.execute(
         update(Job)
         .where(Job.id == job.id, Job.user_id == user.id)
-        .values(active_edit_tasks=Job.active_edit_tasks + 1)
+        .values(
+            active_edit_tasks=Job.active_edit_tasks + 1,
+            active_edit_token=token,
+            edit_deadline=datetime.now(timezone.utc) + timedelta(hours=1),
+        )
     )
     if result.rowcount != 1:
         raise HTTPException(status_code=409, detail="Job is no longer available")
     await db.commit()
+    return token
 
 
-async def _rollback_edit_tracking(db: AsyncSession, job_id: UUID) -> None:
+async def _rollback_edit_tracking(db: AsyncSession, job_id: UUID, token: str) -> None:
     await db.execute(
         update(Job)
-        .where(Job.id == job_id, Job.active_edit_tasks > 0)
-        .values(active_edit_tasks=Job.active_edit_tasks - 1)
+        .where(
+            Job.id == job_id, Job.active_edit_tasks > 0, Job.active_edit_token == token
+        )
+        .values(active_edit_tasks=0, active_edit_token=None, edit_deadline=None)
     )
     await db.commit()
 
@@ -86,7 +95,7 @@ async def trim_clip(
     job = await db.get(Job, clip.job_id)
     if not job:
         raise HTTPException(status_code=409, detail="Clip job is no longer available")
-    await _begin_edit(db, job, user, clip)
+    token = await _begin_edit(db, job, user, clip)
     try:
         task = trim_clip_task.delay(
             clip_id=str(clip.id),
@@ -94,9 +103,10 @@ async def trim_clip(
             end_time=payload.end_time,
             burn_subtitles=payload.burn_subtitles,
             job_id=str(job.id),
+            edit_token=token,
         )
     except Exception as exc:
-        await _rollback_edit_tracking(db, job.id)
+        await _rollback_edit_tracking(db, job.id, token)
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Editing service unavailable",
@@ -125,15 +135,16 @@ async def recut_clip(
     ):
         raise HTTPException(status_code=400, detail="Source video not available")
 
-    await _begin_edit(db, job, user, clip)
+    token = await _begin_edit(db, job, user, clip)
     try:
         task = recut_clip_task.delay(
             clip_id=str(clip.id),
             segments=[s.model_dump() for s in payload.segments],
             job_id=str(job.id),
+            edit_token=token,
         )
     except Exception as exc:
-        await _rollback_edit_tracking(db, job.id)
+        await _rollback_edit_tracking(db, job.id, token)
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Editing service unavailable",

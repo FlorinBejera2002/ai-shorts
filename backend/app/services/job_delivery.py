@@ -73,6 +73,24 @@ def recover_and_dispatch(limit: int = 50) -> dict[str, int]:
     now = datetime.now(timezone.utc)
     recovered = exhausted = 0
     with SyncSessionLocal() as db:
+        expired_edits = list(
+            db.scalars(
+                select(Job)
+                .where(
+                    Job.active_edit_tasks > 0,
+                    Job.edit_deadline < now,
+                    Job.active_edit_token.is_not(None),
+                )
+                .limit(limit)
+                .with_for_update(skip_locked=True)
+            )
+        )
+        for edit_job in expired_edits:
+            edit_job.active_edit_tasks = 0
+            edit_job.active_edit_token = None
+            edit_job.edit_deadline = None
+            logger.warning("Released expired edit reservation for job %s", edit_job.id)
+        db.commit()
         jobs = list(
             db.scalars(
                 select(Job)

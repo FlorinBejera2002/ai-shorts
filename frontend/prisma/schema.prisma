@@ -128,6 +128,8 @@ model Job {
   errorMessage       String?   @map("error_message")
   celeryTaskId       String?   @map("celery_task_id") @db.VarChar(255)
   activeEditTasks    Int       @default(0) @map("active_edit_tasks")
+  activeEditToken    String?   @map("active_edit_token") @db.VarChar(36)
+  editDeadline      DateTime? @map("edit_deadline") @db.Timestamptz
   startedAt          DateTime? @map("started_at") @db.Timestamptz(6)
   completedAt        DateTime? @map("completed_at") @db.Timestamptz(6)
   createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)

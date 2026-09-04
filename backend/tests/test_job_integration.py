@@ -513,3 +513,77 @@ def test_live_lease_is_not_recovered(harness):
         ) + timedelta(seconds=60)
         db.commit()
     assert job_delivery.recover_and_dispatch()["recovered"] == 0
+
+
+def test_edit_claim_is_single_use_and_stale_finally_cannot_clear_successor(harness):
+    reservation = str(uuid.uuid4())
+    job_id = uuid.UUID(
+        harness.seed_job(
+            status="completed",
+            active_edit_tasks=1,
+            active_edit_token=reservation,
+            edit_deadline=datetime.now(timezone.utc) + timedelta(hours=1),
+        )
+    )
+    with harness.sessions() as db:
+        owner = tasks._claim_edit(db, job_id, reservation)
+    with harness.sessions() as db, pytest.raises(job_delivery.OwnershipLost):
+        tasks._claim_edit(db, job_id, reservation)
+    tasks._finish_edit_tracking(job_id, reservation)
+    with harness.sessions() as db:
+        assert db.get(Job, job_id).active_edit_tasks == 1
+        assert db.get(Job, job_id).active_edit_token == owner
+    tasks._finish_edit_tracking(job_id, owner)
+    with harness.sessions() as db:
+        assert db.get(Job, job_id).active_edit_tasks == 0
+
+
+def test_expired_edit_releases_deletion_block_and_fences_late_publish(harness):
+    old = str(uuid.uuid4())
+    job_id = uuid.UUID(
+        harness.seed_job(
+            status="completed",
+            active_edit_tasks=1,
+            active_edit_token=old,
+            edit_deadline=datetime.now(timezone.utc) - timedelta(seconds=1),
+        )
+    )
+    job_delivery.recover_and_dispatch()
+    with harness.sessions() as db:
+        assert db.get(Job, job_id).active_edit_tasks == 0
+        with pytest.raises(job_delivery.OwnershipLost):
+            tasks._assert_edit_owner(db, job_id, old)
+    assert harness.balance() == 100
+
+
+def test_abrupt_edit_worker_exit_is_released_after_deadline(harness):
+    reservation = str(uuid.uuid4())
+    job_id = harness.seed_job(
+        status="completed",
+        active_edit_tasks=1,
+        active_edit_token=reservation,
+        edit_deadline=datetime.now(timezone.utc) + timedelta(hours=1),
+    )
+    script = f"""
+import os, uuid
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from app.workers import tasks
+engine = create_engine({harness.database_url!r}, connect_args={{'options': '-csearch_path={harness.schema}'}})
+with sessionmaker(engine)() as db:
+    tasks._claim_edit(db, uuid.UUID({job_id!r}), {reservation!r})
+os._exit(137)
+"""
+    result = subprocess.run(
+        [sys.executable, "-c", script], cwd=Path(__file__).parents[1], timeout=30
+    )
+    assert result.returncode == 137
+    with harness.sessions() as db:
+        job = db.get(Job, uuid.UUID(job_id))
+        assert job.active_edit_tasks == 1
+        assert job.active_edit_token != reservation
+        job.edit_deadline = datetime.now(timezone.utc) - timedelta(seconds=1)
+        db.commit()
+    job_delivery.recover_and_dispatch()
+    with harness.sessions() as db:
+        assert db.get(Job, uuid.UUID(job_id)).active_edit_tasks == 0

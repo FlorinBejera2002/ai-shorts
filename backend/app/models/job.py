@@ -27,20 +27,33 @@ class Job(Base):
         ),
     )
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False)
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
+    )
     source_type: Mapped[str] = mapped_column(String(50), nullable=False)
     source_url: Mapped[str | None] = mapped_column(String(2048), nullable=True)
     source_file_path: Mapped[str | None] = mapped_column(String(2048), nullable=True)
     source_video_url: Mapped[str | None] = mapped_column(String(2048), nullable=True)
     source_storage_key: Mapped[str | None] = mapped_column(String(2048), nullable=True)
-    status: Mapped[str] = mapped_column(String(50), default="pending", index=True, nullable=False)
+    status: Mapped[str] = mapped_column(
+        String(50), default="pending", index=True, nullable=False
+    )
     progress: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     progress_message: Mapped[str | None] = mapped_column(String(512), nullable=True)
     num_clips_requested: Mapped[int] = mapped_column(Integer, default=5, nullable=False)
-    aspect_ratio: Mapped[str] = mapped_column(String(20), default="9:16", nullable=False)
+    aspect_ratio: Mapped[str] = mapped_column(
+        String(20), default="9:16", nullable=False
+    )
     language: Mapped[str | None] = mapped_column(String(50), nullable=True)
-    subtitle_style: Mapped[str] = mapped_column(String(50), default="default", nullable=False)
+    subtitle_style: Mapped[str] = mapped_column(
+        String(50), default="default", nullable=False
+    )
     include_brand: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     # Free-text creator guidance for highlight selection (set via the AI assistant)
     user_instructions: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -55,10 +68,25 @@ class Job(Base):
     active_edit_tasks: Mapped[int] = mapped_column(
         Integer, default=0, server_default="0", nullable=False
     )
-    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+    active_edit_token: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    edit_deadline: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True, index=True
+    )
+    started_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    completed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
 
     user = relationship("User", back_populates="jobs")
     clips = relationship("Clip", back_populates="job", cascade="all, delete-orphan")
