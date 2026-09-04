@@ -214,6 +214,9 @@ def _mark_job_started(job_id: str, token: str | None = None) -> dict[str, Any]:
                 {
                     name: getattr(kit, name)
                     for name in (
+                        "primary_color",
+                        "secondary_color",
+                        "font_family",
                         "subtitle_font",
                         "subtitle_color",
                         "subtitle_bg_color",

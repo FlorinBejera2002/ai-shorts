@@ -109,7 +109,11 @@ def test_real_ffmpeg_framing_and_watermark(position, hide_badge, monkeypatch, tm
             "watermark_position": position,
             "watermark_opacity": 1,
             "hide_platform_badge": hide_badge,
+            "primary_color": "#00FF00",
+            "secondary_color": "#FF0000",
+            "font_family": "DejaVu Sans",
         },
+        hook_text="Brand",
     )
     frame = tmp_path / "frame.png"
     ffmpeg(["ffmpeg", "-y", "-i", output, "-frames:v", "1", str(frame)])
@@ -120,6 +124,24 @@ def test_real_ffmpeg_framing_and_watermark(position, hide_badge, monkeypatch, tm
         red, green, blue = image.convert("RGB").getpixel((x, y))
         assert red > 180 and green < 60 and blue < 60
     assert Path(output).stat().st_size > 0
+
+
+def test_brand_hook_uses_palette_and_rejects_filter_like_fonts():
+    canvas = Image.new("RGBA", (320, 320), (0, 0, 0, 0))
+    render.draw_brand_hook(
+        canvas,
+        {
+            "primary_color": "#123456",
+            "secondary_color": "#ABCDEF",
+            "font_family": "Arial",
+        },
+        "A branded title",
+    )
+    pixels = set(canvas.get_flattened_data())
+    assert (0x12, 0x34, 0x56, 255) in pixels
+    assert (0xAB, 0xCD, 0xEF, 255) in pixels
+    with pytest.raises(ValueError):
+        render.draw_brand_hook(canvas, {"font_family": "Arial,Fontsize=999"}, "Text")
 
 
 def test_foreign_brand_logo_rejected_before_storage(tmp_path):

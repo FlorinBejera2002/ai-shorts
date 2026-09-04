@@ -168,6 +168,7 @@ def process_video_source(
             aspect_ratio=aspect_ratio,
             brand=brand_settings,
             storage=storage,
+            hook_text=clip.get("hook_text", ""),
         )
         clip["file_path"] = current_path
         clip["vertical_file_path"] = None

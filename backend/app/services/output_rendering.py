@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import math
 import re
+import subprocess
 from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFont
@@ -12,6 +13,78 @@ from app.utils.ffmpeg_utils import run_ffmpeg
 
 RATIOS = {"9:16": (9, 16), "1:1": (1, 1), "16:9": (16, 9)}
 POSITIONS = {"top-left", "top-right", "bottom-left", "bottom-right"}
+
+
+def draw_brand_hook(canvas: Image.Image, brand: dict, text: str) -> None:
+    """Rasterize creator text; no text or font value enters a filter expression."""
+    primary = brand.get("primary_color", "#6366f1")
+    secondary = brand.get("secondary_color", "#8b5cf6")
+    family = brand.get("font_family", "Inter")
+    if any(
+        not isinstance(color, str) or not re.fullmatch(r"#[0-9A-Fa-f]{6}", color)
+        for color in (primary, secondary)
+    ):
+        raise ValueError("Invalid brand palette")
+    if not isinstance(family, str) or not re.fullmatch(r"[A-Za-z0-9 -]{1,100}", family):
+        raise ValueError("Invalid brand font")
+    size = max(10, round(canvas.width * 0.04))
+    font = ImageFont.load_default(size=size)
+    try:
+        matched = subprocess.run(
+            ["fc-match", "-f", "%{file}", "--", family],
+            capture_output=True,
+            text=True,
+            check=True,
+            timeout=5,
+        )
+        if matched.stdout.strip():
+            font = ImageFont.truetype(matched.stdout.strip(), size=size)
+    except (OSError, subprocess.SubprocessError):
+        # Deterministic bundled Pillow font when a requested family is absent.
+        pass
+    text = " ".join(str(text).split())[:200]
+    lines, current = [], ""
+    available = canvas.width * 0.78
+    for word in text.split():
+        proposed = f"{current} {word}".strip()
+        if font.getlength(proposed) > available and current:
+            lines.append(current)
+            current = word
+        else:
+            current = proposed
+    if current:
+        lines.append(current)
+    lines = lines[:3]
+    # A single long token must also fit within the safe text box.
+    for index, line in enumerate(lines):
+        while line and font.getlength(line) > available:
+            line = line[:-1]
+        lines[index] = line
+    if not lines:
+        return
+    draw = ImageDraw.Draw(canvas)
+    padding = max(4, size // 3)
+    line_height = round(size * 1.35)
+    box_height = line_height * len(lines) + 2 * padding
+    x = round(canvas.width * 0.08)
+    y = min(round(canvas.height * 0.25), max(0, canvas.height - box_height - padding))
+    right = canvas.width - x
+    draw.rounded_rectangle((x, y, right, y + box_height), radius=padding, fill=primary)
+    draw.rectangle((x, y + box_height - padding, right, y + box_height), fill=secondary)
+    rgb = tuple(int(primary[index : index + 2], 16) for index in (1, 3, 5))
+    foreground = (
+        "#000000"
+        if sum(v * w for v, w in zip(rgb, (0.299, 0.587, 0.114))) > 160
+        else "#FFFFFF"
+    )
+    for index, line in enumerate(lines):
+        draw.text(
+            (canvas.width / 2, y + padding + index * line_height),
+            line,
+            font=font,
+            fill=foreground,
+            anchor="mt",
+        )
 
 
 def output_dimensions(width: int, height: int, aspect_ratio: str) -> tuple[int, int]:
@@ -55,22 +128,27 @@ def render_framing_and_brand(
     aspect_ratio: str,
     brand: dict | None,
     storage,
+    hook_text: str = "",
 ) -> str:
     target_width, target_height = output_dimensions(width, height, aspect_ratio)
     apply_logo = bool(brand and brand.get("apply_brand") and brand.get("logo_key"))
     draw_badge = bool(brand and not brand.get("hide_platform_badge"))
+    apply_hook = bool(brand and brand.get("apply_brand") and hook_text)
     if (
         (target_width, target_height) == (width, height)
         and not apply_logo
         and not draw_badge
+        and not apply_hook
     ):
         return source
     output = Path(destination)
     output.parent.mkdir(parents=True, exist_ok=True)
     crop = f"crop={target_width}:{target_height},setsar=1"
     command = ["ffmpeg", "-y", "-i", source]
-    if apply_logo or draw_badge:
+    if apply_logo or draw_badge or apply_hook:
         canvas = Image.new("RGBA", (target_width, target_height), (0, 0, 0, 0))
+        if apply_hook:
+            draw_brand_hook(canvas, brand, hook_text)
         margin = max(4, round(min(target_width, target_height) * 0.025))
         if apply_logo:
             key = brand["logo_key"]
