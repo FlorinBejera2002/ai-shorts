@@ -1,4 +1,9 @@
+'use client'
+
+import { usePlanCatalog } from '@/components/billing/plan-price'
+import { ApiState } from '@/components/shared/api-state'
 import { Card } from '@/components/ui/card'
+import { useApiResource } from '@/hooks/use-api-resource'
 import {
   AlertTriangle,
   Check,
@@ -7,20 +12,17 @@ import {
   LoaderCircle,
   ShieldCheck
 } from 'lucide-react'
-import { getTranslations, setRequestLocale } from 'next-intl/server'
-import { redirect } from 'next/navigation'
+import { useLocale, useTranslations } from 'next-intl'
+import { useSearchParams } from 'next/navigation'
+import { Suspense } from 'react'
 
 import { BillingSummary } from '@/components/billing/billing-summary'
 import { CheckoutButton } from '@/components/billing/checkout-button'
 import { InvoiceHistory } from '@/components/billing/invoice-history'
 import { PortalButton } from '@/components/billing/portal-button'
 import { PageHeader } from '@/components/ui/page-header'
-import { auth } from '@/lib/auth'
 import {
   type BillingPlanId,
-  type BillingProviderState,
-  type BillingSubscription,
-  type CheckoutVerification,
   INITIAL_FREE_CREDITS,
   PLAN_CREDITS,
   canStartPlanCheckout,
@@ -29,18 +31,7 @@ import {
   normalizeBillingLocale,
   normalizeBillingPlan
 } from '@/lib/billing'
-import { getPrisma } from '@/lib/db'
-import {
-  type BillingPlanPrice,
-  loadBillingPlanCatalog,
-  loadBillingProviderState,
-  verifyCheckoutSession
-} from '@/lib/stripe'
-
-export const runtime = 'nodejs'
-export const dynamic = 'force-dynamic'
-
-type PageSearchParams = Record<string, string | string[] | undefined>
+import type { BillingData, BillingPlanPrice } from '@/types/api'
 
 type Plan = {
   id: BillingPlanId
@@ -50,10 +41,6 @@ type Plan = {
   credits: string
   features: string[]
   highlighted?: boolean
-}
-
-function firstSearchValue(value: string | string[] | undefined): string | null {
-  return typeof value === 'string' ? value : null
 }
 
 function formatPlanPrice(
@@ -71,95 +58,30 @@ function formatPlanPrice(
   }).format(price.amount / 100)
 }
 
-export default async function BillingPage({
-  params,
-  searchParams
-}: {
-  params: Promise<{ locale: string }>
-  searchParams: Promise<PageSearchParams>
-}) {
-  const [{ locale: rawLocale }, query] = await Promise.all([
-    params,
-    searchParams
-  ])
-  setRequestLocale(rawLocale)
-  const locale = normalizeBillingLocale(rawLocale)
-  const t = await getTranslations('billing')
+export default function BillingPage() {
+  return (
+    <Suspense fallback={<ApiState />}>
+      <BillingPageContent />
+    </Suspense>
+  )
+}
 
-  const session = await auth()
-  if (!session?.user?.id) {
-    redirect(locale === 'ro' ? '/ro/login' : '/login')
-  }
-  const prisma = getPrisma()
-
-  const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    select: {
-      credits: true,
-      plan: true,
-      stripeCustomerId: true,
-      stripeSubscriptionId: true,
-      stripeSubscriptionStatus: true,
-      stripeCurrentPeriodEnd: true,
-      stripeCancelAtPeriodEnd: true
-    }
-  })
-  if (!user) redirect(locale === 'ro' ? '/ro/login' : '/login')
-
-  const persistedSubscription: BillingSubscription | null =
-    user.stripeSubscriptionId
-      ? {
-          status: user.stripeSubscriptionStatus ?? 'unknown',
-          cancelAtPeriodEnd: user.stripeCancelAtPeriodEnd,
-          currentPeriodEnd: user.stripeCurrentPeriodEnd?.toISOString() ?? null
-        }
-      : null
-
-  let providerState: BillingProviderState | null = null
-  let providerAvailable = true
-  if (user.stripeCustomerId) {
-    try {
-      providerState = await loadBillingProviderState({
-        customerId: user.stripeCustomerId,
-        subscriptionId: user.stripeSubscriptionId
-      })
-    } catch {
-      providerAvailable = false
-    }
-  } else if (user.stripeSubscriptionId) {
-    providerAvailable = false
-  }
-
-  let planCatalog: Awaited<ReturnType<typeof loadBillingPlanCatalog>> | null =
-    null
-  try {
-    planCatalog = await loadBillingPlanCatalog()
-  } catch {
-    // Never advertise or charge an amount that could not be verified against
-    // the configured Stripe Price objects.
-  }
-
-  const checkoutSessionId = firstSearchValue(query.checkout_session_id)
-  let checkoutVerification:
-    | CheckoutVerification
-    | { status: 'unavailable' }
-    | null = null
-  if (query.checkout_session_id !== undefined) {
-    if (!checkoutSessionId) {
-      checkoutVerification = { status: 'invalid', planId: null }
-    } else {
-      try {
-        checkoutVerification = await verifyCheckoutSession({
-          checkoutSessionId,
-          userId: session.user.id,
-          expectedCustomerId: user.stripeCustomerId,
-          expectedSubscriptionId: user.stripeSubscriptionId
-        })
-      } catch {
-        checkoutVerification = { status: 'unavailable' }
-      }
-    }
-  }
+function BillingPageContent() {
+  const locale = normalizeBillingLocale(useLocale())
+  const t = useTranslations('billing')
+  const search = useSearchParams()
+  const query = Object.fromEntries(search)
+  const { data, error, reload } = useApiResource<BillingData>(
+    `/api/stripe/billing?${search}`
+  )
+  const planCatalog = usePlanCatalog()
+  if (!data) return <ApiState error={error} retry={reload} />
+  const {
+    account: user,
+    subscription,
+    providerAvailable,
+    checkoutVerification
+  } = data
 
   const plans: Plan[] = [
     {
@@ -220,13 +142,10 @@ export default async function BillingPage({
   const currentPlan = normalizeBillingPlan(user.plan)
   const currentPlanName =
     plans.find((plan) => plan.id === currentPlan)?.name ?? t('free')
-  const subscription = providerState?.subscription ?? persistedSubscription
   const hasSubscription = Boolean(
     subscription && !isTerminalSubscriptionStatus(subscription.status)
   )
-  const hasBillingData = Boolean(
-    user.stripeCustomerId || user.stripeSubscriptionId
-  )
+  const hasBillingData = user.hasBillingProfile || Boolean(subscription)
   const subscriptionStatuses = {
     active: t('statuses.active'),
     trialing: t('statuses.trialing'),
@@ -317,7 +236,7 @@ export default async function BillingPage({
         subscription={subscription}
         statusLabel={subscriptionStatusLabel}
         hasBillingData={hasBillingData}
-        canManageBilling={Boolean(user.stripeCustomerId)}
+        canManageBilling={user.hasBillingProfile}
         providerAvailable={providerAvailable}
         labels={{
           overview: t('overviewTitle'),
@@ -363,7 +282,7 @@ export default async function BillingPage({
             const configured =
               paidPlanId !== null && Boolean(planCatalog?.[paidPlanId])
             const canOpenPortal = Boolean(
-              hasSubscription && user.stripeCustomerId
+              hasSubscription && user.hasBillingProfile
             )
             const actionLabel = isCurrent
               ? t('currentPlan')
@@ -466,7 +385,7 @@ export default async function BillingPage({
       </section>
 
       <InvoiceHistory
-        invoices={providerState?.invoices ?? []}
+        invoices={data.invoices}
         locale={locale}
         providerAvailable={providerAvailable}
         hasBillingProfile={hasBillingData}

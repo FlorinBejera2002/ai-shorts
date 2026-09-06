@@ -1,3 +1,4 @@
-# OpenNext uses this selector while previewing through Wrangler. Keep real
-# credentials in the ignored `.dev.vars` or in Next.js `.env` files.
+# OpenNext uses this selector while previewing through Wrangler. Frontend
+# configuration contains public transport origins only. Keep credentials in
+# the separate Go backend environment, never in Next.js or Worker files.
 NEXTJS_ENV=development

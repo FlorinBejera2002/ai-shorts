@@ -12,6 +12,7 @@ from app.database import SyncSessionLocal
 from app.models.account_deletion_request import AccountDeletionRequest
 from app.models.brand import BrandKit
 from app.models.clip import Clip
+from app.models.edit_delivery import EditDelivery
 from app.models.job import Job
 from app.models.job_delivery import JobDelivery
 from app.models.user import User
@@ -88,6 +89,7 @@ def process_job_task(
     burn_subtitles: bool | None = None,
     smart_crop: bool | None = None,
     user_instructions: str | None = None,
+    source_storage_key: str | None = None,
 ) -> dict[str, Any]:
     from app.services.processing_pipeline import process_video_source
 
@@ -101,6 +103,11 @@ def process_job_task(
         claimed = True
         heartbeat = Heartbeat(job_id, token)
         heartbeat.__enter__()
+        if source_storage_key:
+            # Queue lifetime must not depend on a short-lived object read URL.
+            # Upload ownership was checked by the API; validate it again at the
+            # worker boundary before using the recorded durable object key.
+            source = _job_upload_source(job_id, source_storage_key, storage_attempt)
         self.update_state(
             state="PROGRESS",
             meta={"progress": 5, "message": "Processing started"},
@@ -437,6 +444,7 @@ def trim_clip_task(
             clip.end_time = end_time
             clip.duration = round(end_time - start_time, 3)
             clip.file_size = output.stat().st_size
+            _complete_edit_delivery(db, job.id, edit_token)
             db.commit()
 
             if previous_storage_key and previous_storage_key != new_storage_key:
@@ -452,6 +460,10 @@ def trim_clip_task(
         if storage and new_storage_key:
             _delete_superseded_object(storage, new_storage_key)
         return {"status": "cancelled", "reason": "account_deletion_pending"}
+    except Exception:
+        if storage and new_storage_key:
+            _delete_superseded_object(storage, new_storage_key)
+        raise
     finally:
         if tracked_job_id:
             if storage and task_token:
@@ -522,18 +534,18 @@ def recut_clip_task(
             _ensure_account_active(db, job.user_id)
 
             file_storage_key = f"clips/{job.id}/edits/{clip.id}/recut-{task_token}.mp4"
-            file_storage_path = storage.save_file(output_path, file_storage_key)
             new_storage_keys.append(file_storage_key)
+            file_storage_path = storage.save_file(output_path, file_storage_key)
             thumbnail_storage_key: str | None = None
             thumbnail_storage_path: str | None = None
             if thumbnail_created and thumbnail_path.is_file():
                 thumbnail_storage_key = (
                     f"clips/{job.id}/edits/{clip.id}/recut-{task_token}.jpg"
                 )
+                new_storage_keys.append(thumbnail_storage_key)
                 thumbnail_storage_path = storage.save_file(
                     thumbnail_path, thumbnail_storage_key
                 )
-                new_storage_keys.append(thumbnail_storage_key)
             _ensure_account_active(db, job.user_id)
 
             old_storage_keys = {
@@ -559,6 +571,7 @@ def recut_clip_task(
                 else None
             )
             clip.thumbnail_storage_key = thumbnail_storage_key
+            _complete_edit_delivery(db, job.id, edit_token)
             db.commit()
 
             for old_storage_key in old_storage_keys - set(new_storage_keys):
@@ -575,6 +588,11 @@ def recut_clip_task(
             for storage_key in new_storage_keys:
                 _delete_superseded_object(storage, storage_key)
         return {"status": "cancelled", "reason": "account_deletion_pending"}
+    except Exception:
+        if storage:
+            for storage_key in new_storage_keys:
+                _delete_superseded_object(storage, storage_key)
+        raise
     finally:
         if tracked_job_id:
             if storage and task_token:
@@ -645,14 +663,50 @@ def _claim_edit(db, job_id, reservation):
     if reservation is None:
         return None
     token = str(uuid.uuid4())
+    delivery = db.scalar(
+        select(EditDelivery)
+        .where(
+            EditDelivery.job_id == job_id,
+            EditDelivery.reservation_token == reservation,
+        )
+        .with_for_update()
+    )
+    if delivery:
+        if delivery.state != "pending":
+            raise OwnershipLost()
+        delivery.execution_token = token
+        delivery.state = "running"
+        delivery.last_error = None
     job.active_edit_token = token
     job.edit_deadline = datetime.now(timezone.utc) + timedelta(hours=1)
     db.commit()
     return token
 
 
+def _complete_edit_delivery(db, job_id, token):
+    if token:
+        db.execute(
+            update(EditDelivery)
+            .where(
+                EditDelivery.job_id == job_id,
+                EditDelivery.execution_token == token,
+                EditDelivery.state == "running",
+            )
+            .values(state="completed", completed_at=datetime.now(timezone.utc))
+        )
+        db.execute(
+            update(Job)
+            .where(Job.id == job_id, Job.active_edit_token == token)
+            .values(active_edit_tasks=0, active_edit_token=None, edit_deadline=None)
+        )
+
+
 def _finish_edit_tracking(job_id: uuid.UUID, token: str | None = None) -> None:
     with SyncSessionLocal() as db:
+        # Match dispatcher/claim lock order, including failure paths.
+        job = db.get(Job, job_id, with_for_update=True)
+        if not job or job.active_edit_token != token:
+            return
         db.execute(
             update(Job)
             .where(
@@ -666,7 +720,51 @@ def _finish_edit_tracking(job_id: uuid.UUID, token: str | None = None) -> None:
                 edit_deadline=None,
             )
         )
+        if token:
+            db.execute(
+                update(EditDelivery)
+                .where(
+                    EditDelivery.job_id == job_id,
+                    EditDelivery.execution_token == token,
+                    EditDelivery.state == "running",
+                )
+                .values(
+                    state="failed",
+                    completed_at=datetime.now(timezone.utc),
+                    last_error="Editing failed; retry the edit",
+                )
+            )
         db.commit()
+
+
+def _job_upload_source(job_id: str, key: str, attempt: str) -> str:
+    from app.config import settings
+    from app.services.storage import get_storage_backend, storage_key_from_reference
+    from app.utils.file_utils import ensure_dir
+
+    with SyncSessionLocal() as db:
+        job = db.get(Job, uuid.UUID(job_id))
+        if not job:
+            raise AccountDeletionPending("job was deleted")
+        normalized = storage_key_from_reference(key)
+        if (
+            normalized != key
+            or not key.startswith(f"uploads/{job.user_id}/")
+            or len(key.split("/")) != 3
+            or job.source_storage_key != key
+        ):
+            raise ValueError("Uploaded source does not belong to the job owner")
+    destination = (
+        ensure_dir(
+            Path(settings.local_media_root)
+            / "work"
+            / job_id
+            / "attempts"
+            / str(uuid.UUID(attempt))
+        )
+        / "uploaded-source.mp4"
+    )
+    return str(get_storage_backend().download_file(key, destination))
 
 
 def _mark_job_cancelled_for_deletion(job_id: str, token: str | None = None) -> None:

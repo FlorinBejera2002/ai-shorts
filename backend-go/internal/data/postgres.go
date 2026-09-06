@@ -23,8 +23,8 @@ type Config struct {
 	MaxIdleTime  time.Duration
 }
 
-// Open retains the example's bounded database/sql pool. It is not wired into
-// the health-only executable; Step 1 will connect it to the agreed schema.
+// Open retains the example's bounded database/sql pool. Startup wires it only
+// when a database-backed feature is enabled.
 func Open(ctx context.Context, cfg Config) (*sql.DB, error) {
 	if cfg.DSN == "" || cfg.MaxOpenConns < 1 || cfg.MaxIdleConns < 0 ||
 		cfg.MaxIdleConns > cfg.MaxOpenConns || cfg.MaxIdleTime <= 0 {

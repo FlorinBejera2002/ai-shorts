@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
@@ -25,7 +26,9 @@ import {
   SidebarSeparator,
   useSidebar
 } from '@/components/ui/sidebar'
+import { useToast } from '@/components/ui/toast'
 import { Link, usePathname, useRouter } from '@/i18n/navigation'
+import { authClient } from '@/lib/auth'
 import {
   dashboardNavigation,
   isDashboardRouteActive
@@ -71,6 +74,7 @@ const menuClass =
   'h-11 gap-3 rounded-lg text-[13px] lg:h-9 data-[active=true]:bg-sidebar-primary data-[active=true]:text-sidebar-primary-foreground data-[active=true]:font-semibold group-data-[collapsible=icon]:[&>span]:hidden'
 
 function SidebarPreferences() {
+  const toast = useToast()
   const t = useTranslations('nav')
   const s = useTranslations('settings')
   const locale = useLocale()
@@ -142,6 +146,23 @@ function SidebarPreferences() {
           <DropdownMenuRadioItem value="en">English</DropdownMenuRadioItem>
           <DropdownMenuRadioItem value="ro">Română</DropdownMenuRadioItem>
         </DropdownMenuRadioGroup>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem
+          onSelect={() => {
+            void authClient
+              .logout()
+              .catch(() =>
+                toast.add(
+                  'error',
+                  locale === 'ro'
+                    ? 'Deconectarea a eșuat. Încearcă din nou.'
+                    : 'Unable to sign out. Please try again.'
+                )
+              )
+          }}
+        >
+          {locale === 'ro' ? 'Deconectare' : 'Sign out'}
+        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   )

@@ -1,5 +1,0 @@
-import { NextResponse } from 'next/server'
-
-export function POST() {
-  return NextResponse.json({ message: 'Processing webhook — Phase 4' })
-}

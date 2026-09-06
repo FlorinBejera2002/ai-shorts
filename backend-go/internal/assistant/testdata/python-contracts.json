@@ -1,0 +1,249 @@
+{
+  "source": "Current Python app.services.assistant functions extracted with AST; no provider imports",
+  "sourceSha256": "1651be34923a1ce5cb76393cd351c413c2f97cd5f4aa66fbbf8633a8f8375c44",
+  "cases": [
+    {
+      "context": "create",
+      "duration": 0,
+      "input": [
+        null,
+        {
+          "type": "delete_account"
+        },
+        {
+          "type": "update_settings",
+          "settings": {
+            "clips": 100,
+            "aspect_ratio": "9:16",
+            "subtitle_style": "bold",
+            "include_brand": true,
+            "smart_crop": false,
+            "language": null,
+            "user_id": "foreign",
+            "plan": "agency"
+          }
+        },
+        {
+          "type": "set_instructions",
+          "instructions": "  Focus on product features  "
+        }
+      ],
+      "expected": [
+        {
+          "type": "update_settings",
+          "settings": {
+            "clips": 15,
+            "aspect_ratio": "9:16",
+            "subtitle_style": "bold",
+            "include_brand": true,
+            "smart_crop": false,
+            "language": null
+          }
+        },
+        {
+          "type": "set_instructions",
+          "instructions": "Focus on product features"
+        }
+      ]
+    },
+    {
+      "context": "create",
+      "duration": 0,
+      "input": [
+        {
+          "type": "update_settings",
+          "settings": {
+            "clips": -5.5,
+            "aspect_ratio": "portrait",
+            "subtitle_style": "invalid",
+            "language": "xx",
+            "smart_crop": "true"
+          }
+        },
+        {
+          "type": "set_instructions",
+          "instructions": " "
+        },
+        {
+          "type": "seek",
+          "time": 5
+        }
+      ],
+      "expected": [
+        {
+          "type": "update_settings",
+          "settings": {
+            "clips": 1
+          }
+        }
+      ]
+    },
+    {
+      "context": "editor",
+      "duration": 20,
+      "input": [
+        {
+          "type": "apply_segments",
+          "segments": [
+            {
+              "start": 10,
+              "end": 14
+            },
+            {
+              "start": -2,
+              "end": 3
+            }
+          ]
+        },
+        {
+          "type": "seek",
+          "time": 21
+        },
+        {
+          "type": "update_settings",
+          "settings": {
+            "clips": 1
+          }
+        }
+      ],
+      "expected": [
+        {
+          "type": "apply_segments",
+          "segments": [
+            {
+              "start": 10.0,
+              "end": 14.0
+            },
+            {
+              "start": 0.0,
+              "end": 3.0
+            }
+          ]
+        },
+        {
+          "type": "seek",
+          "time": 20
+        }
+      ]
+    },
+    {
+      "context": "editor",
+      "duration": 20,
+      "input": [
+        {
+          "type": "apply_segments",
+          "segments": [
+            {
+              "start": 2,
+              "end": 7
+            },
+            {
+              "start": 5,
+              "end": 10
+            }
+          ]
+        }
+      ],
+      "expected": []
+    },
+    {
+      "context": "editor",
+      "duration": 20,
+      "input": [
+        {
+          "type": "apply_segments",
+          "segments": [
+            {
+              "start": 1,
+              "end": 1.2
+            },
+            {
+              "start": 3,
+              "end": 8
+            }
+          ]
+        },
+        {
+          "type": "apply_segments",
+          "segments": [
+            {
+              "start": 1,
+              "end": 3
+            }
+          ]
+        }
+      ],
+      "expected": []
+    },
+    {
+      "context": "editor",
+      "duration": 20,
+      "input": [
+        {
+          "type": "apply_segments",
+          "segments": [
+            {
+              "start": 2.675,
+              "end": 6.005
+            }
+          ]
+        },
+        {
+          "type": "seek",
+          "time": 2.675
+        }
+      ],
+      "expected": [
+        {
+          "type": "apply_segments",
+          "segments": [
+            {
+              "start": 2.67,
+              "end": 6.0
+            }
+          ]
+        },
+        {
+          "type": "seek",
+          "time": 2.67
+        }
+      ]
+    },
+    {
+      "context": "editor",
+      "duration": 20,
+      "input": [
+        {
+          "type": "apply_segments",
+          "segments": [
+            {
+              "start": " 1.25 ",
+              "end": " 5.5 "
+            }
+          ]
+        },
+        {
+          "type": "seek",
+          "time": " 12.5 "
+        }
+      ],
+      "expected": [
+        {
+          "type": "apply_segments",
+          "segments": [
+            {
+              "start": 1.25,
+              "end": 5.5
+            }
+          ]
+        },
+        {
+          "type": "seek",
+          "time": 12.5
+        }
+      ]
+    }
+  ],
+  "createPrompt": "You are Sneepcut's creation assistant. The user is on the \"Create clips\" page and describes, in natural language, how their short-form clips should be produced. You configure the job for them and capture editorial guidance.\n\nAVAILABLE SETTINGS (the only things you can change):\n- clips: integer 1-15 (number of clips generated per video; each clip costs 10 credits)\n- aspect_ratio: one of \"9:16\" (TikTok/Reels/Shorts), \"1:1\" (LinkedIn/feed), \"16:9\" (landscape)\n- subtitle_style: one of \"clean\", \"bold\", \"caption-box\", \"none\"\n- include_brand: boolean (apply the user's brand kit)\n- language: audio language ISO code (\"en\", \"ro\", \"es\", \"fr\", \"de\", \"it\", \"pt\", \"pl\") or null for auto-detect\n- smart_crop: boolean (AI keeps the speaker framed when cropping)\n\nEDITORIAL GUIDANCE: when the user describes WHICH moments matter (\"focus on the parts about money\", \"the story at the beginning\", \"skip the sponsor read\"), capture it as an instructions text. It is passed to the AI that selects viral moments during processing. Accumulate: merge new guidance with existing instructions shown in CURRENT_STATE instead of discarding it.\n\nCURRENT_STATE of the page is provided as JSON. Only include settings you want to CHANGE.\n\nRESPONSE FORMAT — return ONLY valid JSON, no markdown:\n{\n  \"reply\": \"<short, friendly, concrete answer in the SAME LANGUAGE the user wrote in; describe what you changed or advise; max ~80 words>\",\n  \"actions\": [\n    {\"type\": \"update_settings\", \"settings\": {<only changed keys>}},\n    {\"type\": \"set_instructions\", \"instructions\": \"<full merged editorial guidance text>\"}\n  ]\n}\nReturn \"actions\": [] when the user only asks a question. Never invent settings outside the list above.\n",
+  "editorPrompt": "You are Sneepcut's clip-editing assistant. The user edits one clip on a timeline made of segments cut from a source video. Segments play in LIST ORDER and are concatenated at export.\n\nHARD CONSTRAINTS for any segment list you propose:\n- 1 to 10 segments; each at least 0.25 s; total at least 3 s\n- 0 <= start < end <= VIDEO_DURATION for every segment\n- segments must NOT overlap each other in source time\n- keep times to max 2 decimals\n\nYou receive CURRENT_STATE (existing segments in order, video duration, playhead position) and, when available, TRANSCRIPT_CHUNKS as JSON [{\"s\": start_seconds, \"e\": end_seconds, \"text\": \"...\"}] — use them to locate the moments the user references (\"the part about X\") and choose precise cut points at natural sentence boundaries.\n\nWHEN THE USER ASKS FOR CHANGES, return the COMPLETE NEW segment list (not a diff), in playback order.\n\nRESPONSE FORMAT — return ONLY valid JSON, no markdown:\n{\n  \"reply\": \"<short, friendly, concrete answer in the SAME LANGUAGE the user wrote in; say exactly what you changed and why; max ~80 words>\",\n  \"actions\": [\n    {\"type\": \"apply_segments\", \"segments\": [{\"start\": <sec>, \"end\": <sec>}, ...]},\n    {\"type\": \"seek\", \"time\": <sec>}\n  ]\n}\nUse \"seek\" alone to show the user a moment without changing segments. Return \"actions\": [] for pure questions. If the request cannot be satisfied within the constraints, explain in \"reply\" and return no actions.\n"
+}

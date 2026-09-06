@@ -26,7 +26,7 @@ async function loadTypeScriptModule(relativePath) {
   )
 }
 
-const { CONTENT_PLATFORMS, parseCalendarRange, validateScheduledPostPayload } =
+const { CONTENT_PLATFORMS, validateScheduledPostPayload } =
   await loadTypeScriptModule('../src/lib/content-calendar.ts')
 const { getDefaultPlanningTime } = await loadTypeScriptModule(
   '../src/components/calendar/calendar-utils.ts'
@@ -175,24 +175,6 @@ test('accepts meaningful partial updates and rejects empty updates', () => {
   assert.equal(empty.success, false)
   if (!empty.success) {
     assert.equal(empty.issues[0]?.field, 'body')
-  }
-})
-
-test('validates bounded half-open calendar ranges', () => {
-  const valid = parseCalendarRange(
-    '2026-08-31T21:00:00.000Z',
-    '2026-10-05T21:00:00.000Z'
-  )
-  assert.equal(valid.success, true)
-
-  for (const [start, end] of [
-    [null, '2026-09-02T00:00:00Z'],
-    ['not-a-date', '2026-09-02T00:00:00Z'],
-    ['2026-02-30T00:00:00Z', '2026-03-02T00:00:00Z'],
-    ['2026-09-02T00:00:00Z', '2026-09-01T00:00:00Z'],
-    ['2026-01-01T00:00:00Z', '2026-06-01T00:00:00Z']
-  ]) {
-    assert.equal(parseCalendarRange(start, end).success, false)
   }
 })
 

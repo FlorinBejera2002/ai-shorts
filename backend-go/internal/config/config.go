@@ -14,6 +14,8 @@ import (
 type Config struct {
 	ListenAddr  string
 	Environment string
+	Auth        Auth
+	Healthcheck bool
 }
 
 func Load(args []string, getenv func(string) string, output io.Writer) (Config, error) {
@@ -24,10 +26,13 @@ func Load(args []string, getenv func(string) string, output io.Writer) (Config, 
 	if value := getenv("APP_ENV"); value != "" {
 		cfg.Environment = value
 	}
+	cfg.Auth = authFromEnv(getenv)
 	flags := flag.NewFlagSet("api", flag.ContinueOnError)
 	flags.SetOutput(output)
 	flags.StringVar(&cfg.ListenAddr, "listen-addr", cfg.ListenAddr, "HTTP listen address")
 	flags.StringVar(&cfg.Environment, "env", cfg.Environment, "Environment (development|test|testing|staging|production)")
+	flags.BoolVar(&cfg.Auth.Enabled, "auth-enabled", cfg.Auth.Enabled, "Enable the Go application API and JWT authentication (requires DATABASE_URL and JWT_SECRET)")
+	flags.BoolVar(&cfg.Healthcheck, "healthcheck", false, "Check readiness of the running local API and exit")
 	if err := flags.Parse(args); err != nil {
 		return Config{}, err
 	}
@@ -46,6 +51,9 @@ func Load(args []string, getenv func(string) string, output io.Writer) (Config, 
 	case "development", "test", "testing", "staging", "production":
 	default:
 		return Config{}, fmt.Errorf("unsupported environment %q", cfg.Environment)
+	}
+	if err := cfg.Auth.validate(cfg.Environment); err != nil {
+		return Config{}, err
 	}
 	return cfg, nil
 }

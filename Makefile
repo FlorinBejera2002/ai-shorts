@@ -7,7 +7,7 @@ GO_CACHE ?= $(CURDIR)/.cache/go-build
 SERVICE ?=
 
 .PHONY: help doctor ensure-env setup up dev dev-up down restart status health \
-	logs backend-shell frontend-shell db-shell redis-shell migrate security-up \
+	logs backend-shell restart-go frontend-shell db-shell redis-shell migrate security-up \
 	install typecheck lint format test test-frontend test-go check build \
 	build-dev build-frontend reset-data
 
@@ -41,11 +41,11 @@ up: ensure-env ## Build and start the default stack in the background
 
 dev: ensure-env ## Switch to the hot-reload development stack in the foreground
 	@$(COMPOSE) down
-	@$(DEV_COMPOSE) up
+	@$(DEV_COMPOSE) up --build
 
 dev-up: ensure-env ## Switch to the hot-reload development stack in the background
 	@$(COMPOSE) down
-	@$(DEV_COMPOSE) up -d
+	@$(DEV_COMPOSE) up --build -d
 
 down: ## Stop containers while preserving data volumes
 	@$(COMPOSE) down
@@ -59,7 +59,7 @@ status: ## Show all Compose services, including completed migrations
 
 health: ## Wait for and verify the routed backend health endpoint
 	@for attempt in {1..30}; do \
-		if curl --fail --silent --show-error http://localhost/api/health; then \
+		if curl --fail --silent --show-error http://localhost/api/ready; then \
 			echo; \
 			exit 0; \
 		fi; \
@@ -71,8 +71,11 @@ health: ## Wait for and verify the routed backend health endpoint
 logs: ## Follow logs for all services, or one with SERVICE=backend
 	@$(COMPOSE) logs --follow $(SERVICE)
 
-backend-shell: ## Open a shell in the running FastAPI container
-	@$(COMPOSE) exec backend /bin/sh
+backend-shell: ## Open a shell in the Python worker container
+	@$(COMPOSE) exec worker /bin/sh
+
+restart-go: ## Restart Go after source changes in development
+	@$(DEV_COMPOSE) restart backend-go
 
 frontend-shell: ## Open a shell in the running Next.js container
 	@$(COMPOSE) exec frontend /bin/sh
@@ -89,9 +92,8 @@ migrate: ensure-env ## Apply pending Alembic migrations
 security-up: ensure-env ## Start the stack with ClamAV upload scanning available
 	@$(COMPOSE) --profile security up --build -d
 
-install: ## Install locked frontend dependencies and generate Prisma Client
+install: ## Install locked frontend dependencies
 	@npm --prefix frontend ci
-	@npm --prefix frontend run prebuild
 
 typecheck: ## Run the frontend TypeScript check
 	@npm --prefix frontend run typecheck
@@ -118,7 +120,7 @@ build: ensure-env ## Build all Docker images
 build-dev: ensure-env ## Rebuild development images after dependency changes
 	@$(DEV_COMPOSE) build
 
-build-frontend: ## Generate Prisma Client and build Next.js locally
+build-frontend: ## Build Next.js locally
 	@npm --prefix frontend run build
 
 reset-data: ## Delete containers and all local database/media volumes (CONFIRM=yes)

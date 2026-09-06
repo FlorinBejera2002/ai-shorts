@@ -1,11 +1,10 @@
 node_modules
-.next
-.next-prod
+.next*
 .open-next
 .wrangler
 test-results
 out
 coverage
 npm-debug.log*
-.env
-.env.local
+.env*
+.dev.vars*

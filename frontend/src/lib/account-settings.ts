@@ -3,7 +3,6 @@ export const DISPLAY_NAME_MAX_LENGTH = 80
 export const PASSWORD_MIN_LENGTH = 12
 export const PASSWORD_MAX_LENGTH = 128
 export const BCRYPT_MAX_PASSWORD_BYTES = 72
-export const RECENT_AUTHENTICATION_WINDOW_MS = 10 * 60 * 1000
 
 export type ValidationIssue = {
   field: string
@@ -236,28 +235,4 @@ export function validateAccountDeletionPayload(
           currentPassword: requireCurrentPassword ? currentPassword : null
         }
       }
-}
-
-export function hasRecentAuthentication(
-  authenticatedAt: unknown,
-  now = Date.now()
-) {
-  return (
-    typeof authenticatedAt === 'number' &&
-    Number.isFinite(authenticatedAt) &&
-    authenticatedAt <= now &&
-    now - authenticatedAt <= RECENT_AUTHENTICATION_WINDOW_MS
-  )
-}
-
-export function hasCurrentSessionVersion(
-  tokenVersion: unknown,
-  currentVersion: number
-) {
-  return (
-    typeof tokenVersion === 'number' &&
-    Number.isSafeInteger(tokenVersion) &&
-    tokenVersion >= 0 &&
-    tokenVersion === currentVersion
-  )
 }

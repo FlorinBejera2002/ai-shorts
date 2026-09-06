@@ -1,6 +1,11 @@
+'use client'
+
+import { ApiState } from '@/components/shared/api-state'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import { useApiResource } from '@/hooks/use-api-resource'
 import { Link } from '@/i18n/navigation'
+import type { ReviewClip } from '@/types/api'
 import {
   CheckCircle2,
   Film,
@@ -8,43 +13,19 @@ import {
   Sparkles,
   TrendingUp
 } from 'lucide-react'
-import { getTranslations, setRequestLocale } from 'next-intl/server'
+import { useTranslations } from 'next-intl'
 
 import { EmptyState } from '@/components/ui/empty-state'
 import { PageHeader } from '@/components/ui/page-header'
-import { auth } from '@/lib/auth'
 import { getClipReadiness } from '@/lib/clip-readiness'
-import { getPrisma } from '@/lib/db'
 
-export const runtime = 'nodejs'
-
-export default async function ReviewPage({
-  params
-}: {
-  params: Promise<{ locale: string }>
-}) {
-  const { locale } = await params
-  setRequestLocale(locale)
-  const t = await getTranslations('review')
-
-  const session = await auth()
-  const prisma = getPrisma()
-  const clips = session?.user?.id
-    ? await prisma.clip.findMany({
-        where: { userId: session.user.id },
-        orderBy: [{ viralScore: 'desc' }, { createdAt: 'desc' }],
-        take: 80,
-        include: {
-          job: {
-            select: {
-              sourceUrl: true,
-              sourceFilePath: true,
-              status: true
-            }
-          }
-        }
-      })
-    : []
+export default function ReviewPage() {
+  const t = useTranslations('review')
+  const { data, error, reload } = useApiResource<{ clips: ReviewClip[] }>(
+    '/api/dashboard/review'
+  )
+  if (!data) return <ApiState error={error} retry={reload} />
+  const { clips } = data
 
   const rows = clips.map((clip) => ({
     clip,

@@ -1,3 +1,4 @@
+import { PlanPrice } from '@/components/billing/plan-price'
 import { PublicFooter } from '@/components/landing/public-footer'
 import { PublicNavbar } from '@/components/landing/public-navbar'
 import {
@@ -23,26 +24,11 @@ import {
   type PaidBillingPlanId
 } from '@/lib/billing'
 import { type SiteLocale, buildLocaleMetadata } from '@/lib/site-config'
-import { type BillingPlanPrice, loadBillingPlanCatalog } from '@/lib/stripe'
 import { Building2, Check, Crown, Film, Zap } from 'lucide-react'
 import type { Metadata } from 'next'
 import { getTranslations, setRequestLocale } from 'next-intl/server'
 
 export const dynamic = 'force-dynamic'
-
-function formatPlanPrice(
-  price: BillingPlanPrice | undefined,
-  locale: string,
-  fallback: string
-) {
-  if (!price) return fallback
-  return new Intl.NumberFormat(locale, {
-    style: 'currency',
-    currency: price.currency,
-    minimumFractionDigits: price.amount % 100 === 0 ? 0 : 2,
-    maximumFractionDigits: 2
-  }).format(price.amount / 100)
-}
 
 export async function generateMetadata({
   params
@@ -71,14 +57,6 @@ export default async function PricingPage({
   const tBilling = await getTranslations('billing')
   const planData = t.raw('plans')
   const faqs = t.raw('faqs')
-  let planCatalog: Awaited<ReturnType<typeof loadBillingPlanCatalog>> | null =
-    null
-  try {
-    planCatalog = await loadBillingPlanCatalog()
-  } catch {
-    // Never show a marketing price unless it matches the exact active monthly
-    // Stripe Price that checkout will charge.
-  }
 
   const plans = [
     { key: 'free', icon: Zap, cta: t('startFree') },
@@ -92,13 +70,15 @@ export default async function PricingPage({
     return {
       ...plan,
       ...localized,
-      price: paidPlan
-        ? formatPlanPrice(
-            planCatalog?.[paidPlan],
-            locale,
-            tBilling('unavailable')
-          )
-        : localized.price,
+      price: paidPlan ? (
+        <PlanPrice
+          planId={paidPlan}
+          locale={locale}
+          unavailable={tBilling('unavailable')}
+        />
+      ) : (
+        localized.price
+      ),
       credits: paidPlan
         ? tBilling('creditsMonthly', { credits: PLAN_CREDITS[paidPlan] })
         : tBilling('creditsOnSignup', { credits: INITIAL_FREE_CREDITS })

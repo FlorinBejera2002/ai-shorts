@@ -1,5 +1,13 @@
 # Frontend/backend verification — 2026-09-04
 
+This document records the earlier Python/Auth.js implementation. For the current
+Go API, JWT frontend and disposable verification commands, use
+[the Go migration record](go-migration/backend-go-migration.md) and
+[Go backend checks](../backend-go/README.md). The legacy browser setup and test
+totals below are historical; they must not be used to configure the migrated
+frontend or as evidence for the new implementation. The outbox/recovery gap
+described below has since been addressed and exercised by the Go/worker fixtures.
+
 Tracked in Notion: **Verify and harden frontend–backend integration and performance** (`3d1c7071-a198-81bf-8d05-c3434bb6cf91`). Production deployment remains separately tracked by CF053.
 
 ## Implemented

@@ -1,5 +1,7 @@
 'use client'
 
+import { apiFetch } from '@/lib/auth'
+
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -94,7 +96,7 @@ export function ClipWorkspace({ clip }: ClipWorkspaceProps) {
   async function save() {
     setBusy('save')
     try {
-      const response = await fetch(`/api/clips/${clip.id}`, {
+      const response = await apiFetch(`/api/clips/${clip.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title, hookText, transcriptText })
@@ -140,7 +142,7 @@ export function ClipWorkspace({ clip }: ClipWorkspaceProps) {
     }
     setBusy('trim')
     try {
-      const res = await fetch(`/api/clips/${clip.id}/trim`, {
+      const res = await apiFetch(`/api/clips/${clip.id}/trim`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -177,7 +179,7 @@ export function ClipWorkspace({ clip }: ClipWorkspaceProps) {
     if (!confirmed) return
     setBusy('delete')
     try {
-      const response = await fetch(`/api/clips/${clip.id}`, {
+      const response = await apiFetch(`/api/clips/${clip.id}`, {
         method: 'DELETE'
       })
       if (!response.ok) {

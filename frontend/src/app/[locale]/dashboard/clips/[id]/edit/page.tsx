@@ -1,5 +1,7 @@
 'use client'
 
+import { apiFetch } from '@/lib/auth'
+
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 
@@ -89,7 +91,7 @@ export default function ClipEditorPage() {
     let cancelled = false
     async function load() {
       try {
-        const res = await fetch(`/api/clips/${params.id}`)
+        const res = await apiFetch(`/api/clips/${params.id}`)
         if (!res.ok) throw new Error('Failed to fetch clip')
         const data: ClipData = await res.json()
         if (cancelled) return
@@ -240,7 +242,7 @@ export default function ClipEditorPage() {
   const handleExport = useCallback(async () => {
     setExportPhase('submitting')
     try {
-      const res = await fetch(`/api/clips/${params.id}/recut`, {
+      const res = await apiFetch(`/api/clips/${params.id}/recut`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

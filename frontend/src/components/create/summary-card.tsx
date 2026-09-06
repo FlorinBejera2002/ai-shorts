@@ -1,5 +1,7 @@
 'use client'
 
+import { apiFetch } from '@/lib/auth'
+
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 
@@ -34,7 +36,7 @@ export function SummaryCard({
 
   useEffect(() => {
     let cancelled = false
-    fetch('/api/user/credits')
+    apiFetch('/api/user/credits')
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (!cancelled && data && typeof data.credits === 'number') {

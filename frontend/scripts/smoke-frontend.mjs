@@ -9,10 +9,10 @@ assert.ok(['http:', 'https:'].includes(baseUrl.protocol))
 assert.equal(baseUrl.username + baseUrl.password, '')
 
 let passed = 0
-async function check(path, verify, cookie) {
+async function check(path, verify, accessToken) {
   const response = await fetch(new URL(path, baseUrl), {
     redirect: 'manual',
-    headers: cookie ? { Cookie: cookie } : undefined,
+    headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
     signal: AbortSignal.timeout(30_000)
   })
   const body = await response.text()
@@ -24,16 +24,10 @@ async function check(path, verify, cookie) {
 function verifyHtml(path, response, body) {
   assert.equal(response.status, 200, `${path} must render`)
   assert.match(response.headers.get('content-type') ?? '', /text\/html/)
-  // Brand settings load their form on the client; verify that heading in the
-  // browser after hydration. All other routes render their heading on the server.
-  if (path === '/dashboard/brand') {
-    assert.ok(
-      body.includes('id="dashboard-main"'),
-      'Brand page must render its authenticated shell'
-    )
-  } else {
-    assert.ok(/<h1\b/.test(body), `${path} needs a server-rendered heading`)
-  }
+  // Account pages hydrate from Go; their server response contains only a loading state.
+  if (path.includes('/dashboard') || ['/login', '/reset-password', '/activate'].includes(path)) {
+    assert.ok(/role="status"|<h1\b/.test(body), `${path} needs an accessible loading state`)
+  } else assert.ok(/<h1\b/.test(body), `${path} needs a heading`)
   assert.match(body, /Sneepcut|sneepcut/)
   assert.doesNotMatch(body, /Application error: a server-side exception/)
   for (const script of body.matchAll(
@@ -75,14 +69,10 @@ for (const path of [
   '/dashboard/script-generator',
   '/ro/dashboard/settings'
 ]) {
-  await check(path, (response) => {
-    assert.ok([302, 303, 307, 308].includes(response.status))
-    const redirect = new URL(response.headers.get('location'), baseUrl)
-    assert.equal(
-      redirect.pathname,
-      path.startsWith('/ro/') ? '/ro/login' : '/login'
-    )
-    assert.equal(redirect.searchParams.get('callbackUrl'), path)
+  await check(path, (response, body) => {
+    assert.equal(response.status, 200)
+    assert.match(body, /role="status"/)
+    assert.match(response.headers.get('x-robots-tag') ?? '', /noindex/)
   })
 }
 
@@ -115,9 +105,9 @@ await check('/robots.txt', (response, body) => {
 })
 
 // Optional, read-only authenticated coverage. Use only a synthetic account on
-// the disposable local test database; never paste a production session here.
-const smokeCookie = process.env.SNEEPCUT_SMOKE_COOKIE
-if (smokeCookie) {
+// the disposable local test database; never paste a production token here.
+const smokeAccessToken = process.env.SNEEPCUT_SMOKE_ACCESS_TOKEN
+if (smokeAccessToken) {
   for (const path of [
     '/dashboard',
     '/dashboard/create',
@@ -141,7 +131,7 @@ if (smokeCookie) {
     await check(
       path,
       (response, body) => verifyHtml(path, response, body),
-      smokeCookie
+      smokeAccessToken
     )
   }
 
@@ -167,7 +157,7 @@ if (smokeCookie) {
           /"(?:passwordHash|sessionToken|access_token)"/
         )
       },
-      smokeCookie
+      smokeAccessToken
     )
   }
 }

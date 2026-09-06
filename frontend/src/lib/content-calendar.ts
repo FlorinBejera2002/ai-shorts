@@ -298,36 +298,3 @@ export function validateScheduledPostPayload(
   if (issues.length > 0) return { success: false, issues }
   return { success: true, data }
 }
-
-export function parseCalendarRange(
-  startValue: string | null,
-  endValue: string | null
-):
-  | { success: true; start: Date; end: Date }
-  | { success: false; message: string } {
-  if (!startValue || !endValue) {
-    return {
-      success: false,
-      message: 'Both start and end query parameters are required'
-    }
-  }
-
-  const start = parseAbsoluteDateTime(startValue)
-  const end = parseAbsoluteDateTime(endValue)
-  if (!start || !end) {
-    return { success: false, message: 'Calendar range is invalid' }
-  }
-  if (end <= start) {
-    return { success: false, message: 'Calendar end must be after start' }
-  }
-
-  const rangeDays = (end.getTime() - start.getTime()) / 86_400_000
-  if (rangeDays > 100) {
-    return {
-      success: false,
-      message: 'Calendar range cannot exceed 100 days'
-    }
-  }
-
-  return { success: true, start, end }
-}

@@ -44,7 +44,15 @@ def extract_clip(
     transition_duration: float = 0.25,
 ) -> bool:
     try:
-        transition_overlaps(segments, transition, transition_duration)
+        # Recut segments arrive in the editor's output order. A plain concat
+        # may put a later source moment first; validate source overlap in time
+        # order without changing the requested extraction order.
+        validation_segments = (
+            sorted(segments, key=lambda segment: float(segment["start"]))
+            if transition == "cut"
+            else segments
+        )
+        transition_overlaps(validation_segments, transition, transition_duration)
         validate_video_file(input_video)
         video_duration = get_video_duration(input_video)
         for seg in segments:

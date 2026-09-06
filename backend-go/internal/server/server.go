@@ -24,12 +24,13 @@ func serve(ctx context.Context, listener net.Listener, handler http.Handler, log
 		Handler:           handler,
 		IdleTimeout:       time.Minute,
 		ReadHeaderTimeout: 5 * time.Second,
-		ReadTimeout:       5 * time.Second,
-		WriteTimeout:      10 * time.Second,
+		ReadTimeout:       0,
+		WriteTimeout:      0,
+		MaxHeaderBytes:    64 * 1024,
 		ErrorLog:          slog.NewLogLogger(logger.Handler(), slog.LevelError),
 	}
-	// These small-request defaults must be revisited when uploads/AI routes are
-	// implemented; they are not a policy for multi-gigabyte video transfers.
+	// Route policy sets request/body deadlines for JSON, providers and uploads.
+	// Header and idle limits remain enforced before route dispatch.
 	stopped := make(chan struct{})
 	shutdownResult := make(chan error, 1)
 	go func() {

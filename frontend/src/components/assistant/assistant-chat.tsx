@@ -1,5 +1,7 @@
 'use client'
 
+import { apiFetch } from '@/lib/auth'
+
 import { Button } from '@/components/ui/button'
 
 import { Card } from '@/components/ui/card'
@@ -60,7 +62,7 @@ export function AssistantChat({
 
   useEffect(() => {
     let cancelled = false
-    fetch(`/api/assistant/history?${historyQuery}`)
+    apiFetch(`/api/assistant/history?${historyQuery}`)
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (cancelled || !data?.messages) return
@@ -109,7 +111,7 @@ export function AssistantChat({
 
       try {
         const stateKey = context === 'create' ? 'create_state' : 'editor_state'
-        const res = await fetch('/api/assistant/chat', {
+        const res = await apiFetch('/api/assistant/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -149,7 +151,7 @@ export function AssistantChat({
   const clearHistory = useCallback(async () => {
     if (!window.confirm(t('clearConfirm'))) return
     try {
-      const res = await fetch(`/api/assistant/history?${historyQuery}`, {
+      const res = await apiFetch(`/api/assistant/history?${historyQuery}`, {
         method: 'DELETE'
       })
       if (res.ok) {

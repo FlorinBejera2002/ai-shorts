@@ -24,22 +24,12 @@ async function loadTypeScriptModule(relativePath) {
 
 const {
   fitsBcryptPasswordLimit,
-  hasCurrentSessionVersion,
-  hasRecentAuthentication,
   normalizeDisplayName,
   passwordPolicyIssues,
   validateAccountDeletionPayload,
   validatePasswordPayload,
   validateProfilePayload
 } = await loadTypeScriptModule('../src/lib/account-settings.ts')
-
-test('legacy or stale JWT session versions fail closed', () => {
-  assert.equal(hasCurrentSessionVersion(undefined, 0), false)
-  assert.equal(hasCurrentSessionVersion('0', 0), false)
-  assert.equal(hasCurrentSessionVersion(0, 0), true)
-  assert.equal(hasCurrentSessionVersion(0, 1), false)
-  assert.equal(hasCurrentSessionVersion(1, 1), true)
-})
 
 test('normalizes and validates display names', () => {
   assert.equal(normalizeDisplayName('  Ada   Lovelace  '), 'Ada Lovelace')
@@ -124,13 +114,4 @@ test('requires an exact case-insensitive account-email confirmation', () => {
     ).success,
     false
   )
-})
-
-test('accepts only a bounded recent provider authentication', () => {
-  const now = 2_000_000
-  assert.equal(hasRecentAuthentication(now - 60_000, now), true)
-  assert.equal(hasRecentAuthentication(now - 10 * 60_000, now), true)
-  assert.equal(hasRecentAuthentication(now - 10 * 60_000 - 1, now), false)
-  assert.equal(hasRecentAuthentication(now + 1, now), false)
-  assert.equal(hasRecentAuthentication(undefined, now), false)
 })

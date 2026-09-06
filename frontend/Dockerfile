@@ -3,11 +3,6 @@
 # glibc, so Alpine's musl runtime yields a misleading ENOENT at build time.
 FROM node:22-bookworm-slim AS base
 
-# Prisma selects its Debian OpenSSL 3 engine from this runtime dependency.
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends openssl \
-    && rm -rf /var/lib/apt/lists/*
-
 FROM base AS deps
 WORKDIR /app
 COPY package.json package-lock.json ./
@@ -18,16 +13,26 @@ WORKDIR /app
 ENV NODE_ENV=development
 ENV NEXT_TELEMETRY_DISABLED=1
 COPY . .
-RUN npx prisma generate
 CMD ["npm", "run", "dev"]
 
 FROM base AS builder
 WORKDIR /app
+ARG GO_API_URL=http://backend-go:8080
+ARG MEDIA_PROXY_HOST=http://nginx:80
+ARG NEXT_PUBLIC_APP_URL=http://localhost:3000
+ARG NEXT_PUBLIC_CONTACT_EMAIL=
+ARG NEXT_PUBLIC_UPLOAD_URL=
+ARG NEXT_IMAGE_REMOTE_HOSTS=
+ENV GO_API_URL=$GO_API_URL
+ENV MEDIA_PROXY_HOST=$MEDIA_PROXY_HOST
+ENV NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL
+ENV NEXT_PUBLIC_CONTACT_EMAIL=$NEXT_PUBLIC_CONTACT_EMAIL
+ENV NEXT_PUBLIC_UPLOAD_URL=$NEXT_PUBLIC_UPLOAD_URL
+ENV NEXT_IMAGE_REMOTE_HOSTS=$NEXT_IMAGE_REMOTE_HOSTS
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NEXT_DIST_DIR=.next
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-RUN npx prisma generate
 RUN npm run build
 
 FROM base AS runner
@@ -37,8 +42,6 @@ RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
-# Next's standalone trace does not include Prisma's dynamically loaded WASM.
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/.prisma/client ./node_modules/.prisma/client
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 USER nextjs
 EXPOSE 3000

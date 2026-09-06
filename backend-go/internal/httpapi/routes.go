@@ -15,7 +15,7 @@ type application struct {
 	logger *slog.Logger
 }
 
-func New(logger *slog.Logger, environment, version string) http.Handler {
+func New(logger *slog.Logger, environment, version string, register ...func(*httprouter.Router)) http.Handler {
 	app := &application{logger: logger}
 	router := httprouter.New()
 	router.NotFound = http.HandlerFunc(app.notFoundResponse)
@@ -23,5 +23,8 @@ func New(logger *slog.Logger, environment, version string) http.Handler {
 	router.Handler(http.MethodGet, "/v1/healthcheck", health.Handler(environment, version))
 	// Keep the existing stack's health path while using the example's server base.
 	router.Handler(http.MethodGet, "/api/health", health.Handler(environment, version))
+	for _, feature := range register {
+		feature(router)
+	}
 	return app.recoverPanic(router)
 }

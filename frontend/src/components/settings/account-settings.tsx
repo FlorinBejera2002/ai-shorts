@@ -1,5 +1,7 @@
 'use client'
 
+import { apiFetch } from '@/lib/auth'
+
 import { Card } from '@/components/ui/card'
 
 import { Button } from '@/components/ui/button'
@@ -11,6 +13,7 @@ import { ThemeToggle } from '@/components/shared/theme-toggle'
 import { PageHeader } from '@/components/ui/page-header'
 import { useToast } from '@/components/ui/toast'
 import { Link, useRouter } from '@/i18n/navigation'
+import { authClient, googleSignIn } from '@/lib/auth'
 import {
   AlertTriangle,
   CalendarDays,
@@ -26,11 +29,10 @@ import {
   Trash2,
   User
 } from 'lucide-react'
-import { signIn, signOut } from 'next-auth/react'
 import { useLocale, useTranslations } from 'next-intl'
 import { type FormEvent, useMemo, useRef, useState } from 'react'
 
-type Profile = {
+export type Profile = {
   id: string
   name: string | null
   email: string
@@ -38,6 +40,7 @@ type Profile = {
   provider: string
   canChangePassword: boolean
   recentlyAuthenticated: boolean
+  deletionPending?: boolean
   emailVerified: string | null
   createdAt: string
 }
@@ -98,7 +101,7 @@ export function AccountSettings({
     setBusy('profile')
     setProfileError(null)
     try {
-      const response = await fetch('/api/user/profile', {
+      const response = await apiFetch('/api/user/profile', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name })
@@ -125,7 +128,7 @@ export function AccountSettings({
     setBusy('password')
     setPasswordError(null)
     try {
-      const response = await fetch('/api/user/password', {
+      const response = await apiFetch('/api/user/password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ currentPassword, newPassword, confirmPassword })
@@ -134,7 +137,7 @@ export function AccountSettings({
         throw new Error(await responseMessage(response, t('passwordFailed')))
       }
       toast.add('success', t('passwordChanged'))
-      await signOut({ redirect: false })
+      await authClient.logout()
       router.push('/login')
       router.refresh()
     } catch (error) {
@@ -148,7 +151,7 @@ export function AccountSettings({
   async function exportData() {
     setBusy('export')
     try {
-      const response = await fetch('/api/user/data', { cache: 'no-store' })
+      const response = await apiFetch('/api/user/data', { cache: 'no-store' })
       if (!response.ok) throw new Error(t('exportFailed'))
       const data = await response.json()
       const blob = new Blob([JSON.stringify(data, null, 2)], {
@@ -181,11 +184,7 @@ export function AccountSettings({
     setBusy('reauthenticate')
     setDeleteError(null)
     try {
-      await signIn(
-        profile.provider,
-        { callbackUrl: window.location.pathname },
-        { prompt: 'select_account', max_age: '0' }
-      )
+      googleSignIn(window.location.pathname, locale)
       setBusy(null)
     } catch {
       setDeleteError(t('reauthenticationFailed'))
@@ -198,7 +197,7 @@ export function AccountSettings({
     setBusy('delete')
     setDeleteError(null)
     try {
-      const response = await fetch('/api/user/data', {
+      const response = await apiFetch('/api/user/data', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(
@@ -215,7 +214,7 @@ export function AccountSettings({
       }
       deleteDialog.current?.close()
       toast.add('success', t('deleteSuccess'))
-      await signOut({ redirect: false })
+      await authClient.logout()
       router.push('/login')
       router.refresh()
     } catch (error) {
@@ -232,6 +231,16 @@ export function AccountSettings({
   return (
     <div className="animate-fade-in">
       <PageHeader title={t('title')} description={t('desc')} />
+      {profile.deletionPending && (
+        <div
+          role="alert"
+          className="mb-6 rounded-lg border border-warning/30 bg-warning/10 p-4 text-sm"
+        >
+          {locale === 'ro'
+            ? 'Ștergerea contului nu s-a încheiat. Reîncearcă ștergerea în secțiunea de confidențialitate de mai jos.'
+            : 'Account deletion has not finished. Retry deletion in the privacy section below.'}
+        </div>
+      )}
 
       <nav aria-label={t('title')} className="mb-6 flex flex-wrap gap-2">
         {[

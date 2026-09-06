@@ -1,55 +1,30 @@
+'use client'
+
+import { useAuth } from '@/components/auth/auth-guard'
 import { ActiveJobs } from '@/components/dashboard/active-jobs'
 import { ActivityCharts } from '@/components/dashboard/activity-charts'
 import { QuickActions } from '@/components/dashboard/quick-actions'
 import { RecentClips } from '@/components/dashboard/recent-clips'
 import { StatsBar } from '@/components/dashboard/stats-bar'
+import { ApiState } from '@/components/shared/api-state'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { PageHeader } from '@/components/ui/page-header'
+import { useApiResource } from '@/hooks/use-api-resource'
 import { Link } from '@/i18n/navigation'
-import { auth } from '@/lib/auth'
-import { getDashboardData } from '@/lib/dashboard-data'
-import { getPrisma } from '@/lib/db'
-import { resolveMediaUrl } from '@/lib/signed-url'
+import type { DashboardData } from '@/types/api'
 import { ArrowUpRight, Film, Plus, Scissors } from 'lucide-react'
-import { getTranslations, setRequestLocale } from 'next-intl/server'
-import { redirect } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 
-export const runtime = 'nodejs'
-
-export default async function DashboardPage({
-  params
-}: { params: Promise<{ locale: string }> }) {
-  const { locale } = await params
-  setRequestLocale(locale)
-  const t = await getTranslations('dashboard')
-  const s = await getTranslations('dashboard.studio')
-  const session = await auth()
-  const userId = session?.user?.id
-  if (!userId) redirect(locale === 'en' ? '/login' : `/${locale}/login`)
-  const prisma = getPrisma()
-  const [metrics, recentClips] = await Promise.all([
-    getDashboardData(prisma, userId),
-    prisma.clip.findMany({
-      where: { userId },
-      orderBy: { createdAt: 'desc' },
-      take: 6,
-      select: {
-        id: true,
-        title: true,
-        duration: true,
-        viralScore: true,
-        filePath: true,
-        fileUrl: true,
-        fileStorageKey: true,
-        thumbnailPath: true,
-        thumbnailUrl: true,
-        thumbnailStorageKey: true,
-        resolution: true
-      }
-    })
-  ])
+export default function DashboardPage() {
+  const t = useTranslations('dashboard')
+  const s = useTranslations('dashboard.studio')
+  const session = useAuth()
+  const { data, error, reload } =
+    useApiResource<DashboardData>('/api/dashboard')
+  if (!data) return <ApiState error={error} retry={reload} />
+  const { metrics, recentClips } = data
 
   return (
     <div className="space-y-6" data-testid="studio-dashboard">
@@ -85,19 +60,7 @@ export default async function DashboardPage({
       <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
         <section className="min-w-0 space-y-5" aria-label={t('recentClips')}>
           {recentClips.length ? (
-            <RecentClips
-              clips={recentClips.map((clip) => ({
-                ...clip,
-                fileUrl: resolveMediaUrl(
-                  clip.fileStorageKey ?? clip.filePath,
-                  clip.fileUrl
-                ),
-                thumbnailUrl: resolveMediaUrl(
-                  clip.thumbnailStorageKey ?? clip.thumbnailPath,
-                  clip.thumbnailUrl
-                )
-              }))}
-            />
+            <RecentClips clips={recentClips} />
           ) : (
             <Card className="overflow-hidden py-0 shadow-none">
               <CardContent className="relative px-6 py-8 sm:px-8">

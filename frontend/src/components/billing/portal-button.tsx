@@ -1,5 +1,7 @@
 'use client'
 
+import { apiFetch } from '@/lib/auth'
+
 import { Button } from '@/components/ui/button'
 
 import { ExternalLink, Loader2 } from 'lucide-react'
@@ -36,7 +38,7 @@ export function PortalButton({
     setLoading(true)
     setError(null)
     try {
-      const response = await fetch('/api/stripe/portal', {
+      const response = await apiFetch('/api/stripe/portal', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ locale })

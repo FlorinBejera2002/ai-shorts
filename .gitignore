@@ -45,7 +45,7 @@ Thumbs.db
 postgres_data/
 
 # Media uploads
-media/
+/media/
 
 # Prisma
 frontend/prisma/migrations/
