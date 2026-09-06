@@ -86,18 +86,12 @@ services:
       retries: 3
 
   backend-go:
+    # Health-only foundation. Keep BACKEND_URL on Python until route parity.
     profiles: ["go-api"]
     build: ./backend-go
-    env_file: .env
     environment:
-      PYTHON_BACKEND_URL: http://backend:8000
       LISTEN_ADDR: ":8080"
-      DATABASE_URL: postgresql://${POSTGRES_USER:-sneepcut}:${DB_PASSWORD:-changeme}@postgres:5432/${POSTGRES_DB:-sneepcut}
-    depends_on:
-      backend:
-        condition: service_healthy
-    volumes:
-      - media_data:/app/media:ro
+      APP_ENV: ${APP_ENV:-development}
     expose:
       - "8080"
     read_only: true

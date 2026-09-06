@@ -7,7 +7,7 @@ Sneepcut is a local video-to-shorts stack with a Next.js frontend, FastAPI backe
 - Docker Desktop with Docker Compose
 - At least 6 GB of memory available to Docker for the ML worker
 - Node.js 22 or newer for running frontend checks outside Docker
-- Go for the optional Go API and its tests
+- Go 1.24+ for the optional Go foundation and its tests
 
 ## Quick start
 
@@ -100,11 +100,17 @@ make install
 make check
 ```
 
-Run the optional Go API tests:
+Run the Go foundation tests:
 
 ```bash
 make test-go
 ```
+
+`backend-go/` is a clean server foundation based on the supplied Go example.
+It currently exposes only health endpoints. The earlier Go job API experiment
+has been removed; keep `BACKEND_URL` on Python while features are implemented.
+See the [Go migration plan](docs/go-migration/backend-go-migration.md) and
+[Go foundation commands and structure](backend-go/README.md).
 
 The Docker build itself runs Prisma generation and a full Next.js production build.
 
