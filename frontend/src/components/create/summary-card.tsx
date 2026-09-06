@@ -1,5 +1,8 @@
 'use client'
 
+import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
+
 import { AlertTriangle, Loader2, Wand2, Zap } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useEffect, useState } from 'react'
@@ -54,7 +57,7 @@ export function SummaryCard({
   }[settings.subtitleStyle]
 
   return (
-    <div className="panel overflow-hidden">
+    <Card className="block gap-0 py-0 overflow-hidden">
       <div className="p-4" aria-live="polite">
         <div className="flex items-start gap-3">
           <div className="icon-tile">
@@ -114,12 +117,13 @@ export function SummaryCard({
       </div>
 
       <div className="border-t border-border bg-muted/35 p-3">
-        <button
+        <Button
           type="button"
           disabled={!canGenerate || busy || insufficient}
           onClick={onGenerate}
           aria-busy={busy}
-          className="button-primary w-full disabled:cursor-not-allowed disabled:opacity-40"
+          variant="default"
+          className="w-full disabled:cursor-not-allowed disabled:opacity-40"
         >
           {busy ? (
             <>
@@ -134,8 +138,8 @@ export function SummaryCard({
                 : t('generateClips', { count: settings.clips })}
             </>
           )}
-        </button>
+        </Button>
       </div>
-    </div>
+    </Card>
   )
 }

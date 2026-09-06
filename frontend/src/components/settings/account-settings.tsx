@@ -1,5 +1,11 @@
 'use client'
 
+import { Card } from '@/components/ui/card'
+
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+
 import { LanguageSwitcher } from '@/components/shared/language-switcher'
 import { ThemeToggle } from '@/components/shared/theme-toggle'
 import { PageHeader } from '@/components/ui/page-header'
@@ -227,11 +233,27 @@ export function AccountSettings({
     <div className="animate-fade-in">
       <PageHeader title={t('title')} description={t('desc')} />
 
-      <div className="mt-8 grid max-w-5xl gap-5 xl:grid-cols-[minmax(0,1.35fr)_minmax(18rem,.65fr)]">
-        <div className="space-y-5">
-          <section className="panel p-5 sm:p-6" aria-labelledby="profile-title">
+      <nav aria-label={t('title')} className="mb-6 flex flex-wrap gap-2">
+        {[
+          ['profile-title', t('profileTitle')],
+          ['security-title', t('securityTitle')],
+          ['privacy-title', t('dataPrivacy')],
+          ['preferences-title', t('preferences')]
+        ].map(([id, label]) => (
+          <Button key={id} asChild={true} variant="outline" size="sm">
+            <a href={`#${id}`}>{label}</a>
+          </Button>
+        ))}
+      </nav>
+      <div className="grid min-w-0 grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.5fr)_minmax(18rem,.7fr)]">
+        <div className="min-w-0 space-y-5">
+          <Card
+            as="section"
+            className="block gap-0 py-0 p-5 sm:p-6"
+            aria-labelledby="profile-title"
+          >
             <div className="flex flex-wrap items-start justify-between gap-4">
-              <div className="flex min-w-0 items-center gap-4">
+              <div className="flex min-w-0 max-w-full items-center gap-4">
                 {profile.image ? (
                   <img
                     src={profile.image}
@@ -247,7 +269,10 @@ export function AccountSettings({
                   </div>
                 )}
                 <div className="min-w-0">
-                  <h2 id="profile-title" className="text-base font-semibold">
+                  <h2
+                    id="profile-title"
+                    className="scroll-mt-24 text-base font-semibold"
+                  >
                     {t('profileTitle')}
                   </h2>
                   <p className="mt-1 truncate text-sm text-muted-foreground">
@@ -265,10 +290,10 @@ export function AccountSettings({
 
             <form className="mt-6 space-y-4" onSubmit={saveProfile}>
               <div>
-                <label htmlFor="profile-name" className="field-label">
+                <Label htmlFor="profile-name" className="field-label">
                   {t('displayName')}
-                </label>
-                <input
+                </Label>
+                <Input
                   id="profile-name"
                   value={name}
                   onChange={(event) => setName(event.target.value)}
@@ -281,12 +306,12 @@ export function AccountSettings({
                 />
               </div>
               <div>
-                <label htmlFor="profile-email" className="field-label">
+                <Label htmlFor="profile-email" className="field-label">
                   {t('emailAddress')}
-                </label>
+                </Label>
                 <div className="relative mt-1.5">
                   <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                  <input
+                  <Input
                     id="profile-email"
                     value={profile.email}
                     readOnly={true}
@@ -306,10 +331,11 @@ export function AccountSettings({
                   {profileError}
                 </p>
               )}
-              <button
+              <Button
                 type="submit"
                 disabled={busy !== null || name.trim() === (profile.name ?? '')}
-                className="button-primary disabled:cursor-not-allowed disabled:opacity-50"
+                variant="default"
+                className="disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {busy === 'profile' ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -317,12 +343,13 @@ export function AccountSettings({
                   <Save className="h-4 w-4" />
                 )}
                 {t('saveProfile')}
-              </button>
+              </Button>
             </form>
-          </section>
+          </Card>
 
-          <section
-            className="panel p-5 sm:p-6"
+          <Card
+            as="section"
+            className="block gap-0 py-0 p-5 sm:p-6"
             aria-labelledby="security-title"
           >
             <div className="flex items-start gap-3">
@@ -330,7 +357,10 @@ export function AccountSettings({
                 <KeyRound className="h-4 w-4" />
               </div>
               <div>
-                <h2 id="security-title" className="text-base font-semibold">
+                <h2
+                  id="security-title"
+                  className="scroll-mt-24 text-base font-semibold"
+                >
                   {t('securityTitle')}
                 </h2>
                 <p className="mt-1 text-xs text-muted-foreground">
@@ -345,10 +375,10 @@ export function AccountSettings({
                 onSubmit={changePassword}
               >
                 <div className="sm:col-span-2">
-                  <label htmlFor="current-password" className="field-label">
+                  <Label htmlFor="current-password" className="field-label">
                     {t('currentPassword')}
-                  </label>
-                  <input
+                  </Label>
+                  <Input
                     id="current-password"
                     type="password"
                     value={currentPassword}
@@ -360,10 +390,10 @@ export function AccountSettings({
                   />
                 </div>
                 <div>
-                  <label htmlFor="new-password" className="field-label">
+                  <Label htmlFor="new-password" className="field-label">
                     {t('newPassword')}
-                  </label>
-                  <input
+                  </Label>
+                  <Input
                     id="new-password"
                     type="password"
                     value={newPassword}
@@ -376,10 +406,10 @@ export function AccountSettings({
                   />
                 </div>
                 <div>
-                  <label htmlFor="confirm-password" className="field-label">
+                  <Label htmlFor="confirm-password" className="field-label">
                     {t('confirmPassword')}
-                  </label>
-                  <input
+                  </Label>
+                  <Input
                     id="confirm-password"
                     type="password"
                     value={confirmPassword}
@@ -403,10 +433,11 @@ export function AccountSettings({
                   </p>
                 )}
                 <div className="sm:col-span-2">
-                  <button
+                  <Button
                     type="submit"
                     disabled={busy !== null}
-                    className="button-secondary disabled:opacity-50"
+                    variant="outline"
+                    className="disabled:opacity-50"
                   >
                     {busy === 'password' ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
@@ -414,7 +445,7 @@ export function AccountSettings({
                       <LockKeyhole className="h-4 w-4" />
                     )}
                     {t('changePassword')}
-                  </button>
+                  </Button>
                 </div>
               </form>
             ) : (
@@ -425,15 +456,22 @@ export function AccountSettings({
                 </p>
               </div>
             )}
-          </section>
+          </Card>
 
-          <section className="panel p-5 sm:p-6" aria-labelledby="privacy-title">
+          <Card
+            as="section"
+            className="block gap-0 py-0 p-5 sm:p-6"
+            aria-labelledby="privacy-title"
+          >
             <div className="flex items-start gap-3">
               <div className="icon-tile">
                 <Shield className="h-4 w-4" />
               </div>
               <div>
-                <h2 id="privacy-title" className="text-base font-semibold">
+                <h2
+                  id="privacy-title"
+                  className="scroll-mt-24 text-base font-semibold"
+                >
                   {t('dataPrivacy')}
                 </h2>
                 <p className="mt-1 text-xs text-muted-foreground">
@@ -452,11 +490,12 @@ export function AccountSettings({
               </Link>
               .
             </p>
-            <button
+            <Button
               type="button"
               onClick={() => void exportData()}
               disabled={busy !== null}
-              className="button-secondary mt-4 disabled:opacity-50"
+              variant="outline"
+              className="mt-4 disabled:opacity-50"
             >
               {busy === 'export' ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -464,8 +503,8 @@ export function AccountSettings({
                 <Download className="h-4 w-4" />
               )}
               {t('exportData')}
-            </button>
-          </section>
+            </Button>
+          </Card>
 
           <section
             className="rounded-2xl border border-destructive/25 bg-destructive/[0.035] p-5 sm:p-6"
@@ -498,7 +537,11 @@ export function AccountSettings({
         </div>
 
         <aside className="space-y-5 xl:sticky xl:top-6 xl:self-start">
-          <section className="panel p-5" aria-labelledby="account-title">
+          <Card
+            as="section"
+            className="block gap-0 py-0 p-5"
+            aria-labelledby="account-title"
+          >
             <div className="flex items-center gap-3">
               <div className="icon-tile">
                 <User className="h-4 w-4" />
@@ -526,20 +569,26 @@ export function AccountSettings({
                 </dd>
               </div>
             </dl>
-            <Link
-              href="/dashboard/billing"
-              className="button-secondary mt-5 w-full"
-            >
-              {t('manageSubscription')}
-            </Link>
-          </section>
+            <Button asChild={true} variant="outline">
+              <Link href="/dashboard/billing" className="mt-5 w-full">
+                {t('manageSubscription')}
+              </Link>
+            </Button>
+          </Card>
 
-          <section className="panel p-5" aria-labelledby="preferences-title">
+          <Card
+            as="section"
+            className="block gap-0 py-0 p-5"
+            aria-labelledby="preferences-title"
+          >
             <div className="flex items-center gap-3">
               <div className="icon-tile">
                 <Globe className="h-4 w-4" />
               </div>
-              <h2 id="preferences-title" className="text-sm font-semibold">
+              <h2
+                id="preferences-title"
+                className="scroll-mt-24 text-sm font-semibold"
+              >
                 {t('preferences')}
               </h2>
             </div>
@@ -553,7 +602,7 @@ export function AccountSettings({
                 <ThemeToggle />
               </div>
             </div>
-          </section>
+          </Card>
         </aside>
       </div>
 
@@ -582,13 +631,13 @@ export function AccountSettings({
           >
             {t('deleteDialogDesc')}
           </p>
-          <label
+          <Label
             htmlFor="delete-confirmation"
             className="field-label mt-5 block"
           >
             {t('deleteConfirmationLabel', { email: profile.email })}
-          </label>
-          <input
+          </Label>
+          <Input
             id="delete-confirmation"
             value={deleteConfirmation}
             onChange={(event) => setDeleteConfirmation(event.target.value)}
@@ -600,10 +649,10 @@ export function AccountSettings({
           />
           {credentialAccount ? (
             <div className="mt-4">
-              <label htmlFor="delete-password" className="field-label block">
+              <Label htmlFor="delete-password" className="field-label block">
                 {t('deletePasswordLabel')}
-              </label>
-              <input
+              </Label>
+              <Input
                 id="delete-password"
                 type="password"
                 value={deletePassword}
@@ -621,11 +670,12 @@ export function AccountSettings({
               <p className="text-xs leading-relaxed text-foreground">
                 {t('reauthenticationRequired', { provider: profile.provider })}
               </p>
-              <button
+              <Button
                 type="button"
                 onClick={() => void reauthenticateForDeletion()}
                 disabled={busy !== null}
-                className="button-secondary mt-3"
+                variant="outline"
+                className="mt-3"
               >
                 {busy === 'reauthenticate' ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -633,7 +683,7 @@ export function AccountSettings({
                   <Shield className="h-4 w-4" />
                 )}
                 {t('reauthenticate')}
-              </button>
+              </Button>
             </div>
           ) : null}
           {deleteError && (
@@ -646,14 +696,15 @@ export function AccountSettings({
             </p>
           )}
           <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-            <button
+            <Button
               type="button"
               onClick={() => deleteDialog.current?.close()}
               disabled={busy === 'delete'}
-              className="button-secondary"
+              variant="outline"
+              className=""
             >
               {t('cancel')}
-            </button>
+            </Button>
             <button
               type="submit"
               disabled={

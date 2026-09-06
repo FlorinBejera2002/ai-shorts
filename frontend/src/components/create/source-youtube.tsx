@@ -1,5 +1,9 @@
 'use client'
 
+import { Card } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+
 import { AlertCircle, CheckCircle2, X, Youtube } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import Image from 'next/image'
@@ -41,11 +45,11 @@ export function SourceYoutube({ url, onChange }: SourceYoutubeProps) {
 
   return (
     <div className="mt-5 animate-scale-in border-t border-border pt-5">
-      <label className="section-label" htmlFor="youtube-url">
+      <Label className="section-label" htmlFor="youtube-url">
         {t('youtubeUrl')}
-      </label>
+      </Label>
       <div className="relative mt-3">
-        <input
+        <Input
           id="youtube-url"
           value={url}
           onChange={(e) => onChange(e.target.value)}
@@ -79,7 +83,7 @@ export function SourceYoutube({ url, onChange }: SourceYoutubeProps) {
       )}
 
       {videoId && (
-        <div className="panel-soft mt-4 flex items-center gap-3 p-3 animate-slide-up sm:gap-4">
+        <Card className="block gap-0 py-0 mt-4 flex items-center gap-3 p-3 animate-slide-up sm:gap-4">
           <div className="relative aspect-video w-28 shrink-0 overflow-hidden rounded-lg bg-black sm:w-36">
             <Image
               src={youtubeThumbnailUrl(videoId)}
@@ -105,7 +109,7 @@ export function SourceYoutube({ url, onChange }: SourceYoutubeProps) {
               {t('readyToProcess')}
             </span>
           </div>
-        </div>
+        </Card>
       )}
     </div>
   )

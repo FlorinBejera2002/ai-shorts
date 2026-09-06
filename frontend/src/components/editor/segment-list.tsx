@@ -1,5 +1,8 @@
 'use client'
 
+import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
+
 import { ChevronDown, ChevronUp, Plus, X } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
@@ -39,7 +42,7 @@ export function SegmentList({
   const t = useTranslations('editor')
 
   return (
-    <div className="rounded-xl border border-border bg-card p-4">
+    <Card className="block gap-0 py-0 rounded-xl border border-border bg-card p-4">
       <div className="mb-3 flex items-center justify-between">
         <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           {t('segments', { count: segments.length })}
@@ -56,43 +59,43 @@ export function SegmentList({
           return (
             <div
               key={i}
-              role="button"
-              tabIndex={0}
-              onClick={() => {
-                onSelect(isSelected ? null : i)
-                onSeek(seg.start)
-              }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault()
-                  onSelect(isSelected ? null : i)
-                  onSeek(seg.start)
-                }
-              }}
-              className={`flex cursor-pointer items-center gap-2.5 rounded-lg border px-3 py-2 text-sm transition-colors ${
+              className={`flex flex-wrap items-center gap-1 rounded-lg border p-1 text-sm transition-colors ${
                 isSelected
                   ? 'border-primary bg-primary/5'
                   : 'border-transparent hover:bg-muted'
               }`}
             >
-              <span
-                className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-[11px] font-bold tabular-nums ${
-                  isActive
-                    ? 'bg-primary text-primary-foreground'
-                    : 'bg-primary/10 text-primary'
-                }`}
+              <Button
+                variant="ghost"
+                type="button"
+                aria-pressed={isSelected}
+                aria-label={t('segment', { number: i + 1 })}
+                onClick={() => {
+                  onSelect(isSelected ? null : i)
+                  onSeek(seg.start)
+                }}
+                className="h-auto min-h-10 min-w-0 flex-1 justify-start gap-2 px-2 py-1.5"
               >
-                {i + 1}
-              </span>
-              <span className="tabular-nums text-[13px] text-muted-foreground">
-                {formatTime(seg.start)} → {formatTime(seg.end)}
-              </span>
-              <span className="text-xs tabular-nums text-muted-foreground/70">
-                {(seg.end - seg.start).toFixed(1)}s
-              </span>
+                <span
+                  className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-[11px] font-bold tabular-nums ${
+                    isActive
+                      ? 'bg-primary text-primary-foreground'
+                      : 'bg-primary/10 text-primary'
+                  }`}
+                >
+                  {i + 1}
+                </span>
+                <span className="tabular-nums text-[13px] text-muted-foreground">
+                  {formatTime(seg.start)} → {formatTime(seg.end)}
+                </span>
+                <span className="text-xs tabular-nums text-muted-foreground/70">
+                  {(seg.end - seg.start).toFixed(1)}s
+                </span>
+              </Button>
 
               <div className="ml-auto flex items-center gap-0.5">
-                <button
+                <Button
+                  variant="ghost"
                   type="button"
                   title={t('moveUp')}
                   disabled={i === 0}
@@ -100,11 +103,12 @@ export function SegmentList({
                     e.stopPropagation()
                     onReorder(i, 'up')
                   }}
-                  className="rounded p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-30"
+                  className="h-auto whitespace-normal rounded p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-30"
                 >
                   <ChevronUp className="h-3.5 w-3.5" strokeWidth={1.75} />
-                </button>
-                <button
+                </Button>
+                <Button
+                  variant="ghost"
                   type="button"
                   title={t('moveDown')}
                   disabled={i === segments.length - 1}
@@ -112,11 +116,12 @@ export function SegmentList({
                     e.stopPropagation()
                     onReorder(i, 'down')
                   }}
-                  className="rounded p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-30"
+                  className="h-auto whitespace-normal rounded p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-30"
                 >
                   <ChevronDown className="h-3.5 w-3.5" strokeWidth={1.75} />
-                </button>
-                <button
+                </Button>
+                <Button
+                  variant="ghost"
                   type="button"
                   title={t('deleteSegment')}
                   disabled={segments.length <= 1}
@@ -124,25 +129,26 @@ export function SegmentList({
                     e.stopPropagation()
                     onDelete(i)
                   }}
-                  className="rounded p-1 text-destructive transition-colors hover:bg-destructive/10 disabled:opacity-30"
+                  className="h-auto whitespace-normal rounded p-1 text-destructive transition-colors hover:bg-destructive/10 disabled:opacity-30"
                 >
                   <X className="h-3.5 w-3.5" strokeWidth={1.75} />
-                </button>
+                </Button>
               </div>
             </div>
           )
         })}
       </div>
 
-      <button
+      <Button
+        variant="ghost"
         type="button"
         onClick={onAdd}
         disabled={!canAddMore}
-        className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-border py-2 text-xs font-medium text-primary transition-colors hover:border-primary/50 hover:bg-primary/5 disabled:opacity-40"
+        className="h-auto whitespace-normal mt-2 flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-border py-2 text-xs font-medium text-primary transition-colors hover:border-primary/50 hover:bg-primary/5 disabled:opacity-40"
       >
         <Plus className="h-3.5 w-3.5" strokeWidth={1.75} />
         {t('addSegment')}
-      </button>
-    </div>
+      </Button>
+    </Card>
   )
 }

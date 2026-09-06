@@ -542,6 +542,10 @@
     }
   },
   "jobProgress": {
+    "cancelledTitle": "Processing cancelled",
+    "cancelledDesc": "This project has stopped. You can start a new project when you are ready.",
+    "retry": "Try again",
+    "newProject": "New project",
     "title": "Processing your video",
     "subtitle": "Most videos process in 2–5 minutes",
     "viewClips": "View clips",

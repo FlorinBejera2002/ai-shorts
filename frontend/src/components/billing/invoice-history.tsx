@@ -1,5 +1,8 @@
 'use client'
 
+import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
+
 import { Download, ExternalLink, ReceiptText, RefreshCw } from 'lucide-react'
 
 import type { BillingInvoice, BillingLocale } from '@/lib/billing'
@@ -158,8 +161,8 @@ export function InvoiceHistory({
       </div>
 
       {!providerAvailable && hasBillingProfile ? (
-        <div
-          className="panel flex flex-col items-start gap-4 border-warning/25 p-5 sm:flex-row sm:items-center sm:justify-between"
+        <Card
+          className="block gap-0 py-0 flex flex-col items-start gap-4 border-warning/25 p-5 sm:flex-row sm:items-center sm:justify-between"
           role="alert"
         >
           <div>
@@ -170,17 +173,18 @@ export function InvoiceHistory({
               {labels.providerUnavailableDescription}
             </p>
           </div>
-          <button
+          <Button
             type="button"
             onClick={() => window.location.reload()}
-            className="button-secondary min-h-11 shrink-0"
+            variant="outline"
+            className="min-h-11 shrink-0"
           >
             <RefreshCw className="h-4 w-4" aria-hidden="true" />
             {labels.retry}
-          </button>
-        </div>
+          </Button>
+        </Card>
       ) : invoices.length === 0 ? (
-        <div className="panel-soft px-5 py-10 text-center">
+        <Card className="block gap-0 py-0 px-5 py-10 text-center">
           <ReceiptText
             className="mx-auto h-7 w-7 text-muted-foreground/60"
             aria-hidden="true"
@@ -191,9 +195,9 @@ export function InvoiceHistory({
           <p className="mx-auto mt-1 max-w-lg text-sm text-muted-foreground">
             {labels.noInvoicesDescription}
           </p>
-        </div>
+        </Card>
       ) : (
-        <div className="panel overflow-hidden p-0">
+        <Card className="block gap-0 py-0 overflow-hidden p-0">
           <div className="hidden overflow-x-auto sm:block">
             <table className="w-full border-collapse text-left text-sm">
               <caption className="sr-only">{labels.tableCaption}</caption>
@@ -287,7 +291,7 @@ export function InvoiceHistory({
               </li>
             ))}
           </ul>
-        </div>
+        </Card>
       )}
     </section>
   )

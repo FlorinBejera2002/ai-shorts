@@ -1,8 +1,14 @@
 'use client'
 
+import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
+
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+
 import { AuthPanel } from '@/components/auth/auth-panel'
 import { PasswordInput } from '@/components/auth/password-input'
-import { BrandLogo } from '@/components/shared/brand-logo'
+import { ThemeBrandLogo } from '@/components/shared/brand-logo'
 import { useToast } from '@/components/ui/toast'
 import { Link, useRouter } from '@/i18n/navigation'
 import { Check, Loader2, X } from 'lucide-react'
@@ -83,7 +89,7 @@ export default function RegisterPage() {
   }
 
   return (
-    <main className="dark flex min-h-dvh bg-[#060608] text-white">
+    <main className="flex min-h-dvh bg-background text-foreground">
       <AuthPanel title={t('heroTitle')} desc={t('heroDesc')}>
         <div className="space-y-3 pt-2">
           {[
@@ -103,18 +109,18 @@ export default function RegisterPage() {
       </AuthPanel>
 
       {/* Right — form */}
-      <div className="relative flex flex-1 items-center justify-center overflow-hidden bg-[#060608] p-5 sm:p-8">
-        <div className="pointer-events-none absolute right-[-20%] top-[-20%] h-[520px] w-[520px] rounded-full bg-violet-500/[0.055] blur-[110px]" />
-        <div className="relative w-full max-w-[430px] animate-fade-in rounded-[24px] border border-white/[0.08] bg-[#0b0a0e]/90 p-6 shadow-[0_28px_90px_rgba(0,0,0,0.34),inset_0_1px_0_rgba(255,255,255,0.035)] sm:p-8">
+      <div className="relative flex flex-1 items-center justify-center overflow-hidden bg-background p-5 sm:p-8">
+        <div className="hidden" />
+        <Card className="relative block w-full max-w-md gap-0 rounded-2xl border bg-card p-6 shadow-sm sm:p-9">
           {/* Mobile logo */}
           <Link href="/" className="mb-9 flex items-center gap-2 lg:hidden">
-            <BrandLogo onDark={true} />
+            <ThemeBrandLogo />
           </Link>
 
-          <h1 className="font-[family-name:var(--font-cinematic)] text-4xl font-medium leading-none tracking-[-0.045em] text-white">
+          <h1 className="text-3xl font-semibold leading-tight tracking-tight text-foreground">
             {t('createAccount')}
           </h1>
-          <p className="mt-3 font-[family-name:var(--font-studio)] text-[12px] leading-6 text-white/35">
+          <p className="mt-3  text-sm leading-6 text-muted-foreground">
             {t('createAccountDesc')}
           </p>
 
@@ -123,45 +129,45 @@ export default function RegisterPage() {
             className="mt-7 space-y-4"
           >
             <div className="space-y-1.5">
-              <label
+              <Label
                 htmlFor="name"
-                className="font-[family-name:var(--font-studio)] text-[10px] font-semibold uppercase tracking-[0.1em] text-white/45"
+                className="text-sm font-medium text-foreground"
               >
                 {t('name')}
-              </label>
-              <input
+              </Label>
+              <Input
                 id="name"
                 name="name"
                 required={true}
                 placeholder="John Doe"
                 autoComplete="name"
-                className="w-full rounded-[13px] border border-white/10 bg-white/[0.035] px-4 py-3 font-[family-name:var(--font-studio)] text-[13px] text-white outline-none transition-all placeholder:text-white/20 focus:border-violet-300/35 focus:bg-white/[0.05] focus:ring-2 focus:ring-violet-400/10"
+                className="h-11 rounded-lg bg-background"
               />
             </div>
             <div className="space-y-1.5">
-              <label
+              <Label
                 htmlFor="reg-email"
-                className="font-[family-name:var(--font-studio)] text-[10px] font-semibold uppercase tracking-[0.1em] text-white/45"
+                className="text-sm font-medium text-foreground"
               >
                 {t('email')}
-              </label>
-              <input
+              </Label>
+              <Input
                 id="reg-email"
                 name="email"
                 type="email"
                 required={true}
                 placeholder="name@example.com"
                 autoComplete="email"
-                className="w-full rounded-[13px] border border-white/10 bg-white/[0.035] px-4 py-3 font-[family-name:var(--font-studio)] text-[13px] text-white outline-none transition-all placeholder:text-white/20 focus:border-violet-300/35 focus:bg-white/[0.05] focus:ring-2 focus:ring-violet-400/10"
+                className="h-11 rounded-lg bg-background"
               />
             </div>
             <div className="space-y-1.5">
-              <label
+              <Label
                 htmlFor="reg-password"
-                className="font-[family-name:var(--font-studio)] text-[10px] font-semibold uppercase tracking-[0.1em] text-white/45"
+                className="text-sm font-medium text-foreground"
               >
                 {t('password')}
-              </label>
+              </Label>
               <PasswordInput
                 id="reg-password"
                 name="password"
@@ -177,7 +183,7 @@ export default function RegisterPage() {
                   {checks.map((c) => (
                     <div
                       key={c.label}
-                      className="flex items-center gap-1.5 text-[11px]"
+                      className="flex items-center gap-1.5 text-sm"
                     >
                       {c.pass ? (
                         <Check
@@ -186,13 +192,15 @@ export default function RegisterPage() {
                         />
                       ) : (
                         <X
-                          className="w-3 h-3 text-white/20 shrink-0"
+                          className="w-3 h-3 text-muted-foreground shrink-0"
                           strokeWidth={2}
                         />
                       )}
                       <span
                         className={
-                          c.pass ? 'text-emerald-400' : 'text-white/30'
+                          c.pass
+                            ? 'text-emerald-700 dark:text-emerald-400'
+                            : 'text-muted-foreground'
                         }
                       >
                         {c.label}
@@ -202,10 +210,10 @@ export default function RegisterPage() {
                 </div>
               )}
             </div>
-            <button
+            <Button
               type="submit"
               disabled={busy || !allPass}
-              className="flex w-full items-center justify-center gap-2 rounded-[13px] border border-white bg-white px-4 py-3 font-[family-name:var(--font-studio)] text-[11px] font-bold uppercase tracking-[0.12em] text-black shadow-[0_14px_35px_rgba(139,92,246,0.16)] transition-all hover:-translate-y-0.5 hover:shadow-[0_18px_45px_rgba(139,92,246,0.28)] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+              className="h-11 w-full"
             >
               {busy ? (
                 <>
@@ -215,36 +223,36 @@ export default function RegisterPage() {
               ) : (
                 t('createAccount')
               )}
-            </button>
+            </Button>
           </form>
 
-          <p className="mt-5 text-center font-[family-name:var(--font-studio)] text-[10px] text-white/25 leading-relaxed">
+          <p className="mt-5 text-center  text-sm text-muted-foreground leading-relaxed">
             {t('agreeTerms')}{' '}
             <Link
               href="/terms"
-              className="text-violet-300/65 transition-colors hover:text-violet-200"
+              className="text-primary transition-colors hover:text-primary"
             >
               {t('termsLink')}
             </Link>{' '}
             {t('andText')}{' '}
             <Link
               href="/privacy"
-              className="text-violet-300/65 transition-colors hover:text-violet-200"
+              className="text-primary transition-colors hover:text-primary"
             >
               {t('privacyLink')}
             </Link>
           </p>
 
-          <p className="mt-7 text-center font-[family-name:var(--font-studio)] text-[12px] text-white/35">
+          <p className="mt-7 text-center  text-sm text-muted-foreground">
             {t('hasAccount')}{' '}
             <Link
               href="/login"
-              className="font-semibold text-violet-300 transition-colors hover:text-violet-200"
+              className="font-semibold text-primary transition-colors hover:text-primary"
             >
               {t('signIn')}
             </Link>
           </p>
-        </div>
+        </Card>
       </div>
     </main>
   )

@@ -1,3 +1,4 @@
+import { Card } from '@/components/ui/card'
 import { CalendarClock, CreditCard, ShieldAlert, Zap } from 'lucide-react'
 
 import { PortalButton } from '@/components/billing/portal-button'
@@ -68,8 +69,9 @@ export function BillingSummary({
   )
 
   return (
-    <section
-      className="panel relative mt-6 overflow-hidden p-0 animate-slide-up"
+    <Card
+      as="section"
+      className="block gap-0 py-0 relative mt-6 overflow-hidden p-0 animate-slide-up"
       aria-labelledby="billing-overview-title"
     >
       <div
@@ -151,10 +153,10 @@ export function BillingSummary({
             label={labels.manageBilling}
             loadingLabel={labels.openingPortal}
             errorLabel={labels.portalError}
-            className="button-primary"
+            emphasized={true}
           />
         )}
       </div>
-    </section>
+    </Card>
   )
 }

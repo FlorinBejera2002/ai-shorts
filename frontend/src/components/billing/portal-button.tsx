@@ -1,5 +1,7 @@
 'use client'
 
+import { Button } from '@/components/ui/button'
+
 import { ExternalLink, Loader2 } from 'lucide-react'
 import { useId, useState } from 'react'
 
@@ -11,6 +13,7 @@ type PortalButtonProps = {
   loadingLabel: string
   errorLabel: string
   className?: string
+  emphasized?: boolean
   disabled?: boolean
 }
 
@@ -19,7 +22,8 @@ export function PortalButton({
   label,
   loadingLabel,
   errorLabel,
-  className = 'button-secondary',
+  className = '',
+  emphasized = false,
   disabled = false
 }: PortalButtonProps) {
   const errorId = useId()
@@ -62,7 +66,8 @@ export function PortalButton({
 
   return (
     <div>
-      <button
+      <Button
+        variant={emphasized ? 'default' : 'outline'}
         type="button"
         onClick={() => void openPortal()}
         disabled={disabled || loading}
@@ -76,7 +81,7 @@ export function PortalButton({
           <ExternalLink className="h-4 w-4" aria-hidden="true" />
         )}
         <span>{loading ? loadingLabel : label}</span>
-      </button>
+      </Button>
       {error && (
         <p
           id={errorId}

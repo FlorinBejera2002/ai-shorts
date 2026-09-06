@@ -1,3 +1,5 @@
+import { AnalyticsCharts } from '@/components/dashboard/analytics-charts'
+import { Card } from '@/components/ui/card'
 import { EmptyState } from '@/components/ui/empty-state'
 import { PageHeader } from '@/components/ui/page-header'
 import { auth } from '@/lib/auth'
@@ -80,13 +82,12 @@ export default async function AnalyticsPage({
     const next = new Date(day)
     next.setDate(next.getDate() + 1)
     return {
-      label: day.toLocaleDateString('en', { weekday: 'short' }),
+      label: day.toLocaleDateString(locale, { weekday: 'short' }),
       count: clips.filter(
         (c) => new Date(c.createdAt) >= day && new Date(c.createdAt) < next
       ).length
     }
   })
-  const maxClips = Math.max(...clipsByDay.map((d) => d.count), 1)
 
   const scoreBuckets = [
     { label: '9–10', min: 9, max: 10.01 },
@@ -100,7 +101,6 @@ export default async function AnalyticsPage({
       (c) => (c.viralScore ?? 0) >= b.min && (c.viralScore ?? 0) < b.max
     ).length
   }))
-  const maxBucket = Math.max(...scoreBuckets.map((b) => b.count), 1)
 
   const stats = [
     {
@@ -161,9 +161,9 @@ export default async function AnalyticsPage({
         {stats.map((stat) => {
           const Icon = stat.icon
           return (
-            <div
+            <Card
               key={stat.label}
-              className="panel-soft flex min-w-0 items-center gap-3 p-4"
+              className="block gap-0 py-0 flex min-w-0 items-center gap-3 p-4"
             >
               <div className="icon-tile shrink-0 bg-primary/10 text-primary">
                 <Icon className="h-4 w-4" strokeWidth={1.75} />
@@ -174,102 +174,16 @@ export default async function AnalyticsPage({
                   {stat.value}
                 </div>
               </div>
-            </div>
+            </Card>
           )
         })}
       </section>
 
-      <div className="grid gap-4 xl:grid-cols-2">
-        <section className="panel p-5 sm:p-6">
-          <div>
-            <p className="section-label">{t('clipsGenerated')}</p>
-            <h2 className="mt-2 text-lg font-semibold text-foreground">
-              {t('last7Days')}
-            </h2>
-          </div>
-          <div className="mt-8 flex h-44 items-end justify-between gap-2 sm:gap-3">
-            {clipsByDay.map((day, i) => {
-              const heightPercent = Math.max(
-                (day.count / maxClips) * 100,
-                day.count > 0 ? 10 : 3
-              )
-              return (
-                <div
-                  key={day.label}
-                  className="group flex h-full flex-1 flex-col items-center gap-1.5"
-                  style={{
-                    animation: `slide-up 0.5s cubic-bezier(0.16, 1, 0.3, 1) ${i * 80}ms both`
-                  }}
-                >
-                  <span
-                    className={`h-4 text-[10px] font-semibold tabular-nums text-muted-foreground ${day.count === 0 ? 'invisible' : ''}`}
-                  >
-                    {day.count}
-                  </span>
-                  <div className="relative min-h-0 w-full flex-1">
-                    <div
-                      className="absolute inset-x-0 bottom-0 w-full rounded-t-lg bg-gradient-to-t from-primary to-accent/70 transition-all duration-500 hover:brightness-110"
-                      style={{
-                        height: `${heightPercent}%`,
-                        opacity: day.count > 0 ? 1 : 0.2
-                      }}
-                      title={`${day.label}: ${common('clips', { count: day.count })}`}
-                    />
-                  </div>
-                  <span className="text-[10px] font-medium text-muted-foreground">
-                    {day.label}
-                  </span>
-                </div>
-              )
-            })}
-          </div>
-        </section>
-
-        <section className="panel p-5 sm:p-6">
-          <div>
-            <p className="section-label">{t('avgViralScore')}</p>
-            <h2 className="mt-2 text-lg font-semibold text-foreground">
-              {t('scoreDistribution')}
-            </h2>
-          </div>
-          <div className="mt-6 space-y-3">
-            {scoreBuckets.map((bucket, i) => (
-              <div
-                key={bucket.label}
-                style={{
-                  animation: `slide-up 0.4s cubic-bezier(0.16, 1, 0.3, 1) ${i * 50}ms both`
-                }}
-              >
-                <div className="flex items-center justify-between text-[13px]">
-                  <span className="font-medium text-foreground">
-                    {bucket.label}
-                  </span>
-                  <span className="tabular-nums text-sm font-semibold text-muted-foreground">
-                    {common('clips', { count: bucket.count })}
-                  </span>
-                </div>
-                <div
-                  className="mt-1.5 h-2 w-full overflow-hidden rounded-full bg-muted"
-                  role="progressbar"
-                  aria-label={`${bucket.label}: ${common('clips', { count: bucket.count })}`}
-                  aria-valuemin={0}
-                  aria-valuemax={maxBucket}
-                  aria-valuenow={bucket.count}
-                >
-                  <div
-                    className="h-full rounded-full bg-gradient-to-r from-primary to-accent transition-all duration-500"
-                    style={{ width: `${(bucket.count / maxBucket) * 100}%` }}
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-      </div>
+      <AnalyticsCharts days={clipsByDay} scores={scoreBuckets} />
 
       <section>
         <h2 className="section-label mb-3">{t('performanceHighlights')}</h2>
-        <div className="panel grid sm:grid-cols-2 xl:grid-cols-4">
+        <Card className="block gap-0 py-0 grid sm:grid-cols-2 xl:grid-cols-4">
           {[
             {
               label: t('highScoring'),
@@ -326,7 +240,7 @@ export default async function AnalyticsPage({
               </div>
             )
           })}
-        </div>
+        </Card>
       </section>
     </div>
   )

@@ -1,5 +1,8 @@
 'use client'
 
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+
 import { AlertCircle, CheckCircle2, Plus, X } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useCallback } from 'react'
@@ -62,15 +65,16 @@ export function SourceBatch({ urls, onChange }: SourceBatchProps) {
             {t('batchHint', { max: MAX_URLS })}
           </p>
         </div>
-        <button
+        <Button
           type="button"
           onClick={() => urls.length < MAX_URLS && onChange([...urls, ''])}
           disabled={urls.length >= MAX_URLS}
-          className="button-secondary min-h-9 px-3 text-xs disabled:cursor-not-allowed disabled:opacity-40"
+          variant="outline"
+          className="min-h-9 px-3 text-xs disabled:cursor-not-allowed disabled:opacity-40"
         >
           <Plus className="h-3.5 w-3.5" />
           {t('addUrl')}
-        </button>
+        </Button>
       </div>
 
       <div className="max-h-80 space-y-2 overflow-y-auto pr-2">
@@ -80,7 +84,7 @@ export function SourceBatch({ urls, onChange }: SourceBatchProps) {
             <div key={index} className="space-y-1">
               <div className="flex gap-2">
                 <div className="relative flex-1">
-                  <input
+                  <Input
                     aria-label={`${t('youtubeUrl')} ${index + 1}`}
                     value={row.url}
                     onChange={(e) => updateUrl(index, e.target.value)}

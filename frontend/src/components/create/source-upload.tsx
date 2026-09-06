@@ -1,5 +1,8 @@
 'use client'
 
+import { Card } from '@/components/ui/card'
+import { Label } from '@/components/ui/label'
+
 import {
   CheckCircle2,
   FileVideo,
@@ -9,7 +12,7 @@ import {
   X
 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { extractApiError } from '@/lib/api-error'
 import { formatBytes, formatDuration } from '@/lib/youtube'
@@ -35,6 +38,7 @@ interface SourceUploadProps {
   uploaded: UploadedFile | null
   onUploaded: (file: UploadedFile | null) => void
   onError: (message: string) => void
+  onBusyChange?: (busy: boolean) => void
 }
 
 type UploadPhase =
@@ -42,13 +46,32 @@ type UploadPhase =
   | { status: 'uploading'; percent: number; name: string; size: number }
 
 /** Read video duration locally without uploading; null if the browser can't parse it. */
-function probeDuration(file: File): Promise<number | null> {
+function probeDuration(
+  file: File,
+  signal: AbortSignal
+): Promise<number | null> {
   return new Promise((resolve) => {
     const video = document.createElement('video')
     const url = URL.createObjectURL(file)
+    let settled = false
     const cleanup = (value: number | null) => {
+      if (settled) return
+      settled = true
+      clearTimeout(timer)
+      signal.removeEventListener('abort', abort)
+      video.onloadedmetadata = null
+      video.onerror = null
+      video.removeAttribute('src')
+      video.load()
       URL.revokeObjectURL(url)
       resolve(value)
+    }
+    const abort = () => cleanup(null)
+    const timer = setTimeout(abort, 5000)
+    signal.addEventListener('abort', abort, { once: true })
+    if (signal.aborted) {
+      abort()
+      return
     }
     video.preload = 'metadata'
     video.onloadedmetadata = () =>
@@ -61,16 +84,31 @@ function probeDuration(file: File): Promise<number | null> {
 export function SourceUpload({
   uploaded,
   onUploaded,
-  onError
+  onError,
+  onBusyChange
 }: SourceUploadProps) {
   const t = useTranslations('create')
   const [phase, setPhase] = useState<UploadPhase>({ status: 'idle' })
   const [dragActive, setDragActive] = useState(false)
   const xhrRef = useRef<XMLHttpRequest | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+  const preparationRef = useRef<AbortController | null>(null)
+  useEffect(() => {
+    onBusyChange?.(phase.status === 'uploading')
+    return () => onBusyChange?.(false)
+  }, [phase.status, onBusyChange])
+
+  useEffect(
+    () => () => {
+      preparationRef.current?.abort()
+      xhrRef.current?.abort()
+    },
+    []
+  )
 
   const startUpload = useCallback(
     async (file: File) => {
+      if (preparationRef.current) return
       if (
         !ACCEPTED_TYPES.includes(file.type) &&
         !ACCEPTED_EXTENSIONS.test(file.name)
@@ -78,16 +116,35 @@ export function SourceUpload({
         onError(t('unsupportedFileType'))
         return
       }
-      if (file.size > MAX_FILE_BYTES) {
+      if (file.size === 0 || file.size > MAX_FILE_BYTES) {
         onError(t('fileTooLarge'))
         return
       }
 
-      const duration = await probeDuration(file)
+      const controller = new AbortController()
+      preparationRef.current = controller
+      setPhase({
+        status: 'uploading',
+        percent: 0,
+        name: file.name,
+        size: file.size
+      })
+      const finish = () => {
+        if (preparationRef.current !== controller) return
+        preparationRef.current = null
+        xhrRef.current = null
+        setPhase({ status: 'idle' })
+      }
+      const duration = await probeDuration(file, controller.signal)
+      if (controller.signal.aborted) return
       let authorization: { uploadUrl: string; token: string | null }
       try {
         const response = await fetch('/api/upload/authorize', {
           method: 'POST',
+          signal: AbortSignal.any([
+            controller.signal,
+            AbortSignal.timeout(15000)
+          ]),
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             fileName: file.name,
@@ -96,11 +153,13 @@ export function SourceUpload({
           })
         })
         const data = (await response.json()) as Record<string, unknown>
+        if (controller.signal.aborted) return
         if (
           !response.ok ||
           typeof data.uploadUrl !== 'string' ||
           (data.token !== null && typeof data.token !== 'string')
         ) {
+          finish()
           onError(extractApiError(data, t('uploadFailed')))
           return
         }
@@ -109,6 +168,8 @@ export function SourceUpload({
           token: data.token as string | null
         }
       } catch {
+        if (controller.signal.aborted) return
+        finish()
         onError(t('uploadFailed'))
         return
       }
@@ -124,6 +185,7 @@ export function SourceUpload({
       xhrRef.current = xhr
       const directUpload = Boolean(authorization.token)
       xhr.open(directUpload ? 'PUT' : 'POST', authorization.uploadUrl)
+      xhr.timeout = 30 * 60 * 1000
       xhr.responseType = 'json'
       if (authorization.token) {
         xhr.setRequestHeader('Authorization', `Bearer ${authorization.token}`)
@@ -145,7 +207,8 @@ export function SourceUpload({
       }
 
       xhr.onload = () => {
-        xhrRef.current = null
+        if (controller.signal.aborted) return
+        finish()
         const data: Record<string, unknown> =
           xhr.response && typeof xhr.response === 'object' ? xhr.response : {}
         if (xhr.status >= 200 && xhr.status < 300) {
@@ -165,14 +228,14 @@ export function SourceUpload({
       }
 
       xhr.onerror = () => {
-        xhrRef.current = null
-        setPhase({ status: 'idle' })
+        if (controller.signal.aborted) return
+        finish()
         onError(t('uploadFailed'))
       }
+      xhr.ontimeout = xhr.onerror
 
       xhr.onabort = () => {
-        xhrRef.current = null
-        setPhase({ status: 'idle' })
+        finish()
       }
 
       if (directUpload) {
@@ -187,7 +250,11 @@ export function SourceUpload({
   )
 
   const cancelUpload = useCallback(() => {
+    preparationRef.current?.abort()
     xhrRef.current?.abort()
+    preparationRef.current = null
+    xhrRef.current = null
+    setPhase({ status: 'idle' })
   }, [])
 
   const handleDrop = useCallback(
@@ -201,7 +268,7 @@ export function SourceUpload({
     [phase.status, startUpload]
   )
 
-  if (uploaded) {
+  if (uploaded && phase.status === 'idle') {
     return (
       <div className="mt-5 animate-scale-in border-t border-border pt-5">
         <div className="flex items-center gap-3 rounded-xl border border-success/25 bg-success/5 p-4 sm:gap-4">
@@ -259,7 +326,7 @@ export function SourceUpload({
   if (phase.status === 'uploading') {
     return (
       <div className="mt-5 animate-scale-in border-t border-border pt-5">
-        <div className="panel-soft flex items-center gap-3 p-4 sm:gap-4">
+        <Card className="block gap-0 py-0 flex items-center gap-3 p-4 sm:gap-4">
           <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary/10">
             <Loader2
               className="h-5 w-5 animate-spin text-primary"
@@ -293,13 +360,21 @@ export function SourceUpload({
           >
             <X className="h-3.5 w-3.5" strokeWidth={1.75} />
           </button>
-        </div>
+        </Card>
       </div>
     )
   }
 
   return (
-    <label
+    <Label
+      role="button"
+      tabIndex={0}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault()
+          inputRef.current?.click()
+        }
+      }}
       onDragOver={(e) => {
         e.preventDefault()
         setDragActive(true)
@@ -313,6 +388,7 @@ export function SourceUpload({
       }`}
     >
       <input
+        ref={inputRef}
         type="file"
         accept={ACCEPTED_TYPES.join(',')}
         className="hidden"
@@ -335,6 +411,6 @@ export function SourceUpload({
       <span className="mt-1.5 text-xs text-muted-foreground">
         {t('fileTypes')}
       </span>
-    </label>
+    </Label>
   )
 }

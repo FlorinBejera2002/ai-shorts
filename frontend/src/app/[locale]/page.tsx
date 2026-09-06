@@ -14,7 +14,7 @@ import {
   UploadWorkflowVisual
 } from '@/components/landing/blue-section-visuals'
 import { HeroContent } from '@/components/landing/hero-content'
-import { PublicNavbar } from '@/components/landing/public-navbar'
+import { HomeNavbar } from '@/components/landing/home-navbar'
 import { StudioHero } from '@/components/landing/studio-hero'
 import { TransformationStage } from '@/components/landing/transformation-stage'
 import { BrandLogo } from '@/components/shared/brand-logo'
@@ -100,8 +100,7 @@ export default async function HomePage({
       <StructuredData
         value={buildSoftwareApplicationJsonLd(locale as SiteLocale)}
       />
-      <PublicNavbar
-        forceDark={true}
+      <HomeNavbar
         labels={{
           pricing: t('pricing'),
           signIn: t('signIn'),

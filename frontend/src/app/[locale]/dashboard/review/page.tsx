@@ -1,3 +1,5 @@
+import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
 import { Link } from '@/i18n/navigation'
 import {
   CheckCircle2,
@@ -59,10 +61,12 @@ export default async function ReviewPage({
         title={t('title')}
         description={t('desc')}
         actions={
-          <Link href="/dashboard/create" className="button-primary rounded-lg">
-            <Sparkles className="h-4 w-4" strokeWidth={1.75} />
-            {t('generateMore')}
-          </Link>
+          <Button asChild={true} variant="default">
+            <Link href="/dashboard/create" className="rounded-lg">
+              <Sparkles className="h-4 w-4" strokeWidth={1.75} />
+              {t('generateMore')}
+            </Link>
+          </Button>
         }
       />
 
@@ -92,9 +96,9 @@ export default async function ReviewPage({
         ].map((stat) => {
           const Icon = stat.icon
           return (
-            <div
+            <Card
               key={stat.label}
-              className="panel-soft flex items-center gap-3 p-4"
+              className="block gap-0 py-0 flex items-center gap-3 p-4"
             >
               <span
                 className={`flex h-9 w-9 items-center justify-center rounded-lg ${stat.bg}`}
@@ -109,7 +113,7 @@ export default async function ReviewPage({
                   {stat.label}
                 </div>
               </div>
-            </div>
+            </Card>
           )
         })}
       </div>
@@ -117,7 +121,7 @@ export default async function ReviewPage({
       {/* Clips table */}
       {rows.length > 0 ? (
         <div className="mt-8">
-          <div className="panel overflow-hidden p-0">
+          <Card className="block gap-0 py-0 overflow-hidden p-0">
             <div className="section-label hidden grid-cols-[minmax(0,1fr)_80px_170px_72px_24px] gap-4 border-b border-border bg-muted/60 px-5 py-3 md:grid">
               <span>{t('clip')}</span>
               <span className="text-right">{t('viral')}</span>
@@ -197,7 +201,7 @@ export default async function ReviewPage({
                 </Link>
               ))}
             </div>
-          </div>
+          </Card>
         </div>
       ) : (
         <div className="mt-8">
@@ -206,13 +210,12 @@ export default async function ReviewPage({
             title="No clips to review yet"
             description="Generate your first project to see clips here. All clips will be ranked by viral potential."
             action={
-              <Link
-                href="/dashboard/create"
-                className="button-primary rounded-lg"
-              >
-                <Sparkles className="h-4 w-4" strokeWidth={1.75} />
-                {t('firstProject')}
-              </Link>
+              <Button asChild={true} variant="default">
+                <Link href="/dashboard/create" className="rounded-lg">
+                  <Sparkles className="h-4 w-4" strokeWidth={1.75} />
+                  {t('firstProject')}
+                </Link>
+              </Button>
             }
           />
         </div>

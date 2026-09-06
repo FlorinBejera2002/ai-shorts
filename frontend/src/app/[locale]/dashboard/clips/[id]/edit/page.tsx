@@ -1,5 +1,8 @@
 'use client'
 
+import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
+
 import {
   AlertTriangle,
   ArrowLeft,
@@ -305,7 +308,7 @@ export default function ClipEditorPage() {
   return (
     <div className="animate-fade-in flex flex-col gap-4">
       {/* Header toolbar */}
-      <div className="panel flex flex-col gap-3 p-3 sm:flex-row sm:items-center sm:justify-between">
+      <Card className="block gap-0 py-0 flex flex-col gap-3 p-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex min-w-0 items-center gap-3">
           <Link
             href={`/dashboard/clips/${params.id}`}
@@ -332,51 +335,56 @@ export default function ClipEditorPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-1.5">
-          <button
+          <Button
+            variant="ghost"
             type="button"
             onClick={() => dispatch({ type: 'UNDO' })}
             disabled={!canUndo}
             title={t('undo')}
-            className="rounded-md border border-border bg-card p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-30"
+            className="h-auto whitespace-normal rounded-md border border-border bg-card p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-30"
           >
             <Undo2 className="h-4 w-4" strokeWidth={1.75} />
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="ghost"
             type="button"
             onClick={() => dispatch({ type: 'REDO' })}
             disabled={!canRedo}
             title={t('redo')}
-            className="rounded-md border border-border bg-card p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-30"
+            className="h-auto whitespace-normal rounded-md border border-border bg-card p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-30"
           >
             <Redo2 className="h-4 w-4" strokeWidth={1.75} />
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="ghost"
             type="button"
             onClick={handleSplit}
             disabled={!canSplit}
             title={t('splitAtPlayhead')}
-            className="rounded-md border border-border bg-card p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-30"
+            className="h-auto whitespace-normal rounded-md border border-border bg-card p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-30"
           >
             <SplitSquareHorizontal className="h-4 w-4" strokeWidth={1.75} />
-          </button>
+          </Button>
           <ShortcutsHelp />
-          <button
+          <Button
             type="button"
+            data-export-trigger="true"
             onClick={() => {
               setExportPhase('confirm')
               setExportOpen(true)
             }}
             disabled={!canExport}
-            className="button-primary ml-1.5 rounded-lg disabled:opacity-50"
+            variant="default"
+            className="ml-1.5 rounded-lg disabled:opacity-50"
           >
             <Scissors className="h-4 w-4" strokeWidth={1.75} />
             {t('export')}
-          </button>
+          </Button>
         </div>
-      </div>
+      </Card>
 
       {/* Player + side panel */}
-      <div className="grid gap-4 xl:grid-cols-[1fr_320px]">
+      <div className="grid min-w-0 gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
         <SegmentPlayer
           ref={playerRef}
           sourceUrl={clip.source_video_url}

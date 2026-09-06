@@ -1,3 +1,4 @@
+import { Card } from '@/components/ui/card'
 import {
   AlertTriangle,
   Check,
@@ -375,9 +376,10 @@ export default async function BillingPage({
                     : t('unavailable')
 
             return (
-              <article
+              <Card
+                as="article"
                 key={plan.id}
-                className={`panel relative flex h-full flex-col p-5 transition-all animate-slide-up ${
+                className={`block gap-0 py-0 relative flex h-full flex-col p-5 transition-all animate-slide-up ${
                   isCurrent
                     ? 'border-primary/40 bg-primary/[0.035]'
                     : plan.highlighted
@@ -457,7 +459,7 @@ export default async function BillingPage({
                     emphasized={Boolean(plan.highlighted)}
                   />
                 ) : null}
-              </article>
+              </Card>
             )
           })}
         </div>

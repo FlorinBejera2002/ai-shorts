@@ -172,11 +172,16 @@ export function AppSidebar() {
             aria-label="Sneepcut"
             className="rounded-lg focus-visible:outline-2 focus-visible:outline-ring"
           >
-            <BrandLogo
-              compact={compact}
-              onDark={true}
-              className={compact ? '!size-10' : ''}
-            />
+            {compact ? (
+              <BrandLogo compact={true} className="size-10" />
+            ) : (
+              <>
+                <BrandLogo className="h-10 dark:hidden" />
+                <span className="hidden dark:inline-flex">
+                  <BrandLogo variant="white-text" className="h-10" />
+                </span>
+              </>
+            )}
           </Link>
           {isMobile && (
             <Button

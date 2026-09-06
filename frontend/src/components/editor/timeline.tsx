@@ -1,5 +1,8 @@
 'use client'
 
+import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
+
 import { Maximize2, ZoomIn, ZoomOut } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import {
@@ -303,48 +306,51 @@ export function Timeline({
 
   if (duration <= 0) {
     return (
-      <div className="flex h-32 items-center justify-center rounded-xl border border-border bg-card text-xs text-muted-foreground">
+      <Card className="block gap-0 py-0 flex h-32 items-center justify-center rounded-xl border border-border bg-card text-xs text-muted-foreground">
         {t('loadingTimeline')}
-      </div>
+      </Card>
     )
   }
 
   return (
-    <div className="rounded-xl border border-border bg-card p-4">
+    <Card className="block gap-0 py-0 rounded-xl border border-border bg-card p-4">
       {/* Toolbar */}
       <div className="mb-3 flex items-center justify-between">
         <p className="text-[11px] text-muted-foreground">{t('timelineHint')}</p>
         <div className="flex items-center gap-1">
-          <button
+          <Button
+            variant="ghost"
             type="button"
             onClick={() => zoomBy(0.8)}
             disabled={zoom <= MIN_ZOOM}
             title={t('zoomOut')}
-            className="rounded-md border border-border p-1.5 text-muted-foreground transition-colors hover:text-foreground disabled:opacity-30"
+            className="h-auto whitespace-normal rounded-md border border-border p-1.5 text-muted-foreground transition-colors hover:text-foreground disabled:opacity-30"
           >
             <ZoomOut className="h-3.5 w-3.5" strokeWidth={1.75} />
-          </button>
+          </Button>
           <span className="min-w-12 text-center text-[11px] font-medium tabular-nums text-muted-foreground">
             {Math.round(zoom * 100)}%
           </span>
-          <button
+          <Button
+            variant="ghost"
             type="button"
             onClick={() => zoomBy(1.25)}
             disabled={zoom >= MAX_ZOOM}
             title={t('zoomIn')}
-            className="rounded-md border border-border p-1.5 text-muted-foreground transition-colors hover:text-foreground disabled:opacity-30"
+            className="h-auto whitespace-normal rounded-md border border-border p-1.5 text-muted-foreground transition-colors hover:text-foreground disabled:opacity-30"
           >
             <ZoomIn className="h-3.5 w-3.5" strokeWidth={1.75} />
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="ghost"
             type="button"
             onClick={() => onZoomChange(MIN_ZOOM)}
             disabled={zoom === MIN_ZOOM}
             title={t('zoomFit')}
-            className="ml-1 rounded-md border border-border p-1.5 text-muted-foreground transition-colors hover:text-foreground disabled:opacity-30"
+            className="h-auto whitespace-normal ml-1 rounded-md border border-border p-1.5 text-muted-foreground transition-colors hover:text-foreground disabled:opacity-30"
           >
             <Maximize2 className="h-3.5 w-3.5" strokeWidth={1.75} />
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -471,6 +477,6 @@ export function Timeline({
           </div>
         </div>
       </div>
-    </div>
+    </Card>
   )
 }

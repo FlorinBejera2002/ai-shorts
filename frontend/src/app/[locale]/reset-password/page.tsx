@@ -1,7 +1,13 @@
 'use client'
 
+import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
+
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+
 import { AuthPanel } from '@/components/auth/auth-panel'
-import { BrandLogo } from '@/components/shared/brand-logo'
+import { ThemeBrandLogo } from '@/components/shared/brand-logo'
 import { useToast } from '@/components/ui/toast'
 import { Link } from '@/i18n/navigation'
 import { AlertCircle, Check, Loader2, ShieldCheck, X } from 'lucide-react'
@@ -48,12 +54,14 @@ export default function ResetPasswordPage() {
       fallback={
         <main
           aria-busy="true"
-          className="dark flex min-h-dvh items-center justify-center bg-[#060608] p-6"
+          className="flex min-h-dvh bg-background text-foreground"
         >
-          <h1 className="sr-only">{t('resetTitle')}</h1>
+          <h1 className="text-3xl font-semibold leading-tight tracking-tight text-foreground">
+            {t('resetTitle')}
+          </h1>
           <Loader2
             aria-hidden="true"
-            className="w-5 h-5 animate-spin text-white/30"
+            className="w-5 h-5 animate-spin text-muted-foreground"
           />
         </main>
       }
@@ -102,46 +110,46 @@ function ResetPasswordForm({ t, RULES }: { t: TFunc; RULES: PasswordRule[] }) {
 
   if (!token || !email) {
     return (
-      <main className="dark flex min-h-dvh bg-[#060608] text-white">
+      <main className="flex min-h-dvh bg-background text-foreground">
         <AuthPanel title={t('heroTitle')} desc={t('heroDesc')} />
-        <div className="relative flex flex-1 items-center justify-center overflow-hidden bg-[#060608] p-5 sm:p-8">
-          <div className="pointer-events-none absolute right-[-20%] top-[-20%] h-[520px] w-[520px] rounded-full bg-violet-500/[0.055] blur-[110px]" />
-          <div className="relative w-full max-w-[430px] text-center animate-scale-in rounded-[24px] border border-white/[0.08] bg-[#0b0a0e]/90 p-6 shadow-[0_28px_90px_rgba(0,0,0,0.34),inset_0_1px_0_rgba(255,255,255,0.035)] sm:p-8">
+        <div className="relative flex flex-1 items-center justify-center overflow-hidden bg-background p-5 sm:p-8">
+          <div className="hidden" />
+          <Card className="relative block w-full max-w-md gap-0 rounded-2xl border bg-card p-6 shadow-sm sm:p-9">
             <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-xl border border-red-300/15 bg-red-500/[0.08] mb-6">
               <AlertCircle
                 className="w-6 h-6 text-red-400"
                 strokeWidth={1.75}
               />
             </div>
-            <h1 className="font-[family-name:var(--font-cinematic)] text-3xl font-medium tracking-[-0.045em] text-white">
+            <h1 className="text-3xl font-semibold leading-tight tracking-tight text-foreground">
               {t('invalidResetLink')}
             </h1>
-            <p className="mt-3 font-[family-name:var(--font-studio)] text-[12px] leading-6 text-white/35">
+            <p className="mt-3  text-sm leading-6 text-muted-foreground">
               {t('resetLinkMissing')}
             </p>
             <Link
               href="/forgot-password"
-              className="mt-8 inline-flex rounded-[13px] border border-white bg-white px-5 py-3 font-[family-name:var(--font-studio)] text-[11px] font-bold uppercase tracking-[0.12em] text-black shadow-[0_14px_35px_rgba(139,92,246,0.16)] transition-all hover:-translate-y-0.5 hover:shadow-[0_18px_45px_rgba(139,92,246,0.28)] active:scale-[0.98]"
+              className="mt-8 inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-primary px-5 py-3 text-sm font-medium text-primary-foreground hover:bg-primary/90"
             >
               {t('sendResetLink')}
             </Link>
-          </div>
+          </Card>
         </div>
       </main>
     )
   }
 
   return (
-    <main className="dark flex min-h-dvh bg-[#060608] text-white">
+    <main className="flex min-h-dvh bg-background text-foreground">
       <AuthPanel title={t('heroTitle')} desc={t('heroDesc')} />
 
       {/* Right — form */}
-      <div className="relative flex flex-1 items-center justify-center overflow-hidden bg-[#060608] p-5 sm:p-8">
-        <div className="pointer-events-none absolute right-[-20%] top-[-20%] h-[520px] w-[520px] rounded-full bg-violet-500/[0.055] blur-[110px]" />
-        <div className="relative w-full max-w-[430px] animate-fade-in rounded-[24px] border border-white/[0.08] bg-[#0b0a0e]/90 p-6 shadow-[0_28px_90px_rgba(0,0,0,0.34),inset_0_1px_0_rgba(255,255,255,0.035)] sm:p-8">
+      <div className="relative flex flex-1 items-center justify-center overflow-hidden bg-background p-5 sm:p-8">
+        <div className="hidden" />
+        <Card className="relative block w-full max-w-md gap-0 rounded-2xl border bg-card p-6 shadow-sm sm:p-9">
           {/* Mobile logo */}
           <Link href="/" className="mb-9 flex items-center gap-2 lg:hidden">
-            <BrandLogo onDark={true} priority={true} />
+            <ThemeBrandLogo />
           </Link>
 
           {done ? (
@@ -152,66 +160,66 @@ function ResetPasswordForm({ t, RULES }: { t: TFunc; RULES: PasswordRule[] }) {
                   strokeWidth={1.75}
                 />
               </div>
-              <h1 className="font-[family-name:var(--font-cinematic)] text-4xl font-medium leading-none tracking-[-0.045em] text-white">
+              <h1 className="text-3xl font-semibold leading-tight tracking-tight text-foreground">
                 {t('resetCompleteTitle')}
               </h1>
-              <p className="mt-3 font-[family-name:var(--font-studio)] text-[12px] leading-6 text-white/35">
+              <p className="mt-3  text-sm leading-6 text-muted-foreground">
                 {t('resetCompleteDesc')}
               </p>
               <Link
                 href="/login"
-                className="mt-8 inline-flex rounded-[13px] border border-white bg-white px-5 py-3 font-[family-name:var(--font-studio)] text-[11px] font-bold uppercase tracking-[0.12em] text-black shadow-[0_14px_35px_rgba(139,92,246,0.16)] transition-all hover:-translate-y-0.5 hover:shadow-[0_18px_45px_rgba(139,92,246,0.28)] active:scale-[0.98]"
+                className="mt-8 inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-primary px-5 py-3 text-sm font-medium text-primary-foreground hover:bg-primary/90"
               >
                 {t('signIn')}
               </Link>
             </div>
           ) : (
             <>
-              <h1 className="font-[family-name:var(--font-cinematic)] text-4xl font-medium leading-none tracking-[-0.045em] text-white">
+              <h1 className="text-3xl font-semibold leading-tight tracking-tight text-foreground">
                 {t('resetTitle')}
               </h1>
-              <p className="mt-3 font-[family-name:var(--font-studio)] text-[12px] leading-6 text-white/35">
+              <p className="mt-3  text-sm leading-6 text-muted-foreground">
                 {t('resetDesc')}
               </p>
 
               <form onSubmit={(e) => void submit(e)} className="mt-7 space-y-4">
                 <div className="space-y-1.5">
-                  <label
+                  <Label
                     htmlFor="password"
-                    className="font-[family-name:var(--font-studio)] text-[10px] font-semibold uppercase tracking-[0.1em] text-white/45"
+                    className="text-sm font-medium text-foreground"
                   >
                     {t('password')}
-                  </label>
-                  <input
+                  </Label>
+                  <Input
                     id="password"
                     type="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••••••"
-                    className="w-full rounded-[13px] border border-white/10 bg-white/[0.035] px-4 py-3 font-[family-name:var(--font-studio)] text-[13px] text-white outline-none transition-all placeholder:text-white/20 focus:border-violet-300/35 focus:bg-white/[0.05] focus:ring-2 focus:ring-violet-400/10"
+                    className="h-11 rounded-lg bg-background"
                   />
                 </div>
 
                 <div className="space-y-1.5">
-                  <label
+                  <Label
                     htmlFor="confirm"
-                    className="font-[family-name:var(--font-studio)] text-[10px] font-semibold uppercase tracking-[0.1em] text-white/45"
+                    className="text-sm font-medium text-foreground"
                   >
                     {t('password')} (confirm)
-                  </label>
-                  <input
+                  </Label>
+                  <Input
                     id="confirm"
                     type="password"
                     value={confirm}
                     onChange={(e) => setConfirm(e.target.value)}
                     placeholder="••••••••••••"
-                    className="w-full rounded-[13px] border border-white/10 bg-white/[0.035] px-4 py-3 font-[family-name:var(--font-studio)] text-[13px] text-white outline-none transition-all placeholder:text-white/20 focus:border-violet-300/35 focus:bg-white/[0.05] focus:ring-2 focus:ring-violet-400/10"
+                    className="h-11 rounded-lg bg-background"
                   />
                 </div>
 
                 {password.length > 0 && (
-                  <div className="rounded-[13px] border border-white/[0.08] bg-white/[0.02] p-3 space-y-1.5 animate-slide-down">
-                    <p className="font-[family-name:var(--font-studio)] text-[9px] font-bold uppercase tracking-[0.15em] text-white/30">
+                  <div className="rounded-[13px] border border-border bg-muted p-3 space-y-1.5 animate-slide-down">
+                    <p className=" text-sm font-bold uppercase tracking-[0.15em] text-muted-foreground">
                       {t('passwordRules.length')}
                     </p>
                     <ul className="space-y-1">
@@ -221,7 +229,9 @@ function ResetPasswordForm({ t, RULES }: { t: TFunc; RULES: PasswordRule[] }) {
                           <li
                             key={r.id}
                             className={`flex items-center gap-2 text-[12px] transition-colors ${
-                              ok ? 'text-emerald-400' : 'text-white/30'
+                              ok
+                                ? 'text-emerald-700 dark:text-emerald-400'
+                                : 'text-muted-foreground'
                             }`}
                           >
                             {ok ? (
@@ -231,7 +241,7 @@ function ResetPasswordForm({ t, RULES }: { t: TFunc; RULES: PasswordRule[] }) {
                               />
                             ) : (
                               <X
-                                className="w-3.5 h-3.5 shrink-0 text-white/20"
+                                className="w-3.5 h-3.5 shrink-0 text-muted-foreground"
                                 strokeWidth={2.5}
                               />
                             )}
@@ -240,8 +250,10 @@ function ResetPasswordForm({ t, RULES }: { t: TFunc; RULES: PasswordRule[] }) {
                         )
                       })}
                       <li
-                        className={`flex items-center gap-2 text-[12px] transition-colors border-t border-white/[0.06] pt-1.5 mt-1.5 ${
-                          match ? 'text-emerald-400' : 'text-white/30'
+                        className={`flex items-center gap-2 text-[12px] transition-colors border-t border-border pt-1.5 mt-1.5 ${
+                          match
+                            ? 'text-emerald-700 dark:text-emerald-400'
+                            : 'text-muted-foreground'
                         }`}
                       >
                         {match ? (
@@ -251,7 +263,7 @@ function ResetPasswordForm({ t, RULES }: { t: TFunc; RULES: PasswordRule[] }) {
                           />
                         ) : (
                           <X
-                            className="w-3.5 h-3.5 shrink-0 text-white/20"
+                            className="w-3.5 h-3.5 shrink-0 text-muted-foreground"
                             strokeWidth={2.5}
                           />
                         )}
@@ -261,10 +273,10 @@ function ResetPasswordForm({ t, RULES }: { t: TFunc; RULES: PasswordRule[] }) {
                   </div>
                 )}
 
-                <button
+                <Button
                   type="submit"
                   disabled={busy || !allPass || !match}
-                  className="flex w-full items-center justify-center gap-2 rounded-[13px] border border-white bg-white px-4 py-3 font-[family-name:var(--font-studio)] text-[11px] font-bold uppercase tracking-[0.12em] text-black shadow-[0_14px_35px_rgba(139,92,246,0.16)] transition-all hover:-translate-y-0.5 hover:shadow-[0_18px_45px_rgba(139,92,246,0.28)] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 mt-2"
+                  className="h-11 w-full"
                 >
                   {busy ? (
                     <>
@@ -277,11 +289,11 @@ function ResetPasswordForm({ t, RULES }: { t: TFunc; RULES: PasswordRule[] }) {
                       {t('resetButton')}
                     </>
                   )}
-                </button>
+                </Button>
               </form>
             </>
           )}
-        </div>
+        </Card>
       </div>
     </main>
   )

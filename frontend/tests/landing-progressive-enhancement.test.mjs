@@ -19,17 +19,15 @@ test('server-rendered landing copy is never hidden behind hydration', () => {
   assert.match(reveals, /hidden:[^\n]*opacity:\s*1/)
 })
 
-test('mobile navigation exposes its native disclosure state accessibly', () => {
+test('mobile navigation uses a controlled accessible Sheet with a no-JS fallback', () => {
   const navbar = readFileSync(
     new URL('../src/components/landing/public-navbar.tsx', import.meta.url),
     'utf8'
   )
-  assert.match(
-    navbar,
-    /onToggle=\{\(event\) => setMenuOpen\(event.currentTarget.open\)\}/
-  )
-  assert.match(navbar, /aria-expanded=\{menuOpen\}/)
-  assert.match(navbar, /aria-controls=\{menuId\}/)
+  assert.match(navbar, /<Sheet open=\{open\} onOpenChange=\{setOpen\}/)
+  assert.match(navbar, /<SheetTrigger/)
+  assert.match(navbar, /<SheetTitle/)
+  assert.match(navbar, /<noscript>/)
   assert.match(navbar, /Close menu/)
   assert.doesNotMatch(navbar, /aria-haspopup="menu"/)
 })

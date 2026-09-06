@@ -1,5 +1,7 @@
 'use client'
 
+import { Button } from '@/components/ui/button'
+
 import { ArrowUpRight, Loader2 } from 'lucide-react'
 import { useId, useState } from 'react'
 
@@ -68,7 +70,8 @@ export function CheckoutButton({
 
   return (
     <div>
-      <button
+      <Button
+        variant={emphasized ? 'default' : 'outline'}
         type="button"
         onClick={() => void startCheckout()}
         disabled={disabled || loading}
@@ -86,7 +89,7 @@ export function CheckoutButton({
           <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
         ) : null}
         <span>{loading ? loadingLabel : label}</span>
-      </button>
+      </Button>
       {error && (
         <p
           id={errorId}

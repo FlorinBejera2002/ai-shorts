@@ -1,5 +1,11 @@
 'use client'
 
+import { Card } from '@/components/ui/card'
+import { Label } from '@/components/ui/label'
+import { NativeSelect } from '@/components/ui/native-select'
+
+import { Slider } from '@/components/ui/slider'
+import { Switch } from '@/components/ui/switch'
 import {
   ChevronDown,
   Languages,
@@ -93,23 +99,7 @@ function Toggle({
   label: string
 }) {
   return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={checked}
-      aria-label={label}
-      onClick={() => onChange(!checked)}
-      className={`relative h-5 w-9 shrink-0 rounded-full transition-colors ${
-        checked ? 'bg-primary' : 'bg-muted-foreground/25'
-      }`}
-    >
-      <span
-        className={`absolute left-0.5 top-0.5 h-4 w-4 rounded-full shadow-sm transition-all ${
-          checked ? 'bg-primary-foreground' : 'bg-card'
-        }`}
-        style={{ transform: checked ? 'translateX(16px)' : 'translateX(0)' }}
-      />
-    </button>
+    <Switch checked={checked} aria-label={label} onCheckedChange={onChange} />
   )
 }
 
@@ -140,7 +130,7 @@ export function SettingsPanel({ settings, onChange }: SettingsPanelProps) {
   }
 
   return (
-    <div className="panel divide-y divide-border overflow-hidden">
+    <Card className="block gap-0 py-0 divide-y divide-border overflow-hidden">
       {/* Platform preset */}
       <section className="p-4">
         <div className="mb-3 flex items-center justify-between">
@@ -188,16 +178,15 @@ export function SettingsPanel({ settings, onChange }: SettingsPanelProps) {
             {settings.clips}
           </span>
         </div>
-        <input
-          type="range"
+        <Slider
           aria-label={t('clipsPerVideo')}
           min={1}
           max={15}
-          value={settings.clips}
-          onChange={(e) =>
-            onChange({ ...settings, clips: Number(e.target.value) })
+          value={[settings.clips]}
+          onValueChange={([clips = settings.clips]) =>
+            onChange({ ...settings, clips })
           }
-          className="w-full accent-primary"
+          className="w-full"
         />
         <div className="mt-1 flex justify-between text-[10px] text-muted-foreground">
           <span>1</span>
@@ -322,14 +311,14 @@ export function SettingsPanel({ settings, onChange }: SettingsPanelProps) {
         {advancedOpen && (
           <div className="animate-slide-down space-y-4 border-t border-border p-4">
             <div>
-              <label
+              <Label
                 className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground"
                 htmlFor="create-language"
               >
                 <Languages className="h-3.5 w-3.5" strokeWidth={1.75} />
                 {t('language')}
-              </label>
-              <select
+              </Label>
+              <NativeSelect
                 id="create-language"
                 value={settings.language}
                 onChange={(e) =>
@@ -342,7 +331,7 @@ export function SettingsPanel({ settings, onChange }: SettingsPanelProps) {
                     {'labelKey' in lang ? t(lang.labelKey) : lang.label}
                   </option>
                 ))}
-              </select>
+              </NativeSelect>
             </div>
             <div className="flex items-center justify-between">
               <div>
@@ -366,6 +355,6 @@ export function SettingsPanel({ settings, onChange }: SettingsPanelProps) {
           </div>
         )}
       </section>
-    </div>
+    </Card>
   )
 }

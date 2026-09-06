@@ -1,5 +1,7 @@
 'use client'
 
+import { Card } from '@/components/ui/card'
+
 import { Lightbulb, X, Zap } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useState } from 'react'
@@ -39,9 +41,9 @@ export function TipsPanel({
       {visibleTips.map((tip) => {
         const Icon = tip.icon
         return (
-          <div
+          <Card
             key={tip.id}
-            className="panel-soft inline-flex items-center gap-2 rounded-full px-3.5 py-1.5 text-xs text-muted-foreground animate-scale-in"
+            className="block gap-0 py-0 inline-flex items-center gap-2 rounded-full px-3.5 py-1.5 text-xs text-muted-foreground animate-scale-in"
           >
             <Icon
               className="h-3 w-3 shrink-0 text-primary"
@@ -56,7 +58,7 @@ export function TipsPanel({
             >
               <X className="h-3 w-3" strokeWidth={2} />
             </button>
-          </div>
+          </Card>
         )
       })}
     </div>

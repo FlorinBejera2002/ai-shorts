@@ -1,5 +1,11 @@
 'use client'
 
+import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
+
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+
 import {
   ArrowLeftToLine,
   ArrowRightToLine,
@@ -38,19 +44,20 @@ function NudgeField({
 }) {
   return (
     <div>
-      <label className="text-[11px] text-muted-foreground" htmlFor={id}>
+      <Label className="text-[11px] text-muted-foreground" htmlFor={id}>
         {label}
-      </label>
+      </Label>
       <div className="mt-1 flex items-center gap-1">
-        <button
+        <Button
+          variant="ghost"
           type="button"
           onClick={() => onCommit(Math.max(min, value - 0.1))}
           aria-label={`${label} -0.1s`}
-          className="rounded-md border border-border p-1.5 text-muted-foreground transition-colors hover:text-foreground"
+          className="h-auto whitespace-normal rounded-md border border-border p-1.5 text-muted-foreground transition-colors hover:text-foreground"
         >
           <Minus className="h-3 w-3" strokeWidth={2} />
-        </button>
-        <input
+        </Button>
+        <Input
           id={id}
           type="number"
           step={0.1}
@@ -65,14 +72,15 @@ function NudgeField({
           }}
           className="w-full rounded-lg border border-input bg-background px-2 py-1.5 text-center text-[13px] tabular-nums outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/15"
         />
-        <button
+        <Button
+          variant="ghost"
           type="button"
           onClick={() => onCommit(Math.min(max, value + 0.1))}
           aria-label={`${label} +0.1s`}
-          className="rounded-md border border-border p-1.5 text-muted-foreground transition-colors hover:text-foreground"
+          className="h-auto whitespace-normal rounded-md border border-border p-1.5 text-muted-foreground transition-colors hover:text-foreground"
         >
           <Plus className="h-3 w-3" strokeWidth={2} />
-        </button>
+        </Button>
       </div>
     </div>
   )
@@ -91,14 +99,14 @@ export function SegmentInspector({
 
   if (!segment || index === null) {
     return (
-      <div className="rounded-xl border border-border bg-card p-4">
+      <Card className="block gap-0 py-0 rounded-xl border border-border bg-card p-4">
         <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           {t('inspector')}
         </h3>
         <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
           {t('inspectorEmpty')}
         </p>
-      </div>
+      </Card>
     )
   }
 
@@ -133,7 +141,8 @@ export function SegmentInspector({
       </div>
 
       <div className="mt-3 grid grid-cols-2 gap-1.5">
-        <button
+        <Button
+          variant="ghost"
           type="button"
           onClick={() =>
             onSetTimes(
@@ -142,12 +151,13 @@ export function SegmentInspector({
               segment.end
             )
           }
-          className="flex items-center justify-center gap-1.5 rounded-lg border border-border px-2 py-1.5 text-[11px] font-medium text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
+          className="h-auto whitespace-normal flex items-center justify-center gap-1.5 rounded-lg border border-border px-2 py-1.5 text-[11px] font-medium text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
         >
           <ArrowLeftToLine className="h-3 w-3" strokeWidth={1.75} />
           {t('setStartHere')}
-        </button>
-        <button
+        </Button>
+        <Button
+          variant="ghost"
           type="button"
           onClick={() =>
             onSetTimes(
@@ -156,22 +166,23 @@ export function SegmentInspector({
               Math.max(currentTime, segment.start + 0.25)
             )
           }
-          className="flex items-center justify-center gap-1.5 rounded-lg border border-border px-2 py-1.5 text-[11px] font-medium text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
+          className="h-auto whitespace-normal flex items-center justify-center gap-1.5 rounded-lg border border-border px-2 py-1.5 text-[11px] font-medium text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
         >
           <ArrowRightToLine className="h-3 w-3" strokeWidth={1.75} />
           {t('setEndHere')}
-        </button>
+        </Button>
       </div>
 
-      <button
+      <Button
+        variant="ghost"
         type="button"
         onClick={() => onDelete(index)}
         disabled={!canDelete}
-        className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg border border-destructive/30 px-2 py-1.5 text-[11px] font-medium text-destructive transition-colors hover:bg-destructive/10 disabled:opacity-40"
+        className="h-auto whitespace-normal mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg border border-destructive/30 px-2 py-1.5 text-[11px] font-medium text-destructive transition-colors hover:bg-destructive/10 disabled:opacity-40"
       >
         <Trash2 className="h-3 w-3" strokeWidth={1.75} />
         {t('deleteSegment')}
-      </button>
+      </Button>
     </div>
   )
 }

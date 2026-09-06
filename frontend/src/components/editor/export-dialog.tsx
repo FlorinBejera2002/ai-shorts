@@ -1,13 +1,20 @@
 'use client'
 
+import { Button } from '@/components/ui/button'
+import { Card, CardContent } from '@/components/ui/card'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle
+} from '@/components/ui/dialog'
+import { Link } from '@/i18n/navigation'
 import { CheckCircle2, Clock, Film, Loader2, Scissors, X } from 'lucide-react'
 import { useTranslations } from 'next-intl'
-import { useEffect } from 'react'
-
-import { Link } from '@/i18n/navigation'
 
 export type ExportPhase = 'confirm' | 'submitting' | 'done'
-
 interface ExportDialogProps {
   open: boolean
   phase: ExportPhase
@@ -28,136 +35,106 @@ export function ExportDialog({
   onClose
 }: ExportDialogProps) {
   const t = useTranslations('editor')
-
-  useEffect(() => {
-    if (!open) return
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && phase !== 'submitting') onClose()
-    }
-    window.addEventListener('keydown', handler)
-    return () => window.removeEventListener('keydown', handler)
-  }, [open, phase, onClose])
-
-  if (!open) return null
-
+  const submitting = phase === 'submitting'
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm animate-fade-in"
-      onClick={() => phase !== 'submitting' && onClose()}
-      role="presentation"
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        if (!next && !submitting) onClose()
+      }}
     >
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-label={t('export')}
-        className="w-full max-w-md animate-scale-in rounded-xl border border-border bg-card p-6 shadow-2xl"
-        onClick={(e) => e.stopPropagation()}
+      <DialogContent
+        onCloseAutoFocus={(event) => {
+          event.preventDefault()
+          document
+            .querySelector<HTMLButtonElement>('[data-export-trigger]')
+            ?.focus()
+        }}
+        onEscapeKeyDown={(event) => {
+          if (submitting) event.preventDefault()
+        }}
+        onInteractOutside={(event) => {
+          if (submitting) event.preventDefault()
+        }}
       >
-        {phase === 'done' ? (
-          <div className="text-center">
-            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-success/10">
-              <CheckCircle2
-                className="h-6 w-6 text-success"
-                strokeWidth={1.75}
-              />
-            </div>
-            <h2 className="mt-4 text-base font-semibold text-foreground">
-              {t('exportStartedTitle')}
-            </h2>
-            <p className="mt-2 text-[13px] leading-relaxed text-muted-foreground">
-              {t('exportStartedDesc')}
-            </p>
-            <div className="mt-5 flex justify-center gap-2">
-              <Link
-                href={`/dashboard/clips/${clipId}`}
-                className="rounded-lg bg-primary px-4 py-2 text-[13px] font-medium text-primary-foreground transition-opacity hover:opacity-90"
-              >
-                {t('backToClip')}
-              </Link>
-              <button
-                type="button"
-                onClick={onClose}
-                className="rounded-lg border border-border px-4 py-2 text-[13px] font-medium text-foreground transition-colors hover:bg-muted"
-              >
-                {t('keepEditing')}
-              </button>
-            </div>
+        <DialogHeader>
+          <div className="mb-2 flex items-center justify-between">
+            <span className="flex size-11 items-center justify-center rounded-xl border bg-muted text-primary">
+              {phase === 'done' ? (
+                <CheckCircle2 className="size-5 text-success" />
+              ) : (
+                <Scissors className="size-5" />
+              )}
+            </span>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onClose}
+              disabled={submitting}
+              aria-label={t('close')}
+            >
+              <X className="size-4" />
+            </Button>
           </div>
-        ) : (
+          <DialogTitle>
+            {phase === 'done'
+              ? t('exportStartedTitle')
+              : t('exportConfirmTitle')}
+          </DialogTitle>
+          <DialogDescription>
+            {phase === 'done' ? t('exportStartedDesc') : t('exportConfirmDesc')}
+          </DialogDescription>
+        </DialogHeader>
+        {phase !== 'done' && (
           <>
-            <div className="flex items-start justify-between">
-              <div>
-                <h2 className="text-base font-semibold text-foreground">
-                  {t('exportConfirmTitle')}
-                </h2>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {t('exportConfirmDesc')}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={onClose}
-                disabled={phase === 'submitting'}
-                aria-label={t('close')}
-                className="rounded-md p-1 text-muted-foreground transition-colors hover:text-foreground disabled:opacity-40"
-              >
-                <X className="h-4 w-4" strokeWidth={1.75} />
-              </button>
-            </div>
-
-            <div className="mt-4 space-y-2">
-              <div className="flex items-center gap-3 rounded-lg bg-muted/60 px-3 py-2.5">
-                <Film
-                  className="h-4 w-4 shrink-0 text-primary"
-                  strokeWidth={1.75}
-                />
-                <span className="text-[13px] text-foreground">
+            <Card className="gap-0 bg-muted/30 py-0 shadow-none">
+              <CardContent className="space-y-4 p-4">
+                <div className="flex items-center gap-3 text-sm">
+                  <Film className="size-4 text-primary" />
                   {t('segments', { count: segmentCount })}
-                </span>
-              </div>
-              <div className="flex items-center gap-3 rounded-lg bg-muted/60 px-3 py-2.5">
-                <Clock
-                  className="h-4 w-4 shrink-0 text-primary"
-                  strokeWidth={1.75}
-                />
-                <span className="text-[13px] tabular-nums text-foreground">
+                </div>
+                <div className="flex items-center gap-3 text-sm">
+                  <Clock className="size-4 text-primary" />
                   {t('totalDuration', {
                     duration: `${totalDuration.toFixed(1)}s`
                   })}
-                </span>
-              </div>
-            </div>
-
-            <p className="mt-3 text-[11px] leading-relaxed text-muted-foreground">
+                </div>
+              </CardContent>
+            </Card>
+            <p className="text-xs leading-6 text-muted-foreground">
               {t('exportNote')}
             </p>
-
-            <div className="mt-5 flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={onClose}
-                disabled={phase === 'submitting'}
-                className="rounded-lg border border-border px-4 py-2 text-[13px] font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-40"
-              >
-                {t('cancel')}
-              </button>
-              <button
-                type="button"
-                onClick={onConfirm}
-                disabled={phase === 'submitting'}
-                className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-[13px] font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
-              >
-                {phase === 'submitting' ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <Scissors className="h-3.5 w-3.5" strokeWidth={1.75} />
-                )}
-                {phase === 'submitting' ? t('exporting') : t('exportConfirm')}
-              </button>
-            </div>
           </>
         )}
-      </div>
-    </div>
+        <DialogFooter>
+          {phase === 'done' ? (
+            <>
+              <Button variant="outline" onClick={onClose}>
+                {t('keepEditing')}
+              </Button>
+              <Button asChild={true}>
+                <Link href={`/dashboard/clips/${clipId}`}>
+                  {t('backToClip')}
+                </Link>
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button variant="outline" onClick={onClose} disabled={submitting}>
+                {t('cancel')}
+              </Button>
+              <Button onClick={onConfirm} disabled={submitting}>
+                {submitting ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  <Scissors className="size-4" />
+                )}
+                {submitting ? t('exporting') : t('exportConfirm')}
+              </Button>
+            </>
+          )}
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }

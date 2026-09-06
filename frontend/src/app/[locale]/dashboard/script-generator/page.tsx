@@ -1,5 +1,13 @@
 'use client'
 
+import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
+import { ChoiceGroup } from '@/components/ui/choice-group'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { NativeSelect } from '@/components/ui/native-select'
+import { Textarea } from '@/components/ui/textarea'
+
 import {
   type CoachScene,
   ShootingCoach,
@@ -288,8 +296,8 @@ export default function ScriptGeneratorPage() {
         {/* Left: Input Form */}
         <div className="space-y-4 xl:sticky xl:top-6">
           {/* Topic */}
-          <div className="panel space-y-3 p-5">
-            <label
+          <Card className="block gap-0 py-0 space-y-3 p-5">
+            <Label
               htmlFor="script-topic"
               className="text-[13px] font-medium flex items-center gap-2"
               style={{
@@ -298,8 +306,8 @@ export default function ScriptGeneratorPage() {
             >
               <Lightbulb className="h-4 w-4 text-primary" strokeWidth={2} />
               {t('topicLabel')}
-            </label>
-            <textarea
+            </Label>
+            <Textarea
               id="script-topic"
               value={topic}
               onChange={(e) => setTopic(e.target.value)}
@@ -311,11 +319,11 @@ export default function ScriptGeneratorPage() {
             <p className="text-[11px] text-muted-foreground text-right">
               {topic.length}/1000
             </p>
-          </div>
+          </Card>
 
           {/* Platform */}
-          <div className="panel space-y-3 p-5">
-            <label
+          <Card className="block gap-0 py-0 space-y-3 p-5">
+            <Label
               className="text-[13px] font-medium flex items-center gap-2"
               style={{
                 fontFamily: 'var(--font-studio), "Manrope", sans-serif'
@@ -323,30 +331,27 @@ export default function ScriptGeneratorPage() {
             >
               <Target className="h-4 w-4 text-primary" strokeWidth={2} />
               {t('platformLabel')}
-            </label>
-            <div className="grid grid-cols-2 gap-2">
-              {PLATFORMS.map((p) => (
-                <button
-                  key={p.value}
-                  type="button"
-                  onClick={() => setPlatform(p.value)}
-                  className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-[12px] font-medium transition-all ${
-                    platform === p.value
-                      ? 'border-primary bg-primary/10 text-primary ring-1 ring-primary/20'
-                      : 'border-border bg-card text-foreground hover:border-primary/40 hover:bg-primary/5'
-                  }`}
-                >
-                  <span>{p.icon}</span>
-                  {p.label}
-                </button>
-              ))}
-            </div>
-          </div>
+            </Label>
+            <ChoiceGroup
+              value={platform}
+              onChange={setPlatform}
+              label={t('platformLabel')}
+              className="grid grid-cols-2"
+              options={PLATFORMS.map((p) => ({
+                value: p.value,
+                label: (
+                  <>
+                    {p.icon} {p.label}
+                  </>
+                )
+              }))}
+            />
+          </Card>
 
           {/* Duration + Tone */}
-          <div className="panel space-y-5 p-5">
+          <Card className="block gap-0 py-0 space-y-5 p-5">
             <div className="space-y-2">
-              <label
+              <Label
                 className="text-[13px] font-medium flex items-center gap-2"
                 style={{
                   fontFamily: 'var(--font-studio), "Manrope", sans-serif'
@@ -354,27 +359,20 @@ export default function ScriptGeneratorPage() {
               >
                 <Clock className="h-4 w-4 text-primary" strokeWidth={2} />
                 {t('durationLabel')}
-              </label>
-              <div className="flex flex-wrap gap-1.5">
-                {DURATIONS.map((d) => (
-                  <button
-                    key={d}
-                    type="button"
-                    onClick={() => setDuration(d)}
-                    className={`rounded-lg border px-3 py-1.5 text-[12px] font-medium transition-all ${
-                      duration === d
-                        ? 'border-primary bg-primary/10 text-primary ring-1 ring-primary/20'
-                        : 'border-border bg-card text-foreground hover:border-primary/40 hover:bg-primary/5'
-                    }`}
-                  >
-                    {d}s
-                  </button>
-                ))}
-              </div>
+              </Label>
+              <ChoiceGroup
+                value={String(duration)}
+                onChange={(value) => setDuration(Number(value))}
+                label={t('durationLabel')}
+                options={DURATIONS.map((value) => ({
+                  value: String(value),
+                  label: `${value}s`
+                }))}
+              />
             </div>
 
             <div className="space-y-2">
-              <label
+              <Label
                 className="text-[13px] font-medium flex items-center gap-2"
                 style={{
                   fontFamily: 'var(--font-studio), "Manrope", sans-serif'
@@ -385,29 +383,22 @@ export default function ScriptGeneratorPage() {
                   strokeWidth={2}
                 />
                 {t('toneLabel')}
-              </label>
-              <div className="flex flex-wrap gap-1.5">
-                {TONES.map((tn) => (
-                  <button
-                    key={tn.value}
-                    type="button"
-                    onClick={() => setTone(tn.value)}
-                    className={`rounded-lg border px-3 py-1.5 text-[12px] font-medium transition-all ${
-                      tone === tn.value
-                        ? 'border-primary bg-primary/10 text-primary ring-1 ring-primary/20'
-                        : 'border-border bg-card text-foreground hover:border-primary/40 hover:bg-primary/5'
-                    }`}
-                  >
-                    {t(tn.key)}
-                  </button>
-                ))}
-              </div>
+              </Label>
+              <ChoiceGroup
+                value={tone}
+                onChange={setTone}
+                label={t('toneLabel')}
+                options={TONES.map((item) => ({
+                  value: item.value,
+                  label: t(item.key)
+                }))}
+              />
             </div>
-          </div>
+          </Card>
 
           {/* Style */}
-          <div className="panel space-y-3 p-5">
-            <label
+          <Card className="block gap-0 py-0 space-y-3 p-5">
+            <Label
               className="text-[13px] font-medium flex items-center gap-2"
               style={{
                 fontFamily: 'var(--font-studio), "Manrope", sans-serif'
@@ -415,29 +406,23 @@ export default function ScriptGeneratorPage() {
             >
               <Video className="h-4 w-4 text-primary" strokeWidth={2} />
               {t('styleLabel')}
-            </label>
-            <div className="grid grid-cols-2 gap-1.5">
-              {STYLES.map((s) => (
-                <button
-                  key={s.value}
-                  type="button"
-                  onClick={() => setStyle(s.value)}
-                  className={`rounded-lg border px-3 py-2 text-[12px] font-medium text-left transition-all ${
-                    style === s.value
-                      ? 'border-primary bg-primary/10 text-primary ring-1 ring-primary/20'
-                      : 'border-border bg-card text-foreground hover:border-primary/40 hover:bg-primary/5'
-                  }`}
-                >
-                  {t(s.key)}
-                </button>
-              ))}
-            </div>
-          </div>
+            </Label>
+            <ChoiceGroup
+              value={style}
+              onChange={setStyle}
+              label={t('styleLabel')}
+              className="grid grid-cols-2"
+              options={STYLES.map((item) => ({
+                value: item.value,
+                label: t(item.key)
+              }))}
+            />
+          </Card>
 
           {/* Target Audience + Language */}
-          <div className="panel space-y-5 p-5">
+          <Card className="block gap-0 py-0 space-y-5 p-5">
             <div className="space-y-2">
-              <label
+              <Label
                 htmlFor="script-audience"
                 className="text-[13px] font-medium flex items-center gap-2"
                 style={{
@@ -446,8 +431,8 @@ export default function ScriptGeneratorPage() {
               >
                 <Eye className="h-4 w-4 text-primary" strokeWidth={2} />
                 {t('audienceLabel')}
-              </label>
-              <input
+              </Label>
+              <Input
                 id="script-audience"
                 type="text"
                 value={targetAudience}
@@ -458,7 +443,7 @@ export default function ScriptGeneratorPage() {
             </div>
 
             <div className="space-y-2">
-              <label
+              <Label
                 htmlFor="script-language"
                 className="text-[13px] font-medium"
                 style={{
@@ -466,8 +451,8 @@ export default function ScriptGeneratorPage() {
                 }}
               >
                 {t('languageLabel')}
-              </label>
-              <select
+              </Label>
+              <NativeSelect
                 id="script-language"
                 value={language}
                 onChange={(e) => setLanguage(e.target.value)}
@@ -478,16 +463,17 @@ export default function ScriptGeneratorPage() {
                 <option value="es">Español</option>
                 <option value="fr">Français</option>
                 <option value="de">Deutsch</option>
-              </select>
+              </NativeSelect>
             </div>
-          </div>
+          </Card>
 
           {/* Generate Button */}
-          <button
+          <Button
             type="button"
             onClick={handleGenerate}
             disabled={busy || !topic.trim()}
-            className="button-primary w-full disabled:cursor-not-allowed disabled:opacity-40"
+            variant="default"
+            className="w-full disabled:cursor-not-allowed disabled:opacity-40"
           >
             {busy ? (
               <>
@@ -500,13 +486,13 @@ export default function ScriptGeneratorPage() {
                 {t('generateButton')}
               </>
             )}
-          </button>
+          </Button>
         </div>
 
         {/* Right: Script Output */}
         <div className="min-w-0 space-y-4">
           {!script && !busy && (
-            <div className="panel-soft flex min-h-[26rem] flex-col items-center justify-center border-dashed px-6 py-16 text-center">
+            <Card className="block gap-0 py-0 flex min-h-[26rem] flex-col items-center justify-center border-dashed px-6 py-16 text-center">
               <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10">
                 <FileText
                   className="h-7 w-7 text-primary/60"
@@ -519,11 +505,11 @@ export default function ScriptGeneratorPage() {
               <p className="text-xs text-muted-foreground/70 max-w-xs">
                 {t('emptyDesc')}
               </p>
-            </div>
+            </Card>
           )}
 
           {busy && (
-            <div className="panel flex min-h-[26rem] flex-col items-center justify-center px-6 py-16 text-center">
+            <Card className="block gap-0 py-0 flex min-h-[26rem] flex-col items-center justify-center px-6 py-16 text-center">
               <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10">
                 <Sparkles
                   className="h-7 w-7 animate-pulse text-primary"
@@ -543,13 +529,13 @@ export default function ScriptGeneratorPage() {
                   />
                 ))}
               </div>
-            </div>
+            </Card>
           )}
 
           {script && (
             <div className="space-y-4 animate-fade-in">
               {/* Script Header */}
-              <div className="panel p-5">
+              <Card className="block gap-0 py-0 p-5">
                 <div className="mb-4 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                   <div className="min-w-0">
                     <h2
@@ -577,22 +563,24 @@ export default function ScriptGeneratorPage() {
                     </div>
                   </div>
                   <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-                    <button
+                    <Button
                       type="button"
                       onClick={copyFullScript}
-                      className="button-secondary min-h-9 px-3 text-[11px]"
+                      variant="outline"
+                      className="min-h-9 px-3 text-[11px]"
                     >
                       <Copy className="w-3 h-3" />
                       {t('copyAll')}
-                    </button>
-                    <button
+                    </Button>
+                    <Button
                       type="button"
                       onClick={downloadScript}
-                      className="button-secondary min-h-9 px-3 text-[11px]"
+                      variant="outline"
+                      className="min-h-9 px-3 text-[11px]"
                     >
                       <Download className="w-3 h-3" />
                       {t('download')}
-                    </button>
+                    </Button>
                     <button
                       type="button"
                       onClick={handleReset}
@@ -611,7 +599,7 @@ export default function ScriptGeneratorPage() {
                   </p>
                   <p className="text-[13px] font-medium">{script.hook}</p>
                 </div>
-              </div>
+              </Card>
 
               <ShootingCoach
                 scenes={script.scenes}
@@ -645,9 +633,9 @@ export default function ScriptGeneratorPage() {
               {script.scenes.map((scene, index) => {
                 const expanded = expandedScenes.has(index)
                 return (
-                  <div
+                  <Card
                     key={scene.scene_number}
-                    className="panel overflow-hidden transition-all"
+                    className="block gap-0 py-0 overflow-hidden transition-all"
                   >
                     <button
                       type="button"
@@ -716,12 +704,12 @@ export default function ScriptGeneratorPage() {
                         />
                       </div>
                     )}
-                  </div>
+                  </Card>
                 )
               })}
 
               {/* CTA + Caption + Hashtags */}
-              <div className="panel space-y-5 p-5">
+              <Card className="block gap-0 py-0 space-y-5 p-5">
                 <div className="space-y-1">
                   <p className="section-label flex items-center gap-1.5 text-primary">
                     <Megaphone className="w-3 h-3" />
@@ -753,11 +741,11 @@ export default function ScriptGeneratorPage() {
                     ))}
                   </div>
                 </div>
-              </div>
+              </Card>
 
               {/* Equipment + Tips */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="panel space-y-3 p-5">
+                <Card className="block gap-0 py-0 space-y-3 p-5">
                   <p className="section-label flex items-center gap-1.5">
                     <Wrench className="w-3 h-3" />
                     {t('equipmentLabel')}
@@ -773,9 +761,9 @@ export default function ScriptGeneratorPage() {
                       </li>
                     ))}
                   </ul>
-                </div>
+                </Card>
 
-                <div className="panel space-y-3 p-5">
+                <Card className="block gap-0 py-0 space-y-3 p-5">
                   <p className="section-label flex items-center gap-1.5">
                     <Lightbulb className="w-3 h-3" />
                     {t('tipsLabel')}
@@ -791,7 +779,7 @@ export default function ScriptGeneratorPage() {
                       </li>
                     ))}
                   </ul>
-                </div>
+                </Card>
               </div>
             </div>
           )}

@@ -1,3 +1,4 @@
+import { Button } from '@/components/ui/button'
 import { Prisma } from '@prisma/client'
 import { Film, SearchX } from 'lucide-react'
 import { getTranslations, setRequestLocale } from 'next-intl/server'
@@ -107,9 +108,11 @@ export default async function ClipsPage({
         title={t('title')}
         description={t('count', { count: total })}
         actions={
-          <Link href="/dashboard/create" className="button-primary">
-            {t('createClip')}
-          </Link>
+          <Button asChild={true} variant="default">
+            <Link href="/dashboard/create" className="">
+              {t('createClip')}
+            </Link>
+          </Button>
         }
       />
 
@@ -210,19 +213,21 @@ export default async function ClipsPage({
               title={t('noMatches')}
               description={t('noMatchesDesc')}
               action={
-                <Link
-                  href={clipsLibraryHref(query, {
-                    search: '',
-                    score: 'all',
-                    aspect: 'all',
-                    subtitles: 'all',
-                    sort: 'newest',
-                    page: 1
-                  })}
-                  className="button-secondary"
-                >
-                  {t('clearFilters')}
-                </Link>
+                <Button asChild={true} variant="outline">
+                  <Link
+                    href={clipsLibraryHref(query, {
+                      search: '',
+                      score: 'all',
+                      aspect: 'all',
+                      subtitles: 'all',
+                      sort: 'newest',
+                      page: 1
+                    })}
+                    className=""
+                  >
+                    {t('clearFilters')}
+                  </Link>
+                </Button>
               }
             />
           ) : (
@@ -231,9 +236,11 @@ export default async function ClipsPage({
               title={t('noClips')}
               description={t('noClipsDesc')}
               action={
-                <Link href="/dashboard/create" className="button-primary">
-                  {t('firstProject')}
-                </Link>
+                <Button asChild={true} variant="default">
+                  <Link href="/dashboard/create" className="">
+                    {t('firstProject')}
+                  </Link>
+                </Button>
               }
             />
           )}

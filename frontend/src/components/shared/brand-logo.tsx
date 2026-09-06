@@ -8,6 +8,19 @@ type BrandLogoProps = {
   className?: string
 }
 
+export function ThemeBrandLogo({ priority = false }: { priority?: boolean }) {
+  return (
+    <>
+      <span className="inline-flex dark:hidden">
+        <BrandLogo priority={priority} />
+      </span>
+      <span className="hidden dark:inline-flex">
+        <BrandLogo variant="white-text" priority={priority} />
+      </span>
+    </>
+  )
+}
+
 /** Sharp outlined brand artwork with a light contrast surface for dark UI. */
 export function BrandLogo({
   compact = false,

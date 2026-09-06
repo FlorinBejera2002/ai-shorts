@@ -1,6 +1,19 @@
 import assert from 'node:assert/strict'
 import { mkdir } from 'node:fs/promises'
 
+async function checkTransparentLogo(page, compact = false) {
+  const logo = page.getByRole('link', { name: 'Sneepcut', exact: true }).locator('img:visible')
+  assert.equal(await logo.count(), 1)
+  const dark = await page.evaluate(() => document.documentElement.classList.contains('dark'))
+  assert.ok((await logo.getAttribute('src')).includes(compact ? '/logo-icon.svg' : dark ? '/sneepcut-logo-white-text.svg' : '/sneepcut-logo.svg'))
+  const style = await logo.evaluate(element => {
+    const style = getComputedStyle(element.parentElement)
+    return { background: style.backgroundColor, shadow: style.boxShadow }
+  })
+  assert.equal(style.background, 'rgba(0, 0, 0, 0)')
+  assert.equal(style.shadow, 'none')
+}
+
 export async function checkDesktopSidebar(page) {
   await mkdir('test-results/sidebar', { recursive: true })
   await page.goto('http://localhost:3000/dashboard')
@@ -8,6 +21,7 @@ export async function checkDesktopSidebar(page) {
   const sidebar = page.locator('[data-slot="sidebar"][data-state]')
   const container = page.locator('[data-slot="sidebar-container"]')
   const nav = page.getByRole('navigation', { name: 'Dashboard navigation' })
+  await checkTransparentLogo(page)
   assert.equal(await nav.getByRole('link').count(), 11)
   for (const link of await nav.getByRole('link').all()) assert.ok(await link.getAttribute('href'))
   assert.equal(await nav.getByRole('link', { name: 'Home', exact: true }).getAttribute('aria-current'), 'page')
@@ -17,6 +31,7 @@ export async function checkDesktopSidebar(page) {
   await page.waitForFunction(() => document.querySelector('[data-slot="sidebar"][data-state]')?.getAttribute('data-state') === 'collapsed')
   await page.waitForFunction(() => document.querySelector('[data-slot="sidebar-container"]').getBoundingClientRect().width < 90)
   assert.ok((await container.boundingBox()).width < expandedWidth / 2)
+  await checkTransparentLogo(page, true)
   await nav.getByRole('link', { name: 'Clips', exact: true }).hover()
   await page.getByRole('tooltip', { name: 'Clips', exact: true }).waitFor()
   await page.screenshot({ path: 'test-results/sidebar/collapsed.png', fullPage: false })
@@ -32,6 +47,7 @@ export async function checkDesktopSidebar(page) {
   await page.keyboard.press('Control+b')
   await page.waitForFunction(() => document.querySelector('[data-slot="sidebar"][data-state]')?.getAttribute('data-state') === 'expanded')
   // Ctrl+B must remain available to text editors rather than collapsing navigation.
+  await checkTransparentLogo(page)
   await page.evaluate(() => { const input = document.createElement('textarea'); input.id = 'sidebar-shortcut-test'; document.body.append(input); input.focus() })
   await page.keyboard.press('Control+b')
   assert.equal(await sidebar.getAttribute('data-state'), 'expanded')
@@ -46,6 +62,8 @@ export async function checkDesktopSidebar(page) {
   await page.waitForURL('**/dashboard/clips?sidebar-test=1#library')
   await page.getByRole('button', { name: 'Preferences', exact: true }).click()
   await page.getByRole('menuitemradio', { name: 'Dark', exact: true }).click()
+  await page.waitForFunction(() => document.documentElement.classList.contains('dark'))
+  await checkTransparentLogo(page)
   await page.setViewportSize({ width: 1280, height: 600 })
   await page.getByRole('navigation').getByRole('link', { name: 'Settings', exact: true }).scrollIntoViewIfNeeded()
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true)
@@ -62,6 +80,7 @@ export async function checkMobileSidebar(page) {
   await trigger.click()
   const dialog = page.getByRole('dialog', { name: messages.mobileNavigation })
   await dialog.waitFor()
+  await checkTransparentLogo(page)
   assert.equal(await dialog.getByRole('navigation').getByRole('link').count(), 11)
   for (let index = 0; index < 18; index++) {
     await page.keyboard.press('Tab')
@@ -90,5 +109,5 @@ export async function checkMobileSidebar(page) {
   await page.getByRole('button', { name: 'Open navigation', exact: true }).waitFor()
   assert.equal(await page.getByRole('dialog').count(), 0)
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true)
-  console.log('Sidebar Firefox mobile: focus trap, Escape/focus return, close button, navigation auto-close, localized preferences, resize cleanup and tablet overflow passed')
+  console.log(`Sidebar ${process.env.SNEEPCUT_MOBILE_ENGINE ?? 'firefox'} mobile: focus trap, Escape/focus return, close button, navigation auto-close, localized preferences, resize cleanup and tablet overflow passed`)
 }

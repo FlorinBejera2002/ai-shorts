@@ -6,6 +6,7 @@ import { mkdir } from 'node:fs/promises'
 import { pathToFileURL } from 'node:url'
 import bcrypt from 'bcryptjs'
 import { checkDesktopSidebar, checkMobileSidebar } from './sidebar-browser-checks.mjs'
+import { checkAllPages } from './all-pages-browser-checks.mjs'
 
 assert.equal(process.env.SNEEPCUT_BROWSER_MUTATIONS, 'allow-synthetic-account')
 const playwright = await import(pathToFileURL(process.env.SNEEPCUT_PLAYWRIGHT_MODULE).href)
@@ -48,6 +49,17 @@ try {
   assert.equal(await page.getByTestId('range-clips').innerText(), '0')
   await page.getByText('Your next great clip starts here.', { exact: true }).waitFor()
   await page.screenshot({ path: 'test-results/dashboard-design/empty.png', fullPage: true })
+  if (process.env.SNEEPCUT_ALL_PAGES === '1' && process.env.SNEEPCUT_INTERACTIONS_ONLY !== '1') {
+    for (const route of ['review','clips','history','analytics']) {
+      await page.goto(`${origin}/dashboard/${route}`, {waitUntil:'networkidle'})
+      await page.locator('h1').waitFor()
+      assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true)
+      assert.deepEqual(errors, [])
+      await page.screenshot({path:`test-results/dashboard-design/empty-${route}.png`,fullPage:true})
+    }
+    await page.goto(`${origin}/dashboard`, {waitUntil:'networkidle'})
+    console.log('Empty review, library, history and analytics pages passed before fixtures were seeded')
+  }
   // All fixtures are terminal: never enqueue work, render or publish real media.
   sql(`INSERT INTO jobs (id,user_id,source_type,status,progress,num_clips_requested,aspect_ratio,subtitle_style,include_brand,credits_charged,created_at)
     SELECT gen_random_uuid(), '${userId}', 'upload', CASE WHEN n%9=0 THEN 'failed' ELSE 'completed' END,100,5,'9:16','default',false,0,
@@ -88,15 +100,22 @@ try {
   await page.waitForURL('**/dashboard/create')
   assert.deepEqual(errors, [])
   console.log('Chromium: empty/seeded charts, 7/30/90 filters, keyboard, data table, tooltip, both themes, account isolation and create link passed')
-  await checkDesktopSidebar(page)
+  if (process.env.SNEEPCUT_INTERACTIONS_ONLY !== '1') await checkDesktopSidebar(page)
 
-  const firefox = await playwright.firefox.launch({ headless: true, firefoxUserPrefs: { 'network.dns.disableIPv6': true } })
+  if (process.env.SNEEPCUT_INTERACTIONS_ONLY === '1') {
+    await checkAllPages({ chromium: browser, firefox: null, storageState: await context.storageState(), sql, userId })
+  } else {
+  const mobileEngine = process.env.SNEEPCUT_MOBILE_ENGINE ?? 'firefox'
+  assert.ok(['chromium', 'firefox'].includes(mobileEngine))
+  const firefox = await playwright[mobileEngine].launch({ headless: true, firefoxUserPrefs: { 'network.dns.disableIPv6': true } })
   browsers.push(firefox)
   const mobile = await firefox.newContext({ storageState: await context.storageState(), viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' })
   const mobilePage = await mobile.newPage()
   mobilePage.on('pageerror', error => errors.push(error.message))
   await mobilePage.goto(`${origin}/ro/dashboard`)
   await mobilePage.waitForLoadState('networkidle')
+  console.log('Mobile route diagnostic', JSON.stringify({ engine:mobileEngine, url:mobilePage.url(), headings:await mobilePage.locator('h1').allTextContents(), ranges:await mobilePage.locator('[data-testid="studio-dashboard"] button').allTextContents() }))
+  await mobilePage.screenshot({path:'test-results/dashboard-design/mobile-before-filter.png',fullPage:true})
   await mobilePage.getByRole('button', { name: '7 zile', exact: true }).click()
   assert.equal(await mobilePage.getByTestId('range-clips').innerText(), String(clipTotal(7)))
   assert.equal(await mobilePage.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true)
@@ -105,9 +124,13 @@ try {
   await mobilePage.setViewportSize({ width: 768, height: 1024 })
   assert.equal(await mobilePage.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true)
   assert.deepEqual(errors, [])
-  console.log('Firefox: Romanian, mobile/tablet, reduced motion, chart filter and no horizontal overflow passed')
-  await checkMobileSidebar(mobilePage)
+  console.log(`${mobileEngine}: Romanian, mobile/tablet, reduced motion, chart filter and no horizontal overflow passed`)
+  if (process.env.SNEEPCUT_INTERACTIONS_ONLY !== '1') await checkMobileSidebar(mobilePage)
   assert.deepEqual(errors, [])
+  if (process.env.SNEEPCUT_ALL_PAGES === '1') {
+    await checkAllPages({ chromium: browser, firefox, storageState: await context.storageState(), sql, userId })
+  }
+  }
 } finally {
   for (const browser of browsers) await browser.close()
   for (const id of [userId, otherId]) assert.match(id, /^[a-f0-9-]{36}$/)

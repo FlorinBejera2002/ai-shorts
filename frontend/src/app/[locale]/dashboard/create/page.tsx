@@ -1,5 +1,7 @@
 'use client'
 
+import { Card } from '@/components/ui/card'
+
 import { Layers, Link2, Sparkles, Upload, X } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useSearchParams } from 'next/navigation'
@@ -20,6 +22,7 @@ import { SourceUpload } from '@/components/create/source-upload'
 import { SourceYoutube } from '@/components/create/source-youtube'
 import { SummaryCard } from '@/components/create/summary-card'
 import { PageHeader } from '@/components/ui/page-header'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useToast } from '@/components/ui/toast'
 import { useRouter } from '@/i18n/navigation'
 import { extractApiError } from '@/lib/api-error'
@@ -94,6 +97,7 @@ function CreateWorkflow() {
     isSourceMode(requestedMode) ? requestedMode : 'youtube'
   )
   const [uploaded, setUploaded] = useState<UploadedFile | null>(null)
+  const [uploadBusy, setUploadBusy] = useState(false)
   const [youtubeUrl, setYoutubeUrl] = useState('')
   const [batchUrls, setBatchUrls] = useState<string[]>([''])
   const [busy, setBusy] = useState(false)
@@ -167,7 +171,7 @@ function CreateWorkflow() {
     mode === 'youtube'
       ? Boolean(extractYouTubeId(youtubeUrl))
       : mode === 'upload'
-        ? Boolean(uploaded)
+        ? Boolean(uploaded) && !uploadBusy
         : validBatchUrls.length > 0
 
   const jobOptions = useMemo(
@@ -187,6 +191,7 @@ function CreateWorkflow() {
   )
 
   async function createJob() {
+    if (busy || !canGenerate) return
     setBusy(true)
 
     if (mode === 'batch') {
@@ -242,52 +247,55 @@ function CreateWorkflow() {
   }
 
   return (
-    <div className="mt-6 grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_23rem]">
-      <section className="panel animate-slide-up overflow-hidden xl:col-start-1 xl:row-start-1">
+    <div className="mt-6 grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_23rem] xl:grid-rows-[auto_1fr]">
+      <Card
+        as="section"
+        className="block gap-0 py-0 animate-slide-up overflow-hidden xl:col-start-1 xl:row-start-1"
+      >
         <div className="border-b border-border bg-muted/35 px-4 py-4 sm:px-5">
           <StepHeading number={1} title={t('stepSource')} />
         </div>
-        <div className="p-4 sm:p-5">
-          <div
-            role="group"
+        <Tabs
+          value={mode}
+          onValueChange={(value) => {
+            if (isSourceMode(value)) setMode(value)
+          }}
+          className="p-4 sm:p-6"
+        >
+          <TabsList
             aria-label={t('stepSource')}
-            className="grid grid-cols-3 gap-1.5 rounded-xl bg-muted p-1.5"
+            className="grid w-full grid-cols-3"
           >
             {SOURCE_MODES.map(({ id, icon: Icon }) => (
-              <button
+              <TabsTrigger
                 key={id}
-                type="button"
-                aria-pressed={mode === id}
-                onClick={() => setMode(id)}
-                className={`flex min-h-12 items-center justify-center gap-2 rounded-lg border px-2 text-xs font-semibold transition-all sm:px-4 sm:text-sm ${
-                  mode === id
-                    ? 'border-primary/25 bg-card text-primary shadow-sm'
-                    : 'border-transparent text-muted-foreground hover:bg-card/60 hover:text-foreground'
-                }`}
+                value={id}
+                className="min-h-11 px-2 text-xs sm:text-sm"
               >
                 <Icon className="h-4 w-4" strokeWidth={1.75} />
                 <span>{t(id)}</span>
-              </button>
+              </TabsTrigger>
             ))}
-          </div>
-          <div id="create-source-panel">
-            {mode === 'upload' ? (
-              <SourceUpload
-                uploaded={uploaded}
-                onUploaded={(file) => {
-                  setUploaded(file)
-                  if (file) toast.add('success', t('videoUploaded'))
-                }}
-                onError={(message) => toast.add('error', message)}
-              />
-            ) : mode === 'batch' ? (
-              <SourceBatch urls={batchUrls} onChange={setBatchUrls} />
-            ) : (
-              <SourceYoutube url={youtubeUrl} onChange={setYoutubeUrl} />
-            )}
-          </div>
-        </div>
-      </section>
+          </TabsList>
+          <TabsContent value="upload">
+            <SourceUpload
+              onBusyChange={setUploadBusy}
+              uploaded={uploaded}
+              onUploaded={(file) => {
+                setUploaded(file)
+                if (file) toast.add('success', t('videoUploaded'))
+              }}
+              onError={(message) => toast.add('error', message)}
+            />
+          </TabsContent>
+          <TabsContent value="batch">
+            <SourceBatch urls={batchUrls} onChange={setBatchUrls} />
+          </TabsContent>
+          <TabsContent value="youtube">
+            <SourceYoutube url={youtubeUrl} onChange={setYoutubeUrl} />
+          </TabsContent>
+        </Tabs>
+      </Card>
 
       <aside
         className="animate-slide-up space-y-5 xl:sticky xl:top-6 xl:col-start-2 xl:row-span-2 xl:row-start-1"
@@ -300,7 +308,7 @@ function CreateWorkflow() {
 
         {/* AI brief captured by the assistant, sent with the job */}
         {aiInstructions.trim() && (
-          <div className="panel-soft animate-scale-in border-primary/25 bg-primary/5 p-4">
+          <Card className="block gap-0 py-0 animate-scale-in border-primary/25 bg-primary/5 p-4">
             <div className="flex items-start justify-between gap-2">
               <div className="flex items-center gap-1.5">
                 <Sparkles
@@ -323,7 +331,7 @@ function CreateWorkflow() {
             <p className="mt-2 whitespace-pre-wrap text-xs leading-relaxed text-foreground/90">
               {aiInstructions}
             </p>
-          </div>
+          </Card>
         )}
 
         <section className="space-y-3">

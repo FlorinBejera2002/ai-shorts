@@ -1,5 +1,11 @@
 'use client'
 
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { NativeSelect } from '@/components/ui/native-select'
+import { Textarea } from '@/components/ui/textarea'
+
 import type {
   CalendarClipOption,
   ContentPlatform,
@@ -263,7 +269,11 @@ export function PostDialog({
         current.caption ||
         (clip ? captionFromClip(clip, current.platforms) : '')
     }))
-    setErrors((current) => ({ ...current, clipId: undefined, form: undefined }))
+    setErrors((current) => ({
+      ...current,
+      clipId: undefined,
+      form: undefined
+    }))
   }
 
   function validate(): { payload?: PostFormPayload; errors: FormErrors } {
@@ -503,14 +513,15 @@ export function PostDialog({
                   </div>
                 )}
                 <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-                  <button
+                  <Button
                     type="button"
                     disabled={busy}
                     onClick={() => setConfirmDelete(false)}
-                    className="button-secondary"
+                    variant="outline"
+                    className=""
                   >
                     {t('actions.keep')}
-                  </button>
+                  </Button>
                   <button
                     ref={confirmDeleteButtonRef}
                     type="button"
@@ -548,13 +559,13 @@ export function PostDialog({
                   {!isReschedule && (
                     <>
                       <div>
-                        <label
+                        <Label
                           htmlFor={`${titleId}-title`}
                           className="text-xs font-semibold text-foreground"
                         >
                           {t('form.titleLabel')}
-                        </label>
-                        <input
+                        </Label>
+                        <Input
                           ref={titleInputRef}
                           id={`${titleId}-title`}
                           value={form.title}
@@ -626,15 +637,15 @@ export function PostDialog({
 
                       <div className="grid gap-4 sm:grid-cols-2">
                         <div>
-                          <label
+                          <Label
                             htmlFor={`${titleId}-clip`}
                             className="text-xs font-semibold text-foreground"
                           >
                             {t('form.clipLabel')}
-                          </label>
+                          </Label>
                           <div className="relative mt-1.5">
                             <Film className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                            <select
+                            <NativeSelect
                               id={`${titleId}-clip`}
                               value={form.clipId}
                               aria-invalid={Boolean(errors.clipId)}
@@ -654,7 +665,7 @@ export function PostDialog({
                                   {clip.title} · {clip.viralScore}/10
                                 </option>
                               ))}
-                            </select>
+                            </NativeSelect>
                           </div>
                           <FieldError
                             id={`${titleId}-clip-error`}
@@ -662,14 +673,14 @@ export function PostDialog({
                           />
                         </div>
                         <div>
-                          <label
+                          <Label
                             htmlFor={`${titleId}-status`}
                             className="text-xs font-semibold text-foreground"
                           >
                             {t('form.statusLabel')}
-                          </label>
+                          </Label>
                           <div className="relative mt-1.5">
-                            <select
+                            <NativeSelect
                               id={`${titleId}-status`}
                               value={form.status}
                               aria-invalid={Boolean(errors.status)}
@@ -691,7 +702,7 @@ export function PostDialog({
                                   {t(`statuses.${status}`)}
                                 </option>
                               ))}
-                            </select>
+                            </NativeSelect>
                           </div>
                           <FieldError
                             id={`${titleId}-status-error`}
@@ -705,13 +716,13 @@ export function PostDialog({
                   <div>
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label
+                        <Label
                           htmlFor={`${titleId}-date`}
                           className="text-xs font-semibold text-foreground"
                         >
                           {t('form.dateLabel')}
-                        </label>
-                        <input
+                        </Label>
+                        <Input
                           ref={dateInputRef}
                           id={`${titleId}-date`}
                           type="date"
@@ -732,15 +743,15 @@ export function PostDialog({
                         />
                       </div>
                       <div>
-                        <label
+                        <Label
                           htmlFor={`${titleId}-time`}
                           className="text-xs font-semibold text-foreground"
                         >
                           {t('form.timeLabel')}
-                        </label>
+                        </Label>
                         <div className="relative mt-1.5">
                           <Clock3 className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                          <input
+                          <Input
                             id={`${titleId}-time`}
                             type="time"
                             value={form.time}
@@ -770,13 +781,13 @@ export function PostDialog({
                   {!isReschedule && (
                     <>
                       <div>
-                        <label
+                        <Label
                           htmlFor={`${titleId}-caption`}
                           className="text-xs font-semibold text-foreground"
                         >
                           {t('form.captionLabel')}
-                        </label>
-                        <textarea
+                        </Label>
+                        <Textarea
                           id={`${titleId}-caption`}
                           value={form.caption}
                           rows={4}
@@ -804,13 +815,13 @@ export function PostDialog({
                         </div>
                       </div>
                       <div>
-                        <label
+                        <Label
                           htmlFor={`${titleId}-notes`}
                           className="text-xs font-semibold text-foreground"
                         >
                           {t('form.notesLabel')}
-                        </label>
-                        <textarea
+                        </Label>
+                        <Textarea
                           id={`${titleId}-notes`}
                           value={form.notes}
                           rows={2}
@@ -850,18 +861,20 @@ export function PostDialog({
                       {t('actions.delete')}
                     </button>
                   )}
-                  <button
+                  <Button
                     type="button"
                     disabled={busy}
                     onClick={onClose}
-                    className="button-secondary"
+                    variant="outline"
+                    className=""
                   >
                     {t('actions.cancel')}
-                  </button>
-                  <button
+                  </Button>
+                  <Button
                     type="submit"
                     disabled={busy}
-                    className="button-primary disabled:cursor-not-allowed disabled:opacity-60"
+                    variant="default"
+                    className="disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {saving ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
@@ -877,7 +890,7 @@ export function PostDialog({
                         : mode === 'create'
                           ? t('actions.create')
                           : t('actions.save')}
-                  </button>
+                  </Button>
                 </div>
               </form>
             )}

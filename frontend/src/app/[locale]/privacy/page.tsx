@@ -1,4 +1,5 @@
 import { LegalDocument } from '@/components/landing/legal-document'
+import { PublicFooter } from '@/components/landing/public-footer'
 import { PublicNavbar } from '@/components/landing/public-navbar'
 import { PRIVACY_COPY } from '@/lib/legal-content'
 import {
@@ -41,7 +42,7 @@ export default async function PrivacyPage({
   const copy = PRIVACY_COPY[locale]
 
   return (
-    <main className="dark min-h-dvh bg-[#060608] text-white">
+    <main className="min-h-dvh bg-background text-foreground">
       <PublicNavbar
         labels={{
           pricing: t('pricing'),
@@ -50,6 +51,7 @@ export default async function PrivacyPage({
         }}
       />
       <LegalDocument {...copy} contactEmail={getContactEmail()} />
+      <PublicFooter />
     </main>
   )
 }

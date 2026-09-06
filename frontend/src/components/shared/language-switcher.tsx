@@ -1,5 +1,7 @@
 'use client'
 
+import { Button } from '@/components/ui/button'
+
 import { locales } from '@/i18n/config'
 import { usePathname, useRouter } from '@/i18n/navigation'
 import { Check, ChevronDown } from 'lucide-react'
@@ -121,7 +123,8 @@ export function LanguageSwitcher({
 
   return (
     <div ref={rootRef} className="relative">
-      <button
+      <Button
+        variant="ghost"
         ref={triggerRef}
         type="button"
         aria-haspopup="menu"
@@ -152,7 +155,7 @@ export function LanguageSwitcher({
             className={`ml-auto h-3 w-3 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
           />
         )}
-      </button>
+      </Button>
 
       <div
         id={menuId}
@@ -162,7 +165,8 @@ export function LanguageSwitcher({
         className={`absolute right-0 z-[70] overflow-hidden rounded-xl p-1.5 transition-all duration-200 ${variant === 'cinematic' ? 'w-[86px]' : 'left-0 w-full'} ${placement === 'top' ? 'bottom-[calc(100%+8px)] origin-bottom' : 'top-[calc(100%+8px)] origin-top'} ${variant === 'cinematic' ? 'border border-white/10 bg-[#08111f]/95 font-[family-name:var(--font-studio)] shadow-[0_20px_60px_rgba(0,0,0,0.55)] backdrop-blur-2xl' : 'border border-border bg-popover text-popover-foreground shadow-xl'} ${isOpen ? 'visible translate-y-0 scale-100 opacity-100' : `invisible scale-95 opacity-0 ${placement === 'top' ? 'translate-y-1' : '-translate-y-1'}`}`}
       >
         {locales.map((localeOption, index) => (
-          <button
+          <Button
+            variant="ghost"
             ref={(element) => {
               optionRefs.current[index] = element
             }}
@@ -184,7 +188,7 @@ export function LanguageSwitcher({
                 className={`ml-auto h-3.5 w-3.5 ${variant === 'cinematic' ? 'text-[#7aa2ff]' : 'text-primary'}`}
               />
             )}
-          </button>
+          </Button>
         ))}
       </div>
     </div>

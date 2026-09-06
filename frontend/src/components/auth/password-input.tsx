@@ -1,5 +1,8 @@
 'use client'
 
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+
 import { Eye, EyeOff } from 'lucide-react'
 import { useState } from 'react'
 
@@ -28,7 +31,7 @@ export function PasswordInput({
 
   return (
     <div className="relative">
-      <input
+      <Input
         id={id}
         name={name}
         type={visible ? 'text' : 'password'}
@@ -37,17 +40,19 @@ export function PasswordInput({
         autoComplete={autoComplete}
         value={value}
         onChange={onChange}
-        className="w-full rounded-[13px] border border-white/10 bg-white/[0.035] px-4 py-3 pr-11 font-[family-name:var(--font-studio)] text-[13px] text-white outline-none transition-all placeholder:text-white/20 focus:border-violet-300/35 focus:bg-white/[0.05] focus:ring-2 focus:ring-violet-400/10"
+        className="h-11 rounded-lg bg-background pr-12"
       />
-      <button
+      <Button
+        variant="ghost"
+        size="icon"
         type="button"
         onClick={() => setVisible((v) => !v)}
         aria-label={visible ? hideLabel : showLabel}
         title={visible ? hideLabel : showLabel}
-        className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 transition-colors hover:text-white"
+        className="absolute right-1 top-1/2 -translate-y-1/2 text-muted-foreground"
       >
         {visible ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-      </button>
+      </Button>
     </div>
   )
 }

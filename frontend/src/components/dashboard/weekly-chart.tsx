@@ -1,3 +1,4 @@
+import { Card } from '@/components/ui/card'
 import { useTranslations } from 'next-intl'
 
 interface DayData {
@@ -16,7 +17,7 @@ export function WeeklyChart({
   const max = Math.max(...data.map((d) => d.count), 1)
 
   return (
-    <div className="panel p-5 animate-fade-in">
+    <Card className="block gap-0 py-0 p-5 animate-fade-in">
       <h2 className="section-label">{t('weeklyActivity')}</h2>
       <div className="mt-5 flex h-36 items-end justify-between gap-1.5">
         {data.map((day, i) => {
@@ -59,6 +60,6 @@ export function WeeklyChart({
           )
         })}
       </div>
-    </div>
+    </Card>
   )
 }

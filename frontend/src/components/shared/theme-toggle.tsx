@@ -1,5 +1,7 @@
 'use client'
 
+import { Button } from '@/components/ui/button'
+
 import { Monitor, Moon, Sun } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useTheme } from 'next-themes'
@@ -31,7 +33,9 @@ export function ThemeToggle({
       className={`flex rounded-xl p-0.5 ${variant === 'cinematic' ? 'border border-white/[0.09] bg-white/[.035]' : 'border border-border bg-muted/70'}`}
     >
       {MODES.map(({ value, icon: Icon, labelKey }) => (
-        <button
+        <Button
+          variant="ghost"
+          size="icon"
           key={value}
           type="button"
           onClick={() => setTheme(value)}
@@ -49,7 +53,7 @@ export function ThemeToggle({
           title={t(labelKey)}
         >
           <Icon className="h-3.5 w-3.5" />
-        </button>
+        </Button>
       ))}
     </div>
   )

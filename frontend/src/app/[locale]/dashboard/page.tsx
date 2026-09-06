@@ -6,6 +6,7 @@ import { StatsBar } from '@/components/dashboard/stats-bar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
+import { PageHeader } from '@/components/ui/page-header'
 import { Link } from '@/i18n/navigation'
 import { auth } from '@/lib/auth'
 import { getDashboardData } from '@/lib/dashboard-data'
@@ -52,36 +53,26 @@ export default async function DashboardPage({
 
   return (
     <div className="space-y-6" data-testid="studio-dashboard">
-      <header className="flex flex-wrap items-end justify-between gap-5 pb-1">
-        <div>
-          <div className="mb-3 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-            <span className="size-1.5 rounded-full bg-primary" />
-            {s('workspace')}
-            <span className="mx-1 text-border">/</span>
-            {s('overview')}
-          </div>
-          <h1 className="text-3xl font-semibold tracking-[-0.045em] sm:text-4xl">
-            {t('welcomeUser', { name: session?.user?.name || 'empty' })}
-          </h1>
-          <p className="mt-2.5 max-w-xl text-sm text-muted-foreground">
-            {s('subtitle')}
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          <Badge
-            variant="outline"
-            className="rounded-md px-2.5 py-1.5 text-[10px] uppercase tracking-wider"
-          >
-            {metrics.plan}
-          </Badge>
-          <Button asChild={true} className="h-10 gap-2 shadow-sm">
-            <Link href="/dashboard/create">
-              <Plus className="size-4" />
-              {t('newProject')}
-            </Link>
-          </Button>
-        </div>
-      </header>
+      <PageHeader
+        title={t('welcomeUser', { name: session?.user?.name || 'empty' })}
+        description={s('subtitle')}
+        actions={
+          <>
+            <Badge
+              variant="outline"
+              className="rounded-md px-3 py-1.5 text-xs uppercase"
+            >
+              {metrics.plan}
+            </Badge>
+            <Button asChild={true} className="h-10">
+              <Link href="/dashboard/create">
+                <Plus className="size-4" />
+                {t('newProject')}
+              </Link>
+            </Button>
+          </>
+        }
+      />
 
       <StatsBar
         credits={metrics.credits}

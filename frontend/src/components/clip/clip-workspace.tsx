@@ -1,5 +1,11 @@
 'use client'
 
+import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
+
 import { Link, useRouter } from '@/i18n/navigation'
 import {
   Check,
@@ -55,9 +61,15 @@ export function ClipWorkspace({ clip }: ClipWorkspaceProps) {
   const [socialTab, setSocialTab] = useState<
     'tiktok' | 'instagram' | 'youtube'
   >('tiktok')
-  const [trimStart, setTrimStart] = useState(clip.duration > 0 ? 0 : 0)
+  const [trimStart, setTrimStart] = useState(0)
   const [trimEnd, setTrimEnd] = useState(clip.duration)
   const [showTrim, setShowTrim] = useState(false)
+  const validTrim =
+    Number.isFinite(trimStart) &&
+    Number.isFinite(trimEnd) &&
+    trimStart >= 0 &&
+    trimEnd <= clip.duration &&
+    trimEnd - trimStart >= 3
 
   const socialCaptions = {
     tiktok: clip.captionTiktok,
@@ -102,18 +114,28 @@ export function ClipWorkspace({ clip }: ClipWorkspaceProps) {
   }
 
   async function copyCaption() {
-    await navigator.clipboard.writeText(caption)
-    toast.add('success', 'Caption copied')
+    await copyText(caption, 'Caption copied')
   }
 
   async function copyTranscript() {
-    await navigator.clipboard.writeText(transcriptText)
-    toast.add('success', 'Transcript copied')
+    await copyText(transcriptText, 'Transcript copied')
+  }
+
+  async function copyText(text: string, success: string) {
+    try {
+      await navigator.clipboard.writeText(text)
+      toast.add('success', success)
+    } catch {
+      toast.add(
+        'error',
+        'Could not copy. Select the text and copy it manually.'
+      )
+    }
   }
 
   async function trimClip() {
-    if (trimEnd - trimStart < 3) {
-      toast.add('error', 'Trimmed clip must be at least 3 seconds')
+    if (!validTrim) {
+      toast.add('error', 'Choose a range within the clip of at least 3 seconds')
       return
     }
     setBusy('trim')
@@ -178,7 +200,7 @@ export function ClipWorkspace({ clip }: ClipWorkspaceProps) {
       className="space-y-4 animate-slide-up"
       style={{ animationDelay: '100ms' }}
     >
-      <div className="panel p-4">
+      <Card className="block gap-0 py-0 p-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <p className="section-label">Publishing readiness</p>
@@ -235,9 +257,9 @@ export function ClipWorkspace({ clip }: ClipWorkspaceProps) {
             </div>
           ))}
         </div>
-      </div>
+      </Card>
 
-      <div className="panel p-4">
+      <Card className="block gap-0 py-0 p-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <h2 className="section-label text-primary">Edit subtitles</h2>
@@ -246,11 +268,12 @@ export function ClipWorkspace({ clip }: ClipWorkspaceProps) {
               exporting.
             </p>
           </div>
-          <button
+          <Button
             type="button"
             onClick={() => void save()}
             disabled={busy !== null}
-            className="button-primary shrink-0 rounded-lg px-3 py-2 text-xs disabled:opacity-50"
+            variant="default"
+            className="shrink-0 rounded-lg px-3 py-2 text-xs disabled:opacity-50"
           >
             {busy === 'save' ? (
               <Loader2 className="h-3 w-3 animate-spin" />
@@ -258,16 +281,16 @@ export function ClipWorkspace({ clip }: ClipWorkspaceProps) {
               <Save className="h-3 w-3" />
             )}
             Save
-          </button>
+          </Button>
         </div>
-        <label
+        <Label
           className="mt-3 block text-xs text-muted-foreground"
           htmlFor="clip-subtitles"
           style={{ fontFamily: 'var(--font-studio), "Manrope", sans-serif' }}
         >
           Subtitle text / transcript
-        </label>
-        <textarea
+        </Label>
+        <Textarea
           id="clip-subtitles"
           value={transcriptText}
           onChange={(event) => setTranscriptText(event.target.value)}
@@ -281,16 +304,17 @@ export function ClipWorkspace({ clip }: ClipWorkspaceProps) {
           <span>Saved text is used by transcript copy and caption pack.</span>
           <span className="tabular-nums">{transcriptText.length}/20000</span>
         </div>
-      </div>
+      </Card>
 
-      <div className="panel p-4">
+      <Card className="block gap-0 py-0 p-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <h2 className="section-label">Edit metadata</h2>
-          <button
+          <Button
             type="button"
             onClick={() => void save()}
             disabled={busy !== null}
-            className="button-primary rounded-lg px-3 py-2 text-xs disabled:opacity-50"
+            variant="default"
+            className="rounded-lg px-3 py-2 text-xs disabled:opacity-50"
           >
             {busy === 'save' ? (
               <Loader2 className="h-3 w-3 animate-spin" />
@@ -298,30 +322,30 @@ export function ClipWorkspace({ clip }: ClipWorkspaceProps) {
               <Save className="h-3 w-3" />
             )}
             Save
-          </button>
+          </Button>
         </div>
-        <label
+        <Label
           className="mt-3 block text-xs text-muted-foreground"
           htmlFor="clip-title"
           style={{ fontFamily: 'var(--font-studio), "Manrope", sans-serif' }}
         >
           Title
-        </label>
-        <input
+        </Label>
+        <Input
           id="clip-title"
           value={title}
           onChange={(event) => setTitle(event.target.value)}
           maxLength={120}
           className="mt-1 w-full rounded-lg border border-input bg-background px-3 py-2 text-[13px] text-foreground outline-none transition-shadow focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/15"
         />
-        <label
+        <Label
           className="mt-3 block text-xs text-muted-foreground"
           htmlFor="clip-hook"
           style={{ fontFamily: 'var(--font-studio), "Manrope", sans-serif' }}
         >
           Hook
-        </label>
-        <textarea
+        </Label>
+        <Textarea
           id="clip-hook"
           value={hookText}
           onChange={(event) => setHookText(event.target.value)}
@@ -329,40 +353,43 @@ export function ClipWorkspace({ clip }: ClipWorkspaceProps) {
           rows={3}
           className="mt-1 w-full resize-none rounded-lg border border-input bg-background px-3 py-2 text-[13px] text-foreground outline-none transition-shadow focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/15"
         />
-      </div>
+      </Card>
 
-      <div className="panel-soft p-4">
+      <Card className="block gap-0 py-0 p-4">
         <h2 className="section-label">Timeline editor</h2>
         <p className="mt-2 text-xs text-muted-foreground">
           Adjust segment boundaries, reorder clips, and re-export with the
           visual timeline editor.
         </p>
-        <Link
-          href={`/dashboard/clips/${clip.id}/edit`}
-          className="button-primary mt-3 rounded-lg"
-        >
-          <Scissors className="h-3.5 w-3.5" />
-          Edit on timeline →
-        </Link>
-      </div>
+        <Button asChild={true} variant="default">
+          <Link
+            href={`/dashboard/clips/${clip.id}/edit`}
+            className="mt-3 rounded-lg"
+          >
+            <Scissors className="h-3.5 w-3.5" />
+            Edit on timeline →
+          </Link>
+        </Button>
+      </Card>
 
-      <div className="panel p-4">
+      <Card className="block gap-0 py-0 p-4">
         <div className="flex items-center justify-between">
           <h2 className="section-label">Trim clip</h2>
-          <button
+          <Button
             type="button"
             onClick={() => setShowTrim(!showTrim)}
-            className="button-secondary rounded-lg px-3 py-2 text-xs"
+            variant="outline"
+            className="rounded-lg px-3 py-2 text-xs"
           >
             <Scissors className="h-3 w-3" />
             {showTrim ? 'Hide' : 'Edit'}
-          </button>
+          </Button>
         </div>
         {showTrim && (
           <div className="mt-3 space-y-3 animate-slide-down">
             <div className="grid gap-3 sm:grid-cols-2">
               <div>
-                <label
+                <Label
                   className="text-xs text-muted-foreground"
                   htmlFor="trim-start"
                   style={{
@@ -370,8 +397,8 @@ export function ClipWorkspace({ clip }: ClipWorkspaceProps) {
                   }}
                 >
                   Start (s)
-                </label>
-                <input
+                </Label>
+                <Input
                   id="trim-start"
                   type="number"
                   step={0.1}
@@ -383,7 +410,7 @@ export function ClipWorkspace({ clip }: ClipWorkspaceProps) {
                 />
               </div>
               <div>
-                <label
+                <Label
                   className="text-xs text-muted-foreground"
                   htmlFor="trim-end"
                   style={{
@@ -391,8 +418,8 @@ export function ClipWorkspace({ clip }: ClipWorkspaceProps) {
                   }}
                 >
                   End (s)
-                </label>
-                <input
+                </Label>
+                <Input
                   id="trim-end"
                   type="number"
                   step={0.1}
@@ -410,11 +437,12 @@ export function ClipWorkspace({ clip }: ClipWorkspaceProps) {
               </span>
               <span>Original: {clip.duration.toFixed(1)}s</span>
             </div>
-            <button
+            <Button
               type="button"
               onClick={() => void trimClip()}
-              disabled={busy !== null || trimEnd - trimStart < 3}
-              className="button-primary w-full rounded-lg text-xs disabled:opacity-40"
+              disabled={busy !== null || !validTrim}
+              variant="default"
+              className="w-full rounded-lg text-xs disabled:opacity-40"
             >
               {busy === 'trim' ? (
                 <>
@@ -427,39 +455,41 @@ export function ClipWorkspace({ clip }: ClipWorkspaceProps) {
                   Trim &amp; re-export
                 </>
               )}
-            </button>
+            </Button>
           </div>
         )}
-      </div>
+      </Card>
 
-      <div className="panel p-4">
+      <Card className="block gap-0 py-0 p-4">
         <h2 className="section-label">Caption pack</h2>
         <div className="mt-3 rounded-lg bg-muted/70 p-3 text-[13px] leading-relaxed text-foreground">
           {caption}
         </div>
         <div className="mt-3 flex flex-wrap gap-2">
-          <button
+          <Button
             type="button"
             onClick={() => void copyCaption()}
-            className="button-secondary rounded-lg px-3 py-2 text-xs"
+            variant="outline"
+            className="rounded-lg px-3 py-2 text-xs"
           >
             <Clipboard className="h-3 w-3" />
             Copy caption
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
             onClick={() => void copyTranscript()}
             disabled={!transcriptText}
-            className="button-secondary rounded-lg px-3 py-2 text-xs disabled:opacity-40"
+            variant="outline"
+            className="rounded-lg px-3 py-2 text-xs disabled:opacity-40"
           >
             <Clipboard className="h-3 w-3" />
             Copy transcript
-          </button>
+          </Button>
         </div>
-      </div>
+      </Card>
 
       {hasSocialCaptions && (
-        <div className="panel p-4">
+        <Card className="block gap-0 py-0 p-4">
           <h2 className="section-label">AI Social captions</h2>
           <div className="mt-3 flex rounded-lg bg-muted p-1">
             {(['tiktok', 'instagram', 'youtube'] as const).map((tab) => (
@@ -490,21 +520,22 @@ export function ClipWorkspace({ clip }: ClipWorkspaceProps) {
               {clip.suggestedHashtags}
             </p>
           )}
-          <button
+          <Button
             type="button"
             onClick={async () => {
               const text = socialCaptions[socialTab]
               if (text) {
-                await navigator.clipboard.writeText(
+                await copyText(
                   text +
                     (clip.suggestedHashtags
                       ? `\n\n${clip.suggestedHashtags}`
-                      : '')
+                      : ''),
+                  `${socialTab} caption copied`
                 )
-                toast.add('success', `${socialTab} caption copied`)
               }
             }}
-            className="button-secondary mt-2 rounded-lg px-3 py-2 text-xs"
+            variant="outline"
+            className="mt-2 rounded-lg px-3 py-2 text-xs"
           >
             <Clipboard className="h-3 w-3" />
             Copy{' '}
@@ -514,11 +545,11 @@ export function ClipWorkspace({ clip }: ClipWorkspaceProps) {
                 ? 'Instagram'
                 : 'YouTube'}{' '}
             caption
-          </button>
-        </div>
+          </Button>
+        </Card>
       )}
 
-      <div className="panel p-4">
+      <Card className="block gap-0 py-0 p-4">
         <h2 className="section-label">Platform fit</h2>
         <div className="mt-3 space-y-2">
           {platformFit.map((platform) => (
@@ -540,23 +571,23 @@ export function ClipWorkspace({ clip }: ClipWorkspaceProps) {
             </div>
           ))}
         </div>
-      </div>
+      </Card>
 
       <div className="flex flex-wrap gap-2">
         {clip.fileUrl && (
-          <a
-            href={clip.fileUrl}
-            download={true}
-            className="button-primary rounded-lg"
-          >
-            <Download className="w-3.5 h-3.5" />
-            Download
-          </a>
+          <Button asChild={true} variant="default">
+            <a href={clip.fileUrl} download={true} className="rounded-lg">
+              <Download className="w-3.5 h-3.5" />
+              Download
+            </a>
+          </Button>
         )}
-        <Link href="/dashboard/publish" className="button-secondary rounded-lg">
-          <Send className="w-3.5 h-3.5" />
-          Publish
-        </Link>
+        <Button asChild={true} variant="outline">
+          <Link href="/dashboard/publish" className="rounded-lg">
+            <Send className="w-3.5 h-3.5" />
+            Publish
+          </Link>
+        </Button>
         <button
           type="button"
           onClick={() => void deleteClip()}

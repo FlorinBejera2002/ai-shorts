@@ -1,5 +1,10 @@
 'use client'
 
+import { Button } from '@/components/ui/button'
+
+import { Card } from '@/components/ui/card'
+import { Textarea } from '@/components/ui/textarea'
+
 import { Check, Loader2, RotateCcw, Send, Sparkles } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useCallback, useEffect, useRef, useState } from 'react'
@@ -157,7 +162,7 @@ export function AssistantChat({
   }, [historyQuery, t, toast])
 
   return (
-    <div className="panel flex flex-col overflow-hidden">
+    <Card className="block gap-0 py-0 flex flex-col overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between border-b border-border bg-muted/35 px-4 py-3.5">
         <div className="flex items-center gap-2">
@@ -169,14 +174,15 @@ export function AssistantChat({
           </h3>
         </div>
         {messages.length > 0 && (
-          <button
+          <Button
+            variant="ghost"
             type="button"
             onClick={() => void clearHistory()}
             title={t('clear')}
-            className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            className="h-auto whitespace-normal rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
           >
             <RotateCcw className="h-3.5 w-3.5" strokeWidth={1.75} />
-          </button>
+          </Button>
         )}
       </div>
 
@@ -198,14 +204,15 @@ export function AssistantChat({
             </p>
             <div className="grid w-full max-w-lg gap-2 sm:grid-cols-3">
               {suggestions.map((suggestion) => (
-                <button
+                <Button
+                  variant="ghost"
                   key={suggestion}
                   type="button"
                   onClick={() => void send(suggestion)}
-                  className="rounded-lg border border-border bg-background px-3 py-2 text-left text-[11px] leading-relaxed text-muted-foreground transition-colors hover:border-primary/40 hover:bg-primary/5 hover:text-foreground"
+                  className="h-auto whitespace-normal rounded-lg border border-border bg-background px-3 py-2 text-left text-[11px] leading-relaxed text-muted-foreground transition-colors hover:border-primary/40 hover:bg-primary/5 hover:text-foreground"
                 >
                   {suggestion}
-                </button>
+                </Button>
               ))}
             </div>
           </div>
@@ -260,7 +267,7 @@ export function AssistantChat({
 
       {/* Input */}
       <div className="flex items-end gap-2 border-t border-border bg-muted/25 p-3">
-        <textarea
+        <Textarea
           aria-label={t('placeholder')}
           value={input}
           onChange={(e) => setInput(e.target.value)}
@@ -275,21 +282,22 @@ export function AssistantChat({
           maxLength={2000}
           className="max-h-24 min-h-10 flex-1 resize-none rounded-lg border border-input bg-card px-3 py-2 text-[13px] leading-relaxed text-foreground placeholder:text-muted-foreground/55 outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/15"
         />
-        <button
+        <Button
+          variant="ghost"
           type="button"
           onClick={() => void send(input)}
           disabled={!input.trim() || busy}
           title={t('send')}
           aria-label={t('send')}
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground transition-all hover:-translate-y-0.5 hover:opacity-90 disabled:translate-y-0 disabled:cursor-not-allowed disabled:opacity-40"
+          className="h-auto whitespace-normal flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground transition-all hover:-translate-y-0.5 hover:opacity-90 disabled:translate-y-0 disabled:cursor-not-allowed disabled:opacity-40"
         >
           {busy ? (
             <Loader2 className="h-4 w-4 animate-spin" />
           ) : (
             <Send className="h-4 w-4" strokeWidth={1.75} />
           )}
-        </button>
+        </Button>
       </div>
-    </div>
+    </Card>
   )
 }

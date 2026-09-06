@@ -1,5 +1,11 @@
 'use client'
 
+import { Button } from '@/components/ui/button'
+
+import { Card } from '@/components/ui/card'
+import { PageHeader } from '@/components/ui/page-header'
+import { Progress } from '@/components/ui/progress'
+
 import { Link } from '@/i18n/navigation'
 import { AlertCircle, ArrowRight, Check } from 'lucide-react'
 import { useTranslations } from 'next-intl'
@@ -26,6 +32,7 @@ export default function JobProgressPage() {
   const t = useTranslations('jobProgress')
   const [status, setStatus] = useState<JobStatus | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [retry, setRetry] = useState(0)
 
   const steps = [
     { key: 'pending', label: t('stepQueued') },
@@ -37,10 +44,14 @@ export default function JobProgressPage() {
     { key: 'completed', label: t('stepDone') }
   ]
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: retry deliberately restarts polling after a failed request.
   useEffect(() => {
     let active = true
     let errorCount = 0
     let timer: ReturnType<typeof setTimeout>
+    const controller = new AbortController()
+    setStatus(null)
+    setError(null)
 
     function scheduleNextPoll() {
       if (active) timer = setTimeout(() => void poll(), 5000)
@@ -48,7 +59,10 @@ export default function JobProgressPage() {
 
     async function poll() {
       try {
-        const res = await fetch(`/api/jobs/${params.id}`, { cache: 'no-store' })
+        const res = await fetch(`/api/jobs/${params.id}`, {
+          cache: 'no-store',
+          signal: controller.signal
+        })
         const data = await res.json()
         if (!active) return
         if (!res.ok) {
@@ -62,7 +76,10 @@ export default function JobProgressPage() {
                     .join('; ')
                 : data.error
           errorCount++
-          if (errorCount >= 5) {
+          if (
+            [400, 401, 403, 404, 422].includes(res.status) ||
+            errorCount >= 5
+          ) {
             setError(msg || '__loadError')
             return
           }
@@ -94,41 +111,43 @@ export default function JobProgressPage() {
     void poll()
     return () => {
       active = false
+      controller.abort()
       clearTimeout(timer)
     }
-  }, [params.id])
+  }, [params.id, retry])
 
   const progress = status?.celery_meta?.progress ?? status?.job.progress ?? 0
-  const message =
-    status?.celery_meta?.message ??
-    status?.job.progress_message ??
-    t('waitingWorker')
   const currentStep = status?.job.status ?? 'pending'
   const currentIdx = steps.findIndex((s) => s.key === currentStep)
   const isDone = currentStep === 'completed'
   const isFailed = currentStep === 'failed'
+  const isCancelled = currentStep === 'cancelled'
+  const message = isCancelled
+    ? t('cancelledTitle')
+    : isFailed
+      ? t('failedTitle')
+      : isDone
+        ? t('doneTitle')
+        : (status?.celery_meta?.message ??
+          status?.job.progress_message ??
+          t('waitingWorker'))
 
   return (
-    <div className="max-w-3xl animate-fade-in">
-      <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-xl font-semibold tracking-tight text-foreground">
-            {t('title')}
-          </h1>
-          <p className="mt-0.5 text-xs text-muted-foreground">
-            {t('subtitle')}
-          </p>
-        </div>
-        {isDone && (
-          <Link
-            href="/dashboard/clips"
-            className="button-primary self-start rounded-lg sm:self-auto"
-          >
-            {t('viewClips')}
-            <ArrowRight className="w-4 h-4" strokeWidth={1.75} />
-          </Link>
-        )}
-      </div>
+    <div className="mx-auto max-w-5xl animate-fade-in">
+      <PageHeader
+        title={t('title')}
+        description={t('subtitle')}
+        actions={
+          isDone ? (
+            <Button asChild={true} variant="default">
+              <Link href="/dashboard/clips" className="">
+                {t('viewClips')}
+                <ArrowRight className="size-4" />
+              </Link>
+            </Button>
+          ) : undefined
+        }
+      />
 
       {/* Error banner */}
       {error && (
@@ -145,12 +164,19 @@ export default function JobProgressPage() {
                   ? t('connectionLost')
                   : error}
             </p>
+            <Button
+              variant="outline"
+              className="mt-3"
+              onClick={() => setRetry((value) => value + 1)}
+            >
+              {t('retry')}
+            </Button>
           </div>
         </div>
       )}
 
       {/* Progress info */}
-      <div className="panel mb-6 p-5 sm:p-6">
+      <Card className="block gap-0 py-0 mb-6 p-5 sm:p-6">
         <div className="mb-4 flex items-start justify-between gap-4">
           <div>
             <p
@@ -159,7 +185,7 @@ export default function JobProgressPage() {
             >
               {message}
             </p>
-            {!isDone && !isFailed && (
+            {status && !error && !isDone && !isFailed && !isCancelled && (
               <p className="mt-1 text-xs text-muted-foreground">
                 {t('eta', { min: Math.max(1, 5 - Math.floor(progress / 20)) })}
               </p>
@@ -174,25 +200,15 @@ export default function JobProgressPage() {
             <span className="text-sm font-medium text-muted-foreground">%</span>
           </div>
         </div>
-        <div
-          className="h-2 overflow-hidden rounded-full bg-muted"
-          role="progressbar"
+        <Progress
+          value={progress}
           aria-label={message}
-          aria-valuemin={0}
-          aria-valuemax={100}
-          aria-valuenow={Math.min(100, Math.max(0, progress))}
-        >
-          <div
-            className={`h-full rounded-full transition-[width] duration-500 ${isDone ? 'bg-success' : 'bg-primary'}`}
-            style={{
-              width: `${Math.min(100, Math.max(0, progress))}%`
-            }}
-          />
-        </div>
-      </div>
+          className={isDone ? '[&>div]:bg-success' : undefined}
+        />
+      </Card>
 
       {/* Stepper */}
-      <div className="panel p-4 sm:p-6">
+      <Card className="block gap-0 py-0 p-4 sm:p-6">
         <div className="relative">
           {/* Connecting line */}
           <div className="pointer-events-none absolute left-3 right-3 top-5 hidden h-px bg-border lg:block" />
@@ -249,10 +265,10 @@ export default function JobProgressPage() {
             })}
           </div>
         </div>
-      </div>
+      </Card>
 
       {/* Failed state */}
-      {isFailed && status?.job.error_message && (
+      {isFailed && (
         <div className="mt-6 animate-slide-up rounded-xl border border-destructive/30 bg-destructive/5 p-5 shadow-lg shadow-destructive/5">
           <div className="flex items-start gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-destructive/10 shrink-0">
@@ -266,7 +282,7 @@ export default function JobProgressPage() {
                 {t('failedTitle')}
               </p>
               <p className="mt-1 text-xs text-muted-foreground">
-                {status.job.error_message}
+                {status?.job.error_message}
               </p>
             </div>
           </div>
@@ -274,6 +290,15 @@ export default function JobProgressPage() {
       )}
 
       {/* Success state */}
+      {isCancelled && (
+        <Card className="mt-6 p-5" role="status">
+          <p className="font-semibold">{t('cancelledTitle')}</p>
+          <p className="text-sm text-muted-foreground">{t('cancelledDesc')}</p>
+          <Button asChild={true} variant="outline">
+            <Link href="/dashboard/create">{t('newProject')}</Link>
+          </Button>
+        </Card>
+      )}
       {isDone && (
         <div className="mt-6 animate-scale-in rounded-xl border border-success/30 bg-success/5 p-5 shadow-lg shadow-success/5">
           <div className="flex items-start gap-3">

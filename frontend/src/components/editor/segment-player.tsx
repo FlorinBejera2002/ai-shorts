@@ -1,5 +1,8 @@
 'use client'
 
+import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
+
 import {
   Pause,
   Play,
@@ -249,7 +252,7 @@ export const SegmentPlayer = forwardRef<
   }, [rateIndex])
 
   return (
-    <div className="overflow-hidden rounded-xl border border-border bg-card">
+    <Card className="block gap-0 py-0 overflow-hidden rounded-xl border border-border bg-card">
       <div className="relative aspect-video bg-black">
         <video
           ref={videoRef}
@@ -278,64 +281,70 @@ export const SegmentPlayer = forwardRef<
       </div>
 
       {/* Controls */}
-      <div className="flex items-center gap-1.5 border-t border-border px-3 py-2">
-        <button
+      <div className="flex flex-wrap items-center gap-1.5 border-t border-border px-3 py-2">
+        <Button
+          variant="ghost"
           type="button"
           onClick={() => jumpToBoundary('prev')}
           title={t('prevBoundary')}
-          className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          className="h-auto whitespace-normal rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
         >
           <SkipBack className="h-4 w-4" strokeWidth={1.75} />
-        </button>
-        <button
+        </Button>
+        <Button
+          variant="ghost"
           type="button"
           onClick={togglePlay}
           title={t('playPause')}
-          className="rounded-md bg-primary p-2 text-primary-foreground transition-opacity hover:opacity-90"
+          className="h-auto whitespace-normal rounded-md bg-primary p-2 text-primary-foreground transition-opacity hover:opacity-90"
         >
           {isPlaying ? (
             <Pause className="h-4 w-4" strokeWidth={1.75} />
           ) : (
             <Play className="h-4 w-4" strokeWidth={1.75} />
           )}
-        </button>
-        <button
+        </Button>
+        <Button
+          variant="ghost"
           type="button"
           onClick={() => jumpToBoundary('next')}
           title={t('nextBoundary')}
-          className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          className="h-auto whitespace-normal rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
         >
           <SkipForward className="h-4 w-4" strokeWidth={1.75} />
-        </button>
+        </Button>
 
         <span className="ml-2 text-xs tabular-nums text-muted-foreground">
           {formatClock(clock.current)}
           <span className="mx-1 text-muted-foreground/50">/</span>
-          {formatClock(clock.total)}
+          {formatClock(segmentMode ? totalSegmentDuration : clock.total)}
         </span>
 
         <div className="ml-auto flex items-center gap-1.5">
-          <button
+          <Button
+            variant="ghost"
             type="button"
             onClick={cycleRate}
             title={t('playbackRate')}
-            className="min-w-11 rounded-md border border-border px-2 py-1 text-[11px] font-semibold tabular-nums text-muted-foreground transition-colors hover:text-foreground"
+            className="h-auto whitespace-normal min-w-11 rounded-md border border-border px-2 py-1 text-[11px] font-semibold tabular-nums text-muted-foreground transition-colors hover:text-foreground"
           >
             {PLAYBACK_RATES[rateIndex]}×
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="ghost"
             type="button"
             onClick={() => setMuted(!muted)}
             title={muted ? t('unmute') : t('mute')}
-            className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            className="h-auto whitespace-normal rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
           >
             {muted ? (
               <VolumeX className="h-4 w-4" strokeWidth={1.75} />
             ) : (
               <Volume2 className="h-4 w-4" strokeWidth={1.75} />
             )}
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="ghost"
             type="button"
             onClick={() => setSegmentMode(!segmentMode)}
             className={`rounded-md border px-2.5 py-1 text-[11px] font-medium transition-colors ${
@@ -345,9 +354,9 @@ export const SegmentPlayer = forwardRef<
             }`}
           >
             {segmentMode ? t('playSegments') : t('playAll')}
-          </button>
+          </Button>
         </div>
       </div>
-    </div>
+    </Card>
   )
 })

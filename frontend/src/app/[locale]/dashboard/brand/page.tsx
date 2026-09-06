@@ -1,5 +1,13 @@
 'use client'
 
+import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { NativeSelect } from '@/components/ui/native-select'
+import { Slider } from '@/components/ui/slider'
+import { Switch as ShadcnSwitch } from '@/components/ui/switch'
+
 import { PageHeader } from '@/components/ui/page-header'
 import { useToast } from '@/components/ui/toast'
 import { Link } from '@/i18n/navigation'
@@ -156,9 +164,9 @@ function ColorField({
 
   return (
     <div>
-      <label className="text-xs text-muted-foreground" htmlFor={id}>
+      <Label className="text-xs text-muted-foreground" htmlFor={id}>
         {label}
-      </label>
+      </Label>
       <div className="mt-1 flex items-center gap-1.5">
         <input
           id={id}
@@ -167,7 +175,7 @@ function ColorField({
           onChange={(e) => onChange(e.target.value)}
           className="h-10 w-11 shrink-0 cursor-pointer rounded-lg border border-input bg-transparent p-0.5"
         />
-        <input
+        <Input
           type="text"
           aria-label={`${label} HEX`}
           value={value}
@@ -181,27 +189,29 @@ function ColorField({
           }`}
         />
         {supportsEyeDropper && (
-          <button
+          <Button
+            variant="ghost"
             type="button"
             title="Pick color from screen"
             onClick={() => void pickColor()}
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-border bg-card text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            className="h-auto whitespace-normal flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-border bg-card text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
           >
             <Pipette className="w-3.5 h-3.5" />
-          </button>
+          </Button>
         )}
-        <button
+        <Button
+          variant="ghost"
           type="button"
           title="Copy hex code"
           onClick={() => void copyHex()}
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-border bg-card text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          className="h-auto whitespace-normal flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-border bg-card text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
         >
           {copied ? (
             <Check className="h-3.5 w-3.5 text-success" />
           ) : (
             <Copy className="w-3.5 h-3.5" />
           )}
-        </button>
+        </Button>
       </div>
       {showError && (
         <p className="mt-1 text-[11px] text-destructive">
@@ -224,23 +234,12 @@ function Switch({
   label: string
 }) {
   return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={checked}
+    <ShadcnSwitch
+      checked={checked}
       aria-label={label}
       disabled={disabled}
-      onClick={() => onChange(!checked)}
-      className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${
-        checked ? 'bg-primary' : 'bg-muted'
-      } ${disabled ? 'cursor-not-allowed opacity-50' : ''}`}
-    >
-      <span
-        className={`absolute left-0.5 top-0.5 h-5 w-5 rounded-full border border-border/70 shadow-sm transition-all ${
-          checked ? 'bg-primary-foreground' : 'bg-card'
-        } ${checked ? 'translate-x-5' : 'translate-x-0'}`}
-      />
-    </button>
+      onCheckedChange={onChange}
+    />
   )
 }
 
@@ -403,22 +402,24 @@ export default function BrandPage() {
         description={t('desc')}
         actions={
           <div className="flex flex-wrap gap-2">
-            <button
+            <Button
               type="button"
               onClick={() =>
                 setKit((prev) => ({ ...DEFAULTS, logoUrl: prev.logoUrl }))
               }
-              className="button-secondary rounded-lg"
+              variant="outline"
+              className="rounded-lg"
             >
               <RotateCcw className="w-3.5 h-3.5" />
               {common('reset')}
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
               onClick={() => void save()}
               disabled={saving || hasInvalidColor}
               title={hasInvalidColor ? t('fixColors') : undefined}
-              className="button-primary rounded-lg disabled:opacity-50"
+              variant="default"
+              className="rounded-lg disabled:opacity-50"
             >
               {saving ? (
                 <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -428,14 +429,14 @@ export default function BrandPage() {
                 <Save className="w-3.5 h-3.5" />
               )}
               {saved ? common('saved') : common('save')}
-            </button>
+            </Button>
           </div>
         }
       />
 
       <div className="mt-8 grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
         <div className="grid w-full items-start gap-4 lg:grid-cols-2">
-          <section className="panel space-y-4 p-5">
+          <Card as="section" className="block gap-0 py-0 space-y-4 p-5">
             <div className="flex items-center gap-2">
               <ImagePlus className="h-4 w-4 text-primary" />
               <h2 className="section-label">{t('logo')}</h2>
@@ -464,28 +465,31 @@ export default function BrandPage() {
                   />
                 </div>
                 <div className="flex flex-col gap-1.5">
-                  <button
+                  <Button
                     type="button"
                     disabled={logoBusy}
                     onClick={() => fileInputRef.current?.click()}
-                    className="button-secondary min-h-9 rounded-lg px-3 text-[11px] disabled:opacity-50"
+                    variant="outline"
+                    className="min-h-9 rounded-lg px-3 text-[11px] disabled:opacity-50"
                   >
                     <Upload className="w-3 h-3" />
                     {t('replace')}
-                  </button>
-                  <button
+                  </Button>
+                  <Button
+                    variant="ghost"
                     type="button"
                     disabled={logoBusy}
                     onClick={() => void removeLogo()}
-                    className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-destructive/30 px-3 text-[11px] font-semibold text-destructive transition-colors hover:bg-destructive/10 disabled:opacity-50"
+                    className="h-auto whitespace-normal inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-destructive/30 px-3 text-[11px] font-semibold text-destructive transition-colors hover:bg-destructive/10 disabled:opacity-50"
                   >
                     <Trash2 className="w-3 h-3" />
                     {t('remove')}
-                  </button>
+                  </Button>
                 </div>
               </div>
             ) : (
-              <button
+              <Button
+                variant="ghost"
                 type="button"
                 disabled={logoBusy}
                 onClick={() => fileInputRef.current?.click()}
@@ -495,7 +499,7 @@ export default function BrandPage() {
                 }}
                 onDragLeave={() => setDragActive(false)}
                 onDrop={handleLogoDrop}
-                className={`flex w-full flex-col items-center justify-center gap-1.5 rounded-lg border-2 border-dashed px-4 py-6 text-center transition-colors ${
+                className={`flex h-auto min-h-32 w-full whitespace-normal flex-col items-center justify-center gap-1.5 rounded-lg border-2 border-dashed px-4 py-6 text-center transition-colors ${
                   dragActive
                     ? 'border-primary bg-primary/5'
                     : 'border-input hover:bg-muted/70'
@@ -510,38 +514,40 @@ export default function BrandPage() {
                 <span className="text-[11px] text-muted-foreground">
                   {t('logoFormats')}
                 </span>
-              </button>
+              </Button>
             )}
-          </section>
+          </Card>
 
-          <section className="panel space-y-4 p-5">
+          <Card as="section" className="block gap-0 py-0 space-y-4 p-5">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Palette className="h-4 w-4 text-primary" />
                 <h2 className="section-label">{t('colors')}</h2>
               </div>
-              <button
+              <Button
+                variant="ghost"
                 type="button"
                 onClick={swapColors}
                 title={t('swap')}
-                className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                className="h-auto whitespace-normal inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
               >
                 <ArrowLeftRight className="w-3.5 h-3.5" />
                 {t('swap')}
-              </button>
+              </Button>
             </div>
 
             <div>
-              <label className="text-xs text-muted-foreground">
+              <Label className="text-xs text-muted-foreground">
                 {t('palettePresets')}
-              </label>
+              </Label>
               <div className="mt-1.5 flex flex-wrap gap-2">
                 {PALETTES.map((p) => {
                   const active =
                     sameColor(kit.primaryColor, p.primary) &&
                     sameColor(kit.secondaryColor, p.secondary)
                   return (
-                    <button
+                    <Button
+                      variant="ghost"
                       key={p.name}
                       type="button"
                       title={p.name}
@@ -564,7 +570,7 @@ export default function BrandPage() {
                       {active && (
                         <Check className="absolute inset-0 m-auto w-3.5 h-3.5 text-white drop-shadow" />
                       )}
-                    </button>
+                    </Button>
                   )
                 })}
               </div>
@@ -586,13 +592,13 @@ export default function BrandPage() {
             </div>
 
             <div>
-              <label
+              <Label
                 className="text-xs text-muted-foreground"
                 htmlFor="font-family"
               >
                 {t('fontFamily')}
-              </label>
-              <select
+              </Label>
+              <NativeSelect
                 id="font-family"
                 value={kit.fontFamily}
                 onChange={(e) => update('fontFamily', e.target.value)}
@@ -603,11 +609,14 @@ export default function BrandPage() {
                     {f}
                   </option>
                 ))}
-              </select>
+              </NativeSelect>
             </div>
-          </section>
+          </Card>
 
-          <section className="panel space-y-4 p-5 lg:col-span-2">
+          <Card
+            as="section"
+            className="block gap-0 py-0 space-y-4 p-5 lg:col-span-2"
+          >
             <div className="flex items-center gap-2">
               <Captions className="h-4 w-4 text-primary" />
               <h2 className="section-label">{t('subtitleStyle')}</h2>
@@ -631,13 +640,13 @@ export default function BrandPage() {
                 </div>
 
                 <div>
-                  <label
+                  <Label
                     className="text-xs text-muted-foreground"
                     htmlFor="sub-font"
                   >
                     {t('subtitleFont')}
-                  </label>
-                  <select
+                  </Label>
+                  <NativeSelect
                     id="sub-font"
                     value={kit.subtitleFont}
                     onChange={(e) => update('subtitleFont', e.target.value)}
@@ -648,7 +657,7 @@ export default function BrandPage() {
                         {f}
                       </option>
                     ))}
-                  </select>
+                  </NativeSelect>
                 </div>
               </div>
 
@@ -662,30 +671,30 @@ export default function BrandPage() {
                       {Math.round(kit.subtitleBgOpacity * 100)}%
                     </span>
                   </div>
-                  <input
-                    type="range"
+                  <Slider
                     aria-label={t('bgOpacity')}
                     min={0}
                     max={100}
-                    value={Math.round(kit.subtitleBgOpacity * 100)}
-                    onChange={(e) =>
-                      update('subtitleBgOpacity', Number(e.target.value) / 100)
-                    }
+                    value={[Math.round(kit.subtitleBgOpacity * 100)]}
+                    onValueChange={([
+                      value = Math.round(kit.subtitleBgOpacity * 100)
+                    ]) => update('subtitleBgOpacity', value / 100)}
                     className="mt-1 w-full"
                   />
                 </div>
 
                 <div>
-                  <label className="text-xs text-muted-foreground">
+                  <Label className="text-xs text-muted-foreground">
                     {t('position')}
-                  </label>
+                  </Label>
                   <div className="mt-1 grid grid-cols-3 gap-1.5">
                     {SUBTITLE_POSITIONS.map(({ value, icon: Icon }) => (
-                      <button
+                      <Button
+                        variant="ghost"
                         key={value}
                         type="button"
                         onClick={() => update('subtitlePosition', value)}
-                        className={`flex flex-col items-center gap-1 rounded-lg px-3 py-2 text-xs font-medium transition-all ${
+                        className={`flex h-auto min-h-12 flex-col items-center gap-1 rounded-lg px-3 py-2 text-xs font-medium transition-all ${
                           kit.subtitlePosition === value
                             ? 'bg-primary text-primary-foreground shadow-sm'
                             : 'bg-muted text-muted-foreground hover:text-foreground'
@@ -693,15 +702,18 @@ export default function BrandPage() {
                       >
                         <Icon className="w-3.5 h-3.5" />
                         {t(value as 'top' | 'center' | 'bottom')}
-                      </button>
+                      </Button>
                     ))}
                   </div>
                 </div>
               </div>
             </div>
-          </section>
+          </Card>
 
-          <section className="panel space-y-4 p-5 lg:col-span-2">
+          <Card
+            as="section"
+            className="block gap-0 py-0 space-y-4 p-5 lg:col-span-2"
+          >
             <div className="flex items-center gap-2">
               <Stamp className="h-4 w-4 text-primary" />
               <h2 className="section-label">{t('watermark')}</h2>
@@ -712,12 +724,13 @@ export default function BrandPage() {
 
             <div className="grid gap-4 sm:grid-cols-3">
               <div>
-                <label className="text-xs text-muted-foreground">
+                <Label className="text-xs text-muted-foreground">
                   {t('position')}
-                </label>
+                </Label>
                 <div className="mt-1 grid grid-cols-2 gap-1.5">
                   {WATERMARK_POSITIONS.map(({ value, label, icon: Icon }) => (
-                    <button
+                    <Button
+                      variant="ghost"
                       key={value}
                       type="button"
                       onClick={() => update('watermarkPosition', value)}
@@ -729,7 +742,7 @@ export default function BrandPage() {
                     >
                       <Icon className="w-3.5 h-3.5" />
                       {t(label)}
-                    </button>
+                    </Button>
                   ))}
                 </div>
               </div>
@@ -743,20 +756,19 @@ export default function BrandPage() {
                     {Math.round(kit.watermarkOpacity * 100)}%
                   </span>
                 </div>
-                <input
-                  type="range"
+                <Slider
                   aria-label={t('opacity')}
                   min={10}
                   max={100}
-                  value={Math.round(kit.watermarkOpacity * 100)}
-                  onChange={(e) =>
-                    update('watermarkOpacity', Number(e.target.value) / 100)
-                  }
+                  value={[Math.round(kit.watermarkOpacity * 100)]}
+                  onValueChange={([
+                    value = Math.round(kit.watermarkOpacity * 100)
+                  ]) => update('watermarkOpacity', value / 100)}
                   className="mt-3 w-full"
                 />
               </div>
 
-              <div className="panel-soft p-3">
+              <Card className="block gap-0 py-0 p-3">
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-1.5 text-xs font-medium">
                     {!canWhiteLabel && (
@@ -783,13 +795,13 @@ export default function BrandPage() {
                     <ArrowUpRight className="w-3 h-3" />
                   </Link>
                 )}
-              </div>
+              </Card>
             </div>
-          </section>
+          </Card>
         </div>
 
         <aside className="w-full xl:sticky xl:top-6">
-          <div className="panel p-5">
+          <Card className="block gap-0 py-0 p-5">
             <div className="mb-4">
               <p className="section-label">{t('preview')}</p>
               <p className="mt-1 text-xs text-muted-foreground">
@@ -861,7 +873,7 @@ export default function BrandPage() {
                 )}
               </div>
             </div>
-          </div>
+          </Card>
         </aside>
       </div>
     </div>

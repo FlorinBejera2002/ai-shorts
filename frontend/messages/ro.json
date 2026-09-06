@@ -542,6 +542,10 @@
     }
   },
   "jobProgress": {
+    "cancelledTitle": "Procesare anulată",
+    "cancelledDesc": "Acest proiect a fost oprit. Poți începe un proiect nou când ești pregătit.",
+    "retry": "Încearcă din nou",
+    "newProject": "Proiect nou",
     "title": "Se procesează videoclipul",
     "subtitle": "Majoritatea videoclipurilor se procesează în 2–5 minute",
     "viewClips": "Vezi clipurile",

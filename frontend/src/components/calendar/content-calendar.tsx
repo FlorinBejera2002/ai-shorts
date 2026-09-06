@@ -1,5 +1,10 @@
 'use client'
 
+import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
+import { Label } from '@/components/ui/label'
+import { NativeSelect } from '@/components/ui/native-select'
+
 import { PageHeader } from '@/components/ui/page-header'
 import { useToast } from '@/components/ui/toast'
 import type {
@@ -130,16 +135,19 @@ function CalendarSkeleton() {
     <div aria-label={t('loading')} className="mt-7 space-y-4" aria-busy="true">
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {Array.from({ length: 4 }, (_, index) => (
-          <div key={index} className="panel-soft flex items-center gap-3 p-4">
+          <Card
+            key={index}
+            className="block gap-0 py-0 flex items-center gap-3 p-4"
+          >
             <div className="skeleton h-10 w-10 rounded-xl" />
             <div className="flex-1 space-y-2">
               <div className="skeleton h-2.5 w-2/3" />
               <div className="skeleton h-6 w-12" />
             </div>
-          </div>
+          </Card>
         ))}
       </div>
-      <div className="panel overflow-hidden p-4 sm:p-5">
+      <Card className="block gap-0 py-0 overflow-hidden p-4 sm:p-5">
         <div className="flex items-center justify-between gap-4">
           <div className="skeleton h-10 w-40" />
           <div className="skeleton h-10 w-52" />
@@ -154,7 +162,7 @@ function CalendarSkeleton() {
             </div>
           ))}
         </div>
-      </div>
+      </Card>
     </div>
   )
 }
@@ -164,7 +172,6 @@ function Metrics({
   month
 }: { posts: ScheduledPostRecord[]; month: Date }) {
   const t = useTranslations('contentCalendar')
-  const reduceMotion = useReducedMotion()
   const monthPosts = posts.filter((post) => {
     const date = new Date(post.scheduledAt)
     return (
@@ -205,19 +212,12 @@ function Metrics({
       aria-label={t('metrics.label')}
       className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4"
     >
-      {items.map((item, index) => {
+      {items.map((item) => {
         const Icon = item.icon
         return (
-          <motion.div
+          <Card
             key={item.label}
-            initial={reduceMotion ? false : { opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={
-              reduceMotion
-                ? { duration: 0 }
-                : { delay: index * 0.04, duration: 0.28 }
-            }
-            className="panel-soft flex min-w-0 items-center gap-3 p-4"
+            className="flex min-w-0 flex-row items-center gap-4 p-5 shadow-none"
           >
             <span
               className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${item.className}`}
@@ -230,7 +230,7 @@ function Metrics({
                 {item.value}
               </p>
             </div>
-          </motion.div>
+          </Card>
         )
       })}
     </section>
@@ -481,7 +481,11 @@ function Agenda({
   )
 
   return (
-    <section aria-labelledby="selected-day-agenda" className="panel p-4 sm:p-5">
+    <Card
+      as="section"
+      aria-labelledby="selected-day-agenda"
+      className="block gap-0 py-0 p-4 sm:p-5"
+    >
       <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border pb-4">
         <div>
           <p className="section-label">{t('agenda.eyebrow')}</p>
@@ -495,10 +499,10 @@ function Agenda({
             {t('postCount', { count: posts.length })}
           </p>
         </div>
-        <button type="button" onClick={onCreate} className="button-secondary">
+        <Button type="button" onClick={onCreate} variant="outline" className="">
           <Plus className="h-4 w-4" />
           {t('actions.addToDay')}
-        </button>
+        </Button>
       </div>
 
       {posts.length === 0 ? (
@@ -526,14 +530,15 @@ function Agenda({
               {t('actions.clearFilters')}
             </button>
           ) : (
-            <button
+            <Button
               type="button"
               onClick={onCreate}
-              className="button-primary mt-5"
+              variant="default"
+              className="mt-5"
             >
               <Plus className="h-4 w-4" />
               {t('actions.create')}
-            </button>
+            </Button>
           )}
         </div>
       ) : (
@@ -622,7 +627,7 @@ function Agenda({
           ))}
         </div>
       )}
-    </section>
+    </Card>
   )
 }
 
@@ -855,15 +860,16 @@ export function ContentCalendar() {
         title={t('title')}
         description={t('description')}
         actions={
-          <button
+          <Button
             type="button"
             disabled={!ready}
             onClick={() => setDialog({ mode: 'create' })}
-            className="button-primary disabled:cursor-not-allowed disabled:opacity-60"
+            variant="default"
+            className="disabled:cursor-not-allowed disabled:opacity-60"
           >
             <Plus className="h-4 w-4" />
             {t('actions.newPost')}
-          </button>
+          </Button>
         }
       />
 
@@ -902,42 +908,46 @@ export function ContentCalendar() {
             </div>
           )}
 
-          <section
+          <Card
+            as="section"
             aria-label={t('calendarSectionLabel')}
             aria-busy={loading}
-            className="panel overflow-hidden"
+            className="block gap-0 py-0 overflow-hidden"
           >
             <div className="border-b border-border p-4 sm:p-5">
               <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
                 <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-start">
-                  <button
+                  <Button
+                    variant="outline"
                     type="button"
                     onClick={() => navigateMonth(-1)}
                     aria-label={t('actions.previousMonth')}
                     className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-border bg-card text-muted-foreground transition-colors hover:border-input hover:bg-muted hover:text-foreground"
                   >
                     <ChevronLeft className="h-4 w-4" />
-                  </button>
+                  </Button>
                   <div className="min-w-28 px-1 text-center sm:min-w-44">
                     <h2 className="text-lg font-semibold capitalize sm:text-xl">
                       {monthTitle}
                     </h2>
                   </div>
-                  <button
+                  <Button
+                    variant="outline"
                     type="button"
                     onClick={() => navigateMonth(1)}
                     aria-label={t('actions.nextMonth')}
                     className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-border bg-card text-muted-foreground transition-colors hover:border-input hover:bg-muted hover:text-foreground"
                   >
                     <ChevronRight className="h-4 w-4" />
-                  </button>
-                  <button
+                  </Button>
+                  <Button
+                    variant="outline"
                     type="button"
                     onClick={goToday}
                     className="inline-flex min-h-10 items-center rounded-lg border border-border bg-card px-3 text-xs font-semibold text-foreground transition-colors hover:bg-muted sm:ml-1"
                   >
                     {t('actions.today')}
-                  </button>
+                  </Button>
                   {loading && hasLoaded && (
                     <Loader2
                       aria-label={t('loading')}
@@ -947,10 +957,10 @@ export function ContentCalendar() {
                 </div>
 
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                  <label className="sr-only" htmlFor="calendar-platform-filter">
+                  <Label className="sr-only" htmlFor="calendar-platform-filter">
                     {t('filters.platformLabel')}
-                  </label>
-                  <select
+                  </Label>
+                  <NativeSelect
                     id="calendar-platform-filter"
                     value={platformFilter}
                     onChange={(event) =>
@@ -965,11 +975,11 @@ export function ContentCalendar() {
                     </option>
                     <option value="youtube">{t('platforms.youtube')}</option>
                     <option value="linkedin">{t('platforms.linkedin')}</option>
-                  </select>
-                  <label className="sr-only" htmlFor="calendar-status-filter">
+                  </NativeSelect>
+                  <Label className="sr-only" htmlFor="calendar-status-filter">
                     {t('filters.statusLabel')}
-                  </label>
-                  <select
+                  </Label>
+                  <NativeSelect
                     id="calendar-status-filter"
                     value={statusFilter}
                     onChange={(event) =>
@@ -981,7 +991,7 @@ export function ContentCalendar() {
                     <option value="draft">{t('statuses.draft')}</option>
                     <option value="scheduled">{t('statuses.scheduled')}</option>
                     <option value="published">{t('statuses.published')}</option>
-                  </select>
+                  </NativeSelect>
                   {filtersActive && (
                     <button
                       type="button"
@@ -1017,7 +1027,7 @@ export function ContentCalendar() {
                 onEditPost={(post) => setDialog({ mode: 'edit', post })}
               />
             </div>
-          </section>
+          </Card>
 
           {!hasLoaded && loadError ? null : (
             <Agenda
