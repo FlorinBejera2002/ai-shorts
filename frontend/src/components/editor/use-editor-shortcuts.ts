@@ -32,6 +32,7 @@ export function useEditorShortcuts(handlers: EditorShortcutHandlers) {
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.defaultPrevented || isEditableTarget(e.target)) return
+      // biome-ignore format: Keep the literal selector inline for the source contract test.
       if (e.target instanceof HTMLElement && e.target.closest('button, a, [role="button"], [role="dialog"], [role="menu"]')) return
       const h = handlersRef.current
       const ctrl = e.ctrlKey || e.metaKey

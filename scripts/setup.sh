@@ -22,5 +22,7 @@ curl -s http://localhost > /dev/null && echo "Frontend: ok" || echo "Frontend no
 echo ""
 echo "=== Setup complete ==="
 echo "Frontend: http://localhost"
+echo "Frontend (canonical local URL): http://localhost:3000"
 echo "Backend API: http://localhost/api/health"
-echo "Backend docs: http://localhost:8000/api/docs"
+echo "Backend docs (dev overlay only): http://localhost:8000/api/docs"
+echo "Dev overlay: docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build"

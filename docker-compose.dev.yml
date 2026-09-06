@@ -1,11 +1,11 @@
 services:
   postgres:
     ports:
-      - "5432:5432"
+      - "127.0.0.1:${POSTGRES_HOST_PORT:-5433}:5432"
 
   redis:
     ports:
-      - "6379:6379"
+      - "127.0.0.1:${REDIS_HOST_PORT:-6379}:6379"
 
   backend:
     build: ./backend
@@ -14,7 +14,7 @@ services:
       - ./backend/app:/app/app
       - media_data:/app/media
     ports:
-      - "8000:8000"
+      - "127.0.0.1:${BACKEND_HOST_PORT:-8000}:8000"
 
   worker:
     volumes:
@@ -22,7 +22,10 @@ services:
       - media_data:/app/media
 
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+      target: dev
+    image: sneepcut-frontend-dev
     command: npm run dev
     volumes:
       - ./frontend/src:/app/src
@@ -31,6 +34,6 @@ services:
       - ./frontend/tsconfig.json:/app/tsconfig.json
       - ./frontend/postcss.config.mjs:/app/postcss.config.mjs
     ports:
-      - "127.0.0.1:3001:3000"
+      - "127.0.0.1:${FRONTEND_HOST_PORT:-3001}:3000"
     environment:
       - WATCHPACK_POLLING=true

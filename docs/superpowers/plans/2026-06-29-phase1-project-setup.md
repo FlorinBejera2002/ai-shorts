@@ -1,6 +1,6 @@
 # Phase 1: Project Setup & Repository Structure — Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> Historical implementation plan. Use relevant sections as design context and verify them against current code. Follow the repository's current `AGENTS.md`; this plan does not require a particular skill or task-by-task workflow.
 
 **Goal:** Bootstrap the Sneepcut monorepo so `docker compose up` starts all 6 services (postgres, redis, backend, worker, frontend, nginx) with placeholder apps responding to health checks.
 
