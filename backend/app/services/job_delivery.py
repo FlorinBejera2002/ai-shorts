@@ -178,9 +178,12 @@ class Heartbeat:
 def main():
     import time
 
+    from app.services.edit_delivery import recover_and_dispatch_edits
+
     while True:
         try:
             result = recover_and_dispatch()
+            result.update(recover_and_dispatch_edits())
             if any(result.values()):
                 logger.warning("Job delivery reconciliation: %s", result)
         except Exception:

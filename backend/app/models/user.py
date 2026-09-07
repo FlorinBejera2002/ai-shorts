@@ -49,6 +49,9 @@ class User(Base):
     email_verified: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
+    email_activation_required: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default="false", nullable=False
+    )
     credits: Mapped[int] = mapped_column(Integer, default=100, nullable=False)
     plan: Mapped[str] = mapped_column(String(50), default="free", nullable=False)
     stripe_customer_id: Mapped[str | None] = mapped_column(

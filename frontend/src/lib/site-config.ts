@@ -6,6 +6,9 @@ export const SUPPORTED_LOCALES = ['en', 'ro'] as const
 export const PUBLIC_ROUTES = ['', '/pricing', '/privacy', '/terms'] as const
 export const PRIVATE_ROUTES = [
   '/api/',
+  '/v1/',
+  '/activate',
+  '/ro/activate',
   '/dashboard',
   '/login',
   '/register',
@@ -56,7 +59,6 @@ export function getSiteUrl(): URL {
   return (
     normalizeOrigin(process.env.NEXT_PUBLIC_APP_URL) ??
     normalizeOrigin(process.env.APP_URL) ??
-    normalizeOrigin(process.env.NEXTAUTH_URL) ??
     new URL('http://localhost:3000')
   )
 }

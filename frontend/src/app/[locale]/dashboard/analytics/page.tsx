@@ -1,9 +1,12 @@
+'use client'
+
 import { AnalyticsCharts } from '@/components/dashboard/analytics-charts'
+import { ApiState } from '@/components/shared/api-state'
 import { Card } from '@/components/ui/card'
 import { EmptyState } from '@/components/ui/empty-state'
 import { PageHeader } from '@/components/ui/page-header'
-import { auth } from '@/lib/auth'
-import { getPrisma } from '@/lib/db'
+import { useApiResource } from '@/hooks/use-api-resource'
+import type { AnalyticsData } from '@/types/api'
 import {
   BarChart3,
   Clock,
@@ -12,48 +15,17 @@ import {
   TrendingUp,
   Zap
 } from 'lucide-react'
-import { getTranslations, setRequestLocale } from 'next-intl/server'
+import { useLocale, useTranslations } from 'next-intl'
 
-export const runtime = 'nodejs'
-
-export default async function AnalyticsPage({
-  params
-}: {
-  params: Promise<{ locale: string }>
-}) {
-  const { locale } = await params
-  setRequestLocale(locale)
-  const t = await getTranslations('analytics')
-  const common = await getTranslations('common')
-
-  const session = await auth()
-  const userId = session?.user?.id
-  const prisma = getPrisma()
-
-  const [jobs, clips] = await Promise.all([
-    userId
-      ? prisma.job.findMany({
-          where: { userId },
-          orderBy: { createdAt: 'desc' },
-          select: {
-            id: true,
-            status: true,
-            createdAt: true
-          }
-        })
-      : [],
-    userId
-      ? prisma.clip.findMany({
-          where: { userId },
-          select: {
-            id: true,
-            duration: true,
-            viralScore: true,
-            createdAt: true
-          }
-        })
-      : []
-  ])
+export default function AnalyticsPage() {
+  const locale = useLocale()
+  const t = useTranslations('analytics')
+  const common = useTranslations('common')
+  const { data, error, reload } = useApiResource<AnalyticsData>(
+    '/api/dashboard/analytics'
+  )
+  if (!data) return <ApiState error={error} retry={reload} />
+  const { jobs, clips } = data
 
   const totalJobs = jobs.length
   const completedJobs = jobs.filter((j) => j.status === 'completed').length

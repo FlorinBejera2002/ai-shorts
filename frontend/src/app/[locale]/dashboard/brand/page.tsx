@@ -1,5 +1,7 @@
 'use client'
 
+import { apiFetch } from '@/lib/auth'
+
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -259,7 +261,7 @@ export default function BrandPage() {
 
   const loadKit = useCallback(async () => {
     try {
-      const res = await fetch('/api/user/brand')
+      const res = await apiFetch('/api/user/brand')
       const data = await res.json()
       if (data.brandKit) {
         setKit({ ...DEFAULTS, ...data.brandKit })
@@ -292,8 +294,20 @@ export default function BrandPage() {
     }
     setSaving(true)
     try {
-      const { logoUrl: _logoUrl, ...brandSettings } = kit
-      const res = await fetch('/api/user/brand', {
+      const brandSettings = {
+        primaryColor: kit.primaryColor,
+        secondaryColor: kit.secondaryColor,
+        fontFamily: kit.fontFamily,
+        subtitleFont: kit.subtitleFont,
+        subtitleColor: kit.subtitleColor,
+        subtitleBgColor: kit.subtitleBgColor,
+        subtitleBgOpacity: kit.subtitleBgOpacity,
+        subtitlePosition: kit.subtitlePosition,
+        watermarkPosition: kit.watermarkPosition,
+        watermarkOpacity: kit.watermarkOpacity,
+        hidePlatformBadge: kit.hidePlatformBadge
+      }
+      const res = await apiFetch('/api/user/brand', {
         method: 'PUT',
         body: JSON.stringify(brandSettings),
         headers: { 'Content-Type': 'application/json' }
@@ -329,7 +343,7 @@ export default function BrandPage() {
     try {
       const formData = new FormData()
       formData.append('file', file)
-      const res = await fetch('/api/user/brand/logo', {
+      const res = await apiFetch('/api/user/brand/logo', {
         method: 'POST',
         body: formData
       })
@@ -359,7 +373,7 @@ export default function BrandPage() {
   async function removeLogo() {
     setLogoBusy(true)
     try {
-      const res = await fetch('/api/user/brand/logo', { method: 'DELETE' })
+      const res = await apiFetch('/api/user/brand/logo', { method: 'DELETE' })
       if (!res.ok) {
         toast.add('error', t('uploadFailed'))
         return

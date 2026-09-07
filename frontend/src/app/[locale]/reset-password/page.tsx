@@ -1,5 +1,7 @@
 'use client'
 
+import { publicApiFetch } from '@/lib/auth'
+
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 
@@ -75,7 +77,6 @@ function ResetPasswordForm({ t, RULES }: { t: TFunc; RULES: PasswordRule[] }) {
   const toast = useToast()
   const params = useSearchParams()
   const token = params.get('token') ?? ''
-  const email = params.get('email') ?? ''
 
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
@@ -90,9 +91,9 @@ function ResetPasswordForm({ t, RULES }: { t: TFunc; RULES: PasswordRule[] }) {
     if (!allPass || !match) return
     setBusy(true)
     try {
-      const res = await fetch('/api/auth/reset-password', {
+      const res = await publicApiFetch('/v1/auth/reset-password', {
         method: 'POST',
-        body: JSON.stringify({ token, email, password }),
+        body: JSON.stringify({ token, password }),
         headers: { 'Content-Type': 'application/json' }
       })
       if (!res.ok) {
@@ -108,7 +109,7 @@ function ResetPasswordForm({ t, RULES }: { t: TFunc; RULES: PasswordRule[] }) {
     }
   }
 
-  if (!token || !email) {
+  if (!token) {
     return (
       <main className="flex min-h-dvh bg-background text-foreground">
         <AuthPanel title={t('heroTitle')} desc={t('heroDesc')} />

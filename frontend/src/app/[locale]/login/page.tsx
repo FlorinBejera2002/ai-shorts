@@ -1,28 +1,50 @@
+'use client'
+
 import { AuthPanel } from '@/components/auth/auth-panel'
 import { PasswordInput } from '@/components/auth/password-input'
 import { SubmitButton } from '@/components/auth/submit-button'
+import { ApiState } from '@/components/shared/api-state'
 import { ThemeBrandLogo } from '@/components/shared/brand-logo'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Link, redirect } from '@/i18n/navigation'
-import { signIn } from '@/lib/auth'
-import { AuthError } from 'next-auth'
-import { getTranslations, setRequestLocale } from 'next-intl/server'
+import { Link } from '@/i18n/navigation'
+import { authClient, googleSignIn, safeReturnPath } from '@/lib/auth'
+import { useLocale, useTranslations } from 'next-intl'
+import { useSearchParams } from 'next/navigation'
+import { Suspense, useState } from 'react'
 
-export default async function LoginPage({
-  params,
-  searchParams
-}: {
-  params: Promise<{ locale: string }>
-  searchParams: Promise<{ error?: string; callbackUrl?: string }>
-}) {
-  const { locale } = await params
-  setRequestLocale(locale)
-  const t = await getTranslations('auth')
-  const { error, callbackUrl } = await searchParams
-  const redirectTo = callbackUrl ?? '/dashboard'
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<ApiState />}>
+      <LoginForm />
+    </Suspense>
+  )
+}
+
+function LoginForm() {
+  const locale = useLocale()
+  const t = useTranslations('auth')
+  const search = useSearchParams()
+  const [error, setError] = useState(() => search.get('error'))
+  const prefix = locale === 'en' ? '' : `/${locale}`
+  const redirectTo = safeReturnPath(
+    search.get('callbackUrl'),
+    `${prefix}/dashboard`
+  )
+  async function submit(formData: FormData) {
+    setError(null)
+    try {
+      await authClient.login(
+        String(formData.get('email') ?? ''),
+        String(formData.get('password') ?? '')
+      )
+      window.location.assign(redirectTo)
+    } catch {
+      setError('CredentialsSignin')
+    }
+  }
 
   return (
     <main className="flex min-h-dvh bg-background text-foreground">
@@ -67,9 +89,18 @@ export default async function LoginPage({
             {t('signInDesc')}
           </p>
 
+          {search.get('registered') === 'true' && (
+            <p role="status" className="mt-5 text-sm text-success">
+              {t('accountCreated')}
+            </p>
+          )}
           {error && (
-            <div className="mt-5 animate-slide-down flex items-center gap-2 rounded-xl border border-red-500/20 bg-red-500/5 px-4 py-3 text-[13px] text-red-400">
+            <div
+              role="alert"
+              className="mt-5 animate-slide-down flex items-center gap-2 rounded-xl border border-red-500/20 bg-red-500/5 px-4 py-3 text-[13px] text-red-400"
+            >
               <svg
+                aria-hidden="true"
                 className="w-4 h-4 shrink-0"
                 viewBox="0 0 16 16"
                 fill="currentColor"
@@ -87,24 +118,18 @@ export default async function LoginPage({
 
           {/* Google */}
           <form
-            action={async () => {
-              'use server'
-              try {
-                await signIn('google', { redirectTo })
-              } catch (error) {
-                if (error instanceof AuthError) {
-                  redirect({ href: `/login?error=${error.type}`, locale })
-                }
-                throw error
-              }
-            }}
+            action={() => googleSignIn(redirectTo, locale)}
             className="mt-7"
           >
             <Button
               type="submit"
               className="h-11 w-full border border-input bg-background text-foreground hover:bg-muted"
             >
-              <svg className="w-[18px] h-[18px]" viewBox="0 0 24 24">
+              <svg
+                aria-hidden="true"
+                className="w-[18px] h-[18px]"
+                viewBox="0 0 24 24"
+              >
                 <path
                   d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"
                   fill="#4285F4"
@@ -139,24 +164,7 @@ export default async function LoginPage({
           </div>
 
           {/* Credentials */}
-          <form
-            action={async (formData) => {
-              'use server'
-              try {
-                await signIn('credentials', {
-                  email: formData.get('email'),
-                  password: formData.get('password'),
-                  redirectTo
-                })
-              } catch (error) {
-                if (error instanceof AuthError) {
-                  redirect({ href: `/login?error=${error.type}`, locale })
-                }
-                throw error
-              }
-            }}
-            className="space-y-4"
-          >
+          <form action={submit} className="space-y-4">
             <div className="space-y-1.5">
               <Label
                 htmlFor="email"

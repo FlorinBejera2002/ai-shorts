@@ -1,39 +1,26 @@
+'use client'
+
+import { ApiState } from '@/components/shared/api-state'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { PageHeader } from '@/components/ui/page-header'
+import { useApiResource } from '@/hooks/use-api-resource'
 import { Link } from '@/i18n/navigation'
+import { type ApiClip, normalizeClip } from '@/types/api'
 import { ArrowLeft } from 'lucide-react'
-import { getTranslations, setRequestLocale } from 'next-intl/server'
-import { notFound } from 'next/navigation'
+import { useLocale, useTranslations } from 'next-intl'
+import { useParams } from 'next/navigation'
 
 import { ClipWorkspace } from '@/components/clip/clip-workspace'
-import { auth } from '@/lib/auth'
-import { getPrisma } from '@/lib/db'
-import { resolveMediaUrl } from '@/lib/signed-url'
 
-export const runtime = 'nodejs'
-
-export default async function ClipDetailPage({
-  params
-}: {
-  params: Promise<{ id: string; locale: string }>
-}) {
-  const { id, locale } = await params
-  setRequestLocale(locale)
-  const common = await getTranslations('common')
-
-  const session = await auth()
-  if (!session?.user?.id) notFound()
-  const prisma = getPrisma()
-
-  const clip = await prisma.clip.findFirst({
-    where: { id, userId: session.user.id }
-  })
-  if (!clip) notFound()
-  const fileUrl = resolveMediaUrl(
-    clip.fileStorageKey ?? clip.filePath,
-    clip.fileUrl
-  )
+export default function ClipDetailPage() {
+  const locale = useLocale()
+  const { id } = useParams<{ id: string }>()
+  const common = useTranslations('common')
+  const { data, error, reload } = useApiResource<ApiClip>(`/api/clips/${id}`)
+  if (!data) return <ApiState error={error} retry={reload} />
+  const clip = normalizeClip(data)
+  const fileUrl = clip.fileUrl
 
   return (
     <div className="space-y-6">
@@ -83,7 +70,7 @@ export default async function ClipDetailPage({
             hasSubtitles: clip.hasSubtitles,
             transcriptText: clip.transcriptText,
             fileUrl,
-            createdAt: clip.createdAt.toISOString(),
+            createdAt: clip.createdAt,
             captionTiktok: clip.captionTiktok,
             captionInstagram: clip.captionInstagram,
             captionYoutube: clip.captionYoutube,

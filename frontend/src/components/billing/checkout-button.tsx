@@ -1,5 +1,7 @@
 'use client'
 
+import { apiFetch } from '@/lib/auth'
+
 import { Button } from '@/components/ui/button'
 
 import { ArrowUpRight, Loader2 } from 'lucide-react'
@@ -37,7 +39,7 @@ export function CheckoutButton({
     setError(null)
 
     try {
-      const response = await fetch('/api/stripe/checkout', {
+      const response = await apiFetch('/api/stripe/checkout', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

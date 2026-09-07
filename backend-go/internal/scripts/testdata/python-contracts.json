@@ -1,0 +1,1258 @@
+{
+  "source": "Current Python script_generator.validate_script and schemas.script AST; provider imports excluded",
+  "sourceSha256": "5ed5d0b2a76c5d960500f2ab0c9e916dc1bf694728361a3263307ace7b0246ef",
+  "cases": [
+    {
+      "input": {},
+      "expected": {
+        "title": "Untitled Script",
+        "hook": "",
+        "scenes": [],
+        "call_to_action": "",
+        "caption": "",
+        "hashtags": [],
+        "total_duration_seconds": 0,
+        "equipment_suggestions": [],
+        "filming_tips": []
+      }
+    },
+    {
+      "input": {
+        "title": false,
+        "scenes": [
+          null,
+          {},
+          "invalid"
+        ]
+      },
+      "expected": {
+        "title": "Untitled Script",
+        "hook": "",
+        "scenes": [
+          {
+            "scene_number": 1,
+            "duration_seconds": 5,
+            "visual_description": "",
+            "camera_angle": "eye-level",
+            "camera_movement": "static",
+            "camera_movement_type": "static",
+            "camera_movement_direction": "none",
+            "dialogue": "",
+            "text_overlay": "",
+            "music_mood": "",
+            "transition": "cut",
+            "shot_type": "medium_shot",
+            "camera_height": 1.55,
+            "camera_distance": 1.8,
+            "camera_yaw": 0.0,
+            "camera_pitch": 0.0,
+            "lens_mm": 35,
+            "subject_position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "subject_action": "Speak naturally to camera",
+            "lighting": "soft_key_left",
+            "voice_emotion": "confident",
+            "voice_pace": 1.0,
+            "voice_emphasis": []
+          },
+          {
+            "scene_number": 2,
+            "duration_seconds": 5,
+            "visual_description": "",
+            "camera_angle": "eye-level",
+            "camera_movement": "static",
+            "camera_movement_type": "static",
+            "camera_movement_direction": "none",
+            "dialogue": "",
+            "text_overlay": "",
+            "music_mood": "",
+            "transition": "cut",
+            "shot_type": "medium_shot",
+            "camera_height": 1.55,
+            "camera_distance": 1.8,
+            "camera_yaw": 0.0,
+            "camera_pitch": 0.0,
+            "lens_mm": 35,
+            "subject_position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "subject_action": "Speak naturally to camera",
+            "lighting": "soft_key_left",
+            "voice_emotion": "confident",
+            "voice_pace": 1.0,
+            "voice_emphasis": []
+          },
+          {
+            "scene_number": 3,
+            "duration_seconds": 5,
+            "visual_description": "",
+            "camera_angle": "eye-level",
+            "camera_movement": "static",
+            "camera_movement_type": "static",
+            "camera_movement_direction": "none",
+            "dialogue": "",
+            "text_overlay": "",
+            "music_mood": "",
+            "transition": "cut",
+            "shot_type": "medium_shot",
+            "camera_height": 1.55,
+            "camera_distance": 1.8,
+            "camera_yaw": 0.0,
+            "camera_pitch": 0.0,
+            "lens_mm": 35,
+            "subject_position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "subject_action": "Speak naturally to camera",
+            "lighting": "soft_key_left",
+            "voice_emotion": "confident",
+            "voice_pace": 1.0,
+            "voice_emphasis": []
+          }
+        ],
+        "call_to_action": "",
+        "caption": "",
+        "hashtags": [],
+        "total_duration_seconds": 15,
+        "equipment_suggestions": [],
+        "filming_tips": []
+      }
+    },
+    {
+      "input": {
+        "title": "Filming",
+        "scenes": [
+          {
+            "scene_number": "3",
+            "duration_seconds": "8",
+            "camera_height": 99,
+            "camera_distance": -10,
+            "camera_yaw": "100",
+            "camera_pitch": false,
+            "lens_mm": 42.5,
+            "subject_position": [
+              -99,
+              99,
+              "3.5"
+            ],
+            "voice_pace": "Infinity",
+            "voice_emphasis": [
+              "a",
+              42,
+              "b",
+              "c",
+              "d",
+              "e",
+              "f"
+            ]
+          }
+        ],
+        "hashtags": [
+          "one",
+          3,
+          "two"
+        ]
+      },
+      "expected": {
+        "title": "Filming",
+        "hook": "",
+        "scenes": [
+          {
+            "scene_number": 3,
+            "duration_seconds": 8,
+            "visual_description": "",
+            "camera_angle": "eye-level",
+            "camera_movement": "static",
+            "camera_movement_type": "static",
+            "camera_movement_direction": "none",
+            "dialogue": "",
+            "text_overlay": "",
+            "music_mood": "",
+            "transition": "cut",
+            "shot_type": "medium_shot",
+            "camera_height": 2.6,
+            "camera_distance": 0.5,
+            "camera_yaw": 45.0,
+            "camera_pitch": 0.0,
+            "lens_mm": 35,
+            "subject_position": [
+              -3.0,
+              2.5,
+              3.5
+            ],
+            "subject_action": "Speak naturally to camera",
+            "lighting": "soft_key_left",
+            "voice_emotion": "confident",
+            "voice_pace": 1.0,
+            "voice_emphasis": [
+              "a",
+              "b",
+              "c",
+              "d",
+              "e"
+            ]
+          }
+        ],
+        "call_to_action": "",
+        "caption": "",
+        "hashtags": [
+          "one",
+          "two"
+        ],
+        "total_duration_seconds": 8,
+        "equipment_suggestions": [],
+        "filming_tips": []
+      }
+    },
+    {
+      "input": {
+        "scenes": [
+          {
+            "duration_seconds": -2,
+            "scene_number": 0,
+            "lens_mm": "NaN",
+            "camera_height": true,
+            "camera_distance": null,
+            "voice_pace": false
+          },
+          {
+            "duration_seconds": 8.9,
+            "scene_number": "4.9",
+            "subject_position": "not-list"
+          }
+        ]
+      },
+      "expected": {
+        "title": "Untitled Script",
+        "hook": "",
+        "scenes": [
+          {
+            "scene_number": 1,
+            "duration_seconds": 1,
+            "visual_description": "",
+            "camera_angle": "eye-level",
+            "camera_movement": "static",
+            "camera_movement_type": "static",
+            "camera_movement_direction": "none",
+            "dialogue": "",
+            "text_overlay": "",
+            "music_mood": "",
+            "transition": "cut",
+            "shot_type": "medium_shot",
+            "camera_height": 1.55,
+            "camera_distance": 1.8,
+            "camera_yaw": 0.0,
+            "camera_pitch": 0.0,
+            "lens_mm": 35,
+            "subject_position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "subject_action": "Speak naturally to camera",
+            "lighting": "soft_key_left",
+            "voice_emotion": "confident",
+            "voice_pace": 1.0,
+            "voice_emphasis": []
+          },
+          {
+            "scene_number": 2,
+            "duration_seconds": 8,
+            "visual_description": "",
+            "camera_angle": "eye-level",
+            "camera_movement": "static",
+            "camera_movement_type": "static",
+            "camera_movement_direction": "none",
+            "dialogue": "",
+            "text_overlay": "",
+            "music_mood": "",
+            "transition": "cut",
+            "shot_type": "medium_shot",
+            "camera_height": 1.55,
+            "camera_distance": 1.8,
+            "camera_yaw": 0.0,
+            "camera_pitch": 0.0,
+            "lens_mm": 35,
+            "subject_position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "subject_action": "Speak naturally to camera",
+            "lighting": "soft_key_left",
+            "voice_emotion": "confident",
+            "voice_pace": 1.0,
+            "voice_emphasis": []
+          }
+        ],
+        "call_to_action": "",
+        "caption": "",
+        "hashtags": [],
+        "total_duration_seconds": 9,
+        "equipment_suggestions": [],
+        "filming_tips": []
+      }
+    },
+    {
+      "input": {
+        "scenes": [
+          {
+            "camera_movement": "Slow pan left"
+          }
+        ]
+      },
+      "expected": {
+        "title": "Untitled Script",
+        "hook": "",
+        "scenes": [
+          {
+            "scene_number": 1,
+            "duration_seconds": 5,
+            "visual_description": "",
+            "camera_angle": "eye-level",
+            "camera_movement": "Slow pan left",
+            "camera_movement_type": "pan",
+            "camera_movement_direction": "left",
+            "dialogue": "",
+            "text_overlay": "",
+            "music_mood": "",
+            "transition": "cut",
+            "shot_type": "medium_shot",
+            "camera_height": 1.55,
+            "camera_distance": 1.8,
+            "camera_yaw": 0.0,
+            "camera_pitch": 0.0,
+            "lens_mm": 35,
+            "subject_position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "subject_action": "Speak naturally to camera",
+            "lighting": "soft_key_left",
+            "voice_emotion": "confident",
+            "voice_pace": 1.0,
+            "voice_emphasis": []
+          }
+        ],
+        "call_to_action": "",
+        "caption": "",
+        "hashtags": [],
+        "total_duration_seconds": 5,
+        "equipment_suggestions": [],
+        "filming_tips": []
+      }
+    },
+    {
+      "input": {
+        "scenes": [
+          {
+            "camera_movement": "Filmare din mână"
+          }
+        ]
+      },
+      "expected": {
+        "title": "Untitled Script",
+        "hook": "",
+        "scenes": [
+          {
+            "scene_number": 1,
+            "duration_seconds": 5,
+            "visual_description": "",
+            "camera_angle": "eye-level",
+            "camera_movement": "Filmare din mână",
+            "camera_movement_type": "handheld",
+            "camera_movement_direction": "none",
+            "dialogue": "",
+            "text_overlay": "",
+            "music_mood": "",
+            "transition": "cut",
+            "shot_type": "medium_shot",
+            "camera_height": 1.55,
+            "camera_distance": 1.8,
+            "camera_yaw": 0.0,
+            "camera_pitch": 0.0,
+            "lens_mm": 35,
+            "subject_position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "subject_action": "Speak naturally to camera",
+            "lighting": "soft_key_left",
+            "voice_emotion": "confident",
+            "voice_pace": 1.0,
+            "voice_emphasis": []
+          }
+        ],
+        "call_to_action": "",
+        "caption": "",
+        "hashtags": [],
+        "total_duration_seconds": 5,
+        "equipment_suggestions": [],
+        "filming_tips": []
+      }
+    },
+    {
+      "input": {
+        "scenes": [
+          {
+            "camera_movement": "Cameră ținută în mână"
+          }
+        ]
+      },
+      "expected": {
+        "title": "Untitled Script",
+        "hook": "",
+        "scenes": [
+          {
+            "scene_number": 1,
+            "duration_seconds": 5,
+            "visual_description": "",
+            "camera_angle": "eye-level",
+            "camera_movement": "Cameră ținută în mână",
+            "camera_movement_type": "handheld",
+            "camera_movement_direction": "none",
+            "dialogue": "",
+            "text_overlay": "",
+            "music_mood": "",
+            "transition": "cut",
+            "shot_type": "medium_shot",
+            "camera_height": 1.55,
+            "camera_distance": 1.8,
+            "camera_yaw": 0.0,
+            "camera_pitch": 0.0,
+            "lens_mm": 35,
+            "subject_position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "subject_action": "Speak naturally to camera",
+            "lighting": "soft_key_left",
+            "voice_emotion": "confident",
+            "voice_pace": 1.0,
+            "voice_emphasis": []
+          }
+        ],
+        "call_to_action": "",
+        "caption": "",
+        "hashtags": [],
+        "total_duration_seconds": 5,
+        "equipment_suggestions": [],
+        "filming_tips": []
+      }
+    },
+    {
+      "input": {
+        "scenes": [
+          {
+            "camera_movement": "Mișcare din mână"
+          }
+        ]
+      },
+      "expected": {
+        "title": "Untitled Script",
+        "hook": "",
+        "scenes": [
+          {
+            "scene_number": 1,
+            "duration_seconds": 5,
+            "visual_description": "",
+            "camera_angle": "eye-level",
+            "camera_movement": "Mișcare din mână",
+            "camera_movement_type": "handheld",
+            "camera_movement_direction": "none",
+            "dialogue": "",
+            "text_overlay": "",
+            "music_mood": "",
+            "transition": "cut",
+            "shot_type": "medium_shot",
+            "camera_height": 1.55,
+            "camera_distance": 1.8,
+            "camera_yaw": 0.0,
+            "camera_pitch": 0.0,
+            "lens_mm": 35,
+            "subject_position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "subject_action": "Speak naturally to camera",
+            "lighting": "soft_key_left",
+            "voice_emotion": "confident",
+            "voice_pace": 1.0,
+            "voice_emphasis": []
+          }
+        ],
+        "call_to_action": "",
+        "caption": "",
+        "hashtags": [],
+        "total_duration_seconds": 5,
+        "equipment_suggestions": [],
+        "filming_tips": []
+      }
+    },
+    {
+      "input": {
+        "scenes": [
+          {
+            "camera_movement": "Inclinación hacia abajo"
+          }
+        ]
+      },
+      "expected": {
+        "title": "Untitled Script",
+        "hook": "",
+        "scenes": [
+          {
+            "scene_number": 1,
+            "duration_seconds": 5,
+            "visual_description": "",
+            "camera_angle": "eye-level",
+            "camera_movement": "Inclinación hacia abajo",
+            "camera_movement_type": "tilt",
+            "camera_movement_direction": "down",
+            "dialogue": "",
+            "text_overlay": "",
+            "music_mood": "",
+            "transition": "cut",
+            "shot_type": "medium_shot",
+            "camera_height": 1.55,
+            "camera_distance": 1.8,
+            "camera_yaw": 0.0,
+            "camera_pitch": 0.0,
+            "lens_mm": 35,
+            "subject_position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "subject_action": "Speak naturally to camera",
+            "lighting": "soft_key_left",
+            "voice_emotion": "confident",
+            "voice_pace": 1.0,
+            "voice_emphasis": []
+          }
+        ],
+        "call_to_action": "",
+        "caption": "",
+        "hashtags": [],
+        "total_duration_seconds": 5,
+        "equipment_suggestions": [],
+        "filming_tips": []
+      }
+    },
+    {
+      "input": {
+        "scenes": [
+          {
+            "camera_movement": "Zoom avant"
+          }
+        ]
+      },
+      "expected": {
+        "title": "Untitled Script",
+        "hook": "",
+        "scenes": [
+          {
+            "scene_number": 1,
+            "duration_seconds": 5,
+            "visual_description": "",
+            "camera_angle": "eye-level",
+            "camera_movement": "Zoom avant",
+            "camera_movement_type": "zoom",
+            "camera_movement_direction": "in",
+            "dialogue": "",
+            "text_overlay": "",
+            "music_mood": "",
+            "transition": "cut",
+            "shot_type": "medium_shot",
+            "camera_height": 1.55,
+            "camera_distance": 1.8,
+            "camera_yaw": 0.0,
+            "camera_pitch": 0.0,
+            "lens_mm": 35,
+            "subject_position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "subject_action": "Speak naturally to camera",
+            "lighting": "soft_key_left",
+            "voice_emotion": "confident",
+            "voice_pace": 1.0,
+            "voice_emphasis": []
+          }
+        ],
+        "call_to_action": "",
+        "caption": "",
+        "hashtags": [],
+        "total_duration_seconds": 5,
+        "equipment_suggestions": [],
+        "filming_tips": []
+      }
+    },
+    {
+      "input": {
+        "scenes": [
+          {
+            "camera_movement": "Kamerafahrt zurück"
+          }
+        ]
+      },
+      "expected": {
+        "title": "Untitled Script",
+        "hook": "",
+        "scenes": [
+          {
+            "scene_number": 1,
+            "duration_seconds": 5,
+            "visual_description": "",
+            "camera_angle": "eye-level",
+            "camera_movement": "Kamerafahrt zurück",
+            "camera_movement_type": "dolly",
+            "camera_movement_direction": "out",
+            "dialogue": "",
+            "text_overlay": "",
+            "music_mood": "",
+            "transition": "cut",
+            "shot_type": "medium_shot",
+            "camera_height": 1.55,
+            "camera_distance": 1.8,
+            "camera_yaw": 0.0,
+            "camera_pitch": 0.0,
+            "lens_mm": 35,
+            "subject_position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "subject_action": "Speak naturally to camera",
+            "lighting": "soft_key_left",
+            "voice_emotion": "confident",
+            "voice_pace": 1.0,
+            "voice_emphasis": []
+          }
+        ],
+        "call_to_action": "",
+        "caption": "",
+        "hashtags": [],
+        "total_duration_seconds": 5,
+        "equipment_suggestions": [],
+        "filming_tips": []
+      }
+    },
+    {
+      "input": {
+        "scenes": [
+          {
+            "camera_movement": "Panoramica a destra"
+          }
+        ]
+      },
+      "expected": {
+        "title": "Untitled Script",
+        "hook": "",
+        "scenes": [
+          {
+            "scene_number": 1,
+            "duration_seconds": 5,
+            "visual_description": "",
+            "camera_angle": "eye-level",
+            "camera_movement": "Panoramica a destra",
+            "camera_movement_type": "pan",
+            "camera_movement_direction": "right",
+            "dialogue": "",
+            "text_overlay": "",
+            "music_mood": "",
+            "transition": "cut",
+            "shot_type": "medium_shot",
+            "camera_height": 1.55,
+            "camera_distance": 1.8,
+            "camera_yaw": 0.0,
+            "camera_pitch": 0.0,
+            "lens_mm": 35,
+            "subject_position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "subject_action": "Speak naturally to camera",
+            "lighting": "soft_key_left",
+            "voice_emotion": "confident",
+            "voice_pace": 1.0,
+            "voice_emphasis": []
+          }
+        ],
+        "call_to_action": "",
+        "caption": "",
+        "hashtags": [],
+        "total_duration_seconds": 5,
+        "equipment_suggestions": [],
+        "filming_tips": []
+      }
+    },
+    {
+      "input": {
+        "scenes": [
+          {
+            "camera_movement": "Inclinação para cima"
+          }
+        ]
+      },
+      "expected": {
+        "title": "Untitled Script",
+        "hook": "",
+        "scenes": [
+          {
+            "scene_number": 1,
+            "duration_seconds": 5,
+            "visual_description": "",
+            "camera_angle": "eye-level",
+            "camera_movement": "Inclinação para cima",
+            "camera_movement_type": "tilt",
+            "camera_movement_direction": "up",
+            "dialogue": "",
+            "text_overlay": "",
+            "music_mood": "",
+            "transition": "cut",
+            "shot_type": "medium_shot",
+            "camera_height": 1.55,
+            "camera_distance": 1.8,
+            "camera_yaw": 0.0,
+            "camera_pitch": 0.0,
+            "lens_mm": 35,
+            "subject_position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "subject_action": "Speak naturally to camera",
+            "lighting": "soft_key_left",
+            "voice_emotion": "confident",
+            "voice_pace": 1.0,
+            "voice_emphasis": []
+          }
+        ],
+        "call_to_action": "",
+        "caption": "",
+        "hashtags": [],
+        "total_duration_seconds": 5,
+        "equipment_suggestions": [],
+        "filming_tips": []
+      }
+    },
+    {
+      "input": {
+        "scenes": [
+          {
+            "camera_movement": "Camera a l’épaule"
+          }
+        ]
+      },
+      "expected": {
+        "title": "Untitled Script",
+        "hook": "",
+        "scenes": [
+          {
+            "scene_number": 1,
+            "duration_seconds": 5,
+            "visual_description": "",
+            "camera_angle": "eye-level",
+            "camera_movement": "Camera a l’épaule",
+            "camera_movement_type": "handheld",
+            "camera_movement_direction": "none",
+            "dialogue": "",
+            "text_overlay": "",
+            "music_mood": "",
+            "transition": "cut",
+            "shot_type": "medium_shot",
+            "camera_height": 1.55,
+            "camera_distance": 1.8,
+            "camera_yaw": 0.0,
+            "camera_pitch": 0.0,
+            "lens_mm": 35,
+            "subject_position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "subject_action": "Speak naturally to camera",
+            "lighting": "soft_key_left",
+            "voice_emotion": "confident",
+            "voice_pace": 1.0,
+            "voice_emphasis": []
+          }
+        ],
+        "call_to_action": "",
+        "caption": "",
+        "hashtags": [],
+        "total_duration_seconds": 5,
+        "equipment_suggestions": [],
+        "filming_tips": []
+      }
+    },
+    {
+      "input": {
+        "scenes": [
+          {
+            "camera_movement": "Acompanhamento à esquerda"
+          }
+        ]
+      },
+      "expected": {
+        "title": "Untitled Script",
+        "hook": "",
+        "scenes": [
+          {
+            "scene_number": 1,
+            "duration_seconds": 5,
+            "visual_description": "",
+            "camera_angle": "eye-level",
+            "camera_movement": "Acompanhamento à esquerda",
+            "camera_movement_type": "track",
+            "camera_movement_direction": "left",
+            "dialogue": "",
+            "text_overlay": "",
+            "music_mood": "",
+            "transition": "cut",
+            "shot_type": "medium_shot",
+            "camera_height": 1.55,
+            "camera_distance": 1.8,
+            "camera_yaw": 0.0,
+            "camera_pitch": 0.0,
+            "lens_mm": 35,
+            "subject_position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "subject_action": "Speak naturally to camera",
+            "lighting": "soft_key_left",
+            "voice_emotion": "confident",
+            "voice_pace": 1.0,
+            "voice_emphasis": []
+          }
+        ],
+        "call_to_action": "",
+        "caption": "",
+        "hashtags": [],
+        "total_duration_seconds": 5,
+        "equipment_suggestions": [],
+        "filming_tips": []
+      }
+    },
+    {
+      "input": {
+        "scenes": [
+          {
+            "camera_movement_type": "fixed",
+            "camera_movement_direction": "forward"
+          }
+        ]
+      },
+      "expected": {
+        "title": "Untitled Script",
+        "hook": "",
+        "scenes": [
+          {
+            "scene_number": 1,
+            "duration_seconds": 5,
+            "visual_description": "",
+            "camera_angle": "eye-level",
+            "camera_movement": "static",
+            "camera_movement_type": "static",
+            "camera_movement_direction": "none",
+            "dialogue": "",
+            "text_overlay": "",
+            "music_mood": "",
+            "transition": "cut",
+            "shot_type": "medium_shot",
+            "camera_height": 1.55,
+            "camera_distance": 1.8,
+            "camera_yaw": 0.0,
+            "camera_pitch": 0.0,
+            "lens_mm": 35,
+            "subject_position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "subject_action": "Speak naturally to camera",
+            "lighting": "soft_key_left",
+            "voice_emotion": "confident",
+            "voice_pace": 1.0,
+            "voice_emphasis": []
+          }
+        ],
+        "call_to_action": "",
+        "caption": "",
+        "hashtags": [],
+        "total_duration_seconds": 5,
+        "equipment_suggestions": [],
+        "filming_tips": []
+      }
+    },
+    {
+      "input": {
+        "scenes": [
+          {
+            "camera_movement_type": "tracking",
+            "camera_movement_direction": "left"
+          }
+        ]
+      },
+      "expected": {
+        "title": "Untitled Script",
+        "hook": "",
+        "scenes": [
+          {
+            "scene_number": 1,
+            "duration_seconds": 5,
+            "visual_description": "",
+            "camera_angle": "eye-level",
+            "camera_movement": "static",
+            "camera_movement_type": "track",
+            "camera_movement_direction": "left",
+            "dialogue": "",
+            "text_overlay": "",
+            "music_mood": "",
+            "transition": "cut",
+            "shot_type": "medium_shot",
+            "camera_height": 1.55,
+            "camera_distance": 1.8,
+            "camera_yaw": 0.0,
+            "camera_pitch": 0.0,
+            "lens_mm": 35,
+            "subject_position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "subject_action": "Speak naturally to camera",
+            "lighting": "soft_key_left",
+            "voice_emotion": "confident",
+            "voice_pace": 1.0,
+            "voice_emphasis": []
+          }
+        ],
+        "call_to_action": "",
+        "caption": "",
+        "hashtags": [],
+        "total_duration_seconds": 5,
+        "equipment_suggestions": [],
+        "filming_tips": []
+      }
+    },
+    {
+      "input": {
+        "scenes": [
+          {
+            "camera_movement_type": "hand held",
+            "camera_movement_direction": "right"
+          }
+        ]
+      },
+      "expected": {
+        "title": "Untitled Script",
+        "hook": "",
+        "scenes": [
+          {
+            "scene_number": 1,
+            "duration_seconds": 5,
+            "visual_description": "",
+            "camera_angle": "eye-level",
+            "camera_movement": "static",
+            "camera_movement_type": "handheld",
+            "camera_movement_direction": "none",
+            "dialogue": "",
+            "text_overlay": "",
+            "music_mood": "",
+            "transition": "cut",
+            "shot_type": "medium_shot",
+            "camera_height": 1.55,
+            "camera_distance": 1.8,
+            "camera_yaw": 0.0,
+            "camera_pitch": 0.0,
+            "lens_mm": 35,
+            "subject_position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "subject_action": "Speak naturally to camera",
+            "lighting": "soft_key_left",
+            "voice_emotion": "confident",
+            "voice_pace": 1.0,
+            "voice_emphasis": []
+          }
+        ],
+        "call_to_action": "",
+        "caption": "",
+        "hashtags": [],
+        "total_duration_seconds": 5,
+        "equipment_suggestions": [],
+        "filming_tips": []
+      }
+    },
+    {
+      "input": {
+        "scenes": [
+          {
+            "camera_movement_type": "pan",
+            "camera_movement_direction": "up"
+          }
+        ]
+      },
+      "expected": {
+        "title": "Untitled Script",
+        "hook": "",
+        "scenes": [
+          {
+            "scene_number": 1,
+            "duration_seconds": 5,
+            "visual_description": "",
+            "camera_angle": "eye-level",
+            "camera_movement": "static",
+            "camera_movement_type": "pan",
+            "camera_movement_direction": "none",
+            "dialogue": "",
+            "text_overlay": "",
+            "music_mood": "",
+            "transition": "cut",
+            "shot_type": "medium_shot",
+            "camera_height": 1.55,
+            "camera_distance": 1.8,
+            "camera_yaw": 0.0,
+            "camera_pitch": 0.0,
+            "lens_mm": 35,
+            "subject_position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "subject_action": "Speak naturally to camera",
+            "lighting": "soft_key_left",
+            "voice_emotion": "confident",
+            "voice_pace": 1.0,
+            "voice_emphasis": []
+          }
+        ],
+        "call_to_action": "",
+        "caption": "",
+        "hashtags": [],
+        "total_duration_seconds": 5,
+        "equipment_suggestions": [],
+        "filming_tips": []
+      }
+    },
+    {
+      "input": {
+        "scenes": [
+          {
+            "camera_movement_type": "zoom",
+            "camera_movement_direction": "outward"
+          }
+        ]
+      },
+      "expected": {
+        "title": "Untitled Script",
+        "hook": "",
+        "scenes": [
+          {
+            "scene_number": 1,
+            "duration_seconds": 5,
+            "visual_description": "",
+            "camera_angle": "eye-level",
+            "camera_movement": "static",
+            "camera_movement_type": "zoom",
+            "camera_movement_direction": "out",
+            "dialogue": "",
+            "text_overlay": "",
+            "music_mood": "",
+            "transition": "cut",
+            "shot_type": "medium_shot",
+            "camera_height": 1.55,
+            "camera_distance": 1.8,
+            "camera_yaw": 0.0,
+            "camera_pitch": 0.0,
+            "lens_mm": 35,
+            "subject_position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "subject_action": "Speak naturally to camera",
+            "lighting": "soft_key_left",
+            "voice_emotion": "confident",
+            "voice_pace": 1.0,
+            "voice_emphasis": []
+          }
+        ],
+        "call_to_action": "",
+        "caption": "",
+        "hashtags": [],
+        "total_duration_seconds": 5,
+        "equipment_suggestions": [],
+        "filming_tips": []
+      }
+    },
+    {
+      "input": {
+        "scenes": [
+          {
+            "camera_movement_type": "unknown",
+            "camera_movement_direction": "unknown"
+          }
+        ]
+      },
+      "expected": {
+        "title": "Untitled Script",
+        "hook": "",
+        "scenes": [
+          {
+            "scene_number": 1,
+            "duration_seconds": 5,
+            "visual_description": "",
+            "camera_angle": "eye-level",
+            "camera_movement": "static",
+            "camera_movement_type": "static",
+            "camera_movement_direction": "none",
+            "dialogue": "",
+            "text_overlay": "",
+            "music_mood": "",
+            "transition": "cut",
+            "shot_type": "medium_shot",
+            "camera_height": 1.55,
+            "camera_distance": 1.8,
+            "camera_yaw": 0.0,
+            "camera_pitch": 0.0,
+            "lens_mm": 35,
+            "subject_position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "subject_action": "Speak naturally to camera",
+            "lighting": "soft_key_left",
+            "voice_emotion": "confident",
+            "voice_pace": 1.0,
+            "voice_emphasis": []
+          }
+        ],
+        "call_to_action": "",
+        "caption": "",
+        "hashtags": [],
+        "total_duration_seconds": 5,
+        "equipment_suggestions": [],
+        "filming_tips": []
+      }
+    }
+  ],
+  "prompts": [
+    {
+      "input": {
+        "topic": "Test {literal braces} & camera",
+        "platform": "instagram",
+        "duration": 45,
+        "tone": "warm",
+        "target_audience": "creators",
+        "language": "en",
+        "style": "b_roll"
+      },
+      "expected": "You are an elite short-form video scriptwriter and director. You create detailed, professional filming scripts that creators can follow step-by-step to produce viral content.\n\nTASK: Write a COMPLETE filming script for a 45-second Instagram Reels video.\n\nTOPIC: Test {literal braces} & camera\n\nPARAMETERS:\n- Platform: Instagram Reels\n- Target duration: 45 seconds\n- Tone: warm\n- Target audience: creators\n- Visual style: b_roll\n- Language for ALL text output: English\n\nVISUAL STYLE GUIDE:\n- talking_head: Speaker directly addressing camera, close-up or medium shot\n- b_roll: Mixed footage with voiceover narration\n- tutorial: Screen recording or step-by-step demonstration\n- storytelling: Cinematic narrative with multiple angles\n- vlog: Casual, handheld, authentic feel\n- product_demo: Product-focused with clear demonstrations\n\nSTRICT RULES:\n1. The hook (first 2-3 seconds) MUST stop the scroll. Use pattern interrupts, bold claims, or curiosity gaps.\n2. Every scene must have a SPECIFIC camera direction — no vague instructions.\n3. Text overlays must be SHORT (max 8 words) and reinforce the spoken word.\n4. Total scene durations MUST add up to approximately 45 seconds.\n5. The call-to-action must feel natural, not forced.\n6. ALL human-readable output (title, dialogue, overlays, captions, tips and camera_movement) MUST be in English; machine fields remain the exact tokens specified below.\n7. Equipment suggestions should range from phone-only to professional.\n8. Transitions should be platform-appropriate (Instagram Reels style).\n9. camera_movement is a human-readable filming direction in English.\n10. camera_movement_type and camera_movement_direction are machine fields. NEVER translate them and use only the exact tokens listed below.\n\nOUTPUT — RETURN ONLY VALID JSON (no markdown, no comments):\n{\n  \"title\": \"<catchy script title>\",\n  \"hook\": \"<the exact opening line/action for the first 2-3 seconds — this is what stops the scroll>\",\n  \"scenes\": [\n    {\n      \"scene_number\": 1,\n      \"duration_seconds\": <integer>,\n      \"visual_description\": \"<detailed description of what the viewer sees — framing, background, props, lighting>\",\n      \"camera_angle\": \"<specific angle: close-up face, medium shot waist-up, wide shot full body, overhead, low angle, eye-level, etc.>\",\n      \"camera_movement\": \"<localized human-readable direction for the creator>\",\n      \"camera_movement_type\": \"<exact token: static, pan, tilt, zoom, dolly, track or handheld>\",\n      \"camera_movement_direction\": \"<exact token: none, left, right, up, down, in or out. Use none for static and handheld; left/right for pan and track; up/down for tilt; in/out for zoom and dolly>\",\n      \"dialogue\": \"<exact words spoken in this scene OR [no dialogue] if silent>\",\n      \"text_overlay\": \"<bold text that appears on screen, max 8 words, or empty string if none>\",\n      \"music_mood\": \"<upbeat energetic, calm ambient, dramatic tension, trendy beat, lo-fi chill, etc.>\",\n      \"transition\": \"<cut, swipe left, zoom transition, jump cut, fade, match cut, whip pan, etc.>\",\n      \"shot_type\": \"<close_up, medium_close_up, medium_shot, wide_shot, overhead or detail>\",\n      \"camera_height\": <meters from floor, e.g. 1.55>,\n      \"camera_distance\": <meters from subject, e.g. 1.8>,\n      \"camera_yaw\": <horizontal angle in degrees, -45 to 45>,\n      \"camera_pitch\": <vertical angle in degrees, -25 to 25>,\n      \"lens_mm\": <smartphone equivalent focal length: 24, 35, 50 or 70>,\n      \"subject_action\": \"<specific body action and gesture synchronized with the line>\",\n      \"subject_position\": [<x>, <y>, <z>],\n      \"lighting\": \"<soft_key_left, window_right, dramatic_backlight, flat_daylight, product_softbox>\",\n      \"voice_emotion\": \"<confident, warm, excited, calm, urgent, playful, authoritative>\",\n      \"voice_pace\": <0.75 to 1.35>,\n      \"voice_emphasis\": [\"<important word>\", \"<important phrase>\"]\n    }\n  ],\n  \"call_to_action\": \"<the closing CTA text — follow, comment, share, link in bio, etc.>\",\n  \"caption\": \"<ready-to-paste platform caption with emojis, 2-3 lines max>\",\n  \"hashtags\": [\"hashtag1\", \"hashtag2\", \"hashtag3\", \"hashtag4\", \"hashtag5\"],\n  \"total_duration_seconds\": <integer, sum of all scene durations>,\n  \"equipment_suggestions\": [\"Phone with front camera\", \"Ring light\", \"Tripod\", \"Lavalier mic\"],\n  \"filming_tips\": [\"Tip 1 specific to this script\", \"Tip 2\", \"Tip 3\"]\n}\n"
+    },
+    {
+      "input": {
+        "topic": "Test {literal braces} & camera",
+        "platform": "instagram",
+        "duration": 45,
+        "tone": "warm",
+        "target_audience": "creators",
+        "language": "ro",
+        "style": "b_roll"
+      },
+      "expected": "You are an elite short-form video scriptwriter and director. You create detailed, professional filming scripts that creators can follow step-by-step to produce viral content.\n\nTASK: Write a COMPLETE filming script for a 45-second Instagram Reels video.\n\nTOPIC: Test {literal braces} & camera\n\nPARAMETERS:\n- Platform: Instagram Reels\n- Target duration: 45 seconds\n- Tone: warm\n- Target audience: creators\n- Visual style: b_roll\n- Language for ALL text output: Romanian\n\nVISUAL STYLE GUIDE:\n- talking_head: Speaker directly addressing camera, close-up or medium shot\n- b_roll: Mixed footage with voiceover narration\n- tutorial: Screen recording or step-by-step demonstration\n- storytelling: Cinematic narrative with multiple angles\n- vlog: Casual, handheld, authentic feel\n- product_demo: Product-focused with clear demonstrations\n\nSTRICT RULES:\n1. The hook (first 2-3 seconds) MUST stop the scroll. Use pattern interrupts, bold claims, or curiosity gaps.\n2. Every scene must have a SPECIFIC camera direction — no vague instructions.\n3. Text overlays must be SHORT (max 8 words) and reinforce the spoken word.\n4. Total scene durations MUST add up to approximately 45 seconds.\n5. The call-to-action must feel natural, not forced.\n6. ALL human-readable output (title, dialogue, overlays, captions, tips and camera_movement) MUST be in Romanian; machine fields remain the exact tokens specified below.\n7. Equipment suggestions should range from phone-only to professional.\n8. Transitions should be platform-appropriate (Instagram Reels style).\n9. camera_movement is a human-readable filming direction in Romanian.\n10. camera_movement_type and camera_movement_direction are machine fields. NEVER translate them and use only the exact tokens listed below.\n\nOUTPUT — RETURN ONLY VALID JSON (no markdown, no comments):\n{\n  \"title\": \"<catchy script title>\",\n  \"hook\": \"<the exact opening line/action for the first 2-3 seconds — this is what stops the scroll>\",\n  \"scenes\": [\n    {\n      \"scene_number\": 1,\n      \"duration_seconds\": <integer>,\n      \"visual_description\": \"<detailed description of what the viewer sees — framing, background, props, lighting>\",\n      \"camera_angle\": \"<specific angle: close-up face, medium shot waist-up, wide shot full body, overhead, low angle, eye-level, etc.>\",\n      \"camera_movement\": \"<localized human-readable direction for the creator>\",\n      \"camera_movement_type\": \"<exact token: static, pan, tilt, zoom, dolly, track or handheld>\",\n      \"camera_movement_direction\": \"<exact token: none, left, right, up, down, in or out. Use none for static and handheld; left/right for pan and track; up/down for tilt; in/out for zoom and dolly>\",\n      \"dialogue\": \"<exact words spoken in this scene OR [no dialogue] if silent>\",\n      \"text_overlay\": \"<bold text that appears on screen, max 8 words, or empty string if none>\",\n      \"music_mood\": \"<upbeat energetic, calm ambient, dramatic tension, trendy beat, lo-fi chill, etc.>\",\n      \"transition\": \"<cut, swipe left, zoom transition, jump cut, fade, match cut, whip pan, etc.>\",\n      \"shot_type\": \"<close_up, medium_close_up, medium_shot, wide_shot, overhead or detail>\",\n      \"camera_height\": <meters from floor, e.g. 1.55>,\n      \"camera_distance\": <meters from subject, e.g. 1.8>,\n      \"camera_yaw\": <horizontal angle in degrees, -45 to 45>,\n      \"camera_pitch\": <vertical angle in degrees, -25 to 25>,\n      \"lens_mm\": <smartphone equivalent focal length: 24, 35, 50 or 70>,\n      \"subject_action\": \"<specific body action and gesture synchronized with the line>\",\n      \"subject_position\": [<x>, <y>, <z>],\n      \"lighting\": \"<soft_key_left, window_right, dramatic_backlight, flat_daylight, product_softbox>\",\n      \"voice_emotion\": \"<confident, warm, excited, calm, urgent, playful, authoritative>\",\n      \"voice_pace\": <0.75 to 1.35>,\n      \"voice_emphasis\": [\"<important word>\", \"<important phrase>\"]\n    }\n  ],\n  \"call_to_action\": \"<the closing CTA text — follow, comment, share, link in bio, etc.>\",\n  \"caption\": \"<ready-to-paste platform caption with emojis, 2-3 lines max>\",\n  \"hashtags\": [\"hashtag1\", \"hashtag2\", \"hashtag3\", \"hashtag4\", \"hashtag5\"],\n  \"total_duration_seconds\": <integer, sum of all scene durations>,\n  \"equipment_suggestions\": [\"Phone with front camera\", \"Ring light\", \"Tripod\", \"Lavalier mic\"],\n  \"filming_tips\": [\"Tip 1 specific to this script\", \"Tip 2\", \"Tip 3\"]\n}\n"
+    },
+    {
+      "input": {
+        "topic": "Test {literal braces} & camera",
+        "platform": "instagram",
+        "duration": 45,
+        "tone": "warm",
+        "target_audience": "creators",
+        "language": "es",
+        "style": "b_roll"
+      },
+      "expected": "You are an elite short-form video scriptwriter and director. You create detailed, professional filming scripts that creators can follow step-by-step to produce viral content.\n\nTASK: Write a COMPLETE filming script for a 45-second Instagram Reels video.\n\nTOPIC: Test {literal braces} & camera\n\nPARAMETERS:\n- Platform: Instagram Reels\n- Target duration: 45 seconds\n- Tone: warm\n- Target audience: creators\n- Visual style: b_roll\n- Language for ALL text output: Spanish\n\nVISUAL STYLE GUIDE:\n- talking_head: Speaker directly addressing camera, close-up or medium shot\n- b_roll: Mixed footage with voiceover narration\n- tutorial: Screen recording or step-by-step demonstration\n- storytelling: Cinematic narrative with multiple angles\n- vlog: Casual, handheld, authentic feel\n- product_demo: Product-focused with clear demonstrations\n\nSTRICT RULES:\n1. The hook (first 2-3 seconds) MUST stop the scroll. Use pattern interrupts, bold claims, or curiosity gaps.\n2. Every scene must have a SPECIFIC camera direction — no vague instructions.\n3. Text overlays must be SHORT (max 8 words) and reinforce the spoken word.\n4. Total scene durations MUST add up to approximately 45 seconds.\n5. The call-to-action must feel natural, not forced.\n6. ALL human-readable output (title, dialogue, overlays, captions, tips and camera_movement) MUST be in Spanish; machine fields remain the exact tokens specified below.\n7. Equipment suggestions should range from phone-only to professional.\n8. Transitions should be platform-appropriate (Instagram Reels style).\n9. camera_movement is a human-readable filming direction in Spanish.\n10. camera_movement_type and camera_movement_direction are machine fields. NEVER translate them and use only the exact tokens listed below.\n\nOUTPUT — RETURN ONLY VALID JSON (no markdown, no comments):\n{\n  \"title\": \"<catchy script title>\",\n  \"hook\": \"<the exact opening line/action for the first 2-3 seconds — this is what stops the scroll>\",\n  \"scenes\": [\n    {\n      \"scene_number\": 1,\n      \"duration_seconds\": <integer>,\n      \"visual_description\": \"<detailed description of what the viewer sees — framing, background, props, lighting>\",\n      \"camera_angle\": \"<specific angle: close-up face, medium shot waist-up, wide shot full body, overhead, low angle, eye-level, etc.>\",\n      \"camera_movement\": \"<localized human-readable direction for the creator>\",\n      \"camera_movement_type\": \"<exact token: static, pan, tilt, zoom, dolly, track or handheld>\",\n      \"camera_movement_direction\": \"<exact token: none, left, right, up, down, in or out. Use none for static and handheld; left/right for pan and track; up/down for tilt; in/out for zoom and dolly>\",\n      \"dialogue\": \"<exact words spoken in this scene OR [no dialogue] if silent>\",\n      \"text_overlay\": \"<bold text that appears on screen, max 8 words, or empty string if none>\",\n      \"music_mood\": \"<upbeat energetic, calm ambient, dramatic tension, trendy beat, lo-fi chill, etc.>\",\n      \"transition\": \"<cut, swipe left, zoom transition, jump cut, fade, match cut, whip pan, etc.>\",\n      \"shot_type\": \"<close_up, medium_close_up, medium_shot, wide_shot, overhead or detail>\",\n      \"camera_height\": <meters from floor, e.g. 1.55>,\n      \"camera_distance\": <meters from subject, e.g. 1.8>,\n      \"camera_yaw\": <horizontal angle in degrees, -45 to 45>,\n      \"camera_pitch\": <vertical angle in degrees, -25 to 25>,\n      \"lens_mm\": <smartphone equivalent focal length: 24, 35, 50 or 70>,\n      \"subject_action\": \"<specific body action and gesture synchronized with the line>\",\n      \"subject_position\": [<x>, <y>, <z>],\n      \"lighting\": \"<soft_key_left, window_right, dramatic_backlight, flat_daylight, product_softbox>\",\n      \"voice_emotion\": \"<confident, warm, excited, calm, urgent, playful, authoritative>\",\n      \"voice_pace\": <0.75 to 1.35>,\n      \"voice_emphasis\": [\"<important word>\", \"<important phrase>\"]\n    }\n  ],\n  \"call_to_action\": \"<the closing CTA text — follow, comment, share, link in bio, etc.>\",\n  \"caption\": \"<ready-to-paste platform caption with emojis, 2-3 lines max>\",\n  \"hashtags\": [\"hashtag1\", \"hashtag2\", \"hashtag3\", \"hashtag4\", \"hashtag5\"],\n  \"total_duration_seconds\": <integer, sum of all scene durations>,\n  \"equipment_suggestions\": [\"Phone with front camera\", \"Ring light\", \"Tripod\", \"Lavalier mic\"],\n  \"filming_tips\": [\"Tip 1 specific to this script\", \"Tip 2\", \"Tip 3\"]\n}\n"
+    },
+    {
+      "input": {
+        "topic": "Test {literal braces} & camera",
+        "platform": "instagram",
+        "duration": 45,
+        "tone": "warm",
+        "target_audience": "creators",
+        "language": "fr",
+        "style": "b_roll"
+      },
+      "expected": "You are an elite short-form video scriptwriter and director. You create detailed, professional filming scripts that creators can follow step-by-step to produce viral content.\n\nTASK: Write a COMPLETE filming script for a 45-second Instagram Reels video.\n\nTOPIC: Test {literal braces} & camera\n\nPARAMETERS:\n- Platform: Instagram Reels\n- Target duration: 45 seconds\n- Tone: warm\n- Target audience: creators\n- Visual style: b_roll\n- Language for ALL text output: French\n\nVISUAL STYLE GUIDE:\n- talking_head: Speaker directly addressing camera, close-up or medium shot\n- b_roll: Mixed footage with voiceover narration\n- tutorial: Screen recording or step-by-step demonstration\n- storytelling: Cinematic narrative with multiple angles\n- vlog: Casual, handheld, authentic feel\n- product_demo: Product-focused with clear demonstrations\n\nSTRICT RULES:\n1. The hook (first 2-3 seconds) MUST stop the scroll. Use pattern interrupts, bold claims, or curiosity gaps.\n2. Every scene must have a SPECIFIC camera direction — no vague instructions.\n3. Text overlays must be SHORT (max 8 words) and reinforce the spoken word.\n4. Total scene durations MUST add up to approximately 45 seconds.\n5. The call-to-action must feel natural, not forced.\n6. ALL human-readable output (title, dialogue, overlays, captions, tips and camera_movement) MUST be in French; machine fields remain the exact tokens specified below.\n7. Equipment suggestions should range from phone-only to professional.\n8. Transitions should be platform-appropriate (Instagram Reels style).\n9. camera_movement is a human-readable filming direction in French.\n10. camera_movement_type and camera_movement_direction are machine fields. NEVER translate them and use only the exact tokens listed below.\n\nOUTPUT — RETURN ONLY VALID JSON (no markdown, no comments):\n{\n  \"title\": \"<catchy script title>\",\n  \"hook\": \"<the exact opening line/action for the first 2-3 seconds — this is what stops the scroll>\",\n  \"scenes\": [\n    {\n      \"scene_number\": 1,\n      \"duration_seconds\": <integer>,\n      \"visual_description\": \"<detailed description of what the viewer sees — framing, background, props, lighting>\",\n      \"camera_angle\": \"<specific angle: close-up face, medium shot waist-up, wide shot full body, overhead, low angle, eye-level, etc.>\",\n      \"camera_movement\": \"<localized human-readable direction for the creator>\",\n      \"camera_movement_type\": \"<exact token: static, pan, tilt, zoom, dolly, track or handheld>\",\n      \"camera_movement_direction\": \"<exact token: none, left, right, up, down, in or out. Use none for static and handheld; left/right for pan and track; up/down for tilt; in/out for zoom and dolly>\",\n      \"dialogue\": \"<exact words spoken in this scene OR [no dialogue] if silent>\",\n      \"text_overlay\": \"<bold text that appears on screen, max 8 words, or empty string if none>\",\n      \"music_mood\": \"<upbeat energetic, calm ambient, dramatic tension, trendy beat, lo-fi chill, etc.>\",\n      \"transition\": \"<cut, swipe left, zoom transition, jump cut, fade, match cut, whip pan, etc.>\",\n      \"shot_type\": \"<close_up, medium_close_up, medium_shot, wide_shot, overhead or detail>\",\n      \"camera_height\": <meters from floor, e.g. 1.55>,\n      \"camera_distance\": <meters from subject, e.g. 1.8>,\n      \"camera_yaw\": <horizontal angle in degrees, -45 to 45>,\n      \"camera_pitch\": <vertical angle in degrees, -25 to 25>,\n      \"lens_mm\": <smartphone equivalent focal length: 24, 35, 50 or 70>,\n      \"subject_action\": \"<specific body action and gesture synchronized with the line>\",\n      \"subject_position\": [<x>, <y>, <z>],\n      \"lighting\": \"<soft_key_left, window_right, dramatic_backlight, flat_daylight, product_softbox>\",\n      \"voice_emotion\": \"<confident, warm, excited, calm, urgent, playful, authoritative>\",\n      \"voice_pace\": <0.75 to 1.35>,\n      \"voice_emphasis\": [\"<important word>\", \"<important phrase>\"]\n    }\n  ],\n  \"call_to_action\": \"<the closing CTA text — follow, comment, share, link in bio, etc.>\",\n  \"caption\": \"<ready-to-paste platform caption with emojis, 2-3 lines max>\",\n  \"hashtags\": [\"hashtag1\", \"hashtag2\", \"hashtag3\", \"hashtag4\", \"hashtag5\"],\n  \"total_duration_seconds\": <integer, sum of all scene durations>,\n  \"equipment_suggestions\": [\"Phone with front camera\", \"Ring light\", \"Tripod\", \"Lavalier mic\"],\n  \"filming_tips\": [\"Tip 1 specific to this script\", \"Tip 2\", \"Tip 3\"]\n}\n"
+    },
+    {
+      "input": {
+        "topic": "Test {literal braces} & camera",
+        "platform": "instagram",
+        "duration": 45,
+        "tone": "warm",
+        "target_audience": "creators",
+        "language": "de",
+        "style": "b_roll"
+      },
+      "expected": "You are an elite short-form video scriptwriter and director. You create detailed, professional filming scripts that creators can follow step-by-step to produce viral content.\n\nTASK: Write a COMPLETE filming script for a 45-second Instagram Reels video.\n\nTOPIC: Test {literal braces} & camera\n\nPARAMETERS:\n- Platform: Instagram Reels\n- Target duration: 45 seconds\n- Tone: warm\n- Target audience: creators\n- Visual style: b_roll\n- Language for ALL text output: German\n\nVISUAL STYLE GUIDE:\n- talking_head: Speaker directly addressing camera, close-up or medium shot\n- b_roll: Mixed footage with voiceover narration\n- tutorial: Screen recording or step-by-step demonstration\n- storytelling: Cinematic narrative with multiple angles\n- vlog: Casual, handheld, authentic feel\n- product_demo: Product-focused with clear demonstrations\n\nSTRICT RULES:\n1. The hook (first 2-3 seconds) MUST stop the scroll. Use pattern interrupts, bold claims, or curiosity gaps.\n2. Every scene must have a SPECIFIC camera direction — no vague instructions.\n3. Text overlays must be SHORT (max 8 words) and reinforce the spoken word.\n4. Total scene durations MUST add up to approximately 45 seconds.\n5. The call-to-action must feel natural, not forced.\n6. ALL human-readable output (title, dialogue, overlays, captions, tips and camera_movement) MUST be in German; machine fields remain the exact tokens specified below.\n7. Equipment suggestions should range from phone-only to professional.\n8. Transitions should be platform-appropriate (Instagram Reels style).\n9. camera_movement is a human-readable filming direction in German.\n10. camera_movement_type and camera_movement_direction are machine fields. NEVER translate them and use only the exact tokens listed below.\n\nOUTPUT — RETURN ONLY VALID JSON (no markdown, no comments):\n{\n  \"title\": \"<catchy script title>\",\n  \"hook\": \"<the exact opening line/action for the first 2-3 seconds — this is what stops the scroll>\",\n  \"scenes\": [\n    {\n      \"scene_number\": 1,\n      \"duration_seconds\": <integer>,\n      \"visual_description\": \"<detailed description of what the viewer sees — framing, background, props, lighting>\",\n      \"camera_angle\": \"<specific angle: close-up face, medium shot waist-up, wide shot full body, overhead, low angle, eye-level, etc.>\",\n      \"camera_movement\": \"<localized human-readable direction for the creator>\",\n      \"camera_movement_type\": \"<exact token: static, pan, tilt, zoom, dolly, track or handheld>\",\n      \"camera_movement_direction\": \"<exact token: none, left, right, up, down, in or out. Use none for static and handheld; left/right for pan and track; up/down for tilt; in/out for zoom and dolly>\",\n      \"dialogue\": \"<exact words spoken in this scene OR [no dialogue] if silent>\",\n      \"text_overlay\": \"<bold text that appears on screen, max 8 words, or empty string if none>\",\n      \"music_mood\": \"<upbeat energetic, calm ambient, dramatic tension, trendy beat, lo-fi chill, etc.>\",\n      \"transition\": \"<cut, swipe left, zoom transition, jump cut, fade, match cut, whip pan, etc.>\",\n      \"shot_type\": \"<close_up, medium_close_up, medium_shot, wide_shot, overhead or detail>\",\n      \"camera_height\": <meters from floor, e.g. 1.55>,\n      \"camera_distance\": <meters from subject, e.g. 1.8>,\n      \"camera_yaw\": <horizontal angle in degrees, -45 to 45>,\n      \"camera_pitch\": <vertical angle in degrees, -25 to 25>,\n      \"lens_mm\": <smartphone equivalent focal length: 24, 35, 50 or 70>,\n      \"subject_action\": \"<specific body action and gesture synchronized with the line>\",\n      \"subject_position\": [<x>, <y>, <z>],\n      \"lighting\": \"<soft_key_left, window_right, dramatic_backlight, flat_daylight, product_softbox>\",\n      \"voice_emotion\": \"<confident, warm, excited, calm, urgent, playful, authoritative>\",\n      \"voice_pace\": <0.75 to 1.35>,\n      \"voice_emphasis\": [\"<important word>\", \"<important phrase>\"]\n    }\n  ],\n  \"call_to_action\": \"<the closing CTA text — follow, comment, share, link in bio, etc.>\",\n  \"caption\": \"<ready-to-paste platform caption with emojis, 2-3 lines max>\",\n  \"hashtags\": [\"hashtag1\", \"hashtag2\", \"hashtag3\", \"hashtag4\", \"hashtag5\"],\n  \"total_duration_seconds\": <integer, sum of all scene durations>,\n  \"equipment_suggestions\": [\"Phone with front camera\", \"Ring light\", \"Tripod\", \"Lavalier mic\"],\n  \"filming_tips\": [\"Tip 1 specific to this script\", \"Tip 2\", \"Tip 3\"]\n}\n"
+    },
+    {
+      "input": {
+        "topic": "Test {literal braces} & camera",
+        "platform": "instagram",
+        "duration": 45,
+        "tone": "warm",
+        "target_audience": "creators",
+        "language": "it",
+        "style": "b_roll"
+      },
+      "expected": "You are an elite short-form video scriptwriter and director. You create detailed, professional filming scripts that creators can follow step-by-step to produce viral content.\n\nTASK: Write a COMPLETE filming script for a 45-second Instagram Reels video.\n\nTOPIC: Test {literal braces} & camera\n\nPARAMETERS:\n- Platform: Instagram Reels\n- Target duration: 45 seconds\n- Tone: warm\n- Target audience: creators\n- Visual style: b_roll\n- Language for ALL text output: Italian\n\nVISUAL STYLE GUIDE:\n- talking_head: Speaker directly addressing camera, close-up or medium shot\n- b_roll: Mixed footage with voiceover narration\n- tutorial: Screen recording or step-by-step demonstration\n- storytelling: Cinematic narrative with multiple angles\n- vlog: Casual, handheld, authentic feel\n- product_demo: Product-focused with clear demonstrations\n\nSTRICT RULES:\n1. The hook (first 2-3 seconds) MUST stop the scroll. Use pattern interrupts, bold claims, or curiosity gaps.\n2. Every scene must have a SPECIFIC camera direction — no vague instructions.\n3. Text overlays must be SHORT (max 8 words) and reinforce the spoken word.\n4. Total scene durations MUST add up to approximately 45 seconds.\n5. The call-to-action must feel natural, not forced.\n6. ALL human-readable output (title, dialogue, overlays, captions, tips and camera_movement) MUST be in Italian; machine fields remain the exact tokens specified below.\n7. Equipment suggestions should range from phone-only to professional.\n8. Transitions should be platform-appropriate (Instagram Reels style).\n9. camera_movement is a human-readable filming direction in Italian.\n10. camera_movement_type and camera_movement_direction are machine fields. NEVER translate them and use only the exact tokens listed below.\n\nOUTPUT — RETURN ONLY VALID JSON (no markdown, no comments):\n{\n  \"title\": \"<catchy script title>\",\n  \"hook\": \"<the exact opening line/action for the first 2-3 seconds — this is what stops the scroll>\",\n  \"scenes\": [\n    {\n      \"scene_number\": 1,\n      \"duration_seconds\": <integer>,\n      \"visual_description\": \"<detailed description of what the viewer sees — framing, background, props, lighting>\",\n      \"camera_angle\": \"<specific angle: close-up face, medium shot waist-up, wide shot full body, overhead, low angle, eye-level, etc.>\",\n      \"camera_movement\": \"<localized human-readable direction for the creator>\",\n      \"camera_movement_type\": \"<exact token: static, pan, tilt, zoom, dolly, track or handheld>\",\n      \"camera_movement_direction\": \"<exact token: none, left, right, up, down, in or out. Use none for static and handheld; left/right for pan and track; up/down for tilt; in/out for zoom and dolly>\",\n      \"dialogue\": \"<exact words spoken in this scene OR [no dialogue] if silent>\",\n      \"text_overlay\": \"<bold text that appears on screen, max 8 words, or empty string if none>\",\n      \"music_mood\": \"<upbeat energetic, calm ambient, dramatic tension, trendy beat, lo-fi chill, etc.>\",\n      \"transition\": \"<cut, swipe left, zoom transition, jump cut, fade, match cut, whip pan, etc.>\",\n      \"shot_type\": \"<close_up, medium_close_up, medium_shot, wide_shot, overhead or detail>\",\n      \"camera_height\": <meters from floor, e.g. 1.55>,\n      \"camera_distance\": <meters from subject, e.g. 1.8>,\n      \"camera_yaw\": <horizontal angle in degrees, -45 to 45>,\n      \"camera_pitch\": <vertical angle in degrees, -25 to 25>,\n      \"lens_mm\": <smartphone equivalent focal length: 24, 35, 50 or 70>,\n      \"subject_action\": \"<specific body action and gesture synchronized with the line>\",\n      \"subject_position\": [<x>, <y>, <z>],\n      \"lighting\": \"<soft_key_left, window_right, dramatic_backlight, flat_daylight, product_softbox>\",\n      \"voice_emotion\": \"<confident, warm, excited, calm, urgent, playful, authoritative>\",\n      \"voice_pace\": <0.75 to 1.35>,\n      \"voice_emphasis\": [\"<important word>\", \"<important phrase>\"]\n    }\n  ],\n  \"call_to_action\": \"<the closing CTA text — follow, comment, share, link in bio, etc.>\",\n  \"caption\": \"<ready-to-paste platform caption with emojis, 2-3 lines max>\",\n  \"hashtags\": [\"hashtag1\", \"hashtag2\", \"hashtag3\", \"hashtag4\", \"hashtag5\"],\n  \"total_duration_seconds\": <integer, sum of all scene durations>,\n  \"equipment_suggestions\": [\"Phone with front camera\", \"Ring light\", \"Tripod\", \"Lavalier mic\"],\n  \"filming_tips\": [\"Tip 1 specific to this script\", \"Tip 2\", \"Tip 3\"]\n}\n"
+    },
+    {
+      "input": {
+        "topic": "Test {literal braces} & camera",
+        "platform": "instagram",
+        "duration": 45,
+        "tone": "warm",
+        "target_audience": "creators",
+        "language": "pt",
+        "style": "b_roll"
+      },
+      "expected": "You are an elite short-form video scriptwriter and director. You create detailed, professional filming scripts that creators can follow step-by-step to produce viral content.\n\nTASK: Write a COMPLETE filming script for a 45-second Instagram Reels video.\n\nTOPIC: Test {literal braces} & camera\n\nPARAMETERS:\n- Platform: Instagram Reels\n- Target duration: 45 seconds\n- Tone: warm\n- Target audience: creators\n- Visual style: b_roll\n- Language for ALL text output: Portuguese\n\nVISUAL STYLE GUIDE:\n- talking_head: Speaker directly addressing camera, close-up or medium shot\n- b_roll: Mixed footage with voiceover narration\n- tutorial: Screen recording or step-by-step demonstration\n- storytelling: Cinematic narrative with multiple angles\n- vlog: Casual, handheld, authentic feel\n- product_demo: Product-focused with clear demonstrations\n\nSTRICT RULES:\n1. The hook (first 2-3 seconds) MUST stop the scroll. Use pattern interrupts, bold claims, or curiosity gaps.\n2. Every scene must have a SPECIFIC camera direction — no vague instructions.\n3. Text overlays must be SHORT (max 8 words) and reinforce the spoken word.\n4. Total scene durations MUST add up to approximately 45 seconds.\n5. The call-to-action must feel natural, not forced.\n6. ALL human-readable output (title, dialogue, overlays, captions, tips and camera_movement) MUST be in Portuguese; machine fields remain the exact tokens specified below.\n7. Equipment suggestions should range from phone-only to professional.\n8. Transitions should be platform-appropriate (Instagram Reels style).\n9. camera_movement is a human-readable filming direction in Portuguese.\n10. camera_movement_type and camera_movement_direction are machine fields. NEVER translate them and use only the exact tokens listed below.\n\nOUTPUT — RETURN ONLY VALID JSON (no markdown, no comments):\n{\n  \"title\": \"<catchy script title>\",\n  \"hook\": \"<the exact opening line/action for the first 2-3 seconds — this is what stops the scroll>\",\n  \"scenes\": [\n    {\n      \"scene_number\": 1,\n      \"duration_seconds\": <integer>,\n      \"visual_description\": \"<detailed description of what the viewer sees — framing, background, props, lighting>\",\n      \"camera_angle\": \"<specific angle: close-up face, medium shot waist-up, wide shot full body, overhead, low angle, eye-level, etc.>\",\n      \"camera_movement\": \"<localized human-readable direction for the creator>\",\n      \"camera_movement_type\": \"<exact token: static, pan, tilt, zoom, dolly, track or handheld>\",\n      \"camera_movement_direction\": \"<exact token: none, left, right, up, down, in or out. Use none for static and handheld; left/right for pan and track; up/down for tilt; in/out for zoom and dolly>\",\n      \"dialogue\": \"<exact words spoken in this scene OR [no dialogue] if silent>\",\n      \"text_overlay\": \"<bold text that appears on screen, max 8 words, or empty string if none>\",\n      \"music_mood\": \"<upbeat energetic, calm ambient, dramatic tension, trendy beat, lo-fi chill, etc.>\",\n      \"transition\": \"<cut, swipe left, zoom transition, jump cut, fade, match cut, whip pan, etc.>\",\n      \"shot_type\": \"<close_up, medium_close_up, medium_shot, wide_shot, overhead or detail>\",\n      \"camera_height\": <meters from floor, e.g. 1.55>,\n      \"camera_distance\": <meters from subject, e.g. 1.8>,\n      \"camera_yaw\": <horizontal angle in degrees, -45 to 45>,\n      \"camera_pitch\": <vertical angle in degrees, -25 to 25>,\n      \"lens_mm\": <smartphone equivalent focal length: 24, 35, 50 or 70>,\n      \"subject_action\": \"<specific body action and gesture synchronized with the line>\",\n      \"subject_position\": [<x>, <y>, <z>],\n      \"lighting\": \"<soft_key_left, window_right, dramatic_backlight, flat_daylight, product_softbox>\",\n      \"voice_emotion\": \"<confident, warm, excited, calm, urgent, playful, authoritative>\",\n      \"voice_pace\": <0.75 to 1.35>,\n      \"voice_emphasis\": [\"<important word>\", \"<important phrase>\"]\n    }\n  ],\n  \"call_to_action\": \"<the closing CTA text — follow, comment, share, link in bio, etc.>\",\n  \"caption\": \"<ready-to-paste platform caption with emojis, 2-3 lines max>\",\n  \"hashtags\": [\"hashtag1\", \"hashtag2\", \"hashtag3\", \"hashtag4\", \"hashtag5\"],\n  \"total_duration_seconds\": <integer, sum of all scene durations>,\n  \"equipment_suggestions\": [\"Phone with front camera\", \"Ring light\", \"Tripod\", \"Lavalier mic\"],\n  \"filming_tips\": [\"Tip 1 specific to this script\", \"Tip 2\", \"Tip 3\"]\n}\n"
+    },
+    {
+      "input": {
+        "topic": "Test {literal braces} & camera",
+        "platform": "instagram",
+        "duration": 45,
+        "tone": "warm",
+        "target_audience": "creators",
+        "language": "ja",
+        "style": "b_roll"
+      },
+      "expected": "You are an elite short-form video scriptwriter and director. You create detailed, professional filming scripts that creators can follow step-by-step to produce viral content.\n\nTASK: Write a COMPLETE filming script for a 45-second Instagram Reels video.\n\nTOPIC: Test {literal braces} & camera\n\nPARAMETERS:\n- Platform: Instagram Reels\n- Target duration: 45 seconds\n- Tone: warm\n- Target audience: creators\n- Visual style: b_roll\n- Language for ALL text output: ja\n\nVISUAL STYLE GUIDE:\n- talking_head: Speaker directly addressing camera, close-up or medium shot\n- b_roll: Mixed footage with voiceover narration\n- tutorial: Screen recording or step-by-step demonstration\n- storytelling: Cinematic narrative with multiple angles\n- vlog: Casual, handheld, authentic feel\n- product_demo: Product-focused with clear demonstrations\n\nSTRICT RULES:\n1. The hook (first 2-3 seconds) MUST stop the scroll. Use pattern interrupts, bold claims, or curiosity gaps.\n2. Every scene must have a SPECIFIC camera direction — no vague instructions.\n3. Text overlays must be SHORT (max 8 words) and reinforce the spoken word.\n4. Total scene durations MUST add up to approximately 45 seconds.\n5. The call-to-action must feel natural, not forced.\n6. ALL human-readable output (title, dialogue, overlays, captions, tips and camera_movement) MUST be in ja; machine fields remain the exact tokens specified below.\n7. Equipment suggestions should range from phone-only to professional.\n8. Transitions should be platform-appropriate (Instagram Reels style).\n9. camera_movement is a human-readable filming direction in ja.\n10. camera_movement_type and camera_movement_direction are machine fields. NEVER translate them and use only the exact tokens listed below.\n\nOUTPUT — RETURN ONLY VALID JSON (no markdown, no comments):\n{\n  \"title\": \"<catchy script title>\",\n  \"hook\": \"<the exact opening line/action for the first 2-3 seconds — this is what stops the scroll>\",\n  \"scenes\": [\n    {\n      \"scene_number\": 1,\n      \"duration_seconds\": <integer>,\n      \"visual_description\": \"<detailed description of what the viewer sees — framing, background, props, lighting>\",\n      \"camera_angle\": \"<specific angle: close-up face, medium shot waist-up, wide shot full body, overhead, low angle, eye-level, etc.>\",\n      \"camera_movement\": \"<localized human-readable direction for the creator>\",\n      \"camera_movement_type\": \"<exact token: static, pan, tilt, zoom, dolly, track or handheld>\",\n      \"camera_movement_direction\": \"<exact token: none, left, right, up, down, in or out. Use none for static and handheld; left/right for pan and track; up/down for tilt; in/out for zoom and dolly>\",\n      \"dialogue\": \"<exact words spoken in this scene OR [no dialogue] if silent>\",\n      \"text_overlay\": \"<bold text that appears on screen, max 8 words, or empty string if none>\",\n      \"music_mood\": \"<upbeat energetic, calm ambient, dramatic tension, trendy beat, lo-fi chill, etc.>\",\n      \"transition\": \"<cut, swipe left, zoom transition, jump cut, fade, match cut, whip pan, etc.>\",\n      \"shot_type\": \"<close_up, medium_close_up, medium_shot, wide_shot, overhead or detail>\",\n      \"camera_height\": <meters from floor, e.g. 1.55>,\n      \"camera_distance\": <meters from subject, e.g. 1.8>,\n      \"camera_yaw\": <horizontal angle in degrees, -45 to 45>,\n      \"camera_pitch\": <vertical angle in degrees, -25 to 25>,\n      \"lens_mm\": <smartphone equivalent focal length: 24, 35, 50 or 70>,\n      \"subject_action\": \"<specific body action and gesture synchronized with the line>\",\n      \"subject_position\": [<x>, <y>, <z>],\n      \"lighting\": \"<soft_key_left, window_right, dramatic_backlight, flat_daylight, product_softbox>\",\n      \"voice_emotion\": \"<confident, warm, excited, calm, urgent, playful, authoritative>\",\n      \"voice_pace\": <0.75 to 1.35>,\n      \"voice_emphasis\": [\"<important word>\", \"<important phrase>\"]\n    }\n  ],\n  \"call_to_action\": \"<the closing CTA text — follow, comment, share, link in bio, etc.>\",\n  \"caption\": \"<ready-to-paste platform caption with emojis, 2-3 lines max>\",\n  \"hashtags\": [\"hashtag1\", \"hashtag2\", \"hashtag3\", \"hashtag4\", \"hashtag5\"],\n  \"total_duration_seconds\": <integer, sum of all scene durations>,\n  \"equipment_suggestions\": [\"Phone with front camera\", \"Ring light\", \"Tripod\", \"Lavalier mic\"],\n  \"filming_tips\": [\"Tip 1 specific to this script\", \"Tip 2\", \"Tip 3\"]\n}\n"
+    }
+  ]
+}

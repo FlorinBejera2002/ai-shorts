@@ -1,5 +1,7 @@
 'use client'
 
+import { apiFetch } from '@/lib/auth'
+
 import { Button } from '@/components/ui/button'
 
 import { Card } from '@/components/ui/card'
@@ -59,7 +61,7 @@ export default function JobProgressPage() {
 
     async function poll() {
       try {
-        const res = await fetch(`/api/jobs/${params.id}`, {
+        const res = await apiFetch(`/api/jobs/${params.id}`, {
           cache: 'no-store',
           signal: controller.signal
         })

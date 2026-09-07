@@ -57,6 +57,8 @@ services:
     restart: "no"
 
   backend:
+    # Retired HTTP server retained as an explicit rollback tool.
+    profiles: ["legacy-python-api"]
     build:
       context: ./backend
       target: api
@@ -86,27 +88,44 @@ services:
       retries: 3
 
   backend-go:
-    profiles: ["go-api"]
     build: ./backend-go
     env_file: .env
     environment:
-      PYTHON_BACKEND_URL: http://backend:8000
+      GO_AUTH_ENABLED: "true"
       LISTEN_ADDR: ":8080"
-      DATABASE_URL: postgresql://${POSTGRES_USER:-sneepcut}:${DB_PASSWORD:-changeme}@postgres:5432/${POSTGRES_DB:-sneepcut}
+      APP_ENV: ${APP_ENV:-development}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-sneepcut}:${DB_PASSWORD:-changeme}@postgres:5432/${POSTGRES_DB:-sneepcut}?sslmode=disable
+      REDIS_URL: redis://redis:6379/0
+      LOCAL_MEDIA_ROOT: /app/media
+      ALLOWED_HOSTS: ${GO_ALLOWED_HOSTS:-localhost,127.0.0.1,backend-go,nginx,frontend}
+      # Only this private Compose network reaches the published-through-Nginx API.
+      TRUSTED_PROXY_CIDRS: ${TRUSTED_PROXY_CIDRS:-172.16.0.0/12,192.168.0.0/16}
     depends_on:
-      backend:
+      postgres:
         condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     volumes:
-      - media_data:/app/media:ro
+      - media_data:/app/media
+    tmpfs:
+      - /tmp:uid=10001,gid=10001,mode=1770
     expose:
       - "8080"
     read_only: true
+    user: "10001:10001"
     security_opt: ["no-new-privileges:true"]
     cap_drop: ["ALL"]
-    pids_limit: 64
-    mem_limit: 256m
-    cpus: 1
+    pids_limit: 128
+    mem_limit: 768m
+    cpus: 2
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "/api", "-healthcheck"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
 
   worker:
     build:
@@ -128,8 +147,8 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER:-sneepcut}:${DB_PASSWORD:-changeme}@postgres:5432/${POSTGRES_DB:-sneepcut}
       DIRECT_URL: postgresql://${POSTGRES_USER:-sneepcut}:${DB_PASSWORD:-changeme}@postgres:5432/${POSTGRES_DB:-sneepcut}
     depends_on:
-      backend:
-        condition: service_started
+      migrate:
+        condition: service_completed_successfully
       postgres:
         condition: service_healthy
       redis:
@@ -151,7 +170,7 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER:-sneepcut}:${DB_PASSWORD:-changeme}@postgres:5432/${POSTGRES_DB:-sneepcut}
       DIRECT_URL: postgresql://${POSTGRES_USER:-sneepcut}:${DB_PASSWORD:-changeme}@postgres:5432/${POSTGRES_DB:-sneepcut}
     depends_on:
-      backend:
+      backend-go:
         condition: service_healthy
       postgres:
         condition: service_healthy
@@ -160,13 +179,24 @@ services:
     restart: unless-stopped
 
   frontend:
-    build: ./frontend
-    env_file: .env
+    build:
+      context: ./frontend
+      args:
+        GO_API_URL: http://backend-go:8080
+        MEDIA_PROXY_HOST: http://nginx:80
+        NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
+        NEXT_PUBLIC_CONTACT_EMAIL: ${NEXT_PUBLIC_CONTACT_EMAIL:-}
+        NEXT_PUBLIC_UPLOAD_URL: ${NEXT_PUBLIC_UPLOAD_URL:-}
+        NEXT_IMAGE_REMOTE_HOSTS: ${NEXT_IMAGE_REMOTE_HOSTS:-}
     environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER:-sneepcut}:${DB_PASSWORD:-changeme}@postgres:5432/${POSTGRES_DB:-sneepcut}
-      DIRECT_URL: postgresql://${POSTGRES_USER:-sneepcut}:${DB_PASSWORD:-changeme}@postgres:5432/${POSTGRES_DB:-sneepcut}
+      GO_API_URL: http://backend-go:8080
+      MEDIA_PROXY_HOST: http://nginx:80
+      NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
+      NEXT_PUBLIC_CONTACT_EMAIL: ${NEXT_PUBLIC_CONTACT_EMAIL:-}
+      NEXT_PUBLIC_UPLOAD_URL: ${NEXT_PUBLIC_UPLOAD_URL:-}
+      NEXT_IMAGE_REMOTE_HOSTS: ${NEXT_IMAGE_REMOTE_HOSTS:-}
     depends_on:
-      backend:
+      backend-go:
         condition: service_healthy
     expose:
       - "3000"
@@ -181,7 +211,7 @@ services:
       - media_data:/app/media:ro
     depends_on:
       - frontend
-      - backend
+      - backend-go
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost/ || exit 1"]
       interval: 10s

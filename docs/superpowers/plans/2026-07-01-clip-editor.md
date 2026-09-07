@@ -1,6 +1,6 @@
 # Multi-Segment Clip Editor Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> Historical implementation plan. Use relevant sections as design context and verify them against current code. Follow the repository's current `AGENTS.md`; this plan does not require a particular skill or task-by-task workflow.
 
 **Goal:** Add a timeline-based clip editor where users can view the full source video, see AI-generated segments, manually adjust boundaries, add/remove segments, reorder them, and export the composed result. Also upgrade the AI to produce multi-segment clips.
 

@@ -1,5 +1,7 @@
 'use client'
 
+import { apiFetch } from '@/lib/auth'
+
 import {
   Card,
   CardContent,
@@ -15,11 +17,11 @@ import { useEffect, useState } from 'react'
 
 interface ActiveJob {
   id: string
-  sourceUrl: string | null
-  sourceFilePath: string | null
+  source_url: string | null
+  source_file_path: string | null
   status: string
   progress: number
-  progressMessage: string | null
+  progress_message: string | null
 }
 
 const ACTIVE_STATUSES = [
@@ -46,7 +48,7 @@ export function ActiveJobs() {
     let mounted = true
     async function poll() {
       try {
-        const res = await fetch('/api/jobs')
+        const res = await apiFetch('/api/jobs')
         if (!res.ok) throw new Error('Unable to load jobs')
         if (res.ok && mounted) {
           const data = await res.json()
@@ -166,8 +168,8 @@ export function ActiveJobs() {
                 >
                   <div className="flex items-center justify-between gap-3 mb-1.5">
                     <div className="min-w-0 flex-1 truncate text-[13px] font-medium text-foreground">
-                      {job.sourceUrl ??
-                        job.sourceFilePath ??
+                      {job.source_url ??
+                        job.source_file_path ??
                         t('statusProcessing')}
                     </div>
                     <div
@@ -179,7 +181,7 @@ export function ActiveJobs() {
                         <StatusIcon className="h-3 w-3" strokeWidth={1.75} />
                       )}
                       <span className="hidden sm:inline">
-                        {job.progressMessage ?? statusInfo.text}
+                        {job.progress_message ?? statusInfo.text}
                       </span>
                       <span>{Math.min(job.progress, 100)}%</span>
                     </div>
@@ -187,7 +189,7 @@ export function ActiveJobs() {
                   <div
                     className="h-1 overflow-hidden rounded-full bg-muted"
                     role="progressbar"
-                    aria-label={job.progressMessage ?? statusInfo.text}
+                    aria-label={job.progress_message ?? statusInfo.text}
                     aria-valuemin={0}
                     aria-valuemax={100}
                     aria-valuenow={Math.min(job.progress, 100)}

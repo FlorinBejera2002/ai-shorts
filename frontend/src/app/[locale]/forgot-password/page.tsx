@@ -1,5 +1,7 @@
 'use client'
 
+import { publicApiFetch } from '@/lib/auth'
+
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 
@@ -25,7 +27,7 @@ export default function ForgotPasswordPage() {
     e.preventDefault()
     setBusy(true)
     try {
-      const res = await fetch('/api/auth/forgot-password', {
+      const res = await publicApiFetch('/v1/auth/forgot-password', {
         method: 'POST',
         body: JSON.stringify({ email }),
         headers: { 'Content-Type': 'application/json' }

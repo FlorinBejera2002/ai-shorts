@@ -1,5 +1,7 @@
 'use client'
 
+import { apiFetch } from '@/lib/auth'
+
 import { Card } from '@/components/ui/card'
 
 import { Layers, Link2, Sparkles, Upload, X } from 'lucide-react'
@@ -196,7 +198,7 @@ function CreateWorkflow() {
 
     if (mode === 'batch') {
       try {
-        const res = await fetch('/api/jobs/batch', {
+        const res = await apiFetch('/api/jobs/batch', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ source_urls: validBatchUrls, ...jobOptions })
@@ -227,7 +229,7 @@ function CreateWorkflow() {
         : { source_type: 'upload', source_file_path: uploaded?.filePath }
 
     try {
-      const res = await fetch('/api/jobs', {
+      const res = await apiFetch('/api/jobs', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...payload, ...jobOptions })

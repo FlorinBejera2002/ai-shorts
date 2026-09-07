@@ -1,0 +1,96 @@
+package main
+
+import (
+	"context"
+	"database/sql"
+	"github.com/julienschmidt/httprouter"
+	"github.com/redis/go-redis/v9"
+	"log/slog"
+	"net/http"
+	"sneepcut/backend-go/internal/account"
+	"sneepcut/backend-go/internal/assistant"
+	"sneepcut/backend-go/internal/billing"
+	"sneepcut/backend-go/internal/brand"
+	"sneepcut/backend-go/internal/calendar"
+	"sneepcut/backend-go/internal/clips"
+	"sneepcut/backend-go/internal/config"
+	"sneepcut/backend-go/internal/dashboard"
+	"sneepcut/backend-go/internal/email"
+	"sneepcut/backend-go/internal/gemini"
+	"sneepcut/backend-go/internal/httpapi"
+	"sneepcut/backend-go/internal/httpx"
+	"sneepcut/backend-go/internal/identity"
+	"sneepcut/backend-go/internal/jobs"
+	"sneepcut/backend-go/internal/media"
+	"sneepcut/backend-go/internal/scripts"
+	"time"
+)
+
+func buildApplication(db *sql.DB, cfg config.Config, a config.Application, logger *slog.Logger) (http.Handler, func(), error) {
+	noop := func() {}
+	tokens, err := identity.NewTokens(identity.TokenConfig{Secret: cfg.Auth.JWTSecret, Issuer: cfg.Auth.JWTIssuer, Audience: cfg.Auth.JWTAudience, AccessLifetime: 15 * time.Minute, RefreshLifetime: 30 * 24 * time.Hour})
+	if err != nil {
+		return nil, noop, err
+	}
+	auth := identity.NewHandler(identity.NewService(identity.NewPostgres(db), tokens), identity.HTTPConfig{SecureCookies: cfg.Auth.SecureCookies, AllowedOrigins: cfg.Auth.AllowedOrigins, TrustedProxies: a.TrustedProxies}, logger)
+	mailer, err := email.New(email.Config{From: a.EmailFrom, ResendKey: a.ResendKey, SMTPHost: a.SMTPHost, SMTPPort: a.SMTPPort, SMTPUsername: a.SMTPUser, SMTPPassword: a.SMTPPassword, SMTPRequireTLS: a.SMTPRequireTLS})
+	if err != nil {
+		return nil, noop, err
+	}
+	auth.SetAccounts(identity.NewAccounts(db, identity.AccountsConfig{AppURL: a.AppURL, RequireVerification: a.RequireEmailVerification, InitialCredits: a.InitialCredits}, mailer))
+	auth.SetGoogle(identity.NewGoogle(identity.GoogleConfig{ClientID: a.GoogleClientID, ClientSecret: a.GoogleClientSecret, RedirectURL: a.GoogleRedirectURL, AppURL: a.AppURL}))
+	options, err := redis.ParseURL(a.RedisURL)
+	if err != nil {
+		return nil, noop, err
+	}
+	options.DialTimeout = 2 * time.Second
+	options.ReadTimeout = 2 * time.Second
+	options.WriteTimeout = 2 * time.Second
+	options.MaxRetries = -1
+	limits := redis.NewClient(options)
+	nonce, err := media.NewRedisNonceStore(a.RedisURL)
+	if err != nil {
+		limits.Close()
+		return nil, noop, err
+	}
+	cleanup := func() { nonce.Close(); limits.Close() }
+	auth.SetRequestLimiter(identity.NewRequestLimiter(limits, cfg.Auth.SecureCookies))
+	var storage media.Storage
+	if a.StorageType == "s3" {
+		storage, err = media.NewS3Storage(media.S3Config{AccessKey: a.S3AccessKey, SecretKey: a.S3SecretKey, SessionToken: a.S3SessionToken, Region: a.S3Region, Bucket: a.S3Bucket, Endpoint: a.S3Endpoint, PathStyle: a.S3PathStyle})
+	} else {
+		storage, err = media.NewLocalStorage(a.MediaRoot)
+	}
+	if err != nil {
+		cleanup()
+		return nil, noop, err
+	}
+	mediaService := media.NewService(media.Config{LocalRoot: a.MediaRoot, PublicBaseURL: a.PublicMediaURL, AppURL: a.AppURL, SigningSecret: a.SigningSecret, UploadSecret: a.UploadSecret, DirectUploadURL: a.DirectUploadURL, StagingDirectory: a.StagingDirectory, MaxUploadBytes: a.MaxUploadBytes}, db, storage, nonce, media.NewClamAV(media.ClamAVConfig{Address: a.ScannerAddress, Timeout: a.ScannerTimeout, MaxBytes: a.MaxUploadBytes, Enabled: a.ScannerEnabled, Environment: cfg.Environment}))
+	billingService, err := billing.NewService(billing.Config{SecretKey: a.StripeKey, WebhookSecret: a.StripeWebhookSecret, AppURL: a.AppURL, PlanPrices: a.StripePlans, CreditPacks: a.StripeCreditPacks}, db, auth)
+	if err != nil {
+		cleanup()
+		return nil, noop, err
+	}
+	clipHandler := clips.New(db, auth, mediaService, clips.Config{MaxClipDuration: a.MaxClipDuration})
+	generator := gemini.New(a.GeminiKey, a.GeminiModel)
+	readiness := func(router *httprouter.Router) {
+		router.HandlerFunc("GET", "/api/ready", func(w http.ResponseWriter, r *http.Request) {
+			ctx, cancel := context.WithTimeout(r.Context(), 3*time.Second)
+			defer cancel()
+			database := db.PingContext(ctx) == nil
+			schema := false
+			if database {
+				var valid bool
+				schema = db.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema=current_schema() AND table_name='users' AND column_name='email_activation_required') AND to_regclass('edit_deliveries') IS NOT NULL`).Scan(&valid) == nil && valid
+			}
+			redisReady := limits.Ping(ctx).Err() == nil
+			status := 200
+			if !database || !schema || !redisReady {
+				status = 503
+			}
+			httpx.JSON(w, status, map[string]any{"ready": status == 200, "database": database, "schema": schema, "redis": redisReady})
+		})
+	}
+	handler := httpapi.New(logger, cfg.Environment, version, auth.Register, media.NewHandler(mediaService, auth).Register, jobs.New(db, auth, mediaService, jobs.Config{}).Register, clipHandler.Register, brand.New(db, auth, mediaService).Register, calendar.New(db, auth, mediaService).Register, billingService.Register, account.New(db, auth, mediaService, billingService, account.Config{}).Register, dashboard.New(db, auth, clipHandler).Register, scripts.New(auth, generator).Register, assistant.New(db, auth, generator).Register, readiness)
+	return httpapi.Policy(auth.Policy(handler), httpapi.PolicyConfig{AllowedHosts: a.AllowedHosts}), cleanup, nil
+}

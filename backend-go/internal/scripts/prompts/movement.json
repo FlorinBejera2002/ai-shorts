@@ -1,0 +1,208 @@
+{
+  "typeAliases": {
+    "fixed": "static",
+    "tracking": "track",
+    "hand held": "handheld"
+  },
+  "directionAliases": {
+    "forward": "in",
+    "inward": "in",
+    "backward": "out",
+    "outward": "out"
+  },
+  "allowed": {
+    "static": [
+      "none"
+    ],
+    "pan": [
+      "left",
+      "right"
+    ],
+    "tilt": [
+      "up",
+      "down"
+    ],
+    "zoom": [
+      "in",
+      "out"
+    ],
+    "dolly": [
+      "in",
+      "out"
+    ],
+    "track": [
+      "left",
+      "right"
+    ],
+    "handheld": [
+      "none"
+    ]
+  },
+  "typeTerms": [
+    [
+      "handheld",
+      [
+        "handheld",
+        "hand held",
+        "camera de mana",
+        "camera din mana",
+        "filmare din mana",
+        "miscare din mana",
+        "tinuta in mana",
+        "tinut din mana",
+        "camara en mano",
+        "camera a l epaule",
+        "camera portee",
+        "handkamera",
+        "camera a mano",
+        "camera na mao"
+      ]
+    ],
+    [
+      "pan",
+      [
+        " pan",
+        "paneo",
+        "panoram",
+        "schwenk",
+        "brandeggio"
+      ]
+    ],
+    [
+      "tilt",
+      [
+        "tilt",
+        "inclin",
+        "bascul",
+        "neigung"
+      ]
+    ],
+    [
+      "zoom",
+      [
+        "zoom",
+        "acercar",
+        "alejar"
+      ]
+    ],
+    [
+      "dolly",
+      [
+        "dolly",
+        "travell",
+        "carrell",
+        "kamerafahrt",
+        "deplasare camera",
+        "apropiere camera",
+        "departare camera",
+        "desplazamiento de camara"
+      ]
+    ],
+    [
+      "track",
+      [
+        "track",
+        "urmar",
+        "seguimiento",
+        "suivi",
+        "verfolg",
+        "inseguimento",
+        "acompanhamento"
+      ]
+    ],
+    [
+      "static",
+      [
+        "static",
+        "fixa",
+        "fixe",
+        "fija",
+        "fijo",
+        "fixo",
+        "fisso",
+        "statique",
+        "statisch",
+        "statico"
+      ]
+    ]
+  ],
+  "directionTerms": [
+    [
+      "left",
+      [
+        " left",
+        "stanga",
+        "izquierda",
+        "gauche",
+        "links",
+        "sinistra",
+        "esquerda"
+      ]
+    ],
+    [
+      "right",
+      [
+        " right",
+        "dreapta",
+        "derecha",
+        "droite",
+        "rechts",
+        "destra",
+        "direita"
+      ]
+    ],
+    [
+      "up",
+      [
+        " up",
+        "sus",
+        "arriba",
+        "haut",
+        "oben",
+        "alto",
+        "cima"
+      ]
+    ],
+    [
+      "down",
+      [
+        " down",
+        "jos",
+        "coboar",
+        "abajo",
+        "bas",
+        "unten",
+        "basso",
+        "baixo"
+      ]
+    ],
+    [
+      "in",
+      [
+        " in",
+        "inainte",
+        "apropiere",
+        "acerc",
+        "avant",
+        "hinein",
+        "avanti",
+        "aproxim"
+      ]
+    ],
+    [
+      "out",
+      [
+        " out",
+        "inapoi",
+        "depart",
+        "alejar",
+        "arriere",
+        "heraus",
+        "zuruck",
+        "indietro",
+        "afastar",
+        "tras"
+      ]
+    ]
+  ]
+}

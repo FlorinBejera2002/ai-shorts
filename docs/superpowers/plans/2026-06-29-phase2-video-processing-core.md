@@ -1,6 +1,6 @@
 # Phase 2: Video Processing Core - Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:executing-plans` or `superpowers:subagent-driven-development` to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> Historical implementation plan. Use relevant sections as design context and verify them against current code. Follow the repository's current `AGENTS.md`; this plan does not require a particular skill or task-by-task workflow.
 
 **Goal:** Build a local, testable backend video-processing pipeline that can take either an uploaded video file or a YouTube URL, download/store the source video, transcribe it, detect viral clip windows, cut clips, optionally convert clips to vertical format, optionally burn subtitles, and return durable metadata for later database/API integration.
 

@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process'
 import { initOpenNextCloudflareForDev } from '@opennextjs/cloudflare'
 import type { NextConfig } from 'next'
 import createNextIntlPlugin from 'next-intl/plugin'
@@ -11,25 +12,41 @@ const imageRemoteHosts = (process.env.NEXT_IMAGE_REMOTE_HOSTS ?? '')
   .map((host) => host.trim())
   .filter(Boolean)
 
+function resolveDeploymentId(): string | undefined {
+  if (process.env.NODE_ENV !== 'production') return undefined
+
+  const configured = [
+    process.env.NEXT_DEPLOYMENT_ID,
+    process.env.DEPLOYMENT_VERSION,
+    process.env.GIT_COMMIT_SHA,
+    process.env.CF_PAGES_COMMIT_SHA
+  ]
+    .map((value) => value?.trim())
+    .find((value) => value && /^[a-zA-Z0-9_-]+$/.test(value))
+  if (configured) return configured
+
+  try {
+    return execFileSync('git', ['rev-parse', '--verify', 'HEAD'], {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore']
+    }).trim()
+  } catch {
+    return undefined
+  }
+}
+
 const nextConfig: NextConfig = {
   outputFileTracingRoot: process.cwd(),
-  serverExternalPackages: [
-    '@prisma/client',
-    '.prisma/client',
-    'pg',
-    // OpenNext 1.20.x compares native traced paths with these package names.
-    // Keep canonical names for Next and native aliases for its Windows copy
-    // step, otherwise Prisma's workerd exports are never selected.
-    ...(process.platform === 'win32'
-      ? ['@prisma\\client', '.prisma\\client']
-      : [])
-  ],
   // Keep the production compiler away from the development cache. Running
   // `next build` while `next dev` is open can otherwise leave mixed vendor
   // chunks in `.next` and break routes such as the pricing page.
   distDir:
     process.env.NEXT_DIST_DIR ??
     (process.env.NODE_ENV === 'production' ? '.next-prod' : '.next'),
+  // Keep client assets and server responses on the same release during
+  // rolling deployments. The explicit env var wins; local builds fall back
+  // to the checked-out commit so they exercise the same skew protection.
+  deploymentId: resolveDeploymentId(),
   output: 'standalone',
   images: {
     remotePatterns: imageRemoteHosts.map((hostname) => ({
@@ -59,8 +76,15 @@ const nextConfig: NextConfig = {
     ]
   },
   async rewrites() {
-    const mediaHost = process.env.MEDIA_PROXY_HOST ?? 'http://nginx:80'
+    const mediaHost = (process.env.MEDIA_PROXY_HOST ?? 'http://localhost:8081')
+      .trim()
+      .replace(/\/+$/, '')
+    const apiHost = (process.env.GO_API_URL ?? 'http://localhost:8080')
+      .trim()
+      .replace(/\/+$/, '')
     return [
+      { source: '/api/:path*', destination: `${apiHost}/api/:path*` },
+      { source: '/v1/:path*', destination: `${apiHost}/v1/:path*` },
       {
         source: '/media/:path*',
         destination: `${mediaHost}/media/:path*`

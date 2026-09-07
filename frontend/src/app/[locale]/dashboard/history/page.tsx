@@ -1,7 +1,12 @@
+'use client'
+
+import { ApiState } from '@/components/shared/api-state'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
+import { useApiResource } from '@/hooks/use-api-resource'
 import { Link } from '@/i18n/navigation'
+import type { HistoryJob } from '@/types/api'
 import {
   AlertCircle,
   CheckCircle2,
@@ -9,35 +14,20 @@ import {
   Clock,
   XCircle
 } from 'lucide-react'
-import { getTranslations, setRequestLocale } from 'next-intl/server'
+import { useLocale, useTranslations } from 'next-intl'
 
 import { EmptyState } from '@/components/ui/empty-state'
 import { PageHeader } from '@/components/ui/page-header'
-import { auth } from '@/lib/auth'
-import { getPrisma } from '@/lib/db'
 
-export const runtime = 'nodejs'
-
-export default async function HistoryPage({
-  params
-}: {
-  params: Promise<{ locale: string }>
-}) {
-  const { locale } = await params
-  setRequestLocale(locale)
-  const t = await getTranslations('history')
-  const studio = await getTranslations('dashboard.studio')
-
-  const session = await auth()
-  const prisma = getPrisma()
-  const jobs = session?.user?.id
-    ? await prisma.job.findMany({
-        where: { userId: session.user.id },
-        orderBy: { createdAt: 'desc' },
-        take: 100,
-        include: { _count: { select: { clips: true } } }
-      })
-    : []
+export default function HistoryPage() {
+  const locale = useLocale()
+  const t = useTranslations('history')
+  const studio = useTranslations('dashboard.studio')
+  const { data, error, reload } = useApiResource<{ jobs: HistoryJob[] }>(
+    '/api/dashboard/history'
+  )
+  if (!data) return <ApiState error={error} retry={reload} />
+  const { jobs } = data
 
   return (
     <div className="space-y-6">
@@ -103,10 +93,10 @@ export default async function HistoryPage({
                         {job._count.clips} {t('generated')}
                       </span>
                       <span>{job.aspectRatio}</span>
-                      <time dateTime={job.createdAt.toISOString()}>
+                      <time dateTime={job.createdAt}>
                         {new Intl.DateTimeFormat(locale, {
                           dateStyle: 'medium'
-                        }).format(job.createdAt)}
+                        }).format(new Date(job.createdAt))}
                       </time>
                     </div>
                   </div>

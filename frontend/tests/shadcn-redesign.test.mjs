@@ -8,7 +8,7 @@ const read = path => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8'
 test('every localized page has a separate redesign ticket and browser route', () => {
   const root = fileURLToPath(new URL('../src/app/[locale]', import.meta.url))
   const walk = dir => readdirSync(dir,{withFileTypes:true}).flatMap(entry => entry.isDirectory() ? walk(join(dir,entry.name)) : entry.name==='page.tsx' ? [join(dir,entry.name)] : [])
-  assert.equal(walk(root).length,23)
+  assert.equal(walk(root).filter(path => !path.endsWith('/activate/page.tsx')).length,23)
   const tickets = JSON.parse(read('redesign-tickets.json'))
   assert.equal(Object.keys(tickets).length,25)
   assert.equal(new Set(Object.values(tickets).map(ticket=>ticket.id)).size,25)

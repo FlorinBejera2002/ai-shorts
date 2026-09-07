@@ -1,20 +1,48 @@
 services:
   postgres:
     ports:
-      - "5432:5432"
+      - "127.0.0.1:${POSTGRES_HOST_PORT:-5433}:5432"
 
   redis:
     ports:
-      - "6379:6379"
+      - "127.0.0.1:${REDIS_HOST_PORT:-6379}:6379"
+
+  backend-go:
+    build:
+      context: ./backend-go
+      target: dev
+    command: go run ./cmd/api
+    entrypoint: []
+    read_only: false
+    user: "10001:10001"
+    tmpfs:
+      - /tmp:uid=10001,gid=10001,mode=1770,exec
+    environment:
+      GOCACHE: /tmp/go-build
+      GOFLAGS: -p=1
+      GOMAXPROCS: "2"
+    volumes:
+      - ./backend-go:/src
+      - media_data:/app/media
+    working_dir: /src
+    ports:
+      - "127.0.0.1:${GO_BACKEND_HOST_PORT:-8080}:8080"
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "--show-error", "http://127.0.0.1:8080/api/ready"]
+      interval: 5s
+      start_period: 60s
+      timeout: 5s
+      retries: 5
+    # Restart after Go source changes with make restart-go.
 
   backend:
-    build: ./backend
+    # Only runs when the legacy-python-api profile is explicitly requested.
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
     volumes:
       - ./backend/app:/app/app
       - media_data:/app/media
     ports:
-      - "8000:8000"
+      - "127.0.0.1:${BACKEND_HOST_PORT:-8000}:8000"
 
   worker:
     volumes:
@@ -22,7 +50,10 @@ services:
       - media_data:/app/media
 
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+      target: dev
+    image: sneepcut-frontend-dev
     command: npm run dev
     volumes:
       - ./frontend/src:/app/src
@@ -31,6 +62,6 @@ services:
       - ./frontend/tsconfig.json:/app/tsconfig.json
       - ./frontend/postcss.config.mjs:/app/postcss.config.mjs
     ports:
-      - "127.0.0.1:3001:3000"
+      - "127.0.0.1:${FRONTEND_HOST_PORT:-3001}:3000"
     environment:
       - WATCHPACK_POLLING=true

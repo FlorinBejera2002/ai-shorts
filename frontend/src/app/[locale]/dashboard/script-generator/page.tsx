@@ -1,5 +1,7 @@
 'use client'
 
+import { apiFetch } from '@/lib/auth'
+
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { ChoiceGroup } from '@/components/ui/choice-group'
@@ -138,7 +140,7 @@ export default function ScriptGeneratorPage() {
     setBusy(true)
     setScript(null)
     try {
-      const res = await fetch('/api/scripts/generate', {
+      const res = await apiFetch('/api/scripts/generate', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({

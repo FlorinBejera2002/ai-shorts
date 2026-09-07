@@ -1,5 +1,7 @@
 'use client'
 
+import { apiFetch, authClient } from '@/lib/auth'
+
 import { Card } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
 
@@ -139,7 +141,7 @@ export function SourceUpload({
       if (controller.signal.aborted) return
       let authorization: { uploadUrl: string; token: string | null }
       try {
-        const response = await fetch('/api/upload/authorize', {
+        const response = await apiFetch('/api/upload/authorize', {
           method: 'POST',
           signal: AbortSignal.any([
             controller.signal,
@@ -184,7 +186,16 @@ export function SourceUpload({
       const xhr = new XMLHttpRequest()
       xhrRef.current = xhr
       const directUpload = Boolean(authorization.token)
-      xhr.open(directUpload ? 'PUT' : 'POST', authorization.uploadUrl)
+      xhr.open(
+        directUpload ? 'PUT' : 'POST',
+        directUpload ? authorization.uploadUrl : authClient.url('/api/upload')
+      )
+      xhr.withCredentials = true
+      if (!directUpload)
+        xhr.setRequestHeader(
+          'Authorization',
+          `Bearer ${authClient.getAccessToken() ?? ''}`
+        )
       xhr.timeout = 30 * 60 * 1000
       xhr.responseType = 'json'
       if (authorization.token) {

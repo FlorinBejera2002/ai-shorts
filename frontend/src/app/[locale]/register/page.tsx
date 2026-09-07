@@ -1,5 +1,7 @@
 'use client'
 
+import { publicApiFetch } from '@/lib/auth'
+
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 
@@ -12,12 +14,15 @@ import { ThemeBrandLogo } from '@/components/shared/brand-logo'
 import { useToast } from '@/components/ui/toast'
 import { Link, useRouter } from '@/i18n/navigation'
 import { Check, Loader2, X } from 'lucide-react'
-import { signIn } from 'next-auth/react'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import { useState } from 'react'
 
 export default function RegisterPage() {
   const t = useTranslations('auth')
+  const locale = useLocale()
+  const [verificationEmail, setVerificationEmail] = useState<string | null>(
+    null
+  )
 
   const PASSWORD_RULES = [
     { label: t('passwordRules.length'), test: (p: string) => p.length >= 12 },
@@ -53,7 +58,7 @@ export default function RegisterPage() {
     }
     setBusy(true)
     try {
-      const res = await fetch('/api/auth/register', {
+      const res = await publicApiFetch('/v1/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -68,25 +73,62 @@ export default function RegisterPage() {
         setBusy(false)
         return
       }
-      const session = await signIn('credentials', {
-        email: data.user.email,
-        password: String(formData.get('password') ?? ''),
-        redirect: false
-      }).catch(() => null)
       setPassword('')
-      if (!session?.ok || session.error) {
-        toast.add('error', t('accountCreatedSignInRequired'))
-        router.replace('/login')
+      if (data.verificationRequired) {
+        setVerificationEmail(String(formData.get('email') ?? ''))
+        setBusy(false)
         return
       }
       toast.add('success', t('accountCreated'))
-      router.replace('/dashboard')
-      router.refresh()
+      router.replace('/login?registered=true')
     } catch {
       toast.add('error', t('errorGeneric'))
       setBusy(false)
     }
   }
+
+  async function resend() {
+    setBusy(true)
+    try {
+      const response = await publicApiFetch('/v1/auth/resend-activation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: verificationEmail })
+      })
+      if (!response.ok) throw new Error('Delivery failed')
+      toast.add(
+        'success',
+        locale === 'ro'
+          ? 'Verifică mesajele primite.'
+          : 'Check your email for an activation link.'
+      )
+    } catch {
+      toast.add('error', t('errorGeneric'))
+    } finally {
+      setBusy(false)
+    }
+  }
+  if (verificationEmail)
+    return (
+      <main className="flex min-h-dvh items-center justify-center p-6">
+        <Card className="w-full max-w-md p-8">
+          <h1 className="text-2xl font-semibold">
+            {locale === 'ro' ? 'Verifică adresa de email' : 'Verify your email'}
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            {locale === 'ro'
+              ? 'Deschide linkul de activare trimis pe email, apoi autentifică-te.'
+              : 'Open the activation link in your email, then sign in.'}
+          </p>
+          <Button disabled={busy} onClick={() => void resend()}>
+            {locale === 'ro' ? 'Retrimite linkul' : 'Resend activation link'}
+          </Button>
+          <Button asChild={true} variant="outline">
+            <Link href="/login">{t('signIn')}</Link>
+          </Button>
+        </Card>
+      </main>
+    )
 
   return (
     <main className="flex min-h-dvh bg-background text-foreground">

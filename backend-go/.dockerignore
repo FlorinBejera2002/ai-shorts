@@ -1,3 +1,7 @@
 .git
+.env*
+.idea
+.cache
+build
 *.exe
 *.test

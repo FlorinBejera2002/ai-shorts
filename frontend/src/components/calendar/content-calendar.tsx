@@ -1,5 +1,7 @@
 'use client'
 
+import { apiFetch } from '@/lib/auth'
+
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
@@ -91,7 +93,7 @@ async function requestJson<Response>(
   url: string,
   init?: RequestInit
 ): Promise<Response> {
-  const response = await fetch(url, init)
+  const response = await apiFetch(url, init)
   const body: unknown = await response.json().catch(() => null)
 
   if (!response.ok) {
