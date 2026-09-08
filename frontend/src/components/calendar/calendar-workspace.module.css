@@ -1,0 +1,143 @@
+.workspace {
+  padding-bottom: 24px;
+}
+.metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--card);
+  overflow: hidden;
+}
+.metrics .metric {
+  display: flex;
+  min-width: 0;
+  flex-direction: row;
+  gap: 12px;
+  align-items: center;
+  border: 0;
+  border-radius: 0;
+  padding: 18px 20px;
+  box-shadow: none;
+  background: transparent;
+}
+.metric + .metric {
+  border-left: 1px solid var(--border);
+}
+.metric:nth-child(n + 3) {
+  border-top: 1px solid var(--border);
+}
+.metricIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  border-radius: 5px;
+}
+.metric p:first-child {
+  font-size: 9px;
+  letter-spacing: 0.08em;
+}
+.planningLayout {
+  display: grid;
+  gap: 20px;
+  align-items: start;
+}
+.planner,
+.agenda {
+  min-width: 0;
+  border-radius: 8px;
+}
+.toolbar {
+  background: var(--card);
+}
+.toolbar h2 {
+  font-size: 16px;
+}
+.toolbar button {
+  min-height: 34px;
+  height: 34px;
+  border-radius: 5px;
+}
+.toolbar select {
+  min-height: 34px;
+  font-size: 11px;
+}
+.gridWrap {
+  padding: 0;
+}
+.monthGrid {
+  border: 0;
+  border-radius: 0;
+}
+.monthGrid [role="gridcell"] {
+  transition: background 160ms ease;
+}
+.monthGrid [role="gridcell"]:hover {
+  background: color-mix(in srgb, var(--primary) 3%, var(--card));
+}
+.monthGrid [role="gridcell"] > button:first-of-type {
+  border-radius: 5px;
+}
+.agenda {
+  overflow: hidden;
+}
+.agenda > div:first-child {
+  margin: -20px -20px 0;
+  padding: 20px;
+  background: #1b202b;
+  border-color: #343c4c;
+  color: #edf0f7;
+}
+.agenda > div:first-child p {
+  color: #a6b1c5;
+}
+.agenda > div:first-child button {
+  background: #2b3241;
+  color: #edf0f7;
+  border-color: #485165;
+  font-size: 11px;
+}
+.agenda > div:first-child h2 {
+  font-size: 17px;
+}
+.agenda article {
+  border-radius: 5px;
+}
+.agenda article button {
+  padding-inline: 8px;
+}
+@media (min-width: 700px) {
+  .metrics {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+  .metric:nth-child(n + 3) {
+    border-top: 0;
+  }
+}
+@media (min-width: 1400px) {
+  .planningLayout {
+    grid-template-columns: minmax(0, 1fr) 320px;
+  }
+  .agenda {
+    position: sticky;
+    top: 90px;
+  }
+}
+@media (max-width: 639px) {
+  .metrics .metric {
+    padding: 14px 12px;
+    gap: 8px;
+  }
+  .agenda > div:first-child {
+    margin: -16px -16px 0;
+    padding: 16px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .monthGrid [role="gridcell"] {
+    transition: none;
+  }
+}

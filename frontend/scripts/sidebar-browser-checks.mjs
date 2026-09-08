@@ -22,7 +22,7 @@ export async function checkDesktopSidebar(page) {
   const container = page.locator('[data-slot="sidebar-container"]')
   const nav = page.getByRole('navigation', { name: 'Dashboard navigation' })
   await checkTransparentLogo(page)
-  assert.equal(await nav.getByRole('link').count(), 11)
+  assert.equal(await nav.getByRole('link').count(), 7)
   for (const link of await nav.getByRole('link').all()) assert.ok(await link.getAttribute('href'))
   assert.equal(await nav.getByRole('link', { name: 'Home', exact: true }).getAttribute('aria-current'), 'page')
   await page.screenshot({ path: 'test-results/sidebar/expanded.png', fullPage: false })
@@ -81,7 +81,7 @@ export async function checkMobileSidebar(page) {
   const dialog = page.getByRole('dialog', { name: messages.mobileNavigation })
   await dialog.waitFor()
   await checkTransparentLogo(page)
-  assert.equal(await dialog.getByRole('navigation').getByRole('link').count(), 11)
+  assert.equal(await dialog.getByRole('navigation').getByRole('link').count(), 7)
   for (let index = 0; index < 18; index++) {
     await page.keyboard.press('Tab')
     assert.equal(await page.evaluate(() => document.querySelector('[role="dialog"]')?.contains(document.activeElement)), true)

@@ -2,7 +2,7 @@
 import { ApiState } from '@/components/shared/api-state'
 import { authClient } from '@/lib/auth'
 import { useLocale } from 'next-intl'
-import { usePathname } from 'next/navigation'
+import { usePathname, useSearchParams } from 'next/navigation'
 import { useEffect, useSyncExternalStore } from 'react'
 export function useAuth() {
   return useSyncExternalStore(
@@ -15,6 +15,11 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   const session = useAuth()
   const locale = useLocale()
   const pathname = usePathname()
+  const search = useSearchParams()
+  const restricted =
+    session.user?.deletion_pending &&
+    (!pathname.endsWith('/dashboard/settings') ||
+      ['brand', 'billing'].includes(search.get('tab') ?? ''))
   useEffect(() => {
     if (authClient.getSnapshot().status === 'loading')
       void authClient.refresh().catch(() => undefined)
@@ -28,20 +33,13 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     )
   }, [session.status, locale])
   useEffect(() => {
-    if (
-      session.user?.deletion_pending &&
-      !pathname.endsWith('/dashboard/settings')
-    ) {
+    if (restricted) {
       window.location.replace(
         `${locale === 'en' ? '' : `/${locale}`}/dashboard/settings`
       )
     }
-  }, [session.user?.deletion_pending, pathname, locale])
-  if (
-    session.status !== 'authenticated' ||
-    (session.user?.deletion_pending &&
-      !pathname.endsWith('/dashboard/settings'))
-  )
+  }, [restricted, locale])
+  if (session.status !== 'authenticated' || restricted)
     return (
       <ApiState
         error={session.error}

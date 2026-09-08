@@ -2,13 +2,16 @@
 
 ## Notion task tracking
 
-Every project work item must have a ticket on the **Sneep Cut > IT** board in Notion. Before starting work, update the matching ticket or create one if none exists. Keep its status current, and when the work is finished and verified, move the ticket to **Done**.
+Before starting every new project task, create a new ticket on the **Sneep Cut > IT** board in Notion, even when a matching or related ticket already exists. Do not reuse or repurpose an existing ticket for a new task. Keep the newly created ticket's status current as work progresses, and when the task is finished and verified, move that ticket to **Done**.
 
 ## Working approach
 
 - Treat requests for changes as authorization to implement and verify them. Resolve routine choices from the existing code and task context; ask only when missing information materially changes the outcome. Continue independent, authorized work while awaiting an answer.
 - Completion means the requested behavior is implemented, relevant checks have run, and failures caused by the change are addressed. When the task includes running the app, inspect the result and fix issues before handing it back. Report any remaining blocker or skipped verification explicitly.
 - Preserve unrelated working-tree changes. Prepare a concrete, reviewable result before requesting any additional approval; do not add approval pauses for routine local edits or checks. Deployment and destructive data operations require authorization for that action.
+- For frontend component edits, preserve component-scoped Fast Refresh: changing one component must update that boundary without restarting the frontend container or reloading the whole page. Verify state is preserved when changing reload or development-server behavior.
+- Always write clean, readable, well-structured code. Give components clear responsibilities, use descriptive names and explicit interfaces, and reuse shared components for repeated behavior or presentation. Separate UI, state, and data access where it improves clarity; avoid duplicated code, oversized components, and unnecessary abstractions.
+- Follow the project's documented architecture and component conventions, and consult the relevant official framework/library documentation when implementing or changing their usage. Keep component boundaries, composition, and file organization consistent with those conventions.
 - Give concise updates and a final account of what changed, what was verified, and any remaining limitations. Use plain language and concrete evidence.
 
 ## Context and skills

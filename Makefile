@@ -6,7 +6,7 @@ DEV_COMPOSE := $(COMPOSE) -f docker-compose.yml -f docker-compose.dev.yml
 GO_CACHE ?= $(CURDIR)/.cache/go-build
 SERVICE ?=
 
-.PHONY: help doctor ensure-env setup up dev dev-up down restart status health \
+.PHONY: help doctor ensure-env setup up dev dev-up dev-watch down restart status health \
 	logs backend-shell restart-go frontend-shell db-shell redis-shell migrate security-up \
 	install typecheck lint format test test-frontend test-go check build \
 	build-dev build-frontend reset-data
@@ -40,12 +40,14 @@ up: ensure-env ## Build and start the default stack in the background
 	@$(COMPOSE) up --build -d
 
 dev: ensure-env ## Switch to the hot-reload development stack in the foreground
-	@$(COMPOSE) down
-	@$(DEV_COMPOSE) up --build
+	@$(DEV_COMPOSE) up --build --watch
 
 dev-up: ensure-env ## Switch to the hot-reload development stack in the background
-	@$(COMPOSE) down
 	@$(DEV_COMPOSE) up --build -d
+	@echo "Frontend hot reload is active. Run make dev-watch for Go/Python reload."
+
+dev-watch: ## Watch Go/Python changes after make dev-up (keep this terminal open)
+	@$(DEV_COMPOSE) watch --no-up
 
 down: ## Stop containers while preserving data volumes
 	@$(COMPOSE) down
@@ -74,7 +76,7 @@ logs: ## Follow logs for all services, or one with SERVICE=backend
 backend-shell: ## Open a shell in the Python worker container
 	@$(COMPOSE) exec worker /bin/sh
 
-restart-go: ## Restart Go after source changes in development
+restart-go: ## Restart Go using its last built or synchronized source
 	@$(DEV_COMPOSE) restart backend-go
 
 frontend-shell: ## Open a shell in the running Next.js container

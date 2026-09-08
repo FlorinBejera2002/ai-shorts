@@ -84,6 +84,17 @@ func (h *Handler) freeze(ctx context.Context, userID string, snapshot deletionAc
 	if err != nil {
 		return err
 	}
+	// Erase publishing credentials as soon as deletion is frozen, even if later
+	// billing or media cleanup needs a retry. Worker actions lock this same user.
+	if _, err = tx.ExecContext(ctx, `UPDATE social_accounts SET credentials='',status='disconnected',updated_at=now() WHERE user_id=$1`, userID); err != nil {
+		return err
+	}
+	if _, err = tx.ExecContext(ctx, `UPDATE social_posts SET status='cancelled',error='Account deletion requested.',updated_at=now() WHERE user_id=$1 AND status IN ('queued','processing')`, userID); err != nil {
+		return err
+	}
+	if _, err = tx.ExecContext(ctx, `DELETE FROM social_oauth_states WHERE user_id=$1`, userID); err != nil {
+		return err
+	}
 	return tx.Commit()
 }
 

@@ -12,25 +12,27 @@ import (
 
 // Application carries validated process settings into focused feature adapters.
 type Application struct {
-	AppURL, RedisURL, MediaRoot, StorageType, PublicMediaURL, SigningSecret, UploadSecret, StagingDirectory, DirectUploadURL string
-	MaxUploadBytes                                                                                                           int64
-	MaxClipDuration                                                                                                          float64
-	ScannerEnabled                                                                                                           bool
-	ScannerAddress                                                                                                           string
-	ScannerTimeout                                                                                                           time.Duration
-	AllowedHosts, TrustedProxies                                                                                             []string
-	RequireEmailVerification                                                                                                 bool
-	InitialCredits                                                                                                           int
-	GoogleClientID, GoogleClientSecret, GoogleRedirectURL                                                                    string
-	EmailFrom, ResendKey, SMTPHost, SMTPUser, SMTPPassword                                                                   string
-	SMTPPort                                                                                                                 int
-	SMTPRequireTLS                                                                                                           bool
-	GeminiKey, GeminiModel                                                                                                   string
-	S3AccessKey, S3SecretKey, S3SessionToken, S3Region, S3Bucket, S3Endpoint                                                 string
-	S3PathStyle                                                                                                              bool
-	StripeKey, StripeWebhookSecret                                                                                           string
-	StripePlans                                                                                                              map[string]string
-	StripeCreditPacks                                                                                                        map[string]int
+	SocialEncryptionKey, MetaAppID, MetaAppSecret, InstagramAppID, InstagramAppSecret, TikTokClientKey, TikTokClientSecret, MetaGraphVersion, TikTokVerifiedURLPrefix string
+	SocialPublishingEnabled                                                                                                                                           bool
+	AppURL, RedisURL, MediaRoot, StorageType, PublicMediaURL, SigningSecret, UploadSecret, StagingDirectory, DirectUploadURL                                          string
+	MaxUploadBytes                                                                                                                                                    int64
+	MaxClipDuration                                                                                                                                                   float64
+	ScannerEnabled                                                                                                                                                    bool
+	ScannerAddress                                                                                                                                                    string
+	ScannerTimeout                                                                                                                                                    time.Duration
+	AllowedHosts, TrustedProxies                                                                                                                                      []string
+	RequireEmailVerification                                                                                                                                          bool
+	InitialCredits                                                                                                                                                    int
+	GoogleClientID, GoogleClientSecret, GoogleRedirectURL                                                                                                             string
+	EmailFrom, ResendKey, SMTPHost, SMTPUser, SMTPPassword                                                                                                            string
+	SMTPPort                                                                                                                                                          int
+	SMTPRequireTLS                                                                                                                                                    bool
+	GeminiKey, GeminiModel                                                                                                                                            string
+	S3AccessKey, S3SecretKey, S3SessionToken, S3Region, S3Bucket, S3Endpoint                                                                                          string
+	S3PathStyle                                                                                                                                                       bool
+	StripeKey, StripeWebhookSecret                                                                                                                                    string
+	StripePlans                                                                                                                                                       map[string]string
+	StripeCreditPacks                                                                                                                                                 map[string]int
 }
 
 func splitValues(raw string) []string {
@@ -66,6 +68,19 @@ func ApplicationFromEnv(getenv func(string) string, environment string) (Applica
 		return b, nil
 	}
 	var err error
+	a.SocialEncryptionKey = getenv("SOCIAL_TOKEN_ENCRYPTION_KEY")
+	a.MetaAppID = getenv("META_APP_ID")
+	a.MetaAppSecret = getenv("META_APP_SECRET")
+	a.InstagramAppID = getenv("INSTAGRAM_APP_ID")
+	a.InstagramAppSecret = getenv("INSTAGRAM_APP_SECRET")
+	a.TikTokClientKey = getenv("TIKTOK_CLIENT_KEY")
+	a.TikTokClientSecret = getenv("TIKTOK_CLIENT_SECRET")
+	a.MetaGraphVersion = value("META_GRAPH_VERSION", "v23.0")
+	a.TikTokVerifiedURLPrefix = getenv("TIKTOK_VERIFIED_URL_PREFIX")
+	a.SocialPublishingEnabled, err = parseBool("SOCIAL_PUBLISHING_ENABLED", false)
+	if err != nil {
+		return a, err
+	}
 	mb, err := parseInt("MAX_UPLOAD_SIZE_MB", 2048, 1, 2048)
 	if err != nil {
 		return a, err

@@ -3,6 +3,11 @@ from app.services import processing_pipeline, subtitle_burner
 
 
 @pytest.mark.parametrize("attempt_id", [None, "00000000-0000-0000-0000-000000000456"])
+@pytest.mark.parametrize("brand_settings,expected_badge", [
+    (None, False),
+    ({"apply_brand": False, "hide_platform_badge": False}, True),
+    ({"apply_brand": False, "hide_platform_badge": True}, False),
+])
 @pytest.mark.parametrize(
     "language,subtitle_style,burn_subtitles,fail_burn",
     [
@@ -19,6 +24,8 @@ def test_pipeline_orchestrates_with_mocked_services(
     burn_subtitles,
     fail_burn,
     attempt_id,
+    brand_settings,
+    expected_badge,
 ):
     seen_language = []
     seen_style = []
@@ -49,7 +56,7 @@ def test_pipeline_orchestrates_with_mocked_services(
     monkeypatch.setattr(
         processing_pipeline,
         "transcribe_video",
-        lambda path, language=None: (
+        lambda path, language=None, on_progress=None: (
             seen_language.append(language)
             or {
                 "text": "hello world",
@@ -144,8 +151,10 @@ def test_pipeline_orchestrates_with_mocked_services(
         subtitle_style=subtitle_style,
         storage_namespace="00000000-0000-0000-0000-000000000123",
         attempt_id=attempt_id,
+        brand_settings=brand_settings,
     )
     metadata = result["clips"][0]["metadata"]
+    assert metadata["contains_platform_badge"] is expected_badge
     prefix = "00000000-0000-0000-0000-000000000123"
     if attempt_id:
         prefix += f"/attempts/{attempt_id}"

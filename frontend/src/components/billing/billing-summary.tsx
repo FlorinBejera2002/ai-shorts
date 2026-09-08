@@ -74,10 +74,6 @@ export function BillingSummary({
       className="block gap-0 py-0 relative mt-6 overflow-hidden p-0 animate-slide-up"
       aria-labelledby="billing-overview-title"
     >
-      <div
-        className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-r from-primary/10 via-primary/[0.035] to-transparent"
-        aria-hidden="true"
-      />
       <div className="relative grid gap-5 p-5 sm:p-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
         <div>
           <div className="flex items-center gap-2">
@@ -91,7 +87,7 @@ export function BillingSummary({
             </h2>
           </div>
 
-          <div className="mt-5 grid gap-3 sm:grid-cols-3">
+          <div className="billing-overview-metrics mt-6 grid gap-3 sm:grid-cols-3">
             <div className="rounded-xl border border-border bg-background/70 p-4">
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
                 <Zap className="h-3.5 w-3.5" aria-hidden="true" />

@@ -110,9 +110,11 @@ function LoginForm() {
               </svg>
               {error === 'CredentialsSignin'
                 ? t('errorInvalidCredentials')
-                : error === 'CallbackRouteError'
-                  ? t('errorDatabase')
-                  : t('errorGeneric')}
+                : error === 'account_exists'
+                  ? t('errorAccountExists')
+                  : error === 'CallbackRouteError'
+                    ? t('errorDatabase')
+                    : t('errorGeneric')}
             </div>
           )}
 

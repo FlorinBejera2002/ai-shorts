@@ -44,7 +44,7 @@ export function SourceYoutube({ url, onChange }: SourceYoutubeProps) {
   }, [videoId, url])
 
   return (
-    <div className="mt-5 animate-scale-in border-t border-border pt-5">
+    <div className="animate-scale-in">
       <Label className="section-label" htmlFor="youtube-url">
         {t('youtubeUrl')}
       </Label>
@@ -83,29 +83,50 @@ export function SourceYoutube({ url, onChange }: SourceYoutubeProps) {
       )}
 
       {videoId && (
-        <Card className="block gap-0 py-0 mt-4 flex items-center gap-3 p-3 animate-slide-up sm:gap-4">
-          <div className="relative aspect-video w-28 shrink-0 overflow-hidden rounded-lg bg-black sm:w-36">
+        <Card
+          className="mt-4 flex flex-col items-stretch gap-4 rounded-xl bg-muted/20 p-4 shadow-none animate-slide-up sm:flex-row sm:items-center sm:gap-5"
+          data-testid="youtube-preview"
+        >
+          <div className="relative aspect-video w-full shrink-0 overflow-hidden rounded-lg bg-muted sm:w-44">
             <Image
               src={youtubeThumbnailUrl(videoId)}
               alt=""
               fill={true}
-              sizes="144px"
+              sizes="(min-width: 640px) 176px, 100vw"
               unoptimized={true}
               className="object-cover"
             />
-            <span className="absolute bottom-1 right-1 flex h-5 w-5 items-center justify-center rounded bg-black/70">
-              <Youtube className="h-3 w-3 text-white" strokeWidth={1.75} />
-            </span>
           </div>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-[13px] font-semibold text-foreground">
+            <span className="mb-2 inline-flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground">
+              <Youtube
+                className="h-3.5 w-3.5 text-destructive"
+                strokeWidth={1.75}
+                aria-hidden="true"
+              />
+              YouTube
+            </span>
+            <p
+              className="line-clamp-2 break-words text-sm font-semibold leading-relaxed text-foreground"
+              title={meta?.title}
+            >
               {meta?.title ?? t('videoDetected')}
             </p>
-            <p className="mt-0.5 truncate text-xs text-muted-foreground">
+            <p
+              className="mt-1 truncate text-xs text-muted-foreground"
+              title={meta?.author}
+            >
               {meta?.author || `youtube.com/watch?v=${videoId}`}
             </p>
-            <span className="mt-2 inline-flex items-center gap-1.5 rounded-md bg-success/10 px-2 py-1 text-[11px] font-medium text-success">
-              <CheckCircle2 className="h-3 w-3" strokeWidth={2} />
+            <span
+              role="status"
+              className="mt-3 inline-flex max-w-full items-center gap-1.5 rounded-full border border-success/15 bg-success/10 px-2.5 py-1 text-[11px] font-medium text-success"
+            >
+              <CheckCircle2
+                className="h-3.5 w-3.5 shrink-0"
+                strokeWidth={2}
+                aria-hidden="true"
+              />
               {t('readyToProcess')}
             </span>
           </div>

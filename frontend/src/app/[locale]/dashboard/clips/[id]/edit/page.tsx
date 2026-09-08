@@ -1,5 +1,7 @@
 'use client'
 
+import '@/components/clips/media-workbench.css'
+
 import { apiFetch } from '@/lib/auth'
 
 import { Button } from '@/components/ui/button'
@@ -308,9 +310,9 @@ export default function ClipEditorPage() {
   const tooShort = totalDuration > 0 && totalDuration < 3
 
   return (
-    <div className="animate-fade-in flex flex-col gap-4">
+    <div className="media-workbench media-editor-surface animate-fade-in flex flex-col gap-4">
       {/* Header toolbar */}
-      <Card className="block gap-0 py-0 flex flex-col gap-3 p-3 sm:flex-row sm:items-center sm:justify-between">
+      <Card className="media-editor-toolbar block gap-0 py-0 flex flex-col gap-3 p-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex min-w-0 items-center gap-3">
           <Link
             href={`/dashboard/clips/${params.id}`}

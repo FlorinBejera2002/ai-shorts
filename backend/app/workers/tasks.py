@@ -6,6 +6,8 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
+from billiard.exceptions import SoftTimeLimitExceeded
+
 from sqlalchemy import select, update
 
 from app.database import SyncSessionLocal
@@ -150,6 +152,14 @@ def process_job_task(
             "status": "cancelled",
             "reason": "account_deletion_pending",
         }
+    except SoftTimeLimitExceeded:
+        _mark_job_failed(
+            job_id,
+            "Processing exceeded the worker time limit. Retry with a shorter video "
+            "or increase WORKER_SOFT_TIME_LIMIT and WORKER_TIME_LIMIT.",
+            token,
+        )
+        raise
     except Exception as exc:
         _mark_job_failed(job_id, str(exc), token)
         raise
@@ -320,6 +330,11 @@ def _mark_job_completed(
                     resolution=clip_data.get("resolution") or "unknown",
                     aspect_ratio=job.aspect_ratio,
                     has_subtitles=bool(clip_data.get("subtitled_file_path")),
+                    contains_platform_badge=(
+                        metadata.get("contains_platform_badge")
+                        if isinstance(metadata.get("contains_platform_badge"), bool)
+                        else None
+                    ),
                     transcript_text=transcript_text,
                     caption_tiktok=metadata.get("raw", {}).get(
                         "video_description_for_tiktok"
@@ -557,6 +572,9 @@ def recut_clip_task(
             clip.file_path = file_storage_path
             clip.file_url = storage.public_url(file_storage_key)
             clip.file_storage_key = file_storage_key
+            # Recut uses the original source and does not apply the app badge.
+            # A trim operates on the rendered clip and preserves its provenance.
+            clip.contains_platform_badge = False
             clip.segments = segments
             clip.start_time = min(segment["start"] for segment in segments)
             clip.end_time = max(segment["end"] for segment in segments)

@@ -51,6 +51,8 @@ class Clip(Base):
     resolution: Mapped[str] = mapped_column(String(50), nullable=False)
     aspect_ratio: Mapped[str] = mapped_column(String(20), default="9:16", nullable=False)
     has_subtitles: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    # None means an older render whose app-added badge provenance is unknown.
+    contains_platform_badge: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
     transcript_text: Mapped[str | None] = mapped_column(Text, nullable=True)
     caption_tiktok: Mapped[str | None] = mapped_column(Text, nullable=True)
     caption_instagram: Mapped[str | None] = mapped_column(Text, nullable=True)

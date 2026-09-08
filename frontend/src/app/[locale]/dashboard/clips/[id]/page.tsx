@@ -1,5 +1,7 @@
 'use client'
 
+import '@/components/clips/media-workbench.css'
+
 import { ApiState } from '@/components/shared/api-state'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -23,7 +25,7 @@ export default function ClipDetailPage() {
   const fileUrl = clip.fileUrl
 
   return (
-    <div className="space-y-6">
+    <div className="media-workbench space-y-6">
       <PageHeader
         title={clip.title}
         description={`${Math.round(clip.duration)}s · ${clip.aspectRatio} · ${clip.resolution}`}
@@ -39,8 +41,16 @@ export default function ClipDetailPage() {
       <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,.85fr)_minmax(0,1.15fr)]">
         <Card
           as="section"
-          className="block gap-0 overflow-hidden py-0 shadow-none xl:sticky xl:top-20"
+          className="media-monitor block gap-0 overflow-hidden py-0 shadow-none xl:sticky xl:top-20"
         >
+          <div className="media-monitor-label">
+            <span>
+              {locale === 'ro' ? 'Previzualizare' : 'Preview monitor'}
+            </span>
+            <span>
+              {clip.resolution} / {clip.aspectRatio}
+            </span>
+          </div>
           <div className="mx-auto aspect-[9/16] max-h-[68dvh] w-full max-w-md overflow-hidden rounded-lg bg-black">
             {fileUrl ? (
               // biome-ignore lint/a11y/useMediaCaption: Generated clips can have burned-in captions; VTT export is tracked for launch.

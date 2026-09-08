@@ -10,11 +10,11 @@ vm.runInNewContext(ts.transpileModule(readFileSync(new URL('../src/lib/dashboard
 }).outputText, { exports })
 const { dashboardNavigation, isDashboardRouteActive, dashboardRouteLabel } = exports
 
-test('all prior sidebar destinations are retained once, with create as a separate action', () => {
+test('the sidebar exposes nine focused destinations, with create as a separate action', () => {
   const destinations = dashboardNavigation.flatMap(group => group.items.map(item => item.href))
-  assert.equal(destinations.length, 11)
-  assert.equal(new Set(destinations).size, 11)
-  for (const route of ['review','clips','history','analytics','calendar','script-generator','publish','brand','billing','settings']) assert.ok(destinations.includes(`/dashboard/${route}`))
+  assert.equal(destinations.length, 9)
+  assert.equal(new Set(destinations).size, 9)
+  for (const route of ['clips','history','calendar','publish','script-generator','brand','billing','settings']) assert.ok(destinations.includes(`/dashboard/${route}`))
   assert.ok(destinations.includes('/dashboard'))
 })
 
@@ -30,6 +30,10 @@ test('nested job and clip routes display the correct navigation context', () => 
   assert.equal(dashboardRouteLabel('/dashboard/clips/synthetic/edit'), 'clips')
   assert.equal(dashboardRouteLabel('/dashboard/create'), 'create')
   assert.equal(dashboardRouteLabel('/dashboard/calendar'), 'calendar')
+  assert.equal(dashboardRouteLabel('/dashboard/publish'), 'publish')
+  assert.equal(dashboardRouteLabel('/dashboard/history?tab=analytics'), 'history')
+  assert.equal(dashboardRouteLabel('/dashboard/settings?tab=billing'), 'settings')
+  assert.equal(dashboardRouteLabel('/dashboard/script-generator'), 'scripts')
 })
 
 test('sidebar state is read on the server and sensitive pages are not eagerly prefetched', () => {
@@ -41,4 +45,11 @@ test('sidebar state is read on the server and sensitive pages are not eagerly pr
   assert.match(sidebar, /aria-current/)
   const primitive = readFileSync(new URL('../src/components/ui/sidebar.tsx', import.meta.url), 'utf8')
   assert.match(primitive, /!tooltip \|\| isMobile \|\| state !== 'collapsed'/)
+})
+
+test('brand and billing have independent active states', () => {
+ for (const page of ['brand', 'billing']) {
+  assert.equal(dashboardRouteLabel('/dashboard/' + page), page)
+  assert.equal(isDashboardRouteActive('/dashboard/' + page, '/dashboard/settings'), false)
+ }
 })

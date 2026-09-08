@@ -9,7 +9,7 @@ import { Textarea } from '@/components/ui/textarea'
 
 import { Check, Loader2, RotateCcw, Send, Sparkles } from 'lucide-react'
 import { useTranslations } from 'next-intl'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react'
 
 import { useToast } from '@/components/ui/toast'
 import { extractApiError } from '@/lib/api-error'
@@ -33,6 +33,7 @@ interface AssistantChatProps {
   getState: () => Record<string, unknown>
   /** Apply live actions from a fresh assistant reply. */
   onActions: (actions: AssistantAction[]) => void
+  emptyPreview?: ReactNode
   suggestions: string[]
 }
 
@@ -48,7 +49,8 @@ export function AssistantChat({
   clipId,
   getState,
   onActions,
-  suggestions
+  suggestions,
+  emptyPreview
 }: AssistantChatProps) {
   const t = useTranslations('assistant')
   const toast = useToast()
@@ -164,9 +166,9 @@ export function AssistantChat({
   }, [historyQuery, t, toast])
 
   return (
-    <Card className="block gap-0 py-0 flex flex-col overflow-hidden">
+    <Card className="block gap-0 py-0 flex flex-col overflow-hidden rounded-[16px]">
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-border bg-muted/35 px-4 py-3.5">
+      <div className="flex items-center justify-between px-4 py-3.5">
         <div className="flex items-center gap-2">
           <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10 text-primary ring-1 ring-primary/15">
             <Sparkles className="h-3.5 w-3.5" strokeWidth={2} />
@@ -200,23 +202,42 @@ export function AssistantChat({
             <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
           </div>
         ) : messages.length === 0 ? (
-          <div className="flex flex-1 flex-col items-center justify-center gap-3 text-center">
-            <p className="max-w-[26ch] text-xs leading-relaxed text-muted-foreground">
-              {t(context === 'create' ? 'emptyCreate' : 'emptyEditor')}
-            </p>
-            <div className="grid w-full max-w-lg gap-2 sm:grid-cols-3">
-              {suggestions.map((suggestion) => (
-                <Button
-                  variant="ghost"
-                  key={suggestion}
-                  type="button"
-                  onClick={() => void send(suggestion)}
-                  className="h-auto whitespace-normal rounded-lg border border-border bg-background px-3 py-2 text-left text-[11px] leading-relaxed text-muted-foreground transition-colors hover:border-primary/40 hover:bg-primary/5 hover:text-foreground"
-                >
-                  {suggestion}
-                </Button>
-              ))}
+          <div
+            className={
+              emptyPreview
+                ? 'creation-assistant-empty'
+                : 'flex flex-1 flex-col items-center justify-center gap-3 text-center'
+            }
+          >
+            <div
+              className={emptyPreview ? 'creation-assistant-intro' : 'contents'}
+            >
+              {emptyPreview && (
+                <>
+                  <span className="creation-assistant-symbol">
+                    <Sparkles aria-hidden="true" />
+                  </span>
+                  <h4>{t('createHeading')}</h4>
+                </>
+              )}
+              <p className="max-w-[26ch] text-xs leading-relaxed text-muted-foreground">
+                {t(context === 'create' ? 'emptyCreate' : 'emptyEditor')}
+              </p>
+              <div className="grid w-full max-w-lg gap-2 sm:grid-cols-3">
+                {suggestions.map((suggestion) => (
+                  <Button
+                    variant="ghost"
+                    key={suggestion}
+                    type="button"
+                    onClick={() => void send(suggestion)}
+                    className="h-auto whitespace-normal rounded-lg border border-border bg-background px-3 py-2 text-left text-[11px] leading-relaxed text-muted-foreground transition-colors hover:border-primary/40 hover:bg-primary/5 hover:text-foreground"
+                  >
+                    {suggestion}
+                  </Button>
+                ))}
+              </div>
             </div>
+            {emptyPreview}
           </div>
         ) : (
           messages.map((message) => (
@@ -268,7 +289,7 @@ export function AssistantChat({
       </div>
 
       {/* Input */}
-      <div className="flex items-end gap-2 border-t border-border bg-muted/25 p-3">
+      <div className="flex items-end gap-2 p-3">
         <Textarea
           aria-label={t('placeholder')}
           value={input}

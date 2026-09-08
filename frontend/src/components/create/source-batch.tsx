@@ -55,7 +55,7 @@ export function SourceBatch({ urls, onChange }: SourceBatchProps) {
   )
 
   return (
-    <div className="mt-5 animate-scale-in space-y-4 border-t border-border pt-5">
+    <div className="animate-scale-in space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h3 className="text-sm font-semibold text-foreground">

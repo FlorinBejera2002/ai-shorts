@@ -1,10 +1,12 @@
 'use client'
 
 import { apiFetch } from '@/lib/auth'
+import '@/components/create/creation-workbench.css'
 
+import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 
-import { Layers, Link2, Sparkles, Upload, X } from 'lucide-react'
+import { FileText, Sparkles, X } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useSearchParams } from 'next/navigation'
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react'
@@ -13,6 +15,7 @@ import {
   type AssistantAction,
   AssistantChat
 } from '@/components/assistant/assistant-chat'
+import { ConfigurationPreview } from '@/components/create/configuration-preview'
 import {
   type AspectRatio,
   type CreateSettings,
@@ -20,23 +23,18 @@ import {
   type SubtitleStyle
 } from '@/components/create/settings-panel'
 import { SourceBatch } from '@/components/create/source-batch'
+import { SourceModeSelector } from '@/components/create/source-mode-selector'
 import { SourceUpload } from '@/components/create/source-upload'
 import { SourceYoutube } from '@/components/create/source-youtube'
 import { SummaryCard } from '@/components/create/summary-card'
 import { PageHeader } from '@/components/ui/page-header'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Tabs, TabsContent } from '@/components/ui/tabs'
 import { useToast } from '@/components/ui/toast'
-import { useRouter } from '@/i18n/navigation'
+import { Link, useRouter } from '@/i18n/navigation'
 import { extractApiError } from '@/lib/api-error'
 import { extractYouTubeId } from '@/lib/youtube'
 
 type SourceMode = 'youtube' | 'upload' | 'batch'
-
-const SOURCE_MODES = [
-  { id: 'youtube', icon: Link2 },
-  { id: 'upload', icon: Upload },
-  { id: 'batch', icon: Layers }
-] as const
 
 function isSourceMode(value: string | null): value is SourceMode {
   return value === 'youtube' || value === 'upload' || value === 'batch'
@@ -53,10 +51,22 @@ const CREDITS_PER_CLIP = 10
 
 export default function CreatePage() {
   const t = useTranslations('create')
+  const sections = useTranslations('dashboardSections')
 
   return (
-    <div className="animate-fade-in">
-      <PageHeader title={t('title')} description={t('desc')} />
+    <div className="creation-page animate-fade-in">
+      <PageHeader
+        title={t('title')}
+        description={t('desc')}
+        actions={
+          <Button asChild={true} variant="outline">
+            <Link href="/dashboard/script-generator">
+              <FileText className="size-4" />
+              {sections('writeScript')}
+            </Link>
+          </Button>
+        }
+      />
       <Suspense fallback={<CreateWorkflowFallback />}>
         <CreateWorkflow />
       </Suspense>
@@ -78,7 +88,7 @@ function CreateWorkflowFallback() {
 
 function StepHeading({ number, title }: { number: number; title: string }) {
   return (
-    <div className="flex items-center gap-3">
+    <div className="creation-step flex items-center gap-3">
       <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-[11px] font-bold tabular-nums text-primary ring-1 ring-primary/15">
         {number}
       </span>
@@ -249,36 +259,23 @@ function CreateWorkflow() {
   }
 
   return (
-    <div className="mt-6 grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_23rem] xl:grid-rows-[auto_1fr]">
+    <div className="creation-workbench">
       <Card
         as="section"
-        className="block gap-0 py-0 animate-slide-up overflow-hidden xl:col-start-1 xl:row-start-1"
+        className="creation-source block gap-0 py-0 overflow-hidden xl:col-start-1 xl:row-start-1"
       >
-        <div className="border-b border-border bg-muted/35 px-4 py-4 sm:px-5">
+        <div className="creation-panel-bar">
           <StepHeading number={1} title={t('stepSource')} />
+          <span className="creation-source-label">{t(mode)}</span>
         </div>
         <Tabs
           value={mode}
           onValueChange={(value) => {
             if (isSourceMode(value)) setMode(value)
           }}
-          className="p-4 sm:p-6"
+          className="creation-source-tabs p-4 sm:p-6"
         >
-          <TabsList
-            aria-label={t('stepSource')}
-            className="grid w-full grid-cols-3"
-          >
-            {SOURCE_MODES.map(({ id, icon: Icon }) => (
-              <TabsTrigger
-                key={id}
-                value={id}
-                className="min-h-11 px-2 text-xs sm:text-sm"
-              >
-                <Icon className="h-4 w-4" strokeWidth={1.75} />
-                <span>{t(id)}</span>
-              </TabsTrigger>
-            ))}
-          </TabsList>
+          <SourceModeSelector />
           <TabsContent value="upload">
             <SourceUpload
               onBusyChange={setUploadBusy}
@@ -299,12 +296,11 @@ function CreateWorkflow() {
         </Tabs>
       </Card>
 
-      <aside
-        className="animate-slide-up space-y-5 xl:sticky xl:top-6 xl:col-start-2 xl:row-span-2 xl:row-start-1"
-        style={{ animationDelay: '100ms' }}
-      >
-        <section className="space-y-3">
-          <StepHeading number={2} title={t('stepStyle')} />
+      <aside className="creation-inspector">
+        <section className="creation-inspector-card creation-style-card">
+          <div className="creation-panel-bar">
+            <StepHeading number={2} title={t('stepStyle')} />
+          </div>
           <SettingsPanel settings={settings} onChange={setSettings} />
         </section>
 
@@ -336,10 +332,11 @@ function CreateWorkflow() {
           </Card>
         )}
 
-        <section className="space-y-3">
-          <StepHeading number={3} title={t('stepGenerate')} />
+        <section className="creation-inspector-card">
+          <div className="creation-panel-bar">
+            <StepHeading number={3} title={t('stepGenerate')} />
+          </div>
           <SummaryCard
-            settings={settings}
             videoCount={videoCount}
             creditCost={creditCost}
             canGenerate={canGenerate}
@@ -350,12 +347,10 @@ function CreateWorkflow() {
         </section>
       </aside>
 
-      <section
-        className="animate-slide-up xl:col-start-1 xl:row-start-2"
-        style={{ animationDelay: '150ms' }}
-      >
+      <section className="creation-assistant xl:col-start-1 xl:row-start-2">
         <AssistantChat
           context="create"
+          emptyPreview={<ConfigurationPreview settings={settings} />}
           getState={() => ({
             clips: settings.clips,
             aspect_ratio: settings.aspectRatio,

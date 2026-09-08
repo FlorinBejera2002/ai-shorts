@@ -59,3 +59,5 @@ frontend/test-results/
 
 # Git worktrees
 .worktrees/
+
+frontend/.next-dashboard-ui/

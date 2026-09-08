@@ -17,7 +17,7 @@ if os.environ.get("SNEEPCUT_WORKER_SMOKE") != "1":
     raise RuntimeError("The worker smoke fixture requires explicit test opt-in")
 
 
-def transcribe_fixture(video_path, language=None):
+def transcribe_fixture(video_path, language=None, on_progress=None):
     duration = processing_pipeline.get_video_duration(video_path)
     words = [
         {"text": text, "start": index * 0.8 + 1, "end": index * 0.8 + 1.6}

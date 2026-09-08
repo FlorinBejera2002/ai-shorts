@@ -24,6 +24,9 @@ export async function PublicFooter() {
               <Link href={`/${key}`}>{t(key)}</Link>
             </Button>
           ))}
+          <Button asChild={true} variant="ghost" size="sm">
+            <Link href="/data-deletion">{t('dataDeletion')}</Link>
+          </Button>
         </div>
       </div>
     </footer>

@@ -1,6 +1,7 @@
 'use client'
 
 import { apiFetch } from '@/lib/auth'
+import '@/components/create/creation-workbench.css'
 
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -17,6 +18,7 @@ import {
 } from '@/components/script/shooting-coach'
 import { PageHeader } from '@/components/ui/page-header'
 import { useToast } from '@/components/ui/toast'
+import { Link } from '@/i18n/navigation'
 import {
   ArrowRight,
   Camera,
@@ -58,10 +60,10 @@ type GeneratedScript = {
 }
 
 const PLATFORMS = [
-  { value: 'tiktok', label: 'TikTok', icon: '🎵' },
-  { value: 'instagram', label: 'Instagram Reels', icon: '📸' },
-  { value: 'youtube', label: 'YouTube Shorts', icon: '▶️' },
-  { value: 'linkedin', label: 'LinkedIn', icon: '💼' }
+  { value: 'tiktok', label: 'TikTok' },
+  { value: 'instagram', label: 'Instagram Reels' },
+  { value: 'youtube', label: 'YouTube Shorts' },
+  { value: 'linkedin', label: 'LinkedIn' }
 ]
 
 const TONES = [
@@ -86,6 +88,7 @@ const DURATIONS = [15, 30, 45, 60, 90, 120, 180]
 
 export default function ScriptGeneratorPage() {
   const t = useTranslations('scriptGenerator')
+  const sections = useTranslations('dashboardSections')
   const toast = useToast()
   const coachLabels = useMemo<ShootingCoachLabels>(
     () => ({
@@ -291,12 +294,27 @@ export default function ScriptGeneratorPage() {
   }
 
   return (
-    <div className="mx-auto max-w-7xl animate-fade-in">
-      <PageHeader title={t('title')} description={t('desc')} />
+    <div className="script-workbench w-full animate-fade-in">
+      <PageHeader
+        title={t('title')}
+        description={t('desc')}
+        actions={
+          <Button asChild={true} variant="outline">
+            <Link href="/dashboard/create">{sections('backToCreate')}</Link>
+          </Button>
+        }
+      />
 
-      <div className="mt-8 grid gap-6 xl:grid-cols-[minmax(18rem,0.85fr)_minmax(0,1.5fr)] xl:items-start">
+      <div className="script-workbench-grid mt-6 grid gap-5 xl:grid-cols-[minmax(18rem,0.85fr)_minmax(0,1.5fr)] xl:items-start">
         {/* Left: Input Form */}
-        <div className="space-y-4 xl:sticky xl:top-6">
+        <div className="script-brief">
+          <div className="creation-panel-bar">
+            <span className="flex items-center gap-2">
+              <FileText className="size-4" />
+              {t('topicLabel')}
+            </span>
+            <span className="creation-source-format">01</span>
+          </div>
           {/* Topic */}
           <Card className="block gap-0 py-0 space-y-3 p-5">
             <Label
@@ -341,11 +359,7 @@ export default function ScriptGeneratorPage() {
               className="grid grid-cols-2"
               options={PLATFORMS.map((p) => ({
                 value: p.value,
-                label: (
-                  <>
-                    {p.icon} {p.label}
-                  </>
-                )
+                label: p.label
               }))}
             />
           </Card>
@@ -475,7 +489,7 @@ export default function ScriptGeneratorPage() {
             onClick={handleGenerate}
             disabled={busy || !topic.trim()}
             variant="default"
-            className="w-full disabled:cursor-not-allowed disabled:opacity-40"
+            className="script-generate w-full disabled:cursor-not-allowed disabled:opacity-40"
           >
             {busy ? (
               <>
@@ -492,14 +506,28 @@ export default function ScriptGeneratorPage() {
         </div>
 
         {/* Right: Script Output */}
-        <div className="min-w-0 space-y-4">
+        <div className="script-canvas min-w-0 space-y-4">
+          <div className="script-canvas-toolbar">
+            <span className="flex items-center gap-2">
+              <Clapperboard className="size-4" />
+              {t('scenesLabel')}
+            </span>
+            <span className="script-canvas-readout">
+              {PLATFORMS.find((p) => p.value === platform)?.label}
+              <span aria-hidden="true"> / </span>
+              {script?.total_duration_seconds ?? duration}s
+            </span>
+          </div>
           {!script && !busy && (
-            <Card className="block gap-0 py-0 flex min-h-[26rem] flex-col items-center justify-center border-dashed px-6 py-16 text-center">
-              <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10">
-                <FileText
-                  className="h-7 w-7 text-primary/60"
-                  strokeWidth={1.5}
-                />
+            <Card className="script-empty block gap-0 py-0 flex min-h-[26rem] flex-col items-center justify-center px-6 py-16 text-center">
+              <div className="script-page-outline" aria-hidden="true">
+                <span>01</span>
+                <i />
+                <i />
+                <i />
+                <span>02</span>
+                <i />
+                <i />
               </div>
               <p className="text-sm font-medium text-muted-foreground mb-1">
                 {t('emptyTitle')}
@@ -522,14 +550,8 @@ export default function ScriptGeneratorPage() {
               <p className="text-xs text-muted-foreground">
                 {t('generatingDesc')}
               </p>
-              <div className="mt-4 flex gap-1">
-                {[0, 1, 2].map((i) => (
-                  <div
-                    key={i}
-                    className="h-2 w-2 animate-bounce rounded-full bg-primary/60"
-                    style={{ animationDelay: `${i * 150}ms` }}
-                  />
-                ))}
+              <div className="script-generation-progress" aria-hidden="true">
+                <span />
               </div>
             </Card>
           )}
@@ -543,8 +565,7 @@ export default function ScriptGeneratorPage() {
                     <h2
                       className="text-base font-semibold"
                       style={{
-                        fontFamily:
-                          'var(--font-cinematic), "Bodoni Moda", serif'
+                        fontFamily: 'var(--font-display), "Sora", sans-serif'
                       }}
                     >
                       {script.title}
@@ -559,7 +580,6 @@ export default function ScriptGeneratorPage() {
                         {script.scenes.length} {t('scenes')}
                       </span>
                       <span>
-                        {PLATFORMS.find((p) => p.value === platform)?.icon}{' '}
                         {PLATFORMS.find((p) => p.value === platform)?.label}
                       </span>
                     </div>

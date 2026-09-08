@@ -10,10 +10,8 @@ import { useTranslations } from 'next-intl'
 import { useEffect, useState } from 'react'
 
 import { Link } from '@/i18n/navigation'
-import type { CreateSettings } from './settings-panel'
 
 interface SummaryCardProps {
-  settings: CreateSettings
   videoCount: number
   creditCost: number
   canGenerate: boolean
@@ -23,7 +21,6 @@ interface SummaryCardProps {
 }
 
 export function SummaryCard({
-  settings,
   videoCount,
   creditCost,
   canGenerate,
@@ -51,22 +48,15 @@ export function SummaryCard({
 
   const insufficient = balance !== null && creditCost > balance
 
-  const subtitleLabel = {
-    clean: t('subtitleClean'),
-    bold: t('subtitleBold'),
-    'caption-box': t('subtitleCaptionBox'),
-    none: t('subtitleNone')
-  }[settings.subtitleStyle]
-
   return (
-    <Card className="block gap-0 py-0 overflow-hidden">
-      <div className="p-4" aria-live="polite">
+    <Card className="creation-generate block gap-0 py-0 overflow-hidden">
+      <div className="creation-cost" aria-live="polite">
         <div className="flex items-start gap-3">
           <div className="icon-tile">
             <Zap className="h-4 w-4" strokeWidth={1.75} />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="section-label">
+            <p className="sr-only">
               {isBatch ? t('costBatch', { count: videoCount }) : t('cost')}
             </p>
             <p className="mt-1.5 text-2xl font-semibold tabular-nums text-foreground">
@@ -82,43 +72,9 @@ export function SummaryCard({
             )}
           </div>
         </div>
-
-        <div className="mt-4 flex flex-wrap gap-1.5 border-t border-border pt-4">
-          {[
-            t('recapClips', { count: settings.clips }),
-            settings.aspectRatio,
-            subtitleLabel,
-            ...(isBatch ? [t('recapVideos', { count: videoCount })] : [])
-          ].map((chip) => (
-            <span
-              key={chip}
-              className="rounded-md bg-muted px-2 py-1 text-[11px] font-medium text-foreground"
-            >
-              {chip}
-            </span>
-          ))}
-        </div>
-
-        {insufficient && (
-          <div className="mt-4 flex items-start gap-2 rounded-lg border border-warning/25 bg-warning/10 p-2.5 text-[11px] text-warning">
-            <AlertTriangle
-              className="mt-0.5 h-3.5 w-3.5 shrink-0"
-              strokeWidth={1.75}
-            />
-            <span>
-              {t('insufficientCredits')}{' '}
-              <Link
-                href="/dashboard/billing"
-                className="font-semibold underline underline-offset-2"
-              >
-                {t('getCredits')}
-              </Link>
-            </span>
-          </div>
-        )}
       </div>
 
-      <div className="border-t border-border bg-muted/35 p-3">
+      <div className="creation-generate-action">
         <Button
           type="button"
           disabled={!canGenerate || busy || insufficient}
@@ -137,11 +93,28 @@ export function SummaryCard({
               <Wand2 className="h-4 w-4" strokeWidth={1.75} />
               {isBatch
                 ? t('processVideos', { count: videoCount })
-                : t('generateClips', { count: settings.clips })}
+                : t('generateAction')}
             </>
           )}
         </Button>
       </div>
+      {insufficient && (
+        <div className="creation-credit-warning flex items-start gap-2 rounded-lg border border-warning/25 bg-warning/10 p-2.5 text-[11px] text-warning">
+          <AlertTriangle
+            className="mt-0.5 h-3.5 w-3.5 shrink-0"
+            strokeWidth={1.75}
+          />
+          <span>
+            {t('insufficientCredits')}{' '}
+            <Link
+              href="/dashboard/billing"
+              className="font-semibold underline underline-offset-2"
+            >
+              {t('getCredits')}
+            </Link>
+          </span>
+        </div>
+      )}
     </Card>
   )
 }

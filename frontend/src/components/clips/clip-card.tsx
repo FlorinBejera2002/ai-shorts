@@ -34,14 +34,17 @@ export function ClipCard({
   }).format(new Date(clip.createdAt))
 
   return (
-    <Card className="group min-w-0 gap-0 overflow-hidden py-0 shadow-none transition-colors hover:border-primary/50">
+    <Card
+      style={{ animationDelay: `${Math.min(index, 10) * 25}ms` }}
+      className="media-asset group min-w-0 gap-0 overflow-hidden py-0 shadow-none transition-colors hover:border-primary/50"
+    >
       <Link
         href={`/dashboard/clips/${clip.id}`}
         className="relative flex h-full min-w-0 flex-col rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
         style={{ animationDelay: `${Math.min(index, 10) * 35}ms` }}
         aria-label={`${labels.open}: ${clip.title}`}
       >
-        <div className="relative aspect-video overflow-hidden border-b bg-muted">
+        <div className="media-asset-preview relative aspect-video overflow-hidden border-b">
           {clip.thumbnailUrl ? (
             <img
               src={clip.thumbnailUrl}
@@ -51,11 +54,11 @@ export function ClipCard({
             />
           ) : (
             <div className="absolute inset-0 flex items-center justify-center">
-              <Film className="h-9 w-9 text-primary/35" aria-hidden="true" />
+              <Film className="h-9 w-9 text-slate-500" aria-hidden="true" />
             </div>
           )}
           <div className="absolute inset-0 flex items-center justify-center bg-black/0 transition-colors group-hover:bg-black/25">
-            <div className="flex h-10 w-10 scale-90 items-center justify-center rounded-full bg-white text-black opacity-0 shadow-lg transition-all group-hover:scale-100 group-hover:opacity-100">
+            <div className="flex h-10 w-10 scale-90 items-center justify-center rounded-full bg-white text-black opacity-0 shadow-lg transition-all group-hover:scale-100 group-hover:opacity-100 group-focus-within:scale-100 group-focus-within:opacity-100">
               <Play className="ml-0.5 h-4 w-4" fill="currentColor" />
             </div>
           </div>

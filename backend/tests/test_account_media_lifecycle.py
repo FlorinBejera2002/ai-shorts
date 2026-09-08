@@ -189,8 +189,10 @@ def test_job_failure_during_deletion_cancels_without_refunding(monkeypatch) -> N
     assert db.commits == 1
 
 
+@pytest.mark.parametrize("badge", [True, False, None, "false"])
 def test_job_completion_persists_clips_and_terminal_state_atomically(
     monkeypatch,
+    badge,
 ) -> None:
     user_id = uuid.uuid4()
     job = SimpleNamespace(
@@ -226,6 +228,7 @@ def test_job_completion_persists_clips_and_terminal_state_atomically(
                     "storage_path": f"clips/{job.id}/clip.mp4",
                     "thumbnail_storage_key": f"clips/{job.id}/thumb.jpg",
                     "thumbnail_storage_path": f"clips/{job.id}/thumb.jpg",
+                    "contains_platform_badge": badge,
                 },
             }
         ],
@@ -239,6 +242,7 @@ def test_job_completion_persists_clips_and_terminal_state_atomically(
     assert len(db.added) == 1
     assert db.added[0].file_storage_key == f"clips/{job.id}/clip.mp4"
     assert db.added[0].thumbnail_storage_key == f"clips/{job.id}/thumb.jpg"
+    assert db.added[0].contains_platform_badge is (badge if isinstance(badge, bool) else None)
 
 
 def test_missing_job_is_a_cooperative_cancellation(monkeypatch) -> None:

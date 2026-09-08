@@ -1,0 +1,114 @@
+/* Scoped to AppSidebar, including its portalled mobile drawer. */
+:global([data-slot="sidebar-inner"]):has(.header),
+:global([data-mobile="true"]):has(.header) {
+  background: var(--card);
+  color: var(--foreground);
+}
+.header { gap: 22px; padding: 26px 20px 24px; }
+.create.create {
+  height: 44px;
+  padding: 0 12px;
+  gap: 10px;
+  border-radius: 10px;
+  background: var(--primary);
+  color: var(--primary-foreground);
+  font-size: 12px;
+  font-weight: 600;
+  box-shadow: 0 3px 8px color-mix(in srgb, var(--primary) 15%, transparent);
+}
+.create.create:hover { background: color-mix(in srgb, var(--primary) 88%, var(--foreground)); color: var(--primary-foreground); }
+.createArrow { margin-left: auto; opacity: .65; }
+.content { gap: 0; padding: 0 8px; }
+.group { padding: 0 6px 26px; }
+.groupLabel.groupLabel {
+  height: 28px;
+  margin: 0 0 9px;
+  padding-inline: 12px;
+  color: var(--muted-foreground);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+.navItem.navItem {
+  position: relative;
+  height: 42px;
+  padding: 0 12px;
+  gap: 12px;
+  border-radius: 9px;
+  color: var(--muted-foreground);
+  font-size: 13px;
+  font-weight: 500;
+  transition: background 150ms, color 150ms;
+}
+.navItem.navItem:hover { background: var(--muted); color: var(--foreground); }
+.navItem.navItem[data-active="true"] {
+  background: var(--foreground);
+  color: var(--background);
+  font-weight: 600;
+  box-shadow: 0 2px 5px #10182812;
+}
+.navItem.navItem[data-active="true"]::after { display: none; }
+.navItem.navItem > svg { opacity: .8; }
+.navItem.navItem[data-active="true"] > svg { opacity: 1; }
+.footer {
+  margin: 0 14px 16px;
+  padding: 12px 0 0;
+  border-top: 1px solid var(--border);
+}
+.preferences.preferences {
+  height: 62px;
+  padding: 10px;
+  gap: 10px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--muted) 40%, var(--card));
+}
+.preferences.preferences:hover { background: var(--muted); }
+.preferencesIcon { padding: 8px; border-radius: 9px; background: transparent; box-shadow: none; }
+:global(#dashboard-shell) .preferences > .preferencesIcon,
+.preferences > .preferencesIcon { width: 34px; height: 34px; color: var(--primary); }
+:global([data-collapsible="icon"]) .header { padding-block: 18px; gap: 18px; }
+:global([data-collapsible="icon"]) .createArrow { display: none; }
+:global([data-collapsible="icon"]) .content { padding-inline: 0; }
+:global([data-collapsible="icon"]) .footer { margin-inline: 0; border-top: 0; }
+:global([data-collapsible="icon"]) .preferences { border: 0; padding: 0 !important; background: transparent; }
+:global([data-collapsible="icon"]) .preferencesIcon { padding: 0; background: transparent; box-shadow: none; }
+@media (prefers-reduced-motion: reduce) { .navItem { transition: none; } }
+.content > nav { display: flex; min-height: 100%; flex-direction: column; }
+.group:last-child { margin-top: auto; padding-bottom: 16px; }
+.navIcon { display: flex; width: 28px; height: 28px; align-items: center; justify-content: center; border-radius: 7px; background: transparent; flex-shrink: 0; }
+.navIcon > svg { width: 15px; height: 15px; }
+.navItem[data-active="true"] .navIcon { background: transparent; }
+:global([data-collapsible="icon"]) .navLabel { display: none; }
+:global([data-collapsible="icon"]) .navIcon { width: 20px; height: 20px; background: transparent; }
+:global([data-collapsible="icon"]) .group { padding-inline: 12px; }
+:global([data-collapsible="icon"]) .navItem { width: 36px !important; height: 36px !important; padding: 0 !important; justify-content: center; }
+:global([data-collapsible="icon"]) .footer { padding: 12px !important; }
+:global([data-collapsible="icon"]) .preferences { width: 36px !important; height: 36px !important; justify-content: center; }
+:global(#dashboard-shell) :global([data-collapsible="icon"]) .preferencesIcon { width: 18px; height: 18px; }
+:global([data-collapsible="icon"]) .header { padding-inline: 8px; }
+:global([data-collapsible="icon"]) .header > div { justify-content: center; }
+:global([data-collapsible="icon"]) .groupLabel { display: none; }
+:global([data-collapsible="icon"]) .group { padding-inline: 8px; }
+:global([data-collapsible="icon"]) .navItem { margin-inline: auto; }
+:global([data-collapsible="icon"]) .navIcon { width: 14px; height: 14px; }
+:global([data-collapsible="icon"]) .footer { padding-inline: 8px !important; }
+:global([data-collapsible="icon"]) .preferences { margin-inline: auto; }
+.profileText { text-align: left; }
+:global([data-collapsible="icon"]) .profileText { display: none; }
+:global([data-collapsible="icon"]) .preferences > span:first-child { width: 28px; height: 28px; }
+.preferences.preferences { height: 48px; padding: 8px 10px; border-radius: 10px; gap: 9px; }
+.preferences > span:first-child { width: 30px; height: 30px; }
+.preferences.preferences { border-color: transparent; background: transparent; box-shadow: none; height: 46px; padding: 6px 8px; gap: 10px; }
+.preferences.preferences:hover, .preferences.preferences[data-state="open"] { background: var(--muted); border-color: transparent; }
+.preferences > span:first-child { width: 32px; height: 32px; }
+.profileMenu { width: 204px; padding: 5px; border-radius: 12px; box-shadow: 0 8px 28px #10182814; }
+.profileMenu [role="menuitem"] { min-height: 40px; gap: 10px; padding: 10px 12px; border-radius: 8px; font-size: 13px; color: var(--destructive); }
+.profileMenu [role="menuitem"] > svg { color: currentColor; }
+.profileMenu [role="menuitem"]:focus { background: color-mix(in srgb, var(--destructive) 8%, var(--popover)); color: var(--destructive); outline: none; box-shadow: none; }
+.profileRow { display: flex; align-items: center; gap: 9px; min-height: 44px; padding: 4px 2px; }
+.profileRow > span:first-child { width: 30px; height: 30px; }
+.profileName { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--foreground); font-size: 13px; font-weight: 600; }
+:global([data-collapsible="icon"]) .profileRow { flex-direction: column; gap: 6px; }
+:global([data-collapsible="icon"]) .profileName { display: none; }

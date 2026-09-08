@@ -1,4 +1,5 @@
 
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -40,6 +41,11 @@ class Settings(BaseSettings):
     whisper_model_size: str = "base"
     whisper_device: str = "cpu"
     whisper_compute_type: str = "int8"
+    whisper_cpu_threads: int = Field(default=2, ge=1)
+
+    # Bound long CPU jobs while allowing time for transcription and rendering.
+    worker_soft_time_limit: int = Field(default=7200, ge=1)
+    worker_time_limit: int = Field(default=7500, ge=1)
 
     # Gemini Settings
     gemini_model_name: str = "gemini-2.5-flash"
@@ -71,6 +77,8 @@ class Settings(BaseSettings):
 
     def __init__(self, **data):
         super().__init__(**data)
+        if self.worker_time_limit <= self.worker_soft_time_limit:
+            raise ValueError("WORKER_TIME_LIMIT must exceed WORKER_SOFT_TIME_LIMIT")
         # Set Celery URLs from redis_url if not explicitly provided
         if not self.celery_broker_url:
             self.celery_broker_url = self.redis_url

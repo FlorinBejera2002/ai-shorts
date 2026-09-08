@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -15,7 +16,7 @@ from app.utils.ffmpeg_utils import (
 logger = logging.getLogger(__name__)
 
 _model = None
-_model_key: tuple[str, str, str] | None = None
+_model_key: tuple[str, str, str, int] | None = None
 
 
 def _get_model():
@@ -24,6 +25,7 @@ def _get_model():
         settings.whisper_model_size,
         settings.whisper_device,
         settings.whisper_compute_type,
+        settings.whisper_cpu_threads,
     )
     if _model is not None and _model_key == key:
         return _model
@@ -37,6 +39,7 @@ def _get_model():
         settings.whisper_model_size,
         device=settings.whisper_device,
         compute_type=settings.whisper_compute_type,
+        cpu_threads=settings.whisper_cpu_threads,
     )
     _model_key = key
     logger.info("Loaded Faster-Whisper model %s", settings.whisper_model_size)
@@ -45,6 +48,7 @@ def _get_model():
 
 def _collect_transcript(
     segments_iter,
+    on_progress: Callable[[float], None] | None = None,
 ) -> tuple[list[TranscriptSegment], list[TranscriptWord], list[str]]:
     segments: list[TranscriptSegment] = []
     words: list[TranscriptWord] = []
@@ -73,10 +77,16 @@ def _collect_transcript(
                 words=segment_words,
             )
         )
+        if on_progress:
+            on_progress(float(segment.end))
     return segments, words, text_parts
 
 
-def transcribe_video(video_path: str, language: str | None = None) -> dict[str, Any]:
+def transcribe_video(
+    video_path: str,
+    language: str | None = None,
+    on_progress: Callable[[float], None] | None = None,
+) -> dict[str, Any]:
     path = Path(video_path)
     validate_video_file(path)
     if not has_audio_stream(path):
@@ -89,7 +99,7 @@ def transcribe_video(video_path: str, language: str | None = None) -> dict[str, 
         vad_filter=True,
         language=language or None,
     )
-    segments, words, text_parts = _collect_transcript(segments_iter)
+    segments, words, text_parts = _collect_transcript(segments_iter, on_progress)
 
     if not text_parts:
         # VAD can classify quiet, heavily produced, or music-backed speech as
@@ -101,7 +111,7 @@ def transcribe_video(video_path: str, language: str | None = None) -> dict[str, 
             vad_filter=False,
             language=language or None,
         )
-        segments, words, text_parts = _collect_transcript(segments_iter)
+        segments, words, text_parts = _collect_transcript(segments_iter, on_progress)
 
     result = TranscriptResult(
         text=" ".join(text_parts).strip(),

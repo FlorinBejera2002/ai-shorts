@@ -11,6 +11,7 @@ services:
     build:
       context: ./backend-go
       target: dev
+    image: sneepcut-go-dev
     command: go run ./cmd/api
     entrypoint: []
     read_only: false
@@ -18,12 +19,19 @@ services:
     tmpfs:
       - /tmp:uid=10001,gid=10001,mode=1770,exec
     environment:
-      GOCACHE: /tmp/go-build
+      # /tmp is tmpfs and is cleared on restart; keep compiled packages here.
+      GOCACHE: /src/.cache/go-build
       GOFLAGS: -p=1
       GOMAXPROCS: "2"
     volumes:
-      - ./backend-go:/src
       - media_data:/app/media
+    develop:
+      watch:
+        - action: sync+restart
+          path: ./backend-go
+          target: /src
+          initial_sync: true
+          ignore: [".git/", "**/*_test.go", "Dockerfile", "*.md"]
     working_dir: /src
     ports:
       - "127.0.0.1:${GO_BACKEND_HOST_PORT:-8080}:8080"
@@ -33,7 +41,6 @@ services:
       start_period: 60s
       timeout: 5s
       retries: 5
-    # Restart after Go source changes with make restart-go.
 
   backend:
     # Only runs when the legacy-python-api profile is explicitly requested.
@@ -45,9 +52,29 @@ services:
       - "127.0.0.1:${BACKEND_HOST_PORT:-8000}:8000"
 
   worker:
-    volumes:
-      - ./backend/app:/app/app
-      - media_data:/app/media
+    build:
+      target: ml-dev
+    image: sneepcut-ml-dev
+    stop_grace_period: 5m
+    develop:
+      watch:
+        - action: sync+restart
+          path: ./backend/app
+          target: /app/app
+          initial_sync: true
+          ignore: ["__pycache__/", "**/*.pyc"]
+
+  job-dispatcher:
+    build:
+      target: api-dev
+    image: sneepcut-api-dev
+    develop:
+      watch:
+        - action: sync+restart
+          path: ./backend/app
+          target: /app/app
+          initial_sync: true
+          ignore: ["__pycache__/", "**/*.pyc"]
 
   frontend:
     build:
@@ -58,6 +85,7 @@ services:
     volumes:
       - ./frontend/src:/app/src
       - ./frontend/public:/app/public
+      - ./frontend/messages:/app/messages
       - ./frontend/next.config.ts:/app/next.config.ts
       - ./frontend/tsconfig.json:/app/tsconfig.json
       - ./frontend/postcss.config.mjs:/app/postcss.config.mjs
@@ -65,3 +93,13 @@ services:
       - "127.0.0.1:${FRONTEND_HOST_PORT:-3001}:3000"
     environment:
       - WATCHPACK_POLLING=true
+
+  nginx:
+    # Refresh Nginx's upstream DNS after Compose recreates an app container.
+    depends_on:
+      frontend:
+        condition: service_started
+        restart: true
+      backend-go:
+        condition: service_started
+        restart: true

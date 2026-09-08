@@ -31,7 +31,7 @@ The default stack uses production-style frontend and backend images. Before usin
 
 ## Hot-reload development
 
-Use the development overlay to publish PostgreSQL, Redis, and Go and to mount frontend/worker source code. The command removes containers from the previous Compose mode while preserving database and media volumes:
+Use the development overlay with Docker Compose 2.32+ to publish PostgreSQL, Redis, and Go and enable source reload. Compose updates changed services without taking down the entire stack or deleting database/media volumes:
 
 ```bash
 make dev
@@ -56,7 +56,21 @@ FRONTEND_HOST_PORT=3002
 
 Container-to-container ports do not change when these host overrides are used.
 
-Frontend changes hot reload. Run `make restart-go` after Go source changes and restart the worker after Python worker changes. After changing package manifests or a Dockerfile, rebuild the development images with `make build-dev`.
+Keep `make dev` running while editing. Frontend source, public assets and translations are mounted directly; Next.js hot reload picks up edits, including on Windows through polling. Compose Watch synchronizes Go source and restarts only the Go container (recompilation uses its existing cache). Python application edits synchronize and restart the worker and dispatcher. The worker has up to five minutes to finish active jobs before stopping; avoid editing worker code during long jobs you want to preserve.
+
+In PowerShell without Make, use:
+
+```powershell
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build --watch
+```
+
+For detached services, run `make dev-up`, then keep `make dev-watch` open in a terminal for Go/Python reload. Without Watch running, only frontend hot reload is active; rerun `make dev-up` to apply Go/Python edits. `make restart-go` only restarts the last built or synchronized Go code.
+
+After changing dependencies, a Dockerfile or `.env`, rerun `make dev` (or `make dev-up`) to rebuild/recreate affected services. `make build-dev` only builds images; it does not update running containers. Database schema changes still require `make migrate`. Use `make up` for production-style images, which intentionally do not hot reload.
+
+To verify reload after building the development images, run `node scripts/test-dev-reload.mjs` from the repository root. It tests Go/Python reload and Next.js source/translation updates using disposable containers and copied fixtures, with no database or media volumes.
+
+Nginx preserves the frontend's cache headers so development CSS/JavaScript revalidate and production chunks retain Next.js's versioned cache policy. After pulling a change to `nginx/nginx.conf`, apply it with `docker compose exec nginx nginx -t` followed by `docker compose exec nginx nginx -s reload`. If a browser previously cached development assets under the old one-year policy, use Ctrl+Shift+R once. To verify CSS updates through Nginx, run `node scripts/test-studio-header-reload.mjs` from `frontend` with Playwright available (or set `PLAYWRIGHT_MODULE` to its `index.mjs`). This uses mocked APIs, checks desktop/mobile rendering and cache headers, and temporarily appends then removes a CSS probe to verify two consecutive hot updates without a page reload.
 
 Press `Ctrl-C` to stop the foreground command. Then remove the stopped containers with:
 

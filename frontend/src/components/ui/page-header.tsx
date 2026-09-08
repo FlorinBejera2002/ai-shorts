@@ -1,4 +1,4 @@
-import { Badge } from '@/components/ui/badge'
+import { Clapperboard } from 'lucide-react'
 import type { ReactNode } from 'react'
 
 /**
@@ -15,15 +15,12 @@ export function PageHeader({
   actions?: ReactNode
 }) {
   return (
-    <header className="relative flex flex-wrap items-end justify-between gap-5 pb-6">
+    <header className="studio-workbench-header relative flex flex-wrap items-end justify-between gap-5 pb-6">
       <div className="min-w-0">
-        <Badge
-          variant="outline"
-          className="mb-4 gap-2 rounded-md border-primary/20 bg-primary/5 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.16em] text-primary"
-        >
-          <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+        <div className="studio-workbench-eyebrow mb-4 flex items-center gap-2 text-[10px] font-medium uppercase tracking-[0.16em] text-primary">
+          <Clapperboard aria-hidden="true" className="size-3.5" />
           sneepcut studio
-        </Badge>
+        </div>
         <h1 className="text-3xl font-semibold tracking-[-0.045em] sm:text-[2.5rem]">
           {title}
         </h1>
@@ -34,7 +31,9 @@ export function PageHeader({
         )}
       </div>
       {actions && (
-        <div className="flex shrink-0 items-center gap-2 pb-0.5">{actions}</div>
+        <div className="studio-workbench-actions flex shrink-0 items-center gap-2 pb-0.5">
+          {actions}
+        </div>
       )}
     </header>
   )

@@ -19,8 +19,8 @@ celery_app.conf.update(
     enable_utc=True,
     task_acks_late=True,
     task_reject_on_worker_lost=True,
-    task_soft_time_limit=1800,
-    task_time_limit=2100,
+    task_soft_time_limit=settings.worker_soft_time_limit,
+    task_time_limit=settings.worker_time_limit,
     worker_prefetch_multiplier=1,
 )
 

@@ -19,6 +19,7 @@ import {
   Send,
   Trash2
 } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 import { useMemo, useState } from 'react'
 
 import { useToast } from '@/components/ui/toast'
@@ -52,6 +53,7 @@ type ClipWorkspaceProps = {
 }
 
 export function ClipWorkspace({ clip }: ClipWorkspaceProps) {
+  const sections = useTranslations('dashboardSections')
   const router = useRouter()
   const toast = useToast()
   const [title, setTitle] = useState(clip.title)
@@ -199,7 +201,7 @@ export function ClipWorkspace({ clip }: ClipWorkspaceProps) {
 
   return (
     <aside
-      className="space-y-4 animate-slide-up"
+      className="media-inspector space-y-4 animate-slide-up"
       style={{ animationDelay: '100ms' }}
     >
       <Card className="block gap-0 py-0 p-4">
@@ -585,9 +587,9 @@ export function ClipWorkspace({ clip }: ClipWorkspaceProps) {
           </Button>
         )}
         <Button asChild={true} variant="outline">
-          <Link href="/dashboard/publish" className="rounded-lg">
+          <Link href="/dashboard/calendar" className="rounded-lg">
             <Send className="w-3.5 h-3.5" />
-            Publish
+            {sections('planPost')}
           </Link>
         </Button>
         <button

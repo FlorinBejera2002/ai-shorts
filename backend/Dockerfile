@@ -35,8 +35,22 @@ RUN --mount=type=cache,target=/root/.cache/pip \
       --index-url https://download.pytorch.org/whl/cpu \
     && pip install -r requirements-ml.txt
 
+# Dependency installation can create root-owned caches under HOME.
+# Transfer them before switching to the unprivileged processing worker.
+RUN mkdir -p "$HOME/.cache/huggingface" \
+    && chown -R 10001:10001 "$HOME"
+
 USER 10001:10001
 CMD ["celery", "-A", "app.workers.celery_app:celery_app", "worker", "--loglevel=info", "--concurrency=2"]
+
+FROM ml AS ml-dev
+USER root
+RUN chown -R 10001:10001 /app/app
+USER 10001:10001
+
+FROM base AS api-dev
+RUN chown -R 10001:10001 /app/app
+USER 10001:10001
 
 FROM base AS api
 USER 10001:10001

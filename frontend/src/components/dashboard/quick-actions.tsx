@@ -1,44 +1,53 @@
-'use client'
+﻿'use client'
 
 import { Link } from '@/i18n/navigation'
 import { ArrowUpRight, Layers, Link2, Upload } from 'lucide-react'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
+import styles from './studio-home.module.css'
 
 export function QuickActions() {
   const t = useTranslations('dashboard')
+  const ro = useLocale() === 'ro'
   const actions = [
     {
       href: '/dashboard/create?mode=upload',
       icon: Upload,
-      label: t('uploadVideo')
+      label: t('uploadVideo'),
+      description: ro
+        ? 'Începe cu un fișier de pe dispozitiv'
+        : 'Start with a file from your device'
     },
     {
       href: '/dashboard/create?mode=youtube',
       icon: Link2,
-      label: t('youtubeUrl')
+      label: t('youtubeUrl'),
+      description: ro
+        ? 'Importă un material prin link'
+        : 'Bring in footage from a video link'
     },
     {
       href: '/dashboard/create?mode=batch',
       icon: Layers,
-      label: t('batchProcess')
+      label: t('batchProcess'),
+      description: ro
+        ? 'Procesează mai multe materiale'
+        : 'Work through multiple source videos'
     }
   ]
-
   return (
-    <div className="grid gap-3 sm:grid-cols-3">
-      {actions.map(({ href, icon: Icon, label }) => (
-        <Link
-          key={href}
-          href={href}
-          className="panel-soft group flex items-center gap-3 px-4 py-3 text-[13px] font-semibold text-foreground transition-all duration-200 hover:border-primary/35 hover:bg-primary/[0.06] active:scale-[.98]"
-        >
-          <span className="icon-tile h-8 w-8 rounded-lg">
-            <Icon className="h-4 w-4" strokeWidth={1.75} />
+    <nav aria-label={t('quickActions')} className={styles.actions}>
+      {actions.map(({ href, icon: Icon, label, description }) => (
+        <Link key={href} href={href} className={styles.action}>
+          <span className={styles.actionIcon}>
+            <Icon size={16} strokeWidth={1.6} />
           </span>
-          <span className="min-w-0 flex-1 truncate">{label}</span>
-          <ArrowUpRight className="h-3.5 w-3.5 text-muted-foreground transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-primary" />
+          <span className="min-w-0 flex-1">
+            <span className={styles.actionLabel}>{label}</span>
+            <span className={styles.actionDescription}>{description}</span>
+          </span>
+          <ArrowUpRight size={15} className="shrink-0 opacity-60" />
         </Link>
       ))}
-    </div>
+    </nav>
   )
 }

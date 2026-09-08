@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { apiFetch } from '@/lib/auth'
 
@@ -130,7 +130,7 @@ export function ActiveJobs() {
     statusMap[status] ?? (statusMap.processing as StatusInfo)
 
   return (
-    <Card className="gap-4 shadow-none">
+    <Card className="gap-4 rounded-lg border bg-card py-5 shadow-none">
       <CardHeader>
         <CardTitle>
           <h2 className="text-base tracking-tight">{t('activeJobs')}</h2>
@@ -166,8 +166,8 @@ export function ActiveJobs() {
                   href={`/dashboard/jobs/${job.id}`}
                   className="group block transition-colors"
                 >
-                  <div className="flex items-center justify-between gap-3 mb-1.5">
-                    <div className="min-w-0 flex-1 truncate text-[13px] font-medium text-foreground">
+                  <div className="flex flex-col items-start gap-2 mb-3">
+                    <div className="min-w-0 w-full truncate text-[12px] font-medium text-foreground">
                       {job.source_url ??
                         job.source_file_path ??
                         t('statusProcessing')}
@@ -176,18 +176,18 @@ export function ActiveJobs() {
                       className={`flex shrink-0 items-center gap-1 text-[11px] ${statusInfo.color}`}
                     >
                       {statusInfo.icon === Loader2 ? (
-                        <StatusIcon className="h-3 w-3 animate-spin" />
+                        <StatusIcon className="h-3 w-3 animate-spin motion-reduce:animate-none" />
                       ) : (
                         <StatusIcon className="h-3 w-3" strokeWidth={1.75} />
                       )}
-                      <span className="hidden sm:inline">
+                      <span className="inline">
                         {job.progress_message ?? statusInfo.text}
                       </span>
                       <span>{Math.min(job.progress, 100)}%</span>
                     </div>
                   </div>
                   <div
-                    className="h-1 overflow-hidden rounded-full bg-muted"
+                    className="h-1.5 overflow-hidden rounded-full bg-muted"
                     role="progressbar"
                     aria-label={job.progress_message ?? statusInfo.text}
                     aria-valuemin={0}
@@ -204,9 +204,9 @@ export function ActiveJobs() {
             })}
           </div>
         ) : !failed ? (
-          <div className="flex flex-col items-center rounded-xl border border-dashed bg-muted/20 px-4 py-7 text-center">
+          <div className="flex flex-col items-center px-2 py-5 text-center">
             <CheckCheck
-              className="mb-3 size-6 text-muted-foreground"
+              className="mb-3 size-6 text-primary/70"
               strokeWidth={1.5}
             />
             <p className="text-xs font-medium">{t('noActiveJobs')}</p>

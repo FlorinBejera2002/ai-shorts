@@ -1,4 +1,21 @@
 {
+  "dashboardSections": {
+    "clips": "Clip sections",
+    "projects": "Project sections",
+    "settings": "Settings sections",
+    "library": "Library",
+    "review": "Review",
+    "history": "Projects",
+    "analytics": "Analytics",
+    "account": "Account",
+    "brand": "Brand kit",
+    "brandShort": "Brand",
+    "billingShort": "Billing",
+    "billing": "Plan & billing",
+    "writeScript": "Write a script",
+    "backToCreate": "Back to new project",
+    "planPost": "Plan a post"
+  },
   "common": {
     "save": "Save",
     "cancel": "Cancel",
@@ -35,10 +52,10 @@
     "analytics": "Analytics",
     "calendar": "Content Calendar",
     "scripts": "Scripts",
-    "brand": "Brand Kit",
+    "brand": "Brand kit",
     "publish": "Publish",
-    "history": "History",
-    "billing": "Billing",
+    "history": "Projects",
+    "billing": "Plan & billing",
     "settings": "Settings",
     "workspace": "My workspace",
     "groupStudio": "Studio",
@@ -128,7 +145,8 @@
     "productDetail3Desc": "Synced transcription, dynamic emphasis and styles designed for social media.",
     "productDetail4Title": "A score for every selection",
     "productDetail4Desc": "Compare clips by hook, clarity and retention potential before you publish.",
-    "stepLabel": "Step {n}"
+    "stepLabel": "Step {n}",
+    "dataDeletion": "Data deletion"
   },
   "auth": {
     "heroTitle": "Turn any video into viral clips",
@@ -165,6 +183,7 @@
     "errorInvalidCredentials": "Invalid email or password.",
     "errorDatabase": "Database connection is unavailable. Start the local database and try again.",
     "errorGeneric": "An error occurred. Please try again.",
+    "errorAccountExists": "An account with this email already exists. Sign in using your original method. If you used a password and forgot it, select Forgot password.",
     "passwordRules": {
       "length": "At least 12 characters",
       "uppercase": "Uppercase letter",
@@ -228,7 +247,11 @@
       "queueEmpty": "All clear. Ready for your next idea.",
       "queueError": "Could not load projects. Retrying automatically.",
       "queueLoading": "Loading active projects",
-      "refresh": "Updated when you open this page"
+      "refresh": "Updated when you open this page",
+      "heroEyebrow": "From idea to final cut",
+      "heroTitle": "Long stories. Unforgettable moments.",
+      "heroDescription": "Turn your videos into short, captioned clips ready for your next post.",
+      "openLibrary": "Your library"
     },
     "welcomeUser": "Welcome back{name, select, empty {} other {, {name}}}",
     "overview": "Here's your workspace overview",
@@ -265,11 +288,26 @@
     "statusProcessing": "Processing"
   },
   "create": {
+    "brandSelectHint": "Select the identity used for your clips",
+    "brandKitCount": "{count, plural, one {# kit} other {# kits}}",
+    "brandNone": "No branding",
+    "brandSaved": "My brand kit",
+    "brandManage": "Configure",
+    "brandAdd": "Add new kit",
+    "brandLoadError": "The brand kit could not be loaded.",
+    "configuration": "Configuration",
+    "configurationClips": "Clips",
+    "configurationReady": "Ready",
+    "manageBrandKit": "Manage brand kit",
+    "generateAction": "Generate",
     "title": "Create clips",
     "desc": "Upload a video, paste a YouTube link, or batch process multiple videos",
     "youtube": "YouTube",
     "upload": "Upload",
     "batch": "Batch",
+    "youtubeSourceDescription": "Paste a video link",
+    "uploadSourceDescription": "Choose a local file",
+    "batchSourceDescription": "Multiple links at once",
     "youtubeUrl": "YouTube URL",
     "youtubeUrlPlaceholder": "https://youtube.com/watch?v=...",
     "dropOrChoose": "Drop or choose a video",
@@ -629,7 +667,7 @@
   "publish": {
     "title": "Publish",
     "desc": "Social media publishing",
-    "comingSoon": "Coming soon in Phase 6"
+    "comingSoon": "Direct publishing is not available yet. Download a clip or prepare your post in the calendar."
   },
   "review": {
     "title": "Review queue",
@@ -643,6 +681,7 @@
     "readiness": "Readiness",
     "duration": "Duration",
     "noClips": "No clips to review yet",
+    "noClipsDescription": "Generate your first project to see clips here. All clips will be ranked by viral potential.",
     "firstProject": "Create your first project"
   },
   "pricing": {
@@ -1025,6 +1064,7 @@
     }
   },
   "assistant": {
+    "createHeading": "How should your clips look?",
     "title": "AI Assistant",
     "placeholder": "Describe what you want…",
     "send": "Send",
@@ -1047,5 +1087,80 @@
     "suggestEditor1": "Trim the pauses at the beginning and end",
     "suggestEditor2": "Keep only the strongest 20 seconds",
     "suggestEditor3": "Where is the key moment of this clip?"
+  },
+  "publishing": {
+    "title": "Publish",
+    "description": "One clip. Your channels. Publish when you are ready.",
+    "accounts": "Connected accounts",
+    "accountsHint": "Authorize each platform securely, then choose where your clip appears.",
+    "requirements": {
+      "instagram": "Business and Creator accounts · Instagram Reels",
+      "facebook": "Pages you manage · Facebook Reels",
+      "tiktok": "Your TikTok account · video posts"
+    },
+    "connect": "Connect account",
+    "disconnect": "Disconnect",
+    "disconnectConfirm": "Disconnect this account? Existing posts will remain on the platform.",
+    "reconnect": "Reconnect this account to publish.",
+    "unavailable": "Not available yet",
+    "setupRequired": "Platform activation is in progress. Connecting will be available here once it is ready.",
+    "connected": "Account connected. Choose it below to prepare a post.",
+    "connectionError": "The account could not be connected. Try again and approve the requested publishing access.",
+    "compose": "Prepare a post",
+    "clip": "Clip",
+    "chooseClip": "Choose a finished clip",
+    "noClips": "No finished clips are ready to publish.",
+    "library": "Open library",
+    "destinations": "Publish to",
+    "noAccounts": "Connect an account above to choose a destination.",
+    "caption": "Caption",
+    "captionPlaceholder": "Tell your audience what this clip is about…",
+    "tiktokOptions": "TikTok preferences",
+    "loadingOptions": "Loading current TikTok account settings…",
+    "optionsError": "TikTok settings could not be loaded. Select the account again to retry.",
+    "postingAs": "Posting as {name}",
+    "privacy": "Who can watch this video?",
+    "choosePrivacy": "Choose an audience",
+    "privacyLevels": {
+      "PUBLIC_TO_EVERYONE": "Everyone",
+      "MUTUAL_FOLLOW_FRIENDS": "Friends",
+      "FOLLOWER_OF_CREATOR": "Followers",
+      "SELF_ONLY": "Only me"
+    },
+    "interactions": "Allow viewers to",
+    "comments": "Comment",
+    "duet": "Duet",
+    "stitch": "Stitch",
+    "disclosures": "Commercial content disclosure",
+    "commercial": "This video promotes a brand, product or service",
+    "ownBrand": "Your brand — promoting your own business",
+    "paidBrand": "Branded content — promoting a third party",
+    "brandHint": "Your brand adds a Promotional content label. Branded content adds a Paid partnership label.",
+    "brandPrivacy": "Paid partnership content cannot be private. Choose a different audience.",
+    "tooLong": "This clip exceeds the maximum video duration for a selected TikTok account.",
+    "consent": "By posting, I agree to TikTok’s",
+    "musicTerms": "Music Usage Confirmation",
+    "brandTerms": "Branded Content Policy",
+    "review": "Review post",
+    "reviewHint": "Confirm these destinations and settings. Publishing sends the video directly to the selected platforms.",
+    "publishNow": "Publish now",
+    "edit": "Back to edit",
+    "submitted": "Post submitted. Follow each destination in publishing history.",
+    "submitError": "Unable to confirm submission. Refresh history before retrying; your retry will use the same request ID.",
+    "history": "Publishing history",
+    "historyHint": "Platforms may need a few minutes to process a video.",
+    "noPosts": "Your published and pending posts will appear here.",
+    "refresh": "Refresh",
+    "viewPost": "View post",
+    "unknownHint": "The platform has not confirmed the outcome. Check your account before starting another post.",
+    "statuses": {
+      "queued": "Queued",
+      "processing": "Processing",
+      "published": "Published",
+      "failed": "Failed",
+      "unknown": "Unconfirmed",
+      "cancelled": "Cancelled"
+    },
+    "tiktokIneligible": "For TikTok, choose a clip exported without the Sneep Cut badge."
   }
 }

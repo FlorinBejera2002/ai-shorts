@@ -7,6 +7,7 @@ import cv2
 import numpy as np
 import subprocess
 import logging
+import os
 from typing import Callable, Optional, List, Tuple, Dict, Any
 from pathlib import Path
 
@@ -24,7 +25,10 @@ def _get_yolo_model():
     global _yolo_model
     if _yolo_model is None:
         from ultralytics import YOLO
-        _yolo_model = YOLO('yolov8n.pt')
+        cache_root = Path(os.environ.get('XDG_CACHE_HOME') or Path.home() / '.cache')
+        weights_dir = cache_root / 'ultralytics' / 'weights'
+        weights_dir.mkdir(parents=True, exist_ok=True)
+        _yolo_model = YOLO(str(weights_dir / 'yolov8n.pt'))
         logger.info("YOLO model loaded")
     return _yolo_model
 

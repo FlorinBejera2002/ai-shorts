@@ -6,7 +6,8 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 COPY go.mod go.sum ./
 RUN go mod download
-COPY . .
+COPY --chown=10001:10001 . .
+RUN chown 10001:10001 /src
 CMD ["go", "run", "./cmd/api"]
 
 FROM golang:1.26.5 AS build

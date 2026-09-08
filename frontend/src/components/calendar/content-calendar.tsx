@@ -49,6 +49,7 @@ import {
   startOfLocalDay,
   startOfLocalMonth
 } from './calendar-utils'
+import styles from './calendar-workspace.module.css'
 import { PlatformMark } from './platform-mark'
 import { PostDialog } from './post-dialog'
 
@@ -135,7 +136,7 @@ function CalendarSkeleton() {
   const t = useTranslations('contentCalendar')
   return (
     <div aria-label={t('loading')} className="mt-7 space-y-4" aria-busy="true">
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div className={styles.metrics}>
         {Array.from({ length: 4 }, (_, index) => (
           <Card
             key={index}
@@ -210,20 +211,12 @@ function Metrics({
   ]
 
   return (
-    <section
-      aria-label={t('metrics.label')}
-      className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4"
-    >
+    <section aria-label={t('metrics.label')} className={styles.metrics}>
       {items.map((item) => {
         const Icon = item.icon
         return (
-          <Card
-            key={item.label}
-            className="flex min-w-0 flex-row items-center gap-4 p-5 shadow-none"
-          >
-            <span
-              className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${item.className}`}
-            >
+          <Card key={item.label} className={styles.metric}>
+            <span className={`${styles.metricIcon} ${item.className}`}>
               <Icon className="h-4 w-4" strokeWidth={1.8} />
             </span>
             <div className="min-w-0">
@@ -320,7 +313,7 @@ function CalendarGrid({
     <div
       role="group"
       aria-label={t('calendarGridLabel')}
-      className="overflow-hidden rounded-xl border border-border bg-border"
+      className={`${styles.monthGrid} overflow-hidden border border-border bg-border`}
     >
       <div className="grid grid-cols-7 gap-px">
         {labels.map((label) => (
@@ -486,7 +479,7 @@ function Agenda({
     <Card
       as="section"
       aria-labelledby="selected-day-agenda"
-      className="block gap-0 py-0 p-4 sm:p-5"
+      className={`${styles.agenda} block gap-0 py-0 p-4 sm:p-5`}
     >
       <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border pb-4">
         <div>
@@ -857,7 +850,7 @@ export function ContentCalendar() {
   )
 
   return (
-    <div className="animate-fade-in">
+    <div className={styles.workspace}>
       <PageHeader
         title={t('title')}
         description={t('description')}
@@ -910,140 +903,153 @@ export function ContentCalendar() {
             </div>
           )}
 
-          <Card
-            as="section"
-            aria-label={t('calendarSectionLabel')}
-            aria-busy={loading}
-            className="block gap-0 py-0 overflow-hidden"
-          >
-            <div className="border-b border-border p-4 sm:p-5">
-              <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-                <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-start">
-                  <Button
-                    variant="outline"
-                    type="button"
-                    onClick={() => navigateMonth(-1)}
-                    aria-label={t('actions.previousMonth')}
-                    className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-border bg-card text-muted-foreground transition-colors hover:border-input hover:bg-muted hover:text-foreground"
-                  >
-                    <ChevronLeft className="h-4 w-4" />
-                  </Button>
-                  <div className="min-w-28 px-1 text-center sm:min-w-44">
-                    <h2 className="text-lg font-semibold capitalize sm:text-xl">
-                      {monthTitle}
-                    </h2>
-                  </div>
-                  <Button
-                    variant="outline"
-                    type="button"
-                    onClick={() => navigateMonth(1)}
-                    aria-label={t('actions.nextMonth')}
-                    className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-border bg-card text-muted-foreground transition-colors hover:border-input hover:bg-muted hover:text-foreground"
-                  >
-                    <ChevronRight className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="outline"
-                    type="button"
-                    onClick={goToday}
-                    className="inline-flex min-h-10 items-center rounded-lg border border-border bg-card px-3 text-xs font-semibold text-foreground transition-colors hover:bg-muted sm:ml-1"
-                  >
-                    {t('actions.today')}
-                  </Button>
-                  {loading && hasLoaded && (
-                    <Loader2
-                      aria-label={t('loading')}
-                      className="ml-1 h-4 w-4 animate-spin text-primary"
-                    />
-                  )}
-                </div>
-
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                  <Label className="sr-only" htmlFor="calendar-platform-filter">
-                    {t('filters.platformLabel')}
-                  </Label>
-                  <NativeSelect
-                    id="calendar-platform-filter"
-                    value={platformFilter}
-                    onChange={(event) =>
-                      setPlatformFilter(event.target.value as PlatformFilter)
-                    }
-                    className="min-h-10 border border-border bg-card px-3 text-xs font-semibold text-foreground transition-colors hover:border-input focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/15"
-                  >
-                    <option value="all">{t('filters.allPlatforms')}</option>
-                    <option value="tiktok">{t('platforms.tiktok')}</option>
-                    <option value="instagram">
-                      {t('platforms.instagram')}
-                    </option>
-                    <option value="youtube">{t('platforms.youtube')}</option>
-                    <option value="linkedin">{t('platforms.linkedin')}</option>
-                  </NativeSelect>
-                  <Label className="sr-only" htmlFor="calendar-status-filter">
-                    {t('filters.statusLabel')}
-                  </Label>
-                  <NativeSelect
-                    id="calendar-status-filter"
-                    value={statusFilter}
-                    onChange={(event) =>
-                      setStatusFilter(event.target.value as StatusFilter)
-                    }
-                    className="min-h-10 border border-border bg-card px-3 text-xs font-semibold text-foreground transition-colors hover:border-input focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/15"
-                  >
-                    <option value="all">{t('filters.allStatuses')}</option>
-                    <option value="draft">{t('statuses.draft')}</option>
-                    <option value="scheduled">{t('statuses.scheduled')}</option>
-                    <option value="published">{t('statuses.published')}</option>
-                  </NativeSelect>
-                  {filtersActive && (
-                    <button
+          <div className={styles.planningLayout}>
+            <Card
+              as="section"
+              aria-label={t('calendarSectionLabel')}
+              aria-busy={loading}
+              className={`${styles.planner} block gap-0 py-0 overflow-hidden`}
+            >
+              <div
+                className={`${styles.toolbar} border-b border-border p-4 sm:p-5`}
+              >
+                <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+                  <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-start">
+                    <Button
+                      variant="outline"
                       type="button"
-                      onClick={clearFilters}
-                      aria-label={t('actions.clearFilters')}
-                      title={t('actions.clearFilters')}
-                      className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                      onClick={() => navigateMonth(-1)}
+                      aria-label={t('actions.previousMonth')}
+                      className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-border bg-card text-muted-foreground transition-colors hover:border-input hover:bg-muted hover:text-foreground"
                     >
-                      <FilterX className="h-4 w-4" />
-                    </button>
+                      <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                    <div className="min-w-28 px-1 text-center sm:min-w-44">
+                      <h2 className="text-lg font-semibold capitalize sm:text-xl">
+                        {monthTitle}
+                      </h2>
+                    </div>
+                    <Button
+                      variant="outline"
+                      type="button"
+                      onClick={() => navigateMonth(1)}
+                      aria-label={t('actions.nextMonth')}
+                      className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-border bg-card text-muted-foreground transition-colors hover:border-input hover:bg-muted hover:text-foreground"
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      type="button"
+                      onClick={goToday}
+                      className="inline-flex min-h-10 items-center rounded-lg border border-border bg-card px-3 text-xs font-semibold text-foreground transition-colors hover:bg-muted sm:ml-1"
+                    >
+                      {t('actions.today')}
+                    </Button>
+                    {loading && hasLoaded && (
+                      <Loader2
+                        aria-label={t('loading')}
+                        className="ml-1 h-4 w-4 animate-spin text-primary"
+                      />
+                    )}
+                  </div>
+
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                    <Label
+                      className="sr-only"
+                      htmlFor="calendar-platform-filter"
+                    >
+                      {t('filters.platformLabel')}
+                    </Label>
+                    <NativeSelect
+                      id="calendar-platform-filter"
+                      value={platformFilter}
+                      onChange={(event) =>
+                        setPlatformFilter(event.target.value as PlatformFilter)
+                      }
+                      className="min-h-10 border border-border bg-card px-3 text-xs font-semibold text-foreground transition-colors hover:border-input focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/15"
+                    >
+                      <option value="all">{t('filters.allPlatforms')}</option>
+                      <option value="tiktok">{t('platforms.tiktok')}</option>
+                      <option value="instagram">
+                        {t('platforms.instagram')}
+                      </option>
+                      <option value="youtube">{t('platforms.youtube')}</option>
+                      <option value="linkedin">
+                        {t('platforms.linkedin')}
+                      </option>
+                    </NativeSelect>
+                    <Label className="sr-only" htmlFor="calendar-status-filter">
+                      {t('filters.statusLabel')}
+                    </Label>
+                    <NativeSelect
+                      id="calendar-status-filter"
+                      value={statusFilter}
+                      onChange={(event) =>
+                        setStatusFilter(event.target.value as StatusFilter)
+                      }
+                      className="min-h-10 border border-border bg-card px-3 text-xs font-semibold text-foreground transition-colors hover:border-input focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/15"
+                    >
+                      <option value="all">{t('filters.allStatuses')}</option>
+                      <option value="draft">{t('statuses.draft')}</option>
+                      <option value="scheduled">
+                        {t('statuses.scheduled')}
+                      </option>
+                      <option value="published">
+                        {t('statuses.published')}
+                      </option>
+                    </NativeSelect>
+                    {filtersActive && (
+                      <button
+                        type="button"
+                        onClick={clearFilters}
+                        aria-label={t('actions.clearFilters')}
+                        title={t('actions.clearFilters')}
+                        className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                      >
+                        <FilterX className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+                <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-[10px] font-medium text-muted-foreground">
+                  <span>{t('timezone', { zone: timeZone })}</span>
+                  {filtersActive && (
+                    <span className="rounded-full bg-primary/[0.07] px-2 py-1 text-primary">
+                      {t('filters.resultCount', { count: visiblePosts.length })}
+                    </span>
                   )}
                 </div>
               </div>
-              <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-[10px] font-medium text-muted-foreground">
-                <span>{t('timezone', { zone: timeZone })}</span>
-                {filtersActive && (
-                  <span className="rounded-full bg-primary/[0.07] px-2 py-1 text-primary">
-                    {t('filters.resultCount', { count: visiblePosts.length })}
-                  </span>
-                )}
+
+              <div className={styles.gridWrap}>
+                <CalendarGrid
+                  month={viewDate}
+                  range={range}
+                  posts={visiblePosts}
+                  selectedDate={selectedDate}
+                  locale={locale}
+                  weekStartsOn={weekStartsOn}
+                  onSelectDate={selectDate}
+                  onEditPost={(post) => setDialog({ mode: 'edit', post })}
+                />
               </div>
-            </div>
+            </Card>
 
-            <div className="p-2 sm:p-4">
-              <CalendarGrid
-                month={viewDate}
-                range={range}
-                posts={visiblePosts}
-                selectedDate={selectedDate}
+            {!hasLoaded && loadError ? null : (
+              <Agenda
+                date={selectedDate}
+                posts={selectedPosts}
+                rawPostCount={rawSelectedCount}
                 locale={locale}
-                weekStartsOn={weekStartsOn}
-                onSelectDate={selectDate}
-                onEditPost={(post) => setDialog({ mode: 'edit', post })}
+                filtersActive={filtersActive}
+                onCreate={() => setDialog({ mode: 'create' })}
+                onEdit={(post) => setDialog({ mode: 'edit', post })}
+                onReschedule={(post) => setDialog({ mode: 'reschedule', post })}
+                onClearFilters={clearFilters}
               />
-            </div>
-          </Card>
-
-          {!hasLoaded && loadError ? null : (
-            <Agenda
-              date={selectedDate}
-              posts={selectedPosts}
-              rawPostCount={rawSelectedCount}
-              locale={locale}
-              filtersActive={filtersActive}
-              onCreate={() => setDialog({ mode: 'create' })}
-              onEdit={(post) => setDialog({ mode: 'edit', post })}
-              onReschedule={(post) => setDialog({ mode: 'reschedule', post })}
-              onClearFilters={clearFilters}
-            />
-          )}
+            )}
+          </div>
         </div>
       )}
 

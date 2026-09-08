@@ -1,5 +1,7 @@
 'use client'
 
+import '@/components/clips/media-workbench.css'
+
 import { apiFetch } from '@/lib/auth'
 
 import { Button } from '@/components/ui/button'
@@ -135,7 +137,7 @@ export default function JobProgressPage() {
           t('waitingWorker'))
 
   return (
-    <div className="mx-auto max-w-5xl animate-fade-in">
+    <div className="media-workbench w-full animate-fade-in">
       <PageHeader
         title={t('title')}
         description={t('subtitle')}
@@ -178,7 +180,7 @@ export default function JobProgressPage() {
       )}
 
       {/* Progress info */}
-      <Card className="block gap-0 py-0 mb-6 p-5 sm:p-6">
+      <Card className="media-progress-panel block gap-0 py-0 mb-6 p-5 sm:p-6">
         <div className="mb-4 flex items-start justify-between gap-4">
           <div>
             <p
@@ -195,7 +197,7 @@ export default function JobProgressPage() {
           </div>
           <div className="flex items-baseline gap-1">
             <span
-              className={`text-3xl font-bold tabular-nums ${isDone ? 'text-success' : 'text-primary'}`}
+              className={`text-5xl font-semibold tracking-tight tabular-nums ${isDone ? 'text-success' : 'text-primary'}`}
             >
               {progress}
             </span>
@@ -236,7 +238,7 @@ export default function JobProgressPage() {
                       />
                     )}
                     <div
-                      className={`relative flex h-10 w-10 items-center justify-center rounded-full border-2 font-semibold transition-all duration-300 ${
+                      className={`relative flex h-10 w-10 items-center justify-center rounded-lg border font-semibold transition-all duration-300 ${
                         done
                           ? 'border-success bg-success text-success-foreground'
                           : active

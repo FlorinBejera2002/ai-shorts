@@ -20,6 +20,13 @@ const job = { id: jobId, status: 'completed', progress: 100, sourceType: 'upload
 const snakeJob = Object.fromEntries(Object.entries(job).map(([key, value]) => [key.replace(/[A-Z]/g, character => `_${character.toLowerCase()}`), value]))
 const snakeClip = Object.fromEntries(Object.entries(clip).map(([key, value]) => [key.replace(/[A-Z]/g, character => `_${character.toLowerCase()}`), value]))
 const routes = ['/dashboard', '/dashboard/analytics', '/dashboard/clips', `/dashboard/clips/${clipId}`, `/dashboard/clips/${clipId}/edit`, '/dashboard/history', '/dashboard/review', '/dashboard/settings', '/dashboard/billing', '/dashboard/calendar', '/dashboard/brand', '/dashboard/create', '/dashboard/script-generator', `/dashboard/jobs/${jobId}`, '/dashboard/publish', '/pricing', '/login', '/register', '/forgot-password', '/reset-password?token=synthetic-reset', '/activate?token=synthetic-activation']
+const consolidatedRoutes = {
+  '/dashboard/analytics': '/dashboard/history?tab=analytics',
+  '/dashboard/review': '/dashboard/clips?tab=review',
+  '/dashboard/billing': '/dashboard/settings?tab=billing',
+  '/dashboard/brand': '/dashboard/settings?tab=brand',
+  '/dashboard/publish': '/dashboard/calendar'
+}
 const video = execFileSync('ffmpeg', ['-v', 'error', '-f', 'lavfi', '-i', 'color=c=0x223b70:s=320x180:r=24', '-t', '2', '-an', '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-movflags', 'frag_keyframe+empty_moov', '-f', 'mp4', 'pipe:1'], { maxBuffer: 8 * 1024 * 1024 })
 const report = []
 const output = 'test-results/go-migration'
@@ -73,7 +80,9 @@ try {
       const response = await page.goto(`${base}${variant.locale}${path}`, { waitUntil: 'networkidle' })
       assert.equal(response.status(), 200, path)
       await page.locator('h1').first().waitFor({ timeout: 10000 })
-      assert.equal(new URL(page.url()).pathname, `${variant.locale}${path.split('?')[0]}`)
+      const destination = new URL(`${base}${variant.locale}${consolidatedRoutes[path] ?? path}`)
+      assert.equal(new URL(page.url()).pathname, destination.pathname)
+      if (consolidatedRoutes[path]) assert.equal(new URL(page.url()).search, destination.search)
       assert.deepEqual(errors, [], `Browser errors on ${path}`)
       const overflow = await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1)
       assert.equal(overflow, false, `Horizontal overflow on ${variant.locale}${path}`)

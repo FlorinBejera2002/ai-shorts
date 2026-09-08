@@ -281,7 +281,7 @@ export function SourceUpload({
 
   if (uploaded && phase.status === 'idle') {
     return (
-      <div className="mt-5 animate-scale-in border-t border-border pt-5">
+      <div className="animate-scale-in">
         <div className="flex items-center gap-3 rounded-xl border border-success/25 bg-success/5 p-4 sm:gap-4">
           <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-success/10">
             <FileVideo className="h-5 w-5 text-success" strokeWidth={1.75} />
@@ -336,7 +336,7 @@ export function SourceUpload({
 
   if (phase.status === 'uploading') {
     return (
-      <div className="mt-5 animate-scale-in border-t border-border pt-5">
+      <div className="animate-scale-in">
         <Card className="block gap-0 py-0 flex items-center gap-3 p-4 sm:gap-4">
           <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary/10">
             <Loader2
@@ -392,7 +392,7 @@ export function SourceUpload({
       }}
       onDragLeave={() => setDragActive(false)}
       onDrop={handleDrop}
-      className={`mt-5 flex min-h-56 cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed p-6 text-center transition-all animate-scale-in sm:min-h-64 sm:p-8 ${
+      className={`flex min-h-56 cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed p-6 text-center transition-all animate-scale-in sm:min-h-64 sm:p-8 ${
         dragActive
           ? 'border-primary bg-primary/10 scale-[1.01]'
           : 'border-border bg-muted/35 hover:border-primary/60 hover:bg-primary/5'

@@ -1,4 +1,21 @@
 {
+  "dashboardSections": {
+    "clips": "Secțiuni clipuri",
+    "projects": "Secțiuni proiecte",
+    "settings": "Secțiuni setări",
+    "library": "Bibliotecă",
+    "review": "Revizuire",
+    "history": "Proiecte",
+    "analytics": "Analize",
+    "account": "Cont",
+    "brand": "Identitate vizuală",
+    "brandShort": "Brand",
+    "billingShort": "Plăți",
+    "billing": "Abonament și facturare",
+    "writeScript": "Scrie un scenariu",
+    "backToCreate": "Înapoi la proiect nou",
+    "planPost": "Planifică o postare"
+  },
   "common": {
     "save": "Salvează",
     "cancel": "Anulează",
@@ -34,11 +51,11 @@
     "clips": "Clipuri",
     "analytics": "Statistici",
     "calendar": "Calendar de conținut",
-    "scripts": "Scripturi",
-    "brand": "Kit Branding",
-    "publish": "Publică",
-    "history": "Istoric",
-    "billing": "Facturare",
+    "scripts": "Scenarii",
+    "brand": "Identitate vizuală",
+    "publish": "Publicare",
+    "history": "Proiecte",
+    "billing": "Abonament și facturare",
     "settings": "Setări",
     "workspace": "Spațiul meu",
     "groupStudio": "Studio",
@@ -128,7 +145,8 @@
     "productDetail3Desc": "Transcriere sincronizată, evidențiere dinamică și stiluri pregătite pentru social media.",
     "productDetail4Title": "Scor pentru fiecare selecție",
     "productDetail4Desc": "Compară rapid clipurile după hook, claritate și potențial de retenție înainte să publici.",
-    "stepLabel": "Pasul {n}"
+    "stepLabel": "Pasul {n}",
+    "dataDeletion": "Ștergerea datelor"
   },
   "auth": {
     "heroTitle": "Transformă orice video în clipuri virale",
@@ -165,6 +183,7 @@
     "errorInvalidCredentials": "Email sau parolă invalidă.",
     "errorDatabase": "Baza de date nu este disponibilă. Pornește baza de date locală și încearcă din nou.",
     "errorGeneric": "A apărut o eroare. Te rugăm să încerci din nou.",
+    "errorAccountExists": "Există deja un cont cu această adresă de e-mail. Autentifică-te folosind metoda inițială. Dacă ai folosit o parolă și ai uitat-o, selectează Ai uitat parola.",
     "passwordRules": {
       "length": "Minim 12 caractere",
       "uppercase": "Literă mare",
@@ -228,7 +247,11 @@
       "queueEmpty": "Totul e gata. Ai o idee nouă?",
       "queueError": "Nu am putut încărca proiectele. Reîncercăm automat.",
       "queueLoading": "Se încarcă proiectele active",
-      "refresh": "Actualizat la deschiderea paginii"
+      "refresh": "Actualizat la deschiderea paginii",
+      "heroEyebrow": "De la idee la clip",
+      "heroTitle": "Povești lungi. Momente memorabile.",
+      "heroDescription": "Transformă videoclipurile tale în clipuri scurte, subtitrate și pregătite pentru publicare.",
+      "openLibrary": "Biblioteca ta"
     },
     "welcomeUser": "Bine ai revenit{name, select, empty {} other {, {name}}}",
     "overview": "Privire de ansamblu asupra spațiului tău",
@@ -265,11 +288,26 @@
     "statusProcessing": "Se procesează"
   },
   "create": {
+    "brandSelectHint": "Selectează identitatea folosită pentru clipuri",
+    "brandKitCount": "{count, plural, one {# kit} other {# kit-uri}}",
+    "brandNone": "Fără branding",
+    "brandSaved": "Kitul meu",
+    "brandManage": "Configurează",
+    "brandAdd": "Adaugă kit nou",
+    "brandLoadError": "Kitul nu a putut fi încărcat.",
+    "configuration": "Configurație",
+    "configurationClips": "Clipuri",
+    "configurationReady": "Gata",
+    "manageBrandKit": "Configurează kitul de branding",
+    "generateAction": "Generează",
     "title": "Creează clipuri",
     "desc": "Încarcă un video, lipește un link YouTube sau procesează mai multe videoclipuri",
     "youtube": "YouTube",
     "upload": "Încarcă",
     "batch": "Lot",
+    "youtubeSourceDescription": "Lipește un link video",
+    "uploadSourceDescription": "Alege un fișier local",
+    "batchSourceDescription": "Mai multe linkuri odată",
     "youtubeUrl": "URL YouTube",
     "youtubeUrlPlaceholder": "https://youtube.com/watch?v=...",
     "dropOrChoose": "Plasează sau alege un video",
@@ -629,7 +667,7 @@
   "publish": {
     "title": "Publică",
     "desc": "Publicare pe rețele sociale",
-    "comingSoon": "În curând în Faza 6"
+    "comingSoon": "Publicarea directă nu este încă disponibilă. Descarcă un clip sau pregătește postarea în calendar."
   },
   "review": {
     "title": "Coadă de revizuire",
@@ -643,6 +681,7 @@
     "readiness": "Disponibilitate",
     "duration": "Durată",
     "noClips": "Niciun clip de revizuit încă",
+    "noClipsDescription": "Creează primul tău proiect pentru a vedea clipurile aici. Acestea vor fi ordonate după potențialul viral.",
     "firstProject": "Creează primul tău proiect"
   },
   "pricing": {
@@ -1025,6 +1064,7 @@
     }
   },
   "assistant": {
+    "createHeading": "Cum vrei să arate clipurile?",
     "title": "Asistent AI",
     "placeholder": "Descrie ce vrei…",
     "send": "Trimite",
@@ -1047,5 +1087,80 @@
     "suggestEditor1": "Taie pauzele de la început și final",
     "suggestEditor2": "Păstrează doar cele mai bune 20 de secunde",
     "suggestEditor3": "Unde e momentul cheie al clipului?"
+  },
+  "publishing": {
+    "title": "Publicare",
+    "description": "Un clip. Canalele tale. Publică atunci când ești pregătit.",
+    "accounts": "Conturi conectate",
+    "accountsHint": "Autorizează fiecare platformă în siguranță, apoi alege unde apare clipul.",
+    "requirements": {
+      "instagram": "Conturi Business și Creator · Instagram Reels",
+      "facebook": "Paginile pe care le administrezi · Facebook Reels",
+      "tiktok": "Contul tău TikTok · postări video"
+    },
+    "connect": "Conectează contul",
+    "disconnect": "Deconectează",
+    "disconnectConfirm": "Deconectezi acest cont? Postările existente rămân pe platformă.",
+    "reconnect": "Reconectează acest cont pentru a publica.",
+    "unavailable": "Încă indisponibil",
+    "setupRequired": "Activarea platformei este în curs. Conectarea va fi disponibilă aici când este gata.",
+    "connected": "Cont conectat. Selectează-l mai jos pentru a pregăti o postare.",
+    "connectionError": "Contul nu a putut fi conectat. Încearcă din nou și aprobă accesul solicitat pentru publicare.",
+    "compose": "Pregătește o postare",
+    "clip": "Clip",
+    "chooseClip": "Alege un clip finalizat",
+    "noClips": "Nu există clipuri finalizate pregătite pentru publicare.",
+    "library": "Deschide biblioteca",
+    "destinations": "Publică pe",
+    "noAccounts": "Conectează un cont mai sus pentru a alege o destinație.",
+    "caption": "Descriere",
+    "captionPlaceholder": "Spune publicului despre ce este acest clip…",
+    "tiktokOptions": "Preferințe TikTok",
+    "loadingOptions": "Se încarcă setările actuale ale contului TikTok…",
+    "optionsError": "Setările TikTok nu au putut fi încărcate. Selectează contul din nou pentru a reîncerca.",
+    "postingAs": "Publici ca {name}",
+    "privacy": "Cine poate vedea acest videoclip?",
+    "choosePrivacy": "Alege publicul",
+    "privacyLevels": {
+      "PUBLIC_TO_EVERYONE": "Toată lumea",
+      "MUTUAL_FOLLOW_FRIENDS": "Prieteni",
+      "FOLLOWER_OF_CREATOR": "Urmăritori",
+      "SELF_ONLY": "Doar eu"
+    },
+    "interactions": "Permite spectatorilor să",
+    "comments": "Comenteze",
+    "duet": "Facă Duet",
+    "stitch": "Facă Stitch",
+    "disclosures": "Declararea conținutului comercial",
+    "commercial": "Acest videoclip promovează un brand, un produs sau un serviciu",
+    "ownBrand": "Brandul tău — promovezi propria afacere",
+    "paidBrand": "Conținut de brand — promovezi o terță parte",
+    "brandHint": "Brandul tău adaugă eticheta Conținut promoțional. Conținutul de brand adaugă eticheta Parteneriat plătit.",
+    "brandPrivacy": "Conținutul cu parteneriat plătit nu poate fi privat. Alege un alt public.",
+    "tooLong": "Clipul depășește durata maximă permisă de un cont TikTok selectat.",
+    "consent": "Prin publicare, accept documentele TikTok:",
+    "musicTerms": "Confirmarea utilizării muzicii",
+    "brandTerms": "Politica privind conținutul de brand",
+    "review": "Verifică postarea",
+    "reviewHint": "Confirmă destinațiile și setările. Publicarea trimite videoclipul direct către platformele selectate.",
+    "publishNow": "Publică acum",
+    "edit": "Înapoi la editare",
+    "submitted": "Postare trimisă. Urmărește fiecare destinație în istoricul publicărilor.",
+    "submitError": "Trimiterea nu a putut fi confirmată. Reîmprospătează istoricul înainte de a reîncerca; reîncercarea folosește același identificator.",
+    "history": "Istoricul publicărilor",
+    "historyHint": "Platformele pot avea nevoie de câteva minute pentru a procesa un videoclip.",
+    "noPosts": "Postările publicate și în așteptare vor apărea aici.",
+    "refresh": "Reîmprospătează",
+    "viewPost": "Vezi postarea",
+    "unknownHint": "Platforma nu a confirmat rezultatul. Verifică propriul cont înainte de a începe o altă postare.",
+    "statuses": {
+      "queued": "În așteptare",
+      "processing": "Se procesează",
+      "published": "Publicat",
+      "failed": "Eșuat",
+      "unknown": "Neconfirmat",
+      "cancelled": "Anulat"
+    },
+    "tiktokIneligible": "Pentru TikTok, alege un clip exportat fără sigla Sneep Cut."
   }
 }

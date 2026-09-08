@@ -22,6 +22,7 @@ import (
 	"sneepcut/backend-go/internal/identity"
 	"sneepcut/backend-go/internal/jobs"
 	"sneepcut/backend-go/internal/media"
+	"sneepcut/backend-go/internal/publishing"
 	"sneepcut/backend-go/internal/scripts"
 	"time"
 )
@@ -72,6 +73,14 @@ func buildApplication(db *sql.DB, cfg config.Config, a config.Application, logge
 		return nil, noop, err
 	}
 	clipHandler := clips.New(db, auth, mediaService, clips.Config{MaxClipDuration: a.MaxClipDuration})
+	publishingHandler, err := publishing.New(db, auth, mediaService, publishing.Config{ProviderConfig: publishing.ProviderConfig{AppURL: a.AppURL, MetaAppID: a.MetaAppID, MetaAppSecret: a.MetaAppSecret, InstagramAppID: a.InstagramAppID, InstagramAppSecret: a.InstagramAppSecret, TikTokClientKey: a.TikTokClientKey, TikTokClientSecret: a.TikTokClientSecret, GraphVersion: a.MetaGraphVersion, TikTokVerifiedURLPrefix: a.TikTokVerifiedURLPrefix}, EncryptionKey: a.SocialEncryptionKey, Enabled: a.SocialPublishingEnabled})
+	if err != nil {
+		cleanup()
+		return nil, noop, err
+	}
+	stopPublishing := publishingHandler.Start(context.Background())
+	previousCleanup := cleanup
+	cleanup = func() { stopPublishing(); previousCleanup() }
 	generator := gemini.New(a.GeminiKey, a.GeminiModel)
 	readiness := func(router *httprouter.Router) {
 		router.HandlerFunc("GET", "/api/ready", func(w http.ResponseWriter, r *http.Request) {
@@ -91,6 +100,6 @@ func buildApplication(db *sql.DB, cfg config.Config, a config.Application, logge
 			httpx.JSON(w, status, map[string]any{"ready": status == 200, "database": database, "schema": schema, "redis": redisReady})
 		})
 	}
-	handler := httpapi.New(logger, cfg.Environment, version, auth.Register, media.NewHandler(mediaService, auth).Register, jobs.New(db, auth, mediaService, jobs.Config{}).Register, clipHandler.Register, brand.New(db, auth, mediaService).Register, calendar.New(db, auth, mediaService).Register, billingService.Register, account.New(db, auth, mediaService, billingService, account.Config{}).Register, dashboard.New(db, auth, clipHandler).Register, scripts.New(auth, generator).Register, assistant.New(db, auth, generator).Register, readiness)
+	handler := httpapi.New(logger, cfg.Environment, version, auth.Register, media.NewHandler(mediaService, auth).Register, jobs.New(db, auth, mediaService, jobs.Config{}).Register, clipHandler.Register, brand.New(db, auth, mediaService).Register, calendar.New(db, auth, mediaService).Register, billingService.Register, account.New(db, auth, mediaService, billingService, account.Config{}).Register, dashboard.New(db, auth, clipHandler).Register, scripts.New(auth, generator).Register, assistant.New(db, auth, generator).Register, publishingHandler.Register, readiness)
 	return httpapi.Policy(auth.Policy(handler), httpapi.PolicyConfig{AllowedHosts: a.AllowedHosts}), cleanup, nil
 }

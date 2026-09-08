@@ -82,8 +82,27 @@ def process_video_source(
     )
 
     _progress("transcribing", 20, "Transcribing audio with Whisper")
+    last_transcription_pct = 20
+
+    def _transcription_progress(seconds: float) -> None:
+        nonlocal last_transcription_pct
+        if video_duration <= 0:
+            return
+        fraction = max(0.0, min(seconds / video_duration, 1.0))
+        pct = min(49, 20 + int(29 * fraction))
+        if pct <= last_transcription_pct:
+            return
+        last_transcription_pct = pct
+        message = f"Transcribing audio — {int(fraction * 100)}%"
+        logger.info(message)
+        _progress("transcribing", pct, message)
+
     transcript = TranscriptResult.model_validate(
-        transcribe_video(source_video.local_path, language=language)
+        transcribe_video(
+            source_video.local_path,
+            language=language,
+            on_progress=_transcription_progress,
+        )
     )
 
     _progress("analyzing", 50, "Detecting viral highlights with AI")
@@ -171,6 +190,9 @@ def process_video_source(
             hook_text=clip.get("hook_text", ""),
         )
         clip["file_path"] = current_path
+        clip["metadata"]["contains_platform_badge"] = bool(
+            brand_settings and not brand_settings.get("hide_platform_badge")
+        )
         clip["vertical_file_path"] = None
         try:
             if burn_subtitles:

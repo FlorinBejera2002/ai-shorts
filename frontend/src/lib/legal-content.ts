@@ -19,7 +19,7 @@ type LegalDocumentCopy = {
 export const PRIVACY_COPY: Record<SiteLocale, LegalDocumentCopy> = {
   en: {
     title: 'Privacy Policy',
-    updated: 'Last updated: September 3, 2026',
+    updated: 'Last updated: September 7, 2026',
     intro:
       'This policy explains how Sneepcut processes personal data when you create an account, upload media, generate clips, or manage a subscription.',
     sections: [
@@ -88,16 +88,24 @@ export const PRIVACY_COPY: Record<SiteLocale, LegalDocumentCopy> = {
         paragraphs: [
           'Service providers may process data in more than one country. Where required, we use appropriate transfer safeguards. We may update this policy as the service or legal requirements change and will publish the revised date here.'
         ]
+      },
+      {
+        title: '9. Connected social accounts and publishing',
+        paragraphs: [
+          'When you connect Instagram, a Facebook Page, or TikTok, we store the platform account identifier, display name and available username, authorization scopes, and encrypted access and refresh tokens needed to provide the publishing feature. We do not receive your social account password.',
+          'After you explicitly confirm a post, we send the selected video, caption, and publishing preferences to the platforms you selected. Those platforms process the information under their own privacy policies. We retain publishing records, including destinations, captions, timestamps, platform post identifiers, and processing status, as part of your account history until account deletion, subject to the retention exceptions described above.',
+          'Use Publish → Disconnect to remove the locally stored authorization for an account and cancel work where cancellation is still possible. Requests already sent to a platform may complete. You can also revoke the application in that platform’s app settings. Disconnecting does not delete posts already published on the platform. Public instructions are available on our Data deletion page.'
+        ]
       }
     ],
-    contactTitle: '9. Contact',
+    contactTitle: '10. Contact',
     contactPrompt: 'Privacy inquiries:',
     contactFallback:
       'No public privacy address is configured. Use the account controls in Settings while signed in.'
   },
   ro: {
     title: 'Politica de confidențialitate',
-    updated: 'Ultima actualizare: 3 septembrie 2026',
+    updated: 'Ultima actualizare: 7 septembrie 2026',
     intro:
       'Această politică explică modul în care Sneepcut prelucrează datele cu caracter personal când creezi un cont, încarci conținut media, generezi clipuri sau administrezi un abonament.',
     sections: [
@@ -166,9 +174,17 @@ export const PRIVACY_COPY: Record<SiteLocale, LegalDocumentCopy> = {
         paragraphs: [
           'Furnizorii pot prelucra date în mai multe țări. Unde este necesar, folosim garanții adecvate pentru transfer. Putem actualiza politica odată cu serviciul sau cerințele legale și vom publica aici data revizuită.'
         ]
+      },
+      {
+        title: '9. Conturi sociale conectate și publicare',
+        paragraphs: [
+          'Când conectezi Instagram, o pagină Facebook sau TikTok, stocăm identificatorul contului de pe platformă, numele afișat și numele de utilizator disponibil, permisiunile acordate și tokenurile de acces și reîmprospătare criptate necesare funcției de publicare. Nu primim parola contului tău social.',
+          'După ce confirmi explicit o postare, trimitem videoclipul, descrierea și preferințele de publicare către platformele selectate. Acestea prelucrează informațiile conform propriilor politici de confidențialitate. Păstrăm evidențele publicărilor, inclusiv destinațiile, descrierile, marcajele temporale, identificatorii postărilor și starea procesării, în istoricul contului până la ștergerea acestuia, cu excepțiile de păstrare descrise mai sus.',
+          'Folosește Publicare → Deconectează pentru a elimina autorizarea salvată local pentru un cont și a opri lucrările care pot fi anulate. Cererile deja trimise unei platforme se pot finaliza. Poți retrage autorizarea aplicației și din setările platformei respective. Deconectarea nu șterge postările deja publicate pe platformă. Instrucțiunile publice sunt disponibile pe pagina Ștergerea datelor.'
+        ]
       }
     ],
-    contactTitle: '9. Contact',
+    contactTitle: '10. Contact',
     contactPrompt: 'Întrebări despre confidențialitate:',
     contactFallback:
       'Nu este configurată o adresă publică pentru confidențialitate. Folosește controalele contului din Setări după autentificare.'

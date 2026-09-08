@@ -3,7 +3,13 @@ import type { Metadata } from 'next'
 export const SITE_NAME = 'Sneepcut'
 export const DEFAULT_LOCALE = 'en'
 export const SUPPORTED_LOCALES = ['en', 'ro'] as const
-export const PUBLIC_ROUTES = ['', '/pricing', '/privacy', '/terms'] as const
+export const PUBLIC_ROUTES = [
+  '',
+  '/pricing',
+  '/privacy',
+  '/terms',
+  '/data-deletion'
+] as const
 export const PRIVATE_ROUTES = [
   '/api/',
   '/v1/',

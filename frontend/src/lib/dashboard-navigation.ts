@@ -3,18 +3,11 @@ export const dashboardNavigation = [
     labelKey: 'groupStudio',
     items: [
       { href: '/dashboard', key: 'home' },
-      { href: '/dashboard/review', key: 'review' },
       { href: '/dashboard/clips', key: 'clips' },
-      { href: '/dashboard/history', key: 'history' }
-    ]
-  },
-  {
-    labelKey: 'groupGrow',
-    items: [
-      { href: '/dashboard/analytics', key: 'analytics' },
+      { href: '/dashboard/history', key: 'history' },
       { href: '/dashboard/calendar', key: 'calendar' },
-      { href: '/dashboard/script-generator', key: 'scripts' },
-      { href: '/dashboard/publish', key: 'publish' }
+      { href: '/dashboard/publish', key: 'publish' },
+      { href: '/dashboard/script-generator', key: 'scripts' }
     ]
   },
   {
@@ -28,6 +21,7 @@ export const dashboardNavigation = [
 ] as const
 
 export function isDashboardRouteActive(pathname: string, href: string) {
+  pathname = pathname.split('?')[0] ?? pathname
   if (href === '/dashboard') return pathname === href
   if (href === '/dashboard/history' && pathname.startsWith('/dashboard/jobs/'))
     return true
@@ -36,6 +30,8 @@ export function isDashboardRouteActive(pathname: string, href: string) {
 
 export function dashboardRouteLabel(pathname: string) {
   if (isDashboardRouteActive(pathname, '/dashboard/create')) return 'create'
+  if (isDashboardRouteActive(pathname, '/dashboard/script-generator'))
+    return 'scripts'
   return (
     dashboardNavigation
       .flatMap((group) => [...group.items])

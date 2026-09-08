@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 
 import { LanguageSwitcher } from '@/components/shared/language-switcher'
+import { SignOutAction } from '@/components/shared/sign-out-action'
 import { ThemeToggle } from '@/components/shared/theme-toggle'
 import { PageHeader } from '@/components/ui/page-header'
 import { useToast } from '@/components/ui/toast'
@@ -229,7 +230,7 @@ export function AccountSettings({
   const credentialAccount = profile.canChangePassword
 
   return (
-    <div className="animate-fade-in">
+    <div className="account-workspace animate-fade-in">
       <PageHeader title={t('title')} description={t('desc')} />
       {profile.deletionPending && (
         <div
@@ -242,7 +243,10 @@ export function AccountSettings({
         </div>
       )}
 
-      <nav aria-label={t('title')} className="mb-6 flex flex-wrap gap-2">
+      <nav
+        aria-label={t('title')}
+        className="account-section-nav mb-6 flex flex-wrap gap-2"
+      >
         {[
           ['profile-title', t('profileTitle')],
           ['security-title', t('securityTitle')],
@@ -254,7 +258,7 @@ export function AccountSettings({
           </Button>
         ))}
       </nav>
-      <div className="grid min-w-0 grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.5fr)_minmax(18rem,.7fr)]">
+      <div className="account-content grid min-w-0 grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.5fr)_minmax(16rem,.7fr)]">
         <div className="min-w-0 space-y-5">
           <Card
             as="section"
@@ -545,7 +549,7 @@ export function AccountSettings({
           </section>
         </div>
 
-        <aside className="space-y-5 xl:sticky xl:top-6 xl:self-start">
+        <aside className="account-inspector space-y-5 xl:sticky xl:top-24 xl:self-start">
           <Card
             as="section"
             className="block gap-0 py-0 p-5"
@@ -579,7 +583,10 @@ export function AccountSettings({
               </div>
             </dl>
             <Button asChild={true} variant="outline">
-              <Link href="/dashboard/billing" className="mt-5 w-full">
+              <Link
+                href="/dashboard/billing"
+                className="mt-5 w-full"
+              >
                 {t('manageSubscription')}
               </Link>
             </Button>
@@ -609,6 +616,9 @@ export function AccountSettings({
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <span className="text-[13px]">{t('theme')}</span>
                 <ThemeToggle />
+              </div>
+              <div className="border-t border-border pt-4">
+                <SignOutAction />
               </div>
             </div>
           </Card>
