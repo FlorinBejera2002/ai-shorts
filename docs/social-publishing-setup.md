@@ -21,7 +21,31 @@ callback and basic details were entered in the open form; Save currently reports
 missing verified URLs, icon and demonstration video, so these edits are not yet
 confirmed persisted. Do not treat the draft as approved or enabled.
 An empty duplicate TikTok organization `7682737535008818194` remains to remove.
-GoDaddy manages domain DNS. There is no public backend server provisioned yet.
+GoDaddy manages domain DNS. The production server IP supplied on 2026-09-08 is
+`159.195.254.38`. Authenticated SSH access as root was verified on 2026-09-08.
+The user assigned deployment to Tristan; application deployment is still pending.
+
+### Infrastructure verification (2026-09-08)
+
+- The domain A records still resolve to `13.248.243.5` and `76.223.105.230`.
+- HTTP on `159.195.254.38:80` refused connections during the initial check;
+  the application gateway has not been started.
+- Public `/privacy`, `/terms`, `/data-deletion` and `/api/ready` return HTTP 404.
+- Added `api.sneepcut.com` A record pointing to `159.195.254.38` in GoDaddy;
+  the server resolver confirmed it.
+- Added the TikTok verification TXT record below in GoDaddy and confirmed it
+  in the DNS table. Provider-side verification remains pending.
+- The local `.env` has no social provider credentials or social encryption key.
+  This does not establish the contents of the server environment.
+
+Next, Tristan handles deployment using [the current handoff](publish-handoff.md).
+GoDaddy and Cloudflare login succeeded; provider sessions still need verification.
+Preserve the documented
+Cloudflare frontend architecture: the server IP is a backend origin, and is not
+by itself a replacement for the canonical frontend domain or OAuth callbacks.
+Complete HTTPS origins and deploy the compatible release before validating
+provider URLs. Keep this setup pending until production OAuth is verified;
+an available IP alone does not make publishing operational.
 
 TikTok production DNS verification pending in GoDaddy:
 

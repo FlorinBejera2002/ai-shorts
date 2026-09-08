@@ -1,0 +1,190 @@
+name: sneepcut-production
+
+x-environment: &environment
+  APP_ENV: production
+  APP_URL: https://sneepcut.com
+  NEXTAUTH_URL: https://sneepcut.com
+  DATABASE_URL: postgresql://${POSTGRES_USER:-sneepcut}:${DB_PASSWORD:?Set DB_PASSWORD}@postgres:5432/${POSTGRES_DB:-sneepcut}?sslmode=disable
+  DIRECT_URL: postgresql://${POSTGRES_USER:-sneepcut}:${DB_PASSWORD:?Set DB_PASSWORD}@postgres:5432/${POSTGRES_DB:-sneepcut}?sslmode=disable
+  REDIS_URL: redis://redis:6379/0
+  INTERNAL_API_KEY: ${INTERNAL_API_KEY:?Set INTERNAL_API_KEY}
+  UPLOAD_TOKEN_SECRET: ${UPLOAD_TOKEN_SECRET:?Set UPLOAD_TOKEN_SECRET}
+  JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET}
+  STORAGE_TYPE: local
+  LOCAL_MEDIA_ROOT: /app/media
+  CORS_ORIGINS: https://sneepcut.com,https://www.sneepcut.com
+  NEXT_PUBLIC_UPLOAD_URL: https://api.sneepcut.com/api/upload/direct
+  UPLOAD_SCANNER_ENABLED: "true"
+  CLAMAV_HOST: clamav
+  CLAMAV_PORT: "3310"
+
+x-app: &app
+  env_file: ${PRODUCTION_ENV_FILE:-.env.production.local}
+  environment: *environment
+  restart: unless-stopped
+  security_opt: ["no-new-privileges:true"]
+  cap_drop: ["ALL"]
+  logging:
+    driver: json-file
+    options:
+      max-size: "10m"
+      max-file: "3"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-sneepcut}
+      POSTGRES_DB: ${POSTGRES_DB:-sneepcut}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD}
+    volumes: ["postgres_data:/var/lib/postgresql/data"]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes: ["redis_data:/data"]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  clamav:
+    image: clamav/clamav:stable
+    volumes:
+      - clamav_data:/var/lib/clamav
+      - ./backend/clamav/clamd.conf:/etc/clamav/clamd.conf:ro
+    mem_limit: 4g
+    cpus: 2
+    pids_limit: 128
+    restart: unless-stopped
+    security_opt: ["no-new-privileges:true"]
+    healthcheck:
+      test: ["CMD", "clamdscan", "--ping=1"]
+      interval: 30s
+      timeout: 10s
+      retries: 20
+      start_period: 180s
+
+  migrate:
+    <<: *app
+    build:
+      context: ./backend
+      target: api
+    image: sneepcut-production-api
+    command: alembic upgrade head
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  backend-go:
+    <<: *app
+    build: ./backend-go
+    environment:
+      <<: *environment
+      GO_AUTH_ENABLED: "true"
+      LISTEN_ADDR: ":8080"
+      ALLOWED_HOSTS: api.sneepcut.com,sneepcut.com,www.sneepcut.com,localhost,127.0.0.1,backend-go
+      TRUSTED_PROXY_CIDRS: 172.30.94.3/32
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+      clamav:
+        condition: service_healthy
+    volumes: ["media_data:/app/media"]
+    tmpfs: ["/tmp:uid=10001,gid=10001,mode=1770"]
+    read_only: true
+    user: "10001:10001"
+    pids_limit: 128
+    mem_limit: 768m
+    cpus: 2
+    healthcheck:
+      test: ["CMD", "/api", "-healthcheck"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+
+  worker:
+    <<: *app
+    build:
+      context: ./backend
+      target: ml
+    image: sneepcut-production-ml
+    command: >-
+      celery -A app.workers.celery_app:celery_app worker
+      --loglevel=info --concurrency=${WORKER_CONCURRENCY:-1}
+      --max-tasks-per-child=50
+    volumes: ["media_data:/app/media"]
+    pids_limit: 512
+    mem_limit: ${WORKER_MEMORY_LIMIT:-6g}
+    cpus: ${WORKER_CPU_LIMIT:-2}
+    stop_grace_period: 2m
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+
+  job-dispatcher:
+    <<: *app
+    build:
+      context: ./backend
+      target: api
+    image: sneepcut-production-api
+    command: python -m app.services.job_delivery
+    pids_limit: 64
+    depends_on:
+      backend-go:
+        condition: service_healthy
+
+  nginx:
+    image: nginx:stable-alpine
+    volumes:
+      - ./deploy/nginx.production.conf:/etc/nginx/nginx.conf:ro
+      - media_data:/app/media:ro
+    networks:
+      default:
+        ipv4_address: 172.30.94.3
+    depends_on:
+      backend-go:
+        condition: service_healthy
+    restart: unless-stopped
+
+  caddy:
+    image: caddy:2-alpine
+    ports: ["80:80", "443:443", "443:443/udp"]
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      default:
+        ipv4_address: 172.30.94.2
+    depends_on: [nginx]
+    restart: unless-stopped
+
+networks:
+  default:
+    ipam:
+      config:
+        - subnet: 172.30.94.0/24
+
+volumes:
+  postgres_data:
+  redis_data:
+  media_data:
+  clamav_data:
+  caddy_data:
+  caddy_config:
