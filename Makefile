@@ -5,11 +5,16 @@ COMPOSE := docker compose
 DEV_COMPOSE := $(COMPOSE) -f docker-compose.yml -f docker-compose.dev.yml
 GO_CACHE ?= $(CURDIR)/.cache/go-build
 SERVICE ?=
+PRODUCTION_COMPONENT ?= all
+PRODUCTION_DEPLOY := ./scripts/deploy.sh
 
 .PHONY: help doctor ensure-env setup up dev dev-up dev-watch down restart status health \
 	logs backend-shell restart-go frontend-shell db-shell redis-shell migrate security-up \
 	install typecheck lint format test test-frontend test-go check build \
-	build-dev build-frontend reset-data
+	build-dev build-frontend reset-data prod-build prod-build-backend \
+	prod-build-frontend prod-build-api prod-build-workers prod-build-gateway \
+	deploy deploy-backend deploy-frontend deploy-api deploy-workers \
+	deploy-gateway rollback production-status production-verify
 
 help: ## Show available commands
 	@awk 'BEGIN {FS = ":.*## "; printf "Usage: make <target>\n\nTargets:\n"} /^[a-zA-Z0-9_-]+:.*## / {printf "  %-18s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -124,6 +129,51 @@ build-dev: ensure-env ## Rebuild development images after dependency changes
 
 build-frontend: ## Build Next.js locally
 	@npm --prefix frontend run build
+
+prod-build: ## Upload and build the complete production release on the server
+	@$(PRODUCTION_DEPLOY) build all
+
+prod-build-backend: ## Upload and build API, worker, and dispatcher images
+	@$(PRODUCTION_DEPLOY) build backend
+
+prod-build-frontend: ## Upload and build only the production frontend image
+	@$(PRODUCTION_DEPLOY) build frontend
+
+prod-build-api: ## Upload and build only API and migration images
+	@$(PRODUCTION_DEPLOY) build api
+
+prod-build-workers: ## Upload and build only worker and dispatcher images
+	@$(PRODUCTION_DEPLOY) build workers
+
+prod-build-gateway: ## Validate and pull the production gateway images
+	@$(PRODUCTION_DEPLOY) build gateway
+
+deploy: ## Build and deploy all production components to the server
+	@$(PRODUCTION_DEPLOY) deploy all
+
+deploy-backend: ## Build and deploy the backend without starting the frontend
+	@$(PRODUCTION_DEPLOY) deploy backend
+
+deploy-frontend: ## Build and deploy the production frontend and public gateway
+	@$(PRODUCTION_DEPLOY) deploy frontend
+
+deploy-api: ## Build and deploy the Go API, migrations, and API gateway
+	@$(PRODUCTION_DEPLOY) deploy api
+
+deploy-workers: ## Build and deploy the ML worker and job dispatcher
+	@$(PRODUCTION_DEPLOY) deploy workers
+
+deploy-gateway: ## Deploy only Nginx and Caddy from the current release
+	@$(PRODUCTION_DEPLOY) deploy gateway
+
+rollback: ## Swap to the single previous release and redeploy the complete stack
+	@$(PRODUCTION_DEPLOY) rollback all
+
+production-status: ## Show production Compose status on the server
+	@$(PRODUCTION_DEPLOY) status $(PRODUCTION_COMPONENT)
+
+production-verify: ## Run production checks on the server
+	@$(PRODUCTION_DEPLOY) verify $(PRODUCTION_COMPONENT)
 
 reset-data: ## Delete containers and all local database/media volumes (CONFIRM=yes)
 	@if [[ "$(CONFIRM)" != "yes" ]]; then \
