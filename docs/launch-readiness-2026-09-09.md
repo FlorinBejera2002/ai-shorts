@@ -8,6 +8,7 @@ Status: in progress. This is an evidence log, not a launch approval.
 - Current server release at audit start: `58ec93626f72ea2a`.
 - Homepage and Romanian pricing page render; the first pricing FAQ expands.
 - Romanian privacy and data-deletion pages render with `admin@sneepcut.com` contact links.
+- Terms render in both languages. Theme switching and the Romanian-to-English language switch work. Empty login submission invokes required-field validation; registration password visibility toggles correctly. Forgot-password submission is disabled with an empty email. Missing reset/activation tokens show invalid-link states. No console errors captured on inspected public pages.
 - SSH access works directly to `root@159.195.254.38`; the local `sc` alias does not resolve.
 - Production containers are running; API, frontend, database, Redis and ClamAV report healthy.
 - Aggregate database inspection: one completed job, two failed jobs. Both failures are YouTube bot checks.
@@ -23,8 +24,9 @@ Status: in progress. This is an evidence log, not a launch approval.
 
 ## Corrections in progress
 
-- Pricing Agency CTA advertised contacting sales but linked to registration. Updated it to use the configured contact email, with a registration label fallback when no contact email exists. TypeScript check passed; React Doctor pending.
-- Dashboard design commit `3abaa5b` is already on main but was not deployed at audit start.
+- Pricing Agency CTA advertised contacting sales but linked to registration. Updated it to use the configured contact email, with a registration label fallback when no contact email exists. TypeScript check passed; React Doctor changed scope scored 100/100. Commit `be01958` pushed to main.
+- Frontend release `f370b2cd3e275e2d` deployed successfully, including dashboard design commit `3abaa5b`. Server production build passed. Main domain, www and API readiness return HTTP 200. Live pricing shows the corrected `mailto:admin@sneepcut.com` link. Frontend container is healthy; previous release retained.
+- Local build was blocked by Wrangler filesystem permissions; the server production build passed. npm audit reports four high entries from a sharp advisory propagated through Miniflare/Wrangler/OpenNext. These packages are not present in the serving standalone image; build-tool dependency remediation remains outstanding.
 - Existing uncommitted YouTube and deployment changes remain under review; they are not yet validated or committed by this audit.
 
 ## Still requiring actual functional verification
