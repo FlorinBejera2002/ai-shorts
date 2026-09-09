@@ -1,6 +1,6 @@
 ﻿'use client'
 
-import { useAuth } from '@/components/auth/auth-guard'
+import { useAuth } from '@/components/auth/use-auth'
 import { ActiveJobs } from '@/components/dashboard/active-jobs'
 import { ActivityCharts } from '@/components/dashboard/activity-charts'
 import { RecentClips } from '@/components/dashboard/recent-clips'

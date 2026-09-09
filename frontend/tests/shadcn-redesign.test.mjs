@@ -35,7 +35,7 @@ test('editor shortcuts leave dialogs and focused controls in charge of the keybo
 })
 
 test('Home preserves its original cinematic design without shadcn controls', () => {
-  const landing = read('src/app/[locale]/page.tsx')
+  const landing = read('src/app/[locale]/home-page-view.tsx')
   assert.doesNotMatch(landing,/['"]use client['"]|opacity-0|initial=\{/)
   assert.match(landing,/<StudioHero/)
   assert.match(landing,/<HeroContent/)

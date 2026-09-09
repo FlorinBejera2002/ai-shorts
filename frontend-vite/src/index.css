@@ -1,0 +1,11 @@
+@import '../../frontend/src/app/globals.css';
+
+@source '../../frontend/src';
+@source './';
+
+:root {
+  --font-display: 'Sora', system-ui, sans-serif;
+  --font-body: 'Manrope', system-ui, sans-serif;
+  --font-cinematic: 'Bodoni Moda', Georgia, serif;
+  --font-studio: 'Manrope', system-ui, sans-serif;
+}

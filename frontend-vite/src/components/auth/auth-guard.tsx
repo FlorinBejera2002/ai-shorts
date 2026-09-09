@@ -1,4 +1,3 @@
-'use client'
 import { ApiState } from '@/components/shared/api-state'
 import { authClient } from '@/lib/auth'
 import { useLocale } from 'next-intl'
@@ -15,10 +14,13 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     session.user?.deletion_pending &&
     (!pathname.endsWith('/dashboard/settings') ||
       ['brand', 'billing'].includes(search.get('tab') ?? ''))
+
   useEffect(() => {
-    if (authClient.getSnapshot().status === 'loading')
+    if (authClient.getSnapshot().status === 'loading') {
       void authClient.refresh().catch(() => undefined)
+    }
   }, [])
+
   useEffect(() => {
     if (session.status !== 'anonymous') return
     const prefix = locale === 'en' ? '' : `/${locale}`
@@ -27,6 +29,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
       `${prefix}/login?${new URLSearchParams({ callbackUrl })}`
     )
   }, [session.status, locale])
+
   useEffect(() => {
     if (restricted) {
       window.location.replace(
@@ -34,7 +37,8 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
       )
     }
   }, [restricted, locale])
-  if (session.status !== 'authenticated' || restricted)
+
+  if (session.status !== 'authenticated' || restricted) {
     return (
       <ApiState
         error={session.error}
@@ -47,5 +51,6 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
         }
       />
     )
+  }
   return children
 }

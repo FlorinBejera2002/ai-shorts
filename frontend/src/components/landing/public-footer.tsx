@@ -1,11 +1,13 @@
+'use client'
+
 import { ThemeBrandLogo } from '@/components/shared/brand-logo'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { Link } from '@/i18n/navigation'
-import { getTranslations } from 'next-intl/server'
+import { useTranslations } from 'next-intl'
 
-export async function PublicFooter() {
-  const t = await getTranslations('landing')
+export function PublicFooter() {
+  const t = useTranslations('landing')
   return (
     <footer className="bg-card">
       <Separator />

@@ -1,6 +1,6 @@
 'use client'
 
-import { usePlanCatalog } from '@/components/billing/plan-price'
+import { usePlanCatalog } from '@/components/billing/use-plan-catalog'
 import { ApiState } from '@/components/shared/api-state'
 import { Card } from '@/components/ui/card'
 import { useApiResource } from '@/hooks/use-api-resource'

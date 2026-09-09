@@ -1,6 +1,6 @@
 'use client'
 
-import { useAuth } from '@/components/auth/auth-guard'
+import { useAuth } from '@/components/auth/use-auth'
 import { BrandLogo } from '@/components/shared/brand-logo'
 import { ProfileAvatar } from '@/components/shared/profile-avatar'
 import { SignOutAction } from '@/components/shared/sign-out-action'

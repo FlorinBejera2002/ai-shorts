@@ -1,14 +1,7 @@
-import { LegalDocument } from '@/components/landing/legal-document'
-import { PublicFooter } from '@/components/landing/public-footer'
-import { PublicNavbar } from '@/components/landing/public-navbar'
-import { TERMS_COPY } from '@/lib/legal-content'
-import {
-  type SiteLocale,
-  buildLocaleMetadata,
-  getContactEmail
-} from '@/lib/site-config'
+import { type SiteLocale, buildLocaleMetadata } from '@/lib/site-config'
 import type { Metadata } from 'next'
 import { getTranslations, setRequestLocale } from 'next-intl/server'
+import { TermsPageView } from './terms-page-view'
 
 export async function generateMetadata({
   params
@@ -39,19 +32,5 @@ export default async function TermsPage({
   const locale: SiteLocale = requestedLocale === 'ro' ? 'ro' : 'en'
   setRequestLocale(locale)
   const t = await getTranslations('landing')
-  const copy = TERMS_COPY[locale]
-
-  return (
-    <main className="min-h-dvh bg-background text-foreground">
-      <PublicNavbar
-        labels={{
-          pricing: t('pricing'),
-          signIn: t('signIn'),
-          getStarted: t('getStarted')
-        }}
-      />
-      <LegalDocument {...copy} contactEmail={getContactEmail()} />
-      <PublicFooter />
-    </main>
-  )
+  return <TermsPageView locale={locale} t={t} />
 }

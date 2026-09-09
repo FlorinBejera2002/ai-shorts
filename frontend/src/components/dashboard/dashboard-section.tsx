@@ -1,6 +1,6 @@
 'use client'
 
-import { useAuth } from '@/components/auth/auth-guard'
+import { useAuth } from '@/components/auth/use-auth'
 import { Link } from '@/i18n/navigation'
 import {
   type DashboardSectionKey,
