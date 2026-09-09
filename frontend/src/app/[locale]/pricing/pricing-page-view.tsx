@@ -18,6 +18,7 @@ import {
   CardTitle
 } from '@/components/ui/card'
 import { Link } from '@/i18n/navigation'
+import { getContactEmail } from '@/lib/site-config'
 import {
   INITIAL_FREE_CREDITS,
   PLAN_CREDITS,
@@ -39,12 +40,17 @@ export function PricingPageView({
 }) {
   const planData = t.raw('plans')
   const faqs = t.raw('faqs')
+  const contactEmail = getContactEmail()
 
   const plans = [
     { key: 'free', icon: Zap, cta: t('startFree') },
     { key: 'creator', icon: Film, cta: t('startCreating') },
     { key: 'pro', icon: Crown, cta: t('goPro'), highlighted: true },
-    { key: 'agency', icon: Building2, cta: t('contactSales') }
+    {
+      key: 'agency',
+      icon: Building2,
+      cta: contactEmail ? t('contactSales') : t('startCreating')
+    }
   ].map((plan) => {
     const localized = planData[plan.key]
     const paidPlan =
@@ -144,7 +150,11 @@ export function PricingPageView({
                   variant={plan.highlighted ? 'default' : 'outline'}
                   className="h-11 w-full"
                 >
-                  <Link href="/register">{plan.cta}</Link>
+                  {plan.key === 'agency' && contactEmail ? (
+                    <a href={`mailto:${contactEmail}`}>{plan.cta}</a>
+                  ) : (
+                    <Link href="/register">{plan.cta}</Link>
+                  )}
                 </Button>
               </CardFooter>
             </Card>
