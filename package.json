@@ -1,6 +1,9 @@
 {
   "name": "sneepcut",
-	"dependencies": {
-		"yarn": "^1.22.22"
-	}
+  "dependencies": {
+    "yarn": "^1.22.22"
+  },
+  "scripts": {
+    "doctor": "npx react-doctor@latest"
+  }
 }
