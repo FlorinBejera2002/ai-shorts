@@ -166,7 +166,7 @@ function BillingPageContent() {
     : subscriptionStatuses.unknown
 
   return (
-    <div className="billing-workspace animate-fade-in">
+    <div className="billing-workspace dashboard-workspace animate-fade-in">
       <PageHeader title={t('title')} description={t('desc')} />
 
       {checkoutVerification?.status === 'complete' && (

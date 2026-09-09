@@ -310,7 +310,7 @@ export default function ClipEditorPage() {
   const tooShort = totalDuration > 0 && totalDuration < 3
 
   return (
-    <div className="media-workbench media-editor-surface animate-fade-in flex flex-col gap-4">
+    <div className="media-workbench media-editor-surface dashboard-workspace dashboard-workspace--compact animate-fade-in">
       {/* Header toolbar */}
       <Card className="media-editor-toolbar block gap-0 py-0 flex flex-col gap-3 p-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex min-w-0 items-center gap-3">

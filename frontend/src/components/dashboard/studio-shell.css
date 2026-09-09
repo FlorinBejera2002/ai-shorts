@@ -297,8 +297,8 @@ html.dark body:has(#dashboard-shell) {
   inset: 0;
   border-radius: inherit;
   background: linear-gradient(145deg, #30343e 0%, #23262f 50%, #191c23 100%);
-  box-shadow: inset 1px 1px 0 rgb(255 255 255 / 18%),
-    inset -1px -1px 0 rgb(0 0 0 / 35%);
+  box-shadow: inset 1px 1px 0 rgb(255 255 255 / 18%), inset -1px -1px 0
+    rgb(0 0 0 / 35%);
   pointer-events: none;
 }
 #dashboard-main .studio-workbench-header h1 {
@@ -313,10 +313,18 @@ html.dark body:has(#dashboard-shell) {
 #dashboard-main .studio-workbench-eyebrow {
   color: #b8b1ff;
   margin-bottom: 12px;
-  font-size: 9px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
 }
 #dashboard-main .studio-workbench-actions {
   flex-wrap: wrap;
+}
+#dashboard-main .studio-workbench-actions [data-slot="button"] {
+  min-height: 44px;
+  padding-inline: 16px;
 }
 #dashboard-main .studio-workbench-actions .clips-create-action {
   height: 44px;
@@ -362,6 +370,38 @@ html.dark body:has(#dashboard-shell) {
   #dashboard-main .studio-workbench-actions {
     width: 100%;
     flex-shrink: 1;
+  }
+  #dashboard-main .studio-workbench-actions [data-slot="button"] {
+    flex: 1 1 auto;
+  }
+}
+
+/* Every dashboard route follows the same header-to-content rhythm. */
+.dashboard-workspace {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 24px;
+  padding-bottom: 24px;
+}
+.dashboard-workspace > .studio-workbench-header,
+.dashboard-workspace > :not(.studio-workbench-header) {
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+}
+.dashboard-workspace > .studio-workbench-header {
+  flex: none;
+}
+.dashboard-workspace--compact {
+  gap: 16px;
+}
+@media (max-width: 639px) {
+  .dashboard-workspace {
+    gap: 20px;
+    padding-bottom: 20px;
+  }
+  .dashboard-workspace--compact {
+    gap: 14px;
   }
 }
 #dashboard-shell h1 {
@@ -503,7 +543,9 @@ html.dark body:has(#dashboard-shell) {
     padding-inline: 3px;
     font-size: 11px;
   }
-  .studio-topbar:has(.studio-section-tabs) .studio-topbar-start > [data-slot="separator"] {
+  .studio-topbar:has(.studio-section-tabs)
+    .studio-topbar-start
+    > [data-slot="separator"] {
     display: none;
   }
 }
@@ -544,4 +586,6 @@ html.dark body:has(#dashboard-shell) {
 }
 
 /* reload-1788854794244 */
-#dashboard-main .studio-workbench-header { --studio-reload-probe: second; }
+#dashboard-main .studio-workbench-header {
+  --studio-reload-probe: second;
+}

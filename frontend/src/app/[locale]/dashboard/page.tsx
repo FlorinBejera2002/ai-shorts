@@ -9,6 +9,7 @@ import { StudioHero } from '@/components/dashboard/studio-hero'
 import { ApiState } from '@/components/shared/api-state'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
+import { PageHeader } from '@/components/ui/page-header'
 import { useApiResource } from '@/hooks/use-api-resource'
 import { Link } from '@/i18n/navigation'
 import type { DashboardData } from '@/types/api'
@@ -25,17 +26,11 @@ export default function DashboardPage() {
   const { metrics, recentClips } = data
 
   return (
-    <div className="space-y-6" data-testid="studio-dashboard">
-      <header className="flex flex-wrap items-center justify-between gap-5">
-        <div className="min-w-0">
-          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
-            {t('welcomeUser', { name: session?.user?.name || 'empty' })}
-          </h1>
-          <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-            {s('subtitle')}
-          </p>
-        </div>
-      </header>
+    <div className="dashboard-workspace" data-testid="studio-dashboard">
+      <PageHeader
+        title={t('welcomeUser', { name: session?.user?.name || 'empty' })}
+        description={s('subtitle')}
+      />
 
       <StudioHero />
 

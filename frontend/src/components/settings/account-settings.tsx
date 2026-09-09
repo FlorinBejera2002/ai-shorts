@@ -230,7 +230,7 @@ export function AccountSettings({
   const credentialAccount = profile.canChangePassword
 
   return (
-    <div className="account-workspace animate-fade-in">
+    <div className="account-workspace dashboard-workspace animate-fade-in">
       <PageHeader title={t('title')} description={t('desc')} />
       {profile.deletionPending && (
         <div
@@ -583,10 +583,7 @@ export function AccountSettings({
               </div>
             </dl>
             <Button asChild={true} variant="outline">
-              <Link
-                href="/dashboard/billing"
-                className="mt-5 w-full"
-              >
+              <Link href="/dashboard/billing" className="mt-5 w-full">
                 {t('manageSubscription')}
               </Link>
             </Button>

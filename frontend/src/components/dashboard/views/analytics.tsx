@@ -111,7 +111,7 @@ export default function AnalyticsPage() {
 
   if (totalClips === 0) {
     return (
-      <div className="media-workbench animate-fade-in">
+      <div className="media-workbench dashboard-workspace animate-fade-in">
         <PageHeader title={t('title')} description={t('desc')} />
         <div className="mt-12">
           <EmptyState
@@ -125,7 +125,7 @@ export default function AnalyticsPage() {
   }
 
   return (
-    <div className="media-workbench animate-fade-in space-y-8">
+    <div className="media-workbench dashboard-workspace animate-fade-in">
       <PageHeader title={t('title')} description={t('desc')} />
 
       <section aria-label={t('title')} className="media-analysis-metrics">

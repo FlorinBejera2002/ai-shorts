@@ -137,7 +137,7 @@ export default function JobProgressPage() {
           t('waitingWorker'))
 
   return (
-    <div className="media-workbench w-full animate-fade-in">
+    <div className="media-workbench dashboard-workspace w-full animate-fade-in">
       <PageHeader
         title={t('title')}
         description={t('subtitle')}

@@ -54,7 +54,7 @@ export default function CreatePage() {
   const sections = useTranslations('dashboardSections')
 
   return (
-    <div className="creation-page animate-fade-in">
+    <div className="creation-page dashboard-workspace animate-fade-in">
       <PageHeader
         title={t('title')}
         description={t('desc')}

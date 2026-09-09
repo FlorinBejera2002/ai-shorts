@@ -410,7 +410,7 @@ export default function BrandPage() {
   }
 
   return (
-    <div className="brand-workspace animate-fade-in">
+    <div className="brand-workspace dashboard-workspace animate-fade-in">
       <PageHeader
         title={t('title')}
         description={t('desc')}

@@ -850,7 +850,7 @@ export function ContentCalendar() {
   )
 
   return (
-    <div className={styles.workspace}>
+    <div className={`${styles.workspace} dashboard-workspace`}>
       <PageHeader
         title={t('title')}
         description={t('description')}

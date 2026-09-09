@@ -51,12 +51,16 @@ function ClipsPageContent() {
   const filtersActive = hasActiveClipFilters(query)
 
   return (
-    <div className="media-workbench animate-fade-in">
+    <div className="media-workbench dashboard-workspace animate-fade-in">
       <PageHeader
         title={t('title')}
         description={t('count', { count: total })}
         actions={
-          <Button asChild={true} variant="default" className="clips-create-action">
+          <Button
+            asChild={true}
+            variant="default"
+            className="clips-create-action"
+          >
             <Link href="/dashboard/create">
               <Plus aria-hidden="true" className="size-4" strokeWidth={2} />
               {t('createClip')}

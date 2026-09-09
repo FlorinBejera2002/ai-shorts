@@ -243,7 +243,7 @@ export function PublishingWorkspace() {
       />
     )
   return (
-    <div className={`${styles.workspace} space-y-8 pb-8`}>
+    <div className={`${styles.workspace} dashboard-workspace`}>
       <PageHeader title={t('title')} description={t('description')} />
       {error && (
         <div

@@ -25,7 +25,7 @@ export default function ClipDetailPage() {
   const fileUrl = clip.fileUrl
 
   return (
-    <div className="media-workbench space-y-6">
+    <div className="media-workbench dashboard-workspace">
       <PageHeader
         title={clip.title}
         description={`${Math.round(clip.duration)}s · ${clip.aspectRatio} · ${clip.resolution}`}

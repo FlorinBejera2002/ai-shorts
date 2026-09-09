@@ -41,7 +41,7 @@ export default function ReviewPage() {
   )
 
   return (
-    <div className="media-workbench animate-fade-in">
+    <div className="media-workbench dashboard-workspace animate-fade-in">
       <PageHeader
         title={t('title')}
         description={t('desc')}

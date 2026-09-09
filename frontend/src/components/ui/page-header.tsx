@@ -17,7 +17,7 @@ export function PageHeader({
   return (
     <header className="studio-workbench-header relative flex flex-wrap items-end justify-between gap-5 pb-6">
       <div className="min-w-0">
-        <div className="studio-workbench-eyebrow mb-4 flex items-center gap-2 text-[10px] font-medium uppercase tracking-[0.16em] text-primary">
+        <div className="studio-workbench-eyebrow flex items-center gap-2">
           <Clapperboard aria-hidden="true" className="size-3.5" />
           sneepcut studio
         </div>

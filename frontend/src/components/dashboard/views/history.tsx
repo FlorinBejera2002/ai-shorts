@@ -43,7 +43,7 @@ export default function HistoryPage() {
   )
 
   return (
-    <div className="media-workbench space-y-6">
+    <div className="media-workbench dashboard-workspace">
       <PageHeader
         title={t('title')}
         description={t('count', { count: jobs.length })}

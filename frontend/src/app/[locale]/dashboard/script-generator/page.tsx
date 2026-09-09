@@ -294,7 +294,7 @@ export default function ScriptGeneratorPage() {
   }
 
   return (
-    <div className="script-workbench w-full animate-fade-in">
+    <div className="script-workbench dashboard-workspace w-full animate-fade-in">
       <PageHeader
         title={t('title')}
         description={t('desc')}
