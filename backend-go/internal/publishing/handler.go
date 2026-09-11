@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/julienschmidt/httprouter"
+	"github.com/lib/pq"
 	"sneepcut/backend-go/internal/identity"
 )
 
@@ -78,6 +79,18 @@ func param(r *http.Request, key string) string {
 	return httprouter.ParamsFromContext(r.Context()).ByName(key)
 }
 func providerValid(p string) bool { return p == "instagram" || p == "facebook" || p == "tiktok" }
+func providerScopes(p string) []string {
+	switch p {
+	case "instagram":
+		return []string{"profile", "publish_content"}
+	case "facebook":
+		return []string{"pages_read", "pages_publish"}
+	case "tiktok":
+		return []string{"profile", "video_publish"}
+	default:
+		return []string{}
+	}
+}
 func (h *Handler) overview(w http.ResponseWriter, r *http.Request) {
 	providers := []map[string]any{}
 	for _, p := range []string{"instagram", "facebook", "tiktok"} {
@@ -180,7 +193,11 @@ func (h *Handler) callback(w http.ResponseWriter, r *http.Request) {
 			redirect("connectionError", "unavailable")
 			return
 		}
-		_, e = tx.ExecContext(ctx, `INSERT INTO social_accounts(id,user_id,provider,remote_id,name,username,credentials) VALUES(gen_random_uuid(),$1,$2,$3,$4,$5,$6) ON CONFLICT(user_id,provider,remote_id) DO UPDATE SET name=excluded.name,username=excluded.username,credentials=excluded.credentials,status='connected',updated_at=now()`, user, p, a.ID, a.Name, a.Username, encrypted)
+		var expiresAt any
+		if !a.Credentials.ExpiresAt.IsZero() {
+			expiresAt = a.Credentials.ExpiresAt
+		}
+		_, e = tx.ExecContext(ctx, `INSERT INTO social_accounts(id,user_id,provider,remote_id,name,username,credentials,scopes,token_expires_at) VALUES(gen_random_uuid(),$1,$2,$3,$4,$5,$6,$7,$8) ON CONFLICT(user_id,provider,remote_id) DO UPDATE SET name=excluded.name,username=excluded.username,credentials=excluded.credentials,scopes=excluded.scopes,token_expires_at=excluded.token_expires_at,status='connected',updated_at=now()`, user, p, a.ID, a.Name, a.Username, encrypted, pq.Array(providerScopes(p)), expiresAt)
 		if e != nil {
 			redirect("connectionError", "unavailable")
 			return

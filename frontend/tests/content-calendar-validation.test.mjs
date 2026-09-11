@@ -28,9 +28,8 @@ async function loadTypeScriptModule(relativePath) {
 
 const { CONTENT_PLATFORMS, validateScheduledPostPayload } =
   await loadTypeScriptModule('../src/lib/content-calendar.ts')
-const { getDefaultPlanningTime } = await loadTypeScriptModule(
-  '../src/components/calendar/calendar-utils.ts'
-)
+const { getDefaultPlanningTime, getWeekRange, movePostToLocalDate } =
+  await loadTypeScriptModule('../src/components/calendar/calendar-utils.ts')
 
 const validCreatePayload = {
   title: 'Product launch teaser',
@@ -193,4 +192,42 @@ test('keeps late-night planning defaults on the selected day', () => {
     ],
     [2026, 8, 3, 23, 59]
   )
+})
+
+test('builds locale-aware week ranges without mutating the selected date', () => {
+  const selectedDate = new Date(2026, 8, 11, 15, 30)
+  const mondayWeek = getWeekRange(selectedDate, 1)
+  const sundayWeek = getWeekRange(selectedDate, 0)
+
+  assert.deepEqual(
+    [
+      mondayWeek.start.getFullYear(),
+      mondayWeek.start.getMonth(),
+      mondayWeek.start.getDate()
+    ],
+    [2026, 8, 7]
+  )
+  assert.equal(mondayWeek.days.length, 7)
+  assert.equal(mondayWeek.end.getDate(), 14)
+  assert.equal(sundayWeek.start.getDate(), 6)
+  assert.equal(selectedDate.getHours(), 15)
+})
+
+test('moves posts in local time and preserves minutes unless a slot hour is chosen', () => {
+  const source = new Date(2026, 8, 11, 14, 35).toISOString()
+  const target = new Date(2026, 8, 18)
+  const sameTime = movePostToLocalDate(source, target)
+  const timedSlot = movePostToLocalDate(source, target, 9)
+
+  assert.deepEqual(
+    [
+      sameTime.getFullYear(),
+      sameTime.getMonth(),
+      sameTime.getDate(),
+      sameTime.getHours(),
+      sameTime.getMinutes()
+    ],
+    [2026, 8, 18, 14, 35]
+  )
+  assert.deepEqual([timedSlot.getHours(), timedSlot.getMinutes()], [9, 0])
 })

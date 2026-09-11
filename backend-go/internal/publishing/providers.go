@@ -282,7 +282,7 @@ func (p *ProviderClient) Exchange(ctx context.Context, provider, code, verifier 
 					}
 				}
 				if allowed && a.ID != "" && a.AccessToken != "" {
-					accounts = append(accounts, RemoteAccount{ID: a.ID, Name: a.Name, Credentials: Credentials{AccessToken: a.AccessToken}})
+					accounts = append(accounts, RemoteAccount{ID: a.ID, Name: a.Name, Credentials: Credentials{AccessToken: a.AccessToken, ExpiresAt: creds.ExpiresAt}})
 				}
 			}
 			if r.Paging.Next == "" {

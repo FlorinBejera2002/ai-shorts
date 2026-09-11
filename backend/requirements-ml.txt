@@ -1,5 +1,6 @@
 -r requirements-api.txt
-yt-dlp
+yt-dlp[default]==2026.8.19
+bgutil-ytdlp-pot-provider==2.0.0
 ffmpeg-python==0.2.*
 opencv-python-headless==4.11.*
 scenedetect==0.7.*

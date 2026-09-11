@@ -19,6 +19,9 @@ export default defineConfig(({ mode }) => {
   return {
     publicDir: publicSource,
     define: {
+      'process.env.NEXT_PUBLIC_STUDIO_URL': JSON.stringify(
+        environment.VITE_STUDIO_URL || 'http://localhost:5191'
+      ),
       'process.env.NEXT_PUBLIC_APP_URL': JSON.stringify(
         environment.VITE_APP_URL || 'http://localhost:5173'
       ),

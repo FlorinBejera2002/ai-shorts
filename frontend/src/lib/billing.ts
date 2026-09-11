@@ -8,11 +8,17 @@ export type PaidBillingPlanId = (typeof PAID_BILLING_PLAN_IDS)[number]
 export type BillingLocale = (typeof BILLING_LOCALES)[number]
 
 export const INITIAL_FREE_CREDITS = 100
+export const CREDITS_PER_CLIP = 10
 
 export const PLAN_CREDITS: Record<PaidBillingPlanId, number> = {
   creator: 300,
   pro: 1000,
   agency: 999999
+}
+
+export function estimateAvailableClips(credits: number): number {
+  if (!Number.isFinite(credits) || credits <= 0) return 0
+  return Math.floor(credits / CREDITS_PER_CLIP)
 }
 
 const PLAN_RANK: Record<BillingPlanId, number> = {

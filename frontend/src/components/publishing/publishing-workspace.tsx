@@ -12,23 +12,25 @@ import type {
   PublishingProvider
 } from '@/lib/publishing'
 import {
+  AlertTriangle,
+  CalendarClock,
   Check,
+  CircleCheck,
   ExternalLink,
-  Facebook,
   Film,
-  Instagram,
   Loader2,
-  Music2,
+  Plus,
+  RefreshCw,
+  RotateCcw,
   Send
 } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { PlatformBrandIcon } from './platform-brand-icon'
 import styles from './publishing.module.css'
 
 const field =
   'w-full rounded-lg border bg-background px-3 py-2.5 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50'
-const icons = { instagram: Instagram, facebook: Facebook, tiktok: Music2 }
-
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await apiFetch(path, init)
   const data = response.status === 204 ? {} : await response.json()
@@ -42,6 +44,9 @@ export function PublishingWorkspace() {
   const [data, setData] = useState<PublishingData | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [refreshing, setRefreshing] = useState(false)
+  const [optionsError, setOptionsError] = useState(false)
+  const [optionsRequest, setOptionsRequest] = useState(0)
   const [clipId, setClipId] = useState('')
   const [accountIds, setAccountIds] = useState<string[]>([])
   const [caption, setCaption] = useState('')
@@ -58,10 +63,13 @@ export function PublishingWorkspace() {
   const [notice, setNotice] = useState('')
   const submission = useRef<{ payload: string; key: string } | null>(null)
   const reload = useCallback(async () => {
+    setRefreshing(true)
     try {
       setData(await request<PublishingData>('/api/publishing'))
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Request failed')
+    } finally {
+      setRefreshing(false)
     }
   }, [])
   useEffect(() => {
@@ -71,6 +79,16 @@ export function PublishingWorkspace() {
     const query = new URLSearchParams(window.location.search)
     if (query.has('connected')) setNotice(t('connected'))
     if (query.has('connectionError')) setError(t('connectionError'))
+    if (query.has('connected') || query.has('connectionError')) {
+      query.delete('connected')
+      query.delete('connectionError')
+      const search = query.toString()
+      window.history.replaceState(
+        {},
+        '',
+        `${window.location.pathname}${search ? `?${search}` : ''}${window.location.hash}`
+      )
+    }
   }, [t])
   useEffect(() => {
     if (
@@ -90,13 +108,18 @@ export function PublishingWorkspace() {
     }, 10000)
     return () => clearInterval(timer)
   }, [data?.posts, reload])
+  const selectedAccountIds = new Set(accountIds)
   const accounts =
-    data?.accounts.filter((account) => accountIds.includes(account.id)) ?? []
+    data?.accounts.filter(
+      (account) =>
+        account.status === 'connected' && selectedAccountIds.has(account.id)
+    ) ?? []
   const tiktokAccounts = accounts.filter(
     (account) => account.provider === 'tiktok'
   )
   const tiktokIds = tiktokAccounts.map((account) => account.id).join(',')
   useEffect(() => {
+    void optionsRequest
     const controller = new AbortController()
     setPrivacy('')
     setConsent(false)
@@ -104,6 +127,7 @@ export function PublishingWorkspace() {
     setDuet(false)
     setStitch(false)
     setOptions({})
+    setOptionsError(false)
     if (tiktokIds) {
       void Promise.all(
         tiktokIds
@@ -122,13 +146,23 @@ export function PublishingWorkspace() {
         .then((values) => {
           if (!controller.signal.aborted) setOptions(Object.fromEntries(values))
         })
-        .catch((e) => {
-          if (!controller.signal.aborted)
-            setError(e instanceof Error ? e.message : t('optionsError'))
+        .catch(() => {
+          if (!controller.signal.aborted) setOptionsError(true)
         })
     }
     return () => controller.abort()
-  }, [tiktokIds, t])
+  }, [tiktokIds, optionsRequest])
+  useEffect(() => {
+    if (!data) return
+    const connectedIds = new Set<string>()
+    for (const account of data.accounts) {
+      if (account.status === 'connected') connectedIds.add(account.id)
+    }
+    setAccountIds((ids) => {
+      const validIds = ids.filter((id) => connectedIds.has(id))
+      return validIds.length === ids.length ? ids : validIds
+    })
+  }, [data])
   const clip = data?.clips.find((item) => item.id === clipId)
   const creatorOptions = tiktokAccounts
     .map((account) => options[account.id])
@@ -140,6 +174,27 @@ export function PublishingWorkspace() {
     ) ?? []
   const tooLong = creatorOptions.some(
     (option) => option && clip && clip.duration > option.maxDuration
+  )
+  const connectedCount =
+    data?.accounts.filter((account) => account.status === 'connected').length ??
+    0
+  const activePosts =
+    data?.posts.filter((post) =>
+      ['queued', 'processing', 'submitting', 'finalizing', 'unknown'].includes(
+        post.status
+      )
+    ).length ?? 0
+  const platformSettingsReady = Boolean(
+    clip &&
+      accounts.length > 0 &&
+      (!tiktokAccounts.length ||
+        (readyOptions &&
+          privacy &&
+          consent &&
+          clip.tiktokEligible === true &&
+          (!commercial || ownBrand || paidBrand) &&
+          !tooLong &&
+          !(paidBrand && privacy === 'SELF_ONLY')))
   )
   const canReview = Boolean(
     clip &&
@@ -232,6 +287,22 @@ export function PublishingWorkspace() {
       setBusy(false)
     }
   }
+  function resetComposer() {
+    setClipId('')
+    setAccountIds([])
+    setCaption('')
+    setPrivacy('')
+    setComments(false)
+    setDuet(false)
+    setStitch(false)
+    setCommercial(false)
+    setOwnBrand(false)
+    setPaidBrand(false)
+    setConsent(false)
+    setReview(false)
+    setNotice('')
+    submission.current = null
+  }
   if (!data)
     return (
       <ApiState
@@ -245,6 +316,33 @@ export function PublishingWorkspace() {
   return (
     <div className={`${styles.workspace} dashboard-workspace`}>
       <PageHeader title={t('title')} description={t('description')} />
+      <section className={styles.commandBar} aria-label={t('workspaceStatus')}>
+        <div className={styles.liveState}>
+          <span className={styles.liveDot} aria-hidden="true" />
+          <div>
+            <p>{t('workspaceStatus')}</p>
+            <span>{t('workspaceStatusHint')}</span>
+          </div>
+        </div>
+        <dl className={styles.metrics}>
+          <div>
+            <dt>{t('connectedMetric')}</dt>
+            <dd>{connectedCount}</dd>
+          </div>
+          <div>
+            <dt>{t('clipsMetric')}</dt>
+            <dd>{data.clips.length}</dd>
+          </div>
+          <div>
+            <dt>{t('activeMetric')}</dt>
+            <dd>{activePosts}</dd>
+          </div>
+        </dl>
+        <Link href="/dashboard/calendar" className={styles.calendarLink}>
+          <CalendarClock className="size-4" aria-hidden="true" />
+          {t('scheduleInCalendar')}
+        </Link>
+      </section>
       {error && (
         <div
           role="alert"
@@ -288,27 +386,41 @@ export function PublishingWorkspace() {
           </div>
           <div className={styles.channels}>
             {data.providers.map((provider) => {
-              const Icon = icons[provider.id]
               const connected = data.accounts.filter(
                 (account) => account.provider === provider.id
               )
               return (
                 <div key={provider.id} className={styles.channel}>
                   <div className="flex items-center gap-3">
-                    <span className="rounded-lg bg-muted p-2">
-                      <Icon className="size-5" />
-                    </span>
-                    <h3 className="font-semibold">{provider.name}</h3>
+                    <PlatformBrandIcon
+                      provider={provider.id}
+                      className={styles.providerIcon}
+                    />
+                    <div className="min-w-0">
+                      <h3 className="font-semibold">{provider.name}</h3>
+                      <span className={styles.connectionCount}>
+                        {connected.length
+                          ? t('accountsConnected', { count: connected.length })
+                          : t('notConnected')}
+                      </span>
+                    </div>
                   </div>
                   <p className="mt-3 text-xs leading-5 text-muted-foreground">
                     {t(`requirements.${provider.id}`)}
                   </p>
-                  <div className="my-4 flex-1 space-y-3">
+                  <div className={styles.accountStack}>
                     {connected.map((account) => (
-                      <div
-                        key={account.id}
-                        className="flex items-start justify-between gap-2 text-sm"
-                      >
+                      <div key={account.id} className={styles.connectedAccount}>
+                        <div className={styles.accountIdentity}>
+                          <PlatformBrandIcon
+                            provider={account.provider}
+                            className={styles.accountIcon}
+                          />
+                          <span
+                            className={styles.connectedDot}
+                            aria-label={t('connectedStatus')}
+                          />
+                        </div>
                         <div className="min-w-0">
                           <p className="break-words font-medium">
                             {account.name}
@@ -338,10 +450,14 @@ export function PublishingWorkspace() {
                   {provider.configured ? (
                     <Button
                       variant="outline"
+                      className={styles.connectButton}
                       disabled={busy}
                       onClick={() => void connect(provider.id)}
                     >
-                      {t('connect')}
+                      {connected.length ? (
+                        <Plus className="size-3.5" aria-hidden="true" />
+                      ) : null}
+                      {connected.length ? t('connectAnother') : t('connect')}
                       <ExternalLink className="size-3.5" />
                     </Button>
                   ) : (
@@ -370,6 +486,17 @@ export function PublishingWorkspace() {
                 className="ml-auto size-4 text-muted-foreground"
                 aria-hidden="true"
               />
+              {(clipId || accountIds.length > 0 || caption) && !review && (
+                <button
+                  type="button"
+                  className={styles.resetButton}
+                  onClick={resetComposer}
+                  disabled={busy}
+                >
+                  <RotateCcw className="size-3.5" aria-hidden="true" />
+                  {t('reset')}
+                </button>
+              )}
             </div>
             <fieldset disabled={busy || review} className="mt-5 space-y-5">
               <div>
@@ -454,10 +581,16 @@ export function PublishingWorkspace() {
                       }
                       className="size-4 accent-primary"
                     />
+                    <PlatformBrandIcon
+                      provider={account.provider}
+                      className={styles.destinationIcon}
+                    />
                     <span className="min-w-0 break-words">
                       <span className="font-medium">{account.name}</span>
                       <span className="ml-2 text-muted-foreground">
-                        {account.provider}
+                        {data.providers.find(
+                          (provider) => provider.id === account.provider
+                        )?.name ?? account.provider}
                       </span>
                     </span>
                   </label>
@@ -488,7 +621,18 @@ export function PublishingWorkspace() {
                   <h3 className="text-sm font-semibold">
                     {t('tiktokOptions')}
                   </h3>
-                  {!readyOptions ? (
+                  {optionsError ? (
+                    <div className={styles.optionError} role="alert">
+                      <AlertTriangle className="size-4" aria-hidden="true" />
+                      <span>{t('optionsError')}</span>
+                      <button
+                        type="button"
+                        onClick={() => setOptionsRequest((value) => value + 1)}
+                      >
+                        {t('retry')}
+                      </button>
+                    </div>
+                  ) : !readyOptions ? (
                     <p role="status" className="text-sm">
                       {t('loadingOptions')}
                     </p>
@@ -667,6 +811,44 @@ export function PublishingWorkspace() {
                 </div>
               )}
             </fieldset>
+            {!review && (
+              <section
+                className={styles.preflight}
+                aria-labelledby="preflight-title"
+              >
+                <div>
+                  <p className={styles.eyebrow}>{t('preflightEyebrow')}</p>
+                  <h3 id="preflight-title">{t('preflight')}</h3>
+                  <p>{t('preflightHint')}</p>
+                </div>
+                <ul>
+                  <li data-ready={Boolean(clip)}>
+                    {clip ? (
+                      <CircleCheck aria-hidden="true" />
+                    ) : (
+                      <span aria-hidden="true">1</span>
+                    )}
+                    {t('checkClip')}
+                  </li>
+                  <li data-ready={accounts.length > 0}>
+                    {accounts.length ? (
+                      <CircleCheck aria-hidden="true" />
+                    ) : (
+                      <span aria-hidden="true">2</span>
+                    )}
+                    {t('checkDestinations')}
+                  </li>
+                  <li data-ready={platformSettingsReady}>
+                    {platformSettingsReady ? (
+                      <CircleCheck aria-hidden="true" />
+                    ) : (
+                      <span aria-hidden="true">3</span>
+                    )}
+                    {t('checkSettings')}
+                  </li>
+                </ul>
+              </section>
+            )}
             {review ? (
               <div
                 className={`${styles.review} mt-6 space-y-4 rounded-lg border border-primary/30 bg-primary/5 p-4`}
@@ -678,8 +860,17 @@ export function PublishingWorkspace() {
                 <p className="text-sm font-medium">{clip?.title}</p>
                 <ul className="space-y-1 text-sm">
                   {accounts.map((account) => (
-                    <li key={account.id}>
-                      {account.name} · {account.provider}
+                    <li key={account.id} className={styles.reviewAccount}>
+                      <PlatformBrandIcon
+                        provider={account.provider}
+                        className={styles.reviewIcon}
+                      />
+                      <span>
+                        {account.name} ·{' '}
+                        {data.providers.find(
+                          (provider) => provider.id === account.provider
+                        )?.name ?? account.provider}
+                      </span>
                     </li>
                   ))}
                 </ul>
@@ -719,7 +910,7 @@ export function PublishingWorkspace() {
               </div>
             ) : (
               <Button
-                className="mt-6"
+                className={styles.reviewButton}
                 disabled={!canReview || busy}
                 onClick={() => {
                   setNotice('')
@@ -736,7 +927,16 @@ export function PublishingWorkspace() {
               <h2 id="history-title" className="text-lg font-semibold">
                 {t('history')}
               </h2>
-              <Button variant="ghost" size="sm" onClick={() => void reload()}>
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={refreshing}
+                onClick={() => void reload()}
+              >
+                <RefreshCw
+                  className={`size-3.5 ${refreshing ? 'animate-spin' : ''}`}
+                  aria-hidden="true"
+                />
                 {t('refresh')}
               </Button>
             </div>
@@ -765,12 +965,18 @@ export function PublishingWorkspace() {
                         )}
                       </span>
                     </div>
-                    <p className="break-words text-xs text-muted-foreground">
-                      {data.accounts.find(
-                        (account) => account.id === post.accountId
-                      )?.name ?? post.provider}{' '}
-                      · {new Date(post.createdAt).toLocaleString(locale)}
-                    </p>
+                    <div className={styles.historyAccount}>
+                      <PlatformBrandIcon
+                        provider={post.provider}
+                        className={styles.historyIcon}
+                      />
+                      <p className="break-words text-xs text-muted-foreground">
+                        {data.accounts.find(
+                          (account) => account.id === post.accountId
+                        )?.name ?? post.provider}{' '}
+                        · {new Date(post.createdAt).toLocaleString(locale)}
+                      </p>
+                    </div>
                     {post.error && (
                       <p className="break-words text-xs leading-5 text-destructive">
                         {post.error}

@@ -61,6 +61,7 @@ class Settings(BaseSettings):
 
     # YouTube Settings
     youtube_cookies_path: str | None = None
+    youtube_pot_provider_url: str | None = None
 
     # Storage & Upload
     storage_type: str = "local"

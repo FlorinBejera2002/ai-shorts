@@ -12,8 +12,8 @@ PRODUCTION_DEPLOY := ./scripts/deploy.sh
 	logs backend-shell restart-go frontend-shell db-shell redis-shell migrate security-up \
 	install typecheck lint format test test-frontend test-go check build \
 	build-dev build-frontend reset-data prod-build prod-build-backend \
-	prod-build-frontend prod-build-api prod-build-workers prod-build-gateway \
-	deploy deploy-backend deploy-frontend deploy-api deploy-workers \
+	prod-build-frontend prod-build-studio prod-build-api prod-build-workers prod-build-gateway \
+	deploy deploy-backend deploy-frontend deploy-studio deploy-api deploy-workers \
 	deploy-gateway rollback production-status production-verify
 
 help: ## Show available commands
@@ -139,6 +139,9 @@ prod-build-backend: ## Upload and build API, worker, and dispatcher images
 prod-build-frontend: ## Upload and build only the production frontend image
 	@$(PRODUCTION_DEPLOY) build frontend
 
+prod-build-studio: ## Upload and build Studio and its frontend integration
+	@$(PRODUCTION_DEPLOY) build studio
+
 prod-build-api: ## Upload and build only API and migration images
 	@$(PRODUCTION_DEPLOY) build api
 
@@ -156,6 +159,9 @@ deploy-backend: ## Build and deploy the backend without starting the frontend
 
 deploy-frontend: ## Build and deploy the production frontend and public gateway
 	@$(PRODUCTION_DEPLOY) deploy frontend
+
+deploy-studio: ## Build and deploy Studio, frontend integration and HTTPS gateway
+	@$(PRODUCTION_DEPLOY) deploy studio
 
 deploy-api: ## Build and deploy the Go API, migrations, and API gateway
 	@$(PRODUCTION_DEPLOY) deploy api

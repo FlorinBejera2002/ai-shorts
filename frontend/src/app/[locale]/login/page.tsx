@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Link } from '@/i18n/navigation'
 import { authClient, googleSignIn, safeReturnPath } from '@/lib/auth'
+import { ApiError } from '@/lib/auth-client'
 import { useLocale, useTranslations } from 'next-intl'
 import { useSearchParams } from 'next/navigation'
 import { Suspense, useState } from 'react'
@@ -28,6 +29,7 @@ function LoginForm() {
   const t = useTranslations('auth')
   const search = useSearchParams()
   const [error, setError] = useState(() => search.get('error'))
+  const [requiresSecondFactor, setRequiresSecondFactor] = useState(false)
   const prefix = locale === 'en' ? '' : `/${locale}`
   const redirectTo = safeReturnPath(
     search.get('callbackUrl'),
@@ -38,11 +40,17 @@ function LoginForm() {
     try {
       await authClient.login(
         String(formData.get('email') ?? ''),
-        String(formData.get('password') ?? '')
+        String(formData.get('password') ?? ''),
+        String(formData.get('secondFactor') ?? '')
       )
       window.location.assign(redirectTo)
-    } catch {
-      setError('CredentialsSignin')
+    } catch (caught) {
+      if (caught instanceof ApiError && caught.code === 'mfa_required') {
+        setRequiresSecondFactor(true)
+        setError(null)
+      } else {
+        setError('CredentialsSignin')
+      }
     }
   }
 
@@ -207,6 +215,26 @@ function LoginForm() {
                 hideLabel={t('hidePassword')}
               />
             </div>
+            {requiresSecondFactor && (
+              <div className="space-y-1.5">
+                <Label htmlFor="second-factor" className="text-sm font-medium">
+                  {t('secondFactor')}
+                </Label>
+                <Input
+                  id="second-factor"
+                  name="secondFactor"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  maxLength={19}
+                  required={true}
+                  autoFocus={true}
+                  placeholder={t('secondFactorPlaceholder')}
+                />
+                <p className="text-xs text-muted-foreground">
+                  {t('secondFactorHint')}
+                </p>
+              </div>
+            )}
             <SubmitButton label={t('signIn')} pendingLabel={t('signingIn')} />
           </form>
 

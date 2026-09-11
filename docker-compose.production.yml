@@ -88,6 +88,7 @@ services:
   backend-go:
     <<: *app
     build: ./backend-go
+    networks: [default, studio]
     environment:
       <<: *environment
       GO_AUTH_ENABLED: "true"
@@ -122,11 +123,17 @@ services:
       context: ./backend
       target: ml
     image: sneepcut-production-ml
+    environment:
+      <<: *environment
+      YOUTUBE_COOKIES_PATH: ${YOUTUBE_COOKIES_PATH:-/run/secrets/youtube-cookies.txt}
+      YOUTUBE_POT_PROVIDER_URL: http://youtube-pot-provider:4416
     command: >-
       celery -A app.workers.celery_app:celery_app worker
       --loglevel=info --concurrency=${WORKER_CONCURRENCY:-1}
       --max-tasks-per-child=50
-    volumes: ["media_data:/app/media"]
+    volumes:
+      - media_data:/app/media
+      - ${YOUTUBE_COOKIES_DIR:-/opt/sneepcut-secrets}:/run/secrets:ro
     pids_limit: 512
     mem_limit: ${WORKER_MEMORY_LIMIT:-6g}
     cpus: ${WORKER_CPU_LIMIT:-2}
@@ -136,6 +143,26 @@ services:
         condition: service_completed_successfully
       redis:
         condition: service_healthy
+      youtube-pot-provider:
+        condition: service_started
+
+  youtube-pot-provider:
+    image: brainicism/bgutil-ytdlp-pot-provider:2.0.0
+    command: ["--host", "0.0.0.0"]
+    restart: unless-stopped
+    init: true
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: ["ALL"]
+    read_only: true
+    tmpfs: ["/tmp:mode=1770"]
+    pids_limit: 128
+    mem_limit: 512m
+    cpus: 1
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   job-dispatcher:
     <<: *app
@@ -149,6 +176,60 @@ services:
       backend-go:
         condition: service_healthy
 
+  studio:
+    build:
+      context: ./editor
+      dockerfile: Dockerfile.sneepcut
+    image: sneepcut-production-studio
+    environment:
+      NODE_ENV: production
+      SNEEPCUT_STUDIO_HOST: 0.0.0.0
+      SNEEPCUT_STUDIO_PORT: "5191"
+      SNEEPCUT_STUDIO_ORIGIN: https://studio.sneepcut.com
+      SNEEPCUT_APP_ORIGIN: https://sneepcut.com
+      SNEEPCUT_APP_ADDITIONAL_ORIGINS: https://www.sneepcut.com
+      SNEEPCUT_AUTH_BASE_URL: http://backend-go:8080
+      SNEEPCUT_STUDIO_DATA: /data/projects
+      SNEEPCUT_REGISTRY_DIR: /app/registry
+      SNEEPCUT_AI_BASE_URL: ${SNEEPCUT_AI_BASE_URL:-}
+      SNEEPCUT_AI_MODEL: ${SNEEPCUT_AI_MODEL:-}
+      SNEEPCUT_AI_API_KEY: ${SNEEPCUT_AI_API_KEY:-}
+      PRODUCER_HEADLESS_SHELL_PATH: /usr/bin/chromium
+      HYPERFRAMES_NO_TELEMETRY: "1"
+      HOME: /tmp/studio-home
+    volumes: ["studio_data:/data"]
+    tmpfs: ["/tmp:size=3g,uid=1000,gid=1000,mode=1770"]
+    shm_size: 1gb
+    read_only: true
+    user: "1000:1000"
+    cap_drop: ["ALL"]
+    security_opt:
+      - no-new-privileges:true
+      # Bubblewrap creates a nested unprivileged mount/user namespace per job.
+      - seccomp=./deploy/studio-seccomp.json
+      - apparmor=unconfined
+      - systempaths=unconfined
+    networks: [studio]
+    init: true
+    restart: unless-stopped
+    pids_limit: 512
+    mem_limit: 6g
+    cpus: 2
+    stop_grace_period: 30s
+    depends_on:
+      backend-go:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "bun", "-e", "fetch('http://127.0.0.1:5191/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 4
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
   frontend:
     build:
       context: ./frontend
@@ -156,6 +237,7 @@ services:
         GO_API_URL: http://backend-go:8080
         MEDIA_PROXY_HOST: http://nginx:80
         NEXT_PUBLIC_APP_URL: https://sneepcut.com
+        NEXT_PUBLIC_STUDIO_URL: https://studio.sneepcut.com
         NEXT_PUBLIC_CONTACT_EMAIL: ${NEXT_PUBLIC_CONTACT_EMAIL:-admin@sneepcut.com}
         NEXT_PUBLIC_UPLOAD_URL: https://api.sneepcut.com/api/upload/direct
         NEXT_IMAGE_REMOTE_HOSTS: api.sneepcut.com
@@ -165,6 +247,7 @@ services:
       GO_API_URL: http://backend-go:8080
       MEDIA_PROXY_HOST: http://nginx:80
       NEXT_PUBLIC_APP_URL: https://sneepcut.com
+      NEXT_PUBLIC_STUDIO_URL: https://studio.sneepcut.com
       NEXT_PUBLIC_CONTACT_EMAIL: ${NEXT_PUBLIC_CONTACT_EMAIL:-admin@sneepcut.com}
       NEXT_PUBLIC_UPLOAD_URL: https://api.sneepcut.com/api/upload/direct
       NEXT_IMAGE_REMOTE_HOSTS: api.sneepcut.com
@@ -219,16 +302,19 @@ services:
     networks:
       default:
         ipv4_address: 172.30.94.254
+      studio: {}
     depends_on: [nginx]
     restart: unless-stopped
 
 networks:
+  studio: {}
   default:
     ipam:
       config:
         - subnet: 172.30.94.0/24
 
 volumes:
+  studio_data:
   postgres_data:
   redis_data:
   media_data:

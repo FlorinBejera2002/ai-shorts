@@ -59,7 +59,8 @@ const inputClassName =
 
 function initialFormState(
   selectedDate: Date,
-  post?: ScheduledPostRecord
+  post?: ScheduledPostRecord,
+  initialTime?: string
 ): FormState {
   const scheduledAt = post
     ? new Date(post.scheduledAt)
@@ -72,7 +73,9 @@ function initialFormState(
     platforms: post?.platforms ?? ['instagram'],
     status: post?.status ?? 'scheduled',
     date: localDateKey(scheduledAt),
-    time: localTimeValue(scheduledAt),
+    time: post
+      ? localTimeValue(scheduledAt)
+      : (initialTime ?? localTimeValue(scheduledAt)),
     clipId: post?.clip?.id ?? ''
   }
 }
@@ -112,6 +115,7 @@ export function PostDialog({
   post,
   clips,
   timeZone,
+  initialTime,
   onClose,
   onSave,
   onDelete
@@ -121,6 +125,7 @@ export function PostDialog({
   post?: ScheduledPostRecord
   clips: CalendarClipOption[]
   timeZone: string
+  initialTime?: string
   onClose: () => void
   onSave: (payload: PostFormPayload) => Promise<void>
   onDelete?: () => Promise<void>
@@ -139,7 +144,7 @@ export function PostDialog({
   const busyRef = useRef(false)
   const [mounted, setMounted] = useState(false)
   const [form, setForm] = useState<FormState>(() =>
-    initialFormState(selectedDate, post)
+    initialFormState(selectedDate, post, initialTime)
   )
   const [errors, setErrors] = useState<FormErrors>({})
   const [saving, setSaving] = useState(false)

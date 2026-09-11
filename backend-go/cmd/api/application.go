@@ -3,10 +3,13 @@ package main
 import (
 	"context"
 	"database/sql"
-	"github.com/julienschmidt/httprouter"
-	"github.com/redis/go-redis/v9"
 	"log/slog"
 	"net/http"
+	"time"
+
+	"github.com/julienschmidt/httprouter"
+	"github.com/redis/go-redis/v9"
+
 	"sneepcut/backend-go/internal/account"
 	"sneepcut/backend-go/internal/assistant"
 	"sneepcut/backend-go/internal/billing"
@@ -22,9 +25,9 @@ import (
 	"sneepcut/backend-go/internal/identity"
 	"sneepcut/backend-go/internal/jobs"
 	"sneepcut/backend-go/internal/media"
+	"sneepcut/backend-go/internal/projects"
 	"sneepcut/backend-go/internal/publishing"
 	"sneepcut/backend-go/internal/scripts"
-	"time"
 )
 
 func buildApplication(db *sql.DB, cfg config.Config, a config.Application, logger *slog.Logger) (http.Handler, func(), error) {
@@ -33,12 +36,15 @@ func buildApplication(db *sql.DB, cfg config.Config, a config.Application, logge
 	if err != nil {
 		return nil, noop, err
 	}
-	auth := identity.NewHandler(identity.NewService(identity.NewPostgres(db), tokens), identity.HTTPConfig{SecureCookies: cfg.Auth.SecureCookies, AllowedOrigins: cfg.Auth.AllowedOrigins, TrustedProxies: a.TrustedProxies}, logger)
+	identityService := identity.NewService(identity.NewPostgres(db), tokens)
+	auth := identity.NewHandler(identityService, identity.HTTPConfig{SecureCookies: cfg.Auth.SecureCookies, AllowedOrigins: cfg.Auth.AllowedOrigins, TrustedProxies: a.TrustedProxies}, logger)
 	mailer, err := email.New(email.Config{From: a.EmailFrom, ResendKey: a.ResendKey, SMTPHost: a.SMTPHost, SMTPPort: a.SMTPPort, SMTPUsername: a.SMTPUser, SMTPPassword: a.SMTPPassword, SMTPRequireTLS: a.SMTPRequireTLS})
 	if err != nil {
 		return nil, noop, err
 	}
-	auth.SetAccounts(identity.NewAccounts(db, identity.AccountsConfig{AppURL: a.AppURL, RequireVerification: a.RequireEmailVerification, InitialCredits: a.InitialCredits}, mailer))
+	accounts := identity.NewAccounts(db, identity.AccountsConfig{AppURL: a.AppURL, RequireVerification: a.RequireEmailVerification, InitialCredits: a.InitialCredits, SecurityKey: cfg.Auth.JWTSecret}, mailer)
+	auth.SetAccounts(accounts)
+	identityService.SetSecondFactor(accounts)
 	auth.SetGoogle(identity.NewGoogle(identity.GoogleConfig{ClientID: a.GoogleClientID, ClientSecret: a.GoogleClientSecret, RedirectURL: a.GoogleRedirectURL, AppURL: a.AppURL}))
 	options, err := redis.ParseURL(a.RedisURL)
 	if err != nil {
@@ -90,7 +96,12 @@ func buildApplication(db *sql.DB, cfg config.Config, a config.Application, logge
 			schema := false
 			if database {
 				var valid bool
-				schema = db.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema=current_schema() AND table_name='users' AND column_name='email_activation_required') AND to_regclass('edit_deliveries') IS NOT NULL`).Scan(&valid) == nil && valid
+				schema = db.QueryRowContext(ctx, `SELECT
+					EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema=current_schema() AND table_name='users' AND column_name='email_activation_required')
+					AND EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema=current_schema() AND table_name='users' AND column_name='mfa_enabled')
+					AND to_regclass('edit_deliveries') IS NOT NULL
+					AND to_regclass('account_preferences') IS NOT NULL
+					AND to_regclass('account_security_events') IS NOT NULL`).Scan(&valid) == nil && valid
 			}
 			redisReady := limits.Ping(ctx).Err() == nil
 			status := 200
@@ -100,6 +111,6 @@ func buildApplication(db *sql.DB, cfg config.Config, a config.Application, logge
 			httpx.JSON(w, status, map[string]any{"ready": status == 200, "database": database, "schema": schema, "redis": redisReady})
 		})
 	}
-	handler := httpapi.New(logger, cfg.Environment, version, auth.Register, media.NewHandler(mediaService, auth).Register, jobs.New(db, auth, mediaService, jobs.Config{}).Register, clipHandler.Register, brand.New(db, auth, mediaService).Register, calendar.New(db, auth, mediaService).Register, billingService.Register, account.New(db, auth, mediaService, billingService, account.Config{}).Register, dashboard.New(db, auth, clipHandler).Register, scripts.New(auth, generator).Register, assistant.New(db, auth, generator).Register, publishingHandler.Register, readiness)
+	handler := httpapi.New(logger, cfg.Environment, version, auth.Register, media.NewHandler(mediaService, auth).Register, jobs.New(db, auth, mediaService, jobs.Config{}).Register, projects.New(db, auth, mediaService).Register, clipHandler.Register, brand.New(db, auth, mediaService).Register, calendar.New(db, auth, mediaService).Register, billingService.Register, account.New(db, auth, mediaService, billingService, account.Config{MFA: accounts}).Register, dashboard.New(db, auth, clipHandler).Register, scripts.NewWithDB(db, auth, generator).Register, assistant.New(db, auth, generator).Register, publishingHandler.Register, readiness)
 	return httpapi.Policy(auth.Policy(handler), httpapi.PolicyConfig{AllowedHosts: a.AllowedHosts}), cleanup, nil
 }

@@ -9,7 +9,7 @@ test('original redesign pages have separate tickets and browser routes', () => {
   const root = fileURLToPath(new URL('../src/app/[locale]', import.meta.url))
   const walk = dir => readdirSync(dir,{withFileTypes:true}).flatMap(entry => entry.isDirectory() ? walk(join(dir,entry.name)) : entry.name==='page.tsx' ? [join(dir,entry.name)] : [])
   // These pages were added after the original redesign and have their own coverage.
-  const laterPages = new Set(['activate/page.tsx', 'data-deletion/page.tsx'])
+  const laterPages = new Set(['activate/page.tsx', 'data-deletion/page.tsx', 'dashboard/studio/page.tsx'])
   const redesignPages = walk(root).filter(path => !laterPages.has(relative(root, path).replaceAll('\\', '/')))
   assert.equal(redesignPages.length,23)
   const tickets = JSON.parse(read('redesign-tickets.json'))

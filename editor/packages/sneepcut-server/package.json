@@ -1,0 +1,23 @@
+{
+  "name": "@sneepcut/editor-server",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "bun src/main.ts",
+    "test": "bun test",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@hyperframes/core": "workspace:*",
+    "@hyperframes/lint": "workspace:*",
+    "@hyperframes/producer": "workspace:*",
+    "@hyperframes/studio-server": "workspace:*",
+    "hono": "^4.0.0",
+    "puppeteer-core": "^25.2.1"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@types/node": "^25.0.10",
+    "typescript": "^5.0.0"
+  }
+}

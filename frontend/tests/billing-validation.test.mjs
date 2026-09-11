@@ -28,6 +28,15 @@ async function loadTypeScriptModule(relativePath) {
 
 const billing = await loadTypeScriptModule('../src/lib/billing.ts')
 
+test('credit balance is translated into a conservative clip runway', () => {
+  assert.equal(billing.CREDITS_PER_CLIP, 10)
+  assert.equal(billing.estimateAvailableClips(100), 10)
+  assert.equal(billing.estimateAvailableClips(19), 1)
+  assert.equal(billing.estimateAvailableClips(9), 0)
+  assert.equal(billing.estimateAvailableClips(-20), 0)
+  assert.equal(billing.estimateAvailableClips(Number.NaN), 0)
+})
+
 test('checkout accepts only logical paid plans and supported locales', () => {
   assert.deepEqual(billing.validateCheckoutPayload({ planId: 'pro' }), {
     success: true,

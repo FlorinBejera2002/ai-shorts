@@ -5,6 +5,9 @@ export type PublishingAccount = {
   name: string
   username?: string
   status: string
+  scopes?: string[]
+  tokenExpiresAt?: string
+  tokenExpired?: boolean
 }
 export type PublishingPost = {
   id: string

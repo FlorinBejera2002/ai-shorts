@@ -5,7 +5,7 @@ usage() {
   cat <<'EOF'
 Usage: scripts/deploy.sh <build|deploy|rollback|status|verify> [component]
 
-Components: all, backend, frontend, api, workers, gateway
+Components: all, backend, frontend, studio, api, workers, gateway
 
 Environment:
   DEPLOY_HOST  SSH host or alias (default: sc)
@@ -24,7 +24,7 @@ case "$action" in
 esac
 
 case "$component" in
-  all|backend|frontend|api|workers|gateway) ;;
+  all|backend|frontend|studio|api|workers|gateway) ;;
   *) echo "Unknown production component: $component" >&2; exit 2 ;;
 esac
 
@@ -49,12 +49,23 @@ case "$action" in
     ;;
 esac
 
-for tool in git tar ssh scp shasum; do
+for tool in git tar ssh scp; do
   command -v "$tool" >/dev/null || {
     echo "Missing required deployment tool: $tool" >&2
     exit 1
   }
 done
+
+if command -v shasum >/dev/null; then
+  sha256_command=(shasum -a 256)
+  sha256() { shasum -a 256 "$@"; }
+elif command -v sha256sum >/dev/null; then
+  sha256_command=(sha256sum)
+  sha256() { sha256sum "$@"; }
+else
+  echo "Missing required deployment tool: shasum or sha256sum" >&2
+  exit 1
+fi
 
 temp_dir=$(mktemp -d "${TMPDIR:-/tmp}/sneepcut-deploy.XXXXXX")
 cleanup() {
@@ -73,19 +84,19 @@ cd "$repo_root"
 # secrets, caches, and an in-progress alternate frontend tree.
 git ls-files -co --exclude-standard -z -- \
   backend backend-go frontend deploy scripts \
-  docker-compose.production.yml Makefile .gitattributes > "$file_list"
+  editor/package.json editor/bun.lock editor/Dockerfile.sneepcut editor/.dockerignore \
+  'editor/tsconfig*.json' editor/packages editor/registry editor/scripts editor/LICENSE editor/NOTICE \
+  docker-compose.production.yml Makefile .gitattributes \
+  ':(exclude)editor/packages/producer/tests' > "$file_list"
 
 if [[ ! -s "$file_list" ]]; then
   echo "No production source files were found." >&2
   exit 1
 fi
 
-: > "$manifest"
-while IFS= read -r -d '' path; do
-  digest=$(shasum -a 256 "$path" | awk '{print $1}')
-  printf '%s  %s\n' "$digest" "$path" >> "$manifest"
-done < "$file_list"
-release_id=$(shasum -a 256 "$manifest" | awk '{print substr($1, 1, 16)}')
+# Hash in batches: spawning two processes per file is very slow on Windows.
+xargs -0 "${sha256_command[@]}" < "$file_list" > "$manifest"
+release_id=$(sha256 "$manifest" | awk '{print substr($1, 1, 16)}')
 
 COPYFILE_DISABLE=1 tar --no-xattrs -czf "$archive" --null -T "$file_list"
 remote_archive="/tmp/sneepcut-release-${release_id}.tar.gz"

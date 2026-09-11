@@ -23,6 +23,9 @@ export type CalendarRange = {
   end: Date
 }
 
+export type CalendarViewMode = 'month' | 'week' | 'day' | 'list'
+export type CalendarDensity = 'compact' | 'comfortable'
+
 export type PostFormPayload = {
   title?: string
   caption?: string | null
@@ -68,6 +71,34 @@ export function addLocalDays(value: Date, amount: number): Date {
 
 export function addLocalMonths(value: Date, amount: number): Date {
   return new Date(value.getFullYear(), value.getMonth() + amount, 1)
+}
+
+export function getWeekRange(value: Date, weekStartsOn: 0 | 1): CalendarRange {
+  const anchor = startOfLocalDay(value)
+  const offset = (anchor.getDay() - weekStartsOn + 7) % 7
+  const start = addLocalDays(anchor, -offset)
+  const days = Array.from({ length: 7 }, (_, index) =>
+    addLocalDays(start, index)
+  )
+  return { days, start, end: addLocalDays(start, 7) }
+}
+
+export function movePostToLocalDate(
+  scheduledAt: string,
+  targetDate: Date,
+  targetHour?: number
+): Date {
+  const source = new Date(scheduledAt)
+  const result = new Date(
+    targetDate.getFullYear(),
+    targetDate.getMonth(),
+    targetDate.getDate(),
+    targetHour ?? source.getHours(),
+    targetHour === undefined ? source.getMinutes() : 0,
+    0,
+    0
+  )
+  return result
 }
 
 export function localDateKey(value: Date): string {

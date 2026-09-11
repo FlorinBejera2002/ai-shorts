@@ -72,7 +72,8 @@ test('release rotation retains exactly one previous application checkout', () =>
 })
 
 test('deployment commands reject path traversal before connecting to a host', () => {
-  const localResult = spawnSync('../scripts/deploy.sh', ['status', 'all'], {
+  const bash = process.env.BASH_BINARY || 'bash'
+  const localResult = spawnSync(bash, ['../scripts/deploy.sh', 'status', 'all'], {
     env: {
       ...process.env,
       DEPLOY_ROOT: '/opt/sneepcut/..',
@@ -81,8 +82,8 @@ test('deployment commands reject path traversal before connecting to a host', ()
     encoding: 'utf8'
   })
   const remoteResult = spawnSync(
-    '../scripts/production-release.sh',
-    ['status', 'all', 'manual', '/srv/sneepcut/..', ''],
+    bash,
+    ['../scripts/production-release.sh', 'status', 'all', 'manual', '/srv/sneepcut/..', ''],
     { encoding: 'utf8' }
   )
 

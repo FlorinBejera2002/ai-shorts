@@ -61,6 +61,15 @@ def download_video(
     output_directory = ensure_dir(output_dir)
     output_template = str(output_directory / "%(title).80s-%(id)s.%(ext)s")
     cookie_file = cookies_path or settings.youtube_cookies_path
+    extractor_args = None
+    if is_youtube_url(url):
+        extractor_args = {
+            "youtube": {"player_client": ["mweb"]},
+        }
+        if settings.youtube_pot_provider_url:
+            extractor_args["youtubepot-bgutilhttp"] = {
+                "base_url": [settings.youtube_pot_provider_url]
+            }
 
     ydl_opts = {
         "format": (
@@ -79,12 +88,7 @@ def download_video(
         "fragment_retries": 10,
         "nocheckcertificate": True,
         "cachedir": False,
-        "extractor_args": {
-            "youtube": {
-                "player_client": ["tv_embed", "android", "mweb", "web"],
-                "player_skip": ["webpage", "configs"],
-            }
-        },
+        "extractor_args": extractor_args,
         "http_headers": {
             "User-Agent": (
                 "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "

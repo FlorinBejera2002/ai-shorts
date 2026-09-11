@@ -1,0 +1,85 @@
+{
+  "source": "heygen-com/hyperframes",
+  "skills": {
+    "embedded-captions": {
+      "hash": "57a5caaa35ff79c8",
+      "files": 142
+    },
+    "faceless-explainer": {
+      "hash": "76162336b4c88963",
+      "files": 24
+    },
+    "figma": {
+      "hash": "642cce1b5e211182",
+      "files": 2
+    },
+    "general-video": {
+      "hash": "ced729740550f414",
+      "files": 4
+    },
+    "hyperframes": {
+      "hash": "e77a36c488b4f80c",
+      "files": 17
+    },
+    "hyperframes-animation": {
+      "hash": "4252b08a4905b5ba",
+      "files": 121
+    },
+    "hyperframes-audio": {
+      "hash": "84035d8ce2a61fbc",
+      "files": 7
+    },
+    "hyperframes-cli": {
+      "hash": "bc52d3d36b7cd934",
+      "files": 11
+    },
+    "hyperframes-core": {
+      "hash": "6921c3b1dbeefb30",
+      "files": 20
+    },
+    "hyperframes-creative": {
+      "hash": "f3b201ca29eae92a",
+      "files": 78
+    },
+    "hyperframes-keyframes": {
+      "hash": "6bc62531ecea9a52",
+      "files": 3
+    },
+    "hyperframes-registry": {
+      "hash": "51e6dba95a8dfb45",
+      "files": 12
+    },
+    "media-use": {
+      "hash": "28948e640a5d133a",
+      "files": 158
+    },
+    "motion-graphics": {
+      "hash": "de8ec5464028ec67",
+      "files": 23
+    },
+    "music-to-video": {
+      "hash": "be70b499dd72169b",
+      "files": 132
+    },
+    "pr-to-video": {
+      "hash": "265c1f85d732d79c",
+      "files": 30
+    },
+    "product-launch-video": {
+      "hash": "3e1efc70cad06b58",
+      "files": 30
+    },
+    "remotion-to-hyperframes": {
+      "hash": "13ade041e6416e5b",
+      "files": 70
+    },
+    "slideshow": {
+      "hash": "3d03ada897faebd2",
+      "files": 2
+    },
+    "talking-head-recut": {
+      "hash": "50d1f9c928514826",
+      "files": 28
+    }
+  }
+}

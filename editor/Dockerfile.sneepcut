@@ -1,0 +1,16 @@
+FROM oven/bun:1.4.2 AS build
+USER root
+RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg chromium fonts-liberation ca-certificates bubblewrap util-linux && rm -rf /var/lib/apt/lists/*
+WORKDIR /app
+COPY . .
+RUN bun install --frozen-lockfile --ignore-scripts
+RUN bun run --filter '@hyperframes/{parsers,lint,studio-server}' build && bun run --filter @hyperframes/core build
+RUN bun run --filter '@hyperframes/{engine,producer,player,studio,shader-transitions,sdk}' build
+RUN HOME=/app/sandbox-home bun -e 'import { ensureModel } from "./packages/cli/src/background-removal/manager.ts"; await ensureModel();'
+RUN mkdir -p /data/projects && chown -R bun:bun /data
+USER bun
+ENV NODE_ENV=production
+ENV SNEEPCUT_STUDIO_HOST=0.0.0.0
+ENV PRODUCER_HEADLESS_SHELL_PATH=/usr/bin/chromium
+EXPOSE 5191
+CMD ["bun", "packages/sneepcut-server/src/main.ts"]

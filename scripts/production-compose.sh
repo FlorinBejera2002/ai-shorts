@@ -9,7 +9,7 @@ case "$action" in
   *) echo "Unknown production action: $action" >&2; exit 2 ;;
 esac
 case "$component" in
-  all|backend|frontend|api|workers|gateway) ;;
+  all|backend|frontend|studio|api|workers|gateway) ;;
   *) echo "Unknown production component: $component" >&2; exit 2 ;;
 esac
 
@@ -42,6 +42,7 @@ build() {
     all) "${compose[@]}" build ;;
     backend) "${compose[@]}" build migrate backend-go worker job-dispatcher ;;
     frontend) "${compose[@]}" build frontend ;;
+    studio) "${compose[@]}" build studio frontend ;;
     api) "${compose[@]}" build migrate backend-go ;;
     workers) "${compose[@]}" build worker job-dispatcher ;;
     gateway) "${compose[@]}" pull nginx caddy ;;
@@ -96,12 +97,18 @@ start_api() {
 }
 
 start_workers() {
-  "${compose[@]}" up -d --no-deps --force-recreate worker job-dispatcher
+  "${compose[@]}" up -d --no-deps --force-recreate \
+    youtube-pot-provider worker job-dispatcher
 }
 
 start_frontend() {
   "${compose[@]}" up -d --no-deps --force-recreate frontend
   wait_for_health frontend 120
+}
+
+start_studio() {
+  "${compose[@]}" up -d --no-deps --force-recreate studio
+  wait_for_health studio 120
 }
 
 start_gateway() {
@@ -116,6 +123,7 @@ deploy() {
       run_migrations
       start_api
       start_workers
+      start_studio
       start_frontend
       start_gateway
       ;;
@@ -127,6 +135,14 @@ deploy() {
       start_gateway
       ;;
     frontend)
+      start_frontend
+      start_gateway
+      ;;
+    studio)
+      # Attach the existing API to Studio's separate network if needed.
+      "${compose[@]}" up -d --no-deps backend-go
+      wait_for_health backend-go 120
+      start_studio
       start_frontend
       start_gateway
       ;;
@@ -177,6 +193,10 @@ verify_api() {
 verify_workers() {
   "${compose[@]}" exec -T clamav clamdscan --ping=1
   "${compose[@]}" exec -T worker \
+    curl --fail --silent --show-error http://youtube-pot-provider:4416/ping >/dev/null
+  "${compose[@]}" exec -T worker deno --version
+  "${compose[@]}" exec -T worker yt-dlp --version
+  "${compose[@]}" exec -T worker \
     celery -A app.workers.celery_app:celery_app inspect ping --timeout=10
 }
 
@@ -193,6 +213,14 @@ verify_public_frontend() {
   done
 }
 
+verify_studio() {
+  curl --fail --silent --show-error --max-time 30 https://studio.sneepcut.com/health
+  local status
+  status=$(curl --silent --output /dev/null --write-out '%{http_code}' \
+    --max-time 30 https://studio.sneepcut.com/sneepcut/projects)
+  [[ "$status" == 401 ]] || { echo "Studio unauthenticated request returned HTTP $status" >&2; return 1; }
+}
+
 verify() {
   config
   case "$component" in
@@ -201,9 +229,11 @@ verify() {
       verify_workers
       verify_frontend
       verify_public_frontend
+      verify_studio
       ;;
     backend) verify_api; verify_workers ;;
     frontend) verify_frontend ;;
+    studio) verify_studio; verify_frontend; verify_public_frontend ;;
     api) verify_api ;;
     workers) verify_workers ;;
     gateway) "${compose[@]}" exec -T nginx nginx -t ;;

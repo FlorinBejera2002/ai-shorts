@@ -117,9 +117,9 @@
     border-top: 0;
   }
 }
-@media (min-width: 1400px) {
+@media (min-width: 1280px) {
   .planningLayout {
-    grid-template-columns: minmax(0, 1fr) 320px;
+    grid-template-columns: minmax(0, 1fr) 336px;
   }
   .agenda {
     position: sticky;

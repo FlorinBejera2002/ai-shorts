@@ -59,5 +59,7 @@ frontend/test-results/
 
 # Git worktrees
 .worktrees/
+.editor-upstream-history/
 
 frontend/.next-dashboard-ui/
+editor/packages/sneepcut-server/verification/artifacts/

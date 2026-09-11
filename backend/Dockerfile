@@ -1,4 +1,6 @@
 # syntax=docker/dockerfile:1
+FROM denoland/deno:bin-2.9.6 AS deno
+
 FROM python:3.11-slim AS base
 
 ENV PYTHONUNBUFFERED=1 \
@@ -17,6 +19,9 @@ COPY alembic ./alembic
 COPY app ./app
 
 FROM base AS ml
+
+# yt-dlp uses Deno to solve YouTube's JavaScript player challenges.
+COPY --from=deno /deno /usr/local/bin/deno
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \

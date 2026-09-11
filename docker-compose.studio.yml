@@ -1,0 +1,45 @@
+# Local, authenticated HTML-first editor. Add after the base/dev Compose files.
+# Keep production exposure behind a same-site HTTPS origin and a render sandbox.
+services:
+  studio:
+    build:
+      context: ./editor
+      dockerfile: Dockerfile.sneepcut
+    environment:
+      SNEEPCUT_STUDIO_HOST: 0.0.0.0
+      SNEEPCUT_STUDIO_PORT: "5191"
+      SNEEPCUT_STUDIO_ORIGIN: ${NEXT_PUBLIC_STUDIO_URL:-http://localhost:5191}
+      SNEEPCUT_APP_ORIGIN: ${APP_URL:-http://localhost:3000}
+      SNEEPCUT_AUTH_BASE_URL: http://backend-go:8080
+      SNEEPCUT_STUDIO_DATA: /data/projects
+      SNEEPCUT_REGISTRY_DIR: /app/registry
+      SNEEPCUT_AI_BASE_URL: ${SNEEPCUT_AI_BASE_URL:-}
+      SNEEPCUT_AI_MODEL: ${SNEEPCUT_AI_MODEL:-}
+      SNEEPCUT_AI_API_KEY: ${SNEEPCUT_AI_API_KEY:-}
+      PRODUCER_HEADLESS_SHELL_PATH: /usr/bin/chromium
+      HYPERFRAMES_NO_TELEMETRY: "1"
+    ports:
+      - "127.0.0.1:${STUDIO_HOST_PORT:-5191}:5191"
+    volumes:
+      - studio_data:/data
+    shm_size: 1gb
+    init: true
+    pids_limit: 512
+    mem_limit: 4g
+    cpus: 2
+    depends_on:
+      backend-go:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "bun", "-e", "fetch('http://127.0.0.1:5191/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+  frontend:
+    build:
+      args:
+        NEXT_PUBLIC_STUDIO_URL: ${NEXT_PUBLIC_STUDIO_URL:-http://localhost:5191}
+    environment:
+      NEXT_PUBLIC_STUDIO_URL: ${NEXT_PUBLIC_STUDIO_URL:-http://localhost:5191}
+volumes:
+  studio_data:

@@ -1,26 +1,24 @@
 'use client'
 
-import { apiFetch } from '@/lib/auth'
-
 import { Card } from '@/components/ui/card'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 
-import { LanguageSwitcher } from '@/components/shared/language-switcher'
+import { CompleteSettingsPanels } from '@/components/settings/complete-settings-panels'
+import { ConnectedAccountsSettings } from '@/components/settings/connected-accounts-settings'
+import { SettingsNavigation } from '@/components/settings/settings-navigation'
 import { SignOutAction } from '@/components/shared/sign-out-action'
-import { ThemeToggle } from '@/components/shared/theme-toggle'
 import { PageHeader } from '@/components/ui/page-header'
 import { useToast } from '@/components/ui/toast'
 import { Link, useRouter } from '@/i18n/navigation'
-import { authClient, googleSignIn } from '@/lib/auth'
+import { apiFetch, authClient, googleSignIn, publicApiFetch } from '@/lib/auth'
 import {
   AlertTriangle,
   CalendarDays,
   CheckCircle2,
   Download,
-  Globe,
   KeyRound,
   Loader2,
   LockKeyhole,
@@ -49,6 +47,7 @@ export type Profile = {
 type BusyAction =
   | 'profile'
   | 'password'
+  | 'verification'
   | 'export'
   | 'delete'
   | 'reauthenticate'
@@ -85,6 +84,9 @@ export function AccountSettings({
   const [busy, setBusy] = useState<BusyAction>(null)
   const [profileError, setProfileError] = useState<string | null>(null)
   const [passwordError, setPasswordError] = useState<string | null>(null)
+  const [verificationError, setVerificationError] = useState<string | null>(
+    null
+  )
   const [deleteError, setDeleteError] = useState<string | null>(null)
 
   const initials = useMemo(() => {
@@ -145,6 +147,30 @@ export function AccountSettings({
       setPasswordError(
         error instanceof Error ? error.message : t('passwordFailed')
       )
+      setBusy(null)
+    }
+  }
+
+  async function resendVerification() {
+    setBusy('verification')
+    setVerificationError(null)
+    try {
+      const response = await publicApiFetch('/v1/auth/resend-activation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: profile.email })
+      })
+      if (!response.ok) {
+        throw new Error(
+          await responseMessage(response, t('verificationSendFailed'))
+        )
+      }
+      toast.add('success', t('verificationSent'))
+    } catch (error) {
+      setVerificationError(
+        error instanceof Error ? error.message : t('verificationSendFailed')
+      )
+    } finally {
       setBusy(null)
     }
   }
@@ -243,383 +269,391 @@ export function AccountSettings({
         </div>
       )}
 
-      <nav
-        aria-label={t('title')}
-        className="account-section-nav mb-6 flex flex-wrap gap-2"
-      >
-        {[
-          ['profile-title', t('profileTitle')],
-          ['security-title', t('securityTitle')],
-          ['privacy-title', t('dataPrivacy')],
-          ['preferences-title', t('preferences')]
-        ].map(([id, label]) => (
-          <Button key={id} asChild={true} variant="outline" size="sm">
-            <a href={`#${id}`}>{label}</a>
-          </Button>
-        ))}
-      </nav>
-      <div className="account-content grid min-w-0 grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.5fr)_minmax(16rem,.7fr)]">
-        <div className="min-w-0 space-y-5">
-          <Card
-            as="section"
-            className="block gap-0 py-0 p-5 sm:p-6"
-            aria-labelledby="profile-title"
-          >
-            <div className="flex flex-wrap items-start justify-between gap-4">
-              <div className="flex min-w-0 max-w-full items-center gap-4">
-                {profile.image ? (
-                  <img
-                    src={profile.image}
-                    alt=""
-                    className="h-14 w-14 rounded-2xl border border-border object-cover"
-                  />
-                ) : (
-                  <div
-                    className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-base font-bold text-primary"
-                    aria-hidden="true"
-                  >
-                    {initials}
+      <div className="grid items-start gap-6 lg:grid-cols-[13.5rem_minmax(0,47.5rem)] xl:gap-10">
+        <SettingsNavigation />
+        <div className="account-content grid min-w-0 grid-cols-1 gap-5">
+          <div className="contents">
+            <Card
+              as="section"
+              className="order-2 block gap-0 p-5 sm:p-6"
+              aria-labelledby="profile-title"
+            >
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div className="flex min-w-0 max-w-full items-center gap-4">
+                  {profile.image ? (
+                    <img
+                      src={profile.image}
+                      alt=""
+                      className="h-14 w-14 rounded-2xl border border-border object-cover"
+                    />
+                  ) : (
+                    <div
+                      className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-base font-bold text-primary"
+                      aria-hidden="true"
+                    >
+                      {initials}
+                    </div>
+                  )}
+                  <div className="min-w-0">
+                    <h2
+                      id="profile-title"
+                      className="scroll-mt-24 text-base font-semibold"
+                    >
+                      {t('profileTitle')}
+                    </h2>
+                    <p className="mt-1 truncate text-sm text-muted-foreground">
+                      {profile.email}
+                    </p>
                   </div>
+                </div>
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/60 px-2.5 py-1 text-[11px] font-semibold text-muted-foreground">
+                  <Shield className="h-3 w-3" aria-hidden="true" />
+                  {credentialAccount
+                    ? t('credentialsProvider')
+                    : t('providerAccount', { provider: profile.provider })}
+                </span>
+              </div>
+
+              <form className="mt-6 space-y-4" onSubmit={saveProfile}>
+                <div>
+                  <Label htmlFor="profile-name" className="field-label">
+                    {t('displayName')}
+                  </Label>
+                  <Input
+                    id="profile-name"
+                    value={name}
+                    onChange={(event) => setName(event.target.value)}
+                    minLength={2}
+                    maxLength={80}
+                    autoComplete="name"
+                    disabled={busy !== null}
+                    className="field-input mt-1.5"
+                    aria-describedby={
+                      profileError ? 'profile-error' : undefined
+                    }
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="profile-email" className="field-label">
+                    {t('emailAddress')}
+                  </Label>
+                  <div className="relative mt-1.5">
+                    <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      id="profile-email"
+                      value={profile.email}
+                      readOnly={true}
+                      className="field-input cursor-not-allowed bg-muted/45 pl-9 text-muted-foreground"
+                    />
+                  </div>
+                  <p className="mt-1.5 text-[11px] text-muted-foreground">
+                    {t('emailReadOnly')}
+                  </p>
+                </div>
+                {profileError && (
+                  <p
+                    id="profile-error"
+                    role="alert"
+                    className="text-xs text-destructive"
+                  >
+                    {profileError}
+                  </p>
                 )}
-                <div className="min-w-0">
+                <Button
+                  type="submit"
+                  disabled={
+                    busy !== null || name.trim() === (profile.name ?? '')
+                  }
+                  variant="default"
+                  className="disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {busy === 'profile' ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Save className="h-4 w-4" />
+                  )}
+                  {t('saveProfile')}
+                </Button>
+              </form>
+            </Card>
+
+            <Card
+              as="section"
+              className="order-3 block gap-0 p-5 sm:p-6"
+              aria-labelledby="security-title"
+            >
+              <div className="flex items-start gap-3">
+                <div className="icon-tile">
+                  <KeyRound className="h-4 w-4" />
+                </div>
+                <div>
                   <h2
-                    id="profile-title"
+                    id="security-title"
                     className="scroll-mt-24 text-base font-semibold"
                   >
-                    {t('profileTitle')}
+                    {t('securityTitle')}
                   </h2>
-                  <p className="mt-1 truncate text-sm text-muted-foreground">
-                    {profile.email}
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {t('securityDesc')}
                   </p>
                 </div>
               </div>
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/60 px-2.5 py-1 text-[11px] font-semibold text-muted-foreground">
-                <Shield className="h-3 w-3" aria-hidden="true" />
-                {credentialAccount
-                  ? t('credentialsProvider')
-                  : t('providerAccount', { provider: profile.provider })}
-              </span>
-            </div>
 
-            <form className="mt-6 space-y-4" onSubmit={saveProfile}>
-              <div>
-                <Label htmlFor="profile-name" className="field-label">
-                  {t('displayName')}
-                </Label>
-                <Input
-                  id="profile-name"
-                  value={name}
-                  onChange={(event) => setName(event.target.value)}
-                  minLength={2}
-                  maxLength={80}
-                  autoComplete="name"
-                  disabled={busy !== null}
-                  className="field-input mt-1.5"
-                  aria-describedby={profileError ? 'profile-error' : undefined}
-                />
-              </div>
-              <div>
-                <Label htmlFor="profile-email" className="field-label">
-                  {t('emailAddress')}
-                </Label>
-                <div className="relative mt-1.5">
-                  <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                  <Input
-                    id="profile-email"
-                    value={profile.email}
-                    readOnly={true}
-                    className="field-input cursor-not-allowed bg-muted/45 pl-9 text-muted-foreground"
-                  />
-                </div>
-                <p className="mt-1.5 text-[11px] text-muted-foreground">
-                  {t('emailReadOnly')}
-                </p>
-              </div>
-              {profileError && (
-                <p
-                  id="profile-error"
-                  role="alert"
-                  className="text-xs text-destructive"
+              {credentialAccount ? (
+                <form
+                  className="mt-5 grid gap-4 sm:grid-cols-2"
+                  onSubmit={changePassword}
                 >
-                  {profileError}
-                </p>
+                  <div className="sm:col-span-2">
+                    <Label htmlFor="current-password" className="field-label">
+                      {t('currentPassword')}
+                    </Label>
+                    <Input
+                      id="current-password"
+                      type="password"
+                      value={currentPassword}
+                      onChange={(event) =>
+                        setCurrentPassword(event.target.value)
+                      }
+                      autoComplete="current-password"
+                      required={true}
+                      disabled={busy !== null}
+                      className="field-input mt-1.5"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="new-password" className="field-label">
+                      {t('newPassword')}
+                    </Label>
+                    <Input
+                      id="new-password"
+                      type="password"
+                      value={newPassword}
+                      onChange={(event) => setNewPassword(event.target.value)}
+                      autoComplete="new-password"
+                      minLength={12}
+                      required={true}
+                      disabled={busy !== null}
+                      className="field-input mt-1.5"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="confirm-password" className="field-label">
+                      {t('confirmPassword')}
+                    </Label>
+                    <Input
+                      id="confirm-password"
+                      type="password"
+                      value={confirmPassword}
+                      onChange={(event) =>
+                        setConfirmPassword(event.target.value)
+                      }
+                      autoComplete="new-password"
+                      minLength={12}
+                      required={true}
+                      disabled={busy !== null}
+                      className="field-input mt-1.5"
+                    />
+                  </div>
+                  <p className="text-[11px] leading-relaxed text-muted-foreground sm:col-span-2">
+                    {t('passwordHint')}
+                  </p>
+                  {passwordError && (
+                    <p
+                      role="alert"
+                      className="text-xs text-destructive sm:col-span-2"
+                    >
+                      {passwordError}
+                    </p>
+                  )}
+                  <div className="sm:col-span-2">
+                    <Button
+                      type="submit"
+                      disabled={busy !== null}
+                      variant="outline"
+                      className="disabled:opacity-50"
+                    >
+                      {busy === 'password' ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <LockKeyhole className="h-4 w-4" />
+                      )}
+                      {t('changePassword')}
+                    </Button>
+                  </div>
+                </form>
+              ) : (
+                <div className="mt-5 flex items-start gap-3 rounded-xl border border-border bg-muted/35 p-4">
+                  <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                  <p className="text-sm leading-relaxed text-muted-foreground">
+                    {t('providerPassword', { provider: profile.provider })}
+                  </p>
+                </div>
               )}
+            </Card>
+
+            <CompleteSettingsPanels />
+
+            <ConnectedAccountsSettings />
+
+            <Card
+              as="section"
+              className="order-8 block gap-0 p-5 sm:p-6"
+              aria-labelledby="privacy-title"
+            >
+              <div className="flex items-start gap-3">
+                <div className="icon-tile">
+                  <Shield className="h-4 w-4" />
+                </div>
+                <div>
+                  <h2
+                    id="privacy-title"
+                    className="scroll-mt-24 text-base font-semibold"
+                  >
+                    {t('dataPrivacy')}
+                  </h2>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {t('dataPrivacyDesc')}
+                  </p>
+                </div>
+              </div>
+              <p className="mt-4 text-[13px] text-muted-foreground">
+                {t('readPrivacy')}{' '}
+                <Link href="/privacy" className="text-primary hover:underline">
+                  {t('privacyPolicy')}
+                </Link>{' '}
+                {t('and')}{' '}
+                <Link href="/terms" className="text-primary hover:underline">
+                  {t('termsOfService')}
+                </Link>
+                .
+              </p>
               <Button
-                type="submit"
-                disabled={busy !== null || name.trim() === (profile.name ?? '')}
-                variant="default"
-                className="disabled:cursor-not-allowed disabled:opacity-50"
+                type="button"
+                onClick={() => void exportData()}
+                disabled={busy !== null}
+                variant="outline"
+                className="mt-4 disabled:opacity-50"
               >
-                {busy === 'profile' ? (
+                {busy === 'export' ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
-                  <Save className="h-4 w-4" />
+                  <Download className="h-4 w-4" />
                 )}
-                {t('saveProfile')}
+                {t('exportData')}
               </Button>
-            </form>
-          </Card>
+            </Card>
 
-          <Card
-            as="section"
-            className="block gap-0 py-0 p-5 sm:p-6"
-            aria-labelledby="security-title"
-          >
-            <div className="flex items-start gap-3">
-              <div className="icon-tile">
-                <KeyRound className="h-4 w-4" />
-              </div>
-              <div>
-                <h2
-                  id="security-title"
-                  className="scroll-mt-24 text-base font-semibold"
-                >
-                  {t('securityTitle')}
-                </h2>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {t('securityDesc')}
-                </p>
-              </div>
-            </div>
-
-            {credentialAccount ? (
-              <form
-                className="mt-5 grid gap-4 sm:grid-cols-2"
-                onSubmit={changePassword}
-              >
-                <div className="sm:col-span-2">
-                  <Label htmlFor="current-password" className="field-label">
-                    {t('currentPassword')}
-                  </Label>
-                  <Input
-                    id="current-password"
-                    type="password"
-                    value={currentPassword}
-                    onChange={(event) => setCurrentPassword(event.target.value)}
-                    autoComplete="current-password"
-                    required={true}
-                    disabled={busy !== null}
-                    className="field-input mt-1.5"
-                  />
-                </div>
+            <section
+              className="order-10 rounded-2xl border border-destructive/25 bg-destructive/[0.035] p-5 sm:p-6"
+              aria-labelledby="danger-title"
+            >
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="mt-0.5 h-4 w-4 text-destructive" />
                 <div>
-                  <Label htmlFor="new-password" className="field-label">
-                    {t('newPassword')}
-                  </Label>
-                  <Input
-                    id="new-password"
-                    type="password"
-                    value={newPassword}
-                    onChange={(event) => setNewPassword(event.target.value)}
-                    autoComplete="new-password"
-                    minLength={12}
-                    required={true}
-                    disabled={busy !== null}
-                    className="field-input mt-1.5"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="confirm-password" className="field-label">
-                    {t('confirmPassword')}
-                  </Label>
-                  <Input
-                    id="confirm-password"
-                    type="password"
-                    value={confirmPassword}
-                    onChange={(event) => setConfirmPassword(event.target.value)}
-                    autoComplete="new-password"
-                    minLength={12}
-                    required={true}
-                    disabled={busy !== null}
-                    className="field-input mt-1.5"
-                  />
-                </div>
-                <p className="text-[11px] leading-relaxed text-muted-foreground sm:col-span-2">
-                  {t('passwordHint')}
-                </p>
-                {passwordError && (
-                  <p
-                    role="alert"
-                    className="text-xs text-destructive sm:col-span-2"
+                  <h2
+                    id="danger-title"
+                    className="font-semibold text-destructive"
                   >
-                    {passwordError}
+                    {t('dangerZone')}
+                  </h2>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {t('dangerZoneDesc')}
                   </p>
-                )}
-                <div className="sm:col-span-2">
-                  <Button
-                    type="submit"
-                    disabled={busy !== null}
-                    variant="outline"
-                    className="disabled:opacity-50"
-                  >
-                    {busy === 'password' ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <LockKeyhole className="h-4 w-4" />
-                    )}
-                    {t('changePassword')}
-                  </Button>
                 </div>
-              </form>
-            ) : (
-              <div className="mt-5 flex items-start gap-3 rounded-xl border border-border bg-muted/35 p-4">
-                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                <p className="text-sm leading-relaxed text-muted-foreground">
-                  {t('providerPassword', { provider: profile.provider })}
-                </p>
               </div>
-            )}
-          </Card>
-
-          <Card
-            as="section"
-            className="block gap-0 py-0 p-5 sm:p-6"
-            aria-labelledby="privacy-title"
-          >
-            <div className="flex items-start gap-3">
-              <div className="icon-tile">
-                <Shield className="h-4 w-4" />
-              </div>
-              <div>
-                <h2
-                  id="privacy-title"
-                  className="scroll-mt-24 text-base font-semibold"
-                >
-                  {t('dataPrivacy')}
-                </h2>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {t('dataPrivacyDesc')}
-                </p>
-              </div>
-            </div>
-            <p className="mt-4 text-[13px] text-muted-foreground">
-              {t('readPrivacy')}{' '}
-              <Link href="/privacy" className="text-primary hover:underline">
-                {t('privacyPolicy')}
-              </Link>{' '}
-              {t('and')}{' '}
-              <Link href="/terms" className="text-primary hover:underline">
-                {t('termsOfService')}
-              </Link>
-              .
-            </p>
-            <Button
-              type="button"
-              onClick={() => void exportData()}
-              disabled={busy !== null}
-              variant="outline"
-              className="mt-4 disabled:opacity-50"
-            >
-              {busy === 'export' ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Download className="h-4 w-4" />
-              )}
-              {t('exportData')}
-            </Button>
-          </Card>
-
-          <section
-            className="rounded-2xl border border-destructive/25 bg-destructive/[0.035] p-5 sm:p-6"
-            aria-labelledby="danger-title"
-          >
-            <div className="flex items-start gap-3">
-              <AlertTriangle className="mt-0.5 h-4 w-4 text-destructive" />
-              <div>
-                <h2
-                  id="danger-title"
-                  className="font-semibold text-destructive"
-                >
-                  {t('dangerZone')}
-                </h2>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {t('dangerZoneDesc')}
-                </p>
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={openDeleteDialog}
-              disabled={busy !== null}
-              className="mt-4 inline-flex min-h-10 items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-2 text-[13px] font-semibold text-destructive transition-colors hover:bg-destructive/20 disabled:opacity-50"
-            >
-              <Trash2 className="h-4 w-4" />
-              {t('deleteAccount')}
-            </button>
-          </section>
-        </div>
-
-        <aside className="account-inspector space-y-5 xl:sticky xl:top-24 xl:self-start">
-          <Card
-            as="section"
-            className="block gap-0 py-0 p-5"
-            aria-labelledby="account-title"
-          >
-            <div className="flex items-center gap-3">
-              <div className="icon-tile">
-                <User className="h-4 w-4" />
-              </div>
-              <h2 id="account-title" className="text-sm font-semibold">
-                {t('accountDetails')}
-              </h2>
-            </div>
-            <dl className="mt-5 space-y-4 text-sm">
-              <div>
-                <dt className="text-[11px] uppercase tracking-wider text-muted-foreground">
-                  {t('memberSince')}
-                </dt>
-                <dd className="mt-1 flex items-center gap-2 font-medium">
-                  <CalendarDays className="h-3.5 w-3.5 text-primary" />
-                  {joinedDate}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-[11px] uppercase tracking-wider text-muted-foreground">
-                  {t('emailStatus')}
-                </dt>
-                <dd className="mt-1 font-medium">
-                  {profile.emailVerified ? t('verified') : t('notVerified')}
-                </dd>
-              </div>
-            </dl>
-            <Button asChild={true} variant="outline">
-              <Link href="/dashboard/billing" className="mt-5 w-full">
-                {t('manageSubscription')}
-              </Link>
-            </Button>
-          </Card>
-
-          <Card
-            as="section"
-            className="block gap-0 py-0 p-5"
-            aria-labelledby="preferences-title"
-          >
-            <div className="flex items-center gap-3">
-              <div className="icon-tile">
-                <Globe className="h-4 w-4" />
-              </div>
-              <h2
-                id="preferences-title"
-                className="scroll-mt-24 text-sm font-semibold"
+              <button
+                type="button"
+                onClick={openDeleteDialog}
+                disabled={busy !== null}
+                className="mt-4 inline-flex min-h-10 items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-2 text-[13px] font-semibold text-destructive transition-colors hover:bg-destructive/20 disabled:opacity-50"
               >
-                {t('preferences')}
-              </h2>
-            </div>
-            <div className="mt-5 space-y-4">
-              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-4">
-                <span className="text-[13px]">{t('language')}</span>
-                <LanguageSwitcher />
+                <Trash2 className="h-4 w-4" />
+                {t('deleteAccount')}
+              </button>
+            </section>
+          </div>
+
+          <aside className="contents">
+            <Card
+              as="section"
+              className="order-1 block gap-0 p-5 sm:p-6"
+              aria-labelledby="account-title"
+            >
+              <div className="flex items-center gap-3">
+                <div className="icon-tile">
+                  <User className="h-4 w-4" />
+                </div>
+                <h2
+                  id="account-title"
+                  className="scroll-mt-24 text-sm font-semibold"
+                >
+                  {t('accountDetails')}
+                </h2>
               </div>
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <span className="text-[13px]">{t('theme')}</span>
-                <ThemeToggle />
-              </div>
-              <div className="border-t border-border pt-4">
+              <dl className="mt-5 space-y-4 text-sm">
+                <div>
+                  <dt className="text-[11px] uppercase tracking-wider text-muted-foreground">
+                    {t('memberSince')}
+                  </dt>
+                  <dd className="mt-1 flex items-center gap-2 font-medium">
+                    <CalendarDays className="h-3.5 w-3.5 text-primary" />
+                    {joinedDate}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-[11px] uppercase tracking-wider text-muted-foreground">
+                    {t('emailStatus')}
+                  </dt>
+                  <dd className="mt-1 font-medium">
+                    <span
+                      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold ${
+                        profile.emailVerified
+                          ? 'bg-success/10 text-success'
+                          : 'bg-warning/10 text-warning-foreground'
+                      }`}
+                    >
+                      {profile.emailVerified ? (
+                        <CheckCircle2 className="size-3" aria-hidden="true" />
+                      ) : (
+                        <AlertTriangle className="size-3" aria-hidden="true" />
+                      )}
+                      {profile.emailVerified ? t('verified') : t('notVerified')}
+                    </span>
+                  </dd>
+                </div>
+              </dl>
+              {verificationError && (
+                <p className="mt-4 text-xs text-destructive" role="alert">
+                  {verificationError}
+                </p>
+              )}
+              <div className="mt-5 flex flex-wrap gap-2">
+                {!profile.emailVerified && (
+                  <Button
+                    type="button"
+                    variant="default"
+                    onClick={() => void resendVerification()}
+                    disabled={busy !== null}
+                  >
+                    {busy === 'verification' ? (
+                      <Loader2 className="size-4 animate-spin motion-reduce:animate-none" />
+                    ) : (
+                      <Mail className="size-4" />
+                    )}
+                    {t('resendVerification')}
+                  </Button>
+                )}
+                <Button asChild={true} variant="outline">
+                  <Link href="/dashboard/billing">
+                    {t('manageSubscription')}
+                  </Link>
+                </Button>
                 <SignOutAction />
               </div>
-            </div>
-          </Card>
-        </aside>
+            </Card>
+          </aside>
+        </div>
       </div>
 
       <dialog

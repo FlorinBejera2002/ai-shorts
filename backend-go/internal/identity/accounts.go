@@ -35,15 +35,17 @@ type AccountsConfig struct {
 	AppURL              string
 	RequireVerification bool
 	InitialCredits      int
+	SecurityKey         string
 }
 type Accounts struct {
-	db     *sql.DB
-	config AccountsConfig
-	mailer Mailer
+	db          *sql.DB
+	config      AccountsConfig
+	mailer      Mailer
+	securityKey [32]byte
 }
 
 func NewAccounts(db *sql.DB, cfg AccountsConfig, mailer Mailer) *Accounts {
-	return &Accounts{db: db, config: cfg, mailer: mailer}
+	return &Accounts{db: db, config: cfg, mailer: mailer, securityKey: sha256.Sum256([]byte("sneepcut-mfa:" + cfg.SecurityKey))}
 }
 func (h *Handler) SetAccounts(accounts *Accounts) { h.accounts = accounts }
 

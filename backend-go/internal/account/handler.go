@@ -22,6 +22,7 @@ import (
 type Auth interface {
 	Require(http.HandlerFunc) http.Handler
 	RequireDeletionAuth(http.HandlerFunc) http.Handler
+	RequireRecent(http.HandlerFunc) http.Handler
 	Limit(http.HandlerFunc, string, int, time.Duration) http.HandlerFunc
 }
 type Media interface {
@@ -30,20 +31,30 @@ type Media interface {
 type Billing interface {
 	CancelForDeletion(context.Context, string) error
 }
-type Config struct{ Now func() time.Time }
+type MFA interface {
+	BeginMFA(context.Context, identity.User) (identity.MFASetup, error)
+	EnableMFA(context.Context, string, string, string) ([]string, error)
+	DisableMFA(context.Context, string, string) error
+	RegenerateRecoveryCodes(context.Context, string, string) ([]string, error)
+}
+type Config struct {
+	Now func() time.Time
+	MFA MFA
+}
 type Handler struct {
 	db      *sql.DB
 	auth    Auth
 	media   Media
 	billing Billing
 	now     func() time.Time
+	mfa     MFA
 }
 
 func New(db *sql.DB, auth Auth, media Media, billing Billing, cfg Config) *Handler {
 	if cfg.Now == nil {
 		cfg.Now = time.Now
 	}
-	return &Handler{db, auth, media, billing, cfg.Now}
+	return &Handler{db, auth, media, billing, cfg.Now, cfg.MFA}
 }
 func (h *Handler) Register(r *httprouter.Router) {
 	// Settings must remain reachable after a partial deletion so the signed-in
@@ -53,6 +64,7 @@ func (h *Handler) Register(r *httprouter.Router) {
 	r.Handler("GET", "/api/user/credits", h.auth.Require(h.credits))
 	r.Handler("GET", "/api/user/data", h.auth.RequireDeletionAuth(h.export))
 	r.Handler("DELETE", "/api/user/data", h.auth.RequireDeletionAuth(h.auth.Limit(h.delete, "account-delete", 5, time.Hour)))
+	h.registerSettings(r)
 }
 func write(w http.ResponseWriter, status int, body any) {
 	w.Header().Set("Content-Type", "application/json")
@@ -148,12 +160,14 @@ func (h *Handler) credits(w http.ResponseWriter, r *http.Request) {
 	write(w, 200, map[string]any{"credits": user.Credits, "plan": user.Plan})
 }
 func (h *Handler) export(w http.ResponseWriter, r *http.Request) {
-	data, err := h.exportData(r.Context(), identity.Current(r).User.ID)
+	userID := identity.Current(r).User.ID
+	data, err := h.exportData(r.Context(), userID)
 	if err != nil {
 		fail(w, err)
 		return
 	}
 	w.Header().Set("Content-Disposition", `attachment; filename="sneepcut-data-export.json"`)
+	_, _ = h.db.ExecContext(r.Context(), `INSERT INTO account_data_exports(user_id,status,completed_at) VALUES($1,'completed',now())`, userID)
 	write(w, 200, map[string]any{"exportedAt": h.now().UTC(), "format": "Sneepcut GDPR data export", "data": data})
 }
 func (h *Handler) delete(w http.ResponseWriter, r *http.Request) {

@@ -43,6 +43,7 @@ import styles from './app-sidebar.module.css'
 
 const icons = {
   home: LayoutDashboard,
+  editor: Film,
   clips: Film,
   history: FolderOpen,
   calendar: CalendarDays,

@@ -16,6 +16,7 @@ import { useLocale, useTranslations } from 'next-intl'
 import { useSearchParams } from 'next/navigation'
 import { Suspense } from 'react'
 
+import { BillingGuide } from '@/components/billing/billing-guide'
 import { BillingSummary } from '@/components/billing/billing-summary'
 import { CheckoutButton } from '@/components/billing/checkout-button'
 import { InvoiceHistory } from '@/components/billing/invoice-history'
@@ -36,6 +37,7 @@ import type { BillingData, BillingPlanPrice } from '@/types/api'
 type Plan = {
   id: BillingPlanId
   name: string
+  description: string
   price: string
   period: string
   credits: string
@@ -89,6 +91,7 @@ function BillingPageContent() {
     {
       id: 'free',
       name: t('free'),
+      description: t('planDescriptions.free'),
       price: '$0',
       period: t('periodForever'),
       credits: t('creditsOnSignup', { credits: INITIAL_FREE_CREDITS }),
@@ -101,6 +104,7 @@ function BillingPageContent() {
     {
       id: 'creator',
       name: t('creator'),
+      description: t('planDescriptions.creator'),
       price: formatPlanPrice(planCatalog?.creator, locale, t('unavailable')),
       period: t('periodMonth'),
       credits: t('creditsMonthly', { credits: PLAN_CREDITS.creator }),
@@ -115,6 +119,7 @@ function BillingPageContent() {
     {
       id: 'pro',
       name: t('pro'),
+      description: t('planDescriptions.pro'),
       price: formatPlanPrice(planCatalog?.pro, locale, t('unavailable')),
       period: t('periodMonth'),
       credits: t('creditsMonthly', { credits: PLAN_CREDITS.pro }),
@@ -129,9 +134,12 @@ function BillingPageContent() {
     {
       id: 'agency',
       name: t('agency'),
+      description: t('planDescriptions.agency'),
       price: formatPlanPrice(planCatalog?.agency, locale, t('unavailable')),
       period: t('periodMonth'),
-      credits: t('creditsMonthly', { credits: PLAN_CREDITS.agency }),
+      credits: t('creditsMonthly', {
+        credits: PLAN_CREDITS.agency.toLocaleString(locale)
+      }),
       features: [
         t('features.everythingPro'),
         t('features.teamAccounts'),
@@ -242,8 +250,12 @@ function BillingPageContent() {
         providerAvailable={providerAvailable}
         labels={{
           overview: t('overviewTitle'),
+          currentPlan: t('currentPlan'),
           creditsAvailable: t('creditsAvailable'),
-          plan: t('planLabel'),
+          clipRunway: t('clipRunway'),
+          clipRunwayValue: ({ count }) => t('clipRunwayValue', { count }),
+          creditsPerClip: t('creditsPerClip'),
+          creditsRollover: t('creditsRollover'),
           subscriptionStatus: t('subscriptionStatus'),
           renewsOn: t('renewsOn'),
           endsOn: t('endsOn'),
@@ -274,7 +286,7 @@ function BillingPageContent() {
           </div>
         </div>
 
-        <div className="billing-plan-grid grid gap-0 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="billing-plan-grid grid gap-3 md:grid-cols-2 2xl:grid-cols-4">
           {plans.map((plan, index) => {
             const isCurrent = currentPlan === plan.id
             const paidPlanId = isPaidBillingPlanId(plan.id) ? plan.id : null
@@ -310,32 +322,31 @@ function BillingPageContent() {
                 style={{ animationDelay: `${index * 60}ms` }}
                 aria-labelledby={`plan-${plan.id}`}
               >
-                {isCurrent ? (
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-primary px-3 py-0.5 text-[10px] font-bold uppercase tracking-wider text-primary-foreground">
-                    {t('currentPlan')}
-                  </div>
-                ) : (
-                  plan.highlighted && (
-                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-primary px-3 py-0.5 text-[10px] font-bold uppercase tracking-wider text-primary-foreground">
-                      {t('mostPopular')}
-                    </div>
-                  )
-                )}
+                <div className="mb-6 flex min-h-6 items-start justify-between gap-3">
+                  <h3
+                    id={`plan-${plan.id}`}
+                    className="text-lg font-semibold text-foreground"
+                  >
+                    {plan.name}
+                  </h3>
+                  {(isCurrent || plan.highlighted) && (
+                    <span className="whitespace-nowrap rounded-full bg-primary/10 px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.1em] text-primary">
+                      {isCurrent ? t('currentPlan') : t('mostPopular')}
+                    </span>
+                  )}
+                </div>
 
-                <div className="mb-4 flex items-baseline gap-1">
+                <div className="flex items-baseline gap-1">
                   <span className="text-3xl font-bold">{plan.price}</span>
                   <span className="text-xs text-muted-foreground">
                     {plan.period}
                   </span>
                 </div>
-                <h3
-                  id={`plan-${plan.id}`}
-                  className="text-sm font-semibold text-foreground"
-                >
-                  {plan.name}
-                </h3>
-                <p className="mt-1 text-xs text-muted-foreground">
+                <p className="mt-2 text-xs font-semibold text-primary">
                   {plan.credits}
+                </p>
+                <p className="mt-4 min-h-10 text-sm leading-relaxed text-muted-foreground">
+                  {plan.description}
                 </p>
 
                 <ul className="my-5 flex-1 space-y-2 border-t border-border pt-5">
@@ -385,6 +396,19 @@ function BillingPageContent() {
           })}
         </div>
       </section>
+
+      <BillingGuide
+        labels={{
+          title: t('guide.title'),
+          description: t('guide.description'),
+          predictableTitle: t('guide.predictableTitle'),
+          predictableDescription: t('guide.predictableDescription'),
+          rolloverTitle: t('guide.rolloverTitle'),
+          rolloverDescription: t('guide.rolloverDescription'),
+          controlTitle: t('guide.controlTitle'),
+          controlDescription: t('guide.controlDescription')
+        }}
+      />
 
       <InvoiceHistory
         invoices={data.invoices}

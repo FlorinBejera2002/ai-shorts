@@ -42,8 +42,9 @@ func (h *Handler) exportData(ctx context.Context, userID string) (map[string]any
 	collections := []struct{ name, table, columns, order string }{
 		{"socialAccounts", "social_accounts", "id,provider,name,username,status,created_at,updated_at", "created_at DESC,id DESC"},
 		{"socialPosts", "social_posts", "id,account_id,clip_id,provider,caption,options,status,error,url,created_at,updated_at", "created_at DESC,id DESC"},
-		{"jobs", "jobs", "id,source_type,source_url,source_video_url,status,progress,progress_message,num_clips_requested,aspect_ratio,language,subtitle_style,include_brand,user_instructions,transcript_segments,credits_charged,error_message,started_at,completed_at,created_at,updated_at", "created_at DESC,id DESC"},
-		{"clips", "clips", "id,job_id,title,hook_text,viral_score,score_reason,start_time,end_time,duration,segments,file_url,thumbnail_url,file_size,resolution,aspect_ratio,has_subtitles,transcript_text,caption_tiktok,caption_instagram,caption_youtube,suggested_hashtags,published_to,created_at", "created_at DESC,id DESC"},
+		{"jobs", "jobs", "id,project_name,project_brand,source_type,source_url,source_video_url,status,progress,progress_message,num_clips_requested,aspect_ratio,language,subtitle_style,include_brand,user_instructions,transcript_segments,credits_charged,error_message,started_at,completed_at,created_at,updated_at", "created_at DESC,id DESC"},
+		{"projectFolders", "project_folders", "id,job_id,parent_id,name,created_at,updated_at", "created_at ASC,id ASC"},
+		{"clips", "clips", "id,job_id,folder_id,title,hook_text,viral_score,score_reason,start_time,end_time,duration,segments,file_url,thumbnail_url,file_size,resolution,aspect_ratio,has_subtitles,transcript_text,caption_tiktok,caption_instagram,caption_youtube,suggested_hashtags,published_to,created_at", "created_at DESC,id DESC"},
 		{"scheduledPosts", "scheduled_posts", "id,clip_id,title,caption,notes,platforms,status,scheduled_at,created_at,updated_at", "scheduled_at ASC,id ASC"},
 		{"assistantMessages", "chat_messages", "id,clip_id,context,role,content,actions,created_at", "created_at ASC,id ASC"},
 	}

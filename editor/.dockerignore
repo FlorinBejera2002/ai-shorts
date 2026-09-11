@@ -1,0 +1,22 @@
+.git
+**/node_modules
+**/dist
+data
+**/.cache
+**/.next
+**/coverage
+**/.env
+**/.env.local
+**/.env.*
+**/*.pem
+**/*.key
+**/*.log
+# Regression videos and development-only fixtures remain in the repository,
+# but are not needed by the running editor image.
+packages/producer/tests
+**/test-results
+**/verification
+.agents
+.claude
+.github
+examples

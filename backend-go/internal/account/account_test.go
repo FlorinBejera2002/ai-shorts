@@ -57,6 +57,7 @@ func TestProfileNormalizationAndLength(t *testing.T) {
 type passAuth struct{}
 
 func (passAuth) Require(h http.HandlerFunc) http.Handler             { return h }
+func (passAuth) RequireRecent(h http.HandlerFunc) http.Handler       { return h }
 func (passAuth) RequireDeletionAuth(h http.HandlerFunc) http.Handler { return h }
 func (passAuth) Limit(h http.HandlerFunc, _ string, _ int, _ time.Duration) http.HandlerFunc {
 	return h

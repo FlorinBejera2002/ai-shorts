@@ -10,3 +10,8 @@ sneepcut.com, www.sneepcut.com {
 api.sneepcut.com {
 	reverse_proxy nginx:80
 }
+
+studio.sneepcut.com {
+	encode zstd gzip
+	reverse_proxy studio:5191
+}

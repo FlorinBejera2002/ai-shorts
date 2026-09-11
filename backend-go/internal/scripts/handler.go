@@ -1,6 +1,7 @@
 package scripts
 
 import (
+	"database/sql"
 	_ "embed"
 	"errors"
 	"net/http"
@@ -19,15 +20,28 @@ import (
 var promptTemplate string
 
 type Handler struct {
-	auth      *identity.Handler
-	generator gemini.Generator
+	auth       *identity.Handler
+	generator  gemini.Generator
+	repository *Repository
 }
 
 func New(auth *identity.Handler, generator gemini.Generator) *Handler {
 	return &Handler{auth: auth, generator: generator}
 }
+func NewWithDB(db *sql.DB, auth *identity.Handler, generator gemini.Generator) *Handler {
+	return &Handler{auth: auth, generator: generator, repository: NewRepository(db)}
+}
 func (h *Handler) Register(router *httprouter.Router) {
 	router.Handler(http.MethodPost, "/api/scripts/generate", h.auth.RequireMember(h.auth.Limit(h.generate, "scripts", 30, time.Hour)))
+	if h.repository != nil {
+		router.Handler(http.MethodGet, "/api/scripts/items", h.auth.Require(h.listItems))
+		router.Handler(http.MethodPost, "/api/scripts/items", h.auth.RequireMember(h.auth.Limit(h.createItem, "scripts:mutations", 240, time.Hour)))
+		router.Handler(http.MethodGet, "/api/scripts/items/:id", h.auth.Require(h.getItem))
+		router.Handler(http.MethodPatch, "/api/scripts/items/:id", h.auth.RequireMember(h.auth.Limit(h.updateItem, "scripts:mutations", 240, time.Hour)))
+		router.Handler(http.MethodDelete, "/api/scripts/items/:id", h.auth.RequireMember(h.auth.Limit(h.archiveItem, "scripts:mutations", 240, time.Hour)))
+		router.Handler(http.MethodGet, "/api/scripts/items/:id/versions", h.auth.Require(h.listVersions))
+		router.Handler(http.MethodPost, "/api/scripts/items/:id/versions/:versionID/restore", h.auth.RequireMember(h.auth.Limit(h.restoreVersion, "scripts:mutations", 240, time.Hour)))
+	}
 }
 
 type Request struct {

@@ -3,6 +3,7 @@ export const dashboardNavigation = [
     labelKey: 'groupStudio',
     items: [
       { href: '/dashboard', key: 'home' },
+      { href: '/dashboard/studio', key: 'editor' },
       { href: '/dashboard/clips', key: 'clips' },
       { href: '/dashboard/history', key: 'history' },
       { href: '/dashboard/calendar', key: 'calendar' },

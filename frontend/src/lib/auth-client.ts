@@ -23,7 +23,8 @@ type AuthResponse = { access_token: string; user: AuthUser }
 export class ApiError extends Error {
   constructor(
     public status: number,
-    message: string
+    message: string,
+    public code?: string
   ) {
     super(message)
   }
@@ -51,7 +52,8 @@ export function createAuthClient(fetcher: typeof fetch, baseUrl = '') {
     if (!response.ok)
       throw new ApiError(
         response.status,
-        data?.error ?? 'Authentication failed'
+        data?.error ?? 'Authentication failed',
+        typeof data?.code === 'string' ? data.code : undefined
       )
     if (typeof data?.access_token !== 'string' || !data?.user?.id)
       throw new ApiError(502, 'Invalid authentication response')
@@ -103,7 +105,7 @@ export function createAuthClient(fetcher: typeof fetch, baseUrl = '') {
       .catch(() => undefined)
     return flight
   }
-  async function login(email: string, password: string) {
+  async function login(email: string, password: string, secondFactor = '') {
     if (logoutFlight) await logoutFlight
     const startedAt = ++epoch
     const data = await readAuth(
@@ -111,7 +113,7 @@ export function createAuthClient(fetcher: typeof fetch, baseUrl = '') {
         method: 'POST',
         signal: AbortSignal.timeout(15000),
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
+        body: JSON.stringify({ email, password, secondFactor })
       })
     )
     if (epoch !== startedAt) throw new ApiError(401, 'Sign-in cancelled')

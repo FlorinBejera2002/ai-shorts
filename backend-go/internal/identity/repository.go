@@ -21,6 +21,7 @@ type User struct {
 	CreatedAt          time.Time  `json:"created_at"`
 	PasswordHash       string     `json:"-"`
 	SessionVersion     int        `json:"-"`
+	MFAEnabled         bool       `json:"mfa_enabled"`
 	DeletionPending    bool       `json:"deletion_pending"`
 	ActivationRequired bool       `json:"-"`
 }
@@ -45,12 +46,12 @@ func NewPostgres(db *sql.DB) *Postgres { return &Postgres{db: db} }
 
 const userColumns = `u.id, u.email, u.name, u.avatar_url, u.credits, u.plan,
 	u.access_role, u.email_verified, u.created_at, COALESCE(u.password_hash, ''),
-	u.session_version, EXISTS (SELECT 1 FROM account_deletion_requests d WHERE d.user_id = u.id),u.email_activation_required`
+	u.session_version, COALESCE(u.mfa_enabled,false), EXISTS (SELECT 1 FROM account_deletion_requests d WHERE d.user_id = u.id),u.email_activation_required`
 
 func userDest(u *User) []any {
 	return []any{&u.ID, &u.Email, &u.Name, &u.ProfilePic, &u.Credits, &u.Plan,
 		&u.AccessRole, &u.EmailVerified, &u.CreatedAt, &u.PasswordHash,
-		&u.SessionVersion, &u.DeletionPending, &u.ActivationRequired}
+		&u.SessionVersion, &u.MFAEnabled, &u.DeletionPending, &u.ActivationRequired}
 }
 
 func (p *Postgres) FindByEmail(ctx context.Context, email string) (User, error) {
@@ -93,10 +94,23 @@ func (p *Postgres) FindSession(ctx context.Context, id string) (Session, error) 
 	dest := append(userDest(&session.User), &session.Expires)
 	err := p.db.QueryRowContext(ctx, `SELECT `+userColumns+`, s.expires FROM sessions s
 		JOIN users u ON u.id = s.user_id WHERE s.session_token = $1`, sessionKey(id)).Scan(dest...)
+	if err == nil {
+		_, _ = p.db.ExecContext(ctx, `UPDATE sessions SET last_seen_at=now() WHERE session_token=$1 AND last_seen_at<now()-interval '1 minute'`, sessionKey(id))
+	}
 	if errors.Is(err, sql.ErrNoRows) {
 		err = ErrUnauthenticated
 	}
 	return session, err
+}
+
+func (p *Postgres) RecordSessionClient(ctx context.Context, id, userAgent, ipHash string) error {
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+	_, err := p.db.ExecContext(ctx, `WITH updated AS (
+		UPDATE sessions SET user_agent=$2,ip_hash=$3,last_seen_at=now() WHERE session_token=$1 RETURNING user_id
+	) INSERT INTO account_security_events(user_id,event_type,detail)
+		SELECT user_id,'login','New sign-in recorded' FROM updated`, sessionKey(id), userAgent, ipHash)
+	return err
 }
 
 func (p *Postgres) DeleteSession(ctx context.Context, id string) error {

@@ -10,19 +10,23 @@ import (
 	"strings"
 	"time"
 
+	"github.com/lib/pq"
 	"sneepcut/backend-go/internal/data"
 	"sneepcut/backend-go/internal/identity"
 )
 
 type Account struct {
-	ID        string `json:"id"`
-	Provider  string `json:"provider"`
-	Name      string `json:"name"`
-	Username  string `json:"username"`
-	Status    string `json:"status"`
-	UserID    string `json:"-"`
-	RemoteID  string `json:"-"`
-	Encrypted string `json:"-"`
+	ID             string         `json:"id"`
+	Provider       string         `json:"provider"`
+	Name           string         `json:"name"`
+	Username       string         `json:"username"`
+	Status         string         `json:"status"`
+	Scopes         pq.StringArray `json:"scopes"`
+	TokenExpiresAt *time.Time     `json:"tokenExpiresAt,omitempty"`
+	TokenExpired   bool           `json:"tokenExpired"`
+	UserID         string         `json:"-"`
+	RemoteID       string         `json:"-"`
+	Encrypted      string         `json:"-"`
 }
 type Clip struct {
 	ID             string  `json:"id"`
@@ -92,7 +96,7 @@ func (h *Handler) liveCredentials(ctx context.Context, a Account) (Credentials, 
 		if err != nil {
 			return c, err
 		}
-		_, e = tx.ExecContext(ctx, `UPDATE social_accounts SET credentials=$2,updated_at=now() WHERE id=$1`, a.ID, sealed)
+		_, e = tx.ExecContext(ctx, `UPDATE social_accounts SET credentials=$2,token_expires_at=$3,updated_at=now() WHERE id=$1`, a.ID, sealed, c.ExpiresAt)
 		if e != nil {
 			return c, e
 		}
@@ -101,13 +105,13 @@ func (h *Handler) liveCredentials(ctx context.Context, a Account) (Credentials, 
 }
 func (h *Handler) list(ctx context.Context, user string) ([]Account, []Clip, []Post, error) {
 	accounts, clips, posts := []Account{}, []Clip{}, []Post{}
-	rows, e := h.db.QueryContext(ctx, `SELECT id,provider,name,username,status FROM social_accounts WHERE user_id=$1 AND status='connected' ORDER BY provider,name`, user)
+	rows, e := h.db.QueryContext(ctx, `SELECT id,provider,name,username,status,scopes,token_expires_at,COALESCE(token_expires_at<=now(),false) FROM social_accounts WHERE user_id=$1 AND status='connected' ORDER BY provider,name`, user)
 	if e != nil {
 		return accounts, clips, posts, e
 	}
 	for rows.Next() {
 		var a Account
-		if e = rows.Scan(&a.ID, &a.Provider, &a.Name, &a.Username, &a.Status); e != nil {
+		if e = rows.Scan(&a.ID, &a.Provider, &a.Name, &a.Username, &a.Status, &a.Scopes, &a.TokenExpiresAt, &a.TokenExpired); e != nil {
 			break
 		}
 		accounts = append(accounts, a)

@@ -12,7 +12,7 @@ case "$action" in
   *) echo "Unknown release action: $action" >&2; exit 2 ;;
 esac
 case "$component" in
-  all|backend|frontend|api|workers|gateway) ;;
+  all|backend|frontend|studio|api|workers|gateway) ;;
   *) echo "Unknown release component: $component" >&2; exit 2 ;;
 esac
 if [[ ! "$deploy_root" =~ ^/(opt|srv)/[a-zA-Z0-9._-]+(/[a-zA-Z0-9._-]+)*$ ]] ||

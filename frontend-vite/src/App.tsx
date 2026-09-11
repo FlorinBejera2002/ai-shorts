@@ -5,6 +5,7 @@ import CreatePage from '@/app/[locale]/dashboard/create/page'
 import JobProgressPage from '@/app/[locale]/dashboard/jobs/[id]/page'
 import DashboardPage from '@/app/[locale]/dashboard/page'
 import ScriptGeneratorPage from '@/app/[locale]/dashboard/script-generator/page'
+import StudioPage from '@/app/[locale]/dashboard/studio/page'
 import ForgotPasswordPage from '@/app/[locale]/forgot-password/page'
 import LoginPage from '@/app/[locale]/login/page'
 import RegisterPage from '@/app/[locale]/register/page'
@@ -67,6 +68,7 @@ function ApplicationRoutes({ locale }: { locale: AppLocale }) {
         <Route path="publish" element={<PublishRoute />} />
         <Route path="create" element={<CreatePage />} />
         <Route path="script-generator" element={<ScriptGeneratorPage />} />
+        <Route path="studio" element={<StudioPage />} />
         <Route path="settings" element={<SettingsRoute />} />
         <Route
           path="review"

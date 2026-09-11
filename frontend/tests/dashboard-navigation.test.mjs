@@ -10,11 +10,11 @@ vm.runInNewContext(ts.transpileModule(readFileSync(new URL('../src/lib/dashboard
 }).outputText, { exports })
 const { dashboardNavigation, isDashboardRouteActive, dashboardRouteLabel } = exports
 
-test('the sidebar exposes nine focused destinations, with create as a separate action', () => {
+test('the sidebar exposes ten focused destinations, with create as a separate action', () => {
   const destinations = dashboardNavigation.flatMap(group => group.items.map(item => item.href))
-  assert.equal(destinations.length, 9)
-  assert.equal(new Set(destinations).size, 9)
-  for (const route of ['clips','history','calendar','publish','script-generator','brand','billing','settings']) assert.ok(destinations.includes(`/dashboard/${route}`))
+  assert.equal(destinations.length, 10)
+  assert.equal(new Set(destinations).size, 10)
+  for (const route of ['studio','clips','history','calendar','publish','script-generator','brand','billing','settings']) assert.ok(destinations.includes(`/dashboard/${route}`))
   assert.ok(destinations.includes('/dashboard'))
 })
 
@@ -26,6 +26,7 @@ test('active states match route boundaries, not similarly prefixed routes', () =
 })
 
 test('nested job and clip routes display the correct navigation context', () => {
+  assert.equal(dashboardRouteLabel('/dashboard/studio'), 'editor')
   assert.equal(dashboardRouteLabel('/dashboard/jobs/synthetic'), 'history')
   assert.equal(dashboardRouteLabel('/dashboard/clips/synthetic/edit'), 'clips')
   assert.equal(dashboardRouteLabel('/dashboard/create'), 'create')

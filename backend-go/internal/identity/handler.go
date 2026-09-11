@@ -1,6 +1,8 @@
 package identity
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"log/slog"
 	"mime"
@@ -70,8 +72,9 @@ func (h *Handler) login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var input struct {
-		Email    string `json:"email"`
-		Password string `json:"password"`
+		Email        string `json:"email"`
+		Password     string `json:"password"`
+		SecondFactor string `json:"secondFactor"`
 	}
 	r.Body = http.MaxBytesReader(w, r.Body, 16*1024)
 	if err := jsonutil.Read(w, r, &input); err != nil {
@@ -81,10 +84,22 @@ func (h *Handler) login(w http.ResponseWriter, r *http.Request) {
 	if !h.allowed(w, r, "login:email:"+strings.ToLower(strings.TrimSpace(input.Email)), 10, 15*time.Minute) {
 		return
 	}
-	response, refresh, expires, err := h.service.Login(r.Context(), input.Email, input.Password)
+	response, refresh, expires, err := h.service.Login(r.Context(), input.Email, input.Password, input.SecondFactor)
 	if err != nil {
+		if errors.Is(err, ErrSecondFactorRequired) {
+			h.write(w, http.StatusUnauthorized, jsonutil.Envelope{"error": "A verification code is required", "code": "mfa_required"})
+			return
+		}
 		h.authError(w, err)
 		return
+	}
+	userAgent := strings.TrimSpace(r.UserAgent())
+	if len(userAgent) > 255 {
+		userAgent = userAgent[:255]
+	}
+	ipDigest := sha256.Sum256([]byte(h.clientIP(r)))
+	if err := h.service.RecordSessionClient(r.Context(), response.SessionID, userAgent, hex.EncodeToString(ipDigest[:])); err != nil {
+		h.logger.Warn("session client metadata could not be recorded")
 	}
 	h.setRefreshCookie(w, refresh, expires, 0)
 	h.write(w, http.StatusCreated, jsonutil.Envelope{
