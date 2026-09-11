@@ -61,3 +61,28 @@ the built image; a fresh production build remains required before activation. Th
 review fixes require a fresh build before activation. Automatic approval review
 rejected a temporary source transfer and explicit destination approval was
 requested. Studio is not yet activated; the main release above remains active.
+## Complete production activation
+
+After explicit authorization, all production services were built and release
+`bb85bcf1bd9b2b3a` was activated at `/opt/sneepcut`. The previous release remains
+at `/opt/sneepcut.previous`. An additional database backup was created at
+`/opt/sneepcut-backups/final-20260911/database.dump` and its restore catalog verified.
+Persistent customer volumes were retained.
+
+The exact final Studio image passed 12 tests (103 assertions) on the production
+host in a disposable container: namespace isolation, real JPEG/MP4/foreground PNG,
+cancellation, path restrictions, bundled assets and authentication/origin rules.
+All-service build included successful Go race tests and vet. Production deployment
+verification passed API readiness, workers, ClamAV, frontend and Studio health.
+
+Public HTTPS checks passed: Studio health 200, unauthenticated projects 401,
+foreign-origin session request 403, and approved apex/www preflights 204 with the
+matching CORS origin. API reports database, Redis and schema ready. Public home
+and English/Romanian login pages passed browser checks without runtime exceptions.
+The authenticated editing/export browser flow was tested with isolated synthetic
+storage, not production customer accounts.
+
+All source changes were committed as `3305aac` on `main`; GitHub publication is
+tracked in the follow-up ticket. Studio is now enabled at
+https://studio.sneepcut.com through the dashboard. Optional AI assistant functionality
+still requires the configured model provider; no proprietary model parity is claimed.
