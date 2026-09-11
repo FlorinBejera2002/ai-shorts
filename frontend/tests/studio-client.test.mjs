@@ -5,7 +5,7 @@ import ts from 'typescript'
 
 const source = readFileSync(new URL('../src/components/studio/studio-client.ts', import.meta.url), 'utf8')
 const compiled = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.ESNext } })
-const { studioOrigin, createStudioClient } = await import(`data:text/javascript;base64,${Buffer.from(compiled.outputText).toString('base64')}`)
+const { studioOrigin, createStudioClient, prepareStudioClip } = await import(`data:text/javascript;base64,${Buffer.from(compiled.outputText).toString('base64')}`)
 const clientUrl = `data:text/javascript;base64,${Buffer.from(compiled.outputText).toString('base64')}`
 const assistantSource = readFileSync(new URL('../src/components/studio/studio-assistant-client.ts', import.meta.url), 'utf8').replace("'./studio-client'", JSON.stringify(clientUrl))
 const assistantCompiled = ts.transpileModule(assistantSource, { compilerOptions: { module: ts.ModuleKind.ESNext } })
@@ -99,4 +99,47 @@ test('opens a blank workspace and an existing generated clip without sending med
   assert.equal(calls[1].init.body,undefined)
   await assert.rejects(client.openClip('../escape'))
   assert.equal(calls.length,2)
+})
+
+test('direct Studio navigation waits for the session and uses the selected clip project', async () => {
+  const calls = []
+  let connected = false
+  const controller = new AbortController()
+  const clipId = '33333333-3333-4333-8333-333333333333'
+  const client = createStudioClient('https://studio.example.com', {
+    getAccessToken: () => 'private-token', refresh: async () => null
+  }, async (url, init) => {
+    calls.push(url)
+    assert.equal(init.signal, controller.signal)
+    assert.equal(init.credentials, 'include')
+    if (url.endsWith('/session')) {
+      await Promise.resolve()
+      connected = true
+      return new Response(null, { status: 204 })
+    }
+    assert.equal(connected, true)
+    assert.equal(url, `https://studio.example.com/sneepcut/clips/${clipId}/open`)
+    return Response.json({ project: { id: 'selected_project', title: 'Selected clip' } })
+  })
+  const url = await prepareStudioClip(client, clipId, controller.signal)
+  assert.equal(url, 'https://studio.example.com/#project/selected_project')
+  assert.equal(calls.length, 2)
+  assert.doesNotMatch(url, /private-token|dashboard|iframe/)
+})
+
+test('direct Studio navigation produces no destination when session or import fails', async () => {
+  for (const failure of ['session', 'import']) {
+    const calls = []
+    const client = createStudioClient('https://studio.example.com', {
+      getAccessToken: () => 'token', refresh: async () => null
+    }, async (url) => {
+      calls.push(url)
+      if (url.endsWith('/session') && failure !== 'session') {
+        return new Response(null, { status: 204 })
+      }
+      return Response.json({ error: 'Temporarily unavailable' }, { status: 503 })
+    })
+    await assert.rejects(prepareStudioClip(client, '33333333-3333-4333-8333-333333333333'))
+    assert.equal(calls.length, failure === 'session' ? 1 : 2)
+  }
 })

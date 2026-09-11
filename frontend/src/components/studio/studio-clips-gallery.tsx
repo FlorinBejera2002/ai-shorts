@@ -14,7 +14,6 @@ import {
   ChevronLeft,
   ChevronRight,
   Film,
-  PencilLine,
   Plus,
   Search,
   Sparkles,
@@ -23,6 +22,7 @@ import {
 import { useTranslations } from 'next-intl'
 import Image from 'next/image'
 import { type FormEvent, useMemo, useState } from 'react'
+import { OpenStudioButton } from './open-studio-button'
 import styles from './studio-clips-gallery.module.css'
 
 export function StudioClipsGallery() {
@@ -108,7 +108,6 @@ export function StudioClipsGallery() {
                   clip={clip}
                   index={index}
                   labels={{
-                    edit: t('edit'),
                     score: t('score'),
                     subtitles: t('subtitles'),
                     ready: t('ready')
@@ -168,7 +167,6 @@ function EditorClipCard({
 }: {
   clip: FullClip
   labels: {
-    edit: string
     score: string
     subtitles: string
     ready: string
@@ -228,12 +226,7 @@ function EditorClipCard({
             </span>
           )}
         </div>
-        <Button asChild={true} className={styles.editButton}>
-          <Link href={`/dashboard/studio?clip=${encodeURIComponent(clip.id)}`}>
-            <PencilLine aria-hidden="true" />
-            {labels.edit}
-          </Link>
-        </Button>
+        <OpenStudioButton clipId={clip.id} className={styles.editButton} />
       </div>
     </Card>
   )

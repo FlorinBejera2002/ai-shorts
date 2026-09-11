@@ -1,5 +1,15 @@
 export type StudioProject = { id: string; title: string }
 
+export async function prepareStudioClip(
+  client: ReturnType<typeof createStudioClient>,
+  clipId: string,
+  signal?: AbortSignal
+): Promise<string> {
+  await client.connect(signal)
+  const project = await client.openClip(clipId, signal)
+  return `${client.origin}/#project/${encodeURIComponent(project.id)}`
+}
+
 type StudioAuth = {
   getAccessToken(): string | null
   refresh(): Promise<string | null>

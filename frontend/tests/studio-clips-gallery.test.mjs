@@ -14,17 +14,19 @@ const gallery = readFileSync(
   'utf8'
 )
 
-test('studio route renders the native clip gallery instead of the embedded studio', () => {
+test('studio route retains the clip gallery and legacy clip deep links', () => {
   assert.match(studioPage, /<StudioClipsGallery\s*\/>/)
-  assert.doesNotMatch(studioPage, /StudioProjects|iframe/)
+  assert.match(studioPage, /clip \? <StudioProjects initialClipId=\{clip\}/)
+  assert.doesNotMatch(studioPage, /iframe/)
   assert.match(gallery, /\/api\/clips\/library\?\$\{query\}/)
   assert.doesNotMatch(gallery, /<iframe/)
 })
 
-test('every studio clip card links to its native editor', () => {
+test('every gallery card passes its selected clip to the direct Studio action', () => {
   assert.match(
     gallery,
-    /href=\{`\/dashboard\/clips\/\$\{clip\.id\}\/edit`\}/
+    /<OpenStudioButton clipId=\{clip\.id\}/
   )
   assert.match(gallery, /data\.clips\.map/)
+  assert.doesNotMatch(gallery, /\/dashboard\/studio\?clip=/)
 })
