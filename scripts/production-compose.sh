@@ -192,8 +192,11 @@ verify_api() {
 
 verify_workers() {
   "${compose[@]}" exec -T clamav clamdscan --ping=1
+  # The provider can still be starting after Compose has started its container.
   "${compose[@]}" exec -T worker \
-    curl --fail --silent --show-error http://youtube-pot-provider:4416/ping >/dev/null
+    curl --fail --silent --show-error --retry 30 --retry-connrefused \
+    --retry-delay 2 --retry-max-time 60 --max-time 5 \
+    http://youtube-pot-provider:4416/ping >/dev/null
   "${compose[@]}" exec -T worker deno --version
   "${compose[@]}" exec -T worker yt-dlp --version
   "${compose[@]}" exec -T worker \
