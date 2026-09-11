@@ -1,5 +1,15 @@
 import { randomUUID } from "node:crypto";
-import { mkdir, readdir, readFile, realpath, lstat, writeFile } from "node:fs/promises";
+import {
+  mkdir,
+  mkdtemp,
+  readdir,
+  readFile,
+  realpath,
+  lstat,
+  rename,
+  rm,
+  writeFile,
+} from "node:fs/promises";
 import { join, resolve } from "node:path";
 
 export interface StoredProject {
@@ -16,6 +26,7 @@ function validId(value: string): void {
 /** Each directory is checked independently: symlinks are never project boundaries. */
 export class ProjectStore {
   readonly root: string;
+  private readonly pending = new Map<string, Promise<StoredProject>>();
   constructor(root: string) {
     this.root = resolve(root);
   }
@@ -36,6 +47,48 @@ export class ProjectStore {
   }
   async userHome(userId: string): Promise<string> {
     return this.userDirectory(userId);
+  }
+  /** Publish only complete projects; repeated opens reuse the user's editable copy. */
+  async ensure(
+    userId: string,
+    projectId: string,
+    title: string,
+    initialize: (project: StoredProject) => Promise<void>,
+  ): Promise<StoredProject> {
+    validId(userId);
+    validId(projectId);
+    const key = `${userId}/${projectId}`;
+    const pending = this.pending.get(key);
+    if (pending) return pending;
+    const operation = (async () => {
+      const existing = await this.resolve(userId, projectId);
+      if (existing) return existing;
+      const parent = await this.userDirectory(userId);
+      const temporary = await mkdtemp(join(parent, ".prepare-"));
+      const project = { id: projectId, title: title.slice(0, 160), dir: temporary };
+      try {
+        await initialize(project);
+        await writeFile(
+          join(temporary, ".sneepcut-project.json"),
+          JSON.stringify({
+            id: projectId,
+            title: project.title,
+          }),
+          { flag: "wx", mode: 0o600 },
+        );
+        const destination = join(parent, projectId);
+        await rename(temporary, destination);
+        return { ...project, dir: destination };
+      } finally {
+        await rm(temporary, { recursive: true, force: true });
+      }
+    })();
+    this.pending.set(key, operation);
+    try {
+      return await operation;
+    } finally {
+      this.pending.delete(key);
+    }
   }
   async list(userId: string): Promise<StoredProject[]> {
     const dir = await this.userDirectory(userId);

@@ -53,14 +53,38 @@ export function createStudioClient(
     if (!response.ok) {
       if (response.status === 401)
         throw new Error('Studio session expired. Reconnect to continue.')
+      const body: unknown = await response.json().catch(() => null)
       throw new Error(
-        `Studio request failed (${response.status}). Please try again.`
+        body &&
+          typeof body === 'object' &&
+          'error' in body &&
+          typeof body.error === 'string'
+          ? body.error
+          : `Studio request failed (${response.status}). Please try again.`
       )
     }
     return response
   }
   return {
     origin: base,
+    async workspace(signal?: AbortSignal): Promise<StudioProject> {
+      const data = await (
+        await request('workspace', { method: 'POST', signal })
+      ).json()
+      return project(data.project)
+    },
+    async openClip(id: string, signal?: AbortSignal): Promise<StudioProject> {
+      if (
+        !/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(
+          id
+        )
+      )
+        throw new Error('Invalid clip identifier.')
+      const data = await (
+        await request(`clips/${id}/open`, { method: 'POST', signal })
+      ).json()
+      return project(data.project)
+    },
     async connect(signal?: AbortSignal) {
       let token = auth.getAccessToken() ?? (await auth.refresh())
       if (!token) throw new Error('Sign in to open Studio.')

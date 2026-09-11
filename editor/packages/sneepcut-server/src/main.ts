@@ -6,6 +6,7 @@ import { createApp, normalizeAppOrigin } from "./app";
 import { ProjectStore } from "./store";
 import { createUserRuntime } from "./runtime";
 import { initializeProject } from "./starter";
+import { createClipImporter } from "./clip-import";
 
 const directory = dirname(fileURLToPath(import.meta.url));
 const port = Number(process.env.SNEEPCUT_STUDIO_PORT ?? "5191");
@@ -29,6 +30,11 @@ const app = createApp({
   authBaseUrl: process.env.SNEEPCUT_AUTH_BASE_URL ?? "http://localhost:8080",
   store,
   initializeProject,
+  importClip: createClipImporter({
+    store,
+    apiOrigin: process.env.SNEEPCUT_AUTH_BASE_URL ?? "http://localhost:8080",
+    mediaOrigin: process.env.SNEEPCUT_MEDIA_ORIGIN ?? appOrigin,
+  }),
   createStudioApiForUser(user) {
     let runtime = runtimes.get(user.id);
     if (!runtime) {

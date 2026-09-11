@@ -85,3 +85,18 @@ test('session failure and disconnect are explicit', async () => {
   await client.disconnect()
   assert.equal(sent, true)
 })
+
+test('opens a blank workspace and an existing generated clip without sending media URLs', async () => {
+  const calls=[]
+  const client=createStudioClient('https://studio.example.com',{getAccessToken:()=> 'token',refresh:async()=> 'token'},async(url,init)=>{
+    calls.push({url,init});return Response.json({project:{id:'p_1',title:'My generated clip'}})
+  })
+  await client.workspace()
+  assert.equal((await client.openClip('33333333-3333-4333-8333-333333333333')).title,'My generated clip')
+  assert.equal(calls[0].url,'https://studio.example.com/sneepcut/workspace')
+  assert.equal(calls[1].url,'https://studio.example.com/sneepcut/clips/33333333-3333-4333-8333-333333333333/open')
+  assert.equal(calls[1].init.method,'POST')
+  assert.equal(calls[1].init.body,undefined)
+  await assert.rejects(client.openClip('../escape'))
+  assert.equal(calls.length,2)
+})

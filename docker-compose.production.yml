@@ -189,6 +189,7 @@ services:
       SNEEPCUT_APP_ORIGIN: https://sneepcut.com
       SNEEPCUT_APP_ADDITIONAL_ORIGINS: https://www.sneepcut.com
       SNEEPCUT_AUTH_BASE_URL: http://backend-go:8080
+      SNEEPCUT_MEDIA_ORIGIN: https://sneepcut.com
       SNEEPCUT_STUDIO_DATA: /data/projects
       SNEEPCUT_REGISTRY_DIR: /app/registry
       SNEEPCUT_AI_BASE_URL: ${SNEEPCUT_AI_BASE_URL:-}

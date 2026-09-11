@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
+import { copyFile, mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import {
@@ -7,6 +7,7 @@ import {
   sandboxThumbnail,
   startSandboxRender,
   startSandboxBackgroundRemoval,
+  sandboxProbeAudio,
 } from "./sandbox";
 import { initializeProject } from "./starter";
 
@@ -88,6 +89,33 @@ sandboxTest(
       expect(job.status, job.error).toBe("complete");
       const video = await readFile(job.outputPath);
       expect(video.subarray(4, 8).toString()).toBe("ftyp");
+      await mkdir(join(dir, "assets"));
+      await copyFile(job.outputPath, join(dir, "assets", "clip.mp4"));
+      expect(await sandboxProbeAudio(project)).toBe(false);
+      const withAudio = join(dir, "with-audio.mp4");
+      const audioProcess = Bun.spawn(
+        [
+          "/usr/bin/ffmpeg",
+          "-v",
+          "error",
+          "-i",
+          job.outputPath,
+          "-f",
+          "lavfi",
+          "-i",
+          "sine=frequency=440:sample_rate=44100",
+          "-shortest",
+          "-c:v",
+          "copy",
+          "-c:a",
+          "aac",
+          withAudio,
+        ],
+        { stdout: "ignore", stderr: "pipe" },
+      );
+      expect(await audioProcess.exited, await new Response(audioProcess.stderr).text()).toBe(0);
+      await copyFile(withAudio, join(dir, "assets", "clip.mp4"));
+      expect(await sandboxProbeAudio(project)).toBe(true);
       const metadata = JSON.parse(await readFile(join(dir, "renders", "test.meta.json"), "utf8"));
       expect(metadata.status).toBe("complete");
       expect(metadata.durationMs).toBeGreaterThan(0);

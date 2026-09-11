@@ -5,6 +5,28 @@ origin so its HTML/CSS editor dependencies do not interfere with the application
 The complete Studio editing APIs are retained, with per-account project storage
 and render-job state. The existing clip recut editor is preserved.
 
+The dashboard opens the editor directly, restoring the last selected Studio
+project or creating one private blank workspace. Its clips panel reads the
+existing authenticated clip library, including search and pagination. Selecting
+a generated clip imports an editable copy and reuses that project on later opens.
+Original clip files and existing edits are preserved.
+
+Studio revalidates clip ownership through the Go API. It accepts only the clip ID
+from the browser, downloads the signed file from `SNEEPCUT_MEDIA_ORIGIN` (the
+application origin by default), and publishes the project after initialization
+completes. Downloads are bounded to 512 MB and 120 seconds. Media audio detection
+runs inside the same isolated job environment as rendering, so silent clips and
+clips with audio receive the correct composition metadata.
+
+The import regression suite is `packages/sneepcut-server/src/clip-import.test.ts`.
+The sandbox suite also exercises audio detection on actual silent/audible MP4s.
+`frontend/scripts/test-studio-import.mjs` verifies the integrated frontend on
+localhost:3105 with disposable Studio on localhost:5195. Use the production-image
+fixture setup with `STUDIO_IMPORT_FIXTURE=1` on mock auth; it generates its own
+synthetic video. Set Studio's media origin to `http://studio-import-auth:8080`.
+The test browser bypasses CSP solely for the HTTP localhost fixture; production
+uses HTTPS and retains its CSP. Never point these fixtures at production data.
+
 ## Local startup
 
 Install the pinned workspace dependencies using Bun in `editor`, then build the

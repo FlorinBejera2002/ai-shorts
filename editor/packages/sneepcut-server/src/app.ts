@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { HTTPException } from "hono/http-exception";
 import { getCookie, setCookie, deleteCookie } from "hono/cookie";
 import {
   EditorSessions,
@@ -8,6 +9,7 @@ import {
   type EditorUser,
 } from "./auth";
 import type { ProjectStore, StoredProject } from "./store";
+import { openEmptyWorkspace } from "./clip-import";
 
 export interface EditorAppOptions {
   appOrigin: string;
@@ -17,6 +19,7 @@ export interface EditorAppOptions {
   store: ProjectStore;
   createStudioApiForUser: (user: EditorUser) => Hono | Promise<Hono>;
   initializeProject?: (project: StoredProject) => Promise<void>;
+  importClip?: (userId: string, bearer: string, clipId: string) => Promise<StoredProject>;
   fetchAuth?: import("./auth").AuthFetcher;
   now?: () => number;
 }
@@ -27,7 +30,18 @@ export function normalizeAppOrigin(value: string): string {
   return url.origin;
 }
 export function createApp(options: EditorAppOptions) {
-  const app = new Hono<{ Variables: { user: EditorUser } }>();
+  const app = new Hono<{ Variables: { user: EditorUser; bearer: string } }>();
+  app.onError((error, c) =>
+    c.json(
+      {
+        error:
+          error instanceof HTTPException
+            ? error.message
+            : "Studio could not complete the request. Please try again.",
+      },
+      error instanceof HTTPException ? error.status : 500,
+    ),
+  );
   const sessions = new EditorSessions(options.now);
   const appOrigins = new Set(
     [options.appOrigin, ...(options.additionalAppOrigins ?? [])].map(normalizeAppOrigin),
@@ -76,6 +90,7 @@ export function createApp(options: EditorAppOptions) {
       return c.json({ error: "Authentication required" }, 401);
     }
     c.set("user", user);
+    c.set("bearer", authorization ?? session?.bearer ?? "");
     c.header("Cache-Control", "no-store");
     await next();
   });
@@ -99,6 +114,14 @@ export function createApp(options: EditorAppOptions) {
   app.get("/sneepcut/projects", async (c) =>
     c.json({ projects: (await options.store.list(c.get("user").id)).map(publicProject) }),
   );
+  app.post("/sneepcut/workspace", async (c) =>
+    c.json({ project: publicProject(await openEmptyWorkspace(options.store, c.get("user").id)) }),
+  );
+  app.post("/sneepcut/clips/:id/open", async (c) => {
+    if (!options.importClip) return c.json({ error: "Clip imports are unavailable" }, 503);
+    const project = await options.importClip(c.get("user").id, c.get("bearer"), c.req.param("id"));
+    return c.json({ project: publicProject(project) });
+  });
   app.post("/sneepcut/projects", async (c) => {
     let body: unknown;
     if (Number(c.req.header("Content-Length")) > 2048)

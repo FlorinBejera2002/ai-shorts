@@ -1,19 +1,25 @@
 'use client'
 
 import { Button } from '@/components/ui/button'
-import { ArrowLeft, ExternalLink, Maximize2 } from 'lucide-react'
-import { useRef, useState } from 'react'
+import { ExternalLink, Maximize2, PanelLeft } from 'lucide-react'
+import { type ReactNode, useRef, useState } from 'react'
 import { StudioAssistant } from './studio-assistant'
 import type { StudioProject } from './studio-client'
 
 export function StudioWorkspace({
   origin,
   project,
-  onBack
+  onBack,
+  library,
+  libraryOpen = false,
+  notice
 }: {
   origin: string
   project: StudioProject
   onBack(): void
+  library?: ReactNode
+  libraryOpen?: boolean
+  notice?: string
 }) {
   const workspace = useRef<HTMLDivElement>(null)
   const [loaded, setLoaded] = useState(false)
@@ -26,8 +32,13 @@ export function StudioWorkspace({
       className="flex h-[calc(100dvh-8rem)] min-h-[480px] flex-col overflow-hidden rounded-xl border bg-background fullscreen:h-dvh fullscreen:rounded-none"
     >
       <div className="flex flex-wrap items-center gap-3 border-b px-3 py-2">
-        <Button variant="ghost" size="sm" onClick={onBack}>
-          <ArrowLeft className="size-4" /> Projects
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onBack}
+          aria-expanded={libraryOpen}
+        >
+          <PanelLeft className="size-4" /> Clips & projects
         </Button>
         <h1 className="min-w-0 flex-1 truncate text-sm font-semibold">
           {project.title}
@@ -69,12 +80,18 @@ export function StudioWorkspace({
           {error}
         </p>
       )}
+      {notice && (
+        <p role="status" className="border-b px-4 py-2 text-sm">
+          {notice}
+        </p>
+      )}
       {!loaded && (
         <p role="status" className="px-4 py-2 text-sm text-muted-foreground">
           Loading Studio… If it does not appear, open it in a new tab.
         </p>
       )}
       <div className="flex min-h-0 flex-1 flex-col overflow-auto lg:flex-row">
+        {library}
         <iframe
           title={`SneepCut Studio — ${project.title}`}
           src={url}

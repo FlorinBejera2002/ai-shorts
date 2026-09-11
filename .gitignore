@@ -62,4 +62,5 @@ frontend/test-results/
 .editor-upstream-history/
 
 frontend/.next-dashboard-ui/
+frontend/.next-studio-import/
 editor/packages/sneepcut-server/verification/artifacts/

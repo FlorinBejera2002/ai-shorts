@@ -13,6 +13,7 @@ import type {
 type RenderOptions = Parameters<StudioApiAdapter["startRender"]>[0];
 type ThumbnailOptions = Parameters<NonNullable<StudioApiAdapter["generateThumbnail"]>>[0];
 type BackgroundOptions = Parameters<NonNullable<StudioApiAdapter["startBackgroundRemoval"]>>[0];
+type ProbeOptions = { project: { id: string; dir: string } };
 let activeJobs = 0;
 
 async function readOutput(path: string): Promise<Buffer> {
@@ -102,8 +103,8 @@ export function sandboxArguments(directory: string): string[] {
 }
 
 async function runJob(
-  kind: "render" | "thumbnail" | "background",
-  options: RenderOptions | ThumbnailOptions | BackgroundOptions,
+  kind: "render" | "thumbnail" | "background" | "probe",
+  options: RenderOptions | ThumbnailOptions | BackgroundOptions | ProbeOptions,
   signal: AbortSignal,
   onProgress?: (progress: number, stage?: string) => void,
 ): Promise<{ main: Buffer; background?: Buffer }> {
@@ -138,7 +139,9 @@ async function runJob(
         ? `result.${options.format}`
         : kind === "background" && "outputPath" in options
           ? `result${extname(options.outputPath)}`
-          : "result.image";
+          : kind === "probe"
+            ? "result.json"
+            : "result.image";
     let backgroundOptions = {};
     if ("inputPath" in options) {
       const input = relative(options.project.dir, options.inputPath);
@@ -212,7 +215,7 @@ async function runJob(
           } catch {}
         }
       };
-      const timer = setTimeout(kill, kind === "thumbnail" ? 60000 : 600000);
+      const timer = setTimeout(kill, kind === "thumbnail" || kind === "probe" ? 60000 : 600000);
       signal.addEventListener("abort", kill, { once: true });
       if (signal.aborted) kill();
       child.on("error", reject);
@@ -242,6 +245,19 @@ async function runJob(
       activeJobs--;
     }
   }
+}
+
+export async function sandboxProbeAudio(project: ProbeOptions["project"]): Promise<boolean> {
+  const result = await runJob("probe", { project }, new AbortController().signal);
+  const metadata: unknown = JSON.parse(result.main.toString());
+  if (
+    !metadata ||
+    typeof metadata !== "object" ||
+    !("hasAudio" in metadata) ||
+    typeof metadata.hasAudio !== "boolean"
+  )
+    throw new Error("Invalid media probe result");
+  return metadata.hasAudio;
 }
 
 export function startSandboxRender(options: RenderOptions): RenderJobState {
