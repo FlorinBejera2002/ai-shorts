@@ -52,7 +52,7 @@ class User(Base):
     email_activation_required: Mapped[bool] = mapped_column(
         Boolean, default=False, server_default="false", nullable=False
     )
-    credits: Mapped[int] = mapped_column(Integer, default=100, nullable=False)
+    credits: Mapped[int] = mapped_column(Integer, default=1000, nullable=False)
     plan: Mapped[str] = mapped_column(String(50), default="free", nullable=False)
     stripe_customer_id: Mapped[str | None] = mapped_column(
         String(255), unique=True, nullable=True

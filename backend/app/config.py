@@ -72,7 +72,7 @@ class Settings(BaseSettings):
     clamav_port: int = 3310
     clamav_timeout_seconds: float = 120.0
     max_video_duration_minutes: int = 120
-    default_free_credits: int = 100
+    default_free_credits: int = 1000
     smart_crop_enabled: bool = True
     subtitles_enabled: bool = True
 

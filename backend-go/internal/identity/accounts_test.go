@@ -10,6 +10,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"sneepcut/backend-go/internal/config"
 )
 
 type captureMail struct {
@@ -155,6 +157,56 @@ func TestGoogleAccountLinkingPostgres(t *testing.T) {
 	}
 	if !strings.HasPrefix(safeReturnPath("//evil.invalid"), "/dashboard") {
 		t.Fatal("unsafe redirect")
+	}
+}
+
+func TestSignupInitialCreditsPostgres(t *testing.T) {
+	for _, test := range []struct {
+		name, value string
+		want        int
+	}{
+		{name: "default", want: 1000},
+		{name: "zero", value: "0", want: 0},
+		{name: "custom", value: "250", want: 250},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			db := migratedPostgres(t)
+			ctx := context.Background()
+			application, err := config.ApplicationFromEnv(func(key string) string {
+				if key == "DEFAULT_FREE_CREDITS" {
+					return test.value
+				}
+				return ""
+			}, "test")
+			if err != nil {
+				t.Fatal(err)
+			}
+			accounts := NewAccounts(db, AccountsConfig{InitialCredits: application.InitialCredits}, nil)
+			registration := Registration{Email: "signup@example.invalid", Password: "SyntheticSignupPassword42!"}
+			credentials, err := accounts.Register(ctx, registration)
+			if err != nil || credentials.Credits != test.want {
+				t.Fatalf("credential signup credits = %d, want %d: %v", credentials.Credits, test.want, err)
+			}
+			profile := GoogleUserInfo{Sub: "synthetic-signup", Email: "google-signup@example.invalid", EmailVerified: true}
+			google, err := accounts.GoogleUser(ctx, profile)
+			if err != nil || google.Credits != test.want {
+				t.Fatalf("Google signup credits = %d, want %d: %v", google.Credits, test.want, err)
+			}
+			if _, err = db.Exec(`UPDATE users SET credits=17 WHERE id IN ($1,$2)`, credentials.ID, google.ID); err != nil {
+				t.Fatal(err)
+			}
+			if _, err = accounts.Register(ctx, registration); err == nil {
+				t.Fatal("duplicate credential registration accepted")
+			}
+			existing, err := NewPostgres(db).FindByEmail(ctx, registration.Email)
+			if err != nil || existing.Credits != 17 {
+				t.Fatalf("duplicate registration changed existing credits: %+v %v", existing, err)
+			}
+			existing, err = accounts.GoogleUser(ctx, profile)
+			if err != nil || existing.ID != google.ID || existing.Credits != 17 {
+				t.Fatalf("repeat Google login changed existing credits: %+v %v", existing, err)
+			}
+		})
 	}
 }
 func TestPasswordValidation(t *testing.T) {

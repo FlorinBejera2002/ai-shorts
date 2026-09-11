@@ -19,7 +19,7 @@ model User {
   providerId               String?   @map("provider_id") @db.VarChar(255)
   passwordHash             String?   @map("password_hash") @db.VarChar(255)
   sessionVersion           Int       @default(0) @map("session_version")
-  credits                  Int       @default(100)
+  credits                  Int       @default(1000)
   plan                     String    @default("free") @db.VarChar(50)
   stripeCustomerId         String?   @unique(map: "uq_users_stripe_customer_id") @map("stripe_customer_id") @db.VarChar(255)
   stripeSubscriptionId     String?   @unique(map: "uq_users_stripe_subscription_id") @map("stripe_subscription_id") @db.VarChar(255)

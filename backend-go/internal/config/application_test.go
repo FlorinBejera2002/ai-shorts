@@ -25,3 +25,36 @@ func TestApplicationProductionConfiguration(t *testing.T) {
 		})
 	}
 }
+
+func TestApplicationInitialCredits(t *testing.T) {
+	for _, test := range []struct {
+		name, value string
+		want        int
+		invalid     bool
+	}{
+		{name: "default", want: 1000},
+		{name: "zero override", value: "0", want: 0},
+		{name: "custom override", value: "250", want: 250},
+		{name: "negative", value: "-1", invalid: true},
+		{name: "non numeric", value: "free", invalid: true},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			getenv := func(key string) string {
+				if key == "DEFAULT_FREE_CREDITS" {
+					return test.value
+				}
+				return ""
+			}
+			application, err := ApplicationFromEnv(getenv, "test")
+			if test.invalid {
+				if err == nil || !strings.Contains(err.Error(), "DEFAULT_FREE_CREDITS") {
+					t.Fatalf("invalid signup credits accepted: %v", err)
+				}
+				return
+			}
+			if err != nil || application.InitialCredits != test.want {
+				t.Fatalf("initial credits = %d, want %d: %v", application.InitialCredits, test.want, err)
+			}
+		})
+	}
+}

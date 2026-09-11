@@ -4,6 +4,7 @@ from app.models.billing_checkout_claim import BillingCheckoutClaim
 from app.models.brand import BrandKit
 from app.models.chat import ChatMessage
 from app.models.clip import Clip
+from app.models.credit_grant import CreditGrantBatch, CreditGrantRecipient
 from app.models.edit_delivery import EditDelivery
 from app.models.job import Job
 from app.models.job_delivery import JobDelivery
@@ -18,6 +19,8 @@ __all__ = [
     "BrandKit",
     "ChatMessage",
     "Clip",
+    "CreditGrantBatch",
+    "CreditGrantRecipient",
     "EditDelivery",
     "Job",
     "JobDelivery",

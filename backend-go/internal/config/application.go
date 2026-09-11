@@ -91,7 +91,7 @@ func ApplicationFromEnv(getenv func(string) string, environment string) (Applica
 		return a, err
 	}
 	a.MaxClipDuration = float64(duration)
-	a.InitialCredits, err = parseInt("DEFAULT_FREE_CREDITS", 100, 0, 1000000)
+	a.InitialCredits, err = parseInt("DEFAULT_FREE_CREDITS", 1000, 0, 1000000)
 	if err != nil {
 		return a, err
 	}

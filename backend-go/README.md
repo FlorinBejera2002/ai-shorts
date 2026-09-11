@@ -80,7 +80,7 @@ no readiness or application routes. Compose enables it by default.
 | `ALLOWED_HOSTS` | Allowed API hostnames, without schemes or paths. Include public and internal healthcheck hosts. Compose maps `GO_ALLOWED_HOSTS` into this setting. |
 | `TRUSTED_PROXY_CIDRS` | Only socket peers in these networks may supply `X-Real-IP`; other forwarded identity headers do not establish the caller. Scope this to the deployed proxy network. |
 | `AUTH_REQUIRE_EMAIL_VERIFICATION` | Defaults to false; when true, new credential accounts must activate before login. Existing users keep their migration default. Requires a mail provider. |
-| `DEFAULT_FREE_CREDITS` | Initial account credits; default 100. |
+| `DEFAULT_FREE_CREDITS` | Initial account credits; default 1000. Explicit overrides, including 0, are preserved. |
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URL` | Google login configuration. Callback must be the public `/v1/auth/google/callback`; default is that path on `APP_URL`. Configure both client credentials together. |
 | `AUTH_EMAIL_FROM`, `RESEND_API_KEY` | Resend sender and key. Resend takes precedence when both mail adapters are configured. |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_REQUIRE_TLS` | Alternative SMTP delivery; port defaults to 587. TLS is always required outside development/test. |
