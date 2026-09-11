@@ -2,6 +2,9 @@ from __future__ import annotations
 
 import logging
 import shutil
+import tempfile
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -20,8 +23,28 @@ def is_url(source: str) -> bool:
 def is_youtube_url(source: str) -> bool:
     if not is_url(source):
         return False
-    host = urlparse(source).netloc.lower()
-    return any(domain in host for domain in ("youtube.com", "youtu.be"))
+    host = (urlparse(source).hostname or "").lower().rstrip(".")
+    return any(
+        host == domain or host.endswith(f".{domain}")
+        for domain in ("youtube.com", "youtu.be")
+    )
+
+
+@contextmanager
+def _writable_download_cookies(cookies_path: str | None) -> Iterator[str | None]:
+    if not cookies_path:
+        yield None
+        return
+
+    # yt-dlp saves its cookie jar on close. Keep the mounted secret read-only,
+    # with a private copy per download outside the persistent media directory.
+    with tempfile.TemporaryDirectory(prefix="sneepcut-youtube-") as cookie_dir:
+        with tempfile.NamedTemporaryFile(
+            dir=cookie_dir, suffix=".txt", delete=False
+        ) as cookie_file:
+            with Path(cookies_path).open("rb") as source:
+                shutil.copyfileobj(source, cookie_file)
+        yield cookie_file.name
 
 
 def copy_local_video(source_path: str, output_dir: str | Path) -> dict:
@@ -60,9 +83,17 @@ def download_video(
 
     output_directory = ensure_dir(output_dir)
     output_template = str(output_directory / "%(title).80s-%(id)s.%(ext)s")
-    cookie_file = cookies_path or settings.youtube_cookies_path
+    youtube_source = is_youtube_url(url)
+    cookie_file = None
+    if youtube_source:
+        cookie_file = cookies_path or settings.youtube_cookies_path
+        if not cookies_path and cookie_file and not Path(cookie_file).exists():
+            logger.warning(
+                "Configured YouTube cookies file is missing; downloading without cookies"
+            )
+            cookie_file = None
     extractor_args = None
-    if is_youtube_url(url):
+    if youtube_source:
         extractor_args = {
             "youtube": {"player_client": ["mweb"]},
         }
@@ -82,7 +113,6 @@ def download_video(
         "noplaylist": True,
         "quiet": True,
         "no_warnings": True,
-        "cookiefile": cookie_file if cookie_file else None,
         "socket_timeout": 30,
         "retries": 10,
         "fragment_retries": 10,
@@ -98,20 +128,36 @@ def download_video(
         },
     }
 
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        info = ydl.extract_info(url, download=True)
-        local_path = Path(ydl.prepare_filename(info))
-        if local_path.suffix != ".mp4":
-            merged_path = local_path.with_suffix(".mp4")
-            if merged_path.exists():
-                local_path = merged_path
+    with _writable_download_cookies(cookie_file) as writable_cookies:
+        ydl_opts["cookiefile"] = writable_cookies
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            try:
+                info = ydl.extract_info(url, download=True)
+            except yt_dlp.utils.DownloadError as exc:
+                message = str(exc).lower()
+                if (
+                    youtube_source
+                    and "sign in to confirm" in message
+                    and ("not a bot" in message or "not a robot" in message)
+                ):
+                    raise RuntimeError(
+                        "YouTube requires authentication for this video. "
+                        "Please upload the video file instead, or ask the "
+                        "administrator to refresh the YouTube connection."
+                    ) from exc
+                raise
+            local_path = Path(ydl.prepare_filename(info))
+            if local_path.suffix != ".mp4":
+                merged_path = local_path.with_suffix(".mp4")
+                if merged_path.exists():
+                    local_path = merged_path
 
     validate_video_file(local_path)
     duration = float(info.get("duration") or get_video_duration(local_path))
     _validate_duration(duration)
 
     return {
-        "type": "youtube" if is_youtube_url(url) else "url",
+        "type": "youtube" if youtube_source else "url",
         "title": info.get("title") or local_path.stem,
         "duration": duration,
         "local_path": str(local_path),

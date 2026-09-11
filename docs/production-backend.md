@@ -66,6 +66,48 @@ the API waits for its initial signature download/readiness. Media volume ownersh
 is initialized by the application image as UID/GID 10001; do not prepopulate it
 with root-owned upload directories.
 
+## YouTube download authentication
+
+The worker mounts `/opt/sneepcut-secrets` read-only at `/run/secrets`. When
+YouTube requires authentication, provision a Netscape-format cookie export at
+`/opt/sneepcut-secrets/youtube-cookies.txt`, readable by worker UID 10001. Keep
+this file outside Git, source releases, logs and media storage. Follow the
+[yt-dlp cookie export instructions](https://github.com/yt-dlp/yt-dlp/wiki/Extractors#exporting-youtube-cookies)
+and replace the export when its session expires.
+
+`YOUTUBE_COOKIES_DIR` changes the host directory; `YOUTUBE_COOKIES_PATH` is the
+path inside the container. The default path does not provision the cookie file.
+Without that optional file the downloader tries public access, which YouTube
+may reject from the server. The proof-of-origin provider does not supply an
+authenticated YouTube session.
+
+The downloader copies cookies into a private temporary directory for each
+YouTube request because yt-dlp saves its cookie jar when closing. The original
+secret remains read-only; the temporary copy is removed after success or error.
+Direct video URLs do not use the YouTube cookie configuration. Never resolve a
+cookie-save error by making the secrets mount writable.
+
+Container health, Celery ping and downloader version checks do not prove that a
+YouTube download succeeds. After changing authentication, test a real public
+YouTube link from the worker using the temporary-workspace verifier below. It
+does not create database records or write to customer media:
+
+```sh
+docker compose --env-file .env.production.local -f docker-compose.production.yml \
+  cp backend/scripts/verify_video_processing.py worker:/tmp/verify_video_processing.py
+docker compose --env-file .env.production.local -f docker-compose.production.yml \
+  exec -T worker python /tmp/verify_video_processing.py \
+  --url 'https://www.youtube.com/watch?v=YOUR_TEST_VIDEO_ID'
+```
+
+Add `--process` to verify transcription, highlight selection, portrait rendering
+and subtitles for a short spoken video. For a repeatable synthetic input, copy
+an existing synthetic speech WAV to the worker's temporary directory and use
+`--fixture /tmp/speech.wav`. Processing uses the configured model provider and
+may incur its normal usage charges. The fixture and generated files stay outside
+persistent customer media. This checks the worker pipeline; browser/API job
+creation and persistence are separate integration checks.
+
 ## Automated releases
 
 Run production commands from the repository root on an authorized workstation.
