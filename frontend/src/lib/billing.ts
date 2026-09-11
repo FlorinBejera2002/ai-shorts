@@ -7,7 +7,7 @@ export type BillingPlanId = (typeof BILLING_PLAN_IDS)[number]
 export type PaidBillingPlanId = (typeof PAID_BILLING_PLAN_IDS)[number]
 export type BillingLocale = (typeof BILLING_LOCALES)[number]
 
-export const INITIAL_FREE_CREDITS = 100
+export const INITIAL_FREE_CREDITS = 1000
 export const CREDITS_PER_CLIP = 10
 
 export const PLAN_CREDITS: Record<PaidBillingPlanId, number> = {

@@ -60,5 +60,20 @@ application rollback can keep these additive tables without altering balances.
   parameter mismatch, empty cohorts, and migration round trips. All used
   disposable `sneepcut_integration_test` infrastructure, which was removed.
 
+## Production result
+
+Backend release `804bfc06efa92f08` activated the explicit 1,000-credit setting and
+migrated the audit tables. All deployment checks passed. The grant applied to
+all 5 eligible accounts: exactly 1,000 each, 5,000 in total, taking the aggregate
+balance from 360 to 5,360. Retrying the same command returned `already_applied`
+and left balances unchanged. The authenticated dashboard showed 1,010 credits
+for the account that previously had 10.
+
+Browser verification found a separate `INITIAL_FREE_CREDITS` constant used by
+the pricing cards and dashboard billing view. It was also updated to 1,000;
+the six existing billing validation tests passed. This keeps those calculated
+labels consistent with the translated signup text and actual account balances.
+
 Production rollout and grant execution are recorded in the Notion task
-`3d8c7071-a198-8106-91a6-e1e5c280e438`.
+`3d8c7071-a198-8106-91a6-e1e5c280e438`; server-side preview, applied result and
+aggregate verification are retained alongside the database backup.
