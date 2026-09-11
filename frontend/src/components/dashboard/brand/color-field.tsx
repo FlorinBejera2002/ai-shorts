@@ -1,7 +1,6 @@
 'use client'
 
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Check, Copy, Pipette } from 'lucide-react'
 import { useTranslations } from 'next-intl'
@@ -48,18 +47,26 @@ export function ColorField({
 
   return (
     <div>
-      <Label className="text-xs text-muted-foreground" htmlFor={id}>
+      <Label className="text-[11px] font-medium text-muted-foreground" htmlFor={id}>
         {label}
       </Label>
-      <div className="mt-1.5 flex items-center gap-2">
+      <div
+        className={`mt-1 flex h-9 items-center overflow-hidden rounded-md border bg-card px-1 transition-[border-color,box-shadow] focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/15 ${
+          touched && !valid ? 'border-destructive' : 'border-input'
+        }`}
+      >
+        <span className="size-7 shrink-0 overflow-hidden rounded-full">
+          <input
+            id={`${id}-picker`}
+            type="color"
+            aria-label={`${label} ${t('pickColor')}`}
+            value={valid ? normalizeHex(value) : '#000000'}
+            onChange={(event) => onChange(normalizeHex(event.target.value))}
+            className="-m-1 size-9 cursor-pointer border-0 bg-transparent p-0"
+          />
+        </span>
         <input
           id={id}
-          type="color"
-          value={valid ? normalizeHex(value) : '#000000'}
-          onChange={(event) => onChange(normalizeHex(event.target.value))}
-          className="size-10 shrink-0 cursor-pointer rounded-lg border border-input bg-transparent p-0.5"
-        />
-        <Input
           type="text"
           aria-label={`${label} HEX`}
           value={value}
@@ -70,34 +77,36 @@ export function ColorField({
           }}
           spellCheck={false}
           aria-invalid={touched && !valid}
-          className="min-w-[104px] flex-1 rounded-lg font-mono text-[13px] uppercase"
+          className="h-full min-w-0 flex-1 border-0 bg-transparent px-2 text-left font-mono text-xs uppercase outline-none"
         />
-        <Button
-          variant="outline"
-          size="icon"
-          type="button"
-          title={t('pickColor')}
-          aria-label={t('pickColor')}
-          onClick={() => void pickColor()}
-          className="size-10 rounded-lg"
-        >
-          <Pipette aria-hidden="true" />
-        </Button>
-        <Button
-          variant="outline"
-          size="icon"
-          type="button"
-          title={t('copyHex')}
-          aria-label={t('copyHex')}
-          onClick={() => void copyHex()}
-          className="size-10 rounded-lg"
-        >
-          {copied ? (
-            <Check aria-hidden="true" className="text-success" />
-          ) : (
-            <Copy aria-hidden="true" />
-          )}
-        </Button>
+        <div className="flex items-center gap-0.5">
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            type="button"
+            title={t('pickColor')}
+            aria-label={t('pickColor')}
+            onClick={() => void pickColor()}
+            className="rounded-sm text-muted-foreground hover:bg-muted hover:text-foreground"
+          >
+            <Pipette aria-hidden="true" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            type="button"
+            title={t('copyHex')}
+            aria-label={t('copyHex')}
+            onClick={() => void copyHex()}
+            className="rounded-sm text-muted-foreground hover:bg-muted hover:text-foreground"
+          >
+            {copied ? (
+              <Check aria-hidden="true" className="text-success" />
+            ) : (
+              <Copy aria-hidden="true" />
+            )}
+          </Button>
+        </div>
       </div>
       {touched && !valid && (
         <p className="mt-1.5 text-[11px] text-destructive">{t('invalidHex')}</p>

@@ -14,6 +14,25 @@ Before starting every new project task, create a new ticket on the **Sneep Cut >
 - Follow the project's documented architecture and component conventions, and consult the relevant official framework/library documentation when implementing or changing their usage. Keep component boundaries, composition, and file organization consistent with those conventions.
 - Give concise updates and a final account of what changed, what was verified, and any remaining limitations. Use plain language and concrete evidence.
 
+## UI corner radii
+
+- The platform's default corner radius is `rounded-md`. Use the shared radius tokens (`--radius-md`, `--radius-sm`) in CSS instead of hard-coded pixel values.
+- Keep these component conventions consistent:
+
+  | Element | Radius |
+  | --- | --- |
+  | Cards, dashboard headers, save bars, upload areas, inputs, buttons and select triggers/popups | `rounded-md` |
+  | Brandkit logo/font, colors, subtitles, watermark and preview cards; video preview canvas | `rounded-md` |
+  | Inset color swatches, menu items, small text badges and preview-stage interiors | `rounded-sm` |
+  | Avatars, circular icons, status dots, slider handles and progress bars | `rounded-full` |
+
+- Reuse the shared `Card` default. Do not add `rounded-lg`, `rounded-xl`, larger radii or pill-shaped text badges as decoration. Preserve a larger radius only for an explicit component-specific design exception or user request, and document that exception here.
+
+## UI interaction colors
+
+- Use a subtle neutral gray (`bg-muted` with normal foreground text) for hover and highlighted states on selects, dropdown menus, secondary controls and similar choices. Do not use blue or the primary brand color for hover decoration.
+- Reserve the primary color for selected states, primary actions and keyboard focus indicators where it communicates state or accessibility.
+
 ## Context and skills
 
 - Read the files and documentation needed for the current task. Do not load a full repository map or every design and verification document before a small edit.

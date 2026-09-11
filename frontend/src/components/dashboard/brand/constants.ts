@@ -5,6 +5,8 @@ export const BRAND_DEFAULTS: BrandKit = {
   primaryColor: '#6366F1',
   secondaryColor: '#8B5CF6',
   fontFamily: 'Inter',
+  applyBrandColors: false,
+  applyBrandFont: false,
   subtitleFont: 'Inter Bold',
   subtitleColor: '#FFFFFF',
   subtitleBgColor: '#000000',

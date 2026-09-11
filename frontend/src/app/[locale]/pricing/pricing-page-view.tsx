@@ -1,6 +1,7 @@
 import { PlanPrice } from '@/components/billing/plan-price'
 import { PublicFooter } from '@/components/landing/public-footer'
 import { PublicNavbar } from '@/components/landing/public-navbar'
+import { ThemeBrandLogo } from '@/components/shared/brand-logo'
 import {
   Accordion,
   AccordionContent,
@@ -84,7 +85,7 @@ export function PricingPageView({
       />
       <section className="mx-auto max-w-7xl px-6 pb-12 pt-36 text-center">
         <Badge variant="outline" className="mb-5 text-primary">
-          sneepcut studio
+          <ThemeBrandLogo size="sm" />
         </Badge>
         <h1 className="text-4xl font-semibold tracking-tight sm:text-5xl">
           {t('title')}

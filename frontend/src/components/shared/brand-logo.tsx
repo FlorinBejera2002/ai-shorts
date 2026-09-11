@@ -1,21 +1,31 @@
 import Image from 'next/image'
 
+const LOGO_SIZE_CLASSES = {
+  xs: 'h-2.5',
+  sm: 'h-4',
+  md: 'h-7'
+} as const
+
 type BrandLogoProps = {
   compact?: boolean
   onDark?: boolean
   priority?: boolean
+  size?: keyof typeof LOGO_SIZE_CLASSES
   variant?: 'default' | 'white-text'
   className?: string
 }
 
-export function ThemeBrandLogo({ priority = false }: { priority?: boolean }) {
+export function ThemeBrandLogo({
+  priority = false,
+  size = 'md'
+}: Pick<BrandLogoProps, 'priority' | 'size'>) {
   return (
     <>
       <span className="inline-flex dark:hidden">
-        <BrandLogo priority={priority} />
+        <BrandLogo priority={priority} size={size} />
       </span>
       <span className="hidden dark:inline-flex">
-        <BrandLogo variant="white-text" priority={priority} />
+        <BrandLogo variant="white-text" priority={priority} size={size} />
       </span>
     </>
   )
@@ -26,6 +36,7 @@ export function BrandLogo({
   compact = false,
   onDark = false,
   priority = false,
+  size = 'md',
   variant = 'default',
   className = ''
 }: BrandLogoProps) {
@@ -50,7 +61,9 @@ export function BrandLogo({
         alt="sneepcut"
         width={compact ? 512 : 1652}
         height={compact ? 512 : 396}
-        className={compact ? 'h-6 w-6' : 'h-7 w-auto'}
+        className={
+          compact ? 'h-6 w-6' : `${LOGO_SIZE_CLASSES[size]} w-auto`
+        }
         priority={priority}
       />
     </span>

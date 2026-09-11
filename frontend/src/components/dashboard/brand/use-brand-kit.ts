@@ -11,6 +11,7 @@ import {
   WHITE_LABEL_PLAN
 } from './constants'
 import type { BrandKit } from './types'
+import { useLogoPreview } from './use-logo-preview'
 import { HEX_RE, normalizeHex } from './utils'
 
 type Translate = (key: string) => string
@@ -41,6 +42,8 @@ export function useBrandKit(t: Translate) {
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [logoBusy, setLogoBusy] = useState(false)
+  const [logoFile, setLogoFile] = useState<File | null>(null)
+  const logoPreviewUrl = useLogoPreview(logoFile, kit.logoUrl)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -129,6 +132,7 @@ export function useBrandKit(t: Translate) {
   }
 
   async function uploadLogo(file: File) {
+    if (logoBusy || saving) return
     if (!LOGO_TYPES.includes(file.type)) {
       toast.add('error', t('useFormats'))
       return
@@ -137,6 +141,8 @@ export function useBrandKit(t: Translate) {
       toast.add('error', t('logoTooLarge'))
       return
     }
+    const previousFile = logoFile
+    setLogoFile(file)
     setLogoBusy(true)
     try {
       const formData = new FormData()
@@ -147,6 +153,7 @@ export function useBrandKit(t: Translate) {
       })
       const data = await response.json().catch(() => null)
       if (!response.ok) {
+        setLogoFile(previousFile)
         toast.add('error', errorMessage(data, t('uploadFailed')))
         return
       }
@@ -155,6 +162,7 @@ export function useBrandKit(t: Translate) {
       setPersistedKit((current) => ({ ...current, logoUrl }))
       toast.add('success', t('logoUploaded'))
     } catch {
+      setLogoFile(previousFile)
       toast.add('error', t('uploadFailed'))
     } finally {
       setLogoBusy(false)
@@ -162,6 +170,7 @@ export function useBrandKit(t: Translate) {
   }
 
   async function removeLogo() {
+    if (logoBusy || saving) return
     setLogoBusy(true)
     try {
       const response = await apiFetch('/api/user/brand/logo', {
@@ -173,6 +182,7 @@ export function useBrandKit(t: Translate) {
       }
       setKit((current) => ({ ...current, logoUrl: null }))
       setPersistedKit((current) => ({ ...current, logoUrl: null }))
+      setLogoFile(null)
     } catch {
       toast.add('error', t('uploadFailed'))
     } finally {
@@ -188,6 +198,7 @@ export function useBrandKit(t: Translate) {
     saving,
     saved,
     logoBusy,
+    logoPreviewUrl,
     dirty,
     hasInvalidColor,
     canWhiteLabel: plan === WHITE_LABEL_PLAN,

@@ -19,7 +19,11 @@ def draw_brand_hook(canvas: Image.Image, brand: dict, text: str) -> None:
     """Rasterize creator text; no text or font value enters a filter expression."""
     primary = brand.get("primary_color", "#6366f1")
     secondary = brand.get("secondary_color", "#8b5cf6")
-    family = brand.get("font_family", "Inter")
+    family = (
+        brand.get("font_family", "Inter")
+        if brand.get("apply_brand_font")
+        else "Inter"
+    )
     if any(
         not isinstance(color, str) or not re.fullmatch(r"#[0-9A-Fa-f]{6}", color)
         for color in (primary, secondary)
@@ -133,7 +137,14 @@ def render_framing_and_brand(
     target_width, target_height = output_dimensions(width, height, aspect_ratio)
     apply_logo = bool(brand and brand.get("apply_brand") and brand.get("logo_key"))
     draw_badge = bool(brand and not brand.get("hide_platform_badge"))
-    apply_hook = bool(brand and brand.get("apply_brand") and hook_text)
+    apply_hook = bool(
+        brand
+        and brand.get("apply_brand")
+        and brand.get("apply_brand_colors")
+        and hook_text
+        and brand.get("primary_color")
+        and brand.get("secondary_color")
+    )
     if (
         (target_width, target_height) == (width, height)
         and not apply_logo

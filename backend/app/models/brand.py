@@ -20,6 +20,8 @@ class BrandKit(Base):
     primary_color: Mapped[str] = mapped_column(String(20), default="#6366f1", nullable=False)
     secondary_color: Mapped[str] = mapped_column(String(20), default="#8b5cf6", nullable=False)
     font_family: Mapped[str] = mapped_column(String(100), default="Inter", nullable=False)
+    apply_brand_colors: Mapped[bool] = mapped_column(default=False, nullable=False)
+    apply_brand_font: Mapped[bool] = mapped_column(default=False, nullable=False)
     subtitle_font: Mapped[str] = mapped_column(String(100), default="Inter Bold", nullable=False)
     subtitle_color: Mapped[str] = mapped_column(String(20), default="#FFFFFF", nullable=False)
     subtitle_bg_color: Mapped[str] = mapped_column(String(20), default="#000000", nullable=False)

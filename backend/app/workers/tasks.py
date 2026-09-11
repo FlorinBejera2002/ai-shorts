@@ -234,6 +234,8 @@ def _mark_job_started(job_id: str, token: str | None = None) -> dict[str, Any]:
                         "primary_color",
                         "secondary_color",
                         "font_family",
+                        "apply_brand_colors",
+                        "apply_brand_font",
                         "subtitle_font",
                         "subtitle_color",
                         "subtitle_bg_color",

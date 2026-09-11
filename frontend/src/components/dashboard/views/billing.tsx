@@ -16,7 +16,6 @@ import { useLocale, useTranslations } from 'next-intl'
 import { useSearchParams } from 'next/navigation'
 import { Suspense } from 'react'
 
-import { BillingGuide } from '@/components/billing/billing-guide'
 import { BillingSummary } from '@/components/billing/billing-summary'
 import { CheckoutButton } from '@/components/billing/checkout-button'
 import { InvoiceHistory } from '@/components/billing/invoice-history'
@@ -179,7 +178,7 @@ function BillingPageContent() {
 
       {checkoutVerification?.status === 'complete' && (
         <div
-          className="mt-6 flex items-start gap-3 rounded-xl border border-success/25 bg-success/10 px-4 py-3 text-success"
+          className="mt-4 flex items-start gap-3 rounded-md border border-success/25 bg-success/10 px-3 py-2.5 text-success"
           role="status"
         >
           <CheckCircle2
@@ -191,7 +190,7 @@ function BillingPageContent() {
       )}
       {checkoutVerification?.status === 'pending' && (
         <div
-          className="mt-6 flex items-start gap-3 rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 text-foreground"
+          className="mt-4 flex items-start gap-3 rounded-md border border-primary/20 bg-primary/5 px-3 py-2.5 text-foreground"
           role="status"
         >
           <LoaderCircle
@@ -203,7 +202,7 @@ function BillingPageContent() {
       )}
       {checkoutVerification?.status === 'invalid' && (
         <div
-          className="mt-6 flex items-start gap-3 rounded-xl border border-destructive/25 bg-destructive/10 px-4 py-3 text-destructive"
+          className="mt-4 flex items-start gap-3 rounded-md border border-destructive/25 bg-destructive/10 px-3 py-2.5 text-destructive"
           role="alert"
         >
           <AlertTriangle
@@ -217,7 +216,7 @@ function BillingPageContent() {
       )}
       {checkoutVerification?.status === 'unavailable' && (
         <div
-          className="mt-6 flex items-start gap-3 rounded-xl border border-warning/25 bg-warning/10 px-4 py-3 text-warning"
+          className="mt-4 flex items-start gap-3 rounded-md border border-warning/25 bg-warning/10 px-3 py-2.5 text-warning"
           role="alert"
         >
           <AlertTriangle
@@ -231,7 +230,7 @@ function BillingPageContent() {
       )}
       {query.canceled === 'true' && !checkoutVerification && (
         <div
-          className="mt-6 flex items-start gap-3 rounded-xl border border-warning/25 bg-warning/10 px-4 py-3 text-warning"
+          className="mt-4 flex items-start gap-3 rounded-md border border-warning/25 bg-warning/10 px-3 py-2.5 text-warning"
           role="status"
         >
           <Info className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
@@ -252,11 +251,7 @@ function BillingPageContent() {
           overview: t('overviewTitle'),
           currentPlan: t('currentPlan'),
           creditsAvailable: t('creditsAvailable'),
-          clipRunway: t('clipRunway'),
           clipRunwayValue: ({ count }) => t('clipRunwayValue', { count }),
-          creditsPerClip: t('creditsPerClip'),
-          creditsRollover: t('creditsRollover'),
-          subscriptionStatus: t('subscriptionStatus'),
           renewsOn: t('renewsOn'),
           endsOn: t('endsOn'),
           noActiveSubscription: t('noActiveSubscription'),
@@ -267,15 +262,12 @@ function BillingPageContent() {
         }}
       />
 
-      <section className="mt-10" aria-labelledby="billing-plans-title">
-        <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
+      <section className="mt-6" aria-labelledby="billing-plans-title">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h2 id="billing-plans-title" className="text-lg font-semibold">
+            <h2 id="billing-plans-title" className="text-base font-semibold">
               {t('plansTitle')}
             </h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {t('plansDesc')}
-            </p>
           </div>
           <div className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
             <ShieldCheck
@@ -312,7 +304,7 @@ function BillingPageContent() {
               <Card
                 as="article"
                 key={plan.id}
-                className={`block gap-0 py-0 relative flex h-full flex-col p-5 transition-all animate-slide-up ${
+                className={`block gap-0 py-0 relative flex h-full flex-col p-4 transition-all animate-slide-up ${
                   isCurrent
                     ? 'border-primary/40 bg-primary/[0.035]'
                     : plan.highlighted
@@ -322,22 +314,22 @@ function BillingPageContent() {
                 style={{ animationDelay: `${index * 60}ms` }}
                 aria-labelledby={`plan-${plan.id}`}
               >
-                <div className="mb-6 flex min-h-6 items-start justify-between gap-3">
+                <div className="mb-3 flex items-start justify-between gap-3">
                   <h3
                     id={`plan-${plan.id}`}
-                    className="text-lg font-semibold text-foreground"
+                    className="text-base font-semibold text-foreground"
                   >
                     {plan.name}
                   </h3>
                   {(isCurrent || plan.highlighted) && (
-                    <span className="whitespace-nowrap rounded-full bg-primary/10 px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.1em] text-primary">
+                    <span className="whitespace-nowrap rounded-sm bg-primary/10 px-2 py-1 text-[9px] font-semibold text-primary">
                       {isCurrent ? t('currentPlan') : t('mostPopular')}
                     </span>
                   )}
                 </div>
 
                 <div className="flex items-baseline gap-1">
-                  <span className="text-3xl font-bold">{plan.price}</span>
+                  <span className="text-2xl font-semibold">{plan.price}</span>
                   <span className="text-xs text-muted-foreground">
                     {plan.period}
                   </span>
@@ -345,11 +337,11 @@ function BillingPageContent() {
                 <p className="mt-2 text-xs font-semibold text-primary">
                   {plan.credits}
                 </p>
-                <p className="mt-4 min-h-10 text-sm leading-relaxed text-muted-foreground">
+                <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
                   {plan.description}
                 </p>
 
-                <ul className="my-5 flex-1 space-y-2 border-t border-border pt-5">
+                <ul className="my-3 flex-1 space-y-1.5 border-t border-border/70 pt-3">
                   {plan.features.map((feature) => (
                     <li
                       key={feature}
@@ -368,7 +360,7 @@ function BillingPageContent() {
                   <button
                     type="button"
                     disabled={true}
-                    className="flex min-h-11 w-full items-center justify-center rounded-lg border border-border bg-card px-3 text-[13px] font-semibold text-foreground opacity-65"
+                    className="flex h-9 w-full items-center justify-center rounded-md border border-border bg-card px-3 text-xs font-semibold text-foreground opacity-65"
                   >
                     {actionLabel}
                   </button>
@@ -378,7 +370,7 @@ function BillingPageContent() {
                     label={actionLabel}
                     loadingLabel={t('openingPortal')}
                     errorLabel={t('portalError')}
-                    className="flex w-full items-center justify-center gap-2 rounded-lg border border-border bg-card px-3 text-[13px] font-semibold text-foreground transition-all hover:border-primary/35 hover:bg-primary/5 hover:text-primary"
+                    className="flex h-9 w-full items-center justify-center gap-2 rounded-md border border-border bg-card px-3 text-xs font-semibold text-foreground transition-colors hover:bg-muted"
                   />
                 ) : paidPlanId ? (
                   <CheckoutButton
@@ -397,19 +389,6 @@ function BillingPageContent() {
         </div>
       </section>
 
-      <BillingGuide
-        labels={{
-          title: t('guide.title'),
-          description: t('guide.description'),
-          predictableTitle: t('guide.predictableTitle'),
-          predictableDescription: t('guide.predictableDescription'),
-          rolloverTitle: t('guide.rolloverTitle'),
-          rolloverDescription: t('guide.rolloverDescription'),
-          controlTitle: t('guide.controlTitle'),
-          controlDescription: t('guide.controlDescription')
-        }}
-      />
-
       <InvoiceHistory
         invoices={data.invoices}
         locale={locale}
@@ -417,7 +396,6 @@ function BillingPageContent() {
         hasBillingProfile={hasBillingData}
         labels={{
           title: t('invoicesTitle'),
-          description: t('invoicesDesc'),
           tableCaption: t('invoicesTableCaption'),
           number: t('invoiceNumber'),
           date: t('invoiceDate'),

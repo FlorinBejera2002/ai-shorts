@@ -52,8 +52,8 @@ func (r *Repository) Update(ctx context.Context, userID string, input map[string
 	id[6] = id[6]&0x0f | 0x40
 	id[8] = id[8]&0x3f | 0x80
 	identifier := fmt.Sprintf("%x-%x-%x-%x-%x", id[0:4], id[4:6], id[6:8], id[8:10], id[10:16])
-	_, e = tx.ExecContext(ctx, `INSERT INTO brand_kits(id,user_id,primary_color,secondary_color,font_family,subtitle_font,subtitle_color,subtitle_bg_color,subtitle_bg_opacity,subtitle_position,watermark_position,watermark_opacity,hide_platform_badge,created_at,updated_at)
-	VALUES($1,$2,'#6366f1','#8b5cf6','Inter','Inter Bold','#FFFFFF','#000000',0.7,'bottom','bottom-right',0.8,false,now(),now()) ON CONFLICT(user_id) DO NOTHING`, identifier, userID)
+	_, e = tx.ExecContext(ctx, `INSERT INTO brand_kits(id,user_id,primary_color,secondary_color,font_family,apply_brand_colors,apply_brand_font,subtitle_font,subtitle_color,subtitle_bg_color,subtitle_bg_opacity,subtitle_position,watermark_position,watermark_opacity,hide_platform_badge,created_at,updated_at)
+	VALUES($1,$2,'#6366f1','#8b5cf6','Inter',false,false,'Inter Bold','#FFFFFF','#000000',0.7,'bottom','bottom-right',0.8,false,now(),now()) ON CONFLICT(user_id) DO NOTHING`, identifier, userID)
 	if e != nil {
 		return e
 	}

@@ -1,5 +1,6 @@
 'use client'
 
+import { BrandLogo } from '@/components/shared/brand-logo'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Check, MonitorPlay } from 'lucide-react'
@@ -32,9 +33,11 @@ function subtitlePosition(position: string) {
 
 export function PreviewPanel({
   kit,
+  logoUrl,
   canWhiteLabel
 }: {
   kit: BrandKit
+  logoUrl: string | null
   canWhiteLabel: boolean
 }) {
   const t = useTranslations('brand')
@@ -42,26 +45,25 @@ export function PreviewPanel({
   const activeRatio =
     PREVIEW_RATIOS.find((item) => item.value === ratio) ?? PREVIEW_RATIOS[0]!
   const completion = brandCompletion(kit)
+  const hasBrandColors = kit.applyBrandColors
+  const previewPrimary = hasBrandColors ? kit.primaryColor : '#334155'
+  const previewSecondary = hasBrandColors ? kit.secondaryColor : '#94A3B8'
 
   return (
-    <aside className="brand-inspector w-full xl:sticky xl:top-24">
-      <Card className="brand-preview-card overflow-hidden p-5 sm:p-6">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2 text-sm font-semibold">
-              <MonitorPlay className="size-4 text-primary" />
-              {t('preview')}
-            </div>
-            <p className="mt-1 text-xs text-muted-foreground">
-              {t('previewLive')}
-            </p>
+    <aside className="brand-inspector w-full xl:sticky xl:top-20">
+      <Card className="brand-preview-card gap-3 overflow-hidden p-3">
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-2 text-sm font-medium">
+            <MonitorPlay className="size-4 text-primary" />
+            {t('preview')}
           </div>
-          <span className="rounded-full border border-border/70 bg-background/70 px-2.5 py-1 text-[10px] font-semibold">
+          <span className="flex items-center gap-1.5 text-[10px] font-medium text-muted-foreground">
+            <span className="size-1.5 rounded-full bg-success animate-pulse" />
             {t('live')}
           </span>
         </div>
 
-        <div className="grid grid-cols-3 gap-1 rounded-lg bg-muted/70 p-1">
+        <div className="grid grid-cols-3 gap-1 rounded-md border border-border/70 bg-card p-1">
           {PREVIEW_RATIOS.map((item) => (
             <Button
               key={item.value}
@@ -69,7 +71,7 @@ export function PreviewPanel({
               variant="ghost"
               aria-pressed={ratio === item.value}
               onClick={() => setRatio(item.value)}
-              className={`h-8 rounded-md px-2 text-[10px] ${
+              className={`h-8 rounded-sm px-2 text-[10px] ${
                 ratio === item.value
                   ? 'bg-background text-foreground shadow-sm hover:bg-background'
                   : 'text-muted-foreground'
@@ -80,32 +82,44 @@ export function PreviewPanel({
           ))}
         </div>
 
-        <div className="brand-preview-stage flex min-h-[390px] items-center justify-center rounded-xl p-5">
+        <div className="brand-preview-stage flex items-center justify-center rounded-md border border-border/60 p-2.5">
           <div
-            className={`brand-preview-canvas relative w-full max-w-[228px] overflow-hidden rounded-[20px] border border-white/10 shadow-2xl transition-all ${activeRatio.aspect}`}
+            className={`brand-preview-canvas relative w-full overflow-hidden rounded-md border border-white/15 shadow-xl ring-1 ring-black/5 transition-all duration-300 ${ratio === '9:16' ? 'max-w-[160px]' : 'max-w-[240px]'} ${activeRatio.aspect}`}
             style={{
-              background: `radial-gradient(circle at 72% 18%, ${kit.secondaryColor}66, transparent 33%), linear-gradient(145deg, ${kit.primaryColor}, #111827 72%)`
+              background: `linear-gradient(145deg, ${previewPrimary}, #111827 72%)`
             }}
           >
+            <div
+              aria-hidden="true"
+              className="brand-preview-fluid brand-preview-fluid-primary"
+              style={{ backgroundColor: previewPrimary }}
+            />
+            <div
+              aria-hidden="true"
+              className="brand-preview-fluid brand-preview-fluid-secondary"
+              style={{ backgroundColor: previewSecondary }}
+            />
+            <div className="pointer-events-none absolute inset-x-0 top-0 h-1/3 bg-gradient-to-b from-white/12 to-transparent" />
             <div className="absolute inset-0 opacity-35 [background-image:linear-gradient(rgba(255,255,255,.08)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.08)_1px,transparent_1px)] [background-size:24px_24px]" />
-            <div className="absolute left-4 top-4 rounded-full border border-white/15 bg-black/25 px-2.5 py-1 text-[8px] font-semibold uppercase tracking-[0.16em] text-white/75 backdrop-blur">
-              sneepcut studio
-            </div>
-            <div className="absolute inset-x-[12%] top-[31%] text-white">
-              <p className="text-[9px] font-medium uppercase tracking-[0.18em] text-white/65">
-                {t('sampleKicker')}
-              </p>
-              <p
-                className="mt-1.5 text-xl font-semibold leading-[1.02] tracking-[-0.04em]"
-                style={{ fontFamily: kit.fontFamily }}
-              >
-                {t('sampleHeadline')}
-              </p>
-              <span
-                className="mt-3 block h-1 w-10 rounded-full"
-                style={{ backgroundColor: kit.secondaryColor }}
-              />
-            </div>
+            {hasBrandColors && (
+              <div className="absolute inset-x-[12%] top-[31%] text-white">
+                <p className="text-[9px] font-medium uppercase tracking-[0.18em] text-white/65">
+                  {t('sampleKicker')}
+                </p>
+                <p
+                  className="mt-1.5 text-lg font-semibold leading-[1.02] tracking-[-0.04em]"
+                  style={{
+                    fontFamily: kit.applyBrandFont ? kit.fontFamily : undefined
+                  }}
+                >
+                  {t('sampleHeadline')}
+                </p>
+                <span
+                  className="mt-3 block h-1 w-10 rounded-full"
+                  style={{ backgroundColor: previewSecondary }}
+                />
+              </div>
+            )}
             <div
               className={`absolute inset-x-3 flex justify-center ${subtitlePosition(kit.subtitlePosition)}`}
             >
@@ -127,9 +141,9 @@ export function PreviewPanel({
               className={`absolute ${watermarkPosition(kit.watermarkPosition)}`}
               style={{ opacity: kit.watermarkOpacity }}
             >
-              {kit.logoUrl ? (
+              {logoUrl ? (
                 <Image
-                  src={kit.logoUrl}
+                  src={logoUrl}
                   alt={t('yourLogo')}
                   width={62}
                   height={24}
@@ -143,26 +157,24 @@ export function PreviewPanel({
               )}
             </div>
             {(!canWhiteLabel || !kit.hidePlatformBadge) && (
-              <div className="absolute bottom-1 left-1/2 -translate-x-1/2 whitespace-nowrap text-[7px] font-semibold text-white/55">
-                {t('madeWithSneepcut')}
+              <div className="absolute bottom-0.5 left-1/2 flex -translate-x-1/2 items-center gap-1 whitespace-nowrap text-[7px] font-semibold leading-none text-white/70">
+                <span>{t('madeWith')}</span>
+                <BrandLogo variant="white-text" size="xs" />
               </div>
             )}
           </div>
         </div>
 
-        <div className="rounded-xl border border-border/70 bg-background/55 p-4">
+        <div className="border-t border-border/70 pt-3">
           <div className="flex items-center justify-between gap-3">
             <div>
               <p className="text-xs font-semibold">{t('kitReadiness')}</p>
-              <p className="mt-0.5 text-[10px] text-muted-foreground">
-                {t('readinessHint')}
-              </p>
             </div>
             <span className="text-sm font-semibold tabular-nums">
               {completion}%
             </span>
           </div>
-          <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-muted">
+          <div className="mt-2 h-1 overflow-hidden rounded-full bg-muted">
             <div
               className="h-full rounded-full bg-primary transition-[width] duration-300"
               style={{ width: `${completion}%` }}

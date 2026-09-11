@@ -229,7 +229,7 @@ function EditorClipCard({
           )}
         </div>
         <Button asChild={true} className={styles.editButton}>
-          <Link href={`/dashboard/clips/${clip.id}/edit`}>
+          <Link href={`/dashboard/studio?clip=${encodeURIComponent(clip.id)}`}>
             <PencilLine aria-hidden="true" />
             {labels.edit}
           </Link>

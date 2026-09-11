@@ -44,7 +44,7 @@ export function BrandKitSelector({
   }, [])
 
   const color =
-    kit && /^#[0-9a-f]{6}$/i.test(kit.primaryColor)
+    kit?.primaryColor && /^#[0-9a-f]{6}$/i.test(kit.primaryColor)
       ? kit.primaryColor
       : '#7856ff'
   return (

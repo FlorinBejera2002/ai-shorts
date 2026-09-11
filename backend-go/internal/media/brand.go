@@ -119,8 +119,8 @@ func (s *Service) setBrandLogo(ctx context.Context, userID string, key *string) 
 	if e != nil {
 		return e
 	}
-	_, e = tx.ExecContext(ctx, `INSERT INTO brand_kits(id,user_id,logo_path,logo_url,primary_color,secondary_color,font_family,subtitle_font,subtitle_color,subtitle_bg_color,subtitle_bg_opacity,subtitle_position,watermark_position,watermark_opacity,hide_platform_badge,created_at,updated_at)
-	VALUES($1,$2,$3,NULL,'#6366f1','#8b5cf6','Inter','Inter Bold','#FFFFFF','#000000',0.7,'bottom','bottom-right',0.8,false,now(),now())
+	_, e = tx.ExecContext(ctx, `INSERT INTO brand_kits(id,user_id,logo_path,logo_url,primary_color,secondary_color,font_family,apply_brand_colors,apply_brand_font,subtitle_font,subtitle_color,subtitle_bg_color,subtitle_bg_opacity,subtitle_position,watermark_position,watermark_opacity,hide_platform_badge,created_at,updated_at)
+	VALUES($1,$2,$3,NULL,'#6366f1','#8b5cf6','Inter',false,false,'Inter Bold','#FFFFFF','#000000',0.7,'bottom','bottom-right',0.8,false,now(),now())
 	ON CONFLICT(user_id) DO UPDATE SET logo_path=excluded.logo_path,logo_url=NULL,updated_at=now()`, id, userID, key)
 	if e != nil {
 		return e

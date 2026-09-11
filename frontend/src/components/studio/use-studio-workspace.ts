@@ -13,7 +13,7 @@ const origin = configuredStudioOrigin(
 )
 const lastProjectKey = (user: string) => `sneepcut:studio:last:${user}`
 
-export function useStudioWorkspace() {
+export function useStudioWorkspace(initialClipId?: string) {
   const session = useAuth()
   const userId = session.user?.id
   const [api] = useState(() =>
@@ -44,10 +44,11 @@ export function useStudioWorkspace() {
       } catch {
         /* Browser storage may be disabled; the workspace still opens. */
       }
-      const active =
-        projects.find((project) => project.id === saved) ??
-        projects[0] ??
-        (await api.workspace(controller.signal))
+      const active = initialClipId
+        ? await api.openClip(initialClipId, controller.signal)
+        : (projects.find((project) => project.id === saved) ??
+          projects[0] ??
+          (await api.workspace(controller.signal)))
       if (!controller.signal.aborted)
         setState({
           user: userId,
@@ -61,7 +62,7 @@ export function useStudioWorkspace() {
         )
     })
     return () => controller.abort()
-  }, [api, userId, session.status, attempt])
+  }, [api, userId, session.status, attempt, initialClipId])
 
   const connectedUser = visible?.user
   useEffect(() => {

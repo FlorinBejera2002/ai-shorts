@@ -6,8 +6,8 @@ import { StudioLibrary } from './studio-library'
 import { StudioWorkspace } from './studio-workspace'
 import { useStudioWorkspace } from './use-studio-workspace'
 
-export function StudioProjects() {
-  const studio = useStudioWorkspace()
+export function StudioProjects({ initialClipId }: { initialClipId?: string }) {
+  const studio = useStudioWorkspace(initialClipId)
   const [libraryOpen, setLibraryOpen] = useState(true)
   if (!studio.origin) return <p role="status">Studio is not available yet.</p>
   if (!studio.active)

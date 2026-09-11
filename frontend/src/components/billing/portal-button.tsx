@@ -75,7 +75,7 @@ export function PortalButton({
         disabled={disabled || loading}
         aria-busy={loading}
         aria-describedby={error ? errorId : undefined}
-        className={`${className} min-h-11 disabled:cursor-not-allowed disabled:opacity-65`}
+        className={`${className} disabled:cursor-not-allowed disabled:opacity-65`}
       >
         {loading ? (
           <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />

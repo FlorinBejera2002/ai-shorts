@@ -13,7 +13,7 @@ var ErrPlan = errors.New("Removing the platform badge requires an Agency plan")
 var ErrInactive = errors.New("Account is unavailable")
 var colorPattern = regexp.MustCompile(`^#[0-9a-fA-F]{6}$`)
 var fontPattern = regexp.MustCompile(`^[A-Za-z0-9 -]+$`)
-var columns = map[string]string{"primaryColor": "primary_color", "secondaryColor": "secondary_color", "fontFamily": "font_family", "subtitleFont": "subtitle_font", "subtitleColor": "subtitle_color", "subtitleBgColor": "subtitle_bg_color", "subtitleBgOpacity": "subtitle_bg_opacity", "subtitlePosition": "subtitle_position", "watermarkPosition": "watermark_position", "watermarkOpacity": "watermark_opacity", "hidePlatformBadge": "hide_platform_badge"}
+var columns = map[string]string{"primaryColor": "primary_color", "secondaryColor": "secondary_color", "fontFamily": "font_family", "applyBrandColors": "apply_brand_colors", "applyBrandFont": "apply_brand_font", "subtitleFont": "subtitle_font", "subtitleColor": "subtitle_color", "subtitleBgColor": "subtitle_bg_color", "subtitleBgOpacity": "subtitle_bg_opacity", "subtitlePosition": "subtitle_position", "watermarkPosition": "watermark_position", "watermarkOpacity": "watermark_opacity", "hidePlatformBadge": "hide_platform_badge"}
 
 func Validate(input map[string]any) (map[string]any, error) {
 	if len(input) == 0 {
@@ -55,7 +55,7 @@ func Validate(input map[string]any) (map[string]any, error) {
 				return nil, ErrInvalid
 			}
 			output[key] = number
-		case key == "hidePlatformBadge":
+		case key == "hidePlatformBadge" || key == "applyBrandColors" || key == "applyBrandFont":
 			flag, ok := value.(bool)
 			if !ok {
 				return nil, ErrInvalid

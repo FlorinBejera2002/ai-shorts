@@ -103,7 +103,7 @@ html.dark body:has(#dashboard-shell) {
   box-shadow: none;
 }
 #dashboard-main [data-slot="card"]:not([class*="rounded-"]) {
-  border-radius: 10px;
+  border-radius: var(--radius-md);
 }
 #dashboard-main input:not([type="checkbox"]):not([type="radio"]),
 #dashboard-main textarea {
@@ -173,19 +173,20 @@ html.dark body:has(#dashboard-shell) {
 .account-inspector {
   min-width: 0;
 }
-.brand-workspace {
+#dashboard-main .brand-workspace {
   --brand-line: color-mix(in srgb, var(--border) 82%, transparent);
+  gap: 14px;
 }
-.brand-section-nav {
-  scrollbar-width: none;
-}
-.brand-section-nav::-webkit-scrollbar {
-  display: none;
+#dashboard-main .brand-workspace > .brand-save-bar {
+  margin-top: 10px !important;
 }
 #dashboard-main .brand-section {
   scroll-margin-top: 92px;
   border-color: var(--brand-line);
-  box-shadow: 0 1px 0 color-mix(in srgb, var(--foreground) 3%, transparent);
+}
+#dashboard-main .brand-workspace input,
+#dashboard-main .brand-workspace select {
+  border-radius: var(--radius-md);
 }
 .brand-section-icon {
   background: color-mix(in srgb, var(--primary) 9%, var(--background));
@@ -194,17 +195,13 @@ html.dark body:has(#dashboard-shell) {
     color-mix(in srgb, var(--primary) 14%, transparent);
 }
 .brand-upload-zone {
-  border-color: color-mix(in srgb, var(--border) 90%, var(--foreground));
-  background: radial-gradient(
-      circle at 50% 0%,
-      color-mix(in srgb, var(--primary) 8%, transparent),
-      transparent 50%
-    ), color-mix(in srgb, var(--muted) 32%, transparent);
+  border-color: color-mix(in srgb, var(--primary) 24%, var(--border));
+  background: var(--card);
 }
 .brand-upload-zone:hover,
 .brand-upload-zone.is-dragging {
   border-color: color-mix(in srgb, var(--primary) 65%, var(--border));
-  background-color: color-mix(in srgb, var(--primary) 5%, var(--background));
+  background-color: color-mix(in srgb, var(--primary) 3%, var(--card));
 }
 .brand-transparency-grid {
   background-color: #f7f7f8;
@@ -231,24 +228,15 @@ html.dark body:has(#dashboard-shell) {
   border-color: color-mix(in srgb, var(--border) 76%, transparent);
   background: linear-gradient(
       150deg,
-      color-mix(in srgb, var(--card) 96%, var(--primary)) 0%,
-      var(--card) 58%
+      color-mix(in srgb, var(--card) 98%, var(--primary)) 0%,
+      var(--card) 64%
     ), var(--card);
 }
 .brand-preview-stage {
-  background: linear-gradient(
-      135deg,
-      color-mix(in srgb, var(--muted) 62%, transparent),
-      transparent
-    ),
-    repeating-linear-gradient(
-      135deg,
-      transparent 0 12px,
-      color-mix(in srgb, var(--foreground) 2.5%, transparent) 12px 13px
-    );
+  background: color-mix(in srgb, var(--card) 98%, var(--foreground));
 }
 .brand-preview-canvas {
-  min-height: 128px;
+  min-height: 0;
 }
 .billing-plan-grid {
   align-items: stretch;
@@ -283,7 +271,7 @@ html.dark body:has(#dashboard-shell) {
   margin-bottom: 26px;
   padding: 28px 30px;
   border: 0;
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   background: #20232d;
   color: #f3f5fa;
   box-shadow: 8px 18px 26px -10px rgb(0 0 0 / 35%);

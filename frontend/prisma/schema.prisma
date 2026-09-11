@@ -216,6 +216,8 @@ model BrandKit {
   primaryColor      String   @default("#6366f1") @map("primary_color") @db.VarChar(20)
   secondaryColor    String   @default("#8b5cf6") @map("secondary_color") @db.VarChar(20)
   fontFamily        String   @default("Inter") @map("font_family") @db.VarChar(100)
+  applyBrandColors  Boolean  @default(false) @map("apply_brand_colors")
+  applyBrandFont    Boolean  @default(false) @map("apply_brand_font")
   subtitleFont      String   @default("Inter Bold") @map("subtitle_font") @db.VarChar(100)
   subtitleColor     String   @default("#FFFFFF") @map("subtitle_color") @db.VarChar(20)
   subtitleBgColor   String   @default("#000000") @map("subtitle_bg_color") @db.VarChar(20)

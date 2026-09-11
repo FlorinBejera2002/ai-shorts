@@ -3,6 +3,8 @@ export type BrandKit = {
   primaryColor: string
   secondaryColor: string
   fontFamily: string
+  applyBrandColors: boolean
+  applyBrandFont: boolean
   subtitleFont: string
   subtitleColor: string
   subtitleBgColor: string

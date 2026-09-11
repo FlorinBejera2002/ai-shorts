@@ -12,12 +12,10 @@ import {
   CornerDownRight,
   CornerUpLeft,
   CornerUpRight,
-  Lock,
-  Stamp
+  Lock
 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
-import { SectionHeading } from './section-heading'
 import type { BrandKit, BrandKitUpdate } from './types'
 
 const POSITIONS = [
@@ -40,35 +38,33 @@ export function WatermarkSection({
 
   return (
     <Card
-      id="brand-watermark"
       as="section"
-      className="brand-section p-5 sm:p-6"
+      id="brand-watermark"
+      className="brand-section @container/watermark min-w-0 gap-3 p-3"
     >
-      <SectionHeading
-        icon={Stamp}
-        eyebrow={t('videoEyebrow')}
-        title={t('watermark')}
-        description={t('watermarkDesc')}
-      />
+      <h2 className="text-sm font-medium text-foreground">{t('watermark')}</h2>
 
-      <div className="grid gap-5 lg:grid-cols-[1fr_0.8fr_1.15fr]">
+      <div className="grid gap-3 @min-[520px]/watermark:grid-cols-2">
         <div>
           <Label className="text-xs text-muted-foreground">
             {t('position')}
           </Label>
-          <div className="mt-2 grid grid-cols-2 gap-2">
+          <div className="mt-1 grid grid-cols-4 gap-1 rounded-md border border-border/70 bg-card p-1">
             {POSITIONS.map(({ value, label, icon: Icon }) => (
               <Button
                 key={value}
                 type="button"
-                variant={
-                  kit.watermarkPosition === value ? 'default' : 'outline'
-                }
+                variant="ghost"
+                title={t(label)}
+                aria-label={t(label)}
                 onClick={() => update('watermarkPosition', value)}
-                className="h-10 rounded-lg px-2 text-[11px]"
+                className={`h-8 rounded-sm px-1 hover:bg-muted ${
+                  kit.watermarkPosition === value
+                    ? 'bg-primary text-primary-foreground hover:bg-primary'
+                    : 'text-muted-foreground'
+                }`}
               >
                 <Icon />
-                {t(label)}
               </Button>
             ))}
           </div>
@@ -91,14 +87,11 @@ export function WatermarkSection({
             onValueChange={([value = 80]) =>
               update('watermarkOpacity', value / 100)
             }
-            className="mt-3 w-full"
+            className="mt-2.5 w-full"
           />
-          <p className="mt-3 text-[11px] leading-relaxed text-muted-foreground">
-            {t('opacityHint')}
-          </p>
         </div>
 
-        <div className="rounded-xl border border-border/80 bg-muted/20 p-4">
+        <div className="border-t border-border/70 pt-3 @min-[520px]/watermark:col-span-2">
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-2 text-sm font-semibold">
               {!canWhiteLabel && (
@@ -115,13 +108,10 @@ export function WatermarkSection({
               }
             />
           </div>
-          <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
-            {canWhiteLabel ? t('badgeOnDesc') : t('badgeLockedDesc')}
-          </p>
           {!canWhiteLabel && (
             <Link
               href="/dashboard/billing"
-              className="mt-3 inline-flex items-center gap-1 text-[11px] font-semibold text-primary hover:underline"
+              className="mt-2 inline-flex items-center gap-1 text-[11px] font-semibold text-primary hover:underline"
             >
               {t('upgradeAgency')}
               <ArrowUpRight className="size-3" />

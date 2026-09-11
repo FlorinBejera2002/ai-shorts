@@ -19,7 +19,6 @@ type InvoiceStatusLabels = {
 
 type InvoiceHistoryLabels = {
   title: string
-  description: string
   tableCaption: string
   number: string
   date: string
@@ -116,7 +115,7 @@ function InvoiceActions({
           href={hostedUrl}
           target="_blank"
           rel="noreferrer"
-          className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-border bg-background px-2.5 text-xs font-semibold text-foreground transition-colors hover:border-primary/40 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-background px-2.5 text-xs font-medium text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
           {labels.viewInvoice}
@@ -127,7 +126,7 @@ function InvoiceActions({
           href={pdfUrl}
           target="_blank"
           rel="noreferrer"
-          className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-border bg-background px-2.5 text-xs font-semibold text-foreground transition-colors hover:border-primary/40 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-background px-2.5 text-xs font-medium text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <Download className="h-3.5 w-3.5" aria-hidden="true" />
           {labels.downloadPdf}
@@ -145,19 +144,11 @@ export function InvoiceHistory({
   labels
 }: InvoiceHistoryProps) {
   return (
-    <section className="mt-10" aria-labelledby="billing-invoices-title">
-      <div className="mb-5 flex items-start gap-3">
-        <div className="icon-tile mt-0.5">
-          <ReceiptText className="h-4 w-4" aria-hidden="true" />
-        </div>
-        <div>
-          <h2 id="billing-invoices-title" className="text-lg font-semibold">
-            {labels.title}
-          </h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {labels.description}
-          </p>
-        </div>
+    <section className="mt-6" aria-labelledby="billing-invoices-title">
+      <div className="mb-3">
+        <h2 id="billing-invoices-title" className="text-base font-semibold">
+          {labels.title}
+        </h2>
       </div>
 
       {!providerAvailable && hasBillingProfile ? (
@@ -177,14 +168,14 @@ export function InvoiceHistory({
             type="button"
             onClick={() => window.location.reload()}
             variant="outline"
-            className="min-h-11 shrink-0"
+            className="h-9 shrink-0 rounded-md"
           >
             <RefreshCw className="h-4 w-4" aria-hidden="true" />
             {labels.retry}
           </Button>
         </Card>
       ) : invoices.length === 0 ? (
-        <Card className="block gap-0 py-0 px-5 py-10 text-center">
+        <Card className="block gap-0 py-0 px-4 py-7 text-center">
           <ReceiptText
             className="mx-auto h-7 w-7 text-muted-foreground/60"
             aria-hidden="true"
@@ -202,7 +193,7 @@ export function InvoiceHistory({
             <table className="w-full border-collapse text-left text-sm">
               <caption className="sr-only">{labels.tableCaption}</caption>
               <thead>
-                <tr className="border-b border-border bg-muted/35 text-xs text-muted-foreground">
+                <tr className="border-b border-border bg-card text-xs text-muted-foreground">
                   <th scope="col" className="px-5 py-3 font-medium">
                     {labels.number}
                   </th>
@@ -224,7 +215,7 @@ export function InvoiceHistory({
                 {invoices.map((invoice) => (
                   <tr
                     key={invoice.id}
-                    className="border-b border-border last:border-b-0"
+                    className="border-b border-border/70 last:border-b-0"
                   >
                     <th scope="row" className="px-5 py-4 font-semibold">
                       {invoice.number}

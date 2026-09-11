@@ -360,18 +360,17 @@ export function ClipWorkspace({ clip }: ClipWorkspaceProps) {
       </Card>
 
       <Card className="block gap-0 py-0 p-4">
-        <h2 className="section-label">Timeline editor</h2>
+        <h2 className="section-label">Studio</h2>
         <p className="mt-2 text-xs text-muted-foreground">
-          Adjust segment boundaries, reorder clips, and re-export with the
-          visual timeline editor.
+          Continue editing this video in Studio.
         </p>
         <Button asChild={true} variant="default">
           <Link
-            href={`/dashboard/clips/${clip.id}/edit`}
+            href={`/dashboard/studio?clip=${encodeURIComponent(clip.id)}`}
             className="mt-3 rounded-lg"
           >
             <Scissors className="h-3.5 w-3.5" />
-            Edit on timeline →
+            Open in Studio →
           </Link>
         </Button>
       </Card>

@@ -23,7 +23,7 @@ export function AuthPanel({
           variant="outline"
           className="mb-7 rounded-md border-primary/30 bg-primary/10 px-3 py-1 text-primary"
         >
-          sneepcut studio
+          <BrandLogo variant="white-text" size="sm" />
         </Badge>
         <h2 className="text-5xl font-semibold leading-[1.06] tracking-[-0.045em] xl:text-6xl">
           {title}

@@ -1,4 +1,4 @@
-import { Clapperboard } from 'lucide-react'
+import { BrandLogo } from '@/components/shared/brand-logo'
 import type { ReactNode } from 'react'
 
 /**
@@ -18,8 +18,7 @@ export function PageHeader({
     <header className="studio-workbench-header relative flex flex-wrap items-end justify-between gap-5 pb-6">
       <div className="min-w-0">
         <div className="studio-workbench-eyebrow flex items-center gap-2">
-          <Clapperboard aria-hidden="true" className="size-3.5" />
-          sneepcut studio
+          <BrandLogo variant="white-text" />
         </div>
         <h1 className="text-3xl font-semibold tracking-[-0.045em] sm:text-[2.5rem]">
           {title}

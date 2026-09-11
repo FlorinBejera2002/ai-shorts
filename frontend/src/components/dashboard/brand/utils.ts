@@ -44,8 +44,6 @@ export function contrastRatio(foreground: string, background: string) {
 export function brandCompletion(kit: BrandKit) {
   const checks = [
     Boolean(kit.logoUrl),
-    HEX_RE.test(kit.primaryColor) && HEX_RE.test(kit.secondaryColor),
-    Boolean(kit.fontFamily),
     Boolean(kit.subtitleFont) && HEX_RE.test(kit.subtitleColor)
   ]
   return Math.round((checks.filter(Boolean).length / checks.length) * 100)

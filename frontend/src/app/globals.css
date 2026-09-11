@@ -401,6 +401,55 @@ input:-webkit-autofill:focus {
 }
 
 /* ─── Animation utilities ─── */
+@keyframes brand-fluid-primary {
+  0%,
+  100% {
+    transform: translate3d(-12%, 8%, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(18%, -10%, 0) scale(1.16);
+  }
+}
+
+@keyframes brand-fluid-secondary {
+  0%,
+  100% {
+    transform: translate3d(12%, -12%, 0) scale(1.08);
+  }
+  50% {
+    transform: translate3d(-20%, 16%, 0) scale(0.92);
+  }
+}
+
+.brand-preview-fluid {
+  position: absolute;
+  width: 78%;
+  aspect-ratio: 1;
+  border-radius: 9999px;
+  filter: blur(42px);
+  opacity: 0.5;
+  pointer-events: none;
+  will-change: transform;
+}
+
+.brand-preview-fluid-primary {
+  bottom: -38%;
+  left: -30%;
+  animation: brand-fluid-primary 12s ease-in-out infinite;
+}
+
+.brand-preview-fluid-secondary {
+  top: -28%;
+  right: -30%;
+  animation: brand-fluid-secondary 10s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .brand-preview-fluid {
+    animation: none;
+  }
+}
+
 .animate-fade-in {
   animation: fade-in 0.3s ease both;
 }

@@ -79,10 +79,10 @@ export function CheckoutButton({
         disabled={disabled || loading}
         aria-busy={loading}
         aria-describedby={error ? errorId : undefined}
-        className={`flex min-h-11 w-full items-center justify-center gap-2 rounded-lg px-3 text-[13px] font-semibold transition-all disabled:cursor-not-allowed disabled:opacity-65 ${
+        className={`flex h-9 w-full items-center justify-center gap-2 rounded-md px-3 text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-65 ${
           emphasized
-            ? 'bg-primary text-primary-foreground hover:-translate-y-0.5 hover:bg-primary/90'
-            : 'border border-border bg-card text-foreground hover:border-primary/35 hover:bg-primary/5 hover:text-primary'
+            ? 'bg-primary text-primary-foreground hover:bg-primary/90'
+            : 'border border-border bg-card text-foreground hover:bg-muted'
         }`}
       >
         {loading ? (

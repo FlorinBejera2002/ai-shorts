@@ -69,7 +69,7 @@ func (h *Handler) exportData(ctx context.Context, userID string) (map[string]any
 		}
 		data[c.name] = items
 	}
-	brand := projection("logo_path,logo_url,primary_color,secondary_color,font_family,subtitle_font,subtitle_color,subtitle_bg_color,subtitle_bg_opacity,subtitle_position,watermark_position,watermark_opacity,hide_platform_badge,created_at,updated_at")
+	brand := projection("logo_path,logo_url,primary_color,secondary_color,font_family,apply_brand_colors,apply_brand_font,subtitle_font,subtitle_color,subtitle_bg_color,subtitle_bg_opacity,subtitle_position,watermark_position,watermark_opacity,hide_platform_badge,created_at,updated_at")
 	var brandJSON []byte
 	err = tx.QueryRowContext(ctx, `SELECT row_to_json(row) FROM (SELECT `+brand+` FROM brand_kits WHERE user_id=$1) row`, userID).Scan(&brandJSON)
 	if err != nil && err != sql.ErrNoRows {
