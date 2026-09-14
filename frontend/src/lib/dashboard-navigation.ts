@@ -6,7 +6,12 @@ export const dashboardNavigation = [
       { href: '/dashboard/studio', key: 'editor' },
       { href: '/dashboard/script-generator', key: 'scripts' },
       { href: '/dashboard/clips', key: 'clips' },
-      { href: '/dashboard/publish', key: 'publish' },
+      { href: '/dashboard/publish', key: 'publish' }
+    ]
+  },
+  {
+    labelKey: 'groupWorkspace',
+    items: [
       { href: '/dashboard/brand', key: 'brand' },
       { href: '/dashboard/billing', key: 'billing' },
       { href: '/dashboard/settings', key: 'settings' }
