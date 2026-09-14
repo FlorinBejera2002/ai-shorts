@@ -1,5 +1,7 @@
 
-from pydantic import Field
+from typing import Literal
+
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -26,7 +28,9 @@ class Settings(BaseSettings):
     upload_token_secret: str = ""
     cors_origins: str = "http://localhost:3000,http://localhost"
     allowed_hosts: str = "*"
+    ai_provider: Literal["auto", "gemini", "openrouter"] = "auto"
     gemini_api_key: str = ""
+    openrouter_api_key: str = ""
 
     # AWS S3 Settings
     aws_access_key_id: str | None = None
@@ -49,6 +53,7 @@ class Settings(BaseSettings):
 
     # Gemini Settings
     gemini_model_name: str = "gemini-2.5-flash"
+    openrouter_model_name: str = "google/gemini-2.5-flash"
 
     # Processing Settings
     max_clips: int = 15
@@ -75,6 +80,13 @@ class Settings(BaseSettings):
     default_free_credits: int = 1000
     smart_crop_enabled: bool = True
     subtitles_enabled: bool = True
+
+    @field_validator("ai_provider", mode="before")
+    @classmethod
+    def normalize_ai_provider(cls, value: object) -> object:
+        if isinstance(value, str):
+            return (value or "auto").strip().lower()
+        return value
 
     def __init__(self, **data):
         super().__init__(**data)

@@ -5,8 +5,8 @@ import logging
 import math
 from typing import Any
 
-from app.config import settings
 from app.schemas.script import normalize_camera_movement, normalize_camera_values
+from app.services.ai_provider import generate_text, resolve_ai_selection
 
 logger = logging.getLogger(__name__)
 
@@ -238,14 +238,11 @@ def generate_script(
     style: str = "talking_head",
     api_key: str | None = None,
     model_name: str | None = None,
+    provider: str | None = None,
 ) -> dict[str, Any]:
-    api_key = api_key or settings.gemini_api_key
-    model_name = model_name or settings.gemini_model_name
-
-    if not api_key:
-        raise ValueError("Gemini API key is required for script generation")
-
-    from google import genai
+    selection = resolve_ai_selection(provider, api_key, model_name)
+    if not selection.api_key:
+        raise ValueError("AI provider is not configured")
 
     prompt = build_script_prompt(
         topic=topic,
@@ -257,8 +254,5 @@ def generate_script(
         style=style,
     )
 
-    client = genai.Client(api_key=api_key)
-    response = client.models.generate_content(model=model_name, contents=prompt)
-
-    raw = extract_json_response(response.text or "")
+    raw = extract_json_response(generate_text(prompt, selection))
     return validate_script(raw)

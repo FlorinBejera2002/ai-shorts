@@ -4,8 +4,8 @@ import json
 import logging
 from typing import Any
 
-from app.config import settings
 from app.schemas.assistant import CreatePageState, EditorPageState
+from app.services.ai_provider import generate_text, resolve_ai_selection
 from app.services.script_generator import extract_json_response
 
 logger = logging.getLogger(__name__)
@@ -186,26 +186,17 @@ def run_assistant(
     transcript_chunks: list[dict[str, Any]] | None = None,
     api_key: str | None = None,
     model_name: str | None = None,
+    provider: str | None = None,
 ) -> dict[str, Any]:
-    api_key = api_key or settings.gemini_api_key
-    model_name = model_name or settings.gemini_model_name
-    if not api_key:
-        raise ValueError("Gemini API key is required for the assistant")
-
-    from google import genai
+    selection = resolve_ai_selection(provider, api_key, model_name)
+    if not selection.api_key:
+        raise ValueError("AI provider is not configured")
 
     prompt = build_prompt(
         context, message, history, create_state, editor_state, transcript_chunks
     )
 
-    client = genai.Client(api_key=api_key)
-    response = client.models.generate_content(
-        model=model_name,
-        contents=prompt,
-        config={"response_mime_type": "application/json"},
-    )
-
-    raw_text = response.text or ""
+    raw_text = generate_text(prompt, selection)
     try:
         parsed = extract_json_response(raw_text)
     except (json.JSONDecodeError, ValueError):

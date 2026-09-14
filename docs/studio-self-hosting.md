@@ -62,6 +62,9 @@ optional `SNEEPCUT_AI_API_KEY`. It can target your own model host. No default
 HeyGen endpoint or key is used. Without a configured model, the assistant reports
 unavailability instead of fabricating success. Proposals do not write files;
 the user reviews and applies them using the editor's version-checked save API.
+When those Studio-specific variables are unset, `AI_PROVIDER=openrouter` (or
+`auto` with an OpenRouter key) reuses `OPENROUTER_API_KEY` and
+`OPENROUTER_MODEL_NAME`, so the main app and Studio can share one provider choice.
 
 ## Production deployment
 

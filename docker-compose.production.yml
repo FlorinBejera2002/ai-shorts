@@ -135,7 +135,10 @@ services:
       - media_data:/app/media
       - ${YOUTUBE_COOKIES_DIR:-/opt/sneepcut-secrets}:/run/secrets:ro
     pids_limit: 512
+    # Compose resolves these values from the environment before validating their types.
+    # noinspection ComposeUnknownValues
     mem_limit: ${WORKER_MEMORY_LIMIT:-6g}
+    # noinspection ComposeUnknownValues
     cpus: ${WORKER_CPU_LIMIT:-2}
     stop_grace_period: 2m
     depends_on:
@@ -195,6 +198,9 @@ services:
       SNEEPCUT_AI_BASE_URL: ${SNEEPCUT_AI_BASE_URL:-}
       SNEEPCUT_AI_MODEL: ${SNEEPCUT_AI_MODEL:-}
       SNEEPCUT_AI_API_KEY: ${SNEEPCUT_AI_API_KEY:-}
+      AI_PROVIDER: ${AI_PROVIDER:-auto}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      OPENROUTER_MODEL_NAME: ${OPENROUTER_MODEL_NAME:-google/gemini-2.5-flash}
       PRODUCER_HEADLESS_SHELL_PATH: /usr/bin/chromium
       HYPERFRAMES_NO_TELEMETRY: "1"
       HOME: /tmp/studio-home
@@ -268,6 +274,8 @@ services:
         max-size: "10m"
         max-file: "3"
     healthcheck:
+      # Compose supports an exec-form list, including a folded scalar for the script.
+      # noinspection ComposeUnknownValues
       test:
         - CMD
         - node

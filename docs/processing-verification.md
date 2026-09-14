@@ -23,11 +23,12 @@ FFmpeg. Smart-crop failures cannot count as a passing test. Logs, the generated
 media, and a JSON report remain in the printed `.cache/` directory; disposable
 containers and their database are removed at the end.
 
-Model downloads require Internet access. Without `GEMINI_API_KEY` in the runner's
-environment, highlight selection uses the application's local fallback. To
-test Gemini too, explicitly authorize its API use and provide the key in the
-runner environment; this sends the synthetic transcript to Gemini and can incur
-API charges. The test rejects a Gemini failure that falls back to local selection.
+Model downloads require Internet access. Without a configured Gemini or
+OpenRouter key in the runner's environment, highlight selection uses the
+application's local fallback. To test cloud selection too, explicitly authorize
+provider use and supply `AI_PROVIDER` plus its key/model variables; this sends
+the synthetic transcript to that provider and can incur API charges. The test
+rejects a provider failure that falls back to local selection.
 The runner does not test browser interaction, YouTube downloads, social publishing,
 or production storage providers. Its low frame rate keeps real model inference
 bounded on developer machines; it is not a processing-speed benchmark.

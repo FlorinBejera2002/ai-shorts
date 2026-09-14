@@ -1,7 +1,9 @@
-import { afterEach, expect, it, mock, spyOn } from "bun:test";
+import { afterEach, beforeEach, expect, it, mock, spyOn } from "bun:test";
 import { createAiRoutes } from "./ai";
 
-const html = '<html><body><video src="/assets/clip.mp4"></video></body></html>';
+// The asset path belongs to a synthetic project; these tests never load media files.
+// noinspection HtmlUnknownTarget
+const html = '<html lang="en"><body><video src="/assets/clip.mp4"></video></body></html>';
 const proposal = { html, summary: "Updated composition" };
 const request = (body: unknown = { message: "Improve the title", html }) =>
   new Request("http://localhost/projects/project-1/assistant", {
@@ -13,12 +15,30 @@ const savedEnv = {
   base: process.env.SNEEPCUT_AI_BASE_URL,
   model: process.env.SNEEPCUT_AI_MODEL,
   key: process.env.SNEEPCUT_AI_API_KEY,
+  provider: process.env.AI_PROVIDER,
+  openRouterKey: process.env.OPENROUTER_API_KEY,
+  openRouterModel: process.env.OPENROUTER_MODEL_NAME,
 };
+beforeEach(() => {
+  for (const name of [
+    "SNEEPCUT_AI_BASE_URL",
+    "SNEEPCUT_AI_MODEL",
+    "SNEEPCUT_AI_API_KEY",
+    "AI_PROVIDER",
+    "OPENROUTER_API_KEY",
+    "OPENROUTER_MODEL_NAME",
+  ]) {
+    delete process.env[name];
+  }
+});
 afterEach(() => {
   for (const [name, value] of Object.entries({
     SNEEPCUT_AI_BASE_URL: savedEnv.base,
     SNEEPCUT_AI_MODEL: savedEnv.model,
     SNEEPCUT_AI_API_KEY: savedEnv.key,
+    AI_PROVIDER: savedEnv.provider,
+    OPENROUTER_API_KEY: savedEnv.openRouterKey,
+    OPENROUTER_MODEL_NAME: savedEnv.openRouterModel,
   })) {
     if (value === undefined) delete process.env[name];
     else process.env[name] = value;
@@ -69,7 +89,7 @@ it.each([
   null,
   { html, summary: 123 },
   { html: "x".repeat(500_001), summary: "Too large" },
-  { html: '<img src="https://unknown.invalid/media.png">', summary: "Remote resource" },
+  { html: '<img src="https://unknown.invalid/media.png" alt="">', summary: "Remote resource" },
 ])("rejects malformed or unsafe provider proposals", async (result) => {
   const app = createAiRoutes({
     userId: "u",
@@ -95,8 +115,125 @@ it("does not expose provider errors or credentials", async () => {
 it("reports an unavailable provider explicitly", async () => {
   delete process.env.SNEEPCUT_AI_BASE_URL;
   delete process.env.SNEEPCUT_AI_MODEL;
+  delete process.env.SNEEPCUT_AI_API_KEY;
+  delete process.env.OPENROUTER_API_KEY;
   const app = createAiRoutes({ userId: "u", resolveProject: async () => ({}) });
   expect((await app.request(request())).status).toBe(503);
+});
+
+it.each(["not-a-url", "file:///tmp/provider", "https://user:secret@provider.invalid/v1"])(
+  "rejects invalid provider endpoint %j before making a request",
+  async (base) => {
+    process.env.SNEEPCUT_AI_BASE_URL = base;
+    process.env.SNEEPCUT_AI_MODEL = "test-model";
+    const provider = spyOn(globalThis, "fetch").mockRejectedValue(new Error("Unexpected request"));
+    try {
+      const app = createAiRoutes({ userId: "u", resolveProject: async () => ({}) });
+      const response = await app.request(request());
+      expect(response.status).toBe(503);
+      expect(provider).not.toHaveBeenCalled();
+      expect(await response.text()).not.toContain("secret");
+    } finally {
+      provider.mockRestore();
+    }
+  },
+);
+
+it.each(["openrouter", "OpenRouter", " openrouter ", "auto", " AuTo ", ""])(
+  "uses OpenRouter with normalized shared provider configuration %j",
+  async (providerName) => {
+    delete process.env.SNEEPCUT_AI_BASE_URL;
+    delete process.env.SNEEPCUT_AI_MODEL;
+    delete process.env.SNEEPCUT_AI_API_KEY;
+    process.env.AI_PROVIDER = providerName;
+    process.env.OPENROUTER_API_KEY = "router-private-key";
+    process.env.OPENROUTER_MODEL_NAME = "anthropic/claude-test";
+    const provider = spyOn(globalThis, "fetch").mockResolvedValue(
+      Response.json({
+        choices: [{ message: { content: JSON.stringify(proposal) } }],
+      }),
+    );
+    try {
+      const app = createAiRoutes({ userId: "u", resolveProject: async () => ({}) });
+      const response = await app.request(request());
+      expect(response.status).toBe(200);
+      expect(String(provider.mock.calls[0]?.[0])).toBe(
+        "https://openrouter.ai/api/v1/chat/completions",
+      );
+      const init = provider.mock.calls[0]?.[1];
+      const body = JSON.parse(String(init?.body));
+      expect(body.model).toBe("anthropic/claude-test");
+      expect(body).not.toHaveProperty("response_format");
+      expect(init?.headers).toMatchObject({
+        Authorization: "Bearer router-private-key",
+        "X-Title": "Sneepcut",
+      });
+    } finally {
+      provider.mockRestore();
+    }
+  },
+);
+
+it.each(["gemini", " Gemini ", "unknown", " "])(
+  "does not select OpenRouter for provider configuration %j",
+  async (providerName) => {
+    process.env.AI_PROVIDER = providerName;
+    process.env.OPENROUTER_API_KEY = "router-private-key";
+    const provider = spyOn(globalThis, "fetch");
+    try {
+      const app = createAiRoutes({ userId: "u", resolveProject: async () => ({}) });
+      expect((await app.request(request())).status).toBe(503);
+      expect(provider).not.toHaveBeenCalled();
+    } finally {
+      provider.mockRestore();
+    }
+  },
+);
+
+it.each([
+  ["bare JSON", JSON.stringify(proposal)],
+  ["JSON fence", `\`\`\`json\n${JSON.stringify(proposal)}\n\`\`\``],
+  ["plain fence", `\`\`\`\n${JSON.stringify(proposal)}\n\`\`\``],
+  ["CRLF and outer whitespace", ` \n\`\`\`JSON\r\n${JSON.stringify(proposal)}\r\n\`\`\`\n `],
+])("accepts an OpenRouter proposal with %s", async (_name, content) => {
+  process.env.AI_PROVIDER = "openrouter";
+  process.env.OPENROUTER_API_KEY = "router-private-key";
+  const provider = spyOn(globalThis, "fetch").mockResolvedValue(
+    Response.json({ choices: [{ message: { content } }] }),
+  );
+  try {
+    const app = createAiRoutes({ userId: "u", resolveProject: async () => ({}) });
+    const response = await app.request(request());
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual(proposal);
+  } finally {
+    provider.mockRestore();
+  }
+});
+
+it.each([
+  `\`\`\`json\ninvalid JSON secret\n\`\`\``,
+  `\`\`\`json\n${JSON.stringify(proposal)}`,
+  `\`\`\`json\n${JSON.stringify([proposal])}\n\`\`\``,
+  `\`\`\`json\n${JSON.stringify({ html, summary: 123 })}\n\`\`\``,
+  `\`\`\`json\n${JSON.stringify({ html: '<img src="https://unknown.invalid/media.png" alt="">', summary: "Unsafe" })}\n\`\`\``,
+  `\`\`\`json\n${JSON.stringify({ ...proposal, html: "x".repeat(500_001) })}\n\`\`\``,
+])("rejects malformed or unsafe fenced proposals", async (content) => {
+  process.env.AI_PROVIDER = "openrouter";
+  process.env.OPENROUTER_API_KEY = "router-private-key";
+  const provider = spyOn(globalThis, "fetch").mockResolvedValue(
+    Response.json({ choices: [{ message: { content } }] }),
+  );
+  try {
+    const app = createAiRoutes({ userId: "u", resolveProject: async () => ({}) });
+    const response = await app.request(request());
+    expect(response.status).toBe(502);
+    expect(await response.json()).toEqual({
+      error: "AI provider could not produce a valid proposal",
+    });
+  } finally {
+    provider.mockRestore();
+  }
 });
 
 it("sanitizes malformed chat-completion responses", async () => {
@@ -132,6 +269,8 @@ it("uses only the configured provider and preserves existing remote asset URLs",
     const response = await app.request(request({ message: "Keep this media", html: remoteHtml }));
     expect(response.status).toBe(200);
     expect(String(provider.mock.calls[0]?.[0])).toBe("http://127.0.0.1:11434/v1/chat/completions");
+    const body = JSON.parse(String(provider.mock.calls[0]?.[1]?.body));
+    expect(body.response_format).toEqual({ type: "json_object" });
     expect(await response.text()).not.toContain("private-key");
   } finally {
     provider.mockRestore();

@@ -14,8 +14,8 @@ test('rejects transport URLs that would append API paths after a path, query, or
     assert.deepEqual(validateCloudflareEnvironment({ ...environment, [key]: 'https://api.example.com/' }), [])
   }
 })
-test('rejects mail and storage credentials from the frontend environment', () => {
-  for (const key of ['RESEND_API_KEY', 'SMTP_PASSWORD', 'AWS_ACCESS_KEY_ID', 'AWS_SECRET_ACCESS_KEY', 'AWS_SESSION_TOKEN', 'UPLOAD_POST_API_KEY']) {
+test('rejects AI, mail and storage credentials from the frontend environment', () => {
+  for (const key of ['OPENROUTER_API_KEY', 'RESEND_API_KEY', 'SMTP_PASSWORD', 'AWS_ACCESS_KEY_ID', 'AWS_SECRET_ACCESS_KEY', 'AWS_SESSION_TOKEN', 'UPLOAD_POST_API_KEY']) {
     assert.ok(validateCloudflareEnvironment({ ...environment, [key]: 'synthetic-value' }).some(issue => issue.startsWith(key)))
   }
 })

@@ -1,4 +1,10 @@
-from app.services.highlight_detector import extract_json_response, fallback_highlights, validate_highlights
+from app.services import highlight_detector
+from app.services.highlight_detector import (
+    detect_highlights,
+    extract_json_response,
+    fallback_highlights,
+    validate_highlights,
+)
 
 
 def test_extract_json_response_from_fenced_block():
@@ -36,3 +42,27 @@ def test_fallback_highlights_uses_word_dense_window():
     result = fallback_highlights(transcript, video_duration=120, requested_clips=1)
     assert len(result) == 1
     assert result[0].source == "fallback"
+
+
+def test_openrouter_highlights_record_provider(monkeypatch):
+    monkeypatch.setattr(
+        highlight_detector,
+        "generate_text",
+        lambda _prompt, _selection: """{
+            "shorts": [{
+                "start": 10,
+                "end": 35,
+                "viral_score": 8,
+                "viral_hook_text": "Hook"
+            }]
+        }""",
+    )
+    result = detect_highlights(
+        {"text": "A useful transcript", "words": [], "segments": []},
+        video_duration=60,
+        requested_clips=1,
+        provider="openrouter",
+        api_key="test-key",
+        model_name="test/model",
+    )
+    assert result[0]["source"] == "openrouter"

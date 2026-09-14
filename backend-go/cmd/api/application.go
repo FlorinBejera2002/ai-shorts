@@ -11,6 +11,7 @@ import (
 	"github.com/redis/go-redis/v9"
 
 	"sneepcut/backend-go/internal/account"
+	"sneepcut/backend-go/internal/aiprovider"
 	"sneepcut/backend-go/internal/assistant"
 	"sneepcut/backend-go/internal/billing"
 	"sneepcut/backend-go/internal/brand"
@@ -25,10 +26,19 @@ import (
 	"sneepcut/backend-go/internal/identity"
 	"sneepcut/backend-go/internal/jobs"
 	"sneepcut/backend-go/internal/media"
+	"sneepcut/backend-go/internal/openrouter"
 	"sneepcut/backend-go/internal/projects"
 	"sneepcut/backend-go/internal/publishing"
 	"sneepcut/backend-go/internal/scripts"
 )
+
+func configuredGenerator(application config.Application) aiprovider.Generator {
+	provider := application.AIProvider
+	if provider == "openrouter" || (provider == "auto" && application.GeminiKey == "" && application.OpenRouterKey != "") {
+		return openrouter.New(application.OpenRouterKey, application.OpenRouterModel, application.AppURL)
+	}
+	return gemini.New(application.GeminiKey, application.GeminiModel)
+}
 
 func buildApplication(db *sql.DB, cfg config.Config, a config.Application, logger *slog.Logger) (http.Handler, func(), error) {
 	noop := func() {}
@@ -57,10 +67,19 @@ func buildApplication(db *sql.DB, cfg config.Config, a config.Application, logge
 	limits := redis.NewClient(options)
 	nonce, err := media.NewRedisNonceStore(a.RedisURL)
 	if err != nil {
-		limits.Close()
+		if closeErr := limits.Close(); closeErr != nil {
+			logger.Warn("Failed to close Redis request limiter", "error", closeErr)
+		}
 		return nil, noop, err
 	}
-	cleanup := func() { nonce.Close(); limits.Close() }
+	cleanup := func() {
+		if err := nonce.Close(); err != nil {
+			logger.Warn("Failed to close Redis nonce store", "error", err)
+		}
+		if err := limits.Close(); err != nil {
+			logger.Warn("Failed to close Redis request limiter", "error", err)
+		}
+	}
 	auth.SetRequestLimiter(identity.NewRequestLimiter(limits, cfg.Auth.SecureCookies))
 	var storage media.Storage
 	if a.StorageType == "s3" {
@@ -87,7 +106,7 @@ func buildApplication(db *sql.DB, cfg config.Config, a config.Application, logge
 	stopPublishing := publishingHandler.Start(context.Background())
 	previousCleanup := cleanup
 	cleanup = func() { stopPublishing(); previousCleanup() }
-	generator := gemini.New(a.GeminiKey, a.GeminiModel)
+	generator := configuredGenerator(a)
 	readiness := func(router *httprouter.Router) {
 		router.HandlerFunc("GET", "/api/ready", func(w http.ResponseWriter, r *http.Request) {
 			ctx, cancel := context.WithTimeout(r.Context(), 3*time.Second)
@@ -96,6 +115,8 @@ func buildApplication(db *sql.DB, cfg config.Config, a config.Application, logge
 			schema := false
 			if database {
 				var valid bool
+				// The runtime database is supplied by configuration, independently of IDE data sources.
+				//noinspection SqlNoDataSourceInspection
 				schema = db.QueryRowContext(ctx, `SELECT
 					EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema=current_schema() AND table_name='users' AND column_name='email_activation_required')
 					AND EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema=current_schema() AND table_name='users' AND column_name='mfa_enabled')

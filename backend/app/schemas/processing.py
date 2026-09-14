@@ -56,7 +56,7 @@ class HighlightCandidate(BaseModel):
     transition_duration: float = Field(default=0.25, ge=0.05, le=0.5)
     rank: int = Field(default=0, ge=0)
     viral_score: int = Field(default=0, ge=0, le=10)
-    source: Literal["gemini", "fallback"] = "gemini"
+    source: Literal["gemini", "openrouter", "fallback"] = "gemini"
     video_description_for_tiktok: str = ""
     video_description_for_instagram: str = ""
     video_title_for_youtube_short: str = ""

@@ -123,7 +123,8 @@ ownership boundaries. S3 output still requires local rendering workspace.
   MediaPipe and scene detection. Provision model downloads, writable cache/weight
   paths and fonts before a production ML check. Compose declares no dedicated
   model-cache volume or GPU reservation; models initialize on demand.
-- `GEMINI_API_KEY`/`GEMINI_MODEL_NAME` enable provider highlights. Remote source
+- `AI_PROVIDER` and the selected Gemini or OpenRouter key/model enable provider
+  highlights. Remote source
   downloads need network access and may need a mounted `YOUTUBE_COOKIES_PATH`.
   The deterministic smoke does not establish live provider/source availability.
 - Local storage uses shared `LOCAL_MEDIA_ROOT`/`media_data`. S3 needs compatible

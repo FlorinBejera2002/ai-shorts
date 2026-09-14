@@ -12,15 +12,67 @@ func TestApplicationProductionConfiguration(t *testing.T) {
 	if err != nil || !a.ScannerEnabled || !a.SMTPRequireTLS {
 		t.Fatal("production must require scanning and mail TLS", err)
 	}
-	for _, test := range []struct{ key, value string }{{"APP_URL", "http://app.example.invalid"}, {"APP_URL", "https://app.example.invalid/path"}, {"STORAGE_TYPE", "unknown"}, {"TRUSTED_PROXY_CIDRS", "*"}, {"ALLOWED_HOSTS", "*"}, {"MAX_UPLOAD_SIZE_MB", "-1"}, {"REDIS_URL", "https://invalid"}, {"AUTH_REQUIRE_EMAIL_VERIFICATION", "true"}, {"GOOGLE_CLIENT_ID", "configured-without-secret"}, {"INTERNAL_API_KEY", "short"}} {
+	for _, test := range []struct{ key, value string }{{"APP_URL", "http://app.example.invalid"}, {"APP_URL", "https://app.example.invalid/path"}, {"STORAGE_TYPE", "unknown"}, {"AI_PROVIDER", "unknown"}, {"OPENROUTER_MODEL_NAME", "bad\nmodel"}, {"TRUSTED_PROXY_CIDRS", "*"}, {"ALLOWED_HOSTS", "*"}, {"MAX_UPLOAD_SIZE_MB", "-1"}, {"REDIS_URL", "https://invalid"}, {"AUTH_REQUIRE_EMAIL_VERIFICATION", "true"}, {"GOOGLE_CLIENT_ID", "configured-without-secret"}, {"INTERNAL_API_KEY", "short"}} {
 		t.Run(test.key, func(t *testing.T) {
-			copy := map[string]string{}
+			environmentCopy := map[string]string{}
 			for k, v := range env {
-				copy[k] = v
+				environmentCopy[k] = v
 			}
-			copy[test.key] = test.value
-			if _, err := ApplicationFromEnv(func(k string) string { return copy[k] }, "production"); err == nil {
+			environmentCopy[test.key] = test.value
+			if _, err := ApplicationFromEnv(func(k string) string { return environmentCopy[k] }, "production"); err == nil {
 				t.Fatal("invalid application configuration accepted")
+			}
+		})
+	}
+}
+
+func TestApplicationAIProviderConfiguration(t *testing.T) {
+	env := map[string]string{
+		"AI_PROVIDER":           "openrouter",
+		"OPENROUTER_API_KEY":    "test-key",
+		"OPENROUTER_MODEL_NAME": "anthropic/claude-test",
+	}
+	application, err := ApplicationFromEnv(func(key string) string { return env[key] }, "test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if application.AIProvider != "openrouter" || application.OpenRouterKey != "test-key" || application.OpenRouterModel != "anthropic/claude-test" {
+		t.Fatalf("OpenRouter configuration not loaded: %+v", application)
+	}
+}
+
+func TestApplicationAIProviderNormalization(t *testing.T) {
+	for _, test := range []struct{ input, want string }{
+		{"", "auto"},
+		{"auto", "auto"},
+		{" AuTo ", "auto"},
+		{"Gemini", "gemini"},
+		{"\tGEMINI\n", "gemini"},
+		{"OpenRouter", "openrouter"},
+		{" openrouter ", "openrouter"},
+	} {
+		t.Run(test.input, func(t *testing.T) {
+			application, err := ApplicationFromEnv(func(key string) string {
+				if key == "AI_PROVIDER" {
+					return test.input
+				}
+				return ""
+			}, "test")
+			if err != nil || application.AIProvider != test.want {
+				t.Fatalf("provider = %q, want %q: %v", application.AIProvider, test.want, err)
+			}
+		})
+	}
+	for _, input := range []string{"unknown", " Open Router ", " "} {
+		t.Run(input, func(t *testing.T) {
+			_, err := ApplicationFromEnv(func(key string) string {
+				if key == "AI_PROVIDER" {
+					return input
+				}
+				return ""
+			}, "test")
+			if err == nil {
+				t.Fatal("invalid provider accepted")
 			}
 		})
 	}

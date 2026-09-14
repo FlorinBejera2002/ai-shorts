@@ -27,7 +27,7 @@ type Application struct {
 	EmailFrom, ResendKey, SMTPHost, SMTPUser, SMTPPassword                                                                                                            string
 	SMTPPort                                                                                                                                                          int
 	SMTPRequireTLS                                                                                                                                                    bool
-	GeminiKey, GeminiModel                                                                                                                                            string
+	AIProvider, GeminiKey, GeminiModel, OpenRouterKey, OpenRouterModel                                                                                                string
 	S3AccessKey, S3SecretKey, S3SessionToken, S3Region, S3Bucket, S3Endpoint                                                                                          string
 	S3PathStyle                                                                                                                                                       bool
 	StripeKey, StripeWebhookSecret                                                                                                                                    string
@@ -51,7 +51,7 @@ func ApplicationFromEnv(getenv func(string) string, environment string) (Applica
 		}
 		return fallback
 	}
-	a := Application{AppURL: value("APP_URL", "http://localhost:3000"), RedisURL: value("REDIS_URL", "redis://localhost:6379/0"), MediaRoot: value("LOCAL_MEDIA_ROOT", "../media"), StorageType: value("STORAGE_TYPE", "local"), PublicMediaURL: getenv("AWS_PUBLIC_BASE_URL"), SigningSecret: value("INTERNAL_API_KEY", getenv("NEXTAUTH_SECRET")), UploadSecret: getenv("UPLOAD_TOKEN_SECRET"), StagingDirectory: getenv("UPLOAD_STAGING_DIR"), DirectUploadURL: value("NEXT_PUBLIC_UPLOAD_URL", "/api/upload/direct"), AllowedHosts: splitValues(value("ALLOWED_HOSTS", "localhost,127.0.0.1,::1")), TrustedProxies: splitValues(getenv("TRUSTED_PROXY_CIDRS")), GoogleClientID: getenv("GOOGLE_CLIENT_ID"), GoogleClientSecret: getenv("GOOGLE_CLIENT_SECRET"), EmailFrom: getenv("AUTH_EMAIL_FROM"), ResendKey: getenv("RESEND_API_KEY"), SMTPHost: getenv("SMTP_HOST"), SMTPUser: getenv("SMTP_USERNAME"), SMTPPassword: getenv("SMTP_PASSWORD"), GeminiKey: getenv("GEMINI_API_KEY"), GeminiModel: value("GEMINI_MODEL_NAME", "gemini-2.5-flash"), S3AccessKey: getenv("AWS_ACCESS_KEY_ID"), S3SecretKey: getenv("AWS_SECRET_ACCESS_KEY"), S3SessionToken: getenv("AWS_SESSION_TOKEN"), S3Region: value("AWS_REGION", "auto"), S3Bucket: getenv("AWS_S3_BUCKET"), S3Endpoint: getenv("AWS_ENDPOINT_URL"), StripeKey: getenv("STRIPE_SECRET_KEY"), StripeWebhookSecret: getenv("STRIPE_WEBHOOK_SECRET"), StripePlans: map[string]string{}, StripeCreditPacks: map[string]int{}}
+	a := Application{AppURL: value("APP_URL", "http://localhost:3000"), RedisURL: value("REDIS_URL", "redis://localhost:6379/0"), MediaRoot: value("LOCAL_MEDIA_ROOT", "../media"), StorageType: value("STORAGE_TYPE", "local"), PublicMediaURL: getenv("AWS_PUBLIC_BASE_URL"), SigningSecret: value("INTERNAL_API_KEY", getenv("NEXTAUTH_SECRET")), UploadSecret: getenv("UPLOAD_TOKEN_SECRET"), StagingDirectory: getenv("UPLOAD_STAGING_DIR"), DirectUploadURL: value("NEXT_PUBLIC_UPLOAD_URL", "/api/upload/direct"), AllowedHosts: splitValues(value("ALLOWED_HOSTS", "localhost,127.0.0.1,::1")), TrustedProxies: splitValues(getenv("TRUSTED_PROXY_CIDRS")), GoogleClientID: getenv("GOOGLE_CLIENT_ID"), GoogleClientSecret: getenv("GOOGLE_CLIENT_SECRET"), EmailFrom: getenv("AUTH_EMAIL_FROM"), ResendKey: getenv("RESEND_API_KEY"), SMTPHost: getenv("SMTP_HOST"), SMTPUser: getenv("SMTP_USERNAME"), SMTPPassword: getenv("SMTP_PASSWORD"), AIProvider: strings.ToLower(strings.TrimSpace(value("AI_PROVIDER", "auto"))), GeminiKey: getenv("GEMINI_API_KEY"), GeminiModel: value("GEMINI_MODEL_NAME", "gemini-2.5-flash"), OpenRouterKey: getenv("OPENROUTER_API_KEY"), OpenRouterModel: value("OPENROUTER_MODEL_NAME", "google/gemini-2.5-flash"), S3AccessKey: getenv("AWS_ACCESS_KEY_ID"), S3SecretKey: getenv("AWS_SECRET_ACCESS_KEY"), S3SessionToken: getenv("AWS_SESSION_TOKEN"), S3Region: value("AWS_REGION", "auto"), S3Bucket: getenv("AWS_S3_BUCKET"), S3Endpoint: getenv("AWS_ENDPOINT_URL"), StripeKey: getenv("STRIPE_SECRET_KEY"), StripeWebhookSecret: getenv("STRIPE_WEBHOOK_SECRET"), StripePlans: map[string]string{}, StripeCreditPacks: map[string]int{}}
 	production := environment != "development" && environment != "test" && environment != "testing"
 	parseInt := func(key string, fallback, low, high int) (int, error) {
 		n, err := strconv.Atoi(value(key, strconv.Itoa(fallback)))
@@ -129,6 +129,12 @@ func ApplicationFromEnv(getenv func(string) string, environment string) (Applica
 	}
 	if a.StorageType != "local" && a.StorageType != "s3" {
 		return a, errors.New("STORAGE_TYPE must be local or s3")
+	}
+	if a.AIProvider != "auto" && a.AIProvider != "gemini" && a.AIProvider != "openrouter" {
+		return a, errors.New("AI_PROVIDER must be auto, gemini or openrouter")
+	}
+	if len(a.GeminiModel) > 200 || len(a.OpenRouterModel) > 200 || strings.ContainsAny(a.GeminiModel+a.OpenRouterModel, "\r\n\x00") {
+		return a, errors.New("AI model names must be at most 200 characters without control characters")
 	}
 	app, err := url.Parse(a.AppURL)
 	if err != nil || app.Host == "" || app.User != nil || app.RawQuery != "" || app.Fragment != "" || (app.Path != "" && app.Path != "/") || (app.Scheme != "https" && (production || app.Scheme != "http")) {

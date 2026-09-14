@@ -134,7 +134,9 @@ Next.js no longer needs Prisma, database credentials, Auth.js, or backend provid
 ## Environment notes
 
 - `.env` is ignored by Git. Start from `.env.example` if it is missing.
-- `GEMINI_API_KEY` is required for Gemini-backed script/assistant functionality.
+- Cloud AI can use Gemini or OpenRouter for scripts, assistant responses and
+  highlight selection. Set `AI_PROVIDER` to `gemini`, `openrouter`, or `auto`.
+  OpenRouter accepts any text/chat model slug through `OPENROUTER_MODEL_NAME`.
 - Google OAuth, Stripe, Resend/SMTP email, and S3/R2 storage each require their matching variables on the Go API or worker, as documented in [the handoff](docs/go-migration/handoff.md).
 - Local media uses the `media_data` Docker volume; PostgreSQL data uses `postgres_data`.
 - Do not use the placeholder secrets or database password outside local development.

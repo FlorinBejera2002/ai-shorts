@@ -1,6 +1,6 @@
 // Real Whisper -> highlights -> crop/captions -> persisted playable clip.
 // Supply a synthetic speech WAV; all database/media state is isolated.
-// Build sneepcut-ml-dev first. Optional GEMINI_API_KEY enables real AI selection.
+// Build sneepcut-ml-dev first. An optional Gemini/OpenRouter key enables real AI selection.
 import assert from 'node:assert/strict'
 import { execFileSync, spawnSync } from 'node:child_process'
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
@@ -44,7 +44,7 @@ try {
   docker('run', '--rm', '--network', 'none', '-v', `${directory}:/media`, '-v', `${speech}:/speech.wav:ro`, image,
     'ffmpeg', '-v', 'error', '-y', '-f', 'lavfi', '-i', 'testsrc2=size=320x180:rate=2', '-i', '/speech.wav', '-t', '18', '-shortest', '-c:v', 'libx264', '-preset', 'ultrafast', '-c:a', 'aac', '/media/synthetic.mp4')
   const worker = start('worker', image, ['celery', '-A', 'app.workers.celery_app:celery_app', 'worker', '--pool=solo', '--concurrency=1', '--loglevel=info'], [
-    '--cap-drop=ALL', '--security-opt=no-new-privileges', '-v', `${root}/backend/app:/app/app:ro`, '-v', `${directory}:/media`, ...envArgs(shared), '-e', 'GEMINI_API_KEY'])
+    '--cap-drop=ALL', '--security-opt=no-new-privileges', '-v', `${root}/backend/app:/app/app:ro`, '-v', `${directory}:/media`, ...envArgs(shared), '-e', 'AI_PROVIDER', '-e', 'GEMINI_API_KEY', '-e', 'GEMINI_MODEL_NAME', '-e', 'OPENROUTER_API_KEY', '-e', 'OPENROUTER_MODEL_NAME'])
   const api = start('api', 'sneepcut-go-dev', ['go', 'run', './cmd/api'], [
     '--user', '10001:10001', '--cap-drop=ALL', '--security-opt=no-new-privileges',
     '-p', '127.0.0.1::8080', '-v', `${root}/backend-go:/src:ro`, '-v', `${directory}:/media`, ...envArgs({ ...shared, DATABASE_URL: `${database}?sslmode=disable`, GO_AUTH_ENABLED: 'true', LISTEN_ADDR: ':8080', APP_URL: 'http://localhost:3000', CORS_ORIGINS: 'http://localhost:3000', JWT_SECRET: 'processing-fixture-jwt-secret-not-for-production', INTERNAL_API_KEY: 'processing-fixture-media-secret-not-for-production', UPLOAD_TOKEN_SECRET: 'processing-fixture-upload-secret-not-for-production', UPLOAD_SCANNER_ENABLED: 'false', GOCACHE: '/tmp/go-build' })])
@@ -97,10 +97,16 @@ try {
   const logs = dockerLogs(worker)
   writeFileSync(path.join(directory, 'worker.log'), logs)
   assert(logs.includes('Vertical reframing complete:') && !logs.includes('Error processing video:') && !logs.includes('smart crop failed'), 'Smart crop fell back; inspect worker.log')
-  if (process.env.GEMINI_API_KEY) {
-    assert(!logs.includes('using fallback highlights') && !logs.includes('Highlight detection failed:'), 'Gemini fell back; inspect worker.log')
+  const provider = (process.env.AI_PROVIDER || 'auto').trim().toLowerCase()
+  const aiProviderConfigured = provider === 'openrouter'
+    ? Boolean(process.env.OPENROUTER_API_KEY)
+    : provider === 'gemini'
+      ? Boolean(process.env.GEMINI_API_KEY)
+      : Boolean(process.env.GEMINI_API_KEY || process.env.OPENROUTER_API_KEY)
+  if (aiProviderConfigured) {
+    assert(!logs.includes('using fallback highlights') && !logs.includes('Highlight detection failed:'), 'Cloud AI fell back; inspect worker.log')
   }
-  const report = { job, clip, probe, geminiConfigured: Boolean(process.env.GEMINI_API_KEY), persistentDataUsed: false }
+  const report = { job, clip, probe, aiProviderConfigured, persistentDataUsed: false }
   writeFileSync(path.join(directory, 'report.json'), JSON.stringify(report, null, 2))
   console.log(`PASS: real transcription, persisted completion, captions, portrait H.264/audio, complete decode and signed media authorization. Report: ${directory}`)
 } finally {

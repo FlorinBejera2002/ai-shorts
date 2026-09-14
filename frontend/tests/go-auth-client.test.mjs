@@ -198,7 +198,7 @@ test('Next contains no database clients, auth authority, or business API handler
     )
     assert.doesNotMatch(
       text,
-      /process\.env\.(?:DATABASE_URL|JWT_SECRET|AUTH_SECRET|GOOGLE_CLIENT_SECRET|INTERNAL_API_KEY|STRIPE_SECRET_KEY)/,
+      /process\.env\.(?:DATABASE_URL|JWT_SECRET|AUTH_SECRET|GOOGLE_CLIENT_SECRET|INTERNAL_API_KEY|STRIPE_SECRET_KEY|GEMINI_API_KEY|OPENROUTER_API_KEY)/,
       path
     )
   }

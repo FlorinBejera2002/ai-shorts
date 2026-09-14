@@ -6,6 +6,7 @@ from typing import Any
 
 from app.config import settings
 from app.schemas.processing import HighlightCandidate, TranscriptResult
+from app.services.ai_provider import generate_text, resolve_ai_selection
 
 logger = logging.getLogger(__name__)
 
@@ -309,10 +310,10 @@ def detect_highlights(
     model_name: str | None = None,
     requested_clips: int | None = None,
     user_instructions: str | None = None,
+    provider: str | None = None,
 ) -> list[dict[str, Any]]:
-    api_key = api_key or settings.gemini_api_key
-    model_name = model_name or settings.gemini_model_name
-    if not api_key:
+    selection = resolve_ai_selection(provider, api_key, model_name)
+    if not selection.api_key:
         return [
             clip.model_dump()
             for clip in fallback_highlights(
@@ -321,8 +322,6 @@ def detect_highlights(
         ]
 
     try:
-        from google import genai
-
         prompt = build_prompt(transcript_result, video_duration, requested_clips)
         if user_instructions:
             prompt += (
@@ -330,13 +329,14 @@ def detect_highlights(
                 " them when choosing and ranking moments, as long as the time"
                 f" contract above is respected):\n{user_instructions[:4000]}"
             )
-        client = genai.Client(api_key=api_key)
-        response = client.models.generate_content(model=model_name, contents=prompt)
-        raw = extract_json_response(response.text or "")
+        raw = extract_json_response(generate_text(prompt, selection))
+        for item in raw.get("shorts", []):
+            if isinstance(item, dict):
+                item["source"] = selection.provider
         clips = validate_highlights(raw, video_duration, requested_clips)
         if clips:
             return [clip.model_dump() for clip in clips]
-        logger.warning("Gemini returned no valid clips; using fallback highlights")
+        logger.warning("AI provider returned no valid clips; using fallback highlights")
     except Exception as exc:
         logger.error("Highlight detection failed: %s", exc)
 

@@ -10,13 +10,13 @@ import (
 	"net/url"
 	"strings"
 	"time"
+
+	"sneepcut/backend-go/internal/aiprovider"
 )
 
-var ErrNotConfigured = errors.New("Gemini API key is required")
+var ErrNotConfigured = aiprovider.ErrNotConfigured
 
-type Generator interface {
-	Generate(context.Context, string) (string, error)
-}
+type Generator = aiprovider.Generator
 type Client struct {
 	Key, Model string
 	HTTP       *http.Client
@@ -42,8 +42,8 @@ func (c *Client) Generate(ctx context.Context, prompt string) (string, error) {
 	r.Header.Set("x-goog-api-key", c.Key)
 	client := &http.Client{Timeout: 90 * time.Second}
 	if c.HTTP != nil {
-		copy := *c.HTTP
-		client = &copy
+		clientCopy := *c.HTTP
+		client = &clientCopy
 	}
 	// API credentials belong to the configured provider. The Go client treats
 	// x-goog-api-key as an ordinary header, so redirects must not forward it.
@@ -52,7 +52,8 @@ func (c *Client) Generate(ctx context.Context, prompt string) (string, error) {
 	if err != nil {
 		return "", errors.New("AI provider is temporarily unavailable")
 	}
-	defer response.Body.Close()
+	// Read errors are handled below; closing the body is best-effort cleanup.
+	defer func() { _ = response.Body.Close() }()
 	if response.StatusCode != http.StatusOK {
 		return "", errors.New("AI provider rejected the request")
 	}

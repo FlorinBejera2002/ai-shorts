@@ -89,7 +89,7 @@ no readiness or application routes. Compose enables it by default.
 | `INTERNAL_API_KEY`, `UPLOAD_TOKEN_SECRET` | Media signing and upload intent secrets. Production requires at least 32 bytes for each; provision separate values. |
 | `NEXT_PUBLIC_UPLOAD_URL`, `UPLOAD_STAGING_DIR`, `MAX_UPLOAD_SIZE_MB` | Direct upload URL (default `/api/upload/direct`), quarantine directory and upload cap (default/max 2048 MiB). |
 | `UPLOAD_SCANNER_ENABLED`, `CLAMAV_HOST`, `CLAMAV_PORT`, `CLAMAV_TIMEOUT_SECONDS` | Quarantine scanning; scanning is mandatory outside development/test. Defaults: localhost, 3310, 120 seconds. |
-| `GEMINI_API_KEY`, `GEMINI_MODEL_NAME`, `MAX_CLIP_DURATION` | Generation provider/model and clip duration cap. Defaults: `gemini-2.5-flash`, 60 seconds. |
+| `AI_PROVIDER`, `GEMINI_API_KEY`, `GEMINI_MODEL_NAME`, `OPENROUTER_API_KEY`, `OPENROUTER_MODEL_NAME`, `MAX_CLIP_DURATION` | Generation provider/model and clip duration cap. `AI_PROVIDER` accepts `auto`, `gemini`, or `openrouter`; OpenRouter accepts any text/chat model slug. Defaults: `auto`, `gemini-2.5-flash`, `google/gemini-2.5-flash`, and 60 seconds. |
 | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_*` | Billing provider and configured subscription/credit-pack prices; see `.env.example` for individual price variables. |
 
 The frontend defaults to same-origin requests. `GO_API_URL` configures Next.js
