@@ -1,6 +1,7 @@
 export const CONTENT_PLATFORMS = [
   'tiktok',
   'instagram',
+  'facebook',
   'youtube',
   'linkedin'
 ] as const

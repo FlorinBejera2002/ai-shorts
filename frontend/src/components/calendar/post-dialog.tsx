@@ -216,6 +216,14 @@ export function PostDialog({
 
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === 'Escape') {
+        if (
+          event.defaultPrevented ||
+          document.querySelector(
+            '[data-slot="select-content"][data-state="open"]'
+          )
+        ) {
+          return
+        }
         event.preventDefault()
         if (!busyRef.current) onCloseRef.current()
         return
@@ -621,7 +629,7 @@ export function PostDialog({
                         <legend className="text-xs font-semibold text-foreground">
                           {t('form.platformsLabel')}
                         </legend>
-                        <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                        <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-5">
                           {CALENDAR_PLATFORMS.map((platform) => {
                             const selected = selectedPlatformSet.has(platform)
                             const connected = connectedPlatformSet.has(platform)
@@ -696,7 +704,11 @@ export function PostDialog({
                                 <Film className="h-4 w-4 text-muted-foreground" />
                                 <SelectValue />
                               </SelectTrigger>
-                              <SelectContent position="popper" align="start">
+                              <SelectContent
+                                position="popper"
+                                align="start"
+                                className="z-[130]"
+                              >
                                 <SelectItem value="none">
                                   {t('form.noClip')}
                                 </SelectItem>
@@ -739,7 +751,11 @@ export function PostDialog({
                               >
                                 <SelectValue />
                               </SelectTrigger>
-                              <SelectContent position="popper" align="start">
+                              <SelectContent
+                                position="popper"
+                                align="start"
+                                className="z-[130]"
+                              >
                                 {CALENDAR_STATUSES.map((status) => (
                                   <SelectItem key={status} value={status}>
                                     {t(`statuses.${status}`)}

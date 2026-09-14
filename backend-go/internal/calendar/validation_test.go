@@ -28,6 +28,11 @@ func TestValidationMatchesBrowserNormalizationAndDefaults(t *testing.T) {
 	if e != nil || out["status"] != "draft" {
 		t.Fatal(out, e)
 	}
+	input["platforms"] = []any{"facebook"}
+	out, e = Validate(input, true)
+	if e != nil || strings.Join(out["platforms"].([]string), ",") != "facebook" {
+		t.Fatal(out, e)
+	}
 	out, e = Validate(map[string]any{"clipId": nil, "status": "published"}, false)
 	if e != nil || out["clipId"] != nil || out["status"] != "published" {
 		t.Fatal(out, e)
@@ -52,7 +57,7 @@ func TestValidationReportsRequiredInvalidAndUnknownFields(t *testing.T) {
 			t.Fatalf("field absent: %s %+v", field, validation)
 		}
 	}
-	for _, platforms := range []any{nil, []any{}, []any{"facebook"}, []any{"tiktok", "tiktok"}, []any{"TikTok", " tiktok "}, []any{"youtube", 42}} {
+	for _, platforms := range []any{nil, []any{}, []any{"unsupported"}, []any{"tiktok", "tiktok"}, []any{"TikTok", " tiktok "}, []any{"youtube", 42}} {
 		input := validInput()
 		input["platforms"] = platforms
 		if _, e := Validate(input, true); e == nil {

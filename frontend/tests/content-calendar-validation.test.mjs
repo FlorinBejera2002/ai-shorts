@@ -79,13 +79,20 @@ test('supports exactly the product platforms', () => {
   assert.deepEqual(CONTENT_PLATFORMS, [
     'tiktok',
     'instagram',
+    'facebook',
     'youtube',
     'linkedin'
   ])
 
+  const facebook = validateScheduledPostPayload(
+    { ...validCreatePayload, platforms: ['facebook'] },
+    'create'
+  )
+  assert.equal(facebook.success, true)
+
   for (const platforms of [
     [],
-    ['facebook'],
+    ['unsupported'],
     ['tiktok', 'tiktok'],
     ['youtube', 42]
   ]) {

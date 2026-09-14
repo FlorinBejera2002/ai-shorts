@@ -99,6 +99,42 @@ try {
           json: { posts, clips: [clip], meta: { truncated: false } }
         })
       }
+      if (path === '/api/publishing' && request.method() === 'GET') {
+        return route.fulfill({
+          json: {
+            providers: [
+              {
+                id: 'instagram',
+                name: 'Instagram',
+                configured: true,
+                supportsPublishing: true
+              },
+              {
+                id: 'facebook',
+                name: 'Facebook',
+                configured: true,
+                supportsPublishing: true
+              }
+            ],
+            accounts: [
+              {
+                id: 'instagram-account',
+                provider: 'instagram',
+                name: 'Sneep Cut',
+                status: 'connected'
+              },
+              {
+                id: 'facebook-account',
+                provider: 'facebook',
+                name: 'Sneep Cut',
+                status: 'connected'
+              }
+            ],
+            clips: [],
+            posts: []
+          }
+        })
+      }
       if (path.startsWith('/api/calendar/') && request.method() === 'PATCH') {
         const id = path.split('/').at(-1)
         const payload = request.postDataJSON()
@@ -145,6 +181,66 @@ try {
       path: `${output}/${variant.locale}-month.png`,
       fullPage: true
     })
+
+    if (variant.locale === 'en') {
+      await page.locator('[data-calendar-day="2026-09-15"]').click()
+      const dialog = page.getByRole('dialog')
+      await dialog
+        .getByRole('heading', {
+          name: messages.contentCalendar.dialog.createTitle
+        })
+        .waitFor()
+
+      const facebook = dialog.getByRole('button', {
+        name: messages.contentCalendar.platforms.facebook
+      })
+      assert.equal(await facebook.isEnabled(), true)
+
+      const clipSelect = dialog.getByRole('combobox', {
+        name: messages.contentCalendar.form.clipLabel
+      })
+      await clipSelect.click()
+      const clipOption = page.getByRole('option', { name: /Product story cut/ })
+      await clipOption.waitFor({ state: 'visible' })
+      assert.equal(
+        await clipOption.evaluate(
+          (element) =>
+            Number(getComputedStyle(element.closest('[role=listbox]')).zIndex) >
+            120
+        ),
+        true
+      )
+
+      await page.keyboard.press('Escape')
+      assert.equal(await dialog.isVisible(), true)
+      assert.equal(await clipOption.isVisible(), false)
+
+      await clipSelect.click()
+      await clipOption.click()
+      assert.match(await clipSelect.innerText(), /Product story cut/)
+
+      const statusSelect = dialog.getByRole('combobox', {
+        name: messages.contentCalendar.form.statusLabel
+      })
+      await statusSelect.click()
+      const publishedOption = page.getByRole('option', {
+        name: messages.contentCalendar.statuses.published
+      })
+      await publishedOption.waitFor({ state: 'visible' })
+      await publishedOption.click()
+      assert.match(
+        await statusSelect.innerText(),
+        new RegExp(messages.contentCalendar.statuses.published)
+      )
+
+      await dialog
+        .getByRole('button', {
+          name: messages.contentCalendar.actions.cancel,
+          exact: true
+        })
+        .click()
+      await dialog.waitFor({ state: 'detached' })
+    }
 
     await page
       .getByRole('button', {

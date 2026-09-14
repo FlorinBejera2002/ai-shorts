@@ -1269,6 +1269,7 @@
     "platforms": {
       "tiktok": "TikTok",
       "instagram": "Instagram",
+      "facebook": "Facebook",
       "youtube": "YouTube",
       "linkedin": "LinkedIn"
     },

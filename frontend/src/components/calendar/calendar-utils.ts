@@ -7,6 +7,7 @@ import type {
 export const CALENDAR_PLATFORMS: readonly ContentPlatform[] = [
   'tiktok',
   'instagram',
+  'facebook',
   'youtube',
   'linkedin'
 ]
