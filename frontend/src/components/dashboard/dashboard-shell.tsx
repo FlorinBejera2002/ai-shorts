@@ -1,6 +1,7 @@
 'use client'
 
 import { AppSidebar } from '@/components/dashboard/app-sidebar'
+import { MobileDashboardDock } from '@/components/dashboard/mobile-dashboard-dock'
 import { WorkspaceSearch } from '@/components/dashboard/workspace-search'
 import { Separator } from '@/components/ui/separator'
 import {
@@ -28,16 +29,16 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
       : t('expandSidebar')
   return (
     <div className="flex min-w-0 flex-1 flex-col">
-      <header className="studio-topbar sticky top-0 z-30 flex h-16 shrink-0 items-center gap-3 border-b px-4 sm:px-6">
+      <header className="studio-topbar sticky top-0 z-30 hidden h-16 shrink-0 items-center gap-3 border-b px-6 lg:flex">
         <div className="studio-topbar-start flex min-w-0 items-center gap-3">
           <SidebarTrigger
             aria-label={label}
             title={label}
             aria-expanded={isMobile ? openMobile : open}
             aria-controls="dashboard-navigation"
-            className="size-9 shrink-0 text-muted-foreground hover:bg-muted hover:text-foreground"
+            className="hidden size-9 shrink-0 text-muted-foreground hover:bg-muted hover:text-foreground lg:inline-flex"
           />
-          <Separator orientation="vertical" className="!h-4" />
+          <Separator orientation="vertical" className="!h-4 max-lg:hidden" />
           <div className="studio-breadcrumb flex min-w-0 items-center gap-2 text-xs">
             <Clapperboard
               aria-hidden="true"
@@ -55,14 +56,14 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
           </div>
         </div>
         <div id="studio-section-navigation" className="min-w-0" />
-        <div className="ml-auto flex shrink-0 items-center gap-2 sm:gap-4">
+        <div className="ml-auto hidden shrink-0 items-center gap-2 sm:gap-4 lg:flex">
           <WorkspaceSearch />
         </div>
       </header>
       <main
         id="dashboard-main"
         tabIndex={-1}
-        className="min-w-0 flex-1 outline-none"
+        className="min-w-0 flex-1 pb-24 outline-none lg:pb-0"
       >
         <div
           key={pathname}
@@ -94,6 +95,7 @@ export function DashboardShell({
           {t('skipContent')}
         </a>
         <AppSidebar />
+        <MobileDashboardDock />
         <DashboardContent>{children}</DashboardContent>
       </SidebarProvider>
     </MotionConfig>

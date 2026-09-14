@@ -1,6 +1,6 @@
 /* Authenticated studio only; body scope also reaches portalled menus/dialogs. */
 body:has(#dashboard-shell) {
-  --background: #f4f5f7;
+  --background: #ffffff;
   --foreground: #1c2029;
   --card: #ffffff;
   --card-foreground: #1c2029;
@@ -115,63 +115,14 @@ html.dark body:has(#dashboard-shell) {
   }
 }
 
-/* Precision tools: compact controls, clear type roles, quiet interaction feedback. */
-.account-workspace {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-}
-.account-workspace > .studio-workbench-header,
-.account-workspace > [role="alert"] {
-  grid-column: 1 / -1;
-}
-.account-section-nav {
-  align-content: start;
-}
-.account-section-nav a {
-  justify-content: flex-start;
-  border-color: transparent;
-  background: transparent;
-  box-shadow: none;
-  font-size: 12px;
-}
-.account-section-nav a:hover,
-.account-section-nav a:focus-visible {
-  background: var(--accent);
-  color: var(--accent-foreground);
-}
-.account-content > div {
-  padding: 0;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  overflow: hidden;
-  background: var(--card);
-}
-#dashboard-main .account-content > div > section {
-  margin: 0;
-  border: 0;
-  border-bottom: 1px solid var(--border);
-  border-radius: 0;
-  padding: 26px;
-}
-#dashboard-main .account-content > div > section:last-child {
-  border-bottom: 0;
-}
+/* Settings use the workspace layout and individual shared cards, like Brand. */
 .account-content .icon-tile {
   width: 30px;
   height: 30px;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: var(--muted);
   color: var(--muted-foreground);
   box-shadow: none;
-}
-.account-content .field-label {
-  font-size: 11px;
-}
-.account-content form {
-  max-width: 640px;
-}
-.account-inspector {
-  min-width: 0;
 }
 #dashboard-main .brand-workspace {
   --brand-line: color-mix(in srgb, var(--border) 82%, transparent);
@@ -246,23 +197,6 @@ html.dark body:has(#dashboard-shell) {
   border-radius: 12px;
   padding: 22px;
   box-shadow: none;
-}
-@media (min-width: 1024px) {
-  .account-workspace {
-    grid-template-columns: 160px minmax(0, 1fr);
-    column-gap: 26px;
-    align-items: start;
-  }
-  .account-section-nav {
-    flex-direction: column;
-    position: sticky;
-    top: 90px;
-  }
-}
-@media (max-width: 639px) {
-  #dashboard-main .account-content > div > section {
-    padding: 20px;
-  }
 }
 #dashboard-main .studio-workbench-header {
   position: relative;

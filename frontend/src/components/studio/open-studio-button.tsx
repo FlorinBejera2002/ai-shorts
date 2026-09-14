@@ -13,6 +13,14 @@ const origin = configuredStudioOrigin(
   process.env.NODE_ENV === 'production'
 )
 
+export async function openStudioClip(clipId: string, signal?: AbortSignal) {
+  if (!origin) return
+  const client = createStudioClient(origin, authClient)
+  const requestSignal = signal ?? AbortSignal.timeout(150000)
+  const url = await prepareStudioClip(client, clipId, requestSignal)
+  if (!requestSignal.aborted) window.location.assign(url)
+}
+
 export function OpenStudioButton({
   clipId,
   className
@@ -34,13 +42,10 @@ export function OpenStudioButton({
     setOpening(true)
     setFailed(false)
     try {
-      const client = createStudioClient(origin, authClient)
-      const url = await prepareStudioClip(
-        client,
+      await openStudioClip(
         clipId,
         AbortSignal.any([controller.signal, AbortSignal.timeout(150000)])
       )
-      if (!controller.signal.aborted) window.location.assign(url)
     } catch {
       if (!controller.signal.aborted) setFailed(true)
     } finally {

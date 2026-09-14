@@ -90,14 +90,14 @@ body {
 .hf-color-grading-range:focus-visible::-webkit-slider-thumb {
   box-shadow:
     0 0 0 2px #0c0c0e,
-    0 0 0 4px rgba(60, 230, 172, 0.22),
+    0 0 0 4px rgba(37, 99, 235, 0.22),
     0 1px 4px rgba(0, 0, 0, 0.55);
 }
 
 .hf-color-grading-range:focus-visible::-moz-range-thumb {
   box-shadow:
     0 0 0 2px #0c0c0e,
-    0 0 0 4px rgba(60, 230, 172, 0.22),
+    0 0 0 4px rgba(37, 99, 235, 0.22),
     0 1px 4px rgba(0, 0, 0, 0.55);
 }
 
@@ -166,7 +166,7 @@ body {
 .hf-preview-volume-range:focus-visible::-moz-range-thumb {
   box-shadow:
     0 0 0 2px #0a0a0a,
-    0 0 0 4px rgba(60, 230, 172, 0.4),
+    0 0 0 4px rgba(37, 99, 235, 0.4),
     0 1px 3px rgba(0, 0, 0, 0.5);
 }
 
@@ -197,13 +197,13 @@ body {
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  background: rgba(60, 230, 172, 0.2);
+  background: rgba(37, 99, 235, 0.2);
   opacity: 0;
   pointer-events: none;
 }
 
 .timeline-clip[data-active] {
-  border-color: rgba(60, 230, 172, 0.55);
+  border-color: rgba(37, 99, 235, 0.55);
 }
 
 .timeline-clip[data-active]::before {
@@ -231,7 +231,7 @@ body {
 }
 
 .timeline-clip[data-active].is-hovered {
-  border-color: rgba(60, 230, 172, 0.75);
+  border-color: rgba(37, 99, 235, 0.75);
 }
 
 .timeline-clip.is-selected {
@@ -378,7 +378,7 @@ body {
 .hf-loader-mark {
   display: block;
   overflow: visible;
-  filter: drop-shadow(0 0 7px rgba(79, 219, 94, 0.2));
+  filter: drop-shadow(0 0 7px rgba(37, 99, 235, 0.24));
   user-select: none;
   -webkit-user-select: none;
   -webkit-user-drag: none;
@@ -452,7 +452,7 @@ body {
   transform: scaleX(0);
   transform-origin: left center;
   border-radius: inherit;
-  background: linear-gradient(90deg, #06e3fa, #4fdb5e);
+  background: linear-gradient(90deg, #2563eb, #60a5fa);
   transition: transform 160ms ease;
 }
 
@@ -562,7 +562,7 @@ body {
 .hf-fx-preset-item:focus-visible {
   /* The accent at low alpha rather than a grey: the row is lit by the thing that
      is playing, and it should read as the same event as the bars. */
-  background-color: rgba(60, 230, 172, 0.12);
+  background-color: rgba(37, 99, 235, 0.12);
 }
 
 .hf-fx-preset-wave {
@@ -588,7 +588,7 @@ body {
   width: 2px;
   height: 100%;
   border-radius: 1px;
-  background: #3ce6ac;
+  background: #2563eb;
   transform: scaleY(0.25);
   transform-origin: center;
 }
@@ -621,10 +621,10 @@ body {
 /* Receipt-driven WebMCP Topology Lens. Every animation is one-shot Studio
    chrome; none of these nodes enter the composition iframe or rendered output. */
 .hf-topology-contour {
-  border: 1px solid rgba(60, 230, 172, 0.62);
+  border: 1px solid rgba(37, 99, 235, 0.62);
   box-shadow:
     0 0 0 1px rgba(6, 227, 250, 0.08),
-    inset 0 0 18px rgba(60, 230, 172, 0.035);
+    inset 0 0 18px rgba(37, 99, 235, 0.035);
 }
 
 .hf-topology-field::before,
@@ -637,8 +637,8 @@ body {
   z-index: 2;
   padding: 1px 3px;
   border-radius: 2px;
-  background: rgba(5, 15, 12, 0.86);
-  color: rgb(90, 247, 193);
+  background: rgba(8, 17, 38, 0.86);
+  color: rgb(147, 197, 253);
   font:
     600 7px/1.3 ui-monospace,
     SFMono-Regular,
@@ -652,20 +652,20 @@ body {
 
 .hf-topology-field {
   z-index: 0;
-  border: 1px solid rgba(60, 230, 172, 0.28);
+  border: 1px solid rgba(37, 99, 235, 0.28);
   background: linear-gradient(
     90deg,
-    rgba(60, 230, 172, 0.025),
-    rgba(60, 230, 172, 0.1) 68%,
+    rgba(37, 99, 235, 0.025),
+    rgba(37, 99, 235, 0.1) 68%,
     rgba(6, 227, 250, 0.06)
   );
-  box-shadow: inset 0 0 28px rgba(60, 230, 172, 0.05);
+  box-shadow: inset 0 0 28px rgba(37, 99, 235, 0.05);
 }
 
 .hf-topology-target {
-  border: 1px solid rgba(60, 230, 172, 0.82);
+  border: 1px solid rgba(37, 99, 235, 0.82);
   box-shadow:
-    0 0 0 1px rgba(60, 230, 172, 0.14),
+    0 0 0 1px rgba(37, 99, 235, 0.14),
     0 0 18px rgba(6, 227, 250, 0.09);
 }
 
@@ -673,14 +673,14 @@ body {
   background: linear-gradient(
     90deg,
     transparent,
-    rgba(60, 230, 172, 0.16) 55%,
+    rgba(37, 99, 235, 0.16) 55%,
     rgba(230, 255, 247, 0.9)
   );
   clip-path: polygon(0 0, 100% 0, 72% 100%, 0 100%);
 }
 
 .hf-topology-seal {
-  filter: drop-shadow(0 0 6px rgba(60, 230, 172, 0.36));
+  filter: drop-shadow(0 0 6px rgba(37, 99, 235, 0.36));
 }
 
 @media (prefers-reduced-motion: no-preference) {

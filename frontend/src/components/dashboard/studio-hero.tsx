@@ -2,9 +2,8 @@
 
 import { Link } from '@/i18n/navigation'
 import { motion, useReducedMotion } from 'framer-motion'
-import { ArrowUpRight, Clapperboard } from 'lucide-react'
+import { ArrowUpRight, Clapperboard, Plus } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
-import { QuickActions } from './quick-actions'
 import styles from './studio-home.module.css'
 
 export function StudioHero() {
@@ -25,19 +24,24 @@ export function StudioHero() {
         </div>
         <h2 className={styles.heroTitle}>
           {ro
-            ? 'Materialul tău. Următorul montaj.'
-            : 'Your footage. Your next cut.'}
+            ? 'Creează clipuri din orice material.'
+            : 'Create clips from any footage.'}
         </h2>
         <p className={styles.heroDescription}>
           {ro
-            ? 'Transformă materialele lungi în clipuri scurte. Alege sursa, găsește momentele bune și pregătește-le de publicare.'
-            : 'Turn long-form footage into short-form stories. Choose a source, find the moments, and make them ready to publish.'}
+            ? 'Încarcă un video sau adaugă un link. Sneep Cut găsește momentele bune și le pregătește pentru editare.'
+            : 'Upload a video or add a link. Sneep Cut finds the strongest moments and prepares them for editing.'}
         </p>
-        <Link href="/dashboard/clips" className={styles.libraryLink}>
-          {t('openLibrary')} <ArrowUpRight size={14} />
-        </Link>
+        <div className={styles.heroLinks}>
+          <Link href="/dashboard/create" className={styles.primaryAction}>
+            <Plus size={15} />
+            {ro ? 'Creează clipuri' : 'Create clips'}
+          </Link>
+          <Link href="/dashboard/clips" className={styles.libraryLink}>
+            {t('openLibrary')} <ArrowUpRight size={14} />
+          </Link>
+        </div>
       </div>
-      <QuickActions />
     </motion.section>
   )
 }

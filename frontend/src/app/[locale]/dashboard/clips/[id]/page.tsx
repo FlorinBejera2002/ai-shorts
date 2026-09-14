@@ -33,7 +33,7 @@ export default function ClipDetailPage() {
           <Button asChild={true} variant="outline">
             <Link href="/dashboard/clips">
               <ArrowLeft className="size-4" />
-              {locale === 'ro' ? 'Bibliotecă' : 'Library'}
+              {locale === 'ro' ? 'Clipuri' : 'Clips'}
             </Link>
           </Button>
         }

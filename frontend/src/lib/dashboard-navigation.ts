@@ -4,11 +4,16 @@ export const dashboardNavigation = [
     items: [
       { href: '/dashboard', key: 'home' },
       { href: '/dashboard/studio', key: 'editor' },
-      { href: '/dashboard/clips', key: 'clips' },
-      { href: '/dashboard/history', key: 'history' },
-      { href: '/dashboard/calendar', key: 'calendar' },
-      { href: '/dashboard/publish', key: 'publish' },
       { href: '/dashboard/script-generator', key: 'scripts' }
+    ]
+  },
+  {
+    labelKey: 'groupContent',
+    items: [
+      { href: '/dashboard/history', key: 'history' },
+      { href: '/dashboard/clips', key: 'clips' },
+      { href: '/dashboard/calendar', key: 'calendar' },
+      { href: '/dashboard/publish', key: 'publish' }
     ]
   },
   {

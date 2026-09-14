@@ -1,9 +1,11 @@
 'use client'
 
+import { SettingsSelect } from '@/components/settings/settings-select'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Switch } from '@/components/ui/switch'
 import { useToast } from '@/components/ui/toast'
 import { useApiResource } from '@/hooks/use-api-resource'
 import { usePathname, useRouter } from '@/i18n/navigation'
@@ -27,7 +29,7 @@ import {
 } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
 import { useTheme } from 'next-themes'
-import { useEffect, useState } from 'react'
+import { useEffect, useId, useState } from 'react'
 
 const TIMEZONES = [
   'UTC',
@@ -61,21 +63,28 @@ function SwitchRow({
   description: string
   onChange: (checked: boolean) => void
 }) {
+  const id = useId()
   return (
-    <label className="flex cursor-pointer items-start justify-between gap-4 py-3">
-      <span>
-        <span className="block text-sm font-medium">{label}</span>
-        <span className="mt-0.5 block text-xs leading-5 text-muted-foreground">
+    <div className="flex items-start justify-between gap-4 py-3">
+      <div>
+        <Label htmlFor={id} className="cursor-pointer text-sm font-medium">
+          {label}
+        </Label>
+        <p
+          id={`${id}-description`}
+          className="mt-0.5 text-xs leading-5 text-muted-foreground"
+        >
           {description}
-        </span>
-      </span>
-      <input
-        type="checkbox"
+        </p>
+      </div>
+      <Switch
+        id={id}
         checked={checked}
-        onChange={(event) => onChange(event.target.checked)}
-        className="mt-1 size-4 accent-primary"
+        onCheckedChange={onChange}
+        aria-describedby={`${id}-description`}
+        className="mt-0.5"
       />
-    </label>
+    </div>
   )
 }
 
@@ -214,7 +223,7 @@ export function CompleteSettingsPanels() {
 
   if (!data || !preferences) {
     return (
-      <Card as="section" className="order-4 block p-5 sm:p-6">
+      <Card as="section" className="order-4 min-w-0 block p-4 sm:p-5">
         <div
           role={error ? 'alert' : 'status'}
           className="flex min-h-24 items-center justify-center text-sm text-muted-foreground"
@@ -243,20 +252,20 @@ export function CompleteSettingsPanels() {
   }
 
   return (
-    <div className="contents">
-      <Card as="section" className="order-4 block gap-0 p-5 sm:p-6">
+    <>
+      <Card as="section" className="order-4 min-w-0 block gap-0 p-4 sm:p-5">
         <div className="flex items-start gap-3">
           <div className="icon-tile">
             <ShieldCheck className="size-4" />
           </div>
           <div>
-            <h3 className="text-base font-semibold">{t('twoFactor')}</h3>
+            <h3 className="text-sm font-medium">{t('twoFactor')}</h3>
             <p className="mt-1 text-xs text-muted-foreground">
               {t('twoFactorDesc')}
             </p>
           </div>
         </div>
-        <div className="mt-5 rounded-xl border border-border p-4">
+        <div className="mt-5 rounded-md border border-border p-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <p className="text-sm font-medium">{t('authenticatorApp')}</p>
@@ -265,7 +274,7 @@ export function CompleteSettingsPanels() {
               </p>
             </div>
             <span
-              className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${data.mfa.enabled ? 'bg-success/10 text-success' : 'bg-muted text-muted-foreground'}`}
+              className={`rounded-sm px-2.5 py-1 text-[11px] font-semibold ${data.mfa.enabled ? 'bg-success/10 text-success' : 'bg-muted text-muted-foreground'}`}
             >
               {data.mfa.enabled ? t('enabled') : t('disabled')}
             </span>
@@ -285,7 +294,7 @@ export function CompleteSettingsPanels() {
             </Button>
           )}
           {mfaSetup && (
-            <div className="mt-4 space-y-4 rounded-xl bg-muted/40 p-4">
+            <div className="mt-4 space-y-4 rounded-md bg-muted/40 p-4">
               <p className="text-xs leading-5 text-muted-foreground">
                 {t('mfaSetupHint')}
               </p>
@@ -363,10 +372,7 @@ export function CompleteSettingsPanels() {
             </div>
           )}
           {recoveryCodes.length > 0 && (
-            <div
-              role="status"
-              className="mt-4 rounded-xl border border-warning/30 bg-warning/10 p-4"
-            >
+            <output className="mt-4 block rounded-md border border-warning/30 bg-warning/10 p-4">
               <p className="text-sm font-semibold">{t('saveRecoveryCodes')}</p>
               <p className="mt-1 text-xs text-muted-foreground">
                 {t('recoveryCodesOnce')}
@@ -388,13 +394,13 @@ export function CompleteSettingsPanels() {
                 <Copy className="size-4" />
                 {t('copyAll')}
               </Button>
-            </div>
+            </output>
           )}
         </div>
 
         <div className="mt-7 flex flex-wrap items-end justify-between gap-3">
           <div>
-            <h3 className="text-base font-semibold">{t('activeSessions')}</h3>
+            <h3 className="text-sm font-medium">{t('activeSessions')}</h3>
             <p className="mt-1 text-xs text-muted-foreground">
               {t('activeSessionsDesc')}
             </p>
@@ -409,13 +415,13 @@ export function CompleteSettingsPanels() {
             {t('revokeOthers')}
           </Button>
         </div>
-        <ul className="mt-4 divide-y divide-border rounded-xl border border-border">
+        <ul className="mt-4 divide-y divide-border rounded-md border border-border">
           {data.sessions.map((session) => (
             <li
               key={session.id}
               className="flex flex-wrap items-center gap-3 p-4"
             >
-              <span className="flex size-9 items-center justify-center rounded-xl bg-muted">
+              <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-muted">
                 {session.device.includes('iOS') ||
                 session.device.includes('Android') ? (
                   <Smartphone className="size-4" />
@@ -452,7 +458,7 @@ export function CompleteSettingsPanels() {
           ))}
         </ul>
 
-        <details className="mt-5 rounded-xl border border-border p-4">
+        <details className="mt-5 rounded-md border border-border p-4">
           <summary className="cursor-pointer text-sm font-medium">
             {t('securityActivity')}
           </summary>
@@ -478,7 +484,7 @@ export function CompleteSettingsPanels() {
 
       <Card
         as="section"
-        className="order-6 block gap-0 p-5 sm:p-6"
+        className="order-6 min-w-0 block gap-0 p-4 sm:p-5"
         aria-labelledby="notifications-title"
       >
         <div className="flex items-start gap-3">
@@ -488,7 +494,7 @@ export function CompleteSettingsPanels() {
           <div>
             <h2
               id="notifications-title"
-              className="scroll-mt-24 text-base font-semibold"
+              className="scroll-mt-24 text-sm font-medium"
             >
               {t('notifications')}
             </h2>
@@ -543,14 +549,14 @@ export function CompleteSettingsPanels() {
 
       <Card
         as="section"
-        className="order-7 block gap-0 p-5 sm:p-6"
+        className="order-7 min-w-0 block gap-0 p-4 sm:p-5"
         aria-labelledby="preferences-title"
       >
         <div className="flex items-start justify-between gap-4">
           <div>
             <h2
               id="preferences-title"
-              className="scroll-mt-24 text-base font-semibold"
+              className="scroll-mt-24 text-sm font-medium"
             >
               {t('preferences')}
             </h2>
@@ -561,77 +567,55 @@ export function CompleteSettingsPanels() {
           <Check className="size-4 text-primary" />
         </div>
         <div className="mt-5 grid gap-4 sm:grid-cols-2">
-          <div>
-            <Label htmlFor="settings-locale">{t('language')}</Label>
-            <select
-              id="settings-locale"
-              value={preferences.locale}
-              onChange={(event) =>
-                setPreferences({
-                  ...preferences,
-                  locale: event.target.value as 'en' | 'ro'
-                })
-              }
-              className="field-input mt-1.5 h-10 w-full rounded-lg border border-input bg-background px-3 text-sm"
-            >
-              <option value="en">English</option>
-              <option value="ro">Română</option>
-            </select>
-          </div>
-          <div>
-            <Label htmlFor="settings-theme">{t('theme')}</Label>
-            <select
-              id="settings-theme"
-              value={preferences.theme}
-              onChange={(event) =>
-                setPreferences({
-                  ...preferences,
-                  theme: event.target.value as AccountPreferences['theme']
-                })
-              }
-              className="field-input mt-1.5 h-10 w-full rounded-lg border border-input bg-background px-3 text-sm"
-            >
-              <option value="system">{t('themeSystem')}</option>
-              <option value="light">{t('themeLight')}</option>
-              <option value="dark">{t('themeDark')}</option>
-            </select>
-          </div>
-          <div>
-            <Label htmlFor="settings-timezone">{t('timezone')}</Label>
-            <select
-              id="settings-timezone"
-              value={preferences.timezone}
-              onChange={(event) =>
-                setPreferences({ ...preferences, timezone: event.target.value })
-              }
-              className="field-input mt-1.5 h-10 w-full rounded-lg border border-input bg-background px-3 text-sm"
-            >
-              {TIMEZONES.map((zone) => (
-                <option key={zone} value={zone}>
-                  {zone}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <Label htmlFor="settings-aspect">{t('defaultAspectRatio')}</Label>
-            <select
-              id="settings-aspect"
-              value={preferences.defaultAspectRatio}
-              onChange={(event) =>
-                setPreferences({
-                  ...preferences,
-                  defaultAspectRatio: event.target
-                    .value as AccountPreferences['defaultAspectRatio']
-                })
-              }
-              className="field-input mt-1.5 h-10 w-full rounded-lg border border-input bg-background px-3 text-sm"
-            >
-              <option value="9:16">9:16</option>
-              <option value="1:1">1:1</option>
-              <option value="16:9">16:9</option>
-            </select>
-          </div>
+          <SettingsSelect
+            id="settings-locale"
+            label={t('language')}
+            value={preferences.locale}
+            options={[
+              { value: 'en', label: 'English' },
+              { value: 'ro', label: 'Română' }
+            ]}
+            onChange={(locale: AccountPreferences['locale']) =>
+              setPreferences({ ...preferences, locale })
+            }
+          />
+          <SettingsSelect
+            id="settings-theme"
+            label={t('theme')}
+            value={preferences.theme}
+            options={[
+              { value: 'system', label: t('themeSystem') },
+              { value: 'light', label: t('themeLight') },
+              { value: 'dark', label: t('themeDark') }
+            ]}
+            onChange={(theme: AccountPreferences['theme']) =>
+              setPreferences({ ...preferences, theme })
+            }
+          />
+          <SettingsSelect
+            id="settings-timezone"
+            label={t('timezone')}
+            value={preferences.timezone}
+            options={Array.from(
+              new Set([...TIMEZONES, preferences.timezone])
+            ).map((zone) => ({ value: zone, label: zone }))}
+            onChange={(timezone) =>
+              setPreferences({ ...preferences, timezone })
+            }
+          />
+          <SettingsSelect
+            id="settings-aspect"
+            label={t('defaultAspectRatio')}
+            value={preferences.defaultAspectRatio}
+            options={[
+              { value: '9:16', label: '9:16' },
+              { value: '1:1', label: '1:1' },
+              { value: '16:9', label: '16:9' }
+            ]}
+            onChange={(
+              defaultAspectRatio: AccountPreferences['defaultAspectRatio']
+            ) => setPreferences({ ...preferences, defaultAspectRatio })}
+          />
           <div>
             <Label htmlFor="settings-clips">{t('defaultClipCount')}</Label>
             <Input
@@ -664,27 +648,27 @@ export function CompleteSettingsPanels() {
         </Button>
       </Card>
 
-      <Card as="section" className="order-9 block gap-0 p-5 sm:p-6">
+      <Card as="section" className="order-9 min-w-0 block gap-0 p-4 sm:p-5">
         <div className="flex items-start gap-3">
           <div className="icon-tile">
             <Download className="size-4" />
           </div>
           <div>
-            <h3 className="text-base font-semibold">{t('exportHistory')}</h3>
+            <h3 className="text-sm font-medium">{t('exportHistory')}</h3>
             <p className="mt-1 text-xs text-muted-foreground">
               {t('exportHistoryDesc')}
             </p>
           </div>
         </div>
         {data.exports.length ? (
-          <ul className="mt-4 divide-y divide-border rounded-xl border border-border">
+          <ul className="mt-4 divide-y divide-border rounded-md border border-border">
             {data.exports.map((item) => (
               <li
                 key={item.id}
                 className="flex items-center justify-between gap-3 p-3 text-xs"
               >
                 <span>{formatDate(item.requestedAt)}</span>
-                <span className="rounded-full bg-muted px-2 py-1 font-medium">
+                <span className="rounded-sm bg-muted px-2 py-1 font-medium">
                   {t(`exportStatus.${item.status}`)}
                 </span>
               </li>
@@ -694,6 +678,6 @@ export function CompleteSettingsPanels() {
           <p className="mt-4 text-xs text-muted-foreground">{t('noExports')}</p>
         )}
       </Card>
-    </div>
+    </>
   )
 }

@@ -1,7 +1,7 @@
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
 import { Link } from '@/i18n/navigation'
-import { Captions, Film, Play, Zap } from 'lucide-react'
+import { Captions, ExternalLink, Film, Play, Zap } from 'lucide-react'
 
 export type ClipCardData = {
   id: string
@@ -20,12 +20,16 @@ export function ClipCard({
   clip,
   locale,
   labels,
-  index
+  index,
+  href,
+  actionLabel
 }: {
   clip: ClipCardData
   locale: string
   labels: { open: string; score: string; subtitles: string }
   index: number
+  href?: string
+  actionLabel?: string
 }) {
   const date = new Intl.DateTimeFormat(locale, {
     month: 'short',
@@ -39,8 +43,8 @@ export function ClipCard({
       className="media-asset group min-w-0 gap-0 overflow-hidden py-0 shadow-none transition-colors hover:border-primary/50"
     >
       <Link
-        href={`/dashboard/clips/${clip.id}`}
-        className="relative flex h-full min-w-0 flex-col rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+        href={href ?? `/dashboard/clips/${clip.id}`}
+        className="relative flex h-full min-w-0 flex-col rounded-md outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
         style={{ animationDelay: `${Math.min(index, 10) * 35}ms` }}
         aria-label={`${labels.open}: ${clip.title}`}
       >
@@ -108,6 +112,12 @@ export function ClipCard({
               </span>
             )}
           </div>
+          {actionLabel && (
+            <span className="mt-4 inline-flex h-9 w-full items-center justify-center gap-2 rounded-md bg-black px-4 text-xs font-semibold text-white transition-colors group-hover:bg-black/85">
+              <ExternalLink className="size-3.5" aria-hidden="true" />
+              {actionLabel}
+            </span>
+          )}
         </div>
       </Link>
     </Card>

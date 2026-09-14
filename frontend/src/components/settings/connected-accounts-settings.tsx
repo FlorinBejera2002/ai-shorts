@@ -77,14 +77,14 @@ export function ConnectedAccountsSettings() {
   return (
     <Card
       as="section"
-      className="order-5 block gap-0 p-5 sm:p-6"
+      className="order-5 min-w-0 block gap-0 p-4 sm:p-5"
       aria-labelledby="connections-title"
     >
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h2
             id="connections-title"
-            className="scroll-mt-24 text-base font-semibold"
+            className="scroll-mt-24 text-sm font-medium"
           >
             {t('connections')}
           </h2>
@@ -102,7 +102,7 @@ export function ConnectedAccountsSettings() {
 
       {!data ? (
         <div
-          className="mt-5 flex min-h-24 items-center justify-center rounded-xl border border-dashed border-border bg-muted/20 p-4"
+          className="mt-5 flex min-h-24 items-center justify-center rounded-md border border-dashed border-border bg-muted/20 p-4"
           role={error ? 'alert' : 'status'}
         >
           {error ? (
@@ -131,7 +131,7 @@ export function ConnectedAccountsSettings() {
           )}
         </div>
       ) : (
-        <ul className="mt-5 divide-y divide-border rounded-xl border border-border">
+        <ul className="mt-5 divide-y divide-border rounded-md border border-border">
           {data.providers.map((provider) => {
             const Icon = providerIcons[provider.id]
             const accounts = data.accounts.filter(
@@ -142,7 +142,7 @@ export function ConnectedAccountsSettings() {
                 key={provider.id}
                 className="flex flex-wrap items-center gap-3 px-4 py-3.5"
               >
-                <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-muted text-foreground">
+                <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-muted text-foreground">
                   <Icon className="size-4" aria-hidden="true" />
                 </span>
                 <div className="min-w-0 flex-1">
@@ -163,7 +163,7 @@ export function ConnectedAccountsSettings() {
                         return (
                           <div
                             key={account.id}
-                            className="rounded-lg bg-muted/40 px-3 py-2 text-[11px] text-muted-foreground"
+                            className="rounded-md bg-muted/40 px-3 py-2 text-[11px] text-muted-foreground"
                           >
                             <div className="flex flex-wrap items-center justify-between gap-2">
                               <span>
@@ -261,7 +261,7 @@ export function ConnectedAccountsSettings() {
                   </Button>
                 )}
                 <span
-                  className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold ${
+                  className={`inline-flex items-center gap-1.5 rounded-sm px-2.5 py-1 text-[11px] font-semibold ${
                     accounts.length
                       ? 'bg-success/10 text-success'
                       : 'bg-muted text-muted-foreground'

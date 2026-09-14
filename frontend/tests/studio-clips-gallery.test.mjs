@@ -7,10 +7,7 @@ const studioPage = readFileSync(
   'utf8'
 )
 const gallery = readFileSync(
-  new URL(
-    '../src/components/studio/studio-clips-gallery.tsx',
-    import.meta.url
-  ),
+  new URL('../src/components/studio/studio-clips-gallery.tsx', import.meta.url),
   'utf8'
 )
 
@@ -22,11 +19,7 @@ test('studio route retains the clip gallery and legacy clip deep links', () => {
   assert.doesNotMatch(gallery, /<iframe/)
 })
 
-test('every gallery card passes its selected clip to the direct Studio action', () => {
-  assert.match(
-    gallery,
-    /<OpenStudioButton clipId=\{clip\.id\}/
-  )
+test('every gallery card links its selected clip to Studio', () => {
+  assert.match(gallery, /href=\{`\/dashboard\/studio\?clip=\$\{clip\.id\}`\}/)
   assert.match(gallery, /data\.clips\.map/)
-  assert.doesNotMatch(gallery, /\/dashboard\/studio\?clip=/)
 })

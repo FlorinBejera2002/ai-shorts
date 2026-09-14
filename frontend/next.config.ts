@@ -12,6 +12,18 @@ const imageRemoteHosts = (process.env.NEXT_IMAGE_REMOTE_HOSTS ?? '')
   .map((host) => host.trim())
   .filter(Boolean)
 
+const localImagePatterns =
+  process.env.NODE_ENV === 'development'
+    ? [
+        {
+          protocol: 'http' as const,
+          hostname: 'localhost',
+          port: '3000',
+          pathname: '/media/**'
+        }
+      ]
+    : []
+
 function resolveDeploymentId(): string | undefined {
   if (process.env.NODE_ENV !== 'production') return undefined
 
@@ -49,10 +61,13 @@ const nextConfig: NextConfig = {
   deploymentId: resolveDeploymentId(),
   output: 'standalone',
   images: {
-    remotePatterns: imageRemoteHosts.map((hostname) => ({
-      protocol: 'https',
-      hostname
-    }))
+    remotePatterns: [
+      ...localImagePatterns,
+      ...imageRemoteHosts.map((hostname) => ({
+        protocol: 'https' as const,
+        hostname
+      }))
+    ]
   },
   async headers() {
     return [

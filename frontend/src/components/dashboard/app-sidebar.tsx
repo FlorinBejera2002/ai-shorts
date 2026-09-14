@@ -23,6 +23,7 @@ import {
   dashboardNavigation,
   isDashboardRouteActive
 } from '@/lib/dashboard-navigation'
+import { motion, useReducedMotion } from 'framer-motion'
 import {
   ArrowUpRight,
   CalendarDays,
@@ -33,17 +34,22 @@ import {
   LayoutDashboard,
   Palette,
   Plus,
+  Scissors,
   Settings,
   Share2,
   X
 } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
-import { useEffect } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import styles from './app-sidebar.module.css'
+
+const RAIL_CORNER = 6
+const DASH_PATTERN =
+  'repeating-linear-gradient(to top, transparent 0 2px, currentColor 2px 4px)'
 
 const icons = {
   home: LayoutDashboard,
-  editor: Film,
+  editor: Scissors,
   clips: Film,
   history: FolderOpen,
   calendar: CalendarDays,
@@ -54,6 +60,177 @@ const icons = {
   billing: CreditCard
 }
 const menuClass = styles.navItem
+
+function NavigationRail({
+  from = 0,
+  y,
+  visible,
+  active = false
+}: {
+  from?: number
+  y: number | null
+  visible: boolean
+  active?: boolean
+}) {
+  const reducedMotion = useReducedMotion()
+  const travel = reducedMotion
+    ? { duration: 0 }
+    : { type: 'spring' as const, stiffness: 420, damping: 34, mass: 0.7 }
+
+  return (
+    <motion.li
+      aria-hidden={true}
+      initial={false}
+      animate={{ opacity: visible && y !== null ? 1 : 0 }}
+      transition={reducedMotion ? { duration: 0 } : { duration: 0.2 }}
+      className={`${styles.railLayer} ${active ? styles.activeRail : styles.hoverRail}`}
+    >
+      <motion.span
+        initial={false}
+        animate={{
+          top: from,
+          height: Math.max(0, (y ?? 0) - RAIL_CORNER - from)
+        }}
+        transition={travel}
+        style={{ backgroundImage: DASH_PATTERN }}
+        className={styles.railLine}
+      />
+      <motion.svg
+        initial={false}
+        animate={{ top: (y ?? 0) - RAIL_CORNER }}
+        transition={travel}
+        width="12"
+        height="7"
+        viewBox="0 0 12 7"
+        fill="none"
+        className={styles.railCorner}
+      >
+        <path
+          d="M0.5 0a6 6 0 0 0 6 6H12"
+          stroke="currentColor"
+          strokeDasharray="2 2"
+        />
+      </motion.svg>
+    </motion.li>
+  )
+}
+
+function NavigationGroup({
+  group,
+  pathname,
+  onNavigate
+}: {
+  group: (typeof dashboardNavigation)[number]
+  pathname: string
+  onNavigate: () => void
+}) {
+  const t = useTranslations('nav')
+  const listRef = useRef<HTMLUListElement>(null)
+  const itemRefs = useRef<(HTMLLIElement | null)[]>([])
+  const [centers, setCenters] = useState<number[]>([])
+  const [hoverIndex, setHoverIndex] = useState<number | null>(null)
+  const [pointerInside, setPointerInside] = useState(false)
+  const [focusInside, setFocusInside] = useState(false)
+  const activeIndex = group.items.findIndex((item) =>
+    isDashboardRouteActive(pathname, item.href)
+  )
+
+  useEffect(() => {
+    const list = listRef.current
+    if (!list) return
+
+    const measure = () =>
+      setCenters(
+        itemRefs.current.map((element) =>
+          element ? element.offsetTop + element.offsetHeight / 2 : 0
+        )
+      )
+
+    measure()
+    const observer = new ResizeObserver(measure)
+    observer.observe(list)
+    return () => observer.disconnect()
+  }, [])
+
+  const activeY = activeIndex < 0 ? null : (centers[activeIndex] ?? null)
+  const hoverY = hoverIndex === null ? null : (centers[hoverIndex] ?? null)
+  const hoverFrom =
+    activeY !== null && hoverY !== null && hoverY <= activeY
+      ? Math.max(0, hoverY - RAIL_CORNER)
+      : (activeY ?? 0)
+
+  return (
+    <SidebarGroup
+      className={`${styles.group} group-data-[collapsible=icon]:px-4`}
+    >
+      <SidebarGroupLabel className={styles.groupLabel}>
+        {t(group.labelKey)}
+      </SidebarGroupLabel>
+      <SidebarGroupContent>
+        <SidebarMenu
+          ref={listRef}
+          className={styles.navigationRail}
+          onMouseLeave={() => setPointerInside(false)}
+        >
+          <NavigationRail
+            from={hoverFrom}
+            y={hoverY}
+            visible={
+              (pointerInside || focusInside) && hoverIndex !== activeIndex
+            }
+          />
+          <NavigationRail
+            y={activeY}
+            visible={activeY !== null}
+            active={true}
+          />
+
+          {group.items.map((item, itemIndex) => {
+            const Icon = icons[item.key]
+            const active = itemIndex === activeIndex
+            return (
+              <SidebarMenuItem
+                key={item.href}
+                ref={(element) => {
+                  itemRefs.current[itemIndex] = element
+                }}
+                onMouseEnter={() => {
+                  setHoverIndex(itemIndex)
+                  setPointerInside(true)
+                }}
+                onFocus={() => {
+                  setHoverIndex(itemIndex)
+                  setFocusInside(true)
+                }}
+                onBlur={() => setFocusInside(false)}
+              >
+                <SidebarMenuButton
+                  asChild={true}
+                  isActive={active}
+                  tooltip={t(item.key)}
+                  className={menuClass}
+                >
+                  <Link
+                    href={item.href}
+                    onClick={onNavigate}
+                    prefetch={false}
+                    aria-label={t(item.key)}
+                    aria-current={active ? 'page' : undefined}
+                  >
+                    <span className={styles.navIcon}>
+                      <Icon strokeWidth={1.75} />
+                    </span>
+                    <span className={styles.navLabel}>{t(item.key)}</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            )
+          })}
+        </SidebarMenu>
+      </SidebarGroupContent>
+    </SidebarGroup>
+  )
+}
 
 function SidebarProfile() {
   const { user } = useAuth()
@@ -154,49 +331,12 @@ export function AppSidebar() {
       <SidebarContent className={styles.content}>
         <nav id="dashboard-navigation" aria-label={t('mobileNavigation')}>
           {dashboardNavigation.map((group) => (
-            <SidebarGroup
+            <NavigationGroup
               key={group.labelKey}
-              className={`${styles.group} group-data-[collapsible=icon]:px-4`}
-            >
-              {group.labelKey !== 'groupWorkspace' && (
-                <SidebarGroupLabel className={styles.groupLabel}>
-                  {t(group.labelKey)}
-                </SidebarGroupLabel>
-              )}
-              <SidebarGroupContent>
-                <SidebarMenu className="gap-1.5">
-                  {group.items.map((item) => {
-                    const Icon = icons[item.key]
-                    const active = isDashboardRouteActive(pathname, item.href)
-                    return (
-                      <SidebarMenuItem key={item.href}>
-                        <SidebarMenuButton
-                          asChild={true}
-                          isActive={active}
-                          tooltip={t(item.key)}
-                          className={menuClass}
-                        >
-                          <Link
-                            href={item.href}
-                            onClick={close}
-                            prefetch={false}
-                            aria-label={t(item.key)}
-                            aria-current={active ? 'page' : undefined}
-                          >
-                            <span className={styles.navIcon}>
-                              <Icon strokeWidth={1.75} />
-                            </span>
-                            <span className={styles.navLabel}>
-                              {t(item.key)}
-                            </span>
-                          </Link>
-                        </SidebarMenuButton>
-                      </SidebarMenuItem>
-                    )
-                  })}
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </SidebarGroup>
+              group={group}
+              pathname={pathname}
+              onNavigate={close}
+            />
           ))}
         </nav>
       </SidebarContent>

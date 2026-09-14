@@ -56,7 +56,7 @@ export function SettingsNavigation() {
   return (
     <nav
       aria-label={t('sectionNav')}
-      className="sticky top-3 z-20 -mx-1 flex gap-1 overflow-x-auto rounded-2xl border border-border/70 bg-background/90 p-1.5 shadow-sm backdrop-blur-xl lg:top-24 lg:mx-0 lg:flex-col lg:overflow-visible"
+      className="sticky top-16 z-20 flex min-w-0 gap-1 overflow-x-auto rounded-md border border-border bg-card p-1.5 lg:top-24 lg:flex-col"
     >
       {sections.map(({ id, label, icon: Icon }) => {
         const active = activeId === id
@@ -66,9 +66,9 @@ export function SettingsNavigation() {
             href={`#${id}`}
             aria-current={active ? 'location' : undefined}
             onClick={() => setActiveId(id)}
-            className={`group flex min-h-10 shrink-0 items-center gap-2.5 rounded-xl px-3 text-xs font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-primary/50 lg:w-full ${
+            className={`flex min-h-10 shrink-0 items-center gap-2.5 rounded-sm px-3 text-xs font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-primary/50 lg:w-full ${
               active
-                ? 'bg-primary text-primary-foreground shadow-sm'
+                ? 'bg-primary/10 text-primary'
                 : 'text-muted-foreground hover:bg-muted hover:text-foreground'
             }`}
           >

@@ -404,7 +404,7 @@ export function TimelineToolbar({ domEditSession, onSplitElement }: TimelineTool
                   }}
                   className={
                     canAdd
-                      ? `${flatBtn} text-neutral-400 hover:bg-white/[0.06] hover:text-[#22c55e] active:scale-[0.98]`
+                      ? `${flatBtn} text-neutral-400 hover:bg-white/[0.06] hover:text-[#60a5fa] active:scale-[0.98]`
                       : flatDisabled
                   }
                 >

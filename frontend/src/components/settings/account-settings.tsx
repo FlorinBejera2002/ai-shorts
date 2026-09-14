@@ -261,7 +261,7 @@ export function AccountSettings({
       {profile.deletionPending && (
         <div
           role="alert"
-          className="mb-6 rounded-lg border border-warning/30 bg-warning/10 p-4 text-sm"
+          className="mb-6 rounded-md border border-warning/30 bg-warning/10 p-4 text-sm"
         >
           {locale === 'ro'
             ? 'Ștergerea contului nu s-a încheiat. Reîncearcă ștergerea în secțiunea de confidențialitate de mai jos.'
@@ -269,13 +269,13 @@ export function AccountSettings({
         </div>
       )}
 
-      <div className="grid items-start gap-6 lg:grid-cols-[13.5rem_minmax(0,47.5rem)] xl:gap-10">
+      <div className="grid min-w-0 items-start gap-4 lg:grid-cols-[208px_minmax(0,1fr)]">
         <SettingsNavigation />
-        <div className="account-content grid min-w-0 grid-cols-1 gap-5">
+        <div className="account-content grid min-w-0 grid-cols-1 gap-4">
           <div className="contents">
             <Card
               as="section"
-              className="order-2 block gap-0 p-5 sm:p-6"
+              className="order-2 min-w-0 block gap-0 p-4 sm:p-5"
               aria-labelledby="profile-title"
             >
               <div className="flex flex-wrap items-start justify-between gap-4">
@@ -284,11 +284,11 @@ export function AccountSettings({
                     <img
                       src={profile.image}
                       alt=""
-                      className="h-14 w-14 rounded-2xl border border-border object-cover"
+                      className="h-12 w-12 rounded-full border border-border object-cover"
                     />
                   ) : (
                     <div
-                      className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-base font-bold text-primary"
+                      className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary/10 text-base font-bold text-primary"
                       aria-hidden="true"
                     >
                       {initials}
@@ -297,7 +297,7 @@ export function AccountSettings({
                   <div className="min-w-0">
                     <h2
                       id="profile-title"
-                      className="scroll-mt-24 text-base font-semibold"
+                      className="scroll-mt-24 text-sm font-medium"
                     >
                       {t('profileTitle')}
                     </h2>
@@ -306,7 +306,7 @@ export function AccountSettings({
                     </p>
                   </div>
                 </div>
-                <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/60 px-2.5 py-1 text-[11px] font-semibold text-muted-foreground">
+                <span className="inline-flex items-center gap-1.5 rounded-sm border border-border bg-muted/60 px-2.5 py-1 text-[11px] font-semibold text-muted-foreground">
                   <Shield className="h-3 w-3" aria-hidden="true" />
                   {credentialAccount
                     ? t('credentialsProvider')
@@ -379,7 +379,7 @@ export function AccountSettings({
 
             <Card
               as="section"
-              className="order-3 block gap-0 p-5 sm:p-6"
+              className="order-3 min-w-0 block gap-0 p-4 sm:p-5"
               aria-labelledby="security-title"
             >
               <div className="flex items-start gap-3">
@@ -389,7 +389,7 @@ export function AccountSettings({
                 <div>
                   <h2
                     id="security-title"
-                    className="scroll-mt-24 text-base font-semibold"
+                    className="scroll-mt-24 text-sm font-medium"
                   >
                     {t('securityTitle')}
                   </h2>
@@ -483,7 +483,7 @@ export function AccountSettings({
                   </div>
                 </form>
               ) : (
-                <div className="mt-5 flex items-start gap-3 rounded-xl border border-border bg-muted/35 p-4">
+                <div className="mt-5 flex items-start gap-3 rounded-md border border-border bg-muted/35 p-4">
                   <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
                   <p className="text-sm leading-relaxed text-muted-foreground">
                     {t('providerPassword', { provider: profile.provider })}
@@ -498,7 +498,7 @@ export function AccountSettings({
 
             <Card
               as="section"
-              className="order-8 block gap-0 p-5 sm:p-6"
+              className="order-8 min-w-0 block gap-0 p-4 sm:p-5"
               aria-labelledby="privacy-title"
             >
               <div className="flex items-start gap-3">
@@ -508,7 +508,7 @@ export function AccountSettings({
                 <div>
                   <h2
                     id="privacy-title"
-                    className="scroll-mt-24 text-base font-semibold"
+                    className="scroll-mt-24 text-sm font-medium"
                   >
                     {t('dataPrivacy')}
                   </h2>
@@ -545,7 +545,7 @@ export function AccountSettings({
             </Card>
 
             <section
-              className="order-10 rounded-2xl border border-destructive/25 bg-destructive/[0.035] p-5 sm:p-6"
+              className="order-10 min-w-0 rounded-md border border-destructive/25 bg-destructive/[0.035] p-5 sm:p-6"
               aria-labelledby="danger-title"
             >
               <div className="flex items-start gap-3">
@@ -566,18 +566,17 @@ export function AccountSettings({
                 type="button"
                 onClick={openDeleteDialog}
                 disabled={busy !== null}
-                className="mt-4 inline-flex min-h-10 items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-2 text-[13px] font-semibold text-destructive transition-colors hover:bg-destructive/20 disabled:opacity-50"
+                className="mt-4 inline-flex min-h-10 items-center gap-2 rounded-md border border-destructive/30 bg-destructive/10 px-4 py-2 text-[13px] font-semibold text-destructive transition-colors hover:bg-destructive/20 disabled:opacity-50"
               >
                 <Trash2 className="h-4 w-4" />
                 {t('deleteAccount')}
               </button>
             </section>
           </div>
-
           <aside className="contents">
             <Card
               as="section"
-              className="order-1 block gap-0 p-5 sm:p-6"
+              className="order-1 min-w-0 block gap-0 p-4 sm:p-5"
               aria-labelledby="account-title"
             >
               <div className="flex items-center gap-3">
@@ -591,7 +590,7 @@ export function AccountSettings({
                   {t('accountDetails')}
                 </h2>
               </div>
-              <dl className="mt-5 space-y-4 text-sm">
+              <dl className="mt-4 grid gap-4 text-sm sm:grid-cols-2">
                 <div>
                   <dt className="text-[11px] uppercase tracking-wider text-muted-foreground">
                     {t('memberSince')}
@@ -607,7 +606,7 @@ export function AccountSettings({
                   </dt>
                   <dd className="mt-1 font-medium">
                     <span
-                      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold ${
+                      className={`inline-flex items-center gap-1.5 rounded-sm px-2.5 py-1 text-[11px] font-semibold ${
                         profile.emailVerified
                           ? 'bg-success/10 text-success'
                           : 'bg-warning/10 text-warning-foreground'
@@ -666,10 +665,10 @@ export function AccountSettings({
           setDeleteError(null)
           if (busy === 'delete') setBusy(null)
         }}
-        className="m-auto w-[min(32rem,calc(100%-2rem))] rounded-2xl border border-destructive/25 bg-card p-0 text-card-foreground shadow-2xl backdrop:bg-black/65"
+        className="m-auto w-[min(32rem,calc(100%-2rem))] rounded-md border border-destructive/25 bg-card p-0 text-card-foreground shadow-2xl backdrop:bg-black/65"
       >
         <form className="p-6" onSubmit={deleteAccount}>
-          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-destructive/10 text-destructive">
+          <div className="flex h-11 w-11 items-center justify-center rounded-md bg-destructive/10 text-destructive">
             <AlertTriangle className="h-5 w-5" />
           </div>
           <h2 id="delete-dialog-title" className="mt-4 text-lg font-semibold">
@@ -716,7 +715,7 @@ export function AccountSettings({
               />
             </div>
           ) : !profile.recentlyAuthenticated ? (
-            <div className="mt-4 rounded-xl border border-warning/25 bg-warning/10 p-4">
+            <div className="mt-4 rounded-md border border-warning/25 bg-warning/10 p-4">
               <p className="text-xs leading-relaxed text-foreground">
                 {t('reauthenticationRequired', { provider: profile.provider })}
               </p>
@@ -765,7 +764,7 @@ export function AccountSettings({
                 deleteConfirmation.trim().toLowerCase() !==
                   profile.email.toLowerCase()
               }
-              className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-destructive px-4 py-2 text-[13px] font-semibold text-destructive-foreground transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-45"
+              className="inline-flex min-h-10 items-center justify-center gap-2 rounded-md bg-destructive px-4 py-2 text-[13px] font-semibold text-destructive-foreground transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-45"
             >
               {busy === 'delete' ? (
                 <Loader2 className="h-4 w-4 animate-spin" />

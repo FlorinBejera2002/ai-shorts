@@ -1,32 +1,24 @@
 'use client'
 
+import '@/components/clips/media-workbench.css'
+
+import { ClipCard } from '@/components/clips/clip-card'
 import { ApiState } from '@/components/shared/api-state'
 import { Button } from '@/components/ui/button'
-import { Card } from '@/components/ui/card'
 import { EmptyState } from '@/components/ui/empty-state'
 import { Input } from '@/components/ui/input'
 import { PageHeader } from '@/components/ui/page-header'
 import { useApiResource } from '@/hooks/use-api-resource'
 import { Link } from '@/i18n/navigation'
-import type { ClipLibraryData, FullClip } from '@/types/api'
-import {
-  Captions,
-  ChevronLeft,
-  ChevronRight,
-  Film,
-  Plus,
-  Search,
-  Sparkles,
-  Zap
-} from 'lucide-react'
-import { useTranslations } from 'next-intl'
-import Image from 'next/image'
+import type { ClipLibraryData } from '@/types/api'
+import { ChevronLeft, ChevronRight, Film, Plus, Search } from 'lucide-react'
+import { useLocale, useTranslations } from 'next-intl'
 import { type FormEvent, useMemo, useState } from 'react'
-import { OpenStudioButton } from './open-studio-button'
 import styles from './studio-clips-gallery.module.css'
 
 export function StudioClipsGallery() {
   const t = useTranslations('studioEditor')
+  const locale = useLocale()
   const [searchInput, setSearchInput] = useState('')
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
@@ -48,7 +40,7 @@ export function StudioClipsGallery() {
   if (!data) return <ApiState error={error} retry={reload} />
 
   return (
-    <div className="dashboard-workspace animate-fade-in">
+    <div className={`${styles.workspace} dashboard-workspace animate-fade-in`}>
       <PageHeader
         title={t('title')}
         description={t('description', { count: data.total })}
@@ -67,13 +59,13 @@ export function StudioClipsGallery() {
         aria-labelledby="editor-library-title"
       >
         <div className={styles.libraryHeader}>
-          <div>
+          <div className={styles.libraryCopy}>
             <p className={styles.eyebrow}>
-              <Sparkles aria-hidden="true" />
-              {t('eyebrow')}
+              {search
+                ? t('filteredCount', { count: data.total, search })
+                : t('description', { count: data.total })}
             </p>
             <h2 id="editor-library-title">{t('libraryTitle')}</h2>
-            <p>{t('libraryDescription')}</p>
           </div>
           <form className={styles.search} onSubmit={submitSearch}>
             <Search aria-hidden="true" />
@@ -85,32 +77,24 @@ export function StudioClipsGallery() {
               placeholder={t('searchPlaceholder')}
               aria-label={t('searchLabel')}
             />
-            <Button type="submit" variant="secondary">
-              {t('search')}
-            </Button>
           </form>
         </div>
 
         {data.clips.length ? (
           <>
-            <div className={styles.resultBar}>
-              <p aria-live="polite">
-                {search
-                  ? t('filteredCount', { count: data.total, search })
-                  : t('count', { count: data.total })}
-              </p>
-              <span>{t('editorHint')}</span>
-            </div>
             <div className={styles.grid}>
               {data.clips.map((clip, index) => (
-                <EditorClipCard
+                <ClipCard
                   key={clip.id}
                   clip={clip}
                   index={index}
+                  locale={locale}
+                  href={`/dashboard/studio?clip=${clip.id}`}
+                  actionLabel={t('edit')}
                   labels={{
+                    open: t('edit'),
                     score: t('score'),
-                    subtitles: t('subtitles'),
-                    ready: t('ready')
+                    subtitles: t('subtitles')
                   }}
                 />
               ))}
@@ -157,78 +141,6 @@ export function StudioClipsGallery() {
         )}
       </section>
     </div>
-  )
-}
-
-function EditorClipCard({
-  clip,
-  labels,
-  index
-}: {
-  clip: FullClip
-  labels: {
-    score: string
-    subtitles: string
-    ready: string
-  }
-  index: number
-}) {
-  return (
-    <Card
-      as="article"
-      className={styles.card}
-      style={{ animationDelay: `${Math.min(index, 12) * 35}ms` }}
-    >
-      <div className={styles.preview}>
-        {clip.thumbnailUrl ? (
-          <Image
-            src={clip.thumbnailUrl}
-            alt=""
-            fill={true}
-            sizes="(max-width: 640px) 100vw, (max-width: 1100px) 50vw, 25vw"
-            className={styles.thumbnail}
-            unoptimized={true}
-          />
-        ) : (
-          <div className={styles.placeholder}>
-            <Film aria-hidden="true" />
-          </div>
-        )}
-        <div className={styles.previewShade} aria-hidden="true" />
-        <span className={styles.ready}>
-          <span aria-hidden="true" />
-          {labels.ready}
-        </span>
-        <span className={styles.duration}>
-          {Math.round(clip.duration)}s · {clip.aspectRatio}
-        </span>
-      </div>
-
-      <div className={styles.cardBody}>
-        <div className={styles.titleRow}>
-          <h3>{clip.title}</h3>
-          {clip.viralScore > 0 && (
-            <span className={styles.score} title={labels.score}>
-              <Zap aria-hidden="true" />
-              {clip.viralScore}/10
-            </span>
-          )}
-        </div>
-        <p className={styles.hook}>
-          {clip.hookText || clip.scoreReason || '\u00a0'}
-        </p>
-        <div className={styles.meta}>
-          <span>{clip.resolution || '—'}</span>
-          {clip.hasSubtitles && (
-            <span>
-              <Captions aria-hidden="true" />
-              {labels.subtitles}
-            </span>
-          )}
-        </div>
-        <OpenStudioButton clipId={clip.id} className={styles.editButton} />
-      </div>
-    </Card>
   )
 }
 

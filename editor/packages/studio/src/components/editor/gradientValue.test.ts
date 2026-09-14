@@ -57,8 +57,8 @@ describe("parseGradient", () => {
 
 describe("serializeGradient", () => {
   it("serializes default gradient models", () => {
-    expect(serializeGradient(buildDefaultGradientModel("rgba(60, 230, 172, 0.18)"))).toBe(
-      "linear-gradient(135deg, rgba(60, 230, 172, 0.18) 0%, rgba(255, 255, 255, 0.04) 100%)",
+    expect(serializeGradient(buildDefaultGradientModel("rgba(37, 99, 235, 0.18)"))).toBe(
+      "linear-gradient(135deg, rgba(37, 99, 235, 0.18) 0%, rgba(255, 255, 255, 0.04) 100%)",
     );
   });
 

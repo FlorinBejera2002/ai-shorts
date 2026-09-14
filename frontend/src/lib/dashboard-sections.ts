@@ -1,8 +1,4 @@
 export const dashboardSections = {
-  clips: {
-    href: '/dashboard/clips',
-    tabs: ['library', 'review']
-  },
   projects: {
     href: '/dashboard/history',
     tabs: ['history', 'analytics']
@@ -39,7 +35,7 @@ export function dashboardSectionHref(
 }
 
 export const legacyDashboardDestinations = {
-  review: '/dashboard/clips?tab=review',
+  review: '/dashboard/clips',
   analytics: '/dashboard/history?tab=analytics',
   brand: '/dashboard/brand',
   billing: '/dashboard/billing'
