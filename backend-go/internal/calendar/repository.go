@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -15,6 +16,7 @@ import (
 
 var ErrClip = errors.New("Choose a clip from your library or remove the selected clip")
 var ErrInactive = errors.New("Account is unavailable")
+var ErrLocked = errors.New("A post that is publishing or published can no longer be changed")
 
 type Media interface {
 	KeyFromReference(string) (string, error)
@@ -33,16 +35,18 @@ type ClipOption struct {
 	CaptionYoutube   *string `json:"captionYoutube"`
 }
 type Post struct {
-	ID          string    `json:"id"`
-	Title       string    `json:"title"`
-	Caption     *string   `json:"caption"`
-	Notes       *string   `json:"notes"`
-	Platforms   []string  `json:"platforms"`
-	Status      string    `json:"status"`
-	ScheduledAt string    `json:"scheduledAt"`
-	CreatedAt   string    `json:"createdAt"`
-	UpdatedAt   string    `json:"updatedAt"`
-	Clip        *PostClip `json:"clip"`
+	ID              string    `json:"id"`
+	Title           string    `json:"title"`
+	Caption         *string   `json:"caption"`
+	Notes           *string   `json:"notes"`
+	Platforms       []string  `json:"platforms"`
+	AccountIDs      []string  `json:"accountIds"`
+	Status          string    `json:"status"`
+	PublishingError string    `json:"publishingError,omitempty"`
+	ScheduledAt     string    `json:"scheduledAt"`
+	CreatedAt       string    `json:"createdAt"`
+	UpdatedAt       string    `json:"updatedAt"`
+	Clip            *PostClip `json:"clip"`
 }
 type Repository struct {
 	db    *sql.DB
@@ -71,7 +75,7 @@ func (s *Repository) thumbnail(ctx context.Context, references ...sql.NullString
 	return nil
 }
 
-const postSelect = `SELECT p.id,p.title,p.caption,p.notes,p.platforms,p.status,p.scheduled_at,p.created_at,p.updated_at,
+const postSelect = `SELECT p.id,p.title,p.caption,p.notes,p.platforms,p.account_ids,p.status,p.publishing_error,p.scheduled_at,p.created_at,p.updated_at,
 	c.id,c.title,c.viral_score,c.thumbnail_storage_key,c.thumbnail_path,c.thumbnail_url
 	FROM scheduled_posts p LEFT JOIN clips c ON c.id=p.clip_id AND c.user_id=p.user_id`
 
@@ -82,7 +86,7 @@ func (s *Repository) readPost(ctx context.Context, row rowScanner) (Post, error)
 	var scheduled, created, updated time.Time
 	var clipID, clipTitle, thumbKey, thumbPath, thumbURL sql.NullString
 	var score sql.NullFloat64
-	e := row.Scan(&p.ID, &p.Title, &p.Caption, &p.Notes, pq.Array(&p.Platforms), &p.Status, &scheduled, &created, &updated, &clipID, &clipTitle, &score, &thumbKey, &thumbPath, &thumbURL)
+	e := row.Scan(&p.ID, &p.Title, &p.Caption, &p.Notes, pq.Array(&p.Platforms), pq.Array(&p.AccountIDs), &p.Status, &p.PublishingError, &scheduled, &created, &updated, &clipID, &clipTitle, &score, &thumbKey, &thumbPath, &thumbURL)
 	if e != nil {
 		return p, e
 	}
@@ -184,7 +188,22 @@ func (s *Repository) Mutate(ctx context.Context, userID, id string, input map[st
 	if e = lockUser(ctx, tx, userID); e != nil {
 		return empty, e
 	}
+	var currentStatus string
+	var currentClip sql.NullString
+	var currentPlatforms, currentAccountIDs pq.StringArray
+	if !create {
+		e = tx.QueryRowContext(ctx, `SELECT status,clip_id,platforms,account_ids FROM scheduled_posts WHERE id=$1 AND user_id=$2 FOR UPDATE`, id, userID).Scan(&currentStatus, &currentClip, &currentPlatforms, &currentAccountIDs)
+		if e != nil {
+			return empty, e
+		}
+		if currentStatus == "publishing" || currentStatus == "published" {
+			return empty, ErrLocked
+		}
+	}
 	clipID, clipChanged := fields["clipId"]
+	if !clipChanged && currentClip.Valid {
+		clipID = currentClip.String
+	}
 	if clipID != nil {
 		var found string
 		e = tx.QueryRowContext(ctx, `SELECT id FROM clips WHERE id=$1 AND user_id=$2 FOR KEY SHARE`, clipID, userID).Scan(&found)
@@ -193,6 +212,73 @@ func (s *Repository) Mutate(ctx context.Context, userID, id string, input map[st
 		}
 		if e != nil {
 			return empty, e
+		}
+	}
+	status := currentStatus
+	if create {
+		status = fields["status"].(string)
+	} else if value, ok := fields["status"]; ok {
+		status = value.(string)
+	}
+	if status == "publish" {
+		status = "scheduled"
+		fields["status"] = status
+		fields["scheduledAt"] = time.Now().UTC().Truncate(time.Millisecond)
+	}
+	platforms := []string(currentPlatforms)
+	if value, ok := fields["platforms"]; ok {
+		platforms = value.([]string)
+	}
+	accountIDs := []string(currentAccountIDs)
+	if value, ok := fields["accountIds"]; ok {
+		accountIDs = value.([]string)
+	}
+	if status == "scheduled" {
+		issues := []Issue{}
+		if clipID == nil {
+			issues = append(issues, Issue{"clipId", "Choose a clip before scheduling publication"})
+		}
+		if len(accountIDs) == 0 {
+			issues = append(issues, Issue{"accountIds", "Choose at least one connected account"})
+		}
+		providers := []string{}
+		if len(accountIDs) > 0 {
+			rows, queryErr := tx.QueryContext(ctx, `SELECT provider FROM social_accounts WHERE user_id=$1 AND status='connected' AND COALESCE(token_expires_at>now(),true) AND id=ANY($2::uuid[])`, userID, pq.Array(accountIDs))
+			if queryErr != nil {
+				return empty, queryErr
+			}
+			for rows.Next() {
+				var provider string
+				if queryErr = rows.Scan(&provider); queryErr == nil {
+					providers = append(providers, provider)
+				}
+			}
+			if queryErr == nil {
+				queryErr = rows.Err()
+			}
+			rows.Close()
+			if queryErr != nil {
+				return empty, queryErr
+			}
+		}
+		if len(providers) != len(accountIDs) {
+			issues = append(issues, Issue{"accountIds", "Reconnect the selected account and try again"})
+		} else {
+			for _, provider := range providers {
+				if !slices.Contains([]string{"instagram", "facebook"}, provider) || !slices.Contains(platforms, provider) {
+					issues = append(issues, Issue{"accountIds", "Only connected Instagram and Facebook accounts can be scheduled"})
+					break
+				}
+			}
+			for _, platform := range platforms {
+				if !slices.Contains(providers, platform) {
+					issues = append(issues, Issue{"platforms", "Each platform must have a selected publishing account"})
+					break
+				}
+			}
+		}
+		if len(issues) > 0 {
+			return empty, &ValidationError{Issues: issues}
 		}
 	}
 	if create {
@@ -207,8 +293,13 @@ func (s *Repository) Mutate(ctx context.Context, userID, id string, input map[st
 		if clipID != nil {
 			owner = userID
 		}
-		_, e = tx.ExecContext(ctx, `INSERT INTO scheduled_posts(id,user_id,clip_id,clip_owner_id,title,caption,notes,platforms,status,scheduled_at,created_at,updated_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,now(),now())`, id, userID, clipID, owner, fields["title"], fields["caption"], fields["notes"], pq.Array(fields["platforms"]), fields["status"], fields["scheduledAt"])
+		_, e = tx.ExecContext(ctx, `INSERT INTO scheduled_posts(id,user_id,clip_id,clip_owner_id,title,caption,notes,platforms,account_ids,status,scheduled_at,created_at,updated_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,now(),now())`, id, userID, clipID, owner, fields["title"], fields["caption"], fields["notes"], pq.Array(fields["platforms"]), pq.Array(fields["accountIds"]), fields["status"], fields["scheduledAt"])
 	} else {
+		if currentStatus == "failed" && status == "scheduled" {
+			if _, e = tx.ExecContext(ctx, `UPDATE social_posts SET scheduled_post_id=NULL WHERE scheduled_post_id=$1`, id); e != nil {
+				return empty, e
+			}
+		}
 		keys := make([]string, 0, len(fields))
 		for key := range fields {
 			keys = append(keys, key)
@@ -218,11 +309,14 @@ func (s *Repository) Mutate(ctx context.Context, userID, id string, input map[st
 		args := []any{id, userID}
 		for _, key := range keys {
 			value := fields[key]
-			if key == "platforms" {
+			if key == "platforms" || key == "accountIds" {
 				value = pq.Array(value)
 			}
 			args = append(args, value)
 			sets = append(sets, fmt.Sprintf("%s=$%d", mutationColumns[key], len(args)))
+		}
+		if status == "scheduled" {
+			sets = append(sets, "publishing_error=''")
 		}
 		if clipChanged {
 			var owner any
@@ -266,6 +360,13 @@ func (s *Repository) Delete(ctx context.Context, userID, id string) error {
 	defer tx.Rollback()
 	if e = lockUser(ctx, tx, userID); e != nil {
 		return e
+	}
+	var status string
+	if e = tx.QueryRowContext(ctx, `SELECT status FROM scheduled_posts WHERE id=$1 AND user_id=$2 FOR UPDATE`, id, userID).Scan(&status); e != nil {
+		return e
+	}
+	if status == "publishing" {
+		return ErrLocked
 	}
 	result, e := tx.ExecContext(ctx, `DELETE FROM scheduled_posts WHERE id=$1 AND user_id=$2`, id, userID)
 	if e != nil {

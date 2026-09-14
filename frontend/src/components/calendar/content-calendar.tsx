@@ -7,7 +7,6 @@ import { useApiResource } from '@/hooks/use-api-resource'
 import { apiFetch } from '@/lib/auth'
 import type {
   CalendarClipOption,
-  ContentPlatform,
   ScheduledPostRecord
 } from '@/lib/content-calendar'
 import type { PublishingData } from '@/lib/publishing'
@@ -21,7 +20,6 @@ import { CalendarMonthView } from './calendar-month-view'
 import { CalendarTimelineView } from './calendar-timeline-view'
 import { CalendarToolbar } from './calendar-toolbar'
 import {
-  CALENDAR_PLATFORMS,
   CalendarRequestError,
   type CalendarViewMode,
   type PostFormPayload,
@@ -173,7 +171,10 @@ export function ContentCalendar() {
       setLoading(true)
       setLoadError(null)
       try {
-        const params = new URLSearchParams({ start: rangeStart, end: rangeEnd })
+        const params = new URLSearchParams({
+          start: rangeStart,
+          end: rangeEnd
+        })
         const data = await requestJson<CalendarResponse>(
           `/api/calendar?${params}`,
           { signal: controller.signal, cache: 'no-store' }
@@ -210,20 +211,45 @@ export function ContentCalendar() {
     return () => controller.abort()
   }, [rangeEnd, rangeStart, ready, refreshToken])
 
-  const connectedPlatforms = useMemo<ContentPlatform[]>(() => {
-    if (!publishingData) return []
+  useEffect(() => {
+    const now = Date.now()
+    const publishing = posts.some((post) => post.status === 'publishing')
+    const nextScheduledAt = posts
+      .filter((post) => post.status === 'scheduled')
+      .map((post) => new Date(post.scheduledAt).getTime())
+      .filter((scheduledAt) => Number.isFinite(scheduledAt))
+      .sort((left, right) => left - right)[0]
 
-    const connected = new Set<string>(
-      publishingData.accounts
-        .filter(
-          (account) =>
-            account.status === 'connected' && account.tokenExpired !== true
-        )
-        .map((account) => account.provider)
+    if (!publishing && nextScheduledAt === undefined) return
+    const delay =
+      publishing || nextScheduledAt === undefined
+        ? 5_000
+        : Math.max(
+            1_000,
+            Math.min(2_147_000_000, nextScheduledAt - now + 1_000)
+          )
+    const timer = window.setTimeout(
+      () => setRefreshToken((current) => current + 1),
+      delay
     )
+    return () => window.clearTimeout(timer)
+  }, [posts])
 
-    return CALENDAR_PLATFORMS.filter((platform) => connected.has(platform))
-  }, [publishingData])
+  const publishingAccounts = useMemo(
+    () =>
+      (publishingData?.accounts ?? []).filter(
+        (account) =>
+          account.status === 'connected' &&
+          account.tokenExpired !== true &&
+          (account.provider === 'instagram' ||
+            account.provider === 'facebook') &&
+          publishingData?.providers.some(
+            (provider) =>
+              provider.id === account.provider && provider.supportsPublishing
+          )
+      ),
+    [publishingData]
+  )
   const selectedKey = localDateKey(selectedDate)
   const weekRange = useMemo(
     () => getWeekRange(selectedDate, weekStartsOn),
@@ -262,6 +288,14 @@ export function ContentCalendar() {
     })
   }
 
+  function openEdit(post: ScheduledPostRecord) {
+    if (post.status === 'publishing' || post.status === 'published') {
+      toast.add('info', t('toasts.locked'))
+      return
+    }
+    setDialog({ mode: 'edit', post })
+  }
+
   function mergePost(post: ScheduledPostRecord) {
     setPosts((current) => {
       const withoutPost = current.filter((item) => item.id !== post.id)
@@ -277,7 +311,12 @@ export function ContentCalendar() {
     targetHour?: number
   ) {
     const original = posts.find((post) => post.id === postId)
-    if (!original || original.status === 'published') return
+    if (
+      !original ||
+      original.status === 'publishing' ||
+      original.status === 'published'
+    )
+      return
     const scheduledAt = movePostToLocalDate(
       original.scheduledAt,
       targetDate,
@@ -432,7 +471,7 @@ export function ContentCalendar() {
                     density="comfortable"
                     onSelectDate={focusDate}
                     onCreateDate={(date) => openCreate(date)}
-                    onEditPost={(post) => setDialog({ mode: 'edit', post })}
+                    onEditPost={openEdit}
                     onMovePost={(postId, date) => void movePost(postId, date)}
                   />
                 )}
@@ -445,7 +484,7 @@ export function ContentCalendar() {
                     density="comfortable"
                     onSelectDate={focusDate}
                     onCreateAt={openCreate}
-                    onEditPost={(post) => setDialog({ mode: 'edit', post })}
+                    onEditPost={openEdit}
                     onMovePost={(postId, date, hour) =>
                       void movePost(postId, date, hour)
                     }
@@ -460,7 +499,7 @@ export function ContentCalendar() {
                     density="comfortable"
                     onSelectDate={focusDate}
                     onCreateAt={openCreate}
-                    onEditPost={(post) => setDialog({ mode: 'edit', post })}
+                    onEditPost={openEdit}
                     onMovePost={(postId, date, hour) =>
                       void movePost(postId, date, hour)
                     }
@@ -472,7 +511,7 @@ export function ContentCalendar() {
                     posts={posts}
                     locale={locale}
                     onCreateDate={(date) => openCreate(date)}
-                    onEditPost={(post) => setDialog({ mode: 'edit', post })}
+                    onEditPost={openEdit}
                   />
                 )}
               </div>
@@ -495,7 +534,7 @@ export function ContentCalendar() {
           }
           post={dialog.mode === 'create' ? undefined : dialog.post}
           clips={clips}
-          connectedPlatforms={connectedPlatforms}
+          publishingAccounts={publishingAccounts}
           platformConnectionsLoaded={publishingData !== null}
           timeZone={timeZone}
           onClose={() => setDialog(null)}

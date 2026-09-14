@@ -36,6 +36,7 @@ const validCreatePayload = {
   caption: 'A first look at what we are shipping.',
   notes: 'Review the final thumbnail before publishing.',
   platforms: ['tiktok', 'instagram'],
+  accountIds: ['123e4567-e89b-42d3-a456-426614174001'],
   status: 'scheduled',
   scheduledAt: '2026-09-04T10:30:00+03:00',
   clipId: '123e4567-e89b-42d3-a456-426614174000'
@@ -62,6 +63,7 @@ test('defaults a new post to draft and normalizes optional empty text', () => {
       caption: '   ',
       notes: '',
       platforms: ['youtube'],
+      accountIds: [],
       scheduledAt: '2026-09-04T07:30:00Z'
     },
     'create'
@@ -166,13 +168,13 @@ test('enforces text limits and required create fields', () => {
   if (result.success) return
   assert.deepEqual(
     new Set(result.issues.map((issue) => issue.field)),
-    new Set(['title', 'caption', 'notes', 'scheduledAt'])
+    new Set(['title', 'caption', 'notes', 'accountIds', 'scheduledAt'])
   )
 })
 
 test('accepts meaningful partial updates and rejects empty updates', () => {
   const update = validateScheduledPostPayload(
-    { clipId: null, status: 'published' },
+    { clipId: null, status: 'publish' },
     'update'
   )
   assert.equal(update.success, true)

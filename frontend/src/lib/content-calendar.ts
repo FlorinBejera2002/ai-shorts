@@ -9,11 +9,14 @@ export const CONTENT_PLATFORMS = [
 export const CONTENT_POST_STATUSES = [
   'draft',
   'scheduled',
+  'publishing',
+  'failed',
   'published'
 ] as const
 
 export type ContentPlatform = (typeof CONTENT_PLATFORMS)[number]
 export type ContentPostStatus = (typeof CONTENT_POST_STATUSES)[number]
+export type CalendarMutationStatus = 'draft' | 'scheduled' | 'publish'
 
 export type CalendarClipOption = {
   id: string
@@ -31,7 +34,9 @@ export type ScheduledPostRecord = {
   caption: string | null
   notes: string | null
   platforms: ContentPlatform[]
+  accountIds: string[]
   status: ContentPostStatus
+  publishingError?: string
   scheduledAt: string
   createdAt: string
   updatedAt: string
@@ -48,7 +53,8 @@ export type ScheduledPostMutation = {
   caption?: string | null
   notes?: string | null
   platforms?: ContentPlatform[]
-  status?: ContentPostStatus
+  accountIds?: string[]
+  status?: CalendarMutationStatus
   scheduledAt?: Date
   clipId?: string | null
 }
@@ -73,6 +79,7 @@ const MUTATION_FIELDS = new Set([
   'caption',
   'notes',
   'platforms',
+  'accountIds',
   'status',
   'scheduledAt',
   'clipId'
@@ -245,11 +252,37 @@ export function validateScheduledPostPayload(
       mode === 'create' && value.status === undefined ? 'draft' : value.status
     if (
       typeof status !== 'string' ||
-      !CONTENT_POST_STATUSES.includes(status as ContentPostStatus)
+      !['draft', 'scheduled', 'publish'].includes(status)
     ) {
       issues.push({ field: 'status', message: 'Choose a valid status' })
     } else {
-      data.status = status as ContentPostStatus
+      data.status = status as CalendarMutationStatus
+    }
+  }
+
+  if (mode === 'create' || 'accountIds' in value) {
+    if (!Array.isArray(value.accountIds)) {
+      issues.push({
+        field: 'accountIds',
+        message: 'Choose at least one connected account'
+      })
+    } else {
+      const accountIds = value.accountIds.filter(
+        (accountId): accountId is string =>
+          typeof accountId === 'string' && UUID_PATTERN.test(accountId)
+      )
+      if (
+        accountIds.length !== value.accountIds.length ||
+        new Set(accountIds).size !== accountIds.length ||
+        accountIds.length > 10
+      ) {
+        issues.push({
+          field: 'accountIds',
+          message: 'Choose valid connected accounts'
+        })
+      } else {
+        data.accountIds = accountIds
+      }
     }
   }
 

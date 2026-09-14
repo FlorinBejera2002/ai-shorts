@@ -1,4 +1,5 @@
 import type {
+  CalendarMutationStatus,
   ContentPlatform,
   ContentPostStatus,
   ScheduledPostRecord
@@ -15,7 +16,15 @@ export const CALENDAR_PLATFORMS: readonly ContentPlatform[] = [
 export const CALENDAR_STATUSES: readonly ContentPostStatus[] = [
   'draft',
   'scheduled',
+  'publishing',
+  'failed',
   'published'
+]
+
+export const EDITABLE_CALENDAR_STATUSES: readonly CalendarMutationStatus[] = [
+  'draft',
+  'scheduled',
+  'publish'
 ]
 
 export type CalendarRange = {
@@ -32,7 +41,8 @@ export type PostFormPayload = {
   caption?: string | null
   notes?: string | null
   platforms?: ContentPlatform[]
-  status?: ContentPostStatus
+  accountIds?: string[]
+  status?: CalendarMutationStatus
   scheduledAt: string
   clipId?: string | null
 }

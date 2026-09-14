@@ -42,6 +42,8 @@ func handleError(w http.ResponseWriter, e error) {
 		write(w, 400, map[string]any{"error": "Please correct the highlighted fields.", "issues": []Issue{{"clipId", e.Error()}}})
 	case errors.Is(e, ErrInactive):
 		write(w, 409, map[string]string{"error": e.Error()})
+	case errors.Is(e, ErrLocked):
+		write(w, 409, map[string]string{"error": e.Error()})
 	case errors.Is(e, sql.ErrNoRows):
 		write(w, 404, map[string]string{"error": "Calendar post not found."})
 	default:

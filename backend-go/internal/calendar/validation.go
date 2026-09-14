@@ -16,7 +16,7 @@ const RecentClipLimit = 100
 
 var idPattern = regexp.MustCompile(`(?i)^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`)
 var datePattern = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,9})?(Z|[+-]\d{2}:\d{2})$`)
-var mutationColumns = map[string]string{"title": "title", "caption": "caption", "notes": "notes", "platforms": "platforms", "status": "status", "scheduledAt": "scheduled_at", "clipId": "clip_id"}
+var mutationColumns = map[string]string{"title": "title", "caption": "caption", "notes": "notes", "platforms": "platforms", "accountIds": "account_ids", "status": "status", "scheduledAt": "scheduled_at", "clipId": "clip_id"}
 
 type Issue struct {
 	Field   string `json:"field"`
@@ -156,10 +156,33 @@ func Validate(input map[string]any, create bool) (map[string]any, error) {
 			raw = "draft"
 		}
 		status, ok := raw.(string)
-		if !ok || !slices.Contains([]string{"draft", "scheduled", "published"}, status) {
+		if !ok || !slices.Contains([]string{"draft", "scheduled", "publish"}, status) {
 			issues = append(issues, Issue{"status", "Choose a valid status"})
 		} else {
 			output["status"] = status
+		}
+	}
+	if raw, exists := input["accountIds"]; create || exists {
+		values, ok := raw.([]any)
+		if !ok {
+			issues = append(issues, Issue{"accountIds", "Choose at least one connected account"})
+		} else {
+			normalized := []string{}
+			invalid := len(values) > 10
+			for _, value := range values {
+				id, ok := value.(string)
+				id = strings.ToLower(strings.TrimSpace(id))
+				if !ok || !idPattern.MatchString(id) || slices.Contains(normalized, id) {
+					invalid = true
+					continue
+				}
+				normalized = append(normalized, id)
+			}
+			if invalid {
+				issues = append(issues, Issue{"accountIds", "Choose valid connected accounts"})
+			} else {
+				output["accountIds"] = normalized
+			}
 		}
 	}
 	if raw, exists := input["scheduledAt"]; create || exists {

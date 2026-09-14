@@ -61,6 +61,12 @@ func TestPostgresCalendarOwnershipAttachmentAndHalfOpenRange(t *testing.T) {
 	repo := NewRepository(db, calendarMedia{})
 	input := validInput()
 	input["clipId"] = clip
+	account := fixtureID(t)
+	if _, e := db.Exec(`INSERT INTO social_accounts(id,user_id,provider,remote_id,name,credentials,scopes) VALUES($1,$2,'instagram',$3,'Fixture','sealed',ARRAY['instagram_business_content_publish'])`, account, user, account); e != nil {
+		t.Fatal(e)
+	}
+	input["accountIds"] = []any{account}
+	input["platforms"] = []any{"instagram"}
 	post, e := repo.Mutate(ctx, user, "", input, true)
 	if e != nil {
 		t.Fatal(e)
@@ -107,7 +113,7 @@ func TestPostgresCalendarOwnershipAttachmentAndHalfOpenRange(t *testing.T) {
 	if e != nil || len(listed.Posts) != 0 {
 		t.Fatalf("end boundary included: %+v %v", listed, e)
 	}
-	updated, e := repo.Mutate(ctx, user, post.ID, map[string]any{"clipId": nil, "caption": "", "status": "published"}, false)
+	updated, e := repo.Mutate(ctx, user, post.ID, map[string]any{"clipId": nil, "caption": "", "status": "draft"}, false)
 	if e != nil || updated.Clip != nil || updated.Caption != nil || updated.Title != post.Title {
 		t.Fatalf("partial update: %+v %v", updated, e)
 	}

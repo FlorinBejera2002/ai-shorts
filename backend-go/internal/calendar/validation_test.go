@@ -8,7 +8,7 @@ import (
 )
 
 func validInput() map[string]any {
-	return map[string]any{"title": "  Product launch teaser  ", "caption": "  caption  ", "notes": "  ", "platforms": []any{" TIKTOK ", "instagram"}, "status": "scheduled", "scheduledAt": "2026-09-04T10:30:00+03:00", "clipId": "123e4567-e89b-42d3-a456-426614174000"}
+	return map[string]any{"title": "  Product launch teaser  ", "caption": "  caption  ", "notes": "  ", "platforms": []any{" TIKTOK ", "instagram"}, "accountIds": []any{"123e4567-e89b-42d3-a456-426614174001"}, "status": "scheduled", "scheduledAt": "2026-09-04T10:30:00+03:00", "clipId": "123e4567-e89b-42d3-a456-426614174000"}
 }
 func TestValidationMatchesBrowserNormalizationAndDefaults(t *testing.T) {
 	input := validInput()
@@ -33,8 +33,8 @@ func TestValidationMatchesBrowserNormalizationAndDefaults(t *testing.T) {
 	if e != nil || strings.Join(out["platforms"].([]string), ",") != "facebook" {
 		t.Fatal(out, e)
 	}
-	out, e = Validate(map[string]any{"clipId": nil, "status": "published"}, false)
-	if e != nil || out["clipId"] != nil || out["status"] != "published" {
+	out, e = Validate(map[string]any{"clipId": nil, "status": "draft"}, false)
+	if e != nil || out["clipId"] != nil || out["status"] != "draft" {
 		t.Fatal(out, e)
 	}
 }

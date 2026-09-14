@@ -4,7 +4,11 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"time"
+
+	"github.com/lib/pq"
+	"sneepcut/backend-go/internal/data"
 )
 
 // Start resumes durable jobs after restart. Unknown mutation outcomes are never
@@ -25,12 +29,91 @@ func (h *Handler) Start(parent context.Context) func() {
 				return
 			case <-ticker.C:
 				work, c := context.WithTimeout(ctx, 100*time.Second)
+				_ = h.reconcileCalendar(work)
+				_ = h.dispatchCalendar(work)
 				_ = h.runOne(work)
 				c()
 			}
 		}
 	}()
 	return func() { cancel(); <-done }
+}
+
+func (h *Handler) reconcileCalendar(ctx context.Context) error {
+	_, e := h.db.ExecContext(ctx, `UPDATE scheduled_posts s SET status='published',publishing_error='',updated_at=now()
+		WHERE s.status='publishing' AND EXISTS(SELECT 1 FROM social_posts p WHERE p.scheduled_post_id=s.id)
+		AND NOT EXISTS(SELECT 1 FROM social_posts p WHERE p.scheduled_post_id=s.id AND p.status<>'published')`)
+	if e != nil {
+		return e
+	}
+	_, e = h.db.ExecContext(ctx, `UPDATE scheduled_posts s SET status='failed',publishing_error=COALESCE((
+		SELECT NULLIF(p.error,'') FROM social_posts p WHERE p.scheduled_post_id=s.id
+		AND p.status IN ('failed','unknown','cancelled') ORDER BY p.updated_at DESC LIMIT 1
+	),'Publication failed. Check the destination account and try again.'),updated_at=now()
+		WHERE s.status='publishing' AND EXISTS(SELECT 1 FROM social_posts p WHERE p.scheduled_post_id=s.id AND p.status IN ('failed','unknown','cancelled'))`)
+	return e
+}
+
+func (h *Handler) failCalendar(ctx context.Context, tx *sql.Tx, id, message string) error {
+	_, e := tx.ExecContext(ctx, `UPDATE scheduled_posts SET status='failed',publishing_error=$2,updated_at=now() WHERE id=$1`, id, message)
+	if e != nil {
+		return e
+	}
+	return tx.Commit()
+}
+
+// dispatchCalendar atomically turns one due calendar entry into the same
+// durable jobs used by Publish now. It never guesses a destination account.
+func (h *Handler) dispatchCalendar(ctx context.Context) error {
+	tx, e := h.db.BeginTx(ctx, nil)
+	if e != nil {
+		return e
+	}
+	defer tx.Rollback()
+	var id, userID, caption, reference string
+	var clipID sql.NullString
+	var accountIDs pq.StringArray
+	e = tx.QueryRowContext(ctx, `SELECT s.id,s.user_id,s.clip_id,COALESCE(s.caption,''),s.account_ids,
+		COALESCE(NULLIF(c.file_storage_key,''),NULLIF(c.file_path,''),c.file_url,'')
+		FROM scheduled_posts s LEFT JOIN clips c ON c.id=s.clip_id AND c.user_id=s.user_id
+		WHERE s.status='scheduled' AND s.scheduled_at<=now()
+		ORDER BY s.scheduled_at FOR UPDATE OF s SKIP LOCKED LIMIT 1`).Scan(&id, &userID, &clipID, &caption, &accountIDs, &reference)
+	if errors.Is(e, sql.ErrNoRows) {
+		return nil
+	}
+	if e != nil {
+		return e
+	}
+	if !clipID.Valid || clipID.String == "" || reference == "" || len(accountIDs) == 0 {
+		return h.failCalendar(ctx, tx, id, "Choose an available clip and at least one connected account.")
+	}
+	mediaURL, e := h.media.SignedURL(ctx, reference)
+	if e != nil || !publicHTTPS(mediaURL) {
+		return h.failCalendar(ctx, tx, id, "The clip does not have a public HTTPS video URL.")
+	}
+	requestHash := digest(id + ":" + clipID.String + ":" + caption)
+	for _, accountID := range accountIDs {
+		var provider string
+		e = tx.QueryRowContext(ctx, `SELECT provider FROM social_accounts WHERE id=$1 AND user_id=$2 AND status='connected' AND COALESCE(token_expires_at>now(),true) FOR UPDATE`, accountID, userID).Scan(&provider)
+		if e != nil || (provider != "instagram" && provider != "facebook") || !h.configured(provider) {
+			return h.failCalendar(ctx, tx, id, "A selected account is disconnected or unavailable. Reconnect it and reschedule the post.")
+		}
+		postID, uuidErr := data.NewUUID()
+		if uuidErr != nil {
+			return uuidErr
+		}
+		_, e = tx.ExecContext(ctx, `INSERT INTO social_posts(id,user_id,account_id,clip_id,provider,caption,options,idempotency_key,request_hash,media_reference,scheduled_post_id)
+			VALUES($1,$2,$3,$4,$5,$6,'{}'::jsonb,$7,$8,$9,$10)
+			ON CONFLICT (scheduled_post_id,account_id) WHERE scheduled_post_id IS NOT NULL DO NOTHING`, postID, userID, accountID, clipID.String, provider, caption, id, requestHash, reference, id)
+		if e != nil {
+			return e
+		}
+	}
+	_, e = tx.ExecContext(ctx, `UPDATE scheduled_posts SET status='publishing',publishing_error='',updated_at=now() WHERE id=$1`, id)
+	if e != nil {
+		return e
+	}
+	return tx.Commit()
 }
 
 type workItem struct {

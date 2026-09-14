@@ -1224,7 +1224,8 @@
       "nextMonth": "Next month",
       "previousPeriod": "Previous period",
       "nextPeriod": "Next period",
-      "today": "Today"
+      "today": "Today",
+      "done": "Done"
     },
     "views": {
       "label": "Calendar view",
@@ -1279,6 +1280,9 @@
     "statuses": {
       "draft": "Draft",
       "scheduled": "Scheduled",
+      "publish": "Publish now",
+      "publishing": "Publishing",
+      "failed": "Failed",
       "published": "Published"
     },
     "connections": {
@@ -1305,7 +1309,7 @@
       "editTitle": "Edit post",
       "rescheduleTitle": "Reschedule post",
       "deleteTitle": "Delete this post?",
-      "description": "Set the creative, destination, and timing. This calendar plans content but does not publish it externally.",
+      "description": "Choose the clip, connected destination account, and exact publishing time.",
       "rescheduleDescription": "Choose a new local date and time for “{title}”.",
       "deleteDescription": "You are about to remove “{title}” from your calendar.",
       "deleteWarningTitle": "This cannot be undone",
@@ -1318,16 +1322,18 @@
       "platformsHint": "Choose every destination this post is planned for.",
       "noConnectedPlatforms": "You don't have a connected platform yet.",
       "openPublishing": "Open Publishing",
-      "clipLabel": "Linked clip (optional)",
+      "clipLabel": "Linked clip",
       "noClip": "No linked clip",
       "statusLabel": "Status",
       "dateLabel": "Date",
       "timeLabel": "Time",
+      "hourLabel": "Hour",
+      "minuteLabel": "Minute",
       "captionLabel": "Caption (optional)",
       "captionPlaceholder": "Write or adapt the social caption…",
       "notesLabel": "Internal notes (optional)",
       "notesPlaceholder": "Add reminders, approvals, or creative context…",
-      "publishNote": "Planning only: changing a post to Published records its status here. Sneepcut will not publish to an external platform."
+      "publishNote": "Scheduled posts are published automatically to the selected connected accounts. Published status is confirmed by the platform and cannot be set manually."
     },
     "validation": {
       "titleRequired": "Add a title so you can recognize this post.",
@@ -1336,6 +1342,8 @@
       "captionLength": "Keep the caption to 5,000 characters or fewer.",
       "notesLength": "Keep notes to 2,000 characters or fewer.",
       "platformRequired": "Choose at least one supported platform.",
+      "accountRequired": "Choose at least one connected Instagram or Facebook account.",
+      "clipRequired": "Choose the clip you want to publish.",
       "dateRequired": "Choose a date.",
       "timeRequired": "Choose a time.",
       "dateInvalid": "Choose a valid date and time.",
@@ -1356,6 +1364,7 @@
       "updated": "Post changes saved.",
       "rescheduled": "Post rescheduled.",
       "moved": "Post moved to its new time.",
+      "locked": "This post is already publishing or was confirmed by the platform.",
       "deleted": "Post removed from your calendar."
     }
   },

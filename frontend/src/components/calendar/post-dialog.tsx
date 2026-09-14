@@ -15,16 +15,16 @@ import { Link } from '@/i18n/navigation'
 
 import type {
   CalendarClipOption,
+  CalendarMutationStatus,
   ContentPlatform,
-  ContentPostStatus,
   ScheduledPostRecord
 } from '@/lib/content-calendar'
+import type { PublishingAccount } from '@/lib/publishing'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import {
   AlertTriangle,
   CalendarClock,
   Check,
-  Clock3,
   ExternalLink,
   Film,
   Loader2,
@@ -43,9 +43,8 @@ import {
 } from 'react'
 import { createPortal } from 'react-dom'
 import {
-  CALENDAR_PLATFORMS,
-  CALENDAR_STATUSES,
   CalendarRequestError,
+  EDITABLE_CALENDAR_STATUSES,
   type PostFormPayload,
   combineLocalDateTime,
   getDefaultPlanningTime,
@@ -54,6 +53,7 @@ import {
 } from './calendar-utils'
 import styles from './calendar-workspace.module.css'
 import { PlatformOptionIcon } from './platform-mark'
+import { SchedulePicker } from './schedule-picker'
 
 type DialogMode = 'create' | 'edit' | 'reschedule'
 
@@ -62,7 +62,8 @@ type FormState = {
   caption: string
   notes: string
   platforms: ContentPlatform[]
-  status: ContentPostStatus
+  accountIds: string[]
+  status: CalendarMutationStatus
   date: string
   time: string
   clipId: string
@@ -75,23 +76,33 @@ const inputClassName =
 
 function initialFormState(
   selectedDate: Date,
-  connectedPlatforms: ContentPlatform[],
+  publishingAccounts: PublishingAccount[],
   post?: ScheduledPostRecord,
   initialTime?: string
 ): FormState {
   const scheduledAt = post
     ? new Date(post.scheduledAt)
     : getDefaultPlanningTime(selectedDate)
-  const availablePlatforms = new Set(connectedPlatforms)
+  const availableAccountIds = new Set(
+    publishingAccounts.map((account) => account.id)
+  )
+  const defaultAccount = publishingAccounts[0]
+  const accountIds =
+    post?.accountIds.filter((accountId) =>
+      availableAccountIds.has(accountId)
+    ) ?? (defaultAccount ? [defaultAccount.id] : [])
+  const selectedAccountIds = new Set(accountIds)
+  const selectedProviders = publishingAccounts
+    .filter((account) => selectedAccountIds.has(account.id))
+    .map((account) => account.provider)
 
   return {
     title: post?.title ?? '',
     caption: post?.caption ?? '',
     notes: post?.notes ?? '',
-    platforms:
-      post?.platforms.filter((platform) => availablePlatforms.has(platform)) ??
-      connectedPlatforms.slice(0, 1),
-    status: post?.status ?? 'scheduled',
+    platforms: [...new Set(selectedProviders)],
+    accountIds,
+    status: post?.status === 'draft' ? 'draft' : 'scheduled',
     date: localDateKey(scheduledAt),
     time: post
       ? localTimeValue(scheduledAt)
@@ -134,7 +145,7 @@ export function PostDialog({
   selectedDate,
   post,
   clips,
-  connectedPlatforms,
+  publishingAccounts,
   platformConnectionsLoaded,
   timeZone,
   initialTime,
@@ -146,7 +157,7 @@ export function PostDialog({
   selectedDate: Date
   post?: ScheduledPostRecord
   clips: CalendarClipOption[]
-  connectedPlatforms: ContentPlatform[]
+  publishingAccounts: PublishingAccount[]
   platformConnectionsLoaded: boolean
   timeZone: string
   initialTime?: string
@@ -159,7 +170,6 @@ export function PostDialog({
   const titleId = useId()
   const dialogRef = useRef<HTMLDivElement>(null)
   const titleInputRef = useRef<HTMLInputElement>(null)
-  const dateInputRef = useRef<HTMLInputElement>(null)
   const deleteButtonRef = useRef<HTMLButtonElement>(null)
   const confirmDeleteButtonRef = useRef<HTMLButtonElement>(null)
   const wasConfirmingDeleteRef = useRef(false)
@@ -167,20 +177,16 @@ export function PostDialog({
   const busyRef = useRef(false)
   const [mounted, setMounted] = useState(false)
   const [form, setForm] = useState<FormState>(() =>
-    initialFormState(selectedDate, connectedPlatforms, post, initialTime)
+    initialFormState(selectedDate, publishingAccounts, post, initialTime)
   )
   const [errors, setErrors] = useState<FormErrors>({})
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const busy = saving || deleting
-  const connectedPlatformSet = useMemo(
-    () => new Set(connectedPlatforms),
-    [connectedPlatforms]
-  )
-  const selectedPlatformSet = useMemo(
-    () => new Set(form.platforms),
-    [form.platforms]
+  const selectedAccountIds = useMemo(
+    () => new Set(form.accountIds),
+    [form.accountIds]
   )
   const selectableClips =
     post?.clip && !clips.some((clip) => clip.id === post.clip?.id)
@@ -210,8 +216,7 @@ export function PostDialog({
     document.body.style.overflow = 'hidden'
 
     const focusFrame = requestAnimationFrame(() => {
-      if (mode === 'reschedule') dateInputRef.current?.focus()
-      else titleInputRef.current?.focus()
+      titleInputRef.current?.focus()
     })
 
     function handleKeyDown(event: KeyboardEvent) {
@@ -263,7 +268,7 @@ export function PostDialog({
       if (!appShellWasInert) appShell?.removeAttribute('inert')
       previousFocus?.focus()
     }
-  }, [mode])
+  }, [])
 
   useEffect(() => {
     const wasConfirming = wasConfirmingDeleteRef.current
@@ -289,16 +294,27 @@ export function PostDialog({
     }))
   }
 
-  function togglePlatform(platform: ContentPlatform) {
-    setForm((current) => ({
-      ...current,
-      platforms: current.platforms.includes(platform)
-        ? current.platforms.filter((item) => item !== platform)
-        : [...current.platforms, platform]
-    }))
+  function toggleAccount(account: PublishingAccount) {
+    setForm((current) => {
+      const currentAccountIds = new Set(current.accountIds)
+      const removing = currentAccountIds.delete(account.id)
+      if (!removing) currentAccountIds.add(account.id)
+      const nextAccountIds = [...currentAccountIds]
+      const selectedProviders = new Set(
+        publishingAccounts
+          .filter((candidate) => currentAccountIds.has(candidate.id))
+          .map((candidate) => candidate.provider)
+      )
+      return {
+        ...current,
+        accountIds: nextAccountIds,
+        platforms: [...selectedProviders]
+      }
+    })
     setErrors((current) => ({
       ...current,
       platforms: undefined,
+      accountIds: undefined,
       form: undefined
     }))
   }
@@ -338,6 +354,12 @@ export function PostDialog({
       if (form.platforms.length === 0) {
         nextErrors.platforms = t('validation.platformRequired')
       }
+      if (form.status !== 'draft' && form.accountIds.length === 0) {
+        nextErrors.accountIds = t('validation.accountRequired')
+      }
+      if (form.status !== 'draft' && !form.clipId) {
+        nextErrors.clipId = t('validation.clipRequired')
+      }
     }
 
     if (!form.date) nextErrors.date = t('validation.dateRequired')
@@ -364,8 +386,12 @@ export function PostDialog({
         caption: form.caption.trim() || null,
         notes: form.notes.trim() || null,
         platforms: form.platforms,
+        accountIds: form.accountIds,
         status: form.status,
-        scheduledAt: scheduledAt.toISOString(),
+        scheduledAt:
+          form.status === 'scheduled'
+            ? scheduledAt.toISOString()
+            : new Date().toISOString(),
         clipId: form.clipId || null
       }
     }
@@ -386,6 +412,8 @@ export function PostDialog({
         fieldErrors.notes = t('validation.notesLength')
       } else if (issue.field === 'platforms') {
         fieldErrors.platforms = t('validation.platformRequired')
+      } else if (issue.field === 'accountIds') {
+        fieldErrors.accountIds = t('validation.accountRequired')
       } else if (issue.field === 'scheduledAt') {
         fieldErrors.date = t('validation.dateInvalid')
       } else if (issue.field === 'clipId') {
@@ -629,36 +657,39 @@ export function PostDialog({
                         <legend className="text-xs font-semibold text-foreground">
                           {t('form.platformsLabel')}
                         </legend>
-                        <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-5">
-                          {CALENDAR_PLATFORMS.map((platform) => {
-                            const selected = selectedPlatformSet.has(platform)
-                            const connected = connectedPlatformSet.has(platform)
+                        <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                          {publishingAccounts.map((account) => {
+                            const selected = selectedAccountIds.has(account.id)
                             return (
                               <button
-                                key={platform}
+                                key={account.id}
                                 type="button"
                                 aria-pressed={selected}
-                                disabled={!connected}
-                                onClick={() => togglePlatform(platform)}
+                                onClick={() => toggleAccount(account)}
                                 className={`relative flex min-h-11 items-center gap-2 rounded-md border px-3 text-xs font-semibold transition-colors ${
-                                  !connected
-                                    ? 'cursor-not-allowed border-border bg-muted/35 text-muted-foreground/45'
-                                    : selected
-                                      ? 'border-foreground bg-foreground text-background'
-                                      : 'border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground'
+                                  selected
+                                    ? 'border-foreground bg-foreground text-background'
+                                    : 'border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground'
                                 }`}
                               >
-                                <PlatformOptionIcon platform={platform} />
-                                <span>{t(`platforms.${platform}`)}</span>
-                                {selected && (
-                                  <Check className="ml-auto h-3.5 w-3.5" />
-                                )}
+                                <PlatformOptionIcon
+                                  platform={account.provider}
+                                />
+                                <span className="min-w-0 truncate">
+                                  {account.username
+                                    ? `@${account.username}`
+                                    : account.name}
+                                </span>
+                                <span className="ml-auto text-[10px] opacity-70">
+                                  {t(`platforms.${account.provider}`)}
+                                </span>
+                                {selected && <Check className="h-3.5 w-3.5" />}
                               </button>
                             )
                           })}
                         </div>
                         {platformConnectionsLoaded &&
-                          connectedPlatforms.length === 0 && (
+                          publishingAccounts.length === 0 && (
                             <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2 rounded-md bg-muted/45 px-3 py-2 text-[11px] text-muted-foreground">
                               <span>{t('form.noConnectedPlatforms')}</span>
                               <Link
@@ -672,7 +703,7 @@ export function PostDialog({
                           )}
                         <FieldError
                           id={`${titleId}-platforms-error`}
-                          message={errors.platforms}
+                          message={errors.platforms ?? errors.accountIds}
                         />
                       </fieldset>
 
@@ -736,7 +767,10 @@ export function PostDialog({
                             <Select
                               value={form.status}
                               onValueChange={(value) =>
-                                setField('status', value as ContentPostStatus)
+                                setField(
+                                  'status',
+                                  value as CalendarMutationStatus
+                                )
                               }
                             >
                               <SelectTrigger
@@ -756,7 +790,7 @@ export function PostDialog({
                                 align="start"
                                 className="z-[130]"
                               >
-                                {CALENDAR_STATUSES.map((status) => (
+                                {EDITABLE_CALENDAR_STATUSES.map((status) => (
                                   <SelectItem key={status} value={status}>
                                     {t(`statuses.${status}`)}
                                   </SelectItem>
@@ -773,70 +807,21 @@ export function PostDialog({
                     </>
                   )}
 
-                  <div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <Label
-                          htmlFor={`${titleId}-date`}
-                          className="text-xs font-semibold text-foreground"
-                        >
-                          {t('form.dateLabel')}
-                        </Label>
-                        <Input
-                          ref={dateInputRef}
-                          id={`${titleId}-date`}
-                          type="date"
-                          value={form.date}
-                          required={true}
-                          aria-invalid={Boolean(errors.date)}
-                          aria-describedby={
-                            errors.date ? `${titleId}-date-error` : undefined
-                          }
-                          onChange={(event) =>
-                            setField('date', event.target.value)
-                          }
-                          className={`mt-1.5 ${inputClassName}`}
-                        />
-                        <FieldError
-                          id={`${titleId}-date-error`}
-                          message={errors.date}
-                        />
-                      </div>
-                      <div>
-                        <Label
-                          htmlFor={`${titleId}-time`}
-                          className="text-xs font-semibold text-foreground"
-                        >
-                          {t('form.timeLabel')}
-                        </Label>
-                        <div className="relative mt-1.5">
-                          <Clock3 className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                          <Input
-                            id={`${titleId}-time`}
-                            type="time"
-                            value={form.time}
-                            step={300}
-                            required={true}
-                            aria-invalid={Boolean(errors.time)}
-                            aria-describedby={
-                              errors.time ? `${titleId}-time-error` : undefined
-                            }
-                            onChange={(event) =>
-                              setField('time', event.target.value)
-                            }
-                            className={`pl-9 ${inputClassName}`}
-                          />
-                        </div>
-                        <FieldError
-                          id={`${titleId}-time-error`}
-                          message={errors.time}
-                        />
-                      </div>
+                  {(isReschedule || form.status === 'scheduled') && (
+                    <div>
+                      <SchedulePicker
+                        date={form.date}
+                        time={form.time}
+                        onDateChange={(value) => setField('date', value)}
+                        onTimeChange={(value) => setField('time', value)}
+                        dateError={errors.date}
+                        timeError={errors.time}
+                      />
+                      <p className="mt-2 text-[11px] text-muted-foreground">
+                        {t('timezone', { zone: timeZone })}
+                      </p>
                     </div>
-                    <p className="mt-2 text-[11px] text-muted-foreground">
-                      {t('timezone', { zone: timeZone })}
-                    </p>
-                  </div>
+                  )}
 
                   {!isReschedule && (
                     <>

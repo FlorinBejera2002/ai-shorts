@@ -73,6 +73,33 @@ func TestPostgresEnqueueOwnershipIdempotencyAndDeletion(t *testing.T) {
 		t.Fatal("deletion pending accepted")
 	}
 }
+
+func TestPostgresCalendarDispatchCreatesDurableJobAndReconciles(t *testing.T) {
+	h, user, clip, account := fixture(t)
+	calendarID, _ := data.NewUUID()
+	_, e := h.db.Exec(`INSERT INTO scheduled_posts(id,user_id,clip_id,clip_owner_id,title,caption,platforms,account_ids,status,scheduled_at,updated_at)
+		VALUES($1,$2,$3,$2,'Scheduled clip','Caption',ARRAY['instagram']::varchar[],ARRAY[$4]::uuid[],'scheduled',now()-interval '1 minute',now())`, calendarID, user, clip, account)
+	if e != nil {
+		t.Fatal(e)
+	}
+	if e = h.dispatchCalendar(context.Background()); e != nil {
+		t.Fatal(e)
+	}
+	var calendarStatus, postStatus, scheduledPostID string
+	e = h.db.QueryRow(`SELECT s.status,p.status,p.scheduled_post_id FROM scheduled_posts s JOIN social_posts p ON p.scheduled_post_id=s.id WHERE s.id=$1`, calendarID).Scan(&calendarStatus, &postStatus, &scheduledPostID)
+	if e != nil || calendarStatus != "publishing" || postStatus != "queued" || scheduledPostID != calendarID {
+		t.Fatalf("dispatch mismatch: calendar=%s post=%s scheduled=%s err=%v", calendarStatus, postStatus, scheduledPostID, e)
+	}
+	if _, e = h.db.Exec(`UPDATE social_posts SET status='published' WHERE scheduled_post_id=$1`, calendarID); e != nil {
+		t.Fatal(e)
+	}
+	if e = h.reconcileCalendar(context.Background()); e != nil {
+		t.Fatal(e)
+	}
+	if e = h.db.QueryRow(`SELECT status FROM scheduled_posts WHERE id=$1`, calendarID).Scan(&calendarStatus); e != nil || calendarStatus != "published" {
+		t.Fatalf("reconcile mismatch: %s %v", calendarStatus, e)
+	}
+}
 func TestPostgresWorkerDoesNotRetryUnknownMutation(t *testing.T) {
 	h, user, clip, account := fixture(t)
 	key, _ := data.NewUUID()

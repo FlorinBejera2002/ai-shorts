@@ -232,7 +232,10 @@ export function CalendarMonthView({
                       <button
                         key={post.id}
                         type="button"
-                        draggable={post.status !== 'published'}
+                        draggable={
+                          post.status !== 'published' &&
+                          post.status !== 'publishing'
+                        }
                         onDragStart={(event) => draggablePostData(event, post)}
                         onClick={(event) => {
                           event.stopPropagation()

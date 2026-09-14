@@ -99,7 +99,10 @@ export function CalendarListView({
                       <span className="truncate">{post.clip.title}</span>
                     </span>
                   )}
-                  <StatusPill status={post.status} />
+                  <StatusPill
+                    status={post.status}
+                    message={post.publishingError}
+                  />
                   <Edit3 className="h-3.5 w-3.5 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
                 </button>
               ))}

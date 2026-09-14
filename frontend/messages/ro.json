@@ -1221,7 +1221,8 @@
       "nextMonth": "Luna următoare",
       "previousPeriod": "Perioada precedentă",
       "nextPeriod": "Perioada următoare",
-      "today": "Astăzi"
+      "today": "Astăzi",
+      "done": "Gata"
     },
     "views": {
       "label": "Vizualizare calendar",
@@ -1276,6 +1277,9 @@
     "statuses": {
       "draft": "Ciornă",
       "scheduled": "Programată",
+      "publish": "Publică acum",
+      "publishing": "În curs de publicare",
+      "failed": "Eșuată",
       "published": "Publicată"
     },
     "connections": {
@@ -1302,7 +1306,7 @@
       "editTitle": "Editează postarea",
       "rescheduleTitle": "Reprogramează postarea",
       "deleteTitle": "Ștergi această postare?",
-      "description": "Stabilește materialul, destinația și momentul. Calendarul planifică postarea, dar nu o publică extern.",
+      "description": "Alege clipul, contul conectat și momentul exact al publicării.",
       "rescheduleDescription": "Alege o dată și o oră locală nouă pentru „{title}”.",
       "deleteDescription": "Urmează să elimini „{title}” din calendar.",
       "deleteWarningTitle": "Acțiunea nu poate fi anulată",
@@ -1315,16 +1319,18 @@
       "platformsHint": "Alege toate destinațiile pentru care este planificată postarea.",
       "noConnectedPlatforms": "Nu ai nicio platformă conectată.",
       "openPublishing": "Deschide Publicare",
-      "clipLabel": "Clip asociat (opțional)",
+      "clipLabel": "Clip asociat",
       "noClip": "Fără clip asociat",
       "statusLabel": "Stare",
       "dateLabel": "Dată",
       "timeLabel": "Oră",
+      "hourLabel": "Ora",
+      "minuteLabel": "Minute",
       "captionLabel": "Descriere (opțional)",
       "captionPlaceholder": "Scrie sau adaptează descrierea socială…",
       "notesLabel": "Notițe interne (opțional)",
       "notesPlaceholder": "Adaugă mementouri, aprobări sau context creativ…",
-      "publishNote": "Doar planificare: marcarea unei postări ca Publicată îi actualizează starea aici. Sneepcut nu va publica pe o platformă externă."
+      "publishNote": "Postările programate sunt publicate automat în conturile conectate selectate. Starea Publicată este confirmată de platformă și nu poate fi setată manual."
     },
     "validation": {
       "titleRequired": "Adaugă un titlu pentru a putea recunoaște postarea.",
@@ -1333,6 +1339,8 @@
       "captionLength": "Descrierea poate avea cel mult 5.000 de caractere.",
       "notesLength": "Notițele pot avea cel mult 2.000 de caractere.",
       "platformRequired": "Alege cel puțin o platformă acceptată.",
+      "accountRequired": "Alege cel puțin un cont Instagram sau Facebook conectat.",
+      "clipRequired": "Alege clipul pe care vrei să-l publici.",
       "dateRequired": "Alege o dată.",
       "timeRequired": "Alege o oră.",
       "dateInvalid": "Alege o dată și o oră valide.",
@@ -1353,6 +1361,7 @@
       "updated": "Modificările postării au fost salvate.",
       "rescheduled": "Postarea a fost reprogramată.",
       "moved": "Postarea a fost mutată la noua oră.",
+      "locked": "Postarea este deja în curs de publicare sau a fost confirmată de platformă.",
       "deleted": "Postarea a fost eliminată din calendar."
     }
   },

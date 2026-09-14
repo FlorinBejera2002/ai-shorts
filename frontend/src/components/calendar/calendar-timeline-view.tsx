@@ -141,7 +141,10 @@ export function CalendarTimelineView({
                     <button
                       key={post.id}
                       type="button"
-                      draggable={post.status !== 'published'}
+                      draggable={
+                        post.status !== 'published' &&
+                        post.status !== 'publishing'
+                      }
                       onDragStart={(event) => draggablePostData(event, post)}
                       onClick={(event) => {
                         event.stopPropagation()
@@ -172,7 +175,12 @@ export function CalendarTimelineView({
                           </span>
                         )}
                       </span>
-                      {days.length === 1 && <StatusPill status={post.status} />}
+                      {days.length === 1 && (
+                        <StatusPill
+                          status={post.status}
+                          message={post.publishingError}
+                        />
+                      )}
                     </button>
                   ))}
                 </div>

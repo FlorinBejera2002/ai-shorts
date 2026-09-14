@@ -20,6 +20,16 @@ export const statusStyles = {
     line: 'bg-foreground',
     surface: 'bg-muted text-foreground'
   },
+  publishing: {
+    pill: 'border-border bg-muted text-foreground',
+    line: 'bg-foreground animate-pulse',
+    surface: 'bg-muted text-foreground'
+  },
+  failed: {
+    pill: 'border-destructive/20 bg-destructive/10 text-destructive',
+    line: 'bg-destructive',
+    surface: 'bg-destructive/10 text-destructive'
+  },
   published: {
     pill: 'border-success/20 bg-success/10 text-success',
     line: 'bg-success',
@@ -30,11 +40,18 @@ export const statusStyles = {
   { pill: string; line: string; surface: string }
 >
 
-export function StatusPill({ status }: { status: ContentPostStatus }) {
+export function StatusPill({
+  status,
+  message
+}: {
+  status: ContentPostStatus
+  message?: string
+}) {
   const t = useTranslations('contentCalendar')
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-1 text-[10px] font-bold ${statusStyles[status].pill}`}
+      title={message}
+      className={`inline-flex items-center gap-1.5 rounded-sm border px-2 py-1 text-[10px] font-bold ${statusStyles[status].pill}`}
     >
       <span
         aria-hidden="true"
