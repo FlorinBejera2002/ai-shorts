@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"slices"
@@ -35,18 +36,28 @@ type ClipOption struct {
 	CaptionYoutube   *string `json:"captionYoutube"`
 }
 type Post struct {
-	ID              string    `json:"id"`
-	Title           string    `json:"title"`
-	Caption         *string   `json:"caption"`
-	Notes           *string   `json:"notes"`
-	Platforms       []string  `json:"platforms"`
-	AccountIDs      []string  `json:"accountIds"`
-	Status          string    `json:"status"`
-	PublishingError string    `json:"publishingError,omitempty"`
-	ScheduledAt     string    `json:"scheduledAt"`
-	CreatedAt       string    `json:"createdAt"`
-	UpdatedAt       string    `json:"updatedAt"`
-	Clip            *PostClip `json:"clip"`
+	ID                     string                  `json:"id"`
+	Title                  string                  `json:"title"`
+	Caption                *string                 `json:"caption"`
+	Notes                  *string                 `json:"notes"`
+	Platforms              []string                `json:"platforms"`
+	AccountIDs             []string                `json:"accountIds"`
+	Status                 string                  `json:"status"`
+	PublishingError        string                  `json:"publishingError,omitempty"`
+	PublishingDestinations []PublishingDestination `json:"publishingDestinations"`
+	ScheduledAt            string                  `json:"scheduledAt"`
+	CreatedAt              string                  `json:"createdAt"`
+	UpdatedAt              string                  `json:"updatedAt"`
+	Clip                   *PostClip               `json:"clip"`
+}
+type PublishingDestination struct {
+	Provider    string `json:"provider"`
+	AccountName string `json:"accountName"`
+	Status      string `json:"status"`
+	Error       string `json:"error,omitempty"`
+	URL         string `json:"url,omitempty"`
+	CreatedAt   string `json:"createdAt"`
+	UpdatedAt   string `json:"updatedAt"`
 }
 type Repository struct {
 	db    *sql.DB
@@ -76,7 +87,12 @@ func (s *Repository) thumbnail(ctx context.Context, references ...sql.NullString
 }
 
 const postSelect = `SELECT p.id,p.title,p.caption,p.notes,p.platforms,p.account_ids,p.status,p.publishing_error,p.scheduled_at,p.created_at,p.updated_at,
-	c.id,c.title,c.viral_score,c.thumbnail_storage_key,c.thumbnail_path,c.thumbnail_url
+	c.id,c.title,c.viral_score,c.thumbnail_storage_key,c.thumbnail_path,c.thumbnail_url,
+	COALESCE((SELECT jsonb_agg(jsonb_build_object(
+		'provider',sp.provider,'accountName',COALESCE(NULLIF(a.username,''),NULLIF(a.name,''),sp.provider),
+		'status',sp.status,'error',sp.error,'url',sp.url,'createdAt',sp.created_at,'updatedAt',sp.updated_at
+	) ORDER BY sp.created_at) FROM social_posts sp LEFT JOIN social_accounts a ON a.id=sp.account_id
+	WHERE sp.scheduled_post_id=p.id),'[]'::jsonb)
 	FROM scheduled_posts p LEFT JOIN clips c ON c.id=p.clip_id AND c.user_id=p.user_id`
 
 type rowScanner interface{ Scan(...any) error }
@@ -86,8 +102,12 @@ func (s *Repository) readPost(ctx context.Context, row rowScanner) (Post, error)
 	var scheduled, created, updated time.Time
 	var clipID, clipTitle, thumbKey, thumbPath, thumbURL sql.NullString
 	var score sql.NullFloat64
-	e := row.Scan(&p.ID, &p.Title, &p.Caption, &p.Notes, pq.Array(&p.Platforms), pq.Array(&p.AccountIDs), &p.Status, &p.PublishingError, &scheduled, &created, &updated, &clipID, &clipTitle, &score, &thumbKey, &thumbPath, &thumbURL)
+	var destinations []byte
+	e := row.Scan(&p.ID, &p.Title, &p.Caption, &p.Notes, pq.Array(&p.Platforms), pq.Array(&p.AccountIDs), &p.Status, &p.PublishingError, &scheduled, &created, &updated, &clipID, &clipTitle, &score, &thumbKey, &thumbPath, &thumbURL, &destinations)
 	if e != nil {
+		return p, e
+	}
+	if e = json.Unmarshal(destinations, &p.PublishingDestinations); e != nil {
 		return p, e
 	}
 	p.ScheduledAt = isoDate(scheduled)

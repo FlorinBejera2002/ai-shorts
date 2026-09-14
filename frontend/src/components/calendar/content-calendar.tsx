@@ -36,6 +36,7 @@ import {
 } from './calendar-utils'
 import styles from './calendar-workspace.module.css'
 import { PostDialog } from './post-dialog'
+import { PublishingStatusDialog } from './publishing-status-dialog'
 
 type CalendarResponse = {
   posts: ScheduledPostRecord[]
@@ -46,7 +47,7 @@ type PostResponse = { post: ScheduledPostRecord }
 type LoadErrorKey = 'auth' | 'rateLimit' | 'load'
 type DialogState =
   | { mode: 'create'; initialTime?: string }
-  | { mode: 'edit' | 'reschedule'; post: ScheduledPostRecord }
+  | { mode: 'edit' | 'reschedule' | 'status'; post: ScheduledPostRecord }
   | null
 
 function isObject(value: unknown): value is Record<string, unknown> {
@@ -290,7 +291,7 @@ export function ContentCalendar() {
 
   function openEdit(post: ScheduledPostRecord) {
     if (post.status === 'publishing' || post.status === 'published') {
-      toast.add('info', t('toasts.locked'))
+      setDialog({ mode: 'status', post })
       return
     }
     setDialog({ mode: 'edit', post })
@@ -520,7 +521,14 @@ export function ContentCalendar() {
         </div>
       )}
 
-      {dialog && (
+      {dialog?.mode === 'status' && (
+        <PublishingStatusDialog
+          post={posts.find((post) => post.id === dialog.post.id) ?? dialog.post}
+          onClose={() => setDialog(null)}
+        />
+      )}
+
+      {dialog && dialog.mode !== 'status' && (
         <PostDialog
           key={`${dialog.mode}-${
             dialog.mode === 'create'

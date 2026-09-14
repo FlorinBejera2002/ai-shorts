@@ -18,6 +18,26 @@ export type ContentPlatform = (typeof CONTENT_PLATFORMS)[number]
 export type ContentPostStatus = (typeof CONTENT_POST_STATUSES)[number]
 export type CalendarMutationStatus = 'draft' | 'scheduled' | 'publish'
 
+export type PublishingDestinationStatus =
+  | 'queued'
+  | 'submitting'
+  | 'processing'
+  | 'finalizing'
+  | 'published'
+  | 'failed'
+  | 'unknown'
+  | 'cancelled'
+
+export type PublishingDestination = {
+  provider: ContentPlatform
+  accountName: string
+  status: PublishingDestinationStatus
+  error?: string
+  url?: string
+  createdAt: string
+  updatedAt: string
+}
+
 export type CalendarClipOption = {
   id: string
   title: string
@@ -37,6 +57,7 @@ export type ScheduledPostRecord = {
   accountIds: string[]
   status: ContentPostStatus
   publishingError?: string
+  publishingDestinations: PublishingDestination[]
   scheduledAt: string
   createdAt: string
   updatedAt: string

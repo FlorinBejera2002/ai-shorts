@@ -1285,6 +1285,30 @@
       "failed": "Failed",
       "published": "Published"
     },
+    "progress": {
+      "title": "Publishing status",
+      "publishingTitle": "Your post is being processed",
+      "publishingEstimate": "Everything is working. Instagram usually processes a video in 1–3 minutes; larger files can take longer.",
+      "publishedTitle": "Publishing confirmed",
+      "publishedDescription": "The platform confirmed your post. Open it directly using the link below.",
+      "failedTitle": "Publishing failed",
+      "failedDescription": "The platform could not confirm this post.",
+      "progressLabel": "Publishing progress",
+      "elapsed": "Elapsed: {duration}. Status updates automatically.",
+      "destinationElapsed": "Working for {duration}",
+      "openPost": "Open on {provider}",
+      "close": "Close",
+      "stages": {
+        "queued": "Waiting",
+        "submitting": "Uploading",
+        "processing": "Processing",
+        "finalizing": "Finalizing",
+        "published": "Published",
+        "failed": "Failed",
+        "unknown": "Needs verification",
+        "cancelled": "Cancelled"
+      }
+    },
     "connections": {
       "title": "Connected accounts",
       "description": "Connect the destinations you use in the calendar.",
