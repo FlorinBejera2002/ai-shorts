@@ -167,6 +167,23 @@ export function ConnectedAccountsSettings() {
                             key={account.id}
                             className="rounded-md bg-muted/40 px-3 py-2 text-[11px] text-muted-foreground"
                           >
+                            <div className="mb-2 min-w-0">
+                              <p
+                                className="truncate text-xs font-medium text-foreground"
+                                title={account.name}
+                              >
+                                {account.name}
+                              </p>
+                              {account.username &&
+                                account.username !== account.name && (
+                                  <p
+                                    className="mt-0.5 truncate"
+                                    title={`@${account.username.replace(/^@/, '')}`}
+                                  >
+                                    @{account.username.replace(/^@/, '')}
+                                  </p>
+                                )}
+                            </div>
                             <div className="flex flex-wrap items-center justify-between gap-2">
                               <span>
                                 {account.scopes?.length

@@ -3,9 +3,23 @@
 import { PlatformBrandIcon } from '@/components/publishing/platform-brand-icon'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle
+} from '@/components/ui/dialog'
+import { useToast } from '@/components/ui/toast'
+import { extractApiError } from '@/lib/api-error'
 import { apiFetch } from '@/lib/auth'
-import type { PublishingData, PublishingProvider } from '@/lib/publishing'
-import { Check, ExternalLink, Loader2, RefreshCw } from 'lucide-react'
+import type {
+  PublishingAccount,
+  PublishingData,
+  PublishingProvider
+} from '@/lib/publishing'
+import { Check, ExternalLink, Loader2, LogOut, RefreshCw } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
 import Image from 'next/image'
 import { useEffect, useState } from 'react'
@@ -46,9 +60,13 @@ export function CalendarConnections({
 }) {
   const t = useTranslations('contentCalendar.connections')
   const locale = useLocale()
+  const toast = useToast()
   const [busyProvider, setBusyProvider] = useState<PublishingProvider | null>(
     null
   )
+  const [busyAccount, setBusyAccount] = useState<string | null>(null)
+  const [disconnectingAccount, setDisconnectingAccount] =
+    useState<PublishingAccount | null>(null)
   const [successProvider, setSuccessProvider] =
     useState<AnimatedProvider | null>(null)
 
@@ -97,6 +115,36 @@ export function CalendarConnections({
     }
   }
 
+  async function disconnect() {
+    if (!disconnectingAccount) return
+
+    setBusyAccount(disconnectingAccount.id)
+    try {
+      const response = await apiFetch(
+        `/api/publishing/accounts/${disconnectingAccount.id}`,
+        { method: 'DELETE' }
+      )
+      const result = (await response.json().catch(() => ({}))) as Record<
+        string,
+        unknown
+      >
+      if (!response.ok) {
+        throw new Error(extractApiError(result, t('disconnectFailed')))
+      }
+
+      setDisconnectingAccount(null)
+      onReload()
+      toast.add('success', t('disconnected'))
+    } catch (caught) {
+      toast.add(
+        'error',
+        caught instanceof Error ? caught.message : t('disconnectFailed')
+      )
+    } finally {
+      setBusyAccount(null)
+    }
+  }
+
   return (
     <Card as="aside" className="block min-w-0 gap-0 p-4 shadow-none">
       <div className="mb-3">
@@ -119,9 +167,11 @@ export function CalendarConnections({
         </div>
       ) : !data ? (
         <div className="space-y-2" aria-busy="true">
-          {Array.from({ length: 4 }, (_, index) => (
-            <div key={index} className="skeleton h-14 w-full rounded-md" />
-          ))}
+          {(['instagram', 'facebook', 'tiktok', 'youtube'] as const).map(
+            (provider) => (
+              <div key={provider} className="skeleton h-14 w-full rounded-md" />
+            )
+          )}
         </div>
       ) : (
         <div className="space-y-1.5">
@@ -139,7 +189,7 @@ export function CalendarConnections({
             return (
               <div
                 key={provider.id}
-                className="flex items-center gap-3 rounded-md px-2.5 py-2.5 transition-colors hover:bg-muted/55"
+                className="flex items-start gap-3 rounded-md px-2.5 py-2.5 transition-colors hover:bg-muted/55"
               >
                 <span className="relative flex size-9 shrink-0 items-center justify-center">
                   {successProvider === provider.id &&
@@ -160,25 +210,71 @@ export function CalendarConnections({
                   )}
                 </span>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-xs font-semibold">
-                    {provider.name}
-                  </p>
-                  <p className="mt-0.5 truncate text-[10px] text-muted-foreground">
-                    {connected
-                      ? accounts
-                          .map((account) => account.username || account.name)
-                          .join(', ')
-                      : t('notConnected')}
-                  </p>
+                  <div className="flex min-h-7 items-center justify-between gap-2">
+                    <p className="truncate text-xs font-semibold">
+                      {provider.name}
+                    </p>
+                    {connected && (
+                      <span
+                        className="inline-flex size-6 shrink-0 items-center justify-center rounded-full bg-foreground text-background"
+                        title={t('connected')}
+                      >
+                        <Check className="size-3" />
+                      </span>
+                    )}
+                  </div>
+                  {connected ? (
+                    <div className="mt-1.5 space-y-1">
+                      {accounts.map((account) => (
+                        <div
+                          key={account.id}
+                          className="flex min-w-0 items-center gap-2 rounded-sm bg-muted/55 px-2 py-1.5"
+                        >
+                          <div className="min-w-0 flex-1">
+                            <p
+                              className="truncate text-[11px] font-medium text-foreground"
+                              title={account.name}
+                            >
+                              {account.name}
+                            </p>
+                            {account.username &&
+                              account.username !== account.name && (
+                                <p
+                                  className="truncate text-[10px] text-muted-foreground"
+                                  title={`@${account.username.replace(/^@/, '')}`}
+                                >
+                                  @{account.username.replace(/^@/, '')}
+                                </p>
+                              )}
+                          </div>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon-xs"
+                            className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                            disabled={busyAccount !== null}
+                            onClick={() => setDisconnectingAccount(account)}
+                            aria-label={t('disconnectAccount', {
+                              account: account.username || account.name
+                            })}
+                            title={t('disconnect')}
+                          >
+                            {busyAccount === account.id ? (
+                              <Loader2 className="animate-spin" />
+                            ) : (
+                              <LogOut />
+                            )}
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="mt-0.5 text-[10px] text-muted-foreground">
+                      {t('notConnected')}
+                    </p>
+                  )}
                 </div>
-                {connected ? (
-                  <span
-                    className="inline-flex size-7 items-center justify-center rounded-full bg-foreground text-background"
-                    title={t('connected')}
-                  >
-                    <Check className="size-3.5" />
-                  </span>
-                ) : (
+                {!connected && (
                   <Button
                     type="button"
                     variant="outline"
@@ -200,6 +296,52 @@ export function CalendarConnections({
           })}
         </div>
       )}
+
+      <Dialog
+        open={disconnectingAccount !== null}
+        onOpenChange={(open) => {
+          if (!open && busyAccount === null) setDisconnectingAccount(null)
+        }}
+      >
+        <DialogContent className="rounded-md">
+          <DialogHeader>
+            <DialogTitle>{t('disconnectTitle')}</DialogTitle>
+            <DialogDescription>
+              {disconnectingAccount
+                ? t('disconnectDescription', {
+                    account:
+                      disconnectingAccount.username ||
+                      disconnectingAccount.name,
+                    provider:
+                      data?.providers.find(
+                        (provider) =>
+                          provider.id === disconnectingAccount.provider
+                      )?.name ?? disconnectingAccount.provider
+                  })
+                : ''}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={busyAccount !== null}
+              onClick={() => setDisconnectingAccount(null)}
+            >
+              {t('cancel')}
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              disabled={busyAccount !== null}
+              onClick={() => void disconnect()}
+            >
+              {busyAccount !== null && <Loader2 className="animate-spin" />}
+              {t('confirmDisconnect')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   )
 }
