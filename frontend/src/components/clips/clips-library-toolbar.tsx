@@ -12,7 +12,7 @@ import {
   SelectTrigger,
   SelectValue
 } from '@/components/ui/select'
-import { Link } from '@/i18n/navigation'
+import { Link, useRouter } from '@/i18n/navigation'
 import type { ClipsLibraryQuery } from '@/lib/clips-library'
 import {
   ArrowDownWideNarrow,
@@ -21,10 +21,10 @@ import {
   Ratio,
   RotateCcw,
   Search,
-  SlidersHorizontal,
   TrendingUp
 } from 'lucide-react'
-import { useState } from 'react'
+import { useSearchParams } from 'next/navigation'
+import { type FormEvent, useState } from 'react'
 import styles from './clips-library-toolbar.module.css'
 
 type Option = { value: string; label: string }
@@ -35,7 +35,8 @@ export function ClipsLibraryToolbar({
   scoreOptions,
   aspectOptions,
   subtitleOptions,
-  sortOptions
+  sortOptions,
+  showSearch = true
 }: {
   query: ClipsLibraryQuery
   labels: {
@@ -52,31 +53,61 @@ export function ClipsLibraryToolbar({
   aspectOptions: Option[]
   subtitleOptions: Option[]
   sortOptions: Option[]
+  showSearch?: boolean
 }) {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+
+  function applySelectedFilter(name: string, value: string) {
+    const params = new URLSearchParams(searchParams.toString())
+    const defaultValue = name === 'sort' ? 'newest' : 'all'
+    if (value === defaultValue) params.delete(name)
+    else params.set(name, value)
+    params.delete('page')
+    const search = params.toString()
+    router.replace(`/dashboard/clips${search ? `?${search}` : ''}`, {
+      scroll: false
+    })
+  }
+
+  function applyFilters(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const values = new FormData(event.currentTarget)
+    const params = new URLSearchParams()
+    for (const [key, value] of values.entries()) {
+      if (typeof value === 'string' && value) params.set(key, value)
+    }
+    const search = params.toString()
+    router.replace(`/dashboard/clips${search ? `?${search}` : ''}`, {
+      scroll: false
+    })
+  }
+
   return (
     <form
       key={JSON.stringify(query)}
-      action=""
-      method="get"
+      onSubmit={applyFilters}
       className={styles.toolbar}
       aria-label={labels.apply}
     >
       <div className={styles.row}>
-        <div className={styles.search}>
-          <Label htmlFor="clips-search" className="sr-only">
-            {labels.search}
-          </Label>
-          <Search className={styles.searchIcon} aria-hidden="true" />
-          <Input
-            id="clips-search"
-            name="search"
-            type="search"
-            defaultValue={query.search}
-            maxLength={80}
-            placeholder={labels.searchPlaceholder}
-            className={styles.searchInput}
-          />
-        </div>
+        {showSearch && (
+          <div className={styles.search}>
+            <Label htmlFor="clips-search" className="sr-only">
+              {labels.search}
+            </Label>
+            <Search className={styles.searchIcon} aria-hidden="true" />
+            <Input
+              id="clips-search"
+              name="search"
+              type="search"
+              defaultValue={query.search}
+              maxLength={80}
+              placeholder={labels.searchPlaceholder}
+              className={styles.searchInput}
+            />
+          </div>
+        )}
         <div className={styles.filters}>
           <FilterSelect
             id="clips-score"
@@ -85,6 +116,7 @@ export function ClipsLibraryToolbar({
             value={query.score}
             options={scoreOptions}
             icon={TrendingUp}
+            onChange={applySelectedFilter}
           />
           <FilterSelect
             id="clips-aspect"
@@ -93,6 +125,7 @@ export function ClipsLibraryToolbar({
             value={query.aspect}
             options={aspectOptions}
             icon={Ratio}
+            onChange={applySelectedFilter}
           />
           <FilterSelect
             id="clips-subtitles"
@@ -101,6 +134,7 @@ export function ClipsLibraryToolbar({
             value={query.subtitles}
             options={subtitleOptions}
             icon={Captions}
+            onChange={applySelectedFilter}
           />
         </div>
         <div className={styles.sort}>
@@ -112,6 +146,7 @@ export function ClipsLibraryToolbar({
             options={sortOptions}
             icon={ArrowDownWideNarrow}
             defaultOption="newest"
+            onChange={applySelectedFilter}
           />
         </div>
         <div className={styles.actions}>
@@ -123,10 +158,6 @@ export function ClipsLibraryToolbar({
             >
               <RotateCcw aria-hidden="true" />
             </Link>
-          </Button>
-          <Button type="submit" className={styles.apply}>
-            <SlidersHorizontal aria-hidden="true" />
-            {labels.apply}
           </Button>
         </div>
       </div>
@@ -141,7 +172,8 @@ function FilterSelect({
   value,
   options,
   icon: Icon,
-  defaultOption = 'all'
+  defaultOption = 'all',
+  onChange
 }: {
   id: string
   name: string
@@ -150,6 +182,7 @@ function FilterSelect({
   options: Option[]
   icon: LucideIcon
   defaultOption?: string
+  onChange: (name: string, value: string) => void
 }) {
   const [selected, setSelected] = useState(value)
 
@@ -158,7 +191,14 @@ function FilterSelect({
       <Label htmlFor={id} className="sr-only">
         {label}
       </Label>
-      <Select name={name} value={selected} onValueChange={setSelected}>
+      <Select
+        name={name}
+        value={selected}
+        onValueChange={(nextValue) => {
+          setSelected(nextValue)
+          onChange(name, nextValue)
+        }}
+      >
         <SelectTrigger id={id} className={styles.select}>
           <Icon className={styles.filterIcon} aria-hidden="true" />
           <SelectValue>

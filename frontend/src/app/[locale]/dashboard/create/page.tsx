@@ -225,7 +225,7 @@ function CreateWorkflow() {
             count: data.jobs?.length ?? validBatchUrls.length
           })
         )
-        router.push('/dashboard/history')
+        router.push('/dashboard/clips')
       } catch {
         toast.add('error', t('jobFailed'))
         setBusy(false)

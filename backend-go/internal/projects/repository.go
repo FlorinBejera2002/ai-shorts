@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"path"
 )
 
 type URLSigner interface {
@@ -48,6 +49,13 @@ func (r *Repository) List(ctx context.Context, userID string) (map[string]any, e
 		}
 		var kit map[string]any
 		_ = json.Unmarshal(brand, &kit)
+		if reference, ok := kit["logoPath"].(string); ok && reference != "" && r.media != nil {
+			if key, keyErr := r.media.KeyFromReference(reference); keyErr == nil {
+				if signed, signErr := r.media.SignedURL(ctx, key); signErr == nil {
+					kit["logoUrl"] = signed
+				}
+			}
+		}
 		p := map[string]any{"id": id, "name": name, "status": status, "source": source, "brandKit": kit, "createdAt": created, "updatedAt": updated, "folders": []map[string]any{}, "clips": []map[string]any{}}
 		projects = append(projects, p)
 		byID[id] = p
@@ -75,17 +83,18 @@ func (r *Repository) List(ctx context.Context, userID string) (map[string]any, e
 	if err = folders.Err(); err != nil {
 		return nil, err
 	}
-	clips, err := r.db.QueryContext(ctx, `SELECT id,job_id,folder_id,title,duration,viral_score,aspect_ratio,COALESCE(NULLIF(thumbnail_storage_key,''),NULLIF(thumbnail_path,''),thumbnail_url,''),created_at FROM clips WHERE user_id=$1 ORDER BY created_at DESC,id DESC`, userID)
+	clips, err := r.db.QueryContext(ctx, `SELECT id,job_id,folder_id,title,duration,viral_score,aspect_ratio,COALESCE(NULLIF(thumbnail_storage_key,''),NULLIF(thumbnail_path,''),thumbnail_url,''),hook_text,COALESCE(resolution,''),has_subtitles,created_at FROM clips WHERE user_id=$1 ORDER BY created_at DESC,id DESC`, userID)
 	if err != nil {
 		return nil, err
 	}
 	for clips.Next() {
-		var id, job, title, aspect, reference string
-		var folder sql.NullString
+		var id, job, title, aspect, reference, resolution string
+		var folder, hook sql.NullString
 		var duration float64
 		var score sql.NullInt64
+		var hasSubtitles bool
 		var created any
-		if err = clips.Scan(&id, &job, &folder, &title, &duration, &score, &aspect, &reference, &created); err != nil {
+		if err = clips.Scan(&id, &job, &folder, &title, &duration, &score, &aspect, &reference, &hook, &resolution, &hasSubtitles, &created); err != nil {
 			clips.Close()
 			return nil, err
 		}
@@ -96,7 +105,7 @@ func (r *Repository) List(ctx context.Context, userID string) (map[string]any, e
 			}
 		}
 		if p := byID[job]; p != nil {
-			p["clips"] = append(p["clips"].([]map[string]any), map[string]any{"id": id, "folderId": nullable(folder), "title": title, "duration": duration, "viralScore": nullableInt(score), "aspectRatio": aspect, "thumbnailUrl": thumbnail, "createdAt": created})
+			p["clips"] = append(p["clips"].([]map[string]any), map[string]any{"id": id, "folderId": nullable(folder), "title": title, "duration": duration, "viralScore": nullableInt(score), "aspectRatio": aspect, "thumbnailUrl": thumbnail, "hookText": nullable(hook), "resolution": resolution, "hasSubtitles": hasSubtitles, "createdAt": created})
 		}
 	}
 	clips.Close()
@@ -120,6 +129,23 @@ func nullableInt(v sql.NullInt64) any {
 }
 
 func (r *Repository) UpdateProject(ctx context.Context, userID, projectID string, in ProjectUpdate) error {
+	if in.BrandKit != nil {
+		var brand struct {
+			LogoPath string `json:"logoPath"`
+		}
+		if json.Unmarshal(in.BrandKit, &brand) != nil {
+			return ErrInvalid
+		}
+		if brand.LogoPath != "" {
+			if r.media == nil {
+				return ErrInvalid
+			}
+			key, err := r.media.KeyFromReference(brand.LogoPath)
+			if err != nil || path.Dir(key) != "brand/"+userID {
+				return ErrInvalid
+			}
+		}
+	}
 	result, err := r.db.ExecContext(ctx, `UPDATE jobs SET project_name=COALESCE($3,project_name),project_brand=COALESCE($4,project_brand),updated_at=now() WHERE id=$1 AND user_id=$2`, projectID, userID, in.Name, nullableJSON(in.BrandKit))
 	if err != nil {
 		return err
@@ -214,7 +240,7 @@ func (r *Repository) MoveClip(ctx context.Context, userID, projectID, clipID str
 			return sql.ErrNoRows
 		}
 	}
-	result, err := r.db.ExecContext(ctx, `UPDATE clips SET folder_id=$4 WHERE id=$1 AND user_id=$2 AND job_id=$3`, clipID, userID, projectID, folderID)
+	result, err := r.db.ExecContext(ctx, `UPDATE clips SET job_id=$3,folder_id=$4 WHERE id=$1 AND user_id=$2 AND EXISTS(SELECT 1 FROM jobs WHERE id=$3 AND user_id=$2)`, clipID, userID, projectID, folderID)
 	if err != nil {
 		return err
 	}

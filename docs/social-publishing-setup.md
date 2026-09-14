@@ -1,7 +1,7 @@
 # Social publishing setup
 
 The Publish page connects user-owned Facebook Pages, Instagram professional
-accounts and TikTok accounts through separate OAuth flows. Scenarios remains a
+accounts, TikTok accounts and YouTube channels through separate OAuth flows. Scenarios remains a
 separate page. Publishing requires an explicit review and confirmation.
 
 ## Current external setup
@@ -71,6 +71,7 @@ Register these exact OAuth redirect URLs in the corresponding product:
 | Facebook | `https://sneepcut.com/api/publishing/callback/facebook` |
 | Instagram | `https://sneepcut.com/api/publishing/callback/instagram` |
 | TikTok | `https://sneepcut.com/api/publishing/callback/tiktok` |
+| YouTube | `https://sneepcut.com/api/publishing/callback/youtube` |
 
 Serve `/privacy`, `/terms` and `/data-deletion` publicly on the production domain.
 The data-deletion page is a human-readable instructions URL, not a webhook.
@@ -103,6 +104,8 @@ Facebook uses `pages_show_list`, `pages_read_engagement`, `pages_manage_posts`.
 Instagram uses Instagram API with Instagram Login and separate product credentials,
 with `instagram_business_basic` and `instagram_business_content_publish`.
 TikTok uses `user.info.basic` and `video.publish`.
+YouTube connections use `youtube.readonly` to identify channels for calendar
+planning. Direct YouTube upload is not enabled by this connection-only rollout.
 
 ## Behavior and limitations
 

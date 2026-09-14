@@ -47,7 +47,7 @@ try {
   assert.equal(await page.evaluate(() => Object.values(localStorage).some(value => value.startsWith('eyJ'))), false)
   results.push('Actual form sign-in, PostgreSQL profile persistence, reload refresh and HttpOnly cookie')
 
-  for (const route of ['/dashboard', '/dashboard/analytics', '/dashboard/history', '/dashboard/review', '/dashboard/clips', '/dashboard/calendar', '/dashboard/billing']) {
+  for (const route of ['/dashboard', '/dashboard/analytics', '/dashboard/history', '/dashboard/review', '/dashboard/clips', '/dashboard/publish', '/dashboard/billing']) {
     console.log('CHECK ' + route)
     const response = await page.goto(state.base + route, { waitUntil: 'domcontentloaded' })
     assert.equal(response.status(), 200)

@@ -586,7 +586,7 @@ export function ClipWorkspace({ clip }: ClipWorkspaceProps) {
           </Button>
         )}
         <Button asChild={true} variant="outline">
-          <Link href="/dashboard/calendar" className="rounded-lg">
+          <Link href="/dashboard/publish" className="rounded-lg">
             <Send className="w-3.5 h-3.5" />
             {sections('planPost')}
           </Link>

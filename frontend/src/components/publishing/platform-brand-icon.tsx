@@ -21,26 +21,15 @@ export function PlatformBrandIcon({
         viewBox="0 0 24 24"
       >
         <defs>
-          <linearGradient
-            id={gradientId}
-            x1="3"
-            y1="22"
-            x2="21"
-            y2="2"
-          >
-            <stop offset="0" stopColor="#ffdc80" />
-            <stop offset="0.32" stopColor="#fcaf45" />
-            <stop offset="0.58" stopColor="#f77737" />
-            <stop offset="0.78" stopColor="#c13584" />
-            <stop offset="1" stopColor="#833ab4" />
+          <linearGradient id={gradientId} x1="2" y1="22" x2="22" y2="2">
+            <stop offset="0" stopColor="#ffd600" />
+            <stop offset="0.22" stopColor="#ff7a00" />
+            <stop offset="0.48" stopColor="#ff0169" />
+            <stop offset="0.74" stopColor="#d300c5" />
+            <stop offset="1" stopColor="#7638fa" />
           </linearGradient>
         </defs>
-        <rect
-          width="24"
-          height="24"
-          rx="6"
-          fill={`url(#${gradientId})`}
-        />
+        <rect width="24" height="24" rx="6" fill={`url(#${gradientId})`} />
         <rect
           x="5.3"
           y="5.3"
@@ -77,6 +66,20 @@ export function PlatformBrandIcon({
           fill="white"
           d="M13.55 20.5v-7.75h2.6l.39-3.02h-2.99V7.8c0-.88.24-1.47 1.5-1.47h1.6v-2.7a21.4 21.4 0 0 0-2.33-.12c-2.31 0-3.9 1.41-3.9 4.01v2.21H7.8v3.02h2.62v7.75h3.13Z"
         />
+      </svg>
+    )
+  }
+
+  if (provider === 'youtube') {
+    return (
+      <svg
+        aria-hidden="true"
+        className={className}
+        data-platform-mark={provider}
+        viewBox="0 0 24 24"
+      >
+        <rect width="24" height="24" rx="6" fill="#ff0033" />
+        <path fill="white" d="m9.6 8.2 6.2 3.8-6.2 3.8V8.2Z" />
       </svg>
     )
   }

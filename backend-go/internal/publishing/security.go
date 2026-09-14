@@ -22,6 +22,10 @@ func randomToken() string {
 	return base64.RawURLEncoding.EncodeToString(b)
 }
 func digest(s string) string { b := sha256.Sum256([]byte(s)); return hex.EncodeToString(b[:]) }
+func pkceChallenge(verifier string) string {
+	b := sha256.Sum256([]byte(verifier))
+	return base64.RawURLEncoding.EncodeToString(b[:])
+}
 func newCipher(key string) (cipher.AEAD, error) {
 	b, err := base64.StdEncoding.DecodeString(key)
 	if err != nil || len(b) != 32 {

@@ -13,7 +13,11 @@ import (
 	"time"
 )
 
-type ProviderConfig struct{ AppURL, MetaAppID, MetaAppSecret, InstagramAppID, InstagramAppSecret, TikTokClientKey, TikTokClientSecret, TikTokVerifiedURLPrefix, GraphVersion string }
+type ProviderConfig struct {
+	AppURL, MetaAppID, MetaAppSecret, InstagramAppID, InstagramAppSecret       string
+	TikTokClientKey, TikTokClientSecret, TikTokVerifiedURLPrefix, GraphVersion string
+	YouTubeClientID, YouTubeClientSecret                                       string
+}
 type Credentials struct {
 	AccessToken, RefreshToken string
 	ExpiresAt                 time.Time
@@ -58,6 +62,8 @@ func (p *ProviderClient) Configured(provider string) bool {
 		return p.config.MetaAppID != "" && p.config.MetaAppSecret != ""
 	case "tiktok":
 		return p.config.TikTokClientKey != "" && p.config.TikTokClientSecret != "" && verifiedMediaURL(p.config.TikTokVerifiedURLPrefix, p.config.TikTokVerifiedURLPrefix)
+	case "youtube":
+		return p.config.YouTubeClientID != "" && p.config.YouTubeClientSecret != ""
 	}
 	return false
 }
@@ -109,6 +115,15 @@ func (p *ProviderClient) Authorize(provider, state, verifier string) (string, er
 		endpoint = "https://www.tiktok.com/v2/auth/authorize/"
 		q.Set("client_key", p.config.TikTokClientKey)
 		q.Set("scope", "user.info.basic,video.publish")
+	case "youtube":
+		endpoint = "https://accounts.google.com/o/oauth2/v2/auth"
+		q.Set("client_id", p.config.YouTubeClientID)
+		q.Set("scope", "https://www.googleapis.com/auth/youtube.readonly")
+		q.Set("access_type", "offline")
+		q.Set("include_granted_scopes", "true")
+		q.Set("prompt", "consent")
+		q.Set("code_challenge", pkceChallenge(verifier))
+		q.Set("code_challenge_method", "S256")
 	}
 	return endpoint + "?" + q.Encode(), nil
 }
@@ -213,6 +228,11 @@ func (p *ProviderClient) Exchange(ctx context.Context, provider, code, verifier 
 		endpoint = "https://open.tiktokapis.com/v2/oauth/token/"
 		form.Set("client_key", p.config.TikTokClientKey)
 		form.Set("client_secret", p.config.TikTokClientSecret)
+	case "youtube":
+		endpoint = "https://oauth2.googleapis.com/token"
+		form.Set("client_id", p.config.YouTubeClientID)
+		form.Set("client_secret", p.config.YouTubeClientSecret)
+		form.Set("code_verifier", verifier)
 	}
 	if err := p.request(ctx, "POST", endpoint, "", form, nil, &tok); err != nil {
 		return nil, err
@@ -325,6 +345,31 @@ func (p *ProviderClient) Exchange(ctx context.Context, provider, code, verifier 
 			return nil, errors.New("missing TikTok account ID")
 		}
 		return []RemoteAccount{{ID: r.Data.User.OpenID, Name: r.Data.User.DisplayName, Credentials: creds}}, nil
+	case "youtube":
+		var r struct {
+			Items []struct {
+				ID      string
+				Snippet struct {
+					Title     string
+					CustomURL string `json:"customUrl"`
+				}
+			}
+		}
+		endpoint := "https://www.googleapis.com/youtube/v3/channels?part=snippet&mine=true&maxResults=50"
+		if err := p.request(ctx, "GET", endpoint, creds.AccessToken, nil, nil, &r); err != nil {
+			return nil, err
+		}
+		accounts := make([]RemoteAccount, 0, len(r.Items))
+		for _, channel := range r.Items {
+			if channel.ID == "" {
+				continue
+			}
+			accounts = append(accounts, RemoteAccount{ID: channel.ID, Name: channel.Snippet.Title, Username: strings.TrimPrefix(channel.Snippet.CustomURL, "@"), Credentials: creds})
+		}
+		if len(accounts) == 0 {
+			return nil, errors.New("no YouTube channel is available for this account")
+		}
+		return accounts, nil
 	}
 	return nil, errors.New("unsupported provider")
 }
@@ -542,6 +587,11 @@ func (p *ProviderClient) Refresh(ctx context.Context, provider string, c Credent
 		err = p.request(ctx, "GET", "https://graph.instagram.com/refresh_access_token?grant_type=ig_refresh_token&access_token="+url.QueryEscape(c.AccessToken), "", nil, nil, &t)
 	case "facebook":
 		return c, errors.New("reconnect Facebook to renew permissions")
+	case "youtube":
+		if c.RefreshToken == "" {
+			return c, errors.New("reconnect YouTube")
+		}
+		err = p.request(ctx, "POST", "https://oauth2.googleapis.com/token", "", url.Values{"client_id": {p.config.YouTubeClientID}, "client_secret": {p.config.YouTubeClientSecret}, "grant_type": {"refresh_token"}, "refresh_token": {c.RefreshToken}}, nil, &t)
 	default:
 		return c, errors.New("unsupported provider")
 	}
@@ -562,6 +612,9 @@ func (p *ProviderClient) Revoke(ctx context.Context, provider string, c Credenti
 	}
 	if provider == "instagram" || provider == "facebook" {
 		return p.request(ctx, "DELETE", p.graph(provider, "me/permissions"), c.AccessToken, nil, nil, nil)
+	}
+	if provider == "youtube" {
+		return p.request(ctx, "POST", "https://oauth2.googleapis.com/revoke", "", url.Values{"token": {c.AccessToken}}, nil, nil)
 	}
 	return errors.New("unsupported provider")
 }

@@ -21,7 +21,7 @@ export async function checkAllPages({ chromium, firefox, storageState, sql, user
     ['dashboard','/dashboard'],['create','/dashboard/create'],['review','/dashboard/review'],['clips','/dashboard/clips'],
     ['clip-detail',`/dashboard/clips/${clipId}`],['clip-editor',`/dashboard/clips/${clipId}/edit`],
     ['history','/dashboard/history'],['job-detail',`/dashboard/jobs/${jobId}`],['analytics','/dashboard/analytics'],
-    ['calendar','/dashboard/calendar'],['script-generator','/dashboard/script-generator'],['publish','/dashboard/publish'],
+    ['script-generator','/dashboard/script-generator'],['publish','/dashboard/publish'],
     ['brand','/dashboard/brand'],['billing','/dashboard/billing'],['settings','/dashboard/settings']
   ]
   const report = []

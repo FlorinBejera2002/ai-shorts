@@ -33,6 +33,7 @@ func (p *ProjectUpdate) Validate() error {
 	if p.BrandKit != nil {
 		var brand struct {
 			Name           string `json:"name"`
+			LogoPath       string `json:"logoPath"`
 			PrimaryColor   string `json:"primaryColor"`
 			SecondaryColor string `json:"secondaryColor"`
 			FontFamily     string `json:"fontFamily"`
@@ -45,7 +46,7 @@ func (p *ProjectUpdate) Validate() error {
 		if brand.PrimaryColor != "" && !hexColor.MatchString(brand.PrimaryColor) || brand.SecondaryColor != "" && !hexColor.MatchString(brand.SecondaryColor) || brand.SubtitleColor != "" && !hexColor.MatchString(brand.SubtitleColor) {
 			return errors.New("Brand colors must use six-digit hex values")
 		}
-		if len([]rune(brand.Name)) > 80 || len([]rune(brand.FontFamily)) > 100 || len([]rune(brand.SubtitleFont)) > 100 {
+		if len([]rune(brand.Name)) > 80 || len([]rune(brand.LogoPath)) > 2048 || len([]rune(brand.FontFamily)) > 100 || len([]rune(brand.SubtitleFont)) > 100 {
 			return errors.New("Brand kit values are too long")
 		}
 	}

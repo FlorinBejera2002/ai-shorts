@@ -222,7 +222,7 @@ func (h *Handler) enqueue(ctx context.Context, user string, in postInput) ([]Pos
 	for _, id := range in.AccountIDs {
 		var a Account
 		e = tx.QueryRowContext(ctx, `SELECT id,user_id,provider,remote_id,name,username,status,credentials FROM social_accounts WHERE id=$1 AND user_id=$2 AND status='connected' FOR UPDATE`, id, user).Scan(&a.ID, &a.UserID, &a.Provider, &a.RemoteID, &a.Name, &a.Username, &a.Status, &a.Encrypted)
-		if e != nil || !h.configured(a.Provider) {
+		if e != nil || !h.configured(a.Provider) || a.Provider == "youtube" {
 			return nil, errInvalid
 		}
 		var existingHash string

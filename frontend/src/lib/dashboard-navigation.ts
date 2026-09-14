@@ -4,21 +4,9 @@ export const dashboardNavigation = [
     items: [
       { href: '/dashboard', key: 'home' },
       { href: '/dashboard/studio', key: 'editor' },
-      { href: '/dashboard/script-generator', key: 'scripts' }
-    ]
-  },
-  {
-    labelKey: 'groupContent',
-    items: [
-      { href: '/dashboard/history', key: 'history' },
+      { href: '/dashboard/script-generator', key: 'scripts' },
       { href: '/dashboard/clips', key: 'clips' },
-      { href: '/dashboard/calendar', key: 'calendar' },
-      { href: '/dashboard/publish', key: 'publish' }
-    ]
-  },
-  {
-    labelKey: 'groupWorkspace',
-    items: [
+      { href: '/dashboard/publish', key: 'publish' },
       { href: '/dashboard/brand', key: 'brand' },
       { href: '/dashboard/billing', key: 'billing' },
       { href: '/dashboard/settings', key: 'settings' }
@@ -29,7 +17,7 @@ export const dashboardNavigation = [
 export function isDashboardRouteActive(pathname: string, href: string) {
   pathname = pathname.split('?')[0] ?? pathname
   if (href === '/dashboard') return pathname === href
-  if (href === '/dashboard/history' && pathname.startsWith('/dashboard/jobs/'))
+  if (href === '/dashboard/clips' && pathname.startsWith('/dashboard/jobs/'))
     return true
   return pathname === href || pathname.startsWith(`${href}/`)
 }

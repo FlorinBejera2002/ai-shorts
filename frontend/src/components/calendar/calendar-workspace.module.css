@@ -1,13 +1,26 @@
 .workspace {
+  --primary: var(--foreground);
+  --primary-foreground: var(--background);
+  --ring: var(--foreground);
+  --accent: var(--muted);
   padding-bottom: 24px;
+}
+.dialog {
+  --primary: var(--foreground);
+  --primary-foreground: var(--background);
+  --ring: var(--foreground);
+  --accent: var(--muted);
+}
+.dialog input:focus-visible,
+.dialog textarea:focus-visible {
+  outline: none;
+  outline-offset: 0;
 }
 .metrics {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--card);
-  overflow: hidden;
+  gap: 12px;
+  background: transparent;
 }
 .metrics .metric {
   display: flex;
@@ -17,41 +30,86 @@
   align-items: center;
   border: 0;
   border-radius: 0;
-  padding: 18px 20px;
+  padding: 4px 6px;
   box-shadow: none;
   background: transparent;
-}
-.metric + .metric {
-  border-left: 1px solid var(--border);
-}
-.metric:nth-child(n + 3) {
-  border-top: 1px solid var(--border);
 }
 .metricIcon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  width: 30px;
-  height: 30px;
-  border-radius: 5px;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-sm);
+  background: transparent !important;
+  color: var(--foreground) !important;
 }
 .metric p:first-child {
   font-size: 9px;
   letter-spacing: 0.08em;
 }
+.metrics.headerMetrics {
+  width: clamp(360px, 34vw, 480px);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: 28px;
+  row-gap: 20px;
+}
+.headerMetrics .metric {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 30px;
+  grid-template-rows: auto auto;
+  align-items: center;
+  column-gap: 12px;
+  row-gap: 5px;
+  padding: 0;
+  color: #ffffff;
+}
+.headerMetrics .metric > div {
+  display: contents;
+}
+.headerMetrics .metricIcon {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  width: 30px;
+  height: 30px;
+  background: rgb(255 255 255 / 7%) !important;
+  color: rgb(255 255 255 / 68%) !important;
+}
+.headerMetrics .metric p:first-child {
+  grid-column: 1;
+  grid-row: 1;
+  color: rgb(255 255 255 / 58%);
+  font-size: 9px;
+  letter-spacing: 0.07em;
+}
+.headerMetrics .metric p:last-child {
+  grid-column: 1;
+  grid-row: 2;
+  margin-top: 0;
+  color: #ffffff;
+  font-size: 27px;
+  font-weight: 600;
+  letter-spacing: -0.04em;
+}
 .planningLayout {
   display: grid;
-  gap: 20px;
+  gap: 24px;
   align-items: start;
 }
 .planner,
 .agenda {
   min-width: 0;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
+  box-shadow: none;
+}
+.planner {
+  border: 1px solid var(--border);
+  background: var(--background);
 }
 .toolbar {
-  background: var(--card);
+  padding: 14px 16px 16px;
+  background: transparent;
 }
 .toolbar h2 {
   font-size: 16px;
@@ -59,11 +117,7 @@
 .toolbar button {
   min-height: 34px;
   height: 34px;
-  border-radius: 5px;
-}
-.toolbar select {
-  min-height: 34px;
-  font-size: 11px;
+  border-radius: var(--radius-sm);
 }
 .gridWrap {
   padding: 0;
@@ -76,35 +130,48 @@
   transition: background 160ms ease;
 }
 .monthGrid [role="gridcell"]:hover {
-  background: color-mix(in srgb, var(--primary) 3%, var(--card));
+  background: var(--muted);
 }
 .monthGrid [role="gridcell"] > button:first-of-type {
-  border-radius: 5px;
+  border-radius: var(--radius-sm);
 }
 .agenda {
   overflow: hidden;
+  border: 0;
+  padding: 18px;
+  background: color-mix(in srgb, var(--muted) 42%, var(--background));
 }
 .agenda > div:first-child {
-  margin: -20px -20px 0;
-  padding: 20px;
-  background: #1b202b;
-  border-color: #343c4c;
-  color: #edf0f7;
+  margin: 0;
+  padding: 0 0 12px;
+  background: transparent;
+  border: 0;
+  color: var(--foreground);
 }
 .agenda > div:first-child p {
-  color: #a6b1c5;
+  color: var(--muted-foreground);
 }
 .agenda > div:first-child button {
-  background: #2b3241;
-  color: #edf0f7;
-  border-color: #485165;
+  background: var(--background);
+  color: var(--foreground);
+  border-color: var(--border);
   font-size: 11px;
 }
 .agenda > div:first-child h2 {
   font-size: 17px;
 }
 .agenda article {
-  border-radius: 5px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  box-shadow: none;
+}
+.agenda article:hover {
+  background: var(--muted);
+}
+.agenda article > div:last-child {
+  border-top: 0;
+  padding-top: 0;
 }
 .agenda article button {
   padding-inline: 8px;
@@ -113,27 +180,29 @@
   .metrics {
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
-  .metric:nth-child(n + 3) {
-    border-top: 0;
-  }
 }
 @media (min-width: 1280px) {
   .planningLayout {
-    grid-template-columns: minmax(0, 1fr) 336px;
+    grid-template-columns: 292px minmax(0, 1fr);
   }
-  .agenda {
+  .planningLayout > aside {
     position: sticky;
     top: 90px;
   }
 }
 @media (max-width: 639px) {
+  .metrics.headerMetrics {
+    width: 100%;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: 12px;
+    row-gap: 16px;
+  }
   .metrics .metric {
-    padding: 14px 12px;
+    padding: 4px 2px;
     gap: 8px;
   }
-  .agenda > div:first-child {
-    margin: -16px -16px 0;
-    padding: 16px;
+  .toolbar {
+    padding: 12px;
   }
 }
 @media (prefers-reduced-motion: reduce) {

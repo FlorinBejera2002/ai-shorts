@@ -1,5 +1,6 @@
 'use client'
 
+import { GooeyNav } from '@/components/ui/gooey-nav'
 import type { ScheduledPostRecord } from '@/lib/content-calendar'
 import { Clock3 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
@@ -40,8 +41,8 @@ export function CalendarTimelineView({
   const t = useTranslations('contentCalendar')
   const [dropTarget, setDropTarget] = useState<string | null>(null)
   const today = startOfLocalDay(new Date())
-  const dayFormatter = useMemo(
-    () => new Intl.DateTimeFormat(locale, { weekday: 'short', day: 'numeric' }),
+  const weekdayFormatter = useMemo(
+    () => new Intl.DateTimeFormat(locale, { weekday: 'short' }),
     [locale]
   )
   const timeFormatter = useMemo(
@@ -59,6 +60,10 @@ export function CalendarTimelineView({
     return result
   }, [posts])
   const columns = `56px repeat(${days.length}, minmax(${days.length === 1 ? 280 : 112}px, 1fr))`
+  const selectedDayIndex = Math.max(
+    0,
+    days.findIndex((day) => isSameLocalDay(day, selectedDate))
+  )
 
   return (
     <div className="max-h-[720px] overflow-auto bg-card">
@@ -68,33 +73,35 @@ export function CalendarTimelineView({
         className="min-w-max"
         style={{ display: 'grid', gridTemplateColumns: columns }}
       >
-        <div className="sticky left-0 top-0 z-30 border-b border-r border-border bg-card" />
-        {days.map((day) => {
-          const selected = isSameLocalDay(day, selectedDate)
-          const isToday = isSameLocalDay(day, today)
-          return (
-            <button
-              key={localDateKey(day)}
-              type="button"
-              onClick={() => onSelectDate(day)}
-              className={`sticky top-0 z-20 border-b border-r border-border px-3 py-3 text-center text-xs font-semibold capitalize backdrop-blur ${
-                selected
-                  ? 'bg-primary/[0.10] text-primary'
-                  : 'bg-card/95 text-foreground'
-              }`}
-            >
-              <span>{dayFormatter.format(day)}</span>
-              {isToday && (
-                <span className="ml-2 inline-block h-1.5 w-1.5 rounded-full bg-primary" />
-              )}
-            </button>
-          )
-        })}
+        <div className="sticky left-0 top-0 z-30 border-b border-border/60 bg-card" />
+        <div
+          className="sticky top-0 z-20 flex min-h-14 items-center border-b border-border/60 bg-card/95 px-2 backdrop-blur"
+          style={{ gridColumn: '2 / -1' }}
+        >
+          <GooeyNav
+            aria-label={t('views.week')}
+            className="w-full"
+            stretch={true}
+            size="xs"
+            value={selectedDayIndex}
+            items={days.map((day) => ({
+              label: `${weekdayFormatter
+                .format(day)
+                .toLocaleUpperCase(locale)} ${day.getDate()}${
+                isSameLocalDay(day, today) ? ' •' : ''
+              }`
+            }))}
+            onChange={(index) => {
+              const selectedDay = days[index]
+              if (selectedDay) onSelectDate(selectedDay)
+            }}
+          />
+        </div>
 
         {HOURS.flatMap((hour) => [
           <div
             key={`time-${hour}`}
-            className={`sticky left-0 z-10 border-b border-r border-border bg-muted/35 px-2 pt-2 text-right text-[10px] font-semibold tabular-nums text-muted-foreground ${
+            className={`sticky left-0 z-10 border-b border-border/50 bg-card px-2 pt-2 text-right text-[10px] font-semibold tabular-nums text-muted-foreground ${
               density === 'compact' ? 'min-h-16' : 'min-h-24'
             }`}
           >
@@ -120,12 +127,12 @@ export function CalendarTimelineView({
                   const postId = readDraggedPostId(event)
                   if (postId) onMovePost(postId, day, hour)
                 }}
-                onDoubleClick={() => onCreateAt(day, hour)}
-                className={`border-b border-r border-border p-1.5 transition-colors ${
+                onClick={() => onCreateAt(day, hour)}
+                className={`border-b border-border/50 p-1.5 transition-colors ${
                   density === 'compact' ? 'min-h-16' : 'min-h-24'
                 } ${
                   isDropTarget
-                    ? 'bg-primary/[0.10] ring-2 ring-inset ring-primary/30'
+                    ? 'bg-muted ring-2 ring-inset ring-foreground/20'
                     : 'bg-card hover:bg-muted/20'
                 }`}
               >
@@ -136,8 +143,11 @@ export function CalendarTimelineView({
                       type="button"
                       draggable={post.status !== 'published'}
                       onDragStart={(event) => draggablePostData(event, post)}
-                      onClick={() => onEditPost(post)}
-                      className={`relative flex w-full items-start gap-2 overflow-hidden rounded-lg border border-border bg-background p-2 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md ${
+                      onClick={(event) => {
+                        event.stopPropagation()
+                        onEditPost(post)
+                      }}
+                      className={`relative flex w-full items-start gap-2 overflow-hidden rounded-sm bg-muted/55 p-2 text-left transition-colors hover:bg-muted ${
                         days.length === 1 ? 'sm:p-3' : ''
                       }`}
                     >

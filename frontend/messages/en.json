@@ -1192,7 +1192,7 @@
     }
   },
   "contentCalendar": {
-    "title": "Content Calendar",
+    "title": "Publishing",
     "description": "Plan, organize, and track every social post from one focused workspace.",
     "loading": "Loading calendar",
     "calendarSectionLabel": "Monthly content plan",
@@ -1238,6 +1238,7 @@
       "comfortable": "Comfortable"
     },
     "filters": {
+      "label": "Filters",
       "searchLabel": "Search calendar posts",
       "searchPlaceholder": "Search title, caption, notes, or clip…",
       "active": "Filters active",
@@ -1279,6 +1280,16 @@
       "scheduled": "Scheduled",
       "published": "Published"
     },
+    "connections": {
+      "title": "Connected accounts",
+      "description": "Connect the destinations you use in the calendar.",
+      "notConnected": "No account connected",
+      "connected": "Connected",
+      "connect": "Connect",
+      "unavailable": "Unavailable",
+      "loadError": "Accounts could not be loaded.",
+      "retry": "Try again"
+    },
     "dialog": {
       "eyebrow": "Content planning",
       "createTitle": "Plan a new post",
@@ -1296,6 +1307,8 @@
       "titlePlaceholder": "e.g. Product reveal — opening hook",
       "platformsLabel": "Platforms",
       "platformsHint": "Choose every destination this post is planned for.",
+      "noConnectedPlatforms": "You don't have a connected platform yet.",
+      "openPublishing": "Open Publishing",
       "clipLabel": "Linked clip (optional)",
       "noClip": "No linked clip",
       "statusLabel": "Status",
@@ -1378,7 +1391,8 @@
     "requirements": {
       "instagram": "Business and Creator accounts · Instagram Reels",
       "facebook": "Pages you manage · Facebook Reels",
-      "tiktok": "Your TikTok account · video posts"
+      "tiktok": "Your TikTok account · video posts",
+      "youtube": "Your YouTube channel · calendar planning"
     },
     "connect": "Connect account",
     "connectAnother": "Connect another account",

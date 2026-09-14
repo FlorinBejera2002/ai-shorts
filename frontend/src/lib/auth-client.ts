@@ -20,6 +20,26 @@ export type AuthSnapshot = {
   error: string | null
 }
 type AuthResponse = { access_token: string; user: AuthUser }
+
+function tokenExpiresSoon(token: string, leewaySeconds = 15) {
+  const payload = token.split('.')[1]
+  if (!payload) return false
+
+  try {
+    const normalized = payload.replace(/-/g, '+').replace(/_/g, '/')
+    const decoded = JSON.parse(
+      atob(normalized.padEnd(Math.ceil(normalized.length / 4) * 4, '='))
+    ) as { exp?: unknown }
+
+    return (
+      typeof decoded.exp === 'number' &&
+      decoded.exp * 1000 <= Date.now() + leewaySeconds * 1000
+    )
+  } catch {
+    return false
+  }
+}
+
 export class ApiError extends Error {
   constructor(
     public status: number,
@@ -168,7 +188,8 @@ export function createAuthClient(fetcher: typeof fetch, baseUrl = '') {
   ): Promise<Response> {
     if (logoutFlight) throw new ApiError(401, 'Signed out')
     const startedAt = epoch
-    let token = accessToken ?? (await refresh())
+    let token = accessToken
+    if (!token || tokenExpiresSoon(token)) token = await refresh()
     if (startedAt !== epoch || !token)
       throw new ApiError(401, 'Sign in to continue')
     const request = (bearer: string) => {

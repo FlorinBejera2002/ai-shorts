@@ -1189,7 +1189,7 @@
     }
   },
   "contentCalendar": {
-    "title": "Calendar de conținut",
+    "title": "Publicare",
     "description": "Planifică, organizează și urmărește fiecare postare socială dintr-un singur spațiu clar.",
     "loading": "Se încarcă calendarul",
     "calendarSectionLabel": "Plan lunar de conținut",
@@ -1235,6 +1235,7 @@
       "comfortable": "Confortabil"
     },
     "filters": {
+      "label": "Filtre",
       "searchLabel": "Caută postări în calendar",
       "searchPlaceholder": "Caută în titlu, descriere, notițe sau clip…",
       "active": "Filtre active",
@@ -1276,6 +1277,16 @@
       "scheduled": "Programată",
       "published": "Publicată"
     },
+    "connections": {
+      "title": "Conturi conectate",
+      "description": "Conectează destinațiile folosite în calendar.",
+      "notConnected": "Niciun cont conectat",
+      "connected": "Conectat",
+      "connect": "Conectează",
+      "unavailable": "Indisponibil",
+      "loadError": "Conturile nu au putut fi încărcate.",
+      "retry": "Reîncearcă"
+    },
     "dialog": {
       "eyebrow": "Planificare conținut",
       "createTitle": "Planifică o postare nouă",
@@ -1293,6 +1304,8 @@
       "titlePlaceholder": "ex. Lansare produs — secvența de început",
       "platformsLabel": "Platforme",
       "platformsHint": "Alege toate destinațiile pentru care este planificată postarea.",
+      "noConnectedPlatforms": "Nu ai nicio platformă conectată.",
+      "openPublishing": "Deschide Publicare",
       "clipLabel": "Clip asociat (opțional)",
       "noClip": "Fără clip asociat",
       "statusLabel": "Stare",
@@ -1375,7 +1388,8 @@
     "requirements": {
       "instagram": "Conturi Business și Creator · Instagram Reels",
       "facebook": "Paginile pe care le administrezi · Facebook Reels",
-      "tiktok": "Contul tău TikTok · postări video"
+      "tiktok": "Contul tău TikTok · postări video",
+      "youtube": "Canalul tău YouTube · planificare în calendar"
     },
     "connect": "Conectează contul",
     "connectAnother": "Conectează alt cont",

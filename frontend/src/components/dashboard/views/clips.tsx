@@ -70,6 +70,7 @@ function ClipsPageContent() {
       />
 
       <ClipsLibraryToolbar
+        showSearch={total > 15 || filtersActive}
         query={query}
         labels={{
           search: t('searchLabel'),

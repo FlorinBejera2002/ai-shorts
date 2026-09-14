@@ -35,7 +35,7 @@ export function StudioHero() {
         <div className={styles.heroLinks}>
           <Link href="/dashboard/create" className={styles.primaryAction}>
             <Plus size={15} />
-            {ro ? 'Creează clipuri' : 'Create clips'}
+            {ro ? 'Clip nou' : 'New clip'}
           </Link>
           <Link href="/dashboard/clips" className={styles.libraryLink}>
             {t('openLibrary')} <ArrowUpRight size={14} />

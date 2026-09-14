@@ -23,6 +23,12 @@ const user = {
   name: 'Fixture'
 }
 const success = (token) => Response.json({ access_token: token, user })
+const jwt = (expiresAt) => {
+  const payload = Buffer.from(JSON.stringify({ exp: expiresAt })).toString(
+    'base64url'
+  )
+  return `header.${payload}.signature`
+}
 const deferred = () => {
   let resolve
   const promise = new Promise((done) => {
@@ -55,6 +61,29 @@ test('startup refresh coalesces concurrent requests and sends cookies plus memor
   assert.equal(refreshes, 1)
   assert.deepEqual(headers, ['Bearer first', 'Bearer first'])
   assert.equal(client.getSnapshot().status, 'authenticated')
+})
+
+test('an expiring access token refreshes before making an API request', async () => {
+  const expiringToken = jwt(Math.floor(Date.now() / 1000) + 5)
+  const freshToken = jwt(Math.floor(Date.now() / 1000) + 3600)
+  const apiTokens = []
+  let refreshes = 0
+  const client = createAuthClient(async (path, options) => {
+    if (path.endsWith('/login')) return success(expiringToken)
+    if (path.endsWith('/refresh')) {
+      refreshes++
+      return success(freshToken)
+    }
+    apiTokens.push(options.headers.get('Authorization'))
+    return Response.json({ ok: true })
+  })
+
+  await client.login(user.email, 'fixture')
+  const response = await client.apiFetch('/api/dashboard')
+
+  assert.equal(response.status, 200)
+  assert.equal(refreshes, 1)
+  assert.deepEqual(apiTokens, [`Bearer ${freshToken}`])
 })
 
 test('concurrent expired access responses share one refresh and preserve mutation body', async () => {

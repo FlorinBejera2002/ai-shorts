@@ -198,7 +198,7 @@ try {
     await page.waitForURL('**/dashboard/create')
     await go('/dashboard/clips')
     await page.screenshot({ path: `${output}/${locale}-clips.png`, fullPage: true })
-    await go('/dashboard/calendar')
+    await go('/dashboard/publish')
     await go('/dashboard/history')
     const projectSearch = page.getByRole('searchbox', { name: locale === 'ro' ? 'Caută proiecte' : 'Search projects' })
     await projectSearch.fill('no-such-source')

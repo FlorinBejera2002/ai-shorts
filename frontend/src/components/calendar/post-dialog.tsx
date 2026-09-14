@@ -3,8 +3,15 @@
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { NativeSelect } from '@/components/ui/native-select'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
+import { Link } from '@/i18n/navigation'
 
 import type {
   CalendarClipOption,
@@ -18,6 +25,7 @@ import {
   CalendarClock,
   Check,
   Clock3,
+  ExternalLink,
   Film,
   Loader2,
   Save,
@@ -25,7 +33,14 @@ import {
   X
 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
-import { type FormEvent, useEffect, useId, useRef, useState } from 'react'
+import {
+  type FormEvent,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState
+} from 'react'
 import { createPortal } from 'react-dom'
 import {
   CALENDAR_PLATFORMS,
@@ -37,6 +52,7 @@ import {
   localDateKey,
   localTimeValue
 } from './calendar-utils'
+import styles from './calendar-workspace.module.css'
 import { PlatformOptionIcon } from './platform-mark'
 
 type DialogMode = 'create' | 'edit' | 'reschedule'
@@ -55,22 +71,26 @@ type FormState = {
 type FormErrors = Partial<Record<keyof FormState | 'form', string>>
 
 const inputClassName =
-  'w-full border border-input bg-background px-3 text-sm text-foreground shadow-sm transition-colors placeholder:text-muted-foreground/70 hover:border-muted-foreground/50 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/15'
+  'w-full rounded-md border border-border bg-background px-3 text-sm text-foreground shadow-none outline-none transition-colors placeholder:text-muted-foreground/70 hover:border-border hover:bg-background focus:border-border focus:bg-background focus:outline-none focus:ring-0 focus-visible:border-border focus-visible:bg-background focus-visible:ring-0'
 
 function initialFormState(
   selectedDate: Date,
+  connectedPlatforms: ContentPlatform[],
   post?: ScheduledPostRecord,
   initialTime?: string
 ): FormState {
   const scheduledAt = post
     ? new Date(post.scheduledAt)
     : getDefaultPlanningTime(selectedDate)
+  const availablePlatforms = new Set(connectedPlatforms)
 
   return {
     title: post?.title ?? '',
     caption: post?.caption ?? '',
     notes: post?.notes ?? '',
-    platforms: post?.platforms ?? ['instagram'],
+    platforms:
+      post?.platforms.filter((platform) => availablePlatforms.has(platform)) ??
+      connectedPlatforms.slice(0, 1),
     status: post?.status ?? 'scheduled',
     date: localDateKey(scheduledAt),
     time: post
@@ -114,6 +134,8 @@ export function PostDialog({
   selectedDate,
   post,
   clips,
+  connectedPlatforms,
+  platformConnectionsLoaded,
   timeZone,
   initialTime,
   onClose,
@@ -124,6 +146,8 @@ export function PostDialog({
   selectedDate: Date
   post?: ScheduledPostRecord
   clips: CalendarClipOption[]
+  connectedPlatforms: ContentPlatform[]
+  platformConnectionsLoaded: boolean
   timeZone: string
   initialTime?: string
   onClose: () => void
@@ -133,7 +157,6 @@ export function PostDialog({
   const t = useTranslations('contentCalendar')
   const reduceMotion = useReducedMotion()
   const titleId = useId()
-  const descriptionId = useId()
   const dialogRef = useRef<HTMLDivElement>(null)
   const titleInputRef = useRef<HTMLInputElement>(null)
   const dateInputRef = useRef<HTMLInputElement>(null)
@@ -144,13 +167,21 @@ export function PostDialog({
   const busyRef = useRef(false)
   const [mounted, setMounted] = useState(false)
   const [form, setForm] = useState<FormState>(() =>
-    initialFormState(selectedDate, post, initialTime)
+    initialFormState(selectedDate, connectedPlatforms, post, initialTime)
   )
   const [errors, setErrors] = useState<FormErrors>({})
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const busy = saving || deleting
+  const connectedPlatformSet = useMemo(
+    () => new Set(connectedPlatforms),
+    [connectedPlatforms]
+  )
+  const selectedPlatformSet = useMemo(
+    () => new Set(form.platforms),
+    [form.platforms]
+  )
   const selectableClips =
     post?.clip && !clips.some((clip) => clip.id === post.clip?.id)
       ? [
@@ -443,49 +474,32 @@ export function PostDialog({
             role={confirmDelete ? 'alertdialog' : 'dialog'}
             aria-modal="true"
             aria-labelledby={titleId}
-            aria-describedby={descriptionId}
             aria-busy={busy}
             initial={reduceMotion ? false : { opacity: 0, y: 24, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
             onMouseDown={(event) => event.stopPropagation()}
-            className="relative z-10 flex max-h-[min(92dvh,54rem)] w-full max-w-2xl flex-col overflow-hidden rounded-t-2xl border border-border bg-card text-card-foreground shadow-2xl sm:rounded-2xl"
+            className={`${styles.dialog} relative z-10 flex max-h-[min(92dvh,54rem)] w-full max-w-2xl flex-col overflow-hidden rounded-t-md border border-border bg-card text-card-foreground shadow-2xl sm:rounded-md`}
           >
-            <div className="relative border-b border-border px-5 py-5 sm:px-6">
-              <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/70 to-transparent" />
+            <div className="relative px-5 pb-4 pt-5 sm:px-6 sm:pt-6">
               <div className="flex items-start justify-between gap-4">
-                <div>
-                  <div className="mb-2 flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.16em] text-primary">
-                    <CalendarClock className="h-3.5 w-3.5" />
-                    {t('dialog.eyebrow')}
-                  </div>
+                <div className="flex min-w-0 items-center gap-3">
+                  <span className="inline-flex size-9 shrink-0 items-center justify-center rounded-md bg-muted text-foreground">
+                    <CalendarClock className="h-4 w-4" />
+                  </span>
                   <h2
                     id={titleId}
-                    className="text-xl font-semibold sm:text-2xl"
+                    className="truncate text-xl font-semibold sm:text-2xl"
                   >
                     {dialogTitle}
                   </h2>
-                  <p
-                    id={descriptionId}
-                    className="mt-1.5 max-w-lg text-xs leading-relaxed text-muted-foreground sm:text-sm"
-                  >
-                    {confirmDelete
-                      ? t('dialog.deleteDescription', {
-                          title: post?.title ?? ''
-                        })
-                      : isReschedule
-                        ? t('dialog.rescheduleDescription', {
-                            title: post?.title ?? ''
-                          })
-                        : t('dialog.description')}
-                  </p>
                 </div>
                 <button
                   type="button"
                   aria-label={t('actions.close')}
                   disabled={busy}
                   onClick={onClose}
-                  className="-mr-2 -mt-1 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-50"
+                  className="-mr-2 -mt-1 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-50"
                 >
                   <X className="h-4 w-4" />
                 </button>
@@ -494,9 +508,9 @@ export function PostDialog({
 
             {confirmDelete ? (
               <div className="overflow-y-auto px-5 py-6 sm:px-6">
-                <div className="rounded-xl border border-destructive/25 bg-destructive/[0.06] p-4">
+                <div className="rounded-md border border-destructive/25 bg-destructive/[0.06] p-4">
                   <div className="flex gap-3">
-                    <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-destructive/10 text-destructive">
+                    <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-destructive/10 text-destructive">
                       <AlertTriangle className="h-4 w-4" />
                     </span>
                     <div>
@@ -512,7 +526,7 @@ export function PostDialog({
                 {errors.form && (
                   <div
                     role="alert"
-                    className="mt-4 rounded-lg border border-destructive/25 bg-destructive/[0.06] px-3 py-2.5 text-xs font-medium text-destructive"
+                    className="mt-4 rounded-md border border-destructive/25 bg-destructive/[0.06] px-3 py-2.5 text-xs font-medium text-destructive"
                   >
                     {errors.form}
                   </div>
@@ -532,7 +546,7 @@ export function PostDialog({
                     type="button"
                     disabled={busy}
                     onClick={handleDelete}
-                    className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-destructive px-4 text-[13px] font-bold text-destructive-foreground transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+                    className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md bg-destructive px-4 text-[13px] font-bold text-destructive-foreground transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {deleting ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
@@ -551,11 +565,11 @@ export function PostDialog({
                 onSubmit={handleSubmit}
                 className="flex min-h-0 flex-1 flex-col"
               >
-                <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-5 py-5 sm:px-6">
+                <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-4 sm:px-6">
                   {errors.form && (
                     <div
                       role="alert"
-                      className="rounded-lg border border-destructive/25 bg-destructive/[0.06] px-3 py-2.5 text-xs font-medium text-destructive"
+                      className="rounded-md border border-destructive/25 bg-destructive/[0.06] px-3 py-2.5 text-xs font-medium text-destructive"
                     >
                       {errors.form}
                     </div>
@@ -607,22 +621,23 @@ export function PostDialog({
                         <legend className="text-xs font-semibold text-foreground">
                           {t('form.platformsLabel')}
                         </legend>
-                        <p className="mt-1 text-[11px] text-muted-foreground">
-                          {t('form.platformsHint')}
-                        </p>
                         <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
                           {CALENDAR_PLATFORMS.map((platform) => {
-                            const selected = form.platforms.includes(platform)
+                            const selected = selectedPlatformSet.has(platform)
+                            const connected = connectedPlatformSet.has(platform)
                             return (
                               <button
                                 key={platform}
                                 type="button"
                                 aria-pressed={selected}
+                                disabled={!connected}
                                 onClick={() => togglePlatform(platform)}
-                                className={`relative flex min-h-11 items-center gap-2 rounded-lg border px-3 text-xs font-semibold transition-all ${
-                                  selected
-                                    ? 'border-primary bg-primary/[0.08] text-primary shadow-sm'
-                                    : 'border-border bg-background text-muted-foreground hover:border-input hover:text-foreground'
+                                className={`relative flex min-h-11 items-center gap-2 rounded-md border px-3 text-xs font-semibold transition-colors ${
+                                  !connected
+                                    ? 'cursor-not-allowed border-border bg-muted/35 text-muted-foreground/45'
+                                    : selected
+                                      ? 'border-foreground bg-foreground text-background'
+                                      : 'border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground'
                                 }`}
                               >
                                 <PlatformOptionIcon platform={platform} />
@@ -634,6 +649,19 @@ export function PostDialog({
                             )
                           })}
                         </div>
+                        {platformConnectionsLoaded &&
+                          connectedPlatforms.length === 0 && (
+                            <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2 rounded-md bg-muted/45 px-3 py-2 text-[11px] text-muted-foreground">
+                              <span>{t('form.noConnectedPlatforms')}</span>
+                              <Link
+                                href="/dashboard/publish"
+                                className="inline-flex items-center gap-1 font-semibold text-foreground underline-offset-4 hover:underline"
+                              >
+                                {t('form.openPublishing')}
+                                <ExternalLink className="size-3" />
+                              </Link>
+                            </div>
+                          )}
                         <FieldError
                           id={`${titleId}-platforms-error`}
                           message={errors.platforms}
@@ -648,29 +676,37 @@ export function PostDialog({
                           >
                             {t('form.clipLabel')}
                           </Label>
-                          <div className="relative mt-1.5">
-                            <Film className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                            <NativeSelect
-                              id={`${titleId}-clip`}
-                              value={form.clipId}
-                              aria-invalid={Boolean(errors.clipId)}
-                              aria-describedby={
-                                errors.clipId
-                                  ? `${titleId}-clip-error`
-                                  : undefined
+                          <div className="mt-1.5">
+                            <Select
+                              value={form.clipId || 'none'}
+                              onValueChange={(value) =>
+                                handleClipChange(value === 'none' ? '' : value)
                               }
-                              onChange={(event) =>
-                                handleClipChange(event.target.value)
-                              }
-                              className={`${inputClassName} pl-9`}
                             >
-                              <option value="">{t('form.noClip')}</option>
-                              {selectableClips.map((clip) => (
-                                <option key={clip.id} value={clip.id}>
-                                  {clip.title} · {clip.viralScore}/10
-                                </option>
-                              ))}
-                            </NativeSelect>
+                              <SelectTrigger
+                                id={`${titleId}-clip`}
+                                aria-invalid={Boolean(errors.clipId)}
+                                aria-describedby={
+                                  errors.clipId
+                                    ? `${titleId}-clip-error`
+                                    : undefined
+                                }
+                                className="h-10 w-full bg-background px-3 text-sm shadow-none"
+                              >
+                                <Film className="h-4 w-4 text-muted-foreground" />
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent position="popper" align="start">
+                                <SelectItem value="none">
+                                  {t('form.noClip')}
+                                </SelectItem>
+                                {selectableClips.map((clip) => (
+                                  <SelectItem key={clip.id} value={clip.id}>
+                                    {clip.title} · {clip.viralScore}/10
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
                           </div>
                           <FieldError
                             id={`${titleId}-clip-error`}
@@ -684,30 +720,33 @@ export function PostDialog({
                           >
                             {t('form.statusLabel')}
                           </Label>
-                          <div className="relative mt-1.5">
-                            <NativeSelect
-                              id={`${titleId}-status`}
+                          <div className="mt-1.5">
+                            <Select
                               value={form.status}
-                              aria-invalid={Boolean(errors.status)}
-                              aria-describedby={
-                                errors.status
-                                  ? `${titleId}-status-error`
-                                  : undefined
+                              onValueChange={(value) =>
+                                setField('status', value as ContentPostStatus)
                               }
-                              onChange={(event) =>
-                                setField(
-                                  'status',
-                                  event.target.value as ContentPostStatus
-                                )
-                              }
-                              className={inputClassName}
                             >
-                              {CALENDAR_STATUSES.map((status) => (
-                                <option key={status} value={status}>
-                                  {t(`statuses.${status}`)}
-                                </option>
-                              ))}
-                            </NativeSelect>
+                              <SelectTrigger
+                                id={`${titleId}-status`}
+                                aria-invalid={Boolean(errors.status)}
+                                aria-describedby={
+                                  errors.status
+                                    ? `${titleId}-status-error`
+                                    : undefined
+                                }
+                                className="h-10 w-full bg-background px-3 text-sm shadow-none"
+                              >
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent position="popper" align="start">
+                                {CALENDAR_STATUSES.map((status) => (
+                                  <SelectItem key={status} value={status}>
+                                    {t(`statuses.${status}`)}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
                           </div>
                           <FieldError
                             id={`${titleId}-status-error`}
@@ -846,21 +885,21 @@ export function PostDialog({
                           message={errors.notes}
                         />
                       </div>
-                      <p className="rounded-lg border border-primary/15 bg-primary/[0.05] px-3 py-2.5 text-[11px] leading-relaxed text-muted-foreground">
+                      <p className="rounded-md bg-muted px-3 py-2.5 text-[11px] leading-relaxed text-muted-foreground">
                         {t('form.publishNote')}
                       </p>
                     </>
                   )}
                 </div>
 
-                <div className="flex flex-col-reverse gap-2 border-t border-border bg-muted/20 px-5 py-4 sm:flex-row sm:items-center sm:px-6">
+                <div className="flex flex-col-reverse gap-2 px-5 py-4 sm:flex-row sm:items-center sm:px-6">
                   {mode === 'edit' && onDelete && (
                     <button
                       ref={deleteButtonRef}
                       type="button"
                       disabled={busy}
                       onClick={() => setConfirmDelete(true)}
-                      className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg px-3 text-xs font-semibold text-destructive transition-colors hover:bg-destructive/[0.07] disabled:opacity-50 sm:mr-auto"
+                      className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md px-3 text-xs font-semibold text-destructive transition-colors hover:bg-destructive/[0.07] disabled:opacity-50 sm:mr-auto"
                     >
                       <Trash2 className="h-4 w-4" />
                       {t('actions.delete')}

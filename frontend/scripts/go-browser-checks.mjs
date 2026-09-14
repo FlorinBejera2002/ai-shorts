@@ -114,7 +114,6 @@ const routes = [
   '/dashboard/review',
   '/dashboard/settings',
   '/dashboard/billing',
-  '/dashboard/calendar',
   '/dashboard/brand',
   '/dashboard/create',
   '/dashboard/script-generator',
@@ -131,8 +130,7 @@ const consolidatedRoutes = {
   '/dashboard/analytics': '/dashboard/history?tab=analytics',
   '/dashboard/review': '/dashboard/clips?tab=review',
   '/dashboard/billing': '/dashboard/settings?tab=billing',
-  '/dashboard/brand': '/dashboard/settings?tab=brand',
-  '/dashboard/publish': '/dashboard/calendar'
+  '/dashboard/brand': '/dashboard/settings?tab=brand'
 }
 const video = settingsOnly
   ? null

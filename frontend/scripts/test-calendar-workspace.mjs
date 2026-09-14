@@ -128,7 +128,7 @@ try {
       }
     })
 
-    await page.goto(`${origin}${variant.prefix}/dashboard/calendar`, {
+    await page.goto(`${origin}${variant.prefix}/dashboard/publish`, {
       waitUntil: 'networkidle'
     })
     await page

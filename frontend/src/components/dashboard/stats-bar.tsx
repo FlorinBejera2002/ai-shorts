@@ -28,14 +28,14 @@ export function StatsBar({
       value: jobCount,
       icon: FolderOpen,
       hint: t('projectsHint'),
-      href: '/dashboard/history'
+      href: '/dashboard/clips'
     },
     {
       label: t('output'),
       value: durationMinutes,
       icon: Clock3,
       hint: t('outputHint'),
-      href: '/dashboard/history?tab=analytics'
+      href: '/dashboard/clips'
     },
     {
       label: t('credits'),

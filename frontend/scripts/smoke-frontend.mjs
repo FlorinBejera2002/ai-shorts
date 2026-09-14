@@ -117,7 +117,6 @@ if (smokeAccessToken) {
     '/dashboard/review',
     '/dashboard/publish',
     '/dashboard/analytics',
-    '/dashboard/calendar',
     '/dashboard/brand',
     '/dashboard/script-generator',
     '/dashboard/settings',
@@ -126,7 +125,7 @@ if (smokeAccessToken) {
     '/ro/dashboard/clips',
     '/ro/dashboard/billing',
     '/ro/dashboard/script-generator',
-    '/ro/dashboard/calendar'
+    '/ro/dashboard/publish'
   ]) {
     await check(
       path,

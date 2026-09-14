@@ -28,9 +28,11 @@ import { useApiResource } from '@/hooks/use-api-resource'
 import { Link } from '@/i18n/navigation'
 import { apiFetch } from '@/lib/auth'
 import {
-  ChevronRight,
+  ChevronDown,
+  Film,
   Folder,
   FolderOpen,
+  FolderPlus,
   Grid2X2,
   MoreHorizontal,
   Palette,
@@ -41,7 +43,15 @@ import {
 } from 'lucide-react'
 import { useLocale } from 'next-intl'
 import Image from 'next/image'
-import { type CSSProperties, useEffect, useMemo, useState } from 'react'
+import {
+  type CSSProperties,
+  type DragEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState
+} from 'react'
 
 type ProjectFolder = { id: string; parentId: string | null; name: string }
 type ProjectClip = {
@@ -78,14 +88,14 @@ const translations = {
     description:
       'Clipurile, folderele și identitatea fiecărei campanii, într-un singur loc.',
     newProject: 'Proiect nou',
-    projects: 'Proiectele tale',
+    projects: 'Proiectele mele',
     allClips: 'Toate clipurile',
     newFolder: 'Folder nou',
     folderName: 'Numele folderului',
     createFolder: 'Creează folder',
-    search: 'Caută clipuri în proiect…',
+    search: 'Caută clipuri…',
     emptyFolder: 'Folderul este gol',
-    emptyHint: 'Mută aici clipuri din meniul fiecărui card.',
+    emptyHint: 'Trage un clip peste un folder din stânga pentru a-l organiza.',
     clips: 'clipuri',
     folders: 'foldere',
     moveTo: 'Mută în',
@@ -104,21 +114,22 @@ const translations = {
     saved: 'Modificările au fost salvate.',
     failed: 'Modificarea nu a putut fi salvată.',
     noProjects: 'Nu există încă proiecte.',
-    noResults: 'Niciun clip nu corespunde căutării.'
+    noResults: 'Niciun clip nu corespunde căutării.',
+    dropHint: 'Eliberează pentru a muta aici'
   },
   en: {
     title: 'Projects',
     description:
       'Clips, folders and campaign identity in one focused workspace.',
     newProject: 'New project',
-    projects: 'Your projects',
+    projects: 'My projects',
     allClips: 'All clips',
     newFolder: 'New folder',
     folderName: 'Folder name',
     createFolder: 'Create folder',
-    search: 'Search clips in this project…',
+    search: 'Search clips…',
     emptyFolder: 'This folder is empty',
-    emptyHint: 'Move clips here from each card menu.',
+    emptyHint: 'Drag a clip onto a folder on the left to organize it.',
     clips: 'clips',
     folders: 'folders',
     moveTo: 'Move to',
@@ -137,7 +148,8 @@ const translations = {
     saved: 'Changes saved.',
     failed: 'The change could not be saved.',
     noProjects: 'There are no projects yet.',
-    noResults: 'No clips match this search.'
+    noResults: 'No clips match this search.',
+    dropHint: 'Drop to move here'
   }
 } as const
 type Copy = (typeof translations)[keyof typeof translations]
@@ -149,6 +161,8 @@ const brandDefaults: Required<ProjectBrand> = {
   subtitleFont: 'Manrope',
   subtitleColor: '#FFFFFF'
 }
+
+const CLIP_DRAG_TYPE = 'application/x-clip-id'
 
 export default function ProjectsPage() {
   const locale = useLocale()
@@ -165,6 +179,7 @@ export default function ProjectsPage() {
   const [brandDialog, setBrandDialog] = useState(false)
   const [brand, setBrand] = useState<Required<ProjectBrand>>(brandDefaults)
   const [saving, setSaving] = useState(false)
+  const [dragOverTarget, setDragOverTarget] = useState<string | null>(null)
   const projects = useMemo(() => data?.projects ?? [], [data])
   const project = projects.find((item) => item.id === projectId) ?? projects[0]
 
@@ -254,19 +269,30 @@ export default function ProjectsPage() {
         }
       />
       {project ? (
-        <ProjectsWorkspace
-          projects={projects}
-          project={project}
-          folderId={folderId}
-          search={search}
-          text={text}
-          onProject={selectProject}
-          onFolder={setFolderId}
-          onSearch={setSearch}
-          onBrand={openBrand}
-          onNewFolder={() => setFolderDialog(true)}
-          onMoveClip={moveClip}
-        />
+        <div className="projects-layout">
+          <FolderRail
+            projects={projects}
+            project={project}
+            folderId={folderId}
+            dragOverTarget={dragOverTarget}
+            text={text}
+            onProject={selectProject}
+            onFolder={setFolderId}
+            onNewFolder={() => setFolderDialog(true)}
+            onDropClip={moveClip}
+            onDragOverTarget={setDragOverTarget}
+          />
+          <ClipBrowser
+            project={project}
+            folderId={folderId}
+            search={search}
+            text={text}
+            onSearch={setSearch}
+            onBrand={openBrand}
+            onMoveClip={moveClip}
+            onDragOverTarget={setDragOverTarget}
+          />
+        </div>
       ) : (
         <EmptyProjects text={text} />
       )}
@@ -295,152 +321,304 @@ export default function ProjectsPage() {
   )
 }
 
-type WorkspaceProps = {
+/* ─── Folder rail (left sidebar) ─── */
+
+function FolderRail({
+  projects,
+  project,
+  folderId,
+  dragOverTarget,
+  text,
+  onProject,
+  onFolder,
+  onNewFolder,
+  onDropClip,
+  onDragOverTarget
+}: {
   projects: Project[]
   project: Project
   folderId: string | null | 'all'
-  search: string
+  dragOverTarget: string | null
   text: Copy
   onProject: (id: string) => void
   onFolder: (id: string | null | 'all') => void
-  onSearch: (value: string) => void
-  onBrand: () => void
   onNewFolder: () => void
-  onMoveClip: (clipId: string, folderId: string | null) => void
-}
-function ProjectsWorkspace(props: WorkspaceProps) {
-  return (
-    <div className="projects-layout">
-      <ProjectRail
-        projects={props.projects}
-        activeId={props.project.id}
-        text={props.text}
-        onSelect={props.onProject}
-      />
-      <ProjectBrowser {...props} />
-    </div>
-  )
-}
-
-function ProjectRail({
-  projects,
-  activeId,
-  text,
-  onSelect
-}: {
-  projects: Project[]
-  activeId: string
-  text: Copy
-  onSelect: (id: string) => void
+  onDropClip: (clipId: string, folderId: string | null) => void
+  onDragOverTarget: (target: string | null) => void
 }) {
+  const dragCounter = useRef(0)
+
+  const handleDragOver = useCallback((e: DragEvent) => {
+    if (e.dataTransfer.types.includes(CLIP_DRAG_TYPE)) {
+      e.preventDefault()
+      e.dataTransfer.dropEffect = 'move'
+    }
+  }, [])
+
+  const makeDragEnter = useCallback(
+    (targetId: string) => (e: DragEvent) => {
+      if (!e.dataTransfer.types.includes(CLIP_DRAG_TYPE)) return
+      e.preventDefault()
+      dragCounter.current++
+      onDragOverTarget(targetId)
+    },
+    [onDragOverTarget]
+  )
+
+  const handleDragLeave = useCallback(
+    (e: DragEvent) => {
+      if (!e.dataTransfer.types.includes(CLIP_DRAG_TYPE)) return
+      dragCounter.current--
+      if (dragCounter.current <= 0) {
+        dragCounter.current = 0
+        onDragOverTarget(null)
+      }
+    },
+    [onDragOverTarget]
+  )
+
+  const makeDrop = useCallback(
+    (targetFolderId: string | null) => (e: DragEvent) => {
+      e.preventDefault()
+      dragCounter.current = 0
+      onDragOverTarget(null)
+      const clipId = e.dataTransfer.getData(CLIP_DRAG_TYPE)
+      if (clipId) onDropClip(clipId, targetFolderId)
+    },
+    [onDropClip, onDragOverTarget]
+  )
+
+  const rootFolders = project.folders.filter((f) => f.parentId === null)
+
   return (
     <aside className="projects-rail" aria-label={text.projects}>
+      {/* Project selector */}
+      {projects.length > 1 && (
+        <ProjectSelector
+          projects={projects}
+          activeId={project.id}
+          onSelect={onProject}
+        />
+      )}
+
       <div className="projects-rail-heading">
         <span>{text.projects}</span>
-        <Badge variant="secondary">{projects.length}</Badge>
+        <button
+          type="button"
+          className="projects-rail-add"
+          onClick={onNewFolder}
+          title={text.newFolder}
+        >
+          <FolderPlus aria-hidden="true" />
+        </button>
       </div>
+
       <div className="projects-rail-list">
-        {projects.map((project) => (
-          <button
-            key={project.id}
-            type="button"
-            className="projects-rail-item"
-            data-active={project.id === activeId}
-            onClick={() => onSelect(project.id)}
-          >
-            <span
-              className="projects-rail-mark"
-              style={{
-                backgroundColor:
-                  project.brandKit.primaryColor ?? brandDefaults.primaryColor
-              }}
-            />
-            <span className="min-w-0 flex-1">
-              <strong>{project.name}</strong>
-              <small>
-                {project.clips.length} {text.clips}
-              </small>
-            </span>
-            <ChevronRight aria-hidden="true" />
-          </button>
-        ))}
+        {/* "All clips" item — also a drop target for "unfiled" */}
+        <button
+          type="button"
+          className="projects-rail-item"
+          data-active={folderId === 'all'}
+          data-dragover={dragOverTarget === '__all__'}
+          onClick={() => onFolder('all')}
+          onDragOver={handleDragOver}
+          onDragEnter={makeDragEnter('__all__')}
+          onDragLeave={handleDragLeave}
+          onDrop={makeDrop(null)}
+        >
+          <span className="projects-rail-folder-icon">
+            <Grid2X2 aria-hidden="true" />
+          </span>
+          <span className="min-w-0 flex-1">
+            <strong>{text.allClips}</strong>
+            <small>
+              {project.clips.length} {text.clips}
+            </small>
+          </span>
+        </button>
+
+        {/* Folder items */}
+        {rootFolders.map((folder) => {
+          const count = project.clips.filter(
+            (c) => c.folderId === folder.id
+          ).length
+          const isOver = dragOverTarget === folder.id
+          return (
+            <button
+              key={folder.id}
+              type="button"
+              className="projects-rail-item"
+              data-active={folderId === folder.id}
+              data-dragover={isOver}
+              onClick={() => onFolder(folder.id)}
+              onDragOver={handleDragOver}
+              onDragEnter={makeDragEnter(folder.id)}
+              onDragLeave={handleDragLeave}
+              onDrop={makeDrop(folder.id)}
+            >
+              <span className="projects-rail-folder-icon">
+                <Folder aria-hidden="true" />
+              </span>
+              <span className="min-w-0 flex-1">
+                <strong>{folder.name}</strong>
+                <small>
+                  {count} {text.clips}
+                </small>
+              </span>
+              {isOver && (
+                <span className="projects-rail-drop-hint">
+                  {text.dropHint}
+                </span>
+              )}
+            </button>
+          )
+        })}
       </div>
     </aside>
   )
 }
 
-function ProjectBrowser({
+function ProjectSelector({
+  projects,
+  activeId,
+  onSelect
+}: {
+  projects: Project[]
+  activeId: string
+  onSelect: (id: string) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const active = projects.find((p) => p.id === activeId)
+  return (
+    <div className="projects-selector">
+      <button
+        type="button"
+        className="projects-selector-trigger"
+        onClick={() => setOpen(!open)}
+      >
+        <span
+          className="projects-selector-dot"
+          style={{
+            backgroundColor:
+              active?.brandKit.primaryColor ?? brandDefaults.primaryColor
+          }}
+        />
+        <span className="projects-selector-name">
+          {active?.name ?? 'Project'}
+        </span>
+        <ChevronDown aria-hidden="true" />
+      </button>
+      {open && (
+        <div className="projects-selector-menu">
+          {projects.map((p) => (
+            <button
+              key={p.id}
+              type="button"
+              className="projects-selector-option"
+              data-active={p.id === activeId}
+              onClick={() => {
+                onSelect(p.id)
+                setOpen(false)
+              }}
+            >
+              <span
+                className="projects-selector-dot"
+                style={{
+                  backgroundColor:
+                    p.brandKit.primaryColor ?? brandDefaults.primaryColor
+                }}
+              />
+              {p.name}
+              <Badge variant="secondary" className="ml-auto">
+                {p.clips.length}
+              </Badge>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+/* ─── Clip browser (right panel) ─── */
+
+function ClipBrowser({
   project,
   folderId,
   search,
   text,
-  onFolder,
   onSearch,
   onBrand,
-  onNewFolder,
-  onMoveClip
-}: WorkspaceProps) {
+  onMoveClip,
+  onDragOverTarget
+}: {
+  project: Project
+  folderId: string | null | 'all'
+  search: string
+  text: Copy
+  onSearch: (value: string) => void
+  onBrand: () => void
+  onMoveClip: (clipId: string, folderId: string | null) => void
+  onDragOverTarget: (target: string | null) => void
+}) {
   const locale = useLocale()
-  const currentFolder = project.folders.find((item) => item.id === folderId)
-  const folders = project.folders.filter((item) =>
-    folderId === 'all' ? item.parentId === null : item.parentId === folderId
-  )
   const query = search.trim().toLocaleLowerCase(locale)
   const clips = project.clips.filter(
     (clip) =>
       (folderId === 'all' || clip.folderId === folderId) &&
       (!query || clip.title.toLocaleLowerCase(locale).includes(query))
   )
+  const activeFolder = project.folders.find((f) => f.id === folderId)
+  const brandColor =
+    project.brandKit.primaryColor ?? brandDefaults.primaryColor
+
   return (
     <section className="projects-browser">
-      <ProjectHeader
-        project={project}
-        text={text}
-        onBrand={onBrand}
-        onNewFolder={onNewFolder}
-      />
-      <div className="projects-toolbar">
-        <nav className="projects-breadcrumb" aria-label="Breadcrumb">
-          <button type="button" onClick={() => onFolder('all')}>
-            <Grid2X2 aria-hidden="true" />
-            {text.allClips}
-          </button>
-          {currentFolder && (
-            <>
-              <ChevronRight aria-hidden="true" />
-              <button type="button" aria-current="page">
-                {currentFolder.name}
-              </button>
-            </>
-          )}
-        </nav>
-        <label className="projects-search">
-          <Search aria-hidden="true" />
-          <Input
-            type="search"
-            value={search}
-            onChange={(event) => onSearch(event.target.value)}
-            placeholder={text.search}
-          />
-        </label>
-      </div>
-      {folders.length > 0 && (
-        <FolderGrid
-          folders={folders}
-          clips={project.clips}
-          text={text}
-          onFolder={onFolder}
-        />
-      )}
+      <header
+        className="projects-browser-header"
+        style={{ '--project-accent': brandColor } as CSSProperties}
+      >
+        <div className="projects-browser-header-left">
+          <h2>{activeFolder?.name ?? text.allClips}</h2>
+          <div className="projects-header-stats">
+            <span>
+              <Film aria-hidden="true" />
+              {clips.length} {text.clips}
+            </span>
+          </div>
+        </div>
+        <div className="projects-header-actions">
+          <label className="projects-search">
+            <Search aria-hidden="true" />
+            <Input
+              type="search"
+              value={search}
+              onChange={(event) => onSearch(event.target.value)}
+              placeholder={text.search}
+            />
+          </label>
+          <Button variant="outline" size="sm" onClick={onBrand}>
+            <Palette aria-hidden="true" />
+            {text.brand}
+            <span
+              className="projects-brand-dot"
+              style={{ backgroundColor: brandColor }}
+            />
+          </Button>
+        </div>
+      </header>
+
       {clips.length > 0 ? (
         <div className="projects-clip-grid">
-          {clips.map((clip) => (
+          {clips.map((clip, index) => (
             <ClipCard
               key={clip.id}
               clip={clip}
+              index={index}
               folders={project.folders}
               text={text}
               onMove={onMoveClip}
+              onDragOverTarget={onDragOverTarget}
             />
           ))}
         </div>
@@ -459,104 +637,63 @@ function ProjectBrowser({
   )
 }
 
-function ProjectHeader({
-  project,
-  text,
-  onBrand,
-  onNewFolder
-}: {
-  project: Project
-  text: Copy
-  onBrand: () => void
-  onNewFolder: () => void
-}) {
-  return (
-    <header className="projects-browser-header">
-      <div className="min-w-0">
-        <div className="projects-kicker">
-          <span className="projects-status-dot" data-status={project.status} />
-          {project.status}
-        </div>
-        <h2>{project.name}</h2>
-        <p>
-          {project.clips.length} {text.clips} · {project.folders.length}{' '}
-          {text.folders}
-        </p>
-      </div>
-      <div className="projects-header-actions">
-        <Button variant="outline" onClick={onBrand}>
-          <Palette aria-hidden="true" />
-          {text.brand}
-          <span
-            className="projects-brand-dot"
-            style={{
-              backgroundColor:
-                project.brandKit.primaryColor ?? brandDefaults.primaryColor
-            }}
-          />
-        </Button>
-        <Button variant="outline" onClick={onNewFolder}>
-          <FolderOpen aria-hidden="true" />
-          {text.newFolder}
-        </Button>
-      </div>
-    </header>
-  )
-}
-
-function FolderGrid({
-  folders,
-  clips,
-  text,
-  onFolder
-}: {
-  folders: ProjectFolder[]
-  clips: ProjectClip[]
-  text: Copy
-  onFolder: (id: string) => void
-}) {
-  return (
-    <div className="projects-folder-grid">
-      {folders.map((folder) => (
-        <button
-          type="button"
-          key={folder.id}
-          className="projects-folder"
-          onClick={() => onFolder(folder.id)}
-        >
-          <span className="projects-folder-icon">
-            <Folder aria-hidden="true" />
-          </span>
-          <span>
-            <strong>{folder.name}</strong>
-            <small>
-              {clips.filter((clip) => clip.folderId === folder.id).length}{' '}
-              {text.clips}
-            </small>
-          </span>
-          <ChevronRight aria-hidden="true" />
-        </button>
-      ))}
-    </div>
-  )
-}
+/* ─── Clip card (draggable) ─── */
 
 function ClipCard({
   clip,
   folders,
   text,
-  onMove
+  onMove,
+  onDragOverTarget,
+  index
 }: {
   clip: ProjectClip
   folders: ProjectFolder[]
   text: Copy
   onMove: (clipId: string, folderId: string | null) => void
+  onDragOverTarget: (target: string | null) => void
+  index: number
 }) {
+  const scoreLevel =
+    clip.viralScore === null
+      ? null
+      : clip.viralScore >= 7
+        ? 'high'
+        : clip.viralScore >= 4
+          ? 'mid'
+          : 'low'
+
+  const handleDragStart = useCallback(
+    (e: DragEvent) => {
+      e.dataTransfer.setData(CLIP_DRAG_TYPE, clip.id)
+      e.dataTransfer.effectAllowed = 'move'
+      const target = e.currentTarget as HTMLElement
+      target.dataset.dragging = 'true'
+    },
+    [clip.id]
+  )
+
+  const handleDragEnd = useCallback(
+    (e: DragEvent) => {
+      const target = e.currentTarget as HTMLElement
+      delete target.dataset.dragging
+      onDragOverTarget(null)
+    },
+    [onDragOverTarget]
+  )
+
   return (
-    <article className="projects-clip-card">
+    <article
+      className="projects-clip-card"
+      style={{ '--clip-index': index } as CSSProperties}
+      draggable={true}
+      onDragStart={handleDragStart}
+      onDragEnd={handleDragEnd}
+    >
       <Link
         href={`/dashboard/clips/${clip.id}`}
         className="projects-clip-preview"
+        draggable={false}
       >
         {clip.thumbnailUrl ? (
           <Image
@@ -564,21 +701,29 @@ function ClipCard({
             alt=""
             fill={true}
             sizes="(max-width: 720px) 100vw, (max-width: 1100px) 50vw, 33vw"
+            draggable={false}
           />
         ) : (
           <div className="projects-clip-placeholder">
             <Play aria-hidden="true" />
           </div>
         )}
-        <span>{formatDuration(clip.duration)}</span>
+        <span className="projects-clip-play">
+          <Play aria-hidden="true" />
+        </span>
+        <span className="projects-clip-duration">
+          {formatDuration(clip.duration)}
+        </span>
+        {scoreLevel && (
+          <span className="projects-clip-score" data-level={scoreLevel}>
+            {clip.viralScore}
+          </span>
+        )}
       </Link>
       <div className="projects-clip-copy">
         <div>
           <h3>{clip.title}</h3>
-          <p>
-            {clip.aspectRatio}
-            {clip.viralScore !== null && ` · ${clip.viralScore}/10`}
-          </p>
+          <p>{clip.aspectRatio}</p>
         </div>
         <DropdownMenu>
           <DropdownMenuTrigger asChild={true}>
@@ -611,6 +756,8 @@ function ClipCard({
     </article>
   )
 }
+
+/* ─── Dialogs ─── */
 
 function FolderEditor({
   open,
@@ -762,13 +909,21 @@ function BrandEditor({
   )
 }
 
+/* ─── Small pieces ─── */
+
 function EmptyProjects({ text }: { text: Copy }) {
   return (
     <Card className="projects-empty projects-empty-page">
-      <Sparkles aria-hidden="true" />
+      <span className="projects-empty-icon">
+        <Sparkles aria-hidden="true" />
+      </span>
       <h2>{text.noProjects}</h2>
-      <Button asChild={true}>
-        <Link href="/dashboard/create">{text.newProject}</Link>
+      <p>{text.description}</p>
+      <Button asChild={true} className="mt-2">
+        <Link href="/dashboard/create">
+          <Plus aria-hidden="true" />
+          {text.newProject}
+        </Link>
       </Button>
     </Card>
   )

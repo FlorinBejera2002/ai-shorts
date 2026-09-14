@@ -61,7 +61,7 @@ export async function checkRedesignInteractions(page, { clipId, sql, userId }) {
   assert.equal(await page.locator('[data-export-trigger]').evaluate(el=>el===document.activeElement),true)
   console.log('Editor: shortcuts dialog, Escape/focus return and export cancellation passed; no render requested')
 
-  await go('/dashboard/calendar')
+  await go('/dashboard/publish')
   await page.getByRole('button',{name:m.contentCalendar.actions.newPost,exact:true}).first().click()
   await page.getByRole('dialog').waitFor()
   await page.getByLabel(m.contentCalendar.form.titleLabel,{exact:true}).fill('Synthetic redesign calendar test')

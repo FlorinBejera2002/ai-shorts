@@ -27,9 +27,11 @@ Before starting every new project task, create a new ticket on the **Sneep Cut >
   | Avatars, circular icons, status dots, slider handles and progress bars | `rounded-full` |
 
 - Reuse the shared `Card` default. Do not add `rounded-lg`, `rounded-xl`, larger radii or pill-shaped text badges as decoration. Preserve a larger radius only for an explicit component-specific design exception or user request, and document that exception here.
+- The Calendar view switcher intentionally keeps Rare UI Gooey Nav's `sm` geometry (10px animated segment radius) because the user explicitly requested the reference interaction exactly.
 
 ## UI interaction colors
 
+- Black is Sneep Cut's primary brand color. In light mode, use black (through the semantic `foreground` token) for primary actions and selected states; invert it appropriately in dark mode. Blue is not a primary brand color and should not be introduced as a default accent.
 - Use a subtle neutral gray (`bg-muted` with normal foreground text) for hover and highlighted states on selects, dropdown menus, secondary controls and similar choices. Do not use blue or the primary brand color for hover decoration.
 - Reserve the primary color for selected states, primary actions and keyboard focus indicators where it communicates state or accessibility.
 

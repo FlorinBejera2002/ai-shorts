@@ -16,9 +16,9 @@ export const statusStyles = {
     surface: 'bg-muted/55 text-muted-foreground'
   },
   scheduled: {
-    pill: 'border-primary/20 bg-primary/[0.08] text-primary',
-    line: 'bg-primary',
-    surface: 'bg-primary/[0.09] text-primary'
+    pill: 'border-border bg-muted text-foreground',
+    line: 'bg-foreground',
+    surface: 'bg-muted text-foreground'
   },
   published: {
     pill: 'border-success/20 bg-success/10 text-success',

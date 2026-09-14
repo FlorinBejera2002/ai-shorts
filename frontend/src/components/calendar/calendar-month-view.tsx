@@ -69,6 +69,14 @@ export function CalendarMonthView({
     [locale]
   )
   const visibleLimit = density === 'compact' ? 2 : 3
+  let lastMonthDayIndex = range.days.length - 1
+  while (
+    lastMonthDayIndex > 0 &&
+    range.days[lastMonthDayIndex]?.getMonth() !== month.getMonth()
+  ) {
+    lastMonthDayIndex -= 1
+  }
+  const visibleWeekCount = Math.ceil((lastMonthDayIndex + 1) / 7)
 
   function handleDayKeyDown(
     event: KeyboardEvent<HTMLButtonElement>,
@@ -99,14 +107,14 @@ export function CalendarMonthView({
     <div
       role="grid"
       aria-label={t('calendarGridLabel')}
-      className={`${styles.monthGrid} overflow-hidden bg-border`}
+      className={`${styles.monthGrid} overflow-hidden bg-transparent`}
     >
-      <div role="row" className="grid grid-cols-7 gap-px">
+      <div role="row" className="grid grid-cols-7 gap-1">
         {labels.map((label) => (
           <div
             role="columnheader"
             key={label}
-            className="bg-muted/65 px-1 py-2 text-center text-[9px] font-bold uppercase tracking-[0.12em] text-muted-foreground sm:text-[10px]"
+            className="px-1 py-2 text-center text-[9px] font-bold uppercase tracking-[0.12em] text-muted-foreground sm:text-[10px]"
           >
             <span className="hidden sm:inline">{label}</span>
             <span className="sm:hidden">{label.slice(0, 1)}</span>
@@ -114,12 +122,8 @@ export function CalendarMonthView({
         ))}
       </div>
 
-      {Array.from({ length: 6 }, (_, weekIndex) => (
-        <div
-          role="row"
-          key={weekIndex}
-          className="mt-px grid grid-cols-7 gap-px"
-        >
+      {Array.from({ length: visibleWeekCount }, (_, weekIndex) => (
+        <div role="row" key={weekIndex} className="mt-1 grid grid-cols-7 gap-1">
           {range.days
             .slice(weekIndex * 7, weekIndex * 7 + 7)
             .map((day, dayOffset) => {
@@ -131,10 +135,26 @@ export function CalendarMonthView({
               const isCurrentMonth = day.getMonth() === month.getMonth()
               const isDropTarget = dropTarget === key
 
+              if (!isCurrentMonth) {
+                return (
+                  <div
+                    role="gridcell"
+                    key={key}
+                    aria-hidden="true"
+                    className={`min-w-0 bg-muted/15 ${
+                      density === 'compact'
+                        ? 'min-h-[6rem] md:min-h-[7.5rem]'
+                        : 'min-h-[7rem] md:min-h-[9.5rem]'
+                    }`}
+                  />
+                )
+              }
+
               return (
                 <div
                   role="gridcell"
                   key={key}
+                  onClick={() => onCreateDate(day)}
                   onDragOver={(event) => {
                     event.preventDefault()
                     event.dataTransfer.dropEffect = 'move'
@@ -151,12 +171,14 @@ export function CalendarMonthView({
                     density === 'compact'
                       ? 'min-h-[6rem] md:min-h-[7.5rem]'
                       : 'min-h-[7rem] md:min-h-[9.5rem]'
-                  } ${selected ? 'bg-primary/[0.055]' : ''} ${
-                    isCurrentMonth ? '' : 'bg-muted/35 text-muted-foreground'
-                  } ${isDropTarget ? 'bg-primary/[0.12] ring-2 ring-inset ring-primary/35' : ''}`}
+                  } ${selected ? 'bg-muted/70' : ''} ${
+                    isDropTarget
+                      ? 'bg-muted ring-2 ring-inset ring-foreground/20'
+                      : ''
+                  }`}
                 >
                   {selected && (
-                    <span className="pointer-events-none absolute inset-x-0 top-0 h-0.5 bg-primary" />
+                    <span className="pointer-events-none absolute inset-x-0 top-0 h-px bg-foreground" />
                   )}
                   <button
                     type="button"
@@ -164,16 +186,18 @@ export function CalendarMonthView({
                     tabIndex={selected ? 0 : -1}
                     aria-label={`${fullDate.format(day)}, ${t('postCount', { count: dayPosts.length })}`}
                     aria-pressed={selected}
-                    onClick={() => onSelectDate(day)}
-                    onDoubleClick={() => onCreateDate(day)}
+                    onClick={(event) => {
+                      event.stopPropagation()
+                      onCreateDate(day)
+                    }}
                     onKeyDown={(event) => handleDayKeyDown(event, dayIndex)}
                     className={`inline-flex h-7 min-w-7 items-center justify-center rounded-full px-1 text-[11px] font-semibold tabular-nums transition-colors sm:text-xs ${
                       isToday
-                        ? 'bg-primary text-primary-foreground shadow-sm'
+                        ? 'bg-foreground text-background'
                         : selected
-                          ? 'bg-primary/10 text-primary'
+                          ? 'bg-background text-foreground shadow-sm'
                           : 'hover:bg-muted hover:text-foreground'
-                    } ${isCurrentMonth ? '' : 'opacity-60'}`}
+                    }`}
                   >
                     {day.getDate()}
                   </button>
@@ -183,7 +207,10 @@ export function CalendarMonthView({
                       <button
                         key={post.id}
                         type="button"
-                        onClick={() => onEditPost(post)}
+                        onClick={(event) => {
+                          event.stopPropagation()
+                          onEditPost(post)
+                        }}
                         className="rounded-md"
                         aria-label={t('editPostAria', { title: post.title })}
                       >
@@ -207,9 +234,12 @@ export function CalendarMonthView({
                         type="button"
                         draggable={post.status !== 'published'}
                         onDragStart={(event) => draggablePostData(event, post)}
-                        onClick={() => onEditPost(post)}
+                        onClick={(event) => {
+                          event.stopPropagation()
+                          onEditPost(post)
+                        }}
                         aria-label={t('editPostAria', { title: post.title })}
-                        className="group/event relative flex w-full items-center gap-1.5 overflow-hidden rounded-md border border-border bg-background px-1.5 py-1 text-left shadow-sm transition-all hover:border-primary/30 hover:bg-primary/[0.04]"
+                        className="group/event relative flex w-full items-center gap-1.5 overflow-hidden rounded-sm bg-muted/55 px-1.5 py-1 text-left transition-colors hover:bg-muted"
                       >
                         <span
                           aria-hidden="true"
@@ -230,8 +260,11 @@ export function CalendarMonthView({
                     {dayPosts.length > visibleLimit && (
                       <button
                         type="button"
-                        onClick={() => onSelectDate(day)}
-                        className="px-1 text-[9px] font-bold text-primary hover:underline"
+                        onClick={(event) => {
+                          event.stopPropagation()
+                          onSelectDate(day)
+                        }}
+                        className="px-1 text-[9px] font-bold text-foreground hover:underline"
                       >
                         {t('morePosts', {
                           count: dayPosts.length - visibleLimit

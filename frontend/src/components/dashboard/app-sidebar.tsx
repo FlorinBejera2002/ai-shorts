@@ -26,11 +26,9 @@ import {
 import { motion, useReducedMotion } from 'framer-motion'
 import {
   ArrowUpRight,
-  CalendarDays,
   CreditCard,
   FileText,
   Film,
-  FolderOpen,
   LayoutDashboard,
   Palette,
   Plus,
@@ -51,8 +49,6 @@ const icons = {
   home: LayoutDashboard,
   editor: Scissors,
   clips: Film,
-  history: FolderOpen,
-  calendar: CalendarDays,
   publish: Share2,
   scripts: FileText,
   settings: Settings,

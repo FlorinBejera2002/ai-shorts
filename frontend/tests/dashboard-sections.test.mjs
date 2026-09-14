@@ -38,10 +38,6 @@ test('unknown or repeated tabs fall back to the section default', () => {
 
 test('tab links use one canonical page per section', () => {
   assert.equal(
-    dashboardSectionHref('projects', 'analytics'),
-    '/dashboard/history?tab=analytics'
-  )
-  assert.equal(
     dashboardSectionHref('settings', 'billing'),
     '/dashboard/settings'
   )
@@ -53,10 +49,8 @@ test('tab links use one canonical page per section', () => {
 
 test('all consolidated routes have a useful destination', () => {
   assert.equal(dashboardRedirectHref('review'), '/dashboard/clips')
-  assert.equal(
-    dashboardRedirectHref('analytics'),
-    '/dashboard/history?tab=analytics'
-  )
+  assert.equal(dashboardRedirectHref('analytics'), '/dashboard/clips')
+  assert.equal(dashboardRedirectHref('projectsLegacy'), '/dashboard/clips')
   assert.equal(dashboardRedirectHref('brand'), '/dashboard/brand')
 })
 

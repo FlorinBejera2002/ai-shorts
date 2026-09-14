@@ -98,7 +98,7 @@ func buildApplication(db *sql.DB, cfg config.Config, a config.Application, logge
 		return nil, noop, err
 	}
 	clipHandler := clips.New(db, auth, mediaService, clips.Config{MaxClipDuration: a.MaxClipDuration})
-	publishingHandler, err := publishing.New(db, auth, mediaService, publishing.Config{ProviderConfig: publishing.ProviderConfig{AppURL: a.AppURL, MetaAppID: a.MetaAppID, MetaAppSecret: a.MetaAppSecret, InstagramAppID: a.InstagramAppID, InstagramAppSecret: a.InstagramAppSecret, TikTokClientKey: a.TikTokClientKey, TikTokClientSecret: a.TikTokClientSecret, GraphVersion: a.MetaGraphVersion, TikTokVerifiedURLPrefix: a.TikTokVerifiedURLPrefix}, EncryptionKey: a.SocialEncryptionKey, Enabled: a.SocialPublishingEnabled})
+	publishingHandler, err := publishing.New(db, auth, mediaService, publishing.Config{ProviderConfig: publishing.ProviderConfig{AppURL: a.AppURL, MetaAppID: a.MetaAppID, MetaAppSecret: a.MetaAppSecret, InstagramAppID: a.InstagramAppID, InstagramAppSecret: a.InstagramAppSecret, TikTokClientKey: a.TikTokClientKey, TikTokClientSecret: a.TikTokClientSecret, YouTubeClientID: a.YouTubeClientID, YouTubeClientSecret: a.YouTubeClientSecret, GraphVersion: a.MetaGraphVersion, TikTokVerifiedURLPrefix: a.TikTokVerifiedURLPrefix}, EncryptionKey: a.SocialEncryptionKey, Enabled: a.SocialPublishingEnabled})
 	if err != nil {
 		cleanup()
 		return nil, noop, err

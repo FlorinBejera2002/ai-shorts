@@ -7,11 +7,9 @@ import {
 } from '@/lib/dashboard-navigation'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import {
-  CalendarClock,
   CreditCard,
   FilePenLine,
   Film,
-  FolderKanban,
   House,
   type LucideIcon,
   Menu,
@@ -45,8 +43,6 @@ const menuItems = menuGroups.flatMap((group) => group.items)
 
 const menuIcons: Record<string, LucideIcon> = {
   scripts: FilePenLine,
-  history: FolderKanban,
-  calendar: CalendarClock,
   billing: CreditCard,
   settings: SlidersHorizontal
 }

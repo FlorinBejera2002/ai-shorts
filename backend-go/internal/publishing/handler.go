@@ -78,7 +78,9 @@ func decode(w http.ResponseWriter, r *http.Request, v any) bool {
 func param(r *http.Request, key string) string {
 	return httprouter.ParamsFromContext(r.Context()).ByName(key)
 }
-func providerValid(p string) bool { return p == "instagram" || p == "facebook" || p == "tiktok" }
+func providerValid(p string) bool {
+	return p == "instagram" || p == "facebook" || p == "tiktok" || p == "youtube"
+}
 func providerScopes(p string) []string {
 	switch p {
 	case "instagram":
@@ -87,14 +89,16 @@ func providerScopes(p string) []string {
 		return []string{"pages_read", "pages_publish"}
 	case "tiktok":
 		return []string{"profile", "video_publish"}
+	case "youtube":
+		return []string{"channel_read"}
 	default:
 		return []string{}
 	}
 }
 func (h *Handler) overview(w http.ResponseWriter, r *http.Request) {
 	providers := []map[string]any{}
-	for _, p := range []string{"instagram", "facebook", "tiktok"} {
-		entry := map[string]any{"id": p, "name": map[string]string{"instagram": "Instagram", "facebook": "Facebook", "tiktok": "TikTok"}[p], "configured": h.configured(p)}
+	for _, p := range []string{"instagram", "facebook", "tiktok", "youtube"} {
+		entry := map[string]any{"id": p, "name": map[string]string{"instagram": "Instagram", "facebook": "Facebook", "tiktok": "TikTok", "youtube": "YouTube"}[p], "configured": h.configured(p), "supportsPublishing": p != "youtube"}
 		if !h.configured(p) {
 			entry["reason"] = "Developer setup and a public HTTPS address are required."
 		}

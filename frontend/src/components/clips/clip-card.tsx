@@ -1,7 +1,7 @@
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
 import { Link } from '@/i18n/navigation'
-import { Captions, ExternalLink, Film, Play, Zap } from 'lucide-react'
+import { Captions, ExternalLink, Film, Folder, Play, Zap } from 'lucide-react'
 
 export type ClipCardData = {
   id: string
@@ -22,7 +22,8 @@ export function ClipCard({
   labels,
   index,
   href,
-  actionLabel
+  actionLabel,
+  projectName
 }: {
   clip: ClipCardData
   locale: string
@@ -30,6 +31,7 @@ export function ClipCard({
   index: number
   href?: string
   actionLabel?: string
+  projectName?: string | null
 }) {
   const date = new Intl.DateTimeFormat(locale, {
     month: 'short',
@@ -99,6 +101,12 @@ export function ClipCard({
             </p>
           )}
           <div className="mt-auto flex flex-wrap items-center gap-x-2 gap-y-1 pt-4 text-[11px] text-muted-foreground">
+            {projectName && (
+              <span className="inline-flex min-w-0 items-center gap-1 font-medium text-foreground/75">
+                <Folder className="size-3 shrink-0" aria-hidden="true" />
+                <span className="max-w-28 truncate">{projectName}</span>
+              </span>
+            )}
             <span>{date}</span>
             <span aria-hidden="true">·</span>
             <span>{clip.resolution}</span>

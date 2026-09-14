@@ -1,4 +1,4 @@
-export type PublishingProvider = 'instagram' | 'facebook' | 'tiktok'
+export type PublishingProvider = 'instagram' | 'facebook' | 'tiktok' | 'youtube'
 export type PublishingAccount = {
   id: string
   provider: PublishingProvider
@@ -32,6 +32,7 @@ export type PublishingData = {
     id: PublishingProvider
     name: string
     configured: boolean
+    supportsPublishing: boolean
     reason?: string
   }[]
   accounts: PublishingAccount[]

@@ -26,13 +26,13 @@ func mockProvider(t *testing.T, h http.HandlerFunc) *ProviderClient {
 	s := httptest.NewServer(h)
 	t.Cleanup(s.Close)
 	u, _ := url.Parse(s.URL)
-	p := NewProviderClient(ProviderConfig{AppURL: "https://app.example", MetaAppID: "fb", MetaAppSecret: "secret", InstagramAppID: "ig", InstagramAppSecret: "secret", TikTokClientKey: "tt", TikTokClientSecret: "secret", TikTokVerifiedURLPrefix: "https://media.example/"})
+	p := NewProviderClient(ProviderConfig{AppURL: "https://app.example", MetaAppID: "fb", MetaAppSecret: "secret", InstagramAppID: "ig", InstagramAppSecret: "secret", TikTokClientKey: "tt", TikTokClientSecret: "secret", TikTokVerifiedURLPrefix: "https://media.example/", YouTubeClientID: "yt", YouTubeClientSecret: "secret"})
 	p.httpClient.Transport = providerTransport{u}
 	return p
 }
 func TestProviderAuthorizationScopes(t *testing.T) {
-	p := NewProviderClient(ProviderConfig{AppURL: "https://app.example", MetaAppID: "fb", MetaAppSecret: "s", InstagramAppID: "ig", InstagramAppSecret: "s", TikTokClientKey: "tt", TikTokClientSecret: "s", TikTokVerifiedURLPrefix: "https://media.example/"})
-	for _, provider := range []string{"instagram", "facebook", "tiktok"} {
+	p := NewProviderClient(ProviderConfig{AppURL: "https://app.example", MetaAppID: "fb", MetaAppSecret: "s", InstagramAppID: "ig", InstagramAppSecret: "s", TikTokClientKey: "tt", TikTokClientSecret: "s", TikTokVerifiedURLPrefix: "https://media.example/", YouTubeClientID: "yt", YouTubeClientSecret: "s"})
+	for _, provider := range []string{"instagram", "facebook", "tiktok", "youtube"} {
 		got, err := p.Authorize(provider, "csrf-state", "verifier")
 		if err != nil {
 			t.Fatal(err)
@@ -45,11 +45,43 @@ func TestProviderAuthorizationScopes(t *testing.T) {
 		if strings.Contains(got, "client_secret") {
 			t.Fatal("secret leaked")
 		}
+		if provider == "youtube" && (q.Get("code_challenge") == "" || q.Get("scope") != "https://www.googleapis.com/auth/youtube.readonly") {
+			t.Fatal("YouTube OAuth is missing PKCE or its channel scope")
+		}
 	}
-	if _, err := p.Authorize("youtube", "state", ""); err == nil {
+	if _, err := p.Authorize("unknown", "state", ""); err == nil {
 		t.Fatal("unsupported provider accepted")
 	}
 }
+
+func TestYouTubeExchangeReturnsConnectedChannels(t *testing.T) {
+	p := mockProvider(t, func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/token":
+			_ = r.ParseForm()
+			if r.Form.Get("code_verifier") != "verifier" || r.Form.Get("client_secret") != "secret" {
+				t.Error("missing YouTube token exchange credentials")
+			}
+			_, _ = io.WriteString(w, `{"access_token":"access","refresh_token":"refresh","expires_in":3600}`)
+		case "/youtube/v3/channels":
+			if r.Header.Get("Authorization") != "Bearer access" || r.URL.Query().Get("mine") != "true" {
+				t.Error("invalid YouTube channel request")
+			}
+			_, _ = io.WriteString(w, `{"items":[{"id":"channel-1","snippet":{"title":"Sneep Cut","customUrl":"@sneepcut"}}]}`)
+		default:
+			http.NotFound(w, r)
+		}
+	})
+
+	accounts, err := p.Exchange(context.Background(), "youtube", "code", "verifier")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(accounts) != 1 || accounts[0].ID != "channel-1" || accounts[0].Username != "sneepcut" || accounts[0].Credentials.RefreshToken != "refresh" {
+		t.Fatalf("unexpected YouTube account: %#v", accounts)
+	}
+}
+
 func TestInstagramPublishPollDoesNotFinalize(t *testing.T) {
 	finalized := 0
 	p := mockProvider(t, func(w http.ResponseWriter, r *http.Request) {

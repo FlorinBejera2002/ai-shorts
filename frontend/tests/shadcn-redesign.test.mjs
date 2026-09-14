@@ -16,7 +16,7 @@ test('original redesign pages have separate tickets and browser routes', () => {
   assert.equal(Object.keys(tickets).length,25)
   assert.equal(new Set(Object.values(tickets).map(ticket=>ticket.id)).size,25)
   const suite = read('scripts/all-pages-browser-checks.mjs')
-  for (const key of Object.keys(tickets).filter(key=>!['foundation','navigation'].includes(key))) {
+  for (const key of Object.keys(tickets).filter(key=>!['foundation','navigation','calendar'].includes(key))) {
     assert.ok(suite.includes(`['${key}',`), `Missing browser route for ${key}`)
   }
 })

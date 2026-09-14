@@ -1,29 +1,27 @@
 'use client'
 
-import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { PageHeader } from '@/components/ui/page-header'
 import { useToast } from '@/components/ui/toast'
+import { useApiResource } from '@/hooks/use-api-resource'
 import { apiFetch } from '@/lib/auth'
 import type {
   CalendarClipOption,
+  ContentPlatform,
   ScheduledPostRecord
 } from '@/lib/content-calendar'
-import { AlertCircle, Plus, RefreshCw } from 'lucide-react'
+import type { PublishingData } from '@/lib/publishing'
+import { AlertCircle, RefreshCw } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { CalendarAgenda } from './calendar-agenda'
+import { CalendarConnections } from './calendar-connections'
 import { CalendarListView } from './calendar-list-view'
 import { CalendarMetrics } from './calendar-metrics'
 import { CalendarMonthView } from './calendar-month-view'
 import { CalendarTimelineView } from './calendar-timeline-view'
+import { CalendarToolbar } from './calendar-toolbar'
 import {
-  CalendarToolbar,
-  type PlatformFilter,
-  type StatusFilter
-} from './calendar-toolbar'
-import {
-  type CalendarDensity,
+  CALENDAR_PLATFORMS,
   CalendarRequestError,
   type CalendarViewMode,
   type PostFormPayload,
@@ -31,7 +29,6 @@ import {
   addLocalMonths,
   getCalendarRange,
   getWeekRange,
-  groupPostsByLocalDay,
   isInRange,
   localDateKey,
   movePostToLocalDate,
@@ -86,20 +83,7 @@ async function requestJson<Response>(
 function CalendarSkeleton() {
   const t = useTranslations('contentCalendar')
   return (
-    <div aria-label={t('loading')} aria-busy="true" className="mt-7 space-y-4">
-      <div className={styles.metrics}>
-        {Array.from({ length: 4 }, (_, index) => (
-          <Card key={index} className="block gap-0 p-4">
-            <div className="flex items-center gap-3">
-              <div className="skeleton h-9 w-9 rounded-lg" />
-              <div className="flex-1 space-y-2">
-                <div className="skeleton h-2.5 w-2/3" />
-                <div className="skeleton h-5 w-10" />
-              </div>
-            </div>
-          </Card>
-        ))}
-      </div>
+    <div aria-label={t('loading')} aria-busy="true" className="space-y-4">
       <Card className="block min-h-[32rem] gap-0 overflow-hidden p-5">
         <div className="skeleton h-10 w-full" />
         <div className="skeleton mt-5 h-[27rem] w-full" />
@@ -148,8 +132,6 @@ export function ContentCalendar() {
   const [selectedDate, setSelectedDate] = useState(() => new Date(0))
   const [timeZone, setTimeZone] = useState('UTC')
   const [view, setView] = useState<CalendarViewMode>('month')
-  const [density, setDensity] = useState<CalendarDensity>('comfortable')
-  const [query, setQuery] = useState('')
   const [posts, setPosts] = useState<ScheduledPostRecord[]>([])
   const [clips, setClips] = useState<CalendarClipOption[]>([])
   const [loading, setLoading] = useState(false)
@@ -157,10 +139,13 @@ export function ContentCalendar() {
   const [loadError, setLoadError] = useState<LoadErrorKey | null>(null)
   const [truncatedLimit, setTruncatedLimit] = useState<number | null>(null)
   const [refreshToken, setRefreshToken] = useState(0)
-  const [platformFilter, setPlatformFilter] = useState<PlatformFilter>('all')
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
   const [dialog, setDialog] = useState<DialogState>(null)
   const mutationRevisionRef = useRef(0)
+  const {
+    data: publishingData,
+    error: publishingError,
+    reload: reloadPublishing
+  } = useApiResource<PublishingData>('/api/publishing')
 
   const weekStartsOn: 0 | 1 = locale.toLowerCase().startsWith('ro') ? 1 : 0
   const range = useMemo(
@@ -225,33 +210,21 @@ export function ContentCalendar() {
     return () => controller.abort()
   }, [rangeEnd, rangeStart, ready, refreshToken])
 
-  const visiblePosts = useMemo(() => {
-    const normalizedQuery = query.trim().toLocaleLowerCase(locale)
-    return posts.filter((post) => {
-      const matchesQuery =
-        normalizedQuery === '' ||
-        [post.title, post.caption, post.notes, post.clip?.title]
-          .filter(Boolean)
-          .some((value) =>
-            value?.toLocaleLowerCase(locale).includes(normalizedQuery)
-          )
-      return (
-        matchesQuery &&
-        (platformFilter === 'all' || post.platforms.includes(platformFilter)) &&
-        (statusFilter === 'all' || post.status === statusFilter)
-      )
-    })
-  }, [locale, platformFilter, posts, query, statusFilter])
-  const visibleGrouped = useMemo(
-    () => groupPostsByLocalDay(visiblePosts),
-    [visiblePosts]
-  )
-  const rawGrouped = useMemo(() => groupPostsByLocalDay(posts), [posts])
+  const connectedPlatforms = useMemo<ContentPlatform[]>(() => {
+    if (!publishingData) return []
+
+    const connected = new Set<string>(
+      publishingData.accounts
+        .filter(
+          (account) =>
+            account.status === 'connected' && account.tokenExpired !== true
+        )
+        .map((account) => account.provider)
+    )
+
+    return CALENDAR_PLATFORMS.filter((platform) => connected.has(platform))
+  }, [publishingData])
   const selectedKey = localDateKey(selectedDate)
-  const selectedPosts = visibleGrouped.get(selectedKey) ?? []
-  const rawSelectedCount = rawGrouped.get(selectedKey)?.length ?? 0
-  const filtersActive =
-    query.trim() !== '' || platformFilter !== 'all' || statusFilter !== 'all'
   const weekRange = useMemo(
     () => getWeekRange(selectedDate, weekStartsOn),
     [selectedDate, weekStartsOn]
@@ -261,12 +234,6 @@ export function ContentCalendar() {
     [locale, selectedDate, view, viewDate, weekStartsOn]
   )
 
-  function clearFilters() {
-    setQuery('')
-    setPlatformFilter('all')
-    setStatusFilter('all')
-  }
-
   function focusDate(date: Date) {
     const nextDate = startOfLocalDay(date)
     setSelectedDate(nextDate)
@@ -274,8 +241,6 @@ export function ContentCalendar() {
       nextDate.getMonth() !== viewDate.getMonth() ||
       nextDate.getFullYear() !== viewDate.getFullYear()
     ) {
-      setPosts([])
-      setHasLoaded(false)
       setViewDate(startOfLocalMonth(nextDate))
     }
   }
@@ -398,22 +363,18 @@ export function ContentCalendar() {
         title={t('title')}
         description={t('description')}
         actions={
-          <Button type="button" disabled={!ready} onClick={() => openCreate()}>
-            <Plus className="h-4 w-4" />
-            {t('actions.newPost')}
-          </Button>
+          <CalendarMetrics posts={posts} month={viewDate} variant="header" />
         }
       />
 
       {!ready || (loading && !hasLoaded) ? (
         <CalendarSkeleton />
       ) : (
-        <div className="mt-7 space-y-4">
-          <CalendarMetrics posts={posts} month={viewDate} />
+        <div className="space-y-5">
           {loadError && (
             <div
               role="alert"
-              className="flex flex-wrap items-center gap-3 rounded-lg border border-destructive/25 bg-destructive/[0.055] px-4 py-3 text-destructive"
+              className="flex flex-wrap items-center gap-3 rounded-md border border-destructive/25 bg-destructive/[0.055] px-4 py-3 text-destructive"
             >
               <AlertCircle className="h-4 w-4 shrink-0" />
               <p className="min-w-0 flex-1 text-xs font-medium">
@@ -432,13 +393,18 @@ export function ContentCalendar() {
           {truncatedLimit && (
             <div
               role="status"
-              className="rounded-lg border border-warning/25 bg-warning/[0.07] px-4 py-3 text-xs font-medium text-warning"
+              className="rounded-md border border-warning/25 bg-warning/[0.07] px-4 py-3 text-xs font-medium text-warning"
             >
               {t('truncated', { count: truncatedLimit })}
             </div>
           )}
 
           <div className={styles.planningLayout}>
+            <CalendarConnections
+              data={publishingData}
+              error={publishingError}
+              onReload={reloadPublishing}
+            />
             <Card
               as="section"
               aria-label={t('calendarSectionLabel')}
@@ -448,36 +414,22 @@ export function ContentCalendar() {
               <CalendarToolbar
                 title={title}
                 view={view}
-                density={density}
-                query={query}
-                platform={platformFilter}
-                status={statusFilter}
                 loading={loading && hasLoaded}
-                resultCount={visiblePosts.length}
                 onPrevious={() => navigatePeriod(-1)}
                 onNext={() => navigatePeriod(1)}
                 onToday={() => focusDate(new Date())}
                 onViewChange={setView}
-                onDensityChange={setDensity}
-                onQueryChange={setQuery}
-                onPlatformChange={setPlatformFilter}
-                onStatusChange={setStatusFilter}
-                onClearFilters={clearFilters}
               />
-              <div className="flex items-center justify-between border-b border-border bg-muted/20 px-4 py-2 text-[10px] font-medium text-muted-foreground sm:px-5">
-                <span>{t('timezone', { zone: timeZone })}</span>
-                <span className="hidden sm:inline">{t('dragHint')}</span>
-              </div>
               <div className={styles.gridWrap}>
                 {view === 'month' && (
                   <CalendarMonthView
                     month={viewDate}
                     range={range}
-                    posts={visiblePosts}
+                    posts={posts}
                     selectedDate={selectedDate}
                     locale={locale}
                     weekStartsOn={weekStartsOn}
-                    density={density}
+                    density="comfortable"
                     onSelectDate={focusDate}
                     onCreateDate={(date) => openCreate(date)}
                     onEditPost={(post) => setDialog({ mode: 'edit', post })}
@@ -487,10 +439,10 @@ export function ContentCalendar() {
                 {view === 'week' && (
                   <CalendarTimelineView
                     days={weekRange.days}
-                    posts={visiblePosts}
+                    posts={posts}
                     selectedDate={selectedDate}
                     locale={locale}
-                    density={density}
+                    density="comfortable"
                     onSelectDate={focusDate}
                     onCreateAt={openCreate}
                     onEditPost={(post) => setDialog({ mode: 'edit', post })}
@@ -502,10 +454,10 @@ export function ContentCalendar() {
                 {view === 'day' && (
                   <CalendarTimelineView
                     days={[selectedDate]}
-                    posts={visiblePosts}
+                    posts={posts}
                     selectedDate={selectedDate}
                     locale={locale}
-                    density={density}
+                    density="comfortable"
                     onSelectDate={focusDate}
                     onCreateAt={openCreate}
                     onEditPost={(post) => setDialog({ mode: 'edit', post })}
@@ -517,7 +469,7 @@ export function ContentCalendar() {
                 {view === 'list' && (
                   <CalendarListView
                     days={listDays}
-                    posts={visiblePosts}
+                    posts={posts}
                     locale={locale}
                     onCreateDate={(date) => openCreate(date)}
                     onEditPost={(post) => setDialog({ mode: 'edit', post })}
@@ -525,20 +477,6 @@ export function ContentCalendar() {
                 )}
               </div>
             </Card>
-
-            {!hasLoaded && loadError ? null : (
-              <CalendarAgenda
-                date={selectedDate}
-                posts={selectedPosts}
-                rawPostCount={rawSelectedCount}
-                locale={locale}
-                filtersActive={filtersActive}
-                onCreate={() => openCreate()}
-                onEdit={(post) => setDialog({ mode: 'edit', post })}
-                onReschedule={(post) => setDialog({ mode: 'reschedule', post })}
-                onClearFilters={clearFilters}
-              />
-            )}
           </div>
         </div>
       )}
@@ -557,6 +495,8 @@ export function ContentCalendar() {
           }
           post={dialog.mode === 'create' ? undefined : dialog.post}
           clips={clips}
+          connectedPlatforms={connectedPlatforms}
+          platformConnectionsLoaded={publishingData !== null}
           timeZone={timeZone}
           onClose={() => setDialog(null)}
           onSave={saveDialogPost}

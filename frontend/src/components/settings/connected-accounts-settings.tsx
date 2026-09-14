@@ -13,7 +13,8 @@ import {
   Instagram,
   Loader2,
   Music2,
-  RefreshCw
+  RefreshCw,
+  Youtube
 } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
 import { useState } from 'react'
@@ -21,7 +22,8 @@ import { useState } from 'react'
 const providerIcons = {
   instagram: Instagram,
   facebook: Facebook,
-  tiktok: Music2
+  tiktok: Music2,
+  youtube: Youtube
 } satisfies Record<PublishingProvider, typeof Instagram>
 
 export function ConnectedAccountsSettings() {
