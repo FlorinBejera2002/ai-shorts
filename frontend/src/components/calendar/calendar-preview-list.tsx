@@ -2,7 +2,6 @@
 
 import type { ScheduledPostRecord } from '@/lib/content-calendar'
 import type { PublishingAccount } from '@/lib/publishing'
-import { motion, useReducedMotion } from 'framer-motion'
 import {
   AlertCircle,
   ArrowUpRight,
@@ -116,7 +115,6 @@ export function CalendarPreviewList({
   onOpenPost: (post: ScheduledPostRecord) => void
 }) {
   const t = useTranslations('contentCalendar')
-  const reduceMotion = useReducedMotion()
   const orderedPosts = useMemo(() => sortPosts(posts), [posts])
   const accountNames = useMemo(
     () =>
@@ -194,30 +192,25 @@ export function CalendarPreviewList({
           destinations.length === 0
 
         return (
-          <motion.button
+          <button
             key={post.id}
             type="button"
             onClick={() => onOpenPost(post)}
             aria-label={t('preview.openAria', { title: post.title })}
-            whileHover={reduceMotion ? undefined : { y: -2 }}
-            whileTap={reduceMotion ? undefined : { scale: 0.995 }}
-            transition={{ type: 'spring', stiffness: 420, damping: 30 }}
             className="group relative grid w-full gap-0 overflow-hidden rounded-md border bg-card text-left shadow-[0_1px_2px_rgba(0,0,0,0.03)] transition-[border-color,box-shadow] hover:border-foreground/20 hover:shadow-[0_14px_34px_-24px_rgba(0,0,0,0.45)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/35 sm:grid-cols-[208px_minmax(0,1fr)]"
           >
-            <motion.span
+            <span
               aria-hidden="true"
-              layoutId={`preview-status-${post.id}`}
               className={`absolute inset-y-0 left-0 z-20 w-0.5 ${statusStyles[post.status].line}`}
-              transition={{ type: 'spring', stiffness: 360, damping: 28 }}
             />
 
-            <span className="relative flex min-h-40 items-center justify-center overflow-hidden bg-muted sm:min-h-44">
+            <span className="relative flex min-h-40 items-center justify-center overflow-hidden rounded-b-md bg-muted sm:min-h-44 sm:rounded-l-md sm:rounded-br-none">
               {post.clip?.thumbnailUrl ? (
                 <img
                   src={post.clip.thumbnailUrl}
                   alt={post.clip.title}
                   loading="lazy"
-                  className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.045] motion-reduce:transition-none"
+                  className="absolute inset-0 h-full w-full object-cover"
                 />
               ) : (
                 <Film className="size-6 text-muted-foreground/60" />
@@ -227,11 +220,6 @@ export function CalendarPreviewList({
               <span className="absolute bottom-3 left-3.5">
                 <PlatformMarks platforms={post.platforms} />
               </span>
-              {post.clip && (
-                <span className="absolute bottom-3 right-3 rounded-sm border border-white/20 bg-black/55 px-2 py-1 text-[10px] font-bold text-white backdrop-blur-md">
-                  {t('preview.clipScore', { score: post.clip.viralScore })}
-                </span>
-              )}
             </span>
 
             <span className="flex min-w-0 flex-col p-4 sm:p-5 sm:pl-6">
@@ -242,7 +230,7 @@ export function CalendarPreviewList({
                   </span>
                   {post.clip && (
                     <span className="mt-1 block truncate text-[11px] text-muted-foreground">
-                      {post.clip.title} · {post.clip.viralScore}/10
+                      {post.clip.title}
                     </span>
                   )}
                 </span>
@@ -287,15 +275,17 @@ export function CalendarPreviewList({
                     )}
                   </span>
                 </span>
-                <span className="ml-auto inline-flex h-8 items-center gap-1 rounded-md bg-muted px-3 text-[10px] font-bold text-foreground transition-all group-hover:bg-foreground group-hover:text-background">
-                  {post.status === 'publishing' || post.status === 'published'
-                    ? t('preview.viewStatus')
-                    : t('preview.edit')}
-                  <ArrowUpRight className="size-3 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5 motion-reduce:transition-none" />
+                <span className="relative ml-auto inline-flex h-8 items-center gap-1.5 overflow-hidden rounded-md border border-border bg-background px-3 text-[10px] font-bold text-foreground shadow-sm before:absolute before:inset-0 before:origin-left before:scale-x-0 before:bg-foreground before:transition-transform before:duration-300 before:ease-out group-hover:before:scale-x-100 motion-reduce:before:transition-none">
+                  <span className="relative z-10 transition-colors duration-200 group-hover:text-background">
+                    {post.status === 'publishing' || post.status === 'published'
+                      ? t('preview.viewStatus')
+                      : t('preview.edit')}
+                  </span>
+                  <ArrowUpRight className="relative z-10 size-3 transition-[color,transform] duration-300 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-background motion-reduce:transition-none" />
                 </span>
               </span>
             </span>
-          </motion.button>
+          </button>
         )
       })}
     </div>

@@ -45,7 +45,7 @@ func (s *Service) CleanupAccount(ctx context.Context, userID string) (CleanupRes
 	if e := s.cleanupReady(ctx, userID); e != nil {
 		return result, e
 	}
-	prefixes := map[string]bool{"uploads/" + userID + "/": true, "brand/" + userID + "/": true}
+	prefixes := map[string]bool{"uploads/" + userID + "/": true, "brand/" + userID + "/": true, "publishing/" + userID + "/": true}
 	keys := map[string]bool{}
 	add := func(value sql.NullString) {
 		if value.Valid {

@@ -2,6 +2,7 @@ import type {
   CalendarMutationStatus,
   ContentPlatform,
   ContentPostStatus,
+  PublishingMedia,
   ScheduledPostRecord
 } from '@/lib/content-calendar'
 
@@ -46,6 +47,7 @@ export type PostFormPayload = {
   status?: CalendarMutationStatus
   scheduledAt: string
   clipId?: string | null
+  media?: PublishingMedia[]
 }
 
 export type CalendarIssue = {

@@ -8,7 +8,8 @@ const platformStyles = {
   },
   instagram: {
     icon: Instagram,
-    className: 'bg-pink-500 text-white'
+    className:
+      'bg-[radial-gradient(circle_at_30%_107%,#fdf497_0%,#fdf497_5%,#fd5949_45%,#d6249f_60%,#285aeb_90%)] text-white'
   },
   facebook: {
     icon: Facebook,
@@ -64,7 +65,7 @@ export function PlatformMark({
       role="img"
       aria-label={label}
       title={label}
-      className={`inline-flex shrink-0 items-center justify-center rounded-md shadow-sm ${
+      className={`inline-flex shrink-0 items-center justify-center rounded-md ${
         size === 'medium' ? 'h-7 w-7' : 'h-5 w-5'
       } ${config.className}`}
     >

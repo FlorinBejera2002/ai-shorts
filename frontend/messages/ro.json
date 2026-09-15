@@ -1389,6 +1389,11 @@
       "closeAndConnect": "Închide și conectează",
       "clipLabel": "Clip asociat",
       "noClip": "Fără clip asociat",
+      "mediaLabel": "Încarcă de pe telefon",
+      "mediaChoose": "Alege imagini sau un clip",
+      "mediaUploading": "Se încarcă fișierele…",
+      "mediaHint": "Maximum 10 imagini pentru carusel sau un singur clip. Nu le combina.",
+      "removeMedia": "Elimină {name}",
       "statusLabel": "Stare",
       "dateLabel": "Dată",
       "timeLabel": "Oră",
@@ -1413,6 +1418,8 @@
       "timeRequired": "Alege o oră.",
       "dateInvalid": "Alege o dată și o oră valide.",
       "clipInvalid": "Clipul nu mai este disponibil. Alege alt clip sau elimină asocierea.",
+      "mediaInvalid": "Alege un singur clip sau maximum 10 imagini.",
+      "mediaUploadFailed": "Fișierele nu au putut fi încărcate. Verifică-le și încearcă din nou.",
       "statusInvalid": "Alege o stare validă."
     },
     "errors": {

@@ -20,6 +20,7 @@ type Account struct {
 	Provider       string         `json:"provider"`
 	Name           string         `json:"name"`
 	Username       string         `json:"username"`
+	AvatarURL      string         `json:"avatarUrl,omitempty"`
 	Status         string         `json:"status"`
 	Scopes         pq.StringArray `json:"scopes"`
 	TokenExpiresAt *time.Time     `json:"tokenExpiresAt,omitempty"`
@@ -161,13 +162,13 @@ func (h *Handler) DeletePublishedPosts(ctx context.Context, user, scheduledPostI
 
 func (h *Handler) list(ctx context.Context, user string) ([]Account, []Clip, []Post, error) {
 	accounts, clips, posts := []Account{}, []Clip{}, []Post{}
-	rows, e := h.db.QueryContext(ctx, `SELECT id,provider,name,username,status,scopes,token_expires_at,COALESCE(token_expires_at<=now(),false) FROM social_accounts WHERE user_id=$1 AND status='connected' ORDER BY provider,name`, user)
+	rows, e := h.db.QueryContext(ctx, `SELECT id,provider,name,username,avatar_url,status,scopes,token_expires_at,COALESCE(token_expires_at<=now(),false) FROM social_accounts WHERE user_id=$1 AND status='connected' ORDER BY provider,name`, user)
 	if e != nil {
 		return accounts, clips, posts, e
 	}
 	for rows.Next() {
 		var a Account
-		if e = rows.Scan(&a.ID, &a.Provider, &a.Name, &a.Username, &a.Status, &a.Scopes, &a.TokenExpiresAt, &a.TokenExpired); e != nil {
+		if e = rows.Scan(&a.ID, &a.Provider, &a.Name, &a.Username, &a.AvatarURL, &a.Status, &a.Scopes, &a.TokenExpiresAt, &a.TokenExpired); e != nil {
 			break
 		}
 		accounts = append(accounts, a)

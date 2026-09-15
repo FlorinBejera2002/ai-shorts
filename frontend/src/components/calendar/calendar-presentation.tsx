@@ -75,11 +75,7 @@ export function PlatformMarks({
   return (
     <span className="inline-flex items-center -space-x-1">
       {visible.map((platform) => (
-        <span
-          key={platform}
-          className="rounded-md ring-2 ring-background"
-          title={t(`platforms.${platform}`)}
-        >
+        <span key={platform} title={t(`platforms.${platform}`)}>
           <PlatformMark
             platform={platform}
             label={t(`platforms.${platform}`)}

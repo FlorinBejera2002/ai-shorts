@@ -14,6 +14,7 @@ export type PublishingAccount = {
   provider: PublishingProvider
   name: string
   username?: string
+  avatarUrl?: string
   status: string
   scopes?: string[]
   tokenExpiresAt?: string

@@ -49,6 +49,12 @@ export type CalendarClipOption = {
   captionYoutube: string | null
 }
 
+export type PublishingMedia = {
+  type: 'image' | 'video'
+  reference: string
+  name: string
+}
+
 export type ScheduledPostRecord = {
   id: string
   title: string
@@ -68,6 +74,7 @@ export type ScheduledPostRecord = {
     viralScore: number
     thumbnailUrl: string | null
   } | null
+  media: PublishingMedia[]
 }
 
 export type ScheduledPostMutation = {
@@ -79,6 +86,7 @@ export type ScheduledPostMutation = {
   status?: CalendarMutationStatus
   scheduledAt?: Date
   clipId?: string | null
+  media?: PublishingMedia[]
 }
 
 export type ValidationIssue = {
@@ -104,7 +112,8 @@ const MUTATION_FIELDS = new Set([
   'accountIds',
   'status',
   'scheduledAt',
-  'clipId'
+  'clipId',
+  'media'
 ])
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -337,6 +346,36 @@ export function validateScheduledPostPayload(
       issues.push({ field: 'clipId', message: 'Choose a valid clip' })
     } else {
       data.clipId = value.clipId
+    }
+  }
+
+  if ('media' in value) {
+    const media = value.media
+    if (
+      !Array.isArray(media) ||
+      media.length > 10 ||
+      !media.every(
+        (item) =>
+          isRecord(item) &&
+          (item.type === 'image' || item.type === 'video') &&
+          typeof item.reference === 'string' &&
+          typeof item.name === 'string'
+      )
+    ) {
+      issues.push({
+        field: 'media',
+        message: 'Choose either one video or up to 10 images'
+      })
+    } else if (
+      media.some((item) => item.type !== media[0]?.type) ||
+      (media[0]?.type === 'video' && media.length !== 1)
+    ) {
+      issues.push({
+        field: 'media',
+        message: 'Images and video cannot be mixed'
+      })
+    } else {
+      data.media = media as PublishingMedia[]
     }
   }
 

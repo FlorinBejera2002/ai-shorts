@@ -73,25 +73,25 @@ func (h *Handler) dispatchCalendar(ctx context.Context) error {
 	var id, userID, caption, reference string
 	var clipID sql.NullString
 	var accountIDs pq.StringArray
+	var postMedia []byte
 	e = tx.QueryRowContext(ctx, `SELECT s.id,s.user_id,s.clip_id,COALESCE(s.caption,''),s.account_ids,
-		COALESCE(NULLIF(c.file_storage_key,''),NULLIF(c.file_path,''),c.file_url,'')
+		COALESCE(NULLIF(c.file_storage_key,''),NULLIF(c.file_path,''),c.file_url,''),s.media
 		FROM scheduled_posts s LEFT JOIN clips c ON c.id=s.clip_id AND c.user_id=s.user_id
 		WHERE s.status='scheduled' AND s.scheduled_at<=now()
-		ORDER BY s.scheduled_at FOR UPDATE OF s SKIP LOCKED LIMIT 1`).Scan(&id, &userID, &clipID, &caption, &accountIDs, &reference)
+		ORDER BY s.scheduled_at FOR UPDATE OF s SKIP LOCKED LIMIT 1`).Scan(&id, &userID, &clipID, &caption, &accountIDs, &reference, &postMedia)
 	if errors.Is(e, sql.ErrNoRows) {
 		return nil
 	}
 	if e != nil {
 		return e
 	}
-	if !clipID.Valid || clipID.String == "" || reference == "" || len(accountIDs) == 0 {
+	if reference == "" && string(postMedia) != "[]" {
+		reference = string(postMedia)
+	}
+	if reference == "" || len(accountIDs) == 0 {
 		return h.failCalendar(ctx, tx, id, "Choose an available clip and at least one connected account.")
 	}
-	mediaURL, e := h.media.SignedURL(ctx, reference)
-	if e != nil || !publicHTTPS(mediaURL) {
-		return h.failCalendar(ctx, tx, id, "The clip does not have a public HTTPS video URL.")
-	}
-	requestHash := digest(id + ":" + clipID.String + ":" + caption)
+	requestHash := digest(id + ":" + reference + ":" + caption)
 	for _, accountID := range accountIDs {
 		var provider string
 		e = tx.QueryRowContext(ctx, `SELECT provider FROM social_accounts WHERE id=$1 AND user_id=$2 AND status='connected' AND COALESCE(token_expires_at>now(),true) FOR UPDATE`, accountID, userID).Scan(&provider)
@@ -104,7 +104,7 @@ func (h *Handler) dispatchCalendar(ctx context.Context) error {
 		}
 		_, e = tx.ExecContext(ctx, `INSERT INTO social_posts(id,user_id,account_id,clip_id,provider,caption,options,idempotency_key,request_hash,media_reference,scheduled_post_id)
 			VALUES($1,$2,$3,$4,$5,$6,'{}'::jsonb,$7,$8,$9,$10)
-			ON CONFLICT (scheduled_post_id,account_id) WHERE scheduled_post_id IS NOT NULL DO NOTHING`, postID, userID, accountID, clipID.String, provider, caption, id, requestHash, reference, id)
+			ON CONFLICT (scheduled_post_id,account_id) WHERE scheduled_post_id IS NOT NULL DO NOTHING`, postID, userID, accountID, clipID, provider, caption, id, requestHash, reference, id)
 		if e != nil {
 			return e
 		}
@@ -244,17 +244,24 @@ func (h *Handler) process(ctx context.Context, job workItem, finalize bool) erro
 		return set("published", "", id, link)
 	}
 	if job.Status == "queued" {
-		var currentReference string
-		var badge sql.NullBool
-		e = tx.QueryRowContext(ctx, `SELECT COALESCE(NULLIF(c.file_storage_key,''),NULLIF(c.file_path,''),c.file_url,''),c.contains_platform_badge FROM clips c JOIN social_posts p ON p.clip_id=c.id AND p.user_id=c.user_id WHERE p.id=$1 FOR SHARE OF c`, job.ID).Scan(&currentReference, &badge)
-		if e != nil || currentReference != job.Reference || (a.Provider == "tiktok" && (!badge.Valid || badge.Bool)) {
-			return set("failed", "The clip is no longer available.", "", "")
+		media := []PublishMedia{}
+		var attached []struct{ Type, Reference, Name string }
+		if json.Unmarshal([]byte(job.Reference), &attached) == nil && len(attached) > 0 {
+			for _, item := range attached {
+				source, err := h.media.SignedURL(ctx, item.Reference)
+				if err != nil || !publicHTTPS(source) {
+					return set("failed", "A public HTTPS media URL is required.", "", "")
+				}
+				media = append(media, PublishMedia{Type: item.Type, URL: source})
+			}
+		} else {
+			source, err := h.media.SignedURL(ctx, job.Reference)
+			if err != nil || !publicHTTPS(source) {
+				return set("failed", "A public HTTPS video URL is required.", "", "")
+			}
+			media = append(media, PublishMedia{Type: "video", URL: source})
 		}
-		source, err := h.media.SignedURL(ctx, job.Reference)
-		if err != nil || !publicHTTPS(source) {
-			return set("failed", "A public HTTPS video URL is required.", "", "")
-		}
-		id, status, err := h.client.Publish(ctx, a.Provider, a.RemoteID, creds, source, job.Caption, job.Options)
+		id, status, err := h.client.PublishMedia(ctx, a.Provider, a.RemoteID, creds, media, job.Caption, job.Options)
 		if err != nil {
 			return set("unknown", "Publication outcome is unknown. Check the destination account before posting again.", id, "")
 		}

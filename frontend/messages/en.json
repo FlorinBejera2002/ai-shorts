@@ -1392,6 +1392,11 @@
       "closeAndConnect": "Close and connect",
       "clipLabel": "Linked clip",
       "noClip": "No linked clip",
+      "mediaLabel": "Upload from phone",
+      "mediaChoose": "Choose images or a video",
+      "mediaUploading": "Uploading media…",
+      "mediaHint": "Up to 10 images for a carousel, or one video. Do not mix them.",
+      "removeMedia": "Remove {name}",
       "statusLabel": "Status",
       "dateLabel": "Date",
       "timeLabel": "Time",
@@ -1416,6 +1421,8 @@
       "timeRequired": "Choose a time.",
       "dateInvalid": "Choose a valid date and time.",
       "clipInvalid": "That clip is no longer available. Choose another clip or unlink it.",
+      "mediaInvalid": "Choose either one video or up to 10 images.",
+      "mediaUploadFailed": "The media could not be uploaded. Check the file and try again.",
       "statusInvalid": "Choose a valid status."
     },
     "errors": {

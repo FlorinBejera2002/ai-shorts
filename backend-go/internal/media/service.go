@@ -149,6 +149,23 @@ type UploadResult struct {
 	ContentType string `json:"content_type"`
 }
 
+var publishingImageExtensions = map[string]bool{".jpg": true, ".jpeg": true, ".png": true, ".webp": true}
+
+func looksLikeImage(header []byte, suffix string) bool {
+	if len(header) < 12 {
+		return false
+	}
+	switch suffix {
+	case ".jpg", ".jpeg":
+		return header[0] == 0xff && header[1] == 0xd8 && header[2] == 0xff
+	case ".png":
+		return string(header[:8]) == "\x89PNG\r\n\x1a\n"
+	case ".webp":
+		return string(header[:4]) == "RIFF" && string(header[8:12]) == "WEBP"
+	}
+	return false
+}
+
 func safeSlug(name string) string {
 	var b strings.Builder
 	dash := false
@@ -203,6 +220,9 @@ func (s *Service) stage(ctx context.Context, body io.Reader, maximum, expected i
 	if video && !LooksLikeVideo(header[:read], suffix) {
 		return "", 0, failure(400, "Invalid video file")
 	}
+	if !video && !looksLikeImage(header[:read], suffix) {
+		return "", 0, failure(400, "Invalid image file")
+	}
 	if e = f.Sync(); e != nil {
 		return "", 0, e
 	}
@@ -217,6 +237,31 @@ func (s *Service) stage(ctx context.Context, body io.Reader, maximum, expected i
 	}
 	keep = true
 	return filename, n, nil
+}
+
+func (s *Service) StorePublishingMedia(ctx context.Context, userID string, intent UploadIntent, body io.Reader) (UploadResult, error) {
+	suffix := strings.ToLower(path.Ext(intent.FileName))
+	isImage := publishingImageExtensions[suffix]
+	if !isImage && !videoExtensions[suffix] {
+		return UploadResult{}, failure(400, "Choose a JPG, PNG, WebP or video file")
+	}
+	filename, size, e := s.stage(ctx, body, s.cfg.MaxUploadBytes, 0, suffix, !isImage)
+	if e != nil {
+		return UploadResult{}, e
+	}
+	defer os.Remove(filename)
+	if e = s.accountActive(ctx, userID, true); e != nil {
+		return UploadResult{}, e
+	}
+	id, e := randomID()
+	if e != nil {
+		return UploadResult{}, e
+	}
+	key := "publishing/" + userID + "/" + id + "-" + safeSlug(strings.TrimSuffix(intent.FileName, path.Ext(intent.FileName))) + suffix
+	if e = s.Storage.Save(ctx, filename, key, intent.ContentType); e != nil {
+		return UploadResult{}, failure(503, "Upload could not be stored")
+	}
+	return UploadResult{FilePath: key, FileName: path.Base(key), FileSize: size, ContentType: intent.ContentType}, nil
 }
 func (s *Service) storeVideo(ctx context.Context, userID string, intent UploadIntent, body io.Reader, expected int64) (UploadResult, error) {
 	var result UploadResult

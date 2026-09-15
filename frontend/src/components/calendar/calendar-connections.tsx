@@ -20,16 +20,19 @@ import type {
   PublishingProvider
 } from '@/lib/publishing'
 import { withAllPublishingProviders } from '@/lib/publishing'
-import { Check, ExternalLink, Loader2, LogOut, RefreshCw } from 'lucide-react'
+import { Check, Loader2, Lock, LogOut, RefreshCw } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
 import Image from 'next/image'
 import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 
 const CONNECTION_EFFECTS = {
   instagram: '/brand/instagram-connected-effect.svg',
   facebook: '/brand/facebook-connected-effect.svg',
   tiktok: '/brand/tiktok-connected-effect.svg',
-  youtube: '/brand/youtube-connected-effect.svg'
+  youtube: '/brand/youtube-connected-effect.svg',
+  linkedin: '/brand/Share%20on%20Linkedin.svg',
+  twitter: '/brand/X%20Twitter%20logo.svg'
 } as const
 
 type AnimatedProvider = keyof typeof CONNECTION_EFFECTS
@@ -39,7 +42,9 @@ function isAnimatedProvider(value: string | null): value is AnimatedProvider {
     value === 'instagram' ||
     value === 'facebook' ||
     value === 'tiktok' ||
-    value === 'youtube'
+    value === 'youtube' ||
+    value === 'linkedin' ||
+    value === 'twitter'
   )
 }
 
@@ -147,19 +152,42 @@ export function CalendarConnections({
   return (
     <Card
       as="aside"
-      className="relative block min-w-0 gap-0 overflow-hidden p-0 shadow-none"
+      className="relative block min-w-0 gap-0 overflow-hidden bg-[#f5f6f7] p-0 shadow-none dark:bg-muted/30"
     >
-      <div className="relative border-b bg-muted/20 px-4 py-4">
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-8 backdrop-blur-[2px] [mask-image:linear-gradient(to_top,black,transparent)]" />
-        <div className="relative flex items-start justify-between gap-3">
+      {successProvider &&
+        typeof document !== 'undefined' &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-background/55 backdrop-blur-md animate-in fade-in duration-300 motion-reduce:animate-none"
+            role="status"
+            aria-live="polite"
+            aria-label={t('connected')}
+          >
+            <Image
+              src={CONNECTION_EFFECTS[successProvider]}
+              alt=""
+              width={240}
+              height={240}
+              priority={true}
+              unoptimized={true}
+              className="size-60 max-h-[70vh] max-w-[70vw]"
+            />
+          </div>,
+          document.body
+        )}
+      <div className="px-4 pb-2 pt-4">
+        <div className="flex items-start justify-between gap-3">
           <div>
             <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground">
               {t('eyebrow')}
             </p>
-            <h2 className="mt-1 text-sm font-semibold">{t('title')}</h2>
+            <h2 className="mt-1 text-base font-semibold tracking-tight">
+              {t('title')}
+            </h2>
           </div>
           {data && (
-            <span className="shrink-0 rounded-sm border bg-background px-2 py-1 text-[10px] font-bold tabular-nums text-foreground shadow-sm">
+            <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[10px] font-medium tabular-nums text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/50 dark:text-emerald-300">
+              <span className="size-1.5 rounded-full bg-emerald-500" />
               {t('summary', { count: connectedAccounts.length })}
             </span>
           )}
@@ -209,79 +237,86 @@ export function CalendarConnections({
               return (
                 <div
                   key={provider.id}
-                  className={`group relative flex items-start gap-3 overflow-hidden rounded-md border px-3 py-3 transition-[transform,border-color,box-shadow,background-color] duration-200 ease-out hover:translate-x-0.5 motion-reduce:transform-none ${
-                    connected
-                      ? 'border-border bg-background hover:border-foreground/20 hover:shadow-sm'
-                      : 'border-transparent bg-muted/25 hover:bg-muted/55'
-                  }`}
+                  className="relative rounded-md bg-white px-3 py-2.5 shadow-[0_2px_7px_-5px_rgba(15,23,42,0.28)] dark:bg-background dark:shadow-[0_2px_8px_-5px_rgba(0,0,0,0.65)]"
                 >
-                  {connected && (
-                    <span
-                      aria-hidden="true"
-                      className="absolute inset-y-3 left-0 w-0.5 rounded-full bg-foreground"
-                    />
-                  )}
-                  <span className="relative flex size-10 shrink-0 items-center justify-center">
-                    {successProvider === provider.id &&
-                    isAnimatedProvider(provider.id) ? (
-                      <Image
-                        src={CONNECTION_EFFECTS[provider.id]}
-                        alt=""
-                        width={64}
-                        height={64}
-                        unoptimized={true}
-                        className="absolute max-w-none"
-                      />
-                    ) : (
-                      <PlatformBrandIcon
-                        provider={provider.id}
-                        className="size-10 transition-transform duration-300 group-hover:scale-105 motion-reduce:transition-none"
-                      />
-                    )}
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex min-h-7 items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="flex min-h-10 items-center gap-3">
+                      <span className="relative flex size-10 shrink-0 items-center justify-center">
+                        <PlatformBrandIcon
+                          provider={provider.id}
+                          className="size-10"
+                        />
+                      </span>
                       <p className="truncate text-xs font-semibold">
                         {provider.name}
                       </p>
-                      {connected && (
+                      {connected && successProvider !== provider.id && (
                         <span
-                          className="inline-flex size-6 shrink-0 animate-in items-center justify-center rounded-full bg-foreground text-background shadow-sm zoom-in-50 motion-reduce:animate-none"
+                          className="ml-auto inline-flex size-6 shrink-0 animate-in items-center justify-center rounded-full bg-emerald-50 text-emerald-600 zoom-in-50 motion-reduce:animate-none dark:bg-emerald-950 dark:text-emerald-300"
                           title={t('connected')}
                         >
                           <Check className="size-3" />
                         </span>
                       )}
+                      {!connected && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          disabled={
+                            !provider.configured || busyProvider !== null
+                          }
+                          onClick={() => void connect(provider.id)}
+                          className="ml-auto h-8 rounded-md bg-background px-2.5 text-[10px] shadow-none hover:bg-muted hover:text-foreground"
+                        >
+                          {busyProvider === provider.id ? (
+                            <Loader2 className="size-3 animate-spin" />
+                          ) : provider.configured ? (
+                            <span aria-hidden="true">+</span>
+                          ) : (
+                            <Lock className="size-3" />
+                          )}
+                          {provider.configured
+                            ? t('connect')
+                            : t('unavailable')}
+                        </Button>
+                      )}
                     </div>
-                    {connected ? (
-                      <div className="mt-1.5 space-y-1">
+                    {connected && successProvider !== provider.id ? (
+                      <div className="mt-2 border-t border-border/70">
                         {accounts.map((account) => (
                           <div
                             key={account.id}
-                            className="flex min-w-0 items-center gap-2 rounded-sm border border-transparent bg-muted/55 px-2.5 py-2 transition-colors hover:border-border hover:bg-muted"
+                            className="flex min-w-0 items-center gap-2 border-b border-border/60 py-2 last:border-b-0"
                           >
-                            <div className="min-w-0 flex-1">
-                              <p
-                                className="truncate text-[11px] font-medium text-foreground"
-                                title={account.name}
-                              >
-                                {account.name}
-                              </p>
-                              {account.username &&
-                                account.username !== account.name && (
-                                  <p
-                                    className="truncate text-[10px] text-muted-foreground"
-                                    title={`@${account.username.replace(/^@/, '')}`}
-                                  >
-                                    @{account.username.replace(/^@/, '')}
-                                  </p>
-                                )}
-                            </div>
+                            <span className="flex size-7 shrink-0 items-center justify-center overflow-hidden rounded-full bg-foreground text-[10px] font-semibold uppercase text-background">
+                              {account.avatarUrl ? (
+                                <img
+                                  src={account.avatarUrl}
+                                  alt=""
+                                  className="h-full w-full object-cover"
+                                  loading="lazy"
+                                  referrerPolicy="no-referrer"
+                                />
+                              ) : (
+                                (account.name || account.username || '?')
+                                  .trim()
+                                  .charAt(0)
+                              )}
+                            </span>
+                            <p
+                              className="min-w-0 flex-1 truncate text-[10px] text-muted-foreground"
+                              title={account.username || account.name}
+                            >
+                              {account.username
+                                ? `@${account.username.replace(/^@/, '')}`
+                                : account.name}
+                            </p>
                             <Button
                               type="button"
                               variant="ghost"
                               size="icon-xs"
-                              className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                              className="text-destructive hover:bg-destructive/5 hover:text-destructive"
                               disabled={busyAccount !== null}
                               onClick={() => setDisconnectingAccount(account)}
                               aria-label={t('disconnectAccount', {
@@ -298,29 +333,8 @@ export function CalendarConnections({
                           </div>
                         ))}
                       </div>
-                    ) : (
-                      <p className="mt-0.5 text-[10px] text-muted-foreground">
-                        {t('notConnected')}
-                      </p>
-                    )}
+                    ) : null}
                   </div>
-                  {!connected && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      disabled={!provider.configured || busyProvider !== null}
-                      onClick={() => void connect(provider.id)}
-                      className="h-8 bg-background px-2.5 text-[10px] shadow-sm transition-colors hover:bg-foreground hover:text-background"
-                    >
-                      {busyProvider === provider.id ? (
-                        <Loader2 className="size-3 animate-spin" />
-                      ) : (
-                        <ExternalLink className="size-3" />
-                      )}
-                      {provider.configured ? t('connect') : t('unavailable')}
-                    </Button>
-                  )}
                 </div>
               )
             })}

@@ -31,6 +31,7 @@ func (h *Handler) Register(router *httprouter.Router) {
 	router.HandlerFunc(http.MethodGet, "/api/media/verify-request", h.verifyRequest)
 	router.Handler(http.MethodPost, "/api/upload/authorize", h.auth.RequireMember(h.authorize))
 	router.Handler(http.MethodPost, "/api/upload", h.auth.RequireMember(h.uploadMultipart))
+	router.Handler(http.MethodPost, "/api/publishing/media", h.auth.RequireMember(h.uploadPublishingMedia))
 	// Direct bodies use purpose-bound single-use upload credentials, not an
 	// access token. Global origin policy is applied by the public router.
 	router.HandlerFunc(http.MethodPut, "/api/upload/direct", h.uploadDirect)
@@ -39,6 +40,34 @@ func (h *Handler) Register(router *httprouter.Router) {
 		router.Handler(http.MethodPost, route, h.auth.RequireMember(h.uploadLogo))
 		router.Handler(http.MethodDelete, route, h.auth.RequireMember(h.deleteLogo))
 	}
+}
+
+func (h *Handler) uploadPublishingMedia(w http.ResponseWriter, r *http.Request) {
+	user := identity.Current(r).User
+	if e := h.service.allow(r.Context(), user.ID, "publishing-upload", 60); e != nil {
+		mediaError(w, e)
+		return
+	}
+	part, e := firstFile(w, r, h.service.cfg.MaxUploadBytes)
+	if e != nil {
+		mediaError(w, e)
+		return
+	}
+	defer part.Close()
+	contentType := part.Header.Get("Content-Type")
+	if contentType == "" {
+		contentType = "application/octet-stream"
+	}
+	result, e := h.service.StorePublishingMedia(r.Context(), user.ID, UploadIntent{FileName: part.FileName(), FileSize: 1, ContentType: contentType}, part)
+	if e != nil {
+		mediaError(w, e)
+		return
+	}
+	kind := "video"
+	if strings.HasPrefix(contentType, "image/") {
+		kind = "image"
+	}
+	writeMedia(w, 201, map[string]any{"reference": result.FilePath, "name": part.FileName(), "type": kind, "size": result.FileSize})
 }
 func writeMedia(w http.ResponseWriter, status int, body any) {
 	w.Header().Set("Content-Type", "application/json")

@@ -23,8 +23,8 @@ type Credentials struct {
 	ExpiresAt                 time.Time
 }
 type RemoteAccount struct {
-	ID, Name, Username string
-	Credentials        Credentials
+	ID, Name, Username, AvatarURL string
+	Credentials                   Credentials
 }
 type TikTokOptions struct {
 	MusicUsageConfirmed bool   `json:"musicUsageConfirmed"`
@@ -276,7 +276,7 @@ func (p *ProviderClient) Exchange(ctx context.Context, provider, code, verifier 
 		var accounts []RemoteAccount
 		cursor := ""
 		for page := 0; page < 100; page++ {
-			q := url.Values{"fields": {"id,name,access_token,tasks"}, "limit": {"100"}}
+			q := url.Values{"fields": {"id,name,access_token,tasks,picture.type(square)"}, "limit": {"100"}}
 			if cursor != "" {
 				q.Set("after", cursor)
 			}
@@ -285,6 +285,9 @@ func (p *ProviderClient) Exchange(ctx context.Context, provider, code, verifier 
 					ID, Name    string
 					AccessToken string `json:"access_token"`
 					Tasks       []string
+					Picture     struct {
+						Data struct{ URL string }
+					}
 				}
 				Paging struct {
 					Next    string
@@ -302,7 +305,7 @@ func (p *ProviderClient) Exchange(ctx context.Context, provider, code, verifier 
 					}
 				}
 				if allowed && a.ID != "" && a.AccessToken != "" {
-					accounts = append(accounts, RemoteAccount{ID: a.ID, Name: a.Name, Credentials: Credentials{AccessToken: a.AccessToken, ExpiresAt: creds.ExpiresAt}})
+					accounts = append(accounts, RemoteAccount{ID: a.ID, Name: a.Name, AvatarURL: a.Picture.Data.URL, Credentials: Credentials{AccessToken: a.AccessToken, ExpiresAt: creds.ExpiresAt}})
 				}
 			}
 			if r.Paging.Next == "" {
@@ -318,8 +321,9 @@ func (p *ProviderClient) Exchange(ctx context.Context, provider, code, verifier 
 		var r struct {
 			ID, Username string
 			UserID       string `json:"user_id"`
+			AvatarURL    string `json:"profile_picture_url"`
 		}
-		if err := p.request(ctx, "GET", p.graph(provider, "me")+"?fields=user_id,username", creds.AccessToken, nil, nil, &r); err != nil {
+		if err := p.request(ctx, "GET", p.graph(provider, "me")+"?fields=user_id,username,profile_picture_url", creds.AccessToken, nil, nil, &r); err != nil {
 			return nil, err
 		}
 		if r.UserID != "" {
@@ -328,30 +332,34 @@ func (p *ProviderClient) Exchange(ctx context.Context, provider, code, verifier 
 		if r.ID == "" {
 			return nil, errors.New("missing Instagram account ID")
 		}
-		return []RemoteAccount{{ID: r.ID, Name: r.Username, Username: r.Username, Credentials: creds}}, nil
+		return []RemoteAccount{{ID: r.ID, Name: r.Username, Username: r.Username, AvatarURL: r.AvatarURL, Credentials: creds}}, nil
 	case "tiktok":
 		var r struct {
 			Data struct {
 				User struct {
 					OpenID      string `json:"open_id"`
 					DisplayName string `json:"display_name"`
+					AvatarURL   string `json:"avatar_url"`
 				}
 			}
 		}
-		if err := p.request(ctx, "GET", "https://open.tiktokapis.com/v2/user/info/?fields=open_id,display_name", creds.AccessToken, nil, nil, &r); err != nil {
+		if err := p.request(ctx, "GET", "https://open.tiktokapis.com/v2/user/info/?fields=open_id,display_name,avatar_url", creds.AccessToken, nil, nil, &r); err != nil {
 			return nil, err
 		}
 		if r.Data.User.OpenID == "" {
 			return nil, errors.New("missing TikTok account ID")
 		}
-		return []RemoteAccount{{ID: r.Data.User.OpenID, Name: r.Data.User.DisplayName, Credentials: creds}}, nil
+		return []RemoteAccount{{ID: r.Data.User.OpenID, Name: r.Data.User.DisplayName, AvatarURL: r.Data.User.AvatarURL, Credentials: creds}}, nil
 	case "youtube":
 		var r struct {
 			Items []struct {
 				ID      string
 				Snippet struct {
-					Title     string
-					CustomURL string `json:"customUrl"`
+					Title      string
+					CustomURL  string `json:"customUrl"`
+					Thumbnails struct {
+						Default struct{ URL string }
+					}
 				}
 			}
 		}
@@ -364,7 +372,7 @@ func (p *ProviderClient) Exchange(ctx context.Context, provider, code, verifier 
 			if channel.ID == "" {
 				continue
 			}
-			accounts = append(accounts, RemoteAccount{ID: channel.ID, Name: channel.Snippet.Title, Username: strings.TrimPrefix(channel.Snippet.CustomURL, "@"), Credentials: creds})
+			accounts = append(accounts, RemoteAccount{ID: channel.ID, Name: channel.Snippet.Title, Username: strings.TrimPrefix(channel.Snippet.CustomURL, "@"), AvatarURL: channel.Snippet.Thumbnails.Default.URL, Credentials: creds})
 		}
 		if len(accounts) == 0 {
 			return nil, errors.New("no YouTube channel is available for this account")
@@ -391,6 +399,16 @@ func (p *ProviderClient) Options(ctx context.Context, c Credentials) (CreatorOpt
 // Publish creates a remote job. Callers must persist the intent before calling
 // and never automatically retry an unconfirmed mutation.
 func (p *ProviderClient) Publish(ctx context.Context, provider, account string, c Credentials, mediaURL, caption string, options TikTokOptions) (string, string, error) {
+	return p.PublishMedia(ctx, provider, account, c, []PublishMedia{{Type: "video", URL: mediaURL}}, caption, options)
+}
+
+type PublishMedia struct{ Type, URL string }
+
+func (p *ProviderClient) PublishMedia(ctx context.Context, provider, account string, c Credentials, media []PublishMedia, caption string, options TikTokOptions) (string, string, error) {
+	if len(media) == 0 {
+		return "", "failed", errors.New("media is required")
+	}
+	mediaURL := media[0].URL
 	if provider == "instagram" || provider == "facebook" {
 		if account == "" || strings.IndexFunc(account, func(r rune) bool { return r < '0' || r > '9' }) >= 0 {
 			return "", "failed", errors.New("invalid provider account ID")
@@ -399,15 +417,52 @@ func (p *ProviderClient) Publish(ctx context.Context, provider, account string, 
 	switch provider {
 	case "instagram":
 		var r struct{ ID string }
-		err := p.request(ctx, "POST", p.graph(provider, url.PathEscape(account)+"/media"), c.AccessToken, url.Values{"media_type": {"REELS"}, "video_url": {mediaURL}, "caption": {caption}, "share_to_feed": {"true"}}, nil, &r)
-		if err != nil {
-			return "", "unknown", err
+		if media[0].Type == "image" {
+			if len(media) == 1 {
+				err := p.request(ctx, "POST", p.graph(provider, url.PathEscape(account)+"/media"), c.AccessToken, url.Values{"image_url": {media[0].URL}, "caption": {caption}}, nil, &r)
+				if err != nil {
+					return "", "unknown", err
+				}
+			} else {
+				children := make([]string, 0, len(media))
+				for _, item := range media {
+					var child struct{ ID string }
+					if err := p.request(ctx, "POST", p.graph(provider, url.PathEscape(account)+"/media"), c.AccessToken, url.Values{"image_url": {item.URL}, "is_carousel_item": {"true"}}, nil, &child); err != nil || child.ID == "" {
+						return "", "unknown", errors.New("Instagram carousel item failed")
+					}
+					children = append(children, child.ID)
+				}
+				err := p.request(ctx, "POST", p.graph(provider, url.PathEscape(account)+"/media"), c.AccessToken, url.Values{"media_type": {"CAROUSEL"}, "children": {strings.Join(children, ",")}, "caption": {caption}}, nil, &r)
+				if err != nil {
+					return "", "unknown", err
+				}
+			}
+		} else {
+			err := p.request(ctx, "POST", p.graph(provider, url.PathEscape(account)+"/media"), c.AccessToken, url.Values{"media_type": {"REELS"}, "video_url": {mediaURL}, "caption": {caption}, "share_to_feed": {"true"}}, nil, &r)
+			if err != nil {
+				return "", "unknown", err
+			}
 		}
 		if r.ID == "" {
 			return "", "unknown", errors.New("missing Instagram container ID")
 		}
 		return account + ":" + r.ID, "processing", nil
 	case "facebook":
+		if media[0].Type == "image" {
+			attached := make([]map[string]string, 0, len(media))
+			for _, item := range media {
+				var photo struct{ ID string }
+				if err := p.request(ctx, "POST", p.graph(provider, url.PathEscape(account)+"/photos"), c.AccessToken, url.Values{"url": {item.URL}, "published": {"false"}}, nil, &photo); err != nil || photo.ID == "" {
+					return "", "unknown", errors.New("Facebook carousel image failed")
+				}
+				attached = append(attached, map[string]string{"media_fbid": photo.ID})
+			}
+			var post struct{ ID string }
+			if err := p.request(ctx, "POST", p.graph(provider, url.PathEscape(account)+"/feed"), c.AccessToken, nil, map[string]any{"message": caption, "attached_media": attached}, &post); err != nil {
+				return "", "unknown", err
+			}
+			return post.ID, "published", nil
+		}
 		var r struct {
 			ID        string `json:"video_id"`
 			UploadURL string `json:"upload_url"`

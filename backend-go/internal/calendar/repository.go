@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"path"
 	"slices"
 	"sort"
 	"strings"
@@ -49,6 +50,7 @@ type Post struct {
 	CreatedAt              string                  `json:"createdAt"`
 	UpdatedAt              string                  `json:"updatedAt"`
 	Clip                   *PostClip               `json:"clip"`
+	Media                  []map[string]string     `json:"media"`
 }
 type PublishingDestination struct {
 	Provider    string `json:"provider"`
@@ -86,7 +88,7 @@ func (s *Repository) thumbnail(ctx context.Context, references ...sql.NullString
 	return nil
 }
 
-const postSelect = `SELECT p.id,p.title,p.caption,p.notes,p.platforms,p.account_ids,p.status,p.publishing_error,p.scheduled_at,p.created_at,p.updated_at,
+const postSelect = `SELECT p.id,p.title,p.caption,p.notes,p.platforms,p.account_ids,p.status,p.publishing_error,p.scheduled_at,p.created_at,p.updated_at,p.media,
 	c.id,c.title,c.viral_score,c.thumbnail_storage_key,c.thumbnail_path,c.thumbnail_url,
 	COALESCE((SELECT jsonb_agg(jsonb_build_object(
 		'provider',sp.provider,'accountName',COALESCE(NULLIF(a.username,''),NULLIF(a.name,''),sp.provider),
@@ -102,12 +104,15 @@ func (s *Repository) readPost(ctx context.Context, row rowScanner) (Post, error)
 	var scheduled, created, updated time.Time
 	var clipID, clipTitle, thumbKey, thumbPath, thumbURL sql.NullString
 	var score sql.NullFloat64
-	var destinations []byte
-	e := row.Scan(&p.ID, &p.Title, &p.Caption, &p.Notes, pq.Array(&p.Platforms), pq.Array(&p.AccountIDs), &p.Status, &p.PublishingError, &scheduled, &created, &updated, &clipID, &clipTitle, &score, &thumbKey, &thumbPath, &thumbURL, &destinations)
+	var destinations, mediaJSON []byte
+	e := row.Scan(&p.ID, &p.Title, &p.Caption, &p.Notes, pq.Array(&p.Platforms), pq.Array(&p.AccountIDs), &p.Status, &p.PublishingError, &scheduled, &created, &updated, &mediaJSON, &clipID, &clipTitle, &score, &thumbKey, &thumbPath, &thumbURL, &destinations)
 	if e != nil {
 		return p, e
 	}
 	if e = json.Unmarshal(destinations, &p.PublishingDestinations); e != nil {
+		return p, e
+	}
+	if e = json.Unmarshal(mediaJSON, &p.Media); e != nil {
 		return p, e
 	}
 	p.ScheduledAt = isoDate(scheduled)
@@ -200,6 +205,15 @@ func (s *Repository) Mutate(ctx context.Context, userID, id string, input map[st
 	if e != nil {
 		return empty, e
 	}
+	if media, ok := fields["media"].([]map[string]string); ok {
+		for _, item := range media {
+			key, keyErr := s.media.KeyFromReference(item["reference"])
+			if keyErr != nil || path.Dir(key) != "publishing/"+userID {
+				return empty, &ValidationError{Issues: []Issue{{"media", "Choose media uploaded by this account"}}}
+			}
+			item["reference"] = key
+		}
+	}
 	tx, e := s.db.BeginTx(ctx, nil)
 	if e != nil {
 		return empty, e
@@ -255,7 +269,19 @@ func (s *Repository) Mutate(ctx context.Context, userID, id string, input map[st
 	}
 	if status == "scheduled" {
 		issues := []Issue{}
-		if clipID == nil {
+		mediaCount := 0
+		mediaValue, hasMedia := fields["media"]
+		if hasMedia {
+			mediaCount = len(mediaValue.([]map[string]string))
+		}
+		if !hasMedia && !create {
+			var raw []byte
+			_ = tx.QueryRowContext(ctx, `SELECT media FROM scheduled_posts WHERE id=$1`, id).Scan(&raw)
+			var currentMedia []map[string]string
+			_ = json.Unmarshal(raw, &currentMedia)
+			mediaCount = len(currentMedia)
+		}
+		if clipID == nil && mediaCount == 0 {
 			issues = append(issues, Issue{"clipId", "Choose a clip before scheduling publication"})
 		}
 		if len(accountIDs) == 0 {
@@ -313,7 +339,12 @@ func (s *Repository) Mutate(ctx context.Context, userID, id string, input map[st
 		if clipID != nil {
 			owner = userID
 		}
-		_, e = tx.ExecContext(ctx, `INSERT INTO scheduled_posts(id,user_id,clip_id,clip_owner_id,title,caption,notes,platforms,account_ids,status,scheduled_at,created_at,updated_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,now(),now())`, id, userID, clipID, owner, fields["title"], fields["caption"], fields["notes"], pq.Array(fields["platforms"]), pq.Array(fields["accountIds"]), fields["status"], fields["scheduledAt"])
+		media := fields["media"]
+		if media == nil {
+			media = []map[string]string{}
+		}
+		mediaJSON, _ := json.Marshal(media)
+		_, e = tx.ExecContext(ctx, `INSERT INTO scheduled_posts(id,user_id,clip_id,clip_owner_id,title,caption,notes,platforms,account_ids,status,scheduled_at,media,created_at,updated_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,now(),now())`, id, userID, clipID, owner, fields["title"], fields["caption"], fields["notes"], pq.Array(fields["platforms"]), pq.Array(fields["accountIds"]), fields["status"], fields["scheduledAt"], mediaJSON)
 	} else {
 		if currentStatus == "failed" && status == "scheduled" {
 			if _, e = tx.ExecContext(ctx, `UPDATE social_posts SET scheduled_post_id=NULL WHERE scheduled_post_id=$1`, id); e != nil {
@@ -331,6 +362,9 @@ func (s *Repository) Mutate(ctx context.Context, userID, id string, input map[st
 			value := fields[key]
 			if key == "platforms" || key == "accountIds" {
 				value = pq.Array(value)
+			}
+			if key == "media" {
+				value, _ = json.Marshal(value)
 			}
 			args = append(args, value)
 			sets = append(sets, fmt.Sprintf("%s=$%d", mutationColumns[key], len(args)))

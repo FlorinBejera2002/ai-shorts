@@ -207,7 +207,7 @@ func (h *Handler) callback(w http.ResponseWriter, r *http.Request) {
 		if !a.Credentials.ExpiresAt.IsZero() {
 			expiresAt = a.Credentials.ExpiresAt
 		}
-		_, e = tx.ExecContext(ctx, `INSERT INTO social_accounts(id,user_id,provider,remote_id,name,username,credentials,scopes,token_expires_at) VALUES(gen_random_uuid(),$1,$2,$3,$4,$5,$6,$7,$8) ON CONFLICT(user_id,provider,remote_id) DO UPDATE SET name=excluded.name,username=excluded.username,credentials=excluded.credentials,scopes=excluded.scopes,token_expires_at=excluded.token_expires_at,status='connected',updated_at=now()`, user, p, a.ID, a.Name, a.Username, encrypted, pq.Array(providerScopes(p)), expiresAt)
+		_, e = tx.ExecContext(ctx, `INSERT INTO social_accounts(id,user_id,provider,remote_id,name,username,avatar_url,credentials,scopes,token_expires_at) VALUES(gen_random_uuid(),$1,$2,$3,$4,$5,$6,$7,$8,$9) ON CONFLICT(user_id,provider,remote_id) DO UPDATE SET name=excluded.name,username=excluded.username,avatar_url=excluded.avatar_url,credentials=excluded.credentials,scopes=excluded.scopes,token_expires_at=excluded.token_expires_at,status='connected',updated_at=now()`, user, p, a.ID, a.Name, a.Username, a.AvatarURL, encrypted, pq.Array(providerScopes(p)), expiresAt)
 		if e != nil {
 			redirect("connectionError", "unavailable")
 			return

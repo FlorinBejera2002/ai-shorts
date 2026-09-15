@@ -11,11 +11,13 @@ import {
   SelectValue
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
+import { apiFetch } from '@/lib/auth'
 
 import type {
   CalendarClipOption,
   CalendarMutationStatus,
   ContentPlatform,
+  PublishingMedia,
   ScheduledPostRecord
 } from '@/lib/content-calendar'
 import type { PublishingAccount } from '@/lib/publishing'
@@ -25,6 +27,7 @@ import {
   CalendarClock,
   Check,
   Film,
+  ImagePlus,
   Loader2,
   Save,
   Trash2,
@@ -65,6 +68,7 @@ type FormState = {
   date: string
   time: string
   clipId: string
+  media: PublishingMedia[]
 }
 
 type FormErrors = Partial<Record<keyof FormState | 'form', string>>
@@ -113,7 +117,8 @@ function initialFormState(
     time: post
       ? localTimeValue(scheduledAt)
       : (initialTime ?? localTimeValue(scheduledAt)),
-    clipId: post?.clip?.id ?? initialClip?.id ?? ''
+    clipId: post?.clip?.id ?? initialClip?.id ?? '',
+    media: post?.media ?? []
   }
 }
 
@@ -144,6 +149,17 @@ function FieldError({ id, message }: { id: string; message?: string }) {
       {message}
     </p>
   )
+}
+
+async function uploadPublishingFile(file: File): Promise<PublishingMedia> {
+  const body = new FormData()
+  body.append('file', file)
+  const response = await apiFetch('/api/publishing/media', {
+    method: 'POST',
+    body
+  })
+  if (!response.ok) throw new Error('upload failed')
+  return response.json() as Promise<PublishingMedia>
 }
 
 export function PostDialog({
@@ -197,9 +213,41 @@ export function PostDialog({
   const [errors, setErrors] = useState<FormErrors>({})
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [uploading, setUploading] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(mode === 'delete')
   const [deletePlatforms, setDeletePlatforms] = useState<ContentPlatform[]>([])
-  const busy = saving || deleting
+  const busy = saving || deleting || uploading
+
+  async function uploadMedia(files: FileList | null) {
+    if (!files?.length) return
+    const selected = [...files]
+    const images = selected.filter((file) => file.type.startsWith('image/'))
+    const videos = selected.filter((file) => file.type.startsWith('video/'))
+    if (
+      (images.length && videos.length) ||
+      videos.length > 1 ||
+      images.length > 10
+    ) {
+      setErrors((current) => ({
+        ...current,
+        media: t('validation.mediaInvalid')
+      }))
+      return
+    }
+    setUploading(true)
+    try {
+      const uploaded = await Promise.all(selected.map(uploadPublishingFile))
+      setField('media', uploaded)
+      setField('clipId', '')
+    } catch {
+      setErrors((current) => ({
+        ...current,
+        media: t('validation.mediaUploadFailed')
+      }))
+    } finally {
+      setUploading(false)
+    }
+  }
   const publishedProviders = useMemo(
     () => [
       ...new Set(
@@ -385,7 +433,7 @@ export function PostDialog({
       if (form.status !== 'draft' && form.accountIds.length === 0) {
         nextErrors.accountIds = t('validation.accountRequired')
       }
-      if (form.status !== 'draft' && !form.clipId) {
+      if (form.status !== 'draft' && !form.clipId && form.media.length === 0) {
         nextErrors.clipId = t('validation.clipRequired')
       }
     }
@@ -420,7 +468,8 @@ export function PostDialog({
           form.status === 'scheduled'
             ? scheduledAt.toISOString()
             : new Date().toISOString(),
-        clipId: form.clipId || null
+        clipId: form.clipId || null,
+        media: form.media
       }
     }
   }
@@ -798,6 +847,81 @@ export function PostDialog({
                           message={errors.platforms ?? errors.accountIds}
                         />
                       </fieldset>
+
+                      <div className="pt-1">
+                        <Label
+                          htmlFor={`${titleId}-media`}
+                          className="text-xs font-semibold text-foreground"
+                        >
+                          {t('form.mediaLabel')}
+                        </Label>
+                        <input
+                          id={`${titleId}-media`}
+                          type="file"
+                          accept="image/jpeg,image/png,image/webp,video/*"
+                          multiple={true}
+                          className="sr-only"
+                          disabled={busy}
+                          onChange={(event) =>
+                            void uploadMedia(event.target.files)
+                          }
+                        />
+                        <label
+                          htmlFor={`${titleId}-media`}
+                          className="mt-2 flex min-h-20 cursor-pointer items-center gap-3 rounded-md border border-dashed bg-muted/25 px-4 py-3 transition-colors hover:bg-muted"
+                        >
+                          {uploading ? (
+                            <Loader2 className="h-5 w-5 animate-spin" />
+                          ) : (
+                            <ImagePlus className="h-5 w-5" />
+                          )}
+                          <span>
+                            <span className="block text-xs font-semibold">
+                              {uploading
+                                ? t('form.mediaUploading')
+                                : t('form.mediaChoose')}
+                            </span>
+                            <span className="mt-1 block text-[11px] text-muted-foreground">
+                              {t('form.mediaHint')}
+                            </span>
+                          </span>
+                        </label>
+                        {form.media.length > 0 && (
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            {form.media.map((item, index) => (
+                              <span
+                                key={item.reference}
+                                className="inline-flex max-w-full items-center gap-2 rounded-sm bg-muted px-2.5 py-1.5 text-xs"
+                              >
+                                <span className="truncate">
+                                  {index + 1}. {item.name}
+                                </span>
+                                <button
+                                  type="button"
+                                  aria-label={t('form.removeMedia', {
+                                    name: item.name
+                                  })}
+                                  onClick={() =>
+                                    setField(
+                                      'media',
+                                      form.media.filter(
+                                        (entry) =>
+                                          entry.reference !== item.reference
+                                      )
+                                    )
+                                  }
+                                >
+                                  <X className="h-3.5 w-3.5" />
+                                </button>
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                        <FieldError
+                          id={`${titleId}-media-error`}
+                          message={errors.media}
+                        />
+                      </div>
 
                       <div className="grid gap-4 pt-1 sm:grid-cols-2">
                         <div>

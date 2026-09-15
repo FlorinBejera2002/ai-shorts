@@ -198,6 +198,7 @@ model ScheduledPost {
   scheduledAt DateTime @map("scheduled_at") @db.Timestamptz(6)
   createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  media       Json     @default("[]")
 
   user User  @relation(fields: [userId], references: [id], onDelete: Cascade)
   clip Clip? @relation(fields: [clipId, clipOwnerId], references: [id, userId], onDelete: SetNull, map: "fk_scheduled_posts_owned_clip")
