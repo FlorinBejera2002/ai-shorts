@@ -7,18 +7,23 @@ import { useApiResource } from '@/hooks/use-api-resource'
 import { apiFetch } from '@/lib/auth'
 import type {
   CalendarClipOption,
+  ContentPlatform,
   ScheduledPostRecord
 } from '@/lib/content-calendar'
 import type { PublishingData } from '@/lib/publishing'
 import { AlertCircle, RefreshCw } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
+import { useSearchParams } from 'next/navigation'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { CalendarConnections } from './calendar-connections'
-import { CalendarListView } from './calendar-list-view'
 import { CalendarMetrics } from './calendar-metrics'
 import { CalendarMonthView } from './calendar-month-view'
+import { CalendarPreviewList } from './calendar-preview-list'
 import { CalendarTimelineView } from './calendar-timeline-view'
-import { CalendarToolbar } from './calendar-toolbar'
+import {
+  CalendarToolbar,
+  type PublishingWorkspaceMode
+} from './calendar-toolbar'
 import {
   CalendarRequestError,
   type CalendarViewMode,
@@ -30,6 +35,7 @@ import {
   isInRange,
   localDateKey,
   movePostToLocalDate,
+  normalizeScheduledPost,
   safeTimeZone,
   startOfLocalDay,
   startOfLocalMonth
@@ -46,8 +52,11 @@ type CalendarResponse = {
 type PostResponse = { post: ScheduledPostRecord }
 type LoadErrorKey = 'auth' | 'rateLimit' | 'load'
 type DialogState =
-  | { mode: 'create'; initialTime?: string }
-  | { mode: 'edit' | 'reschedule' | 'status'; post: ScheduledPostRecord }
+  | { mode: 'create'; initialTime?: string; initialClipId?: string }
+  | {
+      mode: 'edit' | 'reschedule' | 'status' | 'delete'
+      post: ScheduledPostRecord
+    }
   | null
 
 function isObject(value: unknown): value is Record<string, unknown> {
@@ -126,10 +135,14 @@ export function ContentCalendar() {
   const t = useTranslations('contentCalendar')
   const locale = useLocale()
   const toast = useToast()
+  const searchParams = useSearchParams()
+  const requestedClipId = searchParams.get('clip')
   const [ready, setReady] = useState(false)
   const [viewDate, setViewDate] = useState(() => new Date(0))
   const [selectedDate, setSelectedDate] = useState(() => new Date(0))
   const [timeZone, setTimeZone] = useState('UTC')
+  const [workspaceMode, setWorkspaceMode] =
+    useState<PublishingWorkspaceMode>('preview')
   const [view, setView] = useState<CalendarViewMode>('month')
   const [posts, setPosts] = useState<ScheduledPostRecord[]>([])
   const [clips, setClips] = useState<CalendarClipOption[]>([])
@@ -140,6 +153,7 @@ export function ContentCalendar() {
   const [refreshToken, setRefreshToken] = useState(0)
   const [dialog, setDialog] = useState<DialogState>(null)
   const mutationRevisionRef = useRef(0)
+  const openedRequestedClipRef = useRef(false)
   const {
     data: publishingData,
     error: publishingError,
@@ -185,7 +199,7 @@ export function ContentCalendar() {
         }
         setClips(data.clips)
         if (mutationRevisionAtStart === mutationRevisionRef.current) {
-          setPosts(data.posts)
+          setPosts(data.posts.map(normalizeScheduledPost))
           setTruncatedLimit(
             data.meta?.truncated ? (data.meta.limit ?? 500) : null
           )
@@ -211,6 +225,19 @@ export function ContentCalendar() {
     void loadCalendar()
     return () => controller.abort()
   }, [rangeEnd, rangeStart, ready, refreshToken])
+
+  useEffect(() => {
+    if (
+      openedRequestedClipRef.current ||
+      !hasLoaded ||
+      !requestedClipId ||
+      !clips.some((clip) => clip.id === requestedClipId)
+    ) {
+      return
+    }
+    openedRequestedClipRef.current = true
+    setDialog({ mode: 'create', initialClipId: requestedClipId })
+  }, [clips, hasLoaded, requestedClipId])
 
   useEffect(() => {
     const now = Date.now()
@@ -242,8 +269,6 @@ export function ContentCalendar() {
         (account) =>
           account.status === 'connected' &&
           account.tokenExpired !== true &&
-          (account.provider === 'instagram' ||
-            account.provider === 'facebook') &&
           publishingData?.providers.some(
             (provider) =>
               provider.id === account.provider && provider.supportsPublishing
@@ -298,10 +323,13 @@ export function ContentCalendar() {
   }
 
   function mergePost(post: ScheduledPostRecord) {
+    const normalizedPost = normalizeScheduledPost(post)
     setPosts((current) => {
-      const withoutPost = current.filter((item) => item.id !== post.id)
-      return isInRange(post.scheduledAt, range)
-        ? [...withoutPost, post]
+      const withoutPost = current.filter(
+        (item) => item.id !== normalizedPost.id
+      )
+      return isInRange(normalizedPost.scheduledAt, range)
+        ? [...withoutPost, normalizedPost]
         : withoutPost
     })
   }
@@ -380,22 +408,21 @@ export function ContentCalendar() {
     focusDate(new Date(post.scheduledAt))
   }
 
-  async function deleteDialogPost() {
+  async function deleteDialogPost(platforms: ContentPlatform[]) {
     if (!dialog || dialog.mode === 'create') return
-    await requestJson<{ deleted: boolean }>(`/api/calendar/${dialog.post.id}`, {
-      method: 'DELETE'
-    })
+    await requestJson<{ deleted: boolean; deletedPlatforms: string[] }>(
+      `/api/calendar/${dialog.post.id}`,
+      {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ platforms })
+      }
+    )
     mutationRevisionRef.current += 1
     setPosts((current) => current.filter((post) => post.id !== dialog.post.id))
     setRefreshToken((current) => current + 1)
     toast.add('success', t('toasts.deleted'))
   }
-
-  const listDays = range.days.filter(
-    (day) =>
-      day.getMonth() === viewDate.getMonth() &&
-      day.getFullYear() === viewDate.getFullYear()
-  )
 
   return (
     <div className={`${styles.workspace} dashboard-workspace`}>
@@ -453,15 +480,30 @@ export function ContentCalendar() {
             >
               <CalendarToolbar
                 title={title}
+                workspaceMode={workspaceMode}
                 view={view}
                 loading={loading && hasLoaded}
                 onPrevious={() => navigatePeriod(-1)}
                 onNext={() => navigatePeriod(1)}
                 onToday={() => focusDate(new Date())}
+                onNewPost={() => openCreate()}
+                onWorkspaceModeChange={(mode) => {
+                  setWorkspaceMode(mode)
+                  if (mode === 'preview') setView('month')
+                }}
                 onViewChange={setView}
               />
               <div className={styles.gridWrap}>
-                {view === 'month' && (
+                {workspaceMode === 'preview' && (
+                  <CalendarPreviewList
+                    posts={posts}
+                    accounts={publishingAccounts}
+                    locale={locale}
+                    onCreatePost={() => openCreate()}
+                    onOpenPost={openEdit}
+                  />
+                )}
+                {workspaceMode === 'calendar' && view === 'month' && (
                   <CalendarMonthView
                     month={viewDate}
                     range={range}
@@ -476,7 +518,7 @@ export function ContentCalendar() {
                     onMovePost={(postId, date) => void movePost(postId, date)}
                   />
                 )}
-                {view === 'week' && (
+                {workspaceMode === 'calendar' && view === 'week' && (
                   <CalendarTimelineView
                     days={weekRange.days}
                     posts={posts}
@@ -491,7 +533,7 @@ export function ContentCalendar() {
                     }
                   />
                 )}
-                {view === 'day' && (
+                {workspaceMode === 'calendar' && view === 'day' && (
                   <CalendarTimelineView
                     days={[selectedDate]}
                     posts={posts}
@@ -506,15 +548,6 @@ export function ContentCalendar() {
                     }
                   />
                 )}
-                {view === 'list' && (
-                  <CalendarListView
-                    days={listDays}
-                    posts={posts}
-                    locale={locale}
-                    onCreateDate={(date) => openCreate(date)}
-                    onEditPost={openEdit}
-                  />
-                )}
               </div>
             </Card>
           </div>
@@ -525,6 +558,7 @@ export function ContentCalendar() {
         <PublishingStatusDialog
           post={posts.find((post) => post.id === dialog.post.id) ?? dialog.post}
           onClose={() => setDialog(null)}
+          onDelete={() => setDialog({ mode: 'delete', post: dialog.post })}
         />
       )}
 
@@ -532,13 +566,16 @@ export function ContentCalendar() {
         <PostDialog
           key={`${dialog.mode}-${
             dialog.mode === 'create'
-              ? `${selectedKey}-${dialog.initialTime ?? ''}`
+              ? `${selectedKey}-${dialog.initialTime ?? ''}-${dialog.initialClipId ?? ''}`
               : dialog.post.id
           }`}
           mode={dialog.mode}
           selectedDate={selectedDate}
           initialTime={
             dialog.mode === 'create' ? dialog.initialTime : undefined
+          }
+          initialClipId={
+            dialog.mode === 'create' ? dialog.initialClipId : undefined
           }
           post={dialog.mode === 'create' ? undefined : dialog.post}
           clips={clips}
@@ -547,7 +584,11 @@ export function ContentCalendar() {
           timeZone={timeZone}
           onClose={() => setDialog(null)}
           onSave={saveDialogPost}
-          onDelete={dialog.mode === 'edit' ? deleteDialogPost : undefined}
+          onDelete={
+            dialog.mode === 'edit' || dialog.mode === 'delete'
+              ? deleteDialogPost
+              : undefined
+          }
         />
       )}
     </div>

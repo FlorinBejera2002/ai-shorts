@@ -5,16 +5,15 @@ import '@/components/clips/media-workbench.css'
 import { apiFetch } from '@/lib/auth'
 
 import { Button } from '@/components/ui/button'
-import { Card } from '@/components/ui/card'
 
 import {
   AlertTriangle,
-  ArrowLeft,
   Clock,
   Film,
   Loader2,
   Redo2,
-  Scissors,
+  Save,
+  Sparkles,
   SplitSquareHorizontal,
   Undo2
 } from 'lucide-react'
@@ -36,7 +35,6 @@ import {
   SegmentPlayer,
   type SegmentPlayerHandle
 } from '@/components/editor/segment-player'
-import { ShortcutsHelp } from '@/components/editor/shortcuts-help'
 import { MAX_ZOOM, MIN_ZOOM, Timeline } from '@/components/editor/timeline'
 import { useEditorShortcuts } from '@/components/editor/use-editor-shortcuts'
 import {
@@ -46,7 +44,7 @@ import {
   useEditorState
 } from '@/components/editor/use-editor-state'
 import { useToast } from '@/components/ui/toast'
-import { Link, useRouter } from '@/i18n/navigation'
+import { Link } from '@/i18n/navigation'
 import { extractApiError } from '@/lib/api-error'
 
 interface ClipData {
@@ -64,7 +62,6 @@ export default function ClipEditorPage() {
   const t = useTranslations('editor')
   const tAssistant = useTranslations('assistant')
   const toast = useToast()
-  const router = useRouter()
 
   const [clip, setClip] = useState<ClipData | null>(null)
   const [loading, setLoading] = useState(true)
@@ -269,24 +266,14 @@ export default function ClipEditorPage() {
     }
   }, [params.id, state.segments, dispatch, toast, t])
 
-  const handleBack = useCallback(
-    (e: React.MouseEvent) => {
-      if (state.isDirty && !window.confirm(t('unsavedChanges'))) {
-        e.preventDefault()
-        return
-      }
-      e.preventDefault()
-      router.push(`/dashboard/clips/${params.id}`)
-    },
-    [state.isDirty, t, router, params.id]
-  )
-
   if (loading) {
     return (
-      <div className="animate-fade-in space-y-4">
-        <div className="h-9 w-64 animate-pulse rounded-lg bg-muted" />
-        <div className="aspect-video max-h-[420px] w-full animate-pulse rounded-xl bg-muted" />
-        <div className="h-28 w-full animate-pulse rounded-xl bg-muted" />
+      <div className="animate-fade-in space-y-5">
+        <div className="h-28 animate-pulse rounded-md bg-foreground/10" />
+        <div className="grid gap-5 xl:grid-cols-[320px_minmax(0,1fr)]">
+          <div className="h-72 animate-pulse rounded-md border border-border" />
+          <div className="aspect-video animate-pulse rounded-md bg-foreground/10" />
+        </div>
       </div>
     )
   }
@@ -310,66 +297,38 @@ export default function ClipEditorPage() {
   const tooShort = totalDuration > 0 && totalDuration < 3
 
   return (
-    <div className="media-workbench media-editor-surface dashboard-workspace dashboard-workspace--compact animate-fade-in">
-      {/* Header toolbar */}
-      <Card className="media-editor-toolbar block gap-0 py-0 flex flex-col gap-3 p-3 sm:flex-row sm:items-center sm:justify-between">
+    <div className="clip-cutter-page animate-fade-in">
+      <header className="clip-cutter-hero">
         <div className="flex min-w-0 items-center gap-3">
-          <Link
-            href={`/dashboard/clips/${params.id}`}
-            onClick={handleBack}
-            className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-            aria-label={t('back')}
-          >
-            <ArrowLeft className="h-5 w-5" strokeWidth={1.75} />
-          </Link>
-          <div className="min-w-0">
-            <h1 className="truncate text-lg font-semibold">
+          <div className="min-w-0 py-1">
+            <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-white/50">
               {t('title')}
-              <span className="ml-2 text-sm font-normal text-muted-foreground">
-                {clip.title}
-              </span>
+            </p>
+            <h1 className="text-lg font-semibold text-white sm:text-xl">
+              {clip.title}
             </h1>
+            <div className="mt-3 flex flex-wrap items-center gap-3">
+              <Button
+                asChild={true}
+                variant="ghost"
+                className="rounded-md border border-white/20 bg-white/10 text-white hover:bg-white/15"
+              >
+                <Link
+                  data-studio-trigger="true"
+                  href={`/dashboard/studio?clip=${encodeURIComponent(clip.id)}`}
+                >
+                  <Sparkles className="h-4 w-4" strokeWidth={1.75} />
+                  {t('openStudio')}
+                </Link>
+              </Button>
+              <p className="max-w-md text-xs leading-relaxed text-white/55">
+                {t('openStudioDescription')}
+              </p>
+            </div>
           </div>
-          {state.isDirty && (
-            <span className="flex shrink-0 items-center gap-1.5 rounded-md bg-warning/10 px-2 py-1 text-[11px] font-medium text-warning">
-              <span className="h-1.5 w-1.5 rounded-full bg-warning" />
-              {t('unsaved')}
-            </span>
-          )}
         </div>
 
-        <div className="flex flex-wrap items-center gap-1.5">
-          <Button
-            variant="ghost"
-            type="button"
-            onClick={() => dispatch({ type: 'UNDO' })}
-            disabled={!canUndo}
-            title={t('undo')}
-            className="h-auto whitespace-normal rounded-md border border-border bg-card p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-30"
-          >
-            <Undo2 className="h-4 w-4" strokeWidth={1.75} />
-          </Button>
-          <Button
-            variant="ghost"
-            type="button"
-            onClick={() => dispatch({ type: 'REDO' })}
-            disabled={!canRedo}
-            title={t('redo')}
-            className="h-auto whitespace-normal rounded-md border border-border bg-card p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-30"
-          >
-            <Redo2 className="h-4 w-4" strokeWidth={1.75} />
-          </Button>
-          <Button
-            variant="ghost"
-            type="button"
-            onClick={handleSplit}
-            disabled={!canSplit}
-            title={t('splitAtPlayhead')}
-            className="h-auto whitespace-normal rounded-md border border-border bg-card p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-30"
-          >
-            <SplitSquareHorizontal className="h-4 w-4" strokeWidth={1.75} />
-          </Button>
-          <ShortcutsHelp />
+        <div className="flex shrink-0 flex-nowrap items-center gap-1.5">
           <Button
             type="button"
             data-export-trigger="true"
@@ -377,108 +336,155 @@ export default function ClipEditorPage() {
               setExportPhase('confirm')
               setExportOpen(true)
             }}
-            disabled={!canExport}
+            disabled={!canExport || !state.isDirty}
             variant="default"
-            className="ml-1.5 rounded-lg disabled:opacity-50"
+            className="ml-1.5 rounded-md bg-white text-black hover:bg-white/90 disabled:opacity-50"
           >
-            <Scissors className="h-4 w-4" strokeWidth={1.75} />
-            {t('export')}
+            <Save className="h-4 w-4" strokeWidth={1.75} />
+            {t('saveChanges')}
           </Button>
         </div>
-      </Card>
 
-      {/* Player + side panel */}
-      <div className="grid min-w-0 gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
-        <SegmentPlayer
-          ref={playerRef}
-          sourceUrl={clip.source_video_url}
-          segments={state.segments}
-          onTimeUpdate={setCurrentTime}
-          onPlayingChange={setIsPlaying}
-          onActiveSegmentChange={setActiveIndex}
-          onDurationChange={setVideoDuration}
-        />
-        <div className="space-y-4">
-          <AssistantChat
-            context="editor"
-            clipId={params.id}
-            getState={() => ({
-              segments: state.segments.map((s) => ({
-                start: s.start,
-                end: s.end
-              })),
-              video_duration: videoDuration,
-              current_time: currentTime
-            })}
-            onActions={handleAssistantActions}
-            suggestions={[
-              tAssistant('suggestEditor1'),
-              tAssistant('suggestEditor2'),
-              tAssistant('suggestEditor3')
-            ]}
-          />
-          <SegmentInspector
-            segment={
-              state.selectedIndex !== null
-                ? (state.segments[state.selectedIndex] ?? null)
-                : null
-            }
-            index={state.selectedIndex}
-            currentTime={currentTime}
-            duration={videoDuration}
-            canDelete={state.segments.length > 1}
-            onSetTimes={(index, start, end) =>
-              dispatch({ type: 'SET_TIMES', index, start, end })
-            }
-            onDelete={(index) => dispatch({ type: 'DELETE_SEGMENT', index })}
-          />
-          <SegmentList
+        {state.isDirty && (
+          <span className="clip-cutter-unsaved-badge">
+            <span className="h-1.5 w-1.5 rounded-full bg-warning" />
+            {t('unsaved')}
+          </span>
+        )}
+      </header>
+
+      <div className="clip-cutter-workspace">
+        <aside className="clip-cutter-sidebar">
+          <div className="clip-cutter-assistant">
+            <AssistantChat
+              context="editor"
+              clipId={params.id}
+              getState={() => ({
+                segments: state.segments.map((s) => ({
+                  start: s.start,
+                  end: s.end
+                })),
+                video_duration: videoDuration,
+                current_time: currentTime
+              })}
+              onActions={handleAssistantActions}
+              suggestions={[
+                tAssistant('suggestEditor1'),
+                tAssistant('suggestEditor2'),
+                tAssistant('suggestEditor3')
+              ]}
+            />
+          </div>
+          <div className="clip-cutter-segment-tools">
+            <SegmentInspector
+              segment={
+                state.selectedIndex !== null
+                  ? (state.segments[state.selectedIndex] ?? null)
+                  : null
+              }
+              index={state.selectedIndex}
+              duration={videoDuration}
+              onSetTimes={(index, start, end) =>
+                dispatch({ type: 'SET_TIMES', index, start, end })
+              }
+            />
+            <SegmentList
+              segments={state.segments}
+              selectedIndex={state.selectedIndex}
+              activeIndex={activeIndex}
+              onSelect={(i) => dispatch({ type: 'SELECT_SEGMENT', index: i })}
+              onSeek={handleSeek}
+              onDelete={(i) => dispatch({ type: 'DELETE_SEGMENT', index: i })}
+              onReorder={(i, dir) =>
+                dispatch({ type: 'REORDER_SEGMENT', index: i, direction: dir })
+              }
+              onAdd={handleAddSegment}
+              totalDuration={totalDuration}
+              canAddMore={state.segments.length < MAX_SEGMENTS}
+            />
+          </div>
+        </aside>
+
+        <main className="clip-cutter-preview">
+          <SegmentPlayer
+            ref={playerRef}
+            sourceUrl={clip.source_video_url}
             segments={state.segments}
-            selectedIndex={state.selectedIndex}
-            activeIndex={activeIndex}
-            onSelect={(i) => dispatch({ type: 'SELECT_SEGMENT', index: i })}
-            onSeek={handleSeek}
-            onDelete={(i) => dispatch({ type: 'DELETE_SEGMENT', index: i })}
-            onReorder={(i, dir) =>
-              dispatch({ type: 'REORDER_SEGMENT', index: i, direction: dir })
-            }
-            onAdd={handleAddSegment}
-            totalDuration={totalDuration}
-            canAddMore={state.segments.length < MAX_SEGMENTS}
+            onTimeUpdate={setCurrentTime}
+            onPlayingChange={setIsPlaying}
+            onActiveSegmentChange={setActiveIndex}
+            onDurationChange={setVideoDuration}
           />
-        </div>
+          <section className="clip-cutter-timeline">
+            <Timeline
+              actions={
+                <div className="clip-cutter-timeline-actions">
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    type="button"
+                    onClick={() => dispatch({ type: 'UNDO' })}
+                    disabled={!canUndo}
+                    aria-label={t('undo')}
+                  >
+                    <Undo2 className="h-4 w-4" strokeWidth={1.75} />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    type="button"
+                    onClick={() => dispatch({ type: 'REDO' })}
+                    disabled={!canRedo}
+                    aria-label={t('redo')}
+                  >
+                    <Redo2 className="h-4 w-4" strokeWidth={1.75} />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    type="button"
+                    onClick={handleSplit}
+                    disabled={!canSplit}
+                    aria-label={t('splitAtPlayhead')}
+                  >
+                    <SplitSquareHorizontal
+                      className="h-4 w-4"
+                      strokeWidth={1.75}
+                    />
+                  </Button>
+                </div>
+              }
+              duration={videoDuration}
+              sourceUrl={clip.source_video_url}
+              segments={state.segments}
+              selectedIndex={state.selectedIndex}
+              activeIndex={activeIndex}
+              currentTime={currentTime}
+              isPlaying={isPlaying}
+              zoom={zoom}
+              onZoomChange={setZoom}
+              onBeginDrag={() => dispatch({ type: 'BEGIN_DRAG' })}
+              onResize={(i, start, end) =>
+                dispatch({ type: 'RESIZE_SEGMENT', index: i, start, end })
+              }
+              onMove={(i, start, end) =>
+                dispatch({ type: 'MOVE_SEGMENT', index: i, start, end })
+              }
+              onSelect={(i) => dispatch({ type: 'SELECT_SEGMENT', index: i })}
+              onAddAt={handleAddAt}
+              onSeek={handleSeek}
+            />
+          </section>
+        </main>
       </div>
 
-      {/* Timeline */}
-      <Timeline
-        duration={videoDuration}
-        sourceUrl={clip.source_video_url}
-        segments={state.segments}
-        selectedIndex={state.selectedIndex}
-        activeIndex={activeIndex}
-        currentTime={currentTime}
-        isPlaying={isPlaying}
-        zoom={zoom}
-        onZoomChange={setZoom}
-        onBeginDrag={() => dispatch({ type: 'BEGIN_DRAG' })}
-        onResize={(i, start, end) =>
-          dispatch({ type: 'RESIZE_SEGMENT', index: i, start, end })
-        }
-        onMove={(i, start, end) =>
-          dispatch({ type: 'MOVE_SEGMENT', index: i, start, end })
-        }
-        onSelect={(i) => dispatch({ type: 'SELECT_SEGMENT', index: i })}
-        onAddAt={handleAddAt}
-        onSeek={handleSeek}
-      />
-
       {/* Status bar */}
-      <div className="flex flex-wrap items-center gap-2 text-xs">
-        <span className="flex items-center gap-1.5 rounded-md bg-muted px-2 py-1 tabular-nums text-muted-foreground">
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-muted-foreground">
+        <span className="flex items-center gap-1.5 tabular-nums">
           <Clock className="h-3 w-3" strokeWidth={1.75} />
           {t('totalDuration', { duration: `${totalDuration.toFixed(1)}s` })}
         </span>
-        <span className="rounded-md bg-muted px-2 py-1 tabular-nums text-muted-foreground">
+        <span className="tabular-nums">
           {t('segments', { count: state.segments.length })} / {MAX_SEGMENTS}
         </span>
         {overlap && (

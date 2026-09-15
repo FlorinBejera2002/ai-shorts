@@ -31,7 +31,7 @@ class ScheduledPost(Base):
             name="ck_scheduled_posts_platforms_not_empty",
         ),
         CheckConstraint(
-            "platforms <@ ARRAY['tiktok', 'instagram', 'youtube', 'linkedin']::varchar[]",
+            "platforms <@ ARRAY['tiktok', 'instagram', 'facebook', 'youtube', 'linkedin', 'twitter']::varchar[]",
             name="ck_scheduled_posts_platforms_supported",
         ),
         CheckConstraint(

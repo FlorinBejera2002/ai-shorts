@@ -10,7 +10,8 @@ export const CALENDAR_PLATFORMS: readonly ContentPlatform[] = [
   'instagram',
   'facebook',
   'youtube',
-  'linkedin'
+  'linkedin',
+  'twitter'
 ]
 
 export const CALENDAR_STATUSES: readonly ContentPostStatus[] = [
@@ -50,6 +51,19 @@ export type PostFormPayload = {
 export type CalendarIssue = {
   field: string
   message: string
+}
+
+export function normalizeScheduledPost(
+  post: ScheduledPostRecord
+): ScheduledPostRecord {
+  return {
+    ...post,
+    accountIds: Array.isArray(post.accountIds)
+      ? post.accountIds.filter(
+          (accountId): accountId is string => typeof accountId === 'string'
+        )
+      : []
+  }
 }
 
 export class CalendarRequestError extends Error {

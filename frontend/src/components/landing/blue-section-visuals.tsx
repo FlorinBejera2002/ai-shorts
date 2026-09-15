@@ -138,24 +138,26 @@ export function ExportWorkflowVisual() {
         </span>
         <span className="absolute inset-x-2 bottom-3 h-1 rounded-full bg-[#5139ef]" />
       </motion.div>
-      <div className="absolute bottom-2 right-1 top-1 flex w-[58%] flex-col justify-center gap-2">
-        {['TikTok', 'Reels', 'Shorts'].map((platform, index) => (
-          <motion.div
-            key={platform}
-            initial={{ opacity: 0, x: 8 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.35 + index * 0.12, duration: 0.5, ease }}
-            className="flex items-center gap-2 rounded-lg border border-white/[0.07] bg-[#121212] px-2.5 py-2"
-          >
-            <span className="grid h-5 w-5 place-items-center rounded-md bg-[#5139ef]/15 text-[#5139ef]">
-              <Check className="h-3 w-3" strokeWidth={2.5} />
-            </span>
-            <span className="text-[9px] font-semibold text-white/55">
-              {platform}
-            </span>
-            <span className="ml-auto h-1.5 w-1.5 rounded-full bg-[#5139ef]" />
-          </motion.div>
-        ))}
+      <div className="absolute bottom-2 right-1 top-1 grid w-[68%] grid-cols-2 content-center gap-1.5">
+        {['TikTok', 'Instagram', 'Facebook', 'YouTube', 'LinkedIn', 'X'].map(
+          (platform, index) => (
+            <motion.div
+              key={platform}
+              initial={{ opacity: 0, x: 8 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.35 + index * 0.12, duration: 0.5, ease }}
+              className="flex items-center gap-1.5 rounded-md border border-white/[0.07] bg-[#121212] px-2 py-1.5"
+            >
+              <span className="grid h-5 w-5 place-items-center rounded-md bg-[#5139ef]/15 text-[#5139ef]">
+                <Check className="h-3 w-3" strokeWidth={2.5} />
+              </span>
+              <span className="text-[9px] font-semibold text-white/55">
+                {platform}
+              </span>
+              <span className="ml-auto h-1.5 w-1.5 rounded-full bg-[#5139ef]" />
+            </motion.div>
+          )
+        )}
       </div>
     </PanelFrame>
   )

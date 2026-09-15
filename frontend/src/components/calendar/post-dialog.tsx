@@ -11,7 +11,6 @@ import {
   SelectValue
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
-import { Link } from '@/i18n/navigation'
 
 import type {
   CalendarClipOption,
@@ -25,7 +24,6 @@ import {
   AlertTriangle,
   CalendarClock,
   Check,
-  ExternalLink,
   Film,
   Loader2,
   Save,
@@ -55,7 +53,7 @@ import styles from './calendar-workspace.module.css'
 import { PlatformOptionIcon } from './platform-mark'
 import { SchedulePicker } from './schedule-picker'
 
-type DialogMode = 'create' | 'edit' | 'reschedule'
+type DialogMode = 'create' | 'edit' | 'reschedule' | 'delete'
 
 type FormState = {
   title: string
@@ -77,8 +75,10 @@ const inputClassName =
 function initialFormState(
   selectedDate: Date,
   publishingAccounts: PublishingAccount[],
+  clips: CalendarClipOption[],
   post?: ScheduledPostRecord,
-  initialTime?: string
+  initialTime?: string,
+  initialClipId?: string
 ): FormState {
   const scheduledAt = post
     ? new Date(post.scheduledAt)
@@ -95,10 +95,16 @@ function initialFormState(
   const selectedProviders = publishingAccounts
     .filter((account) => selectedAccountIds.has(account.id))
     .map((account) => account.provider)
+  const initialClip =
+    !post && initialClipId
+      ? clips.find((clip) => clip.id === initialClipId)
+      : undefined
 
   return {
-    title: post?.title ?? '',
-    caption: post?.caption ?? '',
+    title: post?.title ?? initialClip?.title ?? '',
+    caption:
+      post?.caption ??
+      (initialClip ? captionFromClip(initialClip, selectedProviders) : ''),
     notes: post?.notes ?? '',
     platforms: [...new Set(selectedProviders)],
     accountIds,
@@ -107,7 +113,7 @@ function initialFormState(
     time: post
       ? localTimeValue(scheduledAt)
       : (initialTime ?? localTimeValue(scheduledAt)),
-    clipId: post?.clip?.id ?? ''
+    clipId: post?.clip?.id ?? initialClip?.id ?? ''
   }
 }
 
@@ -149,6 +155,7 @@ export function PostDialog({
   platformConnectionsLoaded,
   timeZone,
   initialTime,
+  initialClipId,
   onClose,
   onSave,
   onDelete
@@ -161,9 +168,10 @@ export function PostDialog({
   platformConnectionsLoaded: boolean
   timeZone: string
   initialTime?: string
+  initialClipId?: string
   onClose: () => void
   onSave: (payload: PostFormPayload) => Promise<void>
-  onDelete?: () => Promise<void>
+  onDelete?: (platforms: ContentPlatform[]) => Promise<void>
 }) {
   const t = useTranslations('contentCalendar')
   const reduceMotion = useReducedMotion()
@@ -177,13 +185,33 @@ export function PostDialog({
   const busyRef = useRef(false)
   const [mounted, setMounted] = useState(false)
   const [form, setForm] = useState<FormState>(() =>
-    initialFormState(selectedDate, publishingAccounts, post, initialTime)
+    initialFormState(
+      selectedDate,
+      publishingAccounts,
+      clips,
+      post,
+      initialTime,
+      initialClipId
+    )
   )
   const [errors, setErrors] = useState<FormErrors>({})
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
-  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(mode === 'delete')
+  const [deletePlatforms, setDeletePlatforms] = useState<ContentPlatform[]>([])
   const busy = saving || deleting
+  const publishedProviders = useMemo(
+    () => [
+      ...new Set(
+        (post?.publishingDestinations ?? [])
+          .filter((destination) => destination.status === 'published')
+          .map((destination) => destination.provider)
+      )
+    ],
+    [post?.publishingDestinations]
+  )
+  const canDeleteFromFacebook = publishedProviders.includes('facebook')
+  const requiresManualInstagramDelete = publishedProviders.includes('instagram')
   const selectedAccountIds = useMemo(
     () => new Set(form.accountIds),
     [form.accountIds]
@@ -456,7 +484,7 @@ export function PostDialog({
     setDeleting(true)
     setErrors({})
     try {
-      await onDelete()
+      await onDelete(deletePlatforms)
       onClose()
     } catch (error) {
       if (error instanceof CalendarRequestError && error.status === 401) {
@@ -474,7 +502,7 @@ export function PostDialog({
       } else {
         setErrors({ form: t('errors.delete') })
       }
-      setConfirmDelete(false)
+      if (mode !== 'delete') setConfirmDelete(false)
     } finally {
       setDeleting(false)
     }
@@ -515,9 +543,9 @@ export function PostDialog({
             animate={{ opacity: 1, y: 0, scale: 1 }}
             transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
             onMouseDown={(event) => event.stopPropagation()}
-            className={`${styles.dialog} relative z-10 flex max-h-[min(92dvh,54rem)] w-full max-w-2xl flex-col overflow-hidden rounded-t-md border border-border bg-card text-card-foreground shadow-2xl sm:rounded-md`}
+            className={`${styles.dialog} relative z-10 flex max-h-[min(94dvh,54rem)] w-full max-w-2xl flex-col overflow-hidden rounded-t-md border border-border bg-card text-card-foreground shadow-2xl sm:rounded-md`}
           >
-            <div className="relative px-5 pb-4 pt-5 sm:px-6 sm:pt-6">
+            <div className="relative border-b bg-card px-5 py-4 sm:px-6">
               <div className="flex items-start justify-between gap-4">
                 <div className="flex min-w-0 items-center gap-3">
                   <span className="inline-flex size-9 shrink-0 items-center justify-center rounded-md bg-muted text-foreground">
@@ -525,7 +553,7 @@ export function PostDialog({
                   </span>
                   <h2
                     id={titleId}
-                    className="truncate text-xl font-semibold sm:text-2xl"
+                    className="truncate text-xl font-semibold tracking-tight"
                   >
                     {dialogTitle}
                   </h2>
@@ -559,6 +587,67 @@ export function PostDialog({
                     </div>
                   </div>
                 </div>
+                <div className="mt-4 space-y-2">
+                  <div className="rounded-md border bg-muted/35 px-3.5 py-3">
+                    <p className="text-xs font-semibold">
+                      {t('dialog.calendarRemovalTitle')}
+                    </p>
+                    <p className="mt-1 text-[11px] leading-5 text-muted-foreground">
+                      {t('dialog.calendarRemovalDescription')}
+                    </p>
+                  </div>
+                  {canDeleteFromFacebook && (
+                    <button
+                      type="button"
+                      aria-pressed={deletePlatforms.includes('facebook')}
+                      disabled={busy}
+                      onClick={() =>
+                        setDeletePlatforms((current) =>
+                          current.includes('facebook')
+                            ? current.filter(
+                                (platform) => platform !== 'facebook'
+                              )
+                            : [...current, 'facebook']
+                        )
+                      }
+                      className="flex w-full items-center gap-3 rounded-md border px-3.5 py-3 text-left transition-colors hover:bg-muted disabled:opacity-50"
+                    >
+                      <span
+                        className={`inline-flex size-5 shrink-0 items-center justify-center rounded-sm border ${
+                          deletePlatforms.includes('facebook')
+                            ? 'border-foreground bg-foreground text-background'
+                            : 'border-border bg-background'
+                        }`}
+                      >
+                        {deletePlatforms.includes('facebook') && (
+                          <Check className="size-3.5" />
+                        )}
+                      </span>
+                      <PlatformOptionIcon platform="facebook" />
+                      <span className="min-w-0">
+                        <span className="block text-xs font-semibold">
+                          {t('dialog.deleteFromFacebook')}
+                        </span>
+                        <span className="mt-0.5 block text-[11px] text-muted-foreground">
+                          {t('dialog.deleteFromFacebookDescription')}
+                        </span>
+                      </span>
+                    </button>
+                  )}
+                  {requiresManualInstagramDelete && (
+                    <div className="flex items-center gap-3 rounded-md border bg-muted/25 px-3.5 py-3">
+                      <PlatformOptionIcon platform="instagram" />
+                      <span className="min-w-0">
+                        <span className="block text-xs font-semibold">
+                          {t('dialog.instagramManualDelete')}
+                        </span>
+                        <span className="mt-0.5 block text-[11px] leading-5 text-muted-foreground">
+                          {t('dialog.instagramManualDeleteDescription')}
+                        </span>
+                      </span>
+                    </div>
+                  )}
+                </div>
                 {errors.form && (
                   <div
                     role="alert"
@@ -571,7 +660,9 @@ export function PostDialog({
                   <Button
                     type="button"
                     disabled={busy}
-                    onClick={() => setConfirmDelete(false)}
+                    onClick={() =>
+                      mode === 'delete' ? onClose() : setConfirmDelete(false)
+                    }
                     variant="outline"
                     className=""
                   >
@@ -601,7 +692,7 @@ export function PostDialog({
                 onSubmit={handleSubmit}
                 className="flex min-h-0 flex-1 flex-col"
               >
-                <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-4 sm:px-6">
+                <div className="min-h-0 flex-1 space-y-7 overflow-y-auto px-5 py-5 sm:px-6 sm:py-6">
                   {errors.form && (
                     <div
                       role="alert"
@@ -634,7 +725,7 @@ export function PostDialog({
                             setField('title', event.target.value)
                           }
                           placeholder={t('form.titlePlaceholder')}
-                          className={`mt-1.5 ${inputClassName}`}
+                          className={`mt-2 h-11 ${inputClassName}`}
                         />
                         <div className="flex items-start justify-between gap-3">
                           <FieldError
@@ -648,6 +739,7 @@ export function PostDialog({
                       </div>
 
                       <fieldset
+                        className="pt-1"
                         aria-describedby={
                           errors.platforms
                             ? `${titleId}-platforms-error`
@@ -666,10 +758,10 @@ export function PostDialog({
                                 type="button"
                                 aria-pressed={selected}
                                 onClick={() => toggleAccount(account)}
-                                className={`relative flex min-h-11 items-center gap-2 rounded-md border px-3 text-xs font-semibold transition-colors ${
+                                className={`relative flex min-h-11 items-center gap-2 rounded-md border px-3 text-xs font-semibold transition-[transform,background-color,border-color,box-shadow,color] ${
                                   selected
-                                    ? 'border-foreground bg-foreground text-background'
-                                    : 'border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground'
+                                    ? 'border-foreground bg-foreground text-background shadow-sm'
+                                    : 'border-border bg-background text-muted-foreground hover:-translate-y-px hover:bg-muted hover:text-foreground hover:shadow-sm'
                                 }`}
                               >
                                 <PlatformOptionIcon
@@ -691,14 +783,14 @@ export function PostDialog({
                         {platformConnectionsLoaded &&
                           publishingAccounts.length === 0 && (
                             <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2 rounded-md bg-muted/45 px-3 py-2 text-[11px] text-muted-foreground">
-                              <span>{t('form.noConnectedPlatforms')}</span>
-                              <Link
-                                href="/dashboard/publish"
-                                className="inline-flex items-center gap-1 font-semibold text-foreground underline-offset-4 hover:underline"
+                              <span>{t('form.closeToConnect')}</span>
+                              <button
+                                type="button"
+                                onClick={onClose}
+                                className="font-semibold text-foreground underline-offset-4 hover:underline"
                               >
-                                {t('form.openPublishing')}
-                                <ExternalLink className="size-3" />
-                              </Link>
+                                {t('form.closeAndConnect')}
+                              </button>
                             </div>
                           )}
                         <FieldError
@@ -707,7 +799,7 @@ export function PostDialog({
                         />
                       </fieldset>
 
-                      <div className="grid gap-4 sm:grid-cols-2">
+                      <div className="grid gap-4 pt-1 sm:grid-cols-2">
                         <div>
                           <Label
                             htmlFor={`${titleId}-clip`}
@@ -808,7 +900,7 @@ export function PostDialog({
                   )}
 
                   {(isReschedule || form.status === 'scheduled') && (
-                    <div>
+                    <div className="pt-1">
                       <SchedulePicker
                         date={form.date}
                         time={form.time}
@@ -825,7 +917,7 @@ export function PostDialog({
 
                   {!isReschedule && (
                     <>
-                      <div>
+                      <div className="pt-1">
                         <Label
                           htmlFor={`${titleId}-caption`}
                           className="text-xs font-semibold text-foreground"
@@ -847,7 +939,7 @@ export function PostDialog({
                             setField('caption', event.target.value)
                           }
                           placeholder={t('form.captionPlaceholder')}
-                          className={`mt-1.5 resize-y py-2.5 ${inputClassName}`}
+                          className={`mt-2 min-h-32 resize-y py-3 leading-6 ${inputClassName}`}
                         />
                         <div className="flex items-start justify-between gap-3">
                           <FieldError
@@ -859,7 +951,7 @@ export function PostDialog({
                           </span>
                         </div>
                       </div>
-                      <div>
+                      <div className="pt-1">
                         <Label
                           htmlFor={`${titleId}-notes`}
                           className="text-xs font-semibold text-foreground"
@@ -879,21 +971,18 @@ export function PostDialog({
                             setField('notes', event.target.value)
                           }
                           placeholder={t('form.notesPlaceholder')}
-                          className={`mt-1.5 resize-y py-2.5 ${inputClassName}`}
+                          className={`mt-2 min-h-24 resize-y py-3 leading-6 ${inputClassName}`}
                         />
                         <FieldError
                           id={`${titleId}-notes-error`}
                           message={errors.notes}
                         />
                       </div>
-                      <p className="rounded-md bg-muted px-3 py-2.5 text-[11px] leading-relaxed text-muted-foreground">
-                        {t('form.publishNote')}
-                      </p>
                     </>
                   )}
                 </div>
 
-                <div className="flex flex-col-reverse gap-2 px-5 py-4 sm:flex-row sm:items-center sm:px-6">
+                <div className="flex flex-col-reverse gap-2 border-t bg-card px-5 py-4 shadow-[0_-8px_24px_-20px_rgba(0,0,0,0.35)] sm:flex-row sm:items-center sm:px-7">
                   {mode === 'edit' && onDelete && (
                     <button
                       ref={deleteButtonRef}

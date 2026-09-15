@@ -6,6 +6,7 @@ import { Card } from '@/components/ui/card'
 import { Maximize2, ZoomIn, ZoomOut } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import {
+  type ReactNode,
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -24,6 +25,7 @@ const TICK_MIN_SPACING_PX = 72
 const TICK_INTERVALS = [0.1, 0.25, 0.5, 1, 2, 5, 10, 15, 30, 60, 120, 300, 600]
 
 interface TimelineProps {
+  actions?: ReactNode
   duration: number
   sourceUrl: string
   segments: Segment[]
@@ -58,6 +60,7 @@ function formatTimestamp(seconds: number, precise: boolean): string {
 }
 
 export function Timeline({
+  actions,
   duration,
   sourceUrl,
   segments,
@@ -306,25 +309,26 @@ export function Timeline({
 
   if (duration <= 0) {
     return (
-      <Card className="block gap-0 py-0 flex h-32 items-center justify-center rounded-xl border border-border bg-card text-xs text-muted-foreground">
+      <Card className="flex h-32 items-center justify-center rounded-md border border-border bg-card py-0 text-xs text-muted-foreground">
         {t('loadingTimeline')}
       </Card>
     )
   }
 
   return (
-    <Card className="block gap-0 py-0 rounded-xl border border-border bg-card p-4">
+    <Card className="block min-w-0 gap-0 overflow-hidden rounded-md border border-border bg-card p-4">
       {/* Toolbar */}
       <div className="mb-3 flex items-center justify-between">
         <p className="text-[11px] text-muted-foreground">{t('timelineHint')}</p>
-        <div className="flex items-center gap-1">
+        <div className="flex flex-wrap items-center justify-end gap-1">
+          {actions}
           <Button
             variant="ghost"
             type="button"
             onClick={() => zoomBy(0.8)}
             disabled={zoom <= MIN_ZOOM}
             title={t('zoomOut')}
-            className="h-auto whitespace-normal rounded-md border border-border p-1.5 text-muted-foreground transition-colors hover:text-foreground disabled:opacity-30"
+            className="h-auto whitespace-normal rounded-md border border-border p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-30"
           >
             <ZoomOut className="h-3.5 w-3.5" strokeWidth={1.75} />
           </Button>
@@ -337,7 +341,7 @@ export function Timeline({
             onClick={() => zoomBy(1.25)}
             disabled={zoom >= MAX_ZOOM}
             title={t('zoomIn')}
-            className="h-auto whitespace-normal rounded-md border border-border p-1.5 text-muted-foreground transition-colors hover:text-foreground disabled:opacity-30"
+            className="h-auto whitespace-normal rounded-md border border-border p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-30"
           >
             <ZoomIn className="h-3.5 w-3.5" strokeWidth={1.75} />
           </Button>
@@ -347,7 +351,7 @@ export function Timeline({
             onClick={() => onZoomChange(MIN_ZOOM)}
             disabled={zoom === MIN_ZOOM}
             title={t('zoomFit')}
-            className="h-auto whitespace-normal ml-1 rounded-md border border-border p-1.5 text-muted-foreground transition-colors hover:text-foreground disabled:opacity-30"
+            className="ml-1 h-auto whitespace-normal rounded-md border border-border p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-30"
           >
             <Maximize2 className="h-3.5 w-3.5" strokeWidth={1.75} />
           </Button>
@@ -425,10 +429,10 @@ export function Timeline({
                   key={i}
                   className={`absolute bottom-1 top-1 rounded-md border transition-shadow ${
                     isSelected
-                      ? 'border-primary bg-primary/50 ring-2 ring-primary shadow-lg shadow-primary/20'
+                      ? 'border-foreground bg-foreground/50 ring-2 ring-foreground shadow-lg shadow-foreground/20'
                       : isActive
-                        ? 'border-primary/70 bg-primary/40'
-                        : 'border-primary/40 bg-primary/25 hover:bg-primary/35'
+                        ? 'border-foreground/70 bg-foreground/40'
+                        : 'border-foreground/40 bg-foreground/25 hover:bg-foreground/35'
                   }`}
                   style={{ left: `${left}px`, width: `${width}px` }}
                 >
@@ -438,7 +442,7 @@ export function Timeline({
                     </span>
                   )}
                   <div
-                    className="absolute bottom-0 left-0 top-0 w-2 cursor-col-resize rounded-l-md bg-primary/80 transition-colors hover:bg-primary"
+                    className="absolute bottom-0 left-0 top-0 w-2 cursor-col-resize rounded-l-md bg-foreground/80 transition-colors hover:bg-foreground"
                     onPointerDown={(e) =>
                       handlePointerDown(e, i, 'resize-left')
                     }
@@ -448,7 +452,7 @@ export function Timeline({
                     onPointerDown={(e) => handlePointerDown(e, i, 'move')}
                   />
                   <div
-                    className="absolute bottom-0 right-0 top-0 w-2 cursor-col-resize rounded-r-md bg-primary/80 transition-colors hover:bg-primary"
+                    className="absolute bottom-0 right-0 top-0 w-2 cursor-col-resize rounded-r-md bg-foreground/80 transition-colors hover:bg-foreground"
                     onPointerDown={(e) =>
                       handlePointerDown(e, i, 'resize-right')
                     }

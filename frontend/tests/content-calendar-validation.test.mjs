@@ -28,8 +28,12 @@ async function loadTypeScriptModule(relativePath) {
 
 const { CONTENT_PLATFORMS, validateScheduledPostPayload } =
   await loadTypeScriptModule('../src/lib/content-calendar.ts')
-const { getDefaultPlanningTime, getWeekRange, movePostToLocalDate } =
-  await loadTypeScriptModule('../src/components/calendar/calendar-utils.ts')
+const {
+  getDefaultPlanningTime,
+  getWeekRange,
+  movePostToLocalDate,
+  normalizeScheduledPost
+} = await loadTypeScriptModule('../src/components/calendar/calendar-utils.ts')
 
 const validCreatePayload = {
   title: 'Product launch teaser',
@@ -75,6 +79,14 @@ test('defaults a new post to draft and normalizes optional empty text', () => {
   assert.equal(result.data.caption, null)
   assert.equal(result.data.notes, null)
   assert.equal(result.data.status, 'draft')
+})
+
+test('normalizes missing and malformed account ids from calendar responses', () => {
+  const legacyPost = { id: 'legacy-post' }
+  const malformedPost = { id: 'malformed-post', accountIds: ['valid', 42] }
+
+  assert.deepEqual(normalizeScheduledPost(legacyPost).accountIds, [])
+  assert.deepEqual(normalizeScheduledPost(malformedPost).accountIds, ['valid'])
 })
 
 test('supports exactly the product platforms', () => {

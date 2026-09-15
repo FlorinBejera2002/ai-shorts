@@ -1,4 +1,14 @@
-export type PublishingProvider = 'instagram' | 'facebook' | 'tiktok' | 'youtube'
+export const PUBLISHING_PROVIDER_CATALOG = [
+  { id: 'instagram', name: 'Instagram' },
+  { id: 'facebook', name: 'Facebook' },
+  { id: 'tiktok', name: 'TikTok' },
+  { id: 'youtube', name: 'YouTube' },
+  { id: 'linkedin', name: 'LinkedIn' },
+  { id: 'twitter', name: 'X' }
+] as const
+
+export type PublishingProvider =
+  (typeof PUBLISHING_PROVIDER_CATALOG)[number]['id']
 export type PublishingAccount = {
   id: string
   provider: PublishingProvider
@@ -45,6 +55,23 @@ export type PublishingData = {
     fileUrl?: string
   }[]
   posts: PublishingPost[]
+}
+
+export function withAllPublishingProviders(
+  providers: PublishingData['providers']
+): PublishingData['providers'] {
+  const configuredProviders = new Map(
+    providers.map((provider) => [provider.id, provider])
+  )
+  return PUBLISHING_PROVIDER_CATALOG.map(
+    (provider) =>
+      configuredProviders.get(provider.id) ?? {
+        ...provider,
+        configured: false,
+        supportsPublishing: false,
+        reason: 'Integration coming soon'
+      }
+  )
 }
 export type CreatorOptions = {
   privacyLevels: string[]

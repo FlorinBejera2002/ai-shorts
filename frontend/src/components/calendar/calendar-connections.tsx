@@ -19,17 +19,11 @@ import type {
   PublishingData,
   PublishingProvider
 } from '@/lib/publishing'
+import { withAllPublishingProviders } from '@/lib/publishing'
 import { Check, ExternalLink, Loader2, LogOut, RefreshCw } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
 import Image from 'next/image'
 import { useEffect, useState } from 'react'
-
-const YOUTUBE_PROVIDER: PublishingData['providers'][number] = {
-  id: 'youtube',
-  name: 'YouTube',
-  configured: false,
-  supportsPublishing: false
-}
 
 const CONNECTION_EFFECTS = {
   instagram: '/brand/instagram-connected-effect.svg',
@@ -69,6 +63,11 @@ export function CalendarConnections({
     useState<PublishingAccount | null>(null)
   const [successProvider, setSuccessProvider] =
     useState<AnimatedProvider | null>(null)
+  const connectedAccounts =
+    data?.accounts.filter(
+      (account) =>
+        account.status === 'connected' && account.tokenExpired !== true
+    ) ?? []
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
@@ -146,156 +145,188 @@ export function CalendarConnections({
   }
 
   return (
-    <Card as="aside" className="block min-w-0 gap-0 p-4 shadow-none">
-      <div className="mb-3">
-        <h2 className="text-sm font-semibold">{t('title')}</h2>
-      </div>
-
-      {error ? (
-        <div className="rounded-md bg-muted/45 p-3 text-xs text-muted-foreground">
-          <p>{t('loadError')}</p>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="mt-2"
-            onClick={onReload}
-          >
-            <RefreshCw className="size-3.5" />
-            {t('retry')}
-          </Button>
-        </div>
-      ) : !data ? (
-        <div className="space-y-2" aria-busy="true">
-          {(['instagram', 'facebook', 'tiktok', 'youtube'] as const).map(
-            (provider) => (
-              <div key={provider} className="skeleton h-14 w-full rounded-md" />
-            )
+    <Card
+      as="aside"
+      className="relative block min-w-0 gap-0 overflow-hidden p-0 shadow-none"
+    >
+      <div className="relative border-b bg-muted/20 px-4 py-4">
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-8 backdrop-blur-[2px] [mask-image:linear-gradient(to_top,black,transparent)]" />
+        <div className="relative flex items-start justify-between gap-3">
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground">
+              {t('eyebrow')}
+            </p>
+            <h2 className="mt-1 text-sm font-semibold">{t('title')}</h2>
+          </div>
+          {data && (
+            <span className="shrink-0 rounded-sm border bg-background px-2 py-1 text-[10px] font-bold tabular-nums text-foreground shadow-sm">
+              {t('summary', { count: connectedAccounts.length })}
+            </span>
           )}
         </div>
-      ) : (
-        <div className="space-y-1.5">
-          {(data.providers.some((provider) => provider.id === 'youtube')
-            ? data.providers
-            : [...data.providers, YOUTUBE_PROVIDER]
-          ).map((provider) => {
-            const accounts = data.accounts.filter(
-              (account) =>
-                account.provider === provider.id &&
-                account.status === 'connected' &&
-                account.tokenExpired !== true
-            )
-            const connected = accounts.length > 0
-            return (
-              <div
-                key={provider.id}
-                className="flex items-start gap-3 rounded-md px-2.5 py-2.5 transition-colors hover:bg-muted/55"
-              >
-                <span className="relative flex size-9 shrink-0 items-center justify-center">
-                  {successProvider === provider.id &&
-                  isAnimatedProvider(provider.id) ? (
-                    <Image
-                      src={CONNECTION_EFFECTS[provider.id]}
-                      alt=""
-                      width={64}
-                      height={64}
-                      unoptimized={true}
-                      className="absolute max-w-none"
-                    />
-                  ) : (
-                    <PlatformBrandIcon
-                      provider={provider.id}
-                      className="size-9"
+      </div>
+
+      <div className="p-3">
+        {error ? (
+          <div className="rounded-md bg-muted/45 p-3 text-xs text-muted-foreground">
+            <p>{t('loadError')}</p>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="mt-2"
+              onClick={onReload}
+            >
+              <RefreshCw className="size-3.5" />
+              {t('retry')}
+            </Button>
+          </div>
+        ) : !data ? (
+          <div className="space-y-2" aria-busy="true">
+            {(
+              [
+                'instagram',
+                'facebook',
+                'tiktok',
+                'youtube',
+                'linkedin',
+                'twitter'
+              ] as const
+            ).map((provider) => (
+              <div key={provider} className="skeleton h-14 w-full rounded-md" />
+            ))}
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {withAllPublishingProviders(data.providers).map((provider) => {
+              const accounts = data.accounts.filter(
+                (account) =>
+                  account.provider === provider.id &&
+                  account.status === 'connected' &&
+                  account.tokenExpired !== true
+              )
+              const connected = accounts.length > 0
+              return (
+                <div
+                  key={provider.id}
+                  className={`group relative flex items-start gap-3 overflow-hidden rounded-md border px-3 py-3 transition-[transform,border-color,box-shadow,background-color] duration-200 ease-out hover:translate-x-0.5 motion-reduce:transform-none ${
+                    connected
+                      ? 'border-border bg-background hover:border-foreground/20 hover:shadow-sm'
+                      : 'border-transparent bg-muted/25 hover:bg-muted/55'
+                  }`}
+                >
+                  {connected && (
+                    <span
+                      aria-hidden="true"
+                      className="absolute inset-y-3 left-0 w-0.5 rounded-full bg-foreground"
                     />
                   )}
-                </span>
-                <div className="min-w-0 flex-1">
-                  <div className="flex min-h-7 items-center justify-between gap-2">
-                    <p className="truncate text-xs font-semibold">
-                      {provider.name}
-                    </p>
-                    {connected && (
-                      <span
-                        className="inline-flex size-6 shrink-0 items-center justify-center rounded-full bg-foreground text-background"
-                        title={t('connected')}
-                      >
-                        <Check className="size-3" />
-                      </span>
+                  <span className="relative flex size-10 shrink-0 items-center justify-center">
+                    {successProvider === provider.id &&
+                    isAnimatedProvider(provider.id) ? (
+                      <Image
+                        src={CONNECTION_EFFECTS[provider.id]}
+                        alt=""
+                        width={64}
+                        height={64}
+                        unoptimized={true}
+                        className="absolute max-w-none"
+                      />
+                    ) : (
+                      <PlatformBrandIcon
+                        provider={provider.id}
+                        className="size-10 transition-transform duration-300 group-hover:scale-105 motion-reduce:transition-none"
+                      />
+                    )}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex min-h-7 items-center justify-between gap-2">
+                      <p className="truncate text-xs font-semibold">
+                        {provider.name}
+                      </p>
+                      {connected && (
+                        <span
+                          className="inline-flex size-6 shrink-0 animate-in items-center justify-center rounded-full bg-foreground text-background shadow-sm zoom-in-50 motion-reduce:animate-none"
+                          title={t('connected')}
+                        >
+                          <Check className="size-3" />
+                        </span>
+                      )}
+                    </div>
+                    {connected ? (
+                      <div className="mt-1.5 space-y-1">
+                        {accounts.map((account) => (
+                          <div
+                            key={account.id}
+                            className="flex min-w-0 items-center gap-2 rounded-sm border border-transparent bg-muted/55 px-2.5 py-2 transition-colors hover:border-border hover:bg-muted"
+                          >
+                            <div className="min-w-0 flex-1">
+                              <p
+                                className="truncate text-[11px] font-medium text-foreground"
+                                title={account.name}
+                              >
+                                {account.name}
+                              </p>
+                              {account.username &&
+                                account.username !== account.name && (
+                                  <p
+                                    className="truncate text-[10px] text-muted-foreground"
+                                    title={`@${account.username.replace(/^@/, '')}`}
+                                  >
+                                    @{account.username.replace(/^@/, '')}
+                                  </p>
+                                )}
+                            </div>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon-xs"
+                              className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                              disabled={busyAccount !== null}
+                              onClick={() => setDisconnectingAccount(account)}
+                              aria-label={t('disconnectAccount', {
+                                account: account.username || account.name
+                              })}
+                              title={t('disconnect')}
+                            >
+                              {busyAccount === account.id ? (
+                                <Loader2 className="animate-spin" />
+                              ) : (
+                                <LogOut />
+                              )}
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="mt-0.5 text-[10px] text-muted-foreground">
+                        {t('notConnected')}
+                      </p>
                     )}
                   </div>
-                  {connected ? (
-                    <div className="mt-1.5 space-y-1">
-                      {accounts.map((account) => (
-                        <div
-                          key={account.id}
-                          className="flex min-w-0 items-center gap-2 rounded-sm bg-muted/55 px-2 py-1.5"
-                        >
-                          <div className="min-w-0 flex-1">
-                            <p
-                              className="truncate text-[11px] font-medium text-foreground"
-                              title={account.name}
-                            >
-                              {account.name}
-                            </p>
-                            {account.username &&
-                              account.username !== account.name && (
-                                <p
-                                  className="truncate text-[10px] text-muted-foreground"
-                                  title={`@${account.username.replace(/^@/, '')}`}
-                                >
-                                  @{account.username.replace(/^@/, '')}
-                                </p>
-                              )}
-                          </div>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon-xs"
-                            className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-                            disabled={busyAccount !== null}
-                            onClick={() => setDisconnectingAccount(account)}
-                            aria-label={t('disconnectAccount', {
-                              account: account.username || account.name
-                            })}
-                            title={t('disconnect')}
-                          >
-                            {busyAccount === account.id ? (
-                              <Loader2 className="animate-spin" />
-                            ) : (
-                              <LogOut />
-                            )}
-                          </Button>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="mt-0.5 text-[10px] text-muted-foreground">
-                      {t('notConnected')}
-                    </p>
+                  {!connected && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={!provider.configured || busyProvider !== null}
+                      onClick={() => void connect(provider.id)}
+                      className="h-8 bg-background px-2.5 text-[10px] shadow-sm transition-colors hover:bg-foreground hover:text-background"
+                    >
+                      {busyProvider === provider.id ? (
+                        <Loader2 className="size-3 animate-spin" />
+                      ) : (
+                        <ExternalLink className="size-3" />
+                      )}
+                      {provider.configured ? t('connect') : t('unavailable')}
+                    </Button>
                   )}
                 </div>
-                {!connected && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    disabled={!provider.configured || busyProvider !== null}
-                    onClick={() => void connect(provider.id)}
-                    className="h-8 px-2.5 text-[10px]"
-                  >
-                    {busyProvider === provider.id ? (
-                      <Loader2 className="size-3 animate-spin" />
-                    ) : (
-                      <ExternalLink className="size-3" />
-                    )}
-                    {provider.configured ? t('connect') : t('unavailable')}
-                  </Button>
-                )}
-              </div>
-            )
-          })}
-        </div>
-      )}
+              )
+            })}
+          </div>
+        )}
+      </div>
 
       <Dialog
         open={disconnectingAccount !== null}

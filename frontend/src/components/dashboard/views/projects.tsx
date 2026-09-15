@@ -37,7 +37,7 @@ import {
 import {
   Folder,
   FolderOpen,
-  Inbox,
+  Grid2X2,
   MoreHorizontal,
   Palette,
   Pencil,
@@ -62,6 +62,7 @@ type ProjectClip = {
   hookText: string | null
   resolution: string
   hasSubtitles: boolean
+  fileUrl?: string | null
   createdAt: string
 }
 type ProjectBrand = {
@@ -92,6 +93,7 @@ const translations = {
     newProject: 'Clip nou',
     projects: 'Proiectele tale',
     allProjects: 'Toate clipurile',
+    organization: 'Organizare',
     foldersTitle: 'Proiecte',
     unassignedClips: 'Clipuri fără proiect',
     dropHere: 'AdaugÄƒ aici',
@@ -132,6 +134,7 @@ const translations = {
     newProject: 'New clip',
     projects: 'Your projects',
     allProjects: 'All clips',
+    organization: 'Organization',
     foldersTitle: 'Projects',
     unassignedClips: 'Clips without a project',
     dropHere: 'Add here',
@@ -347,6 +350,7 @@ export default function ProjectsPage() {
             setFolderDialog(true)
           }}
           onDeleteFolder={deleteFolder}
+          onDeleted={reload}
         />
       ) : (
         <EmptyProjects text={text} />
@@ -392,6 +396,7 @@ type WorkspaceProps = {
   onCreateFolder: () => void
   onRenameFolder: (projectId: string, folder: ProjectFolder) => void
   onDeleteFolder: (projectId: string, folderId: string) => void
+  onDeleted: () => void | Promise<void>
 }
 function ProjectsWorkspace(props: WorkspaceProps) {
   return (
@@ -447,9 +452,8 @@ function FolderRail({
   const folders = projects.flatMap((owner) =>
     owner.folders.map((folder) => ({ folder, owner }))
   )
-  const unassignedCount = projects.reduce(
-    (total, owner) =>
-      total + owner.clips.filter((clip) => clip.folderId === null).length,
+  const allClipsCount = projects.reduce(
+    (total, owner) => total + owner.clips.length,
     0
   )
   return (
@@ -467,24 +471,24 @@ function FolderRail({
       </div>
       <div className="projects-rail-list">
         <div
-          className="projects-rail-item projects-rail-unassigned"
-          data-active={!project && folderId === 'unassigned'}
+          className="projects-rail-item projects-rail-all"
+          data-active={!project && folderId === 'all'}
         >
           <button
             type="button"
             className="projects-rail-select"
             onClick={() => {
               onProject('')
-              onFolder('unassigned')
+              onFolder('all')
             }}
           >
             <span className="projects-rail-folder-icon">
-              <Inbox aria-hidden="true" />
+              <Grid2X2 aria-hidden="true" />
             </span>
             <span className="min-w-0 flex-1">
-              <strong>{text.unassignedClips}</strong>
+              <strong>{text.allProjects}</strong>
               <small>
-                {unassignedCount} {text.clips}
+                {allClipsCount} {text.clips}
               </small>
             </span>
           </button>
@@ -574,7 +578,15 @@ function FolderRail({
   )
 }
 
-function ProjectBrowser({ projects, project, folderId, text }: WorkspaceProps) {
+function ProjectBrowser({
+  projects,
+  project,
+  folderId,
+  text,
+  onProject,
+  onFolder,
+  onDeleted
+}: WorkspaceProps) {
   const locale = useLocale()
   const t = useTranslations('clips')
   const searchParams = useSearchParams()
@@ -643,8 +655,20 @@ function ProjectBrowser({ projects, project, folderId, text }: WorkspaceProps) {
   return (
     <section className="projects-browser">
       <ClipsLibraryToolbar
-        showSearch={sourceClips.length > 15 || filtersActive}
+        showSearch={sourceClips.length > 15}
         query={query}
+        organizationFilter={{
+          label: text.organization,
+          value: folderId === 'unassigned' ? 'unassigned' : 'all',
+          options: [
+            { value: 'all', label: text.allProjects },
+            { value: 'unassigned', label: text.unassignedClips }
+          ],
+          onChange: (value) => {
+            onProject('')
+            onFolder(value === 'unassigned' ? 'unassigned' : 'all')
+          }
+        }}
         labels={{
           search: t('searchLabel'),
           searchPlaceholder: t('searchPlaceholder'),
@@ -731,6 +755,16 @@ function ProjectBrowser({ projects, project, folderId, text }: WorkspaceProps) {
                     score: t('viralScoreLabel'),
                     subtitles: t('hasSubtitles')
                   }}
+                  actions={{
+                    edit: t('editClip'),
+                    publish: t('publishClip'),
+                    download: t('downloadClip'),
+                    delete: t('deleteClip'),
+                    deleteConfirm: t('deleteConfirm'),
+                    deleteSuccess: t('deleteSuccess'),
+                    deleteError: t('deleteError')
+                  }}
+                  onDeleted={onDeleted}
                   clip={{
                     ...clip,
                     hookText: clip.hookText,

@@ -84,6 +84,40 @@ export function PlatformBrandIcon({
     )
   }
 
+  if (provider === 'linkedin') {
+    return (
+      <svg
+        aria-hidden="true"
+        className={className}
+        data-platform-mark={provider}
+        viewBox="0 0 24 24"
+      >
+        <rect width="24" height="24" rx="6" fill="#0a66c2" />
+        <path
+          fill="white"
+          d="M7.2 9.2H4.4V18h2.8V9.2ZM5.8 5A1.65 1.65 0 1 0 5.8 8.3 1.65 1.65 0 0 0 5.8 5ZM18.6 13.1c0-2.65-1.42-3.88-3.32-3.88a3.28 3.28 0 0 0-2.98 1.64V9.45H9.5V18h2.8v-4.23c0-1.12.21-2.2 1.6-2.2 1.36 0 1.38 1.28 1.38 2.28V18h2.8l.52-4.9Z"
+        />
+      </svg>
+    )
+  }
+
+  if (provider === 'twitter') {
+    return (
+      <svg
+        aria-hidden="true"
+        className={className}
+        data-platform-mark={provider}
+        viewBox="0 0 24 24"
+      >
+        <rect width="24" height="24" rx="6" fill="#0b0b0b" />
+        <path
+          fill="white"
+          d="M5.2 5h4.15l3.4 4.55L16.7 5h2.1l-5.08 5.97L19.8 19h-4.15l-3.86-5.16L7.3 19H5.2l5.62-6.58L5.2 5Zm3.08 1.5 8.12 11h1.32L9.6 6.5H8.28Z"
+        />
+      </svg>
+    )
+  }
+
   return (
     <svg
       aria-hidden="true"

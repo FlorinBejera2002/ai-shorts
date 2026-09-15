@@ -6,13 +6,7 @@ import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 
-import {
-  ArrowLeftToLine,
-  ArrowRightToLine,
-  Minus,
-  Plus,
-  Trash2
-} from 'lucide-react'
+import { Minus, Plus } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 import type { Segment } from './use-editor-state'
@@ -20,11 +14,8 @@ import type { Segment } from './use-editor-state'
 interface SegmentInspectorProps {
   segment: Segment | null
   index: number | null
-  currentTime: number
   duration: number
-  canDelete: boolean
   onSetTimes: (index: number, start: number, end: number) => void
-  onDelete: (index: number) => void
 }
 
 function NudgeField({
@@ -47,13 +38,13 @@ function NudgeField({
       <Label className="text-[11px] text-muted-foreground" htmlFor={id}>
         {label}
       </Label>
-      <div className="mt-1 flex items-center gap-1">
+      <div className="mt-1 flex items-center overflow-hidden rounded-md border border-input bg-background">
         <Button
           variant="ghost"
           type="button"
           onClick={() => onCommit(Math.max(min, value - 0.1))}
           aria-label={`${label} -0.1s`}
-          className="h-auto whitespace-normal rounded-md border border-border p-1.5 text-muted-foreground transition-colors hover:text-foreground"
+          className="clip-cutter-quiet-action h-9 w-9 shrink-0 rounded-none border-0 p-0 text-muted-foreground shadow-none transition-colors hover:text-foreground"
         >
           <Minus className="h-3 w-3" strokeWidth={2} />
         </Button>
@@ -70,14 +61,14 @@ function NudgeField({
               onCommit(Math.min(max, Math.max(min, parsed)))
             }
           }}
-          className="w-full rounded-lg border border-input bg-background px-2 py-1.5 text-center text-[13px] tabular-nums outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/15"
+          className="h-9 min-w-0 flex-1 rounded-none border-0 bg-transparent px-1 text-center text-[13px] tabular-nums shadow-none outline-none focus:border-0 focus:ring-0"
         />
         <Button
           variant="ghost"
           type="button"
           onClick={() => onCommit(Math.min(max, value + 0.1))}
           aria-label={`${label} +0.1s`}
-          className="h-auto whitespace-normal rounded-md border border-border p-1.5 text-muted-foreground transition-colors hover:text-foreground"
+          className="clip-cutter-quiet-action h-9 w-9 shrink-0 rounded-none border-0 p-0 text-muted-foreground shadow-none transition-colors hover:text-foreground"
         >
           <Plus className="h-3 w-3" strokeWidth={2} />
         </Button>
@@ -89,17 +80,14 @@ function NudgeField({
 export function SegmentInspector({
   segment,
   index,
-  currentTime,
   duration,
-  canDelete,
-  onSetTimes,
-  onDelete
+  onSetTimes
 }: SegmentInspectorProps) {
   const t = useTranslations('editor')
 
   if (!segment || index === null) {
     return (
-      <Card className="block gap-0 py-0 rounded-xl border border-border bg-card p-4">
+      <Card className="block gap-0 rounded-md border border-border bg-card p-4">
         <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           {t('inspector')}
         </h3>
@@ -111,7 +99,7 @@ export function SegmentInspector({
   }
 
   return (
-    <div className="animate-fade-in rounded-xl border border-primary/30 bg-card p-4">
+    <div className="animate-fade-in rounded-md border border-border bg-card p-4">
       <div className="flex items-center justify-between">
         <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           {t('segment', { number: index + 1 })}
@@ -121,7 +109,7 @@ export function SegmentInspector({
         </span>
       </div>
 
-      <div className="mt-3 grid grid-cols-2 gap-3">
+      <div className="mt-4 grid grid-cols-2 gap-4">
         <NudgeField
           id="inspector-start"
           label={t('startTime')}
@@ -139,50 +127,6 @@ export function SegmentInspector({
           onCommit={(v) => onSetTimes(index, segment.start, v)}
         />
       </div>
-
-      <div className="mt-3 grid grid-cols-2 gap-1.5">
-        <Button
-          variant="ghost"
-          type="button"
-          onClick={() =>
-            onSetTimes(
-              index,
-              Math.min(currentTime, segment.end - 0.25),
-              segment.end
-            )
-          }
-          className="h-auto whitespace-normal flex items-center justify-center gap-1.5 rounded-lg border border-border px-2 py-1.5 text-[11px] font-medium text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
-        >
-          <ArrowLeftToLine className="h-3 w-3" strokeWidth={1.75} />
-          {t('setStartHere')}
-        </Button>
-        <Button
-          variant="ghost"
-          type="button"
-          onClick={() =>
-            onSetTimes(
-              index,
-              segment.start,
-              Math.max(currentTime, segment.start + 0.25)
-            )
-          }
-          className="h-auto whitespace-normal flex items-center justify-center gap-1.5 rounded-lg border border-border px-2 py-1.5 text-[11px] font-medium text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
-        >
-          <ArrowRightToLine className="h-3 w-3" strokeWidth={1.75} />
-          {t('setEndHere')}
-        </Button>
-      </div>
-
-      <Button
-        variant="ghost"
-        type="button"
-        onClick={() => onDelete(index)}
-        disabled={!canDelete}
-        className="h-auto whitespace-normal mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg border border-destructive/30 px-2 py-1.5 text-[11px] font-medium text-destructive transition-colors hover:bg-destructive/10 disabled:opacity-40"
-      >
-        <Trash2 className="h-3 w-3" strokeWidth={1.75} />
-        {t('deleteSegment')}
-      </Button>
     </div>
   )
 }

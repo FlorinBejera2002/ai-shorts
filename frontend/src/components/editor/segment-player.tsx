@@ -252,7 +252,7 @@ export const SegmentPlayer = forwardRef<
   }, [rateIndex])
 
   return (
-    <Card className="block gap-0 py-0 overflow-hidden rounded-xl border border-border bg-card">
+    <Card className="block gap-0 overflow-hidden rounded-md border border-border bg-card py-0">
       <div className="relative aspect-video bg-black">
         <video
           ref={videoRef}
@@ -296,7 +296,7 @@ export const SegmentPlayer = forwardRef<
           type="button"
           onClick={togglePlay}
           title={t('playPause')}
-          className="h-auto whitespace-normal rounded-md bg-primary p-2 text-primary-foreground transition-opacity hover:opacity-90"
+          className="h-auto whitespace-normal rounded-md bg-foreground p-2 text-background transition-opacity hover:opacity-90"
         >
           {isPlaying ? (
             <Pause className="h-4 w-4" strokeWidth={1.75} />
@@ -326,7 +326,7 @@ export const SegmentPlayer = forwardRef<
             type="button"
             onClick={cycleRate}
             title={t('playbackRate')}
-            className="h-auto whitespace-normal min-w-11 rounded-md border border-border px-2 py-1 text-[11px] font-semibold tabular-nums text-muted-foreground transition-colors hover:text-foreground"
+            className="h-auto min-w-11 whitespace-normal rounded-md border border-border px-2 py-1 text-[11px] font-semibold tabular-nums text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
           >
             {PLAYBACK_RATES[rateIndex]}×
           </Button>
@@ -349,8 +349,8 @@ export const SegmentPlayer = forwardRef<
             onClick={() => setSegmentMode(!segmentMode)}
             className={`rounded-md border px-2.5 py-1 text-[11px] font-medium transition-colors ${
               segmentMode
-                ? 'border-primary/40 bg-primary/10 text-primary'
-                : 'border-border text-muted-foreground hover:text-foreground'
+                ? 'border-foreground bg-foreground text-background'
+                : 'border-border text-muted-foreground hover:bg-muted hover:text-foreground'
             }`}
           >
             {segmentMode ? t('playSegments') : t('playAll')}

@@ -17,6 +17,7 @@ import type { ClipsLibraryQuery } from '@/lib/clips-library'
 import {
   ArrowDownWideNarrow,
   Captions,
+  FolderSearch,
   type LucideIcon,
   Ratio,
   RotateCcw,
@@ -36,6 +37,7 @@ export function ClipsLibraryToolbar({
   aspectOptions,
   subtitleOptions,
   sortOptions,
+  organizationFilter,
   showSearch = true
 }: {
   query: ClipsLibraryQuery
@@ -53,6 +55,12 @@ export function ClipsLibraryToolbar({
   aspectOptions: Option[]
   subtitleOptions: Option[]
   sortOptions: Option[]
+  organizationFilter?: {
+    label: string
+    value: string
+    options: Option[]
+    onChange: (value: string) => void
+  }
   showSearch?: boolean
 }) {
   const router = useRouter()
@@ -109,6 +117,17 @@ export function ClipsLibraryToolbar({
           </div>
         )}
         <div className={styles.filters}>
+          {organizationFilter && (
+            <FilterSelect
+              id="clips-organization"
+              name="organization"
+              label={organizationFilter.label}
+              value={organizationFilter.value}
+              options={organizationFilter.options}
+              icon={FolderSearch}
+              onChange={(_, value) => organizationFilter.onChange(value)}
+            />
+          )}
           <FilterSelect
             id="clips-score"
             name="score"

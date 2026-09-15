@@ -46,8 +46,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 const PLATFORMS = [
   { value: 'tiktok', label: 'TikTok' },
   { value: 'instagram', label: 'Instagram Reels' },
+  { value: 'facebook', label: 'Facebook' },
   { value: 'youtube', label: 'YouTube Shorts' },
-  { value: 'linkedin', label: 'LinkedIn' }
+  { value: 'linkedin', label: 'LinkedIn' },
+  { value: 'twitter', label: 'X' }
 ]
 const DURATIONS = [15, 30, 45, 60, 90, 120, 180]
 const LANGUAGES = ['en', 'ro', 'es', 'fr', 'de', 'it', 'pt']

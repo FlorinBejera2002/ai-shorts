@@ -42,7 +42,7 @@ export function SegmentList({
   const t = useTranslations('editor')
 
   return (
-    <Card className="block gap-0 py-0 rounded-xl border border-border bg-card p-4">
+    <Card className="block gap-0 rounded-md border border-border bg-card p-4">
       <div className="mb-3 flex items-center justify-between">
         <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           {t('segments', { count: segments.length })}
@@ -59,9 +59,9 @@ export function SegmentList({
           return (
             <div
               key={i}
-              className={`flex flex-wrap items-center gap-1 rounded-lg border p-1 text-sm transition-colors ${
+              className={`flex flex-wrap items-center gap-1 rounded-md border p-1 text-sm transition-colors ${
                 isSelected
-                  ? 'border-primary bg-primary/5'
+                  ? 'border-foreground bg-background'
                   : 'border-transparent hover:bg-muted'
               }`}
             >
@@ -79,8 +79,8 @@ export function SegmentList({
                 <span
                   className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-[11px] font-bold tabular-nums ${
                     isActive
-                      ? 'bg-primary text-primary-foreground'
-                      : 'bg-primary/10 text-primary'
+                      ? 'bg-foreground text-background'
+                      : 'bg-muted text-foreground'
                   }`}
                 >
                   {i + 1}
@@ -144,7 +144,7 @@ export function SegmentList({
         type="button"
         onClick={onAdd}
         disabled={!canAddMore}
-        className="h-auto whitespace-normal mt-2 flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-border py-2 text-xs font-medium text-primary transition-colors hover:border-primary/50 hover:bg-primary/5 disabled:opacity-40"
+        className="mt-2 flex h-auto w-full items-center justify-center gap-1.5 whitespace-normal rounded-md border border-dashed border-border py-2 text-xs font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-40"
       >
         <Plus className="h-3.5 w-3.5" strokeWidth={1.75} />
         {t('addSegment')}

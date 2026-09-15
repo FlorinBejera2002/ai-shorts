@@ -2,6 +2,7 @@ package calendar
 
 import (
 	"bytes"
+	"context"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -16,10 +17,19 @@ import (
 type Handler struct {
 	repository *Repository
 	auth       *identity.Handler
+	remote     RemotePostDeleter
 }
 
-func New(db *sql.DB, auth *identity.Handler, media Media) *Handler {
-	return &Handler{repository: NewRepository(db, media), auth: auth}
+type RemotePostDeleter interface {
+	DeletePublishedPosts(context.Context, string, string, []string) error
+}
+
+func New(db *sql.DB, auth *identity.Handler, media Media, remote ...RemotePostDeleter) *Handler {
+	h := &Handler{repository: NewRepository(db, media), auth: auth}
+	if len(remote) > 0 {
+		h.remote = remote[0]
+	}
+	return h
 }
 func (h *Handler) Register(router *httprouter.Router) {
 	router.Handler(http.MethodGet, "/api/calendar", h.auth.Require(h.list))
@@ -136,9 +146,43 @@ func (h *Handler) delete(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	if e := h.repository.Delete(r.Context(), identity.Current(r).User.ID, id); e != nil {
+	platforms := []string{}
+	if r.ContentLength != 0 {
+		input, valid := readBody(w, r)
+		if !valid {
+			return
+		}
+		raw, present := input["platforms"]
+		if !present || len(input) != 1 {
+			write(w, 400, map[string]string{"error": "Choose valid platforms to delete."})
+			return
+		}
+		values, valid := raw.([]any)
+		seen := map[string]bool{}
+		for _, value := range values {
+			platform, stringValue := value.(string)
+			if !stringValue || platform != "facebook" || seen[platform] {
+				write(w, 400, map[string]string{"error": "Only published Facebook posts can be deleted from the platform."})
+				return
+			}
+			seen[platform] = true
+			platforms = append(platforms, platform)
+		}
+	}
+	userID := identity.Current(r).User.ID
+	if len(platforms) > 0 {
+		if h.remote == nil {
+			write(w, 503, map[string]string{"error": "Platform deletion is temporarily unavailable."})
+			return
+		}
+		if e := h.remote.DeletePublishedPosts(r.Context(), userID, id, platforms); e != nil {
+			write(w, 409, map[string]string{"error": "The Facebook post could not be deleted. Reconnect the account or try again."})
+			return
+		}
+	}
+	if e := h.repository.Delete(r.Context(), userID, id); e != nil {
 		handleError(w, e)
 		return
 	}
-	write(w, 200, map[string]bool{"deleted": true})
+	write(w, 200, map[string]any{"deleted": true, "deletedPlatforms": platforms})
 }

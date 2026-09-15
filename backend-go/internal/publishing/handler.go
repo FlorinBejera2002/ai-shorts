@@ -97,10 +97,16 @@ func providerScopes(p string) []string {
 }
 func (h *Handler) overview(w http.ResponseWriter, r *http.Request) {
 	providers := []map[string]any{}
-	for _, p := range []string{"instagram", "facebook", "tiktok", "youtube"} {
-		entry := map[string]any{"id": p, "name": map[string]string{"instagram": "Instagram", "facebook": "Facebook", "tiktok": "TikTok", "youtube": "YouTube"}[p], "configured": h.configured(p), "supportsPublishing": p != "youtube"}
-		if !h.configured(p) {
-			entry["reason"] = "Developer setup and a public HTTPS address are required."
+	providerNames := map[string]string{"instagram": "Instagram", "facebook": "Facebook", "tiktok": "TikTok", "youtube": "YouTube", "linkedin": "LinkedIn", "twitter": "X"}
+	for _, p := range []string{"instagram", "facebook", "tiktok", "youtube", "linkedin", "twitter"} {
+		configured := h.configured(p)
+		entry := map[string]any{"id": p, "name": providerNames[p], "configured": configured, "supportsPublishing": configured && p != "youtube"}
+		if !configured {
+			if p == "linkedin" || p == "twitter" {
+				entry["reason"] = "Integration coming soon."
+			} else {
+				entry["reason"] = "Developer setup and a public HTTPS address are required."
+			}
 		}
 		providers = append(providers, entry)
 	}

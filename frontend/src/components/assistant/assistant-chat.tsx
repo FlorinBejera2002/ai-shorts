@@ -166,11 +166,11 @@ export function AssistantChat({
   }, [historyQuery, t, toast])
 
   return (
-    <Card className="block gap-0 py-0 flex flex-col overflow-hidden rounded-[16px]">
+    <Card className="flex flex-col gap-0 overflow-hidden rounded-md py-0">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3.5">
         <div className="flex items-center gap-2">
-          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10 text-primary ring-1 ring-primary/15">
+          <span className="flex h-7 w-7 items-center justify-center rounded-md bg-foreground text-background">
             <Sparkles className="h-3.5 w-3.5" strokeWidth={2} />
           </span>
           <h3 className="text-sm font-semibold text-foreground">
@@ -230,7 +230,7 @@ export function AssistantChat({
                     key={suggestion}
                     type="button"
                     onClick={() => void send(suggestion)}
-                    className="h-auto whitespace-normal rounded-lg border border-border bg-background px-3 py-2 text-left text-[11px] leading-relaxed text-muted-foreground transition-colors hover:border-primary/40 hover:bg-primary/5 hover:text-foreground"
+                    className="h-auto whitespace-normal rounded-md border border-border bg-background px-3 py-2 text-left text-[11px] leading-relaxed text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                   >
                     {suggestion}
                   </Button>
@@ -248,10 +248,10 @@ export function AssistantChat({
               }`}
             >
               <div
-                className={`max-w-[85%] whitespace-pre-wrap rounded-2xl px-3 py-2 text-[13px] leading-relaxed ${
+                className={`max-w-[85%] whitespace-pre-wrap rounded-md px-3 py-2 text-[13px] leading-relaxed ${
                   message.role === 'user'
-                    ? 'rounded-br-sm bg-primary text-primary-foreground'
-                    : 'rounded-bl-sm border border-border bg-muted/70 text-foreground'
+                    ? 'bg-foreground text-background'
+                    : 'border border-border bg-background text-foreground'
                 }`}
               >
                 {message.content}
@@ -295,7 +295,11 @@ export function AssistantChat({
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
+            if (
+              e.key === 'Enter' &&
+              !e.shiftKey &&
+              !e.nativeEvent.isComposing
+            ) {
               e.preventDefault()
               void send(input)
             }
@@ -303,7 +307,7 @@ export function AssistantChat({
           placeholder={t('placeholder')}
           rows={1}
           maxLength={2000}
-          className="max-h-24 min-h-10 flex-1 resize-none rounded-lg border border-input bg-card px-3 py-2 text-[13px] leading-relaxed text-foreground placeholder:text-muted-foreground/55 outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/15"
+          className="max-h-24 min-h-10 flex-1 resize-none rounded-md border border-input bg-card px-3 py-2 text-[13px] leading-relaxed text-foreground placeholder:text-muted-foreground/55 outline-none focus:border-input focus:ring-0"
         />
         <Button
           variant="ghost"
@@ -312,7 +316,7 @@ export function AssistantChat({
           disabled={!input.trim() || busy}
           title={t('send')}
           aria-label={t('send')}
-          className="h-auto whitespace-normal flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground transition-all hover:-translate-y-0.5 hover:opacity-90 disabled:translate-y-0 disabled:cursor-not-allowed disabled:opacity-40"
+          className="flex h-10 w-10 shrink-0 items-center justify-center whitespace-normal rounded-md bg-foreground text-background transition-opacity hover:opacity-85 disabled:cursor-not-allowed disabled:opacity-40"
         >
           {busy ? (
             <Loader2 className="h-4 w-4 animate-spin" />

@@ -55,7 +55,7 @@ type Request struct {
 }
 
 func BuildPrompt(input Request) string {
-	platform := map[string]string{"tiktok": "TikTok", "instagram": "Instagram Reels", "youtube": "YouTube Shorts", "linkedin": "LinkedIn"}[input.Platform]
+	platform := map[string]string{"tiktok": "TikTok", "instagram": "Instagram Reels", "facebook": "Facebook Reels", "youtube": "YouTube Shorts", "linkedin": "LinkedIn", "twitter": "X"}[input.Platform]
 	if platform == "" {
 		platform = input.Platform
 	}

@@ -137,6 +137,16 @@ function ClipsPageContent() {
                   score: t('viralScoreLabel'),
                   subtitles: t('hasSubtitles')
                 }}
+                actions={{
+                  edit: t('editClip'),
+                  publish: t('publishClip'),
+                  download: t('downloadClip'),
+                  delete: t('deleteClip'),
+                  deleteConfirm: t('deleteConfirm'),
+                  deleteSuccess: t('deleteSuccess'),
+                  deleteError: t('deleteError')
+                }}
+                onDeleted={reload}
                 clip={clip}
               />
             ))}

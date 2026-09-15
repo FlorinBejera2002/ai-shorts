@@ -248,7 +248,7 @@ func TestFacebookFinishAndPoll(t *testing.T) {
 			if finished {
 				io.WriteString(w, `{"status":{"publishing_phase":{"status":"complete"}}}`)
 			} else {
-				io.WriteString(w, `{"status":{"processing_phase":{"status":"complete"}}}`)
+				io.WriteString(w, `{"status":{"video_status":"processing","uploading_phase":{"status":"complete"},"processing_phase":{"status":"not_started"},"publishing_phase":{"status":"not_started"}}}`)
 			}
 		default:
 			w.WriteHeader(404)
@@ -271,6 +271,25 @@ func TestFacebookFinishAndPoll(t *testing.T) {
 	status, _, err = p.Poll(ctx, "facebook", job, c)
 	if err != nil || status != "published" {
 		t.Fatal(status, err)
+	}
+}
+
+func TestFacebookPostDeletion(t *testing.T) {
+	p := mockProvider(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodDelete || r.URL.Path != "/v23.0/456" || r.Header.Get("Authorization") != "Bearer token" {
+			t.Errorf("unexpected deletion request: %s %s", r.Method, r.URL.Path)
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		io.WriteString(w, `{"success":true}`)
+	})
+	if err := p.DeletePost(context.Background(), "facebook", "123:456:caption", Credentials{AccessToken: "token"}); err != nil {
+		t.Fatal(err)
+	}
+	for _, sample := range []struct{ provider, id string }{{"instagram", "456"}, {"facebook", "not-an-id"}} {
+		if err := p.DeletePost(context.Background(), sample.provider, sample.id, Credentials{AccessToken: "token"}); err == nil {
+			t.Fatalf("accepted unsupported deletion: %+v", sample)
+		}
 	}
 }
 

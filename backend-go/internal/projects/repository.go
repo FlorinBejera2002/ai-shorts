@@ -83,29 +83,35 @@ func (r *Repository) List(ctx context.Context, userID string) (map[string]any, e
 	if err = folders.Err(); err != nil {
 		return nil, err
 	}
-	clips, err := r.db.QueryContext(ctx, `SELECT id,job_id,folder_id,title,duration,viral_score,aspect_ratio,COALESCE(NULLIF(thumbnail_storage_key,''),NULLIF(thumbnail_path,''),thumbnail_url,''),hook_text,COALESCE(resolution,''),has_subtitles,created_at FROM clips WHERE user_id=$1 ORDER BY created_at DESC,id DESC`, userID)
+	clips, err := r.db.QueryContext(ctx, `SELECT id,job_id,folder_id,title,duration,viral_score,aspect_ratio,COALESCE(NULLIF(thumbnail_storage_key,''),NULLIF(thumbnail_path,''),thumbnail_url,''),COALESCE(NULLIF(file_storage_key,''),NULLIF(file_path,''),file_url,''),hook_text,COALESCE(resolution,''),has_subtitles,created_at FROM clips WHERE user_id=$1 ORDER BY created_at DESC,id DESC`, userID)
 	if err != nil {
 		return nil, err
 	}
 	for clips.Next() {
-		var id, job, title, aspect, reference, resolution string
+		var id, job, title, aspect, thumbnailReference, fileReference, resolution string
 		var folder, hook sql.NullString
 		var duration float64
 		var score sql.NullInt64
 		var hasSubtitles bool
 		var created any
-		if err = clips.Scan(&id, &job, &folder, &title, &duration, &score, &aspect, &reference, &hook, &resolution, &hasSubtitles, &created); err != nil {
+		if err = clips.Scan(&id, &job, &folder, &title, &duration, &score, &aspect, &thumbnailReference, &fileReference, &hook, &resolution, &hasSubtitles, &created); err != nil {
 			clips.Close()
 			return nil, err
 		}
 		thumbnail := ""
-		if reference != "" && r.media != nil {
-			if key, e := r.media.KeyFromReference(reference); e == nil {
+		if thumbnailReference != "" && r.media != nil {
+			if key, e := r.media.KeyFromReference(thumbnailReference); e == nil {
 				thumbnail, _ = r.media.SignedURL(ctx, key)
 			}
 		}
+		fileURL := ""
+		if fileReference != "" && r.media != nil {
+			if key, e := r.media.KeyFromReference(fileReference); e == nil {
+				fileURL, _ = r.media.SignedURL(ctx, key)
+			}
+		}
 		if p := byID[job]; p != nil {
-			p["clips"] = append(p["clips"].([]map[string]any), map[string]any{"id": id, "folderId": nullable(folder), "title": title, "duration": duration, "viralScore": nullableInt(score), "aspectRatio": aspect, "thumbnailUrl": thumbnail, "hookText": nullable(hook), "resolution": resolution, "hasSubtitles": hasSubtitles, "createdAt": created})
+			p["clips"] = append(p["clips"].([]map[string]any), map[string]any{"id": id, "folderId": nullable(folder), "title": title, "duration": duration, "viralScore": nullableInt(score), "aspectRatio": aspect, "thumbnailUrl": thumbnail, "fileUrl": fileURL, "hookText": nullable(hook), "resolution": resolution, "hasSubtitles": hasSubtitles, "createdAt": created})
 		}
 	}
 	clips.Close()

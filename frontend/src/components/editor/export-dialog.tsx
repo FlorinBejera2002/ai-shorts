@@ -69,6 +69,7 @@ export function ExportDialog({
             <Button
               variant="ghost"
               size="icon"
+              className="hover:bg-muted hover:text-foreground"
               onClick={onClose}
               disabled={submitting}
               aria-label={t('close')}
@@ -109,10 +110,17 @@ export function ExportDialog({
         <DialogFooter>
           {phase === 'done' ? (
             <>
-              <Button variant="outline" onClick={onClose}>
+              <Button
+                variant="outline"
+                onClick={onClose}
+                className="hover:bg-muted hover:text-foreground"
+              >
                 {t('keepEditing')}
               </Button>
-              <Button asChild={true}>
+              <Button
+                asChild={true}
+                className="bg-foreground text-background hover:bg-foreground/85"
+              >
                 <Link href={`/dashboard/clips/${clipId}`}>
                   {t('backToClip')}
                 </Link>
@@ -120,10 +128,19 @@ export function ExportDialog({
             </>
           ) : (
             <>
-              <Button variant="outline" onClick={onClose} disabled={submitting}>
+              <Button
+                variant="outline"
+                onClick={onClose}
+                disabled={submitting}
+                className="hover:bg-muted hover:text-foreground"
+              >
                 {t('cancel')}
               </Button>
-              <Button onClick={onConfirm} disabled={submitting}>
+              <Button
+                onClick={onConfirm}
+                disabled={submitting}
+                className="bg-foreground text-background hover:bg-foreground/85"
+              >
                 {submitting ? (
                   <Loader2 className="size-4 animate-spin" />
                 ) : (

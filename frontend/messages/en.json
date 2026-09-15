@@ -408,6 +408,13 @@
     "noMatches": "No clips match these filters",
     "noMatchesDesc": "Try a different search or clear one of the filters.",
     "openClip": "Open clip",
+    "editClip": "Edit",
+    "publishClip": "Publish",
+    "downloadClip": "Download",
+    "deleteClip": "Delete",
+    "deleteConfirm": "Delete this clip from your workspace?",
+    "deleteSuccess": "Clip deleted.",
+    "deleteError": "Could not delete the clip.",
     "hasSubtitles": "Subtitles included",
     "previousPage": "Previous",
     "nextPage": "Next",
@@ -1012,6 +1019,9 @@
     "totalDuration": "Total: {duration}",
     "segments": "{count, plural, one {# segment} other {# segments}}",
     "export": "Export clip",
+    "saveChanges": "Save changes",
+    "openStudio": "Open Studio",
+    "openStudioDescription": "For captions, layouts, visual elements, and complex timeline edits.",
     "exporting": "Exporting...",
     "exportSuccess": "Clip exported successfully",
     "exportFailed": "Export failed",
@@ -1035,10 +1045,8 @@
     "unmute": "Unmute",
     "inspector": "Segment inspector",
     "inspectorEmpty": "Select a segment on the timeline or in the list to fine-tune its boundaries.",
-    "startTime": "Start (s)",
-    "endTime": "End (s)",
-    "setStartHere": "Start at playhead",
-    "setEndHere": "End at playhead",
+    "startTime": "From",
+    "endTime": "To",
     "undo": "Undo",
     "redo": "Redo",
     "splitAtPlayhead": "Split at playhead (S)",
@@ -1234,6 +1242,31 @@
       "day": "Day",
       "list": "List"
     },
+    "workspaceViews": {
+      "label": "Post display mode",
+      "preview": "Preview",
+      "calendar": "Calendar"
+    },
+    "preview": {
+      "eyebrow": "Content flow",
+      "title": "{count, plural, =0 {No posts} one {# post} other {# posts}}",
+      "emptyTitle": "No posts this month",
+      "emptyDescription": "Create your first post, then track its preview and publishing status here.",
+      "noCaption": "No social caption.",
+      "scheduledFor": "Publishes {date}",
+      "publishingNow": "Publishing now — status updates automatically",
+      "needsAttention": "Publishing needs attention",
+      "publishedOn": "Published {date}",
+      "draftHint": "Draft — choose destinations and schedule when ready",
+      "destinations": "To {names}",
+      "noDestinations": "No publishing destination selected",
+      "readiness": "{percent}% ready",
+      "clipScore": "Score {score}/10",
+      "completeSetup": "Choose a destination before publishing",
+      "viewStatus": "View status",
+      "edit": "Edit",
+      "openAria": "Open post {title}"
+    },
     "density": {
       "compact": "Compact",
       "comfortable": "Comfortable"
@@ -1275,7 +1308,8 @@
       "instagram": "Instagram",
       "facebook": "Facebook",
       "youtube": "YouTube",
-      "linkedin": "LinkedIn"
+      "linkedin": "LinkedIn",
+      "twitter": "X"
     },
     "statuses": {
       "draft": "Draft",
@@ -1310,8 +1344,10 @@
       }
     },
     "connections": {
+      "eyebrow": "Publishing network",
       "title": "Connected accounts",
       "description": "Connect the destinations you use in the calendar.",
+      "summary": "{count} active",
       "notConnected": "No account connected",
       "connected": "Connected",
       "connect": "Connect",
@@ -1337,7 +1373,13 @@
       "rescheduleDescription": "Choose a new local date and time for “{title}”.",
       "deleteDescription": "You are about to remove “{title}” from your calendar.",
       "deleteWarningTitle": "This cannot be undone",
-      "deleteWarning": "The calendar entry will be permanently removed. Your linked clip will not be deleted."
+      "deleteWarning": "The calendar entry will be permanently removed. Your linked clip will not be deleted.",
+      "calendarRemovalTitle": "Remove from Sneep Cut calendar",
+      "calendarRemovalDescription": "This always removes the calendar entry. Published platform posts remain online unless you select them below.",
+      "deleteFromFacebook": "Also delete from Facebook",
+      "deleteFromFacebookDescription": "Deletes the published Reel from the connected Facebook Page.",
+      "instagramManualDelete": "Instagram must be deleted manually",
+      "instagramManualDeleteDescription": "Instagram does not allow published posts to be deleted through its API. Delete the Reel in Instagram if you also want it removed there."
     },
     "form": {
       "titleLabel": "Post title",
@@ -1346,6 +1388,8 @@
       "platformsHint": "Choose every destination this post is planned for.",
       "noConnectedPlatforms": "You don't have a connected platform yet.",
       "openPublishing": "Open Publishing",
+      "closeToConnect": "Close this window to connect an account from Connected accounts.",
+      "closeAndConnect": "Close and connect",
       "clipLabel": "Linked clip",
       "noClip": "No linked clip",
       "statusLabel": "Status",
@@ -1434,7 +1478,9 @@
       "instagram": "Business and Creator accounts · Instagram Reels",
       "facebook": "Pages you manage · Facebook Reels",
       "tiktok": "Your TikTok account · video posts",
-      "youtube": "Your YouTube channel · calendar planning"
+      "youtube": "Your YouTube channel · calendar planning",
+      "linkedin": "Your LinkedIn profile or organization · video posts",
+      "twitter": "Your X account · video posts"
     },
     "connect": "Connect account",
     "connectAnother": "Connect another account",

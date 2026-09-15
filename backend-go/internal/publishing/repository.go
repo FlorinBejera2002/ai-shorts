@@ -103,6 +103,62 @@ func (h *Handler) liveCredentials(ctx context.Context, a Account) (Credentials, 
 	}
 	return c, tx.Commit()
 }
+
+// DeletePublishedPosts removes supported remote destinations linked to a
+// calendar entry. The calendar row is deleted only after every requested
+// remote deletion has been confirmed.
+func (h *Handler) DeletePublishedPosts(ctx context.Context, user, scheduledPostID string, providers []string) error {
+	if !data.ValidUUID(scheduledPostID) || len(providers) != 1 || providers[0] != "facebook" {
+		return errInvalid
+	}
+	rows, e := h.db.QueryContext(ctx, `SELECT sp.id,sp.remote_id,a.id,a.user_id,a.provider,a.remote_id,a.name,a.username,a.status,a.credentials
+		FROM social_posts sp
+		JOIN social_accounts a ON a.id=sp.account_id AND a.user_id=sp.user_id
+		JOIN scheduled_posts s ON s.id=sp.scheduled_post_id AND s.user_id=sp.user_id
+		WHERE sp.scheduled_post_id=$1 AND sp.user_id=$2 AND sp.provider='facebook' AND sp.status='published' AND s.status<>'publishing'`, scheduledPostID, user)
+	if e != nil {
+		return e
+	}
+	type deletion struct {
+		id       string
+		remoteID string
+		account  Account
+	}
+	deletions := []deletion{}
+	for rows.Next() {
+		var item deletion
+		if e = rows.Scan(&item.id, &item.remoteID, &item.account.ID, &item.account.UserID, &item.account.Provider, &item.account.RemoteID, &item.account.Name, &item.account.Username, &item.account.Status, &item.account.Encrypted); e != nil {
+			rows.Close()
+			return e
+		}
+		deletions = append(deletions, item)
+	}
+	e = rows.Err()
+	rows.Close()
+	if e != nil {
+		return e
+	}
+	if len(deletions) == 0 {
+		return sql.ErrNoRows
+	}
+	for _, item := range deletions {
+		credentials, credentialErr := h.liveCredentials(ctx, item.account)
+		if credentialErr != nil {
+			return credentialErr
+		}
+		deleteCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
+		deleteErr := h.client.DeletePost(deleteCtx, item.account.Provider, item.remoteID, credentials)
+		cancel()
+		if deleteErr != nil {
+			return deleteErr
+		}
+		if _, e = h.db.ExecContext(ctx, `UPDATE social_posts SET status='cancelled',error='Deleted from platform by user.',url='',updated_at=now() WHERE id=$1 AND user_id=$2 AND status='published'`, item.id, user); e != nil {
+			return e
+		}
+	}
+	return nil
+}
+
 func (h *Handler) list(ctx context.Context, user string) ([]Account, []Clip, []Post, error) {
 	accounts, clips, posts := []Account{}, []Clip{}, []Post{}
 	rows, e := h.db.QueryContext(ctx, `SELECT id,provider,name,username,status,scopes,token_expires_at,COALESCE(token_expires_at<=now(),false) FROM social_accounts WHERE user_id=$1 AND status='connected' ORDER BY provider,name`, user)

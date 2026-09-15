@@ -18,6 +18,7 @@ import {
   CheckCircle2,
   ExternalLink,
   LoaderCircle,
+  Trash2,
   TriangleAlert
 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
@@ -50,10 +51,12 @@ function isActive(status: PublishingDestination['status']) {
 
 export function PublishingStatusDialog({
   post,
-  onClose
+  onClose,
+  onDelete
 }: {
   post: ScheduledPostRecord
   onClose: () => void
+  onDelete: () => void
 }) {
   const t = useTranslations('contentCalendar.progress')
   const calendarT = useTranslations('contentCalendar')
@@ -183,6 +186,17 @@ export function PublishingStatusDialog({
         </div>
 
         <DialogFooter>
+          {post.status !== 'publishing' && (
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={onDelete}
+              className="text-destructive hover:bg-destructive/[0.07] hover:text-destructive sm:mr-auto"
+            >
+              <Trash2 />
+              {calendarT('actions.delete')}
+            </Button>
+          )}
           <Button type="button" variant="outline" onClick={onClose}>
             {t('close')}
           </Button>

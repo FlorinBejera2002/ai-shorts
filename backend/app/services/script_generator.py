@@ -97,8 +97,10 @@ LANGUAGE_NAMES = {
 PLATFORM_NAMES = {
     "tiktok": "TikTok",
     "instagram": "Instagram Reels",
+    "facebook": "Facebook",
     "youtube": "YouTube Shorts",
     "linkedin": "LinkedIn",
+    "twitter": "X",
 }
 
 

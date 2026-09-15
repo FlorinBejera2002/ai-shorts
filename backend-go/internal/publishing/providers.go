@@ -517,6 +517,7 @@ func (p *ProviderClient) Poll(ctx context.Context, provider, job string, c Crede
 		var r struct {
 			Status struct {
 				Video      string                  `json:"video_status"`
+				Uploading  struct{ Status string } `json:"uploading_phase"`
 				Processing struct{ Status string } `json:"processing_phase"`
 				Publishing struct{ Status string } `json:"publishing_phase"`
 			}
@@ -530,7 +531,10 @@ func (p *ProviderClient) Poll(ctx context.Context, provider, job string, c Crede
 		if r.Status.Video == "error" || r.Status.Processing.Status == "error" || r.Status.Publishing.Status == "error" {
 			return "failed", "", errors.New("Facebook media processing failed")
 		}
-		if r.Status.Processing.Status == "complete" || r.Status.Video == "ready" {
+		// Meta's finish call ends the upload phase and starts assembling and
+		// encoding the Reel. Waiting for processing to complete before finish
+		// creates a deadlock because processing may remain not_started.
+		if r.Status.Uploading.Status == "complete" || r.Status.Processing.Status == "complete" || r.Status.Video == "ready" {
 			return "ready", "", nil
 		}
 		return "processing", "", nil
@@ -574,6 +578,23 @@ func (p *ProviderClient) Finalize(ctx context.Context, provider, job string, c C
 	}
 	return "", "", errors.New("unsupported provider")
 }
+
+// DeletePost removes content previously published by Sneep Cut when the
+// provider exposes a supported deletion endpoint.
+func (p *ProviderClient) DeletePost(ctx context.Context, provider, remoteID string, c Credentials) error {
+	if provider != "facebook" {
+		return errors.New("provider does not support post deletion")
+	}
+	parts := strings.SplitN(remoteID, ":", 3)
+	if len(parts) >= 2 {
+		remoteID = parts[1]
+	}
+	if remoteID == "" || strings.IndexFunc(remoteID, func(r rune) bool { return r < '0' || r > '9' }) >= 0 {
+		return errors.New("invalid provider post ID")
+	}
+	return p.request(ctx, "DELETE", p.graph(provider, url.PathEscape(remoteID)), c.AccessToken, nil, nil, nil)
+}
+
 func (p *ProviderClient) Refresh(ctx context.Context, provider string, c Credentials) (Credentials, error) {
 	var t tokenResponse
 	var err error

@@ -66,6 +66,11 @@ export function getPlatformFit(clip: ClipReadinessInput) {
       note: 'Works well when the hook is clear and visual framing is tight.'
     },
     {
+      name: 'Facebook',
+      fit: clip.duration <= 90,
+      note: 'Use clear context and captions for feed playback without sound.'
+    },
+    {
       name: 'Shorts',
       fit: clip.aspectRatio === '9:16' && clip.duration <= 60,
       note: 'Keep title direct and avoid slow intros.'
@@ -74,6 +79,11 @@ export function getPlatformFit(clip: ClipReadinessInput) {
       name: 'LinkedIn',
       fit: clip.duration <= 120,
       note: 'Use a more explicit title and context-heavy caption.'
+    },
+    {
+      name: 'X',
+      fit: clip.duration <= 140,
+      note: 'Lead with the key point and keep the supporting copy concise.'
     }
   ]
 }

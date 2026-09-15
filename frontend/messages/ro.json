@@ -405,6 +405,13 @@
     "noMatches": "Niciun clip nu corespunde filtrelor",
     "noMatchesDesc": "Încearcă altă căutare sau elimină unul dintre filtre.",
     "openClip": "Deschide clipul",
+    "editClip": "Editează",
+    "publishClip": "Publică",
+    "downloadClip": "Descarcă",
+    "deleteClip": "Șterge",
+    "deleteConfirm": "Ștergi acest clip din spațiul tău de lucru?",
+    "deleteSuccess": "Clipul a fost șters.",
+    "deleteError": "Clipul nu a putut fi șters.",
     "hasSubtitles": "Subtitrări incluse",
     "previousPage": "Înapoi",
     "nextPage": "Înainte",
@@ -1009,6 +1016,9 @@
     "totalDuration": "Total: {duration}",
     "segments": "{count, plural, one {# segment} other {# segmente}}",
     "export": "Exportă clip",
+    "saveChanges": "Salvează modificările",
+    "openStudio": "Deschide Studio",
+    "openStudioDescription": "Pentru subtitrări, layout, elemente vizuale și editări complexe pe timeline.",
     "exporting": "Se exportă...",
     "exportSuccess": "Clipul a fost exportat cu succes",
     "exportFailed": "Exportul a eșuat",
@@ -1032,10 +1042,8 @@
     "unmute": "Activează sunetul",
     "inspector": "Inspector segment",
     "inspectorEmpty": "Selectează un segment pe cronologie sau în listă pentru a-i ajusta precis limitele.",
-    "startTime": "Început (s)",
-    "endTime": "Sfârșit (s)",
-    "setStartHere": "Început la indicator",
-    "setEndHere": "Sfârșit la indicator",
+    "startTime": "De la",
+    "endTime": "Până la",
     "undo": "Anulează",
     "redo": "Refă",
     "splitAtPlayhead": "Împarte la indicator (S)",
@@ -1231,6 +1239,31 @@
       "day": "Zi",
       "list": "Listă"
     },
+    "workspaceViews": {
+      "label": "Mod de afișare a postărilor",
+      "preview": "Preview",
+      "calendar": "Calendar"
+    },
+    "preview": {
+      "eyebrow": "Flux de conținut",
+      "title": "{count, plural, =0 {Nicio postare} one {# postare} few {# postări} other {# de postări}}",
+      "emptyTitle": "Nicio postare în această lună",
+      "emptyDescription": "Creează prima postare, apoi urmărește aici preview-ul și starea publicării.",
+      "noCaption": "Fără descriere socială.",
+      "scheduledFor": "Se publică {date}",
+      "publishingNow": "Se publică acum — statusul se actualizează automat",
+      "needsAttention": "Publicarea necesită atenție",
+      "publishedOn": "Publicată {date}",
+      "draftHint": "Ciornă — alege destinațiile și programează când e gata",
+      "destinations": "Către {names}",
+      "noDestinations": "Nicio destinație de publicare selectată",
+      "readiness": "Pregătită {percent}%",
+      "clipScore": "Scor {score}/10",
+      "completeSetup": "Alege o destinație înainte de publicare",
+      "viewStatus": "Vezi statusul",
+      "edit": "Editează",
+      "openAria": "Deschide postarea {title}"
+    },
     "density": {
       "compact": "Compact",
       "comfortable": "Confortabil"
@@ -1272,7 +1305,8 @@
       "instagram": "Instagram",
       "facebook": "Facebook",
       "youtube": "YouTube",
-      "linkedin": "LinkedIn"
+      "linkedin": "LinkedIn",
+      "twitter": "X"
     },
     "statuses": {
       "draft": "Ciornă",
@@ -1307,8 +1341,10 @@
       }
     },
     "connections": {
+      "eyebrow": "Rețea de publicare",
       "title": "Conturi conectate",
       "description": "Conectează destinațiile folosite în calendar.",
+      "summary": "{count} active",
       "notConnected": "Niciun cont conectat",
       "connected": "Conectat",
       "connect": "Conectează",
@@ -1334,7 +1370,13 @@
       "rescheduleDescription": "Alege o dată și o oră locală nouă pentru „{title}”.",
       "deleteDescription": "Urmează să elimini „{title}” din calendar.",
       "deleteWarningTitle": "Acțiunea nu poate fi anulată",
-      "deleteWarning": "Înregistrarea va fi eliminată definitiv din calendar. Clipul asociat nu va fi șters."
+      "deleteWarning": "Înregistrarea va fi eliminată definitiv din calendar. Clipul asociat nu va fi șters.",
+      "calendarRemovalTitle": "Elimină din calendarul Sneep Cut",
+      "calendarRemovalDescription": "Înregistrarea este eliminată întotdeauna din calendar. Postările publicate rămân online dacă nu le selectezi mai jos.",
+      "deleteFromFacebook": "Șterge și de pe Facebook",
+      "deleteFromFacebookDescription": "Șterge Reel-ul publicat de pe Pagina Facebook conectată.",
+      "instagramManualDelete": "Postarea Instagram trebuie ștearsă manual",
+      "instagramManualDeleteDescription": "Instagram nu permite ștergerea postărilor publicate prin API. Șterge Reel-ul din Instagram dacă vrei să dispară și de acolo."
     },
     "form": {
       "titleLabel": "Titlul postării",
@@ -1343,6 +1385,8 @@
       "platformsHint": "Alege toate destinațiile pentru care este planificată postarea.",
       "noConnectedPlatforms": "Nu ai nicio platformă conectată.",
       "openPublishing": "Deschide Publicare",
+      "closeToConnect": "Închide această fereastră pentru a conecta un cont din Conturi conectate.",
+      "closeAndConnect": "Închide și conectează",
       "clipLabel": "Clip asociat",
       "noClip": "Fără clip asociat",
       "statusLabel": "Stare",
@@ -1431,7 +1475,9 @@
       "instagram": "Conturi Business și Creator · Instagram Reels",
       "facebook": "Paginile pe care le administrezi · Facebook Reels",
       "tiktok": "Contul tău TikTok · postări video",
-      "youtube": "Canalul tău YouTube · planificare în calendar"
+      "youtube": "Canalul tău YouTube · planificare în calendar",
+      "linkedin": "Profilul sau organizația LinkedIn · postări video",
+      "twitter": "Contul tău X · postări video"
     },
     "connect": "Conectează contul",
     "connectAnother": "Conectează alt cont",

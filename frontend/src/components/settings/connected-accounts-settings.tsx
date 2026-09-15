@@ -7,13 +7,16 @@ import { useApiResource } from '@/hooks/use-api-resource'
 import { Link } from '@/i18n/navigation'
 import { apiFetch } from '@/lib/auth'
 import type { PublishingData, PublishingProvider } from '@/lib/publishing'
+import { withAllPublishingProviders } from '@/lib/publishing'
 import {
   ArrowRight,
   Facebook,
   Instagram,
+  Linkedin,
   Loader2,
   Music2,
   RefreshCw,
+  X,
   Youtube
 } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
@@ -23,7 +26,9 @@ const providerIcons = {
   instagram: Instagram,
   facebook: Facebook,
   tiktok: Music2,
-  youtube: Youtube
+  youtube: Youtube,
+  linkedin: Linkedin,
+  twitter: X
 } satisfies Record<PublishingProvider, typeof Instagram>
 
 export function ConnectedAccountsSettings() {
@@ -134,7 +139,7 @@ export function ConnectedAccountsSettings() {
         </div>
       ) : (
         <ul className="mt-5 divide-y divide-border rounded-md border border-border">
-          {data.providers.map((provider) => {
+          {withAllPublishingProviders(data.providers).map((provider) => {
             const Icon = providerIcons[provider.id]
             const accounts = data.accounts.filter(
               (account) => account.provider === provider.id
