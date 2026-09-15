@@ -20,6 +20,7 @@ import {
   StatusPill,
   statusStyles
 } from './calendar-presentation'
+import styles from './calendar-workspace.module.css'
 
 const statusOrder: Record<ScheduledPostRecord['status'], number> = {
   publishing: 0,
@@ -201,16 +202,18 @@ export function CalendarPreviewList({
           >
             <span
               aria-hidden="true"
-              className={`absolute inset-y-0 left-0 z-20 w-0.5 ${statusStyles[post.status].line}`}
+              className={`absolute bottom-2 left-0 top-2 z-20 w-0.5 rounded-full ${statusStyles[post.status].line}`}
             />
 
-            <span className="relative flex min-h-40 items-center justify-center overflow-hidden rounded-b-md bg-muted sm:min-h-44 sm:rounded-l-md sm:rounded-br-none">
+            <span
+              className={`${styles.previewMedia} relative flex min-h-40 items-center justify-center overflow-hidden bg-muted sm:min-h-44`}
+            >
               {post.clip?.thumbnailUrl ? (
                 <img
                   src={post.clip.thumbnailUrl}
                   alt={post.clip.title}
                   loading="lazy"
-                  className="absolute inset-0 h-full w-full object-cover"
+                  className="absolute inset-0 h-full w-full rounded-b-md object-cover sm:rounded-l-md sm:rounded-br-none"
                 />
               ) : (
                 <Film className="size-6 text-muted-foreground/60" />

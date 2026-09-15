@@ -1,64 +1,26 @@
 'use client'
 
 import { Button } from '@/components/ui/button'
-import { GooeyNav } from '@/components/ui/gooey-nav'
-import {
-  CalendarDays,
-  ChevronLeft,
-  ChevronRight,
-  Columns3,
-  LayoutList,
-  Plus,
-  Rows3
-} from 'lucide-react'
+import { ChevronLeft, ChevronRight, Plus } from 'lucide-react'
 import { useTranslations } from 'next-intl'
-import type { CalendarViewMode } from './calendar-utils'
 import styles from './calendar-workspace.module.css'
-
-export type PublishingWorkspaceMode = 'preview' | 'calendar'
-
-const workspaceModes: {
-  id: PublishingWorkspaceMode
-  icon: typeof CalendarDays
-}[] = [
-  { id: 'preview', icon: LayoutList },
-  { id: 'calendar', icon: CalendarDays }
-]
-
-const calendarViews: { id: CalendarViewMode; icon: typeof CalendarDays }[] = [
-  { id: 'month', icon: CalendarDays },
-  { id: 'week', icon: Columns3 },
-  { id: 'day', icon: Rows3 }
-]
 
 export function CalendarToolbar({
   title,
-  workspaceMode,
-  view,
   loading,
   onPrevious,
   onNext,
   onToday,
-  onNewPost,
-  onWorkspaceModeChange,
-  onViewChange
+  onNewPost
 }: {
   title: string
-  workspaceMode: PublishingWorkspaceMode
-  view: CalendarViewMode
   loading: boolean
   onPrevious: () => void
   onNext: () => void
   onToday: () => void
   onNewPost: () => void
-  onWorkspaceModeChange: (mode: PublishingWorkspaceMode) => void
-  onViewChange: (view: CalendarViewMode) => void
 }) {
   const t = useTranslations('contentCalendar')
-  const activeWorkspaceIndex = workspaceModes.findIndex(
-    ({ id }) => id === workspaceMode
-  )
-  const activeViewIndex = calendarViews.findIndex(({ id }) => id === view)
 
   return (
     <div className={styles.toolbar}>
@@ -102,34 +64,6 @@ export function CalendarToolbar({
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <GooeyNav
-            aria-label={t('workspaceViews.label')}
-            items={workspaceModes.map(({ id, icon: Icon }) => ({
-              label: t(`workspaceViews.${id}`),
-              icon: <Icon className="size-3" />
-            }))}
-            value={activeWorkspaceIndex}
-            onChange={(index) => {
-              const selectedMode = workspaceModes[index]
-              if (selectedMode) onWorkspaceModeChange(selectedMode.id)
-            }}
-            size="sm"
-          />
-          {workspaceMode === 'calendar' && (
-            <GooeyNav
-              aria-label={t('views.label')}
-              items={calendarViews.map(({ id, icon: Icon }) => ({
-                label: t(`views.${id}`),
-                icon: <Icon className="size-3" />
-              }))}
-              value={activeViewIndex}
-              onChange={(index) => {
-                const selectedView = calendarViews[index]
-                if (selectedView) onViewChange(selectedView.id)
-              }}
-              size="sm"
-            />
-          )}
           <Button type="button" onClick={onNewPost} className="h-9">
             <Plus />
             {t('actions.newPost')}

@@ -159,7 +159,14 @@ async function uploadPublishingFile(file: File): Promise<PublishingMedia> {
     body
   })
   if (!response.ok) throw new Error('upload failed')
-  return response.json() as Promise<PublishingMedia>
+  const uploaded = (await response.json()) as PublishingMedia & {
+    size?: number
+  }
+  return {
+    type: uploaded.type,
+    reference: uploaded.reference,
+    name: uploaded.name
+  }
 }
 
 export function PostDialog({

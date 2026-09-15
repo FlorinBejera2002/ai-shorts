@@ -17,13 +17,8 @@ import { useSearchParams } from 'next/navigation'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { CalendarConnections } from './calendar-connections'
 import { CalendarMetrics } from './calendar-metrics'
-import { CalendarMonthView } from './calendar-month-view'
 import { CalendarPreviewList } from './calendar-preview-list'
-import { CalendarTimelineView } from './calendar-timeline-view'
-import {
-  CalendarToolbar,
-  type PublishingWorkspaceMode
-} from './calendar-toolbar'
+import { CalendarToolbar } from './calendar-toolbar'
 import {
   CalendarRequestError,
   type CalendarViewMode,
@@ -34,7 +29,6 @@ import {
   getWeekRange,
   isInRange,
   localDateKey,
-  movePostToLocalDate,
   normalizeScheduledPost,
   safeTimeZone,
   startOfLocalDay,
@@ -141,9 +135,6 @@ export function ContentCalendar() {
   const [viewDate, setViewDate] = useState(() => new Date(0))
   const [selectedDate, setSelectedDate] = useState(() => new Date(0))
   const [timeZone, setTimeZone] = useState('UTC')
-  const [workspaceMode, setWorkspaceMode] =
-    useState<PublishingWorkspaceMode>('preview')
-  const [view, setView] = useState<CalendarViewMode>('month')
   const [posts, setPosts] = useState<ScheduledPostRecord[]>([])
   const [clips, setClips] = useState<CalendarClipOption[]>([])
   const [loading, setLoading] = useState(false)
@@ -277,13 +268,9 @@ export function ContentCalendar() {
     [publishingData]
   )
   const selectedKey = localDateKey(selectedDate)
-  const weekRange = useMemo(
-    () => getWeekRange(selectedDate, weekStartsOn),
-    [selectedDate, weekStartsOn]
-  )
   const title = useMemo(
-    () => periodTitle(view, viewDate, selectedDate, locale, weekStartsOn),
-    [locale, selectedDate, view, viewDate, weekStartsOn]
+    () => periodTitle('month', viewDate, selectedDate, locale, weekStartsOn),
+    [locale, selectedDate, viewDate, weekStartsOn]
   )
 
   function focusDate(date: Date) {
@@ -298,11 +285,7 @@ export function ContentCalendar() {
   }
 
   function navigatePeriod(amount: number) {
-    if (view === 'month' || view === 'list') {
-      focusDate(addLocalMonths(viewDate, amount))
-    } else {
-      focusDate(addLocalDays(selectedDate, amount * (view === 'week' ? 7 : 1)))
-    }
+    focusDate(addLocalMonths(viewDate, amount))
   }
 
   function openCreate(date = selectedDate, hour?: number) {
@@ -332,46 +315,6 @@ export function ContentCalendar() {
         ? [...withoutPost, normalizedPost]
         : withoutPost
     })
-  }
-
-  async function movePost(
-    postId: string,
-    targetDate: Date,
-    targetHour?: number
-  ) {
-    const original = posts.find((post) => post.id === postId)
-    if (
-      !original ||
-      original.status === 'publishing' ||
-      original.status === 'published'
-    )
-      return
-    const scheduledAt = movePostToLocalDate(
-      original.scheduledAt,
-      targetDate,
-      targetHour
-    ).toISOString()
-    mutationRevisionRef.current += 1
-    setPosts((current) =>
-      current.map((post) =>
-        post.id === postId ? { ...post, scheduledAt } : post
-      )
-    )
-    setSelectedDate(startOfLocalDay(targetDate))
-    try {
-      const data = await requestJson<PostResponse>(`/api/calendar/${postId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ scheduledAt })
-      })
-      mergePost(data.post)
-      toast.add('success', t('toasts.moved'))
-    } catch {
-      setPosts((current) =>
-        current.map((post) => (post.id === postId ? original : post))
-      )
-      toast.add('error', t('errors.move'))
-    }
   }
 
   async function saveDialogPost(payload: PostFormPayload) {
@@ -480,74 +423,20 @@ export function ContentCalendar() {
             >
               <CalendarToolbar
                 title={title}
-                workspaceMode={workspaceMode}
-                view={view}
                 loading={loading && hasLoaded}
                 onPrevious={() => navigatePeriod(-1)}
                 onNext={() => navigatePeriod(1)}
                 onToday={() => focusDate(new Date())}
                 onNewPost={() => openCreate()}
-                onWorkspaceModeChange={(mode) => {
-                  setWorkspaceMode(mode)
-                  if (mode === 'preview') setView('month')
-                }}
-                onViewChange={setView}
               />
               <div className={styles.gridWrap}>
-                {workspaceMode === 'preview' && (
-                  <CalendarPreviewList
-                    posts={posts}
-                    accounts={publishingAccounts}
-                    locale={locale}
-                    onCreatePost={() => openCreate()}
-                    onOpenPost={openEdit}
-                  />
-                )}
-                {workspaceMode === 'calendar' && view === 'month' && (
-                  <CalendarMonthView
-                    month={viewDate}
-                    range={range}
-                    posts={posts}
-                    selectedDate={selectedDate}
-                    locale={locale}
-                    weekStartsOn={weekStartsOn}
-                    density="comfortable"
-                    onSelectDate={focusDate}
-                    onCreateDate={(date) => openCreate(date)}
-                    onEditPost={openEdit}
-                    onMovePost={(postId, date) => void movePost(postId, date)}
-                  />
-                )}
-                {workspaceMode === 'calendar' && view === 'week' && (
-                  <CalendarTimelineView
-                    days={weekRange.days}
-                    posts={posts}
-                    selectedDate={selectedDate}
-                    locale={locale}
-                    density="comfortable"
-                    onSelectDate={focusDate}
-                    onCreateAt={openCreate}
-                    onEditPost={openEdit}
-                    onMovePost={(postId, date, hour) =>
-                      void movePost(postId, date, hour)
-                    }
-                  />
-                )}
-                {workspaceMode === 'calendar' && view === 'day' && (
-                  <CalendarTimelineView
-                    days={[selectedDate]}
-                    posts={posts}
-                    selectedDate={selectedDate}
-                    locale={locale}
-                    density="comfortable"
-                    onSelectDate={focusDate}
-                    onCreateAt={openCreate}
-                    onEditPost={openEdit}
-                    onMovePost={(postId, date, hour) =>
-                      void movePost(postId, date, hour)
-                    }
-                  />
-                )}
+                <CalendarPreviewList
+                  posts={posts}
+                  accounts={publishingAccounts}
+                  locale={locale}
+                  onCreatePost={() => openCreate()}
+                  onOpenPost={openEdit}
+                />
               </div>
             </Card>
           </div>

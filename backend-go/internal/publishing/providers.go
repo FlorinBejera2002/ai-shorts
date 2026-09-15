@@ -323,7 +323,7 @@ func (p *ProviderClient) Exchange(ctx context.Context, provider, code, verifier 
 			UserID       string `json:"user_id"`
 			AvatarURL    string `json:"profile_picture_url"`
 		}
-		if err := p.request(ctx, "GET", p.graph(provider, "me")+"?fields=user_id,username,profile_picture_url", creds.AccessToken, nil, nil, &r); err != nil {
+		if err := p.request(ctx, "GET", p.graph(provider, "me")+"?fields=id,user_id,username,profile_picture_url", creds.AccessToken, nil, nil, &r); err != nil {
 			return nil, err
 		}
 		if r.UserID != "" {
@@ -331,6 +331,17 @@ func (p *ProviderClient) Exchange(ctx context.Context, provider, code, verifier 
 		}
 		if r.ID == "" {
 			return nil, errors.New("missing Instagram account ID")
+		}
+		// Meta can omit profile_picture_url from /me immediately after OAuth.
+		// Reading the concrete user resource reliably returns it once the account
+		// identity has been resolved.
+		if r.AvatarURL == "" {
+			var profile struct {
+				AvatarURL string `json:"profile_picture_url"`
+			}
+			if err := p.request(ctx, "GET", p.graph(provider, r.ID)+"?fields=profile_picture_url", creds.AccessToken, nil, nil, &profile); err == nil {
+				r.AvatarURL = profile.AvatarURL
+			}
 		}
 		return []RemoteAccount{{ID: r.ID, Name: r.Username, Username: r.Username, AvatarURL: r.AvatarURL, Credentials: creds}}, nil
 	case "tiktok":

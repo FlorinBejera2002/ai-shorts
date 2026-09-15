@@ -35,6 +35,8 @@ const CONNECTION_EFFECTS = {
   twitter: '/brand/X%20Twitter%20logo.svg'
 } as const
 
+const PENDING_CONNECTION_KEY = 'sneepcut:pending-social-connection'
+
 type AnimatedProvider = keyof typeof CONNECTION_EFFECTS
 
 function isAnimatedProvider(value: string | null): value is AnimatedProvider {
@@ -76,10 +78,17 @@ export function CalendarConnections({
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
-    const connectedProvider = params.get('connected')
+    if (params.has('connectionError')) {
+      window.sessionStorage.removeItem(PENDING_CONNECTION_KEY)
+      return
+    }
+    const connectedProvider =
+      params.get('connected') ??
+      window.sessionStorage.getItem(PENDING_CONNECTION_KEY)
     if (!isAnimatedProvider(connectedProvider)) return
 
     setSuccessProvider(connectedProvider)
+    window.sessionStorage.removeItem(PENDING_CONNECTION_KEY)
     params.delete('connected')
     const query = params.toString()
     window.history.replaceState(
@@ -90,10 +99,13 @@ export function CalendarConnections({
   }, [])
 
   useEffect(() => {
-    if (!data || !successProvider) return
-    const timeout = window.setTimeout(() => setSuccessProvider(null), 2600)
+    if (!successProvider) return
+    const timeout = window.setTimeout(() => {
+      setSuccessProvider(null)
+      onReload()
+    }, 2600)
     return () => window.clearTimeout(timeout)
-  }, [data, successProvider])
+  }, [onReload, successProvider])
 
   async function connect(provider: PublishingProvider) {
     setBusyProvider(provider)
@@ -113,8 +125,10 @@ export function CalendarConnections({
       ) {
         throw new Error('Unable to start connection')
       }
+      window.sessionStorage.setItem(PENDING_CONNECTION_KEY, provider)
       window.location.assign(result.url)
     } catch {
+      window.sessionStorage.removeItem(PENDING_CONNECTION_KEY)
       setBusyProvider(null)
     }
   }
@@ -296,7 +310,6 @@ export function CalendarConnections({
                                   alt=""
                                   className="h-full w-full object-cover"
                                   loading="lazy"
-                                  referrerPolicy="no-referrer"
                                 />
                               ) : (
                                 (account.name || account.username || '?')

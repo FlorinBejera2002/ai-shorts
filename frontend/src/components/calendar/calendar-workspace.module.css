@@ -210,3 +210,18 @@
     transition: none;
   }
 }
+.previewMedia {
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+  clip-path: inset(
+    0 round var(--radius-md) var(--radius-md) 0 0
+  );
+}
+
+@media (min-width: 640px) {
+  .previewMedia {
+    border-radius: var(--radius-md) 0 0 var(--radius-md);
+    clip-path: inset(
+      0 round var(--radius-md) 0 0 var(--radius-md)
+    );
+  }
+}
