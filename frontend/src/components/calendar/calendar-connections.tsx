@@ -22,32 +22,9 @@ import type {
 import { withAllPublishingProviders } from '@/lib/publishing'
 import { Check, Loader2, Lock, LogOut, RefreshCw } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
-import { useEffect, useState } from 'react'
-import { createPortal } from 'react-dom'
-
-const CONNECTION_EFFECTS = {
-  instagram: '/brand/instagram-connected-effect.svg',
-  facebook: '/brand/facebook-connected-effect.svg',
-  tiktok: '/brand/tiktok-connected-effect.svg',
-  youtube: '/brand/youtube-connected-effect.svg',
-  linkedin: '/brand/Share%20on%20Linkedin.svg',
-  twitter: '/brand/X%20Twitter%20logo.svg'
-} as const
+import { useState } from 'react'
 
 const PENDING_CONNECTION_KEY = 'sneepcut:pending-social-connection'
-
-type AnimatedProvider = keyof typeof CONNECTION_EFFECTS
-
-function isAnimatedProvider(value: string | null): value is AnimatedProvider {
-  return (
-    value === 'instagram' ||
-    value === 'facebook' ||
-    value === 'tiktok' ||
-    value === 'youtube' ||
-    value === 'linkedin' ||
-    value === 'twitter'
-  )
-}
 
 export function CalendarConnections({
   data,
@@ -67,56 +44,11 @@ export function CalendarConnections({
   const [busyAccount, setBusyAccount] = useState<string | null>(null)
   const [disconnectingAccount, setDisconnectingAccount] =
     useState<PublishingAccount | null>(null)
-  const [successProvider, setSuccessProvider] =
-    useState<AnimatedProvider | null>(null)
-  const [successAnimationReady, setSuccessAnimationReady] = useState(false)
   const connectedAccounts =
     data?.accounts.filter(
       (account) =>
         account.status === 'connected' && account.tokenExpired !== true
     ) ?? []
-
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search)
-    if (params.has('connectionError')) {
-      window.sessionStorage.removeItem(PENDING_CONNECTION_KEY)
-      return
-    }
-    const connectedProvider =
-      params.get('connected') ??
-      window.sessionStorage.getItem(PENDING_CONNECTION_KEY)
-    if (!isAnimatedProvider(connectedProvider)) return
-
-    setSuccessAnimationReady(false)
-    setSuccessProvider(connectedProvider)
-  }, [])
-
-  useEffect(() => {
-    if (!successProvider || successAnimationReady) return
-    const fallback = window.setTimeout(() => {
-      setSuccessAnimationReady(true)
-    }, 1500)
-    return () => window.clearTimeout(fallback)
-  }, [successAnimationReady, successProvider])
-
-  useEffect(() => {
-    if (!successProvider || !successAnimationReady) return
-    const timeout = window.setTimeout(() => {
-      const params = new URLSearchParams(window.location.search)
-      params.delete('connected')
-      const query = params.toString()
-      window.history.replaceState(
-        window.history.state,
-        '',
-        `${window.location.pathname}${query ? `?${query}` : ''}${window.location.hash}`
-      )
-      window.sessionStorage.removeItem(PENDING_CONNECTION_KEY)
-      setSuccessProvider(null)
-      setSuccessAnimationReady(false)
-      onReload()
-    }, 3000)
-    return () => window.clearTimeout(timeout)
-  }, [onReload, successAnimationReady, successProvider])
 
   async function connect(provider: PublishingProvider) {
     setBusyProvider(provider)
@@ -179,35 +111,6 @@ export function CalendarConnections({
       as="aside"
       className="relative block min-w-0 gap-0 overflow-hidden bg-[#f5f6f7] p-0 shadow-none dark:bg-muted/30"
     >
-      {successProvider &&
-        typeof document !== 'undefined' &&
-        createPortal(
-          <div
-            className="fixed inset-0 z-[100] flex items-center justify-center bg-background/55 backdrop-blur-md animate-in fade-in duration-300 motion-reduce:animate-none"
-            role="status"
-            aria-live="polite"
-            aria-label={t('connected')}
-          >
-            <div className="flex flex-col items-center gap-3 animate-in zoom-in-95 duration-300 motion-reduce:animate-none">
-              <object
-                key={successProvider}
-                data={CONNECTION_EFFECTS[successProvider]}
-                type="image/svg+xml"
-                width={240}
-                height={240}
-                aria-label={t('connected')}
-                className="size-60 max-h-[70vh] max-w-[70vw]"
-                onLoad={() => setSuccessAnimationReady(true)}
-              >
-                {t('connected')}
-              </object>
-              <p className="text-sm font-semibold text-foreground">
-                {t('connected')}
-              </p>
-            </div>
-          </div>,
-          document.body
-        )}
       <div className="px-4 pb-2 pt-4">
         <div className="flex items-start justify-between gap-3">
           <div>
@@ -283,7 +186,7 @@ export function CalendarConnections({
                       <p className="truncate text-xs font-semibold">
                         {provider.name}
                       </p>
-                      {connected && successProvider !== provider.id && (
+                      {connected && (
                         <span
                           className="ml-auto inline-flex size-6 shrink-0 animate-in items-center justify-center rounded-full bg-emerald-50 text-emerald-600 zoom-in-50 motion-reduce:animate-none dark:bg-emerald-950 dark:text-emerald-300"
                           title={t('connected')}
@@ -315,7 +218,7 @@ export function CalendarConnections({
                         </Button>
                       )}
                     </div>
-                    {connected && successProvider !== provider.id ? (
+                    {connected ? (
                       <div className="mt-2 border-t border-border/70">
                         {accounts.map((account) => (
                           <div

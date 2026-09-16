@@ -16,6 +16,7 @@ import { useLocale, useTranslations } from 'next-intl'
 import { useSearchParams } from 'next/navigation'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { CalendarConnections } from './calendar-connections'
+import { ConnectionSuccessOverlay } from './connection-success-overlay'
 import { CalendarMetrics } from './calendar-metrics'
 import { CalendarPreviewList } from './calendar-preview-list'
 import { CalendarToolbar } from './calendar-toolbar'
@@ -369,6 +370,7 @@ export function ContentCalendar() {
 
   return (
     <div className={`${styles.workspace} dashboard-workspace`}>
+      <ConnectionSuccessOverlay />
       <PageHeader
         title={t('title')}
         description={t('description')}
