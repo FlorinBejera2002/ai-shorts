@@ -4,6 +4,10 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"image"
+	"image/color"
+	"image/jpeg"
+	"image/png"
 	"io"
 	"net/http/httptest"
 	"os"
@@ -48,12 +52,15 @@ func (n *mockNonce) Allow(ctx context.Context, key string, max int, ttl time.Dur
 
 type mockStorage struct {
 	saved, deleted, prefixes []string
+	contentTypes             []string
 	saveErr, deleteErr       error
 	data                     map[string][]byte
+	sizes                    map[string]int64
 }
 
 func (s *mockStorage) Save(ctx context.Context, filename, key, contentType string) error {
 	s.saved = append(s.saved, key)
+	s.contentTypes = append(s.contentTypes, contentType)
 	if s.saveErr != nil {
 		return s.saveErr
 	}
@@ -63,9 +70,182 @@ func (s *mockStorage) Save(ctx context.Context, filename, key, contentType strin
 	s.data[key], _ = os.ReadFile(filename)
 	return nil
 }
+
+func TestPublishingImagesPreserveOriginalAndPrepareInstagramJPEG(t *testing.T) {
+	s, mock, storage, _ := uploadService(t)
+	s.cfg.MaxUploadBytes = 1024 * 1024
+	activeAccount(mock, "member", false)
+	activeAccount(mock, "member", false)
+	var source bytes.Buffer
+	img := image.NewNRGBA(image.Rect(0, 0, 16, 12))
+	for y := 0; y < 12; y++ {
+		for x := 0; x < 16; x++ {
+			img.Set(x, y, color.NRGBA{R: uint8(x * 10), G: uint8(y * 10), B: 80, A: 180})
+		}
+	}
+	if e := png.Encode(&source, img); e != nil {
+		t.Fatal(e)
+	}
+	result, e := s.StorePublishingMedia(context.Background(), testUserID, UploadIntent{FileName: "photo.png", ContentType: "image/png"}, bytes.NewReader(source.Bytes()))
+	if e != nil {
+		t.Fatal(e)
+	}
+	if !strings.HasSuffix(result.FilePath, ".png") || result.ContentType != "image/png" || len(storage.contentTypes) != 2 || storage.contentTypes[0] != "image/png" || storage.contentTypes[1] != "image/jpeg" {
+		t.Fatalf("original and derivative have incorrect types: %#v %#v", result, storage.contentTypes)
+	}
+	if !bytes.Equal(storage.data[result.FilePath], source.Bytes()) || result.FileSize != int64(source.Len()) {
+		t.Fatal("original image bytes or size changed")
+	}
+	derivative, e := s.InstagramPublishingKey(context.Background(), result.FilePath)
+	if e != nil || derivative == result.FilePath {
+		t.Fatalf("Instagram derivative not selected: %q %v", derivative, e)
+	}
+	stored := storage.data[derivative]
+	if len(stored) < 3 || !bytes.Equal(stored[:3], []byte{0xff, 0xd8, 0xff}) {
+		t.Fatal("stored publishing image is not JPEG")
+	}
+	if e = mock.ExpectationsWereMet(); e != nil {
+		t.Fatal(e)
+	}
+	assertEmptyStage(t, s)
+}
+
+func TestPublishingJPEGAndVideoPreserveBytesAndInferContentType(t *testing.T) {
+	var jpegSource bytes.Buffer
+	if e := jpeg.Encode(&jpegSource, image.NewRGBA(image.Rect(0, 0, 12, 8)), &jpeg.Options{Quality: 96}); e != nil {
+		t.Fatal(e)
+	}
+	for _, tc := range []struct {
+		name, claimedType, expectedType string
+		data                            []byte
+	}{
+		{"phone.JPG", "", "image/jpeg", jpegSource.Bytes()},
+		{"phone.jpeg", "application/octet-stream", "image/jpeg", jpegSource.Bytes()},
+		{"image.jpg", "video/mp4", "image/jpeg", jpegSource.Bytes()},
+		{"phone.MOV", "", "video/quicktime", videoBytes},
+		{"desktop.mp4", "image/png", "video/mp4", videoBytes},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			s, mock, storage, _ := uploadService(t)
+			activeAccount(mock, "member", false)
+			activeAccount(mock, "member", false)
+			result, e := s.StorePublishingMedia(context.Background(), testUserID, UploadIntent{FileName: tc.name, ContentType: tc.claimedType}, bytes.NewReader(tc.data))
+			if e != nil {
+				t.Fatal(e)
+			}
+			if result.ContentType != tc.expectedType || len(storage.saved) != 1 || !bytes.Equal(storage.data[result.FilePath], tc.data) {
+				t.Fatalf("upload type or original bytes changed: %#v", result)
+			}
+			if key, e := s.InstagramPublishingKey(context.Background(), result.FilePath); e != nil || key != result.FilePath {
+				t.Fatalf("original JPEG/video must not be recompressed: %q %v", key, e)
+			}
+			if e = mock.ExpectationsWereMet(); e != nil {
+				t.Fatal(e)
+			}
+			assertEmptyStage(t, s)
+		})
+	}
+}
+
+func TestPublishingRejectsForgedImageBeforeStorage(t *testing.T) {
+	s, _, storage, _ := uploadService(t)
+	_, e := s.StorePublishingMedia(context.Background(), testUserID, UploadIntent{FileName: "photo.png"}, strings.NewReader("\x89PNG\r\n\x1a\nforged"))
+	if e == nil || len(storage.saved) != 0 {
+		t.Fatal("stored forged PNG")
+	}
+	assertEmptyStage(t, s)
+}
+
+func TestPublishingCleanupOnAccountDeletionIncludesDerivative(t *testing.T) {
+	s, mock, storage, _ := uploadService(t)
+	activeAccount(mock, "member", false)
+	activeAccount(mock, "member", true)
+	var source bytes.Buffer
+	_ = png.Encode(&source, image.NewRGBA(image.Rect(0, 0, 12, 8)))
+	_, e := s.StorePublishingMedia(context.Background(), testUserID, UploadIntent{FileName: "photo.png"}, &source)
+	if e == nil || len(storage.saved) != 2 || len(storage.deleted) != 2 {
+		t.Fatalf("publishing media survived deletion: %v saved=%v deleted=%v", e, storage.saved, storage.deleted)
+	}
+	if e = mock.ExpectationsWereMet(); e != nil {
+		t.Fatal(e)
+	}
+	assertEmptyStage(t, s)
+}
+
+func TestInstagramChecksPreparedImageSizeWithoutChangingOriginal(t *testing.T) {
+	for _, suffix := range []string{".jpg", ".png", ".webp"} {
+		t.Run(suffix, func(t *testing.T) {
+			s, _, storage, _ := uploadService(t)
+			original := "publishing/" + testUserID + "/photo" + suffix
+			prepared := original
+			if suffix != ".jpg" {
+				prepared = instagramImageKey(original)
+			}
+			storage.data = map[string][]byte{original: {1, 2, 3}}
+			storage.data[prepared] = []byte{1, 2, 3}
+			storage.sizes = map[string]int64{prepared: 8*1024*1024 + 1}
+			if e := s.ValidatePublishingMedia(context.Background(), "instagram", original, "image"); e == nil || !strings.Contains(e.Error(), "8 MB") {
+				t.Fatalf("oversized Instagram JPEG accepted: %v", e)
+			}
+			if !bytes.Equal(storage.data[original], []byte{1, 2, 3}) || len(storage.saved) != 0 || len(storage.deleted) != 0 {
+				t.Fatal("validation modified the original")
+			}
+			storage.sizes[prepared] = 8 * 1024 * 1024
+			if e := s.ValidatePublishingMedia(context.Background(), "instagram", original, "image"); e != nil {
+				t.Fatalf("image at limit rejected: %v", e)
+			}
+			storage.sizes[prepared]++
+			if e := s.ValidatePublishingMedia(context.Background(), "facebook", original, "image"); e != nil {
+				t.Fatalf("Instagram limit applied to another provider: %v", e)
+			}
+		})
+	}
+}
+
+func TestPublishingPreviewRequiresOwnedExistingFile(t *testing.T) {
+	s, _, storage, _ := uploadService(t)
+	key := "publishing/" + testUserID + "/photo.jpg"
+	storage.data = map[string][]byte{key: {1}}
+	url, e := s.PublishingPreviewURL(context.Background(), testUserID, key)
+	if e != nil || !strings.Contains(url, key) {
+		t.Fatalf("owned preview failed: %q %v", url, e)
+	}
+	for _, invalid := range []string{
+		"publishing/11111111-1111-4111-8111-111111111111/photo.jpg",
+		"publishing/" + testUserID + "/../photo.jpg",
+		"publishing/" + testUserID + "/missing.jpg",
+		"uploads/" + testUserID + "/photo.jpg",
+		"https://attacker.invalid/media/" + key,
+	} {
+		if _, e := s.PublishingPreviewURL(context.Background(), testUserID, invalid); e == nil {
+			t.Fatalf("signed invalid preview %q", invalid)
+		}
+	}
+}
+
+func TestStageCreatesConfiguredDirectory(t *testing.T) {
+	s, _, _, _ := uploadService(t)
+	s.cfg.StagingDirectory = filepath.Join(s.cfg.StagingDirectory, "new", "quarantine")
+	filename, _, e := s.stage(context.Background(), bytes.NewReader(videoBytes), 1024, 0, ".mp4", true)
+	if e != nil {
+		t.Fatalf("new staging directory rejected: %v", e)
+	}
+	_ = os.Remove(filename)
+	assertEmptyStage(t, s)
+}
 func (s *mockStorage) Exists(ctx context.Context, key string) (bool, error) {
 	_, ok := s.data[key]
 	return ok, nil
+}
+func (s *mockStorage) Size(ctx context.Context, key string) (int64, error) {
+	if size, ok := s.sizes[key]; ok {
+		return size, nil
+	}
+	data, ok := s.data[key]
+	if !ok {
+		return 0, os.ErrNotExist
+	}
+	return int64(len(data)), nil
 }
 func (s *mockStorage) Delete(ctx context.Context, key string) error {
 	s.deleted = append(s.deleted, key)

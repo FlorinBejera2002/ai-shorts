@@ -3,6 +3,7 @@
 import { AppSidebar } from '@/components/dashboard/app-sidebar'
 import { MobileDashboardDock } from '@/components/dashboard/mobile-dashboard-dock'
 import { WorkspaceSearch } from '@/components/dashboard/workspace-search'
+import { LoadingIndicator } from '@/components/ui/loading-indicator'
 import { Separator } from '@/components/ui/separator'
 import {
   SidebarProvider,
@@ -14,6 +15,7 @@ import { dashboardRouteLabel } from '@/lib/dashboard-navigation'
 import { MotionConfig } from 'framer-motion'
 import { Clapperboard } from 'lucide-react'
 import { useTranslations } from 'next-intl'
+import { useRouter } from 'next/navigation'
 import { type MouseEvent, useEffect, useState } from 'react'
 import './studio-shell.css'
 
@@ -84,8 +86,11 @@ export function DashboardShell({
 }: { children: React.ReactNode; defaultOpen: boolean }) {
   const t = useTranslations('nav')
   const pathname = usePathname()
+  const router = useRouter()
   const [navigating, setNavigating] = useState(false)
 
+  // The route change is the signal that the navigation overlay can close.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: pathname intentionally drives this effect
   useEffect(() => setNavigating(false), [pathname])
 
   function handleNavigation(event: MouseEvent<HTMLDivElement>) {
@@ -102,19 +107,26 @@ export function DashboardShell({
     const target = event.target
     if (!(target instanceof Element)) return
     const anchor = target.closest<HTMLAnchorElement>('a[href]')
-    if (!anchor || anchor.target === '_blank' || anchor.hasAttribute('download')) {
+    if (
+      !anchor ||
+      anchor.target === '_blank' ||
+      anchor.hasAttribute('download')
+    ) {
       return
     }
     const destination = new URL(anchor.href, window.location.href)
     if (
       destination.origin !== window.location.origin ||
-      destination.hash ||
       `${destination.pathname}${destination.search}` ===
         `${window.location.pathname}${window.location.search}`
     ) {
       return
     }
+    event.preventDefault()
     setNavigating(true)
+    router.push(
+      `${destination.pathname}${destination.search}${destination.hash}`
+    )
   }
 
   return (
@@ -132,13 +144,7 @@ export function DashboardShell({
             aria-live="polite"
             aria-label="Loading"
           >
-            <img
-              src="/brand/black-loading.gif"
-              alt=""
-              width={96}
-              height={96}
-              className="size-24 object-contain"
-            />
+            <LoadingIndicator className="size-36" />
             <span className="sr-only">Loading</span>
           </div>
         )}

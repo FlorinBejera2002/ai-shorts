@@ -1,5 +1,6 @@
 'use client'
 
+import { LoadingIndicator } from '@/components/ui/loading-indicator'
 import type { ScheduledPostRecord } from '@/lib/content-calendar'
 import type { PublishingAccount } from '@/lib/publishing'
 import {
@@ -10,7 +11,6 @@ import {
   CircleDashed,
   Film,
   ImageOff,
-  LoaderCircle,
   Send
 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
@@ -66,7 +66,7 @@ function PostStatusSummary({
   if (post.status === 'publishing') {
     return (
       <span className="inline-flex items-center gap-1.5 font-semibold text-foreground">
-        <LoaderCircle className="size-3.5 animate-spin" />
+        <LoadingIndicator className="size-3.5" />
         {t('publishingNow')}
       </span>
     )

@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/textproto"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -91,6 +92,58 @@ func TestPostgresAuthenticatedUploadsBrandAndCleanup(t *testing.T) {
 	im.Set(0, 0, color.RGBA{R: 255, A: 255})
 	if e = png.Encode(&raster, im); e != nil {
 		t.Fatal(e)
+	}
+	// Phone file providers may omit Content-Type. The API must infer the kind
+	// from the validated file and keep its original data for later previews.
+	for _, claimedType := range []string{"", "application/octet-stream", "video/mp4"} {
+		var uploadBody bytes.Buffer
+		form := multipart.NewWriter(&uploadBody)
+		headers := textproto.MIMEHeader{"Content-Disposition": {`form-data; name="file"; filename="phone.png"`}}
+		if claimedType != "" {
+			headers.Set("Content-Type", claimedType)
+		}
+		part, e := form.CreatePart(headers)
+		if e != nil {
+			t.Fatal(e)
+		}
+		_, _ = part.Write(raster.Bytes())
+		_ = form.Close()
+		w = call(http.MethodPost, "/api/publishing/media", form.FormDataContentType(), session.AccessToken, uploadBody.Bytes())
+		if w.Code != http.StatusCreated {
+			t.Fatalf("publishing upload with type %q: %d %s", claimedType, w.Code, w.Body.String())
+		}
+		var published struct {
+			Reference string `json:"reference"`
+			Type      string `json:"type"`
+		}
+		if e = json.Unmarshal(w.Body.Bytes(), &published); e != nil || published.Type != "image" || !strings.HasSuffix(published.Reference, ".png") {
+			t.Fatalf("incorrect upload result: %s %v", w.Body.String(), e)
+		}
+		filename, e := storage.Path(published.Reference)
+		if e != nil {
+			t.Fatal(e)
+		}
+		if original, e := os.ReadFile(filename); e != nil || !bytes.Equal(original, raster.Bytes()) {
+			t.Fatal("publishing upload modified the original")
+		}
+		derivative, e := s.InstagramPublishingKey(ctx, published.Reference)
+		if e != nil || derivative == published.Reference {
+			t.Fatalf("JPEG derivative missing: %q %v", derivative, e)
+		}
+		previewPath := "/api/publishing/media/preview?reference=" + url.QueryEscape(published.Reference)
+		w = call(http.MethodGet, previewPath, "", session.AccessToken, nil)
+		if w.Code != http.StatusOK || !strings.Contains(w.Body.String(), "sig=") {
+			t.Fatalf("owned preview failed: %d %s", w.Code, w.Body.String())
+		}
+		w = call(http.MethodGet, previewPath, "", "", nil)
+		if w.Code != http.StatusUnauthorized {
+			t.Fatalf("anonymous preview signed: %d %s", w.Code, w.Body.String())
+		}
+		foreign := strings.Replace(published.Reference, testUserID, "11111111-1111-4111-8111-111111111111", 1)
+		w = call(http.MethodGet, "/api/publishing/media/preview?reference="+url.QueryEscape(foreign), "", session.AccessToken, nil)
+		if w.Code != http.StatusForbidden {
+			t.Fatalf("foreign preview signed: %d %s", w.Code, w.Body.String())
+		}
 	}
 	var multipartBody bytes.Buffer
 	form := multipart.NewWriter(&multipartBody)

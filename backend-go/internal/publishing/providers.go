@@ -416,8 +416,8 @@ func (p *ProviderClient) Publish(ctx context.Context, provider, account string, 
 type PublishMedia struct{ Type, URL string }
 
 func (p *ProviderClient) PublishMedia(ctx context.Context, provider, account string, c Credentials, media []PublishMedia, caption string, options TikTokOptions) (string, string, error) {
-	if len(media) == 0 {
-		return "", "failed", errors.New("media is required")
+	if err := ValidateMediaReferences(provider, media); err != nil {
+		return "", "failed", err
 	}
 	mediaURL := media[0].URL
 	if provider == "instagram" || provider == "facebook" {
@@ -427,26 +427,14 @@ func (p *ProviderClient) PublishMedia(ctx context.Context, provider, account str
 	}
 	switch provider {
 	case "instagram":
+		if len(media) > 1 {
+			return p.createInstagramItems(ctx, account, c, media, caption)
+		}
 		var r struct{ ID string }
 		if media[0].Type == "image" {
-			if len(media) == 1 {
-				err := p.request(ctx, "POST", p.graph(provider, url.PathEscape(account)+"/media"), c.AccessToken, url.Values{"image_url": {media[0].URL}, "caption": {caption}}, nil, &r)
-				if err != nil {
-					return "", "unknown", err
-				}
-			} else {
-				children := make([]string, 0, len(media))
-				for _, item := range media {
-					var child struct{ ID string }
-					if err := p.request(ctx, "POST", p.graph(provider, url.PathEscape(account)+"/media"), c.AccessToken, url.Values{"image_url": {item.URL}, "is_carousel_item": {"true"}}, nil, &child); err != nil || child.ID == "" {
-						return "", "unknown", errors.New("Instagram carousel item failed")
-					}
-					children = append(children, child.ID)
-				}
-				err := p.request(ctx, "POST", p.graph(provider, url.PathEscape(account)+"/media"), c.AccessToken, url.Values{"media_type": {"CAROUSEL"}, "children": {strings.Join(children, ",")}, "caption": {caption}}, nil, &r)
-				if err != nil {
-					return "", "unknown", err
-				}
+			err := p.request(ctx, "POST", p.graph(provider, url.PathEscape(account)+"/media"), c.AccessToken, url.Values{"image_url": {media[0].URL}, "caption": {caption}}, nil, &r)
+			if err != nil {
+				return "", "unknown", err
 			}
 		} else {
 			err := p.request(ctx, "POST", p.graph(provider, url.PathEscape(account)+"/media"), c.AccessToken, url.Values{"media_type": {"REELS"}, "video_url": {mediaURL}, "caption": {caption}, "share_to_feed": {"true"}}, nil, &r)
@@ -562,6 +550,9 @@ func (p *ProviderClient) Poll(ctx context.Context, provider, job string, c Crede
 		return "failed", "", errors.New("invalid provider job")
 	}
 	if provider == "instagram" {
+		if len(parts) == 3 && parts[1] == "carousel" {
+			return p.pollInstagramItems(ctx, job, c)
+		}
 		var r struct {
 			Status string `json:"status_code"`
 		}

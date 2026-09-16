@@ -1,5 +1,6 @@
 'use client'
 
+import { LoadingIndicator } from '@/components/ui/loading-indicator'
 import { publicApiFetch } from '@/lib/auth'
 
 import { Button } from '@/components/ui/button'
@@ -12,7 +13,7 @@ import { AuthPanel } from '@/components/auth/auth-panel'
 import { ThemeBrandLogo } from '@/components/shared/brand-logo'
 import { useToast } from '@/components/ui/toast'
 import { Link } from '@/i18n/navigation'
-import { AlertCircle, Check, Loader2, ShieldCheck, X } from 'lucide-react'
+import { AlertCircle, Check, ShieldCheck, X } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useSearchParams } from 'next/navigation'
 import { Suspense, useState } from 'react'
@@ -61,10 +62,7 @@ export default function ResetPasswordPage() {
           <h1 className="text-3xl font-semibold leading-tight tracking-tight text-foreground">
             {t('resetTitle')}
           </h1>
-          <Loader2
-            aria-hidden="true"
-            className="w-5 h-5 animate-spin text-muted-foreground"
-          />
+          <LoadingIndicator className="w-5 h-5 text-muted-foreground" />
         </main>
       }
     >
@@ -281,7 +279,7 @@ function ResetPasswordForm({ t, RULES }: { t: TFunc; RULES: PasswordRule[] }) {
                 >
                   {busy ? (
                     <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <LoadingIndicator className="w-4 h-4" />
                       {t('signingIn')}
                     </>
                   ) : (

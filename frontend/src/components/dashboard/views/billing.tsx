@@ -3,13 +3,13 @@
 import { usePlanCatalog } from '@/components/billing/use-plan-catalog'
 import { ApiState } from '@/components/shared/api-state'
 import { Card } from '@/components/ui/card'
+import { LoadingIndicator } from '@/components/ui/loading-indicator'
 import { useApiResource } from '@/hooks/use-api-resource'
 import {
   AlertTriangle,
   Check,
   CheckCircle2,
   Info,
-  LoaderCircle,
   ShieldCheck
 } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
@@ -193,10 +193,7 @@ function BillingPageContent() {
           className="mt-4 flex items-start gap-3 rounded-md border border-primary/20 bg-primary/5 px-3 py-2.5 text-foreground"
           role="status"
         >
-          <LoaderCircle
-            className="mt-0.5 h-4 w-4 shrink-0 text-primary"
-            aria-hidden="true"
-          />
+          <LoadingIndicator className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
           <p className="text-sm font-medium">{t('checkoutPending')}</p>
         </div>
       )}

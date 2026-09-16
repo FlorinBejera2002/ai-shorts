@@ -1,5 +1,6 @@
 'use client'
 
+import { LoadingIndicator } from '@/components/ui/loading-indicator'
 import { publicApiFetch } from '@/lib/auth'
 
 import { Button } from '@/components/ui/button'
@@ -13,7 +14,7 @@ import { PasswordInput } from '@/components/auth/password-input'
 import { ThemeBrandLogo } from '@/components/shared/brand-logo'
 import { useToast } from '@/components/ui/toast'
 import { Link, useRouter } from '@/i18n/navigation'
-import { Check, Loader2, X } from 'lucide-react'
+import { Check, X } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
 import { useState } from 'react'
 
@@ -259,7 +260,7 @@ export default function RegisterPage() {
             >
               {busy ? (
                 <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <LoadingIndicator className="w-4 h-4" />
                   {t('creating')}
                 </>
               ) : (

@@ -19,6 +19,7 @@ var ErrInvalidKey = errors.New("invalid storage reference")
 type Storage interface {
 	Save(context.Context, string, string, string) error // staged local filename, stable key, content type
 	Exists(context.Context, string) (bool, error)
+	Size(context.Context, string) (int64, error)
 	Delete(context.Context, string) error
 	DeletePrefix(context.Context, string) (int, error)
 	SignedURL(context.Context, string, time.Duration) (string, error)
@@ -190,6 +191,22 @@ func (s *LocalStorage) Exists(ctx context.Context, key string) (bool, error) {
 		return false, err
 	}
 	return info.Mode().IsRegular(), ctx.Err()
+}
+func (s *LocalStorage) Size(ctx context.Context, key string) (int64, error) {
+	if err := ctx.Err(); err != nil {
+		return 0, err
+	}
+	if err := s.check(key); err != nil {
+		return 0, err
+	}
+	info, err := s.root.Stat(key)
+	if err != nil {
+		return 0, err
+	}
+	if !info.Mode().IsRegular() {
+		return 0, ErrInvalidKey
+	}
+	return info.Size(), nil
 }
 func (s *LocalStorage) Delete(ctx context.Context, key string) error {
 	if err := ctx.Err(); err != nil {

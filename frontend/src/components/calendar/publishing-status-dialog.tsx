@@ -9,18 +9,13 @@ import {
   DialogHeader,
   DialogTitle
 } from '@/components/ui/dialog'
+import { LoadingIndicator } from '@/components/ui/loading-indicator'
 import { Progress } from '@/components/ui/progress'
 import type {
   PublishingDestination,
   ScheduledPostRecord
 } from '@/lib/content-calendar'
-import {
-  CheckCircle2,
-  ExternalLink,
-  LoaderCircle,
-  Trash2,
-  TriangleAlert
-} from 'lucide-react'
+import { CheckCircle2, ExternalLink, Trash2, TriangleAlert } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useEffect, useMemo, useState } from 'react'
 import { PlatformMark } from './platform-mark'
@@ -93,7 +88,7 @@ export function PublishingStatusDialog({
           <div className="rounded-md border bg-muted/35 p-4">
             <div className="flex items-start gap-3">
               {publishing ? (
-                <LoaderCircle className="mt-0.5 h-5 w-5 shrink-0 animate-spin motion-reduce:animate-none" />
+                <LoadingIndicator className="mt-0.5 h-5 w-5 shrink-0" />
               ) : post.status === 'published' ? (
                 <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-success" />
               ) : (

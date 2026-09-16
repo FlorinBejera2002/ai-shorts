@@ -1,8 +1,9 @@
 'use client'
 
 import { Button } from '@/components/ui/button'
+import { LoadingIndicator } from '@/components/ui/loading-indicator'
 import { authClient } from '@/lib/auth'
-import { ExternalLink, Loader2 } from 'lucide-react'
+import { ExternalLink } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useEffect, useRef, useState } from 'react'
 import { createStudioClient, prepareStudioClip } from './studio-client'
@@ -64,7 +65,7 @@ export function OpenStudioButton({
         onClick={handleOpen}
       >
         {opening ? (
-          <Loader2 aria-hidden="true" className="animate-spin" />
+          <LoadingIndicator />
         ) : (
           <ExternalLink aria-hidden="true" />
         )}

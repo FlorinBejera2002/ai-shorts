@@ -2,7 +2,8 @@
 
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { Loader2, Trash2, Upload } from 'lucide-react'
+import { LoadingIndicator } from '@/components/ui/loading-indicator'
+import { Trash2, Upload } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import Image from 'next/image'
 import { useRef, useState } from 'react'
@@ -80,7 +81,7 @@ export function LogoSection({
               variant="outline"
               className="rounded-md bg-card shadow-none"
             >
-              {busy ? <Loader2 className="animate-spin" /> : <Upload />}
+              {busy ? <LoadingIndicator /> : <Upload />}
               {t('replace')}
             </Button>
             <Button
@@ -118,7 +119,7 @@ export function LogoSection({
         >
           <span className="flex size-8 shrink-0 items-center justify-center text-primary">
             {busy ? (
-              <Loader2 className="size-5 animate-spin" />
+              <LoadingIndicator className="size-5" />
             ) : (
               <Upload className="size-5" />
             )}

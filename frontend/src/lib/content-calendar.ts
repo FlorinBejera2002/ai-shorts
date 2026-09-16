@@ -359,20 +359,15 @@ export function validateScheduledPostPayload(
           isRecord(item) &&
           (item.type === 'image' || item.type === 'video') &&
           typeof item.reference === 'string' &&
-          typeof item.name === 'string'
+          typeof item.name === 'string' &&
+          item.reference.length > 0 &&
+          item.name.length > 0 &&
+          Object.keys(item).length === 3
       )
     ) {
       issues.push({
         field: 'media',
-        message: 'Choose either one video or up to 10 images'
-      })
-    } else if (
-      media.some((item) => item.type !== media[0]?.type) ||
-      (media[0]?.type === 'video' && media.length !== 1)
-    ) {
-      issues.push({
-        field: 'media',
-        message: 'Images and video cannot be mixed'
+        message: 'Choose up to 10 images or videos'
       })
     } else {
       data.media = media as PublishingMedia[]

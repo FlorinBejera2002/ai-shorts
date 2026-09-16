@@ -1,10 +1,11 @@
 'use client'
 
+import { LoadingIndicator } from '@/components/ui/loading-indicator'
 import { apiFetch } from '@/lib/auth'
 
 import { Button } from '@/components/ui/button'
 
-import { ArrowUpRight, Loader2 } from 'lucide-react'
+import { ArrowUpRight } from 'lucide-react'
 import { useId, useState } from 'react'
 
 import type { BillingLocale, PaidBillingPlanId } from '@/lib/billing'
@@ -86,7 +87,7 @@ export function CheckoutButton({
         }`}
       >
         {loading ? (
-          <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+          <LoadingIndicator className="h-4 w-4" />
         ) : !disabled ? (
           <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
         ) : null}

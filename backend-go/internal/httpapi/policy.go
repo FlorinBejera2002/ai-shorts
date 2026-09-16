@@ -37,7 +37,7 @@ func Policy(next http.Handler, cfg PolicyConfig) http.Handler {
 		if r.URL.Path == "/api/scripts/generate" || r.URL.Path == "/api/assistant/chat" {
 			duration = 100 * time.Second
 		}
-		if r.URL.Path == "/api/upload" || r.URL.Path == "/api/upload/direct" || r.URL.Path == "/api/user/brand/logo" || r.URL.Path == "/api/brand/logo" {
+		if r.URL.Path == "/api/upload" || r.URL.Path == "/api/upload/direct" || r.URL.Path == "/api/user/brand/logo" || r.URL.Path == "/api/brand/logo" || r.URL.Path == "/api/publishing/media" && r.Method == http.MethodPost {
 			duration = 10 * time.Minute
 			readDuration = 10 * time.Minute
 		}

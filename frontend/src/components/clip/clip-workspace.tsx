@@ -1,5 +1,6 @@
 'use client'
 
+import { LoadingIndicator } from '@/components/ui/loading-indicator'
 import { apiFetch } from '@/lib/auth'
 
 import { Button } from '@/components/ui/button'
@@ -14,7 +15,6 @@ import {
   Download,
   FileText,
   Gauge,
-  Loader2,
   Save,
   Scissors,
   Send,
@@ -201,7 +201,7 @@ export function ClipWorkspace({ clip }: ClipWorkspaceProps) {
           className="ml-auto"
         >
           {busy === 'save' ? (
-            <Loader2 className="size-4 animate-spin" />
+            <LoadingIndicator className="size-4" />
           ) : (
             <Save className="size-4" />
           )}
@@ -430,7 +430,7 @@ export function ClipWorkspace({ clip }: ClipWorkspaceProps) {
           className="clip-delete-action"
         >
           {busy === 'delete' ? (
-            <Loader2 className="size-4 animate-spin" />
+            <LoadingIndicator className="size-4" />
           ) : (
             <Trash2 className="size-4" />
           )}

@@ -108,3 +108,26 @@ func TestCalendarBodyIsBoundedWithoutTrustingContentLength(t *testing.T) {
 		}
 	}
 }
+
+func TestValidationPreservesMixedCarouselAndReorderedCover(t *testing.T) {
+	media := []any{
+		map[string]any{"type": "video", "reference": "publishing/user/cover.mp4", "name": "cover.mp4"},
+		map[string]any{"type": "image", "reference": "publishing/user/photo.jpg", "name": "photo.jpg"},
+		map[string]any{"type": "video", "reference": "publishing/user/last.mp4", "name": "last.mp4"},
+	}
+	for _, selection := range [][]any{media, {media[2], media[0], media[1]}} {
+		out, err := Validate(map[string]any{"media": selection}, false)
+		if err != nil {
+			t.Fatal(err)
+		}
+		actual := out["media"].([]map[string]string)
+		for i, item := range selection {
+			if actual[i]["reference"] != item.(map[string]any)["reference"] {
+				t.Fatalf("carousel order changed: %v", actual)
+			}
+		}
+	}
+	if _, err := Validate(map[string]any{"media": append(append(append(media, media...), media...), media...)}, false); err == nil {
+		t.Fatal("accepted more than 10 carousel items")
+	}
+}

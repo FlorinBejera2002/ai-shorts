@@ -1,18 +1,12 @@
 'use client'
 
+import { LoadingIndicator } from '@/components/ui/loading-indicator'
 import { apiFetch, authClient } from '@/lib/auth'
 
 import { Card } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
 
-import {
-  CheckCircle2,
-  FileVideo,
-  Loader2,
-  RefreshCw,
-  Upload,
-  X
-} from 'lucide-react'
+import { CheckCircle2, FileVideo, RefreshCw, Upload, X } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
@@ -339,10 +333,7 @@ export function SourceUpload({
       <div className="animate-scale-in">
         <Card className="block gap-0 py-0 flex items-center gap-3 p-4 sm:gap-4">
           <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary/10">
-            <Loader2
-              className="h-5 w-5 animate-spin text-primary"
-              strokeWidth={1.75}
-            />
+            <LoadingIndicator className="h-5 w-5 text-primary" />
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex items-baseline justify-between gap-3">

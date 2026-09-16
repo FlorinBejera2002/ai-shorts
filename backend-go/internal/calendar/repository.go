@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/lib/pq"
+	"sneepcut/backend-go/internal/publishing"
 )
 
 var ErrClip = errors.New("Choose a clip from your library or remove the selected clip")
@@ -269,20 +270,25 @@ func (s *Repository) Mutate(ctx context.Context, userID, id string, input map[st
 	}
 	if status == "scheduled" {
 		issues := []Issue{}
-		mediaCount := 0
+		var selectedMedia []map[string]string
 		mediaValue, hasMedia := fields["media"]
 		if hasMedia {
-			mediaCount = len(mediaValue.([]map[string]string))
+			selectedMedia = mediaValue.([]map[string]string)
 		}
 		if !hasMedia && !create {
 			var raw []byte
-			_ = tx.QueryRowContext(ctx, `SELECT media FROM scheduled_posts WHERE id=$1`, id).Scan(&raw)
-			var currentMedia []map[string]string
-			_ = json.Unmarshal(raw, &currentMedia)
-			mediaCount = len(currentMedia)
+			if e = tx.QueryRowContext(ctx, `SELECT media FROM scheduled_posts WHERE id=$1`, id).Scan(&raw); e != nil {
+				return empty, e
+			}
+			if e = json.Unmarshal(raw, &selectedMedia); e != nil {
+				return empty, e
+			}
 		}
-		if clipID == nil && mediaCount == 0 {
+		if clipID == nil && len(selectedMedia) == 0 {
 			issues = append(issues, Issue{"clipId", "Choose a clip before scheduling publication"})
+		}
+		if clipID != nil && len(selectedMedia) > 0 {
+			issues = append(issues, Issue{"media", "Choose either a library clip or uploaded media"})
 		}
 		if len(accountIDs) == 0 {
 			issues = append(issues, Issue{"accountIds", "Choose at least one connected account"})
@@ -314,6 +320,26 @@ func (s *Repository) Mutate(ctx context.Context, userID, id string, input map[st
 				if !slices.Contains([]string{"instagram", "facebook"}, provider) || !slices.Contains(platforms, provider) {
 					issues = append(issues, Issue{"accountIds", "Only connected Instagram and Facebook accounts can be scheduled"})
 					break
+				}
+				if len(selectedMedia) > 0 {
+					media := make([]publishing.PublishMedia, 0, len(selectedMedia))
+					for _, item := range selectedMedia {
+						media = append(media, publishing.PublishMedia{Type: item["type"], URL: item["reference"]})
+					}
+					if mediaErr := publishing.ValidateMediaReferences(provider, media); mediaErr != nil {
+						issues = append(issues, Issue{"media", mediaErr.Error()})
+						break
+					}
+					if validator, ok := s.media.(interface {
+						ValidatePublishingMedia(context.Context, string, string, string) error
+					}); ok {
+						for _, item := range selectedMedia {
+							if mediaErr := validator.ValidatePublishingMedia(ctx, provider, item["reference"], item["type"]); mediaErr != nil {
+								issues = append(issues, Issue{"media", mediaErr.Error()})
+								break
+							}
+						}
+					}
 				}
 			}
 			for _, platform := range platforms {

@@ -1,9 +1,12 @@
 'use client'
 
+import { ConnectionSuccessOverlay } from '@/components/calendar/connection-success-overlay'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import { LoadingIndicator } from '@/components/ui/loading-indicator'
 import { useToast } from '@/components/ui/toast'
 import { useApiResource } from '@/hooks/use-api-resource'
+import { useSocialConnection } from '@/hooks/use-social-connection'
 import { Link } from '@/i18n/navigation'
 import { apiFetch } from '@/lib/auth'
 import type { PublishingData, PublishingProvider } from '@/lib/publishing'
@@ -13,13 +16,12 @@ import {
   Facebook,
   Instagram,
   Linkedin,
-  Loader2,
   Music2,
   RefreshCw,
   X,
   Youtube
 } from 'lucide-react'
-import { useLocale, useTranslations } from 'next-intl'
+import { useTranslations } from 'next-intl'
 import { useState } from 'react'
 
 const providerIcons = {
@@ -33,12 +35,14 @@ const providerIcons = {
 
 export function ConnectedAccountsSettings() {
   const t = useTranslations('settings')
-  const locale = useLocale()
   const toast = useToast()
-  const [busy, setBusy] = useState<string | null>(null)
+  const [busyAccount, setBusy] = useState<string | null>(null)
   const [confirming, setConfirming] = useState<string | null>(null)
   const { data, error, reload } =
     useApiResource<PublishingData>('/api/publishing')
+  const { connect, busyProvider, connectedProvider, finishConfirmation } =
+    useSocialConnection(reload)
+  const busy = busyAccount ?? busyProvider
 
   async function disconnect(id: string) {
     setBusy(id)
@@ -60,33 +64,19 @@ export function ConnectedAccountsSettings() {
     }
   }
 
-  async function reconnect(provider: PublishingProvider) {
-    setBusy(provider)
-    try {
-      const response = await apiFetch(`/api/publishing/connect/${provider}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ locale })
-      })
-      const result = await response.json().catch(() => ({}))
-      if (!response.ok || typeof result.url !== 'string')
-        throw new Error(t('connectionActionFailed'))
-      window.location.assign(result.url)
-    } catch (caught) {
-      toast.add(
-        'error',
-        caught instanceof Error ? caught.message : t('connectionActionFailed')
-      )
-      setBusy(null)
-    }
-  }
-
   return (
     <Card
       as="section"
       className="order-5 min-w-0 block gap-0 p-4 sm:p-5"
       aria-labelledby="connections-title"
     >
+      {connectedProvider && (
+        <ConnectionSuccessOverlay
+          key={connectedProvider}
+          provider={connectedProvider}
+          onComplete={finishConfirmation}
+        />
+      )}
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h2
@@ -129,10 +119,7 @@ export function ConnectedAccountsSettings() {
             </div>
           ) : (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Loader2
-                className="size-4 animate-spin motion-reduce:animate-none"
-                aria-hidden="true"
-              />
+              <LoadingIndicator className="size-4" />
               {t('connectionsLoading')}
             </div>
           )}
@@ -219,11 +206,11 @@ export function ConnectedAccountsSettings() {
                                 type="button"
                                 variant="ghost"
                                 size="sm"
-                                onClick={() => void reconnect(provider.id)}
+                                onClick={() => void connect(provider.id)}
                                 disabled={busy !== null || !provider.configured}
                               >
                                 {busy === provider.id && (
-                                  <Loader2 className="size-3.5 animate-spin" />
+                                  <LoadingIndicator className="size-3.5" />
                                 )}
                                 {t('reconnect')}
                               </Button>
@@ -237,7 +224,7 @@ export function ConnectedAccountsSettings() {
                                     disabled={busy !== null}
                                   >
                                     {busy === account.id && (
-                                      <Loader2 className="size-3.5 animate-spin" />
+                                      <LoadingIndicator className="size-3.5" />
                                     )}
                                     {t('confirmDisconnect')}
                                   </Button>
@@ -275,11 +262,11 @@ export function ConnectedAccountsSettings() {
                     type="button"
                     variant="outline"
                     size="sm"
-                    onClick={() => void reconnect(provider.id)}
+                    onClick={() => void connect(provider.id)}
                     disabled={busy !== null}
                   >
                     {busy === provider.id && (
-                      <Loader2 className="size-3.5 animate-spin" />
+                      <LoadingIndicator className="size-3.5" />
                     )}
                     {t('connect')}
                   </Button>

@@ -1,11 +1,12 @@
 'use client'
 
+import { LoadingIndicator } from '@/components/ui/loading-indicator'
 import { apiFetch } from '@/lib/auth'
 
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 
-import { AlertTriangle, Loader2, Wand2, Zap } from 'lucide-react'
+import { AlertTriangle, Wand2, Zap } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useEffect, useState } from 'react'
 
@@ -85,7 +86,7 @@ export function SummaryCard({
         >
           {busy ? (
             <>
-              <Loader2 className="h-4 w-4 animate-spin" />
+              <LoadingIndicator className="h-4 w-4" />
               {t('processing')}
             </>
           ) : (

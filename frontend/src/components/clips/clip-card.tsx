@@ -2,6 +2,7 @@
 
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
+import { LoadingIndicator } from '@/components/ui/loading-indicator'
 import { useToast } from '@/components/ui/toast'
 import { Link } from '@/i18n/navigation'
 import { apiFetch } from '@/lib/auth'
@@ -11,7 +12,6 @@ import {
   ExternalLink,
   Film,
   Folder,
-  Loader2,
   Pencil,
   Play,
   Send,
@@ -248,7 +248,7 @@ export function ClipCard({
                 className="flex h-9 items-center justify-center gap-1.5 rounded-md border border-transparent bg-background px-2 text-[11px] font-semibold text-destructive/80 transition-[border-color,color] hover:border-destructive/25 hover:text-destructive disabled:opacity-50"
               >
                 {deleting ? (
-                  <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+                  <LoadingIndicator className="size-4" />
                 ) : (
                   <Trash2 className="size-4" aria-hidden="true" />
                 )}

@@ -1,8 +1,9 @@
 'use client'
 
 import { Button } from '@/components/ui/button'
+import { LoadingIndicator } from '@/components/ui/loading-indicator'
 import { PageHeader } from '@/components/ui/page-header'
-import { AlertCircle, Loader2 } from 'lucide-react'
+import { AlertCircle } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 import { CaptionsSection } from './captions-section'
@@ -23,7 +24,7 @@ export default function BrandPage() {
         className="animate-fade-in flex min-h-80 items-center justify-center"
         aria-label={t('loading')}
       >
-        <Loader2 className="size-5 animate-spin text-muted-foreground" />
+        <LoadingIndicator className="size-5 text-muted-foreground" />
       </div>
     )
   }

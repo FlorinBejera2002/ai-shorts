@@ -3,6 +3,7 @@
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { LoadingIndicator } from '@/components/ui/loading-indicator'
 import {
   Select,
   SelectContent,
@@ -11,7 +12,11 @@ import {
   SelectValue
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
-import { apiFetch } from '@/lib/auth'
+import { PublishingMediaPicker } from './publishing-media-picker'
+import {
+  incompatibleMediaPlatforms,
+  unsupportedMetaVideos
+} from './publishing-media-utils'
 
 import type {
   CalendarClipOption,
@@ -24,15 +29,9 @@ import type { PublishingAccount } from '@/lib/publishing'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import {
   AlertTriangle,
-  ChevronLeft,
-  ChevronRight,
   CalendarClock,
   Check,
   Film,
-  GripVertical,
-  ImagePlus,
-  Loader2,
-  Play,
   Save,
   Trash2,
   X
@@ -96,7 +95,7 @@ function initialFormState(
   )
   const defaultAccount = publishingAccounts[0]
   const accountIds =
-    post?.accountIds.filter((accountId) =>
+    post?.accountIds?.filter((accountId) =>
       availableAccountIds.has(accountId)
     ) ?? (defaultAccount ? [defaultAccount.id] : [])
   const selectedAccountIds = new Set(accountIds)
@@ -155,24 +154,6 @@ function FieldError({ id, message }: { id: string; message?: string }) {
   )
 }
 
-async function uploadPublishingFile(file: File): Promise<PublishingMedia> {
-  const body = new FormData()
-  body.append('file', file)
-  const response = await apiFetch('/api/publishing/media', {
-    method: 'POST',
-    body
-  })
-  if (!response.ok) throw new Error('upload failed')
-  const uploaded = (await response.json()) as PublishingMedia & {
-    size?: number
-  }
-  return {
-    type: uploaded.type,
-    reference: uploaded.reference,
-    name: uploaded.name
-  }
-}
-
 export function PostDialog({
   mode,
   selectedDate,
@@ -207,7 +188,6 @@ export function PostDialog({
   const titleInputRef = useRef<HTMLInputElement>(null)
   const deleteButtonRef = useRef<HTMLButtonElement>(null)
   const confirmDeleteButtonRef = useRef<HTMLButtonElement>(null)
-  const mediaPreviewUrlsRef = useRef<Record<string, string>>({})
   const wasConfirmingDeleteRef = useRef(false)
   const onCloseRef = useRef(onClose)
   const busyRef = useRef(false)
@@ -226,90 +206,10 @@ export function PostDialog({
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [uploading, setUploading] = useState(false)
-  const [mediaPreviewUrls, setMediaPreviewUrls] = useState<
-    Record<string, string>
-  >({})
-  const [draggedMediaReference, setDraggedMediaReference] = useState<
-    string | null
-  >(null)
   const [confirmDelete, setConfirmDelete] = useState(mode === 'delete')
   const [deletePlatforms, setDeletePlatforms] = useState<ContentPlatform[]>([])
   const busy = saving || deleting || uploading
 
-  async function uploadMedia(files: FileList | null) {
-    if (!files?.length) return
-    const selected = [...files]
-    const images = selected.filter((file) => file.type.startsWith('image/'))
-    const videos = selected.filter((file) => file.type.startsWith('video/'))
-    if (
-      (images.length && videos.length) ||
-      videos.length > 1 ||
-      images.length > 10
-    ) {
-      setErrors((current) => ({
-        ...current,
-        media: t('validation.mediaInvalid')
-      }))
-      return
-    }
-    setUploading(true)
-    const localPreviewUrls = selected.map((file) => URL.createObjectURL(file))
-    try {
-      const uploaded = await Promise.all(selected.map(uploadPublishingFile))
-      for (const previewUrl of Object.values(mediaPreviewUrlsRef.current)) {
-        URL.revokeObjectURL(previewUrl)
-      }
-      const nextPreviewUrls: Record<string, string> = {}
-      uploaded.forEach((item, index) => {
-        const previewUrl = localPreviewUrls[index]
-        if (previewUrl) nextPreviewUrls[item.reference] = previewUrl
-      })
-      mediaPreviewUrlsRef.current = nextPreviewUrls
-      setMediaPreviewUrls(nextPreviewUrls)
-      setField('media', uploaded)
-      setField('clipId', '')
-    } catch {
-      for (const previewUrl of localPreviewUrls) URL.revokeObjectURL(previewUrl)
-      setErrors((current) => ({
-        ...current,
-        media: t('validation.mediaUploadFailed')
-      }))
-    } finally {
-      setUploading(false)
-    }
-  }
-
-  function removeMedia(reference: string) {
-    const previewUrl = mediaPreviewUrlsRef.current[reference]
-    if (previewUrl) URL.revokeObjectURL(previewUrl)
-    const nextPreviewUrls = { ...mediaPreviewUrlsRef.current }
-    delete nextPreviewUrls[reference]
-    mediaPreviewUrlsRef.current = nextPreviewUrls
-    setMediaPreviewUrls(nextPreviewUrls)
-    setField(
-      'media',
-      form.media.filter((item) => item.reference !== reference)
-    )
-  }
-
-  function moveMedia(reference: string, targetIndex: number) {
-    const sourceIndex = form.media.findIndex(
-      (item) => item.reference === reference
-    )
-    if (
-      sourceIndex < 0 ||
-      targetIndex < 0 ||
-      targetIndex >= form.media.length ||
-      sourceIndex === targetIndex
-    ) {
-      return
-    }
-    const reordered = [...form.media]
-    const [moved] = reordered.splice(sourceIndex, 1)
-    if (!moved) return
-    reordered.splice(targetIndex, 0, moved)
-    setField('media', reordered)
-  }
   const publishedProviders = useMemo(
     () => [
       ...new Set(
@@ -339,8 +239,10 @@ export function PostDialog({
         ]
       : clips
 
-  onCloseRef.current = onClose
-  busyRef.current = busy
+  useEffect(() => {
+    onCloseRef.current = onClose
+    busyRef.current = busy
+  }, [onClose, busy])
 
   useEffect(() => {
     setMounted(true)
@@ -405,9 +307,6 @@ export function PostDialog({
       document.body.style.overflow = previousOverflow
       if (!appShellWasInert) appShell?.removeAttribute('inert')
       previousFocus?.focus()
-      for (const previewUrl of Object.values(mediaPreviewUrlsRef.current)) {
-        URL.revokeObjectURL(previewUrl)
-      }
     }
   }, [])
 
@@ -465,6 +364,7 @@ export function PostDialog({
     setForm((current) => ({
       ...current,
       clipId,
+      media: clipId ? [] : current.media,
       title: current.title || clip?.title || '',
       caption:
         current.caption ||
@@ -497,6 +397,24 @@ export function PostDialog({
       }
       if (form.status !== 'draft' && form.accountIds.length === 0) {
         nextErrors.accountIds = t('validation.accountRequired')
+      }
+      const unsupportedVideos = unsupportedMetaVideos(
+        form.media,
+        form.platforms
+      )
+      if (form.status !== 'draft' && unsupportedVideos.length) {
+        nextErrors.media = t('validation.mediaVideoFormat', {
+          names: unsupportedVideos.join(', ')
+        })
+      }
+      const incompatible = incompatibleMediaPlatforms(
+        form.media,
+        form.platforms
+      )
+      if (form.status !== 'draft' && incompatible.length) {
+        nextErrors.media = t('validation.mediaPlatformUnsupported', {
+          platforms: incompatible.join(', ')
+        })
       }
       if (form.status !== 'draft' && !form.clipId && form.media.length === 0) {
         nextErrors.clipId = t('validation.clipRequired')
@@ -560,6 +478,8 @@ export function PostDialog({
         fieldErrors.date = t('validation.dateInvalid')
       } else if (issue.field === 'clipId') {
         fieldErrors.clipId = t('validation.clipInvalid')
+      } else if (issue.field === 'media') {
+        fieldErrors.media = issue.message
       } else if (issue.field === 'status') {
         fieldErrors.status = t('validation.statusInvalid')
       }
@@ -790,7 +710,7 @@ export function PostDialog({
                     className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md bg-destructive px-4 text-[13px] font-bold text-destructive-foreground transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {deleting ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <LoadingIndicator className="h-4 w-4" />
                     ) : (
                       <Trash2 className="h-4 w-4" />
                     )}
@@ -806,7 +726,10 @@ export function PostDialog({
                 onSubmit={handleSubmit}
                 className="flex min-h-0 flex-1 flex-col"
               >
-                <div className="min-h-0 flex-1 space-y-7 overflow-y-auto px-5 py-5 sm:px-6 sm:py-6">
+                <motion.div
+                  layoutScroll={true}
+                  className="min-h-0 flex-1 space-y-7 overflow-y-auto px-5 py-5 sm:px-6 sm:py-6"
+                >
                   {errors.form && (
                     <div
                       role="alert"
@@ -913,169 +836,31 @@ export function PostDialog({
                         />
                       </fieldset>
 
-                      <div className="pt-1">
-                        <Label
-                          htmlFor={`${titleId}-media`}
-                          className="text-xs font-semibold text-foreground"
-                        >
-                          {t('form.mediaLabel')}
-                        </Label>
-                        <input
-                          id={`${titleId}-media`}
-                          type="file"
-                          accept="image/jpeg,image/png,image/webp,video/*"
-                          multiple={true}
-                          className="sr-only"
-                          disabled={busy}
-                          onChange={(event) =>
-                            void uploadMedia(event.target.files)
-                          }
-                        />
-                        <label
-                          htmlFor={`${titleId}-media`}
-                          className="mt-2 flex min-h-20 cursor-pointer items-center gap-3 rounded-md border border-dashed bg-muted/25 px-4 py-3 transition-colors hover:bg-muted"
-                        >
-                          {uploading ? (
-                            <Loader2 className="h-5 w-5 animate-spin" />
-                          ) : (
-                            <ImagePlus className="h-5 w-5" />
-                          )}
-                          <span>
-                            <span className="block text-xs font-semibold">
-                              {uploading
-                                ? t('form.mediaUploading')
-                                : t('form.mediaChoose')}
-                            </span>
-                            <span className="mt-1 block text-[11px] text-muted-foreground">
-                              {t('form.mediaHint')}
-                            </span>
-                          </span>
-                        </label>
-                        {form.media.length > 0 && (
-                          <div className="mt-3">
-                            {form.media.length > 1 && (
-                              <div className="mb-2 flex items-center justify-between gap-3">
-                                <p className="text-[11px] font-medium text-foreground">
-                                  {t('form.mediaOrder')}
-                                </p>
-                                <p className="text-[10px] text-muted-foreground">
-                                  {t('form.mediaOrderHint')}
-                                </p>
-                              </div>
-                            )}
-                            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                            {form.media.map((item, index) => (
-                              <div
-                                key={item.reference}
-                                draggable={form.media.length > 1}
-                                onDragStart={() =>
-                                  setDraggedMediaReference(item.reference)
-                                }
-                                onDragEnd={() => setDraggedMediaReference(null)}
-                                onDragOver={(event) => event.preventDefault()}
-                                onDrop={() => {
-                                  if (draggedMediaReference) {
-                                    moveMedia(draggedMediaReference, index)
-                                  }
-                                  setDraggedMediaReference(null)
-                                }}
-                                className={`group relative overflow-hidden rounded-md bg-muted/40 shadow-[0_1px_4px_rgba(15,23,42,0.08)] transition-[opacity,box-shadow] ${
-                                  draggedMediaReference === item.reference
-                                    ? 'opacity-45'
-                                    : 'opacity-100'
-                                }`}
-                              >
-                                <div className="relative aspect-[4/3] overflow-hidden bg-foreground/[0.04]">
-                                  {mediaPreviewUrls[item.reference] ? (
-                                    item.type === 'image' ? (
-                                      <img
-                                        src={mediaPreviewUrls[item.reference]}
-                                        alt={item.name}
-                                        className="h-full w-full object-cover"
-                                      />
-                                    ) : (
-                                      <video
-                                        src={mediaPreviewUrls[item.reference]}
-                                        className="h-full w-full object-cover"
-                                        muted={true}
-                                        controls={true}
-                                        playsInline={true}
-                                        preload="metadata"
-                                      />
-                                    )
-                                  ) : (
-                                    <div className="flex h-full items-center justify-center text-muted-foreground">
-                                      {item.type === 'video' ? (
-                                        <Play className="size-6" />
-                                      ) : (
-                                        <ImagePlus className="size-6" />
-                                      )}
-                                    </div>
-                                  )}
-                                  <span className="absolute left-2 top-2 inline-flex size-6 items-center justify-center rounded-full bg-black/75 text-[10px] font-semibold text-white shadow-sm">
-                                    {index + 1}
-                                  </span>
-                                  {form.media.length > 1 && (
-                                    <span className="absolute right-2 top-2 inline-flex size-6 cursor-grab items-center justify-center rounded-full bg-black/65 text-white active:cursor-grabbing">
-                                      <GripVertical className="size-3.5" />
-                                    </span>
-                                  )}
-                                </div>
-                                <div className="flex items-center gap-1 p-2">
-                                  <p className="min-w-0 flex-1 truncate text-[10px] font-medium text-foreground">
-                                    {item.name}
-                                  </p>
-                                  {form.media.length > 1 && (
-                                    <div className="flex shrink-0 items-center">
-                                      <button
-                                        type="button"
-                                        disabled={index === 0}
-                                        aria-label={t('form.moveMediaLeft', {
-                                          name: item.name
-                                        })}
-                                        onClick={() =>
-                                          moveMedia(item.reference, index - 1)
-                                        }
-                                        className="inline-flex size-7 items-center justify-center rounded-sm text-muted-foreground hover:bg-background hover:text-foreground disabled:pointer-events-none disabled:opacity-25"
-                                      >
-                                        <ChevronLeft className="size-3.5" />
-                                      </button>
-                                      <button
-                                        type="button"
-                                        disabled={index === form.media.length - 1}
-                                        aria-label={t('form.moveMediaRight', {
-                                          name: item.name
-                                        })}
-                                        onClick={() =>
-                                          moveMedia(item.reference, index + 1)
-                                        }
-                                        className="inline-flex size-7 items-center justify-center rounded-sm text-muted-foreground hover:bg-background hover:text-foreground disabled:pointer-events-none disabled:opacity-25"
-                                      >
-                                        <ChevronRight className="size-3.5" />
-                                      </button>
-                                    </div>
-                                  )}
-                                <button
-                                  type="button"
-                                  aria-label={t('form.removeMedia', {
-                                    name: item.name
-                                  })}
-                                  onClick={() => removeMedia(item.reference)}
-                                  className="inline-flex size-7 shrink-0 items-center justify-center rounded-sm text-muted-foreground hover:bg-destructive/[0.07] hover:text-destructive"
-                                >
-                                  <X className="h-3.5 w-3.5" />
-                                </button>
-                                </div>
-                              </div>
-                            ))}
-                            </div>
-                          </div>
-                        )}
-                        <FieldError
-                          id={`${titleId}-media-error`}
-                          message={errors.media}
-                        />
-                      </div>
+                      <PublishingMediaPicker
+                        media={form.media}
+                        disabled={busy}
+                        error={errors.media}
+                        onUploadingChange={setUploading}
+                        onError={(message) =>
+                          setErrors((current) => ({
+                            ...current,
+                            media: message
+                          }))
+                        }
+                        onChange={(media) => {
+                          setForm((current) => ({
+                            ...current,
+                            media,
+                            clipId: media.length ? '' : current.clipId
+                          }))
+                          setErrors((current) => ({
+                            ...current,
+                            media: undefined,
+                            clipId: undefined,
+                            form: undefined
+                          }))
+                        }}
+                      />
 
                       <div className="grid gap-4 pt-1 sm:grid-cols-2">
                         <div>
@@ -1258,7 +1043,7 @@ export function PostDialog({
                       </div>
                     </>
                   )}
-                </div>
+                </motion.div>
 
                 <div className="flex flex-col-reverse gap-2 border-t bg-card px-5 py-4 shadow-[0_-8px_24px_-20px_rgba(0,0,0,0.35)] sm:flex-row sm:items-center sm:px-7">
                   {mode === 'edit' && onDelete && (
@@ -1289,7 +1074,7 @@ export function PostDialog({
                     className="disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {saving ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <LoadingIndicator className="h-4 w-4" />
                     ) : isReschedule ? (
                       <CalendarClock className="h-4 w-4" />
                     ) : (

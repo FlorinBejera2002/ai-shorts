@@ -23,6 +23,7 @@ type fakeS3 struct {
 	pages                           int
 	partial, brokenPage, foreignKey bool
 	headError                       error
+	headSize                        *int64
 	put                             []byte
 	putType                         string
 }
@@ -36,7 +37,7 @@ func (f *fakeS3) PutObject(ctx context.Context, in *s3.PutObjectInput, options .
 	return &s3.PutObjectOutput{}, nil
 }
 func (f *fakeS3) HeadObject(context.Context, *s3.HeadObjectInput, ...func(*s3.Options)) (*s3.HeadObjectOutput, error) {
-	return &s3.HeadObjectOutput{}, f.headError
+	return &s3.HeadObjectOutput{ContentLength: f.headSize}, f.headError
 }
 func (f *fakeS3) DeleteObject(ctx context.Context, in *s3.DeleteObjectInput, o ...func(*s3.Options)) (*s3.DeleteObjectOutput, error) {
 	f.deleted = append(f.deleted, aws.ToString(in.Key))
@@ -107,6 +108,26 @@ func TestS3ExistsDistinguishesMissingFromOutage(t *testing.T) {
 		}
 	}
 }
+func TestS3MediaSizeRequiresValidObjectMetadata(t *testing.T) {
+	client := &fakeS3{headSize: aws.Int64(8192)}
+	storage := &S3Storage{client: client, bucket: "media"}
+	key := "publishing/" + testUserID + "/photo.jpg"
+	if size, err := storage.Size(context.Background(), key); err != nil || size != 8192 {
+		t.Fatalf("incorrect object size: %d %v", size, err)
+	}
+	for _, size := range []*int64{nil, aws.Int64(-1)} {
+		client.headSize = size
+		if _, err := storage.Size(context.Background(), key); err == nil {
+			t.Fatal("accepted missing or negative size")
+		}
+	}
+	client.headSize = aws.Int64(8192)
+	client.headError = errors.New("storage unavailable")
+	if _, err := storage.Size(context.Background(), key); err == nil {
+		t.Fatal("ignored storage failure")
+	}
+}
+
 func TestS3UploadAndPrivatePresign(t *testing.T) {
 	client := &fakeS3{}
 	storage := &S3Storage{client: client, bucket: "media"}

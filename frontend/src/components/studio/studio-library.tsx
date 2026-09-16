@@ -2,6 +2,7 @@
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { LoadingIndicator } from '@/components/ui/loading-indicator'
 import { useApiResource } from '@/hooks/use-api-resource'
 import { Link } from '@/i18n/navigation'
 import type { ClipLibraryData } from '@/types/api'
@@ -9,7 +10,6 @@ import {
   ChevronLeft,
   ChevronRight,
   Film,
-  Loader2,
   Plus,
   RefreshCw,
   Search
@@ -118,7 +118,7 @@ export function StudioLibrary({
                     <Film className="size-5 text-muted-foreground" />
                   )}
                   {busy === clip.id && (
-                    <Loader2 className="absolute size-5 animate-spin" />
+                    <LoadingIndicator className="absolute size-5" />
                   )}
                 </div>
                 <div className="min-w-0">

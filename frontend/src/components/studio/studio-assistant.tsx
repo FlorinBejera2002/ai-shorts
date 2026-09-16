@@ -1,7 +1,8 @@
 'use client'
 
 import { Button } from '@/components/ui/button'
-import { Loader2, Sparkles } from 'lucide-react'
+import { LoadingIndicator } from '@/components/ui/loading-indicator'
+import { Sparkles } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import {
   type StudioProposal,
@@ -95,8 +96,7 @@ export function StudioAssistant({
           className="w-full"
           disabled={busy || !message.trim()}
         >
-          {busy && <Loader2 className="size-4 animate-spin" />} Generate
-          proposal
+          {busy && <LoadingIndicator className="size-4" />} Generate proposal
         </Button>
       </form>
       {error && (

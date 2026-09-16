@@ -32,6 +32,7 @@ func (h *Handler) Register(router *httprouter.Router) {
 	router.Handler(http.MethodPost, "/api/upload/authorize", h.auth.RequireMember(h.authorize))
 	router.Handler(http.MethodPost, "/api/upload", h.auth.RequireMember(h.uploadMultipart))
 	router.Handler(http.MethodPost, "/api/publishing/media", h.auth.RequireMember(h.uploadPublishingMedia))
+	router.Handler(http.MethodGet, "/api/publishing/media/preview", h.auth.Require(h.previewPublishingMedia))
 	// Direct bodies use purpose-bound single-use upload credentials, not an
 	// access token. Global origin policy is applied by the public router.
 	router.HandlerFunc(http.MethodPut, "/api/upload/direct", h.uploadDirect)
@@ -64,10 +65,18 @@ func (h *Handler) uploadPublishingMedia(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	kind := "video"
-	if strings.HasPrefix(contentType, "image/") {
+	if strings.HasPrefix(result.ContentType, "image/") {
 		kind = "image"
 	}
 	writeMedia(w, 201, map[string]any{"reference": result.FilePath, "name": part.FileName(), "type": kind, "size": result.FileSize})
+}
+func (h *Handler) previewPublishingMedia(w http.ResponseWriter, r *http.Request) {
+	url, err := h.service.PublishingPreviewURL(r.Context(), identity.Current(r).User.ID, r.URL.Query().Get("reference"))
+	if err != nil {
+		mediaError(w, err)
+		return
+	}
+	writeMedia(w, 200, map[string]string{"url": url})
 }
 func writeMedia(w http.ResponseWriter, status int, body any) {
 	w.Header().Set("Content-Type", "application/json")

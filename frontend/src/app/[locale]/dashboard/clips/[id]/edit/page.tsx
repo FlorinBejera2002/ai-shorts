@@ -1,5 +1,6 @@
 'use client'
 
+import { LoadingIndicator } from '@/components/ui/loading-indicator'
 import '@/components/clips/media-workbench.css'
 
 import { apiFetch } from '@/lib/auth'
@@ -10,7 +11,6 @@ import {
   AlertTriangle,
   Clock,
   Film,
-  Loader2,
   Redo2,
   Save,
   Sparkles,
@@ -507,7 +507,7 @@ export default function ClipEditorPage() {
         )}
         {exportPhase === 'submitting' && (
           <span className="flex items-center gap-1.5 rounded-md bg-primary/10 px-2 py-1 font-medium text-primary">
-            <Loader2 className="h-3 w-3 animate-spin" />
+            <LoadingIndicator className="h-3 w-3" />
             {t('exporting')}
           </span>
         )}

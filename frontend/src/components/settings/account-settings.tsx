@@ -1,6 +1,7 @@
 'use client'
 
 import { Card } from '@/components/ui/card'
+import { LoadingIndicator } from '@/components/ui/loading-indicator'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -20,7 +21,6 @@ import {
   CheckCircle2,
   Download,
   KeyRound,
-  Loader2,
   LockKeyhole,
   Mail,
   Save,
@@ -368,7 +368,7 @@ export function AccountSettings({
                   className="disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {busy === 'profile' ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <LoadingIndicator className="h-4 w-4" />
                   ) : (
                     <Save className="h-4 w-4" />
                   )}
@@ -474,7 +474,7 @@ export function AccountSettings({
                       className="disabled:opacity-50"
                     >
                       {busy === 'password' ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <LoadingIndicator className="h-4 w-4" />
                       ) : (
                         <LockKeyhole className="h-4 w-4" />
                       )}
@@ -536,7 +536,7 @@ export function AccountSettings({
                 className="mt-4 disabled:opacity-50"
               >
                 {busy === 'export' ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <LoadingIndicator className="h-4 w-4" />
                 ) : (
                   <Download className="h-4 w-4" />
                 )}
@@ -636,7 +636,7 @@ export function AccountSettings({
                     disabled={busy !== null}
                   >
                     {busy === 'verification' ? (
-                      <Loader2 className="size-4 animate-spin motion-reduce:animate-none" />
+                      <LoadingIndicator className="size-4" />
                     ) : (
                       <Mail className="size-4" />
                     )}
@@ -727,7 +727,7 @@ export function AccountSettings({
                 className="mt-3"
               >
                 {busy === 'reauthenticate' ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <LoadingIndicator className="h-4 w-4" />
                 ) : (
                   <Shield className="h-4 w-4" />
                 )}
@@ -767,7 +767,7 @@ export function AccountSettings({
               className="inline-flex min-h-10 items-center justify-center gap-2 rounded-md bg-destructive px-4 py-2 text-[13px] font-semibold text-destructive-foreground transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-45"
             >
               {busy === 'delete' ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
+                <LoadingIndicator className="h-4 w-4" />
               ) : (
                 <Trash2 className="h-4 w-4" />
               )}

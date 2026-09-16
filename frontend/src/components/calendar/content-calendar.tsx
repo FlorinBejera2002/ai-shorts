@@ -4,6 +4,7 @@ import { Card } from '@/components/ui/card'
 import { PageHeader } from '@/components/ui/page-header'
 import { useToast } from '@/components/ui/toast'
 import { useApiResource } from '@/hooks/use-api-resource'
+import { useSocialConnection } from '@/hooks/use-social-connection'
 import { apiFetch } from '@/lib/auth'
 import type {
   CalendarClipOption,
@@ -16,7 +17,6 @@ import { useLocale, useTranslations } from 'next-intl'
 import { useSearchParams } from 'next/navigation'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { CalendarConnections } from './calendar-connections'
-import { ConnectionSuccessOverlay } from './connection-success-overlay'
 import { CalendarMetrics } from './calendar-metrics'
 import { CalendarPreviewList } from './calendar-preview-list'
 import { CalendarToolbar } from './calendar-toolbar'
@@ -36,6 +36,7 @@ import {
   startOfLocalMonth
 } from './calendar-utils'
 import styles from './calendar-workspace.module.css'
+import { ConnectionSuccessOverlay } from './connection-success-overlay'
 import { PostDialog } from './post-dialog'
 import { PublishingStatusDialog } from './publishing-status-dialog'
 
@@ -151,6 +152,8 @@ export function ContentCalendar() {
     error: publishingError,
     reload: reloadPublishing
   } = useApiResource<PublishingData>('/api/publishing')
+  const { connect, busyProvider, connectedProvider, finishConfirmation } =
+    useSocialConnection(reloadPublishing)
 
   const weekStartsOn: 0 | 1 = locale.toLowerCase().startsWith('ro') ? 1 : 0
   const range = useMemo(
@@ -370,7 +373,13 @@ export function ContentCalendar() {
 
   return (
     <div className={`${styles.workspace} dashboard-workspace`}>
-      <ConnectionSuccessOverlay onComplete={reloadPublishing} />
+      {connectedProvider && (
+        <ConnectionSuccessOverlay
+          key={connectedProvider}
+          provider={connectedProvider}
+          onComplete={finishConfirmation}
+        />
+      )}
       <PageHeader
         title={t('title')}
         description={t('description')}
@@ -416,6 +425,8 @@ export function ContentCalendar() {
               data={publishingData}
               error={publishingError}
               onReload={reloadPublishing}
+              onConnect={connect}
+              busyProvider={busyProvider}
             />
             <Card
               as="section"

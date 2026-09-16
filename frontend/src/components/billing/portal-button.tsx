@@ -1,10 +1,11 @@
 'use client'
 
+import { LoadingIndicator } from '@/components/ui/loading-indicator'
 import { apiFetch } from '@/lib/auth'
 
 import { Button } from '@/components/ui/button'
 
-import { ExternalLink, Loader2 } from 'lucide-react'
+import { ExternalLink } from 'lucide-react'
 import { useId, useState } from 'react'
 
 import type { BillingLocale } from '@/lib/billing'
@@ -78,7 +79,7 @@ export function PortalButton({
         className={`${className} disabled:cursor-not-allowed disabled:opacity-65`}
       >
         {loading ? (
-          <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+          <LoadingIndicator className="h-4 w-4" />
         ) : (
           <ExternalLink className="h-4 w-4" aria-hidden="true" />
         )}

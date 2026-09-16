@@ -43,6 +43,9 @@ func TestLocalStorageConfinementAndScopedCleanup(t *testing.T) {
 	if exists, e := storage.Exists(ctx, "clips/job-10/clip.mp4"); e != nil || !exists {
 		t.Fatal("adjacent namespace deleted")
 	}
+	if size, e := storage.Size(ctx, "clips/job-10/clip.mp4"); e != nil || size != 5 {
+		t.Fatalf("incorrect stored size: %d %v", size, e)
+	}
 	for _, key := range []string{"", ".", "..", "../outside", "clips/../../outside"} {
 		if _, e := storage.DeletePrefix(ctx, key); e == nil {
 			t.Fatalf("unsafe delete %q", key)
@@ -55,6 +58,9 @@ func TestLocalStorageConfinementAndScopedCleanup(t *testing.T) {
 	}
 	if _, e := storage.Exists(ctx, "escape/secret"); e == nil {
 		t.Fatal("followed symlink outside root")
+	}
+	if _, e := storage.Size(ctx, "escape/secret"); e == nil {
+		t.Fatal("read size outside root")
 	}
 	if e := storage.Save(ctx, source, "escape/evil.mp4", "video/mp4"); e == nil {
 		t.Fatal("wrote outside root")

@@ -83,6 +83,19 @@ func (s *S3Storage) Exists(ctx context.Context, key string) (bool, error) {
 	}
 	return e == nil, e
 }
+func (s *S3Storage) Size(ctx context.Context, key string) (int64, error) {
+	if !validKey(key) {
+		return 0, ErrInvalidKey
+	}
+	result, err := s.client.HeadObject(ctx, &s3.HeadObjectInput{Bucket: aws.String(s.bucket), Key: aws.String(key)})
+	if err != nil {
+		return 0, err
+	}
+	if result.ContentLength == nil || *result.ContentLength < 0 {
+		return 0, errors.New("storage did not return the media size")
+	}
+	return *result.ContentLength, nil
+}
 func (s *S3Storage) Delete(ctx context.Context, key string) error {
 	if !validKey(key) {
 		return ErrInvalidKey

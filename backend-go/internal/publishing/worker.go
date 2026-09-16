@@ -91,20 +91,40 @@ func (h *Handler) dispatchCalendar(ctx context.Context) error {
 	if reference == "" || len(accountIDs) == 0 {
 		return h.failCalendar(ctx, tx, id, "Choose an available clip and at least one connected account.")
 	}
+	selectedMedia := []PublishMedia{{Type: "video", URL: reference}}
+	if !clipID.Valid {
+		var attached []struct{ Type, Reference string }
+		if json.Unmarshal(postMedia, &attached) != nil || len(attached) == 0 {
+			return h.failCalendar(ctx, tx, id, "Choose available images or videos before publication.")
+		}
+		selectedMedia = make([]PublishMedia, 0, len(attached))
+		for _, item := range attached {
+			selectedMedia = append(selectedMedia, PublishMedia{Type: item.Type, URL: item.Reference})
+		}
+	}
 	requestHash := digest(id + ":" + reference + ":" + caption)
+	providers := make([]string, 0, len(accountIDs))
 	for _, accountID := range accountIDs {
 		var provider string
 		e = tx.QueryRowContext(ctx, `SELECT provider FROM social_accounts WHERE id=$1 AND user_id=$2 AND status='connected' AND COALESCE(token_expires_at>now(),true) FOR UPDATE`, accountID, userID).Scan(&provider)
 		if e != nil || (provider != "instagram" && provider != "facebook") || !h.configured(provider) {
 			return h.failCalendar(ctx, tx, id, "A selected account is disconnected or unavailable. Reconnect it and reschedule the post.")
 		}
+		if err := ValidateMediaReferences(provider, selectedMedia); err != nil {
+			return h.failCalendar(ctx, tx, id, err.Error())
+		}
+		providers = append(providers, provider)
+	}
+	// Validate every destination before inserting any job. A later unsupported
+	// account must not leave an earlier destination queued for publication.
+	for i, accountID := range accountIDs {
 		postID, uuidErr := data.NewUUID()
 		if uuidErr != nil {
 			return uuidErr
 		}
 		_, e = tx.ExecContext(ctx, `INSERT INTO social_posts(id,user_id,account_id,clip_id,provider,caption,options,idempotency_key,request_hash,media_reference,scheduled_post_id)
 			VALUES($1,$2,$3,$4,$5,$6,'{}'::jsonb,$7,$8,$9,$10)
-			ON CONFLICT (scheduled_post_id,account_id) WHERE scheduled_post_id IS NOT NULL DO NOTHING`, postID, userID, accountID, clipID, provider, caption, id, requestHash, reference, id)
+			ON CONFLICT (scheduled_post_id,account_id) WHERE scheduled_post_id IS NOT NULL DO NOTHING`, postID, userID, accountID, clipID, providers[i], caption, id, requestHash, reference, id)
 		if e != nil {
 			return e
 		}
@@ -158,9 +178,9 @@ func (h *Handler) runOne(ctx context.Context) error {
 	if e = tx.Commit(); e != nil {
 		return e
 	}
-	return h.process(ctx, job, false)
+	return h.process(ctx, job, "")
 }
-func (h *Handler) process(ctx context.Context, job workItem, finalize bool) error {
+func (h *Handler) process(ctx context.Context, job workItem, action string) error {
 	tx, e := h.db.BeginTx(ctx, nil)
 	if e != nil {
 		return e
@@ -193,8 +213,10 @@ func (h *Handler) process(ctx context.Context, job workItem, finalize bool) erro
 	if expected == "queued" {
 		expected = "submitting"
 	}
-	if finalize {
+	if action == "finalize" {
 		expected = "finalizing"
+	} else if action == "carousel" {
+		expected = "submitting"
 	}
 	if current != expected {
 		return nil
@@ -229,7 +251,14 @@ func (h *Handler) process(ctx context.Context, job workItem, finalize bool) erro
 			return e
 		}
 	}
-	if finalize {
+	if action == "carousel" {
+		id, err := h.client.CreateCarousel(ctx, job.RemoteID, creds)
+		if err != nil {
+			return set("unknown", "Carousel creation could not be confirmed. Check the destination account before posting again.", job.RemoteID, "")
+		}
+		return set("processing", "", id, "")
+	}
+	if action == "finalize" {
 		id, link, err := h.client.Finalize(ctx, a.Provider, job.RemoteID, creds)
 		if err != nil {
 			return set("unknown", "Publication outcome is unknown. Check the destination account before posting again.", job.RemoteID, "")
@@ -248,13 +277,32 @@ func (h *Handler) process(ctx context.Context, job workItem, finalize bool) erro
 		var attached []struct{ Type, Reference, Name string }
 		if json.Unmarshal([]byte(job.Reference), &attached) == nil && len(attached) > 0 {
 			for _, item := range attached {
-				source, err := h.media.SignedURL(ctx, item.Reference)
+				reference := item.Reference
+				if a.Provider == "instagram" && item.Type == "image" {
+					if resolver, ok := h.media.(interface {
+						InstagramPublishingKey(context.Context, string) (string, error)
+					}); ok {
+						var err error
+						reference, err = resolver.InstagramPublishingKey(ctx, reference)
+						if err != nil {
+							return set("failed", err.Error(), "", "")
+						}
+					}
+				}
+				source, err := h.media.SignedURL(ctx, reference)
 				if err != nil || !publicHTTPS(source) {
 					return set("failed", "A public HTTPS media URL is required.", "", "")
 				}
 				media = append(media, PublishMedia{Type: item.Type, URL: source})
 			}
 		} else {
+			var currentReference string
+			err := tx.QueryRowContext(ctx, `SELECT COALESCE(NULLIF(c.file_storage_key,''),NULLIF(c.file_path,''),c.file_url,'')
+				FROM social_posts p JOIN clips c ON c.id=p.clip_id AND c.user_id=p.user_id
+				WHERE p.id=$1 FOR SHARE OF c`, job.ID).Scan(&currentReference)
+			if err != nil || currentReference != job.Reference {
+				return set("failed", "The selected clip changed or is no longer available. Review it before publishing again.", "", "")
+			}
 			source, err := h.media.SignedURL(ctx, job.Reference)
 			if err != nil || !publicHTTPS(source) {
 				return set("failed", "A public HTTPS video URL is required.", "", "")
@@ -263,6 +311,9 @@ func (h *Handler) process(ctx context.Context, job workItem, finalize bool) erro
 		}
 		id, status, err := h.client.PublishMedia(ctx, a.Provider, a.RemoteID, creds, media, job.Caption, job.Options)
 		if err != nil {
+			if status == "failed" {
+				return set("failed", err.Error(), id, "")
+			}
 			return set("unknown", "Publication outcome is unknown. Check the destination account before posting again.", id, "")
 		}
 		if status != "processing" && status != "published" {
@@ -272,7 +323,7 @@ func (h *Handler) process(ctx context.Context, job workItem, finalize bool) erro
 	}
 	status, link, err := h.client.Poll(ctx, a.Provider, job.RemoteID, creds)
 	if status == "failed" {
-		return set("failed", "The platform could not process this video.", job.RemoteID, "")
+		return set("failed", "The platform could not process this media.", job.RemoteID, "")
 	}
 	if time.Since(job.CreatedAt) > 24*time.Hour && status != "published" {
 		return set("unknown", "Could not confirm the final platform status.", job.RemoteID, "")
@@ -283,11 +334,17 @@ func (h *Handler) process(ctx context.Context, job workItem, finalize bool) erro
 		}
 		return set("processing", "Waiting for platform status.", job.RemoteID, "")
 	}
+	if status == "carousel_ready" {
+		if e = set("submitting", "", job.RemoteID, ""); e != nil {
+			return e
+		}
+		return h.process(ctx, job, "carousel")
+	}
 	if status == "ready" && !job.Finalized {
 		if e = set("finalizing", "", job.RemoteID, ""); e != nil {
 			return e
 		}
-		return h.process(ctx, job, true)
+		return h.process(ctx, job, "finalize")
 	}
 	if status == "ready" {
 		status = "processing"
@@ -297,7 +354,7 @@ func (h *Handler) process(ctx context.Context, job workItem, finalize bool) erro
 	}
 	message := ""
 	if status == "failed" {
-		message = "The platform could not process this video."
+		message = "The platform could not process this media."
 	}
 	return set(status, message, job.RemoteID, link)
 }

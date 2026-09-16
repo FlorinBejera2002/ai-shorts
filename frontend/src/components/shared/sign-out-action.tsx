@@ -10,9 +10,10 @@ import {
   DialogTitle,
   DialogTrigger
 } from '@/components/ui/dialog'
+import { LoadingIndicator } from '@/components/ui/loading-indicator'
 import { useToast } from '@/components/ui/toast'
 import { authClient } from '@/lib/auth'
-import { Loader2, LogOut } from 'lucide-react'
+import { LogOut } from 'lucide-react'
 import { useLocale } from 'next-intl'
 import { useRef, useState } from 'react'
 
@@ -43,7 +44,7 @@ export function SignOutAction({ iconOnly = false }: { iconOnly?: boolean }) {
   const content = (
     <>
       {pending ? (
-        <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+        <LoadingIndicator className="size-4" />
       ) : (
         <LogOut className="size-4" aria-hidden="true" />
       )}
@@ -115,9 +116,7 @@ export function SignOutAction({ iconOnly = false }: { iconOnly?: boolean }) {
               void signOut()
             }}
           >
-            {pending && (
-              <Loader2 className="size-4 animate-spin" aria-hidden="true" />
-            )}
+            {pending && <LoadingIndicator className="size-4" />}
             {label}
           </Button>
         </DialogFooter>

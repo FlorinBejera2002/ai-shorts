@@ -212,7 +212,7 @@ func Validate(input map[string]any, create bool) (map[string]any, error) {
 	}
 	if raw, exists := input["media"]; exists {
 		values, ok := raw.([]any)
-		valid, kind := ok && len(values) <= 10, ""
+		valid := ok && len(values) <= 10
 		normalized := make([]map[string]string, 0, len(values))
 		for _, item := range values {
 			entry, entryOK := item.(map[string]any)
@@ -223,18 +223,14 @@ func Validate(input map[string]any, create bool) (map[string]any, error) {
 			t, tok := entry["type"].(string)
 			ref, rok := entry["reference"].(string)
 			name, nok := entry["name"].(string)
-			if !tok || !rok || !nok || (t != "image" && t != "video") || ref == "" || name == "" || len(entry) != 3 || (kind != "" && kind != t) {
+			if !tok || !rok || !nok || (t != "image" && t != "video") || ref == "" || name == "" || len(entry) != 3 {
 				valid = false
 				continue
 			}
-			kind = t
 			normalized = append(normalized, map[string]string{"type": t, "reference": ref, "name": name})
 		}
-		if kind == "video" && len(normalized) != 1 {
-			valid = false
-		}
 		if !valid {
-			issues = append(issues, Issue{"media", "Choose either one video or up to 10 images"})
+			issues = append(issues, Issue{"media", "Choose up to 10 images or videos"})
 		} else {
 			output["media"] = normalized
 		}

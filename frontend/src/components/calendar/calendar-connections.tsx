@@ -11,6 +11,7 @@ import {
   DialogHeader,
   DialogTitle
 } from '@/components/ui/dialog'
+import { LoadingIndicator } from '@/components/ui/loading-indicator'
 import { useToast } from '@/components/ui/toast'
 import { extractApiError } from '@/lib/api-error'
 import { apiFetch } from '@/lib/auth'
@@ -20,27 +21,25 @@ import type {
   PublishingProvider
 } from '@/lib/publishing'
 import { withAllPublishingProviders } from '@/lib/publishing'
-import { Check, Loader2, Lock, LogOut, RefreshCw } from 'lucide-react'
-import { useLocale, useTranslations } from 'next-intl'
+import { Check, Lock, LogOut, RefreshCw } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 import { useState } from 'react'
-
-const PENDING_CONNECTION_KEY = 'sneepcut:pending-social-connection'
 
 export function CalendarConnections({
   data,
   error,
-  onReload
+  onReload,
+  onConnect,
+  busyProvider
 }: {
   data: PublishingData | null
   error: string | null
   onReload: () => void
+  onConnect: (provider: PublishingProvider) => Promise<void>
+  busyProvider: PublishingProvider | null
 }) {
   const t = useTranslations('contentCalendar.connections')
-  const locale = useLocale()
   const toast = useToast()
-  const [busyProvider, setBusyProvider] = useState<PublishingProvider | null>(
-    null
-  )
   const [busyAccount, setBusyAccount] = useState<string | null>(null)
   const [disconnectingAccount, setDisconnectingAccount] =
     useState<PublishingAccount | null>(null)
@@ -49,43 +48,6 @@ export function CalendarConnections({
       (account) =>
         account.status === 'connected' && account.tokenExpired !== true
     ) ?? []
-
-  async function connect(provider: PublishingProvider) {
-    const popup = window.open(
-      'about:blank',
-      'sneepcut-social-connect',
-      'popup=yes,width=620,height=760,left=120,top=80'
-    )
-    if (!popup) {
-      toast.add('error', t('popupBlocked'))
-      return
-    }
-    setBusyProvider(provider)
-    try {
-      const response = await apiFetch(`/api/publishing/connect/${provider}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ locale })
-      })
-      const result: unknown = await response.json().catch(() => null)
-      if (
-        !response.ok ||
-        typeof result !== 'object' ||
-        result === null ||
-        !('url' in result) ||
-        typeof result.url !== 'string'
-      ) {
-        throw new Error('Unable to start connection')
-      }
-      window.sessionStorage.setItem(PENDING_CONNECTION_KEY, provider)
-      popup.location.assign(result.url)
-      popup.focus()
-    } catch {
-      popup?.close()
-      window.sessionStorage.removeItem(PENDING_CONNECTION_KEY)
-      setBusyProvider(null)
-    }
-  }
 
   async function disconnect() {
     if (!disconnectingAccount) return
@@ -213,11 +175,11 @@ export function CalendarConnections({
                           disabled={
                             !provider.configured || busyProvider !== null
                           }
-                          onClick={() => void connect(provider.id)}
+                          onClick={() => void onConnect(provider.id)}
                           className="ml-auto h-8 rounded-md bg-background px-2.5 text-[10px] shadow-none hover:bg-muted hover:text-foreground"
                         >
                           {busyProvider === provider.id ? (
-                            <Loader2 className="size-3 animate-spin" />
+                            <LoadingIndicator className="size-3" />
                           ) : provider.configured ? (
                             <span aria-hidden="true">+</span>
                           ) : (
@@ -271,7 +233,7 @@ export function CalendarConnections({
                               title={t('disconnect')}
                             >
                               {busyAccount === account.id ? (
-                                <Loader2 className="animate-spin" />
+                                <LoadingIndicator />
                               ) : (
                                 <LogOut />
                               )}
@@ -327,7 +289,7 @@ export function CalendarConnections({
               disabled={busyAccount !== null}
               onClick={() => void disconnect()}
             >
-              {busyAccount !== null && <Loader2 className="animate-spin" />}
+              {busyAccount !== null && <LoadingIndicator />}
               {t('confirmDisconnect')}
             </Button>
           </DialogFooter>

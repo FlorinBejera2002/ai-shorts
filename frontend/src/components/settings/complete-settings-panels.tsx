@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { LoadingIndicator } from '@/components/ui/loading-indicator'
 import { Switch } from '@/components/ui/switch'
 import { useToast } from '@/components/ui/toast'
 import { useApiResource } from '@/hooks/use-api-resource'
@@ -20,7 +21,6 @@ import {
   History,
   KeyRound,
   Laptop,
-  Loader2,
   LogOut,
   RefreshCw,
   Save,
@@ -242,7 +242,7 @@ export function CompleteSettingsPanels() {
             </div>
           ) : (
             <>
-              <Loader2 className="mr-2 size-4 animate-spin motion-reduce:animate-none" />
+              <LoadingIndicator className="mr-2 size-4" />
               {t('settingsLoading')}
             </>
           )}
@@ -286,7 +286,7 @@ export function CompleteSettingsPanels() {
               disabled={busy !== null}
             >
               {busy === 'mfa-setup' ? (
-                <Loader2 className="size-4 animate-spin" />
+                <LoadingIndicator className="size-4" />
               ) : (
                 <KeyRound className="size-4" />
               )}
@@ -334,7 +334,7 @@ export function CompleteSettingsPanels() {
                 disabled={busy !== null || mfaCode.length < 6}
               >
                 {busy === 'mfa-enable' && (
-                  <Loader2 className="size-4 animate-spin" />
+                  <LoadingIndicator className="size-4" />
                 )}
                 {t('confirmTwoFactor')}
               </Button>
@@ -449,7 +449,7 @@ export function CompleteSettingsPanels() {
                 disabled={busy !== null}
               >
                 {busy === `session-${session.id}` ? (
-                  <Loader2 className="size-4 animate-spin" />
+                  <LoadingIndicator className="size-4" />
                 ) : (
                   t('revoke')
                 )}
@@ -640,7 +640,7 @@ export function CompleteSettingsPanels() {
           disabled={busy !== null}
         >
           {busy === 'preferences' ? (
-            <Loader2 className="size-4 animate-spin" />
+            <LoadingIndicator className="size-4" />
           ) : (
             <Save className="size-4" />
           )}

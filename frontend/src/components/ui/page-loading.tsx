@@ -1,18 +1,14 @@
+import { LoadingIndicator } from '@/components/ui/loading-indicator'
+
 export function PageLoading({ label = 'Loading' }: { label?: string }) {
   return (
     <div
-      className="flex min-h-[55vh] items-center justify-center"
+      className="flex min-h-[calc(100svh-6rem)] items-center justify-center"
       aria-label={label}
       aria-busy="true"
       role="status"
     >
-      <img
-        src="/brand/black-loading.gif"
-        alt=""
-        width={96}
-        height={96}
-        className="size-24 object-contain"
-      />
+      <LoadingIndicator className="size-36" />
       <span className="sr-only">{label}</span>
     </div>
   )

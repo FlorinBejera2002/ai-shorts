@@ -73,6 +73,9 @@ function fixture() {
     if (name === '@/lib/api-error') {
       return { extractApiError: (_data, fallback) => fallback }
     }
+    if (name === '@/lib/publishing') {
+      return { withAllPublishingProviders: (providers) => providers }
+    }
     if (name.endsWith('/toast')) {
       return { useToast: () => ({ add: (...args) => toasts.push(args) }) }
     }
@@ -115,6 +118,8 @@ function fixture() {
     return exports.CalendarConnections({
       data,
       error: null,
+      busyProvider: null,
+      onConnect: async () => undefined,
       onReload: () => {
         reloads++
       }
@@ -148,7 +153,7 @@ test('shows the connected identity and disconnects the selected account', async 
     .nodes(tree, 'p')
     .flatMap((node) => [node.props.children].flat(Number.POSITIVE_INFINITY))
     .join('')
-  assert.match(text, /Sneep Cut/)
+  assert.match(text, /Facebook/)
   assert.match(text, /@sneepcut/)
 
   const disconnectTrigger = view

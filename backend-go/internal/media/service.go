@@ -190,6 +190,11 @@ func safeSlug(name string) string {
 // stage never publishes unscanned data. Max+1 bounds disk writes, and the
 // content length is checked again against bytes actually received.
 func (s *Service) stage(ctx context.Context, body io.Reader, maximum, expected int64, suffix string, video bool) (string, int64, error) {
+	if s.cfg.StagingDirectory != "" {
+		if e := os.MkdirAll(s.cfg.StagingDirectory, 0700); e != nil {
+			return "", 0, failure(503, "Upload staging is unavailable")
+		}
+	}
 	f, e := os.CreateTemp(s.cfg.StagingDirectory, "sneepcut-upload-*"+suffix)
 	if e != nil {
 		return "", 0, failure(503, "Upload staging is unavailable")
@@ -239,30 +244,6 @@ func (s *Service) stage(ctx context.Context, body io.Reader, maximum, expected i
 	return filename, n, nil
 }
 
-func (s *Service) StorePublishingMedia(ctx context.Context, userID string, intent UploadIntent, body io.Reader) (UploadResult, error) {
-	suffix := strings.ToLower(path.Ext(intent.FileName))
-	isImage := publishingImageExtensions[suffix]
-	if !isImage && !videoExtensions[suffix] {
-		return UploadResult{}, failure(400, "Choose a JPG, PNG, WebP or video file")
-	}
-	filename, size, e := s.stage(ctx, body, s.cfg.MaxUploadBytes, 0, suffix, !isImage)
-	if e != nil {
-		return UploadResult{}, e
-	}
-	defer os.Remove(filename)
-	if e = s.accountActive(ctx, userID, true); e != nil {
-		return UploadResult{}, e
-	}
-	id, e := randomID()
-	if e != nil {
-		return UploadResult{}, e
-	}
-	key := "publishing/" + userID + "/" + id + "-" + safeSlug(strings.TrimSuffix(intent.FileName, path.Ext(intent.FileName))) + suffix
-	if e = s.Storage.Save(ctx, filename, key, intent.ContentType); e != nil {
-		return UploadResult{}, failure(503, "Upload could not be stored")
-	}
-	return UploadResult{FilePath: key, FileName: path.Base(key), FileSize: size, ContentType: intent.ContentType}, nil
-}
 func (s *Service) storeVideo(ctx context.Context, userID string, intent UploadIntent, body io.Reader, expected int64) (UploadResult, error) {
 	var result UploadResult
 	suffix := strings.ToLower(path.Ext(intent.FileName))

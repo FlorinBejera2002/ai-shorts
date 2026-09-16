@@ -1,5 +1,6 @@
 'use client'
 
+import { LoadingIndicator } from '@/components/ui/loading-indicator'
 import { apiFetch } from '@/lib/auth'
 
 import { Button } from '@/components/ui/button'
@@ -7,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Textarea } from '@/components/ui/textarea'
 
-import { Check, Loader2, RotateCcw, Send, Sparkles } from 'lucide-react'
+import { Check, RotateCcw, Send, Sparkles } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react'
 
@@ -199,7 +200,7 @@ export function AssistantChat({
       >
         {!historyLoaded ? (
           <div className="flex flex-1 items-center justify-center">
-            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+            <LoadingIndicator className="h-4 w-4 text-muted-foreground" />
           </div>
         ) : messages.length === 0 ? (
           <div
@@ -282,7 +283,7 @@ export function AssistantChat({
             <span className="flex h-5 w-5 items-center justify-center rounded-md bg-primary/10 text-primary">
               <Sparkles className="h-3 w-3" strokeWidth={2} />
             </span>
-            <Loader2 className="h-3 w-3 animate-spin" />
+            <LoadingIndicator className="h-3 w-3" />
             {t('thinking')}
           </div>
         )}
@@ -319,7 +320,7 @@ export function AssistantChat({
           className="flex h-10 w-10 shrink-0 items-center justify-center whitespace-normal rounded-md bg-foreground text-background transition-opacity hover:opacity-85 disabled:cursor-not-allowed disabled:opacity-40"
         >
           {busy ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
+            <LoadingIndicator className="h-4 w-4" />
           ) : (
             <Send className="h-4 w-4" strokeWidth={1.75} />
           )}

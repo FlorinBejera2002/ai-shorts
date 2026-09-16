@@ -1,7 +1,8 @@
 'use client'
 
 import { Button } from '@/components/ui/button'
-import { Check, Loader2, RotateCcw, Save, Undo2 } from 'lucide-react'
+import { LoadingIndicator } from '@/components/ui/loading-indicator'
+import { Check, RotateCcw, Save, Undo2 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 type SaveBarProps = {
@@ -77,7 +78,7 @@ export function SaveBar({
           className="h-9 min-w-24 rounded-md px-3 text-xs"
         >
           {saving ? (
-            <Loader2 className="animate-spin" />
+            <LoadingIndicator />
           ) : saved ? (
             <Check />
           ) : (

@@ -9,9 +9,10 @@ import {
   CardHeader,
   CardTitle
 } from '@/components/ui/card'
+import { LoadingIndicator } from '@/components/ui/loading-indicator'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Link } from '@/i18n/navigation'
-import { CheckCheck, Clock, Loader2 } from 'lucide-react'
+import { CheckCheck, Clock } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useEffect, useState } from 'react'
 
@@ -73,7 +74,8 @@ export function ActiveJobs() {
   }, [])
 
   type StatusInfo = {
-    icon: typeof Clock | typeof Loader2
+    icon?: typeof Clock
+    loading?: boolean
     color: string
     text: string
   }
@@ -85,42 +87,42 @@ export function ActiveJobs() {
       text: t('statusPending')
     },
     downloading: {
-      icon: Loader2,
+      loading: true,
       color: 'text-blue-600 dark:text-blue-400',
       text: t('statusDownloading')
     },
     transcribing: {
-      icon: Loader2,
+      loading: true,
       color: 'text-indigo-600 dark:text-indigo-400',
       text: t('statusTranscribing')
     },
     analyzing: {
-      icon: Loader2,
+      loading: true,
       color: 'text-primary',
       text: t('statusDetecting')
     },
     clipping: {
-      icon: Loader2,
+      loading: true,
       color: 'text-sky-700 dark:text-sky-400',
       text: t('statusClipping')
     },
     rendering: {
-      icon: Loader2,
+      loading: true,
       color: 'text-cyan-700 dark:text-cyan-400',
       text: t('statusRendering')
     },
     detecting: {
-      icon: Loader2,
+      loading: true,
       color: 'text-primary',
       text: t('statusDetecting')
     },
     generating: {
-      icon: Loader2,
+      loading: true,
       color: 'text-sky-700 dark:text-sky-400',
       text: t('statusGenerating')
     },
     processing: {
-      icon: Loader2,
+      loading: true,
       color: 'text-cyan-700 dark:text-cyan-400',
       text: t('statusProcessing')
     }
@@ -175,11 +177,11 @@ export function ActiveJobs() {
                     <div
                       className={`flex shrink-0 items-center gap-1 text-[11px] ${statusInfo.color}`}
                     >
-                      {statusInfo.icon === Loader2 ? (
-                        <StatusIcon className="h-3 w-3 animate-spin motion-reduce:animate-none" />
-                      ) : (
+                      {statusInfo.loading ? (
+                        <LoadingIndicator className="size-3" />
+                      ) : StatusIcon ? (
                         <StatusIcon className="h-3 w-3" strokeWidth={1.75} />
-                      )}
+                      ) : null}
                       <span className="inline">
                         {job.progress_message ?? statusInfo.text}
                       </span>

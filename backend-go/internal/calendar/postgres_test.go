@@ -17,10 +17,61 @@ import (
 type calendarMedia struct{}
 
 func (calendarMedia) KeyFromReference(value string) (string, error) {
-	if strings.HasPrefix(value, "clips/") {
+	if strings.HasPrefix(value, "clips/") || strings.HasPrefix(value, "publishing/") {
 		return value, nil
 	}
 	return "", errors.New("not stored media")
+}
+
+func TestPostgresCarouselOrderPersistsAndFacebookRejectsVideoSets(t *testing.T) {
+	db := testdb.Open(t)
+	ctx := context.Background()
+	user, _, _ := seedCalendarClip(t, db)
+	repo := NewRepository(db, calendarMedia{})
+	instagram, facebook := fixtureID(t), fixtureID(t)
+	for _, account := range []struct{ id, provider string }{{instagram, "instagram"}, {facebook, "facebook"}} {
+		if _, err := db.Exec(`INSERT INTO social_accounts(id,user_id,provider,remote_id,name,credentials) VALUES($1,$2,$3,$4,'Carousel fixture','sealed')`, account.id, user, account.provider, account.id); err != nil {
+			t.Fatal(err)
+		}
+	}
+	media := []any{
+		map[string]any{"type": "video", "reference": "publishing/" + user + "/first.mp4", "name": "first.mp4"},
+		map[string]any{"type": "image", "reference": "publishing/" + user + "/second.jpg", "name": "second.jpg"},
+		map[string]any{"type": "video", "reference": "publishing/" + user + "/third.mp4", "name": "third.mp4"},
+	}
+	input := validInput()
+	input["clipId"], input["media"] = nil, media
+	input["platforms"], input["accountIds"] = []any{"instagram"}, []any{instagram}
+	post, err := repo.Mutate(ctx, user, "", input, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(post.Media) != 3 || post.Media[0]["name"] != "first.mp4" {
+		t.Fatalf("created order: %v", post.Media)
+	}
+	post, err = repo.Mutate(ctx, user, post.ID, map[string]any{"media": []any{media[1], media[2], media[0]}}, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	loaded, err := repo.Get(ctx, user, post.ID)
+	if err != nil || loaded.Media[0]["name"] != "second.jpg" || loaded.Media[2]["name"] != "first.mp4" {
+		t.Fatalf("reordered cover did not persist: %v %v", loaded.Media, err)
+	}
+	// A partial update must inspect stored media, not just the PATCH payload.
+	_, err = repo.Mutate(ctx, user, post.ID, map[string]any{"platforms": []any{"facebook"}, "accountIds": []any{facebook}}, false)
+	var validation *ValidationError
+	if !errors.As(err, &validation) || len(validation.Issues) != 1 || validation.Issues[0].Field != "media" {
+		t.Fatalf("Facebook accepted mixed carousel: %v", err)
+	}
+	input["platforms"], input["accountIds"] = []any{"facebook"}, []any{facebook}
+	input["media"] = []any{media[0], media[2]}
+	if _, err := repo.Mutate(ctx, user, "", input, true); !errors.As(err, &validation) {
+		t.Fatalf("Facebook accepted multiple videos: %v", err)
+	}
+	input["media"] = []any{media[1]}
+	if _, err := repo.Mutate(ctx, user, "", input, true); err != nil {
+		t.Fatalf("Facebook single image rejected: %v", err)
+	}
 }
 func (calendarMedia) SignedURL(ctx context.Context, key string) (string, error) {
 	return "https://media.example.invalid/" + key + "?fresh=true", nil

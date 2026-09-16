@@ -10,8 +10,9 @@ import {
   DialogHeader,
   DialogTitle
 } from '@/components/ui/dialog'
+import { LoadingIndicator } from '@/components/ui/loading-indicator'
 import { Link } from '@/i18n/navigation'
-import { CheckCircle2, Clock, Film, Loader2, Scissors, X } from 'lucide-react'
+import { CheckCircle2, Clock, Film, Scissors, X } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 export type ExportPhase = 'confirm' | 'submitting' | 'done'
@@ -142,7 +143,7 @@ export function ExportDialog({
                 className="bg-foreground text-background hover:bg-foreground/85"
               >
                 {submitting ? (
-                  <Loader2 className="size-4 animate-spin" />
+                  <LoadingIndicator className="size-4" />
                 ) : (
                   <Scissors className="size-4" />
                 )}
