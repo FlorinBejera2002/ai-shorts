@@ -24,11 +24,15 @@ import type { PublishingAccount } from '@/lib/publishing'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import {
   AlertTriangle,
+  ChevronLeft,
+  ChevronRight,
   CalendarClock,
   Check,
   Film,
+  GripVertical,
   ImagePlus,
   Loader2,
+  Play,
   Save,
   Trash2,
   X
@@ -203,6 +207,7 @@ export function PostDialog({
   const titleInputRef = useRef<HTMLInputElement>(null)
   const deleteButtonRef = useRef<HTMLButtonElement>(null)
   const confirmDeleteButtonRef = useRef<HTMLButtonElement>(null)
+  const mediaPreviewUrlsRef = useRef<Record<string, string>>({})
   const wasConfirmingDeleteRef = useRef(false)
   const onCloseRef = useRef(onClose)
   const busyRef = useRef(false)
@@ -221,6 +226,12 @@ export function PostDialog({
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [uploading, setUploading] = useState(false)
+  const [mediaPreviewUrls, setMediaPreviewUrls] = useState<
+    Record<string, string>
+  >({})
+  const [draggedMediaReference, setDraggedMediaReference] = useState<
+    string | null
+  >(null)
   const [confirmDelete, setConfirmDelete] = useState(mode === 'delete')
   const [deletePlatforms, setDeletePlatforms] = useState<ContentPlatform[]>([])
   const busy = saving || deleting || uploading
@@ -242,11 +253,23 @@ export function PostDialog({
       return
     }
     setUploading(true)
+    const localPreviewUrls = selected.map((file) => URL.createObjectURL(file))
     try {
       const uploaded = await Promise.all(selected.map(uploadPublishingFile))
+      for (const previewUrl of Object.values(mediaPreviewUrlsRef.current)) {
+        URL.revokeObjectURL(previewUrl)
+      }
+      const nextPreviewUrls: Record<string, string> = {}
+      uploaded.forEach((item, index) => {
+        const previewUrl = localPreviewUrls[index]
+        if (previewUrl) nextPreviewUrls[item.reference] = previewUrl
+      })
+      mediaPreviewUrlsRef.current = nextPreviewUrls
+      setMediaPreviewUrls(nextPreviewUrls)
       setField('media', uploaded)
       setField('clipId', '')
     } catch {
+      for (const previewUrl of localPreviewUrls) URL.revokeObjectURL(previewUrl)
       setErrors((current) => ({
         ...current,
         media: t('validation.mediaUploadFailed')
@@ -254,6 +277,38 @@ export function PostDialog({
     } finally {
       setUploading(false)
     }
+  }
+
+  function removeMedia(reference: string) {
+    const previewUrl = mediaPreviewUrlsRef.current[reference]
+    if (previewUrl) URL.revokeObjectURL(previewUrl)
+    const nextPreviewUrls = { ...mediaPreviewUrlsRef.current }
+    delete nextPreviewUrls[reference]
+    mediaPreviewUrlsRef.current = nextPreviewUrls
+    setMediaPreviewUrls(nextPreviewUrls)
+    setField(
+      'media',
+      form.media.filter((item) => item.reference !== reference)
+    )
+  }
+
+  function moveMedia(reference: string, targetIndex: number) {
+    const sourceIndex = form.media.findIndex(
+      (item) => item.reference === reference
+    )
+    if (
+      sourceIndex < 0 ||
+      targetIndex < 0 ||
+      targetIndex >= form.media.length ||
+      sourceIndex === targetIndex
+    ) {
+      return
+    }
+    const reordered = [...form.media]
+    const [moved] = reordered.splice(sourceIndex, 1)
+    if (!moved) return
+    reordered.splice(targetIndex, 0, moved)
+    setField('media', reordered)
   }
   const publishedProviders = useMemo(
     () => [
@@ -350,6 +405,9 @@ export function PostDialog({
       document.body.style.overflow = previousOverflow
       if (!appShellWasInert) appShell?.removeAttribute('inert')
       previousFocus?.focus()
+      for (const previewUrl of Object.values(mediaPreviewUrlsRef.current)) {
+        URL.revokeObjectURL(previewUrl)
+      }
     }
   }, [])
 
@@ -894,34 +952,123 @@ export function PostDialog({
                           </span>
                         </label>
                         {form.media.length > 0 && (
-                          <div className="mt-2 flex flex-wrap gap-2">
+                          <div className="mt-3">
+                            {form.media.length > 1 && (
+                              <div className="mb-2 flex items-center justify-between gap-3">
+                                <p className="text-[11px] font-medium text-foreground">
+                                  {t('form.mediaOrder')}
+                                </p>
+                                <p className="text-[10px] text-muted-foreground">
+                                  {t('form.mediaOrderHint')}
+                                </p>
+                              </div>
+                            )}
+                            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                             {form.media.map((item, index) => (
-                              <span
+                              <div
                                 key={item.reference}
-                                className="inline-flex max-w-full items-center gap-2 rounded-sm bg-muted px-2.5 py-1.5 text-xs"
+                                draggable={form.media.length > 1}
+                                onDragStart={() =>
+                                  setDraggedMediaReference(item.reference)
+                                }
+                                onDragEnd={() => setDraggedMediaReference(null)}
+                                onDragOver={(event) => event.preventDefault()}
+                                onDrop={() => {
+                                  if (draggedMediaReference) {
+                                    moveMedia(draggedMediaReference, index)
+                                  }
+                                  setDraggedMediaReference(null)
+                                }}
+                                className={`group relative overflow-hidden rounded-md bg-muted/40 shadow-[0_1px_4px_rgba(15,23,42,0.08)] transition-[opacity,box-shadow] ${
+                                  draggedMediaReference === item.reference
+                                    ? 'opacity-45'
+                                    : 'opacity-100'
+                                }`}
                               >
-                                <span className="truncate">
-                                  {index + 1}. {item.name}
-                                </span>
+                                <div className="relative aspect-[4/3] overflow-hidden bg-foreground/[0.04]">
+                                  {mediaPreviewUrls[item.reference] ? (
+                                    item.type === 'image' ? (
+                                      <img
+                                        src={mediaPreviewUrls[item.reference]}
+                                        alt={item.name}
+                                        className="h-full w-full object-cover"
+                                      />
+                                    ) : (
+                                      <video
+                                        src={mediaPreviewUrls[item.reference]}
+                                        className="h-full w-full object-cover"
+                                        muted={true}
+                                        controls={true}
+                                        playsInline={true}
+                                        preload="metadata"
+                                      />
+                                    )
+                                  ) : (
+                                    <div className="flex h-full items-center justify-center text-muted-foreground">
+                                      {item.type === 'video' ? (
+                                        <Play className="size-6" />
+                                      ) : (
+                                        <ImagePlus className="size-6" />
+                                      )}
+                                    </div>
+                                  )}
+                                  <span className="absolute left-2 top-2 inline-flex size-6 items-center justify-center rounded-full bg-black/75 text-[10px] font-semibold text-white shadow-sm">
+                                    {index + 1}
+                                  </span>
+                                  {form.media.length > 1 && (
+                                    <span className="absolute right-2 top-2 inline-flex size-6 cursor-grab items-center justify-center rounded-full bg-black/65 text-white active:cursor-grabbing">
+                                      <GripVertical className="size-3.5" />
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-1 p-2">
+                                  <p className="min-w-0 flex-1 truncate text-[10px] font-medium text-foreground">
+                                    {item.name}
+                                  </p>
+                                  {form.media.length > 1 && (
+                                    <div className="flex shrink-0 items-center">
+                                      <button
+                                        type="button"
+                                        disabled={index === 0}
+                                        aria-label={t('form.moveMediaLeft', {
+                                          name: item.name
+                                        })}
+                                        onClick={() =>
+                                          moveMedia(item.reference, index - 1)
+                                        }
+                                        className="inline-flex size-7 items-center justify-center rounded-sm text-muted-foreground hover:bg-background hover:text-foreground disabled:pointer-events-none disabled:opacity-25"
+                                      >
+                                        <ChevronLeft className="size-3.5" />
+                                      </button>
+                                      <button
+                                        type="button"
+                                        disabled={index === form.media.length - 1}
+                                        aria-label={t('form.moveMediaRight', {
+                                          name: item.name
+                                        })}
+                                        onClick={() =>
+                                          moveMedia(item.reference, index + 1)
+                                        }
+                                        className="inline-flex size-7 items-center justify-center rounded-sm text-muted-foreground hover:bg-background hover:text-foreground disabled:pointer-events-none disabled:opacity-25"
+                                      >
+                                        <ChevronRight className="size-3.5" />
+                                      </button>
+                                    </div>
+                                  )}
                                 <button
                                   type="button"
                                   aria-label={t('form.removeMedia', {
                                     name: item.name
                                   })}
-                                  onClick={() =>
-                                    setField(
-                                      'media',
-                                      form.media.filter(
-                                        (entry) =>
-                                          entry.reference !== item.reference
-                                      )
-                                    )
-                                  }
+                                  onClick={() => removeMedia(item.reference)}
+                                  className="inline-flex size-7 shrink-0 items-center justify-center rounded-sm text-muted-foreground hover:bg-destructive/[0.07] hover:text-destructive"
                                 >
                                   <X className="h-3.5 w-3.5" />
                                 </button>
-                              </span>
+                                </div>
+                              </div>
                             ))}
+                            </div>
                           </div>
                         )}
                         <FieldError

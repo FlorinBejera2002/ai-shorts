@@ -89,19 +89,28 @@ export function CalendarConnections({
 
     setSuccessAnimationReady(false)
     setSuccessProvider(connectedProvider)
-    window.sessionStorage.removeItem(PENDING_CONNECTION_KEY)
-    params.delete('connected')
-    const query = params.toString()
-    window.history.replaceState(
-      window.history.state,
-      '',
-      `${window.location.pathname}${query ? `?${query}` : ''}${window.location.hash}`
-    )
   }, [])
+
+  useEffect(() => {
+    if (!successProvider || successAnimationReady) return
+    const fallback = window.setTimeout(() => {
+      setSuccessAnimationReady(true)
+    }, 1500)
+    return () => window.clearTimeout(fallback)
+  }, [successAnimationReady, successProvider])
 
   useEffect(() => {
     if (!successProvider || !successAnimationReady) return
     const timeout = window.setTimeout(() => {
+      const params = new URLSearchParams(window.location.search)
+      params.delete('connected')
+      const query = params.toString()
+      window.history.replaceState(
+        window.history.state,
+        '',
+        `${window.location.pathname}${query ? `?${query}` : ''}${window.location.hash}`
+      )
+      window.sessionStorage.removeItem(PENDING_CONNECTION_KEY)
       setSuccessProvider(null)
       setSuccessAnimationReady(false)
       onReload()
@@ -179,17 +188,19 @@ export function CalendarConnections({
             aria-live="polite"
             aria-label={t('connected')}
           >
-            <div className="flex flex-col items-center gap-3">
-              <img
+            <div className="flex flex-col items-center gap-3 animate-in zoom-in-95 duration-300 motion-reduce:animate-none">
+              <object
                 key={successProvider}
-                src={CONNECTION_EFFECTS[successProvider]}
-                alt=""
+                data={CONNECTION_EFFECTS[successProvider]}
+                type="image/svg+xml"
                 width={240}
                 height={240}
+                aria-label={t('connected')}
                 className="size-60 max-h-[70vh] max-w-[70vw]"
                 onLoad={() => setSuccessAnimationReady(true)}
-                onError={() => setSuccessAnimationReady(true)}
-              />
+              >
+                {t('connected')}
+              </object>
               <p className="text-sm font-semibold text-foreground">
                 {t('connected')}
               </p>
