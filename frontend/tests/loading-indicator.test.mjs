@@ -35,8 +35,7 @@ test('uses the shared branded asset for every loading indicator', () => {
 test('routes full-page loading states through the shared indicator', () => {
   for (const relativePath of [
     '../src/components/shared/api-state.tsx',
-    '../src/components/ui/page-loading.tsx',
-    '../src/components/dashboard/dashboard-shell.tsx'
+    '../src/components/ui/page-loading.tsx'
   ]) {
     const source = readFileSync(new URL(relativePath, import.meta.url), 'utf8')
     assert.match(source, /<LoadingIndicator\b/, relativePath)

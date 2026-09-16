@@ -8,6 +8,19 @@ import { useTranslations } from 'next-intl'
 
 export function PublicFooter() {
   const t = useTranslations('landing')
+  const links = [
+    { href: '/pricing', label: 'pricing' },
+    { href: '/legal-notice', label: 'legalNotice' },
+    { href: '/privacy', label: 'privacy' },
+    { href: '/terms', label: 'terms' },
+    { href: '/cookie-policy', label: 'cookiePolicy' },
+    { href: '/acceptable-use', label: 'acceptableUse' },
+    { href: '/refund-policy', label: 'refundPolicy' },
+    { href: '/subprocessors', label: 'subprocessors' },
+    { href: '/dpa', label: 'dpa' },
+    { href: '/data-deletion', label: 'dataDeletion' }
+  ] as const
+
   return (
     <footer className="bg-card">
       <Separator />
@@ -21,14 +34,11 @@ export function PublicFooter() {
           </p>
         </div>
         <div className="flex flex-wrap gap-1">
-          {(['pricing', 'privacy', 'terms'] as const).map((key) => (
-            <Button key={key} asChild={true} variant="ghost" size="sm">
-              <Link href={`/${key}`}>{t(key)}</Link>
+          {links.map(({ href, label }) => (
+            <Button key={href} asChild={true} variant="ghost" size="sm">
+              <Link href={href}>{t(label)}</Link>
             </Button>
           ))}
-          <Button asChild={true} variant="ghost" size="sm">
-            <Link href="/data-deletion">{t('dataDeletion')}</Link>
-          </Button>
         </div>
       </div>
     </footer>

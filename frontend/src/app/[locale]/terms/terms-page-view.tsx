@@ -1,7 +1,7 @@
 import { LegalDocument } from '@/components/landing/legal-document'
 import { PublicFooter } from '@/components/landing/public-footer'
 import { PublicNavbar } from '@/components/landing/public-navbar'
-import { TERMS_COPY } from '@/lib/legal-content'
+import { LEGAL_OPERATOR, TERMS_COPY } from '@/lib/legal-content'
 import { type SiteLocale, getContactEmail } from '@/lib/site-config'
 import type { getTranslations } from 'next-intl/server'
 
@@ -23,7 +23,10 @@ export function TermsPageView({
           getStarted: t('getStarted')
         }}
       />
-      <LegalDocument {...copy} contactEmail={getContactEmail()} />
+      <LegalDocument
+        {...copy}
+        contactEmail={getContactEmail() || LEGAL_OPERATOR.email}
+      />
       <PublicFooter />
     </main>
   )

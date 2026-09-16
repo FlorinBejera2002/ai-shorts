@@ -424,21 +424,22 @@ export function HomePageView({
             }
             className="flex flex-wrap gap-6 text-[10px] font-bold uppercase tracking-[0.12em]"
           >
-            <Link
-              href="/pricing"
-              className="transition-colors hover:text-white"
-            >
-              {t('pricing')}
-            </Link>
-            <Link
-              href="/privacy"
-              className="transition-colors hover:text-white"
-            >
-              {t('privacy')}
-            </Link>
-            <Link href="/terms" className="transition-colors hover:text-white">
-              {t('terms')}
-            </Link>
+            {[
+              { href: '/pricing', label: 'pricing' },
+              { href: '/legal-notice', label: 'legalNotice' },
+              { href: '/privacy', label: 'privacy' },
+              { href: '/terms', label: 'terms' },
+              { href: '/cookie-policy', label: 'cookiePolicy' },
+              { href: '/data-deletion', label: 'dataDeletion' }
+            ].map(({ href, label }) => (
+              <Link
+                key={href}
+                href={href}
+                className="transition-colors hover:text-white"
+              >
+                {t(label)}
+              </Link>
+            ))}
           </nav>
         </div>
       </footer>

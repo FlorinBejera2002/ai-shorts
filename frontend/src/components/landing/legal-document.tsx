@@ -84,6 +84,22 @@ export function LegalDocument({
                       ))}
                     </ul>
                   )}
+                  {section.links && (
+                    <ul className="space-y-2">
+                      {section.links.map((link) => (
+                        <li key={link.href}>
+                          <a
+                            href={link.href}
+                            className="text-foreground underline underline-offset-4"
+                            rel="noreferrer"
+                            target="_blank"
+                          >
+                            {link.label}
+                          </a>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </div>
               </section>
             ))}

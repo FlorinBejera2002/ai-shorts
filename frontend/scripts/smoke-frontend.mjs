@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict'
 
-const baseUrl = new URL(process.argv[2] ?? 'http://localhost:3000')
+const baseUrlInput = process.argv[2] ?? 'http://localhost:3000'
+const baseUrl = URL.parse(baseUrlInput)
+assert.ok(baseUrl, 'Smoke test URL must be valid')
 assert.ok(
   ['localhost', '127.0.0.1', '[::1]'].includes(baseUrl.hostname),
   'Smoke tests are restricted to a local test server'
@@ -10,11 +12,20 @@ assert.equal(baseUrl.username + baseUrl.password, '')
 
 let passed = 0
 async function check(path, verify, accessToken) {
-  const response = await fetch(new URL(path, baseUrl), {
+  const requestUrl = URL.parse(path, baseUrl)
+  assert.ok(requestUrl, `${path} must resolve to a valid URL`)
+  const response = await fetch(requestUrl, {
     redirect: 'manual',
     headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
     signal: AbortSignal.timeout(30_000)
   })
+  if (!response.ok) {
+    assert.equal(response.status, 401, `${path} returned an unexpected status`)
+    verify(response, '')
+    passed += 1
+    console.info(`PASS ${path}`)
+    return
+  }
   const body = await response.text()
   verify(response, body)
   passed += 1
@@ -43,7 +54,7 @@ function verifyHtml(path, response, body) {
   }
 }
 
-for (const path of [
+await Promise.all([
   '/',
   '/ro',
   '/pricing',
@@ -52,46 +63,63 @@ for (const path of [
   '/ro/privacy',
   '/terms',
   '/ro/terms',
+  '/data-deletion',
+  '/ro/data-deletion',
+  '/legal-notice',
+  '/ro/legal-notice',
+  '/cookie-policy',
+  '/ro/cookie-policy',
+  '/acceptable-use',
+  '/ro/acceptable-use',
+  '/refund-policy',
+  '/ro/refund-policy',
+  '/subprocessors',
+  '/ro/subprocessors',
+  '/dpa',
+  '/ro/dpa',
   '/login',
   '/register',
   '/forgot-password',
   '/reset-password'
-]) {
-  await check(path, (response, body) => {
+].map((path) =>
+  check(path, (response, body) => {
     verifyHtml(path, response, body)
   })
-}
+))
 
-for (const path of [
+await Promise.all([
   '/dashboard/settings',
   '/dashboard/clips',
   '/dashboard/billing',
   '/dashboard/script-generator',
   '/ro/dashboard/settings'
-]) {
-  await check(path, (response, body) => {
+].map((path) =>
+  check(path, (response, body) => {
     assert.equal(response.status, 200)
     assert.match(body, /role="status"/)
     assert.match(response.headers.get('x-robots-tag') ?? '', /noindex/)
   })
-}
+))
 
-for (const path of [
+await Promise.all([
   '/api/user/profile',
   '/api/user/data',
   '/api/user/credits',
   '/api/user/brand',
   '/api/stripe/billing'
-]) {
-  await check(path, (response) => {
+].map((path) =>
+  check(path, (response) => {
     assert.equal(response.status, 401, `${path} must reject anonymous access`)
   })
-}
+))
 
 await check('/sitemap.xml', (response, body) => {
   assert.equal(response.status, 200)
   assert.match(body, /<urlset/)
   assert.match(body, /\/ro\/pricing/)
+  assert.match(body, /\/legal-notice/)
+  assert.match(body, /\/ro\/cookie-policy/)
+  assert.match(body, /\/dpa/)
   assert.doesNotMatch(body, /\/dashboard|\/api\/|\/login/)
 })
 await check('/robots.txt', (response, body) => {
@@ -108,7 +136,7 @@ await check('/robots.txt', (response, body) => {
 // the disposable local test database; never paste a production token here.
 const smokeAccessToken = process.env.SNEEPCUT_SMOKE_ACCESS_TOKEN
 if (smokeAccessToken) {
-  for (const path of [
+  await Promise.all([
     '/dashboard',
     '/dashboard/create',
     '/dashboard/clips',
@@ -126,23 +154,23 @@ if (smokeAccessToken) {
     '/ro/dashboard/billing',
     '/ro/dashboard/script-generator',
     '/ro/dashboard/publish'
-  ]) {
-    await check(
+  ].map((path) =>
+    check(
       path,
       (response, body) => verifyHtml(path, response, body),
       smokeAccessToken
     )
-  }
+  ))
 
-  for (const path of [
+  await Promise.all([
     '/api/user/profile',
     '/api/user/data',
     '/api/user/credits',
     '/api/user/brand',
     '/api/stripe/billing',
     '/api/calendar?start=2026-09-01T00%3A00%3A00.000Z&end=2026-10-01T00%3A00%3A00.000Z'
-  ]) {
-    await check(
+  ].map((path) =>
+    check(
       path,
       (response, body) => {
         assert.equal(response.status, 200, `${path} must load for a test user`)
@@ -158,7 +186,7 @@ if (smokeAccessToken) {
       },
       smokeAccessToken
     )
-  }
+  ))
 }
 
 console.info(`\n${passed} local HTTP smoke checks passed.`)

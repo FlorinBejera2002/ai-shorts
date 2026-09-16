@@ -8,7 +8,13 @@ export const PUBLIC_ROUTES = [
   '/pricing',
   '/privacy',
   '/terms',
-  '/data-deletion'
+  '/data-deletion',
+  '/legal-notice',
+  '/cookie-policy',
+  '/acceptable-use',
+  '/refund-policy',
+  '/subprocessors',
+  '/dpa'
 ] as const
 export const PRIVATE_ROUTES = [
   '/api/',

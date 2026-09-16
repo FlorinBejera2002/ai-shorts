@@ -33,9 +33,25 @@ test('uses unprefixed canonical URLs for the default locale', () => {
     'x-default': 'https://app.example.test/pricing'
   })
   const entries = site.buildSitemapEntries()
-  assert.equal(entries.length, 10)
-  assert.equal(entries.some((entry) => new URL(entry.url).pathname === '/data-deletion'), true)
-  assert.equal(entries.some((entry) => new URL(entry.url).pathname === '/ro/data-deletion'), true)
+  assert.equal(entries.length, 22)
+  for (const route of [
+    '/data-deletion',
+    '/legal-notice',
+    '/cookie-policy',
+    '/acceptable-use',
+    '/refund-policy',
+    '/subprocessors',
+    '/dpa'
+  ]) {
+    assert.equal(
+      entries.some((entry) => new URL(entry.url).pathname === route),
+      true
+    )
+    assert.equal(
+      entries.some((entry) => new URL(entry.url).pathname === `/ro${route}`),
+      true
+    )
+  }
   assert.equal(
     entries.some((entry) => new URL(entry.url).pathname.startsWith('/en')),
     false

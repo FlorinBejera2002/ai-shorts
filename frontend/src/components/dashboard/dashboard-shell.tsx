@@ -3,7 +3,6 @@
 import { AppSidebar } from '@/components/dashboard/app-sidebar'
 import { MobileDashboardDock } from '@/components/dashboard/mobile-dashboard-dock'
 import { WorkspaceSearch } from '@/components/dashboard/workspace-search'
-import { LoadingIndicator } from '@/components/ui/loading-indicator'
 import { Separator } from '@/components/ui/separator'
 import {
   SidebarProvider,
@@ -15,8 +14,6 @@ import { dashboardRouteLabel } from '@/lib/dashboard-navigation'
 import { MotionConfig } from 'framer-motion'
 import { Clapperboard } from 'lucide-react'
 import { useTranslations } from 'next-intl'
-import { useRouter } from 'next/navigation'
-import { type MouseEvent, useEffect, useState } from 'react'
 import './studio-shell.css'
 
 function DashboardContent({ children }: { children: React.ReactNode }) {
@@ -69,10 +66,7 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
         tabIndex={-1}
         className="min-w-0 flex-1 pb-24 outline-none lg:pb-0"
       >
-        <div
-          key={pathname}
-          className="page-shell studio-page studio-page-enter relative py-5 sm:py-6"
-        >
+        <div className="page-shell studio-page studio-page-enter relative py-5 sm:py-6">
           {children}
         </div>
       </main>
@@ -85,69 +79,13 @@ export function DashboardShell({
   defaultOpen
 }: { children: React.ReactNode; defaultOpen: boolean }) {
   const t = useTranslations('nav')
-  const pathname = usePathname()
-  const router = useRouter()
-  const [navigating, setNavigating] = useState(false)
-
-  // The route change is the signal that the navigation overlay can close.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: pathname intentionally drives this effect
-  useEffect(() => setNavigating(false), [pathname])
-
-  function handleNavigation(event: MouseEvent<HTMLDivElement>) {
-    if (
-      event.defaultPrevented ||
-      event.button !== 0 ||
-      event.metaKey ||
-      event.ctrlKey ||
-      event.shiftKey ||
-      event.altKey
-    ) {
-      return
-    }
-    const target = event.target
-    if (!(target instanceof Element)) return
-    const anchor = target.closest<HTMLAnchorElement>('a[href]')
-    if (
-      !anchor ||
-      anchor.target === '_blank' ||
-      anchor.hasAttribute('download')
-    ) {
-      return
-    }
-    const destination = new URL(anchor.href, window.location.href)
-    if (
-      destination.origin !== window.location.origin ||
-      `${destination.pathname}${destination.search}` ===
-        `${window.location.pathname}${window.location.search}`
-    ) {
-      return
-    }
-    event.preventDefault()
-    setNavigating(true)
-    router.push(
-      `${destination.pathname}${destination.search}${destination.hash}`
-    )
-  }
-
   return (
     <MotionConfig reducedMotion="user">
       <SidebarProvider
         defaultOpen={defaultOpen}
         id="dashboard-shell"
         className="bg-background text-foreground"
-        onClickCapture={handleNavigation}
       >
-        {navigating && (
-          <div
-            className="fixed inset-0 z-[190] flex items-center justify-center bg-background/72 backdrop-blur-sm"
-            role="status"
-            aria-live="polite"
-            aria-label="Loading"
-          >
-            <LoadingIndicator className="size-36" />
-            <span className="sr-only">Loading</span>
-          </div>
-        )}
         <a
           href="#dashboard-main"
           className="fixed left-4 top-3 z-[100] -translate-y-20 rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground shadow-lg focus:translate-y-0"
