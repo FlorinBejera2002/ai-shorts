@@ -22,7 +22,6 @@ import type {
 import { withAllPublishingProviders } from '@/lib/publishing'
 import { Check, Loader2, Lock, LogOut, RefreshCw } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
-import Image from 'next/image'
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 
@@ -70,6 +69,7 @@ export function CalendarConnections({
     useState<PublishingAccount | null>(null)
   const [successProvider, setSuccessProvider] =
     useState<AnimatedProvider | null>(null)
+  const [successAnimationReady, setSuccessAnimationReady] = useState(false)
   const connectedAccounts =
     data?.accounts.filter(
       (account) =>
@@ -87,6 +87,7 @@ export function CalendarConnections({
       window.sessionStorage.getItem(PENDING_CONNECTION_KEY)
     if (!isAnimatedProvider(connectedProvider)) return
 
+    setSuccessAnimationReady(false)
     setSuccessProvider(connectedProvider)
     window.sessionStorage.removeItem(PENDING_CONNECTION_KEY)
     params.delete('connected')
@@ -99,13 +100,14 @@ export function CalendarConnections({
   }, [])
 
   useEffect(() => {
-    if (!successProvider) return
+    if (!successProvider || !successAnimationReady) return
     const timeout = window.setTimeout(() => {
       setSuccessProvider(null)
+      setSuccessAnimationReady(false)
       onReload()
-    }, 2600)
+    }, 3000)
     return () => window.clearTimeout(timeout)
-  }, [onReload, successProvider])
+  }, [onReload, successAnimationReady, successProvider])
 
   async function connect(provider: PublishingProvider) {
     setBusyProvider(provider)
@@ -177,15 +179,21 @@ export function CalendarConnections({
             aria-live="polite"
             aria-label={t('connected')}
           >
-            <Image
-              src={CONNECTION_EFFECTS[successProvider]}
-              alt=""
-              width={240}
-              height={240}
-              priority={true}
-              unoptimized={true}
-              className="size-60 max-h-[70vh] max-w-[70vw]"
-            />
+            <div className="flex flex-col items-center gap-3">
+              <img
+                key={successProvider}
+                src={CONNECTION_EFFECTS[successProvider]}
+                alt=""
+                width={240}
+                height={240}
+                className="size-60 max-h-[70vh] max-w-[70vw]"
+                onLoad={() => setSuccessAnimationReady(true)}
+                onError={() => setSuccessAnimationReady(true)}
+              />
+              <p className="text-sm font-semibold text-foreground">
+                {t('connected')}
+              </p>
+            </div>
           </div>,
           document.body
         )}
