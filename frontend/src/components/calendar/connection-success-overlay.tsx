@@ -21,7 +21,25 @@ function isAnimatedProvider(value: string | null): value is AnimatedProvider {
   return value !== null && value in CONNECTION_EFFECTS
 }
 
-export function ConnectionSuccessOverlay() {
+type ConnectionMessage = {
+  type: 'sneepcut:social-connected'
+  provider: AnimatedProvider
+}
+
+function isConnectionMessage(value: unknown): value is ConnectionMessage {
+  if (typeof value !== 'object' || value === null) return false
+  const message = value as Partial<ConnectionMessage>
+  return (
+    message.type === 'sneepcut:social-connected' &&
+    isAnimatedProvider(message.provider ?? null)
+  )
+}
+
+export function ConnectionSuccessOverlay({
+  onComplete
+}: {
+  onComplete: () => void
+}) {
   const t = useTranslations('contentCalendar.connections')
   const [provider, setProvider] = useState<AnimatedProvider | null>(null)
   const [animationReady, setAnimationReady] = useState(false)
@@ -30,6 +48,7 @@ export function ConnectionSuccessOverlay() {
     const params = new URLSearchParams(window.location.search)
     if (params.has('connectionError')) {
       window.sessionStorage.removeItem(PENDING_CONNECTION_KEY)
+      if (window.opener && window.opener !== window) window.close()
       return
     }
 
@@ -38,7 +57,36 @@ export function ConnectionSuccessOverlay() {
       window.sessionStorage.getItem(PENDING_CONNECTION_KEY)
     if (!isAnimatedProvider(connectedProvider)) return
 
+    if (window.opener && window.opener !== window) {
+      window.opener.postMessage(
+        {
+          type: 'sneepcut:social-connected',
+          provider: connectedProvider
+        } satisfies ConnectionMessage,
+        window.location.origin
+      )
+      window.sessionStorage.removeItem(PENDING_CONNECTION_KEY)
+      window.close()
+      return
+    }
+
     setProvider(connectedProvider)
+  }, [])
+
+  useEffect(() => {
+    function receiveConnection(event: MessageEvent<unknown>) {
+      if (
+        event.origin !== window.location.origin ||
+        !isConnectionMessage(event.data)
+      ) {
+        return
+      }
+      setAnimationReady(false)
+      setProvider(event.data.provider)
+    }
+
+    window.addEventListener('message', receiveConnection)
+    return () => window.removeEventListener('message', receiveConnection)
   }, [])
 
   useEffect(() => {
@@ -61,9 +109,10 @@ export function ConnectionSuccessOverlay() {
       window.sessionStorage.removeItem(PENDING_CONNECTION_KEY)
       setProvider(null)
       setAnimationReady(false)
+      onComplete()
     }, 3000)
     return () => window.clearTimeout(timeout)
-  }, [animationReady, provider])
+  }, [animationReady, onComplete, provider])
 
   if (!provider || typeof document === 'undefined') return null
 

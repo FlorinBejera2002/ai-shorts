@@ -370,7 +370,7 @@ export function ContentCalendar() {
 
   return (
     <div className={`${styles.workspace} dashboard-workspace`}>
-      <ConnectionSuccessOverlay />
+      <ConnectionSuccessOverlay onComplete={reloadPublishing} />
       <PageHeader
         title={t('title')}
         description={t('description')}
