@@ -1356,6 +1356,7 @@
       "cancel": "Anulează",
       "disconnected": "Contul a fost deconectat",
       "disconnectFailed": "Contul nu a putut fi deconectat",
+      "popupBlocked": "Permite ferestrele pop-up pentru Sneepcut ca să conectezi acest cont",
       "unavailable": "Indisponibil",
       "loadError": "Conturile nu au putut fi încărcate.",
       "retry": "Reîncearcă"

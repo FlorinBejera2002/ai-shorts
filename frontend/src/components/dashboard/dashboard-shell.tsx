@@ -14,11 +14,13 @@ import { dashboardRouteLabel } from '@/lib/dashboard-navigation'
 import { MotionConfig } from 'framer-motion'
 import { Clapperboard } from 'lucide-react'
 import { useTranslations } from 'next-intl'
+import { type MouseEvent, useEffect, useState } from 'react'
 import './studio-shell.css'
 
 function DashboardContent({ children }: { children: React.ReactNode }) {
   const t = useTranslations('nav')
   const pathname = usePathname()
+  const [navigating, setNavigating] = useState(false)
   const { open, isMobile, openMobile } = useSidebar()
   const label = isMobile
     ? openMobile
@@ -27,8 +29,59 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
     : open
       ? t('collapseSidebar')
       : t('expandSidebar')
+
+  useEffect(() => setNavigating(false), [pathname])
+
+  function handleNavigation(event: MouseEvent<HTMLDivElement>) {
+    if (
+      event.defaultPrevented ||
+      event.button !== 0 ||
+      event.metaKey ||
+      event.ctrlKey ||
+      event.shiftKey ||
+      event.altKey
+    ) {
+      return
+    }
+    const target = event.target
+    if (!(target instanceof Element)) return
+    const anchor = target.closest<HTMLAnchorElement>('a[href]')
+    if (!anchor || anchor.target === '_blank' || anchor.hasAttribute('download')) {
+      return
+    }
+    const destination = new URL(anchor.href, window.location.href)
+    if (
+      destination.origin !== window.location.origin ||
+      destination.hash ||
+      `${destination.pathname}${destination.search}` ===
+        `${window.location.pathname}${window.location.search}`
+    ) {
+      return
+    }
+    setNavigating(true)
+  }
   return (
-    <div className="flex min-w-0 flex-1 flex-col">
+    <div
+      className="flex min-w-0 flex-1 flex-col"
+      onClickCapture={handleNavigation}
+    >
+      {navigating && (
+        <div
+          className="fixed inset-0 z-[190] flex items-center justify-center bg-background/72 backdrop-blur-sm"
+          role="status"
+          aria-live="polite"
+          aria-label="Loading"
+        >
+          <img
+            src="/brand/black-loading.gif"
+            alt=""
+            width={96}
+            height={96}
+            className="size-24 object-contain"
+          />
+          <span className="sr-only">Loading</span>
+        </div>
+      )}
       <header className="studio-topbar sticky top-0 z-30 hidden h-16 shrink-0 items-center gap-3 border-b px-6 lg:flex">
         <div className="studio-topbar-start flex min-w-0 items-center gap-3">
           <SidebarTrigger

@@ -13,7 +13,11 @@ export function useApiResource<T>(path: string) {
   // biome-ignore lint/correctness/useExhaustiveDependencies: version explicitly requests a fresh server read.
   useEffect(() => {
     const controller = new AbortController()
-    setState({ path, data: null, error: null })
+    setState((current) =>
+      current.path === path
+        ? { ...current, error: null }
+        : { path, data: null, error: null }
+    )
     void apiFetch(path, { signal: controller.signal })
       .then(async (response) => {
         const data = await response.json()

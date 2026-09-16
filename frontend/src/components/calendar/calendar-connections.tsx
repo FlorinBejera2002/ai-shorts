@@ -52,10 +52,14 @@ export function CalendarConnections({
 
   async function connect(provider: PublishingProvider) {
     const popup = window.open(
-      '',
+      'about:blank',
       'sneepcut-social-connect',
       'popup=yes,width=620,height=760,left=120,top=80'
     )
+    if (!popup) {
+      toast.add('error', t('popupBlocked'))
+      return
+    }
     setBusyProvider(provider)
     try {
       const response = await apiFetch(`/api/publishing/connect/${provider}`, {
@@ -74,12 +78,8 @@ export function CalendarConnections({
         throw new Error('Unable to start connection')
       }
       window.sessionStorage.setItem(PENDING_CONNECTION_KEY, provider)
-      if (popup) {
-        popup.location.assign(result.url)
-        popup.focus()
-      } else {
-        window.location.assign(result.url)
-      }
+      popup.location.assign(result.url)
+      popup.focus()
     } catch {
       popup?.close()
       window.sessionStorage.removeItem(PENDING_CONNECTION_KEY)

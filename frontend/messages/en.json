@@ -1359,6 +1359,7 @@
       "cancel": "Cancel",
       "disconnected": "Account disconnected",
       "disconnectFailed": "The account could not be disconnected",
+      "popupBlocked": "Allow pop-ups for Sneepcut to connect this account",
       "unavailable": "Unavailable",
       "loadError": "Accounts could not be loaded.",
       "retry": "Try again"
