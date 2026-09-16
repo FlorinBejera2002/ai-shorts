@@ -171,6 +171,26 @@ test('popup only accepts the current request, provider and trusted source', () =
   assert.equal(f.channels[0].sent[0].type, 'received')
   assert.equal(f.listeners.size, 0)
   assert.equal(f.timers.size, 0)
+  // A queued delivery on the other transport must not start another animation.
+  f.channels[0].listener({ data })
+  receive({ origin: f.window.location.origin, source: popup, data })
+  assert.equal(results.length, 1)
+})
+
+test('disposing an old attempt ignores results already queued on its channel', () => {
+  const f = fixture()
+  const results = []
+  const stop = f.exports.listenForSocialConnection(
+    { sessionStorage: { setItem: () => undefined }, closed: false },
+    'instagram',
+    (result) => results.push(result),
+    () => undefined
+  )
+  stop()
+  f.channels[0].listener({
+    data: { id: 'request-1', type: 'result', result: { provider: 'instagram' } }
+  })
+  assert.deepEqual(results, [])
 })
 
 test('closed popup unlocks controls while the channel can finish isolated OAuth', () => {

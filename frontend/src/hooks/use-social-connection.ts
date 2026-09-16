@@ -1,17 +1,18 @@
 'use client'
 
+import { SocialConnectionReturnContext } from '@/components/publishing/social-connection-return-context'
 import { useToast } from '@/components/ui/toast'
 import { apiFetch } from '@/lib/auth'
 import type { PublishingProvider } from '@/lib/publishing'
 import {
   type SocialConnectionResult,
-  completeSocialConnection,
   listenForSocialConnection
 } from '@/lib/social-connection'
 import { useLocale, useTranslations } from 'next-intl'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useContext, useEffect, useRef, useState } from 'react'
 
 export function useSocialConnection(onComplete: () => void) {
+  const { onPageReady } = useContext(SocialConnectionReturnContext)
   const locale = useLocale()
   const t = useTranslations('settings')
   const addToast = useToast((state) => state.add)
@@ -21,8 +22,8 @@ export function useSocialConnection(onComplete: () => void) {
   const [connectedProvider, setConnectedProvider] =
     useState<PublishingProvider | null>(null)
   const activeRequest = useRef<AbortController | null>(null)
-  const callback = useRef<Promise<SocialConnectionResult | null> | null>(null)
-  const callbackHandled = useRef(false)
+
+  useEffect(() => onPageReady(), [onPageReady])
 
   const receiveResult = useCallback(
     (result: SocialConnectionResult) => {
@@ -32,21 +33,6 @@ export function useSocialConnection(onComplete: () => void) {
     },
     [addToast, t]
   )
-
-  useEffect(() => {
-    let active = true
-    // Reuse the consumed callback across Strict Mode's effect replay.
-    callback.current ??= completeSocialConnection()
-    void callback.current.then((result) => {
-      if (active && result && !callbackHandled.current) {
-        callbackHandled.current = true
-        receiveResult(result)
-      }
-    })
-    return () => {
-      active = false
-    }
-  }, [receiveResult])
 
   useEffect(() => () => activeRequest.current?.abort(), [])
 

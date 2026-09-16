@@ -2,16 +2,9 @@
 
 import type { PublishingMedia } from '@/lib/content-calendar'
 import { Reorder, useDragControls } from 'framer-motion'
-import {
-  ArrowDown,
-  ArrowUp,
-  ArrowUpToLine,
-  GripVertical,
-  ImagePlus,
-  Play,
-  X
-} from 'lucide-react'
+import { GripVertical, ImagePlus, Play, X } from 'lucide-react'
 import { useTranslations } from 'next-intl'
+import { useId } from 'react'
 
 const controlClass =
   'inline-flex size-11 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-foreground disabled:pointer-events-none disabled:opacity-25'
@@ -35,6 +28,7 @@ export function PublishingMediaItem({
 }) {
   const t = useTranslations('contentCalendar.form')
   const dragControls = useDragControls()
+  const keyboardHintId = useId()
   return (
     <Reorder.Item
       value={item}
@@ -51,12 +45,29 @@ export function PublishingMediaItem({
           className={`${controlClass} touch-none cursor-grab active:cursor-grabbing`}
           disabled={disabled || count < 2}
           aria-label={t('dragMedia', { name: item.name })}
+          aria-describedby={keyboardHintId}
+          aria-keyshortcuts="ArrowUp ArrowDown Home End"
           onPointerDown={(event) => {
             if (!disabled) dragControls.start(event)
+          }}
+          onKeyDown={(event) => {
+            const targets: Record<string, number> = {
+              ArrowUp: index - 1,
+              ArrowDown: index + 1,
+              Home: 0,
+              End: count - 1
+            }
+            const target = targets[event.key]
+            if (target === undefined || disabled) return
+            event.preventDefault()
+            onMove(item.reference, target)
           }}
         >
           <GripVertical className="size-4" />
         </button>
+        <span id={keyboardHintId} className="sr-only">
+          {t('mediaKeyboardHint')}
+        </span>
         <div className="flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-sm border border-border">
           {previewUrl ? (
             item.type === 'image' ? (
@@ -101,38 +112,6 @@ export function PublishingMediaItem({
           <X className="size-4" />
         </button>
       </div>
-      {count > 1 && (
-        <div className="mt-1 flex items-center justify-end gap-1">
-          <button
-            type="button"
-            className={`${controlClass} mr-auto w-auto gap-1.5 px-2 text-xs`}
-            disabled={disabled || index === 0}
-            aria-label={t('makeMediaFirst', { name: item.name })}
-            onClick={() => onMove(item.reference, 0)}
-          >
-            <ArrowUpToLine className="size-3.5" />
-            {t('mediaFirst')}
-          </button>
-          <button
-            type="button"
-            className={controlClass}
-            disabled={disabled || index === 0}
-            aria-label={t('moveMediaLeft', { name: item.name })}
-            onClick={() => onMove(item.reference, index - 1)}
-          >
-            <ArrowUp className="size-4" />
-          </button>
-          <button
-            type="button"
-            className={controlClass}
-            disabled={disabled || index === count - 1}
-            aria-label={t('moveMediaRight', { name: item.name })}
-            onClick={() => onMove(item.reference, index + 1)}
-          >
-            <ArrowDown className="size-4" />
-          </button>
-        </div>
-      )}
     </Reorder.Item>
   )
 }

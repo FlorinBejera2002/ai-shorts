@@ -1395,10 +1395,9 @@
       "mediaUploading": "Se încarcă fișierele…",
       "mediaHint": "Până la 10 fișiere. JPG, PNG, WebP și clipuri MP4/MOV. Poți combina poze și clipuri pe Instagram.",
       "mediaOrder": "Ordinea caruselului",
-      "mediaOrderHint": "Primul fișier deschide caruselul. Trage de mâner sau folosește săgețile.",
+      "mediaOrderHint": "Trage de mâner pentru a schimba ordinea. Primul fișier deschide caruselul.",
+      "mediaKeyboardHint": "Folosește tastele sus și jos pentru reordonare, Home pentru prima poziție sau End pentru ultima.",
       "removeMedia": "Elimină {name}",
-      "moveMediaLeft": "Mută {name} mai devreme",
-      "moveMediaRight": "Mută {name} mai târziu",
       "statusLabel": "Stare",
       "dateLabel": "Dată",
       "timeLabel": "Oră",
@@ -1413,8 +1412,6 @@
       "mediaProgress": "Se încarcă {current} din {total}…",
       "mediaQualityHint": "Originalele rămân neschimbate. PNG/WebP primesc o copie JPEG pentru Instagram; platforma poate decupa și comprima conținutul.",
       "mediaCover": "Primul în carusel",
-      "mediaFirst": "Pune primul",
-      "makeMediaFirst": "Pune {name} primul în carusel",
       "dragMedia": "Trage pentru a reordona {name}"
     },
     "validation": {

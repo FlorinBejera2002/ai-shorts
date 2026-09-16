@@ -1,13 +1,15 @@
 'use client'
+import { SocialConnectionReturnContext } from '@/components/publishing/social-connection-return-context'
 import { ApiState } from '@/components/shared/api-state'
 import { authClient } from '@/lib/auth'
 import { useLocale } from 'next-intl'
 import { usePathname, useSearchParams } from 'next/navigation'
-import { useEffect } from 'react'
+import { useContext, useEffect } from 'react'
 import { useAuth } from './use-auth'
 
 export function AuthGuard({ children }: { children: React.ReactNode }) {
   const session = useAuth()
+  const { returning } = useContext(SocialConnectionReturnContext)
   const locale = useLocale()
   const pathname = usePathname()
   const search = useSearchParams()
@@ -34,6 +36,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
       )
     }
   }, [restricted, locale])
+  if (session.status === 'loading' && returning) return null
   if (session.status !== 'authenticated' || restricted)
     return (
       <ApiState

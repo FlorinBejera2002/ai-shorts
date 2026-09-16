@@ -21,6 +21,7 @@ const videoFile = { name: 'phone.MOV', mimeType: '', buffer: Buffer.from('synthe
 let saved = null
 let uploads = 0
 let rejectNextStatus = 0
+const uploadGates = []
 const errors = []
 const context = await browser.newContext({ viewport: { width: 1440, height: 1000 }, reducedMotion: 'reduce', hasTouch: true })
 await context.route(/\/(?:api|v1)\//, async route => {
@@ -39,6 +40,7 @@ await context.route(/\/(?:api|v1)\//, async route => {
   if(path === '/api/publishing/media' && req.method() === 'POST') {
     uploads++
     if(rejectNextStatus) { const status = rejectNextStatus; rejectNextStatus = 0; return json({ error: 'Unavailable' }, status) }
+    if(uploadGates.length) await uploadGates.shift()
     const body = req.postDataBuffer()
     const name = /filename="([^"]+)"/.exec(body.toString())?.[1]
     assert.ok(name)
@@ -64,7 +66,32 @@ try {
     await input.setInputFiles(imageFile('unavailable.png'))
     await dialog.getByRole('alert').waitFor()
     assert.equal(await dialog.getByRole('alert').innerText(), `unavailable.png: ${messages.validation.mediaTemporarilyUnavailable}`)
+    const firstUpload = Promise.withResolvers()
+    const secondUpload = Promise.withResolvers()
+    uploadGates.push(firstUpload.promise, secondUpload.promise)
+    await page.emulateMedia({ reducedMotion: 'no-preference' })
     await input.setInputFiles([imageFile('first.png'), videoFile])
+    const progress = dialog.getByRole('status').filter({ hasText: 'first.png' })
+    await progress.waitFor()
+    assert.equal(await input.isDisabled(), true)
+    assert.match(await progress.innerText(), /1.*2/)
+    const indicator = await progress.locator('img').boundingBox()
+    assert.ok(indicator.width >= 80 && indicator.height >= 80, 'Upload indicator is prominent')
+    await progress.scrollIntoViewIfNeeded()
+    await page.screenshot({ path: `${output}/uploading-desktop.png`, fullPage: true })
+    await page.setViewportSize({ width: 390, height: 844 })
+    await progress.scrollIntoViewIfNeeded()
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), false)
+    await page.screenshot({ path: `${output}/uploading-mobile.png`, fullPage: true })
+    await page.setViewportSize({ width: 1440, height: 1000 })
+    firstUpload.resolve()
+    const secondProgress = dialog.getByRole('status').filter({ hasText: 'phone.MOV' })
+    await secondProgress.waitFor()
+    assert.match(await secondProgress.innerText(), /2.*2/)
+    assert.equal(await input.isDisabled(), true)
+    secondUpload.resolve()
+    await secondProgress.waitFor({ state: 'hidden' })
+    await page.emulateMedia({ reducedMotion: 'reduce' })
     const list = dialog.getByRole('list', { name: formText('mediaOrder') })
     await list.locator('li').nth(1).waitFor()
     await list.scrollIntoViewIfNeeded()
@@ -75,8 +102,9 @@ try {
     await page.mouse.move(firstHandle.x + firstHandle.width / 2, firstHandle.y + firstHandle.height / 2, { steps: 12 })
     await page.mouse.up()
     await page.waitForFunction(label => document.querySelector(`[aria-label="${label}"] li`)?.textContent.includes('phone.MOV'), formText('mediaOrder'))
-    await page.getByRole('button', { name: formText('makeMediaFirst', 'first.png'), exact: true }).click()
-    await page.getByRole('button', { name: formText('makeMediaFirst', 'phone.MOV'), exact: true }).click()
+    assert.equal(await list.getByRole('button').count(), 4, 'Only drag and remove controls remain')
+    await page.getByRole('button', { name: formText('dragMedia', 'first.png'), exact: true }).press('Home')
+    await page.getByRole('button', { name: formText('dragMedia', 'phone.MOV'), exact: true }).press('Home')
     assert.match(await list.locator('li').first().innerText(), /phone.MOV/)
     await input.setInputFiles(imageFile('added.png'))
     await list.locator('li').nth(2).waitFor()
@@ -88,7 +116,7 @@ try {
     await input.setInputFiles(imageFile('retry.png'))
     await list.locator('li').nth(4).waitFor()
     assert.equal(await input.inputValue(), '')
-    await page.getByRole('button', { name: formText('moveMediaLeft', 'retry.png'), exact: true }).click()
+    await page.getByRole('button', { name: formText('dragMedia', 'retry.png'), exact: true }).press('ArrowUp')
     assert.match(await list.locator('li').nth(3).innerText(), /retry.png/)
     await page.getByRole('button', { name: formText('removeMedia', 'kept.png'), exact: true }).click()
     assert.equal(await list.locator('li').count(), 4)
@@ -114,7 +142,7 @@ try {
     await page.waitForFunction(label => document.querySelector(`[aria-label="${label}"] li`)?.textContent.includes('first.png'), formText('mediaOrder'))
     await cdp.detach()
     await page.screenshot({ path: `${output}/mobile.png`, fullPage: true })
-    await page.getByRole('button', { name: formText('makeMediaFirst', 'added.png'), exact: true }).tap()
+    await page.getByRole('button', { name: formText('dragMedia', 'added.png'), exact: true }).press('Home')
     assert.match(await list.locator('li').first().innerText(), /added.png/)
     // Clear the previous limit error through a valid order change, then save.
     await page.getByRole('button', { name: messages.actions.create, exact: true }).click()
@@ -127,7 +155,7 @@ try {
     await page.waitForFunction(() => [...document.querySelectorAll('[role="dialog"] img')].length === 3 && [...document.querySelectorAll('[role="dialog"] img')].every(img => img.complete && img.naturalWidth > 0))
     assert.match(await dialog.getByRole('list', { name: formText('mediaOrder') }).locator('li').first().innerText(), /added.png/)
     assert.deepEqual(errors, [])
-    console.log('PASS desktop/mobile selection, append, mixed carousel, partial failure, retry, mouse/touch drag, move first, arrows, removal, total limit, unchanged multipart bytes, saved order and reopened previews')
+    console.log('PASS large upload loader and per-file progress, desktop/mobile selection, append, partial failure, retry, mouse/touch/keyboard reorder, simplified controls, removal, limit, unchanged bytes, saved order and reopened previews')
     await writeFile(`${output}/report.json`, JSON.stringify({ passed: true, savedOrder: saved.media.map(item => item.name), runtimeErrors: errors }, null, 2))
   }
 } catch (error) {

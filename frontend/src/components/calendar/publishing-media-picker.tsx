@@ -1,6 +1,5 @@
 'use client'
 
-import { LoadingIndicator } from '@/components/ui/loading-indicator'
 import { apiFetch } from '@/lib/auth'
 import type { PublishingMedia } from '@/lib/content-calendar'
 import { Reorder } from 'framer-motion'
@@ -16,6 +15,7 @@ import {
   publishingUploadErrorKey,
   uploadPublishingFile
 } from './publishing-media-utils'
+import { PublishingUploadProgress } from './publishing-upload-progress'
 
 export function PublishingMediaPicker({
   media,
@@ -38,6 +38,7 @@ export function PublishingMediaPicker({
   const [progress, setProgress] = useState<{
     current: number
     total: number
+    filename: string
   } | null>(null)
   const previewUrls = useRef<Record<string, string>>({})
   const controller = useRef<AbortController | null>(null)
@@ -94,7 +95,11 @@ export function PublishingMediaPicker({
     try {
       // Bound memory and connections on mobile; keep successful files if one fails.
       for (const [index, file] of files.entries()) {
-        setProgress({ current: index + 1, total: files.length })
+        setProgress({
+          current: index + 1,
+          total: files.length,
+          filename: file.name
+        })
         try {
           const item = await uploadPublishingFile(
             file,
@@ -140,16 +145,23 @@ export function PublishingMediaPicker({
         {t('form.mediaLabel')}
       </label>
       <label
-        className={`relative mt-2 flex min-h-20 items-center gap-3 rounded-md border border-border bg-card px-4 py-3 focus-within:ring-2 focus-within:ring-foreground ${disabled ? 'opacity-60' : 'cursor-pointer'}`}
+        className={`relative mt-2 flex items-center gap-3 rounded-md border border-border bg-card px-4 focus-within:ring-2 focus-within:ring-foreground ${progress ? 'min-h-48 cursor-wait py-5' : `min-h-20 py-3 ${disabled ? 'opacity-60' : 'cursor-pointer'}`}`}
       >
         <input
           id={inputId}
           type="file"
           accept={PUBLISHING_FILE_ACCEPT}
           multiple={true}
-          disabled={disabled || media.length >= MAX_PUBLISHING_MEDIA}
+          disabled={
+            disabled || !!progress || media.length >= MAX_PUBLISHING_MEDIA
+          }
+          aria-busy={!!progress}
           className="absolute inset-0 size-full cursor-pointer opacity-0 disabled:cursor-not-allowed"
-          aria-describedby={`${inputId}-hint${error ? ` ${inputId}-error` : ''}`}
+          aria-describedby={
+            progress
+              ? undefined
+              : `${inputId}-hint${error ? ` ${inputId}-error` : ''}`
+          }
           aria-invalid={Boolean(error)}
           onChange={(event) => {
             const files = Array.from(event.currentTarget.files ?? [])
@@ -158,28 +170,26 @@ export function PublishingMediaPicker({
           }}
         />
         {progress ? (
-          <LoadingIndicator className="size-5 shrink-0" />
+          <PublishingUploadProgress {...progress} />
         ) : (
-          <ImagePlus className="size-5 shrink-0" />
+          <>
+            <ImagePlus className="size-5 shrink-0" />
+            <span className="min-w-0">
+              <span className="block text-xs font-semibold">
+                {media.length ? t('form.mediaAdd') : t('form.mediaChoose')}
+              </span>
+              <span
+                id={`${inputId}-hint`}
+                className="mt-1 block text-[11px] leading-5 text-muted-foreground"
+              >
+                {t('form.mediaHint')}
+              </span>
+            </span>
+            <span className="ml-auto shrink-0 text-xs tabular-nums text-muted-foreground">
+              {media.length}/{MAX_PUBLISHING_MEDIA}
+            </span>
+          </>
         )}
-        <span className="min-w-0">
-          <span className="block text-xs font-semibold" role="status">
-            {progress
-              ? t('form.mediaProgress', progress)
-              : media.length
-                ? t('form.mediaAdd')
-                : t('form.mediaChoose')}
-          </span>
-          <span
-            id={`${inputId}-hint`}
-            className="mt-1 block text-[11px] leading-5 text-muted-foreground"
-          >
-            {t('form.mediaHint')}
-          </span>
-        </span>
-        <span className="ml-auto shrink-0 text-xs tabular-nums text-muted-foreground">
-          {media.length}/{MAX_PUBLISHING_MEDIA}
-        </span>
       </label>
       <p className="mt-2 text-[11px] leading-5 text-muted-foreground">
         {t('form.mediaQualityHint')}

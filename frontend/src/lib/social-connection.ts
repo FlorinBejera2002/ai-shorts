@@ -51,6 +51,7 @@ export function listenForSocialConnection(
 ): () => void {
   const id = crypto.randomUUID()
   const channel = openChannel(id)
+  let settled = false
   try {
     popup.sessionStorage.setItem(
       POPUP_REQUEST_KEY,
@@ -63,6 +64,7 @@ export function listenForSocialConnection(
   function receive(event: MessageEvent, fromPopup = false) {
     const message = event.data
     if (
+      settled ||
       !message ||
       message.id !== id ||
       message.type !== 'result' ||
@@ -97,6 +99,8 @@ export function listenForSocialConnection(
   }, REQUEST_LIFETIME)
 
   function dispose() {
+    if (settled) return
+    settled = true
     channel?.close()
     window.removeEventListener('message', receiveMessage)
     window.clearInterval(closedCheck)

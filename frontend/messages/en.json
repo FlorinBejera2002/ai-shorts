@@ -1398,10 +1398,9 @@
       "mediaUploading": "Uploading media…",
       "mediaHint": "Up to 10 files. JPG, PNG, WebP and MP4/MOV videos. Mix photos and videos on Instagram.",
       "mediaOrder": "Carousel order",
-      "mediaOrderHint": "The first file opens the carousel. Drag the handle or use the arrows.",
+      "mediaOrderHint": "Drag the handle to change the order. The first file opens the carousel.",
+      "mediaKeyboardHint": "Use the up and down keys to reorder, Home to move first, or End to move last.",
       "removeMedia": "Remove {name}",
-      "moveMediaLeft": "Move {name} earlier",
-      "moveMediaRight": "Move {name} later",
       "statusLabel": "Status",
       "dateLabel": "Date",
       "timeLabel": "Time",
@@ -1416,8 +1415,6 @@
       "mediaProgress": "Uploading {current} of {total}…",
       "mediaQualityHint": "Originals stay unchanged. PNG/WebP images get a JPEG copy for Instagram; the platform may crop and compress media.",
       "mediaCover": "First in carousel",
-      "mediaFirst": "Make first",
-      "makeMediaFirst": "Make {name} first in the carousel",
       "dragMedia": "Drag to reorder {name}"
     },
     "validation": {

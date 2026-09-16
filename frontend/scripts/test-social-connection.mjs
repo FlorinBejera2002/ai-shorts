@@ -53,11 +53,51 @@ async function fixture(locale = defaultLocale, width = 1440) {
     severOpener: false,
     accounts: [],
     reads: 0,
-    errors: []
+    errors: [],
+    authDelay: 0,
+    feedback: []
   }
-  context.on('page', (page) =>
+  context.on('page', (page) => {
     page.on('pageerror', (error) => state.errors.push(error.message))
-  )
+    page.on('console', (message) => {
+      const prefix = 'CONNECTION_FEEDBACK:'
+      if (message.text().startsWith(prefix))
+        state.feedback.push(JSON.parse(message.text().slice(prefix.length)))
+    })
+  })
+  await context.addInitScript((label) => {
+    const feedback = { confirmations: 0, defaultLoader: false }
+    window.connectionFeedback = feedback
+    const isReturn = new URLSearchParams(location.search).has('connected')
+    const seen = new WeakSet()
+    function inspect() {
+      let changed = false
+      for (const element of document.querySelectorAll('[role="status"]')) {
+        if (element.getAttribute('aria-label') !== label || seen.has(element))
+          continue
+        seen.add(element)
+        feedback.confirmations++
+        changed = true
+      }
+      if (
+        isReturn &&
+        !feedback.defaultLoader &&
+        [...document.querySelectorAll('img[src*="black-loading.gif"]')].some(
+          (image) => image.getBoundingClientRect().width > 0
+        )
+      ) {
+        feedback.defaultLoader = true
+        changed = true
+      }
+      if (changed)
+        console.debug(`CONNECTION_FEEDBACK:${JSON.stringify(feedback)}`)
+    }
+    new MutationObserver(inspect).observe(document, {
+      childList: true,
+      subtree: true,
+      attributes: true
+    })
+  }, messages.contentCalendar.connections.connected)
   await context.route('**/*', async (route) => {
     const req = route.request()
     const url = new URL(req.url())
@@ -86,9 +126,11 @@ async function fixture(locale = defaultLocale, width = 1440) {
     }
     if (!/^\/(api|v1)\//.test(url.pathname)) return route.continue()
     let json = {}
-    if (url.pathname === '/v1/auth/refresh')
+    if (url.pathname === '/v1/auth/refresh') {
+      if (state.authDelay)
+        await new Promise((resolve) => setTimeout(resolve, state.authDelay))
       json = { access_token: 'synthetic', user }
-    else if (url.pathname === '/api/calendar')
+    } else if (url.pathname === '/api/calendar')
       json = { posts: [], clips: [], meta: { truncated: false } }
     else if (url.pathname === '/api/publishing') {
       state.reads++
@@ -177,9 +219,77 @@ async function verifyAnimation(f, name) {
     )
   })
   await f.overlay.waitFor({ state: 'hidden' })
+  assert.equal(
+    f.state.feedback.some((feedback) => feedback.defaultLoader),
+    false,
+    'OAuth return must never paint the default loading GIF'
+  )
+}
+
+async function assertConfirmations(f, expected = 1) {
+  assert.equal(
+    await f.page.evaluate(() => window.connectionFeedback.confirmations),
+    expected,
+    'Each successful connection must mount exactly one confirmation'
+  )
+}
+
+async function verifySingleCycleAssets() {
+  const f = await fixture()
+  const assets = [
+    'instagram-connected-effect.svg',
+    'facebook-connected-effect.svg',
+    'youtube-connected-effect.svg',
+    'Share on Linkedin.svg',
+    'X Twitter logo.svg'
+  ]
+  await f.context.route('**/__confirmation-assets', (route) =>
+    route.fulfill({
+      contentType: 'text/html',
+      body: `<style>body { margin:0; display:flex; background:white } img { width:240px; height:240px }</style>${assets.map((file) => `<img src="/brand/${encodeURIComponent(file)}" alt="${file}">`).join('')}`
+    })
+  )
+  await f.page.goto(`${base}/__confirmation-assets`, { waitUntil: 'load' })
+  const images = f.page.locator('img')
+  await images.evaluateAll((images) =>
+    Promise.all(images.map((image) => image.decode()))
+  )
+  const initial = await f.page.screenshot()
+  await f.page.waitForTimeout(650)
+  assert.equal(initial.equals(await f.page.screenshot()), false)
+  await f.page.waitForTimeout(4200)
+  const frozen = await f.page.screenshot()
+  await f.page.waitForTimeout(800)
+  assert.ok(
+    frozen.equals(await f.page.screenshot()),
+    'Every provider must stop after one cycle'
+  )
+  for (const file of assets) {
+    const source = await readFile(
+      new URL(`../public/brand/${file}`, import.meta.url),
+      'utf8'
+    )
+    const animations = source.match(/<animate(?:Transform)?\b[^>]*>/g) ?? []
+    assert.ok(animations.length > 0)
+    for (const animation of animations) {
+      assert.match(animation, /repeatCount="1"/)
+      assert.match(animation, /fill="freeze"/)
+    }
+  }
+  await f.page.screenshot({
+    path: new URL('all-providers-frozen.png', output).pathname.replace(
+      /^\/([A-Za-z]:)/,
+      '$1'
+    )
+  })
+  await f.context.close()
+  console.info(
+    'PASS all animated providers: one SVG cycle with a frozen final frame'
+  )
 }
 
 try {
+  await verifySingleCycleAssets()
   if (!process.argv.includes('--settings-only')) {
     for (const variant of process.argv.includes('--callbacks-only')
       ? []
@@ -214,6 +324,7 @@ try {
       await button.click()
       const popup = await popupPromise
       await verifyAnimation(f, `${variant.locale}-popup`)
+      await assertConfirmations(f)
       assert.equal(popup.isClosed(), true)
       await f.page
         .getByText(`@synthetic_${variant.provider}`, { exact: true })
@@ -236,11 +347,35 @@ try {
     }
 
     const direct = await fixture()
+    // The animation must start while auth is pending, then freeze without looping.
+    direct.state.authDelay = 5500
     await direct.page.goto(
       `${base}${direct.path}?connected=instagram&keep=1#connections`,
       { waitUntil: 'commit' }
     )
-    await verifyAnimation(direct, 'direct-return')
+    await direct.overlay.waitFor({ state: 'visible' })
+    await direct.overlay.locator('img').evaluate((image) => image.decode())
+    assert.equal(await direct.calendarConnect().count(), 0)
+    await direct.page.waitForTimeout(2800)
+    const frozen = await direct.overlay.locator('img').screenshot()
+    await direct.page.waitForTimeout(650)
+    assert.ok(
+      frozen.equals(await direct.overlay.locator('img').screenshot()),
+      'After one full cycle the SVG must keep the last frame during slow auth'
+    )
+    await direct.page.screenshot({
+      path: new URL('direct-return-frozen.png', output).pathname.replace(
+        /^\/([A-Za-z]:)/,
+        '$1'
+      )
+    })
+    await direct.overlay.waitFor({ state: 'hidden' })
+    await assertConfirmations(direct)
+    assert.equal(
+      direct.state.feedback.some((f) => f.defaultLoader),
+      false
+    )
+    direct.state.authDelay = 0
     assert.equal(new URL(direct.page.url()).search, '?keep=1')
     assert.equal(new URL(direct.page.url()).hash, '#connections')
     await direct.page.reload({ waitUntil: 'networkidle' })
@@ -326,6 +461,7 @@ try {
   })
   await connect.click()
   await verifyAnimation(settings, 'settings-popup')
+  await assertConfirmations(settings)
   assert.equal(
     await settings.page.evaluate(() => window.connectionTestMarker),
     'settings'
@@ -335,6 +471,15 @@ try {
     .getByText('synthetic_instagram', { exact: true })
     .first()
     .waitFor()
+  await settings.page
+    .getByRole('button', {
+      name: settings.messages.settings.reconnect,
+      exact: true
+    })
+    .first()
+    .click()
+  await verifyAnimation(settings, 'settings-reconnect')
+  await assertConfirmations(settings, 2)
   assert.deepEqual(settings.state.errors, [])
   console.info(
     'PASS settings: shared popup flow, confirmation and account refresh without navigation'
@@ -351,6 +496,7 @@ try {
   })
   await blocked.calendarConnect().click()
   await verifyAnimation(blocked, 'blocked-popup-return')
+  await assertConfirmations(blocked)
   assert.deepEqual(blocked.state.errors, [])
   console.info('PASS blocked popup: same-tab OAuth return still animates')
   await blocked.context.close()
