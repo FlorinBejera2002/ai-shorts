@@ -82,9 +82,11 @@ async function fixture(locale = defaultLocale, width = 1440) {
       if (
         isReturn &&
         !feedback.defaultLoader &&
-        [...document.querySelectorAll('img[src*="black-loading.gif"]')].some(
-          (image) => image.getBoundingClientRect().width > 0
-        )
+        [
+          ...document.querySelectorAll(
+            'img[src*="sneepcut-cyber-hud-loader.svg"]'
+          )
+        ].some((image) => image.getBoundingClientRect().width > 0)
       ) {
         feedback.defaultLoader = true
         changed = true

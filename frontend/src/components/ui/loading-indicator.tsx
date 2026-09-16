@@ -10,13 +10,13 @@ export function LoadingIndicator({
 }: LoadingIndicatorProps) {
   return (
     <Image
-      src="/brand/black-loading.gif"
+      src="/brand/sneepcut-cyber-hud-loader.svg"
       alt=""
-      width={96}
-      height={96}
+      width={380}
+      height={380}
       unoptimized={true}
       aria-hidden="true"
-      className={cn('shrink-0 object-contain dark:invert', className)}
+      className={cn('shrink-0 object-contain', className)}
     />
   )
 }

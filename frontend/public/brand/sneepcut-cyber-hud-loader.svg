@@ -1,0 +1,267 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 380 380" width="380" height="380" role="img" aria-label="Loading Sneepcut AI Engine">
+  <defs>
+    <!-- Gradients -->
+    <linearGradient id="primaryGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#5139EF" stop-opacity="0.1"/>
+      <stop offset="50%" stop-color="#8B5CF6" stop-opacity="0.6"/>
+      <stop offset="100%" stop-color="#38BDF8" stop-opacity="1"/>
+    </linearGradient>
+
+    <linearGradient id="accentGrad" x1="100%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#EC4899" stop-opacity="0"/>
+      <stop offset="60%" stop-color="#8B5CF6" stop-opacity="0.7"/>
+      <stop offset="100%" stop-color="#5139EF" stop-opacity="1"/>
+    </linearGradient>
+
+    <linearGradient id="scanBeam" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#38BDF8" stop-opacity="0"/>
+      <stop offset="50%" stop-color="#8B5CF6" stop-opacity="0.25"/>
+      <stop offset="98%" stop-color="#FFFFFF" stop-opacity="0.95"/>
+      <stop offset="100%" stop-color="#38BDF8" stop-opacity="1"/>
+    </linearGradient>
+
+    <radialGradient id="centerAura" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#8B5CF6" stop-opacity="0.25"/>
+      <stop offset="65%" stop-color="#5139EF" stop-opacity="0.08"/>
+      <stop offset="100%" stop-color="#5139EF" stop-opacity="0"/>
+    </radialGradient>
+
+    <!-- Filters -->
+    <filter id="laserGlow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="3.5" result="blur1"/>
+      <feGaussianBlur stdDeviation="1.5" result="blur2"/>
+      <feMerge>
+        <feMergeNode in="blur1"/>
+        <feMergeNode in="blur2"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <filter id="subtleGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="2" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+  </defs>
+
+  <style>
+    :root {
+      --brand: #5139EF;
+      --accent: #8B5CF6;
+      --cyan: #38BDF8;
+      --pink: #EC4899;
+    }
+
+    /* Rotation Animations */
+    .spin-fast {
+      transform-origin: 190px 190px;
+      animation: spinClockwise 2.4s cubic-bezier(0.4, 0.1, 0.2, 1) infinite;
+    }
+    .spin-rev {
+      transform-origin: 190px 190px;
+      animation: spinCounter 4s linear infinite;
+    }
+    .spin-slow {
+      transform-origin: 190px 190px;
+      animation: spinClockwise 7s linear infinite;
+    }
+    .spin-burst {
+      transform-origin: 190px 190px;
+      animation: spinBurst 3.2s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+    }
+
+    /* Vertical Scanner Line */
+    .scan-line {
+      animation: scanSweep 2.8s ease-in-out infinite;
+    }
+
+    /* Corner Target Brackets Pulsing */
+    .hud-brackets {
+      transform-origin: 190px 190px;
+      animation: bracketPulse 2.8s ease-in-out infinite;
+    }
+
+    /* Core Logo Motion */
+    .logo-core {
+      transform-origin: 190px 190px;
+      animation: coreBreath 2.8s ease-in-out infinite;
+    }
+    .cut-slice-top {
+      animation: sliceTopAction 2.8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+    }
+    .cut-slice-bottom {
+      animation: sliceBottomAction 2.8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+    }
+
+    /* Laser Seam Travel */
+    .laser-seam {
+      stroke-dasharray: 220;
+      stroke-dashoffset: 220;
+      animation: laserTravel 2.8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+    }
+
+    /* Keyframes */
+    @keyframes spinClockwise {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    @keyframes spinCounter {
+      0% { transform: rotate(360deg); }
+      100% { transform: rotate(0deg); }
+    }
+    @keyframes spinBurst {
+      0%   { transform: rotate(0deg); }
+      35%  { transform: rotate(180deg); }
+      50%  { transform: rotate(200deg); }
+      85%  { transform: rotate(340deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    @keyframes scanSweep {
+      0%, 100% { transform: translateY(80px); opacity: 0; }
+      15%      { opacity: 0.9; }
+      85%      { opacity: 0.9; }
+      90%      { transform: translateY(290px); opacity: 0; }
+    }
+
+    @keyframes bracketPulse {
+      0%, 100% { transform: scale(1); opacity: 0.65; }
+      50%      { transform: scale(0.965); opacity: 1; }
+    }
+
+    @keyframes coreBreath {
+      0%, 100% { transform: scale(1); }
+      50%      { transform: scale(0.97); }
+    }
+
+    @keyframes sliceTopAction {
+      0%, 100% { transform: translate(0, 0); }
+      38%      { transform: translate(4.5px, -3.5px); }
+      55%      { transform: translate(4.5px, -3.5px); }
+      75%      { transform: translate(-0.8px, 0.6px); }
+      88%      { transform: translate(0, 0); }
+    }
+
+    @keyframes sliceBottomAction {
+      0%, 100% { transform: translate(0, 0); }
+      38%      { transform: translate(-4.5px, 3.5px); }
+      55%      { transform: translate(-4.5px, 3.5px); }
+      75%      { transform: translate(0.8px, -0.6px); }
+      88%      { transform: translate(0, 0); }
+    }
+
+    @keyframes laserTravel {
+      0%, 35%  { stroke-dashoffset: 220; opacity: 0; }
+      42%      { opacity: 1; }
+      68%      { stroke-dashoffset: 0; opacity: 1; }
+      74%, 100%{ stroke-dashoffset: 0; opacity: 0; }
+    }
+  </style>
+
+  <!-- Ambient Backdrop Halo -->
+  <circle cx="190" cy="190" r="140" fill="url(#centerAura)"/>
+
+  <!-- ==================== HUD LAYER 1: CORNER TARGET BRACKETS ==================== -->
+  <g class="hud-brackets" stroke="#8B5CF6" stroke-width="1.5" fill="none" opacity="0.8">
+    <!-- Top-Left -->
+    <path d="M 50 75 L 50 50 L 75 50"/>
+    <!-- Top-Right -->
+    <path d="M 305 50 L 330 50 L 330 75"/>
+    <!-- Bottom-Left -->
+    <path d="M 50 305 L 50 330 L 75 330"/>
+    <!-- Bottom-Right -->
+    <path d="M 305 330 L 330 330 L 330 305"/>
+
+    <!-- Micro Crosshairs on corners -->
+    <line x1="44" y1="50" x2="48" y2="50" stroke="#38BDF8" stroke-width="1"/>
+    <line x1="50" y1="44" x2="50" y2="48" stroke="#38BDF8" stroke-width="1"/>
+    <line x1="332" y1="50" x2="336" y2="50" stroke="#38BDF8" stroke-width="1"/>
+    <line x1="330" y1="44" x2="330" y2="48" stroke="#38BDF8" stroke-width="1"/>
+    <line x1="44" y1="330" x2="48" y2="330" stroke="#38BDF8" stroke-width="1"/>
+    <line x1="50" y1="332" x2="50" y2="336" stroke="#38BDF8" stroke-width="1"/>
+    <line x1="332" y1="330" x2="336" y2="330" stroke="#38BDF8" stroke-width="1"/>
+    <line x1="330" y1="332" x2="330" y2="336" stroke="#38BDF8" stroke-width="1"/>
+  </g>
+
+  <!-- ==================== HUD LAYER 2: STATIC TECH RETICLES ==================== -->
+  <!-- Outermost Faint Precision Dial -->
+  <circle cx="190" cy="190" r="162" fill="none" stroke="currentColor" stroke-opacity="0.08" stroke-width="1"/>
+  <circle cx="190" cy="190" r="156" fill="none" stroke="currentColor" stroke-opacity="0.04" stroke-width="1" stroke-dasharray="2 6"/>
+  <!-- Compass Cardinal Ticks -->
+  <g stroke="currentColor" stroke-opacity="0.25" stroke-width="1">
+    <line x1="190" y1="24" x2="190" y2="34"/>
+    <line x1="190" y1="346" x2="190" y2="356"/>
+    <line x1="24" y1="190" x2="34" y2="190"/>
+    <line x1="346" y1="190" x2="356" y2="190"/>
+    <!-- Diagonal micro ticks -->
+    <line x1="72" y1="72" x2="79" y2="79"/>
+    <line x1="308" y1="72" x2="301" y2="79"/>
+    <line x1="72" y1="308" x2="79" y2="301"/>
+    <line x1="308" y1="308" x2="301" y2="301"/>
+  </g>
+
+  <!-- ==================== HUD LAYER 3: DYNAMIC ROTATING RINGS ==================== -->
+  <!-- Ring A: Fast Leading Energy Arc with glowing head -->
+  <g class="spin-fast">
+    <circle cx="190" cy="190" r="148" fill="none" stroke="url(#primaryGrad)" stroke-width="2.5" stroke-linecap="round" stroke-dasharray="130 800"/>
+    <circle cx="338" cy="190" r="3" fill="#38BDF8" filter="url(#laserGlow)"/>
+    <circle cx="338" cy="190" r="1.5" fill="#FFFFFF"/>
+  </g>
+
+  <!-- Ring B: Segmented Tech Track in Counter-Rotation -->
+  <g class="spin-rev">
+    <!-- Segmented broken arcs (sci-fi dial) -->
+    <circle cx="190" cy="190" r="136" fill="none" stroke="#8B5CF6" stroke-opacity="0.65" stroke-width="1.8" stroke-dasharray="40 18 12 18 60 40 90 25 15 25" stroke-linecap="round"/>
+    <!-- Opposing secondary marker dot -->
+    <circle cx="190" cy="54" r="2" fill="#8B5CF6" filter="url(#subtleGlow)"/>
+  </g>
+
+  <!-- Ring C: Variable Speed Burst Ring -->
+  <g class="spin-burst">
+    <circle cx="190" cy="190" r="124" fill="none" stroke="url(#accentGrad)" stroke-width="1.6" stroke-dasharray="90 320" stroke-linecap="round"/>
+    <!-- Small trailing satelitte pip -->
+    <circle cx="190" cy="314" r="2.2" fill="#EC4899" filter="url(#subtleGlow)"/>
+  </g>
+
+  <!-- Ring D: Fine Inner Radar Calibrations (slow continuous turn) -->
+  <g class="spin-slow">
+    <circle cx="190" cy="190" r="112" fill="none" stroke="#38BDF8" stroke-opacity="0.3" stroke-width="1" stroke-dasharray="4 8 20 8 4 8 60 12"/>
+  </g>
+
+  <!-- ==================== HUD LAYER 4: LASER SCAN BEAM ==================== -->
+  <g clip-path="url(#coreClip)">
+    <clipPath id="coreClip">
+      <circle cx="190" cy="190" r="105"/>
+    </clipPath>
+    <g class="scan-line">
+      <!-- Gradient light sheet -->
+      <rect x="85" y="-30" width="210" height="30" fill="url(#scanBeam)"/>
+      <!-- Sharp cutting edge line -->
+      <line x1="85" y1="0" x2="295" y2="0" stroke="#FFFFFF" stroke-width="1.5" filter="url(#laserGlow)"/>
+    </g>
+  </g>
+
+  <!-- ==================== SNEEPCUT ICON CORE ==================== -->
+  <!-- Centering calculation:
+       Canvas size: 380 x 380. Center at (190, 190).
+       Original logo viewBox: 272 x 286.
+       Target scale: 0.58 => width = 157.76, height = 165.88.
+       Translate: X = (380 - 157.76) / 2 = 111.12, Y = (380 - 165.88) / 2 = 107.06.
+  -->
+  <g class="logo-core" transform="translate(111.12, 107.06) scale(0.58)">
+
+    <!-- Top Piece with Shear Motion -->
+    <g class="cut-slice-top">
+      <path d="M 73 5.153 C 57.132 8.290, 45.443 13.992, 34.929 23.726 C 26.952 31.112, 21.280 38.651, 16.294 48.500 C 10.650 59.649, 8.569 65.797, 6.121 78.560 C 3.473 92.368, 3.442 99.991, 6 108 C 7.100 111.443, 8 115.075, 8 116.071 C 8 117.067, 8.496 118.188, 9.102 118.563 C 9.708 118.938, 10.810 120.695, 11.551 122.468 C 13.846 127.960, 20.445 135.406, 28.135 141.179 C 36.207 147.240, 49.944 155, 52.600 155 C 53.524 155, 56.130 155.863, 58.390 156.918 C 64.172 159.617, 84.872 166, 87.842 166 C 89.581 166, 239.109 13.816, 242.590 8.504 C 243.916 6.478, 244.030 5.630, 243.099 4.699 C 242.190 3.790, 222.668 3.473, 162.200 3.388 C 87.997 3.283, 81.845 3.405, 73 5.153" fill="url(#primaryGrad)"/>
+      <path d="M 73 5.153 C 57.132 8.290, 45.443 13.992, 34.929 23.726 C 26.952 31.112, 21.280 38.651, 16.294 48.500 C 10.650 59.649, 8.569 65.797, 6.121 78.560 C 3.473 92.368, 3.442 99.991, 6 108 C 7.100 111.443, 8 115.075, 8 116.071 C 8 117.067, 8.496 118.188, 9.102 118.563 C 9.708 118.938, 10.810 120.695, 11.551 122.468 C 13.846 127.960, 20.445 135.406, 28.135 141.179 C 36.207 147.240, 49.944 155, 52.600 155 C 53.524 155, 56.130 155.863, 58.390 156.918 C 64.172 159.617, 84.872 166, 87.842 166 C 89.581 166, 239.109 13.816, 242.590 8.504 C 243.916 6.478, 244.030 5.630, 243.099 4.699 C 242.190 3.790, 222.668 3.473, 162.200 3.388 C 87.997 3.283, 81.845 3.405, 73 5.153" fill="var(--brand, #5139EF)" opacity="0.88"/>
+    </g>
+
+    <!-- Bottom Piece with Shear Motion -->
+    <g class="cut-slice-bottom">
+      <path d="M 132 155.793 C 41.077 247.362, 18.899 270.303, 19.208 272.461 C 19.499 274.493, 19.798 274.501, 106.362 274.756 L 193.224 275.011 201.862 272.621 C 214.829 269.032, 224.518 264.114, 233.011 256.809 C 240.227 250.603, 249 241.072, 249 239.440 C 249 239.010, 249.608 237.947, 250.351 237.079 C 253.566 233.323, 261 216.994, 261 213.688 C 261 212.348, 261.751 209.282, 262.668 206.876 C 265.149 200.367, 265.140 177.754, 262.653 169 C 258.685 155.035, 250.047 142.504, 238.583 134.082 C 227.897 126.232, 209.763 118.284, 190.739 113.110 C 176.638 109.276, 182.207 105.229, 132 155.793" fill="url(#primaryGrad)"/>
+      <path d="M 132 155.793 C 41.077 247.362, 18.899 270.303, 19.208 272.461 C 19.499 274.493, 19.798 274.501, 106.362 274.756 L 193.224 275.011 201.862 272.621 C 214.829 269.032, 224.518 264.114, 233.011 256.809 C 240.227 250.603, 249 241.072, 249 239.440 C 249 239.010, 249.608 237.947, 250.351 237.079 C 253.566 233.323, 261 216.994, 261 213.688 C 261 212.348, 261.751 209.282, 262.668 206.876 C 265.149 200.367, 265.140 177.754, 262.653 169 C 258.685 155.035, 250.047 142.504, 238.583 134.082 C 227.897 126.232, 209.763 118.284, 190.739 113.110 C 176.638 109.276, 182.207 105.229, 132 155.793" fill="var(--brand, #5139EF)" opacity="0.88"/>
+    </g>
+
+    <!-- Razor Sharp Diagonal Laser Seam Sweep -->
+    <line class="laser-seam" x1="242" y1="8" x2="19" y2="272" stroke="#FFFFFF" stroke-width="2.2" stroke-linecap="round" filter="url(#laserGlow)"/>
+  </g>
+</svg>

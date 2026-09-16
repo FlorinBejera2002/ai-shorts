@@ -14,13 +14,16 @@ function collectTsxFiles(directory) {
   })
 }
 
-test('uses the shared GIF for every loading indicator', () => {
+test('uses the shared branded asset for every loading indicator', () => {
   const loadingIndicator = readFileSync(
     new URL('../src/components/ui/loading-indicator.tsx', import.meta.url),
     'utf8'
   )
-  assert.match(loadingIndicator, /src="\/brand\/black-loading\.gif"/)
-  assert.match(loadingIndicator, /dark:invert/)
+  assert.match(
+    loadingIndicator,
+    /src="\/brand\/sneepcut-cyber-hud-loader\.svg"/
+  )
+  assert.doesNotMatch(loadingIndicator, /dark:invert/)
 
   for (const file of collectTsxFiles(sourceRoot)) {
     const source = readFileSync(file, 'utf8')
