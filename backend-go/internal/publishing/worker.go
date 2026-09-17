@@ -82,15 +82,16 @@ func (h *Handler) dispatchCalendar(ctx context.Context) error {
 		return e
 	}
 	defer tx.Rollback()
-	var id, userID, caption, reference string
+	var id, userID, caption, reference, tiktokReference string
 	var clipID sql.NullString
 	var accountIDs pq.StringArray
 	var postMedia, tiktokJSON []byte
 	e = tx.QueryRowContext(ctx, `SELECT s.id,s.user_id,s.clip_id,COALESCE(s.caption,''),s.account_ids,
-		COALESCE(NULLIF(c.file_storage_key,''),NULLIF(c.file_path,''),c.file_url,''),s.media,s.tiktok_options
+		COALESCE(NULLIF(c.file_storage_key,''),NULLIF(c.file_path,''),c.file_url,''),
+		COALESCE(NULLIF(c.tiktok_file_storage_key,''),CASE WHEN c.contains_platform_badge IS FALSE THEN COALESCE(NULLIF(c.file_storage_key,''),NULLIF(c.file_path,''),c.file_url,'') END,''),s.media,s.tiktok_options
 		FROM scheduled_posts s LEFT JOIN clips c ON c.id=s.clip_id AND c.user_id=s.user_id
 		WHERE s.id=$1 AND s.status='scheduled' AND s.scheduled_at<=now()
-		FOR UPDATE OF s`, candidateID).Scan(&id, &userID, &clipID, &caption, &accountIDs, &reference, &postMedia, &tiktokJSON)
+		FOR UPDATE OF s`, candidateID).Scan(&id, &userID, &clipID, &caption, &accountIDs, &reference, &tiktokReference, &postMedia, &tiktokJSON)
 	if errors.Is(e, sql.ErrNoRows) {
 		return nil
 	}
@@ -185,9 +186,16 @@ func (h *Handler) dispatchCalendar(ctx context.Context) error {
 		if providers[i] == "tiktok" {
 			options = tiktokJSON
 		}
+		publishReference := reference
+		if providers[i] == "tiktok" && clipID.Valid {
+			publishReference = tiktokReference
+			if publishReference == "" {
+				return h.failCalendar(ctx, tx, id, "The selected clip has no clean TikTok export. Regenerate it and schedule the post again.")
+			}
+		}
 		_, e = tx.ExecContext(ctx, `INSERT INTO social_posts(id,user_id,account_id,clip_id,provider,caption,options,idempotency_key,request_hash,media_reference,scheduled_post_id)
 			VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
-			ON CONFLICT (scheduled_post_id,account_id) WHERE scheduled_post_id IS NOT NULL DO NOTHING`, postID, userID, accountID, clipID, providers[i], caption, options, id, requestHash, reference, id)
+			ON CONFLICT (scheduled_post_id,account_id) WHERE scheduled_post_id IS NOT NULL DO NOTHING`, postID, userID, accountID, clipID, providers[i], caption, options, id, requestHash, publishReference, id)
 		if e != nil {
 			return e
 		}
@@ -395,7 +403,9 @@ func (h *Handler) process(ctx context.Context, job workItem, action string) erro
 			}
 		} else {
 			var currentReference string
-			err := tx.QueryRowContext(ctx, `SELECT COALESCE(NULLIF(c.file_storage_key,''),NULLIF(c.file_path,''),c.file_url,'')
+			err := tx.QueryRowContext(ctx, `SELECT CASE WHEN p.provider='tiktok'
+				THEN COALESCE(NULLIF(c.tiktok_file_storage_key,''),CASE WHEN c.contains_platform_badge IS FALSE THEN COALESCE(NULLIF(c.file_storage_key,''),NULLIF(c.file_path,''),c.file_url,'') END,'')
+				ELSE COALESCE(NULLIF(c.file_storage_key,''),NULLIF(c.file_path,''),c.file_url,'') END
 				FROM social_posts p JOIN clips c ON c.id=p.clip_id AND c.user_id=p.user_id
 				WHERE p.id=$1 FOR SHARE OF c`, job.ID).Scan(&currentReference)
 			if err != nil || currentReference != job.Reference {

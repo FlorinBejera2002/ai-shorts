@@ -84,9 +84,9 @@ func (h *Handler) ValidateTikTokSchedule(ctx context.Context, tx *sql.Tx, userID
 	}
 	var duration float64
 	var reference string
-	var badge sql.NullBool
-	err = tx.QueryRowContext(ctx, `SELECT duration,COALESCE(NULLIF(file_storage_key,''),NULLIF(file_path,''),file_url,''),contains_platform_badge
-		FROM clips WHERE id=$1 AND user_id=$2 FOR KEY SHARE`, clipID, userID).Scan(&duration, &reference, &badge)
+	err = tx.QueryRowContext(ctx, `SELECT duration,
+		COALESCE(NULLIF(tiktok_file_storage_key,''),CASE WHEN contains_platform_badge IS FALSE THEN COALESCE(NULLIF(file_storage_key,''),NULLIF(file_path,''),file_url,'') END,'')
+		FROM clips WHERE id=$1 AND user_id=$2 FOR KEY SHARE`, clipID, userID).Scan(&duration, &reference)
 	if errors.Is(err, sql.ErrNoRows) || reference == "" {
 		return "clipId", errInvalid
 	}
@@ -119,7 +119,7 @@ func (h *Handler) ValidateTikTokSchedule(ctx context.Context, tx *sql.Tx, userID
 	if err != nil {
 		return "accountIds", errInvalid
 	}
-	return h.validateTikTokSelectionWithCredentials(ctx, account, credentials, duration, badge, mediaURL, caption, options)
+	return h.validateTikTokSelectionWithCredentials(ctx, account, credentials, duration, sql.NullBool{Valid: true, Bool: false}, mediaURL, caption, options)
 }
 
 func validateTikTokText(photo bool, caption string, options TikTokOptions) error {

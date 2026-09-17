@@ -34,6 +34,26 @@ def test_matching_frame_without_branding_skips_encoding(monkeypatch):
     )
 
 
+def test_delivery_encode_uses_shared_high_quality_profile(monkeypatch, tmp_path):
+    commands = []
+    monkeypatch.setattr(render, "run_ffmpeg", lambda command: commands.append(command))
+    render.render_framing_and_brand(
+        "source.mp4",
+        str(tmp_path / "delivery.mp4"),
+        width=1920,
+        height=1080,
+        aspect_ratio="9:16",
+        brand=None,
+        storage=None,
+    )
+    command = commands[0]
+    assert command[command.index("-crf") + 1] == "18"
+    assert command[command.index("-preset") + 1] == "medium"
+    assert command[command.index("-pix_fmt") + 1] == "yuv420p"
+    assert command[command.index("-b:a") + 1] == "192k"
+    assert "+faststart" in command
+
+
 @pytest.mark.parametrize(
     "field,value",
     [

@@ -7,7 +7,6 @@ from pathlib import Path
 from typing import Any
 
 from billiard.exceptions import SoftTimeLimitExceeded
-
 from sqlalchemy import select, update
 
 from app.database import SyncSessionLocal
@@ -24,6 +23,7 @@ from app.services.job_delivery import (
     OwnershipLost,
     assert_owner,
 )
+from app.utils.ffmpeg_utils import H264_DELIVERY_ARGS
 from app.workers.celery_app import celery_app
 
 logger = logging.getLogger(__name__)
@@ -325,6 +325,7 @@ def _mark_job_completed(
                     file_path=file_path,
                     file_url=metadata.get("public_url"),
                     file_storage_key=file_storage_key,
+                    tiktok_file_storage_key=metadata.get("tiktok_storage_key"),
                     thumbnail_path=thumbnail_path,
                     thumbnail_url=metadata.get("thumbnail_url"),
                     thumbnail_storage_key=thumbnail_storage_key,
@@ -382,6 +383,7 @@ def trim_clip_task(
 
     tracked_job_id: uuid.UUID | None = None
     new_storage_key: str | None = None
+    new_tiktok_storage_key: str | None = None
     task_token = None
     storage = None
     try:
@@ -419,44 +421,62 @@ def trim_clip_task(
             )
             output = work_dir / "trimmed.mp4"
 
-            cmd = [
-                "ffmpeg",
-                "-y",
-                "-ss",
-                str(start_time),
-                "-to",
-                str(end_time),
-                "-i",
-                str(source),
-                "-c:v",
-                "libx264",
-                "-preset",
-                "fast",
-                "-crf",
-                "23",
-                "-c:a",
-                "aac",
-                "-b:a",
-                "128k",
-                str(output),
-            ]
+            tiktok_source: Path | None = None
+            tiktok_output: Path | None = None
+            if clip.tiktok_file_storage_key:
+                tiktok_source = _local_storage_input(
+                    storage,
+                    clip.tiktok_file_storage_key,
+                    None,
+                    work_dir / "tiktok-source.mp4",
+                )
+                tiktok_output = work_dir / "tiktok-trimmed.mp4"
 
-            result = subprocess.run(
-                cmd, capture_output=True, text=True, timeout=300, check=False
-            )
-            if result.returncode != 0:
-                raise RuntimeError(f"FFmpeg trim failed: {result.stderr[:500]}")
+            def _trim(source_path: Path, output_path: Path) -> None:
+                cmd = [
+                    "ffmpeg",
+                    "-y",
+                    "-ss",
+                    str(start_time),
+                    "-to",
+                    str(end_time),
+                    "-i",
+                    str(source_path),
+                    *H264_DELIVERY_ARGS,
+                    str(output_path),
+                ]
+                result = subprocess.run(
+                    cmd, capture_output=True, text=True, timeout=300, check=False
+                )
+                if result.returncode != 0:
+                    raise RuntimeError(f"FFmpeg trim failed: {result.stderr[:500]}")
+
+            _trim(source, output)
+            if tiktok_source and tiktok_output:
+                _trim(tiktok_source, tiktok_output)
             _ensure_account_active(db, job.user_id)
 
             new_storage_key = f"clips/{job.id}/edits/{clip.id}/trim-{task_token}.mp4"
             storage_path = storage.save_file(output, new_storage_key)
+            tiktok_storage_path: str | None = None
+            if tiktok_output:
+                new_tiktok_storage_key = (
+                    f"clips/{job.id}/edits/{clip.id}/tiktok/trim-{task_token}.mp4"
+                )
+                tiktok_storage_path = storage.save_file(
+                    tiktok_output, new_tiktok_storage_key
+                )
             _ensure_account_active(db, job.user_id)
 
             previous_storage_key = clip.file_storage_key
+            previous_tiktok_storage_key = clip.tiktok_file_storage_key
             _assert_edit_owner(db, job.id, edit_token)
             clip.file_path = storage_path
             clip.file_url = storage.public_url(new_storage_key)
             clip.file_storage_key = new_storage_key
+            clip.tiktok_file_storage_key = (
+                new_tiktok_storage_key if tiktok_storage_path else None
+            )
             clip.start_time = start_time
             clip.end_time = end_time
             clip.duration = round(end_time - start_time, 3)
@@ -466,20 +486,27 @@ def trim_clip_task(
 
             if previous_storage_key and previous_storage_key != new_storage_key:
                 _delete_superseded_object(storage, previous_storage_key)
+            if previous_tiktok_storage_key:
+                _delete_superseded_object(storage, previous_tiktok_storage_key)
 
             return {
                 "clip_id": clip_id,
                 "file_path": storage_path,
                 "file_storage_key": new_storage_key,
+                "tiktok_file_storage_key": new_tiktok_storage_key,
                 "duration": clip.duration,
             }
     except (AccountDeletionPending, OwnershipLost):
         if storage and new_storage_key:
             _delete_superseded_object(storage, new_storage_key)
+        if storage and new_tiktok_storage_key:
+            _delete_superseded_object(storage, new_tiktok_storage_key)
         return {"status": "cancelled", "reason": "account_deletion_pending"}
     except Exception:
         if storage and new_storage_key:
             _delete_superseded_object(storage, new_storage_key)
+        if storage and new_tiktok_storage_key:
+            _delete_superseded_object(storage, new_tiktok_storage_key)
         raise
     finally:
         if tracked_job_id:
@@ -567,13 +594,20 @@ def recut_clip_task(
 
             old_storage_keys = {
                 key
-                for key in (clip.file_storage_key, clip.thumbnail_storage_key)
+                for key in (
+                    clip.file_storage_key,
+                    clip.thumbnail_storage_key,
+                    clip.tiktok_file_storage_key,
+                )
                 if key
             }
             _assert_edit_owner(db, job.id, edit_token)
             clip.file_path = file_storage_path
             clip.file_url = storage.public_url(file_storage_key)
             clip.file_storage_key = file_storage_key
+            # A recut changes the content timeline, so the generated TikTok
+            # derivative no longer represents this edit.
+            clip.tiktok_file_storage_key = None
             # Recut uses the original source and does not apply the app badge.
             # A trim operates on the rendered clip and preserves its provenance.
             clip.contains_platform_badge = False

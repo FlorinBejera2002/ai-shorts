@@ -195,6 +195,23 @@ func TestPostgresCalendarOwnershipAttachmentAndHalfOpenRange(t *testing.T) {
 	if e != nil || len(listed.Posts) != 1 || len(listed.Clips) != 1 || listed.Clips[0].Duration != 10 || !listed.Clips[0].TikTokEligible || listed.Meta.Truncated || listed.Meta.Limit != 500 {
 		t.Fatalf("list: %+v %v", listed, e)
 	}
+	if _, e = db.Exec(`UPDATE clips SET contains_platform_badge=true,tiktok_file_storage_key='clips/clean-for-tiktok.mp4' WHERE id=$1`, clip); e != nil {
+		t.Fatal(e)
+	}
+	listed, e = repo.List(ctx, user, start, end)
+	if e != nil || len(listed.Clips) != 1 || !listed.Clips[0].TikTokEligible {
+		t.Fatalf("clean TikTok derivative was not eligible: %+v %v", listed, e)
+	}
+	if _, e = db.Exec(`UPDATE clips SET tiktok_file_storage_key=NULL WHERE id=$1`, clip); e != nil {
+		t.Fatal(e)
+	}
+	listed, e = repo.List(ctx, user, start, end)
+	if e != nil || len(listed.Clips) != 1 || listed.Clips[0].TikTokEligible {
+		t.Fatalf("badged clip without derivative was eligible: %+v %v", listed, e)
+	}
+	if _, e = db.Exec(`UPDATE clips SET contains_platform_badge=false WHERE id=$1`, clip); e != nil {
+		t.Fatal(e)
+	}
 	start, end, _ = ParseRange("2026-09-03T07:30:00Z", "2026-09-04T07:30:00Z")
 	listed, e = repo.List(ctx, user, start, end)
 	if e != nil || len(listed.Posts) != 0 {

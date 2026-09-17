@@ -18,7 +18,7 @@ func cleanupReadyMock(mock sqlmock.Sqlmock, billing, active bool) {
 }
 func cleanupInventory(mock sqlmock.Sqlmock) {
 	mock.ExpectQuery("SELECT id,source_file_path,source_video_url,source_storage_key FROM jobs").WithArgs(testUserID).WillReturnRows(sqlmock.NewRows([]string{"id", "file", "url", "key"}).AddRow(testUserID, "/app/media/uploads/"+testUserID+"/video.mp4", "https://evil.invalid/private", "sources/"+testUserID+"/source.mp4"))
-	mock.ExpectQuery("SELECT file_path,file_url,file_storage_key,thumbnail_path,thumbnail_url,thumbnail_storage_key FROM clips").WithArgs(testUserID).WillReturnRows(sqlmock.NewRows([]string{"file", "url", "key", "thumb", "thumbURL", "thumbKey"}).AddRow("/tmp/work.mp4", "/media/clips/legacy.mp4?sig=x", "clips/stable.mp4", "/tmp/thumb.jpg", "/media/clips/legacy.jpg?sig=x", "clips/stable.jpg"))
+	mock.ExpectQuery("SELECT file_path,file_url,file_storage_key,tiktok_file_storage_key,thumbnail_path,thumbnail_url,thumbnail_storage_key FROM clips").WithArgs(testUserID).WillReturnRows(sqlmock.NewRows([]string{"file", "url", "key", "tiktokKey", "thumb", "thumbURL", "thumbKey"}).AddRow("/tmp/work.mp4", "/media/clips/legacy.mp4?sig=x", "clips/stable.mp4", "clips/tiktok/clean.mp4", "/tmp/thumb.jpg", "/media/clips/legacy.jpg?sig=x", "clips/stable.jpg"))
 	mock.ExpectQuery("SELECT logo_path,intro_video_path,outro_video_path,watermark_path FROM brand_kits").WithArgs(testUserID).WillReturnRows(sqlmock.NewRows([]string{"logo", "intro", "outro", "watermark"}).AddRow("brand/"+testUserID+"/logo.svg", nil, nil, nil))
 }
 func TestCleanupRequiresDeletionBillingAndQuiescentWorkers(t *testing.T) {
@@ -59,7 +59,7 @@ func TestCleanupCoversStableLegacyAndUnlinkedNamespaces(t *testing.T) {
 			t.Fatalf("missing prefix %s", prefix)
 		}
 	}
-	for _, key := range []string{"clips/legacy.mp4", "clips/stable.mp4", "clips/legacy.jpg", "clips/stable.jpg", "brand/" + testUserID + "/logo.svg"} {
+	for _, key := range []string{"clips/legacy.mp4", "clips/stable.mp4", "clips/tiktok/clean.mp4", "clips/legacy.jpg", "clips/stable.jpg", "brand/" + testUserID + "/logo.svg"} {
 		if !slices.Contains(storage.deleted, key) {
 			t.Fatalf("missing key %s", key)
 		}

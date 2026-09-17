@@ -6,7 +6,7 @@ from pathlib import Path
 
 from app.schemas.processing import SegmentCandidate, TranscriptResult, TranscriptWord
 from app.services.transitions import transition_overlaps
-from app.utils.ffmpeg_utils import run_ffmpeg
+from app.utils.ffmpeg_utils import H264_DELIVERY_ARGS, run_ffmpeg
 from app.utils.file_utils import ensure_dir
 
 logger = logging.getLogger(__name__)
@@ -230,12 +230,7 @@ def burn_subtitles(
                 video_path,
                 "-vf",
                 subtitle_filter,
-                "-c:v",
-                "libx264",
-                "-preset",
-                "medium",
-                "-c:a",
-                "aac",
+                *H264_DELIVERY_ARGS,
                 output_path,
             ]
         )

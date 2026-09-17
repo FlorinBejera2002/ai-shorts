@@ -42,6 +42,10 @@ class Clip(Base):
     file_path: Mapped[str] = mapped_column(String(2048), nullable=False)
     file_url: Mapped[str | None] = mapped_column(String(2048), nullable=True)
     file_storage_key: Mapped[str | None] = mapped_column(String(2048), nullable=True)
+    # Private badge-free delivery asset. It is never exposed as the normal clip.
+    tiktok_file_storage_key: Mapped[str | None] = mapped_column(
+        String(2048), nullable=True
+    )
     thumbnail_path: Mapped[str | None] = mapped_column(String(2048), nullable=True)
     thumbnail_url: Mapped[str | None] = mapped_column(String(2048), nullable=True)
     thumbnail_storage_key: Mapped[str | None] = mapped_column(

@@ -236,7 +236,7 @@ func (h *Handler) list(ctx context.Context, user string) ([]Account, []Clip, []P
 	if e != nil {
 		return accounts, clips, posts, e
 	}
-	rows, e = h.db.QueryContext(ctx, `SELECT id,title,duration,COALESCE(NULLIF(thumbnail_storage_key,''),NULLIF(thumbnail_path,''),thumbnail_url,''),COALESCE(NULLIF(file_storage_key,''),NULLIF(file_path,''),file_url,''),COALESCE(caption_tiktok,''),contains_platform_badge IS FALSE FROM clips WHERE user_id=$1 AND COALESCE(NULLIF(file_storage_key,''),NULLIF(file_path,''),file_url,'')<>'' ORDER BY created_at DESC LIMIT 100`, user)
+	rows, e = h.db.QueryContext(ctx, `SELECT id,title,duration,COALESCE(NULLIF(thumbnail_storage_key,''),NULLIF(thumbnail_path,''),thumbnail_url,''),COALESCE(NULLIF(file_storage_key,''),NULLIF(file_path,''),file_url,''),COALESCE(caption_tiktok,''),COALESCE(NULLIF(tiktok_file_storage_key,''),CASE WHEN contains_platform_badge IS FALSE THEN COALESCE(NULLIF(file_storage_key,''),NULLIF(file_path,''),file_url,'') END,'')<>'' FROM clips WHERE user_id=$1 AND COALESCE(NULLIF(file_storage_key,''),NULLIF(file_path,''),file_url,'')<>'' ORDER BY created_at DESC LIMIT 100`, user)
 	if e != nil {
 		return accounts, clips, posts, e
 	}
@@ -324,14 +324,12 @@ func (h *Handler) enqueue(ctx context.Context, user string, in postInput) ([]Pos
 	hash := digest(string(encoded))
 	options, _ := json.Marshal(in.TikTok)
 	var duration float64
-	var ref string
-	var badge sql.NullBool
-	e = tx.QueryRowContext(ctx, `SELECT duration,COALESCE(NULLIF(file_storage_key,''),NULLIF(file_path,''),file_url,''),contains_platform_badge FROM clips WHERE user_id=$1 AND id=$2 FOR SHARE`, user, in.ClipID).Scan(&duration, &ref, &badge)
+	var ref, tiktokRef string
+	e = tx.QueryRowContext(ctx, `SELECT duration,
+		COALESCE(NULLIF(file_storage_key,''),NULLIF(file_path,''),file_url,''),
+		COALESCE(NULLIF(tiktok_file_storage_key,''),CASE WHEN contains_platform_badge IS FALSE THEN COALESCE(NULLIF(file_storage_key,''),NULLIF(file_path,''),file_url,'') END,'')
+		FROM clips WHERE user_id=$1 AND id=$2 FOR SHARE`, user, in.ClipID).Scan(&duration, &ref, &tiktokRef)
 	if e != nil || ref == "" {
-		return nil, errInvalid
-	}
-	mediaURL, e := h.media.SignedURL(ctx, ref)
-	if e != nil || !publicHTTPS(mediaURL) {
 		return nil, errInvalid
 	}
 	posts := []Post{}
@@ -355,6 +353,9 @@ func (h *Handler) enqueue(ctx context.Context, user string, in postInput) ([]Pos
 			return nil, e
 		}
 		if a.Provider == "tiktok" {
+			if tiktokRef == "" {
+				return nil, errInvalid
+			}
 			credentials, credentialErr := h.credentials(a)
 			if credentialErr != nil {
 				return nil, errInvalid
@@ -362,15 +363,27 @@ func (h *Handler) enqueue(ctx context.Context, user string, in postInput) ([]Pos
 			if resolver, ok := h.media.(interface {
 				PublishingVideoDuration(context.Context, string) (float64, error)
 			}); ok {
-				duration, e = resolver.PublishingVideoDuration(ctx, ref)
+				duration, e = resolver.PublishingVideoDuration(ctx, tiktokRef)
 				if e != nil {
 					return nil, errInvalid
 				}
 			}
-			field, validationErr := h.validateTikTokSelectionWithCredentials(ctx, a, credentials, duration, badge, mediaURL, in.Caption, in.TikTok)
+			mediaURL, mediaErr := h.media.SignedURL(ctx, tiktokRef)
+			if mediaErr != nil || !publicHTTPS(mediaURL) {
+				return nil, errInvalid
+			}
+			field, validationErr := h.validateTikTokSelectionWithCredentials(ctx, a, credentials, duration, sql.NullBool{Valid: true, Bool: false}, mediaURL, in.Caption, in.TikTok)
 			if field != "" || validationErr != nil {
 				return nil, errInvalid
 			}
+		}
+		publishRef := ref
+		if a.Provider == "tiktok" {
+			publishRef = tiktokRef
+		}
+		mediaURL, mediaErr := h.media.SignedURL(ctx, publishRef)
+		if mediaErr != nil || !publicHTTPS(mediaURL) {
+			return nil, errInvalid
 		}
 		p.ID, e = data.NewUUID()
 		if e != nil {
@@ -380,7 +393,7 @@ func (h *Handler) enqueue(ctx context.Context, user string, in postInput) ([]Pos
 		p.AccountID = id
 		p.Provider = a.Provider
 		p.Status = "queued"
-		e = tx.QueryRowContext(ctx, `INSERT INTO social_posts(id,user_id,account_id,clip_id,provider,caption,options,idempotency_key,request_hash,media_reference) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING created_at`, p.ID, user, id, in.ClipID, a.Provider, in.Caption, options, in.IdempotencyKey, hash, ref).Scan(&p.CreatedAt)
+		e = tx.QueryRowContext(ctx, `INSERT INTO social_posts(id,user_id,account_id,clip_id,provider,caption,options,idempotency_key,request_hash,media_reference) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING created_at`, p.ID, user, id, in.ClipID, a.Provider, in.Caption, options, in.IdempotencyKey, hash, publishRef).Scan(&p.CreatedAt)
 		if e != nil {
 			return nil, e
 		}

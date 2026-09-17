@@ -105,6 +105,7 @@ class ClipOutput(BaseModel):
     thumbnail_path: str | None = None
     vertical_file_path: str | None = None
     subtitled_file_path: str | None = None
+    tiktok_file_path: str | None = None
     metadata: dict[str, Any] = Field(default_factory=dict)
 
     @model_validator(mode="after")

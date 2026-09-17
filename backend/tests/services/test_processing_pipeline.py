@@ -29,14 +29,15 @@ def test_pipeline_orchestrates_with_mocked_services(
 ):
     seen_language = []
     seen_style = []
+    rendered_brands = []
     monkeypatch.setattr(
         processing_pipeline, "get_video_resolution", lambda path: "1920x1080"
     )
-    monkeypatch.setattr(
-        processing_pipeline,
-        "render_framing_and_brand",
-        lambda source, destination, **kwargs: source,
-    )
+    def render(source, destination, **kwargs):
+        rendered_brands.append(kwargs["brand"])
+        return source
+
+    monkeypatch.setattr(processing_pipeline, "render_framing_and_brand", render)
     source = tmp_path / "source.mp4"
     source.write_bytes(b"fake")
 
@@ -160,7 +161,30 @@ def test_pipeline_orchestrates_with_mocked_services(
         prefix += f"/attempts/{attempt_id}"
     assert result["source_storage_key"] == f"sources/{prefix}/source.mp4"
     assert metadata["storage_key"].startswith(f"clips/{prefix}/")
+    if expected_badge:
+        assert metadata["tiktok_storage_key"].startswith(
+            f"clips/{prefix}/tiktok/"
+        )
+    else:
+        assert "tiktok_storage_key" not in metadata
     assert metadata["thumbnail_storage_key"].startswith(f"clips/{prefix}/thumbnails/")
     assert metadata["public_url"].startswith("/media/clips/")
+    assert rendered_brands[0] is brand_settings
+    if expected_badge:
+        assert rendered_brands[1]["hide_platform_badge"] is True
+        assert {
+            key: value
+            for key, value in rendered_brands[1].items()
+            if key != "hide_platform_badge"
+        } == {
+            key: value
+            for key, value in brand_settings.items()
+            if key != "hide_platform_badge"
+        }
+    else:
+        assert len(rendered_brands) == 1
     assert seen_language == [language]
-    assert seen_style == ([subtitle_style] if burn_subtitles else [])
+    expected_burns = 1 + int(expected_badge)
+    assert seen_style == (
+        [subtitle_style] * expected_burns if burn_subtitles else []
+    )

@@ -173,14 +173,16 @@ def process_video_source(
             logger.warning(message)
             errors.append(message)
 
-        # Framing and raster branding share one encode. Crop before captions so
-        # their placement cannot be cut off by the selected output aspect ratio.
-        resolution = get_video_resolution(current_path)
+        # Both deliverables branch from the same pre-brand intermediate. This
+        # keeps the private TikTok asset at the same generation quality as the
+        # normal clip instead of transcoding the already-branded output.
+        pre_brand_path = current_path
+        resolution = get_video_resolution(pre_brand_path)
         if not resolution:
             raise ValueError("Rendered clip dimensions are unavailable")
         width, height = (int(part) for part in resolution.split("x"))
         current_path = render_framing_and_brand(
-            current_path,
+            pre_brand_path,
             str(clips_dir / f"clip-{i}-framed.mp4"),
             width=width,
             height=height,
@@ -189,10 +191,26 @@ def process_video_source(
             storage=storage,
             hook_text=clip.get("hook_text", ""),
         )
-        clip["file_path"] = current_path
-        clip["metadata"]["contains_platform_badge"] = bool(
+        contains_platform_badge = bool(
             brand_settings and not brand_settings.get("hide_platform_badge")
         )
+        tiktok_path: str | None = None
+        if contains_platform_badge:
+            tiktok_brand = dict(brand_settings or {})
+            tiktok_brand["hide_platform_badge"] = True
+            tiktok_path = render_framing_and_brand(
+                pre_brand_path,
+                str(clips_dir / f"clip-{i}-tiktok-framed.mp4"),
+                width=width,
+                height=height,
+                aspect_ratio=aspect_ratio,
+                brand=tiktok_brand,
+                storage=storage,
+                hook_text=clip.get("hook_text", ""),
+            )
+        clip["file_path"] = current_path
+        clip["tiktok_file_path"] = tiktok_path
+        clip["metadata"]["contains_platform_badge"] = contains_platform_badge
         clip["vertical_file_path"] = None
         try:
             if burn_subtitles:
@@ -202,6 +220,13 @@ def process_video_source(
                 srt_path = unique_path(clips_dir, f"{Path(current_path).stem}", ".srt")
                 final_path = unique_path(
                     clips_dir, f"{Path(current_path).stem}-final", ".mp4"
+                )
+                tiktok_final_path = (
+                    unique_path(
+                        clips_dir, f"{Path(tiktok_path).stem}-final", ".mp4"
+                    )
+                    if tiktok_path
+                    else None
                 )
                 if generate_srt(
                     transcript.model_dump(),
@@ -220,7 +245,20 @@ def process_video_source(
                         **brand_subtitles,
                     ):
                         raise RuntimeError("Subtitle encoder did not produce an output")
+                    if tiktok_path and tiktok_final_path and not burn(
+                        tiktok_path,
+                        str(srt_path),
+                        str(tiktok_final_path),
+                        style=subtitle_style,
+                        **brand_subtitles,
+                    ):
+                        raise RuntimeError(
+                            "TikTok subtitle encoder did not produce an output"
+                        )
                     clip["subtitled_file_path"] = str(final_path)
+                    clip["tiktok_file_path"] = (
+                        str(tiktok_final_path) if tiktok_final_path else None
+                    )
                     clip["metadata"]["srt_path"] = str(srt_path)
         except Exception as exc:
             message = f"subtitle burn failed for clip {clip['index']}: {exc}"
@@ -244,6 +282,12 @@ def process_video_source(
         clip["metadata"]["storage_key"] = key
         clip["metadata"]["storage_path"] = storage_path
         clip["metadata"]["public_url"] = storage.public_url(key)
+
+        tiktok_path = clip.get("tiktok_file_path")
+        if tiktok_path:
+            tiktok_key = f"clips/{storage_job_key}/tiktok/{Path(tiktok_path).name}"
+            storage.save_file(tiktok_path, tiktok_key)
+            clip["metadata"]["tiktok_storage_key"] = tiktok_key
 
         thumbnail_path = clip.get("thumbnail_path")
         if thumbnail_path and Path(thumbnail_path).is_file():

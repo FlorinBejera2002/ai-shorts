@@ -9,7 +9,7 @@ from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFont
 
-from app.utils.ffmpeg_utils import run_ffmpeg
+from app.utils.ffmpeg_utils import H264_DELIVERY_ARGS, run_ffmpeg
 
 RATIOS = {"9:16": (9, 16), "1:1": (1, 1), "16:9": (16, 9)}
 POSITIONS = {"top-left", "top-right", "bottom-left", "bottom-right"}
@@ -228,22 +228,6 @@ def render_framing_and_brand(
         ]
     else:
         command += ["-vf", crop, "-map", "0:v:0"]
-    command += [
-        "-map",
-        "0:a?",
-        "-c:v",
-        "libx264",
-        "-preset",
-        "fast",
-        "-crf",
-        "23",
-        "-pix_fmt",
-        "yuv420p",
-        "-c:a",
-        "aac",
-        "-movflags",
-        "+faststart",
-        str(output),
-    ]
+    command += ["-map", "0:a?", *H264_DELIVERY_ARGS, str(output)]
     run_ffmpeg(command)
     return str(output)

@@ -63,6 +63,7 @@ class _CleanupDb:
                         file_path="/tmp/work.mp4",
                         file_url="/media/clips/legacy.mp4?expires=1&sig=x",
                         file_storage_key="clips/stable.mp4",
+                        tiktok_file_storage_key="clips/tiktok/stable.mp4",
                         thumbnail_path="/tmp/thumb.jpg",
                         thumbnail_url="/media/clips/legacy.jpg?expires=1&sig=x",
                         thumbnail_storage_key="clips/stable.jpg",
@@ -104,6 +105,7 @@ def test_account_cleanup_covers_stable_legacy_and_unlinked_namespaces(
     assert f"clips/{job_id}/" in storage.prefixes
     assert f"work/{job_id}/" in storage.prefixes
     assert "clips/stable.mp4" in storage.keys
+    assert "clips/tiktok/stable.mp4" in storage.keys
     assert "clips/stable.jpg" in storage.keys
     assert "clips/legacy.mp4" in storage.keys
     assert "clips/legacy.jpg" in storage.keys
@@ -226,6 +228,7 @@ def test_job_completion_persists_clips_and_terminal_state_atomically(
                 "metadata": {
                     "storage_key": f"clips/{job.id}/clip.mp4",
                     "storage_path": f"clips/{job.id}/clip.mp4",
+                    "tiktok_storage_key": f"clips/{job.id}/tiktok/clip.mp4",
                     "thumbnail_storage_key": f"clips/{job.id}/thumb.jpg",
                     "thumbnail_storage_path": f"clips/{job.id}/thumb.jpg",
                     "contains_platform_badge": badge,
@@ -241,6 +244,10 @@ def test_job_completion_persists_clips_and_terminal_state_atomically(
     assert job.status == "completed"
     assert len(db.added) == 1
     assert db.added[0].file_storage_key == f"clips/{job.id}/clip.mp4"
+    assert (
+        db.added[0].tiktok_file_storage_key
+        == f"clips/{job.id}/tiktok/clip.mp4"
+    )
     assert db.added[0].thumbnail_storage_key == f"clips/{job.id}/thumb.jpg"
     assert db.added[0].contains_platform_badge is (badge if isinstance(badge, bool) else None)
 

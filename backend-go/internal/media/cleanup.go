@@ -81,13 +81,13 @@ func (s *Service) CleanupAccount(ctx context.Context, userID string) (CleanupRes
 	if e != nil {
 		return result, e
 	}
-	clips, e := s.db.QueryContext(ctx, `SELECT file_path,file_url,file_storage_key,thumbnail_path,thumbnail_url,thumbnail_storage_key FROM clips WHERE user_id=$1`, userID)
+	clips, e := s.db.QueryContext(ctx, `SELECT file_path,file_url,file_storage_key,tiktok_file_storage_key,thumbnail_path,thumbnail_url,thumbnail_storage_key FROM clips WHERE user_id=$1`, userID)
 	if e != nil {
 		return result, e
 	}
 	for clips.Next() {
-		values := make([]sql.NullString, 6)
-		if e = clips.Scan(&values[0], &values[1], &values[2], &values[3], &values[4], &values[5]); e != nil {
+		values := make([]sql.NullString, 7)
+		if e = clips.Scan(&values[0], &values[1], &values[2], &values[3], &values[4], &values[5], &values[6]); e != nil {
 			clips.Close()
 			return result, e
 		}

@@ -393,6 +393,10 @@ func TestPostgresConcurrentSubmissionUsesOneJob(t *testing.T) {
 
 func TestPostgresCalendarDispatchPersistsTikTokOptionsForMixedDestinations(t *testing.T) {
 	h, user, clip, instagram := fixture(t)
+	const cleanTikTokReference = "clips/test-tiktok-clean.mp4"
+	if _, err := h.db.Exec(`UPDATE clips SET contains_platform_badge=true,tiktok_file_storage_key=$2 WHERE id=$1`, clip, cleanTikTokReference); err != nil {
+		t.Fatal(err)
+	}
 	tiktok, _ := data.NewUUID()
 	encrypted, err := seal(h.vault, Credentials{AccessToken: "synthetic-tiktok-token"}, user+":tiktok:creator")
 	if err != nil {
@@ -440,6 +444,16 @@ func TestPostgresCalendarDispatchPersistsTikTokOptionsForMixedDestinations(t *te
 	}
 	if err = h.db.QueryRow(`SELECT options FROM social_posts WHERE scheduled_post_id=$1 AND provider='instagram'`, calendarID).Scan(&persisted); err != nil || string(persisted) != "{}" {
 		t.Fatalf("TikTok settings leaked to Instagram job: %s %v", persisted, err)
+	}
+	var instagramReference, tiktokReference string
+	if err = h.db.QueryRow(`SELECT media_reference FROM social_posts WHERE scheduled_post_id=$1 AND provider='instagram'`, calendarID).Scan(&instagramReference); err != nil {
+		t.Fatal(err)
+	}
+	if err = h.db.QueryRow(`SELECT media_reference FROM social_posts WHERE scheduled_post_id=$1 AND provider='tiktok'`, calendarID).Scan(&tiktokReference); err != nil {
+		t.Fatal(err)
+	}
+	if instagramReference != "clips/test.mp4" || tiktokReference != cleanTikTokReference {
+		t.Fatalf("provider media references crossed: instagram=%q tiktok=%q", instagramReference, tiktokReference)
 	}
 }
 

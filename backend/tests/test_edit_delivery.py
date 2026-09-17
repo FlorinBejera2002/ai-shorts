@@ -234,6 +234,7 @@ def test_trim_worker_storage_failure_cleans_output_and_records_failed_edit(
         source = tmp_path / "source.mp4"
         source.write_bytes(b"fixture")
         clip.file_path, clip.file_storage_key = str(source), "clips/original.mp4"
+        clip.tiktok_file_storage_key = "clips/tiktok/original.mp4"
         db.commit()
 
     def encode(command, **kwargs):
@@ -245,6 +246,10 @@ def test_trim_worker_storage_failure_cleans_output_and_records_failed_edit(
     deleted = []
 
     class Storage:
+        def download_file(self, key, destination):
+            destination.write_bytes(b"private fixture")
+            return destination
+
         def save_file(self, path, key):
             raise OSError("ambiguous partial object upload")
 
@@ -279,6 +284,7 @@ def test_trim_worker_completes_persisted_output_and_cleans_superseded_key(
     with harness.sessions() as db:
         clip = db.get(Clip, clip_id)
         clip.file_path, clip.file_storage_key = str(source), "clips/original.mp4"
+        clip.tiktok_file_storage_key = "clips/tiktok/original.mp4"
         db.commit()
 
     def encode(command, **kwargs):
@@ -290,6 +296,10 @@ def test_trim_worker_completes_persisted_output_and_cleans_superseded_key(
     deleted, saved = [], []
 
     class Storage:
+        def download_file(self, key, destination):
+            destination.write_bytes(b"private fixture")
+            return destination
+
         def save_file(self, path, key):
             saved.append(key)
             return key
@@ -305,14 +315,15 @@ def test_trim_worker_completes_persisted_output_and_cleans_superseded_key(
     result = tasks.trim_clip_task.run(**payload)
     assert (
         result["duration"] == 5
-        and len(saved) == 1
-        and deleted == ["clips/original.mp4"]
+        and len(saved) == 2
+        and deleted == ["clips/original.mp4", "clips/tiktok/original.mp4"]
     )
     with harness.sessions() as db:
         clip = db.get(Clip, clip_id)
         assert clip.file_storage_key == saved[0] and clip.file_size == len(
             b"encoded fixture"
         )
+        assert clip.tiktok_file_storage_key == saved[1]
         assert db.get(EditDelivery, delivery_id).state == "completed"
         assert db.get(Job, job_id).active_edit_tasks == 0
 

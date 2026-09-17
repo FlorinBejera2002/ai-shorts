@@ -10,6 +10,27 @@ class FFmpegError(RuntimeError):
     pass
 
 
+# Shared visually-lossless delivery profile. Every generated platform variant
+# uses the same codec settings so a clean derivative cannot silently lose more
+# detail than the normal clip.
+H264_DELIVERY_ARGS = [
+    "-c:v",
+    "libx264",
+    "-preset",
+    "medium",
+    "-crf",
+    "18",
+    "-pix_fmt",
+    "yuv420p",
+    "-c:a",
+    "aac",
+    "-b:a",
+    "192k",
+    "-movflags",
+    "+faststart",
+]
+
+
 def run_ffmpeg(cmd: list[str], timeout: int = 900) -> subprocess.CompletedProcess[str]:
     result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
     if result.returncode != 0:
