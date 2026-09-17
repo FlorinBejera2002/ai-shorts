@@ -1121,6 +1121,7 @@ export function PostDialog({
                           variants={isPage ? staggerItem : undefined}
                           className={`space-y-4 ${isPage ? styles.editorWide : ''}`}
                         >
+                          <Label className="text-xs font-medium">{t('form.mediaSectionTitle')}</Label>
                           <div className="flex gap-2">
                             <button
                               type="button"
@@ -1495,7 +1496,7 @@ export function PostDialog({
                   transition={{ delay: 0.3, duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
                   className={
                     isPage
-                      ? `${styles.editorActions} flex flex-col-reverse gap-2.5 rounded-lg border bg-gradient-to-r from-card to-card/80 p-4 backdrop-blur-sm sm:flex-row sm:justify-end sm:items-center`
+                      ? `${styles.editorActions} flex flex-col-reverse gap-2.5 pt-4 sm:flex-row sm:justify-end sm:items-center`
                       : 'flex flex-col-reverse gap-2 border-t bg-card px-5 py-4 shadow-[0_-8px_24px_-20px_rgba(0,0,0,0.35)] sm:flex-row sm:items-center sm:px-7'
                   }
                 >
@@ -1531,7 +1532,7 @@ export function PostDialog({
                       type="submit"
                       disabled={busy}
                       variant="default"
-                      className="w-full bg-gradient-to-r from-primary to-accent text-white shadow-md shadow-primary/20 transition-all duration-200 hover:shadow-lg hover:shadow-primary/30 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+                      className="w-full sm:w-auto"
                     >
                       {saving ? (
                         <LoadingIndicator className="h-4 w-4" />
