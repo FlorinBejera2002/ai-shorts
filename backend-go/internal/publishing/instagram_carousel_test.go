@@ -108,7 +108,7 @@ func TestPublishMediaRejectsUnsupportedCombinationsBeforeNetwork(t *testing.T) {
 	}{
 		{"facebook", []string{"image", "video"}},
 		{"facebook", []string{"video", "video"}},
-		{"tiktok", []string{"image"}},
+		{"tiktok", []string{"image", "video"}},
 		{"tiktok", []string{"video", "video"}},
 		{"youtube", []string{"video"}},
 		{"instagram", []string{"audio"}},

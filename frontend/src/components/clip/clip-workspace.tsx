@@ -447,7 +447,7 @@ export function ClipWorkspace({ clip }: ClipWorkspaceProps) {
           )}
           <Button asChild={true}>
             <Link
-              href={`/dashboard/publish?clip=${encodeURIComponent(clip.id)}`}
+              href={`/dashboard/publish/new?clip=${encodeURIComponent(clip.id)}`}
             >
               <Send className="size-4" />
               {locale === 'ro' ? 'Publică clipul' : 'Publish clip'}

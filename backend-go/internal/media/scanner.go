@@ -41,6 +41,16 @@ func (s *ClamAV) Scan(ctx context.Context, filename string) error {
 	if !s.cfg.Enabled && (s.cfg.Environment == "development" || s.cfg.Environment == "test" || s.cfg.Environment == "testing") {
 		return nil
 	}
+	info, err := os.Stat(filename)
+	if err != nil {
+		return ErrScannerUnavailable
+	}
+	// ClamAV cannot scan files above 2 GB even when StreamMaxLength is raised.
+	// Fail explicitly instead of bypassing mandatory malware scanning.
+	maximum := min(s.cfg.MaxBytes, int64(2*1024*1024*1024))
+	if info.Size() > maximum {
+		return failure(413, "This file exceeds the server's malware scanner capacity. TikTok accepts videos up to 4 GB, but this server cannot safely scan this upload")
+	}
 	ctx, cancel := context.WithTimeout(ctx, s.cfg.Timeout)
 	defer cancel()
 	connection, e := s.dial(ctx, "tcp", s.cfg.Address)

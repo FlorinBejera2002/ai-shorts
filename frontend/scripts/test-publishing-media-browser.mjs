@@ -60,7 +60,7 @@ try {
   if(process.env.CAROUSEL_INSPECT === '1') process.exitCode = 0
   else {
     await page.getByRole('button', { name: messages.actions.newPost, exact: true }).first().click()
-    const dialog = page.getByRole('dialog')
+    const dialog = page.getByRole('region', { name: new RegExp(`${messages.contentCalendar?.dialog.createTitle ?? messages.dialog?.createTitle}|${messages.contentCalendar?.dialog.editTitle ?? messages.dialog?.editTitle}`) })
     const input = dialog.locator('input[type="file"]')
     rejectNextStatus = 404
     await input.setInputFiles(imageFile('unavailable.png'))
@@ -120,8 +120,8 @@ try {
     assert.match(await list.locator('li').nth(3).innerText(), /retry.png/)
     await page.getByRole('button', { name: formText('removeMedia', 'kept.png'), exact: true }).click()
     assert.equal(await list.locator('li').count(), 4)
-    await input.setInputFiles(Array.from({ length: 7 }, (_, i) => imageFile(`limit-${i}.png`)))
-    assert.match(await dialog.getByRole('alert').innerText(), /10/)
+    await input.setInputFiles(Array.from({ length: 32 }, (_, i) => imageFile(`limit-${i}.png`)))
+    assert.match(await dialog.getByRole('alert').innerText(), /35/)
     assert.equal(await list.locator('li').count(), 4)
     // The surrounding form remains editable and the title survives reordering.
     await dialog.getByLabel(formText('titleLabel'), { exact: true }).fill('Mixed carousel fixture')
@@ -152,7 +152,7 @@ try {
     await page.getByRole('button', { name: messages.preview.openAria.replace('{title}', saved.title), exact: true }).click()
     await dialog.waitFor()
     await dialog.locator('img').first().waitFor()
-    await page.waitForFunction(() => [...document.querySelectorAll('[role="dialog"] img')].length === 3 && [...document.querySelectorAll('[role="dialog"] img')].every(img => img.complete && img.naturalWidth > 0))
+    await page.waitForFunction(() => [...document.querySelectorAll('[role="region"] img')].length === 3 && [...document.querySelectorAll('[role="region"] img')].every(img => img.complete && img.naturalWidth > 0))
     assert.match(await dialog.getByRole('list', { name: formText('mediaOrder') }).locator('li').first().innerText(), /added.png/)
     assert.deepEqual(errors, [])
     console.log('PASS large upload loader and per-file progress, desktop/mobile selection, append, partial failure, retry, mouse/touch/keyboard reorder, simplified controls, removal, limit, unchanged bytes, saved order and reopened previews')

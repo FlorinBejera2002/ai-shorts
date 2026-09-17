@@ -94,7 +94,7 @@ func TestCalendarRangeIsBoundedAndHalfOpen(t *testing.T) {
 	}
 }
 func TestCalendarBodyIsBoundedWithoutTrustingContentLength(t *testing.T) {
-	for _, body := range []string{strings.Repeat(" ", 32001), `{"title":"x"}` + strings.Repeat(" ", 32000)} {
+	for _, body := range []string{strings.Repeat(" ", (128<<10)+1), `{"title":"x"}` + strings.Repeat(" ", 128<<10)} {
 		r := httptest.NewRequest("POST", "/api/calendar", strings.NewReader(body))
 		r.ContentLength = -1
 		w := httptest.NewRecorder()
@@ -129,8 +129,12 @@ func TestValidationPreservesMixedCarouselAndReorderedCover(t *testing.T) {
 			}
 		}
 	}
-	if _, err := Validate(map[string]any{"media": append(append(append(media, media...), media...), media...)}, false); err == nil {
-		t.Fatal("accepted more than 10 carousel items")
+	tooMany := make([]any, 36)
+	for i := range tooMany {
+		tooMany[i] = media[0]
+	}
+	if _, err := Validate(map[string]any{"media": tooMany}, false); err == nil {
+		t.Fatal("accepted more than 35 carousel items")
 	}
 }
 

@@ -359,6 +359,14 @@ func (h *Handler) enqueue(ctx context.Context, user string, in postInput) ([]Pos
 			if credentialErr != nil {
 				return nil, errInvalid
 			}
+			if resolver, ok := h.media.(interface {
+				PublishingVideoDuration(context.Context, string) (float64, error)
+			}); ok {
+				duration, e = resolver.PublishingVideoDuration(ctx, ref)
+				if e != nil {
+					return nil, errInvalid
+				}
+			}
 			field, validationErr := h.validateTikTokSelectionWithCredentials(ctx, a, credentials, duration, badge, mediaURL, in.Caption, in.TikTok)
 			if field != "" || validationErr != nil {
 				return nil, errInvalid

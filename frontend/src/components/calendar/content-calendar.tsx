@@ -5,7 +5,7 @@ import { PageHeader } from '@/components/ui/page-header'
 import { useToast } from '@/components/ui/toast'
 import { useApiResource } from '@/hooks/use-api-resource'
 import { useSocialConnection } from '@/hooks/use-social-connection'
-import { apiFetch } from '@/lib/auth'
+import { useRouter } from '@/i18n/navigation'
 import type {
   CalendarClipOption,
   ContentPlatform,
@@ -22,6 +22,11 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { CalendarConnections } from './calendar-connections'
 import { CalendarMetrics } from './calendar-metrics'
 import { CalendarPreviewList } from './calendar-preview-list'
+import {
+  type CalendarResponse,
+  type PostResponse,
+  requestJson
+} from './calendar-request'
 import { CalendarToolbar } from './calendar-toolbar'
 import {
   CalendarRequestError,
@@ -43,12 +48,6 @@ import { ConnectionSuccessOverlay } from './connection-success-overlay'
 import { PostDialog } from './post-dialog'
 import { PublishingStatusDialog } from './publishing-status-dialog'
 
-type CalendarResponse = {
-  posts: ScheduledPostRecord[]
-  clips: CalendarClipOption[]
-  meta?: { truncated: boolean; limit: number }
-}
-type PostResponse = { post: ScheduledPostRecord }
 type LoadErrorKey = 'auth' | 'rateLimit' | 'load'
 type DialogState =
   | { mode: 'create'; initialTime?: string; initialClipId?: string }
@@ -57,35 +56,6 @@ type DialogState =
       post: ScheduledPostRecord
     }
   | null
-
-function isObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null
-}
-
-async function requestJson<Response>(
-  url: string,
-  init?: RequestInit
-): Promise<Response> {
-  const response = await apiFetch(url, init)
-  const body: unknown = await response.json().catch(() => null)
-  if (!response.ok) {
-    const message =
-      isObject(body) && typeof body.error === 'string'
-        ? body.error
-        : 'Calendar request failed'
-    const issues =
-      isObject(body) && Array.isArray(body.issues)
-        ? body.issues.filter(
-            (issue): issue is { field: string; message: string } =>
-              isObject(issue) &&
-              typeof issue.field === 'string' &&
-              typeof issue.message === 'string'
-          )
-        : []
-    throw new CalendarRequestError(message, response.status, issues)
-  }
-  return body as Response
-}
 
 function CalendarSkeleton() {
   const t = useTranslations('contentCalendar')
@@ -135,6 +105,7 @@ export function ContentCalendar() {
   const locale = useLocale()
   const toast = useToast()
   const searchParams = useSearchParams()
+  const router = useRouter()
   const requestedClipId = searchParams.get('clip')
   const [ready, setReady] = useState(false)
   const [viewDate, setViewDate] = useState(() => new Date(0))
@@ -234,8 +205,10 @@ export function ContentCalendar() {
       return
     }
     openedRequestedClipRef.current = true
-    setDialog({ mode: 'create', initialClipId: requestedClipId })
-  }, [clips, hasLoaded, requestedClipId])
+    router.replace(
+      `/dashboard/publish/new?clip=${encodeURIComponent(requestedClipId)}`
+    )
+  }, [clips, hasLoaded, requestedClipId, router])
 
   useEffect(() => {
     const now = Date.now()
@@ -296,11 +269,10 @@ export function ContentCalendar() {
 
   function openCreate(date = selectedDate, hour?: number) {
     focusDate(date)
-    setDialog({
-      mode: 'create',
-      initialTime:
-        hour === undefined ? undefined : `${String(hour).padStart(2, '0')}:00`
-    })
+    const params = new URLSearchParams({ date: localDateKey(date) })
+    if (hour !== undefined)
+      params.set('time', `${String(hour).padStart(2, '0')}:00`)
+    router.push(`/dashboard/publish/new?${params}`)
   }
 
   function openEdit(post: ScheduledPostRecord) {
@@ -308,7 +280,9 @@ export function ContentCalendar() {
       setDialog({ mode: 'status', post })
       return
     }
-    setDialog({ mode: 'edit', post })
+    router.push(
+      `/dashboard/publish/${post.id}/edit?date=${localDateKey(new Date(post.scheduledAt))}`
+    )
   }
 
   function mergePost(post: ScheduledPostRecord) {

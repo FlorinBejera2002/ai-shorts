@@ -143,14 +143,17 @@ func (h *Handler) dispatchCalendar(ctx context.Context) error {
 	}
 	for i, provider := range providers {
 		accountID := accountIDs[i]
-		if provider == "tiktok" && !clipID.Valid {
-			return h.failCalendar(ctx, tx, id, "TikTok publication requires an eligible clip from your library.")
-		}
 		if err := ValidateMediaReferences(provider, selectedMedia); err != nil {
 			return h.failCalendar(ctx, tx, id, err.Error())
 		}
 		if provider == "tiktok" {
-			field, validationErr := h.ValidateTikTokSchedule(ctx, tx, userID, accountID, clipID.String, caption, tiktokOptions)
+			var field string
+			var validationErr error
+			if clipID.Valid {
+				field, validationErr = h.ValidateTikTokSchedule(ctx, tx, userID, accountID, clipID.String, caption, tiktokOptions)
+			} else {
+				field, validationErr = h.ValidateTikTokMediaSchedule(ctx, tx, userID, accountID, selectedMedia, caption, tiktokOptions)
+			}
 			if validationErr != nil {
 				message := "The TikTok settings no longer match the creator account. Review the post and schedule it again."
 				switch field {
@@ -159,9 +162,13 @@ func (h *Handler) dispatchCalendar(ctx context.Context) error {
 				case "clipId":
 					message = "The selected clip is no longer eligible for TikTok. Review it and schedule the post again."
 				case "caption":
-					message = "The TikTok caption must contain between 1 and 2,200 characters."
+					message = "The TikTok caption exceeds the limit for this media type."
 				case "":
 					message = "TikTok creator settings could not be confirmed. Try scheduling the post again."
+				}
+				var mediaError *TikTokMediaError
+				if errors.As(validationErr, &mediaError) {
+					message = mediaError.Error()
 				}
 				return h.failCalendar(ctx, tx, id, message)
 			}
@@ -358,6 +365,28 @@ func (h *Handler) process(ctx context.Context, job workItem, action string) erro
 						}
 					}
 				}
+				if a.Provider == "tiktok" {
+					if item.Type == "image" {
+						resolver, ok := h.media.(interface {
+							TikTokPublishingKey(context.Context, string) (string, error)
+						})
+						if !ok {
+							return set("failed", "TikTok image preparation is unavailable.", "", "")
+						}
+						var err error
+						reference, err = resolver.TikTokPublishingKey(ctx, reference)
+						if err != nil {
+							return set("failed", err.Error(), "", "")
+						}
+					}
+					if validator, ok := h.media.(interface {
+						ValidatePublishingMedia(context.Context, string, string, string) error
+					}); ok {
+						if err := validator.ValidatePublishingMedia(ctx, "tiktok", reference, item.Type); err != nil {
+							return set("failed", err.Error(), "", "")
+						}
+					}
+				}
 				source, err := h.media.SignedURL(ctx, reference)
 				if err != nil || !publicHTTPS(source) {
 					return set("failed", "A public HTTPS media URL is required.", "", "")
@@ -377,6 +406,31 @@ func (h *Handler) process(ctx context.Context, job workItem, action string) erro
 				return set("failed", "A public HTTPS video URL is required.", "", "")
 			}
 			media = append(media, PublishMedia{Type: "video", URL: source})
+		}
+		if a.Provider == "tiktok" {
+			var clip sql.NullString
+			if err := tx.QueryRowContext(ctx, "SELECT clip_id FROM social_posts WHERE id=$1", job.ID).Scan(&clip); err != nil {
+				return err
+			}
+			var field string
+			var err error
+			if clip.Valid {
+				field, err = h.ValidateTikTokSchedule(ctx, tx, job.UserID, a.ID, clip.String, job.Caption, job.Options)
+			} else {
+				originals := make([]PublishMedia, 0, len(attached))
+				for _, item := range attached {
+					originals = append(originals, PublishMedia{Type: item.Type, URL: item.Reference})
+				}
+				field, err = h.ValidateTikTokMediaSchedule(ctx, tx, job.UserID, a.ID, originals, job.Caption, job.Options)
+			}
+			if err != nil {
+				message := "TikTok media or creator settings are no longer valid (" + field + "). Review the post before publishing."
+				var mediaError *TikTokMediaError
+				if errors.As(err, &mediaError) {
+					message = mediaError.Error()
+				}
+				return set("failed", message, "", "")
+			}
 		}
 		id, status, err := h.client.PublishMedia(ctx, a.Provider, a.RemoteID, creds, media, job.Caption, job.Options)
 		if err != nil {

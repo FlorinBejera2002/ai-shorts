@@ -18,6 +18,10 @@ var publishingContentTypes = map[string]string{
 	".mp4": "video/mp4", ".mov": "video/quicktime", ".avi": "video/x-msvideo", ".mkv": "video/x-matroska", ".webm": "video/webm",
 }
 
+// Publishing uploads support TikTok's full video allowance independently of
+// the processing/source-upload limit.
+const MaxPublishingUploadBytes int64 = 4 * 1024 * 1024 * 1024
+
 func instagramImageKey(key string) string {
 	return strings.TrimSuffix(key, path.Ext(key)) + "-instagram.jpg"
 }
@@ -60,6 +64,17 @@ func (s *Service) InstagramPublishingKey(ctx context.Context, reference string) 
 // ValidatePublishingMedia checks provider constraints before scheduling, using
 // the actual stored file instead of browser-supplied metadata.
 func (s *Service) ValidatePublishingMedia(ctx context.Context, provider, reference, kind string) error {
+	if provider == "tiktok" {
+		key, err := s.TikTokPublishingKey(ctx, reference)
+		if err != nil {
+			return err
+		}
+		isImage := publishingImageExtensions[strings.ToLower(path.Ext(key))]
+		if (kind == "image") != isImage {
+			return failure(400, "TikTok media type does not match the uploaded file")
+		}
+		return nil
+	}
 	if provider == "instagram" && kind == "image" {
 		_, err := s.InstagramPublishingKey(ctx, reference)
 		return err
@@ -91,7 +106,7 @@ func (s *Service) StorePublishingMedia(ctx context.Context, userID string, inten
 	if !isImage && !videoExtensions[suffix] {
 		return UploadResult{}, failure(400, "Choose a JPG, PNG, WebP or video file")
 	}
-	filename, size, e := s.stage(ctx, body, s.cfg.MaxUploadBytes, 0, suffix, !isImage)
+	filename, size, e := s.stage(ctx, body, MaxPublishingUploadBytes, 0, suffix, !isImage)
 	if e != nil {
 		return UploadResult{}, e
 	}
@@ -105,7 +120,7 @@ func (s *Service) StorePublishingMedia(ctx context.Context, userID string, inten
 		}
 		if suffix != ".jpg" && suffix != ".jpeg" {
 			// Meta requires JPEG, but the user's original remains byte-for-byte
-			// intact. Only Instagram publishing uses this separate derivative.
+			// intact. TikTok also reuses this copy for unsupported PNG uploads.
 			derivative, e = prepareInstagramImage(decoded, s.cfg.StagingDirectory)
 			if e != nil {
 				return UploadResult{}, e

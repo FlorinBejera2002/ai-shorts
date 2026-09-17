@@ -313,3 +313,15 @@ test('moves posts in local time and preserves minutes unless a slot hour is chos
   )
   assert.deepEqual([timedSlot.getHours(), timedSlot.getMinutes()], [9, 0])
 })
+
+test('accepts optional TikTok photo music but rejects nonboolean settings',()=>{
+ assert.equal(validateScheduledPostPayload({...validCreatePayload,tiktok:{...validTikTokOptions,autoAddMusic:true,photoTitle:'Summer photos'}},'create').success,true)
+ assert.equal(validateScheduledPostPayload({...validCreatePayload,tiktok:{...validTikTokOptions,autoAddMusic:'yes'}},'create').success,false)
+})
+
+test('photo title contract accepts 90 UTF-16 units and rejects invalid titles',()=>{
+ for (const photoTitle of [42,'x'.repeat(91)]) {
+ assert.equal(validateScheduledPostPayload({...validCreatePayload,tiktok:{...validTikTokOptions,photoTitle}},'create').success,false)
+ }
+ assert.equal(validateScheduledPostPayload({...validCreatePayload,tiktok:{...validTikTokOptions,photoTitle:'x'.repeat(90)}},'create').success,true)
+})

@@ -13,6 +13,7 @@ export type TikTokDirectPostSettings = {
   ownBrand: boolean
   brandedContent: boolean
   policyConsent: boolean
+  autoAddMusic: boolean
   isAigc: boolean
 }
 
@@ -25,6 +26,7 @@ export const INITIAL_TIKTOK_SETTINGS: TikTokDirectPostSettings = {
   ownBrand: false,
   brandedContent: false,
   policyConsent: false,
+  autoAddMusic: false,
   isAigc: false
 }
 
@@ -59,6 +61,8 @@ export type TikTokDirectPostValidationInput = {
     duration: number
     tiktokEligible?: boolean
   }
+  media?: { type: 'image' | 'video' }[]
+  title?: string
   options: CreatorOptions | null
   settings: TikTokDirectPostSettings
 }
@@ -66,7 +70,7 @@ export type TikTokDirectPostValidationInput = {
 export type TikTokDirectPostValidationError =
   | 'accountRequired'
   | 'clipRequired'
-  | 'captionRequired'
+  | 'photoTitleTooLong'
   | 'captionTooLong'
   | 'creatorOptionsRequired'
   | 'privacyRequired'
@@ -81,14 +85,19 @@ export function validateTikTokDirectPost({
   accountId,
   caption,
   clip,
+  media = [],
+  title = '',
   options,
   settings
 }: TikTokDirectPostValidationInput): TikTokDirectPostValidationError[] {
   const errors: TikTokDirectPostValidationError[] = []
   if (!accountId) errors.push('accountRequired')
-  if (!clip) errors.push('clipRequired')
-  if (!caption.trim()) errors.push('captionRequired')
-  if (caption.length > 2200) errors.push('captionTooLong')
+  const isPhotoPost =
+    media.length > 0 && media.every((item) => item.type === 'image')
+  if (!clip && media.length === 0) errors.push('clipRequired')
+  if (caption.length > (isPhotoPost ? 4000 : 2200))
+    errors.push('captionTooLong')
+  if (isPhotoPost && title.length > 90) errors.push('photoTitleTooLong')
   if (!options) errors.push('creatorOptionsRequired')
   if (!settings.privacyLevel) errors.push('privacyRequired')
   if (
@@ -118,8 +127,12 @@ export function validateTikTokDirectPost({
 
 export function createTikTokPublishingOptions({
   options,
-  settings
+  settings,
+  isPhotoPost = false,
+  photoTitle = ''
 }: {
+  isPhotoPost?: boolean
+  photoTitle?: string
   options: CreatorOptions
   settings: TikTokDirectPostSettings
 }): TikTokPublishingOptions {
@@ -131,30 +144,40 @@ export function createTikTokPublishingOptions({
     brandContentToggle: settings.brandedContent,
     brandOrganicToggle: settings.ownBrand,
     musicUsageConfirmed: settings.policyConsent,
-    isAigc: settings.isAigc
+    ...(isPhotoPost
+      ? { autoAddMusic: settings.autoAddMusic, photoTitle: photoTitle.trim() }
+      : {}),
+    isAigc: isPhotoPost ? false : settings.isAigc
   }
 }
 
 export function createCalendarTikTokPublishingOptions({
   creatorOptions,
-  hasUploadedMedia,
+  isPhotoPost = false,
+  photoTitle = '',
   selectedAccountCount,
   settings,
   status,
   validationErrors
 }: {
   creatorOptions: CreatorOptions | null
-  hasUploadedMedia: boolean
+  isPhotoPost?: boolean
+  photoTitle?: string
   selectedAccountCount: number
   settings: TikTokDirectPostSettings
   status: 'draft' | 'scheduled' | 'publish'
   validationErrors: readonly TikTokDirectPostValidationError[]
 }): TikTokPublishingOptions | undefined {
   if (selectedAccountCount !== 1 || !creatorOptions) return undefined
-  if (status !== 'draft' && (hasUploadedMedia || validationErrors.length > 0)) {
+  if (status !== 'draft' && validationErrors.length > 0) {
     return undefined
   }
-  return createTikTokPublishingOptions({ options: creatorOptions, settings })
+  return createTikTokPublishingOptions({
+    options: creatorOptions,
+    settings,
+    isPhotoPost,
+    photoTitle
+  })
 }
 
 export function settingsFromTikTokPublishingOptions(
@@ -170,6 +193,7 @@ export function settingsFromTikTokPublishingOptions(
     ownBrand: options.brandOrganicToggle,
     brandedContent: options.brandContentToggle,
     policyConsent: options.musicUsageConfirmed,
+    autoAddMusic: options.autoAddMusic ?? false,
     isAigc: options.isAigc
   }
 }

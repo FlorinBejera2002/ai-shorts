@@ -3,6 +3,8 @@ import ClipEditorPage from '@/app/[locale]/dashboard/clips/[id]/edit/page'
 import ClipDetailPage from '@/app/[locale]/dashboard/clips/[id]/page'
 import CreatePage from '@/app/[locale]/dashboard/create/page'
 import JobProgressPage from '@/app/[locale]/dashboard/jobs/[id]/page'
+import EditPostPage from '@/app/[locale]/dashboard/publish/[id]/edit/page'
+import NewPostPage from '@/app/[locale]/dashboard/publish/new/page'
 import DashboardPage from '@/app/[locale]/dashboard/page'
 import ScriptGeneratorPage from '@/app/[locale]/dashboard/script-generator/page'
 import StudioPage from '@/app/[locale]/dashboard/studio/page'
@@ -66,6 +68,8 @@ function ApplicationRoutes({ locale }: { locale: AppLocale }) {
         <Route path="history" element={<HistoryRoute />} />
         <Route path="calendar" element={<CalendarRoute />} />
         <Route path="publish" element={<PublishRoute />} />
+        <Route path="publish/new" element={<NewPostPage />} />
+        <Route path="publish/:id/edit" element={<EditPostPage />} />
         <Route path="create" element={<CreatePage />} />
         <Route path="script-generator" element={<ScriptGeneratorPage />} />
         <Route path="studio" element={<StudioPage />} />

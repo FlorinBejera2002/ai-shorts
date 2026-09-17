@@ -20,6 +20,7 @@ type calendarMedia struct{}
 type recordingTikTokValidator struct {
 	prepareCalls int
 	calls        int
+	media        []publishing.PublishMedia
 	accountID    string
 	clipID       string
 	caption      string
@@ -37,6 +38,15 @@ func (v *recordingTikTokValidator) ValidateTikTokSchedule(_ context.Context, _ *
 	v.calls++
 	v.accountID = accountID
 	v.clipID = clipID
+	v.caption = caption
+	v.options = options
+	return v.field, v.err
+}
+
+func (v *recordingTikTokValidator) ValidateTikTokMediaSchedule(_ context.Context, _ *sql.Tx, _ string, accountID string, media []publishing.PublishMedia, caption string, options publishing.TikTokOptions) (string, error) {
+	v.calls++
+	v.accountID = accountID
+	v.media = media
 	v.caption = caption
 	v.options = options
 	return v.field, v.err
@@ -334,11 +344,25 @@ func TestPostgresCalendarRejectsUnsafeTikTokSelectionsBeforeValidation(t *testin
 	}
 	direct["clipId"] = nil
 	direct["media"] = []any{map[string]any{"type": "video", "reference": "publishing/" + user + "/direct.mp4", "name": "direct.mp4"}}
+	direct["caption"] = ""
 	_, err := repo.Mutate(ctx, user, "", direct, true)
-	var validation *ValidationError
-	if !errors.As(err, &validation) || len(validation.Issues) == 0 || validation.Issues[len(validation.Issues)-1].Field != "media" || validator.calls != 0 {
-		t.Fatalf("direct-upload TikTok selection was not rejected precisely: %+v %v", validation, err)
+	if err != nil || validator.calls != 1 || len(validator.media) != 1 || validator.media[0].Type != "video" || validator.caption != "" {
+		t.Fatalf("uploaded video with optional caption rejected: %+v %v", validator, err)
 	}
+	validator.calls = 0
+	photos := make([]any, 35)
+	for i := range photos {
+		photos[i] = map[string]any{"type": "image", "reference": fmt.Sprintf("publishing/%s/photo-%d.png", user, i), "name": "photo.png"}
+	}
+	direct["media"] = photos
+	direct["caption"] = strings.Repeat("a", 4000)
+	direct["tiktok"] = map[string]any{"privacyLevel": "SELF_ONLY", "musicUsageConfirmed": true, "autoAddMusic": true, "photoTitle": "Photo title"}
+	post, err := repo.Mutate(ctx, user, "", direct, true)
+	if err != nil || len(validator.media) != 35 || !validator.options.AutoAddMusic || post.TikTok.PhotoTitle != "Photo title" {
+		t.Fatalf("photo post rejected or options lost: %+v %v", post, err)
+	}
+	validator.calls = 0
+	var validation *ValidationError
 
 	base["accountIds"] = []any{first, second}
 	_, err = repo.Mutate(ctx, user, "", base, true)

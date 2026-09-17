@@ -64,7 +64,7 @@ func handleError(w http.ResponseWriter, e error) {
 	}
 }
 func readBody(w http.ResponseWriter, r *http.Request) (map[string]any, bool) {
-	data, e := io.ReadAll(http.MaxBytesReader(w, r.Body, 32000))
+	data, e := io.ReadAll(http.MaxBytesReader(w, r.Body, 128<<10))
 	var large *http.MaxBytesError
 	if errors.As(e, &large) {
 		write(w, 413, map[string]string{"error": "Request body is too large."})

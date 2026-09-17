@@ -239,8 +239,10 @@ func tiktokIssue(field string) Issue {
 		return Issue{field, "Reconnect the selected TikTok account and try again"}
 	case "clipId":
 		return Issue{field, "Choose an eligible TikTok clip from your library"}
+	case "media":
+		return Issue{field, "Choose TikTok-compatible media within the creator restrictions"}
 	case "caption":
-		return Issue{field, "TikTok captions must contain between 1 and 2,200 characters"}
+		return Issue{field, "TikTok captions support up to 2,200 characters for videos or 4,000 for photos"}
 	default:
 		return Issue{"tiktok", "Review the TikTok settings and creator restrictions"}
 	}
@@ -467,23 +469,43 @@ func (s *Repository) Mutate(ctx context.Context, userID, id string, input map[st
 			}
 			if len(tiktokAccounts) == 1 {
 				switch {
-				case len(selectedMedia) > 0:
-					issues = append(issues, Issue{"media", "TikTok publication requires an eligible clip from your library"})
-				case clipID == nil:
+				case clipID == nil && len(selectedMedia) == 0:
 					issues = append(issues, tiktokIssue("clipId"))
-				case strings.TrimSpace(caption) == "" || utf16Length(caption) > 2200:
+				case (len(selectedMedia) == 0 || selectedMedia[0]["type"] == "video") && utf16Length(caption) > 2200 || len(selectedMedia) > 0 && selectedMedia[0]["type"] == "image" && utf16Length(caption) > 4000:
 					issues = append(issues, tiktokIssue("caption"))
 				case !tiktokOptions.MusicUsageConfirmed || tiktokOptions.PrivacyLevel == "":
 					issues = append(issues, tiktokIssue("tiktok"))
 				case s.tiktokValidator == nil:
 					issues = append(issues, Issue{"tiktok", "TikTok publishing is temporarily unavailable"})
 				case len(issues) == 0:
-					field, validationErr := s.tiktokValidator.ValidateTikTokSchedule(ctx, tx, userID, tiktokAccounts[0].id, clipID.(string), caption, tiktokOptions)
+					var field string
+					var validationErr error
+					if len(selectedMedia) > 0 {
+						validator, ok := s.tiktokValidator.(interface {
+							ValidateTikTokMediaSchedule(context.Context, *sql.Tx, string, string, []publishing.PublishMedia, string, publishing.TikTokOptions) (string, error)
+						})
+						if !ok {
+							issues = append(issues, Issue{"tiktok", "TikTok publishing is temporarily unavailable"})
+							break
+						}
+						media := make([]publishing.PublishMedia, 0, len(selectedMedia))
+						for _, item := range selectedMedia {
+							media = append(media, publishing.PublishMedia{Type: item["type"], URL: item["reference"]})
+						}
+						field, validationErr = validator.ValidateTikTokMediaSchedule(ctx, tx, userID, tiktokAccounts[0].id, media, caption, tiktokOptions)
+					} else {
+						field, validationErr = s.tiktokValidator.ValidateTikTokSchedule(ctx, tx, userID, tiktokAccounts[0].id, clipID.(string), caption, tiktokOptions)
+					}
 					if validationErr != nil {
 						if field == "" {
 							return empty, validationErr
 						}
-						issues = append(issues, tiktokIssue(field))
+						var mediaError *publishing.TikTokMediaError
+						if errors.As(validationErr, &mediaError) {
+							issues = append(issues, Issue{field, mediaError.Error()})
+						} else {
+							issues = append(issues, tiktokIssue(field))
+						}
 					}
 				}
 			}

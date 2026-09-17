@@ -24,6 +24,7 @@ type Service struct {
 	nonce   NonceStore
 	scanner Scanner
 	now     func() time.Time
+	probe   func(context.Context, string) (publishingProbe, error)
 }
 
 func NewService(cfg Config, db *sql.DB, storage Storage, nonce NonceStore, scanner Scanner) *Service {

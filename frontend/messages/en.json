@@ -1401,9 +1401,8 @@
       "noClip": "No linked clip",
       "mediaLabel": "Upload from your device",
       "mediaChoose": "Choose photos and videos",
-      "mediaTikTokDisabled": "TikTok currently requires an eligible linked clip. Remove TikTok as a destination to upload media from this device.",
       "mediaUploading": "Uploading media…",
-      "mediaHint": "Up to 10 files. JPG, PNG, WebP and MP4/MOV videos. Mix photos and videos on Instagram.",
+      "mediaHint": "Up to 35 photos for TikTok or one MP4/MOV/WebM video. Instagram and Facebook: up to 10 files; MP4/MOV for video.",
       "mediaOrder": "Carousel order",
       "mediaOrderHint": "Drag the handle to change the order. The first file opens the carousel.",
       "mediaKeyboardHint": "Use the up and down keys to reorder, Home to move first, or End to move last.",
@@ -1414,16 +1413,17 @@
       "hourLabel": "Hour",
       "minuteLabel": "Minute",
       "captionLabel": "Caption (optional)",
-      "captionLabelTikTok": "Caption (required for TikTok)",
+      "captionLabelTikTok": "Caption (optional)",
       "captionPlaceholder": "Write or adapt the social caption…",
       "notesLabel": "Internal notes (optional)",
       "notesPlaceholder": "Add reminders, approvals, or creative context…",
       "publishNote": "Scheduled posts are published automatically to the selected connected accounts. Published status is confirmed by the platform and cannot be set manually.",
       "mediaAdd": "Add photos and videos",
       "mediaProgress": "Uploading {current} of {total}…",
-      "mediaQualityHint": "Originals stay unchanged. PNG/WebP images get a JPEG copy for Instagram; the platform may crop and compress media.",
+      "mediaQualityHint": "Originals stay unchanged. PNG images get a JPEG copy for TikTok; PNG/WebP images get a JPEG copy for Instagram. Platforms may crop and compress media.",
       "mediaCover": "First in carousel",
-      "dragMedia": "Drag to reorder {name}"
+      "dragMedia": "Drag to reorder {name}",
+      "mediaTikTokHint": "TikTok: 1-35 photos or a single video. The first photo is the cover."
     },
     "validation": {
       "titleRequired": "Add a title so you can recognize this post.",
@@ -1434,7 +1434,7 @@
       "platformRequired": "Choose at least one supported platform.",
       "accountRequired": "Choose at least one connected publishing account.",
       "tiktokAccountRequired": "Choose exactly one connected TikTok account.",
-      "tiktokClipRequired": "TikTok requires one eligible linked video exported without a platform badge. Uploaded media cannot be sent to TikTok yet.",
+      "tiktokClipRequired": "Select an eligible clip or upload photos or a video for TikTok.",
       "tiktokCaptionRequired": "Add a caption before publishing to TikTok.",
       "tiktokSettingsRequired": "Load and complete the required TikTok audience and policy settings.",
       "clipRequired": "Add photos or videos, or choose a linked clip.",
@@ -1442,16 +1442,19 @@
       "timeRequired": "Choose a time.",
       "dateInvalid": "Choose a valid date and time.",
       "clipInvalid": "That clip is no longer available. Choose another clip or unlink it.",
-      "mediaInvalid": "Add up to 10 photos and videos in total.",
+      "mediaInvalid": "Choose up to 35 media files.",
       "mediaVideoFormat": "Instagram and Facebook require MP4 or MOV videos. Export a compatible copy of: {names}.",
       "mediaUploadFailed": "The upload failed. Try again.",
-      "mediaTooLarge": "The selected file is too large. Choose a smaller image or video.",
+      "mediaTooLarge": "This file exceeds the media size limit or this server’s upload/scanning capacity. TikTok supports videos up to 4 GB, but this server’s malware scanner supports files below 2 GB.",
       "mediaTemporarilyUnavailable": "Media upload is temporarily unavailable. Try again in a moment.",
       "mediaUnsupported": "Choose JPG, PNG, WebP or a supported video. For HEIC/HEIF, export a JPEG copy first.",
       "statusInvalid": "Choose a valid status.",
-      "mediaPlatformUnsupported": "This media combination is not supported by {platforms}. For a carousel with video, select only Instagram.",
+      "mediaPlatformUnsupported": "This combination is not supported by {platforms}. Instagram and Facebook allow up to 10 files; Facebook does not support video carousels.",
       "mediaRateLimit": "Too many uploads. Wait a little and try again.",
-      "mediaAuthRequired": "Your session expired. Sign in again."
+      "mediaAuthRequired": "Your session expired. Sign in again.",
+      "mediaTikTokUnsupported": "TikTok accepts 1-35 photos or a single MP4/MOV/WebM video. Photos and videos cannot be mixed.",
+      "tiktokCaptionLength": "The TikTok caption may contain up to {limit} characters.",
+      "tiktokPhotoTitleLength": "A TikTok photo post title may contain up to 90 characters."
     },
     "errors": {
       "load": "We couldn't load this month. Check your connection and try again.",
@@ -1470,6 +1473,10 @@
       "moved": "Post moved to its new time.",
       "locked": "This post is already publishing or was confirmed by the platform.",
       "deleted": "Post removed from your calendar."
+    },
+    "page": {
+      "description": "Choose your content, accounts and publishing schedule.",
+      "back": "Back to publishing"
     }
   },
   "assistant": {
@@ -1545,7 +1552,7 @@
     "optionsError": "TikTok settings could not be loaded. Select the account again to retry.",
     "retry": "Retry",
     "postingAs": "Posting as {name}",
-    "privacy": "Who can watch this video?",
+    "privacy": "Who can view this post?",
     "choosePrivacy": "Choose an audience",
     "privacyLevels": {
       "PUBLIC_TO_EVERYONE": "Everyone",
@@ -1600,6 +1607,8 @@
       "unknown": "Unconfirmed",
       "cancelled": "Cancelled"
     },
-    "tiktokIneligible": "For TikTok, choose a clip exported without the Sneep Cut badge."
+    "tiktokIneligible": "For TikTok, choose a clip exported without the Sneep Cut badge.",
+    "autoAddMusic": "Add music automatically",
+    "autoAddMusicHint": "Let TikTok choose music for this photo post."
   }
 }

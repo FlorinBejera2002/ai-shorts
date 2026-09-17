@@ -34,8 +34,8 @@ test('making a video first retains every item and persists the exact order', () 
   assert.equal(movePublishingMedia(items, items[0].reference, -1), items)
 })
 
-test('accepts ten mixed slides but rejects eleven and malformed references', () => {
-  const media = Array.from({ length: 10 }, (_, index) => ({ ...items[index % 3], reference: `publishing/user/${index}.jpg` }))
+test('accepts 35 media items but rejects 36 and malformed references', () => {
+  const media = Array.from({ length: 35 }, (_, index) => ({ ...items[index % 3], reference: `publishing/user/${index}.jpg` }))
   assert.equal(validateScheduledPostPayload({ media }, 'update').success, true)
   assert.equal(validateScheduledPostPayload({ media: [...media, items[0]] }, 'update').success, false)
   assert.equal(validateScheduledPostPayload({ media: [{ ...items[0], reference: '' }] }, 'update').success, false)
@@ -86,4 +86,12 @@ test('missing upload routes and server failures do not blame the selected files'
   assert.equal(publishingUploadErrorKey(new PublishingUploadError(429)), 'mediaRateLimit')
   assert.equal(publishingUploadErrorKey(new PublishingUploadError(401)), 'mediaAuthRequired')
   assert.equal(publishingUploadErrorKey(new TypeError('Failed to fetch')), 'mediaUploadFailed')
+})
+
+test('TikTok permits 35 photos while Meta keeps its limits and mixed media remains rejected',()=>{
+ const photos=Array.from({length:35},(_,i)=>({...items[0],reference:'photo'+i}))
+ assert.deepEqual(incompatibleMediaPlatforms(photos,['tiktok','instagram','facebook']),['instagram','facebook'])
+ assert.deepEqual(incompatibleMediaPlatforms([...photos,items[0]],['tiktok']),['tiktok'])
+ assert.deepEqual(incompatibleMediaPlatforms([{...items[1],name:'video.webm'}],['tiktok']),[])
+ assert.deepEqual(incompatibleMediaPlatforms([{...items[1],name:'video.avi'}],['tiktok']),['tiktok'])
 })

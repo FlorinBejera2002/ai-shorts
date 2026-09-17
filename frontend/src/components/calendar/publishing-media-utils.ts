@@ -1,6 +1,6 @@
 import type { ContentPlatform, PublishingMedia } from '@/lib/content-calendar'
 
-export const MAX_PUBLISHING_MEDIA = 10
+export const MAX_PUBLISHING_MEDIA = 35
 export const PUBLISHING_FILE_ACCEPT =
   '.jpg,.jpeg,.png,.webp,.mp4,.mov,.webm,.avi,.mkv,image/jpeg,image/png,image/webp,video/*'
 
@@ -39,9 +39,19 @@ export function incompatibleMediaPlatforms(
 ) {
   if (media.length === 0) return []
   return platforms.filter((platform) => {
-    if (platform === 'instagram') return false
+    if (platform === 'instagram') return media.length > 10
     if (platform === 'facebook')
-      return media.length > 1 && media.some((item) => item.type === 'video')
+      return (
+        media.length > 10 ||
+        (media.length > 1 && media.some((item) => item.type === 'video'))
+      )
+    if (platform === 'tiktok')
+      return !(
+        (media.length <= 35 && media.every((item) => item.type === 'image')) ||
+        (media.length === 1 &&
+          media[0]?.type === 'video' &&
+          /\.(mp4|mov|webm)$/i.test(media[0].name))
+      )
     return media.length !== 1 || media[0]?.type !== 'video'
   })
 }

@@ -566,3 +566,94 @@ func TestPostgresCalendarDispatchRejectsMultipleTikTokAccountsAtomically(t *test
 		t.Fatalf("multiple TikTok destinations were not rejected atomically: status=%s jobs=%d calls=%d message=%q", status, jobs, creatorCalls, message)
 	}
 }
+
+// Uploaded media is inspected through trusted service methods, never client duration metadata.
+type uploadedTikTokMedia struct{ duration float64 }
+
+func (m uploadedTikTokMedia) SignedURL(_ context.Context, key string) (string, error) {
+	return "https://media.example/" + key, nil
+}
+func (m uploadedTikTokMedia) KeyFromReference(key string) (string, error) { return key, nil }
+func (m uploadedTikTokMedia) TikTokPublishingKey(_ context.Context, key string) (string, error) {
+	return strings.TrimSuffix(key, ".png") + ".jpg", nil
+}
+func (m uploadedTikTokMedia) PublishingVideoDuration(context.Context, string) (float64, error) {
+	return m.duration, nil
+}
+func (m uploadedTikTokMedia) ValidatePublishingMedia(context.Context, string, string, string) error {
+	return nil
+}
+
+func TestPostgresTikTokUploadedMediaDispatchAndWorker(t *testing.T) {
+	for _, kind := range []string{"image", "video"} {
+		t.Run(kind, func(t *testing.T) {
+			h, user, _, _ := fixture(t)
+			h.media = uploadedTikTokMedia{duration: 10}
+			account, _ := data.NewUUID()
+			encrypted, err := seal(h.vault, Credentials{AccessToken: "synthetic"}, user+":tiktok:creator")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, err = h.db.Exec(`INSERT INTO social_accounts(id,user_id,provider,remote_id,name,credentials) VALUES($1,$2,'tiktok','creator','Fixture',$3)`, account, user, encrypted); err != nil {
+				t.Fatal(err)
+			}
+			calls := 0
+			h.client = mockProvider(t, func(w http.ResponseWriter, r *http.Request) {
+				switch r.URL.Path {
+				case "/v2/post/publish/creator_info/query/":
+					fmt.Fprint(w, `{"data":{"privacy_level_options":["SELF_ONLY"],"max_video_post_duration_sec":60},"error":{"code":"ok"}}`)
+				case "/v2/post/publish/content/init/", "/v2/post/publish/video/init/":
+					calls++
+					var body map[string]any
+					if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+						t.Fatal(err)
+					}
+					source := body["source_info"].(map[string]any)
+					if kind == "image" {
+						photos := source["photo_images"].([]any)
+						if len(photos) != 2 || !strings.HasSuffix(photos[0].(string), "first.jpg") {
+							t.Errorf("photo preparation/order lost: %v", source)
+						}
+					} else if !strings.HasSuffix(source["video_url"].(string), "first.webm") {
+						t.Errorf("uploaded video lost: %v", source)
+					}
+					fmt.Fprint(w, `{"data":{"publish_id":"accepted"},"error":{"code":"ok"}}`)
+				default:
+					t.Errorf("unexpected endpoint %s", r.URL.Path)
+					w.WriteHeader(404)
+				}
+			})
+			calendarID, _ := data.NewUUID()
+			reference := "publishing/" + user + "/first.webm"
+			if kind == "image" {
+				reference = "publishing/" + user + "/first.png"
+			}
+			media := []map[string]string{{"type": kind, "reference": reference, "name": "first"}}
+			if kind == "image" {
+				media = append(media, map[string]string{"type": "image", "reference": "publishing/" + user + "/second.png", "name": "second"})
+			}
+			raw, _ := json.Marshal(media)
+			options, _ := json.Marshal(TikTokOptions{PrivacyLevel: "SELF_ONLY", MusicUsageConfirmed: true, AutoAddMusic: true})
+			if _, err = h.db.Exec(`INSERT INTO scheduled_posts(id,user_id,title,caption,platforms,account_ids,status,scheduled_at,media,tiktok_options,updated_at) VALUES($1,$2,'Upload','',ARRAY['tiktok']::varchar[],ARRAY[$3]::uuid[],'scheduled',now()-interval '1 minute',$4,$5,now())`, calendarID, user, account, raw, options); err != nil {
+				t.Fatal(err)
+			}
+			if err = h.dispatchCalendar(context.Background()); err != nil {
+				t.Fatal(err)
+			}
+			if err = h.dispatchCalendar(context.Background()); err != nil {
+				t.Fatal(err)
+			}
+			var count int
+			if err = h.db.QueryRow("SELECT count(*) FROM social_posts WHERE scheduled_post_id=$1", calendarID).Scan(&count); err != nil || count != 1 {
+				t.Fatalf("duplicate or missing durable jobs %d %v", count, err)
+			}
+			if err = h.runOne(context.Background()); err != nil {
+				t.Fatal(err)
+			}
+			var status, remote string
+			if err = h.db.QueryRow("SELECT status,remote_id FROM social_posts WHERE scheduled_post_id=$1", calendarID).Scan(&status, &remote); err != nil || status != "processing" || remote != "accepted" || calls != 1 {
+				t.Fatalf("worker failed: status=%s remote=%s calls=%d err=%v", status, remote, calls, err)
+			}
+		})
+	}
+}

@@ -49,6 +49,7 @@ function SettingRow({
 
 export function TikTokPostSettings({
   clip,
+  isPhotoPost = false,
   disabled,
   idPrefix,
   onChange,
@@ -57,6 +58,7 @@ export function TikTokPostSettings({
   settings
 }: {
   clip?: PublishingData['clips'][number]
+  isPhotoPost?: boolean
   disabled: boolean
   idPrefix: string
   onChange: <Key extends keyof TikTokDirectPostSettings>(
@@ -195,20 +197,28 @@ export function TikTokPostSettings({
                 disabled={disabled || options.commentDisabled}
                 onCheckedChange={(checked) => onChange('allowComment', checked)}
               />
-              <SettingRow
-                id={`${idPrefix}-duet`}
-                label={t('duet')}
-                checked={settings.allowDuet && !options.duetDisabled}
-                disabled={disabled || options.duetDisabled}
-                onCheckedChange={(checked) => onChange('allowDuet', checked)}
-              />
-              <SettingRow
-                id={`${idPrefix}-stitch`}
-                label={t('stitch')}
-                checked={settings.allowStitch && !options.stitchDisabled}
-                disabled={disabled || options.stitchDisabled}
-                onCheckedChange={(checked) => onChange('allowStitch', checked)}
-              />
+              {!isPhotoPost && (
+                <>
+                  <SettingRow
+                    id={`${idPrefix}-duet`}
+                    label={t('duet')}
+                    checked={settings.allowDuet && !options.duetDisabled}
+                    disabled={disabled || options.duetDisabled}
+                    onCheckedChange={(checked) =>
+                      onChange('allowDuet', checked)
+                    }
+                  />
+                  <SettingRow
+                    id={`${idPrefix}-stitch`}
+                    label={t('stitch')}
+                    checked={settings.allowStitch && !options.stitchDisabled}
+                    disabled={disabled || options.stitchDisabled}
+                    onCheckedChange={(checked) =>
+                      onChange('allowStitch', checked)
+                    }
+                  />
+                </>
+              )}
             </div>
           </fieldset>
 
@@ -254,14 +264,25 @@ export function TikTokPostSettings({
             )}
           </div>
 
-          <SettingRow
-            id={`${idPrefix}-aigc`}
-            label={t('aigc')}
-            description={t('aigcHint')}
-            checked={settings.isAigc}
-            disabled={disabled}
-            onCheckedChange={(checked) => onChange('isAigc', checked)}
-          />
+          {isPhotoPost ? (
+            <SettingRow
+              id={`${idPrefix}-auto-music`}
+              label={t('autoAddMusic')}
+              description={t('autoAddMusicHint')}
+              checked={settings.autoAddMusic}
+              disabled={disabled}
+              onCheckedChange={(checked) => onChange('autoAddMusic', checked)}
+            />
+          ) : (
+            <SettingRow
+              id={`${idPrefix}-aigc`}
+              label={t('aigc')}
+              description={t('aigcHint')}
+              checked={settings.isAigc}
+              disabled={disabled}
+              onCheckedChange={(checked) => onChange('isAigc', checked)}
+            />
+          )}
 
           <label className="flex items-start gap-2 rounded-md border bg-background p-3 text-xs leading-5">
             <input

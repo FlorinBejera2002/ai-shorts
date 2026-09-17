@@ -1398,9 +1398,8 @@
       "noClip": "Fără clip asociat",
       "mediaLabel": "Încarcă de pe dispozitiv",
       "mediaChoose": "Alege poze și clipuri",
-      "mediaTikTokDisabled": "TikTok necesită momentan un clip asociat eligibil. Elimină TikTok dintre destinații pentru a încărca fișiere de pe acest dispozitiv.",
       "mediaUploading": "Se încarcă fișierele…",
-      "mediaHint": "Până la 10 fișiere. JPG, PNG, WebP și clipuri MP4/MOV. Poți combina poze și clipuri pe Instagram.",
+      "mediaHint": "Până la 35 de fotografii pentru TikTok sau un videoclip MP4/MOV/WebM. Instagram și Facebook: maximum 10 fișiere; MP4/MOV pentru video.",
       "mediaOrder": "Ordinea caruselului",
       "mediaOrderHint": "Trage de mâner pentru a schimba ordinea. Primul fișier deschide caruselul.",
       "mediaKeyboardHint": "Folosește tastele sus și jos pentru reordonare, Home pentru prima poziție sau End pentru ultima.",
@@ -1411,16 +1410,17 @@
       "hourLabel": "Ora",
       "minuteLabel": "Minute",
       "captionLabel": "Descriere (opțional)",
-      "captionLabelTikTok": "Descriere (obligatorie pentru TikTok)",
+      "captionLabelTikTok": "Descriere (opțional)",
       "captionPlaceholder": "Scrie sau adaptează descrierea socială…",
       "notesLabel": "Notițe interne (opțional)",
       "notesPlaceholder": "Adaugă mementouri, aprobări sau context creativ…",
       "publishNote": "Postările programate sunt publicate automat în conturile conectate selectate. Starea Publicată este confirmată de platformă și nu poate fi setată manual.",
       "mediaAdd": "Adaugă poze și clipuri",
       "mediaProgress": "Se încarcă {current} din {total}…",
-      "mediaQualityHint": "Originalele rămân neschimbate. PNG/WebP primesc o copie JPEG pentru Instagram; platforma poate decupa și comprima conținutul.",
+      "mediaQualityHint": "Originalele rămân neschimbate. Imaginile PNG primesc o copie JPEG pentru TikTok; PNG/WebP primesc o copie JPEG pentru Instagram. Platformele pot decupa și comprima fișierele.",
       "mediaCover": "Primul în carusel",
-      "dragMedia": "Trage pentru a reordona {name}"
+      "dragMedia": "Trage pentru a reordona {name}",
+      "mediaTikTokHint": "TikTok: 1-35 de fotografii sau un singur videoclip. Prima fotografie este coperta."
     },
     "validation": {
       "titleRequired": "Adaugă un titlu pentru a putea recunoaște postarea.",
@@ -1431,7 +1431,7 @@
       "platformRequired": "Alege cel puțin o platformă acceptată.",
       "accountRequired": "Alege cel puțin un cont de publicare conectat.",
       "tiktokAccountRequired": "Alege exact un cont TikTok conectat.",
-      "tiktokClipRequired": "Pentru TikTok trebuie să alegi un clip video eligibil, exportat fără sigla platformei. Fișierele încărcate direct nu pot fi trimise încă pe TikTok.",
+      "tiktokClipRequired": "Selectează un clip eligibil sau încarcă fotografii ori un videoclip pentru TikTok.",
       "tiktokCaptionRequired": "Adaugă o descriere înainte de publicarea pe TikTok.",
       "tiktokSettingsRequired": "Încarcă și completează setările obligatorii TikTok pentru public și politici.",
       "clipRequired": "Adaugă poze sau clipuri ori alege un clip asociat.",
@@ -1439,16 +1439,19 @@
       "timeRequired": "Alege o oră.",
       "dateInvalid": "Alege o dată și o oră valide.",
       "clipInvalid": "Clipul nu mai este disponibil. Alege alt clip sau elimină asocierea.",
-      "mediaInvalid": "Poți adăuga maximum 10 poze și clipuri în total.",
+      "mediaInvalid": "Alege cel mult 35 de fișiere media.",
       "mediaVideoFormat": "Instagram și Facebook necesită clipuri MP4 sau MOV. Exportă o copie compatibilă pentru: {names}.",
       "mediaUploadFailed": "Încărcarea nu a reușit. Încearcă din nou.",
-      "mediaTooLarge": "Fișierul ales este prea mare. Alege o imagine sau un clip mai mic.",
+      "mediaTooLarge": "Fișierul depășește limita media sau capacitatea de încărcare/scanare a serverului. TikTok acceptă videoclipuri de până la 4 GB, dar scanerul acestui server acceptă fișiere sub 2 GB.",
       "mediaTemporarilyUnavailable": "Încărcarea fișierelor este temporar indisponibilă. Încearcă din nou în câteva momente.",
       "mediaUnsupported": "Alege JPG, PNG, WebP sau un clip video acceptat. Pentru HEIC/HEIF, exportă întâi o copie JPEG.",
       "statusInvalid": "Alege o stare validă.",
-      "mediaPlatformUnsupported": "Combinația de fișiere nu este acceptată de {platforms}. Pentru un carusel cu video, selectează doar Instagram.",
+      "mediaPlatformUnsupported": "Combinația nu este acceptată de {platforms}. Instagram și Facebook acceptă maximum 10 fișiere; Facebook nu acceptă carusele cu video.",
       "mediaRateLimit": "Prea multe încărcări. Așteaptă puțin și reîncearcă.",
-      "mediaAuthRequired": "Sesiunea a expirat. Autentifică-te din nou."
+      "mediaAuthRequired": "Sesiunea a expirat. Autentifică-te din nou.",
+      "mediaTikTokUnsupported": "TikTok acceptă 1-35 de fotografii sau un singur videoclip MP4/MOV/WebM. Nu poți combina fotografii și videoclipuri.",
+      "tiktokCaptionLength": "Descrierea TikTok poate avea cel mult {limit} de caractere.",
+      "tiktokPhotoTitleLength": "Titlul unei postări foto TikTok poate avea cel mult 90 de caractere."
     },
     "errors": {
       "load": "Nu am putut încărca această lună. Verifică conexiunea și încearcă din nou.",
@@ -1467,6 +1470,10 @@
       "moved": "Postarea a fost mutată la noua oră.",
       "locked": "Postarea este deja în curs de publicare sau a fost confirmată de platformă.",
       "deleted": "Postarea a fost eliminată din calendar."
+    },
+    "page": {
+      "description": "Alege con?inutul, conturile ?i programul de publicare.",
+      "back": "?napoi la publicare"
     }
   },
   "assistant": {
@@ -1542,7 +1549,7 @@
     "optionsError": "Setările TikTok nu au putut fi încărcate. Selectează contul din nou pentru a reîncerca.",
     "retry": "Reîncearcă",
     "postingAs": "Publici ca {name}",
-    "privacy": "Cine poate vedea acest videoclip?",
+    "privacy": "Cine poate vedea această postare?",
     "choosePrivacy": "Alege publicul",
     "privacyLevels": {
       "PUBLIC_TO_EVERYONE": "Toată lumea",
@@ -1597,6 +1604,8 @@
       "unknown": "Neconfirmat",
       "cancelled": "Anulat"
     },
-    "tiktokIneligible": "Pentru TikTok, alege un clip exportat fără sigla Sneep Cut."
+    "tiktokIneligible": "Pentru TikTok, alege un clip exportat fără sigla Sneep Cut.",
+    "autoAddMusic": "Adaugă muzică automat",
+    "autoAddMusicHint": "Permite TikTok să aleagă muzică pentru această postare foto."
   }
 }

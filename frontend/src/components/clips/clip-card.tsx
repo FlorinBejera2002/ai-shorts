@@ -211,7 +211,7 @@ export function ClipCard({
                 icon={Pencil}
               />
               <CardAction
-                href={`/dashboard/publish?clip=${encodeURIComponent(clip.id)}`}
+                href={`/dashboard/publish/new?clip=${encodeURIComponent(clip.id)}`}
                 label={actions.publish}
                 icon={Send}
                 primary={true}

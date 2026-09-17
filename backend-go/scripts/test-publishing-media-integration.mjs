@@ -126,6 +126,18 @@ try {
   }
   sql(schema);
 
+  if (process.env.SNEEPCUT_GO_PACKAGE_TESTS === '1') {
+    const tests = docker(['run', '--rm', '--pull=never', '--network', `container:${name}-postgres`,
+      '-v', `${path.join(root, 'backend-go')}:/src:ro`, '-v', `${directory}:/fixture:ro`, '-v', `${cache}:/go-cache`,
+      '-e', 'GOCACHE=/go-cache', '-e', 'GOFLAGS=-p=2', '-e', 'GOMAXPROCS=2',
+      '-e', `SNEEPCUT_TEST_DATABASE_URL=postgresql://test:local-test-only@127.0.0.1:5432/${database}?sslmode=disable`,
+      '-e', 'SNEEPCUT_TEST_SCHEMA_SQL=/fixture/schema.sql', '-w', '/src', image,
+      'go', 'test', '-race', '-count=1', './internal/media', './internal/publishing', './internal/calendar', './internal/httpapi'], { timeout: 600_000 });
+    writeFileSync(path.join(directory, 'go-tests.log'), tests);
+    console.log(tests);
+    pass('affected Go packages pass race tests with a dedicated integration database');
+  }
+
   const generator = `from PIL import Image
 from pathlib import Path
 import random
@@ -150,11 +162,11 @@ Image.new('RGBA',(320,240),(20,140,220,110)).save(out/'transparent.png')
     APP_URL: base, CORS_ORIGINS: base, ALLOWED_HOSTS: '127.0.0.1,localhost,backend-go,nginx,frontend',
     LOCAL_MEDIA_ROOT: '/app/media', UPLOAD_STAGING_DIR: '/tmp/staging', UPLOAD_SCANNER_ENABLED: 'false',
     AUTH_REQUIRE_EMAIL_VERIFICATION: 'false', MAX_UPLOAD_SIZE_MB: '8', DEFAULT_FREE_CREDITS: '100',
-    SOCIAL_PUBLISHING_ENABLED: 'false', GOCACHE: '/go-cache',
+    SOCIAL_PUBLISHING_ENABLED: 'false', GOCACHE: '/tmp/go-cache',
   };
   start('api', ['--network-alias', 'backend-go', '--network-alias', 'frontend', '--user', '10001:10001',
     '--tmpfs', '/tmp:uid=10001,gid=10001,mode=1770,exec',
-    '-v', `${name}-media:/app/media`, '-v', `${cache}:/go-cache`,
+    '-v', `${name}-media:/app/media`, '-v', `${cache}:/go-cache`, '-v', `${path.join(root, 'backend-go')}:/src:ro`,
     ...Object.entries(environment).flatMap(([key, value]) => ['-e', `${key}=${value}`]),
     image, 'sh', '-c', 'mkdir -p /tmp/staging && go build -o /tmp/api ./cmd/api && exec /tmp/api']);
   start('nginx', ['--network-alias', 'nginx', '--user', '10001:10001', '--tmpfs', '/tmp:uid=10001,gid=10001,mode=1770',

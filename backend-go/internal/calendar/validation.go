@@ -214,7 +214,7 @@ func Validate(input map[string]any, create bool) (map[string]any, error) {
 	}
 	if raw, exists := input["media"]; exists {
 		values, ok := raw.([]any)
-		valid := ok && len(values) <= 10
+		valid := ok && len(values) <= 35
 		normalized := make([]map[string]string, 0, len(values))
 		for _, item := range values {
 			entry, entryOK := item.(map[string]any)
@@ -232,7 +232,7 @@ func Validate(input map[string]any, create bool) (map[string]any, error) {
 			normalized = append(normalized, map[string]string{"type": t, "reference": ref, "name": name})
 		}
 		if !valid {
-			issues = append(issues, Issue{"media", "Choose up to 10 images or videos"})
+			issues = append(issues, Issue{"media", "Choose up to 35 images or videos"})
 		} else {
 			output["media"] = normalized
 		}
@@ -246,7 +246,7 @@ func Validate(input map[string]any, create bool) (map[string]any, error) {
 				valid = false
 			} else {
 				allowed := map[string]bool{
-					"privacyLevel": true, "disableComment": true, "disableDuet": true,
+					"photoTitle": true, "autoAddMusic": true, "privacyLevel": true, "disableComment": true, "disableDuet": true,
 					"disableStitch": true, "brandContentToggle": true,
 					"brandOrganicToggle": true, "musicUsageConfirmed": true, "isAigc": true,
 				}
@@ -264,11 +264,19 @@ func Validate(input map[string]any, create bool) (map[string]any, error) {
 						options.PrivacyLevel = text
 					}
 				}
+				if title, present := value["photoTitle"]; present {
+					text, ok := title.(string)
+					if !ok || utf16Length(text) > 90 {
+						valid = false
+					} else {
+						options.PhotoTitle = text
+					}
+				}
 				booleanFields := map[string]*bool{
 					"disableComment": &options.DisableComment, "disableDuet": &options.DisableDuet,
 					"disableStitch": &options.DisableStitch, "brandContentToggle": &options.BrandContentToggle,
 					"brandOrganicToggle": &options.BrandOrganicToggle, "musicUsageConfirmed": &options.MusicUsageConfirmed,
-					"isAigc": &options.IsAIGC,
+					"isAigc": &options.IsAIGC, "autoAddMusic": &options.AutoAddMusic,
 				}
 				for key, target := range booleanFields {
 					if candidate, present := value[key]; present {

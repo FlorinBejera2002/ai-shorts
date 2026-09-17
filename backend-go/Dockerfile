@@ -2,7 +2,7 @@
 FROM golang:1.26.5 AS dev
 WORKDIR /src
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends curl \
+    && apt-get install -y --no-install-recommends curl ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 COPY go.mod go.sum ./
 RUN go mod download
@@ -17,7 +17,12 @@ RUN go mod download
 COPY . .
 RUN mkdir -p /media && go test -race ./... && go vet ./... && CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /api ./cmd/api
 
-FROM gcr.io/distroless/static-debian12:nonroot
+FROM debian:bookworm-slim
+# Inspect uploaded video duration before sending it to TikTok. The API still
+# runs as an unprivileged numeric user and keeps the same read-only runtime.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates ffmpeg \
+    && rm -rf /var/lib/apt/lists/*
 COPY --from=build /api /api
 COPY --from=build --chown=10001:10001 /media /app/media
 USER 10001:10001

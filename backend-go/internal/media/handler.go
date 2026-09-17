@@ -49,7 +49,7 @@ func (h *Handler) uploadPublishingMedia(w http.ResponseWriter, r *http.Request) 
 		mediaError(w, e)
 		return
 	}
-	part, e := firstFile(w, r, h.service.cfg.MaxUploadBytes)
+	part, e := firstFile(w, r, MaxPublishingUploadBytes)
 	if e != nil {
 		mediaError(w, e)
 		return

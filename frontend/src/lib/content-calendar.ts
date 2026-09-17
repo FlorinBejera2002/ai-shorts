@@ -65,6 +65,8 @@ export type TikTokPublishingOptions = {
   brandContentToggle: boolean
   brandOrganicToggle: boolean
   musicUsageConfirmed: boolean
+  photoTitle?: string
+  autoAddMusic?: boolean
   isAigc: boolean
 }
 
@@ -371,7 +373,7 @@ export function validateScheduledPostPayload(
     const media = value.media
     if (
       !Array.isArray(media) ||
-      media.length > 10 ||
+      media.length > 35 ||
       !media.every(
         (item) =>
           isRecord(item) &&
@@ -385,7 +387,7 @@ export function validateScheduledPostPayload(
     ) {
       issues.push({
         field: 'media',
-        message: 'Choose up to 10 images or videos'
+        message: 'Choose up to 35 images or videos'
       })
     } else {
       data.media = media as PublishingMedia[]
@@ -405,7 +407,18 @@ export function validateScheduledPostPayload(
     ] as const
     const valid =
       isRecord(tiktok) &&
-      Object.keys(tiktok).length === booleanFields.length + 1 &&
+      Object.keys(tiktok).every(
+        (key) =>
+          key === 'privacyLevel' ||
+          key === 'autoAddMusic' ||
+          key === 'photoTitle' ||
+          booleanFields.some((field) => field === key)
+      ) &&
+      (tiktok.photoTitle === undefined ||
+        (typeof tiktok.photoTitle === 'string' &&
+          tiktok.photoTitle.length <= 90)) &&
+      (tiktok.autoAddMusic === undefined ||
+        typeof tiktok.autoAddMusic === 'boolean') &&
       typeof tiktok.privacyLevel === 'string' &&
       (data.status === 'draft' || tiktok.privacyLevel.length > 0) &&
       booleanFields.every((field) => typeof tiktok[field] === 'boolean')

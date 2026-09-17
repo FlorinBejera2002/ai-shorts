@@ -1,9 +1,11 @@
 'use client'
 
 import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { LoadingIndicator } from '@/components/ui/loading-indicator'
+import { PageHeader } from '@/components/ui/page-header'
 import {
   Select,
   SelectContent,
@@ -38,6 +40,7 @@ import {
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import {
   AlertTriangle,
+  ArrowLeft,
   CalendarClock,
   Check,
   Film,
@@ -165,6 +168,7 @@ function FieldError({ id, message }: { id: string; message?: string }) {
 }
 
 export function PostDialog({
+  presentation = 'dialog',
   mode,
   selectedDate,
   post,
@@ -179,6 +183,7 @@ export function PostDialog({
   onSave,
   onDelete
 }: {
+  presentation?: 'dialog' | 'page'
   mode: DialogMode
   selectedDate: Date
   post?: ScheduledPostRecord
@@ -194,6 +199,8 @@ export function PostDialog({
   onDelete?: (platforms: ContentPlatform[]) => Promise<void>
 }) {
   const t = useTranslations('contentCalendar')
+  const isPage = presentation === 'page'
+  const FieldsContainer = isPage ? Card : 'div'
   const publishingT = useTranslations('publishing')
   const reduceMotion = useReducedMotion()
   const titleId = useId()
@@ -252,6 +259,12 @@ export function PostDialog({
     [publishingAccounts, selectedAccountIds]
   )
   const selectedTikTokAccount = selectedTikTokAccounts[0]
+  const isTikTokPhotoPost =
+    selectedTikTokAccounts.length > 0 &&
+    form.media.length > 0 &&
+    form.media.every((item) => item.type === 'image')
+  const captionLimit =
+    selectedTikTokAccounts.length > 0 ? (isTikTokPhotoPost ? 4000 : 2200) : 5000
   const { state: tiktokOptionsState, retry: retryTikTokOptions } =
     useTikTokCreatorOptions(selectedTikTokAccount?.id)
   const selectableClips =
@@ -279,6 +292,7 @@ export function PostDialog({
 
   useEffect(() => {
     setMounted(true)
+    if (isPage) return
     const previousFocus = document.activeElement as HTMLElement | null
     const previousOverflow = document.body.style.overflow
     const appShell =
@@ -341,7 +355,7 @@ export function PostDialog({
       if (!appShellWasInert) appShell?.removeAttribute('inert')
       previousFocus?.focus()
     }
-  }, [])
+  }, [isPage])
 
   useEffect(() => {
     const wasConfirming = wasConfirmingDeleteRef.current
@@ -467,6 +481,8 @@ export function PostDialog({
               : '',
           caption: form.caption,
           clip: selectedTikTokClip,
+          media: form.media,
+          title: form.title.trim(),
           options: tiktokOptionsState.value,
           settings: tiktokSettings
         })
@@ -503,9 +519,14 @@ export function PostDialog({
         form.platforms
       )
       if (form.status !== 'draft' && incompatible.length) {
-        nextErrors.media = t('validation.mediaPlatformUnsupported', {
-          platforms: incompatible.join(', ')
-        })
+        nextErrors.media = t(
+          incompatible.includes('tiktok')
+            ? 'validation.mediaTikTokUnsupported'
+            : 'validation.mediaPlatformUnsupported',
+          {
+            platforms: incompatible.join(', ')
+          }
+        )
       }
       if (form.status !== 'draft' && !form.clipId && form.media.length === 0) {
         nextErrors.clipId = t('validation.clipRequired')
@@ -515,7 +536,6 @@ export function PostDialog({
           nextErrors.accountIds = t('validation.tiktokAccountRequired')
         }
         if (
-          form.media.length > 0 ||
           tiktokValidationErrors.includes('clipRequired') ||
           tiktokValidationErrors.includes('clipIneligible')
         ) {
@@ -523,10 +543,13 @@ export function PostDialog({
         } else if (tiktokValidationErrors.includes('clipTooLong')) {
           nextErrors.clipId = publishingT('tooLong')
         }
-        if (tiktokValidationErrors.includes('captionRequired')) {
-          nextErrors.caption = t('validation.tiktokCaptionRequired')
-        } else if (tiktokValidationErrors.includes('captionTooLong')) {
-          nextErrors.caption = publishingT('captionTooLong')
+        if (tiktokValidationErrors.includes('captionTooLong')) {
+          nextErrors.caption = t('validation.tiktokCaptionLength', {
+            limit: captionLimit
+          })
+        }
+        if (tiktokValidationErrors.includes('photoTitleTooLong')) {
+          nextErrors.title = t('validation.tiktokPhotoTitleLength')
         }
         if (tiktokValidationErrors.includes('commercialTypeRequired')) {
           nextErrors.tiktok = publishingT('commercialTypeRequired')
@@ -562,7 +585,8 @@ export function PostDialog({
 
     const tiktok = createCalendarTikTokPublishingOptions({
       creatorOptions: tiktokOptionsState.value,
-      hasUploadedMedia: form.media.length > 0,
+      isPhotoPost: isTikTokPhotoPost,
+      photoTitle: form.title.trim(),
       selectedAccountCount: selectedTikTokAccounts.length,
       settings: tiktokSettings,
       status: form.status,
@@ -601,9 +625,7 @@ export function PostDialog({
       } else if (issue.field === 'caption') {
         fieldErrors.caption =
           selectedTikTokAccounts.length > 0
-            ? form.caption.trim()
-              ? publishingT('captionTooLong')
-              : t('validation.tiktokCaptionRequired')
+            ? t('validation.tiktokCaptionLength', { limit: captionLimit })
             : t('validation.captionLength')
       } else if (issue.field === 'notes') {
         fieldErrors.notes = t('validation.notesLength')
@@ -622,11 +644,7 @@ export function PostDialog({
             ? t('validation.tiktokClipRequired')
             : t('validation.clipInvalid')
       } else if (issue.field === 'media') {
-        if (selectedTikTokAccounts.length > 0) {
-          fieldErrors.clipId = t('validation.tiktokClipRequired')
-        } else {
-          fieldErrors.media = issue.message
-        }
+        fieldErrors.media = issue.message
       } else if (issue.field === 'status') {
         fieldErrors.status = t('validation.statusInvalid')
       } else if (issue.field === 'tiktok') {
@@ -702,56 +720,162 @@ export function PostDialog({
         ? t('dialog.rescheduleTitle')
         : t('dialog.editTitle')
 
-  return createPortal(
+  const platformSelection = (
+    <fieldset
+      className="pt-1"
+      aria-describedby={
+        errors.platforms ? `${titleId}-platforms-error` : undefined
+      }
+    >
+      <legend className="text-xs font-semibold text-foreground">
+        {t('form.platformsLabel')}
+      </legend>
+      <div
+        className={
+          isPage
+            ? 'mt-4 grid grid-cols-1 gap-2'
+            : 'mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2'
+        }
+      >
+        {publishingAccounts.map((account) => {
+          const selected = selectedAccountIds.has(account.id)
+          return (
+            <button
+              key={account.id}
+              type="button"
+              aria-pressed={selected}
+              disabled={busy}
+              onClick={() => toggleAccount(account)}
+              className={`relative flex min-h-11 items-center gap-2 rounded-md border px-3 text-xs font-semibold transition-[transform,background-color,border-color,box-shadow,color] disabled:cursor-not-allowed disabled:opacity-60 ${
+                selected
+                  ? 'border-foreground bg-foreground text-background shadow-sm'
+                  : 'border-border bg-background text-muted-foreground hover:-translate-y-px hover:bg-muted hover:text-foreground hover:shadow-sm'
+              }`}
+            >
+              <PlatformOptionIcon platform={account.provider} />
+              <span className="min-w-0 truncate">
+                {account.username ? `@${account.username}` : account.name}
+              </span>
+              <span className="ml-auto text-[10px] opacity-70">
+                {t(`platforms.${account.provider}`)}
+              </span>
+              {selected && <Check className="h-3.5 w-3.5" />}
+            </button>
+          )
+        })}
+      </div>
+      {platformConnectionsLoaded && publishingAccounts.length === 0 && (
+        <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2 rounded-md bg-muted/45 px-3 py-2 text-[11px] text-muted-foreground">
+          <span>{t('form.closeToConnect')}</span>
+          <button
+            type="button"
+            onClick={onClose}
+            className="font-semibold text-foreground underline-offset-4 hover:underline"
+          >
+            {t('form.closeAndConnect')}
+          </button>
+        </div>
+      )}
+      <FieldError
+        id={`${titleId}-platforms-error`}
+        message={errors.platforms ?? errors.accountIds}
+      />
+    </fieldset>
+  )
+
+  const content = (
     <AnimatePresence>
-      <div className="fixed inset-0 z-[120] overflow-y-auto">
-        <motion.div
-          aria-hidden="true"
-          className="fixed inset-0 bg-slate-950/55 backdrop-blur-[3px]"
-          initial={reduceMotion ? false : { opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.18 }}
-          onMouseDown={() => {
-            if (!busy) onClose()
-          }}
-        />
-        <div className="flex min-h-full items-end justify-center p-0 sm:items-center sm:p-5">
+      <div
+        className={
+          isPage
+            ? `${styles.workspace} dashboard-workspace`
+            : 'fixed inset-0 z-[120] overflow-y-auto'
+        }
+      >
+        {isPage && (
+          <PageHeader
+            title={dialogTitle}
+            description={t('page.description')}
+            actions={
+              <Button
+                type="button"
+                variant="outline"
+                className="text-foreground"
+                onClick={onClose}
+                disabled={busy}
+              >
+                <ArrowLeft className="size-4" />
+                {t('page.back')}
+              </Button>
+            }
+          />
+        )}
+        {!isPage && (
+          <motion.div
+            aria-hidden="true"
+            className="fixed inset-0 bg-slate-950/55 backdrop-blur-[3px]"
+            initial={reduceMotion ? false : { opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.18 }}
+            onMouseDown={() => {
+              if (!busy) onClose()
+            }}
+          />
+        )}
+        <div
+          className={
+            isPage
+              ? 'w-full'
+              : 'flex min-h-full items-end justify-center p-0 sm:items-center sm:p-5'
+          }
+        >
           <motion.div
             ref={dialogRef}
-            role={confirmDelete ? 'alertdialog' : 'dialog'}
-            aria-modal="true"
-            aria-labelledby={titleId}
+            role={isPage ? 'region' : confirmDelete ? 'alertdialog' : 'dialog'}
+            aria-modal={isPage ? undefined : true}
+            aria-label={isPage ? dialogTitle : undefined}
+            aria-labelledby={isPage ? undefined : titleId}
             aria-busy={busy}
-            initial={reduceMotion ? false : { opacity: 0, y: 24, scale: 0.98 }}
+            initial={
+              isPage || reduceMotion
+                ? false
+                : { opacity: 0, y: 24, scale: 0.98 }
+            }
             animate={{ opacity: 1, y: 0, scale: 1 }}
             transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
             onMouseDown={(event) => event.stopPropagation()}
-            className={`${styles.dialog} relative z-10 flex max-h-[min(94dvh,54rem)] w-full max-w-2xl flex-col overflow-hidden rounded-t-md border border-border bg-card text-card-foreground shadow-2xl sm:rounded-md`}
+            className={
+              isPage
+                ? styles.editorPage
+                : `${styles.dialog} relative z-10 flex max-h-[min(94dvh,54rem)] w-full max-w-2xl flex-col overflow-hidden rounded-t-md border border-border bg-card text-card-foreground shadow-2xl sm:rounded-md`
+            }
           >
-            <div className="relative border-b bg-card px-5 py-4 sm:px-6">
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex min-w-0 items-center gap-3">
-                  <span className="inline-flex size-9 shrink-0 items-center justify-center rounded-md bg-muted text-foreground">
-                    <CalendarClock className="h-4 w-4" />
-                  </span>
-                  <h2
-                    id={titleId}
-                    className="truncate text-xl font-semibold tracking-tight"
+            {!isPage && (
+              <div className="relative border-b bg-card px-5 py-4 sm:px-6">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <span className="inline-flex size-9 shrink-0 items-center justify-center rounded-md bg-muted text-foreground">
+                      <CalendarClock className="h-4 w-4" />
+                    </span>
+                    <h2
+                      id={titleId}
+                      className="truncate text-xl font-semibold tracking-tight"
+                    >
+                      {dialogTitle}
+                    </h2>
+                  </div>
+                  <button
+                    type="button"
+                    aria-label={t('actions.close')}
+                    disabled={busy}
+                    onClick={onClose}
+                    className="-mr-2 -mt-1 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-50"
                   >
-                    {dialogTitle}
-                  </h2>
+                    <X className="h-4 w-4" />
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  aria-label={t('actions.close')}
-                  disabled={busy}
-                  onClick={onClose}
-                  className="-mr-2 -mt-1 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-50"
-                >
-                  <X className="h-4 w-4" />
-                </button>
               </div>
-            </div>
+            )}
 
             {confirmDelete ? (
               <div className="overflow-y-auto px-5 py-6 sm:px-6">
@@ -873,356 +997,331 @@ export function PostDialog({
               <form
                 noValidate={true}
                 onSubmit={handleSubmit}
-                className="flex min-h-0 flex-1 flex-col"
+                className={
+                  isPage ? styles.editorLayout : 'flex min-h-0 flex-1 flex-col'
+                }
               >
-                <motion.div
-                  layoutScroll={true}
-                  className="min-h-0 flex-1 space-y-7 overflow-y-auto px-5 py-5 sm:px-6 sm:py-6"
+                {isPage && (
+                  <Card as="aside" className={styles.editorPlatforms}>
+                    {platformSelection}
+                  </Card>
+                )}
+                <FieldsContainer
+                  className={isPage ? styles.editorContent : 'contents'}
                 >
-                  {errors.form && (
-                    <div
-                      role="alert"
-                      className="rounded-md border border-destructive/25 bg-destructive/[0.06] px-3 py-2.5 text-xs font-medium text-destructive"
-                    >
-                      {errors.form}
-                    </div>
-                  )}
-
-                  {!isReschedule && (
-                    <>
-                      <div>
-                        <Label
-                          htmlFor={`${titleId}-title`}
-                          className="text-xs font-semibold text-foreground"
-                        >
-                          {t('form.titleLabel')}
-                        </Label>
-                        <Input
-                          ref={titleInputRef}
-                          id={`${titleId}-title`}
-                          value={form.title}
-                          maxLength={120}
-                          required={true}
-                          aria-invalid={Boolean(errors.title)}
-                          aria-describedby={
-                            errors.title ? `${titleId}-title-error` : undefined
-                          }
-                          onChange={(event) =>
-                            setField('title', event.target.value)
-                          }
-                          placeholder={t('form.titlePlaceholder')}
-                          className={`mt-2 h-11 ${inputClassName}`}
-                        />
-                        <div className="flex items-start justify-between gap-3">
-                          <FieldError
-                            id={`${titleId}-title-error`}
-                            message={errors.title}
-                          />
-                          <span className="ml-auto mt-1.5 text-[10px] tabular-nums text-muted-foreground">
-                            {form.title.length}/120
-                          </span>
-                        </div>
-                      </div>
-
-                      <fieldset
-                        className="pt-1"
-                        aria-describedby={
-                          errors.platforms
-                            ? `${titleId}-platforms-error`
-                            : undefined
-                        }
+                  <motion.div
+                    layoutScroll={!isPage}
+                    className={
+                      isPage
+                        ? styles.editorFields
+                        : 'min-h-0 flex-1 space-y-7 overflow-y-auto px-5 py-5 sm:px-6 sm:py-6'
+                    }
+                  >
+                    {errors.form && (
+                      <div
+                        role="alert"
+                        className="rounded-md border border-destructive/25 bg-destructive/[0.06] px-3 py-2.5 text-xs font-medium text-destructive"
                       >
-                        <legend className="text-xs font-semibold text-foreground">
-                          {t('form.platformsLabel')}
-                        </legend>
-                        <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                          {publishingAccounts.map((account) => {
-                            const selected = selectedAccountIds.has(account.id)
-                            return (
-                              <button
-                                key={account.id}
-                                type="button"
-                                aria-pressed={selected}
-                                disabled={busy}
-                                onClick={() => toggleAccount(account)}
-                                className={`relative flex min-h-11 items-center gap-2 rounded-md border px-3 text-xs font-semibold transition-[transform,background-color,border-color,box-shadow,color] disabled:cursor-not-allowed disabled:opacity-60 ${
-                                  selected
-                                    ? 'border-foreground bg-foreground text-background shadow-sm'
-                                    : 'border-border bg-background text-muted-foreground hover:-translate-y-px hover:bg-muted hover:text-foreground hover:shadow-sm'
-                                }`}
-                              >
-                                <PlatformOptionIcon
-                                  platform={account.provider}
-                                />
-                                <span className="min-w-0 truncate">
-                                  {account.username
-                                    ? `@${account.username}`
-                                    : account.name}
-                                </span>
-                                <span className="ml-auto text-[10px] opacity-70">
-                                  {t(`platforms.${account.provider}`)}
-                                </span>
-                                {selected && <Check className="h-3.5 w-3.5" />}
-                              </button>
-                            )
-                          })}
-                        </div>
-                        {platformConnectionsLoaded &&
-                          publishingAccounts.length === 0 && (
-                            <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2 rounded-md bg-muted/45 px-3 py-2 text-[11px] text-muted-foreground">
-                              <span>{t('form.closeToConnect')}</span>
-                              <button
-                                type="button"
-                                onClick={onClose}
-                                className="font-semibold text-foreground underline-offset-4 hover:underline"
-                              >
-                                {t('form.closeAndConnect')}
-                              </button>
-                            </div>
-                          )}
-                        <FieldError
-                          id={`${titleId}-platforms-error`}
-                          message={errors.platforms ?? errors.accountIds}
-                        />
-                      </fieldset>
-
-                      <PublishingMediaPicker
-                        media={form.media}
-                        disabled={busy || selectedTikTokAccounts.length > 0}
-                        error={errors.media}
-                        onUploadingChange={setUploading}
-                        onError={(message) =>
-                          setErrors((current) => ({
-                            ...current,
-                            media: message
-                          }))
-                        }
-                        onChange={(media) => {
-                          setForm((current) => ({
-                            ...current,
-                            media,
-                            clipId: media.length ? '' : current.clipId
-                          }))
-                          setErrors((current) => ({
-                            ...current,
-                            media: undefined,
-                            clipId: undefined,
-                            form: undefined
-                          }))
-                        }}
-                      />
-                      {selectedTikTokAccounts.length > 0 && (
-                        <p className="-mt-3 text-[11px] leading-5 text-muted-foreground">
-                          {t('form.mediaTikTokDisabled')}
-                        </p>
-                      )}
-
-                      <div className="grid gap-4 pt-1 sm:grid-cols-2">
-                        <div>
-                          <Label
-                            htmlFor={`${titleId}-clip`}
-                            className="text-xs font-semibold text-foreground"
-                          >
-                            {t('form.clipLabel')}
-                          </Label>
-                          <div className="mt-1.5">
-                            <Select
-                              value={form.clipId || 'none'}
-                              onValueChange={(value) =>
-                                handleClipChange(value === 'none' ? '' : value)
-                              }
-                            >
-                              <SelectTrigger
-                                id={`${titleId}-clip`}
-                                aria-invalid={Boolean(errors.clipId)}
-                                aria-describedby={
-                                  errors.clipId
-                                    ? `${titleId}-clip-error`
-                                    : undefined
-                                }
-                                className="h-10 w-full bg-background px-3 text-sm shadow-none"
-                              >
-                                <Film className="h-4 w-4 text-muted-foreground" />
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent
-                                position="popper"
-                                align="start"
-                                className="z-[130]"
-                              >
-                                <SelectItem value="none">
-                                  {t('form.noClip')}
-                                </SelectItem>
-                                {selectableClips.map((clip) => (
-                                  <SelectItem key={clip.id} value={clip.id}>
-                                    {clip.title} · {clip.viralScore}/10
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                          <FieldError
-                            id={`${titleId}-clip-error`}
-                            message={errors.clipId}
-                          />
-                        </div>
-                        <div>
-                          <Label
-                            htmlFor={`${titleId}-status`}
-                            className="text-xs font-semibold text-foreground"
-                          >
-                            {t('form.statusLabel')}
-                          </Label>
-                          <div className="mt-1.5">
-                            <Select
-                              value={form.status}
-                              onValueChange={(value) =>
-                                setField(
-                                  'status',
-                                  value as CalendarMutationStatus
-                                )
-                              }
-                            >
-                              <SelectTrigger
-                                id={`${titleId}-status`}
-                                aria-invalid={Boolean(errors.status)}
-                                aria-describedby={
-                                  errors.status
-                                    ? `${titleId}-status-error`
-                                    : undefined
-                                }
-                                className="h-10 w-full bg-background px-3 text-sm shadow-none"
-                              >
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent
-                                position="popper"
-                                align="start"
-                                className="z-[130]"
-                              >
-                                {EDITABLE_CALENDAR_STATUSES.map((status) => (
-                                  <SelectItem key={status} value={status}>
-                                    {t(`statuses.${status}`)}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                          <FieldError
-                            id={`${titleId}-status-error`}
-                            message={errors.status}
-                          />
-                        </div>
+                        {errors.form}
                       </div>
-                    </>
-                  )}
+                    )}
 
-                  {(isReschedule || form.status === 'scheduled') && (
-                    <div className="pt-1">
-                      <SchedulePicker
-                        date={form.date}
-                        time={form.time}
-                        onDateChange={(value) => setField('date', value)}
-                        onTimeChange={(value) => setField('time', value)}
-                        dateError={errors.date}
-                        timeError={errors.time}
-                      />
-                      <p className="mt-2 text-[11px] text-muted-foreground">
-                        {t('timezone', { zone: timeZone })}
-                      </p>
-                    </div>
-                  )}
+                    {!isReschedule && (
+                      <>
+                        <div>
+                          <Label
+                            htmlFor={`${titleId}-title`}
+                            className="text-xs font-semibold text-foreground"
+                          >
+                            {t('form.titleLabel')}
+                          </Label>
+                          <Input
+                            ref={titleInputRef}
+                            id={`${titleId}-title`}
+                            value={form.title}
+                            maxLength={isTikTokPhotoPost ? 90 : 120}
+                            required={true}
+                            aria-invalid={Boolean(errors.title)}
+                            aria-describedby={
+                              errors.title
+                                ? `${titleId}-title-error`
+                                : undefined
+                            }
+                            onChange={(event) =>
+                              setField('title', event.target.value)
+                            }
+                            placeholder={t('form.titlePlaceholder')}
+                            className={`mt-2 h-11 ${inputClassName}`}
+                          />
+                          <div className="flex items-start justify-between gap-3">
+                            <FieldError
+                              id={`${titleId}-title-error`}
+                              message={errors.title}
+                            />
+                            <span className="ml-auto mt-1.5 text-[10px] tabular-nums text-muted-foreground">
+                              {form.title.length}/{isTikTokPhotoPost ? 90 : 120}
+                            </span>
+                          </div>
+                        </div>
 
-                  {!isReschedule && (
-                    <>
-                      <div className="pt-1">
-                        <Label
-                          htmlFor={`${titleId}-caption`}
-                          className="text-xs font-semibold text-foreground"
+                        {!isPage && platformSelection}
+
+                        <div
+                          className={isPage ? styles.editorWide : 'contents'}
                         >
-                          {selectedTikTokAccounts.length > 0
-                            ? t('form.captionLabelTikTok')
-                            : t('form.captionLabel')}
-                        </Label>
-                        <Textarea
-                          id={`${titleId}-caption`}
-                          value={form.caption}
-                          rows={4}
-                          maxLength={
-                            selectedTikTokAccounts.length > 0 ? 2200 : 5000
-                          }
-                          aria-invalid={Boolean(errors.caption)}
-                          aria-describedby={
-                            errors.caption
-                              ? `${titleId}-caption-error`
-                              : undefined
-                          }
-                          onChange={(event) =>
-                            setField('caption', event.target.value)
-                          }
-                          placeholder={t('form.captionPlaceholder')}
-                          className={`mt-2 min-h-32 resize-y py-3 leading-6 ${inputClassName}`}
-                        />
-                        <div className="flex items-start justify-between gap-3">
-                          <FieldError
-                            id={`${titleId}-caption-error`}
-                            message={errors.caption}
-                          />
-                          <span className="ml-auto mt-1.5 text-[10px] tabular-nums text-muted-foreground">
-                            {form.caption.length}/
-                            {selectedTikTokAccounts.length > 0 ? 2200 : 5000}
-                          </span>
-                        </div>
-                      </div>
-                      {selectedTikTokAccount && (
-                        <div className="space-y-2 pt-1">
-                          <TikTokPostSettings
-                            clip={selectedTikTokClip}
+                          <PublishingMediaPicker
+                            media={form.media}
                             disabled={busy}
-                            idPrefix={`${titleId}-tiktok`}
-                            settings={tiktokSettings}
-                            optionsState={tiktokOptionsState}
-                            onChange={updateTikTokSetting}
-                            onRetry={retryTikTokOptions}
+                            error={errors.media}
+                            onUploadingChange={setUploading}
+                            onError={(message) =>
+                              setErrors((current) => ({
+                                ...current,
+                                media: message
+                              }))
+                            }
+                            onChange={(media) => {
+                              setForm((current) => ({
+                                ...current,
+                                media,
+                                clipId: media.length ? '' : current.clipId
+                              }))
+                              setErrors((current) => ({
+                                ...current,
+                                media: undefined,
+                                clipId: undefined,
+                                form: undefined
+                              }))
+                            }}
+                          />
+                          {selectedTikTokAccounts.length > 0 && (
+                            <p
+                              className={`${isPage ? 'mt-3' : '-mt-3'} text-[11px] leading-5 text-muted-foreground`}
+                            >
+                              {t('form.mediaTikTokHint')}
+                            </p>
+                          )}
+                        </div>
+
+                        <div
+                          className={`grid gap-4 pt-1 sm:grid-cols-2 ${isPage ? styles.editorWide : ''}`}
+                        >
+                          <div>
+                            <Label
+                              htmlFor={`${titleId}-clip`}
+                              className="text-xs font-semibold text-foreground"
+                            >
+                              {t('form.clipLabel')}
+                            </Label>
+                            <div className="mt-1.5">
+                              <Select
+                                value={form.clipId || 'none'}
+                                onValueChange={(value) =>
+                                  handleClipChange(
+                                    value === 'none' ? '' : value
+                                  )
+                                }
+                              >
+                                <SelectTrigger
+                                  id={`${titleId}-clip`}
+                                  aria-invalid={Boolean(errors.clipId)}
+                                  aria-describedby={
+                                    errors.clipId
+                                      ? `${titleId}-clip-error`
+                                      : undefined
+                                  }
+                                  className="h-10 w-full bg-background px-3 text-sm shadow-none"
+                                >
+                                  <Film className="h-4 w-4 text-muted-foreground" />
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent
+                                  position="popper"
+                                  align="start"
+                                  className="z-[130]"
+                                >
+                                  <SelectItem value="none">
+                                    {t('form.noClip')}
+                                  </SelectItem>
+                                  {selectableClips.map((clip) => (
+                                    <SelectItem key={clip.id} value={clip.id}>
+                                      {clip.title} · {clip.viralScore}/10
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <FieldError
+                              id={`${titleId}-clip-error`}
+                              message={errors.clipId}
+                            />
+                          </div>
+                          <div>
+                            <Label
+                              htmlFor={`${titleId}-status`}
+                              className="text-xs font-semibold text-foreground"
+                            >
+                              {t('form.statusLabel')}
+                            </Label>
+                            <div className="mt-1.5">
+                              <Select
+                                value={form.status}
+                                onValueChange={(value) =>
+                                  setField(
+                                    'status',
+                                    value as CalendarMutationStatus
+                                  )
+                                }
+                              >
+                                <SelectTrigger
+                                  id={`${titleId}-status`}
+                                  aria-invalid={Boolean(errors.status)}
+                                  aria-describedby={
+                                    errors.status
+                                      ? `${titleId}-status-error`
+                                      : undefined
+                                  }
+                                  className="h-10 w-full bg-background px-3 text-sm shadow-none"
+                                >
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent
+                                  position="popper"
+                                  align="start"
+                                  className="z-[130]"
+                                >
+                                  {EDITABLE_CALENDAR_STATUSES.map((status) => (
+                                    <SelectItem key={status} value={status}>
+                                      {t(`statuses.${status}`)}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <FieldError
+                              id={`${titleId}-status-error`}
+                              message={errors.status}
+                            />
+                          </div>
+                        </div>
+                      </>
+                    )}
+
+                    {(isReschedule || form.status === 'scheduled') && (
+                      <div className="pt-1">
+                        <SchedulePicker
+                          date={form.date}
+                          time={form.time}
+                          onDateChange={(value) => setField('date', value)}
+                          onTimeChange={(value) => setField('time', value)}
+                          dateError={errors.date}
+                          timeError={errors.time}
+                        />
+                        <p className="mt-2 text-[11px] text-muted-foreground">
+                          {t('timezone', { zone: timeZone })}
+                        </p>
+                      </div>
+                    )}
+
+                    {!isReschedule && (
+                      <>
+                        <div className={isPage ? styles.editorWide : 'pt-1'}>
+                          <Label
+                            htmlFor={`${titleId}-caption`}
+                            className="text-xs font-semibold text-foreground"
+                          >
+                            {selectedTikTokAccounts.length > 0
+                              ? t('form.captionLabelTikTok')
+                              : t('form.captionLabel')}
+                          </Label>
+                          <Textarea
+                            id={`${titleId}-caption`}
+                            value={form.caption}
+                            rows={4}
+                            maxLength={captionLimit}
+                            aria-invalid={Boolean(errors.caption)}
+                            aria-describedby={
+                              errors.caption
+                                ? `${titleId}-caption-error`
+                                : undefined
+                            }
+                            onChange={(event) =>
+                              setField('caption', event.target.value)
+                            }
+                            placeholder={t('form.captionPlaceholder')}
+                            className={`mt-2 min-h-32 resize-y py-3 leading-6 ${inputClassName}`}
+                          />
+                          <div className="flex items-start justify-between gap-3">
+                            <FieldError
+                              id={`${titleId}-caption-error`}
+                              message={errors.caption}
+                            />
+                            <span className="ml-auto mt-1.5 text-[10px] tabular-nums text-muted-foreground">
+                              {form.caption.length}/{captionLimit}
+                            </span>
+                          </div>
+                        </div>
+                        {selectedTikTokAccount && (
+                          <div
+                            className={`space-y-2 pt-1 ${isPage ? styles.editorWide : ''}`}
+                          >
+                            <TikTokPostSettings
+                              isPhotoPost={isTikTokPhotoPost}
+                              clip={selectedTikTokClip}
+                              disabled={busy}
+                              idPrefix={`${titleId}-tiktok`}
+                              settings={tiktokSettings}
+                              optionsState={tiktokOptionsState}
+                              onChange={updateTikTokSetting}
+                              onRetry={retryTikTokOptions}
+                            />
+                            <FieldError
+                              id={`${titleId}-tiktok-error`}
+                              message={errors.tiktok}
+                            />
+                          </div>
+                        )}
+                        <div className={isPage ? styles.editorWide : 'pt-1'}>
+                          <Label
+                            htmlFor={`${titleId}-notes`}
+                            className="text-xs font-semibold text-foreground"
+                          >
+                            {t('form.notesLabel')}
+                          </Label>
+                          <Textarea
+                            id={`${titleId}-notes`}
+                            value={form.notes}
+                            rows={2}
+                            maxLength={2000}
+                            aria-invalid={Boolean(errors.notes)}
+                            aria-describedby={
+                              errors.notes
+                                ? `${titleId}-notes-error`
+                                : undefined
+                            }
+                            onChange={(event) =>
+                              setField('notes', event.target.value)
+                            }
+                            placeholder={t('form.notesPlaceholder')}
+                            className={`mt-2 min-h-24 resize-y py-3 leading-6 ${inputClassName}`}
                           />
                           <FieldError
-                            id={`${titleId}-tiktok-error`}
-                            message={errors.tiktok}
+                            id={`${titleId}-notes-error`}
+                            message={errors.notes}
                           />
                         </div>
-                      )}
-                      <div className="pt-1">
-                        <Label
-                          htmlFor={`${titleId}-notes`}
-                          className="text-xs font-semibold text-foreground"
-                        >
-                          {t('form.notesLabel')}
-                        </Label>
-                        <Textarea
-                          id={`${titleId}-notes`}
-                          value={form.notes}
-                          rows={2}
-                          maxLength={2000}
-                          aria-invalid={Boolean(errors.notes)}
-                          aria-describedby={
-                            errors.notes ? `${titleId}-notes-error` : undefined
-                          }
-                          onChange={(event) =>
-                            setField('notes', event.target.value)
-                          }
-                          placeholder={t('form.notesPlaceholder')}
-                          className={`mt-2 min-h-24 resize-y py-3 leading-6 ${inputClassName}`}
-                        />
-                        <FieldError
-                          id={`${titleId}-notes-error`}
-                          message={errors.notes}
-                        />
-                      </div>
-                    </>
-                  )}
-                </motion.div>
+                      </>
+                    )}
+                  </motion.div>
+                </FieldsContainer>
 
-                <div className="flex flex-col-reverse gap-2 border-t bg-card px-5 py-4 shadow-[0_-8px_24px_-20px_rgba(0,0,0,0.35)] sm:flex-row sm:items-center sm:px-7">
+                <div
+                  className={
+                    isPage
+                      ? `${styles.editorActions} flex flex-col-reverse gap-2 rounded-md border bg-card p-4 sm:flex-row sm:justify-end sm:items-center`
+                      : 'flex flex-col-reverse gap-2 border-t bg-card px-5 py-4 shadow-[0_-8px_24px_-20px_rgba(0,0,0,0.35)] sm:flex-row sm:items-center sm:px-7'
+                  }
+                >
                   {mode === 'edit' && onDelete && (
                     <button
                       ref={deleteButtonRef}
@@ -1271,7 +1370,7 @@ export function PostDialog({
           </motion.div>
         </div>
       </div>
-    </AnimatePresence>,
-    document.body
+    </AnimatePresence>
   )
+  return isPage ? content : createPortal(content, document.body)
 }

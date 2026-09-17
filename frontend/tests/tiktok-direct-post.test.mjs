@@ -138,7 +138,7 @@ test('rejects a privacy choice that is no longer offered by TikTok', () => {
 test('create flow keeps incomplete TikTok options when saving a draft', () => {
   const draft = exports.createCalendarTikTokPublishingOptions({
     creatorOptions: options,
-    hasUploadedMedia: false,
+    isPhotoPost: false,
     selectedAccountCount: 1,
     settings: {
       ...settings,
@@ -148,7 +148,7 @@ test('create flow keeps incomplete TikTok options when saving a draft', () => {
     status: 'draft',
     validationErrors: [
       'clipRequired',
-      'captionRequired',
+      'privacyRequired',
       'privacyRequired',
       'policyConsentRequired'
     ]
@@ -184,13 +184,14 @@ test('edit flow restores and reserializes every saved TikTok option', () => {
       ownBrand: true,
       brandedContent: false,
       policyConsent: true,
+      autoAddMusic: false,
       isAigc: true
     }
   )
 
   const edited = exports.createCalendarTikTokPublishingOptions({
     creatorOptions: options,
-    hasUploadedMedia: false,
+    isPhotoPost: false,
     selectedAccountCount: 1,
     settings: restored,
     status: 'draft',
@@ -202,15 +203,15 @@ test('edit flow restores and reserializes every saved TikTok option', () => {
 test('publish and schedule flows require every TikTok validation to pass', () => {
   const invalidScheduled = exports.createCalendarTikTokPublishingOptions({
     creatorOptions: options,
-    hasUploadedMedia: false,
+    isPhotoPost: false,
     selectedAccountCount: 1,
     settings,
     status: 'scheduled',
-    validationErrors: ['captionRequired']
+    validationErrors: ['privacyRequired']
   })
   const validPublish = exports.createCalendarTikTokPublishingOptions({
     creatorOptions: options,
-    hasUploadedMedia: false,
+    isPhotoPost: false,
     selectedAccountCount: 1,
     settings,
     status: 'publish',
@@ -220,4 +221,21 @@ test('publish and schedule flows require every TikTok validation to pass', () =>
   assert.equal(invalidScheduled, undefined)
   assert.equal(validPublish.privacyLevel, 'PUBLIC_TO_EVERYONE')
   assert.equal(validPublish.musicUsageConfirmed, true)
+})
+
+test('uploaded photos and videos need no library clip and captions are optional', () => {
+ for (const type of ['image', 'video']) {
+  assert.deepEqual([...exports.validateTikTokDirectPost({accountId: 'a', caption: '', media: [{type}], options, settings})], [])
+ }
+})
+test('photo captions use 4000 UTF-16 units and photo titles use 90', () => {
+ const input={accountId:'a', media:[{type:'image'}], options, settings, title:'x'.repeat(90), caption:'x'.repeat(4000)}
+ assert.deepEqual([...exports.validateTikTokDirectPost(input)], [])
+ assert.deepEqual([...exports.validateTikTokDirectPost({...input, title:'x'.repeat(91), caption:'x'.repeat(3999)+'\u{1f600}'})], ['captionTooLong','photoTitleTooLong'])
+})
+test('photo settings serialize music without video AIGC settings', () => {
+ const result=exports.createCalendarTikTokPublishingOptions({creatorOptions:options,isPhotoPost:true,photoTitle: ' Summer photos ',selectedAccountCount:1,settings:{...settings,autoAddMusic:true},status:'publish',validationErrors:[]})
+ assert.equal(result.photoTitle,'Summer photos')
+ assert.equal(result.autoAddMusic,true)
+ assert.equal(result.isAigc,false)
 })

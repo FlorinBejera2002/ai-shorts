@@ -38,8 +38,8 @@ func ValidateMediaReferences(provider string, media []PublishMedia) error {
 // ValidateMediaTypes rejects combinations that the configured publishing flows
 // cannot send in full. Never silently publish only the first carousel slide.
 func ValidateMediaTypes(provider string, types []string) error {
-	if len(types) == 0 || len(types) > 10 {
-		return errors.New("Choose between 1 and 10 images or videos")
+	if len(types) == 0 || len(types) > 35 {
+		return errors.New("Choose between 1 and 35 images or videos")
 	}
 	videos := 0
 	for _, kind := range types {
@@ -53,17 +53,42 @@ func ValidateMediaTypes(provider string, types []string) error {
 	}
 	switch provider {
 	case "instagram":
+		if len(types) > 10 {
+			return errors.New("Instagram supports up to 10 images or videos")
+		}
 		return nil
 	case "facebook":
+		if len(types) > 10 {
+			return errors.New("Facebook supports up to 10 images")
+		}
 		if videos > 0 && len(types) > 1 {
 			return errors.New("Facebook supports a photo carousel or one video; publish mixed carousels on Instagram")
 		}
 	case "tiktok":
-		if len(types) != 1 || videos != 1 {
-			return errors.New("TikTok publishing currently supports one video in Sneep Cut")
+		if videos > 0 && (len(types) != 1 || videos != 1) {
+			return errors.New("TikTok supports one video or up to 35 photos; photos and videos cannot be mixed")
 		}
 	default:
 		return errors.New("Publishing to this platform is not available")
+	}
+	return nil
+}
+
+// validateTikTokPreparedMedia runs after PNG conversion; scheduling still accepts
+// PNG originals because the media service prepares a JPEG copy for TikTok.
+func validateTikTokPreparedMedia(media []PublishMedia) error {
+	for _, item := range media {
+		parsed, err := url.Parse(item.URL)
+		if err != nil {
+			return errors.New("Choose valid TikTok media")
+		}
+		extension := strings.ToLower(path.Ext(parsed.Path))
+		if item.Type == "image" && extension != ".jpg" && extension != ".jpeg" && extension != ".webp" {
+			return errors.New("TikTok photos must be JPEG or WebP; prepare the image before publishing")
+		}
+		if item.Type == "video" && extension != ".mp4" && extension != ".mov" && extension != ".webm" {
+			return errors.New("TikTok videos must be MP4, MOV or WebM")
+		}
 	}
 	return nil
 }

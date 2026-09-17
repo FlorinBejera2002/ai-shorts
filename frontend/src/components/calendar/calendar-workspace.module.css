@@ -11,6 +11,60 @@
   --ring: var(--foreground);
   --accent: var(--muted);
 }
+.editorPage {
+  width: 100%;
+}
+.editorLayout {
+  display: grid;
+  align-items: start;
+  gap: 1.25rem;
+  grid-template-columns: minmax(0, 1fr);
+}
+.editorPlatforms {
+  min-width: 0;
+  padding: 1.25rem;
+}
+.editorContent {
+  min-width: 0;
+  gap: 0;
+  padding: 0;
+}
+.editorActions {
+  min-width: 0;
+}
+.editorFields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1.75rem;
+  padding: 1.25rem;
+}
+.editorFields > * {
+  min-width: 0;
+}
+.editorWide {
+  grid-column: 1 / -1;
+}
+@media (min-width: 768px) {
+  .editorFields {
+    gap: 2rem;
+    padding: 1.5rem;
+  }
+}
+@media (min-width: 1024px) {
+  .editorLayout {
+    grid-template-columns: 17rem minmax(0, 1fr);
+  }
+  .editorPlatforms {
+    position: sticky;
+    top: 5rem;
+    grid-column: 1;
+    grid-row: 1 / 3;
+  }
+  .editorContent,
+  .editorActions {
+    grid-column: 2;
+  }
+}
 .dialog input:focus-visible,
 .dialog textarea:focus-visible {
   outline: none;

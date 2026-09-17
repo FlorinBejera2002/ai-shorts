@@ -27,6 +27,8 @@ type RemoteAccount struct {
 	Credentials                   Credentials
 }
 type TikTokOptions struct {
+	PhotoTitle          string `json:"photoTitle,omitempty"`
+	AutoAddMusic        bool   `json:"autoAddMusic"`
 	MusicUsageConfirmed bool   `json:"musicUsageConfirmed"`
 	PrivacyLevel        string `json:"privacyLevel"`
 	DisableComment      bool   `json:"disableComment"`
@@ -500,8 +502,16 @@ func (p *ProviderClient) PublishMedia(ctx context.Context, provider, account str
 		// Caption is encoded in the opaque job reference for the later finish call.
 		return account + ":" + r.ID + ":" + url.QueryEscape(caption), "processing", nil
 	case "tiktok":
-		if !verifiedMediaURL(p.config.TikTokVerifiedURLPrefix, mediaURL) {
-			return "", "failed", errors.New("TikTok requires a video URL under the configured verified domain or prefix")
+		if err := validateTikTokPreparedMedia(media); err != nil {
+			return "", "failed", err
+		}
+		for _, item := range media {
+			if !publicHTTPS(item.URL) || !verifiedMediaURL(p.config.TikTokVerifiedURLPrefix, item.URL) {
+				return "", "failed", errors.New("TikTok requires media URLs under the configured verified domain or prefix")
+			}
+		}
+		if err := validateTikTokText(media[0].Type == "image", caption, options); err != nil {
+			return "", "failed", err
 		}
 		if !options.MusicUsageConfirmed {
 			return "", "failed", errors.New("confirm TikTok music usage terms before publishing")
@@ -522,13 +532,43 @@ func (p *ProviderClient) PublishMedia(ctx context.Context, provider, account str
 		if options.BrandContentToggle && options.PrivacyLevel == "SELF_ONLY" {
 			return "", "failed", errors.New("branded TikTok posts cannot be private")
 		}
-		body := map[string]any{"post_info": map[string]any{"title": caption, "privacy_level": options.PrivacyLevel, "disable_comment": options.DisableComment || creator.CommentDisabled, "disable_duet": options.DisableDuet || creator.DuetDisabled, "disable_stitch": options.DisableStitch || creator.StitchDisabled, "brand_content_toggle": options.BrandContentToggle, "brand_organic_toggle": options.BrandOrganicToggle, "is_aigc": options.IsAIGC}, "source_info": map[string]any{"source": "PULL_FROM_URL", "video_url": mediaURL}}
+
+		postInfo := map[string]any{
+			"privacy_level":        options.PrivacyLevel,
+			"disable_comment":      options.DisableComment || creator.CommentDisabled,
+			"brand_content_toggle": options.BrandContentToggle,
+			"brand_organic_toggle": options.BrandOrganicToggle,
+		}
+		sourceInfo := map[string]any{"source": "PULL_FROM_URL"}
+		body := map[string]any{"post_info": postInfo, "source_info": sourceInfo}
+		endpoint := "https://open.tiktokapis.com/v2/post/publish/video/init/"
+		if media[0].Type == "image" {
+			photos := make([]string, len(media))
+			for i, item := range media {
+				photos[i] = item.URL
+			}
+			postInfo["title"] = options.PhotoTitle
+			postInfo["description"] = caption
+			postInfo["auto_add_music"] = options.AutoAddMusic
+			sourceInfo["photo_images"] = photos
+			sourceInfo["photo_cover_index"] = 0
+			body["media_type"] = "PHOTO"
+			body["post_mode"] = "DIRECT_POST"
+			endpoint = "https://open.tiktokapis.com/v2/post/publish/content/init/"
+		} else {
+			postInfo["title"] = caption
+			postInfo["disable_duet"] = options.DisableDuet || creator.DuetDisabled
+			postInfo["disable_stitch"] = options.DisableStitch || creator.StitchDisabled
+			postInfo["is_aigc"] = options.IsAIGC
+			sourceInfo["video_url"] = mediaURL
+		}
+
 		var r struct {
 			Data struct {
 				ID string `json:"publish_id"`
 			}
 		}
-		if err = p.request(ctx, "POST", "https://open.tiktokapis.com/v2/post/publish/video/init/", c.AccessToken, nil, body, &r); err != nil {
+		if err = p.request(ctx, "POST", endpoint, c.AccessToken, nil, body, &r); err != nil {
 			return "", "unknown", err
 		}
 		if r.Data.ID == "" {
