@@ -48,6 +48,7 @@ import {
   Star,
   Timer,
   Trash2,
+  Upload,
   X
 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
@@ -252,6 +253,7 @@ export function PostDialog({
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [uploading, setUploading] = useState(false)
+  const [mediaSource, setMediaSource] = useState<'clip' | 'upload'>('clip')
   const [confirmDelete, setConfirmDelete] = useState(mode === 'delete')
   const [deletePlatforms, setDeletePlatforms] = useState<ContentPlatform[]>([])
   const [tiktokSettings, setTikTokSettings] =
@@ -1117,159 +1119,202 @@ export function PostDialog({
 
                         <motion.div
                           variants={isPage ? staggerItem : undefined}
-                          className={`grid gap-5 sm:grid-cols-2 ${isPage ? styles.editorWide : ''}`}
+                          className={`space-y-4 ${isPage ? styles.editorWide : ''}`}
                         >
-                          <div>
-                            <PublishingMediaPicker
-                              media={form.media}
-                              disabled={busy}
-                              error={errors.media}
-                              onUploadingChange={setUploading}
-                              onError={(message) =>
-                                setErrors((current) => ({
-                                  ...current,
-                                  media: message
-                                }))
-                              }
-                              onChange={(media) => {
-                                setForm((current) => ({
-                                  ...current,
-                                  media,
-                                  clipId: media.length ? '' : current.clipId
-                                }))
-                                setErrors((current) => ({
-                                  ...current,
-                                  media: undefined,
-                                  clipId: undefined,
-                                  form: undefined
-                                }))
+                          <div className="flex gap-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setMediaSource('clip')
+                                setForm((current) => ({ ...current, media: [] }))
+                                setErrors((current) => ({ ...current, media: undefined }))
                               }}
-                            />
-                            {selectedTikTokAccounts.length > 0 && (
-                              <p className="text-[11px] leading-5 text-muted-foreground">
-                                {t('form.mediaTikTokHint')}
-                              </p>
-                            )}
-                          </div>
-
-                          <div className="space-y-4">
-                          <div>
-                            <Label
-                              htmlFor={`${titleId}-clip`}
-                              className="text-xs font-semibold text-foreground"
+                              className={`flex items-center gap-2 rounded-lg border px-3.5 py-2 text-xs font-medium transition-colors ${
+                                mediaSource === 'clip'
+                                  ? 'border-foreground/20 bg-foreground/5 text-foreground'
+                                  : 'border-border text-muted-foreground hover:border-foreground/15 hover:text-foreground'
+                              }`}
                             >
-                              {t('form.clipLabel')}
-                            </Label>
-                            <div className="mt-1.5">
-                              <Select
-                                value={form.clipId || 'none'}
-                                onValueChange={(value) =>
-                                  handleClipChange(
-                                    value === 'none' ? '' : value
-                                  )
-                                }
-                              >
-                                <SelectTrigger
-                                  id={`${titleId}-clip`}
-                                  aria-invalid={Boolean(errors.clipId)}
-                                  aria-describedby={
-                                    errors.clipId
-                                      ? `${titleId}-clip-error`
-                                      : undefined
-                                  }
-                                  className="h-10 w-full bg-background px-3 text-sm shadow-none"
-                                >
-                                  <Film className="h-4 w-4 text-muted-foreground" />
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent
-                                  position="popper"
-                                  align="start"
-                                  className="z-[130] max-w-[min(28rem,calc(100vw-2rem))]"
-                                >
-                                  <SelectItem value="none">
-                                    {t('form.noClip')}
-                                  </SelectItem>
-                                  {selectableClips.map((clip) => (
-                                    <SelectItem key={clip.id} value={clip.id} className="py-2">
-                                      <span className="flex items-center gap-2.5">
-                                        <span className="relative flex size-8 shrink-0 items-center justify-center overflow-hidden rounded bg-gradient-to-br from-[#0f172a] to-[#1e3a5f]">
-                                          {clip.thumbnailUrl ? (
-                                            <img src={clip.thumbnailUrl} alt="" className="absolute inset-0 size-full object-cover" />
-                                          ) : (
-                                            <Film className="size-3.5 text-white/40" />
-                                          )}
-                                        </span>
-                                        <span className="min-w-0 flex-1 truncate">
-                                          {clip.title}
-                                        </span>
-                                        <span className="ml-auto flex shrink-0 items-center gap-1 text-xs text-amber-500">
-                                          <Star className="size-3 fill-current" />
-                                          {clip.viralScore}
-                                        </span>
-                                      </span>
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            </div>
-                            <FieldError
-                              id={`${titleId}-clip-error`}
-                              message={errors.clipId}
-                            />
+                              <Film className="size-3.5" />
+                              {t('form.mediaSourceClip')}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setMediaSource('upload')
+                                handleClipChange('')
+                              }}
+                              className={`flex items-center gap-2 rounded-lg border px-3.5 py-2 text-xs font-medium transition-colors ${
+                                mediaSource === 'upload'
+                                  ? 'border-foreground/20 bg-foreground/5 text-foreground'
+                                  : 'border-border text-muted-foreground hover:border-foreground/15 hover:text-foreground'
+                              }`}
+                            >
+                              <Upload className="size-3.5" />
+                              {t('form.mediaSourceUpload')}
+                            </button>
                           </div>
 
-                          <AnimatePresence>
-                            {form.clipId && (() => {
-                              const selectedClip = selectableClips.find(
-                                (c) => c.id === form.clipId
-                              )
-                              if (!selectedClip) return null
-                              return (
-                                <motion.div
-                                  key={selectedClip.id}
-                                  initial={reduceMotion ? false : { opacity: 0, y: 8, scale: 0.98 }}
-                                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                                  exit={{ opacity: 0, y: -4, scale: 0.98 }}
-                                  transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-                                  className="flex overflow-hidden rounded-xl border bg-card"
-                                >
-                                  <div className="relative flex w-[110px] shrink-0 items-center justify-center overflow-hidden bg-gradient-to-br from-[#0f172a] to-[#1e3a5f] sm:w-[130px]">
-                                    {selectedClip.thumbnailUrl ? (
-                                      <img
-                                        src={selectedClip.thumbnailUrl}
-                                        alt={selectedClip.title}
-                                        className="absolute inset-0 size-full object-cover"
-                                      />
-                                    ) : (
-                                      <Film className="size-6 text-white/30" />
-                                    )}
-                                    <div className="absolute bottom-1.5 right-1.5 flex items-center gap-1 rounded bg-black/60 px-1.5 py-0.5 text-[10px] font-medium tabular-nums text-white/90 backdrop-blur-sm">
-                                      <Timer className="size-2.5" />
-                                      {Math.floor(selectedClip.duration / 60)}:{String(Math.round(selectedClip.duration % 60)).padStart(2, '0')}
-                                    </div>
-                                  </div>
-                                  <div className="flex min-w-0 flex-1 flex-col justify-center gap-2.5 px-4 py-3">
-                                    <p className="text-sm font-semibold leading-snug text-foreground">
-                                      {selectedClip.title}
-                                    </p>
-                                    <div className="flex flex-wrap items-center gap-2">
-                                      <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-2.5 py-0.5 text-[11px] font-semibold text-amber-700 dark:text-amber-400">
-                                        <Star className="size-3 fill-current" />
-                                        {selectedClip.viralScore}/10
-                                      </span>
-                                      {selectedClip.tiktokEligible && (
-                                        <span className="inline-flex items-center gap-1 rounded-full bg-[#00f2ea]/8 px-2.5 py-0.5 text-[11px] font-medium text-teal-700 dark:text-teal-400">
-                                          TikTok ready
-                                        </span>
-                                      )}
-                                    </div>
-                                  </div>
-                                </motion.div>
-                              )
-                            })()}
+                          <AnimatePresence mode="wait">
+                            {mediaSource === 'upload' ? (
+                              <motion.div
+                                key="upload"
+                                initial={reduceMotion ? false : { opacity: 0, y: 6 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: -6 }}
+                                transition={{ duration: 0.2 }}
+                              >
+                                <PublishingMediaPicker
+                                  media={form.media}
+                                  disabled={busy}
+                                  error={errors.media}
+                                  onUploadingChange={setUploading}
+                                  onError={(message) =>
+                                    setErrors((current) => ({
+                                      ...current,
+                                      media: message
+                                    }))
+                                  }
+                                  onChange={(media) => {
+                                    setForm((current) => ({
+                                      ...current,
+                                      media,
+                                      clipId: media.length ? '' : current.clipId
+                                    }))
+                                    setErrors((current) => ({
+                                      ...current,
+                                      media: undefined,
+                                      clipId: undefined,
+                                      form: undefined
+                                    }))
+                                  }}
+                                />
+                                {selectedTikTokAccounts.length > 0 && (
+                                  <p className="mt-2 text-[11px] leading-5 text-muted-foreground">
+                                    {t('form.mediaTikTokHint')}
+                                  </p>
+                                )}
+                              </motion.div>
+                            ) : (
+                              <motion.div
+                                key="clip"
+                                initial={reduceMotion ? false : { opacity: 0, y: 6 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: -6 }}
+                                transition={{ duration: 0.2 }}
+                                className="space-y-4"
+                              >
+                                <div>
+                                  <Select
+                                    value={form.clipId || 'none'}
+                                    onValueChange={(value) =>
+                                      handleClipChange(
+                                        value === 'none' ? '' : value
+                                      )
+                                    }
+                                  >
+                                    <SelectTrigger
+                                      id={`${titleId}-clip`}
+                                      aria-invalid={Boolean(errors.clipId)}
+                                      aria-describedby={
+                                        errors.clipId
+                                          ? `${titleId}-clip-error`
+                                          : undefined
+                                      }
+                                      className="h-10 w-full bg-background px-3 text-sm shadow-none"
+                                    >
+                                      <Film className="h-4 w-4 text-muted-foreground" />
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent
+                                      position="popper"
+                                      align="start"
+                                      className="z-[130] max-w-[min(28rem,calc(100vw-2rem))]"
+                                    >
+                                      <SelectItem value="none">
+                                        {t('form.noClip')}
+                                      </SelectItem>
+                                      {selectableClips.map((clip) => (
+                                        <SelectItem key={clip.id} value={clip.id} className="py-2">
+                                          <span className="flex items-center gap-2.5">
+                                            <span className="relative flex size-8 shrink-0 items-center justify-center overflow-hidden rounded bg-gradient-to-br from-[#0f172a] to-[#1e3a5f]">
+                                              {clip.thumbnailUrl ? (
+                                                <img src={clip.thumbnailUrl} alt="" className="absolute inset-0 size-full object-cover" />
+                                              ) : (
+                                                <Film className="size-3.5 text-white/40" />
+                                              )}
+                                            </span>
+                                            <span className="min-w-0 flex-1 truncate">
+                                              {clip.title}
+                                            </span>
+                                            <span className="ml-auto flex shrink-0 items-center gap-1 text-xs text-amber-500">
+                                              <Star className="size-3 fill-current" />
+                                              {clip.viralScore}
+                                            </span>
+                                          </span>
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                  <FieldError
+                                    id={`${titleId}-clip-error`}
+                                    message={errors.clipId}
+                                  />
+                                </div>
+
+                                <AnimatePresence>
+                                  {form.clipId && (() => {
+                                    const selectedClip = selectableClips.find(
+                                      (c) => c.id === form.clipId
+                                    )
+                                    if (!selectedClip) return null
+                                    return (
+                                      <motion.div
+                                        key={selectedClip.id}
+                                        initial={reduceMotion ? false : { opacity: 0, y: 8, scale: 0.98 }}
+                                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                                        exit={{ opacity: 0, y: -4, scale: 0.98 }}
+                                        transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+                                        className="flex overflow-hidden rounded-xl border bg-card"
+                                      >
+                                        <div className="relative flex w-[110px] shrink-0 items-center justify-center overflow-hidden bg-gradient-to-br from-[#0f172a] to-[#1e3a5f] sm:w-[130px]">
+                                          {selectedClip.thumbnailUrl ? (
+                                            <img
+                                              src={selectedClip.thumbnailUrl}
+                                              alt={selectedClip.title}
+                                              className="absolute inset-0 size-full object-cover"
+                                            />
+                                          ) : (
+                                            <Film className="size-6 text-white/30" />
+                                          )}
+                                          <div className="absolute bottom-1.5 right-1.5 flex items-center gap-1 rounded bg-black/60 px-1.5 py-0.5 text-[10px] font-medium tabular-nums text-white/90 backdrop-blur-sm">
+                                            <Timer className="size-2.5" />
+                                            {Math.floor(selectedClip.duration / 60)}:{String(Math.round(selectedClip.duration % 60)).padStart(2, '0')}
+                                          </div>
+                                        </div>
+                                        <div className="flex min-w-0 flex-1 flex-col justify-center gap-2.5 px-4 py-3">
+                                          <p className="text-sm font-semibold leading-snug text-foreground">
+                                            {selectedClip.title}
+                                          </p>
+                                          <div className="flex flex-wrap items-center gap-2">
+                                            <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-2.5 py-0.5 text-[11px] font-semibold text-amber-700 dark:text-amber-400">
+                                              <Star className="size-3 fill-current" />
+                                              {selectedClip.viralScore}/10
+                                            </span>
+                                            {selectedClip.tiktokEligible && (
+                                              <span className="inline-flex items-center gap-1 rounded-full bg-[#00f2ea]/8 px-2.5 py-0.5 text-[11px] font-medium text-teal-700 dark:text-teal-400">
+                                                TikTok ready
+                                              </span>
+                                            )}
+                                          </div>
+                                        </div>
+                                      </motion.div>
+                                    )
+                                  })()}
+                                </AnimatePresence>
+                              </motion.div>
+                            )}
                           </AnimatePresence>
-                          </div>
                         </motion.div>
 
                         <motion.div
