@@ -89,7 +89,7 @@ type FormState = {
 type FormErrors = Partial<Record<keyof FormState | 'form' | 'tiktok', string>>
 
 const inputClassName =
-  'w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground shadow-none outline-none transition-all duration-200 placeholder:text-muted-foreground/60 hover:border-primary/25 focus:border-primary/40 focus:bg-background focus:outline-none focus:ring-2 focus:ring-primary/10 focus-visible:border-primary/40 focus-visible:bg-background focus-visible:ring-2 focus-visible:ring-primary/10'
+  'w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground shadow-none outline-none placeholder:text-muted-foreground/60'
 
 const platformColors: Record<string, string> = {
   tiktok: 'border-[#00f2ea]/40 bg-[#00f2ea]/5 text-foreground shadow-[0_0_0_1px_rgba(0,242,234,0.1)]',
