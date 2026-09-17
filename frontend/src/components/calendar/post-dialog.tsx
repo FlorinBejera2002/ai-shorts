@@ -1119,10 +1119,7 @@ export function PostDialog({
                           variants={isPage ? staggerItem : undefined}
                           className={`grid gap-5 sm:grid-cols-2 ${isPage ? styles.editorWide : ''}`}
                         >
-                          <div className="space-y-2">
-                            <Label className="text-xs font-semibold text-foreground">
-                              {t('form.mediaLabel')}
-                            </Label>
+                          <div>
                             <PublishingMediaPicker
                               media={form.media}
                               disabled={busy}

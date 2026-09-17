@@ -145,7 +145,7 @@ export function PublishingMediaPicker({
         {t('form.mediaLabel')}
       </label>
       <label
-        className={`relative mt-2 flex items-center gap-3 rounded-md border border-border bg-card px-4 focus-within:ring-2 focus-within:ring-foreground ${progress ? 'min-h-48 cursor-wait py-5' : `min-h-20 py-3 ${disabled ? 'opacity-60' : 'cursor-pointer'}`}`}
+        className={`relative mt-2 flex items-center gap-3 rounded-md border border-border bg-card px-4 ${progress ? 'min-h-48 cursor-wait py-5' : `min-h-20 py-3 ${disabled ? 'opacity-60' : 'cursor-pointer'}`}`}
       >
         <input
           id={inputId}
@@ -175,14 +175,8 @@ export function PublishingMediaPicker({
           <>
             <ImagePlus className="size-5 shrink-0" />
             <span className="min-w-0">
-              <span className="block text-xs font-semibold">
+              <span id={`${inputId}-hint`} className="block text-xs font-semibold">
                 {media.length ? t('form.mediaAdd') : t('form.mediaChoose')}
-              </span>
-              <span
-                id={`${inputId}-hint`}
-                className="mt-1 block text-[11px] leading-5 text-muted-foreground"
-              >
-                {t('form.mediaHint')}
               </span>
             </span>
             <span className="ml-auto shrink-0 text-xs tabular-nums text-muted-foreground">
@@ -191,9 +185,6 @@ export function PublishingMediaPicker({
           </>
         )}
       </label>
-      <p className="mt-2 text-[11px] leading-5 text-muted-foreground">
-        {t('form.mediaQualityHint')}
-      </p>
       {media.length > 0 && (
         <div className="mt-3">
           <p className="mb-2 text-[11px] text-muted-foreground">

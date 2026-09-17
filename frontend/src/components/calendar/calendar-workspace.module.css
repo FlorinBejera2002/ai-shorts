@@ -77,9 +77,13 @@
   }
 }
 .dialog input:focus-visible,
-.dialog textarea:focus-visible {
-  outline: none;
+.dialog textarea:focus-visible,
+.dialog button:focus-visible,
+.dialog [data-slot="select-trigger"]:focus-visible {
+  outline: none !important;
   outline-offset: 0;
+  box-shadow: none !important;
+  border-color: var(--border) !important;
 }
 .metrics {
   display: grid;
