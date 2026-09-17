@@ -11,7 +11,10 @@ import type {
   ContentPlatform,
   ScheduledPostRecord
 } from '@/lib/content-calendar'
-import type { PublishingData } from '@/lib/publishing'
+import {
+  type PublishingData,
+  isPublishingAccountUsable
+} from '@/lib/publishing'
 import { AlertCircle, RefreshCw } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
 import { useSearchParams } from 'next/navigation'
@@ -262,8 +265,7 @@ export function ContentCalendar() {
     () =>
       (publishingData?.accounts ?? []).filter(
         (account) =>
-          account.status === 'connected' &&
-          account.tokenExpired !== true &&
+          isPublishingAccountUsable(account) &&
           publishingData?.providers.some(
             (provider) =>
               provider.id === account.provider && provider.supportsPublishing
@@ -331,7 +333,14 @@ export function ContentCalendar() {
         body: JSON.stringify(payload)
       })
       post = data.post
-      toast.add('success', t('toasts.created'))
+      toast.add(
+        'success',
+        t(
+          payload.status === 'publish' || post.status === 'publishing'
+            ? 'toasts.publishing'
+            : 'toasts.created'
+        )
+      )
     } else {
       const data = await requestJson<PostResponse>(
         `/api/calendar/${dialog.post.id}`,
@@ -345,7 +354,11 @@ export function ContentCalendar() {
       toast.add(
         'success',
         t(
-          dialog.mode === 'reschedule' ? 'toasts.rescheduled' : 'toasts.updated'
+          payload.status === 'publish' || post.status === 'publishing'
+            ? 'toasts.publishing'
+            : dialog.mode === 'reschedule'
+              ? 'toasts.rescheduled'
+              : 'toasts.updated'
         )
       )
     }
@@ -481,6 +494,7 @@ export function ContentCalendar() {
           }
           post={dialog.mode === 'create' ? undefined : dialog.post}
           clips={clips}
+          publishingClips={publishingData?.clips ?? []}
           publishingAccounts={publishingAccounts}
           platformConnectionsLoaded={publishingData !== null}
           timeZone={timeZone}

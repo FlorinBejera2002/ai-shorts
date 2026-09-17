@@ -74,7 +74,12 @@ function fixture() {
       return { extractApiError: (_data, fallback) => fallback }
     }
     if (name === '@/lib/publishing') {
-      return { withAllPublishingProviders: (providers) => providers }
+      return {
+        isPublishingAccountUsable: (account) =>
+          account.status === 'connected' &&
+          (account.provider === 'tiktok' || account.tokenExpired !== true),
+        withAllPublishingProviders: (providers) => providers
+      }
     }
     if (name.endsWith('/toast')) {
       return { useToast: () => ({ add: (...args) => toasts.push(args) }) }

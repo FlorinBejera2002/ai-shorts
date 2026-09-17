@@ -12,6 +12,7 @@ import {
   SelectValue
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
+import { useTikTokCreatorOptions } from '@/hooks/use-tiktok-creator-options'
 import { PublishingMediaPicker } from './publishing-media-picker'
 import {
   incompatibleMediaPlatforms,
@@ -25,7 +26,15 @@ import type {
   PublishingMedia,
   ScheduledPostRecord
 } from '@/lib/content-calendar'
-import type { PublishingAccount } from '@/lib/publishing'
+import type { PublishingAccount, PublishingData } from '@/lib/publishing'
+import {
+  INITIAL_TIKTOK_SETTINGS,
+  type TikTokDirectPostSettings,
+  createCalendarTikTokPublishingOptions,
+  resolveCalendarTikTokClip,
+  settingsFromTikTokPublishingOptions,
+  validateTikTokDirectPost
+} from '@/lib/tiktok-direct-post'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import {
   AlertTriangle,
@@ -58,6 +67,7 @@ import {
 import styles from './calendar-workspace.module.css'
 import { PlatformOptionIcon } from './platform-mark'
 import { SchedulePicker } from './schedule-picker'
+import { TikTokPostSettings } from './tiktok-post-settings'
 
 type DialogMode = 'create' | 'edit' | 'reschedule' | 'delete'
 
@@ -74,7 +84,7 @@ type FormState = {
   media: PublishingMedia[]
 }
 
-type FormErrors = Partial<Record<keyof FormState | 'form', string>>
+type FormErrors = Partial<Record<keyof FormState | 'form' | 'tiktok', string>>
 
 const inputClassName =
   'w-full rounded-md border border-border bg-background px-3 text-sm text-foreground shadow-none outline-none transition-colors placeholder:text-muted-foreground/70 hover:border-border hover:bg-background focus:border-border focus:bg-background focus:outline-none focus:ring-0 focus-visible:border-border focus-visible:bg-background focus-visible:ring-0'
@@ -159,6 +169,7 @@ export function PostDialog({
   selectedDate,
   post,
   clips,
+  publishingClips,
   publishingAccounts,
   platformConnectionsLoaded,
   timeZone,
@@ -172,6 +183,7 @@ export function PostDialog({
   selectedDate: Date
   post?: ScheduledPostRecord
   clips: CalendarClipOption[]
+  publishingClips: PublishingData['clips']
   publishingAccounts: PublishingAccount[]
   platformConnectionsLoaded: boolean
   timeZone: string
@@ -182,6 +194,7 @@ export function PostDialog({
   onDelete?: (platforms: ContentPlatform[]) => Promise<void>
 }) {
   const t = useTranslations('contentCalendar')
+  const publishingT = useTranslations('publishing')
   const reduceMotion = useReducedMotion()
   const titleId = useId()
   const dialogRef = useRef<HTMLDivElement>(null)
@@ -208,6 +221,10 @@ export function PostDialog({
   const [uploading, setUploading] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(mode === 'delete')
   const [deletePlatforms, setDeletePlatforms] = useState<ContentPlatform[]>([])
+  const [tiktokSettings, setTikTokSettings] =
+    useState<TikTokDirectPostSettings>(() =>
+      settingsFromTikTokPublishingOptions(post?.tiktok)
+    )
   const busy = saving || deleting || uploading
 
   const publishedProviders = useMemo(
@@ -226,6 +243,17 @@ export function PostDialog({
     () => new Set(form.accountIds),
     [form.accountIds]
   )
+  const selectedTikTokAccounts = useMemo(
+    () =>
+      publishingAccounts.filter(
+        (account) =>
+          account.provider === 'tiktok' && selectedAccountIds.has(account.id)
+      ),
+    [publishingAccounts, selectedAccountIds]
+  )
+  const selectedTikTokAccount = selectedTikTokAccounts[0]
+  const { state: tiktokOptionsState, retry: retryTikTokOptions } =
+    useTikTokCreatorOptions(selectedTikTokAccount?.id)
   const selectableClips =
     post?.clip && !clips.some((clip) => clip.id === post.clip?.id)
       ? [
@@ -238,6 +266,11 @@ export function PostDialog({
           ...clips
         ]
       : clips
+  const selectedTikTokClip = resolveCalendarTikTokClip({
+    calendarClips: selectableClips,
+    clipId: form.clipId,
+    publishingClips
+  })
 
   useEffect(() => {
     onCloseRef.current = onClose
@@ -335,10 +368,27 @@ export function PostDialog({
   }
 
   function toggleAccount(account: PublishingAccount) {
+    const removing = selectedAccountIds.has(account.id)
+    if (account.provider === 'tiktok') {
+      const replacingAccount =
+        !removing && selectedTikTokAccount?.id !== account.id
+      if (removing || replacingAccount) {
+        setTikTokSettings({ ...INITIAL_TIKTOK_SETTINGS })
+      }
+    }
     setForm((current) => {
       const currentAccountIds = new Set(current.accountIds)
-      const removing = currentAccountIds.delete(account.id)
-      if (!removing) currentAccountIds.add(account.id)
+      const removed = currentAccountIds.delete(account.id)
+      if (!removed) {
+        if (account.provider === 'tiktok') {
+          for (const candidate of publishingAccounts) {
+            if (candidate.provider === 'tiktok') {
+              currentAccountIds.delete(candidate.id)
+            }
+          }
+        }
+        currentAccountIds.add(account.id)
+      }
       const nextAccountIds = [...currentAccountIds]
       const selectedProviders = new Set(
         publishingAccounts
@@ -348,19 +398,48 @@ export function PostDialog({
       return {
         ...current,
         accountIds: nextAccountIds,
-        platforms: [...selectedProviders]
+        platforms: [...selectedProviders],
+        media: !removed && account.provider === 'tiktok' ? [] : current.media
       }
     })
     setErrors((current) => ({
       ...current,
       platforms: undefined,
       accountIds: undefined,
+      media: undefined,
+      clipId: undefined,
+      form: undefined
+    }))
+  }
+
+  function updateTikTokSetting<Key extends keyof TikTokDirectPostSettings>(
+    key: Key,
+    value: TikTokDirectPostSettings[Key]
+  ) {
+    setTikTokSettings((current) => ({
+      ...current,
+      [key]: value,
+      ...(key === 'commercialContent' && value === false
+        ? { ownBrand: false, brandedContent: false }
+        : {}),
+      ...(key === 'privacyLevel' && value === 'SELF_ONLY'
+        ? { brandedContent: false }
+        : {}),
+      ...(key === 'commercialContent' ||
+      key === 'ownBrand' ||
+      key === 'brandedContent'
+        ? { policyConsent: false }
+        : {})
+    }))
+    setErrors((current) => ({
+      ...current,
+      tiktok: undefined,
       form: undefined
     }))
   }
 
   function handleClipChange(clipId: string) {
-    const clip = clips.find((item) => item.id === clipId)
+    const clip = selectableClips.find((item) => item.id === clipId)
     setForm((current) => ({
       ...current,
       clipId,
@@ -380,6 +459,18 @@ export function PostDialog({
   function validate(): { payload?: PostFormPayload; errors: FormErrors } {
     const nextErrors: FormErrors = {}
     const scheduledAt = combineLocalDateTime(form.date, form.time)
+    const tiktokValidationErrors = selectedTikTokAccounts.length
+      ? validateTikTokDirectPost({
+          accountId:
+            selectedTikTokAccounts.length === 1
+              ? (selectedTikTokAccount?.id ?? '')
+              : '',
+          caption: form.caption,
+          clip: selectedTikTokClip,
+          options: tiktokOptionsState.value,
+          settings: tiktokSettings
+        })
+      : []
 
     if (mode !== 'reschedule') {
       if (!form.title.trim()) nextErrors.title = t('validation.titleRequired')
@@ -419,6 +510,37 @@ export function PostDialog({
       if (form.status !== 'draft' && !form.clipId && form.media.length === 0) {
         nextErrors.clipId = t('validation.clipRequired')
       }
+      if (form.status !== 'draft' && selectedTikTokAccounts.length > 0) {
+        if (selectedTikTokAccounts.length !== 1) {
+          nextErrors.accountIds = t('validation.tiktokAccountRequired')
+        }
+        if (
+          form.media.length > 0 ||
+          tiktokValidationErrors.includes('clipRequired') ||
+          tiktokValidationErrors.includes('clipIneligible')
+        ) {
+          nextErrors.clipId = t('validation.tiktokClipRequired')
+        } else if (tiktokValidationErrors.includes('clipTooLong')) {
+          nextErrors.clipId = publishingT('tooLong')
+        }
+        if (tiktokValidationErrors.includes('captionRequired')) {
+          nextErrors.caption = t('validation.tiktokCaptionRequired')
+        } else if (tiktokValidationErrors.includes('captionTooLong')) {
+          nextErrors.caption = publishingT('captionTooLong')
+        }
+        if (tiktokValidationErrors.includes('commercialTypeRequired')) {
+          nextErrors.tiktok = publishingT('commercialTypeRequired')
+        } else if (tiktokValidationErrors.includes('brandedContentPrivacy')) {
+          nextErrors.tiktok = publishingT('brandPrivacy')
+        } else if (
+          tiktokValidationErrors.includes('creatorOptionsRequired') ||
+          tiktokValidationErrors.includes('privacyRequired') ||
+          tiktokValidationErrors.includes('privacyUnavailable') ||
+          tiktokValidationErrors.includes('policyConsentRequired')
+        ) {
+          nextErrors.tiktok = t('validation.tiktokSettingsRequired')
+        }
+      }
     }
 
     if (!form.date) nextErrors.date = t('validation.dateRequired')
@@ -438,6 +560,15 @@ export function PostDialog({
       }
     }
 
+    const tiktok = createCalendarTikTokPublishingOptions({
+      creatorOptions: tiktokOptionsState.value,
+      hasUploadedMedia: form.media.length > 0,
+      selectedAccountCount: selectedTikTokAccounts.length,
+      settings: tiktokSettings,
+      status: form.status,
+      validationErrors: tiktokValidationErrors
+    })
+
     return {
       errors: nextErrors,
       payload: {
@@ -452,7 +583,8 @@ export function PostDialog({
             ? scheduledAt.toISOString()
             : new Date().toISOString(),
         clipId: form.clipId || null,
-        media: form.media
+        media: form.media,
+        ...(tiktok ? { tiktok } : {})
       }
     }
   }
@@ -467,21 +599,38 @@ export function PostDialog({
       if (issue.field === 'title') {
         fieldErrors.title = t('validation.titleInvalid')
       } else if (issue.field === 'caption') {
-        fieldErrors.caption = t('validation.captionLength')
+        fieldErrors.caption =
+          selectedTikTokAccounts.length > 0
+            ? form.caption.trim()
+              ? publishingT('captionTooLong')
+              : t('validation.tiktokCaptionRequired')
+            : t('validation.captionLength')
       } else if (issue.field === 'notes') {
         fieldErrors.notes = t('validation.notesLength')
       } else if (issue.field === 'platforms') {
         fieldErrors.platforms = t('validation.platformRequired')
       } else if (issue.field === 'accountIds') {
-        fieldErrors.accountIds = t('validation.accountRequired')
+        fieldErrors.accountIds =
+          selectedTikTokAccounts.length > 0
+            ? t('validation.tiktokAccountRequired')
+            : t('validation.accountRequired')
       } else if (issue.field === 'scheduledAt') {
         fieldErrors.date = t('validation.dateInvalid')
       } else if (issue.field === 'clipId') {
-        fieldErrors.clipId = t('validation.clipInvalid')
+        fieldErrors.clipId =
+          selectedTikTokAccounts.length > 0
+            ? t('validation.tiktokClipRequired')
+            : t('validation.clipInvalid')
       } else if (issue.field === 'media') {
-        fieldErrors.media = issue.message
+        if (selectedTikTokAccounts.length > 0) {
+          fieldErrors.clipId = t('validation.tiktokClipRequired')
+        } else {
+          fieldErrors.media = issue.message
+        }
       } else if (issue.field === 'status') {
         fieldErrors.status = t('validation.statusInvalid')
+      } else if (issue.field === 'tiktok') {
+        fieldErrors.tiktok = t('validation.tiktokSettingsRequired')
       }
     }
 
@@ -794,8 +943,9 @@ export function PostDialog({
                                 key={account.id}
                                 type="button"
                                 aria-pressed={selected}
+                                disabled={busy}
                                 onClick={() => toggleAccount(account)}
-                                className={`relative flex min-h-11 items-center gap-2 rounded-md border px-3 text-xs font-semibold transition-[transform,background-color,border-color,box-shadow,color] ${
+                                className={`relative flex min-h-11 items-center gap-2 rounded-md border px-3 text-xs font-semibold transition-[transform,background-color,border-color,box-shadow,color] disabled:cursor-not-allowed disabled:opacity-60 ${
                                   selected
                                     ? 'border-foreground bg-foreground text-background shadow-sm'
                                     : 'border-border bg-background text-muted-foreground hover:-translate-y-px hover:bg-muted hover:text-foreground hover:shadow-sm'
@@ -838,7 +988,7 @@ export function PostDialog({
 
                       <PublishingMediaPicker
                         media={form.media}
-                        disabled={busy}
+                        disabled={busy || selectedTikTokAccounts.length > 0}
                         error={errors.media}
                         onUploadingChange={setUploading}
                         onError={(message) =>
@@ -861,6 +1011,11 @@ export function PostDialog({
                           }))
                         }}
                       />
+                      {selectedTikTokAccounts.length > 0 && (
+                        <p className="-mt-3 text-[11px] leading-5 text-muted-foreground">
+                          {t('form.mediaTikTokDisabled')}
+                        </p>
+                      )}
 
                       <div className="grid gap-4 pt-1 sm:grid-cols-2">
                         <div>
@@ -985,13 +1140,17 @@ export function PostDialog({
                           htmlFor={`${titleId}-caption`}
                           className="text-xs font-semibold text-foreground"
                         >
-                          {t('form.captionLabel')}
+                          {selectedTikTokAccounts.length > 0
+                            ? t('form.captionLabelTikTok')
+                            : t('form.captionLabel')}
                         </Label>
                         <Textarea
                           id={`${titleId}-caption`}
                           value={form.caption}
                           rows={4}
-                          maxLength={5000}
+                          maxLength={
+                            selectedTikTokAccounts.length > 0 ? 2200 : 5000
+                          }
                           aria-invalid={Boolean(errors.caption)}
                           aria-describedby={
                             errors.caption
@@ -1010,10 +1169,28 @@ export function PostDialog({
                             message={errors.caption}
                           />
                           <span className="ml-auto mt-1.5 text-[10px] tabular-nums text-muted-foreground">
-                            {form.caption.length}/5000
+                            {form.caption.length}/
+                            {selectedTikTokAccounts.length > 0 ? 2200 : 5000}
                           </span>
                         </div>
                       </div>
+                      {selectedTikTokAccount && (
+                        <div className="space-y-2 pt-1">
+                          <TikTokPostSettings
+                            clip={selectedTikTokClip}
+                            disabled={busy}
+                            idPrefix={`${titleId}-tiktok`}
+                            settings={tiktokSettings}
+                            optionsState={tiktokOptionsState}
+                            onChange={updateTikTokSetting}
+                            onRetry={retryTikTokOptions}
+                          />
+                          <FieldError
+                            id={`${titleId}-tiktok-error`}
+                            message={errors.tiktok}
+                          />
+                        </div>
+                      )}
                       <div className="pt-1">
                         <Label
                           htmlFor={`${titleId}-notes`}

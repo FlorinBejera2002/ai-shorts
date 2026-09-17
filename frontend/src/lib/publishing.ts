@@ -54,6 +54,7 @@ export type PublishingData = {
     tiktokEligible?: boolean
     thumbnailUrl?: string
     fileUrl?: string
+    captionTiktok?: string
   }[]
   posts: PublishingPost[]
 }
@@ -81,4 +82,11 @@ export type CreatorOptions = {
   stitchDisabled: boolean
   maxDuration: number
   nickname: string
+}
+
+export function isPublishingAccountUsable(account: PublishingAccount) {
+  return (
+    account.status === 'connected' &&
+    (account.provider === 'tiktok' || account.tokenExpired !== true)
+  )
 }

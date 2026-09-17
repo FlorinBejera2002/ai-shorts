@@ -62,6 +62,25 @@ Creating these resources does not grant public API access. Instagram product
 secret configuration, TikTok application credentials and provider reviews remain needed.
 No production migration, activation or live post has been performed.
 
+### TikTok follow-up (2026-09-16)
+
+- TikTok now shows `sneepcut.com` as verified.
+- Sandbox app `7683612649498593301` is saved with the Web platform, Login Kit,
+  Direct Post, the production callback URL and the 1024px app icon.
+- A sandbox target account still needs to be added through TikTok's interactive
+  login. No sandbox post, production app review or Direct Post audit has been
+  submitted yet.
+- TikTok uses the existing connected-accounts card and the existing calendar
+  post dialog alongside Instagram and Facebook; there is no separate TikTok
+  publishing page. The dialog refreshes creator options, requires a manual
+  audience choice, keeps viewer interactions and commercial disclosure off by
+  default, shows the selected clip preview and supports the AI-generated-content
+  disclosure. Scheduled and immediate posts use the same durable publishing
+  worker and status history.
+- The production server still needs TikTok credentials and the verified media
+  URL prefix before this flow can be used for the sandbox recording. Keep the
+  production app in Draft until the deployed end-to-end flow can be recorded.
+
 ## Callbacks and public pages
 
 Register these exact OAuth redirect URLs in the corresponding product:

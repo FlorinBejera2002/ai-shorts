@@ -25,11 +25,17 @@ type Media interface {
 	KeyFromReference(string) (string, error)
 	SignedURL(context.Context, string) (string, error)
 }
+type TikTokScheduleValidator interface {
+	PrepareTikTokSchedule(context.Context, string, []string) (string, error)
+	ValidateTikTokSchedule(context.Context, *sql.Tx, string, string, string, string, publishing.TikTokOptions) (string, error)
+}
 type PostClip struct {
-	ID           string  `json:"id"`
-	Title        string  `json:"title"`
-	ViralScore   float64 `json:"viralScore"`
-	ThumbnailURL *string `json:"thumbnailUrl"`
+	ID             string  `json:"id"`
+	Title          string  `json:"title"`
+	ViralScore     float64 `json:"viralScore"`
+	Duration       float64 `json:"duration"`
+	TikTokEligible bool    `json:"tiktokEligible"`
+	ThumbnailURL   *string `json:"thumbnailUrl"`
 }
 type ClipOption struct {
 	PostClip
@@ -38,20 +44,21 @@ type ClipOption struct {
 	CaptionYoutube   *string `json:"captionYoutube"`
 }
 type Post struct {
-	ID                     string                  `json:"id"`
-	Title                  string                  `json:"title"`
-	Caption                *string                 `json:"caption"`
-	Notes                  *string                 `json:"notes"`
-	Platforms              []string                `json:"platforms"`
-	AccountIDs             []string                `json:"accountIds"`
-	Status                 string                  `json:"status"`
-	PublishingError        string                  `json:"publishingError,omitempty"`
-	PublishingDestinations []PublishingDestination `json:"publishingDestinations"`
-	ScheduledAt            string                  `json:"scheduledAt"`
-	CreatedAt              string                  `json:"createdAt"`
-	UpdatedAt              string                  `json:"updatedAt"`
-	Clip                   *PostClip               `json:"clip"`
-	Media                  []map[string]string     `json:"media"`
+	ID                     string                    `json:"id"`
+	Title                  string                    `json:"title"`
+	Caption                *string                   `json:"caption"`
+	Notes                  *string                   `json:"notes"`
+	Platforms              []string                  `json:"platforms"`
+	AccountIDs             []string                  `json:"accountIds"`
+	Status                 string                    `json:"status"`
+	PublishingError        string                    `json:"publishingError,omitempty"`
+	PublishingDestinations []PublishingDestination   `json:"publishingDestinations"`
+	ScheduledAt            string                    `json:"scheduledAt"`
+	CreatedAt              string                    `json:"createdAt"`
+	UpdatedAt              string                    `json:"updatedAt"`
+	Clip                   *PostClip                 `json:"clip"`
+	Media                  []map[string]string       `json:"media"`
+	TikTok                 *publishing.TikTokOptions `json:"tiktok,omitempty"`
 }
 type PublishingDestination struct {
 	Provider    string `json:"provider"`
@@ -63,12 +70,19 @@ type PublishingDestination struct {
 	UpdatedAt   string `json:"updatedAt"`
 }
 type Repository struct {
-	db    *sql.DB
-	media Media
+	db              *sql.DB
+	media           Media
+	tiktokValidator TikTokScheduleValidator
 }
 
-func NewRepository(db *sql.DB, media Media) *Repository { return &Repository{db: db, media: media} }
-func isoDate(t time.Time) string                        { return t.UTC().Format("2006-01-02T15:04:05.000Z") }
+func NewRepository(db *sql.DB, media Media, validators ...TikTokScheduleValidator) *Repository {
+	repository := &Repository{db: db, media: media}
+	if len(validators) > 0 {
+		repository.tiktokValidator = validators[0]
+	}
+	return repository
+}
+func isoDate(t time.Time) string { return t.UTC().Format("2006-01-02T15:04:05.000Z") }
 func (s *Repository) thumbnail(ctx context.Context, references ...sql.NullString) *string {
 	if s.media == nil {
 		return nil
@@ -89,8 +103,8 @@ func (s *Repository) thumbnail(ctx context.Context, references ...sql.NullString
 	return nil
 }
 
-const postSelect = `SELECT p.id,p.title,p.caption,p.notes,p.platforms,p.account_ids,p.status,p.publishing_error,p.scheduled_at,p.created_at,p.updated_at,p.media,
-	c.id,c.title,c.viral_score,c.thumbnail_storage_key,c.thumbnail_path,c.thumbnail_url,
+const postSelect = `SELECT p.id,p.title,p.caption,p.notes,p.platforms,p.account_ids,p.status,p.publishing_error,p.scheduled_at,p.created_at,p.updated_at,p.media,p.tiktok_options,
+	c.id,c.title,c.viral_score,c.duration,c.contains_platform_badge IS FALSE,c.thumbnail_storage_key,c.thumbnail_path,c.thumbnail_url,
 	COALESCE((SELECT jsonb_agg(jsonb_build_object(
 		'provider',sp.provider,'accountName',COALESCE(NULLIF(a.username,''),NULLIF(a.name,''),sp.provider),
 		'status',sp.status,'error',sp.error,'url',sp.url,'createdAt',sp.created_at,'updatedAt',sp.updated_at
@@ -104,9 +118,10 @@ func (s *Repository) readPost(ctx context.Context, row rowScanner) (Post, error)
 	var p Post
 	var scheduled, created, updated time.Time
 	var clipID, clipTitle, thumbKey, thumbPath, thumbURL sql.NullString
-	var score sql.NullFloat64
-	var destinations, mediaJSON []byte
-	e := row.Scan(&p.ID, &p.Title, &p.Caption, &p.Notes, pq.Array(&p.Platforms), pq.Array(&p.AccountIDs), &p.Status, &p.PublishingError, &scheduled, &created, &updated, &mediaJSON, &clipID, &clipTitle, &score, &thumbKey, &thumbPath, &thumbURL, &destinations)
+	var score, duration sql.NullFloat64
+	var tiktokEligible bool
+	var destinations, mediaJSON, tiktokJSON []byte
+	e := row.Scan(&p.ID, &p.Title, &p.Caption, &p.Notes, pq.Array(&p.Platforms), pq.Array(&p.AccountIDs), &p.Status, &p.PublishingError, &scheduled, &created, &updated, &mediaJSON, &tiktokJSON, &clipID, &clipTitle, &score, &duration, &tiktokEligible, &thumbKey, &thumbPath, &thumbURL, &destinations)
 	if e != nil {
 		return p, e
 	}
@@ -116,11 +131,22 @@ func (s *Repository) readPost(ctx context.Context, row rowScanner) (Post, error)
 	if e = json.Unmarshal(mediaJSON, &p.Media); e != nil {
 		return p, e
 	}
+	var persistedTikTok map[string]any
+	if e = json.Unmarshal(tiktokJSON, &persistedTikTok); e != nil {
+		return p, e
+	}
+	if len(persistedTikTok) > 0 {
+		var options publishing.TikTokOptions
+		if e = json.Unmarshal(tiktokJSON, &options); e != nil {
+			return p, e
+		}
+		p.TikTok = &options
+	}
 	p.ScheduledAt = isoDate(scheduled)
 	p.CreatedAt = isoDate(created)
 	p.UpdatedAt = isoDate(updated)
 	if clipID.Valid {
-		p.Clip = &PostClip{ID: clipID.String, Title: clipTitle.String, ViralScore: score.Float64, ThumbnailURL: s.thumbnail(ctx, thumbKey, thumbPath, thumbURL)}
+		p.Clip = &PostClip{ID: clipID.String, Title: clipTitle.String, ViralScore: score.Float64, Duration: duration.Float64, TikTokEligible: tiktokEligible, ThumbnailURL: s.thumbnail(ctx, thumbKey, thumbPath, thumbURL)}
 	}
 	return p, nil
 }
@@ -161,7 +187,7 @@ func (s *Repository) List(ctx context.Context, userID string, start, end time.Ti
 	if e != nil {
 		return result, e
 	}
-	rows, e = s.db.QueryContext(ctx, `SELECT id,title,viral_score,thumbnail_storage_key,thumbnail_path,thumbnail_url,caption_tiktok,caption_instagram,caption_youtube FROM clips WHERE user_id=$1 ORDER BY created_at DESC,id DESC LIMIT $2`, userID, RecentClipLimit)
+	rows, e = s.db.QueryContext(ctx, `SELECT id,title,viral_score,duration,contains_platform_badge IS FALSE,thumbnail_storage_key,thumbnail_path,thumbnail_url,caption_tiktok,caption_instagram,caption_youtube FROM clips WHERE user_id=$1 ORDER BY created_at DESC,id DESC LIMIT $2`, userID, RecentClipLimit)
 	if e != nil {
 		return result, e
 	}
@@ -169,7 +195,7 @@ func (s *Repository) List(ctx context.Context, userID string, start, end time.Ti
 	for rows.Next() {
 		var c ClipOption
 		var key, path, url sql.NullString
-		if e = rows.Scan(&c.ID, &c.Title, &c.ViralScore, &key, &path, &url, &c.CaptionTiktok, &c.CaptionInstagram, &c.CaptionYoutube); e != nil {
+		if e = rows.Scan(&c.ID, &c.Title, &c.ViralScore, &c.Duration, &c.TikTokEligible, &key, &path, &url, &c.CaptionTiktok, &c.CaptionInstagram, &c.CaptionYoutube); e != nil {
 			return result, e
 		}
 		c.ThumbnailURL = s.thumbnail(ctx, key, path, url)
@@ -200,6 +226,61 @@ func lockUser(ctx context.Context, tx *sql.Tx, userID string) error {
 	}
 	return nil
 }
+func encodeTikTokOptions(options publishing.TikTokOptions) []byte {
+	if options == (publishing.TikTokOptions{}) {
+		return []byte(`{}`)
+	}
+	encoded, _ := json.Marshal(options)
+	return encoded
+}
+func tiktokIssue(field string) Issue {
+	switch field {
+	case "accountIds":
+		return Issue{field, "Reconnect the selected TikTok account and try again"}
+	case "clipId":
+		return Issue{field, "Choose an eligible TikTok clip from your library"}
+	case "caption":
+		return Issue{field, "TikTok captions must contain between 1 and 2,200 characters"}
+	default:
+		return Issue{"tiktok", "Review the TikTok settings and creator restrictions"}
+	}
+}
+
+func (s *Repository) prepareTikTokSchedule(ctx context.Context, userID, id string, fields map[string]any, create bool) ([]string, error) {
+	if s.tiktokValidator == nil {
+		return nil, nil
+	}
+	var status string
+	var accountIDs []string
+	if create {
+		status = fields["status"].(string)
+		accountIDs = fields["accountIds"].([]string)
+	} else {
+		var persisted pq.StringArray
+		if err := s.db.QueryRowContext(ctx, `SELECT status,account_ids FROM scheduled_posts WHERE id=$1 AND user_id=$2`, id, userID).Scan(&status, &persisted); err != nil {
+			return nil, err
+		}
+		accountIDs = []string(persisted)
+		if value, ok := fields["status"]; ok {
+			status = value.(string)
+		}
+		if value, ok := fields["accountIds"]; ok {
+			accountIDs = value.([]string)
+		}
+	}
+	if status != "scheduled" && status != "publish" {
+		return nil, nil
+	}
+	field, err := s.tiktokValidator.PrepareTikTokSchedule(ctx, userID, accountIDs)
+	if err == nil {
+		return append([]string(nil), accountIDs...), nil
+	}
+	if field == "" {
+		return nil, err
+	}
+	return nil, &ValidationError{Issues: []Issue{tiktokIssue(field)}}
+}
+
 func (s *Repository) Mutate(ctx context.Context, userID, id string, input map[string]any, create bool) (Post, error) {
 	var empty Post
 	fields, e := Validate(input, create)
@@ -215,6 +296,11 @@ func (s *Repository) Mutate(ctx context.Context, userID, id string, input map[st
 			item["reference"] = key
 		}
 	}
+	preparedAccountIDs, prepareErr := s.prepareTikTokSchedule(ctx, userID, id, fields, create)
+	if prepareErr != nil {
+		e = prepareErr
+		return empty, e
+	}
 	tx, e := s.db.BeginTx(ctx, nil)
 	if e != nil {
 		return empty, e
@@ -225,9 +311,11 @@ func (s *Repository) Mutate(ctx context.Context, userID, id string, input map[st
 	}
 	var currentStatus string
 	var currentClip sql.NullString
+	var currentCaption sql.NullString
+	var currentTikTokJSON []byte
 	var currentPlatforms, currentAccountIDs pq.StringArray
 	if !create {
-		e = tx.QueryRowContext(ctx, `SELECT status,clip_id,platforms,account_ids FROM scheduled_posts WHERE id=$1 AND user_id=$2 FOR UPDATE`, id, userID).Scan(&currentStatus, &currentClip, &currentPlatforms, &currentAccountIDs)
+		e = tx.QueryRowContext(ctx, `SELECT status,clip_id,caption,platforms,account_ids,tiktok_options FROM scheduled_posts WHERE id=$1 AND user_id=$2 FOR UPDATE`, id, userID).Scan(&currentStatus, &currentClip, &currentCaption, &currentPlatforms, &currentAccountIDs, &currentTikTokJSON)
 		if e != nil {
 			return empty, e
 		}
@@ -268,6 +356,25 @@ func (s *Repository) Mutate(ctx context.Context, userID, id string, input map[st
 	if value, ok := fields["accountIds"]; ok {
 		accountIDs = value.([]string)
 	}
+	if status == "scheduled" && s.tiktokValidator != nil && !slices.Equal(accountIDs, preparedAccountIDs) {
+		return empty, &ValidationError{Issues: []Issue{{"accountIds", "Publishing accounts changed while the post was being validated. Try again"}}}
+	}
+	caption := currentCaption.String
+	if value, ok := fields["caption"]; ok {
+		caption = ""
+		if value != nil {
+			caption = value.(string)
+		}
+	}
+	tiktokOptions := publishing.TikTokOptions{}
+	if !create && len(currentTikTokJSON) > 0 {
+		if e = json.Unmarshal(currentTikTokJSON, &tiktokOptions); e != nil {
+			return empty, e
+		}
+	}
+	if value, ok := fields["tiktok"]; ok {
+		tiktokOptions = value.(publishing.TikTokOptions)
+	}
 	if status == "scheduled" {
 		issues := []Issue{}
 		var selectedMedia []map[string]string
@@ -293,16 +400,19 @@ func (s *Repository) Mutate(ctx context.Context, userID, id string, input map[st
 		if len(accountIDs) == 0 {
 			issues = append(issues, Issue{"accountIds", "Choose at least one connected account"})
 		}
+		type selectedAccount struct{ id, provider string }
+		accounts := []selectedAccount{}
 		providers := []string{}
 		if len(accountIDs) > 0 {
-			rows, queryErr := tx.QueryContext(ctx, `SELECT provider FROM social_accounts WHERE user_id=$1 AND status='connected' AND COALESCE(token_expires_at>now(),true) AND id=ANY($2::uuid[])`, userID, pq.Array(accountIDs))
+			rows, queryErr := tx.QueryContext(ctx, `SELECT id,provider FROM social_accounts WHERE user_id=$1 AND status='connected' AND (provider='tiktok' OR COALESCE(token_expires_at>now(),true)) AND id=ANY($2::uuid[])`, userID, pq.Array(accountIDs))
 			if queryErr != nil {
 				return empty, queryErr
 			}
 			for rows.Next() {
-				var provider string
-				if queryErr = rows.Scan(&provider); queryErr == nil {
-					providers = append(providers, provider)
+				var account selectedAccount
+				if queryErr = rows.Scan(&account.id, &account.provider); queryErr == nil {
+					accounts = append(accounts, account)
+					providers = append(providers, account.provider)
 				}
 			}
 			if queryErr == nil {
@@ -313,12 +423,16 @@ func (s *Repository) Mutate(ctx context.Context, userID, id string, input map[st
 				return empty, queryErr
 			}
 		}
-		if len(providers) != len(accountIDs) {
+		if len(accounts) != len(accountIDs) {
 			issues = append(issues, Issue{"accountIds", "Reconnect the selected account and try again"})
 		} else {
-			for _, provider := range providers {
-				if !slices.Contains([]string{"instagram", "facebook"}, provider) || !slices.Contains(platforms, provider) {
-					issues = append(issues, Issue{"accountIds", "Only connected Instagram and Facebook accounts can be scheduled"})
+			tiktokAccounts := []selectedAccount{}
+			for _, account := range accounts {
+				if account.provider == "tiktok" {
+					tiktokAccounts = append(tiktokAccounts, account)
+				}
+				if !slices.Contains([]string{"instagram", "facebook", "tiktok"}, account.provider) || !slices.Contains(platforms, account.provider) {
+					issues = append(issues, Issue{"accountIds", "Only connected Instagram, Facebook and TikTok accounts can be scheduled"})
 					break
 				}
 				if len(selectedMedia) > 0 {
@@ -326,7 +440,7 @@ func (s *Repository) Mutate(ctx context.Context, userID, id string, input map[st
 					for _, item := range selectedMedia {
 						media = append(media, publishing.PublishMedia{Type: item["type"], URL: item["reference"]})
 					}
-					if mediaErr := publishing.ValidateMediaReferences(provider, media); mediaErr != nil {
+					if mediaErr := publishing.ValidateMediaReferences(account.provider, media); mediaErr != nil {
 						issues = append(issues, Issue{"media", mediaErr.Error()})
 						break
 					}
@@ -334,7 +448,7 @@ func (s *Repository) Mutate(ctx context.Context, userID, id string, input map[st
 						ValidatePublishingMedia(context.Context, string, string, string) error
 					}); ok {
 						for _, item := range selectedMedia {
-							if mediaErr := validator.ValidatePublishingMedia(ctx, provider, item["reference"], item["type"]); mediaErr != nil {
+							if mediaErr := validator.ValidatePublishingMedia(ctx, account.provider, item["reference"], item["type"]); mediaErr != nil {
 								issues = append(issues, Issue{"media", mediaErr.Error()})
 								break
 							}
@@ -342,10 +456,35 @@ func (s *Repository) Mutate(ctx context.Context, userID, id string, input map[st
 					}
 				}
 			}
+			if len(tiktokAccounts) > 1 {
+				issues = append(issues, Issue{"accountIds", "Choose one TikTok account per calendar post"})
+			}
 			for _, platform := range platforms {
 				if !slices.Contains(providers, platform) {
 					issues = append(issues, Issue{"platforms", "Each platform must have a selected publishing account"})
 					break
+				}
+			}
+			if len(tiktokAccounts) == 1 {
+				switch {
+				case len(selectedMedia) > 0:
+					issues = append(issues, Issue{"media", "TikTok publication requires an eligible clip from your library"})
+				case clipID == nil:
+					issues = append(issues, tiktokIssue("clipId"))
+				case strings.TrimSpace(caption) == "" || utf16Length(caption) > 2200:
+					issues = append(issues, tiktokIssue("caption"))
+				case !tiktokOptions.MusicUsageConfirmed || tiktokOptions.PrivacyLevel == "":
+					issues = append(issues, tiktokIssue("tiktok"))
+				case s.tiktokValidator == nil:
+					issues = append(issues, Issue{"tiktok", "TikTok publishing is temporarily unavailable"})
+				case len(issues) == 0:
+					field, validationErr := s.tiktokValidator.ValidateTikTokSchedule(ctx, tx, userID, tiktokAccounts[0].id, clipID.(string), caption, tiktokOptions)
+					if validationErr != nil {
+						if field == "" {
+							return empty, validationErr
+						}
+						issues = append(issues, tiktokIssue(field))
+					}
 				}
 			}
 		}
@@ -370,7 +509,7 @@ func (s *Repository) Mutate(ctx context.Context, userID, id string, input map[st
 			media = []map[string]string{}
 		}
 		mediaJSON, _ := json.Marshal(media)
-		_, e = tx.ExecContext(ctx, `INSERT INTO scheduled_posts(id,user_id,clip_id,clip_owner_id,title,caption,notes,platforms,account_ids,status,scheduled_at,media,created_at,updated_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,now(),now())`, id, userID, clipID, owner, fields["title"], fields["caption"], fields["notes"], pq.Array(fields["platforms"]), pq.Array(fields["accountIds"]), fields["status"], fields["scheduledAt"], mediaJSON)
+		_, e = tx.ExecContext(ctx, `INSERT INTO scheduled_posts(id,user_id,clip_id,clip_owner_id,title,caption,notes,platforms,account_ids,status,scheduled_at,media,tiktok_options,created_at,updated_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,now(),now())`, id, userID, clipID, owner, fields["title"], fields["caption"], fields["notes"], pq.Array(fields["platforms"]), pq.Array(fields["accountIds"]), fields["status"], fields["scheduledAt"], mediaJSON, encodeTikTokOptions(tiktokOptions))
 	} else {
 		if currentStatus == "failed" && status == "scheduled" {
 			if _, e = tx.ExecContext(ctx, `UPDATE social_posts SET scheduled_post_id=NULL WHERE scheduled_post_id=$1`, id); e != nil {
@@ -391,6 +530,9 @@ func (s *Repository) Mutate(ctx context.Context, userID, id string, input map[st
 			}
 			if key == "media" {
 				value, _ = json.Marshal(value)
+			}
+			if key == "tiktok" {
+				value = encodeTikTokOptions(value.(publishing.TikTokOptions))
 			}
 			args = append(args, value)
 			sets = append(sets, fmt.Sprintf("%s=$%d", mutationColumns[key], len(args)))

@@ -5,10 +5,9 @@ import (
 	"database/sql"
 	"encoding/json"
 	"net/http"
-	"slices"
 	"sort"
-	"strings"
 	"time"
+	"unicode/utf16"
 
 	"github.com/lib/pq"
 	"sneepcut/backend-go/internal/data"
@@ -35,6 +34,7 @@ type Clip struct {
 	Duration       float64 `json:"duration"`
 	ThumbnailURL   string  `json:"thumbnailUrl,omitempty"`
 	FileURL        string  `json:"fileUrl,omitempty"`
+	CaptionTikTok  string  `json:"captionTiktok,omitempty"`
 	TikTokEligible bool    `json:"tiktokEligible"`
 }
 type Post struct {
@@ -80,15 +80,30 @@ func (h *Handler) liveCredentials(ctx context.Context, a Account) (Credentials, 
 		return Credentials{}, e
 	}
 	defer tx.Rollback()
-	e = tx.QueryRowContext(ctx, `SELECT credentials FROM social_accounts WHERE id=$1 AND user_id=$2 AND status='connected' FOR UPDATE`, a.ID, a.UserID).Scan(&a.Encrypted)
+	e = tx.QueryRowContext(ctx, `SELECT credentials,token_expires_at FROM social_accounts WHERE id=$1 AND user_id=$2 AND status='connected' FOR UPDATE`, a.ID, a.UserID).Scan(&a.Encrypted, &a.TokenExpiresAt)
 	if e != nil {
 		return Credentials{}, e
 	}
+	c, e := h.liveCredentialsLocked(ctx, tx, a)
+	if e != nil {
+		return c, e
+	}
+	return c, tx.Commit()
+}
+
+// liveCredentialsLocked refreshes credentials while the caller holds the
+// social account row lock. Token rotation and its expiry are persisted in the
+// same transaction before any creator or publishing request uses the token.
+func (h *Handler) liveCredentialsLocked(ctx context.Context, tx *sql.Tx, a Account) (Credentials, error) {
 	c, e := h.credentials(a)
 	if e != nil {
 		return c, e
 	}
-	if !c.ExpiresAt.IsZero() && time.Until(c.ExpiresAt) < 5*time.Minute {
+	refreshAt := c.ExpiresAt
+	if a.TokenExpiresAt != nil && (refreshAt.IsZero() || a.TokenExpiresAt.Before(refreshAt)) {
+		refreshAt = *a.TokenExpiresAt
+	}
+	if !refreshAt.IsZero() && time.Until(refreshAt) < 5*time.Minute {
 		c, e = h.client.Refresh(ctx, a.Provider, c)
 		if e != nil {
 			return c, e
@@ -102,7 +117,48 @@ func (h *Handler) liveCredentials(ctx context.Context, a Account) (Credentials, 
 			return c, e
 		}
 	}
-	return c, tx.Commit()
+	return c, nil
+}
+
+// prepareTikTokCredentials commits any required token rotation before callers
+// open the mutation transaction that fences disconnects and validates content.
+func (h *Handler) prepareTikTokCredentials(ctx context.Context, userID string, accountIDs []string) error {
+	if len(accountIDs) == 0 {
+		return nil
+	}
+	rows, err := h.db.QueryContext(ctx, `SELECT id,user_id,provider,remote_id FROM social_accounts WHERE user_id=$1 AND provider='tiktok' AND status='connected' AND id=ANY($2::uuid[])`, userID, pq.Array(accountIDs))
+	if err != nil {
+		return err
+	}
+	accounts := []Account{}
+	for rows.Next() {
+		var account Account
+		if err = rows.Scan(&account.ID, &account.UserID, &account.Provider, &account.RemoteID); err != nil {
+			rows.Close()
+			return err
+		}
+		accounts = append(accounts, account)
+	}
+	err = rows.Err()
+	rows.Close()
+	if err != nil {
+		return err
+	}
+	for _, account := range accounts {
+		if _, err = h.liveCredentials(ctx, account); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// PrepareTikTokSchedule is the pre-transaction phase of calendar validation.
+// The caller must re-read and lock the selected account before creator checks.
+func (h *Handler) PrepareTikTokSchedule(ctx context.Context, userID string, accountIDs []string) (string, error) {
+	if err := h.prepareTikTokCredentials(ctx, userID, accountIDs); err != nil {
+		return "accountIds", errInvalid
+	}
+	return "", nil
 }
 
 // DeletePublishedPosts removes supported remote destinations linked to a
@@ -180,14 +236,14 @@ func (h *Handler) list(ctx context.Context, user string) ([]Account, []Clip, []P
 	if e != nil {
 		return accounts, clips, posts, e
 	}
-	rows, e = h.db.QueryContext(ctx, `SELECT id,title,duration,COALESCE(NULLIF(thumbnail_storage_key,''),NULLIF(thumbnail_path,''),thumbnail_url,''),COALESCE(NULLIF(file_storage_key,''),NULLIF(file_path,''),file_url,''),contains_platform_badge IS FALSE FROM clips WHERE user_id=$1 AND COALESCE(NULLIF(file_storage_key,''),NULLIF(file_path,''),file_url,'')<>'' ORDER BY created_at DESC LIMIT 100`, user)
+	rows, e = h.db.QueryContext(ctx, `SELECT id,title,duration,COALESCE(NULLIF(thumbnail_storage_key,''),NULLIF(thumbnail_path,''),thumbnail_url,''),COALESCE(NULLIF(file_storage_key,''),NULLIF(file_path,''),file_url,''),COALESCE(caption_tiktok,''),contains_platform_badge IS FALSE FROM clips WHERE user_id=$1 AND COALESCE(NULLIF(file_storage_key,''),NULLIF(file_path,''),file_url,'')<>'' ORDER BY created_at DESC LIMIT 100`, user)
 	if e != nil {
 		return accounts, clips, posts, e
 	}
 	for rows.Next() {
 		var c Clip
 		var thumb, file string
-		if e = rows.Scan(&c.ID, &c.Title, &c.Duration, &thumb, &file, &c.TikTokEligible); e != nil {
+		if e = rows.Scan(&c.ID, &c.Title, &c.Duration, &thumb, &file, &c.CaptionTikTok, &c.TikTokEligible); e != nil {
 			break
 		}
 		if thumb != "" {
@@ -218,7 +274,7 @@ func (h *Handler) list(ctx context.Context, user string) ([]Account, []Clip, []P
 	return accounts, clips, posts, rows.Err()
 }
 func validateInput(in *postInput) bool {
-	if !in.Confirmed || !data.ValidUUID(in.ClipID) || !data.ValidUUID(in.IdempotencyKey) || len(in.AccountIDs) == 0 || len(in.AccountIDs) > 10 || len([]rune(in.Caption)) > 2200 {
+	if !in.Confirmed || !data.ValidUUID(in.ClipID) || !data.ValidUUID(in.IdempotencyKey) || len(in.AccountIDs) == 0 || len(in.AccountIDs) > 10 || len(utf16.Encode([]rune(in.Caption))) > 2200 {
 		return false
 	}
 	sort.Strings(in.AccountIDs)
@@ -250,6 +306,9 @@ func (h *Handler) createPosts(w http.ResponseWriter, r *http.Request) {
 	respond(w, 202, map[string]any{"posts": posts})
 }
 func (h *Handler) enqueue(ctx context.Context, user string, in postInput) ([]Post, error) {
+	if e := h.prepareTikTokCredentials(ctx, user, in.AccountIDs); e != nil {
+		return nil, errInvalid
+	}
 	tx, e := h.db.BeginTx(ctx, nil)
 	if e != nil {
 		return nil, e
@@ -278,7 +337,7 @@ func (h *Handler) enqueue(ctx context.Context, user string, in postInput) ([]Pos
 	posts := []Post{}
 	for _, id := range in.AccountIDs {
 		var a Account
-		e = tx.QueryRowContext(ctx, `SELECT id,user_id,provider,remote_id,name,username,status,credentials FROM social_accounts WHERE id=$1 AND user_id=$2 AND status='connected' FOR UPDATE`, id, user).Scan(&a.ID, &a.UserID, &a.Provider, &a.RemoteID, &a.Name, &a.Username, &a.Status, &a.Encrypted)
+		e = tx.QueryRowContext(ctx, `SELECT id,user_id,provider,remote_id,name,username,status,credentials,token_expires_at FROM social_accounts WHERE id=$1 AND user_id=$2 AND status='connected' FOR UPDATE`, id, user).Scan(&a.ID, &a.UserID, &a.Provider, &a.RemoteID, &a.Name, &a.Username, &a.Status, &a.Encrypted, &a.TokenExpiresAt)
 		if e != nil || !h.configured(a.Provider) || a.Provider == "youtube" {
 			return nil, errInvalid
 		}
@@ -296,20 +355,14 @@ func (h *Handler) enqueue(ctx context.Context, user string, in postInput) ([]Pos
 			return nil, e
 		}
 		if a.Provider == "tiktok" {
-			if !badge.Valid || badge.Bool || !in.TikTok.MusicUsageConfirmed {
+			credentials, credentialErr := h.credentials(a)
+			if credentialErr != nil {
 				return nil, errInvalid
 			}
-			creds, err := h.credentials(a)
-			if err != nil {
+			field, validationErr := h.validateTikTokSelectionWithCredentials(ctx, a, credentials, duration, badge, mediaURL, in.Caption, in.TikTok)
+			if field != "" || validationErr != nil {
 				return nil, errInvalid
 			}
-			o, err := h.client.Options(ctx, creds)
-			if err != nil || !slices.Contains(o.PrivacyLevels, in.TikTok.PrivacyLevel) || duration > float64(o.MaxDuration) || (o.CommentDisabled && !in.TikTok.DisableComment) || (o.DuetDisabled && !in.TikTok.DisableDuet) || (o.StitchDisabled && !in.TikTok.DisableStitch) || (in.TikTok.BrandContentToggle && in.TikTok.PrivacyLevel == "SELF_ONLY") {
-				return nil, errInvalid
-			}
-		}
-		if strings.TrimSpace(in.Caption) == "" && a.Provider == "tiktok" {
-			return nil, errInvalid
 		}
 		p.ID, e = data.NewUUID()
 		if e != nil {

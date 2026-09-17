@@ -6,7 +6,8 @@ const { chromium } = await import(process.env.PLAYWRIGHT_MODULE
   ? pathToFileURL(process.env.PLAYWRIGHT_MODULE).href
   : '../../.cache/deploy-browser/node_modules/playwright/index.mjs')
 const base = process.env.SNEEPCUT_UI_ORIGIN ?? 'http://localhost:3000'
-assert.ok(['localhost', '127.0.0.1'].includes(new URL(base).hostname))
+const baseUrl = URL.parse(base)
+assert.ok(baseUrl && ['localhost', '127.0.0.1'].includes(baseUrl.hostname))
 const browser = await chromium.launch({ headless: true })
 try {
   const context = await browser.newContext({ viewport: { width: 1440, height: 960 } })

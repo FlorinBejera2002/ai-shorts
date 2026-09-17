@@ -233,6 +233,10 @@ func TestPostgresExportOwnershipNullsAndSecretOmission(t *testing.T) {
 	if _, err := db.Exec(`INSERT INTO chat_messages(id,user_id,clip_id,context,role,content,actions) VALUES($1,$2,$3,'editor','user','My message','[]')`, fixtureID(), user, clip); err != nil {
 		t.Fatal(err)
 	}
+	scheduledPost := fixtureID()
+	if _, err := db.Exec(`INSERT INTO scheduled_posts(id,user_id,clip_id,clip_owner_id,title,platforms,account_ids,status,scheduled_at,tiktok_options,updated_at) VALUES($1,$2,$3,$2,'TikTok draft',ARRAY['tiktok']::varchar[],ARRAY[]::uuid[],'draft',now(),'{"privacyLevel":"SELF_ONLY","musicUsageConfirmed":true}'::jsonb,now())`, scheduledPost, user, clip); err != nil {
+		t.Fatal(err)
+	}
 	h := New(db, passAuth{}, nil, nil, Config{})
 	data, err := h.exportData(context.Background(), user)
 	if err != nil {
@@ -248,7 +252,7 @@ func TestPostgresExportOwnershipNullsAndSecretOmission(t *testing.T) {
 			t.Fatal("export leak", secret)
 		}
 	}
-	if !strings.Contains(s, job) || !strings.Contains(s, "assistantMessages") || data["brandKit"] != nil || data["image"] != nil {
+	if !strings.Contains(s, job) || !strings.Contains(s, "assistantMessages") || !strings.Contains(s, scheduledPost) || !strings.Contains(s, `"tiktokOptions"`) || !strings.Contains(s, `"privacyLevel":"SELF_ONLY"`) || !strings.Contains(s, `"musicUsageConfirmed":true`) || data["brandKit"] != nil || data["image"] != nil {
 		t.Fatal(s)
 	}
 	profile, err := h.readProfile(context.Background(), user, time.Now().Unix())

@@ -25,10 +25,13 @@ type RemotePostDeleter interface {
 }
 
 func New(db *sql.DB, auth *identity.Handler, media Media, remote ...RemotePostDeleter) *Handler {
-	h := &Handler{repository: NewRepository(db, media), auth: auth}
+	var tiktokValidator TikTokScheduleValidator
+	h := &Handler{auth: auth}
 	if len(remote) > 0 {
 		h.remote = remote[0]
+		tiktokValidator, _ = remote[0].(TikTokScheduleValidator)
 	}
+	h.repository = NewRepository(db, media, tiktokValidator)
 	return h
 }
 func (h *Handler) Register(router *httprouter.Router) {

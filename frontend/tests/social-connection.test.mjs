@@ -19,6 +19,34 @@ const source = compile('../src/lib/social-connection.ts')
 const publishing = {}
 vm.runInNewContext(compile('../src/lib/publishing.ts'), { exports: publishing })
 
+test('keeps refreshable expired TikTok accounts connected without changing other providers', () => {
+  const base = { id: 'account', name: 'Account', status: 'connected' }
+  assert.equal(
+    publishing.isPublishingAccountUsable({
+      ...base,
+      provider: 'tiktok',
+      tokenExpired: true
+    }),
+    true
+  )
+  assert.equal(
+    publishing.isPublishingAccountUsable({
+      ...base,
+      provider: 'instagram',
+      tokenExpired: true
+    }),
+    false
+  )
+  assert.equal(
+    publishing.isPublishingAccountUsable({
+      ...base,
+      provider: 'tiktok',
+      status: 'disconnected'
+    }),
+    false
+  )
+})
+
 function fixture(search = '') {
   const exports = {}
   const storage = new Map()

@@ -43,6 +43,8 @@ export type CalendarClipOption = {
   id: string
   title: string
   viralScore: number
+  duration: number
+  tiktokEligible: boolean
   thumbnailUrl: string | null
   captionTiktok: string | null
   captionInstagram: string | null
@@ -53,6 +55,17 @@ export type PublishingMedia = {
   type: 'image' | 'video'
   reference: string
   name: string
+}
+
+export type TikTokPublishingOptions = {
+  privacyLevel: string
+  disableComment: boolean
+  disableDuet: boolean
+  disableStitch: boolean
+  brandContentToggle: boolean
+  brandOrganicToggle: boolean
+  musicUsageConfirmed: boolean
+  isAigc: boolean
 }
 
 export type ScheduledPostRecord = {
@@ -72,9 +85,12 @@ export type ScheduledPostRecord = {
     id: string
     title: string
     viralScore: number
+    duration: number
+    tiktokEligible: boolean
     thumbnailUrl: string | null
   } | null
   media: PublishingMedia[]
+  tiktok?: TikTokPublishingOptions
 }
 
 export type ScheduledPostMutation = {
@@ -87,6 +103,7 @@ export type ScheduledPostMutation = {
   scheduledAt?: Date
   clipId?: string | null
   media?: PublishingMedia[]
+  tiktok?: TikTokPublishingOptions
 }
 
 export type ValidationIssue = {
@@ -113,7 +130,8 @@ const MUTATION_FIELDS = new Set([
   'status',
   'scheduledAt',
   'clipId',
-  'media'
+  'media',
+  'tiktok'
 ])
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -371,6 +389,33 @@ export function validateScheduledPostPayload(
       })
     } else {
       data.media = media as PublishingMedia[]
+    }
+  }
+
+  if ('tiktok' in value) {
+    const tiktok = value.tiktok
+    const booleanFields = [
+      'disableComment',
+      'disableDuet',
+      'disableStitch',
+      'brandContentToggle',
+      'brandOrganicToggle',
+      'musicUsageConfirmed',
+      'isAigc'
+    ] as const
+    const valid =
+      isRecord(tiktok) &&
+      Object.keys(tiktok).length === booleanFields.length + 1 &&
+      typeof tiktok.privacyLevel === 'string' &&
+      (data.status === 'draft' || tiktok.privacyLevel.length > 0) &&
+      booleanFields.every((field) => typeof tiktok[field] === 'boolean')
+    if (!valid) {
+      issues.push({
+        field: 'tiktok',
+        message: 'Choose valid TikTok publishing settings'
+      })
+    } else {
+      data.tiktok = tiktok as TikTokPublishingOptions
     }
   }
 

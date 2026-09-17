@@ -44,3 +44,20 @@ func TestPublishingInputRequiresConfirmationAndUniqueDestinations(t *testing.T) 
 		t.Fatal("duplicate accepted")
 	}
 }
+
+func TestPublishingCaptionLimitUsesUTF16CodeUnits(t *testing.T) {
+	in := postInput{
+		ClipID:         "00000000-0000-4000-8000-000000000001",
+		AccountIDs:     []string{"00000000-0000-4000-8000-000000000002"},
+		IdempotencyKey: "00000000-0000-4000-8000-000000000003",
+		Confirmed:      true,
+		Caption:        strings.Repeat("a", 2198) + "🎬",
+	}
+	if !validateInput(&in) {
+		t.Fatal("2200 UTF-16 code units were rejected")
+	}
+	in.Caption += "a"
+	if validateInput(&in) {
+		t.Fatal("caption over 2200 UTF-16 code units was accepted")
+	}
+}

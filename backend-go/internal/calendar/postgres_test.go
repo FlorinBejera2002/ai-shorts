@@ -11,10 +11,36 @@ import (
 	"testing"
 
 	"github.com/lib/pq"
+	"sneepcut/backend-go/internal/publishing"
 	"sneepcut/backend-go/internal/testdb"
 )
 
 type calendarMedia struct{}
+
+type recordingTikTokValidator struct {
+	prepareCalls int
+	calls        int
+	accountID    string
+	clipID       string
+	caption      string
+	options      publishing.TikTokOptions
+	field        string
+	err          error
+}
+
+func (v *recordingTikTokValidator) PrepareTikTokSchedule(_ context.Context, _ string, _ []string) (string, error) {
+	v.prepareCalls++
+	return v.field, v.err
+}
+
+func (v *recordingTikTokValidator) ValidateTikTokSchedule(_ context.Context, _ *sql.Tx, _ string, accountID, clipID, caption string, options publishing.TikTokOptions) (string, error) {
+	v.calls++
+	v.accountID = accountID
+	v.clipID = clipID
+	v.caption = caption
+	v.options = options
+	return v.field, v.err
+}
 
 func (calendarMedia) KeyFromReference(value string) (string, error) {
 	if strings.HasPrefix(value, "clips/") || strings.HasPrefix(value, "publishing/") {
@@ -95,7 +121,7 @@ func seedCalendarClip(t *testing.T, db *sql.DB) (string, string, string) {
 	}{
 		{`INSERT INTO users(id,email,provider,credits,plan) VALUES($1,$2,'credentials',100,'free')`, []any{user, user + "@example.invalid"}},
 		{`INSERT INTO jobs(id,user_id,source_type,status,progress,num_clips_requested,aspect_ratio,subtitle_style,include_brand,credits_charged) VALUES($1,$2,'upload','completed',100,5,'9:16','default',false,50)`, []any{job, user}},
-		{`INSERT INTO clips(id,user_id,job_id,title,start_time,end_time,duration,file_path,file_storage_key,thumbnail_storage_key,caption_tiktok,viral_score,file_size,aspect_ratio,resolution,has_subtitles) VALUES($1,$2,$3,'Fixture',0,10,10,$4,$4,$5,'Clip caption',8,1024,'9:16','1080x1920',false)`, []any{clip, user, job, "clips/" + job + "/video.mp4", "clips/" + job + "/thumbnail.jpg"}},
+		{`INSERT INTO clips(id,user_id,job_id,title,start_time,end_time,duration,file_path,file_storage_key,thumbnail_storage_key,caption_tiktok,viral_score,file_size,aspect_ratio,resolution,has_subtitles,contains_platform_badge) VALUES($1,$2,$3,'Fixture',0,10,10,$4,$4,$5,'Clip caption',8,1024,'9:16','1080x1920',false,false)`, []any{clip, user, job, "clips/" + job + "/video.mp4", "clips/" + job + "/thumbnail.jpg"}},
 	}
 	for _, q := range queries {
 		if _, e := db.Exec(q.query, q.args...); e != nil {
@@ -122,7 +148,7 @@ func TestPostgresCalendarOwnershipAttachmentAndHalfOpenRange(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	if post.Title != "Product launch teaser" || post.Notes != nil || post.ScheduledAt != "2026-09-04T07:30:00.000Z" || post.Clip == nil || post.Clip.ID != clip || post.Clip.ThumbnailURL == nil || !strings.Contains(*post.Clip.ThumbnailURL, "fresh=true") {
+	if post.Title != "Product launch teaser" || post.Notes != nil || post.ScheduledAt != "2026-09-04T07:30:00.000Z" || post.Clip == nil || post.Clip.ID != clip || post.Clip.Duration != 10 || !post.Clip.TikTokEligible || post.Clip.ThumbnailURL == nil || !strings.Contains(*post.Clip.ThumbnailURL, "fresh=true") {
 		t.Fatalf("contract mismatch: %+v", post)
 	}
 	encoded, _ := json.Marshal(post)
@@ -156,7 +182,7 @@ func TestPostgresCalendarOwnershipAttachmentAndHalfOpenRange(t *testing.T) {
 	}
 	start, end, _ := ParseRange("2026-09-04T07:30:00Z", "2026-09-05T07:30:00Z")
 	listed, e := repo.List(ctx, user, start, end)
-	if e != nil || len(listed.Posts) != 1 || len(listed.Clips) != 1 || listed.Meta.Truncated || listed.Meta.Limit != 500 {
+	if e != nil || len(listed.Posts) != 1 || len(listed.Clips) != 1 || listed.Clips[0].Duration != 10 || !listed.Clips[0].TikTokEligible || listed.Meta.Truncated || listed.Meta.Limit != 500 {
 		t.Fatalf("list: %+v %v", listed, e)
 	}
 	start, end, _ = ParseRange("2026-09-03T07:30:00Z", "2026-09-04T07:30:00Z")
@@ -228,5 +254,102 @@ func TestPostgresCalendarBoundedListsAndInactiveWriters(t *testing.T) {
 	delete(input, "clipId")
 	if _, e = repo.Mutate(ctx, user, "", input, true); !errors.Is(e, ErrInactive) {
 		t.Fatalf("deleting create: %v", e)
+	}
+}
+
+func TestPostgresCalendarPersistsAndValidatesTikTokSettings(t *testing.T) {
+	db := testdb.Open(t)
+	ctx := context.Background()
+	user, _, clip := seedCalendarClip(t, db)
+	account := fixtureID(t)
+	if _, err := db.Exec(`INSERT INTO social_accounts(id,user_id,provider,remote_id,name,credentials) VALUES($1,$2,'tiktok',$3,'TikTok fixture','sealed')`, account, user, account); err != nil {
+		t.Fatal(err)
+	}
+	validator := &recordingTikTokValidator{}
+	repo := NewRepository(db, calendarMedia{}, validator)
+	input := validInput()
+	input["clipId"] = clip
+	input["platforms"] = []any{"tiktok"}
+	input["accountIds"] = []any{account}
+	input["caption"] = "TikTok caption"
+	input["tiktok"] = map[string]any{
+		"privacyLevel":        "SELF_ONLY",
+		"disableComment":      true,
+		"disableDuet":         false,
+		"disableStitch":       true,
+		"brandContentToggle":  false,
+		"brandOrganicToggle":  true,
+		"musicUsageConfirmed": true,
+		"isAigc":              true,
+	}
+	post, err := repo.Mutate(ctx, user, "", input, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if validator.prepareCalls != 1 || validator.calls != 1 || validator.accountID != account || validator.clipID != clip || validator.caption != "TikTok caption" || !validator.options.IsAIGC {
+		t.Fatalf("validator did not receive the effective TikTok post: %+v", validator)
+	}
+	if post.TikTok == nil || post.TikTok.PrivacyLevel != "SELF_ONLY" || !post.TikTok.BrandOrganicToggle || !post.TikTok.IsAIGC {
+		t.Fatalf("TikTok response contract mismatch: %+v", post.TikTok)
+	}
+	var raw []byte
+	if err = db.QueryRow(`SELECT tiktok_options FROM scheduled_posts WHERE id=$1`, post.ID).Scan(&raw); err != nil || !strings.Contains(string(raw), `"privacyLevel": "SELF_ONLY"`) || !strings.Contains(string(raw), `"isAigc": true`) {
+		t.Fatalf("TikTok settings were not persisted: %s %v", raw, err)
+	}
+
+	updated, err := repo.Mutate(ctx, user, post.ID, map[string]any{
+		"status": "publish",
+		"tiktok": map[string]any{
+			"privacyLevel":        "PUBLIC_TO_EVERYONE",
+			"musicUsageConfirmed": true,
+		},
+	}, false)
+	if err != nil || updated.Status != "scheduled" || updated.TikTok == nil || updated.TikTok.PrivacyLevel != "PUBLIC_TO_EVERYONE" || validator.prepareCalls != 2 || validator.calls != 2 {
+		t.Fatalf("publish-now TikTok update mismatch: %+v prepareCalls=%d calls=%d err=%v", updated.TikTok, validator.prepareCalls, validator.calls, err)
+	}
+}
+
+func TestPostgresCalendarRejectsUnsafeTikTokSelectionsBeforeValidation(t *testing.T) {
+	db := testdb.Open(t)
+	ctx := context.Background()
+	user, _, clip := seedCalendarClip(t, db)
+	first, second := fixtureID(t), fixtureID(t)
+	for _, account := range []string{first, second} {
+		if _, err := db.Exec(`INSERT INTO social_accounts(id,user_id,provider,remote_id,name,credentials) VALUES($1,$2,'tiktok',$3,'TikTok fixture','sealed')`, account, user, account); err != nil {
+			t.Fatal(err)
+		}
+	}
+	validator := &recordingTikTokValidator{}
+	repo := NewRepository(db, calendarMedia{}, validator)
+	base := validInput()
+	base["clipId"] = clip
+	base["platforms"] = []any{"tiktok"}
+	base["accountIds"] = []any{first}
+	base["caption"] = "TikTok caption"
+	base["tiktok"] = map[string]any{"privacyLevel": "SELF_ONLY", "musicUsageConfirmed": true}
+
+	direct := make(map[string]any, len(base)+1)
+	for key, value := range base {
+		direct[key] = value
+	}
+	direct["clipId"] = nil
+	direct["media"] = []any{map[string]any{"type": "video", "reference": "publishing/" + user + "/direct.mp4", "name": "direct.mp4"}}
+	_, err := repo.Mutate(ctx, user, "", direct, true)
+	var validation *ValidationError
+	if !errors.As(err, &validation) || len(validation.Issues) == 0 || validation.Issues[len(validation.Issues)-1].Field != "media" || validator.calls != 0 {
+		t.Fatalf("direct-upload TikTok selection was not rejected precisely: %+v %v", validation, err)
+	}
+
+	base["accountIds"] = []any{first, second}
+	_, err = repo.Mutate(ctx, user, "", base, true)
+	if !errors.As(err, &validation) {
+		t.Fatalf("multiple TikTok accounts were accepted: %v", err)
+	}
+	found := false
+	for _, issue := range validation.Issues {
+		found = found || issue.Field == "accountIds"
+	}
+	if !found || validator.calls != 0 {
+		t.Fatalf("multiple TikTok accounts did not fail atomically: %+v calls=%d", validation.Issues, validator.calls)
 	}
 }

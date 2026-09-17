@@ -34,6 +34,7 @@ type TikTokOptions struct {
 	DisableStitch       bool   `json:"disableStitch"`
 	BrandContentToggle  bool   `json:"brandContentToggle"`
 	BrandOrganicToggle  bool   `json:"brandOrganicToggle"`
+	IsAIGC              bool   `json:"isAigc"`
 }
 type CreatorOptions struct {
 	PrivacyLevels   []string `json:"privacyLevels"`
@@ -47,6 +48,8 @@ type ProviderClient struct {
 	config     ProviderConfig
 	httpClient *http.Client
 }
+
+var errTikTokCreatorTemporarilyUnavailable = errors.New("TikTok creator settings are temporarily unavailable")
 
 func NewProviderClient(c ProviderConfig) *ProviderClient {
 	if c.GraphVersion == "" {
@@ -166,6 +169,9 @@ func (p *ProviderClient) execute(req *http.Request, out any) error {
 	if err != nil {
 		return errors.New("provider response could not be read")
 	}
+	if res.StatusCode == http.StatusTooManyRequests {
+		return errTikTokCreatorTemporarilyUnavailable
+	}
 	if res.StatusCode < 200 || res.StatusCode >= 300 {
 		return fmt.Errorf("provider rejected request (HTTP %d)", res.StatusCode)
 	}
@@ -181,6 +187,11 @@ func (p *ProviderClient) execute(req *http.Request, out any) error {
 		}
 		_ = json.Unmarshal(envelope.Error, &e)
 		if string(e.Code) != "\"ok\"" {
+			var code string
+			_ = json.Unmarshal(e.Code, &code)
+			if code == "spam_risk_too_many_posts" || code == "reached_active_user_cap" || code == "rate_limit_exceeded" {
+				return errTikTokCreatorTemporarilyUnavailable
+			}
 			return errors.New("provider reported an API error")
 		}
 	}
@@ -511,7 +522,7 @@ func (p *ProviderClient) PublishMedia(ctx context.Context, provider, account str
 		if options.BrandContentToggle && options.PrivacyLevel == "SELF_ONLY" {
 			return "", "failed", errors.New("branded TikTok posts cannot be private")
 		}
-		body := map[string]any{"post_info": map[string]any{"title": caption, "privacy_level": options.PrivacyLevel, "disable_comment": options.DisableComment || creator.CommentDisabled, "disable_duet": options.DisableDuet || creator.DuetDisabled, "disable_stitch": options.DisableStitch || creator.StitchDisabled, "brand_content_toggle": options.BrandContentToggle, "brand_organic_toggle": options.BrandOrganicToggle}, "source_info": map[string]any{"source": "PULL_FROM_URL", "video_url": mediaURL}}
+		body := map[string]any{"post_info": map[string]any{"title": caption, "privacy_level": options.PrivacyLevel, "disable_comment": options.DisableComment || creator.CommentDisabled, "disable_duet": options.DisableDuet || creator.DuetDisabled, "disable_stitch": options.DisableStitch || creator.StitchDisabled, "brand_content_toggle": options.BrandContentToggle, "brand_organic_toggle": options.BrandOrganicToggle, "is_aigc": options.IsAIGC}, "source_info": map[string]any{"source": "PULL_FROM_URL", "video_url": mediaURL}}
 		var r struct {
 			Data struct {
 				ID string `json:"publish_id"`

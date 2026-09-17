@@ -3,6 +3,7 @@ package publishing
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -137,7 +138,7 @@ func TestTikTokCreatorConstraintsAndPublishStatus(t *testing.T) {
 				Post map[string]any `json:"post_info"`
 			}
 			_ = json.NewDecoder(r.Body).Decode(&v)
-			if v.Post["privacy_level"] != "SELF_ONLY" || v.Post["disable_comment"] != true {
+			if v.Post["privacy_level"] != "SELF_ONLY" || v.Post["disable_comment"] != true || v.Post["is_aigc"] != true {
 				t.Error(v.Post)
 			}
 			io.WriteString(w, `{"data":{"publish_id":"job"},"error":{"code":"ok"}}`)
@@ -158,7 +159,7 @@ func TestTikTokCreatorConstraintsAndPublishStatus(t *testing.T) {
 	if err == nil || initCalls != 0 {
 		t.Fatal("private branded post allowed")
 	}
-	job, _, err := p.Publish(ctx, "tiktok", "user", c, "https://media.example/video.mp4", "caption", TikTokOptions{MusicUsageConfirmed: true, PrivacyLevel: "SELF_ONLY"})
+	job, _, err := p.Publish(ctx, "tiktok", "user", c, "https://media.example/video.mp4", "caption", TikTokOptions{MusicUsageConfirmed: true, PrivacyLevel: "SELF_ONLY", IsAIGC: true})
 	if err != nil || job != "job" {
 		t.Fatal(job, err)
 	}
@@ -174,6 +175,31 @@ func TestProviderErrorsNeverExposeResponse(t *testing.T) {
 	_, err := p.Options(context.Background(), Credentials{AccessToken: "secret-token"})
 	if err == nil || strings.Contains(err.Error(), "secret") {
 		t.Fatal(err)
+	}
+}
+
+func TestTikTokCreatorQuotaErrorsAreClassifiedWithoutLeakingProviderData(t *testing.T) {
+	for _, code := range []string{"spam_risk_too_many_posts", "reached_active_user_cap", "rate_limit_exceeded"} {
+		t.Run(code, func(t *testing.T) {
+			p := mockProvider(t, func(w http.ResponseWriter, r *http.Request) {
+				io.WriteString(w, `{"error":{"code":"`+code+`","message":"secret-token https://signed.example?secret=foo"}}`)
+			})
+			_, err := p.Options(context.Background(), Credentials{AccessToken: "secret-token"})
+			if !errors.Is(err, errTikTokCreatorTemporarilyUnavailable) || strings.Contains(err.Error(), "secret") || strings.Contains(err.Error(), code) {
+				t.Fatalf("quota error was not safely classified: %v", err)
+			}
+		})
+	}
+}
+
+func TestTikTokHTTPRateLimitIsClassifiedWithoutLeakingResponse(t *testing.T) {
+	p := mockProvider(t, func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusTooManyRequests)
+		io.WriteString(w, `{"error":{"code":"unknown","message":"secret-token https://signed.example?secret=foo"}}`)
+	})
+	_, err := p.Options(context.Background(), Credentials{AccessToken: "secret-token"})
+	if !errors.Is(err, errTikTokCreatorTemporarilyUnavailable) || strings.Contains(err.Error(), "secret") || strings.Contains(err.Error(), "unknown") {
+		t.Fatalf("HTTP rate limit was not safely classified: %v", err)
 	}
 }
 func TestFacebookRejectsUntrustedUploadHost(t *testing.T) {

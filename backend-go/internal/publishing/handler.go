@@ -242,10 +242,18 @@ func (h *Handler) options(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 	options, e := h.client.Options(ctx, creds)
 	if e != nil {
-		fail(w, 409, "Could not load TikTok settings. Reconnect and try again.")
+		status, message := tiktokOptionsFailure(e)
+		fail(w, status, message)
 		return
 	}
 	respond(w, 200, options)
+}
+
+func tiktokOptionsFailure(err error) (int, string) {
+	if errors.Is(err, errTikTokCreatorTemporarilyUnavailable) {
+		return http.StatusTooManyRequests, "TikTok is temporarily limiting creator checks. Try again later."
+	}
+	return http.StatusConflict, "Could not load TikTok settings. Reconnect and try again."
 }
 func (h *Handler) disconnect(w http.ResponseWriter, r *http.Request) {
 	user, id := identity.Current(r).User.ID, param(r, "id")

@@ -3,7 +3,8 @@ import type {
   ContentPlatform,
   ContentPostStatus,
   PublishingMedia,
-  ScheduledPostRecord
+  ScheduledPostRecord,
+  TikTokPublishingOptions
 } from '@/lib/content-calendar'
 
 export const CALENDAR_PLATFORMS: readonly ContentPlatform[] = [
@@ -48,6 +49,7 @@ export type PostFormPayload = {
   scheduledAt: string
   clipId?: string | null
   media?: PublishingMedia[]
+  tiktok?: TikTokPublishingOptions
 }
 
 export type CalendarIssue = {

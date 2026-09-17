@@ -5,6 +5,8 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"sneepcut/backend-go/internal/publishing"
 )
 
 func validInput() map[string]any {
@@ -129,5 +131,35 @@ func TestValidationPreservesMixedCarouselAndReorderedCover(t *testing.T) {
 	}
 	if _, err := Validate(map[string]any{"media": append(append(append(media, media...), media...), media...)}, false); err == nil {
 		t.Fatal("accepted more than 10 carousel items")
+	}
+}
+
+func TestValidationNormalizesOptionalTikTokSettingsForDrafts(t *testing.T) {
+	out, err := Validate(map[string]any{
+		"status": "draft",
+		"tiktok": map[string]any{
+			"privacyLevel":        " SELF_ONLY ",
+			"disableComment":      true,
+			"musicUsageConfirmed": false,
+		},
+	}, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	options, ok := out["tiktok"].(publishing.TikTokOptions)
+	if !ok || options.PrivacyLevel != "SELF_ONLY" || !options.DisableComment || options.MusicUsageConfirmed {
+		t.Fatalf("TikTok settings were not normalized: %#v", out["tiktok"])
+	}
+	for _, invalid := range []any{
+		"private",
+		map[string]any{"privacyLevel": true},
+		map[string]any{"disableDuet": "false"},
+		map[string]any{"privacyLevel": "SELF_ONLY", "unexpected": true},
+	} {
+		_, err = Validate(map[string]any{"tiktok": invalid}, false)
+		var validation *ValidationError
+		if !errors.As(err, &validation) || len(validation.Issues) != 1 || validation.Issues[0].Field != "tiktok" {
+			t.Fatalf("accepted invalid TikTok settings %#v: %v", invalid, err)
+		}
 	}
 }

@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"slices"
 	"time"
 
 	"github.com/lib/pq"
@@ -65,6 +66,17 @@ func (h *Handler) failCalendar(ctx context.Context, tx *sql.Tx, id, message stri
 // dispatchCalendar atomically turns one due calendar entry into the same
 // durable jobs used by Publish now. It never guesses a destination account.
 func (h *Handler) dispatchCalendar(ctx context.Context) error {
+	var candidateID, candidateUserID string
+	var candidateAccountIDs pq.StringArray
+	e := h.db.QueryRowContext(ctx, `SELECT id,user_id,account_ids FROM scheduled_posts WHERE status='scheduled' AND scheduled_at<=now() ORDER BY scheduled_at,id LIMIT 1`).Scan(&candidateID, &candidateUserID, &candidateAccountIDs)
+	if errors.Is(e, sql.ErrNoRows) {
+		return nil
+	}
+	if e != nil {
+		return e
+	}
+	prepareErr := h.prepareTikTokCredentials(ctx, candidateUserID, []string(candidateAccountIDs))
+
 	tx, e := h.db.BeginTx(ctx, nil)
 	if e != nil {
 		return e
@@ -73,17 +85,23 @@ func (h *Handler) dispatchCalendar(ctx context.Context) error {
 	var id, userID, caption, reference string
 	var clipID sql.NullString
 	var accountIDs pq.StringArray
-	var postMedia []byte
+	var postMedia, tiktokJSON []byte
 	e = tx.QueryRowContext(ctx, `SELECT s.id,s.user_id,s.clip_id,COALESCE(s.caption,''),s.account_ids,
-		COALESCE(NULLIF(c.file_storage_key,''),NULLIF(c.file_path,''),c.file_url,''),s.media
+		COALESCE(NULLIF(c.file_storage_key,''),NULLIF(c.file_path,''),c.file_url,''),s.media,s.tiktok_options
 		FROM scheduled_posts s LEFT JOIN clips c ON c.id=s.clip_id AND c.user_id=s.user_id
-		WHERE s.status='scheduled' AND s.scheduled_at<=now()
-		ORDER BY s.scheduled_at FOR UPDATE OF s SKIP LOCKED LIMIT 1`).Scan(&id, &userID, &clipID, &caption, &accountIDs, &reference, &postMedia)
+		WHERE s.id=$1 AND s.status='scheduled' AND s.scheduled_at<=now()
+		FOR UPDATE OF s`, candidateID).Scan(&id, &userID, &clipID, &caption, &accountIDs, &reference, &postMedia, &tiktokJSON)
 	if errors.Is(e, sql.ErrNoRows) {
 		return nil
 	}
 	if e != nil {
 		return e
+	}
+	if userID != candidateUserID || !slices.Equal([]string(accountIDs), []string(candidateAccountIDs)) {
+		return nil
+	}
+	if prepareErr != nil {
+		return h.failCalendar(ctx, tx, id, "TikTok authorization could not be refreshed. Reconnect the account and reschedule the post.")
 	}
 	if reference == "" && string(postMedia) != "[]" {
 		reference = string(postMedia)
@@ -102,18 +120,52 @@ func (h *Handler) dispatchCalendar(ctx context.Context) error {
 			selectedMedia = append(selectedMedia, PublishMedia{Type: item.Type, URL: item.Reference})
 		}
 	}
-	requestHash := digest(id + ":" + reference + ":" + caption)
+	var tiktokOptions TikTokOptions
+	if json.Unmarshal(tiktokJSON, &tiktokOptions) != nil {
+		return h.failCalendar(ctx, tx, id, "The saved TikTok settings are invalid. Review the post and schedule it again.")
+	}
+	requestHash := digest(id + ":" + reference + ":" + caption + ":" + string(tiktokJSON))
 	providers := make([]string, 0, len(accountIDs))
+	tiktokAccounts := 0
 	for _, accountID := range accountIDs {
 		var provider string
-		e = tx.QueryRowContext(ctx, `SELECT provider FROM social_accounts WHERE id=$1 AND user_id=$2 AND status='connected' AND COALESCE(token_expires_at>now(),true) FOR UPDATE`, accountID, userID).Scan(&provider)
-		if e != nil || (provider != "instagram" && provider != "facebook") || !h.configured(provider) {
+		e = tx.QueryRowContext(ctx, `SELECT provider FROM social_accounts WHERE id=$1 AND user_id=$2 AND status='connected' AND (provider='tiktok' OR COALESCE(token_expires_at>now(),true)) FOR UPDATE`, accountID, userID).Scan(&provider)
+		if e != nil || (provider != "instagram" && provider != "facebook" && provider != "tiktok") || !h.configured(provider) {
 			return h.failCalendar(ctx, tx, id, "A selected account is disconnected or unavailable. Reconnect it and reschedule the post.")
+		}
+		if provider == "tiktok" {
+			tiktokAccounts++
+		}
+		providers = append(providers, provider)
+	}
+	if tiktokAccounts > 1 {
+		return h.failCalendar(ctx, tx, id, "Choose one TikTok account per calendar post.")
+	}
+	for i, provider := range providers {
+		accountID := accountIDs[i]
+		if provider == "tiktok" && !clipID.Valid {
+			return h.failCalendar(ctx, tx, id, "TikTok publication requires an eligible clip from your library.")
 		}
 		if err := ValidateMediaReferences(provider, selectedMedia); err != nil {
 			return h.failCalendar(ctx, tx, id, err.Error())
 		}
-		providers = append(providers, provider)
+		if provider == "tiktok" {
+			field, validationErr := h.ValidateTikTokSchedule(ctx, tx, userID, accountID, clipID.String, caption, tiktokOptions)
+			if validationErr != nil {
+				message := "The TikTok settings no longer match the creator account. Review the post and schedule it again."
+				switch field {
+				case "accountIds":
+					message = "The TikTok account is disconnected or unavailable. Reconnect it and reschedule the post."
+				case "clipId":
+					message = "The selected clip is no longer eligible for TikTok. Review it and schedule the post again."
+				case "caption":
+					message = "The TikTok caption must contain between 1 and 2,200 characters."
+				case "":
+					message = "TikTok creator settings could not be confirmed. Try scheduling the post again."
+				}
+				return h.failCalendar(ctx, tx, id, message)
+			}
+		}
 	}
 	// Validate every destination before inserting any job. A later unsupported
 	// account must not leave an earlier destination queued for publication.
@@ -122,9 +174,13 @@ func (h *Handler) dispatchCalendar(ctx context.Context) error {
 		if uuidErr != nil {
 			return uuidErr
 		}
+		options := []byte(`{}`)
+		if providers[i] == "tiktok" {
+			options = tiktokJSON
+		}
 		_, e = tx.ExecContext(ctx, `INSERT INTO social_posts(id,user_id,account_id,clip_id,provider,caption,options,idempotency_key,request_hash,media_reference,scheduled_post_id)
-			VALUES($1,$2,$3,$4,$5,$6,'{}'::jsonb,$7,$8,$9,$10)
-			ON CONFLICT (scheduled_post_id,account_id) WHERE scheduled_post_id IS NOT NULL DO NOTHING`, postID, userID, accountID, clipID, providers[i], caption, id, requestHash, reference, id)
+			VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+			ON CONFLICT (scheduled_post_id,account_id) WHERE scheduled_post_id IS NOT NULL DO NOTHING`, postID, userID, accountID, clipID, providers[i], caption, options, id, requestHash, reference, id)
 		if e != nil {
 			return e
 		}
@@ -181,6 +237,13 @@ func (h *Handler) runOne(ctx context.Context) error {
 	return h.process(ctx, job, "")
 }
 func (h *Handler) process(ctx context.Context, job workItem, action string) error {
+	// TikTok can rotate the refresh token. Commit that rotation before opening
+	// the transaction held across the remote publishing request so a timeout or
+	// rollback cannot restore credentials that TikTok has already invalidated.
+	var credentialPreparationErr error
+	if job.Provider == "tiktok" {
+		credentialPreparationErr = h.prepareTikTokCredentials(ctx, job.UserID, []string{job.AccountID})
+	}
 	tx, e := h.db.BeginTx(ctx, nil)
 	if e != nil {
 		return e
@@ -234,11 +297,17 @@ func (h *Handler) process(ctx context.Context, job workItem, action string) erro
 	if !h.configured(a.Provider) {
 		return set("failed", "Provider configuration is unavailable.", job.RemoteID, "")
 	}
+	if credentialPreparationErr != nil {
+		return set("failed", "Account authorization expired. Reconnect the account.", job.RemoteID, "")
+	}
 	creds, e := h.credentials(a)
 	if e != nil {
 		return set("failed", "Reconnect this account.", job.RemoteID, "")
 	}
 	if !creds.ExpiresAt.IsZero() && time.Until(creds.ExpiresAt) < 5*time.Minute {
+		if a.Provider == "tiktok" {
+			return set("failed", "Account authorization expired. Reconnect the account.", job.RemoteID, "")
+		}
 		creds, e = h.client.Refresh(ctx, a.Provider, creds)
 		if e != nil {
 			return set("failed", "Account authorization expired. Reconnect the account.", job.RemoteID, "")
@@ -247,7 +316,7 @@ func (h *Handler) process(ctx context.Context, job workItem, action string) erro
 		if err != nil {
 			return err
 		}
-		if _, e = tx.ExecContext(ctx, `UPDATE social_accounts SET credentials=$2,updated_at=now() WHERE id=$1`, a.ID, encrypted); e != nil {
+		if _, e = tx.ExecContext(ctx, `UPDATE social_accounts SET credentials=$2,token_expires_at=$3,updated_at=now() WHERE id=$1`, a.ID, encrypted, creds.ExpiresAt); e != nil {
 			return e
 		}
 	}

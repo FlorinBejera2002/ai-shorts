@@ -9,6 +9,8 @@ import (
 	"strings"
 	"time"
 	"unicode/utf16"
+
+	"sneepcut/backend-go/internal/publishing"
 )
 
 const PostLimit = 500
@@ -16,7 +18,7 @@ const RecentClipLimit = 100
 
 var idPattern = regexp.MustCompile(`(?i)^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`)
 var datePattern = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,9})?(Z|[+-]\d{2}:\d{2})$`)
-var mutationColumns = map[string]string{"title": "title", "caption": "caption", "notes": "notes", "platforms": "platforms", "accountIds": "account_ids", "status": "status", "scheduledAt": "scheduled_at", "clipId": "clip_id", "media": "media"}
+var mutationColumns = map[string]string{"title": "title", "caption": "caption", "notes": "notes", "platforms": "platforms", "accountIds": "account_ids", "status": "status", "scheduledAt": "scheduled_at", "clipId": "clip_id", "media": "media", "tiktok": "tiktok_options"}
 
 type Issue struct {
 	Field   string `json:"field"`
@@ -233,6 +235,57 @@ func Validate(input map[string]any, create bool) (map[string]any, error) {
 			issues = append(issues, Issue{"media", "Choose up to 10 images or videos"})
 		} else {
 			output["media"] = normalized
+		}
+	}
+	if raw, exists := input["tiktok"]; exists {
+		options := publishing.TikTokOptions{}
+		valid := true
+		if raw != nil {
+			value, ok := raw.(map[string]any)
+			if !ok {
+				valid = false
+			} else {
+				allowed := map[string]bool{
+					"privacyLevel": true, "disableComment": true, "disableDuet": true,
+					"disableStitch": true, "brandContentToggle": true,
+					"brandOrganicToggle": true, "musicUsageConfirmed": true, "isAigc": true,
+				}
+				for key := range value {
+					if !allowed[key] {
+						valid = false
+					}
+				}
+				if privacy, present := value["privacyLevel"]; present {
+					text, textOK := privacy.(string)
+					text = strings.TrimSpace(text)
+					if !textOK || utf16Length(text) > 100 || strings.IndexFunc(text, func(r rune) bool { return r < 0x20 || r == 0x7f }) >= 0 {
+						valid = false
+					} else {
+						options.PrivacyLevel = text
+					}
+				}
+				booleanFields := map[string]*bool{
+					"disableComment": &options.DisableComment, "disableDuet": &options.DisableDuet,
+					"disableStitch": &options.DisableStitch, "brandContentToggle": &options.BrandContentToggle,
+					"brandOrganicToggle": &options.BrandOrganicToggle, "musicUsageConfirmed": &options.MusicUsageConfirmed,
+					"isAigc": &options.IsAIGC,
+				}
+				for key, target := range booleanFields {
+					if candidate, present := value[key]; present {
+						flag, flagOK := candidate.(bool)
+						if !flagOK {
+							valid = false
+						} else {
+							*target = flag
+						}
+					}
+				}
+			}
+		}
+		if !valid {
+			issues = append(issues, Issue{"tiktok", "Choose valid TikTok publishing settings"})
+		} else {
+			output["tiktok"] = options
 		}
 	}
 	if !create && len(output) == 0 && len(issues) == 0 {

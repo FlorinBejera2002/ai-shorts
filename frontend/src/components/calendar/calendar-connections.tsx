@@ -20,7 +20,10 @@ import type {
   PublishingData,
   PublishingProvider
 } from '@/lib/publishing'
-import { withAllPublishingProviders } from '@/lib/publishing'
+import {
+  isPublishingAccountUsable,
+  withAllPublishingProviders
+} from '@/lib/publishing'
 import { Check, Lock, LogOut, RefreshCw } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useState } from 'react'
@@ -44,10 +47,7 @@ export function CalendarConnections({
   const [disconnectingAccount, setDisconnectingAccount] =
     useState<PublishingAccount | null>(null)
   const connectedAccounts =
-    data?.accounts.filter(
-      (account) =>
-        account.status === 'connected' && account.tokenExpired !== true
-    ) ?? []
+    data?.accounts.filter(isPublishingAccountUsable) ?? []
 
   async function disconnect() {
     if (!disconnectingAccount) return
@@ -139,8 +139,7 @@ export function CalendarConnections({
               const accounts = data.accounts.filter(
                 (account) =>
                   account.provider === provider.id &&
-                  account.status === 'connected' &&
-                  account.tokenExpired !== true
+                  isPublishingAccountUsable(account)
               )
               const connected = accounts.length > 0
               return (

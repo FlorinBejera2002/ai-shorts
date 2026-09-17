@@ -46,6 +46,17 @@ const validCreatePayload = {
   clipId: '123e4567-e89b-42d3-a456-426614174000'
 }
 
+const validTikTokOptions = {
+  privacyLevel: 'PUBLIC_TO_EVERYONE',
+  disableComment: false,
+  disableDuet: true,
+  disableStitch: true,
+  brandContentToggle: false,
+  brandOrganicToggle: true,
+  musicUsageConfirmed: true,
+  isAigc: false
+}
+
 test('accepts and normalizes a complete create payload', () => {
   const result = validateScheduledPostPayload(validCreatePayload, 'create')
 
@@ -58,6 +69,55 @@ test('accepts and normalizes a complete create payload', () => {
     result.data.scheduledAt?.toISOString(),
     '2026-09-04T07:30:00.000Z'
   )
+})
+
+test('accepts the exact TikTok calendar mutation contract', () => {
+  const result = validateScheduledPostPayload(
+    { ...validCreatePayload, tiktok: validTikTokOptions },
+    'create'
+  )
+
+  assert.equal(result.success, true)
+  if (!result.success) return
+  assert.deepEqual(result.data.tiktok, validTikTokOptions)
+})
+
+test('accepts incomplete TikTok settings only while saving a draft', () => {
+  const result = validateScheduledPostPayload(
+    {
+      ...validCreatePayload,
+      status: 'draft',
+      tiktok: {
+        ...validTikTokOptions,
+        privacyLevel: '',
+        musicUsageConfirmed: false
+      }
+    },
+    'create'
+  )
+
+  assert.equal(result.success, true)
+  if (!result.success) return
+  assert.equal(result.data.tiktok?.privacyLevel, '')
+  assert.equal(result.data.tiktok?.musicUsageConfirmed, false)
+})
+
+test('rejects malformed or expanded TikTok settings', () => {
+  for (const tiktok of [
+    { ...validTikTokOptions, musicUsageConfirmed: 'yes' },
+    { ...validTikTokOptions, unexpected: true },
+    { ...validTikTokOptions, privacyLevel: '' }
+  ]) {
+    const result = validateScheduledPostPayload(
+      { ...validCreatePayload, tiktok },
+      'create'
+    )
+
+    assert.equal(result.success, false)
+    if (!result.success) {
+      assert.ok(result.issues.some((issue) => issue.field === 'tiktok'))
+    }
+  }
 })
 
 test('defaults a new post to draft and normalizes optional empty text', () => {
