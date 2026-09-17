@@ -1209,16 +1209,18 @@ export function PostDialog({
                                 transition={{ duration: 0.2 }}
                                 className="space-y-3"
                               >
-                                <div className="relative">
-                                  <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3 -translate-y-1/2 text-muted-foreground" />
-                                  <input
-                                    type="text"
-                                    value={clipSearch}
-                                    onChange={(e) => { setClipSearch(e.target.value); setClipPage(0) }}
-                                    placeholder={t('form.clipSearchPlaceholder')}
-                                    className={`h-8 w-48 rounded-lg border border-border bg-background pl-8 pr-3 text-xs text-foreground placeholder:text-muted-foreground ${inputClassName}`}
-                                  />
-                                </div>
+                                {selectableClips.length > 15 && (
+                                  <div className="relative">
+                                    <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3 -translate-y-1/2 text-muted-foreground" />
+                                    <input
+                                      type="text"
+                                      value={clipSearch}
+                                      onChange={(e) => { setClipSearch(e.target.value); setClipPage(0) }}
+                                      placeholder={t('form.clipSearchPlaceholder')}
+                                      className={`h-8 w-48 rounded-lg border border-border bg-background pl-8 pr-3 text-xs text-foreground placeholder:text-muted-foreground ${inputClassName}`}
+                                    />
+                                  </div>
+                                )}
 
                                 {(() => {
                                   const filtered = selectableClips.filter((c) =>
