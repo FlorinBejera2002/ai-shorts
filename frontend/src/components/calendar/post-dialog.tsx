@@ -1121,7 +1121,7 @@ export function PostDialog({
                           variants={isPage ? staggerItem : undefined}
                           className={`space-y-4 ${isPage ? styles.editorWide : ''}`}
                         >
-                          <div className="space-y-2">
+                          <div className="space-y-3">
                           <Label className="text-xs font-medium">{t('form.mediaSectionTitle')}</Label>
                           <div className="flex gap-2">
                             <button
