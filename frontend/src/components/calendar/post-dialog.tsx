@@ -45,7 +45,6 @@ import {
   Check,
   Film,
   Save,
-  Sparkles,
   Star,
   Timer,
   Trash2,
@@ -1118,46 +1117,45 @@ export function PostDialog({
 
                         <motion.div
                           variants={isPage ? staggerItem : undefined}
-                          className={isPage ? styles.editorWide : 'contents'}
+                          className={`grid gap-5 sm:grid-cols-2 ${isPage ? styles.editorWide : ''}`}
                         >
-                          <PublishingMediaPicker
-                            media={form.media}
-                            disabled={busy}
-                            error={errors.media}
-                            onUploadingChange={setUploading}
-                            onError={(message) =>
-                              setErrors((current) => ({
-                                ...current,
-                                media: message
-                              }))
-                            }
-                            onChange={(media) => {
-                              setForm((current) => ({
-                                ...current,
-                                media,
-                                clipId: media.length ? '' : current.clipId
-                              }))
-                              setErrors((current) => ({
-                                ...current,
-                                media: undefined,
-                                clipId: undefined,
-                                form: undefined
-                              }))
-                            }}
-                          />
-                          {selectedTikTokAccounts.length > 0 && (
-                            <p
-                              className={`${isPage ? 'mt-3' : '-mt-3'} text-[11px] leading-5 text-muted-foreground`}
-                            >
-                              {t('form.mediaTikTokHint')}
-                            </p>
-                          )}
-                        </motion.div>
+                          <div className="space-y-2">
+                            <Label className="text-xs font-semibold text-foreground">
+                              {t('form.mediaLabel')}
+                            </Label>
+                            <PublishingMediaPicker
+                              media={form.media}
+                              disabled={busy}
+                              error={errors.media}
+                              onUploadingChange={setUploading}
+                              onError={(message) =>
+                                setErrors((current) => ({
+                                  ...current,
+                                  media: message
+                                }))
+                              }
+                              onChange={(media) => {
+                                setForm((current) => ({
+                                  ...current,
+                                  media,
+                                  clipId: media.length ? '' : current.clipId
+                                }))
+                                setErrors((current) => ({
+                                  ...current,
+                                  media: undefined,
+                                  clipId: undefined,
+                                  form: undefined
+                                }))
+                              }}
+                            />
+                            {selectedTikTokAccounts.length > 0 && (
+                              <p className="text-[11px] leading-5 text-muted-foreground">
+                                {t('form.mediaTikTokHint')}
+                              </p>
+                            )}
+                          </div>
 
-                        <motion.div
-                          variants={isPage ? staggerItem : undefined}
-                          className={`space-y-4 pt-1 ${isPage ? styles.editorWide : ''}`}
-                        >
+                          <div className="space-y-4">
                           <div>
                             <Label
                               htmlFor={`${titleId}-clip`}
@@ -1196,9 +1194,16 @@ export function PostDialog({
                                     {t('form.noClip')}
                                   </SelectItem>
                                   {selectableClips.map((clip) => (
-                                    <SelectItem key={clip.id} value={clip.id}>
-                                      <span className="flex items-center gap-2">
-                                        <span className="truncate">
+                                    <SelectItem key={clip.id} value={clip.id} className="py-2">
+                                      <span className="flex items-center gap-2.5">
+                                        <span className="relative flex size-8 shrink-0 items-center justify-center overflow-hidden rounded bg-gradient-to-br from-[#0f172a] to-[#1e3a5f]">
+                                          {clip.thumbnailUrl ? (
+                                            <img src={clip.thumbnailUrl} alt="" className="absolute inset-0 size-full object-cover" />
+                                          ) : (
+                                            <Film className="size-3.5 text-white/40" />
+                                          )}
+                                        </span>
+                                        <span className="min-w-0 flex-1 truncate">
                                           {clip.title}
                                         </span>
                                         <span className="ml-auto flex shrink-0 items-center gap-1 text-xs text-amber-500">
@@ -1267,54 +1272,58 @@ export function PostDialog({
                               )
                             })()}
                           </AnimatePresence>
-
-                          <div>
-                            <Label
-                              htmlFor={`${titleId}-status`}
-                              className="text-xs font-semibold text-foreground"
-                            >
-                              {t('form.statusLabel')}
-                            </Label>
-                            <div className="mt-1.5">
-                              <Select
-                                value={form.status}
-                                onValueChange={(value) =>
-                                  setField(
-                                    'status',
-                                    value as CalendarMutationStatus
-                                  )
-                                }
-                              >
-                                <SelectTrigger
-                                  id={`${titleId}-status`}
-                                  aria-invalid={Boolean(errors.status)}
-                                  aria-describedby={
-                                    errors.status
-                                      ? `${titleId}-status-error`
-                                      : undefined
-                                  }
-                                  className="h-10 w-full bg-background px-3 text-sm shadow-none"
-                                >
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent
-                                  position="popper"
-                                  align="start"
-                                  className="z-[130]"
-                                >
-                                  {EDITABLE_CALENDAR_STATUSES.map((status) => (
-                                    <SelectItem key={status} value={status}>
-                                      {t(`statuses.${status}`)}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            </div>
-                            <FieldError
-                              id={`${titleId}-status-error`}
-                              message={errors.status}
-                            />
                           </div>
+                        </motion.div>
+
+                        <motion.div
+                          variants={isPage ? staggerItem : undefined}
+                          className={isPage ? styles.editorWide : ''}
+                        >
+                          <Label
+                            htmlFor={`${titleId}-status`}
+                            className="text-xs font-semibold text-foreground"
+                          >
+                            {t('form.statusLabel')}
+                          </Label>
+                          <div className="mt-1.5">
+                            <Select
+                              value={form.status}
+                              onValueChange={(value) =>
+                                setField(
+                                  'status',
+                                  value as CalendarMutationStatus
+                                )
+                              }
+                            >
+                              <SelectTrigger
+                                id={`${titleId}-status`}
+                                aria-invalid={Boolean(errors.status)}
+                                aria-describedby={
+                                  errors.status
+                                    ? `${titleId}-status-error`
+                                    : undefined
+                                }
+                                className="h-10 w-full bg-background px-3 text-sm shadow-none"
+                              >
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent
+                                position="popper"
+                                align="start"
+                                className="z-[130]"
+                              >
+                                {EDITABLE_CALENDAR_STATUSES.map((status) => (
+                                  <SelectItem key={status} value={status}>
+                                    {t(`statuses.${status}`)}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <FieldError
+                            id={`${titleId}-status-error`}
+                            message={errors.status}
+                          />
                         </motion.div>
                       </>
                     )}
