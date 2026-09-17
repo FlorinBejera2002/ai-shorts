@@ -76,14 +76,15 @@
     grid-column: 2;
   }
 }
-.dialog input:focus-visible,
-.dialog textarea:focus-visible,
-.dialog button:focus-visible,
-.dialog [data-slot="select-trigger"]:focus-visible {
+.dialog :is(input, textarea, button, [data-slot="select-trigger"]):focus,
+.dialog :is(input, textarea, button, [data-slot="select-trigger"]):focus-visible,
+.dialog :is(input, textarea, button, [data-slot="select-trigger"]):focus-within,
+.dialog label:focus-within {
   outline: none !important;
   outline-offset: 0;
-  box-shadow: none !important;
   border-color: var(--border) !important;
+  box-shadow: none !important;
+  --tw-ring-shadow: 0 0 #0000 !important;
 }
 .metrics {
   display: grid;
