@@ -1226,19 +1226,20 @@ export function PostDialog({
                                   )
                                   const isMobile = typeof window !== 'undefined' && window.innerWidth < 640
                                   const perPage = isMobile ? 4 : 6
+                                  const cols = isMobile ? 2 : 3
                                   const totalPages = Math.ceil(filtered.length / perPage)
                                   const page = Math.min(clipPage, Math.max(0, totalPages - 1))
                                   const paged = filtered.slice(page * perPage, (page + 1) * perPage)
 
                                   return (
                                     <>
-                                      <div className="grid grid-cols-2 gap-2.5">
+                                      <div className={`grid gap-2 ${cols === 3 ? 'grid-cols-3' : 'grid-cols-2'}`}>
                                         {paged.map((clip) => (
                                           <button
                                             key={clip.id}
                                             type="button"
                                             onClick={() => handleClipChange(form.clipId === clip.id ? '' : clip.id)}
-                                            className={`group relative flex flex-col overflow-hidden rounded-xl border text-left transition-all ${
+                                            className={`group relative flex flex-col overflow-hidden rounded-lg border text-left transition-all ${
                                               form.clipId === clip.id
                                                 ? 'border-foreground/30 bg-foreground/[0.03] ring-1 ring-foreground/10'
                                                 : 'border-border hover:border-foreground/15'
@@ -1252,27 +1253,27 @@ export function PostDialog({
                                                   <Film className="size-5 text-white/30" />
                                                 </div>
                                               )}
-                                              <div className="absolute bottom-1.5 right-1.5 flex items-center gap-1 rounded bg-black/60 px-1.5 py-0.5 text-[10px] font-medium tabular-nums text-white/90 backdrop-blur-sm">
-                                                <Timer className="size-2.5" />
+                                              <div className="absolute bottom-1 right-1 flex items-center gap-0.5 rounded bg-black/60 px-1 py-px text-[9px] font-medium tabular-nums text-white/90 backdrop-blur-sm">
+                                                <Timer className="size-2" />
                                                 {Math.floor(clip.duration / 60)}:{String(Math.round(clip.duration % 60)).padStart(2, '0')}
                                               </div>
                                               {form.clipId === clip.id && (
-                                                <div className="absolute left-1.5 top-1.5 flex size-5 items-center justify-center rounded-full bg-foreground">
-                                                  <Check className="size-3 text-background" />
+                                                <div className="absolute left-1 top-1 flex size-4 items-center justify-center rounded-full bg-foreground">
+                                                  <Check className="size-2.5 text-background" />
                                                 </div>
                                               )}
                                             </div>
-                                            <div className="flex flex-col gap-1.5 p-2.5">
-                                              <p className="line-clamp-1 text-xs font-medium text-foreground">
+                                            <div className="flex flex-col gap-1 p-1.5">
+                                              <p className="line-clamp-1 text-[11px] font-medium text-foreground">
                                                 {clip.title}
                                               </p>
-                                              <div className="flex items-center gap-1.5">
-                                                <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-amber-600 dark:text-amber-400">
-                                                  <Star className="size-2.5 fill-current" />
+                                              <div className="flex items-center gap-1">
+                                                <span className="inline-flex items-center gap-0.5 text-[9px] font-semibold text-amber-600 dark:text-amber-400">
+                                                  <Star className="size-2 fill-current" />
                                                   {clip.viralScore}
                                                 </span>
                                                 {clip.tiktokEligible && (
-                                                  <span className="text-[10px] font-medium text-teal-600 dark:text-teal-400">
+                                                  <span className="text-[9px] font-medium text-teal-600 dark:text-teal-400">
                                                     TikTok
                                                   </span>
                                                 )}
