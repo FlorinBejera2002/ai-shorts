@@ -1121,9 +1121,8 @@ export function PostDialog({
                           variants={isPage ? staggerItem : undefined}
                           className={`space-y-4 ${isPage ? styles.editorWide : ''}`}
                         >
-                          <div className="space-y-3">
-                          <Label className="text-xs font-medium">{t('form.mediaSectionTitle')}</Label>
-                          <div className="flex gap-2">
+                          <Label className="text-xs font-semibold text-foreground">{t('form.mediaSectionTitle')}</Label>
+                          <div className="mt-1.5 flex gap-2">
                             <button
                               type="button"
                               onClick={() => {
@@ -1155,7 +1154,6 @@ export function PostDialog({
                               <Upload className="size-3.5" />
                               {t('form.mediaSourceUpload')}
                             </button>
-                          </div>
                           </div>
 
                           <AnimatePresence mode="wait">
