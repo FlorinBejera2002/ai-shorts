@@ -1396,6 +1396,8 @@
       "closeAndConnect": "Închide și conectează",
       "clipLabel": "Clip din platformă",
       "noClip": "Selectează un clip",
+      "clipSearchPlaceholder": "Caută clip...",
+      "noClipsFound": "Niciun clip găsit",
       "mediaLabel": "Încarcă de pe dispozitiv",
       "mediaSourceClip": "Din platformă",
       "mediaSourceUpload": "De pe dispozitiv",

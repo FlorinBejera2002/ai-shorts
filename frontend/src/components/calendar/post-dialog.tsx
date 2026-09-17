@@ -43,8 +43,11 @@ import {
   ArrowLeft,
   CalendarClock,
   Check,
+  ChevronLeft,
+  ChevronRight,
   Film,
   Save,
+  Search,
   Star,
   Timer,
   Trash2,
@@ -254,6 +257,8 @@ export function PostDialog({
   const [deleting, setDeleting] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [mediaSource, setMediaSource] = useState<'clip' | 'upload'>('clip')
+  const [clipSearch, setClipSearch] = useState('')
+  const [clipPage, setClipPage] = useState(0)
   const [confirmDelete, setConfirmDelete] = useState(mode === 'delete')
   const [deletePlatforms, setDeletePlatforms] = useState<ContentPlatform[]>([])
   const [tiktokSettings, setTikTokSettings] =
@@ -1202,116 +1207,118 @@ export function PostDialog({
                                 animate={{ opacity: 1, y: 0 }}
                                 exit={{ opacity: 0, y: -6 }}
                                 transition={{ duration: 0.2 }}
-                                className="space-y-4"
+                                className="space-y-3"
                               >
-                                <div>
-                                  <Select
-                                    value={form.clipId || 'none'}
-                                    onValueChange={(value) =>
-                                      handleClipChange(
-                                        value === 'none' ? '' : value
-                                      )
-                                    }
-                                  >
-                                    <SelectTrigger
-                                      id={`${titleId}-clip`}
-                                      aria-invalid={Boolean(errors.clipId)}
-                                      aria-describedby={
-                                        errors.clipId
-                                          ? `${titleId}-clip-error`
-                                          : undefined
-                                      }
-                                      className="h-10 w-full bg-background px-3 text-sm shadow-none"
-                                    >
-                                      <Film className="h-4 w-4 text-muted-foreground" />
-                                      <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent
-                                      position="popper"
-                                      align="start"
-                                      className="z-[130] max-w-[min(28rem,calc(100vw-2rem))]"
-                                    >
-                                      <SelectItem value="none">
-                                        {t('form.noClip')}
-                                      </SelectItem>
-                                      {selectableClips.map((clip) => (
-                                        <SelectItem key={clip.id} value={clip.id} className="py-2">
-                                          <span className="flex items-center gap-2.5">
-                                            <span className="relative flex size-8 shrink-0 items-center justify-center overflow-hidden rounded bg-gradient-to-br from-[#0f172a] to-[#1e3a5f]">
-                                              {clip.thumbnailUrl ? (
-                                                <img src={clip.thumbnailUrl} alt="" className="absolute inset-0 size-full object-cover" />
-                                              ) : (
-                                                <Film className="size-3.5 text-white/40" />
-                                              )}
-                                            </span>
-                                            <span className="min-w-0 flex-1 truncate">
-                                              {clip.title}
-                                            </span>
-                                            <span className="ml-auto flex shrink-0 items-center gap-1 text-xs text-amber-500">
-                                              <Star className="size-3 fill-current" />
-                                              {clip.viralScore}
-                                            </span>
-                                          </span>
-                                        </SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-                                  <FieldError
-                                    id={`${titleId}-clip-error`}
-                                    message={errors.clipId}
+                                <div className="relative">
+                                  <Search className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+                                  <input
+                                    type="text"
+                                    value={clipSearch}
+                                    onChange={(e) => { setClipSearch(e.target.value); setClipPage(0) }}
+                                    placeholder={t('form.clipSearchPlaceholder')}
+                                    className={`h-9 w-full rounded-lg border border-border bg-background pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground ${inputClassName}`}
                                   />
                                 </div>
 
-                                <AnimatePresence>
-                                  {form.clipId && (() => {
-                                    const selectedClip = selectableClips.find(
-                                      (c) => c.id === form.clipId
-                                    )
-                                    if (!selectedClip) return null
-                                    return (
-                                      <motion.div
-                                        key={selectedClip.id}
-                                        initial={reduceMotion ? false : { opacity: 0, y: 8, scale: 0.98 }}
-                                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                                        exit={{ opacity: 0, y: -4, scale: 0.98 }}
-                                        transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-                                        className="flex overflow-hidden rounded-xl border bg-card"
-                                      >
-                                        <div className="relative flex w-[110px] shrink-0 items-center justify-center overflow-hidden bg-gradient-to-br from-[#0f172a] to-[#1e3a5f] sm:w-[130px]">
-                                          {selectedClip.thumbnailUrl ? (
-                                            <img
-                                              src={selectedClip.thumbnailUrl}
-                                              alt={selectedClip.title}
-                                              className="absolute inset-0 size-full object-cover"
-                                            />
-                                          ) : (
-                                            <Film className="size-6 text-white/30" />
-                                          )}
-                                          <div className="absolute bottom-1.5 right-1.5 flex items-center gap-1 rounded bg-black/60 px-1.5 py-0.5 text-[10px] font-medium tabular-nums text-white/90 backdrop-blur-sm">
-                                            <Timer className="size-2.5" />
-                                            {Math.floor(selectedClip.duration / 60)}:{String(Math.round(selectedClip.duration % 60)).padStart(2, '0')}
-                                          </div>
+                                {(() => {
+                                  const filtered = selectableClips.filter((c) =>
+                                    c.title.toLowerCase().includes(clipSearch.toLowerCase())
+                                  )
+                                  const isMobile = typeof window !== 'undefined' && window.innerWidth < 640
+                                  const perPage = isMobile ? 4 : 6
+                                  const totalPages = Math.ceil(filtered.length / perPage)
+                                  const page = Math.min(clipPage, Math.max(0, totalPages - 1))
+                                  const paged = filtered.slice(page * perPage, (page + 1) * perPage)
+
+                                  return (
+                                    <>
+                                      <div className="grid grid-cols-2 gap-2.5">
+                                        {paged.map((clip) => (
+                                          <button
+                                            key={clip.id}
+                                            type="button"
+                                            onClick={() => handleClipChange(form.clipId === clip.id ? '' : clip.id)}
+                                            className={`group relative flex flex-col overflow-hidden rounded-xl border text-left transition-all ${
+                                              form.clipId === clip.id
+                                                ? 'border-foreground/30 bg-foreground/[0.03] ring-1 ring-foreground/10'
+                                                : 'border-border hover:border-foreground/15'
+                                            }`}
+                                          >
+                                            <div className="relative aspect-video w-full overflow-hidden bg-gradient-to-br from-[#0f172a] to-[#1e3a5f]">
+                                              {clip.thumbnailUrl ? (
+                                                <img src={clip.thumbnailUrl} alt="" className="absolute inset-0 size-full object-cover" />
+                                              ) : (
+                                                <div className="flex size-full items-center justify-center">
+                                                  <Film className="size-5 text-white/30" />
+                                                </div>
+                                              )}
+                                              <div className="absolute bottom-1.5 right-1.5 flex items-center gap-1 rounded bg-black/60 px-1.5 py-0.5 text-[10px] font-medium tabular-nums text-white/90 backdrop-blur-sm">
+                                                <Timer className="size-2.5" />
+                                                {Math.floor(clip.duration / 60)}:{String(Math.round(clip.duration % 60)).padStart(2, '0')}
+                                              </div>
+                                              {form.clipId === clip.id && (
+                                                <div className="absolute left-1.5 top-1.5 flex size-5 items-center justify-center rounded-full bg-foreground">
+                                                  <Check className="size-3 text-background" />
+                                                </div>
+                                              )}
+                                            </div>
+                                            <div className="flex flex-col gap-1.5 p-2.5">
+                                              <p className="line-clamp-1 text-xs font-medium text-foreground">
+                                                {clip.title}
+                                              </p>
+                                              <div className="flex items-center gap-1.5">
+                                                <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-amber-600 dark:text-amber-400">
+                                                  <Star className="size-2.5 fill-current" />
+                                                  {clip.viralScore}
+                                                </span>
+                                                {clip.tiktokEligible && (
+                                                  <span className="text-[10px] font-medium text-teal-600 dark:text-teal-400">
+                                                    TikTok
+                                                  </span>
+                                                )}
+                                              </div>
+                                            </div>
+                                          </button>
+                                        ))}
+                                      </div>
+
+                                      {filtered.length === 0 && (
+                                        <p className="py-4 text-center text-xs text-muted-foreground">
+                                          {t('form.noClipsFound')}
+                                        </p>
+                                      )}
+
+                                      {totalPages > 1 && (
+                                        <div className="flex items-center justify-center gap-2 pt-1">
+                                          <button
+                                            type="button"
+                                            disabled={page === 0}
+                                            onClick={() => setClipPage(page - 1)}
+                                            className="flex size-7 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:text-foreground disabled:opacity-30"
+                                          >
+                                            <ChevronLeft className="size-3.5" />
+                                          </button>
+                                          <span className="text-[11px] tabular-nums text-muted-foreground">
+                                            {page + 1} / {totalPages}
+                                          </span>
+                                          <button
+                                            type="button"
+                                            disabled={page >= totalPages - 1}
+                                            onClick={() => setClipPage(page + 1)}
+                                            className="flex size-7 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:text-foreground disabled:opacity-30"
+                                          >
+                                            <ChevronRight className="size-3.5" />
+                                          </button>
                                         </div>
-                                        <div className="flex min-w-0 flex-1 flex-col justify-center gap-2.5 px-4 py-3">
-                                          <p className="text-sm font-semibold leading-snug text-foreground">
-                                            {selectedClip.title}
-                                          </p>
-                                          <div className="flex flex-wrap items-center gap-2">
-                                            <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-2.5 py-0.5 text-[11px] font-semibold text-amber-700 dark:text-amber-400">
-                                              <Star className="size-3 fill-current" />
-                                              {selectedClip.viralScore}/10
-                                            </span>
-                                            {selectedClip.tiktokEligible && (
-                                              <span className="inline-flex items-center gap-1 rounded-full bg-[#00f2ea]/8 px-2.5 py-0.5 text-[11px] font-medium text-teal-700 dark:text-teal-400">
-                                                TikTok ready
-                                              </span>
-                                            )}
-                                          </div>
-                                        </div>
-                                      </motion.div>
-                                    )
-                                  })()}
-                                </AnimatePresence>
+                                      )}
+
+                                      <FieldError
+                                        id={`${titleId}-clip-error`}
+                                        message={errors.clipId}
+                                      />
+                                    </>
+                                  )
+                                })()}
                               </motion.div>
                             )}
                           </AnimatePresence>

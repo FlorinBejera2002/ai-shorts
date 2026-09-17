@@ -1399,6 +1399,8 @@
       "closeAndConnect": "Close and connect",
       "clipLabel": "Platform clip",
       "noClip": "Select a clip",
+      "clipSearchPlaceholder": "Search clips...",
+      "noClipsFound": "No clips found",
       "mediaLabel": "Upload from your device",
       "mediaSourceClip": "From platform",
       "mediaSourceUpload": "From device",
