@@ -90,7 +90,24 @@ type FormState = {
 type FormErrors = Partial<Record<keyof FormState | 'form' | 'tiktok', string>>
 
 const inputClassName =
-  'w-full rounded-md border border-border bg-background px-3 text-sm text-foreground shadow-none outline-none transition-colors placeholder:text-muted-foreground/70 hover:border-border hover:bg-background focus:border-border focus:bg-background focus:outline-none focus:ring-0 focus-visible:border-border focus-visible:bg-background focus-visible:ring-0'
+  'w-full rounded-md border border-border bg-background px-3 text-sm text-foreground shadow-none outline-none transition-all duration-200 placeholder:text-muted-foreground/70 hover:border-foreground/20 focus:border-foreground/30 focus:bg-background focus:outline-none focus:ring-0 focus-visible:border-foreground/30 focus-visible:bg-background focus-visible:ring-0'
+
+const staggerContainer = {
+  hidden: { opacity: 1 },
+  show: {
+    opacity: 1,
+    transition: { staggerChildren: 0.05, delayChildren: 0.08 }
+  }
+}
+
+const staggerItem = {
+  hidden: { opacity: 0, y: 10 },
+  show: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.4, ease: [0.16, 1, 0.3, 1] as const }
+  }
+} as const
 
 function initialFormState(
   selectedDate: Date,
@@ -740,16 +757,18 @@ export function PostDialog({
         {publishingAccounts.map((account) => {
           const selected = selectedAccountIds.has(account.id)
           return (
-            <button
+            <motion.button
               key={account.id}
               type="button"
               aria-pressed={selected}
               disabled={busy}
               onClick={() => toggleAccount(account)}
-              className={`relative flex min-h-11 items-center gap-2 rounded-md border px-3 text-xs font-semibold transition-[transform,background-color,border-color,box-shadow,color] disabled:cursor-not-allowed disabled:opacity-60 ${
+              whileTap={reduceMotion ? undefined : { scale: 0.97 }}
+              transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+              className={`relative flex min-h-11 items-center gap-2 rounded-lg border px-3 text-xs font-semibold transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-60 ${
                 selected
                   ? 'border-foreground bg-foreground text-background shadow-sm'
-                  : 'border-border bg-background text-muted-foreground hover:-translate-y-px hover:bg-muted hover:text-foreground hover:shadow-sm'
+                  : 'border-border bg-background text-muted-foreground hover:border-foreground/20 hover:bg-muted hover:text-foreground hover:shadow-sm'
               }`}
             >
               <PlatformOptionIcon platform={account.provider} />
@@ -759,8 +778,23 @@ export function PostDialog({
               <span className="ml-auto text-[10px] opacity-70">
                 {t(`platforms.${account.provider}`)}
               </span>
-              {selected && <Check className="h-3.5 w-3.5" />}
-            </button>
+              <AnimatePresence>
+                {selected && (
+                  <motion.span
+                    initial={reduceMotion ? false : { scale: 0, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    exit={{ scale: 0, opacity: 0 }}
+                    transition={{
+                      type: 'spring',
+                      stiffness: 500,
+                      damping: 20
+                    }}
+                  >
+                    <Check className="h-3.5 w-3.5" />
+                  </motion.span>
+                )}
+              </AnimatePresence>
+            </motion.button>
           )
         })}
       </div>
@@ -839,10 +873,10 @@ export function PostDialog({
             initial={
               isPage || reduceMotion
                 ? false
-                : { opacity: 0, y: 24, scale: 0.98 }
+                : { opacity: 0, y: 24, scale: 0.97 }
             }
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
+            transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
             onMouseDown={(event) => event.stopPropagation()}
             className={
               isPage
@@ -1011,6 +1045,9 @@ export function PostDialog({
                 >
                   <motion.div
                     layoutScroll={!isPage}
+                    variants={isPage && !reduceMotion ? staggerContainer : undefined}
+                    initial={isPage && !reduceMotion ? 'hidden' : false}
+                    animate="show"
                     className={
                       isPage
                         ? styles.editorFields
@@ -1018,17 +1055,19 @@ export function PostDialog({
                     }
                   >
                     {errors.form && (
-                      <div
+                      <motion.div
                         role="alert"
+                        initial={reduceMotion ? false : { opacity: 0, scale: 0.98 }}
+                        animate={{ opacity: 1, scale: 1 }}
                         className="rounded-md border border-destructive/25 bg-destructive/[0.06] px-3 py-2.5 text-xs font-medium text-destructive"
                       >
                         {errors.form}
-                      </div>
+                      </motion.div>
                     )}
 
                     {!isReschedule && (
                       <>
-                        <div>
+                        <motion.div variants={isPage ? staggerItem : undefined}>
                           <Label
                             htmlFor={`${titleId}-title`}
                             className="text-xs font-semibold text-foreground"
@@ -1062,11 +1101,12 @@ export function PostDialog({
                               {form.title.length}/{isTikTokPhotoPost ? 90 : 120}
                             </span>
                           </div>
-                        </div>
+                        </motion.div>
 
                         {!isPage && platformSelection}
 
-                        <div
+                        <motion.div
+                          variants={isPage ? staggerItem : undefined}
                           className={isPage ? styles.editorWide : 'contents'}
                         >
                           <PublishingMediaPicker
@@ -1101,9 +1141,10 @@ export function PostDialog({
                               {t('form.mediaTikTokHint')}
                             </p>
                           )}
-                        </div>
+                        </motion.div>
 
-                        <div
+                        <motion.div
+                          variants={isPage ? staggerItem : undefined}
                           className={`grid gap-4 pt-1 sm:grid-cols-2 ${isPage ? styles.editorWide : ''}`}
                         >
                           <div>
@@ -1203,12 +1244,15 @@ export function PostDialog({
                               message={errors.status}
                             />
                           </div>
-                        </div>
+                        </motion.div>
                       </>
                     )}
 
                     {(isReschedule || form.status === 'scheduled') && (
-                      <div className="pt-1">
+                      <motion.div
+                        variants={isPage ? staggerItem : undefined}
+                        className="pt-1"
+                      >
                         <SchedulePicker
                           date={form.date}
                           time={form.time}
@@ -1220,12 +1264,15 @@ export function PostDialog({
                         <p className="mt-2 text-[11px] text-muted-foreground">
                           {t('timezone', { zone: timeZone })}
                         </p>
-                      </div>
+                      </motion.div>
                     )}
 
                     {!isReschedule && (
                       <>
-                        <div className={isPage ? styles.editorWide : 'pt-1'}>
+                        <motion.div
+                          variants={isPage ? staggerItem : undefined}
+                          className={isPage ? styles.editorWide : 'pt-1'}
+                        >
                           <Label
                             htmlFor={`${titleId}-caption`}
                             className="text-xs font-semibold text-foreground"
@@ -1260,9 +1307,10 @@ export function PostDialog({
                               {form.caption.length}/{captionLimit}
                             </span>
                           </div>
-                        </div>
+                        </motion.div>
                         {selectedTikTokAccount && (
-                          <div
+                          <motion.div
+                            variants={isPage ? staggerItem : undefined}
                             className={`space-y-2 pt-1 ${isPage ? styles.editorWide : ''}`}
                           >
                             <TikTokPostSettings
@@ -1279,9 +1327,12 @@ export function PostDialog({
                               id={`${titleId}-tiktok-error`}
                               message={errors.tiktok}
                             />
-                          </div>
+                          </motion.div>
                         )}
-                        <div className={isPage ? styles.editorWide : 'pt-1'}>
+                        <motion.div
+                          variants={isPage ? staggerItem : undefined}
+                          className={isPage ? styles.editorWide : 'pt-1'}
+                        >
                           <Label
                             htmlFor={`${titleId}-notes`}
                             className="text-xs font-semibold text-foreground"
@@ -1309,62 +1360,73 @@ export function PostDialog({
                             id={`${titleId}-notes-error`}
                             message={errors.notes}
                           />
-                        </div>
+                        </motion.div>
                       </>
                     )}
                   </motion.div>
                 </FieldsContainer>
 
-                <div
+                <motion.div
+                  initial={isPage && !reduceMotion ? { opacity: 0, y: 8 } : false}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.3, duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
                   className={
                     isPage
-                      ? `${styles.editorActions} flex flex-col-reverse gap-2 rounded-md border bg-card p-4 sm:flex-row sm:justify-end sm:items-center`
+                      ? `${styles.editorActions} flex flex-col-reverse gap-2.5 rounded-lg border bg-card/80 p-4 backdrop-blur-sm sm:flex-row sm:justify-end sm:items-center`
                       : 'flex flex-col-reverse gap-2 border-t bg-card px-5 py-4 shadow-[0_-8px_24px_-20px_rgba(0,0,0,0.35)] sm:flex-row sm:items-center sm:px-7'
                   }
                 >
                   {mode === 'edit' && onDelete && (
-                    <button
+                    <motion.button
                       ref={deleteButtonRef}
                       type="button"
                       disabled={busy}
                       onClick={() => setConfirmDelete(true)}
-                      className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md px-3 text-xs font-semibold text-destructive transition-colors hover:bg-destructive/[0.07] disabled:opacity-50 sm:mr-auto"
+                      whileHover={reduceMotion ? undefined : { scale: 1.02 }}
+                      whileTap={reduceMotion ? undefined : { scale: 0.97 }}
+                      className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg px-3 text-xs font-semibold text-destructive transition-colors hover:bg-destructive/[0.07] disabled:opacity-50 sm:mr-auto"
                     >
                       <Trash2 className="h-4 w-4" />
                       {t('actions.delete')}
-                    </button>
+                    </motion.button>
                   )}
                   <Button
                     type="button"
                     disabled={busy}
                     onClick={onClose}
                     variant="outline"
-                    className=""
+                    className="transition-all duration-200 hover:shadow-sm"
                   >
                     {t('actions.cancel')}
                   </Button>
-                  <Button
-                    type="submit"
-                    disabled={busy}
-                    variant="default"
-                    className="disabled:cursor-not-allowed disabled:opacity-60"
+                  <motion.div
+                    whileHover={reduceMotion ? undefined : { scale: 1.02 }}
+                    whileTap={reduceMotion ? undefined : { scale: 0.97 }}
+                    transition={{ type: 'spring', stiffness: 400, damping: 25 }}
                   >
-                    {saving ? (
-                      <LoadingIndicator className="h-4 w-4" />
-                    ) : isReschedule ? (
-                      <CalendarClock className="h-4 w-4" />
-                    ) : (
-                      <Save className="h-4 w-4" />
-                    )}
-                    {saving
-                      ? t('actions.saving')
-                      : isReschedule
-                        ? t('actions.reschedule')
-                        : mode === 'create'
-                          ? t('actions.create')
-                          : t('actions.save')}
-                  </Button>
-                </div>
+                    <Button
+                      type="submit"
+                      disabled={busy}
+                      variant="default"
+                      className="w-full transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+                    >
+                      {saving ? (
+                        <LoadingIndicator className="h-4 w-4" />
+                      ) : isReschedule ? (
+                        <CalendarClock className="h-4 w-4" />
+                      ) : (
+                        <Save className="h-4 w-4" />
+                      )}
+                      {saving
+                        ? t('actions.saving')
+                        : isReschedule
+                          ? t('actions.reschedule')
+                          : mode === 'create'
+                            ? t('actions.create')
+                            : t('actions.save')}
+                    </Button>
+                  </motion.div>
+                </motion.div>
               </form>
             )}
           </motion.div>

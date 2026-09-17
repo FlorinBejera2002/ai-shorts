@@ -23,11 +23,19 @@
 .editorPlatforms {
   min-width: 0;
   padding: 1.25rem;
+  transition: box-shadow 0.3s ease;
+}
+.editorPlatforms:hover {
+  box-shadow: 0 4px 24px -8px rgba(0, 0, 0, 0.08);
 }
 .editorContent {
   min-width: 0;
   gap: 0;
   padding: 0;
+  transition: box-shadow 0.3s ease;
+}
+.editorContent:hover {
+  box-shadow: 0 4px 24px -8px rgba(0, 0, 0, 0.06);
 }
 .editorActions {
   min-width: 0;
@@ -47,12 +55,13 @@
 @media (min-width: 768px) {
   .editorFields {
     gap: 2rem;
-    padding: 1.5rem;
+    padding: 1.75rem;
   }
 }
 @media (min-width: 1024px) {
   .editorLayout {
-    grid-template-columns: 17rem minmax(0, 1fr);
+    grid-template-columns: 16rem minmax(0, 1fr);
+    gap: 1.5rem;
   }
   .editorPlatforms {
     position: sticky;
