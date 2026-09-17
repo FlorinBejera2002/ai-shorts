@@ -1230,44 +1230,37 @@ export function PostDialog({
                                   animate={{ opacity: 1, y: 0, scale: 1 }}
                                   exit={{ opacity: 0, y: -4, scale: 0.98 }}
                                   transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-                                  className="overflow-hidden rounded-lg border bg-gradient-to-br from-primary/[0.03] to-accent/[0.03]"
+                                  className="flex overflow-hidden rounded-xl border bg-card"
                                 >
-                                  <div className="flex gap-0">
-                                    <div className="relative flex aspect-video w-28 shrink-0 items-center justify-center overflow-hidden bg-black/90 sm:w-36">
-                                      {selectedClip.thumbnailUrl ? (
-                                        <img
-                                          src={selectedClip.thumbnailUrl}
-                                          alt={selectedClip.title}
-                                          className="size-full object-cover"
-                                        />
-                                      ) : (
-                                        <Film className="size-6 text-white/40" />
-                                      )}
-                                      <div className="absolute bottom-1 right-1 rounded bg-black/70 px-1.5 py-0.5 text-[10px] font-medium tabular-nums text-white/90">
-                                        <div className="flex items-center gap-1">
-                                          <Timer className="size-2.5" />
-                                          {Math.floor(selectedClip.duration / 60)}:{String(Math.round(selectedClip.duration % 60)).padStart(2, '0')}
-                                        </div>
-                                      </div>
+                                  <div className="relative flex w-[110px] shrink-0 items-center justify-center overflow-hidden bg-gradient-to-br from-[#0f172a] to-[#1e3a5f] sm:w-[130px]">
+                                    {selectedClip.thumbnailUrl ? (
+                                      <img
+                                        src={selectedClip.thumbnailUrl}
+                                        alt={selectedClip.title}
+                                        className="absolute inset-0 size-full object-cover"
+                                      />
+                                    ) : (
+                                      <Film className="size-6 text-white/30" />
+                                    )}
+                                    <div className="absolute bottom-1.5 right-1.5 flex items-center gap-1 rounded bg-black/60 px-1.5 py-0.5 text-[10px] font-medium tabular-nums text-white/90 backdrop-blur-sm">
+                                      <Timer className="size-2.5" />
+                                      {Math.floor(selectedClip.duration / 60)}:{String(Math.round(selectedClip.duration % 60)).padStart(2, '0')}
                                     </div>
-                                    <div className="flex min-w-0 flex-1 flex-col justify-center gap-2 px-3 py-2.5">
-                                      <p className="truncate text-sm font-semibold text-foreground">
-                                        {selectedClip.title}
-                                      </p>
-                                      <div className="flex items-center gap-3">
-                                        <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-2 py-0.5 text-[11px] font-semibold text-amber-600 dark:text-amber-400">
-                                          <Sparkles className="size-3" />
-                                          {selectedClip.viralScore}/10
+                                  </div>
+                                  <div className="flex min-w-0 flex-1 flex-col justify-center gap-2.5 px-4 py-3">
+                                    <p className="text-sm font-semibold leading-snug text-foreground">
+                                      {selectedClip.title}
+                                    </p>
+                                    <div className="flex flex-wrap items-center gap-2">
+                                      <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-2.5 py-0.5 text-[11px] font-semibold text-amber-700 dark:text-amber-400">
+                                        <Star className="size-3 fill-current" />
+                                        {selectedClip.viralScore}/10
+                                      </span>
+                                      {selectedClip.tiktokEligible && (
+                                        <span className="inline-flex items-center gap-1 rounded-full bg-[#00f2ea]/8 px-2.5 py-0.5 text-[11px] font-medium text-teal-700 dark:text-teal-400">
+                                          TikTok ready
                                         </span>
-                                        <span className="text-[11px] text-muted-foreground">
-                                          {Math.round(selectedClip.duration)}s
-                                        </span>
-                                        {selectedClip.tiktokEligible && (
-                                          <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">
-                                            TikTok
-                                          </span>
-                                        )}
-                                      </div>
+                                      )}
                                     </div>
                                   </div>
                                 </motion.div>
