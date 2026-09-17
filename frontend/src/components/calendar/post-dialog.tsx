@@ -45,6 +45,9 @@ import {
   Check,
   Film,
   Save,
+  Sparkles,
+  Star,
+  Timer,
   Trash2,
   X
 } from 'lucide-react'
@@ -90,7 +93,14 @@ type FormState = {
 type FormErrors = Partial<Record<keyof FormState | 'form' | 'tiktok', string>>
 
 const inputClassName =
-  'w-full rounded-md border border-border bg-background px-3 text-sm text-foreground shadow-none outline-none transition-all duration-200 placeholder:text-muted-foreground/70 hover:border-foreground/20 focus:border-foreground/30 focus:bg-background focus:outline-none focus:ring-0 focus-visible:border-foreground/30 focus-visible:bg-background focus-visible:ring-0'
+  'w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground shadow-none outline-none transition-all duration-200 placeholder:text-muted-foreground/60 hover:border-primary/25 focus:border-primary/40 focus:bg-background focus:outline-none focus:ring-2 focus:ring-primary/10 focus-visible:border-primary/40 focus-visible:bg-background focus-visible:ring-2 focus-visible:ring-primary/10'
+
+const platformColors: Record<string, string> = {
+  tiktok: 'border-[#00f2ea]/40 bg-[#00f2ea]/5 text-foreground shadow-[0_0_0_1px_rgba(0,242,234,0.1)]',
+  instagram: 'border-[#E1306C]/40 bg-[#E1306C]/5 text-foreground shadow-[0_0_0_1px_rgba(225,48,108,0.1)]',
+  youtube: 'border-[#FF0000]/40 bg-[#FF0000]/5 text-foreground shadow-[0_0_0_1px_rgba(255,0,0,0.1)]',
+  facebook: 'border-[#1877F2]/40 bg-[#1877F2]/5 text-foreground shadow-[0_0_0_1px_rgba(24,119,242,0.1)]',
+}
 
 const staggerContainer = {
   hidden: { opacity: 1 },
@@ -767,7 +777,7 @@ export function PostDialog({
               transition={{ type: 'spring', stiffness: 400, damping: 25 }}
               className={`relative flex min-h-11 items-center gap-2 rounded-lg border px-3 text-xs font-semibold transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-60 ${
                 selected
-                  ? 'border-foreground bg-foreground text-background shadow-sm'
+                  ? (platformColors[account.provider] ?? 'border-primary/40 bg-primary/5 text-foreground')
                   : 'border-border bg-background text-muted-foreground hover:border-foreground/20 hover:bg-muted hover:text-foreground hover:shadow-sm'
               }`}
             >
@@ -775,7 +785,7 @@ export function PostDialog({
               <span className="min-w-0 truncate">
                 {account.username ? `@${account.username}` : account.name}
               </span>
-              <span className="ml-auto text-[10px] opacity-70">
+              <span className="ml-auto text-[10px] opacity-60">
                 {t(`platforms.${account.provider}`)}
               </span>
               <AnimatePresence>
@@ -789,8 +799,9 @@ export function PostDialog({
                       stiffness: 500,
                       damping: 20
                     }}
+                    className="flex size-5 items-center justify-center rounded-full bg-foreground/10"
                   >
-                    <Check className="h-3.5 w-3.5" />
+                    <Check className="size-3" />
                   </motion.span>
                 )}
               </AnimatePresence>
@@ -1145,7 +1156,7 @@ export function PostDialog({
 
                         <motion.div
                           variants={isPage ? staggerItem : undefined}
-                          className={`grid gap-4 pt-1 sm:grid-cols-2 ${isPage ? styles.editorWide : ''}`}
+                          className={`space-y-4 pt-1 ${isPage ? styles.editorWide : ''}`}
                         >
                           <div>
                             <Label
@@ -1179,14 +1190,22 @@ export function PostDialog({
                                 <SelectContent
                                   position="popper"
                                   align="start"
-                                  className="z-[130]"
+                                  className="z-[130] max-w-[min(28rem,calc(100vw-2rem))]"
                                 >
                                   <SelectItem value="none">
                                     {t('form.noClip')}
                                   </SelectItem>
                                   {selectableClips.map((clip) => (
                                     <SelectItem key={clip.id} value={clip.id}>
-                                      {clip.title} · {clip.viralScore}/10
+                                      <span className="flex items-center gap-2">
+                                        <span className="truncate">
+                                          {clip.title}
+                                        </span>
+                                        <span className="ml-auto flex shrink-0 items-center gap-1 text-xs text-amber-500">
+                                          <Star className="size-3 fill-current" />
+                                          {clip.viralScore}
+                                        </span>
+                                      </span>
                                     </SelectItem>
                                   ))}
                                 </SelectContent>
@@ -1197,6 +1216,65 @@ export function PostDialog({
                               message={errors.clipId}
                             />
                           </div>
+
+                          <AnimatePresence>
+                            {form.clipId && (() => {
+                              const selectedClip = selectableClips.find(
+                                (c) => c.id === form.clipId
+                              )
+                              if (!selectedClip) return null
+                              return (
+                                <motion.div
+                                  key={selectedClip.id}
+                                  initial={reduceMotion ? false : { opacity: 0, y: 8, scale: 0.98 }}
+                                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                                  exit={{ opacity: 0, y: -4, scale: 0.98 }}
+                                  transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+                                  className="overflow-hidden rounded-lg border bg-gradient-to-br from-primary/[0.03] to-accent/[0.03]"
+                                >
+                                  <div className="flex gap-0">
+                                    <div className="relative flex aspect-video w-28 shrink-0 items-center justify-center overflow-hidden bg-black/90 sm:w-36">
+                                      {selectedClip.thumbnailUrl ? (
+                                        <img
+                                          src={selectedClip.thumbnailUrl}
+                                          alt={selectedClip.title}
+                                          className="size-full object-cover"
+                                        />
+                                      ) : (
+                                        <Film className="size-6 text-white/40" />
+                                      )}
+                                      <div className="absolute bottom-1 right-1 rounded bg-black/70 px-1.5 py-0.5 text-[10px] font-medium tabular-nums text-white/90">
+                                        <div className="flex items-center gap-1">
+                                          <Timer className="size-2.5" />
+                                          {Math.floor(selectedClip.duration / 60)}:{String(Math.round(selectedClip.duration % 60)).padStart(2, '0')}
+                                        </div>
+                                      </div>
+                                    </div>
+                                    <div className="flex min-w-0 flex-1 flex-col justify-center gap-2 px-3 py-2.5">
+                                      <p className="truncate text-sm font-semibold text-foreground">
+                                        {selectedClip.title}
+                                      </p>
+                                      <div className="flex items-center gap-3">
+                                        <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-2 py-0.5 text-[11px] font-semibold text-amber-600 dark:text-amber-400">
+                                          <Sparkles className="size-3" />
+                                          {selectedClip.viralScore}/10
+                                        </span>
+                                        <span className="text-[11px] text-muted-foreground">
+                                          {Math.round(selectedClip.duration)}s
+                                        </span>
+                                        {selectedClip.tiktokEligible && (
+                                          <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">
+                                            TikTok
+                                          </span>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
+                                </motion.div>
+                              )
+                            })()}
+                          </AnimatePresence>
+
                           <div>
                             <Label
                               htmlFor={`${titleId}-status`}
@@ -1372,7 +1450,7 @@ export function PostDialog({
                   transition={{ delay: 0.3, duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
                   className={
                     isPage
-                      ? `${styles.editorActions} flex flex-col-reverse gap-2.5 rounded-lg border bg-card/80 p-4 backdrop-blur-sm sm:flex-row sm:justify-end sm:items-center`
+                      ? `${styles.editorActions} flex flex-col-reverse gap-2.5 rounded-lg border bg-gradient-to-r from-card to-card/80 p-4 backdrop-blur-sm sm:flex-row sm:justify-end sm:items-center`
                       : 'flex flex-col-reverse gap-2 border-t bg-card px-5 py-4 shadow-[0_-8px_24px_-20px_rgba(0,0,0,0.35)] sm:flex-row sm:items-center sm:px-7'
                   }
                 >
@@ -1408,7 +1486,7 @@ export function PostDialog({
                       type="submit"
                       disabled={busy}
                       variant="default"
-                      className="w-full transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+                      className="w-full bg-gradient-to-r from-primary to-accent text-white shadow-md shadow-primary/20 transition-all duration-200 hover:shadow-lg hover:shadow-primary/30 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
                     >
                       {saving ? (
                         <LoadingIndicator className="h-4 w-4" />

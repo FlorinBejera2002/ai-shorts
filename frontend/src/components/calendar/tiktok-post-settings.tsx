@@ -3,6 +3,13 @@
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { LoadingIndicator } from '@/components/ui/loading-indicator'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import type { TikTokCreatorOptionsState } from '@/hooks/use-tiktok-creator-options'
 import type { PublishingData } from '@/lib/publishing'
@@ -194,24 +201,43 @@ export function TikTokPostSettings({
                     >
                       {t('privacy')}
                     </Label>
-                    <select
-                      id={`${idPrefix}-privacy`}
-                      value={settings.privacyLevel}
-                      onChange={(event) =>
-                        onChange('privacyLevel', event.target.value)
-                      }
-                      disabled={disabled}
-                      className="mt-2 h-10 w-full rounded-md border border-border bg-background px-3 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
-                    >
-                      <option value="">{t('choosePrivacy')}</option>
-                      {options.privacyLevels.map((level) => (
-                        <option key={level} value={level}>
-                          {t.has(`privacyLevels.${level}`)
-                            ? t(`privacyLevels.${level}`)
-                            : level}
-                        </option>
-                      ))}
-                    </select>
+                    <div className="mt-2">
+                      <Select
+                        value={settings.privacyLevel || 'none'}
+                        onValueChange={(value) =>
+                          onChange(
+                            'privacyLevel',
+                            value === 'none' ? '' : value
+                          )
+                        }
+                        disabled={disabled}
+                      >
+                        <SelectTrigger
+                          id={`${idPrefix}-privacy`}
+                          className="h-10 w-full bg-background px-3 text-sm shadow-none"
+                        >
+                          <SelectValue
+                            placeholder={t('choosePrivacy')}
+                          />
+                        </SelectTrigger>
+                        <SelectContent
+                          position="popper"
+                          align="start"
+                          className="z-[130]"
+                        >
+                          <SelectItem value="none">
+                            {t('choosePrivacy')}
+                          </SelectItem>
+                          {options.privacyLevels.map((level) => (
+                            <SelectItem key={level} value={level}>
+                              {t.has(`privacyLevels.${level}`)
+                                ? t(`privacyLevels.${level}`)
+                                : level}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
 
                   <fieldset>
