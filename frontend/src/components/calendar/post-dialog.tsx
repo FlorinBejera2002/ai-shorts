@@ -1210,13 +1210,13 @@ export function PostDialog({
                                 className="space-y-3"
                               >
                                 <div className="relative">
-                                  <Search className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+                                  <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3 -translate-y-1/2 text-muted-foreground" />
                                   <input
                                     type="text"
                                     value={clipSearch}
                                     onChange={(e) => { setClipSearch(e.target.value); setClipPage(0) }}
                                     placeholder={t('form.clipSearchPlaceholder')}
-                                    className={`h-9 w-full rounded-lg border border-border bg-background pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground ${inputClassName}`}
+                                    className={`h-8 w-48 rounded-lg border border-border bg-background pl-8 pr-3 text-xs text-foreground placeholder:text-muted-foreground ${inputClassName}`}
                                   />
                                 </div>
 
