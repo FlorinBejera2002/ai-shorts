@@ -6,13 +6,6 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { LoadingIndicator } from '@/components/ui/loading-indicator'
 import { PageHeader } from '@/components/ui/page-header'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
-} from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { useTikTokCreatorOptions } from '@/hooks/use-tiktok-creator-options'
 import { PublishingMediaPicker } from './publishing-media-picker'
@@ -158,7 +151,9 @@ function initialFormState(
     notes: post?.notes ?? '',
     platforms: [...new Set(selectedProviders)],
     accountIds,
-    status: post?.status === 'draft' ? 'draft' : 'scheduled',
+    status: post?.status === 'draft' || post?.status === 'scheduled'
+      ? post.status
+      : 'draft',
     date: localDateKey(scheduledAt),
     time: post
       ? localTimeValue(scheduledAt)
@@ -1331,46 +1326,40 @@ export function PostDialog({
                           variants={isPage ? staggerItem : undefined}
                           className={isPage ? styles.editorWide : ''}
                         >
-                          <Label
-                            htmlFor={`${titleId}-status`}
-                            className="text-xs font-semibold text-foreground"
-                          >
+                          <Label className="text-xs font-semibold text-foreground">
                             {t('form.statusLabel')}
                           </Label>
-                          <div className="mt-1.5">
-                            <Select
-                              value={form.status}
-                              onValueChange={(value) =>
-                                setField(
-                                  'status',
-                                  value as CalendarMutationStatus
-                                )
-                              }
-                            >
-                              <SelectTrigger
-                                id={`${titleId}-status`}
-                                aria-invalid={Boolean(errors.status)}
-                                aria-describedby={
-                                  errors.status
-                                    ? `${titleId}-status-error`
-                                    : undefined
+                          <div className="mt-1.5 flex gap-2">
+                            {EDITABLE_CALENDAR_STATUSES.map((status) => {
+                              const isActive = form.status === status
+                              const colorMap: Record<string, { active: string; idle: string }> = {
+                                draft: {
+                                  active: 'border-amber-400/40 bg-amber-500/10 text-amber-700 dark:text-amber-400',
+                                  idle: 'border-border text-muted-foreground hover:border-amber-300/30 hover:text-amber-700 dark:hover:text-amber-400'
+                                },
+                                scheduled: {
+                                  active: 'border-blue-400/40 bg-blue-500/10 text-blue-700 dark:text-blue-400',
+                                  idle: 'border-border text-muted-foreground hover:border-blue-300/30 hover:text-blue-700 dark:hover:text-blue-400'
+                                },
+                                publish: {
+                                  active: 'border-emerald-400/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400',
+                                  idle: 'border-border text-muted-foreground hover:border-emerald-300/30 hover:text-emerald-700 dark:hover:text-emerald-400'
                                 }
-                                className="h-10 w-full bg-background px-3 text-sm shadow-none"
-                              >
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent
-                                position="popper"
-                                align="start"
-                                className="z-[130]"
-                              >
-                                {EDITABLE_CALENDAR_STATUSES.map((status) => (
-                                  <SelectItem key={status} value={status}>
-                                    {t(`statuses.${status}`)}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
+                              }
+                              const colors = colorMap[status] ?? colorMap['draft']!
+                              return (
+                                <button
+                                  key={status}
+                                  type="button"
+                                  onClick={() => setField('status', status)}
+                                  className={`w-fit rounded-md border px-2.5 py-1.5 text-[11px] font-medium transition-colors ${
+                                    isActive ? colors.active : colors.idle
+                                  }`}
+                                >
+                                  {t(`statuses.${status}`)}
+                                </button>
+                              )
+                            })}
                           </div>
                           <FieldError
                             id={`${titleId}-status-error`}
