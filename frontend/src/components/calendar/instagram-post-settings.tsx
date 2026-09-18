@@ -38,14 +38,12 @@ function SettingRow({
 }
 
 export function InstagramPostSettings({
-  accountName,
   disabled,
   idPrefix,
   isVideoPost = true,
   onChange,
   settings
 }: {
-  accountName?: string
   disabled: boolean
   idPrefix: string
   isVideoPost?: boolean

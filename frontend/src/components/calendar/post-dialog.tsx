@@ -1499,7 +1499,6 @@ export function PostDialog({
                             className={`space-y-2 pt-1 ${isPage ? styles.editorWide : ''}`}
                           >
                             <InstagramPostSettingsComponent
-                              accountName={selectedInstagramAccount.username || selectedInstagramAccount.name}
                               disabled={busy}
                               idPrefix={`${titleId}-instagram`}
                               isVideoPost={!isInstagramPhotoPost}
