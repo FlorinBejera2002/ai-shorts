@@ -3,22 +3,16 @@
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { LoadingIndicator } from '@/components/ui/loading-indicator'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
-} from '@/components/ui/select'
+import { cn } from '@/lib/utils'
 import { Switch } from '@/components/ui/switch'
 import type { TikTokCreatorOptionsState } from '@/hooks/use-tiktok-creator-options'
 import type { PublishingData } from '@/lib/publishing'
 import type { TikTokDirectPostSettings } from '@/lib/tiktok-direct-post'
+import { PlatformBrandIcon } from '@/components/publishing/platform-brand-icon'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { AlertTriangle, ChevronDown, RefreshCw } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useState } from 'react'
-import { PlatformOptionIcon } from './platform-mark'
 
 function SettingRow({
   checked,
@@ -86,16 +80,14 @@ export function TikTokPostSettings({
         aria-expanded={expanded}
         className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/30"
       >
-        <PlatformOptionIcon platform="tiktok" />
+        <PlatformBrandIcon provider="tiktok" className="h-5 w-5" />
         <div className="min-w-0 flex-1">
           <h3 id={`${idPrefix}-title`} className="text-xs font-semibold">
             {t('tiktokOptions')}
           </h3>
-          {options && (
-            <p className="mt-0.5 text-[11px] text-muted-foreground">
-              {t('postingAs', { name: options.nickname })}
-            </p>
-          )}
+          <p className="mt-0.5 text-[11px] text-muted-foreground">
+            TikTok
+          </p>
         </div>
         <motion.div
           animate={{ rotate: expanded ? 180 : 0 }}
@@ -144,51 +136,32 @@ export function TikTokPostSettings({
 
               {options && (
                 <>
-                  <div>
-                    <Label
-                      htmlFor={`${idPrefix}-privacy`}
-                      className="text-xs"
-                    >
+                  <fieldset>
+                    <legend className="text-xs font-medium">
                       {t('privacy')}
-                    </Label>
-                    <div className="mt-1">
-                      <Select
-                        value={settings.privacyLevel || 'none'}
-                        onValueChange={(value) =>
-                          onChange(
-                            'privacyLevel',
-                            value === 'none' ? '' : value
-                          )
-                        }
-                        disabled={disabled}
-                      >
-                        <SelectTrigger
-                          id={`${idPrefix}-privacy`}
-                          className="h-9 w-full bg-background px-3 text-xs shadow-none"
+                    </legend>
+                    <div className="mt-1.5 grid grid-cols-2 gap-1.5">
+                      {options.privacyLevels.map((level) => (
+                        <button
+                          key={level}
+                          type="button"
+                          disabled={disabled}
+                          onClick={() => onChange('privacyLevel', level)}
+                          className={cn(
+                            'rounded-md border px-3 py-2 text-xs font-medium transition-colors',
+                            settings.privacyLevel === level
+                              ? 'border-foreground bg-foreground text-background'
+                              : 'border-border bg-background text-muted-foreground hover:border-foreground/20 hover:text-foreground',
+                            disabled && 'cursor-not-allowed opacity-60'
+                          )}
                         >
-                          <SelectValue
-                            placeholder={t('choosePrivacy')}
-                          />
-                        </SelectTrigger>
-                        <SelectContent
-                          position="popper"
-                          align="start"
-                          className="z-[130]"
-                        >
-                          <SelectItem value="none">
-                            {t('choosePrivacy')}
-                          </SelectItem>
-                          {options.privacyLevels.map((level) => (
-                            <SelectItem key={level} value={level}>
-                              {t.has(`privacyLevels.${level}`)
-                                ? t(`privacyLevels.${level}`)
-                                : level}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                          {t.has(`privacyLevels.${level}`)
+                            ? t(`privacyLevels.${level}`)
+                            : level}
+                        </button>
+                      ))}
                     </div>
-                  </div>
+                  </fieldset>
 
                   <div className="space-y-1">
                     <SettingRow
@@ -295,7 +268,7 @@ export function TikTokPostSettings({
                       onChange={(event) =>
                         onChange('policyConsent', event.target.checked)
                       }
-                      className="mt-0.5 size-3.5 accent-foreground"
+                      className="mt-0.5 size-4 shrink-0 rounded-sm border border-border accent-foreground"
                     />
                     <span>
                       {t('consent')}{' '}

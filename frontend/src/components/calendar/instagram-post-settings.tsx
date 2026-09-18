@@ -75,11 +75,9 @@ export function InstagramPostSettings({
           <h3 id={`${idPrefix}-title`} className="text-xs font-semibold">
             {t('instagramOptions')}
           </h3>
-          {accountName && (
-            <p className="mt-0.5 text-[11px] text-muted-foreground">
-              @{accountName}
-            </p>
-          )}
+          <p className="mt-0.5 text-[11px] text-muted-foreground">
+            Instagram
+          </p>
         </div>
         <motion.div
           animate={{ rotate: expanded ? 180 : 0 }}
