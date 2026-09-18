@@ -16,7 +16,7 @@ type instagramCarousel struct {
 	Caption  string   `json:"caption"`
 }
 
-func (p *ProviderClient) createInstagramItems(ctx context.Context, account string, c Credentials, media []PublishMedia, caption string) (string, string, error) {
+func (p *ProviderClient) createInstagramItems(ctx context.Context, account string, c Credentials, media []PublishMedia, caption string, igOptions InstagramOptions) (string, string, error) {
 	carousel := instagramCarousel{Caption: caption}
 	for _, item := range media {
 		form := url.Values{"is_carousel_item": {"true"}}

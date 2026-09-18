@@ -38,6 +38,10 @@ type TikTokOptions struct {
 	BrandOrganicToggle  bool   `json:"brandOrganicToggle"`
 	IsAIGC              bool   `json:"isAigc"`
 }
+type InstagramOptions struct {
+	CommentEnabled bool `json:"commentEnabled"`
+	ShareToFeed    bool `json:"shareToFeed"`
+}
 type CreatorOptions struct {
 	PrivacyLevels   []string `json:"privacyLevels"`
 	CommentDisabled bool     `json:"commentDisabled"`
@@ -423,12 +427,12 @@ func (p *ProviderClient) Options(ctx context.Context, c Credentials) (CreatorOpt
 // Publish creates a remote job. Callers must persist the intent before calling
 // and never automatically retry an unconfirmed mutation.
 func (p *ProviderClient) Publish(ctx context.Context, provider, account string, c Credentials, mediaURL, caption string, options TikTokOptions) (string, string, error) {
-	return p.PublishMedia(ctx, provider, account, c, []PublishMedia{{Type: "video", URL: mediaURL}}, caption, options)
+	return p.PublishMedia(ctx, provider, account, c, []PublishMedia{{Type: "video", URL: mediaURL}}, caption, options, InstagramOptions{})
 }
 
 type PublishMedia struct{ Type, URL string }
 
-func (p *ProviderClient) PublishMedia(ctx context.Context, provider, account string, c Credentials, media []PublishMedia, caption string, options TikTokOptions) (string, string, error) {
+func (p *ProviderClient) PublishMedia(ctx context.Context, provider, account string, c Credentials, media []PublishMedia, caption string, options TikTokOptions, igOptions InstagramOptions) (string, string, error) {
 	if err := ValidateMediaReferences(provider, media); err != nil {
 		return "", "failed", err
 	}
@@ -441,16 +445,27 @@ func (p *ProviderClient) PublishMedia(ctx context.Context, provider, account str
 	switch provider {
 	case "instagram":
 		if len(media) > 1 {
-			return p.createInstagramItems(ctx, account, c, media, caption)
+			return p.createInstagramItems(ctx, account, c, media, caption, igOptions)
 		}
 		var r struct{ ID string }
 		if media[0].Type == "image" {
-			err := p.request(ctx, "POST", p.graph(provider, url.PathEscape(account)+"/media"), c.AccessToken, url.Values{"image_url": {media[0].URL}, "caption": {caption}}, nil, &r)
+			form := url.Values{"image_url": {media[0].URL}, "caption": {caption}}
+			if !igOptions.CommentEnabled {
+				form.Set("comment_enabled", "false")
+			}
+			err := p.request(ctx, "POST", p.graph(provider, url.PathEscape(account)+"/media"), c.AccessToken, form, nil, &r)
 			if err != nil {
 				return "", "unknown", err
 			}
 		} else {
-			err := p.request(ctx, "POST", p.graph(provider, url.PathEscape(account)+"/media"), c.AccessToken, url.Values{"media_type": {"REELS"}, "video_url": {mediaURL}, "caption": {caption}, "share_to_feed": {"true"}}, nil, &r)
+			form := url.Values{"media_type": {"REELS"}, "video_url": {mediaURL}, "caption": {caption}}
+			if igOptions.ShareToFeed {
+				form.Set("share_to_feed", "true")
+			}
+			if !igOptions.CommentEnabled {
+				form.Set("comment_enabled", "false")
+			}
+			err := p.request(ctx, "POST", p.graph(provider, url.PathEscape(account)+"/media"), c.AccessToken, form, nil, &r)
 			if err != nil {
 				return "", "unknown", err
 			}

@@ -70,6 +70,11 @@ export type TikTokPublishingOptions = {
   isAigc: boolean
 }
 
+export type InstagramPublishingOptions = {
+  commentEnabled: boolean
+  shareToFeed: boolean
+}
+
 export type ScheduledPostRecord = {
   id: string
   title: string
@@ -93,6 +98,7 @@ export type ScheduledPostRecord = {
   } | null
   media: PublishingMedia[]
   tiktok?: TikTokPublishingOptions
+  instagram?: InstagramPublishingOptions
 }
 
 export type ScheduledPostMutation = {
@@ -106,6 +112,7 @@ export type ScheduledPostMutation = {
   clipId?: string | null
   media?: PublishingMedia[]
   tiktok?: TikTokPublishingOptions
+  instagram?: InstagramPublishingOptions
 }
 
 export type ValidationIssue = {
@@ -133,7 +140,8 @@ const MUTATION_FIELDS = new Set([
   'scheduledAt',
   'clipId',
   'media',
-  'tiktok'
+  'tiktok',
+  'instagram'
 ])
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -429,6 +437,28 @@ export function validateScheduledPostPayload(
       })
     } else {
       data.tiktok = tiktok as TikTokPublishingOptions
+    }
+  }
+
+  if ('instagram' in value) {
+    const instagram = value.instagram as Record<string, unknown> | undefined
+    const valid =
+      instagram === undefined ||
+      (isRecord(instagram) &&
+        Object.keys(instagram).every((k) =>
+          ['commentEnabled', 'shareToFeed'].includes(k)
+        ) &&
+        (instagram.commentEnabled === undefined ||
+          typeof instagram.commentEnabled === 'boolean') &&
+        (instagram.shareToFeed === undefined ||
+          typeof instagram.shareToFeed === 'boolean'))
+    if (!valid) {
+      issues.push({
+        field: 'instagram',
+        message: 'Choose valid Instagram publishing settings'
+      })
+    } else if (instagram) {
+      data.instagram = instagram as InstagramPublishingOptions
     }
   }
 

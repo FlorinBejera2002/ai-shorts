@@ -1442,6 +1442,7 @@
       "tiktokClipRequired": "Select an eligible clip or upload photos or a video for TikTok.",
       "tiktokCaptionRequired": "Add a caption before publishing to TikTok.",
       "tiktokSettingsRequired": "Load and complete the required TikTok audience and policy settings.",
+      "instagramSettingsRequired": "Complete the required Instagram settings.",
       "clipRequired": "Add photos or videos, or choose a linked clip.",
       "dateRequired": "Choose a date.",
       "timeRequired": "Choose a time.",
@@ -1614,6 +1615,9 @@
     },
     "tiktokIneligible": "For TikTok, choose a clip exported without the Sneep Cut badge.",
     "autoAddMusic": "Add music automatically",
-    "autoAddMusicHint": "Let TikTok choose music for this photo post."
+    "autoAddMusicHint": "Let TikTok choose music for this photo post.",
+    "instagramOptions": "Instagram Settings",
+    "instagramComments": "Comments",
+    "instagramShareToFeed": "Share to Feed"
   }
 }

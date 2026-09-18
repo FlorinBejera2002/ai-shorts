@@ -85,13 +85,13 @@ func (h *Handler) dispatchCalendar(ctx context.Context) error {
 	var id, userID, caption, reference, tiktokReference string
 	var clipID sql.NullString
 	var accountIDs pq.StringArray
-	var postMedia, tiktokJSON []byte
+	var postMedia, tiktokJSON, igJSON []byte
 	e = tx.QueryRowContext(ctx, `SELECT s.id,s.user_id,s.clip_id,COALESCE(s.caption,''),s.account_ids,
 		COALESCE(NULLIF(c.file_storage_key,''),NULLIF(c.file_path,''),c.file_url,''),
-		COALESCE(NULLIF(c.tiktok_file_storage_key,''),CASE WHEN c.contains_platform_badge IS FALSE THEN COALESCE(NULLIF(c.file_storage_key,''),NULLIF(c.file_path,''),c.file_url,'') END,''),s.media,s.tiktok_options
+		COALESCE(NULLIF(c.tiktok_file_storage_key,''),CASE WHEN c.contains_platform_badge IS FALSE THEN COALESCE(NULLIF(c.file_storage_key,''),NULLIF(c.file_path,''),c.file_url,'') END,''),s.media,s.tiktok_options,s.instagram_options
 		FROM scheduled_posts s LEFT JOIN clips c ON c.id=s.clip_id AND c.user_id=s.user_id
 		WHERE s.id=$1 AND s.status='scheduled' AND s.scheduled_at<=now()
-		FOR UPDATE OF s`, candidateID).Scan(&id, &userID, &clipID, &caption, &accountIDs, &reference, &tiktokReference, &postMedia, &tiktokJSON)
+		FOR UPDATE OF s`, candidateID).Scan(&id, &userID, &clipID, &caption, &accountIDs, &reference, &tiktokReference, &postMedia, &tiktokJSON, &igJSON)
 	if errors.Is(e, sql.ErrNoRows) {
 		return nil
 	}
@@ -185,6 +185,8 @@ func (h *Handler) dispatchCalendar(ctx context.Context) error {
 		options := []byte(`{}`)
 		if providers[i] == "tiktok" {
 			options = tiktokJSON
+		} else if providers[i] == "instagram" {
+			options = igJSON
 		}
 		publishReference := reference
 		if providers[i] == "tiktok" && clipID.Valid {
@@ -210,6 +212,7 @@ func (h *Handler) dispatchCalendar(ctx context.Context) error {
 type workItem struct {
 	ID, UserID, AccountID, Provider, Status, RemoteID, Caption, Reference string
 	Options                                                               TikTokOptions
+	IGOptions                                                             InstagramOptions
 	Finalized                                                             bool
 	CreatedAt                                                             time.Time
 }
@@ -237,6 +240,9 @@ func (h *Handler) runOne(ctx context.Context) error {
 	}
 	if json.Unmarshal(raw, &job.Options) != nil {
 		return errInvalid
+	}
+	if job.Provider == "instagram" {
+		_ = json.Unmarshal(raw, &job.IGOptions)
 	}
 	next := job.Status
 	if next == "queued" {
@@ -442,7 +448,7 @@ func (h *Handler) process(ctx context.Context, job workItem, action string) erro
 				return set("failed", message, "", "")
 			}
 		}
-		id, status, err := h.client.PublishMedia(ctx, a.Provider, a.RemoteID, creds, media, job.Caption, job.Options)
+		id, status, err := h.client.PublishMedia(ctx, a.Provider, a.RemoteID, creds, media, job.Caption, job.Options, job.IGOptions)
 		if err != nil {
 			if status == "failed" {
 				return set("failed", err.Error(), id, "")

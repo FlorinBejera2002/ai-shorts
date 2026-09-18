@@ -1439,6 +1439,7 @@
       "tiktokClipRequired": "Selectează un clip eligibil sau încarcă fotografii ori un videoclip pentru TikTok.",
       "tiktokCaptionRequired": "Adaugă o descriere înainte de publicarea pe TikTok.",
       "tiktokSettingsRequired": "Încarcă și completează setările obligatorii TikTok pentru public și politici.",
+      "instagramSettingsRequired": "Completează setările obligatorii Instagram.",
       "clipRequired": "Adaugă poze sau clipuri ori alege un clip asociat.",
       "dateRequired": "Alege o dată.",
       "timeRequired": "Alege o oră.",
@@ -1611,6 +1612,9 @@
     },
     "tiktokIneligible": "Pentru TikTok, alege un clip exportat fără sigla Sneep Cut.",
     "autoAddMusic": "Adaugă muzică automat",
-    "autoAddMusicHint": "Permite TikTok să aleagă muzică pentru această postare foto."
+    "autoAddMusicHint": "Permite TikTok să aleagă muzică pentru această postare foto.",
+    "instagramOptions": "Setări Instagram",
+    "instagramComments": "Comentarii",
+    "instagramShareToFeed": "Afișare în Feed"
   }
 }

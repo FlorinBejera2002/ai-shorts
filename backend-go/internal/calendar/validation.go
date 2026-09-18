@@ -18,7 +18,7 @@ const RecentClipLimit = 100
 
 var idPattern = regexp.MustCompile(`(?i)^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`)
 var datePattern = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,9})?(Z|[+-]\d{2}:\d{2})$`)
-var mutationColumns = map[string]string{"title": "title", "caption": "caption", "notes": "notes", "platforms": "platforms", "accountIds": "account_ids", "status": "status", "scheduledAt": "scheduled_at", "clipId": "clip_id", "media": "media", "tiktok": "tiktok_options"}
+var mutationColumns = map[string]string{"title": "title", "caption": "caption", "notes": "notes", "platforms": "platforms", "accountIds": "account_ids", "status": "status", "scheduledAt": "scheduled_at", "clipId": "clip_id", "media": "media", "tiktok": "tiktok_options", "instagram": "instagram_options"}
 
 type Issue struct {
 	Field   string `json:"field"`
@@ -294,6 +294,44 @@ func Validate(input map[string]any, create bool) (map[string]any, error) {
 			issues = append(issues, Issue{"tiktok", "Choose valid TikTok publishing settings"})
 		} else {
 			output["tiktok"] = options
+		}
+	}
+	if raw, exists := input["instagram"]; exists {
+		igOptions := publishing.InstagramOptions{}
+		valid := true
+		if raw != nil {
+			value, ok := raw.(map[string]any)
+			if !ok {
+				valid = false
+			} else {
+				allowed := map[string]bool{"commentEnabled": true, "shareToFeed": true}
+				for key := range value {
+					if !allowed[key] {
+						valid = false
+					}
+				}
+				if v, ok := value["commentEnabled"]; ok {
+					flag, flagOK := v.(bool)
+					if !flagOK {
+						valid = false
+					} else {
+						igOptions.CommentEnabled = flag
+					}
+				}
+				if v, ok := value["shareToFeed"]; ok {
+					flag, flagOK := v.(bool)
+					if !flagOK {
+						valid = false
+					} else {
+						igOptions.ShareToFeed = flag
+					}
+				}
+			}
+		}
+		if !valid {
+			issues = append(issues, Issue{"instagram", "Choose valid Instagram publishing settings"})
+		} else {
+			output["instagram"] = igOptions
 		}
 	}
 	if !create && len(output) == 0 && len(issues) == 0 {

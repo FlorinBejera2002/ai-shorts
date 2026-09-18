@@ -68,8 +68,16 @@ import {
 } from './calendar-utils'
 import styles from './calendar-workspace.module.css'
 import { PlatformBrandIcon } from '@/components/publishing/platform-brand-icon'
+import { PlatformOptionIcon } from './platform-mark'
 import { SchedulePicker } from './schedule-picker'
 import { TikTokPostSettings } from './tiktok-post-settings'
+import { InstagramPostSettings as InstagramPostSettingsComponent } from './instagram-post-settings'
+import {
+  INITIAL_INSTAGRAM_SETTINGS,
+  type InstagramPostSettings,
+  createInstagramPublishingOptions,
+  settingsFromInstagramPublishingOptions
+} from '@/lib/instagram-post-settings'
 
 type DialogMode = 'create' | 'edit' | 'reschedule' | 'delete'
 
@@ -86,7 +94,7 @@ type FormState = {
   media: PublishingMedia[]
 }
 
-type FormErrors = Partial<Record<keyof FormState | 'form' | 'tiktok', string>>
+type FormErrors = Partial<Record<keyof FormState | 'form' | 'tiktok' | 'instagram', string>>
 
 const inputClassName =
   'w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground shadow-none outline-none placeholder:text-muted-foreground/60 focus:border-border focus:ring-0 focus:shadow-none focus-visible:border-border focus-visible:ring-0 focus-visible:shadow-none'
@@ -260,6 +268,10 @@ export function PostDialog({
     useState<TikTokDirectPostSettings>(() =>
       settingsFromTikTokPublishingOptions(post?.tiktok)
     )
+  const [instagramSettings, setInstagramSettings] =
+    useState<InstagramPostSettings>(() =>
+      settingsFromInstagramPublishingOptions(post?.instagram)
+    )
   const busy = saving || deleting || uploading
 
   const publishedProviders = useMemo(
@@ -287,10 +299,24 @@ export function PostDialog({
     [publishingAccounts, selectedAccountIds]
   )
   const selectedTikTokAccount = selectedTikTokAccounts[0]
+  const selectedInstagramAccounts = useMemo(
+    () =>
+      publishingAccounts.filter(
+        (account) =>
+          account.provider === 'instagram' && selectedAccountIds.has(account.id)
+      ),
+    [publishingAccounts, selectedAccountIds]
+  )
+  const selectedInstagramAccount = selectedInstagramAccounts[0]
   const isTikTokPhotoPost =
     selectedTikTokAccounts.length > 0 &&
     form.media.length > 0 &&
     form.media.every((item) => item.type === 'image')
+  const isInstagramPhotoPost = useMemo(() => {
+    if (selectedInstagramAccounts.length === 0) return false
+    if (form.clipId) return false
+    return form.media.length > 0 && form.media.every((m) => m.type === 'image')
+  }, [selectedInstagramAccounts.length, form.clipId, form.media])
   const captionLimit =
     selectedTikTokAccounts.length > 0 ? (isTikTokPhotoPost ? 4000 : 2200) : 5000
   const { state: tiktokOptionsState, retry: retryTikTokOptions } =
@@ -416,6 +442,13 @@ export function PostDialog({
         !removing && selectedTikTokAccount?.id !== account.id
       if (removing || replacingAccount) {
         setTikTokSettings({ ...INITIAL_TIKTOK_SETTINGS })
+      }
+    }
+    if (account.provider === 'instagram') {
+      const replacingAccount =
+        !removing && selectedInstagramAccount?.id !== account.id
+      if (removing || replacingAccount) {
+        setInstagramSettings({ ...INITIAL_INSTAGRAM_SETTINGS })
       }
     }
     setForm((current) => {
@@ -621,6 +654,10 @@ export function PostDialog({
       validationErrors: tiktokValidationErrors
     })
 
+    const instagram = selectedInstagramAccounts.length > 0
+      ? createInstagramPublishingOptions(instagramSettings)
+      : undefined
+
     return {
       errors: nextErrors,
       payload: {
@@ -636,7 +673,8 @@ export function PostDialog({
             : new Date().toISOString(),
         clipId: form.clipId || null,
         media: form.media,
-        ...(tiktok ? { tiktok } : {})
+        ...(tiktok ? { tiktok } : {}),
+        ...(instagram ? { instagram } : {})
       }
     }
   }
@@ -677,6 +715,8 @@ export function PostDialog({
         fieldErrors.status = t('validation.statusInvalid')
       } else if (issue.field === 'tiktok') {
         fieldErrors.tiktok = t('validation.tiktokSettingsRequired')
+      } else if (issue.field === 'instagram') {
+        fieldErrors.instagram = t('validation.instagramSettingsRequired')
       }
     }
 
@@ -1450,6 +1490,27 @@ export function PostDialog({
                             <FieldError
                               id={`${titleId}-tiktok-error`}
                               message={errors.tiktok}
+                            />
+                          </motion.div>
+                        )}
+                        {selectedInstagramAccount && (
+                          <motion.div
+                            variants={isPage ? staggerItem : undefined}
+                            className={`space-y-2 pt-1 ${isPage ? styles.editorWide : ''}`}
+                          >
+                            <InstagramPostSettingsComponent
+                              accountName={selectedInstagramAccount.username || selectedInstagramAccount.name}
+                              disabled={busy}
+                              idPrefix={`${titleId}-instagram`}
+                              isVideoPost={!isInstagramPhotoPost}
+                              onChange={(key, value) =>
+                                setInstagramSettings((prev) => ({ ...prev, [key]: value }))
+                              }
+                              settings={instagramSettings}
+                            />
+                            <FieldError
+                              id={`${titleId}-instagram-error`}
+                              message={errors.instagram}
                             />
                           </motion.div>
                         )}
