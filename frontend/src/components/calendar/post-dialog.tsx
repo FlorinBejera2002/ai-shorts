@@ -67,7 +67,7 @@ import {
   localTimeValue
 } from './calendar-utils'
 import styles from './calendar-workspace.module.css'
-import { PlatformOptionIcon } from './platform-mark'
+import { PlatformBrandIcon } from '@/components/publishing/platform-brand-icon'
 import { SchedulePicker } from './schedule-picker'
 import { TikTokPostSettings } from './tiktok-post-settings'
 
@@ -92,10 +92,10 @@ const inputClassName =
   'w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground shadow-none outline-none placeholder:text-muted-foreground/60 focus:border-border focus:ring-0 focus:shadow-none focus-visible:border-border focus-visible:ring-0 focus-visible:shadow-none'
 
 const platformColors: Record<string, string> = {
-  tiktok: 'border-[#00f2ea]/40 bg-[#00f2ea]/5 text-foreground shadow-[0_0_0_1px_rgba(0,242,234,0.1)]',
-  instagram: 'border-[#E1306C]/40 bg-[#E1306C]/5 text-foreground shadow-[0_0_0_1px_rgba(225,48,108,0.1)]',
-  youtube: 'border-[#FF0000]/40 bg-[#FF0000]/5 text-foreground shadow-[0_0_0_1px_rgba(255,0,0,0.1)]',
-  facebook: 'border-[#1877F2]/40 bg-[#1877F2]/5 text-foreground shadow-[0_0_0_1px_rgba(24,119,242,0.1)]',
+  tiktok: 'border-foreground bg-foreground text-background shadow-sm',
+  instagram: 'border-foreground bg-foreground text-background shadow-sm',
+  youtube: 'border-foreground bg-foreground text-background shadow-sm',
+  facebook: 'border-foreground bg-foreground text-background shadow-sm',
 }
 
 const staggerContainer = {
@@ -782,7 +782,7 @@ export function PostDialog({
                   : 'border-border bg-background text-muted-foreground hover:border-foreground/20 hover:bg-muted hover:text-foreground hover:shadow-sm'
               }`}
             >
-              <PlatformOptionIcon platform={account.provider} />
+              <PlatformBrandIcon provider={account.provider} className="h-5 w-5" />
               <span className="min-w-0 truncate">
                 {account.username ? `@${account.username}` : account.name}
               </span>
