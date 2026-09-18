@@ -10,7 +10,7 @@ import type { PublishingData } from '@/lib/publishing'
 import type { TikTokDirectPostSettings } from '@/lib/tiktok-direct-post'
 import { PlatformBrandIcon } from '@/components/publishing/platform-brand-icon'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
-import { AlertTriangle, ChevronDown, RefreshCw } from 'lucide-react'
+import { AlertTriangle, Check, ChevronDown, RefreshCw } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useState } from 'react'
 
@@ -261,15 +261,24 @@ export function TikTokPostSettings({
                   )}
 
                   <label className="flex items-start gap-2 pt-1 text-[11px] leading-5 text-muted-foreground">
-                    <input
-                      type="checkbox"
-                      checked={settings.policyConsent}
+                    <button
+                      type="button"
+                      role="checkbox"
+                      aria-checked={settings.policyConsent}
                       disabled={disabled}
-                      onChange={(event) =>
-                        onChange('policyConsent', event.target.checked)
+                      onClick={() =>
+                        onChange('policyConsent', !settings.policyConsent)
                       }
-                      className="mt-0.5 size-4 shrink-0 rounded-sm border border-border accent-foreground"
-                    />
+                      className={cn(
+                        'mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-sm border transition-colors',
+                        settings.policyConsent
+                          ? 'border-foreground bg-foreground text-background'
+                          : 'border-border bg-background',
+                        disabled && 'cursor-not-allowed opacity-60'
+                      )}
+                    >
+                      {settings.policyConsent && <Check className="size-3" strokeWidth={3} />}
+                    </button>
                     <span>
                       {t('consent')}{' '}
                       <a
