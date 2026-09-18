@@ -88,7 +88,7 @@ func (h *Handler) dispatchCalendar(ctx context.Context) error {
 	var postMedia, tiktokJSON, igJSON []byte
 	e = tx.QueryRowContext(ctx, `SELECT s.id,s.user_id,s.clip_id,COALESCE(s.caption,''),s.account_ids,
 		COALESCE(NULLIF(c.file_storage_key,''),NULLIF(c.file_path,''),c.file_url,''),
-		COALESCE(NULLIF(c.tiktok_file_storage_key,''),CASE WHEN c.contains_platform_badge IS FALSE THEN COALESCE(NULLIF(c.file_storage_key,''),NULLIF(c.file_path,''),c.file_url,'') END,''),s.media,s.tiktok_options,s.instagram_options
+		COALESCE(NULLIF(c.tiktok_file_storage_key,''),CASE WHEN c.contains_platform_badge IS NOT TRUE THEN COALESCE(NULLIF(c.file_storage_key,''),NULLIF(c.file_path,''),c.file_url,'') END,''),s.media,s.tiktok_options,s.instagram_options
 		FROM scheduled_posts s LEFT JOIN clips c ON c.id=s.clip_id AND c.user_id=s.user_id
 		WHERE s.id=$1 AND s.status='scheduled' AND s.scheduled_at<=now()
 		FOR UPDATE OF s`, candidateID).Scan(&id, &userID, &clipID, &caption, &accountIDs, &reference, &tiktokReference, &postMedia, &tiktokJSON, &igJSON)
@@ -410,7 +410,7 @@ func (h *Handler) process(ctx context.Context, job workItem, action string) erro
 		} else {
 			var currentReference string
 			err := tx.QueryRowContext(ctx, `SELECT CASE WHEN p.provider='tiktok'
-				THEN COALESCE(NULLIF(c.tiktok_file_storage_key,''),CASE WHEN c.contains_platform_badge IS FALSE THEN COALESCE(NULLIF(c.file_storage_key,''),NULLIF(c.file_path,''),c.file_url,'') END,'')
+				THEN COALESCE(NULLIF(c.tiktok_file_storage_key,''),CASE WHEN c.contains_platform_badge IS NOT TRUE THEN COALESCE(NULLIF(c.file_storage_key,''),NULLIF(c.file_path,''),c.file_url,'') END,'')
 				ELSE COALESCE(NULLIF(c.file_storage_key,''),NULLIF(c.file_path,''),c.file_url,'') END
 				FROM social_posts p JOIN clips c ON c.id=p.clip_id AND c.user_id=p.user_id
 				WHERE p.id=$1 FOR SHARE OF c`, job.ID).Scan(&currentReference)

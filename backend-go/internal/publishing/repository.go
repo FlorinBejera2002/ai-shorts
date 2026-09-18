@@ -236,7 +236,7 @@ func (h *Handler) list(ctx context.Context, user string) ([]Account, []Clip, []P
 	if e != nil {
 		return accounts, clips, posts, e
 	}
-	rows, e = h.db.QueryContext(ctx, `SELECT id,title,duration,COALESCE(NULLIF(thumbnail_storage_key,''),NULLIF(thumbnail_path,''),thumbnail_url,''),COALESCE(NULLIF(file_storage_key,''),NULLIF(file_path,''),file_url,''),COALESCE(caption_tiktok,''),COALESCE(NULLIF(tiktok_file_storage_key,''),CASE WHEN contains_platform_badge IS FALSE THEN COALESCE(NULLIF(file_storage_key,''),NULLIF(file_path,''),file_url,'') END,'')<>'' FROM clips WHERE user_id=$1 AND COALESCE(NULLIF(file_storage_key,''),NULLIF(file_path,''),file_url,'')<>'' ORDER BY created_at DESC LIMIT 100`, user)
+	rows, e = h.db.QueryContext(ctx, `SELECT id,title,duration,COALESCE(NULLIF(thumbnail_storage_key,''),NULLIF(thumbnail_path,''),thumbnail_url,''),COALESCE(NULLIF(file_storage_key,''),NULLIF(file_path,''),file_url,''),COALESCE(caption_tiktok,''),COALESCE(NULLIF(tiktok_file_storage_key,''),CASE WHEN contains_platform_badge IS NOT TRUE THEN COALESCE(NULLIF(file_storage_key,''),NULLIF(file_path,''),file_url,'') END,'')<>'' FROM clips WHERE user_id=$1 AND COALESCE(NULLIF(file_storage_key,''),NULLIF(file_path,''),file_url,'')<>'' ORDER BY created_at DESC LIMIT 100`, user)
 	if e != nil {
 		return accounts, clips, posts, e
 	}
@@ -327,7 +327,7 @@ func (h *Handler) enqueue(ctx context.Context, user string, in postInput) ([]Pos
 	var ref, tiktokRef string
 	e = tx.QueryRowContext(ctx, `SELECT duration,
 		COALESCE(NULLIF(file_storage_key,''),NULLIF(file_path,''),file_url,''),
-		COALESCE(NULLIF(tiktok_file_storage_key,''),CASE WHEN contains_platform_badge IS FALSE THEN COALESCE(NULLIF(file_storage_key,''),NULLIF(file_path,''),file_url,'') END,'')
+		COALESCE(NULLIF(tiktok_file_storage_key,''),CASE WHEN contains_platform_badge IS NOT TRUE THEN COALESCE(NULLIF(file_storage_key,''),NULLIF(file_path,''),file_url,'') END,'')
 		FROM clips WHERE user_id=$1 AND id=$2 FOR SHARE`, user, in.ClipID).Scan(&duration, &ref, &tiktokRef)
 	if e != nil || ref == "" {
 		return nil, errInvalid

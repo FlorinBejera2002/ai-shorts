@@ -30,7 +30,7 @@ func (h *Handler) validateTikTokMediaSelection(ctx context.Context, account Acco
 	if (account.TokenExpiresAt != nil && !account.TokenExpiresAt.After(now)) || (!credentials.ExpiresAt.IsZero() && !credentials.ExpiresAt.After(now)) {
 		return "accountIds", errInvalid
 	}
-	if !badge.Valid || badge.Bool {
+	if badge.Valid && badge.Bool {
 		return "clipId", errInvalid
 	}
 	for _, item := range media {
@@ -85,7 +85,7 @@ func (h *Handler) ValidateTikTokSchedule(ctx context.Context, tx *sql.Tx, userID
 	var duration float64
 	var reference string
 	err = tx.QueryRowContext(ctx, `SELECT duration,
-		COALESCE(NULLIF(tiktok_file_storage_key,''),CASE WHEN contains_platform_badge IS FALSE THEN COALESCE(NULLIF(file_storage_key,''),NULLIF(file_path,''),file_url,'') END,'')
+		COALESCE(NULLIF(tiktok_file_storage_key,''),CASE WHEN contains_platform_badge IS NOT TRUE THEN COALESCE(NULLIF(file_storage_key,''),NULLIF(file_path,''),file_url,'') END,'')
 		FROM clips WHERE id=$1 AND user_id=$2 FOR KEY SHARE`, clipID, userID).Scan(&duration, &reference)
 	if errors.Is(err, sql.ErrNoRows) || reference == "" {
 		return "clipId", errInvalid
