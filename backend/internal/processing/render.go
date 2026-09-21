@@ -60,6 +60,12 @@ func (p *Processor) render(ctx context.Context, in RenderInput) (Clip, error) {
 		}
 	}
 	clip.Resolution = fmt.Sprintf("%dx%d", outW, outH)
+	tiktokW, tiktokH := outW, outH
+	if min(tiktokW, tiktokH) < 360 {
+		scale := 360 / float64(min(tiktokW, tiktokH))
+		tiktokW = int(math.Ceil(float64(tiktokW)*scale/2)) * 2
+		tiktokH = int(math.Ceil(float64(tiktokH)*scale/2)) * 2
+	}
 
 	// Pre-brand intermediate for TikTok variant.
 	preBrand := current
@@ -78,11 +84,11 @@ func (p *Processor) render(ctx context.Context, in RenderInput) (Clip, error) {
 
 	// TikTok variant without platform badge.
 	var tiktokCurrent string
-	if containsBadge && !in.PreserveGeometry {
+	if !in.PreserveGeometry && (containsBadge || tiktokW != outW || tiktokH != outH) {
 		tiktokBrand := copyBrand(in.Brand)
 		tiktokBrand["hide_platform_badge"] = true
 		tiktokFramed := filepath.Join(dir, "tiktok-framed.mp4")
-		if err = p.frameAndBrand(ctx, dir, preBrand, tiktokFramed, outW, outH, tiktokBrand, in.HookText); err != nil {
+		if err = p.frameAndBrand(ctx, dir, preBrand, tiktokFramed, tiktokW, tiktokH, tiktokBrand, in.HookText); err != nil {
 			return clip, err
 		}
 		tiktokCurrent = tiktokFramed
@@ -258,6 +264,9 @@ func (p *Processor) frameAndBrand(ctx context.Context, dir, source, output strin
 	}
 
 	crop := fmt.Sprintf("crop=%d:%d:(iw-%d)/2:(ih-%d)/2,setsar=1", w, h, w, h)
+	if info.Width < w || info.Height < h {
+		crop = fmt.Sprintf("scale=%d:%d:force_original_aspect_ratio=increase,crop=%d:%d:(iw-%d)/2:(ih-%d)/2,setsar=1", w, h, w, h, w, h)
+	}
 
 	if !applyLogo && !drawBadge && !applyHook {
 		args := []string{"-i", source, "-vf", crop, "-map", "0:v:0", "-map", "0:a?"}

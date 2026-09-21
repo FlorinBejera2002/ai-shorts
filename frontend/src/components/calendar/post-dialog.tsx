@@ -706,9 +706,10 @@ export function PostDialog({
         fieldErrors.date = t('validation.dateInvalid')
       } else if (issue.field === 'clipId') {
         fieldErrors.clipId =
-          selectedTikTokAccounts.length > 0
+          issue.message ||
+          (selectedTikTokAccounts.length > 0
             ? t('validation.tiktokClipRequired')
-            : t('validation.clipInvalid')
+            : t('validation.clipInvalid'))
       } else if (issue.field === 'media') {
         fieldErrors.media = issue.message
       } else if (issue.field === 'status') {
