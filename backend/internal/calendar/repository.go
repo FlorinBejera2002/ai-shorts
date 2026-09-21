@@ -105,7 +105,7 @@ func (s *Repository) thumbnail(ctx context.Context, references ...sql.NullString
 }
 
 const postSelect = `SELECT p.id,p.title,p.caption,p.notes,p.platforms,p.account_ids,p.status,p.publishing_error,p.scheduled_at,p.created_at,p.updated_at,p.media,p.tiktok_options,p.instagram_options,
-	c.id,c.title,c.viral_score,c.duration,COALESCE(NULLIF(c.tiktok_file_storage_key,''),CASE WHEN c.contains_platform_badge IS NOT TRUE THEN COALESCE(NULLIF(c.file_storage_key,''),NULLIF(c.file_path,''),c.file_url,'') END,'')<>'',c.thumbnail_storage_key,c.thumbnail_path,c.thumbnail_url,
+	c.id,c.title,c.viral_score,c.duration,COALESCE(NULLIF(c.tiktok_file_storage_key,''),NULLIF(c.file_storage_key,''),NULLIF(c.file_path,''),c.file_url,'')<>'',c.thumbnail_storage_key,c.thumbnail_path,c.thumbnail_url,
 	COALESCE((SELECT jsonb_agg(jsonb_build_object(
 		'provider',sp.provider,'accountName',COALESCE(NULLIF(a.username,''),NULLIF(a.name,''),sp.provider),
 		'status',sp.status,'error',sp.error,'url',sp.url,'createdAt',sp.created_at,'updatedAt',sp.updated_at
@@ -199,7 +199,7 @@ func (s *Repository) List(ctx context.Context, userID string, start, end time.Ti
 	if e != nil {
 		return result, e
 	}
-	rows, e = s.db.QueryContext(ctx, `SELECT id,title,viral_score,duration,COALESCE(NULLIF(tiktok_file_storage_key,''),CASE WHEN contains_platform_badge IS NOT TRUE THEN COALESCE(NULLIF(file_storage_key,''),NULLIF(file_path,''),file_url,'') END,'')<>'',thumbnail_storage_key,thumbnail_path,thumbnail_url,caption_tiktok,caption_instagram,caption_youtube FROM clips WHERE user_id=$1 ORDER BY created_at DESC,id DESC LIMIT $2`, userID, RecentClipLimit)
+	rows, e = s.db.QueryContext(ctx, `SELECT id,title,viral_score,duration,COALESCE(NULLIF(tiktok_file_storage_key,''),NULLIF(file_storage_key,''),NULLIF(file_path,''),file_url,'')<>'',thumbnail_storage_key,thumbnail_path,thumbnail_url,caption_tiktok,caption_instagram,caption_youtube FROM clips WHERE user_id=$1 ORDER BY created_at DESC,id DESC LIMIT $2`, userID, RecentClipLimit)
 	if e != nil {
 		return result, e
 	}

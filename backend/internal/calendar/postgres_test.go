@@ -143,7 +143,7 @@ func seedCalendarClip(t *testing.T, db *sql.DB) (string, string, string) {
 func TestPostgresCalendarOwnershipAttachmentAndHalfOpenRange(t *testing.T) {
 	db := testdb.Open(t)
 	ctx := context.Background()
-	user, _, clip := seedCalendarClip(t, db)
+	user, job, clip := seedCalendarClip(t, db)
 	other, _, foreignClip := seedCalendarClip(t, db)
 	repo := NewRepository(db, calendarMedia{})
 	input := validInput()
@@ -206,8 +206,22 @@ func TestPostgresCalendarOwnershipAttachmentAndHalfOpenRange(t *testing.T) {
 		t.Fatal(e)
 	}
 	listed, e = repo.List(ctx, user, start, end)
-	if e != nil || len(listed.Clips) != 1 || listed.Clips[0].TikTokEligible {
-		t.Fatalf("badged clip without derivative was eligible: %+v %v", listed, e)
+	if e != nil || len(listed.Clips) != 1 || !listed.Clips[0].TikTokEligible || len(listed.Posts) != 1 || listed.Posts[0].Clip == nil || !listed.Posts[0].Clip.TikTokEligible {
+		t.Fatalf("original clip fallback was not eligible in calendar: %+v %v", listed, e)
+	}
+	loaded, e := repo.Get(ctx, user, post.ID)
+	if e != nil || loaded.Clip == nil || !loaded.Clip.TikTokEligible {
+		t.Fatalf("original clip fallback was not eligible when reopening post: %+v %v", loaded, e)
+	}
+	if _, e = db.Exec(`UPDATE clips SET file_storage_key=NULL,file_path='',file_url=NULL WHERE id=$1`, clip); e != nil {
+		t.Fatal(e)
+	}
+	listed, e = repo.List(ctx, user, start, end)
+	if e != nil || len(listed.Clips) != 1 || listed.Clips[0].TikTokEligible || len(listed.Posts) != 1 || listed.Posts[0].Clip == nil || listed.Posts[0].Clip.TikTokEligible {
+		t.Fatalf("clip without any video asset was eligible: %+v %v", listed, e)
+	}
+	if _, e = db.Exec(`UPDATE clips SET file_storage_key=$2,file_path=$2 WHERE id=$1`, clip, "clips/"+job+"/video.mp4"); e != nil {
+		t.Fatal(e)
 	}
 	if _, e = db.Exec(`UPDATE clips SET contains_platform_badge=false WHERE id=$1`, clip); e != nil {
 		t.Fatal(e)
