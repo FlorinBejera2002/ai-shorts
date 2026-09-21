@@ -106,9 +106,11 @@ func (h *Handler) ValidateTikTokSchedule(ctx context.Context, tx *sql.Tx, userID
 	if resolver, ok := h.media.(interface {
 		PublishingVideoDuration(context.Context, string) (float64, error)
 	}); ok {
-		duration, err = resolver.PublishingVideoDuration(ctx, reference)
-		if err != nil {
-			return "clipId", errInvalid
+		inspectedDuration, inspectErr := resolver.PublishingVideoDuration(ctx, reference)
+		if inspectErr == nil {
+			duration = inspectedDuration
+		} else if duration <= 0 {
+			return "clipId", &TikTokMediaError{Message: inspectErr.Error()}
 		}
 	}
 	mediaURL, err := h.media.SignedURL(ctx, reference)

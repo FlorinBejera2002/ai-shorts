@@ -598,6 +598,40 @@ func (m uploadedTikTokMedia) ValidatePublishingMedia(context.Context, string, st
 	return nil
 }
 
+type temporarilyUninspectableTikTokMedia struct{ uploadedTikTokMedia }
+
+func (temporarilyUninspectableTikTokMedia) PublishingVideoDuration(context.Context, string) (float64, error) {
+	return 0, errors.New("temporary ffprobe failure")
+}
+
+func TestTikTokClipValidationFallsBackToStoredDuration(t *testing.T) {
+	h, user, clip, _ := fixture(t)
+	h.media = temporarilyUninspectableTikTokMedia{}
+	if _, err := h.db.Exec(`UPDATE clips SET tiktok_file_storage_key='clips/test-tiktok-clean.mp4' WHERE id=$1`, clip); err != nil {
+		t.Fatal(err)
+	}
+	account, _ := data.NewUUID()
+	encrypted, err := seal(h.vault, Credentials{AccessToken: "synthetic"}, user+":tiktok:creator")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = h.db.Exec(`INSERT INTO social_accounts(id,user_id,provider,remote_id,name,credentials) VALUES($1,$2,'tiktok','creator','Fixture',$3)`, account, user, encrypted); err != nil {
+		t.Fatal(err)
+	}
+	h.client = mockProvider(t, func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprint(w, `{"data":{"privacy_level_options":["SELF_ONLY"],"max_video_post_duration_sec":60},"error":{"code":"ok"}}`)
+	})
+	tx, err := h.db.Begin()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer tx.Rollback()
+	field, err := h.ValidateTikTokSchedule(context.Background(), tx, user, account, clip, "", TikTokOptions{PrivacyLevel: "SELF_ONLY", MusicUsageConfirmed: true})
+	if err != nil {
+		t.Fatalf("stored clip duration was not used after temporary inspection failure: field=%s err=%v", field, err)
+	}
+}
+
 func TestPostgresTikTokUploadedMediaDispatchAndWorker(t *testing.T) {
 	for _, kind := range []string{"image", "video"} {
 		t.Run(kind, func(t *testing.T) {
