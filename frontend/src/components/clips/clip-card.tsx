@@ -2,13 +2,13 @@
 
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
+import { ClipDownloadMenu } from '@/components/clips/clip-download-menu'
 import { LoadingIndicator } from '@/components/ui/loading-indicator'
 import { useToast } from '@/components/ui/toast'
 import { Link } from '@/i18n/navigation'
 import { apiFetch } from '@/lib/auth'
 import {
   Captions,
-  Download,
   ExternalLink,
   Film,
   Folder,
@@ -20,6 +20,7 @@ import {
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
+import type { ClipVariant } from '@/types'
 
 export type ClipCardData = {
   id: string
@@ -32,6 +33,7 @@ export type ClipCardData = {
   hasSubtitles: boolean
   thumbnailUrl: string | null
   fileUrl?: string | null
+  variants?: ClipVariant[]
   createdAt: string
 }
 
@@ -216,29 +218,13 @@ export function ClipCard({
                 icon={Send}
                 primary={true}
               />
-              {clip.fileUrl ? (
-                <a
-                  href={clip.fileUrl}
-                  download={true}
-                  aria-label={actions.download}
-                  title={actions.download}
-                  className="flex h-9 items-center justify-center gap-1.5 rounded-md border border-border bg-background px-2 text-[11px] font-semibold text-foreground transition-[border-color,color] hover:border-foreground/35"
-                >
-                  <Download className="size-4" aria-hidden="true" />
-                  <span>{actions.download}</span>
-                </a>
-              ) : (
-                <button
-                  type="button"
-                  disabled={true}
-                  aria-label={actions.download}
-                  title={actions.download}
-                  className="flex h-9 items-center justify-center gap-1.5 rounded-md border border-border bg-background px-2 text-[11px] font-semibold text-muted-foreground opacity-40"
-                >
-                  <Download className="size-4" aria-hidden="true" />
-                  <span>{actions.download}</span>
-                </button>
-              )}
+              <ClipDownloadMenu
+                title={clip.title}
+                variants={clip.variants}
+                fallbackUrl={clip.fileUrl}
+                compact={true}
+                label={actions.download}
+              />
               <button
                 type="button"
                 onClick={() => void deleteClip()}

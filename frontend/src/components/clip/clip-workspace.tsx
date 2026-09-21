@@ -12,7 +12,6 @@ import { Link, useRouter } from '@/i18n/navigation'
 import {
   Check,
   Clipboard,
-  Download,
   FileText,
   Gauge,
   Save,
@@ -25,6 +24,7 @@ import { useLocale } from 'next-intl'
 import { type CSSProperties, useMemo, useState } from 'react'
 
 import { CALENDAR_PLATFORMS } from '@/components/calendar/calendar-utils'
+import { ClipDownloadMenu } from '@/components/clips/clip-download-menu'
 import { PlatformOptionIcon } from '@/components/calendar/platform-mark'
 import { useToast } from '@/components/ui/toast'
 import {
@@ -33,6 +33,7 @@ import {
   getPlatformFit
 } from '@/lib/clip-readiness'
 import type { ContentPlatform } from '@/lib/content-calendar'
+import type { ClipVariant } from '@/types'
 
 type ClipData = {
   id: string
@@ -51,6 +52,7 @@ type ClipData = {
   captionInstagram: string | null
   captionYoutube: string | null
   suggestedHashtags: string | null
+  variants?: ClipVariant[]
 }
 
 type ClipWorkspaceProps = {
@@ -437,14 +439,11 @@ export function ClipWorkspace({ clip }: ClipWorkspaceProps) {
           Delete
         </button>
         <div>
-          {clip.fileUrl && (
-            <Button asChild={true} variant="outline">
-              <a href={clip.fileUrl} download={true}>
-                <Download className="size-4" />
-                Download
-              </a>
-            </Button>
-          )}
+          <ClipDownloadMenu
+            title={clip.title}
+            variants={clip.variants}
+            fallbackUrl={clip.fileUrl}
+          />
           <Button asChild={true}>
             <Link
               href={`/dashboard/publish/new?clip=${encodeURIComponent(clip.id)}`}

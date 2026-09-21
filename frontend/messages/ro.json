@@ -330,6 +330,19 @@
     "platformPreset": "Preset platformă",
     "clipsPerVideo": "Clipuri per video",
     "aspectRatio": "Raport de aspect",
+    "formatCompatibilityHint": "Alege încadrarea. Logo-urile arată compatibilitatea directă; cele încadrate vor fi adaptate automat.",
+    "formatDefault": "Implicit",
+    "compatibleWith": "Platforme compatibile",
+    "formats": {
+      "9:16": { "name": "Universal Social" },
+      "1:1": { "name": "Social pătrat" },
+      "16:9": { "name": "Orizontal" }
+    },
+    "compatibility": {
+      "recommended": "Recomandat",
+      "accepted": "Acceptat",
+      "adaptation": "Adaptare automată"
+    },
     "subtitles": "Subtitrări",
     "subtitleClean": "Simplu",
     "subtitleBold": "Bold",

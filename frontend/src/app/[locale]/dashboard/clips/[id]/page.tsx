@@ -72,7 +72,8 @@ export default function ClipDetailPage() {
             captionTiktok: clip.captionTiktok,
             captionInstagram: clip.captionInstagram,
             captionYoutube: clip.captionYoutube,
-            suggestedHashtags: clip.suggestedHashtags
+            suggestedHashtags: clip.suggestedHashtags,
+            variants: clip.variants
           }}
         />
 

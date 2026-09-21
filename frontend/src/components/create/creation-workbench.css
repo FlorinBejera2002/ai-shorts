@@ -165,7 +165,7 @@
   box-shadow: none;
 }
 .creation-settings-ratios button {
-  justify-content: center;
+  justify-content: flex-start;
 }
 .creation-settings-subtitles button span:last-child {
   font-size: 10px;

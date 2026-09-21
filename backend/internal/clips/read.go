@@ -40,6 +40,31 @@ func (h *Handler) resolve(ctx context.Context, raw []byte, camel bool) (map[stri
 			record[field.url] = signed
 		}
 	}
+	variants := []map[string]any{}
+	if fileURL, _ := record["file_url"].(string); fileURL != "" {
+		platforms := []string{"instagram", "facebook", "linkedin", "youtube", "twitter"}
+		if containsBadge, _ := record["contains_platform_badge"].(bool); !containsBadge {
+			platforms = append(platforms, "tiktok")
+		}
+		variants = append(variants, map[string]any{
+			"id": "primary", "name": "Universal Social", "url": fileURL,
+			"resolution": record["resolution"], "aspectRatio": record["aspect_ratio"],
+			"platforms": platforms, "status": "ready",
+		})
+	}
+	if key, _ := record["tiktok_file_storage_key"].(string); key != "" {
+		signed, err := h.media.SignedURL(ctx, key)
+		if err != nil {
+			return nil, err
+		}
+		record["tiktok_file_url"] = signed
+		variants = append(variants, map[string]any{
+			"id": "platform-clean", "name": "Platform clean", "url": signed,
+			"resolution": record["resolution"], "aspectRatio": record["aspect_ratio"],
+			"platforms": []string{"tiktok"}, "status": "ready",
+		})
+	}
+	record["variants"] = variants
 	if !camel {
 		return record, nil
 	}

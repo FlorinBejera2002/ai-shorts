@@ -333,6 +333,19 @@
     "platformPreset": "Platform preset",
     "clipsPerVideo": "Clips per video",
     "aspectRatio": "Aspect ratio",
+    "formatCompatibilityHint": "Choose the framing. Platform marks show direct support; a bordered mark will be adapted automatically.",
+    "formatDefault": "Default",
+    "compatibleWith": "Compatible platforms",
+    "formats": {
+      "9:16": { "name": "Universal Social" },
+      "1:1": { "name": "Square Social" },
+      "16:9": { "name": "Landscape" }
+    },
+    "compatibility": {
+      "recommended": "Recommended",
+      "accepted": "Accepted",
+      "adaptation": "Automatic adaptation"
+    },
     "subtitles": "Subtitles",
     "subtitleClean": "Clean",
     "subtitleBold": "Bold",

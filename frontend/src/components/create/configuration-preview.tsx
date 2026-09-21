@@ -3,6 +3,7 @@
 import { Captions, Scissors, Smartphone } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import type { CreateSettings } from './settings-panel'
+import { VIDEO_FORMATS } from '@/lib/platform-formats'
 
 export function ConfigurationPreview({
   settings
@@ -30,7 +31,7 @@ export function ConfigurationPreview({
           },
           {
             label: t('aspectRatio'),
-            value: settings.aspectRatio,
+            value: `${VIDEO_FORMATS[settings.aspectRatio].name} · ${settings.aspectRatio}`,
             icon: Smartphone
           },
           { label: t('subtitles'), value: subtitle, icon: Captions }

@@ -1,5 +1,6 @@
 'use client'
 
+import { PlatformBrandIcon } from '@/components/publishing/platform-brand-icon'
 import { Card } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
 import {
@@ -13,10 +14,15 @@ import { BrandKitSelector } from './brand-kit-selector'
 
 import { Slider } from '@/components/ui/slider'
 import { Switch } from '@/components/ui/switch'
+import {
+  SOCIAL_PLATFORMS,
+  VIDEO_FORMATS,
+  type VideoAspectRatio
+} from '@/lib/platform-formats'
 import { Languages, Sparkles } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
-export type AspectRatio = '9:16' | '1:1' | '16:9'
+export type AspectRatio = VideoAspectRatio
 export type SubtitleStyle = 'clean' | 'bold' | 'caption-box' | 'none'
 
 export interface CreateSettings {
@@ -79,7 +85,7 @@ export function SettingsPanel({ settings, onChange }: SettingsPanelProps) {
           <span className="text-sm font-semibold text-foreground">
             {t('clipsPerVideo')}
           </span>
-          <span className="inline-flex items-center gap-1 rounded-lg bg-primary/10 px-2 py-1 text-xs font-semibold tabular-nums text-primary">
+          <span className="inline-flex items-center gap-1 rounded-md bg-primary/10 px-2 py-1 text-xs font-semibold tabular-nums text-primary">
             {settings.clips}
           </span>
         </div>
@@ -104,22 +110,61 @@ export function SettingsPanel({ settings, onChange }: SettingsPanelProps) {
         <h3 className="mb-3 text-sm font-semibold text-foreground">
           {t('aspectRatio')}
         </h3>
-        <div className="grid grid-cols-3 gap-1.5">
+        <p className="mb-3 text-[11px] leading-4 text-muted-foreground">
+          {t('formatCompatibilityHint')}
+        </p>
+        <div className="grid grid-cols-1 gap-2">
           {ASPECT_RATIOS.map((ratio) => {
             const isActive = settings.aspectRatio === ratio
+            const format = VIDEO_FORMATS[ratio]
             return (
               <button
                 key={ratio}
                 type="button"
                 onClick={() => onChange({ ...settings, aspectRatio: ratio })}
                 aria-pressed={isActive}
-                className={`flex flex-col items-center gap-1.5 rounded-lg border px-2 py-2.5 text-xs font-medium transition-all ${
+                className={`flex min-h-0 flex-col items-stretch gap-2 rounded-md border px-3 py-3 text-left text-xs font-medium transition-all ${
                   isActive
                     ? 'border-primary/35 bg-primary/10 text-primary shadow-sm'
                     : 'border-border bg-background text-muted-foreground hover:border-primary/40 hover:text-foreground'
                 }`}
               >
-                {ratio}
+                <span className="flex items-center justify-between gap-3">
+                  <span>
+                    <span className="block font-semibold text-foreground">
+                      {t(`formats.${ratio}.name`)}
+                    </span>
+                    <span className="mt-0.5 block text-[10px] text-muted-foreground">
+                      {ratio} · {format.resolution}
+                    </span>
+                  </span>
+                  {ratio === '9:16' && (
+                    <span className="rounded-sm bg-muted px-2 py-1 text-[9px] font-semibold text-foreground">
+                      {t('formatDefault')}
+                    </span>
+                  )}
+                </span>
+                <span className="flex items-center gap-1.5" aria-label={t('compatibleWith')}>
+                  {SOCIAL_PLATFORMS.map((platform) => {
+                    const status = format.compatibility[platform]
+                    return (
+                      <span
+                        key={platform}
+                        className={`relative rounded-md border p-0.5 ${
+                          status === 'adaptation'
+                            ? 'border-warning/50 opacity-65'
+                            : 'border-transparent'
+                        }`}
+                        title={`${platform}: ${t(`compatibility.${status}`)}`}
+                      >
+                        <PlatformBrandIcon className="size-5" provider={platform} />
+                        {status === 'recommended' && (
+                          <span className="absolute -right-0.5 -top-0.5 size-1.5 rounded-full bg-success ring-1 ring-background" />
+                        )}
+                      </span>
+                    )
+                  })}
+                </span>
               </button>
             )
           })}
@@ -158,7 +203,7 @@ export function SettingsPanel({ settings, onChange }: SettingsPanelProps) {
                 type="button"
                 onClick={() => onChange({ ...settings, subtitleStyle: style })}
                 aria-pressed={isActive}
-                className={`flex flex-col items-center gap-1.5 rounded-lg border px-2 py-2.5 transition-all ${
+                className={`flex flex-col items-center gap-1.5 rounded-md border px-2 py-2.5 transition-all ${
                   isActive
                     ? 'border-primary/35 bg-primary/10 shadow-sm'
                     : 'border-border bg-background hover:border-primary/40'
@@ -207,7 +252,7 @@ export function SettingsPanel({ settings, onChange }: SettingsPanelProps) {
             >
               <SelectTrigger
                 id="create-language"
-                className="w-full min-w-0 rounded-lg text-[13px]"
+                className="w-full min-w-0 rounded-md text-[13px]"
               >
                 <SelectValue />
               </SelectTrigger>

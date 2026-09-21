@@ -1,3 +1,9 @@
+import {
+  SOCIAL_PLATFORMS,
+  platformCompatibility,
+  type VideoAspectRatio
+} from '@/lib/platform-formats'
+
 type ClipReadinessInput = {
   duration: number
   aspectRatio: string
@@ -54,38 +60,33 @@ export function getClipReadiness(clip: ClipReadinessInput) {
 }
 
 export function getPlatformFit(clip: ClipReadinessInput) {
-  return [
-    {
-      name: 'TikTok',
-      fit: clip.aspectRatio === '9:16' && clip.duration <= 60,
-      note: 'Best with captions, a strong first line and 15-45s pacing.'
-    },
-    {
-      name: 'Reels',
-      fit: clip.aspectRatio === '9:16' && clip.duration <= 90,
-      note: 'Works well when the hook is clear and visual framing is tight.'
-    },
-    {
-      name: 'Facebook',
-      fit: clip.duration <= 90,
-      note: 'Use clear context and captions for feed playback without sound.'
-    },
-    {
-      name: 'Shorts',
-      fit: clip.aspectRatio === '9:16' && clip.duration <= 60,
-      note: 'Keep title direct and avoid slow intros.'
-    },
-    {
-      name: 'LinkedIn',
-      fit: clip.duration <= 120,
-      note: 'Use a more explicit title and context-heavy caption.'
-    },
-    {
-      name: 'X',
-      fit: clip.duration <= 140,
-      note: 'Lead with the key point and keep the supporting copy concise.'
+  const aspectRatio = (['9:16', '1:1', '16:9'].includes(clip.aspectRatio)
+    ? clip.aspectRatio
+    : '9:16') as VideoAspectRatio
+  const names = {
+    instagram: 'Instagram',
+    facebook: 'Facebook',
+    tiktok: 'TikTok',
+    youtube: aspectRatio === '16:9' ? 'YouTube' : 'YouTube Shorts',
+    linkedin: 'LinkedIn',
+    twitter: 'X'
+  }
+  return SOCIAL_PLATFORMS.map((platform) => {
+    const status = platformCompatibility(aspectRatio, platform, clip.duration)
+    return {
+      name: names[platform],
+      fit: status !== 'incompatible',
+      status,
+      note:
+        status === 'incompatible'
+          ? 'The current duration or format is outside this destination’s publishing profile.'
+          : status === 'adaptation'
+            ? 'Choose Universal Social to avoid platform cropping or padding.'
+            : status === 'recommended'
+              ? 'This is a recommended publishing format for the destination.'
+              : 'The destination accepts this format.'
     }
-  ]
+  })
 }
 
 export function buildSocialCaption(clip: {

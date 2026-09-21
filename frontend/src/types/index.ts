@@ -40,6 +40,17 @@ export interface Clip {
   hasSubtitles: boolean
   transcriptText: string | null
   createdAt: string
+  variants?: ClipVariant[]
+}
+
+export type ClipVariant = {
+  id: string
+  name: string
+  url: string
+  resolution?: string
+  aspectRatio?: string
+  platforms?: string[]
+  status?: string
 }
 
 export type Plan = 'free' | 'creator' | 'pro' | 'agency'

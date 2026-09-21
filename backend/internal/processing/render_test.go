@@ -77,11 +77,11 @@ func TestRenderCreatesTikTokDerivativeForSmallVideo(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if clip.Resolution != "198x352" || clip.TikTokStorageKey == "" {
-		t.Fatalf("missing small-video derivative: %#v", clip)
+	if clip.Resolution != "1080x1920" {
+		t.Fatalf("small video was not normalized to the universal profile: %#v", clip)
 	}
 	derivative := filepath.Join(dir, "derivative.mp4")
-	if err := processor.materialize(ctx, clip.TikTokStorageKey, derivative); err != nil {
+	if err := processor.materialize(ctx, clip.StorageKey, derivative); err != nil {
 		t.Fatal(err)
 	}
 	info, err := processor.probe(ctx, derivative)
@@ -89,6 +89,6 @@ func TestRenderCreatesTikTokDerivativeForSmallVideo(t *testing.T) {
 		t.Fatal(err)
 	}
 	if info.Width < 360 || info.Height < 360 {
-		t.Fatalf("TikTok derivative remains too small: %dx%d", info.Width, info.Height)
+		t.Fatalf("delivery derivative remains too small: %dx%d", info.Width, info.Height)
 	}
 }
