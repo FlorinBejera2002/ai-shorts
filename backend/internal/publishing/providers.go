@@ -242,7 +242,7 @@ func tiktokPublishFailure(err error) (string, bool) {
 	case "url_ownership_unverified":
 		return "TikTok rejected the media URL. The Sneep Cut publishing domain must be verified in TikTok Developer.", true
 	case "unaudited_client_can_only_post_to_private_accounts":
-		return "TikTok currently permits this connection to publish with Only you visibility. Select Only you and try again.", true
+		return "TikTok requires the connected creator account to be private while the Sneep Cut app is unaudited. Make the TikTok account private or complete TikTok's app audit, then try again.", true
 	case "privacy_level_option_mismatch":
 		return "TikTok rejected the selected visibility. Refresh the creator options, choose an available visibility, and try again.", true
 	case "access_token_invalid", "scope_not_authorized":

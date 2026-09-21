@@ -209,7 +209,7 @@ func TestTikTokPublishRejectionsAreActionableAndDefinitive(t *testing.T) {
 		code, contains string
 	}{
 		{"url_ownership_unverified", "domain must be verified"},
-		{"unaudited_client_can_only_post_to_private_accounts", "Only you"},
+		{"unaudited_client_can_only_post_to_private_accounts", "account to be private"},
 		{"privacy_level_option_mismatch", "selected visibility"},
 		{"access_token_invalid", "Reconnect"},
 	} {
