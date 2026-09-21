@@ -185,6 +185,12 @@ func (h *Handler) dispatchCalendar(ctx context.Context) error {
 	// Validate every destination before inserting any job. A later unsupported
 	// account must not leave an earlier destination queued for publication.
 	for i, accountID := range accountIDs {
+		_, e = tx.ExecContext(ctx, `UPDATE social_posts
+			SET idempotency_key='calendar-archive:'||id::text
+			WHERE user_id=$1 AND account_id=$2 AND idempotency_key=$3 AND scheduled_post_id IS NULL`, userID, accountID, id)
+		if e != nil {
+			return e
+		}
 		postID, uuidErr := data.NewUUID()
 		if uuidErr != nil {
 			return uuidErr

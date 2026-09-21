@@ -562,7 +562,9 @@ func (s *Repository) Mutate(ctx context.Context, userID, id string, input map[st
 		_, e = tx.ExecContext(ctx, `INSERT INTO scheduled_posts(id,user_id,clip_id,clip_owner_id,title,caption,notes,platforms,account_ids,status,scheduled_at,media,tiktok_options,instagram_options,created_at,updated_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,now(),now())`, id, userID, clipID, owner, fields["title"], fields["caption"], fields["notes"], pq.Array(fields["platforms"]), pq.Array(fields["accountIds"]), fields["status"], fields["scheduledAt"], mediaJSON, encodeTikTokOptions(tiktokOptions), encodeInstagramOptions(igOptions))
 	} else {
 		if currentStatus == "failed" && status == "scheduled" {
-			if _, e = tx.ExecContext(ctx, `UPDATE social_posts SET scheduled_post_id=NULL WHERE scheduled_post_id=$1`, id); e != nil {
+			if _, e = tx.ExecContext(ctx, `UPDATE social_posts
+				SET scheduled_post_id=NULL,idempotency_key='calendar-archive:'||id::text
+				WHERE scheduled_post_id=$1`, id); e != nil {
 				return empty, e
 			}
 		}

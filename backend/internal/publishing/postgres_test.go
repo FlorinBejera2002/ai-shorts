@@ -168,9 +168,14 @@ func TestPostgresEnqueueKeepsRotatedTikTokCredentialsWhenCreatorValidationFails(
 func TestPostgresCalendarDispatchCreatesDurableJobAndReconciles(t *testing.T) {
 	h, user, clip, account := fixture(t)
 	calendarID, _ := data.NewUUID()
+	previousJobID, _ := data.NewUUID()
 	_, e := h.db.Exec(`INSERT INTO scheduled_posts(id,user_id,clip_id,clip_owner_id,title,caption,platforms,account_ids,status,scheduled_at,updated_at)
 		VALUES($1,$2,$3,$2,'Scheduled clip','Caption',ARRAY['instagram']::varchar[],ARRAY[$4]::uuid[],'scheduled',now()-interval '1 minute',now())`, calendarID, user, clip, account)
 	if e != nil {
+		t.Fatal(e)
+	}
+	if _, e = h.db.Exec(`INSERT INTO social_posts(id,user_id,account_id,clip_id,provider,caption,options,idempotency_key,request_hash,media_reference,status)
+		VALUES($1,$2,$3,$4,'instagram','Previous attempt','{}',$5,'previous-request','clips/test.mp4','failed')`, previousJobID, user, account, clip, calendarID); e != nil {
 		t.Fatal(e)
 	}
 	if e = h.dispatchCalendar(context.Background()); e != nil {
@@ -180,6 +185,10 @@ func TestPostgresCalendarDispatchCreatesDurableJobAndReconciles(t *testing.T) {
 	e = h.db.QueryRow(`SELECT s.status,p.status,p.scheduled_post_id FROM scheduled_posts s JOIN social_posts p ON p.scheduled_post_id=s.id WHERE s.id=$1`, calendarID).Scan(&calendarStatus, &postStatus, &scheduledPostID)
 	if e != nil || calendarStatus != "publishing" || postStatus != "queued" || scheduledPostID != calendarID {
 		t.Fatalf("dispatch mismatch: calendar=%s post=%s scheduled=%s err=%v", calendarStatus, postStatus, scheduledPostID, e)
+	}
+	var archivedKey string
+	if e = h.db.QueryRow(`SELECT idempotency_key FROM social_posts WHERE id=$1`, previousJobID).Scan(&archivedKey); e != nil || archivedKey != "calendar-archive:"+previousJobID {
+		t.Fatalf("previous attempt still blocks dispatch: key=%q err=%v", archivedKey, e)
 	}
 	if _, e = h.db.Exec(`UPDATE social_posts SET status='published' WHERE scheduled_post_id=$1`, calendarID); e != nil {
 		t.Fatal(e)

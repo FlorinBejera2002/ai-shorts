@@ -350,6 +350,49 @@ func TestPostgresCalendarPersistsAndValidatesTikTokSettings(t *testing.T) {
 	}
 }
 
+func TestPostgresCalendarFailedPostCanBePublishedAgain(t *testing.T) {
+	db := testdb.Open(t)
+	ctx := context.Background()
+	user, _, clip := seedCalendarClip(t, db)
+	account := fixtureID(t)
+	if _, err := db.Exec(`INSERT INTO social_accounts(id,user_id,provider,remote_id,name,credentials,scopes) VALUES($1,$2,'instagram',$3,'Instagram fixture','sealed',ARRAY['instagram_business_content_publish'])`, account, user, account); err != nil {
+		t.Fatal(err)
+	}
+	repo := NewRepository(db, calendarMedia{})
+	input := validInput()
+	input["clipId"] = clip
+	input["platforms"] = []any{"instagram"}
+	input["accountIds"] = []any{account}
+	post, err := repo.Mutate(ctx, user, "", input, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	previousJob := fixtureID(t)
+	if _, err = db.Exec(`UPDATE scheduled_posts SET status='failed' WHERE id=$1`, post.ID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = db.Exec(`INSERT INTO social_posts(id,user_id,account_id,clip_id,provider,caption,options,idempotency_key,request_hash,media_reference,scheduled_post_id,status)
+		VALUES($1,$2,$3,$4,'instagram','{}','{}',$5,'previous-request','clips/fixture/video.mp4',$5,'failed')`, previousJob, user, account, clip, post.ID); err != nil {
+		t.Fatal(err)
+	}
+
+	updated, err := repo.Mutate(ctx, user, post.ID, map[string]any{"status": "publish"}, false)
+	if err != nil || updated.Status != "scheduled" {
+		t.Fatalf("failed post was not queued again: %+v %v", updated, err)
+	}
+	var detachedID, archivedKey string
+	if err = db.QueryRow(`SELECT COALESCE(scheduled_post_id::text,''),idempotency_key FROM social_posts WHERE id=$1`, previousJob).Scan(&detachedID, &archivedKey); err != nil {
+		t.Fatal(err)
+	}
+	if detachedID != "" || archivedKey != "calendar-archive:"+previousJob {
+		t.Fatalf("previous attempt still blocks retry: scheduled_post_id=%q idempotency_key=%q", detachedID, archivedKey)
+	}
+	if _, err = db.Exec(`INSERT INTO social_posts(id,user_id,account_id,clip_id,provider,caption,options,idempotency_key,request_hash,media_reference,scheduled_post_id)
+		VALUES($1,$2,$3,$4,'instagram','{}','{}',$5,'retry-request','clips/fixture/video.mp4',$5)`, fixtureID(t), user, account, clip, post.ID); err != nil {
+		t.Fatalf("new publication attempt still conflicts: %v", err)
+	}
+}
+
 func TestPostgresCalendarRejectsUnsafeTikTokSelectionsBeforeValidation(t *testing.T) {
 	db := testdb.Open(t)
 	ctx := context.Background()
