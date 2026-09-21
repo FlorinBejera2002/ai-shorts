@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -200,6 +201,47 @@ func TestTikTokHTTPRateLimitIsClassifiedWithoutLeakingResponse(t *testing.T) {
 	_, err := p.Options(context.Background(), Credentials{AccessToken: "secret-token"})
 	if !errors.Is(err, errTikTokCreatorTemporarilyUnavailable) || strings.Contains(err.Error(), "secret") || strings.Contains(err.Error(), "unknown") {
 		t.Fatalf("HTTP rate limit was not safely classified: %v", err)
+	}
+}
+
+func TestTikTokPublishRejectionsAreActionableAndDefinitive(t *testing.T) {
+	for _, sample := range []struct {
+		code, contains string
+	}{
+		{"url_ownership_unverified", "domain must be verified"},
+		{"unaudited_client_can_only_post_to_private_accounts", "Only you"},
+		{"privacy_level_option_mismatch", "selected visibility"},
+		{"access_token_invalid", "Reconnect"},
+	} {
+		t.Run(sample.code, func(t *testing.T) {
+			p := mockProvider(t, func(w http.ResponseWriter, r *http.Request) {
+				if r.URL.Path == "/v2/post/publish/creator_info/query/" {
+					fmt.Fprint(w, `{"data":{"privacy_level_options":["SELF_ONLY"]},"error":{"code":"ok"}}`)
+					return
+				}
+				w.WriteHeader(http.StatusForbidden)
+				fmt.Fprintf(w, `{"error":{"code":%q,"message":"private provider details"}}`, sample.code)
+			})
+			_, status, err := p.PublishMedia(context.Background(), "tiktok", "creator", Credentials{AccessToken: "token"}, []PublishMedia{{Type: "video", URL: "https://media.example/a.mp4"}}, "caption", TikTokOptions{PrivacyLevel: "SELF_ONLY", MusicUsageConfirmed: true}, InstagramOptions{})
+			if status != "failed" || err == nil || !strings.Contains(err.Error(), sample.contains) || strings.Contains(err.Error(), "private provider details") {
+				t.Fatalf("rejection mismatch: status=%q err=%v", status, err)
+			}
+		})
+	}
+}
+
+func TestTikTokPublishTransportFailureRemainsUnknown(t *testing.T) {
+	p := mockProvider(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/v2/post/publish/creator_info/query/" {
+			fmt.Fprint(w, `{"data":{"privacy_level_options":["SELF_ONLY"]},"error":{"code":"ok"}}`)
+			return
+		}
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprint(w, `{"error":{"code":"internal_error"}}`)
+	})
+	_, status, err := p.PublishMedia(context.Background(), "tiktok", "creator", Credentials{AccessToken: "token"}, []PublishMedia{{Type: "video", URL: "https://media.example/a.mp4"}}, "caption", TikTokOptions{PrivacyLevel: "SELF_ONLY", MusicUsageConfirmed: true}, InstagramOptions{})
+	if status != "unknown" || err == nil {
+		t.Fatalf("ambiguous failure mismatch: status=%q err=%v", status, err)
 	}
 }
 func TestFacebookRejectsUntrustedUploadHost(t *testing.T) {

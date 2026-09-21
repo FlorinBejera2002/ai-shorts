@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -56,6 +55,13 @@ type ProviderClient struct {
 }
 
 var errTikTokCreatorTemporarilyUnavailable = errors.New("TikTok creator settings are temporarily unavailable")
+
+type providerRejection struct {
+	status int
+	code   string
+}
+
+func (e *providerRejection) Error() string { return "provider rejected request" }
 
 func NewProviderClient(c ProviderConfig) *ProviderClient {
 	if c.GraphVersion == "" {
@@ -175,31 +181,46 @@ func (p *ProviderClient) execute(req *http.Request, out any) error {
 	if err != nil {
 		return errors.New("provider response could not be read")
 	}
-	if res.StatusCode == http.StatusTooManyRequests {
-		return errTikTokCreatorTemporarilyUnavailable
-	}
-	if res.StatusCode < 200 || res.StatusCode >= 300 {
-		return fmt.Errorf("provider rejected request (HTTP %d)", res.StatusCode)
-	}
 	var envelope struct {
 		Error json.RawMessage `json:"error"`
 	}
 	if err = json.Unmarshal(raw, &envelope); err != nil {
+		if res.StatusCode >= 500 {
+			return errors.New("provider request could not be confirmed")
+		}
+		if res.StatusCode < 200 || res.StatusCode >= 300 {
+			return &providerRejection{status: res.StatusCode}
+		}
 		return errors.New("invalid provider response")
 	}
+	providerCode := ""
 	if len(envelope.Error) > 0 && string(envelope.Error) != "null" {
 		var e struct {
 			Code json.RawMessage `json:"code"`
 		}
 		_ = json.Unmarshal(envelope.Error, &e)
 		if string(e.Code) != "\"ok\"" {
-			var code string
-			_ = json.Unmarshal(e.Code, &code)
-			if code == "spam_risk_too_many_posts" || code == "reached_active_user_cap" || code == "rate_limit_exceeded" {
+			_ = json.Unmarshal(e.Code, &providerCode)
+			if res.StatusCode == http.StatusTooManyRequests {
 				return errTikTokCreatorTemporarilyUnavailable
 			}
-			return errors.New("provider reported an API error")
+			if res.StatusCode >= 500 {
+				return errors.New("provider request could not be confirmed")
+			}
+			if providerCode == "spam_risk_too_many_posts" || providerCode == "reached_active_user_cap" || providerCode == "rate_limit_exceeded" {
+				return errTikTokCreatorTemporarilyUnavailable
+			}
+			return &providerRejection{status: res.StatusCode, code: providerCode}
 		}
+	}
+	if res.StatusCode == http.StatusTooManyRequests {
+		return errTikTokCreatorTemporarilyUnavailable
+	}
+	if res.StatusCode >= 500 {
+		return errors.New("provider request could not be confirmed")
+	}
+	if res.StatusCode < 200 || res.StatusCode >= 300 {
+		return &providerRejection{status: res.StatusCode, code: providerCode}
 	}
 	if out != nil {
 		if json.Unmarshal(raw, out) != nil {
@@ -207,6 +228,32 @@ func (p *ProviderClient) execute(req *http.Request, out any) error {
 		}
 	}
 	return nil
+}
+
+func tiktokPublishFailure(err error) (string, bool) {
+	if errors.Is(err, errTikTokCreatorTemporarilyUnavailable) {
+		return "TikTok publishing is temporarily rate-limited. Wait and try again later.", true
+	}
+	var rejection *providerRejection
+	if !errors.As(err, &rejection) {
+		return "", false
+	}
+	switch rejection.code {
+	case "url_ownership_unverified":
+		return "TikTok rejected the media URL. The Sneep Cut publishing domain must be verified in TikTok Developer.", true
+	case "unaudited_client_can_only_post_to_private_accounts":
+		return "TikTok currently permits this connection to publish with Only you visibility. Select Only you and try again.", true
+	case "privacy_level_option_mismatch":
+		return "TikTok rejected the selected visibility. Refresh the creator options, choose an available visibility, and try again.", true
+	case "access_token_invalid", "scope_not_authorized":
+		return "TikTok authorization is no longer valid. Reconnect the account and try again.", true
+	case "spam_risk_user_banned_from_posting":
+		return "TikTok has blocked this creator account from publishing. Check the account in TikTok.", true
+	case "invalid_param", "invalid_params", "invalid_file_upload":
+		return "TikTok rejected the video or publishing settings. Review the post and try again.", true
+	default:
+		return "TikTok rejected the publishing request. Review the account and post settings before trying again.", true
+	}
 }
 
 type tokenResponse struct {
@@ -584,6 +631,9 @@ func (p *ProviderClient) PublishMedia(ctx context.Context, provider, account str
 			}
 		}
 		if err = p.request(ctx, "POST", endpoint, c.AccessToken, nil, body, &r); err != nil {
+			if message, rejected := tiktokPublishFailure(err); rejected {
+				return "", "failed", errors.New(message)
+			}
 			return "", "unknown", err
 		}
 		if r.Data.ID == "" {
