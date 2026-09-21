@@ -51,7 +51,10 @@ func (h *Handler) validateTikTokMediaSelection(ctx context.Context, account Acco
 	if err != nil {
 		return "", err
 	}
-	if !photo && (creator.MaxDuration <= 0 || duration > float64(creator.MaxDuration)) {
+	// TikTok can omit max_video_post_duration_sec while creator capabilities
+	// are still usable. Treat an absent limit as unknown and let the publish
+	// endpoint make the final decision instead of rejecting every video.
+	if !photo && creator.MaxDuration > 0 && duration > float64(creator.MaxDuration) {
 		return "clipId", errInvalid
 	}
 	if !slices.Contains(creator.PrivacyLevels, options.PrivacyLevel) ||

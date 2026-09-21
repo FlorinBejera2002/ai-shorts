@@ -136,3 +136,25 @@ func TestTikTokCreatorDurationAppliesOnlyToVideo(t *testing.T) {
 		t.Fatalf("allowed duration rejected %s %v", field, err)
 	}
 }
+
+func TestTikTokCreatorMissingDurationLimitDoesNotRejectVideo(t *testing.T) {
+	p := mockProvider(t, func(w http.ResponseWriter, r *http.Request) {
+		io.WriteString(w, `{"data":{"privacy_level_options":["SELF_ONLY"],"duet_disabled":true,"stitch_disabled":true},"error":{"code":"ok"}}`)
+	})
+	vault, err := newCipher(base64.StdEncoding.EncodeToString(make([]byte, 32)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	h := &Handler{client: p, vault: vault, cfg: Config{Enabled: true, ProviderConfig: ProviderConfig{AppURL: "https://app.example"}}}
+	account := Account{Provider: "tiktok"}
+	options := TikTokOptions{
+		PrivacyLevel:       "SELF_ONLY",
+		MusicUsageConfirmed: true,
+		DisableDuet:        true,
+		DisableStitch:      true,
+	}
+	field, err := h.validateTikTokMediaSelection(context.Background(), account, Credentials{}, 15.95, sql.NullBool{Valid: true}, []PublishMedia{{Type: "video", URL: "https://media.example/video.mp4"}}, "", options)
+	if err != nil {
+		t.Fatalf("video rejected when TikTok omitted its duration limit: %s %v", field, err)
+	}
+}
