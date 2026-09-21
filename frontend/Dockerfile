@@ -31,7 +31,7 @@ FROM nginx:stable-alpine AS runner
 COPY --from=builder /app/dist /usr/share/nginx/html
 COPY <<'CONF' /etc/nginx/conf.d/default.conf
 server {
-    listen 80;
+    listen 8080;
     root /usr/share/nginx/html;
     index index.html;
     location / {
@@ -45,5 +45,5 @@ server {
     }
 }
 CONF
-EXPOSE 80
+EXPOSE 8080
 CMD ["nginx", "-g", "daemon off;"]

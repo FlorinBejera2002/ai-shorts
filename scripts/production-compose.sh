@@ -199,7 +199,7 @@ verify_workers() {
 }
 
 verify_frontend() {
-  "${compose[@]}" exec -T frontend wget -q --spider http://127.0.0.1:80/
+  "${compose[@]}" exec -T frontend wget -q --spider http://127.0.0.1:8080/
 }
 verify_public_frontend() {
   local url

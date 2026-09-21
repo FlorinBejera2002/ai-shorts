@@ -24,12 +24,26 @@ test('production frontend is built for the server without backend secrets', () =
 test('Caddy routes the public frontend and API hostnames separately', () => {
   assert.match(
     caddy,
-    /sneepcut\.com, www\.sneepcut\.com \{[\s\S]*reverse_proxy frontend:80/
+    /sneepcut\.com, www\.sneepcut\.com \{[\s\S]*reverse_proxy frontend:8080/
   )
   assert.match(
     caddy,
     /api\.sneepcut\.com \{[\s\S]*reverse_proxy nginx:80/
   )
+})
+
+test('production frontend runs nginx without root or Linux capabilities', () => {
+  const frontend = compose.slice(
+    compose.indexOf('\n  frontend:'),
+    compose.indexOf('\n  nginx:')
+  )
+
+  assert.match(frontend, /user: "101:101"/)
+  assert.match(frontend, /read_only: true/)
+  assert.match(frontend, /\/var\/cache\/nginx:uid=101,gid=101,mode=0750/)
+  assert.match(frontend, /\/var\/run:uid=101,gid=101,mode=0750/)
+  assert.match(frontend, /http:\/\/127\.0\.0\.1:8080\//)
+  assert.match(frontend, /cap_drop: \["ALL"\]/)
 })
 
 test('the production proxy trust chain uses matching fixed addresses', () => {
