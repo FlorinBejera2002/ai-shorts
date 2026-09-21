@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"slices"
 	"time"
 
@@ -30,9 +31,15 @@ func (h *Handler) Start(parent context.Context) func() {
 				return
 			case <-ticker.C:
 				work, c := context.WithTimeout(ctx, 100*time.Second)
-				_ = h.reconcileCalendar(work)
-				_ = h.dispatchCalendar(work)
-				_ = h.runOne(work)
+				if err := h.reconcileCalendar(work); err != nil {
+					slog.Error("publishing calendar reconciliation failed", "error", err)
+				}
+				if err := h.dispatchCalendar(work); err != nil {
+					slog.Error("publishing calendar dispatch failed", "error", err)
+				}
+				if err := h.runOne(work); err != nil {
+					slog.Error("publishing job failed", "error", err)
+				}
 				c()
 			}
 		}
