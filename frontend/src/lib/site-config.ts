@@ -1,4 +1,3 @@
-import type { Metadata } from 'next'
 
 export const SITE_NAME = 'Sneepcut'
 export const DEFAULT_LOCALE = 'en'
@@ -114,7 +113,7 @@ type PageMetadata = {
 export function buildLocaleMetadata(
   locale: SiteLocale,
   page: PageMetadata = {}
-): Metadata {
+) {
   const config = LOCALE_CONFIG[locale]
   const siteUrl = getSiteUrl()
   const path = page.path ?? ''

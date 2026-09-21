@@ -1,3 +1,5 @@
+import { useEffect } from 'react'
+
 type StructuredDataProps = {
   value: Record<string, unknown>
 }
@@ -5,10 +7,12 @@ type StructuredDataProps = {
 export function StructuredData({ value }: StructuredDataProps) {
   const json = JSON.stringify(value).replace(/</g, '\\u003c')
 
-  return (
-    <script
-      type="application/ld+json"
-      dangerouslySetInnerHTML={{ __html: json }}
-    />
-  )
+  useEffect(() => {
+    const script = document.createElement('script')
+    script.type = 'application/ld+json'
+    script.textContent = json
+    document.head.append(script)
+    return () => script.remove()
+  }, [json])
+  return null
 }

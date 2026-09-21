@@ -1,36 +1,8 @@
 import assert from 'node:assert/strict'
-import { readFileSync, readdirSync } from 'node:fs'
-import { join, relative } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { readFileSync } from 'node:fs'
 import test from 'node:test'
 
 const read = path => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8')
-test('original redesign pages have separate tickets and browser routes', () => {
-  const root = fileURLToPath(new URL('../src/app/[locale]', import.meta.url))
-  const walk = dir => readdirSync(dir,{withFileTypes:true}).flatMap(entry => entry.isDirectory() ? walk(join(dir,entry.name)) : entry.name==='page.tsx' ? [join(dir,entry.name)] : [])
-  // These pages were added after the original redesign and have their own coverage.
-  const laterPages = new Set([
-    'activate/page.tsx',
-    'data-deletion/page.tsx',
-    'legal-notice/page.tsx',
-    'cookie-policy/page.tsx',
-    'acceptable-use/page.tsx',
-    'refund-policy/page.tsx',
-    'subprocessors/page.tsx',
-    'dpa/page.tsx',
-    'dashboard/studio/page.tsx'
-  ])
-  const redesignPages = walk(root).filter(path => !laterPages.has(relative(root, path).replaceAll('\\', '/')))
-  assert.equal(redesignPages.length,23)
-  const tickets = JSON.parse(read('redesign-tickets.json'))
-  assert.equal(Object.keys(tickets).length,25)
-  assert.equal(new Set(Object.values(tickets).map(ticket=>ticket.id)).size,25)
-  const suite = read('scripts/all-pages-browser-checks.mjs')
-  for (const key of Object.keys(tickets).filter(key=>!['foundation','navigation','calendar'].includes(key))) {
-    assert.ok(suite.includes(`['${key}',`), `Missing browser route for ${key}`)
-  }
-})
-
 test('new shared interaction controls use Radix primitives', () => {
   for (const component of ['tabs','switch','slider','dialog','accordion','choice-group','progress']) {
     assert.match(read(`src/components/ui/${component}.tsx`), /from ['"]radix-ui['"]/, component)

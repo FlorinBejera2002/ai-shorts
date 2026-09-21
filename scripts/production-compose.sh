@@ -40,11 +40,11 @@ build() {
   config
   case "$component" in
     all) "${compose[@]}" build ;;
-    backend) "${compose[@]}" build migrate backend-go worker job-dispatcher ;;
+    backend) "${compose[@]}" build migrate backend worker ;;
     frontend) "${compose[@]}" build frontend ;;
     studio) "${compose[@]}" build studio frontend ;;
-    api) "${compose[@]}" build migrate backend-go ;;
-    workers) "${compose[@]}" build worker job-dispatcher ;;
+    api) "${compose[@]}" build migrate backend ;;
+    workers) "${compose[@]}" build worker ;;
     gateway) "${compose[@]}" pull nginx caddy ;;
   esac
 }
@@ -91,14 +91,14 @@ run_migrations() {
 }
 
 start_api() {
-  "${compose[@]}" up -d --no-deps --force-recreate backend-go
-  wait_for_health backend-go 120
+  "${compose[@]}" up -d --no-deps --force-recreate backend
+  wait_for_health backend 120
   "${compose[@]}" up -d --no-deps --force-recreate nginx
 }
 
 start_workers() {
   "${compose[@]}" up -d --no-deps --force-recreate \
-    youtube-pot-provider worker job-dispatcher
+    worker
 }
 
 start_frontend() {
@@ -140,8 +140,8 @@ deploy() {
       ;;
     studio)
       # Attach the existing API to Studio's separate network if needed.
-      "${compose[@]}" up -d --no-deps backend-go
-      wait_for_health backend-go 120
+      "${compose[@]}" up -d --no-deps backend
+      wait_for_health backend 120
       start_studio
       start_frontend
       start_gateway
@@ -155,7 +155,7 @@ deploy() {
     workers)
       start_infrastructure
       run_migrations
-      if [[ -z "$("${compose[@]}" ps -q backend-go)" ]]; then
+      if [[ -z "$("${compose[@]}" ps -q backend)" ]]; then
         start_api
       fi
       start_workers
@@ -191,23 +191,16 @@ verify_api() {
 }
 
 verify_workers() {
-  "${compose[@]}" exec -T clamav clamdscan --ping=1
-  # The provider can still be starting after Compose has started its container.
-  "${compose[@]}" exec -T worker \
-    curl --fail --silent --show-error --retry 30 --retry-connrefused \
-    --retry-delay 2 --retry-max-time 60 --max-time 5 \
-    http://youtube-pot-provider:4416/ping >/dev/null
-  "${compose[@]}" exec -T worker deno --version
-  "${compose[@]}" exec -T worker yt-dlp --version
-  "${compose[@]}" exec -T worker \
-    celery -A app.workers.celery_app:celery_app inspect ping --timeout=10
+  "${compose[@]}" exec -T worker ffmpeg -version
+  "${compose[@]}" exec -T worker whisper-cli --help
+  "${compose[@]}" exec -T worker test -s /models/ggml-base.bin
+  "${compose[@]}" exec -T worker test -s /models/facefinder
+  wait_for_health worker 30
 }
 
 verify_frontend() {
-  "${compose[@]}" exec -T frontend node -e \
-    "fetch('http://127.0.0.1:3000/').then(r => { if (r.status >= 500) process.exit(1); console.log('frontend HTTP', r.status) }).catch(error => { console.error(error); process.exit(1) })"
+  "${compose[@]}" exec -T frontend wget -q --spider http://127.0.0.1:80/
 }
-
 verify_public_frontend() {
   local url
   for url in https://sneepcut.com https://www.sneepcut.com; do

@@ -14,12 +14,9 @@ test('production frontend is built for the server without backend secrets', () =
     compose.indexOf('\n  nginx:')
   )
 
-  assert.match(frontend, /GO_API_URL: http:\/\/backend-go:8080/)
-  assert.match(frontend, /NEXT_PUBLIC_APP_URL: https:\/\/sneepcut\.com/)
-  assert.match(
-    frontend,
-    /NEXT_PUBLIC_UPLOAD_URL: https:\/\/api\.sneepcut\.com\/api\/upload\/direct/
-  )
+
+  assert.match(frontend, /VITE_APP_URL: https:\/\/sneepcut\.com/)
+  assert.match(frontend, /VITE_STUDIO_URL: https:\/\/studio\.sneepcut\.com/)
   assert.doesNotMatch(frontend, /env_file:/)
   assert.doesNotMatch(frontend, /DATABASE_URL|JWT_SECRET|INTERNAL_API_KEY/)
 })
@@ -27,7 +24,7 @@ test('production frontend is built for the server without backend secrets', () =
 test('Caddy routes the public frontend and API hostnames separately', () => {
   assert.match(
     caddy,
-    /sneepcut\.com, www\.sneepcut\.com \{[\s\S]*reverse_proxy frontend:3000/
+    /sneepcut\.com, www\.sneepcut\.com \{[\s\S]*reverse_proxy frontend:80/
   )
   assert.match(
     caddy,
@@ -71,7 +68,7 @@ test('release rotation retains exactly one previous application checkout', () =>
   assert.doesNotMatch(releaseScript, /docker image prune/)
 })
 
-test('deployment commands reject path traversal before connecting to a host', () => {
+test('deployment commands reject path traversal before connecting to a host', { skip: process.platform === 'win32' && !process.env.BASH_BINARY ? 'Requires native Bash; WSL launcher is not a test shell' : false }, () => {
   const bash = process.env.BASH_BINARY || 'bash'
   const localResult = spawnSync(bash, ['../scripts/deploy.sh', 'status', 'all'], {
     env: {
@@ -79,12 +76,12 @@ test('deployment commands reject path traversal before connecting to a host', ()
       DEPLOY_ROOT: '/opt/sneepcut/..',
       DEPLOY_HOST: 'must-not-connect'
     },
-    encoding: 'utf8'
+    encoding: 'utf8', timeout: 10000
   })
   const remoteResult = spawnSync(
     bash,
     ['../scripts/production-release.sh', 'status', 'all', 'manual', '/srv/sneepcut/..', ''],
-    { encoding: 'utf8' }
+    { encoding: 'utf8', timeout: 10000 }
   )
 
   assert.equal(localResult.status, 2)

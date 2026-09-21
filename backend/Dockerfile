@@ -1,64 +1,67 @@
 # syntax=docker/dockerfile:1
-FROM denoland/deno:bin-2.9.6 AS deno
-
-FROM python:3.11-slim AS base
-
-ENV PYTHONUNBUFFERED=1 \
-    PIP_DISABLE_PIP_VERSION_CHECK=1 \
-    PYTHONDONTWRITEBYTECODE=1 HOME=/tmp/sneepcut
-
-WORKDIR /app
-
-RUN groupadd --gid 10001 sneepcut \
-    && useradd --uid 10001 --gid 10001 --no-create-home sneepcut \
-    && mkdir -p /app/media && chown 10001:10001 /app/media
-COPY requirements-api.txt requirements-ml.txt ./
-RUN --mount=type=cache,target=/root/.cache/pip pip install -r requirements-api.txt
-COPY alembic.ini ./
-COPY alembic ./alembic
-COPY app ./app
-
-FROM base AS ml
-
-# yt-dlp uses Deno to solve YouTube's JavaScript player challenges.
-COPY --from=deno /deno /usr/local/bin/deno
-
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl \
-    ffmpeg \
-    libgl1 \
-    libglib2.0-0 \
-    libsm6 \
-    libxext6 \
-    libxrender1 \
+FROM golang:1.26.5 AS dev
+WORKDIR /src
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends curl ffmpeg \
     && rm -rf /var/lib/apt/lists/*
+COPY go.mod go.sum ./
+RUN go mod download
+COPY --chown=10001:10001 . .
+RUN chown 10001:10001 /src
+CMD ["go", "run", "./cmd/api"]
 
-# CPU-only torch first: the default PyPI wheels bundle CUDA (~7 GB) that no
-# container here can use (whisper_device=cpu, no GPU reservation in compose).
-RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install torch==2.11.* torchvision==0.26.* \
-      --index-url https://download.pytorch.org/whl/cpu \
-    && pip install -r requirements-ml.txt
+FROM golang:1.26.5 AS build
+WORKDIR /src
+COPY go.mod go.sum ./
+RUN go mod download
+COPY . .
+RUN mkdir -p /media && go test -race ./... && go vet ./... \
+    && CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /api ./cmd/api \
+    && CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /worker ./cmd/worker \
+    && CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /migrate ./cmd/migrate
 
-# Dependency installation can create root-owned caches under HOME.
-# Transfer them before switching to the unprivileged processing worker.
-RUN mkdir -p "$HOME/.cache/huggingface" \
-    && chown -R 10001:10001 "$HOME"
-
+FROM debian:bookworm-slim AS api
+# Inspect uploaded video duration before sending it to TikTok. The API still
+# runs as an unprivileged numeric user and keeps the same read-only runtime.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates ffmpeg \
+    && rm -rf /var/lib/apt/lists/*
+COPY --from=build /api /api
+COPY --from=build --chown=10001:10001 /media /app/media
 USER 10001:10001
-CMD ["celery", "-A", "app.workers.celery_app:celery_app", "worker", "--loglevel=info", "--concurrency=2"]
+EXPOSE 8080
+ENV LISTEN_ADDR=:8080
+ENTRYPOINT ["/api"]
 
-FROM ml AS ml-dev
+FROM debian:bookworm-slim AS migrate
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+COPY --from=build /migrate /migrate
+USER 10001:10001
+ENTRYPOINT ["/migrate"]
+
+FROM debian:bookworm-slim AS speech-build
+ARG WHISPER_VERSION=v1.8.3
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates git cmake g++ make curl \
+    && git clone --depth 1 --branch ${WHISPER_VERSION} https://github.com/ggml-org/whisper.cpp /whisper
+WORKDIR /whisper
+RUN cmake -B build -DBUILD_SHARED_LIBS=OFF -DGGML_NATIVE=OFF -DWHISPER_BUILD_TESTS=OFF \
+    && cmake --build build --config Release --target whisper-cli -j2 \
+    && bash models/download-ggml-model.sh base \
+    && curl --fail --location https://raw.githubusercontent.com/esimov/pigo/v1.4.6/cascade/facefinder -o /whisper/models/facefinder
+
+FROM api AS worker
 USER root
-RUN chown -R 10001:10001 /app/app
+RUN apt-get update && apt-get install -y --no-install-recommends libgomp1 libstdc++6 fonts-dejavu-core fonts-liberation \
+    && rm -rf /var/lib/apt/lists/*
+COPY --from=build /worker /worker
+COPY --from=speech-build /whisper/build/bin/whisper-cli /usr/local/bin/whisper-cli
+COPY --from=speech-build /whisper/models/ggml-base.bin /models/ggml-base.bin
+COPY --from=speech-build /whisper/models/facefinder /models/facefinder
+ENV WHISPER_CPP_PATH=/usr/local/bin/whisper-cli WHISPER_CPP_MODEL=/models/ggml-base.bin PIGO_FACE_MODEL=/models/facefinder
 USER 10001:10001
+ENTRYPOINT ["/worker"]
 
-FROM base AS api-dev
-RUN chown -R 10001:10001 /app/app
-USER 10001:10001
-
-FROM base AS api
-USER 10001:10001
-EXPOSE 8000
-
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# An untargeted backend build must run the API, never the migration command.
+FROM api AS runner

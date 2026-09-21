@@ -4,7 +4,15 @@
 
 sneepcut.com, www.sneepcut.com {
 	encode zstd gzip
-	reverse_proxy frontend:3000
+	@application_api path /api/* /v1/* /media/*
+	handle @application_api {
+		reverse_proxy nginx:80 {
+			header_up Host api.sneepcut.com
+		}
+	}
+	handle {
+		reverse_proxy frontend:80
+	}
 }
 
 api.sneepcut.com {

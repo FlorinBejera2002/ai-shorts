@@ -3,9 +3,7 @@ name: sneepcut-production
 x-environment: &environment
   APP_ENV: production
   APP_URL: https://sneepcut.com
-  NEXTAUTH_URL: https://sneepcut.com
   DATABASE_URL: postgresql://${POSTGRES_USER:-sneepcut}:${DB_PASSWORD:?Set DB_PASSWORD}@postgres:5432/${POSTGRES_DB:-sneepcut}?sslmode=disable
-  DIRECT_URL: postgresql://${POSTGRES_USER:-sneepcut}:${DB_PASSWORD:?Set DB_PASSWORD}@postgres:5432/${POSTGRES_DB:-sneepcut}?sslmode=disable
   REDIS_URL: redis://redis:6379/0
   INTERNAL_API_KEY: ${INTERNAL_API_KEY:?Set INTERNAL_API_KEY}
   UPLOAD_TOKEN_SECRET: ${UPLOAD_TOKEN_SECRET:?Set UPLOAD_TOKEN_SECRET}
@@ -13,7 +11,6 @@ x-environment: &environment
   STORAGE_TYPE: local
   LOCAL_MEDIA_ROOT: /app/media
   CORS_ORIGINS: https://sneepcut.com,https://www.sneepcut.com
-  NEXT_PUBLIC_UPLOAD_URL: https://api.sneepcut.com/api/upload/direct
   UPLOAD_SCANNER_ENABLED: "true"
   CLAMAV_HOST: clamav
   CLAMAV_PORT: "3310"
@@ -60,7 +57,6 @@ services:
     image: clamav/clamav:stable
     volumes:
       - clamav_data:/var/lib/clamav
-      - ./backend/clamav/clamd.conf:/etc/clamav/clamd.conf:ro
     mem_limit: 4g
     cpus: 2
     pids_limit: 128
@@ -77,23 +73,21 @@ services:
     <<: *app
     build:
       context: ./backend
-      target: api
-    image: sneepcut-production-api
-    command: alembic upgrade head
+      target: migrate
     restart: "no"
     depends_on:
       postgres:
         condition: service_healthy
 
-  backend-go:
+  backend:
     <<: *app
-    build: ./backend-go
+    build: ./backend
     networks: [default, studio]
     environment:
       <<: *environment
       GO_AUTH_ENABLED: "true"
       LISTEN_ADDR: ":8080"
-      ALLOWED_HOSTS: api.sneepcut.com,sneepcut.com,www.sneepcut.com,localhost,127.0.0.1,backend-go
+      ALLOWED_HOSTS: api.sneepcut.com,sneepcut.com,www.sneepcut.com,localhost,127.0.0.1,backend
       TRUSTED_PROXY_CIDRS: 172.30.94.253/32
     depends_on:
       postgres:
@@ -121,63 +115,16 @@ services:
     <<: *app
     build:
       context: ./backend
-      target: ml
-    image: sneepcut-production-ml
-    environment:
-      <<: *environment
-      YOUTUBE_COOKIES_PATH: ${YOUTUBE_COOKIES_PATH:-/run/secrets/youtube-cookies.txt}
-      YOUTUBE_POT_PROVIDER_URL: http://youtube-pot-provider:4416
-    command: >-
-      celery -A app.workers.celery_app:celery_app worker
-      --loglevel=info --concurrency=${WORKER_CONCURRENCY:-1}
-      --max-tasks-per-child=50
-    volumes:
-      - media_data:/app/media
-      - ${YOUTUBE_COOKIES_DIR:-/opt/sneepcut-secrets}:/run/secrets:ro
-    pids_limit: 512
-    # Compose resolves these values from the environment before validating their types.
-    # noinspection ComposeUnknownValues
-    mem_limit: ${WORKER_MEMORY_LIMIT:-6g}
-    # noinspection ComposeUnknownValues
-    cpus: ${WORKER_CPU_LIMIT:-2}
-    stop_grace_period: 2m
+      target: worker
     depends_on:
       migrate:
         condition: service_completed_successfully
-      redis:
-        condition: service_healthy
-      youtube-pot-provider:
-        condition: service_started
-
-  youtube-pot-provider:
-    image: brainicism/bgutil-ytdlp-pot-provider:2.0.0
-    command: ["--host", "0.0.0.0"]
-    restart: unless-stopped
-    init: true
-    security_opt: ["no-new-privileges:true"]
-    cap_drop: ["ALL"]
+    volumes: ['media_data:/app/media']
+    tmpfs: ['/tmp:uid=10001,gid=10001,mode=1770']
     read_only: true
-    tmpfs: ["/tmp:mode=1770"]
-    pids_limit: 128
-    mem_limit: 512m
-    cpus: 1
-    logging:
-      driver: json-file
-      options:
-        max-size: "10m"
-        max-file: "3"
-
-  job-dispatcher:
-    <<: *app
-    build:
-      context: ./backend
-      target: api
-    image: sneepcut-production-api
-    command: python -m app.services.job_delivery
-    pids_limit: 64
-    depends_on:
-      backend-go:
-        condition: service_healthy
+    user: '10001:10001'
+    init: true
+    stop_grace_period: 5m
 
   studio:
     build:
@@ -191,7 +138,7 @@ services:
       SNEEPCUT_STUDIO_ORIGIN: https://studio.sneepcut.com
       SNEEPCUT_APP_ORIGIN: https://sneepcut.com
       SNEEPCUT_APP_ADDITIONAL_ORIGINS: https://www.sneepcut.com
-      SNEEPCUT_AUTH_BASE_URL: http://backend-go:8080
+      SNEEPCUT_AUTH_BASE_URL: http://backend:8080
       SNEEPCUT_MEDIA_ORIGIN: https://sneepcut.com
       SNEEPCUT_STUDIO_DATA: /data/projects
       SNEEPCUT_REGISTRY_DIR: /app/registry
@@ -224,7 +171,7 @@ services:
     cpus: 2
     stop_grace_period: 30s
     depends_on:
-      backend-go:
+      backend:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "bun", "-e", "fetch('http://127.0.0.1:5191/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
@@ -241,49 +188,26 @@ services:
     build:
       context: ./frontend
       args:
-        GO_API_URL: http://backend-go:8080
-        MEDIA_PROXY_HOST: http://nginx:80
-        NEXT_PUBLIC_APP_URL: https://sneepcut.com
-        NEXT_PUBLIC_STUDIO_URL: https://studio.sneepcut.com
-        NEXT_PUBLIC_CONTACT_EMAIL: ${NEXT_PUBLIC_CONTACT_EMAIL:-admin@sneepcut.com}
-        NEXT_PUBLIC_UPLOAD_URL: https://api.sneepcut.com/api/upload/direct
-        NEXT_IMAGE_REMOTE_HOSTS: api.sneepcut.com
-        NEXT_DEPLOYMENT_ID: ${DEPLOYMENT_VERSION:-production}
+        VITE_APP_URL: https://sneepcut.com
+        VITE_STUDIO_URL: https://studio.sneepcut.com
+        VITE_CONTACT_EMAIL: ${VITE_CONTACT_EMAIL:-admin@sneepcut.com}
     image: sneepcut-production-frontend
-    environment:
-      GO_API_URL: http://backend-go:8080
-      MEDIA_PROXY_HOST: http://nginx:80
-      NEXT_PUBLIC_APP_URL: https://sneepcut.com
-      NEXT_PUBLIC_STUDIO_URL: https://studio.sneepcut.com
-      NEXT_PUBLIC_CONTACT_EMAIL: ${NEXT_PUBLIC_CONTACT_EMAIL:-admin@sneepcut.com}
-      NEXT_PUBLIC_UPLOAD_URL: https://api.sneepcut.com/api/upload/direct
-      NEXT_IMAGE_REMOTE_HOSTS: api.sneepcut.com
-      NEXT_DEPLOYMENT_ID: ${DEPLOYMENT_VERSION:-production}
     depends_on:
-      backend-go:
+      backend:
         condition: service_healthy
     restart: unless-stopped
     security_opt: ["no-new-privileges:true"]
     cap_drop: ["ALL"]
     pids_limit: 256
-    mem_limit: 1g
-    cpus: 2
+    mem_limit: 512m
+    cpus: 1
     logging:
       driver: json-file
       options:
         max-size: "10m"
         max-file: "3"
     healthcheck:
-      # Compose supports an exec-form list, including a folded scalar for the script.
-      # noinspection ComposeUnknownValues
-      test:
-        - CMD
-        - node
-        - -e
-        - >-
-          fetch('http://127.0.0.1:3000/').then((response) => {
-            if (response.status >= 500) process.exit(1)
-          }).catch(() => process.exit(1))
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:80/ || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 12
@@ -301,7 +225,7 @@ services:
       default:
         ipv4_address: 172.30.94.253
     depends_on:
-      backend-go:
+      backend:
         condition: service_healthy
     restart: unless-stopped
 

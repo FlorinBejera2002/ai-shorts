@@ -1,0 +1,13 @@
+@import './app/globals.css';
+@import '@fontsource-variable/sora';
+@import '@fontsource-variable/manrope';
+@import '@fontsource-variable/bodoni-moda';
+
+@source './';
+
+:root {
+  --font-display: 'Sora Variable', system-ui, sans-serif;
+  --font-body: 'Manrope Variable', system-ui, sans-serif;
+  --font-cinematic: 'Bodoni Moda Variable', Georgia, serif;
+  --font-studio: 'Manrope Variable', system-ui, sans-serif;
+}

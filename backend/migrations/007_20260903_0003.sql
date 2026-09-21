@@ -1,0 +1,4 @@
+-- revision: 20260903_0003
+-- parent: 20260903_0002
+ALTER TABLE users ADD COLUMN session_version INTEGER DEFAULT '0' NOT NULL;
+

@@ -1,29 +1,16 @@
-'use client'
-
 import { publicApiFetch } from '@/lib/auth'
 import type { PlanCatalog } from '@/types/api'
-import { useEffect, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 
-let catalogRequest: Promise<PlanCatalog | null> | null = null
+async function fetchPlanCatalog(): Promise<PlanCatalog | null> {
+  const response = await publicApiFetch('/api/stripe/plans')
+  return response.ok ? (response.json() as Promise<PlanCatalog>) : null
+}
 
 export function usePlanCatalog() {
-  const [catalog, setCatalog] = useState<PlanCatalog | null>(null)
-
-  useEffect(() => {
-    let mounted = true
-    catalogRequest ??= publicApiFetch('/api/stripe/plans')
-      .then(async (response) =>
-        response.ok ? (response.json() as Promise<PlanCatalog>) : null
-      )
-      .catch(() => null)
-    void catalogRequest.then((value) => {
-      if (mounted) setCatalog(value)
-      if (!value) catalogRequest = null
-    })
-    return () => {
-      mounted = false
-    }
-  }, [])
-
-  return catalog
+  return useQuery({
+    queryKey: ['public', 'stripe-plans'],
+    queryFn: fetchPlanCatalog,
+    staleTime: Number.POSITIVE_INFINITY
+  }).data
 }

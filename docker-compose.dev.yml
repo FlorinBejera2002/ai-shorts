@@ -7,9 +7,19 @@ services:
     ports:
       - "127.0.0.1:${REDIS_HOST_PORT:-6379}:6379"
 
-  backend-go:
+  migrate:
     build:
-      context: ./backend-go
+      context: ./backend
+      target: dev
+    image: sneepcut-go-dev
+    command: go run ./cmd/migrate
+    entrypoint: []
+    read_only: false
+    working_dir: /src
+
+  backend:
+    build:
+      context: ./backend
       target: dev
     image: sneepcut-go-dev
     command: go run ./cmd/api
@@ -19,7 +29,6 @@ services:
     tmpfs:
       - /tmp:uid=10001,gid=10001,mode=1770,exec
     environment:
-      # /tmp is tmpfs and is cleared on restart; keep compiled packages here.
       GOCACHE: /src/.cache/go-build
       GOFLAGS: -p=1
       GOMAXPROCS: "2"
@@ -28,7 +37,7 @@ services:
     develop:
       watch:
         - action: sync+restart
-          path: ./backend-go
+          path: ./backend
           target: /src
           initial_sync: true
           ignore: [".git/", "**/*_test.go", "Dockerfile", "*.md"]
@@ -42,57 +51,23 @@ services:
       timeout: 5s
       retries: 5
 
-  backend:
-    # Only runs when the legacy-python-api profile is explicitly requested.
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
-    volumes:
-      - ./backend/app:/app/app
-      - media_data:/app/media
-    ports:
-      - "127.0.0.1:${BACKEND_HOST_PORT:-8000}:8000"
-
-  worker:
-    build:
-      target: ml-dev
-    image: sneepcut-ml-dev
-    stop_grace_period: 5m
-    develop:
-      watch:
-        - action: sync+restart
-          path: ./backend/app
-          target: /app/app
-          initial_sync: true
-          ignore: ["__pycache__/", "**/*.pyc"]
-
-  job-dispatcher:
-    build:
-      target: api-dev
-    image: sneepcut-api-dev
-    develop:
-      watch:
-        - action: sync+restart
-          path: ./backend/app
-          target: /app/app
-          initial_sync: true
-          ignore: ["__pycache__/", "**/*.pyc"]
-
   frontend:
     build:
       context: ./frontend
       target: dev
     image: sneepcut-frontend-dev
-    command: npm run dev
+    command: pnpm dev --host --port 80
+    environment:
+      VITE_DEV_API_TARGET: http://backend:8080
+      VITE_DEV_MEDIA_TARGET: http://nginx:80
+      VITE_USE_POLLING: "true"
+      VITE_APP_URL: http://localhost:3000
     volumes:
       - ./frontend/src:/app/src
       - ./frontend/public:/app/public
       - ./frontend/messages:/app/messages
-      - ./frontend/next.config.ts:/app/next.config.ts
-      - ./frontend/tsconfig.json:/app/tsconfig.json
-      - ./frontend/postcss.config.mjs:/app/postcss.config.mjs
     ports:
-      - "127.0.0.1:${FRONTEND_HOST_PORT:-3001}:3000"
-    environment:
-      - WATCHPACK_POLLING=true
+      - "127.0.0.1:${FRONTEND_HOST_PORT:-3001}:80"
 
   nginx:
     # Refresh Nginx's upstream DNS after Compose recreates an app container.
@@ -100,6 +75,6 @@ services:
       frontend:
         condition: service_started
         restart: true
-      backend-go:
+      backend:
         condition: service_started
         restart: true

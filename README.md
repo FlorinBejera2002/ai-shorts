@@ -1,13 +1,13 @@
 # Sneepcut
 
-Sneepcut is a video-to-shorts stack with a Next.js frontend, Go application API, PostgreSQL, Redis, Python Celery/ML workers, and Nginx.
+Sneepcut is a video-to-shorts stack with a React/Vite frontend, Go application API and media worker, PostgreSQL, Redis, and Nginx.
 
 ## Prerequisites
 
 - Docker Desktop with Docker Compose
 - At least 6 GB of memory available to Docker for the ML worker
 - Node.js 22 or newer for running frontend checks outside Docker
-- Go 1.24+ for running backend checks outside Docker
+- Go 1.26.5+ for running backend checks outside Docker
 
 ## Quick start
 
@@ -17,7 +17,7 @@ From the repository root:
 make setup
 ```
 
-This creates an ignored `.env` from `.env.example` when needed, builds the images, applies Alembic database migrations, starts the stack in the background, and verifies Go/PostgreSQL/Redis readiness. Existing installations must add the new Go variables in [the migration handoff](docs/go-migration/handoff.md) before restarting. The first build is slower because the worker downloads CPU-only PyTorch and video-processing dependencies.
+This creates an ignored `.env` from `.env.example` when needed, builds the images, applies the embedded SQL database migrations, starts the stack in the background, and verifies Go/PostgreSQL/Redis readiness. Existing installations must add the new Go variables in [the migration handoff](docs/go-migration/handoff.md) before restarting. The first build is slower because the worker builds whisper.cpp and downloads its speech and face detection models.
 
 Run `make help` to see every available project command. `bash scripts/setup.sh` remains available as the original setup entry point.
 
@@ -40,7 +40,7 @@ make dev
 Development URLs:
 
 - Nginx/app: <http://localhost:3000>
-- Direct Next.js dev server: <http://localhost:3001>
+- Direct Vite dev server: <http://localhost:3001>
 - Go API: <http://localhost:8080/api/ready>
 - PostgreSQL: `localhost:5433` (container port remains `5432`)
 - Redis: `localhost:6379`
@@ -56,7 +56,7 @@ FRONTEND_HOST_PORT=3002
 
 Container-to-container ports do not change when these host overrides are used.
 
-Keep `make dev` running while editing. Frontend source, public assets and translations are mounted directly; Next.js hot reload picks up edits, including on Windows through polling. Compose Watch synchronizes Go source and restarts only the Go container (recompilation uses its existing cache). Python application edits synchronize and restart the worker and dispatcher. The worker has up to five minutes to finish active jobs before stopping; avoid editing worker code during long jobs you want to preserve.
+Keep `make dev` running while editing. Frontend source, public assets and translations are mounted directly; Vite hot reload picks up edits, including on Windows through polling. Compose Watch synchronizes Go source and restarts only the Go container (recompilation uses its existing cache). Worker source changes require rebuilding the worker image with `docker compose up -d --build worker`. The worker has up to five minutes to finish active jobs before stopping; avoid editing worker code during long jobs you want to preserve.
 
 In PowerShell without Make, use:
 
@@ -64,13 +64,13 @@ In PowerShell without Make, use:
 docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build --watch
 ```
 
-For detached services, run `make dev-up`, then keep `make dev-watch` open in a terminal for Go/Python reload. Without Watch running, only frontend hot reload is active; rerun `make dev-up` to apply Go/Python edits. `make restart-go` only restarts the last built or synchronized Go code.
+For detached services, run `make dev-up`, then keep `make dev-watch` open in a terminal for Go API reload. Without Watch running, only frontend hot reload is active; rerun `make dev-up` to apply Go API edits. `make restart-go` only restarts the last built or synchronized Go code.
 
 After changing dependencies, a Dockerfile or `.env`, rerun `make dev` (or `make dev-up`) to rebuild/recreate affected services. `make build-dev` only builds images; it does not update running containers. Database schema changes still require `make migrate`. Use `make up` for production-style images, which intentionally do not hot reload.
 
-To verify reload after building the development images, run `node scripts/test-dev-reload.mjs` from the repository root. It tests Go/Python reload and Next.js source/translation updates using disposable containers and copied fixtures, with no database or media volumes.
+The legacy `scripts/test-dev-reload.mjs` harness targets the previous stack and must not be used as migration evidence. Verify Vite Fast Refresh and Go reload against the development overlay.
 
-Nginx preserves the frontend's cache headers so development CSS/JavaScript revalidate and production chunks retain Next.js's versioned cache policy. After pulling a change to `nginx/nginx.conf`, apply it with `docker compose exec nginx nginx -t` followed by `docker compose exec nginx nginx -s reload`. If a browser previously cached development assets under the old one-year policy, use Ctrl+Shift+R once. To verify CSS updates through Nginx, run `node scripts/test-studio-header-reload.mjs` from `frontend` with Playwright available (or set `PLAYWRIGHT_MODULE` to its `index.mjs`). This uses mocked APIs, checks desktop/mobile rendering and cache headers, and temporarily appends then removes a CSS probe to verify two consecutive hot updates without a page reload.
+Nginx preserves the frontend's cache headers so development CSS/JavaScript revalidate and production chunks retain Vite's versioned cache policy. After pulling a change to `nginx/nginx.conf`, apply it with `docker compose exec nginx nginx -t` followed by `docker compose exec nginx nginx -s reload`. If a browser previously cached development assets under the old one-year policy, use Ctrl+Shift+R once. To verify CSS updates through Nginx, run `node scripts/test-studio-header-reload.mjs` from `frontend` with Playwright available (or set `PLAYWRIGHT_MODULE` to its `index.mjs`). This uses mocked APIs, checks desktop/mobile rendering and cache headers, and temporarily appends then removes a CSS probe to verify two consecutive hot updates without a page reload.
 
 Press `Ctrl-C` to stop the foreground command. Then remove the stopped containers with:
 
@@ -88,7 +88,7 @@ make status
 make logs
 
 # Follow one service
-make logs SERVICE=backend-go
+make logs SERVICE=backend
 make logs SERVICE=worker
 make logs SERVICE=frontend
 
@@ -120,16 +120,9 @@ Run the Go backend tests:
 make test-go
 ```
 
-`backend-go/` adapts the supplied Go example's structure and two-JWT auth design.
-It owns application APIs and authentication; Next.js renders the UI and forwards
-API requests to Go. Python handles video/ML execution, durable dispatch and the
-existing Alembic schema history. `make check` does not run Python tests or provision
-database/browser fixtures; see the dedicated commands and evidence below.
-See the [Go migration plan](docs/go-migration/backend-go-migration.md) and
-[Go backend commands, integration tests and structure](backend-go/README.md).
+The Go API and worker live in `backend/`. The worker claims durable database jobs and runs FFmpeg, whisper.cpp and native Go processing. Vite serves the React application; Nginx forwards API and media requests. Database migration history is embedded in `backend/migrations`.
 
-The Docker builds run Go race tests/vet and a full Next.js production build.
-Next.js no longer needs Prisma, database credentials, Auth.js, or backend provider secrets.
+Docker builds run Go race tests/vet and the Vite production build. Database integration tests require the dedicated `sneepcut_integration_test` database and an isolated schema; skipped integrations are not passes. Frontend code must never receive backend provider secrets.
 
 ## Environment notes
 

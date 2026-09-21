@@ -49,9 +49,9 @@ dev: ensure-env ## Switch to the hot-reload development stack in the foreground
 
 dev-up: ensure-env ## Switch to the hot-reload development stack in the background
 	@$(DEV_COMPOSE) up --build -d
-	@echo "Frontend hot reload is active. Run make dev-watch for Go/Python reload."
+	@echo "Frontend hot reload is active. Run make dev-watch for Go reload."
 
-dev-watch: ## Watch Go/Python changes after make dev-up (keep this terminal open)
+dev-watch: ## Watch Go changes after make dev-up (keep this terminal open)
 	@$(DEV_COMPOSE) watch --no-up
 
 down: ## Stop containers while preserving data volumes
@@ -78,13 +78,13 @@ health: ## Wait for and verify the routed backend health endpoint
 logs: ## Follow logs for all services, or one with SERVICE=backend
 	@$(COMPOSE) logs --follow $(SERVICE)
 
-backend-shell: ## Open a shell in the Python worker container
+backend-shell: ## Open a shell in the Go worker container
 	@$(COMPOSE) exec worker /bin/sh
 
 restart-go: ## Restart Go using its last built or synchronized source
-	@$(DEV_COMPOSE) restart backend-go
+	@$(DEV_COMPOSE) restart backend
 
-frontend-shell: ## Open a shell in the running Next.js container
+frontend-shell: ## Open a shell in the running Vite container
 	@$(COMPOSE) exec frontend /bin/sh
 
 db-shell: ## Open psql in the running PostgreSQL container
@@ -93,23 +93,23 @@ db-shell: ## Open psql in the running PostgreSQL container
 redis-shell: ## Open redis-cli in the running Redis container
 	@$(COMPOSE) exec redis redis-cli
 
-migrate: ensure-env ## Apply pending Alembic migrations
+migrate: ensure-env ## Apply pending Go migrations
 	@$(COMPOSE) run --rm migrate
 
 security-up: ensure-env ## Start the stack with ClamAV upload scanning available
 	@$(COMPOSE) --profile security up --build -d
 
 install: ## Install locked frontend dependencies
-	@npm --prefix frontend ci
+	@pnpm --dir frontend install --frozen-lockfile
 
 typecheck: ## Run the frontend TypeScript check
 	@npm --prefix frontend run typecheck
 
-lint: ## Run the frontend Biome check
-	@npm --prefix frontend run check
+lint: ## Run the frontend lint check
+	@npm --prefix frontend run lint
 
-format: ## Format frontend source with Biome
-	@npm --prefix frontend run format
+format: ## Apply frontend lint fixes
+	@npm --prefix frontend run lint -- --fix
 
 test: test-frontend test-go ## Run all locally available test suites
 
@@ -117,7 +117,7 @@ test-frontend: ## Run the frontend Node test suite
 	@npm --prefix frontend test
 
 test-go: ## Run the Go API test suite
-	@cd backend-go && GOCACHE="$(GO_CACHE)" go test ./...
+	@cd backend && GOCACHE="$(GO_CACHE)" go test ./...
 
 check: lint typecheck test ## Run lint, typecheck, and all tests
 
@@ -127,7 +127,7 @@ build: ensure-env ## Build all Docker images
 build-dev: ensure-env ## Rebuild development images after dependency changes
 	@$(DEV_COMPOSE) build
 
-build-frontend: ## Build Next.js locally
+build-frontend: ## Build Vite locally
 	@npm --prefix frontend run build
 
 prod-build: ## Upload and build the complete production release on the server
