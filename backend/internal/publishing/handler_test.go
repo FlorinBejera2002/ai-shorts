@@ -21,3 +21,18 @@ func TestTikTokOptionsFailureDistinguishesTemporaryQuotaFromReconnect(t *testing
 		t.Fatalf("reconnect response mismatch: status=%d message=%q", status, message)
 	}
 }
+
+func TestPublishingReturnURLUsesTheFrontendLocaleRoutes(t *testing.T) {
+	tests := []struct {
+		locale string
+		want   string
+	}{
+		{locale: "en", want: "https://sneepcut.com/dashboard/publish?connected=tiktok"},
+		{locale: "ro", want: "https://sneepcut.com/ro/dashboard/publish?connected=tiktok"},
+	}
+	for _, test := range tests {
+		if got := publishingReturnURL("https://sneepcut.com/", test.locale, "connected", "tiktok"); got != test.want {
+			t.Fatalf("locale %s returned %q, want %q", test.locale, got, test.want)
+		}
+	}
+}

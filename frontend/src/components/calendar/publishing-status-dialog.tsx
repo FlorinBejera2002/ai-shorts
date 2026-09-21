@@ -17,7 +17,7 @@ import type {
 } from '@/lib/content-calendar'
 import { CheckCircle2, ExternalLink, Trash2, TriangleAlert } from 'lucide-react'
 import { useTranslations } from 'next-intl'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { PlatformMark } from './platform-mark'
 
 const stageProgress: Record<PublishingDestination['status'], number> = {
@@ -58,6 +58,10 @@ export function PublishingStatusDialog({
   const [now, setNow] = useState(() => Date.now())
   const destinations = post.publishingDestinations ?? []
   const publishing = post.status === 'publishing'
+  const hasPublishedLink = destinations.some(
+    (destination) =>
+      destination.status === 'published' && Boolean(destination.url)
+  )
 
   useEffect(() => {
     if (!publishing) return
@@ -65,16 +69,20 @@ export function PublishingStatusDialog({
     return () => window.clearInterval(timer)
   }, [publishing])
 
-  const progress = useMemo(() => {
-    if (post.status === 'published') return 100
-    if (destinations.length === 0) return publishing ? 15 : 100
-    return Math.round(
-      destinations.reduce(
-        (total, destination) => total + stageProgress[destination.status],
-        0
-      ) / destinations.length
-    )
-  }, [destinations, post.status, publishing])
+  const progress =
+    post.status === 'published'
+      ? 100
+      : destinations.length === 0
+        ? publishing
+          ? 15
+          : 100
+        : Math.round(
+            destinations.reduce(
+              (total, destination) =>
+                total + stageProgress[destination.status],
+              0
+            ) / destinations.length
+          )
 
   return (
     <Dialog open={true} onOpenChange={(open) => !open && onClose()}>
@@ -106,7 +114,11 @@ export function PublishingStatusDialog({
                   {publishing
                     ? t('publishingEstimate')
                     : post.status === 'published'
-                      ? t('publishedDescription')
+                      ? t(
+                          hasPublishedLink
+                            ? 'publishedDescription'
+                            : 'publishedDescriptionNoLink'
+                        )
                       : post.publishingError || t('failedDescription')}
                 </p>
               </div>
@@ -174,6 +186,15 @@ export function PublishingStatusDialog({
                       })}
                     </a>
                   </Button>
+                )}
+                {destination.status === 'published' && !destination.url && (
+                  <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                    {t(
+                      destination.provider === 'tiktok'
+                        ? 'tiktokPrivateLinkUnavailable'
+                        : 'linkUnavailable'
+                    )}
+                  </p>
                 )}
               </div>
             </div>

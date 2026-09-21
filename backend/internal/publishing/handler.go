@@ -95,6 +95,15 @@ func providerScopes(p string) []string {
 		return []string{}
 	}
 }
+
+func publishingReturnURL(appURL, locale, key, value string) string {
+	prefix := ""
+	if locale == "ro" {
+		prefix = "/ro"
+	}
+	return strings.TrimRight(appURL, "/") + prefix + "/dashboard/publish?" + key + "=" + value
+}
+
 func (h *Handler) overview(w http.ResponseWriter, r *http.Request) {
 	providers := []map[string]any{}
 	providerNames := map[string]string{"instagram": "Instagram", "facebook": "Facebook", "tiktok": "TikTok", "youtube": "YouTube", "linkedin": "LinkedIn", "twitter": "X"}
@@ -155,7 +164,7 @@ func (h *Handler) callback(w http.ResponseWriter, r *http.Request) {
 	p := param(r, "provider")
 	locale := "en"
 	redirect := func(key, value string) {
-		http.Redirect(w, r, strings.TrimRight(h.cfg.AppURL, "/")+"/"+locale+"/dashboard/publish?"+key+"="+value, http.StatusSeeOther)
+		http.Redirect(w, r, publishingReturnURL(h.cfg.AppURL, locale, key, value), http.StatusSeeOther)
 	}
 	if !providerValid(p) || !h.configured(p) {
 		redirect("connectionError", "unavailable")
