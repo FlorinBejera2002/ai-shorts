@@ -167,8 +167,8 @@ func (h *Handler) delete(w http.ResponseWriter, r *http.Request) {
 		seen := map[string]bool{}
 		for _, value := range values {
 			platform, stringValue := value.(string)
-			if !stringValue || platform != "facebook" || seen[platform] {
-				write(w, 400, map[string]string{"error": "Only published Facebook posts can be deleted from the platform."})
+			if !stringValue || (platform != "facebook" && platform != "linkedin" && platform != "twitter") || seen[platform] || len(values) != 1 {
+				write(w, 400, map[string]string{"error": "Choose one published Facebook, LinkedIn or X post to delete from the platform."})
 				return
 			}
 			seen[platform] = true
@@ -182,7 +182,7 @@ func (h *Handler) delete(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if e := h.remote.DeletePublishedPosts(r.Context(), userID, id, platforms); e != nil {
-			write(w, 409, map[string]string{"error": "The Facebook post could not be deleted. Reconnect the account or try again."})
+			write(w, 409, map[string]string{"error": "The platform post could not be deleted. Reconnect the account or try again."})
 			return
 		}
 	}

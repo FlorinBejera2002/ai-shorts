@@ -81,15 +81,15 @@
     "proofLabel": "Conectezi o dată, publici peste tot",
     "platformsEyebrow": "Publicare conectată",
     "platformsTitle": "Șase destinații. Un singur calendar de publicare.",
-    "platformsDesc": "Conectează-ți canalele sociale, verifică setările fiecărei platforme și publică imediat sau programat dintr-un singur loc. Instagram, Facebook, TikTok și YouTube sunt disponibile acum; LinkedIn și X urmează.",
+    "platformsDesc": "Conectează-ți canalele sociale, verifică setările fiecărei platforme și publică imediat sau programat dintr-un singur loc. Instagram, Facebook, TikTok, YouTube, LinkedIn și X sunt acceptate; disponibilitatea depinde de accesul tehnic al fiecărei platforme.",
     "platformAvailable": "Conectează și publică",
     "platformComingSoon": "În curând",
     "platformInstagramDesc": "Conectează contul profesional Instagram și publică reels, fotografii sau carusele.",
     "platformFacebookDesc": "Conectează o Pagină Facebook eligibilă și trimite conținutul aprobat direct publicului ei.",
     "platformTikTokDesc": "Conectează contul de creator și publică folosind opțiunile de confidențialitate și interacțiune alese.",
     "platformYouTubeDesc": "Conectează canalul și încarcă videoclipuri verticale direct ca YouTube Shorts.",
-    "platformLinkedInDesc": "Publicarea profesională prin calendarul conectat este planificată.",
-    "platformXDesc": "Publicarea video conectată pe X este planificată pentru o versiune viitoare.",
+    "platformLinkedInDesc": "Publică postări video aprobate pe profilul tău și, după aprobarea accesului pentru organizații, pe Paginile administrate.",
+    "platformXDesc": "Publică postări video aprobate în contul X conectat prin API-ul oficial X.",
     "youtubeConnectionTitle": "Canalul tău YouTube rămâne sub controlul tău.",
     "youtubeConnectionDesc": "Când conectezi YouTube prin Google OAuth, Sneep Cut folosește accesul doar în citire pentru identificarea și validarea canalului, iar accesul de încărcare numai pentru videoclipurile selectate explicit de tine, cu setările aprobate. Poți deconecta oricând. Datele API YouTube nu sunt folosite pentru publicitate sau antrenarea modelelor AI.",
     "youtubeConnectionLinks": "Politicile conexiunii YouTube",
@@ -1412,6 +1412,10 @@
       "calendarRemovalDescription": "Înregistrarea este eliminată întotdeauna din calendar. Postările publicate rămân online dacă nu le selectezi mai jos.",
       "deleteFromFacebook": "Șterge și de pe Facebook",
       "deleteFromFacebookDescription": "Șterge Reel-ul publicat de pe Pagina Facebook conectată.",
+      "deleteFromLinkedIn": "Șterge și de pe LinkedIn",
+      "deleteFromLinkedInDescription": "Șterge postarea video publicată de pe profilul sau Pagina LinkedIn conectată.",
+      "deleteFromX": "Șterge și de pe X",
+      "deleteFromXDescription": "Șterge postarea video publicată de pe contul X conectat.",
       "instagramManualDelete": "Postarea Instagram trebuie ștearsă manual",
       "instagramManualDeleteDescription": "Instagram nu permite ștergerea postărilor publicate prin API. Șterge Reel-ul din Instagram dacă vrei să dispară și de acolo."
     },
@@ -1462,6 +1466,7 @@
       "titleLength": "Titlul poate avea cel mult 120 de caractere.",
       "titleInvalid": "Introdu un titlu valid de cel mult 120 de caractere.",
       "captionLength": "Descrierea poate avea cel mult 5.000 de caractere.",
+      "platformCaptionLength": "Platforma selectată permite cel mult {limit} de caractere.",
       "notesLength": "Notițele pot avea cel mult 2.000 de caractere.",
       "platformRequired": "Alege cel puțin o platformă acceptată.",
       "accountRequired": "Alege cel puțin un cont de publicare conectat.",
@@ -1667,5 +1672,13 @@
     "reviewConsent": "Am verificat canalul, titlul, descrierea și vizibilitatea și accept <terms>Termenii YouTube</terms> pentru această încărcare.",
     "connectionConsent": "Accept <terms>Termenii YouTube</terms> și confirm că am citit <privacy>Politica de confidențialitate</privacy> pentru conectarea canalului și încărcarea videoclipurilor selectate.",
     "reconnect": "Reconectează YouTube pentru a acorda acces la încărcare sau a reînnoi accesul revocat."
+  },
+  "linkedinPublishing": {
+    "dataUse": "Sneep Cut folosește datele LinkedIn numai pentru a identifica destinațiile pe care le administrezi și pentru a publica videoclipurile aprobate explicit. Nu exportă datele membrilor și nu le folosește pentru publicitate, vânzări, recrutare sau antrenarea AI.",
+    "connectionConsent": "Accept <terms>Termenii API LinkedIn</terms> și confirm că am citit <privacy>Politica de confidențialitate</privacy> și <deletion>instrucțiunile de ștergere a datelor</deletion>. Mă pot deconecta oricând; Sneep Cut șterge apoi tokenul LinkedIn, datele de cont din cache și identificatorii obținuți prin API."
+  },
+  "xPublishing": {
+    "dataUse": "Sneep Cut folosește datele X numai pentru a identifica contul conectat și pentru a încărca și publica postările video aprobate explicit. Nu citește cronologia, urmăritorii, aprecierile, marcajele ori mesajele și nu folosește datele X pentru publicitate, vânzare, profilare sau antrenarea AI.",
+    "connectionConsent": "Accept <terms>Acordul și Politica pentru dezvoltatori X</terms> și confirm că am citit <privacy>Politica de confidențialitate</privacy> și <deletion>instrucțiunile de ștergere a datelor</deletion>. Mă pot deconecta oricând; Sneep Cut revocă tokenul și șterge datele locale despre contul și postările X."
   }
 }

@@ -4,6 +4,7 @@ import { ConnectionSuccessOverlay } from '@/components/calendar/connection-succe
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { LoadingIndicator } from '@/components/ui/loading-indicator'
+import { Switch } from '@/components/ui/switch'
 import { useToast } from '@/components/ui/toast'
 import { useApiResource } from '@/hooks/use-api-resource'
 import { useSocialConnection } from '@/hooks/use-social-connection'
@@ -21,7 +22,7 @@ import {
   X,
   Youtube
 } from 'lucide-react'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import { useState } from 'react'
 
 const providerIcons = {
@@ -35,9 +36,14 @@ const providerIcons = {
 
 export function ConnectedAccountsSettings() {
   const t = useTranslations('settings')
+  const linkedinT = useTranslations('linkedinPublishing')
+  const xT = useTranslations('xPublishing')
+  const locale = useLocale()
   const toast = useToast()
   const [busyAccount, setBusy] = useState<string | null>(null)
   const [confirming, setConfirming] = useState<string | null>(null)
+  const [linkedinConsent, setLinkedInConsent] = useState(false)
+  const [xConsent, setXConsent] = useState(false)
   const { data, error, reload } =
     useApiResource<PublishingData>('/api/publishing')
   const { connect, busyProvider, connectedProvider, finishConfirmation } =
@@ -206,8 +212,8 @@ export function ConnectedAccountsSettings() {
                                 type="button"
                                 variant="ghost"
                                 size="sm"
-                                onClick={() => void connect(provider.id)}
-                                disabled={busy !== null || !provider.configured}
+                                onClick={() => void connect(provider.id, provider.id === 'linkedin' ? linkedinConsent : provider.id === 'twitter' ? xConsent : false)}
+                                disabled={busy !== null || !provider.configured || (provider.id === 'linkedin' && !linkedinConsent) || (provider.id === 'twitter' && !xConsent)}
                               >
                                 {busy === provider.id && (
                                   <LoadingIndicator className="size-3.5" />
@@ -257,13 +263,39 @@ export function ConnectedAccountsSettings() {
                     </div>
                   )}
                 </div>
+                {provider.id === 'linkedin' && provider.configured && (
+                  <div className="w-full pl-12 text-xs text-muted-foreground">
+                    <p>{linkedinT('dataUse')}</p>
+                    <label className="mt-2 flex items-start gap-2">
+                      <Switch checked={linkedinConsent} onCheckedChange={setLinkedInConsent} />
+                      <span>{linkedinT.rich('connectionConsent', {
+                        terms: chunks => <a className="underline" href="https://www.linkedin.com/legal/l/api-terms-of-use" target="_blank" rel="noreferrer">{chunks}</a>,
+                        privacy: chunks => <a className="underline" href={locale === 'ro' ? '/ro/privacy' : '/privacy'} target="_blank" rel="noreferrer">{chunks}</a>,
+                        deletion: chunks => <a className="underline" href={locale === 'ro' ? '/ro/data-deletion' : '/data-deletion'} target="_blank" rel="noreferrer">{chunks}</a>
+                      })}</span>
+                    </label>
+                  </div>
+                )}
+                {provider.id === 'twitter' && provider.configured && (
+                  <div className="w-full pl-12 text-xs text-muted-foreground">
+                    <p>{xT('dataUse')}</p>
+                    <label className="mt-2 flex items-start gap-2">
+                      <Switch checked={xConsent} onCheckedChange={setXConsent} />
+                      <span>{xT.rich('connectionConsent', {
+                        terms: chunks => <a className="underline" href="https://developer.x.com/en/developer-terms/agreement-and-policy" target="_blank" rel="noreferrer">{chunks}</a>,
+                        privacy: chunks => <a className="underline" href={locale === 'ro' ? '/ro/privacy' : '/privacy'} target="_blank" rel="noreferrer">{chunks}</a>,
+                        deletion: chunks => <a className="underline" href={locale === 'ro' ? '/ro/data-deletion' : '/data-deletion'} target="_blank" rel="noreferrer">{chunks}</a>
+                      })}</span>
+                    </label>
+                  </div>
+                )}
                 {!accounts.length && provider.configured && (
                   <Button
                     type="button"
                     variant="outline"
                     size="sm"
-                    onClick={() => void connect(provider.id)}
-                    disabled={busy !== null}
+                    onClick={() => void connect(provider.id, provider.id === 'linkedin' ? linkedinConsent : provider.id === 'twitter' ? xConsent : false)}
+                    disabled={busy !== null || (provider.id === 'linkedin' && !linkedinConsent) || (provider.id === 'twitter' && !xConsent)}
                   >
                     {busy === provider.id && (
                       <LoadingIndicator className="size-3.5" />

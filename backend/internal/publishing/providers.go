@@ -13,11 +13,14 @@ import (
 )
 
 type ProviderConfig struct {
-	AppURL, MetaAppID, MetaAppSecret, InstagramAppID, InstagramAppSecret       string
-	TikTokClientKey, TikTokClientSecret, TikTokVerifiedURLPrefix, GraphVersion string
-	YouTubeClientID, YouTubeClientSecret                                       string
-	YouTubeMediaURLPrefix                                                      string
-	YouTubeAuditApproved                                                       bool
+	AppURL, MetaAppID, MetaAppSecret, InstagramAppID, InstagramAppSecret               string
+	TikTokClientKey, TikTokClientSecret, TikTokVerifiedURLPrefix, GraphVersion         string
+	YouTubeClientID, YouTubeClientSecret                                               string
+	YouTubeMediaURLPrefix                                                              string
+	YouTubeAuditApproved                                                               bool
+	LinkedInClientID, LinkedInClientSecret, LinkedInAPIVersion, LinkedInMediaURLPrefix string
+	LinkedInOrganizationEnabled                                                        bool
+	XClientID, XClientSecret, XMediaURLPrefix                                          string
 }
 type Credentials struct {
 	AccessToken, RefreshToken string
@@ -81,6 +84,10 @@ func (p *ProviderClient) Configured(provider string) bool {
 		return p.config.TikTokClientKey != "" && p.config.TikTokClientSecret != "" && verifiedMediaURL(p.config.TikTokVerifiedURLPrefix, p.config.TikTokVerifiedURLPrefix)
 	case "youtube":
 		return p.config.YouTubeClientID != "" && p.config.YouTubeClientSecret != ""
+	case "linkedin":
+		return p.config.LinkedInClientID != "" && p.config.LinkedInClientSecret != "" && p.config.LinkedInAPIVersion != "" && verifiedMediaURL(p.config.LinkedInMediaURLPrefix, p.config.LinkedInMediaURLPrefix)
+	case "twitter":
+		return p.config.XClientID != "" && p.config.XClientSecret != "" && verifiedMediaURL(p.config.XMediaURLPrefix, p.config.XMediaURLPrefix)
 	}
 	return false
 }
@@ -139,6 +146,20 @@ func (p *ProviderClient) Authorize(provider, state, verifier string) (string, er
 		q.Set("access_type", "offline")
 		q.Set("include_granted_scopes", "true")
 		q.Set("prompt", "consent")
+		q.Set("code_challenge", pkceChallenge(verifier))
+		q.Set("code_challenge_method", "S256")
+	case "linkedin":
+		endpoint = "https://www.linkedin.com/oauth/v2/authorization"
+		q.Set("client_id", p.config.LinkedInClientID)
+		scopes := []string{"openid", "profile", "w_member_social"}
+		if p.config.LinkedInOrganizationEnabled {
+			scopes = append(scopes, "rw_organization_admin", "r_organization_social", "w_organization_social")
+		}
+		q.Set("scope", strings.Join(scopes, " "))
+	case "twitter":
+		endpoint = "https://x.com/i/oauth2/authorize"
+		q.Set("client_id", p.config.XClientID)
+		q.Set("scope", "tweet.read users.read tweet.write media.write offline.access")
 		q.Set("code_challenge", pkceChallenge(verifier))
 		q.Set("code_challenge_method", "S256")
 	}
@@ -312,9 +333,22 @@ func (p *ProviderClient) Exchange(ctx context.Context, provider, code, verifier 
 		form.Set("client_id", p.config.YouTubeClientID)
 		form.Set("client_secret", p.config.YouTubeClientSecret)
 		form.Set("code_verifier", verifier)
+	case "linkedin":
+		endpoint = "https://www.linkedin.com/oauth/v2/accessToken"
+		form.Set("client_id", p.config.LinkedInClientID)
+		form.Set("client_secret", p.config.LinkedInClientSecret)
+	case "twitter":
+		endpoint = "https://api.x.com/2/oauth2/token"
+		form.Set("code_verifier", verifier)
 	}
-	if err := p.request(ctx, "POST", endpoint, "", form, nil, &tok); err != nil {
-		return nil, err
+	var exchangeErr error
+	if provider == "twitter" {
+		exchangeErr = p.xTokenRequest(ctx, endpoint, form, &tok)
+	} else {
+		exchangeErr = p.request(ctx, "POST", endpoint, "", form, nil, &tok)
+	}
+	if exchangeErr != nil {
+		return nil, exchangeErr
 	}
 	if provider == "instagram" && tok.AccessToken == "" && len(tok.Data) == 1 {
 		tok = tok.Data[0]
@@ -324,6 +358,12 @@ func (p *ProviderClient) Exchange(ctx context.Context, provider, code, verifier 
 	}
 	if provider == "youtube" && (!youtubeScopesGranted(tok.Scope) || tok.RefreshToken == "") {
 		return nil, errors.New("grant YouTube channel and upload permissions with offline access; reconnect YouTube")
+	}
+	if provider == "linkedin" && !linkedInScopesGranted(tok.Scope, p.config.LinkedInOrganizationEnabled) {
+		return nil, errors.New("grant the requested LinkedIn profile and publishing permissions; reconnect LinkedIn")
+	}
+	if provider == "twitter" && (!xScopesGranted(tok.Scope) || tok.RefreshToken == "") {
+		return nil, errors.New("grant X profile, post, media and offline permissions; reconnect X")
 	}
 	if provider == "tiktok" {
 		publishingGranted := false
@@ -471,6 +511,10 @@ func (p *ProviderClient) Exchange(ctx context.Context, provider, code, verifier 
 			return nil, errors.New("no YouTube channel is available for this account")
 		}
 		return accounts, nil
+	case "linkedin":
+		return p.LinkedInAccounts(ctx, creds)
+	case "twitter":
+		return p.XAccounts(ctx, creds)
 	}
 	return nil, errors.New("unsupported provider")
 }
@@ -500,6 +544,9 @@ type PublishMedia struct{ Type, URL string }
 func (p *ProviderClient) PublishMedia(ctx context.Context, provider, account string, c Credentials, media []PublishMedia, caption string, options TikTokOptions, igOptions InstagramOptions) (string, string, error) {
 	if err := ValidateMediaReferences(provider, media); err != nil {
 		return "", "failed", err
+	}
+	if provider == "twitter" {
+		return p.PublishX(ctx, account, c, media, caption)
 	}
 	mediaURL := media[0].URL
 	if provider == "instagram" || provider == "facebook" {
@@ -682,6 +729,12 @@ func (p *ProviderClient) Poll(ctx context.Context, provider, job string, c Crede
 		}
 		return "processing", "", nil
 	}
+	if provider == "linkedin" {
+		return p.pollLinkedIn(ctx, job, c)
+	}
+	if provider == "twitter" {
+		return p.pollX(ctx, job, c)
+	}
 	parts := strings.SplitN(job, ":", 3)
 	if len(parts) < 2 {
 		return "failed", "", errors.New("invalid provider job")
@@ -739,6 +792,12 @@ func (p *ProviderClient) Poll(ctx context.Context, provider, job string, c Crede
 // Finalize performs the final, non-idempotent publication. The worker records
 // finalizing durably first; ambiguous failures must be reconciled by the user.
 func (p *ProviderClient) Finalize(ctx context.Context, provider, job string, c Credentials) (string, string, error) {
+	if provider == "linkedin" {
+		return p.finalizeLinkedIn(ctx, job, c)
+	}
+	if provider == "twitter" {
+		return p.finalizeX(ctx, job, c)
+	}
 	parts := strings.SplitN(job, ":", 3)
 	if len(parts) < 2 {
 		return "", "", errors.New("invalid provider job")
@@ -776,6 +835,12 @@ func (p *ProviderClient) Finalize(ctx context.Context, provider, job string, c C
 // DeletePost removes content previously published by Sneep Cut when the
 // provider exposes a supported deletion endpoint.
 func (p *ProviderClient) DeletePost(ctx context.Context, provider, remoteID string, c Credentials) error {
+	if provider == "linkedin" {
+		return p.deleteLinkedInPost(ctx, remoteID, c)
+	}
+	if provider == "twitter" {
+		return p.deleteXPost(ctx, remoteID, c)
+	}
 	if provider != "facebook" {
 		return errors.New("provider does not support post deletion")
 	}
@@ -807,6 +872,16 @@ func (p *ProviderClient) Refresh(ctx context.Context, provider string, c Credent
 			return c, errors.New("reconnect YouTube")
 		}
 		err = p.request(ctx, "POST", "https://oauth2.googleapis.com/token", "", url.Values{"client_id": {p.config.YouTubeClientID}, "client_secret": {p.config.YouTubeClientSecret}, "grant_type": {"refresh_token"}, "refresh_token": {c.RefreshToken}}, nil, &t)
+	case "linkedin":
+		if c.RefreshToken == "" {
+			return c, errors.New("reconnect LinkedIn")
+		}
+		err = p.request(ctx, "POST", "https://www.linkedin.com/oauth/v2/accessToken", "", url.Values{"client_id": {p.config.LinkedInClientID}, "client_secret": {p.config.LinkedInClientSecret}, "grant_type": {"refresh_token"}, "refresh_token": {c.RefreshToken}}, nil, &t)
+	case "twitter":
+		if c.RefreshToken == "" {
+			return c, errors.New("reconnect X")
+		}
+		err = p.xTokenRequest(ctx, "https://api.x.com/2/oauth2/token", url.Values{"grant_type": {"refresh_token"}, "refresh_token": {c.RefreshToken}}, &t)
 	default:
 		return c, errors.New("unsupported provider")
 	}
@@ -834,6 +909,13 @@ func (p *ProviderClient) Revoke(ctx context.Context, provider string, c Credenti
 			token = c.AccessToken
 		}
 		return p.request(ctx, "POST", "https://oauth2.googleapis.com/revoke", "", url.Values{"token": {token}}, nil, nil)
+	}
+	if provider == "twitter" {
+		token := c.RefreshToken
+		if token == "" {
+			token = c.AccessToken
+		}
+		return p.xTokenRequest(ctx, "https://api.x.com/2/oauth2/revoke", url.Values{"token": {token}}, nil)
 	}
 	return errors.New("unsupported provider")
 }

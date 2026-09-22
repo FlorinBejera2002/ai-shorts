@@ -69,7 +69,7 @@ export function platformCompatibility(
     if (platform === 'youtube' && duration > 180 && aspectRatio !== '16:9') {
       return 'incompatible'
     }
-    if (platform === 'twitter' && duration > 140) return 'incompatible'
+    if (platform === 'twitter' && duration > 1200) return 'incompatible'
     if (platform === 'tiktok' && duration > 600) return 'incompatible'
     if (platform === 'instagram' && duration > 900) return 'incompatible'
     if (platform === 'linkedin' && duration > 1800) return 'incompatible'

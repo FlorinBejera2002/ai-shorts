@@ -84,15 +84,15 @@
     "proofLabel": "Connect once, publish everywhere",
     "platformsEyebrow": "Connected publishing",
     "platformsTitle": "Six destinations. One publishing calendar.",
-    "platformsDesc": "Connect your social channels, review each platform's settings, and publish immediately or on schedule from one place. Instagram, Facebook, TikTok, and YouTube are available now; LinkedIn and X are coming soon.",
+    "platformsDesc": "Connect your social channels, review each platform's settings, and publish immediately or on schedule from one place. Instagram, Facebook, TikTok, YouTube, LinkedIn, and X are supported; availability depends on each platform's developer access.",
     "platformAvailable": "Connect & publish",
     "platformComingSoon": "Coming soon",
     "platformInstagramDesc": "Connect your professional Instagram account and publish reels, photos, or carousels.",
     "platformFacebookDesc": "Connect an eligible Facebook Page and send approved content directly to its audience.",
     "platformTikTokDesc": "Connect your creator account and publish with the privacy and interaction settings you choose.",
     "platformYouTubeDesc": "Connect your channel and upload vertical videos directly as YouTube Shorts.",
-    "platformLinkedInDesc": "Professional publishing support is planned for the connected calendar.",
-    "platformXDesc": "Connected video publishing for X is planned for a future release.",
+    "platformLinkedInDesc": "Publish approved video posts to your profile and, after organization access is approved, Pages you administer.",
+    "platformXDesc": "Publish approved video posts to your connected X account using the official X API.",
     "youtubeConnectionTitle": "Your YouTube channel stays under your control.",
     "youtubeConnectionDesc": "When you connect YouTube through Google OAuth, Sneep Cut uses read-only channel access to identify and validate your channel and upload access only to publish videos you explicitly select with the settings you approve. Disconnect at any time. YouTube API data is not used for advertising or AI model training.",
     "youtubeConnectionLinks": "YouTube connection policies",
@@ -1415,6 +1415,10 @@
       "calendarRemovalDescription": "This always removes the calendar entry. Published platform posts remain online unless you select them below.",
       "deleteFromFacebook": "Also delete from Facebook",
       "deleteFromFacebookDescription": "Deletes the published Reel from the connected Facebook Page.",
+      "deleteFromLinkedIn": "Also delete from LinkedIn",
+      "deleteFromLinkedInDescription": "Deletes the published video post from the connected LinkedIn profile or Page.",
+      "deleteFromX": "Also delete from X",
+      "deleteFromXDescription": "Deletes the published video post from the connected X account.",
       "instagramManualDelete": "Instagram must be deleted manually",
       "instagramManualDeleteDescription": "Instagram does not allow published posts to be deleted through its API. Delete the Reel in Instagram if you also want it removed there."
     },
@@ -1465,6 +1469,7 @@
       "titleLength": "Keep the title to 120 characters or fewer.",
       "titleInvalid": "Enter a valid title of 120 characters or fewer.",
       "captionLength": "Keep the caption to 5,000 characters or fewer.",
+      "platformCaptionLength": "The selected platform allows up to {limit} characters.",
       "notesLength": "Keep notes to 2,000 characters or fewer.",
       "platformRequired": "Choose at least one supported platform.",
       "accountRequired": "Choose at least one connected publishing account.",
@@ -1670,5 +1675,13 @@
     "reviewConsent": "I reviewed the channel, title, description and visibility, and agree to the <terms>YouTube Terms of Service</terms> for this upload.",
     "connectionConsent": "I agree to the <terms>YouTube Terms of Service</terms> and acknowledge the <privacy>Privacy Policy</privacy> for connecting my channel and uploading selected videos.",
     "reconnect": "Reconnect YouTube to grant upload access or renew revoked access."
+  },
+  "linkedinPublishing": {
+    "dataUse": "Sneep Cut uses LinkedIn data only to identify destinations you administer and publish videos you explicitly approve. It does not export member data or use it for advertising, sales, recruiting, or AI training.",
+    "connectionConsent": "I agree to the <terms>LinkedIn API Terms</terms> and acknowledge the <privacy>Privacy Policy</privacy> and <deletion>data deletion instructions</deletion>. I can disconnect at any time; Sneep Cut then deletes the LinkedIn token, cached account data, and LinkedIn API identifiers."
+  },
+  "xPublishing": {
+    "dataUse": "Sneep Cut uses X data only to identify your connected account and upload and publish the video posts you explicitly approve. It does not read your timeline, followers, likes, bookmarks, messages, or use X data for advertising, sale, profiling, or AI training.",
+    "connectionConsent": "I agree to the <terms>X Developer Agreement and Policy</terms> and acknowledge the <privacy>Privacy Policy</privacy> and <deletion>data deletion instructions</deletion>. I can disconnect at any time; Sneep Cut then revokes the token and deletes cached X account and post data."
   }
 }

@@ -36,7 +36,7 @@ export function useSocialConnection(onComplete: () => void) {
 
   useEffect(() => () => activeRequest.current?.abort(), [])
 
-  async function connect(provider: PublishingProvider, youtubeConsent = false) {
+  async function connect(provider: PublishingProvider, providerConsent = false) {
     activeRequest.current?.abort()
     const controller = new AbortController()
     activeRequest.current = controller
@@ -59,7 +59,12 @@ export function useSocialConnection(onComplete: () => void) {
       const response = await apiFetch(`/api/publishing/connect/${provider}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ locale, ...(provider === 'youtube' ? { youtubeConsent } : {}) }),
+        body: JSON.stringify({
+          locale,
+          ...(provider === 'youtube' ? { youtubeConsent: providerConsent } : {}),
+          ...(provider === 'linkedin' ? { linkedinConsent: providerConsent } : {}),
+          ...(provider === 'twitter' ? { xConsent: providerConsent } : {})
+        }),
         signal: controller.signal
       })
       const result: unknown = await response.json().catch(() => null)
