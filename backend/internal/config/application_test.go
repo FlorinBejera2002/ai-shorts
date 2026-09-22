@@ -5,6 +5,31 @@ import (
 	"testing"
 )
 
+func TestYouTubeApprovalFlagsDefaultDenyAndMediaPrefix(t *testing.T) {
+	env := map[string]string{"APP_URL": "https://app.example.com"}
+	load := func() (Application, error) {
+		return ApplicationFromEnv(func(k string) string { return env[k] }, "test")
+	}
+	a, err := load()
+	if err != nil || a.YouTubeAuditApproved || a.YouTubeImportApproved || a.YouTubeMediaURLPrefix != "https://app.example.com/media/" {
+		t.Fatalf("unsafe YouTube defaults: %+v %v", a, err)
+	}
+	env["YOUTUBE_AUDIT_APPROVED"] = "true"
+	env["YOUTUBE_IMPORT_APPROVED"] = "true"
+	env["YOUTUBE_MEDIA_URL_PREFIX"] = "https://media.example.com/bucket/"
+	a, err = load()
+	if err != nil || !a.YouTubeAuditApproved || !a.YouTubeImportApproved || a.YouTubeMediaURLPrefix != env["YOUTUBE_MEDIA_URL_PREFIX"] {
+		t.Fatal("YouTube flags not wired", err)
+	}
+	for _, key := range []string{"YOUTUBE_AUDIT_APPROVED", "YOUTUBE_IMPORT_APPROVED"} {
+		env[key] = "yes"
+		if _, err = load(); err == nil {
+			t.Fatalf("accepted invalid approval flag %s", key)
+		}
+		env[key] = "true"
+	}
+}
+
 func TestApplicationProductionConfiguration(t *testing.T) {
 	env := map[string]string{"APP_URL": "https://app.example.invalid", "INTERNAL_API_KEY": strings.Repeat("m", 40), "UPLOAD_TOKEN_SECRET": strings.Repeat("u", 40), "JWT_SECRET": strings.Repeat("j", 40)}
 	get := func(k string) string { return env[k] }

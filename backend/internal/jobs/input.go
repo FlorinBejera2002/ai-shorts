@@ -115,3 +115,21 @@ func sharedOrReserved(ip net.IP) bool {
 	}
 	return false
 }
+
+// RequiresYouTubeImportApproval also catches YouTube URLs submitted as generic links.
+func RequiresYouTubeImportApproval(sourceType, source string) bool {
+	if sourceType == "youtube" {
+		return true
+	}
+	parsed, err := url.Parse(source)
+	if err != nil {
+		return false
+	}
+	host := strings.TrimSuffix(strings.ToLower(parsed.Hostname()), ".")
+	for _, domain := range []string{"youtube.com", "youtu.be", "youtube-nocookie.com", "googlevideo.com"} {
+		if host == domain || strings.HasSuffix(host, "."+domain) {
+			return true
+		}
+	}
+	return false
+}

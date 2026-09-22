@@ -1540,7 +1540,7 @@
       "instagram": "Conturi Business și Creator · Instagram Reels",
       "facebook": "Paginile pe care le administrezi · Facebook Reels",
       "tiktok": "Contul tău TikTok · postări video",
-      "youtube": "Canalul tău YouTube · planificare în calendar",
+      "youtube": "Canalul tău YouTube · încărcare videoclipuri",
       "linkedin": "Profilul sau organizația LinkedIn · postări video",
       "twitter": "Contul tău X · postări video"
     },
@@ -1631,6 +1631,27 @@
     "autoAddMusicHint": "Permite TikTok să aleagă muzică pentru această postare foto.",
     "instagramOptions": "Preferințe Instagram",
     "instagramComments": "Comentarii",
-    "instagramShareToFeed": "Afișare în Feed"
+    "instagramShareToFeed": "Afișare în Feed",
+    "youtubeSettingsRequired": "Verifică toate setările YouTube și confirmă termenii încărcării."
+  },
+  "youtubePublishing": {
+    "heading": "Încărcare pe YouTube",
+    "channel": "Publicare pe canalul: {name}",
+    "title": "Titlul videoclipului YouTube (maximum 100 de caractere)",
+    "description": "Descriere YouTube (maximum 5.000 de octeți UTF-8)",
+    "privacy": "Vizibilitate",
+    "private": "Privat",
+    "unlisted": "Nelistat",
+    "public": "Public",
+    "auditRestriction": "Încărcările sunt limitate la Privat până când YouTube aprobă auditul aplicației. Poți verifica videoclipul în YouTube Studio.",
+    "madeForKids": "Acest videoclip este creat pentru copii?",
+    "containsSyntheticMedia": "Videoclipul conține materiale realiste modificate sau sintetice?",
+    "choose": "Alege explicit",
+    "yes": "Da",
+    "no": "Nu",
+    "notifySubscribers": "Notifică abonații canalului",
+    "reviewConsent": "Am verificat canalul, titlul, descrierea și vizibilitatea și accept <terms>Termenii YouTube</terms> pentru această încărcare.",
+    "connectionConsent": "Accept <terms>Termenii YouTube</terms> și confirm că am citit <privacy>Politica de confidențialitate</privacy> pentru conectarea canalului și încărcarea videoclipurilor selectate.",
+    "reconnect": "Reconectează YouTube pentru a acorda acces la încărcare sau a reînnoi accesul revocat."
   }
 }

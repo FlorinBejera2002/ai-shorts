@@ -48,12 +48,13 @@ type Post struct {
 	URL       string    `json:"url,omitempty"`
 }
 type postInput struct {
-	ClipID         string        `json:"clipId"`
-	AccountIDs     []string      `json:"accountIds"`
-	Caption        string        `json:"caption"`
-	IdempotencyKey string        `json:"idempotencyKey"`
-	Confirmed      bool          `json:"confirmed"`
-	TikTok         TikTokOptions `json:"tiktok"`
+	ClipID         string         `json:"clipId"`
+	AccountIDs     []string       `json:"accountIds"`
+	Caption        string         `json:"caption"`
+	IdempotencyKey string         `json:"idempotencyKey"`
+	Confirmed      bool           `json:"confirmed"`
+	TikTok         TikTokOptions  `json:"tiktok"`
+	YouTube        YouTubeOptions `json:"youtube"`
 }
 
 func (h *Handler) account(ctx context.Context, user, id string) (Account, error) {
@@ -218,7 +219,7 @@ func (h *Handler) DeletePublishedPosts(ctx context.Context, user, scheduledPostI
 
 func (h *Handler) list(ctx context.Context, user string) ([]Account, []Clip, []Post, error) {
 	accounts, clips, posts := []Account{}, []Clip{}, []Post{}
-	rows, e := h.db.QueryContext(ctx, `SELECT id,provider,name,username,avatar_url,status,scopes,token_expires_at,COALESCE(token_expires_at<=now(),false) FROM social_accounts WHERE user_id=$1 AND status='connected' ORDER BY provider,name`, user)
+	rows, e := h.db.QueryContext(ctx, `SELECT id,provider,name,username,avatar_url,status,scopes,token_expires_at,(CASE WHEN provider='youtube' THEN NOT ('video_publish'=ANY(scopes)) ELSE COALESCE(token_expires_at<=now(),false) END) FROM social_accounts WHERE user_id=$1 AND status='connected' AND (provider<>'youtube' OR youtube_verified_at>now()-interval '6 days') ORDER BY provider,name`, user)
 	if e != nil {
 		return accounts, clips, posts, e
 	}
@@ -322,7 +323,7 @@ func (h *Handler) enqueue(ctx context.Context, user string, in postInput) ([]Pos
 	// A request key is bound to the full payload, not just a single destination.
 	encoded, _ := json.Marshal(in)
 	hash := digest(string(encoded))
-	options, _ := json.Marshal(in.TikTok)
+	tiktokOptions, _ := json.Marshal(in.TikTok)
 	var duration float64
 	var ref, tiktokRef string
 	e = tx.QueryRowContext(ctx, `SELECT duration,
@@ -336,8 +337,15 @@ func (h *Handler) enqueue(ctx context.Context, user string, in postInput) ([]Pos
 	for _, id := range in.AccountIDs {
 		var a Account
 		e = tx.QueryRowContext(ctx, `SELECT id,user_id,provider,remote_id,name,username,status,credentials,token_expires_at FROM social_accounts WHERE id=$1 AND user_id=$2 AND status='connected' FOR UPDATE`, id, user).Scan(&a.ID, &a.UserID, &a.Provider, &a.RemoteID, &a.Name, &a.Username, &a.Status, &a.Encrypted, &a.TokenExpiresAt)
-		if e != nil || !h.configured(a.Provider) || a.Provider == "youtube" {
+		if e != nil || !h.configured(a.Provider) {
 			return nil, errInvalid
+		}
+		options := tiktokOptions
+		if a.Provider == "youtube" {
+			if _, err := h.ValidateYouTubeSchedule(ctx, tx, user, a.ID, in.YouTube); err != nil {
+				return nil, errInvalid
+			}
+			options, _ = json.Marshal(in.YouTube)
 		}
 		var existingHash string
 		var p Post

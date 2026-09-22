@@ -4,6 +4,7 @@ import type {
   ContentPostStatus,
   PublishingMedia,
   ScheduledPostRecord,
+  YouTubePublishingOptions,
   TikTokPublishingOptions
 } from '@/lib/content-calendar'
 
@@ -49,6 +50,7 @@ export type PostFormPayload = {
   scheduledAt: string
   clipId?: string | null
   media?: PublishingMedia[]
+  youtube?: YouTubePublishingOptions
   tiktok?: TikTokPublishingOptions
 }
 

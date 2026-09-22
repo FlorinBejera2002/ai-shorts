@@ -90,7 +90,7 @@ func providerScopes(p string) []string {
 	case "tiktok":
 		return []string{"profile", "video_publish"}
 	case "youtube":
-		return []string{"channel_read"}
+		return []string{"channel_read", "video_publish"}
 	default:
 		return []string{}
 	}
@@ -109,7 +109,10 @@ func (h *Handler) overview(w http.ResponseWriter, r *http.Request) {
 	providerNames := map[string]string{"instagram": "Instagram", "facebook": "Facebook", "tiktok": "TikTok", "youtube": "YouTube", "linkedin": "LinkedIn", "twitter": "X"}
 	for _, p := range []string{"instagram", "facebook", "tiktok", "youtube", "linkedin", "twitter"} {
 		configured := h.configured(p)
-		entry := map[string]any{"id": p, "name": providerNames[p], "configured": configured, "supportsPublishing": configured && p != "youtube"}
+		entry := map[string]any{"id": p, "name": providerNames[p], "configured": configured, "supportsPublishing": configured}
+		if p == "youtube" {
+			entry["youtubeAuditApproved"] = h.cfg.YouTubeAuditApproved
+		}
 		if !configured {
 			if p == "linkedin" || p == "twitter" {
 				entry["reason"] = "Integration coming soon."
@@ -137,9 +140,14 @@ func (h *Handler) connect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var input struct {
-		Locale string `json:"locale"`
+		Locale         string `json:"locale"`
+		YouTubeConsent bool   `json:"youtubeConsent"`
 	}
 	if !decode(w, r, &input) {
+		return
+	}
+	if p == "youtube" && !input.YouTubeConsent {
+		fail(w, 400, "Accept the privacy policy and YouTube Terms before connecting.")
 		return
 	}
 	if input.Locale != "ro" {
@@ -221,6 +229,13 @@ func (h *Handler) callback(w http.ResponseWriter, r *http.Request) {
 			redirect("connectionError", "unavailable")
 			return
 		}
+		if p == "youtube" {
+			_, e = tx.ExecContext(ctx, `UPDATE social_accounts SET youtube_verified_at=now(),youtube_check_after=now()+interval '1 day',youtube_consent_at=now() WHERE user_id=$1 AND provider='youtube' AND remote_id=$2`, user, a.ID)
+			if e != nil {
+				redirect("connectionError", "unavailable")
+				return
+			}
+		}
 	}
 	if tx.Commit() != nil {
 		redirect("connectionError", "unavailable")
@@ -272,6 +287,12 @@ func (h *Handler) disconnect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer tx.Rollback()
+	// Match calendar/worker lock order: user, account, then dependent records.
+	var lockedUser string
+	if e = tx.QueryRowContext(r.Context(), `SELECT id FROM users WHERE id=$1 FOR UPDATE`, user).Scan(&lockedUser); e != nil {
+		fail(w, 503, "Could not disconnect.")
+		return
+	}
 	// The account row lock fences the worker while local access is revoked.
 	var provider, remote, encrypted string
 	e = tx.QueryRowContext(r.Context(), `SELECT provider,remote_id,credentials FROM social_accounts WHERE id=$1 AND user_id=$2 FOR UPDATE`, id, user).Scan(&provider, &remote, &encrypted)
@@ -291,6 +312,12 @@ func (h *Handler) disconnect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// Local permission removal always succeeds independently of a provider outage.
+	if provider == "youtube" {
+		if e = purgeYouTubeAccount(r.Context(), tx, user, id); e != nil {
+			fail(w, 503, "Could not delete YouTube connection data.")
+			return
+		}
+	}
 	// Facebook Page tokens cannot revoke an entire user's application grant safely.
 	revoked := false
 	if provider != "facebook" && h.vault != nil {

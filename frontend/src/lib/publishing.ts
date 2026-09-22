@@ -44,6 +44,7 @@ export type PublishingData = {
     name: string
     configured: boolean
     supportsPublishing: boolean
+    youtubeAuditApproved?: boolean
     reason?: string
   }[]
   accounts: PublishingAccount[]
@@ -87,6 +88,7 @@ export type CreatorOptions = {
 export function isPublishingAccountUsable(account: PublishingAccount) {
   return (
     account.status === 'connected' &&
-    (account.provider === 'tiktok' || account.tokenExpired !== true)
+    (account.provider !== 'youtube' || account.scopes?.includes('video_publish') === true) &&
+    (['tiktok', 'youtube'].includes(account.provider) || account.tokenExpired !== true)
   )
 }

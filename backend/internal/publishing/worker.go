@@ -20,9 +20,6 @@ func (h *Handler) Start(parent context.Context) func() {
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		if !h.cfg.Enabled {
-			return
-		}
 		ticker := time.NewTicker(5 * time.Second)
 		defer ticker.Stop()
 		for {
@@ -30,7 +27,14 @@ func (h *Handler) Start(parent context.Context) func() {
 			case <-ctx.Done():
 				return
 			case <-ticker.C:
-				work, c := context.WithTimeout(ctx, 100*time.Second)
+				work, c := context.WithTimeout(ctx, 30*time.Minute)
+				if err := h.maintainYouTubeData(work); err != nil {
+					slog.Error("YouTube data maintenance failed", "error", err)
+				}
+				if !h.cfg.Enabled {
+					c()
+					continue
+				}
 				if err := h.reconcileCalendar(work); err != nil {
 					slog.Error("publishing calendar reconciliation failed", "error", err)
 				}
@@ -89,16 +93,21 @@ func (h *Handler) dispatchCalendar(ctx context.Context) error {
 		return e
 	}
 	defer tx.Rollback()
+	// Match scheduling, disconnect and data deletion: owner before dependent rows.
+	var ownerActive bool
+	if e = tx.QueryRowContext(ctx, `SELECT NOT EXISTS(SELECT 1 FROM account_deletion_requests d WHERE d.user_id=u.id) FROM users u WHERE id=$1 FOR UPDATE`, candidateUserID).Scan(&ownerActive); e != nil || !ownerActive {
+		return e
+	}
 	var id, userID, caption, reference, tiktokReference string
 	var clipID sql.NullString
 	var accountIDs pq.StringArray
-	var postMedia, tiktokJSON, igJSON []byte
+	var postMedia, tiktokJSON, igJSON, youtubeJSON []byte
 	e = tx.QueryRowContext(ctx, `SELECT s.id,s.user_id,s.clip_id,COALESCE(s.caption,''),s.account_ids,
 		COALESCE(NULLIF(c.file_storage_key,''),NULLIF(c.file_path,''),c.file_url,''),
-		COALESCE(NULLIF(c.tiktok_file_storage_key,''),NULLIF(c.file_storage_key,''),NULLIF(c.file_path,''),c.file_url,''),s.media,s.tiktok_options,s.instagram_options
+		COALESCE(NULLIF(c.tiktok_file_storage_key,''),NULLIF(c.file_storage_key,''),NULLIF(c.file_path,''),c.file_url,''),s.media,s.tiktok_options,s.instagram_options,s.youtube_options
 		FROM scheduled_posts s LEFT JOIN clips c ON c.id=s.clip_id AND c.user_id=s.user_id
 		WHERE s.id=$1 AND s.status='scheduled' AND s.scheduled_at<=now()
-		FOR UPDATE OF s`, candidateID).Scan(&id, &userID, &clipID, &caption, &accountIDs, &reference, &tiktokReference, &postMedia, &tiktokJSON, &igJSON)
+		FOR UPDATE OF s`, candidateID).Scan(&id, &userID, &clipID, &caption, &accountIDs, &reference, &tiktokReference, &postMedia, &tiktokJSON, &igJSON, &youtubeJSON)
 	if errors.Is(e, sql.ErrNoRows) {
 		return nil
 	}
@@ -132,14 +141,23 @@ func (h *Handler) dispatchCalendar(ctx context.Context) error {
 	if json.Unmarshal(tiktokJSON, &tiktokOptions) != nil {
 		return h.failCalendar(ctx, tx, id, "The saved TikTok settings are invalid. Review the post and schedule it again.")
 	}
-	requestHash := digest(id + ":" + reference + ":" + caption + ":" + string(tiktokJSON))
+	var youtubeOptions YouTubeOptions
+	if json.Unmarshal(youtubeJSON, &youtubeOptions) != nil {
+		return h.failCalendar(ctx, tx, id, "Review the YouTube settings.")
+	}
+	requestHash := digest(string(youtubeJSON) + id + ":" + reference + ":" + caption + ":" + string(tiktokJSON))
 	providers := make([]string, 0, len(accountIDs))
 	tiktokAccounts := 0
 	for _, accountID := range accountIDs {
 		var provider string
-		e = tx.QueryRowContext(ctx, `SELECT provider FROM social_accounts WHERE id=$1 AND user_id=$2 AND status='connected' AND (provider='tiktok' OR COALESCE(token_expires_at>now(),true)) FOR UPDATE`, accountID, userID).Scan(&provider)
-		if e != nil || (provider != "instagram" && provider != "facebook" && provider != "tiktok") || !h.configured(provider) {
+		e = tx.QueryRowContext(ctx, `SELECT provider FROM social_accounts WHERE id=$1 AND user_id=$2 AND status='connected' AND (provider IN ('tiktok','youtube') OR COALESCE(token_expires_at>now(),true)) FOR UPDATE`, accountID, userID).Scan(&provider)
+		if e != nil || (provider != "instagram" && provider != "facebook" && provider != "tiktok" && provider != "youtube") || !h.configured(provider) {
 			return h.failCalendar(ctx, tx, id, "A selected account is disconnected or unavailable. Reconnect it and reschedule the post.")
+		}
+		if provider == "youtube" {
+			if _, err := h.ValidateYouTubeSchedule(ctx, tx, userID, accountID, youtubeOptions); err != nil {
+				return h.failCalendar(ctx, tx, id, "Review YouTube settings and reconnect the channel if necessary.")
+			}
 		}
 		if provider == "tiktok" {
 			tiktokAccounts++
@@ -198,6 +216,8 @@ func (h *Handler) dispatchCalendar(ctx context.Context) error {
 		options := []byte(`{}`)
 		if providers[i] == "tiktok" {
 			options = tiktokJSON
+		} else if providers[i] == "youtube" {
+			options = youtubeJSON
 		} else if providers[i] == "instagram" {
 			options = igJSON
 		}
@@ -223,6 +243,7 @@ func (h *Handler) dispatchCalendar(ctx context.Context) error {
 }
 
 type workItem struct {
+	YouTubeOptions                                                        YouTubeOptions
 	ID, UserID, AccountID, Provider, Status, RemoteID, Caption, Reference string
 	Options                                                               TikTokOptions
 	IGOptions                                                             InstagramOptions
@@ -232,7 +253,7 @@ type workItem struct {
 
 func (h *Handler) runOne(ctx context.Context) error {
 	// No mutation request is retried after process death or timeout.
-	_, e := h.db.ExecContext(ctx, `UPDATE social_posts SET status='unknown',error='Publication outcome is unknown. Check the destination account before posting again.',updated_at=now() WHERE status IN ('submitting','finalizing') AND updated_at<now()-interval '5 minutes'`)
+	_, e := h.db.ExecContext(ctx, `UPDATE social_posts SET status='unknown',error='Publication outcome is unknown. Check the destination account before posting again.',updated_at=now() WHERE status IN ('submitting','finalizing') AND updated_at<now()-CASE WHEN provider='youtube' THEN interval '35 minutes' ELSE interval '5 minutes' END`)
 	if e != nil {
 		return e
 	}
@@ -253,6 +274,11 @@ func (h *Handler) runOne(ctx context.Context) error {
 	}
 	if json.Unmarshal(raw, &job.Options) != nil {
 		return errInvalid
+	}
+	if job.Provider == "youtube" {
+		if json.Unmarshal(raw, &job.YouTubeOptions) != nil {
+			return errInvalid
+		}
 	}
 	if job.Provider == "instagram" {
 		_ = json.Unmarshal(raw, &job.IGOptions)
@@ -461,7 +487,16 @@ func (h *Handler) process(ctx context.Context, job workItem, action string) erro
 				return set("failed", message, "", "")
 			}
 		}
-		id, status, err := h.client.PublishMedia(ctx, a.Provider, a.RemoteID, creds, media, job.Caption, job.Options, job.IGOptions)
+		var id, status string
+		var err error
+		if a.Provider == "youtube" {
+			if _, err = h.ValidateYouTubeSchedule(ctx, tx, job.UserID, a.ID, job.YouTubeOptions); err != nil {
+				return set("failed", "Review the YouTube settings or reconnect the channel.", "", "")
+			}
+			id, status, err = h.client.PublishYouTube(ctx, creds, media, job.YouTubeOptions)
+		} else {
+			id, status, err = h.client.PublishMedia(ctx, a.Provider, a.RemoteID, creds, media, job.Caption, job.Options, job.IGOptions)
+		}
 		if err != nil {
 			if status == "failed" {
 				return set("failed", err.Error(), id, "")

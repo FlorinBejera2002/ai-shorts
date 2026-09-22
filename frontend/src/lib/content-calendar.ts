@@ -70,6 +70,16 @@ export type TikTokPublishingOptions = {
   isAigc: boolean
 }
 
+export type YouTubePublishingOptions = {
+  title: string
+  description: string
+  privacyStatus: 'private' | 'unlisted' | 'public'
+  madeForKids: boolean | null
+  containsSyntheticMedia: boolean | null
+  notifySubscribers: boolean
+  termsAccepted: boolean
+}
+
 export type InstagramPublishingOptions = {
   commentEnabled: boolean
   shareToFeed: boolean
@@ -99,6 +109,7 @@ export type ScheduledPostRecord = {
   media: PublishingMedia[]
   tiktok?: TikTokPublishingOptions
   instagram?: InstagramPublishingOptions
+  youtube?: YouTubePublishingOptions
 }
 
 export type ScheduledPostMutation = {
@@ -113,6 +124,7 @@ export type ScheduledPostMutation = {
   media?: PublishingMedia[]
   tiktok?: TikTokPublishingOptions
   instagram?: InstagramPublishingOptions
+  youtube?: YouTubePublishingOptions
 }
 
 export type ValidationIssue = {
@@ -141,7 +153,8 @@ const MUTATION_FIELDS = new Set([
   'clipId',
   'media',
   'tiktok',
-  'instagram'
+  'instagram',
+  'youtube'
 ])
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -438,6 +451,20 @@ export function validateScheduledPostPayload(
     } else {
       data.tiktok = tiktok as TikTokPublishingOptions
     }
+  }
+
+  if ('youtube' in value) {
+    const youtube = value.youtube
+    const fields = ['title', 'description', 'privacyStatus', 'madeForKids', 'containsSyntheticMedia', 'notifySubscribers', 'termsAccepted']
+    if (!isRecord(youtube) || Object.keys(youtube).some(key => !fields.includes(key)) ||
+      typeof youtube.title !== 'string' || Array.from(youtube.title).length > 100 || /[<>]/.test(youtube.title) ||
+      typeof youtube.description !== 'string' || new TextEncoder().encode(youtube.description).length > 5000 || /[<>]/.test(youtube.description) ||
+      !['private', 'unlisted', 'public'].includes(String(youtube.privacyStatus)) ||
+      !['madeForKids', 'containsSyntheticMedia'].every(key => typeof youtube[key] === 'boolean' || (data.status === 'draft' && youtube[key] === null)) ||
+      typeof youtube.notifySubscribers !== 'boolean' || typeof youtube.termsAccepted !== 'boolean' ||
+      (data.status !== 'draft' && (!youtube.title.trim() || youtube.termsAccepted !== true))) {
+      issues.push({ field: 'youtube', message: 'Review all YouTube publishing settings.' })
+    } else data.youtube = youtube as YouTubePublishingOptions
   }
 
   if ('instagram' in value) {

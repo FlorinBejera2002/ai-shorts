@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 	"unicode/utf16"
+	"unicode/utf8"
 
 	"sneepcut/backend-go/internal/publishing"
 )
@@ -18,7 +19,7 @@ const RecentClipLimit = 100
 
 var idPattern = regexp.MustCompile(`(?i)^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`)
 var datePattern = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,9})?(Z|[+-]\d{2}:\d{2})$`)
-var mutationColumns = map[string]string{"title": "title", "caption": "caption", "notes": "notes", "platforms": "platforms", "accountIds": "account_ids", "status": "status", "scheduledAt": "scheduled_at", "clipId": "clip_id", "media": "media", "tiktok": "tiktok_options", "instagram": "instagram_options"}
+var mutationColumns = map[string]string{"title": "title", "caption": "caption", "notes": "notes", "platforms": "platforms", "accountIds": "account_ids", "status": "status", "scheduledAt": "scheduled_at", "clipId": "clip_id", "media": "media", "tiktok": "tiktok_options", "instagram": "instagram_options", "youtube": "youtube_options"}
 
 type Issue struct {
 	Field   string `json:"field"`
@@ -332,6 +333,65 @@ func Validate(input map[string]any, create bool) (map[string]any, error) {
 			issues = append(issues, Issue{"instagram", "Choose valid Instagram publishing settings"})
 		} else {
 			output["instagram"] = igOptions
+		}
+	}
+
+	if raw, exists := input["youtube"]; exists {
+		options := publishing.YouTubeOptions{}
+		valid := true
+		if raw != nil {
+			value, ok := raw.(map[string]any)
+			if !ok {
+				valid = false
+			} else {
+				allowed := map[string]bool{"title": true, "description": true, "privacyStatus": true, "madeForKids": true, "containsSyntheticMedia": true, "notifySubscribers": true, "termsAccepted": true}
+				for key := range value {
+					if !allowed[key] {
+						valid = false
+					}
+				}
+				for key, target := range map[string]*string{"title": &options.Title, "description": &options.Description, "privacyStatus": &options.PrivacyStatus} {
+					if candidate, present := value[key]; present {
+						text, ok := candidate.(string)
+						if !ok {
+							valid = false
+						} else {
+							*target = text
+						}
+					}
+				}
+				for key, target := range map[string]**bool{"madeForKids": &options.MadeForKids, "containsSyntheticMedia": &options.ContainsSyntheticMedia} {
+					if candidate, present := value[key]; present && candidate != nil {
+						flag, ok := candidate.(bool)
+						if !ok {
+							valid = false
+						} else {
+							*target = &flag
+						}
+					}
+				}
+				for key, target := range map[string]*bool{"notifySubscribers": &options.NotifySubscribers, "termsAccepted": &options.TermsAccepted} {
+					if candidate, present := value[key]; present {
+						flag, ok := candidate.(bool)
+						if !ok {
+							valid = false
+						} else {
+							*target = flag
+						}
+					}
+				}
+				if utf8.RuneCountInString(options.Title) > 100 || len(options.Description) > 5000 || strings.ContainsAny(options.Title+options.Description, "<>") {
+					valid = false
+				}
+				if options.PrivacyStatus != "" && !slices.Contains([]string{"private", "public", "unlisted"}, options.PrivacyStatus) {
+					valid = false
+				}
+			}
+		}
+		if !valid {
+			issues = append(issues, Issue{"youtube", "Choose valid YouTube publishing settings"})
+		} else {
+			output["youtube"] = options
 		}
 	}
 	if !create && len(output) == 0 && len(issues) == 0 {

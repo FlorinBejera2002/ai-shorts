@@ -47,7 +47,7 @@ func TestProviderAuthorizationScopes(t *testing.T) {
 		if strings.Contains(got, "client_secret") {
 			t.Fatal("secret leaked")
 		}
-		if provider == "youtube" && (q.Get("code_challenge") == "" || q.Get("scope") != "https://www.googleapis.com/auth/youtube.readonly") {
+		if provider == "youtube" && (q.Get("code_challenge") == "" || q.Get("scope") != youtubeScopes) {
 			t.Fatal("YouTube OAuth is missing PKCE or its channel scope")
 		}
 	}
@@ -64,7 +64,7 @@ func TestYouTubeExchangeReturnsConnectedChannels(t *testing.T) {
 			if r.Form.Get("code_verifier") != "verifier" || r.Form.Get("client_secret") != "secret" {
 				t.Error("missing YouTube token exchange credentials")
 			}
-			_, _ = io.WriteString(w, `{"access_token":"access","refresh_token":"refresh","expires_in":3600}`)
+			_, _ = io.WriteString(w, `{"access_token":"access","refresh_token":"refresh","expires_in":3600,"scope":"https://www.googleapis.com/auth/youtube.readonly https://www.googleapis.com/auth/youtube.upload"}`)
 		case "/youtube/v3/channels":
 			if r.Header.Get("Authorization") != "Bearer access" || r.URL.Query().Get("mine") != "true" {
 				t.Error("invalid YouTube channel request")

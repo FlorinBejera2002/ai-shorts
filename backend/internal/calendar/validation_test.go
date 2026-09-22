@@ -167,3 +167,30 @@ func TestValidationNormalizesOptionalTikTokSettingsForDrafts(t *testing.T) {
 		}
 	}
 }
+
+func TestYouTubeOptionsDraftValidationPreservesExplicitChoices(t *testing.T) {
+	out, err := Validate(map[string]any{"youtube": map[string]any{"title": "Example", "madeForKids": false, "containsSyntheticMedia": false, "termsAccepted": true}}, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	options := out["youtube"].(publishing.YouTubeOptions)
+	if options.MadeForKids == nil || *options.MadeForKids || options.ContainsSyntheticMedia == nil || *options.ContainsSyntheticMedia || !options.TermsAccepted {
+		t.Fatalf("explicit choices lost: %+v", options)
+	}
+	out, err = Validate(map[string]any{"youtube": map[string]any{}}, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	options = out["youtube"].(publishing.YouTubeOptions)
+	if options.MadeForKids != nil || options.ContainsSyntheticMedia != nil {
+		t.Fatal("missing choices must not be defaulted")
+	}
+}
+
+func TestYouTubeOptionsRejectMalformedValues(t *testing.T) {
+	for _, value := range []any{"private", map[string]any{"madeForKids": "false"}, map[string]any{"unknown": true}, map[string]any{"privacyStatus": "friends"}, map[string]any{"title": strings.Repeat("x", 101)}, map[string]any{"description": strings.Repeat("\u00e9", 2501)}, map[string]any{"termsAccepted": "true"}} {
+		if _, err := Validate(map[string]any{"youtube": value}, false); err == nil {
+			t.Errorf("accepted invalid options: %v", value)
+		}
+	}
+}

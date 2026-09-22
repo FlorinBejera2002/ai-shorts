@@ -79,6 +79,9 @@ import {
   settingsFromInstagramPublishingOptions
 } from '@/lib/instagram-post-settings'
 
+import { YouTubePostSettings } from './youtube-post-settings'
+import { initialYouTubeSettings, validateYouTubeSettings } from '@/lib/youtube-post-settings'
+
 type DialogMode = 'create' | 'edit' | 'reschedule' | 'delete'
 
 type FormState = {
@@ -94,7 +97,7 @@ type FormState = {
   media: PublishingMedia[]
 }
 
-type FormErrors = Partial<Record<keyof FormState | 'form' | 'tiktok' | 'instagram', string>>
+type FormErrors = Partial<Record<keyof FormState | 'form' | 'tiktok' | 'instagram' | 'youtube', string>>
 
 const inputClassName =
   'w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground shadow-none outline-none placeholder:text-muted-foreground/60 focus:border-border focus:ring-0 focus:shadow-none focus-visible:border-border focus-visible:ring-0 focus-visible:shadow-none'
@@ -209,6 +212,7 @@ export function PostDialog({
   publishingClips,
   publishingAccounts,
   platformConnectionsLoaded,
+  youtubeAuditApproved = false,
   timeZone,
   initialTime,
   initialClipId,
@@ -224,6 +228,7 @@ export function PostDialog({
   publishingClips: PublishingData['clips']
   publishingAccounts: PublishingAccount[]
   platformConnectionsLoaded: boolean
+  youtubeAuditApproved?: boolean
   timeZone: string
   initialTime?: string
   initialClipId?: string
@@ -272,6 +277,7 @@ export function PostDialog({
     useState<InstagramPostSettings>(() =>
       settingsFromInstagramPublishingOptions(post?.instagram)
     )
+  const [youtubeSettings, setYouTubeSettings] = useState(() => initialYouTubeSettings(post?.youtube))
   const busy = saving || deleting || uploading
 
   const publishedProviders = useMemo(
@@ -290,6 +296,7 @@ export function PostDialog({
     () => new Set(form.accountIds),
     [form.accountIds]
   )
+  const selectedYouTubeAccounts = publishingAccounts.filter(account => account.provider === 'youtube' && selectedAccountIds.has(account.id))
   const selectedTikTokAccounts = useMemo(
     () =>
       publishingAccounts.filter(
@@ -427,6 +434,9 @@ export function PostDialog({
     field: Field,
     value: FormState[Field]
   ) {
+    if (field === 'media' || field === 'clipId') {
+      setYouTubeSettings(current => ({ ...current, termsAccepted: false }))
+    }
     setForm((current) => ({ ...current, [field]: value }))
     setErrors((current) => ({
       ...current,
@@ -444,6 +454,7 @@ export function PostDialog({
         setTikTokSettings({ ...INITIAL_TIKTOK_SETTINGS })
       }
     }
+    if (account.provider === 'youtube') setYouTubeSettings(current => ({ ...current, termsAccepted: false }))
     if (account.provider === 'instagram') {
       const replacingAccount =
         !removing && selectedInstagramAccount?.id !== account.id
@@ -514,6 +525,7 @@ export function PostDialog({
   }
 
   function handleClipChange(clipId: string) {
+    setYouTubeSettings(current => ({ ...current, termsAccepted: false }))
     const clip = selectableClips.find((item) => item.id === clipId)
     setForm((current) => ({
       ...current,
@@ -550,6 +562,7 @@ export function PostDialog({
       : []
 
     if (mode !== 'reschedule') {
+      if (form.status !== 'draft' && selectedYouTubeAccounts.length && !validateYouTubeSettings(youtubeSettings, youtubeAuditApproved)) nextErrors.youtube = publishingT('youtubeSettingsRequired')
       if (!form.title.trim()) nextErrors.title = t('validation.titleRequired')
       else if (form.title.trim().length > 120) {
         nextErrors.title = t('validation.titleLength')
@@ -674,7 +687,8 @@ export function PostDialog({
         clipId: form.clipId || null,
         media: form.media,
         ...(tiktok ? { tiktok } : {}),
-        ...(instagram ? { instagram } : {})
+        ...(instagram ? { instagram } : {}),
+        ...(selectedYouTubeAccounts.length ? { youtube: youtubeSettings } : {})
       }
     }
   }
@@ -1493,6 +1507,12 @@ export function PostDialog({
                               message={errors.tiktok}
                             />
                           </motion.div>
+                        )}
+                        {selectedYouTubeAccounts.length > 0 && (
+                          <div className={isPage ? styles.editorWide : ''}>
+                            <YouTubePostSettings settings={youtubeSettings} onChange={setYouTubeSettings} auditApproved={youtubeAuditApproved} channelNames={selectedYouTubeAccounts.map(account => account.name).join(', ')} disabled={busy} idPrefix={titleId + '-youtube'} />
+                            <FieldError id={titleId + '-youtube-error'} message={errors.youtube} />
+                          </div>
                         )}
                         {selectedInstagramAccount && (
                           <motion.div

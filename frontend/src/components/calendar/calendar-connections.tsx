@@ -1,5 +1,8 @@
 'use client'
 
+import { Switch } from '@/components/ui/switch'
+'use client'
+
 import { PlatformBrandIcon } from '@/components/publishing/platform-brand-icon'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -25,7 +28,7 @@ import {
   withAllPublishingProviders
 } from '@/lib/publishing'
 import { Check, Lock, LogOut, RefreshCw } from 'lucide-react'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import { useState } from 'react'
 
 export function CalendarConnections({
@@ -38,10 +41,13 @@ export function CalendarConnections({
   data: PublishingData | null
   error: string | null
   onReload: () => void
-  onConnect: (provider: PublishingProvider) => Promise<void>
+  onConnect: (provider: PublishingProvider, youtubeConsent?: boolean) => Promise<void>
   busyProvider: PublishingProvider | null
 }) {
   const t = useTranslations('contentCalendar.connections')
+  const locale = useLocale()
+  const youtubeT = useTranslations('youtubePublishing')
+  const [youtubeConsent, setYouTubeConsent] = useState(false)
   const toast = useToast()
   const [busyAccount, setBusyAccount] = useState<string | null>(null)
   const [disconnectingAccount, setDisconnectingAccount] =
@@ -172,9 +178,9 @@ export function CalendarConnections({
                           variant="outline"
                           size="sm"
                           disabled={
-                            !provider.configured || busyProvider !== null
+                            !provider.configured || busyProvider !== null || (provider.id === 'youtube' && !youtubeConsent)
                           }
-                          onClick={() => void onConnect(provider.id)}
+                          onClick={() => void onConnect(provider.id, provider.id === 'youtube' && youtubeConsent)}
                           className="ml-auto h-8 rounded-md bg-background px-2.5 text-[10px] shadow-none hover:bg-muted hover:text-foreground"
                         >
                           {busyProvider === provider.id ? (
@@ -190,6 +196,15 @@ export function CalendarConnections({
                         </Button>
                       )}
                     </div>
+                    {provider.id === 'youtube' && !connected && (
+                      <div className="mt-2 space-y-2 text-xs text-muted-foreground">
+                        {data.accounts.some(account => account.provider === 'youtube') && <p>{youtubeT('reconnect')}</p>}
+                        <label className="flex items-start gap-2"><Switch checked={youtubeConsent} onCheckedChange={setYouTubeConsent} /><span>{youtubeT.rich('connectionConsent', {
+                          terms: chunks => <a className="underline" href="https://www.youtube.com/t/terms" target="_blank" rel="noreferrer">{chunks}</a>,
+                          privacy: chunks => <a className="underline" href={locale === 'ro' ? '/ro/privacy' : '/privacy'} target="_blank" rel="noreferrer">{chunks}</a>
+                        })}</span></label>
+                      </div>
+                    )}
                     {connected ? (
                       <div className="mt-2 border-t border-border/70">
                         {accounts.map((account) => (

@@ -59,6 +59,6 @@ func run(logger *slog.Logger) error {
 	if err != nil {
 		return err
 	}
-	executor := worker.Worker{Repo: worker.NewRepository(db), Pipeline: processing.New(cfg, storage, ai), Storage: storage, Logger: logger}
+	executor := worker.Worker{Repo: worker.NewRepository(db), Pipeline: processing.New(cfg, storage, ai), Storage: storage, Logger: logger, YouTubeImportApproved: app.YouTubeImportApproved}
 	return executor.Run(ctx)
 }

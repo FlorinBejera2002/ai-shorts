@@ -372,7 +372,7 @@ func TestPostgresCalendarFailedPostCanBePublishedAgain(t *testing.T) {
 		t.Fatal(err)
 	}
 	if _, err = db.Exec(`INSERT INTO social_posts(id,user_id,account_id,clip_id,provider,caption,options,idempotency_key,request_hash,media_reference,scheduled_post_id,status)
-		VALUES($1,$2,$3,$4,'instagram','{}','{}',$5,'previous-request','clips/fixture/video.mp4',$5,'failed')`, previousJob, user, account, clip, post.ID); err != nil {
+		VALUES($1,$2,$3,$4,'instagram','{}','{}',$5::text,'previous-request','clips/fixture/video.mp4',$5::uuid,'failed')`, previousJob, user, account, clip, post.ID); err != nil {
 		t.Fatal(err)
 	}
 
@@ -388,7 +388,7 @@ func TestPostgresCalendarFailedPostCanBePublishedAgain(t *testing.T) {
 		t.Fatalf("previous attempt still blocks retry: scheduled_post_id=%q idempotency_key=%q", detachedID, archivedKey)
 	}
 	if _, err = db.Exec(`INSERT INTO social_posts(id,user_id,account_id,clip_id,provider,caption,options,idempotency_key,request_hash,media_reference,scheduled_post_id)
-		VALUES($1,$2,$3,$4,'instagram','{}','{}',$5,'retry-request','clips/fixture/video.mp4',$5)`, fixtureID(t), user, account, clip, post.ID); err != nil {
+		VALUES($1,$2,$3,$4,'instagram','{}','{}',$5::text,'retry-request','clips/fixture/video.mp4',$5::uuid)`, fixtureID(t), user, account, clip, post.ID); err != nil {
 		t.Fatalf("new publication attempt still conflicts: %v", err)
 	}
 }
@@ -449,5 +449,62 @@ func TestPostgresCalendarRejectsUnsafeTikTokSelectionsBeforeValidation(t *testin
 	}
 	if !found || validator.calls != 0 {
 		t.Fatalf("multiple TikTok accounts did not fail atomically: %+v calls=%d", validation.Issues, validator.calls)
+	}
+}
+
+type recordingYouTubeValidator struct {
+	calls     int
+	accountID string
+	options   publishing.YouTubeOptions
+	field     string
+	err       error
+}
+
+func (v *recordingYouTubeValidator) ValidateYouTubeSchedule(_ context.Context, _ *sql.Tx, _ string, accountID string, options publishing.YouTubeOptions) (string, error) {
+	v.calls++
+	v.accountID, v.options = accountID, options
+	return v.field, v.err
+}
+
+func TestPostgresYouTubeOptionsPersistAndValidateOnScheduling(t *testing.T) {
+	db := testdb.Open(t)
+	ctx := context.Background()
+	user, _, clip := seedCalendarClip(t, db)
+	account := fixtureID(t)
+	if _, err := db.Exec(`INSERT INTO social_accounts(id,user_id,provider,remote_id,name,credentials,token_expires_at) VALUES($1,$2,'youtube','synthetic-channel','YouTube fixture','sealed',now()-interval '1 hour')`, account, user); err != nil {
+		t.Fatal(err)
+	}
+	validator := &recordingYouTubeValidator{field: "youtube", err: errors.New("Choose YouTube settings")}
+	repo := NewRepository(db, calendarMedia{})
+	repo.youtubeValidator = validator
+	input := validInput()
+	input["status"], input["clipId"], input["platforms"], input["accountIds"] = "draft", clip, []any{"youtube"}, []any{account}
+	post, err := repo.Mutate(ctx, user, "", input, true)
+	if err != nil || validator.calls != 0 {
+		t.Fatalf("draft: %v calls=%d", err, validator.calls)
+	}
+	_, err = repo.Mutate(ctx, user, post.ID, map[string]any{"status": "scheduled"}, false)
+	if err == nil || validator.calls != 1 {
+		t.Fatalf("schedule validation bypassed: %v calls=%d", err, validator.calls)
+	}
+	validator.field, validator.err = "", nil
+	options := map[string]any{"title": "YouTube title", "description": "YouTube description", "privacyStatus": "private", "madeForKids": false, "containsSyntheticMedia": false, "termsAccepted": true}
+	post, err = repo.Mutate(ctx, user, post.ID, map[string]any{"status": "scheduled", "youtube": options}, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if validator.accountID != account || validator.options.Title != "YouTube title" {
+		t.Fatalf("validator received wrong options: %+v", validator)
+	}
+	loaded, err := repo.Get(ctx, user, post.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if loaded.YouTube == nil || loaded.YouTube.Title != "YouTube title" || loaded.YouTube.MadeForKids == nil || *loaded.YouTube.MadeForKids {
+		t.Fatalf("options did not persist: %+v", loaded.YouTube)
+	}
+	_, err = repo.Mutate(ctx, user, post.ID, map[string]any{"clipId": nil, "media": []any{map[string]any{"type": "image", "reference": "publishing/" + user + "/photo.jpg", "name": "photo.jpg"}}}, false)
+	if err == nil {
+		t.Fatal("YouTube image schedule accepted")
 	}
 }

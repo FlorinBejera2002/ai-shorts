@@ -110,3 +110,44 @@ func TestHTTPRejectsViewerAndInvalidInputBeforeDatabase(t *testing.T) {
 		}
 	}
 }
+
+func TestYouTubeImportRequiresApprovalBeforeDNSLookup(t *testing.T) {
+	calls := 0
+	lookup := func(context.Context, string, string) ([]net.IP, error) {
+		calls++
+		return []net.IP{net.ParseIP("8.8.8.8")}, nil
+	}
+	h := New(nil, nil, nil, Config{LookupIP: lookup})
+	for _, sourceType := range []string{"youtube", "url"} {
+		for _, source := range []string{"https://youtube.com/watch?v=test", "https://youtu.be/test", "https://WWW.YOUTUBE.COM/watch?v=test"} {
+			if _, err := h.prepare(context.Background(), "user", CreateInput{SourceType: sourceType, SourceURL: &source}); err == nil {
+				t.Fatal("unapproved import accepted")
+			}
+		}
+	}
+	if calls != 0 {
+		t.Fatal("blocked imports must not perform URL lookup")
+	}
+	source := "https://youtube.com/watch?v=test"
+	h.cfg.YouTubeImportApproved = true
+	if _, err := h.prepare(context.Background(), "user", CreateInput{SourceType: "youtube", SourceURL: &source}); err != nil {
+		t.Fatal(err)
+	}
+	if calls != 1 {
+		t.Fatal("approved import must retain DNS validation")
+	}
+	h.cfg.YouTubeImportApproved = false
+	source = "https://media.example.com/original.mp4"
+	if _, err := h.prepare(context.Background(), "user", CreateInput{SourceType: "url", SourceURL: &source}); err != nil {
+		t.Fatalf("non-YouTube validation changed: %v", err)
+	}
+}
+
+func TestYouTubeImportGatePreservesOwnedUploadFlow(t *testing.T) {
+	h := New(nil, nil, testMedia{}, Config{})
+	key := "uploads/user/original.mp4"
+	_, err := h.prepare(context.Background(), "user", CreateInput{SourceType: "upload", SourceStorageKey: &key})
+	if err == nil || err.Error() != "invalid owned upload" {
+		t.Fatalf("upload did not reach ownership validation: %v", err)
+	}
+}

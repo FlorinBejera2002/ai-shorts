@@ -1543,7 +1543,7 @@
       "instagram": "Business and Creator accounts · Instagram Reels",
       "facebook": "Pages you manage · Facebook Reels",
       "tiktok": "Your TikTok account · video posts",
-      "youtube": "Your YouTube channel · calendar planning",
+      "youtube": "Your YouTube channel · video uploads",
       "linkedin": "Your LinkedIn profile or organization · video posts",
       "twitter": "Your X account · video posts"
     },
@@ -1634,6 +1634,27 @@
     "autoAddMusicHint": "Let TikTok choose music for this photo post.",
     "instagramOptions": "Instagram Preferences",
     "instagramComments": "Comments",
-    "instagramShareToFeed": "Share to Feed"
+    "instagramShareToFeed": "Share to Feed",
+    "youtubeSettingsRequired": "Review every YouTube setting and confirm the upload terms."
+  },
+  "youtubePublishing": {
+    "heading": "YouTube upload",
+    "channel": "Publishing to channel: {name}",
+    "title": "YouTube video title (up to 100 characters)",
+    "description": "YouTube description (up to 5,000 UTF-8 bytes)",
+    "privacy": "Visibility",
+    "private": "Private",
+    "unlisted": "Unlisted",
+    "public": "Public",
+    "auditRestriction": "Uploads are restricted to Private until YouTube approves the application audit. You can review the video in YouTube Studio.",
+    "madeForKids": "Is this video made for kids?",
+    "containsSyntheticMedia": "Does this video contain realistic altered or synthetic content?",
+    "choose": "Choose explicitly",
+    "yes": "Yes",
+    "no": "No",
+    "notifySubscribers": "Notify channel subscribers",
+    "reviewConsent": "I reviewed the channel, title, description and visibility, and agree to the <terms>YouTube Terms of Service</terms> for this upload.",
+    "connectionConsent": "I agree to the <terms>YouTube Terms of Service</terms> and acknowledge the <privacy>Privacy Policy</privacy> for connecting my channel and uploading selected videos.",
+    "reconnect": "Reconnect YouTube to grant upload access or renew revoked access."
   }
 }

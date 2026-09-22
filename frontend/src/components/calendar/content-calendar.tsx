@@ -468,6 +468,7 @@ export function ContentCalendar() {
           }
           post={dialog.mode === 'create' ? undefined : dialog.post}
           clips={clips}
+          youtubeAuditApproved={publishingData?.providers.find(provider => provider.id === 'youtube')?.youtubeAuditApproved === true}
           publishingClips={publishingData?.clips ?? []}
           publishingAccounts={publishingAccounts}
           platformConnectionsLoaded={publishingData !== null}

@@ -123,8 +123,9 @@ Facebook uses `pages_show_list`, `pages_read_engagement`, `pages_manage_posts`.
 Instagram uses Instagram API with Instagram Login and separate product credentials,
 with `instagram_business_basic` and `instagram_business_content_publish`.
 TikTok uses `user.info.basic` and `video.publish`.
-YouTube connections use `youtube.readonly` to identify channels for calendar
-planning. Direct YouTube upload is not enabled by this connection-only rollout.
+YouTube uses `youtube.readonly` and `youtube.upload` for channel connection and
+user-confirmed video publishing. See [the YouTube integration guide](youtube-integration.md)
+for current migrations, Google setup, private-only audit mode and data lifecycle.
 
 ## Behavior and limitations
 

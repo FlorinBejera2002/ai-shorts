@@ -98,7 +98,7 @@ func buildApplication(db *sql.DB, cfg config.Config, a config.Application, logge
 		return nil, noop, err
 	}
 	clipHandler := clips.New(db, auth, mediaService, clips.Config{MaxClipDuration: a.MaxClipDuration})
-	publishingHandler, err := publishing.New(db, auth, mediaService, publishing.Config{ProviderConfig: publishing.ProviderConfig{AppURL: a.AppURL, MetaAppID: a.MetaAppID, MetaAppSecret: a.MetaAppSecret, InstagramAppID: a.InstagramAppID, InstagramAppSecret: a.InstagramAppSecret, TikTokClientKey: a.TikTokClientKey, TikTokClientSecret: a.TikTokClientSecret, YouTubeClientID: a.YouTubeClientID, YouTubeClientSecret: a.YouTubeClientSecret, GraphVersion: a.MetaGraphVersion, TikTokVerifiedURLPrefix: a.TikTokVerifiedURLPrefix}, EncryptionKey: a.SocialEncryptionKey, Enabled: a.SocialPublishingEnabled})
+	publishingHandler, err := publishing.New(db, auth, mediaService, publishing.Config{ProviderConfig: publishing.ProviderConfig{AppURL: a.AppURL, MetaAppID: a.MetaAppID, MetaAppSecret: a.MetaAppSecret, InstagramAppID: a.InstagramAppID, InstagramAppSecret: a.InstagramAppSecret, TikTokClientKey: a.TikTokClientKey, TikTokClientSecret: a.TikTokClientSecret, YouTubeClientID: a.YouTubeClientID, YouTubeClientSecret: a.YouTubeClientSecret, YouTubeMediaURLPrefix: a.YouTubeMediaURLPrefix, YouTubeAuditApproved: a.YouTubeAuditApproved, GraphVersion: a.MetaGraphVersion, TikTokVerifiedURLPrefix: a.TikTokVerifiedURLPrefix}, EncryptionKey: a.SocialEncryptionKey, Enabled: a.SocialPublishingEnabled})
 	if err != nil {
 		cleanup()
 		return nil, noop, err
@@ -132,6 +132,6 @@ func buildApplication(db *sql.DB, cfg config.Config, a config.Application, logge
 			httpx.JSON(w, status, map[string]any{"ready": status == 200, "database": database, "schema": schema, "redis": redisReady})
 		})
 	}
-	handler := httpapi.New(logger, cfg.Environment, version, auth.Register, media.NewHandler(mediaService, auth).Register, jobs.New(db, auth, mediaService, jobs.Config{}).Register, projects.New(db, auth, mediaService).Register, clipHandler.Register, brand.New(db, auth, mediaService).Register, calendar.New(db, auth, mediaService, publishingHandler).Register, billingService.Register, account.New(db, auth, mediaService, billingService, account.Config{MFA: accounts}).Register, dashboard.New(db, auth, clipHandler).Register, scripts.NewWithDB(db, auth, generator).Register, assistant.New(db, auth, generator).Register, publishingHandler.Register, readiness)
+	handler := httpapi.New(logger, cfg.Environment, version, auth.Register, media.NewHandler(mediaService, auth).Register, jobs.New(db, auth, mediaService, jobs.Config{YouTubeImportApproved: a.YouTubeImportApproved}).Register, projects.New(db, auth, mediaService).Register, clipHandler.Register, brand.New(db, auth, mediaService).Register, calendar.New(db, auth, mediaService, publishingHandler).Register, billingService.Register, account.New(db, auth, mediaService, billingService, account.Config{MFA: accounts}).Register, dashboard.New(db, auth, clipHandler).Register, scripts.NewWithDB(db, auth, generator).Register, assistant.New(db, auth, generator).Register, publishingHandler.Register, readiness)
 	return httpapi.Policy(auth.Policy(handler), httpapi.PolicyConfig{AllowedHosts: a.AllowedHosts}), cleanup, nil
 }

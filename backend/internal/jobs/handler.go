@@ -25,7 +25,10 @@ type Media interface {
 	ValidateUploadSource(context.Context, string, string) (string, error)
 	WorkerSource(context.Context, string) (string, error)
 }
-type Config struct{ LookupIP LookupIP }
+type Config struct {
+	LookupIP              LookupIP
+	YouTubeImportApproved bool
+}
 type Handler struct {
 	repo  *Repository
 	auth  Auth
@@ -93,6 +96,9 @@ func decode(w http.ResponseWriter, r *http.Request, dst any) bool {
 }
 func (h *Handler) prepare(ctx context.Context, userID string, p CreateInput) (Prepared, error) {
 	if !empty(p.SourceURL) {
+		if !h.cfg.YouTubeImportApproved && RequiresYouTubeImportApproval(p.SourceType, *p.SourceURL) {
+			return Prepared{}, errors.New("Video link imports are unavailable. Upload your original video file instead")
+		}
 		err := ValidateSourceURL(ctx, h.cfg.LookupIP, p.SourceType, *p.SourceURL)
 		return Prepared{Input: p, WorkerSource: *p.SourceURL}, err
 	}

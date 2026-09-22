@@ -32,6 +32,9 @@ func New(db *sql.DB, auth *identity.Handler, media Media, remote ...RemotePostDe
 		tiktokValidator, _ = remote[0].(TikTokScheduleValidator)
 	}
 	h.repository = NewRepository(db, media, tiktokValidator)
+	if len(remote) > 0 {
+		h.repository.youtubeValidator, _ = remote[0].(YouTubeScheduleValidator)
+	}
 	return h
 }
 func (h *Handler) Register(router *httprouter.Router) {

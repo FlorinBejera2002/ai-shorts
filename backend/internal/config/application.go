@@ -12,6 +12,9 @@ import (
 
 // Application carries validated process settings into focused feature adapters.
 type Application struct {
+	YouTubeMediaURLPrefix                                                                                                                                                                                   string
+	YouTubeAuditApproved                                                                                                                                                                                    bool
+	YouTubeImportApproved                                                                                                                                                                                   bool
 	SocialEncryptionKey, MetaAppID, MetaAppSecret, InstagramAppID, InstagramAppSecret, TikTokClientKey, TikTokClientSecret, YouTubeClientID, YouTubeClientSecret, MetaGraphVersion, TikTokVerifiedURLPrefix string
 	SocialPublishingEnabled                                                                                                                                                                                 bool
 	AppURL, RedisURL, MediaRoot, StorageType, PublicMediaURL, SigningSecret, UploadSecret, StagingDirectory, DirectUploadURL                                                                                string
@@ -77,6 +80,18 @@ func ApplicationFromEnv(getenv func(string) string, environment string) (Applica
 	a.TikTokClientSecret = getenv("TIKTOK_CLIENT_SECRET")
 	a.YouTubeClientID = getenv("YOUTUBE_CLIENT_ID")
 	a.YouTubeClientSecret = getenv("YOUTUBE_CLIENT_SECRET")
+	a.YouTubeMediaURLPrefix = value("YOUTUBE_MEDIA_URL_PREFIX", a.PublicMediaURL)
+	if a.YouTubeMediaURLPrefix == "" {
+		a.YouTubeMediaURLPrefix = a.AppURL + "/media/"
+	}
+	a.YouTubeImportApproved, err = parseBool("YOUTUBE_IMPORT_APPROVED", false)
+	if err != nil {
+		return a, err
+	}
+	a.YouTubeAuditApproved, err = parseBool("YOUTUBE_AUDIT_APPROVED", false)
+	if err != nil {
+		return a, err
+	}
 	a.MetaGraphVersion = value("META_GRAPH_VERSION", "v23.0")
 	a.TikTokVerifiedURLPrefix = getenv("TIKTOK_VERIFIED_URL_PREFIX")
 	a.SocialPublishingEnabled, err = parseBool("SOCIAL_PUBLISHING_ENABLED", false)

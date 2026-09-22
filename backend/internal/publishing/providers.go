@@ -16,6 +16,8 @@ type ProviderConfig struct {
 	AppURL, MetaAppID, MetaAppSecret, InstagramAppID, InstagramAppSecret       string
 	TikTokClientKey, TikTokClientSecret, TikTokVerifiedURLPrefix, GraphVersion string
 	YouTubeClientID, YouTubeClientSecret                                       string
+	YouTubeMediaURLPrefix                                                      string
+	YouTubeAuditApproved                                                       bool
 }
 type Credentials struct {
 	AccessToken, RefreshToken string
@@ -133,7 +135,7 @@ func (p *ProviderClient) Authorize(provider, state, verifier string) (string, er
 	case "youtube":
 		endpoint = "https://accounts.google.com/o/oauth2/v2/auth"
 		q.Set("client_id", p.config.YouTubeClientID)
-		q.Set("scope", "https://www.googleapis.com/auth/youtube.readonly")
+		q.Set("scope", youtubeScopes)
 		q.Set("access_type", "offline")
 		q.Set("include_granted_scopes", "true")
 		q.Set("prompt", "consent")
@@ -181,6 +183,10 @@ func (p *ProviderClient) execute(req *http.Request, out any) error {
 	if err != nil {
 		return errors.New("provider response could not be read")
 	}
+	// Google revocation returns HTTP 200 with an empty body on success.
+	if out == nil && res.StatusCode >= 200 && res.StatusCode < 300 && len(strings.TrimSpace(string(raw))) == 0 {
+		return nil
+	}
 	var envelope struct {
 		Error json.RawMessage `json:"error"`
 	}
@@ -196,11 +202,20 @@ func (p *ProviderClient) execute(req *http.Request, out any) error {
 	providerCode := ""
 	if len(envelope.Error) > 0 && string(envelope.Error) != "null" {
 		var e struct {
-			Code json.RawMessage `json:"code"`
+			Code   json.RawMessage `json:"code"`
+			Errors []struct {
+				Reason string `json:"reason"`
+			} `json:"errors"`
 		}
 		_ = json.Unmarshal(envelope.Error, &e)
 		if string(e.Code) != "\"ok\"" {
 			_ = json.Unmarshal(e.Code, &providerCode)
+			if providerCode == "" {
+				_ = json.Unmarshal(envelope.Error, &providerCode)
+			}
+			if providerCode == "" && len(e.Errors) > 0 {
+				providerCode = e.Errors[0].Reason
+			}
 			if res.StatusCode == http.StatusTooManyRequests {
 				return errTikTokCreatorTemporarilyUnavailable
 			}
@@ -306,6 +321,9 @@ func (p *ProviderClient) Exchange(ctx context.Context, provider, code, verifier 
 	}
 	if tok.AccessToken == "" {
 		return nil, errors.New("provider did not return an access token")
+	}
+	if provider == "youtube" && (!youtubeScopesGranted(tok.Scope) || tok.RefreshToken == "") {
+		return nil, errors.New("grant YouTube channel and upload permissions with offline access; reconnect YouTube")
 	}
 	if provider == "tiktok" {
 		publishingGranted := false
@@ -644,6 +662,9 @@ func (p *ProviderClient) PublishMedia(ctx context.Context, provider, account str
 	return "", "failed", errors.New("unsupported provider")
 }
 func (p *ProviderClient) Poll(ctx context.Context, provider, job string, c Credentials) (string, string, error) {
+	if provider == "youtube" {
+		return p.pollYouTube(ctx, job, c)
+	}
 	if provider == "tiktok" {
 		var r struct {
 			Data struct {
@@ -808,7 +829,11 @@ func (p *ProviderClient) Revoke(ctx context.Context, provider string, c Credenti
 		return p.request(ctx, "DELETE", p.graph(provider, "me/permissions"), c.AccessToken, nil, nil, nil)
 	}
 	if provider == "youtube" {
-		return p.request(ctx, "POST", "https://oauth2.googleapis.com/revoke", "", url.Values{"token": {c.AccessToken}}, nil, nil)
+		token := c.RefreshToken
+		if token == "" {
+			token = c.AccessToken
+		}
+		return p.request(ctx, "POST", "https://oauth2.googleapis.com/revoke", "", url.Values{"token": {token}}, nil, nil)
 	}
 	return errors.New("unsupported provider")
 }

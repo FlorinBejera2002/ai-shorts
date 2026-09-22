@@ -34,7 +34,7 @@ func TestPostgresAuthenticatedJobHTTPContracts(t *testing.T) {
 	}
 	auth := identity.NewHandler(service, identity.HTTPConfig{}, slog.New(slog.NewTextHandler(io.Discard, nil)))
 	router := httprouter.New()
-	New(db, auth, testMedia{}, Config{LookupIP: func(context.Context, string, string) ([]net.IP, error) { return []net.IP{net.ParseIP("8.8.8.8")}, nil }}).Register(router)
+	New(db, auth, testMedia{}, Config{YouTubeImportApproved: true, LookupIP: func(context.Context, string, string) ([]net.IP, error) { return []net.IP{net.ParseIP("8.8.8.8")}, nil }}).Register(router)
 	call := func(method, path, body string) *httptest.ResponseRecorder {
 		req := httptest.NewRequest(method, path, strings.NewReader(body))
 		req.Header.Set("Authorization", "Bearer "+login.AccessToken)

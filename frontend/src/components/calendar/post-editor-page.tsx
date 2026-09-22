@@ -150,6 +150,7 @@ export function PostEditorPage({ postId }: { postId?: string }) {
       initialClipId={search.get('clip') ?? undefined}
       post={post ? normalizeScheduledPost(post) : undefined}
       clips={calendarData.clips}
+      youtubeAuditApproved={publishingData.providers.find(provider => provider.id === 'youtube')?.youtubeAuditApproved === true}
       publishingClips={publishingData.clips}
       publishingAccounts={accounts}
       platformConnectionsLoaded={true}

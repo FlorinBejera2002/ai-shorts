@@ -52,6 +52,10 @@ func ValidateMediaTypes(provider string, types []string) error {
 		}
 	}
 	switch provider {
+	case "youtube":
+		if len(types) != 1 || videos != 1 {
+			return errors.New("YouTube supports one video per post")
+		}
 	case "instagram":
 		if len(types) > 10 {
 			return errors.New("Instagram supports up to 10 images or videos")

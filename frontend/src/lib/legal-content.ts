@@ -36,8 +36,8 @@ export type LegalDocumentCopy = {
 }
 
 const updated = {
-  en: 'Last updated: September 16, 2026',
-  ro: 'Ultima actualizare: 16 septembrie 2026'
+  en: 'Last updated: September 22, 2026',
+  ro: 'Ultima actualizare: 22 septembrie 2026'
 } as const
 
 export const PRIVACY_COPY: Record<SiteLocale, LegalDocumentCopy> = {
@@ -47,6 +47,30 @@ export const PRIVACY_COPY: Record<SiteLocale, LegalDocumentCopy> = {
     intro:
       'This policy explains how Sneep Cut collects, uses, shares, and protects personal data when you visit the website, create an account, upload media, use AI-assisted tools, connect social accounts, publish content, or manage a plan.',
     sections: [
+      {
+        title: 'YouTube API Services and Google user data',
+        paragraphs: [
+          'Sneep Cut uses YouTube API Services. By using these features you agree to the YouTube Terms of Service. Google processes information under its Privacy Policy.',
+          'With your authorization, we access channel identifiers, name, thumbnail, granted permissions and upload status. We store OAuth access and refresh tokens encrypted and use them only to identify your channel, maintain the connection, and upload videos you select with the title, description, visibility and audience choices you approve. We do not download YouTube audiovisual content through this connection or use YouTube API data for AI training, advertising or sale.',
+          'You may revoke access through Google account permissions or disconnect YouTube in the Calendar connection settings. Disconnecting immediately deletes locally stored YouTube credentials, channel metadata and associated YouTube publishing API records. Videos already uploaded remain on YouTube until you delete them there. Your original uploaded files and independently created projects follow the general retention controls.',
+          'We validate YouTube authorization and refresh channel information daily. If access is revoked, the associated API data is deleted; if authorization cannot be verified, that data is purged within seven days of the last verification. Stored channel information is refreshed or deleted within thirty days. You may also request deletion at admin@sneepcut.com; YouTube API user-data requests are fulfilled as soon as possible and within seven calendar days.',
+          'Access, use, storage and sharing of Google user data comply with the Google API Services User Data Policy, including its Limited Use requirements. Data is shared only with Google for your requested upload and necessary service providers under the safeguards described in this policy.'
+        ],
+        links: [
+          {
+            label: 'YouTube Terms of Service',
+            href: 'https://www.youtube.com/t/terms'
+          },
+          {
+            label: 'Google Privacy Policy',
+            href: 'https://policies.google.com/privacy'
+          },
+          {
+            label: 'Google account permissions',
+            href: 'https://myaccount.google.com/permissions'
+          }
+        ]
+      },
       {
         title: '1. Controller, processor roles, and scope',
         paragraphs: [
@@ -168,6 +192,30 @@ export const PRIVACY_COPY: Record<SiteLocale, LegalDocumentCopy> = {
     intro:
       'Această politică explică modul în care Sneep Cut colectează, folosește, transmite și protejează datele cu caracter personal când vizitezi site-ul, creezi un cont, încarci fișiere media, folosești instrumente asistate de AI, conectezi conturi sociale, publici conținut sau administrezi un plan.',
     sections: [
+      {
+        title: 'Serviciile API YouTube și datele utilizatorilor Google',
+        paragraphs: [
+          'Sneep Cut utilizează serviciile API YouTube. Prin utilizarea acestor funcții accepți Termenii YouTube. Google prelucrează informațiile conform Politicii sale de confidențialitate.',
+          'Cu autorizarea ta, accesăm identificatorii canalului, numele, miniatura, permisiunile acordate și starea încărcărilor. Stocăm criptat tokenurile OAuth de acces și reînnoire și le folosim numai pentru identificarea canalului, menținerea conexiunii și încărcarea videoclipurilor selectate de tine cu titlul, descrierea, vizibilitatea și opțiunile de audiență aprobate. Nu descărcăm conținut audiovizual YouTube prin această conexiune și nu folosim datele API YouTube pentru antrenarea AI, publicitate sau vânzare.',
+          'Poți revoca accesul din permisiunile contului Google sau deconecta YouTube din setările conexiunilor din Calendar. Deconectarea șterge imediat credențialele YouTube, metadatele canalului și înregistrările API ale publicărilor YouTube stocate local. Videoclipurile încărcate rămân pe YouTube până când le ștergi acolo. Fișierele originale încărcate și proiectele create independent urmează regulile generale de retenție.',
+          'Verificăm zilnic autorizarea YouTube și actualizăm informațiile canalului. Dacă accesul este revocat, datele API asociate sunt șterse; dacă autorizarea nu poate fi verificată, datele sunt eliminate în maximum șapte zile de la ultima verificare. Informațiile canalului sunt actualizate sau șterse în maximum treizeci de zile. Poți solicita ștergerea și la admin@sneepcut.com; cererile privind datele API YouTube sunt îndeplinite cât mai repede, în maximum șapte zile calendaristice.',
+          'Accesarea, utilizarea, stocarea și partajarea datelor Google respectă Google API Services User Data Policy, inclusiv cerințele Limited Use. Datele sunt partajate numai cu Google pentru încărcarea cerută și cu furnizorii necesari serviciului, conform garanțiilor din această politică.'
+        ],
+        links: [
+          {
+            label: 'YouTube Terms of Service',
+            href: 'https://www.youtube.com/t/terms'
+          },
+          {
+            label: 'Google Privacy Policy',
+            href: 'https://policies.google.com/privacy'
+          },
+          {
+            label: 'Google account permissions',
+            href: 'https://myaccount.google.com/permissions'
+          }
+        ]
+      },
       {
         title: '1. Operator, persoană împuternicită și domeniu',
         paragraphs: [
@@ -293,6 +341,30 @@ export const TERMS_COPY: Record<SiteLocale, LegalDocumentCopy> = {
       'These Terms govern access to Sneep Cut. By creating an account or using the service, you enter into an agreement with GENESIS PROCUREMENT S.R.L. Please read the linked policies together with these Terms.',
     sections: [
       {
+        title: 'YouTube API Services and Google user data',
+        paragraphs: [
+          'Sneep Cut uses YouTube API Services. By using these features you agree to the YouTube Terms of Service. Google processes information under its Privacy Policy.',
+          'With your authorization, we access channel identifiers, name, thumbnail, granted permissions and upload status. We store OAuth access and refresh tokens encrypted and use them only to identify your channel, maintain the connection, and upload videos you select with the title, description, visibility and audience choices you approve. We do not download YouTube audiovisual content through this connection or use YouTube API data for AI training, advertising or sale.',
+          'You may revoke access through Google account permissions or disconnect YouTube in the Calendar connection settings. Disconnecting immediately deletes locally stored YouTube credentials, channel metadata and associated YouTube publishing API records. Videos already uploaded remain on YouTube until you delete them there. Your original uploaded files and independently created projects follow the general retention controls.',
+          'We validate YouTube authorization and refresh channel information daily. If access is revoked, the associated API data is deleted; if authorization cannot be verified, that data is purged within seven days of the last verification. Stored channel information is refreshed or deleted within thirty days. You may also request deletion at admin@sneepcut.com; YouTube API user-data requests are fulfilled as soon as possible and within seven calendar days.',
+          'Access, use, storage and sharing of Google user data comply with the Google API Services User Data Policy, including its Limited Use requirements. Data is shared only with Google for your requested upload and necessary service providers under the safeguards described in this policy.'
+        ],
+        links: [
+          {
+            label: 'YouTube Terms of Service',
+            href: 'https://www.youtube.com/t/terms'
+          },
+          {
+            label: 'Google Privacy Policy',
+            href: 'https://policies.google.com/privacy'
+          },
+          {
+            label: 'Google account permissions',
+            href: 'https://myaccount.google.com/permissions'
+          }
+        ]
+      },
+      {
         title: '1. Operator and agreement',
         paragraphs: [
           `${LEGAL_OPERATOR.brand} is a service of ${LEGAL_OPERATOR.legalName}, CUI ${LEGAL_OPERATOR.taxId}, Trade Register ${LEGAL_OPERATOR.tradeRegister}, registered office ${LEGAL_OPERATOR.address}. These Terms, the Privacy Policy, Acceptable Use Policy, Refund and Cancellation Policy, and the order information shown at checkout form the applicable agreement.`,
@@ -403,6 +475,30 @@ export const TERMS_COPY: Record<SiteLocale, LegalDocumentCopy> = {
     intro:
       'Acești Termeni reglementează accesul la Sneep Cut. Prin crearea unui cont sau utilizarea serviciului închei un acord cu GENESIS PROCUREMENT S.R.L. Citește și politicile menționate împreună cu acești Termeni.',
     sections: [
+      {
+        title: 'Serviciile API YouTube și datele utilizatorilor Google',
+        paragraphs: [
+          'Sneep Cut utilizează serviciile API YouTube. Prin utilizarea acestor funcții accepți Termenii YouTube. Google prelucrează informațiile conform Politicii sale de confidențialitate.',
+          'Cu autorizarea ta, accesăm identificatorii canalului, numele, miniatura, permisiunile acordate și starea încărcărilor. Stocăm criptat tokenurile OAuth de acces și reînnoire și le folosim numai pentru identificarea canalului, menținerea conexiunii și încărcarea videoclipurilor selectate de tine cu titlul, descrierea, vizibilitatea și opțiunile de audiență aprobate. Nu descărcăm conținut audiovizual YouTube prin această conexiune și nu folosim datele API YouTube pentru antrenarea AI, publicitate sau vânzare.',
+          'Poți revoca accesul din permisiunile contului Google sau deconecta YouTube din setările conexiunilor din Calendar. Deconectarea șterge imediat credențialele YouTube, metadatele canalului și înregistrările API ale publicărilor YouTube stocate local. Videoclipurile încărcate rămân pe YouTube până când le ștergi acolo. Fișierele originale încărcate și proiectele create independent urmează regulile generale de retenție.',
+          'Verificăm zilnic autorizarea YouTube și actualizăm informațiile canalului. Dacă accesul este revocat, datele API asociate sunt șterse; dacă autorizarea nu poate fi verificată, datele sunt eliminate în maximum șapte zile de la ultima verificare. Informațiile canalului sunt actualizate sau șterse în maximum treizeci de zile. Poți solicita ștergerea și la admin@sneepcut.com; cererile privind datele API YouTube sunt îndeplinite cât mai repede, în maximum șapte zile calendaristice.',
+          'Accesarea, utilizarea, stocarea și partajarea datelor Google respectă Google API Services User Data Policy, inclusiv cerințele Limited Use. Datele sunt partajate numai cu Google pentru încărcarea cerută și cu furnizorii necesari serviciului, conform garanțiilor din această politică.'
+        ],
+        links: [
+          {
+            label: 'YouTube Terms of Service',
+            href: 'https://www.youtube.com/t/terms'
+          },
+          {
+            label: 'Google Privacy Policy',
+            href: 'https://policies.google.com/privacy'
+          },
+          {
+            label: 'Google account permissions',
+            href: 'https://myaccount.google.com/permissions'
+          }
+        ]
+      },
       {
         title: '1. Operator și acord',
         paragraphs: [

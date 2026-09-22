@@ -29,6 +29,10 @@ type TikTokScheduleValidator interface {
 	PrepareTikTokSchedule(context.Context, string, []string) (string, error)
 	ValidateTikTokSchedule(context.Context, *sql.Tx, string, string, string, string, publishing.TikTokOptions) (string, error)
 }
+type YouTubeScheduleValidator interface {
+	ValidateYouTubeSchedule(context.Context, *sql.Tx, string, string, publishing.YouTubeOptions) (string, error)
+}
+
 type PostClip struct {
 	ID             string  `json:"id"`
 	Title          string  `json:"title"`
@@ -44,22 +48,23 @@ type ClipOption struct {
 	CaptionYoutube   *string `json:"captionYoutube"`
 }
 type Post struct {
-	ID                     string                     `json:"id"`
-	Title                  string                     `json:"title"`
-	Caption                *string                    `json:"caption"`
-	Notes                  *string                    `json:"notes"`
-	Platforms              []string                   `json:"platforms"`
-	AccountIDs             []string                   `json:"accountIds"`
-	Status                 string                     `json:"status"`
-	PublishingError        string                     `json:"publishingError,omitempty"`
-	PublishingDestinations []PublishingDestination    `json:"publishingDestinations"`
-	ScheduledAt            string                     `json:"scheduledAt"`
-	CreatedAt              string                     `json:"createdAt"`
-	UpdatedAt              string                     `json:"updatedAt"`
-	Clip                   *PostClip                  `json:"clip"`
-	Media                  []map[string]string        `json:"media"`
-	TikTok                 *publishing.TikTokOptions  `json:"tiktok,omitempty"`
+	ID                     string                       `json:"id"`
+	Title                  string                       `json:"title"`
+	Caption                *string                      `json:"caption"`
+	Notes                  *string                      `json:"notes"`
+	Platforms              []string                     `json:"platforms"`
+	AccountIDs             []string                     `json:"accountIds"`
+	Status                 string                       `json:"status"`
+	PublishingError        string                       `json:"publishingError,omitempty"`
+	PublishingDestinations []PublishingDestination      `json:"publishingDestinations"`
+	ScheduledAt            string                       `json:"scheduledAt"`
+	CreatedAt              string                       `json:"createdAt"`
+	UpdatedAt              string                       `json:"updatedAt"`
+	Clip                   *PostClip                    `json:"clip"`
+	Media                  []map[string]string          `json:"media"`
+	TikTok                 *publishing.TikTokOptions    `json:"tiktok,omitempty"`
 	Instagram              *publishing.InstagramOptions `json:"instagram,omitempty"`
+	YouTube                *publishing.YouTubeOptions   `json:"youtube,omitempty"`
 }
 type PublishingDestination struct {
 	Provider    string `json:"provider"`
@@ -71,15 +76,17 @@ type PublishingDestination struct {
 	UpdatedAt   string `json:"updatedAt"`
 }
 type Repository struct {
-	db              *sql.DB
-	media           Media
-	tiktokValidator TikTokScheduleValidator
+	db               *sql.DB
+	media            Media
+	tiktokValidator  TikTokScheduleValidator
+	youtubeValidator YouTubeScheduleValidator
 }
 
 func NewRepository(db *sql.DB, media Media, validators ...TikTokScheduleValidator) *Repository {
 	repository := &Repository{db: db, media: media}
 	if len(validators) > 0 {
 		repository.tiktokValidator = validators[0]
+		repository.youtubeValidator, _ = validators[0].(YouTubeScheduleValidator)
 	}
 	return repository
 }
@@ -104,7 +111,7 @@ func (s *Repository) thumbnail(ctx context.Context, references ...sql.NullString
 	return nil
 }
 
-const postSelect = `SELECT p.id,p.title,p.caption,p.notes,p.platforms,p.account_ids,p.status,p.publishing_error,p.scheduled_at,p.created_at,p.updated_at,p.media,p.tiktok_options,p.instagram_options,
+const postSelect = `SELECT p.id,p.title,p.caption,p.notes,p.platforms,p.account_ids,p.status,p.publishing_error,p.scheduled_at,p.created_at,p.updated_at,p.media,p.tiktok_options,p.instagram_options,p.youtube_options,
 	c.id,c.title,c.viral_score,c.duration,COALESCE(NULLIF(c.tiktok_file_storage_key,''),NULLIF(c.file_storage_key,''),NULLIF(c.file_path,''),c.file_url,'')<>'',c.thumbnail_storage_key,c.thumbnail_path,c.thumbnail_url,
 	COALESCE((SELECT jsonb_agg(jsonb_build_object(
 		'provider',sp.provider,'accountName',COALESCE(NULLIF(a.username,''),NULLIF(a.name,''),sp.provider),
@@ -121,8 +128,8 @@ func (s *Repository) readPost(ctx context.Context, row rowScanner) (Post, error)
 	var clipID, clipTitle, thumbKey, thumbPath, thumbURL sql.NullString
 	var score, duration sql.NullFloat64
 	var tiktokEligible bool
-	var destinations, mediaJSON, tiktokJSON, igJSON []byte
-	e := row.Scan(&p.ID, &p.Title, &p.Caption, &p.Notes, pq.Array(&p.Platforms), pq.Array(&p.AccountIDs), &p.Status, &p.PublishingError, &scheduled, &created, &updated, &mediaJSON, &tiktokJSON, &igJSON, &clipID, &clipTitle, &score, &duration, &tiktokEligible, &thumbKey, &thumbPath, &thumbURL, &destinations)
+	var destinations, mediaJSON, tiktokJSON, igJSON, youtubeJSON []byte
+	e := row.Scan(&p.ID, &p.Title, &p.Caption, &p.Notes, pq.Array(&p.Platforms), pq.Array(&p.AccountIDs), &p.Status, &p.PublishingError, &scheduled, &created, &updated, &mediaJSON, &tiktokJSON, &igJSON, &youtubeJSON, &clipID, &clipTitle, &score, &duration, &tiktokEligible, &thumbKey, &thumbPath, &thumbURL, &destinations)
 	if e != nil {
 		return p, e
 	}
@@ -153,6 +160,17 @@ func (s *Repository) readPost(ctx context.Context, row rowScanner) (Post, error)
 			return p, e
 		}
 		p.Instagram = &igOptions
+	}
+	var persistedYouTube map[string]any
+	if e = json.Unmarshal(youtubeJSON, &persistedYouTube); e != nil {
+		return p, e
+	}
+	if len(persistedYouTube) > 0 {
+		var options publishing.YouTubeOptions
+		if e = json.Unmarshal(youtubeJSON, &options); e != nil {
+			return p, e
+		}
+		p.YouTube = &options
 	}
 	p.ScheduledAt = isoDate(scheduled)
 	p.CreatedAt = isoDate(created)
@@ -333,10 +351,10 @@ func (s *Repository) Mutate(ctx context.Context, userID, id string, input map[st
 	var currentStatus string
 	var currentClip sql.NullString
 	var currentCaption sql.NullString
-	var currentTikTokJSON, currentIGJSON []byte
+	var currentTikTokJSON, currentIGJSON, currentYouTubeJSON []byte
 	var currentPlatforms, currentAccountIDs pq.StringArray
 	if !create {
-		e = tx.QueryRowContext(ctx, `SELECT status,clip_id,caption,platforms,account_ids,tiktok_options,instagram_options FROM scheduled_posts WHERE id=$1 AND user_id=$2 FOR UPDATE`, id, userID).Scan(&currentStatus, &currentClip, &currentCaption, &currentPlatforms, &currentAccountIDs, &currentTikTokJSON, &currentIGJSON)
+		e = tx.QueryRowContext(ctx, `SELECT status,clip_id,caption,platforms,account_ids,tiktok_options,instagram_options,youtube_options FROM scheduled_posts WHERE id=$1 AND user_id=$2 FOR UPDATE`, id, userID).Scan(&currentStatus, &currentClip, &currentCaption, &currentPlatforms, &currentAccountIDs, &currentTikTokJSON, &currentIGJSON, &currentYouTubeJSON)
 		if e != nil {
 			return empty, e
 		}
@@ -405,6 +423,15 @@ func (s *Repository) Mutate(ctx context.Context, userID, id string, input map[st
 	if value, ok := fields["instagram"]; ok {
 		igOptions = value.(publishing.InstagramOptions)
 	}
+	youtubeOptions := publishing.YouTubeOptions{}
+	if !create && len(currentYouTubeJSON) > 0 {
+		if e = json.Unmarshal(currentYouTubeJSON, &youtubeOptions); e != nil {
+			return empty, e
+		}
+	}
+	if value, ok := fields["youtube"]; ok {
+		youtubeOptions = value.(publishing.YouTubeOptions)
+	}
 	if status == "scheduled" {
 		issues := []Issue{}
 		var selectedMedia []map[string]string
@@ -434,7 +461,7 @@ func (s *Repository) Mutate(ctx context.Context, userID, id string, input map[st
 		accounts := []selectedAccount{}
 		providers := []string{}
 		if len(accountIDs) > 0 {
-			rows, queryErr := tx.QueryContext(ctx, `SELECT id,provider FROM social_accounts WHERE user_id=$1 AND status='connected' AND (provider='tiktok' OR COALESCE(token_expires_at>now(),true)) AND id=ANY($2::uuid[])`, userID, pq.Array(accountIDs))
+			rows, queryErr := tx.QueryContext(ctx, `SELECT id,provider FROM social_accounts WHERE user_id=$1 AND status='connected' AND (provider IN ('tiktok','youtube') OR COALESCE(token_expires_at>now(),true)) AND id=ANY($2::uuid[])`, userID, pq.Array(accountIDs))
 			if queryErr != nil {
 				return empty, queryErr
 			}
@@ -461,8 +488,8 @@ func (s *Repository) Mutate(ctx context.Context, userID, id string, input map[st
 				if account.provider == "tiktok" {
 					tiktokAccounts = append(tiktokAccounts, account)
 				}
-				if !slices.Contains([]string{"instagram", "facebook", "tiktok"}, account.provider) || !slices.Contains(platforms, account.provider) {
-					issues = append(issues, Issue{"accountIds", "Only connected Instagram, Facebook and TikTok accounts can be scheduled"})
+				if !slices.Contains([]string{"instagram", "facebook", "tiktok", "youtube"}, account.provider) || !slices.Contains(platforms, account.provider) {
+					issues = append(issues, Issue{"accountIds", "Only connected Instagram, Facebook, TikTok and YouTube accounts can be scheduled"})
 					break
 				}
 				if len(selectedMedia) > 0 {
@@ -484,6 +511,22 @@ func (s *Repository) Mutate(ctx context.Context, userID, id string, input map[st
 							}
 						}
 					}
+				}
+			}
+			for _, account := range accounts {
+				if account.provider != "youtube" {
+					continue
+				}
+				if s.youtubeValidator == nil {
+					issues = append(issues, Issue{"youtube", "YouTube publishing is temporarily unavailable"})
+					continue
+				}
+				field, validationErr := s.youtubeValidator.ValidateYouTubeSchedule(ctx, tx, userID, account.id, youtubeOptions)
+				if validationErr != nil {
+					if field == "" {
+						return empty, validationErr
+					}
+					issues = append(issues, Issue{field, validationErr.Error()})
 				}
 			}
 			if len(tiktokAccounts) > 1 {
@@ -559,7 +602,7 @@ func (s *Repository) Mutate(ctx context.Context, userID, id string, input map[st
 			media = []map[string]string{}
 		}
 		mediaJSON, _ := json.Marshal(media)
-		_, e = tx.ExecContext(ctx, `INSERT INTO scheduled_posts(id,user_id,clip_id,clip_owner_id,title,caption,notes,platforms,account_ids,status,scheduled_at,media,tiktok_options,instagram_options,created_at,updated_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,now(),now())`, id, userID, clipID, owner, fields["title"], fields["caption"], fields["notes"], pq.Array(fields["platforms"]), pq.Array(fields["accountIds"]), fields["status"], fields["scheduledAt"], mediaJSON, encodeTikTokOptions(tiktokOptions), encodeInstagramOptions(igOptions))
+		_, e = tx.ExecContext(ctx, `INSERT INTO scheduled_posts(id,user_id,clip_id,clip_owner_id,title,caption,notes,platforms,account_ids,status,scheduled_at,media,tiktok_options,instagram_options,youtube_options,created_at,updated_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,now(),now())`, id, userID, clipID, owner, fields["title"], fields["caption"], fields["notes"], pq.Array(fields["platforms"]), pq.Array(fields["accountIds"]), fields["status"], fields["scheduledAt"], mediaJSON, encodeTikTokOptions(tiktokOptions), encodeInstagramOptions(igOptions), encodeYouTubeOptions(youtubeOptions))
 	} else {
 		if currentStatus == "failed" && status == "scheduled" {
 			if _, e = tx.ExecContext(ctx, `UPDATE social_posts
@@ -588,6 +631,9 @@ func (s *Repository) Mutate(ctx context.Context, userID, id string, input map[st
 			}
 			if key == "instagram" {
 				value = encodeInstagramOptions(value.(publishing.InstagramOptions))
+			}
+			if key == "youtube" {
+				value = encodeYouTubeOptions(value.(publishing.YouTubeOptions))
 			}
 			args = append(args, value)
 			sets = append(sets, fmt.Sprintf("%s=$%d", mutationColumns[key], len(args)))
@@ -657,4 +703,9 @@ func (s *Repository) Delete(ctx context.Context, userID, id string) error {
 		return sql.ErrNoRows
 	}
 	return tx.Commit()
+}
+
+func encodeYouTubeOptions(options publishing.YouTubeOptions) []byte {
+	data, _ := json.Marshal(options)
+	return data
 }
