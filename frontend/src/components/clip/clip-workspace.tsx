@@ -94,16 +94,14 @@ export function ClipWorkspace({ clip }: ClipWorkspaceProps) {
     instagram: addHashtags(clip.captionInstagram || caption),
     facebook: addHashtags(clip.captionInstagram || caption),
     youtube: addHashtags(clip.captionYoutube || caption),
-    linkedin: caption,
-    twitter: addHashtags(clip.captionTiktok || caption)
+    linkedin: caption
   }
   const platformLabels: Record<ContentPlatform, string> = {
     tiktok: 'TikTok',
     instagram: 'Instagram',
     facebook: 'Facebook',
     youtube: 'YouTube',
-    linkedin: 'LinkedIn',
-    twitter: 'X'
+    linkedin: 'LinkedIn'
   }
 
   async function save() {

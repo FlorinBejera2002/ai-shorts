@@ -47,10 +47,8 @@ export function CalendarConnections({
   const locale = useLocale()
   const youtubeT = useTranslations('youtubePublishing')
   const linkedinT = useTranslations('linkedinPublishing')
-  const xT = useTranslations('xPublishing')
   const [youtubeConsent, setYouTubeConsent] = useState(false)
   const [linkedinConsent, setLinkedInConsent] = useState(false)
-  const [xConsent, setXConsent] = useState(false)
   const toast = useToast()
   const [busyAccount, setBusyAccount] = useState<string | null>(null)
   const [disconnectingAccount, setDisconnectingAccount] =
@@ -135,8 +133,7 @@ export function CalendarConnections({
                 'facebook',
                 'tiktok',
                 'youtube',
-                'linkedin',
-                'twitter'
+                'linkedin'
               ] as const
             ).map((provider) => (
               <div key={provider} className="skeleton h-14 w-full rounded-md" />
@@ -183,8 +180,7 @@ export function CalendarConnections({
                           disabled={
                             !provider.configured || busyProvider !== null ||
                             (provider.id === 'youtube' && !youtubeConsent) ||
-                            (provider.id === 'linkedin' && !linkedinConsent) ||
-                            (provider.id === 'twitter' && !xConsent)
+                            (provider.id === 'linkedin' && !linkedinConsent)
                           }
                           onClick={() => void onConnect(
                             provider.id,
@@ -192,8 +188,6 @@ export function CalendarConnections({
                               ? youtubeConsent
                               : provider.id === 'linkedin'
                                 ? linkedinConsent
-                                : provider.id === 'twitter'
-                                  ? xConsent
                                 : false
                           )}
                           className="ml-auto h-8 rounded-md bg-background px-2.5 text-[10px] shadow-none hover:bg-muted hover:text-foreground"
@@ -227,19 +221,6 @@ export function CalendarConnections({
                           <Switch checked={linkedinConsent} onCheckedChange={setLinkedInConsent} />
                           <span>{linkedinT.rich('connectionConsent', {
                             terms: chunks => <a className="underline" href="https://www.linkedin.com/legal/l/api-terms-of-use" target="_blank" rel="noreferrer">{chunks}</a>,
-                            privacy: chunks => <a className="underline" href={locale === 'ro' ? '/ro/privacy' : '/privacy'} target="_blank" rel="noreferrer">{chunks}</a>,
-                            deletion: chunks => <a className="underline" href={locale === 'ro' ? '/ro/data-deletion' : '/data-deletion'} target="_blank" rel="noreferrer">{chunks}</a>
-                          })}</span>
-                        </label>
-                      </div>
-                    )}
-                    {provider.id === 'twitter' && !connected && provider.configured && (
-                      <div className="mt-2 space-y-2 text-xs text-muted-foreground">
-                        <p>{xT('dataUse')}</p>
-                        <label className="flex items-start gap-2">
-                          <Switch checked={xConsent} onCheckedChange={setXConsent} />
-                          <span>{xT.rich('connectionConsent', {
-                            terms: chunks => <a className="underline" href="https://developer.x.com/en/developer-terms/agreement-and-policy" target="_blank" rel="noreferrer">{chunks}</a>,
                             privacy: chunks => <a className="underline" href={locale === 'ro' ? '/ro/privacy' : '/privacy'} target="_blank" rel="noreferrer">{chunks}</a>,
                             deletion: chunks => <a className="underline" href={locale === 'ro' ? '/ro/data-deletion' : '/data-deletion'} target="_blank" rel="noreferrer">{chunks}</a>
                           })}</span>

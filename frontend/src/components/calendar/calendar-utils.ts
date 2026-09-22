@@ -13,8 +13,7 @@ export const CALENDAR_PLATFORMS: readonly ContentPlatform[] = [
   'instagram',
   'facebook',
   'youtube',
-  'linkedin',
-  'twitter'
+  'linkedin'
 ]
 
 export const CALENDAR_STATUSES: readonly ContentPostStatus[] = [

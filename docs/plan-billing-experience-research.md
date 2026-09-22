@@ -19,7 +19,6 @@ The visual hierarchy therefore puts the current commercial state first, plan com
 - [LastSaaS](https://github.com/jonradoff/lastsaas) exposes subscription plans, credit bundles, a dual credit balance, customer portal access, invoice history, and webhook-driven lifecycle events. It is a useful completeness checklist, not a visual template.
 - [Stripe Supabase Subscription Kit](https://github.com/suleymansurucu/stripe-supabase-subscription-kit) reinforces that Stripe should remain the billing source of truth and the application should render a synchronized read model.
 - [SaaS Interface billing gallery](https://saasinterface.com/pages/billing-plan/) and [Nicelydone billing gallery](https://nicelydone.club/pages/billing) show a consistent information order: current plan and next charge first, usage or allowance nearby, then plan changes and invoices.
-- Public X/Twitter search was attempted directly and through indexed results. Direct search required authentication and indexed results did not provide decision-grade billing examples. No design decision relies on an unverifiable social screenshot.
 
 ## Stripe implementation requirements
 

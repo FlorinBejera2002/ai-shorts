@@ -34,9 +34,6 @@ func (h *Handler) Start(parent context.Context) func() {
 				if err := h.maintainLinkedInData(work); err != nil {
 					slog.Error("LinkedIn data maintenance failed", "error", err)
 				}
-				if err := h.maintainXData(work); err != nil {
-					slog.Error("X data maintenance failed", "error", err)
-				}
 				if !h.cfg.Enabled {
 					c()
 					continue
@@ -156,8 +153,8 @@ func (h *Handler) dispatchCalendar(ctx context.Context) error {
 	tiktokAccounts := 0
 	for _, accountID := range accountIDs {
 		var provider string
-		e = tx.QueryRowContext(ctx, `SELECT provider FROM social_accounts WHERE id=$1 AND user_id=$2 AND status='connected' AND (provider IN ('tiktok','youtube','twitter') OR COALESCE(token_expires_at>now(),true)) FOR UPDATE`, accountID, userID).Scan(&provider)
-		if e != nil || (provider != "instagram" && provider != "facebook" && provider != "tiktok" && provider != "youtube" && provider != "linkedin" && provider != "twitter") || !h.configured(provider) {
+		e = tx.QueryRowContext(ctx, `SELECT provider FROM social_accounts WHERE id=$1 AND user_id=$2 AND status='connected' AND (provider IN ('tiktok','youtube') OR COALESCE(token_expires_at>now(),true)) FOR UPDATE`, accountID, userID).Scan(&provider)
+		if e != nil || (provider != "instagram" && provider != "facebook" && provider != "tiktok" && provider != "youtube" && provider != "linkedin") || !h.configured(provider) {
 			return h.failCalendar(ctx, tx, id, "A selected account is disconnected or unavailable. Reconnect it and reschedule the post.")
 		}
 		if provider == "youtube" {
@@ -168,11 +165,6 @@ func (h *Handler) dispatchCalendar(ctx context.Context) error {
 		if provider == "linkedin" {
 			if _, err := h.ValidateLinkedInSchedule(ctx, tx, userID, accountID); err != nil {
 				return h.failCalendar(ctx, tx, id, "Reconnect LinkedIn and review the selected destination.")
-			}
-		}
-		if provider == "twitter" {
-			if _, err := h.ValidateXSchedule(ctx, tx, userID, accountID, caption); err != nil {
-				return h.failCalendar(ctx, tx, id, "Reconnect X and review the selected destination.")
 			}
 		}
 		if provider == "tiktok" {
@@ -515,11 +507,6 @@ func (h *Handler) process(ctx context.Context, job workItem, action string) erro
 				return set("failed", "Reconnect LinkedIn and review the selected destination.", "", "")
 			}
 			id, status, err = h.client.PublishLinkedIn(ctx, a.RemoteID, creds, media, job.Caption)
-		} else if a.Provider == "twitter" {
-			if _, err = h.ValidateXSchedule(ctx, tx, job.UserID, a.ID, job.Caption); err != nil {
-				return set("failed", "Reconnect X and review the selected destination.", "", "")
-			}
-			id, status, err = h.client.PublishX(ctx, a.RemoteID, creds, media, job.Caption)
 		} else {
 			id, status, err = h.client.PublishMedia(ctx, a.Provider, a.RemoteID, creds, media, job.Caption, job.Options, job.IGOptions)
 		}

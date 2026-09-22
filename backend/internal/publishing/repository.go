@@ -166,7 +166,7 @@ func (h *Handler) PrepareTikTokSchedule(ctx context.Context, userID string, acco
 // calendar entry. The calendar row is deleted only after every requested
 // remote deletion has been confirmed.
 func (h *Handler) DeletePublishedPosts(ctx context.Context, user, scheduledPostID string, providers []string) error {
-	if !data.ValidUUID(scheduledPostID) || len(providers) != 1 || (providers[0] != "facebook" && providers[0] != "linkedin" && providers[0] != "twitter") {
+	if !data.ValidUUID(scheduledPostID) || len(providers) != 1 || (providers[0] != "facebook" && providers[0] != "linkedin") {
 		return errInvalid
 	}
 	rows, e := h.db.QueryContext(ctx, `SELECT sp.id,sp.remote_id,a.id,a.user_id,a.provider,a.remote_id,a.name,a.username,a.status,a.credentials
@@ -219,7 +219,7 @@ func (h *Handler) DeletePublishedPosts(ctx context.Context, user, scheduledPostI
 
 func (h *Handler) list(ctx context.Context, user string) ([]Account, []Clip, []Post, error) {
 	accounts, clips, posts := []Account{}, []Clip{}, []Post{}
-	rows, e := h.db.QueryContext(ctx, `SELECT id,provider,name,username,avatar_url,status,scopes,token_expires_at,(CASE WHEN provider='youtube' THEN NOT ('video_publish'=ANY(scopes)) WHEN provider='linkedin' THEN NOT ('video_publish'=ANY(scopes)) OR linkedin_consent_at IS NULL OR COALESCE(token_expires_at<=now(),false) WHEN provider='twitter' THEN NOT ('video_publish'=ANY(scopes)) OR x_consent_at IS NULL ELSE COALESCE(token_expires_at<=now(),false) END) FROM social_accounts WHERE user_id=$1 AND status='connected' AND (provider<>'youtube' OR youtube_verified_at>now()-interval '6 days') ORDER BY provider,name`, user)
+	rows, e := h.db.QueryContext(ctx, `SELECT id,provider,name,username,avatar_url,status,scopes,token_expires_at,(CASE WHEN provider='youtube' THEN NOT ('video_publish'=ANY(scopes)) WHEN provider='linkedin' THEN NOT ('video_publish'=ANY(scopes)) OR linkedin_consent_at IS NULL OR COALESCE(token_expires_at<=now(),false) ELSE COALESCE(token_expires_at<=now(),false) END) FROM social_accounts WHERE user_id=$1 AND status='connected' AND (provider<>'youtube' OR youtube_verified_at>now()-interval '6 days') ORDER BY provider,name`, user)
 	if e != nil {
 		return accounts, clips, posts, e
 	}
@@ -349,11 +349,6 @@ func (h *Handler) enqueue(ctx context.Context, user string, in postInput) ([]Pos
 		}
 		if a.Provider == "linkedin" {
 			if _, err := h.ValidateLinkedInSchedule(ctx, tx, user, a.ID); err != nil {
-				return nil, errInvalid
-			}
-		}
-		if a.Provider == "twitter" {
-			if _, err := h.ValidateXSchedule(ctx, tx, user, a.ID, in.Caption); err != nil {
 				return nil, errInvalid
 			}
 		}

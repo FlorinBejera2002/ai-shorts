@@ -28,13 +28,13 @@ func mockProvider(t *testing.T, h http.HandlerFunc) *ProviderClient {
 	s := httptest.NewServer(h)
 	t.Cleanup(s.Close)
 	u, _ := url.Parse(s.URL)
-	p := NewProviderClient(ProviderConfig{AppURL: "https://app.example", MetaAppID: "fb", MetaAppSecret: "secret", InstagramAppID: "ig", InstagramAppSecret: "secret", TikTokClientKey: "tt", TikTokClientSecret: "secret", TikTokVerifiedURLPrefix: "https://media.example/", YouTubeClientID: "yt", YouTubeClientSecret: "secret", LinkedInClientID: "li", LinkedInClientSecret: "secret", LinkedInAPIVersion: "202609", LinkedInMediaURLPrefix: "https://media.example/", XClientID: "x", XClientSecret: "secret", XMediaURLPrefix: "https://media.example/"})
+	p := NewProviderClient(ProviderConfig{AppURL: "https://app.example", MetaAppID: "fb", MetaAppSecret: "secret", InstagramAppID: "ig", InstagramAppSecret: "secret", TikTokClientKey: "tt", TikTokClientSecret: "secret", TikTokVerifiedURLPrefix: "https://media.example/", YouTubeClientID: "yt", YouTubeClientSecret: "secret", LinkedInClientID: "li", LinkedInClientSecret: "secret", LinkedInAPIVersion: "202609", LinkedInMediaURLPrefix: "https://media.example/"})
 	p.httpClient.Transport = providerTransport{u}
 	return p
 }
 func TestProviderAuthorizationScopes(t *testing.T) {
-	p := NewProviderClient(ProviderConfig{AppURL: "https://app.example", MetaAppID: "fb", MetaAppSecret: "s", InstagramAppID: "ig", InstagramAppSecret: "s", TikTokClientKey: "tt", TikTokClientSecret: "s", TikTokVerifiedURLPrefix: "https://media.example/", YouTubeClientID: "yt", YouTubeClientSecret: "s", LinkedInClientID: "li", LinkedInClientSecret: "s", LinkedInAPIVersion: "202609", LinkedInMediaURLPrefix: "https://media.example/", XClientID: "x", XClientSecret: "s", XMediaURLPrefix: "https://media.example/"})
-	for _, provider := range []string{"instagram", "facebook", "tiktok", "youtube", "linkedin", "twitter"} {
+	p := NewProviderClient(ProviderConfig{AppURL: "https://app.example", MetaAppID: "fb", MetaAppSecret: "s", InstagramAppID: "ig", InstagramAppSecret: "s", TikTokClientKey: "tt", TikTokClientSecret: "s", TikTokVerifiedURLPrefix: "https://media.example/", YouTubeClientID: "yt", YouTubeClientSecret: "s", LinkedInClientID: "li", LinkedInClientSecret: "s", LinkedInAPIVersion: "202609", LinkedInMediaURLPrefix: "https://media.example/"})
+	for _, provider := range []string{"instagram", "facebook", "tiktok", "youtube", "linkedin"} {
 		got, err := p.Authorize(provider, "csrf-state", "verifier")
 		if err != nil {
 			t.Fatal(err)
@@ -53,67 +53,9 @@ func TestProviderAuthorizationScopes(t *testing.T) {
 		if provider == "linkedin" && q.Get("scope") != "openid profile w_member_social" {
 			t.Fatalf("unexpected LinkedIn member scopes: %q", q.Get("scope"))
 		}
-		if provider == "twitter" && (q.Get("scope") != "tweet.read users.read tweet.write media.write offline.access" || q.Get("code_challenge") == "" || q.Get("code_challenge_method") != "S256") {
-			t.Fatalf("unexpected X authorization request: %q", got)
-		}
 	}
 	if _, err := p.Authorize("unknown", "state", ""); err == nil {
 		t.Fatal("unsupported provider accepted")
-	}
-}
-
-func TestXExchangeUsesConfidentialPKCEAndReturnsAccount(t *testing.T) {
-	p := mockProvider(t, func(w http.ResponseWriter, r *http.Request) {
-		switch r.URL.Path {
-		case "/2/oauth2/token":
-			clientID, secret, ok := r.BasicAuth()
-			_ = r.ParseForm()
-			if !ok || clientID != "x" || secret != "secret" || r.Form.Get("code_verifier") != "verifier" {
-				t.Error("X token exchange did not use confidential PKCE")
-			}
-			_, _ = io.WriteString(w, `{"access_token":"access","refresh_token":"refresh","expires_in":7200,"scope":"tweet.read users.read tweet.write media.write offline.access"}`)
-		case "/2/users/me":
-			if r.Header.Get("Authorization") != "Bearer access" || r.URL.Query().Get("user.fields") != "profile_image_url" {
-				t.Error("invalid X account lookup")
-			}
-			_, _ = io.WriteString(w, `{"data":{"id":"123","name":"Sneep Cut","username":"sneepcut","profile_image_url":"https://example.com/avatar.jpg"}}`)
-		default:
-			http.NotFound(w, r)
-		}
-	})
-	accounts, err := p.Exchange(context.Background(), "twitter", "code", "verifier")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(accounts) != 1 || accounts[0].ID != "123" || accounts[0].Username != "sneepcut" || accounts[0].Credentials.RefreshToken != "refresh" {
-		t.Fatalf("unexpected X account: %#v", accounts)
-	}
-}
-
-func TestXAppendUsesOfficialMultipartFields(t *testing.T) {
-	p := mockProvider(t, func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/2/media/upload/123/append" || r.Header.Get("Authorization") != "Bearer access" {
-			t.Errorf("unexpected X append request: %s %s", r.Method, r.URL.String())
-		}
-		if err := r.ParseMultipartForm(6 << 20); err != nil {
-			t.Fatal(err)
-		}
-		if r.FormValue("segment_index") != "2" {
-			t.Errorf("unexpected segment index: %q", r.FormValue("segment_index"))
-		}
-		file, _, err := r.FormFile("media")
-		if err != nil {
-			t.Fatal(err)
-		}
-		defer file.Close()
-		payload, _ := io.ReadAll(file)
-		if string(payload) != "video-chunk" {
-			t.Errorf("unexpected media chunk: %q", payload)
-		}
-		w.WriteHeader(http.StatusNoContent)
-	})
-	if err := p.appendXChunk(context.Background(), Credentials{AccessToken: "access"}, "123", 2, []byte("video-chunk")); err != nil {
-		t.Fatal(err)
 	}
 }
 

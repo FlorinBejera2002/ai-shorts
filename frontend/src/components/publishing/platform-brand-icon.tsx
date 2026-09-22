@@ -11,7 +11,6 @@ const PLATFORM_LOGOS: Record<PublishingProvider, string> = {
   instagram: '/brand/social/instagram.svg',
   linkedin: '/brand/social/linkedin.svg',
   tiktok: '/brand/social/tiktok.svg',
-  twitter: '/brand/social/x-square.svg',
   youtube: '/brand/social/youtube.svg'
 }
 

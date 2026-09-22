@@ -35,9 +35,6 @@ type YouTubeScheduleValidator interface {
 type LinkedInScheduleValidator interface {
 	ValidateLinkedInSchedule(context.Context, *sql.Tx, string, string) (string, error)
 }
-type XScheduleValidator interface {
-	ValidateXSchedule(context.Context, *sql.Tx, string, string, string) (string, error)
-}
 
 type PostClip struct {
 	ID             string  `json:"id"`
@@ -87,7 +84,6 @@ type Repository struct {
 	tiktokValidator   TikTokScheduleValidator
 	youtubeValidator  YouTubeScheduleValidator
 	linkedinValidator LinkedInScheduleValidator
-	xValidator        XScheduleValidator
 }
 
 func NewRepository(db *sql.DB, media Media, validators ...TikTokScheduleValidator) *Repository {
@@ -96,7 +92,6 @@ func NewRepository(db *sql.DB, media Media, validators ...TikTokScheduleValidato
 		repository.tiktokValidator = validators[0]
 		repository.youtubeValidator, _ = validators[0].(YouTubeScheduleValidator)
 		repository.linkedinValidator, _ = validators[0].(LinkedInScheduleValidator)
-		repository.xValidator, _ = validators[0].(XScheduleValidator)
 	}
 	return repository
 }
@@ -471,7 +466,7 @@ func (s *Repository) Mutate(ctx context.Context, userID, id string, input map[st
 		accounts := []selectedAccount{}
 		providers := []string{}
 		if len(accountIDs) > 0 {
-			rows, queryErr := tx.QueryContext(ctx, `SELECT id,provider FROM social_accounts WHERE user_id=$1 AND status='connected' AND (provider IN ('tiktok','youtube','twitter') OR COALESCE(token_expires_at>now(),true)) AND id=ANY($2::uuid[])`, userID, pq.Array(accountIDs))
+			rows, queryErr := tx.QueryContext(ctx, `SELECT id,provider FROM social_accounts WHERE user_id=$1 AND status='connected' AND (provider IN ('tiktok','youtube') OR COALESCE(token_expires_at>now(),true)) AND id=ANY($2::uuid[])`, userID, pq.Array(accountIDs))
 			if queryErr != nil {
 				return empty, queryErr
 			}
@@ -498,8 +493,8 @@ func (s *Repository) Mutate(ctx context.Context, userID, id string, input map[st
 				if account.provider == "tiktok" {
 					tiktokAccounts = append(tiktokAccounts, account)
 				}
-				if !slices.Contains([]string{"instagram", "facebook", "tiktok", "youtube", "linkedin", "twitter"}, account.provider) || !slices.Contains(platforms, account.provider) {
-					issues = append(issues, Issue{"accountIds", "Only connected Instagram, Facebook, TikTok, YouTube, LinkedIn and X accounts can be scheduled"})
+				if !slices.Contains([]string{"instagram", "facebook", "tiktok", "youtube", "linkedin"}, account.provider) || !slices.Contains(platforms, account.provider) {
+					issues = append(issues, Issue{"accountIds", "Only connected Instagram, Facebook, TikTok, YouTube and LinkedIn accounts can be scheduled"})
 					break
 				}
 				if len(selectedMedia) > 0 {
@@ -553,22 +548,6 @@ func (s *Repository) Mutate(ctx context.Context, userID, id string, input map[st
 						return empty, validationErr
 					}
 					issues = append(issues, Issue{field, "Reconnect LinkedIn and review the selected destination"})
-				}
-			}
-			for _, account := range accounts {
-				if account.provider != "twitter" {
-					continue
-				}
-				if s.xValidator == nil {
-					issues = append(issues, Issue{"accountIds", "X publishing is temporarily unavailable"})
-					continue
-				}
-				field, validationErr := s.xValidator.ValidateXSchedule(ctx, tx, userID, account.id, caption)
-				if validationErr != nil {
-					if field == "" {
-						return empty, validationErr
-					}
-					issues = append(issues, Issue{field, "Reconnect X and review the post text"})
 				}
 			}
 			if len(tiktokAccounts) > 1 {

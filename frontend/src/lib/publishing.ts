@@ -3,8 +3,7 @@ export const PUBLISHING_PROVIDER_CATALOG = [
   { id: 'facebook', name: 'Facebook' },
   { id: 'tiktok', name: 'TikTok' },
   { id: 'youtube', name: 'YouTube' },
-  { id: 'linkedin', name: 'LinkedIn' },
-  { id: 'twitter', name: 'X' }
+  { id: 'linkedin', name: 'LinkedIn' }
 ] as const
 
 export type PublishingProvider =
@@ -90,6 +89,6 @@ export function isPublishingAccountUsable(account: PublishingAccount) {
   return (
     account.status === 'connected' &&
     (account.provider !== 'youtube' || account.scopes?.includes('video_publish') === true) &&
-    (['tiktok', 'youtube', 'twitter'].includes(account.provider) || account.tokenExpired !== true)
+    (['tiktok', 'youtube'].includes(account.provider) || account.tokenExpired !== true)
   )
 }

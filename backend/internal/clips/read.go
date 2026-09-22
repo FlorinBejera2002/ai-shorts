@@ -42,7 +42,7 @@ func (h *Handler) resolve(ctx context.Context, raw []byte, camel bool) (map[stri
 	}
 	variants := []map[string]any{}
 	if fileURL, _ := record["file_url"].(string); fileURL != "" {
-		platforms := []string{"instagram", "facebook", "linkedin", "youtube", "twitter"}
+		platforms := []string{"instagram", "facebook", "linkedin", "youtube"}
 		if containsBadge, _ := record["contains_platform_badge"].(bool); !containsBadge {
 			platforms = append(platforms, "tiktok")
 		}

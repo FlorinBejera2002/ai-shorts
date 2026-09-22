@@ -92,7 +92,6 @@ Register these exact OAuth redirect URLs in the corresponding product:
 | TikTok | `https://sneepcut.com/api/publishing/callback/tiktok` |
 | YouTube | `https://sneepcut.com/api/publishing/callback/youtube` |
 | LinkedIn | `https://sneepcut.com/api/publishing/callback/linkedin` |
-| X | `https://sneepcut.com/api/publishing/callback/twitter` |
 
 Serve `/privacy`, `/terms` and `/data-deletion` publicly on the production domain.
 The data-deletion page is a human-readable instructions URL, not a webhook.
@@ -168,5 +167,3 @@ Provider references:
 - [TikTok application review](https://developers.tiktok.com/docs/en/app-review-guidelines)
 - [LinkedIn Share on LinkedIn](https://learn.microsoft.com/en-us/linkedin/consumer/integrations/self-serve/share-on-linkedin)
 - [LinkedIn Community Management API](https://learn.microsoft.com/en-us/linkedin/marketing/community-management/community-management-overview)
-- [X OAuth 2.0 with PKCE](https://docs.x.com/fundamentals/authentication/oauth-2-0/authorization-code)
-- [X create posts](https://docs.x.com/x-api/posts/create-post)

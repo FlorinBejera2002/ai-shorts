@@ -167,8 +167,8 @@ func (h *Handler) delete(w http.ResponseWriter, r *http.Request) {
 		seen := map[string]bool{}
 		for _, value := range values {
 			platform, stringValue := value.(string)
-			if !stringValue || (platform != "facebook" && platform != "linkedin" && platform != "twitter") || seen[platform] || len(values) != 1 {
-				write(w, 400, map[string]string{"error": "Choose one published Facebook, LinkedIn or X post to delete from the platform."})
+			if !stringValue || (platform != "facebook" && platform != "linkedin") || seen[platform] || len(values) != 1 {
+				write(w, 400, map[string]string{"error": "Choose one published Facebook or LinkedIn post to delete from the platform."})
 				return
 			}
 			seen[platform] = true

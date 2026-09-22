@@ -32,12 +32,6 @@ func ValidateMediaReferences(provider string, media []PublishMedia) error {
 			}
 		}
 	}
-	if provider == "twitter" {
-		parsed, err := url.Parse(media[0].URL)
-		if err != nil || strings.ToLower(path.Ext(parsed.Path)) != ".mp4" {
-			return errors.New("X requires an MP4 video; the original file has not been converted")
-		}
-	}
 	return nil
 }
 
@@ -58,7 +52,7 @@ func ValidateMediaTypes(provider string, types []string) error {
 		}
 	}
 	switch provider {
-	case "youtube", "linkedin", "twitter":
+	case "youtube", "linkedin":
 		if len(types) != 1 || videos != 1 {
 			return errors.New("This platform supports one video per post")
 		}

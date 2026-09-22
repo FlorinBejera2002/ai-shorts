@@ -3,8 +3,7 @@ export const CONTENT_PLATFORMS = [
   'instagram',
   'facebook',
   'youtube',
-  'linkedin',
-  'twitter'
+  'linkedin'
 ] as const
 
 export const CONTENT_POST_STATUSES = [

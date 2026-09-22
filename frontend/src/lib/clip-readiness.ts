@@ -68,8 +68,7 @@ export function getPlatformFit(clip: ClipReadinessInput) {
     facebook: 'Facebook',
     tiktok: 'TikTok',
     youtube: aspectRatio === '16:9' ? 'YouTube' : 'YouTube Shorts',
-    linkedin: 'LinkedIn',
-    twitter: 'X'
+    linkedin: 'LinkedIn'
   }
   return SOCIAL_PLATFORMS.map((platform) => {
     const status = platformCompatibility(aspectRatio, platform, clip.duration)

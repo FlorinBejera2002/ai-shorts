@@ -79,7 +79,7 @@ func param(r *http.Request, key string) string {
 	return httprouter.ParamsFromContext(r.Context()).ByName(key)
 }
 func providerValid(p string) bool {
-	return p == "instagram" || p == "facebook" || p == "tiktok" || p == "youtube" || p == "linkedin" || p == "twitter"
+	return p == "instagram" || p == "facebook" || p == "tiktok" || p == "youtube" || p == "linkedin"
 }
 func providerScopes(p string, linkedinOrganizations bool) []string {
 	switch p {
@@ -97,8 +97,6 @@ func providerScopes(p string, linkedinOrganizations bool) []string {
 			scopes = append(scopes, "organization_publish")
 		}
 		return scopes
-	case "twitter":
-		return []string{"profile", "video_publish"}
 	default:
 		return []string{}
 	}
@@ -114,8 +112,8 @@ func publishingReturnURL(appURL, locale, key, value string) string {
 
 func (h *Handler) overview(w http.ResponseWriter, r *http.Request) {
 	providers := []map[string]any{}
-	providerNames := map[string]string{"instagram": "Instagram", "facebook": "Facebook", "tiktok": "TikTok", "youtube": "YouTube", "linkedin": "LinkedIn", "twitter": "X"}
-	for _, p := range []string{"instagram", "facebook", "tiktok", "youtube", "linkedin", "twitter"} {
+	providerNames := map[string]string{"instagram": "Instagram", "facebook": "Facebook", "tiktok": "TikTok", "youtube": "YouTube", "linkedin": "LinkedIn"}
+	for _, p := range []string{"instagram", "facebook", "tiktok", "youtube", "linkedin"} {
 		configured := h.configured(p)
 		entry := map[string]any{"id": p, "name": providerNames[p], "configured": configured, "supportsPublishing": configured}
 		if p == "youtube" {
@@ -150,7 +148,6 @@ func (h *Handler) connect(w http.ResponseWriter, r *http.Request) {
 		Locale          string `json:"locale"`
 		YouTubeConsent  bool   `json:"youtubeConsent"`
 		LinkedInConsent bool   `json:"linkedinConsent"`
-		XConsent        bool   `json:"xConsent"`
 	}
 	if !decode(w, r, &input) {
 		return
@@ -161,10 +158,6 @@ func (h *Handler) connect(w http.ResponseWriter, r *http.Request) {
 	}
 	if p == "linkedin" && !input.LinkedInConsent {
 		fail(w, 400, "Review the LinkedIn data use and deletion terms before connecting.")
-		return
-	}
-	if p == "twitter" && !input.XConsent {
-		fail(w, 400, "Review the X data use and deletion terms before connecting.")
 		return
 	}
 	if input.Locale != "ro" {
@@ -260,13 +253,6 @@ func (h *Handler) callback(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 		}
-		if p == "twitter" {
-			_, e = tx.ExecContext(ctx, `UPDATE social_accounts SET x_verified_at=now(),x_check_after=now()+interval '1 day',x_consent_at=now() WHERE user_id=$1 AND provider='twitter' AND remote_id=$2`, user, a.ID)
-			if e != nil {
-				redirect("connectionError", "unavailable")
-				return
-			}
-		}
 	}
 	if tx.Commit() != nil {
 		redirect("connectionError", "unavailable")
@@ -352,12 +338,6 @@ func (h *Handler) disconnect(w http.ResponseWriter, r *http.Request) {
 	if provider == "linkedin" {
 		if e = purgeLinkedInAccount(r.Context(), tx, user, id); e != nil {
 			fail(w, 503, "Could not delete LinkedIn connection data.")
-			return
-		}
-	}
-	if provider == "twitter" {
-		if e = purgeXAccount(r.Context(), tx, user, id); e != nil {
-			fail(w, 503, "Could not delete X connection data.")
 			return
 		}
 	}

@@ -292,7 +292,6 @@ export function PostDialog({
   )
   const canDeleteFromFacebook = publishedProviders.includes('facebook')
   const canDeleteFromLinkedIn = publishedProviders.includes('linkedin')
-  const canDeleteFromX = publishedProviders.includes('twitter')
   const requiresManualInstagramDelete = publishedProviders.includes('instagram')
   const selectedAccountIds = useMemo(
     () => new Set(form.accountIds),
@@ -326,10 +325,8 @@ export function PostDialog({
     if (form.clipId) return false
     return form.media.length > 0 && form.media.every((m) => m.type === 'image')
   }, [selectedInstagramAccounts.length, form.clipId, form.media])
-  const captionLimit = form.platforms.includes('twitter')
-    ? 280
-    : selectedTikTokAccounts.length > 0
-      ? isTikTokPhotoPost
+  const captionLimit = selectedTikTokAccounts.length > 0
+    ? isTikTokPhotoPost
         ? 4000
         : 2200
       : 5000
@@ -1088,44 +1085,6 @@ export function PostDialog({
                         </span>
                         <span className="mt-0.5 block text-[11px] text-muted-foreground">
                           {t('dialog.deleteFromLinkedInDescription')}
-                        </span>
-                      </span>
-                    </button>
-                  )}
-                  {canDeleteFromX && (
-                    <button
-                      type="button"
-                      aria-pressed={deletePlatforms.includes('twitter')}
-                      disabled={busy}
-                      onClick={() =>
-                        setDeletePlatforms((current) =>
-                          current.includes('twitter')
-                            ? current.filter(
-                                (platform) => platform !== 'twitter'
-                              )
-                            : [...current, 'twitter']
-                        )
-                      }
-                      className="flex w-full items-center gap-3 rounded-md border px-3.5 py-3 text-left transition-colors hover:bg-muted disabled:opacity-50"
-                    >
-                      <span
-                        className={`inline-flex size-5 shrink-0 items-center justify-center rounded-sm border ${
-                          deletePlatforms.includes('twitter')
-                            ? 'border-foreground bg-foreground text-background'
-                            : 'border-border bg-background'
-                        }`}
-                      >
-                        {deletePlatforms.includes('twitter') && (
-                          <Check className="size-3.5" />
-                        )}
-                      </span>
-                      <PlatformOptionIcon platform="twitter" />
-                      <span className="min-w-0">
-                        <span className="block text-xs font-semibold">
-                          {t('dialog.deleteFromX')}
-                        </span>
-                        <span className="mt-0.5 block text-[11px] text-muted-foreground">
-                          {t('dialog.deleteFromXDescription')}
                         </span>
                       </span>
                     </button>

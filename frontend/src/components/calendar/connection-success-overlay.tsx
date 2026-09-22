@@ -11,8 +11,7 @@ const CONNECTION_EFFECTS = {
   facebook: { src: '/brand/facebook-connected-effect.svg', durationMs: 2211 },
   tiktok: { src: '/brand/tiktok-connected-effect.svg', durationMs: 1500 },
   youtube: { src: '/brand/youtube-connected-effect.svg', durationMs: 2377 },
-  linkedin: { src: '/brand/Share%20on%20Linkedin.svg', durationMs: 3003 },
-  twitter: { src: '/brand/X%20Twitter%20logo.svg', durationMs: 4004 }
+  linkedin: { src: '/brand/Share%20on%20Linkedin.svg', durationMs: 3003 }
 } satisfies Record<PublishingProvider, { src: string; durationMs: number }>
 
 export function ConnectionSuccessOverlay({

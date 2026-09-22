@@ -142,7 +142,7 @@ func Validate(input map[string]any, create bool) (map[string]any, error) {
 					continue
 				}
 				text = strings.ToLower(strings.TrimSpace(text))
-				if slices.Contains(normalized, text) || !slices.Contains([]string{"tiktok", "instagram", "facebook", "youtube", "linkedin", "twitter"}, text) {
+				if slices.Contains(normalized, text) || !slices.Contains([]string{"tiktok", "instagram", "facebook", "youtube", "linkedin"}, text) {
 					invalid = true
 				}
 				normalized = append(normalized, text)

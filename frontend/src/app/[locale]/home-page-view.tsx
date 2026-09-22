@@ -114,12 +114,6 @@ export function HomePageView({
       name: 'LinkedIn',
       description: 'platformLinkedInDesc',
       available: false
-    },
-    {
-      id: 'twitter',
-      name: 'X',
-      description: 'platformXDesc',
-      available: false
     }
   ] as const
 

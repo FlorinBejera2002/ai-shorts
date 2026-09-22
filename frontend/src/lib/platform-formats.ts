@@ -8,8 +8,7 @@ export const SOCIAL_PLATFORMS: ContentPlatform[] = [
   'facebook',
   'tiktok',
   'youtube',
-  'linkedin',
-  'twitter'
+  'linkedin'
 ]
 
 export const VIDEO_FORMATS: Record<
@@ -28,8 +27,7 @@ export const VIDEO_FORMATS: Record<
       facebook: 'recommended',
       tiktok: 'recommended',
       youtube: 'recommended',
-      linkedin: 'accepted',
-      twitter: 'accepted'
+      linkedin: 'accepted'
     }
   },
   '1:1': {
@@ -40,8 +38,7 @@ export const VIDEO_FORMATS: Record<
       facebook: 'accepted',
       tiktok: 'accepted',
       youtube: 'recommended',
-      linkedin: 'recommended',
-      twitter: 'recommended'
+      linkedin: 'recommended'
     }
   },
   '16:9': {
@@ -52,8 +49,7 @@ export const VIDEO_FORMATS: Record<
       facebook: 'accepted',
       tiktok: 'adaptation',
       youtube: 'recommended',
-      linkedin: 'recommended',
-      twitter: 'recommended'
+      linkedin: 'recommended'
     }
   }
 }
@@ -64,12 +60,11 @@ export function platformCompatibility(
   duration?: number
 ): PlatformCompatibility | 'incompatible' {
   if (duration !== undefined) {
-    if (duration < 3 && platform !== 'twitter') return 'incompatible'
+    if (duration < 3) return 'incompatible'
     if (platform === 'facebook' && duration > 90) return 'incompatible'
     if (platform === 'youtube' && duration > 180 && aspectRatio !== '16:9') {
       return 'incompatible'
     }
-    if (platform === 'twitter' && duration > 1200) return 'incompatible'
     if (platform === 'tiktok' && duration > 600) return 'incompatible'
     if (platform === 'instagram' && duration > 900) return 'incompatible'
     if (platform === 'linkedin' && duration > 1800) return 'incompatible'

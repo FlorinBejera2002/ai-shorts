@@ -16,7 +16,7 @@ import (
 var ErrWorkspaceInput = errors.New("script workspace input is invalid")
 
 var validStatuses = map[string]bool{"idea": true, "draft": true, "review": true, "ready": true, "in_production": true, "published": true, "archived": true}
-var validPlatforms = map[string]bool{"tiktok": true, "instagram": true, "facebook": true, "youtube": true, "linkedin": true, "twitter": true}
+var validPlatforms = map[string]bool{"tiktok": true, "instagram": true, "facebook": true, "youtube": true, "linkedin": true}
 var validLanguages = map[string]bool{"en": true, "ro": true, "es": true, "fr": true, "de": true, "it": true, "pt": true}
 
 type WorkspaceInput struct {

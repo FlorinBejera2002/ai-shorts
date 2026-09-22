@@ -155,8 +155,7 @@ test('supports exactly the product platforms', () => {
     'instagram',
     'facebook',
     'youtube',
-    'linkedin',
-    'twitter'
+    'linkedin'
   ])
 
   const facebook = validateScheduledPostPayload(

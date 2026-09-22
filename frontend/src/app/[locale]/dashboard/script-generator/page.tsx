@@ -48,8 +48,7 @@ const PLATFORMS = [
   { value: 'instagram', label: 'Instagram Reels' },
   { value: 'facebook', label: 'Facebook' },
   { value: 'youtube', label: 'YouTube Shorts' },
-  { value: 'linkedin', label: 'LinkedIn' },
-  { value: 'twitter', label: 'X' }
+  { value: 'linkedin', label: 'LinkedIn' }
 ]
 const DURATIONS = [15, 30, 45, 60, 90, 120, 180]
 const LANGUAGES = ['en', 'ro', 'es', 'fr', 'de', 'it', 'pt']
