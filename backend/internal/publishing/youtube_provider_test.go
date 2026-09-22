@@ -102,7 +102,7 @@ func TestYouTubeStreamsResumableUploadAndPolls(t *testing.T) {
 		t.Fatalf("%s %s %v uploads=%d", id, status, err, uploads)
 	}
 	status, link, err := p.Poll(context.Background(), "youtube", id, Credentials{AccessToken: "access"})
-	if err != nil || status != "published" || link != "https://www.youtube.com/watch?v=video-id" {
+	if err != nil || status != "published" || link != "https://www.youtube.com/shorts/video-id" {
 		t.Fatalf("%s %s %v", status, link, err)
 	}
 }

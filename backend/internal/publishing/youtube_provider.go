@@ -241,7 +241,7 @@ func (p *ProviderClient) pollYouTube(ctx context.Context, id string, c Credentia
 		return "failed", "", errors.New("YouTube video processing failed or was rejected")
 	}
 	if item.Status.UploadStatus == "processed" || item.Processing.Status == "succeeded" {
-		return "published", "https://www.youtube.com/watch?v=" + url.QueryEscape(id), nil
+		return "published", "https://www.youtube.com/shorts/" + url.PathEscape(id), nil
 	}
 	return "processing", "", nil
 }
