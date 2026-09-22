@@ -17,6 +17,7 @@ import { HeroContent } from '@/components/landing/hero-content'
 import { HomeNavbar } from '@/components/landing/home-navbar'
 import { StudioHero } from '@/components/landing/studio-hero'
 import { TransformationStage } from '@/components/landing/transformation-stage'
+import { PlatformBrandIcon } from '@/components/publishing/platform-brand-icon'
 import { BrandLogo } from '@/components/shared/brand-logo'
 import { StructuredData } from '@/components/shared/structured-data'
 import { Link } from '@/i18n/navigation'
@@ -82,6 +83,45 @@ export function HomePageView({
       visual: ExportWorkflowVisual
     }
   ]
+
+  const publishingPlatforms = [
+    {
+      id: 'instagram',
+      name: 'Instagram',
+      description: 'platformInstagramDesc',
+      available: true
+    },
+    {
+      id: 'facebook',
+      name: 'Facebook',
+      description: 'platformFacebookDesc',
+      available: true
+    },
+    {
+      id: 'tiktok',
+      name: 'TikTok',
+      description: 'platformTikTokDesc',
+      available: true
+    },
+    {
+      id: 'youtube',
+      name: 'YouTube Shorts',
+      description: 'platformYouTubeDesc',
+      available: true
+    },
+    {
+      id: 'linkedin',
+      name: 'LinkedIn',
+      description: 'platformLinkedInDesc',
+      available: false
+    },
+    {
+      id: 'twitter',
+      name: 'X',
+      description: 'platformXDesc',
+      available: false
+    }
+  ] as const
 
   const features = [
     { icon: Sparkles, title: t('feat1Title'), desc: t('feat1Desc') },
@@ -188,15 +228,102 @@ export function HomePageView({
             {t('proofLabel')}
           </div>
           <div className="grid grid-cols-2 gap-x-7 gap-y-3 text-[11px] font-bold uppercase tracking-[0.11em] sm:flex sm:flex-wrap sm:items-center">
-            {['TikTok', 'Instagram Reels', 'YouTube Shorts', 'LinkedIn'].map(
-              (platform) => (
+            {[
+              'Instagram',
+              'Facebook',
+              'TikTok',
+              'YouTube Shorts',
+              'LinkedIn',
+              'X'
+            ].map((platform) => (
                 <span key={platform} className="flex items-center gap-2">
                   <span className="h-1 w-1 rounded-full bg-white" />
                   {platform}
                 </span>
-              )
-            )}
+              ))}
           </div>
+        </div>
+      </section>
+
+      <section className="relative border-b border-white/[0.08] bg-[#0c0c0c] py-24 sm:py-32">
+        <div className="pointer-events-none absolute inset-0 opacity-[0.04] [background-image:linear-gradient(rgba(255,255,255,.2)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.2)_1px,transparent_1px)] [background-size:68px_68px]" />
+        <div className="page-shell relative">
+          <SectionReveal className="grid gap-8 border-b border-white/[0.08] pb-12 lg:grid-cols-[.78fr_1.22fr] lg:items-end">
+            <div>
+              <div className="font-mono text-[9px] font-semibold uppercase tracking-[0.19em] text-[#5139ef]">
+                01 / {t('platformsEyebrow')}
+              </div>
+              <h2 className="mt-5 max-w-xl text-[clamp(2.8rem,5vw,5.2rem)] font-semibold leading-[0.94] tracking-[-0.055em]">
+                {t('platformsTitle')}
+              </h2>
+            </div>
+            <p className="max-w-2xl text-[15px] leading-7 text-white/62 lg:justify-self-end">
+              {t('platformsDesc')}
+            </p>
+          </SectionReveal>
+
+          <StaggerGrid className="mt-10 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {publishingPlatforms.map((platform, index) => (
+              <StaggerItem key={platform.id}>
+                <article className="group relative min-h-52 overflow-hidden rounded-md border border-white/[0.09] bg-[#111111] p-6 transition-colors hover:border-[#5139ef]/45">
+                  <span className="absolute right-5 top-5 font-mono text-[9px] font-bold tracking-[0.16em] text-white/25">
+                    0{index + 1}
+                  </span>
+                  <PlatformBrandIcon
+                    provider={platform.id}
+                    className="size-10 bg-white p-1.5"
+                  />
+                  <div className="mt-7 flex items-center gap-3">
+                    <h3 className="text-xl font-semibold tracking-[-0.03em] text-white">
+                      {platform.name}
+                    </h3>
+                    <span
+                      className={`rounded-sm px-2 py-1 font-mono text-[8px] font-bold uppercase tracking-[0.12em] ${platform.available ? 'bg-[#5139ef]/16 text-[#9c8fff]' : 'bg-white/[0.06] text-white/42'}`}
+                    >
+                      {t(platform.available ? 'platformAvailable' : 'platformComingSoon')}
+                    </span>
+                  </div>
+                  <p className="mt-3 text-sm leading-6 text-white/52">
+                    {t(platform.description)}
+                  </p>
+                </article>
+              </StaggerItem>
+            ))}
+          </StaggerGrid>
+
+          <SectionReveal className="mt-8 grid gap-6 rounded-md border border-[#5139ef]/25 bg-[#5139ef]/[0.07] p-6 sm:p-8 lg:grid-cols-[1fr_auto] lg:items-center">
+            <div>
+              <h3 className="text-lg font-semibold tracking-[-0.025em] text-white">
+                {t('youtubeConnectionTitle')}
+              </h3>
+              <p className="mt-3 max-w-4xl text-sm leading-6 text-white/62">
+                {t('youtubeConnectionDesc')}
+              </p>
+            </div>
+            <nav
+              aria-label={t('youtubeConnectionLinks')}
+              className="flex flex-wrap gap-x-5 gap-y-3 text-[9px] font-bold uppercase tracking-[0.12em]"
+            >
+              <Link
+                href="/privacy"
+                className="text-white/65 transition-colors hover:text-white"
+              >
+                {t('privacy')}
+              </Link>
+              <Link
+                href="/terms"
+                className="text-white/65 transition-colors hover:text-white"
+              >
+                {t('terms')}
+              </Link>
+              <Link
+                href="/data-deletion"
+                className="text-white/65 transition-colors hover:text-white"
+              >
+                {t('dataDeletion')}
+              </Link>
+            </nav>
+          </SectionReveal>
         </div>
       </section>
 
