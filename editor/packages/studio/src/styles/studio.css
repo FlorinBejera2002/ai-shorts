@@ -9,6 +9,9 @@
  */
 :root {
   color-scheme: dark;
+  --radius-sm: 0.25rem;
+  --radius-md: 0.375rem;
+  --hf-accent: #fafafa;
 }
 
 body {

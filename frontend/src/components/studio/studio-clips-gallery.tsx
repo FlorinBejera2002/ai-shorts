@@ -11,7 +11,7 @@ import { PageHeader } from '@/components/ui/page-header'
 import { useApiResource } from '@/hooks/use-api-resource'
 import { Link } from '@/i18n/navigation'
 import type { ClipLibraryData } from '@/types/api'
-import { ChevronLeft, ChevronRight, Film, Plus, Search } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Film, FolderOpen, Plus, Search } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
 import { type FormEvent, useMemo, useState } from 'react'
 import styles from './studio-clips-gallery.module.css'
@@ -37,33 +37,37 @@ export function StudioClipsGallery() {
     setSearch(searchInput.trim())
   }
 
-  if (!data) return <ApiState error={error} retry={reload} />
-
   return (
     <div className={`${styles.workspace} dashboard-workspace animate-fade-in`}>
       <PageHeader
         title={t('title')}
-        description={t('description', { count: data.total })}
+        description={data ? t('description', { count: data.total }) : undefined}
         actions={
-          <Button asChild={true} className="clips-create-action">
-            <Link href="/dashboard/create">
-              <Plus aria-hidden="true" />
-              {t('create')}
-            </Link>
-          </Button>
+          <>
+            <Button asChild={true} variant="outline">
+              <Link href="/dashboard/studio?workspace=1">
+                <FolderOpen aria-hidden="true" />
+                {t('openWorkspace')}
+              </Link>
+            </Button>
+            <Button asChild={true} className="clips-create-action">
+              <Link href="/dashboard/create">
+                <Plus aria-hidden="true" />
+                {t('create')}
+              </Link>
+            </Button>
+          </>
         }
       />
 
-      <section
-        className={styles.library}
-        aria-labelledby="editor-library-title"
-      >
+      <section className={styles.library} aria-labelledby="editor-library-title">
         <div className={styles.libraryHeader}>
           <div className={styles.libraryCopy}>
             <p className={styles.eyebrow}>
-              {search
-                ? t('filteredCount', { count: data.total, search })
-                : t('description', { count: data.total })}
+              {data &&
+                (search
+                  ? t('filteredCount', { count: data.total, search })
+                  : t('description', { count: data.total }))}
             </p>
             <h2 id="editor-library-title">{t('libraryTitle')}</h2>
           </div>
@@ -80,7 +84,9 @@ export function StudioClipsGallery() {
           </form>
         </div>
 
-        {data.clips.length ? (
+        {!data ? (
+          <ApiState error={error} retry={reload} />
+        ) : data.clips.length ? (
           <>
             <div className={styles.grid}>
               {data.clips.map((clip, index) => (
@@ -115,9 +121,7 @@ export function StudioClipsGallery() {
             <EmptyState
               icon={Film}
               title={search ? t('noResults') : t('emptyTitle')}
-              description={
-                search ? t('noResultsDescription') : t('emptyDescription')
-              }
+              description={search ? t('noResultsDescription') : t('emptyDescription')}
               action={
                 search ? (
                   <Button
@@ -158,11 +162,7 @@ function GalleryPagination({
   if (totalPages <= 1) return null
   return (
     <nav className={styles.pagination} aria-label={labels.page}>
-      <Button
-        variant="outline"
-        disabled={currentPage <= 1}
-        onClick={() => onPage(currentPage - 1)}
-      >
+      <Button variant="outline" disabled={currentPage <= 1} onClick={() => onPage(currentPage - 1)}>
         <ChevronLeft aria-hidden="true" />
         {labels.previous}
       </Button>

@@ -3,6 +3,10 @@
 import { AppSidebar } from '@/components/dashboard/app-sidebar'
 import { MobileDashboardDock } from '@/components/dashboard/mobile-dashboard-dock'
 import { WorkspaceSearch } from '@/components/dashboard/workspace-search'
+import { WorkspaceAgent } from '@/components/workspace-agent/workspace-agent'
+import { AgentActivity } from '@/components/workspace-agent/agent-activity'
+import { activityMatchesRoute, useAgentActivity } from '@/components/workspace-agent/activity'
+import { useLocation } from 'react-router-dom'
 import { Separator } from '@/components/ui/separator'
 import {
   SidebarProvider,
@@ -19,6 +23,9 @@ import './studio-shell.css'
 function DashboardContent({ children }: { children: React.ReactNode }) {
   const t = useTranslations('nav')
   const pathname = usePathname()
+  const location = useLocation()
+  const activity = useAgentActivity()
+  const activeHere = activityMatchesRoute(activity, pathname, location.search)
   const { open, isMobile, openMobile } = useSidebar()
   const label = isMobile
     ? openMobile
@@ -66,7 +73,8 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
         tabIndex={-1}
         className="min-w-0 flex-1 pb-24 outline-none lg:pb-0"
       >
-        <div className="page-shell studio-page studio-page-enter relative py-5 sm:py-6">
+        <div data-agent-route-active={activeHere || undefined} className="page-shell studio-page studio-page-enter relative py-5 sm:py-6">
+          {activeHere && activity && <AgentActivity activity={activity} />}
           {children}
         </div>
       </main>
@@ -95,6 +103,7 @@ export function DashboardShell({
         <AppSidebar />
         <MobileDashboardDock />
         <DashboardContent>{children}</DashboardContent>
+        <WorkspaceAgent />
       </SidebarProvider>
     </MotionConfig>
   )

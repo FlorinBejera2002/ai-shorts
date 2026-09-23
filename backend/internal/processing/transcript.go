@@ -10,13 +10,17 @@ import (
 )
 
 func (p *Processor) transcribe(ctx context.Context, file, dir, language string, duration float64) (Transcript, error) {
+	return p.transcribeModel(ctx, file, dir, language, duration, p.cfg.WhisperModel)
+}
+
+func (p *Processor) transcribeModel(ctx context.Context, file, dir, language string, duration float64, model string) (Transcript, error) {
 	if language == "" {
 		language = "auto"
 	}
 	if err := p.ffmpeg(ctx, dir, "-i", file, "-vn", "-ac", "1", "-ar", "16000", "-c:a", "pcm_s16le", "audio.wav"); err != nil {
 		return Transcript{}, err
 	}
-	_, err := run(ctx, dir, p.cfg.WhisperPath, "-m", p.cfg.WhisperModel, "-f", "audio.wav", "-l", language, "-ojf", "-of", "transcript", "-sow", "-ml", "1")
+	_, err := run(ctx, dir, p.cfg.WhisperPath, "-m", model, "-f", "audio.wav", "-l", language, "-ojf", "-of", "transcript", "-sow", "-ml", "1")
 	if err != nil {
 		return Transcript{}, err
 	}
@@ -58,7 +62,7 @@ func parseTranscript(raw []byte, duration float64) (Transcript, error) {
 				continue
 			}
 			a, b := t.Offsets.From/1000, t.Offsets.To/1000
-			if a < start || b <= a || b > end+0.1 {
+			if a < start || a >= end || b <= a || b > end+0.1 {
 				continue
 			}
 			txt := strings.TrimSpace(t.Text)
@@ -68,13 +72,23 @@ func parseTranscript(raw []byte, duration float64) (Transcript, error) {
 			if len(s.Words) > 0 && !strings.HasPrefix(t.Text, " ") {
 				last := &s.Words[len(s.Words)-1]
 				last.Text += txt
-				last.End = b
+				last.End = min(b, end)
 			} else {
-				s.Words = append(s.Words, Word{txt, a, b})
+				s.Words = append(s.Words, Word{txt, a, min(b, end)})
 			}
 		}
-		if len(s.Words) == 0 {
-			s.Words = append(s.Words, Word{text, start, end})
+		// Whisper can assign zero duration (or no timing) to a lexical BPE
+		// fragment. Discarding that fragment must never change a word, number or
+		// negation: e.g. " M" + "ă" must not become "ă". Our -sow -ml 1
+		// invocation supplies word-bounded segments. For coarser imported JSON,
+		// retain the whole segment and its measured clock instead of inventing
+		// finer word alignment that the speech engine did not establish.
+		parts := make([]string, len(s.Words))
+		for i, word := range s.Words {
+			parts[i] = word.Text
+		}
+		if strings.Join(strings.Fields(strings.Join(parts, " ")), " ") != strings.Join(strings.Fields(text), " ") {
+			s.Words = []Word{{Text: text, Start: start, End: end}}
 		}
 		result.Segments = append(result.Segments, s)
 		result.Words = append(result.Words, s.Words...)

@@ -34,6 +34,19 @@ test('AI conflicts and unavailable providers never look like success', async () 
   }
 })
 
+test('assistant validates requests and reports session and provider errors', async () => {
+  let calls = 0
+  const assistant = createStudioAssistant('https://studio.example.com', 'p_1', async () => {
+    calls++
+    return Response.json({ error: 'AI proposal timed out' }, { status: 504 })
+  })
+  await assert.rejects(assistant.propose(' '), /Describe your edit/)
+  assert.equal(calls, 0)
+  await assert.rejects(assistant.propose('Update title'), /AI proposal timed out/)
+  const expired = createStudioAssistant('https://studio.example.com', 'p_1', async () => new Response(null, { status: 401 }))
+  await assert.rejects(expired.propose('Update title'), /session expired/)
+})
+
 test('validates the exact configured Studio origin before credentials are sent', () => {
   assert.equal(studioOrigin('https://studio.example.com/'), 'https://studio.example.com')
   assert.equal(studioOrigin('http://localhost:5191'), 'http://localhost:5191')

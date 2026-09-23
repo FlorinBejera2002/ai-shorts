@@ -1,6 +1,6 @@
 import { buildProjectApiPath } from "../utils/projectRouting";
-import { useState, useCallback, useRef, useEffect } from "react";
-import { copyTextToClipboard } from "../utils/clipboard";
+import { useState, useCallback, useEffect } from "react";
+import { openAssistantDraft } from "../components/assistant/assistantDraft";
 import { readTagSnippetByTarget } from "../utils/sourcePatcher";
 import { toProjectAbsolutePath, type AgentModalAnchorPoint } from "../utils/studioHelpers";
 import { buildElementAgentPrompt, type DomEditSelection } from "../components/editor/domEditing";
@@ -24,7 +24,6 @@ export function useAskAgentModal({
   activeCompPath,
   projectDir,
   projectIdRef,
-  showToast,
   domEditSelectionRef,
   domEditSelection,
 }: UseAskAgentModalParams) {
@@ -39,10 +38,6 @@ export function useAskAgentModal({
   );
   const [copiedAgentPrompt, setCopiedAgentPrompt] = useState(false);
   const [agentModalOpen, setAgentModalOpen] = useState(false);
-
-  // ── Refs ──
-
-  const copiedAgentTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // ── Callbacks ──
 
@@ -98,18 +93,11 @@ export function useAskAgentModal({
         sourceFilePath: toProjectAbsolutePath(projectDir, targetPath),
       });
 
-      const copied = await copyTextToClipboard(prompt);
-      if (!copied) {
-        showToast("Could not copy prompt to clipboard.", "error");
-        return;
-      }
-
       setAgentModalOpen(false);
+      openAssistantDraft({ message: prompt, path: targetPath });
       setAgentPromptSelectionContext(undefined);
       setAgentModalAnchorPoint(null);
-      if (copiedAgentTimerRef.current) clearTimeout(copiedAgentTimerRef.current);
-      setCopiedAgentPrompt(true);
-      copiedAgentTimerRef.current = setTimeout(() => setCopiedAgentPrompt(false), 1600);
+      setCopiedAgentPrompt(false);
     },
     [
       activeCompPath,
@@ -117,7 +105,6 @@ export function useAskAgentModal({
       agentPromptTagSnippet,
       domEditSelection,
       projectDir,
-      showToast,
     ],
   );
 
@@ -131,15 +118,6 @@ export function useAskAgentModal({
     setAgentModalAnchorPoint(null);
     setCopiedAgentPrompt(false);
   }, [domEditSelection]);
-
-  // Cleanup copiedAgentTimerRef
-  // eslint-disable-next-line no-restricted-syntax
-  useEffect(
-    () => () => {
-      if (copiedAgentTimerRef.current) clearTimeout(copiedAgentTimerRef.current);
-    },
-    [],
-  );
 
   return {
     // State

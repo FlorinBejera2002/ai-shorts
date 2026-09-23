@@ -13,7 +13,8 @@ const gallery = readFileSync(
 
 test('studio route retains the clip gallery and legacy clip deep links', () => {
   assert.match(studioPage, /<StudioClipsGallery\s*\/>/)
-  assert.match(studioPage, /clip \? <StudioProjects initialClipId=\{clip\}/)
+  assert.match(studioPage, /clip \|\| workspace === '1'/)
+  assert.match(studioPage, /<StudioProjects initialClipId=\{clip\}/)
   assert.doesNotMatch(studioPage, /iframe/)
   assert.match(gallery, /\/api\/clips\/library\?\$\{query\}/)
   assert.doesNotMatch(gallery, /<iframe/)

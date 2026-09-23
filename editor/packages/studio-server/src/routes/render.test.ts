@@ -44,8 +44,8 @@ function buildApp(spy: ReturnType<typeof vi.fn>): {
   return { app, rendersDir, cleanup: () => rmSync(rendersDir, { recursive: true, force: true }) };
 }
 
-describe("GET /projects/:id/renders — stale sidecar status", () => {
-  it("does not mark an existing output failed from stale metadata", async () => {
+describe("GET /projects/:id/renders — failed artifacts", () => {
+  it("does not promote an existing unverified output from failed metadata", async () => {
     const spy = vi.fn();
     const { app, rendersDir, cleanup } = buildApp(spy);
     try {
@@ -57,7 +57,7 @@ describe("GET /projects/:id/renders — stale sidecar status", () => {
       const res = await app.request("http://localhost/projects/demo/renders");
       expect(res.status).toBe(200);
       const body = await res.json();
-      expect(body.renders).toEqual([expect.objectContaining({ id: "retry", status: "complete" })]);
+      expect(body.renders).toEqual([expect.objectContaining({ id: "retry", status: "failed" })]);
     } finally {
       cleanup();
     }

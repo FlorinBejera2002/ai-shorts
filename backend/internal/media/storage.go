@@ -45,10 +45,28 @@ func validKey(key string) bool {
 }
 
 func keyFromReference(reference, localRoot, publicBase, appURL string) (string, error) {
-	if reference == "" || strings.TrimSpace(reference) != reference || strings.Contains(reference, "\\") {
+	if reference == "" || strings.TrimSpace(reference) != reference {
 		return "", ErrInvalidKey
 	}
 	value := reference
+	// Native Windows upload responses contain an absolute drive path. Convert
+	// only a path inside this exact configured root; relative backslashes,
+	// traversal and foreign drives must never become accepted storage keys.
+	if filepath.IsAbs(value) && filepath.VolumeName(value) != "" && filepath.IsAbs(localRoot) && filepath.VolumeName(localRoot) != "" {
+		root := strings.TrimRight(filepath.ToSlash(localRoot), "/") + "/"
+		absolute := filepath.ToSlash(value)
+		if len(absolute) <= len(root) || !strings.EqualFold(absolute[:len(root)], root) {
+			return "", ErrInvalidKey
+		}
+		value = absolute[len(root):]
+		if !validKey(value) {
+			return "", ErrInvalidKey
+		}
+		return value, nil
+	}
+	if strings.Contains(value, "\\") {
+		return "", ErrInvalidKey
+	}
 	if strings.HasPrefix(value, "http://") || strings.HasPrefix(value, "https://") {
 		u, err := url.Parse(value)
 		if err != nil || u.User != nil || u.Fragment != "" {

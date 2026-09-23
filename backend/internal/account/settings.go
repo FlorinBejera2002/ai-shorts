@@ -172,8 +172,7 @@ func (h *Handler) updatePreferences(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	userID := identity.Current(r).User.ID
-	_, err := h.db.ExecContext(r.Context(), `INSERT INTO account_preferences(user_id,locale,theme,timezone,default_aspect_ratio,default_clip_count,email_security,email_product,email_marketing,in_app_processing,in_app_publishing,updated_at)
-		VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,now()) ON CONFLICT(user_id) DO UPDATE SET locale=excluded.locale,theme=excluded.theme,timezone=excluded.timezone,default_aspect_ratio=excluded.default_aspect_ratio,default_clip_count=excluded.default_clip_count,email_security=excluded.email_security,email_product=excluded.email_product,email_marketing=excluded.email_marketing,in_app_processing=excluded.in_app_processing,in_app_publishing=excluded.in_app_publishing,updated_at=now()`, userID, input.Locale, input.Theme, input.Timezone, input.DefaultAspectRatio, input.DefaultClipCount, input.EmailSecurity, input.EmailProduct, input.EmailMarketing, input.InAppProcessing, input.InAppPublishing)
+	_, err := updateAgentPreferences(r.Context(), h.db, userID, "", "", input)
 	if err != nil {
 		fail(w, err)
 		return

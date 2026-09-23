@@ -1,0 +1,43 @@
+.story-select {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-md);
+  padding: 0.5rem 0.625rem;
+  background: var(--background);
+  color: var(--foreground);
+  font-size: 0.875rem;
+  outline-offset: 2px;
+}
+.story-select:hover {
+  background: var(--muted);
+}
+.story-select:focus-visible {
+  outline: 2px solid var(--foreground);
+}
+.story-select:disabled {
+  opacity: 0.6;
+}
+.story-workspace,
+.story-mode-switch {
+  --primary: var(--foreground);
+  --primary-foreground: var(--background);
+  --accent: var(--muted);
+  --accent-foreground: var(--foreground);
+  min-width: 0;
+}
+.story-workspace input[type='checkbox'] {
+  appearance: auto;
+  width: 1rem;
+  height: 1rem;
+  min-height: 1rem;
+  padding: 0;
+  accent-color: var(--foreground);
+  border-radius: var(--radius-sm);
+}
+.story-workspace input[type='checkbox']::after {
+  display: none;
+}
+.story-workspace video {
+  max-width: 100%;
+}

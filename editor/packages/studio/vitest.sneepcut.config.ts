@@ -17,6 +17,7 @@ export default defineConfig({
       "src/telemetry/policy.test.ts",
       "src/utils/studioTelemetry.test.ts",
       "src/components/feedback/feedbackReport.test.ts",
+      "src/components/assistant/*.test.tsx",
     ],
   },
 });

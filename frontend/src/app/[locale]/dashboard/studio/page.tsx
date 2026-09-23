@@ -4,9 +4,13 @@ import { StudioProjects } from '@/components/studio/studio-projects'
 export default async function StudioPage({
   searchParams
 }: {
-  searchParams: Promise<{ clip?: string }>
+  searchParams: Promise<{ clip?: string; workspace?: string }>
 }) {
-  const { clip } = await searchParams
+  const { clip, workspace } = await searchParams
 
-  return clip ? <StudioProjects initialClipId={clip} /> : <StudioClipsGallery />
+  return clip || workspace === '1' ? (
+    <StudioProjects initialClipId={clip} />
+  ) : (
+    <StudioClipsGallery />
+  )
 }

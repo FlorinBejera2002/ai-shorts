@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 
 import { FileText, Sparkles, X } from 'lucide-react'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import { useSearchParams } from 'next/navigation'
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react'
 
@@ -27,6 +27,7 @@ import { SourceModeSelector } from '@/components/create/source-mode-selector'
 import { SourceUpload } from '@/components/create/source-upload'
 import { SourceYoutube } from '@/components/create/source-youtube'
 import { SummaryCard } from '@/components/create/summary-card'
+import { StoryBuilder } from '@/components/story/story-builder'
 import { PageHeader } from '@/components/ui/page-header'
 import { Tabs, TabsContent } from '@/components/ui/tabs'
 import { useToast } from '@/components/ui/toast'
@@ -50,6 +51,7 @@ interface UploadedFile {
 const CREDITS_PER_CLIP = 10
 
 export default function CreatePage() {
+  const locale = useLocale()
   const t = useTranslations('create')
   const sections = useTranslations('dashboardSections')
 
@@ -57,7 +59,9 @@ export default function CreatePage() {
     <div className="creation-page dashboard-workspace animate-fade-in">
       <PageHeader
         title={t('title')}
-        description={t('desc')}
+        description={locale === 'ro'
+          ? 'Transformă mai multe filmări într-o poveste coerentă sau importă un videoclip existent.'
+          : 'Turn multiple recordings into one coherent story, or import an existing video.'}
         actions={
           <Button asChild={true} variant="outline">
             <Link href="/dashboard/script-generator">
@@ -68,10 +72,32 @@ export default function CreatePage() {
         }
       />
       <Suspense fallback={<CreateWorkflowFallback />}>
-        <CreateWorkflow />
+        <CreateWorkspace />
       </Suspense>
     </div>
   )
+}
+
+function CreateWorkspace() {
+  const locale = useLocale()
+  const searchParams = useSearchParams()
+  const [legacy, setLegacy] = useState(() => isSourceMode(searchParams.get('mode')))
+  const [legacyOpened, setLegacyOpened] = useState(legacy)
+  return <>
+    <div className="story-mode-switch mt-6 flex flex-wrap gap-2" aria-label={locale === 'ro' ? 'Tipul proiectului' : 'Project type'}>
+      <Button variant={legacy ? 'outline' : 'default'} aria-pressed={!legacy} onClick={() => setLegacy(false)}>
+        {locale === 'ro' ? 'Poveste din mai multe filmări' : 'Multi-clip story'}
+      </Button>
+      <Button variant={legacy ? 'default' : 'outline'} aria-pressed={legacy} onClick={() => {
+        setLegacyOpened(true)
+        setLegacy(true)
+      }}>
+        {locale === 'ro' ? 'Import dintr-un videoclip sau link' : 'Import a video or link'}
+      </Button>
+    </div>
+    <div hidden={legacy}><StoryBuilder /></div>
+    {legacyOpened && <div hidden={!legacy}><CreateWorkflow /></div>}
+  </>
 }
 
 function CreateWorkflowFallback() {

@@ -31,6 +31,7 @@ func (h *Handler) Register(router *httprouter.Router) {
 	router.HandlerFunc(http.MethodGet, "/api/media/verify-request", h.verifyRequest)
 	router.Handler(http.MethodPost, "/api/upload/authorize", h.auth.RequireMember(h.authorize))
 	router.Handler(http.MethodPost, "/api/upload", h.auth.RequireMember(h.uploadMultipart))
+	router.Handler(http.MethodPost, "/api/upload/narration", h.auth.RequireMember(h.uploadNarration))
 	router.Handler(http.MethodPost, "/api/publishing/media", h.auth.RequireMember(h.uploadPublishingMedia))
 	router.Handler(http.MethodGet, "/api/publishing/media/preview", h.auth.Require(h.previewPublishingMedia))
 	// Direct bodies use purpose-bound single-use upload credentials, not an
@@ -118,7 +119,7 @@ func (h *Handler) verifyRequest(w http.ResponseWriter, r *http.Request) {
 }
 func (h *Handler) authorize(w http.ResponseWriter, r *http.Request) {
 	user := identity.Current(r).User
-	if e := h.service.allow(r.Context(), user.ID, "authorize", 24); e != nil {
+	if e := h.service.allow(r.Context(), user.ID, "authorize", 120); e != nil {
 		mediaError(w, e)
 		return
 	}
@@ -168,7 +169,7 @@ func (h *Handler) uploadDirect(w http.ResponseWriter, r *http.Request) {
 		mediaError(w, e)
 		return
 	}
-	if e = h.service.allow(r.Context(), claims.UserID, "upload", 12); e != nil {
+	if e = h.service.allow(r.Context(), claims.UserID, "upload", 60); e != nil {
 		mediaError(w, e)
 		return
 	}
@@ -220,7 +221,7 @@ func firstFile(w http.ResponseWriter, r *http.Request, maximum int64) (*multipar
 }
 func (h *Handler) uploadMultipart(w http.ResponseWriter, r *http.Request) {
 	user := identity.Current(r).User
-	if e := h.service.allow(r.Context(), user.ID, "upload", 12); e != nil {
+	if e := h.service.allow(r.Context(), user.ID, "upload", 60); e != nil {
 		mediaError(w, e)
 		return
 	}

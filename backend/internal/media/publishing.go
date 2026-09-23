@@ -97,6 +97,23 @@ func (s *Service) PublishingPreviewURL(ctx context.Context, userID, reference st
 	return s.SignedURL(ctx, key)
 }
 
+// ResolveOwnedPublishingMedia returns internal metadata only after the normal
+// preview authorization and physical object check have succeeded.
+func (s *Service) ResolveOwnedPublishingMedia(ctx context.Context, user, reference string) (string, string, error) {
+	if _, err := s.PublishingPreviewURL(ctx, user, reference); err != nil {
+		return "", "", err
+	}
+	key, err := s.KeyFromReference(reference)
+	if err != nil {
+		return "", "", err
+	}
+	kind := "video"
+	if strings.HasPrefix(publishingContentTypes[strings.ToLower(path.Ext(key))], "image/") {
+		kind = "image"
+	}
+	return key, kind, nil
+}
+
 func (s *Service) StorePublishingMedia(ctx context.Context, userID string, intent UploadIntent, body io.Reader) (UploadResult, error) {
 	if !uuidPattern.MatchString(userID) {
 		return UploadResult{}, failure(401, "Authentication required")

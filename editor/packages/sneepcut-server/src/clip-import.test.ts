@@ -66,6 +66,8 @@ test("rejects other users and arbitrary media destinations before downloading", 
   for (const changed of [
     { user_id: bob },
     { file_url: "http://169.254.169.254/media/token" },
+    { file_url: "http://nginx/media/clips/test.mp4" },
+    { file_url: "https://user:password@app.test/media/clips/test.mp4" },
     { file_url: "https://app.test/private" },
     { duration: 0 },
   ]) {
@@ -74,6 +76,7 @@ test("rejects other users and arbitrary media destinations before downloading", 
       store,
       apiOrigin: "https://api.test",
       mediaOrigin: "https://app.test",
+      mediaFetchOrigin: "http://nginx",
       probeAudio: async () => true,
       fetcher: async () => {
         calls++;
@@ -105,6 +108,47 @@ test("failed download never leaves a visible project and can be retried", async 
   fail = false;
   await importer(alice, "Bearer alice", id);
   expect(await store.list(alice)).toHaveLength(1);
+});
+
+test("downloads validated public media through the internal origin with its signature intact", async () => {
+  const signedPath = "/media/clips/test%20clip.mp4?expires=123&sig=abc%2Bdef%2Fghi%3D";
+  const requests: string[] = [];
+  const importer = createClipImporter({
+    store,
+    apiOrigin: "http://backend:8080",
+    mediaOrigin: "http://localhost:3000",
+    mediaFetchOrigin: "http://nginx",
+    probeAudio: async () => false,
+    fetcher: async (input, init) => {
+      requests.push(String(input));
+      if (String(input).includes("/api/clips/")) {
+        return Response.json({ ...clip(), file_url: `http://localhost:3000${signedPath}` });
+      }
+      expect(init?.redirect).toBe("error");
+      expect(new Headers(init?.headers).has("Authorization")).toBe(false);
+      return new Response("synthetic-video");
+    },
+  });
+  const project = await importer(alice, "Bearer alice", id);
+  expect(requests).toEqual([`http://backend:8080/api/clips/${id}`, `http://nginx${signedPath}`]);
+  expect(await readFile(join(project.dir, "assets/clip.mp4"), "utf8")).toBe("synthetic-video");
+});
+
+test.each([
+  "file:///tmp/media",
+  "https://user:password@nginx",
+  "http://nginx/media",
+  "http://nginx?signature=bad",
+  "http://nginx#fragment",
+])("rejects an invalid internal media origin %s", (mediaFetchOrigin) => {
+  expect(() =>
+    createClipImporter({
+      store,
+      apiOrigin: "https://api.test",
+      mediaOrigin: "https://app.test",
+      mediaFetchOrigin,
+    }),
+  ).toThrow("Studio internal media address must be an HTTP(S) origin");
 });
 
 test("opening Studio directly reuses one private blank workspace", async () => {

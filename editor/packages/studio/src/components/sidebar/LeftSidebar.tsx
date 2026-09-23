@@ -151,7 +151,7 @@ export const LeftSidebar = memo(
 
     return (
       <div
-        className="flex flex-col h-full overflow-hidden rounded-lg border border-neutral-800/50 bg-neutral-950"
+        className="flex flex-col h-full overflow-hidden rounded-md border border-neutral-800/50 bg-neutral-950"
         style={{ width }}
       >
         {takeoverContent ? (
@@ -166,7 +166,7 @@ export const LeftSidebar = memo(
                   role="tablist"
                   aria-label="Sidebar panels"
                   onKeyDown={handleTablistKeyDown}
-                  className="grid min-w-0 flex-1 gap-0.5 rounded-[18px] bg-neutral-900 p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]"
+                  className="grid min-w-0 flex-1 gap-0.5 rounded-md bg-neutral-900 p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]"
                   style={{ gridTemplateColumns: "1fr 1fr 1fr 1fr" }}
                 >
                   {SIDEBAR_TABS.map((t) => (
@@ -179,7 +179,7 @@ export const LeftSidebar = memo(
                         aria-controls={`sidebar-panel-${t.id}`}
                         tabIndex={tab === t.id ? 0 : -1}
                         onClick={() => selectTab(t.id)}
-                        className={`rounded-[14px] px-1.5 py-2 text-[10px] font-semibold truncate transition-all active:scale-[0.97] ${
+                        className={`rounded-sm px-1.5 py-2 text-[10px] font-semibold truncate transition-all active:scale-[0.97] ${
                           tab === t.id
                             ? "bg-neutral-800 text-white"
                             : "text-neutral-500 hover:text-neutral-200"
@@ -312,7 +312,7 @@ export const LeftSidebar = memo(
                   </svg>
                   {linting ? "Linting…" : "Lint"}
                   {!linting && lintFindingCount != null && lintFindingCount > 0 && (
-                    <span className="ml-1 min-w-[16px] rounded-full bg-amber-500/20 px-1 text-[9px] font-bold text-amber-400">
+                    <span className="ml-1 min-w-[16px] rounded-sm bg-amber-500/20 px-1 text-[9px] font-bold text-amber-400">
                       {lintFindingCount}
                     </span>
                   )}

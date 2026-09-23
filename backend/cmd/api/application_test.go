@@ -58,7 +58,7 @@ func TestCompleteApplicationRoutesAndOriginPolicy(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer cleanup()
-	for _, path := range []string{"/api/jobs", "/api/clips", "/api/clips/library", "/api/calendar", "/api/user/brand", "/api/user/profile", "/api/user/credits", "/api/user/data", "/api/dashboard", "/api/dashboard/analytics", "/api/dashboard/history", "/api/dashboard/review", "/api/assistant/history?context=create", "/api/stripe/billing"} {
+	for _, path := range []string{"/api/jobs", "/api/stories", "/api/clips", "/api/clips/library", "/api/calendar", "/api/user/brand", "/api/user/profile", "/api/user/credits", "/api/user/data", "/api/dashboard", "/api/dashboard/analytics", "/api/dashboard/history", "/api/dashboard/review", "/api/assistant/history?context=create", "/api/stripe/billing"} {
 		r := httptest.NewRequest("GET", "http://localhost"+path, nil)
 		w := httptest.NewRecorder()
 		h.ServeHTTP(w, r)

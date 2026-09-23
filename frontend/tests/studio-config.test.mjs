@@ -19,3 +19,12 @@ test('explicit HTTPS deployment and local development remain available', () => {
   assert.equal(configuredStudioOrigin('', false), 'http://localhost:5191')
   assert.equal(configuredStudioOrigin('http://localhost:5193', false), 'http://localhost:5193')
 })
+
+test('malformed origins are unavailable instead of crashing the workspace', () => {
+  for (const production of [true, false]) {
+    for (const value of ['invalid', 'javascript:alert(1)', 'https://user:password@studio.example.com', 'https://studio.example.com/path', 'https://studio.example.com?key=secret', 'https://studio.example.com/#project/1']) {
+      assert.equal(configuredStudioOrigin(value, production), null)
+    }
+    assert.equal(configuredStudioOrigin('https://studio.example.com/', production), 'https://studio.example.com')
+  }
+})

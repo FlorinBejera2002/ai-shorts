@@ -12,7 +12,7 @@ import (
 
 // Face tracking replaces the former Python detector. A missing model is an error;
 // a frame with no confident face holds the last framing (initially centered).
-func (p *Processor) cropFilter(ctx context.Context, dir, source string, info probeInfo, width, height int) (string, error) {
+func (p *Processor) cropFilter(ctx context.Context, dir, source string, info probeInfo, width, height int, boundaries ...float64) (string, error) {
 	cascade, e := os.ReadFile(p.cfg.FaceModel)
 	if e != nil {
 		return "", fmt.Errorf("face model: %w", e)
@@ -34,6 +34,7 @@ func (p *Processor) cropFilter(ctx context.Context, dir, source string, info pro
 	x := float64(info.Width-width) / 2
 	var commands strings.Builder
 	frame := 0
+	nextBoundary := 0
 	for {
 		n, err := frames.Read(pixels)
 		if n == 0 {
@@ -62,10 +63,25 @@ func (p *Processor) cropFilter(ctx context.Context, dir, source string, info pro
 				bestValue = value
 			}
 		}
+		atBoundary := false
+		firstBoundary := nextBoundary
+		for nextBoundary < len(boundaries) && boundaries[nextBoundary] <= float64(frame)/2 {
+			atBoundary = true
+			nextBoundary++
+		}
 		if best >= 0 {
 			target := float64(detections[best].Col)*float64(info.Width)/320 - float64(width)/2
 			target = max(0, min(float64(info.Width-width), target))
-			x = .65*x + .35*target
+			if frame == 0 || atBoundary {
+				// A new source sequence has its own subject location. Carrying
+				// the previous source's pixel coordinates would create a jump.
+				x = target
+			} else {
+				x = .65*x + .35*target
+			}
+		}
+		for i := firstBoundary; i < nextBoundary; i++ {
+			fmt.Fprintf(&commands, "%.3f crop x %d;\n", boundaries[i], int(x)/2*2)
 		}
 		fmt.Fprintf(&commands, "%.3f crop x %d;\n", float64(frame)/2, int(x)/2*2)
 		frame++
@@ -87,6 +103,8 @@ func dimensions(w, h int, ratio string) (int, int, error) {
 		return 1080, 1920, nil
 	case "1:1":
 		return 1080, 1080, nil
+	case "4:5":
+		return 1080, 1350, nil
 	case "16:9":
 		return 1920, 1080, nil
 	default:

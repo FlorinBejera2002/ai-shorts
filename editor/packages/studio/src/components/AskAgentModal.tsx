@@ -43,7 +43,7 @@ export function AskAgentModal({
   const containerRef = useRef<HTMLDivElement>(null);
   const modalPositionStyle = getAgentModalPositionStyle(anchorPoint);
   // A dirty draft vetoes Escape/backdrop closes — a stray click must not
-  // discard typed instructions. The X button and Copy still close directly.
+  // discard typed instructions. The X button and Continue still close directly.
   const { requestClose } = useDialogBehavior({
     open: true,
     onClose,
@@ -73,9 +73,9 @@ export function AskAgentModal({
         ref={containerRef}
         role="dialog"
         aria-modal="true"
-        aria-label="Copy prompt to AI agent"
+        aria-label="Ask SneepCut AI"
         tabIndex={-1}
-        className={`w-[480px] rounded-2xl border border-neutral-800 bg-neutral-950 shadow-2xl outline-none ${
+        className={`w-[480px] rounded-md border border-neutral-800 bg-neutral-950 shadow-2xl outline-none ${
           anchorPoint ? "fixed" : ""
         }`}
         style={modalPositionStyle}
@@ -83,7 +83,7 @@ export function AskAgentModal({
       >
         <div className="flex items-center justify-between px-5 py-4 border-b border-neutral-800/60">
           <div>
-            <h3 className="text-sm font-medium text-neutral-200">Copy prompt to AI agent</h3>
+            <h3 className="text-sm font-medium text-neutral-200">Ask SneepCut AI</h3>
             <p className="text-xs text-neutral-500 mt-0.5">
               {selectionLabel.length > 50 ? `${selectionLabel.slice(0, 49)}…` : selectionLabel}
             </p>
@@ -110,7 +110,7 @@ export function AskAgentModal({
         <div className="px-5 py-4 space-y-3">
           <textarea
             ref={inputRef}
-            className="w-full h-24 px-3 py-2 rounded-lg border border-neutral-800 bg-neutral-900/60 text-sm text-neutral-200 placeholder-neutral-600 resize-none focus:outline-none focus:border-studio-accent/60 focus:ring-1 focus:ring-studio-accent/30"
+            className="w-full h-24 px-3 py-2 rounded-md border border-neutral-800 bg-neutral-900/60 text-sm text-neutral-200 placeholder-neutral-600 resize-none focus:outline-none focus:border-studio-accent/60 focus:ring-1 focus:ring-studio-accent/30"
             placeholder="Describe what you want to change…"
             value={value}
             onChange={(e) => setValue(e.target.value)}
@@ -125,7 +125,7 @@ export function AskAgentModal({
               <summary className="text-[11px] text-neutral-500 cursor-pointer select-none hover:text-neutral-400">
                 Context included in prompt
               </summary>
-              <pre className="mt-2 max-h-40 overflow-auto rounded-lg bg-neutral-900/80 px-3 py-2 text-[11px] leading-relaxed text-neutral-500 whitespace-pre-wrap break-words border border-neutral-800/50">
+              <pre className="mt-2 max-h-40 overflow-auto rounded-md bg-neutral-900/80 px-3 py-2 text-[11px] leading-relaxed text-neutral-500 whitespace-pre-wrap break-words border border-neutral-800/50">
                 {contextPreview}
               </pre>
             </details>
@@ -133,14 +133,14 @@ export function AskAgentModal({
         </div>
         <div className="flex items-center justify-between px-5 py-3 border-t border-neutral-800/60">
           <span className="text-[11px] text-neutral-600">
-            {navigator.platform.includes("Mac") ? "⌘" : "Ctrl"}+Enter to copy
+            {navigator.platform.includes("Mac") ? "⌘" : "Ctrl"}+Enter to continue
           </span>
           <button
-            className="px-4 py-1.5 rounded-lg bg-studio-accent/90 text-xs font-medium text-neutral-950 hover:bg-studio-accent disabled:opacity-40 disabled:cursor-not-allowed"
+            className="px-4 py-1.5 rounded-md bg-studio-accent/90 text-xs font-medium text-neutral-950 hover:bg-studio-accent disabled:opacity-40 disabled:cursor-not-allowed"
             disabled={!value.trim()}
             onClick={handleSubmit}
           >
-            Copy prompt
+            Continue to assistant
           </button>
         </div>
       </div>

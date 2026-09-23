@@ -47,6 +47,11 @@ func (h *Handler) exportData(ctx context.Context, userID string) (map[string]any
 		{"clips", "clips", "id,job_id,folder_id,title,hook_text,viral_score,score_reason,start_time,end_time,duration,segments,file_url,thumbnail_url,file_size,resolution,aspect_ratio,has_subtitles,transcript_text,caption_tiktok,caption_instagram,caption_youtube,suggested_hashtags,published_to,created_at", "created_at DESC,id DESC"},
 		{"scheduledPosts", "scheduled_posts", "id,clip_id,title,caption,notes,platforms,account_ids,tiktok_options,youtube_options,status,publishing_error,scheduled_at,created_at,updated_at", "scheduled_at ASC,id ASC"},
 		{"assistantMessages", "chat_messages", "id,clip_id,context,role,content,actions,created_at", "created_at ASC,id ASC"},
+		{"workspaceAgentRuns", "workspace_agent_runs", "id,message,reply,status,context,action,result,steps,error,cost_credits,revision,resource_ids,missing_resources,approval_preview,history_cleared_at,created_at,updated_at", "created_at ASC,id ASC"},
+		{"workspaceAgentSuggestions", "workspace_agent_suggestions", "id,content,dismissed,run_id,created_at", "created_at ASC,id ASC"},
+		{"workspaceAgentPreferences", "workspace_agent_preferences", "follow,recommendations", "user_id"},
+		{"workspaceAgentResources", "workspace_agent_resources", "id,project_id,kind,name,content,created_at", "created_at ASC,id ASC"},
+		{"stories", "story_projects", "id,options,status,message,current_version,locks,stage_metrics,created_at,updated_at", "created_at ASC,id ASC"},
 	}
 	for _, c := range collections {
 		rows, err := tx.QueryContext(ctx, `SELECT row_to_json(row) FROM (SELECT `+projection(c.columns)+` FROM `+c.table+` WHERE user_id=$1 ORDER BY `+c.order+`) row`, userID)
@@ -68,6 +73,31 @@ func (h *Handler) exportData(ctx context.Context, userID string) (map[string]any
 			return nil, err
 		}
 		data[c.name] = items
+	}
+	for _, collection := range []struct{ name, table, columns string }{
+		{"storySources", "story_assets", "project_id,id,asset"},
+		{"storyVersions", "story_versions", "project_id,number,version,created_at"},
+		{"storyRepairs", "story_attempts", "project_id,attempt,created_at"},
+	} {
+		rows, err := tx.QueryContext(ctx, `SELECT row_to_json(row) FROM (SELECT `+projection(collection.columns)+` FROM `+collection.table+` WHERE project_id IN(SELECT id FROM story_projects WHERE user_id=$1)) row`, userID)
+		if err != nil {
+			return nil, err
+		}
+		items := []json.RawMessage{}
+		for rows.Next() {
+			var raw json.RawMessage
+			if err = rows.Scan(&raw); err != nil {
+				rows.Close()
+				return nil, err
+			}
+			items = append(items, raw)
+		}
+		err = rows.Err()
+		rows.Close()
+		if err != nil {
+			return nil, err
+		}
+		data[collection.name] = items
 	}
 	brand := projection("logo_path,logo_url,primary_color,secondary_color,font_family,apply_brand_colors,apply_brand_font,subtitle_font,subtitle_color,subtitle_bg_color,subtitle_bg_opacity,subtitle_position,watermark_position,watermark_opacity,hide_platform_badge,created_at,updated_at")
 	var brandJSON []byte

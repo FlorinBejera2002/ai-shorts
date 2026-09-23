@@ -15,6 +15,8 @@ import (
 	"sneepcut/backend-go/internal/media"
 	"sneepcut/backend-go/internal/openrouter"
 	"sneepcut/backend-go/internal/processing"
+	"sneepcut/backend-go/internal/stories"
+	"sneepcut/backend-go/internal/story"
 	"sneepcut/backend-go/internal/worker"
 )
 
@@ -59,6 +61,12 @@ func run(logger *slog.Logger) error {
 	if err != nil {
 		return err
 	}
-	executor := worker.Worker{Repo: worker.NewRepository(db), Pipeline: processing.New(cfg, storage, ai), Storage: storage, Logger: logger, YouTubeImportApproved: app.YouTubeImportApproved}
+	storyLimits, err := story.LimitsFromEnv(os.Getenv)
+	if err != nil {
+		return err
+	}
+	processor := processing.New(cfg, storage, ai)
+	storyRunner := &stories.Runner{Repo: stories.NewRepository(db, storyLimits), Builder: story.New(processor, ai, storyLimits), Logger: logger}
+	executor := worker.Worker{Repo: worker.NewRepository(db), Pipeline: processor, Storage: storage, Logger: logger, YouTubeImportApproved: app.YouTubeImportApproved, Stories: storyRunner}
 	return executor.Run(ctx)
 }

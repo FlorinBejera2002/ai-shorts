@@ -43,6 +43,18 @@ func (s *Repository) Create(ctx context.Context, userID string, inputs []Prepare
 		return nil, err
 	}
 	defer tx.Rollback()
+	result, err := s.createTx(ctx, tx, userID, inputs)
+	if err != nil {
+		return nil, err
+	}
+	if err = tx.Commit(); err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+func (s *Repository) createTx(ctx context.Context, tx *sql.Tx, userID string, inputs []Prepared) ([]json.RawMessage, error) {
+	var err error
 	amount := 0
 	for _, p := range inputs {
 		amount += p.Input.NumClips * 10
@@ -99,9 +111,6 @@ func (s *Repository) Create(ctx context.Context, userID string, inputs []Prepare
 		}
 		result = append(result, raw)
 	}
-	if err = tx.Commit(); err != nil {
-		return nil, err
-	}
 	return result, nil
 }
 
@@ -144,12 +153,23 @@ func (s *Repository) Cancel(ctx context.Context, userID, id string) (json.RawMes
 		return nil, err
 	}
 	defer tx.Rollback()
-	var status string
+	var status, sourceType string
 	var credits int
-	if err = tx.QueryRowContext(ctx, `SELECT status,credits_charged FROM jobs WHERE id=$1 AND user_id=$2 FOR UPDATE`, id, userID).Scan(&status, &credits); err != nil {
+	if err = tx.QueryRowContext(ctx, `SELECT status,credits_charged,source_type FROM jobs WHERE id=$1 AND user_id=$2 FOR UPDATE`, id, userID).Scan(&status, &credits, &sourceType); err != nil {
 		return nil, err
 	}
 	if status != "completed" && status != "failed" && status != "cancelled" {
+		if sourceType == "story" {
+			var current int
+			if err = tx.QueryRowContext(ctx, `SELECT current_version FROM story_projects WHERE id=$1`, id).Scan(&current); err != nil {
+				return nil, err
+			}
+			if current > 0 {
+				credits = 0
+			} else if _, err = tx.ExecContext(ctx, `UPDATE jobs SET credits_charged=0 WHERE id=$1`, id); err != nil {
+				return nil, err
+			}
+		}
 		if _, err = tx.ExecContext(ctx, `UPDATE jobs SET status='cancelled',progress_message='Cancelled',completed_at=now(),updated_at=now() WHERE id=$1`, id); err != nil {
 			return nil, err
 		}

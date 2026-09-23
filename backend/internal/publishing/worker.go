@@ -123,6 +123,9 @@ func (h *Handler) dispatchCalendar(ctx context.Context) error {
 	if prepareErr != nil {
 		return h.failCalendar(ctx, tx, id, "TikTok authorization could not be refreshed. Reconnect the account and reschedule the post.")
 	}
+	if bindingErr := h.verifyAgentCalendar(ctx, tx, userID, id); bindingErr != nil {
+		return h.failCalendar(ctx, tx, id, "The approved post, media, or destination changed. Review and approve it again.")
+	}
 	if reference == "" && string(postMedia) != "[]" {
 		reference = string(postMedia)
 	}
@@ -211,6 +214,17 @@ func (h *Handler) dispatchCalendar(ctx context.Context) error {
 	// Validate every destination before inserting any job. A later unsupported
 	// account must not leave an earlier destination queued for publication.
 	for i, accountID := range accountIDs {
+		var agentBinding string
+		var agentApproved bool
+		if e = tx.QueryRowContext(ctx, `SELECT agent_binding<>'{}'::jsonb FROM scheduled_posts WHERE id=$1`, id).Scan(&agentApproved); e != nil {
+			return e
+		}
+		if agentApproved {
+			agentBinding, e = AgentAccountBinding(ctx, tx, userID, accountID)
+			if e != nil {
+				return e
+			}
+		}
 		_, e = tx.ExecContext(ctx, `UPDATE social_posts
 			SET idempotency_key='calendar-archive:'||id::text
 			WHERE user_id=$1 AND account_id=$2 AND idempotency_key=$3 AND scheduled_post_id IS NULL`, userID, accountID, id)
@@ -236,9 +250,9 @@ func (h *Handler) dispatchCalendar(ctx context.Context) error {
 				return h.failCalendar(ctx, tx, id, "The selected clip has no clean TikTok export. Regenerate it and schedule the post again.")
 			}
 		}
-		_, e = tx.ExecContext(ctx, `INSERT INTO social_posts(id,user_id,account_id,clip_id,provider,caption,options,idempotency_key,request_hash,media_reference,scheduled_post_id)
-			VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
-			ON CONFLICT (scheduled_post_id,account_id) WHERE scheduled_post_id IS NOT NULL DO NOTHING`, postID, userID, accountID, clipID, providers[i], caption, options, id, requestHash, publishReference, id)
+		_, e = tx.ExecContext(ctx, `INSERT INTO social_posts(id,user_id,account_id,clip_id,provider,caption,options,idempotency_key,request_hash,media_reference,scheduled_post_id,agent_account_binding)
+			VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+			ON CONFLICT (scheduled_post_id,account_id) WHERE scheduled_post_id IS NOT NULL DO NOTHING`, postID, userID, accountID, clipID, providers[i], caption, options, id, requestHash, publishReference, id, agentBinding)
 		if e != nil {
 			return e
 		}
@@ -361,6 +375,26 @@ func (h *Handler) process(ctx context.Context, job workItem, action string) erro
 	}
 	if !active || a.Status != "connected" {
 		return set("cancelled", "Account is no longer connected.", job.RemoteID, "")
+	}
+	var agentBinding string
+	if e = tx.QueryRowContext(ctx, `SELECT agent_account_binding FROM social_posts WHERE id=$1`, job.ID).Scan(&agentBinding); e != nil {
+		return e
+	}
+	if agentBinding != "" {
+		var permitted bool
+		if e = tx.QueryRowContext(ctx, `SELECT access_role='member' AND NOT email_activation_required FROM users WHERE id=$1`, job.UserID).Scan(&permitted); e != nil {
+			return e
+		}
+		if !permitted {
+			return set("cancelled", "Publishing permission is no longer active.", job.RemoteID, "")
+		}
+		actual, err := AgentAccountBinding(ctx, tx, job.UserID, job.AccountID)
+		if err != nil {
+			return err
+		}
+		if actual != agentBinding {
+			return set("cancelled", "The approved destination changed. Review and approve the post again.", job.RemoteID, "")
+		}
 	}
 	if !h.configured(a.Provider) {
 		return set("failed", "Provider configuration is unavailable.", job.RemoteID, "")

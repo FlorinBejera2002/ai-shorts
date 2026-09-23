@@ -51,11 +51,24 @@ export function createClipImporter(options: {
   store: ProjectStore;
   apiOrigin: string;
   mediaOrigin: string;
+  mediaFetchOrigin?: string;
   fetcher?: AuthFetcher;
   probeAudio?: typeof sandboxProbeAudio;
 }) {
   const fetcher = options.fetcher ?? fetch;
   const mediaOrigin = new URL(options.mediaOrigin).origin;
+  const mediaFetchOrigin = options.mediaFetchOrigin ? new URL(options.mediaFetchOrigin) : null;
+  if (
+    mediaFetchOrigin &&
+    (!["http:", "https:"].includes(mediaFetchOrigin.protocol) ||
+      mediaFetchOrigin.username ||
+      mediaFetchOrigin.password ||
+      mediaFetchOrigin.pathname !== "/" ||
+      mediaFetchOrigin.search ||
+      mediaFetchOrigin.hash)
+  ) {
+    throw new Error("Studio internal media address must be an HTTP(S) origin");
+  }
   return async (userId: string, bearer: string, clipId: string) => {
     if (!isUUID(clipId)) throw new HTTPException(400, { message: "Invalid clip identifier" });
     // The authoritative API checks ownership. Never accept a media URL from the browser.
@@ -97,6 +110,13 @@ export function createClipImporter(options: {
       !source.pathname.startsWith("/media/")
     )
       throw new HTTPException(422, { message: "The clip storage address is not supported." });
+    // Validate the public signed URL before changing only its transport destination.
+    // Assign path/search separately so neither can change the trusted internal host.
+    const downloadSource = mediaFetchOrigin ? new URL(mediaFetchOrigin.origin) : source;
+    if (mediaFetchOrigin) {
+      downloadSource.pathname = source.pathname;
+      downloadSource.search = source.search;
+    }
     const title = clip.title || "Generated clip";
     const aspect =
       "aspect_ratio" in clip && typeof clip.aspect_ratio === "string" ? clip.aspect_ratio : "16:9";
@@ -106,7 +126,7 @@ export function createClipImporter(options: {
       stableProjectId(`clip:${clipId}`),
       title,
       async (project) => {
-        const media = await fetcher(source, {
+        const media = await fetcher(downloadSource, {
           redirect: "error",
           signal: AbortSignal.timeout(120000),
         });

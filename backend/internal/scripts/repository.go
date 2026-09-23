@@ -96,6 +96,19 @@ func (r *Repository) Create(ctx context.Context, userID string, input WorkspaceI
 	if err != nil {
 		return ScriptRecord{}, err
 	}
+	return r.CreateWithID(ctx, userID, id, input)
+}
+
+// CreateWithID preserves identity when durable callers retry a draft creation.
+func (r *Repository) CreateWithID(ctx context.Context, userID, id string, input WorkspaceInput) (ScriptRecord, error) {
+	if !data.ValidUUID(id) {
+		return ScriptRecord{}, ErrWorkspaceInput
+	}
+	var err error
+	input, err = NormalizeWorkspaceInput(input)
+	if err != nil {
+		return ScriptRecord{}, err
+	}
 	versionID, err := data.NewUUID()
 	if err != nil {
 		return ScriptRecord{}, err
@@ -113,6 +126,19 @@ func (r *Repository) Create(ctx context.Context, userID string, input WorkspaceI
 		return ScriptRecord{}, err
 	}
 	defer tx.Rollback()
+	if _, err = tx.ExecContext(ctx, `SELECT pg_advisory_xact_lock(hashtextextended($1,0))`, id); err != nil {
+		return ScriptRecord{}, err
+	}
+	existing, lookupErr := scanRecord(tx.QueryRowContext(ctx, recordSelect+` WHERE s.id=$1 AND s.user_id=$2`, id, userID))
+	if lookupErr == nil {
+		if existing.Revision != 1 || !sameWorkspaceInput(existing, input) {
+			return ScriptRecord{}, ErrRevisionConflict
+		}
+		return existing, tx.Commit()
+	}
+	if !errors.Is(lookupErr, sql.ErrNoRows) {
+		return ScriptRecord{}, lookupErr
+	}
 	_, err = tx.ExecContext(ctx, `INSERT INTO scripts(id,user_id,title,status,topic,platform,language,target_duration_seconds,tone,style,audience,revision,current_version_id) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,1,$12)`, id, userID, input.Title, input.Status, input.Topic, input.Platform, input.Language, input.TargetDuration, input.Tone, input.Style, input.Audience, versionID)
 	if err == nil {
 		_, err = tx.ExecContext(ctx, `INSERT INTO script_versions(id,script_id,version_number,snapshot,change_type,summary) VALUES($1,$2,1,$3,'create','Initial draft')`, versionID, id, encoded)
@@ -155,7 +181,7 @@ func (r *Repository) Update(ctx context.Context, userID, id string, input Worksp
 	next := current + 1
 	_, err = tx.ExecContext(ctx, `INSERT INTO script_versions(id,script_id,version_number,snapshot,change_type,summary) VALUES($1,$2,$3,$4,$5,$6)`, versionID, id, next, encoded, changeType, summary)
 	if err == nil {
-		_, err = tx.ExecContext(ctx, `UPDATE scripts SET title=$3,status=$4,topic=$5,platform=$6,language=$7,target_duration_seconds=$8,tone=$9,style=$10,audience=$11,revision=$12,current_version_id=$13,archived_at=CASE WHEN $4='archived' THEN COALESCE(archived_at,now()) ELSE NULL END,updated_at=now() WHERE id=$1 AND user_id=$2`, id, userID, input.Title, input.Status, input.Topic, input.Platform, input.Language, input.TargetDuration, input.Tone, input.Style, input.Audience, next, versionID)
+		_, err = tx.ExecContext(ctx, `UPDATE scripts SET title=$3,status=$4::varchar,topic=$5,platform=$6,language=$7,target_duration_seconds=$8,tone=$9,style=$10,audience=$11,revision=$12,current_version_id=$13,archived_at=CASE WHEN $4::varchar='archived' THEN COALESCE(archived_at,now()) ELSE NULL END,updated_at=now() WHERE id=$1 AND user_id=$2`, id, userID, input.Title, input.Status, input.Topic, input.Platform, input.Language, input.TargetDuration, input.Tone, input.Style, input.Audience, next, versionID)
 	}
 	if err != nil {
 		return ScriptRecord{}, err

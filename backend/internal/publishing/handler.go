@@ -297,65 +297,16 @@ func tiktokOptionsFailure(err error) (int, string) {
 	return http.StatusConflict, "Could not load TikTok settings. Reconnect and try again."
 }
 func (h *Handler) disconnect(w http.ResponseWriter, r *http.Request) {
-	user, id := identity.Current(r).User.ID, param(r, "id")
-	tx, e := h.db.BeginTx(r.Context(), nil)
-	if e != nil {
-		fail(w, 503, "Could not disconnect.")
-		return
-	}
-	defer tx.Rollback()
-	// Match calendar/worker lock order: user, account, then dependent records.
-	var lockedUser string
-	if e = tx.QueryRowContext(r.Context(), `SELECT id FROM users WHERE id=$1 FOR UPDATE`, user).Scan(&lockedUser); e != nil {
-		fail(w, 503, "Could not disconnect.")
-		return
-	}
-	// The account row lock fences the worker while local access is revoked.
-	var provider, remote, encrypted string
-	e = tx.QueryRowContext(r.Context(), `SELECT provider,remote_id,credentials FROM social_accounts WHERE id=$1 AND user_id=$2 FOR UPDATE`, id, user).Scan(&provider, &remote, &encrypted)
-	if e != nil {
+	result, err := h.disconnectAccount(r.Context(), identity.Current(r).User.ID, param(r, "id"), nil)
+	if errors.Is(err, sql.ErrNoRows) {
 		fail(w, 404, "Account not found.")
 		return
 	}
-	_, e = tx.ExecContext(r.Context(), `UPDATE social_accounts SET credentials='',status='disconnected',updated_at=now() WHERE id=$1`, id)
-	if e == nil {
-		_, e = tx.ExecContext(r.Context(), `UPDATE social_posts SET status='cancelled',error='Account disconnected.',updated_at=now() WHERE account_id=$1 AND status IN ('queued','processing')`, id)
-	}
-	if e == nil {
-		_, e = tx.ExecContext(r.Context(), `DELETE FROM social_oauth_states WHERE user_id=$1 AND provider=$2`, user, provider)
-	}
-	if e != nil {
+	if err != nil {
 		fail(w, 503, "Could not disconnect.")
 		return
 	}
-	// Local permission removal always succeeds independently of a provider outage.
-	if provider == "youtube" {
-		if e = purgeYouTubeAccount(r.Context(), tx, user, id); e != nil {
-			fail(w, 503, "Could not delete YouTube connection data.")
-			return
-		}
-	}
-	if provider == "linkedin" {
-		if e = purgeLinkedInAccount(r.Context(), tx, user, id); e != nil {
-			fail(w, 503, "Could not delete LinkedIn connection data.")
-			return
-		}
-	}
-	// Facebook Page tokens cannot revoke an entire user's application grant safely.
-	revoked := false
-	if provider != "facebook" && h.vault != nil {
-		var credentials Credentials
-		if unseal(h.vault, encrypted, user+":"+provider+":"+remote, &credentials) == nil {
-			ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
-			revoked = h.client.Revoke(ctx, provider, credentials) == nil
-			cancel()
-		}
-	}
-	if tx.Commit() != nil {
-		fail(w, 503, "Could not disconnect.")
-		return
-	}
-	respond(w, 200, map[string]bool{"disconnected": true, "providerRevoked": revoked})
+	respond(w, 200, result)
 }
 
 var errInvalid = errors.New("invalid publishing request")

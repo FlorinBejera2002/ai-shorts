@@ -1,6 +1,7 @@
 package scripts
 
 import (
+	"context"
 	"database/sql"
 	_ "embed"
 	"errors"
@@ -74,7 +75,7 @@ func (h *Handler) generate(w http.ResponseWriter, r *http.Request) {
 	if !httpx.Read(w, r, &input, 16*1024) {
 		return
 	}
-	if utf8.RuneCountInString(input.Topic) < 3 || utf8.RuneCountInString(input.Topic) > 1000 || input.Duration < 15 || input.Duration > 180 || len(input.Audience) > 2000 || len(input.Platform) > 100 || len(input.Tone) > 200 || len(input.Language) > 100 || len(input.Style) > 100 {
+	if input.Validate() != nil {
 		httpx.Error(w, 422, "Script parameters are invalid")
 		return
 	}
@@ -93,4 +94,31 @@ func (h *Handler) generate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	httpx.JSON(w, 200, map[string]any{"script": Normalize(object), "credits_charged": 0})
+}
+
+func (input Request) Validate() error {
+	if utf8.RuneCountInString(input.Topic) < 3 || utf8.RuneCountInString(input.Topic) > 1000 || input.Duration < 15 || input.Duration > 180 || len(input.Audience) > 2000 || len(input.Platform) > 100 || len(input.Tone) > 200 || len(input.Language) > 100 || len(input.Style) > 100 {
+		return errors.New("Script parameters are invalid")
+	}
+	return nil
+}
+
+// GenerateDraft uses the manual generator's exact prompt, validation and normalization.
+// The draft is not persisted until the separate saved-script operation is requested.
+func GenerateDraft(ctx context.Context, generator gemini.Generator, input Request) (map[string]any, error) {
+	if err := input.Validate(); err != nil {
+		return nil, err
+	}
+	if generator == nil {
+		return nil, gemini.ErrNotConfigured
+	}
+	raw, err := generator.Generate(ctx, BuildPrompt(input))
+	if err != nil {
+		return nil, err
+	}
+	object, err := gemini.ExtractJSON(raw)
+	if err != nil {
+		return nil, err
+	}
+	return Normalize(object), nil
 }

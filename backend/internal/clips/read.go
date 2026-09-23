@@ -9,7 +9,7 @@ import (
 )
 
 // ClipRead plus the existing Next detail fields (social captions and hashtags).
-const clipSelect = `to_jsonb(c) || jsonb_build_object('source_video_url',j.source_video_url,'source_storage_key',j.source_storage_key,'active_edit_tasks',j.active_edit_tasks,'processing_active',j.processing_active,'job_status',j.status,'edit_status',(SELECT state FROM edit_deliveries e WHERE e.clip_id=c.id ORDER BY e.created_at DESC,e.id DESC LIMIT 1),'edit_error',(SELECT last_error FROM edit_deliveries e WHERE e.clip_id=c.id ORDER BY e.created_at DESC,e.id DESC LIMIT 1))`
+const clipSelect = `(to_jsonb(c)-'transition_state') || jsonb_build_object('can_improve_transitions',c.transition_state IS NOT NULL AND jsonb_array_length(c.transition_state->'decisions')>0,'source_video_url',j.source_video_url,'source_storage_key',j.source_storage_key,'active_edit_tasks',j.active_edit_tasks,'processing_active',j.processing_active,'job_status',j.status,'edit_status',(SELECT state FROM edit_deliveries e WHERE e.clip_id=c.id ORDER BY e.created_at DESC,e.id DESC LIMIT 1),'edit_error',(SELECT last_error FROM edit_deliveries e WHERE e.clip_id=c.id ORDER BY e.created_at DESC,e.id DESC LIMIT 1))`
 const clipJoin = ` FROM clips c JOIN jobs j ON j.id=c.job_id AND j.user_id=c.user_id `
 
 func (h *Handler) resolve(ctx context.Context, raw []byte, camel bool) (map[string]any, error) {

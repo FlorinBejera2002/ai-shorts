@@ -18,6 +18,8 @@ const savedEnv = {
   provider: process.env.AI_PROVIDER,
   openRouterKey: process.env.OPENROUTER_API_KEY,
   openRouterModel: process.env.OPENROUTER_MODEL_NAME,
+  geminiKey: process.env.GEMINI_API_KEY,
+  geminiModel: process.env.GEMINI_MODEL_NAME,
 };
 beforeEach(() => {
   for (const name of [
@@ -27,6 +29,8 @@ beforeEach(() => {
     "AI_PROVIDER",
     "OPENROUTER_API_KEY",
     "OPENROUTER_MODEL_NAME",
+    "GEMINI_API_KEY",
+    "GEMINI_MODEL_NAME",
   ]) {
     delete process.env[name];
   }
@@ -39,6 +43,8 @@ afterEach(() => {
     AI_PROVIDER: savedEnv.provider,
     OPENROUTER_API_KEY: savedEnv.openRouterKey,
     OPENROUTER_MODEL_NAME: savedEnv.openRouterModel,
+    GEMINI_API_KEY: savedEnv.geminiKey,
+    GEMINI_MODEL_NAME: savedEnv.geminiModel,
   })) {
     if (value === undefined) delete process.env[name];
     else process.env[name] = value;
@@ -190,6 +196,68 @@ it.each(["gemini", " Gemini ", "unknown", " "])(
   },
 );
 
+it.each(["gemini", " Gemini ", "auto", " AuTo ", ""])(
+  "uses Gemini and matches shared provider precedence for %j",
+  async (providerName) => {
+    process.env.AI_PROVIDER = providerName;
+    process.env.GEMINI_API_KEY = "gemini-private-key";
+    process.env.GEMINI_MODEL_NAME = "gemini-test";
+    process.env.OPENROUTER_API_KEY = "router-private-key";
+    const provider = spyOn(globalThis, "fetch").mockResolvedValue(
+      Response.json({ choices: [{ message: { content: JSON.stringify(proposal) } }] }),
+    );
+    try {
+      const app = createAiRoutes({ userId: "u", resolveProject: async () => ({}) });
+      const response = await app.request(request());
+      expect(response.status).toBe(200);
+      expect(await response.json()).toEqual(proposal);
+      expect(String(provider.mock.calls[0]?.[0])).toBe(
+        "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+      );
+      const init = provider.mock.calls[0]?.[1];
+      expect(init?.headers).toMatchObject({ Authorization: "Bearer gemini-private-key" });
+      expect(JSON.parse(String(init?.body))).toMatchObject({
+        model: "gemini-test",
+        response_format: { type: "json_object" },
+      });
+      expect(provider).toHaveBeenCalledTimes(1);
+    } finally {
+      provider.mockRestore();
+    }
+  },
+);
+
+it("honors explicit OpenRouter even when Gemini is configured", async () => {
+  process.env.AI_PROVIDER = "openrouter";
+  process.env.GEMINI_API_KEY = "gemini-private-key";
+  process.env.OPENROUTER_API_KEY = "router-private-key";
+  const provider = spyOn(globalThis, "fetch").mockResolvedValue(
+    Response.json({ choices: [{ message: { content: JSON.stringify(proposal) } }] }),
+  );
+  try {
+    const app = createAiRoutes({ userId: "u", resolveProject: async () => ({}) });
+    expect((await app.request(request())).status).toBe(200);
+    expect(String(provider.mock.calls[0]?.[0])).toBe(
+      "https://openrouter.ai/api/v1/chat/completions",
+    );
+  } finally {
+    provider.mockRestore();
+  }
+});
+
+it("does not fall back to Gemini when explicit OpenRouter lacks a key", async () => {
+  process.env.AI_PROVIDER = "openrouter";
+  process.env.GEMINI_API_KEY = "gemini-private-key";
+  const provider = spyOn(globalThis, "fetch");
+  try {
+    const app = createAiRoutes({ userId: "u", resolveProject: async () => ({}) });
+    expect((await app.request(request())).status).toBe(503);
+    expect(provider).not.toHaveBeenCalled();
+  } finally {
+    provider.mockRestore();
+  }
+});
+
 it.each([
   ["bare JSON", JSON.stringify(proposal)],
   ["JSON fence", `\`\`\`json\n${JSON.stringify(proposal)}\n\`\`\``],
@@ -253,6 +321,8 @@ it("sanitizes malformed chat-completion responses", async () => {
 });
 
 it("uses only the configured provider and preserves existing remote asset URLs", async () => {
+  process.env.AI_PROVIDER = "gemini";
+  process.env.GEMINI_API_KEY = "gemini-private-key";
   process.env.SNEEPCUT_AI_BASE_URL = "http://127.0.0.1:11434/v1";
   process.env.SNEEPCUT_AI_MODEL = "local-model";
   process.env.SNEEPCUT_AI_API_KEY = "private-key";

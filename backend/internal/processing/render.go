@@ -6,6 +6,7 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 )
 
@@ -32,6 +33,26 @@ func (p *Processor) render(ctx context.Context, in RenderInput) (Clip, error) {
 		return clip, err
 	}
 
+	if in.NaturalTransitions {
+		recipe := in
+		recipe.Reuse, recipe.PreviousDecisions = nil, nil
+		var decisions []BoundaryDecision
+		in.Segments, decisions, err = p.analyzeNaturalCuts(ctx, source, in, info)
+		if err != nil {
+			return clip, err
+		}
+		in.Transition, in.TransitionDuration = "cut", 0
+		clip.Segments, clip.Transition, clip.TransitionDuration = in.Segments, "cut", 0
+		clip.Start, clip.End = in.Segments[0].Start, in.Segments[len(in.Segments)-1].End
+		clip.Metadata["transition_decisions"] = decisions
+		clip.Metadata["transition_state"] = TransitionState{Recipe: recipe, Decisions: decisions}
+		if in.Reuse != nil && reflect.DeepEqual(in.Segments, in.Reuse.Segments) && reflect.DeepEqual(decisions, in.PreviousDecisions) {
+			previous := *in.Reuse
+			previous.Metadata = clip.Metadata
+			return previous, nil
+		}
+	}
+
 	// Extract/concat segments into a single clip.
 	extracted := filepath.Join(dir, "extracted.mp4")
 	if err = p.extractClip(ctx, dir, source, extracted, in.Segments, in.Transition, in.TransitionDuration, info.Audio); err != nil {
@@ -44,8 +65,42 @@ func (p *Processor) render(ctx context.Context, in RenderInput) (Clip, error) {
 	// Smart crop (face-tracking vertical reframe).
 	if in.SmartCrop && !in.PreserveGeometry && in.AspectRatio == "9:16" {
 		cropped := filepath.Join(dir, "cropped.mp4")
-		if err = p.smartCrop(ctx, dir, current, cropped, info); err == nil {
+		var boundaries []float64
+		if in.NaturalTransitions {
+			elapsed := 0.0
+			for _, segment := range in.Segments[:len(in.Segments)-1] {
+				elapsed += segment.End - segment.Start
+				boundaries = append(boundaries, elapsed)
+			}
+		}
+		if err = p.smartCrop(ctx, dir, current, cropped, info, boundaries...); err == nil {
 			current = cropped
+			clip.Metadata["transition_reframing"] = len(boundaries) > 0
+			if decisions, ok := clip.Metadata["transition_decisions"].([]BoundaryDecision); ok {
+				for i, at := range boundaries {
+					frames, sampleErr := p.boundaryFrames(ctx, current, at)
+					if sampleErr != nil {
+						continue
+					}
+					similarity := 1 - frameDifference(frames[0], frames[len(frames)-1])
+					if similarity > decisions[i].VisualSimilarity+.04 {
+						decisions[i].Strategy = "crop_adjustment"
+						decisions[i].Reason = "Subject tracking improved continuity across the sequence boundary"
+						decisions[i].VisualSimilarity = similarity
+						decisions[i].Score = max(decisions[i].Score, similarity)
+					}
+				}
+			}
+		} else if ctx.Err() != nil {
+			return clip, ctx.Err()
+		} else {
+			clip.Metadata["transition_reframing"] = false
+		}
+	}
+	if decisions, ok := clip.Metadata["transition_decisions"].([]BoundaryDecision); ok {
+		current, err = p.applyNaturalBridges(ctx, dir, current, in, decisions)
+		if err != nil {
+			return clip, err
 		}
 	}
 
@@ -236,12 +291,15 @@ func (p *Processor) renderTransitions(ctx context.Context, dir, source, output s
 }
 
 // smartCrop applies face-tracking vertical reframe.
-func (p *Processor) smartCrop(ctx context.Context, dir, source, output string, info probeInfo) error {
-	w, h, err := dimensions(info.Width, info.Height, "9:16")
-	if err != nil {
-		return err
+func (p *Processor) smartCrop(ctx context.Context, dir, source, output string, info probeInfo, boundaries ...float64) error {
+	// Track and crop in source pixels; output scaling happens during framing.
+	h := info.Height / 2 * 2
+	w := min(info.Width/2*2, int(float64(h)*9/16)/2*2)
+	h = min(h, int(float64(w)*16/9)/2*2)
+	if w < 2 || h < 2 {
+		return fmt.Errorf("source too small for tracking")
 	}
-	filter, err := p.cropFilter(ctx, dir, source, info, w, h)
+	filter, err := p.cropFilter(ctx, dir, source, info, w, h, boundaries...)
 	if err != nil {
 		return err
 	}

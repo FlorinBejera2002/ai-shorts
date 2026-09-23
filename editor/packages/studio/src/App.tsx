@@ -60,6 +60,7 @@ import { FileManagerProvider } from "./contexts/FileManagerContext";
 import { DomEditProvider } from "./contexts/DomEditContext";
 import { StudioSplash } from "./components/StudioSplash";
 import { useServerConnection } from "./hooks/useServerConnection";
+import { useWorkspaceAgentSelection } from "./hooks/useWorkspaceAgentSelection";
 import { useStudioSessionStart } from "./hooks/useStudioSessionStart";
 import { useTimelineAddAtPlayhead } from "./hooks/useTimelineAddAtPlayhead";
 import { readStudioUrlStateFromWindow, resolveMasterCompositionPath } from "./utils/studioUrlState";
@@ -68,6 +69,7 @@ const getTimelineSelectionSet = () => usePlayerStore.getState().selectedElementI
 // fallow-ignore-next-line complexity
 export function StudioApp() {
   const { projectId, resolving, waitingForServer } = useServerConnection();
+  useWorkspaceAgentSelection(projectId);
   const initialUrlStateRef = useRef(readStudioUrlStateFromWindow());
   const viewModeValue = useViewModeState();
   useStudioSessionStart(projectId, resolving, waitingForServer);
@@ -467,6 +469,7 @@ export function StudioApp() {
                   onDrop={dragOverlay.onDrop}
                 >
                   <StudioHeader
+                    recordEdit={editHistory.recordEdit}
                     captureFrameHref={frameCapture.captureFrameHref}
                     captureFrameFilename={frameCapture.captureFrameFilename}
                     handleCaptureFrameClick={frameCapture.handleCaptureFrameClick}

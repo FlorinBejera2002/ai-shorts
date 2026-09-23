@@ -61,6 +61,7 @@ func (h *Handler) Register(r *httprouter.Router) {
 	r.Handler("PATCH", "/api/clips/:id", h.auth.RequireMember(h.auth.Limit(h.patch, "clips-update", 60, time.Hour)))
 	r.Handler("POST", "/api/clips/:id/trim", h.auth.RequireMember(h.auth.Limit(h.trim, "clips-trim", 20, time.Hour)))
 	r.Handler("POST", "/api/clips/:id/recut", h.auth.RequireMember(h.auth.Limit(h.recut, "clips-recut", 20, time.Hour)))
+	r.Handler("POST", "/api/clips/:id/transitions", h.auth.RequireMember(h.auth.Limit(h.improveTransitions, "clips-transitions", 20, time.Hour)))
 	r.Handler("GET", "/api/dashboard/review", h.auth.Require(h.review))
 }
 func reply(w http.ResponseWriter, status int, body any) {

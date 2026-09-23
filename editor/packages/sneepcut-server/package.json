@@ -13,6 +13,7 @@
     "@hyperframes/producer": "workspace:*",
     "@hyperframes/studio-server": "workspace:*",
     "hono": "^4.0.0",
+    "linkedom": "^0.18.12",
     "puppeteer-core": "^25.2.1"
   },
   "devDependencies": {

@@ -43,12 +43,17 @@ ENTRYPOINT ["/migrate"]
 
 FROM debian:bookworm-slim AS speech-build
 ARG WHISPER_VERSION=v1.8.3
+ARG STORY_WHISPER_MODEL=large-v3-turbo-q5_0
+ARG STORY_WHISPER_SHA1=e050f7970618a659205450ad97eb95a18d69c9ee
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates git cmake g++ make curl \
     && git clone --depth 1 --branch ${WHISPER_VERSION} https://github.com/ggml-org/whisper.cpp /whisper
 WORKDIR /whisper
 RUN cmake -B build -DBUILD_SHARED_LIBS=OFF -DGGML_NATIVE=OFF -DWHISPER_BUILD_TESTS=OFF \
     && cmake --build build --config Release --target whisper-cli -j2 \
     && bash models/download-ggml-model.sh base \
+    && bash models/download-ggml-model.sh "${STORY_WHISPER_MODEL}" \
+    && echo "${STORY_WHISPER_SHA1}  models/ggml-${STORY_WHISPER_MODEL}.bin" | sha1sum -c - \
+    && cp "models/ggml-${STORY_WHISPER_MODEL}.bin" models/ggml-story.bin \
     && curl --fail --location https://raw.githubusercontent.com/esimov/pigo/v1.4.6/cascade/facefinder -o /whisper/models/facefinder
 
 FROM api AS worker
@@ -58,8 +63,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends libgomp1 libstd
 COPY --from=build /worker /worker
 COPY --from=speech-build /whisper/build/bin/whisper-cli /usr/local/bin/whisper-cli
 COPY --from=speech-build /whisper/models/ggml-base.bin /models/ggml-base.bin
+COPY --from=speech-build /whisper/models/ggml-story.bin /models/ggml-story.bin
 COPY --from=speech-build /whisper/models/facefinder /models/facefinder
 ENV WHISPER_CPP_PATH=/usr/local/bin/whisper-cli WHISPER_CPP_MODEL=/models/ggml-base.bin PIGO_FACE_MODEL=/models/facefinder
+ENV STORY_WHISPER_CPP_MODEL=/models/ggml-story.bin
 USER 10001:10001
 ENTRYPOINT ["/worker"]
 

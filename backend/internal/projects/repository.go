@@ -5,7 +5,6 @@ import (
 	"crypto/rand"
 	"database/sql"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"path"
 )
@@ -135,6 +134,9 @@ func nullableInt(v sql.NullInt64) any {
 }
 
 func (r *Repository) UpdateProject(ctx context.Context, userID, projectID string, in ProjectUpdate) error {
+	if err := in.Validate(); err != nil {
+		return err
+	}
 	if in.BrandKit != nil {
 		var brand struct {
 			LogoPath string `json:"logoPath"`
@@ -152,11 +154,8 @@ func (r *Repository) UpdateProject(ctx context.Context, userID, projectID string
 			}
 		}
 	}
-	result, err := r.db.ExecContext(ctx, `UPDATE jobs SET project_name=COALESCE($3,project_name),project_brand=COALESCE($4,project_brand),updated_at=now() WHERE id=$1 AND user_id=$2`, projectID, userID, in.Name, nullableJSON(in.BrandKit))
-	if err != nil {
-		return err
-	}
-	return affected(result)
+	_, err := updateProject(ctx, r.db, userID, projectID, in, false)
+	return err
 }
 func nullableJSON(v json.RawMessage) any {
 	if v == nil {
@@ -166,91 +165,23 @@ func nullableJSON(v json.RawMessage) any {
 }
 
 func (r *Repository) CreateFolder(ctx context.Context, userID, projectID string, in FolderInput) (map[string]any, error) {
-	if err := r.ensureParent(ctx, userID, projectID, in.ParentID, ""); err != nil {
+	if err := in.Validate(); err != nil {
 		return nil, err
 	}
 	id := randomID()
-	result, err := r.db.ExecContext(ctx, `INSERT INTO project_folders(id,user_id,job_id,parent_id,name) SELECT $1,$2,$3,$4,$5 WHERE EXISTS(SELECT 1 FROM jobs WHERE id=$3 AND user_id=$2)`, id, userID, projectID, in.ParentID, in.Name)
-	if unique(err) {
-		return nil, ErrConflict
-	}
-	if err != nil {
-		return nil, err
-	}
-	if err = affected(result); err != nil {
+	if err := r.manualLibrary(ctx, userID, projectID, "folders.create", id, in, nil); err != nil {
 		return nil, err
 	}
 	return map[string]any{"id": id, "parentId": in.ParentID, "name": in.Name}, nil
 }
 func (r *Repository) UpdateFolder(ctx context.Context, userID, projectID, folderID string, in FolderInput) error {
-	if in.ParentID != nil && *in.ParentID == folderID {
-		return errors.New("A folder cannot contain itself")
-	}
-	if err := r.ensureParent(ctx, userID, projectID, in.ParentID, folderID); err != nil {
-		return err
-	}
-	result, err := r.db.ExecContext(ctx, `UPDATE project_folders SET name=$5,parent_id=$4,updated_at=now() WHERE id=$1 AND user_id=$2 AND job_id=$3`, folderID, userID, projectID, in.ParentID, in.Name)
-	if unique(err) {
-		return ErrConflict
-	}
-	if err != nil {
-		return err
-	}
-	return affected(result)
-}
-func (r *Repository) ensureParent(ctx context.Context, userID, projectID string, parent *string, folderID string) error {
-	if parent == nil {
-		return nil
-	}
-	var exists, cycle bool
-	err := r.db.QueryRowContext(ctx, `WITH RECURSIVE tree AS (SELECT id,parent_id FROM project_folders WHERE id=$1 AND user_id=$2 AND job_id=$3 UNION SELECT f.id,f.parent_id FROM project_folders f JOIN tree t ON f.id=t.parent_id WHERE f.user_id=$2 AND f.job_id=$3) SELECT EXISTS(SELECT 1 FROM tree),EXISTS(SELECT 1 FROM tree WHERE id::text=$4)`, *parent, userID, projectID, folderID).Scan(&exists, &cycle)
-	if err != nil {
-		return err
-	}
-	if !exists {
-		return sql.ErrNoRows
-	}
-	if cycle {
-		return errors.New("A folder cannot be moved inside itself")
-	}
-	return nil
+	return r.manualLibrary(ctx, userID, projectID, "folders.update", folderID, in, nil)
 }
 func (r *Repository) DeleteFolder(ctx context.Context, userID, projectID, folderID string) error {
-	tx, err := r.db.BeginTx(ctx, nil)
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback()
-	var parent sql.NullString
-	if err = tx.QueryRowContext(ctx, `SELECT parent_id FROM project_folders WHERE id=$1 AND user_id=$2 AND job_id=$3 FOR UPDATE`, folderID, userID, projectID).Scan(&parent); err != nil {
-		return err
-	}
-	if _, err = tx.ExecContext(ctx, `UPDATE clips SET folder_id=$4 WHERE folder_id=$1 AND user_id=$2 AND job_id=$3`, folderID, userID, projectID, nullable(parent)); err != nil {
-		return err
-	}
-	if _, err = tx.ExecContext(ctx, `UPDATE project_folders SET parent_id=$4 WHERE parent_id=$1 AND user_id=$2 AND job_id=$3`, folderID, userID, projectID, nullable(parent)); err != nil {
-		return err
-	}
-	if _, err = tx.ExecContext(ctx, `DELETE FROM project_folders WHERE id=$1 AND user_id=$2 AND job_id=$3`, folderID, userID, projectID); err != nil {
-		return err
-	}
-	return tx.Commit()
+	return r.manualLibrary(ctx, userID, projectID, "folders.delete", folderID, FolderInput{}, nil)
 }
 func (r *Repository) MoveClip(ctx context.Context, userID, projectID, clipID string, folderID *string) error {
-	if folderID != nil {
-		var ok bool
-		if err := r.db.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM project_folders WHERE id=$1 AND user_id=$2 AND job_id=$3)`, *folderID, userID, projectID).Scan(&ok); err != nil {
-			return err
-		}
-		if !ok {
-			return sql.ErrNoRows
-		}
-	}
-	result, err := r.db.ExecContext(ctx, `UPDATE clips SET job_id=$3,folder_id=$4 WHERE id=$1 AND user_id=$2 AND EXISTS(SELECT 1 FROM jobs WHERE id=$3 AND user_id=$2)`, clipID, userID, projectID, folderID)
-	if err != nil {
-		return err
-	}
-	return affected(result)
+	return r.manualLibrary(ctx, userID, projectID, "clips.move", clipID, FolderInput{}, folderID)
 }
 func affected(result sql.Result) error {
 	count, err := result.RowsAffected()

@@ -1,4 +1,6 @@
 import { Hono } from "hono";
+import { bodyLimit } from "hono/body-limit";
+import { createAgentBridge } from "./agent";
 import { HTTPException } from "hono/http-exception";
 import { getCookie, setCookie, deleteCookie } from "hono/cookie";
 import {
@@ -22,6 +24,7 @@ export interface EditorAppOptions {
   importClip?: (userId: string, bearer: string, clipId: string) => Promise<StoredProject>;
   fetchAuth?: import("./auth").AuthFetcher;
   now?: () => number;
+  agentSecret?: string;
 }
 const publicProject = ({ id, title }: StoredProject) => ({ id, title });
 export function normalizeAppOrigin(value: string): string {
@@ -49,6 +52,30 @@ export function createApp(options: EditorAppOptions) {
   const editorUrl = new URL(options.editorOrigin);
   const secure = !["localhost", "127.0.0.1", "[::1]"].includes(editorUrl.hostname);
   const apis = new Map<string, Promise<Hono>>();
+  function userApi(user: EditorUser): Promise<Hono> {
+    let api = apis.get(user.id);
+    if (!api) {
+      api = Promise.resolve().then(() => options.createStudioApiForUser(user));
+      apis.set(user.id, api);
+      api.catch(() => {
+        if (apis.get(user.id) === api) apis.delete(user.id);
+      });
+    }
+    return api;
+  }
+  const bridge = createAgentBridge({
+    secret: options.agentSecret,
+    store: options.store,
+    now: options.now,
+    api: (user) => userApi({ id: user, name: null }),
+    initialize: async (project) => {
+      if (!options.initializeProject)
+        throw new HTTPException(503, { message: "Studio initialization unavailable" });
+      await options.initializeProject(project);
+    },
+  });
+  // Service grants cannot be used on browser endpoints or arbitrary Studio APIs.
+  app.post("/sneepcut/agent", bodyLimit({ maxSize: 24000 }), (c) => bridge(c.req.raw));
   app.use("*", async (c, next) => {
     if (
       c.req.path !== "/health" &&
@@ -148,14 +175,7 @@ export function createApp(options: EditorAppOptions) {
   });
   app.all("/api/*", async (c) => {
     const user = c.get("user");
-    let api = apis.get(user.id);
-    if (!api) {
-      api = Promise.resolve().then(() => options.createStudioApiForUser(user));
-      apis.set(user.id, api);
-      api.catch(() => {
-        if (apis.get(user.id) === api) apis.delete(user.id);
-      });
-    }
+    const api = userApi(user);
     const url = new URL(c.req.url);
     url.pathname = url.pathname.replace(/^\/api/, "") || "/";
     return (await api).fetch(new Request(url, c.req.raw));

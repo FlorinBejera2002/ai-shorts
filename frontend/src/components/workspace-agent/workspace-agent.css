@@ -1,0 +1,27 @@
+#workspace-agent-panel {
+  --primary: var(--foreground);
+  --primary-foreground: var(--background);
+  --ring: var(--foreground);
+}
+#workspace-agent-panel input[type='checkbox'] {
+  appearance: auto;
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  border-radius: var(--radius-sm);
+  accent-color: var(--foreground);
+  background: none;
+}
+#workspace-agent-panel input[type='checkbox']::after { content: none; }
+#workspace-agent-panel input[type='range'],
+#workspace-agent-panel progress { accent-color: var(--foreground); }
+#workspace-agent-panel [data-slot='button'],
+#workspace-agent-panel textarea { border-radius: var(--radius-md); }
+#workspace-agent-panel [data-variant='default'],
+[data-agent-trigger] { background: var(--foreground); color: var(--background); }
+#workspace-agent-panel [data-variant='ghost']:hover,
+#workspace-agent-panel [data-variant='outline']:hover { background: var(--muted); color: var(--foreground); }
+[data-agent-route-active='true'] { outline: 1px solid color-mix(in srgb, var(--foreground) 20%, transparent); outline-offset: -1px; }
+@media (prefers-reduced-motion: reduce) {
+  #workspace-agent-panel *, [data-agent-activity] { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+}

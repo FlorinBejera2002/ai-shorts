@@ -6,6 +6,7 @@ import { usePanelLayoutContext } from "../contexts/PanelLayoutContext";
 import { useViewMode, type StudioViewMode } from "../contexts/ViewModeContext";
 import { trackStudioEvent } from "../utils/studioTelemetry";
 import { Tooltip } from "./ui";
+import { StudioAssistant, type StudioAssistantProps } from "./assistant/StudioAssistant";
 
 export interface StudioHeaderProps {
   captureFrameHref: string;
@@ -16,6 +17,7 @@ export interface StudioHeaderProps {
   inspectorButtonActive: boolean;
   inspectorPanelActive: boolean;
   onExport?: () => void;
+  recordEdit?: StudioAssistantProps["recordEdit"];
 }
 
 function SneepCutLogo() {
@@ -112,6 +114,7 @@ export function StudioHeader({
   inspectorButtonActive,
   inspectorPanelActive,
   onExport,
+  recordEdit,
 }: StudioHeaderProps) {
   const { projectId, editHistory, handleUndo, handleRedo, renderQueue } = useStudioShellContext();
   // effectiveRightCollapsed, not the raw intent: in the auto-railed state the
@@ -136,6 +139,7 @@ export function StudioHeader({
       <ViewModeToggle />
       {/* Right: toolbar buttons */}
       <div className="flex items-center gap-1.5">
+        {recordEdit && <StudioAssistant key={projectId} recordEdit={recordEdit} />}
         <Tooltip
           label={
             editHistory.undoLabel

@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"log/slog"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/julienschmidt/httprouter"
@@ -27,9 +28,13 @@ import (
 	"sneepcut/backend-go/internal/jobs"
 	"sneepcut/backend-go/internal/media"
 	"sneepcut/backend-go/internal/openrouter"
+	"sneepcut/backend-go/internal/processing"
 	"sneepcut/backend-go/internal/projects"
 	"sneepcut/backend-go/internal/publishing"
 	"sneepcut/backend-go/internal/scripts"
+	"sneepcut/backend-go/internal/stories"
+	"sneepcut/backend-go/internal/story"
+	"sneepcut/backend-go/internal/workspaceagent"
 )
 
 func configuredGenerator(application config.Application) aiprovider.Generator {
@@ -91,6 +96,15 @@ func buildApplication(db *sql.DB, cfg config.Config, a config.Application, logge
 		cleanup()
 		return nil, noop, err
 	}
+	closeServices := cleanup
+	cleanup = func() {
+		if local, ok := storage.(*media.LocalStorage); ok {
+			if err := local.Close(); err != nil {
+				logger.Warn("Failed to close local media storage", "error", err)
+			}
+		}
+		closeServices()
+	}
 	mediaService := media.NewService(media.Config{LocalRoot: a.MediaRoot, PublicBaseURL: a.PublicMediaURL, AppURL: a.AppURL, SigningSecret: a.SigningSecret, UploadSecret: a.UploadSecret, DirectUploadURL: a.DirectUploadURL, StagingDirectory: a.StagingDirectory, MaxUploadBytes: a.MaxUploadBytes}, db, storage, nonce, media.NewClamAV(media.ClamAVConfig{Address: a.ScannerAddress, Timeout: a.ScannerTimeout, MaxBytes: a.MaxUploadBytes, Enabled: a.ScannerEnabled, Environment: cfg.Environment}))
 	billingService, err := billing.NewService(billing.Config{SecretKey: a.StripeKey, WebhookSecret: a.StripeWebhookSecret, AppURL: a.AppURL, PlanPrices: a.StripePlans, CreditPacks: a.StripeCreditPacks}, db, auth)
 	if err != nil {
@@ -107,6 +121,37 @@ func buildApplication(db *sql.DB, cfg config.Config, a config.Application, logge
 	previousCleanup := cleanup
 	cleanup = func() { stopPublishing(); previousCleanup() }
 	generator := configuredGenerator(a)
+	storyLimits, err := story.LimitsFromEnv(os.Getenv)
+	if err != nil {
+		cleanup()
+		return nil, noop, err
+	}
+	storyLimits.MaxFileBytes = min(storyLimits.MaxFileBytes, a.MaxUploadBytes)
+	processingConfig, err := processing.ConfigFromEnv(os.Getenv)
+	if err != nil {
+		cleanup()
+		return nil, noop, err
+	}
+	storyHandler := stories.New(db, auth, mediaService, processing.New(processingConfig, storage, generator), storyLimits)
+	agentExecutor := workspaceagent.NewExecutor(db, generator, storyLimits)
+	agentExecutor.SetClips(clipHandler)
+	agentExecutor.SetBrandMedia(mediaService)
+	agentExecutor.SetStoryLifecycle(storyHandler)
+	calendarHandler := calendar.New(db, auth, mediaService, publishingHandler)
+	agentExecutor.SetPublishing(calendarHandler, publishingHandler)
+	studioClient, err := workspaceagent.NewStudioClient(a.StudioAgentURL, a.StudioAgentSecret)
+	if err != nil {
+		cleanup()
+		return nil, noop, err
+	}
+	agentExecutor.SetStudio(studioClient)
+	jobHandler := jobs.New(db, auth, mediaService, jobs.Config{YouTubeImportApproved: a.YouTubeImportApproved})
+	agentExecutor.SetJobs(jobHandler)
+	agentHandler := workspaceagent.New(db, auth, generator, agentExecutor)
+	agentHandler.SetMedia(mediaService)
+	stopAgent := agentHandler.Start(context.Background(), logger)
+	cleanupBeforeAgent := cleanup
+	cleanup = func() { stopAgent(); cleanupBeforeAgent() }
 	readiness := func(router *httprouter.Router) {
 		router.HandlerFunc("GET", "/api/ready", func(w http.ResponseWriter, r *http.Request) {
 			ctx, cancel := context.WithTimeout(r.Context(), 3*time.Second)
@@ -121,7 +166,11 @@ func buildApplication(db *sql.DB, cfg config.Config, a config.Application, logge
 					EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema=current_schema() AND table_name='users' AND column_name='email_activation_required')
 					AND EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema=current_schema() AND table_name='users' AND column_name='mfa_enabled')
 					AND to_regclass('edit_deliveries') IS NOT NULL
+					AND to_regclass('story_projects') IS NOT NULL
+					AND to_regclass('story_attempts') IS NOT NULL
+					AND EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema=current_schema() AND table_name='clips' AND column_name='story_project_id')
 					AND to_regclass('account_preferences') IS NOT NULL
+					AND to_regclass('workspace_agent_runs') IS NOT NULL
 					AND to_regclass('account_security_events') IS NOT NULL`).Scan(&valid) == nil && valid
 			}
 			redisReady := limits.Ping(ctx).Err() == nil
@@ -132,6 +181,6 @@ func buildApplication(db *sql.DB, cfg config.Config, a config.Application, logge
 			httpx.JSON(w, status, map[string]any{"ready": status == 200, "database": database, "schema": schema, "redis": redisReady})
 		})
 	}
-	handler := httpapi.New(logger, cfg.Environment, version, auth.Register, media.NewHandler(mediaService, auth).Register, jobs.New(db, auth, mediaService, jobs.Config{YouTubeImportApproved: a.YouTubeImportApproved}).Register, projects.New(db, auth, mediaService).Register, clipHandler.Register, brand.New(db, auth, mediaService).Register, calendar.New(db, auth, mediaService, publishingHandler).Register, billingService.Register, account.New(db, auth, mediaService, billingService, account.Config{MFA: accounts}).Register, dashboard.New(db, auth, clipHandler).Register, scripts.NewWithDB(db, auth, generator).Register, assistant.New(db, auth, generator).Register, publishingHandler.Register, readiness)
+	handler := httpapi.New(logger, cfg.Environment, version, auth.Register, media.NewHandler(mediaService, auth).Register, jobHandler.Register, storyHandler.Register, projects.New(db, auth, mediaService).Register, clipHandler.Register, brand.New(db, auth, mediaService).Register, calendarHandler.Register, billingService.Register, account.New(db, auth, mediaService, billingService, account.Config{MFA: accounts}).Register, dashboard.New(db, auth, clipHandler).Register, scripts.NewWithDB(db, auth, generator).Register, assistant.New(db, auth, generator).Register, agentHandler.Register, publishingHandler.Register, readiness)
 	return httpapi.Policy(auth.Policy(handler), httpapi.PolicyConfig{AllowedHosts: a.AllowedHosts}), cleanup, nil
 }

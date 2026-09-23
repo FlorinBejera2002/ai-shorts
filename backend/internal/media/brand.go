@@ -49,6 +49,22 @@ func (s *Service) ownedLogoKey(reference, userID string, legacy bool) (string, e
 	return key, nil
 }
 
+// ResolveOwnedLogo admits only completed, validated logo uploads in this account.
+func (s *Service) ResolveOwnedLogo(ctx context.Context, user, reference string) (string, error) {
+	key, err := s.ownedLogoKey(reference, user, false)
+	if err != nil {
+		return "", err
+	}
+	exists, err := s.Storage.Exists(ctx, key)
+	if err != nil {
+		return "", err
+	}
+	if !exists {
+		return "", ErrInvalidKey
+	}
+	return key, nil
+}
+
 func camelCase(key string) string {
 	parts := strings.Split(key, "_")
 	for i := 1; i < len(parts); i++ {
@@ -96,16 +112,27 @@ func (s *Service) setBrandLogo(ctx context.Context, userID string, key *string) 
 		return e
 	}
 	defer tx.Rollback()
+	if e = lockBrandLogoUser(ctx, tx, userID); e != nil {
+		return e
+	}
+	if e = writeBrandLogo(ctx, tx, userID, key); e != nil {
+		return e
+	}
+	return tx.Commit()
+}
+
+func lockBrandLogoUser(ctx context.Context, tx *sql.Tx, userID string) error {
 	var role string
+	var activation bool
 	// Serialize final logo persistence with account deletion's user lock.
-	e = tx.QueryRowContext(ctx, `SELECT access_role FROM users WHERE id=$1 FOR UPDATE`, userID).Scan(&role)
+	e := tx.QueryRowContext(ctx, `SELECT access_role,email_activation_required FROM users WHERE id=$1 FOR UPDATE`, userID).Scan(&role, &activation)
 	if errors.Is(e, sql.ErrNoRows) {
 		return failure(401, "Authentication required")
 	}
 	if e != nil {
 		return e
 	}
-	if role != "member" {
+	if role != "member" || activation {
 		return failure(403, "This role cannot modify content")
 	}
 	var deleting bool
@@ -115,6 +142,10 @@ func (s *Service) setBrandLogo(ctx context.Context, userID string, key *string) 
 	if deleting {
 		return failure(409, "Account deletion is pending")
 	}
+	return nil
+}
+
+func writeBrandLogo(ctx context.Context, tx *sql.Tx, userID string, key *string) error {
 	id, e := randomUUID()
 	if e != nil {
 		return e
@@ -125,7 +156,7 @@ func (s *Service) setBrandLogo(ctx context.Context, userID string, key *string) 
 	if e != nil {
 		return e
 	}
-	return tx.Commit()
+	return nil
 }
 func (h *Handler) getLogo(w http.ResponseWriter, r *http.Request) {
 	userID := identity.Current(r).User.ID

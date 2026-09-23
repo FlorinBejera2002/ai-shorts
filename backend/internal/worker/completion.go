@@ -50,6 +50,15 @@ func (r *Repository) Complete(ctx context.Context, j *Job, result processing.Res
 		if err != nil {
 			return err
 		}
+		if state, ok := c.Metadata["transition_state"]; ok {
+			encoded, err := json.Marshal(state)
+			if err != nil {
+				return err
+			}
+			if _, err = tx.ExecContext(ctx, `UPDATE clips SET transition_state=$3 WHERE job_id=$1 AND file_storage_key=$2`, j.ID, c.StorageKey, string(encoded)); err != nil {
+				return err
+			}
+		}
 	}
 	_, err = tx.ExecContext(ctx, `UPDATE jobs SET source_storage_key=$2,transcript_segments=$3,status='completed',progress=100,progress_message='Complete',completed_at=now(),updated_at=now(),error_message=NULL WHERE id=$1`, j.ID, result.SourceKey, string(transcript))
 	if err != nil {

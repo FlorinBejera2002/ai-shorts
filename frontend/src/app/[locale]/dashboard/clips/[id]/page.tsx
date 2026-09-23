@@ -3,6 +3,7 @@
 import '@/components/clips/media-workbench.css'
 
 import { ClipWorkspace } from '@/components/clip/clip-workspace'
+import { ImproveTransitions } from '@/components/clip/improve-transitions'
 import { ApiState } from '@/components/shared/api-state'
 import { Button } from '@/components/ui/button'
 import { PageHeader } from '@/components/ui/page-header'
@@ -21,6 +22,7 @@ export default function ClipDetailPage() {
   if (!data) return <ApiState error={error} retry={reload} />
   const clip = normalizeClip(data)
   const fileUrl = clip.fileUrl
+  const storyID = typeof data.story_project_id === 'string' ? data.story_project_id : ''
   const [aspectWidth = 0, aspectHeight = 0] = clip.aspectRatio
     .split(':')
     .map(Number)
@@ -112,6 +114,13 @@ export default function ClipDetailPage() {
               ? 'Modificările apar după salvare.'
               : 'Changes appear after saving.'}
           </p>
+          {storyID ? (
+            <Button asChild={true}>
+              <Link href={`/dashboard/create?story=${encodeURIComponent(storyID)}`}>
+                {locale === 'ro' ? 'Editează povestea și revizia' : 'Edit story and review'}
+              </Link>
+            </Button>
+          ) : <ImproveTransitions key={clip.id} clipId={clip.id} initialClip={data} />}
         </section>
       </div>
     </div>

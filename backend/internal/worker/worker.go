@@ -21,6 +21,9 @@ type Worker struct {
 	Storage               media.Storage
 	Logger                *slog.Logger
 	YouTubeImportApproved bool
+	Stories               interface {
+		Once(context.Context) (bool, error)
+	}
 }
 
 func (w *Worker) Run(ctx context.Context) error {
@@ -57,6 +60,12 @@ func (w *Worker) Once(ctx context.Context) (bool, error) {
 	}
 	if e != nil {
 		return true, w.edit(ctx, e)
+	}
+	if w.Stories != nil {
+		worked, err := w.Stories.Once(ctx)
+		if err != nil || worked {
+			return worked, err
+		}
 	}
 	j, err := w.Repo.Claim(ctx)
 	if err != nil || j == nil {

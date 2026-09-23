@@ -3,7 +3,9 @@ package media
 import (
 	"context"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
 	"testing"
 	"time"
 )
@@ -53,7 +55,7 @@ func TestLocalStorageConfinementAndScopedCleanup(t *testing.T) {
 	}
 	outside := t.TempDir()
 	_ = os.WriteFile(filepath.Join(outside, "secret"), []byte("secret"), 0600)
-	if e = os.Symlink(outside, filepath.Join(root, "escape")); e != nil {
+	if e = storageTestLink(outside, filepath.Join(root, "escape")); e != nil {
 		t.Fatal(e)
 	}
 	if _, e := storage.Exists(ctx, "escape/secret"); e == nil {
@@ -68,7 +70,7 @@ func TestLocalStorageConfinementAndScopedCleanup(t *testing.T) {
 	if _, e := storage.DeletePrefix(ctx, "escape"); e == nil {
 		t.Fatal("deleted symlink")
 	}
-	if e = os.Symlink("clips/job-10", filepath.Join(root, "alias")); e != nil {
+	if e = storageTestLink("clips/job-10", filepath.Join(root, "alias")); e != nil {
 		t.Fatal(e)
 	}
 	if _, e = storage.Exists(ctx, "alias/clip.mp4"); e == nil {
@@ -77,6 +79,23 @@ func TestLocalStorageConfinementAndScopedCleanup(t *testing.T) {
 	if _, e := os.Stat(filepath.Join(outside, "secret")); e != nil {
 		t.Fatal("outside file lost")
 	}
+}
+
+// Windows junctions exercise the same directory-reparse confinement without
+// requiring the developer's account to have the symbolic-link privilege.
+func storageTestLink(target, link string) error {
+	err := os.Symlink(target, link)
+	if err == nil || runtime.GOOS != "windows" {
+		return err
+	}
+	if !filepath.IsAbs(target) {
+		target = filepath.Join(filepath.Dir(link), target)
+	}
+	binary := os.Getenv("ComSpec")
+	if binary == "" {
+		binary = filepath.Join(os.Getenv("SystemRoot"), "System32", "cmd.exe")
+	}
+	return exec.Command(binary, "/c", "mklink", "/J", link, target).Run()
 }
 func TestServiceRefreshesSignedURLsAndValidatesOwnedUploads(t *testing.T) {
 	root := t.TempDir()

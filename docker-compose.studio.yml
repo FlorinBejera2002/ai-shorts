@@ -1,6 +1,10 @@
 # Local, authenticated HTML-first editor. Add after the base/dev Compose files.
 # Keep production exposure behind a same-site HTTPS origin and a render sandbox.
 services:
+  backend:
+    environment:
+      STUDIO_AGENT_URL: ${STUDIO_AGENT_URL:-}
+      STUDIO_AGENT_SECRET: ${STUDIO_AGENT_SECRET:-}
   studio:
     build:
       context: ./editor
@@ -8,24 +12,39 @@ services:
     environment:
       SNEEPCUT_STUDIO_HOST: 0.0.0.0
       SNEEPCUT_STUDIO_PORT: "5191"
+      STUDIO_AGENT_SECRET: ${STUDIO_AGENT_SECRET:-}
       SNEEPCUT_STUDIO_ORIGIN: ${VITE_STUDIO_URL:-http://localhost:5191}
       SNEEPCUT_APP_ORIGIN: ${APP_URL:-http://localhost:3000}
       SNEEPCUT_AUTH_BASE_URL: http://backend:8080
+      SNEEPCUT_MEDIA_ORIGIN: ${APP_URL:-http://localhost:3000}
+      SNEEPCUT_MEDIA_INTERNAL_ORIGIN: http://nginx
       SNEEPCUT_STUDIO_DATA: /data/projects
       SNEEPCUT_REGISTRY_DIR: /app/registry
       SNEEPCUT_AI_BASE_URL: ${SNEEPCUT_AI_BASE_URL:-}
       SNEEPCUT_AI_MODEL: ${SNEEPCUT_AI_MODEL:-}
       SNEEPCUT_AI_API_KEY: ${SNEEPCUT_AI_API_KEY:-}
       AI_PROVIDER: ${AI_PROVIDER:-auto}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL_NAME: ${GEMINI_MODEL_NAME:-gemini-2.5-flash}
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
       OPENROUTER_MODEL_NAME: ${OPENROUTER_MODEL_NAME:-google/gemini-2.5-flash}
       PRODUCER_HEADLESS_SHELL_PATH: /usr/bin/chromium
       HYPERFRAMES_NO_TELEMETRY: "1"
+      HOME: /tmp/studio-home
     ports:
       - "127.0.0.1:${STUDIO_HOST_PORT:-5191}:5191"
     volumes:
       - studio_data:/data
     shm_size: 1gb
+    tmpfs: ["/tmp:size=3g,uid=1000,gid=1000,mode=1770"]
+    read_only: true
+    user: "1000:1000"
+    cap_drop: ["ALL"]
+    security_opt:
+      - no-new-privileges:true
+      - seccomp=./deploy/studio-seccomp.json
+      - apparmor=unconfined
+      - systempaths=unconfined
     init: true
     pids_limit: 512
     mem_limit: 4g

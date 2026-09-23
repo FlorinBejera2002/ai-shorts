@@ -28,12 +28,14 @@ const app = createApp({
   additionalAppOrigins,
   editorOrigin,
   authBaseUrl: process.env.SNEEPCUT_AUTH_BASE_URL ?? "http://localhost:8080",
+  agentSecret: process.env.STUDIO_AGENT_SECRET,
   store,
   initializeProject,
   importClip: createClipImporter({
     store,
     apiOrigin: process.env.SNEEPCUT_AUTH_BASE_URL ?? "http://localhost:8080",
     mediaOrigin: process.env.SNEEPCUT_MEDIA_ORIGIN ?? appOrigin,
+    mediaFetchOrigin: process.env.SNEEPCUT_MEDIA_INTERNAL_ORIGIN,
   }),
   createStudioApiForUser(user) {
     let runtime = runtimes.get(user.id);

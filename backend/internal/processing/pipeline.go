@@ -61,7 +61,7 @@ func (p *Processor) process(ctx context.Context, in Input, progress Progress) (R
 	}
 	for i, h := range highlights {
 		report("rendering", 60+30*i/len(highlights), fmt.Sprintf("Rendering clip %d/%d", i+1, len(highlights)))
-		clip, err := p.render(ctx, RenderInput{SourceKey: r.SourceKey, Namespace: fmt.Sprintf("%s/clip-%d", in.Namespace, i+1), AspectRatio: in.AspectRatio, SubtitleStyle: in.SubtitleStyle, SmartCrop: in.SmartCrop, BurnSubtitles: in.BurnSubtitles, Segments: h.Segments, Transition: h.Transition, TransitionDuration: h.TransitionDuration, Transcript: r.Transcript, Brand: in.Brand, HookText: h.Hook})
+		clip, err := p.render(ctx, RenderInput{SourceKey: r.SourceKey, Namespace: fmt.Sprintf("%s/clip-%d", in.Namespace, i+1), AspectRatio: in.AspectRatio, SubtitleStyle: in.SubtitleStyle, SmartCrop: in.SmartCrop, BurnSubtitles: in.BurnSubtitles, Segments: h.Segments, NaturalTransitions: true, Transcript: r.Transcript, Brand: in.Brand, HookText: h.Hook})
 		if err != nil {
 			return r, err
 		}

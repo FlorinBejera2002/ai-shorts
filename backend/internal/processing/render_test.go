@@ -22,6 +22,7 @@ func TestRenderBadgeProvenanceAndBrandHook(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	t.Cleanup(func() { _ = storage.Close() })
 	cfg, _ := ConfigFromEnv(func(string) string { return "" })
 	processor := New(cfg, storage, nil)
 	ctx := context.Background()
@@ -62,6 +63,7 @@ func TestRenderCreatesTikTokDerivativeForSmallVideo(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	t.Cleanup(func() { _ = storage.Close() })
 	cfg, _ := ConfigFromEnv(func(string) string { return "" })
 	processor := New(cfg, storage, nil)
 	ctx := context.Background()

@@ -87,6 +87,16 @@ function configuredProvider(): ConfiguredProvider {
   }
 
   const provider = (process.env.AI_PROVIDER || "auto").trim().toLowerCase();
+  const geminiKey = process.env.GEMINI_API_KEY;
+  // Match the API and worker: auto prefers Gemini when both keys are configured.
+  if (geminiKey && (provider === "gemini" || provider === "auto")) {
+    return {
+      base: "https://generativelanguage.googleapis.com/v1beta/openai",
+      model: process.env.GEMINI_MODEL_NAME || "gemini-2.5-flash",
+      key: geminiKey,
+      openRouter: false,
+    };
+  }
   const openRouterKey = process.env.OPENROUTER_API_KEY;
   if (!openRouterKey || (provider !== "auto" && provider !== "openrouter")) {
     throw new AiUnavailable();

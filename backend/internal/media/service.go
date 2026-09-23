@@ -86,6 +86,14 @@ func (s *Service) Delete(ctx context.Context, key string) error {
 	}
 	return s.Storage.Delete(ctx, key)
 }
+
+func (s *Service) Exists(ctx context.Context, key string) (bool, error) {
+	key, err := s.KeyFromReference(key)
+	if err != nil {
+		return false, err
+	}
+	return s.Storage.Exists(ctx, key)
+}
 func (s *Service) DeletePrefix(ctx context.Context, prefix string) error {
 	if !validKey(strings.TrimSuffix(prefix, "/")) {
 		return ErrInvalidKey
@@ -191,6 +199,14 @@ func safeSlug(name string) string {
 // stage never publishes unscanned data. Max+1 bounds disk writes, and the
 // content length is checked again against bytes actually received.
 func (s *Service) stage(ctx context.Context, body io.Reader, maximum, expected int64, suffix string, video bool) (string, int64, error) {
+	validate, message := looksLikeImage, "Invalid image file"
+	if video {
+		validate, message = LooksLikeVideo, "Invalid video file"
+	}
+	return s.stageValidated(ctx, body, maximum, expected, suffix, validate, message)
+}
+
+func (s *Service) stageValidated(ctx context.Context, body io.Reader, maximum, expected int64, suffix string, validate func([]byte, string) bool, message string) (string, int64, error) {
 	if s.cfg.StagingDirectory != "" {
 		if e := os.MkdirAll(s.cfg.StagingDirectory, 0700); e != nil {
 			return "", 0, failure(503, "Upload staging is unavailable")
@@ -223,11 +239,8 @@ func (s *Service) stage(ctx context.Context, body io.Reader, maximum, expected i
 	}
 	header := make([]byte, 64)
 	read, _ := io.ReadFull(f, header)
-	if video && !LooksLikeVideo(header[:read], suffix) {
-		return "", 0, failure(400, "Invalid video file")
-	}
-	if !video && !looksLikeImage(header[:read], suffix) {
-		return "", 0, failure(400, "Invalid image file")
+	if !validate(header[:read], suffix) {
+		return "", 0, failure(400, message)
 	}
 	if e = f.Sync(); e != nil {
 		return "", 0, e

@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/lib/pq"
+	"sneepcut/backend-go/internal/agentaction"
 	"sneepcut/backend-go/internal/publishing"
 )
 
@@ -70,6 +71,7 @@ type Post struct {
 	YouTube                *publishing.YouTubeOptions   `json:"youtube,omitempty"`
 }
 type PublishingDestination struct {
+	AccountID   string `json:"accountId"`
 	Provider    string `json:"provider"`
 	AccountName string `json:"accountName"`
 	Status      string `json:"status"`
@@ -119,7 +121,7 @@ func (s *Repository) thumbnail(ctx context.Context, references ...sql.NullString
 const postSelect = `SELECT p.id,p.title,p.caption,p.notes,p.platforms,p.account_ids,p.status,p.publishing_error,p.scheduled_at,p.created_at,p.updated_at,p.media,p.tiktok_options,p.instagram_options,p.youtube_options,
 	c.id,c.title,c.viral_score,c.duration,COALESCE(NULLIF(c.tiktok_file_storage_key,''),NULLIF(c.file_storage_key,''),NULLIF(c.file_path,''),c.file_url,'')<>'',c.thumbnail_storage_key,c.thumbnail_path,c.thumbnail_url,
 	COALESCE((SELECT jsonb_agg(jsonb_build_object(
-		'provider',sp.provider,'accountName',COALESCE(NULLIF(a.username,''),NULLIF(a.name,''),sp.provider),
+		'provider',sp.provider,'accountId',sp.account_id,'accountName',COALESCE(NULLIF(a.username,''),NULLIF(a.name,''),sp.provider),
 		'status',sp.status,'error',sp.error,'url',sp.url,'createdAt',sp.created_at,'updatedAt',sp.updated_at
 	) ORDER BY sp.created_at) FROM social_posts sp LEFT JOIN social_accounts a ON a.id=sp.account_id
 	WHERE sp.scheduled_post_id=p.id),'[]'::jsonb)
@@ -326,6 +328,9 @@ func (s *Repository) prepareTikTokSchedule(ctx context.Context, userID, id strin
 }
 
 func (s *Repository) Mutate(ctx context.Context, userID, id string, input map[string]any, create bool) (Post, error) {
+	return s.mutateGuarded(ctx, userID, id, input, create, nil)
+}
+func (s *Repository) mutateGuarded(ctx context.Context, userID, id string, input map[string]any, create bool, guard *agentMutation) (Post, error) {
 	var empty Post
 	fields, e := Validate(input, create)
 	if e != nil {
@@ -333,6 +338,9 @@ func (s *Repository) Mutate(ctx context.Context, userID, id string, input map[st
 	}
 	if media, ok := fields["media"].([]map[string]string); ok {
 		for _, item := range media {
+			if s.media == nil {
+				return empty, ErrClip
+			}
 			key, keyErr := s.media.KeyFromReference(item["reference"])
 			if keyErr != nil || path.Dir(key) != "publishing/"+userID {
 				return empty, &ValidationError{Issues: []Issue{{"media", "Choose media uploaded by this account"}}}
@@ -350,6 +358,23 @@ func (s *Repository) Mutate(ctx context.Context, userID, id string, input map[st
 		return empty, e
 	}
 	defer tx.Rollback()
+	if guard != nil {
+		var prior struct {
+			ID string `json:"id"`
+		}
+		replayed, replayErr := agentaction.Replay(ctx, tx, userID, guard.RequestID, guard.Mode, guard.Input, &prior)
+		if replayErr != nil {
+			return empty, replayErr
+		}
+		if replayed {
+			return s.readPost(ctx, tx.QueryRowContext(ctx, postSelect+` WHERE p.id=$1 AND p.user_id=$2`, prior.ID, userID))
+		}
+		if guard.Mode == "publishing.schedule" || guard.Mode == "publishing.reschedule" {
+			if stamp, ok := fields["scheduledAt"].(time.Time); !ok || !stamp.After(time.Now()) {
+				return empty, errors.New("Choose a future publication time")
+			}
+		}
+	}
 	if e = lockUser(ctx, tx, userID); e != nil {
 		return empty, e
 	}
@@ -365,6 +390,18 @@ func (s *Repository) Mutate(ctx context.Context, userID, id string, input map[st
 		}
 		if currentStatus == "publishing" || currentStatus == "published" {
 			return empty, ErrLocked
+		}
+		if guard != nil {
+			state, stateErr := agentPostState(ctx, tx, userID, id, true)
+			if stateErr != nil {
+				return empty, stateErr
+			}
+			if state != guard.ExpectedState {
+				return empty, ErrAgentChanged
+			}
+			if guard.Mode == "calendar.update" && currentStatus != "draft" {
+				return empty, ErrLocked
+			}
 		}
 	}
 	clipID, clipChanged := fields["clipId"]
@@ -614,6 +651,9 @@ func (s *Repository) Mutate(ctx context.Context, userID, id string, input map[st
 		b[6] = b[6]&0x0f | 0x40
 		b[8] = b[8]&0x3f | 0x80
 		id = fmt.Sprintf("%x-%x-%x-%x-%x", b[:4], b[4:6], b[6:8], b[8:10], b[10:])
+		if guard != nil {
+			id = guard.RequestID
+		}
 		var owner any
 		if clipID != nil {
 			owner = userID
@@ -687,9 +727,26 @@ func (s *Repository) Mutate(ctx context.Context, userID, id string, input map[st
 		}
 		return empty, e
 	}
+	if guard != nil && status == "scheduled" {
+		binding, bindingErr := publishing.AgentPostBinding(ctx, tx, userID, id, true)
+		if bindingErr != nil {
+			return empty, bindingErr
+		}
+		encoded, _ := json.Marshal(map[string]string{"digest": binding, "request_id": guard.RequestID})
+		if _, e = tx.ExecContext(ctx, `UPDATE scheduled_posts SET agent_binding=$2 WHERE id=$1`, id, string(encoded)); e != nil {
+			return empty, e
+		}
+	} else if _, e = tx.ExecContext(ctx, `UPDATE scheduled_posts SET agent_binding='{}'::jsonb WHERE id=$1`, id); e != nil {
+		return empty, e
+	}
 	p, e := s.readPost(ctx, tx.QueryRowContext(ctx, postSelect+` WHERE p.id=$1 AND p.user_id=$2`, id, userID))
 	if e != nil {
 		return empty, e
+	}
+	if guard != nil {
+		if e = agentaction.Put(ctx, tx, userID, guard.RequestID, guard.Mode, guard.Input, map[string]string{"id": id}); e != nil {
+			return empty, e
+		}
 	}
 	if e = tx.Commit(); e != nil {
 		return empty, e
@@ -697,17 +754,39 @@ func (s *Repository) Mutate(ctx context.Context, userID, id string, input map[st
 	return p, nil
 }
 func (s *Repository) Delete(ctx context.Context, userID, id string) error {
+	return s.deleteGuarded(ctx, userID, id, nil)
+}
+func (s *Repository) deleteGuarded(ctx context.Context, userID, id string, guard *agentMutation) error {
 	tx, e := s.db.BeginTx(ctx, nil)
 	if e != nil {
 		return e
 	}
 	defer tx.Rollback()
+	if guard != nil {
+		var saved map[string]any
+		found, err := agentaction.Replay(ctx, tx, userID, guard.RequestID, guard.Mode, guard.Input, &saved)
+		if err != nil || found {
+			return err
+		}
+	}
 	if e = lockUser(ctx, tx, userID); e != nil {
 		return e
 	}
 	var status string
 	if e = tx.QueryRowContext(ctx, `SELECT status FROM scheduled_posts WHERE id=$1 AND user_id=$2 FOR UPDATE`, id, userID).Scan(&status); e != nil {
 		return e
+	}
+	if guard != nil {
+		if status != "draft" {
+			return ErrLocked
+		}
+		state, err := agentPostState(ctx, tx, userID, id, true)
+		if err != nil {
+			return err
+		}
+		if state != guard.ExpectedState {
+			return ErrAgentChanged
+		}
 	}
 	if status == "publishing" {
 		return ErrLocked
@@ -722,6 +801,11 @@ func (s *Repository) Delete(ctx context.Context, userID, id string) error {
 	}
 	if count == 0 {
 		return sql.ErrNoRows
+	}
+	if guard != nil {
+		if e = agentaction.Put(ctx, tx, userID, guard.RequestID, guard.Mode, guard.Input, map[string]any{"id": id, "deleted": true}); e != nil {
+			return e
+		}
 	}
 	return tx.Commit()
 }
