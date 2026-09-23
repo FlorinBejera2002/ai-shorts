@@ -57,8 +57,9 @@ export function persistRenderState(job: RenderJobState): void {
 export async function recoverRenderState(adapter: StudioApiAdapter, id: string): Promise<RenderJobState | null> {
   if (id.length > 200 || !/^[a-zA-Z0-9_.-]+$/.test(id)) return null;
   const match = /^(.*)_\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}(?:_[a-f0-9-]{36})?$/.exec(id);
-  if (!match) return null;
-  const project = await adapter.resolveProject(match[1]);
+  const projectId = match?.[1];
+  if (!projectId) return null;
+  const project = await adapter.resolveProject(projectId);
   if (!project) return null;
   const dir = adapter.rendersDir(project);
   const receipt = resolveWithinProject(dir, `${id}.state.json`);
