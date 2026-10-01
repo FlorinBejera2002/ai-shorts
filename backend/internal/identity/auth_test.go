@@ -20,7 +20,7 @@ const testPassword = "dummy-password-not-a-user"
 func testUser() User {
 	return User{
 		ID: "f53114bc-48c7-4b51-af21-99f0efcb5e30", Email: "auth-test@example.invalid",
-		PasswordHash: dummyPasswordHash, AccessRole: "member", Plan: "free", Credits: 100,
+		PasswordHash: dummyPasswordHash, AccessRole: "member", AccountStatus: "active", Plan: "free", Credits: 100,
 		CreatedAt: time.Now().UTC(),
 	}
 }
@@ -179,7 +179,7 @@ func TestTokenTypesCannotBeExchanged(t *testing.T) {
 }
 
 func TestSessionChangesInvalidateTokens(t *testing.T) {
-	for _, change := range []string{"version", "activation", "role", "expiry", "missing-user"} {
+	for _, change := range []string{"version", "activation", "role", "suspension", "expiry", "missing-user"} {
 		t.Run(change, func(t *testing.T) {
 			handler, repository, service := testHTTP(t)
 			response, cookie := loginHTTP(t, handler)
@@ -190,6 +190,8 @@ func TestSessionChangesInvalidateTokens(t *testing.T) {
 				repository.user.ActivationRequired = true
 			case "role":
 				repository.user.AccessRole = "admin-from-untrusted-data"
+			case "suspension":
+				repository.user.AccountStatus = "suspended"
 			case "missing-user":
 				repository.user.ID = ""
 			case "expiry":
@@ -204,6 +206,26 @@ func TestSessionChangesInvalidateTokens(t *testing.T) {
 				t.Fatalf("refresh: %v", err)
 			}
 		})
+	}
+}
+
+func TestAdminGuardUsesDatabaseBackedRole(t *testing.T) {
+	repository := &memoryRepository{user: testUser(), sessions: make(map[string]time.Time)}
+	repository.user.AccessRole = "admin"
+	service := NewService(repository, testTokens(t))
+	auth := NewHandler(service, HTTPConfig{SecureCookies: true, AllowedOrigins: []string{"https://app.example.invalid"}}, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	router := httprouter.New()
+	router.Handler(http.MethodGet, "/protected", auth.RequireAdmin(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusNoContent) }))
+	response, _, _, err := service.Login(context.Background(), repository.user.Email, testPassword)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if w := call(router, http.MethodGet, "/protected", "", nil, response.AccessToken); w.Code != http.StatusNoContent {
+		t.Fatalf("admin denied: %d %s", w.Code, w.Body.String())
+	}
+	repository.user.AccessRole = "member"
+	if w := call(router, http.MethodGet, "/protected", "", nil, response.AccessToken); w.Code != http.StatusForbidden {
+		t.Fatalf("database role change was ignored: %d %s", w.Code, w.Body.String())
 	}
 }
 

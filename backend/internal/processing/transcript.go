@@ -3,24 +3,59 @@ package processing
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
+	"unicode"
 )
+
+var errNoSpeech = errors.New("no speech detected in the video audio")
+var errSpeechDetectionUnavailable = errors.New("voice activity detection is unavailable")
 
 func (p *Processor) transcribe(ctx context.Context, file, dir, language string, duration float64) (Transcript, error) {
 	return p.transcribeModel(ctx, file, dir, language, duration, p.cfg.WhisperModel)
 }
 
 func (p *Processor) transcribeModel(ctx context.Context, file, dir, language string, duration float64, model string) (Transcript, error) {
+	return p.transcribeWithVAD(ctx, file, dir, language, duration, model, "")
+}
+
+// Story speech needs independent voice evidence. Audio level alone cannot
+// distinguish a speaker from music, traffic or machinery. Legacy transcription
+// callers retain their existing behavior until they opt into this contract.
+func (p *Processor) transcribeStory(ctx context.Context, file, dir, language string, duration float64, model string) (Transcript, error) {
+	vad := p.storyVADModel(model)
+	if info, err := os.Stat(vad); err != nil || !info.Mode().IsRegular() || info.Size() == 0 {
+		return Transcript{}, errSpeechDetectionUnavailable
+	}
+	return p.transcribeWithVAD(ctx, file, dir, language, duration, model, vad)
+}
+
+func (p *Processor) storyVADModel(model string) string {
+	if p.cfg.WhisperVADModel != "" {
+		return p.cfg.WhisperVADModel
+	}
+	return filepath.Join(filepath.Dir(model), "ggml-silero-v6.2.0.bin")
+}
+
+func (p *Processor) transcribeWithVAD(ctx context.Context, file, dir, language string, duration float64, model, vad string) (Transcript, error) {
 	if language == "" {
 		language = "auto"
 	}
 	if err := p.ffmpeg(ctx, dir, "-i", file, "-vn", "-ac", "1", "-ar", "16000", "-c:a", "pcm_s16le", "audio.wav"); err != nil {
 		return Transcript{}, err
 	}
-	_, err := run(ctx, dir, p.cfg.WhisperPath, "-m", model, "-f", "audio.wav", "-l", language, "-ojf", "-of", "transcript", "-sow", "-ml", "1")
+	args := []string{"-m", model, "-f", "audio.wav", "-l", language, "-ojf", "-of", "transcript", "-sow", "-ml", "1"}
+	if vad != "" {
+		// Keep short utterances and generous word-edge padding. These settings
+		// gate ASR input; they never cut or modify the rendered source audio.
+		args = append(args, "--vad", "--vad-model", vad)
+		args = append(args, storyVADArguments...)
+		args = append(args, "--no-speech-thold", "0.6", "--max-context", "0")
+	}
+	_, err := run(ctx, dir, p.cfg.WhisperPath, args...)
 	if err != nil {
 		return Transcript{}, err
 	}
@@ -28,9 +63,13 @@ func (p *Processor) transcribeModel(ctx context.Context, file, dir, language str
 	if err != nil {
 		return Transcript{}, err
 	}
-	return parseTranscript(raw, duration)
+	return parseTranscriptClock(raw, duration, vad != "")
 }
 func parseTranscript(raw []byte, duration float64) (Transcript, error) {
+	return parseTranscriptClock(raw, duration, false)
+}
+
+func parseTranscriptClock(raw []byte, duration float64, originalSegmentClock bool) (Transcript, error) {
 	type entry struct {
 		Text    string
 		Offsets struct{ From, To float64 }
@@ -50,7 +89,7 @@ func parseTranscript(raw []byte, duration float64) (Transcript, error) {
 	for _, e := range doc.Transcription {
 		start, end := e.Offsets.From/1000, e.Offsets.To/1000
 		text := strings.TrimSpace(e.Text)
-		if text == "" || start < 0 || end <= start || end > duration+0.5 {
+		if !spokenTranscriptText(text) || !finite(start) || !finite(end) || start < 0 || end <= start || end > duration+0.5 {
 			continue
 		}
 		if end > duration {
@@ -58,6 +97,12 @@ func parseTranscript(raw []byte, duration float64) (Transcript, error) {
 		}
 		s := TranscriptSegment{ID: len(result.Segments), Start: start, End: end, Text: text, Words: []Word{}}
 		for _, t := range e.Tokens {
+			// whisper.cpp v1.8.3 remaps segment timestamps after VAD, but
+			// exports token timestamps on the compressed speech-only clock.
+			// -sow -ml 1 gives word-bounded segments on the original clock.
+			if originalSegmentClock {
+				break
+			}
 			if t.Offsets == nil || strings.HasPrefix(t.Text, "[_") {
 				continue
 			}
@@ -98,9 +143,18 @@ func parseTranscript(raw []byte, duration float64) (Transcript, error) {
 		result.Text += text
 	}
 	if result.Text == "" {
-		return result, fmt.Errorf("no speech detected in the video audio")
+		return result, errNoSpeech
 	}
 	return result, nil
+}
+
+// Whisper annotations and control tokens are not spoken captions. This checks
+// their structural syntax, never a blacklist of phrases a real person can say.
+func spokenTranscriptText(text string) bool {
+	if (strings.HasPrefix(text, "[") && strings.HasSuffix(text, "]")) || (strings.HasPrefix(text, "<|") && strings.HasSuffix(text, "|>")) {
+		return false
+	}
+	return strings.ContainsFunc(text, func(r rune) bool { return unicode.IsLetter(r) || unicode.IsNumber(r) })
 }
 
 // RemapWords maps the visible halves of crossfades onto the composed timeline.
@@ -144,7 +198,9 @@ func writeSRT(file string, words []Word) error {
 		next := i + 1
 		for next < len(words) {
 			candidate := text + " " + words[next].Text
-			if len([]rune(candidate)) > 24 || words[next].End-first.Start > 2 {
+			// A readable cue may group adjacent words, but must disappear during
+			// a real pause instead of bridging independently aligned utterances.
+			if words[next].Start-end > .25 || len([]rune(candidate)) > 24 || words[next].End-first.Start > 2 {
 				break
 			}
 			text, end = candidate, words[next].End

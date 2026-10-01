@@ -1,4 +1,6 @@
-export type AgentContext = { route: string; project_id?: string; clip_id?: string; studio_selection?: string[] }
+import type { StoryHelpStep } from './story-help'
+
+export type AgentContext = { route: string; project_id?: string; clip_id?: string; studio_selection?: string[]; help_topic?: 'story_builder'; story_step?: StoryHelpStep }
 export type AgentAction = { name: string; input: Record<string, unknown> }
 export type AgentStatus = 'planning' | 'running' | 'waiting_for_confirmation' | 'waiting_for_resources' | 'paused' | 'cancel_requested' | 'cancelled' | 'completed' | 'failed'
 export type AgentRun = {

@@ -1,0 +1,7 @@
+.brand-lockup { display: inline-flex; align-items: center; gap: 10px; color: var(--foreground); }
+.brand-logo { display: grid; place-items: center; flex: 0 0 auto; width: 34px; height: 34px; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-md); }
+.brand-logo img { width: 24px; height: 24px; }
+.brand-copy { display: flex; flex-direction: column; gap: 4px; }
+.brand-copy strong { font-size: 14px; font-weight: 600; }
+.brand-copy small { font-size: 10px; color: var(--muted-foreground); letter-spacing: .04em; }
+@media (min-width: 721px) and (max-width: 1050px) { .brand-lockup.compact .brand-copy { display: none; } }

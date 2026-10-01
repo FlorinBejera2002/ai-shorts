@@ -1,0 +1,51 @@
+.google-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  font-weight: 500;
+  width: 100%;
+  min-height: 43px;
+  border: 1px solid var(--border);
+  background: #fff;
+  color: #111;
+}
+
+.google-button:hover {
+  background: #e9e9ed;
+}
+
+.google-mark {
+  display: grid;
+  width: 20px;
+  height: 20px;
+  place-items: center;
+  border: 1px solid #dedede;
+  border-radius: var(--radius-sm);
+  background: #fff;
+  color: #4285f4;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.login-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 19px 0;
+  color: #777;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.login-divider::before,
+.login-divider::after {
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+  content: '';
+}

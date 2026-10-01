@@ -20,6 +20,8 @@ import { useAgentAttachments } from './use-agent-attachments'
 import './workspace-agent.css'
 import { StudioAssets } from './studio-assets'
 import { useResourceResume } from './use-resource-resume'
+import { useStoryAgentHelp } from './use-story-agent-help'
+import { AgentHelpComposer } from './agent-help-composer'
 
 export function WorkspaceAgent() {
   const locale = useLocale()
@@ -44,11 +46,19 @@ export function WorkspaceAgent() {
   const agent = useWorkspaceAgent(route, navigate, routeStory ?? routeStudio ?? projectId, selectProject, locale, attachments.resources.map(item => item.id))
   useResourceResume({ runs: agent.runs, projectId, items: resource.uploads.items, uploading: resource.uploads.busy, resources: attachments.resources, completedBatch: attachments.completedBatch, pending: Boolean(attachments.pending), busy: agent.busy, resume: run => void agent.control(run, 'resume') })
   const [open, setOpen] = useState(false)
+  const openForHelp = useCallback(() => setOpen(true), [])
+  const { pending: pendingHelp, addQuestion, composerRef, focusComposer, restoreFocus } = useStoryAgentHelp(locale, agent.prepareHelp, openForHelp)
   const [width, setWidth] = useState(380)
   const trigger = useRef<HTMLButtonElement>(null)
   const mobile = useIsMobile()
   const speech = useDictation(locale, text => agent.setDraft(previous => `${previous}${previous ? ' ' : ''}${text}`.slice(0, 4000)))
-  function changeOpen(value: boolean) { setOpen(value); if (!value) speech.cancel() }
+  function changeOpen(value: boolean) {
+    setOpen(value)
+    if (!value) {
+      speech.cancel()
+      if (!mobile) restoreFocus()
+    }
+  }
   const content = <div className="flex h-full min-h-0 flex-col">
     <header className="flex shrink-0 items-center gap-3 border-b p-4">
       <span className="flex size-9 items-center justify-center rounded-md bg-foreground text-background"><Bot className="size-5" aria-hidden="true" /></span>
@@ -83,7 +93,8 @@ export function WorkspaceAgent() {
     <form className="shrink-0 space-y-2 border-t bg-background p-4" onSubmit={event => { event.preventDefault(); if (!agent.retry) void agent.send() }}>
       {agent.error && <p role="alert" className="text-xs text-destructive">{agent.error}</p>}
       {agent.retry && <Button type="button" size="sm" variant="outline" disabled={agent.busy} onClick={() => void agent.send(agent.retry!)}>{m.retry}</Button>}
-      <textarea aria-label={m.placeholder} placeholder={m.placeholder} value={agent.draft} onChange={event => agent.setDraft(event.target.value)} maxLength={4000} rows={3} className="w-full resize-none rounded-md border bg-background p-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring" />
+      <AgentHelpComposer locale={locale} helpMode={agent.helpMode} pendingQuestion={pendingHelp?.question} draftLength={agent.draft.length} onRegularMessage={agent.clearHelp} onAddQuestion={addQuestion} />
+      <textarea ref={composerRef} aria-label={m.placeholder} placeholder={m.placeholder} value={agent.draft} onChange={event => agent.setDraft(event.target.value)} maxLength={4000} rows={3} className="w-full resize-none rounded-md border bg-background p-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring" />
       <div className="flex items-center gap-2">
         {projectId ? <Button type="button" variant="ghost" size="icon" aria-label={locale === 'ro' ? 'Atașează filmări' : 'Attach recordings'} onClick={() => document.getElementById('agent-recordings')?.click()}><Paperclip className="size-4" /></Button> : <Button type="button" variant="ghost" size="icon" asChild><Link href="/dashboard/create" aria-label={m.upload} title={m.upload}><Paperclip className="size-4" /></Link></Button>}
         <Button type="button" variant="ghost" size="icon" disabled={!speech.supported} onClick={speech.toggle} aria-label={speech.listening ? m.endDictation : m.dictate} aria-pressed={speech.listening} title={speech.supported ? m.dictate : m.speechUnavailable}>{speech.listening ? <Square className="size-4" /> : <Mic className="size-4" />}</Button>
@@ -94,7 +105,7 @@ export function WorkspaceAgent() {
   </div>
   return <>
     {!open && <Button data-agent-trigger ref={trigger} className="fixed right-4 bottom-24 z-40 shadow-lg lg:bottom-6" onClick={() => changeOpen(true)} aria-label={m.open} aria-expanded={false} aria-controls="workspace-agent-panel"><Bot className="mr-2 size-4" />{m.title}</Button>}
-    {mobile ? <Sheet open={open} onOpenChange={changeOpen}><SheetContent id="workspace-agent-panel" showCloseButton={false} onCloseAutoFocus={event => { event.preventDefault(); trigger.current?.focus() }} className="h-[100dvh] w-full gap-0 sm:max-w-md"><SheetTitle className="sr-only">{m.title}</SheetTitle><SheetDescription className="sr-only">{m.subtitle}</SheetDescription>{content}</SheetContent></Sheet> : <aside id="workspace-agent-panel" aria-label={m.title} hidden={!open} style={{ width }} className="sticky top-0 h-screen shrink-0 border-l bg-background">
+    {mobile ? <Sheet open={open} onOpenChange={changeOpen}><SheetContent id="workspace-agent-panel" showCloseButton={false} onOpenAutoFocus={event => { if (focusComposer()) event.preventDefault() }} onCloseAutoFocus={event => { event.preventDefault(); if (!restoreFocus()) trigger.current?.focus() }} className="h-[100dvh] w-full gap-0 sm:max-w-md"><SheetTitle className="sr-only">{m.title}</SheetTitle><SheetDescription className="sr-only">{m.subtitle}</SheetDescription>{content}</SheetContent></Sheet> : <aside id="workspace-agent-panel" aria-label={m.title} hidden={!open} style={{ width }} className="sticky top-0 h-screen shrink-0 border-l bg-background">
       <label className="absolute -left-2 top-1/2 z-10 -translate-y-1/2"><span className="sr-only">{m.width}</span><input type="range" min={320} max={560} step={20} value={width} onChange={event => setWidth(Number(event.target.value))} className="h-24 w-3 cursor-ew-resize accent-foreground [writing-mode:vertical-lr]" /></label>
       {content}
     </aside>}

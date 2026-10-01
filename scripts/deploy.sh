@@ -5,7 +5,7 @@ usage() {
   cat <<'EOF'
 Usage: scripts/deploy.sh <build|deploy|rollback|status|verify> [component]
 
-Components: all, backend, frontend, studio, api, workers, gateway
+Components: all, backend, frontend, admin, studio, api, workers, gateway
 
 Environment:
   DEPLOY_HOST  SSH host or alias (default: sc)
@@ -24,7 +24,7 @@ case "$action" in
 esac
 
 case "$component" in
-  all|backend|frontend|studio|api|workers|gateway) ;;
+  all|backend|frontend|admin|studio|api|workers|gateway) ;;
   *) echo "Unknown production component: $component" >&2; exit 2 ;;
 esac
 
@@ -83,7 +83,7 @@ cd "$repo_root"
 # Ship only runtime/build inputs. This deliberately excludes local agent settings,
 # secrets, caches, and an in-progress alternate frontend tree.
 git ls-files -co --exclude-standard -z -- \
-  backend frontend deploy scripts \
+  backend frontend admin deploy scripts \
   editor/package.json editor/bun.lock editor/Dockerfile.sneepcut editor/.dockerignore \
   'editor/tsconfig*.json' editor/packages editor/registry editor/scripts editor/LICENSE editor/NOTICE \
   docker-compose.production.yml Makefile .gitattributes \

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Plus, RefreshCw } from 'lucide-react'
+import { RefreshCw } from 'lucide-react'
 import { useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -19,6 +19,13 @@ import { StoryEditor } from './story-editor'
 import { StoryOptionsPanel } from './story-options'
 import { StorySources } from './story-sources'
 import { StoryNarration } from './story-narration'
+import { StoryWizard, type StoryStep } from './story-wizard'
+import { StoryCreateReview } from './story-create-review'
+import {
+  StoryProjectDelete,
+  StoryProjectHeader,
+  StoryProjectStatus
+} from './story-project-controls'
 import { useStoryLanguage } from './use-story-language'
 import { useStoryUploads } from './use-story-uploads'
 import './story.css'
@@ -38,6 +45,37 @@ function rememberProject(key: string, id: string) {
   } catch {
     /* Storage may be disabled. The project remains on the server. */
   }
+}
+
+function savedStep(project: StoryProject, initialStep?: StoryStep): StoryStep {
+  if (project.status !== 'draft') return 3
+  if (initialStep !== undefined) return initialStep
+  const saved = Number(savedProject(`sneepcut:story-step:${project.id}`))
+  return saved >= 0 && saved <= 3 && Number.isInteger(saved) ? (saved as StoryStep) : 0
+}
+
+function stepHint(
+  text: (english: string, romanian: string) => string,
+  step: StoryStep,
+  narrationPending: boolean,
+  narrationMissing: boolean,
+  uploading: boolean
+) {
+  if (narrationPending)
+    return text(
+      'Save or discard your recording before moving to another step.',
+      'Salvează înregistrarea sau renunță la ea înainte de a trece la alt pas.'
+    )
+  if (step === 1 && narrationMissing)
+    return text(
+      'Record or choose an audio file, then save your narration to continue.',
+      'Înregistrează sau alege un fișier audio, apoi salvează narațiunea pentru a continua.'
+    )
+  if (uploading && step !== 0)
+    return text(
+      'Your clips are still uploading. You can keep working on your story.',
+      'Filmările încă se încarcă. Poți continua să pregătești povestea.'
+    )
 }
 
 function validateFiles(
@@ -72,14 +110,19 @@ export function StoryBuilder() {
   const userID = authClient.getSnapshot().user?.id ?? ''
   const storageKey = `sneepcut:story:${userID}`
   const [id, setID] = useState(() => params.get('story') || savedProject(storageKey))
-  const [options, setOptions] = useState(defaultOptions)
-  const [incoming, setIncoming] = useState<{ id: string; files: File[] } | null>(null)
+  const [incoming, setIncoming] = useState<{
+    id: string
+    files: File[]
+    step: StoryStep
+  } | null>(null)
   const [creating, setCreating] = useState(false)
   const [uploading, setUploading] = useState(false)
+  const [unsavedChanges, setUnsavedChanges] = useState(false)
   const [error, setError] = useState('')
   const createID = useRef(crypto.randomUUID())
   const createBusy = useRef(false)
   const [retainedFiles, setRetainedFiles] = useState<File[]>([])
+  const requestedStep = useRef<StoryStep>(0)
   const queryKey = ['story', userID, id]
   const projectQuery = useQuery({
     queryKey,
@@ -114,12 +157,11 @@ export function StoryBuilder() {
     rememberProject(storageKey, value)
     setIncoming(null)
     setError('')
-    setOptions(defaultOptions)
     setRetainedFiles([])
     createID.current = crypto.randomUUID()
   }
 
-  async function createProject(files: File[], nextOptions: StoryOptions = options) {
+  async function createProject(files: File[], nextStep: StoryStep = 0) {
     if (createBusy.current) return
     const validation = validateFiles(files, [], [], limits)
     if (validation) {
@@ -127,16 +169,17 @@ export function StoryBuilder() {
       return
     }
     setRetainedFiles(files)
+    requestedStep.current = nextStep
     createBusy.current = true
     setCreating(true)
     setError('')
     try {
       const project = await storyRequest<StoryProject>('/api/stories', 'POST', {
         id: createID.current,
-        options: nextOptions
+        options: defaultOptions
       })
       queryClient.setQueryData(['story', userID, project.id], project)
-      setIncoming({ id: project.id, files })
+      setIncoming({ id: project.id, files, step: nextStep })
       setID(project.id)
       rememberProject(storageKey, project.id)
       void queryClient.invalidateQueries({ queryKey: ['stories', userID] })
@@ -153,51 +196,17 @@ export function StoryBuilder() {
   }
 
   const switchingDisabled =
-    creating || uploading || storyIsBusy(projectQuery.data?.status)
+    creating || uploading || unsavedChanges || storyIsBusy(projectQuery.data?.status)
   return (
-    <div className="story-workspace mt-6 space-y-5">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-semibold">Multi-Clip Story Builder</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {text(
-              'Multiple recordings. One coherent story.',
-              'Mai multe filmări. O singură poveste coerentă.'
-            )}
-          </p>
-        </div>
-        <div className="flex min-w-0 flex-wrap gap-2">
-          {projects.length > 0 && (
-            <select
-              className="story-select max-w-64"
-              aria-label={text('Open story project', 'Deschide proiectul')}
-              value={id}
-              disabled={switchingDisabled}
-              onChange={(event) => selectProject(event.target.value)}
-            >
-              <option value="">{text('New story', 'Poveste nouă')}</option>
-              {projects.map((project) => (
-                <option key={project.id} value={project.id}>
-                  {project.options?.brief?.slice(0, 40) ||
-                    project.assets?.[0]?.name ||
-                    project.id.slice(0, 8)}{' '}
-                  · {project.status}
-                </option>
-              ))}
-            </select>
-          )}
-          {id && (
-            <Button
-              variant="outline"
-              disabled={switchingDisabled}
-              onClick={() => selectProject('')}
-            >
-              <Plus />
-              {text('New story', 'Poveste nouă')}
-            </Button>
-          )}
-        </div>
-      </div>
+    <div className="story-workspace mt-5 w-full space-y-5">
+      <StoryProjectHeader
+        id={id}
+        projects={projects}
+        hasOutput={Boolean(projectQuery.data?.current_version)}
+        unsavedChanges={unsavedChanges}
+        disabled={switchingDisabled}
+        onSelect={selectProject}
+      />
       {error && (
         <div
           role="alert"
@@ -208,7 +217,7 @@ export function StoryBuilder() {
             <Button
               variant="outline"
               disabled={creating}
-              onClick={() => void createProject(retainedFiles)}
+              onClick={() => void createProject(retainedFiles, requestedStep.current)}
             >
               {text('Retry creating project', 'Reîncearcă crearea proiectului')}
             </Button>
@@ -216,39 +225,41 @@ export function StoryBuilder() {
         </div>
       )}
       {!id ? (
-        <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_22rem]">
-          <StorySources
-            assets={[]}
-            uploads={[]}
-            limits={limits}
-            disabled={creating}
-            onAdd={(files) => void createProject(files)}
-            onRemove={() => {}}
-            onRetry={() => {}}
-            onDuration={() => {}}
-            onChange={() => {}}
-          />
-          <StoryOptionsPanel
-            options={options}
-            disabled={creating}
-            onChange={(value) => {
-              setOptions(value)
-              if (value.narration) void createProject([], value)
-            }}
-          />
+        <StoryWizard
+          step={0}
+          furthest={0}
+          onStep={() => {}}
+          onContinue={() => void createProject(retainedFiles, 1)}
+          navigationDisabled={creating}
+        >
+          <div data-testid="story-step-0">
+            <StorySources
+              assets={[]}
+              uploads={[]}
+              limits={limits}
+              disabled={creating}
+              onAdd={(files) => void createProject(files)}
+              onRemove={() => {}}
+              onRetry={() => {}}
+              onDuration={() => {}}
+              onChange={() => {}}
+            />
+          </div>
           {creating && (
             <p role="status" className="text-sm">
               {text('Creating your project…', 'Se creează proiectul…')}
             </p>
           )}
-        </div>
+        </StoryWizard>
       ) : projectQuery.data ? (
         <StoryWorkspace
           key={id}
           project={projectQuery.data}
           initialFiles={incoming?.id === id ? incoming.files : []}
+          initialStep={incoming?.id === id ? incoming.step : undefined}
           refresh={refresh}
           onUploadBusy={setUploading}
+          onUnsavedChanges={setUnsavedChanges}
           onDeleted={() => {
             selectProject('')
             void queryClient.invalidateQueries({ queryKey: ['stories', userID] })
@@ -274,16 +285,20 @@ export function StoryBuilder() {
 interface WorkspaceProps {
   project: StoryProject
   initialFiles: File[]
+  initialStep?: StoryStep
   refresh: (project?: StoryProject) => Promise<unknown>
   onUploadBusy: (busy: boolean) => void
+  onUnsavedChanges: (unsaved: boolean) => void
   onDeleted: () => void
 }
 
 function StoryWorkspace({
   project,
   initialFiles,
+  initialStep,
   refresh,
   onUploadBusy,
+  onUnsavedChanges,
   onDeleted
 }: WorkspaceProps) {
   const text = useStoryLanguage()
@@ -293,8 +308,10 @@ function StoryWorkspace({
   const [confirmed, setConfirmed] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
-  const [deleting, setDeleting] = useState(false)
   const [narrationPending, setNarrationPending] = useState(false)
+  const stepStorageKey = `sneepcut:story-step:${project.id}`
+  const [step, setStep] = useState<StoryStep>(() => savedStep(project, initialStep))
+  const [furthest, setFurthest] = useState(step)
   const seeded = useRef(false)
   const mutation = useRef(false)
   const requests = useRef(new Map<string, string>())
@@ -303,6 +320,9 @@ function StoryWorkspace({
   const narration = assets.find((asset) => asset.kind === 'narration')
   const videos = assets.filter((asset) => asset.kind !== 'narration')
   const mediaPending = uploads.busy || narrationPending
+  const optionsChanged =
+    project.status === 'draft' &&
+    JSON.stringify(options) !== JSON.stringify(project.options)
   const sourceIDs = new Set(assets.map((asset) => asset.id))
   const pending = uploads.items.filter(
     (item) => !sourceIDs.has(item.id) && item.status !== 'complete'
@@ -324,18 +344,22 @@ function StoryWorkspace({
     }
   }, [initialFiles, add])
   useEffect(() => {
-    onUploadBusy(mediaPending)
+    onUploadBusy(mediaPending || busy)
     return () => onUploadBusy(false)
-  }, [mediaPending, onUploadBusy])
+  }, [mediaPending, busy, onUploadBusy])
   useEffect(() => {
-    if (!mediaPending) return
+    onUnsavedChanges(optionsChanged)
+    return () => onUnsavedChanges(false)
+  }, [optionsChanged, onUnsavedChanges])
+  useEffect(() => {
+    if (!mediaPending && !optionsChanged && !busy) return
     const warn = (event: BeforeUnloadEvent) => {
       event.preventDefault()
       event.returnValue = ''
     }
     window.addEventListener('beforeunload', warn)
     return () => window.removeEventListener('beforeunload', warn)
-  }, [mediaPending])
+  }, [mediaPending, optionsChanged, busy])
 
   async function mutate(
     path: string,
@@ -421,7 +445,7 @@ function StoryWorkspace({
       !confirmed ||
       pending.length > 0 ||
       mediaPending ||
-      !videos.length ||
+      !videos.some((asset) => asset.include !== 'excluded') ||
       (options.narration && !narration)
     )
       return
@@ -452,190 +476,156 @@ function StoryWorkspace({
     void mutate('', 'PATCH', { version: version?.number, locks })
   }
 
-  const statuses: Record<string, string> = {
-    draft: text('Add your recordings', 'Adaugă filmările'),
-    pending: text('Queued', 'În așteptare'),
-    analyzing: text('Analyzing recordings', 'Se analizează filmările'),
-    building_story: text('Building your story', 'Se construiește povestea'),
-    editing: text('Editing', 'Se montează'),
-    reviewing: text('Reviewing the actual edit', 'Se verifică montajul'),
-    improving: text('Improving the edit', 'Se îmbunătățește montajul'),
-    ready: text('Ready', 'Pregătit'),
-    needs_review: text('Needs review', 'Necesită revizie'),
-    failed: text('Failed', 'Eșuat'),
-    cancelled: text('Cancelled', 'Anulat')
+  function changeOptions(value: StoryOptions) {
+    setConfirmed(false)
+    if (Boolean(value.narration) !== Boolean(options.narration)) {
+      void mutate('', 'PATCH', { options: value }).then((saved) => {
+        if (saved) setOptions(value)
+      })
+    } else setOptions(value)
   }
+
+  async function goToStep(next: StoryStep) {
+    if (busy || mutation.current || narrationPending || next === step) return
+    if (optionsChanged) {
+      if (!(await mutate('', 'PATCH', { options }))) return
+    }
+    const destination = next > 1 && options.narration && !narration ? 1 : next
+    setError('')
+    setStep(destination)
+    setFurthest((previous) => Math.max(previous, destination) as StoryStep)
+    rememberProject(stepStorageKey, String(destination))
+  }
+
+  const canCreate =
+    pending.length === 0 &&
+    !mediaPending &&
+    videos.some((asset) => asset.include !== 'excluded') &&
+    (!options.narration || Boolean(narration))
+  const narrationMissing = Boolean(options.narration && !narration)
+  const navigationHint = stepHint(
+    text,
+    step,
+    narrationPending,
+    narrationMissing,
+    uploads.busy
+  )
+  const sourcesPanel = (
+    <StorySources
+      assets={videos}
+      narration={options.narration}
+      uploads={uploads.items}
+      limits={limits}
+      disabled={!canEditSources || narrationPending}
+      onAdd={addFiles}
+      onRemove={(assetID) => void removeAsset(assetID)}
+      onRetry={uploads.retry}
+      onDuration={(assetID, duration) => uploads.update(assetID, { duration })}
+      onChange={changeAsset}
+    />
+  )
+  const narrationPanel = (options.narration || narration) && (
+    <StoryNarration
+      projectID={project.id}
+      asset={narration}
+      disabled={!canEditSources}
+      onSaved={refresh}
+      onPending={onNarrationPending}
+      onRemove={(assetID) => void removeAsset(assetID)}
+    />
+  )
+  const optionsPanel = (section: 'story' | 'settings' | 'all') => (
+    <StoryOptionsPanel
+      section={section}
+      options={options}
+      hasNarration={Boolean(narration)}
+      disabled={!canEditSources || narrationPending}
+      onChange={changeOptions}
+    />
+  )
+
   return (
     <div className="space-y-5">
-      {project.status !== 'draft' && (
-        <Card className="block space-y-2 p-4" role="status" aria-live="polite">
-          <p className="font-medium">{statuses[project.status] ?? project.status}</p>
-          <p className="text-sm text-muted-foreground">{project.message}</p>
-          {project.error && <p className="text-sm text-destructive">{project.error}</p>}
-          {active && (
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={busy}
-              onClick={() => void mutate('/cancel', 'POST', {})}
-            >
-              {text('Cancel processing', 'Anulează procesarea')}
-            </Button>
-          )}
-        </Card>
-      )}
+      <StoryProjectStatus
+        project={project}
+        active={active}
+        busy={busy}
+        onCancel={() => void mutate('/cancel', 'POST', {})}
+      />
       {error && (
         <p role="alert" className="rounded-md border p-3 text-sm text-destructive">
           {error}
         </p>
       )}
-      <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_22rem]">
-        <div className="min-w-0 space-y-5">
-          {version && (
-            <StoryEditor
-              project={project}
-              version={version}
-              disabled={active || busy}
-              onAction={edit}
-              onLock={lock}
-              onRollback={(number) =>
-                void mutate('/rollback', 'POST', { version: number })
-              }
+      {version && (
+        <StoryEditor
+          project={project}
+          version={version}
+          disabled={active || busy}
+          onAction={edit}
+          onLock={lock}
+          onRollback={(number) => void mutate('/rollback', 'POST', { version: number })}
+        />
+      )}
+      {!version && !active ? (
+        <StoryWizard
+          step={step}
+          furthest={furthest}
+          onStep={(next) => void goToStep(next)}
+          onContinue={() => void goToStep(Math.min(step + 1, 3) as StoryStep)}
+          navigationDisabled={busy || narrationPending}
+          continueDisabled={step === 1 && narrationMissing}
+          navigationHint={navigationHint}
+        >
+          <div hidden={step !== 0} data-testid="story-step-0">
+            {sourcesPanel}
+          </div>
+          <div
+            hidden={step !== 1}
+            data-testid="story-step-1"
+            className="story-audio-layout"
+          >
+            {optionsPanel('story')}
+            {narrationPanel}
+          </div>
+          <div hidden={step !== 2} data-testid="story-step-2">
+            {optionsPanel('settings')}
+          </div>
+          <div hidden={step !== 3} data-testid="story-step-3">
+            <StoryCreateReview
+              options={options}
+              videos={videos}
+              narration={narration}
+              confirmed={confirmed}
+              ready={canCreate}
+              busy={busy || narrationPending}
+              pendingCount={pending.length}
+              onConfirm={setConfirmed}
+              onEdit={(next) => void goToStep(next)}
+              onCreate={() => void generate()}
             />
-          )}
-          {(options.narration || narration) && (
-            <StoryNarration
-              projectID={project.id}
-              asset={narration}
-              disabled={!canEditSources}
-              onSaved={refresh}
-              onPending={onNarrationPending}
-              onRemove={(assetID) => void removeAsset(assetID)}
-            />
-          )}
-          <StorySources
-            assets={videos}
-            narration={options.narration}
-            uploads={uploads.items}
-            limits={limits}
-            disabled={!canEditSources || narrationPending}
-            onAdd={addFiles}
-            onRemove={(id) => void removeAsset(id)}
-            onRetry={uploads.retry}
-            onDuration={(id, duration) => uploads.update(id, { duration })}
-            onChange={changeAsset}
-          />
-        </div>
-        <div className="space-y-5">
-          <StoryOptionsPanel
-            options={options}
-            hasNarration={Boolean(narration)}
-            disabled={!canEditSources || narrationPending}
-            onChange={(value) => {
-              setConfirmed(false)
-              if (Boolean(value.narration) !== Boolean(options.narration)) {
-                void mutate('', 'PATCH', { options: value }).then((saved) => {
-                  if (saved) setOptions(value)
-                })
-              } else setOptions(value)
-            }}
-          />
-          {!version && !active && (
-            <Card className="block space-y-4 p-5">
-              <h2 className="font-semibold">
-                {text('Build one story', 'Creează o poveste')}
-              </h2>
-              <p className="text-sm text-muted-foreground">
-                {text(
-                  '10 credits once, including automatic review and repairs. Original recordings remain available.',
-                  '10 credite o singură dată, inclusiv revizie și reparații automate. Filmările originale rămân disponibile.'
-                )}
-              </p>
-              <label className="flex items-start gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  className="mt-1 accent-foreground"
-                  checked={confirmed}
-                  disabled={
-                    pending.length > 0 ||
-                    mediaPending ||
-                    videos.length === 0 ||
-                    busy ||
-                    Boolean(options.narration && !narration)
-                  }
-                  onChange={(event) => setConfirmed(event.target.checked)}
-                />
-                {options.narration
-                  ? text(
-                      'My narration and all my clips are saved. Use this complete set.',
-                      'Narațiunea și toate filmările sunt salvate. Folosește acest set complet.'
-                    )
-                  : text(
-                      'All my clips are uploaded. Use this complete set.',
-                      'Am încărcat toate filmările. Folosește acest set complet.'
-                    )}
-              </label>
-              <Button
-                className="w-full bg-foreground text-background hover:bg-foreground/90"
-                disabled={
-                  !confirmed ||
-                  pending.length > 0 ||
-                  mediaPending ||
-                  !videos.length ||
-                  Boolean(options.narration && !narration) ||
-                  busy
-                }
-                onClick={() => void generate()}
-              >
-                {busy
-                  ? text('Submitting…', 'Se trimite…')
-                  : text('Build my story', 'Creează povestea')}
-              </Button>
-            </Card>
-          )}
-          {!active && (
-            <div className="space-y-2">
-              {deleting ? (
-                <Card className="block space-y-3 p-4">
-                  <p className="text-sm">
-                    {text(
-                      'Delete this story and its source files, previews, and saved versions?',
-                      'Ștergi povestea, fișierele sursă, previzualizările și versiunile salvate?'
-                    )}
-                  </p>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="destructive"
-                      disabled={busy || mediaPending}
-                      onClick={async () => {
-                        if (await mutate('', 'DELETE')) onDeleted()
-                      }}
-                    >
-                      {text('Delete permanently', 'Șterge definitiv')}
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      disabled={busy}
-                      onClick={() => setDeleting(false)}
-                    >
-                      {text('Keep', 'Păstrează')}
-                    </Button>
-                  </div>
-                </Card>
-              ) : (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  disabled={busy || mediaPending}
-                  onClick={() => setDeleting(true)}
-                >
-                  {text('Delete project', 'Șterge proiectul')}
-                </Button>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
+          </div>
+        </StoryWizard>
+      ) : (
+        <details className="w-full rounded-md border bg-card">
+          <summary className="cursor-pointer rounded-md px-5 py-4 text-sm font-medium hover:bg-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground">
+            {text('Original files and settings', 'Fișiere originale și setări')}
+          </summary>
+          <div className="space-y-4 border-t p-4">
+            {sourcesPanel}
+            {narrationPanel}
+            {optionsPanel('all')}
+          </div>
+        </details>
+      )}
+      {!active && (
+        <StoryProjectDelete
+          disabled={busy || mediaPending}
+          onDelete={async () => {
+            if (await mutate('', 'DELETE')) onDeleted()
+          }}
+        />
+      )}
     </div>
   )
 }

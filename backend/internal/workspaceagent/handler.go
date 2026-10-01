@@ -116,6 +116,9 @@ type createRequest struct {
 }
 
 func validScope(s Scope) bool {
+	if !validHelpScope(s) {
+		return false
+	}
 	if len(s.StudioSelection) > 20 || len(s.StudioSelection) > 0 && (strings.Split(s.Route, "?")[0] != "/dashboard/studio" || s.ProjectID == "") {
 		return false
 	}
@@ -132,7 +135,7 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	in.Message = strings.TrimSpace(in.Message)
-	if !data.ValidUUID(in.RequestID) || !validScope(in.Context) || utf8.RuneCountInString(in.Message) > 4000 || (in.Message == "" && in.SuggestionID == "") || (in.SuggestionID != "" && !data.ValidUUID(in.SuggestionID)) {
+	if !data.ValidUUID(in.RequestID) || !validScope(in.Context) || utf8.RuneCountInString(in.Message) > 4000 || (in.Message == "" && in.SuggestionID == "") || (in.SuggestionID != "" && (!data.ValidUUID(in.SuggestionID) || in.Context.helpOnly())) {
 		httpx.Error(w, 422, "Invalid agent request")
 		return
 	}
@@ -291,9 +294,14 @@ func (h *Handler) control(w http.ResponseWriter, r *http.Request) {
 		// The composer sends its current attachment selection, including IDs
 		// already bound to this run. Merge rather than rejecting those as duplicates.
 		seen := make(map[string]bool, len(run.ResourceIDs)+len(in.ResourceIDs))
-		for _, id := range run.ResourceIDs { seen[id] = true }
+		for _, id := range run.ResourceIDs {
+			seen[id] = true
+		}
 		for _, id := range in.ResourceIDs {
-			if !seen[id] { run.ResourceIDs = append(run.ResourceIDs, id); seen[id] = true }
+			if !seen[id] {
+				run.ResourceIDs = append(run.ResourceIDs, id)
+				seen[id] = true
+			}
 		}
 		if err := h.resourcesReady(r.Context(), &run); err != nil {
 			httpx.Error(w, 409, err.Error())

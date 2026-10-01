@@ -17,6 +17,7 @@ type User struct {
 	Credits            int        `json:"credits"`
 	Plan               string     `json:"plan"`
 	AccessRole         string     `json:"access_role"`
+	AccountStatus      string     `json:"account_status"`
 	EmailVerified      *time.Time `json:"email_verified"`
 	CreatedAt          time.Time  `json:"created_at"`
 	PasswordHash       string     `json:"-"`
@@ -45,12 +46,12 @@ type Postgres struct {
 func NewPostgres(db *sql.DB) *Postgres { return &Postgres{db: db} }
 
 const userColumns = `u.id, u.email, u.name, u.avatar_url, u.credits, u.plan,
-	u.access_role, u.email_verified, u.created_at, COALESCE(u.password_hash, ''),
+	u.access_role, u.account_status, u.email_verified, u.created_at, COALESCE(u.password_hash, ''),
 	u.session_version, COALESCE(u.mfa_enabled,false), EXISTS (SELECT 1 FROM account_deletion_requests d WHERE d.user_id = u.id),u.email_activation_required`
 
 func userDest(u *User) []any {
 	return []any{&u.ID, &u.Email, &u.Name, &u.ProfilePic, &u.Credits, &u.Plan,
-		&u.AccessRole, &u.EmailVerified, &u.CreatedAt, &u.PasswordHash,
+		&u.AccessRole, &u.AccountStatus, &u.EmailVerified, &u.CreatedAt, &u.PasswordHash,
 		&u.SessionVersion, &u.MFAEnabled, &u.DeletionPending, &u.ActivationRequired}
 }
 

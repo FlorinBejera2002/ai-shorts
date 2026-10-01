@@ -69,6 +69,21 @@ services:
     ports:
       - "127.0.0.1:${FRONTEND_HOST_PORT:-3001}:80"
 
+  admin:
+    build:
+      context: ./admin
+      target: dev
+    image: sneepcut-admin-dev
+    command: npm run dev -- --host 0.0.0.0 --port 8080
+    environment:
+      VITE_DEV_API_TARGET: http://backend:8080
+    volumes:
+      - ./admin/src:/app/src
+      - ./admin/index.html:/app/index.html
+    ports:
+      - "127.0.0.1:${ADMIN_HOST_PORT:-3002}:8080"
+    read_only: false
+
   nginx:
     # Refresh Nginx's upstream DNS after Compose recreates an app container.
     depends_on:

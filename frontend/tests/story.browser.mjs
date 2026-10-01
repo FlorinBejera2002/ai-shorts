@@ -1,17 +1,18 @@
 import assert from 'node:assert/strict'
 import { pathToFileURL } from 'node:url'
+import { settleStoryNavigation } from './story-browser-helpers.mjs'
 
 if (!process.env.PLAYWRIGHT_MODULE)
   throw new Error('Set PLAYWRIGHT_MODULE to the installed Playwright entry point')
 const { chromium } = await import(pathToFileURL(process.env.PLAYWRIGHT_MODULE).href)
 const browser = await chromium.launch({ channel: 'chrome', headless: true })
-const page = await browser.newPage()
+const page = await browser.newPage({ viewport: { width: 1280, height: 960 } })
 page.setDefaultTimeout(60000)
 const errors = []
 page.on('pageerror', (error) => errors.push(error.message))
 const userID = '00000000-0000-4000-8000-000000000001'
 const fileCount = Number(process.env.TEST_FILE_COUNT || 5)
-assert.ok([5, 10].includes(fileCount))
+assert.ok([5, 10, 14].includes(fileCount))
 const uploads = new Map()
 const registrations = new Map()
 const generations = []
@@ -251,6 +252,62 @@ await page.route('**/api/**', async (route) => {
   return route.fulfill({ json: {} })
 })
 
+const verifyDesktopSources = async () => {
+  const sidebar = page.locator('[data-slot="sidebar"]')
+  const layouts = []
+  for (const width of [1366, 1600]) {
+    await page.setViewportSize({ width, height: 1000 })
+    for (const state of ['expanded', 'collapsed']) {
+      if (await sidebar.getAttribute('data-state') !== state) {
+        await page.locator('[data-sidebar="trigger"]').click()
+        await page.waitForFunction((value) =>
+          document.querySelector('[data-slot="sidebar"]')?.getAttribute('data-state') === value,
+        state)
+      }
+      await page.evaluate(async () => {
+        if (document.activeElement instanceof HTMLElement) document.activeElement.blur()
+        window.scrollTo(0, 0)
+        await document.fonts.ready
+        await Promise.all(document.getAnimations()
+          .filter((animation) => animation.effect?.getTiming().iterations !== Infinity)
+          .map((animation) => animation.finished.catch(() => {})))
+        await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))
+      })
+      const dimensions = await page.getByTestId('story-wizard').evaluate((wizard) => {
+        const bounds = wizard.getBoundingClientRect()
+        const workspace = wizard.closest('.story-workspace').getBoundingClientRect()
+        const cards = Array.from(wizard.querySelectorAll('[data-testid="validated-source"]'))
+          .map((card) => card.getBoundingClientRect())
+        return {
+          wizardWidth: bounds.width,
+          workspaceWidth: workspace.width,
+          columns: new Set(cards.map((card) => Math.round(card.left))).size,
+          cards: cards.length,
+          firstRowAligned: Math.abs(cards[0].top - cards[1].top) <= 1,
+          overflow: document.documentElement.scrollWidth > window.innerWidth
+        }
+      })
+      assert.equal(dimensions.cards, 14)
+      assert.ok(Math.abs(dimensions.wizardWidth - dimensions.workspaceWidth) <= 2,
+        `${width}px/${state}: wizard uses the available workspace width`)
+      assert.ok(dimensions.columns >= 2 && dimensions.firstRowAligned,
+        `${width}px/${state}: uploaded clips use at least two columns when there is room`)
+      assert.equal(dimensions.overflow, false, `${width}px/${state}: no horizontal overflow`)
+      assert.equal(generations.length, 0, 'Desktop layout and sidebar changes never generate a story')
+      layouts.push({ width, sidebar: state, ...dimensions })
+      await settleStoryNavigation(page)
+      if (process.env.TEST_SCREENSHOT)
+        await page.screenshot({
+          path: process.env.TEST_SCREENSHOT.replace(/\.png$/, `-sources-${width}-${state}.png`),
+          fullPage: true,
+          animations: 'disabled'
+        })
+    }
+  }
+  console.log('Desktop source layout:', JSON.stringify(layouts))
+  await page.setViewportSize({ width: 1280, height: 960 })
+}
+
 try {
   const origin = process.env.TEST_ORIGIN || 'http://127.0.0.1:5191'
   await page.goto(`${origin}/dashboard/create`, {
@@ -258,7 +315,7 @@ try {
     timeout: 180000
   })
   await page
-    .getByRole('heading', { name: 'Multi-Clip Story Builder' })
+    .getByRole('heading', { name: 'Create a story', exact: true })
     .waitFor({ timeout: 30000 })
   const fileInput = page.getByLabel('Upload story clips')
   assert.equal(await page.locator('#youtube-url').count(), 0, 'Legacy import mounts only when opened')
@@ -275,9 +332,11 @@ try {
     .first()
     .waitFor()
   assert.equal(
-    await page.getByRole('button', { name: 'Build my story' }).isDisabled(),
-    true
+    await page.getByRole('button', { name: 'Build my story', exact: true }).count(),
+    0,
+    'Generation is unavailable on the footage step'
   )
+  assert.equal(generations.length, 0)
   releaseValidation()
   await page
     .getByRole('button', { name: 'Retry failed uploads', exact: true })
@@ -286,7 +345,6 @@ try {
   const confirmation = page.getByRole('checkbox', {
     name: 'All my clips are uploaded. Use this complete set.'
   })
-  await confirmation.waitFor()
   await page.waitForFunction(
     (count) =>
       document.querySelectorAll('[data-testid="validated-source"]').length === count,
@@ -296,6 +354,13 @@ try {
   assert.equal(uploads.get('clip-3.mp4'), 2)
   assert.equal(uploads.get('clip-1.mp4'), 1)
   assert.equal(registrations.get('clip-1.mp4'), 1)
+  if (fileCount === 14) await verifyDesktopSources()
+  for (let step = 1; step <= 3; step++) {
+    await page.getByTestId('story-wizard').getByRole('button', { name: 'Continue', exact: true }).click()
+    await page.getByTestId(`story-step-${step}`).waitFor({ state: 'visible' })
+    assert.equal(generations.length, 0, 'Wizard navigation never starts generation')
+  }
+  await confirmation.waitFor()
   assert.equal(
     await page.getByRole('button', { name: 'Build my story' }).isDisabled(),
     true
@@ -365,6 +430,11 @@ try {
   await page.getByRole('tab', { name: 'YouTube', exact: true }).click()
   assert.equal(await page.locator('#youtube-url').inputValue(), 'draft source link to preserve')
   await page.getByRole('button', { name: 'Multi-clip story', exact: true }).click()
+  if (process.env.TEST_SCREENSHOT)
+    await page.screenshot({
+      path: process.env.TEST_SCREENSHOT.replace(/\.png$/, '-desktop.png'),
+      fullPage: true
+    })
   await page.setViewportSize({ width: 390, height: 844 })
   assert.equal(
     await page.evaluate(

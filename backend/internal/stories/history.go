@@ -35,6 +35,14 @@ func readyVersion(v story.Version) bool {
 	return true
 }
 
+// A rendered, accepted draft is useful in the private Clips library even when
+// independent review still asks for attention. Ready remains the stronger
+// publishing-quality state; this predicate only controls library visibility.
+func libraryVersion(v story.Version) bool {
+	return v.Accepted && v.Report.Version == v.Number && v.Report.Coverage.Plan && v.Report.Coverage.File &&
+		v.Output.Key != "" && v.Output.Duration > 0 && v.Output.Size > 0 && v.Output.Resolution != "" && len(v.Timeline) > 0
+}
+
 func (r *Repository) Rollback(ctx context.Context, user, id string, number int, requestID string) error {
 	if number < 1 || !idPattern.MatchString(requestID) {
 		return ErrInvalid
@@ -129,6 +137,8 @@ func (r *Repository) rollbackTx(ctx context.Context, tx *sql.Tx, user, id string
 	status = "needs_review"
 	if readyVersion(v) {
 		status = "ready"
+	}
+	if libraryVersion(v) {
 		if err = saveClip(ctx, tx, id, user, v, options); err != nil {
 			return err
 		}

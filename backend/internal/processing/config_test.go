@@ -1,6 +1,9 @@
 package processing
 
-import "testing"
+import (
+	"path/filepath"
+	"testing"
+)
 
 func TestStorySpeechModelIsIndependentAndFallsBackForExistingInstalls(t *testing.T) {
 	for _, separate := range []bool{false, true} {
@@ -13,6 +16,20 @@ func TestStorySpeechModelIsIndependentAndFallsBackForExistingInstalls(t *testing
 		cfg, err := ConfigFromEnv(func(key string) string { return env[key] })
 		if err != nil || cfg.StoryWhisperModel != want || cfg.WhisperModel != "/models/base.bin" {
 			t.Fatalf("unexpected model configuration: %+v, %v", cfg, err)
+		}
+	}
+}
+
+func TestVoiceActivityModelUsesExplicitPathOrStoryModelDirectory(t *testing.T) {
+	for _, explicit := range []string{"", "/custom/voice-detector.bin"} {
+		env := map[string]string{"STORY_WHISPER_CPP_MODEL": "/speech/story.bin", "WHISPER_CPP_VAD_MODEL": explicit}
+		cfg, err := ConfigFromEnv(func(key string) string { return env[key] })
+		want := explicit
+		if want == "" {
+			want = filepath.Join("/speech", "ggml-silero-v6.2.0.bin")
+		}
+		if err != nil || cfg.WhisperVADModel != want {
+			t.Fatalf("unexpected VAD configuration: %q, %v", cfg.WhisperVADModel, err)
 		}
 	}
 }

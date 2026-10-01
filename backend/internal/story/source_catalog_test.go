@@ -7,6 +7,30 @@ import (
 	"testing"
 )
 
+func TestSafeVisualCatalogUpgradeOnlyWithdrawsCoveredSpeech(t *testing.T) {
+	before := Asset{ID: "source", Hash: strings.Repeat("a", 64), Duration: 8, HasAudio: true, Mapping: TimeMap{Rate: 1, Duration: 8}, Candidates: []Candidate{{
+		ID: "speech", SourceID: "source", In: 0, Out: 8, Text: "Untrusted transcript.", Words: []Word{{Text: "Untrusted transcript.", Start: 0, End: 8}},
+	}}}
+	after := before
+	after.Candidates = []Candidate{
+		{ID: "speech-cut1", SourceID: "source", In: 0, Out: 4, Role: "b_roll", Reason: "Automatic phrase transcription withheld: weak evidence."},
+		{ID: "speech-cut2", SourceID: "source", In: 4, Out: 8, Role: "b_roll", Reason: "Automatic phrase transcription withheld: weak evidence."},
+	}
+	if !safeVisualCatalogUpgrade(before, after) {
+		t.Fatal("complete caption withdrawal was rejected")
+	}
+	changedSpeech := after
+	changedSpeech.Candidates[0].Text = "Invented replacement."
+	if safeVisualCatalogUpgrade(before, changedSpeech) {
+		t.Fatal("replacement speech passed as a safety upgrade")
+	}
+	gap := after
+	gap.Candidates = gap.Candidates[:1]
+	if safeVisualCatalogUpgrade(before, gap) {
+		t.Fatal("partially covered original phrase passed as a safety upgrade")
+	}
+}
+
 type modelRefreshMedia struct {
 	fakeMedia
 	change func(*Asset)

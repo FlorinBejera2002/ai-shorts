@@ -128,6 +128,17 @@ func workflowUUID(t *testing.T) string {
 	return id
 }
 
+func workflowCurrentVersion(t *testing.T, project stories.Project) story.Version {
+	t.Helper()
+	for _, version := range project.Versions {
+		if version.Number == project.CurrentVersion {
+			return version
+		}
+	}
+	t.Fatalf("current version %d is missing", project.CurrentVersion)
+	return story.Version{}
+}
+
 func TestStoryRestyleActualMediaPreservesLockedTimeline(t *testing.T) {
 	for _, binary := range []string{"ffmpeg", "ffprobe"} {
 		if _, err := exec.LookPath(binary); err != nil {
@@ -184,7 +195,7 @@ func TestStoryRestyleActualMediaPreservesLockedTimeline(t *testing.T) {
 	if err != nil || before.Status != "ready" || before.CurrentVersion != 1 {
 		t.Fatalf("initial reviewed version unavailable: %v %+v", err, before)
 	}
-	original := before.Versions[0]
+	original := workflowCurrentVersion(t, before)
 	ending := original.Plan.Blocks[len(original.Plan.Blocks)-1].ID
 	if err = executor.stories.Patch(ctx, f.user, id, stories.Patch{Version: 1, Locks: []stories.Lock{{BlockID: ending, Locked: true, Text: true, Order: true, Crop: true}}}); err != nil {
 		t.Fatal(err)
@@ -213,9 +224,9 @@ func TestStoryRestyleActualMediaPreservesLockedTimeline(t *testing.T) {
 	if err != nil || after.CurrentVersion != 2 || after.Options.SubtitleColor != color {
 		t.Fatalf("reviewed style not accepted: %v %+v", err, after)
 	}
-	latest := after.Versions[0]
+	latest := workflowCurrentVersion(t, after)
 	if !reflect.DeepEqual(original.Timeline, latest.Timeline) || !latest.Plan.Blocks[len(latest.Plan.Blocks)-1].Locked || analyzed != 1 || provider.planCalls != 1 {
-		t.Fatal("restyle changed exact source timeline, protected ending, or invoked analysis/planning")
+		t.Fatalf("restyle changed source timeline=%t or protected ending=%t, or invoked analysis/planning: analyzed=%d plans=%d", !reflect.DeepEqual(original.Timeline, latest.Timeline), !latest.Plan.Blocks[len(latest.Plan.Blocks)-1].Locked, analyzed, provider.planCalls)
 	}
 	if latest.RenderOptions == nil || latest.RenderOptions.SubtitleColor != color || latest.Output.Key == original.Output.Key {
 		t.Fatal("style version snapshot or output identity missing")
@@ -435,7 +446,7 @@ func TestWorkspaceStoryConversationActualMedia(t *testing.T) {
 			if provider.mediaCalls != 1 || project.CurrentVersion != 1 || len(project.Versions) == 0 {
 				t.Fatalf("real output was not independently inspected: calls=%d project=%+v", provider.mediaCalls, project)
 			}
-			version := project.Versions[0]
+			version := workflowCurrentVersion(t, project)
 			if version.Output.Key == "" || len(version.Timeline) != 10 || math.Abs(version.Output.Duration-35) > .12 || !version.Output.Captions {
 				t.Fatalf("incorrect actual montage: %+v", version)
 			}

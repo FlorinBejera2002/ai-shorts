@@ -6,6 +6,7 @@ import { formatDuration } from '@/lib/youtube'
 import type { StoryAsset, StoryBlock, StoryProject, StoryVersion } from './types'
 import { StoryReview } from './story-review'
 import { useStoryLanguage } from './use-story-language'
+import { StoryHelp } from './story-help'
 
 interface Props {
   project: StoryProject
@@ -16,7 +17,10 @@ interface Props {
   onRollback: (version: number) => void
 }
 
-function narrationText(entry: StoryVersion['timeline'][number] | undefined, source: StoryAsset | undefined) {
+function narrationText(
+  entry: StoryVersion['timeline'][number] | undefined,
+  source: StoryAsset | undefined
+) {
   if (!entry?.audio) return ''
   if (entry.words?.length) return entry.words.map((word) => word.text).join(' ')
   const interval = entry.audio
@@ -24,7 +28,9 @@ function narrationText(entry: StoryVersion['timeline'][number] | undefined, sour
     .flatMap((candidate) => candidate.words ?? [])
     .filter((word) => word.end > interval.in && word.start < interval.out)
     .sort((a, b) => a.start - b.start || a.end - b.end)
-  const unique = new Map(words.map((word) => [`${word.start}:${word.end}:${word.text}`, word]))
+  const unique = new Map(
+    words.map((word) => [`${word.start}:${word.end}:${word.text}`, word])
+  )
   return [...unique.values()].map((word) => word.text).join(' ')
 }
 
@@ -56,8 +62,13 @@ export function StoryEditor({
       <Card className="block space-y-4 p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h2 className="font-semibold">
+            <h2 className="flex items-center gap-2 font-semibold">
               {version.plan.title || text('Your story', 'Povestea ta')}
+              {version.plan.summary && (
+                <StoryHelp label={text('About this edit', 'Despre acest montaj')}>
+                  {version.plan.summary}
+                </StoryHelp>
+              )}
             </h2>
             <p className="mt-1 text-xs text-muted-foreground">
               Natural · {text('Version', 'Versiunea')} {version.number}
@@ -92,7 +103,6 @@ export function StoryEditor({
             )}
           </p>
         )}
-        <p className="text-sm text-muted-foreground">{version.plan.summary}</p>
         {(version.plan.gaps ?? []).length > 0 && (
           <div className="space-y-2 rounded-md border p-3">
             <h3 className="text-sm font-medium">
@@ -106,14 +116,16 @@ export function StoryEditor({
           </div>
         )}
         <div className="flex flex-wrap gap-2">
-          {!narration && <Button
-            variant="outline"
-            size="sm"
-            disabled={disabled}
-            onClick={() => onAction('faster')}
-          >
-            {text('Make this faster', 'Fă-l mai rapid')}
-          </Button>}
+          {!narration && (
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={disabled}
+              onClick={() => onAction('faster')}
+            >
+              {text('Make this faster', 'Fă-l mai rapid')}
+            </Button>
+          )}
           <Button
             variant="outline"
             size="sm"
@@ -163,18 +175,20 @@ export function StoryEditor({
       </Card>
       <Card className="block space-y-4 p-5">
         <div>
-          <h2 className="font-semibold">
+          <h2 className="flex items-center gap-2 font-semibold">
             {text('Story timeline', 'Cronologia poveștii')}
+            <StoryHelp label={text('Story timeline', 'Cronologia poveștii')}>
+              {narration
+                ? text(
+                    'Your narration stays unchanged. Each section links to its voice recording and the footage shown.',
+                    'Narațiunea rămâne neschimbată. Fiecare secțiune trimite la înregistrarea vocii și la imaginile afișate.'
+                  )
+                : text(
+                    'Every selected sentence links to its original recording. Locks apply to future edits.',
+                    'Fiecare frază selectată trimite la filmarea originală. Blocările se aplică editărilor viitoare.'
+                  )}
+            </StoryHelp>
           </h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {narration ? text(
-              'Your narration stays unchanged. Each section links to its voice recording and the footage shown.',
-              'Narațiunea rămâne neschimbată. Fiecare secțiune trimite la înregistrarea vocii și la imaginile afișate.'
-            ) : text(
-              'Every selected sentence links to its original recording. Locks apply to future edits.',
-              'Fiecare frază selectată trimite la filmarea originală. Blocările se aplică editărilor viitoare.'
-            )}
-          </p>
         </div>
         <ol className="space-y-4">
           {version.plan.blocks.map((block, index) => {
@@ -183,9 +197,17 @@ export function StoryEditor({
             const audio = narration ? entry?.audio : candidate
             const source = audio && assets.get(audio.source_id)
             const visual = entry && assets.get(entry.video.source_id)
-            const transcript = narration ? narrationText(entry, source) : candidate?.text
+            const transcript = narration
+              ? narrationText(entry, source)
+              : candidate?.text
             const uncertainTranscript = narration
-              ? (source?.candidates ?? []).some((item) => audio && item.out > audio.in && item.in < audio.out && item.confidence < 0.7)
+              ? (source?.candidates ?? []).some(
+                  (item) =>
+                    audio &&
+                    item.out > audio.in &&
+                    item.in < audio.out &&
+                    item.confidence < 0.7
+                )
               : candidate && candidate.confidence < 0.7
             const alternatives = (block.alternatives ?? [])
               .map((id) => candidates.get(id))
@@ -214,9 +236,13 @@ export function StoryEditor({
                   )}
                 </div>
                 <p className="whitespace-pre-wrap text-sm leading-relaxed">
-                  {transcript || (narration
-                    ? text('Listen to the narration for this section.', 'Ascultă narațiunea acestei secțiuni.')
-                    : text('Supporting visual', 'Imagine de susținere'))}
+                  {transcript ||
+                    (narration
+                      ? text(
+                          'Listen to the narration for this section.',
+                          'Ascultă narațiunea acestei secțiuni.'
+                        )
+                      : text('Supporting visual', 'Imagine de susținere'))}
                 </p>
                 {source && audio && (
                   <div className="text-xs text-muted-foreground">
@@ -242,17 +268,27 @@ export function StoryEditor({
                     · {formatDuration(audio.in)}–{formatDuration(audio.out)}
                   </div>
                 )}
-                {visual && entry && (narration || entry.audio?.source_id !== entry.video.source_id) && (
-                  <p className="text-xs text-muted-foreground">
-                    {text('Visual source', 'Sursă imagine')}: {narration && visual.source_url ? <a
-                      className="underline underline-offset-2"
-                      href={`${visual.source_url}#t=${entry.video.in},${entry.video.out}`}
-                      target="_blank"
-                      rel="noreferrer"
-                    >{visual.name}</a> : visual.name} ·{' '}
-                    {formatDuration(entry.video.in)}–{formatDuration(entry.video.out)}
-                  </p>
-                )}
+                {visual &&
+                  entry &&
+                  (narration || entry.audio?.source_id !== entry.video.source_id) && (
+                    <p className="text-xs text-muted-foreground">
+                      {text('Visual source', 'Sursă imagine')}:{' '}
+                      {narration && visual.source_url ? (
+                        <a
+                          className="underline underline-offset-2"
+                          href={`${visual.source_url}#t=${entry.video.in},${entry.video.out}`}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          {visual.name}
+                        </a>
+                      ) : (
+                        visual.name
+                      )}{' '}
+                      · {formatDuration(entry.video.in)}–
+                      {formatDuration(entry.video.out)}
+                    </p>
+                  )}
                 <p className="text-xs text-muted-foreground">
                   {block.reason || candidate?.reason}
                 </p>
@@ -281,21 +317,24 @@ export function StoryEditor({
                       <select
                         className="story-select"
                         aria-label={`${alternativeLabel} ${index + 1}`}
-                        disabled={disabled || block.locked || (!narration && block.lock_text)}
+                        disabled={
+                          disabled || block.locked || (!narration && block.lock_text)
+                        }
                         value=""
                         onChange={(event) => {
                           if (event.target.value)
                             onAction('alternate', block.id, event.target.value)
                         }}
                       >
-                        <option value="">
-                          {alternativeLabel}…
-                        </option>
+                        <option value="">{alternativeLabel}…</option>
                         {alternatives.map((alternative) => (
                           <option key={alternative.id} value={alternative.id}>
                             {assets.get(alternative.source_id)?.name} ·{' '}
                             {formatDuration(alternative.in)} ·{' '}
-                            {(narration ? alternative.reason : alternative.text).slice(0, 70)}
+                            {(narration ? alternative.reason : alternative.text).slice(
+                              0,
+                              70
+                            )}
                           </option>
                         ))}
                       </select>
@@ -317,19 +356,21 @@ export function StoryEditor({
                       ['lock_order', text('Order', 'Ordine')],
                       ['lock_crop', text('Framing', 'Încadrare')]
                     ] as const
-                  ).filter(([key]) => !narration || key !== 'lock_text').map(([key, label]) => (
-                    <label key={key} className="flex items-center gap-1.5">
-                      <input
-                        type="checkbox"
-                        className="accent-foreground"
-                        checked={block[key]}
-                        onChange={(event) =>
-                          onLock(block, { [key]: event.target.checked })
-                        }
-                      />
-                      {label}
-                    </label>
-                  ))}
+                  )
+                    .filter(([key]) => !narration || key !== 'lock_text')
+                    .map(([key, label]) => (
+                      <label key={key} className="flex items-center gap-1.5">
+                        <input
+                          type="checkbox"
+                          className="accent-foreground"
+                          checked={block[key]}
+                          onChange={(event) =>
+                            onLock(block, { [key]: event.target.checked })
+                          }
+                        />
+                        {label}
+                      </label>
+                    ))}
                 </fieldset>
               </li>
             )

@@ -36,21 +36,27 @@ export function StoryReview({
               'Acest draft necesită revizie. Verifică controalele incomplete și problemele nerezolvate înainte de utilizare.'
             )}
       </p>
-      <ul className="grid gap-2 text-xs sm:grid-cols-2">
-        {checks.map(([label, complete]) => (
-          <li
-            key={label}
-            className="flex justify-between gap-3 rounded-sm bg-muted px-2 py-1.5"
-          >
-            <span>{label}</span>
-            <span>
-              {complete
-                ? text('Checked', 'Verificat')
-                : text('Incomplete', 'Incomplet')}
-            </span>
-          </li>
-        ))}
-      </ul>
+      <details className="rounded-md border p-3">
+        <summary className="cursor-pointer text-sm font-medium">
+          {text('View checks', 'Vezi verificările')} (
+          {checks.filter(([, complete]) => complete).length}/{checks.length})
+        </summary>
+        <ul className="mt-3 grid gap-2 text-xs sm:grid-cols-2">
+          {checks.map(([label, complete]) => (
+            <li
+              key={label}
+              className="flex justify-between gap-3 rounded-sm bg-muted px-2 py-1.5"
+            >
+              <span>{label}</span>
+              <span>
+                {complete
+                  ? text('Checked', 'Verificat')
+                  : text('Incomplete', 'Incomplet')}
+              </span>
+            </li>
+          ))}
+        </ul>
+      </details>
       {(coverage.incomplete ?? []).map((reason, index) => (
         <p key={`${index}-${reason}`} className="text-sm text-muted-foreground">
           {reason}
@@ -62,7 +68,11 @@ export function StoryReview({
             <li key={issue.id} className="rounded-md border p-3">
               <div className="flex flex-wrap gap-2 text-xs">
                 <span className="rounded-sm bg-muted px-1.5 py-0.5">
-                  {issue.severity}
+                  {issue.severity === 'critical'
+                    ? text('Must fix', 'Necesită corectare')
+                    : issue.severity === 'major'
+                      ? text('Needs attention', 'De verificat')
+                      : text('Suggestion', 'Sugestie')}
                 </span>
                 <span>
                   {formatDuration(issue.start)}–{formatDuration(issue.end)}

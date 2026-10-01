@@ -9,6 +9,8 @@ import (
 
 type Scope struct {
 	StudioSelection []string `json:"studio_selection,omitempty"`
+	HelpTopic       string   `json:"help_topic,omitempty"`
+	StoryStep       string   `json:"story_step,omitempty"`
 	Route           string   `json:"route"`
 	ProjectID       string   `json:"project_id,omitempty"`
 	ClipID          string   `json:"clip_id,omitempty"`

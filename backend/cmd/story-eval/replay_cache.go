@@ -6,6 +6,7 @@ import (
 	"io/fs"
 	"math"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 
@@ -103,10 +104,10 @@ func (r *replayRun) verifiedRequest(ctx context.Context, inspector sourceInspect
 		if err := ctx.Err(); err != nil {
 			return story.Request{}, err
 		}
-		if asset.ProxyKey != "" && !strings.HasPrefix(asset.ProxyKey, "work/"+request.ID+"/analysis/"+asset.ID+"/") {
+		if !replayAnalysisKeyAllowed(request, asset, asset.ProxyKey, false) {
 			return story.Request{}, errors.New("replay proxy is outside its source analysis namespace")
 		}
-		if asset.ThumbnailKey != "" && !strings.HasPrefix(asset.ThumbnailKey, "work/"+request.ID+"/analysis/"+asset.ID+"/") {
+		if !replayAnalysisKeyAllowed(request, asset, asset.ThumbnailKey, true) {
 			return story.Request{}, errors.New("replay thumbnail is outside its source analysis namespace")
 		}
 		var fresh story.Asset
@@ -131,4 +132,35 @@ func (r *replayRun) verifiedRequest(ctx context.Context, inspector sourceInspect
 		}
 	}
 	return request, nil
+}
+
+// Duplicate uploads may share immutable analysis, but only with another
+// confirmed source in this run. verifiedRequest still rehashes every original.
+func replayAnalysisKeyAllowed(request story.Request, asset story.Asset, key string, thumbnail bool) bool {
+	if key == "" {
+		return true
+	}
+	if path.Clean(key) != key || strings.Contains(key, "\\") {
+		return false
+	}
+	prefix := "work/" + request.ID + "/analysis/"
+	if strings.HasPrefix(key, prefix+asset.ID+"/") {
+		return true
+	}
+	if asset.Kind == "narration" || asset.AnalysisVersion == "" || asset.Size <= 0 {
+		return false
+	}
+	for _, owner := range request.Assets {
+		if owner.Kind == "narration" || owner.Hash != asset.Hash || owner.Size != asset.Size || owner.Duration != asset.Duration || owner.Width != asset.Width || owner.Height != asset.Height || owner.HasAudio != asset.HasAudio || owner.AnalysisVersion != asset.AnalysisVersion {
+			continue
+		}
+		ownedKey := owner.ProxyKey
+		if thumbnail {
+			ownedKey = owner.ThumbnailKey
+		}
+		if key == ownedKey && strings.HasPrefix(key, prefix+owner.ID+"/") {
+			return true
+		}
+	}
+	return false
 }

@@ -5,5 +5,8 @@
   },
   "scripts": {
     "doctor": "npx react-doctor@latest"
+  },
+  "devDependencies": {
+    "react-doctor": "^0.9.14"
   }
 }

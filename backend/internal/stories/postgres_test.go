@@ -222,7 +222,7 @@ func TestCompletionAndEditsDoNotChargeAgain(t *testing.T) {
 	}
 }
 
-func TestIncompleteReviewCannotEnterLibrary(t *testing.T) {
+func TestAcceptedRenderedDraftEntersLibraryWhileKeepingReviewStatus(t *testing.T) {
 	r, user, id, ids := fixture(t, 5)
 	ctx := context.Background()
 	e := queue(t, r, user, id, ids)
@@ -240,8 +240,8 @@ func TestIncompleteReviewCannotEnterLibrary(t *testing.T) {
 	}
 	var count int
 	r.db.QueryRow(`SELECT count(*) FROM clips WHERE story_project_id=$1`, id).Scan(&count)
-	if count != 0 {
-		t.Fatal("unreviewed media published to library")
+	if count != 1 {
+		t.Fatal("accepted rendered draft missing from private clip library")
 	}
 }
 
@@ -399,8 +399,8 @@ func TestLibraryRequiresMatchingReviewAndAlternateIdentity(t *testing.T) {
 				t.Fatal("incomplete review promoted", p.Status, err)
 			}
 			var count int
-			if err = r.db.QueryRow(`SELECT count(*) FROM clips WHERE story_project_id=$1`, id).Scan(&count); err != nil || count != 0 {
-				t.Fatal("unreviewed output entered library", count, err)
+			if err = r.db.QueryRow(`SELECT count(*) FROM clips WHERE story_project_id=$1`, id).Scan(&count); err != nil || count != 1 {
+				t.Fatal("accepted rendered output missing from private library", count, err)
 			}
 		})
 	}

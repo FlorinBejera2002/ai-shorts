@@ -10,7 +10,7 @@ func TestHistory(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(chain) != 41 || chain[0].Revision != "20260629_0001" || chain[len(chain)-1].Revision != "20260923_agent_platform" {
+	if len(chain) != 43 || chain[0].Revision != "20260629_0001" || chain[len(chain)-1].Revision != "20260930_admin_console" {
 		t.Fatalf("unexpected history: %v", chain)
 	}
 }

@@ -64,16 +64,30 @@ restart: ## Recreate the default stack
 status: ## Show all Compose services, including completed migrations
 	@$(COMPOSE) ps --all
 
-health: ## Wait for and verify the routed backend health endpoint
+health: ## Verify routed backend readiness and a running media worker
 	@for attempt in {1..30}; do \
-		if curl --fail --silent --show-error http://localhost/api/ready; then \
+		if curl --fail --silent --show-error http://localhost/api/ready \
+			&& [ "$$(curl --silent --output /dev/null --write-out '%{http_code}' --request POST http://localhost/api/stories)" = "401" ]; then \
 			echo; \
 			exit 0; \
 		fi; \
 		sleep 2; \
 	done; \
-	echo "Health check did not pass within 60 seconds." >&2; \
+	echo "Health or Story route check did not pass. Run make dev-up to refresh the backend and migrations; make dev-watch keeps Go changes synchronized." >&2; \
 	exit 1
+	@worker_states="$$( $(COMPOSE) ps --all --format '{{.State}}' worker )" || { \
+		echo "Could not inspect the media worker. Run make status and make dev-up." >&2; exit 1; \
+	}; \
+	if [[ -z "$$worker_states" ]]; then \
+		echo "Media worker is missing; queued videos cannot start. Run make dev-up or docker compose up -d --build worker." >&2; exit 1; \
+	fi; \
+	while IFS= read -r worker_state; do \
+		worker_state="$${worker_state%$$'\r'}"; \
+		if [[ "$$worker_state" != "running" ]]; then \
+			echo "Media worker is '$$worker_state'; queued videos cannot start. Check make logs SERVICE=worker, then run make dev-up or docker compose up -d --build worker." >&2; exit 1; \
+		fi; \
+	done <<< "$$worker_states"; \
+	echo "Media worker is running."
 
 logs: ## Follow logs for all services, or one with SERVICE=backend
 	@$(COMPOSE) logs --follow $(SERVICE)

@@ -60,6 +60,27 @@ func (h *Handler) RequireRecent(next http.HandlerFunc) http.Handler {
 	return h.require(next, false, true, false)
 }
 
+// RequireAdmin protects the separate operations console. Authorization is
+// checked from the current database-backed session on every request, so role
+// changes and suspensions take effect without trusting browser state.
+func (h *Handler) RequireAdmin(next http.HandlerFunc) http.Handler {
+	return h.requireAdmin(next, false)
+}
+
+func (h *Handler) RequireRecentAdmin(next http.HandlerFunc) http.Handler {
+	return h.requireAdmin(next, true)
+}
+
+func (h *Handler) requireAdmin(next http.HandlerFunc, recent bool) http.Handler {
+	return h.require(func(w http.ResponseWriter, r *http.Request) {
+		if Current(r).User.AccessRole != "admin" {
+			h.writeError(w, http.StatusForbidden, "Administrator access is required")
+			return
+		}
+		next(w, r)
+	}, false, recent, false)
+}
+
 // Account deletion needs a valid recent session even after its durable marker
 // blocks ordinary access, so a failed billing/media step can be retried.
 func (h *Handler) RequireForDeletion(next http.HandlerFunc) http.Handler {

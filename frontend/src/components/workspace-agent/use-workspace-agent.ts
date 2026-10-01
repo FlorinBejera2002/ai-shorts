@@ -1,15 +1,46 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, type SetStateAction } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { agentApi, AgentApiError } from './api'
 import { agentContext, mergeRuns, pollingDelay, safeAgentRoute } from './model'
-import type { AgentCommand, AgentRun, RunRequest, Suggestion } from './model'
+import type { AgentCommand, AgentContext, AgentRun, RunRequest, Suggestion } from './model'
+import type { StoryHelpRequest } from './story-help'
 import { publishAgentActivity } from './activity'
 import { useStudioSelection } from './studio-selection'
 
 const historyKey = ['workspace-agent', 'runs']
+type HelpDraft = { context: AgentContext; source: HTMLElement }
 export function useWorkspaceAgent(route: string, navigate: (route: string) => void, projectId?: string, onProject?: (id: string) => void, locale = 'ro', resourceIds: string[] = []) {
   const client = useQueryClient()
-  const [draft, setDraft] = useState('')
+  const [draftState, setDraftState] = useState<{ text: string; help: HelpDraft | null }>({ text: '', help: null })
+  const { text: draft, help: helpDraft } = draftState
+  const setDraft = useCallback((value: SetStateAction<string>) => setDraftState(previous => {
+    const text = typeof value === 'function' ? value(previous.text) : value
+    return { text, help: text.trim() ? previous.help : null }
+  }), [])
+  const setHelpDraft = useCallback((help: HelpDraft | null) => setDraftState(previous => ({ ...previous, help })), [])
+  useEffect(() => {
+    if (!helpDraft) return
+    const observer = new MutationObserver(() => {
+      if (!helpDraft.source.isConnected || helpDraft.source.closest('[hidden]')) setHelpDraft(null)
+    })
+    // The builder remains mounted in the legacy tab; visibility changes must
+    // clear both the displayed help mode and the context used by Send.
+    for (let parent = helpDraft.source.parentElement; parent; parent = parent.parentElement)
+      observer.observe(parent, { attributes: true, attributeFilter: ['hidden'], childList: true })
+    return () => observer.disconnect()
+  }, [helpDraft, setHelpDraft])
+  const prepareHelp = useCallback((question: string, request: StoryHelpRequest, append = false) => {
+    if (route !== '/dashboard/create' || !request.source.isConnected || request.source.closest('[hidden]')) return false
+    if (draft.trim() && !append) return false
+    const next = draft.trim() ? `${draft}\n\n${question}` : question
+    if (next.length > 4000) return false
+    setDraftState({ text: next, help: {
+      context: { route, help_topic: 'story_builder', story_step: request.step },
+      source: request.source
+    }
+    })
+    return true
+  }, [draft, route])
   const preferences = useQuery({ queryKey: ['workspace-agent', 'preferences'], queryFn: agentApi.preferences, staleTime: 30000 })
   const follow = preferences.data?.follow ?? false
   const showSuggestions = preferences.data?.recommendations ?? true
@@ -60,7 +91,10 @@ export function useWorkspaceAgent(route: string, navigate: (route: string) => vo
   }, [client, onProject])
   async function send(request?: RunRequest, suggestion?: Suggestion) {
     if (lock.current) return
-    const body = request ?? { request_id: crypto.randomUUID(), message: suggestion?.title ?? draft.trim(), context, resource_ids: resourceIds, ...(suggestion ? { suggestion_id: suggestion.id } : {}) }
+    const help = helpDraft
+    const helpIsVisible = help?.context.route === route && help.source.isConnected && !help.source.closest('[hidden]')
+    const sendContext = !suggestion && helpIsVisible ? help.context : context
+    const body = request ?? { request_id: crypto.randomUUID(), message: suggestion?.title ?? draft.trim(), context: sendContext, resource_ids: helpIsVisible && !suggestion ? [] : resourceIds, ...(suggestion ? { suggestion_id: suggestion.id } : {}) }
     if (!body.message) return
     lock.current = true; setBusy(true); setError(''); setRetry(null)
     try {
@@ -123,5 +157,5 @@ export function useWorkspaceAgent(route: string, navigate: (route: string) => vo
     } catch (cause) { setError(cause instanceof Error ? cause.message : String(cause)) }
     finally { lock.current = false; setBusy(false) }
   }
-  return { draft, setDraft, follow, showSuggestions, savePreferences, preferencesBusy, clearHistory, error, busy, retry, send, control, older, dismiss, history, suggestions, runs: runs ?? [] }
+  return { draft, setDraft, prepareHelp, helpMode: helpDraft?.context.route === route, clearHelp: () => setHelpDraft(null), follow, showSuggestions, savePreferences, preferencesBusy, clearHistory, error, busy, retry, send, control, older, dismiss, history, suggestions, runs: runs ?? [] }
 }

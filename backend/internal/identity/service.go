@@ -88,7 +88,8 @@ func (s *Service) loginUser(ctx context.Context, user User) (AuthResponse, strin
 }
 
 func activeUser(user User) bool {
-	return !user.ActivationRequired && (user.AccessRole == "member" || user.AccessRole == "viewer")
+	return !user.ActivationRequired && (user.AccountStatus == "" || user.AccountStatus == "active") &&
+		(user.AccessRole == "member" || user.AccessRole == "viewer" || user.AccessRole == "admin")
 }
 
 func (s *Service) authenticate(ctx context.Context, token, purpose string, allowDeletion ...bool) (User, tokenIdentity, error) {
@@ -105,7 +106,8 @@ func (s *Service) authenticate(ctx context.Context, token, purpose string, allow
 		!s.tokens.now().Before(session.Expires) ||
 		(session.User.DeletionPending && !deletionAllowed) ||
 		session.User.ActivationRequired ||
-		(session.User.AccessRole != "member" && session.User.AccessRole != "viewer") {
+		(session.User.AccountStatus != "" && session.User.AccountStatus != "active") ||
+		(session.User.AccessRole != "member" && session.User.AccessRole != "viewer" && session.User.AccessRole != "admin") {
 		return User{}, tokenIdentity{}, ErrUnauthenticated
 	}
 	return session.User, identity, nil

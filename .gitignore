@@ -56,6 +56,10 @@ coverage/
 .cache/
 frontend/.next-integration-dev/
 frontend/test-results/
+/test-results/
+/artifacts/
+/admin/vite.config.js
+/admin/vite.config.d.ts
 
 # Git worktrees
 .worktrees/

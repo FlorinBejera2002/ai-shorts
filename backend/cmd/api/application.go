@@ -12,6 +12,7 @@ import (
 	"github.com/redis/go-redis/v9"
 
 	"sneepcut/backend-go/internal/account"
+	"sneepcut/backend-go/internal/admin"
 	"sneepcut/backend-go/internal/aiprovider"
 	"sneepcut/backend-go/internal/assistant"
 	"sneepcut/backend-go/internal/billing"
@@ -181,6 +182,6 @@ func buildApplication(db *sql.DB, cfg config.Config, a config.Application, logge
 			httpx.JSON(w, status, map[string]any{"ready": status == 200, "database": database, "schema": schema, "redis": redisReady})
 		})
 	}
-	handler := httpapi.New(logger, cfg.Environment, version, auth.Register, media.NewHandler(mediaService, auth).Register, jobHandler.Register, storyHandler.Register, projects.New(db, auth, mediaService).Register, clipHandler.Register, brand.New(db, auth, mediaService).Register, calendarHandler.Register, billingService.Register, account.New(db, auth, mediaService, billingService, account.Config{MFA: accounts}).Register, dashboard.New(db, auth, clipHandler).Register, scripts.NewWithDB(db, auth, generator).Register, assistant.New(db, auth, generator).Register, agentHandler.Register, publishingHandler.Register, readiness)
+	handler := httpapi.New(logger, cfg.Environment, version, auth.Register, admin.New(db, auth).Register, media.NewHandler(mediaService, auth).Register, jobHandler.Register, storyHandler.Register, projects.New(db, auth, mediaService).Register, clipHandler.Register, brand.New(db, auth, mediaService).Register, calendarHandler.Register, billingService.Register, account.New(db, auth, mediaService, billingService, account.Config{MFA: accounts}).Register, dashboard.New(db, auth, clipHandler).Register, scripts.NewWithDB(db, auth, generator).Register, assistant.New(db, auth, generator).Register, agentHandler.Register, publishingHandler.Register, readiness)
 	return httpapi.Policy(auth.Policy(handler), httpapi.PolicyConfig{AllowedHosts: a.AllowedHosts}), cleanup, nil
 }

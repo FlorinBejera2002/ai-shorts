@@ -2,6 +2,7 @@ package config
 
 import (
 	"io"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -49,5 +50,8 @@ func TestAuthConfiguration(t *testing.T) {
 	cfg, err = Load(nil, func(string) string { return "" }, io.Discard)
 	if err != nil || cfg.Auth.Enabled {
 		t.Fatalf("auth must be opt-in: %v", err)
+	}
+	if !slices.Contains(cfg.Auth.AllowedOrigins, "http://localhost:3002") {
+		t.Fatal("default development origins must allow the admin console")
 	}
 }

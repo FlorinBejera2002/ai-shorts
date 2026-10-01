@@ -29,6 +29,7 @@ Before starting every new project task, create a new ticket on the **Sneep Cut >
 
 - Reuse the shared `Card` default. Do not add `rounded-lg`, `rounded-xl`, larger radii or pill-shaped text badges as decoration. Preserve a larger radius only for an explicit component-specific design exception or user request, and document that exception here.
 - The Calendar view switcher intentionally keeps Rare UI Gooey Nav's `sm` geometry (10px animated segment radius) because the user explicitly requested the reference interaction exactly.
+- Story Builder's step navigation also keeps Rare UI Gooey Nav's `sm` geometry (10px animated segment radius), adapted vertically on desktop at the user's explicit request.
 
 ## UI interaction colors
 

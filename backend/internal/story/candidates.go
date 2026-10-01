@@ -69,6 +69,7 @@ func prepareCandidates(assets []Asset) error {
 	for ai := range assets {
 		a := &assets[ai]
 		sort.SliceStable(a.Candidates, func(i, j int) bool { return a.Candidates[i].In < a.Candidates[j].In })
+		previousSpoken := ""
 		for ci := range a.Candidates {
 			c := &a.Candidates[ci]
 			if c.SourceID != "" && c.SourceID != a.ID {
@@ -108,10 +109,14 @@ func prepareCandidates(assets []Asset) error {
 			if c.Idea == "" {
 				c.Idea = c.Text
 			}
-			// A dependent opening cannot become a hook merely because it sounds
-			// engaging. Its preceding source phrase must also be selected.
-			if needsContext(c.Text) && ci > 0 && len(c.Dependencies) == 0 {
-				c.Dependencies = appendUnique(c.Dependencies, a.Candidates[ci-1].ID)
+			// Visual gap windows cannot establish the meaning of a dependent
+			// opening. Its preceding spoken phrase must also be selected. With
+			// no known antecedent, leave context unresolved for normal review.
+			if needsContext(c.Text) && previousSpoken != "" && len(c.Dependencies) == 0 {
+				c.Dependencies = appendUnique(c.Dependencies, previousSpoken)
+			}
+			if strings.TrimSpace(c.Text) != "" {
+				previousSpoken = c.ID
 			}
 		}
 	}

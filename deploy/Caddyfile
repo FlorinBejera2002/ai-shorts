@@ -23,3 +23,17 @@ studio.sneepcut.com {
 	encode zstd gzip
 	reverse_proxy studio:5191
 }
+
+admin.sneepcut.com {
+	encode zstd gzip
+	header X-Robots-Tag "noindex, nofollow"
+	@admin_api path /api/* /v1/*
+	handle @admin_api {
+		reverse_proxy nginx:80 {
+			header_up Host api.sneepcut.com
+		}
+	}
+	handle {
+		reverse_proxy admin:8080
+	}
+}

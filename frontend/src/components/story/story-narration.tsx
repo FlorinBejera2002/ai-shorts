@@ -8,6 +8,7 @@ import type { StoryAsset, StoryProject } from './types'
 import { useStoryLanguage } from './use-story-language'
 import { useNarrationRecorder, type RecordingError } from './use-narration-recorder'
 import { NarrationPreview, NarrationRecording } from './narration-controls'
+import { StoryHelp } from './story-help'
 
 interface Props {
   projectID: string
@@ -33,7 +34,11 @@ export function StoryNarration({
   const [saving, setSaving] = useState<'uploading' | 'validating' | null>(null)
   const [error, setError] = useState('')
   const operation = useRef<AbortController | null>(null)
-  const uploaded = useRef<{ file: File; id: string; reference?: string } | null>(null)
+  const uploaded = useRef<{
+    file: File
+    id: string
+    reference?: string
+  } | null>(null)
   const mounted = useRef(true)
   const recording = recorder.phase !== 'idle'
   const pending = recording || Boolean(recorder.draft) || Boolean(saving)
@@ -148,28 +153,24 @@ export function StoryNarration({
       data-testid="story-narration"
     >
       <div>
-        <h2 className="flex items-center gap-2 font-semibold">
-          <Mic className="size-4" />
+        <h2 className="flex items-center gap-2 text-sm font-medium">
           {text('Your narration', 'Narațiunea ta')}
+          <StoryHelp label={text('Your narration', 'Narațiunea ta')}>
+            {text(
+              'Tell your story in your own voice. We match your footage to your words and keep the full narration. Your voice replaces the clip audio.',
+              'Spune povestea cu vocea ta. Potrivim imaginile cu ceea ce povestești și păstrăm întreaga narațiune. Vocea ta înlocuiește sunetul filmărilor.'
+            )}
+          </StoryHelp>
         </h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {text(
-            'Tell your story in your own voice. We match your footage to your words and keep the full narration.',
-            'Spune povestea cu vocea ta. Potrivim imaginile cu ceea ce povestești și păstrăm întreaga narațiune.'
-          )}
-        </p>
         <p className="mt-2 text-xs text-muted-foreground">
-          {text(
-            'Up to 3 minutes · 32 MB · Your narration sets the story length. Video sound is muted.',
-            'Maximum 3 minute · 32 MB · Narațiunea stabilește durata poveștii. Sunetul filmărilor este oprit.'
-          )}
+          {text('Up to 3 minutes · 32 MB', 'Maximum 3 minute · 32 MB')}
         </p>
       </div>
       {asset && (
         <div className="space-y-2 rounded-md border p-3" data-testid="saved-narration">
-          <p className="flex items-center gap-2 text-sm font-medium">
-            <Check className="size-4" />
-            {asset.name}
+          <p className="flex items-start gap-2 break-words text-sm font-medium">
+            <Check className="mt-0.5 size-4 shrink-0" />
+            <span className="min-w-0 break-words">{asset.name}</span>
           </p>
           <p className="text-xs text-muted-foreground">
             {text('Saved narration', 'Narațiune salvată')} ·{' '}

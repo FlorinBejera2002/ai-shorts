@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"sneepcut/backend-go/internal/story"
 	"sort"
+	"strings"
 )
 
 type AssetEdit struct {
@@ -353,6 +354,24 @@ func (r *Repository) Queue(ctx context.Context, user, id string, in Generate) er
 		return err
 	}
 	return tx.Commit()
+}
+
+// QueueFlowImprovement is a narrowly scoped maintenance entry point used by a
+// one-shot worker after an operator has selected an exact Story. Normal product
+// requests continue to use the authenticated HTTP handler and Queue directly.
+func (r *Repository) QueueFlowImprovement(ctx context.Context, id string) error {
+	if err := ValidateStoryID(id); err != nil {
+		return err
+	}
+	var user string
+	var version int
+	if err := r.db.QueryRowContext(ctx, `SELECT user_id,current_version FROM story_projects WHERE id=$1`, strings.ToLower(id)).Scan(&user, &version); err != nil {
+		return err
+	}
+	if version < 1 {
+		return fmt.Errorf("Story %s has no rendered version to improve: %w", id, ErrInvalid)
+	}
+	return r.Queue(ctx, user, strings.ToLower(id), Generate{RequestID: newID(), Action: "improve_flow", Version: version})
 }
 
 func (r *Repository) Cancel(ctx context.Context, user, id string) error {

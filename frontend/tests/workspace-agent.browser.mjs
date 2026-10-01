@@ -7,14 +7,15 @@ const { chromium } = await import(pathToFileURL(process.env.PLAYWRIGHT_MODULE).h
 const browser = await chromium.launch({ channel: 'chrome', headless: true })
 const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } })
 page.setDefaultTimeout(60000)
-page.on('pageerror', error => console.error('Browser error:', error.message))
+const errors = []
+page.on('pageerror', error => errors.push(error.message))
 const runs = []
 const sends = []
 const controls = []
 let preferences = { follow: false, recommendations: true }
 const projectId = '00000000-0000-4000-8000-000000000042'
 const createdProjectId = '00000000-0000-4000-8000-000000000043'
-const project = { id: projectId, status: 'draft', options: {}, assets: [], versions: [], limits: { max_files: 20, max_file_bytes: 10000000, max_total_bytes: 100000000, max_source_seconds: 900, max_total_seconds: 3600 } }
+const project = { id: projectId, status: 'draft', options: { brief: '', target_seconds: 45, aspect_ratio: '9:16', language: 'auto', mode: 'smart', preserve_order: false, captions: true }, assets: [], versions: [], limits: { max_files: 20, max_file_bytes: 10000000, max_total_bytes: 100000000, max_source_seconds: 900, max_total_seconds: 3600 } }
 let registrations = 0
 const resources = []
 let revisedInstructions = []
@@ -99,7 +100,9 @@ try {
   await panel.getByText('Completed', { exact: true }).waitFor()
   assert.equal(controls[0].revision, 1)
   assert.ok(page.url().endsWith('/dashboard/brand'), 'Follow is off by default')
-  await panel.getByLabel('Follow AI navigation').check()
+  await panel.getByLabel('Follow AI navigation').click()
+  await page.waitForFunction(() => document.querySelector('#workspace-agent-panel input[type="checkbox"]')?.checked)
+  assert.equal(preferences.follow, true, 'Follow changes only after the server confirms the preference')
   await panel.getByRole('button', { name: 'Edit', exact: true }).click()
   await panel.getByLabel('What would you change?').fill('Make this a shorter story')
   await panel.getByRole('button', { name: 'Revise suggestion', exact: true }).click()
@@ -110,7 +113,7 @@ try {
   await page.waitForURL('**/dashboard/create')
   assert.equal(sends.at(-1).suggestion_id, 'suggestion-revised')
   assert.equal(sends.at(-1).action, undefined)
-  await page.getByRole('heading', { name: 'Multi-Clip Story Builder' }).waitFor()
+  await page.getByRole('heading', { name: 'Create a story', exact: true }).waitFor()
   await page.waitForFunction(() => !document.getAnimations().some(animation => animation.playState === 'running'))
   await page.screenshot({ path: 'test-results/workspace-agent-desktop.png' })
   await panel.getByRole('button', { name: 'Collapse agent' }).click()
@@ -144,5 +147,6 @@ try {
   assert.deepEqual(preferences, { follow: false, recommendations: true })
   await page.getByRole('dialog').getByRole('button', { name: 'Clear finished history' }).click()
   await page.waitForFunction(() => [...document.querySelectorAll('[data-agent-run]')].every(element => !element.textContent.includes('Completed')))
+  assert.deepEqual(errors, [])
   console.log('Workspace Agent browser checks passed: stable shell/draft, explain, idempotent retry, revision control, opt-in follow, mobile dialog/focus.')
 } finally { await browser.close() }

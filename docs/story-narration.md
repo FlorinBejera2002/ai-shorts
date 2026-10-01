@@ -24,6 +24,10 @@ Insufficient footage produces an explicit unrendered **Needs review** draft. The
 
 Cache identities include media kind, narration mode, source hashes, models and relevant options. Changing to narration mode recomputes visual analysis without camera ASR. Narration transcription and normalized audio are cached separately. Jobs reuse the existing durable queue, cancellation, retry, call-budget and version history.
 
+Story transcription also requires the bundled Silero voice activity detector. Set `WHISPER_CPP_VAD_MODEL` for a native installation; otherwise the processor looks for `ggml-silero-v6.2.0.bin` beside the story speech model. `WHISPER_CPP_VAD_PATH` optionally overrides the standalone `whisper-vad-speech-segments` executable beside Whisper. The worker image installs the detector and a checksum-verified model. Without them, source clips remain available as visuals with an explicit warning; narration cannot be accepted as aligned speech. The detector gates recognition and supplies original-clock caption boundaries; it never removes pauses from the delivered voice.
+
+Very weak measured lexical evidence withholds the entire source phrase from automatic captions, including any uncertain negation or number. Original audio remains unchanged. Uncertain narration requires a clearer recording or transcript review instead of silently omitting voice. Confidence is an abstention signal, not proof of transcript accuracy; independent rendered-media review remains mandatory. Changes to this caption policy reuse immutable ASR results and refresh the derived candidate catalog.
+
 ## Verification
 
 - Domain tests: complete audio partition, pauses, unchanged captions, sentence boundaries, alternatives, locks, insufficient footage, rejected loops/reordering/speed changes, bounded repair.

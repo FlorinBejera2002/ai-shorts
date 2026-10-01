@@ -1,11 +1,14 @@
 'use client'
 
+// Adapted from Rare UI's Gooey Nav: https://www.rareui.com/components/gooeynav
+// Vertical segments transpose the seam geometry without rotating their labels.
 import { cn } from '@/lib/utils'
 import {
   motion,
   useReducedMotion,
   useSpring,
-  useTransform
+  useTransform,
+  type MotionValue
 } from 'framer-motion'
 import { type ReactNode, useEffect, useId } from 'react'
 
@@ -26,6 +29,7 @@ const sizes = {
 type GooeyNavItem = {
   label: string
   icon?: ReactNode
+  disabled?: boolean
 }
 
 type SegmentProps = {
@@ -38,16 +42,12 @@ type SegmentProps = {
   radii: Record<string, number>
   active: boolean
   stretch: boolean
+  vertical: boolean
   children: ReactNode
 }
 
-function neckPath(gap: number, span: number) {
-  if (
-    !Number.isFinite(gap) ||
-    !Number.isFinite(span) ||
-    gap <= 0 ||
-    span <= 0
-  ) {
+function neckPath(gap: number, span: number, vertical: boolean) {
+  if (!Number.isFinite(gap) || !Number.isFinite(span) || gap <= 0 || span <= 0) {
     return ''
   }
 
@@ -55,6 +55,9 @@ function neckPath(gap: number, span: number) {
   if (waist <= 0) return ''
   const start = span - gap
   const middle = start + gap / 2
+  if (vertical) {
+    return `M0 ${start} Q${NECK_HEIGHT - waist} ${middle} 0 ${span} L${NECK_HEIGHT} ${span} Q${waist} ${middle} ${NECK_HEIGHT} ${start} Z`
+  }
   return `M${start} 0 Q${middle} ${NECK_HEIGHT - waist} ${span} 0 L${span} ${NECK_HEIGHT} Q${middle} ${waist} ${start} ${NECK_HEIGHT} Z`
 }
 
@@ -68,50 +71,88 @@ function GooeySegment({
   radii,
   active,
   stretch,
+  vertical,
   children
 }: SegmentProps) {
   const marginLeft = useSpring(gap, SPRING)
-  const gradientId = `gooey-neck-${useId().replace(/:/g, '')}`
 
   useEffect(() => {
     if (reduced) marginLeft.jump(gap)
     else marginLeft.set(gap)
   }, [gap, marginLeft, reduced])
 
-  const path = useTransform(marginLeft, (value) => neckPath(value, span))
-
   return (
     <motion.li
       className={cn(
-        'relative bg-background ring-1 ring-inset ring-border',
-        stretch && 'min-w-0 flex-1',
-        active &&
-          'bg-foreground ring-foreground transition-colors duration-[400ms]'
+        'relative',
+        vertical ? 'w-full bg-muted' : 'bg-background ring-1 ring-inset ring-border',
+        stretch && !vertical && 'min-w-0 flex-1',
+        active && 'bg-foreground ring-foreground',
+        active && !reduced && 'transition-colors duration-[400ms]'
       )}
-      style={{ marginLeft }}
+      style={{
+        marginLeft: vertical ? 0 : marginLeft,
+        marginTop: vertical ? marginLeft : 0
+      }}
       initial={false}
       animate={radii}
       transition={reduced ? { duration: 0 } : SPRING}
     >
       {hasSeam && (
-        <svg
-          aria-hidden={true}
-          width={span}
-          viewBox={`0 0 ${span} ${NECK_HEIGHT}`}
-          preserveAspectRatio="none"
-          className="pointer-events-none absolute right-full top-0 h-full text-background"
-        >
-          <defs>
-            <linearGradient id={gradientId} x1="0" x2="1">
-              <stop offset="0" stopColor={leftFill} />
-              <stop offset="1" stopColor={rightFill} />
-            </linearGradient>
-          </defs>
-          <motion.path d={path} fill={`url(#${gradientId})`} />
-        </svg>
+        <GooeyNeck
+          spacing={marginLeft}
+          span={span}
+          vertical={vertical}
+          leftFill={leftFill}
+          rightFill={rightFill}
+        />
       )}
       {children}
     </motion.li>
+  )
+}
+
+function GooeyNeck({
+  spacing,
+  span,
+  vertical,
+  leftFill,
+  rightFill
+}: {
+  spacing: MotionValue<number>
+  span: number
+  vertical: boolean
+  leftFill: string
+  rightFill: string
+}) {
+  const gradientId = `gooey-neck-${useId().replace(/:/g, '')}`
+  const path = useTransform(spacing, (value) => neckPath(value, span, vertical))
+  return (
+    <svg
+      aria-hidden
+      width={vertical ? undefined : span}
+      height={vertical ? span : undefined}
+      viewBox={vertical ? `0 0 ${NECK_HEIGHT} ${span}` : `0 0 ${span} ${NECK_HEIGHT}`}
+      preserveAspectRatio="none"
+      className={cn(
+        'pointer-events-none absolute',
+        vertical ? 'bottom-full left-0 w-full' : 'right-full top-0 h-full'
+      )}
+    >
+      <defs>
+        <linearGradient
+          id={gradientId}
+          x1="0"
+          y1="0"
+          x2={vertical ? '0' : '1'}
+          y2={vertical ? '1' : '0'}
+        >
+          <stop offset="0" stopColor={leftFill} />
+          <stop offset="1" stopColor={rightFill} />
+        </linearGradient>
+      </defs>
+      <motion.path d={path} fill={`url(#${gradientId})`} />
+    </svg>
   )
 }
 
@@ -124,6 +165,8 @@ export function GooeyNav({
   activeLabelColor = 'var(--background)',
   className,
   stretch = false,
+  orientation = 'horizontal',
+  currentStep = false,
   'aria-label': ariaLabel
 }: {
   items: GooeyNavItem[]
@@ -134,22 +177,28 @@ export function GooeyNav({
   activeLabelColor?: string
   className?: string
   stretch?: boolean
+  orientation?: 'horizontal' | 'vertical'
+  currentStep?: boolean
   'aria-label': string
 }) {
   const reduced = useReducedMotion() ?? false
+  const vertical = orientation === 'vertical'
   const span = sizes[size].separation
   const corner = sizes[size].radius
   const open = (seam: number) =>
     seam === 0 || seam === items.length || seam - 1 === value || seam === value
   const fill = (index: number) =>
-    index === value ? activeColor : 'var(--background)'
+    index === value ? activeColor : vertical ? 'var(--muted)' : 'var(--background)'
 
   return (
     <nav
       aria-label={ariaLabel}
+      data-orientation={orientation}
       className={cn('inline-block', stretch && 'block w-full', className)}
     >
-      <ul className={cn('flex items-center', stretch && 'w-full')}>
+      <ul
+        className={cn('flex items-center', vertical && 'flex-col', stretch && 'w-full')}
+      >
         {items.map((item, index) => {
           const active = index === value
           return (
@@ -163,35 +212,37 @@ export function GooeyNav({
               reduced={reduced}
               active={active}
               stretch={stretch}
+              vertical={vertical}
               radii={{
                 borderTopLeftRadius: open(index) ? corner : 0,
-                borderBottomLeftRadius: open(index) ? corner : 0,
-                borderTopRightRadius: open(index + 1) ? corner : 0,
+                borderBottomLeftRadius: open(vertical ? index + 1 : index) ? corner : 0,
+                borderTopRightRadius: open(vertical ? index : index + 1) ? corner : 0,
                 borderBottomRightRadius: open(index + 1) ? corner : 0
               }}
             >
               <button
                 type="button"
-                aria-pressed={active}
+                aria-pressed={currentStep ? undefined : active}
+                aria-current={currentStep && active ? 'step' : undefined}
+                disabled={item.disabled}
                 onClick={() => onChange(index)}
                 className={cn(
-                  'flex cursor-pointer items-center whitespace-nowrap font-medium [&_svg]:shrink-0',
-                  stretch && 'w-full justify-center',
+                  'relative flex cursor-pointer items-center whitespace-nowrap font-medium focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground focus-visible:ring-offset-2 disabled:cursor-default [&_svg]:shrink-0',
+                  stretch && 'w-full',
+                  stretch && !vertical && 'justify-center',
+                  vertical && 'text-left',
                   sizes[size].label,
                   active
-                    ? 'transition-colors duration-[400ms]'
-                    : 'text-muted-foreground transition-colors duration-0 hover:text-foreground'
+                    ? !reduced && 'transition-colors duration-[400ms]'
+                    : 'text-muted-foreground transition-colors duration-0 enabled:hover:bg-muted enabled:hover:text-foreground'
                 )}
-                style={
-                  active
-                    ? {
-                        color: activeLabelColor
-                      }
-                    : undefined
-                }
+                style={{
+                  borderRadius: 'inherit',
+                  ...(active ? { color: activeLabelColor } : {})
+                }}
               >
                 {item.icon}
-                {item.label}
+                <span className="min-w-0">{item.label}</span>
               </button>
             </GooeySegment>
           )

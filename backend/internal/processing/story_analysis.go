@@ -15,6 +15,8 @@ import (
 	"sneepcut/backend-go/internal/story"
 )
 
+const storyMissingVADWarning = "Voice activity detection is unavailable. Automatic speech/captions were withheld; this source is visual-only until the speech detector is installed."
+
 // Analyze persists immutable, source/settings-addressed artifacts. Retrying an
 // editorial operation reuses the transcript and proxy without another ASR run.
 func (p *Processor) Analyze(ctx context.Context, project string, asset story.Asset, options story.Options) (story.Asset, error) {
@@ -33,7 +35,7 @@ func (p *Processor) Analyze(ctx context.Context, project string, asset story.Ass
 	if model == "" {
 		model = p.cfg.WhisperModel
 	}
-	digest := storyDigest([]any{story.AlgorithmVersion, asset.Hash, options.Language, storyModelSignature(model), options.Narration, "source-analysis-6"})
+	digest := storyDigest([]any{story.AlgorithmVersion, asset.Hash, options.Language, storyModelSignature(model), storyModelSignature(p.storyVADModel(model)), options.Narration, "source-analysis-7"})
 	prefix := "work/" + project + "/analysis/" + asset.ID + "/" + digest
 	cacheKey := prefix + "/analysis.json"
 	cacheFile := filepath.Join(dir, "analysis.json")
@@ -44,10 +46,14 @@ func (p *Processor) Analyze(ctx context.Context, project string, asset story.Ass
 			if exists, e := p.storage.Exists(ctx, cached.ProxyKey); e == nil && exists {
 				// User overrides are not analysis inputs and must survive cache reuse.
 				cached.Order, cached.Role, cached.Include, cached.Name = asset.Order, asset.Role, asset.Include, asset.Name
+				cached, e = p.prepareStorySpeechCatalog(ctx, dir, cached, options)
+				if e != nil {
+					return asset, e
+				}
 				// Semantic annotations live in the run checkpoint rather than the
 				// immutable local-ASR cache. Retain only their permitted fields when
 				// they still refer to the exact same local analysis and intervals.
-				if asset.AnalysisVersion == digest && asset.SemanticAnalysisVersion != "" {
+				if asset.AnalysisVersion == cached.AnalysisVersion && asset.SemanticAnalysisVersion != "" {
 					previous := map[string]story.Candidate{}
 					for _, c := range asset.Candidates {
 						previous[c.ID] = c
@@ -66,7 +72,9 @@ func (p *Processor) Analyze(ctx context.Context, project string, asset story.Ass
 							c.Dependencies = append([]string(nil), old.Dependencies...)
 						}
 						for _, warning := range asset.Warnings {
-							cached.Warnings = appendStoryWarning(cached.Warnings, warning)
+							if !storyAnalysisWarning(warning) {
+								cached.Warnings = appendStoryWarning(cached.Warnings, warning)
+							}
 						}
 					}
 				}
@@ -101,6 +109,7 @@ func (p *Processor) Analyze(ctx context.Context, project string, asset story.Ass
 	asset.Mapping.Duration = min(info.Duration, asset.Duration)
 	asset.AnalysisVersion = digest
 	asset.SemanticAnalysisVersion = ""
+	resetStoryAnalysisWarnings(&asset)
 	if err = p.storySave(ctx, proxy, asset.ProxyKey, "video/mp4"); err != nil {
 		return asset, err
 	}
@@ -117,8 +126,10 @@ func (p *Processor) Analyze(ctx context.Context, project string, asset story.Ass
 	}
 	var transcript Transcript
 	if !options.Narration && info.Audio && audio > .01 {
-		transcript, err = p.transcribeModel(ctx, proxy, dir, options.Language, asset.Duration, model)
-		if err != nil && !strings.Contains(err.Error(), "no speech detected") {
+		transcript, err = p.transcribeStory(ctx, proxy, dir, options.Language, asset.Duration, model)
+		if errors.Is(err, errSpeechDetectionUnavailable) {
+			asset.Warnings = appendStoryWarning(asset.Warnings, storyMissingVADWarning)
+		} else if err != nil && !errors.Is(err, errNoSpeech) {
 			return asset, errors.New("aligned transcription is unavailable; retry after the speech engine is ready")
 		}
 	}
@@ -138,16 +149,6 @@ func (p *Processor) Analyze(ctx context.Context, project string, asset story.Ass
 		}
 		_ = pcm.Close()
 	}
-	if options.Narration {
-		asset.Warnings = appendStoryWarning(asset.Warnings, "Narration mode: original video audio is muted; visual windows require source-backed matching to the narration.")
-	} else if len(transcript.Words) == 0 {
-		asset.Warnings = append(asset.Warnings, "No confident speech transcript. This source remains available as a supporting visual; audio needs human review.")
-	} else {
-		asset.Warnings = append(asset.Warnings, "Speech timestamps are estimates; the rendered audio is reviewed before the story is marked Ready.")
-		if transcript.Language != "ro" && transcript.Language != "en" {
-			asset.Warnings = append(asset.Warnings, "Detected language is outside the Romanian/English evaluation set; review language and transcription.")
-		}
-	}
 	data, err := json.Marshal(asset)
 	if err != nil || os.WriteFile(cacheFile, data, 0600) != nil {
 		return asset, storyWorkError("analysis checkpoint")
@@ -155,7 +156,7 @@ func (p *Processor) Analyze(ctx context.Context, project string, asset story.Ass
 	if err = p.storySave(ctx, cacheFile, cacheKey, "application/json"); err != nil {
 		return asset, err
 	}
-	return asset, nil
+	return p.prepareStorySpeechCatalog(ctx, dir, asset, options)
 }
 
 // Scores describe measured signal quality, not a claim of factual or semantic
@@ -289,7 +290,8 @@ func storyCandidates(asset story.Asset, transcript Transcript, audio, visual flo
 func storyTranscriptConfidence(raw []byte, candidates []story.Candidate) {
 	var doc struct {
 		Transcription []struct {
-			Tokens []struct {
+			Offsets *struct{ From, To float64 }
+			Tokens  []struct {
 				Text        string
 				Probability *float64 `json:"p"`
 				Offsets     *struct{ From, To float64 }
@@ -307,11 +309,17 @@ func storyTranscriptConfidence(raw []byte, candidates []story.Candidate) {
 		minimum, count := 1.0, 0
 		for _, segment := range doc.Transcription {
 			for _, token := range segment.Tokens {
-				if token.Offsets == nil || token.Probability == nil || strings.HasPrefix(token.Text, "[_") || strings.TrimSpace(token.Text) == "" {
+				if token.Probability == nil || strings.HasPrefix(token.Text, "[_") || strings.TrimSpace(token.Text) == "" {
 					continue
 				}
+				// Segment offsets stay on the original clock even when VAD has
+				// compacted token offsets. Each -sow -ml 1 segment is one word.
+				clock := segment.Offsets
+				if clock == nil {
+					clock = token.Offsets
+				}
 				probability := *token.Probability
-				if !finite(probability) || probability < 0 || probability > 1 || token.Offsets.From/1000 < candidate.In || token.Offsets.To/1000 > candidate.Out {
+				if clock == nil || !finite(probability) || probability < 0 || probability > 1 || clock.From/1000 < candidate.In || clock.To/1000 > candidate.Out {
 					continue
 				}
 				minimum = min(minimum, probability)

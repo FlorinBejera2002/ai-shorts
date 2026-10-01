@@ -16,7 +16,7 @@ import (
 func safeStory(p stories.Project) map[string]any {
 	assets := []map[string]any{}
 	for _, a := range p.Assets {
-		assets = append(assets, map[string]any{"id": a.ID, "name": a.Name, "duration": a.Duration, "order": a.Order, "role": a.Role, "include": a.Include})
+		assets = append(assets, map[string]any{"id": a.ID, "name": a.Name, "kind": a.Kind, "duration": a.Duration, "order": a.Order, "role": a.Role, "include": a.Include})
 	}
 	versions := []map[string]any{}
 	for _, v := range p.Versions[max(0, len(p.Versions)-5):] {
@@ -24,7 +24,7 @@ func safeStory(p stories.Project) map[string]any {
 		issues := v.Report.Issues[:min(len(v.Report.Issues), 20)]
 		versions = append(versions, map[string]any{"number": v.Number, "accepted": v.Accepted, "title": v.Plan.Title, "summary": v.Plan.Summary, "blocks": blocks, "review_status": v.Report.Status, "issues": issues, "coverage": v.Report.Coverage})
 	}
-	return map[string]any{"id": p.ID, "status": p.Status, "message": p.Message, "options": p.Options, "current_version": p.CurrentVersion, "assets": assets, "versions": versions}
+	return map[string]any{"id": p.ID, "status": p.Status, "message": p.Message, "options": p.Options, "limits": p.Limits, "current_version": p.CurrentVersion, "assets": assets, "versions": versions}
 }
 
 func (e *PlatformExecutor) inspectedStory(ctx context.Context, user, id string) (map[string]any, error) {
@@ -73,6 +73,14 @@ func (e *PlatformExecutor) analytics(ctx context.Context, user string) (map[stri
 func (e *PlatformExecutor) Context(ctx context.Context, user string, scope Scope) (json.RawMessage, error) {
 	if (scope.ProjectID != "" && !data.ValidUUID(scope.ProjectID)) || (scope.ClipID != "" && !data.ValidUUID(scope.ClipID)) {
 		return nil, sql.ErrNoRows
+	}
+	if scope.helpOnly() && scope.ProjectID == "" && scope.ClipID == "" {
+		// Explaining a control needs no inventory or unrelated project content.
+		out := map[string]any{"route": scope.Route}
+		if scope.StoryStep != "" {
+			out["story_step"] = scope.StoryStep
+		}
+		return json.Marshal(out)
 	}
 	projects, err := e.projectSummaries(ctx, user)
 	if err != nil {

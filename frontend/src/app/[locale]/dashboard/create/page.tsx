@@ -6,7 +6,7 @@ import '@/components/create/creation-workbench.css'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 
-import { FileText, Sparkles, X } from 'lucide-react'
+import { FileText } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
 import { useSearchParams } from 'next/navigation'
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react'
@@ -16,6 +16,7 @@ import {
   AssistantChat
 } from '@/components/assistant/assistant-chat'
 import { ConfigurationPreview } from '@/components/create/configuration-preview'
+import { AIEditingDirection } from '@/components/create/ai-editing-direction'
 import {
   type AspectRatio,
   type CreateSettings,
@@ -28,7 +29,6 @@ import { SourceUpload } from '@/components/create/source-upload'
 import { SourceYoutube } from '@/components/create/source-youtube'
 import { SummaryCard } from '@/components/create/summary-card'
 import { StoryBuilder } from '@/components/story/story-builder'
-import { PageHeader } from '@/components/ui/page-header'
 import { Tabs, TabsContent } from '@/components/ui/tabs'
 import { useToast } from '@/components/ui/toast'
 import { Link, useRouter } from '@/i18n/navigation'
@@ -51,26 +51,8 @@ interface UploadedFile {
 const CREDITS_PER_CLIP = 10
 
 export default function CreatePage() {
-  const locale = useLocale()
-  const t = useTranslations('create')
-  const sections = useTranslations('dashboardSections')
-
   return (
     <div className="creation-page dashboard-workspace animate-fade-in">
-      <PageHeader
-        title={t('title')}
-        description={locale === 'ro'
-          ? 'Transformă mai multe filmări într-o poveste coerentă sau importă un videoclip existent.'
-          : 'Turn multiple recordings into one coherent story, or import an existing video.'}
-        actions={
-          <Button asChild={true} variant="outline">
-            <Link href="/dashboard/script-generator">
-              <FileText className="size-4" />
-              {sections('writeScript')}
-            </Link>
-          </Button>
-        }
-      />
       <Suspense fallback={<CreateWorkflowFallback />}>
         <CreateWorkspace />
       </Suspense>
@@ -80,11 +62,12 @@ export default function CreatePage() {
 
 function CreateWorkspace() {
   const locale = useLocale()
+  const sections = useTranslations('dashboardSections')
   const searchParams = useSearchParams()
   const [legacy, setLegacy] = useState(() => isSourceMode(searchParams.get('mode')))
   const [legacyOpened, setLegacyOpened] = useState(legacy)
   return <>
-    <div className="story-mode-switch mt-6 flex flex-wrap gap-2" aria-label={locale === 'ro' ? 'Tipul proiectului' : 'Project type'}>
+    <div className="story-mode-switch flex w-full flex-wrap items-center gap-2 border-b pb-4" aria-label={locale === 'ro' ? 'Tipul proiectului' : 'Project type'}>
       <Button variant={legacy ? 'outline' : 'default'} aria-pressed={!legacy} onClick={() => setLegacy(false)}>
         {locale === 'ro' ? 'Poveste din mai multe filmări' : 'Multi-clip story'}
       </Button>
@@ -94,9 +77,18 @@ function CreateWorkspace() {
       }}>
         {locale === 'ro' ? 'Import dintr-un videoclip sau link' : 'Import a video or link'}
       </Button>
+      <Button asChild variant="ghost" size="sm" className="sm:ml-auto">
+        <Link href="/dashboard/script-generator">
+          <FileText className="size-4" />
+          {sections('writeScript')}
+        </Link>
+      </Button>
     </div>
     <div hidden={legacy}><StoryBuilder /></div>
-    {legacyOpened && <div hidden={!legacy}><CreateWorkflow /></div>}
+    {legacyOpened && <div hidden={!legacy}>
+      <h1 className="mt-6 text-xl font-semibold">{locale === 'ro' ? 'Importă un videoclip' : 'Import a video'}</h1>
+      <CreateWorkflow />
+    </div>}
   </>
 }
 
@@ -323,44 +315,23 @@ function CreateWorkflow() {
       </Card>
 
       <aside className="creation-inspector">
+        <section className="creation-inspector-card">
+          <div className="creation-panel-bar">
+            <StepHeading number={2} title={t('stepDirection')} />
+          </div>
+          <AIEditingDirection value={aiInstructions} onChange={setAiInstructions} />
+        </section>
+
         <section className="creation-inspector-card creation-style-card">
           <div className="creation-panel-bar">
-            <StepHeading number={2} title={t('stepStyle')} />
+            <StepHeading number={3} title={t('stepStyle')} />
           </div>
           <SettingsPanel settings={settings} onChange={setSettings} />
         </section>
 
-        {/* AI brief captured by the assistant, sent with the job */}
-        {aiInstructions.trim() && (
-          <Card className="block gap-0 py-0 animate-scale-in border-primary/25 bg-primary/5 p-4">
-            <div className="flex items-start justify-between gap-2">
-              <div className="flex items-center gap-1.5">
-                <Sparkles
-                  className="h-3.5 w-3.5 text-primary"
-                  strokeWidth={1.75}
-                />
-                <h3 className="section-label text-primary">
-                  {tAssistant('briefTitle')}
-                </h3>
-              </div>
-              <button
-                type="button"
-                onClick={() => setAiInstructions('')}
-                title={tAssistant('briefRemove')}
-                className="rounded p-0.5 text-muted-foreground transition-colors hover:text-destructive"
-              >
-                <X className="h-3.5 w-3.5" strokeWidth={1.75} />
-              </button>
-            </div>
-            <p className="mt-2 whitespace-pre-wrap text-xs leading-relaxed text-foreground/90">
-              {aiInstructions}
-            </p>
-          </Card>
-        )}
-
         <section className="creation-inspector-card">
           <div className="creation-panel-bar">
-            <StepHeading number={3} title={t('stepGenerate')} />
+            <StepHeading number={4} title={t('stepGenerate')} />
           </div>
           <SummaryCard
             videoCount={videoCount}

@@ -17,7 +17,7 @@ From the repository root:
 make setup
 ```
 
-This creates an ignored `.env` from `.env.example` when needed, builds the images, applies the embedded SQL database migrations, starts the stack in the background, and verifies Go/PostgreSQL/Redis readiness. Existing installations must add the new Go variables in [the migration handoff](docs/go-migration/handoff.md) before restarting. The first build is slower because the worker builds whisper.cpp and downloads its speech and face detection models.
+This creates an ignored `.env` from `.env.example` when needed, builds the images, applies the embedded SQL database migrations, starts the stack in the background, and verifies Go/PostgreSQL/Redis readiness plus a running media worker. Existing installations must add the new Go variables in [the migration handoff](docs/go-migration/handoff.md) before restarting. The first build is slower because the worker builds whisper.cpp and downloads its speech and face detection models.
 
 Run `make help` to see every available project command. `bash scripts/setup.sh` remains available as the original setup entry point.
 
@@ -84,6 +84,9 @@ make down
 # Show service status
 make status
 
+# Check API readiness, Story routes and the media worker
+make health
+
 # Follow logs for the whole stack
 make logs
 
@@ -98,6 +101,12 @@ make up
 # Stop containers while preserving database and media volumes
 make down
 ```
+
+If a story stays queued, run `make health` and `make logs SERVICE=worker`. A working API alone cannot process videos: the separate `worker` service must be running. The health check fails if the worker is missing, stopped or restarting; it reports container state and does not start services or certify job progress. Start the development stack with `make dev-up`, or rebuild/start just the worker with `docker compose up -d --build worker`, then rerun `make health`.
+
+To process only one pending Story while leaving the rest of the queue untouched, build the current worker and run `docker compose run --rm --no-deps worker --story-id <story-uuid>`. This one-shot command exits after the selected Story, never falls back to another job, and does not recover interrupted jobs. An unavailable or already claimed Story returns an error. Other running workers continue processing their queues independently; this command does not pause them.
+
+For an explicitly selected Story that already has a rendered version, add `--improve` to queue one `Improve flow` revision and process it immediately: `docker compose run --rm --no-deps worker --story-id <story-uuid> --improve`. The revision reuses the Story's existing credit charge, preserves the previous version for comparison and still leaves unrelated queued work untouched.
 
 To enable local upload malware scanning, include the security profile:
 

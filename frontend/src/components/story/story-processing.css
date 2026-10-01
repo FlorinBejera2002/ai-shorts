@@ -1,0 +1,71 @@
+.job-processing.story-processing {
+  --job-accent: var(--foreground);
+  border-radius: var(--radius-md);
+  min-height: 0;
+}
+.story-processing .job-ai-core,
+.story-processing .job-thinking-line {
+  border-radius: var(--radius-md);
+}
+.story-processing .job-stages-heading > span {
+  border-radius: var(--radius-sm);
+  flex-shrink: 0;
+}
+.story-processing .job-stage-copy h4 {
+  font-size: clamp(1.6rem, 3vw, 2.2rem);
+  overflow-wrap: anywhere;
+}
+.story-processing .job-thinking-line {
+  overflow-wrap: anywhere;
+}
+.story-processing .job-stage-map li[data-state='done'] .job-map-dot {
+  border-color: color-mix(in srgb, var(--foreground) 36%, var(--border));
+  background: color-mix(in srgb, var(--foreground) 8%, var(--card));
+  color: var(--foreground);
+}
+.story-processing .job-stage-map li[data-state='done']:not(:last-child)::after {
+  background: color-mix(in srgb, var(--foreground) 48%, var(--border));
+}
+.story-processing .job-stage-map li[data-state='attention'] {
+  color: var(--foreground);
+}
+.story-processing .job-stage-map li[data-state='attention'] .job-map-dot {
+  border-color: var(--foreground);
+}
+.story-processing-actions {
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+.story-processing-actions > p {
+  flex: 1 1 15rem;
+}
+.story-processing .job-progress-track > .job-progress-indeterminate {
+  width: 30%;
+  animation: story-progress-sweep 1.8s ease-in-out infinite;
+}
+.story-processing[data-running='false'],
+.story-processing[data-running='false'] *,
+.story-processing[data-running='false'] *::before,
+.story-processing[data-running='false'] *::after {
+  animation: none;
+  transition: none;
+}
+@keyframes story-progress-sweep {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(340%);
+  }
+}
+@media (max-width: 700px) {
+  .story-processing .job-map-label {
+    display: block;
+    overflow: visible;
+    font-size: 0.55rem;
+    line-height: 1.3;
+    text-align: center;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+}

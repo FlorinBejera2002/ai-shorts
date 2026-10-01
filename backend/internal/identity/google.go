@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"net/url"
 	"path"
+	"slices"
 	"strings"
 	"time"
 
@@ -32,8 +33,8 @@ func NewGoogle(cfg GoogleConfig) *Google {
 func (h *Handler) SetGoogle(google *Google) { h.google = google }
 
 type oauthState struct {
-	State, Verifier, ReturnTo string
-	Expires                   int64
+	State, Verifier, ReturnTo, ReturnOrigin string
+	Expires                                 int64
 }
 
 const googleCookieName = "goGoogleState"
@@ -59,6 +60,20 @@ func safeReturnPath(raw string) string {
 		return "/dashboard"
 	}
 	return u.RequestURI()
+}
+func safeReturnOrigin(raw, fallback string, allowed []string) string {
+	if raw == "" {
+		return fallback
+	}
+	u, err := url.Parse(raw)
+	if err != nil || u.Scheme == "" || u.Host == "" || u.User != nil || u.Path != "" || u.RawQuery != "" || u.Fragment != "" {
+		return fallback
+	}
+	origin := u.Scheme + "://" + u.Host
+	if raw != origin || !slices.Contains(allowed, origin) {
+		return fallback
+	}
+	return origin
 }
 func (h *Handler) signState(state oauthState) (string, error) {
 	raw, err := json.Marshal(state)
@@ -122,7 +137,12 @@ func (h *Handler) googleStart(w http.ResponseWriter, r *http.Request) {
 		h.authError(w, err)
 		return
 	}
-	cookie, err := h.signState(oauthState{State: state, Verifier: verifier, ReturnTo: safeReturnPath(r.URL.Query().Get("returnTo")), Expires: expires.Unix()})
+	cookie, err := h.signState(oauthState{
+		State: state, Verifier: verifier,
+		ReturnTo:     safeReturnPath(r.URL.Query().Get("returnTo")),
+		ReturnOrigin: safeReturnOrigin(r.URL.Query().Get("returnOrigin"), g.config.AppURL, h.config.AllowedOrigins),
+		Expires:      expires.Unix(),
+	})
 	if err != nil {
 		h.authError(w, err)
 		return
@@ -135,8 +155,8 @@ func (h *Handler) googleStart(w http.ResponseWriter, r *http.Request) {
 	}
 	http.Redirect(w, r, g.authorizationURL+"?"+values.Encode(), http.StatusSeeOther)
 }
-func (h *Handler) googleFailure(w http.ResponseWriter, r *http.Request, reason string) {
-	u, _ := url.Parse(h.google.config.AppURL)
+func (h *Handler) googleFailure(w http.ResponseWriter, r *http.Request, reason, returnOrigin string) {
+	u, _ := url.Parse(safeReturnOrigin(returnOrigin, h.google.config.AppURL, h.config.AllowedOrigins))
 	u.Path = "/login"
 	u.RawQuery = url.Values{"error": {reason}}.Encode()
 	http.Redirect(w, r, u.String(), http.StatusSeeOther)
@@ -145,51 +165,51 @@ func (h *Handler) googleCallback(w http.ResponseWriter, r *http.Request) {
 	cookie, err := r.Cookie(googleCookieName)
 	h.stateCookie(w, "", -1)
 	if err != nil {
-		h.googleFailure(w, r, "oauth_state")
+		h.googleFailure(w, r, "oauth_state", "")
 		return
 	}
 	state, err := h.readState(cookie.Value)
 	if err != nil || !hmac.Equal([]byte(state.State), []byte(r.URL.Query().Get("state"))) {
-		h.googleFailure(w, r, "oauth_state")
+		h.googleFailure(w, r, "oauth_state", "")
 		return
 	}
 	result, err := h.accounts.db.ExecContext(r.Context(), `DELETE FROM verification_tokens WHERE identifier='google-oauth-state' AND token=$1 AND expires>now()`, tokenDigest(state.State))
 	if err != nil {
-		h.googleFailure(w, r, "oauth_unavailable")
+		h.googleFailure(w, r, "oauth_unavailable", state.ReturnOrigin)
 		return
 	}
 	count, err := result.RowsAffected()
 	if err != nil || count != 1 {
-		h.googleFailure(w, r, "oauth_state")
+		h.googleFailure(w, r, "oauth_state", state.ReturnOrigin)
 		return
 	}
 	code := r.URL.Query().Get("code")
 	if code == "" || len(code) > 4096 || r.URL.Query().Get("error") != "" {
-		h.googleFailure(w, r, "oauth_cancelled")
+		h.googleFailure(w, r, "oauth_cancelled", state.ReturnOrigin)
 		return
 	}
 	info, err := h.google.exchange(r.Context(), code, state.Verifier)
 	if err != nil {
-		h.googleFailure(w, r, "oauth_failed")
+		h.googleFailure(w, r, "oauth_failed", state.ReturnOrigin)
 		return
 	}
 	user, err := h.accounts.GoogleUser(r.Context(), info)
 	if err != nil {
 		var accountError *AccountError
 		if errors.As(err, &accountError) && accountError.Status == 409 {
-			h.googleFailure(w, r, "account_exists")
+			h.googleFailure(w, r, "account_exists", state.ReturnOrigin)
 		} else {
-			h.googleFailure(w, r, "oauth_failed")
+			h.googleFailure(w, r, "oauth_failed", state.ReturnOrigin)
 		}
 		return
 	}
 	_, refresh, expires, err := h.service.loginUser(r.Context(), user)
 	if err != nil {
-		h.googleFailure(w, r, "oauth_failed")
+		h.googleFailure(w, r, "oauth_failed", state.ReturnOrigin)
 		return
 	}
 	h.setRefreshCookie(w, refresh, expires, 0)
-	u, _ := url.Parse(h.google.config.AppURL)
+	u, _ := url.Parse(safeReturnOrigin(state.ReturnOrigin, h.google.config.AppURL, h.config.AllowedOrigins))
 	destination, _ := url.Parse(safeReturnPath(state.ReturnTo))
 	u = u.ResolveReference(destination)
 	http.Redirect(w, r, u.String(), http.StatusSeeOther)

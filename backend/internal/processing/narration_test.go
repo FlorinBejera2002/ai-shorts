@@ -17,11 +17,32 @@ import (
 // recognizer. Actual audio decode/render remains FFmpeg; no model download or
 // paid service is required to verify caption provenance and cache behavior.
 func TestMain(m *testing.M) {
+	if os.Getenv("SNEEPCUT_NARRATION_ASR_FIXTURE") == "1" && len(os.Args) > 1 && os.Args[1] == "--vad-model" {
+		if os.Getenv("SNEEPCUT_NARRATION_ASR_EMPTY") == "1" {
+			_, _ = os.Stdout.WriteString("Detected 0 speech segments:\n")
+		} else {
+			_, _ = os.Stdout.WriteString("Detected 1 speech segments:\nSpeech segment 0: start = 30.00, end = 150.00\n")
+		}
+		os.Exit(0)
+	}
 	if os.Getenv("SNEEPCUT_NARRATION_ASR_FIXTURE") == "1" && len(os.Args) > 1 && os.Args[1] == "-m" {
+		vad := false
+		for i, arg := range os.Args {
+			if arg == "--vad-model" && i+1 < len(os.Args) {
+				_, err := os.Stat(os.Args[i+1])
+				vad = err == nil
+			}
+		}
+		if !vad {
+			os.Exit(4)
+		}
 		if _, err := os.Stat("audio.wav"); err != nil {
 			os.Exit(2)
 		}
 		raw := `{"result":{"language":"en"},"transcription":[{"text":"Original","offsets":{"from":400,"to":1000},"tokens":[{"text":"Original","p":0.97,"offsets":{"from":400,"to":1000}}]},{"text":"voice.","offsets":{"from":1100,"to":1400},"tokens":[{"text":"voice.","p":0.98,"offsets":{"from":1100,"to":1400}}]}]}`
+		if os.Getenv("SNEEPCUT_NARRATION_ASR_LOW") == "1" {
+			raw = strings.Replace(raw, `"p":0.97`, `"p":0.113599`, 1)
+		}
 		if os.Getenv("SNEEPCUT_NARRATION_ASR_EMPTY") == "1" {
 			raw = `{"result":{"language":"en"},"transcription":[]}`
 		}
@@ -119,6 +140,11 @@ func TestNarrationAnalysisCachesAlignedVoiceAndMutesVideoAnalysis(t *testing.T) 
 	voice := narrationAudioFixture(t, p, dir, "voice.wav", false, "-c:a", "pcm_s16le")
 	t.Setenv("SNEEPCUT_NARRATION_ASR_FIXTURE", "1")
 	p.cfg.WhisperPath, _ = os.Executable()
+	p.cfg.WhisperVADPath = p.cfg.WhisperPath
+	p.cfg.WhisperVADModel = filepath.Join(dir, "mock-vad.bin")
+	if err := os.WriteFile(p.cfg.WhisperVADModel, []byte("fixture-model"), 0600); err != nil {
+		t.Fatal(err)
+	}
 	options := story.DefaultOptions()
 	options.Narration = true
 	analyzed, err := p.Analyze(context.Background(), "narration-analysis", voice, options)

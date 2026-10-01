@@ -55,8 +55,6 @@ func TestGlobalPlannerUnsafeConstraintsStillFallbackWithExactReason(t *testing.T
 		constraint, evidence string
 	}{
 		{"unknown source", func(_ *Request, p *Plan) { p.Blocks[0].CandidateID = "invented-candidate" }, "source", "invented-candidate"},
-		{"short B-roll", func(_ *Request, p *Plan) { p.Blocks = []Block{{CandidateID: "b", BRollID: "a"}} }, "b_roll", "shorter than its audio"},
-		{"unsafe B-roll role", func(_ *Request, p *Plan) { p.Blocks[0].BRollID = "b" }, "b_roll_role", "not classified as B-roll"},
 		{"duplicate phrase", func(_ *Request, p *Plan) { p.Blocks = append(p.Blocks, p.Blocks[0]) }, "duplicate", "occurs twice"},
 		{"order constraint", func(req *Request, p *Plan) {
 			req.Options.PreserveOrder = true
@@ -77,6 +75,31 @@ func TestGlobalPlannerUnsafeConstraintsStillFallbackWithExactReason(t *testing.T
 			}
 			if hasCritical(ValidatePlan(plan, req.Assets, req.Options, nil)) {
 				t.Fatal("source-order fallback introduced unsafe executable constraints")
+			}
+		})
+	}
+}
+
+func TestGlobalPlannerDropsOnlyInvalidOptionalBRoll(t *testing.T) {
+	for _, test := range []struct {
+		name string
+		plan Plan
+	}{
+		{"short B-roll", Plan{Title: "Keep this edit", Blocks: []Block{{CandidateID: "b", BRollID: "a"}}}},
+		{"unsafe B-roll role", Plan{Title: "Keep this edit", Blocks: []Block{{CandidateID: "a", BRollID: "b"}}}},
+		{"self B-roll", Plan{Title: "Keep this edit", Blocks: []Block{{CandidateID: "a", BRollID: "a"}}}},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			req := fixtureRequest()
+			plan, err := New(&fakeMedia{}, &fakeGenerator{responses: []string{proposal(test.plan)}}, DefaultLimits()).plan(context.Background(), req, &runBudget{max: 12})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if plan.Title != test.plan.Title || len(plan.Blocks) != 1 || plan.Blocks[0].CandidateID != test.plan.Blocks[0].CandidateID || plan.Blocks[0].BRollID != "" {
+				t.Fatalf("invalid optional B-roll discarded the editorial plan: %#v", plan)
+			}
+			if !strings.Contains(strings.Join(plan.Gaps, " "), "original source-backed shot was retained") {
+				t.Fatalf("removed B-roll was not reported: %#v", plan.Gaps)
 			}
 		})
 	}

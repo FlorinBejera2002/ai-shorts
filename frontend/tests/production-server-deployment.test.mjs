@@ -46,6 +46,23 @@ test('production frontend runs nginx without root or Linux capabilities', () => 
   assert.match(frontend, /cap_drop: \["ALL"\]/)
 })
 
+test('admin deployment isolates the UI and reuses the main authentication origin', () => {
+  const admin = compose.slice(compose.indexOf('  admin:'), compose.indexOf('  nginx:'))
+  assert.ok(admin.includes('VITE_API_URL: https://sneepcut.com'))
+  assert.ok(admin.includes('read_only: true'))
+  assert.ok(admin.includes('cap_drop: ["ALL"]'))
+  for (const forbidden of ['env_file:', 'ports:', 'JWT_SECRET', 'DATABASE_URL']) {
+    assert.ok(!admin.includes(forbidden), forbidden)
+  }
+  assert.ok(compose.split(String.fromCharCode(10)).some(line => line.includes('CORS_ORIGINS:') && line.includes('https://admin.sneepcut.com')))
+  const adminHost = caddy.slice(caddy.indexOf('admin.sneepcut.com {'))
+  assert.ok(adminHost.includes('X-Robots-Tag "noindex, nofollow"'))
+  assert.ok(adminHost.includes('reverse_proxy admin:8080'))
+  assert.ok(adminHost.includes('header_up Host api.sneepcut.com'))
+  const workflow = readFileSync('../scripts/production-compose.sh', 'utf8')
+  assert.ok(workflow.includes('https://admin.sneepcut.com/api/admin/users'))
+})
+
 test('the production proxy trust chain uses matching fixed addresses', () => {
   const nginx = readFileSync('../deploy/nginx.production.conf', 'utf8')
 

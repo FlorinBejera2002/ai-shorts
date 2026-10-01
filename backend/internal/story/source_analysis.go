@@ -24,13 +24,14 @@ func (s *runState) analyzeSourceMeaning(ctx context.Context) error {
 		}
 		return ReserveAICall(ctx)
 	})
-	annotated, err := analyzer.AnalyzeStorySources(budgetContext, cloneAssets(s.req.Assets), s.req.Options)
+	batch := duplicateSemanticBatch(s.req.Assets)
+	annotated, err := analyzer.AnalyzeStorySources(budgetContext, cloneAssets(batch.assets), s.req.Options)
 	if ctx.Err() != nil {
 		return ctx.Err()
 	}
 	var merged []Asset
 	if err == nil {
-		merged, err = mergeSourceMeaning(s.req.Assets, annotated)
+		merged, err = batch.expand(annotated)
 	}
 	if err != nil {
 		// Local transcripts remain available when optional semantic enrichment

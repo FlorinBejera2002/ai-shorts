@@ -10,7 +10,10 @@ const browser = await chromium.launch({
   headless: true,
   args: ['--use-fake-device-for-media-stream']
 })
-const context = await browser.newContext({ permissions: ['microphone'] })
+const context = await browser.newContext({
+  permissions: ['microphone'],
+  viewport: { width: 1280, height: 960 }
+})
 const page = await context.newPage()
 page.setDefaultTimeout(60000)
 const errors = []
@@ -110,6 +113,12 @@ await page.route('**/api/**', async (route) => {
   const request = route.request()
   const path = new URL(request.url()).pathname
   const method = request.method()
+  if (path === '/api/dashboard')
+    return route.fulfill({ json: {
+      metrics: { credits: 100, plan: 'free', jobCount: 0, clipCount: 0,
+        durationMinutes: 0, activity: [], statuses: {} },
+      recentClips: []
+    } })
   if (path === '/api/workspace-agent/runs')
     return route.fulfill({ json: { runs: [], has_more: false } })
   if (path === '/api/workspace-agent/suggestions')
@@ -233,13 +242,46 @@ const stopRecord = async () => {
   await page.getByLabel('Narration preview', { exact: true }).waitFor()
   await tracksStopped()
 }
+const showStep = async (target) => {
+  await page.getByTestId('story-wizard').waitFor()
+  let current = -1
+  for (let index = 0; index < 4; index++)
+    if (await page.getByTestId(`story-step-${index}`).isVisible()) current = index
+  assert.notEqual(current, -1, 'Exactly one wizard step is visible')
+  while (current !== target) {
+    const forward = current < target
+    await page.getByTestId('story-wizard').getByRole('button', {
+      name: forward ? 'Continue' : 'Back',
+      exact: true
+    }).click()
+    current += forward ? 1 : -1
+    await page.getByTestId(`story-step-${current}`).waitFor({ state: 'visible' })
+  }
+}
+const generationUnavailable = async () => {
+  assert.equal(
+    await page.getByRole('button', { name: 'Build my story', exact: true }).count(),
+    0,
+    'Only the review step exposes generation'
+  )
+  assert.equal(generations.length, 0, 'Editing narration never starts generation')
+}
+const screenshot = async (path) => {
+  await page.evaluate(async () => {
+    if (document.activeElement instanceof HTMLElement) document.activeElement.blur()
+    window.scrollTo(0, 0)
+    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))
+  })
+  await page.screenshot({ path, fullPage: true, animations: 'disabled' })
+}
 try {
   const origin = process.env.TEST_ORIGIN || 'http://127.0.0.1:5191'
   await page.goto(`${origin}/dashboard/create`, {
     waitUntil: 'domcontentloaded',
     timeout: 180000
   })
-  await page.getByRole('button', { name: 'Narrate your footage', exact: true }).click()
+  await showStep(1)
+  await page.getByRole('button', { name: 'My voice over the images', exact: true }).click()
   await page.getByRole('button', { name: 'Record narration', exact: true }).waitFor()
   assert.equal(
     project.options.narration,
@@ -252,10 +294,11 @@ try {
     'Mode selection never opens the microphone'
   )
   assert.equal(
-    await page.getByLabel('Target duration', { exact: true }).isDisabled(),
+    await page.getByLabel('Length', { exact: true }).isDisabled(),
     true
   )
-  assert.equal(await page.getByLabel('Preserve my source order').isDisabled(), true)
+  assert.equal(await page.getByLabel('Keep my clip order', { exact: true }).isDisabled(), true)
+  await showStep(0)
   await page.getByLabel('Upload story clips').setInputFiles({
     name: 'footage.mp4',
     mimeType: 'video/mp4',
@@ -264,14 +307,25 @@ try {
   await page.locator('[data-testid="validated-source"]').waitFor()
   const videoID = project.assets[0].id
   const build = page.getByRole('button', { name: 'Build my story', exact: true })
-  assert.equal(await build.isDisabled(), true, 'Missing narration gates generation')
+  await showStep(1)
+  assert.equal(
+    await page.getByTestId('story-wizard').getByRole('button', { name: 'Continue', exact: true }).isDisabled(),
+    true,
+    'Missing narration gates advancing to review and generation'
+  )
+  await generationUnavailable()
   await page.evaluate(() => {
     window.denyNextCapture = true
   })
   await page.getByRole('button', { name: 'Record narration', exact: true }).click()
   await page.getByRole('alert').filter({ hasText: 'permission was denied' }).waitFor()
   await startRecord()
-  assert.equal(await build.isDisabled(), true)
+  await generationUnavailable()
+  assert.equal(
+    await page.getByTestId('story-wizard').getByRole('button', { name: 'Continue', exact: true }).isDisabled(),
+    true,
+    'An active recording cannot leave its wizard step'
+  )
   assert.equal(uploadCount, 0)
   await page.getByRole('button', { name: 'Pause recording', exact: true }).click()
   const paused = await page.getByLabel('Recording time', { exact: true }).textContent()
@@ -317,7 +371,7 @@ try {
   await page.getByTestId('saved-narration').waitFor()
   assert.equal(uploadCount, 2)
   assert.equal(
-    await page.getByRole('button', { name: 'Build from recorded clips' }).isDisabled(),
+    await page.getByRole('button', { name: 'Sound from my clips', exact: true }).isDisabled(),
     true
   )
   assert.equal(
@@ -331,6 +385,7 @@ try {
   )
   const savedID = project.assets.find((asset) => asset.kind === 'narration').id
   await page.reload({ waitUntil: 'domcontentloaded' })
+  await showStep(1)
   await page.getByTestId('saved-narration').waitFor()
   assert.equal(await page.getByLabel('Saved narration playback').count(), 1)
   assert.equal(
@@ -348,7 +403,7 @@ try {
     .filter({ hasText: 'Synthetic validation failure' })
     .waitFor()
   assert.equal(project.assets.find((asset) => asset.kind === 'narration').id, savedID)
-  assert.equal(await build.isDisabled(), true)
+  await generationUnavailable()
   await page
     .getByRole('button', { name: 'Retry saving narration', exact: true })
     .click()
@@ -376,6 +431,7 @@ try {
     0,
     'Late permission grant cannot restart a cancelled recording'
   )
+  await showStep(3)
   await page
     .getByRole('checkbox', {
       name: 'My narration and all my clips are saved. Use this complete set.'
@@ -403,7 +459,8 @@ try {
     'Existing source mode remains the default'
   )
   const retainedVideo = project.assets[0].id
-  await page.getByRole('button', { name: 'Narrate your footage', exact: true }).click()
+  await showStep(1)
+  await page.getByRole('button', { name: 'My voice over the images', exact: true }).click()
   await page.getByRole('button', { name: 'Record narration', exact: true }).waitFor()
   assert.equal(project.options.narration, true)
   assert.equal(
@@ -491,13 +548,10 @@ try {
     true
   )
   if (process.env.TEST_SCREENSHOT)
-    await page.screenshot({ path: process.env.TEST_SCREENSHOT, fullPage: true })
+    await screenshot(process.env.TEST_SCREENSHOT)
   await page.setViewportSize({ width: 1280, height: 960 })
   if (process.env.TEST_SCREENSHOT)
-    await page.screenshot({
-      path: process.env.TEST_SCREENSHOT.replace(/\.png$/, '-desktop.png'),
-      fullPage: true
-    })
+    await screenshot(process.env.TEST_SCREENSHOT.replace(/\.png$/, '-desktop.png'))
   const narrationPanel = await page.getByTestId('story-narration').elementHandle()
   await page
     .getByRole('button', { name: 'Import a video or link', exact: true })

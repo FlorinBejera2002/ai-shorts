@@ -3,8 +3,14 @@
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger
+} from '@/components/ui/tooltip'
 
-import { AlertCircle, CheckCircle2, X, Youtube } from 'lucide-react'
+import { AlertCircle, CheckCircle2, Info, X, Youtube } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import Image from 'next/image'
 import { useEffect, useState } from 'react'
@@ -45,9 +51,27 @@ export function SourceYoutube({ url, onChange }: SourceYoutubeProps) {
 
   return (
     <div className="animate-scale-in">
-      <Label className="section-label" htmlFor="youtube-url">
-        {t('youtubeUrl')}
-      </Label>
+      <div className="flex items-center gap-1.5">
+        <Label className="section-label" htmlFor="youtube-url">
+          {t('youtubeUrl')}
+        </Label>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                className="rounded-full text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                aria-label={t('youtubeSourceInfo')}
+              >
+                <Info className="size-3.5" aria-hidden="true" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent className="max-w-72" side="top" sideOffset={6}>
+              {t('youtubeSourceInfo')}
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      </div>
       <div className="relative mt-3">
         <Input
           id="youtube-url"

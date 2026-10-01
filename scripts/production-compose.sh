@@ -9,7 +9,7 @@ case "$action" in
   *) echo "Unknown production action: $action" >&2; exit 2 ;;
 esac
 case "$component" in
-  all|backend|frontend|studio|api|workers|gateway) ;;
+  all|backend|frontend|admin|studio|api|workers|gateway) ;;
   *) echo "Unknown production component: $component" >&2; exit 2 ;;
 esac
 
@@ -42,6 +42,7 @@ build() {
     all) "${compose[@]}" build ;;
     backend) "${compose[@]}" build migrate backend worker ;;
     frontend) "${compose[@]}" build frontend ;;
+    admin) "${compose[@]}" build admin ;;
     studio) "${compose[@]}" build studio frontend ;;
     api) "${compose[@]}" build migrate backend ;;
     workers) "${compose[@]}" build worker ;;
@@ -106,6 +107,11 @@ start_frontend() {
   wait_for_health frontend 120
 }
 
+start_admin() {
+  "${compose[@]}" up -d --no-deps --force-recreate admin
+  wait_for_health admin 120
+}
+
 start_studio() {
   "${compose[@]}" up -d --no-deps --force-recreate studio
   wait_for_health studio 120
@@ -125,6 +131,7 @@ deploy() {
       start_workers
       start_studio
       start_frontend
+      start_admin
       start_gateway
       ;;
     backend)
@@ -136,6 +143,10 @@ deploy() {
       ;;
     frontend)
       start_frontend
+      start_gateway
+      ;;
+    admin)
+      start_admin
       start_gateway
       ;;
     studio)
@@ -209,6 +220,14 @@ verify_public_frontend() {
   done
 }
 
+verify_admin() {
+  "${compose[@]}" exec -T admin wget -q --spider http://127.0.0.1:8080/
+  curl --fail --silent --show-error --max-time 30 --output /dev/null https://admin.sneepcut.com/
+  local status
+  status=$(curl --silent --output /dev/null --write-out '%{http_code}' --max-time 30 https://admin.sneepcut.com/api/admin/users)
+  [[ "$status" == 401 ]] || { echo "Admin unauthenticated request returned HTTP $status" >&2; return 1; }
+}
+
 verify_studio() {
   curl --fail --silent --show-error --max-time 30 https://studio.sneepcut.com/health
   local status
@@ -226,9 +245,11 @@ verify() {
       verify_frontend
       verify_public_frontend
       verify_studio
+      verify_admin
       ;;
     backend) verify_api; verify_workers ;;
     frontend) verify_frontend ;;
+    admin) verify_admin ;;
     studio) verify_studio; verify_frontend; verify_public_frontend ;;
     api) verify_api ;;
     workers) verify_workers ;;

@@ -3,6 +3,7 @@ package processing
 
 import (
 	"context"
+	"path/filepath"
 	"sneepcut/backend-go/internal/aiprovider"
 	"sneepcut/backend-go/internal/media"
 	"time"
@@ -10,7 +11,7 @@ import (
 
 type Config struct {
 	FFmpegPath, FFprobePath, WhisperPath, WhisperModel, FaceModel, TempDir string
-	StoryWhisperModel                                                      string
+	StoryWhisperModel, WhisperVADModel, WhisperVADPath                     string
 	Timeout                                                                time.Duration
 }
 
@@ -31,6 +32,11 @@ func ConfigFromEnv(get func(string) string) (Config, error) {
 	c.StoryWhisperModel = get("STORY_WHISPER_CPP_MODEL")
 	if c.StoryWhisperModel == "" {
 		c.StoryWhisperModel = c.WhisperModel
+	}
+	c.WhisperVADModel = get("WHISPER_CPP_VAD_MODEL")
+	c.WhisperVADPath = get("WHISPER_CPP_VAD_PATH")
+	if c.WhisperVADModel == "" {
+		c.WhisperVADModel = filepath.Join(filepath.Dir(c.StoryWhisperModel), "ggml-silero-v6.2.0.bin")
 	}
 	if c.FaceModel == "" {
 		c.FaceModel = "/models/facefinder"

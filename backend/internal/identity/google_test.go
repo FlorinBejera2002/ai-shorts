@@ -159,11 +159,28 @@ func TestGoogleSafeReturnPaths(t *testing.T) {
 	}
 }
 
+func TestGoogleSafeReturnOrigins(t *testing.T) {
+	allowed := []string{"https://app.example.invalid", "https://admin.example.invalid"}
+	for _, tc := range []struct{ input, want string }{
+		{"", "https://app.example.invalid"},
+		{"https://admin.example.invalid", "https://admin.example.invalid"},
+		{"https://attacker.invalid", "https://app.example.invalid"},
+		{"https://admin.example.invalid/path", "https://app.example.invalid"},
+		{"https://admin.example.invalid?next=evil", "https://app.example.invalid"},
+		{"https://user:secret@admin.example.invalid", "https://app.example.invalid"},
+		{"//admin.example.invalid", "https://app.example.invalid"},
+	} {
+		if got := safeReturnOrigin(tc.input, "https://app.example.invalid", allowed); got != tc.want {
+			t.Fatalf("origin %q = %q, want %q", tc.input, got, tc.want)
+		}
+	}
+}
+
 func TestGoogleCallbackPostgres(t *testing.T) {
 	db := migratedPostgres(t)
 	service := NewService(NewPostgres(db), testTokens(t))
 	var logs bytes.Buffer
-	h := NewHandler(service, HTTPConfig{SecureCookies: true}, slog.New(slog.NewTextHandler(&logs, nil)))
+	h := NewHandler(service, HTTPConfig{SecureCookies: true, AllowedOrigins: []string{"https://app.example.invalid", "https://admin.example.invalid"}}, slog.New(slog.NewTextHandler(&logs, nil)))
 	h.SetAccounts(NewAccounts(db, AccountsConfig{InitialCredits: 100}, nil))
 	g := testGoogle()
 	h.SetGoogle(g)
@@ -184,9 +201,13 @@ func TestGoogleCallbackPostgres(t *testing.T) {
 		}
 		return googleResponse(r, 200, profileBody), nil
 	})
-	start := func(returnTo string) (*http.Cookie, oauthState) {
+	start := func(returnTo string, returnOrigin ...string) (*http.Cookie, oauthState) {
 		t.Helper()
-		req := httptest.NewRequest(http.MethodGet, "/v1/auth/google?locale=ro&returnTo="+url.QueryEscape(returnTo), nil)
+		query := url.Values{"locale": {"ro"}, "returnTo": {returnTo}}
+		if len(returnOrigin) > 0 {
+			query.Set("returnOrigin", returnOrigin[0])
+		}
+		req := httptest.NewRequest(http.MethodGet, "/v1/auth/google?"+query.Encode(), nil)
 		w := httptest.NewRecorder()
 		h.googleStart(w, req)
 		if w.Code != 303 {
@@ -280,6 +301,16 @@ func TestGoogleCallbackPostgres(t *testing.T) {
 	}
 	if _, err := service.Refresh(context.Background(), refresh.Value); err != nil {
 		t.Fatal("repeat identity invalidated prior login", err)
+	}
+	cookie, state = start("/dashboard", "https://admin.example.invalid")
+	w = callback(cookie, state.State, "code=synthetic-code")
+	if w.Header().Get("Location") != "https://admin.example.invalid/dashboard" {
+		t.Fatal("admin callback did not return to the allowed origin")
+	}
+	cookie, state = start("/dashboard", "https://attacker.invalid")
+	w = callback(cookie, state.State, "code=synthetic-code")
+	if w.Header().Get("Location") != "https://app.example.invalid/dashboard" {
+		t.Fatal("untrusted callback origin escaped the app")
 	}
 	var users, accounts int
 	if err = db.QueryRow(`SELECT count(*) FROM users`).Scan(&users); err != nil {

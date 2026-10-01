@@ -21,7 +21,7 @@ func authFromEnv(getenv func(string) string) Auth {
 		Enabled:     getenv("GO_AUTH_ENABLED") == "true",
 		DatabaseURL: getenv("DATABASE_URL"), JWTSecret: getenv("JWT_SECRET"),
 		JWTIssuer: "sneepcut", JWTAudience: "sneepcut-web",
-		AllowedOrigins: []string{"http://localhost:3000", "http://localhost"},
+		AllowedOrigins: []string{"http://localhost:3000", "http://localhost:3002", "http://localhost"},
 	}
 	if value := getenv("JWT_ISSUER"); value != "" {
 		a.JWTIssuer = value

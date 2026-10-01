@@ -6,6 +6,7 @@ import { formatBytes, formatDuration } from '@/lib/youtube'
 import type { StoryAsset, StoryProject } from './types'
 import type { PendingUpload } from './use-story-uploads'
 import { useStoryLanguage } from './use-story-language'
+import { StoryHelp } from './story-help'
 
 interface Props {
   assets: StoryAsset[]
@@ -53,25 +54,35 @@ export function StorySources({
     ['queued', 'uploading', 'validating'].includes(upload.status)
   )
   return (
-    <Card className="block space-y-4 p-5">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h2 className="font-semibold">{text('Your recordings', 'Filmările tale')}</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {narration
-              ? text(
-                  'Choose the footage for your narration. Original video sound will be muted.',
-                  'Alege imaginile pentru narațiune. Sunetul original al filmărilor va fi oprit.'
-                )
-              : text(
-                  'Ideas, alternate takes, and supporting footage — together in one story.',
-                  'Idei, duble alternative și imagini de susținere — împreună într-o poveste.'
-                )}
-          </p>
-        </div>
-        <span className="rounded-sm bg-muted px-2 py-1 text-xs tabular-nums">
-          {assets.length + pending.length} / {limits.max_files}
+    <Card
+      className="block space-y-4 p-5"
+      role="group"
+      aria-label={text('Your recordings', 'Filmările tale')}
+    >
+      <div className="flex items-center justify-between gap-3">
+        <span className="text-xs tabular-nums text-muted-foreground">
+          {assets.length + pending.length} / {limits.max_files}{' '}
+          {text('clips', 'filmări')}
         </span>
+        <StoryHelp label={text('Your recordings', 'Filmările tale')}>
+          {narration
+            ? text(
+                'Choose the footage for your narration. Original video sound will be muted.',
+                'Alege imaginile pentru narațiune. Sunetul original al filmărilor va fi oprit.'
+              )
+            : text(
+                'Ideas, alternate takes, and supporting footage — together in one story.',
+                'Idei, duble alternative și imagini de susținere — împreună într-o poveste.'
+              )}{' '}
+          {formatBytes(limits.max_file_bytes)} / {text('file', 'fișier')} ·{' '}
+          {formatDuration(limits.max_source_seconds)} / clip ·{' '}
+          {formatBytes(limits.max_total_bytes)} /{' '}
+          {formatDuration(limits.max_total_seconds)} {text('total', 'total')}.{' '}
+          {text(
+            'Original files stay in your project.',
+            'Fișierele originale rămân în proiect.'
+          )}
+        </StoryHelp>
       </div>
       {!disabled && (
         <>
@@ -89,7 +100,7 @@ export function StorySources({
               setDragging(false)
               onAdd(Array.from(event.dataTransfer.files))
             }}
-            className={`flex min-h-36 w-full flex-col items-center justify-center gap-2 rounded-md border border-dashed p-5 text-center transition-colors hover:bg-muted disabled:opacity-50 ${dragging ? 'border-foreground bg-muted' : 'border-border'}`}
+            className={`flex w-full flex-col items-center justify-center gap-2 rounded-md border border-dashed p-5 text-center transition-colors hover:bg-muted disabled:opacity-50 ${assets.length ? 'min-h-24' : 'min-h-36'} ${dragging ? 'border-foreground bg-muted' : 'border-border'}`}
           >
             <Upload className="size-6" />
             <span className="text-sm font-medium">
@@ -119,12 +130,6 @@ export function StorySources({
           />
         </>
       )}
-      <p className="text-xs text-muted-foreground">
-        {text('Limits', 'Limite')}: {formatBytes(limits.max_file_bytes)} /{' '}
-        {text('file', 'fișier')} · {formatDuration(limits.max_source_seconds)} /{' '}
-        {text('clip', 'clip')} · {formatBytes(limits.max_total_bytes)} /{' '}
-        {formatDuration(limits.max_total_seconds)} {text('total', 'total')}
-      </p>
       {uploading && (
         <div aria-live="polite" className="space-y-1.5 text-xs text-muted-foreground">
           <div className="flex justify-between gap-2">
@@ -142,15 +147,10 @@ export function StorySources({
             value={transferred}
             aria-label={text('Bytes transferred', 'Octeți transferați')}
           />
-          <p>
-            {text(
-              'Files are ready only after the server finishes validation.',
-              'Fișierele sunt pregătite numai după validarea pe server.'
-            )}
-          </p>
+          <p>{text('Checking your clips…', 'Verificăm filmările…')}</p>
         </div>
       )}
-      <ul className="space-y-3">
+      <ul className="story-source-grid">
         {assets.map((asset, assetIndex) => (
           <li
             key={asset.id}
@@ -186,78 +186,85 @@ export function StorySources({
                 </Button>
               )}
             </div>
-            <div className="mt-3 grid gap-2 sm:grid-cols-3">
-              <label className="min-w-0 text-xs">
-                <span className="mb-1 block text-muted-foreground">
-                  {text('Role', 'Rol')}
-                </span>
-                <select
-                  aria-label={`${text('Role', 'Rol')} ${asset.name}`}
-                  className="story-select"
-                  disabled={disabled}
-                  value={asset.role || 'auto'}
-                  onChange={(event) => onChange(asset.id, { role: event.target.value })}
-                >
-                  {[
-                    ['auto', text('Automatic', 'Automat')],
-                    ['a_roll', 'A-roll'],
-                    ['b_roll', 'B-roll'],
-                    ['alternate_take', text('Alternate take', 'Dublă alternativă')],
-                    ['reaction', text('Reaction', 'Reacție')],
-                    ['transition', text('Transition shot', 'Cadru de tranziție')],
-                    [
-                      'supporting_visual',
-                      text('Supporting visual', 'Imagine de susținere')
-                    ],
-                    ['low_quality', text('Low quality', 'Calitate redusă')]
-                  ].map(([value, label]) => (
-                    <option key={value} value={value}>
-                      {label}
+            <details className="mt-3">
+              <summary className="cursor-pointer text-xs text-muted-foreground hover:text-foreground">
+                {text('Clip preferences', 'Preferințe pentru clip')}
+              </summary>
+              <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                <label className="min-w-0 text-xs">
+                  <span className="mb-1 block text-muted-foreground">
+                    {text('Role', 'Rol')}
+                  </span>
+                  <select
+                    aria-label={`${text('Role', 'Rol')} ${asset.name}`}
+                    className="story-select"
+                    disabled={disabled}
+                    value={asset.role || 'auto'}
+                    onChange={(event) =>
+                      onChange(asset.id, { role: event.target.value })
+                    }
+                  >
+                    {[
+                      ['auto', text('Automatic', 'Automat')],
+                      ['a_roll', text('Main footage', 'Filmarea principală')],
+                      ['b_roll', text('Illustrative footage', 'Imagini de completare')],
+                      ['alternate_take', text('Alternate take', 'Dublă alternativă')],
+                      ['reaction', text('Reaction', 'Reacție')],
+                      ['transition', text('Transition shot', 'Cadru de tranziție')],
+                      [
+                        'supporting_visual',
+                        text('Supporting visual', 'Imagine de susținere')
+                      ],
+                      ['low_quality', text('Low quality', 'Calitate redusă')]
+                    ].map(([value, label]) => (
+                      <option key={value} value={value}>
+                        {label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="min-w-0 text-xs">
+                  <span className="mb-1 block text-muted-foreground">
+                    {text('Selection', 'Selecție')}
+                  </span>
+                  <select
+                    aria-label={`${text('Selection', 'Selecție')} ${asset.name}`}
+                    className="story-select"
+                    disabled={disabled}
+                    value={asset.include || 'auto'}
+                    onChange={(event) =>
+                      onChange(asset.id, { include: event.target.value })
+                    }
+                  >
+                    <option value="auto">{text('Let AI choose', 'Alege AI')}</option>
+                    <option value="required">
+                      {text('Must include', 'Include obligatoriu')}
                     </option>
-                  ))}
-                </select>
-              </label>
-              <label className="min-w-0 text-xs">
-                <span className="mb-1 block text-muted-foreground">
-                  {text('Selection', 'Selecție')}
-                </span>
-                <select
-                  aria-label={`${text('Selection', 'Selecție')} ${asset.name}`}
-                  className="story-select"
-                  disabled={disabled}
-                  value={asset.include || 'auto'}
-                  onChange={(event) =>
-                    onChange(asset.id, { include: event.target.value })
-                  }
-                >
-                  <option value="auto">{text('Let AI choose', 'Alege AI')}</option>
-                  <option value="required">
-                    {text('Must include', 'Include obligatoriu')}
-                  </option>
-                  <option value="excluded">{text('Exclude', 'Exclude')}</option>
-                </select>
-              </label>
-              <label className="min-w-0 text-xs">
-                <span className="mb-1 block text-muted-foreground">
-                  {text('Source order', 'Ordinea surselor')}
-                </span>
-                <select
-                  aria-label={`${text('Order', 'Ordine')} ${asset.name}`}
-                  className="story-select"
-                  disabled={disabled || uploading}
-                  value={assetIndex}
-                  onChange={(event) =>
-                    onChange(asset.id, { order: Number(event.target.value) })
-                  }
-                >
-                  {assets.map((_, index) => (
-                    <option key={index} value={index}>
-                      {index + 1}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </div>
+                    <option value="excluded">{text('Exclude', 'Exclude')}</option>
+                  </select>
+                </label>
+                <label className="min-w-0 text-xs">
+                  <span className="mb-1 block text-muted-foreground">
+                    {text('Source order', 'Ordinea surselor')}
+                  </span>
+                  <select
+                    aria-label={`${text('Order', 'Ordine')} ${asset.name}`}
+                    className="story-select"
+                    disabled={disabled || uploading}
+                    value={assetIndex}
+                    onChange={(event) =>
+                      onChange(asset.id, { order: Number(event.target.value) })
+                    }
+                  >
+                    {assets.map((_, index) => (
+                      <option key={index} value={index}>
+                        {index + 1}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+            </details>
             {asset.warnings?.map((warning, index) => (
               <p
                 key={`${index}-${warning}`}
@@ -348,14 +355,6 @@ export function StorySources({
           {text(
             'Identical source files were already in this project and were kept once.',
             'Fișierele sursă identice existau deja în proiect și au fost păstrate o singură dată.'
-          )}
-        </p>
-      )}
-      {assets.length > 0 && (
-        <p className="text-xs text-muted-foreground">
-          {text(
-            'Originals stay in this project, including unused takes. After reloading, reselect only files that did not finish uploading.',
-            'Originalele rămân în proiect, inclusiv dublele neutilizate. După reîncărcare, selectează din nou numai fișierele neterminate.'
           )}
         </p>
       )}

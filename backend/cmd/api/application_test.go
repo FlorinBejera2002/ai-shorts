@@ -66,6 +66,14 @@ func TestCompleteApplicationRoutesAndOriginPolicy(t *testing.T) {
 			t.Fatalf("route %s returned %d: %s", path, w.Code, w.Body.String())
 		}
 	}
+	for _, path := range []string{"/api/stories", "/api/stories/00000000-0000-4000-8000-000000000001/assets", "/api/upload", "/api/upload/narration"} {
+		r := httptest.NewRequest("POST", "http://localhost"+path, strings.NewReader("{}"))
+		w := httptest.NewRecorder()
+		h.ServeHTTP(w, r)
+		if w.Code != 401 {
+			t.Fatalf("upload route POST %s returned %d instead of authentication challenge: %s", path, w.Code, w.Body.String())
+		}
+	}
 	r := httptest.NewRequest("OPTIONS", "http://localhost/api/jobs", nil)
 	r.Header.Set("Origin", "http://localhost:3000")
 	r.Header.Set("Access-Control-Request-Method", "POST")

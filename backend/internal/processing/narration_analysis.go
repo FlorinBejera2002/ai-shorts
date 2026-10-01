@@ -26,7 +26,7 @@ func (p *Processor) analyzeNarration(ctx context.Context, project string, asset 
 	if model == "" {
 		model = p.cfg.WhisperModel
 	}
-	digest := storyDigest([]any{story.AlgorithmVersion, "narration-analysis-1", asset.Hash, options.Language, storyModelSignature(model)})
+	digest := storyDigest([]any{story.AlgorithmVersion, "narration-analysis-2", asset.Hash, options.Language, storyModelSignature(model), storyModelSignature(p.storyVADModel(model))})
 	prefix := "work/" + project + "/analysis/" + asset.ID + "/" + digest
 	cacheFile := filepath.Join(dir, "analysis.json")
 	if p.materialize(ctx, prefix+"/analysis.json", cacheFile) == nil {
@@ -35,7 +35,11 @@ func (p *Processor) analyzeNarration(ctx context.Context, project string, asset 
 		if err == nil && len(data) < 8<<20 && json.Unmarshal(data, &cached) == nil && cached.ID == asset.ID && cached.Hash == asset.Hash && cached.AnalysisVersion == digest && cached.Kind == "narration" && len(cached.Candidates) > 0 {
 			if exists, err := p.storage.Exists(ctx, cached.ProxyKey); err == nil && exists {
 				cached.Order, cached.Role, cached.Include, cached.Name = asset.Order, asset.Role, asset.Include, asset.Name
-				if asset.AnalysisVersion == digest {
+				cached, err = p.prepareStorySpeechCatalog(ctx, dir, cached, options)
+				if err != nil {
+					return asset, err
+				}
+				if asset.AnalysisVersion == cached.AnalysisVersion {
 					cached.SemanticAnalysisVersion = asset.SemanticAnalysisVersion
 				}
 				return cached, nil
@@ -56,8 +60,11 @@ func (p *Processor) analyzeNarration(ctx context.Context, project string, asset 
 	if signal < .001 {
 		return asset, errors.New("narration is silent; record an audible voice")
 	}
-	transcript, err := p.transcribeModel(ctx, wav, dir, options.Language, duration, model)
-	if err != nil && !strings.Contains(err.Error(), "no speech detected") {
+	transcript, err := p.transcribeStory(ctx, wav, dir, options.Language, duration, model)
+	if errors.Is(err, errSpeechDetectionUnavailable) {
+		return asset, errors.New("narration speech cannot be verified; install the voice activity detection model and retry")
+	}
+	if err != nil && !errors.Is(err, errNoSpeech) {
 		return asset, errors.New("aligned narration transcription is unavailable; retry after the speech engine is ready")
 	}
 	if err != nil || len(transcript.Words) == 0 {
@@ -80,7 +87,7 @@ func (p *Processor) analyzeNarration(ctx context.Context, project string, asset 
 	asset.AnalysisVersion, asset.SemanticAnalysisVersion = digest, ""
 	asset.ProxyKey = prefix + "/narration.wav"
 	asset.Mapping.NormalizedStart, asset.Mapping.Duration, asset.Mapping.Rate = 0, duration, 1
-	asset.Warnings = appendStoryWarning(asset.Warnings, "Narration words are automatic transcription estimates; original voice stays continuous and final audio/captions require independent review.")
+	resetStoryAnalysisWarnings(&asset)
 	if err = p.storySave(ctx, wav, asset.ProxyKey, "audio/wav"); err != nil {
 		return asset, err
 	}
@@ -91,7 +98,7 @@ func (p *Processor) analyzeNarration(ctx context.Context, project string, asset 
 	if err = p.storySave(ctx, cacheFile, prefix+"/analysis.json", "application/json"); err != nil {
 		return asset, err
 	}
-	return asset, nil
+	return p.prepareStorySpeechCatalog(ctx, dir, asset, options)
 }
 
 func narrationVisualWindows(asset story.Asset, visual float64) []story.Candidate {

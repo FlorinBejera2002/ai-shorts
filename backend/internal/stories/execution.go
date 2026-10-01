@@ -17,6 +17,28 @@ type execution struct {
 }
 
 func (r *Repository) Claim(ctx context.Context) (*execution, error) {
+	return r.claim(ctx, "")
+}
+
+// ValidateStoryID rejects invalid selectors before opening a database connection
+// or initializing processing. UUID case does not affect identity.
+func ValidateStoryID(id string) error {
+	if !idPattern.MatchString(strings.ToLower(id)) {
+		return fmt.Errorf("story ID must be a UUID: %w", ErrInvalid)
+	}
+	return nil
+}
+
+// ClaimStory claims only the requested pending Story. It never recovers leases
+// or falls back to another queued project when the target is unavailable.
+func (r *Repository) ClaimStory(ctx context.Context, id string) (*execution, error) {
+	if err := ValidateStoryID(id); err != nil {
+		return nil, err
+	}
+	return r.claim(ctx, strings.ToLower(id))
+}
+
+func (r *Repository) claim(ctx context.Context, id string) (*execution, error) {
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, err
@@ -24,7 +46,15 @@ func (r *Repository) Claim(ctx context.Context) (*execution, error) {
 	defer tx.Rollback()
 	e := &execution{repo: r, Token: newID()}
 	var raw []byte
-	err = tx.QueryRowContext(ctx, `SELECT p.id,p.user_id,p.request FROM story_projects p JOIN jobs j ON j.id=p.id WHERE p.status='pending' AND p.lease_token IS NULL AND j.status='pending' AND NOT EXISTS(SELECT 1 FROM account_deletion_requests WHERE user_id=p.user_id) ORDER BY p.updated_at FOR UPDATE OF p SKIP LOCKED LIMIT 1`).Scan(&e.ID, &e.UserID, &raw)
+	query := `SELECT p.id,p.user_id,p.request FROM story_projects p JOIN jobs j ON j.id=p.id WHERE p.status='pending' AND p.lease_token IS NULL AND j.status='pending' AND NOT EXISTS(SELECT 1 FROM account_deletion_requests WHERE user_id=p.user_id)`
+	var args []any
+	if id != "" {
+		query += ` AND p.id=$1 ORDER BY p.updated_at FOR UPDATE OF p,j SKIP LOCKED LIMIT 1`
+		args = append(args, id)
+	} else {
+		query += ` ORDER BY p.updated_at FOR UPDATE OF p SKIP LOCKED LIMIT 1`
+	}
+	err = tx.QueryRowContext(ctx, query, args...).Scan(&e.ID, &e.UserID, &raw)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
@@ -303,7 +333,7 @@ func (e *execution) finish(ctx context.Context, result story.Result, runErr erro
 	if _, err = tx.ExecContext(ctx, `UPDATE jobs SET status=$2,processing_active=false,credits_charged=$3,progress=$5,progress_message=$4,completed_at=now(),updated_at=now() WHERE id=$1`, e.ID, jobStatus, charge, message, progress); err != nil {
 		return err
 	}
-	if runErr == nil && status == "ready" {
+	if runErr == nil && libraryVersion(result.Best) {
 		if err = saveClip(ctx, tx, e.ID, e.UserID, result.Best, e.Input.Options); err != nil {
 			return err
 		}
@@ -317,7 +347,7 @@ func trackStage(ctx context.Context, tx *sql.Tx, id, next string) error {
 }
 
 func saveClip(ctx context.Context, tx *sql.Tx, id, user string, v story.Version, options story.Options) error {
-	if !readyVersion(v) || v.Output.Key == "" {
+	if !libraryVersion(v) {
 		return ErrInvalid
 	}
 	// Editorial titles are metadata; an overlong model title must not discard a
