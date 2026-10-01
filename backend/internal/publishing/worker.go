@@ -382,7 +382,7 @@ func (h *Handler) process(ctx context.Context, job workItem, action string) erro
 	}
 	if agentBinding != "" {
 		var permitted bool
-		if e = tx.QueryRowContext(ctx, `SELECT access_role='member' AND NOT email_activation_required FROM users WHERE id=$1`, job.UserID).Scan(&permitted); e != nil {
+		if e = tx.QueryRowContext(ctx, `SELECT access_role IN ('member','admin') AND NOT email_activation_required FROM users WHERE id=$1`, job.UserID).Scan(&permitted); e != nil {
 			return e
 		}
 		if !permitted {

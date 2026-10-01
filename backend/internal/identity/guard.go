@@ -37,7 +37,7 @@ func (h *Handler) require(next http.HandlerFunc, member, recent, allowDeletion b
 			h.authError(w, err)
 			return
 		}
-		if member && principal.User.AccessRole != "member" {
+		if member && principal.User.AccessRole != "member" && principal.User.AccessRole != "admin" {
 			h.writeError(w, http.StatusForbidden, "This account has read-only access")
 			return
 		}

@@ -250,7 +250,7 @@ func lockUser(ctx context.Context, tx *sql.Tx, userID string) error {
 	if e != nil {
 		return e
 	}
-	if role != "member" || activation {
+	if (role != "member" && role != "admin") || activation {
 		return ErrInactive
 	}
 	var deleting bool

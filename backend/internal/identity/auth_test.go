@@ -229,6 +229,42 @@ func TestAdminGuardUsesDatabaseBackedRole(t *testing.T) {
 	}
 }
 
+func TestMemberGuardAllowsMembersAndAdmins(t *testing.T) {
+	for _, role := range []string{"member", "admin"} {
+		t.Run(role, func(t *testing.T) {
+			repository := &memoryRepository{user: testUser(), sessions: make(map[string]time.Time)}
+			repository.user.AccessRole = role
+			service := NewService(repository, testTokens(t))
+			auth := NewHandler(service, HTTPConfig{SecureCookies: true, AllowedOrigins: []string{"https://app.example.invalid"}}, slog.New(slog.NewTextHandler(io.Discard, nil)))
+			router := httprouter.New()
+			router.Handler(http.MethodPost, "/protected", auth.RequireMember(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusNoContent) }))
+			response, _, _, err := service.Login(context.Background(), repository.user.Email, testPassword)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if w := call(router, http.MethodPost, "/protected", "", nil, response.AccessToken); w.Code != http.StatusNoContent {
+				t.Fatalf("%s denied: %d %s", role, w.Code, w.Body.String())
+			}
+		})
+	}
+}
+
+func TestMemberGuardRejectsViewer(t *testing.T) {
+	repository := &memoryRepository{user: testUser(), sessions: make(map[string]time.Time)}
+	repository.user.AccessRole = "viewer"
+	service := NewService(repository, testTokens(t))
+	auth := NewHandler(service, HTTPConfig{SecureCookies: true, AllowedOrigins: []string{"https://app.example.invalid"}}, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	router := httprouter.New()
+	router.Handler(http.MethodPost, "/protected", auth.RequireMember(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusNoContent) }))
+	response, _, _, err := service.Login(context.Background(), repository.user.Email, testPassword)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if w := call(router, http.MethodPost, "/protected", "", nil, response.AccessToken); w.Code != http.StatusForbidden {
+		t.Fatalf("viewer accepted: %d %s", w.Code, w.Body.String())
+	}
+}
+
 func TestParallelRefreshAndLogoutCannotRestoreSession(t *testing.T) {
 	handler, _, service := testHTTP(t)
 	_, cookie := loginHTTP(t, handler)

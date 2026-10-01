@@ -132,7 +132,7 @@ func (s *Service) accountActive(ctx context.Context, userID string, write bool) 
 	if deleting {
 		return failure(409, "Account deletion is pending")
 	}
-	if write && role != "member" {
+	if write && role != "member" && role != "admin" {
 		return failure(403, "This role cannot modify content")
 	}
 	return nil

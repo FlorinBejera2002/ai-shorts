@@ -85,7 +85,7 @@ func (h *Handler) verifyAgentCalendar(ctx context.Context, tx *sql.Tx, user, id 
 		return nil
 	}
 	var permitted bool
-	if err := tx.QueryRowContext(ctx, `SELECT access_role='member' AND NOT email_activation_required FROM users WHERE id=$1`, user).Scan(&permitted); err != nil {
+	if err := tx.QueryRowContext(ctx, `SELECT access_role IN ('member','admin') AND NOT email_activation_required FROM users WHERE id=$1`, user).Scan(&permitted); err != nil {
 		return err
 	}
 	if !permitted {
