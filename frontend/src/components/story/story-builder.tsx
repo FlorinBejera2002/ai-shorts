@@ -607,11 +607,11 @@ function StoryWorkspace({
           </div>
         </StoryWizard>
       ) : (
-        <details className="w-full rounded-md border bg-card">
+        <details className="w-full rounded-md bg-card shadow-sm [&_[data-slot=card]]:shadow-none">
           <summary className="cursor-pointer rounded-md px-5 py-4 text-sm font-medium hover:bg-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground">
             {text('Original files and settings', 'Fișiere originale și setări')}
           </summary>
-          <div className="space-y-4 border-t p-4">
+          <div className="space-y-4 p-4">
             {sourcesPanel}
             {narrationPanel}
             {optionsPanel('all')}

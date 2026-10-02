@@ -51,7 +51,11 @@ export function StoryProjectHeader({
           </select>
         )}
         {id && (
-          <Button variant="outline" disabled={disabled} onClick={() => onSelect('')}>
+          <Button
+            variant="outline"
+            disabled={disabled}
+            onClick={() => onSelect('')}
+          >
             <Plus />
             {text('New story', 'Poveste nouă')}
           </Button>
@@ -76,8 +80,22 @@ interface StatusProps {
   onCancel: () => void
 }
 
-export function StoryProjectStatus({ project, active, busy, onCancel }: StatusProps) {
+export function StoryProjectStatus({
+  project,
+  active,
+  busy,
+  onCancel
+}: StatusProps) {
   if (project.status === 'draft') return null
+  // Terminal review guidance belongs beside the result, not in a process hero.
+  if (
+    !active &&
+    project.versions.some(
+      (version) => version.number === project.current_version
+    ) &&
+    ['ready', 'needs_review'].includes(project.status)
+  )
+    return null
   return (
     <StoryProcessing
       project={project}

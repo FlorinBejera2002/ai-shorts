@@ -122,7 +122,10 @@ export function StorySources({
             multiple
             accept="video/mp4,video/quicktime,video/webm,video/x-matroska,.mp4,.mov,.webm,.mkv"
             className="hidden"
-            aria-label={text('Upload story clips', 'Încarcă filmări pentru poveste')}
+            aria-label={text(
+              'Upload story clips',
+              'Încarcă filmări pentru poveste'
+            )}
             onChange={(event) => {
               onAdd(Array.from(event.target.files ?? []))
               event.target.value = ''
@@ -131,7 +134,10 @@ export function StorySources({
         </>
       )}
       {uploading && (
-        <div aria-live="polite" className="space-y-1.5 text-xs text-muted-foreground">
+        <div
+          aria-live="polite"
+          className="space-y-1.5 text-xs text-muted-foreground"
+        >
           <div className="flex justify-between gap-2">
             <span>
               {text('Transferred', 'Transferat')}: {formatBytes(transferred)} /{' '}
@@ -160,7 +166,9 @@ export function StorySources({
             <div className="flex items-center gap-3">
               <SourceThumbnail
                 asset={asset}
-                localPreview={uploads.find((upload) => upload.id === asset.id)?.preview}
+                localPreview={
+                  uploads.find((upload) => upload.id === asset.id)?.preview
+                }
               />
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium" title={asset.name}>
@@ -207,10 +215,19 @@ export function StorySources({
                     {[
                       ['auto', text('Automatic', 'Automat')],
                       ['a_roll', text('Main footage', 'Filmarea principală')],
-                      ['b_roll', text('Illustrative footage', 'Imagini de completare')],
-                      ['alternate_take', text('Alternate take', 'Dublă alternativă')],
+                      [
+                        'b_roll',
+                        text('Illustrative footage', 'Imagini de completare')
+                      ],
+                      [
+                        'alternate_take',
+                        text('Alternate take', 'Dublă alternativă')
+                      ],
                       ['reaction', text('Reaction', 'Reacție')],
-                      ['transition', text('Transition shot', 'Cadru de tranziție')],
+                      [
+                        'transition',
+                        text('Transition shot', 'Cadru de tranziție')
+                      ],
                       [
                         'supporting_visual',
                         text('Supporting visual', 'Imagine de susținere')
@@ -236,11 +253,15 @@ export function StorySources({
                       onChange(asset.id, { include: event.target.value })
                     }
                   >
-                    <option value="auto">{text('Let AI choose', 'Alege AI')}</option>
+                    <option value="auto">
+                      {text('Let AI choose', 'Alege AI')}
+                    </option>
                     <option value="required">
                       {text('Must include', 'Include obligatoriu')}
                     </option>
-                    <option value="excluded">{text('Exclude', 'Exclude')}</option>
+                    <option value="excluded">
+                      {text('Exclude', 'Exclude')}
+                    </option>
                   </select>
                 </label>
                 <label className="min-w-0 text-xs">
@@ -265,14 +286,21 @@ export function StorySources({
                 </label>
               </div>
             </details>
-            {asset.warnings?.map((warning, index) => (
-              <p
-                key={`${index}-${warning}`}
-                className="mt-2 text-xs text-muted-foreground"
-              >
-                {warning}
-              </p>
-            ))}
+            {Boolean(asset.warnings?.length) && (
+              <details className="mt-3 text-xs text-muted-foreground">
+                <summary className="cursor-pointer hover:text-foreground">
+                  {text('Analysis details', 'Detalii analiză')}
+                </summary>
+                {asset.warnings?.map((warning, index) => (
+                  <p
+                    key={`${index}-${warning}`}
+                    className="mt-2 text-xs text-muted-foreground"
+                  >
+                    {warning}
+                  </p>
+                ))}
+              </details>
+            )}
           </li>
         ))}
         {pending.map((upload) => (
@@ -295,7 +323,10 @@ export function StorySources({
                 }}
               />
               <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium" title={upload.file.name}>
+                <p
+                  className="truncate text-sm font-medium"
+                  title={upload.file.name}
+                >
                   {upload.file.name}
                 </p>
                 <p className="text-xs text-muted-foreground">
@@ -337,7 +368,10 @@ export function StorySources({
               )}
             </div>
             {upload.error && (
-              <p role="alert" className="mt-2 break-words text-xs text-destructive">
+              <p
+                role="alert"
+                className="mt-2 break-words text-xs text-destructive"
+              >
                 {upload.error}
               </p>
             )}

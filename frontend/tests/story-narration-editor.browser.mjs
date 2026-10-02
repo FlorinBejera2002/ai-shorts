@@ -210,19 +210,15 @@ try {
   const blocks = page.getByTestId('story-block')
   assert.equal(await blocks.count(), 3)
   assert.equal(
-    await page.getByRole('button', { name: 'Make this faster', exact: true }).count(),
+    await page.getByRole('button', { name: 'Faster pace', exact: true }).count(),
     0
   )
-  await page.getByRole('button', { name: 'Help for Story timeline', exact: true }).click()
-  await page.getByRole('tooltip')
-    .getByText(
-      'Your narration stays unchanged. Each section links to its voice recording and the footage shown.',
-      { exact: true }
-    )
-    .waitFor()
-  await page.keyboard.press('Escape')
-  await blocks.nth(0).getByText('The finished narration.', { exact: true }).waitFor()
-  await blocks.nth(1).getByText('Narration continues here.', { exact: true }).waitFor()
+  await page.getByText('Adjust the edit while keeping your narration unchanged.', { exact: true }).waitFor()
+  for (let index = 0; index < 3; index++) {
+    await blocks.nth(index).locator('summary').click()
+  }
+  await blocks.nth(0).getByText('The finished narration.', { exact: true }).last().waitFor()
+  await blocks.nth(1).getByText('Narration continues here.', { exact: true }).last().waitFor()
   await blocks
     .nth(2)
     .getByText('Listen to the narration for this section.', { exact: true })
@@ -278,7 +274,7 @@ try {
     0
   )
   await alternate.selectOption('shot-alternate')
-  await page.getByText('Natural · Version 2', { exact: true }).waitFor()
+  await page.getByText('0:06 · Vertical · Version 2', { exact: true }).waitFor()
   assert.equal(edits.length, 1)
   assert.equal(
     await blocks
@@ -294,10 +290,10 @@ try {
       .getAttribute('href'),
     '/original/voice.wav?signed=fixture#t=10,12'
   )
-  await blocks.nth(0).getByText('The finished narration.', { exact: true }).waitFor()
+  await blocks.nth(0).getByText('The finished narration.', { exact: true }).last().waitFor()
   await page.reload({ waitUntil: 'domcontentloaded' })
-  await page.getByText('Natural · Version 2', { exact: true }).waitFor()
-  await blocks.nth(1).getByText('Narration continues here.', { exact: true }).waitFor()
+  await page.getByText('0:06 · Vertical · Version 2', { exact: true }).waitFor()
+  await blocks.nth(1).getByText('Narration continues here.', { exact: true }).first().waitFor()
   assert.equal(await page.evaluate(() => window.microphoneCalls), 0)
   assert.deepEqual(errors, [])
   console.log(

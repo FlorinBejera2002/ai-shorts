@@ -367,15 +367,15 @@ try {
   )
   await confirmation.check()
   await page.getByRole('button', { name: 'Build my story', exact: true }).click()
-  await page.getByRole('heading', { name: 'Story timeline' }).waitFor()
-  await page
-    .getByRole('status')
-    .filter({ hasText: 'Needs review' })
-    .waitFor({ timeout: 15000 })
+  await page.getByRole('heading', { name: /^Scenes/ }).waitFor()
+  await page.getByTestId('story-processing').waitFor({ state: 'detached' })
   assert.equal(generations.length, 1, 'Multiple files produce one story job')
+  await page.getByText('Some automatic checks could not be completed', { exact: true }).waitFor()
+  await page.getByText('Technical report', { exact: true }).click()
   await page.getByText('A visual reviewer was unavailable.').waitFor()
   await page.getByText('Caption words require correction; changing timing cannot fix them.').waitFor()
-  await page.getByRole('checkbox', { name: 'Entire section', exact: true }).click()
+  await page.getByTestId('story-block').locator('summary').click()
+  await page.getByRole('checkbox', { name: 'Entire scene', exact: true }).click()
   await page.waitForFunction(
     () =>
       document.querySelector('[data-testid="story-block"] input[type="checkbox"]')
@@ -383,10 +383,11 @@ try {
   )
   assert.equal(locked, true)
   assert.equal(
-    await page.getByRole('button', { name: 'Regenerate this section' }).isDisabled(),
+    await page.getByRole('button', { name: 'Rework this scene' }).isDisabled(),
     true
   )
-  await page.getByRole('checkbox', { name: 'Entire section', exact: true }).click()
+
+  await page.getByRole('checkbox', { name: 'Entire scene', exact: true }).click()
   await page.waitForFunction(
     () =>
       !document.querySelector('[data-testid="story-block"] input[type="checkbox"]')
@@ -395,20 +396,18 @@ try {
   const alternate = page.getByLabel('Use another take 1', { exact: true })
   await alternate.selectOption('candidate-2')
   await page.getByText('Version 2', { exact: false }).first().waitFor()
-  await page
-    .getByRole('status')
-    .filter({ hasText: 'Needs review' })
-    .waitFor({ timeout: 15000 })
+  await page.getByTestId('story-processing').waitFor({ state: 'detached' })
+  await page.getByText('Previous versions', { exact: true }).click()
   await page.getByLabel('Restore version', { exact: true }).selectOption('1')
-  await page.getByText('Natural · Version 1', { exact: true }).waitFor()
+  await page.getByText('0:08 · Vertical · Version 1', { exact: true }).waitFor()
   await page.reload()
-  await page.getByRole('heading', { name: 'Story timeline' }).waitFor()
+  await page.getByRole('heading', { name: /^Scenes/ }).waitFor()
   assert.equal(
     await page.locator('[data-testid="validated-source"]').count(),
     fileCount,
     'Reload restores successful uploads'
   )
-  const storyHeading = await page.getByRole('heading', { name: 'Story timeline' }).elementHandle()
+  const storyHeading = await page.getByRole('heading', { name: /^Scenes/ }).elementHandle()
   await page.getByRole('button', { name: 'Import a video or link' }).click()
   await page.locator('#youtube-url').fill('draft source link to preserve')
   await page.getByRole('tab', { name: 'Batch', exact: true }).click()
@@ -422,7 +421,7 @@ try {
   await page.getByRole('button', { name: 'Multi-clip story', exact: true }).click()
   assert.equal(await legacyInput.evaluate((node) => node.isConnected), true, 'Legacy import stays mounted while hidden')
   assert.equal(await storyHeading.evaluate((node) => node.isConnected), true, 'Story editor keeps its mounted state')
-  await page.getByText('Natural · Version 1', { exact: true }).waitFor()
+  await page.getByText('0:08 · Vertical · Version 1', { exact: true }).waitFor()
   await page.getByRole('button', { name: 'Import a video or link' }).click()
   assert.equal(await page.getByRole('tab', { name: 'Batch', exact: true }).getAttribute('aria-selected'), 'true')
   assert.equal(await batchInput.inputValue(), 'draft batch source to preserve')

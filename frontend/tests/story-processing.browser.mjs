@@ -128,18 +128,18 @@ try {
   await advance('reviewing')
   project = { ...project, versions: [version('ready')] }
   project = { ...project, status: 'ready', message: 'Fixture ready after completed checks' }
-  await waitStatus('ready')
-  assert.equal(await processing.getByRole('progressbar').count(), 0)
-  assert.equal(await processing.locator('.job-stage-map [data-state="done"]').count(), 5)
-  assert.equal(await processing.getByRole('button', { name: 'Cancel processing', exact: true }).count(), 0)
+  await processing.waitFor({ state: 'detached' })
+  await page.getByRole('heading', { name: 'Automatic checks completed', exact: true }).waitFor()
 
-  await loadStatus('needs_review', { versions: [version('needs_review')] })
-  assert.equal(await processing.getByRole('progressbar').count(), 0)
-  assert.notEqual(await stage('reviewing').getAttribute('data-state'), 'done')
-  assert.doesNotMatch(await processing.innerText(), /100\s*%/)
-  await page.getByText('Fixture: this visual still needs a human check.', { exact: true }).waitFor()
+  project = { ...project, status: 'needs_review', versions: [version('needs_review')] }
+  await page.goto(`${origin}/dashboard/create?story=${projectID}`, { waitUntil: 'networkidle' })
+  await page.getByRole('heading', { name: 'Before you publish', exact: true }).waitFor()
+  assert.equal(await processing.count(), 0)
+  await page.getByTestId('story-review-topic').getByText('Fixture: this visual still needs a human check.', { exact: true }).waitFor()
+  await page.getByText('Technical report', { exact: true }).click()
   await page.getByText('Fixture: visual review remains incomplete.', { exact: true }).waitFor()
-  await capture('needs-review-mobile')
+  await page.getByText('Technical report', { exact: true }).click()
+  await page.screenshot({ path: `${output}/needs-review-mobile.png`, fullPage: true, animations: 'disabled' })
   await page.emulateMedia({ reducedMotion: 'no-preference' })
   await loadStatus('failed', { current_version: 0, versions: [], error: 'Fixture render failed; original recordings are safe.' })
   await processing.getByText(project.error, { exact: true }).waitFor()

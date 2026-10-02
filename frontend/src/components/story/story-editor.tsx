@@ -1,12 +1,13 @@
-import { useRef } from 'react'
-import { LockKeyhole, RotateCcw } from 'lucide-react'
+import { useRef, useState } from 'react'
+import { ArrowRightLeft, Gauge, Layers, RotateCcw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { formatDuration } from '@/lib/youtube'
-import type { StoryAsset, StoryBlock, StoryProject, StoryVersion } from './types'
+import type { StoryBlock, StoryProject, StoryVersion } from './types'
 import { StoryReview } from './story-review'
+import { StoryScene } from './story-scene'
+import { StoryResultHeader } from './story-result-header'
 import { useStoryLanguage } from './use-story-language'
-import { StoryHelp } from './story-help'
+import './story-editor.css'
 
 interface Props {
   project: StoryProject
@@ -15,23 +16,6 @@ interface Props {
   onAction: (action: string, blockID?: string, candidateID?: string) => void
   onLock: (block: StoryBlock, patch: Partial<StoryBlock>) => void
   onRollback: (version: number) => void
-}
-
-function narrationText(
-  entry: StoryVersion['timeline'][number] | undefined,
-  source: StoryAsset | undefined
-) {
-  if (!entry?.audio) return ''
-  if (entry.words?.length) return entry.words.map((word) => word.text).join(' ')
-  const interval = entry.audio
-  const words = (source?.candidates ?? [])
-    .flatMap((candidate) => candidate.words ?? [])
-    .filter((word) => word.end > interval.in && word.start < interval.out)
-    .sort((a, b) => a.start - b.start || a.end - b.end)
-  const unique = new Map(
-    words.map((word) => [`${word.start}:${word.end}:${word.text}`, word])
-  )
-  return [...unique.values()].map((word) => word.text).join(' ')
 }
 
 export function StoryEditor({
@@ -44,340 +28,254 @@ export function StoryEditor({
 }: Props) {
   const text = useStoryLanguage()
   const video = useRef<HTMLVideoElement>(null)
+  const [media, setMedia] = useState<{ url: string; duration: number }>()
   const narration = Boolean(project.options.narration)
-  const alternativeLabel = narration
-    ? text('Use another shot', 'Folosește alt cadru')
-    : text('Use another take', 'Folosește altă dublă')
-  const candidates = new Map(
-    (project.assets ?? [])
-      .flatMap((asset) => asset.candidates ?? [])
-      .map((candidate) => [candidate.id, candidate])
+  const timelineDuration = Math.max(
+    0,
+    ...version.timeline.map((entry) => entry.output_out)
   )
-  const assets = new Map(project.assets.map((asset) => [asset.id, asset]))
+  const duration =
+    media && media.url === version.preview_url
+      ? media.duration
+      : timelineDuration
   const oldVersions = (project.versions ?? []).filter(
     (item) => item.accepted && item.number !== version.number
   )
+
+  function seekTo(seconds: number) {
+    const player = video.current
+    if (!player) return
+    const end = Number.isFinite(player.duration) ? player.duration : seconds
+    player.currentTime = Math.max(0, Math.min(seconds, end))
+    player.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    player.focus({ preventScroll: true })
+  }
+
   return (
-    <div className="space-y-5">
-      <Card className="block space-y-4 p-5">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h2 className="flex items-center gap-2 font-semibold">
-              {version.plan.title || text('Your story', 'Povestea ta')}
-              {version.plan.summary && (
-                <StoryHelp label={text('About this edit', 'Despre acest montaj')}>
-                  {version.plan.summary}
-                </StoryHelp>
+    <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1.2fr)_minmax(22rem,1fr)]">
+      <div className="min-w-0 space-y-5">
+        <Card className="story-result-surface block space-y-4 border-0 p-5">
+          <StoryResultHeader
+            version={version}
+            duration={duration}
+            aspectRatio={project.options.aspect_ratio}
+          />
+          {version.preview_url ? (
+            <div className="flex justify-center rounded-md bg-muted p-3">
+              <video
+                ref={video}
+                src={version.preview_url}
+                poster={version.thumbnail_url}
+                controls
+                playsInline
+                preload="metadata"
+                tabIndex={0}
+                onLoadedMetadata={(event) => {
+                  const loadedDuration = event.currentTarget.duration
+                  if (Number.isFinite(loadedDuration) && version.preview_url) {
+                    setMedia({
+                      url: version.preview_url,
+                      duration: loadedDuration
+                    })
+                  }
+                }}
+                className="max-h-[28rem] w-auto max-w-full rounded-md bg-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
+                aria-label={text('Story preview', 'Previzualizare poveste')}
+              />
+            </div>
+          ) : (
+            <p className="rounded-md bg-muted p-4 text-sm">
+              {text(
+                'A playable preview is not available for this version.',
+                'Nu există o previzualizare redabilă pentru această versiune.'
               )}
+            </p>
+          )}
+        </Card>
+        <Card
+          as="section"
+          className="story-result-surface block space-y-4 border-0 p-5"
+        >
+          <div>
+            <h2 className="font-semibold">
+              {text('Improve your video', 'Îmbunătățește videoul')}
             </h2>
             <p className="mt-1 text-xs text-muted-foreground">
-              Natural · {text('Version', 'Versiunea')} {version.number}
+              {narration
+                ? text(
+                    'Adjust the edit while keeping your narration unchanged.',
+                    'Ajustează montajul păstrând narațiunea neschimbată.'
+                  )
+                : text(
+                    'Choose what to improve across the entire video.',
+                    'Alege ce vrei să îmbunătățești în întregul video.'
+                  )}
             </p>
           </div>
-          {version.preview_url && (
-            <Button asChild variant="outline" size="sm">
-              <a href={version.preview_url} download target="_blank" rel="noreferrer">
-                {version.report.status === 'ready'
-                  ? text('Download', 'Descarcă')
-                  : text('Download draft', 'Descarcă draft')}
-              </a>
-            </Button>
-          )}
-        </div>
-        {version.preview_url ? (
-          <video
-            ref={video}
-            src={version.preview_url}
-            poster={version.thumbnail_url}
-            controls
-            playsInline
-            preload="metadata"
-            className="max-h-[34rem] w-full rounded-md bg-black"
-            aria-label={text('Story preview', 'Previzualizare poveste')}
-          />
-        ) : (
-          <p className="rounded-md bg-muted p-4 text-sm">
-            {text(
-              'A playable preview is not available for this version.',
-              'Nu există o previzualizare redabilă pentru această versiune.'
+          <div className="grid gap-3 sm:grid-cols-3">
+            {!narration && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-auto items-start justify-start gap-2 whitespace-normal p-3 text-left"
+                disabled={disabled}
+                onClick={() => onAction('faster')}
+                aria-label={text('Faster pace', 'Ritm mai alert')}
+              >
+                <Gauge className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+                <span className="space-y-1">
+                  <span className="block">
+                    {text('Faster pace', 'Ritm mai alert')}
+                  </span>
+                  <span className="block text-xs font-normal text-muted-foreground">
+                    {text(
+                      'A shorter, more dynamic edit',
+                      'Un montaj mai scurt și dinamic'
+                    )}
+                  </span>
+                </span>
+              </Button>
             )}
-          </p>
-        )}
-        {(version.plan.gaps ?? []).length > 0 && (
-          <div className="space-y-2 rounded-md border p-3">
-            <h3 className="text-sm font-medium">
-              {text('Missing from your recordings', 'Ce lipsește din filmări')}
-            </h3>
-            {version.plan.gaps?.map((gap, index) => (
-              <p key={`${index}-${gap}`} className="text-sm text-muted-foreground">
-                {gap}
-              </p>
-            ))}
-          </div>
-        )}
-        <div className="flex flex-wrap gap-2">
-          {!narration && (
             <Button
               variant="outline"
               size="sm"
+              className="h-auto items-start justify-start gap-2 whitespace-normal p-3 text-left"
               disabled={disabled}
-              onClick={() => onAction('faster')}
+              onClick={() => onAction('improve_flow')}
+              aria-label={text('Smoother flow', 'Montaj mai cursiv')}
             >
-              {text('Make this faster', 'Fă-l mai rapid')}
+              <Layers className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+              <span className="space-y-1">
+                <span className="block">
+                  {text('Smoother flow', 'Montaj mai cursiv')}
+                </span>
+                <span className="block text-xs font-normal text-muted-foreground">
+                  {text(
+                    'Connect the moments more naturally',
+                    'Leagă momentele mai natural'
+                  )}
+                </span>
+              </span>
             </Button>
-          )}
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={disabled}
-            onClick={() => onAction('improve_flow')}
-          >
-            {text('Improve flow', 'Îmbunătățește cursivitatea')}
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={disabled}
-            onClick={() => onAction('improve_transitions')}
-          >
-            {text('Improve transitions', 'Îmbunătățește tranzițiile')}
-          </Button>
-        </div>
-        {oldVersions.length > 0 && (
-          <label className="block space-y-2 text-sm">
-            <span className="flex items-center gap-2">
-              <RotateCcw className="size-4" />
-              {text('Restore a previous version', 'Revino la o versiune anterioară')}
-            </span>
-            <select
-              className="story-select"
-              aria-label={text('Restore version', 'Restaurează versiunea')}
-              value=""
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-auto items-start justify-start gap-2 whitespace-normal p-3 text-left"
               disabled={disabled}
-              onChange={(event) => {
-                if (event.target.value) onRollback(Number(event.target.value))
-              }}
+              onClick={() => onAction('improve_transitions')}
+              aria-label={text('Smoother transitions', 'Tranziții mai fluide')}
             >
-              <option value="">
-                {text('Choose a saved version…', 'Alege o versiune salvată…')}
-              </option>
-              {oldVersions.map((item) => (
-                <option key={item.number} value={item.number}>
-                  {text('Version', 'Versiunea')} {item.number} ·{' '}
-                  {item.report.status === 'ready'
-                    ? text('Ready', 'Pregătită')
-                    : text('Needs review', 'Necesită revizie')}
-                </option>
-              ))}
-            </select>
-          </label>
-        )}
-      </Card>
-      <Card className="block space-y-4 p-5">
-        <div>
-          <h2 className="flex items-center gap-2 font-semibold">
-            {text('Story timeline', 'Cronologia poveștii')}
-            <StoryHelp label={text('Story timeline', 'Cronologia poveștii')}>
-              {narration
-                ? text(
-                    'Your narration stays unchanged. Each section links to its voice recording and the footage shown.',
-                    'Narațiunea rămâne neschimbată. Fiecare secțiune trimite la înregistrarea vocii și la imaginile afișate.'
-                  )
-                : text(
-                    'Every selected sentence links to its original recording. Locks apply to future edits.',
-                    'Fiecare frază selectată trimite la filmarea originală. Blocările se aplică editărilor viitoare.'
+              <ArrowRightLeft
+                className="mt-0.5 size-4 shrink-0"
+                aria-hidden="true"
+              />
+              <span className="space-y-1">
+                <span className="block">
+                  {text('Smoother transitions', 'Tranziții mai fluide')}
+                </span>
+                <span className="block text-xs font-normal text-muted-foreground">
+                  {text(
+                    'Soften the cuts between scenes',
+                    'Fă trecerile dintre scene mai line'
                   )}
-            </StoryHelp>
-          </h2>
-        </div>
-        <ol className="space-y-4">
-          {version.plan.blocks.map((block, index) => {
-            const candidate = candidates.get(block.candidate_id)
-            const entry = version.timeline?.find((item) => item.block_id === block.id)
-            const audio = narration ? entry?.audio : candidate
-            const source = audio && assets.get(audio.source_id)
-            const visual = entry && assets.get(entry.video.source_id)
-            const transcript = narration
-              ? narrationText(entry, source)
-              : candidate?.text
-            const uncertainTranscript = narration
-              ? (source?.candidates ?? []).some(
-                  (item) =>
-                    audio &&
-                    item.out > audio.in &&
-                    item.in < audio.out &&
-                    item.confidence < 0.7
-                )
-              : candidate && candidate.confidence < 0.7
-            const alternatives = (block.alternatives ?? [])
-              .map((id) => candidates.get(id))
-              .filter((item) => item !== undefined)
-            return (
-              <li
-                key={block.id}
-                className="space-y-3 rounded-md border p-4"
-                data-testid="story-block"
-              >
-                <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
-                  <span className="rounded-sm bg-muted px-2 py-1">
-                    {index + 1} · {block.role}
-                  </span>
-                  {entry && (
-                    <button
-                      className="rounded-sm px-2 py-1 tabular-nums hover:bg-muted"
-                      type="button"
-                      onClick={() => {
-                        if (video.current) video.current.currentTime = entry.output_in
-                      }}
-                    >
-                      {formatDuration(entry.output_in)}–
-                      {formatDuration(entry.output_out)}
-                    </button>
+                </span>
+              </span>
+            </Button>
+          </div>
+          {oldVersions.length > 0 && (
+            <details className="pt-3">
+              <summary className="cursor-pointer text-sm font-medium">
+                {text('Previous versions', 'Versiuni anterioare')}
+              </summary>
+              <label className="mt-3 block space-y-2 text-sm">
+                <span className="flex items-center gap-2">
+                  <RotateCcw className="size-4" aria-hidden="true" />
+                  {text(
+                    'Restore a previous version',
+                    'Revino la o versiune anterioară'
                   )}
-                </div>
-                <p className="whitespace-pre-wrap text-sm leading-relaxed">
-                  {transcript ||
-                    (narration
-                      ? text(
-                          'Listen to the narration for this section.',
-                          'Ascultă narațiunea acestei secțiuni.'
-                        )
-                      : text('Supporting visual', 'Imagine de susținere'))}
-                </p>
-                {source && audio && (
-                  <div className="text-xs text-muted-foreground">
-                    {narration
-                      ? text('Your narration', 'Narațiunea ta')
-                      : text(
-                          'Original audio / selected take',
-                          'Audio original / dublă selectată'
-                        )}
-                    :{' '}
-                    {source.source_url ? (
-                      <a
-                        className="underline underline-offset-2"
-                        href={`${source.source_url}#t=${audio.in},${audio.out}`}
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        {source.name}
-                      </a>
-                    ) : (
-                      source.name
-                    )}{' '}
-                    · {formatDuration(audio.in)}–{formatDuration(audio.out)}
-                  </div>
-                )}
-                {visual &&
-                  entry &&
-                  (narration || entry.audio?.source_id !== entry.video.source_id) && (
-                    <p className="text-xs text-muted-foreground">
-                      {text('Visual source', 'Sursă imagine')}:{' '}
-                      {narration && visual.source_url ? (
-                        <a
-                          className="underline underline-offset-2"
-                          href={`${visual.source_url}#t=${entry.video.in},${entry.video.out}`}
-                          target="_blank"
-                          rel="noreferrer"
-                        >
-                          {visual.name}
-                        </a>
-                      ) : (
-                        visual.name
-                      )}{' '}
-                      · {formatDuration(entry.video.in)}–
-                      {formatDuration(entry.video.out)}
-                    </p>
-                  )}
-                <p className="text-xs text-muted-foreground">
-                  {block.reason || candidate?.reason}
-                </p>
-                {uncertainTranscript && (
-                  <p className="text-xs text-muted-foreground">
-                    {text(
-                      'Uncertain transcript: listen to the original before relying on this selection.',
-                      'Transcriere incertă: ascultă originalul înainte să te bazezi pe această selecție.'
-                    )}
-                  </p>
-                )}
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={disabled || block.locked}
-                    onClick={() => onAction('regenerate_section', block.id)}
-                  >
-                    {text('Regenerate this section', 'Regenerează secțiunea')}
-                  </Button>
-                  {alternatives.length > 0 && (
-                    <label className="min-w-0 flex-1 text-xs">
-                      <span className="sr-only">
-                        {alternativeLabel} {index + 1}
-                      </span>
-                      <select
-                        className="story-select"
-                        aria-label={`${alternativeLabel} ${index + 1}`}
-                        disabled={
-                          disabled || block.locked || (!narration && block.lock_text)
-                        }
-                        value=""
-                        onChange={(event) => {
-                          if (event.target.value)
-                            onAction('alternate', block.id, event.target.value)
-                        }}
-                      >
-                        <option value="">{alternativeLabel}…</option>
-                        {alternatives.map((alternative) => (
-                          <option key={alternative.id} value={alternative.id}>
-                            {assets.get(alternative.source_id)?.name} ·{' '}
-                            {formatDuration(alternative.in)} ·{' '}
-                            {(narration ? alternative.reason : alternative.text).slice(
-                              0,
-                              70
-                            )}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                  )}
-                </div>
-                <fieldset
+                </span>
+                <select
+                  className="story-select"
+                  aria-label={text('Restore version', 'Restaurează versiunea')}
+                  value=""
                   disabled={disabled}
-                  className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs"
+                  onChange={(event) => {
+                    if (event.target.value)
+                      onRollback(Number(event.target.value))
+                  }}
                 >
-                  <legend className="sr-only">
-                    {text('Section locks', 'Blocările secțiunii')} {index + 1}
-                  </legend>
-                  <LockKeyhole className="size-3.5" aria-hidden="true" />
-                  {(
-                    [
-                      ['locked', text('Entire section', 'Întreaga secțiune')],
-                      ['lock_text', text('Words', 'Cuvinte')],
-                      ['lock_order', text('Order', 'Ordine')],
-                      ['lock_crop', text('Framing', 'Încadrare')]
-                    ] as const
-                  )
-                    .filter(([key]) => !narration || key !== 'lock_text')
-                    .map(([key, label]) => (
-                      <label key={key} className="flex items-center gap-1.5">
-                        <input
-                          type="checkbox"
-                          className="accent-foreground"
-                          checked={block[key]}
-                          onChange={(event) =>
-                            onLock(block, { [key]: event.target.checked })
-                          }
-                        />
-                        {label}
-                      </label>
-                    ))}
-                </fieldset>
-              </li>
-            )
-          })}
+                  <option value="">
+                    {text(
+                      'Choose a saved version…',
+                      'Alege o versiune salvată…'
+                    )}
+                  </option>
+                  {oldVersions.map((item) => (
+                    <option key={item.number} value={item.number}>
+                      {text('Version', 'Versiunea')} {item.number} ·{' '}
+                      {item.report.status === 'ready'
+                        ? text('Ready', 'Pregătită')
+                        : text('Draft', 'Versiune preliminară')}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </details>
+          )}
+        </Card>
+        <StoryReview
+          version={version}
+          attempts={project.attempts}
+          onSeek={version.preview_url ? seekTo : undefined}
+        />
+        {(version.plan.gaps ?? []).length > 0 && (
+          <details className="pt-3">
+            <summary className="cursor-pointer text-sm font-medium">
+              {text('Missing from your recordings', 'Ce lipsește din filmări')}
+            </summary>
+            <div className="mt-3 space-y-2">
+              {version.plan.gaps?.map((gap, index) => (
+                <p
+                  key={`${index}-${gap}`}
+                  className="text-sm text-muted-foreground"
+                >
+                  {gap}
+                </p>
+              ))}
+            </div>
+          </details>
+        )}
+      </div>
+
+      <Card className="story-result-surface block min-w-0 border-0 p-5">
+        <div>
+          <h2 className="font-semibold">
+            {text('Scenes', 'Scene')} · {version.plan.blocks.length}
+          </h2>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {text(
+              'View a scene in your video. Open its details to change it.',
+              'Vezi o scenă în video. Deschide detaliile pentru a o modifica.'
+            )}
+          </p>
+        </div>
+        <ol className="mt-4 space-y-2 xl:max-h-[40rem] xl:overflow-y-auto">
+          {version.plan.blocks.map((block, index) => (
+            <StoryScene
+              key={block.id}
+              project={project}
+              version={version}
+              block={block}
+              index={index}
+              disabled={disabled}
+              onAction={onAction}
+              onLock={onLock}
+              onSeek={version.preview_url ? seekTo : undefined}
+            />
+          ))}
         </ol>
       </Card>
-      <StoryReview version={version} attempts={project.attempts} />
     </div>
   )
 }
