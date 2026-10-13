@@ -149,7 +149,7 @@ func (r *Repository) ChangeProjectBrand(ctx context.Context, user, request, acti
 					return before, ErrInvalid
 				}
 				var reference string
-				err = tx.QueryRowContext(ctx, `SELECT reference FROM workspace_agent_resources WHERE id=$1 AND user_id=$2 AND kind='logo' AND (project_id IS NULL OR project_id::text=$3)`, *in.LogoResourceID, user, in.ProjectID).Scan(&reference)
+				err = tx.QueryRowContext(ctx, `SELECT reference FROM workspace_agent_resources WHERE id=$1 AND user_id=$2 AND kind='logo' AND project_id IS NULL AND (source_project_id IS NULL OR source_project_id::text=$3)`, *in.LogoResourceID, user, in.ProjectID).Scan(&reference)
 				if err != nil {
 					return before, err
 				}

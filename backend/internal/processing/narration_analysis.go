@@ -60,7 +60,7 @@ func (p *Processor) analyzeNarration(ctx context.Context, project string, asset 
 	if signal < .001 {
 		return asset, errors.New("narration is silent; record an audible voice")
 	}
-	transcript, err := p.transcribeStory(ctx, wav, dir, options.Language, duration, model)
+	transcript, preparedAudio, err := p.transcribeStoryWithAudio(ctx, wav, dir, options.Language, duration, model, prefix+"/narration.wav")
 	if errors.Is(err, errSpeechDetectionUnavailable) {
 		return asset, errors.New("narration speech cannot be verified; install the voice activity detection model and retry")
 	}
@@ -98,7 +98,7 @@ func (p *Processor) analyzeNarration(ctx context.Context, project string, asset 
 	if err = p.storySave(ctx, cacheFile, prefix+"/analysis.json", "application/json"); err != nil {
 		return asset, err
 	}
-	return p.prepareStorySpeechCatalog(ctx, dir, asset, options)
+	return p.prepareStorySpeechCatalogWithAudio(ctx, dir, asset, options, preparedAudio)
 }
 
 func narrationVisualWindows(asset story.Asset, visual float64) []story.Candidate {

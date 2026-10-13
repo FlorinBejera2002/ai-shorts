@@ -40,6 +40,10 @@ func (p *Processor) storyVADExecutable() string {
 }
 
 func (p *Processor) prepareStorySpeechCatalog(ctx context.Context, dir string, raw story.Asset, options story.Options) (story.Asset, error) {
+	return p.prepareStorySpeechCatalogWithAudio(ctx, dir, raw, options, storyPreparedAudio{})
+}
+
+func (p *Processor) prepareStorySpeechCatalogWithAudio(ctx context.Context, dir string, raw story.Asset, options story.Options, audio storyPreparedAudio) (story.Asset, error) {
 	asset, err := applyStorySpeechPolicy(raw, options)
 	if err != nil {
 		return asset, err
@@ -57,7 +61,7 @@ func (p *Processor) prepareStorySpeechCatalog(ctx context.Context, dir string, r
 	if !spoken {
 		return asset, nil
 	}
-	intervals, err := p.storyVoiceIntervals(ctx, dir, raw, clockVersion, p.storyVADModel(model))
+	intervals, err := p.storyVoiceIntervals(ctx, dir, raw, clockVersion, p.storyVADModel(model), audio)
 	if ctx.Err() != nil {
 		return asset, ctx.Err()
 	}
@@ -95,7 +99,7 @@ func (p *Processor) prepareStorySpeechCatalog(ctx context.Context, dir string, r
 
 // This sidecar is intentionally separate from ASR analysis. Older expensive
 // transcripts can acquire measured voice bounds without another ASR run.
-func (p *Processor) storyVoiceIntervals(ctx context.Context, dir string, asset story.Asset, version, model string) ([]Segment, error) {
+func (p *Processor) storyVoiceIntervals(ctx context.Context, dir string, asset story.Asset, version, model string, audio storyPreparedAudio) ([]Segment, error) {
 	key := path.Dir(asset.ProxyKey) + "/voice-intervals-" + version + ".json"
 	file := filepath.Join(dir, "voice-intervals.json")
 	if p.materialize(ctx, key, file) == nil {
@@ -105,11 +109,19 @@ func (p *Processor) storyVoiceIntervals(ctx context.Context, dir string, asset s
 			return cached.Intervals, nil
 		}
 	}
-	proxy, err := p.storyMaterialize(ctx, dir, asset.ProxyKey)
-	if err != nil {
-		return nil, err
+	var intervals []Segment
+	var err error
+	if audio.matches(asset.ProxyKey, dir) {
+		// ASR and independent VAD use the same mono 16 kHz samples. Reusing
+		// those samples changes neither detector settings nor source clocks.
+		intervals, err = p.detectStoryVoiceAudio(ctx, dir, audio.file, model, asset.Duration)
+	} else {
+		var proxy string
+		proxy, err = p.storyMaterialize(ctx, dir, asset.ProxyKey)
+		if err == nil {
+			intervals, err = p.detectStoryVoice(ctx, dir, proxy, model, asset.Duration)
+		}
 	}
-	intervals, err := p.detectStoryVoice(ctx, dir, proxy, model, asset.Duration)
 	if err != nil {
 		return nil, err
 	}
@@ -123,11 +135,23 @@ func (p *Processor) storyVoiceIntervals(ctx context.Context, dir string, asset s
 	return intervals, nil
 }
 
+func (audio storyPreparedAudio) matches(proxyKey, dir string) bool {
+	if proxyKey == "" || audio.proxyKey != proxyKey || filepath.Dir(audio.file) != filepath.Clean(dir) {
+		return false
+	}
+	info, err := os.Stat(audio.file)
+	return err == nil && info.Mode().IsRegular() && info.Size() > 0
+}
+
 func (p *Processor) detectStoryVoice(ctx context.Context, dir, source, model string, duration float64) ([]Segment, error) {
 	wav := filepath.Join(dir, "voice-evidence.wav")
 	if err := p.ffmpeg(ctx, dir, "-i", source, "-vn", "-ac", "1", "-ar", "16000", "-c:a", "pcm_s16le", wav); err != nil {
 		return nil, err
 	}
+	return p.detectStoryVoiceAudio(ctx, dir, wav, model, duration)
+}
+
+func (p *Processor) detectStoryVoiceAudio(ctx context.Context, dir, wav, model string, duration float64) ([]Segment, error) {
 	args := []string{"--vad-model", model, "--file", wav, "--no-prints"}
 	args = append(args, storyVADArguments...)
 	output, err := run(ctx, dir, p.storyVADExecutable(), args...)

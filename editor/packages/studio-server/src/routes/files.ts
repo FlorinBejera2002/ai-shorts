@@ -2428,6 +2428,24 @@ export function registerFileRoutes(api: Hono, adapter: StudioApiAdapter): void {
     if ("error" in res) return res.error;
 
     const stat = statSync(res.absPath);
+    const expectedVersion = c.req.header("If-Match");
+    if (
+      expectedVersion &&
+      (stat.isDirectory() || fileContentVersion(readFileSync(res.absPath)) !== expectedVersion)
+    ) {
+      return c.json({ error: "file conflict" }, 409);
+    }
+    const expectedDocument = c.req.header("X-Studio-Document-Version");
+    if (expectedDocument) {
+      const document = resolveWithinProject(res.project.dir, "index.html");
+      if (
+        !document ||
+        !existsSync(document) ||
+        fileContentVersion(readFileSync(document)) !== expectedDocument
+      ) {
+        return c.json({ error: "document conflict" }, 409);
+      }
+    }
     const backup = snapshotBeforeWrite(res.project.dir, res.absPath);
     if (backup.error) console.warn(`Failed to create backup for ${res.filePath}: ${backup.error}`);
     if (stat.isDirectory()) {
@@ -3052,6 +3070,26 @@ export function registerFileRoutes(api: Hono, adapter: StudioApiAdapter): void {
       return c.json({ error: "already exists" }, 409);
     }
 
+    const expectedVersion = c.req.header("If-Match");
+    if (
+      expectedVersion &&
+      (!statSync(res.absPath).isFile() ||
+        fileContentVersion(readFileSync(res.absPath)) !== expectedVersion)
+    ) {
+      return c.json({ error: "file conflict" }, 409);
+    }
+    const expectedDocument = c.req.header("X-Studio-Document-Version");
+    if (expectedDocument) {
+      const document = resolveWithinProject(res.project.dir, "index.html");
+      if (
+        !document ||
+        !existsSync(document) ||
+        fileContentVersion(readFileSync(document)) !== expectedDocument
+      ) {
+        return c.json({ error: "document conflict" }, 409);
+      }
+    }
+
     ensureDir(newAbs);
     renameSync(res.absPath, newAbs);
 
@@ -3076,6 +3114,11 @@ export function registerFileRoutes(api: Hono, adapter: StudioApiAdapter): void {
     if (!srcAbs || !existsSync(srcAbs)) {
       return c.json({ error: "not found" }, 404);
     }
+    const source = readFileSync(srcAbs);
+    const expectedVersion = c.req.header("If-Match");
+    if (expectedVersion && fileContentVersion(source) !== expectedVersion) {
+      return c.json({ error: "file conflict" }, 409);
+    }
 
     const copyPath = generateCopyPath(project.dir, body.path);
     const destAbs = resolveWithinProject(project.dir, copyPath);
@@ -3084,7 +3127,7 @@ export function registerFileRoutes(api: Hono, adapter: StudioApiAdapter): void {
     }
 
     ensureDir(destAbs);
-    writeFileSync(destAbs, readFileSync(srcAbs));
+    writeFileSync(destAbs, source);
 
     return c.json({ ok: true, path: copyPath }, 201);
   });

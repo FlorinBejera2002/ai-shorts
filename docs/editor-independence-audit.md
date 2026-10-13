@@ -10,8 +10,9 @@ do not advertise that or deploy this local configuration as production-ready.
 
 The full Git LFS import has completed; `git lfs ls-files` reported no remaining
 pointer-only entries. Assets are now vendored without upstream LFS filters.
-The nested Git metadata was moved, recoverably, to the ignored root directory
-`.editor-upstream-history/`. The editor is ordinary source in the SneepCut
+The separate upstream Git metadata was removed after the completed import,
+at the user's request during local storage cleanup on 2026-10-02.
+The editor is ordinary source in the SneepCut
 repository, not a submodule. Licenses and attribution remain intact.
 
 ## Confirmed boundaries

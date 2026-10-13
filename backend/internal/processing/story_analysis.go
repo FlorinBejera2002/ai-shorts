@@ -35,7 +35,7 @@ func (p *Processor) Analyze(ctx context.Context, project string, asset story.Ass
 	if model == "" {
 		model = p.cfg.WhisperModel
 	}
-	digest := storyDigest([]any{story.AlgorithmVersion, asset.Hash, options.Language, storyModelSignature(model), storyModelSignature(p.storyVADModel(model)), options.Narration, "source-analysis-7"})
+	digest := storyDigest([]any{story.AlgorithmVersion, asset.Hash, options.Language, storyModelSignature(model), storyModelSignature(p.storyVADModel(model)), options.Narration, "source-analysis-8"})
 	prefix := "work/" + project + "/analysis/" + asset.ID + "/" + digest
 	cacheKey := prefix + "/analysis.json"
 	cacheFile := filepath.Join(dir, "analysis.json")
@@ -89,7 +89,7 @@ func (p *Processor) Analyze(ctx context.Context, project string, asset story.Ass
 	}
 	// The demuxer rebases the common presentation clock; async resampling fills
 	// real audio gaps. No speed changes or frame-index arithmetic are applied.
-	args := []string{"-i", source, "-map", "0:v:0", "-vf", "scale=w='min(1280,iw)':h='min(1280,ih)':force_original_aspect_ratio=decrease:force_divisible_by=2,fps=30:start_time=0,setsar=1"}
+	args := []string{"-i", source, "-map", "0:v:0", "-vf", storySquarePixelsFilter + ",scale=w='min(1280,iw)':h='min(1280,ih)':force_original_aspect_ratio=decrease:force_divisible_by=2,fps=30:start_time=0,setsar=1"}
 	if options.Narration {
 		args = append(args, "-an")
 	} else {
@@ -125,8 +125,9 @@ func (p *Processor) Analyze(ctx context.Context, project string, asset story.Ass
 		return asset, err
 	}
 	var transcript Transcript
+	var preparedAudio storyPreparedAudio
 	if !options.Narration && info.Audio && audio > .01 {
-		transcript, err = p.transcribeStory(ctx, proxy, dir, options.Language, asset.Duration, model)
+		transcript, preparedAudio, err = p.transcribeStoryWithAudio(ctx, proxy, dir, options.Language, asset.Duration, model, asset.ProxyKey)
 		if errors.Is(err, errSpeechDetectionUnavailable) {
 			asset.Warnings = appendStoryWarning(asset.Warnings, storyMissingVADWarning)
 		} else if err != nil && !errors.Is(err, errNoSpeech) {
@@ -156,18 +157,27 @@ func (p *Processor) Analyze(ctx context.Context, project string, asset story.Ass
 	if err = p.storySave(ctx, cacheFile, cacheKey, "application/json"); err != nil {
 		return asset, err
 	}
-	return p.prepareStorySpeechCatalog(ctx, dir, asset, options)
+	return p.prepareStorySpeechCatalogWithAudio(ctx, dir, asset, options, preparedAudio)
 }
 
 // Scores describe measured signal quality, not a claim of factual or semantic
 // correctness. The planner keeps them separate and the media reviewer listens.
 func (p *Processor) storyQuality(ctx context.Context, dir, file string, info probeInfo) (float64, float64, error) {
+	pcm := filepath.Join(dir, "quality.pcm")
+	raw := filepath.Join(dir, "quality.gray")
+	// Decode the proxy once for both measurements. Each output retains its
+	// original sampling settings; scores still describe the normalized media.
+	args := []string{"-i", file}
+	if info.Audio {
+		args = append(args, "-map", "0:a:0", "-vn", "-ac", "1", "-ar", "8000", "-c:a", "pcm_s16le", "-f", "s16le", pcm)
+	}
+	// Round upward so subsecond reaction/B-roll sources still yield a frame.
+	args = append(args, "-map", "0:v:0", "-an", "-vf", "fps=1:round=up,scale=48:28", "-pix_fmt", "gray", "-f", "rawvideo", raw)
+	if p.ffmpeg(ctx, dir, args...) != nil {
+		return 0, 0, storyWorkError("source quality analysis")
+	}
 	audio := 0.0
 	if info.Audio {
-		pcm := filepath.Join(dir, "quality.pcm")
-		if p.ffmpeg(ctx, dir, "-i", file, "-vn", "-ac", "1", "-ar", "8000", "-c:a", "pcm_s16le", "-f", "s16le", pcm) != nil {
-			return 0, 0, storyWorkError("audio analysis")
-		}
 		f, err := os.Open(pcm)
 		if err != nil {
 			return 0, 0, storyWorkError("audio analysis")
@@ -199,12 +209,6 @@ func (p *Processor) storyQuality(ctx context.Context, dir, file string, info pro
 				audio = max(.05, min(1, rms/.08)) * (1 - min(.8, clipped/count*20))
 			}
 		}
-	}
-	raw := filepath.Join(dir, "quality.gray")
-	// Round the final sampling interval upward so valid subsecond reaction and
-	// B-roll sources still provide one actual frame instead of an empty stream.
-	if p.ffmpeg(ctx, dir, "-i", file, "-an", "-vf", "fps=1:round=up,scale=48:28", "-pix_fmt", "gray", "-f", "rawvideo", raw) != nil {
-		return 0, 0, storyWorkError("image analysis")
 	}
 	f, err := os.Open(raw)
 	if err != nil {

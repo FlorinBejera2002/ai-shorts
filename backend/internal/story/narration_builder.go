@@ -7,8 +7,14 @@ import (
 )
 
 func (s *runState) narrationVersion(plan Plan, parent *Version) (Version, error) {
-	timeline, err := BuildNarrationTimeline(plan, s.req.Assets)
-	version := Version{Number: s.next, Plan: plan, Timeline: timeline}
+	musicRequest := s.req
+	if parent != nil {
+		musicRequest.Base = parent
+	}
+	plan, timeline, sync, err := synchronizeMusic(musicRequest, plan)
+	brief := BuildEditingBrief(s.req)
+	plan.EditingBrief = &brief
+	version := Version{Number: s.next, Plan: plan, Timeline: timeline, MusicSync: sync}
 	s.next++
 	if parent != nil {
 		version.Parent = parent.Number

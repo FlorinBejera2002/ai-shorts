@@ -14,14 +14,23 @@ async function request<T>(path: string, body?: unknown, signal?: AbortSignal): P
   if (!response.ok) throw new AgentApiError(extractApiError(data ?? {}, `Request failed (${response.status})`), response.status)
   return data as T
 }
+
+async function runRequest(path: string, body?: unknown, expectedId?: string): Promise<AgentRun> {
+  const run = await request<AgentRun>(path, body)
+  if (!run || typeof run.id !== 'string' || (expectedId && run.id !== expectedId) || !Number.isInteger(run.revision) || typeof run.status !== 'string' || !['planning', 'running', 'waiting_for_confirmation', 'waiting_for_resources', 'paused', 'cancel_requested', 'cancelled', 'completed', 'failed'].includes(run.status))
+    throw new Error('The operation response could not be verified. Retry to recover its current state.')
+  return run
+}
+
 export const agentApi = {
   preferences: () => request<{ follow: boolean; recommendations: boolean }>('/preferences'),
   savePreferences: (body: { follow?: boolean; recommendations?: boolean; reset?: boolean }) => request<{ follow: boolean; recommendations: boolean }>('/preferences', body),
   clearHistory: () => request<{ cleared_ids: string[] }>('/history/clear', {}),
   list: (before?: string, signal?: AbortSignal) => request<{ runs: AgentRun[]; has_more: boolean }>(`/runs${before ? `?before=${encodeURIComponent(before)}` : ''}`, undefined, signal),
-  run: (id: string) => request<AgentRun>(`/runs/${encodeURIComponent(id)}`),
-  send: (body: RunRequest) => request<AgentRun>('/runs', body),
-  control: (run: AgentRun, command: AgentCommand, resourceIds?: string[]) => request<AgentRun>(`/runs/${encodeURIComponent(run.id)}/control`, { command, revision: run.revision, ...(command === 'resume' && resourceIds?.length ? { resource_ids: resourceIds } : {}) }),
+  run: (id: string) => runRequest(`/runs/${encodeURIComponent(id)}`, undefined, id),
+  // An already accepted suggestion can legitimately return its original run ID.
+  send: (body: RunRequest) => runRequest('/runs', body, body.suggestion_id ? undefined : body.request_id),
+  control: (run: AgentRun, command: AgentCommand, resourceIds?: string[]) => runRequest(`/runs/${encodeURIComponent(run.id)}/control`, { command, revision: run.revision, ...(command === 'resume' && resourceIds?.length ? { resource_ids: resourceIds } : {}) }, command === 'undo' ? undefined : run.id),
   suggestions: (project?: string, signal?: AbortSignal, locale = 'ro') => request<{ suggestions: Suggestion[]; capabilities: unknown[] }>(`/suggestions?locale=${encodeURIComponent(locale)}${project ? `&project_id=${encodeURIComponent(project)}` : ''}`, undefined, signal),
   dismiss: (id: string) => request<void>(`/suggestions/${encodeURIComponent(id)}/dismiss`, {}),
   revise: (id: string, instruction: string) => request<Suggestion>(`/suggestions/${encodeURIComponent(id)}/revise`, { instruction }),

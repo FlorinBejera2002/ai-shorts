@@ -39,6 +39,24 @@ func (b *Builder) Run(parent context.Context, req Request, checkpoints Checkpoin
 	}
 	ctx, cancel := context.WithTimeout(parent, b.limits.Timeout)
 	defer cancel()
+	// Resolve music before paid analysis; never silently omit a selected track.
+	req.Music = nil
+	if req.Options.Music != nil {
+		preparer, ok := b.media.(MusicPreparer)
+		if !ok {
+			return Result{}, errors.New("music processing is unavailable")
+		}
+		if err = checkpoints.Progress(ctx, "analyzing", "Preparing the selected soundtrack and detecting its rhythm"); err != nil {
+			return Result{}, err
+		}
+		req.Music, err = preparer.PrepareStoryMusic(ctx, *req.Options.Music)
+		if err != nil {
+			return Result{}, fmt.Errorf("prepare selected music: %w", err)
+		}
+		if req.Music == nil || req.Music.Key == "" || req.Music.Track.ID != req.Options.Music.TrackID {
+			return Result{}, errors.New("selected music could not be prepared")
+		}
+	}
 	state := runState{builder: b, req: req, checkpoints: checkpoints, budget: &runBudget{max: b.limits.MaxAICalls}, next: max(1, req.VersionStart), tried: make(map[string]bool)}
 	for _, attempt := range req.PreviousAttempts {
 		operation := repairOperation{attempt.Operation, attempt.BlockID, attempt.CandidateID}
@@ -285,11 +303,17 @@ func (s *runState) analyze(ctx context.Context) error {
 }
 
 func (s *runState) version(plan Plan, parent *Version, operation repairOperation) (Version, error) {
-	timeline, err := BuildTimeline(plan, s.req.Assets)
+	brief := BuildEditingBrief(s.req)
+	plan.EditingBrief = &brief
+	musicRequest := s.req
+	if parent != nil {
+		musicRequest.Base = parent
+	}
+	plan, timeline, sync, err := synchronizeMusic(musicRequest, plan)
 	if err != nil {
 		return Version{}, err
 	}
-	version := Version{Number: s.next, Plan: plan, Timeline: timeline}
+	version := Version{Number: s.next, Plan: plan, Timeline: timeline, MusicSync: sync}
 	s.next++
 	if parent != nil {
 		version.Parent = parent.Number

@@ -45,24 +45,24 @@ export function StoryWizard({
       )
     },
     {
-      label: text('Story & audio', 'Poveste și voce'),
-      title: text('Story & audio', 'Poveste și voce'),
+      label: text('Brief', 'Descriere'),
+      title: text('Your direction', 'Indicațiile tale'),
       description: text(
-        'Use the sound from your clips or tell the story in your own voice.',
-        'Folosește sunetul filmărilor sau spune povestea cu vocea ta.'
+        'Describe what to keep or leave out. Original sound is kept unless you choose narration.',
+        'Descrie ce păstrăm și ce excludem. Sunetul original se păstrează dacă nu alegi o narațiune.'
       )
     },
     {
-      label: text('Style', 'Aspect'),
-      title: text('Style', 'Aspect'),
+      label: text('Captions', 'Subtitrări'),
+      title: text('Choose captions', 'Alege subtitrările'),
       description: text(
-        'Choose the shape and length. The suggested settings are a good place to start.',
-        'Alege formatul și durata. Poți păstra setările sugerate.'
+        'Choose which spoken passages to subtitle. Format and length are optional settings.',
+        'Alege pasajele vorbite care primesc subtitrări. Formatul și durata sunt opționale.'
       )
     },
     {
-      label: text('Review', 'Confirmare'),
-      title: text('Review your story', 'Confirmă povestea'),
+      label: text('Generate', 'Generează'),
+      title: text('Ready to generate', 'Pregătit de generare'),
       description: text(
         'Check your choices. You can go back and change anything before creating.',
         'Verifică alegerile. Poți reveni și schimba orice înainte de creare.'

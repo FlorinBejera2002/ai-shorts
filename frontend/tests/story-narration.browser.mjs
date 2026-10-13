@@ -281,6 +281,7 @@ try {
     timeout: 180000
   })
   await showStep(1)
+  await page.getByTestId('story-step-1').getByText('Sound: Original audio', { exact: true }).click()
   await page.getByRole('button', { name: 'My voice over the images', exact: true }).click()
   await page.getByRole('button', { name: 'Record narration', exact: true }).waitFor()
   assert.equal(
@@ -460,6 +461,7 @@ try {
   )
   const retainedVideo = project.assets[0].id
   await showStep(1)
+  await page.getByTestId('story-step-1').getByText('Sound: Original audio', { exact: true }).click()
   await page.getByRole('button', { name: 'My voice over the images', exact: true }).click()
   await page.getByRole('button', { name: 'Record narration', exact: true }).waitFor()
   assert.equal(project.options.narration, true)

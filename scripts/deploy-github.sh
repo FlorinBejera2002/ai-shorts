@@ -7,6 +7,7 @@ component=${2:-all}
 deploy_root=${DEPLOY_ROOT:-/opt/sneepcut}
 repository=${DEPLOY_REPOSITORY:-https://github.com/FlorinBejera2002/ai-shorts.git}
 branch=${DEPLOY_BRANCH:-main}
+expected_commit=${DEPLOY_EXPECTED_COMMIT:-}
 
 case "$action" in
   build|deploy|rollback|status|verify) ;;
@@ -32,6 +33,11 @@ case "$action" in
     ;;
 esac
 
+if [[ -n "$expected_commit" && ! "$expected_commit" =~ ^[a-f0-9]{40}$ ]]; then
+  echo "DEPLOY_EXPECTED_COMMIT must be a full Git commit SHA." >&2
+  exit 2
+fi
+
 temp_dir=$(mktemp -d)
 archive=""
 cleanup() {
@@ -43,6 +49,10 @@ trap cleanup EXIT
 echo "Fetching $branch from $repository..."
 git clone --depth 1 --single-branch --branch "$branch" -- "$repository" "$temp_dir/source"
 commit=$(git -C "$temp_dir/source" rev-parse HEAD)
+if [[ -n "$expected_commit" && "$commit" != "$expected_commit" ]]; then
+  echo "Refusing release: $branch resolved to $commit, expected $expected_commit." >&2
+  exit 1
+fi
 release_id=${commit:0:16}
 # Serialize callers producing the same archive, independently of the release lock.
 exec 8>"/tmp/sneepcut-github-${release_id}.lock"

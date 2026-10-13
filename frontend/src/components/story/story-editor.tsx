@@ -1,13 +1,12 @@
 import { useRef, useState } from 'react'
 import { ArrowRightLeft, Gauge, Layers, RotateCcw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Card } from '@/components/ui/card'
 import type { StoryBlock, StoryProject, StoryVersion } from './types'
 import { StoryReview } from './story-review'
 import { StoryScene } from './story-scene'
 import { StoryResultHeader } from './story-result-header'
 import { useStoryLanguage } from './use-story-language'
-import './story-editor.css'
+import { StoryMusicCredits } from './story-music-credits'
 
 interface Props {
   project: StoryProject
@@ -54,7 +53,7 @@ export function StoryEditor({
   return (
     <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1.2fr)_minmax(22rem,1fr)]">
       <div className="min-w-0 space-y-5">
-        <Card className="story-result-surface block space-y-4 border-0 p-5">
+        <section className="space-y-4">
           <StoryResultHeader
             version={version}
             duration={duration}
@@ -91,11 +90,11 @@ export function StoryEditor({
               )}
             </p>
           )}
-        </Card>
-        <Card
-          as="section"
-          className="story-result-surface block space-y-4 border-0 p-5"
-        >
+        </section>
+        {version.output?.music && (
+          <StoryMusicCredits key={`${version.number}-${version.output.music.track_id}`} music={version.output.music} />
+        )}
+        <section className="space-y-4 border-t pt-5">
           <div>
             <h2 className="font-semibold">
               {text('Improve your video', 'Îmbunătățește videoul')}
@@ -223,7 +222,7 @@ export function StoryEditor({
               </label>
             </details>
           )}
-        </Card>
+        </section>
         <StoryReview
           version={version}
           attempts={project.attempts}
@@ -248,7 +247,7 @@ export function StoryEditor({
         )}
       </div>
 
-      <Card className="story-result-surface block min-w-0 border-0 p-5">
+      <section className="min-w-0 border-t pt-5 xl:border-l xl:border-t-0 xl:pl-5 xl:pt-0">
         <div>
           <h2 className="font-semibold">
             {text('Scenes', 'Scene')} · {version.plan.blocks.length}
@@ -275,7 +274,7 @@ export function StoryEditor({
             />
           ))}
         </ol>
-      </Card>
+      </section>
     </div>
   )
 }

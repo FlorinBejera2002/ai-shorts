@@ -1,7 +1,6 @@
 import { useRef, useState } from 'react'
 import { Check, FileVideo, RefreshCw, Upload, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Card } from '@/components/ui/card'
 import { formatBytes, formatDuration } from '@/lib/youtube'
 import type { StoryAsset, StoryProject } from './types'
 import type { PendingUpload } from './use-story-uploads'
@@ -54,8 +53,8 @@ export function StorySources({
     ['queued', 'uploading', 'validating'].includes(upload.status)
   )
   return (
-    <Card
-      className="block space-y-4 p-5"
+    <section
+      className="space-y-4"
       role="group"
       aria-label={text('Your recordings', 'Filmările tale')}
     >
@@ -392,7 +391,7 @@ export function StorySources({
           )}
         </p>
       )}
-    </Card>
+    </section>
   )
 }
 

@@ -44,28 +44,35 @@ and shared dashboard DOM identity across navigation. Follow-navigation is an
 explicit option and does not replay links from initial history. Result routes are
 allowlisted. Mobile uses a dialog with focus restoration; desktop is resizable.
 
+The initial view contains a compact header, conversation and composer. History,
+preferences, project selection, attachments and dictation are available from the
+conversation menu. Missing-resource receipts reveal only relevant upload controls.
 Speech recognition uses the browser service and only fills the composer. Uploads
-reuse the Story Builder pipeline, validate chosen video files and pin the target
-story until upload completion. Unsupported browser speech has a text fallback.
+reuse the Story Builder pipeline and bind every queued file to its original story.
+Unsupported browser speech has a text fallback.
 
 ## Verification and running
 
-Migrations `037_20260922_workspace_agent.sql` and
-`038_20260923_project_agent_edits.sql` follow Story Builder migration 036. They
-must be applied using the normal migration runner before starting the rebuilt
-API. This implementation does not apply migrations to persistent development or
-production data automatically. No new frontend secret or provider credential is
-required; the planner uses the existing configured generator.
+The normal migration runner must apply the complete ordered chain before starting
+the rebuilt API. Migration `044_20261013_agent_source_resources.sql` adds an
+optional source-project reference for logos/documents while preserving the existing
+story reference and enforcing that a resource cannot belong to both. This work
+does not apply migrations to persistent development or production data
+automatically. No new frontend secret or provider credential is required; the
+planner uses the existing configured generator.
 
 Backend integration tests require `SNEEPCUT_TEST_DATABASE_URL` pointing to the
 dedicated `sneepcut_integration_test` database and `SNEEPCUT_TEST_SCHEMA_SQL`
 pointing to the complete ordered migration fixture. Use a disposable instance.
 Run affected packages with `go test -race` and run `go vet ./...`.
 
-Frontend checks are `node --test tests/workspace-agent.test.mjs` and
-`npx tsc --noEmit` from `frontend`. The browser scenarios in
-`frontend/tests/workspace-agent.browser.mjs` mock API responses using a synthetic
-account; they verify client behavior, not a live provider/render end-to-end run.
+Frontend checks are `node --test tests/workspace-agent.test.mjs tests/story-upload-target.test.mjs`,
+`npm run typecheck` and `npm run lint -- --deny-warnings src/components/workspace-agent`
+from `frontend`. Run `tests/workspace-agent-conversation.browser.mjs` with
+`PLAYWRIGHT_MODULE` pointing to the installed Playwright entry and `TEST_ORIGIN`
+pointing to Vite. Set `TEST_FAST_REFRESH=1` to verify a temporary component edit;
+the runner restores its source in `finally`. Browser APIs are mocked with a
+synthetic account; this verifies client behavior, not live provider delivery.
 
 Database regressions cover idempotency, ownership, permission revocation, stale
 approvals, pause/stop races (including pause followed by stop while dispatch is
@@ -75,5 +82,5 @@ Clip adapter tests exercise the real worker claim/completion transaction and
 cancellation fencing. Their output checks are persisted metadata checks, not
 storage existence or semantic video review.
 
-See [operation coverage](workspace-agent-coverage.md) for supported actions and
-outstanding requirements. This does not yet satisfy the complete Notion ticket.
+See [operation coverage](workspace-agent-coverage.md) for the current executable
+catalog, service boundaries and verification limitations.

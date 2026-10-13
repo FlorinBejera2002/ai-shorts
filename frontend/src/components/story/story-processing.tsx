@@ -214,7 +214,7 @@ export function StoryProcessing({ project, active, busy, onCancel }: Props) {
       countLabel={countLabel}
       stage={{ key: phase, ...focus }}
       stageLabel={stageLabel}
-    message={message}
+      message={message}
       running={running}
       tone={tone}
       progress={

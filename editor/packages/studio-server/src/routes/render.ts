@@ -1,7 +1,7 @@
 import type { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import { existsSync, readFileSync, mkdirSync, unlinkSync, readdirSync, statSync } from "node:fs";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import type { StudioApiAdapter, RenderJobState } from "../types.js";
 import { VALID_CANVAS_RESOLUTIONS, type CanvasResolution } from "@hyperframes/parsers";
 import { formatRenderOutputTimestamp, parseFps } from "@hyperframes/core";
@@ -9,21 +9,25 @@ import { resolveWithinProject } from "../helpers/safePath.js";
 import { isVariablesPayload, VARIABLES_PAYLOAD_ERROR } from "../helpers/variablesPayload.js";
 import { fileContentVersion } from "../helpers/fileVersion.js";
 import { randomUUID } from "node:crypto";
-import { persistRenderState, recoverRenderState, verifyRenderOutput } from "../helpers/renderArtifacts.js";
+import {
+  persistRenderState,
+  recoverRenderState,
+  verifyRenderOutput,
+} from "../helpers/renderArtifacts.js";
 
 const VALID_RESOLUTIONS = new Set<string>(VALID_CANVAS_RESOLUTIONS);
 
 export function registerRenderRoutes(api: Hono, adapter: StudioApiAdapter): void {
   // Scoped job store — not shared across createStudioApi() calls
   const renderJobs = new Map<string, RenderJobState & { createdAt: number }>();
-  const persisted = new WeakMap<RenderJobState,string>();
+  const persisted = new WeakMap<RenderJobState, string>();
   const getJob = async (id: string) => {
     const current = renderJobs.get(id);
     if (current) return current;
-    const recovered = await recoverRenderState(adapter,id);
+    const recovered = await recoverRenderState(adapter, id);
     if (!recovered) return undefined;
-    const restored = {...recovered,createdAt:Date.now()};
-    renderJobs.set(id,restored);
+    const restored = { ...recovered, createdAt: Date.now() };
+    renderJobs.set(id, restored);
     return restored;
   };
 
@@ -32,15 +36,19 @@ export function registerRenderRoutes(api: Hono, adapter: StudioApiAdapter): void
   const CLEANUP_INTERVAL_MS = 1000;
   let cleanupTimer: ReturnType<typeof setInterval> | null = null;
 
-  const cleanupEnabled = () =>
-    typeof process !== "undefined" &&
-    !process.argv.includes("build");
+  const cleanupEnabled = () => typeof process !== "undefined" && !process.argv.includes("build");
 
   const cleanupFinishedJobs = () => {
     const now = Date.now();
     for (const [key, job] of renderJobs) {
-      if (job.status !== "rendering" && persisted.get(job)!==job.status) {
-        try {persistRenderState(job);persisted.set(job,job.status);} catch {job.status="failed";job.error="Render receipt could not be saved";}
+      if (job.status !== "rendering" && persisted.get(job) !== job.status) {
+        try {
+          persistRenderState(job);
+          persisted.set(job, job.status);
+        } catch {
+          job.status = "failed";
+          job.error = "Render receipt could not be saved";
+        }
       }
       if (job.status !== "rendering" && now - job.createdAt > TTL_MS) {
         renderJobs.delete(key);
@@ -142,7 +150,7 @@ export function registerRenderRoutes(api: Hono, adapter: StudioApiAdapter): void
     if (!existsSync(rendersDir)) mkdirSync(rendersDir, { recursive: true });
     const ext = FORMAT_EXT[format] ?? ".mp4";
     const outputPath = join(rendersDir, `${jobId}${ext}`);
-    persistRenderState({id:jobId,status:"rendering",progress:0,outputPath});
+    persistRenderState({ id: jobId, status: "rendering", progress: 0, outputPath });
 
     const jobState = adapter.startRender({
       project,
@@ -170,8 +178,11 @@ export function registerRenderRoutes(api: Hono, adapter: StudioApiAdapter): void
   api.get("/render/:jobId/status", async (c) => {
     const job = await getJob(c.req.param("jobId"));
     if (!job) return c.json({ error: "not found" }, 404);
-    const verification = job.status === "complete" ? await verifyRenderOutput(job.outputPath) : {verified:false,bytes:0};
-    if (job.status!=="rendering") persistRenderState(job);
+    const verification =
+      job.status === "complete"
+        ? await verifyRenderOutput(job.outputPath)
+        : { verified: false, bytes: 0 };
+    if (job.status !== "rendering") persistRenderState(job);
     return c.json({
       status: job.status,
       progress: job.progress,
@@ -236,7 +247,11 @@ export function registerRenderRoutes(api: Hono, adapter: StudioApiAdapter): void
   api.get("/render/:jobId/view", async (c) => {
     const { jobId } = c.req.param();
     const job = await getJob(jobId);
-    if (!job?.outputPath || job.status!=="complete" || !(await verifyRenderOutput(job.outputPath)).verified) {
+    if (
+      !job?.outputPath ||
+      job.status !== "complete" ||
+      !(await verifyRenderOutput(job.outputPath)).verified
+    ) {
       return c.json({ error: "not found" }, 404);
     }
     const contentType = renderContentType(job.outputPath);
@@ -257,7 +272,11 @@ export function registerRenderRoutes(api: Hono, adapter: StudioApiAdapter): void
   api.get("/render/:jobId/download", async (c) => {
     const { jobId } = c.req.param();
     const job = await getJob(jobId);
-    if (!job?.outputPath || job.status!=="complete" || !(await verifyRenderOutput(job.outputPath)).verified) {
+    if (
+      !job?.outputPath ||
+      job.status !== "complete" ||
+      !(await verifyRenderOutput(job.outputPath)).verified
+    ) {
       return c.json({ error: "not found" }, 404);
     }
     const contentType = renderContentType(job.outputPath);
@@ -277,7 +296,7 @@ export function registerRenderRoutes(api: Hono, adapter: StudioApiAdapter): void
     await getJob(jobId);
     for (const [, state] of renderJobs) {
       if (state.id === jobId && state.outputPath) {
-        const dir = state.outputPath.replace(/\/[^/]+$/, "");
+        const dir = dirname(state.outputPath);
         state.cancel?.();
         for (const ext of [".mp4", ".webm", ".mov", ".meta.json", ".state.json"]) {
           const fp = join(dir, `${jobId}${ext}`);
@@ -307,8 +326,8 @@ export function registerRenderRoutes(api: Hono, adapter: StudioApiAdapter): void
     if (!existsSync(fp)) return c.json({ error: "not found" }, 404);
     const renderId = filename.replace(/\.(mp4|webm|mov)$/, "");
     const job = await getJob(renderId);
-    if (!job || job.status!=="complete" || !(await verifyRenderOutput(fp)).verified)
-      return c.json({error:"render output is not verified"},409);
+    if (!job || job.status !== "complete" || !(await verifyRenderOutput(fp)).verified)
+      return c.json({ error: "render output is not verified" }, 409);
     const contentType = renderContentType(fp);
     const content = readFileSync(fp);
     return new Response(content, {
@@ -327,38 +346,40 @@ export function registerRenderRoutes(api: Hono, adapter: StudioApiAdapter): void
     if (!project) return c.json({ error: "not found" }, 404);
     const rendersDir = adapter.rendersDir(project);
     if (!existsSync(rendersDir)) return c.json({ renders: [] });
-    const files = await Promise.all(readdirSync(rendersDir)
-      .filter((f) => f.endsWith(".mp4") || f.endsWith(".webm") || f.endsWith(".mov"))
-      .map(async (f) => {
-        const fp = resolveWithinProject(rendersDir, f);
-        if (!fp) return null;
-        const stat = statSync(fp);
-        const rid = f.replace(/\.(mp4|webm|mov)$/, "");
-        const metaPath = join(rendersDir, `${rid}.meta.json`);
-        let status: RenderJobState["status"] = "failed";
-        let durationMs: number | undefined;
-        if (existsSync(metaPath)) {
-          try {
-            const meta = JSON.parse(readFileSync(metaPath, "utf-8"));
-            if (meta.status === "complete") status = "complete";
-            if (meta.durationMs) durationMs = meta.durationMs;
-          } catch {
-            /* ignore */
+    const files = await Promise.all(
+      readdirSync(rendersDir)
+        .filter((f) => f.endsWith(".mp4") || f.endsWith(".webm") || f.endsWith(".mov"))
+        .map(async (f) => {
+          const fp = resolveWithinProject(rendersDir, f);
+          if (!fp) return null;
+          const stat = statSync(fp);
+          const rid = f.replace(/\.(mp4|webm|mov)$/, "");
+          const metaPath = join(rendersDir, `${rid}.meta.json`);
+          let status: RenderJobState["status"] = "failed";
+          let durationMs: number | undefined;
+          if (existsSync(metaPath)) {
+            try {
+              const meta = JSON.parse(readFileSync(metaPath, "utf-8"));
+              if (meta.status === "complete") status = "complete";
+              if (meta.durationMs) durationMs = meta.durationMs;
+            } catch {
+              /* ignore */
+            }
           }
-        }
-        const job = await getJob(rid);
-        if (job) status=job.status;
-        if (status==="complete" && !(await verifyRenderOutput(fp)).verified) status="failed";
-        return {
-          id: rid,
-          filename: f,
-          size: stat.size,
-          createdAt: stat.mtimeMs,
-          status,
-          durationMs,
-        };
-      }));
-    const listed = files.filter((file)=>file!==null).sort((a,b)=>b.createdAt-a.createdAt);
+          const job = await getJob(rid);
+          if (job) status = job.status;
+          if (status === "complete" && !(await verifyRenderOutput(fp)).verified) status = "failed";
+          return {
+            id: rid,
+            filename: f,
+            size: stat.size,
+            createdAt: stat.mtimeMs,
+            status,
+            durationMs,
+          };
+        }),
+    );
+    const listed = files.filter((file) => file !== null).sort((a, b) => b.createdAt - a.createdAt);
     // Register on-disk renders that aren't in the current session's job map
     // so they remain downloadable after a server restart.
     for (const file of listed) {

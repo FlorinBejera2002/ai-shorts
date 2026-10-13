@@ -11,7 +11,7 @@ export function useAgentResources(projectId?: string) {
   const query = useQuery({ queryKey: ['agent-story', projectId], enabled: Boolean(projectId),
     queryFn: ({ signal }) => storyRequest<StoryProject>(`/api/stories/${projectId}`, 'GET', undefined, signal) })
   const refresh = useCallback(async (project?: StoryProject) => {
-    if (project) client.setQueryData(['agent-story', projectId], project)
+    if (project) client.setQueryData(['agent-story', project.id], project)
     else await client.invalidateQueries({ queryKey: ['agent-story', projectId] })
     await client.invalidateQueries({ queryKey: ['workspace-agent', 'suggestions'] })
   }, [client, projectId])
@@ -19,7 +19,7 @@ export function useAgentResources(projectId?: string) {
   function add(files: File[], ro: boolean) {
     const project = query.data
     if (!project || storyIsBusy(project.status)) return
-    const pending = uploads.items.filter(item => item.status !== 'complete')
+    const pending = uploads.items.filter(item => item.projectId === projectId && item.status !== 'complete')
     const limits = project.limits
     const bytes = project.assets.reduce((sum, item) => sum + item.size, 0) + pending.reduce((sum, item) => sum + item.file.size, 0) + files.reduce((sum, item) => sum + item.size, 0)
     if (files.some(file => !/\.(mp4|mov|webm|mkv)$/i.test(file.name) || file.size === 0 || file.size > limits.max_file_bytes) || project.assets.length + pending.length + files.length > limits.max_files || bytes > limits.max_total_bytes) {

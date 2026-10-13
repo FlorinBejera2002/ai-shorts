@@ -33,18 +33,22 @@ func (h *Handler) attachResource(w http.ResponseWriter, r *http.Request) {
 		httpx.Error(w, 422, "Invalid resource")
 		return
 	}
-	var project any
+	var project, sourceProject any
 	if in.ProjectID != "" {
 		if !data.ValidUUID(in.ProjectID) {
 			httpx.Error(w, 422, "Invalid project")
 			return
 		}
-		var owned bool
-		if err := h.db.QueryRowContext(r.Context(), `SELECT EXISTS(SELECT 1 FROM story_projects WHERE id=$1 AND user_id=$2)`, in.ProjectID, user).Scan(&owned); err != nil || !owned {
+		var storyOwned, sourceOwned bool
+		if err := h.db.QueryRowContext(r.Context(), `SELECT EXISTS(SELECT 1 FROM story_projects WHERE id=$1 AND user_id=$2),EXISTS(SELECT 1 FROM jobs WHERE id=$1 AND user_id=$2)`, in.ProjectID, user).Scan(&storyOwned, &sourceOwned); err != nil || (!storyOwned && !sourceOwned) {
 			httpx.Error(w, 404, "Project unavailable")
 			return
 		}
-		project = in.ProjectID
+		if storyOwned {
+			project = in.ProjectID
+		} else {
+			sourceProject = in.ProjectID
+		}
 	}
 	switch in.Kind {
 	case "publishing_media":
@@ -86,7 +90,7 @@ func (h *Handler) attachResource(w http.ResponseWriter, r *http.Request) {
 		failure(w, err)
 		return
 	}
-	_, err = h.db.ExecContext(r.Context(), `INSERT INTO workspace_agent_resources(id,user_id,project_id,kind,name,reference,content) VALUES($1,$2,$3,$4,$5,$6,$7)`, id, user, project, in.Kind, in.Name, in.Reference, in.Text)
+	_, err = h.db.ExecContext(r.Context(), `INSERT INTO workspace_agent_resources(id,user_id,project_id,source_project_id,kind,name,reference,content) VALUES($1,$2,$3,$4,$5,$6,$7,$8)`, id, user, project, sourceProject, in.Kind, in.Name, in.Reference, in.Text)
 	if err != nil {
 		failure(w, err)
 		return
@@ -104,7 +108,7 @@ func (h *Handler) validateResources(ctx context.Context, user string, ids []stri
 		}
 		seen[id] = true
 		var target, kind, reference string
-		if err := h.db.QueryRowContext(ctx, `SELECT coalesce(project_id::text,''),kind,reference FROM workspace_agent_resources WHERE id=$1 AND user_id=$2`, id, user).Scan(&target, &kind, &reference); err != nil {
+		if err := h.db.QueryRowContext(ctx, `SELECT coalesce(project_id::text,source_project_id::text,''),kind,reference FROM workspace_agent_resources WHERE id=$1 AND user_id=$2`, id, user).Scan(&target, &kind, &reference); err != nil {
 			return err
 		}
 		if kind == "publishing_media" {
@@ -119,8 +123,12 @@ func (h *Handler) validateResources(ctx context.Context, user string, ids []stri
 			}
 		}
 		if kind == "logo" {
-			if h.media == nil { return errors.New("Logo resource verification is unavailable") }
-			if _, err := h.media.ResolveOwnedLogo(ctx, user, reference); err != nil { return errors.New("Logo resource is missing or unavailable") }
+			if h.media == nil {
+				return errors.New("Logo resource verification is unavailable")
+			}
+			if _, err := h.media.ResolveOwnedLogo(ctx, user, reference); err != nil {
+				return errors.New("Logo resource is missing or unavailable")
+			}
 		}
 		if target != "" && project != "" && target != project {
 			return sql.ErrNoRows
@@ -133,7 +141,7 @@ func (h *Handler) resourceContext(ctx context.Context, r Run) ([]map[string]any,
 	for _, id := range r.ResourceIDs {
 		var kind, name, content string
 		var project sql.NullString
-		if err := h.db.QueryRowContext(ctx, `SELECT kind,name,content,project_id FROM workspace_agent_resources WHERE id=$1 AND user_id=$2`, id, r.UserID).Scan(&kind, &name, &content, &project); err != nil {
+		if err := h.db.QueryRowContext(ctx, `SELECT kind,name,content,coalesce(project_id,source_project_id) FROM workspace_agent_resources WHERE id=$1 AND user_id=$2`, id, r.UserID).Scan(&kind, &name, &content, &project); err != nil {
 			return nil, err
 		}
 		out = append(out, map[string]any{"id": id, "kind": kind, "name": name, "project_id": project.String, "untrusted_text": clipText(content, 20000)})
@@ -142,10 +150,20 @@ func (h *Handler) resourceContext(ctx context.Context, r Run) ([]map[string]any,
 }
 
 func (h *Handler) waitForResources(ctx context.Context, r *Run, needs []ResourceNeed) error {
+	for _, need := range needs {
+		if need.Kind == "studio_asset" {
+			return h.waitForStudioResources(ctx, r, needs)
+		}
+	}
+	for i := range needs {
+		needs[i].ExistingAssetIDs = nil
+	}
 	// Global brand changes and text briefs do not require an unrelated story draft.
 	standalone := len(needs) > 0 && r.Context.ProjectID == ""
 	for _, need := range needs {
-		if (need.Kind != "logo" && need.Kind != "document") || need.TargetID != "" || len(need.Label) > 400 { standalone = false }
+		if (need.Kind != "logo" && need.Kind != "document") || need.TargetID != "" || len(need.Label) > 400 {
+			standalone = false
+		}
 	}
 	if standalone {
 		r.MissingResources = needs
@@ -183,12 +201,16 @@ func (h *Handler) waitForResources(ctx context.Context, r *Run, needs []Resource
 		return nil
 	}
 	target := r.Context.ProjectID
+	requiresStory := false
 	for _, need := range needs {
 		if need.Kind != "videos" && need.Kind != "logo" && need.Kind != "document" {
 			return errors.New("Invalid action resource kind")
 		}
 		if len(need.Label) > 400 {
 			return errors.New("Invalid action resource label")
+		}
+		if need.Kind == "videos" {
+			requiresStory = true
 		}
 		if need.TargetID != "" {
 			if target != "" && target != need.TargetID {
@@ -200,15 +222,22 @@ func (h *Handler) waitForResources(ctx context.Context, r *Run, needs []Resource
 	if !data.ValidUUID(target) {
 		return errors.New("Invalid action resource project")
 	}
-	var owned bool
-	if err := h.db.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM story_projects WHERE id=$1 AND user_id=$2)`, target, r.UserID).Scan(&owned); err != nil {
+	var storyOwned, sourceOwned bool
+	if err := h.db.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM story_projects WHERE id=$1 AND user_id=$2),EXISTS(SELECT 1 FROM jobs WHERE id=$1 AND user_id=$2)`, target, r.UserID).Scan(&storyOwned, &sourceOwned); err != nil {
 		return err
 	}
-	if !owned {
+	if !storyOwned && (!sourceOwned || requiresStory) {
 		return sql.ErrNoRows
 	}
+	for i := range needs {
+		needs[i].TargetID = target
+	}
 	r.Context.ProjectID = target
-	r.Context.Route = "/dashboard/create"
+	if storyOwned {
+		r.Context.Route = "/dashboard/create"
+	} else {
+		r.Context.Route = "/dashboard/clips"
+	}
 	r.MissingResources = needs
 	r.Status = "waiting_for_resources"
 	r.Action = nil
@@ -223,6 +252,12 @@ func (h *Handler) resourcesReady(ctx context.Context, r *Run) error {
 		return errors.New("Resources are unavailable")
 	}
 	for _, need := range r.MissingResources {
+		if need.Kind == "studio_asset" {
+			if err := h.studioResourcesReady(ctx, r, need); err != nil {
+				return err
+			}
+			continue
+		}
 		available := false
 		if need.Kind == "videos" {
 			var count int

@@ -10,14 +10,16 @@ import (
 )
 
 const (
-	storyVisualGapMinimum = 2.0
+	storyVisualGapMinimum = .5
 	storyVisualGapMaximum = storyMaximumVisualShotSeconds
 )
 
 // Speech is only one part of a source's visual catalog. Retain meaningful
 // uncovered intervals as visual options, without inventing a transcript or
 // asserting that untranscribed audio is silent. Existing speech padding and
-// abstained/visual candidates all reserve their complete source intervals.
+// abstained/visual candidates reserve their complete source intervals. Short
+// gaps attach to an adjacent phrase rather than becoming flashing shots; the
+// catalog must not make original pauses/tails impossible for a plan to retain.
 func storyCandidatesWithVisualGaps(asset story.Asset, existing []story.Candidate, audio, visual float64) []story.Candidate {
 	// The duration bound matches the domain's maximum configurable source
 	// length and keeps malformed input from creating an unbounded allocation.
@@ -26,20 +28,22 @@ func storyCandidatesWithVisualGaps(asset story.Asset, existing []story.Candidate
 	}
 	occupied := slices.Clone(existing)
 	usedIDs := make(map[string]bool, len(existing))
-	for _, candidate := range occupied {
+	positions := make(map[string]int, len(existing))
+	for i, candidate := range occupied {
 		if candidate.SourceID != asset.ID || !finite(candidate.In) || !finite(candidate.Out) || candidate.In < 0 || candidate.Out <= candidate.In || candidate.Out > asset.Duration+.001 {
 			// Do not cover up a malformed source catalog with apparently usable
 			// visual options; the normal validator must reject it unchanged.
 			return existing
 		}
 		usedIDs[candidate.ID] = true
+		positions[candidate.ID] = i
 	}
 	sort.SliceStable(occupied, func(i, j int) bool { return occupied[i].In < occupied[j].In })
 	result := slices.Clone(existing)
 	sequence := 0
 	addGap := func(start, end float64) {
 		duration := end - start
-		if duration < storyVisualGapMinimum {
+		if duration <= .000001 {
 			return
 		}
 		// Equal windows cover the entire useful gap without a tiny leftover
@@ -64,11 +68,32 @@ func storyCandidatesWithVisualGaps(asset story.Asset, existing []story.Candidate
 			})
 		}
 	}
-	clock := 0.0
-	for _, candidate := range occupied {
-		addGap(clock, candidate.In)
-		clock = max(clock, min(asset.Duration, candidate.Out))
+	retainGap := func(start, end float64, before, after int) {
+		if end <= start {
+			return
+		}
+		if end-start < storyVisualGapMinimum {
+			if before >= 0 {
+				result[before].Out = end
+				return
+			}
+			if after >= 0 {
+				result[after].In = start
+				return
+			}
+		}
+		addGap(start, end)
 	}
-	addGap(clock, asset.Duration)
+	clock := 0.0
+	previous := -1
+	for _, candidate := range occupied {
+		position := positions[candidate.ID]
+		retainGap(clock, candidate.In, previous, position)
+		if candidate.Out > clock {
+			clock = min(asset.Duration, candidate.Out)
+			previous = position
+		}
+	}
+	retainGap(clock, asset.Duration, previous, -1)
 	return result
 }

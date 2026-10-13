@@ -9,7 +9,7 @@ import (
 )
 
 func TestStoryQueueResolvesOnlyOwnedProjectLogo(t *testing.T) {
-	for _, mode := range []string{"own", "foreign-user", "foreign-project", "unsafe-key"} {
+	for _, mode := range []string{"own", "foreign-user", "foreign-project", "source-project", "unsafe-key"} {
 		t.Run(mode, func(t *testing.T) {
 			r, user, id, ids := fixture(t, 1)
 			ctx := context.Background()
@@ -31,8 +31,18 @@ func TestStoryQueueResolvesOnlyOwnedProjectLogo(t *testing.T) {
 			if mode == "unsafe-key" {
 				key = "brand/other/logo.png"
 			}
-			if _, err := r.db.Exec(`INSERT INTO workspace_agent_resources(id,user_id,project_id,kind,name,reference) VALUES($1,$2,$3,'logo','Test logo',$4)`, resource, owner, project, key); err != nil {
-				t.Fatal(err)
+			if mode == "source-project" {
+				source := newID()
+				if _, err := r.db.Exec(`INSERT INTO jobs(id,user_id,source_type,status,progress,num_clips_requested,aspect_ratio,subtitle_style,include_brand,credits_charged) VALUES($1,$2,'upload','completed',100,1,'9:16','default',false,0)`, source, user); err != nil {
+					t.Fatal(err)
+				}
+				if _, err := r.db.Exec(`INSERT INTO workspace_agent_resources(id,user_id,source_project_id,kind,name,reference) VALUES($1,$2,$3,'logo','Source logo',$4)`, resource, owner, source, key); err != nil {
+					t.Fatal(err)
+				}
+			} else {
+				if _, err := r.db.Exec(`INSERT INTO workspace_agent_resources(id,user_id,project_id,kind,name,reference) VALUES($1,$2,$3,'logo','Test logo',$4)`, resource, owner, project, key); err != nil {
+					t.Fatal(err)
+				}
 			}
 			options := story.DefaultOptions()
 			options.TargetSeconds = 35

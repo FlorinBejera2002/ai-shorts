@@ -55,7 +55,7 @@ func (r *Repository) Create(ctx context.Context, user, id string, options story.
 	if !idPattern.MatchString(id) {
 		return ErrInvalid
 	}
-	result, err := r.db.ExecContext(ctx, `INSERT INTO story_projects(id,user_id,options) SELECT $1,$2,$3 WHERE EXISTS(SELECT 1 FROM users WHERE id=$2 AND access_role='member' AND NOT EXISTS(SELECT 1 FROM account_deletion_requests WHERE user_id=$2)) ON CONFLICT(id) DO NOTHING`, id, user, encoded(options))
+	result, err := r.db.ExecContext(ctx, `INSERT INTO story_projects(id,user_id,options) SELECT $1,$2,$3 WHERE EXISTS(SELECT 1 FROM users WHERE id=$2 AND access_role IN ('member','admin') AND NOT EXISTS(SELECT 1 FROM account_deletion_requests WHERE user_id=$2)) ON CONFLICT(id) DO NOTHING`, id, user, encoded(options))
 	if err != nil {
 		return err
 	}
@@ -177,6 +177,27 @@ func idle(status string) bool {
 	return status == "draft" || status == "ready" || status == "needs_review" || status == "failed" || status == "cancelled"
 }
 
+// Called only while holding the project lock. Recover a stopped first attempt
+// within the caller's transaction, so invalid edits leave its status unchanged.
+func editableDraftTx(ctx context.Context, tx *sql.Tx, id, status string) error {
+	if status == "draft" {
+		return nil
+	}
+	if status != "failed" && status != "cancelled" {
+		return ErrConflict
+	}
+	var current int
+	var leased bool
+	if err := tx.QueryRowContext(ctx, `SELECT current_version,lease_token IS NOT NULL FROM story_projects WHERE id=$1`, id).Scan(&current, &leased); err != nil {
+		return err
+	}
+	if current != 0 || leased {
+		return ErrConflict
+	}
+	_, err := tx.ExecContext(ctx, `UPDATE story_projects SET status='draft',message='',updated_at=now() WHERE id=$1`, id)
+	return err
+}
+
 func (r *Repository) AddAsset(ctx context.Context, user, id string, a story.Asset) (story.Asset, error) {
 	return r.AddOrReplaceAsset(ctx, user, id, a, "")
 }
@@ -196,8 +217,8 @@ func (r *Repository) AddOrReplaceAsset(ctx context.Context, user, id string, a s
 	if err != nil {
 		return a, err
 	}
-	if status != "draft" {
-		return a, ErrConflict
+	if err = editableDraftTx(ctx, tx, id, status); err != nil {
+		return a, err
 	}
 	var options story.Options
 	var raw []byte
@@ -318,8 +339,8 @@ func (r *Repository) removeAssetTx(ctx context.Context, tx *sql.Tx, user, id, as
 	if err != nil {
 		return err
 	}
-	if status != "draft" {
-		return ErrConflict
+	if err = editableDraftTx(ctx, tx, id, status); err != nil {
+		return err
 	}
 	_, err = tx.ExecContext(ctx, `DELETE FROM story_assets WHERE project_id=$1 AND id=$2`, id, asset)
 	if err != nil {

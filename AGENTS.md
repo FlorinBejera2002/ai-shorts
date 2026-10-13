@@ -42,8 +42,16 @@ Before starting every new project task, create a new ticket on the **Sneep Cut >
 - Read the files and documentation needed for the current task. Do not load a full repository map or every design and verification document before a small edit.
 - Use skills only when their workflow fits the task. User instructions take precedence over skill guidelines. If a skill blocks progress, identify the exact file and instruction and explain why it applies.
 - Keep any new repository skill narrowly scoped, with a short description and supporting references loaded only when needed. Avoid duplicating general coding guidance or prescribing a fixed itinerary for every change.
-- Historical plans in `docs/superpowers/` record earlier designs and implementation steps. Consult them for relevant context; their checklists, skill names, and example commands are not standing workflow requirements. Verify assumptions against current code.
+- Use the current setup and verification guides. Historical implementation checklists are not standing workflow requirements; verify assumptions against current code.
 - Delegate only when an independent, bounded subtask would save time or improve quality and collaboration tools are available; keep small tasks local.
+
+## Local storage
+
+- Do not retain local release archives or extracted release checkouts. Create release artifacts only when the user requests release work; `scripts/deploy.sh` already uses a temporary directory with cleanup on exit.
+- Use `.cache/tmp/` for disposable scratch work and remove each task's scratch directory in `finally` or an exit trap. Keep originals, database backups and valuable results outside this disposable directory. Do not create separate Go build caches per task; reuse `.cache/go-build`.
+- After tasks that generate local artifacts, run `node scripts/storage.mjs --check`. Budgets are 512 MiB for known regenerable outputs, 3 GiB for all `.cache`, and 8 GiB for the checkout. These are checks, not hard disk quotas; do not increase them merely to silence growth.
+- `make storage` reports usage; `make clean-cache-plan` previews cleanup; `make clean-cache` deletes only allowlisted regenerable outputs. Stop local tests/builds before cleaning. Unknown cache directories, media, databases, models, tools, dependencies and Git history require individual review and are never automatically removed.
+- Do not prune Docker volumes, rewrite Git history, or remove vendored regression fixtures to reduce local size. Installed dependencies can be reduced through a reviewed package-manager change, not by deleting arbitrary packages from `node_modules`.
 
 ## Verification
 

@@ -49,7 +49,7 @@ func (e *PlatformExecutor) Catalog() []Capability {
 		{Name: "scripts.export", Description: "Prepare owned script JSON for explicit download. Input {id}. Does not claim it has been saved on the device.", Risk: "read", Available: true},
 		{Name: "settings.preferences.read", Description: "Read saved application preferences and expected_state. Input {}.", Risk: "read", Available: true},
 		{Name: "settings.preferences.update", Description: "Change explicit application preferences with guarded Undo. Input {expected_state,preferences:{locale?:en|ro,theme?:light|dark|system,timezone?:IANA timezone,defaultAspectRatio?:9:16|1:1|16:9,defaultClipCount?:1..10,emailSecurity?,emailProduct?,emailMarketing?,inAppProcessing?,inAppPublishing?}}. Preserve omitted values; read first.", Risk: "write", Available: true},
-		{Name: "stories.restyle", Description: "Change only rendered story style while preserving its exact accepted plan, sources and locks. Input {id,version,expected_state,style:{captions?,subtitle_color?,subtitle_position?,subtitle_font?,subtitle_size?,logo_resource_id?,logo_position?,logo_opacity?}}. Requires new real render/review; failed review preserves the prior accepted version. Uses existing credit reservation.", Risk: "write", Available: true},
+		{Name: "stories.restyle", Description: "Change only rendered story style while preserving its exact accepted plan, sources and locks. Input {id,version,expected_state,style:{captions?,caption_mode?:all|selective|off,subtitle_color?,subtitle_position?,subtitle_font?,subtitle_size?,logo_resource_id?,logo_position?,logo_opacity?}}. Requires new real render/review; failed review preserves the prior accepted version. Uses existing credit reservation.", Risk: "write", Available: true},
 		{Name: "stories.rollback", Description: "Restore an inspected saved accepted story version. Input {id,expected_state,version}. Guarded Undo available.", Risk: "write", Available: e.storyLifecycle != nil},
 		{Name: "stories.remove_asset", Description: "Remove a source from a draft story only. Input {id,expected_state,asset_id}. Original uploaded file is preserved.", Risk: "write", Available: e.storyLifecycle != nil},
 		{Name: "stories.delete", Description: "Delete an inspected story and derived artifacts. Input {id,expected_state}. Original uploads remain; exact-target approval required. No Undo.", Risk: "external", Available: e.storyLifecycle != nil},
@@ -66,8 +66,8 @@ func (e *PlatformExecutor) Catalog() []Capability {
 		{Name: "brand.read", Description: "Read saved brand colors, fonts and subtitle settings. Input {}. Does not return private asset paths.", Risk: "read", Available: true},
 		{Name: "stories.list", Description: "List your stories. Input {}.", Risk: "read", Available: true},
 		{Name: "stories.get", Description: "Inspect story state and reviewed versions. Input {id}.", Risk: "read", Available: true},
-		{Name: "stories.update", Description: "Update inspected story settings or protected blocks. Input {id,expected_state,patch:{options?:full existing options,assets?:[{id,role,include,order}],version,locks?:[{block_id,locked,lock_text,lock_order,lock_crop}]}}. Options/assets only while draft; protect requested sections before revising. Copy expected_state from stories.get. Preserve existing locks not requested changed.", Risk: "write", Available: true},
-		{Name: "stories.create", Description: "Create an empty story draft. Input {options:{brief,target_seconds,aspect_ratio,language,mode,preserve_order,captions,subtitle_color?,subtitle_position?,subtitle_font?,subtitle_size?,logo_resource_id?,logo_position?,logo_opacity?}}. Target seconds integer15..90; subtitle size12..120, color #RRGGBB, position top|center|bottom. Logo must be an attached opaque resource ID. Sources upload in chat; continue requested montage after validated uploads.", Risk: "write", Available: true},
+		{Name: "stories.update", Description: "Update inspected story settings or protected blocks. Input {id,expected_state,patch:{options?:full existing options,assets?:[{id,role,include,order}],version,locks?:[{block_id,locked,lock_text,lock_order,lock_crop}]}}. Options/assets while draft, or a failed/cancelled first attempt after the worker stops; protect requested sections before revising. Copy expected_state from stories.get. Preserve existing locks not requested changed.", Risk: "write", Available: true},
+		{Name: "stories.create", Description: "Create an empty story draft. Input {options:{brief,target_seconds,aspect_ratio,language,mode,preserve_order,captions?,caption_mode?:all|selective|off,subtitle_color?,subtitle_position?,subtitle_font?,subtitle_size?,logo_resource_id?,logo_position?,logo_opacity?}}. New drafts preserve source order and omit captions unless requested. caption_mode is authoritative; selective uses original-audio intelligibility evidence, never ASR confidence or low volume alone. Target seconds integer15..90; subtitle size12..120, color #RRGGBB, position top|center|bottom. Logo must be an attached opaque resource ID. Sources upload in chat; continue requested montage after validated uploads.", Risk: "write", Available: true},
 		{Name: "stories.generate", Description: "Generate an uploaded story. Input {id,version,expected_state}. Copy expected_state from inspected story. Requires actual uploaded assets; spends up to 10 credits.", Risk: "cost", CostCredits: 10, Available: true},
 		{Name: "stories.revise", Description: "Revise an existing story using its existing credit reservation. Input {id,version,expected_state,action,block_id?,candidate_id?}; action alternate, regenerate_section, faster, improve_flow, improve_transitions. Copy expected_state from inspected story.", Risk: "write", Available: true},
 		{Name: "scripts.list", Description: "List script summaries. Input {query?:string,include_archived?:boolean}.", Risk: "read", Available: true},
@@ -85,6 +85,7 @@ func (e *PlatformExecutor) Catalog() []Capability {
 		{Name: "calendar.create_draft", Description: "Prepare a draft only. Input {fields:{title,platforms,accountIds,scheduledAt,clipId?,caption?,notes?,instagram?}}. Never invent provider consent or account IDs.", Risk: "write", Available: e.calendar != nil},
 		{Name: "calendar.update", Description: "Edit an inspected draft only. Input {id,expected_state,fields:{title?,caption?,notes?,clipId?,platforms?,accountIds?,scheduledAt?}}.", Risk: "write", Available: e.calendar != nil},
 		{Name: "publishing.accounts", Description: "List connected destinations and actual publishing capabilities. Input {}.", Risk: "read", Available: e.publishing != nil},
+		{Name: "publishing.options", Description: "Read live TikTok creator options (available privacy levels, comment/duet/stitch restrictions and maximum duration) for an owned connected account. Input {id} from publishing.accounts. Provider setup and live OAuth credentials are required. Privacy, disclosures, music and YouTube consent remain explicit user choices in the publishing form; calendar tools cannot invent or set provider consent.", Risk: "read", Available: e.publishing != nil},
 		{Name: "publishing.status", Description: "Inspect per-destination publication state. Input {id}.", Risk: "read", Available: e.calendar != nil},
 		{Name: "publishing.schedule", Description: "Schedule an inspected draft. Input {id,expected_state,fields:{scheduledAt}}. Explicit timestamp including timezone; requires exact-target approval and existing provider consent.", Risk: "external", Available: e.calendar != nil},
 		{Name: "publishing.reschedule", Description: "Change scheduled time. Input {id,expected_state,fields:{scheduledAt}}; requires exact-target approval.", Risk: "external", Available: e.calendar != nil},
@@ -98,12 +99,18 @@ func (e *PlatformExecutor) Catalog() []Capability {
 		{Name: "jobs.get", Description: "Inspect a processing job and verified saved clip IDs. Input {id}.", Risk: "read", Available: e.jobs != nil},
 	}
 	for i := range catalog {
+		switch catalog[i].Name {
+		case "publishing.schedule", "publishing.reschedule", "publishing.publish", "publishing.unschedule":
+			catalog[i].Available = e.calendar != nil && e.publishing != nil
+		}
 		if !catalog[i].Available && catalog[i].Limitation == "" {
 			catalog[i].Limitation = "The required execution service is not connected."
 		}
 	}
 	catalog = append(catalog, e.studioCapabilities()...)
 	catalog = append(catalog, e.libraryCapabilities()...)
+	catalog = append(catalog, e.resourceCapabilities()...)
+	catalog = append(catalog, e.jobControlCapabilities()...)
 	return append(catalog, e.projectBrandCapabilities()...)
 }
 func decodeAction(raw json.RawMessage, dst any) error {
@@ -140,6 +147,10 @@ func actionID(raw json.RawMessage) (string, error) {
 
 func (e *PlatformExecutor) Execute(ctx context.Context, user, requestID string, a Action) (ActionResult, error) {
 	switch a.Name {
+	case "resources.list", "resources.get", "sources.list":
+		return e.discoverResources(ctx, user, a)
+	case "jobs.list", "jobs.cancel", "stories.cancel":
+		return e.executeJobControl(ctx, user, a)
 	case "brand.logo.update", "brand.logo.restore":
 		return e.brandLogo(ctx, user, requestID, a)
 	case "clips.list":
@@ -166,9 +177,9 @@ func (e *PlatformExecutor) Execute(ctx context.Context, user, requestID string, 
 		return e.scriptHistory(ctx, user, requestID, a)
 	case "stories.update", "stories.restore_settings":
 		return e.patchStory(ctx, user, requestID, a)
-	case "studio.list", "studio.get", "studio.create", "studio.edit", "studio.revise", "studio.render", "studio.restore":
+	case "studio.list", "studio.get", "studio.create", "studio.edit", "studio.revise", "studio.render", "studio.restore", "studio.layer.remove", "studio.layer.split", "studio.assets.list", "studio.assets.get", "studio.assets.duplicate", "studio.assets.rename", "studio.assets.delete", "studio.renders.list", "studio.renders.delete", "studio.export":
 		return e.studioExecute(ctx, user, requestID, a)
-	case "calendar.attach_media", "calendar.delete", "calendar.list", "calendar.get", "calendar.create_draft", "calendar.update", "publishing.accounts", "publishing.disconnect", "publishing.schedule", "publishing.reschedule", "publishing.publish", "publishing.unschedule", "publishing.status":
+	case "calendar.attach_media", "calendar.delete", "calendar.list", "calendar.get", "calendar.create_draft", "calendar.update", "publishing.accounts", "publishing.options", "publishing.disconnect", "publishing.schedule", "publishing.reschedule", "publishing.publish", "publishing.unschedule", "publishing.status":
 		return e.publishingExecute(ctx, user, requestID, a)
 	case "clips.get", "clips.trim", "clips.recut", "clips.style", "clips.transitions", "clips.export", "clips.metadata", "clips.delete":
 		return e.clipExecute(ctx, user, requestID, a)
@@ -208,9 +219,11 @@ func (e *PlatformExecutor) Execute(ctx context.Context, user, requestID string, 
 		var in struct {
 			Options story.Options `json:"options"`
 		}
+		in.Options = story.DefaultOptions()
 		if err := decodeAction(a.Input, &in); err != nil {
 			return ActionResult{}, err
 		}
+		in.Options.CaptionModeRevised = false
 		options, err := story.NormalizeOptions(in.Options)
 		if err != nil {
 			return ActionResult{}, err

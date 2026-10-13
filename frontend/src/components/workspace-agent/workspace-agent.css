@@ -1,7 +1,11 @@
-#workspace-agent-panel {
+#workspace-agent-panel,
+[data-agent-menu] {
   --primary: var(--foreground);
   --primary-foreground: var(--background);
   --ring: var(--foreground);
+  --muted: color-mix(in srgb, var(--foreground) 5%, var(--background));
+  --muted-foreground: color-mix(in srgb, var(--foreground) 60%, var(--background));
+  --border: color-mix(in srgb, var(--foreground) 13%, var(--background));
 }
 #workspace-agent-panel input[type='checkbox'] {
   appearance: auto;
@@ -17,11 +21,27 @@
 #workspace-agent-panel progress { accent-color: var(--foreground); }
 #workspace-agent-panel [data-slot='button'],
 #workspace-agent-panel textarea { border-radius: var(--radius-md); }
+#workspace-agent-panel .agent-composer-input:focus-visible { outline: none; }
 #workspace-agent-panel [data-variant='default'],
 [data-agent-trigger] { background: var(--foreground); color: var(--background); }
 #workspace-agent-panel [data-variant='ghost']:hover,
 #workspace-agent-panel [data-variant='outline']:hover { background: var(--muted); color: var(--foreground); }
 [data-agent-route-active='true'] { outline: 1px solid color-mix(in srgb, var(--foreground) 20%, transparent); outline-offset: -1px; }
+.agent-shimmer {
+  color: var(--muted-foreground);
+  background: linear-gradient(100deg, var(--muted-foreground) 25%, var(--foreground) 45%, var(--muted-foreground) 65%);
+  background-size: 240% 100%;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: agent-shimmer 2.4s linear infinite;
+}
+@keyframes agent-shimmer { from { background-position: 100% 0; } to { background-position: -100% 0; } }
+@media (min-width: 768px) and (hover: hover) and (pointer: fine) {
+  .agent-message-actions { opacity: 0; transition: opacity 120ms ease; }
+  .agent-message:hover .agent-message-actions,
+  .agent-message:focus-within .agent-message-actions { opacity: 1; }
+}
 @media (prefers-reduced-motion: reduce) {
-  #workspace-agent-panel *, [data-agent-activity] { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+  #workspace-agent-panel *, [data-agent-activity], [data-agent-menu] { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+  .agent-shimmer { background: none; -webkit-text-fill-color: currentColor; }
 }

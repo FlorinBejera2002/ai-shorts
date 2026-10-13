@@ -168,9 +168,8 @@ describe("file route containment", () => {
     expect(existsSync(join(project, "..unsafe.txt"))).toBe(false);
   });
 
-  it.each([false, true])(
-    "does not follow a dangling upload symlink (renamed: %s)",
-    async (collision, context) => {
+  for (const collision of [false, true]) {
+    it(`does not follow a dangling upload symlink (renamed: ${collision})`, async (context) => {
       const { app, project, outside } = fixture();
       const external = join(outside, "new.txt");
       if (collision) writeFileSync(join(project, "upload.txt"), "existing upload");
@@ -180,8 +179,8 @@ describe("file route containment", () => {
       expect(response.status).toBe(201);
       expect((await response.json()).files).toEqual([]);
       expect(existsSync(external)).toBe(false);
-    },
-  );
+    });
+  }
 
   it("allows nested file creation, uploads, and internal directory symlinks", async (context) => {
     const { app, project } = fixture();

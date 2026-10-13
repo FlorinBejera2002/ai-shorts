@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -97,9 +98,10 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 	if !decode(w, r, &in) {
 		return
 	}
+	in.Options.CaptionModeRevised = false
 	options, err := story.NormalizeOptions(in.Options)
 	if err != nil {
-		failure(w, ErrInvalid)
+		failure(w, fmt.Errorf("%w: %s", ErrInvalid, err))
 		return
 	}
 	user := identity.Current(r).User.ID
@@ -247,7 +249,7 @@ func (h *Handler) asset(w http.ResponseWriter, r *http.Request) {
 		failure(w, err)
 		return
 	}
-	if p.Status != "draft" {
+	if p.Status != "draft" && !((p.Status == "failed" || p.Status == "cancelled") && p.CurrentVersion == 0) {
 		failure(w, ErrConflict)
 		return
 	}

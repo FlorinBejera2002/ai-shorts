@@ -2,9 +2,43 @@ package stories
 
 import (
 	"context"
+	"sneepcut/backend-go/internal/story"
 	"testing"
 	"time"
 )
+
+func TestAdminStoryAgentPatchAndLifecycle(t *testing.T) {
+	r, user, id, ids := fixture(t, 1)
+	ctx := context.Background()
+	if _, err := r.db.Exec(`UPDATE users SET access_role='admin' WHERE id=$1`, user); err != nil {
+		t.Fatal(err)
+	}
+	state, err := r.AgentState(ctx, user, id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	options := story.DefaultOptions()
+	options.AspectRatio = "1:1"
+	patched, err := r.AgentPatch(ctx, user, id, newID(), state, Patch{Options: &options})
+	if err != nil {
+		t.Fatal("admin agent patch rejected", err)
+	}
+	h := &Handler{repo: r}
+	input := LifecycleInput{ID: id, ExpectedState: patched.ExpectedState, AssetID: ids[0]}
+	request := newID()
+	removed, err := h.AgentLifecycle(ctx, user, request, "stories.remove_asset", input)
+	if err != nil || removed.RemovedAsset != ids[0] {
+		t.Fatalf("admin lifecycle rejected: %+v err=%v", removed, err)
+	}
+	replay, err := h.AgentLifecycle(ctx, user, request, "stories.remove_asset", input)
+	if err != nil || replay.ExpectedState != removed.ExpectedState {
+		t.Fatalf("admin lifecycle retry failed: %+v err=%v", replay, err)
+	}
+	p, err := r.Get(ctx, user, id)
+	if err != nil || p.Options.AspectRatio != "1:1" || len(p.Assets) != 0 || credits(t, r, user) != 100 {
+		t.Fatalf("admin agent changes were not persisted correctly: %+v err=%v", p, err)
+	}
+}
 
 func TestStoryAgentPatchWaitsForConcurrentMembershipRevocation(t *testing.T) {
 	r, user, id, _ := fixture(t, 1)

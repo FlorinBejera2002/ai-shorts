@@ -21,11 +21,15 @@ func BuildTimeline(plan Plan, assets []Asset) ([]Entry, error) {
 		if !ok {
 			return nil, fmt.Errorf("unknown candidate %q", b.CandidateID)
 		}
-		duration := c.Out - c.In
+		interval, err := blockSourceInterval(b, c, sources[c.SourceID])
+		if err != nil {
+			return nil, err
+		}
+		duration := interval.Out - interval.In
 		if !finite(duration) || duration <= 0 {
 			return nil, fmt.Errorf("invalid candidate interval")
 		}
-		e := Entry{BlockID: b.ID, CandidateID: c.ID, OutputIn: clock, OutputOut: clock + duration, Video: Interval{c.SourceID, c.In, c.Out}, Crop: b.Crop, Transition: "natural"}
+		e := Entry{BlockID: b.ID, CandidateID: c.ID, OutputIn: clock, OutputOut: clock + duration, Video: interval, Crop: b.Crop, Transition: "natural"}
 		if e.Crop == "" {
 			e.Crop = "fit"
 		}
@@ -88,6 +92,9 @@ func ValidatePlan(plan Plan, assets []Asset, options Options, base *Version) []I
 			}
 		}
 		source := sources[c.SourceID]
+		if _, err := blockSourceInterval(b, c, source); err != nil {
+			add("source_trim", "critical", b, err.Error())
+		}
 		if source.Include == "excluded" {
 			add("excluded", "critical", b, "An explicitly excluded source was selected.")
 		}
@@ -160,7 +167,7 @@ func ValidatePlan(plan Plan, assets []Asset, options Options, base *Version) []I
 				}
 				continue
 			}
-			if old.Locked && (old.CandidateID != updated.CandidateID || old.BRollID != updated.BRollID || old.Crop != updated.Crop || old.IdentityReferenceID != updated.IdentityReferenceID || newIndex != oldIndex) {
+			if old.Locked && (old.CandidateID != updated.CandidateID || old.BRollID != updated.BRollID || old.Crop != updated.Crop || old.IdentityReferenceID != updated.IdentityReferenceID || newIndex != oldIndex || !sameBlockIntervals(old, updated)) {
 				add("lock", "critical", old, "A locked block was modified.")
 			}
 			if old.LockText && lexical(all[old.CandidateID].Text) != lexical(all[updated.CandidateID].Text) {

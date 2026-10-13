@@ -48,7 +48,7 @@ func TestStoryVisualGapsRetainSceneryAroundBriefSpeech(t *testing.T) {
 	}
 }
 
-func TestStoryVisualGapsExcludeMergedExistingIntervalsAndTinyGaps(t *testing.T) {
+func TestStoryVisualGapsExcludeMergedExistingIntervalsAndRetainShortPauses(t *testing.T) {
 	asset := story.Asset{ID: "source", Duration: 24}
 	existing := []story.Candidate{
 		{ID: "source-g1", SourceID: asset.ID, In: 11.5, Out: 14, Role: "b_roll"},
@@ -60,10 +60,10 @@ func TestStoryVisualGapsExcludeMergedExistingIntervalsAndTinyGaps(t *testing.T) 
 	if !reflect.DeepEqual(existing, original) || !reflect.DeepEqual(result[:len(existing)], original) {
 		t.Fatal("gap detection reordered or changed existing candidates")
 	}
-	if len(result) != len(existing)+4 {
+	if len(result) != len(existing)+5 {
 		t.Fatalf("unexpected gap window count: %+v", result)
 	}
-	expected := []story.Interval{{SourceID: asset.ID, In: 0, Out: 4}, {SourceID: asset.ID, In: 14, Out: 17.333333333333332}, {SourceID: asset.ID, In: 17.333333333333332, Out: 20.666666666666668}, {SourceID: asset.ID, In: 20.666666666666668, Out: 24}}
+	expected := []story.Interval{{SourceID: asset.ID, In: 0, Out: 4}, {SourceID: asset.ID, In: 10, Out: 11.5}, {SourceID: asset.ID, In: 14, Out: 17.333333333333332}, {SourceID: asset.ID, In: 17.333333333333332, Out: 20.666666666666668}, {SourceID: asset.ID, In: 20.666666666666668, Out: 24}}
 	ids := make(map[string]bool)
 	for _, candidate := range result {
 		if ids[candidate.ID] {
@@ -73,8 +73,32 @@ func TestStoryVisualGapsExcludeMergedExistingIntervalsAndTinyGaps(t *testing.T) 
 	}
 	for i, candidate := range result[len(existing):] {
 		if candidate.In != expected[i].In || candidate.Out != expected[i].Out {
-			t.Fatalf("overlapping/reserved or subsecond footage leaked into visual candidates: %+v", candidate)
+			t.Fatalf("gap coverage changed source intervals: %+v", candidate)
 		}
+	}
+}
+
+func TestStoryVisualCatalogRetainsOriginalPausesAndTailsWithoutTinyShots(t *testing.T) {
+	asset := story.Asset{ID: "speech", Duration: 8, HasAudio: true}
+	existing := []story.Candidate{
+		{ID: "speech-s1", SourceID: asset.ID, In: .01, Out: 2.06, Text: "First sentence.", Words: []story.Word{{Text: "First sentence.", Start: .13, End: 1.88}}},
+		{ID: "speech-s2", SourceID: asset.ID, In: 2.3, Out: 6.24, Text: "Second sentence.", Words: []story.Word{{Text: "Second sentence.", Start: 2.42, End: 6.06}}},
+	}
+	result := storyCandidatesWithVisualGaps(asset, existing, 0, .6)
+	if len(result) != 3 || result[0].In != 0 || result[0].Out != 2.3 || result[1].In != 2.3 || result[1].Out != 6.24 || result[2].In != 6.24 || result[2].Out != 8 {
+		t.Fatalf("original leading context, pause or short tail lost: %+v", result)
+	}
+	if !reflect.DeepEqual(result[0].Words, existing[0].Words) || !reflect.DeepEqual(result[1].Words, existing[1].Words) || existing[0].In != .01 || existing[0].Out != 2.06 {
+		t.Fatal("retaining original context changed word clocks or immutable ASR catalog")
+	}
+	if got := storyCandidatesWithVisualGaps(asset, result, 0, .6); !reflect.DeepEqual(got, result) {
+		t.Fatal("source pause catalog changed on retry")
+	}
+	asset.Candidates = result
+	plan := story.Plan{Blocks: []story.Block{{ID: "one", CandidateID: result[0].ID}, {ID: "two", CandidateID: result[1].ID}, {ID: "tail", CandidateID: result[2].ID}}}
+	timeline, err := story.BuildTimeline(plan, []story.Asset{asset})
+	if err != nil || timeline[len(timeline)-1].OutputOut != asset.Duration || timeline[0].Words[0].Start != existing[0].Words[0].Start || timeline[2].Audio == nil {
+		t.Fatalf("original audio and pauses cannot be reconstructed on the full source clock: %+v %v", timeline, err)
 	}
 }
 

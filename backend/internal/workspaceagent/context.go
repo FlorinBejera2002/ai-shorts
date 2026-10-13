@@ -98,7 +98,7 @@ func (e *PlatformExecutor) Context(ctx context.Context, user string, scope Scope
 	studioScope := strings.HasSuffix(strings.Split(scope.Route, "?")[0], "/dashboard/studio")
 	if studioScope && data.ValidUUID(scope.ProjectID) {
 		if e.studio == nil {
-			return nil, fmt.Errorf("Studio service is not connected")
+			return nil, fmt.Errorf("%w Studio service is not connected.", ErrUnavailable)
 		}
 		selected, err := e.studio.call(ctx, user, "", Action{Name: "studio.get", Input: actionJSON(map[string]any{"id": scope.ProjectID})})
 		if err != nil {
@@ -149,19 +149,44 @@ func (e *PlatformExecutor) Context(ctx context.Context, user string, scope Scope
 			if !owned {
 				return nil, sql.ErrNoRows
 			}
+			selected, err := e.selectedProject(ctx, user, scope.ProjectID)
+			if err != nil {
+				return nil, err
+			}
+			out["selected_project"] = selected
 		}
 	}
 	if data.ValidUUID(scope.ClipID) {
-		var title string
+		var title, projectID, aspectRatio string
 		var duration float64
-		err = e.db.QueryRowContext(ctx, `SELECT title,duration FROM clips WHERE id=$1 AND user_id=$2`, scope.ClipID, user).Scan(&title, &duration)
+		var hasSubtitles bool
+		err = e.db.QueryRowContext(ctx, `SELECT title,duration,job_id,aspect_ratio,has_subtitles FROM clips WHERE id=$1 AND user_id=$2`, scope.ClipID, user).Scan(&title, &duration, &projectID, &aspectRatio, &hasSubtitles)
 		if err == nil {
-			out["selected_clip"] = map[string]any{"id": scope.ClipID, "title": title, "duration": duration}
+			out["selected_clip"] = map[string]any{"id": scope.ClipID, "title": title, "duration": duration, "project_id": projectID, "aspect_ratio": aspectRatio, "has_subtitles": hasSubtitles}
+			if scope.ProjectID == "" {
+				selected, err := e.selectedProject(ctx, user, projectID)
+				if err != nil {
+					return nil, err
+				}
+				out["selected_project"] = selected
+			}
 		} else {
 			return nil, err
 		}
 	}
 	return json.Marshal(out)
+}
+
+func (e *PlatformExecutor) selectedProject(ctx context.Context, user, id string) (map[string]any, error) {
+	var name, status string
+	var updated time.Time
+	var hasSource, hasLogo bool
+	var clipCount int
+	err := e.db.QueryRowContext(ctx, `SELECT COALESCE(NULLIF(project_name,''),'Untitled project'),status,updated_at,COALESCE(NULLIF(source_url,''),NULLIF(source_file_path,'')) IS NOT NULL,COALESCE(project_brand->>'logoPath','')<>'',(SELECT count(*) FROM clips WHERE job_id=jobs.id AND user_id=$2) FROM jobs WHERE id=$1 AND user_id=$2`, id, user).Scan(&name, &status, &updated, &hasSource, &hasLogo, &clipCount)
+	if err != nil {
+		return nil, err
+	}
+	return map[string]any{"id": id, "name": name, "status": status, "updated_at": updated, "has_source": hasSource, "has_logo": hasLogo, "clips": clipCount}, nil
 }
 
 func (e *PlatformExecutor) contextInventory(ctx context.Context, user string, storiesOnly bool) (json.RawMessage, error) {

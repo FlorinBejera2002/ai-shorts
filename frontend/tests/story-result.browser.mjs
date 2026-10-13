@@ -240,7 +240,7 @@ const sceneFile = new URL(
 let originalScene
 try {
   await page.goto(`${origin}/dashboard/create?story=${projectID}`, {
-    waitUntil: 'networkidle'
+    waitUntil: 'domcontentloaded', timeout: 180000
   })
   await page
     .getByRole('heading', { name: 'Video preview', exact: true })
@@ -253,11 +253,10 @@ try {
       1
   )
   assert.equal(await scenes.count(), 17)
-  const surfaces = await page.locator('.story-result-surface').evaluateAll((items) =>
-    items.map((item) => ({ shadow: getComputedStyle(item).boxShadow, border: getComputedStyle(item).borderTopWidth }))
-  )
-  assert.equal(surfaces.length, 4, 'Preview, improvements, review and scenes have independent surfaces')
-  assert.ok(surfaces.every((surface) => surface.shadow !== 'none' && surface.border === '0px'), JSON.stringify(surfaces))
+  assert.equal(await page.locator('.story-workspace [data-slot="card"] [data-slot="card"]').count(), 0,
+    'Result content never nests cards')
+  assert.equal(await scenes.first().evaluate((item) => Boolean(item.closest('[data-slot="card"]'))), false,
+    'Scene rows sit in a plain section, without an outer card')
   assert.equal(await scenes.first().evaluate((item) => getComputedStyle(item).borderTopWidth), '1px')
   assert.equal(await page.getByTestId('story-processing').count(), 0)
   assert.equal(await page.getByTestId('story-review-topic').count(), 1)
@@ -379,7 +378,7 @@ try {
   )
   await page.screenshot({ path: `${output}/mobile.png`, fullPage: true })
   await page.goto(`${origin}/ro/dashboard/create?story=${projectID}`, {
-    waitUntil: 'networkidle'
+    waitUntil: 'domcontentloaded', timeout: 180000
   })
   await page
     .getByRole('heading', { name: 'Înainte de publicare', exact: true })

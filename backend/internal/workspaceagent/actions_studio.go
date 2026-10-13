@@ -43,10 +43,11 @@ func (e *PlatformExecutor) studioCapabilities() []Capability {
 		{Name: "studio.list", Description: "List your Studio projects. Input {}.", Risk: "read", Available: available},
 		{Name: "studio.get", Description: "Inspect Studio document version and stable layer IDs. Input {id}. Does not expose source code or storage paths.", Risk: "read", Available: available},
 		{Name: "studio.create", Description: "Create a Studio composition from its title. Input {title}. Follow with studio.revise for requested content.", Risk: "write", Available: available},
-		{Name: "studio.edit", Description: "Edit a stable Studio layer. Input {id,expected_version,element_id OR hf_id,changes:{text?,start?,duration?,color?,background_color?,font_size?,opacity?}}. Copy IDs/version from studio.get; timing in seconds, colors #RRGGBB, font_size pixels. Existing animation may animate styled properties.", Risk: "write", Available: available},
+		{Name: "studio.edit", Description: "Edit a stable Studio layer. Input {id,expected_version,element_id OR hf_id,changes:{text?,start?,duration?,color?,background_color?,font_size?,font_family?,text_align?:left|center|right|justify,line_height?,opacity?,x?,y?,width?,height?,rotation?,scale?,track?,volume?:0..3.98,playback_rate?:0.1..5}}. Copy IDs/version from studio.get; times seconds, dimensions pixels, rotation degrees, volume linear gain. Existing animation may animate styled properties; use studio.revise for animation or broader composition edits.", Risk: "write", Available: available},
 		{Name: "studio.revise", Description: "Apply an AI composition edit to an inspected version. Input {id,expected_version,message}. Preserves source assets unless requested. Saved document is verified; visual quality requires rendering/review.", Risk: "write", Available: available},
 		{Name: "studio.render", Description: "Render an inspected Studio composition in the isolated renderer. Input {id,expected_version,format?:mp4|webm|mov,quality?:draft|standard|high,fps?:24|25|30|50|60}. Waits for a verified output file.", Risk: "write", Available: available},
 	}
+	capabilities = append(capabilities, e.extendedStudioCapabilities()...)
 	if !available {
 		for i := range capabilities {
 			capabilities[i].Limitation = "Studio service is not connected; configure STUDIO_AGENT_URL and STUDIO_AGENT_SECRET."
@@ -147,12 +148,22 @@ func (e *PlatformExecutor) studioExecute(ctx context.Context, user, requestID st
 	}
 	summary := "Studio result verified"
 	switch a.Name {
-	case "studio.list", "studio.get":
+	case "studio.list", "studio.get", "studio.assets.list", "studio.assets.get", "studio.renders.list":
 		summary = "Loaded Studio workspace"
 	case "studio.create":
 		summary = "Studio composition created"
-	case "studio.edit", "studio.revise":
+	case "studio.edit", "studio.revise", "studio.layer.remove", "studio.layer.split":
 		summary = "Studio document saved and version verified"
+	case "studio.assets.duplicate":
+		summary = "Studio asset copied and content verified"
+	case "studio.assets.rename":
+		summary = "Studio asset renamed and content verified"
+	case "studio.assets.delete":
+		summary = "Selected Studio asset deleted; affected layers are recorded"
+	case "studio.renders.delete":
+		summary = "Selected Studio render deleted; composition preserved"
+	case "studio.export":
+		summary = "Studio export verified; open Studio to download the saved output"
 	case "studio.render":
 		summary = "Studio render queued"
 		if result.JobID == "" || result.Status != "rendering" {

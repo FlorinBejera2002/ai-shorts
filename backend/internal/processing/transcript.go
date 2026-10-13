@@ -14,6 +14,13 @@ import (
 var errNoSpeech = errors.New("no speech detected in the video audio")
 var errSpeechDetectionUnavailable = errors.New("voice activity detection is unavailable")
 
+// Prepared audio belongs to one immutable proxy and one analysis workspace.
+// It is passed explicitly so a cache refresh cannot pick up an unrelated WAV.
+type storyPreparedAudio struct {
+	proxyKey string
+	file     string
+}
+
 func (p *Processor) transcribe(ctx context.Context, file, dir, language string, duration float64) (Transcript, error) {
 	return p.transcribeModel(ctx, file, dir, language, duration, p.cfg.WhisperModel)
 }
@@ -26,11 +33,20 @@ func (p *Processor) transcribeModel(ctx context.Context, file, dir, language str
 // distinguish a speaker from music, traffic or machinery. Legacy transcription
 // callers retain their existing behavior until they opt into this contract.
 func (p *Processor) transcribeStory(ctx context.Context, file, dir, language string, duration float64, model string) (Transcript, error) {
+	transcript, _, err := p.transcribeStoryWithAudio(ctx, file, dir, language, duration, model, "")
+	return transcript, err
+}
+
+func (p *Processor) transcribeStoryWithAudio(ctx context.Context, file, dir, language string, duration float64, model, proxyKey string) (Transcript, storyPreparedAudio, error) {
 	vad := p.storyVADModel(model)
 	if info, err := os.Stat(vad); err != nil || !info.Mode().IsRegular() || info.Size() == 0 {
-		return Transcript{}, errSpeechDetectionUnavailable
+		return Transcript{}, storyPreparedAudio{}, errSpeechDetectionUnavailable
 	}
-	return p.transcribeWithVAD(ctx, file, dir, language, duration, model, vad)
+	transcript, err := p.transcribeWithVAD(ctx, file, dir, language, duration, model, vad)
+	if err != nil {
+		return transcript, storyPreparedAudio{}, err
+	}
+	return transcript, storyPreparedAudio{proxyKey: proxyKey, file: filepath.Join(dir, "audio.wav")}, nil
 }
 
 func (p *Processor) storyVADModel(model string) string {

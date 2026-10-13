@@ -64,8 +64,8 @@ export function StoryProjectHeader({
       {unsavedChanges && (
         <p role="status" className="w-full text-sm text-muted-foreground">
           {text(
-            'Continue to save your changes before switching projects.',
-            'Continuă pentru a salva modificările înainte de a schimba proiectul.'
+            'Review your choices at Generate to save before switching projects.',
+            'Verifică alegerile la Generează pentru a le salva înainte de a schimba proiectul.'
           )}
         </p>
       )}

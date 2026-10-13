@@ -75,11 +75,21 @@ func (r *Repository) patchTx(ctx context.Context, tx *sql.Tx, user, id string, i
 	if !idle(status) {
 		return ErrConflict
 	}
+	if in.Options != nil || in.Assets != nil {
+		if err = editableDraftTx(ctx, tx, id, status); err != nil {
+			return err
+		}
+		status = "draft"
+	}
 	if in.Options != nil {
 		if status != "draft" {
 			return ErrConflict
 		}
-		options, e := story.NormalizeOptions(*in.Options)
+		requested := *in.Options
+		// Draft settings are a fresh instruction set; only a later render-style
+		// revision may supersede an original textual caption directive.
+		requested.CaptionModeRevised = false
+		options, e := story.NormalizeOptions(requested)
 		if e != nil {
 			return fmt.Errorf("%w: %s", ErrInvalid, e)
 		}
@@ -229,6 +239,12 @@ func (r *Repository) Queue(ctx context.Context, user, id string, in Generate) er
 			return fmt.Errorf("%w: %s", ErrInvalid, err)
 		}
 	}
+	// Revalidate persisted options before reserving credits or processing media.
+	// Older drafts must obey the same caption and brief contract as new ones.
+	req.Options, err = story.NormalizeOptions(req.Options)
+	if err != nil {
+		return fmt.Errorf("%w: %s", ErrInvalid, err)
+	}
 	if err = resolveStoryLogo(ctx, tx, &req); err != nil {
 		return err
 	}
@@ -328,7 +344,7 @@ func (r *Repository) Queue(ctx context.Context, user, id string, in Generate) er
 		return err
 	}
 	if current == 0 && charge == 0 {
-		result, e := tx.ExecContext(ctx, `UPDATE users SET credits=credits-10,updated_at=now() WHERE id=$1 AND credits>=10 AND access_role='member' AND NOT EXISTS(SELECT 1 FROM account_deletion_requests WHERE user_id=$1)`, user)
+		result, e := tx.ExecContext(ctx, `UPDATE users SET credits=credits-10,updated_at=now() WHERE id=$1 AND credits>=10 AND access_role IN ('member','admin') AND NOT EXISTS(SELECT 1 FROM account_deletion_requests WHERE user_id=$1)`, user)
 		if e != nil {
 			return e
 		}

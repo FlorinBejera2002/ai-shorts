@@ -1,15 +1,15 @@
 import { useCallback, useEffect, useRef, useState, type SetStateAction } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { agentApi, AgentApiError } from './api'
-import { agentContext, mergeRuns, pollingDelay, safeAgentRoute } from './model'
-import type { AgentCommand, AgentContext, AgentRun, RunRequest, Suggestion } from './model'
+import { agentContext, mergeRuns, pollingDelay, resourceIdsForContext, resourceProjectFromRun, safeAgentRoute } from './model'
+import type { AgentCommand, AgentContext, AgentResource, AgentRun, RunRequest, Suggestion } from './model'
 import type { StoryHelpRequest } from './story-help'
 import { publishAgentActivity } from './activity'
 import { useStudioSelection } from './studio-selection'
 
 const historyKey = ['workspace-agent', 'runs']
 type HelpDraft = { context: AgentContext; source: HTMLElement }
-export function useWorkspaceAgent(route: string, navigate: (route: string) => void, projectId?: string, onProject?: (id: string) => void, locale = 'ro', resourceIds: string[] = []) {
+export function useWorkspaceAgent(route: string, navigate: (route: string) => void, projectId?: string, onProject?: (id: string) => void, locale = 'ro', resources: AgentResource[] = []) {
   const client = useQueryClient()
   const [draftState, setDraftState] = useState<{ text: string; help: HelpDraft | null }>({ text: '', help: null })
   const { text: draft, help: helpDraft } = draftState
@@ -47,12 +47,14 @@ export function useWorkspaceAgent(route: string, navigate: (route: string) => vo
   const [preferencesBusy, setPreferencesBusy] = useState(false)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+  const [sending, setSending] = useState(false)
   const [retry, setRetry] = useState<RunRequest | null>(null)
   const lock = useRef(false)
   const seen = useRef(new Map<string, number>())
   const initialized = useRef(false)
   const selection = useStudioSelection()
-  const context = { ...agentContext(route), ...(projectId ? { project_id: projectId } : {}), ...(route === '/dashboard/studio' && selection && selection.projectId === projectId ? { studio_selection: selection.ids } : {}) }
+  const pageContext = agentContext(route)
+  const context = { ...(projectId && !pageContext.clip_id ? { project_id: projectId } : {}), ...pageContext, ...(route === '/dashboard/studio' && selection && selection.projectId === projectId ? { studio_selection: selection.ids } : {}) }
   const history = useQuery({ queryKey: historyKey,
     queryFn: async ({ signal }) => {
       const page = await agentApi.list(undefined, signal)
@@ -70,13 +72,21 @@ export function useWorkspaceAgent(route: string, navigate: (route: string) => vo
   const runs = history.data?.runs
   useEffect(() => {
     if (!runs) return
+    if (!initialized.current) {
+      const targets = new Set(runs.map(resourceProjectFromRun).filter((id): id is string => Boolean(id)))
+      if (targets.size === 1) onProject?.([...targets][0])
+    }
     for (const run of runs) {
       const previous = seen.current.get(run.id)
       seen.current.set(run.id, run.revision)
       if (initialized.current && previous !== undefined && previous < run.revision) {
         publishAgentActivity(run)
-        if (run.action?.name === 'stories.create' && typeof run.result?.data?.id === 'string') onProject?.(run.result.data.id)
-        for (const step of run.steps ?? []) if (step.action.name === 'stories.create' && typeof step.result?.data?.id === 'string') onProject?.(step.result.data.id)
+        const resourceProject = resourceProjectFromRun(run)
+        if (resourceProject) onProject?.(resourceProject)
+        else {
+          if (run.action?.name === 'stories.create' && typeof run.result?.data?.id === 'string') onProject?.(run.result.data.id)
+          for (const step of run.steps ?? []) if (step.action.name === 'stories.create' && typeof step.result?.data?.id === 'string') onProject?.(step.result.data.id)
+        }
       }
       const destination = safeAgentRoute(run.result?.route)
       if (initialized.current && previous !== undefined && previous < run.revision && follow && destination) navigate(destination)
@@ -84,8 +94,12 @@ export function useWorkspaceAgent(route: string, navigate: (route: string) => vo
     initialized.current = true
   }, [runs, follow, navigate, onProject])
   const storeRun = useCallback((run: AgentRun) => {
-    if (run.action?.name === 'stories.create' && typeof run.result?.data?.id === 'string') onProject?.(run.result.data.id)
-    for (const step of run.steps ?? []) if (step.action.name === 'stories.create' && typeof step.result?.data?.id === 'string') onProject?.(step.result.data.id)
+    const resourceProject = resourceProjectFromRun(run)
+    if (resourceProject) onProject?.(resourceProject)
+    else {
+      if (run.action?.name === 'stories.create' && typeof run.result?.data?.id === 'string') onProject?.(run.result.data.id)
+      for (const step of run.steps ?? []) if (step.action.name === 'stories.create' && typeof step.result?.data?.id === 'string') onProject?.(step.result.data.id)
+    }
     client.setQueryData<{ runs: AgentRun[]; has_more: boolean }>(historyKey, old => ({ runs: mergeRuns(old?.runs ?? [], [run]), has_more: old?.has_more ?? false }))
     void client.invalidateQueries({ queryKey: ['workspace-agent', 'suggestions'] })
   }, [client, onProject])
@@ -93,12 +107,17 @@ export function useWorkspaceAgent(route: string, navigate: (route: string) => vo
     if (lock.current) return
     const help = helpDraft
     const helpIsVisible = help?.context.route === route && help.source.isConnected && !help.source.closest('[hidden]')
-    const sendContext = !suggestion && helpIsVisible ? help.context : context
-    const body = request ?? { request_id: crypto.randomUUID(), message: suggestion?.title ?? draft.trim(), context: sendContext, resource_ids: helpIsVisible && !suggestion ? [] : resourceIds, ...(suggestion ? { suggestion_id: suggestion.id } : {}) }
+    const sendContext: AgentContext = { ...(!suggestion && helpIsVisible ? help.context : context), locale: locale === 'ro' ? 'ro' : 'en' }
+    const resourceIds = helpIsVisible && !suggestion ? [] : resourceIdsForContext(resources, suggestion?.context ?? sendContext)
+    // An ambiguous response may already have committed. Every send path first
+    // resolves that same request, even after the draft or selected page changes.
+    // Keep any newly edited draft for the user's next message after recovery.
+    const body = retry ?? request ?? { request_id: crypto.randomUUID(), message: suggestion?.title ?? draft.trim(), context: sendContext, resource_ids: resourceIds, ...(suggestion ? { suggestion_id: suggestion.id } : {}) }
     if (!body.message) return
-    lock.current = true; setBusy(true); setError(''); setRetry(null)
+    lock.current = true; setBusy(true); setSending(true); setError('')
     try {
       const run = await agentApi.send(body)
+      setRetry(null)
       publishAgentActivity(run)
       seen.current.set(run.id, run.revision)
       storeRun(run)
@@ -110,12 +129,12 @@ export function useWorkspaceAgent(route: string, navigate: (route: string) => vo
       setRetry(cause instanceof AgentApiError && cause.status >= 400 && cause.status < 500 ? null : body)
       setError(cause instanceof Error ? cause.message : String(cause))
     }
-    finally { lock.current = false; setBusy(false) }
+    finally { lock.current = false; setBusy(false); setSending(false) }
   }
   async function control(run: AgentRun, command: AgentCommand) {
     if (lock.current) return
     lock.current = true; setBusy(true); setError('')
-    try { storeRun(await agentApi.control(run, command, resourceIds)) }
+    try { storeRun(await agentApi.control(run, command, resourceIdsForContext(resources, run.context))) }
     catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause))
       // Refresh after a stale revision or network ambiguity; never replay approval automatically.
@@ -157,5 +176,5 @@ export function useWorkspaceAgent(route: string, navigate: (route: string) => vo
     } catch (cause) { setError(cause instanceof Error ? cause.message : String(cause)) }
     finally { lock.current = false; setBusy(false) }
   }
-  return { draft, setDraft, prepareHelp, helpMode: helpDraft?.context.route === route, clearHelp: () => setHelpDraft(null), follow, showSuggestions, savePreferences, preferencesBusy, clearHistory, error, busy, retry, send, control, older, dismiss, history, suggestions, runs: runs ?? [] }
+  return { draft, setDraft, prepareHelp, helpMode: helpDraft?.context.route === route, clearHelp: () => setHelpDraft(null), follow, showSuggestions, savePreferences, preferencesBusy, clearHistory, error, busy, sending, connectionLost: history.isError, retry, send, control, older, dismiss, history, suggestions, runs: runs ?? [] }
 }

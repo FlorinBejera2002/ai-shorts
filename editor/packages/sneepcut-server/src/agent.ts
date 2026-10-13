@@ -8,39 +8,12 @@ import {
   patchElementInHtml,
   type PatchOperation,
 } from "../../studio-server/src/helpers/sourceMutation";
-import { isUUID, type ProjectStore, type StoredProject } from "./store";
+import { type ProjectStore, type StoredProject } from "./store";
 import { verifyAgentGrant } from "./agent-auth";
-
-type RecordValue = Record<string, unknown>;
-function record(value: unknown): value is RecordValue {
-  return !!value && typeof value === "object" && !Array.isArray(value);
-}
-function fields(value: RecordValue, allowed: string[]) {
-  if (Object.keys(value).some((key) => !allowed.includes(key)))
-    throw new HTTPException(422, { message: "Unsupported Studio action field" });
-}
-function text(value: unknown, maximum: number): string {
-  if (typeof value !== "string" || !value.trim() || value.length > maximum)
-    throw new HTTPException(422, { message: "Invalid Studio action text" });
-  return value;
-}
-function id(value: unknown): string {
-  const valueID = text(value, 36);
-  if (!isUUID(valueID))
-    throw new HTTPException(422, { message: "Invalid Studio project identity" });
-  return valueID;
-}
-function version(value: unknown): string {
-  const v = text(value, 80);
-  if (!/^"sha256:[a-f0-9]{64}"$/.test(v))
-    throw new HTTPException(422, { message: "Inspect the current Studio document before editing" });
-  return v;
-}
-function finite(value: unknown, minimum: number, maximum: number): number {
-  if (typeof value !== "number" || !Number.isFinite(value) || value < minimum || value > maximum)
-    throw new HTTPException(422, { message: "Studio edit value is outside its allowed range" });
-  return value;
-}
+import { fields, finite, id, record, text, version, type RecordValue } from "./agent-validation";
+import { executeAssetAction, executeRenderAction } from "./agent-assets";
+import { changeLayer, layerTarget } from "./agent-layers";
+import { MAX_AUDIO_GAIN } from "../../core/src/audioGain";
 
 export interface AgentBridgeOptions {
   secret?: string;
@@ -133,6 +106,8 @@ export function createAgentBridge(options: AgentBridgeOptions) {
     const projectID = id(input.id);
     const project = await options.store.resolve(user, projectID);
     if (!project) throw new HTTPException(404, { message: "Studio project was not found" });
+    const renderAction = await executeRenderAction(api, project, name, input, apiJSON);
+    if (renderAction) return renderAction;
     if (name === "studio.render_status" || name === "studio.render_cancel") {
       fields(input, ["id", "job_id", "expected_version"]);
       const jobID = text(input.job_id, 160);
@@ -153,10 +128,21 @@ export function createAgentBridge(options: AgentBridgeOptions) {
       return { id: projectID, job_id: jobID, expected_version: input.expected_version, ...result };
     }
     const current = await source(api, projectID);
+    const assetAction = await executeAssetAction(api, project, name, input, current, apiJSON);
+    if (assetAction) return assetAction;
     if (name === "studio.get") {
       fields(input, ["id"]);
       const tree = await apiJSON(api, `/projects/${projectID}`);
-      const assets = (Array.isArray(tree.files) ? tree.files : []).filter((path): path is string => typeof path === 'string' && path.length < 500 && !path.startsWith('/') && !path.includes('..') && /\.(png|jpe?g|webp|gif|mp3|wav|m4a|ogg|mp4|webm)$/i.test(path)).slice(0, 200);
+      const assets = (Array.isArray(tree.files) ? tree.files : [])
+        .filter(
+          (path): path is string =>
+            typeof path === "string" &&
+            path.length < 500 &&
+            !path.startsWith("/") &&
+            !path.includes("..") &&
+            /\.(png|jpe?g|webp|gif|mp3|wav|m4a|ogg|mp4|webm)$/i.test(path),
+        )
+        .slice(0, 200);
       return { ...inspect(projectID, project.title, current.html, current.version), assets };
     }
     if (current.version !== version(input.expected_version))
@@ -221,6 +207,8 @@ export function createAgentBridge(options: AgentBridgeOptions) {
         body: JSON.stringify({ message: text(input.message, 4000), html: current.html }),
       });
       html = text(proposal.html, 500000);
+    } else if (name === "studio.layer.remove" || name === "studio.layer.split") {
+      html = changeLayer(current.html, name, input, requestID);
     } else if (name === "studio.edit") {
       fields(input, ["id", "expected_version", "element_id", "hf_id", "changes"]);
       if (!record(input.changes))
@@ -233,6 +221,18 @@ export function createAgentBridge(options: AgentBridgeOptions) {
         "background_color",
         "font_size",
         "opacity",
+        "x",
+        "y",
+        "width",
+        "height",
+        "rotation",
+        "scale",
+        "track",
+        "font_family",
+        "text_align",
+        "line_height",
+        "volume",
+        "playback_rate",
       ]);
       const changes = input.changes;
       const operations: PatchOperation[] = [];
@@ -271,14 +271,61 @@ export function createAgentBridge(options: AgentBridgeOptions) {
           property: "opacity",
           value: String(finite(changes.opacity, 0, 1)),
         });
+      for (const property of ["x", "y", "width", "height"] as const) {
+        if (changes[property] !== undefined)
+          operations.push({
+            type: "inline-style",
+            property: property === "x" ? "left" : property === "y" ? "top" : property,
+            value: `${finite(changes[property], property === "width" || property === "height" ? 1 : -10000, 10000)}px`,
+          });
+      }
+      if (changes.rotation !== undefined)
+        operations.push({
+          type: "inline-style",
+          property: "rotate",
+          value: `${finite(changes.rotation, -3600, 3600)}deg`,
+        });
+      if (changes.scale !== undefined)
+        operations.push({
+          type: "inline-style",
+          property: "scale",
+          value: String(finite(changes.scale, 0.01, 100)),
+        });
+      if (changes.line_height !== undefined)
+        operations.push({
+          type: "inline-style",
+          property: "line-height",
+          value: String(finite(changes.line_height, 0.5, 10)),
+        });
+      if (changes.font_family !== undefined) {
+        const font = text(changes.font_family, 100);
+        if (!/^[\p{L}\p{N} _-]+$/u.test(font))
+          throw new HTTPException(422, { message: "Use a font family name" });
+        operations.push({ type: "inline-style", property: "font-family", value: `"${font}"` });
+      }
+      if (changes.text_align !== undefined) {
+        const align = text(changes.text_align, 10);
+        if (!["left", "center", "right", "justify"].includes(align))
+          throw new HTTPException(422, { message: "Invalid text alignment" });
+        operations.push({ type: "inline-style", property: "text-align", value: align });
+      }
+      for (const [field, property, maximum] of [
+        ["track", "data-track-index", 100],
+        ["volume", "data-volume", MAX_AUDIO_GAIN],
+        ["playback_rate", "data-playback-rate", 5],
+      ] as const) {
+        if (changes[field] !== undefined) {
+          const value = finite(changes[field], field === "playback_rate" ? 0.1 : 0, maximum);
+          if (field === "track" && !Number.isInteger(value))
+            throw new HTTPException(422, { message: "Studio track must be an integer" });
+          operations.push({ type: "attribute", property, value: String(value) });
+        }
+      }
       if (!operations.length || (input.element_id === undefined) === (input.hf_id === undefined))
         throw new HTTPException(422, {
           message: "Choose one stable Studio layer and at least one change",
         });
-      const target =
-        input.hf_id !== undefined
-          ? { hfId: text(input.hf_id, 160) }
-          : { id: text(input.element_id, 160) };
+      const target = layerTarget(current.html, input);
       const result = patchElementInHtml(current.html, target, operations);
       if (!result.matched) throw new HTTPException(404, { message: "Studio layer was not found" });
       html = result.html;
@@ -328,6 +375,10 @@ export function createAgentBridge(options: AgentBridgeOptions) {
         "studio.get",
         "studio.render_status",
         "studio.render_cancel",
+        "studio.assets.list",
+        "studio.assets.get",
+        "studio.renders.list",
+        "studio.export",
       ].includes(name);
       let receiptPath = "";
       const hash = createHash("sha256").update(raw).digest("hex");

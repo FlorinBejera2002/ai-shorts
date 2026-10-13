@@ -14,8 +14,8 @@ export function requestStoryAgentHelp(step: StoryHelpStep, source: HTMLElement) 
 export function storyHelpQuestion(step: StoryHelpStep, locale: string) {
   const questions = {
     footage: ['Which clips should I add to my story, and how do clip preferences work?', 'Ce filmări să adaug în poveste și cum funcționează preferințele pentru clipuri?'],
-    story_audio: ['How do I choose between the sound from my clips and my own narration?', 'Cum aleg între sunetul filmărilor și propria narațiune?'],
-    style: ['How should I choose the length, shape and captions for my story?', 'Cum aleg durata, formatul și subtitrările pentru poveste?'],
+    story_audio: ['How do I describe the edit I want and choose between original audio and my own narration?', 'Cum descriu montajul dorit și aleg între sunetul original și propria narațiune?'],
+    style: ['Which caption mode should I use, and where do I change format or length?', 'Ce mod de subtitrare să folosesc și unde schimb formatul sau durata?'],
     review: ['What should I check before creating my story, and when are credits charged?', 'Ce trebuie să verific înainte să creez povestea și când se consumă creditele?']
   }
   return questions[step][locale === 'ro' ? 1 : 0]

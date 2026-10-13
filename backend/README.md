@@ -1,18 +1,8 @@
 # Sneepcut Go backend
 
-Go now serves the application API and authentication. The default Compose stack
-routes `/api/*` and `/v1/auth/*` to this process; Next.js renders the UI and uses
-the Go client for data and sessions. Python remains responsible for Alembic
-migrations and the media-processing workers. Its HTTP service is available only
-through the `legacy-python-api` Compose profile.
+Go serves the application API, authentication and media-processing worker. Vite/React serves the interface. The default Compose stack routes API/auth traffic through Nginx, and the embedded Go migrator prepares the PostgreSQL schema.
 
-The implementation adapts the `net/http`, `httprouter`, `database/sql` and
-two-JWT design from the local `xstairs_api` reference to Sneepcut's existing UUID
-schema. See [authentication adaptation](../docs/go-migration/auth-adaptation.md)
-for the session and account contract, [the migration plan](../docs/go-migration/backend-go-migration.md)
-for final verification and deployment status, and [remaining Python](../docs/go-migration/remaining-python.md)
-for the retained worker boundary. The source reference's credentials, integer-ID
-schema and demonstration applications are not part of this backend.
+Feature boundaries follow the `net/http`, `httprouter` and `database/sql` architecture. See [authentication adaptation](../docs/go-migration/auth-adaptation.md) for the account/session contract and [verification guidance](../docs/frontend-backend-verification.md) for isolated checks. Historical test totals do not certify current deployment or provider behavior.
 
 ## Package boundaries
 
@@ -34,10 +24,7 @@ composes dependencies; `internal/httpapi` wires HTTP policy. Neither is a generi
 business-logic container. Feature packages receive dependencies instead of
 reading environment variables or opening pools inside handlers.
 
-The Go process does not run migrations. Alembic owns the shared schema, currently
-at `20260906_0002`: `20260906_0001` adds durable `edit_deliveries`, and
-`20260906_0002` adds `users.email_activation_required` with a false default that
-preserves existing sign-in. `backend-go/migrations/` records ownership only.
+The API process does not run migrations. The separate `cmd/migrate` executable applies the embedded SQL history in `migrations/`; see [schema ownership](migrations/README.md).
 
 ## Run locally
 
@@ -50,8 +37,7 @@ make status
 
 The normal stack waits for PostgreSQL, Redis and the migration service before
 starting Go. Use `make dev-up` for the development override; it mounts Go source and exposes it on
-loopback (`GO_BACKEND_HOST_PORT`, default 8080). Source changes need a restart.
-Use `make restart-go` after editing mounted Go source.
+loopback (`GO_BACKEND_HOST_PORT`, default 8080). Keep `make dev-watch` running for Go reload; see the root README.
 The production image is non-root, has a read-only root filesystem in Compose,
 and shares the media volume with workers and Nginx.
 
@@ -59,9 +45,9 @@ For a standalone process, export configuration first; `.env` is not loaded
 automatically:
 
 ```sh
-make -C backend-go run
+make -C backend run
 # Flags override environment values.
-make -C backend-go run ARGS='-listen-addr=127.0.0.1:8081 -env=test'
+make -C backend run ARGS='-listen-addr=127.0.0.1:8081 -env=test'
 ```
 
 `LISTEN_ADDR` defaults to `127.0.0.1:8080`, and `APP_ENV` to `development`.
@@ -128,94 +114,15 @@ logout, token replacement/consumption and account deletion handles those paths.
 From the repository root:
 
 ```sh
-make -C backend-go check build
-cd frontend
-npm test
-npm run typecheck
-npm run check
+make test-go
+make -C backend vet
+make typecheck
+make lint
+make test-frontend
 ```
 
-Go 1.24+ is required by the module; the Dockerfile pins Go 1.26.5.
-`make -C backend-go check` runs race tests, vet and formatting checks. Database
-tests skip unless both fixture variables are supplied, so this command alone
-does not prove PostgreSQL integration. Image builds likewise do not provide a
-live database fixture.
+`backend/Makefile` shares `.cache/go-build`. Its `check` target runs race tests, vet and formatting checks. The module declares Go 1.24.0; the documented local/Docker toolchain is Go 1.26.5 or newer.
 
-With an already prepared disposable fixture:
+PostgreSQL integration tests require the dedicated loopback `sneepcut_integration_test` database. Domain tests also require `SNEEPCUT_TEST_SCHEMA_SQL` for the current schema. Use isolated schemas and synthetic accounts; skipped database tests are not passes. See [database and browser fixtures](../docs/frontend-backend-verification.md) before using integration runners, some of which still target the former stack.
 
-```sh
-cd backend-go
-export SNEEPCUT_TEST_DATABASE_URL='postgresql://test:local-test-only@127.0.0.1:PORT/sneepcut_integration_test?sslmode=disable'
-export SNEEPCUT_TEST_SCHEMA_SQL=/absolute/path/to/current-alembic-schema.sql
-GOCACHE="$(pwd)/../.cache/go-build" go test -race ./...
-go vet ./...
-```
-
-Generate fixture SQL from current `alembic upgrade head --sql`. Tests require
-loopback and the exact `sneepcut_integration_test` database, create a random
-schema and remove it afterward. Never substitute the development database or
-persistent media volume. The repository's `scripts/test-auth-integration.py`
-also prepares disposable PostgreSQL/Redis and a temporary media directory,
-runs the database/race checks, then builds and exercises the executable:
-
-```sh
-python3 backend-go/scripts/test-auth-integration.py
-```
-
-Run it from the repository root with Docker, Go and local `postgres:16-alpine`,
-`redis:7-alpine` and `sneepcut-api` images available. The Python image supplies
-Alembic dependencies; `SNEEPCUT_MIGRATION_IMAGE` can select another compatible
-image. Current migration/model source is mounted read-only. Consult the
-migration plan for the latest completed end-to-end verification record.
-
-Verified auth coverage includes real PostgreSQL registration/activation/reset,
-session revocation and Google callbacks, mocked Google/Resend HTTP responses,
-and loopback SMTP success/failure/cancellation. The frontend client has regression
-coverage for concurrent refresh, a single retry, logout races and outage states.
-See the auth document for details. Live Google, mail, Stripe, Gemini and S3
-accounts and a public production deployment are not implied by these checks.
-
-### Production containers and real browser
-
-```sh
-docker build -t sneepcut-go:migration-check backend-go
-docker build -t sneepcut-frontend:go-migration-check frontend
-python3 backend-go/scripts/test-application-integration.py --keep
-```
-
-This runner also needs local FFmpeg, `sneepcut-api`, `nginx:alpine`, PostgreSQL
-and Redis images. It provisions a dedicated database, network and media volume,
-checks the full routed application and signed clip/thumbnail byte-range access,
-and prints a fixture state path. To exercise actual forms and video playback:
-
-```sh
-cd frontend
-SNEEPCUT_BROWSER_FIXTURE_STATE=/absolute/path/from/runner/state.json \
-  PLAYWRIGHT_MODULE=/absolute/path/to/playwright/index.mjs \
-  node scripts/go-runtime-browser.mjs
-cd ..
-python3 backend-go/scripts/test-application-integration.py --stop /absolute/path/from/runner/state.json
-```
-
-The browser runner requires Playwright and installed Chrome. It accepts only
-the synthetic loopback fixture, saves screenshots/report under ignored
-`frontend/test-results/go-runtime`, and checks auth, settings persistence,
-dashboard pages, existing brand saves, actual video playback, Romanian mobile
-layout and logout. Omitting `--keep` makes the HTTP runner clean up immediately.
-Failed HTTP runs clean up even when `--keep` was requested.
-
-`frontend/scripts/go-browser-checks.mjs` is a separate browser suite with mocked
-Go responses for 42 English/Romanian desktop/mobile route variants.
-
-### Retained worker boundary
-
-```sh
-python3 backend-go/scripts/test-worker-integration.py
-```
-
-Requires Go, Docker and a local `sneepcut-ml` image (override with
-`SNEEPCUT_ML_IMAGE`). The runner uses disposable PostgreSQL/Redis/Celery/media,
-actual FFmpeg, and deterministic Whisper/Gemini responses to verify rendering,
-edits, broker/worker failures, cancellation, refunds and delivery fencing.
-See [remaining Python](../docs/go-migration/remaining-python.md) for the exact
-coverage and unverified live ML/provider boundaries.
+Builds and mocked provider tests do not prove live OAuth, email, Stripe, AI or social publishing. Those require explicitly configured test environments and appropriate authorization. Do not mutate persistent development databases/media to prepare fixtures.

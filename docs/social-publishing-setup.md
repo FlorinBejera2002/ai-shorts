@@ -4,82 +4,16 @@ The Publish page connects user-owned Facebook Pages, Instagram professional
 accounts, TikTok accounts, YouTube channels and LinkedIn member profiles or approved organization Pages through separate OAuth flows. Scenarios remains a
 separate page. Publishing requires an explicit review and confirmation.
 
-## Current external setup
+## Recorded provider resources
 
-Meta business portfolio Sneep Cut: `1430619835587283` (verification pending).
-Meta developer app Sneep Cut: `2537942060040854` (unpublished).
-Instagram product app Sneep Cut-IG: `1586978439836014`.
-Owner contact: Florin Bejera, `admin@sneepcut.com`.
-Production domain: `https://sneepcut.com`.
-Facebook brand Page: https://www.facebook.com/profile.php?id=61594209031373 .
-Instagram brand profile: https://www.instagram.com/sneepcut/ (Business / Software).
-Meta confirmed that the Facebook Page and Instagram profile are associated.
-Facebook and Instagram OAuth callback URLs have been entered in Meta.
-TikTok app: `7682736403670894599`, owned by organization `7682737535008785426`.
-Production app exists as Draft. Login Kit, Content Posting API, Direct Post,
-callback and basic details were entered in the open form; Save currently reports
-missing verified URLs, icon and demonstration video, so these edits are not yet
-confirmed persisted. Do not treat the draft as approved or enabled.
-An empty duplicate TikTok organization `7682737535008818194` remains to remove.
-GoDaddy manages domain DNS. The production server IP supplied on 2026-09-08 is
-`159.195.254.38`. Authenticated SSH access as root was verified on 2026-09-08.
-The user assigned deployment to Tristan; application deployment is still pending.
+These identifiers were recorded during setup; they do not certify current provider approval or production readiness. Recheck the relevant provider console before activation.
 
-### Infrastructure verification (2026-09-08)
+- Meta business portfolio: `1430619835587283`; developer app: `2537942060040854`.
+- Instagram product app: `1586978439836014`.
+- TikTok app: `7682736403670894599`; organization: `7682737535008785426`.
+- Production browser domain: `https://sneepcut.com`; provider callbacks must use the configured public origin.
 
-- The domain A records still resolve to `13.248.243.5` and `76.223.105.230`.
-- HTTP on `159.195.254.38:80` refused connections during the initial check;
-  the application gateway has not been started.
-- Public `/privacy`, `/terms`, `/data-deletion` and `/api/ready` return HTTP 404.
-- Added `api.sneepcut.com` A record pointing to `159.195.254.38` in GoDaddy;
-  the server resolver confirmed it.
-- Added the TikTok verification TXT record below in GoDaddy and confirmed it
-  in the DNS table. Provider-side verification remains pending.
-- The local `.env` has no social provider credentials or social encryption key.
-  This does not establish the contents of the server environment.
-
-Next, Tristan handles deployment using [the current handoff](publish-handoff.md).
-GoDaddy and Cloudflare login succeeded; provider sessions still need verification.
-Preserve the documented
-Cloudflare frontend architecture: the server IP is a backend origin, and is not
-by itself a replacement for the canonical frontend domain or OAuth callbacks.
-Complete HTTPS origins and deploy the compatible release before validating
-provider URLs. Keep this setup pending until production OAuth is verified;
-an available IP alone does not make publishing operational.
-
-TikTok production DNS verification pending in GoDaddy:
-
-```text
-Type: TXT
-Host: @
-Value: tiktok-developers-site-verification=KvAuujEfOVdi9yxp6hgSfZQiYrU6MC4j
-```
-
-Add this record without replacing existing TXT/MX records, then use Verify in
-the TikTok URL properties panel. This public ownership proof is not an API secret.
-
-Creating these resources does not grant public API access. Instagram product
-secret configuration, TikTok application credentials and provider reviews remain needed.
-No production migration, activation or live post has been performed.
-
-### TikTok follow-up (2026-09-16)
-
-- TikTok now shows `sneepcut.com` as verified.
-- Sandbox app `7683612649498593301` is saved with the Web platform, Login Kit,
-  Direct Post, the production callback URL and the 1024px app icon.
-- A sandbox target account still needs to be added through TikTok's interactive
-  login. No sandbox post, production app review or Direct Post audit has been
-  submitted yet.
-- TikTok uses the existing connected-accounts card and the existing calendar
-  post dialog alongside Instagram and Facebook; there is no separate TikTok
-  publishing page. The dialog refreshes creator options, requires a manual
-  audience choice, keeps viewer interactions and commercial disclosure off by
-  default, shows the selected clip preview and supports the AI-generated-content
-  disclosure. Scheduled and immediate posts use the same durable publishing
-  worker and status history.
-- The production server still needs TikTok credentials and the verified media
-  URL prefix before this flow can be used for the sandbox recording. Keep the
-  production app in Draft until the deployed end-to-end flow can be recorded.
+Use the [production operations guide](production-backend.md) for an explicitly authorized deployment. Preserve existing secrets and provider identities; server/DNS availability alone does not prove publishing is configured.
 
 ## Callbacks and public pages
 
@@ -107,9 +41,9 @@ Use a cryptographically random 32-byte base64 encryption key and retain it;
 changing it without migrating credentials makes stored authorizations unreadable.
 Do not replace local APP_URL while configuring the production environment.
 
-1. Deploy the compatible Python model/workers, Go API and frontend, following
-   [the deployment guide](cloudflare-deployment.md). Keep publishing disabled.
-2. Apply Alembic migration `20260907_0001` to the intended production database
+1. Deploy the compatible Go API, media worker and frontend, following
+   [the deployment guide](production-backend.md). Keep publishing disabled.
+2. Apply the current embedded Go SQL migrations to the intended production database
    after arranging the normal backup and migration rollout.
 3. Configure credentials for each provider and the canonical HTTPS APP_URL.
    Configure publicly accessible signed media URLs. TikTok requires ownership

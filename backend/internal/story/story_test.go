@@ -121,7 +121,11 @@ func fixturePlan() Plan {
 	return Plan{Title: "A recipe", Blocks: []Block{{ID: "block-a", CandidateID: "a", Crop: "track", Alternatives: []string{"a-alt"}}, {ID: "block-b", CandidateID: "b", Crop: "fit"}}}
 }
 func fixtureRequest() Request {
-	return Request{ID: "project-a", UserID: "user-a", Options: DefaultOptions(), Assets: []Asset{fixtureAsset()}, VersionStart: 1}
+	options := DefaultOptions()
+	// Existing repair fixtures intentionally request captions and editorial
+	// reordering; production defaults remain conservative.
+	options.Captions, options.PreserveOrder = true, false
+	return Request{ID: "project-a", UserID: "user-a", Options: options, Assets: []Asset{fixtureAsset()}, VersionStart: 1}
 }
 func proposal(plan Plan) string {
 	p := plannerProposal{Title: plan.Title}

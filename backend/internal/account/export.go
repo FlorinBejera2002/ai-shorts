@@ -50,7 +50,7 @@ func (h *Handler) exportData(ctx context.Context, userID string) (map[string]any
 		{"workspaceAgentRuns", "workspace_agent_runs", "id,message,reply,status,context,action,result,steps,error,cost_credits,revision,resource_ids,missing_resources,approval_preview,history_cleared_at,created_at,updated_at", "created_at ASC,id ASC"},
 		{"workspaceAgentSuggestions", "workspace_agent_suggestions", "id,content,dismissed,run_id,created_at", "created_at ASC,id ASC"},
 		{"workspaceAgentPreferences", "workspace_agent_preferences", "follow,recommendations", "user_id"},
-		{"workspaceAgentResources", "workspace_agent_resources", "id,project_id,kind,name,content,created_at", "created_at ASC,id ASC"},
+		{"workspaceAgentResources", "workspace_agent_resources", "id,project_id,source_project_id,kind,name,content,created_at", "created_at ASC,id ASC"},
 		{"stories", "story_projects", "id,options,status,message,current_version,locks,stage_metrics,created_at,updated_at", "created_at ASC,id ASC"},
 	}
 	for _, c := range collections {

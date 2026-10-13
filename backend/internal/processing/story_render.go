@@ -12,7 +12,7 @@ import (
 	"sneepcut/backend-go/internal/story"
 )
 
-const storyRenderVersion = "render-7"
+const storyRenderVersion = "render-10-continuous-music"
 
 func (p *Processor) RenderStory(ctx context.Context, request story.Request, version story.Version) (story.Output, error) {
 	validated, err := validateStoryRender(request, version)
@@ -26,7 +26,11 @@ func (p *Processor) RenderStory(ctx context.Context, request story.Request, vers
 	defer os.RemoveAll(dir)
 	w, h := validated.width, validated.height
 	var parts []string
-	words, elapsed := validated.words, validated.duration
+	elapsed := validated.duration
+	captionSelection, err := p.storyCaptions(ctx, dir, request, version)
+	if err != nil {
+		return story.Output{}, err
+	}
 	for i, entry := range version.Timeline {
 		if validated.narration != nil {
 			// Visual cache segments never carry source-video audio or voice slices.
@@ -51,26 +55,38 @@ func (p *Processor) RenderStory(ctx context.Context, request story.Request, vers
 		}
 		parts = append(parts, part)
 	}
-	// Filter concatenation trims AAC encoder padding and per-segment video
-	// quantization. All downstream words remain on the explicit output clock.
+	// Audio is concatenated independently on the exact sample clock. Video
+	// boundaries round on the GLOBAL frame clock, never once per duration:
+	// summing rounded clip lengths accumulates drift at natural phrase cuts.
 	var args, filters []string
-	var inputs strings.Builder
+	var videoInputs, audioInputs strings.Builder
+	videoCount := 0
 	for i, file := range parts {
 		args = append(args, "-threads", "1", "-i", file)
-		duration := version.Timeline[i].OutputOut - version.Timeline[i].OutputIn
-		if validated.narration != nil {
-			filters = append(filters, fmt.Sprintf("[%d:v]trim=duration=%s,setpts=PTS-STARTPTS[v%d]", i, seconds(duration), i))
-			fmt.Fprintf(&inputs, "[v%d]", i)
-		} else {
-			filters = append(filters, fmt.Sprintf("[%d:v]trim=duration=%s,setpts=PTS-STARTPTS[v%d];[%d:a]atrim=duration=%s,asetpts=PTS-STARTPTS[a%d]", i, seconds(duration), i, i, seconds(duration), i))
-			fmt.Fprintf(&inputs, "[v%d][a%d]", i, i)
+		entry := version.Timeline[i]
+		duration := entry.OutputOut - entry.OutputIn
+		firstFrame, lastFrame := int(math.Round(entry.OutputIn*30)), int(math.Round(entry.OutputOut*30))
+		if i == len(parts)-1 {
+			lastFrame = max(1, lastFrame)
+		}
+		if frames := lastFrame - firstFrame; frames > 0 {
+			// A single boundary frame may be held/dropped to hit the global
+			// clock. All other source frames keep 1x playback; no time stretch.
+			filters = append(filters, fmt.Sprintf("[%d:v]tpad=stop_mode=clone:stop_duration=0.034,trim=end_frame=%d,setpts=PTS-STARTPTS[v%d]", i, frames, i))
+			fmt.Fprintf(&videoInputs, "[v%d]", i)
+			videoCount++
+		}
+		if validated.narration == nil {
+			filters = append(filters, fmt.Sprintf("[%d:a]atrim=duration=%s,asetpts=PTS-STARTPTS[a%d]", i, seconds(duration), i))
+			fmt.Fprintf(&audioInputs, "[a%d]", i)
 		}
 	}
-	captions := request.Options.Captions && len(words) > 0
+	captions := len(captionSelection.Groups) > 0
 	videoLabel := "v"
-	if captions || request.LogoKey != "" {
+	if captions || request.LogoKey != "" || request.Music != nil {
 		videoLabel = "joined"
 	}
+	filters = append(filters, fmt.Sprintf("%sconcat=n=%d:v=1:a=0[%s]", videoInputs.String(), videoCount, videoLabel))
 	nextInput := len(parts)
 	if validated.narration != nil {
 		voice, err := p.storyMaterialize(ctx, dir, validated.narration.Key)
@@ -78,17 +94,27 @@ func (p *Processor) RenderStory(ctx context.Context, request story.Request, vers
 			return story.Output{}, errors.New("original narration is unavailable")
 		}
 		args = append(args, "-i", voice)
-		filters = append(filters, fmt.Sprintf("%sconcat=n=%d:v=1:a=0[%s]", inputs.String(), len(parts), videoLabel))
 		// Encode the complete original voice exactly once. Visual boundaries
 		// cannot cut/repeat syllables or accumulate per-segment AAC padding.
 		filters = append(filters, fmt.Sprintf("[%d:a]aresample=48000:async=1:first_pts=0,atrim=duration=%s,asetpts=PTS-STARTPTS[a]", nextInput, seconds(elapsed)))
 		nextInput++
 	} else {
-		filters = append(filters, fmt.Sprintf("%sconcat=n=%d:v=1:a=1[%s][a]", inputs.String(), len(parts), videoLabel))
+		filters = append(filters, fmt.Sprintf("%sconcat=n=%d:v=0:a=1[a]", audioInputs.String(), len(parts)))
+	}
+	audioLabel := "a"
+	if request.Music != nil {
+		musicFile, err := p.storyMaterialize(ctx, dir, request.Music.Key)
+		if err != nil {
+			return story.Output{}, errors.New("selected music is unavailable for rendering")
+		}
+		args = append(args, "-stream_loop", "-1", "-i", musicFile)
+		filters = append(filters, storyMusicMixFilters(nextInput, elapsed, request.Options.Music.Volume)...)
+		nextInput++
+		audioLabel = "mixed"
 	}
 	if captions {
 		srt := filepath.Join(dir, "captions.srt")
-		if writeSRT(srt, words) != nil {
+		if writeStorySRT(srt, captionSelection.Groups, elapsed) != nil {
 			return story.Output{}, storyWorkError("captions")
 		}
 		preset := subtitlePreset("clean")
@@ -109,9 +135,14 @@ func (p *Processor) RenderStory(ctx context.Context, request story.Request, vers
 		case "bottom":
 			preset["alignment"] = 2
 		}
-		style := fmt.Sprintf("Alignment=%d,Fontname=%s,Fontsize=%d,PrimaryColour=%s,OutlineColour=%s,BorderStyle=1,Outline=%d,Shadow=0,MarginV=80,Bold=1", preset["alignment"], preset["font_name"], preset["fontsize"], hexToASSColor(preset["font_color"].(string), 1), hexToASSColor(preset["border_color"].(string), 1), preset["border_width"])
+		// SRT otherwise inherits libass's landscape 384x288 script canvas:
+		// portrait video scales its font and 80-unit margin into the middle of
+		// the picture. Use the output canvas and a short-edge font scale.
+		fontSize := int(math.Round(float64(preset["fontsize"].(int)) * float64(min(w, h)) / 360))
+		outline := max(1, preset["border_width"].(int)*min(w, h)/720)
+		style := fmt.Sprintf("PlayResX=%d,PlayResY=%d,Alignment=%d,Fontname=%s,Fontsize=%d,PrimaryColour=%s,OutlineColour=%s,BorderStyle=1,Outline=%d,Shadow=0,MarginL=%d,MarginR=%d,MarginV=%d,Bold=1", w, h, preset["alignment"], preset["font_name"], fontSize, hexToASSColor(preset["font_color"].(string), 1), hexToASSColor(preset["border_color"].(string), 1), outline, w*6/100, w*6/100, h*6/100)
 		videoLabel = "v"
-		if request.LogoKey != "" {
+		if request.LogoKey != "" || request.Music != nil {
 			videoLabel = "captioned"
 		}
 		filters = append(filters, fmt.Sprintf("[joined]subtitles='%s':force_style='%s'[%s]", escapeSubtitlePath(srt), style, videoLabel))
@@ -126,11 +157,26 @@ func (p *Processor) RenderStory(ctx context.Context, request story.Request, vers
 			return story.Output{}, storyWorkError("logo overlay")
 		}
 		args = append(args, "-i", overlay)
-		filters = append(filters, fmt.Sprintf("[%s][%d:v]overlay=0:0:eof_action=repeat:format=auto[v]", videoLabel, nextInput))
+		logoLabel := "v"
+		if request.Music != nil {
+			logoLabel = "branded"
+		}
+		filters = append(filters, fmt.Sprintf("[%s][%d:v]overlay=0:0:eof_action=repeat:format=auto[%s]", videoLabel, nextInput, logoLabel))
+		videoLabel = logoLabel
+	}
+	if request.Music != nil {
+		credit := filepath.Join(dir, "music-credit.ass")
+		if err := writeStoryMusicCredit(credit, request, w, h, elapsed); err != nil {
+			return story.Output{}, storyWorkError("music attribution")
+		}
+		filters = append(filters, fmt.Sprintf("[%s]subtitles='%s'[v]", videoLabel, escapeSubtitlePath(credit)))
 	}
 	output := filepath.Join(dir, "story.mp4")
-	args = append(args, "-filter_complex", strings.Join(filters, ";"), "-map", "[v]", "-map", "[a]")
+	args = append(args, "-filter_complex", strings.Join(filters, ";"), "-map", "[v]", "-map", "["+audioLabel+"]")
 	args = append(args, delivery...)
+	if request.Music != nil {
+		args = append(args, "-metadata", "copyright="+request.Music.Track.Attribution, "-metadata", "comment="+request.Music.Track.Attribution+" Music trimmed, looped and mixed with original source audio.")
+	}
 	args = append(args, "-t", seconds(elapsed), output)
 	if p.ffmpeg(ctx, dir, args...) != nil {
 		return story.Output{}, storyWorkError("assembly")
@@ -143,8 +189,10 @@ func (p *Processor) RenderStory(ctx context.Context, request story.Request, vers
 	if err != nil {
 		return story.Output{}, storyWorkError("output verification")
 	}
-	prefix := "clips/" + request.ID + "/story/" + storyDigest([]any{story.AlgorithmVersion, "output-5", storyRenderVersion, version.Timeline, request.Options, request.LogoKey, version.Number})
-	result := story.Output{Key: prefix + "/story.mp4", Duration: info.Duration, Size: stat.Size(), Resolution: fmt.Sprintf("%dx%d", info.Width, info.Height), Captions: captions}
+	prefix := "clips/" + request.ID + "/story/" + storyDigest([]any{story.AlgorithmVersion, "output-6", storyRenderVersion, version.Timeline, request.Options, request.LogoKey, version.Number, captionSelection.IDs, captionSelection.Warnings})
+	result := story.Output{Key: prefix + "/story.mp4", Duration: info.Duration, Size: stat.Size(), Resolution: fmt.Sprintf("%dx%d", info.Width, info.Height), Captions: captions,
+		CaptionMode: story.EffectiveCaptionMode(request.Options), CaptionWarnings: captionSelection.Warnings, CaptionedCandidateIDs: captionSelection.IDs}
+	result.Music = storyMusicCredit(request, version)
 	if err = p.storySave(ctx, output, result.Key, "video/mp4"); err != nil {
 		return story.Output{}, err
 	}
@@ -170,8 +218,19 @@ type storyRenderValidation struct {
 // native processing. A malformed later entry must never render earlier entries.
 func validateStoryRender(request story.Request, version story.Version) (storyRenderValidation, error) {
 	result := storyRenderValidation{assets: make(map[string]story.Asset, len(request.Assets))}
+	if request.Options.Music != nil && (request.Music == nil || request.Options.Music.TrackID != request.Music.Track.ID) {
+		return result, errors.New("selected music must be prepared before rendering")
+	}
+	if request.Music != nil && (request.Options.Music == nil || !finite(request.Options.Music.Volume) || request.Options.Music.Volume < 0 || request.Options.Music.Volume > 1 || !strings.HasPrefix(request.Music.Key, "music/incompetech/") || strings.Contains(request.Music.Key, "..") || strings.ContainsAny(request.Music.Key, "\\\x00")) {
+		return result, errors.New("invalid prepared music")
+	}
 	if err := story.ValidateBrandOptions(request.Options); err != nil {
 		return result, err
+	}
+	switch story.EffectiveCaptionMode(request.Options) {
+	case "all", "selective", "off":
+	default:
+		return result, errors.New("unsupported story caption mode")
 	}
 	if request.Options.LogoResourceID != "" && request.LogoKey == "" {
 		return result, errors.New("story logo resource is unresolved")
@@ -282,21 +341,10 @@ func (p *Processor) renderStoryEntry(ctx context.Context, dir, output string, en
 		crop = p.storyStableCrop(ctx, dir, videoFile, entry.Video, video, w, h)
 	}
 	fit := storyFramingFilter(w, h, crop)
-	// No speech overlaps or synthesized bridge audio. Resampling and conservative
-	// loudness normalization retain the complete selected words and source clock.
-	normalize := entry.Audio != nil
-	for _, candidate := range audio.Candidates {
-		if candidate.ID == entry.CandidateID && candidate.AudioScore <= 0 {
-			normalize = false
-		}
-	}
-	loudness := ""
-	if normalize {
-		loudness = ",loudnorm=I=-16:TP=-1.5:LRA=11"
-	}
-	// All-zero audio has no measurable loudness; normalization can generate NaN
-	// samples. Keep intentional silent footage silent instead of boosting noise.
-	filter := fmt.Sprintf("[0:v]fps=30:start_time=0,trim=duration=%s,setpts=PTS-STARTPTS,%s,format=yuv420p[v];[1:a]aresample=48000:async=1:first_pts=0,atrim=duration=%s,asetpts=PTS-STARTPTS,apad,atrim=duration=%s%s[a]", seconds(duration), fit, seconds(duration), seconds(duration), loudness)
+	// Retain the original dynamics. Independently loudness-normalizing every
+	// phrase boosted quiet ambience and changed expressive pauses at each cut.
+	// Resampling only aligns technical timestamps; it does not change speed.
+	filter := fmt.Sprintf("[0:v]fps=30:start_time=0,trim=duration=%s,setpts=PTS-STARTPTS,%s,format=yuv420p[v];[1:a]aresample=48000:async=1:first_pts=0,atrim=duration=%s,asetpts=PTS-STARTPTS,apad,atrim=duration=%s[a]", seconds(duration), fit, seconds(duration), seconds(duration))
 	args = append(args, "-filter_complex", filter, "-map", "[v]", "-map", "[a]")
 	args = append(args, delivery...)
 	args = append(args, "-ac", "2", "-t", seconds(duration), output)
@@ -313,8 +361,12 @@ func storyFramingFilter(w, h int, stableCrop string) string {
 	if stableCrop != "" {
 		return fmt.Sprintf("%s,scale=w=%d:h=%d:force_original_aspect_ratio=increase:force_divisible_by=2,crop=%d:%d,setsar=1", stableCrop, w, h, w, h)
 	}
-	return fmt.Sprintf("scale=w=%d:h=%d:force_original_aspect_ratio=decrease:force_divisible_by=2,pad=%d:%d:(ow-iw)/2:(oh-ih)/2:color=black,setsar=1", w, h, w, h)
+	// Convert the display aspect to square pixels before fitting. Merely using
+	// setsar=1 after fitting by encoded dimensions stretches anamorphic footage.
+	return fmt.Sprintf("%s,scale=w=%d:h=%d:force_original_aspect_ratio=decrease:force_divisible_by=2,pad=%d:%d:(ow-iw)/2:(oh-ih)/2:color=black,setsar=1", storySquarePixelsFilter, w, h, w, h)
 }
+
+const storySquarePixelsFilter = "scale=w='max(2,trunc(iw*sar/2)*2)':h=ih,setsar=1"
 
 func storyModelSignature(file string) string {
 	info, err := os.Stat(file)

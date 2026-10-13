@@ -3,9 +3,10 @@ import { publishingConsentMissing } from './model'
 function object(value: unknown): Record<string, unknown> { return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {} }
 function label(value: unknown): string { return typeof value === 'string' ? value : '' }
 export function ApprovalPreview({ value, ro }: { value: Record<string, unknown>; ro: boolean }) {
+  if (label(value.action).startsWith('studio.')) return <StudioApproval value={value} ro={ro} />
   if (value.action === 'jobs.create') return <section className="space-y-2 rounded-md border p-3 text-xs" aria-label={ro ? 'Confirmă generarea clipurilor' : 'Confirm clip generation'}>
     <h4 className="text-sm font-semibold">{ro ? 'Generează clipuri din sursa selectată' : 'Generate clips from the selected source'}</h4>
-    <p>{label(value.source_type)} · {label(value.source_url) || label(value.asset_id)}</p>
+    <p>{label(value.source_url) || (ro ? 'Sursa media selectată' : 'Selected media source')}</p>
     <p>{typeof value.num_clips === 'number' ? value.num_clips : '—'} {ro ? 'clipuri' : 'clips'} · {label(value.aspect_ratio)}</p>
     <p className="font-medium">{typeof value.cost_credits === 'number' ? value.cost_credits : '—'} {ro ? 'credite' : 'credits'}</p>
   </section>
@@ -14,19 +15,17 @@ export function ApprovalPreview({ value, ro }: { value: Record<string, unknown>;
     return <section className="space-y-2 rounded-md border p-3 text-xs" aria-label={ro ? 'Confirmă acțiunea definitivă' : 'Confirm irreversible action'}>
       <h4 className="text-sm font-semibold">{label(value.title) || label(account.name)}</h4>
       <p>{label(account.provider)} {label(account.username)}</p>
-      <p className="break-all text-muted-foreground">{label(value.post_id) || label(account.id)}</p>
       {label(value.caption) && <p className="whitespace-pre-wrap">{label(value.caption)}</p>}
       <p>{label(value.effect)}</p><p className="font-medium text-destructive">{ro ? 'Această acțiune nu are Undo.' : 'This action has no Undo.'}</p>
     </section>
   }
   if (value.action === 'stories.delete') return <section className="space-y-2 rounded-md border p-3 text-xs" aria-label={ro ? 'Confirmă ștergerea poveștii' : 'Confirm story deletion'}>
-    <h4 className="text-sm font-semibold">{label(value.title)}</h4><p className="break-all text-muted-foreground">{label(value.story_id)}</p>
+    <h4 className="text-sm font-semibold">{label(value.title)}</h4>
     <p>{ro ? 'Versiune' : 'Version'}: {typeof value.current_version === 'number' ? value.current_version : '—'} · {typeof value.asset_count === 'number' ? value.asset_count : 0} {ro ? 'surse' : 'sources'}</p>
     <p>{label(value.effect)}</p><p className="font-medium text-destructive">{ro ? 'Ștergerea este definitivă și nu poate fi anulată.' : 'Deletion is permanent and cannot be undone.'}</p>
   </section>
   if (value.action === 'clips.delete') return <section className="space-y-2 rounded-md border p-3 text-xs" aria-label={ro ? 'Confirmă ștergerea clipului' : 'Confirm clip deletion'}>
     <h4 className="text-sm font-semibold">{label(value.title)}</h4>
-    <p className="break-all text-muted-foreground">{label(value.clip_id)}</p>
     {typeof value.duration === 'number' && Number.isFinite(value.duration) && <p>{value.duration} s</p>}
     <p>{label(value.effect)}</p>
     {value.irreversible === true && <p className="font-medium text-destructive">{ro ? 'Ștergerea este definitivă și nu poate fi anulată.' : 'Deletion is permanent and cannot be undone.'}</p>}
@@ -54,7 +53,7 @@ export function ApprovalPreview({ value, ro }: { value: Record<string, unknown>;
     {label(value.caption) && <p className="max-h-48 overflow-auto whitespace-pre-wrap">{label(value.caption)}</p>}
     <dl className="space-y-2"><div><dt className="font-medium">{ro ? 'Publicare' : 'Publishing time'}</dt><dd>{scheduleLabel}</dd>{!Number.isNaN(date.getTime()) && <dd className="text-muted-foreground">{scheduled}</dd>}</div>
       <div><dt className="font-medium">{ro ? 'Stare curentă' : 'Current status'}</dt><dd>{label(value.current_status)}</dd></div>
-      {label(value.clip_id) && <div><dt className="font-medium">{ro ? 'Clip selectat' : 'Selected clip'}</dt><dd>{label(clip.title)}{typeof clip.duration === 'number' && Number.isFinite(clip.duration) ? ` · ${clip.duration} s` : ''}</dd><dd className="break-all text-muted-foreground">{label(value.clip_id)}</dd></div>}
+      {label(value.clip_id) && <div><dt className="font-medium">{ro ? 'Clip selectat' : 'Selected clip'}</dt><dd>{label(clip.title)}{typeof clip.duration === 'number' && Number.isFinite(clip.duration) ? ` · ${clip.duration} s` : ''}</dd></div>}
     </dl>
     <ul className="space-y-1">{destinations.map((destination, index) => <li key={label(destination.id) || index}><span className="font-medium">{label(destination.provider)} · {label(destination.name)}</span> {label(destination.username)} · {label(destination.status)}{destination.configured === false ? ` · ${ro ? 'Necesită configurare' : 'Needs configuration'}` : ''}</li>)}</ul>
     <ul>{media.map((item, index) => <li key={index}>{label(item.name)} · {label(item.type)}</li>)}</ul>
@@ -67,6 +66,35 @@ export function ApprovalPreview({ value, ro }: { value: Record<string, unknown>;
   </section>
 }
 
+function studioApprovalDetails(value: Record<string, unknown>, ro: boolean) {
+  const layer = object(value.layer)
+  const asset = object(value.asset)
+  const render = object(value.render)
+  const affected = Array.isArray(value.affected_layers) ? value.affected_layers.length : 0
+  const target = label(layer.text) || label(asset.name) || label(render.filename) || (ro ? 'Elementul selectat' : 'Selected layer')
+  const effects: Record<string, string> = {
+    'studio.layer.remove': 'Elementul selectat va fi eliminat din compoziție. Fișierele sursă rămân disponibile. Poți anula această modificare.',
+    'studio.assets.delete': 'Fișierul selectat va fi șters din proiectul Studio. Elementele și stilurile care îl folosesc vor pierde această resursă. Compoziția, exporturile salvate și încărcările din afara proiectului rămân disponibile.',
+    'studio.renders.delete': 'Exportul selectat și evidența randării vor fi șterse. Compoziția, sursele încărcate și celelalte exporturi rămân disponibile.'
+  }
+  const effect = ro ? effects[label(value.action)] || label(value.effect) : label(value.effect)
+  const timing = typeof layer.start === 'number' && typeof layer.duration === 'number' ? `${layer.start} – ${layer.start + layer.duration} s` : ''
+  return { target, affected, effect, timing }
+}
+
+function StudioApproval({ value, ro }: { value: Record<string, unknown>; ro: boolean }) {
+  const { target, affected, effect, timing } = studioApprovalDetails(value, ro)
+  return <section className="space-y-2 text-xs" aria-label={ro ? 'Confirmă modificarea în Studio' : 'Confirm Studio change'}>
+    <h4 className="text-sm font-semibold">{label(value.title)}</h4>
+    <p className="whitespace-pre-wrap break-words">{target}</p>
+    {timing && <p className="text-muted-foreground">{timing}</p>}
+    {affected > 0 && <p>{affected} {ro ? 'elemente au referințe directe la această resursă; pot exista și referințe în stiluri.' : 'layers reference this resource directly; styles may reference it too.'}</p>}
+    {value.references_complete === false && <p className="text-muted-foreground">{ro ? 'Sunt enumerate doar referințele media directe. Fișierul poate fi folosit și în stiluri, fonturi sau elemente dinamice.' : 'Only direct media references are listed. Stylesheets, fonts or dynamic elements may also use this file.'}</p>}
+    {effect && <p>{effect}</p>}
+    {value.irreversible === true && <p className="font-medium text-destructive">{ro ? 'Ștergerea este definitivă și nu poate fi anulată.' : 'Deletion is permanent and cannot be undone.'}</p>}
+  </section>
+}
+
 function FolderApproval({ value, ro }: { value: Record<string, unknown>; ro: boolean }) {
   const folder = object(value.folder)
   const children = Array.isArray(value.children) ? value.children.map(object) : []
@@ -74,8 +102,8 @@ function FolderApproval({ value, ro }: { value: Record<string, unknown>; ro: boo
   return <section className="space-y-2 rounded-md border p-3 text-xs" aria-label={ro ? 'Confirmă ștergerea folderului' : 'Confirm folder removal'}>
     <h4 className="text-sm font-semibold">{label(folder.name)}</h4><p>{label(value.project_name)}</p>
     <p>{ro ? 'Folderul va fi șters. Subfolderele și clipurile de mai jos vor fi mutate la nivelul părinte; fișierele video rămân intacte. Această ștergere nu are Undo.' : 'This folder will be removed. The child folders and clips below move to its parent; video files remain intact. This removal has no Undo.'}</p>
-    <p>{ro ? 'Destinație' : 'Destination'}: {label(folder.parent_id) || (ro ? 'Rădăcina proiectului' : 'Project root')}</p>
+    <p>{ro ? 'Destinație' : 'Destination'}: {label(folder.parent_id) ? (ro ? 'Folderul părinte' : 'Parent folder') : (ro ? 'Rădăcina proiectului' : 'Project root')}</p>
     <p>{children.length} {ro ? 'subfoldere' : 'child folders'} · {clips.length} {ro ? 'clipuri' : 'clips'}</p>
-    <ul className="max-h-40 overflow-auto">{children.map(item => <li key={label(item.id)}>{label(item.name)} · {label(item.id)}</li>)}{clips.map(item => <li key={label(item.id)}>{label(item.title)} · {label(item.id)}</li>)}</ul>
+    <ul className="max-h-40 overflow-auto">{children.map(item => <li key={label(item.id)}>{label(item.name)}</li>)}{clips.map(item => <li key={label(item.id)}>{label(item.title)}</li>)}</ul>
   </section>
 }

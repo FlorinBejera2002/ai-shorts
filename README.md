@@ -29,6 +29,35 @@ Open:
 
 The default stack uses production-style frontend and backend images. Before using OAuth, Stripe, Gemini, or email delivery, configure their variables in `.env`. Unconfigured providers return explicit unavailable responses. The calendar stores a publishing plan; it does not automatically publish to social networks.
 
+## Story Builder music
+
+Story Builder searches Incompetech's public catalogue without a music-provider
+account, API key or subscription. The application still uses its normal Sneep Cut
+session. Catalogue metadata is cached and paginated; previews stream from the
+provider. Only a selected track is downloaded by the media worker and cached in
+shared media storage, outside the source checkout. Source licences and credits
+are retained with each rendered version. The free CC BY 4.0 attribution is also
+included in the video's final seconds and MP4 metadata, and can be copied from
+the result for publication captions. See the provider's [catalogue documentation](https://incompetech.com/agent-section/)
+and [licensing terms](https://incompetech.com/music/royalty-free/licenses/).
+
+The worker detects rhythmic onsets from the selected recording, mixes music
+continuously with fades and ducking beneath original audio, and aligns eligible
+new-story visual cuts to nearby measured beats. It preserves the full recorded
+narration and original word timing. Clips with original audio, unrecognized
+speech, locked blocks and approved revision timings are not shortened to force
+a beat match. Audio-free clips can lose at most 350 ms from their tail; narration
+visual boundaries move only inside available distinct source footage. Uncertain
+rhythm leaves cuts unchanged, and the result reports partial/unchanged alignment
+instead of claiming full synchronization. Existing projects without music keep
+their previous rendering behavior.
+
+Catalogue outages are shown explicitly. If a selected track cannot be prepared,
+generation fails before source analysis instead of silently dropping the music.
+There is no provider subscription; normal storage, bandwidth and rendering
+costs still apply. The API and worker must run the updated Go code; no database
+migration or additional music service is required.
+
 ## Hot-reload development
 
 Use the development overlay with Docker Compose 2.32+ to publish PostgreSQL, Redis, and Go and enable source reload. Compose updates changed services without taking down the entire stack or deleting database/media volumes:
@@ -132,6 +161,21 @@ make test-go
 The Go API and worker live in `backend/`. The worker claims durable database jobs and runs FFmpeg, whisper.cpp and native Go processing. Vite serves the React application; Nginx forwards API and media requests. Database migration history is embedded in `backend/migrations`.
 
 Docker builds run Go race tests/vet and the Vite production build. Database integration tests require the dedicated `sneepcut_integration_test` database and an isolated schema; skipped integrations are not passes. Frontend code must never receive backend provider secrets.
+
+## Local storage maintenance
+
+```bash
+make storage           # Report size and distinguish tools/data from rebuildable outputs
+make storage-check     # Check: 512 MiB generated, 3 GiB .cache, 8 GiB checkout
+make clean-cache-plan  # Preview exact allowlisted paths
+make clean-cache       # Delete those paths, after stopping local tests/builds
+```
+
+In PowerShell, the same commands are `node scripts/storage.mjs`, `node scripts/storage.mjs --check`, `node scripts/storage.mjs --clean`, and `node scripts/storage.mjs --clean --apply`. `make check` runs the storage budget check after its tests. Exceeding a budget fails the check; it does not delete data or enforce a filesystem quota.
+
+Cleanup protects media, databases, backups, native tools/models, installed dependencies and Git history. It removes only known regenerable output directories and recognized local release archives, and refuses targets containing tracked files or symbolic links. Unknown directories require review. Scratch work belongs in `.cache/tmp/` with cleanup in `finally`; share `.cache/go-build` instead of making a new compilation cache per task. Run the storage check after artifact-producing work. Release archives are created only for requested release work; the deployment script already removes its local temporary archive on exit.
+
+Sizes are logical file sizes, without following links. Docker images, external database/media volumes, and global package-manager caches are outside this report; deleting them requires a separate review.
 
 ## Environment notes
 

@@ -165,6 +165,8 @@ func TestStoryRestyleActualMediaPreservesLockedTimeline(t *testing.T) {
 	executor := NewExecutor(f.db, nil, limits)
 	options := story.DefaultOptions()
 	options.AspectRatio = "16:9"
+	options.Captions = true
+	options.CaptionMode = "all"
 	options.SubtitleColor = "#00FF00"
 	if err = executor.stories.Create(ctx, f.user, id, options); err != nil {
 		t.Fatal(err)
@@ -319,6 +321,8 @@ func TestWorkspaceStoryConversationActualMedia(t *testing.T) {
 			options.TargetSeconds = 35
 			options.AspectRatio = "16:9"
 			options.Language = "en"
+			options.Captions = true
+			options.CaptionMode = "all"
 			options.SubtitleColor = "#00FF00"
 			options.SubtitlePosition = "top"
 			options.SubtitleSize = 60

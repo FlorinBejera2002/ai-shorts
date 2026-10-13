@@ -249,8 +249,10 @@ func readReplayJSON(file string, value any) ([]byte, error) {
 }
 
 func replayOptions(previous story.Options, cfg evalFlags) story.Options {
+	previousMode := story.EffectiveCaptionMode(previous)
 	if cfg.explicit["brief-file"] {
 		previous.Brief = cfg.options.Brief
+		previous.CaptionModeRevised = false
 	}
 	if cfg.explicit["language"] {
 		previous.Language = cfg.options.Language
@@ -266,6 +268,14 @@ func replayOptions(previous story.Options, cfg evalFlags) story.Options {
 	}
 	if cfg.explicit["captions"] {
 		previous.Captions = cfg.options.Captions
+		previous.CaptionMode = cfg.options.CaptionMode
+	}
+	if cfg.explicit["caption-mode"] {
+		previous.CaptionMode = cfg.options.CaptionMode
+		previous.Captions = cfg.options.Captions
+	}
+	if !cfg.explicit["brief-file"] && (cfg.explicit["captions"] || cfg.explicit["caption-mode"]) && previousMode != story.EffectiveCaptionMode(previous) {
+		previous.CaptionModeRevised = true
 	}
 	if cfg.explicit["preserve-order"] {
 		previous.PreserveOrder = cfg.options.PreserveOrder

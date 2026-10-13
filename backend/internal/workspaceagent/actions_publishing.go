@@ -11,7 +11,11 @@ import (
 )
 
 func (e *PlatformExecutor) SetPublishing(cal *calendar.Handler, pub *publishing.Handler) {
-	e.calendar = cal.AgentRepository()
+	if cal != nil {
+		e.calendar = cal.AgentRepository()
+	} else {
+		e.calendar = nil
+	}
 	e.publishing = pub
 }
 
@@ -26,10 +30,17 @@ type publishingReceipt struct {
 }
 
 func (e *PlatformExecutor) publishingExecute(ctx context.Context, user, request string, a Action) (ActionResult, error) {
-	if e.calendar == nil || e.publishing == nil {
+	if !e.publishingAvailable(a.Name) {
 		return ActionResult{}, ErrUnavailable
 	}
 	switch a.Name {
+	case "publishing.options":
+		id, err := actionID(a.Input)
+		if err != nil {
+			return ActionResult{}, err
+		}
+		options, err := e.publishing.AgentOptions(ctx, user, id)
+		return actionResult("Loaded current TikTok creator settings", "/dashboard/publish", options), err
 	case "publishing.disconnect":
 		var in publishing.AgentDisconnectInput
 		if err := decodeAction(a.Input, &in); err != nil {
@@ -57,7 +68,7 @@ func (e *PlatformExecutor) publishingExecute(ctx context.Context, user, request 
 			}
 			seen[id] = true
 			var name, key, kind string
-			if err := e.db.QueryRowContext(ctx, `SELECT name,reference,content FROM workspace_agent_resources WHERE id=$1 AND user_id=$2 AND kind='publishing_media' AND project_id IS NULL`, id, user).Scan(&name, &key, &kind); err != nil {
+			if err := e.db.QueryRowContext(ctx, `SELECT name,reference,content FROM workspace_agent_resources WHERE id=$1 AND user_id=$2 AND kind='publishing_media' AND project_id IS NULL AND source_project_id IS NULL`, id, user).Scan(&name, &key, &kind); err != nil {
 				return ActionResult{}, err
 			}
 			if kind != "image" && kind != "video" {
@@ -186,7 +197,7 @@ func (e *PlatformExecutor) publishingCancel(ctx context.Context, user string, a 
 	return e.calendar.AgentCancel(ctx, user, receipt.Post.ID, receipt.RequestID)
 }
 func (e *PlatformExecutor) publishingApproval(ctx context.Context, user string, a Action) (json.RawMessage, error) {
-	if e.calendar == nil || e.publishing == nil {
+	if !e.publishingAvailable(a.Name) {
 		return nil, ErrUnavailable
 	}
 	if a.Name == "publishing.disconnect" {
@@ -244,4 +255,17 @@ func (e *PlatformExecutor) publishingApproval(ctx context.Context, user string, 
 		when = stamp
 	}
 	return actionJSON(map[string]any{"action": a.Name, "post_id": post.ID, "title": post.Title, "caption": post.Caption, "destinations": selected, "clip_id": post.ClipID, "clip": post.Clip, "media": post.Media, "scheduled_at": when, "current_status": post.Status, "expected_state": post.ExpectedState, "tiktok": post.TikTok, "youtube": post.YouTube, "instagram": post.Instagram}), nil
+}
+
+// Draft/calendar operations are local and remain usable independently of an
+// external provider connection. Only publication needs both execution services.
+func (e *PlatformExecutor) publishingAvailable(name string) bool {
+	switch name {
+	case "publishing.accounts", "publishing.options", "publishing.disconnect":
+		return e.publishing != nil
+	case "publishing.publish", "publishing.schedule", "publishing.reschedule", "publishing.unschedule":
+		return e.calendar != nil && e.publishing != nil
+	default:
+		return e.calendar != nil
+	}
 }

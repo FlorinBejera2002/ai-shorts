@@ -1,6 +1,6 @@
 import type { StoryHelpStep } from './story-help'
 
-export type AgentContext = { route: string; project_id?: string; clip_id?: string; studio_selection?: string[]; help_topic?: 'story_builder'; story_step?: StoryHelpStep }
+export type AgentContext = { route: string; locale?: 'ro' | 'en'; project_id?: string; clip_id?: string; studio_selection?: string[]; help_topic?: 'story_builder'; story_step?: StoryHelpStep }
 export type AgentAction = { name: string; input: Record<string, unknown> }
 export type AgentStatus = 'planning' | 'running' | 'waiting_for_confirmation' | 'waiting_for_resources' | 'paused' | 'cancel_requested' | 'cancelled' | 'completed' | 'failed'
 export type AgentRun = {
@@ -17,14 +17,20 @@ export type RunRequest = { request_id: string; message: string; context: AgentCo
 export type AgentResource = { id: string; kind: 'logo' | 'document' | 'publishing_media'; name: string; project_id?: string }
 export type AgentCommand = 'pause' | 'resume' | 'stop' | 'approve' | 'reject' | 'undo'
 
+export function resourceIdsForContext(resources: AgentResource[], context: AgentContext): string[] {
+  return [...new Set(resources.filter(resource => !resource.project_id || resource.project_id === context.project_id).map(resource => resource.id))]
+}
+
 export function safeAgentRoute(route?: string): string | null {
   if (!route || /[\\\s#]/.test(route)) return null
   const pathname = route.split('?')[0]
   return /^\/dashboard(?:\/(?:studio|clips(?:\/[a-zA-Z0-9-]+(?:\/edit)?)?|calendar|publish(?:\/(?:new|[a-zA-Z0-9-]+\/edit))?|create|script-generator|settings|brand|billing|jobs\/[a-zA-Z0-9-]+))?$/.test(pathname) ? route : null
 }
 export function agentContext(route: string): AgentContext {
-  const clip = route.match(/^\/dashboard\/clips\/([a-zA-Z0-9-]+)(?:\/edit)?$/)
-  return { route, ...(clip ? { clip_id: clip[1] } : {}) }
+  const pathname = route.split('?')[0]
+  const clip = pathname.match(/^\/dashboard\/clips\/([a-zA-Z0-9-]+)(?:\/edit)?$/)
+  const project = pathname.match(/^\/dashboard\/jobs\/([a-zA-Z0-9-]+)$/)
+  return { route, ...(clip ? { clip_id: clip[1] } : {}), ...(project ? { project_id: project[1] } : {}) }
 }
 export function pollingDelay(runs: AgentRun[]): number | false {
   return runs.some(run => ['planning', 'running', 'cancel_requested'].includes(run.status)) ? 2000
@@ -36,6 +42,11 @@ export function mergeRuns(previous: AgentRun[], incoming: AgentRun[]): AgentRun[
     if ((records.get(run.id)?.revision ?? -1) <= run.revision) records.set(run.id, run)
   }
   return [...records.values()].sort((a, b) => a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id))
+}
+export function resourceProjectFromRun(run: AgentRun): string | undefined {
+  if (run.status !== 'waiting_for_resources') return undefined
+  const targets = new Set((run.missing_resources ?? []).filter(need => need.kind === 'videos' && need.target_id).map(need => need.target_id!))
+  return targets.size === 1 ? [...targets][0] : undefined
 }
 export function publishingConsentMissing(preview?: Record<string, unknown>): boolean {
   if (!preview || !['publishing.publish', 'publishing.schedule', 'publishing.reschedule'].includes(String(preview.action))) return false

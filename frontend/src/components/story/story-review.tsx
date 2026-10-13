@@ -78,7 +78,7 @@ export function StoryReview({
   const needsReview = version.report.status !== 'ready' || groups.length > 0
   return (
     <section
-      className="story-result-surface space-y-4 rounded-md bg-card p-5"
+      className="space-y-4 border-t pt-5"
       aria-label={text('Before you publish', 'Înainte de publicare')}
     >
       <div>
@@ -118,6 +118,11 @@ export function StoryReview({
               {incomplete.map(([label]) => label).join(' · ')}
             </p>
           )}
+          {[...new Set(coverage.incomplete ?? [])].map((reason) => (
+            <p key={reason} className="break-words text-muted-foreground">
+              {reason}
+            </p>
+          ))}
           <p className="mt-1 text-muted-foreground">
             {text(
               'This does not confirm a problem with your video. Listen to the sound, watch the framing and check any captions yourself.',
@@ -195,9 +200,6 @@ export function StoryReview({
               </li>
             ))}
           </ul>
-          {[...new Set(coverage.incomplete ?? [])].map((reason) => (
-            <p key={reason}>{reason}</p>
-          ))}
           <ul className="space-y-3">
             {issues.map((issue) => (
               <li key={issue.id} className="space-y-1 pt-2">

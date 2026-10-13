@@ -19,7 +19,7 @@ func (h *Handler) suggestions(w http.ResponseWriter, r *http.Request) {
 	}
 	scope := Scope{Route: "/dashboard/create", ProjectID: project}
 	proposed := []Suggestion{
-		{Title: "Construiește un clip din filmările mele", Description: "Pregătesc un clip de 30 de secunde, aștept filmările și continui montajul după upload. Generarea costă 10 credite și cere confirmare înainte de procesare.", Action: Action{Name: "stories.create", Input: json.RawMessage(`{"options":{"target_seconds":30,"aspect_ratio":"9:16","language":"auto","mode":"smart","captions":true}}`)}, Context: Scope{Route: "/dashboard/create"}, MissingResources: []string{"Filmările pentru montaj"}},
+		{Title: "Construiește un clip din filmările mele", Description: "Pregătesc un clip de 30 de secunde, aștept filmările și continui montajul după upload. Generarea costă 10 credite și cere confirmare înainte de procesare.", Action: Action{Name: "stories.create", Input: json.RawMessage(`{"options":{"target_seconds":30,"aspect_ratio":"9:16","language":"auto","mode":"smart","preserve_order":true,"captions":false,"caption_mode":"off"}}`)}, Context: Scope{Route: "/dashboard/create"}, MissingResources: []string{"Filmările pentru montaj"}},
 		{Title: "Arată-mi proiectele", Description: "Citesc proiectele existente și starea lor, fără să le modific.", Action: Action{Name: "projects.list", Input: json.RawMessage(`{}`)}, Context: Scope{Route: "/dashboard/clips"}, MissingResources: []string{}},
 	}
 	if project != "" {

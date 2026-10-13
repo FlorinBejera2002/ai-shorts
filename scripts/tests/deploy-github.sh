@@ -33,7 +33,7 @@ mapfile -t args < "$RESULT_DIR/arguments"
 [[ "$(cat "$RESULT_DIR/version")" == committed ]]
 [[ ! -e "$(cat "$RESULT_DIR/archive")" ]]
 
-bash "$helper" build api
+DEPLOY_EXPECTED_COMMIT="$commit" bash "$helper" build api
 mapfile -t args < "$RESULT_DIR/arguments"
 [[ "${args[0]}" == build && "${args[1]}" == api ]]
 
@@ -44,11 +44,13 @@ else
 fi
 [[ ! -e "$(cat "$RESULT_DIR/archive")" ]]
 
-for scenario in component path branch; do
+for scenario in component path branch invalid-commit moved-branch; do
   case "$scenario" in
     component) command=(bash "$helper" deploy nonexistent) ;;
     path) command=(env DEPLOY_ROOT=/opt/sneepcut/.. bash "$helper" deploy all) ;;
     branch) command=(env DEPLOY_BRANCH=missing-branch bash "$helper" deploy all) ;;
+    invalid-commit) command=(env DEPLOY_EXPECTED_COMMIT=not-a-sha bash "$helper" deploy all) ;;
+    moved-branch) command=(env DEPLOY_EXPECTED_COMMIT=0000000000000000000000000000000000000000 bash "$helper" deploy all) ;;
   esac
   rm -f "$RESULT_DIR/arguments"
   if "${command[@]}"; then

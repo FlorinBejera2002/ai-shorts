@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Check, Mic, Upload } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Card } from '@/components/ui/card'
 import { formatBytes, formatDuration } from '@/lib/youtube'
 import { storyRequest, uploadNarration } from './api'
 import type { StoryAsset, StoryProject } from './types'
@@ -147,9 +146,9 @@ export function StoryNarration({
   }
 
   return (
-    <Card
+    <div
       ref={containerRef}
-      className="block space-y-4 p-5"
+      className="space-y-4 border-t pt-5"
       data-testid="story-narration"
     >
       <div>
@@ -257,6 +256,6 @@ export function StoryNarration({
           {error || (recorder.error && errors[recorder.error])}
         </p>
       )}
-    </Card>
+    </div>
   )
 }

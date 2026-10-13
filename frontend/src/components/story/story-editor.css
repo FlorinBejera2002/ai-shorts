@@ -1,6 +1,0 @@
-#dashboard-main .story-result-surface,
-#dashboard-main [data-slot='card'].story-result-surface {
-  box-shadow:
-    0 2px 5px color-mix(in srgb, var(--foreground) 7%, transparent),
-    0 8px 24px color-mix(in srgb, var(--foreground) 4%, transparent);
-}

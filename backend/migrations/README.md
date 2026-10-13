@@ -1,9 +1,7 @@
 # Database migrations
 
-This directory is reserved for Sneepcut's Go-era migrations once schema ownership
-is agreed. It intentionally contains no executable SQL.
+The Go migrator embeds the ordered PostgreSQL SQL history in this directory. `migrations.go` reads and validates the revision chain; `backend/internal/migrate` applies it transactionally under a migration lock. Revision identifiers preserve the previous schema history.
 
-The example's integer-ID users/activation-token schema is not the current
-Sneepcut UUID schema. Do not copy or apply it to the existing database.
-For now, [Alembic](../../backend/alembic/versions/) owns schema changes.
-See [migration Step 1](../../docs/go-migration/backend-go-migration.md).
+The executable is `backend/cmd/migrate`. Compose runs it through the `migrate` service before starting the application. `make migrate` applies pending SQL to the configured database; `DIRECT_URL` takes precedence over `DATABASE_URL`.
+
+Preserve the UUID schema and existing revision chain. Never apply example schemas to persistent databases. Verify changes with the dedicated `sneepcut_integration_test` database and isolated schemas; see [database verification](../../docs/frontend-backend-verification.md#database-fixtures). Back up user data before an authorized deployment or migration.

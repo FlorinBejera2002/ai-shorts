@@ -5,6 +5,8 @@ import { storyRequest } from '@/components/story/api'
 import type { StoryProject } from '@/components/story/types'
 import type { AgentRun } from './model'
 
+const previewActions = new Set(['stories.generate', 'stories.revise', 'stories.restyle', 'clips.trim', 'clips.recut', 'clips.style', 'clips.transitions', 'clips.export', 'clips.get'])
+
 function mediaUrl(value: unknown): string | null {
   if (typeof value !== 'string') return null
   try {
@@ -15,12 +17,11 @@ function mediaUrl(value: unknown): string | null {
 export function ResultPreview({ run, ro }: { run: AgentRun; ro: boolean }) {
   const [opened, setOpened] = useState(false)
   const [playbackFailed, setPlaybackFailed] = useState(false)
-  const renderNames = ['stories.generate', 'stories.revise', 'clips.trim', 'clips.recut', 'clips.get']
-  const completedStep = [...(run.steps ?? [])].reverse().find(step => renderNames.includes(step.action.name))
-  const receipt = run.action && renderNames.includes(run.action.name) ? { action: run.action, result: run.result } : completedStep
+  const completedStep = [...(run.steps ?? [])].reverse().find(step => previewActions.has(step.action.name))
+  const receipt = run.action && previewActions.has(run.action.name) ? { action: run.action, result: run.result } : completedStep
   const action = receipt?.action.name ?? ''
-  const story = action === 'stories.generate' || action === 'stories.revise'
-  const clip = action === 'clips.trim' || action === 'clips.recut' || action === 'clips.get'
+  const story = action.startsWith('stories.')
+  const clip = action.startsWith('clips.')
   const id = receipt?.result?.data?.id ?? receipt?.result?.data?.clip_id ?? receipt?.action.input.id
   const valid = run.status === 'completed' && (story || clip) && typeof id === 'string' && /^[a-f\d-]{36}$/i.test(id)
   const preview = useQuery({ queryKey: ['workspace-agent', 'preview', run.id, run.revision], enabled: opened && valid,

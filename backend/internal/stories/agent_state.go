@@ -17,7 +17,7 @@ func (r *Repository) AgentState(ctx context.Context, user, id string) (string, e
 }
 func agentState(ctx context.Context, q stateReader, user, id string) (string, error) {
 	var raw []byte
-	err := q.QueryRowContext(ctx, `SELECT jsonb_build_object('options',p.options,'version',p.current_version,'status',p.status,'locks',p.locks,'assets',COALESCE((SELECT jsonb_agg(a.asset ORDER BY a.id) FROM story_assets a WHERE a.project_id=p.id),'[]'::jsonb)) FROM story_projects p WHERE p.id=$1 AND p.user_id=$2`, id, user).Scan(&raw)
+	err := q.QueryRowContext(ctx, `SELECT jsonb_build_object('options',p.options,'version',p.current_version,'status',p.status,'request_id',p.request->>'request_id','locks',p.locks,'assets',COALESCE((SELECT jsonb_agg(a.asset ORDER BY a.id) FROM story_assets a WHERE a.project_id=p.id),'[]'::jsonb)) FROM story_projects p WHERE p.id=$1 AND p.user_id=$2`, id, user).Scan(&raw)
 	if err != nil {
 		return "", err
 	}

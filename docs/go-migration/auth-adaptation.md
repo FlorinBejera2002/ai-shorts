@@ -1,11 +1,11 @@
 # Authentication adaptation
 
 Updated 2026-09-06. Go owns authentication, account lifecycle and authorization;
-the Next.js client and default Compose/Nginx routing use the Go API. Registration,
+the frontend client and default Compose/Nginx routing use the Go API. Registration,
 activation, password recovery/change and Google sign-in are implemented. This
 page describes the implementation and focused verification. See
-[the migration plan](backend-go-migration.md) for aggregate checks and the
-remaining deployment acceptance work.
+[the verification guide](../frontend-backend-verification.md) for current checks.
+The dated verification results below are historical evidence, not a current release certification.
 
 ## Source contract and implementation
 
@@ -179,7 +179,7 @@ rollback must restore a compatible frontend and routing together.
 
 ## Runtime configuration and request policy
 
-See [backend-go/README.md](../../backend-go/README.md#configuration) and
+See [backend-go/README.md](../../backend/README.md#configuration) and
 `.env.example` for the complete configuration. Auth needs `DATABASE_URL`,
 `REDIS_URL`, `JWT_SECRET`, matching browser `APP_URL`/`CORS_ORIGINS`, allowed
 hosts and explicit trusted proxy networks. Google and mail require their own

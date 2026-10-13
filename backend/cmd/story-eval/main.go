@@ -57,8 +57,9 @@ func parseFlags(args []string, out io.Writer) (evalFlags, error) {
 	flags.StringVar(&cfg.options.AspectRatio, "aspect", "9:16", "9:16, 16:9, 1:1 or 4:5")
 	flags.StringVar(&cfg.options.Mode, "mode", "smart", "smart or strict")
 	flags.IntVar(&cfg.options.TargetSeconds, "target", 45, "Target seconds: 15, 30, 45, 60 or 90; no artificial padding")
-	flags.BoolVar(&cfg.options.Captions, "captions", true, "Burn captions from selected original words")
-	flags.BoolVar(&cfg.options.PreserveOrder, "preserve-order", false, "Preserve source filename order")
+	flags.BoolVar(&cfg.options.Captions, "captions", cfg.options.Captions, "Legacy caption switch; prefer -caption-mode")
+	flags.StringVar(&cfg.options.CaptionMode, "caption-mode", "", "all, selective or off; selective needs source-audio intelligibility evidence")
+	flags.BoolVar(&cfg.options.PreserveOrder, "preserve-order", cfg.options.PreserveOrder, "Preserve source filename order")
 	flags.IntVar(&cfg.maxAICalls, "max-ai-calls", 12, "Hard provider-call ceiling, 1..12 including review and repair")
 	flags.IntVar(&cfg.repairCycles, "repair-cycles", 2, "Maximum repair cycles, 0..2")
 	flags.DurationVar(&cfg.timeout, "timeout", 2*time.Hour, "Complete evaluation timeout, at most 2h")
@@ -74,6 +75,9 @@ func parseFlags(args []string, out io.Writer) (evalFlags, error) {
 	cfg.options.Narration = cfg.narrationFile != ""
 	cfg.explicit = map[string]bool{}
 	flags.Visit(func(f *flag.Flag) { cfg.explicit[f.Name] = true })
+	if cfg.explicit["captions"] && cfg.explicit["caption-mode"] && cfg.options.Captions != (cfg.options.CaptionMode != "off") {
+		return cfg, errors.New("-captions and -caption-mode disagree; choose one caption setting")
+	}
 	if cfg.provider != "offline" && cfg.provider != "configured" {
 		return cfg, errors.New("provider must be offline or configured")
 	}

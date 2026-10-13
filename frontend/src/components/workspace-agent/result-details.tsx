@@ -1,4 +1,5 @@
 import { Button } from '@/components/ui/button'
+import { ResourceResults, StudioResults } from './resource-results'
 
 function record(value: unknown): Record<string, unknown> {
   return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {}
@@ -11,10 +12,12 @@ export function ResultDetails({ action, data, ro }: { action?: string; data: unk
     {!data.length && <li>{ro ? 'Niciun rezultat.' : 'No results.'}</li>}
     {data.slice(0, 30).map((value, index) => {
       const item = record(value)
-      return <li key={text(item.id) ?? index} className="border-b pb-2 last:border-0 last:pb-0"><p className="font-medium">{text(item.title) ?? text(item.name) ?? text(item.id)}</p><p className="text-muted-foreground">{text(item.status)}{typeof item.clips === 'number' ? ` · ${item.clips} ${ro ? 'clipuri' : 'clips'}` : ''}</p></li>
+      return <li key={text(item.id) ?? index} className="border-b pb-2 last:border-0 last:pb-0"><p className="font-medium">{text(item.title) ?? text(item.name) ?? `${ro ? 'Rezultat' : 'Result'} ${index + 1}`}</p><p className="text-muted-foreground">{text(item.status)}{typeof item.clips === 'number' ? ` · ${item.clips} ${ro ? 'clipuri' : 'clips'}` : ''}</p></li>
     })}
   </ul>
   const value = record(data)
+  if (action.startsWith('resources.') || action === 'sources.list') return <ResourceResults data={value} ro={ro} />
+  if (action.startsWith('studio.')) return <StudioResults data={value} ro={ro} />
   if (action === 'clips.list') {
     const clips = Array.isArray(value.clips) ? value.clips.map(record) : []
     return <section className="space-y-2 rounded-md border p-3 text-xs"><p>{typeof value.total === 'number' ? value.total : clips.length} {ro ? 'clipuri' : 'clips'} · {ro ? 'Pagina' : 'Page'} {typeof value.current_page === 'number' ? value.current_page : 1}{typeof value.total_pages === 'number' ? ` / ${value.total_pages}` : ''}</p><ul className="max-h-64 space-y-2 overflow-auto">{clips.map((clip, index) => <li key={text(clip.id) ?? index}><p className="font-medium">{text(clip.title)}</p><p className="text-muted-foreground">{typeof clip.duration === 'number' ? `${clip.duration}s · ` : ''}{text(clip.aspect_ratio)}</p></li>)}</ul></section>

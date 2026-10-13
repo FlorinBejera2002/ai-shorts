@@ -16,6 +16,8 @@ PRODUCTION_DEPLOY := ./scripts/deploy.sh
 	deploy deploy-backend deploy-frontend deploy-studio deploy-api deploy-workers \
 	deploy-gateway rollback production-status production-verify
 
+.PHONY: storage storage-check clean-cache-plan clean-cache test-storage
+
 help: ## Show available commands
 	@awk 'BEGIN {FS = ":.*## "; printf "Usage: make <target>\n\nTargets:\n"} /^[a-zA-Z0-9_-]+:.*## / {printf "  %-18s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
@@ -133,7 +135,23 @@ test-frontend: ## Run the frontend Node test suite
 test-go: ## Run the Go API test suite
 	@cd backend && GOCACHE="$(GO_CACHE)" go test ./...
 
-check: lint typecheck test ## Run lint, typecheck, and all tests
+check: lint typecheck test test-storage ## Run lint, typecheck, tests, and the storage budget check
+	@$(MAKE) storage-check
+
+storage: ## Report local project storage without changing files
+	@node scripts/storage.mjs
+
+storage-check: ## Fail when regenerable outputs or local storage exceed their budgets
+	@node scripts/storage.mjs --check
+
+clean-cache-plan: ## Preview cleanup of known regenerable outputs (preserves data/tools/history)
+	@node scripts/storage.mjs --clean
+
+clean-cache: ## Delete only known regenerable outputs; stop local tests/builds first
+	@node scripts/storage.mjs --clean --apply
+
+test-storage: ## Verify cleanup containment, data protection, and storage budgets
+	@node --test scripts/tests/storage.test.mjs
 
 build: ensure-env ## Build all Docker images
 	@$(COMPOSE) build

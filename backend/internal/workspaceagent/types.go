@@ -8,6 +8,7 @@ import (
 )
 
 type Scope struct {
+	Locale          string   `json:"locale,omitempty"`
 	StudioSelection []string `json:"studio_selection,omitempty"`
 	HelpTopic       string   `json:"help_topic,omitempty"`
 	StoryStep       string   `json:"story_step,omitempty"`
@@ -63,9 +64,10 @@ type Run struct {
 	SessionID        string          `json:"-"`
 }
 type ResourceNeed struct {
-	Kind     string `json:"kind"`
-	Label    string `json:"label"`
-	TargetID string `json:"target_id,omitempty"`
+	Kind             string   `json:"kind"`
+	Label            string   `json:"label"`
+	TargetID         string   `json:"target_id,omitempty"`
+	ExistingAssetIDs []string `json:"existing_asset_ids,omitempty"`
 }
 type Step struct {
 	Action Action       `json:"action"`

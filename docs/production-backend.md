@@ -1,6 +1,6 @@
 # Production deployment
 
-The standalone `docker-compose.production.yml` runs the Next.js frontend, Go API,
+The standalone `docker-compose.production.yml` runs the Vite frontend, Go API,
 job processing, database, scanner, and signed media gateway on `159.195.254.38`.
 Do not combine it with the development Compose files. Its project name is
 `sneepcut-production`, with separate persistent volumes.
@@ -18,29 +18,34 @@ Do not combine it with the development Compose files. Its project name is
   changing it, update both fixed addresses, nginx's `set_real_ip_from`, and Go's
   `TRUSTED_PROXY_CIDRS` together.
 
-## Transfer source from Windows
+## Deploy the verified GitHub commit
 
-Create the committed application source archive with newline conversion disabled.
-Use `--worktree-attributes` so the current `.gitattributes` is applied even before
-that file has been committed:
+Commit and push the reviewed changes before deploying. On the server, run the
+GitHub helper with the full commit SHA returned by `git rev-parse HEAD`:
 
-```powershell
-New-Item -ItemType Directory -Force .cache | Out-Null
-git -c core.autocrlf=false archive --worktree-attributes --format=tar --output=.cache/production-source.tar HEAD backend backend-go frontend
+```sh
+export DEPLOY_EXPECTED_COMMIT=FULL_40_CHARACTER_COMMIT_SHA
+bash /opt/sneepcut/scripts/deploy-github.sh build all
+# Back up PostgreSQL, media, Studio data and the production environment outside
+# /opt/sneepcut, /opt/sneepcut.incoming and /opt/sneepcut.previous.
+bash /opt/sneepcut/scripts/deploy-github.sh deploy all
+bash /opt/sneepcut/scripts/deploy-github.sh verify all
 ```
 
-Transfer the archive to the server and extract it into the intended application
-directory using `tar -xf production-source.tar`. This archive contains the selected
-paths from `HEAD`; it does **not** include uncommitted edits or untracked files.
-Explicitly copy reviewed working-tree overlays after extraction, including
-`docker-compose.production.yml`, `deploy/Caddyfile`,
-`deploy/nginx.production.conf`, and any application changes not yet committed.
-Preserve LF newlines when copying shell scripts, embedded prompt text, and runtime
-configuration. Keep `.env.production.local` separate from the source archive.
+The helper fetches `main` from GitHub (or `DEPLOY_BRANCH` when explicitly set),
+rejects a commit mismatch before touching the release directories, and archives
+only committed source. Run the helper from the reviewed commit when bootstrapping
+a server that predates this guard. Git attributes preserve LF for shell scripts
+and configuration. Production secrets are copied separately from the active
+release and never committed. A build stages the incoming release without changing
+the running containers; deployment applies migrations and recreates services.
 
-The repository attributes enforce LF for these sensitive files. Without this
-policy, Windows newline conversion can produce an archive that breaks embedded
-prompt contracts or makes ClamAV reject valid configuration values.
+Verify the backup with an isolated restore before activation. Stop application
+writers briefly for a consistent final database and media snapshot when needed.
+Keep the previous images and checkout for recovery. Source rotation does not roll
+back database migrations: an older Go migrator can reject an unknown newer
+revision, so assess schema compatibility before invoking `rollback`. Do not
+restore an older database over newer user writes as an automatic rollback step.
 
 ## Secrets and configuration
 

@@ -391,24 +391,26 @@ describe("POST /projects/:id/render — composition path safety", () => {
     expect(spy).not.toHaveBeenCalled();
   });
 
-  it("rejects a composition reached through an in-project symlink pointing outside the project", async () => {
+  it("rejects a composition reached through an in-project symlink pointing outside the project", async (context) => {
     const spy = vi.fn();
     const { app, projectDir } = buildAppWithProjectDir(spy);
     const external = mkdtempSync(join(tmpdir(), "hf-render-external-"));
     tmpDirs.push(external);
     writeFileSync(join(external, "secret.html"), "<html></html>");
-    if (!tryCreateSymlink(external, join(projectDir, "link"), "dir")) return;
+    if (!tryCreateSymlink(external, join(projectDir, "link"), "dir"))
+      context.skip("Symbolic links unavailable on this runner");
     const res = await postComposition(app, "link/secret.html");
     expect(res.status).toBe(400);
     expect(spy).not.toHaveBeenCalled();
   });
 
-  it("allows a composition reached through an in-project symlink that stays inside the project", async () => {
+  it("allows a composition reached through an in-project symlink that stays inside the project", async (context) => {
     const spy = vi.fn();
     const { app, projectDir } = buildAppWithProjectDir(spy);
     mkdirSync(join(projectDir, "real"));
     writeFileSync(join(projectDir, "real", "scene.html"), "<html></html>");
-    if (!tryCreateSymlink(join(projectDir, "real"), join(projectDir, "alias"), "dir")) return;
+    if (!tryCreateSymlink(join(projectDir, "real"), join(projectDir, "alias"), "dir"))
+      context.skip("Symbolic links unavailable on this runner");
     const res = await postComposition(app, "alias/scene.html");
     expect(res.status).toBe(200);
     expect(spy).toHaveBeenCalledOnce();
@@ -456,15 +458,15 @@ describe("GET /projects/:id/renders/file/* — path safety", () => {
     tmpDirs.length = 0;
   });
 
-  it("serves a render file that lives inside rendersDir", async () => {
+  it("rejects unverified media bytes even when the file lives inside rendersDir", async () => {
     const { app, rendersDir } = buildApp();
     writeFileSync(join(rendersDir, "demo.mp4"), "render-bytes");
     const res = await app.request("http://localhost/projects/demo/renders/file/demo.mp4");
-    expect(res.status).toBe(200);
-    expect(await res.text()).toBe("render-bytes");
+    expect(res.status).toBe(409);
+    expect(await res.text()).not.toBe("render-bytes");
   });
 
-  it("rejects a file reached through a symlink inside rendersDir pointing outside it", async () => {
+  it("rejects a file reached through a symlink inside rendersDir pointing outside it", async (context) => {
     const { app, rendersDir } = buildApp();
     // A bare join()+readFileSync followed the symlink and leaked the target;
     // the resolveWithinProject chokepoint canonicalizes with realpath first.
@@ -472,20 +474,21 @@ describe("GET /projects/:id/renders/file/* — path safety", () => {
     tmpDirs.push(external);
     writeFileSync(join(external, "secret.txt"), "TOP-SECRET");
     if (!tryCreateSymlink(join(external, "secret.txt"), join(rendersDir, "leak.txt"), "file"))
-      return;
+      context.skip("Symbolic links unavailable on this runner");
     const res = await app.request("http://localhost/projects/demo/renders/file/leak.txt");
     expect(res.status).toBe(403);
     expect(await res.text()).not.toContain("TOP-SECRET");
   });
 
-  it("serves a render file reached through a symlink that stays inside rendersDir", async () => {
+  it("requires verified media through a symlink that stays inside rendersDir", async (context) => {
     const { app, rendersDir } = buildApp();
     mkdirSync(join(rendersDir, "nested"));
     writeFileSync(join(rendersDir, "nested", "clip.mp4"), "nested-bytes");
-    if (!tryCreateSymlink(join(rendersDir, "nested"), join(rendersDir, "alias"), "dir")) return;
+    if (!tryCreateSymlink(join(rendersDir, "nested"), join(rendersDir, "alias"), "dir"))
+      context.skip("Symbolic links unavailable on this runner");
     const res = await app.request("http://localhost/projects/demo/renders/file/alias/clip.mp4");
-    expect(res.status).toBe(200);
-    expect(await res.text()).toBe("nested-bytes");
+    expect(res.status).toBe(409);
+    expect(await res.text()).not.toBe("nested-bytes");
   });
 });
 

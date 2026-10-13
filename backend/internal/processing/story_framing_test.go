@@ -69,6 +69,19 @@ func TestStoryLowResolutionFramingFillsCanvasWithoutDistortion(t *testing.T) {
 
 type storyPixelBounds struct{ x1, y1, x2, y2 int }
 
+func TestStoryFramingPreservesAnamorphicDisplayAspect(t *testing.T) {
+	p, _, dir := storyTestProcessor(t)
+	// A 320x180 encoded frame with SAR 2:1 displays as 32:9, not 16:9.
+	pixels, err := run(context.Background(), dir, p.cfg.FFmpegPath, "-v", "error", "-f", "lavfi", "-i", "color=c=red:s=320x180,setsar=2/1", "-frames:v", "1", "-vf", storyFramingFilter(320, 180, ""), "-f", "rawvideo", "-pix_fmt", "rgb24", "-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	colored, _ := storyFramingPixelBounds(t, pixels, 320, 180)
+	if colored.width() != 320 || colored.height() < 88 || colored.height() > 92 || colored.y1 < 43 || colored.y1 > 47 {
+		t.Fatalf("anamorphic source was stretched instead of display-fitted: %#v", colored)
+	}
+}
+
 func (b storyPixelBounds) width() int  { return b.x2 - b.x1 + 1 }
 func (b storyPixelBounds) height() int { return b.y2 - b.y1 + 1 }
 

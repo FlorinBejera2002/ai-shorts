@@ -70,6 +70,13 @@ func (h *Handler) AgentAccounts(ctx context.Context, user string) ([]AgentAccoun
 	return out, rows.Err()
 }
 
+// AgentOptions returns live creator settings without exposing credentials or
+// selecting privacy, disclosure, or consent choices on the user's behalf.
+func (h *Handler) AgentOptions(ctx context.Context, user, id string) (CreatorOptions, error) {
+	options, _, err := h.creatorOptions(ctx, user, id)
+	return options, err
+}
+
 func (h *Handler) verifyAgentCalendar(ctx context.Context, tx *sql.Tx, user, id string) error {
 	var binding struct {
 		Digest string `json:"digest"`

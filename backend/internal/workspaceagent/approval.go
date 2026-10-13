@@ -7,6 +7,9 @@ import (
 )
 
 func (e *PlatformExecutor) PrepareApproval(ctx context.Context, user string, a Action) (json.RawMessage, error) {
+	if a.Name == "studio.layer.remove" || a.Name == "studio.assets.delete" || a.Name == "studio.renders.delete" {
+		return e.studioApproval(ctx, user, a)
+	}
 	if a.Name == "stories.delete" {
 		return e.lifecycleApproval(ctx, user, a)
 	}

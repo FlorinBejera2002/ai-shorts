@@ -89,3 +89,40 @@ func TestProjectBrandRejectsForeignResourcesAndInvalidValues(t *testing.T) {
 		t.Fatalf("failed edits mutated brand %+v %v", after, err)
 	}
 }
+
+func TestProjectLogoResourceIsBoundToItsSourceProject(t *testing.T) {
+	r, user, project, _ := libraryFixture(t)
+	ctx := context.Background()
+	otherProject, foreignUser, foreignProject := randomID(), randomID(), randomID()
+	if _, err := r.db.Exec(`INSERT INTO users(id,email,provider,credits,plan) VALUES($1,$2,'credentials',100,'free')`, foreignUser, foreignUser+"@example.invalid"); err != nil {
+		t.Fatal(err)
+	}
+	for _, pair := range [][2]string{{otherProject, user}, {foreignProject, foreignUser}} {
+		if _, err := r.db.Exec(`INSERT INTO jobs(id,user_id,source_type,status,progress,num_clips_requested,aspect_ratio,subtitle_style,include_brand,credits_charged) VALUES($1,$2,'upload','completed',100,1,'9:16','default',false,0)`, pair[0], pair[1]); err != nil {
+			t.Fatal(err)
+		}
+	}
+	logo, otherLogo, foreignLogo := randomID(), randomID(), randomID()
+	for _, entry := range [][3]string{{logo, user, project}, {otherLogo, user, otherProject}, {foreignLogo, foreignUser, foreignProject}} {
+		if _, err := r.db.Exec(`INSERT INTO workspace_agent_resources(id,user_id,source_project_id,kind,name,reference) VALUES($1,$2,$3,'logo','Source logo','brand/private-test/scoped.png')`, entry[0], entry[1], entry[2]); err != nil {
+			t.Fatal(err)
+		}
+	}
+	state, err := r.InspectProjectBrand(ctx, user, project)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, unavailable := range []string{otherLogo, foreignLogo} {
+		if _, err = r.ChangeProjectBrand(ctx, user, randomID(), "projects.brand.update", ProjectBrandInput{ProjectID: project, ExpectedState: state.ExpectedState, LogoResourceID: &unavailable}); err == nil {
+			t.Fatal("another source project's logo was attached")
+		}
+	}
+	changed, err := r.ChangeProjectBrand(ctx, user, randomID(), "projects.brand.update", ProjectBrandInput{ProjectID: project, ExpectedState: state.ExpectedState, LogoResourceID: &logo})
+	if err != nil || !changed.HasLogo {
+		t.Fatalf("owned source logo was not attached: %+v %v", changed, err)
+	}
+	var otherBrand string
+	if err = r.db.QueryRow(`SELECT COALESCE(project_brand,'{}'::jsonb)::text FROM jobs WHERE id=$1`, otherProject).Scan(&otherBrand); err != nil || otherBrand != "{}" {
+		t.Fatalf("another source project changed: %s %v", otherBrand, err)
+	}
+}

@@ -24,6 +24,8 @@ func (s *runState) runRestyle(ctx context.Context) (Result, error) {
 	}
 	version.Parent, version.Number, version.Accepted = s.req.Base.Number, s.next, false
 	version.Output = Output{}
+	brief := BuildEditingBrief(s.req)
+	version.Plan.EditingBrief = &brief
 	version.Report = Report{}
 	var pre Report
 	if s.req.Options.Narration {

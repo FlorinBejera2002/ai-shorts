@@ -6,7 +6,43 @@ export interface StoryOptions {
   mode: string
   preserve_order: boolean
   captions: boolean
+  caption_mode?: 'all' | 'selective' | 'off'
   narration?: boolean
+  music?: StoryMusicOptions | null
+}
+
+export interface StoryMusicOptions {
+  track_id: string
+  volume: number
+  sync: boolean
+}
+
+export interface MusicTrack {
+  id: string
+  title: string
+  artist: string
+  duration_seconds: number
+  bpm: number
+  genres: string[]
+  moods: string[]
+  preview_url: string
+  source_url: string
+  license: string
+  license_url: string
+  attribution: string
+}
+
+export interface StoryMusicOutput {
+  track_id: string
+  title: string
+  artist: string
+  license: string
+  license_url: string
+  source_url: string
+  attribution: string
+  sync_status: 'aligned' | 'partial' | 'unchanged' | 'off'
+  adjusted_cuts: number
+  bpm: number
 }
 
 export const defaultOptions: StoryOptions = {
@@ -15,8 +51,39 @@ export const defaultOptions: StoryOptions = {
   aspect_ratio: '9:16',
   language: 'auto',
   mode: 'smart',
-  preserve_order: false,
-  captions: true
+  preserve_order: true,
+  captions: false,
+  caption_mode: 'off'
+}
+
+/** Old projects predate the three caption modes. Preserve their saved choice. */
+export function storyCaptionMode(options: StoryOptions) {
+  return options.caption_mode ?? (options.captions ? 'all' : 'off')
+}
+
+/** Compare effective choices across legacy and normalized API responses. */
+export function storyOptionsEqual(current: StoryOptions, saved: StoryOptions) {
+  return (
+    current.brief === saved.brief &&
+    current.target_seconds === saved.target_seconds &&
+    current.aspect_ratio === saved.aspect_ratio &&
+    current.language === saved.language &&
+    current.mode === saved.mode &&
+    current.preserve_order === saved.preserve_order &&
+    Boolean(current.narration) === Boolean(saved.narration) &&
+    (current.music?.track_id ?? '') === (saved.music?.track_id ?? '') &&
+    current.music?.volume === saved.music?.volume &&
+    current.music?.sync === saved.music?.sync &&
+    storyCaptionMode(current) === storyCaptionMode(saved)
+  )
+}
+
+export function canEditStorySources(project: StoryProject) {
+  return (
+    ['draft', 'failed', 'cancelled'].includes(project.status) &&
+    !project.current_version &&
+    !project.versions?.some((version) => version.accepted)
+  )
 }
 
 export interface StoryWord {
@@ -83,7 +150,13 @@ export interface StoryVersion {
   accepted: boolean
   preview_url?: string
   thumbnail_url?: string
-  plan: { title: string; summary: string; blocks: StoryBlock[]; gaps?: string[] }
+  output?: { music?: StoryMusicOutput }
+  plan: {
+    title: string
+    summary: string
+    blocks: StoryBlock[]
+    gaps?: string[]
+  }
   timeline: Array<{
     block_id: string
     candidate_id?: string

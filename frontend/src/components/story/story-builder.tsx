@@ -9,6 +9,8 @@ import { storyRequest } from './api'
 import {
   defaultLimits,
   defaultOptions,
+  canEditStorySources,
+  storyOptionsEqual,
   storyIsBusy,
   type StoryAsset,
   type StoryBlock,
@@ -321,8 +323,8 @@ function StoryWorkspace({
   const videos = assets.filter((asset) => asset.kind !== 'narration')
   const mediaPending = uploads.busy || narrationPending
   const optionsChanged =
-    project.status === 'draft' &&
-    JSON.stringify(options) !== JSON.stringify(project.options)
+    canEditStorySources(project) &&
+    !storyOptionsEqual(options, project.options)
   const sourceIDs = new Set(assets.map((asset) => asset.id))
   const pending = uploads.items.filter(
     (item) => !sourceIDs.has(item.id) && item.status !== 'complete'
@@ -330,7 +332,7 @@ function StoryWorkspace({
   const version = project.versions?.find(
     (item) => item.number === project.current_version
   )
-  const canEditSources = project.status === 'draft' && !busy
+  const canEditSources = canEditStorySources(project) && !busy
   const limits = project.limits ?? defaultLimits
   const onNarrationPending = useCallback((value: boolean) => {
     setNarrationPending(value)
@@ -449,7 +451,7 @@ function StoryWorkspace({
       (options.narration && !narration)
     )
       return
-    if (project.status === 'draft' && !(await mutate('', 'PATCH', { options }))) return
+    if (canEditStorySources(project) && !(await mutate('', 'PATCH', { options }))) return
     await mutate('/generate', 'POST', { asset_ids: assets.map((asset) => asset.id) })
   }
 
@@ -487,7 +489,9 @@ function StoryWorkspace({
 
   async function goToStep(next: StoryStep) {
     if (busy || mutation.current || narrationPending || next === step) return
-    if (optionsChanged) {
+    // Keep Brief and Captions reachable while an unsaved choice conflicts with
+    // the prompt. Validate the combined request before entering Generate.
+    if (next === 3 && optionsChanged) {
       if (!(await mutate('', 'PATCH', { options }))) return
     }
     const destination = next > 1 && options.narration && !narration ? 1 : next
@@ -537,6 +541,7 @@ function StoryWorkspace({
   const optionsPanel = (section: 'story' | 'settings' | 'all') => (
     <StoryOptionsPanel
       section={section}
+      active={section !== 'story' || step === 1}
       options={options}
       hasNarration={Boolean(narration)}
       disabled={!canEditSources || narrationPending}
@@ -607,11 +612,11 @@ function StoryWorkspace({
           </div>
         </StoryWizard>
       ) : (
-        <details className="w-full rounded-md bg-card shadow-sm [&_[data-slot=card]]:shadow-none">
-          <summary className="cursor-pointer rounded-md px-5 py-4 text-sm font-medium hover:bg-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground">
+        <details className="w-full border-t">
+          <summary className="cursor-pointer py-4 text-sm font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground">
             {text('Original files and settings', 'Fișiere originale și setări')}
           </summary>
-          <div className="space-y-4 p-4">
+          <div className="space-y-6 pb-4">
             {sourcesPanel}
             {narrationPanel}
             {optionsPanel('all')}

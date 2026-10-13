@@ -55,7 +55,7 @@ func queue(t *testing.T, r *Repository, user, id string, ids []string) *executio
 	return e
 }
 func version(id string, n int) story.Version {
-	return story.Version{Number: n, Accepted: true, Plan: story.Plan{Title: "Coherent source-backed story", Blocks: []story.Block{{ID: "block", CandidateID: "candidate", Crop: "fit"}}}, Output: story.Output{Key: fmt.Sprintf("clips/%s/story/v%d.mp4", id, n), Duration: 4, Size: 100, Resolution: "720x1280"}, Report: story.Report{Version: n, Status: "ready", Coverage: story.Coverage{Plan: true, File: true, Audio: true, Visual: true, Captions: true, Semantics: true, Boundaries: true}}}
+	return story.Version{Number: n, Accepted: true, Timeline: []story.Entry{{BlockID: "block", CandidateID: "candidate", OutputOut: 4, Video: story.Interval{SourceID: "source", Out: 4}, Crop: "fit", Transition: "cut"}}, Plan: story.Plan{Title: "Coherent source-backed story", Blocks: []story.Block{{ID: "block", CandidateID: "candidate", Crop: "fit"}}}, Output: story.Output{Key: fmt.Sprintf("clips/%s/story/v%d.mp4", id, n), Duration: 4, Size: 100, Resolution: "720x1280"}, Report: story.Report{Version: n, Status: "ready", Coverage: story.Coverage{Plan: true, File: true, Audio: true, Visual: true, Captions: true, Semantics: true, Boundaries: true}}}
 }
 
 func TestQueueFiveAndTenSourcesCreatesExactlyOneJobAndCharge(t *testing.T) {
@@ -399,8 +399,13 @@ func TestLibraryRequiresMatchingReviewAndAlternateIdentity(t *testing.T) {
 				t.Fatal("incomplete review promoted", p.Status, err)
 			}
 			var count int
-			if err = r.db.QueryRow(`SELECT count(*) FROM clips WHERE story_project_id=$1`, id).Scan(&count); err != nil || count != 1 {
-				t.Fatal("accepted rendered output missing from private library", count, err)
+			want := 1
+			if reason == "version" {
+				// Another version's file/plan review cannot certify this render.
+				want = 0
+			}
+			if err = r.db.QueryRow(`SELECT count(*) FROM clips WHERE story_project_id=$1`, id).Scan(&count); err != nil || count != want {
+				t.Fatal("private library did not honor the matching review gate", count, err)
 			}
 		})
 	}

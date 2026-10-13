@@ -272,6 +272,12 @@ func TestStoryRenderSeparateAudioVideoAndReviewActualMedia(t *testing.T) {
 	if !strings.Contains(reviewer.prompt, `"allowed_source_ids":["one","two"]`) || !strings.Contains(reviewer.prompt, `"allowed_candidate_ids":["one-s1","two-s1"]`) || !strings.Contains(reviewer.prompt, `"candidate_id_to_source_id":{"one-s1":"one","two-s1":"two"}`) {
 		t.Fatal("review prompt did not separate file and phrase identifiers")
 	}
+	version.Output.CaptionWarnings = []string{"Selective captions could not be verified by listening to the source audio."}
+	report, err = p.ReviewStory(ctx, request, version)
+	if err != nil || report.Status == "ready" || report.Coverage.Captions || len(report.Coverage.Incomplete) == 0 {
+		t.Fatalf("final reviewer overrode missing audibility evidence: %#v %v", report, err)
+	}
+	version.Output.CaptionWarnings = nil
 	reviewer.result = strings.Replace(verdict, `"issues":[]`, `"issues":[{"id":"unknown-source","type":"audio_cut","severity":"major","start":0.1,"end":0.4,"block_id":"first","source_ids":["invented-file-id"],"evidence":"Reported original source comparison.","confidence":0.9}]`, 1)
 	report, err = p.ReviewStory(ctx, request, version)
 	if err != nil || report.Status != "needs_review" || !report.Coverage.File || report.Coverage.Audio || !strings.Contains(strings.Join(report.Coverage.Incomplete, " "), "invented-file-id") {

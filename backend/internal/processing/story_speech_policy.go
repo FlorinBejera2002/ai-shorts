@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	storySpeechPolicyVersion       = "speech-confidence-2"
+	storySpeechPolicyVersion       = "speech-confidence-3-retain-source-gaps"
 	storyMinimumLexicalProbability = .55
 	storyMaximumVisualShotSeconds  = 4.0
 	storyNoSpeechWarning           = "No confident speech transcript. This source remains available as a supporting visual; audio needs human review."

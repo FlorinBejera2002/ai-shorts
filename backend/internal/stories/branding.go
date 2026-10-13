@@ -18,7 +18,7 @@ func resolveStoryLogo(ctx context.Context, tx *sql.Tx, req *story.Request) error
 	if req.Options.LogoResourceID == "" {
 		return nil
 	}
-	err := tx.QueryRowContext(ctx, `SELECT reference FROM workspace_agent_resources WHERE id=$1 AND user_id=$2 AND kind='logo' AND (project_id IS NULL OR project_id=$3)`, req.Options.LogoResourceID, req.UserID, req.ID).Scan(&req.LogoKey)
+	err := tx.QueryRowContext(ctx, `SELECT reference FROM workspace_agent_resources WHERE id=$1 AND user_id=$2 AND kind='logo' AND source_project_id IS NULL AND (project_id IS NULL OR project_id=$3)`, req.Options.LogoResourceID, req.UserID, req.ID).Scan(&req.LogoKey)
 	if err == sql.ErrNoRows {
 		return fmt.Errorf("%w: logo resource is unavailable", ErrInvalid)
 	}

@@ -261,33 +261,39 @@ func (h *Handler) callback(w http.ResponseWriter, r *http.Request) {
 	redirect("connected", p)
 }
 func (h *Handler) options(w http.ResponseWriter, r *http.Request) {
-	a, e := h.account(r.Context(), identity.Current(r).User.ID, param(r, "id"))
-	if e != nil {
-		fail(w, 404, "Account not found.")
+	options, status, err := h.creatorOptions(r.Context(), identity.Current(r).User.ID, param(r, "id"))
+	if err != nil {
+		fail(w, status, err.Error())
 		return
+	}
+	respond(w, 200, options)
+}
+
+// creatorOptions is shared by the authenticated endpoint and the agent. It
+// resolves ownership before touching OAuth credentials or the provider.
+func (h *Handler) creatorOptions(ctx context.Context, user, id string) (CreatorOptions, int, error) {
+	a, e := h.account(ctx, user, id)
+	if e != nil {
+		return CreatorOptions{}, 404, errors.New("Account not found.")
 	}
 	if a.Provider != "tiktok" {
-		fail(w, 400, "Options are only available for TikTok.")
-		return
+		return CreatorOptions{}, 400, errors.New("Options are only available for TikTok.")
 	}
 	if !h.configured(a.Provider) {
-		fail(w, 503, "Provider unavailable.")
-		return
+		return CreatorOptions{}, 503, errors.New("Provider unavailable.")
 	}
-	creds, e := h.liveCredentials(r.Context(), a)
+	creds, e := h.liveCredentials(ctx, a)
 	if e != nil {
-		fail(w, 409, "Reconnect this account.")
-		return
+		return CreatorOptions{}, 409, errors.New("Reconnect this account.")
 	}
-	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 	options, e := h.client.Options(ctx, creds)
 	if e != nil {
 		status, message := tiktokOptionsFailure(e)
-		fail(w, status, message)
-		return
+		return CreatorOptions{}, status, errors.New(message)
 	}
-	respond(w, 200, options)
+	return options, 200, nil
 }
 
 func tiktokOptionsFailure(err error) (int, string) {

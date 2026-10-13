@@ -101,6 +101,8 @@ func applyOperation(plan Plan, op repairOperation, assets []Asset) (Plan, error)
 				block.IdentityReferenceID = ""
 			}
 			block.CandidateID = candidate.ID
+			// A trim belongs to the former candidate's source clock.
+			block.Visual = nil
 			block.Alternatives = eligibleAlternatives(candidate, assets)
 			block.Reason = "Selected an equivalent complete take after review."
 			if block.IdentityReferenceID != "" {

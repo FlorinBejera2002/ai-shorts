@@ -38,25 +38,28 @@ type Limits struct {
 func DefaultLimits() Limits { return Limits{20, 2 << 30, 10 << 30, 900, 3600, 2, 2, 12, 2 * time.Hour} }
 
 type Options struct {
-	Narration        bool     `json:"narration,omitempty"`
-	Brief            string   `json:"brief"`
-	TargetSeconds    int      `json:"target_seconds"`
-	AspectRatio      string   `json:"aspect_ratio"`
-	Language         string   `json:"language"`
-	Mode             string   `json:"mode"`
-	PreserveOrder    bool     `json:"preserve_order"`
-	Captions         bool     `json:"captions"`
-	SubtitleColor    string   `json:"subtitle_color,omitempty"`
-	SubtitlePosition string   `json:"subtitle_position,omitempty"`
-	SubtitleFont     string   `json:"subtitle_font,omitempty"`
-	SubtitleSize     int      `json:"subtitle_size,omitempty"`
-	LogoResourceID   string   `json:"logo_resource_id,omitempty"`
-	LogoPosition     string   `json:"logo_position,omitempty"`
-	LogoOpacity      *float64 `json:"logo_opacity,omitempty"`
+	Music              *MusicSelection `json:"music,omitempty"`
+	Narration          bool            `json:"narration,omitempty"`
+	Brief              string          `json:"brief"`
+	TargetSeconds      int             `json:"target_seconds"`
+	AspectRatio        string          `json:"aspect_ratio"`
+	Language           string          `json:"language"`
+	Mode               string          `json:"mode"`
+	PreserveOrder      bool            `json:"preserve_order"`
+	Captions           bool            `json:"captions"`
+	CaptionMode        string          `json:"caption_mode,omitempty"`         // all, selective, off; empty reads legacy captions
+	CaptionModeRevised bool            `json:"caption_mode_revised,omitempty"` // later explicit style choice supersedes original caption wording
+	SubtitleColor      string          `json:"subtitle_color,omitempty"`
+	SubtitlePosition   string          `json:"subtitle_position,omitempty"`
+	SubtitleFont       string          `json:"subtitle_font,omitempty"`
+	SubtitleSize       int             `json:"subtitle_size,omitempty"`
+	LogoResourceID     string          `json:"logo_resource_id,omitempty"`
+	LogoPosition       string          `json:"logo_position,omitempty"`
+	LogoOpacity        *float64        `json:"logo_opacity,omitempty"`
 }
 
 func DefaultOptions() Options {
-	return Options{TargetSeconds: 45, AspectRatio: "9:16", Language: "auto", Mode: "smart", Captions: true}
+	return Options{TargetSeconds: 45, AspectRatio: "9:16", Language: "auto", Mode: "smart", PreserveOrder: true}
 }
 
 type TimeMap struct {
@@ -133,10 +136,11 @@ type Block struct {
 }
 
 type Plan struct {
-	Title   string   `json:"title"`
-	Summary string   `json:"summary"`
-	Blocks  []Block  `json:"blocks"`
-	Gaps    []string `json:"gaps"`
+	EditingBrief *EditingBrief `json:"editing_brief,omitempty"`
+	Title        string        `json:"title"`
+	Summary      string        `json:"summary"`
+	Blocks       []Block       `json:"blocks"`
+	Gaps         []string      `json:"gaps"`
 }
 
 type Interval struct {
@@ -193,23 +197,28 @@ type Report struct {
 }
 
 type Output struct {
-	Key          string  `json:"key"`
-	ThumbnailKey string  `json:"thumbnail_key"`
-	Duration     float64 `json:"duration"`
-	Size         int64   `json:"size"`
-	Resolution   string  `json:"resolution"`
-	Captions     bool    `json:"captions"`
+	Music                 *MusicCredit `json:"music,omitempty"`
+	CaptionMode           string       `json:"caption_mode,omitempty"`
+	CaptionWarnings       []string     `json:"caption_warnings,omitempty"`
+	CaptionedCandidateIDs []string     `json:"captioned_candidate_ids,omitempty"`
+	Key                   string       `json:"key"`
+	ThumbnailKey          string       `json:"thumbnail_key"`
+	Duration              float64      `json:"duration"`
+	Size                  int64        `json:"size"`
+	Resolution            string       `json:"resolution"`
+	Captions              bool         `json:"captions"`
 }
 
 type Version struct {
-	RenderOptions *Options `json:"render_options,omitempty"`
-	Number        int      `json:"number"`
-	Parent        int      `json:"parent"`
-	Plan          Plan     `json:"plan"`
-	Timeline      []Entry  `json:"timeline"`
-	Output        Output   `json:"output"`
-	Report        Report   `json:"report"`
-	Accepted      bool     `json:"accepted"`
+	MusicSync     *MusicSync `json:"music_sync,omitempty"`
+	RenderOptions *Options   `json:"render_options,omitempty"`
+	Number        int        `json:"number"`
+	Parent        int        `json:"parent"`
+	Plan          Plan       `json:"plan"`
+	Timeline      []Entry    `json:"timeline"`
+	Output        Output     `json:"output"`
+	Report        Report     `json:"report"`
+	Accepted      bool       `json:"accepted"`
 }
 
 type Attempt struct {
@@ -224,17 +233,18 @@ type Attempt struct {
 }
 
 type Request struct {
-	ID               string    `json:"id"`
-	UserID           string    `json:"user_id"`
-	LogoKey          string    `json:"logo_key,omitempty"`
-	Options          Options   `json:"options"`
-	Assets           []Asset   `json:"assets"`
-	Base             *Version  `json:"base,omitempty"`
-	Action           string    `json:"action,omitempty"`
-	BlockID          string    `json:"block_id,omitempty"`
-	CandidateID      string    `json:"candidate_id,omitempty"`
-	VersionStart     int       `json:"version_start"`
-	PreviousAttempts []Attempt `json:"previous_attempts,omitempty"`
+	Music            *PreparedMusic `json:"-"`
+	ID               string         `json:"id"`
+	UserID           string         `json:"user_id"`
+	LogoKey          string         `json:"logo_key,omitempty"`
+	Options          Options        `json:"options"`
+	Assets           []Asset        `json:"assets"`
+	Base             *Version       `json:"base,omitempty"`
+	Action           string         `json:"action,omitempty"`
+	BlockID          string         `json:"block_id,omitempty"`
+	CandidateID      string         `json:"candidate_id,omitempty"`
+	VersionStart     int            `json:"version_start"`
+	PreviousAttempts []Attempt      `json:"previous_attempts,omitempty"`
 }
 
 type Result struct {

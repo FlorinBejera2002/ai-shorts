@@ -289,6 +289,10 @@ func (e *execution) finish(ctx context.Context, result story.Result, runErr erro
 	} else if runErr != nil {
 		status = "failed"
 		message = "Story processing could not finish. Retry retains uploaded clips and saved versions."
+		var clarification *story.ClarificationError
+		if errors.As(runErr, &clarification) && current == 0 {
+			message = "Clarification needed: " + clarification.Question
+		}
 		jobStatus = "failed"
 		if current > 0 {
 			status = "needs_review"

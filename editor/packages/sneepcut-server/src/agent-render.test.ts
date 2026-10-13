@@ -1,14 +1,19 @@
 import { expect, test } from "bun:test";
 import { Hono } from "hono";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { execFileSync } from "node:child_process";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { tmpdir } from "node:os";
+import { findFfBinary } from "../../parsers/src/ffBinaries";
 import { registerRenderRoutes } from "../../studio-server/src/routes/render";
 import { fileContentVersion } from "../../studio-server/src/helpers/fileVersion";
 import type { RenderJobState, StudioApiAdapter } from "../../studio-server/src/types";
 
 test("agent render precondition, progress, output verification and cancellation use actual state", async () => {
-  const root = await mkdtemp(join(tmpdir(), "studio-agent-render-"));
+  const ffmpeg = findFfBinary("ffmpeg", { configuredMustExist: true });
+  if (!ffmpeg) throw new Error("FFmpeg is required for verified Studio render integration");
+  const scratch = join(import.meta.dir, "../../../../.cache/tmp");
+  await mkdir(scratch, { recursive: true });
+  const root = await mkdtemp(join(scratch, "studio-agent-render-"));
   let state: RenderJobState | undefined;
   let calls = 0;
   let cancelled = false;
@@ -59,6 +64,28 @@ test("agent render precondition, progress, output verification and cancellation 
       false,
     );
     await writeFile(state.outputPath, "synthetic-render-fixture");
+    expect((await (await app.request(`/render/${receipt.jobId}/status`)).json()).verified).toBe(
+      false,
+    );
+    execFileSync(
+      ffmpeg,
+      [
+        "-nostdin",
+        "-v",
+        "error",
+        "-y",
+        "-f",
+        "lavfi",
+        "-i",
+        "color=c=black:s=64x64:d=0.2",
+        "-c:v",
+        "libx264",
+        "-pix_fmt",
+        "yuv420p",
+        state.outputPath,
+      ],
+      { windowsHide: true },
+    );
     expect((await (await app.request(`/render/${receipt.jobId}/status`)).json()).verified).toBe(
       true,
     );

@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"sneepcut/backend-go/internal/aiprovider"
 	"sneepcut/backend-go/internal/media"
+	"sneepcut/backend-go/internal/music"
 	"time"
 )
 
@@ -100,16 +101,17 @@ type Result struct {
 }
 type Progress func(string, int, string)
 type Processor struct {
-	cfg     Config
-	storage media.Storage
-	ai      aiprovider.Generator
+	cfg          Config
+	storage      media.Storage
+	ai           aiprovider.Generator
+	musicCatalog *music.Catalog
 }
 
 func New(c Config, s media.Storage, a aiprovider.Generator) *Processor {
 	if c.Timeout <= 0 {
 		c.Timeout = 2 * time.Hour
 	}
-	return &Processor{c, s, a}
+	return &Processor{cfg: c, storage: s, ai: a, musicCatalog: music.NewCatalog()}
 }
 func (p *Processor) Process(ctx context.Context, in Input, progress Progress) (Result, error) {
 	return p.process(ctx, in, progress)

@@ -116,6 +116,9 @@ type createRequest struct {
 }
 
 func validScope(s Scope) bool {
+	if s.Locale != "" && s.Locale != "ro" && s.Locale != "en" {
+		return false
+	}
 	if !validHelpScope(s) {
 		return false
 	}
@@ -141,10 +144,6 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 	}
 	principal := identity.Current(r)
 	user := principal.User.ID
-	if err := h.validateResources(r.Context(), user, in.ResourceIDs, in.Context.ProjectID); err != nil {
-		httpx.Error(w, 422, "Invalid or unavailable resources")
-		return
-	}
 	hash := digest(in)
 	tx, err := h.db.BeginTx(r.Context(), nil)
 	if err != nil {
@@ -176,6 +175,12 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 	}
 	if !errors.Is(err, sql.ErrNoRows) {
 		failure(w, err)
+		return
+	}
+	// Recover an already accepted request before checking mutable attachments.
+	// A later deletion or edit must not turn a safe retry into a new operation.
+	if err := h.validateResources(r.Context(), user, in.ResourceIDs, in.Context.ProjectID); err != nil {
+		httpx.Error(w, 422, "Invalid or unavailable resources")
 		return
 	}
 	var active int
@@ -219,7 +224,11 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 			failure(w, err)
 			return
 		}
+		locale := in.Context.Locale
 		in.Context = s.Context
+		if locale != "" {
+			in.Context.Locale = locale
+		}
 		if err := h.validateResources(r.Context(), user, in.ResourceIDs, in.Context.ProjectID); err != nil {
 			httpx.Error(w, 422, "Resources do not belong to the accepted proposal target")
 			return
@@ -304,7 +313,11 @@ func (h *Handler) control(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		if err := h.resourcesReady(r.Context(), &run); err != nil {
-			httpx.Error(w, 409, err.Error())
+			message := err.Error()
+			if run.Context.Locale == "ro" {
+				message = localizedRuntimeText(message)
+			}
+			httpx.Error(w, 409, message)
 			return
 		}
 		run.Status = "planning"

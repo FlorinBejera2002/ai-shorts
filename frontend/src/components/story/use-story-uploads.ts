@@ -4,6 +4,7 @@ import type { StoryProject } from './types'
 
 export interface PendingUpload {
   id: string
+  projectId: string
   file: File
   preview: string
   status: 'queued' | 'uploading' | 'validating' | 'failed' | 'complete'
@@ -50,10 +51,9 @@ export function useStoryUploads(
   }, [])
 
   useEffect(() => {
-    if (!projectID) return
     const available = 2 - active.current.size
     for (const item of items
-      .filter((item) => item.status === 'queued')
+      .filter((item) => item.status === 'queued' && item.projectId)
       .slice(0, available)) {
       if (active.current.has(item.id)) continue
       const controller = new AbortController()
@@ -72,7 +72,7 @@ export function useStoryUploads(
           if (controller.signal.aborted) return
           update(item.id, { reference, bytes: item.file.size, status: 'validating' })
           const registered = await storyRequest<StoryProject>(
-            `/api/stories/${projectID}/assets`,
+            `/api/stories/${item.projectId}/assets`,
             'POST',
             {
               id: item.id,
@@ -100,9 +100,10 @@ export function useStoryUploads(
         }
       })()
     }
-  }, [items, projectID, refresh, update])
+  }, [items, refresh, update])
 
   const add = useCallback((files: File[], startingOrder = 0) => {
+    if (!projectID) return
     nextOrder.current = Math.max(nextOrder.current, startingOrder)
     const additions = files.map((file): PendingUpload => {
       const id = crypto.randomUUID()
@@ -110,6 +111,7 @@ export function useStoryUploads(
       urls.current.set(id, preview)
       return {
         id,
+        projectId: projectID,
         file,
         preview,
         status: 'queued',
@@ -118,7 +120,7 @@ export function useStoryUploads(
       }
     })
     setItems((current) => [...current, ...additions])
-  }, [])
+  }, [projectID])
 
   const forget = useCallback((id: string) => {
     active.current.get(id)?.abort()

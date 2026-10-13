@@ -1,6 +1,7 @@
 'use client'
 
 import { SettingsSelect } from '@/components/settings/settings-select'
+import { useTheme } from '@/components/shared/theme-context'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -28,7 +29,6 @@ import {
   Smartphone
 } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
-import { useTheme } from 'next-themes'
 import { useEffect, useId, useState } from 'react'
 
 const TIMEZONES = [

@@ -27,6 +27,12 @@ load `.env` files. External analysis/review is capped at 12 reserved calls,
 including failed requests, and two repair cycles; lower these with
 `-max-ai-calls` and `-repair-cycles`.
 
+Use `-caption-mode all`, `-caption-mode selective`, or `-caption-mode off`
+(the default) to exercise each caption behavior. Selective captions require
+original-audio intelligibility evidence; offline runs report this missing review
+instead of guessing from volume or transcription confidence. The legacy
+`-captions` switch remains supported. Source order is preserved by default.
+
 Sources use sorted filename order, or the exact filename permutation in optional
 `manifest.json` → `upload_order`. No manifest path can escape the input directory.
 Each run creates a unique output subfolder containing immutable original copies,

@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"math"
 	"strconv"
-	"strings"
 	"time"
 	"unicode/utf8"
 )
@@ -70,11 +69,19 @@ func NormalizeOptions(o Options) (Options, error) {
 	if o.Mode == "" {
 		o.Mode = d.Mode
 	}
-	o.Brief = strings.TrimSpace(o.Brief)
+	// Keep the original request byte-for-byte for interpretation audits.
+	o.CaptionMode = EffectiveCaptionMode(o)
+	o.Captions = o.CaptionMode != "off"
 	return o, ValidateOptions(o)
 }
 
 func ValidateOptions(o Options) error {
+	if err := validateMusicSelection(o.Music); err != nil {
+		return err
+	}
+	if err := validateCaptionMode(o); err != nil {
+		return err
+	}
 	if utf8.RuneCountInString(o.Brief) > 4000 {
 		return fmt.Errorf("brief must contain at most 4000 characters")
 	}
@@ -95,6 +102,9 @@ func ValidateOptions(o Options) error {
 	case "strict", "smart":
 	default:
 		return fmt.Errorf("mode must be strict or smart")
+	}
+	if err := ValidateBriefSettings(o); err != nil {
+		return err
 	}
 	return ValidateBrandOptions(o)
 }
