@@ -70,7 +70,10 @@ admin and Studio together. API readiness checks for the new table.
 
 Production and local Studio Compose configurations set `SNEEPCUT_AI_ROUTING=central`.
 Set the same random `STUDIO_AGENT_SECRET` (at least 32 characters) for API and
-Studio; production Compose requires it. Studio reads only its provider/model from
+Studio; production Compose requires it. Configure `STUDIO_AGENT_URL` together
+with that secret: production Compose defaults the API's URL to
+`http://studio:5191` and preserves an explicit override. Outside Compose, a secret
+without its paired Studio URL prevents API startup. Studio reads only its provider/model from
 `GET /api/internal/ai-routing/studio`, authenticated with the service secret.
 AI credentials stay in each server process. A failed routing request or missing
 selected credential makes Studio unavailable instead of bypassing the admin.

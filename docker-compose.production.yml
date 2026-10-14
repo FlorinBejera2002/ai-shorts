@@ -89,6 +89,7 @@ services:
       LISTEN_ADDR: ":8080"
       ALLOWED_HOSTS: api.sneepcut.com,sneepcut.com,www.sneepcut.com,localhost,127.0.0.1,backend
       TRUSTED_PROXY_CIDRS: 172.30.94.253/32
+      STUDIO_AGENT_URL: ${STUDIO_AGENT_URL:-http://studio:5191}
       STUDIO_AGENT_SECRET: ${STUDIO_AGENT_SECRET:?Set STUDIO_AGENT_SECRET for centralized Studio AI}
     depends_on:
       postgres:
