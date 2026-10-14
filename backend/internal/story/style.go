@@ -3,23 +3,44 @@ package story
 import (
 	"fmt"
 	"reflect"
+	"sneepcut/backend-go/internal/audiocleanup"
+	"sneepcut/backend-go/internal/captions"
 )
 
 // Style deliberately excludes narrative, duration, source and crop settings.
 type Style struct {
-	Captions         *bool    `json:"captions,omitempty"`
-	CaptionMode      *string  `json:"caption_mode,omitempty"`
-	SubtitleColor    *string  `json:"subtitle_color,omitempty"`
-	SubtitlePosition *string  `json:"subtitle_position,omitempty"`
-	SubtitleFont     *string  `json:"subtitle_font,omitempty"`
-	SubtitleSize     *int     `json:"subtitle_size,omitempty"`
-	LogoResourceID   *string  `json:"logo_resource_id,omitempty"`
-	LogoPosition     *string  `json:"logo_position,omitempty"`
-	LogoOpacity      *float64 `json:"logo_opacity,omitempty"`
+	CaptionStyle     *captions.Style        `json:"caption_style,omitempty"`
+	UseBrandKit      *bool                  `json:"use_brand_kit,omitempty"`
+	AudioCleanup     *audiocleanup.Settings `json:"audio_cleanup,omitempty"`
+	Captions         *bool                  `json:"captions,omitempty"`
+	CaptionMode      *string                `json:"caption_mode,omitempty"`
+	SubtitleColor    *string                `json:"subtitle_color,omitempty"`
+	SubtitlePosition *string                `json:"subtitle_position,omitempty"`
+	SubtitleFont     *string                `json:"subtitle_font,omitempty"`
+	SubtitleSize     *int                   `json:"subtitle_size,omitempty"`
+	LogoResourceID   *string                `json:"logo_resource_id,omitempty"`
+	LogoPosition     *string                `json:"logo_position,omitempty"`
+	LogoOpacity      *float64               `json:"logo_opacity,omitempty"`
 }
 
 func ApplyStyle(before Options, patch Style) (Options, error) {
 	after := before
+	if patch.CaptionStyle != nil {
+		copy := *patch.CaptionStyle
+		after.CaptionStyle = &copy
+	}
+	if patch.UseBrandKit != nil {
+		after.UseBrandKit = *patch.UseBrandKit
+		if *patch.UseBrandKit && patch.CaptionStyle == nil {
+			// Queue resolution imports the selected kit. A previously resolved
+			// or customized caption style must not silently override that choice.
+			after.CaptionStyle = nil
+		}
+	}
+	if patch.AudioCleanup != nil {
+		copy := *patch.AudioCleanup
+		after.AudioCleanup = &copy
+	}
 	if patch.Captions != nil {
 		after.Captions = *patch.Captions
 		// Legacy switches must not leave a stale explicit mode behind.

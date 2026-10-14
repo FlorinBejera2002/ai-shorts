@@ -369,7 +369,7 @@ func TestMalformedAIPlanFallsBackWithoutExecutingInventedSources(t *testing.T) {
 }
 
 func TestLimitsRejectNonFiniteAndUnboundedConfiguration(t *testing.T) {
-	for key, value := range map[string]string{"STORY_MAX_FILES": "100000", "STORY_MAX_TOTAL_SECONDS": "NaN", "STORY_TIMEOUT_SECONDS": "999999", "STORY_MAX_AI_CALLS": "0"} {
+	for key, value := range map[string]string{"STORY_MAX_TOTAL_SECONDS": "NaN", "STORY_TIMEOUT_SECONDS": "999999", "STORY_MAX_AI_CALLS": "0"} {
 		_, err := LimitsFromEnv(func(name string) string {
 			if name == key {
 				return value

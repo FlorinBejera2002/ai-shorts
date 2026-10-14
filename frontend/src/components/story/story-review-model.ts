@@ -1,15 +1,21 @@
-import type { StoryIssue } from './types'
+import type { StoryIssue, StoryVersion } from './types'
 
 export type ReviewTopic =
-  'captions' | 'audio' | 'visual' | 'story' | 'file' | 'other'
+  | 'captions'
+  | 'audio'
+  | 'visual'
+  | 'story'
+  | 'file'
+  | 'other'
 
 export function reviewTopic(type: string): ReviewTopic {
   if (/caption|transcript/.test(type)) return 'captions'
-  if (/audio|speaker|narration/.test(type)) return 'audio'
+  if (/audio|speaker|narration|lip_sync/.test(type)) return 'audio'
   if (/visual|crop|framing|b_roll/.test(type)) return 'visual'
   if (/context|meaning|hook|repetition|chronology|material|semantic/.test(type))
     return 'story'
-  if (/file|duration|boundary|boundaries|cut/.test(type)) return 'file'
+  if (/file|duration|boundary|boundaries|cut|transition/.test(type))
+    return 'file'
   return 'other'
 }
 
@@ -58,4 +64,48 @@ export function groupReviewIssues(issues: StoryIssue[]) {
       (a, b) =>
         (severityRank[b.severity] ?? 0) - (severityRank[a.severity] ?? 0)
     )
+}
+
+/** Missing model coverage is diagnostic information, not proof of a defect. */
+export function customerReviewIssues(version: StoryVersion) {
+  const coverage = version.report.coverage
+  const seen = new Set<string>()
+  const warnings: StoryIssue[] = version.output?.caption_warnings?.length
+    ? [
+        {
+          id: 'caption-unavailable',
+          type: 'caption_unavailable',
+          severity: 'major',
+          start: 0,
+          end: 0,
+          evidence: '',
+          resolved: false
+        }
+      ]
+    : []
+  return [...warnings, ...(version.report.issues ?? [])].filter((issue) => {
+    if (issue.resolved || !['major', 'critical'].includes(issue.severity))
+      return false
+    const topic = reviewTopic(issue.type)
+    const concrete =
+      /^(caption_unavailable|required_source|source|empty|file|file_integrity|duration|missing_audio|missing_asset)$/.test(
+        issue.type
+      )
+    const verified = /^(transition|boundary|boundaries)$/.test(issue.type)
+      ? coverage.boundaries
+      : topic === 'captions'
+        ? coverage.captions
+        : topic === 'audio'
+          ? coverage.audio
+          : topic === 'visual'
+            ? coverage.visual
+            : topic === 'story'
+              ? coverage.semantics
+              : topic === 'file'
+                ? coverage.file
+                : false
+    if ((!concrete && !verified) || seen.has(topic)) return false
+    seen.add(topic)
+    return true
+  })
 }

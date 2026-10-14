@@ -2,9 +2,11 @@ import { useState } from 'react'
 import { Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import { LoadingIndicator } from '@/components/ui/loading-indicator'
 import type { StoryProject } from './types'
 import { useStoryLanguage } from './use-story-language'
 import { StoryProcessing } from './story-processing'
+import { storyProblem } from './story-error'
 
 interface HeaderProps {
   id: string
@@ -74,6 +76,8 @@ export function StoryProjectHeader({
 }
 
 interface StatusProps {
+  operation?: { action: string; version: number }
+  onRetry?: () => void
   project: StoryProject
   active: boolean
   busy: boolean
@@ -84,18 +88,71 @@ export function StoryProjectStatus({
   project,
   active,
   busy,
-  onCancel
+  onCancel,
+  operation,
+  onRetry
 }: StatusProps) {
+  const text = useStoryLanguage()
   if (project.status === 'draft') return null
-  // Terminal review guidance belongs beside the result, not in a process hero.
-  if (
-    !active &&
-    project.versions.some(
-      (version) => version.number === project.current_version
-    ) &&
-    ['ready', 'needs_review'].includes(project.status)
+  const hasResult = project.versions.some(
+    (version) => version.number === project.current_version
   )
-    return null
+  if (hasResult) {
+    const failed =
+      project.status === 'failed' || project.operation_status === 'failed'
+    if (!active && !operation && !failed && project.status !== 'cancelled')
+      return null
+    const label =
+      operation?.action === 'faster'
+        ? text('Faster pace', 'Ritm mai alert')
+        : operation?.action === 'improve_flow'
+          ? text('Smoother flow', 'Montaj mai cursiv')
+          : operation?.action === 'improve_transitions'
+            ? text('Smoother transitions', 'Tranziții mai fluide')
+            : text('Update', 'Modificare')
+    return (
+      <div
+        className="flex flex-wrap items-center justify-between gap-3 rounded-md border px-3 py-2 text-sm"
+        role={failed ? 'alert' : 'status'}
+        data-testid="story-operation"
+      >
+        <span className="flex items-center gap-2">
+          {(active || busy) && <LoadingIndicator className="size-4" />}
+          {active || busy
+            ? label + text(' · Processing…', ' · Se procesează…')
+            : failed
+              ? storyProblem(project.error || project.message || '', text)
+              : project.status === 'cancelled'
+                ? text(
+                    'Cancelled. Your previous video is still available.',
+                    'Anulat. Videoul anterior este disponibil.'
+                  )
+                : operation && project.current_version > operation.version
+                  ? label +
+                    text(' · New version saved.', ' · Versiune nouă salvată.')
+                  : text(
+                      'No change was applied. Your previous video is still available.',
+                      'Nu s-a aplicat nicio modificare. Videoul anterior este disponibil.'
+                    )}
+        </span>
+        {active && (
+          <Button
+            variant="ghost"
+            size="sm"
+            disabled={busy || project.status === 'cancelling'}
+            onClick={onCancel}
+          >
+            {text('Cancel', 'Anulează')}
+          </Button>
+        )}
+        {failed && onRetry && (
+          <Button variant="outline" size="sm" disabled={busy} onClick={onRetry}>
+            {text('Retry', 'Reîncearcă')}
+          </Button>
+        )}
+      </div>
+    )
+  }
   return (
     <StoryProcessing
       project={project}

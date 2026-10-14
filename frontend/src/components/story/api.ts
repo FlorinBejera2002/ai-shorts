@@ -1,6 +1,14 @@
 import { apiFetch, authClient } from '@/lib/auth'
 import { extractApiError } from '@/lib/api-error'
 
+export class StoryRequestError extends Error {
+  readonly status: number
+  constructor(message: string, status: number) {
+    super(message)
+    this.status = status
+    this.name = 'StoryRequestError'
+  }
+}
 export async function storyRequest<T>(
   path: string,
   method = 'GET',
@@ -15,8 +23,11 @@ export async function storyRequest<T>(
       : { headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
   })
   const data = await response.json().catch(() => ({}))
-  if (!response.ok)
-    throw new Error(extractApiError(data, `Request failed (${response.status})`))
+  if (!response.ok) {
+    const error = new StoryRequestError(extractApiError(data, `Request failed (${response.status})`), response.status)
+    if (response.status === 429) Object.assign(error, { retryAfterSeconds: retryDelay(response.headers.get('Retry-After')) })
+    throw error
+  }
   return data as T
 }
 
@@ -85,7 +96,11 @@ export async function uploadStoryFile(
         typeof xhr.response?.file_path === 'string'
       ) {
         resolve(xhr.response.file_path)
-      } else reject(new Error(extractApiError(xhr.response ?? {}, 'Upload failed')))
+      } else {
+        const error = new Error(extractApiError(xhr.response ?? {}, 'Upload failed'))
+        if (xhr.status === 429) Object.assign(error, { retryAfterSeconds: retryDelay(xhr.getResponseHeader('Retry-After')) })
+        reject(error)
+      }
     }
     xhr.onerror = xhr.ontimeout = () => {
       finish()
@@ -107,4 +122,9 @@ export async function uploadStoryFile(
       xhr.send(form)
     }
   })
+}
+
+function retryDelay(value: string | null) {
+ const seconds = Number(value)
+ return Number.isFinite(seconds) && seconds > 0 ? Math.min(3600, seconds) : 2
 }

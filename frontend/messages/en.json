@@ -1,4 +1,23 @@
 {
+  "audioCleanup": {
+    "checkingAvailability": "Checking availability…",
+    "unavailableOption": "Noise reduction is not available yet. You can generate with original audio.",
+    "unavailableSelected": "Noise reduction is unavailable. Turn this option off to generate with original audio.",
+    "cancel": "Cancel processing",
+    "title": "Reduce background noise",
+    "help": "Optional cleanup for speech. Original audio is kept. This does not select or remove a particular speaker.",
+    "unavailable": "Noise reduction is currently unavailable. Your original audio is preserved.",
+    "timedOut": "Noise reduction took too long. Retry, or continue with the original audio.",
+    "failed": "Noise reduction failed. Your original audio is preserved.",
+    "retry": "Retry processing",
+    "retrying": "Queuing…",
+    "retryFailed": "Could not queue processing. Please try again.",
+    "useOriginal": "Continue with original audio",
+    "stopping": "Waiting for processing to stop…",
+    "compare": "Compare audio",
+    "original": "Original",
+    "processed": "Processed"
+  },
   "dashboardSections": {
     "clips": "Clip sections",
     "projects": "Project sections",
@@ -351,9 +370,15 @@
     "formatDefault": "Default",
     "compatibleWith": "Compatible platforms",
     "formats": {
-      "9:16": { "name": "Universal Social" },
-      "1:1": { "name": "Square Social" },
-      "16:9": { "name": "Landscape" }
+      "9:16": {
+        "name": "Universal Social"
+      },
+      "1:1": {
+        "name": "Square Social"
+      },
+      "16:9": {
+        "name": "Landscape"
+      }
     },
     "compatibility": {
       "recommended": "Recommended",
@@ -520,7 +545,7 @@
   },
   "brand": {
     "title": "Brand Kit",
-    "desc": "Colors, fonts, and watermark settings applied to your clips",
+    "desc": "Logo, watermark, and captions for your videos",
     "logo": "Logo",
     "logoDesc": "Used as your watermark and across your exported clips.",
     "clickOrDrag": "Click or drag a file to upload",
@@ -534,7 +559,7 @@
     "primary": "Primary",
     "secondary": "Secondary",
     "fontFamily": "Font family",
-    "subtitleStyle": "Subtitle style",
+    "subtitleStyle": "Captions",
     "textColor": "Text color",
     "background": "Background",
     "subtitleFont": "Subtitle font",
@@ -598,7 +623,54 @@
     "loading": "Loading brand kit",
     "loadErrorTitle": "Brand kit unavailable",
     "loadErrorDesc": "We couldn't load your saved brand settings. Your existing kit has not been changed.",
-    "retry": "Try again"
+    "retry": "Try again",
+    "logoWatermark": "Logo & watermark",
+    "watermarkEnabled": "Show logo on videos",
+    "watermarkSize": "Logo size (%)",
+    "watermarkMargin": "Edge margin (%)",
+    "fontSearch": "Search 32 font families",
+    "fontWeight": "Weight",
+    "customFont": "Upload your font",
+    "customFontHint": "TTF or OTF, up to 8 MB. The same font is used in exports.",
+    "fontPermission": "I have permission to use this font.",
+    "fontUpload": "Upload font",
+    "fontLoading": "Loading font…",
+    "fontLoadError": "This font could not be loaded. Choose another font or retry.",
+    "fontUploadError": "Font could not be saved. Please retry.",
+    "fontArchived": "Saved projects only",
+    "fontRetention": "Removing a font keeps it available for previously saved projects.",
+    "fontRomanianMissing": "This font lacks some Romanian characters. Choose another font for Romanian captions.",
+    "outlineColor": "Outline / shadow",
+    "highlightColor": "Active word",
+    "captionAdjust": "Text and layout",
+    "captionSize": "Text size (frame ratio)",
+    "captionWidth": "Maximum width",
+    "captionLines": "Maximum lines",
+    "captionSpacing": "Line spacing",
+    "captionOutline": "Outline",
+    "captionShadow": "Shadow",
+    "captionAlign": "Alignment",
+    "align_left": "Left",
+    "align_center": "Center",
+    "align_right": "Right",
+    "captionX": "Horizontal (%)",
+    "captionY": "Vertical (%)",
+    "resetPosition": "Reset position",
+    "dragCaption": "Caption position. Drag or use arrow keys.",
+    "dragCaptionHint": "Drag captions to position them. Arrow keys move 1%; Shift moves 5%. Dashed guides show safe areas.",
+    "captionSample": "Create a story worth sharing today",
+    "preset_classic": "Classic subtitles",
+    "preset_minimal": "Minimal clean",
+    "preset_bold-outline": "Bold outlined",
+    "preset_contrast-box": "High-contrast box",
+    "preset_headline": "Large headline",
+    "preset_word-by-word": "Word by word",
+    "preset_karaoke": "Karaoke fill",
+    "preset_active-color": "Active word color",
+    "preset_active-background": "Active word background",
+    "preset_phrase-pop": "Phrase pop-in",
+    "preset_subtle-fade": "Subtle fade",
+    "preset_stacked": "Stacked two lines"
   },
   "billing": {
     "title": "Billing",

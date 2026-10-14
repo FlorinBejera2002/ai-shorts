@@ -7,6 +7,8 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"sneepcut/backend-go/internal/audiocleanup"
+	"sneepcut/backend-go/internal/captions"
 	"strings"
 )
 
@@ -41,6 +43,15 @@ func (p *Processor) render(ctx context.Context, in RenderInput) (Clip, error) {
 	info, err := p.probe(ctx, source)
 	if err != nil {
 		return clip, err
+	}
+
+	if audiocleanup.Enabled(in.AudioCleanup) && info.Audio {
+		var cleanupErr error
+		source, in.PreparedAudio, cleanupErr = p.prepareRenderAudio(ctx, dir, source, in, info.Duration)
+		if cleanupErr != nil {
+			return clip, cleanupErr
+		}
+		clip.Metadata["audio_cleanup"] = in.PreparedAudio
 	}
 
 	if in.NaturalTransitions {
@@ -163,8 +174,21 @@ func (p *Processor) render(ctx context.Context, in RenderInput) (Clip, error) {
 	if in.BurnSubtitles && in.SubtitleStyle != "none" {
 		srtFile := filepath.Join(dir, "subtitles.srt")
 		words := RemapWords(in.Transcript.Words, in.Segments, in.Transition, in.TransitionDuration)
-		if len(words) > 0 {
-			if err = writeSRT(srtFile, words); err != nil {
+		var phrases []captions.Cue
+		if len(words) == 0 {
+			phrases = RemapCaptionPhrases(in.Transcript.Segments, in.Segments, in.Transition, in.TransitionDuration)
+		}
+		if len(words) == 0 && len(phrases) == 0 && captionTimingUnavailable(in.Transcript, in.Segments) {
+			return clip, fmt.Errorf("Caption timing is unavailable for the selected footage. Retry transcription or turn off captions")
+		}
+		if len(words) > 0 || len(phrases) > 0 {
+			if len(words) > 0 {
+				err = writeSRT(srtFile, words)
+			} else {
+				err = writePhraseSRT(srtFile, phrases)
+				clip.Metadata["caption_timing"] = "phrase_fallback"
+			}
+			if err != nil {
 				return clip, err
 			}
 			subtitled := filepath.Join(dir, "subtitled.mp4")
@@ -172,7 +196,11 @@ func (p *Processor) render(ctx context.Context, in RenderInput) (Clip, error) {
 			if style == "" || style == "default" {
 				style = "clean"
 			}
-			if err = p.burnSubtitles(ctx, dir, current, srtFile, subtitled, style, in.Brand); err != nil {
+			handled, captionErr := p.burnCaptionStyle(ctx, dir, current, subtitled, words, phrases, in.Brand)
+			if !handled {
+				captionErr = p.burnSubtitles(ctx, dir, current, srtFile, subtitled, style, in.Brand)
+			}
+			if err = captionErr; err != nil {
 				return clip, err
 			}
 			current = subtitled
@@ -180,7 +208,11 @@ func (p *Processor) render(ctx context.Context, in RenderInput) (Clip, error) {
 
 			if tiktokCurrent != "" {
 				tiktokSubtitled := filepath.Join(dir, "tiktok-subtitled.mp4")
-				if err = p.burnSubtitles(ctx, dir, tiktokCurrent, srtFile, tiktokSubtitled, style, in.Brand); err != nil {
+				handled, captionErr = p.burnCaptionStyle(ctx, dir, tiktokCurrent, tiktokSubtitled, words, phrases, in.Brand)
+				if !handled {
+					captionErr = p.burnSubtitles(ctx, dir, tiktokCurrent, srtFile, tiktokSubtitled, style, in.Brand)
+				}
+				if err = captionErr; err != nil {
 					return clip, err
 				}
 				tiktokCurrent = tiktokSubtitled
@@ -329,7 +361,7 @@ func (p *Processor) smartCrop(ctx context.Context, dir, source, output string, i
 
 // frameAndBrand applies aspect ratio crop and brand overlay (logo + badge + hook text).
 func (p *Processor) frameAndBrand(ctx context.Context, dir, source, output string, w, h int, brand map[string]any, hookText string) error {
-	applyLogo := brandBool(brand, "apply_brand") && brandString(brand, "logo_key") != ""
+	applyLogo := brandBool(brand, "apply_brand") && brandString(brand, "logo_key") != "" && brand["watermark_enabled"] != false
 	drawBadge := brand != nil && !brandBool(brand, "hide_platform_badge")
 	applyHook := brandBool(brand, "apply_brand") && brandBool(brand, "apply_brand_colors") && hookText != "" && brandString(brand, "primary_color") != "" && brandString(brand, "secondary_color") != ""
 
@@ -399,13 +431,25 @@ func (p *Processor) buildOverlay(ctx context.Context, dir, output string, w, h i
 		if !strings.HasPrefix(logoKey, "brand/"+userID+"/") || strings.Contains(logoKey, "..") {
 			return fmt.Errorf("logo must belong to the job owner")
 		}
-		logoFile := filepath.Join(dir, "logo-source.png")
-		if err := p.materialize(ctx, logoKey, logoFile); err != nil {
+		logoFile := filepath.Join(dir, "logo-source-"+storyDigest(logoKey)[:16]+".png")
+		if _, err := os.Stat(logoFile); os.IsNotExist(err) {
+			if err = p.materialize(ctx, logoKey, logoFile); err != nil {
+				return err
+			}
+		} else if err != nil {
 			return err
 		}
-		maxLogoW := max(1, int(math.Round(float64(w)*0.18)))
-		maxLogoH := max(1, int(math.Round(float64(h)*0.18)))
-		margin := max(4, int(math.Round(float64(min(w, h))*0.025)))
+		size := .18
+		if v, ok := brand["watermark_size"].(float64); ok && v > 0 && v <= .5 {
+			size = v
+		}
+		maxLogoW := max(1, int(math.Round(float64(w)*size)))
+		maxLogoH := max(1, int(math.Round(float64(h)*size)))
+		marginRatio := .025
+		if v, ok := brand["watermark_margin"].(float64); ok && v >= 0 && v <= .2 {
+			marginRatio = v
+		}
+		margin := max(0, int(math.Round(float64(min(w, h))*marginRatio)))
 		position := brandString(brand, "watermark_position")
 		if position == "" {
 			position = "bottom-right"
@@ -428,7 +472,7 @@ func (p *Processor) buildOverlay(ctx context.Context, dir, output string, w, h i
 		err := p.ffmpeg(ctx, dir,
 			"-f", "lavfi", "-i", canvasFilter,
 			"-i", logoFile,
-			"-filter_complex", fmt.Sprintf("[1:v]scale='min(%d,iw)':'min(%d,ih)':force_original_aspect_ratio=decrease,format=rgba,colorchannelmixer=aa=%f[logo];[0:v][logo]overlay=%s:%s", maxLogoW, maxLogoH, opacity, x, y),
+			"-filter_complex", fmt.Sprintf("[1:v]scale=%d:%d:force_original_aspect_ratio=decrease,format=rgba,colorchannelmixer=aa=%f[logo];[0:v][logo]overlay=%s:%s", maxLogoW, maxLogoH, opacity, x, y),
 			"-frames:v", "1", logoOverlay)
 		if err != nil {
 			return err
@@ -437,7 +481,7 @@ func (p *Processor) buildOverlay(ctx context.Context, dir, output string, w, h i
 		return copyFile(logoOverlay, output)
 	}
 
-	// No logo — render canvas directly.
+	// Render the canvas directly when no logo is selected.
 	canvasFilter := strings.Join(filters, ",")
 	return p.ffmpeg(ctx, dir, "-f", "lavfi", "-i", canvasFilter, "-frames:v", "1", output)
 }
@@ -502,7 +546,7 @@ func applyBrand(preset map[string]any, brand map[string]any) {
 		switch v {
 		case "bottom":
 			preset["alignment"] = 2
-		case "middle":
+		case "middle", "center":
 			preset["alignment"] = 5
 		case "top":
 			preset["alignment"] = 8

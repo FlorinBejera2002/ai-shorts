@@ -5,12 +5,15 @@ import (
 	"context"
 	"path/filepath"
 	"sneepcut/backend-go/internal/aiprovider"
+	"sneepcut/backend-go/internal/audiocleanup"
 	"sneepcut/backend-go/internal/media"
 	"sneepcut/backend-go/internal/music"
 	"time"
 )
 
 type Config struct {
+	DeepFilterPath, DeepFilterModel                                        string
+	AudioCleanupTimeout                                                    time.Duration
 	FFmpegPath, FFprobePath, WhisperPath, WhisperModel, FaceModel, TempDir string
 	StoryWhisperModel, WhisperVADModel, WhisperVADPath                     string
 	Timeout                                                                time.Duration
@@ -42,6 +45,8 @@ func ConfigFromEnv(get func(string) string) (Config, error) {
 	if c.FaceModel == "" {
 		c.FaceModel = "/models/facefinder"
 	}
+	c.DeepFilterPath, c.DeepFilterModel = get("DEEPFILTER_PATH"), get("DEEPFILTER_MODEL")
+	c.AudioCleanupTimeout = 10 * time.Minute
 	return c, nil
 }
 
@@ -69,14 +74,17 @@ type Transcript struct {
 	Words    []Word              `json:"words"`
 }
 type Input struct {
+	AudioCleanup                                                                        *audiocleanup.Settings
 	SourceKey, SourceURL, Namespace, Language, Instructions, AspectRatio, SubtitleStyle string
 	RequestedClips                                                                      int
 	SmartCrop, BurnSubtitles                                                            bool
 	Brand                                                                               map[string]any
 }
 type RenderInput struct {
-	Reuse                                                                  *Clip              `json:"-"`
-	PreviousDecisions                                                      []BoundaryDecision `json:"-"`
+	AudioCleanup                                                           *audiocleanup.Settings   `json:"audio_cleanup,omitempty"`
+	PreparedAudio                                                          *audiocleanup.Derivative `json:"prepared_audio,omitempty"`
+	Reuse                                                                  *Clip                    `json:"-"`
+	PreviousDecisions                                                      []BoundaryDecision       `json:"-"`
 	SourceKey, Namespace, AspectRatio, SubtitleStyle, Transition, HookText string
 	TransitionDuration                                                     float64
 	Segments                                                               []Segment
@@ -94,10 +102,11 @@ type Clip struct {
 	HasSubtitles, ContainsPlatformBadge                                                              bool
 }
 type Result struct {
-	SourceKey  string
-	Duration   float64
-	Transcript Transcript
-	Clips      []Clip
+	AudioCleanup *audiocleanup.Derivative
+	SourceKey    string
+	Duration     float64
+	Transcript   Transcript
+	Clips        []Clip
 }
 type Progress func(string, int, string)
 type Processor struct {

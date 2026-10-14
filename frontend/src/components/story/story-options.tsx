@@ -4,7 +4,10 @@ import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
 import { storyCaptionMode, type StoryOptions } from './types'
 import { useStoryLanguage } from './use-story-language'
+import { StoryAppearance } from './story-appearance'
 import { StoryMusic } from './story-music'
+import { useAudioCleanupAvailability } from '@/hooks/use-audio-cleanup-availability'
+import { useTranslations } from 'next-intl'
 
 interface Props {
   options: StoryOptions
@@ -25,6 +28,8 @@ export function StoryOptionsPanel({
 }: Props) {
   const text = useStoryLanguage()
   const id = useId()
+  const cleanup = useAudioCleanupAvailability()
+  const audio = useTranslations('audioCleanup')
   const change = (patch: Partial<StoryOptions>) =>
     onChange({ ...options, ...patch })
   const captionModes = [
@@ -114,6 +119,45 @@ export function StoryOptionsPanel({
               </p>
             )}
           </details>
+          <label className="flex items-start gap-3 rounded-md border p-3 text-sm">
+            <input
+              type="checkbox"
+              aria-label={text(
+                'Reduce background noise',
+                'Redu zgomotul de fundal'
+              )}
+              className="mt-1 size-4 accent-foreground"
+              checked={Boolean(options.audio_cleanup?.enabled)}
+              disabled={!cleanup.available && !options.audio_cleanup?.enabled}
+              aria-describedby={`${id}-noise-availability`}
+              onChange={(event) => {
+                if (!event.target.checked || cleanup.available)
+                  change({ audio_cleanup: { enabled: event.target.checked } })
+              }}
+            />
+            <span>
+              <span className="block font-medium">
+                {text('Reduce background noise', 'Redu zgomotul de fundal')}
+              </span>
+              <span
+                id={`${id}-noise-availability`}
+                className="mt-1 block text-xs text-muted-foreground"
+              >
+                {!cleanup.available
+                  ? audio(
+                      cleanup.loading
+                        ? 'checkingAvailability'
+                        : options.audio_cleanup?.enabled
+                          ? 'unavailableSelected'
+                          : 'unavailableOption'
+                    )
+                  : text(
+                      'For speech recordings. Keep this off for music or atmosphere you want to preserve. Other voices and strong echo may remain.',
+                      'Pentru înregistrări vorbite. Lasă opțiunea oprită pentru muzică sau ambianța pe care vrei să o păstrezi. Alte voci și ecoul puternic pot rămâne.'
+                    )}
+              </span>
+            </span>
+          </label>
           <StoryMusic
             value={options.music}
             disabled={disabled}
@@ -125,7 +169,11 @@ export function StoryOptionsPanel({
       {section !== 'story' && (
         <>
           <fieldset className="space-y-3">
-            <legend className={section === 'all' ? 'mb-3 text-sm font-medium' : 'sr-only'}>
+            <legend
+              className={
+                section === 'all' ? 'mb-3 text-sm font-medium' : 'sr-only'
+              }
+            >
               {text('Captions', 'Subtitrări')}
             </legend>
             <div className="grid gap-2 sm:grid-cols-3">
@@ -149,6 +197,11 @@ export function StoryOptionsPanel({
               ))}
             </div>
           </fieldset>
+          <StoryAppearance
+            options={options}
+            disabled={disabled}
+            onChange={onChange}
+          />
           <details className="group border-t pt-4">
             <summary className="flex cursor-pointer list-none items-center justify-between gap-2 text-sm font-medium focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground [&::-webkit-details-marker]:hidden">
               {text('Format & preferences', 'Format și preferințe')}
@@ -167,7 +220,9 @@ export function StoryOptionsPanel({
                   className="story-select"
                   value={options.target_seconds}
                   disabled={Boolean(options.narration)}
-                  aria-describedby={options.narration ? `${id}-duration-note` : undefined}
+                  aria-describedby={
+                    options.narration ? `${id}-duration-note` : undefined
+                  }
                   onChange={(event) =>
                     change({ target_seconds: Number(event.target.value) })
                   }
@@ -179,7 +234,10 @@ export function StoryOptionsPanel({
                   ))}
                 </select>
                 {options.narration && (
-                  <p id={`${id}-duration-note`} className="text-muted-foreground">
+                  <p
+                    id={`${id}-duration-note`}
+                    className="text-muted-foreground"
+                  >
                     {text(
                       'Matches your full narration.',
                       'Urmează narațiunea completă.'
@@ -193,6 +251,7 @@ export function StoryOptionsPanel({
                 </span>
                 <select
                   className="story-select"
+                  aria-label={text('Shape', 'Format')}
                   value={options.aspect_ratio}
                   onChange={(event) =>
                     change({ aspect_ratio: event.target.value })
@@ -213,6 +272,7 @@ export function StoryOptionsPanel({
                 </span>
                 <select
                   className="story-select"
+                  aria-label={text('Spoken language', 'Limba vorbită')}
                   value={options.language}
                   onChange={(event) => change({ language: event.target.value })}
                 >
@@ -229,6 +289,7 @@ export function StoryOptionsPanel({
                 </span>
                 <select
                   className="story-select"
+                  aria-label={text('Editing style', 'Stilul montajului')}
                   value={options.mode}
                   onChange={(event) => change({ mode: event.target.value })}
                 >

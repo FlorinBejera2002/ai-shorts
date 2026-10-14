@@ -5,7 +5,7 @@ import { useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { authClient } from '@/lib/auth'
-import { storyRequest } from './api'
+import { StoryRequestError, storyRequest } from './api'
 import {
   defaultLimits,
   defaultOptions,
@@ -30,6 +30,13 @@ import {
 } from './story-project-controls'
 import { useStoryLanguage } from './use-story-language'
 import { useStoryUploads } from './use-story-uploads'
+import { StoryAudioComparison } from './story-audio-comparison'
+import { storyProblem } from './story-error'
+import {
+  storyRetryPayload,
+  type StoryEditPayload,
+  type StoryOperation
+} from './story-retry'
 import './story.css'
 
 function savedProject(key: string) {
@@ -50,10 +57,12 @@ function rememberProject(key: string, id: string) {
 }
 
 function savedStep(project: StoryProject, initialStep?: StoryStep): StoryStep {
-  if (project.status !== 'draft') return 3
+  if (project.status !== 'draft') return 2
   if (initialStep !== undefined) return initialStep
   const saved = Number(savedProject(`sneepcut:story-step:${project.id}`))
-  return saved >= 0 && saved <= 3 && Number.isInteger(saved) ? (saved as StoryStep) : 0
+  return saved >= 0 && saved <= 3 && Number.isInteger(saved)
+    ? (Math.min(saved, 2) as StoryStep)
+    : 0
 }
 
 function stepHint(
@@ -87,8 +96,8 @@ function validateFiles(
   limits: StoryProject['limits']
 ) {
   if (!files.length) return ''
-  if (assets.length + pending.length + files.length > limits.max_files)
-    return `Maximum ${limits.max_files} files per story.`
+  if (assets.length + pending.length + files.length > 200)
+    return 'A project can contain up to 200 clips. Remove some selected files or start another project.'
   const invalid = files.find(
     (file) =>
       !/\.(mp4|mov|webm|mkv)$/i.test(file.name) ||
@@ -111,7 +120,9 @@ export function StoryBuilder() {
   const params = useSearchParams()
   const userID = authClient.getSnapshot().user?.id ?? ''
   const storageKey = `sneepcut:story:${userID}`
-  const [id, setID] = useState(() => params.get('story') || savedProject(storageKey))
+  const [id, setID] = useState(
+    () => params.get('story') || savedProject(storageKey)
+  )
   const [incoming, setIncoming] = useState<{
     id: string
     files: File[]
@@ -130,24 +141,33 @@ export function StoryBuilder() {
     queryKey,
     enabled: Boolean(id),
     queryFn: ({ signal }) =>
-      storyRequest<StoryProject>(`/api/stories/${id}`, 'GET', undefined, signal),
-    refetchInterval: (query) => (storyIsBusy(query.state.data?.status) ? 2500 : false),
+      storyRequest<StoryProject>(
+        `/api/stories/${id}`,
+        'GET',
+        undefined,
+        signal
+      ),
+    refetchInterval: (query) =>
+      storyIsBusy(query.state.data?.status) ? 2500 : false,
     retry: 1
   })
   const recent = useQuery({
     queryKey: ['stories', userID],
     queryFn: ({ signal }) =>
       storyRequest<
-        StoryProject[] | { stories: StoryProject[]; limits?: StoryProject['limits'] }
+        | StoryProject[]
+        | { stories: StoryProject[]; limits?: StoryProject['limits'] }
       >('/api/stories', 'GET', undefined, signal)
   })
   const projects = Array.isArray(recent.data)
     ? recent.data
     : (recent.data?.stories ?? [])
-  const limits = (!Array.isArray(recent.data) && recent.data?.limits) || defaultLimits
+  const limits =
+    (!Array.isArray(recent.data) && recent.data?.limits) || defaultLimits
   const refresh = useCallback(
     async (project?: StoryProject) => {
-      if (project?.id === id) queryClient.setQueryData(['story', userID, id], project)
+      if (project?.id === id)
+        queryClient.setQueryData(['story', userID, id], project)
       await queryClient.invalidateQueries({ queryKey: ['story', userID, id] })
       await queryClient.invalidateQueries({ queryKey: ['stories', userID] })
     },
@@ -167,7 +187,7 @@ export function StoryBuilder() {
     if (createBusy.current) return
     const validation = validateFiles(files, [], [], limits)
     if (validation) {
-      setError(validation)
+      setError(storyProblem(validation, text))
       return
     }
     setRetainedFiles(files)
@@ -188,7 +208,7 @@ export function StoryBuilder() {
     } catch (cause) {
       setError(
         cause instanceof Error
-          ? cause.message
+          ? storyProblem(cause.message, text)
           : text('Could not create project.', 'Proiectul nu a putut fi creat.')
       )
     } finally {
@@ -198,7 +218,10 @@ export function StoryBuilder() {
   }
 
   const switchingDisabled =
-    creating || uploading || unsavedChanges || storyIsBusy(projectQuery.data?.status)
+    creating ||
+    uploading ||
+    unsavedChanges ||
+    storyIsBusy(projectQuery.data?.status)
   return (
     <div className="story-workspace mt-5 w-full space-y-5">
       <StoryProjectHeader
@@ -219,7 +242,9 @@ export function StoryBuilder() {
             <Button
               variant="outline"
               disabled={creating}
-              onClick={() => void createProject(retainedFiles, requestedStep.current)}
+              onClick={() =>
+                void createProject(retainedFiles, requestedStep.current)
+              }
             >
               {text('Retry creating project', 'Reîncearcă crearea proiectului')}
             </Button>
@@ -264,12 +289,14 @@ export function StoryBuilder() {
           onUnsavedChanges={setUnsavedChanges}
           onDeleted={() => {
             selectProject('')
-            void queryClient.invalidateQueries({ queryKey: ['stories', userID] })
+            void queryClient.invalidateQueries({
+              queryKey: ['stories', userID]
+            })
           }}
         />
       ) : projectQuery.isError ? (
         <Card className="block space-y-3 p-5">
-          <p role="alert">{projectQuery.error.message}</p>
+          <p role="alert">{storyProblem(projectQuery.error.message, text)}</p>
           <Button variant="outline" onClick={() => void projectQuery.refetch()}>
             <RefreshCw />
             {text('Retry', 'Reîncearcă')}
@@ -307,12 +334,14 @@ function StoryWorkspace({
   const uploads = useStoryUploads(project.id, refresh)
   const { add } = uploads
   const [options, setOptions] = useState(project.options)
-  const [confirmed, setConfirmed] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const [operation, setOperation] = useState<StoryOperation>()
   const [narrationPending, setNarrationPending] = useState(false)
   const stepStorageKey = `sneepcut:story-step:${project.id}`
-  const [step, setStep] = useState<StoryStep>(() => savedStep(project, initialStep))
+  const [step, setStep] = useState<StoryStep>(() =>
+    savedStep(project, initialStep)
+  )
   const [furthest, setFurthest] = useState(step)
   const seeded = useRef(false)
   const mutation = useRef(false)
@@ -323,8 +352,7 @@ function StoryWorkspace({
   const videos = assets.filter((asset) => asset.kind !== 'narration')
   const mediaPending = uploads.busy || narrationPending
   const optionsChanged =
-    canEditStorySources(project) &&
-    !storyOptionsEqual(options, project.options)
+    canEditStorySources(project) && !storyOptionsEqual(options, project.options)
   const sourceIDs = new Set(assets.map((asset) => asset.id))
   const pending = uploads.items.filter(
     (item) => !sourceIDs.has(item.id) && item.status !== 'complete'
@@ -336,7 +364,6 @@ function StoryWorkspace({
   const limits = project.limits ?? defaultLimits
   const onNarrationPending = useCallback((value: boolean) => {
     setNarrationPending(value)
-    if (value) setConfirmed(false)
   }, [])
 
   useEffect(() => {
@@ -389,11 +416,26 @@ function StoryWorkspace({
       if (method !== 'DELETE' || path !== '') await refresh(updated)
       return true
     } catch (cause) {
-      setError(
-        cause instanceof Error
-          ? cause.message
-          : text('The action failed. Try again.', 'Acțiunea a eșuat. Încearcă din nou.')
-      )
+      if (cause instanceof StoryRequestError && cause.status === 409) {
+        setError(
+          text(
+            'The project changed. Your choices are kept. Review them and apply again.',
+            'Proiectul s-a schimbat. Alegerile tale sunt păstrate. Verifică-le și aplică din nou.'
+          )
+        )
+        // Fetch the new guard/state, but keep local options and appearance drafts.
+        // A rejected action is never replayed automatically against new media.
+        await refresh()
+      } else {
+        setError(
+          cause instanceof Error
+            ? storyProblem(cause.message, text)
+            : text(
+                'The action failed. Try again.',
+                'Acțiunea a eșuat. Încearcă din nou.'
+              )
+        )
+      }
       return false
     } finally {
       mutation.current = false
@@ -409,16 +451,18 @@ function StoryWorkspace({
       limits
     )
     if (validation) {
-      setError(validation)
+      setError(storyProblem(validation, text))
       return
     }
-    setConfirmed(false)
+
     setError('')
-    uploads.add(files, Math.max(-1, ...assets.map((asset) => asset.order)) + 1)
+    uploads.add(
+      files,
+      assets.reduce((order, asset) => Math.max(order, asset.order), -1) + 1
+    )
   }
 
   async function removeAsset(id: string) {
-    setConfirmed(false)
     if (sourceIDs.has(id)) {
       if (await mutate(`/assets/${id}`, 'DELETE')) uploads.forget(id)
     } else uploads.forget(id)
@@ -431,12 +475,13 @@ function StoryWorkspace({
       const [moved] = ordered.splice(index, 1)
       if (moved) ordered.splice(patch.order, 0, moved)
     }
-    setConfirmed(false)
+
     void mutate('', 'PATCH', {
       assets: ordered.map((asset, index) => ({
         id: asset.id,
         role: asset.id === id ? (patch.role ?? asset.role) : asset.role,
-        include: asset.id === id ? (patch.include ?? asset.include) : asset.include,
+        include:
+          asset.id === id ? (patch.include ?? asset.include) : asset.include,
         order: index
       }))
     })
@@ -444,21 +489,35 @@ function StoryWorkspace({
 
   async function generate() {
     if (
-      !confirmed ||
       pending.length > 0 ||
       mediaPending ||
       !videos.some((asset) => asset.include !== 'excluded') ||
       (options.narration && !narration)
     )
       return
-    if (canEditStorySources(project) && !(await mutate('', 'PATCH', { options }))) return
-    await mutate('/generate', 'POST', { asset_ids: assets.map((asset) => asset.id) })
+    if (
+      canEditStorySources(project) &&
+      !(await mutate('', 'PATCH', { options }))
+    )
+      return
+    await mutate('/generate', 'POST', {
+      asset_ids: assets.map((asset) => asset.id)
+    })
+  }
+
+  async function runEdit(payload: StoryEditPayload) {
+    if (mutation.current || active) return false
+    setOperation({ action: payload.action, version: payload.version, payload })
+    const saved = await mutate('/generate', 'POST', { ...payload })
+    if (!saved) setOperation(undefined)
+    return saved
   }
 
   function edit(action: string, blockID?: string, candidateID?: string) {
-    void mutate('/generate', 'POST', {
+    if (!version) return
+    void runEdit({
       action,
-      version: version?.number,
+      version: version.number,
       ...(blockID ? { block_id: blockID } : {}),
       ...(candidateID ? { candidate_id: candidateID } : {})
     })
@@ -466,7 +525,8 @@ function StoryWorkspace({
 
   function lock(block: StoryBlock, patch: Partial<StoryBlock>) {
     const locks = (version?.plan.blocks ?? []).map((current) => {
-      const changed = current.id === block.id ? { ...current, ...patch } : current
+      const changed =
+        current.id === block.id ? { ...current, ...patch } : current
       return {
         block_id: changed.id,
         locked: changed.locked,
@@ -478,8 +538,27 @@ function StoryWorkspace({
     void mutate('', 'PATCH', { version: version?.number, locks })
   }
 
+  async function continueWithOriginalAudio() {
+    const original = { ...options, audio_cleanup: { enabled: false } }
+    if (version) {
+      if (
+        await runEdit({
+          action: 'restyle',
+          version: version.number,
+          expected_state: project.expected_state,
+          style: { audio_cleanup: { enabled: false } }
+        })
+      )
+        setOptions(original)
+    } else if (await mutate('', 'PATCH', { options: original })) {
+      setOptions(original)
+      await mutate('/generate', 'POST', {
+        asset_ids: assets.map((asset) => asset.id)
+      })
+    }
+  }
+
   function changeOptions(value: StoryOptions) {
-    setConfirmed(false)
     if (Boolean(value.narration) !== Boolean(options.narration)) {
       void mutate('', 'PATCH', { options: value }).then((saved) => {
         if (saved) setOptions(value)
@@ -491,7 +570,7 @@ function StoryWorkspace({
     if (busy || mutation.current || narrationPending || next === step) return
     // Keep Brief and Captions reachable while an unsaved choice conflicts with
     // the prompt. Validate the combined request before entering Generate.
-    if (next === 3 && optionsChanged) {
+    if (next === 2 && optionsChanged) {
       if (!(await mutate('', 'PATCH', { options }))) return
     }
     const destination = next > 1 && options.narration && !narration ? 1 : next
@@ -500,6 +579,17 @@ function StoryWorkspace({
     setFurthest((previous) => Math.max(previous, destination) as StoryStep)
     rememberProject(stepStorageKey, String(destination))
   }
+
+  const failedOperation =
+    project.status === 'failed' ||
+    project.status === 'cancelled' ||
+    project.operation_status === 'failed'
+  const retryPayload = failedOperation
+    ? storyRetryPayload(project, operation)
+    : undefined
+  const retryOperation = retryPayload
+    ? () => void mutate('/retry', 'POST', retryPayload)
+    : undefined
 
   const canCreate =
     pending.length === 0 &&
@@ -541,7 +631,7 @@ function StoryWorkspace({
   const optionsPanel = (section: 'story' | 'settings' | 'all') => (
     <StoryOptionsPanel
       section={section}
-      active={section !== 'story' || step === 1}
+      active={step === 1}
       options={options}
       hasNarration={Boolean(narration)}
       disabled={!canEditSources || narrationPending}
@@ -555,10 +645,15 @@ function StoryWorkspace({
         project={project}
         active={active}
         busy={busy}
+        operation={operation}
+        onRetry={retryOperation}
         onCancel={() => void mutate('/cancel', 'POST', {})}
       />
       {error && (
-        <p role="alert" className="rounded-md border p-3 text-sm text-destructive">
+        <p
+          role="alert"
+          className="rounded-md border p-3 text-sm text-destructive"
+        >
           {error}
         </p>
       )}
@@ -567,17 +662,40 @@ function StoryWorkspace({
           project={project}
           version={version}
           disabled={active || busy}
+          onRestyle={(value) => {
+            void runEdit({
+              action: 'restyle',
+              version: version.number,
+              expected_state: project.expected_state,
+              style: {
+                caption_mode: value.caption_mode,
+                captions: value.captions,
+                caption_style: value.caption_style,
+                use_brand_kit: Boolean(value.use_brand_kit)
+              }
+            })
+          }}
           onAction={edit}
           onLock={lock}
-          onRollback={(number) => void mutate('/rollback', 'POST', { version: number })}
+          onRollback={async (number) => {
+            if (await mutate('/rollback', 'POST', { version: number }))
+              setOperation(undefined)
+          }}
         />
       )}
+      <StoryAudioComparison
+        assets={assets}
+        enabled={Boolean(project.options.audio_cleanup?.enabled)}
+        disabled={active || busy}
+        onOriginal={() => void continueWithOriginalAudio()}
+        onRetry={retryOperation}
+      />
       {!version && !active ? (
         <StoryWizard
           step={step}
           furthest={furthest}
           onStep={(next) => void goToStep(next)}
-          onContinue={() => void goToStep(Math.min(step + 1, 3) as StoryStep)}
+          onContinue={() => void goToStep(Math.min(step + 1, 2) as StoryStep)}
           navigationDisabled={busy || narrationPending}
           continueDisabled={step === 1 && narrationMissing}
           navigationHint={navigationHint}
@@ -590,22 +708,17 @@ function StoryWorkspace({
             data-testid="story-step-1"
             className="story-audio-layout"
           >
-            {optionsPanel('story')}
+            {optionsPanel('all')}
             {narrationPanel}
           </div>
           <div hidden={step !== 2} data-testid="story-step-2">
-            {optionsPanel('settings')}
-          </div>
-          <div hidden={step !== 3} data-testid="story-step-3">
             <StoryCreateReview
               options={options}
               videos={videos}
               narration={narration}
-              confirmed={confirmed}
               ready={canCreate}
               busy={busy || narrationPending}
               pendingCount={pending.length}
-              onConfirm={setConfirmed}
               onEdit={(next) => void goToStep(next)}
               onCreate={() => void generate()}
             />

@@ -12,6 +12,9 @@ const browser = await chromium.launch({ channel: 'chrome', headless: true })
 const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } })
 const errors = []
 const actions = []
+let failAction = false
+let releaseAction
+let actionGate
 page.on('pageerror', (error) => errors.push(error.message))
 page.setDefaultTimeout(30000)
 const origin = process.env.TEST_ORIGIN || 'http://127.0.0.1:5194'
@@ -136,6 +139,7 @@ const version = (number, ready = false) => ({
 let project = {
   id: projectID,
   status: 'needs_review',
+  expected_state: 'synthetic-state-v1',
   current_version: 1,
   versions: [version(1)],
   assets,
@@ -149,7 +153,7 @@ let project = {
     captions: true
   },
   limits: {
-    max_files: 20,
+    max_files: 200,
     max_file_bytes: 2 * 1024 ** 3,
     max_total_bytes: 10 * 1024 ** 3,
     max_source_seconds: 900,
@@ -201,19 +205,46 @@ await page.route('**/v1/**', (route) =>
     }
   })
 )
-await page.route('**/api/**', (route) => {
+await page.route('**/api/**', async (route) => {
   const path = new URL(route.request().url()).pathname
   if (path === '/api/stories')
     return route.fulfill({ json: { stories: [project] } })
   if (path === `/api/stories/${projectID}/generate`) {
     actions.push(route.request().postDataJSON())
+    if (actionGate) await actionGate
+    if (failAction)
+      return route.fulfill({
+        status: 503,
+        json: { detail: 'Synthetic render failure' }
+      })
     project = {
       ...project,
-      current_version: 2,
-      versions: [...project.versions, version(2)]
+      current_version: project.current_version + 1,
+      versions: [...project.versions, version(project.current_version + 1)]
     }
     return route.fulfill({ json: project })
   }
+  if (path === `/api/stories/${projectID}/rollback`) {
+    project.current_version = route.request().postDataJSON().version
+    return route.fulfill({ json: project })
+  }
+  if (path === '/api/user/brand')
+    return route.fulfill({ json: { brandKit: { primaryColor: '#000000' } } })
+  if (path === '/api/dashboard')
+    return route.fulfill({
+      json: {
+        metrics: {
+          credits: 100,
+          plan: 'free',
+          jobCount: 0,
+          clipCount: 0,
+          durationMinutes: 0,
+          activity: [],
+          statuses: {}
+        },
+        recentClips: []
+      }
+    })
   if (path === `/api/stories/${projectID}`) {
     if (route.request().method() === 'PATCH') {
       const { locks } = route.request().postDataJSON()
@@ -240,98 +271,83 @@ const sceneFile = new URL(
 let originalScene
 try {
   await page.goto(`${origin}/dashboard/create?story=${projectID}`, {
-    waitUntil: 'domcontentloaded', timeout: 180000
+    waitUntil: 'domcontentloaded',
+    timeout: 180000
   })
   await page
     .getByRole('heading', { name: 'Video preview', exact: true })
     .waitFor()
-  const scenes = page.getByTestId('story-block')
   const player = page.getByLabel('Story preview', { exact: true })
   await page.waitForFunction(
     () =>
       document.querySelector('video[aria-label="Story preview"]')?.readyState >=
       1
   )
-  assert.equal(await scenes.count(), 17)
-  assert.equal(await page.locator('.story-workspace [data-slot="card"] [data-slot="card"]').count(), 0,
-    'Result content never nests cards')
-  assert.equal(await scenes.first().evaluate((item) => Boolean(item.closest('[data-slot="card"]'))), false,
-    'Scene rows sit in a plain section, without an outer card')
-  assert.equal(await scenes.first().evaluate((item) => getComputedStyle(item).borderTopWidth), '1px')
+  assert.equal(
+    await page.getByTestId('story-block').count(),
+    0,
+    'Clip cards absent from default result'
+  )
   assert.equal(await page.getByTestId('story-processing').count(), 0)
-  assert.equal(await page.getByTestId('story-review-topic').count(), 1)
+  assert.equal(
+    await page.getByTestId('story-review-issue').count(),
+    0,
+    'Minor/model coverage diagnostics are internal'
+  )
   assert.equal(
     await page
       .getByRole('link', { name: 'Download draft', exact: true })
       .getAttribute('href'),
     mediaURL
   )
-  const body = await page.locator('body').innerText()
   assert.doesNotMatch(
-    body,
-    /audio_score|lexical-token|Technical candidate reason|Internal raw reason/
+    await page.locator('body').innerText(),
+    /Before you publish|Technical report|Media reviewer unavailable|audio_score|lexical-token|Internal raw reason/
   )
-  assert.equal(await scenes.locator('details[open]').count(), 0)
-  await page.screenshot({ path: `${output}/desktop-initial.png`, fullPage: true })
-  const playerBox = await player.boundingBox()
-  assert.ok(
-    playerBox.y < 400,
-    'Video is visible in the first screen of the result'
-  )
-  await scenes
-    .nth(5)
-    .getByRole('button', { name: /^View scene/ })
-    .click()
-  await page.waitForFunction(
-    () =>
-      Math.abs(
-        document.querySelector('video[aria-label="Story preview"]')
-          .currentTime - 12.5
-      ) < 0.1
-  )
-  assert.ok(
-    Math.abs((await player.evaluate((video) => video.currentTime)) - 12.5) < 0.1
-  )
-  assert.equal(await player.evaluate((video) => video.paused), true)
-  await page
-    .locator('summary')
-    .filter({ hasText: 'View marked moments' })
-    .click()
-  await page
-    .getByRole('button', { name: /^Review moment/ })
-    .nth(3)
-    .click()
-  await page.waitForFunction(
-    () =>
-      Math.abs(
-        document.querySelector('video[aria-label="Story preview"]')
-          .currentTime - 7.5
-      ) < 0.1
-  )
-  assert.ok(
-    Math.abs((await player.evaluate((video) => video.currentTime)) - 7.5) < 0.1
-  )
-  await scenes.first().locator('summary').click()
-  await scenes.first().getByRole('checkbox', { name: 'Entire scene', exact: true }).click()
-  await page.waitForFunction(() => document.querySelector('[data-testid="story-block"] input[type="checkbox"]')?.checked)
-  await scenes
-    .first()
-    .getByRole('button', { name: 'Rework this scene' })
-    .waitFor()
+  await page.screenshot({
+    path: `${output}/desktop-initial.png`,
+    fullPage: true
+  })
+  assert.ok((await player.boundingBox()).y < 400)
+  await page.getByRole('button', { name: 'Edit clips', exact: true }).click()
   assert.equal(
-    await scenes
-      .first()
-      .getByRole('button', { name: 'Rework this scene' })
-      .isDisabled(),
+    await page.getByTestId('story-block').count(),
+    1,
+    'Only selected clip controls mounted'
+  )
+  await page.getByRole('button', { name: /^Clip 6 / }).click()
+  assert.ok(
+    Math.abs((await player.evaluate((v) => v.currentTime)) - 12.5) < 0.1
+  )
+  assert.equal(await player.evaluate((v) => v.paused), true)
+  await page.getByRole('button', { name: /^Clip 1 / }).click()
+  const scene = page.getByTestId('story-block')
+  await scene.locator('summary').click()
+  await scene
+    .getByRole('checkbox', { name: 'Entire scene', exact: true })
+    .click()
+  await page.waitForFunction(
+    () =>
+      document.querySelector(
+        '[data-testid="story-block"] input[type="checkbox"]'
+      )?.checked
+  )
+  assert.equal(
+    await scene.getByRole('button', { name: 'Rework this scene' }).isDisabled(),
     true
   )
-  await scenes.first().getByRole('checkbox', { name: 'Entire scene', exact: true }).click()
-  await page.waitForFunction(() => !document.querySelector('[data-testid="story-block"] input[type="checkbox"]')?.checked)
-
-  // A component-only source update must preserve the mounted player and scene.
+  await scene
+    .getByRole('checkbox', { name: 'Entire scene', exact: true })
+    .click()
+  await page.waitForFunction(
+    () =>
+      !document.querySelector(
+        '[data-testid="story-block"] input[type="checkbox"]'
+      )?.checked
+  )
   const playerNode = await player.elementHandle()
-  await player.evaluate((video) => {
-    video.currentTime = 0.6
+  await player.evaluate((v) => {
+    v.currentTime = 0.6
   })
   originalScene = await readFile(sceneFile, 'utf8')
   await writeFile(
@@ -341,61 +357,182 @@ try {
       'Scene details and changes (refresh check)'
     )
   )
-  await scenes
-    .first()
+  await scene
     .getByText('Scene details and changes (refresh check) 1', { exact: true })
     .waitFor()
-  assert.equal(await playerNode.evaluate((node) => node.isConnected), true)
-  assert.equal(await scenes.first().locator('details').getAttribute('open'), '')
-  assert.ok(
-    Math.abs((await player.evaluate((video) => video.currentTime)) - 0.6) < 0.1
-  )
+  assert.equal(await playerNode.evaluate((n) => n.isConnected), true)
+  assert.equal(await scene.locator('details').getAttribute('open'), '')
+  assert.ok(Math.abs((await player.evaluate((v) => v.currentTime)) - 0.6) < 0.1)
   await writeFile(sceneFile, originalScene)
   originalScene = undefined
-  await scenes
-    .first()
+  await scene
     .getByText('Scene details and changes 1', { exact: true })
     .waitFor()
-  await scenes
-    .first()
+  await scene
     .getByLabel('Use another take 1', { exact: true })
     .selectOption('candidate-1')
   await page.getByText(/Vertical · Version 2/).waitFor()
   assert.equal(actions.at(-1).action, 'alternate')
   assert.equal(actions.at(-1).block_id, 'block-0')
-  await page.getByText('Technical report', { exact: true }).click()
-  await page.getByText(/Candidate source-0 audio_score/).waitFor()
-  await page.getByText('Technical report', { exact: true }).click()
-  await scenes.first().locator('summary').click()
-  await page.evaluate(() => scrollTo(0, 0))
-  await page.screenshot({ path: `${output}/desktop.png`, fullPage: true })
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.getByLabel('Compare versions', { exact: true }).selectOption('1')
+  await page
+    .getByText('Watching a previous version.', { exact: true })
+    .waitFor()
   assert.equal(
-    await page.evaluate(
-      () => document.documentElement.scrollWidth <= innerWidth
+    await page
+      .getByRole('button', { name: 'Faster pace', exact: true })
+      .isDisabled(),
+    true
+  )
+  await page
+    .getByRole('button', { name: 'Back to current', exact: true })
+    .click()
+  await page.getByRole('button', { name: 'Edit clips', exact: true }).click()
+  actionGate = new Promise((resolve) => {
+    releaseAction = resolve
+  })
+  await page.getByRole('button', { name: 'Faster pace', exact: true }).click()
+  await page
+    .getByTestId('story-operation')
+    .filter({ hasText: 'Processing' })
+    .waitFor()
+  assert.equal(
+    await page
+      .getByRole('button', { name: 'Faster pace', exact: true })
+      .isDisabled(),
+    true
+  )
+  assert.equal(actions.length, 2)
+  releaseAction()
+  actionGate = undefined
+  await page
+    .getByTestId('story-operation')
+    .filter({ hasText: 'New version saved' })
+    .waitFor()
+  for (const [label, action] of [
+    ['Smoother flow', 'improve_flow'],
+    ['Smoother transitions', 'improve_transitions']
+  ]) {
+    await page.getByRole('button', { name: label, exact: true }).click()
+    await page
+      .getByTestId('story-operation')
+      .filter({ hasText: 'New version saved' })
+      .waitFor()
+    assert.equal(actions.at(-1).action, action)
+  }
+  failAction = true
+  await page.getByRole('button', { name: 'Faster pace', exact: true }).click()
+  await page
+    .getByRole('alert')
+    .filter({ hasText: 'The action could not finish' })
+    .waitFor()
+  assert.equal(
+    await page
+      .getByRole('link', { name: 'Download draft', exact: true })
+      .count(),
+    1,
+    'Earlier export remains usable after failure'
+  )
+  failAction = false
+  await page.getByRole('button', { name: 'Appearance', exact: true }).click()
+  await page.getByRole('combobox', { name: 'Brand kit', exact: true }).click()
+  await page.getByRole('option', { name: 'My brand kit', exact: true }).click()
+  await page
+    .getByRole('button', { name: 'Apply appearance', exact: true })
+    .click()
+  await page
+    .getByTestId('story-operation')
+    .filter({ hasText: 'New version saved' })
+    .waitFor()
+  assert.equal(actions.at(-1).action, 'restyle')
+  assert.equal(actions.at(-1).style.use_brand_kit, true)
+  assert.equal(actions.at(-1).expected_state, project.expected_state)
+  assert.equal(actions.at(-1).style.caption_style, undefined)
+  await page.getByRole('button', { name: 'Appearance', exact: true }).click()
+  // A worker failure keeps a playable ready version but must survive refresh.
+  project.operation_status = 'failed'
+  project.message =
+    'The edit could not finish; the previous reviewed version is retained'
+  await page.reload()
+  await page
+    .getByTestId('story-operation')
+    .filter({ hasText: 'The action could not finish' })
+    .waitFor()
+  assert.equal(
+    await page
+      .getByRole('link', { name: 'Download draft', exact: true })
+      .count(),
+    1
+  )
+  assert.equal(
+    await page
+      .getByTestId('story-operation')
+      .getByRole('button', { name: 'Retry', exact: true })
+      .count(),
+    0,
+    'Unknown failed operation is never replayed as a different edit'
+  )
+  project.operation_status = 'unchanged'
+  project.message = ''
+  await page.reload()
+  await page.getByTestId('story-result').waitFor()
+  assert.equal(await page.getByTestId('story-operation').count(), 0)
+  const sidebar = page.locator('[data-slot="sidebar"]'),
+    sidebarNode = await sidebar.elementHandle(),
+    headerNode = await page.locator('header').first().elementHandle()
+  const oldState = await sidebar.getAttribute('data-state')
+  await page.locator('[data-sidebar="trigger"]').click()
+  await page.waitForFunction(
+    (old) =>
+      document
+        .querySelector('[data-slot="sidebar"]')
+        ?.getAttribute('data-state') !== old,
+    oldState
+  )
+  const state = await sidebar.getAttribute('data-state')
+  await page.getByRole('link', { name: 'Home', exact: true }).click()
+  await page.getByTestId('studio-dashboard').waitFor()
+  await page.goBack()
+  await page.getByTestId('story-result').waitFor()
+  assert.equal(
+    await sidebarNode.evaluate(
+      (n) => n === document.querySelector('[data-slot="sidebar"]')
     ),
     true
   )
-  await page.screenshot({ path: `${output}/mobile.png`, fullPage: true })
+  assert.equal(
+    await headerNode.evaluate((n) => n === document.querySelector('header')),
+    true
+  )
+  assert.equal(await sidebar.getAttribute('data-state'), state)
+  await page.screenshot({ path: `${output}/desktop.png`, fullPage: true })
+  for (const width of [390, 320]) {
+    await page.setViewportSize({ width, height: 844 })
+    assert.equal(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth
+      ),
+      true
+    )
+    await page.screenshot({
+      path: `${output}/mobile-${width}.png`,
+      fullPage: true
+    })
+  }
   await page.goto(`${origin}/ro/dashboard/create?story=${projectID}`, {
-    waitUntil: 'domcontentloaded', timeout: 180000
+    waitUntil: 'domcontentloaded'
   })
-  await page
-    .getByRole('heading', { name: 'Înainte de publicare', exact: true })
-    .waitFor()
   await page
     .getByRole('link', { name: 'Descarcă versiunea preliminară' })
     .waitFor()
-  assert.equal(
-    await page.evaluate(
-      () => document.documentElement.scrollWidth <= innerWidth
-    ),
-    true
+  assert.doesNotMatch(
+    await page.locator('body').innerText(),
+    /Înainte de publicare|Raport tehnic/
   )
   await page.screenshot({ path: `${output}/mobile-ro.png`, fullPage: true })
   assert.deepEqual(errors, [])
   console.log(
-    'PASS: 17 compact scenes, grouped review, hidden diagnostics, primary download, real media seeking without autoplay, locks, alternate payload, component Fast Refresh preserves player/seek/open scene, EN/RO and mobile layout'
+    'PASS: player-led result, no default scenes/reports, compact timeline, real media seeking, locks, alternate and all improvements, duplicate prevention, failure retains export, version comparison, sidebar/header DOM identity, component-scoped Fast Refresh, desktop/mobile EN/RO'
   )
 } catch (error) {
   console.error({

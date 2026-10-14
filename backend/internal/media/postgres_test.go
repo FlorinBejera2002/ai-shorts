@@ -181,6 +181,17 @@ func TestPostgresAuthenticatedUploadsBrandAndCleanup(t *testing.T) {
 		t.Fatalf("viewer read %d", w.Code)
 	}
 	_, _ = db.Exec(`UPDATE users SET access_role='member' WHERE id=$1`, testUserID)
+	w = call("DELETE", "/api/user/brand/logo", "", session.AccessToken, nil)
+	if w.Code != 200 {
+		t.Fatalf("logo detach %d", w.Code)
+	}
+	if exists, _ := storage.Exists(ctx, logoPath); !exists {
+		t.Fatal("saved project logo bytes were removed")
+	}
+	detached, err := s.GetBrand(ctx, testUserID)
+	if err != nil || detached["logoPath"] != nil {
+		t.Fatalf("logo not detached: %#v %v", detached, err)
+	}
 	// Legacy SVG cannot be read but remains removable by its owner.
 	legacy := "brand/" + testUserID + "/legacy.svg"
 	svg := filepath.Join(t.TempDir(), "legacy.svg")

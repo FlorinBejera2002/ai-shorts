@@ -4,6 +4,8 @@ package story
 
 import (
 	"context"
+	"sneepcut/backend-go/internal/audiocleanup"
+	"sneepcut/backend-go/internal/captions"
 	"time"
 )
 
@@ -35,27 +37,32 @@ type Limits struct {
 	Timeout          time.Duration `json:"-"`
 }
 
-func DefaultLimits() Limits { return Limits{20, 2 << 30, 10 << 30, 900, 3600, 2, 2, 12, 2 * time.Hour} }
+func DefaultLimits() Limits {
+	return Limits{200, 2 << 30, 10 << 30, 900, 3600, 2, 2, 12, 2 * time.Hour}
+}
 
 type Options struct {
-	Music              *MusicSelection `json:"music,omitempty"`
-	Narration          bool            `json:"narration,omitempty"`
-	Brief              string          `json:"brief"`
-	TargetSeconds      int             `json:"target_seconds"`
-	AspectRatio        string          `json:"aspect_ratio"`
-	Language           string          `json:"language"`
-	Mode               string          `json:"mode"`
-	PreserveOrder      bool            `json:"preserve_order"`
-	Captions           bool            `json:"captions"`
-	CaptionMode        string          `json:"caption_mode,omitempty"`         // all, selective, off; empty reads legacy captions
-	CaptionModeRevised bool            `json:"caption_mode_revised,omitempty"` // later explicit style choice supersedes original caption wording
-	SubtitleColor      string          `json:"subtitle_color,omitempty"`
-	SubtitlePosition   string          `json:"subtitle_position,omitempty"`
-	SubtitleFont       string          `json:"subtitle_font,omitempty"`
-	SubtitleSize       int             `json:"subtitle_size,omitempty"`
-	LogoResourceID     string          `json:"logo_resource_id,omitempty"`
-	LogoPosition       string          `json:"logo_position,omitempty"`
-	LogoOpacity        *float64        `json:"logo_opacity,omitempty"`
+	CaptionStyle       *captions.Style        `json:"caption_style,omitempty"`
+	UseBrandKit        bool                   `json:"use_brand_kit,omitempty"`
+	AudioCleanup       *audiocleanup.Settings `json:"audio_cleanup,omitempty"`
+	Music              *MusicSelection        `json:"music,omitempty"`
+	Narration          bool                   `json:"narration,omitempty"`
+	Brief              string                 `json:"brief"`
+	TargetSeconds      int                    `json:"target_seconds"`
+	AspectRatio        string                 `json:"aspect_ratio"`
+	Language           string                 `json:"language"`
+	Mode               string                 `json:"mode"`
+	PreserveOrder      bool                   `json:"preserve_order"`
+	Captions           bool                   `json:"captions"`
+	CaptionMode        string                 `json:"caption_mode,omitempty"`         // all, selective, off; empty reads legacy captions
+	CaptionModeRevised bool                   `json:"caption_mode_revised,omitempty"` // later explicit style choice supersedes original caption wording
+	SubtitleColor      string                 `json:"subtitle_color,omitempty"`
+	SubtitlePosition   string                 `json:"subtitle_position,omitempty"`
+	SubtitleFont       string                 `json:"subtitle_font,omitempty"`
+	SubtitleSize       int                    `json:"subtitle_size,omitempty"`
+	LogoResourceID     string                 `json:"logo_resource_id,omitempty"`
+	LogoPosition       string                 `json:"logo_position,omitempty"`
+	LogoOpacity        *float64               `json:"logo_opacity,omitempty"`
 }
 
 func DefaultOptions() Options {
@@ -71,26 +78,27 @@ type TimeMap struct {
 }
 
 type Asset struct {
-	Kind                    string      `json:"kind,omitempty"`
-	ID                      string      `json:"id"`
-	Name                    string      `json:"name"`
-	Key                     string      `json:"key"`
-	Hash                    string      `json:"hash"`
-	Size                    int64       `json:"size"`
-	Duration                float64     `json:"duration"`
-	Width                   int         `json:"width"`
-	Height                  int         `json:"height"`
-	HasAudio                bool        `json:"has_audio"`
-	Order                   int         `json:"order"`
-	Role                    string      `json:"role"`
-	Include                 string      `json:"include"` // auto, required, excluded
-	ProxyKey                string      `json:"proxy_key,omitempty"`
-	ThumbnailKey            string      `json:"thumbnail_key,omitempty"`
-	Mapping                 TimeMap     `json:"mapping"`
-	AnalysisVersion         string      `json:"analysis_version,omitempty"`
-	SemanticAnalysisVersion string      `json:"semantic_analysis_version,omitempty"`
-	Candidates              []Candidate `json:"candidates,omitempty"`
-	Warnings                []string    `json:"warnings,omitempty"`
+	AudioCleanup            *audiocleanup.Derivative `json:"audio_cleanup,omitempty"`
+	Kind                    string                   `json:"kind,omitempty"`
+	ID                      string                   `json:"id"`
+	Name                    string                   `json:"name"`
+	Key                     string                   `json:"key"`
+	Hash                    string                   `json:"hash"`
+	Size                    int64                    `json:"size"`
+	Duration                float64                  `json:"duration"`
+	Width                   int                      `json:"width"`
+	Height                  int                      `json:"height"`
+	HasAudio                bool                     `json:"has_audio"`
+	Order                   int                      `json:"order"`
+	Role                    string                   `json:"role"`
+	Include                 string                   `json:"include"` // auto, required, excluded
+	ProxyKey                string                   `json:"proxy_key,omitempty"`
+	ThumbnailKey            string                   `json:"thumbnail_key,omitempty"`
+	Mapping                 TimeMap                  `json:"mapping"`
+	AnalysisVersion         string                   `json:"analysis_version,omitempty"`
+	SemanticAnalysisVersion string                   `json:"semantic_analysis_version,omitempty"`
+	Candidates              []Candidate              `json:"candidates,omitempty"`
+	Warnings                []string                 `json:"warnings,omitempty"`
 }
 
 type Word struct {
@@ -119,6 +127,7 @@ type Candidate struct {
 }
 
 type Block struct {
+	Pace                *Interval `json:"pace,omitempty"` // Explicit Faster pace edit; source clock, no time stretching.
 	Narration           *Interval `json:"narration,omitempty"`
 	Visual              *Interval `json:"visual,omitempty"`
 	ID                  string    `json:"id"`
@@ -233,6 +242,7 @@ type Attempt struct {
 }
 
 type Request struct {
+	BrandSnapshot    map[string]any `json:"brand_snapshot,omitempty"`
 	Music            *PreparedMusic `json:"-"`
 	ID               string         `json:"id"`
 	UserID           string         `json:"user_id"`

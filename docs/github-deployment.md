@@ -53,3 +53,32 @@ Production CORS must include https://admin.sneepcut.com; if CORS_ORIGINS
 is overridden in .env.production.local, update that value too.
 The Google callback remains https://sneepcut.com/v1/auth/google/callback.
 An admin deployment does not grant administrative access to any account.
+
+## Caption release (migration 046)
+
+Pin the reviewed full commit SHA during both staging and activation:
+
+```bash
+DEPLOY_EXPECTED_COMMIT=<40-character-sha> bash /path/to/reviewed/deploy-github.sh build all
+DEPLOY_EXPECTED_COMMIT=<40-character-sha> bash /path/to/reviewed/deploy-github.sh deploy all
+```
+
+The older installed helper may lack this check. Use the reviewed repository helper
+when pinning; do not assume setting an ignored environment variable pins a release.
+Before activation, preserve the current images and an owner-only database/media/
+Studio/environment backup outside `/opt/sneepcut` and `/opt/sneepcut.previous`.
+Restore-check the database backup in a network-isolated disposable
+`sneepcut_integration_test` database. Never restore an old backup over new user writes
+as a routine rollback.
+
+Migration 046 is additive, but the previous migrator rejects the new revision.
+The ordinary old-release `rollback` command therefore cannot be assumed to work.
+Prefer a reviewed forward fix; if reverting application code is necessary, retain
+the current compatible migration chain and existing data, then rebuild and verify.
+Activation does not automatically roll back when its final verification fails.
+
+The new optional cleanup adapter remains unavailable until explicitly verified and
+provisioned; see [audio setup and evidence](audio-cleanup.md). After deployment,
+check public readiness and protected media, the caption catalog/resource routes,
+and real FFmpeg caption exports in an isolated container using the deployed worker
+image. Runtime health alone does not verify font rendering or audio quality.

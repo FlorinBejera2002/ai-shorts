@@ -12,6 +12,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/julienschmidt/httprouter"
+	"sneepcut/backend-go/internal/audiocleanup"
 	"sneepcut/backend-go/internal/identity"
 	"sneepcut/backend-go/internal/jsonutil"
 	"sneepcut/backend-go/internal/story"
@@ -62,6 +63,8 @@ func reply(w http.ResponseWriter, status int, v any) {
 func failure(w http.ResponseWriter, err error) {
 	status, msg := 503, "Story service is temporarily unavailable"
 	switch {
+	case errors.Is(err, audiocleanup.ErrUnavailable):
+		status, msg = 503, err.Error()
 	case errors.Is(err, sql.ErrNoRows):
 		status, msg = 404, "Story not found"
 	case errors.Is(err, ErrConflict):
@@ -127,18 +130,8 @@ func (h *Handler) get(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) respondProject(w http.ResponseWriter, r *http.Request, user, id string, status int) {
-	p, err := h.repo.Get(r.Context(), user, id)
+	p, locks, state, err := h.repo.ProjectSnapshot(r.Context(), user, id)
 	if err != nil {
-		failure(w, err)
-		return
-	}
-	var locksRaw []byte
-	if err = h.repo.db.QueryRowContext(r.Context(), `SELECT locks FROM story_projects WHERE id=$1 AND user_id=$2`, id, user).Scan(&locksRaw); err != nil {
-		failure(w, err)
-		return
-	}
-	var locks []Lock
-	if err = json.Unmarshal(locksRaw, &locks); err != nil {
 		failure(w, err)
 		return
 	}
@@ -175,6 +168,19 @@ func (h *Handler) respondProject(w http.ResponseWriter, r *http.Request, user, i
 				m["thumbnail_url"] = url
 			}
 		}
+		if a.AudioCleanup != nil {
+			if details, ok := m["audio_cleanup"].(map[string]any); ok {
+				if a.AudioCleanup.Status == "ready" && a.AudioCleanup.Key != "" {
+					if audioURL, audioErr := h.media.SignedURL(r.Context(), a.AudioCleanup.Key); audioErr == nil {
+						m["processed_audio_url"] = audioURL
+					}
+				}
+				delete(details, "key")
+				delete(details, "original_key")
+				delete(details, "source_hash")
+				delete(details, "fingerprint")
+			}
+		}
 		delete(m, "key")
 		delete(m, "proxy_key")
 		delete(m, "thumbnail_key")
@@ -182,13 +188,13 @@ func (h *Handler) respondProject(w http.ResponseWriter, r *http.Request, user, i
 	versions := out["versions"].([]any)
 	for i, v := range p.Versions {
 		m := versions[i].(map[string]any)
-		if v.Output.Key != "" && v.Accepted && v.Number == p.CurrentVersion {
+		if v.Output.Key != "" && v.Accepted {
 			url, e := h.media.SignedURL(r.Context(), v.Output.Key)
 			if e == nil {
 				m["preview_url"] = url
 			}
 		}
-		if v.Output.ThumbnailKey != "" && v.Accepted && v.Number == p.CurrentVersion {
+		if v.Output.ThumbnailKey != "" && v.Accepted {
 			url, e := h.media.SignedURL(r.Context(), v.Output.ThumbnailKey)
 			if e == nil {
 				m["thumbnail_url"] = url
@@ -199,6 +205,7 @@ func (h *Handler) respondProject(w http.ResponseWriter, r *http.Request, user, i
 			delete(output, "thumbnail_key")
 		}
 	}
+	out["expected_state"] = state
 	reply(w, status, out)
 }
 

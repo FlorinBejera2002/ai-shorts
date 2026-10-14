@@ -212,6 +212,7 @@ function CreateWorkflow() {
       include_brand: settings.includeBrand,
       burn_subtitles: settings.subtitleStyle !== 'none',
       smart_crop: settings.smartCrop,
+      audio_cleanup: { enabled: settings.reduceBackgroundNoise ?? false },
       ...(settings.language ? { language: settings.language } : {}),
       ...(aiInstructions.trim()
         ? { user_instructions: aiInstructions.trim() }
@@ -355,6 +356,7 @@ function CreateWorkflow() {
             include_brand: settings.includeBrand,
             language: settings.language || null,
             smart_crop: settings.smartCrop,
+      audio_cleanup: { enabled: settings.reduceBackgroundNoise ?? false },
             instructions: aiInstructions.trim() || null
           })}
           onActions={handleAssistantActions}

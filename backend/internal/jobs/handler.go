@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/julienschmidt/httprouter"
+	"sneepcut/backend-go/internal/audiocleanup"
 	"sneepcut/backend-go/internal/identity"
 	"sneepcut/backend-go/internal/jsonutil"
 )
@@ -56,6 +57,7 @@ func (h *Handler) Register(r *httprouter.Router) {
 	}, "jobs-batch", 5, time.Hour)))
 	r.Handler("GET", "/api/jobs/:id", h.auth.Require(h.get))
 	r.Handler("POST", "/api/jobs/:id/cancel", h.auth.RequireMember(h.cancel))
+	r.Handler("POST", "/api/jobs/:id/retry", h.auth.RequireMember(h.retryAudio))
 	r.Handler("GET", "/api/dashboard/history", h.auth.Require(h.history))
 }
 
@@ -78,6 +80,8 @@ func reply(w http.ResponseWriter, status int, body any) {
 func failure(w http.ResponseWriter, err error) {
 	status, message := 503, "Job service is temporarily unavailable"
 	switch {
+	case errors.Is(err, audiocleanup.ErrUnavailable):
+		status, message = 503, err.Error()
 	case errors.Is(err, sql.ErrNoRows):
 		status, message = 404, "Job not found"
 	case errors.Is(err, ErrCredits):
@@ -204,6 +208,28 @@ func (h *Handler) get(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		failure(w, err)
 		return
+	}
+	if cleanup, cleanupErr := h.repo.audioCleanup(r.Context(), identity.Current(r).User.ID, id); cleanupErr == nil && cleanup != nil {
+		var job map[string]any
+		if json.Unmarshal(result, &job) == nil {
+			if signer, ok := h.media.(interface {
+				SignedURL(context.Context, string) (string, error)
+			}); ok {
+				if cleanup.Status == "ready" && cleanup.Key != "" {
+					if url, e := signer.SignedURL(r.Context(), cleanup.Key); e == nil {
+						job["processed_audio_url"] = url
+					}
+				}
+				if cleanup.OriginalKey != "" {
+					if url, e := signer.SignedURL(r.Context(), cleanup.OriginalKey); e == nil {
+						job["original_audio_url"] = url
+					}
+				}
+			}
+			cleanup.Key, cleanup.OriginalKey, cleanup.SourceHash, cleanup.Fingerprint = "", "", "", ""
+			job["audio_cleanup"] = cleanup
+			result, _ = json.Marshal(job)
+		}
 	}
 	reply(w, 200, map[string]any{"job": result, "celery_state": nil, "celery_meta": nil})
 }

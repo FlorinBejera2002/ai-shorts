@@ -52,7 +52,12 @@ export function useBrandKit(t: Translate) {
       const response = await apiFetch('/api/user/brand')
       if (!response.ok) throw new Error('Brand kit unavailable')
       const data = await response.json()
-      const nextKit = { ...BRAND_DEFAULTS, ...(data.brandKit ?? {}) }
+      const nextKit = Object.fromEntries(
+        Object.entries(BRAND_DEFAULTS).map(([key, fallback]) => [
+          key,
+          data.brandKit?.[key] ?? fallback
+        ])
+      ) as BrandKit
       setKit(nextKit)
       setPersistedKit(nextKit)
       if (data.plan) setPlan(data.plan)
@@ -71,7 +76,15 @@ export function useBrandKit(t: Translate) {
     kit.primaryColor,
     kit.secondaryColor,
     kit.subtitleColor,
-    kit.subtitleBgColor
+    kit.subtitleBgColor,
+    ...(kit.captionStyle
+      ? [
+          kit.captionStyle.text_color,
+          kit.captionStyle.outline_color,
+          kit.captionStyle.background_color,
+          kit.captionStyle.highlight_color
+        ]
+      : [])
   ].every((color) => HEX_RE.test(color))
 
   const dirty = useMemo(
@@ -102,7 +115,12 @@ export function useBrandKit(t: Translate) {
     setSaving(true)
     try {
       const payload = {
-        ...kit,
+        ...Object.fromEntries(
+          Object.keys(BRAND_DEFAULTS).map((key) => [
+            key,
+            kit[key as keyof BrandKit]
+          ])
+        ),
         logoUrl: undefined,
         primaryColor: normalizeHex(kit.primaryColor),
         secondaryColor: normalizeHex(kit.secondaryColor),

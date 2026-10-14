@@ -6,6 +6,8 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sneepcut/backend-go/internal/audiocleanup"
+	"strings"
 )
 
 var namespacePattern = regexp.MustCompile(`^[A-Za-z0-9_-]+(?:/[A-Za-z0-9_-]+)*$`)
@@ -64,9 +66,24 @@ func (p *Processor) process(ctx context.Context, in Input, progress Progress) (R
 	if e = p.storage.Save(ctx, source, r.SourceKey, "video/mp4"); e != nil {
 		return r, e
 	}
+	if audiocleanup.Enabled(in.AudioCleanup) {
+		report("rendering", 56, "Reducing background noise; original audio is retained")
+		hash, hashErr := fileSHA256(source)
+		if hashErr != nil {
+			return r, hashErr
+		}
+		derivative, cleanupErr := p.cleanAudio(ctx, strings.Split(in.Namespace, "/")[0], r.SourceKey, hash, info.Duration)
+		if in.SourceKey != "" {
+			derivative.OriginalKey = in.SourceKey
+		}
+		r.AudioCleanup = &derivative
+		if cleanupErr != nil {
+			return r, cleanupErr
+		}
+	}
 	for i, h := range highlights {
 		report("rendering", 60+30*i/len(highlights), fmt.Sprintf("Rendering clip %d/%d", i+1, len(highlights)))
-		clip, err := p.render(ctx, RenderInput{SourceKey: r.SourceKey, Namespace: fmt.Sprintf("%s/clip-%d", in.Namespace, i+1), AspectRatio: in.AspectRatio, SubtitleStyle: in.SubtitleStyle, SmartCrop: in.SmartCrop, BurnSubtitles: in.BurnSubtitles, Segments: h.Segments, NaturalTransitions: true, Transcript: r.Transcript, Brand: in.Brand, HookText: h.Hook})
+		clip, err := p.render(ctx, RenderInput{AudioCleanup: in.AudioCleanup, PreparedAudio: r.AudioCleanup, SourceKey: r.SourceKey, Namespace: fmt.Sprintf("%s/clip-%d", in.Namespace, i+1), AspectRatio: in.AspectRatio, SubtitleStyle: in.SubtitleStyle, SmartCrop: in.SmartCrop, BurnSubtitles: in.BurnSubtitles, Segments: h.Segments, NaturalTransitions: true, Transcript: r.Transcript, Brand: in.Brand, HookText: h.Hook})
 		if err != nil {
 			return r, err
 		}

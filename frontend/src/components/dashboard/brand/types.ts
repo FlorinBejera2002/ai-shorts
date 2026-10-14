@@ -1,4 +1,10 @@
+import type { CaptionStyle } from './caption-style'
+
 export type BrandKit = {
+  captionStyle: CaptionStyle | null
+  watermarkEnabled: boolean
+  watermarkSize: number
+  watermarkMargin: number
   logoUrl: string | null
   primaryColor: string
   secondaryColor: string

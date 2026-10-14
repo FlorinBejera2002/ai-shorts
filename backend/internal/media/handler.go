@@ -2,11 +2,13 @@ package media
 
 import (
 	"encoding/json"
+	"errors"
 	"io"
 	"mime"
 	"mime/multipart"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
@@ -27,6 +29,10 @@ func NewHandler(service *Service, auth Authentication) *Handler {
 	return &Handler{service: service, auth: auth}
 }
 func (h *Handler) Register(router *httprouter.Router) {
+	router.Handler(http.MethodGet, "/api/user/brand/fonts", h.auth.Require(h.listFonts))
+	router.Handler(http.MethodPost, "/api/user/brand/fonts", h.auth.RequireMember(h.uploadFont))
+	router.Handler(http.MethodDelete, "/api/user/brand/fonts", h.auth.RequireMember(h.archiveFont))
+	router.Handler(http.MethodGet, "/api/user/brand/font-file", h.auth.Require(h.fontFile))
 	router.HandlerFunc(http.MethodGet, "/api/media/verify", h.verify)
 	router.HandlerFunc(http.MethodGet, "/api/media/verify-request", h.verifyRequest)
 	router.Handler(http.MethodPost, "/api/upload/authorize", h.auth.RequireMember(h.authorize))
@@ -91,7 +97,12 @@ func writeMedia(w http.ResponseWriter, status int, body any) {
 func mediaError(w http.ResponseWriter, err error) {
 	status, message := statusFor(err)
 	if status == 429 {
-		w.Header().Set("Retry-After", "3600")
+		retry := time.Hour
+		var detail *HTTPError
+		if errors.As(err, &detail) && detail.RetryAfter > 0 {
+			retry = detail.RetryAfter
+		}
+		w.Header().Set("Retry-After", strconv.Itoa(max(1, int((retry+time.Second-1)/time.Second))))
 	}
 	writeMedia(w, status, map[string]string{"error": message, "detail": message})
 }

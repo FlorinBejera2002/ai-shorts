@@ -12,6 +12,11 @@ var storyResource = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-
 
 // ValidateBrandOptions is also used before native rendering, including restored jobs.
 func ValidateBrandOptions(o Options) error {
+	if o.CaptionStyle != nil {
+		if err := o.CaptionStyle.Validate(); err != nil {
+			return err
+		}
+	}
 	if o.SubtitleColor != "" && !storyColor.MatchString(o.SubtitleColor) {
 		return fmt.Errorf("subtitle color must be a six-digit hex color")
 	}

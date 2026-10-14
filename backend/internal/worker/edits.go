@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"sneepcut/backend-go/internal/audiocleanup"
 	"sneepcut/backend-go/internal/processing"
 	"sort"
 	"time"
@@ -60,6 +61,10 @@ func (w *Worker) edit(parent context.Context, e *Edit) (err error) {
 		return err
 	}
 	in := processing.RenderInput{Namespace: namespace, SourceKey: e.SourceKey, PreserveGeometry: true}
+	if e.Kind == "recut" && e.AudioCleanup != nil && e.AudioCleanup.Status == "ready" {
+		in.AudioCleanup = &audiocleanup.Settings{Enabled: true}
+		in.PreparedAudio = e.AudioCleanup
+	}
 	if e.Kind == "trim" {
 		in.SourceKey = e.FileKey
 		in.Segments = []processing.Segment{{Start: payload.Start, End: payload.End}}

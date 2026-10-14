@@ -13,7 +13,7 @@ export function AgentResources({ resource, ro }: { resource: ReturnType<typeof u
     {project?.options.brief && <p className="line-clamp-2 text-xs text-muted-foreground">{project.options.brief}</p>}
     {resource.query.isError && <p role="alert" className="text-xs text-destructive">{text('Could not load this story.', 'Povestea nu a putut fi încărcată.')}</p>}
     {project && <>
-      <p className="text-xs text-muted-foreground">MP4, MOV, WebM, MKV · {project.limits.max_files} {text('files maximum', 'fișiere maxim')} · {Math.round(project.limits.max_file_bytes / 1024 ** 2)} MB / {text('file', 'fișier')}</p>
+      <p className="text-xs text-muted-foreground">MP4, MOV, WebM, MKV · {Math.round(project.limits.max_file_bytes / 1024 ** 2)} MB / {text('file', 'fișier')}</p>
       <input id="agent-recordings" ref={input} type="file" multiple accept=".mp4,.mov,.webm,.mkv" className="hidden" aria-label={text('Attach recordings', 'Atașează filmări')} onChange={event => { resource.add(Array.from(event.target.files ?? []), ro); event.target.value = '' }} />
       <Button type="button" size="sm" variant="outline" disabled={storyIsBusy(project.status)} onClick={() => input.current?.click()}>{text('Choose recordings', 'Alege filmări')}</Button>
       {project.assets.map(asset => <p key={asset.id} className="truncate text-xs">✓ {asset.name} · {text('Validated', 'Validat')}</p>)}

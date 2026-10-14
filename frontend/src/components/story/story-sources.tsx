@@ -35,6 +35,7 @@ export function StorySources({
   const text = useStoryLanguage()
   const input = useRef<HTMLInputElement>(null)
   const [dragging, setDragging] = useState(false)
+  const [page, setPage] = useState(0)
   const ids = new Set(assets.map((asset) => asset.id))
   const pending = uploads.filter(
     (upload) => !ids.has(upload.id) && upload.status !== 'complete'
@@ -52,6 +53,14 @@ export function StorySources({
   const uploading = pending.some((upload) =>
     ['queued', 'uploading', 'validating'].includes(upload.status)
   )
+  const pageSize = 24
+  const totalItems = assets.length + pending.length
+  const pages = Math.max(1, Math.ceil(totalItems / pageSize))
+  const visiblePage = Math.min(page, pages - 1)
+  const first = visiblePage * pageSize
+  const visibleAssets = assets.slice(first, first + pageSize)
+  const pendingStart = Math.max(0, first - assets.length)
+  const visiblePending = pending.slice(pendingStart, Math.max(0, first + pageSize - assets.length))
   return (
     <section
       className="space-y-4"
@@ -60,8 +69,8 @@ export function StorySources({
     >
       <div className="flex items-center justify-between gap-3">
         <span className="text-xs tabular-nums text-muted-foreground">
-          {assets.length + pending.length} / {limits.max_files}{' '}
-          {text('clips', 'filmări')}
+          {assets.length + pending.length}{' '}
+          {text('clips', 'filmări')} / {limits.max_files || 200}
         </span>
         <StoryHelp label={text('Your recordings', 'Filmările tale')}>
           {narration
@@ -88,7 +97,6 @@ export function StorySources({
           <button
             type="button"
             onClick={() => input.current?.click()}
-            disabled={assets.length + pending.length >= limits.max_files}
             onDragOver={(event) => {
               event.preventDefault()
               setDragging(true)
@@ -110,8 +118,8 @@ export function StorySources({
             </span>
             <span className="text-xs text-muted-foreground">
               {text(
-                'MP4, MOV, WebM, MKV · Multiple files',
-                'MP4, MOV, WebM, MKV · Fișiere multiple'
+                'MP4, MOV, WebM, MKV · Up to 200 clips per project',
+                'MP4, MOV, WebM, MKV · Până la 200 de filmări pe proiect'
               )}
             </span>
           </button>
@@ -156,7 +164,7 @@ export function StorySources({
         </div>
       )}
       <ul className="story-source-grid">
-        {assets.map((asset, assetIndex) => (
+        {visibleAssets.map((asset, visibleIndex) => (
           <li
             key={asset.id}
             data-testid="validated-source"
@@ -271,7 +279,7 @@ export function StorySources({
                     aria-label={`${text('Order', 'Ordine')} ${asset.name}`}
                     className="story-select"
                     disabled={disabled || uploading}
-                    value={assetIndex}
+                    value={first + visibleIndex}
                     onChange={(event) =>
                       onChange(asset.id, { order: Number(event.target.value) })
                     }
@@ -302,7 +310,7 @@ export function StorySources({
             )}
           </li>
         ))}
-        {pending.map((upload) => (
+        {visiblePending.map((upload) => (
           <li
             key={upload.id}
             className="rounded-md border p-3"
@@ -311,7 +319,7 @@ export function StorySources({
             <div className="flex items-center gap-3">
               <video
                 src={upload.preview}
-                preload="metadata"
+                preload="none"
                 muted
                 playsInline
                 aria-hidden="true"
@@ -334,7 +342,9 @@ export function StorySources({
                     ` · ${formatDuration(upload.duration)}`}
                 </p>
                 <p className="mt-1 text-xs" role="status">
-                  {upload.status === 'validating'
+                  {upload.retryAt
+                    ? `${text('Uploads temporarily paused. Will retry at', 'Încărcări în pauză temporară. Reîncearcă la')} ${new Date(upload.retryAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+                    : upload.status === 'validating'
                     ? text('Validating on server…', 'Validare pe server…')
                     : upload.status === 'failed'
                       ? text('Upload failed', 'Încărcare eșuată')
@@ -354,13 +364,13 @@ export function StorySources({
                   <RefreshCw />
                 </Button>
               )}
-              {['queued', 'failed'].includes(upload.status) && (
+              {upload.status !== 'complete' && (
                 <Button
                   type="button"
                   size="icon-sm"
                   variant="ghost"
                   onClick={() => onRemove(upload.id)}
-                  aria-label={`${text('Remove', 'Elimină')} ${upload.file.name}`}
+                  aria-label={`${text('Cancel upload', 'Anulează încărcarea')} ${upload.file.name}`}
                 >
                   <X />
                 </Button>
@@ -377,6 +387,13 @@ export function StorySources({
           </li>
         ))}
       </ul>
+      {pages > 1 && (
+        <nav aria-label={text('Clip pages', 'Pagini de filmări')} className="flex items-center justify-between gap-3">
+          <Button type="button" variant="outline" disabled={visiblePage === 0} onClick={() => setPage(visiblePage - 1)}>{text('Previous', 'Înapoi')}</Button>
+          <span className="text-xs text-muted-foreground">{first + 1}–{Math.min(first + pageSize, totalItems)} / {totalItems}</span>
+          <Button type="button" variant="outline" disabled={visiblePage === pages - 1} onClick={() => setPage(visiblePage + 1)}>{text('Next', 'Înainte')}</Button>
+        </nav>
+      )}
       {hasFailed && (
         <Button type="button" variant="outline" onClick={() => onRetry()}>
           <RefreshCw />
@@ -416,7 +433,7 @@ function SourceThumbnail({
     return (
       <video
         src={source}
-        preload="metadata"
+        preload="none"
         muted
         playsInline
         aria-hidden="true"

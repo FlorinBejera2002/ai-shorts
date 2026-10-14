@@ -146,7 +146,7 @@ func (r *Repository) rollbackTx(ctx context.Context, tx *sql.Tx, user, id string
 	if _, err = tx.ExecContext(ctx, `INSERT INTO story_requests(project_id,id,payload) VALUES($1,$2,$3)`, id, requestID, payload); err != nil {
 		return err
 	}
-	if _, err = tx.ExecContext(ctx, `UPDATE story_projects SET current_version=$2,status=$3,options=$4,message='Previous version restored',updated_at=now() WHERE id=$1`, id, number, status, encoded(options)); err != nil {
+	if _, err = tx.ExecContext(ctx, `UPDATE story_projects SET current_version=$2,status=$3,options=$4,request=request - 'outcome',message='Previous version restored',updated_at=now() WHERE id=$1`, id, number, status, encoded(options)); err != nil {
 		return err
 	}
 	return nil

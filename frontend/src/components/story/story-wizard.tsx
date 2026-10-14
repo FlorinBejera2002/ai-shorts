@@ -7,7 +7,7 @@ import { requestStoryAgentHelp } from '@/components/workspace-agent/story-help'
 import { useStoryLanguage } from './use-story-language'
 import { StoryHelp } from './story-help'
 
-export type StoryStep = 0 | 1 | 2 | 3
+export type StoryStep = 0 | 1 | 2
 
 interface Props {
   step: StoryStep
@@ -36,38 +36,9 @@ export function StoryWizard({
   const headingID = useId()
   const hintID = useId()
   const steps = [
-    {
-      label: text('Footage', 'Filmări'),
-      title: text('Add your clips', 'Adaugă filmările'),
-      description: text(
-        'Add your clips here. You can also continue and come back to them later.',
-        'Adaugă filmările aici. Poți continua și să revii la ele mai târziu.'
-      )
-    },
-    {
-      label: text('Brief', 'Descriere'),
-      title: text('Your direction', 'Indicațiile tale'),
-      description: text(
-        'Describe what to keep or leave out. Original sound is kept unless you choose narration.',
-        'Descrie ce păstrăm și ce excludem. Sunetul original se păstrează dacă nu alegi o narațiune.'
-      )
-    },
-    {
-      label: text('Captions', 'Subtitrări'),
-      title: text('Choose captions', 'Alege subtitrările'),
-      description: text(
-        'Choose which spoken passages to subtitle. Format and length are optional settings.',
-        'Alege pasajele vorbite care primesc subtitrări. Formatul și durata sunt opționale.'
-      )
-    },
-    {
-      label: text('Generate', 'Generează'),
-      title: text('Ready to generate', 'Pregătit de generare'),
-      description: text(
-        'Check your choices. You can go back and change anything before creating.',
-        'Verifică alegerile. Poți reveni și schimba orice înainte de creare.'
-      )
-    }
+    { label: text('Add footage', 'Adaugă filmări'), title: text('Add your clips', 'Adaugă filmările'), description: text('Upload clips in the order you want. You can reorder them any time before generating.', 'Încarcă filmările în ordinea dorită. Le poți reordona înainte de generare.') },
+    { label: text('Choose the result', 'Alege rezultatul'), title: text('Make it yours', 'Alege cum va arăta'), description: text('Choose captions and appearance. A description, music and narration are optional.', 'Alege subtitrările și aspectul. Descrierea, muzica și narațiunea sunt opționale.') },
+    { label: text('Generate & review', 'Generează și verifică'), title: text('Ready to generate', 'Pregătit de generare'), description: text('Generate your video, watch it, improve it and download the version you like.', 'Generează videoul, urmărește-l, îmbunătățește-l și descarcă versiunea dorită.') }
   ]
 
   useEffect(() => {
@@ -104,7 +75,7 @@ export function StoryWizard({
       <div className="story-wizard-content space-y-5 min-w-0">
         <div className="space-y-2">
           <p className="sr-only">
-            {text('Step', 'Pasul')} {step + 1} {text('of', 'din')} 4
+            {text('Step', 'Pasul')} {step + 1} {text('of', 'din')} 3
           </p>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex min-w-0 items-center gap-2">
@@ -130,7 +101,7 @@ export function StoryWizard({
               className="text-muted-foreground focus-visible:ring-2 focus-visible:ring-foreground focus-visible:ring-offset-2"
               onClick={(event) =>
                 requestStoryAgentHelp(
-                  (['footage', 'story_audio', 'style', 'review'] as const)[step],
+                  (['footage', 'style', 'review'] as const)[step],
                   event.currentTarget
                 )
               }
@@ -165,7 +136,7 @@ export function StoryWizard({
           ) : (
             <span />
           )}
-          {step < 3 && (
+          {step < 2 && (
             <Button
               className="focus-visible:ring-2 focus-visible:ring-foreground focus-visible:ring-offset-2"
               disabled={navigationDisabled || continueDisabled}

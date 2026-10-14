@@ -15,9 +15,8 @@ func NormalizeLimits(l Limits) Limits {
 	if l == (Limits{}) {
 		return d
 	}
-	if l.MaxFiles <= 0 {
-		l.MaxFiles = d.MaxFiles
-	}
+	// Product admission limit applies to new additions; legacy projects remain renderable.
+	l.MaxFiles = d.MaxFiles
 	if l.MaxFileBytes <= 0 {
 		l.MaxFileBytes = d.MaxFileBytes
 	}
@@ -43,7 +42,6 @@ func NormalizeLimits(l Limits) Limits {
 		l.Timeout = d.Timeout
 	}
 	// These hard ceilings defend worker resources even after a bad configuration.
-	l.MaxFiles = min(l.MaxFiles, 100)
 	l.MaxFileBytes = min(l.MaxFileBytes, 100<<30)
 	l.MaxTotalBytes = min(l.MaxTotalBytes, 100<<30)
 	l.MaxSourceSeconds = min(l.MaxSourceSeconds, 86400)
@@ -113,16 +111,14 @@ func ValidateOptions(o Options) error {
 // follows a URL or trusts source paths proposed by a language model.
 func ValidateAssets(assets []Asset, limits Limits) error {
 	l := NormalizeLimits(limits)
-	videoCount, voiceCount := 0, 0
+	voiceCount := 0
 	for _, asset := range assets {
 		if asset.Kind == "narration" {
 			voiceCount++
-		} else {
-			videoCount++
 		}
 	}
-	if len(assets) == 0 || videoCount > l.MaxFiles || voiceCount > 1 {
-		return fmt.Errorf("choose at most %d video files and one narration recording", l.MaxFiles)
+	if len(assets) == 0 || voiceCount > 1 {
+		return fmt.Errorf("choose at least one video file and at most one narration recording")
 	}
 	seen := make(map[string]bool, len(assets))
 	var bytes int64
@@ -183,7 +179,7 @@ func LimitsFromEnv(get func(string) string) (Limits, error) {
 		target    *int
 		low, high int
 	}{
-		{"STORY_MAX_FILES", &l.MaxFiles, 1, 100}, {"STORY_MAX_REPAIR_CYCLES", &l.MaxRepairCycles, 0, 10}, {"STORY_MAX_ALTERNATIVES", &l.MaxAlternatives, 0, 10}, {"STORY_MAX_AI_CALLS", &l.MaxAICalls, 1, 100},
+		{"STORY_MAX_REPAIR_CYCLES", &l.MaxRepairCycles, 0, 10}, {"STORY_MAX_ALTERNATIVES", &l.MaxAlternatives, 0, 10}, {"STORY_MAX_AI_CALLS", &l.MaxAICalls, 1, 100},
 	}
 	for _, field := range integers {
 		if raw := get(field.name); raw != "" {

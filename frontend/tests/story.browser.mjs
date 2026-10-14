@@ -12,7 +12,7 @@ const errors = []
 page.on('pageerror', (error) => errors.push(error.message))
 const userID = '00000000-0000-4000-8000-000000000001'
 const fileCount = Number(process.env.TEST_FILE_COUNT || 5)
-assert.ok([5, 10, 14].includes(fileCount))
+assert.ok([5, 10, 14, 80, 125].includes(fileCount))
 const uploads = new Map()
 const registrations = new Map()
 const generations = []
@@ -41,6 +41,7 @@ function makeVersion(number, candidate = 'candidate-1') {
     number,
     parent: number - 1,
     accepted: true,
+    preview_url: `/synthetic-preview-${number}.mp4`,
     plan: {
       title: 'A story from five recordings',
       summary: 'One complete source-backed story.',
@@ -149,7 +150,7 @@ await page.route('**/api/**', async (route) => {
       versions: [],
       current_version: 0,
       limits: {
-        max_files: 20,
+        max_files: 200,
         max_file_bytes: 2 * 1024 ** 3,
         max_total_bytes: 10 * 1024 ** 3,
         max_source_seconds: 900,
@@ -342,38 +343,33 @@ try {
     .getByRole('button', { name: 'Retry failed uploads', exact: true })
     .waitFor()
   await page.getByRole('button', { name: 'Retry failed uploads', exact: true }).click()
-  const confirmation = page.getByRole('checkbox', {
-    name: 'All my clips are uploaded. Use this complete set.'
-  })
+
   await page.waitForFunction(
     (count) =>
       document.querySelectorAll('[data-testid="validated-source"]').length === count,
-    fileCount
+    Math.min(fileCount, 24)
   )
+  await page.getByRole('progressbar', { name: 'Bytes transferred', exact: true }).waitFor({ state: 'detached' })
+  assert.equal(project.assets.length, fileCount, 'Every selection finished validation')
   assert.equal(maxUploads <= 2, true, 'Concurrency is bounded at two')
   assert.equal(uploads.get('clip-3.mp4'), 2)
   assert.equal(uploads.get('clip-1.mp4'), 1)
   assert.equal(registrations.get('clip-1.mp4'), 1)
   if (fileCount === 14) await verifyDesktopSources()
-  for (let step = 1; step <= 3; step++) {
+  for (let step = 1; step <= 2; step++) {
     await page.getByTestId('story-wizard').getByRole('button', { name: 'Continue', exact: true }).click()
     await page.getByTestId(`story-step-${step}`).waitFor({ state: 'visible' })
     assert.equal(generations.length, 0, 'Wizard navigation never starts generation')
   }
-  await confirmation.waitFor()
-  assert.equal(
-    await page.getByRole('button', { name: 'Build my story' }).isDisabled(),
-    true
-  )
-  await confirmation.check()
+  assert.equal(await page.getByRole('button', { name: 'Build my story', exact: true }).isEnabled(), true, 'Sensible defaults allow generation after uploads complete')
   await page.getByRole('button', { name: 'Build my story', exact: true }).click()
-  await page.getByRole('heading', { name: /^Scenes/ }).waitFor()
+  await page.getByTestId('story-result').waitFor()
   await page.getByTestId('story-processing').waitFor({ state: 'detached' })
   assert.equal(generations.length, 1, 'Multiple files produce one story job')
-  await page.getByText('Some automatic checks could not be completed', { exact: true }).waitFor()
-  await page.getByText('Technical report', { exact: true }).click()
-  await page.getByText('A visual reviewer was unavailable.').waitFor()
-  await page.getByText('Caption words require correction; changing timing cannot fix them.').waitFor()
+  assert.equal(await page.getByText('Technical report', { exact: true }).count(), 0)
+  assert.equal(await page.getByText('A visual reviewer was unavailable.').count(), 0)
+  assert.equal(await page.getByTestId('story-block').count(), 0)
+  await page.getByRole('button', { name: 'Edit clips', exact: true }).click()
   await page.getByTestId('story-block').locator('summary').click()
   await page.getByRole('checkbox', { name: 'Entire scene', exact: true }).click()
   await page.waitForFunction(
@@ -397,17 +393,17 @@ try {
   await alternate.selectOption('candidate-2')
   await page.getByText('Version 2', { exact: false }).first().waitFor()
   await page.getByTestId('story-processing').waitFor({ state: 'detached' })
-  await page.getByText('Previous versions', { exact: true }).click()
-  await page.getByLabel('Restore version', { exact: true }).selectOption('1')
+  await page.getByLabel('Compare versions', { exact: true }).selectOption('1')
+  await page.getByRole('button', { name: 'Restore this version', exact: true }).click()
   await page.getByText('0:08 · Vertical · Version 1', { exact: true }).waitFor()
   await page.reload()
-  await page.getByRole('heading', { name: /^Scenes/ }).waitFor()
+  await page.getByTestId('story-result').waitFor()
   assert.equal(
     await page.locator('[data-testid="validated-source"]').count(),
-    fileCount,
-    'Reload restores successful uploads'
+    Math.min(fileCount, 24),
+    'Reload restores the first page of successful uploads'
   )
-  const storyHeading = await page.getByRole('heading', { name: /^Scenes/ }).elementHandle()
+  const storyHeading = await page.getByTestId('story-result').elementHandle()
   await page.getByRole('button', { name: 'Import a video or link' }).click()
   await page.locator('#youtube-url').fill('draft source link to preserve')
   await page.getByRole('tab', { name: 'Batch', exact: true }).click()
@@ -445,7 +441,7 @@ try {
   if (process.env.TEST_SCREENSHOT)
     await page.screenshot({ path: process.env.TEST_SCREENSHOT, fullPage: true })
   console.log(
-    `PASS: bounded ${fileCount}-file upload, selection order, server validation, failed-only retry, exact set confirmation, one generation, repair explanations, locks, alternate take, rollback, restoration, both modes preserve state, and mobile layout`
+    `PASS: bounded ${fileCount}-file upload, selection order, server validation, failed-only retry, three-stage defaults, one generation, concise issues and intentional clip editing, locks, alternate take, rollback, restoration, both modes preserve state, and mobile layout`
   )
 } catch (error) {
   console.error(error)

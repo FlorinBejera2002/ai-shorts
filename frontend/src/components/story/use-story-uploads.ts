@@ -12,6 +12,7 @@ export interface PendingUpload {
   order: number
   reference?: string
   error?: string
+  retryAt?: number
   duration?: number
 }
 
@@ -64,14 +65,25 @@ export function useStoryUploads(
       })
       void (async () => {
         try {
-          const reference =
-            item.reference ??
-            (await uploadStoryFile(item.file, controller.signal, (bytes) =>
-              update(item.id, { bytes })
-            ))
+          const retryBusy = async <T,>(operation: () => Promise<T>): Promise<T> => {
+            for (;;) {
+              try { return await operation() } catch (error) {
+                const seconds = typeof error === 'object' && error !== null && 'retryAfterSeconds' in error ? Number(error.retryAfterSeconds) : 0
+                if (!seconds || controller.signal.aborted) throw error
+                update(item.id, { retryAt: Date.now() + seconds * 1000 })
+                await new Promise<void>((resolve, reject) => {
+                  const cancel = () => { clearTimeout(timer); reject(new DOMException('Upload cancelled', 'AbortError')) }
+                  const timer = setTimeout(() => { controller.signal.removeEventListener('abort', cancel); resolve() }, seconds * 1000)
+                  controller.signal.addEventListener('abort', cancel, { once: true })
+                })
+                update(item.id, { retryAt: undefined })
+              }
+            }
+          }
+          const reference = item.reference ?? await retryBusy(() => uploadStoryFile(item.file, controller.signal, (bytes) => update(item.id, { bytes })))
           if (controller.signal.aborted) return
           update(item.id, { reference, bytes: item.file.size, status: 'validating' })
-          const registered = await storyRequest<StoryProject>(
+          const registered = await retryBusy(() => storyRequest<StoryProject>(
             `/api/stories/${item.projectId}/assets`,
             'POST',
             {
@@ -81,11 +93,14 @@ export function useStoryUploads(
               order: item.order
             },
             controller.signal
-          )
+          ))
           if (!controller.signal.aborted) {
             // Registration is the server's validation acknowledgement, not the byte transfer.
             await refresh(registered)
-            update(item.id, { status: 'complete' })
+            const preview = urls.current.get(item.id)
+            if (preview) URL.revokeObjectURL(preview)
+            urls.current.delete(item.id)
+            update(item.id, { status: 'complete', preview: '', retryAt: undefined })
           }
         } catch (error) {
           if (mounted.current && !controller.signal.aborted)
@@ -124,7 +139,6 @@ export function useStoryUploads(
 
   const forget = useCallback((id: string) => {
     active.current.get(id)?.abort()
-    active.current.delete(id)
     const url = urls.current.get(id)
     if (url) URL.revokeObjectURL(url)
     urls.current.delete(id)

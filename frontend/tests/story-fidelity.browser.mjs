@@ -201,33 +201,29 @@ const chooseStep = async (index) => {
   await wizard.locator('nav button').nth(index).click()
   await page.getByTestId(`story-step-${index}`).waitFor({ state: 'visible' })
 }
-const confirm = async () =>
-  page
-    .getByRole('checkbox', {
-      name: 'All my clips are uploaded. Use this complete set.',
-      exact: true
-    })
-    .check()
 const upload = async () => {
-  await page
-    .getByLabel('Upload story clips', { exact: true })
-    .setInputFiles({
-      name: 'source.mp4',
-      mimeType: 'video/mp4',
-      buffer: video ?? Buffer.from('synthetic clip')
-    })
+  await page.getByLabel('Upload story clips', { exact: true }).setInputFiles({
+    name: 'source.mp4',
+    mimeType: 'video/mp4',
+    buffer: video ?? Buffer.from('synthetic clip')
+  })
 }
 const inspectLayout = async (stage) => {
   for (const width of [1280, 390, 320]) {
     await page.setViewportSize({ width, height: 960 })
     assert.equal(
-      await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= window.innerWidth
+      ),
       true,
       `${stage} fits the ${width}px viewport`
     )
     if (process.env.TEST_SCREENSHOT)
       await page.screenshot({
-        path: process.env.TEST_SCREENSHOT.replace(/\.png$/, `-${stage}-${width}.png`),
+        path: process.env.TEST_SCREENSHOT.replace(
+          /\.png$/,
+          `-${stage}-${width}.png`
+        ),
         fullPage: true,
         animations: 'disabled'
       })
@@ -295,7 +291,6 @@ try {
   )
   writeFileSync(optionsPath, optionsSource)
   hotEdited = false
-  await next(2)
   assert.equal(
     await page
       .getByRole('radio', { name: 'No captions', exact: true })
@@ -305,7 +300,7 @@ try {
   await wizard.getByRole('button', { name: 'Continue', exact: true }).click()
   await page
     .getByRole('alert')
-    .filter({ hasText: 'Caption choice conflicts' })
+    .filter({ hasText: 'caption choice conflicts' })
     .waitFor()
   await chooseStep(1)
   assert.equal(
@@ -313,21 +308,19 @@ try {
     originalBrief,
     'Validation preserves the full original request'
   )
-  await next(2)
   await page.getByRole('radio', { name: 'All dialogue', exact: true }).check()
   await inspectLayout('captions')
-  await next(3)
+  await next(2)
   await inspectLayout('generate')
-  await confirm()
   await build.click()
   await page
     .getByRole('alert')
-    .filter({ hasText: 'Submission interrupted' })
+    .filter({ hasText: 'The action could not finish' })
     .waitFor()
   await build.click()
   await page
     .getByRole('alert')
-    .filter({ hasText: 'Synthetic worker interruption' })
+    .filter({ hasText: 'The action could not finish' })
     .waitFor()
   assert.equal(
     submissions[0].request_id,
@@ -342,15 +335,13 @@ try {
     'A failed project can correct its request'
   )
   assert.equal(await brief.inputValue(), originalBrief)
-  await next(2)
   assert.equal(
     await page
       .getByRole('radio', { name: 'All dialogue', exact: true })
       .isChecked(),
     true
   )
-  await next(3)
-  await confirm()
+  await next(2)
   await build.click()
   await page
     .getByRole('link', { name: 'Download video', exact: true })
@@ -381,10 +372,8 @@ try {
     await page.getByTestId('validated-source').waitFor()
     await next(1)
     await brief.fill('Keep the original order and audio. No added music.')
-    await next(2)
     await page.getByRole('radio', { name: label, exact: true }).check()
-    await next(3)
-    await confirm()
+    await next(2)
     await build.click()
     await page
       .getByRole('link', { name: 'Download video', exact: true })

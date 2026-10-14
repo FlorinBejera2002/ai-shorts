@@ -36,3 +36,8 @@ func (s *RedisNonceStore) Allow(ctx context.Context, key string, maximum int, wi
 	result, e := s.client.Eval(ctx, `local n = redis.call('INCR', KEYS[1]); if n == 1 then redis.call('PEXPIRE', KEYS[1], ARGV[1]); end; return n`, []string{"go-media-rate:" + key}, window.Milliseconds()).Int64()
 	return result <= int64(maximum), e
 }
+
+// RetryAfter reports the remaining existing hourly window without changing its allowance.
+func (s *RedisNonceStore) RetryAfter(ctx context.Context, key string) (time.Duration, error) {
+	return s.client.PTTL(ctx, "go-media-rate:"+key).Result()
+}

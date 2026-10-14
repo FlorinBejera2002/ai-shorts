@@ -27,15 +27,24 @@ function load(relative, imports = {}) {
   return exports
 }
 const types = load('../src/components/story/types.ts')
+let cleanupAvailable = false
 const { StoryOptionsPanel } = load(
   '../src/components/story/story-options.tsx',
   {
     react: { useId: () => 'caption-test' },
+    'next-intl': { useTranslations: () => (key) => key },
+    '@/hooks/use-audio-cleanup-availability': {
+      useAudioCleanupAvailability: () => ({
+        available: cleanupAvailable,
+        loading: false
+      })
+    },
     'react/jsx-runtime': jsxRuntime,
     'lucide-react': { ChevronDown: 'svg' },
     '@/components/ui/textarea': { Textarea: 'textarea' },
     '@/components/ui/button': { Button: 'button' },
     './story-help': { StoryHelp: 'aside' },
+    './story-appearance': { StoryAppearance: 'section' },
     './story-music': { StoryMusic: 'section' },
     './use-story-language': { useStoryLanguage: () => (english) => english },
     './types': types
@@ -131,10 +140,59 @@ test('recoverable failures can change their request without re-uploading; comple
 })
 
 test('a server-normalized legacy caption choice is saved, not a permanently dirty draft', () => {
-  const { caption_mode: _legacyMode, ...legacy } = { ...types.defaultOptions, captions: true }
+  const { caption_mode: _legacyMode, ...legacy } = {
+    ...types.defaultOptions,
+    captions: true
+  }
   const saved = { ...legacy, caption_mode: 'all', narration: false }
   assert.equal(types.storyOptionsEqual(legacy, saved), true)
-  assert.equal(types.storyOptionsEqual({ ...legacy, caption_mode: 'selective' }, saved), false)
-  assert.equal(types.storyOptionsEqual({ ...legacy, brief: 'Do not trim the ending.' }, saved), false)
-  assert.equal(types.storyOptionsEqual({ ...legacy, narration: true }, saved), false)
+  assert.equal(
+    types.storyOptionsEqual({ ...legacy, caption_mode: 'selective' }, saved),
+    false
+  )
+  assert.equal(
+    types.storyOptionsEqual(
+      { ...legacy, brief: 'Do not trim the ending.' },
+      saved
+    ),
+    false
+  )
+  assert.equal(
+    types.storyOptionsEqual({ ...legacy, narration: true }, saved),
+    false
+  )
+})
+
+test('unavailable cleanup cannot be enabled; saved selections remain reversible', () => {
+  cleanupAvailable = false
+  let changed
+  const toggle = (enabled) =>
+    nodes(
+      StoryOptionsPanel({
+        options: { ...types.defaultOptions, audio_cleanup: { enabled } },
+        disabled: false,
+        onChange: (value) => {
+          changed = value
+        }
+      })
+    ).find(
+      (node) =>
+        node.type === 'input' &&
+        node.props['aria-label'] === 'Reduce background noise'
+    )
+  const off = toggle(false)
+  assert.equal(off.props.disabled, true)
+  off.props.onChange({ target: { checked: true } })
+  assert.equal(changed, undefined)
+  const saved = toggle(true)
+  assert.equal(saved.props.checked, true)
+  assert.equal(saved.props.disabled, false)
+  saved.props.onChange({ target: { checked: false } })
+  assert.equal(changed.audio_cleanup.enabled, false)
+  cleanupAvailable = true
+  const available = toggle(false)
+  assert.equal(available.props.disabled, false)
+  available.props.onChange({ target: { checked: true } })
+  assert.equal(changed.audio_cleanup.enabled, true)
+  cleanupAvailable = false
 })

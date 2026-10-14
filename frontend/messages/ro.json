@@ -1,4 +1,23 @@
 {
+  "audioCleanup": {
+    "checkingAvailability": "Se verifică disponibilitatea…",
+    "unavailableOption": "Reducerea zgomotului nu este disponibilă încă. Poți genera cu sunetul original.",
+    "unavailableSelected": "Reducerea zgomotului nu este disponibilă. Oprește această opțiune pentru a genera cu sunetul original.",
+    "cancel": "Anulează procesarea",
+    "title": "Redu zgomotul de fundal",
+    "help": "Curățare opțională pentru vorbire. Sunetul original este păstrat. Această opțiune nu selectează și nu elimină o anumită voce.",
+    "unavailable": "Reducerea zgomotului nu este disponibilă momentan. Sunetul original este păstrat.",
+    "timedOut": "Reducerea zgomotului a durat prea mult. Reîncearcă sau continuă cu sunetul original.",
+    "failed": "Reducerea zgomotului a eșuat. Sunetul original este păstrat.",
+    "retry": "Reîncearcă procesarea",
+    "retrying": "Se adaugă în coadă…",
+    "retryFailed": "Procesarea nu a putut fi pornită. Reîncearcă.",
+    "useOriginal": "Continuă cu sunetul original",
+    "stopping": "Se așteaptă oprirea procesării…",
+    "compare": "Compară sunetul",
+    "original": "Original",
+    "processed": "Procesat"
+  },
   "dashboardSections": {
     "clips": "Secțiuni clipuri",
     "projects": "Secțiuni proiecte",
@@ -348,9 +367,15 @@
     "formatDefault": "Implicit",
     "compatibleWith": "Platforme compatibile",
     "formats": {
-      "9:16": { "name": "Universal Social" },
-      "1:1": { "name": "Social pătrat" },
-      "16:9": { "name": "Orizontal" }
+      "9:16": {
+        "name": "Universal Social"
+      },
+      "1:1": {
+        "name": "Social pătrat"
+      },
+      "16:9": {
+        "name": "Orizontal"
+      }
     },
     "compatibility": {
       "recommended": "Recomandat",
@@ -517,7 +542,7 @@
   },
   "brand": {
     "title": "Kit Branding",
-    "desc": "Culori, fonturi și setări watermark aplicate pe clipurile tale",
+    "desc": "Logo, filigran și subtitrări pentru videoclipurile tale",
     "logo": "Logo",
     "logoDesc": "Folosit ca watermark și pe toate clipurile exportate.",
     "clickOrDrag": "Click sau trage un fișier pentru încărcare",
@@ -531,7 +556,7 @@
     "primary": "Primară",
     "secondary": "Secundară",
     "fontFamily": "Familie de fonturi",
-    "subtitleStyle": "Stil subtitrare",
+    "subtitleStyle": "Subtitrări",
     "textColor": "Culoare text",
     "background": "Fundal",
     "subtitleFont": "Font subtitrare",
@@ -595,7 +620,54 @@
     "loading": "Se încarcă kitul de brand",
     "loadErrorTitle": "Kitul de brand nu este disponibil",
     "loadErrorDesc": "Nu am putut încărca setările salvate. Kitul existent nu a fost modificat.",
-    "retry": "Încearcă din nou"
+    "retry": "Încearcă din nou",
+    "logoWatermark": "Logo și filigran",
+    "watermarkEnabled": "Arată logo-ul în videoclipuri",
+    "watermarkSize": "Mărime logo (%)",
+    "watermarkMargin": "Margine (%)",
+    "fontSearch": "Caută în 32 de familii de fonturi",
+    "fontWeight": "Grosime",
+    "customFont": "Încarcă fontul tău",
+    "customFontHint": "TTF sau OTF, maximum 8 MB. Exportul folosește același font.",
+    "fontPermission": "Am permisiunea să folosesc acest font.",
+    "fontUpload": "Încarcă font",
+    "fontLoading": "Se încarcă fontul…",
+    "fontLoadError": "Fontul nu a putut fi încărcat. Alege alt font sau reîncearcă.",
+    "fontUploadError": "Fontul nu a putut fi salvat. Reîncearcă.",
+    "fontArchived": "Doar pentru proiectele salvate",
+    "fontRetention": "Eliminarea unui font îl păstrează pentru proiectele deja salvate.",
+    "fontRomanianMissing": "Acest font nu conține toate diacriticele românești. Alege alt font pentru subtitrări în română.",
+    "outlineColor": "Contur / umbră",
+    "highlightColor": "Cuvânt activ",
+    "captionAdjust": "Text și așezare",
+    "captionSize": "Mărime text (raport cadru)",
+    "captionWidth": "Lățime maximă",
+    "captionLines": "Număr maxim de rânduri",
+    "captionSpacing": "Spațiere rânduri",
+    "captionOutline": "Contur",
+    "captionShadow": "Umbră",
+    "captionAlign": "Aliniere",
+    "align_left": "Stânga",
+    "align_center": "Centru",
+    "align_right": "Dreapta",
+    "captionX": "Orizontal (%)",
+    "captionY": "Vertical (%)",
+    "resetPosition": "Resetează poziția",
+    "dragCaption": "Poziția subtitrării. Trage sau folosește săgețile.",
+    "dragCaptionHint": "Trage subtitrarea pentru poziționare. Săgețile mută 1%; Shift mută 5%. Ghidajele punctate arată zonele sigure.",
+    "captionSample": "Creează o poveste și împărtășește-o astăzi",
+    "preset_classic": "Subtitrare clasică",
+    "preset_minimal": "Minimal",
+    "preset_bold-outline": "Contur pronunțat",
+    "preset_contrast-box": "Fundal contrastant",
+    "preset_headline": "Titlu mare",
+    "preset_word-by-word": "Cuvânt cu cuvânt",
+    "preset_karaoke": "Karaoke",
+    "preset_active-color": "Culoare cuvânt activ",
+    "preset_active-background": "Fundal cuvânt activ",
+    "preset_phrase-pop": "Apariție frază",
+    "preset_subtle-fade": "Estompare discretă",
+    "preset_stacked": "Două rânduri"
   },
   "billing": {
     "title": "Facturare",

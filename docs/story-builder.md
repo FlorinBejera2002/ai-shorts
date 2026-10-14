@@ -14,7 +14,7 @@ Accepted versions pin their referenced source catalogs, including alternatives, 
 
 The independent pre-render reviewer assesses source context and narrative. The post-render reviewer receives the actual complete rendered video/audio, all boundaries and source-context audio. Conditional speaker checks also compare both original takes. The deterministic gate checks file decoding, duration, valid intervals, captions and source constraints. Missing provider capability, timeout, malformed review, exhausted budget or incomplete coverage results in `needs_review`, never `ready`. Critical/major defects cannot be outweighed by aesthetic scores. Only reviewed Ready output enters the regular clip library.
 
-Before planning, optional batched source analysis describes visible subjects/actions and candidate roles from timestamped proxy frames and provisional ASR text. A batch uses at most 24 sampled frames per source, 20 sources, 12 MiB of media and 700 KiB of metadata. Unknown or unsampled visuals stay uncertain. The model can annotate roles, ideas and dependencies; it cannot change source IDs, speech, timestamps or speaker identity. Metadata caches include source and provider/model identity, and actual-output review remains mandatory regardless of these annotations.
+Before planning, optional batched source analysis describes visible subjects/actions and candidate roles from timestamped proxy frames and provisional ASR text. Sequential batches use at most 24 sampled frames per source, 20 sources, 12 MiB of media and 700 KiB of metadata. Oversized batches split before provider submission; every source is retained. Byte, duration, timeout and provider-call budgets still apply, and incomplete optional analysis remains recorded. Unknown or unsampled visuals stay uncertain. The model can annotate roles, ideas and dependencies; it cannot change source IDs, speech, timestamps or speaker identity. Metadata caches include source and provider/model identity, and actual-output review remains mandatory regardless of these annotations.
 
 Repairs reserve an attempt before provider/render work, save candidate versions, recheck local dependencies and the whole output, and retain the previous best on regressions. Cached analyses and rendered segments survive edits. Final assembly/caption reflow may re-encode the complete short; it does not re-run all source analysis. There is no generated speech, generative B-roll, voice cloning or automatic publishing.
 
@@ -35,7 +35,7 @@ Project derivatives use `work/<project-id>/`, `sources/<project-id>/` and `clips
 
 | Variable | Default |
 | --- | --- |
-| `STORY_MAX_FILES` | 20 |
+| `STORY_MAX_FILES` | Deprecated; product admission limit is 200 clips/project |
 | `STORY_MAX_FILE_BYTES` | 2 GiB |
 | `STORY_MAX_TOTAL_BYTES` | 10 GiB |
 | `STORY_MAX_SOURCE_SECONDS` | 900 |
@@ -62,7 +62,7 @@ Validated MP4/MOV SDR sources include H.264/HEVC, VFR, rotation and nonzero audi
 
 Original presentation time is canonical. Normalized proxy mappings are explicit, and video/audio source intervals are independent on the EDL. Crop falls back to stable full-frame fitting when tracking is unsafe. Whole-phrase editing is intentionally conservative; arbitrary syllable splicing and synthetic bridges are excluded. If no safe alternate exists, the edit returns a concrete recording/selection request.
 
-Uploads stream File objects without loading complete files into JavaScript memory. The existing storage transport supports whole-file retry, not resumable byte-range sessions. Successful source registrations persist on the server. Project deletion retains shared account uploads as described above; there is no silent expiry of originals or rollback versions.
+Uploads stream File objects without loading complete files into JavaScript memory. The queue accepts up to 200 clips per project (the user-requested product limit); existing larger projects remain usable; transfers remain bounded to two, temporary server backpressure follows Retry-After, failures remain independently retryable, and active transfers can be cancelled. Source pages render 24 items at a time and successful transfers release their object URLs. The existing storage transport supports whole-file retry, not resumable byte-range sessions. Successful source registrations persist on the server. Project deletion retains shared account uploads as described above; there is no silent expiry of originals or rollback versions.
 
 ## Verification and launch acceptance
 
@@ -81,3 +81,11 @@ Automated coverage is in `internal/story/*_test.go`, `internal/processing/story_
 Licensed recordings/excerpt preparation and their provenance are documented separately in `story-evaluation-sources.md`. Public interview excerpts can exercise real voices and imagery; they are not substitutes for a complete independently shot iPhone/Android creator dataset. Production deployment is a separate action and has not been performed by this implementation task.
 
 See [the verification record](story-builder-evaluation.md) for actual-provider results, corrected real-media defects, executed checks and remaining acceptance gates. The reproducible local runner is documented in [`backend/cmd/story-eval/README.md`](../backend/cmd/story-eval/README.md).
+
+Rendering assembles at most 16 decoded segments at once into lossless video and PCM audio chunks. Sequential concat manifests then feed the existing final caption/branding/music pass. Frame and sample counts use the global timeline clock, including timelines exceeding 100 entries. See `story_collection_media_test.go` for actual 125-entry export decoding and 125-source semantic batching.
+
+Current verification limitation: existing authenticated upload and asset registration endpoints still enforce 60 requests/hour (authorization 120/hour). Automatic approval review blocked both removing these counters and a finite 400/hour increase. An unapplied reviewable patch is in docs/patches/upload-request-throttle.patch. Queue retry uses the remaining Redis window via Retry-After without exhausting a retry-count budget; rapid end-to-end 80-clip API acceptance remains unverified until the reviewed rate-policy change is authorized and applied.
+
+The 200-clip limit applies atomically to new unique video additions, after retry and duplicate detection. A narration recording has its separate one-recording rule. Existing projects above 200 retain their complete assets, ordering and ability to generate/export; the integration test simulates a legacy 201-clip project and queues its complete manifest.
+
+Smoother flow replans complete known source moments (narration mode changes visuals while retaining the original recorded-voice schedule). Identical rebuilt timelines produce an explicit no-change outcome without a new render. Smoother transitions measures the previous actual output and applies a video-only 80 ms dip on each side of eligible unlocked cuts. Audio samples and duration remain unchanged; word-crossing, already-smoothed and locked joins are excluded. The actual-media test decodes changed boundary pixels and byte-identical audio. Explicitly requesting smoother transitions also softens eligible narration hard cuts while retaining the continuous voice. Existing versions remain available for comparison/rollback.

@@ -4,9 +4,11 @@ import (
 	"context"
 	"crypto/rand"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"sneepcut/backend-go/internal/agentaction"
+	"sneepcut/backend-go/internal/captions"
 	"sort"
 	"strings"
 )
@@ -59,6 +61,12 @@ func (r *Repository) update(ctx context.Context, userID string, input map[string
 	if hide, ok := fields["hidePlatformBadge"].(bool); ok && hide && plan != "agency" {
 		return out, ErrPlan
 	}
+	if style, ok := fields["captionStyle"].(*captions.Style); ok && !captions.IsBuiltin(style.FontID) {
+		var weight int
+		if e = tx.QueryRowContext(ctx, `SELECT weight FROM caption_fonts WHERE id=$1 AND user_id=$2`, style.FontID, userID).Scan(&weight); e != nil || weight != style.Weight {
+			return out, ErrInvalid
+		}
+	}
 	if guard != nil {
 		before, e := readAgentState(ctx, tx, userID, true)
 		if e != nil {
@@ -89,7 +97,15 @@ func (r *Repository) update(ctx context.Context, userID string, input map[string
 	sets := []string{"updated_at=now()"}
 	args := []any{userID}
 	for _, key := range keys {
-		args = append(args, fields[key])
+		value := fields[key]
+		if key == "captionStyle" && value != nil {
+			raw, err := json.Marshal(value)
+			if err != nil {
+				return out, err
+			}
+			value = string(raw)
+		}
+		args = append(args, value)
 		sets = append(sets, fmt.Sprintf("%s=$%d", columns[key], len(args)))
 	}
 	if _, e = tx.ExecContext(ctx, `UPDATE brand_kits SET `+strings.Join(sets, ",")+` WHERE user_id=$1`, args...); e != nil {

@@ -70,8 +70,8 @@ func evaluationPaths(input, output string) (string, string, []string, error) {
 		total += info.Size()
 		files = append(files, filepath.Join(input, entry.Name()))
 	}
-	if len(files) == 0 || len(files) > limits.MaxFiles || total > limits.MaxTotalBytes {
-		return "", "", nil, errors.New("input must contain 1..20 MP4/MOV files within the story upload limits")
+	if len(files) == 0 || total > limits.MaxTotalBytes {
+		return "", "", nil, errors.New("input must contain MP4/MOV files within the story size and duration limits")
 	}
 	sort.Strings(files)
 	manifestPath := filepath.Join(input, "manifest.json")

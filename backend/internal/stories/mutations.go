@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sneepcut/backend-go/internal/audiocleanup"
 	"sneepcut/backend-go/internal/story"
 	"sort"
 	"strings"
@@ -112,7 +113,7 @@ func (r *Repository) patchTx(ctx context.Context, tx *sql.Tx, user, id string, i
 		}
 		seen := map[string]bool{}
 		for _, a := range in.Assets {
-			if !idPattern.MatchString(a.ID) || seen[a.ID] || a.Order < 0 || a.Order >= r.limits.MaxFiles {
+			if !idPattern.MatchString(a.ID) || seen[a.ID] || a.Order < 0 || a.Order > 1000000 {
 				return ErrInvalid
 			}
 			seen[a.ID] = true
@@ -244,6 +245,9 @@ func (r *Repository) Queue(ctx context.Context, user, id string, in Generate) er
 	req.Options, err = story.NormalizeOptions(req.Options)
 	if err != nil {
 		return fmt.Errorf("%w: %s", ErrInvalid, err)
+	}
+	if err = audiocleanup.Check(req.Options.AudioCleanup); err != nil {
+		return err
 	}
 	if err = resolveStoryLogo(ctx, tx, &req); err != nil {
 		return err

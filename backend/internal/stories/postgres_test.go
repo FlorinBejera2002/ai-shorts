@@ -58,8 +58,8 @@ func version(id string, n int) story.Version {
 	return story.Version{Number: n, Accepted: true, Timeline: []story.Entry{{BlockID: "block", CandidateID: "candidate", OutputOut: 4, Video: story.Interval{SourceID: "source", Out: 4}, Crop: "fit", Transition: "cut"}}, Plan: story.Plan{Title: "Coherent source-backed story", Blocks: []story.Block{{ID: "block", CandidateID: "candidate", Crop: "fit"}}}, Output: story.Output{Key: fmt.Sprintf("clips/%s/story/v%d.mp4", id, n), Duration: 4, Size: 100, Resolution: "720x1280"}, Report: story.Report{Version: n, Status: "ready", Coverage: story.Coverage{Plan: true, File: true, Audio: true, Visual: true, Captions: true, Semantics: true, Boundaries: true}}}
 }
 
-func TestQueueFiveAndTenSourcesCreatesExactlyOneJobAndCharge(t *testing.T) {
-	for _, n := range []int{5, 10} {
+func TestQueueLargeCollectionsCreatesExactlyOneJobAndCharge(t *testing.T) {
+	for _, n := range []int{5, 10, 80, 125} {
 		t.Run(fmt.Sprint(n), func(t *testing.T) {
 			r, user, id, ids := fixture(t, n)
 			ctx := context.Background()
@@ -275,11 +275,14 @@ func TestRollbackRespectsLocksAndRetainsRejectedCandidates(t *testing.T) {
 	if err := r.Patch(ctx, user, id, Patch{Version: 2, Locks: []Lock{}}); err != nil {
 		t.Fatal(err)
 	}
+	if _, err := r.db.Exec("UPDATE story_projects SET request=request || '{\"outcome\":\"failed\"}'::jsonb WHERE id=$1", id); err != nil {
+		t.Fatal(err)
+	}
 	if err := r.Rollback(ctx, user, id, 1, newID()); err != nil {
 		t.Fatal(err)
 	}
 	p, _ := r.Get(ctx, user, id)
-	if p.CurrentVersion != 1 || len(p.Versions) != 3 {
+	if p.CurrentVersion != 1 || len(p.Versions) != 3 || p.OperationStatus != "" {
 		t.Fatal("history lost")
 	}
 }

@@ -38,17 +38,18 @@ func newID() string {
 func encoded(v any) string { b, _ := json.Marshal(v); return string(b) }
 
 type Project struct {
-	ID             string          `json:"id"`
-	Options        story.Options   `json:"options"`
-	Status         string          `json:"status"`
-	Message        string          `json:"message"`
-	CurrentVersion int             `json:"current_version"`
-	Assets         []story.Asset   `json:"assets"`
-	Versions       []story.Version `json:"versions"`
-	Attempts       []story.Attempt `json:"attempts"`
-	Limits         story.Limits    `json:"limits"`
-	AICalls        int             `json:"ai_calls"`
-	Metrics        json.RawMessage `json:"metrics"`
+	ID              string          `json:"id"`
+	Options         story.Options   `json:"options"`
+	Status          string          `json:"status"`
+	OperationStatus string          `json:"operation_status,omitempty"`
+	Message         string          `json:"message"`
+	CurrentVersion  int             `json:"current_version"`
+	Assets          []story.Asset   `json:"assets"`
+	Versions        []story.Version `json:"versions"`
+	Attempts        []story.Attempt `json:"attempts"`
+	Limits          story.Limits    `json:"limits"`
+	AICalls         int             `json:"ai_calls"`
+	Metrics         json.RawMessage `json:"metrics"`
 }
 
 func (r *Repository) Create(ctx context.Context, user, id string, options story.Options) error {
@@ -73,17 +74,25 @@ func (r *Repository) Create(ctx context.Context, user, id string, options story.
 	return nil
 }
 
+type projectReader interface {
+	stateReader
+	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
+}
+
 func (r *Repository) Get(ctx context.Context, user, id string) (Project, error) {
-	p := Project{Assets: []story.Asset{}, Versions: []story.Version{}, Attempts: []story.Attempt{}, Limits: r.limits}
+	return readProject(ctx, r.db, r.limits, user, id)
+}
+func readProject(ctx context.Context, q projectReader, limits story.Limits, user, id string) (Project, error) {
+	p := Project{Assets: []story.Asset{}, Versions: []story.Version{}, Attempts: []story.Attempt{}, Limits: limits}
 	var options []byte
-	err := r.db.QueryRowContext(ctx, `SELECT id,options,status,message,current_version,ai_calls,stage_metrics FROM story_projects WHERE id=$1 AND user_id=$2`, id, user).Scan(&p.ID, &options, &p.Status, &p.Message, &p.CurrentVersion, &p.AICalls, &p.Metrics)
+	err := q.QueryRowContext(ctx, `SELECT id,options,status,message,current_version,ai_calls,stage_metrics,coalesce(request->>'outcome','') FROM story_projects WHERE id=$1 AND user_id=$2`, id, user).Scan(&p.ID, &options, &p.Status, &p.Message, &p.CurrentVersion, &p.AICalls, &p.Metrics, &p.OperationStatus)
 	if err != nil {
 		return p, err
 	}
 	if err = json.Unmarshal(options, &p.Options); err != nil {
 		return p, err
 	}
-	rows, err := r.db.QueryContext(ctx, `SELECT asset FROM story_assets WHERE project_id=$1 ORDER BY (asset->>'order')::int,id`, id)
+	rows, err := q.QueryContext(ctx, `SELECT asset FROM story_assets WHERE project_id=$1 ORDER BY (asset->>'order')::int,id`, id)
 	if err != nil {
 		return p, err
 	}
@@ -104,7 +113,7 @@ func (r *Repository) Get(ctx context.Context, user, id string) (Project, error) 
 	if err != nil {
 		return p, err
 	}
-	rows, err = r.db.QueryContext(ctx, `SELECT version FROM story_versions WHERE project_id=$1 ORDER BY number`, id)
+	rows, err = q.QueryContext(ctx, `SELECT version FROM story_versions WHERE project_id=$1 ORDER BY number`, id)
 	if err != nil {
 		return p, err
 	}
@@ -125,7 +134,7 @@ func (r *Repository) Get(ctx context.Context, user, id string) (Project, error) 
 	if err != nil {
 		return p, err
 	}
-	rows, err = r.db.QueryContext(ctx, `SELECT attempt FROM story_attempts WHERE project_id=$1 ORDER BY created_at`, id)
+	rows, err = q.QueryContext(ctx, `SELECT attempt FROM story_attempts WHERE project_id=$1 ORDER BY created_at`, id)
 	if err != nil {
 		return p, err
 	}
@@ -277,6 +286,9 @@ func (r *Repository) AddOrReplaceAsset(ctx context.Context, user, id string, a s
 	}
 	if duplicate != nil {
 		return *duplicate, tx.Commit()
+	}
+	if a.Kind != "narration" && videoCount >= r.limits.MaxFiles {
+		return a, fmt.Errorf("%w: a project supports up to %d clips; remove a clip or start another project", ErrInvalid, r.limits.MaxFiles)
 	}
 	if a.Order < 0 {
 		a.Order = videoCount

@@ -11,6 +11,19 @@ import (
 // infer silence from an empty transcript: it can also mean unrecognized speech.
 func blockSourceInterval(block Block, candidate Candidate, source Asset) (Interval, error) {
 	interval := Interval{SourceID: candidate.SourceID, In: candidate.In, Out: candidate.Out}
+	if block.Pace != nil {
+		trim := *block.Pace
+		if block.Visual != nil || block.BRollID != "" || !source.HasAudio || len(candidate.Words) == 0 || candidate.Confidence < .55 ||
+			trim.SourceID != candidate.SourceID || !finite(trim.In) || !finite(trim.Out) || trim.In < candidate.In || trim.Out > candidate.Out || trim.Out <= trim.In || trim.In-candidate.In > 2.000001 || candidate.Out-trim.Out > 2.000001 {
+			return Interval{}, fmt.Errorf("pace trim must preserve a verified spoken source interval")
+		}
+		for _, word := range candidate.Words {
+			if word.Start < trim.In || word.End > trim.Out {
+				return Interval{}, fmt.Errorf("pace trim cannot remove spoken words")
+			}
+		}
+		return trim, nil
+	}
 	if block.Visual == nil {
 		return interval, nil
 	}
@@ -165,5 +178,5 @@ func nearestBeatDistance(beats []float64, boundary float64) float64 {
 }
 
 func sameBlockIntervals(a, b Block) bool {
-	return reflect.DeepEqual(a.Visual, b.Visual) && reflect.DeepEqual(a.Narration, b.Narration)
+	return reflect.DeepEqual(a.Visual, b.Visual) && reflect.DeepEqual(a.Narration, b.Narration) && reflect.DeepEqual(a.Pace, b.Pace)
 }

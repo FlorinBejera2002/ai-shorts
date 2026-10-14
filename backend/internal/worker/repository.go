@@ -52,7 +52,7 @@ func (r *Repository) Claim(ctx context.Context) (*Job, error) {
 	}
 	var kit []byte
 	var plan string
-	err = tx.QueryRowContext(ctx, `SELECT u.plan,coalesce((SELECT row_to_json(b) FROM brand_kits b WHERE b.user_id=u.id LIMIT 1),'{}'::json) FROM users u WHERE u.id=$1`, j.UserID).Scan(&plan, &kit)
+	err = tx.QueryRowContext(ctx, `SELECT u.plan,coalesce((SELECT brand_snapshot FROM jobs WHERE id=$2),(SELECT to_jsonb(b) FROM brand_kits b WHERE b.user_id=u.id LIMIT 1),'{}'::jsonb) FROM users u WHERE u.id=$1`, j.UserID, j.ID).Scan(&plan, &kit)
 	if err != nil {
 		return nil, err
 	}

@@ -283,9 +283,14 @@ func (h *Handler) deleteLogo(w http.ResponseWriter, r *http.Request) {
 			mediaError(w, e)
 			return
 		}
-		if e = h.service.Storage.Delete(r.Context(), key); e != nil {
-			mediaError(w, e)
-			return
+		// Detach supported logos without deleting bytes referenced by saved job
+		// and story snapshots. Account cleanup removes retained owner assets.
+		// Legacy SVG is unsupported for rendering and remains removable.
+		if strings.EqualFold(path.Ext(key), ".svg") {
+			if e = h.service.Storage.Delete(r.Context(), key); e != nil {
+				mediaError(w, e)
+				return
+			}
 		}
 	} else if !browser {
 		mediaError(w, failure(400, "logo_path is required"))

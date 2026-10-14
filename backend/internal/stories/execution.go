@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sneepcut/backend-go/internal/audiocleanup"
 	"sneepcut/backend-go/internal/story"
 	"strings"
 )
@@ -282,13 +283,20 @@ func (e *execution) finish(ctx context.Context, result story.Result, runErr erro
 	}
 	message := "Story is ready"
 	jobStatus := "completed"
+	outcome := "succeeded"
 	if status == "cancelled" || deleting || cancelled {
+		outcome = "cancelled"
 		status = "cancelled"
 		message = "Cancelled; previous versions retained"
 		jobStatus = "cancelled"
 	} else if runErr != nil {
+		outcome = "failed"
 		status = "failed"
 		message = "Story processing could not finish. Retry retains uploaded clips and saved versions."
+		var cleanupFailure *audiocleanup.Failure
+		if errors.As(runErr, &cleanupFailure) {
+			message = cleanupFailure.Message
+		}
 		var clarification *story.ClarificationError
 		if errors.As(runErr, &clarification) && current == 0 {
 			message = "Clarification needed: " + clarification.Question
@@ -318,6 +326,15 @@ func (e *execution) finish(ctx context.Context, result story.Result, runErr erro
 			message = "Draft saved; review the reported issues before using it"
 		}
 	}
+	var noChange *story.NoChangeError
+	if outcome != "cancelled" && current > 0 && errors.As(runErr, &noChange) {
+		outcome = "unchanged"
+		message = noChange.Message
+	}
+	var cleanupFailure *audiocleanup.Failure
+	if errors.As(runErr, &cleanupFailure) {
+		message = cleanupFailure.Message
+	}
 	if current == 0 && (jobStatus == "failed" || jobStatus == "cancelled") && charge > 0 {
 		if _, err = tx.ExecContext(ctx, `UPDATE users SET credits=credits+$2 WHERE id=$1`, e.UserID, charge); err != nil {
 			return err
@@ -327,7 +344,7 @@ func (e *execution) finish(ctx context.Context, result story.Result, runErr erro
 	if err = trackStage(ctx, tx, e.ID, status); err != nil {
 		return err
 	}
-	if _, err = tx.ExecContext(ctx, `UPDATE story_projects SET status=$2,message=$3,lease_token=NULL,lease_until=NULL,updated_at=now() WHERE id=$1`, e.ID, status, message); err != nil {
+	if _, err = tx.ExecContext(ctx, `UPDATE story_projects SET status=$2,message=$3,request=coalesce(request,'{}'::jsonb) || jsonb_build_object('outcome',$4::text),lease_token=NULL,lease_until=NULL,updated_at=now() WHERE id=$1`, e.ID, status, message, outcome); err != nil {
 		return err
 	}
 	progress := 0
@@ -405,12 +422,15 @@ func (r *Repository) Recover(ctx context.Context) error {
 			return err
 		}
 		jobStatus := "pending"
+		outcome := ""
 		message := "Resuming saved source analyses"
 		if deleting || cancelled || status == "cancelled" {
+			outcome = "cancelled"
 			status = "cancelled"
 			jobStatus = "cancelled"
 			message = "Cancelled"
 		} else if count >= 3 {
+			outcome = "failed"
 			status = "failed"
 			jobStatus = "failed"
 			message = "Repeated worker interruptions; retry available"
@@ -421,6 +441,7 @@ func (r *Repository) Recover(ctx context.Context) error {
 		} else {
 			status = "pending"
 		}
+
 		if current == 0 && (jobStatus == "failed" || jobStatus == "cancelled") && charge > 0 {
 			if _, err = tx.ExecContext(ctx, `UPDATE users SET credits=credits+$2 WHERE id=$1`, user, charge); err != nil {
 				return err
@@ -430,7 +451,7 @@ func (r *Repository) Recover(ctx context.Context) error {
 		if err = trackStage(ctx, tx, id, status); err != nil {
 			return err
 		}
-		if _, err = tx.ExecContext(ctx, `UPDATE story_projects SET status=$2,message=$3,lease_token=NULL,lease_until=NULL,updated_at=now() WHERE id=$1`, id, status, message); err != nil {
+		if _, err = tx.ExecContext(ctx, `UPDATE story_projects SET status=$2,message=$3,request=coalesce(request,'{}'::jsonb) || jsonb_build_object('outcome',$4::text),lease_token=NULL,lease_until=NULL,updated_at=now() WHERE id=$1`, id, status, message, outcome); err != nil {
 			return err
 		}
 		if _, err = tx.ExecContext(ctx, `UPDATE jobs SET status=$2,processing_active=false,credits_charged=$3,progress_message=$4,updated_at=now() WHERE id=$1`, id, jobStatus, charge, message); err != nil {

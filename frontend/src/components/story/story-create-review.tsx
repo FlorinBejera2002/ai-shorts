@@ -10,11 +10,11 @@ interface Props {
   options: StoryOptions
   videos: StoryAsset[]
   narration?: StoryAsset
-  confirmed: boolean
+
   ready: boolean
   busy: boolean
   pendingCount: number
-  onConfirm: (confirmed: boolean) => void
+
   onEdit: (step: StoryStep) => void
   onCreate: () => void
 }
@@ -23,11 +23,11 @@ export function StoryCreateReview({
   options,
   videos,
   narration,
-  confirmed,
+
   ready,
   busy,
   pendingCount,
-  onConfirm,
+
   onEdit,
   onCreate
 }: Props) {
@@ -58,21 +58,26 @@ export function StoryCreateReview({
           {text('Edit clips', 'Schimbă filmările')}
         </Button>
       </div>
-      <ol className="divide-y text-sm">
-        {included.map((asset) => (
-          <li
-            key={asset.id}
-            className="flex min-w-0 items-center justify-between gap-4 py-2"
-          >
-            <span className="truncate" title={asset.name}>
-              {asset.name}
-            </span>
-            <span className="shrink-0 tabular-nums text-muted-foreground">
-              {formatDuration(asset.duration)}
-            </span>
-          </li>
-        ))}
-      </ol>
+      <details>
+        <summary className="cursor-pointer text-sm text-muted-foreground">
+          {text('View selected clips', 'Vezi filmările selectate')}
+        </summary>
+        <ol className="max-h-60 divide-y overflow-y-auto text-sm">
+          {included.map((asset) => (
+            <li
+              key={asset.id}
+              className="flex min-w-0 items-center justify-between gap-4 py-2"
+            >
+              <span className="truncate" title={asset.name}>
+                {asset.name}
+              </span>
+              <span className="shrink-0 tabular-nums text-muted-foreground">
+                {formatDuration(asset.duration)}
+              </span>
+            </li>
+          ))}
+        </ol>
+      </details>
       {(!included.length || pendingCount > 0) && (
         <p role="status" className="text-sm text-muted-foreground">
           {pendingCount > 0
@@ -128,38 +133,20 @@ export function StoryCreateReview({
           variant="ghost"
           size="sm"
           disabled={busy}
-          onClick={() => onEdit(2)}
+          onClick={() => onEdit(1)}
         >
           <Pencil />
           {text('Edit options', 'Schimbă opțiunile')}
         </Button>
       </div>
       <div className="space-y-4 border-t pt-5">
-        <label className="flex items-start gap-3 text-sm leading-relaxed">
-          <input
-            type="checkbox"
-            className="mt-1 accent-foreground"
-            checked={confirmed}
-            disabled={!ready || busy}
-            onChange={(event) => onConfirm(event.target.checked)}
-          />
-          {options.narration
-            ? text(
-                'My narration and all my clips are saved. Use this complete set.',
-                'Narațiunea și toate filmările sunt salvate. Folosește acest set complet.'
-              )
-            : text(
-                'All my clips are uploaded. Use this complete set.',
-                'Am încărcat toate filmările. Folosește acest set complet.'
-              )}
-        </label>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <span className="text-sm text-muted-foreground">
             {text('10 credits · charged once', '10 credite · o singură plată')}
           </span>
           <Button
             className="w-full sm:w-auto"
-            disabled={!confirmed || !ready || busy}
+            disabled={!ready || busy}
             onClick={onCreate}
           >
             {busy

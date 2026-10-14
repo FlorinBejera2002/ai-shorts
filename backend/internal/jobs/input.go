@@ -5,19 +5,21 @@ import (
 	"errors"
 	"net"
 	"net/url"
+	"sneepcut/backend-go/internal/audiocleanup"
 	"strings"
 	"unicode/utf8"
 )
 
 type Options struct {
-	NumClips         int     `json:"num_clips_requested"`
-	AspectRatio      string  `json:"aspect_ratio"`
-	Language         *string `json:"language"`
-	SubtitleStyle    string  `json:"subtitle_style"`
-	IncludeBrand     bool    `json:"include_brand"`
-	BurnSubtitles    bool    `json:"burn_subtitles"`
-	SmartCrop        bool    `json:"smart_crop"`
-	UserInstructions *string `json:"user_instructions"`
+	AudioCleanup     *audiocleanup.Settings `json:"audio_cleanup,omitempty"`
+	NumClips         int                    `json:"num_clips_requested"`
+	AspectRatio      string                 `json:"aspect_ratio"`
+	Language         *string                `json:"language"`
+	SubtitleStyle    string                 `json:"subtitle_style"`
+	IncludeBrand     bool                   `json:"include_brand"`
+	BurnSubtitles    bool                   `json:"burn_subtitles"`
+	SmartCrop        bool                   `json:"smart_crop"`
+	UserInstructions *string                `json:"user_instructions"`
 }
 
 type CreateInput struct {

@@ -184,6 +184,30 @@ func storySelectedCaptionPhrases(request story.Request, version story.Version) [
 }
 
 func (p *Processor) storyAudibility(ctx context.Context, dir string, request story.Request, phrases []storyCaptionPhrase) (map[string]storyAudibilityFinding, error) {
+	result := map[string]storyAudibilityFinding{}
+	for start := 0; start < len(phrases); {
+		end, duration := start, 0.0
+		for end < len(phrases) && end-start < 64 {
+			seconds := phrases[end].Out - phrases[end].In
+			if end > start && duration+seconds > 600 {
+				break
+			}
+			duration += seconds
+			end++
+		}
+		findings, err := p.storyAudibilityBatch(ctx, dir, request, phrases[start:end])
+		if err != nil {
+			return nil, err
+		}
+		for id, finding := range findings {
+			result[id] = finding
+		}
+		start = end
+	}
+	return result, nil
+}
+
+func (p *Processor) storyAudibilityBatch(ctx context.Context, dir string, request story.Request, phrases []storyCaptionPhrase) (map[string]storyAudibilityFinding, error) {
 	generator, err := aiprovider.ForTask(ctx, p.ai, aiprovider.TaskSpeechReview)
 	if err != nil {
 		return nil, err
@@ -212,9 +236,6 @@ func (p *Processor) storyAudibility(ctx context.Context, dir string, request sto
 				return findings, nil
 			}
 		}
-	}
-	if len(phrases) > 100 {
-		return nil, errors.New("too many speech phrases for audio review")
 	}
 	var parts []aiprovider.MediaPart
 	totalSeconds := 0.0

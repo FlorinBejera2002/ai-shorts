@@ -7,7 +7,7 @@ import { AlertCircle } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 import { CaptionsSection } from './captions-section'
-import { ColorsSection } from './colors-section'
+import { Card } from '@/components/ui/card'
 import { LogoSection } from './logo-section'
 import { PreviewPanel } from './preview-panel'
 import { SaveBar } from './save-bar'
@@ -53,7 +53,7 @@ export default function BrandPage() {
   }
 
   return (
-    <div className="brand-workspace dashboard-workspace animate-fade-in">
+    <div className="brand-workspace dashboard-workspace animate-fade-in [--primary:var(--foreground)] [--primary-foreground:var(--background)] [--accent:var(--muted)]">
       <PageHeader title={t('title')} description={t('desc')} />
 
       <SaveBar
@@ -67,36 +67,29 @@ export default function BrandPage() {
         onSave={brand.save}
       />
 
-      <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_272px]">
-        <main className="@container grid min-w-0 gap-4">
-          <div className="grid gap-4 @min-[800px]:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
+      <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
+        <main className="@container order-2 grid min-w-0 gap-4 xl:order-1">
+          <Card as="section" className="gap-4 p-4">
+            <h2 className="text-sm font-semibold">{t('logoWatermark')}</h2>
             <LogoSection
               logoUrl={brand.logoPreviewUrl}
-              fontFamily={brand.kit.fontFamily}
-              fontEnabled={brand.kit.applyBrandFont}
               busy={brand.logoBusy || brand.saving}
-              onFontChange={(font) => brand.update('fontFamily', font)}
-              onFontEnabledChange={(enabled) =>
-                brand.update('applyBrandFont', enabled)
-              }
               onUpload={brand.uploadLogo}
               onRemove={brand.removeLogo}
             />
-            <ColorsSection kit={brand.kit} update={brand.update} />
-          </div>
-          <div className="grid gap-4 @min-[800px]:grid-cols-2">
-            <CaptionsSection kit={brand.kit} update={brand.update} />
             <WatermarkSection
               kit={brand.kit}
               canWhiteLabel={brand.canWhiteLabel}
               update={brand.update}
             />
-          </div>
+          </Card>
+          <CaptionsSection kit={brand.kit} update={brand.update} />
         </main>
         <PreviewPanel
           kit={brand.kit}
           logoUrl={brand.logoPreviewUrl}
           canWhiteLabel={brand.canWhiteLabel}
+          update={brand.update}
         />
       </div>
     </div>

@@ -21,11 +21,13 @@ import {
 } from '@/lib/platform-formats'
 import { Languages, Sparkles } from 'lucide-react'
 import { useTranslations } from 'next-intl'
+import { useAudioCleanupAvailability } from '@/hooks/use-audio-cleanup-availability'
 
 export type AspectRatio = VideoAspectRatio
 export type SubtitleStyle = 'clean' | 'bold' | 'caption-box' | 'none'
 
 export interface CreateSettings {
+  reduceBackgroundNoise?: boolean
   clips: number
   aspectRatio: AspectRatio
   subtitleStyle: SubtitleStyle
@@ -76,6 +78,8 @@ interface SettingsPanelProps {
 
 export function SettingsPanel({ settings, onChange }: SettingsPanelProps) {
   const t = useTranslations('create')
+  const audio = useTranslations('audioCleanup')
+  const cleanup = useAudioCleanupAvailability()
 
   return (
     <Card className="creation-settings block gap-0 py-0 overflow-hidden">
@@ -144,7 +148,10 @@ export function SettingsPanel({ settings, onChange }: SettingsPanelProps) {
                     </span>
                   )}
                 </span>
-                <span className="flex items-center gap-1.5" aria-label={t('compatibleWith')}>
+                <span
+                  className="flex items-center gap-1.5"
+                  aria-label={t('compatibleWith')}
+                >
                   {SOCIAL_PLATFORMS.map((platform) => {
                     const status = format.compatibility[platform]
                     return (
@@ -157,7 +164,10 @@ export function SettingsPanel({ settings, onChange }: SettingsPanelProps) {
                         }`}
                         title={`${platform}: ${t(`compatibility.${status}`)}`}
                       >
-                        <PlatformBrandIcon className="size-5" provider={platform} />
+                        <PlatformBrandIcon
+                          className="size-5"
+                          provider={platform}
+                        />
                         {status === 'recommended' && (
                           <span className="absolute -right-0.5 -top-0.5 size-1.5 rounded-full bg-success ring-1 ring-background" />
                         )}
@@ -227,6 +237,36 @@ export function SettingsPanel({ settings, onChange }: SettingsPanelProps) {
         </div>
       </section>
 
+      <section className="space-y-2 border-t p-4">
+        <div className="flex items-center justify-between gap-3">
+          <Label htmlFor="create-noise-reduction">{audio('title')}</Label>
+          <Switch
+            className="data-[state=checked]:bg-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            id="create-noise-reduction"
+            aria-describedby="create-noise-availability"
+            disabled={!cleanup.available && !settings.reduceBackgroundNoise}
+            checked={settings.reduceBackgroundNoise ?? false}
+            onCheckedChange={(reduceBackgroundNoise) => {
+              if (!reduceBackgroundNoise || cleanup.available)
+                onChange({ ...settings, reduceBackgroundNoise })
+            }}
+          />
+        </div>
+        <p
+          id="create-noise-availability"
+          className="text-xs text-muted-foreground"
+        >
+          {cleanup.available
+            ? audio('help')
+            : audio(
+                cleanup.loading
+                  ? 'checkingAvailability'
+                  : settings.reduceBackgroundNoise
+                    ? 'unavailableSelected'
+                    : 'unavailableOption'
+              )}
+        </p>
+      </section>
       <BrandKitSelector
         enabled={settings.includeBrand}
         onChange={(includeBrand) => onChange({ ...settings, includeBrand })}

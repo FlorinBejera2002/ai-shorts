@@ -1,4 +1,8 @@
+import type { CaptionStyle } from '@/components/dashboard/brand/caption-style'
 export interface StoryOptions {
+  caption_style?: CaptionStyle
+  use_brand_kit?: boolean
+  audio_cleanup?: { enabled: boolean }
   brief: string
   target_seconds: number
   aspect_ratio: string
@@ -64,6 +68,11 @@ export function storyCaptionMode(options: StoryOptions) {
 /** Compare effective choices across legacy and normalized API responses. */
 export function storyOptionsEqual(current: StoryOptions, saved: StoryOptions) {
   return (
+    JSON.stringify(current.caption_style) ===
+      JSON.stringify(saved.caption_style) &&
+    Boolean(current.use_brand_kit) === Boolean(saved.use_brand_kit) &&
+    Boolean(current.audio_cleanup?.enabled) ===
+      Boolean(saved.audio_cleanup?.enabled) &&
     current.brief === saved.brief &&
     current.target_seconds === saved.target_seconds &&
     current.aspect_ratio === saved.aspect_ratio &&
@@ -105,6 +114,11 @@ export interface StoryCandidate {
 }
 
 export interface StoryAsset {
+  processed_audio_url?: string
+  audio_cleanup?: {
+    status: 'ready' | 'failed' | 'unchanged' | 'no_audio'
+    message?: string
+  }
   id: string
   name: string
   size: number
@@ -150,7 +164,12 @@ export interface StoryVersion {
   accepted: boolean
   preview_url?: string
   thumbnail_url?: string
-  output?: { music?: StoryMusicOutput }
+  render_options?: StoryOptions
+  output?: {
+    duration?: number
+    music?: StoryMusicOutput
+    caption_warnings?: string[]
+  }
   plan: {
     title: string
     summary: string
@@ -183,6 +202,8 @@ export interface StoryVersion {
 }
 
 export interface StoryProject {
+  operation_status?: 'succeeded' | 'failed' | 'unchanged' | 'cancelled'
+  expected_state?: string
   id: string
   options: StoryOptions
   status: string
@@ -209,7 +230,7 @@ export interface StoryProject {
 }
 
 export const defaultLimits: StoryProject['limits'] = {
-  max_files: 20,
+  max_files: 200, // Compatibility field; storage and duration limits protect resources.
   max_file_bytes: 2 * 1024 ** 3,
   max_total_bytes: 10 * 1024 ** 3,
   max_source_seconds: 900,

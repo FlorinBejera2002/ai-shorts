@@ -5,6 +5,7 @@ import (
 	"math"
 	"regexp"
 	"slices"
+	"sneepcut/backend-go/internal/captions"
 	"strings"
 )
 
@@ -13,7 +14,7 @@ var ErrPlan = errors.New("Removing the platform badge requires an Agency plan")
 var ErrInactive = errors.New("Account is unavailable")
 var colorPattern = regexp.MustCompile(`^#[0-9a-fA-F]{6}$`)
 var fontPattern = regexp.MustCompile(`^[A-Za-z0-9 -]+$`)
-var columns = map[string]string{"primaryColor": "primary_color", "secondaryColor": "secondary_color", "fontFamily": "font_family", "applyBrandColors": "apply_brand_colors", "applyBrandFont": "apply_brand_font", "subtitleFont": "subtitle_font", "subtitleColor": "subtitle_color", "subtitleBgColor": "subtitle_bg_color", "subtitleBgOpacity": "subtitle_bg_opacity", "subtitlePosition": "subtitle_position", "watermarkPosition": "watermark_position", "watermarkOpacity": "watermark_opacity", "hidePlatformBadge": "hide_platform_badge"}
+var columns = map[string]string{"captionStyle": "caption_style", "watermarkEnabled": "watermark_enabled", "watermarkSize": "watermark_size", "watermarkMargin": "watermark_margin", "primaryColor": "primary_color", "secondaryColor": "secondary_color", "fontFamily": "font_family", "applyBrandColors": "apply_brand_colors", "applyBrandFont": "apply_brand_font", "subtitleFont": "subtitle_font", "subtitleColor": "subtitle_color", "subtitleBgColor": "subtitle_bg_color", "subtitleBgOpacity": "subtitle_bg_opacity", "subtitlePosition": "subtitle_position", "watermarkPosition": "watermark_position", "watermarkOpacity": "watermark_opacity", "hidePlatformBadge": "hide_platform_badge"}
 
 func Validate(input map[string]any) (map[string]any, error) {
 	if len(input) == 0 {
@@ -25,6 +26,26 @@ func Validate(input map[string]any) (map[string]any, error) {
 			return nil, ErrInvalid
 		}
 		switch {
+		case key == "captionStyle":
+			if value == nil {
+				output[key] = nil
+				continue
+			}
+			style, err := captions.Decode(value)
+			if err != nil {
+				return nil, ErrInvalid
+			}
+			output[key] = style
+		case key == "watermarkSize" || key == "watermarkMargin":
+			number, ok := value.(float64)
+			upper := .5
+			if key == "watermarkMargin" {
+				upper = .2
+			}
+			if !ok || math.IsNaN(number) || math.IsInf(number, 0) || number < 0 || number > upper {
+				return nil, ErrInvalid
+			}
+			output[key] = number
 		case strings.HasSuffix(key, "Color"):
 			text, ok := value.(string)
 			if !ok || !colorPattern.MatchString(text) {
@@ -55,7 +76,7 @@ func Validate(input map[string]any) (map[string]any, error) {
 				return nil, ErrInvalid
 			}
 			output[key] = number
-		case key == "hidePlatformBadge" || key == "applyBrandColors" || key == "applyBrandFont":
+		case key == "watermarkEnabled" || key == "hidePlatformBadge" || key == "applyBrandColors" || key == "applyBrandFont":
 			flag, ok := value.(bool)
 			if !ok {
 				return nil, ErrInvalid

@@ -54,7 +54,7 @@ func TestCleanupCoversStableLegacyAndUnlinkedNamespaces(t *testing.T) {
 	if e != nil || !result.Complete {
 		t.Fatalf("%+v %v", result, e)
 	}
-	for _, prefix := range []string{"uploads/" + testUserID + "/", "brand/" + testUserID + "/", "sources/" + testUserID + "/", "clips/" + testUserID + "/", "work/" + testUserID + "/", testUserID + "/clips/"} {
+	for _, prefix := range []string{"fonts/" + testUserID + "/", "uploads/" + testUserID + "/", "brand/" + testUserID + "/", "sources/" + testUserID + "/", "clips/" + testUserID + "/", "work/" + testUserID + "/", testUserID + "/clips/"} {
 		if !slices.Contains(storage.prefixes, prefix) {
 			t.Fatalf("missing prefix %s", prefix)
 		}

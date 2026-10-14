@@ -17,6 +17,7 @@ import {
 import { Button } from '@/components/ui/button'
 import type { StoryProject } from './types'
 import { useStoryLanguage } from './use-story-language'
+import { storyProblem } from './story-error'
 import './story-processing.css'
 
 const checkpointKeys = [
@@ -64,10 +65,6 @@ function checkpointState(
 export function StoryProcessing({ project, active, busy, onCancel }: Props) {
   const text = useStoryLanguage()
   const phase = displayPhase(project)
-  const message =
-    phase === 'pending' && project.message?.trim().toLowerCase() === 'queued'
-      ? ''
-      : (project.message ?? '')
   const copy: Record<string, { label: string; detail: string; icon: LucideIcon }> = {
     pending: {
       label: text('Queued', 'În așteptare'),
@@ -214,7 +211,7 @@ export function StoryProcessing({ project, active, busy, onCancel }: Props) {
       countLabel={countLabel}
       stage={{ key: phase, ...focus }}
       stageLabel={stageLabel}
-      message={message}
+      message=""
       running={running}
       tone={tone}
       progress={
@@ -237,7 +234,7 @@ export function StoryProcessing({ project, active, busy, onCancel }: Props) {
         <div className="job-processing-result story-processing-actions">
           {project.error && (
             <p role="alert" className="break-words text-sm text-destructive">
-              {project.error}
+              {storyProblem(project.error, text)}
             </p>
           )}
           {active && (

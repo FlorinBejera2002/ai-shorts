@@ -1,0 +1,184 @@
+diff --git a/backend/internal/media/service.go b/backend/internal/media/service.go
+--- a/backend/internal/media/service.go
++++ b/backend/internal/media/service.go
+@@ -9,6 +9,7 @@ import (
+ 	"net/http"
+ 	"os"
+ 	"path"
++	"sneepcut/backend-go/internal/worklimit"
+ 	"strings"
+ 	"time"
+ )
+@@ -17,14 +18,19 @@ type Config struct {
+ 	LocalRoot, PublicBaseURL, AppURL, SigningSecret, UploadSecret, DirectUploadURL, StagingDirectory string
+ 	MaxUploadBytes                                                                                   int64
+ }
++
++// UploadRequestsPerHour permits200clips plus one retry per file; shared hourly protection remains.
++const UploadRequestsPerHour = 400
++
+ type Service struct {
+-	cfg     Config
+-	db      *sql.DB
+-	Storage Storage
+-	nonce   NonceStore
+-	scanner Scanner
+-	now     func() time.Time
+-	probe   func(context.Context, string) (publishingProbe, error)
++	transfers *worklimit.Gate
++	cfg       Config
++	db        *sql.DB
++	Storage   Storage
++	nonce     NonceStore
++	scanner   Scanner
++	now       func() time.Time
++	probe     func(context.Context, string) (publishingProbe, error)
+ }
+ 
+ func NewService(cfg Config, db *sql.DB, storage Storage, nonce NonceStore, scanner Scanner) *Service {
+@@ -34,7 +40,7 @@ func NewService(cfg Config, db *sql.DB, storage Storage, nonce NonceStore, scann
+ 	if cfg.DirectUploadURL == "" {
+ 		cfg.DirectUploadURL = "/api/upload/direct"
+ 	}
+-	return &Service{cfg: cfg, db: db, Storage: storage, nonce: nonce, scanner: scanner, now: time.Now}
++	return &Service{transfers: worklimit.New(8, 2), cfg: cfg, db: db, Storage: storage, nonce: nonce, scanner: scanner, now: time.Now}
+ }
+ 
+ type HTTPError struct {
+
+diff --git a/backend/internal/media/handler.go b/backend/internal/media/handler.go
+--- a/backend/internal/media/handler.go
++++ b/backend/internal/media/handler.go
+@@ -130,7 +130,7 @@ func (h *Handler) verifyRequest(w http.ResponseWriter, r *http.Request) {
+ }
+ func (h *Handler) authorize(w http.ResponseWriter, r *http.Request) {
+ 	user := identity.Current(r).User
+-	if e := h.service.allow(r.Context(), user.ID, "authorize", 120); e != nil {
++	if e := h.service.allow(r.Context(), user.ID, "authorize", UploadRequestsPerHour); e != nil {
+ 		mediaError(w, e)
+ 		return
+ 	}
+@@ -180,7 +180,13 @@ func (h *Handler) uploadDirect(w http.ResponseWriter, r *http.Request) {
+ 		mediaError(w, e)
+ 		return
+ 	}
+-	if e = h.service.allow(r.Context(), claims.UserID, "upload", 60); e != nil {
++	release, available := h.service.transfers.Acquire(claims.UserID)
++	if !available {
++		uploadBusy(w)
++		return
++	}
++	defer release()
++	if e = h.service.allow(r.Context(), claims.UserID, "upload", UploadRequestsPerHour); e != nil {
+ 		mediaError(w, e)
+ 		return
+ 	}
+@@ -232,7 +238,13 @@ func firstFile(w http.ResponseWriter, r *http.Request, maximum int64) (*multipar
+ }
+ func (h *Handler) uploadMultipart(w http.ResponseWriter, r *http.Request) {
+ 	user := identity.Current(r).User
+-	if e := h.service.allow(r.Context(), user.ID, "upload", 60); e != nil {
++	release, available := h.service.transfers.Acquire(user.ID)
++	if !available {
++		uploadBusy(w)
++		return
++	}
++	defer release()
++	if e := h.service.allow(r.Context(), user.ID, "upload", UploadRequestsPerHour); e != nil {
+ 		mediaError(w, e)
+ 		return
+ 	}
+
+diff --git a/backend/internal/stories/handler.go b/backend/internal/stories/handler.go
+--- a/backend/internal/stories/handler.go
++++ b/backend/internal/stories/handler.go
+@@ -44,7 +44,7 @@ func (h *Handler) Register(r *httprouter.Router) {
+ 	r.Handler("GET", "/api/stories/:id", h.auth.Require(h.get))
+ 	r.Handler("PATCH", "/api/stories/:id", h.auth.RequireMember(h.auth.Limit(h.patch, "story-edit", 120, time.Hour)))
+ 	r.Handler("DELETE", "/api/stories/:id", h.auth.RequireMember(h.remove))
+-	r.Handler("POST", "/api/stories/:id/assets", h.auth.RequireMember(h.auth.Limit(h.asset, "story-asset", 60, time.Hour)))
++	r.Handler("POST", "/api/stories/:id/assets", h.auth.RequireMember(h.auth.Limit(h.asset, "story-asset", 400, time.Hour)))
+ 	r.Handler("DELETE", "/api/stories/:id/assets/:assetId", h.auth.RequireMember(h.removeAsset))
+ 	r.Handler("POST", "/api/stories/:id/generate", h.auth.RequireMember(h.auth.Limit(h.generate, "story-generate", 20, time.Hour)))
+ 	r.Handler("POST", "/api/stories/:id/retry", h.auth.RequireMember(h.auth.Limit(h.generate, "story-generate", 20, time.Hour)))
+@@ -313,8 +313,9 @@ func (h *Handler) asset(w http.ResponseWriter, r *http.Request) {
+ 	select {
+ 	case h.inspectSlots <- struct{}{}:
+ 		defer func() { <-h.inspectSlots }()
+-	case <-ctx.Done():
+-		failure(w, ctx.Err())
++	default:
++		w.Header().Set("Retry-After", "2")
++		reply(w, http.StatusTooManyRequests, map[string]string{"detail": "Clip validation is temporarily busy. Retry shortly."})
+ 		return
+ 	}
+ 	var a story.Asset
+
+diff --git a/backend/internal/media/upload_busy.go b/backend/internal/media/upload_busy.go
+new file mode 100644
+--- /dev/null
++++ b/backend/internal/media/upload_busy.go
+@@ -0,0 +1,8 @@
++package media
++
++import "net/http"
++
++func uploadBusy(w http.ResponseWriter) {
++	w.Header().Set("Retry-After", "2")
++	writeMedia(w, http.StatusTooManyRequests, map[string]string{"error": "Uploads are temporarily busy. Retry shortly.", "detail": "Uploads are temporarily busy. Retry shortly."})
++}
+
+diff --git a/backend/internal/media/upload_capacity_test.go b/backend/internal/media/upload_capacity_test.go
+new file mode 100644
+--- /dev/null
++++ b/backend/internal/media/upload_capacity_test.go
+@@ -0,0 +1,48 @@
++package media
++
++import (
++	"context"
++	"net/http/httptest"
++	"testing"
++	"time"
++)
++
++type countedNonce struct {
++	mockNonce
++	calls int
++}
++
++func (n *countedNonce) Allow(_ context.Context, _ string, limit int, window time.Duration) (bool, error) {
++	n.calls++
++	return n.calls <= limit && window == time.Hour, nil
++}
++func TestFiniteUploadCapacityRetainsHourlyProtection(t *testing.T) {
++	nonce := &countedNonce{}
++	s := NewService(Config{}, nil, nil, nonce, nil)
++	for i := 0; i < 400; i++ {
++		if err := s.allow(context.Background(), testUserID, "upload", UploadRequestsPerHour); err != nil {
++			t.Fatal(i, err)
++		}
++	}
++	if err := s.allow(context.Background(), testUserID, "upload", UploadRequestsPerHour); err == nil {
++		t.Fatal("hourly protection removed")
++	}
++	one, ok := s.transfers.Acquire(testUserID)
++	if !ok {
++		t.Fatal("first")
++	}
++	defer one()
++	two, ok := s.transfers.Acquire(testUserID)
++	if !ok {
++		t.Fatal("second")
++	}
++	defer two()
++	if _, ok = s.transfers.Acquire(testUserID); ok {
++		t.Fatal("active work protection removed")
++	}
++	w := httptest.NewRecorder()
++	uploadBusy(w)
++	if w.Code != 429 || w.Header().Get("Retry-After") != "2" {
++		t.Fatal("backpressure")
++	}
++}
+

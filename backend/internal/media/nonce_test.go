@@ -66,6 +66,8 @@ func TestRedisNonceAtomicNXExpiryAndSharedLimits(t *testing.T) {
 				} else {
 					_, _ = io.WriteString(server, "$-1\r\n")
 				}
+			case "pttl":
+				_, _ = io.WriteString(server, ":36789\r\n")
 			case "eval":
 				limits++
 				_, _ = fmt.Fprintf(server, ":%d\r\n", limits)
@@ -89,6 +91,9 @@ func TestRedisNonceAtomicNXExpiryAndSharedLimits(t *testing.T) {
 	}
 	if ok, e := storage.Allow(ctx, testUserID, 1, time.Hour); e != nil || ok {
 		t.Fatalf("limit second: %v %v", ok, e)
+	}
+	if wait, err := storage.RetryAfter(ctx, testUserID); err != nil || wait != 36789*time.Millisecond {
+		t.Fatalf("remaining rate window: %v %v", wait, err)
 	}
 	_ = storage.Close()
 	<-done

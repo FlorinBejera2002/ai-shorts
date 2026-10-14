@@ -8,25 +8,16 @@ import { useTranslations } from 'next-intl'
 import Image from 'next/image'
 import { useRef, useState } from 'react'
 
-import { BrandFontField } from './brand-font-field'
 import { LOGO_ACCEPT } from './constants'
 
 export function LogoSection({
   logoUrl,
-  fontFamily,
-  fontEnabled,
   busy,
-  onFontChange,
-  onFontEnabledChange,
   onUpload,
   onRemove
 }: {
   logoUrl: string | null
-  fontFamily: string
-  fontEnabled: boolean
   busy: boolean
-  onFontChange: (font: string) => void
-  onFontEnabledChange: (enabled: boolean) => void
   onUpload: (file: File) => Promise<void>
   onRemove: () => Promise<void>
 }) {
@@ -44,10 +35,8 @@ export function LogoSection({
     <Card
       as="section"
       id="brand-logo"
-      className="brand-section @container/logo min-w-0 gap-3 p-4"
+      className="@container/logo min-w-0 gap-3 border-0 p-0 shadow-none"
     >
-      <h2 className="text-sm font-semibold">{t('logo')}</h2>
-
       <input
         ref={inputRef}
         type="file"
@@ -132,12 +121,6 @@ export function LogoSection({
           </span>
         </button>
       )}
-      <BrandFontField
-        value={fontFamily}
-        enabled={fontEnabled}
-        onChange={onFontChange}
-        onEnabledChange={onFontEnabledChange}
-      />
     </Card>
   )
 }

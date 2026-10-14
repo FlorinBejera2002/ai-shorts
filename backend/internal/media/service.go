@@ -38,8 +38,9 @@ func NewService(cfg Config, db *sql.DB, storage Storage, nonce NonceStore, scann
 }
 
 type HTTPError struct {
-	Status  int
-	Message string
+	RetryAfter time.Duration
+	Status     int
+	Message    string
 }
 
 func (e *HTTPError) Error() string             { return e.Message }
@@ -137,16 +138,24 @@ func (s *Service) accountActive(ctx context.Context, userID string, write bool) 
 	}
 	return nil
 }
-func (s *Service) allow(ctx context.Context, userID, action string, max int) error {
+func (s *Service) allow(ctx context.Context, userID, action string, limit int) error {
 	if s.nonce == nil {
 		return failure(503, "Upload authorization is temporarily unavailable")
 	}
-	ok, e := s.nonce.Allow(ctx, action+":"+userID, max, time.Hour)
+	ok, e := s.nonce.Allow(ctx, action+":"+userID, limit, time.Hour)
 	if e != nil {
 		return failure(503, "Upload authorization is temporarily unavailable")
 	}
 	if !ok {
-		return failure(429, "Too many requests")
+		retry := time.Hour
+		if limiter, ok := s.nonce.(interface {
+			RetryAfter(context.Context, string) (time.Duration, error)
+		}); ok {
+			if remaining, err := limiter.RetryAfter(ctx, action+":"+userID); err == nil {
+				retry = max(time.Second, remaining)
+			}
+		}
+		return &HTTPError{Status: 429, Message: "Uploads are temporarily paused. They will resume after the hourly allowance resets.", RetryAfter: retry}
 	}
 	return nil
 }

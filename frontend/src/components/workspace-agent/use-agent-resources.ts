@@ -21,11 +21,14 @@ export function useAgentResources(projectId?: string) {
     if (!project || storyIsBusy(project.status)) return
     const pending = uploads.items.filter(item => item.projectId === projectId && item.status !== 'complete')
     const limits = project.limits
-    const bytes = project.assets.reduce((sum, item) => sum + item.size, 0) + pending.reduce((sum, item) => sum + item.file.size, 0) + files.reduce((sum, item) => sum + item.size, 0)
-    if (files.some(file => !/\.(mp4|mov|webm|mkv)$/i.test(file.name) || file.size === 0 || file.size > limits.max_file_bytes) || project.assets.length + pending.length + files.length > limits.max_files || bytes > limits.max_total_bytes) {
-      setError(ro ? 'Verifică formatul, dimensiunea și numărul fișierelor.' : 'Check file format, size and count.'); return
+    if (project.assets.filter(item => item.kind !== 'narration').length + pending.length + files.length > (limits.max_files || 200)) {
+      setError(ro ? 'Un proiect poate conține maximum 200 de filmări. Alege mai puține sau începe un proiect nou.' : 'A project supports up to 200 clips. Choose fewer files or start another project.'); return
     }
-    setError(''); uploads.add(files, Math.max(-1, ...project.assets.map(asset => asset.order)) + 1)
+    const bytes = project.assets.reduce((sum, item) => sum + item.size, 0) + pending.reduce((sum, item) => sum + item.file.size, 0) + files.reduce((sum, item) => sum + item.size, 0)
+    if (files.some(file => !/\.(mp4|mov|webm|mkv)$/i.test(file.name) || file.size === 0 || file.size > limits.max_file_bytes) || bytes > limits.max_total_bytes) {
+      setError(ro ? 'Verifică formatul și dimensiunea fișierelor.' : 'Check file format and size.'); return
+    }
+    setError(''); uploads.add(files, project.assets.reduce((maximum, asset) => Math.max(maximum, asset.order), -1) + 1)
   }
   return { projectId, query, uploads, error, add }
 }

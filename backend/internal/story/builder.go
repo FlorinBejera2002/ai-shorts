@@ -91,9 +91,23 @@ func (b *Builder) Run(parent context.Context, req Request, checkpoints Checkpoin
 	if err != nil {
 		return state.result, err
 	}
+	if req.Action == "faster" && req.Base != nil {
+		if tightener, ok := b.media.(PaceTightener); ok {
+			plan, err = tightener.TightenStoryPace(ctx, req, plan)
+			if err != nil {
+				return state.result, err
+			}
+		}
+		if reflect.DeepEqual(plan.Blocks, req.Base.Plan.Blocks) {
+			return state.result, &NoChangeError{Message: "No shorter edit is available without changing the spoken content. Your previous video is retained."}
+		}
+	}
 	version, err := state.version(plan, req.Base, repairOperation{})
 	if err != nil {
 		return state.result, err
+	}
+	if req.Action == "improve_flow" && req.Base != nil && reflect.DeepEqual(version.Timeline, req.Base.Timeline) {
+		return state.result, &NoChangeError{Message: "No different source-backed edit is available. Your previous video is retained."}
 	}
 	pre := b.preReview(ctx, req, version, state.budget)
 	version.Report = pre
@@ -211,15 +225,16 @@ func (b *Builder) Run(parent context.Context, req Request, checkpoints Checkpoin
 }
 
 type runState struct {
-	builder            *Builder
-	req                Request
-	checkpoints        Checkpoints
-	budget             *runBudget
-	next               int
-	cycles             int
-	tried              map[string]bool
-	result             Result
-	repairNotesChanged bool
+	builder             *Builder
+	req                 Request
+	checkpoints         Checkpoints
+	budget              *runBudget
+	next                int
+	cycles              int
+	tried               map[string]bool
+	result              Result
+	transitionsPrepared bool
+	repairNotesChanged  bool
 }
 
 func (s *runState) analyze(ctx context.Context) error {
@@ -317,19 +332,28 @@ func (s *runState) version(plan Plan, parent *Version, operation repairOperation
 	s.next++
 	if parent != nil {
 		version.Parent = parent.Number
-		for i := range version.Timeline {
-			for _, old := range parent.Timeline {
-				if old.BlockID == version.Timeline[i].BlockID && old.CandidateID == version.Timeline[i].CandidateID && old.Transition == "cut" {
-					version.Timeline[i].Transition = "cut"
-				}
-			}
-		}
+		inheritTransitions(version.Timeline, parent)
 	}
 	applyTimelineOperation(version.Timeline, operation)
 	return version, nil
 }
 
 func (s *runState) renderAndReview(ctx context.Context, version Version, pre Report) (Version, error) {
+	if s.req.Action == "improve_transitions" && !s.transitionsPrepared {
+		preparer, ok := s.builder.media.(TransitionPreparer)
+		if !ok {
+			return version, &NoChangeError{Message: "No transition change is available; your previous video is retained."}
+		}
+		var err error
+		version, err = preparer.PrepareStoryTransitions(ctx, s.req, version)
+		if err != nil {
+			return version, err
+		}
+		s.transitionsPrepared = true
+	}
+	if err := s.prepareAudio(ctx); err != nil {
+		return version, err
+	}
 	if err := s.checkpoints.Progress(ctx, "editing", "Assembling the source-backed timeline"); err != nil {
 		return version, err
 	}

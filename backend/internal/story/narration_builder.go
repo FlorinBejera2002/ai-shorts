@@ -18,6 +18,7 @@ func (s *runState) narrationVersion(plan Plan, parent *Version) (Version, error)
 	s.next++
 	if parent != nil {
 		version.Parent = parent.Number
+		inheritTransitions(version.Timeline, parent)
 	}
 	return version, err
 }
@@ -46,6 +47,9 @@ func (s *runState) runNarration(ctx context.Context) (Result, error) {
 		return finish(err)
 	}
 	version, timelineErr := s.narrationVersion(plan, s.req.Base)
+	if timelineErr == nil && s.req.Action == "improve_flow" && s.req.Base != nil && reflect.DeepEqual(version.Timeline, s.req.Base.Timeline) {
+		return finish(&NoChangeError{Message: "No different source-backed visual edit is available. Your previous video is retained."})
+	}
 	version.Report = s.reviewNarrationPlan(ctx, version)
 	if timelineErr != nil && len(version.Report.Issues) == 0 {
 		version.Report.Issues = []Issue{{ID: "narration-coverage", Type: "narration_coverage", Severity: "critical", Evidence: timelineErr.Error(), Confidence: 1}}

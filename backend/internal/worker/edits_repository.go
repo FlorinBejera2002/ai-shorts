@@ -5,10 +5,12 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"sneepcut/backend-go/internal/audiocleanup"
 	"sneepcut/backend-go/internal/processing"
 )
 
 type Edit struct {
+	AudioCleanup                                                                *audiocleanup.Derivative
 	ID, JobID, ClipID, Token, Kind, SourceKey, FileKey, TikTokKey, ThumbnailKey string
 	Payload                                                                     json.RawMessage
 	Badge                                                                       sql.NullBool
@@ -35,6 +37,12 @@ func (r *Repository) ClaimEdit(ctx context.Context) (*Edit, error) {
 	_, err = tx.ExecContext(ctx, `UPDATE jobs SET active_edit_token=$2,edit_deadline=now()+interval '1 hour' WHERE id=$1`, e.JobID, e.Token)
 	if err != nil {
 		return nil, err
+	}
+	var cleanupRaw []byte
+	if cleanupErr := tx.QueryRowContext(ctx, `SELECT coalesce(payload::jsonb->'audio_cleanup_result','null'::jsonb) FROM job_deliveries WHERE job_id=$1`, e.JobID).Scan(&cleanupRaw); cleanupErr == nil {
+		if err = json.Unmarshal(cleanupRaw, &e.AudioCleanup); err != nil {
+			return nil, err
+		}
 	}
 	return e, tx.Commit()
 }

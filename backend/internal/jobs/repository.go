@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sneepcut/backend-go/internal/audiocleanup"
 	"strings"
 )
 
@@ -37,7 +38,19 @@ type Prepared struct {
 	Batch        bool
 }
 
+func validateAudioCleanup(inputs []Prepared) error {
+	for _, p := range inputs {
+		if err := audiocleanup.Check(p.Input.AudioCleanup); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (s *Repository) Create(ctx context.Context, userID string, inputs []Prepared) ([]json.RawMessage, error) {
+	if err := validateAudioCleanup(inputs); err != nil {
+		return nil, err
+	}
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, err
@@ -54,6 +67,9 @@ func (s *Repository) Create(ctx context.Context, userID string, inputs []Prepare
 }
 
 func (s *Repository) createTx(ctx context.Context, tx *sql.Tx, userID string, inputs []Prepared) ([]json.RawMessage, error) {
+	if err := validateAudioCleanup(inputs); err != nil {
+		return nil, err
+	}
 	var err error
 	amount := 0
 	for _, p := range inputs {
@@ -86,11 +102,14 @@ func (s *Repository) createTx(ctx context.Context, tx *sql.Tx, userID string, in
 		if err != nil {
 			return nil, err
 		}
+		if _, err = tx.ExecContext(ctx, `UPDATE jobs SET brand_snapshot=COALESCE((SELECT to_jsonb(b) FROM brand_kits b WHERE b.user_id=$2),'{}'::jsonb) WHERE id=$1`, id, userID); err != nil {
+			return nil, err
+		}
 		sourceType := "auto"
 		if in.SourceType == "youtube" {
 			sourceType = "youtube"
 		}
-		payload := map[string]any{"job_id": id, "source": p.WorkerSource, "source_type": sourceType, "requested_clips": in.NumClips, "aspect_ratio": in.AspectRatio, "burn_subtitles": in.BurnSubtitles, "smart_crop": in.SmartCrop, "user_instructions": in.UserInstructions}
+		payload := map[string]any{"job_id": id, "source": p.WorkerSource, "source_type": sourceType, "requested_clips": in.NumClips, "aspect_ratio": in.AspectRatio, "burn_subtitles": in.BurnSubtitles, "smart_crop": in.SmartCrop, "audio_cleanup": in.AudioCleanup, "user_instructions": in.UserInstructions}
 		if !empty(in.SourceStorageKey) {
 			payload["source_storage_key"] = *in.SourceStorageKey
 		}

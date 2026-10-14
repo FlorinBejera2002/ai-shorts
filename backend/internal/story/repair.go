@@ -103,6 +103,7 @@ func applyOperation(plan Plan, op repairOperation, assets []Asset) (Plan, error)
 			block.CandidateID = candidate.ID
 			// A trim belongs to the former candidate's source clock.
 			block.Visual = nil
+			block.Pace = nil
 			block.Alternatives = eligibleAlternatives(candidate, assets)
 			block.Reason = "Selected an equivalent complete take after review."
 			if block.IdentityReferenceID != "" {
@@ -234,7 +235,12 @@ func editPlan(req Request) (Plan, error) {
 			}
 		}
 		if req.BlockID == "" {
-			return Plan{}, fmt.Errorf("no shorter equivalent take is available for unlocked sections; record a more concise complete take")
+			for _, block := range plan.Blocks {
+				if PaceEligible(block, all[block.CandidateID]) {
+					return plan, nil
+				}
+			}
+			return Plan{}, fmt.Errorf("no shorter equivalent take or removable dead time is available for unlocked sections")
 		}
 	}
 	for _, block := range plan.Blocks {

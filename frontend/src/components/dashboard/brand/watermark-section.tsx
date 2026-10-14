@@ -40,9 +40,41 @@ export function WatermarkSection({
     <Card
       as="section"
       id="brand-watermark"
-      className="brand-section @container/watermark min-w-0 gap-3 p-3"
+      className="@container/watermark min-w-0 gap-3 border-0 p-0 shadow-none"
     >
-      <h2 className="text-sm font-medium text-foreground">{t('watermark')}</h2>
+      <label className="flex items-center justify-between gap-3 text-sm">
+        <span>{t('watermarkEnabled')}</span>
+        <Switch
+          checked={kit.watermarkEnabled}
+          onCheckedChange={(v) => update('watermarkEnabled', v)}
+        />
+      </label>
+      <div className="grid grid-cols-2 gap-3">
+        {(['watermarkSize', 'watermarkMargin'] as const).map((key) => (
+          <label key={key} className="grid gap-1 text-xs">
+            {t(key)}
+            <input
+              type="number"
+              min={key === 'watermarkSize' ? 1 : 0}
+              max={key === 'watermarkSize' ? 50 : 20}
+              value={Math.round(kit[key] * 100)}
+              onChange={(e) =>
+                update(
+                  key,
+                  Math.max(
+                    key === 'watermarkSize' ? 0.01 : 0,
+                    Math.min(
+                      key === 'watermarkSize' ? 0.5 : 0.2,
+                      Number(e.target.value) / 100
+                    )
+                  )
+                )
+              }
+              className="rounded-md border bg-background p-2"
+            />
+          </label>
+        ))}
+      </div>
 
       <div className="grid gap-3 @min-[520px]/watermark:grid-cols-2">
         <div>

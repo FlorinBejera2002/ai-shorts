@@ -12,7 +12,7 @@ import (
 	"sneepcut/backend-go/internal/story"
 )
 
-const storyRenderVersion = "render-10-continuous-music"
+const storyRenderVersion = "render-11-bounded-assembly"
 
 func (p *Processor) RenderStory(ctx context.Context, request story.Request, version story.Version) (story.Output, error) {
 	validated, err := validateStoryRender(request, version)
@@ -46,10 +46,15 @@ func (p *Processor) RenderStory(ctx context.Context, request story.Request, vers
 		var audio story.Asset
 		if entry.Audio != nil {
 			audio = validated.assets[entry.Audio.SourceID]
+			audioKey, audioErr := effectiveStoryAudioKey(request.ID, audio, request.Options.AudioCleanup)
+			if audioErr != nil {
+				return story.Output{}, audioErr
+			}
+			audio.Key = audioKey
 		}
 		// Output positions/words are excluded: moving an unchanged source excerpt
 		// does not invalidate its expensive crop/encode cache.
-		key := "work/" + request.ID + "/segments/" + storyDigest([]any{story.AlgorithmVersion, storyRenderVersion, entry.Video, entry.Audio, entry.Crop, video.Hash, audio.Hash, w, h, faceModelSignature}) + ".mp4"
+		key := "work/" + request.ID + "/segments/" + storyDigest([]any{story.AlgorithmVersion, storyRenderVersion, entry.Video, entry.Audio, entry.Crop, video.Hash, audio.Hash, audio.Key, w, h, faceModelSignature}) + ".mp4"
 		part := filepath.Join(dir, fmt.Sprintf("part-%03d.mp4", i))
 		if p.materialize(ctx, key, part) != nil {
 			if err = p.renderStoryEntry(ctx, dir, part, entry, video, audio, w, h); err != nil {
@@ -61,41 +66,29 @@ func (p *Processor) RenderStory(ctx context.Context, request story.Request, vers
 		}
 		parts = append(parts, part)
 	}
-	// Audio is concatenated independently on the exact sample clock. Video
-	// boundaries round on the GLOBAL frame clock, never once per duration:
-	// summing rounded clip lengths accumulates drift at natural phrase cuts.
-	var args, filters []string
-	var videoInputs, audioInputs strings.Builder
-	videoCount := 0
-	for i, file := range parts {
-		args = append(args, "-threads", "1", "-i", file)
-		entry := version.Timeline[i]
-		duration := entry.OutputOut - entry.OutputIn
-		firstFrame, lastFrame := int(math.Round(entry.OutputIn*30)), int(math.Round(entry.OutputOut*30))
-		if i == len(parts)-1 {
-			lastFrame = max(1, lastFrame)
-		}
-		if frames := lastFrame - firstFrame; frames > 0 {
-			// A single boundary frame may be held/dropped to hit the global
-			// clock. All other source frames keep 1x playback; no time stretch.
-			filters = append(filters, fmt.Sprintf("[%d:v]tpad=stop_mode=clone:stop_duration=0.034,trim=end_frame=%d,setpts=PTS-STARTPTS[v%d]", i, frames, i))
-			fmt.Fprintf(&videoInputs, "[v%d]", i)
-			videoCount++
-		}
-		if validated.narration == nil {
-			filters = append(filters, fmt.Sprintf("[%d:a]atrim=duration=%s,asetpts=PTS-STARTPTS[a%d]", i, seconds(duration), i))
-			fmt.Fprintf(&audioInputs, "[a%d]", i)
-		}
+	videoManifest, audioManifest, err := p.prepareStoryAssembly(ctx, dir, parts, version.Timeline, validated.narration != nil)
+	if err != nil {
+		return story.Output{}, err
+	}
+	args := []string{"-f", "concat", "-safe", "1", "-i", videoManifest}
+	var filters []string
+	nextInput := 1
+	if validated.narration == nil {
+		args = append(args, "-f", "concat", "-safe", "1", "-i", audioManifest)
+		nextInput++
 	}
 	captions := len(captionSelection.Groups) > 0
 	videoLabel := "v"
 	if captions || request.LogoKey != "" || request.Music != nil {
 		videoLabel = "joined"
 	}
-	filters = append(filters, fmt.Sprintf("%sconcat=n=%d:v=1:a=0[%s]", videoInputs.String(), videoCount, videoLabel))
-	nextInput := len(parts)
+	filters = append(filters, fmt.Sprintf("[0:v]setpts=PTS-STARTPTS[%s]", videoLabel))
 	if validated.narration != nil {
-		voice, err := p.storyMaterialize(ctx, dir, validated.narration.Key)
+		voiceKey, voiceErr := effectiveStoryAudioKey(request.ID, *validated.narration, request.Options.AudioCleanup)
+		if voiceErr != nil {
+			return story.Output{}, voiceErr
+		}
+		voice, err := p.storyMaterialize(ctx, dir, voiceKey)
 		if err != nil {
 			return story.Output{}, errors.New("original narration is unavailable")
 		}
@@ -105,7 +98,7 @@ func (p *Processor) RenderStory(ctx context.Context, request story.Request, vers
 		filters = append(filters, fmt.Sprintf("[%d:a]aresample=48000:async=1:first_pts=0,atrim=duration=%s,asetpts=PTS-STARTPTS[a]", nextInput, seconds(elapsed)))
 		nextInput++
 	} else {
-		filters = append(filters, fmt.Sprintf("%sconcat=n=%d:v=0:a=1[a]", audioInputs.String(), len(parts)))
+		filters = append(filters, "[1:a]asetpts=PTS-STARTPTS[a]")
 	}
 	audioLabel := "a"
 	if request.Music != nil {
@@ -118,7 +111,17 @@ func (p *Processor) RenderStory(ctx context.Context, request story.Request, vers
 		nextInput++
 		audioLabel = "mixed"
 	}
-	if captions {
+	if captions && request.Options.CaptionStyle != nil {
+		filter, e := p.captionFilter(ctx, dir, request.UserID, *request.Options.CaptionStyle, captionSelection.Groups, w, h)
+		if e != nil {
+			return story.Output{}, e
+		}
+		videoLabel = "v"
+		if request.LogoKey != "" || request.Music != nil {
+			videoLabel = "captioned"
+		}
+		filters = append(filters, fmt.Sprintf("[joined]%s[%s]", filter, videoLabel))
+	} else if captions {
 		srt := filepath.Join(dir, "captions.srt")
 		if writeStorySRT(srt, captionSelection.Groups, elapsed) != nil {
 			return story.Output{}, storyWorkError("captions")
@@ -156,6 +159,11 @@ func (p *Processor) RenderStory(ctx context.Context, request story.Request, vers
 	if request.LogoKey != "" {
 		overlay := filepath.Join(dir, "brand-overlay.png")
 		brand := map[string]any{"logo_key": request.LogoKey, "user_id": request.UserID, "watermark_position": request.Options.LogoPosition}
+		for _, key := range []string{"watermark_size", "watermark_margin"} {
+			if v, ok := request.BrandSnapshot[key]; ok {
+				brand[key] = v
+			}
+		}
 		if request.Options.LogoOpacity != nil {
 			brand["watermark_opacity"] = *request.Options.LogoOpacity
 		}
@@ -244,7 +252,7 @@ func validateStoryRender(request story.Request, version story.Version) (storyRen
 	if request.LogoKey != "" && (request.UserID == "" || !strings.HasPrefix(request.LogoKey, "brand/"+request.UserID+"/") || strings.Contains(request.LogoKey, "..") || strings.ContainsAny(request.LogoKey, "\\\x00")) {
 		return result, errors.New("story logo must belong to its owner")
 	}
-	if !storyNamespace(request.ID) || len(version.Timeline) == 0 || len(version.Timeline) > 100 {
+	if !storyNamespace(request.ID) || len(version.Timeline) == 0 {
 		return result, errors.New("invalid story timeline")
 	}
 	var err error

@@ -18,7 +18,7 @@ const options = { brief: 'Synthetic processing fixture', target_seconds: 45, asp
 const asset = { id: 'source-1', name: 'recording.mp4', kind: 'video', size: 12000, duration: 12, order: 0,
   role: 'auto', include: 'auto', candidates: [{ id: 'candidate-1', source_id: 'source-1', in: 0, out: 4,
     text: 'A complete source sentence.', confidence: 0.95, role: 'a_roll', reason: 'Source fixture' }] }
-const limits = { max_files: 20, max_file_bytes: 2 * 1024 ** 3, max_total_bytes: 10 * 1024 ** 3, max_source_seconds: 900, max_total_seconds: 3600 }
+const limits = { max_files: 200, max_file_bytes: 2 * 1024 ** 3, max_total_bytes: 10 * 1024 ** 3, max_source_seconds: 900, max_total_seconds: 3600 }
 let project = { id: projectID, status: 'pending', message: 'Fixture pending', options, assets: [asset], versions: [], current_version: 0, limits }
 let job = { id: jobID, status: 'downloading', progress: 18, progress_message: 'Fixture download message' }
 let cancelCount = 0
@@ -83,7 +83,7 @@ const capture = async (name) => {
 }
 const waitStatus = async (status) => {
   await page.waitForFunction((value) => document.querySelector('[data-testid="story-processing"]')?.getAttribute('data-status') === value, status)
-  await processing.getByText(project.message, { exact: true }).waitFor()
+  assert.equal(await processing.getByText(project.message, { exact: true }).count(), 0, 'Internal worker messages stay out of the customer view')
 }
 const advance = async (status) => {
   project = { ...project, status, message: `Fixture ${status} ${Date.now()}` }
@@ -114,7 +114,6 @@ try {
   assert.notEqual(await stage('reviewing').getAttribute('data-state'), 'done')
   await advance('editing')
   await advance('reviewing')
-  project = { ...project, current_version: 1, versions: [version('needs_review')] }
   await advance('improving')
   assert.notEqual(await stage('reviewing').getAttribute('data-state'), 'done', 'Repair cannot certify the final review')
   await capture('improving-desktop')
@@ -126,23 +125,25 @@ try {
     'Reduced motion disables the decorative orbital animations')
   await capture('improving-mobile-reduced-motion')
   await advance('reviewing')
-  project = { ...project, versions: [version('ready')] }
+  project = { ...project, current_version: 1, versions: [version('ready')] }
   project = { ...project, status: 'ready', message: 'Fixture ready after completed checks' }
   await processing.waitFor({ state: 'detached' })
-  await page.getByRole('heading', { name: 'Automatic checks completed', exact: true }).waitFor()
+  await page.getByTestId('story-result').waitFor()
+  assert.equal(await page.getByText('Automatic checks completed', { exact: true }).count(), 0)
 
   project = { ...project, status: 'needs_review', versions: [version('needs_review')] }
   await page.goto(`${origin}/dashboard/create?story=${projectID}`, { waitUntil: 'networkidle' })
-  await page.getByRole('heading', { name: 'Before you publish', exact: true }).waitFor()
+  await page.getByTestId('story-result').waitFor()
   assert.equal(await processing.count(), 0)
-  await page.getByTestId('story-review-topic').getByText('Fixture: this visual still needs a human check.', { exact: true }).waitFor()
-  await page.getByText('Technical report', { exact: true }).click()
-  await page.getByText('Fixture: visual review remains incomplete.', { exact: true }).waitFor()
-  await page.getByText('Technical report', { exact: true }).click()
+  assert.equal(await page.getByText('Before you publish', { exact: true }).count(), 0)
+  assert.equal(await page.getByText('Technical report', { exact: true }).count(), 0)
+  assert.equal(await page.getByText('Fixture: visual review remains incomplete.', { exact: true }).count(), 0)
+  assert.equal(await page.getByTestId('story-block').count(), 0, 'Scene cards are absent until Edit clips is requested')
   await page.screenshot({ path: `${output}/needs-review-mobile.png`, fullPage: true, animations: 'disabled' })
   await page.emulateMedia({ reducedMotion: 'no-preference' })
   await loadStatus('failed', { current_version: 0, versions: [], error: 'Fixture render failed; original recordings are safe.' })
-  await processing.getByText(project.error, { exact: true }).waitFor()
+  await processing.getByRole('alert').waitFor()
+  assert.equal(await processing.getByText(project.error, { exact: true }).count(), 0, 'Raw failure detail remains internal')
   assert.equal(await processing.getAttribute('data-running'), 'false')
   assert.equal(await processing.locator('.job-ai-visual *').evaluateAll((nodes) => nodes.every((node) => getComputedStyle(node).animationName === 'none')), true,
     'Failed work cannot keep the AI orbital animation running')

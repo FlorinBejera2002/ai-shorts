@@ -121,11 +121,11 @@ func TestNarrationAtomicReplacementAndDraftModeGuards(t *testing.T) {
 }
 
 func TestNarrationHasIndependentSlotAndNeedsIncludedFootage(t *testing.T) {
-	r, user, id, _ := fixture(t, story.DefaultLimits().MaxFiles)
+	r, user, id, _ := fixture(t, 125)
 	ctx := context.Background()
 	enableNarration(t, r, user, id)
 	if _, err := r.AddAsset(ctx, user, id, narrationAsset(user)); err != nil {
-		t.Fatal("20 videos must leave space for narration", err)
+		t.Fatal("large collections must leave space for narration", err)
 	}
 	empty := newID()
 	options := story.DefaultOptions()

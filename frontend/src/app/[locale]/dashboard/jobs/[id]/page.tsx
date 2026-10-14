@@ -6,6 +6,7 @@ import { apiFetch } from '@/lib/auth'
 
 import { Button } from '@/components/ui/button'
 
+import { JobAudioCleanup } from '@/components/jobs/job-audio-cleanup'
 import { JobProcessingHeader } from '@/components/jobs/job-processing-header'
 import { JobProcessingPanel } from '@/components/jobs/job-processing-panel'
 
@@ -21,6 +22,10 @@ type JobStatus = {
     progress: number
     progress_message?: string | null
     error_message?: string | null
+    processing_active?: boolean
+    audio_cleanup?: { status: 'ready' | 'failed' | 'unchanged' | 'no_audio'; message?: string }
+    original_audio_url?: string
+    processed_audio_url?: string
   }
   celery_state?: string | null
   celery_meta?: {
@@ -86,7 +91,7 @@ export default function JobProgressPage() {
         if (
           jobStatus === 'completed' ||
           jobStatus === 'failed' ||
-          jobStatus === 'cancelled'
+          (jobStatus === 'cancelled' && !data.job?.processing_active)
         ) {
           return
         }
@@ -165,6 +170,7 @@ export default function JobProgressPage() {
         errorMessage={status?.job.error_message}
         connected={Boolean(status) && !error}
       />
+      {status && <JobAudioCleanup job={status.job} onRetried={() => setRetry((value) => value + 1)} />}
     </div>
   )
 }

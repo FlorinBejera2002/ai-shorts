@@ -80,3 +80,63 @@ test('plain findings remain visible while model internals stay in the original r
   )
   assert.equal(groups[0].issues.length, 2)
 })
+
+test('customer issues preserve missing exports and captions without exposing model coverage warnings', () => {
+  const version = {
+    output: { caption_warnings: ['Internal source timing diagnostic'] },
+    report: {
+      coverage: {
+        file: true,
+        audio: false,
+        visual: false,
+        captions: false,
+        semantics: false
+      },
+      issues: [
+        issue('unsupported', 'meaning', 'major'),
+        issue('broken', 'file', 'critical'),
+        issue('minor', 'audio', 'minor')
+      ]
+    }
+  }
+  const original = structuredClone(version)
+  assert.equal(
+    JSON.stringify(
+      exports.customerReviewIssues(version).map((item) => item.type)
+    ),
+    JSON.stringify(['caption_unavailable', 'file'])
+  )
+  assert.deepEqual(
+    version,
+    original,
+    'Internal diagnostics remain intact for support'
+  )
+  version.output.caption_warnings = []
+  version.report.coverage.audio = true
+  version.report.issues.push(issue('audible', 'audio', 'major'))
+  assert.equal(
+    JSON.stringify(
+      exports.customerReviewIssues(version).map((item) => item.type)
+    ),
+    JSON.stringify(['file', 'audio'])
+  )
+})
+
+test('confirmed transition and lip-sync defects remain actionable', () => {
+  const version = {
+    report: {
+      coverage: { file: true, audio: true, boundaries: true },
+      issues: [
+        issue('join', 'transition', 'major'),
+        issue('sync', 'lip_sync', 'critical')
+      ]
+    }
+  }
+  assert.equal(
+    JSON.stringify(exports.customerReviewIssues(version).map((i) => i.type)),
+    JSON.stringify(['transition', 'lip_sync'])
+  )
+  version.report.coverage.boundaries = false
+  version.report.coverage.audio = false
+  assert.equal(exports.customerReviewIssues(version).length, 0)
+})

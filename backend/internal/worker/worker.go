@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"log/slog"
+	"sneepcut/backend-go/internal/audiocleanup"
 	"sneepcut/backend-go/internal/media"
 	"sneepcut/backend-go/internal/processing"
 	"strings"
@@ -96,12 +97,13 @@ func (w *Worker) process(parent context.Context, j *Job) error {
 		}
 	}()
 	var payload struct {
-		Source         string `json:"source"`
-		SourceKey      string `json:"source_storage_key"`
-		RequestedClips int    `json:"requested_clips"`
-		BurnSubtitles  *bool  `json:"burn_subtitles"`
-		SmartCrop      *bool  `json:"smart_crop"`
-		Instructions   string `json:"user_instructions"`
+		AudioCleanup   *audiocleanup.Settings `json:"audio_cleanup"`
+		Source         string                 `json:"source"`
+		SourceKey      string                 `json:"source_storage_key"`
+		RequestedClips int                    `json:"requested_clips"`
+		BurnSubtitles  *bool                  `json:"burn_subtitles"`
+		SmartCrop      *bool                  `json:"smart_crop"`
+		Instructions   string                 `json:"user_instructions"`
 	}
 	err := json.Unmarshal(j.Payload, &payload)
 	namespace := j.ID + "/attempts/" + j.Token
@@ -110,11 +112,16 @@ func (w *Worker) process(parent context.Context, j *Job) error {
 	}
 	var result processing.Result
 	if err == nil {
-		result, err = w.processInput(ctx, processing.Input{SourceKey: payload.SourceKey, SourceURL: payload.Source, Namespace: namespace, Language: j.Language, Instructions: payload.Instructions, AspectRatio: j.AspectRatio, SubtitleStyle: j.SubtitleStyle, RequestedClips: payload.RequestedClips, SmartCrop: payload.SmartCrop == nil || *payload.SmartCrop, BurnSubtitles: payload.BurnSubtitles == nil || *payload.BurnSubtitles, Brand: j.Brand}, func(status string, pct int, msg string) {
+		result, err = w.processInput(ctx, processing.Input{AudioCleanup: payload.AudioCleanup, SourceKey: payload.SourceKey, SourceURL: payload.Source, Namespace: namespace, Language: j.Language, Instructions: payload.Instructions, AspectRatio: j.AspectRatio, SubtitleStyle: j.SubtitleStyle, RequestedClips: payload.RequestedClips, SmartCrop: payload.SmartCrop == nil || *payload.SmartCrop, BurnSubtitles: payload.BurnSubtitles == nil || *payload.BurnSubtitles, Brand: j.Brand}, func(status string, pct int, msg string) {
 			if e := w.Repo.Progress(ctx, j, status, pct, msg); e != nil {
 				cancel()
 			}
 		})
+	}
+	if result.AudioCleanup != nil && ctx.Err() == nil {
+		if saveErr := w.Repo.recordAudioCleanup(ctx, j, result.AudioCleanup); saveErr != nil && err == nil {
+			err = saveErr
+		}
 	}
 	if err == nil {
 		err = w.Repo.Complete(ctx, j, result)

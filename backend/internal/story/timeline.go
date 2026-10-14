@@ -34,7 +34,7 @@ func BuildTimeline(plan Plan, assets []Asset) ([]Entry, error) {
 			e.Crop = "fit"
 		}
 		if sources[c.SourceID].HasAudio {
-			e.Audio = &Interval{c.SourceID, c.In, c.Out}
+			e.Audio = &Interval{c.SourceID, interval.In, interval.Out}
 		}
 		if b.BRollID != "" {
 			visual, found := all[b.BRollID]
@@ -44,7 +44,7 @@ func BuildTimeline(plan Plan, assets []Asset) ([]Entry, error) {
 			e.Video = Interval{visual.SourceID, visual.In, visual.In + duration}
 		}
 		for _, word := range c.Words {
-			e.Words = append(e.Words, Word{word.Text, clock + word.Start - c.In, clock + word.End - c.In})
+			e.Words = append(e.Words, Word{word.Text, clock + word.Start - interval.In, clock + word.End - interval.In})
 		}
 		entries = append(entries, e)
 		clock += duration
