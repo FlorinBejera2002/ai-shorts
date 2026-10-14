@@ -83,21 +83,49 @@ project directories. Do not delete this directory or its Docker volume as a test
 cleanup operation. `SNEEPCUT_REGISTRY_DIR` points to the vendored catalog in a
 packaged deployment. Missing catalog assets are errors, not upstream fallbacks.
 
-The independent assistant uses an OpenAI-compatible server selected by
-`SNEEPCUT_AI_BASE_URL` (including its API version path), `SNEEPCUT_AI_MODEL`, and
-optional `SNEEPCUT_AI_API_KEY`. It can target your own model host. No default
-HeyGen endpoint or key is used. Without a configured model, the assistant reports
-unavailability instead of fabricating success. Proposals do not write files;
-the user reviews and applies them using the editor's version-checked save API.
-When those Studio-specific variables are unset, Studio shares the main app's
+Compose deployments set `SNEEPCUT_AI_ROUTING=central`. The admin console's
+**Modele AI → Studio: editarea compoziției** stage selects the model for every Studio assistant
+proposal, including **Ask agent**. Before each proposal, Studio retrieves the
+current provider/model from `/api/internal/ai-routing/studio` on
+`SNEEPCUT_AUTH_BASE_URL`, authenticated with the shared `STUDIO_AGENT_SECRET`
+(at least 32 characters). The lookup has a five-second deadline within the
+proposal's existing 30-second limit. Admin changes affect the next proposal
+without restarting Studio.
+
+Provider credentials stay in Studio's environment: `OPENROUTER_API_KEY` or
+`GEMINI_API_KEY`. The central response contains no credentials and cannot choose
+an arbitrary endpoint. Studio uses fixed OpenRouter and Google API endpoints.
+If central configuration is unavailable, invalid, or selects a provider whose
+key is missing locally, the proposal reports unavailability. It never falls
+back to a stale model or the standalone configuration. The Studio container and
+API must have credentials for the same enabled providers.
+
+Standalone installations can explicitly set `SNEEPCUT_AI_ROUTING=standalone`
+(the default outside Compose). This mode uses an OpenAI-compatible server
+selected by `SNEEPCUT_AI_BASE_URL` (including its API version path),
+`SNEEPCUT_AI_MODEL`, and optional `SNEEPCUT_AI_API_KEY`; it can target your own
+model host. When those Studio-specific variables are unset, Studio uses
 `AI_PROVIDER` selection: `gemini` uses `GEMINI_API_KEY` and `GEMINI_MODEL_NAME`,
 and `openrouter` uses `OPENROUTER_API_KEY` and `OPENROUTER_MODEL_NAME`.
-`auto` prefers Gemini when its key is present, then OpenRouter, matching the API
-and worker. Explicit provider selection never silently switches providers.
+`auto` prefers Gemini when its key is present, then OpenRouter.
+Explicit provider selection never silently switches providers.
 Gemini uses Google's [OpenAI-compatible API](https://ai.google.dev/gemini-api/docs/openai).
-Both local and production Compose stacks pass these settings to Studio; keys
-remain on the server. Custom Studio endpoint settings take precedence and require
-both a base URL and a model.
+Custom Studio endpoint settings take precedence only in standalone mode and
+require both a base URL and a model. They are ignored in central mode.
+
+Background removal has its own admin stage, **Studio: eliminarea fundalului**.
+Before starting the isolated job, central mode reads
+`/api/internal/ai-routing/studio-background` with the same authenticated lookup.
+The installed engine currently supports only `u2net_onnx / u2net_human_seg`;
+the admin inventory does not imply that other segmentation models are available.
+Studio validates this selection and passes it into the sandbox's render pipeline.
+An unavailable or incompatible route fails before the sandbox job starts.
+Standalone mode continues to use the same installed default model.
+
+No default HeyGen endpoint or key is used. Without available AI configuration,
+the assistant reports unavailability instead of fabricating success. Proposals
+do not write files; the user reviews and applies them using the editor's
+version-checked save API.
 
 ## Production deployment
 

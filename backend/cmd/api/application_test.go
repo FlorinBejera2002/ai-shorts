@@ -1,13 +1,13 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"io"
 	"log/slog"
 	"net/http/httptest"
+	"sneepcut/backend-go/internal/aiprovider"
 	"sneepcut/backend-go/internal/config"
-	"sneepcut/backend-go/internal/gemini"
-	"sneepcut/backend-go/internal/openrouter"
 	"strings"
 	"testing"
 )
@@ -26,11 +26,27 @@ func TestConfiguredGeneratorSelection(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			generator := configuredGenerator(test.application)
-			_, isOpenRouter := generator.(*openrouter.Client)
-			_, isGemini := generator.(*gemini.Client)
-			if isOpenRouter != test.openRouter || isGemini == test.openRouter {
-				t.Fatalf("unexpected provider type %T", generator)
+			generator := configuredGenerator(nil, test.application)
+			for _, task := range []aiprovider.Task{aiprovider.TaskStoryPlanning, aiprovider.TaskVideoReview} {
+				selected, err := generator.ForTask(context.Background(), task)
+				configured := test.application.GeminiKey != ""
+				provider := "gemini:"
+				if test.openRouter {
+					configured = test.application.OpenRouterKey != ""
+					provider = "openrouter:"
+				}
+				if !configured {
+					if err != aiprovider.ErrNotConfigured {
+						t.Fatalf("missing key: %v", err)
+					}
+					continue
+				}
+				if err != nil {
+					t.Fatal(err)
+				}
+				if identity, ok := selected.(aiprovider.MediaModelIdentity); !ok || !strings.HasPrefix(identity.MediaModelIdentity(), provider) {
+					t.Fatalf("unexpected selection %T", selected)
+				}
 			}
 		})
 	}

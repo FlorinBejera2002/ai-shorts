@@ -22,6 +22,7 @@ func (r *Repository) transitionRecipe(ctx context.Context, e *Edit) (processing.
 	}
 	state.Recipe.NaturalTransitions = true
 	previous := &processing.Clip{StorageKey: e.FileKey, TikTokStorageKey: e.TikTokKey, ThumbnailKey: e.ThumbnailKey, Transition: "cut"}
+	previous.Metadata = map[string]any{"face_model_signature": state.FaceModelSignature}
 	var segmentJSON []byte
 	err = r.db.QueryRowContext(ctx, `SELECT start_time,end_time,duration,coalesce(file_size,0),resolution,has_subtitles,coalesce(contains_platform_badge,false),segments FROM clips WHERE id=$1 AND job_id=$2`, e.ClipID, e.JobID).Scan(&previous.Start, &previous.End, &previous.Duration, &previous.FileSize, &previous.Resolution, &previous.HasSubtitles, &previous.ContainsPlatformBadge, &segmentJSON)
 	if err != nil {

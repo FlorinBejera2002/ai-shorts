@@ -41,3 +41,16 @@ func TestReviewMediaUsesConfiguredModelWithActualModalities(t *testing.T) {
 		t.Fatal("unsupported provider accepted or error leaked", err)
 	}
 }
+
+func TestQwenOmniRejectsOversizedInlineMediaBeforeRequest(t *testing.T) {
+	client := New("fixture", "qwen/qwen3.8-omni-flash", "")
+	client.HTTP = &http.Client{Transport: transportFunc(func(*http.Request) (*http.Response, error) {
+		t.Fatal("oversized media was sent")
+		return nil, nil
+	})}
+	for _, mime := range []string{"video/mp4", "audio/mpeg"} {
+		if _, err := client.ReviewMedia(context.Background(), "review", []aiprovider.MediaPart{{MIME: mime, Data: make([]byte, 7_500_000)}}); err == nil {
+			t.Fatal("accepted inline file at or above encoded size limit")
+		}
+	}
+}

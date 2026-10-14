@@ -180,9 +180,10 @@ Sizes are logical file sizes, without following links. Docker images, external d
 ## Environment notes
 
 - `.env` is ignored by Git. Start from `.env.example` if it is missing.
-- Cloud AI can use Gemini or OpenRouter for scripts, assistant responses and
-  highlight selection. Set `AI_PROVIDER` to `gemini`, `openrouter`, or `auto`.
-  OpenRouter accepts any text/chat model slug through `OPENROUTER_MODEL_NAME`.
+- Set initial `AI_PROVIDER` to `gemini`, `openrouter`, or `auto`, then select
+  models per task in **Admin → Modele AI**, including Workspace AI and Studio.
+  Choices apply without restart; see [AI model routing](docs/ai-model-routing.md)
+  for supported tasks, installed processing models and initial rollout.
 - Google OAuth, Stripe, Resend/SMTP email, and S3/R2 storage each require their matching variables on the Go API or worker, as documented in [the handoff](docs/go-migration/handoff.md).
 - Local media uses the `media_data` Docker volume; PostgreSQL data uses `postgres_data`.
 - Do not use the placeholder secrets or database password outside local development.

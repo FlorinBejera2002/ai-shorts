@@ -20,6 +20,9 @@ const savedEnv = {
   openRouterModel: process.env.OPENROUTER_MODEL_NAME,
   geminiKey: process.env.GEMINI_API_KEY,
   geminiModel: process.env.GEMINI_MODEL_NAME,
+  routing: process.env.SNEEPCUT_AI_ROUTING,
+  authBase: process.env.SNEEPCUT_AUTH_BASE_URL,
+  studioSecret: process.env.STUDIO_AGENT_SECRET,
 };
 beforeEach(() => {
   for (const name of [
@@ -31,6 +34,9 @@ beforeEach(() => {
     "OPENROUTER_MODEL_NAME",
     "GEMINI_API_KEY",
     "GEMINI_MODEL_NAME",
+    "SNEEPCUT_AI_ROUTING",
+    "SNEEPCUT_AUTH_BASE_URL",
+    "STUDIO_AGENT_SECRET",
   ]) {
     delete process.env[name];
   }
@@ -45,6 +51,9 @@ afterEach(() => {
     OPENROUTER_MODEL_NAME: savedEnv.openRouterModel,
     GEMINI_API_KEY: savedEnv.geminiKey,
     GEMINI_MODEL_NAME: savedEnv.geminiModel,
+    SNEEPCUT_AI_ROUTING: savedEnv.routing,
+    SNEEPCUT_AUTH_BASE_URL: savedEnv.authBase,
+    STUDIO_AGENT_SECRET: savedEnv.studioSecret,
   })) {
     if (value === undefined) delete process.env[name];
     else process.env[name] = value;
@@ -346,3 +355,203 @@ it("uses only the configured provider and preserves existing remote asset URLs",
     provider.mockRestore();
   }
 });
+
+function configureCentralRouting() {
+  process.env.SNEEPCUT_AI_ROUTING = "central";
+  process.env.SNEEPCUT_AUTH_BASE_URL = "http://backend.internal:8080";
+  process.env.STUDIO_AGENT_SECRET = "synthetic-studio-routing-secret-32-characters";
+  process.env.OPENROUTER_API_KEY = "router-private-key";
+  process.env.GEMINI_API_KEY = "gemini-private-key";
+}
+
+function providerProposal() {
+  return Response.json({ choices: [{ message: { content: JSON.stringify(proposal) } }] });
+}
+
+it("fetches the current central route for every proposal and ignores standalone overrides", async () => {
+  configureCentralRouting();
+  process.env.SNEEPCUT_AI_BASE_URL = "https://standalone.invalid/v1";
+  process.env.SNEEPCUT_AI_MODEL = "standalone-model";
+  process.env.SNEEPCUT_AI_API_KEY = "standalone-private-key";
+  const provider = spyOn(globalThis, "fetch")
+    .mockResolvedValueOnce(Response.json({ provider: "openrouter", model: "anthropic/first" }))
+    .mockResolvedValueOnce(providerProposal())
+    .mockResolvedValueOnce(Response.json({ provider: "openrouter", model: "openai/next" }))
+    .mockResolvedValueOnce(providerProposal());
+  try {
+    const app = createAiRoutes({ userId: "u", resolveProject: async () => ({}) });
+    expect((await app.request(request())).status).toBe(200);
+    const second = await app.request(request());
+    expect(second.status).toBe(200);
+    expect(await second.json()).toEqual(proposal);
+    expect(provider).toHaveBeenCalledTimes(4);
+    for (const index of [0, 2]) {
+      expect(String(provider.mock.calls[index]?.[0])).toBe(
+        "http://backend.internal:8080/api/internal/ai-routing/studio",
+      );
+      expect(provider.mock.calls[index]?.[1]).toMatchObject({
+        headers: { "X-Studio-Agent-Secret": process.env.STUDIO_AGENT_SECRET },
+        redirect: "error",
+        cache: "no-store",
+      });
+    }
+    expect(JSON.parse(String(provider.mock.calls[1]?.[1]?.body)).model).toBe("anthropic/first");
+    expect(JSON.parse(String(provider.mock.calls[3]?.[1]?.body)).model).toBe("openai/next");
+    for (const index of [1, 3]) {
+      expect(String(provider.mock.calls[index]?.[0])).toBe(
+        "https://openrouter.ai/api/v1/chat/completions",
+      );
+      expect(provider.mock.calls[index]?.[1]?.headers).toMatchObject({
+        Authorization: "Bearer router-private-key",
+      });
+      expect(provider.mock.calls[index]?.[1]?.headers).not.toHaveProperty("X-Studio-Agent-Secret");
+    }
+  } finally {
+    provider.mockRestore();
+  }
+});
+
+it("uses the central Gemini model with only the local Gemini credentials", async () => {
+  configureCentralRouting();
+  process.env.AI_PROVIDER = "openrouter";
+  const provider = spyOn(globalThis, "fetch")
+    .mockResolvedValueOnce(Response.json({ provider: "gemini", model: "gemini-central" }))
+    .mockResolvedValueOnce(providerProposal());
+  try {
+    const app = createAiRoutes({ userId: "u", resolveProject: async () => ({}) });
+    expect((await app.request(request())).status).toBe(200);
+    expect(String(provider.mock.calls[1]?.[0])).toBe(
+      "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+    );
+    expect(provider.mock.calls[1]?.[1]?.headers).toMatchObject({
+      Authorization: "Bearer gemini-private-key",
+    });
+    expect(JSON.parse(String(provider.mock.calls[1]?.[1]?.body))).toMatchObject({
+      model: "gemini-central",
+      response_format: { type: "json_object" },
+    });
+  } finally {
+    provider.mockRestore();
+  }
+});
+
+it.each([
+  null,
+  { provider: "custom", model: "model", base: "https://untrusted.invalid" },
+  { provider: "openrouter", model: "" },
+  { provider: "openrouter", model: " " },
+  { provider: "openrouter", model: 42 },
+  { provider: "openrouter", model: "a".repeat(201) },
+])("rejects an invalid central route without invoking a model", async (route) => {
+  configureCentralRouting();
+  const provider = spyOn(globalThis, "fetch").mockResolvedValue(Response.json(route));
+  try {
+    const app = createAiRoutes({ userId: "u", resolveProject: async () => ({}) });
+    expect((await app.request(request())).status).toBe(503);
+    expect(provider).toHaveBeenCalledTimes(1);
+  } finally {
+    provider.mockRestore();
+  }
+});
+
+it.each([401, 403, 500, 503])("fails closed when central routing returns %i", async (status) => {
+  configureCentralRouting();
+  const provider = spyOn(globalThis, "fetch").mockResolvedValue(
+    Response.json({ error: "private backend detail" }, { status }),
+  );
+  try {
+    const app = createAiRoutes({ userId: "u", resolveProject: async () => ({}) });
+    const response = await app.request(request());
+    expect(response.status).toBe(503);
+    expect(await response.text()).not.toContain("private");
+    expect(provider).toHaveBeenCalledTimes(1);
+  } finally {
+    provider.mockRestore();
+  }
+});
+
+it("fails closed on routing network errors instead of using a standalone model", async () => {
+  configureCentralRouting();
+  process.env.SNEEPCUT_AI_BASE_URL = "http://localhost:11434/v1";
+  process.env.SNEEPCUT_AI_MODEL = "local-model";
+  const provider = spyOn(globalThis, "fetch").mockRejectedValue(new Error("network error"));
+  try {
+    const app = createAiRoutes({ userId: "u", resolveProject: async () => ({}) });
+    expect((await app.request(request())).status).toBe(503);
+    expect(provider).toHaveBeenCalledTimes(1);
+  } finally {
+    provider.mockRestore();
+  }
+});
+
+it("bounds central routing to five seconds and propagates its abort signal", async () => {
+  configureCentralRouting();
+  const timeout = spyOn(AbortSignal, "timeout").mockReturnValue(
+    AbortSignal.abort(new DOMException("Routing timeout", "TimeoutError")),
+  );
+  const provider = spyOn(globalThis, "fetch").mockRejectedValue(
+    new DOMException("Routing timeout", "TimeoutError"),
+  );
+  try {
+    const app = createAiRoutes({ userId: "u", resolveProject: async () => ({}) });
+    expect((await app.request(request())).status).toBe(503);
+    expect(timeout).toHaveBeenCalledWith(5_000);
+    expect(provider).toHaveBeenCalledTimes(1);
+    expect(provider.mock.calls[0]?.[1]?.signal?.aborted).toBe(true);
+  } finally {
+    provider.mockRestore();
+    timeout.mockRestore();
+  }
+});
+
+it.each(["openrouter", "gemini"])(
+  "never falls back if central %s credentials are absent",
+  async (selected) => {
+    configureCentralRouting();
+    delete process.env[selected === "openrouter" ? "OPENROUTER_API_KEY" : "GEMINI_API_KEY"];
+    const provider = spyOn(globalThis, "fetch").mockResolvedValue(
+      Response.json({ provider: selected, model: "central-model" }),
+    );
+    try {
+      const app = createAiRoutes({ userId: "u", resolveProject: async () => ({}) });
+      expect((await app.request(request())).status).toBe(503);
+      expect(provider).toHaveBeenCalledTimes(1);
+    } finally {
+      provider.mockRestore();
+    }
+  },
+);
+
+it.each(["", "short"])(
+  "rejects absent or weak central authentication before fetching",
+  async (secret) => {
+    configureCentralRouting();
+    process.env.STUDIO_AGENT_SECRET = secret;
+    const provider = spyOn(globalThis, "fetch");
+    try {
+      const app = createAiRoutes({ userId: "u", resolveProject: async () => ({}) });
+      expect((await app.request(request())).status).toBe(503);
+      expect(provider).not.toHaveBeenCalled();
+    } finally {
+      provider.mockRestore();
+    }
+  },
+);
+
+it.each(["not-a-url", "file:///tmp/api", "https://user:secret@backend.invalid"])(
+  "rejects an invalid central endpoint %j without disclosing the shared secret",
+  async (base) => {
+    configureCentralRouting();
+    process.env.SNEEPCUT_AUTH_BASE_URL = base;
+    const provider = spyOn(globalThis, "fetch");
+    try {
+      const app = createAiRoutes({ userId: "u", resolveProject: async () => ({}) });
+      const response = await app.request(request());
+      expect(response.status).toBe(503);
+      expect(await response.text()).not.toContain("secret");
+      expect(provider).not.toHaveBeenCalled();
+    } finally {
+      provider.mockRestore();
+    }
+  },
+);

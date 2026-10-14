@@ -19,6 +19,12 @@ func (p *Processor) RenderStory(ctx context.Context, request story.Request, vers
 	if err != nil {
 		return story.Output{}, err
 	}
+	bound, err := p.withNativeModels(ctx)
+	if err != nil {
+		return story.Output{}, err
+	}
+	p = bound
+	faceModelSignature := storyModelSignature(p.cfg.FaceModel)
 	dir, err := os.MkdirTemp(p.cfg.TempDir, "story-render-")
 	if err != nil {
 		return story.Output{}, storyWorkError("render preparation")
@@ -43,7 +49,7 @@ func (p *Processor) RenderStory(ctx context.Context, request story.Request, vers
 		}
 		// Output positions/words are excluded: moving an unchanged source excerpt
 		// does not invalidate its expensive crop/encode cache.
-		key := "work/" + request.ID + "/segments/" + storyDigest([]any{story.AlgorithmVersion, storyRenderVersion, entry.Video, entry.Audio, entry.Crop, video.Hash, audio.Hash, w, h, storyModelSignature(p.cfg.FaceModel)}) + ".mp4"
+		key := "work/" + request.ID + "/segments/" + storyDigest([]any{story.AlgorithmVersion, storyRenderVersion, entry.Video, entry.Audio, entry.Crop, video.Hash, audio.Hash, w, h, faceModelSignature}) + ".mp4"
 		part := filepath.Join(dir, fmt.Sprintf("part-%03d.mp4", i))
 		if p.materialize(ctx, key, part) != nil {
 			if err = p.renderStoryEntry(ctx, dir, part, entry, video, audio, w, h); err != nil {
@@ -189,7 +195,7 @@ func (p *Processor) RenderStory(ctx context.Context, request story.Request, vers
 	if err != nil {
 		return story.Output{}, storyWorkError("output verification")
 	}
-	prefix := "clips/" + request.ID + "/story/" + storyDigest([]any{story.AlgorithmVersion, "output-6", storyRenderVersion, version.Timeline, request.Options, request.LogoKey, version.Number, captionSelection.IDs, captionSelection.Warnings})
+	prefix := "clips/" + request.ID + "/story/" + storyDigest([]any{story.AlgorithmVersion, "output-7", storyRenderVersion, version.Timeline, request.Options, request.LogoKey, version.Number, captionSelection.IDs, captionSelection.Warnings, faceModelSignature})
 	result := story.Output{Key: prefix + "/story.mp4", Duration: info.Duration, Size: stat.Size(), Resolution: fmt.Sprintf("%dx%d", info.Width, info.Height), Captions: captions,
 		CaptionMode: story.EffectiveCaptionMode(request.Options), CaptionWarnings: captionSelection.Warnings, CaptionedCandidateIDs: captionSelection.IDs}
 	result.Music = storyMusicCredit(request, version)

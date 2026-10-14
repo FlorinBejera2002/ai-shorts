@@ -195,6 +195,8 @@ export interface StudioApiAdapter {
     backgroundOutputAssetPath?: string;
     quality: "fast" | "balanced" | "best";
     device?: "auto" | "cpu" | "coreml" | "cuda";
+    /** Trusted server-selected model. The HTTP media route does not accept model overrides. */
+    model?: "u2net_human_seg";
     jobId: string;
   }) => MediaProcessingJobState;
 

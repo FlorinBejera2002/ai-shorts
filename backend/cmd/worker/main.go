@@ -13,12 +13,10 @@ import (
 	"syscall"
 	"time"
 
-	"sneepcut/backend-go/internal/aiprovider"
+	"sneepcut/backend-go/internal/airouting"
 	"sneepcut/backend-go/internal/config"
 	"sneepcut/backend-go/internal/data"
-	"sneepcut/backend-go/internal/gemini"
 	"sneepcut/backend-go/internal/media"
-	"sneepcut/backend-go/internal/openrouter"
 	"sneepcut/backend-go/internal/processing"
 	"sneepcut/backend-go/internal/stories"
 	"sneepcut/backend-go/internal/story"
@@ -65,14 +63,12 @@ func run(logger *slog.Logger) error {
 	if err != nil {
 		return err
 	}
-	var ai aiprovider.Generator = gemini.New(app.GeminiKey, app.GeminiModel)
-	if app.AIProvider == "openrouter" || (app.AIProvider == "auto" && app.GeminiKey == "" && app.OpenRouterKey != "") {
-		ai = openrouter.New(app.OpenRouterKey, app.OpenRouterModel, app.AppURL)
-	}
+	ai := airouting.NewService(airouting.NewStore(db), airouting.Options{Provider: app.AIProvider, GeminiKey: app.GeminiKey, OpenRouterKey: app.OpenRouterKey, AppURL: app.AppURL, StudioConfigured: len(app.StudioAgentSecret) >= 32}, nil)
 	cfg, err := processing.ConfigFromEnv(os.Getenv)
 	if err != nil {
 		return err
 	}
+	ai.WithNativeModels(airouting.NativeOptions{WhisperModel: cfg.WhisperModel, StoryWhisperModel: cfg.StoryWhisperModel, VADModel: cfg.WhisperVADModel, FaceModel: cfg.FaceModel})
 	storyLimits, err := story.LimitsFromEnv(os.Getenv)
 	if err != nil {
 		return err

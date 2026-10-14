@@ -17,6 +17,16 @@ func (p *Processor) render(ctx context.Context, in RenderInput) (Clip, error) {
 	}
 	clip.Start = in.Segments[0].Start
 	clip.End = in.Segments[len(in.Segments)-1].End
+	bound, err := p.withNativeModels(ctx)
+	if err != nil {
+		return clip, err
+	}
+	p = bound
+	faceModelSignature := ""
+	if in.SmartCrop && !in.PreserveGeometry && in.AspectRatio == "9:16" {
+		faceModelSignature = storyModelSignature(p.cfg.FaceModel)
+		clip.Metadata["face_model_signature"] = faceModelSignature
+	}
 
 	dir, err := os.MkdirTemp(p.cfg.TempDir, "sneep-render-")
 	if err != nil {
@@ -45,8 +55,8 @@ func (p *Processor) render(ctx context.Context, in RenderInput) (Clip, error) {
 		clip.Segments, clip.Transition, clip.TransitionDuration = in.Segments, "cut", 0
 		clip.Start, clip.End = in.Segments[0].Start, in.Segments[len(in.Segments)-1].End
 		clip.Metadata["transition_decisions"] = decisions
-		clip.Metadata["transition_state"] = TransitionState{Recipe: recipe, Decisions: decisions}
-		if in.Reuse != nil && reflect.DeepEqual(in.Segments, in.Reuse.Segments) && reflect.DeepEqual(decisions, in.PreviousDecisions) {
+		clip.Metadata["transition_state"] = TransitionState{Recipe: recipe, Decisions: decisions, FaceModelSignature: faceModelSignature}
+		if canReuseNaturalClip(in, decisions, faceModelSignature) {
 			previous := *in.Reuse
 			previous.Metadata = clip.Metadata
 			return previous, nil
@@ -210,6 +220,14 @@ func (p *Processor) render(ctx context.Context, in RenderInput) (Clip, error) {
 	}
 
 	return clip, nil
+}
+
+func canReuseNaturalClip(in RenderInput, decisions []BoundaryDecision, faceModelSignature string) bool {
+	if in.Reuse == nil || !reflect.DeepEqual(in.Segments, in.Reuse.Segments) || !reflect.DeepEqual(decisions, in.PreviousDecisions) {
+		return false
+	}
+	// Older clips have no signature and refresh once when face tracking applies.
+	return faceModelSignature == "" || in.Reuse.Metadata["face_model_signature"] == faceModelSignature
 }
 
 // extractClip extracts and joins segments from the source video.

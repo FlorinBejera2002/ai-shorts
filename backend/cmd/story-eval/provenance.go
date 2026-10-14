@@ -1,11 +1,14 @@
 package main
 
 import (
+	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"time"
 
 	"sneepcut/backend-go/internal/aiprovider"
+	"sneepcut/backend-go/internal/airouting"
 	"sneepcut/backend-go/internal/processing"
 	"sneepcut/backend-go/internal/story"
 )
@@ -23,25 +26,40 @@ type evaluationProvenance struct {
 }
 
 type modelConfiguration struct {
-	ProviderModel       string    `json:"provider_model"`
-	SpeechModel         string    `json:"speech_model"`
-	SpeechModelBytes    int64     `json:"speech_model_bytes,omitempty"`
-	SpeechModelModified time.Time `json:"speech_model_modified_at,omitempty"`
+	// Keep the legacy field readable when replaying single-model manifests.
+	ProviderModel       string                     `json:"provider_model,omitempty"`
+	TaskModels          map[aiprovider.Task]string `json:"task_models,omitempty"`
+	SpeechModel         string                     `json:"speech_model"`
+	SpeechModelBytes    int64                      `json:"speech_model_bytes,omitempty"`
+	SpeechModelModified time.Time                  `json:"speech_model_modified_at,omitempty"`
 }
 
-func evaluationModels(cfg processing.Config, ai aiprovider.Generator) modelConfiguration {
+func evaluationModels(ctx context.Context, cfg processing.Config, ai aiprovider.Generator) (modelConfiguration, error) {
 	model := cfg.StoryWhisperModel
 	if model == "" {
 		model = cfg.WhisperModel
 	}
-	models := modelConfiguration{ProviderModel: "offline", SpeechModel: filepath.Base(model)}
-	if identity, ok := ai.(aiprovider.MediaModelIdentity); ok {
-		models.ProviderModel = identity.MediaModelIdentity()
+	models := modelConfiguration{SpeechModel: filepath.Base(model)}
+	if ai == nil {
+		models.ProviderModel = "offline"
+	} else {
+		models.TaskModels = make(map[aiprovider.Task]string)
+		for _, stage := range airouting.Stages() {
+			selected, err := aiprovider.ForTask(ctx, ai, stage.Stage)
+			if err != nil {
+				return modelConfiguration{}, fmt.Errorf("resolve evaluation model for %s: %w", stage.Stage, err)
+			}
+			identity, ok := selected.(aiprovider.MediaModelIdentity)
+			if !ok {
+				return modelConfiguration{}, fmt.Errorf("evaluation model identity is unavailable for %s", stage.Stage)
+			}
+			models.TaskModels[stage.Stage] = identity.MediaModelIdentity()
+		}
 	}
 	if info, err := os.Stat(model); err == nil {
 		models.SpeechModelBytes, models.SpeechModelModified = info.Size(), info.ModTime().UTC()
 	}
-	return models
+	return models, nil
 }
 
 type replayProvenance struct {

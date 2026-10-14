@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"sneepcut/backend-go/internal/agentaction"
+	"sneepcut/backend-go/internal/aiprovider"
 	"sneepcut/backend-go/internal/gemini"
 )
 
@@ -305,7 +306,11 @@ func (h *Handler) plan(ctx context.Context, r *Run) error {
 		r.Error = "The target context is too large. Select a specific project or clip."
 		return h.save(ctx, r)
 	}
-	raw, err := h.generator.Generate(ctx, prompt)
+	generator, err := aiprovider.ForTask(ctx, h.generator, aiprovider.TaskWorkspaceAgent)
+	var raw string
+	if err == nil {
+		raw, err = generator.Generate(ctx, prompt)
+	}
 	if err != nil {
 		r.Status = "failed"
 		r.Error = "AI planning is unavailable. The next action was not started."

@@ -21,20 +21,6 @@ RUN mkdir -p /media && go test -race ./... && go vet ./... \
     && CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /migrate ./cmd/migrate \
     && CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /adminctl ./cmd/adminctl
 
-FROM debian:bookworm-slim AS api
-# Inspect uploaded video duration before sending it to TikTok. The API still
-# runs as an unprivileged numeric user and keeps the same read-only runtime.
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends ca-certificates ffmpeg \
-    && rm -rf /var/lib/apt/lists/*
-COPY --from=build /api /api
-COPY --from=build /adminctl /adminctl
-COPY --from=build --chown=10001:10001 /media /app/media
-USER 10001:10001
-EXPOSE 8080
-ENV LISTEN_ADDR=:8080
-ENTRYPOINT ["/api"]
-
 FROM debian:bookworm-slim AS migrate
 RUN apt-get update \
     && apt-get install -y --no-install-recommends ca-certificates \
@@ -66,6 +52,28 @@ RUN sed -i '/--vad-min-silence-duration-ms")/s/cli_params.vad_min_speech_duratio
     && cp "models/ggml-${WHISPER_VAD_MODEL}.bin" models/ggml-vad.bin \
     && curl --fail --location https://raw.githubusercontent.com/esimov/pigo/v1.4.6/cascade/facefinder -o /whisper/models/facefinder
 
+FROM debian:bookworm-slim AS api
+# Inspect uploaded video duration before sending it to TikTok. The API still
+# runs as an unprivileged numeric user and keeps the same read-only runtime.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates ffmpeg \
+    && rm -rf /var/lib/apt/lists/*
+COPY --from=build /api /api
+COPY --from=build /adminctl /adminctl
+COPY --from=build --chown=10001:10001 /media /app/media
+# API and worker share the installed model inventory used by admin routing.
+# Worker inherits these layers; model changes never accept arbitrary paths.
+COPY --from=speech-build /whisper/models/ggml-base.bin /models/ggml-base.bin
+COPY --from=speech-build /whisper/models/ggml-story.bin /models/ggml-story.bin
+COPY --from=speech-build /whisper/models/ggml-vad.bin /models/ggml-vad.bin
+COPY --from=speech-build /whisper/models/facefinder /models/facefinder
+ENV WHISPER_CPP_MODEL=/models/ggml-base.bin PIGO_FACE_MODEL=/models/facefinder
+ENV STORY_WHISPER_CPP_MODEL=/models/ggml-story.bin WHISPER_CPP_VAD_MODEL=/models/ggml-vad.bin
+USER 10001:10001
+EXPOSE 8080
+ENV LISTEN_ADDR=:8080
+ENTRYPOINT ["/api"]
+
 FROM api AS worker
 USER root
 RUN apt-get update && apt-get install -y --no-install-recommends libgomp1 libstdc++6 fonts-dejavu-core fonts-liberation \
@@ -73,13 +81,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends libgomp1 libstd
 COPY --from=build /worker /worker
 COPY --from=speech-build /whisper/build/bin/whisper-cli /usr/local/bin/whisper-cli
 COPY --from=speech-build /whisper/build/bin/whisper-vad-speech-segments /usr/local/bin/whisper-vad-speech-segments
-COPY --from=speech-build /whisper/models/ggml-base.bin /models/ggml-base.bin
-COPY --from=speech-build /whisper/models/ggml-story.bin /models/ggml-story.bin
-COPY --from=speech-build /whisper/models/ggml-vad.bin /models/ggml-vad.bin
-COPY --from=speech-build /whisper/models/facefinder /models/facefinder
-ENV WHISPER_CPP_PATH=/usr/local/bin/whisper-cli WHISPER_CPP_MODEL=/models/ggml-base.bin PIGO_FACE_MODEL=/models/facefinder
-ENV STORY_WHISPER_CPP_MODEL=/models/ggml-story.bin
-ENV WHISPER_CPP_VAD_MODEL=/models/ggml-vad.bin
+ENV WHISPER_CPP_PATH=/usr/local/bin/whisper-cli
 USER 10001:10001
 ENTRYPOINT ["/worker"]
 

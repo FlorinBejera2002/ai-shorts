@@ -17,9 +17,8 @@ import (
 	"time"
 
 	"sneepcut/backend-go/internal/aiprovider"
-	"sneepcut/backend-go/internal/gemini"
+	"sneepcut/backend-go/internal/airouting"
 	"sneepcut/backend-go/internal/media"
-	"sneepcut/backend-go/internal/openrouter"
 	"sneepcut/backend-go/internal/processing"
 	"sneepcut/backend-go/internal/story"
 )
@@ -117,12 +116,14 @@ func evaluationProvider(mode string, getenv func(string) string) (aiprovider.Gen
 		if routerKey == "" {
 			return nil, "", errors.New("configured OpenRouter credentials are unavailable; use -provider offline for local-only evaluation")
 		}
-		return openrouter.New(routerKey, getenv("OPENROUTER_MODEL_NAME"), getenv("APP_URL")), "openrouter", nil
+		provider = "openrouter"
+	} else {
+		if geminiKey == "" {
+			return nil, "", errors.New("configured Gemini credentials are unavailable; use -provider offline for local-only evaluation")
+		}
+		provider = "gemini"
 	}
-	if geminiKey == "" {
-		return nil, "", errors.New("configured Gemini credentials are unavailable; use -provider offline for local-only evaluation")
-	}
-	return gemini.New(geminiKey, getenv("GEMINI_MODEL_NAME")), "gemini", nil
+	return airouting.NewService(nil, airouting.Options{Provider: provider, GeminiKey: geminiKey, OpenRouterKey: routerKey, AppURL: getenv("APP_URL")}, nil), provider, nil
 }
 
 func runEvaluation(parent context.Context, args []string, getenv func(string) string, out io.Writer) error {
@@ -161,10 +162,6 @@ func runEvaluation(parent context.Context, args []string, getenv func(string) st
 	if err != nil {
 		return err
 	}
-	if cfg.captureResponses && ai != nil {
-		enableHTTPDiagnostics(ai, checkpoints)
-		ai = &capturedProvider{Generator: ai, checkpoints: checkpoints}
-	}
 	datasetFile := filepath.Join(input, "manifest.json")
 	if replay != nil {
 		datasetFile = filepath.Join(input, "dataset-manifest.json")
@@ -194,6 +191,13 @@ func runEvaluation(parent context.Context, args []string, getenv func(string) st
 	processingConfig, err := processing.ConfigFromEnv(getenv)
 	if err != nil {
 		return errors.New("native processing configuration is invalid")
+	}
+	if routing, ok := ai.(*airouting.Service); ok {
+		routing.WithNativeModels(airouting.NativeOptions{WhisperModel: processingConfig.WhisperModel, StoryWhisperModel: processingConfig.StoryWhisperModel, VADModel: processingConfig.WhisperVADModel, FaceModel: processingConfig.FaceModel})
+	}
+	if cfg.captureResponses && ai != nil {
+		enableHTTPDiagnostics(ai, checkpoints)
+		ai = &capturedProvider{Generator: ai, checkpoints: checkpoints}
 	}
 	processingConfig.TempDir = filepath.Join(runDir, "native-tmp")
 	if err = os.Mkdir(processingConfig.TempDir, 0700); err != nil {
@@ -256,9 +260,13 @@ func runEvaluation(parent context.Context, args []string, getenv func(string) st
 		}
 		fmt.Fprintf(out, "Validated narration: %.3f seconds\n", asset.Duration)
 	}
+	models, err := evaluationModels(ctx, processingConfig, ai)
+	if err != nil {
+		return err
+	}
 	manifest := evaluationProvenance{Created: time.Now().UTC(), Input: input, Provider: provider,
 		SpeechModel: filepath.Base(processingConfig.StoryWhisperModel), Limits: limits, Sources: provenance,
-		AlgorithmVersion: story.AlgorithmVersion, Models: evaluationModels(processingConfig, ai)}
+		AlgorithmVersion: story.AlgorithmVersion, Models: models}
 	if replay != nil {
 		manifest.Input = replay.provenance.Input
 		manifest.Replay = replay.provenanceRecord(request.VersionStart)

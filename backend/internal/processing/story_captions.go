@@ -184,12 +184,16 @@ func storySelectedCaptionPhrases(request story.Request, version story.Version) [
 }
 
 func (p *Processor) storyAudibility(ctx context.Context, dir string, request story.Request, phrases []storyCaptionPhrase) (map[string]storyAudibilityFinding, error) {
-	reviewer, ok := p.ai.(aiprovider.MediaReviewer)
+	generator, err := aiprovider.ForTask(ctx, p.ai, aiprovider.TaskSpeechReview)
+	if err != nil {
+		return nil, err
+	}
+	reviewer, ok := generator.(aiprovider.MediaReviewer)
 	if !ok {
 		return nil, errors.New("audio review is unavailable")
 	}
-	model := fmt.Sprintf("%T", p.ai)
-	if identity, ok := p.ai.(aiprovider.MediaModelIdentity); ok {
+	model := fmt.Sprintf("%T", generator)
+	if identity, ok := generator.(aiprovider.MediaModelIdentity); ok {
 		model = identity.MediaModelIdentity()
 	}
 	assets := map[string]story.Asset{}

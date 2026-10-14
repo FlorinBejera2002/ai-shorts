@@ -21,6 +21,11 @@ func (c *Client) ReviewMedia(ctx context.Context, prompt string, media []aiprovi
 	}
 	parts := []any{map[string]any{"type": "text", "text": prompt}}
 	for _, item := range media {
+		// Qwen Omni accepts inline audio/video only below 10 MB after
+		// base64 encoding. Reject before allocating or transmitting the body.
+		if strings.HasPrefix(c.Model, "qwen/qwen3.8-omni") && item.MIME != "image/jpeg" && base64.StdEncoding.EncodedLen(len(item.Data)) >= 10_000_000 {
+			return "", errors.New("Qwen Omni inline audio or video exceeds the model limit")
+		}
 		parts = append(parts, map[string]any{"type": "text", "text": item.Label})
 		encoded := base64.StdEncoding.EncodeToString(item.Data)
 		switch item.MIME {

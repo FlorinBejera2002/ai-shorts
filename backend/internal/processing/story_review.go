@@ -71,7 +71,11 @@ func (p *Processor) ReviewStory(ctx context.Context, request story.Request, vers
 	for _, warning := range version.Output.CaptionWarnings {
 		report.Coverage.Incomplete = appendStoryWarning(report.Coverage.Incomplete, warning)
 	}
-	reviewer, ok := p.ai.(aiprovider.MediaReviewer)
+	generator, err := aiprovider.ForTask(ctx, p.ai, aiprovider.TaskVideoReview)
+	if err != nil {
+		return incomplete("The media reviewer is unavailable or this model does not support the supplied audio and video.")
+	}
+	reviewer, ok := generator.(aiprovider.MediaReviewer)
 	if !ok {
 		return incomplete("The configured AI provider cannot review actual audio and video.")
 	}

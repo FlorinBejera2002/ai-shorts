@@ -203,6 +203,22 @@ describe("registerMediaRoutes", () => {
     );
   });
 
+  it("does not accept browser-supplied background removal model overrides", async () => {
+    const { app, startBackgroundRemoval } = createAdapter(completeJob);
+    const response = await app.request("http://localhost/projects/demo/media/remove-background", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        inputPath: "assets/clip.mp4",
+        model: "untrusted-model",
+        provider: "custom",
+      }),
+    });
+    expect(response.status).toBe(200);
+    expect(startBackgroundRemoval.mock.calls[0]?.[0]).not.toHaveProperty("model");
+    expect(startBackgroundRemoval.mock.calls[0]?.[0]).not.toHaveProperty("provider");
+  });
+
   it("requires png output for image cutouts", async () => {
     const { app, startBackgroundRemoval } = createAdapter(completeJob);
 

@@ -13,7 +13,7 @@ import (
 
 	"sneepcut/backend-go/internal/account"
 	"sneepcut/backend-go/internal/admin"
-	"sneepcut/backend-go/internal/aiprovider"
+	"sneepcut/backend-go/internal/airouting"
 	"sneepcut/backend-go/internal/assistant"
 	"sneepcut/backend-go/internal/billing"
 	"sneepcut/backend-go/internal/brand"
@@ -22,14 +22,12 @@ import (
 	"sneepcut/backend-go/internal/config"
 	"sneepcut/backend-go/internal/dashboard"
 	"sneepcut/backend-go/internal/email"
-	"sneepcut/backend-go/internal/gemini"
 	"sneepcut/backend-go/internal/httpapi"
 	"sneepcut/backend-go/internal/httpx"
 	"sneepcut/backend-go/internal/identity"
 	"sneepcut/backend-go/internal/jobs"
 	"sneepcut/backend-go/internal/media"
 	"sneepcut/backend-go/internal/music"
-	"sneepcut/backend-go/internal/openrouter"
 	"sneepcut/backend-go/internal/processing"
 	"sneepcut/backend-go/internal/projects"
 	"sneepcut/backend-go/internal/publishing"
@@ -39,12 +37,12 @@ import (
 	"sneepcut/backend-go/internal/workspaceagent"
 )
 
-func configuredGenerator(application config.Application) aiprovider.Generator {
-	provider := application.AIProvider
-	if provider == "openrouter" || (provider == "auto" && application.GeminiKey == "" && application.OpenRouterKey != "") {
-		return openrouter.New(application.OpenRouterKey, application.OpenRouterModel, application.AppURL)
+func configuredGenerator(db *sql.DB, application config.Application) *airouting.Service {
+	var store airouting.Store
+	if db != nil {
+		store = airouting.NewStore(db)
 	}
-	return gemini.New(application.GeminiKey, application.GeminiModel)
+	return airouting.NewService(store, airouting.Options{Provider: application.AIProvider, GeminiKey: application.GeminiKey, OpenRouterKey: application.OpenRouterKey, AppURL: application.AppURL, StudioConfigured: len(application.StudioAgentSecret) >= 32}, nil)
 }
 
 func buildApplication(db *sql.DB, cfg config.Config, a config.Application, logger *slog.Logger) (http.Handler, func(), error) {
@@ -122,7 +120,7 @@ func buildApplication(db *sql.DB, cfg config.Config, a config.Application, logge
 	stopPublishing := publishingHandler.Start(context.Background())
 	previousCleanup := cleanup
 	cleanup = func() { stopPublishing(); previousCleanup() }
-	generator := configuredGenerator(a)
+	generator := configuredGenerator(db, a)
 	storyLimits, err := story.LimitsFromEnv(os.Getenv)
 	if err != nil {
 		cleanup()
@@ -134,6 +132,7 @@ func buildApplication(db *sql.DB, cfg config.Config, a config.Application, logge
 		cleanup()
 		return nil, noop, err
 	}
+	generator.WithNativeModels(airouting.NativeOptions{WhisperModel: processingConfig.WhisperModel, StoryWhisperModel: processingConfig.StoryWhisperModel, VADModel: processingConfig.WhisperVADModel, FaceModel: processingConfig.FaceModel})
 	storyHandler := stories.New(db, auth, mediaService, processing.New(processingConfig, storage, generator), storyLimits)
 	agentExecutor := workspaceagent.NewExecutor(db, generator, storyLimits)
 	agentExecutor.SetClips(clipHandler)
@@ -173,7 +172,8 @@ func buildApplication(db *sql.DB, cfg config.Config, a config.Application, logge
 					AND EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema=current_schema() AND table_name='clips' AND column_name='story_project_id')
 					AND to_regclass('account_preferences') IS NOT NULL
 					AND to_regclass('workspace_agent_runs') IS NOT NULL
-					AND to_regclass('account_security_events') IS NOT NULL`).Scan(&valid) == nil && valid
+					AND to_regclass('account_security_events') IS NOT NULL
+					AND to_regclass('ai_routing_settings') IS NOT NULL`).Scan(&valid) == nil && valid
 			}
 			redisReady := limits.Ping(ctx).Err() == nil
 			status := 200
@@ -183,6 +183,6 @@ func buildApplication(db *sql.DB, cfg config.Config, a config.Application, logge
 			httpx.JSON(w, status, map[string]any{"ready": status == 200, "database": database, "schema": schema, "redis": redisReady})
 		})
 	}
-	handler := httpapi.New(logger, cfg.Environment, version, auth.Register, admin.New(db, auth).Register, media.NewHandler(mediaService, auth).Register, music.NewHandler(music.NewCatalog(), auth).Register, jobHandler.Register, storyHandler.Register, projects.New(db, auth, mediaService).Register, clipHandler.Register, brand.New(db, auth, mediaService).Register, calendarHandler.Register, billingService.Register, account.New(db, auth, mediaService, billingService, account.Config{MFA: accounts}).Register, dashboard.New(db, auth, clipHandler).Register, scripts.NewWithDB(db, auth, generator).Register, assistant.New(db, auth, generator).Register, agentHandler.Register, publishingHandler.Register, readiness)
+	handler := httpapi.New(logger, cfg.Environment, version, auth.Register, admin.New(db, auth).WithAIRouting(generator).Register, media.NewHandler(mediaService, auth).Register, music.NewHandler(music.NewCatalog(), auth).Register, jobHandler.Register, storyHandler.Register, projects.New(db, auth, mediaService).Register, clipHandler.Register, brand.New(db, auth, mediaService).Register, calendarHandler.Register, billingService.Register, account.New(db, auth, mediaService, billingService, account.Config{MFA: accounts}).Register, dashboard.New(db, auth, clipHandler).Register, scripts.NewWithDB(db, auth, generator).Register, assistant.New(db, auth, generator).Register, agentHandler.Register, publishingHandler.Register, generator.StudioRegistration(a.StudioAgentSecret), readiness)
 	return httpapi.Policy(auth.Policy(handler), httpapi.PolicyConfig{AllowedHosts: a.AllowedHosts}), cleanup, nil
 }

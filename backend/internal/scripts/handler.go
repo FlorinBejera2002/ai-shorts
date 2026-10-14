@@ -12,6 +12,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/julienschmidt/httprouter"
+	"sneepcut/backend-go/internal/aiprovider"
 	"sneepcut/backend-go/internal/gemini"
 	"sneepcut/backend-go/internal/httpx"
 	"sneepcut/backend-go/internal/identity"
@@ -79,7 +80,11 @@ func (h *Handler) generate(w http.ResponseWriter, r *http.Request) {
 		httpx.Error(w, 422, "Script parameters are invalid")
 		return
 	}
-	raw, err := h.generator.Generate(r.Context(), BuildPrompt(input))
+	generator, err := aiprovider.ForTask(r.Context(), h.generator, aiprovider.TaskScripts)
+	var raw string
+	if err == nil {
+		raw, err = generator.Generate(r.Context(), BuildPrompt(input))
+	}
 	if errors.Is(err, gemini.ErrNotConfigured) {
 		httpx.Error(w, 503, err.Error())
 		return
@@ -109,8 +114,9 @@ func GenerateDraft(ctx context.Context, generator gemini.Generator, input Reques
 	if err := input.Validate(); err != nil {
 		return nil, err
 	}
-	if generator == nil {
-		return nil, gemini.ErrNotConfigured
+	generator, err := aiprovider.ForTask(ctx, generator, aiprovider.TaskScripts)
+	if err != nil {
+		return nil, err
 	}
 	raw, err := generator.Generate(ctx, BuildPrompt(input))
 	if err != nil {

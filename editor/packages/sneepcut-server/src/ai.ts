@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
+import { AiUnavailable, readCentralAiRoute } from "./ai-routing";
 
 const MAX_HTML = 500_000;
 const TIMEOUT_MS = 30_000;
@@ -16,7 +17,6 @@ interface AiRoutesOptions {
   generate?: (input: AiInput) => Promise<unknown>;
 }
 
-class AiUnavailable extends Error {}
 class AiTimeout extends Error {}
 
 interface ConfiguredProvider {
@@ -109,6 +109,28 @@ function configuredProvider(): ConfiguredProvider {
   };
 }
 
+async function resolveProvider(signal: AbortSignal): Promise<ConfiguredProvider> {
+  const route = await readCentralAiRoute("studio", signal);
+  if (!route) return configuredProvider();
+  if (route.provider === "openrouter" && process.env.OPENROUTER_API_KEY?.trim()) {
+    return {
+      base: "https://openrouter.ai/api/v1",
+      model: route.model,
+      key: process.env.OPENROUTER_API_KEY,
+      openRouter: true,
+    };
+  }
+  if (route.provider === "gemini" && process.env.GEMINI_API_KEY?.trim()) {
+    return {
+      base: "https://generativelanguage.googleapis.com/v1beta/openai",
+      model: route.model,
+      key: process.env.GEMINI_API_KEY,
+      openRouter: false,
+    };
+  }
+  throw new AiUnavailable();
+}
+
 function parseProviderContent(content: string): unknown {
   const text = content.trim();
   const fenced = /^```(?:json)?[ \t]*\r?\n([\s\S]*?)\r?\n```$/i.exec(text);
@@ -116,7 +138,7 @@ function parseProviderContent(content: string): unknown {
 }
 
 async function generateWithConfiguredProvider(input: AiInput): Promise<unknown> {
-  const provider = configuredProvider();
+  const provider = await resolveProvider(input.signal);
   let endpoint: URL;
   try {
     endpoint = new URL(`${provider.base.replace(/\/+$/, "")}/chat/completions`);
@@ -201,7 +223,7 @@ export function createAiRoutes(options: AiRoutesOptions): Hono {
       return c.json(validateProposal(result, input.html));
     } catch (error) {
       if (error instanceof AiUnavailable)
-        return c.json({ error: "SneepCut AI provider is not configured" }, 503);
+        return c.json({ error: "SneepCut AI configuration is unavailable" }, 503);
       if (error instanceof AiTimeout) return c.json({ error: "AI proposal timed out" }, 504);
       return c.json({ error: "AI provider could not produce a valid proposal" }, 502);
     }

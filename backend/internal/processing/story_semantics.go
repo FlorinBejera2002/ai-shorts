@@ -52,12 +52,16 @@ func (p *Processor) AnalyzeStorySources(ctx context.Context, assets []story.Asse
 	if len(assets) == 0 || len(assets) > 21 {
 		return warn("Source meaning analysis could not fit the source-count limit; visual relevance needs review.")
 	}
-	reviewer, ok := p.ai.(aiprovider.MediaReviewer)
+	generator, err := aiprovider.ForTask(ctx, p.ai, aiprovider.TaskSourceAnalysis)
+	if err != nil {
+		return warn("Source meaning analysis is unavailable for the configured model; visual relevance needs review.")
+	}
+	reviewer, ok := generator.(aiprovider.MediaReviewer)
 	if !ok {
 		return warn("The configured provider cannot inspect source frames; visual relevance needs review.")
 	}
-	model := fmt.Sprintf("%T", p.ai)
-	if identity, ok := p.ai.(aiprovider.MediaModelIdentity); ok {
+	model := fmt.Sprintf("%T", generator)
+	if identity, ok := generator.(aiprovider.MediaModelIdentity); ok {
 		model = identity.MediaModelIdentity()
 	}
 	type sourceIdentity struct{ ID, Hash, Analysis, Kind string }

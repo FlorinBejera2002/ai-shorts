@@ -24,13 +24,15 @@ import (
 var userIDPattern = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
 
 type Handler struct {
-	db   *sql.DB
-	auth *identity.Handler
+	db        *sql.DB
+	auth      *identity.Handler
+	aiRouting aiRoutingService
 }
 
 func New(db *sql.DB, auth *identity.Handler) *Handler { return &Handler{db: db, auth: auth} }
 
 func (h *Handler) Register(router *httprouter.Router) {
+	h.registerAIRouting(router)
 	router.Handler(http.MethodGet, "/api/admin/overview", h.auth.RequireAdmin(h.overview))
 	router.Handler(http.MethodGet, "/api/admin/users", h.auth.RequireAdmin(h.users))
 	router.Handler(http.MethodPatch, "/api/admin/users/:id", h.auth.RequireRecentAdmin(h.updateUser))

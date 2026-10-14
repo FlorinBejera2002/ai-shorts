@@ -27,6 +27,7 @@ func TestPostgresTransitionRecipeAndCompletion(t *testing.T) {
 		t.Fatalf("claim: %v", err)
 	}
 	state := processing.TransitionState{Recipe: processing.RenderInput{SourceKey: "sources/fixture.mp4", NaturalTransitions: true, Segments: []processing.Segment{{Start: 0, End: 2.2}, {Start: 4.2, End: 7}}, Transcript: processing.Transcript{Words: []processing.Word{{Text: "word", Start: 2, End: 2.4}}}}, Decisions: []processing.BoundaryDecision{{Index: 0, Strategy: "cut", Outgoing: 2.4, Incoming: 4.2, Score: .95}}}
+	state.FaceModelSignature = "selected-face-model"
 	clip := processing.Clip{Title: "Retained title", StorageKey: "clips/old.mp4", TikTokStorageKey: "clips/old-clean.mp4", ThumbnailKey: "clips/old.jpg", Segments: []processing.Segment{{Start: 0, End: 2.4}, {Start: 4.2, End: 7}}, End: 7, Duration: 5.2, Resolution: "1080x1920", HasSubtitles: true, ContainsPlatformBadge: true, Metadata: map[string]any{"transition_state": state}}
 	if err = repo.Complete(ctx, job, processing.Result{SourceKey: state.Recipe.SourceKey, Clips: []processing.Clip{clip}}); err != nil {
 		t.Fatal(err)
@@ -52,6 +53,9 @@ func TestPostgresTransitionRecipeAndCompletion(t *testing.T) {
 	}
 	if input.Segments[0].End != 2.2 || input.Reuse.Segments[0].End != 2.4 || len(input.Transcript.Words) != 1 {
 		t.Fatal("recipe lost original boundaries or word timings")
+	}
+	if input.Reuse.Metadata["face_model_signature"] != state.FaceModelSignature {
+		t.Fatal("recipe lost the rendered face model identity")
 	}
 	clip.StorageKey = "clips/new.mp4"
 	clip.TikTokStorageKey = "clips/new-clean.mp4"

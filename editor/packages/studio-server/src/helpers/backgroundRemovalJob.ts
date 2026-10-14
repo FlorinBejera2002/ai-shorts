@@ -15,6 +15,7 @@ export type BackgroundRemovalRender = (options: {
   backgroundOutputPath?: string;
   device?: BackgroundRemovalJobOptions["device"];
   quality?: BackgroundRemovalJobOptions["quality"];
+  model?: BackgroundRemovalJobOptions["model"];
   onProgress?: (event: BackgroundRemovalProgressEvent) => void;
 }) => Promise<{
   provider: string;
@@ -49,6 +50,7 @@ export function createBackgroundRemovalJob(
         backgroundOutputPath: opts.backgroundOutputPath,
         device: opts.device,
         quality: opts.quality,
+        model: opts.model,
         onProgress: (event) => updateBackgroundRemovalProgress(state, event),
       });
       state.status = "complete";

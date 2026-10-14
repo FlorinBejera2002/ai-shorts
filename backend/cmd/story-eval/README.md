@@ -21,9 +21,12 @@ evaluation of the worker's story default.
 
 The default is `-provider offline`: local ASR and rendering run, external AI is
 disabled, and the draft remains `needs_review`. `-provider configured` explicitly
-enables the existing Gemini/OpenRouter provider from process environment
-(`AI_PROVIDER`, the matching API key and model variables). The command does not
-load `.env` files. External analysis/review is capped at 12 reserved calls,
+enables the Gemini/OpenRouter provider from process environment
+(`AI_PROVIDER` and the matching API key), with the application's default model
+for each AI task. This database-free evaluator does not load admin overrides,
+legacy global model variables, or `.env` files. `provenance.json` records the
+resolved provider/model identity for every task in `model_configuration.task_models`.
+External analysis/review is capped at 12 reserved calls,
 including failed requests, and two repair cycles; lower these with
 `-max-ai-calls` and `-repair-cycles`.
 

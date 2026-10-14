@@ -256,7 +256,7 @@ func TestStoryRenderSeparateAudioVideoAndReviewActualMedia(t *testing.T) {
 	}
 	verdict := `{"coverage":{"audio":true,"visual":true,"captions":true,"semantics":true,"boundaries":true,"incomplete":[]},"reviewed_ranges":[{"start":0,"end":1.6}],"reviewed_boundaries":[0.8],"issues":[]}`
 	reviewer := &storyReviewMock{result: verdict}
-	p.ai = reviewer
+	p.ai = &taskProvider{providers: map[aiprovider.Task]aiprovider.Generator{aiprovider.TaskVideoReview: reviewer}}
 	reserved := 0
 	reviewCtx := story.WithAIBudget(ctx, func(context.Context) error { reserved++; return nil })
 	report, err := p.ReviewStory(reviewCtx, request, version)

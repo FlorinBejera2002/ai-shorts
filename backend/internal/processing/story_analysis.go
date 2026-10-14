@@ -20,6 +20,11 @@ const storyMissingVADWarning = "Voice activity detection is unavailable. Automat
 // Analyze persists immutable, source/settings-addressed artifacts. Retrying an
 // editorial operation reuses the transcript and proxy without another ASR run.
 func (p *Processor) Analyze(ctx context.Context, project string, asset story.Asset, options story.Options) (story.Asset, error) {
+	bound, err := p.withNativeModels(ctx)
+	if err != nil {
+		return asset, err
+	}
+	p = bound
 	if asset.Kind == "narration" {
 		return p.analyzeNarration(ctx, project, asset, options)
 	}

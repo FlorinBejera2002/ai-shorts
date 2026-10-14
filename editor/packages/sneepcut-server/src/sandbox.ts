@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 import { constants } from "node:fs";
 import { cp, lstat, mkdir, mkdtemp, open, readFile, rm, writeFile } from "node:fs/promises";
 import { localizeGsap } from "./assets";
+import { resolveBackgroundRemovalModel } from "./ai-routing";
 import { tmpdir } from "node:os";
 import { basename, dirname, extname, isAbsolute, join, relative } from "node:path";
 import type {
@@ -319,10 +320,12 @@ export function startSandboxBackgroundRemoval(options: BackgroundOptions): Media
   };
   void (async () => {
     try {
+      const signal = new AbortController().signal;
+      const model = await resolveBackgroundRemovalModel(signal);
       const result = await runJob(
         "background",
-        options,
-        new AbortController().signal,
+        { ...options, model },
+        signal,
         (progress, stage) => {
           state.progress = progress;
           state.stage = stage;

@@ -12,6 +12,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/julienschmidt/httprouter"
+	"sneepcut/backend-go/internal/aiprovider"
 	"sneepcut/backend-go/internal/data"
 	"sneepcut/backend-go/internal/gemini"
 	"sneepcut/backend-go/internal/httpx"
@@ -203,7 +204,11 @@ func (h *Handler) chat(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	prompt += "\n\nUSER: " + in.Message
-	raw, err := h.generator.Generate(r.Context(), prompt)
+	generator, err := aiprovider.ForTask(r.Context(), h.generator, aiprovider.TaskAssistant)
+	var raw string
+	if err == nil {
+		raw, err = generator.Generate(r.Context(), prompt)
+	}
 	if errors.Is(err, gemini.ErrNotConfigured) {
 		httpx.Error(w, 503, err.Error())
 		return

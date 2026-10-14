@@ -17,6 +17,11 @@ func (p *Processor) process(ctx context.Context, in Input, progress Progress) (R
 	if !namespacePattern.MatchString(in.Namespace) {
 		return r, fmt.Errorf("invalid processing namespace")
 	}
+	bound, err := p.withNativeModels(ctx)
+	if err != nil {
+		return r, err
+	}
+	p = bound
 	dir, e := os.MkdirTemp(p.cfg.TempDir, "sneep-process-")
 	if e != nil {
 		return r, e

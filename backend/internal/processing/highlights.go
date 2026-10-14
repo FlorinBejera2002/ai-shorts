@@ -7,6 +7,8 @@ import (
 	"math"
 	"strings"
 	"unicode/utf8"
+
+	"sneepcut/backend-go/internal/aiprovider"
 )
 
 const (
@@ -145,7 +147,11 @@ Return only JSON: {"shorts":[{"segments":[{"start":0,"end":30}],"transition":"cu
 TRANSCRIPT_DATA:
 %s`, direction, count, transcript.Duration, transcriptJSON)
 
-	response, err := p.ai.Generate(ctx, prompt)
+	generator, err := aiprovider.ForTask(ctx, p.ai, aiprovider.TaskHighlights)
+	if err != nil {
+		return nil, err
+	}
+	response, err := generator.Generate(ctx, prompt)
 	if err != nil {
 		return nil, err
 	}

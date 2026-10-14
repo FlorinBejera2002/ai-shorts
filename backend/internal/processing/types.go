@@ -101,10 +101,11 @@ type Result struct {
 }
 type Progress func(string, int, string)
 type Processor struct {
-	cfg          Config
-	storage      media.Storage
-	ai           aiprovider.Generator
-	musicCatalog *music.Catalog
+	cfg            Config
+	storage        media.Storage
+	ai             aiprovider.Generator
+	musicCatalog   *music.Catalog
+	nativeResolved bool
 }
 
 func New(c Config, s media.Storage, a aiprovider.Generator) *Processor {

@@ -7,6 +7,7 @@ import {
   CircleGauge,
   Clock3,
   Coins,
+  Cpu,
   LogOut,
   Search,
   ShieldCheck,
@@ -17,6 +18,7 @@ import {
 import { type FormEvent, type ReactNode, useCallback, useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import { api, type AdminUser, type SessionUser } from './api'
+import { AiRoutingPage } from './ai-routing/ai-routing-page'
 import { Alert } from './components/ui/alert'
 import { Badge } from './components/ui/badge'
 import { Button } from './components/ui/button'
@@ -32,7 +34,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 import { Tabs, TabsList, TabsTrigger } from './components/ui/tabs'
 import { Textarea } from './components/ui/textarea'
 
-type View = 'overview' | 'users' | 'audit'
+type View = 'overview' | 'users' | 'ai-routing' | 'audit'
 type Overview = {
   usersTotal: number
   usersActive: number
@@ -79,12 +81,13 @@ export function App() {
         <header className="topbar">
           <div>
             <p className="eyebrow">Sneep Cut / control room</p>
-            <h1>{view === 'overview' ? 'Platform overview' : view === 'users' ? 'Utilizatori' : 'Jurnal de audit'}</h1>
+            <h1>{view === 'overview' ? 'Platform overview' : view === 'users' ? 'Utilizatori' : view === 'ai-routing' ? 'Modele AI' : 'Jurnal de audit'}</h1>
           </div>
           <div className="environment"><span /> Producție</div>
         </header>
         {view === 'overview' && <OverviewPage onOpenUsers={() => setView('users')} />}
         {view === 'users' && <UsersPage />}
+        {view === 'ai-routing' && <AiRoutingPage />}
         {view === 'audit' && <AuditPage />}
       </main>
     </div>
@@ -136,6 +139,7 @@ function Sidebar({ view, session, onView, onLogout }: { view: View; session: Ses
   const links: { id: View; label: string; icon: ReactNode }[] = [
     { id: 'overview', label: 'Overview', icon: <CircleGauge size={18} /> },
     { id: 'users', label: 'Utilizatori', icon: <Users size={18} /> },
+    { id: 'ai-routing', label: 'Modele AI', icon: <Cpu size={18} /> },
     { id: 'audit', label: 'Audit', icon: <Activity size={18} /> }
   ]
   return (
@@ -263,9 +267,9 @@ function AuditPage() {
   const [items, setItems] = useState<AuditEvent[]>([])
   const [error, setError] = useState('')
   useEffect(() => { void api.request<{ items: AuditEvent[] }>('/api/admin/audit?limit=100').then((v) => setItems(v.items)).catch((e) => setError(e.message)) }, [])
-  const labels = useMemo(() => ({ adjust_credits: 'Credite ajustate', set_role: 'Rol modificat', set_status: 'Status modificat' }), [])
+  const labels = useMemo(() => ({ adjust_credits: 'Credite ajustate', set_role: 'Rol modificat', set_status: 'Status modificat', set_ai_routing: 'Modele AI modificate' }), [])
   if (error) return <ErrorState message={error} />
-  return <div className="page-content"><Card className="audit-list">{items.length === 0 ? <div className="empty-state"><ShieldCheck /><h2>Nicio intervenție încă</h2><p>Acțiunile administrative vor apărea aici.</p></div> : items.map((item) => <article className="audit-entry" key={item.id}><Avatar><AvatarFallback><ShieldCheck size={16} /></AvatarFallback></Avatar><div><div className="audit-title"><strong>{labels[item.action as keyof typeof labels] ?? item.action}</strong><time>{date.format(new Date(item.createdAt))}</time></div><p><b>{item.actorEmail}</b> a intervenit asupra contului <b>{item.targetEmail ?? 'șters'}</b>.</p><blockquote>{item.reason}</blockquote></div></article>)}</Card></div>
+  return <div className="page-content"><Card className="audit-list">{items.length === 0 ? <div className="empty-state"><ShieldCheck /><h2>Nicio intervenție încă</h2><p>Acțiunile administrative vor apărea aici.</p></div> : items.map((item) => <article className="audit-entry" key={item.id}><Avatar><AvatarFallback><ShieldCheck size={16} /></AvatarFallback></Avatar><div><div className="audit-title"><strong>{labels[item.action as keyof typeof labels] ?? item.action}</strong><time>{date.format(new Date(item.createdAt))}</time></div><p><b>{item.actorEmail}</b>{item.action === 'set_ai_routing' && item.targetEmail === null ? ' a modificat configurația AI a platformei.' : <> a intervenit asupra contului <b>{item.targetEmail ?? 'șters'}</b>.</>}</p><blockquote>{item.reason}</blockquote></div></article>)}</Card></div>
 }
 
 function BrandLockup({ context = 'light', compact = false }: { context?: 'light' | 'dark'; compact?: boolean }) {

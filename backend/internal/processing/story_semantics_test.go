@@ -11,6 +11,7 @@ import (
 	"strings"
 	"testing"
 
+	"sneepcut/backend-go/internal/aiprovider"
 	"sneepcut/backend-go/internal/story"
 )
 
@@ -34,7 +35,7 @@ func TestStorySourceMeaningUsesActualFramesAndReusesCheckpoint(t *testing.T) {
 	finding := storySemanticFinding{CandidateID: candidate.ID, Role: "b_roll", Idea: "A plain red field.", Evidence: "Source frames at 0.300, 0.800 and 1.267 seconds show the same plain red field.", Confidence: .95}
 	raw, _ := json.Marshal(map[string]any{"candidates": []storySemanticFinding{finding}})
 	reviewer := &storySemanticMock{storyReviewMock: storyReviewMock{result: string(raw)}, model: "first"}
-	p.ai = reviewer
+	p.ai = &taskProvider{providers: map[aiprovider.Task]aiprovider.Generator{aiprovider.TaskSourceAnalysis: reviewer}}
 	reserved := 0
 	ctx = story.WithAIBudget(ctx, func(context.Context) error { reserved++; return nil })
 	result, err := p.AnalyzeStorySources(ctx, []story.Asset{asset}, options)

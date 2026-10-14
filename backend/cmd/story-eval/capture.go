@@ -40,6 +40,9 @@ func enableHTTPDiagnostics(provider aiprovider.Generator, checkpoints *fileCheck
 		if inner == nil {
 			inner = http.DefaultTransport
 		}
+		if _, alreadyWrapped := inner.(diagnosticTransport); alreadyWrapped {
+			return client
+		}
 		copy.Transport = diagnosticTransport{inner: inner, checkpoints: checkpoints}
 		return &copy
 	}
@@ -65,6 +68,23 @@ func (c *capturedProvider) Generate(ctx context.Context, prompt string) (string,
 	response, err := c.Generator.Generate(ctx, prompt)
 	return c.capture("text", response, err)
 }
+
+func (c *capturedProvider) ForTask(ctx context.Context, task aiprovider.Task) (aiprovider.Generator, error) {
+	selected, err := aiprovider.ForTask(ctx, c.Generator, task)
+	if err != nil {
+		return nil, err
+	}
+	enableHTTPDiagnostics(selected, c.checkpoints)
+	return &capturedProvider{Generator: selected, checkpoints: c.checkpoints}, nil
+}
+
+func (c *capturedProvider) NativeModels(ctx context.Context) (map[aiprovider.Task]string, error) {
+	if selector, ok := c.Generator.(aiprovider.NativeModelSelector); ok {
+		return selector.NativeModels(ctx)
+	}
+	return nil, nil
+}
+
 func (c *capturedProvider) ReviewMedia(ctx context.Context, prompt string, parts []aiprovider.MediaPart) (string, error) {
 	reviewer, ok := c.Generator.(aiprovider.MediaReviewer)
 	if !ok {
