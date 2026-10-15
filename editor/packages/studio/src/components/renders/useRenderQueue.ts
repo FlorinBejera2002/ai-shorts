@@ -8,6 +8,7 @@ import { generateId } from "../../utils/generateId";
 import { readServerError } from "./serverError";
 import { ffmpegInstallMessage, useFfmpegStatus } from "./useFfmpegStatus";
 import { requestStudioFeedback, type FeedbackContext } from "../feedback/feedbackTrigger";
+import { getPersistedRenderSettings, type RenderHdrMode } from "./renderSettings";
 
 export interface RenderJob {
   id: string;
@@ -29,6 +30,7 @@ export interface StartRenderOptions {
   fps?: number;
   quality?: "draft" | "standard" | "high";
   format?: "mp4" | "webm" | "mov";
+  hdrMode?: RenderHdrMode;
   /** `"auto"` (default) renders at the composition's authored dimensions. */
   resolution?: ResolutionPreset | "auto";
   /**
@@ -195,6 +197,7 @@ export function useRenderQueue(
       const fps = opts.fps ?? 30;
       const quality = opts.quality ?? "standard";
       const format = opts.format ?? "mp4";
+      const hdrMode = opts.hdrMode ?? getPersistedRenderSettings().hdrMode;
       const resolution = opts.resolution;
       // Which composition a render targets belongs here, with the same
       // argument the FFmpeg gate above makes: Studio starts renders from three
@@ -230,6 +233,7 @@ export function useRenderQueue(
         fps: number;
         quality: string;
         format: string;
+        hdrMode?: RenderHdrMode;
         resolution?: string;
         composition?: string;
         variables?: Record<string, unknown>;
@@ -256,6 +260,7 @@ export function useRenderQueue(
         body.telemetryOptOut = true;
       }
       if (resolution && resolution !== "auto") body.resolution = resolution;
+      if (hdrMode !== "auto") body.hdrMode = hdrMode;
       if (composition) body.composition = composition;
       if (opts.variables && Object.keys(opts.variables).length > 0) {
         body.variables = opts.variables;

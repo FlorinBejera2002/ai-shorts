@@ -32,7 +32,7 @@ func randomID() string {
 }
 
 func (r *Repository) List(ctx context.Context, userID string) (map[string]any, error) {
-	rows, err := r.db.QueryContext(ctx, `SELECT id,COALESCE(NULLIF(project_name,''),NULLIF(source_url,''),NULLIF(regexp_replace(source_file_path,'^.*/','','g'),''),'Untitled project'),status,COALESCE(source_url,source_file_path,''),project_brand,created_at,updated_at FROM jobs WHERE user_id=$1 ORDER BY updated_at DESC,id DESC LIMIT 100`, userID)
+	rows, err := r.db.QueryContext(ctx, `SELECT id,COALESCE(NULLIF(project_name,''),NULLIF(source_url,''),NULLIF(regexp_replace(source_file_path,'^.*/','','g'),''),'Untitled project'),status,COALESCE(source_url,source_file_path,''),project_brand,created_at,updated_at FROM jobs WHERE user_id=$1 ORDER BY updated_at DESC,id DESC`, userID)
 	if err != nil {
 		return nil, err
 	}

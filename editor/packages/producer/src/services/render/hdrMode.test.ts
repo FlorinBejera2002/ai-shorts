@@ -76,7 +76,7 @@ describe("resolveEffectiveHdrMode", () => {
     expect(log.info).toHaveBeenCalledWith("[Render] No HDR sources detected — rendering SDR");
   });
 
-  it("force-hdr without sources falls back to HLG and warns", () => {
+  it("force-hdr without HDR sources selects PQ conversion and explains its limits", () => {
     const log = makeLog();
     const result = resolveEffectiveHdrMode({
       hdrMode: "force-hdr",
@@ -85,10 +85,8 @@ describe("resolveEffectiveHdrMode", () => {
       imageColorSpaces: [],
       log,
     });
-    expect(result).toEqual({ transfer: "hlg" });
-    expect(log.warn).toHaveBeenCalledWith(
-      expect.stringContaining("HDR forced by --hdr flag, but no HDR sources were detected"),
-    );
+    expect(result).toEqual({ transfer: "pq" });
+    expect(log.warn).toHaveBeenCalledWith(expect.stringContaining("converting SDR content to PQ"));
   });
 
   it("force-hdr uses the dominant probed transfer when sources are HDR", () => {
@@ -141,7 +139,7 @@ describe("resolveEffectiveHdrMode", () => {
     );
     expect(log.warn).toHaveBeenNthCalledWith(
       2,
-      expect.stringContaining("HDR forced by --hdr flag, but no HDR sources were detected"),
+      expect.stringContaining("converting SDR content to PQ"),
     );
   });
 });

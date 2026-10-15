@@ -76,6 +76,9 @@ for browsers without HEVC playback; downloads and publishing retain the HDR file
 Analysis previews are always SDR, and their cache is independent of speech-model
 and language changes so those changes do not re-encode the original video.
 
+All generated clips are listed at `/dashboard/clips`. Opening one goes directly
+to the main Studio on its configured subdomain; legacy detail and edit links do
+the same. The dashboard has no separate clip editor or embedded Studio.
 New automatic montages and clip edits share one editable Studio project.
 Dashboard regeneration combines its current saved manual edits with the new
 automatic changes, and commits only if no newer edit arrived during rendering.

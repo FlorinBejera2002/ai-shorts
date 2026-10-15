@@ -12,8 +12,6 @@ import (
 	"sneepcut/backend-go/internal/story"
 )
 
-const storyRenderVersion = "render-12-hdr-normalization"
-
 type storyRenderValidation struct {
 	assets        map[string]story.Asset
 	words         []Word
@@ -128,58 +126,6 @@ func validateStoryRender(request story.Request, version story.Version) (storyRen
 
 func storyIntervalValid(interval story.Interval, asset story.Asset, duration float64) bool {
 	return finite(asset.Duration) && asset.Duration > 0 && finite(interval.In) && finite(interval.Out) && interval.In >= 0 && interval.Out > interval.In && interval.Out <= asset.Duration+.002 && math.Abs(interval.Out-interval.In-duration) < .002
-}
-
-func (p *Processor) renderStoryEntry(ctx context.Context, dir, output string, entry story.Entry, video, audio story.Asset, w, h int, hdr bool) error {
-	videoFile, err := p.storyMaterialize(ctx, dir, video.Key)
-	// The original is the rendering source; proxies are analysis previews only.
-	if err != nil {
-		return errors.New("story video source is unavailable")
-	}
-	duration := entry.OutputOut - entry.OutputIn
-	args := []string{"-ss", seconds(entry.Video.In), "-i", videoFile}
-	if entry.Audio != nil {
-		audioFile, err := p.storyMaterialize(ctx, dir, audio.Key)
-		if err != nil {
-			return errors.New("story audio source is unavailable")
-		}
-		args = append(args, "-ss", seconds(entry.Audio.In), "-i", audioFile)
-	} else {
-		args = append(args, "-f", "lavfi", "-i", "anullsrc=r=48000:cl=stereo")
-	}
-	crop := ""
-	if entry.Crop == "track" {
-		crop = p.storyStableCrop(ctx, dir, videoFile, entry.Video, video, w, h)
-	}
-	fit := storyColorFilter(video.ColorTransfer) + storyFramingFilter(w, h, crop)
-	pixelFormat := "yuv420p"
-	if hdr {
-		fit = storyHDRSourceFilter(video.ColorTransfer) + storyFramingFilter(w, h, crop)
-		pixelFormat = "yuv420p10le"
-	}
-	// Retain the original dynamics. Independently loudness-normalizing every
-	// phrase boosted quiet ambience and changed expressive pauses at each cut.
-	// Resampling only aligns technical timestamps; it does not change speed.
-	filter := fmt.Sprintf("[0:v]fps=30:start_time=0,trim=duration=%s,setpts=PTS-STARTPTS,%s,format=%s[v];[1:a]aresample=48000:async=1:first_pts=0,atrim=duration=%s,asetpts=PTS-STARTPTS,apad,atrim=duration=%s[a]", seconds(duration), fit, pixelFormat, seconds(duration), seconds(duration))
-	args = append(args, "-filter_complex", filter, "-map", "[v]", "-map", "[a]")
-	args = append(args, storyDelivery(hdr)...)
-	args = append(args, "-ac", "2", "-t", seconds(duration), output)
-	if p.ffmpeg(ctx, dir, args...) != nil {
-		return storyWorkError("segment render")
-	}
-	return nil
-}
-
-func storyFramingFilter(w, h int, stableCrop string) string {
-	// Scale both small and large originals to the output bounds. Fit retains
-	// the whole image; an already verified stable crop fills the canvas. The
-	// final crop only removes even-pixel rounding at the target aspect ratio.
-	if stableCrop != "" {
-		return fmt.Sprintf("%s,scale=w=%d:h=%d:force_original_aspect_ratio=increase:force_divisible_by=2,crop=%d:%d,setsar=1", stableCrop, w, h, w, h)
-	}
-	// Convert the display aspect to square pixels before fitting. Merely using
-	// setsar=1 after fitting by encoded dimensions stretches anamorphic footage.
-	return fmt.Sprintf("%s,scale=w=%d:h=%d:force_original_aspect_ratio=decrease:force_divisible_by=2,pad=%d:%d:(ow-iw)/2:(oh-ih)/2:color=black,setsar=1", storySquarePixelsFilter, w, h, w, h)
 }
 
 const storySquarePixelsFilter = "scale=w='max(2,trunc(iw*sar/2)*2)':h=ih,setsar=1"

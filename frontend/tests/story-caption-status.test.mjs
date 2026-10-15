@@ -26,7 +26,7 @@ test('requested captions with explicitly empty output explain the absence', () =
   const node = StoryCaptionStatus({ version: { output: { captions: false } }, options: { captions: true } })
   assert.equal(node.props.role, 'status')
   assert.match(node.props.children, /This version has no captions/)
-  assert.match(node.props.children, /source audio and regenerate/)
+  assert.match(node.props.children, /Open the video in Studio/)
 })
 
 test('legacy metadata, selective silence and already displayed warnings stay quiet', () => {
@@ -45,15 +45,4 @@ test('comparison uses the rendered version caption choice', () => {
     version: { output: { captions: false }, render_options: { caption_mode: 'off' } },
     options: { caption_mode: 'all' }
   }), null)
-})
-
-test('available transcript proposals lead to the explicit review controls', () => {
-  const node = StoryCaptionStatus({
-    version: { output: { captions: false } },
-    options: { caption_mode: 'all' },
-    hasTranscriptProposals: true
-  })
-  const link = node.props.children.props.children.find((child) => child?.type === 'a')
-  assert.equal(link.props.href, '#story-transcript-review')
-  assert.equal(link.props.children, 'Review transcripts')
 })

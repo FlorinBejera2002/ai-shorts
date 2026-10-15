@@ -589,6 +589,7 @@ function ProjectBrowser({
 }: WorkspaceProps) {
   const locale = useLocale()
   const t = useTranslations('clips')
+  const studio = useTranslations('studioEditor')
   const searchParams = useSearchParams()
   const query = parseClipsLibraryQuery(Object.fromEntries(searchParams))
   const sourceClips = project
@@ -751,12 +752,12 @@ function ProjectBrowser({
                   index={index}
                   locale={locale}
                   labels={{
-                    open: t('openClip'),
+                    open: studio('edit'),
                     score: t('viralScoreLabel'),
                     subtitles: t('hasSubtitles')
                   }}
                   actions={{
-                    edit: t('editClip'),
+                    edit: studio('edit'),
                     publish: t('publishClip'),
                     download: t('downloadClip'),
                     delete: t('deleteClip'),

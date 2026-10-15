@@ -2832,14 +2832,15 @@ async function executeRenderPipeline(input: {
     const htmlInCanvasDetected = compiled.renderModeHints.reasons.some(
       (r) => r.code === "htmlInCanvas",
     );
-    // Only use the HDR encoder preset when there's HDR content to pass through —
-    // either native HDR videos OR native HDR images. For SDR-only compositions,
-    // auto mode stays SDR since H.265 10-bit causes browser color management
-    // issues (orange shift) with no quality benefit. (Computed here, ahead of
-    // worker resolution, because the DE inversion below must not fire for
-    // comps that route to the layered/HDR paths.)
+    // Auto mode keeps SDR-only compositions SDR. An explicit HDR request also
+    // uses layered capture: its SDR DOM pixels must be converted to the HDR
+    // transfer before encoding, never merely tagged as HDR by an encoder preset.
+    // Resolve this before worker routing so SDR fast paths cannot bypass that
+    // conversion when the composition contains no native HDR media.
     const nativeHdrIds = new Set([...nativeHdrVideoIds, ...nativeHdrImageIds]);
-    const hasHdrContent = Boolean(effectiveHdr && nativeHdrIds.size > 0);
+    const hasHdrContent = Boolean(
+      effectiveHdr && (nativeHdrIds.size > 0 || job.config.hdrMode === "force-hdr"),
+    );
     // DE priority inversion eligibility — evaluated BEFORE capture calibration
     // because when every multi-worker resolution would be inverted to 1 anyway,
     // the calibration stage (a throwaway Chrome launch + timeline-spread sample

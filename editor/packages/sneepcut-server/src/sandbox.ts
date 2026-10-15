@@ -1,10 +1,10 @@
-import { spawn } from "node:child_process";
 import { pipeline } from "node:stream/promises";
 import { constants } from "node:fs";
 import { cp, lstat, mkdir, mkdtemp, open, readFile, rm, writeFile } from "node:fs/promises";
 import { localizeGsap } from "./assets";
 import { resolveBackgroundRemovalModel } from "./ai-routing";
 import { compositionMaxBytes } from "./composition-limits";
+import { runSandboxProcess, type SandboxKind } from "./sandbox-process";
 import { renderResourceLimits, RENDER_CPU_LIMIT_ENV } from "../../engine/src/utils/renderResources";
 import { tmpdir } from "node:os";
 import { basename, dirname, extname, isAbsolute, join, relative } from "node:path";
@@ -141,7 +141,7 @@ export function sandboxArguments(directory: string): string[] {
 }
 
 async function runJob(
-  kind: "render" | "thumbnail" | "background" | "probe",
+  kind: SandboxKind,
   options: RenderOptions | ThumbnailOptions | BackgroundOptions | ProbeOptions,
   signal: AbortSignal,
   onProgress?: (progress: number, stage?: string) => void,
@@ -211,69 +211,11 @@ async function runJob(
         },
       }),
     );
-    await new Promise<void>((resolve, reject) => {
-      const child = spawn(
-        "/usr/bin/prlimit",
-        [
-          "--fsize=1073741824",
-          "--nofile=4096",
-          "--cpu=600",
-          "--",
-          "/usr/bin/bwrap",
-          ...sandboxArguments(directory!),
-        ],
-        {
-          detached: true,
-          stdio: ["ignore", "pipe", "pipe"],
-          env: { PATH: "/usr/bin:/bin" },
-        },
-      );
-      let error = "";
-      let pending = "";
-      child.stdout.on("data", (chunk: Buffer) => {
-        pending = (pending + chunk.toString()).slice(-8192);
-        const lines = pending.split("\n");
-        pending = lines.pop() ?? "";
-        for (const line of lines) {
-          if (!line.startsWith("STUDIO_PROGRESS ")) continue;
-          try {
-            const update = JSON.parse(line.slice(16));
-            if (typeof update.progress === "number" && Number.isFinite(update.progress)) {
-              onProgress?.(
-                Math.max(0, Math.min(99, update.progress)),
-                typeof update.stage === "string" ? update.stage.slice(0, 200) : undefined,
-              );
-            }
-          } catch {
-            /* Ignore unrelated renderer output. */
-          }
-        }
-      });
-      child.stderr.on("data", (chunk: Buffer) => {
-        error = (error + chunk.toString()).slice(-8000);
-      });
-      const kill = () => {
-        if (child.pid) {
-          try {
-            process.kill(-child.pid, "SIGKILL");
-          } catch {}
-        }
-      };
-      const timer = setTimeout(kill, kind === "thumbnail" || kind === "probe" ? 60000 : 600000);
-      signal.addEventListener("abort", kill, { once: true });
-      if (signal.aborted) kill();
-      child.on("error", reject);
-      child.on("close", (code) => {
-        clearTimeout(timer);
-        signal.removeEventListener("abort", kill);
-        if (code === 0 && !signal.aborted) resolve();
-        else
-          reject(
-            new Error(
-              signal.aborted ? "Cancelled" : `Isolated Studio job failed: ${error || code}`,
-            ),
-          );
-      });
+    await runSandboxProcess({
+      kind,
+      commandArguments: sandboxArguments(directory),
+      signal,
+      onProgress,
     });
     if (kind === "render" && "jobId" in options) {
       await saveRenderOutput(join(directory, output), options.outputPath);

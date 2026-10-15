@@ -578,6 +578,45 @@ describe("spawnStreamingEncoder lifecycle and cleanup", () => {
     expect(result.success).toBe(false);
     expect(result.error).toContain("FFmpeg exited with code 1");
     expect(result.error).toContain("Encoder error");
+    expect(encoder.getExitError()).toBe(result.error);
+    expect(result.failureReason).toBeUndefined();
+    expect(encoder.getExitFailureReason?.()).toBeUndefined();
+  });
+
+  it.each([
+    { signal: "SIGKILL" as const, stderr: "", failureReason: undefined },
+    { signal: "SIGKILL" as const, stderr: "frame= 42\n", failureReason: undefined },
+    {
+      signal: "SIGTERM" as const,
+      stderr: "frame= 42\n",
+      failureReason: "external_interruption",
+    },
+  ])("preserves $signal in both error paths without broadening retry", async (outcome) => {
+    const { spawn, calls } = createSpawnSpy();
+    vi.resetModules();
+    vi.doMock("child_process", () => ({ spawn }));
+
+    const { spawnStreamingEncoder } = await import("./streamingEncoder.js");
+    const dir = mkdtempSync(join(tmpdir(), "se-signal-"));
+    const encoder = await spawnStreamingEncoder(join(dir, "out.mp4"), baseOptions);
+    const proc = calls[0]!.proc;
+    proc.stderr.emit("data", Buffer.from(outcome.stderr));
+    await new Promise<void>((resolve) => {
+      process.nextTick(() => {
+        proc.emit("close", null, outcome.signal);
+        resolve();
+      });
+    });
+
+    expect(encoder.getExitStatus()).toBe("error");
+    expect(encoder.getExitError()).toContain(`FFmpeg terminated by signal ${outcome.signal}`);
+    expect(encoder.getExitFailureReason?.()).toBe(outcome.failureReason);
+
+    const result = await encoder.close();
+    expect(result.success).toBe(false);
+    expect(result.error).toBe(encoder.getExitError());
+    expect(result.failureReason).toBe(outcome.failureReason);
+    if (outcome.stderr) expect(result.error).toContain("ffmpeg stderr (tail):\nframe= 42");
   });
 
   it("classifies ffmpeg's handled SIGTERM as an external interruption", async () => {

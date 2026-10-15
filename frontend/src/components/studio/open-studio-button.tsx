@@ -14,7 +14,7 @@ const origin = configuredStudioOrigin(
   process.env.NODE_ENV === 'production'
 )
 
-export async function openStudioClip(clipId: string, signal?: AbortSignal) {
+async function openStudioClip(clipId: string, signal?: AbortSignal) {
   if (!origin) return
   const client = createStudioClient(origin, authClient)
   const requestSignal = signal ?? AbortSignal.timeout(150000)

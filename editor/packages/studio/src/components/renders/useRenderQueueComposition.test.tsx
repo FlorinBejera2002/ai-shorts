@@ -27,6 +27,7 @@ async function renderBody(
 }
 
 afterEach(() => {
+  localStorage.clear();
   queue?.unmount();
   queue = null;
   document.body.innerHTML = "";
@@ -34,6 +35,16 @@ afterEach(() => {
 });
 
 describe("render target composition", () => {
+  it("uses saved HDR policy for the header export and allows an explicit SDR override", async () => {
+    localStorage.setItem(
+      "hf-studio-render-settings",
+      JSON.stringify({ format: "mp4", hdrMode: "force-hdr" }),
+    );
+    expect((await renderBody("index.html")).hdrMode).toBe("force-hdr");
+    queue?.unmount();
+    queue = null;
+    expect((await renderBody("index.html", { hdrMode: "force-sdr" })).hdrMode).toBe("force-sdr");
+  });
   it("renders the composition the user has selected when the caller names none", async () => {
     // The header's Export button: no options at all.
     const body = await renderBody("parts/part-1.html", undefined);

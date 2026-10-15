@@ -31,18 +31,13 @@ rendering error; production does not fall back to the former Go compositor.
    its nested layers. The clean TikTok export derives from the primary candidate
    and does not replace the primary editable project.
 
-Automatic artifacts are immutable output revisions; the workspace is the single
-current editing source. Dashboard render actions wait for pending saves in mounted
-Studio frames. On secure browsers supporting Web Locks and BroadcastChannel, this
-also includes other dashboard tabs on the same origin; browser-managed presence
-locks ensure a throttled tab is not mistaken for a closed tab. Studio also flushes
-pending edits when it loses focus. An unresolved save failure blocks the dashboard
-action. Only saved server content can be captured for rendering.
-Leaving Studio through the dashboard or browser Back, or changing its active
-project, also awaits the save acknowledgment before removing the iframe. A failed
-save keeps that editor open. Opening Studio in a new tab uses the dashboard wrapper
-so that tab participates in the same save barrier. Agent-run approvals and resumes
-use the barrier as well as direct Story and clip actions.
+Automatic artifacts are immutable output revisions; the main Studio workspace is
+the single current editing source. All clip links open that Studio directly on
+its own origin. The dashboard no longer mounts editor frames or maintains a
+same-origin iframe save barrier. Studio flushes pending edits when it loses focus;
+only saved server content can be captured for automatic rendering. Finish saving
+in Studio before requesting an automatic revision from another tab. Server-side
+revision checks reject publication if a newer manual save arrives during rendering.
 
 Merging operates on HTML, styles, animation statements and project files, not just
 the original scene recipe. Manual topology changes preserve the user's source

@@ -9,7 +9,6 @@ import { Link } from '@/i18n/navigation'
 import { apiFetch } from '@/lib/auth'
 import {
   Captions,
-  ExternalLink,
   Film,
   Folder,
   Pencil,
@@ -67,8 +66,6 @@ export function ClipCard({
   locale,
   labels,
   index,
-  href,
-  actionLabel,
   projectName,
   actions,
   onDeleted
@@ -77,8 +74,6 @@ export function ClipCard({
   locale: string
   labels: { open: string; score: string; subtitles: string }
   index: number
-  href?: string
-  actionLabel?: string
   projectName?: string | null
   actions?: ClipCardActions
   onDeleted?: () => void | Promise<void>
@@ -86,7 +81,7 @@ export function ClipCard({
   const router = useRouter()
   const toast = useToast()
   const [deleting, setDeleting] = useState(false)
-  const clipHref = href ?? `/dashboard/clips/${clip.id}`
+  const clipHref = `/dashboard/clips/${encodeURIComponent(clip.id)}`
   const date = formatClipDate(clip.createdAt, locale)
 
   async function deleteClip() {
@@ -157,7 +152,7 @@ export function ClipCard({
             {clip.viralScore > 0 && (
               <Badge
                 variant="secondary"
-                className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-1 text-[10px] font-bold tabular-nums ${
+                className={`inline-flex shrink-0 items-center gap-1 rounded-sm px-2 py-1 text-[10px] font-bold tabular-nums ${
                   clip.viralScore >= 8
                     ? 'bg-success/10 text-success'
                     : clip.viralScore >= 5
@@ -196,19 +191,10 @@ export function ClipCard({
               </span>
             )}
           </div>
-          {actionLabel && (
-            <Link
-              href={clipHref}
-              className="mt-4 inline-flex h-9 w-full items-center justify-center gap-2 rounded-md bg-black px-4 text-xs font-semibold text-white transition-colors hover:bg-black/85"
-            >
-              <ExternalLink className="size-3.5" aria-hidden="true" />
-              {actionLabel}
-            </Link>
-          )}
           {actions && (
             <div className="mt-3 grid grid-cols-2 gap-1.5 border-t border-border/70 pt-3">
               <CardAction
-                href={`/dashboard/clips/${clip.id}/edit`}
+                href={clipHref}
                 label={actions.edit}
                 icon={Pencil}
               />

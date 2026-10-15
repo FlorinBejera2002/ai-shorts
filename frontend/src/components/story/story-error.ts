@@ -20,8 +20,8 @@ export function storyProblem(
     )
   if (/unlock|locked/i.test(message))
     return text(
-      'Unlock a clip in Edit clips before making this change.',
-      'Deblochează o filmare din Editează filmările înainte de această modificare.'
+      'Open the video in Studio to review its locked clips.',
+      'Deschide videoul în Studio pentru a verifica filmările blocate.'
     )
   if (/cleanup|deepfilter|denois/i.test(message))
     return text(

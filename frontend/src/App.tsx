@@ -1,6 +1,4 @@
 import ActivatePage from '@/app/[locale]/activate/page'
-import ClipEditorPage from '@/app/[locale]/dashboard/clips/[id]/edit/page'
-import ClipDetailPage from '@/app/[locale]/dashboard/clips/[id]/page'
 import CreatePage from '@/app/[locale]/dashboard/create/page'
 import JobProgressPage from '@/app/[locale]/dashboard/jobs/[id]/page'
 import EditPostPage from '@/app/[locale]/dashboard/publish/[id]/edit/page'
@@ -8,6 +6,7 @@ import NewPostPage from '@/app/[locale]/dashboard/publish/new/page'
 import DashboardPage from '@/app/[locale]/dashboard/page'
 import ScriptGeneratorPage from '@/app/[locale]/dashboard/script-generator/page'
 import { StudioRoute } from './pages/studio-route'
+import { StudioSessionRoute } from './pages/studio-session-route'
 import Brand from '@/components/dashboard/views/brand'
 import Billing from '@/components/dashboard/views/billing'
 import ForgotPasswordPage from '@/app/[locale]/forgot-password/page'
@@ -53,6 +52,7 @@ function ApplicationRoutes({ locale }: { locale: AppLocale }) {
 
   return (
     <Routes>
+      <Route path="/studio-session" element={<StudioSessionRoute />} />
       {additionalLegalPaths.map((page) => (
         <Route key={page} path={route(`/${page}`)} element={<AdditionalLegalRoute page={page} />} />
       ))}
@@ -70,8 +70,8 @@ function ApplicationRoutes({ locale }: { locale: AppLocale }) {
       <Route path={route('/dashboard')} element={<DashboardLayout />}>
         <Route index={true} element={<DashboardPage />} />
         <Route path="clips" element={<ClipsRoute />} />
-        <Route path="clips/:id" element={<ClipDetailPage />} />
-        <Route path="clips/:id/edit" element={<ClipEditorPage />} />
+        <Route path="clips/:id" element={<StudioRoute />} />
+        <Route path="clips/:id/edit" element={<StudioRoute />} />
         <Route path="history" element={<LegacyDashboardRedirect page="projectsLegacy" />} />
         <Route path="calendar" element={<CalendarRoute />} />
         <Route path="publish" element={<PublishRoute />} />

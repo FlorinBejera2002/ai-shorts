@@ -93,12 +93,17 @@ export function formatFfmpegError(
   exitCode: number | null,
   stderr: string,
   tailLines: number = DEFAULT_STDERR_TAIL_LINES,
+  signal?: NodeJS.Signals | null,
 ): string {
   const tail = (stderr ?? "")
     .split(/\r?\n/)
     .filter((line) => line.length > 0)
     .slice(-tailLines)
     .join("\n");
+  if (signal) {
+    const message = `FFmpeg terminated by signal ${signal}`;
+    return tail ? `${message}\nffmpeg stderr (tail):\n${tail}` : message;
+  }
   if (exitCode === null) {
     return tail ? `[FFmpeg] ${tail}` : "[FFmpeg] process error";
   }

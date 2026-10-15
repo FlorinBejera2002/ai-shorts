@@ -5,8 +5,7 @@ import './index.css'
 import App from './App.tsx'
 import { RouteError } from './routing/route-error'
 
-// Keep the existing nested routes and dashboard layout. The data router enables
-// Studio to finish pending saves before any SPA navigation removes its iframe.
+// Nested routes replace only dashboard content, preserving the shared layout.
 const router = createBrowserRouter([{ path: '*', element: <App />, errorElement: <RouteError /> }])
 
 createRoot(document.getElementById('root')!).render(

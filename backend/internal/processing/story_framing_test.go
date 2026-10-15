@@ -52,9 +52,10 @@ func TestStoryLowResolutionFramingFillsCanvasWithoutDistortion(t *testing.T) {
 			}
 		})
 	}
-	// Exercise the exact framing filter used after a successful tracker crop.
+	// Motion bridge preparation uses the same tracked crop as its Studio scene.
 	// Its 100x180 input approximates the target aspect after even-pixel rounding.
-	pixels, err := run(ctx, dir, p.cfg.FFmpegPath, "-v", "error", "-i", source, "-frames:v", "1", "-vf", storyFramingFilter(1080, 1920, "crop=100:180:110:0")+",scale=108:192:flags=neighbor", "-f", "rawvideo", "-pix_fmt", "rgb24", "-")
+	scene := studioScene{Fit: "cover", Crop: &studioCrop{X: 110, Width: 100, Height: 180}}
+	pixels, err := run(ctx, dir, p.cfg.FFmpegPath, "-v", "error", "-i", source, "-frames:v", "1", "-vf", studioBridgeFrameFilter(scene, 0, 1080, 1920)+",scale=108:192:flags=neighbor", "-f", "rawvideo", "-pix_fmt", "rgb24", "-")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -69,16 +70,33 @@ func TestStoryLowResolutionFramingFillsCanvasWithoutDistortion(t *testing.T) {
 
 type storyPixelBounds struct{ x1, y1, x2, y2 int }
 
-func TestStoryFramingPreservesAnamorphicDisplayAspect(t *testing.T) {
+func TestStoryProxyPreservesAnamorphicDisplayAspect(t *testing.T) {
 	p, _, dir := storyTestProcessor(t)
+	ctx := context.Background()
 	// A 320x180 encoded frame with SAR 2:1 displays as 32:9, not 16:9.
-	pixels, err := run(context.Background(), dir, p.cfg.FFmpegPath, "-v", "error", "-f", "lavfi", "-i", "color=c=red:s=320x180,setsar=2/1", "-frames:v", "1", "-vf", storyFramingFilter(320, 180, ""), "-f", "rawvideo", "-pix_fmt", "rgb24", "-")
+	source := filepath.Join(dir, "anamorphic.mp4")
+	if err := p.ffmpeg(ctx, dir, "-f", "lavfi", "-i", "color=c=red:s=320x180:r=30,setsar=2/1", "-t", "0.4", "-c:v", "libx264", "-pix_fmt", "yuv420p", source); err != nil {
+		t.Fatal(err)
+	}
+	key := "sources/framing/anamorphic.mp4"
+	if err := p.storage.Save(ctx, source, key, "video/mp4"); err != nil {
+		t.Fatal(err)
+	}
+	asset, err := p.Inspect(ctx, key)
 	if err != nil {
 		t.Fatal(err)
 	}
-	colored, _ := storyFramingPixelBounds(t, pixels, 320, 180)
-	if colored.width() != 320 || colored.height() < 88 || colored.height() > 92 || colored.y1 < 43 || colored.y1 > 47 {
-		t.Fatalf("anamorphic source was stretched instead of display-fitted: %#v", colored)
+	asset.ID = "anamorphic"
+	proxy, err := p.prepareStoryProxy(ctx, dir, "anamorphic", &asset, story.DefaultOptions())
+	if err != nil {
+		t.Fatal(err)
+	}
+	info, err := p.probeStory(ctx, proxy)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Width != 640 || info.Height != 180 {
+		t.Fatalf("anamorphic proxy lost display aspect: %+v", info)
 	}
 }
 

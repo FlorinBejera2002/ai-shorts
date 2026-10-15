@@ -138,7 +138,7 @@ try {
   assert.equal(await page.getByText('Before you publish', { exact: true }).count(), 0)
   assert.equal(await page.getByText('Technical report', { exact: true }).count(), 0)
   assert.equal(await page.getByText('Fixture: visual review remains incomplete.', { exact: true }).count(), 0)
-  assert.equal(await page.getByTestId('story-block').count(), 0, 'Scene cards are absent until Edit clips is requested')
+  assert.equal(await page.getByTestId('story-block').count(), 0, 'Completed stories do not expose a second editor')
   await page.screenshot({ path: `${output}/needs-review-mobile.png`, fullPage: true, animations: 'disabled' })
   await page.emulateMedia({ reducedMotion: 'no-preference' })
   await loadStatus('failed', { current_version: 0, versions: [], error: 'Fixture render failed; original recordings are safe.' })

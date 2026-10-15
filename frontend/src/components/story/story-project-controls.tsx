@@ -6,7 +6,6 @@ import { LoadingIndicator } from '@/components/ui/loading-indicator'
 import type { StoryProject } from './types'
 import { useStoryLanguage } from './use-story-language'
 import { StoryProcessing } from './story-processing'
-import { storyProblem } from './story-error'
 
 interface HeaderProps {
   id: string
@@ -76,7 +75,6 @@ export function StoryProjectHeader({
 }
 
 interface StatusProps {
-  operation?: { action: string; version: number }
   onRetry?: () => void
   project: StoryProject
   active: boolean
@@ -89,7 +87,6 @@ export function StoryProjectStatus({
   active,
   busy,
   onCancel,
-  operation,
   onRetry
 }: StatusProps) {
   const text = useStoryLanguage()
@@ -100,16 +97,8 @@ export function StoryProjectStatus({
   if (hasResult) {
     const failed =
       project.status === 'failed' || project.operation_status === 'failed'
-    if (!active && !operation && !failed && project.status !== 'cancelled')
+    if (!active && !failed && project.status !== 'cancelled')
       return null
-    const label =
-      operation?.action === 'faster'
-        ? text('Faster pace', 'Ritm mai alert')
-        : operation?.action === 'improve_flow'
-          ? text('Smoother flow', 'Montaj mai cursiv')
-          : operation?.action === 'improve_transitions'
-            ? text('Smoother transitions', 'Tranziții mai fluide')
-            : text('Update', 'Modificare')
     return (
       <div
         className="flex flex-wrap items-center justify-between gap-3 rounded-md border px-3 py-2 text-sm"
@@ -119,21 +108,21 @@ export function StoryProjectStatus({
         <span className="flex items-center gap-2">
           {(active || busy) && <LoadingIndicator className="size-4" />}
           {active || busy
-            ? label + text(' · Processing…', ' · Se procesează…')
+            ? text('Processing…', 'Se procesează…')
             : failed
-              ? storyProblem(project.error || project.message || '', text)
+              ? text(
+                  'The last update did not finish. Open your saved video in Studio to continue.',
+                  'Ultima modificare nu s-a finalizat. Deschide videoul salvat în Studio pentru a continua.'
+                )
               : project.status === 'cancelled'
                 ? text(
                     'Cancelled. Your previous video is still available.',
                     'Anulat. Videoul anterior este disponibil.'
                   )
-                : operation && project.current_version > operation.version
-                  ? label +
-                    text(' · New version saved.', ' · Versiune nouă salvată.')
-                  : text(
-                      'No change was applied. Your previous video is still available.',
-                      'Nu s-a aplicat nicio modificare. Videoul anterior este disponibil.'
-                    )}
+                : text(
+                    'Your saved video is available in Studio.',
+                    'Videoul salvat este disponibil în Studio.'
+                  )}
         </span>
         {active && (
           <Button

@@ -13,6 +13,7 @@ import {
 import type { ProjectStore, StoredProject } from "./store";
 import { openEmptyWorkspace } from "./clip-import";
 import { COMPOSITION_REQUEST_MAX_BYTES } from "./composition-limits";
+import { sessionRecoveryDocument } from "./session-recovery";
 
 export interface EditorAppOptions {
   appOrigin: string;
@@ -128,6 +129,14 @@ export function createApp(options: EditorAppOptions) {
     );
     if (!user || (!authorization && session && user.id !== session.user.id)) {
       sessions.delete(getCookie(c, SESSION_COOKIE));
+      if (
+        c.req.path === "/" &&
+        c.req.method === "GET" &&
+        c.req.header("Accept")?.includes("text/html")
+      ) {
+        c.header("Cache-Control", "no-store");
+        return c.html(sessionRecoveryDocument(options.appOrigin));
+      }
       return c.json({ error: "Authentication required" }, 401);
     }
     c.set("user", user);
@@ -138,10 +147,14 @@ export function createApp(options: EditorAppOptions) {
   app.post("/sneepcut/session", async (c) => {
     if (!c.req.header("Authorization")) return c.json({ error: "Bearer required" }, 401);
     sessions.delete(getCookie(c, SESSION_COOKIE));
+    const requester = c.req.header("Origin") ?? "";
+    const sessionAppOrigin = appOrigins.has(requester)
+      ? requester
+      : normalizeAppOrigin(options.appOrigin);
     setCookie(
       c,
       SESSION_COOKIE,
-      sessions.create(c.get("user"), c.req.header("Authorization") ?? ""),
+      sessions.create(c.get("user"), c.req.header("Authorization") ?? "", sessionAppOrigin),
       { httpOnly: true, secure, sameSite: "Strict", path: "/", maxAge: SESSION_SECONDS },
     );
     return c.json({ user: c.get("user"), expiresIn: SESSION_SECONDS });
@@ -152,6 +165,14 @@ export function createApp(options: EditorAppOptions) {
     return c.json({ ok: true });
   });
   app.get("/sneepcut/me", (c) => c.json({ user: c.get("user") }));
+  app.get("/sneepcut/session-info", (c) =>
+    c.json({
+      userId: c.get("user").id,
+      appOrigin:
+        sessions.get(getCookie(c, SESSION_COOKIE))?.appOrigin ??
+        normalizeAppOrigin(options.appOrigin),
+    }),
+  );
   app.get("/sneepcut/projects", async (c) =>
     c.json({ projects: (await options.store.list(c.get("user").id)).map(publicProject) }),
   );

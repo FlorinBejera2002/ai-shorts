@@ -3,7 +3,6 @@ package processing
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"os"
 	"path/filepath"
 	"sneepcut/backend-go/internal/captions"
@@ -216,27 +215,21 @@ func TestWatermarkSizeMarginAndRepeatedOrdinaryExport(t *testing.T) {
 		t.Fatal(err)
 	}
 	brand := map[string]any{"apply_brand": true, "logo_key": key, "user_id": "logo-owner", "watermark_enabled": true, "watermark_size": .3, "watermark_margin": .1, "watermark_position": "bottom-right", "watermark_opacity": 1., "hide_platform_badge": true}
+	p.cfg.MediaSigningSecret, p.cfg.MediaOrigin = strings.Repeat("m", 32), "http://localhost:3000"
 	for i := 0; i < 2; i++ {
-		output := filepath.Join(dir, fmt.Sprintf("branded-%d.png", i))
-		if err := p.buildOverlay(ctx, dir, output, 320, 180, brand, "", true, false, false); err != nil {
+		plan := studioPlan{Width: 320, Height: 180, Duration: 1}
+		if err := p.studioLogo(ctx, dir, &plan, key, brand); err != nil {
 			t.Fatal("repeat logo materialization failed", err)
 		}
-		pixels, err := run(ctx, dir, p.cfg.FFmpegPath, "-v", "error", "-i", output, "-frames:v", "1", "-f", "rawvideo", "-pix_fmt", "rgb24", "-")
-		if err != nil {
-			t.Fatal(err)
+		if len(plan.Overlays) != 1 || len(plan.Assets) != 1 {
+			t.Fatal("logo did not become an independent Studio layer", plan)
 		}
-		minX, maxX, minY, maxY := 320, 0, 180, 0
-		for n := 0; n+2 < len(pixels); n += 3 {
-			if pixels[n] > 180 && pixels[n+1] < 60 && pixels[n+2] < 60 {
-				x, y := (n/3)%320, (n/3)/320
-				minX = min(minX, x)
-				maxX = max(maxX, x)
-				minY = min(minY, y)
-				maxY = max(maxY, y)
-			}
+		logo := plan.Overlays[0]
+		if logo.X != 206 || logo.Y != 114 || logo.Width != 96 || logo.Height != 48 || logo.Opacity != 1 || logo.AssetID != plan.Assets[0].ID {
+			t.Fatalf("watermark size/margin differs from preview: %+v", logo)
 		}
-		if minX != 206 || maxX != 301 || minY != 114 || maxY != 161 {
-			t.Fatalf("watermark size/margin differs from preview: %d..%d %d..%d", minX, maxX, minY, maxY)
-		}
+	}
+	if err := p.studioLogo(ctx, dir, &studioPlan{}, "brand/other-owner/fixture.png", brand); err == nil {
+		t.Fatal("foreign logo accepted")
 	}
 }

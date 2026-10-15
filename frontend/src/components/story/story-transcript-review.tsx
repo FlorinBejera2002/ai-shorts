@@ -5,12 +5,10 @@ import { useStoryLanguage } from './use-story-language'
 export function StoryTranscriptReview({
   assets,
   disabled,
-  hasVersion,
   onApprove
 }: {
   assets: StoryAsset[]
   disabled: boolean
-  hasVersion: boolean
   onApprove: (
     reviews: StoryTranscriptApproval[]
   ) => Promise<boolean | undefined>
@@ -30,22 +28,16 @@ export function StoryTranscriptReview({
         {text('Review transcripts', 'Verifică transcrierile')}
       </h3>
       <p className="text-sm text-muted-foreground">
-        {hasVersion
-          ? text(
-              'Unverified proposals are not used in captions. Check the words against each recording, then approve the passages you want to use. Rebuilding keeps your current cuts and audio.',
-              'Propunerile neverificate nu sunt folosite în subtitrări. Verifică textul ascultând fiecare înregistrare, apoi confirmă pasajele dorite. Regenerarea păstrează tăieturile și sunetul actuale.'
-            )
-          : text(
-              'Check the words against each recording and confirm the passages you want to use. Confirmation saves the reviewed text without starting generation or using credits. When you are ready, generate or retry the story.',
-              'Verifică textul ascultând fiecare înregistrare și confirmă pasajele dorite. Confirmarea salvează textul verificat fără să pornească generarea sau să consume credite. Când ești gata, generează povestea sau reîncearcă.'
-            )}
+        {text(
+          'Check the words against each recording and confirm the passages you want to use. Confirmation saves the reviewed text without starting generation or using credits. When you are ready, generate or retry the story.',
+          'Verifică textul ascultând fiecare înregistrare și confirmă pasajele dorite. Confirmarea salvează textul verificat fără să pornească generarea sau să consume credite. Când ești gata, generează povestea sau reîncearcă.'
+        )}
       </p>
       {reviewable.map((asset) => (
         <StoryTranscriptAsset
           key={asset.id}
           asset={asset}
           disabled={disabled}
-          hasVersion={hasVersion}
           onApprove={onApprove}
         />
       ))}

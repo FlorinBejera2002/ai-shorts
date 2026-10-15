@@ -5,48 +5,7 @@ import ts from 'typescript'
 
 const source = readFileSync(new URL('../src/components/studio/studio-client.ts', import.meta.url), 'utf8')
 const compiled = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.ESNext } })
-const { studioOrigin, createStudioClient, prepareStudioClip } = await import(`data:text/javascript;base64,${Buffer.from(compiled.outputText).toString('base64')}`)
-const clientUrl = `data:text/javascript;base64,${Buffer.from(compiled.outputText).toString('base64')}`
-const assistantSource = readFileSync(new URL('../src/components/studio/studio-assistant-client.ts', import.meta.url), 'utf8').replace("'./studio-client'", JSON.stringify(clientUrl))
-const assistantCompiled = ts.transpileModule(assistantSource, { compilerOptions: { module: ts.ModuleKind.ESNext } })
-const { createStudioAssistant } = await import(`data:text/javascript;base64,${Buffer.from(assistantCompiled.outputText).toString('base64')}`)
-
-test('AI proposal is read-only until explicit version-checked application', async () => {
-  const calls = []
-  const assistant = createStudioAssistant('https://studio.example.com', 'p_1', async (url, init) => {
-    calls.push({ url, init })
-    if (init.method === 'PUT') return new Response(null, { status: 204 })
-    return Response.json(init.method === 'POST' ? { html: '<h1>New</h1>', summary: 'Title updated' } : { content: '<h1>Old</h1>', version: 'version-1' })
-  })
-  const proposal = await assistant.propose('Update title')
-  assert.equal(calls.length, 2)
-  assert.equal(calls.some(call => call.init.method === 'PUT'), false)
-  await assistant.apply(proposal)
-  assert.equal(calls[2].init.headers['If-Match'], 'version-1')
-  assert.equal(calls[2].init.body, '<h1>New</h1>')
-  assert.equal(calls[2].init.credentials, 'include')
-})
-
-test('AI conflicts and unavailable providers never look like success', async () => {
-  for (const [status, message] of [[409, /document changed/], [503, /unavailable/]]) {
-    const assistant = createStudioAssistant('https://studio.example.com', 'p_1', async () => new Response(null, { status }))
-    await assert.rejects(assistant.apply({ html: 'new', version: 'old', summary: 'Edit' }), message)
-  }
-})
-
-test('assistant validates requests and reports session and provider errors', async () => {
-  let calls = 0
-  const assistant = createStudioAssistant('https://studio.example.com', 'p_1', async () => {
-    calls++
-    return Response.json({ error: 'AI proposal timed out' }, { status: 504 })
-  })
-  await assert.rejects(assistant.propose(' '), /Describe your edit/)
-  assert.equal(calls, 0)
-  await assert.rejects(assistant.propose('Update title'), /AI proposal timed out/)
-  const expired = createStudioAssistant('https://studio.example.com', 'p_1', async () => new Response(null, { status: 401 }))
-  await assert.rejects(expired.propose('Update title'), /session expired/)
-})
-
+const { studioOrigin, createStudioClient, prepareStudioClip, prepareStudioWorkspace } = await import(`data:text/javascript;base64,${Buffer.from(compiled.outputText).toString('base64')}`)
 test('validates the exact configured Studio origin before credentials are sent', () => {
   assert.equal(studioOrigin('https://studio.example.com/'), 'https://studio.example.com')
   assert.equal(studioOrigin('http://localhost:5191'), 'http://localhost:5191')
@@ -155,4 +114,41 @@ test('direct Studio navigation produces no destination when session or import fa
     await assert.rejects(prepareStudioClip(client, '33333333-3333-4333-8333-333333333333'))
     assert.equal(calls.length, failure === 'session' ? 1 : 2)
   }
+})
+
+test('workspace launcher reuses an owned project and creates only an empty first workspace', async () => {
+  for (const projects of [[], [{ id: 'existing', title: 'Existing project' }]]) {
+    const calls = []
+    const client = {
+      origin: 'https://studio.example.com',
+      connect: async () => { calls.push('connect') },
+      projects: async () => { calls.push('projects'); return projects },
+      workspace: async () => { calls.push('workspace'); return { id: 'blank', title: 'Blank' } }
+    }
+    assert.equal(await prepareStudioWorkspace(client), `https://studio.example.com/#project/${projects.length ? 'existing' : 'blank'}`)
+    assert.deepEqual(calls, projects.length ? ['connect', 'projects'] : ['connect', 'projects', 'workspace'])
+  }
+})
+
+test('legacy project URLs only open a project owned by the signed-in account', async () => {
+  const client = {
+    origin: 'https://studio.example.com',
+    connect: async () => {},
+    projects: async () => [{ id: 'first', title: 'First' }, { id: 'selected', title: 'Selected' }],
+    workspace: async () => { throw new Error('Must not create a fallback for a missing project') }
+  }
+  assert.equal(await prepareStudioWorkspace(client, { projectId: 'selected' }), 'https://studio.example.com/#project/selected')
+  await assert.rejects(prepareStudioWorkspace(client, { projectId: 'other-owner' }), /unavailable for this account/)
+})
+
+test('legacy clip targets take precedence over workspace selection', async () => {
+  const calls = []
+  const client = {
+    origin: 'https://studio.example.com',
+    connect: async () => { calls.push('connect') },
+    openClip: async (id) => { calls.push(id); return { id: 'clip-project', title: 'Clip' } },
+    projects: async () => { throw new Error('Must open the selected clip') }
+  }
+  assert.equal(await prepareStudioWorkspace(client, { clipId: 'clip', projectId: 'ignored' }), 'https://studio.example.com/#project/clip-project')
+  assert.deepEqual(calls, ['connect', 'clip'])
 })

@@ -19,9 +19,7 @@ async function loadTypeScriptModule(relativePath) {
 const {
   clipsLibraryHref,
   hasActiveClipFilters,
-  isUuid,
-  parseClipsLibraryQuery,
-  validateClipEditPayload
+  parseClipsLibraryQuery
 } = await loadTypeScriptModule('../src/lib/clips-library.ts')
 
 test('normalizes valid clip-library query state', () => {
@@ -77,29 +75,4 @@ test('builds canonical links and detects filters', () => {
     clipsLibraryHref(parseClipsLibraryQuery({})),
     '/dashboard/clips'
   )
-})
-
-test('validates clip identifiers and strict edit payloads', () => {
-  assert.equal(isUuid('16fd2706-8baf-433b-82eb-8c7fada847da'), true)
-  assert.equal(isUuid('not-an-id'), false)
-  assert.deepEqual(
-    validateClipEditPayload({
-      title: '  Launch clip  ',
-      hookText: ' A sharp hook ',
-      transcriptText: ''
-    }),
-    {
-      success: true,
-      data: {
-        title: 'Launch clip',
-        hookText: 'A sharp hook',
-        transcriptText: null
-      }
-    }
-  )
-  assert.equal(
-    validateClipEditPayload({ title: 'Clip', userId: 'another-user' }).success,
-    false
-  )
-  assert.equal(validateClipEditPayload({ title: '' }).success, false)
 })

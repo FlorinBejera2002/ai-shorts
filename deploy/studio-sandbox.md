@@ -8,8 +8,15 @@ PID, shared-memory and temporary-storage limits.
 Rendering, thumbnails and background removal execute in per-job Bubblewrap
 namespaces. Each job receives a bounded copy of one project, read-only runtime
 files, a cleared environment and no network interface other than loopback.
-There are at most two concurrent jobs. CPU/file limits and wall-clock timeout
-apply, and outputs must be regular files rather than symlinks.
+There is at most one active job. Capture retains its internal two-CPU budget.
+Each process has a finite CPU-time allowance derived from the wall-clock limit
+and the CPU capacity available to the service; CPU seconds accumulate across
+threads and must not be confused with elapsed seconds. The wall-clock limit
+remains 10 minutes for rendering/background removal and one minute for
+thumbnails/probes. File limits still apply, and outputs must be regular files
+rather than symlinks. Failures distinguish cancellation, elapsed timeout,
+termination signals and nonzero exit codes without assuming every forced
+termination was a CPU-limit violation.
 
 `studio-seccomp.json` is a snapshot of the official Moby default seccomp profile
 (https://github.com/moby/profiles/blob/main/seccomp/default.json), retrieved on

@@ -1,18 +1,12 @@
-import { Button } from '@/components/ui/button'
-import { formatDuration } from '@/lib/youtube'
 import type { StoryVersion } from './types'
 import { customerReviewIssues, reviewTopic } from './story-review-model'
 import { useStoryLanguage } from './use-story-language'
 
 /** Raw reports stay in the authenticated project API for support diagnostics. */
 export function StoryReview({
-  version,
-  onSeek,
-  hasTranscriptProposals = false
+  version
 }: {
   version: StoryVersion
-  onSeek?: (seconds: number) => void
-  hasTranscriptProposals?: boolean
 }) {
   const text = useStoryLanguage()
   const issues = customerReviewIssues(version)
@@ -70,26 +64,12 @@ export function StoryReview({
         >
           <span>
             {issue.type === 'caption_unavailable'
-              ? hasTranscriptProposals
-                ? text(
-                    'Some captions could not be added. Review the proposed transcripts below and rebuild captions.',
-                    'Unele subtitrări nu au putut fi adăugate. Verifică transcrierile propuse mai jos și regenerează subtitrările.'
-                  )
-                : text(
-                    'Some captions could not be added. Retry, or turn captions off in Appearance.',
-                    'Unele subtitrări nu au putut fi adăugate. Reîncearcă sau dezactivează subtitrările din Aspect.'
-                  )
+              ? text(
+                  'Some captions could not be added. Open the video in Studio to review and edit them.',
+                  'Unele subtitrări nu au putut fi adăugate. Deschide videoul în Studio pentru a le verifica și edita.'
+                )
               : labels[reviewTopic(issue.type)]}
           </span>
-          {onSeek && issue.type !== 'caption_unavailable' && (
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={() => onSeek(issue.start)}
-            >
-              {text('Review', 'Verifică')} {formatDuration(issue.start)}
-            </Button>
-          )}
         </li>
       ))}
     </ul>

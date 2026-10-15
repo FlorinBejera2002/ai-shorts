@@ -43,6 +43,17 @@ func TestStudioCandidatesStayStagedUntilOnlyChosenOutputIsCommitted(t *testing.T
 	if selected != 1 || artifact != chosen.Output.StudioArtifactID || len(committed) != 1 || committed[0] != artifact {
 		t.Fatal("wrong candidate published", selected, artifact, committed)
 	}
+	project, err := r.Get(ctx, user, id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var clipID string
+	if err = r.db.QueryRow(`SELECT id::text FROM clips WHERE story_project_id=$1`, id).Scan(&clipID); err != nil {
+		t.Fatal(err)
+	}
+	if len(project.Versions) != 2 || project.Versions[0].ClipID != clipID || project.Versions[1].ClipID != "" {
+		t.Fatal("only the published version may open its Studio clip", project.Versions)
+	}
 }
 
 func TestStudioPublicationConflictPreservesPreviousVersionAndManualWorkspace(t *testing.T) {

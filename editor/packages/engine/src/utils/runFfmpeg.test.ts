@@ -109,6 +109,19 @@ describe("formatFfmpegError", () => {
     expect(formatFfmpegError(null, "")).toBe("[FFmpeg] process error");
   });
 
+  it("reports the termination signal even when FFmpeg produced no stderr", () => {
+    expect(formatFfmpegError(null, "", undefined, "SIGKILL")).toBe(
+      "FFmpeg terminated by signal SIGKILL",
+    );
+  });
+
+  it("keeps the signal and bounded stderr tail together", () => {
+    const stderr = "ffmpeg version 8.1\nframe= 42\nframe= 43\n";
+    expect(formatFfmpegError(null, stderr, 2, "SIGTERM")).toBe(
+      "FFmpeg terminated by signal SIGTERM\nffmpeg stderr (tail):\nframe= 42\nframe= 43",
+    );
+  });
+
   it("wraps stderr in [FFmpeg] prefix when exit code is null (spawn failure)", () => {
     expect(formatFfmpegError(null, "spawn ffmpeg ENOENT")).toBe("[FFmpeg] spawn ffmpeg ENOENT");
   });

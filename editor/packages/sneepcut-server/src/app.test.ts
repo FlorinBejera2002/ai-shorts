@@ -119,6 +119,38 @@ describe("SneepCut isolated editor host", () => {
     ).toBe(200);
     expect((await app.request("/sneepcut/me", { headers: { Cookie: third } })).status).toBe(401);
   });
+  it("binds session renewal to the authenticated owner and exact originating app", async () => {
+    const app = application("http://localhost", ["https://www.sneepcut.test"]);
+    expect((await app.request("/sneepcut/session-info")).status).toBe(401);
+    const established = await app.request("/sneepcut/session", {
+      method: "POST",
+      headers: { Authorization: "Bearer alice", Origin: "https://www.sneepcut.test" },
+    });
+    const session = established.headers.get("set-cookie")?.split(";")[0] ?? "";
+    const info = await app.request("/sneepcut/session-info", { headers: { Cookie: session } });
+    expect(await info.json()).toEqual({ userId: alice, appOrigin: "https://www.sneepcut.test" });
+    expect(info.headers.get("Cache-Control")).toBe("no-store");
+    revoked = true;
+    expect(
+      (await app.request("/sneepcut/session-info", { headers: { Cookie: session } })).status,
+    ).toBe(401);
+  });
+  it("recovers full navigation after expiry while API requests still reject expired credentials", async () => {
+    const app = application();
+    const session = await cookie(app);
+    now += 900001;
+    const navigation = await app.request("/", {
+      headers: { Cookie: session, Accept: "text/html" },
+    });
+    expect(navigation.status).toBe(200);
+    expect(navigation.headers.get("Content-Type")).toContain("text/html");
+    expect(await navigation.text()).toContain("https://app.sneepcut.test/dashboard/studio");
+    expect(
+      (await app.request("/api/projects", { headers: { Cookie: session, Accept: "text/html" } }))
+        .status,
+    ).toBe(401);
+    expect((await app.request("/", { headers: { Cookie: session } })).status).toBe(401);
+  });
   it("rejects cross-site and origin-less cookie mutations", async () => {
     const app = application();
     const session = await cookie(app);

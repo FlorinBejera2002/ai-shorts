@@ -5,7 +5,6 @@ import { agentContext, mergeRuns, pollingDelay, resourceIdsForContext, resourceP
 import type { AgentCommand, AgentContext, AgentResource, AgentRun, RunRequest, Suggestion } from './model'
 import type { StoryHelpRequest } from './story-help'
 import { publishAgentActivity } from './activity'
-import { useStudioSelection } from './studio-selection'
 
 const historyKey = ['workspace-agent', 'runs']
 type HelpDraft = { context: AgentContext; source: HTMLElement }
@@ -52,9 +51,8 @@ export function useWorkspaceAgent(route: string, navigate: (route: string) => vo
   const lock = useRef(false)
   const seen = useRef(new Map<string, number>())
   const initialized = useRef(false)
-  const selection = useStudioSelection()
   const pageContext = agentContext(route)
-  const context = { ...(projectId && !pageContext.clip_id ? { project_id: projectId } : {}), ...pageContext, ...(route === '/dashboard/studio' && selection && selection.projectId === projectId ? { studio_selection: selection.ids } : {}) }
+  const context = { ...(projectId && !pageContext.clip_id ? { project_id: projectId } : {}), ...pageContext }
   const history = useQuery({ queryKey: historyKey,
     queryFn: async ({ signal }) => {
       const page = await agentApi.list(undefined, signal)

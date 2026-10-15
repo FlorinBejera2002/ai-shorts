@@ -9,13 +9,6 @@ test('new shared interaction controls use Radix primitives', () => {
   }
 })
 
-test('editor shortcuts leave dialogs and focused controls in charge of the keyboard', () => {
-  const shortcuts = read('src/components/editor/use-editor-shortcuts.ts')
-  assert.match(shortcuts,/e\.defaultPrevented/)
-  assert.match(shortcuts,/\[role="dialog"\]/)
-  assert.match(shortcuts,/closest\('button, a/)
-})
-
 test('Home preserves its original cinematic design without shadcn controls', () => {
   const landing = read('src/app/[locale]/home-page-view.tsx')
   assert.doesNotMatch(landing,/['"]use client['"]|opacity-0|initial=\{/)

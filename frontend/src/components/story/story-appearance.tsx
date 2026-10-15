@@ -17,13 +17,11 @@ import { useStoryLanguage } from './use-story-language'
 export function StoryAppearance({
   options,
   disabled,
-  onChange,
-  allowToggle = false
+  onChange
 }: {
   options: StoryOptions
   disabled: boolean
   onChange: (options: StoryOptions) => void
-  allowToggle?: boolean
 }) {
   const text = useStoryLanguage()
   const [open, setOpen] = useState(false)
@@ -44,22 +42,6 @@ export function StoryAppearance({
       : '9:16'
   return (
     <fieldset disabled={disabled} className="min-w-0 space-y-4">
-      {allowToggle && (
-        <label className="flex gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={storyCaptionMode(options) !== 'off'}
-            onChange={(event) =>
-              onChange({
-                ...options,
-                captions: event.target.checked,
-                caption_mode: event.target.checked ? 'all' : 'off'
-              })
-            }
-          />
-          {text('Captions', 'Subtitrări')}
-        </label>
-      )}
       <BrandKitSelector
         enabled={Boolean(options.use_brand_kit)}
         onChange={(enabled) =>

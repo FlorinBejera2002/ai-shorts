@@ -3,6 +3,7 @@ import { useFileManagerContext } from "../contexts/FileManagerContext";
 import { useStudioPlaybackContext, useStudioShellContext } from "../contexts/StudioContext";
 import {
   changeCompositionAspect,
+  compositionCanvasDimensions,
   COMPOSITION_ASPECTS,
   importedScenePaths,
 } from "../utils/compositionAspectRatio";
@@ -37,6 +38,7 @@ export function CanvasAspectSelect({ recordEdit }: StudioAssistantProps) {
       const path = activeCompPath ?? "index.html";
       const before = await files.readProjectFile(path);
       const after = changeCompositionAspect(before, label);
+      const canvas = compositionCanvasDimensions(after);
       const changed: Record<string, { before: string; after: string }> = {
         [path]: { before, after },
       };
@@ -44,7 +46,7 @@ export function CanvasAspectSelect({ recordEdit }: StudioAssistantProps) {
         const sceneBefore = await files.readProjectFile(scenePath);
         changed[scenePath] = {
           before: sceneBefore,
-          after: changeCompositionAspect(sceneBefore, label),
+          after: changeCompositionAspect(sceneBefore, label, canvas),
         };
       }
       const written: string[] = [];
@@ -86,6 +88,9 @@ export function CanvasAspectSelect({ recordEdit }: StudioAssistantProps) {
     >
       <option value="" disabled>
         Canvas
+      </option>
+      <option value="Original" title="Restore the composition's initial canvas dimensions">
+        Original
       </option>
       {COMPOSITION_ASPECTS.map((aspect) => (
         <option key={aspect.label} value={aspect.label}>

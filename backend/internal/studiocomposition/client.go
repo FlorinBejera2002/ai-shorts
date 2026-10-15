@@ -14,9 +14,12 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
+	"unicode/utf8"
 
 	"sneepcut/backend-go/internal/data"
 )
@@ -46,6 +49,51 @@ type Result struct {
 
 var ErrProjectChanged = errors.New("The Studio project changed while this edit was rendering. Your newer edits were kept; retry from the current project")
 var ErrLegacyProject = errors.New("This older Studio project cannot be merged automatically. Your edits were kept; continue editing it in Studio")
+
+// RenderFailure identifies a terminal response from the requested composition.
+// Error deliberately remains suitable for public status messages; DiagnosticCause
+// is bounded and sanitized for operational logs, never a raw service error.
+type RenderFailure struct {
+	ArtifactID string
+	Status     string
+	cause      string
+}
+
+func (e *RenderFailure) Error() string {
+	return "Studio composition rendering did not complete"
+}
+
+func (e *RenderFailure) DiagnosticCause() string { return e.cause }
+
+const maxDiagnosticBytes = 512
+
+var diagnosticURL = regexp.MustCompile(`(?i)\b(?:https?|s3|file|ftp)://\S+`)
+var diagnosticCredential = regexp.MustCompile(`(?i)\b(?:authorization|[a-z0-9_-]*(?:token|password|secret|api[-_]?key|signature|credential)[a-z0-9_-]*)["']?\s*[:=]\s*(?:bearer\s+|basic\s+)?(?:"[^"]*"|'[^']*'|\S+)`)
+var diagnosticBearer = regexp.MustCompile(`(?i)\bbearer\s+\S+`)
+
+func renderDiagnostic(cause, secret string) string {
+	if secret != "" {
+		cause = strings.ReplaceAll(cause, secret, "[redacted]")
+	}
+	cause = strings.Map(func(r rune) rune {
+		if unicode.IsControl(r) || unicode.Is(unicode.Cf, r) {
+			return ' '
+		}
+		return r
+	}, cause)
+	cause = diagnosticURL.ReplaceAllString(cause, "[url]")
+	cause = diagnosticCredential.ReplaceAllString(cause, "[credential]")
+	cause = diagnosticBearer.ReplaceAllString(cause, "[credential]")
+	cause = strings.Join(strings.Fields(cause), " ")
+	if len(cause) > maxDiagnosticBytes {
+		cause = cause[:maxDiagnosticBytes-len("...")]
+		for !utf8.ValidString(cause) {
+			cause = cause[:len(cause)-1]
+		}
+		cause += "..."
+	}
+	return cause
+}
 
 func New(origin, secret string) (*Client, error) {
 	if origin == "" && secret == "" {
@@ -167,7 +215,7 @@ func (c *Client) Run(ctx context.Context, user, id, operation string, input any)
 			}
 			return result, nil
 		case "failed", "cancelled":
-			return result, errors.New("Studio composition rendering did not complete")
+			return result, &RenderFailure{ArtifactID: id, Status: result.Status, cause: renderDiagnostic(result.Error, c.secret)}
 		case "queued", "preparing", "rendering", "pending":
 		default:
 			return result, errors.New("Studio returned an unknown rendering state")

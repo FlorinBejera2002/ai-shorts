@@ -232,6 +232,7 @@ type Output struct {
 }
 
 type Version struct {
+	ClipID        string     `json:"clip_id,omitempty"`
 	MusicSync     *MusicSync `json:"music_sync,omitempty"`
 	RenderOptions *Options   `json:"render_options,omitempty"`
 	Number        int        `json:"number"`

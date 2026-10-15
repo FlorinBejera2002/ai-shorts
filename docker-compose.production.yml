@@ -189,7 +189,7 @@ services:
     restart: unless-stopped
     pids_limit: 512
     mem_limit: 6g
-    cpus: 2
+    cpus: 4
     stop_grace_period: 30s
     depends_on:
       backend:

@@ -12,7 +12,7 @@ import (
 )
 
 // This exercises the actual Studio producer, including browser graphics capture
-// and HDR composition. The helper-only alpha test cannot cover that boundary.
+// and HDR composition, so it covers the same export boundary as the main editor.
 func TestStoryStudioHDRLogoOpacityUsesLinearLight(t *testing.T) {
 	p, storage, dir := storyTestProcessor(t)
 	ctx := context.Background()

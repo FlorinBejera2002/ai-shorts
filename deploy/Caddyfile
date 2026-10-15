@@ -4,6 +4,13 @@
 
 sneepcut.com, www.sneepcut.com {
 	encode zstd gzip
+	@studio_session path /studio-session
+	header @studio_session {
+		defer
+		Content-Security-Policy "frame-ancestors https://studio.sneepcut.com"
+		Cache-Control "no-store"
+		X-Robots-Tag "noindex, nofollow"
+	}
 	@application_api path /api/* /v1/* /media/*
 	handle @application_api {
 		reverse_proxy nginx-gateway:80 {

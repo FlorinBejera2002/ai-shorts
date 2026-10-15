@@ -82,6 +82,10 @@ func (p *Processor) prepareStorySpeechCatalogWithAudio(ctx context.Context, dir 
 			asset.VoiceIntervals = append(asset.VoiceIntervals, story.Interval{SourceID: asset.ID, In: interval.Start, Out: interval.End})
 		}
 		asset = prepareStoryTranscriptProposals(asset, intervals, true, padding)
+		asset, err = p.recoverStoryTranscriptTiming(ctx, dir, asset, options, intervals, audio, model)
+		if err != nil {
+			return asset, err
+		}
 		asset, err = boundStorySpeechToVoice(asset, intervals, true)
 	}
 	if err == nil {

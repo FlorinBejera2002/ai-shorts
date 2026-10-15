@@ -153,9 +153,23 @@ func TestStudioLegacyPlanUsesOriginalSourceAndSeparateCleanupAudio(t *testing.T)
 
 func TestStudioRenderingDoesNotFallBackWhenUnavailable(t *testing.T) {
 	p := New(Config{}, nil, nil)
-	_, err := p.Render(context.Background(), RenderInput{UserID: studioTestOwner, Namespace: "unavailable", Segments: []Segment{{0, 1}}})
-	if err == nil || !strings.Contains(err.Error(), "Studio rendering is unavailable") {
-		t.Fatal(err)
+	for name, render := range map[string]func() error{
+		"clip": func() error {
+			_, err := p.Render(context.Background(), RenderInput{UserID: studioTestOwner, Namespace: "unavailable", Segments: []Segment{{0, 1}}})
+			return err
+		},
+		"story": func() error {
+			request := story.Request{ID: "unavailable", UserID: studioTestOwner, Options: story.DefaultOptions(), Assets: []story.Asset{{ID: "source", Duration: 1}}}
+			version := story.Version{Timeline: []story.Entry{{OutputOut: 1, Video: story.Interval{SourceID: "source", Out: 1}}}}
+			_, err := p.RenderStory(context.Background(), request, version)
+			return err
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			if err := render(); err == nil || !strings.Contains(err.Error(), "Studio rendering is unavailable") {
+				t.Fatal("render must require Studio before reading or compositing media", err)
+			}
+		})
 	}
 }
 

@@ -16,6 +16,7 @@ Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 let root: Root | null = null;
 
 beforeEach(() => {
+  localStorage.clear();
   ffmpegStatus = { ok: true };
   recheck.mockClear();
 });
@@ -71,7 +72,49 @@ describe("RenderQueue resolution submission", () => {
       exportButton.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     });
 
-    expect(onStartRender).toHaveBeenCalledWith("mp4", "standard", "landscape-4k", 30);
+    expect(onStartRender).toHaveBeenCalledWith("mp4", "standard", "landscape-4k", 30, "auto");
+  });
+});
+
+describe("RenderQueue dynamic range", () => {
+  it("persists an explicit HDR choice and sends it when exporting after a remount", () => {
+    const onStartRender = vi.fn();
+    let host = mountRenderQueue(onStartRender);
+    const select = host.querySelector<HTMLSelectElement>('[aria-label="Export dynamic range"]')!;
+    act(() => {
+      select.value = "force-hdr";
+      select.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    act(() => root?.unmount());
+    host = mountRenderQueue(onStartRender);
+    expect(
+      host.querySelector<HTMLSelectElement>('[aria-label="Export dynamic range"]')!.value,
+    ).toBe("force-hdr");
+    act(() => exportButtonIn(host).click());
+    expect(onStartRender).toHaveBeenCalledWith("mp4", "standard", "auto", 30, "force-hdr");
+  });
+
+  it("switches to SDR when the user chooses a format that cannot carry HDR", () => {
+    const onStartRender = vi.fn();
+    const host = mountRenderQueue(onStartRender);
+    const dynamicRange = host.querySelector<HTMLSelectElement>(
+      '[aria-label="Export dynamic range"]',
+    )!;
+    act(() => {
+      dynamicRange.value = "force-hdr";
+      dynamicRange.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    const format = [...host.querySelectorAll("select")].find((select) =>
+      [...select.options].some((option) => option.value === "mov"),
+    )!;
+    act(() => {
+      format.value = "mov";
+      format.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    expect(dynamicRange.disabled).toBe(true);
+    expect(dynamicRange.value).toBe("force-sdr");
+    act(() => exportButtonIn(host).click());
+    expect(onStartRender).toHaveBeenCalledWith("mov", "standard", "auto", 30, "force-sdr");
   });
 });
 

@@ -3,9 +3,6 @@ package processing
 import (
 	"context"
 	"encoding/json"
-	"fmt"
-	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -82,62 +79,4 @@ func bridgeQuality(raw []byte) bool {
 		}
 	}
 	return true
-}
-
-func (p *Processor) interpolateBridge(ctx context.Context, dir, source string, at float64) (string, error) {
-	work, err := os.MkdirTemp(dir, "bridge-")
-	if err != nil {
-		return "", err
-	}
-	for i, point := range []float64{at - .1, at + .1} {
-		file := filepath.Join(work, fmt.Sprintf("frame-%d.png", i*2))
-		if err = p.ffmpeg(ctx, work, "-ss", seconds(point), "-i", source, "-frames:v", "1", file); err != nil {
-			return "", err
-		}
-		if err = copyFile(file, filepath.Join(work, fmt.Sprintf("frame-%d.png", i*2+1))); err != nil {
-			return "", err
-		}
-	}
-	bridge := filepath.Join(work, "bridge.mp4")
-	filter := "minterpolate=fps=30:mi_mode=mci:mc_mode=aobmc:me_mode=bidir:vsbmc=1:scd=none,trim=start=0.2:end=0.4,setpts=PTS-STARTPTS,format=yuv420p"
-	if err = p.ffmpeg(ctx, work, "-framerate", "5", "-i", filepath.Join(work, "frame-%d.png"), "-vf", filter, "-an", "-c:v", "libx264", "-crf", "18", bridge); err != nil {
-		return "", err
-	}
-	raw, err := run(ctx, work, p.cfg.FFmpegPath, "-v", "error", "-i", bridge, "-vf", "scale=64:36", "-an", "-f", "rawvideo", "-pix_fmt", "gray", "pipe:1")
-	if err != nil || !bridgeQuality(raw) {
-		return "", fmt.Errorf("interpolation did not pass continuity checks")
-	}
-	return bridge, nil
-}
-
-func (p *Processor) applyNaturalBridges(ctx context.Context, dir, source string, in RenderInput, decisions []BoundaryDecision) (string, error) {
-	current := source
-	elapsed := 0.0
-	used := 0
-	for i := range decisions {
-		elapsed += in.Segments[i].End - in.Segments[i].Start
-		d := &decisions[i]
-		if used >= 1 || d.Score >= .84 || in.Segments[i].End-in.Segments[i].Start < .5 || in.Segments[i+1].End-in.Segments[i+1].Start < .5 || !p.approveBridge(ctx, *d, in.Transcript.Words) {
-			continue
-		}
-		bridge, err := p.interpolateBridge(ctx, dir, current, elapsed)
-		if err != nil {
-			d.Reason += "; interpolation rejected, retained cut"
-			continue
-		}
-		output := filepath.Join(dir, fmt.Sprintf("bridge-output-%d.mp4", i))
-		filter := fmt.Sprintf("[1:v]setpts=PTS-STARTPTS+%s/TB[b];[0:v][b]overlay=eof_action=pass:enable='gte(t,%s)*lt(t,%s)'[v]", seconds(elapsed-.1), seconds(elapsed-.1), seconds(elapsed+.1))
-		args := []string{"-i", current, "-i", bridge, "-filter_complex", filter, "-map", "[v]", "-map", "0:a?"}
-		args = append(args, delivery...)
-		args = append(args, output)
-		if err = p.ffmpeg(ctx, dir, args...); err != nil {
-			d.Reason += "; bridge render failed, retained cut"
-			continue
-		}
-		d.Strategy = "interpolated_bridge"
-		d.Reason = "AI-selected local motion interpolation passed continuity checks; source audio retained"
-		current = output
-		used++
-	}
-	return current, ctx.Err()
 }

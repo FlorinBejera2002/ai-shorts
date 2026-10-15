@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"sneepcut/backend-go/internal/story"
+	"sneepcut/backend-go/internal/studiocomposition"
 	"time"
 )
 
@@ -88,8 +89,18 @@ func (r *Runner) execute(ctx context.Context, e *execution) (runErr, finishErr e
 		return committer.CommitStudio(ctx, owner, artifact)
 	}
 	finishErr = e.finish(finalCtx, result, runErr, commit)
-	if runErr != nil && r.Logger != nil {
-		r.Logger.Warn("Story execution did not complete", "story_id", e.ID)
-	}
+	r.logRunFailure(e.ID, runErr)
 	return runErr, finishErr
+}
+
+func (r *Runner) logRunFailure(id string, err error) {
+	if err == nil || r.Logger == nil {
+		return
+	}
+	attrs := []any{"story_id", id}
+	var renderFailure *studiocomposition.RenderFailure
+	if errors.As(err, &renderFailure) {
+		attrs = append(attrs, "studio_artifact_id", renderFailure.ArtifactID, "studio_render_status", renderFailure.Status, "studio_render_cause", renderFailure.DiagnosticCause())
+	}
+	r.Logger.Warn("Story execution did not complete", attrs...)
 }

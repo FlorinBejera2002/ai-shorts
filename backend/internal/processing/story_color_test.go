@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/binary"
 	"encoding/json"
-	"fmt"
 	"math"
 	"os"
 	"path/filepath"
@@ -34,7 +33,7 @@ func storyHDRFixture(t *testing.T, p *Processor, dir string) story.Asset {
 	file := filepath.Join(dir, "hdr.mov")
 	// PQ code 723 is about 1000 nits; the other half is approximately 100.
 	args := []string{"-f", "lavfi", "-i", "nullsrc=s=160x90:r=30,format=yuv420p10le,geq=lum='if(lt(X,W/2),723,512)':cb=512:cr=512", "-f", "lavfi", "-i", "sine=frequency=440:sample_rate=48000", "-t", "0.4"}
-	args = append(args, storyDelivery(true)...)
+	args = append(args, storyFixtureHDRDelivery()...)
 	args = append(args, file)
 	if err := p.ffmpeg(ctx, dir, args...); err != nil {
 		t.Fatal(err)
@@ -167,36 +166,7 @@ func TestStoryHDRExportPreservesHighlightsAndCompositesSDRGraphics(t *testing.T)
 	}
 }
 
-func TestStoryHDRGraphicsOpacityUsesLinearLight(t *testing.T) {
-	p, _, dir := storyTestProcessor(t)
-	ctx := context.Background()
-	asset := storyHDRFixture(t, p, dir)
-	source, err := p.storyMaterialize(ctx, dir, asset.Key)
-	if err != nil {
-		t.Fatal(err)
-	}
-	sourceNits := storySampleNits(t, p, dir, source, "crop=32:32:8:30")
-	for _, opacity := range []float64{0, .5, 1} {
-		t.Run(fmt.Sprintf("opacity-%.1f", opacity), func(t *testing.T) {
-			filters := []string{"[0:v]null[base]", fmt.Sprintf("color=c=white@%g:s=160x90:r=30:d=0.4,format=rgba[graphics]", opacity)}
-			filters = append(filters, storyHDROverlayFilters("base", "graphics", "output")...)
-			file := filepath.Join(dir, fmt.Sprintf("opacity-%g.mp4", opacity))
-			args := []string{"-i", source, "-filter_complex", strings.Join(filters, ";"), "-map", "[output]"}
-			args = append(args, storyDelivery(true)...)
-			args = append(args, "-t", "0.4", file)
-			if err := p.ffmpeg(ctx, dir, args...); err != nil {
-				t.Fatal(err)
-			}
-			nits := storySampleNits(t, p, dir, file, "crop=32:32:8:30")
-			expected := sourceNits*(1-opacity) + 203*opacity
-			if math.Abs(nits-expected) > expected*.05 {
-				t.Fatalf("alpha must blend linear luminance: got %.1f nits; expected %.1f", nits, expected)
-			}
-		})
-	}
-}
-
-func TestStoryCameraMOVIngestAndHLGNormalization(t *testing.T) {
+func TestStoryCameraMOVIngestProxyAndStudioDynamicRangePreservation(t *testing.T) {
 	p, storage, dir := storyTestProcessor(t)
 	ctx := context.Background()
 	for _, format := range []string{"prores", "hlg"} {
@@ -239,17 +209,28 @@ func TestStoryCameraMOVIngestAndHLGNormalization(t *testing.T) {
 			if err != nil || info.ColorTransfer != "" || math.Abs(info.Duration-asset.Duration) > .08 {
 				t.Fatalf("camera proxy changed source duration or is not SDR: %+v %v", info, err)
 			}
-			// A mixed timeline must accept both SDR ProRes and HLG originals
-			// when the user chooses the common PQ HDR delivery format.
-			output := filepath.Join(dir, format+"-hdr.mp4")
-			entry := story.Entry{OutputOut: .4, Video: story.Interval{SourceID: asset.ID, Out: .4}}
-			if err := p.renderStoryEntry(ctx, dir, output, entry, asset, story.Asset{}, 160, 90, true); err != nil {
-				t.Fatal(err)
-			}
-			rendered, err := p.probeStory(ctx, output)
-			if err != nil || rendered.ColorTransfer != "smpte2084" {
-				t.Fatalf("mixed source lost HDR output: %+v %v", rendered, err)
-			}
+			t.Run("studio-export", func(t *testing.T) {
+				// Studio retains native HLG and uses SDR for SDR ProRes. This is
+				// source preservation, not the removed compositor's PQ upconversion.
+				dynamicRange, transfer := "sdr", ""
+				if format == "hlg" {
+					dynamicRange, transfer = "hdr", "arib-std-b67"
+				}
+				entry := story.Entry{OutputOut: .4, Video: story.Interval{SourceID: asset.ID, Out: .4}}
+				request := story.Request{ID: format + "-export", Options: story.Options{AspectRatio: "16:9", DynamicRange: dynamicRange}, Assets: []story.Asset{asset}}
+				output, err := renderStoryForTest(t, p, ctx, request, story.Version{Number: 1, Timeline: []story.Entry{entry}})
+				if err != nil {
+					t.Fatal(err)
+				}
+				file, err := p.storyMaterialize(ctx, dir, output.Key)
+				if err != nil {
+					t.Fatal(err)
+				}
+				rendered, err := p.probeStory(ctx, file)
+				if err != nil || rendered.ColorTransfer != transfer {
+					t.Fatalf("Studio export lost source dynamic range: %+v %v", rendered, err)
+				}
+			})
 		})
 	}
 }
@@ -284,4 +265,9 @@ func TestStoryHDRRenderFailurePreservesOriginalAndCleansWorkspace(t *testing.T) 
 			}
 		})
 	}
+}
+
+// The fixture encoder creates synthetic HDR input; final exports use Studio.
+func storyFixtureHDRDelivery() []string {
+	return []string{"-c:v", "libx265", "-profile:v", "main10", "-preset", "veryfast", "-crf", "20", "-pix_fmt", "yuv420p10le", "-tag:v", "hvc1", "-color_primaries", "bt2020", "-color_trc", "smpte2084", "-colorspace", "bt2020nc", "-color_range", "tv", "-x265-params", "pools=2:frame-threads=2:log-level=error:repeat-headers=1:colorprim=bt2020:transfer=smpte2084:colormatrix=bt2020nc", "-r", "30", "-c:a", "aac", "-profile:a", "aac_low", "-ar", "48000", "-b:a", "128k", "-movflags", "+faststart"}
 }

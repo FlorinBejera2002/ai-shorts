@@ -182,6 +182,7 @@ export interface StoryIssue {
 
 export interface StoryVersion {
   number: number
+  clip_id?: string
   parent: number
   accepted: boolean
   preview_url?: string

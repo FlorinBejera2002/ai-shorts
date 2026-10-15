@@ -8,6 +8,7 @@ import { trackStudioEvent } from "../utils/studioTelemetry";
 import { Tooltip } from "./ui";
 import { StudioAssistant, type StudioAssistantProps } from "./assistant/StudioAssistant";
 import { CanvasAspectSelect } from "./CanvasAspectSelect";
+import { StudioSession } from "./StudioSession";
 
 export interface StudioHeaderProps {
   captureFrameHref: string;
@@ -128,6 +129,7 @@ export function StudioHeader({
 
   return (
     <div className="flex min-w-0 flex-wrap items-center justify-between gap-2 px-2 py-2 bg-neutral-900 border-b border-neutral-800 flex-shrink-0 sm:px-3">
+      <StudioSession />
       {/* Left: logo + project name */}
       <div className="hidden min-w-0 items-center gap-3 lg:flex">
         <SneepCutLogo />

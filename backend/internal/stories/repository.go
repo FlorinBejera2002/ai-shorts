@@ -115,20 +115,24 @@ func readProject(ctx context.Context, q projectReader, limits story.Limits, user
 	if err != nil {
 		return p, err
 	}
-	rows, err = q.QueryContext(ctx, `SELECT version FROM story_versions WHERE project_id=$1 ORDER BY number`, id)
+	rows, err = q.QueryContext(ctx, `SELECT v.version,coalesce(c.id::text,'') FROM story_versions v LEFT JOIN clips c ON c.story_project_id=v.project_id AND c.story_version=v.number AND c.user_id=$2 WHERE v.project_id=$1 ORDER BY v.number`, id, user)
 	if err != nil {
 		return p, err
 	}
 	for rows.Next() {
 		var raw []byte
 		var v story.Version
-		if err = rows.Scan(&raw); err == nil {
+		var clipID string
+		if err = rows.Scan(&raw, &clipID); err == nil {
 			err = json.Unmarshal(raw, &v)
 		}
 		if err != nil {
 			rows.Close()
 			return p, err
 		}
+		// Resolve the current published clip instead of retaining stale identities
+		// in historical version JSON. It opens the existing editable Studio project.
+		v.ClipID = clipID
 		p.Versions = append(p.Versions, v)
 	}
 	err = rows.Err()

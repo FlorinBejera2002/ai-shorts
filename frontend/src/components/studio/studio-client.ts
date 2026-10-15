@@ -1,5 +1,23 @@
 export type StudioProject = { id: string; title: string }
 
+export async function prepareStudioWorkspace(
+  client: ReturnType<typeof createStudioClient>,
+  target: { clipId?: string; projectId?: string } = {},
+  signal?: AbortSignal
+): Promise<string> {
+  if (target.clipId) return prepareStudioClip(client, target.clipId, signal)
+  await client.connect(signal)
+  const projects = await client.projects(signal)
+  const requested = target.projectId
+    ? projects.find((project) => project.id === target.projectId)
+    : projects[0]
+  if (target.projectId && !requested) {
+    throw new Error('The requested Studio project is unavailable for this account.')
+  }
+  const active = requested ?? (await client.workspace(signal))
+  return `${client.origin}/#project/${encodeURIComponent(active.id)}`
+}
+
 export async function prepareStudioClip(
   client: ReturnType<typeof createStudioClient>,
   clipId: string,

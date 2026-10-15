@@ -1,20 +1,21 @@
 # SneepCut Studio integration
 
-Studio is available in the dashboard at `/dashboard/studio`. It runs on its own
-origin so its HTML/CSS editor dependencies do not interfere with the application.
-The complete Studio editing APIs are retained, with per-account project storage
-and render-job state. The existing clip recut editor is preserved.
+All generated clips appear in one library at `/dashboard/clips`, including
+ordinary clips and Story results. Opening a clip establishes an authenticated
+Studio session and navigates directly to its project on the configured Studio
+origin (`VITE_STUDIO_URL`, the Studio subdomain in production).
 
-The dashboard shows the clip gallery and an **Open workspace** action. The
-workspace restores the last selected Studio project or creates one private blank
-workspace. Its clips panel reads the
-existing authenticated clip library, including search and pagination. Selecting
-a generated clip imports an editable copy and reuses that project on later opens.
-Original clip files and existing edits are preserved.
+Studio is the application's only editor. The dashboard has no embedded Studio,
+secondary clip editor or separate editing gallery. `/dashboard/studio` launches
+an existing owned Studio project, creating a private blank workspace only when
+none exists. Legacy clip detail/edit URLs and Studio clip/project query links
+also launch the main Studio. Failed authentication or project preparation stays
+on a retry screen with a link back to the clip library.
 
-The projects panel can also create named blank projects. Session renewal and
-reconnection keep the active editor mounted. Returning to the gallery or moving
-between dashboard routes preserves the shared dashboard layout and sidebar state.
+The creation wizard still prepares sources, generation options and progress.
+Completed Stories show a read-only result preview, downloads and an **Open in
+Studio** action. Manual editing happens in Studio. Ordinary dashboard navigation
+continues to preserve the shared layout and sidebar state.
 
 ## Story editing
 
@@ -64,12 +65,32 @@ recover independently editable layers from a flattened MP4.
 
 ## Assistant and import security
 
+The native Studio renews its existing 15-minute cookie session every five minutes
+and when the tab becomes visible. A hidden authentication transport at the exact
+app route `/studio-session` uses the app's existing HttpOnly refresh cookie and
+connects to Studio with a freshly verified bearer. Credentials never enter URLs
+or cross-frame messages. Both sides validate the exact origin and frame source;
+renewal also checks the originally authenticated account before replacing a
+session. The main Studio stays mounted during renewal and failures, retaining
+pending edits. A retry action reloads only the authentication transport. If login
+is required, sign in to the same account in a separate tab and retry.
+
+Only HTML served by the authenticated SneepCut Studio host enables this flow;
+upstream local Studio does not contact SneepCut authentication. A full-page visit
+with an expired session returns through the existing dashboard launcher and
+preserves a valid project identifier. Failed API requests continue to return 401.
+
+Framing is allowed only for the authentication route: local Nginx permits the
+explicit localhost Studio origins on port 5191; production Caddy permits only
+`https://studio.sneepcut.com`. Keep that exact CSP exception aligned with any
+deliberately changed Studio origin. Other dashboard routes retain their existing
+framing policy. This transport does not embed an editor or create another Studio.
+
 Studio's **AI assistant** edits the active composition; **Ask agent** on a selected
 element passes its source file and selection context into the same assistant.
 Proposals remain read-only until applied, use the current file version as a write
-precondition, and record an undoable source edit. The dashboard's optional assistant
-panel edits the main `index.html` composition. Both call the same authenticated
-Studio AI endpoint and share the configured provider below.
+precondition, and record an undoable source edit. These tools use the authenticated
+Studio AI endpoint and the configured provider below.
 
 The editor uses neutral primary actions and shared radius tokens. Its canvas tools
 remain a dark editing surface; the surrounding dashboard follows the app theme.

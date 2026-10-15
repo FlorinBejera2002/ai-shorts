@@ -13,11 +13,10 @@ import {
   storyOptionsEqual,
   storyIsBusy,
   type StoryAsset,
-  type StoryBlock,
   type StoryOptions,
   type StoryProject
 } from './types'
-import { StoryEditor } from './story-editor'
+import { StoryResult } from './story-result'
 import { StoryOptionsPanel } from './story-options'
 import { StorySources } from './story-sources'
 import { StoryNarration } from './story-narration'
@@ -33,11 +32,7 @@ import { useStoryUploads } from './use-story-uploads'
 import { StoryAudioComparison } from './story-audio-comparison'
 import { StoryTranscriptReview } from './story-transcript-review'
 import { storyProblem } from './story-error'
-import {
-  storyRetryPayload,
-  type StoryEditPayload,
-  type StoryOperation
-} from './story-retry'
+import { storyRetryPayload } from './story-retry'
 import './story.css'
 
 function savedProject(key: string) {
@@ -337,7 +332,6 @@ function StoryWorkspace({
   const [options, setOptions] = useState(project.options)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
-  const [operation, setOperation] = useState<StoryOperation>()
   const [narrationPending, setNarrationPending] = useState(false)
   const stepStorageKey = `sneepcut:story-step:${project.id}`
   const [step, setStep] = useState<StoryStep>(() =>
@@ -402,7 +396,7 @@ function StoryWorkspace({
     setError('')
     try {
       const signature = JSON.stringify({ path, payload })
-      const idempotent = ['/generate', '/retry', '/rollback', '/transcript-review'].includes(path)
+      const idempotent = ['/generate', '/retry', '/transcript-review'].includes(path)
       let requestID = requests.current.get(signature)
       if (idempotent && !requestID) {
         requestID = crypto.randomUUID()
@@ -424,7 +418,7 @@ function StoryWorkspace({
             'Proiectul s-a schimbat. Alegerile tale sunt păstrate. Verifică-le și aplică din nou.'
           )
         )
-        // Fetch the new guard/state, but keep local options and appearance drafts.
+        // Fetch the new guard/state, but keep local options and transcript drafts.
         // A rejected action is never replayed automatically against new media.
         await refresh()
       } else {
@@ -506,52 +500,10 @@ function StoryWorkspace({
     })
   }
 
-  async function runEdit(payload: StoryEditPayload) {
-    if (mutation.current || active) return false
-    setOperation({ action: payload.action, version: payload.version, payload })
-    const saved = await mutate('/generate', 'POST', { ...payload })
-    if (!saved) setOperation(undefined)
-    return saved
-  }
-
-  function edit(action: string, blockID?: string, candidateID?: string) {
-    if (!version) return
-    void runEdit({
-      action,
-      version: version.number,
-      ...(blockID ? { block_id: blockID } : {}),
-      ...(candidateID ? { candidate_id: candidateID } : {})
-    })
-  }
-
-  function lock(block: StoryBlock, patch: Partial<StoryBlock>) {
-    const locks = (version?.plan.blocks ?? []).map((current) => {
-      const changed =
-        current.id === block.id ? { ...current, ...patch } : current
-      return {
-        block_id: changed.id,
-        locked: changed.locked,
-        lock_text: changed.lock_text,
-        lock_order: changed.lock_order,
-        lock_crop: changed.lock_crop
-      }
-    })
-    void mutate('', 'PATCH', { version: version?.number, locks })
-  }
-
   async function continueWithOriginalAudio() {
+    if (version) return
     const original = { ...options, audio_cleanup: { enabled: false } }
-    if (version) {
-      if (
-        await runEdit({
-          action: 'restyle',
-          version: version.number,
-          expected_state: project.expected_state,
-          style: { audio_cleanup: { enabled: false } }
-        })
-      )
-        setOptions(original)
-    } else if (await mutate('', 'PATCH', { options: original })) {
+    if (await mutate('', 'PATCH', { options: original })) {
       setOptions(original)
       await mutate('/generate', 'POST', {
         asset_ids: assets.map((asset) => asset.id)
@@ -586,7 +538,7 @@ function StoryWorkspace({
     project.status === 'cancelled' ||
     project.operation_status === 'failed'
   const retryPayload = failedOperation
-    ? storyRetryPayload(project, operation)
+    ? storyRetryPayload(project)
     : undefined
   const retryOperation = retryPayload
     ? () => void mutate('/retry', 'POST', retryPayload)
@@ -646,7 +598,6 @@ function StoryWorkspace({
         project={project}
         active={active}
         busy={busy}
-        operation={operation}
         onRetry={retryOperation}
         onCancel={() => void mutate('/cancel', 'POST', {})}
       />
@@ -658,51 +609,29 @@ function StoryWorkspace({
           {error}
         </p>
       )}
-      {version && (
-        <StoryEditor
-          project={project}
-          version={version}
-          disabled={active || busy}
-          onRestyle={(value) => {
-            void runEdit({
-              action: 'restyle',
-              version: version.number,
-              expected_state: project.expected_state,
-              style: {
-                aspect_ratio: value.aspect_ratio,
-                dynamic_range: value.dynamic_range ?? 'sdr',
-                caption_mode: value.caption_mode,
-                captions: value.captions,
-                caption_style: value.caption_style,
-                use_brand_kit: Boolean(value.use_brand_kit)
-              }
-            })
-          }}
-          onAction={edit}
-          onLock={lock}
-          onRollback={async (number) => {
-            if (await mutate('/rollback', 'POST', { version: number }))
-              setOperation(undefined)
-          }}
-        />
+      {version && <StoryResult project={project} version={version} />}
+      {!version && (
+        <>
+          <StoryTranscriptReview
+            assets={assets}
+            disabled={active || busy}
+            onApprove={(reviews) =>
+              mutate('/transcript-review', 'POST', {
+                version: project.current_version,
+                expected_state: project.expected_state,
+                reviews
+              })
+            }
+          />
+          <StoryAudioComparison
+            assets={assets}
+            enabled={Boolean(project.options.audio_cleanup?.enabled)}
+            disabled={active || busy}
+            onOriginal={() => void continueWithOriginalAudio()}
+            onRetry={retryOperation}
+          />
+        </>
       )}
-      <StoryTranscriptReview
-        assets={assets}
-        disabled={active || busy}
-        hasVersion={Boolean(version)}
-        onApprove={(reviews) => mutate('/transcript-review', 'POST', {
-          version: project.current_version,
-          expected_state: project.expected_state,
-          reviews
-        })}
-      />
-      <StoryAudioComparison
-        assets={assets}
-        enabled={Boolean(project.options.audio_cleanup?.enabled)}
-        disabled={active || busy}
-        onOriginal={() => void continueWithOriginalAudio()}
-        onRetry={retryOperation}
-      />
       {!version && !active ? (
         <StoryWizard
           step={step}

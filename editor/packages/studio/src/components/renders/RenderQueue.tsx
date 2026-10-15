@@ -7,7 +7,11 @@ import type { FfmpegStatus } from "./useFfmpegStatus";
 import { Button } from "../ui/Button";
 import { resolveFloatingPanelPosition, type FloatingPosition } from "../editor/floatingPanel";
 import type { RenderJob, ResolutionPreset } from "./useRenderQueue";
-import { getPersistedRenderSettings, persistRenderSettings } from "./renderSettings";
+import {
+  getPersistedRenderSettings,
+  persistRenderSettings,
+  type RenderHdrMode,
+} from "./renderSettings";
 import { trackStudioEvent } from "../../utils/studioTelemetry";
 
 export interface CompositionDimensions {
@@ -20,6 +24,7 @@ type StartRenderHandler = (
   quality: "draft" | "standard" | "high",
   resolution: ResolutionPreset | "auto",
   fps: 24 | 30 | 60,
+  hdrMode: RenderHdrMode,
 ) => void | Promise<void>;
 
 interface RenderQueueProps {
@@ -292,6 +297,7 @@ function FormatExportButton({
   const [quality, setQuality] = useState<"draft" | "standard" | "high">(persisted.quality);
   const [resolution, setResolution] = useState<RenderScale>("auto");
   const [fps, setFps] = useState<24 | 30 | 60>(persisted.fps);
+  const [hdrMode, setHdrMode] = useState<RenderHdrMode>(persisted.hdrMode);
 
   // Only a definite "not installed" blocks Export. A null status means the
   // probe gave no answer, and refusing to export on no answer would break
@@ -324,8 +330,10 @@ function FormatExportButton({
             value={format}
             onChange={(e) => {
               const v = e.target.value as "mp4" | "webm" | "mov";
+              const nextHdrMode = v === "mp4" ? hdrMode : "force-sdr";
               setFormat(v);
-              persistRenderSettings(v, quality, fps);
+              setHdrMode(nextHdrMode);
+              persistRenderSettings(v, quality, fps, nextHdrMode);
             }}
             disabled={isRendering}
             className={selectCls}
@@ -361,7 +369,7 @@ function FormatExportButton({
             onChange={(e) => {
               const v = Number(e.target.value) as 24 | 30 | 60;
               setFps(v);
-              persistRenderSettings(format, quality, v);
+              persistRenderSettings(format, quality, v, hdrMode);
             }}
             disabled={isRendering}
             className={selectCls}
@@ -379,7 +387,7 @@ function FormatExportButton({
               onChange={(e) => {
                 const v = e.target.value as "draft" | "standard" | "high";
                 setQuality(v);
-                persistRenderSettings(format, v, fps);
+                persistRenderSettings(format, v, fps, hdrMode);
               }}
               disabled={isRendering}
               className={selectCls}
@@ -392,6 +400,33 @@ function FormatExportButton({
             </select>
           </div>
         )}
+        <label className="col-span-2 flex flex-col gap-1 text-[10px] text-panel-text-4">
+          Dynamic range
+          <select
+            aria-label="Export dynamic range"
+            value={format === "mp4" ? hdrMode : "force-sdr"}
+            onChange={(event) => {
+              const next = event.target.value as RenderHdrMode;
+              setHdrMode(next);
+              persistRenderSettings(format, quality, fps, next);
+            }}
+            disabled={isRendering || format !== "mp4"}
+            className={selectCls}
+          >
+            <option value="auto">Auto · match sources</option>
+            <option value="force-sdr">SDR</option>
+            <option value="force-hdr">HDR · HEVC 10-bit</option>
+          </select>
+          <span>
+            {format !== "mp4"
+              ? "Choose MP4 for HDR export."
+              : hdrMode === "force-hdr"
+                ? "SDR footage is converted to HDR; new highlight detail is not added."
+                : hdrMode === "force-sdr"
+                  ? "SDR converts HDR footage for standard displays."
+                  : "Auto preserves the dynamic range of your source footage."}
+          </span>
+        </label>
       </div>
       <Button
         variant="primary"
@@ -405,7 +440,13 @@ function FormatExportButton({
           if (isRendering || missingFfmpeg) return;
           const outputResolution = resolveResolution(resolution, compositionDimensions);
           trackStudioEvent("render_start", { format, quality, resolution: outputResolution, fps });
-          void onStartRender(format, quality, outputResolution, fps);
+          void onStartRender(
+            format,
+            quality,
+            outputResolution,
+            fps,
+            format === "mp4" ? hdrMode : "force-sdr",
+          );
         }}
         className="w-full text-[11px] font-semibold"
       >
@@ -453,7 +494,7 @@ export const RenderQueue = memo(function RenderQueue({
     .find((j) => j.status === "complete" && j.durationMs !== undefined)?.durationMs;
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex min-h-0 flex-col h-full overflow-y-auto">
       <div className="px-3 py-3 border-b border-panel-border flex-shrink-0">
         <FormatExportButton
           onStartRender={onStartRender}
@@ -485,7 +526,7 @@ export const RenderQueue = memo(function RenderQueue({
       )}
 
       {/* Job list */}
-      <div ref={listRef} className="flex-1 overflow-y-auto">
+      <div ref={listRef} className="min-h-24 flex-1 overflow-y-auto">
         {loadError && jobs.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full px-4 gap-2" role="alert">
             <p className="text-[10px] text-red-400 text-center">{loadError}</p>

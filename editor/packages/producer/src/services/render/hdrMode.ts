@@ -37,7 +37,7 @@ export function resolveEffectiveHdrMode(input: {
     if (info?.hasHdr && info.dominantTransfer) {
       effectiveHdr = { transfer: info.dominantTransfer };
     } else {
-      effectiveHdr = { transfer: "hlg" };
+      effectiveHdr = { transfer: "pq" };
       forcedHdrWithoutSources = true;
     }
   } else if (info?.hasHdr && info.dominantTransfer) {
@@ -57,14 +57,14 @@ export function resolveEffectiveHdrMode(input: {
 
   if (forcedHdrWithoutSources) {
     input.log.warn(
-      "[Render] HDR forced by --hdr flag, but no HDR sources were detected — defaulting to HLG. SDR-only compositions may look perceptually wrong on HDR displays.",
+      "[Render] HDR requested without HDR sources — converting SDR content to PQ. This does not add source highlight detail.",
     );
   }
   if (effectiveHdr) {
     let reason: string;
     if (hdrMode === "force-hdr") {
       reason = forcedHdrWithoutSources
-        ? "forced by --hdr flag (no HDR sources detected — defaulting to HLG)"
+        ? "forced by --hdr flag (SDR sources converted to PQ)"
         : "forced by --hdr flag";
     } else {
       reason = "auto-detected from source(s)";

@@ -31,7 +31,7 @@ export function StoryResultHeader({ version, duration, aspectRatio }: Props) {
         </p>
       </div>
       {version.preview_url && (
-        <Button asChild size="sm">
+        <Button asChild variant="outline" size="sm">
           <a
             href={version.export_url ?? version.preview_url}
             download

@@ -11,18 +11,23 @@ export const SESSION_COOKIE = "sneepcut_editor_session";
 export class EditorSessions {
   private readonly sessions = new Map<
     string,
-    { user: EditorUser; bearer: string; expires: number }
+    { user: EditorUser; bearer: string; expires: number; appOrigin?: string }
   >();
   constructor(private readonly now = Date.now) {}
-  create(user: EditorUser, bearer: string): string {
+  create(user: EditorUser, bearer: string, appOrigin?: string): string {
     for (const [key, session] of this.sessions)
       if (session.expires <= this.now()) this.sessions.delete(key);
     if (this.sessions.size >= 10000) throw new Error("Session capacity reached");
     const id = randomBytes(32).toString("base64url");
-    this.sessions.set(id, { user, bearer, expires: this.now() + SESSION_SECONDS * 1000 });
+    this.sessions.set(id, {
+      user,
+      bearer,
+      appOrigin,
+      expires: this.now() + SESSION_SECONDS * 1000,
+    });
     return id;
   }
-  get(id: string | undefined): { user: EditorUser; bearer: string } | null {
+  get(id: string | undefined): { user: EditorUser; bearer: string; appOrigin?: string } | null {
     if (!id) return null;
     const session = this.sessions.get(id);
     if (!session) return null;

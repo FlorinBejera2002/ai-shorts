@@ -10,6 +10,7 @@ import { createClipImporter } from "./clip-import";
 import { CompositionStore } from "./composition-store";
 import { createCompositionService } from "./composition-service";
 import { HTTPException } from "hono/http-exception";
+import { enableStudioSessionRenewal } from "./session-recovery";
 
 const directory = dirname(fileURLToPath(import.meta.url));
 const port = Number(process.env.SNEEPCUT_STUDIO_PORT ?? "5191");
@@ -84,14 +85,18 @@ app.get("*", async (c) => {
     const within = relative(staticRoot, filename);
     if (!within || within === ".." || within.startsWith(`..${sep}`) || isAbsolute(within))
       return c.notFound();
-    return new Response(await readFile(filename), {
-      headers: {
-        "Content-Type": getMimeType(filename),
-        "Cache-Control": "no-store",
-        "Content-Security-Policy": `frame-ancestors 'self' ${frameAncestors}`,
-        "X-Content-Type-Options": "nosniff",
+    const content = await readFile(filename);
+    return new Response(
+      requested === "index.html" ? enableStudioSessionRenewal(content.toString("utf8")) : content,
+      {
+        headers: {
+          "Content-Type": getMimeType(filename),
+          "Cache-Control": "no-store",
+          "Content-Security-Policy": `frame-ancestors 'self' ${frameAncestors}`,
+          "X-Content-Type-Options": "nosniff",
+        },
       },
-    });
+    );
   } catch {
     return c.notFound();
   }

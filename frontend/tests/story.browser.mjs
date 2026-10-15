@@ -19,7 +19,6 @@ const generations = []
 let activeUploads = 0
 let maxUploads = 0
 let polls = 0
-let locked = false
 let project
 let releaseValidation
 const validationGate = new Promise((resolve) => {
@@ -36,11 +35,12 @@ const coverage = {
   incomplete: ['A visual reviewer was unavailable.']
 }
 
-function makeVersion(number, candidate = 'candidate-1') {
+function makeVersion(number) {
   return {
     number,
     parent: number - 1,
     accepted: true,
+    clip_id: '00000000-0000-4000-8000-000000000099',
     preview_url: `/synthetic-preview-${number}.mp4`,
     plan: {
       title: 'A story from five recordings',
@@ -49,7 +49,7 @@ function makeVersion(number, candidate = 'candidate-1') {
       blocks: [
         {
           id: 'block-1',
-          candidate_id: candidate,
+          candidate_id: 'candidate-1',
           role: 'hook',
           reason: 'The complete introduction.',
           alternatives: ['candidate-2'],
@@ -207,44 +207,24 @@ await page.route('**/api/**', async (route) => {
   if (path.endsWith('/generate')) {
     const body = request.postDataJSON()
     generations.push(body)
-    if (!body.action) {
-      assert.deepEqual(
-        [...body.asset_ids].sort(),
-        project.assets.map((asset) => asset.id).sort()
-      )
-      assert.equal(body.asset_ids.length, fileCount)
-      project.versions = [makeVersion(1)]
-      project.current_version = 1
-    } else {
-      assert.equal(body.action, 'alternate')
-      assert.equal(body.candidate_id, 'candidate-2')
-      assert.equal(body.version, 1)
-      project.versions.push(makeVersion(2, 'candidate-2'))
-      project.current_version = 2
-    }
+    assert.equal(body.action, undefined, 'The creation wizard never sends an editing action')
+    assert.deepEqual(
+      [...body.asset_ids].sort(),
+      project.assets.map((asset) => asset.id).sort()
+    )
+    assert.equal(body.asset_ids.length, fileCount)
+    project.versions = [makeVersion(1)]
+    project.current_version = 1
     project.status = 'reviewing'
     polls = 0
     return route.fulfill({ status: 202, json: { status: 'pending' } })
-  }
-  if (path.endsWith('/rollback')) {
-    project.current_version = request.postDataJSON().version
-    project.status = 'needs_review'
-    return route.fulfill({ json: project })
   }
   if (project && path === `/api/stories/${project.id}`) {
     if (method === 'PATCH') {
       const body = request.postDataJSON()
       assert.equal('request_id' in body, false, 'PATCH uses the strict settings schema')
       if (body.options) project.options = body.options
-      if (body.locks) {
-        assert.equal(body.version, project.current_version)
-        Object.assign(
-          project.versions.find((version) => version.number === body.version).plan
-            .blocks[0],
-          body.locks[0]
-        )
-        locked = body.locks[0].locked
-      }
+      assert.equal(body.locks, undefined, 'The creation wizard never edits timeline locks')
       return route.fulfill({ json: project })
     }
     if (project.status === 'reviewing' && ++polls >= 2) project.status = 'needs_review'
@@ -369,33 +349,9 @@ try {
   assert.equal(await page.getByText('Technical report', { exact: true }).count(), 0)
   assert.equal(await page.getByText('A visual reviewer was unavailable.').count(), 0)
   assert.equal(await page.getByTestId('story-block').count(), 0)
-  await page.getByRole('button', { name: 'Edit clips', exact: true }).click()
-  await page.getByTestId('story-block').locator('summary').click()
-  await page.getByRole('checkbox', { name: 'Entire scene', exact: true }).click()
-  await page.waitForFunction(
-    () =>
-      document.querySelector('[data-testid="story-block"] input[type="checkbox"]')
-        ?.checked
-  )
-  assert.equal(locked, true)
-  assert.equal(
-    await page.getByRole('button', { name: 'Rework this scene' }).isDisabled(),
-    true
-  )
-
-  await page.getByRole('checkbox', { name: 'Entire scene', exact: true }).click()
-  await page.waitForFunction(
-    () =>
-      !document.querySelector('[data-testid="story-block"] input[type="checkbox"]')
-        ?.checked
-  )
-  const alternate = page.getByLabel('Use another take 1', { exact: true })
-  await alternate.selectOption('candidate-2')
-  await page.getByText('Version 2', { exact: false }).first().waitFor()
-  await page.getByTestId('story-processing').waitFor({ state: 'detached' })
-  await page.getByLabel('Compare versions', { exact: true }).selectOption('1')
-  await page.getByRole('button', { name: 'Restore this version', exact: true }).click()
-  await page.getByText('0:08 · Vertical · Version 1', { exact: true }).waitFor()
+  assert.equal(await page.getByRole('button', { name: 'Edit clips', exact: true }).count(), 0)
+  assert.equal(await page.getByRole('button', { name: 'Appearance', exact: true }).count(), 0)
+  assert.equal(await page.getByRole('link', { name: 'All clips', exact: true }).getAttribute('href'), '/dashboard/clips')
   await page.reload()
   await page.getByTestId('story-result').waitFor()
   assert.equal(
@@ -416,7 +372,7 @@ try {
   const selectedClipCount = await legacySlider.getAttribute('aria-valuenow')
   await page.getByRole('button', { name: 'Multi-clip story', exact: true }).click()
   assert.equal(await legacyInput.evaluate((node) => node.isConnected), true, 'Legacy import stays mounted while hidden')
-  assert.equal(await storyHeading.evaluate((node) => node.isConnected), true, 'Story editor keeps its mounted state')
+  assert.equal(await storyHeading.evaluate((node) => node.isConnected), true, 'Story result keeps its mounted state')
   await page.getByText('0:08 · Vertical · Version 1', { exact: true }).waitFor()
   await page.getByRole('button', { name: 'Import a video or link' }).click()
   assert.equal(await page.getByRole('tab', { name: 'Batch', exact: true }).getAttribute('aria-selected'), 'true')
@@ -441,7 +397,7 @@ try {
   if (process.env.TEST_SCREENSHOT)
     await page.screenshot({ path: process.env.TEST_SCREENSHOT, fullPage: true })
   console.log(
-    `PASS: bounded ${fileCount}-file upload, selection order, server validation, failed-only retry, three-stage defaults, one generation, concise issues and intentional clip editing, locks, alternate take, rollback, restoration, both modes preserve state, and mobile layout`
+    `PASS: bounded ${fileCount}-file upload, selection order, server validation, failed-only retry, three-stage defaults, one generation, concise issues, Studio result handoff, restoration, both modes preserve state, and mobile layout`
   )
 } catch (error) {
   console.error(error)

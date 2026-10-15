@@ -33,9 +33,10 @@ checks cannot prove the absence of every visible artifact.
 ## Improvement action and persistence
 
 `POST /api/clips/:id/transitions` uses the existing authenticated, member-only,
-rate-limited edit reservation/worker queue. The clip detail page displays an
-Improve transitions action for clips with saved multi-sequence analysis.
-Status polling refreshes the same cached clip resource and preview.
+rate-limited edit reservation/worker queue, also used by the workspace agent.
+The former clip detail editor has been removed: manual editing opens the main
+Studio directly from the unified clip library. Automatic revisions render through
+that same Studio composition service.
 
 The private `clips.transition_state` JSON preserves the original source windows,
 word timings, render settings, and decisions. It is excluded from clip API
@@ -60,7 +61,8 @@ API and worker. It adds the private recipe and permits the transition edit kind.
   `SNEEPCUT_TEST_SCHEMA_SQL`. They create disposable schemas.
 - Frontend: `npm run typecheck`; use the project's React Doctor regression check.
 - Browser: start Vite on port 5188, set `PLAYWRIGHT_MODULE` to an installed
-  Playwright entry point, and run `node tests/transitions.browser.mjs` from
-  `frontend`. The script uses synthetic data and mocks all API requests.
+  Playwright entry point, and run `node tests/studio-workspace.browser.mjs` from
+  `frontend` to check library-to-Studio handoff. The script uses synthetic data
+  and mocks all API requests; Go tests cover automatic transition behavior.
 
 FFmpeg filter reference: <https://ffmpeg.org/ffmpeg-filters.html#minterpolate>.
