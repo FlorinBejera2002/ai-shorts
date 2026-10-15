@@ -20,6 +20,10 @@ type duplicateSourceKey struct {
 }
 
 func duplicateKey(asset Asset) (duplicateSourceKey, bool) {
+	// Human review belongs to this upload identity, never another identical file.
+	if len(asset.TranscriptReviews) > 0 || len(asset.TranscriptProposals) > 0 {
+		return duplicateSourceKey{}, false
+	}
 	if asset.Kind != "" && asset.Kind != "video" || len(asset.Hash) != 64 || asset.Size <= 0 {
 		return duplicateSourceKey{}, false
 	}
@@ -58,6 +62,11 @@ func duplicateCandidateIDs(from, to Asset) (map[string]string, bool) {
 }
 
 func reuseDuplicateAnalysis(analyzed, original Asset) (Asset, bool) {
+	// A first analysis can discover review proposals after duplicateKey was
+	// computed from raw uploads. Their IDs and review authority remain local.
+	if len(analyzed.TranscriptProposals) > 0 || len(analyzed.TranscriptReviews) > 0 || len(original.TranscriptReviews) > 0 {
+		return Asset{}, false
+	}
 	ids, ok := duplicateCandidateIDs(analyzed, original)
 	if !ok || analyzed.AnalysisVersion == "" {
 		return Asset{}, false

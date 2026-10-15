@@ -86,7 +86,12 @@ export const VideoThumbnail = memo(function VideoThumbnail({
   useMountEffect(() => () => observerRef.current?.disconnect());
 
   return (
-    <div ref={setContainerRef} className="absolute inset-0 overflow-hidden">
+    <div
+      ref={setContainerRef}
+      data-thumbnail-kind="video"
+      data-thumbnail-state={snapshot.status}
+      className="absolute inset-0 overflow-hidden"
+    >
       {urls.length > 0 && (
         <div className="absolute inset-0 flex">
           {Array.from({ length: frameCount }, (_, index) => {

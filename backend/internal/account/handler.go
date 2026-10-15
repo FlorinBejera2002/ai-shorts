@@ -24,6 +24,7 @@ type Auth interface {
 	RequireDeletionAuth(http.HandlerFunc) http.Handler
 	RequireRecent(http.HandlerFunc) http.Handler
 	Limit(http.HandlerFunc, string, int, time.Duration) http.HandlerFunc
+	SecurityLimit(http.HandlerFunc, string, int, time.Duration) http.HandlerFunc
 }
 type Media interface {
 	CleanupAccount(context.Context, string) (media.CleanupResult, error)
@@ -63,7 +64,7 @@ func (h *Handler) Register(r *httprouter.Router) {
 	r.Handler("PATCH", "/api/user/profile", h.auth.Require(h.auth.Limit(h.updateProfile, "account-profile", 20, time.Hour)))
 	r.Handler("GET", "/api/user/credits", h.auth.Require(h.credits))
 	r.Handler("GET", "/api/user/data", h.auth.RequireDeletionAuth(h.export))
-	r.Handler("DELETE", "/api/user/data", h.auth.RequireDeletionAuth(h.auth.Limit(h.delete, "account-delete", 5, time.Hour)))
+	r.Handler("DELETE", "/api/user/data", h.auth.RequireDeletionAuth(h.auth.SecurityLimit(h.delete, "account-delete", 5, time.Hour)))
 	h.registerSettings(r)
 }
 func write(w http.ResponseWriter, status int, body any) {
@@ -157,7 +158,7 @@ func (h *Handler) updateProfile(w http.ResponseWriter, r *http.Request) {
 }
 func (h *Handler) credits(w http.ResponseWriter, r *http.Request) {
 	user := identity.Current(r).User
-	write(w, 200, map[string]any{"credits": user.Credits, "plan": user.Plan})
+	write(w, 200, map[string]any{"credits": user.Credits, "plan": user.Plan, "creditsUnlimited": user.AccessRole == "admin"})
 }
 func (h *Handler) export(w http.ResponseWriter, r *http.Request) {
 	userID := identity.Current(r).User.ID

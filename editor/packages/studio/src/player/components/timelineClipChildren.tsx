@@ -49,7 +49,10 @@ export function renderClipChildren(
         // borderRadius: inherit — the clip itself is overflow-visible (keyframe
         // diamonds hang outside its bounds), so the thumbnail layer must clip
         // itself to the clip's rounded corners or sharp corners poke out.
-        <div className="absolute inset-0 overflow-hidden" style={{ borderRadius: "inherit" }}>
+        <div
+          className="absolute inset-0 overflow-hidden pointer-events-none"
+          style={{ borderRadius: "inherit" }}
+        >
           {renderClipContent(element, clipStyle, context)}
         </div>
       )}

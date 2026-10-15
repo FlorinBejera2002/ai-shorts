@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"sneepcut/backend-go/internal/audiocleanup"
 	"sneepcut/backend-go/internal/story"
+	"sneepcut/backend-go/internal/studiocomposition"
 	"strings"
 )
 
@@ -71,6 +72,13 @@ func (r *Repository) claim(ctx context.Context, id string) (*execution, error) {
 	}
 	e.Input = request.Input
 	e.RequestID = request.ID
+	e.Input.StudioOperationID = e.RequestID
+	if e.Input.Base != nil {
+		e.Input.StudioBaseArtifactID = e.Input.Base.Output.StudioArtifactID
+	}
+	if err = tx.QueryRowContext(ctx, `SELECT coalesce((SELECT id::text FROM clips WHERE story_project_id=$1 AND user_id=$2),'')`, e.ID, e.UserID).Scan(&e.Input.StudioSourceClipID); err != nil {
+		return nil, err
+	}
 	requestVersionStart := request.Input.VersionStart
 	attempts, err := tx.QueryContext(ctx, `SELECT attempt FROM story_attempts WHERE project_id=$1 AND request_id=$2 ORDER BY created_at`, e.ID, e.RequestID)
 	if err != nil {
@@ -243,7 +251,8 @@ func (e *execution) SaveVersion(ctx context.Context, v story.Version) error {
 		if _, err := tx.ExecContext(ctx, `INSERT INTO story_versions(project_id,number,version) VALUES($1,$2,$3) ON CONFLICT(project_id,number) DO UPDATE SET version=excluded.version`, e.ID, v.Number, encoded(v)); err != nil {
 			return err
 		}
-		if v.Accepted {
+		// Canonical candidates are staged until the chosen output is committed.
+		if v.Accepted && v.Output.StudioArtifactID == "" {
 			if v.RenderOptions != nil {
 				if err := story.ValidateOptions(*v.RenderOptions); err != nil {
 					return ErrInvalid
@@ -266,7 +275,7 @@ func (e *execution) SaveAttempt(ctx context.Context, a story.Attempt) error {
 	})
 }
 
-func (e *execution) finish(ctx context.Context, result story.Result, runErr error) error {
+func (e *execution) finish(ctx context.Context, result story.Result, runErr error, committers ...func(context.Context, string, string) error) error {
 	tx, err := e.repo.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
@@ -280,6 +289,17 @@ func (e *execution) finish(ctx context.Context, result story.Result, runErr erro
 	var deleting, cancelled bool
 	if err = tx.QueryRowContext(ctx, `SELECT p.status,p.current_version,j.credits_charged,EXISTS(SELECT 1 FROM account_deletion_requests WHERE user_id=p.user_id),j.status='cancelled' FROM story_projects p JOIN jobs j ON j.id=p.id WHERE p.id=$1 FOR UPDATE OF j`, e.ID).Scan(&status, &current, &charge, &deleting, &cancelled); err != nil {
 		return err
+	}
+	var publicationErr error
+	if runErr == nil && !deleting && !cancelled && status != "cancelled" && libraryVersion(result.Best) && result.Best.Output.StudioArtifactID != "" && result.Best.Number != current {
+		if len(committers) == 0 {
+			publicationErr = errors.New("Studio project publication is unavailable")
+		} else {
+			publicationErr = committers[0](ctx, e.UserID, result.Best.Output.StudioArtifactID)
+		}
+		if publicationErr != nil {
+			runErr = publicationErr
+		}
 	}
 	message := "Story is ready"
 	jobStatus := "completed"
@@ -335,6 +355,12 @@ func (e *execution) finish(ctx context.Context, result story.Result, runErr erro
 	if errors.As(runErr, &cleanupFailure) {
 		message = cleanupFailure.Message
 	}
+	if publicationErr != nil {
+		message = "The Studio project changed or could not be saved. Your previous version and newer Studio edits were kept; retry the edit."
+	}
+	if errors.Is(runErr, studiocomposition.ErrLegacyProject) {
+		message = studiocomposition.ErrLegacyProject.Error()
+	}
 	if current == 0 && (jobStatus == "failed" || jobStatus == "cancelled") && charge > 0 {
 		if _, err = tx.ExecContext(ctx, `UPDATE users SET credits=credits+$2 WHERE id=$1`, e.UserID, charge); err != nil {
 			return err
@@ -354,12 +380,22 @@ func (e *execution) finish(ctx context.Context, result story.Result, runErr erro
 	if _, err = tx.ExecContext(ctx, `UPDATE jobs SET status=$2,processing_active=false,credits_charged=$3,progress=$5,progress_message=$4,completed_at=now(),updated_at=now() WHERE id=$1`, e.ID, jobStatus, charge, message, progress); err != nil {
 		return err
 	}
-	if runErr == nil && libraryVersion(result.Best) {
-		if err = saveClip(ctx, tx, e.ID, e.UserID, result.Best, e.Input.Options); err != nil {
+	if runErr == nil && outcome != "cancelled" && libraryVersion(result.Best) {
+		options := e.Input.Options
+		if result.Best.RenderOptions != nil {
+			options = *result.Best.RenderOptions
+		}
+		if _, err = tx.ExecContext(ctx, `UPDATE story_projects SET current_version=$2,options=$3 WHERE id=$1`, e.ID, result.Best.Number, encoded(options)); err != nil {
+			return err
+		}
+		if err = saveClip(ctx, tx, e.ID, e.UserID, result.Best, options); err != nil {
 			return err
 		}
 	}
-	return tx.Commit()
+	if err = tx.Commit(); err != nil {
+		return err
+	}
+	return publicationErr
 }
 
 func trackStage(ctx context.Context, tx *sql.Tx, id, next string) error {
@@ -386,7 +422,7 @@ func saveClip(ctx context.Context, tx *sql.Tx, id, user string, v story.Version,
 			text.WriteString(word.Text)
 		}
 	}
-	_, err := tx.ExecContext(ctx, `INSERT INTO clips(id,job_id,user_id,title,viral_score,start_time,end_time,duration,segments,file_path,file_storage_key,thumbnail_path,thumbnail_storage_key,file_size,resolution,aspect_ratio,has_subtitles,transcript_text,story_project_id,story_version) VALUES($1,$2,$3,$4,0,0,$5,$5,'[]',$6,$6,$7,$7,$8,$9,$10,$11,$12,$2,$13) ON CONFLICT(story_project_id) WHERE story_project_id IS NOT NULL DO UPDATE SET title=excluded.title,end_time=excluded.end_time,duration=excluded.duration,file_path=excluded.file_path,file_storage_key=excluded.file_storage_key,thumbnail_path=excluded.thumbnail_path,thumbnail_storage_key=excluded.thumbnail_storage_key,file_size=excluded.file_size,resolution=excluded.resolution,aspect_ratio=excluded.aspect_ratio,has_subtitles=excluded.has_subtitles,transcript_text=excluded.transcript_text,story_version=excluded.story_version`, newID(), id, user, v.Plan.Title, v.Output.Duration, v.Output.Key, v.Output.ThumbnailKey, v.Output.Size, v.Output.Resolution, options.AspectRatio, v.Output.Captions, text.String(), v.Number)
+	_, err := tx.ExecContext(ctx, `INSERT INTO clips(id,job_id,user_id,title,viral_score,start_time,end_time,duration,segments,file_path,file_storage_key,thumbnail_path,thumbnail_storage_key,file_size,resolution,aspect_ratio,has_subtitles,transcript_text,story_project_id,story_version,studio_artifact_id) VALUES($1,$2,$3,$4,0,0,$5,$5,'[]',$6,$6,$7,$7,$8,$9,$10,$11,$12,$2,$13,nullif($14,'')::uuid) ON CONFLICT(story_project_id) WHERE story_project_id IS NOT NULL DO UPDATE SET title=excluded.title,end_time=excluded.end_time,duration=excluded.duration,file_path=excluded.file_path,file_storage_key=excluded.file_storage_key,thumbnail_path=excluded.thumbnail_path,thumbnail_storage_key=excluded.thumbnail_storage_key,file_size=excluded.file_size,resolution=excluded.resolution,aspect_ratio=excluded.aspect_ratio,has_subtitles=excluded.has_subtitles,transcript_text=excluded.transcript_text,story_version=excluded.story_version,studio_artifact_id=excluded.studio_artifact_id`, newID(), id, user, v.Plan.Title, v.Output.Duration, v.Output.Key, v.Output.ThumbnailKey, v.Output.Size, v.Output.Resolution, options.AspectRatio, v.Output.Captions, text.String(), v.Number, v.Output.StudioArtifactID)
 	return err
 }
 

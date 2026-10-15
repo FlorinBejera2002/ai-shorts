@@ -12,7 +12,7 @@ interface UseCaptionDetectionParams {
   captionEditMode: boolean;
   captionHasSelection: boolean;
   previewIframeRef: React.MutableRefObject<HTMLIFrameElement | null>;
-  captionSync: ReturnType<typeof useCaptionSync>;
+  captionSync: Pick<ReturnType<typeof useCaptionSync>, "save" | "loadOverrides">;
   setRightCollapsed: (collapsed: boolean) => void;
 }
 

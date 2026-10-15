@@ -51,6 +51,7 @@ func (p *Processor) Analyze(ctx context.Context, project string, asset story.Ass
 			if exists, e := p.storage.Exists(ctx, cached.ProxyKey); e == nil && exists {
 				// User overrides are not analysis inputs and must survive cache reuse.
 				cached.Order, cached.Role, cached.Include, cached.Name = asset.Order, asset.Role, asset.Include, asset.Name
+				cached.TranscriptReviews = asset.TranscriptReviews
 				cached, e = p.prepareStorySpeechCatalog(ctx, dir, cached, options)
 				if e != nil {
 					return asset, e
@@ -87,43 +88,29 @@ func (p *Processor) Analyze(ctx context.Context, project string, asset story.Ass
 			}
 		}
 	}
-	source, err := p.storyMaterialize(ctx, dir, asset.Key)
-	proxy := filepath.Join(dir, "proxy.mp4")
+	proxy, err := p.prepareStoryProxy(ctx, dir, project, &asset, options)
 	if err != nil {
-		return asset, errors.New("source is no longer available")
-	}
-	// The demuxer rebases the common presentation clock; async resampling fills
-	// real audio gaps. No speed changes or frame-index arithmetic are applied.
-	args := []string{"-i", source, "-map", "0:v:0", "-vf", storySquarePixelsFilter + ",scale=w='min(1280,iw)':h='min(1280,ih)':force_original_aspect_ratio=decrease:force_divisible_by=2,fps=30:start_time=0,setsar=1"}
-	if options.Narration {
-		args = append(args, "-an")
-	} else {
-		args = append(args, "-map", "0:a:0?", "-af", "aresample=48000:async=1:first_pts=0")
-	}
-	args = append(args, delivery...)
-	args = append(args, "-t", seconds(asset.Duration), "-map_metadata", "-1", proxy)
-	if p.ffmpeg(ctx, dir, args...) != nil {
-		return asset, storyWorkError("source normalization")
+		return asset, err
 	}
 	info, err := p.probe(ctx, proxy)
 	if err != nil || math.Abs(info.Duration-asset.Duration) > .12 {
 		return asset, errors.New("source timestamps could not be normalized reliably")
 	}
-	asset.ProxyKey = prefix + "/proxy.mp4"
 	asset.Mapping.NormalizedStart, asset.Mapping.Rate = 0, 1
 	asset.Mapping.Duration = min(info.Duration, asset.Duration)
 	asset.AnalysisVersion = digest
 	asset.SemanticAnalysisVersion = ""
 	resetStoryAnalysisWarnings(&asset)
-	if err = p.storySave(ctx, proxy, asset.ProxyKey, "video/mp4"); err != nil {
-		return asset, err
-	}
 	thumb := filepath.Join(dir, "thumbnail.jpg")
-	if p.ffmpeg(ctx, dir, "-i", proxy, "-ss", seconds(min(.25, asset.Duration/2)), "-frames:v", "1", "-vf", "scale=320:-2", "-q:v", "3", thumb) == nil {
-		asset.ThumbnailKey = prefix + "/thumbnail.jpg"
-		if err = p.storySave(ctx, thumb, asset.ThumbnailKey, "image/jpeg"); err != nil {
+	thumbnailKey := strings.TrimSuffix(asset.ProxyKey, "/proxy.mp4") + "/thumbnail.jpg"
+	asset.ThumbnailKey = ""
+	if exists, _ := p.storage.Exists(ctx, thumbnailKey); exists {
+		asset.ThumbnailKey = thumbnailKey
+	} else if p.ffmpeg(ctx, dir, "-i", proxy, "-ss", seconds(min(.25, asset.Duration/2)), "-frames:v", "1", "-vf", "scale=320:-2", "-q:v", "3", thumb) == nil {
+		if err = p.storySave(ctx, thumb, thumbnailKey, "image/jpeg"); err != nil {
 			return asset, err
 		}
+		asset.ThumbnailKey = thumbnailKey
 	}
 	audio, visual, err := p.storyQuality(ctx, dir, proxy, info)
 	if err != nil {
@@ -155,7 +142,10 @@ func (p *Processor) Analyze(ctx context.Context, project string, asset story.Ass
 		}
 		_ = pcm.Close()
 	}
-	data, err := json.Marshal(asset)
+	// Owner edits are durable project state, never immutable raw-ASR cache data.
+	rawAsset := asset
+	rawAsset.TranscriptProposals, rawAsset.TranscriptReviews = nil, nil
+	data, err := json.Marshal(rawAsset)
 	if err != nil || os.WriteFile(cacheFile, data, 0600) != nil {
 		return asset, storyWorkError("analysis checkpoint")
 	}

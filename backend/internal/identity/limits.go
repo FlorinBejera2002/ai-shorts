@@ -120,8 +120,24 @@ func (h *Handler) allowed(w http.ResponseWriter, r *http.Request, key string, li
 }
 
 func (h *Handler) Limit(next http.HandlerFunc, key string, limit int, window time.Duration) http.HandlerFunc {
+	return h.limit(next, key, limit, window, true)
+}
+
+// SecurityLimit protects credential proof attempts for every role. It is
+// separate from product usage allowances, which administrators do not have.
+func (h *Handler) SecurityLimit(next http.HandlerFunc, key string, limit int, window time.Duration) http.HandlerFunc {
+	return h.limit(next, key, limit, window, false)
+}
+
+func (h *Handler) limit(next http.HandlerFunc, key string, limit int, window time.Duration, adminExempt bool) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		principal := Current(r)
+		// Require authenticates the session and reloads the role before this
+		// middleware. Admin accounts have no authenticated usage allowance.
+		if adminExempt && principal.User.ID != "" && principal.User.AccessRole == "admin" {
+			next.ServeHTTP(w, r)
+			return
+		}
 		owner := "peer:" + h.clientIP(r)
 		if principal.User.ID != "" {
 			owner = "user:" + principal.User.ID

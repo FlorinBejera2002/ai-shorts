@@ -504,7 +504,8 @@ describe("ffprobe missing-binary fallback", () => {
     expect(meta.durationSeconds).toBe(1.25);
     expect(JSON.stringify(meta)).not.toContain(successfulStderr);
     expect(calls[0]?.command).toBe(resolve("/tools/ffprobe.exe"));
-    expect(calls[0]?.args.slice(0, 2)).toEqual(["-v", "error"]);
+    expect(calls[0]?.args).toContain("-threads");
+    expect(calls[0]?.args.slice(2, 4)).toEqual(["-v", "error"]);
   });
 
   it("does not accept an incomplete PNG through the missing-binary fallback", async () => {
@@ -787,7 +788,8 @@ describe("ffprobe missing-binary fallback", () => {
     expect(String(thrown)).not.toContain(inputPath);
     expect(String(thrown)).not.toContain("My Secret Video.mp4");
     expect(String(thrown).length).toBeLessThan(4_500);
-    expect(calls[0]?.args.slice(0, 2)).toEqual(["-v", "error"]);
+    expect(calls[0]?.args).toContain("-threads");
+    expect(calls[0]?.args.slice(2, 4)).toEqual(["-v", "error"]);
     expect(calls[0]?.args.at(-1)).toBe(inputPath);
   });
 
@@ -1396,7 +1398,7 @@ describe("final video frame timestamp probes", () => {
       metadata,
       secondController.signal,
     );
-    expect(processes).toHaveLength(2);
+    await vi.waitFor(() => expect(processes).toHaveLength(2));
 
     firstController.abort();
     await expect(first).rejects.toThrow(/ffprobe abort/);

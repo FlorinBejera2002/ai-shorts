@@ -12,8 +12,10 @@
     "@hyperframes/lint": "workspace:*",
     "@hyperframes/producer": "workspace:*",
     "@hyperframes/studio-server": "workspace:*",
+    "acorn": "^8.17.0",
     "hono": "^4.0.0",
     "linkedom": "^0.18.12",
+    "postcss": "^8.5.8",
     "puppeteer-core": "^25.2.1"
   },
   "devDependencies": {

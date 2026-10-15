@@ -59,6 +59,8 @@ export interface TimelineElement {
   automation?: string;
   /** Path from data-composition-src — identifies sub-composition elements */
   compositionSrc?: string;
+  /** A full source scene trimmed by its host; open the scene to edit its contents. */
+  sourceWindow?: boolean;
   /** Whether this row came from authored clip timing or Studio's full-duration layer fallback. */
   timingSource?: "authored" | "implicit";
   /** Set by data-timeline-locked on the host element — disables move and trim in Studio. */

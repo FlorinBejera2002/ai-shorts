@@ -368,6 +368,13 @@ export function useDomSelection({
 
       const element = findElementForSelection(doc, selection, activeCompPath);
       if (!element) {
+        // External source scenes are temporarily absent while a save reloads
+        // the iframe. A missing node only means deletion after runtime binding.
+        if (
+          selection.element.hasAttribute("data-source-window") &&
+          (doc.defaultView as (Window & { __renderReady?: boolean }) | null)?.__renderReady !== true
+        )
+          return;
         // Losing the primary is not losing the selection. When a group is live,
         // re-resolve it and keep whoever still exists rather than wiping the lot.
         const group = domEditGroupSelectionsRef.current;

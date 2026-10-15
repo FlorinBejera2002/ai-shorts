@@ -95,7 +95,15 @@ not certify worker availability, ClamAV, storage or external providers.
 
 Shared Redis limits use hashed keys and atomic expiring counters. Login limits
 apply to both peer and normalized email; authenticated feature limits use the
-current user. Limit exhaustion returns 429 with `Retry-After`; Redis failure
+current user. Active administrators bypass account usage allowances and credit
+charges, including upload frequency and workspace-agent active-run quotas. They
+can use subscription features such as white-label branding regardless of plan.
+Credit reservations persist the actual charge (zero for admin) so cancellation
+and failure never create credits. The API exposes `creditsUnlimited` separately
+from the real stored balance, and `canWhiteLabel` on brand settings. Role changes
+are checked against current account state. File/project caps, authentication,
+ownership, upload nonces and infrastructure resource protections still apply.
+For other accounts, limit exhaustion returns 429 with `Retry-After`; Redis failure
 returns 503. Production cannot fall back to process-local limits. Host checks,
 credentialed CORS and no-store responses wrap the application routes.
 

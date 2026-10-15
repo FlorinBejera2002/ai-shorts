@@ -69,6 +69,9 @@ func (b *Builder) Run(parent context.Context, req Request, checkpoints Checkpoin
 	if req.Action == "restyle" {
 		return state.runRestyle(ctx)
 	}
+	if req.Action == "review_transcript" {
+		return state.runTranscriptReview(ctx)
+	}
 	if err = state.analyze(ctx); err != nil {
 		return state.result, err
 	}
@@ -164,7 +167,7 @@ func (b *Builder) Run(parent context.Context, req Request, checkpoints Checkpoin
 	// The first usable source-backed draft is retained even when review finds
 	// defects. It is never advertised as Ready until all coverage gates pass.
 	version.Accepted = true
-	if req.Base != nil && req.Action != "resume" && introducesRegression(req.Base.Report, version.Report, req.Base.Timeline, version.Timeline) {
+	if !version.Output.StudioManualEdits && req.Base != nil && req.Action != "resume" && introducesRegression(req.Base.Report, version.Report, req.Base.Timeline, version.Timeline) {
 		version.Accepted = false
 		state.result.Best = *req.Base
 		if err = checkpoints.SaveVersion(ctx, version); err != nil {
@@ -283,7 +286,11 @@ func (s *runState) analyze(ctx context.Context) error {
 			// Candidate IDs are not immutable across model/segmentation upgrades.
 			// Keep the complete saved catalog so the accepted version's blocks,
 			// captions, alternate choices and identity references retain meaning.
+			proposals := analyzed.TranscriptProposals
 			analyzed = original
+			// Suggestions are not executable captions, so a pinned legacy catalog
+			// can expose new evidence without rewriting its accepted source cuts.
+			analyzed.TranscriptProposals = proposals
 			analyzed.Warnings = appendUnique(analyzed.Warnings, pinnedSourceWarning)
 		} else if pinnedSources[original.ID] {
 			// Local cache files may precede semantic context enrichment. Preserve
@@ -362,6 +369,8 @@ func (s *runState) renderAndReview(ctx context.Context, version Version, pre Rep
 		return version, err
 	}
 	version.Output = output
+	// The generated recipe is the merge baseline for future dashboard edits.
+	// Actual manual source clocks remain separate in Output.StudioTimeline.
 	options := s.req.Options
 	version.RenderOptions = &options
 	if err = s.checkpoints.Progress(ctx, "reviewing", "Reviewing actual output audio, images, captions and story"); err != nil {
@@ -375,6 +384,9 @@ func (s *runState) renderAndReview(ctx context.Context, version Version, pre Rep
 }
 
 func (s *runState) nextRepair(base Version) (Version, Issue, repairOperation, bool) {
+	if base.Output.StudioManualEdits {
+		return Version{}, Issue{}, repairOperation{}, false
+	}
 	for i, issue := range base.Report.Issues {
 		if issue.Resolved {
 			continue
@@ -489,7 +501,10 @@ func hasCritical(issues []Issue) bool {
 }
 
 func invalidRenderedFile(version Version) bool {
-	if len(checkTimeline(version.Timeline, version.Output)) > 0 {
+	if version.Output.StudioManualEdits && (!version.Report.Coverage.File || version.Output.Duration <= 0 || version.Output.Size <= 0 || version.Output.Key == "") {
+		return true
+	}
+	if !version.Output.StudioManualEdits && len(checkTimeline(version.Timeline, version.Output)) > 0 {
 		return true
 	}
 	for _, issue := range version.Report.Issues {

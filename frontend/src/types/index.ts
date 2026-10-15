@@ -33,6 +33,7 @@ export interface Clip {
   duration: number
   filePath: string
   fileUrl: string | null
+  previewUrl?: string | null
   thumbnailUrl: string | null
   fileSize: number
   resolution: string

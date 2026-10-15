@@ -26,7 +26,6 @@ func TestStoryProbeRejectsUnsupportedActualFormats(t *testing.T) {
 	}
 	for _, invalid := range []string{
 		strings.Replace(base, `"hevc"`, `"vp9"`, 1),
-		strings.Replace(base, `"width":1920`, `"color_transfer":"arib-std-b67","width":1920`, 1),
 		strings.Replace(base, `"duration":"2"`, `"duration":"NaN"`, 1),
 		strings.Replace(base, `"rotation":-90`, `"rotation":-45`, 1),
 		strings.Replace(base, `"width":1920`, `"width":20000`, 1),
@@ -188,7 +187,7 @@ func TestStoryAnalysisCacheTracksSpeechModelAndLanguage(t *testing.T) {
 			options.Language = "ro"
 		}
 		fresh, err := p.Analyze(context.Background(), "story-model-cache", previous, options)
-		if err != nil || fresh.AnalysisVersion == previous.AnalysisVersion || fresh.ProxyKey == previous.ProxyKey || fresh.Key != asset.Key {
+		if err != nil || fresh.AnalysisVersion == previous.AnalysisVersion || fresh.ProxyKey != previous.ProxyKey || fresh.Key != asset.Key {
 			t.Fatalf("%s reused stale analysis or changed source: %#v %v", change, fresh, err)
 		}
 		if exists, err := storage.Exists(context.Background(), previous.ProxyKey); err != nil || !exists {
@@ -210,12 +209,12 @@ func TestStoryRenderSeparateAudioVideoAndReviewActualMedia(t *testing.T) {
 		{BlockID: "first", CandidateID: "one-s1", OutputIn: 0, OutputOut: .8, Video: story.Interval{SourceID: "two", In: .2, Out: 1}, Audio: &story.Interval{SourceID: "one", In: .2, Out: 1}, Crop: "fit", Words: []story.Word{{Text: "Actual", Start: .1, End: .4}}},
 		{BlockID: "second", CandidateID: "two-s1", OutputIn: .8, OutputOut: 1.6, Video: story.Interval{SourceID: "one", In: .2, Out: 1}, Audio: &story.Interval{SourceID: "two", In: .2, Out: 1}, Crop: "fit"},
 	}}
-	output, err := p.RenderStory(ctx, request, version)
+	output, err := renderStoryForTest(t, p, ctx, request, version)
 	if err != nil {
 		t.Fatal(err)
 	}
 	version.Output = output
-	if math.Abs(output.Duration-1.6) > .06 || !output.Captions || storage.segments != 2 {
+	if math.Abs(output.Duration-1.6) > .06 || !output.Captions || output.StudioArtifactID == "" || storage.segments != 0 {
 		t.Fatalf("output %#v cache %d", output, storage.segments)
 	}
 	file := filepath.Join(dir, "actual.mp4")
@@ -251,8 +250,11 @@ func TestStoryRenderSeparateAudioVideoAndReviewActualMedia(t *testing.T) {
 		}
 	}
 	version.Number = 2
-	if _, err = p.RenderStory(ctx, request, version); err != nil || storage.segments != 2 {
-		t.Fatalf("unchanged media reencoded: saves=%d err=%v", storage.segments, err)
+	if _, err = renderStoryForTest(t, p, ctx, request, version); err != nil {
+		t.Fatalf("second Studio revision failed: %v", err)
+	}
+	if storage.segments != 0 {
+		t.Fatalf("Studio render unexpectedly used the former segment compositor: saves=%d", storage.segments)
 	}
 	verdict := `{"coverage":{"audio":true,"visual":true,"captions":true,"semantics":true,"boundaries":true,"incomplete":[]},"reviewed_ranges":[{"start":0,"end":1.6}],"reviewed_boundaries":[0.8],"issues":[]}`
 	reviewer := &storyReviewMock{result: verdict}
@@ -459,7 +461,7 @@ func TestStoryReviewNeverApprovesTextOnlyProvider(t *testing.T) {
 	asset := storySource(t, p, dir, "only", "blue", 440)
 	request := story.Request{ID: "story-no-review", Options: story.Options{AspectRatio: "1:1"}, Assets: []story.Asset{asset}}
 	version := story.Version{Number: 1, Timeline: []story.Entry{{BlockID: "one", OutputOut: .5, Video: story.Interval{SourceID: asset.ID, Out: .5}, Audio: &story.Interval{SourceID: asset.ID, Out: .5}}}}
-	output, err := p.RenderStory(context.Background(), request, version)
+	output, err := renderStoryForTest(t, p, context.Background(), request, version)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -530,7 +532,7 @@ func TestStoryRenderPreservesSourceAudioStartOffset(t *testing.T) {
 	asset.ID = "delayed"
 	request := story.Request{ID: "offset", Options: story.Options{AspectRatio: "1:1"}, Assets: []story.Asset{asset}}
 	version := story.Version{Number: 1, Timeline: []story.Entry{{BlockID: "one", OutputOut: 1, Video: story.Interval{SourceID: asset.ID, Out: 1}, Audio: &story.Interval{SourceID: asset.ID, Out: 1}}}}
-	output, err := p.RenderStory(ctx, request, version)
+	output, err := renderStoryForTest(t, p, ctx, request, version)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -611,7 +613,7 @@ func TestStoryAnalyzesSubsecondSupportingFootage(t *testing.T) {
 	}
 	request := story.Request{ID: "silent-render", Options: story.Options{AspectRatio: "16:9"}, Assets: []story.Asset{analyzed}}
 	version := story.Version{Number: 1, Timeline: []story.Entry{{BlockID: "silent", CandidateID: analyzed.Candidates[0].ID, OutputOut: .4, Video: story.Interval{SourceID: analyzed.ID, Out: .4}, Crop: "fit"}}}
-	output, err := p.RenderStory(ctx, request, version)
+	output, err := renderStoryForTest(t, p, ctx, request, version)
 	if err != nil {
 		t.Fatal("intentional silent track must not be loudness-normalized", err)
 	}

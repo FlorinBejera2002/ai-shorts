@@ -73,7 +73,7 @@ func loadReplay(directory string) (*replayRun, error) {
 	if _, err = readReplayJSON(filepath.Join(directory, "provenance.json"), &r.provenance); err != nil {
 		return nil, err
 	}
-	if !replayNamespace.MatchString(r.request.ID) || r.request.UserID != "local-evaluation" {
+	if !replayNamespace.MatchString(r.request.ID) || (r.request.UserID != "local-evaluation" && r.request.UserID != evaluationOwner) {
 		return nil, errors.New("replay request is not a local evaluation request")
 	}
 	if _, err = story.NormalizeOptions(r.request.Options); err != nil {
@@ -253,6 +253,7 @@ func replayOptions(previous story.Options, cfg evalFlags) story.Options {
 	if cfg.explicit["brief-file"] {
 		previous.Brief = cfg.options.Brief
 		previous.CaptionModeRevised = false
+		previous.AspectRatioRevised = false
 	}
 	if cfg.explicit["language"] {
 		previous.Language = cfg.options.Language

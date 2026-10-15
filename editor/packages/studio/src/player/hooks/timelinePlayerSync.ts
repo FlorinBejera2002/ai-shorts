@@ -14,6 +14,12 @@ export function timelineElementsChanged(
       element.start !== prior.start ||
       element.duration !== prior.duration ||
       element.track !== prior.track ||
+      element.tag !== prior.tag ||
+      element.src !== prior.src ||
+      element.compositionSrc !== prior.compositionSrc ||
+      element.sourceWindow !== prior.sourceWindow ||
+      element.playbackStart !== prior.playbackStart ||
+      element.playbackRate !== prior.playbackRate ||
       element.sourceDuration !== prior.sourceDuration
     );
   });

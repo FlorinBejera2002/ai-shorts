@@ -1,4 +1,5 @@
 import { Pencil } from 'lucide-react'
+import { useAuth } from '@/components/auth/use-auth'
 import { Button } from '@/components/ui/button'
 import { formatDuration } from '@/lib/youtube'
 import { storyCaptionMode, type StoryAsset, type StoryOptions } from './types'
@@ -32,6 +33,7 @@ export function StoryCreateReview({
   onCreate
 }: Props) {
   const text = useStoryLanguage()
+  const { user } = useAuth()
   const captionLabels = {
     all: text('All dialogue', 'Pe tot dialogul'),
     selective: text('Only hard-to-hear speech', 'Doar unde se aude greu'),
@@ -142,7 +144,9 @@ export function StoryCreateReview({
       <div className="space-y-4 border-t pt-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <span className="text-sm text-muted-foreground">
-            {text('10 credits · charged once', '10 credite · o singură plată')}
+            {user?.access_role === 'admin'
+              ? text('Unlimited credits · no charge', 'Credite nelimitate · fără cost')
+              : text('10 credits · charged once', '10 credite · o singură plată')}
           </span>
           <Button
             className="w-full sm:w-auto"

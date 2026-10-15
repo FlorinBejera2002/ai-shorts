@@ -40,7 +40,7 @@ func (s *runState) runRestyle(ctx context.Context) (Result, error) {
 	if err != nil {
 		return s.result, err
 	}
-	version.Accepted = !invalidRenderedFile(version) && version.Report.Status == "ready"
+	version.Accepted = !invalidRenderedFile(version) && (version.Report.Status == "ready" || version.Output.StudioManualEdits)
 	if err = s.checkpoints.SaveVersion(ctx, version); err != nil {
 		return s.result, err
 	}

@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-func (r *Repository) Complete(ctx context.Context, j *Job, result processing.Result) error {
+func (r *Repository) Complete(ctx context.Context, j *Job, result processing.Result, publish ...func(context.Context) error) error {
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
@@ -50,6 +50,11 @@ func (r *Repository) Complete(ctx context.Context, j *Job, result processing.Res
 		if err != nil {
 			return err
 		}
+		if c.StudioArtifactID != "" {
+			if _, err = tx.ExecContext(ctx, `UPDATE clips SET studio_artifact_id=$3::uuid,tiktok_studio_artifact_id=nullif($4,'')::uuid,preview_storage_key=nullif($5,'') WHERE job_id=$1 AND file_storage_key=$2`, j.ID, c.StorageKey, c.StudioArtifactID, c.TikTokStudioArtifactID, c.PreviewStorageKey); err != nil {
+				return err
+			}
+		}
 		if state, ok := c.Metadata["transition_state"]; ok {
 			encoded, err := json.Marshal(state)
 			if err != nil {
@@ -66,6 +71,11 @@ func (r *Repository) Complete(ctx context.Context, j *Job, result processing.Res
 	}
 	if err = release(ctx, tx, j); err != nil {
 		return err
+	}
+	if len(publish) > 0 {
+		if err = publish[0](ctx); err != nil {
+			return err
+		}
 	}
 	return tx.Commit()
 }

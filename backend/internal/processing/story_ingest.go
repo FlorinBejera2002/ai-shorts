@@ -22,6 +22,9 @@ type storyProbe struct {
 	Duration, Start float64
 	Width, Height   int
 	Audio           bool
+	VideoCodec      string
+	AudioCodec      string
+	ColorTransfer   string
 	Warnings        []string
 }
 
@@ -43,10 +46,10 @@ func (p *Processor) Inspect(ctx context.Context, key string) (story.Asset, error
 	}
 	info, err := p.probeStory(ctx, file)
 	if err != nil {
-		return story.Asset{}, err
+		return story.Asset{}, sourceValidationError(err.Error())
 	}
 	if err = p.decodeStory(ctx, file); err != nil {
-		return story.Asset{}, errors.New("source contains damaged or undecodable media")
+		return story.Asset{}, sourceValidationError("The video contains damaged or undecodable media. Upload the complete original file.")
 	}
 	input, err := os.Open(file)
 	if err != nil {
@@ -58,7 +61,7 @@ func (p *Processor) Inspect(ctx context.Context, key string) (story.Asset, error
 	if err != nil {
 		return story.Asset{}, errors.New("source checksum could not be verified")
 	}
-	return story.Asset{Key: key, Hash: hex.EncodeToString(hash.Sum(nil)), Size: stat.Size(), Duration: info.Duration, Width: info.Width, Height: info.Height, HasAudio: info.Audio,
+	return story.Asset{Key: key, Hash: hex.EncodeToString(hash.Sum(nil)), Size: stat.Size(), Duration: info.Duration, Width: info.Width, Height: info.Height, HasAudio: info.Audio, VideoCodec: info.VideoCodec, AudioCodec: info.AudioCodec, ColorTransfer: info.ColorTransfer,
 		Mapping: story.TimeMap{OriginalStart: info.Start, NormalizedStart: 0, Duration: info.Duration, Rate: 1, Method: "presentation timestamps rebased to zero; CFR frames sampled without changing playback speed"}, Warnings: info.Warnings}, nil
 }
 
@@ -88,8 +91,10 @@ func parseStoryProbe(data []byte) (storyProbe, error) {
 				Attached int `json:"attached_pic"`
 			}
 			Side []struct {
-				Rotation float64 `json:"rotation"`
-				Kind     string  `json:"side_data_type"`
+				Rotation        float64 `json:"rotation"`
+				Kind            string  `json:"side_data_type"`
+				DVProfile       int     `json:"dv_profile"`
+				DVCompatibility int     `json:"dv_bl_signal_compatibility_id"`
 			} `json:"side_data_list"`
 		}
 	}
@@ -119,11 +124,13 @@ func parseStoryProbe(data []byte) (storyProbe, error) {
 				continue
 			}
 			videos++
-			if stream.Codec != "h264" && stream.Codec != "hevc" {
-				return info, errors.New("unsupported video codec; use H.264 or HEVC in MP4/MOV")
+			if stream.Codec != "h264" && stream.Codec != "hevc" && stream.Codec != "prores" {
+				return info, errors.New("Unsupported video codec. Use H.264, HEVC or ProRes in MP4/MOV.")
 			}
+			info.VideoCodec = stream.Codec
 			if stream.Transfer == "smpte2084" || stream.Transfer == "arib-std-b67" {
-				return info, errors.New("HDR video is not supported yet; export an SDR copy while keeping your original")
+				info.ColorTransfer = stream.Transfer
+				info.Warnings = append(info.Warnings, "HDR footage uses an SDR analysis preview. Your original HDR file is preserved for HDR export.")
 			}
 			if stream.Width < 16 || stream.Height < 16 || stream.Width > 8192 || stream.Height > 8192 || int64(stream.Width)*int64(stream.Height) > 36_000_000 {
 				return info, errors.New("unsupported video dimensions")
@@ -131,7 +138,11 @@ func parseStoryProbe(data []byte) (storyProbe, error) {
 			info.Width, info.Height = stream.Width, stream.Height
 			for _, side := range stream.Side {
 				if strings.Contains(strings.ToLower(side.Kind), "dovi") {
-					return info, errors.New("Dolby Vision sources require an SDR export")
+					// Profile 8 retains a standard HLG/PQ base layer (including
+					// iPhone Dolby Vision). Profile 5 has no compatible base.
+					if side.DVProfile != 8 || (side.DVCompatibility != 1 && side.DVCompatibility != 4) || info.ColorTransfer == "" {
+						return info, errors.New("This Dolby Vision profile has no compatible HDR base layer. Export an HLG, HDR10 or SDR copy while keeping the original.")
+					}
 				}
 				if !finite(side.Rotation) || math.Abs(side.Rotation-math.Round(side.Rotation/90)*90) > .01 {
 					return info, errors.New("unsupported display rotation")
@@ -146,11 +157,12 @@ func parseStoryProbe(data []byte) (storyProbe, error) {
 		case "audio":
 			audios++
 			switch stream.Codec {
-			case "aac", "mp3", "pcm_s16le", "pcm_s24le", "pcm_s32le", "alac":
+			case "aac", "mp3", "pcm_s16le", "pcm_s24le", "pcm_s32le", "pcm_s16be", "pcm_s24be", "pcm_s32be", "pcm_f32le", "pcm_f64le", "alac":
 			default:
 				return info, errors.New("unsupported audio codec; export AAC or PCM audio")
 			}
 			info.Audio = true
+			info.AudioCodec = stream.Codec
 		}
 	}
 	if videos != 1 || audios > 1 {

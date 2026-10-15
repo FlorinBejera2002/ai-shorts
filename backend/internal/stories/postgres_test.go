@@ -463,7 +463,8 @@ type cleanupMedia struct {
 func (m *cleanupMedia) ValidateUploadSource(context.Context, string, string) (string, error) {
 	return "", nil
 }
-func (m *cleanupMedia) SignedURL(context.Context, string) (string, error) { return "", nil }
+func (m *cleanupMedia) SignedURL(context.Context, string) (string, error)     { return "", nil }
+func (m *cleanupMedia) DeleteStudioJob(context.Context, string, string) error { return nil }
 func (m *cleanupMedia) DeletePrefix(_ context.Context, prefix string) error {
 	m.prefixes = append(m.prefixes, prefix)
 	if m.fail {

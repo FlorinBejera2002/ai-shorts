@@ -1,4 +1,40 @@
 export const MEDIA_START_BASIS_ATTR = "data-hf-media-start-basis";
+export const SOURCE_WINDOW_ATTR = "data-source-window";
+
+export interface SourceWindow {
+  start: number;
+  duration: number;
+  mediaStart: number;
+  playbackRate: number;
+}
+
+/** Project a child media slot through a trimmed composition's source clock. */
+export function projectSourceWindow(
+  input: SourceWindow & {
+    hostStart: number;
+    hostDuration: number;
+    hostPlaybackStart: number;
+    hostPlaybackRate: number;
+  },
+): SourceWindow {
+  const hostRate =
+    Number.isFinite(input.hostPlaybackRate) && input.hostPlaybackRate > 0
+      ? input.hostPlaybackRate
+      : 1;
+  const childRate =
+    Number.isFinite(input.playbackRate) && input.playbackRate > 0 ? input.playbackRate : 1;
+  const visibleStart = Math.max(input.start, input.hostPlaybackStart);
+  const visibleEnd = Math.min(
+    input.start + Math.max(0, input.duration),
+    input.hostPlaybackStart + Math.max(0, input.hostDuration) * hostRate,
+  );
+  return {
+    start: input.hostStart + (visibleStart - input.hostPlaybackStart) / hostRate,
+    duration: Math.max(0, visibleEnd - visibleStart) / hostRate,
+    mediaStart: input.mediaStart + (visibleStart - input.start) * childRate,
+    playbackRate: childRate * hostRate,
+  };
+}
 
 export type MediaStartBasis = "local" | "global";
 

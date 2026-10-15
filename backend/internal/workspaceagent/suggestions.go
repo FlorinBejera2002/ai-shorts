@@ -103,7 +103,11 @@ func (h *Handler) suggestions(w http.ResponseWriter, r *http.Request) {
 		failure(w, err)
 		return
 	}
-	httpx.JSON(w, 200, map[string]any{"suggestions": out, "capabilities": h.executor.Catalog()})
+	unlimited := identity.Current(r).User.AccessRole == "admin"
+	for i := range out {
+		out[i] = accountSuggestion(out[i], unlimited)
+	}
+	httpx.JSON(w, 200, map[string]any{"suggestions": out, "capabilities": accountCatalog(h.executor.Catalog(), unlimited)})
 }
 func localizeSuggestion(s *Suggestion) {
 	switch s.Action.Name {

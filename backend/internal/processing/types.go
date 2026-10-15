@@ -12,6 +12,7 @@ import (
 )
 
 type Config struct {
+	StudioURL, StudioSecret, MediaOrigin, MediaSigningSecret               string
 	DeepFilterPath, DeepFilterModel                                        string
 	AudioCleanupTimeout                                                    time.Duration
 	FFmpegPath, FFprobePath, WhisperPath, WhisperModel, FaceModel, TempDir string
@@ -47,6 +48,8 @@ func ConfigFromEnv(get func(string) string) (Config, error) {
 	}
 	c.DeepFilterPath, c.DeepFilterModel = get("DEEPFILTER_PATH"), get("DEEPFILTER_MODEL")
 	c.AudioCleanupTimeout = 10 * time.Minute
+	c.StudioURL, c.StudioSecret = get("STUDIO_AGENT_URL"), get("STUDIO_AGENT_SECRET")
+	c.MediaOrigin, c.MediaSigningSecret = get("APP_URL"), get("INTERNAL_API_KEY")
 	return c, nil
 }
 
@@ -74,6 +77,7 @@ type Transcript struct {
 	Words    []Word              `json:"words"`
 }
 type Input struct {
+	UserID                                                                              string
 	AudioCleanup                                                                        *audiocleanup.Settings
 	SourceKey, SourceURL, Namespace, Language, Instructions, AspectRatio, SubtitleStyle string
 	RequestedClips                                                                      int
@@ -81,6 +85,15 @@ type Input struct {
 	Brand                                                                               map[string]any
 }
 type RenderInput struct {
+	UserID                                                                 string                   `json:"user_id,omitempty"`
+	StudioArtifactID                                                       string                   `json:"studio_artifact_id,omitempty"`
+	StudioProjectID                                                        string                   `json:"-"`
+	StudioOperationID                                                      string                   `json:"-"`
+	StudioSourceClipID                                                     string                   `json:"-"`
+	StudioExpectedDuration                                                 float64                  `json:"-"`
+	StudioExportOnly                                                       bool                     `json:"-"`
+	StudioRemovePlatformBadge                                              bool                     `json:"-"`
+	StudioTrim                                                             bool                     `json:"-"`
 	AudioCleanup                                                           *audiocleanup.Settings   `json:"audio_cleanup,omitempty"`
 	PreparedAudio                                                          *audiocleanup.Derivative `json:"prepared_audio,omitempty"`
 	Reuse                                                                  *Clip                    `json:"-"`
@@ -93,6 +106,9 @@ type RenderInput struct {
 	Brand                                                                  map[string]any
 }
 type Clip struct {
+	PreviewStorageKey                                                                                string
+	TikTokStudioArtifactID                                                                           string
+	StudioArtifactID                                                                                 string
 	Index                                                                                            int
 	Title, Description, HookText, StorageKey, ThumbnailKey, TikTokStorageKey, Resolution, Transition string
 	Start, End, Duration, Score, TransitionDuration                                                  float64

@@ -35,7 +35,9 @@ func TestPostgresCompletionAndFailureOwnership(t *testing.T) {
 	result := processing.Result{SourceKey: "sources/fixture.mp4", Transcript: processing.Transcript{Text: "Test transcript"}, Clips: []processing.Clip{{Title: "Fixture", StorageKey: "clips/fixture.mp4", TikTokStorageKey: "clips/clean.mp4", ThumbnailKey: "clips/thumb.jpg", Duration: 5, End: 5, Resolution: "1080x1920", ContainsPlatformBadge: true, Metadata: map[string]any{"score_reason": "fixture", "suggested_hashtags": []string{"test"}}}}}
 	stale := *job
 	stale.Token = token()
-	if err := repo.Complete(ctx, &stale, result); !errors.Is(err, ErrOwnership) {
+	commits := 0
+	publish := func(context.Context) error { commits++; return nil }
+	if err := repo.Complete(ctx, &stale, result, publish); !errors.Is(err, ErrOwnership) || commits != 0 {
 		t.Fatalf("stale owner accepted: %v", err)
 	}
 	if err := repo.Complete(ctx, job, result); err != nil {
@@ -59,5 +61,12 @@ func TestPostgresCompletionAndFailureOwnership(t *testing.T) {
 	var credits int
 	if err := db.QueryRow(`SELECT credits FROM users WHERE id=$1`, user).Scan(&credits); err != nil || credits != 50 {
 		t.Fatalf("refund: %d %v", credits, err)
+	}
+	cancelled := create()
+	if _, err := db.Exec(`UPDATE jobs SET status='cancelled' WHERE id=$1`, cancelled.ID); err != nil {
+		t.Fatal(err)
+	}
+	if err := repo.Complete(ctx, cancelled, result, publish); !errors.Is(err, ErrOwnership) || commits != 0 {
+		t.Fatal("cancelled job published a Studio project", err, commits)
 	}
 }

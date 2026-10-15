@@ -58,6 +58,24 @@ import {
 } from "../browser/gpuPolicy.js";
 
 const STUDIO_MANUAL_EDITS_PATH = ".hyperframes/studio-manual-edits.json";
+/** Canonical generated projects carry delivery intent into subsequent Studio exports. */
+export function resolveStudioHdrMode(
+  projectDir: string,
+  requested?: "auto" | "force-hdr" | "force-sdr",
+): "auto" | "force-hdr" | "force-sdr" {
+  if (requested) return requested;
+  const file = join(projectDir, "render-config.json");
+  if (!existsSync(file)) return "auto";
+  const config: unknown = JSON.parse(readFileSync(file, "utf8"));
+  if (
+    config === null ||
+    typeof config !== "object" ||
+    !("hdrMode" in config) ||
+    (config.hdrMode !== "auto" && config.hdrMode !== "force-hdr" && config.hdrMode !== "force-sdr")
+  )
+    throw new Error("The project's delivery settings are invalid.");
+  return config.hdrMode;
+}
 const REMOTE_GIF_IMG_SRC_RE =
   /<img\b[^>]*?\bsrc\s*=\s*["'](https?:\/\/[^"']+\.gif(?:[?#][^"']*)?)["'][^>]*>/gi;
 
@@ -506,12 +524,18 @@ export function createStudioServer(options: StudioServerOptions): StudioServer {
 
           const manifestContent = readStudioManualEditManifestContent(opts.project.dir);
           const manualEditsRenderScript = createStudioManualEditsRenderBodyScript(manifestContent);
+          const hdrMode = resolveStudioHdrMode(opts.project.dir, opts.hdrMode);
+          if (hdrMode === "force-hdr" && opts.format !== "mp4")
+            throw new Error(
+              "This project requires HDR delivery. Select MP4, or explicitly request SDR.",
+            );
           const job = createRenderJob({
             // opts.fps is already an Fps rational — see vite-config-studio
             // adapter for the same convention.
             fps: opts.fps,
             quality: opts.quality as "draft" | "standard" | "high",
             format: opts.format,
+            hdrMode,
             outputResolution: opts.outputResolution,
             ...(manualEditsRenderScript ? { renderBodyScripts: [manualEditsRenderScript] } : {}),
             ...(opts.composition ? { entryFile: opts.composition } : {}),

@@ -407,6 +407,7 @@ export {
   type HdrMasteringMetadata,
 } from "./utils/hdr.js";
 export type { VideoColorSpace } from "./utils/ffprobe.js";
+export { acquireMediaProcess, boundedFfprobeArgs } from "./utils/renderResources.js";
 export {
   renderProvenanceArgs,
   appendRenderProvenanceArgs,

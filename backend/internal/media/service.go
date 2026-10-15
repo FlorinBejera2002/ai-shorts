@@ -14,6 +14,7 @@ import (
 )
 
 type Config struct {
+	StudioURL, StudioSecret                                                                          string
 	LocalRoot, PublicBaseURL, AppURL, SigningSecret, UploadSecret, DirectUploadURL, StagingDirectory string
 	MaxUploadBytes                                                                                   int64
 }
@@ -117,30 +118,45 @@ func (s *Service) ValidateUploadSource(ctx context.Context, userID, reference st
 	return key, nil
 }
 func (s *Service) accountActive(ctx context.Context, userID string, write bool) error {
-	var role string
+	_, err := s.accountRole(ctx, userID, write)
+	return err
+}
+
+func (s *Service) accountRole(ctx context.Context, userID string, write bool) (string, error) {
+	var role, status string
 	var deleting bool
 	var activationRequired bool
-	err := s.db.QueryRowContext(ctx, `SELECT access_role, email_activation_required, EXISTS (SELECT 1 FROM account_deletion_requests d WHERE d.user_id=u.id) FROM users u WHERE u.id=$1`, userID).Scan(&role, &activationRequired, &deleting)
+	err := s.db.QueryRowContext(ctx, `SELECT access_role, account_status, email_activation_required, EXISTS (SELECT 1 FROM account_deletion_requests d WHERE d.user_id=u.id) FROM users u WHERE u.id=$1`, userID).Scan(&role, &status, &activationRequired, &deleting)
 	if errors.Is(err, sql.ErrNoRows) {
-		return failure(401, "Authentication required")
+		return "", failure(401, "Authentication required")
 	}
 	if err != nil {
-		return failure(503, "Account verification is temporarily unavailable")
+		return "", failure(503, "Account verification is temporarily unavailable")
+	}
+	if status != "" && status != "active" {
+		return "", failure(403, "Account is unavailable")
 	}
 	if activationRequired {
-		return failure(403, "Verify your email before uploading")
+		return "", failure(403, "Verify your email before uploading")
 	}
 	if deleting {
-		return failure(409, "Account deletion is pending")
+		return "", failure(409, "Account deletion is pending")
 	}
 	if write && role != "member" && role != "admin" {
-		return failure(403, "This role cannot modify content")
+		return "", failure(403, "This role cannot modify content")
 	}
-	return nil
+	return role, nil
 }
 func (s *Service) allow(ctx context.Context, userID, action string, limit int) error {
 	if s.nonce == nil {
 		return failure(503, "Upload authorization is temporarily unavailable")
+	}
+	role, err := s.accountRole(ctx, userID, true)
+	if err != nil {
+		return err
+	}
+	if role == "admin" {
+		return nil
 	}
 	ok, e := s.nonce.Allow(ctx, action+":"+userID, limit, time.Hour)
 	if e != nil {

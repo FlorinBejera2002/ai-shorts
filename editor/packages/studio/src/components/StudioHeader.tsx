@@ -7,6 +7,7 @@ import { useViewMode, type StudioViewMode } from "../contexts/ViewModeContext";
 import { trackStudioEvent } from "../utils/studioTelemetry";
 import { Tooltip } from "./ui";
 import { StudioAssistant, type StudioAssistantProps } from "./assistant/StudioAssistant";
+import { CanvasAspectSelect } from "./CanvasAspectSelect";
 
 export interface StudioHeaderProps {
   captureFrameHref: string;
@@ -126,20 +127,27 @@ export function StudioHeader({
   const ffmpegMissing = renderQueue.ffmpegMissing;
 
   return (
-    <div className="flex items-center justify-between h-10 px-3 bg-neutral-900 border-b border-neutral-800 flex-shrink-0">
+    <div className="flex min-w-0 flex-wrap items-center justify-between gap-2 px-2 py-2 bg-neutral-900 border-b border-neutral-800 flex-shrink-0 sm:px-3">
       {/* Left: logo + project name */}
-      <div className="flex items-center gap-3">
+      <div className="hidden min-w-0 items-center gap-3 lg:flex">
         <SneepCutLogo />
         <span className="text-neutral-700 select-none" aria-hidden="true">
           |
         </span>
-        <span className="text-[11px] font-medium text-neutral-300">{projectId}</span>
+        <span className="max-w-32 truncate text-[11px] font-medium text-neutral-300">
+          {projectId}
+        </span>
       </div>
       {/* Center: storyboard / preview toggle */}
       <ViewModeToggle />
       {/* Right: toolbar buttons */}
-      <div className="flex items-center gap-1.5">
-        {recordEdit && <StudioAssistant key={projectId} recordEdit={recordEdit} />}
+      <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+        {recordEdit && <CanvasAspectSelect recordEdit={recordEdit} />}
+        {recordEdit && (
+          <div className="hidden sm:block">
+            <StudioAssistant key={projectId} recordEdit={recordEdit} />
+          </div>
+        )}
         <Tooltip
           label={
             editHistory.undoLabel
@@ -155,7 +163,7 @@ export function StudioHeader({
               void handleUndo();
             }}
             disabled={!editHistory.canUndo}
-            className={`h-7 w-7 flex items-center justify-center rounded-md transition-colors active:scale-[0.98] ${
+            className={`h-9 w-9 sm:h-7 sm:w-7 flex items-center justify-center rounded-md transition-colors active:scale-[0.98] ${
               editHistory.canUndo
                 ? "text-neutral-400 hover:text-neutral-200 hover:bg-neutral-800"
                 : "text-neutral-700 cursor-default"
@@ -180,7 +188,7 @@ export function StudioHeader({
               void handleRedo();
             }}
             disabled={!editHistory.canRedo}
-            className={`h-7 w-7 flex items-center justify-center rounded-md transition-colors active:scale-[0.98] ${
+            className={`h-9 w-9 sm:h-7 sm:w-7 flex items-center justify-center rounded-md transition-colors active:scale-[0.98] ${
               editHistory.canRedo
                 ? "text-neutral-400 hover:text-neutral-200 hover:bg-neutral-800"
                 : "text-neutral-700 cursor-default"
@@ -205,7 +213,7 @@ export function StudioHeader({
             onFocus={refreshCaptureFrameTime}
             onPointerDown={refreshCaptureFrameTime}
             aria-disabled={capturing || undefined}
-            className={`h-7 flex items-center gap-1.5 px-2.5 rounded-md text-[11px] font-medium transition-colors ${
+            className={`hidden sm:flex h-7 items-center gap-1.5 px-2.5 rounded-md text-[11px] font-medium transition-colors ${
               capturing
                 ? "text-neutral-600 cursor-default"
                 : "text-neutral-400 hover:text-neutral-200 hover:bg-neutral-800 active:scale-[0.98]"
@@ -255,7 +263,7 @@ export function StudioHeader({
               setRightCollapsed(true);
             }}
             aria-pressed={inspectorButtonActive}
-            className={`h-7 flex items-center gap-1.5 px-2.5 rounded-md text-[11px] font-medium border transition-colors active:scale-[0.98] ${
+            className={`h-9 sm:h-7 flex items-center gap-1.5 px-2 rounded-md text-[11px] font-medium border transition-colors active:scale-[0.98] ${
               inspectorButtonActive
                 ? "text-studio-accent bg-studio-accent/10 border-studio-accent/30"
                 : "text-neutral-500 hover:text-neutral-300 hover:bg-neutral-800 border-transparent"
@@ -301,7 +309,7 @@ export function StudioHeader({
               if (ffmpegMissing) return;
               onExport?.();
             }}
-            className="h-7 flex items-center gap-1.5 px-3 rounded-md text-[11px] font-semibold bg-studio-accent text-[#09090B] enabled:hover:brightness-110 transition-[filter,transform] enabled:active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+            className="h-9 sm:h-7 flex items-center gap-1.5 px-3 rounded-md text-[11px] font-semibold bg-studio-accent text-[#09090B] enabled:hover:brightness-110 transition-[filter,transform] enabled:active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isRendering ? "Rendering…" : "Export"}
           </button>

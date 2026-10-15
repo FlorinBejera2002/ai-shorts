@@ -11,6 +11,7 @@ import {
 } from './caption-style'
 import { ColorField } from './color-field'
 import { browserFontFamily, loadCaptionFont } from './caption-fonts'
+import { CaptionSpacingControls } from './caption-spacing-controls'
 
 export function CaptionStyleEditor({
   value,
@@ -183,12 +184,13 @@ export function CaptionStyleEditor({
           >
             {(selected?.weights ?? [value.weight]).map((w) => (
               <option key={w} value={w}>
-                {w}
+                {w % 100 === 0 ? t(`fontWeight_${w}`) : selected?.style || w} · {w}
               </option>
             ))}
           </select>
         </Label>
       </div>
+      <CaptionSpacingControls value={value} onChange={onChange} />
       <details className="rounded-md border p-3">
         <summary className="cursor-pointer text-sm font-medium">
           {t('customFont')}
@@ -287,7 +289,6 @@ export function CaptionStyleEditor({
               ['size', 'captionSize', 0.02, 0.16, 0.005],
               ['max_width', 'captionWidth', 0.2, 0.96, 0.01],
               ['max_lines', 'captionLines', 1, 3, 1],
-              ['line_spacing', 'captionSpacing', 1, 1.8, 0.05],
               ['outline', 'captionOutline', 0, 8, 0.5],
               ['shadow', 'captionShadow', 0, 8, 0.5],
               ['background_opacity', 'bgOpacity', 0, 1, 0.05]

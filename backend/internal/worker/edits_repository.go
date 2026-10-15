@@ -7,9 +7,14 @@ import (
 	"errors"
 	"sneepcut/backend-go/internal/audiocleanup"
 	"sneepcut/backend-go/internal/processing"
+	"sneepcut/backend-go/internal/studiocomposition"
 )
 
 type Edit struct {
+	Duration                                                                    float64
+	TikTokStudioArtifactID                                                      string
+	UserID, StudioArtifactID                                                    string
+	HasSubtitles                                                                bool
 	AudioCleanup                                                                *audiocleanup.Derivative
 	ID, JobID, ClipID, Token, Kind, SourceKey, FileKey, TikTokKey, ThumbnailKey string
 	Payload                                                                     json.RawMessage
@@ -28,6 +33,9 @@ func (r *Repository) ClaimEdit(ctx context.Context) (*Edit, error) {
 		return nil, nil
 	}
 	if err != nil {
+		return nil, err
+	}
+	if err = tx.QueryRowContext(ctx, `SELECT user_id,coalesce(studio_artifact_id::text,''),coalesce(tiktok_studio_artifact_id::text,''),has_subtitles,duration FROM clips WHERE id=$1 AND job_id=$2`, e.ClipID, e.JobID).Scan(&e.UserID, &e.StudioArtifactID, &e.TikTokStudioArtifactID, &e.HasSubtitles, &e.Duration); err != nil {
 		return nil, err
 	}
 	err = tx.QueryRowContext(ctx, `UPDATE edit_deliveries SET execution_token=$2,state='running',last_error=NULL WHERE id=$1 AND state='pending' RETURNING payload`, e.ID, e.Token).Scan(&e.Payload)
@@ -73,7 +81,7 @@ func finishEdit(ctx context.Context, tx *sql.Tx, e *Edit, state, message string)
 	_, err = tx.ExecContext(ctx, `UPDATE jobs SET active_edit_tasks=0,active_edit_token=NULL,edit_deadline=NULL,updated_at=now() WHERE id=$1 AND active_edit_token=$2`, e.JobID, e.Token)
 	return err
 }
-func (r *Repository) FailEdit(ctx context.Context, e *Edit) error {
+func (r *Repository) FailEdit(ctx context.Context, e *Edit, failures ...error) error {
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
@@ -82,12 +90,19 @@ func (r *Repository) FailEdit(ctx context.Context, e *Edit) error {
 	if err = editOwner(ctx, tx, e); err != nil {
 		return err
 	}
-	if err = finishEdit(ctx, tx, e, "failed", "Editing failed; retry the edit"); err != nil {
+	message := "Editing failed; retry the edit"
+	if len(failures) > 0 && errors.Is(failures[0], studiocomposition.ErrProjectChanged) {
+		message = studiocomposition.ErrProjectChanged.Error()
+	}
+	if len(failures) > 0 && errors.Is(failures[0], studiocomposition.ErrLegacyProject) {
+		message = studiocomposition.ErrLegacyProject.Error()
+	}
+	if err = finishEdit(ctx, tx, e, "failed", message); err != nil {
 		return err
 	}
 	return tx.Commit()
 }
-func (r *Repository) CompleteEdit(ctx context.Context, e *Edit, c processing.Clip, segments []orderedSegment) error {
+func (r *Repository) CompleteEdit(ctx context.Context, e *Edit, c processing.Clip, segments []orderedSegment, publish ...func(context.Context) error) error {
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
@@ -118,11 +133,24 @@ func (r *Repository) CompleteEdit(ctx context.Context, e *Edit, c processing.Cli
 	if err != nil {
 		return err
 	}
-	if _, err = tx.ExecContext(ctx, `UPDATE clips SET transition_state=NULL WHERE id=$1 AND job_id=$2`, e.ClipID, e.JobID); err != nil {
+	var state any
+	if value, ok := c.Metadata["transition_state"]; ok && c.StudioArtifactID != "" {
+		raw, encodeErr := json.Marshal(value)
+		if encodeErr != nil {
+			return encodeErr
+		}
+		state = string(raw)
+	}
+	if _, err = tx.ExecContext(ctx, `UPDATE clips SET transition_state=$3,studio_artifact_id=nullif($4,'')::uuid,has_subtitles=$5,contains_platform_badge=$6,resolution=$7,thumbnail_path=nullif($8,''),thumbnail_url=NULL,thumbnail_storage_key=nullif($8,''),tiktok_studio_artifact_id=nullif($9,'')::uuid,tiktok_file_storage_key=nullif($10,''),preview_storage_key=nullif($11,'') WHERE id=$1 AND job_id=$2`, e.ClipID, e.JobID, state, c.StudioArtifactID, c.HasSubtitles, c.ContainsPlatformBadge, c.Resolution, c.ThumbnailKey, c.TikTokStudioArtifactID, c.TikTokStorageKey, c.PreviewStorageKey); err != nil {
 		return err
 	}
 	if err = finishEdit(ctx, tx, e, "completed", ""); err != nil {
 		return err
+	}
+	if len(publish) > 0 {
+		if err = publish[0](ctx); err != nil {
+			return err
+		}
 	}
 	return tx.Commit()
 }

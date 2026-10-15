@@ -145,7 +145,7 @@ func TestStoryMusicRenderIncludesSelectedCreditAndRejectsMissingPreparation(t *t
 		{BlockID: "b", OutputOut: 1.5, Video: story.Interval{SourceID: asset.ID, Out: 1.5}, Crop: "fit"},
 		{BlockID: "c", OutputIn: 1.5, OutputOut: 3, Video: story.Interval{SourceID: silent.ID, Out: 1.5}, Crop: "fit"},
 	}}
-	if _, err := p.RenderStory(ctx, request, version); err == nil {
+	if _, err := renderStoryForTest(t, p, ctx, request, version); err == nil {
 		t.Fatal("missing selected music silently omitted")
 	}
 	file := filepath.Join(dir, "music.flac")
@@ -165,7 +165,7 @@ func TestStoryMusicRenderIncludesSelectedCreditAndRejectsMissingPreparation(t *t
 		t.Fatalf("render fixture must have measured beats: %#v", prepared)
 	}
 	request.Music = prepared
-	result, err := p.RenderStory(ctx, request, version)
+	result, err := renderStoryForTest(t, p, ctx, request, version)
 	if err != nil {
 		t.Fatal(err)
 	}

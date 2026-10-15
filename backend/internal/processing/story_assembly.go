@@ -16,7 +16,8 @@ const storyAssemblyBatchSize = 16
 // global frame clock, audio on the global sample clock; neither clock accumulates
 // per-clip rounding. Intermediate audio is lossless and video is encoded losslessly.
 // The final concat demuxers open one chunk at a time instead of every original.
-func (p *Processor) prepareStoryAssembly(ctx context.Context, dir string, parts []string, timeline []story.Entry, narration bool) (string, string, error) {
+func (p *Processor) prepareStoryAssembly(ctx context.Context, dir string, parts []string, timeline []story.Entry, narration bool, hdrOutput ...bool) (string, string, error) {
+	hdr := len(hdrOutput) > 0 && hdrOutput[0]
 	var videoFiles, audioFiles []string
 	for start := 0; start < len(parts); start += storyAssemblyBatchSize {
 		if err := ctx.Err(); err != nil {
@@ -64,7 +65,13 @@ func (p *Processor) prepareStoryAssembly(ctx context.Context, dir string, parts 
 		args = append(args, "-filter_complex", strings.Join(filters, ";"))
 		if videoCount > 0 {
 			file := fmt.Sprintf("assembly-video-%06d.mp4", start)
-			args = append(args, "-map", "[v]", "-an", "-c:v", "libx264", "-preset", "ultrafast", "-crf", "0", "-pix_fmt", "yuv420p", "-threads", "1", filepath.Join(dir, file))
+			args = append(args, "-map", "[v]", "-an")
+			if hdr {
+				args = append(args, "-c:v", "libx265", "-preset", "ultrafast", "-pix_fmt", "yuv420p10le", "-color_primaries", "bt2020", "-color_trc", "smpte2084", "-colorspace", "bt2020nc", "-x265-params", "lossless=1:pools=2:frame-threads=1:log-level=error:colorprim=bt2020:transfer=smpte2084:colormatrix=bt2020nc")
+			} else {
+				args = append(args, "-c:v", "libx264", "-preset", "ultrafast", "-crf", "0", "-pix_fmt", "yuv420p")
+			}
+			args = append(args, "-threads", "1", filepath.Join(dir, file))
 			videoFiles = append(videoFiles, file)
 		}
 		if !narration {

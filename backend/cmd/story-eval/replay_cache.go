@@ -96,6 +96,7 @@ type sourceInspector interface {
 
 func (r *replayRun) verifiedRequest(ctx context.Context, inspector sourceInspector, cfg evalFlags) (story.Request, error) {
 	request := r.request
+	request.UserID = evaluationOwner
 	request.Options = replayOptions(request.Options, cfg)
 	request.Base, request.PreviousAttempts = nil, nil
 	request.Action, request.BlockID, request.CandidateID = "", "", ""
@@ -105,10 +106,10 @@ func (r *replayRun) verifiedRequest(ctx context.Context, inspector sourceInspect
 			return story.Request{}, err
 		}
 		if !replayAnalysisKeyAllowed(request, asset, asset.ProxyKey, false) {
-			return story.Request{}, errors.New("replay proxy is outside its source analysis namespace")
+			return story.Request{}, errors.New("replay proxy is outside its source cache namespace")
 		}
 		if !replayAnalysisKeyAllowed(request, asset, asset.ThumbnailKey, true) {
-			return story.Request{}, errors.New("replay thumbnail is outside its source analysis namespace")
+			return story.Request{}, errors.New("replay thumbnail is outside its source cache namespace")
 		}
 		var fresh story.Asset
 		var err error
@@ -143,8 +144,7 @@ func replayAnalysisKeyAllowed(request story.Request, asset story.Asset, key stri
 	if path.Clean(key) != key || strings.Contains(key, "\\") {
 		return false
 	}
-	prefix := "work/" + request.ID + "/analysis/"
-	if strings.HasPrefix(key, prefix+asset.ID+"/") {
+	if replaySourceCacheKeyOwned(request.ID, asset.ID, key) {
 		return true
 	}
 	if asset.Kind == "narration" || asset.AnalysisVersion == "" || asset.Size <= 0 {
@@ -158,7 +158,18 @@ func replayAnalysisKeyAllowed(request story.Request, asset story.Asset, key stri
 		if thumbnail {
 			ownedKey = owner.ThumbnailKey
 		}
-		if key == ownedKey && strings.HasPrefix(key, prefix+owner.ID+"/") {
+		if key == ownedKey && replaySourceCacheKeyOwned(request.ID, owner.ID, key) {
+			return true
+		}
+	}
+	return false
+}
+
+// Source media is cached independently of speech analysis. Keep legacy analysis
+// references replayable while confining both layouts to a verified source.
+func replaySourceCacheKeyOwned(projectID, assetID, key string) bool {
+	for _, namespace := range []string{"analysis", "source-media"} {
+		if strings.HasPrefix(key, "work/"+projectID+"/"+namespace+"/"+assetID+"/") {
 			return true
 		}
 	}

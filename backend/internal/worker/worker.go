@@ -112,7 +112,7 @@ func (w *Worker) process(parent context.Context, j *Job) error {
 	}
 	var result processing.Result
 	if err == nil {
-		result, err = w.processInput(ctx, processing.Input{AudioCleanup: payload.AudioCleanup, SourceKey: payload.SourceKey, SourceURL: payload.Source, Namespace: namespace, Language: j.Language, Instructions: payload.Instructions, AspectRatio: j.AspectRatio, SubtitleStyle: j.SubtitleStyle, RequestedClips: payload.RequestedClips, SmartCrop: payload.SmartCrop == nil || *payload.SmartCrop, BurnSubtitles: payload.BurnSubtitles == nil || *payload.BurnSubtitles, Brand: j.Brand}, func(status string, pct int, msg string) {
+		result, err = w.processInput(ctx, processing.Input{UserID: j.UserID, AudioCleanup: payload.AudioCleanup, SourceKey: payload.SourceKey, SourceURL: payload.Source, Namespace: namespace, Language: j.Language, Instructions: payload.Instructions, AspectRatio: j.AspectRatio, SubtitleStyle: j.SubtitleStyle, RequestedClips: payload.RequestedClips, SmartCrop: payload.SmartCrop == nil || *payload.SmartCrop, BurnSubtitles: payload.BurnSubtitles == nil || *payload.BurnSubtitles, Brand: j.Brand}, func(status string, pct int, msg string) {
 			if e := w.Repo.Progress(ctx, j, status, pct, msg); e != nil {
 				cancel()
 			}
@@ -124,7 +124,9 @@ func (w *Worker) process(parent context.Context, j *Job) error {
 		}
 	}
 	if err == nil {
-		err = w.Repo.Complete(ctx, j, result)
+		err = w.Repo.Complete(ctx, j, result, func(ctx context.Context) error {
+			return w.commitStudioClips(ctx, j.UserID, result.Clips)
+		})
 	}
 	if err != nil {
 		cleanup, stop := context.WithTimeout(context.Background(), 30*time.Second)

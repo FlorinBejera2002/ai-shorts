@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { loadHyperframeRuntimeSource } from "@hyperframes/core";
 import { loadRuntimeSource } from "./runtimeSource.js";
 import { findFFmpeg, findFFprobe } from "../browser/ffmpeg.js";
-import { createStudioServer, type StudioServer } from "./studioServer.js";
+import { createStudioServer, resolveStudioHdrMode, type StudioServer } from "./studioServer.js";
 
 // Every server-backed describe below wants the same two things: a throwaway
 // project directory, and a server whose watcher is closed afterwards. Three
@@ -30,6 +30,18 @@ afterEach(() => {
 describe("loadRuntimeSource", () => {
   it("loads runtime source from the published core entrypoint", async () => {
     await expect(loadRuntimeSource()).resolves.toBe(loadHyperframeRuntimeSource());
+  });
+});
+
+describe("persisted Studio delivery intent", () => {
+  it("retains canonical HDR settings on later exports and permits an explicit SDR preview", () => {
+    const dir = tmpProject();
+    expect(resolveStudioHdrMode(dir)).toBe("auto");
+    writeFileSync(join(dir, "render-config.json"), JSON.stringify({ hdrMode: "force-hdr" }));
+    expect(resolveStudioHdrMode(dir)).toBe("force-hdr");
+    expect(resolveStudioHdrMode(dir, "force-sdr")).toBe("force-sdr");
+    writeFileSync(join(dir, "render-config.json"), JSON.stringify({ hdrMode: "unsupported" }));
+    expect(() => resolveStudioHdrMode(dir)).toThrow("delivery settings");
   });
 });
 

@@ -155,7 +155,10 @@ export function createTimelineElementFromManifestClip(params: {
     if (automation) entry.automation = automation;
     entry.zIndex = readTimelineElementZIndex(hostEl);
   }
-  if (clip.assetUrl) entry.src = clip.assetUrl;
+  // A composition's manifest assetUrl names its HTML document, not its nested
+  // footage. Keep the media discovered on the host instead of sending that HTML
+  // to the video decoder (DOM refresh and manifest refresh must agree).
+  if (clip.assetUrl && clip.kind !== "composition") entry.src = clip.assetUrl;
   if (clip.kind === "composition" && clip.compositionId) {
     entry.playbackStart ??= 0;
     entry.playbackRate ??= 1;

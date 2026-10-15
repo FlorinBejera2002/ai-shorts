@@ -8,7 +8,9 @@
  *  - onIframeLoad             — orchestrates initializeAdapter with a message-based fallback
  */
 
-import { useCallback } from "react";
+import { useCallback, useRef } from "react";
+import { useMountEffect } from "../../hooks/useMountEffect";
+import { observeSourceSceneMedia } from "../lib/sourceSceneMediaObserver";
 import { liveTime, usePlayerStore } from "../store/playerStore";
 import type { TimelineElement } from "../store/playerStore";
 import type { PlaybackAdapter, IframeWindow } from "../lib/playbackTypes";
@@ -111,6 +113,50 @@ export function useTimelineSyncCallbacks({
   attachIframeShortcutListeners,
   applyPreviewAudioState,
 }: UseTimelineSyncCallbacksParams) {
+  const sourceMediaCleanup = useRef<() => void>(() => {});
+  const sourceMediaDocument = useRef<Document | null>(null);
+  useMountEffect(() => () => {
+    sourceMediaCleanup.current();
+    sourceMediaDocument.current = null;
+  });
+
+  const enrichMissingCompositions = useCallback(() => {
+    try {
+      const iframe = iframeRef.current;
+      const doc = iframe?.contentDocument;
+      const iframeWin = iframe?.contentWindow as IframeWindow | null;
+      if (!doc || !iframeWin) return;
+
+      const currentEls = usePlayerStore.getState().elements;
+      const rootDuration = usePlayerStore.getState().duration;
+      const { missing, updatedEls, patched } = buildMissingCompositionElements(
+        doc,
+        iframeWin,
+        currentEls,
+        rootDuration,
+      );
+
+      if (missing.length > 0 || patched) {
+        // Dedup: ensure no missing element duplicates an existing one
+        const finalIds = new Set(updatedEls.map((e) => e.id));
+        const dedupedMissing = missing.filter((m) => !finalIds.has(m.id));
+        syncTimelineElements([...updatedEls, ...dedupedMissing]);
+      }
+    } catch {}
+  }, [iframeRef, syncTimelineElements]);
+
+  const observeSourceDocument = useCallback(
+    (document: Document | null) => {
+      if (sourceMediaDocument.current === document) return;
+      sourceMediaCleanup.current();
+      sourceMediaDocument.current = null;
+      if (!document?.querySelector("[data-source-window]")) return;
+      sourceMediaDocument.current = document;
+      sourceMediaCleanup.current = observeSourceSceneMedia(document, enrichMissingCompositions);
+    },
+    [enrichMissingCompositions],
+  );
+
   // Convert a runtime timeline message (from iframe postMessage) into TimelineElements
   const processTimelineMessage = useCallback(
     (data: RuntimeTimelineMessage) => {
@@ -126,6 +172,9 @@ export function useTimelineSyncCallbacks({
         (clip) => !clip.parentCompositionId || !clipCompositionIds.has(clip.parentCompositionId),
       );
       const iframeDoc = safeContentDocument(iframeRef.current);
+      // Runtime messages can precede native iframe load, including during an
+      // automatic preview reload. Follow the current document immediately.
+      observeSourceDocument(iframeDoc);
 
       try {
         const parentMap = clipTreeParentMap(iframeRef.current?.contentWindow ?? null);
@@ -159,33 +208,8 @@ export function useTimelineSyncCallbacks({
         syncTimelineElements(timelineEls, newDuration > 0 ? newDuration : undefined);
       }
     },
-    [iframeRef, syncTimelineElements],
+    [iframeRef, syncTimelineElements, observeSourceDocument],
   );
-
-  const enrichMissingCompositions = useCallback(() => {
-    try {
-      const iframe = iframeRef.current;
-      const doc = iframe?.contentDocument;
-      const iframeWin = iframe?.contentWindow as IframeWindow | null;
-      if (!doc || !iframeWin) return;
-
-      const currentEls = usePlayerStore.getState().elements;
-      const rootDuration = usePlayerStore.getState().duration;
-      const { missing, updatedEls, patched } = buildMissingCompositionElements(
-        doc,
-        iframeWin,
-        currentEls,
-        rootDuration,
-      );
-
-      if (missing.length > 0 || patched) {
-        // Dedup: ensure no missing element duplicates an existing one
-        const finalIds = new Set(updatedEls.map((e) => e.id));
-        const dedupedMissing = missing.filter((m) => !finalIds.has(m.id));
-        syncTimelineElements([...updatedEls, ...dedupedMissing]);
-      }
-    } catch {}
-  }, [iframeRef, syncTimelineElements]);
 
   const initializeAdapter = useCallback(() => {
     const adapter = getAdapter();
@@ -238,6 +262,7 @@ export function useTimelineSyncCallbacks({
   const onIframeLoad = useCallback(() => {
     applyPreviewAudioState();
     if (probeIntervalRef.current) clearInterval(probeIntervalRef.current);
+    observeSourceDocument(safeContentDocument(iframeRef.current));
 
     // Fast path: adapter already available (in-place reloads, cached compositions)
     if (initializeAdapter()) return;
@@ -271,7 +296,13 @@ export function useTimelineSyncCallbacks({
       // (initializeAdapter reveals on success; this covers the give-up case).
       revealIframe(iframeRef.current);
     }, 5000) as unknown as ReturnType<typeof setInterval>;
-  }, [initializeAdapter, iframeRef, probeIntervalRef, applyPreviewAudioState]);
+  }, [
+    initializeAdapter,
+    iframeRef,
+    probeIntervalRef,
+    applyPreviewAudioState,
+    observeSourceDocument,
+  ]);
 
   // Stable refs so mount-effect closures always call the latest version
   const processTimelineMessageRef = { current: processTimelineMessage };

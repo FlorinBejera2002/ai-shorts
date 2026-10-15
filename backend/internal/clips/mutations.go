@@ -97,7 +97,7 @@ func (h *Handler) beginEditGuarded(ctx context.Context, userID, id, kind string,
 	// Serializes with account freezing and role changes while holding the job
 	// lock in the same order as the retained worker's cancellation/refund paths.
 	var active bool
-	if err = tx.QueryRowContext(ctx, `SELECT access_role='member' AND NOT email_activation_required AND NOT EXISTS(SELECT 1 FROM account_deletion_requests WHERE user_id=$1) FROM users WHERE id=$1 FOR UPDATE`, userID).Scan(&active); err != nil {
+	if err = tx.QueryRowContext(ctx, `SELECT access_role IN ('member','admin') AND NOT email_activation_required AND NOT EXISTS(SELECT 1 FROM account_deletion_requests WHERE user_id=$1) FROM users WHERE id=$1 FOR UPDATE`, userID).Scan(&active); err != nil {
 		return "", err
 	}
 	if !active {
@@ -184,7 +184,7 @@ func (h *Handler) updateMetadata(ctx context.Context, userID, id string, p Metad
 func updateMetadataWith(ctx context.Context, q interface {
 	ExecContext(context.Context, string, ...any) (sql.Result, error)
 }, userID, id string, p MetadataInput) error {
-	result, err := q.ExecContext(ctx, `UPDATE clips SET title=$3,hook_text=$4,transcript_text=$5 WHERE id=$1 AND user_id=$2 AND EXISTS(SELECT 1 FROM users WHERE id=$2 AND access_role='member') AND NOT EXISTS(SELECT 1 FROM account_deletion_requests WHERE user_id=$2)`, id, userID, p.Title, p.Hook, p.Transcript)
+	result, err := q.ExecContext(ctx, `UPDATE clips SET title=$3,hook_text=$4,transcript_text=$5 WHERE id=$1 AND user_id=$2 AND EXISTS(SELECT 1 FROM users WHERE id=$2 AND access_role IN ('member','admin')) AND NOT EXISTS(SELECT 1 FROM account_deletion_requests WHERE user_id=$2)`, id, userID, p.Title, p.Hook, p.Transcript)
 	if err != nil {
 		return err
 	}
@@ -245,6 +245,19 @@ func (h *Handler) deleteClipTx(ctx context.Context, tx *sql.Tx, userID, id strin
 	}
 	sort.Strings(ordered)
 	cleanupError := domainError{502, "Clip media could not be removed; the clip was not deleted"}
+	var originalArtifact, tiktokArtifact sql.NullString
+	if err = tx.QueryRowContext(ctx, `SELECT studio_artifact_id,tiktok_studio_artifact_id FROM clips WHERE id=$1 AND user_id=$2`, id, userID).Scan(&originalArtifact, &tiktokArtifact); err != nil {
+		return err
+	}
+	artifacts := []string{}
+	for _, artifact := range []sql.NullString{originalArtifact, tiktokArtifact} {
+		if artifact.Valid && artifact.String != "" {
+			artifacts = append(artifacts, artifact.String)
+		}
+	}
+	if err = h.media.DeleteStudioArtifacts(ctx, userID, artifacts); err != nil {
+		return cleanupError
+	}
 	for _, key := range ordered {
 		if err = h.media.Delete(ctx, key); err != nil {
 			return cleanupError

@@ -80,6 +80,7 @@ func (m *fakeMedia) Delete(_ context.Context, key string) error {
 	m.keys = append(m.keys, key)
 	return nil
 }
+func (m *fakeMedia) DeleteStudioArtifacts(context.Context, string, []string) error { return nil }
 func (m *fakeMedia) DeletePrefix(_ context.Context, prefix string) error {
 	if m.fail {
 		return errors.New("storage down")
@@ -122,5 +123,26 @@ func TestReadRenewsStableMediaAndPreservesNulls(t *testing.T) {
 	}
 	if !strings.Contains(got["file_url"].(string), "fresh=true") || got["thumbnail_url"] != nil || got["caption_tiktok"] != "hello" {
 		t.Fatal(got)
+	}
+}
+
+func TestReadKeepsHDRDownloadSeparateFromBrowserPreview(t *testing.T) {
+	h := New(nil, fakeAuth{}, &fakeMedia{}, Config{})
+	for _, camel := range []bool{false, true} {
+		record, err := h.resolve(context.Background(), []byte(`{"file_storage_key":"clips/story/hdr.mp4","preview_storage_key":"clips/story/preview.mp4"}`), camel)
+		fileField, previewField := "file_url", "preview_url"
+		if camel {
+			fileField, previewField = "fileUrl", "previewUrl"
+		}
+		if err != nil || !strings.Contains(record[fileField].(string), "hdr.mp4") || !strings.Contains(record[previewField].(string), "preview.mp4") {
+			t.Fatalf("preview replaced export: %#v %v", record, err)
+		}
+		if _, exposed := record["preview_storage_key"]; exposed {
+			t.Fatal("private preview key was exposed")
+		}
+	}
+	legacy, err := h.resolve(context.Background(), []byte(`{"file_storage_key":"clips/story/sdr.mp4"}`), false)
+	if err != nil || legacy["preview_url"] != legacy["file_url"] {
+		t.Fatalf("SDR fallback changed: %#v %v", legacy, err)
 	}
 }

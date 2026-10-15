@@ -106,7 +106,7 @@ func buildApplication(db *sql.DB, cfg config.Config, a config.Application, logge
 		}
 		closeServices()
 	}
-	mediaService := media.NewService(media.Config{LocalRoot: a.MediaRoot, PublicBaseURL: a.PublicMediaURL, AppURL: a.AppURL, SigningSecret: a.SigningSecret, UploadSecret: a.UploadSecret, DirectUploadURL: a.DirectUploadURL, StagingDirectory: a.StagingDirectory, MaxUploadBytes: a.MaxUploadBytes}, db, storage, nonce, media.NewClamAV(media.ClamAVConfig{Address: a.ScannerAddress, Timeout: a.ScannerTimeout, MaxBytes: a.MaxUploadBytes, Enabled: a.ScannerEnabled, Environment: cfg.Environment}))
+	mediaService := media.NewService(media.Config{StudioURL: a.StudioAgentURL, StudioSecret: a.StudioAgentSecret, LocalRoot: a.MediaRoot, PublicBaseURL: a.PublicMediaURL, AppURL: a.AppURL, SigningSecret: a.SigningSecret, UploadSecret: a.UploadSecret, DirectUploadURL: a.DirectUploadURL, StagingDirectory: a.StagingDirectory, MaxUploadBytes: a.MaxUploadBytes}, db, storage, nonce, media.NewClamAV(media.ClamAVConfig{Address: a.ScannerAddress, Timeout: a.ScannerTimeout, MaxBytes: a.MaxUploadBytes, Enabled: a.ScannerEnabled, Environment: cfg.Environment}))
 	billingService, err := billing.NewService(billing.Config{SecretKey: a.StripeKey, WebhookSecret: a.StripeWebhookSecret, AppURL: a.AppURL, PlanPrices: a.StripePlans, CreditPacks: a.StripeCreditPacks}, db, auth)
 	if err != nil {
 		cleanup()

@@ -33,7 +33,7 @@ func verifyStoryTransition(t *testing.T, narrated bool) {
 			entry.Transition = "cut"
 		}
 	}
-	original, err := p.RenderStory(ctx, request, version)
+	original, err := renderStoryForTest(t, p, ctx, request, version)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -50,7 +50,7 @@ func verifyStoryTransition(t *testing.T, narrated bool) {
 		t.Fatal("transition changed speech or source clocks")
 	}
 	next.Number = 2
-	output, err := p.RenderStory(ctx, request, next)
+	output, err := renderStoryForTest(t, p, ctx, request, next)
 	if err != nil {
 		t.Fatal(err)
 	}

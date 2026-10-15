@@ -151,12 +151,12 @@ func TestStoryAnalysisCacheUsesSelectedNativeModel(t *testing.T) {
 	p.cfg.FFmpegPath = ffmpeg
 	router.models[aiprovider.TaskStoryTranscription] = secondModel
 	updated, err := p.Analyze(context.Background(), "native-cache", first, story.DefaultOptions())
-	if err != nil || updated.AnalysisVersion == first.AnalysisVersion || updated.ProxyKey == first.ProxyKey || router.calls != 3 || p.cfg.StoryWhisperModel == secondModel {
+	if err != nil || updated.AnalysisVersion == first.AnalysisVersion || updated.ProxyKey != first.ProxyKey || router.calls != 3 || p.cfg.StoryWhisperModel == secondModel {
 		t.Fatalf("native model change reused stale analysis or mutated shared configuration: %#v %v", updated, err)
 	}
 }
 
-func TestStoryOutputCacheChangesWithSelectedFaceModel(t *testing.T) {
+func TestStudioOutputIdentityReusesUnchangedResolvedFraming(t *testing.T) {
 	p, storage, dir := storyTestProcessor(t)
 	asset := storySource(t, p, dir, "face-cache", "blue", 440)
 	firstModel, secondModel := filepath.Join(dir, "face-first"), filepath.Join(dir, "face-second")
@@ -170,17 +170,19 @@ func TestStoryOutputCacheChangesWithSelectedFaceModel(t *testing.T) {
 	request := story.Request{ID: "face-cache", Options: story.Options{AspectRatio: "16:9", CaptionMode: "off"}, Assets: []story.Asset{asset}}
 	interval := story.Interval{SourceID: asset.ID, In: 0, Out: asset.Duration}
 	version := story.Version{Number: 1, Timeline: []story.Entry{{BlockID: "block", OutputOut: asset.Duration, Video: interval, Audio: &interval, Crop: "fit"}}}
-	first, err := p.RenderStory(context.Background(), request, version)
+	first, err := renderStoryForTest(t, p, context.Background(), request, version)
 	if err != nil {
 		t.Fatal(err)
 	}
 	router.models[aiprovider.TaskFaceTracking] = secondModel
-	second, err := p.RenderStory(context.Background(), request, version)
-	if err != nil || first.Key == second.Key || first.ThumbnailKey == second.ThumbnailKey || storage.segments != 2 {
-		t.Fatalf("changed face model reused previous output: first=%s second=%s segments=%d error=%v", first.Key, second.Key, storage.segments, err)
+	second, err := renderStoryForTest(t, p, context.Background(), request, version)
+	// Full-frame fitting has identical geometry regardless of the detector model.
+	// Studio's identity follows the actual composition instead of an unused model.
+	if err != nil || first.Key != second.Key || first.ThumbnailKey != second.ThumbnailKey || first.StudioArtifactID == "" || storage.segments != 0 {
+		t.Fatalf("unchanged composition was not reused: first=%s second=%s segments=%d error=%v", first.Key, second.Key, storage.segments, err)
 	}
-	repeated, err := p.RenderStory(context.Background(), request, version)
-	if err != nil || repeated.Key != second.Key || storage.segments != 2 {
+	repeated, err := renderStoryForTest(t, p, context.Background(), request, version)
+	if err != nil || repeated.Key != second.Key || storage.segments != 0 {
 		t.Fatalf("unchanged face model invalidated output cache: %#v %v", repeated, err)
 	}
 }

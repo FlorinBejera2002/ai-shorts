@@ -2,11 +2,11 @@ package jobs
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"errors"
 	"net/http"
 	"sneepcut/backend-go/internal/audiocleanup"
+	"sneepcut/backend-go/internal/credits"
 	"sneepcut/backend-go/internal/identity"
 )
 
@@ -109,12 +109,7 @@ func (r *Repository) retryAudio(ctx context.Context, user, id string, in audioRe
 	if err != nil {
 		return err
 	}
-	amount := clips * 10
-	var reserved string
-	err = tx.QueryRowContext(ctx, `UPDATE users SET credits=credits-$2,updated_at=now() WHERE id=$1 AND credits>=$2 AND access_role='member' AND NOT EXISTS(SELECT 1 FROM account_deletion_requests WHERE user_id=$1) RETURNING id`, user, amount).Scan(&reserved)
-	if errors.Is(err, sql.ErrNoRows) {
-		return ErrCredits
-	}
+	amount, err := credits.Reserve(ctx, tx, user, clips*10)
 	if err != nil {
 		return err
 	}

@@ -7,6 +7,9 @@ import { ProjectStore } from "./store";
 import { createUserRuntime } from "./runtime";
 import { initializeProject } from "./starter";
 import { createClipImporter } from "./clip-import";
+import { CompositionStore } from "./composition-store";
+import { createCompositionService } from "./composition-service";
+import { HTTPException } from "hono/http-exception";
 
 const directory = dirname(fileURLToPath(import.meta.url));
 const port = Number(process.env.SNEEPCUT_STUDIO_PORT ?? "5191");
@@ -22,7 +25,10 @@ const frameAncestors = [...new Set([appOrigin, ...additionalAppOrigins])].join("
 const store = new ProjectStore(
   process.env.SNEEPCUT_STUDIO_DATA ?? resolve(directory, "../../../data/sneepcut"),
 );
+const compositions = new CompositionStore(`${store.root}-compositions`);
 const runtimes = new Map<string, ReturnType<typeof createUserRuntime>>();
+const runtimeGenerations = new Map<string, number>();
+const closingOwners = new Set<string>();
 const app = createApp({
   appOrigin,
   additionalAppOrigins,
@@ -30,14 +36,38 @@ const app = createApp({
   authBaseUrl: process.env.SNEEPCUT_AUTH_BASE_URL ?? "http://localhost:8080",
   agentSecret: process.env.STUDIO_AGENT_SECRET,
   store,
+  studioApiGeneration: (owner) => runtimeGenerations.get(owner) ?? 0,
+  compositionService: createCompositionService({
+    store: compositions,
+    editableStore: store,
+    async workspaceCommitted(owner, projectID) {
+      await runtimes.get(owner)?.workspaceCommitted(projectID);
+    },
+    async closeOwner(owner) {
+      closingOwners.add(owner);
+      await runtimes.get(owner)?.close();
+      return () => {
+        runtimes.delete(owner);
+        runtimeGenerations.set(owner, (runtimeGenerations.get(owner) ?? 0) + 1);
+        closingOwners.delete(owner);
+      };
+    },
+    secret: process.env.STUDIO_AGENT_SECRET,
+    mediaOrigin: process.env.SNEEPCUT_MEDIA_ORIGIN ?? appOrigin,
+    mediaFetchOrigin: process.env.SNEEPCUT_MEDIA_INTERNAL_ORIGIN,
+    mediaS3Origin: process.env.SNEEPCUT_MEDIA_S3_ORIGIN,
+  }),
   initializeProject,
   importClip: createClipImporter({
     store,
+    compositions,
     apiOrigin: process.env.SNEEPCUT_AUTH_BASE_URL ?? "http://localhost:8080",
     mediaOrigin: process.env.SNEEPCUT_MEDIA_ORIGIN ?? appOrigin,
     mediaFetchOrigin: process.env.SNEEPCUT_MEDIA_INTERNAL_ORIGIN,
   }),
   createStudioApiForUser(user) {
+    if (closingOwners.has(user.id))
+      throw new HTTPException(410, { message: "Studio cleanup in progress" });
     let runtime = runtimes.get(user.id);
     if (!runtime) {
       runtime = createUserRuntime(user.id, store);

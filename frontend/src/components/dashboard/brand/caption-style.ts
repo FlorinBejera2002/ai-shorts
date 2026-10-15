@@ -15,6 +15,8 @@ export type CaptionStyle = {
   max_width: number
   max_lines: number
   line_spacing: number
+  letter_spacing?: number
+  word_spacing?: number
   position: { x: number; y: number; anchor: 'center' }
 }
 export const CAPTION_PRESETS = [
@@ -48,6 +50,8 @@ export const DEFAULT_CAPTION_STYLE: CaptionStyle = {
   max_width: 0.88,
   max_lines: 2,
   line_spacing: 1.15,
+  letter_spacing: 0,
+  word_spacing: 0,
   position: { x: 0.5, y: 0.84, anchor: 'center' }
 }
 export function legacyCaptionStyle(kit: {

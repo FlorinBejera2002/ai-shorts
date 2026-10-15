@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"sneepcut/backend-go/internal/audiocleanup"
+	creditledger "sneepcut/backend-go/internal/credits"
 	"sneepcut/backend-go/internal/story"
 	"sort"
 	"strings"
@@ -32,14 +33,15 @@ type Patch struct {
 	Locks   []Lock         `json:"locks"`
 }
 type Generate struct {
-	Style         *story.Style `json:"style,omitempty"`
-	ExpectedState string       `json:"expected_state,omitempty"`
-	RequestID     string       `json:"request_id"`
-	Action        string       `json:"action"`
-	BlockID       string       `json:"block_id"`
-	CandidateID   string       `json:"candidate_id"`
-	Version       int          `json:"version"`
-	AssetIDs      []string     `json:"asset_ids"`
+	TranscriptReviews []TranscriptReviewInput `json:"transcript_reviews,omitempty"`
+	Style             *story.Style            `json:"style,omitempty"`
+	ExpectedState     string                  `json:"expected_state,omitempty"`
+	RequestID         string                  `json:"request_id"`
+	Action            string                  `json:"action"`
+	BlockID           string                  `json:"block_id"`
+	CandidateID       string                  `json:"candidate_id"`
+	Version           int                     `json:"version"`
+	AssetIDs          []string                `json:"asset_ids"`
 }
 
 func applyLocks(v *story.Version, locks []Lock) {
@@ -90,6 +92,7 @@ func (r *Repository) patchTx(ctx context.Context, tx *sql.Tx, user, id string, i
 		// Draft settings are a fresh instruction set; only a later render-style
 		// revision may supersede an original textual caption directive.
 		requested.CaptionModeRevised = false
+		requested.AspectRatioRevised = false
 		options, e := story.NormalizeOptions(requested)
 		if e != nil {
 			return fmt.Errorf("%w: %s", ErrInvalid, e)
@@ -168,6 +171,9 @@ func (r *Repository) patchTx(ctx context.Context, tx *sql.Tx, user, id string, i
 }
 
 func (r *Repository) Queue(ctx context.Context, user, id string, in Generate) error {
+	if (len(in.TranscriptReviews) > 0) != (in.Action == "review_transcript") || in.Action == "review_transcript" && (in.Version < 1 || len(in.ExpectedState) != 64 || len(in.TranscriptReviews) > 200) {
+		return ErrInvalid
+	}
 	if (in.Style != nil) != (in.Action == "restyle") || in.Action == "restyle" && (in.Version < 1 || len(in.ExpectedState) != 64) {
 		return ErrInvalid
 	}
@@ -175,7 +181,7 @@ func (r *Repository) Queue(ctx context.Context, user, id string, in Generate) er
 		return ErrInvalid
 	}
 	switch in.Action {
-	case "", "alternate", "regenerate_section", "faster", "improve_flow", "improve_transitions", "restyle":
+	case "", "alternate", "regenerate_section", "faster", "improve_flow", "improve_transitions", "restyle", "review_transcript":
 	default:
 		return ErrInvalid
 	}
@@ -273,6 +279,12 @@ func (r *Repository) Queue(ctx context.Context, user, id string, in Generate) er
 	if err != nil {
 		return err
 	}
+	if in.Action == "review_transcript" {
+		req.Assets, err = approveTranscriptInputs(req.Assets, in.TranscriptReviews)
+		if err != nil {
+			return fmt.Errorf("%w: %s", ErrInvalid, err)
+		}
+	}
 	if err = story.ValidateAssets(req.Assets, r.limits); err != nil {
 		return fmt.Errorf("%w: %s", ErrInvalid, err)
 	}
@@ -348,15 +360,13 @@ func (r *Repository) Queue(ctx context.Context, user, id string, in Generate) er
 		return err
 	}
 	if current == 0 && charge == 0 {
-		result, e := tx.ExecContext(ctx, `UPDATE users SET credits=credits-10,updated_at=now() WHERE id=$1 AND credits>=10 AND access_role IN ('member','admin') AND NOT EXISTS(SELECT 1 FROM account_deletion_requests WHERE user_id=$1)`, user)
-		if e != nil {
-			return e
-		}
-		n, _ := result.RowsAffected()
-		if n != 1 {
+		charge, err = creditledger.Reserve(ctx, tx, user, 10)
+		if errors.Is(err, creditledger.ErrInsufficient) {
 			return ErrCredits
 		}
-		charge = 10
+		if err != nil {
+			return err
+		}
 	}
 	if missing {
 		_, err = tx.ExecContext(ctx, `INSERT INTO jobs(id,user_id,source_type,status,progress,progress_message,num_clips_requested,aspect_ratio,language,subtitle_style,include_brand,credits_charged,project_name) VALUES($1,$2,'story','pending',0,'Building one story from uploaded clips',1,$3,$4,'clean',false,$5,'Multi-clip story')`, id, user, req.Options.AspectRatio, req.Options.Language, charge)
@@ -365,6 +375,13 @@ func (r *Repository) Queue(ctx context.Context, user, id string, in Generate) er
 	}
 	if err != nil {
 		return err
+	}
+	if in.Action == "review_transcript" {
+		for _, asset := range req.Assets {
+			if _, err = tx.ExecContext(ctx, `UPDATE story_assets SET asset=$3 WHERE project_id=$1 AND id=$2`, id, asset.ID, encoded(asset)); err != nil {
+				return err
+			}
+		}
 	}
 	if _, err = tx.ExecContext(ctx, `INSERT INTO story_requests(project_id,id,payload) VALUES($1,$2,$3)`, id, in.RequestID, encoded(in)); err != nil {
 		return err

@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"sneepcut/backend-go/internal/audiocleanup"
+	"sneepcut/backend-go/internal/studiocomposition"
 	"strings"
 )
 
@@ -24,6 +25,9 @@ func (p *Processor) process(ctx context.Context, in Input, progress Progress) (R
 		return r, err
 	}
 	p = bound
+	if _, err = p.studioClient(in.UserID); err != nil {
+		return r, err
+	}
 	dir, e := os.MkdirTemp(p.cfg.TempDir, "sneep-process-")
 	if e != nil {
 		return r, e
@@ -83,7 +87,8 @@ func (p *Processor) process(ctx context.Context, in Input, progress Progress) (R
 	}
 	for i, h := range highlights {
 		report("rendering", 60+30*i/len(highlights), fmt.Sprintf("Rendering clip %d/%d", i+1, len(highlights)))
-		clip, err := p.render(ctx, RenderInput{AudioCleanup: in.AudioCleanup, PreparedAudio: r.AudioCleanup, SourceKey: r.SourceKey, Namespace: fmt.Sprintf("%s/clip-%d", in.Namespace, i+1), AspectRatio: in.AspectRatio, SubtitleStyle: in.SubtitleStyle, SmartCrop: in.SmartCrop, BurnSubtitles: in.BurnSubtitles, Segments: h.Segments, NaturalTransitions: true, Transcript: r.Transcript, Brand: in.Brand, HookText: h.Hook})
+		project := studiocomposition.Identity(in.UserID, fmt.Sprintf("project/%s/clip-%d", strings.Split(in.Namespace, "/")[0], i+1), nil)
+		clip, err := p.render(ctx, RenderInput{UserID: in.UserID, StudioProjectID: project, AudioCleanup: in.AudioCleanup, PreparedAudio: r.AudioCleanup, SourceKey: r.SourceKey, Namespace: fmt.Sprintf("%s/clip-%d", in.Namespace, i+1), AspectRatio: in.AspectRatio, SubtitleStyle: in.SubtitleStyle, SmartCrop: in.SmartCrop, BurnSubtitles: in.BurnSubtitles, Segments: h.Segments, NaturalTransitions: true, Transcript: r.Transcript, Brand: in.Brand, HookText: h.Hook})
 		if err != nil {
 			return r, err
 		}

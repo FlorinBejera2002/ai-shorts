@@ -52,7 +52,7 @@ func lockLibrary(ctx context.Context, tx *sql.Tx, user, project string) error {
 		return err
 	}
 	var active bool
-	if err := tx.QueryRowContext(ctx, `SELECT access_role='member' AND NOT email_activation_required AND NOT EXISTS(SELECT 1 FROM account_deletion_requests WHERE user_id=$1) FROM users WHERE id=$1 FOR UPDATE`, user).Scan(&active); err != nil {
+	if err := tx.QueryRowContext(ctx, `SELECT access_role IN ('member','admin') AND NOT email_activation_required AND NOT EXISTS(SELECT 1 FROM account_deletion_requests WHERE user_id=$1) FROM users WHERE id=$1 FOR UPDATE`, user).Scan(&active); err != nil {
 		return err
 	}
 	if !active {

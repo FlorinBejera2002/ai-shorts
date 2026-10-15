@@ -18,10 +18,13 @@ type BillingSummaryLabels = {
   openingPortal: string
   portalError: string
   providerStale: string
+  creditsUnlimited: string
+  adminAccess: string
 }
 
 type BillingSummaryProps = {
   credits: number
+  creditsUnlimited?: boolean
   planName: string
   locale: BillingLocale
   subscription: BillingSubscription | null
@@ -53,6 +56,7 @@ function statusClass(status: string) {
 
 export function BillingSummary({
   credits,
+  creditsUnlimited = false,
   planName,
   locale,
   subscription,
@@ -108,10 +112,12 @@ export function BillingSummary({
             {labels.creditsAvailable}
           </p>
           <p className="mt-1 text-lg font-semibold tabular-nums">
-            {credits.toLocaleString(locale)}
+            {creditsUnlimited ? '∞' : credits.toLocaleString(locale)}
           </p>
           <p className="text-[10px] text-muted-foreground">
-            {labels.clipRunwayValue({ count: clipRunway })}
+            {creditsUnlimited
+              ? labels.creditsUnlimited
+              : labels.clipRunwayValue({ count: clipRunway })}
           </p>
         </div>
         <div className="border-t border-border/70 p-3 sm:border-t-0">
@@ -119,7 +125,8 @@ export function BillingSummary({
             {subscription?.cancelAtPeriodEnd ? labels.endsOn : labels.renewsOn}
           </p>
           <p className="mt-1 text-sm font-semibold">
-            {periodDate ?? labels.noActiveSubscription}
+            {periodDate ??
+              (creditsUnlimited ? labels.adminAccess : labels.noActiveSubscription)}
           </p>
         </div>
       </div>

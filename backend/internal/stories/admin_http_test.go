@@ -16,7 +16,7 @@ import (
 
 func TestAuthenticatedAdminStoryHTTPContract(t *testing.T) {
 	repo, user, _, _ := fixture(t, 0)
-	if _, err := repo.db.Exec(`UPDATE users SET access_role='admin',password_hash=$2 WHERE id=$1`, user, "$2b$12$tVLZOBSvFOx2sp4u1B6nT.0lG9HQ0XjxYkW72YPuUc1cQTsKGvCY2"); err != nil {
+	if _, err := repo.db.Exec(`UPDATE users SET access_role='admin',credits=0,password_hash=$2 WHERE id=$1`, user, "$2b$12$tVLZOBSvFOx2sp4u1B6nT.0lG9HQ0XjxYkW72YPuUc1cQTsKGvCY2"); err != nil {
 		t.Fatal(err)
 	}
 	tokens, err := identity.NewTokens(identity.TokenConfig{Secret: strings.Repeat("x", 40), Issuer: "test", Audience: "test", AccessLifetime: time.Minute, RefreshLifetime: time.Hour})
@@ -81,15 +81,15 @@ func TestAuthenticatedAdminStoryHTTPContract(t *testing.T) {
 	assertStatus("POST", path+"/generate", generate, 202)
 	assertStatus("POST", path+"/generate", generate, 202)
 	var charged int
-	if err = repo.db.QueryRow(`SELECT credits_charged FROM jobs WHERE id=$1 AND user_id=$2`, id, user).Scan(&charged); err != nil || charged != 10 || credits(t, repo, user) != 90 {
-		t.Fatalf("admin generation retry did not charge exactly once: charged=%d err=%v", charged, err)
+	if err = repo.db.QueryRow(`SELECT credits_charged FROM jobs WHERE id=$1 AND user_id=$2`, id, user).Scan(&charged); err != nil || charged != 0 || credits(t, repo, user) != 0 {
+		t.Fatalf("admin generation was charged: charged=%d err=%v", charged, err)
 	}
 	if err = repo.db.QueryRow(`SELECT count(*) FROM story_requests WHERE project_id=$1`, id).Scan(&count); err != nil || count != 1 {
 		t.Fatalf("generation retry did not retain one request: count=%d err=%v", count, err)
 	}
 	assertStatus("POST", path+"/cancel", "{}", 200)
-	if credits(t, repo, user) != 100 {
-		t.Fatal("admin cancellation did not refund the initial generation")
+	if credits(t, repo, user) != 0 {
+		t.Fatal("admin cancellation changed the zero-charge balance")
 	}
 	if _, err = repo.db.Exec(`UPDATE users SET access_role='viewer' WHERE id=$1`, user); err != nil {
 		t.Fatal(err)
@@ -99,7 +99,7 @@ func TestAuthenticatedAdminStoryHTTPContract(t *testing.T) {
 	assertStatus("POST", path+"/assets", upload, 403)
 	assertStatus("POST", path+"/generate", encoded(Generate{RequestID: newID(), AssetIDs: []string{assetID}}), 403)
 	project, err = repo.Get(context.Background(), user, id)
-	if err != nil || project.Status != "cancelled" || credits(t, repo, user) != 100 {
+	if err != nil || project.Status != "cancelled" || credits(t, repo, user) != 0 {
 		t.Fatalf("viewer requests changed story state: status=%s err=%v", project.Status, err)
 	}
 }

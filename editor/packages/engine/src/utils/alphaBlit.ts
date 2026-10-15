@@ -225,6 +225,33 @@ export function decodePngToRgb48le(buf: Buffer): { width: number; height: number
 
 // ── sRGB → HDR color conversion ───────────────────────────────────────────────
 
+const HLG_A = 0.17883277;
+const HLG_B = 1 - 4 * HLG_A;
+const HLG_C = 0.5 - HLG_A * Math.log(4 * HLG_A);
+const PQ_M1 = 0.1593017578125;
+const PQ_M2 = 78.84375;
+const PQ_C1 = 0.8359375;
+const PQ_C2 = 18.8515625;
+const PQ_C3 = 18.6875;
+
+/** PQ uses display light relative to 10000 nits; HLG uses scene light. */
+function encodeHdrSignal(linear: number, transfer: "hlg" | "pq"): number {
+  if (transfer === "hlg")
+    return linear <= 1 / 12 ? Math.sqrt(3 * linear) : HLG_A * Math.log(12 * linear - HLG_B) + HLG_C;
+  const power = Math.pow(Math.max(0, linear), PQ_M1);
+  return Math.pow((PQ_C1 + PQ_C2 * power) / (1 + PQ_C3 * power), PQ_M2);
+}
+
+function decodeHdrSignal(signal: number, transfer: "hlg" | "pq"): number {
+  if (transfer === "hlg")
+    return signal <= 0.5
+      ? (signal * signal) / 3
+      : (Math.exp((signal - HLG_C) / HLG_A) + HLG_B) / 12;
+  const power = Math.pow(signal, 1 / PQ_M2);
+  const denominator = PQ_C2 - PQ_C3 * power;
+  return denominator > 0 ? Math.pow(Math.max(power - PQ_C1, 0) / denominator, 1 / PQ_M1) : 0;
+}
+
 /**
  * Build a 256-entry LUT: sRGB 8-bit value → HDR 16-bit signal value.
  *
@@ -252,17 +279,6 @@ export function decodePngToRgb48le(buf: Buffer): { width: number; height: number
 function buildSrgbToSignalLut(transfer: "hlg" | "pq" | "srgb"): Uint16Array {
   const lut = new Uint16Array(256);
 
-  // HLG OETF constants (Rec. 2100)
-  const hlgA = 0.17883277;
-  const hlgB = 1 - 4 * hlgA;
-  const hlgC = 0.5 - hlgA * Math.log(4 * hlgA);
-
-  // PQ (SMPTE 2084) OETF constants
-  const pqM1 = 0.1593017578125;
-  const pqM2 = 78.84375;
-  const pqC1 = 0.8359375;
-  const pqC2 = 18.8515625;
-  const pqC3 = 18.6875;
   const pqMaxNits = 10000.0;
   const sdrNits = 203.0;
 
@@ -276,16 +292,10 @@ function buildSrgbToSignalLut(transfer: "hlg" | "pq" | "srgb"): Uint16Array {
     const v = i / 255;
     const linear = v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
 
-    let signal: number;
-    if (transfer === "hlg") {
-      signal =
-        linear <= 1 / 12 ? Math.sqrt(3 * linear) : hlgA * Math.log(12 * linear - hlgB) + hlgC;
-    } else {
-      // PQ OETF: linear light (in SDR nits) → PQ signal
-      const Lp = Math.max(0, (linear * sdrNits) / pqMaxNits);
-      const Lm1 = Math.pow(Lp, pqM1);
-      signal = Math.pow((pqC1 + pqC2 * Lm1) / (1.0 + pqC3 * Lm1), pqM2);
-    }
+    const signal = encodeHdrSignal(
+      transfer === "pq" ? (linear * sdrNits) / pqMaxNits : linear,
+      transfer,
+    );
 
     lut[i] = Math.min(65535, Math.round(signal * 65535));
   }
@@ -304,15 +314,40 @@ function getSrgbToSignalLut(transfer: "hlg" | "pq" | "srgb"): Uint16Array {
   return SRGB_TO_SRGB_16;
 }
 
+const signalToLinearLuts = new Map<"hlg" | "pq", Float64Array>();
+
+function getSignalToLinearLut(transfer: "hlg" | "pq"): Float64Array {
+  const cached = signalToLinearLuts.get(transfer);
+  if (cached) return cached;
+  // Keep fractional light values: a UInt16 linear buffer would quantize PQ
+  // shadows in 0.153-nit steps and lose detail during an otherwise simple fade.
+  const lut = new Float64Array(65536);
+  for (let i = 0; i < lut.length; i++) lut[i] = decodeHdrSignal(i / 65535, transfer);
+  signalToLinearLuts.set(transfer, lut);
+  return lut;
+}
+
+function blendHdrSample(
+  foreground: number,
+  background: number,
+  alpha: number,
+  transfer: "hlg" | "pq",
+  linearLut: Float64Array,
+): number {
+  const linear = (linearLut[foreground] ?? 0) * alpha + (linearLut[background] ?? 0) * (1 - alpha);
+  return Math.min(65535, Math.round(encodeHdrSignal(linear, transfer) * 65535));
+}
+
 // ── Alpha compositing ─────────────────────────────────────────────────────────
 
 /**
  * Alpha-composite a DOM RGBA overlay (8-bit sRGB) onto an HDR canvas
  * (rgb48le) in-place.
  *
- * DOM pixels are converted from sRGB to the target HDR signal space (HLG or PQ)
- * before blending so the composited output is uniformly encoded. Without this
- * conversion, sRGB content appears orange/washed in HDR playback.
+ * DOM pixels are converted from sRGB to the target HDR transfer. Partial alpha
+ * blends decoded linear light, then re-encodes it; averaging PQ/HLG signal
+ * values would darken semitransparent graphics over HDR highlights. The SDR
+ * branch retains its existing sRGB blending behavior.
  *
  * @param domRgba   Raw RGBA pixel data from decodePng() — width*height*4 bytes
  * @param canvas    HDR canvas in rgb48le format — width*height*6 bytes, mutated in-place
@@ -329,6 +364,7 @@ export function blitRgba8OverRgb48le(
 ): void {
   const pixelCount = width * height;
   const lut = getSrgbToSignalLut(transfer);
+  let linearLut: Float64Array | undefined;
 
   for (let i = 0; i < pixelCount; i++) {
     const da = domRgba[i * 4 + 3] ?? 0;
@@ -354,9 +390,16 @@ export function blitRgba8OverRgb48le(
       const domG = lut[domRgba[i * 4 + 1] ?? 0] ?? 0;
       const domB = lut[domRgba[i * 4 + 2] ?? 0] ?? 0;
 
-      canvas.writeUInt16LE(Math.round(domR * alpha + hdrR * invAlpha), i * 6);
-      canvas.writeUInt16LE(Math.round(domG * alpha + hdrG * invAlpha), i * 6 + 2);
-      canvas.writeUInt16LE(Math.round(domB * alpha + hdrB * invAlpha), i * 6 + 4);
+      if (transfer === "srgb") {
+        canvas.writeUInt16LE(Math.round(domR * alpha + hdrR * invAlpha), i * 6);
+        canvas.writeUInt16LE(Math.round(domG * alpha + hdrG * invAlpha), i * 6 + 2);
+        canvas.writeUInt16LE(Math.round(domB * alpha + hdrB * invAlpha), i * 6 + 4);
+      } else {
+        linearLut ??= getSignalToLinearLut(transfer);
+        canvas.writeUInt16LE(blendHdrSample(domR, hdrR, alpha, transfer, linearLut), i * 6);
+        canvas.writeUInt16LE(blendHdrSample(domG, hdrG, alpha, transfer, linearLut), i * 6 + 2);
+        canvas.writeUInt16LE(blendHdrSample(domB, hdrB, alpha, transfer, linearLut), i * 6 + 4);
+      }
     }
   }
 }
@@ -415,6 +458,7 @@ export function roundedRectAlpha(
  * @param canvasWidth  Canvas width in pixels (needed for stride calculation)
  * @param canvasHeight Canvas height in pixels (used to clip the destination region)
  * @param opacity      Optional opacity 0.0–1.0 (default 1.0 = fully opaque copy)
+ * @param transfer     HDR transfer for linear-light opacity; omitted retains SDR signal blending
  */
 export function blitRgb48leRegion(
   canvas: Buffer,
@@ -427,6 +471,7 @@ export function blitRgb48leRegion(
   canvasHeight: number,
   opacity?: number,
   borderRadius?: [number, number, number, number],
+  transfer?: "hlg" | "pq",
 ): void {
   if (sw <= 0 || sh <= 0) return;
 
@@ -444,6 +489,7 @@ export function blitRgb48leRegion(
   const srcOffsetY = y0 - dy;
 
   const hasMask = borderRadius !== undefined;
+  let linearLut: Float64Array | undefined;
 
   if (op >= 0.999 && !hasMask) {
     for (let y = 0; y < y1 - y0; y++) {
@@ -452,6 +498,7 @@ export function blitRgb48leRegion(
       source.copy(canvas, dstRowOff, srcRowOff, srcRowOff + clippedW * 6);
     }
   } else if (!hasMask) {
+    if (transfer) linearLut = getSignalToLinearLut(transfer);
     const invOp = 1 - op;
     for (let y = 0; y < y1 - y0; y++) {
       let srcOff = ((srcOffsetY + y) * sw + srcOffsetX) * 6;
@@ -464,9 +511,18 @@ export function blitRgb48leRegion(
         const dg = canvas[dstOff + 2]! | (canvas[dstOff + 3]! << 8);
         const db = canvas[dstOff + 4]! | (canvas[dstOff + 5]! << 8);
 
-        const r = (sr * op + dr * invOp + 0.5) | 0;
-        const g = (sg * op + dg * invOp + 0.5) | 0;
-        const b = (sb * op + db * invOp + 0.5) | 0;
+        const r =
+          transfer && linearLut
+            ? blendHdrSample(sr, dr, op, transfer, linearLut)
+            : (sr * op + dr * invOp + 0.5) | 0;
+        const g =
+          transfer && linearLut
+            ? blendHdrSample(sg, dg, op, transfer, linearLut)
+            : (sg * op + dg * invOp + 0.5) | 0;
+        const b =
+          transfer && linearLut
+            ? blendHdrSample(sb, db, op, transfer, linearLut)
+            : (sb * op + db * invOp + 0.5) | 0;
         canvas[dstOff] = r & 0xff;
         canvas[dstOff + 1] = r >>> 8;
         canvas[dstOff + 2] = g & 0xff;
@@ -501,9 +557,22 @@ export function blitRgb48leRegion(
           const dr = canvas.readUInt16LE(dstOff);
           const dg = canvas.readUInt16LE(dstOff + 2);
           const db = canvas.readUInt16LE(dstOff + 4);
-          canvas.writeUInt16LE(Math.round(sr * effectiveOp + dr * invEff), dstOff);
-          canvas.writeUInt16LE(Math.round(sg * effectiveOp + dg * invEff), dstOff + 2);
-          canvas.writeUInt16LE(Math.round(sb * effectiveOp + db * invEff), dstOff + 4);
+          if (transfer) {
+            linearLut ??= getSignalToLinearLut(transfer);
+            canvas.writeUInt16LE(blendHdrSample(sr, dr, effectiveOp, transfer, linearLut), dstOff);
+            canvas.writeUInt16LE(
+              blendHdrSample(sg, dg, effectiveOp, transfer, linearLut),
+              dstOff + 2,
+            );
+            canvas.writeUInt16LE(
+              blendHdrSample(sb, db, effectiveOp, transfer, linearLut),
+              dstOff + 4,
+            );
+          } else {
+            canvas.writeUInt16LE(Math.round(sr * effectiveOp + dr * invEff), dstOff);
+            canvas.writeUInt16LE(Math.round(sg * effectiveOp + dg * invEff), dstOff + 2);
+            canvas.writeUInt16LE(Math.round(sb * effectiveOp + db * invEff), dstOff + 4);
+          }
         }
       }
     }
@@ -524,6 +593,7 @@ export function blitRgb48leRegion(
  * @param canvasW    Canvas width in pixels
  * @param canvasH    Canvas height in pixels
  * @param opacity    Optional opacity 0.0–1.0 (default 1.0)
+ * @param transfer   HDR transfer for linear-light opacity; omitted retains SDR signal blending
  */
 export function blitRgb48leAffine(
   canvas: Buffer,
@@ -535,6 +605,7 @@ export function blitRgb48leAffine(
   canvasH: number,
   opacity?: number,
   borderRadius?: [number, number, number, number],
+  transfer?: "hlg" | "pq",
 ): void {
   const a = matrix[0];
   const b = matrix[1];
@@ -567,6 +638,7 @@ export function blitRgb48leAffine(
   if (op <= 0) return;
 
   const hasMask = borderRadius !== undefined;
+  let linearLut: Float64Array | undefined;
 
   // Compute bounding box of transformed source on canvas
   const corners = [
@@ -651,9 +723,25 @@ export function blitRgb48leAffine(
         const dr = canvas.readUInt16LE(dstOff);
         const dg = canvas.readUInt16LE(dstOff + 2);
         const db = canvas.readUInt16LE(dstOff + 4);
-        canvas.writeUInt16LE(Math.round(sr * effectiveOp + dr * invEff), dstOff);
-        canvas.writeUInt16LE(Math.round(sg * effectiveOp + dg * invEff), dstOff + 2);
-        canvas.writeUInt16LE(Math.round(sb * effectiveOp + db * invEff), dstOff + 4);
+        if (transfer) {
+          linearLut ??= getSignalToLinearLut(transfer);
+          canvas.writeUInt16LE(
+            blendHdrSample(Math.round(sr), dr, effectiveOp, transfer, linearLut),
+            dstOff,
+          );
+          canvas.writeUInt16LE(
+            blendHdrSample(Math.round(sg), dg, effectiveOp, transfer, linearLut),
+            dstOff + 2,
+          );
+          canvas.writeUInt16LE(
+            blendHdrSample(Math.round(sb), db, effectiveOp, transfer, linearLut),
+            dstOff + 4,
+          );
+        } else {
+          canvas.writeUInt16LE(Math.round(sr * effectiveOp + dr * invEff), dstOff);
+          canvas.writeUInt16LE(Math.round(sg * effectiveOp + dg * invEff), dstOff + 2);
+          canvas.writeUInt16LE(Math.round(sb * effectiveOp + db * invEff), dstOff + 4);
+        }
       }
     }
   }

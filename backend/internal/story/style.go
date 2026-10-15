@@ -7,8 +7,11 @@ import (
 	"sneepcut/backend-go/internal/captions"
 )
 
-// Style deliberately excludes narrative, duration, source and crop settings.
+// Style excludes narrative, duration and source settings. Output shape is
+// applied during rendering while the accepted source timing stays unchanged.
 type Style struct {
+	AspectRatio      *string                `json:"aspect_ratio,omitempty"`
+	DynamicRange     *string                `json:"dynamic_range,omitempty"`
 	CaptionStyle     *captions.Style        `json:"caption_style,omitempty"`
 	UseBrandKit      *bool                  `json:"use_brand_kit,omitempty"`
 	AudioCleanup     *audiocleanup.Settings `json:"audio_cleanup,omitempty"`
@@ -25,6 +28,23 @@ type Style struct {
 
 func ApplyStyle(before Options, patch Style) (Options, error) {
 	after := before
+	if patch.DynamicRange != nil {
+		if *patch.DynamicRange != "sdr" && *patch.DynamicRange != "hdr" {
+			return before, fmt.Errorf("dynamic range must be sdr or hdr")
+		}
+		after.DynamicRange = *patch.DynamicRange
+	}
+	if patch.AspectRatio != nil {
+		switch *patch.AspectRatio {
+		case "9:16", "1:1", "16:9", "4:5":
+			after.AspectRatio = *patch.AspectRatio
+			if after.AspectRatio != before.AspectRatio {
+				after.AspectRatioRevised = true
+			}
+		default:
+			return before, fmt.Errorf("unsupported aspect ratio")
+		}
+	}
 	if patch.CaptionStyle != nil {
 		copy := *patch.CaptionStyle
 		after.CaptionStyle = &copy

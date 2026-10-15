@@ -3,7 +3,6 @@ package processing
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -62,23 +61,22 @@ func TestStorySpeechPolicyRequiresMeasuredConfidenceAndKeepsThresholdBoundary(t 
 	}
 }
 
-func TestStorySpeechPolicySplitsLongUnverifiedVisualsAndRemovesCaptions(t *testing.T) {
+func TestStorySpeechPolicyPreservesWholeUncertainSpeechForManualReview(t *testing.T) {
 	asset := story.Asset{ID: "source", Duration: 16, HasAudio: true, Candidates: []story.Candidate{{
 		ID: "weak", SourceID: "source", In: 0, Out: 16, Text: "Probably wrong words.",
 		Words:      []story.Word{{Text: "Probably wrong words.", Start: 0, End: 16}},
 		Confidence: .31, Role: "a_roll", VisualScore: .9,
 	}}}
 	got, err := applyStorySpeechPolicy(asset, story.DefaultOptions())
-	if err != nil || len(got.Candidates) != 4 {
-		t.Fatalf("long weak phrase was not split into montage windows: %#v %v", got.Candidates, err)
+	if err != nil || len(got.Candidates) != 1 || len(got.TranscriptProposals) != 1 {
+		t.Fatalf("uncertain speech lost its complete source interval or review suggestion: %#v %v", got, err)
 	}
-	for i, candidate := range got.Candidates {
-		if candidate.Text != "" || len(candidate.Words) != 0 || candidate.Role != "b_roll" || candidate.Out-candidate.In > storyMaximumVisualShotSeconds+.001 {
-			t.Fatalf("unsafe visual window %d: %#v", i, candidate)
-		}
-		if candidate.ID != fmt.Sprintf("weak-cut%d", i+1) {
-			t.Fatalf("visual IDs are not deterministic: %#v", got.Candidates)
-		}
+	candidate := got.Candidates[0]
+	if candidate.ID != "weak" || candidate.In != 0 || candidate.Out != 16 || candidate.Text != "" || len(candidate.Words) != 0 {
+		t.Fatalf("uncertain speech was cut or promoted without review: %#v", candidate)
+	}
+	if got.TranscriptProposals[0].Words[0].Text != "Probably wrong words." || got.TranscriptProposals[0].Reviewed || got.TranscriptProposals[0].TimingVerified {
+		t.Fatalf("raw transcription was not retained explicitly as an unverified suggestion: %#v", got.TranscriptProposals)
 	}
 }
 
@@ -90,7 +88,7 @@ func TestNarrationWeakPhraseRequestsIntervalSpecificReview(t *testing.T) {
 }
 
 func TestStorySpeechPolicyUsesRawCacheAndPreservesSemanticAnnotations(t *testing.T) {
-	p, _, dir := storyTestProcessor(t)
+	p, storage, dir := storyTestProcessor(t)
 	asset := storySource(t, p, dir, "weak", "blue", 440)
 	t.Setenv("SNEEPCUT_NARRATION_ASR_FIXTURE", "1")
 	t.Setenv("SNEEPCUT_NARRATION_ASR_LOW", "1")
@@ -104,12 +102,15 @@ func TestStorySpeechPolicyUsesRawCacheAndPreservesSemanticAnnotations(t *testing
 	if err != nil || first.Candidates[0].Text != "" {
 		t.Fatalf("fresh ASR bypassed policy: %#v %v", first, err)
 	}
-	cacheFile := filepath.Join(dir, "raw-analysis.json")
-	cacheKey := strings.TrimSuffix(first.ProxyKey, "proxy.mp4") + "analysis.json"
-	if err := p.materialize(context.Background(), cacheKey, cacheFile); err != nil {
+	cacheDir, err := storage.Path("work/speech-policy-cache/analysis/" + asset.ID)
+	if err != nil {
 		t.Fatal(err)
 	}
-	raw, err := os.ReadFile(cacheFile)
+	cacheFiles, err := filepath.Glob(filepath.Join(cacheDir, "*", "analysis.json"))
+	if err != nil || len(cacheFiles) != 1 {
+		t.Fatalf("expected one ASR cache independent of the media proxy: %v %v", cacheFiles, err)
+	}
+	raw, err := os.ReadFile(cacheFiles[0])
 	var cached story.Asset
 	if err != nil || json.Unmarshal(raw, &cached) != nil || cached.Candidates[0].Text != "Original voice." || cached.AnalysisVersion == first.AnalysisVersion {
 		t.Fatal("policy overwrote the reusable raw ASR cache")

@@ -67,8 +67,9 @@ func (e *PlatformExecutor) projectSummaries(ctx context.Context, user string) ([
 }
 func (e *PlatformExecutor) analytics(ctx context.Context, user string) (map[string]any, error) {
 	var credits, projects, clips, scriptsCount int
-	err := e.db.QueryRowContext(ctx, `SELECT credits,(SELECT count(*) FROM jobs WHERE user_id=$1),(SELECT count(*) FROM clips WHERE user_id=$1),(SELECT count(*) FROM scripts WHERE user_id=$1 AND archived_at IS NULL) FROM users WHERE id=$1`, user).Scan(&credits, &projects, &clips, &scriptsCount)
-	return map[string]any{"credits": credits, "projects": projects, "clips": clips, "scripts": scriptsCount}, err
+	var unlimited bool
+	err := e.db.QueryRowContext(ctx, `SELECT credits,access_role='admin',(SELECT count(*) FROM jobs WHERE user_id=$1),(SELECT count(*) FROM clips WHERE user_id=$1),(SELECT count(*) FROM scripts WHERE user_id=$1 AND archived_at IS NULL) FROM users WHERE id=$1`, user).Scan(&credits, &unlimited, &projects, &clips, &scriptsCount)
+	return map[string]any{"credits": credits, "creditsUnlimited": unlimited, "projects": projects, "clips": clips, "scripts": scriptsCount}, err
 }
 func (e *PlatformExecutor) Context(ctx context.Context, user string, scope Scope) (json.RawMessage, error) {
 	if (scope.ProjectID != "" && !data.ValidUUID(scope.ProjectID)) || (scope.ClipID != "" && !data.ValidUUID(scope.ClipID)) {

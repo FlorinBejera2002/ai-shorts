@@ -39,6 +39,7 @@ import { DEFAULT_CONFIG, type EngineConfig } from "../config.js";
 import { fpsToFfmpegArg, fpsToNumber, type Fps } from "@hyperframes/core";
 import { appendVp9CpuUsedArg } from "./vp9Options.js";
 import { appendRenderProvenanceArgs } from "../utils/renderProvenance.js";
+import { acquireStreamingEncoder, boundedFfmpegArgs } from "../utils/renderResources.js";
 
 // Re-export EncoderOptions so callers can reference the type via this module.
 export type { EncoderOptions } from "./chunkEncoder.types.js";
@@ -442,7 +443,7 @@ export function buildStreamingArgs(
   appendRenderProvenanceArgs(args, outputPath);
 
   args.push("-y", outputPath);
-  return args;
+  return boundedFfmpegArgs(args);
 }
 
 /**
@@ -464,11 +465,18 @@ export async function spawnStreamingEncoder(
 
   const args = buildStreamingArgs(options, outputPath, gpuEncoder);
 
-  const ffmpeg: ChildProcess = spawn(getFfmpegBinary(), args, {
-    stdio: ["pipe", "pipe", "pipe"],
-    // See runFfmpeg.ts: keeps a console window off the user's desktop on Windows.
-    windowsHide: true,
-  });
+  const release = await acquireStreamingEncoder(signal);
+  let ffmpeg: ChildProcess;
+  try {
+    ffmpeg = spawn(getFfmpegBinary(), args, {
+      stdio: ["pipe", "pipe", "pipe"],
+      // See runFfmpeg.ts: keeps a console window off the user's desktop on Windows.
+      windowsHide: true,
+    });
+  } catch (error) {
+    release();
+    throw error;
+  }
   trackChildProcess(ffmpeg);
 
   let exitStatus: "running" | "success" | "error" = "running";
@@ -494,14 +502,21 @@ export async function spawnStreamingEncoder(
     signal,
     inactivityTimeoutMs: streamingTimeout,
   });
-  const exitPromise = managed.wait().then((outcome) => {
-    exitCode = outcome.exitCode;
-    exitSignal = outcome.signal;
-    stderr = outcome.stderr;
-    terminationReason = outcome.reason;
-    exitStatus = outcome.reason === "exit" && outcome.exitCode === 0 ? "success" : "error";
-    return outcome;
-  });
+  const exitPromise = managed.wait().then(
+    (outcome) => {
+      release();
+      exitCode = outcome.exitCode;
+      exitSignal = outcome.signal;
+      stderr = outcome.stderr;
+      terminationReason = outcome.reason;
+      exitStatus = outcome.reason === "exit" && outcome.exitCode === 0 ? "success" : "error";
+      return outcome;
+    },
+    (error: unknown) => {
+      release();
+      throw error;
+    },
+  );
 
   const waitForDrainOrExit = async (
     stdin: NonNullable<ChildProcess["stdin"]>,

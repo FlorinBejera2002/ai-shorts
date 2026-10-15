@@ -593,3 +593,47 @@ export function sampleAutomationCurve(
   }
   return out;
 }
+
+/** Rebase clip-local envelopes when a source composition trims or retimes a track.
+ * Linear authored lanes stay exact; a clipped curved segment is sampled at the
+ * same 100 Hz resolution used by WebAudio scheduling, within the point budget. */
+export function projectAutomationTime(
+  automation: HfAutomation,
+  start: number,
+  rate: number,
+  chain?: HfAudioFxChain,
+): HfAutomation {
+  if (!Number.isFinite(start) || start < 0 || !Number.isFinite(rate) || rate <= 0)
+    throw new AudioAutomationError("Invalid automation source window.");
+  if (start === 0 && rate === 1) return automation;
+  return {
+    version: automation.version,
+    lanes: automation.lanes.map((lane) => {
+      const first = lane.points[0];
+      if (!first) return lane;
+      const shift = (point: HfAutomationPoint): HfAutomationPoint => ({
+        ...point,
+        t: (point.t - start) / rate,
+      });
+      if (start <= first.t) return { ...lane, points: lane.points.map(shift) };
+      const next = lane.points.findIndex((point) => point.t >= start);
+      if (next < 0) return { ...lane, points: [{ t: 0, v: lane.points.at(-1)!.v }] };
+      if (lane.points[next]!.t === start)
+        return { ...lane, points: lane.points.slice(next).map(shift) };
+      const scale = resolveAutomationRange(lane.target, chain)?.scale ?? "linear";
+      const points: HfAutomationPoint[] = [{ t: 0, v: sampleAutomationLane(lane, start, scale) }];
+      const previous = lane.points[next - 1]!;
+      if (previous.curve || previous.viaX !== undefined) {
+        const span = lane.points[next]!.t - start;
+        const budget = MAX_AUTOMATION_POINTS - 1 - (lane.points.length - next);
+        const steps = Math.min(budget + 1, Math.max(1, Math.ceil((span / rate) * 100)));
+        for (let i = 1; i < steps; i++) {
+          const time = start + (span * i) / steps;
+          points.push({ t: (time - start) / rate, v: sampleAutomationLane(lane, time, scale) });
+        }
+      }
+      points.push(...lane.points.slice(next).map(shift));
+      return { ...lane, points };
+    }),
+  };
+}

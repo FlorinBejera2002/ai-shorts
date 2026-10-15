@@ -22,7 +22,7 @@ interface TimelineSpies {
 
 function renderHarness(
   initialProps: HarnessProps,
-  options: { timelineElements?: TimelineElement[] } = {},
+  options: { timelineElements?: TimelineElement[]; previewIframe?: HTMLIFrameElement } = {},
 ): {
   current: () => ReturnType<typeof useDomSelection>;
   rerender: (props: HarnessProps) => void;
@@ -45,7 +45,7 @@ function renderHarness(
       isMasterView: false,
       compIdToSrc: new Map(),
       captionEditMode: false,
-      previewIframeRef: { current: null },
+      previewIframeRef: { current: options.previewIframe ?? null },
       timelineElements: options.timelineElements ?? [],
       getTimelineSelectionSet: () => new Set(),
       setSelectedTimelineElementId: timeline.setSelectedTimelineElementId,
@@ -280,6 +280,30 @@ describe("useDomSelection", () => {
 
     expect(harness.current().domEditSelection).toBe(selection);
     harness.cleanup();
+  });
+
+  it("retains a source cut through iframe reload, then clears a truly deleted cut after runtime readiness", async () => {
+    const iframe = document.createElement("iframe");
+    document.body.append(iframe);
+    const element = document.createElement("div");
+    element.id = "scene-1";
+    element.setAttribute("data-source-window", "");
+    const selection = makeSelection("Source cut", element);
+    const harness = renderHarness(
+      { activeCompPath: "index.html", projectId: "fixture", refreshKey: 0 },
+      { previewIframe: iframe },
+    );
+    try {
+      act(() => harness.current().applyDomSelection(selection));
+      await act(async () => harness.current().refreshDomEditSelectionFromPreview(selection));
+      expect(harness.current().domEditSelection).toBe(selection);
+      (iframe.contentWindow as Window & { __renderReady?: boolean }).__renderReady = true;
+      await act(async () => harness.current().refreshDomEditSelectionFromPreview(selection));
+      expect(harness.current().domEditSelection).toBeNull();
+    } finally {
+      harness.cleanup();
+      iframe.remove();
+    }
   });
 
   it("preserves selection when clearing an already inactive group scope", () => {

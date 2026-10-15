@@ -9,7 +9,7 @@ import (
 )
 
 // ClipRead plus the existing Next detail fields (social captions and hashtags).
-const clipSelect = `(to_jsonb(c)-'transition_state') || jsonb_build_object('can_improve_transitions',c.transition_state IS NOT NULL AND jsonb_array_length(c.transition_state->'decisions')>0,'source_video_url',j.source_video_url,'source_storage_key',j.source_storage_key,'active_edit_tasks',j.active_edit_tasks,'processing_active',j.processing_active,'job_status',j.status,'edit_status',(SELECT state FROM edit_deliveries e WHERE e.clip_id=c.id ORDER BY e.created_at DESC,e.id DESC LIMIT 1),'edit_error',(SELECT last_error FROM edit_deliveries e WHERE e.clip_id=c.id ORDER BY e.created_at DESC,e.id DESC LIMIT 1))`
+const clipSelect = `(to_jsonb(c)-'transition_state') || jsonb_build_object('can_improve_transitions',c.transition_state IS NOT NULL AND jsonb_array_length(c.transition_state->'decisions')>0,'source_video_url',j.source_video_url,'source_storage_key',j.source_storage_key,'active_edit_tasks',j.active_edit_tasks,'processing_active',j.processing_active,'job_status',j.status,'preview_storage_key',coalesce(c.preview_storage_key,(SELECT version->'output'->>'preview_key' FROM story_versions WHERE project_id=c.story_project_id AND number=c.story_version)),'edit_status',(SELECT state FROM edit_deliveries e WHERE e.clip_id=c.id ORDER BY e.created_at DESC,e.id DESC LIMIT 1),'edit_error',(SELECT last_error FROM edit_deliveries e WHERE e.clip_id=c.id ORDER BY e.created_at DESC,e.id DESC LIMIT 1))`
 const clipJoin = ` FROM clips c JOIN jobs j ON j.id=c.job_id AND j.user_id=c.user_id `
 
 func (h *Handler) resolve(ctx context.Context, raw []byte, camel bool) (map[string]any, error) {
@@ -40,6 +40,17 @@ func (h *Handler) resolve(ctx context.Context, raw []byte, camel bool) (map[stri
 			record[field.url] = signed
 		}
 	}
+	// Downloads and publishing retain the original export. A separately signed
+	// SDR derivative is only used by browser players that may lack HEVC/HDR.
+	record["preview_url"] = record["file_url"]
+	if previewKey, _ := record["preview_storage_key"].(string); previewKey != "" {
+		previewURL, err := h.media.SignedURL(ctx, previewKey)
+		if err != nil {
+			return nil, err
+		}
+		record["preview_url"] = previewURL
+	}
+	delete(record, "preview_storage_key")
 	variants := []map[string]any{}
 	if fileURL, _ := record["file_url"].(string); fileURL != "" {
 		platforms := []string{"instagram", "facebook", "linkedin", "youtube"}

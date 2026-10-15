@@ -937,7 +937,13 @@ describe("shouldAutoScrollTimeline", () => {
 });
 
 describe("getTimelineFitPps (min 60s extent + fit headroom)", () => {
-  const viewport = 632; // usable width = 632 - GUTTER - TRACKS_LEFT_PAD - 2
+  const viewport = 1000;
+
+  it("keeps short phone clips wide enough to select and trim", () => {
+    const pps = getTimelineFitPps(390, 4, GUTTER + TRACKS_LEFT_PAD);
+    expect(2 * pps).toBeGreaterThan(100);
+    expect(4 * pps).toBeLessThan(390 - GUTTER - TRACKS_LEFT_PAD);
+  });
 
   it("computes fit pps against the 60s floor for short compositions", () => {
     // A 10s comp maps 60s onto the viewport → the comp takes ~1/6 of the width.

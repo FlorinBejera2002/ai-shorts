@@ -46,6 +46,8 @@ const { StoryOptionsPanel } = load(
     './story-help': { StoryHelp: 'aside' },
     './story-appearance': { StoryAppearance: 'section' },
     './story-music': { StoryMusic: 'section' },
+    './story-format': { StoryFormat: 'section' },
+    './story-dynamic-range': { StoryDynamicRange: 'section' },
     './use-story-language': { useStoryLanguage: () => (english) => english },
     './types': types
   }

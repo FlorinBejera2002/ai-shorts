@@ -118,7 +118,7 @@ func (h *Handler) dashboard(w http.ResponseWriter, r *http.Request) {
 		h.fail(w, err)
 		return
 	}
-	httpx.JSON(w, 200, map[string]any{"metrics": map[string]any{"activity": activity, "statuses": statuses, "jobCount": jobCount, "clipCount": count, "durationMinutes": int(math.Round(duration / 60)), "credits": user.Credits, "plan": user.Plan}, "recentClips": recent})
+	httpx.JSON(w, 200, map[string]any{"metrics": map[string]any{"activity": activity, "statuses": statuses, "jobCount": jobCount, "clipCount": count, "durationMinutes": int(math.Round(duration / 60)), "credits": user.Credits, "plan": user.Plan, "creditsUnlimited": user.AccessRole == "admin"}, "recentClips": recent})
 }
 func (h *Handler) fail(w http.ResponseWriter, err error) {
 	slog.Error("dashboard query failed", "error", err)

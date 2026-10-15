@@ -374,6 +374,9 @@ export function mountTimelineClipDragGestureLifecycle({
   };
 
   const handleLostPointerCapture = (event: PointerEvent) => {
+    // Touch starts with implicit capture on the handle. Transferring capture to
+    // the scroll container emits a loss on that handle, not a cancelled drag.
+    if (event.target !== scrollRef.current) return;
     if (lifecycleRef.current.phase === "active" && pointerMatchesGesture(event)) {
       if (cancelGesture({ suppressClick: true })) clearSuppressedClick();
     }

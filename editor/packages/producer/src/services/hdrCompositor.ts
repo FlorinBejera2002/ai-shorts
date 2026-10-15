@@ -273,6 +273,7 @@ export function blitHdrVideoLayer(
           height,
           resolveBlitOpacity(el.opacity),
           borderRadiusParam,
+          targetTransfer,
         );
       } else if (clipped) {
         const croppedBuf = cropRgb48le(hdrRgb, srcW, srcH, blitSrcX, blitSrcY, blitW, blitH);
@@ -287,6 +288,7 @@ export function blitHdrVideoLayer(
           height,
           resolveBlitOpacity(el.opacity),
           borderRadiusParam,
+          targetTransfer,
         );
       } else {
         blitRgb48leRegion(
@@ -300,6 +302,7 @@ export function blitHdrVideoLayer(
           height,
           resolveBlitOpacity(el.opacity),
           borderRadiusParam,
+          targetTransfer,
         );
       }
     });
@@ -382,6 +385,7 @@ export function blitHdrImageLayer(
           height,
           resolveBlitOpacity(el.opacity),
           borderRadiusParam,
+          targetTransfer,
         );
       } else {
         blitRgb48leRegion(
@@ -395,6 +399,7 @@ export function blitHdrImageLayer(
           height,
           resolveBlitOpacity(el.opacity),
           borderRadiusParam,
+          targetTransfer,
         );
       }
     });

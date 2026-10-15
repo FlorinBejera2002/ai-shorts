@@ -41,7 +41,15 @@ func (e *PlatformExecutor) jobApproval(ctx context.Context, user string, a Actio
 	if err = e.jobs.AgentValidate(ctx, user, in); err != nil {
 		return nil, err
 	}
-	return actionJSON(map[string]any{"action": a.Name, "source_type": in.SourceType, "source_url": in.SourceURL, "asset_id": in.AssetID, "num_clips": in.NumClips, "cost_credits": in.NumClips * 10, "aspect_ratio": in.AspectRatio}), nil
+	unlimited, err := unlimitedCredits(ctx, e.db, user)
+	if err != nil {
+		return nil, err
+	}
+	cost := in.NumClips * 10
+	if unlimited {
+		cost = 0
+	}
+	return actionJSON(map[string]any{"action": a.Name, "source_type": in.SourceType, "source_url": in.SourceURL, "asset_id": in.AssetID, "num_clips": in.NumClips, "cost_credits": cost, "aspect_ratio": in.AspectRatio}), nil
 }
 func (e *PlatformExecutor) executeJob(ctx context.Context, user, request string, a Action) (ActionResult, error) {
 	if e.jobs == nil {

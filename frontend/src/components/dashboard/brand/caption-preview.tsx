@@ -90,13 +90,19 @@ export function CaptionPreview({
     index = Math.min(words.length - 1, Math.floor(time / 0.5))
   const canvas = document.createElement('canvas'),
     measure = canvas.getContext('2d')
+  const letterSpacing = (style.letter_spacing ?? 0) * fontSize
+  const wordSpacing = (style.word_spacing ?? 0) * fontSize
   if (measure) {
     measure.font = `${style.weight} ${fontSize}px "${font}"`
     measure.fontKerning = 'none'
   }
+  const measureText = (text: string) =>
+    (measure?.measureText(text).width ?? text.length * fontSize * 0.6) +
+    Array.from(text).length * letterSpacing +
+    (text.match(/ /g)?.length ?? 0) * wordSpacing
   const chunks = previewCaptionLines(
     words,
-    (text) => measure?.measureText(text).width ?? text.length * fontSize * 0.6,
+    measureText,
     size.w * style.max_width,
     style.max_lines
   )
@@ -124,11 +130,11 @@ export function CaptionPreview({
         {
           text: words[index]!,
           index,
-          width: measure?.measureText(words[index]!).width ?? 0
+          width: measureText(words[index]!)
         }
       ]
     ]
-  const gap = measure?.measureText(' ').width ?? fontSize * 0.3
+  const gap = measureText(' ')
   const blockWidth = Math.max(
     1,
     ...lines.map(
@@ -260,6 +266,8 @@ export function CaptionPreview({
             fontWeight: style.weight,
             fontSize: fontSize * layoutScale,
             lineHeight: style.line_spacing,
+            letterSpacing: letterSpacing * layoutScale,
+            wordSpacing: wordSpacing * layoutScale,
             textAlign: style.align,
             color: style.text_color,
             textShadow: shadow

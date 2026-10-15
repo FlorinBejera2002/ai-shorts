@@ -61,6 +61,9 @@ func NormalizeOptions(o Options) (Options, error) {
 	if o.AspectRatio == "" {
 		o.AspectRatio = d.AspectRatio
 	}
+	if o.DynamicRange == "" {
+		o.DynamicRange = "sdr"
+	}
 	if o.Language == "" {
 		o.Language = d.Language
 	}
@@ -74,6 +77,9 @@ func NormalizeOptions(o Options) (Options, error) {
 }
 
 func ValidateOptions(o Options) error {
+	if o.DynamicRange != "" && o.DynamicRange != "sdr" && o.DynamicRange != "hdr" {
+		return fmt.Errorf("dynamic range must be sdr or hdr")
+	}
 	if err := validateMusicSelection(o.Music); err != nil {
 		return err
 	}

@@ -299,7 +299,7 @@ func (s *Service) billing(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
-	write(w, 200, object{"account": object{"credits": a.Credits, "plan": normalizePlan(a.Plan), "hasBillingProfile": a.CustomerID != ""}, "subscription": subscription, "invoices": invoices, "providerAvailable": available, "checkoutVerification": verification})
+	write(w, 200, object{"account": object{"credits": a.Credits, "plan": normalizePlan(a.Plan), "hasBillingProfile": a.CustomerID != "", "creditsUnlimited": identity.Current(r).User.AccessRole == "admin"}, "subscription": subscription, "invoices": invoices, "providerAvailable": available, "checkoutVerification": verification})
 }
 func (s *Service) verifyCheckout(session object, a account) object {
 	meta := session.child("metadata")

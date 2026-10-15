@@ -119,6 +119,7 @@ func (h *Handler) reviseSuggestion(w http.ResponseWriter, r *http.Request) {
 		next.CostCredits = 0
 		next.Description += " Generation follows after saving these settings; its 10-credit cost requires confirmation before processing."
 	}
+	next = accountSuggestion(next, identity.Current(r).User.AccessRole == "admin")
 	tx, err := h.db.BeginTx(r.Context(), nil)
 	if err != nil {
 		failure(w, err)

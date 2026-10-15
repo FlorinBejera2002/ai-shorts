@@ -74,10 +74,15 @@ function renderResizeHarness(
 
   const root = mountReactHarness(<Harness sessionEpoch={epoch} />);
   const apply = setResizingClip!;
-  const dispatchPointer = (type: string, clientX: number, pointerId = 0) => {
+  const dispatchPointer = (
+    type: string,
+    clientX: number,
+    pointerId = 0,
+    target: EventTarget = window,
+  ) => {
     const event = new MouseEvent(type, { bubbles: true, clientX, clientY: 0 });
     Object.defineProperty(event, "pointerId", { value: pointerId });
-    window.dispatchEvent(event);
+    target.dispatchEvent(event);
   };
 
   return {
@@ -161,7 +166,12 @@ function renderResizeHarness(
       act(() => dispatchPointer("pointercancel", 0, pointerId));
     },
     losePointerCapture(pointerId = 0) {
-      act(() => dispatchPointer("lostpointercapture", 0, pointerId));
+      act(() => dispatchPointer("lostpointercapture", 0, pointerId, scroll));
+    },
+    transferTouchCapture(pointerId = 0) {
+      const handle = document.createElement("div");
+      scroll.append(handle);
+      act(() => dispatchPointer("lostpointercapture", 0, pointerId, handle));
     },
     setSessionEpoch(next: number) {
       epoch = next;
@@ -239,6 +249,19 @@ describe("useTimelineClipDrag — single-clip resize (unchanged path)", () => {
 });
 
 describe("useTimelineClipDrag — gesture lifecycle", () => {
+  it("keeps a touch resize active when implicit handle capture transfers to the timeline", async () => {
+    const a = el("a", { duration: 2 });
+    const h = renderResizeHarness([a], []);
+    h.startResize(a, "end", 7);
+    h.movePointer(-10, 7);
+    h.transferTouchCapture(7);
+    h.movePointer(-50, 7);
+    await h.dropPointer(7);
+    expect(h.onResizeElement).toHaveBeenCalledOnce();
+    expect(h.onResizeElement).toHaveBeenCalledWith(a, expect.objectContaining({ duration: 1.5 }));
+    h.unmount();
+  });
+
   it("does not capture a stationary click before the drag threshold", () => {
     const a = el("a", { duration: 2 });
     const h = renderResizeHarness([a], []);

@@ -1,8 +1,11 @@
 import { spawn } from "node:child_process";
+import { pipeline } from "node:stream/promises";
 import { constants } from "node:fs";
 import { cp, lstat, mkdir, mkdtemp, open, readFile, rm, writeFile } from "node:fs/promises";
 import { localizeGsap } from "./assets";
 import { resolveBackgroundRemovalModel } from "./ai-routing";
+import { compositionMaxBytes } from "./composition-limits";
+import { renderResourceLimits, RENDER_CPU_LIMIT_ENV } from "../../engine/src/utils/renderResources";
 import { tmpdir } from "node:os";
 import { basename, dirname, extname, isAbsolute, join, relative } from "node:path";
 import type {
@@ -16,6 +19,7 @@ type ThumbnailOptions = Parameters<NonNullable<StudioApiAdapter["generateThumbna
 type BackgroundOptions = Parameters<NonNullable<StudioApiAdapter["startBackgroundRemoval"]>>[0];
 type ProbeOptions = { project: { id: string; dir: string } };
 let activeJobs = 0;
+const MAX_ACTIVE_JOBS = 1;
 
 async function readOutput(path: string): Promise<Buffer> {
   const file = await open(path, constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK);
@@ -28,8 +32,38 @@ async function readOutput(path: string): Promise<Buffer> {
   }
 }
 
+/** Rendering can produce large videos; copy with bounded stream buffers. */
+export async function saveRenderOutput(source: string, destination: string): Promise<void> {
+  const input = await open(
+    source,
+    constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK,
+  );
+  try {
+    const info = await input.stat();
+    if (!info.isFile() || !info.size || info.size > 1024 ** 3)
+      throw new Error("Invalid sandbox output");
+    await mkdir(dirname(destination), { recursive: true });
+    const output = await open(
+      destination,
+      constants.O_WRONLY | constants.O_CREAT | constants.O_TRUNC | constants.O_NOFOLLOW,
+      0o600,
+    );
+    try {
+      await pipeline(input.createReadStream(), output.createWriteStream());
+    } finally {
+      await output.close();
+    }
+  } finally {
+    await input.close();
+  }
+}
+
 /** Each job sees only immutable application files and its own disposable project. */
 export function sandboxArguments(directory: string): string[] {
+  // Read the container quota before bwrap hides cgroups and clears the environment.
+  // One browser job at a time also bounds PID use. A conservative two-CPU ceiling
+  // keeps capture at one worker and leaves room for Chrome's process overhead.
+  const cpuBudget = Math.max(1, Math.min(2, renderResourceLimits().cpuCount));
   return [
     "--die-with-parent",
     "--new-session",
@@ -98,6 +132,9 @@ export function sandboxArguments(directory: string): string[] {
     "--setenv",
     "SNEEPCUT_SANDBOX_CHILD",
     "1",
+    "--setenv",
+    RENDER_CPU_LIMIT_ENV,
+    String(cpuBudget),
     "/usr/local/bin/bun",
     "/app/packages/sneepcut-server/src/sandbox-worker.ts",
   ];
@@ -110,12 +147,17 @@ async function runJob(
   onProgress?: (progress: number, stage?: string) => void,
 ): Promise<{ main: Buffer; background?: Buffer }> {
   if (process.platform !== "linux") throw new Error("Studio rendering requires the Linux sandbox");
-  if (activeJobs >= 2) throw new Error("Studio renderer is busy. Please retry shortly.");
+  if (activeJobs >= MAX_ACTIVE_JOBS)
+    throw new Error("Studio renderer is busy. Please retry shortly.");
   activeJobs++;
   let directory: string | undefined;
   try {
     directory = await mkdtemp(join(tmpdir(), "studio-job-"));
     let bytes = 0;
+    const canonical = await lstat(join(options.project.dir, ".canonical-composition"))
+      .then((info) => info.isFile() && !info.isSymbolicLink())
+      .catch(() => false);
+    const maxBytes = canonical ? compositionMaxBytes() : 512 * 1024 * 1024;
     const htmlFiles: string[] = [];
     await cp(options.project.dir, join(directory, "project"), {
       recursive: true,
@@ -127,7 +169,8 @@ async function runJob(
         bytes += stat.size;
         if (stat.isFile() && extname(source).toLowerCase() === ".html")
           htmlFiles.push(relative(options.project.dir, source));
-        if (bytes > 512 * 1024 * 1024) throw new Error("Project exceeds sandbox size limit");
+        if (bytes > maxBytes)
+          throw new Error("Project exceeds the configured sandbox source budget");
         return true;
       },
     });
@@ -232,6 +275,10 @@ async function runJob(
           );
       });
     });
+    if (kind === "render" && "jobId" in options) {
+      await saveRenderOutput(join(directory, output), options.outputPath);
+      return { main: Buffer.alloc(0) };
+    }
     return {
       main: await readOutput(join(directory, output)),
       background:
@@ -261,7 +308,12 @@ export async function sandboxProbeAudio(project: ProbeOptions["project"]): Promi
   return metadata.hasAudio;
 }
 
-export function startSandboxRender(options: RenderOptions): RenderJobState {
+export interface SandboxJobCompletion {
+  cancel(): void;
+  settled: Promise<void>;
+}
+
+export function startSandboxRender(options: RenderOptions): RenderJobState & SandboxJobCompletion {
   const startedAt = Date.now();
   const controller = new AbortController();
   const state: RenderJobState = {
@@ -271,18 +323,18 @@ export function startSandboxRender(options: RenderOptions): RenderJobState {
     outputPath: options.outputPath,
     cancel: () => controller.abort(),
   };
-  void (async () => {
+  const settled = (async () => {
     try {
-      const result = await runJob("render", options, controller.signal, (progress, stage) => {
+      await runJob("render", options, controller.signal, (progress, stage) => {
         state.progress = progress;
         state.stage = stage;
       });
       if (controller.signal.aborted) {
+        await rm(options.outputPath, { force: true });
         state.status = "cancelled";
         return;
       }
       await mkdir(join(options.project.dir, "renders"), { recursive: true });
-      await writeFile(options.outputPath, result.main);
       await writeFile(
         options.outputPath.replace(/\.(mp4|webm|mov)$/, ".meta.json"),
         JSON.stringify({ status: "complete", durationMs: Date.now() - startedAt }),
@@ -300,14 +352,17 @@ export function startSandboxRender(options: RenderOptions): RenderJobState {
       state.error = error instanceof Error ? error.message : String(error);
     }
   })();
-  return state;
+  return Object.assign(state, { settled, cancel: () => controller.abort() });
 }
 
 export async function sandboxThumbnail(options: ThumbnailOptions): Promise<Buffer> {
   return (await runJob("thumbnail", options, options.signal)).main;
 }
 
-export function startSandboxBackgroundRemoval(options: BackgroundOptions): MediaProcessingJobState {
+export function startSandboxBackgroundRemoval(
+  options: BackgroundOptions,
+): MediaProcessingJobState & SandboxJobCompletion {
+  const controller = new AbortController();
   const state: MediaProcessingJobState = {
     id: options.jobId,
     status: "processing",
@@ -318,9 +373,9 @@ export function startSandboxBackgroundRemoval(options: BackgroundOptions): Media
     backgroundOutputPath: options.backgroundOutputPath,
     backgroundOutputAssetPath: options.backgroundOutputAssetPath,
   };
-  void (async () => {
+  const settled = (async () => {
     try {
-      const signal = new AbortController().signal;
+      const signal = controller.signal;
       const model = await resolveBackgroundRemovalModel(signal);
       const result = await runJob(
         "background",
@@ -342,5 +397,5 @@ export function startSandboxBackgroundRemoval(options: BackgroundOptions): Media
       state.error = error instanceof Error ? error.message : String(error);
     }
   })();
-  return state;
+  return Object.assign(state, { settled, cancel: () => controller.abort() });
 }

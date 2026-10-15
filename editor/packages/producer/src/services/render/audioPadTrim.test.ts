@@ -14,6 +14,8 @@
  */
 
 import { describe, expect, it, mock } from "bun:test";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import {
   buildPadTrimAudioArgs,
   buildPadTrimAudioPlan,
@@ -299,6 +301,7 @@ describe("padOrTrimAudioToVideoFrameCount", () => {
       audio: { durationSeconds: 3 },
     });
     input.probeAudioTruePeakDbfs = async () => Number.NEGATIVE_INFINITY;
+    input.outputPath = join(tmpdir(), `audio-pad-trim-${crypto.randomUUID()}.aac`);
 
     const result = await padOrTrimAudioToVideoFrameCount(input);
 
@@ -313,6 +316,7 @@ describe("padOrTrimAudioToVideoFrameCount", () => {
       audio: { durationSeconds: 3.029333 },
     });
     input.probeAudioTruePeakDbfs = async () => 1.5;
+    input.outputPath = join(tmpdir(), `audio-pad-trim-${crypto.randomUUID()}.aac`);
     input.runFfmpeg = async (args) => {
       calls.push(args);
       return calls.length === 1

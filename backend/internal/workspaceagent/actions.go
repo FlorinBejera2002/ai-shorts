@@ -224,6 +224,7 @@ func (e *PlatformExecutor) Execute(ctx context.Context, user, requestID string, 
 			return ActionResult{}, err
 		}
 		in.Options.CaptionModeRevised = false
+		in.Options.AspectRatioRevised = false
 		options, err := story.NormalizeOptions(in.Options)
 		if err != nil {
 			return ActionResult{}, err

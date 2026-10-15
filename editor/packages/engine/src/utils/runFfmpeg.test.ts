@@ -174,4 +174,42 @@ describe("runFfmpeg binary resolution", () => {
     expect(result.success).toBe(true);
     expect(calls[0]).toEqual({ command: resolve("/tools/ffmpeg.exe"), args: ["-version"] });
   });
+
+  it("serializes source processes at a two-CPU budget and releases a failed child", async () => {
+    vi.stubEnv("HYPERFRAMES_RENDER_CPU_LIMIT", "2");
+    let active = 0;
+    let peak = 0;
+    let launched = 0;
+    const calls: string[][] = [];
+    const spawn = vi.fn((_command: string, args: string[]) => {
+      const proc = new EventEmitter() as EventEmitter & {
+        stderr: EventEmitter;
+        kill: ReturnType<typeof vi.fn>;
+      };
+      proc.stderr = new EventEmitter();
+      proc.kill = vi.fn();
+      calls.push(args);
+      const index = launched++;
+      peak = Math.max(peak, ++active);
+      process.nextTick(() => {
+        active--;
+        proc.emit("close", index === 0 ? 1 : 0);
+      });
+      return proc;
+    });
+    vi.resetModules();
+    vi.doMock("child_process", () => ({ spawn }));
+    try {
+      const { runFfmpeg } = await import("./runFfmpeg.js");
+      const results = await Promise.all(
+        Array.from({ length: 18 }, (_, i) => runFfmpeg(["-i", `source-${i}.mp4`, "out.mp4"])),
+      );
+      expect(peak).toBe(1);
+      expect(calls).toHaveLength(18);
+      expect(calls[0]?.slice(-3)).toEqual(["-threads", "2", "out.mp4"]);
+      expect(results.filter((result) => result.success)).toHaveLength(17);
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
 });

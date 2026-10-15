@@ -116,6 +116,10 @@ export function furthestClipEndFromDocument(doc: Document | null | undefined): n
   let maxEnd = 0;
   for (const node of Array.from(doc.querySelectorAll("[data-start]"))) {
     if (node === root || isTimelineIgnoredElement(node)) continue;
+    // Nested composition contents use their own source clock and may extend far
+    // beyond the visible window. Only their host contributes to this root.
+    const composition = node.parentElement?.closest("[data-composition-id]");
+    if (composition && composition !== root) continue;
     const start = Number.parseFloat(node.getAttribute("data-start") ?? "");
     const duration = readDurationAttribute(node);
     if (!Number.isFinite(start) || start < 0 || duration <= 0) continue;
@@ -147,19 +151,23 @@ export function furthestClipEndFromSource(source: string): number {
 // ---------------------------------------------------------------------------
 
 function isHtmlElement(el: Element): el is HTMLElement {
-  const HtmlElementCtor = el.ownerDocument.defaultView?.HTMLElement ?? globalThis.HTMLElement;
-  return typeof HtmlElementCtor !== "undefined" && el instanceof HtmlElementCtor;
+  // Preview nodes can retain the editor window's prototype after adoption into
+  // the iframe. Even ownerDocument.defaultView instanceof rejects those nodes.
+  return el.nodeType === 1 && el.namespaceURI === "http://www.w3.org/1999/xhtml";
+}
+
+function isMediaElement(el: Element | null): el is HTMLMediaElement {
+  return el !== null && isHtmlElement(el) && (el.localName === "video" || el.localName === "audio");
+}
+
+function isImageElement(el: Element | null): el is HTMLImageElement {
+  return el !== null && isHtmlElement(el) && el.localName === "img";
 }
 
 export function resolveMediaElement(el: Element): HTMLMediaElement | HTMLImageElement | null {
-  const win = el.ownerDocument.defaultView ?? window;
-  const MediaElementCtor = win.HTMLMediaElement ?? globalThis.HTMLMediaElement;
-  const ImageElementCtor = win.HTMLImageElement ?? globalThis.HTMLImageElement;
-  if (el instanceof MediaElementCtor || el instanceof ImageElementCtor) return el;
+  if (isMediaElement(el) || isImageElement(el)) return el;
   const candidate = el.querySelector("video, audio, img");
-  return candidate instanceof MediaElementCtor || candidate instanceof ImageElementCtor
-    ? candidate
-    : null;
+  return isMediaElement(candidate) || isImageElement(candidate) ? candidate : null;
 }
 
 function applyPlaybackMetadataFromElement(entry: TimelineElement, el: Element): void {
@@ -181,6 +189,7 @@ function applyPlaybackMetadataFromElement(entry: TimelineElement, el: Element): 
 
 export function applyMediaMetadataFromElement(entry: TimelineElement, el: Element): void {
   applyPlaybackMetadataFromElement(entry, el);
+  if (el.hasAttribute("data-source-window")) entry.sourceWindow = true;
 
   const mediaEl = resolveMediaElement(el);
   if (!mediaEl) return;
@@ -189,9 +198,7 @@ export function applyMediaMetadataFromElement(entry: TimelineElement, el: Elemen
   const src = mediaEl.getAttribute("src");
   if (src) entry.src = src;
 
-  const win = mediaEl.ownerDocument.defaultView ?? window;
-  const MediaElementCtor = win.HTMLMediaElement ?? globalThis.HTMLMediaElement;
-  if (typeof MediaElementCtor === "undefined" || !(mediaEl instanceof MediaElementCtor)) return;
+  if (!isMediaElement(mediaEl)) return;
 
   const sourceDurationAttr =
     el.getAttribute("data-source-duration") ?? mediaEl.getAttribute("data-source-duration");

@@ -108,19 +108,33 @@ func ASSCues(s Style, fontData []byte, cues []Cue, w, h int) (string, error) {
 	case "stacked":
 		size *= 1.08
 	}
+	letterSpacing, wordSpacing := s.LetterSpacing*size, s.WordSpacing*size
 	measure := func(text string) float64 {
 		n := fixed.Int26_6(0)
+		extra := 0.
 		for _, r := range text {
 			g, _ := face.GlyphIndex(&buf, r)
 			a, _ := face.GlyphAdvance(&buf, g, fixed.Int26_6(size*64), font.HintingNone)
 			n += a
+			extra += letterSpacing
+			if r == ' ' {
+				extra += wordSpacing
+			}
 		}
-		return float64(n) / 64
+		return float64(n)/64 + extra
 	}
 	var out strings.Builder
 	fmt.Fprintf(&out, "[Script Info]\nScriptType: v4.00+\nPlayResX: %d\nPlayResY: %d\nWrapStyle: 2\nScaledBorderAndShadow: yes\n\n[V4+ Styles]\nFormat: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\nStyle: Default,%s,%.3f,%s,%s,%s,%s,%d,0,0,0,100,100,0,0,1,%.2f,%.2f,5,0,0,0,1\n\n[Events]\nFormat: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n", w, h, meta.Family, size, assColor(s.TextColor, 1), assColor(s.TextColor, 1), assColor(s.OutlineColor, 1), assColor(s.OutlineColor, 1), s.Weight, outline, shadow)
 	event := func(layer int, start, end float64, text string) {
 		if end > start {
+			// ASS has no word-spacing property. Apply extra tracking only to
+			// space glyphs, restoring normal tracking before the next word.
+			if s.WordSpacing != 0 && layer > 0 {
+				text = strings.ReplaceAll(text, " ", fmt.Sprintf("{\\fsp%.3f} {\\fsp%.3f}", letterSpacing+wordSpacing, letterSpacing))
+			}
+			if layer > 0 && letterSpacing != 0 {
+				text = fmt.Sprintf("{\\fsp%.3f}", letterSpacing) + text
+			}
 			fmt.Fprintf(&out, "Dialogue: %d,%s,%s,Default,,0,0,0,,%s\n", layer, assTime(start), assTime(end), text)
 		}
 	}

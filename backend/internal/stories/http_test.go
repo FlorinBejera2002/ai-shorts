@@ -26,7 +26,8 @@ func (httpMedia) ValidateUploadSource(_ context.Context, user, key string) (stri
 func (httpMedia) SignedURL(_ context.Context, key string) (string, error) {
 	return "https://media.example.invalid/" + key + "?signed=true", nil
 }
-func (httpMedia) DeletePrefix(context.Context, string) error { return nil }
+func (httpMedia) DeletePrefix(context.Context, string) error            { return nil }
+func (httpMedia) DeleteStudioJob(context.Context, string, string) error { return nil }
 func (m httpMedia) ValidateNarrationUploadSource(ctx context.Context, user, key string) (string, error) {
 	return m.ValidateUploadSource(ctx, user, key)
 }

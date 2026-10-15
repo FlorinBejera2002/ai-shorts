@@ -248,7 +248,7 @@ func (h *Handler) persist(ctx context.Context, user string, in Request, reply st
 	}
 	defer tx.Rollback()
 	var id string
-	if err = tx.QueryRowContext(ctx, `SELECT id FROM users WHERE id=$1 AND access_role='member' AND NOT email_activation_required FOR UPDATE`, user).Scan(&id); err != nil {
+	if err = tx.QueryRowContext(ctx, `SELECT id FROM users WHERE id=$1 AND access_role IN ('member','admin') AND NOT email_activation_required FOR UPDATE`, user).Scan(&id); err != nil {
 		return err
 	}
 	// A fresh statement after the user lock observes a deletion marker committed

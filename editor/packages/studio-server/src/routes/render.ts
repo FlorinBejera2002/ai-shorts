@@ -61,7 +61,7 @@ export function registerRenderRoutes(api: Hono, adapter: StudioApiAdapter): void
   };
 
   const ensureCleanupTimer = () => {
-    if (cleanupTimer || !cleanupEnabled()) return;
+    if (cleanupTimer || !cleanupEnabled() || adapter.lifecycleSignal?.aborted) return;
     cleanupTimer = setInterval(cleanupFinishedJobs, CLEANUP_INTERVAL_MS);
     if (typeof cleanupTimer === "object" && "unref" in cleanupTimer) {
       cleanupTimer.unref();
@@ -69,6 +69,15 @@ export function registerRenderRoutes(api: Hono, adapter: StudioApiAdapter): void
   };
 
   ensureCleanupTimer();
+  adapter.lifecycleSignal?.addEventListener(
+    "abort",
+    () => {
+      if (cleanupTimer) clearInterval(cleanupTimer);
+      cleanupTimer = null;
+      renderJobs.clear();
+    },
+    { once: true },
+  );
 
   // Start a render
   api.post("/projects/:id/render", async (c) => {
@@ -83,6 +92,7 @@ export function registerRenderRoutes(api: Hono, adapter: StudioApiAdapter): void
       // unambiguous (29.97 ≠ 30000/1001 when ffmpeg consumes them).
       fps?: number | string;
       quality?: string;
+      hdrMode?: "auto" | "force-hdr" | "force-sdr";
       format?: string;
       resolution?: string;
       composition?: string;
@@ -110,6 +120,10 @@ export function registerRenderRoutes(api: Hono, adapter: StudioApiAdapter): void
     const quality = ["draft", "standard", "high"].includes(body.quality ?? "")
       ? (body.quality as string)
       : "standard";
+    if (body.hdrMode !== undefined && !["auto", "force-hdr", "force-sdr"].includes(body.hdrMode))
+      return c.json({ error: "unsupported dynamic range" }, 400);
+    if (body.hdrMode === "force-hdr" && format !== "mp4")
+      return c.json({ error: "HDR delivery requires MP4" }, 400);
     const outputResolution = VALID_RESOLUTIONS.has(body.resolution ?? "")
       ? (body.resolution as CanvasResolution)
       : undefined;
@@ -158,6 +172,7 @@ export function registerRenderRoutes(api: Hono, adapter: StudioApiAdapter): void
       format: format as "mp4" | "webm" | "mov",
       fps,
       quality,
+      hdrMode: body.hdrMode,
       jobId,
       outputResolution,
       composition,

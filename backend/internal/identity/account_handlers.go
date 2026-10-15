@@ -21,7 +21,7 @@ func (h *Handler) registerAccounts(router *httprouter.Router) {
 	}
 	router.Handler(http.MethodPost, "/v1/auth/resend-activation", h.originPolicy(h.Limit(h.resendActivation, "activation", 5, time.Hour)))
 	router.Handler(http.MethodPost, "/v1/auth/activate", h.originPolicy(h.Limit(h.activate, "activate", 10, time.Hour)))
-	router.Handler(http.MethodPost, "/api/user/password", h.Require(h.Limit(h.changePassword, "password", 8, time.Hour)))
+	router.Handler(http.MethodPost, "/api/user/password", h.Require(h.SecurityLimit(h.changePassword, "password", 8, time.Hour)))
 }
 
 func (h *Handler) readAccount(w http.ResponseWriter, r *http.Request, value any) bool {

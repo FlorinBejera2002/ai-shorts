@@ -1,6 +1,6 @@
 import { Film, LockKeyhole, Play } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { formatDuration } from '@/lib/youtube'
+import { formatStoryTime as formatDuration } from './story-time'
 import type {
   StoryAsset,
   StoryBlock,

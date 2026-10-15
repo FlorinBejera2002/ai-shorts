@@ -34,7 +34,7 @@ func planningClarification(questions []string) error {
 	return &ClarificationError{Question: strings.Join(clean, " ")}
 }
 
-const sourceFaithfulEditorialPolicy = `Honor editing_brief.original_request and every explicit instruction, including exclusions and negations, alongside selected_settings and source_constraints. The conservative_defaults are system fallbacks, never additional user requests. When selected_settings.caption_mode_revised is true, the user explicitly changed captions after the original request: that later caption choice overrides only original caption wording; every other original instruction remains binding. Preserve original voices, languages, framing, speed, expressive pauses, repetitions, gestures and non-speech scenes unless the user explicitly requests a justified change. A repeated phrase is not automatically a redundant take. Do not impose a hook, CTA, faster pace, music, transitions, translation, synthetic media or new claims. Prefer source order when there is no content-supported reason to change it. Never sacrifice complete meaning to hit target_seconds; name any material limit. Caption mode all covers verified dialogue, selective covers only audibly difficult passages supported by actual listening, and off adds no subtitle text; low volume or uncertain ASR alone is not audibility evidence. Unresolved explicit instruction conflicts are blocking findings; never silently choose one side of a material conflict. `
+const sourceFaithfulEditorialPolicy = `Honor editing_brief.original_request and every explicit instruction, including exclusions and negations, alongside selected_settings and source_constraints. The conservative_defaults are system fallbacks, never additional user requests. When selected_settings.caption_mode_revised is true, the user explicitly changed captions after the original request: that later caption choice overrides only original caption wording; every other original instruction remains binding. When selected_settings.aspect_ratio_revised is true, the user explicitly changed the output format after the original request: that later aspect ratio overrides only original output-format wording; every other original instruction remains binding. Preserve original voices, languages, framing, speed, expressive pauses, repetitions, gestures and non-speech scenes unless the user explicitly requests a justified change. A repeated phrase is not automatically a redundant take. Do not impose a hook, CTA, faster pace, music, transitions, translation, synthetic media or new claims. Prefer source order when there is no content-supported reason to change it. Never sacrifice complete meaning to hit target_seconds; name any material limit. Caption mode all covers verified dialogue, selective covers only audibly difficult passages supported by actual listening, and off adds no subtitle text; low volume or uncertain ASR alone is not audibility evidence. Unresolved explicit instruction conflicts are blocking findings; never silently choose one side of a material conflict. `
 
 // EditingBrief is a lossless interpretation envelope, not a creative rewrite.
 // The user's complete words and UI settings remain separate from our defaults;
@@ -51,6 +51,7 @@ type EditingBrief struct {
 type BriefSettings struct {
 	TargetSeconds      int    `json:"target_seconds"`
 	AspectRatio        string `json:"aspect_ratio"`
+	AspectRatioRevised bool   `json:"aspect_ratio_revised,omitempty"`
 	Language           string `json:"language"`
 	CaptionMode        string `json:"caption_mode"`
 	CaptionModeRevised bool   `json:"caption_mode_revised,omitempty"`
@@ -71,7 +72,7 @@ func BuildEditingBrief(req Request) EditingBrief {
 	brief := EditingBrief{
 		Version: 1, OriginalRequest: o.Brief,
 		ExplicitInstructions: []string{},
-		SelectedSettings:     BriefSettings{TargetSeconds: o.TargetSeconds, AspectRatio: o.AspectRatio, Language: o.Language, CaptionMode: EffectiveCaptionMode(o), CaptionModeRevised: o.CaptionModeRevised, PreserveOrder: o.PreserveOrder, Narration: o.Narration},
+		SelectedSettings:     BriefSettings{TargetSeconds: o.TargetSeconds, AspectRatio: o.AspectRatio, AspectRatioRevised: o.AspectRatioRevised, Language: o.Language, CaptionMode: EffectiveCaptionMode(o), CaptionModeRevised: o.CaptionModeRevised, PreserveOrder: o.PreserveOrder, Narration: o.Narration},
 		SourceConstraints:    []BriefSourceConstraint{},
 		ConservativeDefaults: []string{
 			"Preserve original voices, appearance, speed, complete ideas, meaningful pauses and gestures.",
@@ -149,7 +150,7 @@ func ValidateBriefSettings(o Options) error {
 		}
 	}
 	for _, match := range explicitAspect.FindAllStringSubmatch(text, -1) {
-		if match[1] != o.AspectRatio {
+		if !o.AspectRatioRevised && match[1] != o.AspectRatio {
 			return fmt.Errorf("the brief requests format %s but the selected format is %s; choose one format before generating", match[1], o.AspectRatio)
 		}
 	}

@@ -16,6 +16,7 @@ describe("SneepCut isolated editor host", () => {
   let role = "member";
   let deleting = false;
   let apiCreations = 0;
+  let apiGeneration = 0;
   beforeEach(async () => {
     root = await mkdtemp(join(tmpdir(), "sneepcut-editor-test-"));
     store = new ProjectStore(join(root, "projects"));
@@ -24,6 +25,7 @@ describe("SneepCut isolated editor host", () => {
     role = "member";
     deleting = false;
     apiCreations = 0;
+    apiGeneration = 0;
   });
   afterEach(async () => {
     await rm(root, { recursive: true, force: true });
@@ -35,6 +37,7 @@ describe("SneepCut isolated editor host", () => {
       editorOrigin,
       authBaseUrl: "https://api.sneepcut.test",
       store,
+      studioApiGeneration: () => apiGeneration,
       now: () => now,
       fetchAuth: async (input, init) => {
         expect(String(input)).toBe("https://api.sneepcut.test/v1/auth/me");
@@ -208,5 +211,8 @@ describe("SneepCut isolated editor host", () => {
     );
     expect(responses.every((response) => response.status === 200)).toBe(true);
     expect(apiCreations).toBe(1);
+    apiGeneration++;
+    expect((await app.request("/api/projects", { headers: memberHeaders })).status).toBe(200);
+    expect(apiCreations).toBe(2);
   });
 });

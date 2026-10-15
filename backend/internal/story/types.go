@@ -50,6 +50,8 @@ type Options struct {
 	Brief              string                 `json:"brief"`
 	TargetSeconds      int                    `json:"target_seconds"`
 	AspectRatio        string                 `json:"aspect_ratio"`
+	AspectRatioRevised bool                   `json:"aspect_ratio_revised,omitempty"` // later explicit format choice supersedes original format wording
+	DynamicRange       string                 `json:"dynamic_range,omitempty"`
 	Language           string                 `json:"language"`
 	Mode               string                 `json:"mode"`
 	PreserveOrder      bool                   `json:"preserve_order"`
@@ -89,6 +91,9 @@ type Asset struct {
 	Width                   int                      `json:"width"`
 	Height                  int                      `json:"height"`
 	HasAudio                bool                     `json:"has_audio"`
+	VideoCodec              string                   `json:"video_codec,omitempty"`
+	AudioCodec              string                   `json:"audio_codec,omitempty"`
+	ColorTransfer           string                   `json:"color_transfer,omitempty"`
 	Order                   int                      `json:"order"`
 	Role                    string                   `json:"role"`
 	Include                 string                   `json:"include"` // auto, required, excluded
@@ -98,6 +103,8 @@ type Asset struct {
 	AnalysisVersion         string                   `json:"analysis_version,omitempty"`
 	SemanticAnalysisVersion string                   `json:"semantic_analysis_version,omitempty"`
 	Candidates              []Candidate              `json:"candidates,omitempty"`
+	TranscriptProposals     []TranscriptProposal     `json:"transcript_proposals,omitempty"`
+	TranscriptReviews       []TranscriptReview       `json:"transcript_reviews,omitempty"`
 	Warnings                []string                 `json:"warnings,omitempty"`
 }
 
@@ -206,6 +213,10 @@ type Report struct {
 }
 
 type Output struct {
+	StudioManualEdits     bool         `json:"studio_manual_edits,omitempty"`
+	StudioTimeline        []Entry      `json:"studio_timeline,omitempty"`
+	StudioArtifactID      string       `json:"studio_artifact_id,omitempty"`
+	PreviewKey            string       `json:"preview_key,omitempty"`
 	Music                 *MusicCredit `json:"music,omitempty"`
 	CaptionMode           string       `json:"caption_mode,omitempty"`
 	CaptionWarnings       []string     `json:"caption_warnings,omitempty"`
@@ -242,19 +253,22 @@ type Attempt struct {
 }
 
 type Request struct {
-	BrandSnapshot    map[string]any `json:"brand_snapshot,omitempty"`
-	Music            *PreparedMusic `json:"-"`
-	ID               string         `json:"id"`
-	UserID           string         `json:"user_id"`
-	LogoKey          string         `json:"logo_key,omitempty"`
-	Options          Options        `json:"options"`
-	Assets           []Asset        `json:"assets"`
-	Base             *Version       `json:"base,omitempty"`
-	Action           string         `json:"action,omitempty"`
-	BlockID          string         `json:"block_id,omitempty"`
-	CandidateID      string         `json:"candidate_id,omitempty"`
-	VersionStart     int            `json:"version_start"`
-	PreviousAttempts []Attempt      `json:"previous_attempts,omitempty"`
+	StudioBaseArtifactID string         `json:"studio_base_artifact_id,omitempty"`
+	StudioOperationID    string         `json:"studio_operation_id,omitempty"`
+	StudioSourceClipID   string         `json:"studio_source_clip_id,omitempty"`
+	BrandSnapshot        map[string]any `json:"brand_snapshot,omitempty"`
+	Music                *PreparedMusic `json:"-"`
+	ID                   string         `json:"id"`
+	UserID               string         `json:"user_id"`
+	LogoKey              string         `json:"logo_key,omitempty"`
+	Options              Options        `json:"options"`
+	Assets               []Asset        `json:"assets"`
+	Base                 *Version       `json:"base,omitempty"`
+	Action               string         `json:"action,omitempty"`
+	BlockID              string         `json:"block_id,omitempty"`
+	CandidateID          string         `json:"candidate_id,omitempty"`
+	VersionStart         int            `json:"version_start"`
+	PreviousAttempts     []Attempt      `json:"previous_attempts,omitempty"`
 }
 
 type Result struct {

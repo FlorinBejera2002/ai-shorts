@@ -50,7 +50,7 @@ func TestFasterPaceMeasuresSilenceAndPreservesSpeechClock(t *testing.T) {
 	if timeline[0].Video != *timeline[0].Audio {
 		t.Fatal("audio/video source clocks differ")
 	}
-	out, err := p.RenderStory(ctx, req, story.Version{Number: 2, Plan: plan, Timeline: timeline})
+	out, err := renderStoryForTest(t, p, ctx, req, story.Version{Number: 2, Plan: plan, Timeline: timeline})
 	if err != nil {
 		t.Fatal(err)
 	}

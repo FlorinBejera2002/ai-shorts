@@ -1,6 +1,7 @@
 import { createAuthClient } from '@/lib/auth-client'
 import { publishAuthState } from '../stores/auth-store'
 import { queryClient } from '../query/query-client'
+import { flushStudioSaves, needsStudioSaveBarrier } from '@/components/studio/studio-save-barrier'
 
 // Preserve Fetch semantics for binary downloads, request bodies and long uploads.
 export const authClient = createAuthClient(
@@ -22,7 +23,10 @@ function syncAuthStore() {
 authClient.subscribe(syncAuthStore)
 syncAuthStore()
 
-export const apiFetch = authClient.apiFetch
+export async function apiFetch(path: string, init: RequestInit = {}) {
+  if (needsStudioSaveBarrier(path, init.method)) await flushStudioSaves()
+  return authClient.apiFetch(path, init)
+}
 export const publicApiFetch = authClient.publicFetch
 
 export function safeReturnPath(

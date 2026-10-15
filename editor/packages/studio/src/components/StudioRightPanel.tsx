@@ -1,8 +1,9 @@
-import { useCallback } from "react";
+import { useCallback, type CSSProperties } from "react";
 import type { StudioRightPanelProps } from "./StudioRightPanel.types";
 
 export type { StudioRightPanelProps };
 import { PropertyPanel } from "./editor/PropertyPanel";
+import { SourceCutInspector } from "./editor/SourceCutInspector";
 import { LayersPanel } from "./editor/LayersPanel";
 import { CaptionPropertyPanel } from "../captions/components/CaptionPropertyPanel";
 import { BlockParamsPanel } from "./editor/BlockParamsPanel";
@@ -50,6 +51,7 @@ export function StudioRightPanel({
 }: StudioRightPanelProps) {
   const {
     rightWidth,
+    setRightCollapsed,
     adjustPanelWidth,
     rightPanelTab,
     setRightPanelTab,
@@ -275,71 +277,76 @@ export function StudioRightPanel({
       domEditSaveTimestampRef={domEditSaveTimestampRef}
       forceReloadSharedSdkSession={forceReloadSdkSession}
     >
-      <PropertyPanel
-        projectId={projectId}
-        projectDir={projectDir}
-        assets={assets}
-        element={domEditGroupSelections.length > 1 ? null : domEditSelection}
-        multiSelectCount={domEditGroupSelections.length}
-        multiSelectedElements={domEditGroupSelections}
-        onGroupSelection={handleGroupSelection}
-        onHideAllSelected={handleHideAllSelected}
-        copiedAgentPrompt={copiedAgentPrompt}
-        onClearSelection={clearDomSelection}
-        onToggleElementHidden={onToggleElementHidden}
-        onAutoGroupCarveSources={onAutoGroupCarveSources}
-        onUngroup={handleUngroupSelection}
-        onSetStyle={handleDomStyleCommit}
-        onSetAttribute={handleDomAttributeCommit}
-        onSetAttributes={handleDomAttributesCommit}
-        onSetAttributeLive={setAttributeWhileDragging}
-        onSetAttributeQuiet={handleDomAttributeQuietCommit}
-        onApplyColorGradingScope={handleApplyColorGradingScope}
-        onSetHtmlAttribute={handleDomHtmlAttributeCommit}
-        onRemoveBackground={handleRemoveBackground}
-        onSetManualOffset={handleDomPathOffsetCommit}
-        onSetManualSize={handleDomBoxSizeCommit}
-        onSetManualRotation={handleDomRotationCommit}
-        onSetText={handleDomTextCommit}
-        onSetTextFieldStyle={handleDomTextFieldStyleCommit}
-        onAddTextField={handleDomAddTextField}
-        onRemoveTextField={handleDomRemoveTextField}
-        onAskAgent={handleAskAgent}
-        onImportAssets={handleImportFiles}
-        onAddMediaOverlay={onAddMediaOverlay}
-        fontAssets={fontAssets}
-        onImportFonts={handleImportFonts}
-        previewIframeRef={previewIframeRef}
-        gsapAnimations={selectedGsapAnimations}
-        gsapMultipleTimelines={gsapMultipleTimelines}
-        gsapUnsupportedTimelinePattern={gsapUnsupportedTimelinePattern}
-        onUpdateGsapProperty={handleGsapUpdateProperty}
-        onUpdateGsapMeta={handleGsapUpdateMeta}
-        onDeleteGsapAnimation={handleGsapDeleteAnimation}
-        onAddGsapProperty={handleGsapAddProperty}
-        onRemoveGsapProperty={handleGsapRemoveProperty}
-        onUpdateGsapFromProperty={handleGsapUpdateFromProperty}
-        onAddGsapFromProperty={handleGsapAddFromProperty}
-        onRemoveGsapFromProperty={handleGsapRemoveFromProperty}
-        onAddGsapAnimation={handleGsapAddAnimation}
-        onCommitAnimatedProperty={commitAnimatedProperty}
-        onCommitAnimatedProperties={commitAnimatedProperties}
-        onAddKeyframe={handleGsapAddKeyframe}
-        onRemoveKeyframe={handleGsapRemoveKeyframe}
-        onConvertToKeyframes={(animId, duration) =>
-          handleGsapConvertToKeyframes(animId, undefined, duration)
-        }
-        onSeekToTime={(t) => usePlayerStore.getState().requestSeek(t)}
-        onSetArcPath={handleSetArcPath}
-        onUpdateArcSegment={handleUpdateArcSegment}
-        onUnroll={handleUnroll}
-        onUpdateKeyframeEase={handleUpdateKeyframeEase}
-        onUpdateSegmentEase={handleUpdateSegmentEase}
-        onSetAllKeyframeEases={handleSetAllKeyframeEases}
-        recordingState={recordingState}
-        recordingDuration={recordingDuration}
-        onToggleRecording={onToggleRecording}
-      />
+      <SourceCutInspector
+        selection={domEditGroupSelections.length > 1 ? null : domEditSelection}
+        recordEdit={recordEdit}
+      >
+        <PropertyPanel
+          projectId={projectId}
+          projectDir={projectDir}
+          assets={assets}
+          element={domEditGroupSelections.length > 1 ? null : domEditSelection}
+          multiSelectCount={domEditGroupSelections.length}
+          multiSelectedElements={domEditGroupSelections}
+          onGroupSelection={handleGroupSelection}
+          onHideAllSelected={handleHideAllSelected}
+          copiedAgentPrompt={copiedAgentPrompt}
+          onClearSelection={clearDomSelection}
+          onToggleElementHidden={onToggleElementHidden}
+          onAutoGroupCarveSources={onAutoGroupCarveSources}
+          onUngroup={handleUngroupSelection}
+          onSetStyle={handleDomStyleCommit}
+          onSetAttribute={handleDomAttributeCommit}
+          onSetAttributes={handleDomAttributesCommit}
+          onSetAttributeLive={setAttributeWhileDragging}
+          onSetAttributeQuiet={handleDomAttributeQuietCommit}
+          onApplyColorGradingScope={handleApplyColorGradingScope}
+          onSetHtmlAttribute={handleDomHtmlAttributeCommit}
+          onRemoveBackground={handleRemoveBackground}
+          onSetManualOffset={handleDomPathOffsetCommit}
+          onSetManualSize={handleDomBoxSizeCommit}
+          onSetManualRotation={handleDomRotationCommit}
+          onSetText={handleDomTextCommit}
+          onSetTextFieldStyle={handleDomTextFieldStyleCommit}
+          onAddTextField={handleDomAddTextField}
+          onRemoveTextField={handleDomRemoveTextField}
+          onAskAgent={handleAskAgent}
+          onImportAssets={handleImportFiles}
+          onAddMediaOverlay={onAddMediaOverlay}
+          fontAssets={fontAssets}
+          onImportFonts={handleImportFonts}
+          previewIframeRef={previewIframeRef}
+          gsapAnimations={selectedGsapAnimations}
+          gsapMultipleTimelines={gsapMultipleTimelines}
+          gsapUnsupportedTimelinePattern={gsapUnsupportedTimelinePattern}
+          onUpdateGsapProperty={handleGsapUpdateProperty}
+          onUpdateGsapMeta={handleGsapUpdateMeta}
+          onDeleteGsapAnimation={handleGsapDeleteAnimation}
+          onAddGsapProperty={handleGsapAddProperty}
+          onRemoveGsapProperty={handleGsapRemoveProperty}
+          onUpdateGsapFromProperty={handleGsapUpdateFromProperty}
+          onAddGsapFromProperty={handleGsapAddFromProperty}
+          onRemoveGsapFromProperty={handleGsapRemoveFromProperty}
+          onAddGsapAnimation={handleGsapAddAnimation}
+          onCommitAnimatedProperty={commitAnimatedProperty}
+          onCommitAnimatedProperties={commitAnimatedProperties}
+          onAddKeyframe={handleGsapAddKeyframe}
+          onRemoveKeyframe={handleGsapRemoveKeyframe}
+          onConvertToKeyframes={(animId, duration) =>
+            handleGsapConvertToKeyframes(animId, undefined, duration)
+          }
+          onSeekToTime={(t) => usePlayerStore.getState().requestSeek(t)}
+          onSetArcPath={handleSetArcPath}
+          onUpdateArcSegment={handleUpdateArcSegment}
+          onUnroll={handleUnroll}
+          onUpdateKeyframeEase={handleUpdateKeyframeEase}
+          onUpdateSegmentEase={handleUpdateSegmentEase}
+          onSetAllKeyframeEases={handleSetAllKeyframeEases}
+          recordingState={recordingState}
+          recordingDuration={recordingDuration}
+          onToggleRecording={onToggleRecording}
+        />
+      </SourceCutInspector>
     </DesignPanelPromoteProvider>
   );
 
@@ -353,7 +360,7 @@ export function StudioRightPanel({
         aria-label="Resize inspector panel"
         aria-orientation="vertical"
         tabIndex={0}
-        className="group relative w-[3px] flex-shrink-0 cursor-col-resize outline-none focus-visible:bg-studio-accent/20"
+        className="group relative hidden w-[3px] flex-shrink-0 cursor-col-resize outline-none focus-visible:bg-studio-accent/20 sm:block"
         style={{ touchAction: "none" }}
         onPointerDown={(e) => handlePanelResizeStart("right", e)}
         onPointerMove={handlePanelResizeMove}
@@ -375,9 +382,21 @@ export function StudioRightPanel({
         <div className="absolute top-1/2 left-0 h-[52px] w-[3px] -translate-y-1/2 bg-white/12 transition-colors group-hover:bg-white/18 group-active:bg-white/24" />
       </div>
       <div
-        className="flex min-w-0 flex-shrink-0 flex-col overflow-hidden rounded-lg border border-neutral-800 bg-neutral-950"
-        style={{ width: rightWidth }}
+        aria-label="Inspector panel"
+        className="absolute inset-0 z-[60] flex min-w-0 flex-col overflow-hidden rounded-md border border-neutral-800 bg-neutral-950 sm:static sm:z-auto sm:w-[var(--inspector-width)] sm:flex-shrink-0"
+        style={{ "--inspector-width": `${rightWidth}px` } as CSSProperties}
       >
+        <div className="flex items-center justify-between border-b border-neutral-800 px-3 py-1 sm:hidden">
+          <span className="text-xs font-medium">Clip settings</span>
+          <button
+            type="button"
+            aria-label="Close inspector"
+            onClick={() => setRightCollapsed(true)}
+            className="min-h-9 rounded-md px-3 text-xs font-medium hover:bg-neutral-800"
+          >
+            Done
+          </button>
+        </div>
         {captionEditMode ? (
           <CaptionPropertyPanel iframeRef={previewIframeRef} />
         ) : (

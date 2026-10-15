@@ -6,6 +6,8 @@ import { storyCaptionMode, type StoryOptions } from './types'
 import { useStoryLanguage } from './use-story-language'
 import { StoryAppearance } from './story-appearance'
 import { StoryMusic } from './story-music'
+import { StoryFormat } from './story-format'
+import { StoryDynamicRange } from './story-dynamic-range'
 import { useAudioCleanupAvailability } from '@/hooks/use-audio-cleanup-availability'
 import { useTranslations } from 'next-intl'
 
@@ -245,27 +247,14 @@ export function StoryOptionsPanel({
                   </p>
                 )}
               </div>
-              <label className="space-y-2 text-sm">
-                <span className="block font-medium">
-                  {text('Shape', 'Format')}
-                </span>
-                <select
-                  className="story-select"
-                  aria-label={text('Shape', 'Format')}
-                  value={options.aspect_ratio}
-                  onChange={(event) =>
-                    change({ aspect_ratio: event.target.value })
-                  }
-                >
-                  <option value="9:16">
-                    {text('Portrait', 'Vertical')} · 9:16
-                  </option>
-                  <option value="1:1">{text('Square', 'Pătrat')} · 1:1</option>
-                  <option value="16:9">
-                    {text('Landscape', 'Orizontal')} · 16:9
-                  </option>
-                </select>
-              </label>
+              <StoryFormat
+                value={options.aspect_ratio}
+                onChange={(aspect_ratio) => change({ aspect_ratio })}
+              />
+              <StoryDynamicRange
+                value={options.dynamic_range}
+                onChange={(dynamic_range) => change({ dynamic_range })}
+              />
               <label className="space-y-2 text-sm">
                 <span className="block font-medium">
                   {text('Spoken language', 'Limba vorbită')}

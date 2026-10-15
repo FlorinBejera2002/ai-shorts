@@ -61,8 +61,13 @@ func TestPostgresTransitionRecipeAndCompletion(t *testing.T) {
 	clip.TikTokStorageKey = "clips/new-clean.mp4"
 	stale := *edit
 	stale.Token = token()
-	if err = repo.completeTransitions(ctx, &stale, clip); !errors.Is(err, ErrOwnership) {
+	commits := 0
+	publish := func(context.Context) error { commits++; return nil }
+	if err = repo.completeTransitions(ctx, &stale, clip, publish); !errors.Is(err, ErrOwnership) || commits != 0 {
 		t.Fatalf("stale completion: %v", err)
+	}
+	if err = repo.CompleteEdit(ctx, &stale, clip, nil, publish); !errors.Is(err, ErrOwnership) || commits != 0 {
+		t.Fatal("stale native edit published Studio project", err, commits)
 	}
 	if err = repo.completeTransitions(ctx, edit, clip); err != nil {
 		t.Fatal(err)

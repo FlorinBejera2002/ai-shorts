@@ -27,6 +27,7 @@ type Media interface {
 	SignedURL(context.Context, string) (string, error)
 	Delete(context.Context, string) error
 	DeletePrefix(context.Context, string) error
+	DeleteStudioArtifacts(context.Context, string, []string) error
 }
 type Config struct {
 	MaxClipDuration    float64

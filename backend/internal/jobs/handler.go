@@ -187,7 +187,18 @@ func (h *Handler) batch(w http.ResponseWriter, r *http.Request) {
 		failure(w, err)
 		return
 	}
-	reply(w, 201, map[string]any{"jobs": result, "total_credits": in.NumClips * 10 * len(result)})
+	totalCredits := 0
+	for _, raw := range result {
+		var job struct {
+			Credits int `json:"credits_charged"`
+		}
+		if err := json.Unmarshal(raw, &job); err != nil {
+			failure(w, err)
+			return
+		}
+		totalCredits += job.Credits
+	}
+	reply(w, 201, map[string]any{"jobs": result, "total_credits": totalCredits})
 }
 func (h *Handler) list(w http.ResponseWriter, r *http.Request)    { h.listWith(w, r, false) }
 func (h *Handler) history(w http.ResponseWriter, r *http.Request) { h.listWith(w, r, true) }

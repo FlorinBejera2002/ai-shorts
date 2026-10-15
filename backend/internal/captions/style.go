@@ -32,6 +32,8 @@ type Style struct {
 	MaxWidth          float64  `json:"max_width"`
 	MaxLines          int      `json:"max_lines"`
 	LineSpacing       float64  `json:"line_spacing"`
+	LetterSpacing     float64  `json:"letter_spacing"`
+	WordSpacing       float64  `json:"word_spacing"`
 	Position          Position `json:"position"`
 }
 
@@ -54,7 +56,7 @@ func (s Style) Validate() error {
 			return errors.New("caption colors must use six-digit hex values")
 		}
 	}
-	if !finiteRange(s.Size, .02, .16) || !finiteRange(s.Outline, 0, 8) || !finiteRange(s.Shadow, 0, 8) || !finiteRange(s.BackgroundOpacity, 0, 1) || !finiteRange(s.MaxWidth, .2, .96) || s.MaxLines < 1 || s.MaxLines > 3 || !finiteRange(s.LineSpacing, 1, 1.8) || !finiteRange(s.Position.X, 0, 1) || !finiteRange(s.Position.Y, 0, 1) || s.Weight < 100 || s.Weight > 900 {
+	if !finiteRange(s.Size, .02, .16) || !finiteRange(s.Outline, 0, 8) || !finiteRange(s.Shadow, 0, 8) || !finiteRange(s.BackgroundOpacity, 0, 1) || !finiteRange(s.MaxWidth, .2, .96) || s.MaxLines < 1 || s.MaxLines > 3 || !finiteRange(s.LineSpacing, 1, 1.8) || !finiteRange(s.LetterSpacing, -.05, .3) || !finiteRange(s.WordSpacing, 0, 1) || !finiteRange(s.Position.X, 0, 1) || !finiteRange(s.Position.Y, 0, 1) || s.Weight < 100 || s.Weight > 900 {
 		return errors.New("caption settings are outside the supported range")
 	}
 	if f, ok := Builtin(s.FontID); ok && !slices.Contains(f.Weights, s.Weight) {

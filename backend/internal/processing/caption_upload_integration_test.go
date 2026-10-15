@@ -132,17 +132,17 @@ func TestCustomFontHTTPUploadSaveReloadArchiveAndRealStoryExport(t *testing.T) {
 	source := storySource(t, p, dir, "caption-http-source", "black", 440)
 	request := story.Request{ID: "caption-http-story", UserID: owner, Options: story.Options{AspectRatio: "16:9", Captions: true, CaptionStyle: &saved.Kit.Style}, Assets: []story.Asset{source}}
 	version := story.Version{Number: 1, Timeline: []story.Entry{{OutputIn: 0, OutputOut: 1.3, Video: story.Interval{SourceID: source.ID, In: 0, Out: 1.3}, Audio: &story.Interval{SourceID: source.ID, In: 0, Out: 1.3}, Words: []story.Word{{Text: "ă â î ș ț", Start: .1, End: .55}, {Text: "Ă Â Î Ș Ț", Start: .65, End: 1.15}}}}}
-	output, err := p.RenderStory(ctx, request, version)
+	output, err := renderStoryForTest(t, p, ctx, request, version)
 	if err != nil || !output.Captions || output.Size == 0 {
 		t.Fatalf("saved custom font export failed %#v %v", output, err)
 	}
 	// The ordinary clip pipeline shares the exact font asset, including its second
 	// TikTok export variant; repeated materialization must remain safe.
-	ordinary, err := p.Render(ctx, RenderInput{SourceKey: source.Key, Namespace: "caption-http-ordinary", AspectRatio: "16:9", SubtitleStyle: "clean", BurnSubtitles: true, Segments: []Segment{{0, 1.3}}, Transcript: Transcript{Words: []Word{{Text: "ă â î ș ț Ă Â Î Ș Ț", Start: .1, End: 1.15}}}, Brand: map[string]any{"apply_brand": true, "user_id": owner, "caption_style": saved.Kit.Style}})
+	ordinary, err := renderClipForTest(t, p, ctx, RenderInput{SourceKey: source.Key, Namespace: "caption-http-ordinary", AspectRatio: "16:9", SubtitleStyle: "clean", BurnSubtitles: true, Segments: []Segment{{0, 1.3}}, Transcript: Transcript{Words: []Word{{Text: "ă â î ș ț Ă Â Î Ș Ț", Start: .1, End: 1.15}}}, Brand: map[string]any{"apply_brand": true, "user_id": owner, "caption_style": saved.Kit.Style}})
 	if err != nil || !ordinary.HasSubtitles || ordinary.TikTokStorageKey == "" {
 		t.Fatalf("ordinary custom font export failed %#v %v", ordinary, err)
 	}
-	fallback, err := p.Render(ctx, RenderInput{SourceKey: source.Key, Namespace: "caption-http-fallback", AspectRatio: "16:9", SubtitleStyle: "clean", BurnSubtitles: true, Segments: []Segment{{0, 1.3}}, Transcript: Transcript{Text: "Fără aliniere pe cuvinte", Segments: []TranscriptSegment{{Start: .1, End: 1.15, Text: "Fără aliniere pe cuvinte"}}}, Brand: map[string]any{"apply_brand": true, "user_id": owner, "caption_style": saved.Kit.Style}})
+	fallback, err := renderClipForTest(t, p, ctx, RenderInput{SourceKey: source.Key, Namespace: "caption-http-fallback", AspectRatio: "16:9", SubtitleStyle: "clean", BurnSubtitles: true, Segments: []Segment{{0, 1.3}}, Transcript: Transcript{Text: "Fără aliniere pe cuvinte", Segments: []TranscriptSegment{{Start: .1, End: 1.15, Text: "Fără aliniere pe cuvinte"}}}, Brand: map[string]any{"apply_brand": true, "user_id": owner, "caption_style": saved.Kit.Style}})
 	if err != nil || !fallback.HasSubtitles || fallback.Metadata["caption_timing"] != "phrase_fallback" {
 		t.Fatalf("genuine phrase fallback export failed %#v %v", fallback, err)
 	}
@@ -164,7 +164,7 @@ func TestCustomFontHTTPUploadSaveReloadArchiveAndRealStoryExport(t *testing.T) {
 	otfStyle := captions.Default()
 	otfStyle.FontID = uploaded.Font.ID
 	otfStyle.Weight = 400
-	otfClip, err := p.Render(ctx, RenderInput{SourceKey: source.Key, Namespace: "caption-http-otf", AspectRatio: "16:9", SubtitleStyle: "clean", BurnSubtitles: true, Segments: []Segment{{0, 1.3}}, Transcript: Transcript{Words: []Word{{Text: "ă â î ș ț Ă Â Î Ș Ț", Start: .1, End: 1.15}}}, Brand: map[string]any{"apply_brand": true, "user_id": owner, "caption_style": otfStyle}})
+	otfClip, err := renderClipForTest(t, p, ctx, RenderInput{SourceKey: source.Key, Namespace: "caption-http-otf", AspectRatio: "16:9", SubtitleStyle: "clean", BurnSubtitles: true, Segments: []Segment{{0, 1.3}}, Transcript: Transcript{Words: []Word{{Text: "ă â î ș ț Ă Â Î Ș Ț", Start: .1, End: 1.15}}}, Brand: map[string]any{"apply_brand": true, "user_id": owner, "caption_style": otfStyle}})
 	if err != nil || !otfClip.HasSubtitles {
 		t.Fatalf("actual OTF export failed %#v %v", otfClip, err)
 	}

@@ -38,7 +38,16 @@ func TestReplayVerifiesEveryOriginalWhenDuplicateAnalysisIsShared(t *testing.T) 
 }
 
 func TestReplaySharedAnalysisRejectsUnrelatedOrEscapingReferences(t *testing.T) {
+	for _, namespace := range []string{"analysis", "source-media"} {
+		t.Run(namespace, func(t *testing.T) { testReplaySharedCacheReferences(t, namespace) })
+	}
+}
+
+func testReplaySharedCacheReferences(t *testing.T, namespace string) {
+	t.Helper()
 	owner := story.Asset{ID: "one", Hash: strings.Repeat("a", 64), Size: 100, Duration: 8, Width: 640, Height: 480, AnalysisVersion: "analysis", ProxyKey: "work/run/analysis/one/analysis/proxy.mp4", ThumbnailKey: "work/run/analysis/one/analysis/thumbnail.jpg"}
+	owner.ProxyKey = strings.Replace(owner.ProxyKey, "/analysis/", "/"+namespace+"/", 1)
+	owner.ThumbnailKey = strings.Replace(owner.ThumbnailKey, "/analysis/", "/"+namespace+"/", 1)
 	copy := owner
 	copy.ID = "two"
 	request := story.Request{ID: "run", Assets: []story.Asset{owner, copy}}
@@ -46,6 +55,7 @@ func TestReplaySharedAnalysisRejectsUnrelatedOrEscapingReferences(t *testing.T) 
 		t.Fatal("verified duplicate thumbnail was rejected")
 	}
 	for _, key := range []string{"work/other/analysis/one/analysis/proxy.mp4", "work/run/analysis/missing/analysis/proxy.mp4", "work/run/analysis/two/../../one/proxy.mp4", owner.ThumbnailKey} {
+		key = strings.Replace(key, "/analysis/", "/"+namespace+"/", 1)
 		if replayAnalysisKeyAllowed(request, copy, key, false) {
 			t.Fatalf("unowned proxy accepted: %s", key)
 		}

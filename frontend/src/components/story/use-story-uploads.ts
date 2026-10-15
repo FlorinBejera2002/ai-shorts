@@ -16,13 +16,14 @@ export interface PendingUpload {
   duration?: number
 }
 
-/** Two transfers at a time, independently retryable with stable asset identities. */
+/** Two transfers, with up to two more files waiting for server validation. */
 export function useStoryUploads(
   projectID: string,
   refresh: (project?: StoryProject) => Promise<unknown>
 ) {
   const [items, setItems] = useState<PendingUpload[]>([])
   const active = useRef(new Map<string, AbortController>())
+  const transferring = useRef(new Set<string>())
   const urls = useRef(new Map<string, string>())
   const mounted = useRef(true)
   const nextOrder = useRef(0)
@@ -52,13 +53,16 @@ export function useStoryUploads(
   }, [])
 
   useEffect(() => {
-    const available = 2 - active.current.size
+    // Validation can decode a long source. Keep uploading the next files while
+    // it runs, but bound the overall pipeline so a large batch cannot flood it.
+    const available = Math.max(0, Math.min(2 - transferring.current.size, 4 - active.current.size))
     for (const item of items
       .filter((item) => item.status === 'queued' && item.projectId)
       .slice(0, available)) {
       if (active.current.has(item.id)) continue
       const controller = new AbortController()
       active.current.set(item.id, controller)
+      if (!item.reference) transferring.current.add(item.id)
       update(item.id, {
         status: item.reference ? 'validating' : 'uploading',
         error: undefined
@@ -81,6 +85,7 @@ export function useStoryUploads(
             }
           }
           const reference = item.reference ?? await retryBusy(() => uploadStoryFile(item.file, controller.signal, (bytes) => update(item.id, { bytes })))
+          transferring.current.delete(item.id)
           if (controller.signal.aborted) return
           update(item.id, { reference, bytes: item.file.size, status: 'validating' })
           const registered = await retryBusy(() => storyRequest<StoryProject>(
@@ -109,6 +114,7 @@ export function useStoryUploads(
               error: error instanceof Error ? error.message : 'Upload failed'
             })
         } finally {
+          transferring.current.delete(item.id)
           active.current.delete(item.id)
           // Wake the remaining queue even after an aborted transfer.
           if (mounted.current) setItems((current) => [...current])

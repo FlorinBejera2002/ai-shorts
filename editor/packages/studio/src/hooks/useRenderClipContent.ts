@@ -94,6 +94,27 @@ function renderAudioClip(
   });
 }
 
+function renderVideoClip(
+  el: TimelineElement,
+  pid: string,
+  sessionEpoch: number,
+  labelColor: string,
+  context: TimelineClipRenderContext,
+): ReactNode {
+  return createElement(VideoThumbnail, {
+    videoSrc: resolveMediaPreviewUrl(el.src ?? "", pid, window.location.origin),
+    label: "",
+    labelColor,
+    duration: el.duration,
+    sourceStart: el.playbackStart,
+    sourceRangeDuration: el.duration * (el.playbackRate ?? 1),
+    projectId: pid,
+    sessionEpoch,
+    priority: context.priority,
+    rich: context.rich,
+  });
+}
+
 interface UseRenderClipContentOptions {
   projectIdRef: { current: string | null };
   compIdToSrc: Map<string, string>;
@@ -140,6 +161,15 @@ export function useRenderClipContent({
           compIdToSrc.get(el.id) ||
           compIdToSrc.get(compSrc.replace(/^compositions\//, "").replace(/\.html$/, ""));
         if (resolved) compSrc = resolved;
+      }
+
+      // Source-scene hosts carry their nested video's URL and source-clock trim.
+      // Decode that slice directly; a standalone composition poster would lose
+      // the host's trim and spend a render job on every cut of the same footage.
+      if (el.sourceWindow) {
+        return el.tag === "video" && el.src
+          ? renderVideoClip(el, pid, sessionEpoch, style.label, context)
+          : null;
       }
 
       // Composition clips — always use the comp's own preview URL for thumbnails.
@@ -210,18 +240,7 @@ export function useRenderClipContent({
             rich: context.rich,
           });
         }
-        return createElement(VideoThumbnail, {
-          videoSrc: mediaSrc,
-          label: "",
-          labelColor: style.label,
-          duration: el.duration,
-          sourceStart: el.playbackStart,
-          sourceRangeDuration: el.duration * (el.playbackRate ?? 1),
-          projectId: pid,
-          sessionEpoch,
-          priority: context.priority,
-          rich: context.rich,
-        });
+        return renderVideoClip(el, pid, sessionEpoch, style.label, context);
       }
 
       if (htmlPreviewEligible) {

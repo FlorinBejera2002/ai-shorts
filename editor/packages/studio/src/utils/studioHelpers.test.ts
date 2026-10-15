@@ -100,6 +100,55 @@ describe("findMatchingTimelineElementId", () => {
       ),
     ).toBe("host-only");
   });
+
+  it("keeps a refreshed repeated host selected in its parent when preview sources are absolute", () => {
+    const elements = ["host-a", "host-b"].map((id) =>
+      el({
+        id,
+        domId: id,
+        key: `index.html#${id}`,
+        sourceFile: "index.html",
+        compositionSrc: "source-scene.html",
+      }),
+    );
+    expect(
+      findMatchingTimelineElementId(
+        {
+          id: "host-b",
+          sourceFile: "source-scene.html",
+          isCompositionHost: true,
+          compositionSrc:
+            "http://localhost:5195/api/projects/fixture/preview/comp/source-scene.html?v=2",
+        },
+        elements,
+      ),
+    ).toBe("index.html#host-b");
+  });
+
+  it("retains the imported cut parent identity while timeline composition metadata reloads", () => {
+    document.body.innerHTML =
+      '<div data-composition-id="main" data-composition-file="index.html"><div id="scene-1" data-source-window data-composition-id="source-scene-1" data-composition-file="source-scene-1.html"></div></div>';
+    expect(
+      findMatchingTimelineElementId(
+        {
+          id: "scene-1",
+          element: document.getElementById("scene-1")!,
+          sourceFile: "source-scene-1.html",
+          isCompositionHost: true,
+          compositionSrc: "source-scene-1.html",
+        },
+        [
+          el({
+            id: "scene-1",
+            domId: "scene-1",
+            key: "index.html#scene-1",
+            sourceFile: "index.html",
+          }),
+        ],
+      ),
+    ).toBe("index.html#scene-1");
+    document.body.innerHTML = "";
+  });
 });
 
 describe("findTimelineIdByAncestor", () => {

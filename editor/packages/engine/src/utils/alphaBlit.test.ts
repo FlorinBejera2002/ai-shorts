@@ -486,6 +486,32 @@ function makeDomRgba(
   return arr;
 }
 
+function pqCodeFromNits(nits: number): number {
+  const luminancePower = (nits / 10000) ** (2610 / 16384);
+  return Math.round(
+    ((3424 / 4096 + (2413 / 128) * luminancePower) / (1 + (2392 / 128) * luminancePower)) **
+      (2523 / 32) *
+      65535,
+  );
+}
+
+function nitsFromPqCode(code: number): number {
+  const signalPower = (code / 65535) ** (32 / 2523);
+  return (
+    (Math.max(signalPower - 3424 / 4096, 0) / (2413 / 128 - (2392 / 128) * signalPower)) **
+      (16384 / 2610) *
+    10000
+  );
+}
+
+function sceneLightFromHlgCode(code: number): number {
+  const signal = code / 65535;
+  const a = 0.17883277;
+  return signal <= 0.5
+    ? (signal * signal) / 3
+    : (Math.exp((signal - (0.5 - a * Math.log(4 * a))) / a) + 1 - 4 * a) / 12;
+}
+
 describe("blitRgba8OverRgb48le", () => {
   it("fully transparent DOM: canvas unchanged", () => {
     const canvas = makeHdrFrame(1, 1, 32000, 40000, 50000);
@@ -533,17 +559,27 @@ describe("blitRgba8OverRgb48le", () => {
     expect(canvasWhite.readUInt16LE(0)).toBe(65535);
   });
 
-  it("50% alpha: HLG-converted DOM blended with canvas", () => {
+  it("50% alpha blends HLG scene light rather than nonlinear code values", () => {
     // DOM: white (255, 255, 255) at alpha=128 (~50%)
     // Canvas: black (0, 0, 0)
     const canvas = makeHdrFrame(1, 1, 0, 0, 0);
     const dom = makeDomRgba(1, 1, 255, 255, 255, 128);
     blitRgba8OverRgb48le(dom, canvas, 1, 1);
 
-    // sRGB 255 → HLG 65535, blended 50/50 with black
-    const alpha = 128 / 255;
-    const expectedR = Math.round(65535 * alpha);
-    expect(canvas.readUInt16LE(0)).toBeCloseTo(expectedR, -1);
+    expect(sceneLightFromHlgCode(canvas.readUInt16LE(0))).toBeCloseTo(128 / 255, 4);
+  });
+
+  it("keeps partial-alpha SDR code-value blending unchanged", () => {
+    const canvas = makeHdrFrame(1, 1, 32000, 40000, 50000);
+    blitRgba8OverRgb48le(makeDomRgba(1, 1, 255, 128, 1, 128), canvas, 1, 1, "srgb");
+    expect(canvas.readUInt16LE(0)).toBe(Math.round(65535 * (128 / 255) + 32000 * (127 / 255)));
+    expect(canvas.readUInt16LE(2)).toBe(Math.round(128 * 257 * (128 / 255) + 40000 * (127 / 255)));
+    expect(canvas.readUInt16LE(4)).toBe(Math.round(257 * (128 / 255) + 50000 * (127 / 255)));
+    const black = makeHdrFrame(1, 1, 0, 0, 0);
+    blitRgba8OverRgb48le(makeDomRgba(1, 1, 255, 255, 255, 128), black, 1, 1, "srgb");
+    expect(black.readUInt16LE(0)).toBe(128 * 257);
+    expect(black.readUInt16LE(2)).toBe(128 * 257);
+    expect(black.readUInt16LE(4)).toBe(128 * 257);
   });
 
   it("50% alpha blends with non-zero canvas", () => {
@@ -605,6 +641,53 @@ describe("blitRgba8OverRgb48le", () => {
 });
 
 describe("blitRgba8OverRgb48le with PQ transfer", () => {
+  it.each([0, 128, 255])(
+    "composites SDR white with alpha %i over 1000-nit highlights in linear light",
+    (alpha) => {
+      const highlight = pqCodeFromNits(1000);
+      const canvas = makeHdrFrame(2, 1, highlight, highlight, highlight);
+      const untouched = Buffer.from(canvas.subarray(6));
+      const dom = new Uint8Array([255, 255, 255, alpha, 255, 255, 255, 0]);
+      blitRgba8OverRgb48le(dom, canvas, 2, 1, "pq");
+      const expected = 203 * (alpha / 255) + 1000 * (1 - alpha / 255);
+      for (const offset of [0, 2, 4])
+        expect(Math.abs(nitsFromPqCode(canvas.readUInt16LE(offset)) - expected)).toBeLessThan(0.15);
+      expect(canvas.subarray(6)).toEqual(untouched);
+      if (alpha === 0) expect(canvas.subarray(0, 6)).toEqual(untouched);
+      if (alpha === 255) expect(canvas.readUInt16LE(0)).toBe(38055);
+    },
+  );
+
+  it("blends asymmetric colors per channel in linear light", () => {
+    const canvas = makeHdrFrame(
+      1,
+      1,
+      pqCodeFromNits(1000),
+      pqCodeFromNits(400),
+      pqCodeFromNits(50),
+    );
+    const dom = makeDomRgba(1, 1, 255, 128, 32, 128);
+    blitRgba8OverRgb48le(dom, canvas, 1, 1, "pq");
+    const sourceLight = [
+      203,
+      203 * ((128 / 255 + 0.055) / 1.055) ** 2.4,
+      203 * ((32 / 255 + 0.055) / 1.055) ** 2.4,
+    ];
+    for (const [channel, background] of [1000, 400, 50].entries()) {
+      const expected = (sourceLight[channel] ?? 0) * (128 / 255) + background * (127 / 255);
+      expect(Math.abs(nitsFromPqCode(canvas.readUInt16LE(channel * 2)) - expected)).toBeLessThan(
+        0.15,
+      );
+    }
+  });
+
+  it("retains sub-nit shadow precision during a partial black overlay", () => {
+    const shadow = pqCodeFromNits(0.02);
+    const canvas = makeHdrFrame(1, 1, shadow, shadow, shadow);
+    blitRgba8OverRgb48le(makeDomRgba(1, 1, 0, 0, 0, 128), canvas, 1, 1, "pq");
+    expect(nitsFromPqCode(canvas.readUInt16LE(0))).toBeCloseTo(0.02 * (127 / 255), 5);
+  });
+
   it("PQ: black stays black, white maps to PQ white", () => {
     const canvasBlack = makeHdrFrame(1, 1, 0, 0, 0);
     const domBlack = makeDomRgba(1, 1, 0, 0, 0, 255);
@@ -813,6 +896,71 @@ describe("blitRgb48leRegion", () => {
 });
 
 // ── parseTransformMatrix tests ───────────────────────────────────────────────
+
+describe.each(["region", "affine"] as const)("native HDR %s opacity", (mode) => {
+  const apply = (
+    canvas: Buffer,
+    source: Buffer,
+    opacity: number,
+    borderRadius?: [number, number, number, number],
+    transfer: "pq" | "hlg" = "pq",
+  ) => {
+    if (mode === "region")
+      blitRgb48leRegion(canvas, source, 0, 0, 8, 8, 8, 8, opacity, borderRadius, transfer);
+    else
+      blitRgb48leAffine(
+        canvas,
+        source,
+        [1, 0, 0, 1, 0, 0],
+        8,
+        8,
+        8,
+        8,
+        opacity,
+        borderRadius,
+        transfer,
+      );
+  };
+
+  it.each([0, 0.5, 1])("mixes native PQ luminance at opacity %s", (opacity) => {
+    const highlight = pqCodeFromNits(1000);
+    const white = pqCodeFromNits(203);
+    const canvas = makeHdrFrame(8, 8, highlight, highlight, highlight);
+    const source = makeHdrFrame(8, 8, white, white, white);
+    const original = Buffer.from(canvas);
+    apply(canvas, source, opacity);
+    expect(
+      Math.abs(nitsFromPqCode(canvas.readUInt16LE(0)) - (1000 * (1 - opacity) + 203 * opacity)),
+    ).toBeLessThan(0.15);
+    if (opacity === 0) expect(canvas).toEqual(original);
+    if (opacity === 1) expect(canvas).toEqual(source);
+  });
+
+  it("combines a rounded edge mask and opacity in linear light", () => {
+    const highlight = pqCodeFromNits(1000);
+    const white = pqCodeFromNits(203);
+    const canvas = makeHdrFrame(8, 8, highlight, highlight, highlight);
+    const source = makeHdrFrame(8, 8, white, white, white);
+    const radius: [number, number, number, number] = [2, 2, 2, 2];
+    const mask = roundedRectAlpha(0, 1, 8, 8, radius);
+    expect(mask).toBeGreaterThan(0);
+    expect(mask).toBeLessThan(1);
+    apply(canvas, source, 0.5, radius);
+    const effective = 0.5 * mask;
+    expect(
+      Math.abs(
+        nitsFromPqCode(canvas.readUInt16LE(8 * 6)) - (1000 * (1 - effective) + 203 * effective),
+      ),
+    ).toBeLessThan(0.15);
+    expect(canvas.readUInt16LE(0)).toBe(highlight);
+  });
+
+  it("mixes HLG scene light when that transfer is selected", () => {
+    const canvas = makeHdrFrame(8, 8, 0, 0, 0);
+    apply(canvas, makeHdrFrame(8, 8, 65535, 65535, 65535), 0.5, undefined, "hlg");
+    expect(sceneLightFromHlgCode(canvas.readUInt16LE(0))).toBeCloseTo(0.5, 4);
+  });
+});
 
 describe("parseTransformMatrix", () => {
   it("preserves whitespace and numeric conversion for 2D and 3D matrices", () => {

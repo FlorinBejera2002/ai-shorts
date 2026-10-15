@@ -82,7 +82,10 @@ services:
   backend:
     <<: *app
     build: ./backend
-    networks: [default, studio]
+    networks:
+      default:
+        aliases: [backend-gateway]
+      studio: {}
     environment:
       <<: *environment
       GO_AUTH_ENABLED: "true"
@@ -115,12 +118,21 @@ services:
 
   worker:
     <<: *app
+    networks: [default, studio]
     build:
       context: ./backend
       target: worker
+    environment:
+      <<: *environment
+      STUDIO_AGENT_URL: ${STUDIO_AGENT_URL:-http://studio:5191}
+      STUDIO_AGENT_SECRET: ${STUDIO_AGENT_SECRET:?Set STUDIO_AGENT_SECRET for Studio rendering}
     depends_on:
       migrate:
         condition: service_completed_successfully
+      studio:
+        condition: service_healthy
+      nginx:
+        condition: service_started
     volumes: ['media_data:/app/media']
     tmpfs: ['/tmp:uid=10001,gid=10001,mode=1770']
     read_only: true
@@ -142,7 +154,10 @@ services:
       SNEEPCUT_APP_ADDITIONAL_ORIGINS: https://www.sneepcut.com
       SNEEPCUT_AUTH_BASE_URL: http://backend:8080
       SNEEPCUT_MEDIA_ORIGIN: https://sneepcut.com
+      SNEEPCUT_MEDIA_INTERNAL_ORIGIN: http://nginx
+      SNEEPCUT_MEDIA_S3_ORIGIN: ${SNEEPCUT_MEDIA_S3_ORIGIN:-}
       SNEEPCUT_STUDIO_DATA: /data/projects
+      SNEEPCUT_COMPOSITION_MAX_BYTES: ${SNEEPCUT_COMPOSITION_MAX_BYTES:-2147483648}
       SNEEPCUT_REGISTRY_DIR: /app/registry
       SNEEPCUT_AI_ROUTING: central
       STUDIO_AGENT_SECRET: ${STUDIO_AGENT_SECRET:?Set STUDIO_AGENT_SECRET for centralized Studio AI}
@@ -264,6 +279,8 @@ services:
     networks:
       default:
         ipv4_address: 172.30.94.253
+        aliases: [nginx-gateway]
+      studio: {}
     depends_on:
       backend:
         condition: service_healthy

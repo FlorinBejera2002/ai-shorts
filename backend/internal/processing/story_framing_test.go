@@ -30,7 +30,7 @@ func TestStoryLowResolutionFramingFillsCanvasWithoutDistortion(t *testing.T) {
 		t.Run(mode, func(t *testing.T) {
 			request := story.Request{ID: "framing-" + mode, Options: story.Options{AspectRatio: "9:16"}, Assets: []story.Asset{asset}}
 			version := story.Version{Number: 1, Timeline: []story.Entry{{BlockID: "one", OutputOut: .4, Video: story.Interval{SourceID: asset.ID, Out: .4}, Crop: mode}}}
-			output, err := p.RenderStory(ctx, request, version)
+			output, err := renderStoryForTest(t, p, ctx, request, version)
 			if err != nil {
 				t.Fatal(err)
 			}

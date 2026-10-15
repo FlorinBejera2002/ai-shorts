@@ -89,6 +89,23 @@ describe("distributeFrames", () => {
 });
 
 describe("calculateOptimalWorkers", () => {
+  it.each(["1", "2"])(
+    "respects a %s CPU sandbox even for explicit concurrency and workers",
+    (budget) => {
+      vi.stubEnv("HYPERFRAMES_RENDER_CPU_LIMIT", budget);
+      try {
+        expect(
+          calculateOptimalWorkers(900, undefined, { concurrency: 8, minParallelFrames: 120 }),
+        ).toBe(1);
+        expect(calculateOptimalWorkers(900, 24, { concurrency: 8 })).toBe(1);
+        expect(
+          calculateOptimalWorkers(900, undefined, { concurrency: 1, minParallelFrames: 120 }),
+        ).toBe(1);
+      } finally {
+        vi.unstubAllEnvs();
+      }
+    },
+  );
   it("lets high-cost auto renders fall back to one worker when CPU budget requires it", () => {
     const workers = calculateOptimalWorkers(180, undefined, {
       concurrency: 6,

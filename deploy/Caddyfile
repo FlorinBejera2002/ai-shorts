@@ -6,7 +6,7 @@ sneepcut.com, www.sneepcut.com {
 	encode zstd gzip
 	@application_api path /api/* /v1/* /media/*
 	handle @application_api {
-		reverse_proxy nginx:80 {
+		reverse_proxy nginx-gateway:80 {
 			header_up Host api.sneepcut.com
 		}
 	}
@@ -16,7 +16,7 @@ sneepcut.com, www.sneepcut.com {
 }
 
 api.sneepcut.com {
-	reverse_proxy nginx:80
+	reverse_proxy nginx-gateway:80
 }
 
 studio.sneepcut.com {
@@ -29,7 +29,7 @@ admin.sneepcut.com {
 	header X-Robots-Tag "noindex, nofollow"
 	@admin_api path /api/* /v1/*
 	handle @admin_api {
-		reverse_proxy nginx:80 {
+		reverse_proxy nginx-gateway:80 {
 			header_up Host api.sneepcut.com
 		}
 	}

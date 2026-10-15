@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import { initSandboxRuntimeModular } from "./init";
 import { collectRuntimeTimelinePayload } from "./timeline";
 import { TYPEGPU_PRESENT_HEARTBEAT_MS } from "./adapters/typegpu";
+import { resetSeekDispatchState } from "./adapters/seek-dispatch";
 import { WebAudioTransport } from "./webAudioTransport";
 import type { RuntimeTimelineLike } from "./types";
 import {
@@ -114,6 +115,7 @@ describe("initSandboxRuntimeModular", () => {
 
   beforeEach(() => {
     resetRuntimeDataForTests();
+    resetSeekDispatchState();
     document.body.innerHTML = "";
     (globalThis as typeof globalThis & { CSS?: { escape?: (value: string) => string } }).CSS ??= {};
     globalThis.CSS.escape ??= (value: string) => value;
@@ -535,6 +537,114 @@ describe("initSandboxRuntimeModular", () => {
     player?.renderSeek(9);
 
     expect(child.style.visibility).toBe("visible");
+  });
+
+  it.each(["duration", "end"])(
+    "keeps a live source-window left trim after timeline publication (%s)",
+    async (timingAttribute) => {
+      const raf = createManualRaf();
+      window.requestAnimationFrame = raf.requestAnimationFrame;
+      window.cancelAnimationFrame = raf.cancelAnimationFrame;
+      document.body.innerHTML = `
+        <div data-composition-id="main" data-root="true" data-start="0" data-duration="6">
+          <div id="scene-1" data-composition-id="source" data-source-window
+               data-start="0" data-duration="2" data-playback-start="1">
+            <video data-start="0" data-duration="6" data-media-start="0"></video>
+            <audio data-start="0" data-duration="6" data-media-start="0"></audio>
+            <span id="caption" data-start="1.5" data-duration="1">Caption</span>
+          </div>
+        </div>`;
+      window.__timelines = { main: createMockTimeline(6), source: createMockTimeline(6) };
+      initSandboxRuntimeModular();
+      const host = document.getElementById("scene-1")!;
+      const media = Array.from(document.querySelectorAll("video, audio"));
+      const settle = async () => {
+        for (let frame = 0; frame < 25; frame += 1) {
+          await Promise.resolve();
+          raf.step(16);
+        }
+        await Promise.resolve();
+      };
+      await settle();
+      expect(host.getAttribute("data-hf-authored-duration")).toBe("2");
+
+      host.setAttribute("data-start", "0.39");
+      host.setAttribute("data-playback-start", "1.39");
+      host.setAttribute(`data-${timingAttribute}`, timingAttribute === "duration" ? "1.61" : "2");
+      await settle();
+
+      expect(host.hasAttribute(`data-${timingAttribute}`)).toBe(false);
+      for (const child of media) {
+        expect(Number(child.getAttribute("data-media-start"))).toBeCloseTo(1.39);
+        expect(Number(child.getAttribute("data-duration"))).toBeCloseTo(1.61);
+      }
+      expect(Number(document.getElementById("caption")!.getAttribute("data-start"))).toBeCloseTo(
+        0.11,
+      );
+
+      // Undo restores the source window, even after the public timing was stripped.
+      host.setAttribute("data-start", "0");
+      host.setAttribute("data-playback-start", "1");
+      host.setAttribute("data-duration", "2");
+      await settle();
+      for (const child of media) {
+        expect(Number(child.getAttribute("data-media-start"))).toBeCloseTo(1);
+        expect(Number(child.getAttribute("data-duration"))).toBeCloseTo(2);
+      }
+    },
+  );
+
+  it("retains nested source windows through live trim publication and extension", async () => {
+    const raf = createManualRaf();
+    window.requestAnimationFrame = raf.requestAnimationFrame;
+    window.cancelAnimationFrame = raf.cancelAnimationFrame;
+    document.body.innerHTML = `
+      <div data-composition-id="main" data-root="true" data-start="0" data-duration="2">
+        <div id="window" data-composition-id="original" data-source-window
+             data-start="0" data-duration="1" data-playback-start="0.75">
+          <div data-composition-id="first" data-source-window data-start="0" data-duration="1" data-playback-start="0">
+            <video id="first-video" data-start="0" data-duration="4" data-media-start="0"></video>
+          </div>
+          <div data-composition-id="second" data-source-window data-start="1" data-duration="1" data-playback-start="1">
+            <video id="second-video" data-start="0" data-duration="4" data-media-start="0"></video>
+          </div>
+        </div>
+      </div>`;
+    window.__timelines = { main: createMockTimeline(2) };
+    initSandboxRuntimeModular();
+    const settle = async () => {
+      for (let frame = 0; frame < 25; frame += 1) {
+        await Promise.resolve();
+        raf.step(16);
+      }
+      await Promise.resolve();
+    };
+    await settle();
+    const first = document.getElementById("first-video")!;
+    const second = document.getElementById("second-video")!;
+    expect(Number(first.getAttribute("data-media-start"))).toBeCloseTo(0.75);
+    expect(Number(first.getAttribute("data-duration"))).toBeCloseTo(0.25);
+    expect(Number(second.getAttribute("data-duration"))).toBeCloseTo(0.75);
+
+    const mutations: MutationRecord[] = [];
+    const observer = new MutationObserver((records) => mutations.push(...records));
+    observer.observe(document.body, {
+      attributes: true,
+      subtree: true,
+      attributeFilter: ["data-start", "data-duration", "data-end", "data-hf-authored-duration"],
+    });
+    await settle();
+    observer.disconnect();
+    expect(mutations).toHaveLength(0);
+
+    const host = document.getElementById("window")!;
+    host.setAttribute("data-playback-start", "0");
+    host.setAttribute("data-duration", "2");
+    await settle();
+    expect(Number(first.getAttribute("data-media-start"))).toBeCloseTo(0);
+    expect(Number(first.getAttribute("data-duration"))).toBeCloseTo(1);
+    expect(Number(second.getAttribute("data-media-start"))).toBeCloseTo(1);
+    expect(Number(second.getAttribute("data-duration"))).toBeCloseTo(1);
   });
 
   it("keeps WebGPU presentation active after renderSeek pauses the frame", async () => {

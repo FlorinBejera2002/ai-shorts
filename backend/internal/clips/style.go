@@ -135,6 +135,8 @@ func prepareStyle(ctx context.Context, tx *sql.Tx, id string, payload map[string
 			recipe.HookText = saved.Recipe.HookText
 			recipe.SubtitleStyle = saved.Recipe.SubtitleStyle
 			recipe.SmartCrop = saved.Recipe.SmartCrop
+			recipe.AudioCleanup = saved.Recipe.AudioCleanup
+			recipe.PreparedAudio = saved.Recipe.PreparedAudio
 		}
 	}
 	if branded && len(recipe.Brand) == 0 {

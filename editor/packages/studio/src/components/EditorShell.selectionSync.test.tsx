@@ -10,6 +10,7 @@ const hookMocks = vi.hoisted(() => ({
 }));
 
 vi.mock("../hooks/useTimelineSelectionPreviewSync", () => hookMocks);
+vi.mock("./SourceImportNotice", () => ({ SourceImportNotice: () => null }));
 vi.mock("../contexts/StudioContext", () => ({
   useStudioPlaybackContext: () => ({
     captionEditMode: false,

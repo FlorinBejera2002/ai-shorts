@@ -51,8 +51,8 @@ func (r *Repository) Claim(ctx context.Context) (*Job, error) {
 		return nil, err
 	}
 	var kit []byte
-	var plan string
-	err = tx.QueryRowContext(ctx, `SELECT u.plan,coalesce((SELECT brand_snapshot FROM jobs WHERE id=$2),(SELECT to_jsonb(b) FROM brand_kits b WHERE b.user_id=u.id LIMIT 1),'{}'::jsonb) FROM users u WHERE u.id=$1`, j.UserID, j.ID).Scan(&plan, &kit)
+	var plan, role string
+	err = tx.QueryRowContext(ctx, `SELECT u.plan,u.access_role,coalesce((SELECT brand_snapshot FROM jobs WHERE id=$2),(SELECT to_jsonb(b) FROM brand_kits b WHERE b.user_id=u.id LIMIT 1),'{}'::jsonb) FROM users u WHERE u.id=$1`, j.UserID, j.ID).Scan(&plan, &role, &kit)
 	if err != nil {
 		return nil, err
 	}
@@ -62,7 +62,7 @@ func (r *Repository) Claim(ctx context.Context) (*Job, error) {
 	}
 	j.Brand["apply_brand"] = include && len(j.Brand) > 0
 	j.Brand["user_id"] = j.UserID
-	j.Brand["hide_platform_badge"] = plan == "agency" && j.Brand["hide_platform_badge"] == true
+	j.Brand["hide_platform_badge"] = (role == "admin" || plan == "agency") && j.Brand["hide_platform_badge"] == true
 	j.Brand["logo_key"] = j.Brand["logo_path"]
 	_, err = tx.ExecContext(ctx, `UPDATE jobs SET status='downloading',progress=5,progress_message='Processing started',started_at=now(),processing_active=true,updated_at=now() WHERE id=$1`, j.ID)
 	if err != nil {

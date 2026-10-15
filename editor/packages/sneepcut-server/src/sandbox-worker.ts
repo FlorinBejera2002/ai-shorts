@@ -9,6 +9,8 @@ if (request.kind === "probe") {
   const child = Bun.spawn(
     [
       "/usr/bin/ffprobe",
+      "-threads",
+      "1",
       "-v",
       "error",
       "-select_streams",

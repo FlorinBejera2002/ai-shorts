@@ -51,6 +51,14 @@ describe("computeThumbnailStrip", () => {
 });
 
 describe("resolveMediaPreviewUrl", () => {
+  it("keeps hydrated root-relative API media canonical across repeated resolution", () => {
+    const source = "/api/projects/proj-1/preview/assets/my%20clip.mp4?revision=2";
+    const resolved = resolveMediaPreviewUrl(source, "proj-1", "http://localhost:5190");
+    expect(resolved).toBe(source);
+    expect(resolveMediaPreviewUrl(resolved, "proj-1", "http://localhost:5190")).toBe(source);
+    expect(resolveMediaPreviewUrl("/api/media/clip.mp4", "proj-1")).toBe("/api/media/clip.mp4");
+  });
+
   it("reroutes same-origin root media resolved by the preview iframe", () => {
     expect(
       resolveMediaPreviewUrl(

@@ -27,6 +27,7 @@ type Media interface {
 	ValidateUploadSource(context.Context, string, string) (string, error)
 	SignedURL(context.Context, string) (string, error)
 	DeletePrefix(context.Context, string) error
+	DeleteStudioJob(context.Context, string, string) error
 }
 type Handler struct {
 	repo         *Repository
@@ -45,10 +46,13 @@ func (h *Handler) Register(r *httprouter.Router) {
 	r.Handler("GET", "/api/stories/:id", h.auth.Require(h.get))
 	r.Handler("PATCH", "/api/stories/:id", h.auth.RequireMember(h.auth.Limit(h.patch, "story-edit", 120, time.Hour)))
 	r.Handler("DELETE", "/api/stories/:id", h.auth.RequireMember(h.remove))
-	r.Handler("POST", "/api/stories/:id/assets", h.auth.RequireMember(h.auth.Limit(h.asset, "story-asset", 60, time.Hour)))
+	// One allowed 200-file collection must fit within the hourly registration
+	// allowance, including retries. Native validation remains limited to two jobs.
+	r.Handler("POST", "/api/stories/:id/assets", h.auth.RequireMember(h.auth.Limit(h.asset, "story-asset", 600, time.Hour)))
 	r.Handler("DELETE", "/api/stories/:id/assets/:assetId", h.auth.RequireMember(h.removeAsset))
 	r.Handler("POST", "/api/stories/:id/generate", h.auth.RequireMember(h.auth.Limit(h.generate, "story-generate", 20, time.Hour)))
 	r.Handler("POST", "/api/stories/:id/retry", h.auth.RequireMember(h.auth.Limit(h.generate, "story-generate", 20, time.Hour)))
+	r.Handler("POST", "/api/stories/:id/transcript-review", h.auth.RequireMember(h.auth.Limit(h.reviewTranscript, "story-edit", 120, time.Hour)))
 	r.Handler("POST", "/api/stories/:id/cancel", h.auth.RequireMember(h.cancel))
 	r.Handler("POST", "/api/stories/:id/rollback", h.auth.RequireMember(h.auth.Limit(h.rollback, "story-edit", 120, time.Hour)))
 }
@@ -73,6 +77,8 @@ func failure(w http.ResponseWriter, err error) {
 		status, msg = 422, err.Error()
 	case errors.Is(err, ErrCredits):
 		status, msg = 402, err.Error()
+	case errors.Is(err, ErrInactive):
+		status, msg = 403, err.Error()
 	}
 	reply(w, status, map[string]string{"detail": msg})
 }
@@ -102,6 +108,7 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	in.Options.CaptionModeRevised = false
+	in.Options.AspectRatioRevised = false
 	options, err := story.NormalizeOptions(in.Options)
 	if err != nil {
 		failure(w, fmt.Errorf("%w: %s", ErrInvalid, err))
@@ -168,6 +175,11 @@ func (h *Handler) respondProject(w http.ResponseWriter, r *http.Request, user, i
 				m["thumbnail_url"] = url
 			}
 		}
+		if a.ProxyKey != "" {
+			if proxyURL, proxyErr := h.media.SignedURL(r.Context(), a.ProxyKey); proxyErr == nil {
+				m["proxy_url"] = proxyURL
+			}
+		}
 		if a.AudioCleanup != nil {
 			if details, ok := m["audio_cleanup"].(map[string]any); ok {
 				if a.AudioCleanup.Status == "ready" && a.AudioCleanup.Key != "" {
@@ -184,6 +196,7 @@ func (h *Handler) respondProject(w http.ResponseWriter, r *http.Request, user, i
 		delete(m, "key")
 		delete(m, "proxy_key")
 		delete(m, "thumbnail_key")
+		delete(m, "transcript_reviews")
 	}
 	versions := out["versions"].([]any)
 	for i, v := range p.Versions {
@@ -191,7 +204,13 @@ func (h *Handler) respondProject(w http.ResponseWriter, r *http.Request, user, i
 		if v.Output.Key != "" && v.Accepted {
 			url, e := h.media.SignedURL(r.Context(), v.Output.Key)
 			if e == nil {
+				m["export_url"] = url
 				m["preview_url"] = url
+			}
+			if v.Output.PreviewKey != "" {
+				if previewURL, previewErr := h.media.SignedURL(r.Context(), v.Output.PreviewKey); previewErr == nil {
+					m["preview_url"] = previewURL
+				}
 			}
 		}
 		if v.Output.ThumbnailKey != "" && v.Accepted {
@@ -202,6 +221,7 @@ func (h *Handler) respondProject(w http.ResponseWriter, r *http.Request, user, i
 		}
 		if output, ok := m["output"].(map[string]any); ok {
 			delete(output, "key")
+			delete(output, "preview_key")
 			delete(output, "thumbnail_key")
 		}
 	}
@@ -308,7 +328,11 @@ func (h *Handler) asset(w http.ResponseWriter, r *http.Request) {
 		a, err = h.engine.Inspect(ctx, key)
 	}
 	if err != nil {
-		message := "The video could not be validated. Use a complete SDR MP4 or MOV file with supported video/audio codecs."
+		message := "The video could not be validated. Use a complete MP4 or MOV file with H.264, HEVC or ProRes video."
+		var validation interface{ UploadMessage() string }
+		if errors.As(err, &validation) {
+			message = validation.UploadMessage()
+		}
 		if in.Kind == "narration" {
 			message = "The narration could not be validated. Use an audio-only WebM, M4A, MP3, WAV or Ogg recording, up to 3 minutes and 32 MiB."
 		}

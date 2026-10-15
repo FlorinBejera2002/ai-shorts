@@ -5,14 +5,14 @@ import (
 	"crypto/rand"
 	"database/sql"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"sneepcut/backend-go/internal/audiocleanup"
+	"sneepcut/backend-go/internal/credits"
 	"strings"
 )
 
-var ErrCredits = errors.New("Insufficient credits")
-var ErrInactive = errors.New("Account is unavailable")
+var ErrCredits = credits.ErrInsufficient
+var ErrInactive = credits.ErrInactive
 
 type Repository struct{ db *sql.DB }
 
@@ -70,23 +70,11 @@ func (s *Repository) createTx(ctx context.Context, tx *sql.Tx, userID string, in
 	if err := validateAudioCleanup(inputs); err != nil {
 		return nil, err
 	}
-	var err error
 	amount := 0
 	for _, p := range inputs {
 		amount += p.Input.NumClips * 10
 	}
-	var reserved string
-	err = tx.QueryRowContext(ctx, `UPDATE users SET credits=credits-$2,updated_at=now() WHERE id=$1 AND credits >= $2 AND access_role='member' AND NOT EXISTS(SELECT 1 FROM account_deletion_requests WHERE user_id=$1) RETURNING id`, userID, amount).Scan(&reserved)
-	if errors.Is(err, sql.ErrNoRows) {
-		var active bool
-		if e := tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM users WHERE id=$1 AND access_role='member' AND NOT EXISTS(SELECT 1 FROM account_deletion_requests WHERE user_id=$1))`, userID).Scan(&active); e != nil {
-			return nil, e
-		}
-		if !active {
-			return nil, ErrInactive
-		}
-		return nil, ErrCredits
-	}
+	charged, err := credits.Reserve(ctx, tx, userID, amount)
 	if err != nil {
 		return nil, err
 	}
@@ -94,11 +82,15 @@ func (s *Repository) createTx(ctx context.Context, tx *sql.Tx, userID string, in
 	for _, p := range inputs {
 		id, taskID := newID(), newID()
 		in := p.Input
+		jobCharge := 0
+		if charged > 0 {
+			jobCharge = in.NumClips * 10
+		}
 		message := "Queued"
 		if p.Batch {
 			message = "Queued (batch)"
 		}
-		_, err = tx.ExecContext(ctx, `INSERT INTO jobs (id,user_id,source_type,source_url,source_file_path,source_storage_key,status,progress,progress_message,num_clips_requested,aspect_ratio,language,subtitle_style,include_brand,user_instructions,credits_charged,celery_task_id) VALUES ($1,$2,$3,$4,$5,$6,'pending',0,$7,$8,$9,$10,$11,$12,$13,$14,$15)`, id, userID, in.SourceType, in.SourceURL, in.SourceFilePath, in.SourceStorageKey, message, in.NumClips, in.AspectRatio, in.Language, in.SubtitleStyle, in.IncludeBrand, in.UserInstructions, in.NumClips*10, taskID)
+		_, err = tx.ExecContext(ctx, `INSERT INTO jobs (id,user_id,source_type,source_url,source_file_path,source_storage_key,status,progress,progress_message,num_clips_requested,aspect_ratio,language,subtitle_style,include_brand,user_instructions,credits_charged,celery_task_id) VALUES ($1,$2,$3,$4,$5,$6,'pending',0,$7,$8,$9,$10,$11,$12,$13,$14,$15)`, id, userID, in.SourceType, in.SourceURL, in.SourceFilePath, in.SourceStorageKey, message, in.NumClips, in.AspectRatio, in.Language, in.SubtitleStyle, in.IncludeBrand, in.UserInstructions, jobCharge, taskID)
 		if err != nil {
 			return nil, err
 		}

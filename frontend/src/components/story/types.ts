@@ -6,6 +6,7 @@ export interface StoryOptions {
   brief: string
   target_seconds: number
   aspect_ratio: string
+  dynamic_range?: 'sdr' | 'hdr'
   language: string
   mode: string
   preserve_order: boolean
@@ -76,6 +77,7 @@ export function storyOptionsEqual(current: StoryOptions, saved: StoryOptions) {
     current.brief === saved.brief &&
     current.target_seconds === saved.target_seconds &&
     current.aspect_ratio === saved.aspect_ratio &&
+    (current.dynamic_range ?? 'sdr') === (saved.dynamic_range ?? 'sdr') &&
     current.language === saved.language &&
     current.mode === saved.mode &&
     current.preserve_order === saved.preserve_order &&
@@ -101,6 +103,24 @@ export interface StoryWord {
   end: number
 }
 
+export interface StoryTranscriptProposal {
+  id: string
+  candidate_id: string
+  in: number
+  out: number
+  words: StoryWord[]
+  confidence: number
+  reason: string
+  timing_verified: boolean
+  reviewed: boolean
+}
+
+export interface StoryTranscriptApproval {
+  asset_id: string
+  proposal_id: string
+  words: string[]
+}
+
 export interface StoryCandidate {
   id: string
   source_id: string
@@ -114,6 +134,7 @@ export interface StoryCandidate {
 }
 
 export interface StoryAsset {
+  transcript_proposals?: StoryTranscriptProposal[]
   processed_audio_url?: string
   audio_cleanup?: {
     status: 'ready' | 'failed' | 'unchanged' | 'no_audio'
@@ -128,6 +149,7 @@ export interface StoryAsset {
   order: number
   kind?: 'narration' | 'video'
   source_url?: string
+  proxy_url?: string
   thumbnail_url?: string
   candidates?: StoryCandidate[]
   warnings?: string[]
@@ -163,9 +185,11 @@ export interface StoryVersion {
   parent: number
   accepted: boolean
   preview_url?: string
+  export_url?: string
   thumbnail_url?: string
   render_options?: StoryOptions
   output?: {
+    captions?: boolean
     duration?: number
     music?: StoryMusicOutput
     caption_warnings?: string[]

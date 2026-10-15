@@ -62,6 +62,9 @@ func (passAuth) RequireDeletionAuth(h http.HandlerFunc) http.Handler { return h 
 func (passAuth) Limit(h http.HandlerFunc, _ string, _ int, _ time.Duration) http.HandlerFunc {
 	return h
 }
+func (passAuth) SecurityLimit(h http.HandlerFunc, _ string, _ int, _ time.Duration) http.HandlerFunc {
+	return h
+}
 func TestHTTPRejectsUnknownFieldsWrongContentTypeAndOversizedBody(t *testing.T) {
 	r := httprouter.New()
 	New(nil, passAuth{}, nil, nil, Config{}).Register(r)

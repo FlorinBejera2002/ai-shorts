@@ -71,7 +71,7 @@ func TestNaturalRenderAndUnchangedRegeneration(t *testing.T) {
 		t.Fatal(err)
 	}
 	input := RenderInput{SourceKey: "sources/transitions.mp4", Namespace: "natural", PreserveGeometry: true, NaturalTransitions: true, Segments: []Segment{{0, .65}, {1.15, 2}}, Transcript: Transcript{Words: []Word{{"end.", .5, .7}, {"start", 1.1, 1.3}}}}
-	clip, err := p.Render(ctx, input)
+	clip, err := renderClipForTest(t, p, ctx, input)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -85,7 +85,7 @@ func TestNaturalRenderAndUnchangedRegeneration(t *testing.T) {
 	state.Recipe.Namespace = "unchanged"
 	state.Recipe.Reuse = &clip
 	state.Recipe.PreviousDecisions = state.Decisions
-	again, err := p.Render(ctx, state.Recipe)
+	again, err := renderClipForTest(t, p, ctx, state.Recipe)
 	if err != nil {
 		t.Fatal(err)
 	}

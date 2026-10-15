@@ -28,7 +28,7 @@ test('Caddy routes the public frontend and API hostnames separately', () => {
   )
   assert.match(
     caddy,
-    /api\.sneepcut\.com \{[\s\S]*reverse_proxy nginx:80/
+    /api\.sneepcut\.com \{[\s\S]*reverse_proxy nginx-gateway:80/
   )
 })
 
@@ -47,7 +47,7 @@ test('production frontend runs nginx without root or Linux capabilities', () => 
 })
 
 test('admin deployment isolates the UI and reuses the main authentication origin', () => {
-  const admin = compose.slice(compose.indexOf('  admin:'), compose.indexOf('  nginx:'))
+  const admin = compose.slice(compose.indexOf('\n  admin:'), compose.indexOf('\n  nginx:'))
   assert.ok(admin.includes('VITE_API_URL: https://sneepcut.com'))
   assert.ok(admin.includes('read_only: true'))
   assert.ok(admin.includes('cap_drop: ["ALL"]'))
@@ -70,6 +70,9 @@ test('the production proxy trust chain uses matching fixed addresses', () => {
   assert.match(compose, /ipv4_address: 172\.30\.94\.253/)
   assert.match(compose, /ipv4_address: 172\.30\.94\.254/)
   assert.match(nginx, /set_real_ip_from 172\.30\.94\.254;/)
+  assert.match(nginx, /server backend-gateway:8080;/)
+  assert.match(compose, /default:\s+aliases: \[backend-gateway\]/)
+  assert.match(compose, /ipv4_address: 172\.30\.94\.253\s+aliases: \[nginx-gateway\]/)
 })
 
 test('Makefile exposes full and component deployment commands', () => {

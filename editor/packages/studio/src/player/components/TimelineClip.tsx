@@ -90,6 +90,7 @@ export const TimelineClip = memo(function TimelineClip({
     font: "inherit",
     padding: 0,
     textAlign: "left",
+    touchAction: "none",
     transform: isDragging ? "translateY(-1px)" : undefined,
   };
 
@@ -131,7 +132,8 @@ export const TimelineClip = memo(function TimelineClip({
             left: 0,
             top: 0,
             bottom: 0,
-            width: 14,
+            width: Math.min(22, widthPx / 3),
+            touchAction: "none",
             cursor: "col-resize",
             zIndex: 4,
           }}
@@ -161,7 +163,8 @@ export const TimelineClip = memo(function TimelineClip({
             right: 0,
             top: 0,
             bottom: 0,
-            width: 14,
+            width: Math.min(22, widthPx / 3),
+            touchAction: "none",
             cursor: "col-resize",
             zIndex: 4,
           }}

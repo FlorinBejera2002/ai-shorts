@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"sneepcut/backend-go/internal/agentaction"
+	creditledger "sneepcut/backend-go/internal/credits"
 )
 
 type LifecycleInput struct {
@@ -42,14 +43,8 @@ func checkLifecycleState(ctx context.Context, tx *sql.Tx, user, id, expected str
 	return nil
 }
 func checkLifecycleMember(ctx context.Context, tx *sql.Tx, user string) error {
-	var member bool
-	if err := tx.QueryRowContext(ctx, `SELECT access_role IN ('member','admin') AND NOT email_activation_required AND NOT EXISTS(SELECT 1 FROM account_deletion_requests WHERE user_id=$1) FROM users WHERE id=$1 FOR UPDATE`, user).Scan(&member); err != nil {
-		return err
-	}
-	if !member {
-		return errors.New("Account is unavailable")
-	}
-	return nil
+	_, err := creditledger.Reserve(ctx, tx, user, 0)
+	return err
 }
 func finishLifecycleDelete(ctx context.Context, tx *sql.Tx, user string, g *lifecycleDeleteGuard) error {
 	_, err := tx.ExecContext(ctx, `UPDATE agent_action_receipts SET result=$3 WHERE user_id=$1 AND request_id=$2 AND action='stories.delete'`, user, g.RequestID, encoded(g.Result))

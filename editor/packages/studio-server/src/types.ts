@@ -100,6 +100,9 @@ export interface StudioSelectionResponse {
  * provides its own implementation.
  */
 export interface StudioApiAdapter {
+  /** Abort when the host closes this account runtime; releases route-owned timers. */
+  lifecycleSignal?: AbortSignal;
+
   /** List all available projects. */
   listProjects(): Promise<ResolvedProject[]> | ResolvedProject[];
 
@@ -155,6 +158,8 @@ export interface StudioApiAdapter {
      */
     fps: import("@hyperframes/core").Fps;
     quality: string;
+    /** Delivery intent; a preview proxy must never decide export dynamic range. */
+    hdrMode?: "auto" | "force-hdr" | "force-sdr";
     jobId: string;
     /**
      * The triggering browser profile has telemetry disabled (localStorage

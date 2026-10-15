@@ -35,6 +35,7 @@ import { createRuntimePlayer, type RuntimePlayerTransport } from "./player";
 import { createRuntimeState } from "./state";
 import { collectRuntimeTimelinePayload } from "./timeline";
 import { createRuntimeStartTimeResolver } from "./startResolver";
+import { projectSourceCompositionWindows } from "./sourceCompositionWindow";
 import { createClipTree } from "./clipTree";
 import { loadExternalCompositions, loadInlineTemplateCompositions } from "./compositionLoader";
 import { applyCaptionOverrides } from "./captionOverrides";
@@ -533,11 +534,23 @@ export function initSandboxRuntimeModular(): void {
       // so visibility/parity continues to derive from the live sub-timeline.
       const authoredDuration = node.getAttribute("data-duration");
       const authoredEnd = node.getAttribute("data-end");
-      if (authoredDuration != null && !node.hasAttribute(AUTHORED_DURATION_ATTR)) {
+      // Source windows are edited in place by Studio. Preserve each new public
+      // window before stripping it, rather than retaining the first loaded trim.
+      // Replacing duration with end (or vice versa) must also clear the old
+      // representation so it cannot override the newly authored one.
+      const refreshSourceWindow = node.hasAttribute("data-source-window");
+      if (
+        authoredDuration != null &&
+        (refreshSourceWindow || !node.hasAttribute(AUTHORED_DURATION_ATTR))
+      ) {
         node.setAttribute(AUTHORED_DURATION_ATTR, authoredDuration);
+      } else if (refreshSourceWindow && authoredDuration == null) {
+        node.removeAttribute(AUTHORED_DURATION_ATTR);
       }
-      if (authoredEnd != null && !node.hasAttribute(AUTHORED_END_ATTR)) {
+      if (authoredEnd != null && (refreshSourceWindow || !node.hasAttribute(AUTHORED_END_ATTR))) {
         node.setAttribute(AUTHORED_END_ATTR, authoredEnd);
+      } else if (refreshSourceWindow && authoredEnd == null) {
+        node.removeAttribute(AUTHORED_END_ATTR);
       }
       // Strip public timing attrs on non-root compositions after preserving
       // authored values privately. Runtime timing can still distinguish
@@ -1028,6 +1041,7 @@ export function initSandboxRuntimeModular(): void {
   let wakeTransport: () => void = () => {};
 
   const invalidateCompositionTimingCaches = () => {
+    projectSourceCompositionWindows(document);
     compositionTimingRevision += 1;
     // The same records that stale the duration caches are what a parked
     // transport is waiting for: a timing attribute edited, a sub-composition
@@ -1605,6 +1619,7 @@ export function initSandboxRuntimeModular(): void {
     // no-op with no retry — so re-assert here, at the render site. Idempotent.
     ensureStudioCustomEase();
     if (!externalCompositionsReady) return false;
+    projectSourceCompositionWindows(document);
     const currentTimeline = state.capturedTimeline;
     const currentDuration = getTimelineDurationSeconds(currentTimeline);
     const currentTimelineUsable = isUsableTimelineDuration(currentDuration);

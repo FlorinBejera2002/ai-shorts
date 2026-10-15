@@ -113,7 +113,7 @@ func (h *Handler) save(ctx context.Context, r *Run) error {
 
 func (h *Handler) authorized(ctx context.Context, r Run) bool {
 	var ok bool
-	err := h.db.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM users u JOIN sessions s ON s.user_id=u.id WHERE u.id=$1 AND s.session_token=$2 AND s.expires>now() AND u.access_role='member' AND NOT u.email_activation_required AND NOT EXISTS(SELECT 1 FROM account_deletion_requests WHERE user_id=u.id))`, r.UserID, "go-jwt:"+r.SessionID).Scan(&ok)
+	err := h.db.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM users u JOIN sessions s ON s.user_id=u.id WHERE u.id=$1 AND s.session_token=$2 AND s.expires>now() AND u.access_role IN ('member','admin') AND u.account_status='active' AND NOT u.email_activation_required AND NOT EXISTS(SELECT 1 FROM account_deletion_requests WHERE user_id=u.id))`, r.UserID, "go-jwt:"+r.SessionID).Scan(&ok)
 	return err == nil && ok
 }
 

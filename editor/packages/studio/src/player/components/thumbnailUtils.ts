@@ -103,6 +103,10 @@ export function resolveMediaPreviewUrl(
 ): string {
   if (!src) return src;
   if (/^(?:data:|blob:)/i.test(src)) return src;
+  // Live preview hydration can expose either absolute URLs or root-relative
+  // API URLs. The latter are already routed; prefixing them again fetches HTML
+  // (or a 404) instead of the media and poisons the shared decoder cache.
+  if (src.startsWith("/api/")) return src;
 
   let relativePath = src;
   let suffix = "";

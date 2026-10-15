@@ -225,6 +225,9 @@ func (r *Repository) deleteGuarded(ctx context.Context, user, id string, media M
 	if err = tx.Commit(); err != nil {
 		return err
 	}
+	if err = media.DeleteStudioJob(ctx, user, id); err != nil {
+		return err
+	}
 	for _, prefix := range []string{"work/" + id + "/", "clips/" + id + "/", "sources/" + id + "/"} {
 		if err = media.DeletePrefix(ctx, prefix); err != nil {
 			return err

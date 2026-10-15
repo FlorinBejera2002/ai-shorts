@@ -152,8 +152,8 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 	}
 	defer tx.Rollback()
 	// Serialize admissions by owner, bounding active work and double clicks across tabs.
-	var owner string
-	if err = tx.QueryRowContext(r.Context(), `SELECT id FROM users WHERE id=$1 FOR UPDATE`, user).Scan(&owner); err != nil {
+	var owner, role string
+	if err = tx.QueryRowContext(r.Context(), `SELECT id,access_role FROM users WHERE id=$1 FOR UPDATE`, user).Scan(&owner, &role); err != nil {
 		failure(w, err)
 		return
 	}
@@ -188,7 +188,7 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 		failure(w, err)
 		return
 	}
-	if active >= 3 {
+	if active >= 3 && role != "admin" {
 		httpx.Error(w, 429, "Wait for an active operation to finish or stop it first")
 		return
 	}
@@ -224,6 +224,7 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 			failure(w, err)
 			return
 		}
+		s = accountSuggestion(s, role == "admin")
 		locale := in.Context.Locale
 		in.Context = s.Context
 		if locale != "" {
@@ -245,6 +246,12 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 		status = "running"
 		if cost > 0 {
 			status = "waiting_for_confirmation"
+		}
+		for _, capability := range h.executor.Catalog() {
+			if capability.Name == s.Action.Name && (capability.Risk == "external" || capability.Risk == "destructive") {
+				status = "waiting_for_confirmation"
+				break
+			}
 		}
 	}
 	_, err = tx.ExecContext(r.Context(), `INSERT INTO workspace_agent_runs(id,user_id,session_id,request_hash,message,status,context,action,cost_credits) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)`, in.RequestID, user, principal.SessionID, hash, in.Message, status, encode(in.Context), action, cost)

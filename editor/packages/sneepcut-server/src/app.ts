@@ -12,6 +12,7 @@ import {
 } from "./auth";
 import type { ProjectStore, StoredProject } from "./store";
 import { openEmptyWorkspace } from "./clip-import";
+import { COMPOSITION_REQUEST_MAX_BYTES } from "./composition-limits";
 
 export interface EditorAppOptions {
   appOrigin: string;
@@ -20,11 +21,13 @@ export interface EditorAppOptions {
   authBaseUrl: string;
   store: ProjectStore;
   createStudioApiForUser: (user: EditorUser) => Hono | Promise<Hono>;
+  studioApiGeneration?: (owner: string) => number;
   initializeProject?: (project: StoredProject) => Promise<void>;
   importClip?: (userId: string, bearer: string, clipId: string) => Promise<StoredProject>;
   fetchAuth?: import("./auth").AuthFetcher;
   now?: () => number;
   agentSecret?: string;
+  compositionService?: (request: Request) => Promise<Response>;
 }
 const publicProject = ({ id, title }: StoredProject) => ({ id, title });
 export function normalizeAppOrigin(value: string): string {
@@ -52,7 +55,13 @@ export function createApp(options: EditorAppOptions) {
   const editorUrl = new URL(options.editorOrigin);
   const secure = !["localhost", "127.0.0.1", "[::1]"].includes(editorUrl.hostname);
   const apis = new Map<string, Promise<Hono>>();
+  const apiGenerations = new Map<string, number>();
   function userApi(user: EditorUser): Promise<Hono> {
+    const generation = options.studioApiGeneration?.(user.id) ?? 0;
+    if (apiGenerations.get(user.id) !== generation) {
+      apis.delete(user.id);
+      apiGenerations.set(user.id, generation);
+    }
     let api = apis.get(user.id);
     if (!api) {
       api = Promise.resolve().then(() => options.createStudioApiForUser(user));
@@ -76,6 +85,11 @@ export function createApp(options: EditorAppOptions) {
   });
   // Service grants cannot be used on browser endpoints or arbitrary Studio APIs.
   app.post("/sneepcut/agent", bodyLimit({ maxSize: 24000 }), (c) => bridge(c.req.raw));
+  app.post("/sneepcut/composition", bodyLimit({ maxSize: COMPOSITION_REQUEST_MAX_BYTES }), (c) =>
+    options.compositionService
+      ? options.compositionService(c.req.raw)
+      : c.json({ error: "Composition rendering unavailable" }, 503),
+  );
   app.use("*", async (c, next) => {
     if (
       c.req.path !== "/health" &&
@@ -169,8 +183,11 @@ export function createApp(options: EditorAppOptions) {
       body.title.trim().length > 160
     )
       return c.json({ error: "Title must contain 1–160 characters" }, 400);
-    const project = await options.store.create(c.get("user").id, body.title);
-    await options.initializeProject?.(project);
+    const project = await options.store.create(
+      c.get("user").id,
+      body.title,
+      options.initializeProject,
+    );
     return c.json({ project: publicProject(project) }, 201);
   });
   app.all("/api/*", async (c) => {

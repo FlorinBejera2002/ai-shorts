@@ -32,12 +32,7 @@ doctor: ## Check required local tools
 	@echo "Local tooling is ready."
 
 ensure-env: ## Create .env from .env.example when missing
-	@if [[ ! -f .env ]]; then \
-		cp .env.example .env; \
-		echo "Created .env from .env.example; add real service credentials as needed."; \
-	else \
-		echo ".env already exists."; \
-	fi
+	@node scripts/ensure-env.mjs
 
 setup: ensure-env ## Build, start, and verify the default stack
 	@$(COMPOSE) up --build -d

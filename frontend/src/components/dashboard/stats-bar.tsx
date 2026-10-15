@@ -1,19 +1,25 @@
 ﻿import { Link } from '@/i18n/navigation'
 import { Clock3, Film, FolderOpen, Zap } from 'lucide-react'
+import { useAuth } from '@/components/auth/use-auth'
 import { useLocale, useTranslations } from 'next-intl'
 
 export function StatsBar({
   credits,
+  creditsUnlimited,
   jobCount,
   clipCount,
   durationMinutes
 }: {
   credits: number
+  creditsUnlimited?: boolean
   jobCount: number
   clipCount: number
   durationMinutes: number
 }) {
   const t = useTranslations('dashboard.studio')
+  const billing = useTranslations('billing')
+  const { user } = useAuth()
+  const unlimited = creditsUnlimited ?? user?.access_role === 'admin'
   const locale = useLocale()
   const stats = [
     {
@@ -39,9 +45,9 @@ export function StatsBar({
     },
     {
       label: t('credits'),
-      value: credits,
+      value: unlimited ? '∞' : credits,
       icon: Zap,
-      hint: t('creditsHint'),
+      hint: unlimited ? billing('creditsUnlimited') : t('creditsHint'),
       href: '/dashboard/billing'
     }
   ]
@@ -63,7 +69,7 @@ export function StatsBar({
             />
           </div>
           <div className="mt-2 text-[1.9rem] font-medium leading-none tracking-tight tabular-nums">
-            {value.toLocaleString(locale)}
+            {typeof value === 'number' ? value.toLocaleString(locale) : value}
           </div>
           <div className="mt-2 flex items-center justify-between gap-2 text-xs text-muted-foreground">
             <span>{hint}</span>

@@ -676,6 +676,39 @@ describe("resolveDomEditSelection", () => {
     ).toBeNull();
   });
 
+  it("retains a selected imported source host while the reload still uses its preview URL", () => {
+    const document = createDocument(
+      '<div data-composition-id="main"><div id="scene-1" data-source-window data-composition-src="http://localhost:5195/api/projects/fixture/preview/comp/source-scene-1.html?v=2"></div></div>',
+    );
+    expect(
+      findElementForSelection(
+        document,
+        { id: "scene-1", sourceFile: "source-scene-1.html" },
+        "index.html",
+      ),
+    ).toBe(document.getElementById("scene-1"));
+  });
+
+  it("keeps the same source host after a split edit copies its child file", () => {
+    const before = createDocument(
+      '<div data-composition-id="main" data-composition-file="index.html"><div id="scene-1" data-source-window data-composition-file="source-scene-1.html"></div></div>',
+    );
+    const after = createDocument(
+      '<div data-composition-id="main" data-composition-file="index.html"><div id="scene-1" data-source-window data-composition-file="source-scene-3.html"></div></div>',
+    );
+    expect(
+      findElementForSelection(
+        after,
+        {
+          id: "scene-1",
+          sourceFile: "source-scene-1.html",
+          element: before.getElementById("scene-1")!,
+        },
+        "index.html",
+      ),
+    ).toBe(after.getElementById("scene-1"));
+  });
+
   it("escapes ids and composition ids when creating stable selectors", async () => {
     const document = createDocument(`
       <div data-composition-id="main">

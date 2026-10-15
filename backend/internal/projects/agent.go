@@ -62,7 +62,7 @@ func (r *Repository) RenameConditional(ctx context.Context, user, id, requestID 
 		return RenameResult{}, err
 	}
 	var active bool
-	err = tx.QueryRowContext(ctx, `SELECT access_role='member' AND NOT email_activation_required FROM users WHERE id=$1 FOR UPDATE`, user).Scan(&active)
+	err = tx.QueryRowContext(ctx, `SELECT access_role IN ('member','admin') AND NOT email_activation_required FROM users WHERE id=$1 FOR UPDATE`, user).Scan(&active)
 	if err != nil {
 		return RenameResult{}, err
 	}

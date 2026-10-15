@@ -64,6 +64,8 @@ services:
       LOCAL_MEDIA_ROOT: /app/media
       ALLOWED_HOSTS: ${GO_ALLOWED_HOSTS:-localhost,127.0.0.1,backend,nginx,frontend}
       TRUSTED_PROXY_CIDRS: ${TRUSTED_PROXY_CIDRS:-172.16.0.0/12,192.168.0.0/16}
+      STUDIO_AGENT_URL: ${STUDIO_AGENT_URL:-http://studio:5191}
+      STUDIO_AGENT_SECRET: ${STUDIO_AGENT_SECRET:-}
     depends_on:
       postgres:
         condition: service_healthy
@@ -101,9 +103,15 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER:-sneepcut}:${DB_PASSWORD:-changeme}@postgres:5432/${POSTGRES_DB:-sneepcut}?sslmode=disable
       REDIS_URL: redis://redis:6379/0
       LOCAL_MEDIA_ROOT: /app/media
+      STUDIO_AGENT_URL: ${STUDIO_AGENT_URL:-http://studio:5191}
+      STUDIO_AGENT_SECRET: ${STUDIO_AGENT_SECRET:-}
     depends_on:
       migrate:
         condition: service_completed_successfully
+      studio:
+        condition: service_healthy
+      nginx:
+        condition: service_healthy
     volumes:
       - media_data:/app/media
     tmpfs:
@@ -116,12 +124,69 @@ services:
     restart: unless-stopped
     stop_grace_period: 5m
 
+  studio:
+    build:
+      context: ./editor
+      dockerfile: Dockerfile.sneepcut
+    environment:
+      SNEEPCUT_STUDIO_HOST: 0.0.0.0
+      SNEEPCUT_STUDIO_PORT: "5191"
+      STUDIO_AGENT_SECRET: ${STUDIO_AGENT_SECRET:-}
+      SNEEPCUT_STUDIO_ORIGIN: ${VITE_STUDIO_URL:-http://localhost:5191}
+      SNEEPCUT_APP_ORIGIN: ${APP_URL:-http://localhost:3000}
+      SNEEPCUT_AUTH_BASE_URL: http://backend:8080
+      SNEEPCUT_MEDIA_ORIGIN: ${APP_URL:-http://localhost:3000}
+      SNEEPCUT_MEDIA_INTERNAL_ORIGIN: http://nginx
+      SNEEPCUT_MEDIA_S3_ORIGIN: ${SNEEPCUT_MEDIA_S3_ORIGIN:-}
+      SNEEPCUT_STUDIO_DATA: /data/projects
+      SNEEPCUT_COMPOSITION_MAX_BYTES: ${SNEEPCUT_COMPOSITION_MAX_BYTES:-2147483648}
+      SNEEPCUT_REGISTRY_DIR: /app/registry
+      SNEEPCUT_AI_ROUTING: central
+      SNEEPCUT_AI_BASE_URL: ${SNEEPCUT_AI_BASE_URL:-}
+      SNEEPCUT_AI_MODEL: ${SNEEPCUT_AI_MODEL:-}
+      SNEEPCUT_AI_API_KEY: ${SNEEPCUT_AI_API_KEY:-}
+      AI_PROVIDER: ${AI_PROVIDER:-auto}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL_NAME: ${GEMINI_MODEL_NAME:-gemini-2.5-flash}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      OPENROUTER_MODEL_NAME: ${OPENROUTER_MODEL_NAME:-google/gemini-2.5-flash}
+      PRODUCER_HEADLESS_SHELL_PATH: /usr/bin/chromium
+      HYPERFRAMES_NO_TELEMETRY: "1"
+      HOME: /tmp/studio-home
+    ports:
+      - "127.0.0.1:${STUDIO_HOST_PORT:-5191}:5191"
+    volumes:
+      - studio_data:/data
+    shm_size: 1gb
+    tmpfs: ["/tmp:size=3g,uid=1000,gid=1000,mode=1770"]
+    read_only: true
+    user: "1000:1000"
+    cap_drop: ["ALL"]
+    security_opt:
+      - no-new-privileges:true
+      - seccomp=./deploy/studio-seccomp.json
+      - apparmor=unconfined
+      - systempaths=unconfined
+    init: true
+    pids_limit: 512
+    mem_limit: 4g
+    cpus: 2
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "bun", "-e", "fetch('http://127.0.0.1:5191/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
   frontend:
     build:
       context: ./frontend
       args:
         VITE_APP_URL: ${VITE_APP_URL:-http://localhost:3000}
         VITE_CONTACT_EMAIL: ${VITE_CONTACT_EMAIL:-}
+        VITE_STUDIO_URL: ${VITE_STUDIO_URL:-http://localhost:5191}
     depends_on:
       backend:
         condition: service_healthy
@@ -166,3 +231,4 @@ volumes:
   postgres_data:
   media_data:
   clamav_data:
+  studio_data:

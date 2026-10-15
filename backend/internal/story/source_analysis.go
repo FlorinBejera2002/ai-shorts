@@ -50,6 +50,14 @@ func cloneAssets(assets []Asset) []Asset {
 	for i := range cloned {
 		cloned[i].Warnings = slices.Clone(assets[i].Warnings)
 		cloned[i].Candidates = slices.Clone(assets[i].Candidates)
+		cloned[i].TranscriptProposals = slices.Clone(assets[i].TranscriptProposals)
+		for j := range cloned[i].TranscriptProposals {
+			cloned[i].TranscriptProposals[j].Words = slices.Clone(assets[i].TranscriptProposals[j].Words)
+		}
+		cloned[i].TranscriptReviews = slices.Clone(assets[i].TranscriptReviews)
+		for j := range cloned[i].TranscriptReviews {
+			cloned[i].TranscriptReviews[j].Words = slices.Clone(assets[i].TranscriptReviews[j].Words)
+		}
 		for j := range cloned[i].Candidates {
 			cloned[i].Candidates[j].Words = slices.Clone(assets[i].Candidates[j].Words)
 			cloned[i].Candidates[j].Dependencies = slices.Clone(assets[i].Candidates[j].Dependencies)

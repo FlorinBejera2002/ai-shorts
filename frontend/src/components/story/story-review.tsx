@@ -7,10 +7,12 @@ import { useStoryLanguage } from './use-story-language'
 /** Raw reports stay in the authenticated project API for support diagnostics. */
 export function StoryReview({
   version,
-  onSeek
+  onSeek,
+  hasTranscriptProposals = false
 }: {
   version: StoryVersion
   onSeek?: (seconds: number) => void
+  hasTranscriptProposals?: boolean
 }) {
   const text = useStoryLanguage()
   const issues = customerReviewIssues(version)
@@ -54,10 +56,15 @@ export function StoryReview({
         >
           <span>
             {issue.type === 'caption_unavailable'
-              ? text(
-                  'Some captions could not be added. Retry, or turn captions off in Appearance.',
-                  'Unele subtitrări nu au putut fi adăugate. Reîncearcă sau dezactivează subtitrările din Aspect.'
-                )
+              ? hasTranscriptProposals
+                ? text(
+                    'Some captions could not be added. Review the proposed transcripts below and rebuild captions.',
+                    'Unele subtitrări nu au putut fi adăugate. Verifică transcrierile propuse mai jos și regenerează subtitrările.'
+                  )
+                : text(
+                    'Some captions could not be added. Retry, or turn captions off in Appearance.',
+                    'Unele subtitrări nu au putut fi adăugate. Reîncearcă sau dezactivează subtitrările din Aspect.'
+                  )
               : labels[reviewTopic(issue.type)]}
           </span>
           {onSeek && issue.type !== 'caption_unavailable' && (

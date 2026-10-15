@@ -16,3 +16,14 @@ func TestCreateExplainsCaptionConflictBeforeAccessingDatabase(t *testing.T) {
 		t.Fatalf("caption conflict was hidden: %d %s", w.Code, w.Body.String())
 	}
 }
+
+func TestCreateRejectsForgedAspectRevision(t *testing.T) {
+	h := &Handler{}
+	req := httptest.NewRequest("POST", "/api/stories", strings.NewReader(`{"id":"synthetic","options":{"brief":"Format: 9:16.","aspect_ratio":"1:1","aspect_ratio_revised":true}}`))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	h.create(w, req)
+	if w.Code != 422 || !strings.Contains(w.Body.String(), "brief requests format") {
+		t.Fatalf("forged format revision bypassed validation: %d %s", w.Code, w.Body.String())
+	}
+}

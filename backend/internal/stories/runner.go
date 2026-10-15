@@ -78,7 +78,16 @@ func (r *Runner) execute(ctx context.Context, e *execution) (runErr, finishErr e
 	result, runErr := r.Builder.Run(work, e.Input, e)
 	finalCtx, stop := context.WithTimeout(context.WithoutCancel(ctx), 30*time.Second)
 	defer stop()
-	finishErr = e.finish(finalCtx, result, runErr)
+	commit := func(ctx context.Context, owner, artifact string) error {
+		committer, ok := r.Builder.(interface {
+			CommitStudio(context.Context, string, string) error
+		})
+		if !ok {
+			return errors.New("Studio project publication is unavailable")
+		}
+		return committer.CommitStudio(ctx, owner, artifact)
+	}
+	finishErr = e.finish(finalCtx, result, runErr, commit)
 	if runErr != nil && r.Logger != nil {
 		r.Logger.Warn("Story execution did not complete", "story_id", e.ID)
 	}

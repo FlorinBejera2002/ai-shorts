@@ -61,6 +61,7 @@ import { DomEditProvider } from "./contexts/DomEditContext";
 import { StudioSplash } from "./components/StudioSplash";
 import { useServerConnection } from "./hooks/useServerConnection";
 import { useWorkspaceAgentSelection } from "./hooks/useWorkspaceAgentSelection";
+import { useDashboardSaveBridge } from "./hooks/useDashboardSaveBridge";
 import { useStudioSessionStart } from "./hooks/useStudioSessionStart";
 import { useTimelineAddAtPlayhead } from "./hooks/useTimelineAddAtPlayhead";
 import { readStudioUrlStateFromWindow, resolveMasterCompositionPath } from "./utils/studioUrlState";
@@ -144,6 +145,16 @@ export function StudioApp() {
     activeCompPathRef,
     reloadPreview: () => setRefreshKey((k) => k + 1),
   });
+  useDashboardSaveBridge(
+    projectId,
+    async () => {
+      await previewPersistence.waitForPendingDomEditSaves();
+      const source = await fileManager.flushPendingSourceSave();
+      if (source.status !== "clean") throw source.error;
+      await captionSync.flush();
+    },
+    showToast,
+  );
   const externalFileChanges = useStudioExternalFileChanges({
     projectId,
     activeCompPath,

@@ -20,6 +20,7 @@ import {
   getTimelineElementDisplayLabel,
   buildTimelineElementIdentity,
   readTimelineElementZIndex,
+  applyMediaMetadataFromElement,
 } from "./timelineElementHelpers";
 import { postRuntimeControlMessage } from "./runtimeProtocol";
 
@@ -443,6 +444,7 @@ function buildMissingCompositionEntry(params: {
     sourceFile,
     zIndex: readTimelineElementZIndex(element),
   };
+  applyMediaMetadataFromElement(entry, element);
   return attachCompositionSource(entry, element, compositionSrc);
 }
 
@@ -486,22 +488,35 @@ export function buildMissingCompositionElements(
     if (entry) missing.push(entry);
   }
 
-  // Patch existing elements that are missing compositionSrc
+  // Source hosts can be listed before their child document/media is inlined.
+  // Refresh their media metadata even when the composition path is already known.
   let patched = false;
   const updatedEls = (currentEls as TimelineElement[]).map((existing) => {
-    if (existing.compositionSrc) return existing;
     // Find the matching DOM host by element id or composition id
     const host =
-      doc.getElementById(existing.id) ??
+      doc.getElementById(existing.domId ?? existing.id) ??
       doc.querySelector(`[data-composition-id="${CSS.escape(existing.id)}"]`);
     if (!host) return existing;
+    const sourceWindow = host.hasAttribute("data-source-window");
+    if (existing.compositionSrc && !sourceWindow) return existing;
     const compSrc =
       host.getAttribute("data-composition-src") || host.getAttribute("data-composition-file");
-    if (compSrc) {
-      patched = true;
-      return { ...existing, compositionSrc: compSrc };
-    }
-    return existing;
+    const updated = { ...existing };
+    if (!updated.compositionSrc && compSrc) updated.compositionSrc = compSrc;
+    if (sourceWindow) applyMediaMetadataFromElement(updated, host);
+    const mediaFields = [
+      "tag",
+      "src",
+      "compositionSrc",
+      "sourceWindow",
+      "playbackStart",
+      "playbackStartAttr",
+      "playbackRate",
+      "sourceDuration",
+    ] as const;
+    if (!mediaFields.some((field) => updated[field] !== existing[field])) return existing;
+    patched = true;
+    return updated;
   });
 
   return { missing, updatedEls, patched };

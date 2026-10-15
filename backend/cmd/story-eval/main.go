@@ -203,12 +203,17 @@ func runEvaluation(parent context.Context, args []string, getenv func(string) st
 	if err = os.Mkdir(processingConfig.TempDir, 0700); err != nil {
 		return errors.New("evaluation workspace could not be created")
 	}
+	stopStudioMedia, err := evaluationStudio(ctx, storage, processingConfig, getenv)
+	if err != nil {
+		return err
+	}
+	defer stopStudioMedia()
 	processor := processing.New(processingConfig, storage, ai)
 	limits := story.DefaultLimits()
 	limits.MaxAICalls = cfg.maxAICalls
 	limits.MaxRepairCycles = cfg.repairCycles
 	limits.Timeout = cfg.timeout
-	request := story.Request{ID: filepath.Base(runDir), UserID: "local-evaluation", Options: cfg.options, VersionStart: 1}
+	request := story.Request{ID: filepath.Base(runDir), UserID: evaluationOwner, Options: cfg.options, VersionStart: 1}
 	provenance := []sourceProvenance{}
 	if replay != nil {
 		request, err = replay.verifiedRequest(ctx, processor, cfg)
@@ -283,6 +288,11 @@ func runEvaluation(parent context.Context, args []string, getenv func(string) st
 	}
 	if runErr != nil {
 		return evaluationFailure(checkpoints, "pipeline", runErr.Error())
+	}
+	if result.Best.Accepted && result.Best.Output.StudioArtifactID != "" {
+		if err = processor.CommitStudio(ctx, request.UserID, result.Best.Output.StudioArtifactID); err != nil {
+			return evaluationFailure(checkpoints, "studio-publication", err.Error())
+		}
 	}
 	if err = writeJSONExclusive(filepath.Join(runDir, "quality-report.json"), result.Best.Report); err != nil {
 		return err

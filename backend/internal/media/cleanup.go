@@ -45,7 +45,10 @@ func (s *Service) CleanupAccount(ctx context.Context, userID string) (CleanupRes
 	if e := s.cleanupReady(ctx, userID); e != nil {
 		return result, e
 	}
-	prefixes := map[string]bool{"fonts/" + userID + "/": true,"uploads/" + userID + "/": true, "brand/" + userID + "/": true, "publishing/" + userID + "/": true}
+	if e := s.purgeStudioOwner(ctx, userID); e != nil {
+		return result, failure(502, "Studio projects could not be removed. No database records were deleted.")
+	}
+	prefixes := map[string]bool{"fonts/" + userID + "/": true, "uploads/" + userID + "/": true, "brand/" + userID + "/": true, "publishing/" + userID + "/": true}
 	keys := map[string]bool{}
 	add := func(value sql.NullString) {
 		if value.Valid {

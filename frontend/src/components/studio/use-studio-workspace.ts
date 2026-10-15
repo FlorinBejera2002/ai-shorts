@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from 'react'
 import { type StudioProject, createStudioClient } from './studio-client'
 import { configuredStudioOrigin } from './studio-config'
 import { startStudioSessionRenewal } from './studio-session-renewal'
+import { flushStudioSaves } from './studio-save-barrier'
 
 const origin = configuredStudioOrigin(
   process.env.NEXT_PUBLIC_STUDIO_URL,
@@ -108,7 +109,7 @@ export function useStudioWorkspace(initialClipId?: string, initialProjectId?: st
     }
   }, [api, connectedUser, userId])
 
-  function select(project: StudioProject) {
+  function activate(project: StudioProject) {
     if (!userId || authClient.getSnapshot().user?.id !== userId) return
     setState((previous) =>
       previous?.user === userId
@@ -121,16 +122,21 @@ export function useStudioWorkspace(initialClipId?: string, initialProjectId?: st
     )
     rememberProject(userId, project.id)
   }
-  async function open(id?: string, title = 'Untitled project') {
+  async function changeWorkspace(
+    busyId: string,
+    load: (signal: AbortSignal) => Promise<StudioProject>
+  ) {
     if (!api || opening.current || !visible) return
     const controller = new AbortController()
     opening.current = controller
     const signal = AbortSignal.any([controller.signal, AbortSignal.timeout(150000)])
-    setBusy(id ?? 'new')
+    setBusy(busyId)
     setError('')
-    await (id ? api.openClip(id, signal) : api.create(title, signal))
-      .then((project) => {
-        if (!controller.signal.aborted) select(project)
+    await flushStudioSaves()
+      .then(async () => {
+        if (signal.aborted || authClient.getSnapshot().user?.id !== visible.user) return
+        const project = await load(signal)
+        if (!signal.aborted) activate(project)
       })
       .catch((cause: unknown) => {
         if (!controller.signal.aborted)
@@ -142,6 +148,16 @@ export function useStudioWorkspace(initialClipId?: string, initialProjectId?: st
           setBusy(null)
         }
       })
+  }
+  async function select(project: StudioProject) {
+    if (project.id === visible?.active.id) return
+    await changeWorkspace(project.id, async () => project)
+  }
+  async function open(id?: string, title = 'Untitled project') {
+    if (!api) return
+    await changeWorkspace(id ?? 'new', (signal) =>
+      id ? api.openClip(id, signal) : api.create(title, signal)
+    )
   }
   async function reconnect() {
     if (!visible || !api) {

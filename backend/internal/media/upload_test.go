@@ -259,7 +259,7 @@ func (s *mockStorage) SignedURL(ctx context.Context, key string, ttl time.Durati
 	return "https://storage.invalid/" + key + "?fresh=1", nil
 }
 func activeAccount(mock sqlmock.Sqlmock, role string, deleting bool) {
-	mock.ExpectQuery("SELECT access_role, email_activation_required, EXISTS").WithArgs(testUserID).WillReturnRows(sqlmock.NewRows([]string{"role", "activation", "deleting"}).AddRow(role, false, deleting))
+	mock.ExpectQuery("SELECT access_role, account_status, email_activation_required, EXISTS").WithArgs(testUserID).WillReturnRows(sqlmock.NewRows([]string{"role", "status", "activation", "deleting"}).AddRow(role, "active", false, deleting))
 }
 func uploadService(t *testing.T) (*Service, sqlmock.Sqlmock, *mockStorage, *mockNonce) {
 	t.Helper()
@@ -355,7 +355,7 @@ func TestDirectUploadRejectsBeforeReadingBody(t *testing.T) {
 				activeAccount(mock, "member", true)
 				status = 409
 			case "activation":
-				mock.ExpectQuery("SELECT access_role, email_activation_required, EXISTS").WillReturnRows(sqlmock.NewRows([]string{"role", "activation", "deleting"}).AddRow("member", true, false))
+				mock.ExpectQuery("SELECT access_role, account_status, email_activation_required, EXISTS").WillReturnRows(sqlmock.NewRows([]string{"role", "status", "activation", "deleting"}).AddRow("member", "active", true, false))
 				status = 403
 			default:
 				activeAccount(mock, "member", false)

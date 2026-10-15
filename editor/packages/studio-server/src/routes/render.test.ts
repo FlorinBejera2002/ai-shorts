@@ -1,11 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Hono } from "hono";
-import { mkdtempSync, mkdirSync, writeFileSync, symlinkSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, mkdirSync, writeFileSync, symlinkSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { VALID_CANVAS_RESOLUTIONS } from "@hyperframes/parsers";
 import { registerRenderRoutes } from "./render";
-import type { StudioApiAdapter } from "../types";
+import type { RenderJobState, StudioApiAdapter } from "../types";
 
 function createAdapter(
   startRenderSpy: ReturnType<typeof vi.fn>,
@@ -45,6 +45,40 @@ function buildApp(spy: ReturnType<typeof vi.fn>): {
 }
 
 describe("GET /projects/:id/renders — failed artifacts", () => {
+  it("stops persisting job receipts after the owning account runtime closes", async () => {
+    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
+    const { adapter, rendersDir } = createAdapter(vi.fn());
+    const controller = new AbortController();
+    adapter.lifecycleSignal = controller.signal;
+    let job: RenderJobState | undefined;
+    adapter.startRender = (options) => {
+      job = { id: options.jobId, status: "rendering", progress: 0, outputPath: options.outputPath };
+      return job;
+    };
+    const app = new Hono();
+    registerRenderRoutes(app, adapter);
+    try {
+      expect(
+        (
+          await app.request("http://localhost/projects/demo/render", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: "{}",
+          })
+        ).status,
+      ).toBe(200);
+      controller.abort();
+      if (!job) throw new Error("Expected a render job");
+      job.status = "cancelled";
+      rmSync(rendersDir, { recursive: true, force: true });
+      await vi.advanceTimersByTimeAsync(2000);
+      expect(existsSync(rendersDir)).toBe(false);
+    } finally {
+      controller.abort();
+      vi.useRealTimers();
+      rmSync(rendersDir, { recursive: true, force: true });
+    }
+  });
   it("does not promote an existing unverified output from failed metadata", async () => {
     const spy = vi.fn();
     const { app, rendersDir, cleanup } = buildApp(spy);
@@ -65,6 +99,25 @@ describe("GET /projects/:id/renders — failed artifacts", () => {
 });
 
 describe("POST /projects/:id/render — outputResolution forwarding", () => {
+  it("forwards explicit HDR delivery and refuses formats that would silently become SDR", async () => {
+    const spy = vi.fn();
+    const { app, cleanup } = buildApp(spy);
+    try {
+      const request = (format: string, hdrMode: string) =>
+        app.request("http://localhost/projects/demo/render", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ format, hdrMode }),
+        });
+      expect((await request("mp4", "force-hdr")).status).toBe(200);
+      expect(spy.mock.calls[0][0].hdrMode).toBe("force-hdr");
+      expect((await request("webm", "force-hdr")).status).toBe(400);
+      expect((await request("mp4", "unknown")).status).toBe(400);
+      expect(spy).toHaveBeenCalledTimes(1);
+    } finally {
+      cleanup();
+    }
+  });
   it("forwards a valid resolution preset to the adapter", async () => {
     const spy = vi.fn();
     const { app, cleanup } = buildApp(spy);

@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	storySpeechPolicyVersion       = "speech-confidence-3-retain-source-gaps"
+	storySpeechPolicyVersion       = "speech-confidence-4-reviewed-proposals-whole-phrases"
 	storyMinimumLexicalProbability = .55
 	storyMaximumVisualShotSeconds  = 4.0
 	storyNoSpeechWarning           = "No confident speech transcript. This source remains available as a supporting visual; audio needs human review."
@@ -34,6 +34,7 @@ func applyStorySpeechPolicy(asset story.Asset, options story.Options) (story.Ass
 	}
 	input := append([]story.Candidate(nil), asset.Candidates...)
 	asset.Candidates = nil
+	asset.TranscriptProposals = nil
 	for i := range input {
 		candidate := &input[i]
 		// Spoken candidates receive Confidence only from actual lexical token
@@ -47,13 +48,20 @@ func applyStorySpeechPolicy(asset story.Asset, options story.Options) (story.Ass
 		if asset.Kind == "narration" {
 			return asset, fmt.Errorf("narration words at %.2f–%.2f seconds need manual transcript review or a clearer recording (lowest lexical probability %.3f); the original voice has not been changed", candidate.In, candidate.Out, candidate.Confidence)
 		}
+		asset.TranscriptProposals = append(asset.TranscriptProposals, story.TranscriptProposal{
+			CandidateID: candidate.ID, In: candidate.In, Out: candidate.Out,
+			Words: append([]story.Word(nil), candidate.Words...), Confidence: candidate.Confidence,
+			Reason: "Automatic text needs owner review because a word has low recognition confidence. Listen, correct the suggested text, and approve it before rendering captions.",
+		})
 		// Withhold the complete phrase, including any weak negation/number.
 		// Never make the remaining words imply a different statement. Preserve
 		// the source interval, quality evidence and original audible soundtrack.
 		candidate.Text, candidate.Words, candidate.Role = "", nil, "b_roll"
 		candidate.Idea, candidate.Dependencies, candidate.TakeGroup = "", nil, ""
 		candidate.Reason = fmt.Sprintf("Automatic phrase transcription withheld: lowest measured lexical-token probability %.3f is below %.2f. Original source audio is unchanged; use this interval only as an unverified supporting visual pending manual transcript review.", candidate.Confidence, storyMinimumLexicalProbability)
-		asset.Candidates = append(asset.Candidates, splitStoryVisualCandidate(*candidate)...)
+		// A low lexical score does not make a spoken phrase a safe montage cut.
+		// Preserve its complete detected interval even while captions are withheld.
+		asset.Candidates = append(asset.Candidates, *candidate)
 		asset.Warnings = appendStoryWarning(asset.Warnings, fmt.Sprintf("%s%.2f–%.2f seconds: lowest lexical probability %.3f is below %.2f. The complete phrase needs manual transcript review; original audio is unchanged.", storySpeechWithheldPrefix, candidate.In, candidate.Out, candidate.Confidence, storyMinimumLexicalProbability))
 	}
 	if asset.Kind == "narration" {

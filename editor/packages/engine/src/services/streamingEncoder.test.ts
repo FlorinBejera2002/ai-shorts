@@ -68,6 +68,17 @@ function getX265ParamsValue(args: string[]): string | undefined {
 }
 
 describe("buildStreamingArgs", () => {
+  it("applies the sandbox thread budget to the direct streaming encoder spawn", () => {
+    vi.stubEnv("HYPERFRAMES_RENDER_CPU_LIMIT", "2");
+    try {
+      const args = buildStreamingArgs(baseHdrPq, "/tmp/out.mp4");
+      expect(args.slice(args.indexOf("-i") - 2, args.indexOf("-i"))).toEqual(["-threads", "2"]);
+      expect(args.slice(-3)).toEqual(["-threads", "2", "/tmp/out.mp4"]);
+      expect(getX265ParamsValue(args)).toContain("pools=2:frame-threads=2");
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
   describe("HDR PQ (libx265)", () => {
     it("emits master-display and max-cll in -x265-params", () => {
       const args = buildStreamingArgs(baseHdrPq, "/tmp/out.mp4");
@@ -179,9 +190,9 @@ describe("buildStreamingArgs", () => {
   });
 
   describe("output path", () => {
-    it("places the output path last after -y", () => {
+    it("places the output path last with output overwrite enabled", () => {
       const args = buildStreamingArgs(baseHdrPq, "/tmp/some-output.mp4");
-      expect(args[args.length - 2]).toBe("-y");
+      expect(args).toContain("-y");
       expect(args[args.length - 1]).toBe("/tmp/some-output.mp4");
     });
   });

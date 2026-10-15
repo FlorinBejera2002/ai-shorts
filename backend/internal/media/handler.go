@@ -20,6 +20,11 @@ type Authentication interface {
 	Require(http.HandlerFunc) http.Handler
 	RequireMember(http.HandlerFunc) http.Handler
 }
+
+// A Story collection supports 200 files. Keep admission bounded while allowing
+// one whole collection and retries without an hour-long pause midway through.
+const videoUploadsPerHour = 600
+
 type Handler struct {
 	service *Service
 	auth    Authentication
@@ -130,7 +135,7 @@ func (h *Handler) verifyRequest(w http.ResponseWriter, r *http.Request) {
 }
 func (h *Handler) authorize(w http.ResponseWriter, r *http.Request) {
 	user := identity.Current(r).User
-	if e := h.service.allow(r.Context(), user.ID, "authorize", 120); e != nil {
+	if e := h.service.allow(r.Context(), user.ID, "authorize", videoUploadsPerHour*2); e != nil {
 		mediaError(w, e)
 		return
 	}
@@ -176,11 +181,7 @@ func (h *Handler) uploadDirect(w http.ResponseWriter, r *http.Request) {
 		mediaError(w, failure(401, "Invalid upload authorization"))
 		return
 	}
-	if e = h.service.accountActive(r.Context(), claims.UserID, true); e != nil {
-		mediaError(w, e)
-		return
-	}
-	if e = h.service.allow(r.Context(), claims.UserID, "upload", 60); e != nil {
+	if e = h.service.allow(r.Context(), claims.UserID, "upload", videoUploadsPerHour); e != nil {
 		mediaError(w, e)
 		return
 	}
@@ -232,7 +233,7 @@ func firstFile(w http.ResponseWriter, r *http.Request, maximum int64) (*multipar
 }
 func (h *Handler) uploadMultipart(w http.ResponseWriter, r *http.Request) {
 	user := identity.Current(r).User
-	if e := h.service.allow(r.Context(), user.ID, "upload", 60); e != nil {
+	if e := h.service.allow(r.Context(), user.ID, "upload", videoUploadsPerHour); e != nil {
 		mediaError(w, e)
 		return
 	}

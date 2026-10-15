@@ -1238,6 +1238,20 @@ describe("template-wrapped sub-composition media offsets", () => {
     });
   });
 
+  it("projects opted-in source windows after template inlining", async () => {
+    const { projectDir, indexPath } = writeTemplateWrappedProject(
+      'data-start="4" data-duration="3" data-playback-start="12" data-source-window data-width="640" data-height="360"',
+      'data-start="0" data-duration="60"',
+    );
+    try {
+      const compiled = await compileForRender(projectDir, indexPath, projectDir);
+      expect(compiled.videos[0]).toMatchObject({ start: 4, end: 7, mediaStart: 12 });
+      expect(compiled.audios[0]).toMatchObject({ start: 4, end: 7, mediaStart: 12 });
+    } finally {
+      rmSync(projectDir, { recursive: true, force: true });
+    }
+  });
+
   it("offsets nested media by a host data-start id-ref to a sibling slot", async () => {
     const projectDir = mkdtempSync(join(tmpdir(), "hf-chained-slots-"));
     const compositionsDir = join(projectDir, "compositions");

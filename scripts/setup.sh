@@ -3,11 +3,7 @@ set -e
 
 echo "=== Sneepcut Setup ==="
 
-if [ ! -f .env ]; then
-  echo "Creating .env from .env.example..."
-  cp .env.example .env
-  echo "Edit .env with your API keys before starting."
-fi
+node scripts/ensure-env.mjs
 
 echo "Building and starting services..."
 docker compose up --build -d

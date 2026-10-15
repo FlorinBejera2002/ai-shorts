@@ -31,6 +31,7 @@ import {
 import { useStoryLanguage } from './use-story-language'
 import { useStoryUploads } from './use-story-uploads'
 import { StoryAudioComparison } from './story-audio-comparison'
+import { StoryTranscriptReview } from './story-transcript-review'
 import { storyProblem } from './story-error'
 import {
   storyRetryPayload,
@@ -401,7 +402,7 @@ function StoryWorkspace({
     setError('')
     try {
       const signature = JSON.stringify({ path, payload })
-      const idempotent = ['/generate', '/retry', '/rollback'].includes(path)
+      const idempotent = ['/generate', '/retry', '/rollback', '/transcript-review'].includes(path)
       let requestID = requests.current.get(signature)
       if (idempotent && !requestID) {
         requestID = crypto.randomUUID()
@@ -668,6 +669,8 @@ function StoryWorkspace({
               version: version.number,
               expected_state: project.expected_state,
               style: {
+                aspect_ratio: value.aspect_ratio,
+                dynamic_range: value.dynamic_range ?? 'sdr',
                 caption_mode: value.caption_mode,
                 captions: value.captions,
                 caption_style: value.caption_style,
@@ -683,6 +686,15 @@ function StoryWorkspace({
           }}
         />
       )}
+      <StoryTranscriptReview
+        assets={assets}
+        disabled={active || busy || !version}
+        onApprove={(reviews) => mutate('/transcript-review', 'POST', {
+          version: project.current_version,
+          expected_state: project.expected_state,
+          reviews
+        })}
+      />
       <StoryAudioComparison
         assets={assets}
         enabled={Boolean(project.options.audio_cleanup?.enabled)}

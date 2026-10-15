@@ -35,7 +35,7 @@ func TestRenderBadgeProvenanceAndBrandHook(t *testing.T) {
 	}
 	for _, branded := range []bool{false, true} {
 		brand := map[string]any{"apply_brand": branded, "apply_brand_colors": true, "primary_color": "#000000", "secondary_color": "#ffffff"}
-		clip, err := processor.Render(ctx, RenderInput{SourceKey: "sources/fixture.mp4", Namespace: fmt.Sprintf("render-fixture-%v", branded), AspectRatio: "16:9", Segments: []Segment{{0, 1}}, Brand: brand, HookText: "Synthetic hook"})
+		clip, err := renderClipForTest(t, processor, ctx, RenderInput{SourceKey: "sources/fixture.mp4", Namespace: fmt.Sprintf("render-fixture-%v", branded), AspectRatio: "16:9", Segments: []Segment{{0, 1}}, Brand: brand, HookText: "Synthetic hook"})
 		if err != nil {
 			t.Fatalf("branded=%v: %v", branded, err)
 		}
@@ -75,7 +75,7 @@ func TestRenderCreatesTikTokDerivativeForSmallVideo(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	clip, err := processor.Render(ctx, RenderInput{SourceKey: "sources/small.mp4", Namespace: "small", AspectRatio: "9:16", Segments: []Segment{{0, 1}}})
+	clip, err := renderClipForTest(t, processor, ctx, RenderInput{SourceKey: "sources/small.mp4", Namespace: "small", AspectRatio: "9:16", Segments: []Segment{{0, 1}}})
 	if err != nil {
 		t.Fatal(err)
 	}

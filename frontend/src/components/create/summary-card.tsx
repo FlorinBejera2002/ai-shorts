@@ -1,6 +1,7 @@
 'use client'
 
 import { LoadingIndicator } from '@/components/ui/loading-indicator'
+import { useAuth } from '@/components/auth/use-auth'
 import { apiFetch } from '@/lib/auth'
 
 import { Button } from '@/components/ui/button'
@@ -30,7 +31,12 @@ export function SummaryCard({
   onGenerate
 }: SummaryCardProps) {
   const t = useTranslations('create')
-  const [balance, setBalance] = useState<number | null>(null)
+  const billing = useTranslations('billing')
+  const { user } = useAuth()
+  const [account, setAccount] = useState<{
+    credits: number
+    creditsUnlimited?: boolean
+  } | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -38,7 +44,7 @@ export function SummaryCard({
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (!cancelled && data && typeof data.credits === 'number') {
-          setBalance(data.credits)
+          setAccount(data)
         }
       })
       .catch(() => undefined)
@@ -47,7 +53,10 @@ export function SummaryCard({
     }
   }, [])
 
-  const insufficient = balance !== null && creditCost > balance
+  const creditsUnlimited =
+    account?.creditsUnlimited ?? user?.access_role === 'admin'
+  const insufficient =
+    !creditsUnlimited && account !== null && creditCost > account.credits
 
   return (
     <Card className="creation-generate block gap-0 py-0 overflow-hidden">
@@ -61,14 +70,16 @@ export function SummaryCard({
               {isBatch ? t('costBatch', { count: videoCount }) : t('cost')}
             </p>
             <p className="mt-1.5 text-2xl font-semibold tabular-nums text-foreground">
-              {creditCost}{' '}
+              {creditsUnlimited ? 0 : creditCost}{' '}
               <span className="text-xs font-medium text-muted-foreground">
                 {t('creditsUnit')}
               </span>
             </p>
-            {balance !== null && (
+            {(creditsUnlimited || account !== null) && (
               <p className="mt-0.5 text-[11px] tabular-nums text-muted-foreground">
-                {t('balance', { count: balance })}
+                {creditsUnlimited
+                  ? billing('creditsUnlimited')
+                  : t('balance', { count: account?.credits ?? 0 })}
               </p>
             )}
           </div>
@@ -100,7 +111,7 @@ export function SummaryCard({
         </Button>
       </div>
       {insufficient && (
-        <div className="creation-credit-warning flex items-start gap-2 rounded-lg border border-warning/25 bg-warning/10 p-2.5 text-[11px] text-warning">
+        <div className="creation-credit-warning flex items-start gap-2 rounded-md border border-warning/25 bg-warning/10 p-2.5 text-[11px] text-warning">
           <AlertTriangle
             className="mt-0.5 h-3.5 w-3.5 shrink-0"
             strokeWidth={1.75}

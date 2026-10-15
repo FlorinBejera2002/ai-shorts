@@ -122,17 +122,17 @@ func (s *Service) setBrandLogo(ctx context.Context, userID string, key *string) 
 }
 
 func lockBrandLogoUser(ctx context.Context, tx *sql.Tx, userID string) error {
-	var role string
+	var role, status string
 	var activation bool
 	// Serialize final logo persistence with account deletion's user lock.
-	e := tx.QueryRowContext(ctx, `SELECT access_role,email_activation_required FROM users WHERE id=$1 FOR UPDATE`, userID).Scan(&role, &activation)
+	e := tx.QueryRowContext(ctx, `SELECT access_role,account_status,email_activation_required FROM users WHERE id=$1 FOR UPDATE`, userID).Scan(&role, &status, &activation)
 	if errors.Is(e, sql.ErrNoRows) {
 		return failure(401, "Authentication required")
 	}
 	if e != nil {
 		return e
 	}
-	if role != "member" || activation {
+	if (role != "member" && role != "admin") || (status != "" && status != "active") || activation {
 		return failure(403, "This role cannot modify content")
 	}
 	var deleting bool

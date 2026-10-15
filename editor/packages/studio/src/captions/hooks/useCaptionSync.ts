@@ -74,6 +74,7 @@ export function useCaptionSync(projectId: string | null) {
   // Bumped on every new edit: a PUT's success may only clear the pending flag
   // when no newer edit re-armed the debounce while it was in flight.
   const editSeqRef = useRef(0);
+  const inFlightRef = useRef<Promise<void> | null>(null);
 
   const save = useCallback(() => {
     const state = useCaptionStore.getState();
@@ -93,11 +94,16 @@ export function useCaptionSync(projectId: string | null) {
     const seqAtSave = editSeqRef.current;
     const overrides = buildOverrides(state.model);
 
-    fetch(buildProjectApiPath(pid, `/files/${encodeURIComponent("caption-overrides.json")}`), {
-      method: "PUT",
-      headers: { "Content-Type": "text/plain", ...studioWriteHeaders() },
-      body: JSON.stringify(overrides, null, 2),
-    })
+    // Preserve edit order when a slow PUT overlaps another debounce or explicit
+    // flush. The barrier must await every earlier write, not just the latest one.
+    const task = (inFlightRef.current ?? Promise.resolve())
+      .then(() =>
+        fetch(buildProjectApiPath(pid, `/files/${encodeURIComponent("caption-overrides.json")}`), {
+          method: "PUT",
+          headers: { "Content-Type": "text/plain", ...studioWriteHeaders() },
+          body: JSON.stringify(overrides, null, 2),
+        }),
+      )
       .then((res) => {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         // A newer edit may have re-armed the debounce while this PUT was in
@@ -112,7 +118,24 @@ export function useCaptionSync(projectId: string | null) {
         trackEvent("studio_caption_autosave_failed", { error: String(error) });
         useCaptionStore.getState().setSyncError("Caption changes couldn't be saved");
       });
+    inFlightRef.current = task;
+    return task;
   }, []);
+
+  const flush = useCallback(async () => {
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+      debounceRef.current = null;
+    }
+    await inFlightRef.current;
+    // An edit may arrive during a request. Drain successive versions in order;
+    // parallel writes could leave an older override file as the final save.
+    while (pendingRef.current) {
+      await save();
+      if (useCaptionStore.getState().syncError)
+        throw new Error("Caption changes couldn't be saved");
+    }
+  }, [save]);
 
   // Auto-save on model changes with 800ms debounce
   useMountEffect(() => {
@@ -235,5 +258,5 @@ export function useCaptionSync(projectId: string | null) {
     }
   }, []);
 
-  return { save, loadOverrides };
+  return { save, flush, loadOverrides };
 }

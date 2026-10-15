@@ -40,12 +40,12 @@ build() {
   config
   case "$component" in
     all) "${compose[@]}" build ;;
-    backend) "${compose[@]}" build migrate backend worker ;;
+    backend) "${compose[@]}" build migrate backend worker studio ;;
     frontend) "${compose[@]}" build frontend ;;
     admin) "${compose[@]}" build admin ;;
     studio) "${compose[@]}" build studio frontend ;;
     api) "${compose[@]}" build migrate backend ;;
-    workers) "${compose[@]}" build worker ;;
+    workers) "${compose[@]}" build migrate worker studio ;;
     gateway) "${compose[@]}" pull nginx caddy ;;
   esac
 }
@@ -98,6 +98,7 @@ start_api() {
 }
 
 start_workers() {
+  wait_for_health studio 120
   "${compose[@]}" up -d --no-deps --force-recreate \
     worker
 }
@@ -128,18 +129,19 @@ deploy() {
       start_infrastructure
       run_migrations
       start_api
-      start_workers
       start_studio
       start_frontend
       start_admin
       start_gateway
+      start_workers
       ;;
     backend)
       start_infrastructure
       run_migrations
       start_api
-      start_workers
+      start_studio
       start_gateway
+      start_workers
       ;;
     frontend)
       start_frontend
@@ -169,6 +171,7 @@ deploy() {
       if [[ -z "$("${compose[@]}" ps -q backend)" ]]; then
         start_api
       fi
+      start_studio
       start_workers
       ;;
     gateway)
@@ -202,6 +205,7 @@ verify_api() {
 }
 
 verify_workers() {
+  wait_for_health studio 120
   "${compose[@]}" exec -T worker ffmpeg -version
   "${compose[@]}" exec -T worker whisper-cli --help
   "${compose[@]}" exec -T worker test -s /models/ggml-base.bin

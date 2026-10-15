@@ -41,6 +41,7 @@ import {
   writeUrlDownloadTelemetry,
 } from "../utils/urlDownloader.js";
 import { runFfmpeg } from "../utils/runFfmpeg.js";
+import { mapMediaWork } from "../utils/renderResources.js";
 import { DEFAULT_CONFIG, type EngineConfig } from "../config.js";
 import { unwrapTemplate } from "../utils/htmlTemplate.js";
 import {
@@ -1645,8 +1646,9 @@ export async function extractAllVideoFrames(
 
   // Phase 2: Probe color spaces and normalize if mixed HDR/SDR
   const phase2ProbeStart = Date.now();
-  const metadataResults = await Promise.all(
-    resolvedVideos.map(async ({ video, videoPath }, index) => {
+  const metadataResults = await mapMediaWork(
+    resolvedVideos,
+    async ({ video, videoPath }, index) => {
       try {
         // Keep the default/off path byte-for-byte compatible with the legacy
         // Promise.all rejection. Classification is introduced only when a
@@ -1671,7 +1673,7 @@ export async function extractAllVideoFrames(
         errors.push(extractionError(video.id, error));
         return null;
       }
-    }),
+    },
   );
   const probedVideos = metadataResults.filter((entry) => entry !== null);
   resolvedVideos.splice(
@@ -2010,14 +2012,13 @@ export async function extractAllVideoFrames(
           { error: extractionError(member.miss.work.video.id, err) },
         ]);
       }
-      const fallback = await Promise.all(
-        group.members.map(
-          async (member) =>
-            [member.miss.work.dedupeKey, await executeDirectMiss(member.miss)] as [
-              string,
-              ExtractionOutcome,
-            ],
-        ),
+      const fallback = await mapMediaWork(
+        group.members,
+        async (member) =>
+          [member.miss.work.dedupeKey, await executeDirectMiss(member.miss)] as [
+            string,
+            ExtractionOutcome,
+          ],
       );
       return fallback;
     } finally {
@@ -2025,8 +2026,9 @@ export async function extractAllVideoFrames(
     }
   }
 
-  const preparedExtractions: PreparedExtractionResult[] = await Promise.all(
-    resolvedVideos.map(async ({ video, videoPath }, index) => {
+  const preparedExtractions: PreparedExtractionResult[] = await mapMediaWork(
+    resolvedVideos,
+    async ({ video, videoPath }, index) => {
       if (signal?.aborted) {
         throw new Error("Video frame extraction cancelled");
       }
@@ -2077,7 +2079,7 @@ export async function extractAllVideoFrames(
       } catch (err) {
         return { error: extractionError(video.id, err) };
       }
-    }),
+    },
   );
 
   const uniqueWorks = new Map<string, PreparedExtraction>();
@@ -2099,16 +2101,15 @@ export async function extractAllVideoFrames(
   }
 
   const supersetPlan = planSupersetGroups(cacheMisses, fps);
-  const directOutcomes = await Promise.all(
-    supersetPlan.direct.map(
-      async (miss) =>
-        [miss.work.dedupeKey, await executeDirectMiss(miss)] as [string, ExtractionOutcome],
-    ),
+  const directOutcomes = await mapMediaWork(
+    supersetPlan.direct,
+    async (miss) =>
+      [miss.work.dedupeKey, await executeDirectMiss(miss)] as [string, ExtractionOutcome],
   );
   for (const [key, outcome] of directOutcomes) uniqueOutcomes.set(key, outcome);
 
-  const supersetOutcomes = await Promise.all(
-    supersetPlan.groups.map((group) => executeSupersetGroup(group)),
+  const supersetOutcomes = await mapMediaWork(supersetPlan.groups, (group) =>
+    executeSupersetGroup(group),
   );
   for (const groupOutcomes of supersetOutcomes) {
     for (const [key, outcome] of groupOutcomes) uniqueOutcomes.set(key, outcome);

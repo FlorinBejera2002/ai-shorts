@@ -419,7 +419,7 @@ function SourceThumbnail({
   asset: StoryAsset
   localPreview?: string
 }) {
-  const source = localPreview || asset.source_url
+  const source = asset.proxy_url || localPreview || asset.source_url
   const [failed, setFailed] = useState<string>()
   if (asset.thumbnail_url)
     return (

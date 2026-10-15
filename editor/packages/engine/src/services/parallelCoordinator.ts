@@ -5,7 +5,8 @@
  * Auto-detects optimal worker count based on CPU/memory.
  */
 
-import { cpus, freemem } from "os";
+import { freemem } from "os";
+import { renderResourceLimits } from "../utils/renderResources.js";
 import { existsSync, mkdirSync, readdirSync } from "fs";
 import { copyFile, readFile, rename } from "fs/promises";
 import { join } from "path";
@@ -163,7 +164,11 @@ const ABSOLUTE_MAX_WORKERS = 24;
 // worker's SwiftShader compositor + the shader-blend thread pool, both of
 // which are themselves CPU-heavy.
 function defaultSafeMaxWorkers(): number {
-  return Math.max(6, Math.min(16, Math.floor(cpus().length / 8)));
+  const resources = renderResourceLimits();
+  return Math.min(
+    resources.captureWorkers,
+    Math.max(6, Math.min(16, Math.floor(resources.cpuCount / 8))),
+  );
 }
 const MIN_FRAMES_PER_WORKER = 30;
 
@@ -316,7 +321,11 @@ export function computeWorkerSizing(
   requested?: number,
   config?: WorkerSizingConfig,
 ): WorkerSizing {
-  const cpuCount = cpus().length;
+  const resources = renderResourceLimits();
+  const cpuCount = resources.cpuCount;
+  const resourceMaxWorkers = resources.restricted
+    ? Math.min(ABSOLUTE_MAX_WORKERS, resources.captureWorkers)
+    : ABSOLUTE_MAX_WORKERS;
   // Use total memory instead of free memory — macOS reports misleadingly low
   // freemem() because it aggressively caches files in "inactive" memory that
   // is immediately reclaimable.
@@ -351,9 +360,9 @@ export function computeWorkerSizing(
 
   if (requested !== undefined) {
     return finish(
-      Math.max(MIN_WORKERS, Math.min(ABSOLUTE_MAX_WORKERS, requested)),
+      Math.max(MIN_WORKERS, Math.min(resourceMaxWorkers, requested)),
       "explicit",
-      ABSOLUTE_MAX_WORKERS,
+      resourceMaxWorkers,
     );
   }
 
@@ -361,7 +370,7 @@ export function computeWorkerSizing(
   const effectiveMaxWorkers = (() => {
     const concurrency = config?.concurrency ?? DEFAULT_CONFIG.concurrency;
     if (concurrency !== "auto") {
-      return Math.max(MIN_WORKERS, Math.min(ABSOLUTE_MAX_WORKERS, Math.floor(concurrency)));
+      return Math.max(MIN_WORKERS, Math.min(resourceMaxWorkers, Math.floor(concurrency)));
     }
     return defaultSafeMaxWorkers();
   })();
@@ -377,7 +386,8 @@ export function computeWorkerSizing(
   const optimal = Math.min(cpuBasedWorkers, memoryBasedWorkers, frameBasedWorkers);
   const optimalBound: WorkerSizingBound =
     optimal === cpuBasedWorkers ? "cpu" : optimal === memoryBasedWorkers ? "memory" : "frames";
-  const minWorkersForJob = totalFrames >= effectiveMinParallelFrames ? 2 : MIN_WORKERS;
+  const minWorkersForJob =
+    totalFrames >= effectiveMinParallelFrames ? Math.min(2, effectiveMaxWorkers) : MIN_WORKERS;
   let finalWorkers = Math.max(minWorkersForJob, Math.min(effectiveMaxWorkers, optimal));
   let boundBy: WorkerSizingBound =
     finalWorkers === optimal
@@ -1131,7 +1141,7 @@ export function getSystemResources(): {
   recommendedWorkers: number;
 } {
   return {
-    cpuCores: cpus().length,
+    cpuCores: renderResourceLimits().cpuCount,
     totalMemoryMB: getSystemTotalMb(),
     freeMemoryMB: Math.round(freemem() / (1024 * 1024)),
     recommendedWorkers: calculateOptimalWorkers(1000),

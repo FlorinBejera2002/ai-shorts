@@ -127,6 +127,24 @@ func validateReviewIssues(issues []Issue, req Request, version Version) error {
 }
 
 func (b *Builder) postReview(ctx context.Context, req Request, version Version, pre Report, budget *runBudget) Report {
+	if version.Output.StudioManualEdits {
+		actual, err := b.media.ReviewStory(ctx, req, version)
+		if err != nil {
+			return Report{Version: version.Number, Status: "needs_review", Coverage: Coverage{Incomplete: []string{"The saved Studio output could not be verified."}}}
+		}
+		actual.Version, actual.Status = version.Number, "needs_review"
+		actual.Coverage.Plan = actual.Coverage.File
+		actual.Coverage.Audio, actual.Coverage.Captions, actual.Coverage.Semantics = false, false, false
+		const note = "Manual Studio changes were preserved. Review the picture, audio and captions before publishing."
+		found := false
+		for _, existing := range actual.Coverage.Incomplete {
+			found = found || existing == note
+		}
+		if !found {
+			actual.Coverage.Incomplete = append(actual.Coverage.Incomplete, note)
+		}
+		return actual
+	}
 	report := pre
 	report.Issues = append(report.Issues, checkTimeline(version.Timeline, version.Output)...)
 	if err := budget.take(); err != nil {

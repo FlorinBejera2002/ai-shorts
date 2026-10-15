@@ -9,6 +9,18 @@ import { fetchParsedAnimations } from "./keyframeCacheAstLoad";
  * pre-write answer.
  */
 describe("fetchParsedAnimations — in-flight sharing", () => {
+  it("loads nested source animations after preview URLs become absolute on undo", async () => {
+    const fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ animations: [] }) });
+    vi.stubGlobal("fetch", fetch);
+    await fetchParsedAnimations(
+      "p",
+      "https://studio.test/api/projects/p/preview/source-scene-1.html",
+    );
+    expect(fetch).toHaveBeenCalledWith("/api/projects/p/gsap-animations/source-scene-1.html", {
+      cache: "no-store",
+    });
+  });
+
   afterEach(() => {
     vi.unstubAllGlobals();
   });

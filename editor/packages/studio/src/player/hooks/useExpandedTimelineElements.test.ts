@@ -52,6 +52,17 @@ afterEach(() => {
 });
 
 describe("buildExpandedElements", () => {
+  it("keeps imported source scenes as one editable clip instead of duplicate child rows", () => {
+    const scene = el({ id: "scene", sourceWindow: true, compositionSrc: "source-scene-1.html" });
+    const child = el({ id: "camera", tag: "video" });
+    const music = el({ id: "music", tag: "audio", track: 2 });
+    const parentMap = new Map([["camera", "scene"]]);
+    const manifest = [clip({ id: "scene" }), clip({ id: "camera", kind: "video" })];
+    expect(
+      buildExpandedElements([scene, child, music], manifest, parentMap, "scene", "scene"),
+    ).toEqual([scene, music]);
+  });
+
   it("rebases a 1-level child onto its sub-comp host (start + sourceFile)", () => {
     // host s3 at absolute 16 → stats-panel.html; children live in that file.
     const elements = [el({ id: "s3", start: 16, duration: 7, compositionSrc: "stats.html" })];

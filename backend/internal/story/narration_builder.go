@@ -99,7 +99,7 @@ func (s *runState) runNarration(ctx context.Context) (Result, error) {
 		return finish(fmt.Errorf("narrated montage failed rendered file integrity checks; prior version retained"))
 	}
 	version.Accepted = true
-	if s.req.Base != nil && introducesRegression(s.req.Base.Report, version.Report, s.req.Base.Timeline, version.Timeline) {
+	if !version.Output.StudioManualEdits && s.req.Base != nil && introducesRegression(s.req.Base.Report, version.Report, s.req.Base.Timeline, version.Timeline) {
 		version.Accepted = false
 	}
 	if err = s.checkpoints.SaveVersion(ctx, version); err != nil {
@@ -109,7 +109,7 @@ func (s *runState) runNarration(ctx context.Context) (Result, error) {
 		return finish(nil)
 	}
 	s.result.Best = version
-	for s.result.Best.Report.Status != "ready" && s.cycles < s.builder.limits.MaxRepairCycles {
+	for !s.result.Best.Output.StudioManualEdits && s.result.Best.Report.Status != "ready" && s.cycles < s.builder.limits.MaxRepairCycles {
 		best := s.result.Best
 		candidate, issue, op, ok := s.nextNarrationRepair(best)
 		if !ok {

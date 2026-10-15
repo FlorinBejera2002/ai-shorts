@@ -17,6 +17,7 @@ import {
   type MergeableKeyframe,
 } from "./gsapTweenSynth";
 import { fetchParsedAnimations, populateKeyframeCacheFromAst } from "./keyframeCacheAstLoad";
+import { normalizeTimelineCompositionSource } from "../components/editor/domEditingDom";
 
 // Re-exported so callers keep importing the GSAP cache surface from one module.
 export { resolveClipTimingBasis } from "./gsapShared";
@@ -385,7 +386,11 @@ export function usePopulateKeyframeCacheForFile(
     // its own cache entries, so the order just decides who writes the bare
     // `id` alias last.
     const files = Array.from(
-      new Set([sourceFile, ...(compositionSrcKey ? compositionSrcKey.split("|") : [])]),
+      new Set(
+        [sourceFile, ...(compositionSrcKey ? compositionSrcKey.split("|") : [])].map(
+          (path) => normalizeTimelineCompositionSource(path) ?? path,
+        ),
+      ),
     );
     const doc = iframeRef?.current?.contentDocument;
     // Everything the previous scan cached for a file this one no longer covers

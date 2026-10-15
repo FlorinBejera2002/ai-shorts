@@ -15,9 +15,17 @@
  */
 
 import { parseHTML } from "linkedom";
-import { MEDIA_RENDER_ID_ATTR } from "@hyperframes/core";
+import { MEDIA_RENDER_ID_ATTR, readMediaStart, readElementPlaybackRate } from "@hyperframes/core";
+import {
+  parseAutomation,
+  projectAutomationTime,
+  serializeAutomation,
+} from "@hyperframes/core/audio-automation";
+import { parseAudioFxChain } from "@hyperframes/core/audio-fx";
 import {
   MEDIA_START_BASIS_ATTR,
+  SOURCE_WINDOW_ATTR,
+  projectSourceWindow,
   readMediaStartBasis,
   resolveAbsoluteMediaStartSeconds,
   type MediaStartBasis,
@@ -48,6 +56,18 @@ interface HostWindow {
   limit: number;
   /** Whether authored media time is composition-local or legacy root-global. */
   basis: MediaStartBasis;
+  /** Leaf-to-root transforms, present only for explicitly opted-in hosts. */
+  sourceHosts?: SourceHostWindow[];
+  cutBoundary?: boolean;
+}
+
+interface SourceHostWindow {
+  start: number;
+  end: number | null;
+  duration: number;
+  playbackStart: number;
+  playbackRate: number;
+  sourceWindow: boolean;
 }
 
 const ROOT_WINDOW: HostWindow = { offset: 0, limit: Infinity, basis: "local" };
@@ -64,8 +84,8 @@ function parseNumeric(value: string | null): number | null {
  * Host `data-start` is resolved the same way media is (`resolveReferencedStart`):
  * numeric literals, or an id / `data-composition-id` ref to a sibling slot's
  * end (`data-start="hook"`). `parseFloat("hook")` is 0, which stacked every
- * chained scene at 0–2s. Only `data-end` bounds a host: a host carrying just
- * `data-duration` was unbounded in the file-tree walk too.
+ * chained scene at 0–2s. Legacy hosts are bounded only by `data-end`, as in
+ * the old file-tree walk. Opted-in source windows also use `data-duration`.
  */
 function resolveHostWindow(
   element: Element,
@@ -81,10 +101,26 @@ function resolveHostWindow(
 
   let offset = 0;
   let limit = Infinity;
+  const sourceHosts: SourceHostWindow[] = [];
   // parentElement walks leaf → root; the offsets accumulate root → leaf.
   for (const host of hosts.reverse()) {
     const hostStart = resolveReferencedStart(document, host, startCache, visiting);
-    const hostEnd = parseNumeric(host.getAttribute("data-end"));
+    const hostDuration = parseNumeric(host.getAttribute("data-duration"));
+    const sourceWindow = host.hasAttribute(SOURCE_WINDOW_ATTR);
+    // Canonical source windows use the same duration-first contract as preview.
+    // A stale derived data-end must not truncate otherwise valid camera audio.
+    const hostEnd =
+      sourceWindow && hostDuration != null
+        ? hostStart + Math.max(0, hostDuration)
+        : parseNumeric(host.getAttribute("data-end"));
+    sourceHosts.unshift({
+      start: hostStart,
+      end: hostEnd,
+      duration: hostDuration ?? (hostEnd == null ? Infinity : Math.max(0, hostEnd - hostStart)),
+      playbackStart: readMediaStart(host),
+      playbackRate: readElementPlaybackRate(host),
+      sourceWindow,
+    });
     if (hostEnd != null) limit = Math.min(limit, offset + hostEnd);
     offset += hostStart;
   }
@@ -97,6 +133,11 @@ function resolveHostWindow(
     offset,
     limit,
     basis,
+    cutBoundary: element.hasAttribute("data-cut-boundary"),
+    ...(sourceHosts.some((host) => host.sourceWindow) &&
+    !element.hasAttribute("data-source-window-projected")
+      ? { sourceHosts }
+      : {}),
   };
 }
 
@@ -145,6 +186,47 @@ function toAbsoluteWindow(
   return { start: absoluteStart, end: Math.min(absoluteEnd, window.limit) };
 }
 
+function toAbsoluteMediaWindow(
+  media: { start: number; end: number; mediaStart: number; playbackRate?: number },
+  window: HostWindow,
+): { start: number; end: number; mediaStart?: number; playbackRate?: number } | null {
+  if (!window.sourceHosts || window.basis === "global") {
+    return toAbsoluteWindow(media.start, media.end, window);
+  }
+  let projected = {
+    start: media.start,
+    duration: Math.max(0, media.end - media.start),
+    mediaStart: media.mediaStart,
+    playbackRate: media.playbackRate ?? 1,
+  };
+  let cutBoundary = window.cutBoundary;
+  for (const host of window.sourceHosts) {
+    if (host.sourceWindow) {
+      projected = projectSourceWindow({
+        ...projected,
+        hostStart: host.start,
+        hostDuration: host.duration,
+        // Cut effects use the cut's output clock, not its original footage clock.
+        hostPlaybackStart: cutBoundary ? 0 : host.playbackStart,
+        hostPlaybackRate: cutBoundary ? 1 : host.playbackRate,
+      });
+      cutBoundary = false;
+    } else {
+      projected.start += host.start;
+      if (host.end != null) {
+        projected.duration = Math.min(projected.duration, Math.max(0, host.end - projected.start));
+      }
+    }
+    if (projected.duration <= 0) return null;
+  }
+  return {
+    start: projected.start,
+    end: projected.start + projected.duration,
+    mediaStart: projected.mediaStart,
+    playbackRate: projected.playbackRate,
+  };
+}
+
 export interface RenderMedia {
   videos: VideoElement[];
   audios: AudioElement[];
@@ -165,7 +247,7 @@ export function collectRenderMedia(html: string): RenderMedia {
 
   const videos: VideoElement[] = [];
   for (const video of parseVideoElements(html)) {
-    const absolute = toAbsoluteWindow(video.start, video.end, windowFor(video.id));
+    const absolute = toAbsoluteMediaWindow(video, windowFor(video.id));
     if (absolute) videos.push({ ...video, ...absolute });
   }
 
@@ -183,10 +265,27 @@ export function collectRenderMedia(html: string): RenderMedia {
     // The mixer reads end === 0 as "run to the natural media length", so an
     // unbounded track must stay unbounded rather than collapse onto its start.
     const authoredEnd = audio.end > 0 ? audio.end : Infinity;
-    const absolute = toAbsoluteWindow(audio.start, authoredEnd, windowFor(elementId));
+    const absolute = toAbsoluteMediaWindow({ ...audio, end: authoredEnd }, windowFor(elementId));
     if (!absolute) continue;
     audios.push({
       ...audio,
+      ...absolute,
+      ...(audio.automation
+        ? {
+            automation: serializeAutomation(
+              projectAutomationTime(
+                parseAutomation(audio.automation),
+                Math.max(
+                  0,
+                  ((absolute.mediaStart ?? audio.mediaStart) - audio.mediaStart) /
+                    (audio.playbackRate ?? 1),
+                ),
+                (absolute.playbackRate ?? audio.playbackRate ?? 1) / (audio.playbackRate ?? 1),
+                audio.fxChain ? parseAudioFxChain(audio.fxChain) : undefined,
+              ),
+            ),
+          }
+        : {}),
       start: absolute.start,
       end: Number.isFinite(absolute.end) ? absolute.end : 0,
     });

@@ -150,7 +150,12 @@ export const CompositionThumbnail = memo(function CompositionThumbnail({
   useMountEffect(() => () => observerRef.current?.disconnect());
 
   return (
-    <div ref={setContainerRef} className="absolute inset-0 overflow-hidden">
+    <div
+      ref={setContainerRef}
+      data-thumbnail-kind="composition"
+      data-thumbnail-state={snapshot.status}
+      className="absolute inset-0 overflow-hidden"
+    >
       {value && (
         <div
           className="absolute inset-0 flex"

@@ -9,6 +9,7 @@ import { reapplyPositionEditsAfterSeek } from "../components/editor/manualEdits"
 import type { SidebarTab } from "../components/sidebar/LeftSidebar";
 import type { PatchTarget } from "../utils/sourcePatcher";
 import { logSelect } from "../utils/selectDebug";
+import { isPreviewReadinessMessage } from "../player/hooks/timelineSyncHydration";
 
 interface UseDomEditPreviewSyncParams {
   previewIframe: HTMLIFrameElement | null;
@@ -55,6 +56,8 @@ export function useDomEditPreviewSync({
   // eslint-disable-next-line no-restricted-syntax
   useEffect(() => {
     if (!previewIframe) return;
+    let disposed = false;
+    let syncSequence = 0;
 
     // fallow-ignore-next-line complexity
     const syncSelectionFromDocument = async () => {
@@ -68,11 +71,17 @@ export function useDomEditPreviewSync({
         return;
       }
       if (!doc) return;
+      const sequence = ++syncSequence;
 
       reapplyPositionEditsAfterSeek(doc);
 
       const nextElement = findElementForSelection(doc, currentSelection, activeCompPath);
       if (!nextElement) {
+        if (
+          currentSelection.element.hasAttribute("data-source-window") &&
+          (doc.defaultView as (Window & { __renderReady?: boolean }) | null)?.__renderReady !== true
+        )
+          return;
         // The selected element no longer resolves in the (re-synced) document
         // — comp/hot reload, activeCompPath swap, or post-save replacement.
         // Clear so overlay geometry isn't computed on a stale, detached node.
@@ -98,7 +107,15 @@ export function useDomEditPreviewSync({
       }
 
       const nextSelection = await buildDomSelectionFromTarget(nextElement);
-      if (nextSelection) {
+      // Resolving source capabilities can outlive a reload, a newer selection,
+      // or this effect. Never restore a target from the superseded document.
+      if (
+        !disposed &&
+        sequence === syncSequence &&
+        domEditSelectionRef.current === currentSelection &&
+        previewIframe.contentDocument === doc &&
+        nextSelection?.element.isConnected
+      ) {
         applyDomSelection(nextSelection, { revealPanel: false, preserveGroup: true });
       }
     };
@@ -115,9 +132,32 @@ export function useDomEditPreviewSync({
       refreshPreviewDocumentVersion();
     };
 
+    const handleReady = (event: MessageEvent) => {
+      // A slow external composition can settle after the one-shot post-load
+      // refresh has been consumed. Resume on runtime readiness, not a timer.
+      if (
+        event.source !== previewIframe.contentWindow ||
+        !isPreviewReadinessMessage(event, previewIframe)
+      )
+        return;
+      const selection = domEditSelectionRef.current;
+      const doc = previewIframe.contentDocument;
+      if (
+        !selection?.element.hasAttribute("data-source-window") ||
+        !doc ||
+        (doc.defaultView as (Window & { __renderReady?: boolean }) | null)?.__renderReady !== true
+      )
+        return;
+      if (selection.element.ownerDocument === doc && selection.element.isConnected) return;
+      void syncSelectionFromDocument();
+    };
+
     previewIframe.addEventListener("load", handleLoad);
+    window.addEventListener("message", handleReady);
     return () => {
+      disposed = true;
       previewIframe.removeEventListener("load", handleLoad);
+      window.removeEventListener("message", handleReady);
     };
   }, [
     activeCompPath,

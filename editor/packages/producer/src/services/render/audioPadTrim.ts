@@ -23,6 +23,8 @@ import { spawn } from "node:child_process";
 import { mkdtempSync, renameSync, rmSync } from "node:fs";
 import { dirname, join } from "node:path";
 import {
+  acquireMediaProcess,
+  boundedFfprobeArgs,
   extractAudioMetadata,
   formatFfmpegError,
   getFfprobeBinary,
@@ -634,36 +636,43 @@ async function runFfprobeJson<T>(args: string[], signal?: AbortSignal): Promise<
   if (!args.includes("--")) {
     throw new Error('[audioPadTrim] ffprobe args must terminate options with "--".');
   }
-  const proc = spawn(getFfprobeBinary(), args, { stdio: ["ignore", "pipe", "pipe"] });
-  trackChildProcess(proc);
-  let stdout = "";
-  proc.stdout.on("data", (data: Buffer) => {
-    stdout += data.toString();
-  });
-  const managed = new ManagedChildProcess(proc, {
-    signal,
-    deadlineAtMs: Date.now() + 30_000,
-  });
-  const outcome = await managed.wait();
-  if (outcome.reason === "spawn_error") {
-    if ((outcome.error as NodeJS.ErrnoException | undefined)?.code === "ENOENT") {
-      throw new Error("[audioPadTrim] ffprobe not found. Please install FFmpeg.");
-    }
-    throw outcome.error ?? new Error(outcome.stderr);
-  }
-  if (outcome.reason !== "exit" || outcome.exitCode !== 0) {
-    // Redacted twice, deliberately. The shape-based scrub is a net with
-    // holes — it cannot know that `customer/acme-secret/video.mp4` is a path
-    // and `48000/1001` is not — but THIS caller knows the exact path it put
-    // in the argv, so it names it literally first. The message reaches logs,
-    // telemetry, and `PadTrimAudioResult.error`.
-    const probed = args[args.length - 1];
-    const scrubbed = redactKnownPaths(outcome.stderr, probed === undefined ? [] : [probed]);
-    throw new Error(`ffprobe ${outcome.reason}: ${redactTelemetryString(scrubbed, 2000)}`);
-  }
+  const release = await acquireMediaProcess(signal);
   try {
-    return JSON.parse(stdout) as T;
-  } catch (err) {
-    throw new Error(`Failed to parse ffprobe output: ${(err as Error).message}`);
+    const proc = spawn(getFfprobeBinary(), boundedFfprobeArgs(args), {
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    trackChildProcess(proc);
+    let stdout = "";
+    proc.stdout.on("data", (data: Buffer) => {
+      stdout += data.toString();
+    });
+    const managed = new ManagedChildProcess(proc, {
+      signal,
+      deadlineAtMs: Date.now() + 30_000,
+    });
+    const outcome = await managed.wait();
+    if (outcome.reason === "spawn_error") {
+      if ((outcome.error as NodeJS.ErrnoException | undefined)?.code === "ENOENT") {
+        throw new Error("[audioPadTrim] ffprobe not found. Please install FFmpeg.");
+      }
+      throw outcome.error ?? new Error(outcome.stderr);
+    }
+    if (outcome.reason !== "exit" || outcome.exitCode !== 0) {
+      // Redacted twice, deliberately. The shape-based scrub is a net with
+      // holes — it cannot know that `customer/acme-secret/video.mp4` is a path
+      // and `48000/1001` is not — but THIS caller knows the exact path it put
+      // in the argv, so it names it literally first. The message reaches logs,
+      // telemetry, and `PadTrimAudioResult.error`.
+      const probed = args[args.length - 1];
+      const scrubbed = redactKnownPaths(outcome.stderr, probed === undefined ? [] : [probed]);
+      throw new Error(`ffprobe ${outcome.reason}: ${redactTelemetryString(scrubbed, 2000)}`);
+    }
+    try {
+      return JSON.parse(stdout) as T;
+    } catch (err) {
+      throw new Error(`Failed to parse ffprobe output: ${(err as Error).message}`);
+    }
+  } finally {
+    release();
   }
 }

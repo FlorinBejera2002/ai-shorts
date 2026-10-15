@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { formatDuration } from '@/lib/youtube'
+import { formatStoryTime as formatDuration } from './story-time'
 import { StoryScene } from './story-scene'
 import { useStoryLanguage } from './use-story-language'
 import type { StoryBlock, StoryProject, StoryVersion } from './types'

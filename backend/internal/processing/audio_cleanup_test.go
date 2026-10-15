@@ -226,7 +226,7 @@ func TestAudioCleanupReachesStoryExportAndCanBeDisabled(t *testing.T) {
 	}
 	req := story.Request{ID: "export-cleanup", Options: story.Options{AspectRatio: "16:9", CaptionMode: "off", AudioCleanup: &audiocleanup.Settings{Enabled: true}}, Assets: []story.Asset{cleaned}}
 	version := story.Version{Number: 1, Timeline: []story.Entry{{BlockID: "one", OutputIn: 0, OutputOut: a.Duration, Video: story.Interval{SourceID: a.ID, In: 0, Out: a.Duration}, Audio: &story.Interval{SourceID: a.ID, In: 0, Out: a.Duration}, Crop: "fit"}}}
-	result, err := p.RenderStory(context.Background(), req, version)
+	result, err := renderStoryForTest(t, p, context.Background(), req, version)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -238,7 +238,7 @@ func TestAudioCleanupReachesStoryExportAndCanBeDisabled(t *testing.T) {
 	}
 	req.Options.AudioCleanup.Enabled = false
 	version.Number = 2
-	original, err := p.RenderStory(context.Background(), req, version)
+	original, err := renderStoryForTest(t, p, context.Background(), req, version)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -265,7 +265,7 @@ func TestAudioCleanupReachesStoryExportAndCanBeDisabled(t *testing.T) {
 	}
 	req.Options.AudioCleanup.Enabled = true
 	req.ID = "different-project"
-	if _, err = p.RenderStory(context.Background(), req, version); err == nil {
+	if _, err = renderStoryForTest(t, p, context.Background(), req, version); err == nil {
 		t.Fatal("foreign derivative accepted")
 	}
 }
@@ -273,7 +273,7 @@ func TestAudioCleanupReachesStoryExportAndCanBeDisabled(t *testing.T) {
 func TestAudioCleanupOrdinaryRenderUsesDerivativeAndOriginalRecipe(t *testing.T) {
 	p, _, dir, a, _ := cleanupFixture(t)
 	in := RenderInput{Namespace: "ordinary-cleanup/clip", SourceKey: a.Key, AspectRatio: "16:9", Segments: []Segment{{Start: 0, End: a.Duration}}, AudioCleanup: &audiocleanup.Settings{Enabled: true}}
-	result, err := p.Render(context.Background(), in)
+	result, err := renderClipForTest(t, p, context.Background(), in)
 	if err != nil {
 		t.Fatal(err)
 	}

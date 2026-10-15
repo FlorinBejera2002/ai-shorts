@@ -31,6 +31,10 @@ func TestPublishingUploadUsesUploadDeadlines(t *testing.T) {
 		{http.MethodGet, "/api/publishing/media/preview", 15 * time.Second, 20 * time.Second},
 		{http.MethodPost, "/api/publishing/media/preview", 15 * time.Second, 20 * time.Second},
 		{http.MethodPost, "/api/calendar/posts", 15 * time.Second, 20 * time.Second},
+		{http.MethodPost, "/api/stories/11111111-1111-4111-8111-111111111111/assets", 15 * time.Second, 15 * time.Minute},
+		{http.MethodGet, "/api/stories/11111111-1111-4111-8111-111111111111/assets", 15 * time.Second, 20 * time.Second},
+		{http.MethodPost, "/api/stories/11111111-1111-4111-8111-111111111111/generate", 15 * time.Second, 20 * time.Second},
+		{http.MethodPost, "/api/stories/11111111-1111-4111-8111-111111111111/other/assets", 15 * time.Second, 20 * time.Second},
 	} {
 		t.Run(tc.method+tc.path, func(t *testing.T) {
 			var operationDeadline time.Time

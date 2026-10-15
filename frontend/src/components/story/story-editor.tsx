@@ -20,6 +20,9 @@ import { StoryResultHeader } from './story-result-header'
 import { StoryClipEditor } from './story-clip-editor'
 import { useStoryLanguage } from './use-story-language'
 import { StoryMusicCredits } from './story-music-credits'
+import { StoryFormat } from './story-format'
+import { StoryDynamicRange } from './story-dynamic-range'
+import { StoryCaptionStatus } from './story-caption-status'
 
 interface Props {
   project: StoryProject
@@ -119,6 +122,11 @@ export function StoryEditor({
           shown.render_options?.aspect_ratio ?? project.options.aspect_ratio
         }
       />
+      {shown.render_options?.dynamic_range === 'hdr' && (
+        <p className="text-xs text-muted-foreground">
+          {text('SDR preview for browser compatibility. Download saves the original HDR video.', 'Previzualizare SDR pentru compatibilitate cu browserul. Descărcarea salvează videoul HDR original.')}
+        </p>
+      )}
       {shown.preview_url ? (
         <div className="flex min-h-48 justify-center overflow-hidden rounded-md bg-muted">
           <video
@@ -151,6 +159,13 @@ export function StoryEditor({
           )}
         </p>
       )}
+      <StoryCaptionStatus
+        version={shown}
+        options={project.options}
+        hasTranscriptProposals={project.assets.some(
+          (asset) => asset.transcript_proposals?.length
+        )}
+      />
       <div
         className="flex flex-wrap items-center gap-2"
         aria-label={text('Improve your video', 'Îmbunătățește videoul')}
@@ -184,7 +199,7 @@ export function StoryEditor({
           disabled={disabled || comparing}
           aria-expanded={appearance}
           onClick={() => {
-            if (!appearance) setStyleOptions(project.options)
+            if (!appearance) setStyleOptions(shown.render_options ?? project.options)
             setAppearance(!appearance)
           }}
         >
@@ -257,6 +272,16 @@ export function StoryEditor({
           className="space-y-4 rounded-md border p-4"
           aria-label={text('Video appearance', 'Aspect video')}
         >
+          <fieldset disabled={disabled || comparing} className="grid gap-4 sm:grid-cols-2">
+            <StoryFormat
+              value={styleOptions.aspect_ratio}
+              onChange={(aspect_ratio) => setStyleOptions({ ...styleOptions, aspect_ratio })}
+            />
+            <StoryDynamicRange
+              value={styleOptions.dynamic_range}
+              onChange={(dynamic_range) => setStyleOptions({ ...styleOptions, dynamic_range })}
+            />
+          </fieldset>
           <StoryAppearance
             options={styleOptions}
             disabled={disabled}
@@ -274,6 +299,9 @@ export function StoryEditor({
       )}
       <StoryReview
         version={shown}
+        hasTranscriptProposals={project.assets.some(
+          (asset) => asset.transcript_proposals?.length
+        )}
         onSeek={shown.preview_url ? seekTo : undefined}
       />
       {editing && (

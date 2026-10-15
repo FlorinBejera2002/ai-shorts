@@ -156,6 +156,21 @@ try {
   const caption = page.getByRole('button', {
     name: 'Caption position. Drag or use arrow keys.'
   })
+  await page.getByRole('combobox', { name: 'Weight', exact: true }).selectOption('900')
+  await page.waitForFunction(() => {
+    const preview = document.querySelector('[aria-label="Caption position. Drag or use arrow keys."]')
+    return preview && getComputedStyle(preview).fontWeight === '900'
+  })
+  for (const label of ['Letter spacing', 'Word spacing', 'Line spacing']) {
+    const slider = page.getByRole('slider', { name: label, exact: true })
+    await slider.focus()
+    await page.keyboard.press('ArrowRight')
+  }
+  await page.waitForFunction(() => {
+    const preview = document.querySelector('[aria-label="Caption position. Drag or use arrow keys."]')
+    return preview && parseFloat(getComputedStyle(preview).letterSpacing) > 0 &&
+      parseFloat(getComputedStyle(preview).wordSpacing) > 0
+  })
   await caption.focus()
   await page.keyboard.press('ArrowUp')
   await page.keyboard.press('ArrowLeft')
@@ -181,8 +196,14 @@ try {
   await page.getByRole('button', { name: 'Save', exact: true }).click()
   await page.waitForFunction(() => document.body.innerText.includes('Saved'))
   assert.equal(saved, 1)
+  assert.equal(kit.captionStyle.weight, 900)
+  assert.equal(kit.captionStyle.letter_spacing, 0.01)
+  assert.equal(kit.captionStyle.word_spacing, 0.01)
+  assert.equal(kit.captionStyle.line_spacing, 1.2)
   await page.reload()
   await page.getByRole('heading', { name: 'Captions', exact: true }).waitFor()
+  assert.equal(await page.getByRole('combobox', { name: 'Weight', exact: true }).inputValue(), '900')
+  assert.equal(await page.getByRole('slider', { name: 'Letter spacing', exact: true }).getAttribute('aria-valuenow'), '0.01')
   assert.equal(
     Number(await page.getByLabel('Vertical (%)', { exact: true }).inputValue()),
     movedY

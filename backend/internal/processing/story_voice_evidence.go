@@ -58,7 +58,7 @@ func (p *Processor) prepareStorySpeechCatalogWithAudio(ctx context.Context, dir 
 	for _, candidate := range asset.Candidates {
 		spoken = spoken || len(candidate.Words) > 0
 	}
-	if !spoken {
+	if !spoken && len(asset.TranscriptProposals) == 0 {
 		return asset, nil
 	}
 	intervals, err := p.storyVoiceIntervals(ctx, dir, raw, clockVersion, p.storyVADModel(model), audio)
@@ -66,9 +66,15 @@ func (p *Processor) prepareStorySpeechCatalogWithAudio(ctx context.Context, dir 
 		return asset, ctx.Err()
 	}
 	if err != nil {
+		asset = prepareStoryTranscriptProposals(asset, nil, false)
 		asset, err = boundStorySpeechToVoice(asset, nil, false)
 	} else {
+		asset = prepareStoryTranscriptProposals(asset, intervals, true)
 		asset, err = boundStorySpeechToVoice(asset, intervals, true)
+	}
+	if err == nil {
+		asset = story.ApplyTranscriptReviews(asset)
+		asset.AnalysisVersion = storyDigest([]any{asset.AnalysisVersion, asset.TranscriptReviews})
 	}
 	if err == nil && asset.Kind != "narration" && !options.Narration {
 		warnings := make([]string, 0, len(asset.Warnings))
@@ -95,6 +101,24 @@ func (p *Processor) prepareStorySpeechCatalogWithAudio(ctx context.Context, dir 
 		}
 	}
 	return asset, err
+}
+
+// Suggested lexical text uses the same independent voice-clock gate as automatic
+// captions. A reviewer may correct text, but cannot certify arbitrary timestamps.
+func prepareStoryTranscriptProposals(asset story.Asset, intervals []Segment, available bool) story.Asset {
+	for i := range asset.TranscriptProposals {
+		proposal := &asset.TranscriptProposals[i]
+		probe := story.Asset{Duration: asset.Duration, Candidates: []story.Candidate{{ID: proposal.CandidateID, SourceID: asset.ID, In: proposal.In, Out: proposal.Out, Words: proposal.Words}}}
+		bounded, err := boundStorySpeechToVoice(probe, intervals, available)
+		proposal.TimingVerified = err == nil && len(bounded.Candidates[0].Words) > 0
+		if proposal.TimingVerified {
+			proposal.Words = bounded.Candidates[0].Words
+		} else {
+			proposal.Reason += " Voice timing could not be verified; these words cannot be approved yet."
+		}
+		proposal.ID = story.TranscriptProposalID(asset, *proposal)
+	}
+	return asset
 }
 
 // This sidecar is intentionally separate from ASR analysis. Older expensive

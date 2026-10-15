@@ -26,6 +26,7 @@ export default function DashboardPage() {
 
       <StatsBar
         credits={metrics.credits}
+        creditsUnlimited={metrics.creditsUnlimited}
         jobCount={metrics.jobCount}
         clipCount={metrics.clipCount}
         durationMinutes={metrics.durationMinutes}

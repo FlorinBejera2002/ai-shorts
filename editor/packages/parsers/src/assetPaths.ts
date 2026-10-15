@@ -17,7 +17,7 @@ import { isAbsolute, relative, resolve } from "node:path";
 export const CSS_URL_RE = /\burl\(\s*(["']?)([^)"'\s](?:[^)"']*[^)"'\s])?)\1\s*\)/g;
 
 /** Attributes that may contain relative asset paths. */
-export const PATH_ATTRS = ["src", "href"] as const;
+export const PATH_ATTRS = ["src", "href", "data-preview-src", "data-render-src"] as const;
 
 /** Returns true for URLs/prefixes that should never be rewritten. */
 export function isNonRelativeUrl(val: string): boolean {

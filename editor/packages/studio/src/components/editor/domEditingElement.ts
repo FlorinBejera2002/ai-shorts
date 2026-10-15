@@ -283,6 +283,7 @@ export function isLargeRasterDomEditSelection(
 
 type FindElementSelection = Pick<DomEditSelection, "id" | "hfId" | "selector" | "selectorIndex"> & {
   sourceFile?: string;
+  element?: HTMLElement;
 };
 
 export function findElementForSelection(
@@ -290,11 +291,33 @@ export function findElementForSelection(
   selection: FindElementSelection,
   activeCompositionPath: string | null = null,
 ): HTMLElement | null {
-  const sourceMatches = (candidate: Element): candidate is HTMLElement =>
-    isHtmlElement(candidate) &&
-    (!selection.sourceFile ||
-      getSourceFileForElement(candidate, activeCompositionPath).sourceFile ===
-        selection.sourceFile);
+  const sourceMatches = (candidate: Element): candidate is HTMLElement => {
+    if (!isHtmlElement(candidate)) return false;
+    // Split cuts can copy their child file while retaining their parent host.
+    // Compare that host's owner, not the replaceable child composition path.
+    if (
+      selection.element?.hasAttribute("data-source-window") &&
+      candidate.hasAttribute("data-source-window") &&
+      selection.element.parentElement &&
+      candidate.parentElement
+    ) {
+      return (
+        normalizeTimelineCompositionSource(
+          getSourceFileForElement(selection.element.parentElement, activeCompositionPath)
+            .sourceFile,
+        ) ===
+        normalizeTimelineCompositionSource(
+          getSourceFileForElement(candidate.parentElement, activeCompositionPath).sourceFile,
+        )
+      );
+    }
+    return (
+      !selection.sourceFile ||
+      normalizeTimelineCompositionSource(
+        getSourceFileForElement(candidate, activeCompositionPath).sourceFile,
+      ) === normalizeTimelineCompositionSource(selection.sourceFile)
+    );
+  };
   const findAll = (selector: string): HTMLElement[] =>
     querySelectorAllSafely(doc, selector).filter(sourceMatches);
 

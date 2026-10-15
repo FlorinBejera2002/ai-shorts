@@ -118,6 +118,7 @@ func TestEvaluationCheckpointsAreImmutableAndBudgeted(t *testing.T) {
 }
 
 func TestOfflineEvaluationRunsProductionPipelineOnFiveFiles(t *testing.T) {
+	getenv := evaluationStudioTestEnvironment(t)
 	for _, binary := range []string{"ffmpeg", "ffprobe"} {
 		if _, err := exec.LookPath(binary); err != nil {
 			t.Skip("requires local FFmpeg/FFprobe")
@@ -144,7 +145,7 @@ func TestOfflineEvaluationRunsProductionPipelineOnFiveFiles(t *testing.T) {
 		}
 	}
 	var console bytes.Buffer
-	if err := runEvaluation(context.Background(), []string{"-input", input, "-output", output, "-provider", "offline", "-target", "15", "-aspect", "16:9", "-repair-cycles", "0"}, func(string) string { return "" }, &console); err != nil {
+	if err := runEvaluation(context.Background(), []string{"-input", input, "-output", output, "-provider", "offline", "-target", "15", "-aspect", "16:9", "-repair-cycles", "0"}, getenv, &console); err != nil {
 		failures, _ := filepath.Glob(filepath.Join(output, "*", "checkpoints", "*-failure.json"))
 		for _, failure := range failures {
 			if data, readErr := os.ReadFile(failure); readErr == nil {
@@ -196,7 +197,7 @@ func TestOfflineEvaluationRunsProductionPipelineOnFiveFiles(t *testing.T) {
 			t.Fatal(err)
 		}
 		console.Reset()
-		if err = runEvaluation(context.Background(), []string{"-replay", runDir, "-output", output, "-repair-cycles", "0"}, func(string) string { return "" }, &console); err != nil {
+		if err = runEvaluation(context.Background(), []string{"-replay", runDir, "-output", output, "-repair-cycles", "0"}, getenv, &console); err != nil {
 			t.Fatalf("offline replay: %v\n%s", err, console.String())
 		}
 		entries, err := os.ReadDir(output)

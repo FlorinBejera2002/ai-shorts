@@ -63,11 +63,21 @@ func (p *Processor) ReviewStory(ctx context.Context, request story.Request, vers
 	}
 	info, err := p.probe(ctx, output)
 	expected := version.Timeline[len(version.Timeline)-1].OutputOut
-	if err != nil || !info.Audio || math.Abs(info.Duration-expected) > .12 || p.decodeStory(ctx, output) != nil {
+	geometryInvalid := false
+	if version.Output.StudioManualEdits {
+		expected = version.Output.Duration
+		var width, height int
+		_, geometryErr := fmt.Sscanf(version.Output.Resolution, "%dx%d", &width, &height)
+		geometryInvalid = geometryErr != nil || info.Width != width || info.Height != height
+	}
+	if err != nil || (!info.Audio && !version.Output.StudioManualEdits) || geometryInvalid || math.Abs(info.Duration-expected) > .12 || p.decodeStory(ctx, output) != nil {
 		report.Issues = append(report.Issues, story.Issue{ID: "output-integrity", Type: "file", Severity: "critical", Start: 0, End: expected, Evidence: "The actual output failed full video/audio decoding or timeline duration validation.", Confidence: 1})
 		return incomplete("File integrity checks did not pass.")
 	}
 	report.Coverage.File = true
+	if version.Output.StudioManualEdits {
+		return incomplete("Manual Studio changes were preserved. Review the picture, audio and captions before publishing.")
+	}
 	for _, warning := range version.Output.CaptionWarnings {
 		report.Coverage.Incomplete = appendStoryWarning(report.Coverage.Incomplete, warning)
 	}
@@ -194,12 +204,16 @@ func (p *Processor) storyReviewMedia(ctx context.Context, dir, output string, re
 	if request.Options.Narration {
 		videoRate, audioRate = "240k", "48k"
 	}
+	outputColor := ""
+	if request.Options.DynamicRange == "hdr" {
+		outputColor = storyColorFilter("smpte2084")
+	}
 	// Share the input demux/decode for both complete review copies. FFmpeg
 	// resets output options at each filename, so each copy keeps its own maps,
 	// codec and audio settings without changing the evidence sent for review.
 	if p.ffmpeg(ctx, dir,
 		"-i", output,
-		"-map", "0:v:0", "-map", "0:a:0", "-vf", "scale=w='min(640,iw)':h='min(640,ih)':force_original_aspect_ratio=decrease:force_divisible_by=2,fps=10",
+		"-map", "0:v:0", "-map", "0:a:0", "-vf", outputColor+"scale=w='min(640,iw)':h='min(640,ih)':force_original_aspect_ratio=decrease:force_divisible_by=2,fps=10",
 		"-c:v", "libx264", "-preset", "veryfast", "-crf", "26", "-maxrate", videoRate, "-bufsize", "480k", "-c:a", "aac", "-b:a", audioRate, "-ac", "1", "-movflags", "+faststart", preview,
 		"-map", "0:a:0", "-vn", "-ac", "1", "-ar", "24000", "-c:a", "libmp3lame", "-b:a", "64k", audio,
 	) != nil {
@@ -217,7 +231,7 @@ func (p *Processor) storyReviewMedia(ctx context.Context, dir, output string, re
 		boundary := version.Timeline[i].OutputIn
 		for j, at := range []float64{max(0, boundary-.04), min(version.Output.Duration-.04, boundary+.04)} {
 			file := filepath.Join(dir, fmt.Sprintf("boundary-%d-%d.jpg", i, j))
-			if p.ffmpeg(ctx, dir, "-ss", seconds(at), "-i", output, "-frames:v", "1", "-vf", "scale=w='min(960,iw)':h='min(960,ih)':force_original_aspect_ratio=decrease:force_divisible_by=2", "-q:v", "3", file) != nil {
+			if p.ffmpeg(ctx, dir, "-ss", seconds(at), "-i", output, "-frames:v", "1", "-vf", outputColor+"scale=w='min(960,iw)':h='min(960,ih)':force_original_aspect_ratio=decrease:force_divisible_by=2", "-q:v", "3", file) != nil {
 				return nil, nil, errors.New("boundary preview failed")
 			}
 			if err := add(file, "image/jpeg", fmt.Sprintf("Actual boundary %.6f, image at output %.6f; adjacent blocks %s / %s.", boundary, at, version.Timeline[i-1].BlockID, version.Timeline[i].BlockID)); err != nil {
@@ -295,7 +309,7 @@ func (p *Processor) storyReviewMedia(ctx context.Context, dir, output string, re
 				return nil, nil, err
 			}
 			preview := filepath.Join(dir, fmt.Sprintf("identity-%d-%d.mp4", i, j))
-			if p.ffmpeg(ctx, dir, "-ss", seconds(interval.In), "-i", file, "-t", seconds(interval.Out-interval.In), "-map", "0:v:0", "-map", "0:a:0", "-vf", "scale=w='min(640,iw)':h='min(640,ih)':force_original_aspect_ratio=decrease:force_divisible_by=2,fps=10", "-c:v", "libx264", "-preset", "veryfast", "-crf", "26", "-maxrate", "500k", "-bufsize", "1000k", "-c:a", "aac", "-b:a", "64k", "-ac", "1", "-movflags", "+faststart", preview) != nil {
+			if p.ffmpeg(ctx, dir, "-ss", seconds(interval.In), "-i", file, "-t", seconds(interval.Out-interval.In), "-map", "0:v:0", "-map", "0:a:0", "-vf", storyColorFilter(asset.ColorTransfer)+"scale=w='min(640,iw)':h='min(640,ih)':force_original_aspect_ratio=decrease:force_divisible_by=2,fps=10", "-c:v", "libx264", "-preset", "veryfast", "-crf", "26", "-maxrate", "500k", "-bufsize", "1000k", "-c:a", "aac", "-b:a", "64k", "-ac", "1", "-movflags", "+faststart", preview) != nil {
 				return nil, nil, errors.New("speaker comparison preview failed")
 			}
 			kind := "ORIGINAL TAKE"

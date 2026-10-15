@@ -209,7 +209,7 @@ func TestNarrationRecorderWebMVoiceRemainsOnOriginalSampleClock(t *testing.T) {
 		version.Timeline = append(version.Timeline, story.Entry{BlockID: string(rune('a' + i)), OutputIn: previous, OutputOut: at, Video: story.Interval{SourceID: visual.ID, In: videoIn, Out: videoIn + at - previous}, Audio: &story.Interval{SourceID: voice.ID, In: previous, Out: at}, Crop: "fit"})
 		previous = at
 	}
-	output, err := p.RenderStory(ctx, request, version)
+	output, err := renderStoryForTest(t, p, ctx, request, version)
 	if err != nil || math.Abs(output.Duration-voice.Duration) > .035 {
 		t.Fatalf("recorder duration changed: %#v %v", output, err)
 	}
@@ -270,7 +270,7 @@ func TestNarrationRendersOneContinuousVoiceAcrossVisualCuts(t *testing.T) {
 		{BlockID: "two", OutputIn: .7, OutputOut: 1.3, Video: story.Interval{SourceID: blue.ID, In: 0, Out: .6}, Audio: &story.Interval{SourceID: voice.ID, In: .7, Out: 1.3}, Words: words[1:], Crop: "fit"},
 		{BlockID: "three", OutputIn: 1.3, OutputOut: 2, Video: story.Interval{SourceID: red.ID, In: .7, Out: 1.4}, Audio: &story.Interval{SourceID: voice.ID, In: 1.3, Out: 2}, Crop: "fit"},
 	}}
-	output, err := p.RenderStory(ctx, request, version)
+	output, err := renderStoryForTest(t, p, ctx, request, version)
 	if err != nil || math.Abs(output.Duration-voice.Duration) > .035 {
 		t.Fatalf("continuous narration render failed: %#v %v", output, err)
 	}

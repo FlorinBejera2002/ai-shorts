@@ -37,7 +37,7 @@ export function ResultPreview({ run, ro }: { run: AgentRun; ro: boolean }) {
         return { url, transcript: '' }
       }
       const current = await storyRequest<Record<string, unknown>>(`/api/clips/${id}`, 'GET', undefined, signal)
-      const url = mediaUrl(current.file_url ?? current.fileUrl)
+      const url = mediaUrl(current.preview_url ?? current.previewUrl ?? current.file_url ?? current.fileUrl)
       if (!url) throw new Error(ro ? 'Previzualizarea nu este disponibilă.' : 'Preview is unavailable.')
       return { url, transcript: typeof current.transcript_text === 'string' ? current.transcript_text : '' }
     } })

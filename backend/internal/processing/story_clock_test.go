@@ -35,7 +35,7 @@ func TestStoryAdjacentNaturalIntervalsDoNotAccumulateAudioClockDrift(t *testing.
 		version.Timeline = append(version.Timeline, story.Entry{BlockID: fmt.Sprintf("part-%d", i), OutputIn: start, OutputOut: end, Video: story.Interval{SourceID: asset.ID, In: start, Out: end}, Audio: &story.Interval{SourceID: asset.ID, In: start, Out: end}, Crop: "fit"})
 		start = end
 	}
-	output, err := p.RenderStory(ctx, request, version)
+	output, err := renderStoryForTest(t, p, ctx, request, version)
 	if err != nil {
 		t.Fatal(err)
 	}

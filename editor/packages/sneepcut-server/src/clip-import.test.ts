@@ -161,3 +161,76 @@ test("opening Studio directly reuses one private blank workspace", async () => {
   expect(await store.list(bob)).toHaveLength(0);
   expect(await readFile(join(first.dir, "index.html"), "utf8")).not.toContain("title-card");
 });
+
+test("Story import downloads original clips, preserves the finished reference, and reopens edits", async () => {
+  const storyId = "44444444-4444-4444-8444-444444444444";
+  const sourceId = "55555555-5555-4555-8555-555555555555";
+  const requests: string[] = [];
+  const importer = createClipImporter({
+    store,
+    apiOrigin: "https://api.test",
+    mediaOrigin: "https://app.test",
+    probeAudio: async () => true,
+    fetcher: async (input, init) => {
+      const url = String(input);
+      requests.push(url);
+      if (url.includes("/api/clips/"))
+        return Response.json({ ...clip(), story_project_id: storyId, story_version: 1 });
+      if (url.includes("/api/stories/")) {
+        expect(new Headers(init?.headers).get("Authorization")).toBe("Bearer alice");
+        return Response.json({
+          id: storyId,
+          options: { aspect_ratio: "9:16", captions: false },
+          assets: [
+            {
+              id: sourceId,
+              name: "Original",
+              source_url: "https://app.test/media/original.mov",
+              duration: 12,
+              has_audio: true,
+            },
+          ],
+          versions: [
+            {
+              number: 1,
+              accepted: true,
+              timeline: [
+                {
+                  block_id: "first",
+                  output_in: 0,
+                  output_out: 2,
+                  video: { source_id: sourceId, in: 1, out: 3 },
+                  audio: { source_id: sourceId, in: 1, out: 3 },
+                },
+                {
+                  block_id: "second",
+                  output_in: 2,
+                  output_out: 4.5,
+                  video: { source_id: sourceId, in: 6, out: 8.5 },
+                  audio: { source_id: sourceId, in: 6, out: 8.5 },
+                },
+              ],
+            },
+          ],
+        });
+      }
+      expect(new Headers(init?.headers).has("Authorization")).toBe(false);
+      return new Response(url.includes("original.mov") ? "original-source" : "finished-reference");
+    },
+  });
+  const project = await importer(alice, "Bearer alice", id);
+  expect(await readFile(join(project.dir, "assets/source-1.mp4"), "utf8")).toBe("original-source");
+  const html = await readFile(join(project.dir, "index.html"), "utf8");
+  expect(html.match(/data-composition-src=/g)).toHaveLength(2);
+  expect(html).toContain('data-playback-start="6" data-source-duration="12"');
+  expect(await readFile(join(project.dir, "source-scene-2.html"), "utf8")).toContain(
+    'data-media-start="0" data-source-duration="12"',
+  );
+  expect(await readFile(join(project.dir, "original-export.html"), "utf8")).toContain(
+    'src="assets/clip.mp4"',
+  );
+  expect(requests.filter((url) => url.includes("original.mov"))).toHaveLength(1);
+  await writeFile(join(project.dir, "index.html"), "saved source edit");
+  expect((await importer(alice, "Bearer alice", id)).id).toBe(project.id);
+  expect(await readFile(join(project.dir, "index.html"), "utf8")).toBe("saved source edit");
+});

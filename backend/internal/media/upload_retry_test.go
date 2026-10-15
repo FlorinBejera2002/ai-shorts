@@ -15,7 +15,9 @@ type retryNonce struct {
 func (n *retryNonce) RetryAfter(context.Context, string) (time.Duration, error) { return n.wait, nil }
 func TestUploadBusyUsesRemainingWindowWithoutChangingAllowance(t *testing.T) {
 	for _, wait := range []time.Duration{1500 * time.Millisecond, 37 * time.Second, 0} {
-		s := NewService(Config{}, nil, nil, &retryNonce{mockNonce: mockNonce{limited: true}, wait: wait}, nil)
+		s, mock, _, _ := uploadService(t)
+		s.nonce = &retryNonce{mockNonce: mockNonce{limited: true}, wait: wait}
+		activeAccount(mock, "member", false)
 		err := s.allow(context.Background(), testUserID, "upload", 60)
 		if err == nil {
 			t.Fatal("rate protection bypassed")

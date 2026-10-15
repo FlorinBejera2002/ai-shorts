@@ -1,6 +1,7 @@
 'use client'
 
 import { useToast } from '@/components/ui/toast'
+import { useAuth } from '@/components/auth/use-auth'
 import { apiFetch } from '@/lib/auth'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
@@ -34,9 +35,11 @@ function errorMessage(data: unknown, fallback: string) {
 
 export function useBrandKit(t: Translate) {
   const toast = useToast()
+  const { user } = useAuth()
   const [kit, setKit] = useState<BrandKit>(BRAND_DEFAULTS)
   const [persistedKit, setPersistedKit] = useState<BrandKit>(BRAND_DEFAULTS)
   const [plan, setPlan] = useState('free')
+  const [canWhiteLabel, setCanWhiteLabel] = useState<boolean | undefined>()
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -61,6 +64,9 @@ export function useBrandKit(t: Translate) {
       setKit(nextKit)
       setPersistedKit(nextKit)
       if (data.plan) setPlan(data.plan)
+      setCanWhiteLabel(
+        typeof data.canWhiteLabel === 'boolean' ? data.canWhiteLabel : undefined
+      )
     } catch {
       setLoadError(true)
     } finally {
@@ -219,7 +225,8 @@ export function useBrandKit(t: Translate) {
     logoPreviewUrl,
     dirty,
     hasInvalidColor,
-    canWhiteLabel: plan === WHITE_LABEL_PLAN,
+    canWhiteLabel:
+      canWhiteLabel ?? (user?.access_role === 'admin' || plan === WHITE_LABEL_PLAN),
     update,
     reset,
     discard,

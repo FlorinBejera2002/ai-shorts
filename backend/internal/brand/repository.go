@@ -48,7 +48,7 @@ func (r *Repository) update(ctx context.Context, userID string, input map[string
 	if e != nil {
 		return out, e
 	}
-	if role != "member" || activation {
+	if (role != "member" && role != "admin") || activation {
 		return out, ErrInactive
 	}
 	var deleting bool
@@ -58,7 +58,7 @@ func (r *Repository) update(ctx context.Context, userID string, input map[string
 	if deleting {
 		return out, ErrInactive
 	}
-	if hide, ok := fields["hidePlatformBadge"].(bool); ok && hide && plan != "agency" {
+	if hide, ok := fields["hidePlatformBadge"].(bool); ok && hide && plan != "agency" && role != "admin" {
 		return out, ErrPlan
 	}
 	if style, ok := fields["captionStyle"].(*captions.Style); ok && !captions.IsBuiltin(style.FontID) {

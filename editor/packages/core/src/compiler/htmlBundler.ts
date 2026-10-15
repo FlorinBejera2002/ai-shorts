@@ -202,7 +202,14 @@ function rebaseEntryAuthoredAssetPaths(
     if (el.tagName === "LINK" && (el.getAttribute("rel") || "").toLowerCase() === "stylesheet")
       continue;
     if (el.tagName === "SCRIPT" && el.hasAttribute("src")) continue;
-    for (const attr of ["src", "href", "poster", "xlink:href"] as const) {
+    for (const attr of [
+      "src",
+      "href",
+      "poster",
+      "xlink:href",
+      "data-preview-src",
+      "data-render-src",
+    ] as const) {
       const value = el.getAttribute(attr);
       if (!value || !isRelativeUrl(value)) continue;
       el.setAttribute(attr, rebaseRelativePath(value, sourceDir, projectDir));

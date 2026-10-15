@@ -45,7 +45,7 @@ func (h *Handler) get(w http.ResponseWriter, r *http.Request) {
 		write(w, 503, map[string]string{"error": "Brand settings are temporarily unavailable"})
 		return
 	}
-	write(w, 200, map[string]any{"brandKit": brand, "plan": user.Plan})
+	write(w, 200, map[string]any{"brandKit": brand, "plan": user.Plan, "canWhiteLabel": user.Plan == "agency" || user.AccessRole == "admin"})
 }
 func (h *Handler) update(w http.ResponseWriter, r *http.Request) {
 	contentType, _, e := mime.ParseMediaType(r.Header.Get("Content-Type"))

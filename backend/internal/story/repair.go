@@ -284,6 +284,35 @@ func editPlan(req Request) (Plan, error) {
 // ValidateEdit checks source availability and user locks without invoking AI or
 // charging work. API callers use the same rules as the worker before queuing.
 func ValidateEdit(req Request) error {
+	if req.Action == "review_transcript" {
+		if req.Base == nil || !req.Base.Accepted || req.Base.Output.Key == "" || len(req.Base.Timeline) == 0 || req.BlockID != "" || req.CandidateID != "" {
+			return fmt.Errorf("transcript review requires an accepted rendered story")
+		}
+		if EffectiveCaptionMode(req.Options) == "off" {
+			return fmt.Errorf("turn captions on before rebuilding the reviewed transcript")
+		}
+		for _, block := range req.Base.Plan.Blocks {
+			if !block.Locked && !block.LockText {
+				continue
+			}
+			for _, entry := range req.Base.Timeline {
+				if entry.BlockID != block.ID || entry.Audio == nil {
+					continue
+				}
+				for _, asset := range req.Assets {
+					if asset.ID != entry.Audio.SourceID {
+						continue
+					}
+					for _, proposal := range asset.TranscriptProposals {
+						if proposal.Reviewed && proposal.In < entry.Audio.Out && proposal.Out > entry.Audio.In {
+							return fmt.Errorf("unlock the text of this story section before reviewing its transcript")
+						}
+					}
+				}
+			}
+		}
+		return nil
+	}
 	if req.Action == "restyle" {
 		if req.Base == nil || !req.Base.Accepted || req.Base.Output.Key == "" || len(req.Base.Timeline) == 0 || req.BlockID != "" || req.CandidateID != "" {
 			return fmt.Errorf("restyling requires an accepted rendered story")

@@ -8,6 +8,8 @@ import { type ReactNode, useEffect, useRef, useState } from 'react'
 import { clearStudioSelection, publishStudioSelection } from '@/components/workspace-agent/studio-selection'
 import { StudioAssistant } from './studio-assistant'
 import type { StudioProject } from './studio-client'
+import { flushStudioFrame, registerStudioSave } from './studio-save-barrier'
+import { useStudioLeaveGuard } from './use-studio-leave-guard'
 
 export function StudioWorkspace({
   origin,
@@ -31,6 +33,9 @@ export function StudioWorkspace({
   const t = useTranslations('studioWorkspace')
   const workspace = useRef<HTMLDivElement>(null)
   const frame = useRef<HTMLIFrameElement>(null)
+  useEffect(() => registerStudioSave(async () => {
+    if (frame.current?.contentWindow) await flushStudioFrame(frame.current.contentWindow, origin, project.id)
+  }), [origin, project.id])
   useEffect(() => {
     function receive(event: MessageEvent) {
       if (event.source !== frame.current?.contentWindow || event.origin !== origin || event.data?.projectId !== project.id) return
@@ -45,6 +50,9 @@ export function StudioWorkspace({
   const [frameError, setFrameError] = useState('')
   const [assistantOpen, setAssistantOpen] = useState(false)
   const url = `${origin}/#project/${encodeURIComponent(project.id)}`
+  useStudioLeaveGuard(loaded, async () => {
+    if (frame.current?.contentWindow) await flushStudioFrame(frame.current.contentWindow, origin, project.id)
+  }, setFrameError)
 
   async function toggleFullscreen() {
     try {
@@ -90,10 +98,10 @@ export function StudioWorkspace({
             <span className="sr-only sm:not-sr-only">{t('fullscreen')}</span>
           </Button>
           <Button asChild variant="outline" size="sm">
-            <a href={url} target="_blank" rel="noopener noreferrer">
+            <Link href={`/dashboard/studio?workspace=1&project=${encodeURIComponent(project.id)}`} target="_blank" rel="noopener noreferrer">
               <ExternalLink aria-hidden="true" />
               <span className="sr-only sm:not-sr-only">{t('openTab')}</span>
-            </a>
+            </Link>
           </Button>
           <Button
             variant={assistantOpen ? 'default' : 'outline'}

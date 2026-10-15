@@ -4,12 +4,22 @@
     "family": "Inter",
     "category": "sans",
     "weights": [
+      300,
       400,
-      700
+      500,
+      600,
+      700,
+      800,
+      900
     ],
     "files": {
       "400": "inter-400.ttf",
-      "700": "inter-700.ttf"
+      "700": "inter-700.ttf",
+      "300": "inter-300.ttf",
+      "500": "inter-500.ttf",
+      "600": "inter-600.ttf",
+      "800": "inter-800.ttf",
+      "900": "inter-900.ttf"
     },
     "sources": {
       "400": {
@@ -19,6 +29,26 @@
       "700": {
         "url": "https://fonts.gstatic.com/s/inter/v20/UcCO3FwrK3iLTeHuS_nVMrMxCp50SjIw2boKoduKmMEVuFuYAZFhjQ.ttf",
         "sha256": "ae9173eff0344ca212f48b6552244b3b372cc898dd8884255bc83cc8135dcf94"
+      },
+      "300": {
+        "sha256": "3802f111603fc5c69ee9a4bdadda55e8e6b2401e18d831813e25de43b56b68ca",
+        "url": "https://fonts.gstatic.com/s/inter/v20/UcCO3FwrK3iLTeHuS_nVMrMxCp50SjIw2boKoduKmMEVuOKfAZFhjQ.ttf"
+      },
+      "500": {
+        "sha256": "d32b1544e954c90c7f07301cd6ba8aa6ee1aca38299c026cba09e8323ca6782d",
+        "url": "https://fonts.gstatic.com/s/inter/v20/UcCO3FwrK3iLTeHuS_nVMrMxCp50SjIw2boKoduKmMEVuI6fAZFhjQ.ttf"
+      },
+      "600": {
+        "sha256": "1358a53d900b289be7021c6222b40843985f812373501067032d3116da6d0e4d",
+        "url": "https://fonts.gstatic.com/s/inter/v20/UcCO3FwrK3iLTeHuS_nVMrMxCp50SjIw2boKoduKmMEVuGKYAZFhjQ.ttf"
+      },
+      "800": {
+        "sha256": "0dcbf6f2f31b95111bc6fe8afcbe1766abec6432ba0ba21a263384e033db8d7f",
+        "url": "https://fonts.gstatic.com/s/inter/v20/UcCO3FwrK3iLTeHuS_nVMrMxCp50SjIw2boKoduKmMEVuDyYAZFhjQ.ttf"
+      },
+      "900": {
+        "sha256": "77c04c6e3358293681098229fe40a4f38411fc2fcabe6ffe6a2ed484f4efa823",
+        "url": "https://fonts.gstatic.com/s/inter/v20/UcCO3FwrK3iLTeHuS_nVMrMxCp50SjIw2boKoduKmMEVuBWYAZFhjQ.ttf"
       }
     },
     "license_url": "https://raw.githubusercontent.com/google/fonts/main/ofl/inter/OFL.txt"

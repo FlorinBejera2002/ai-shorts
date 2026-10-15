@@ -19,6 +19,7 @@ func TestExistingStorySwitchToBrandKitReplacesCustomCaptionStyle(t *testing.T) {
 		t.Fatal(err)
 	}
 	before := story.DefaultOptions()
+	before.Captions, before.CaptionMode = true, "all"
 	custom := captions.Default()
 	custom.Size = .073
 	before.CaptionStyle = &custom

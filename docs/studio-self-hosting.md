@@ -16,6 +16,54 @@ The projects panel can also create named blank projects. Session renewal and
 reconnection keep the active editor mounted. Returning to the gallery or moving
 between dashboard routes preserves the shared dashboard layout and sidebar state.
 
+## Story editing
+
+Newly generated Stories and ordinary clips already have a native Studio
+composition: the worker renders that document through Studio's sandbox. Opening
+the result copies the exact saved document and assets into an editable project.
+Later opens reuse that project without replacing manual edits. See the
+[shared composition pipeline](studio-composition-pipeline.md) for versioning,
+native trims, service configuration and verification.
+
+Source scenes remain separate editable groups. Drag either end of a scene to shorten or extend
+it within the source duration. Camera audio, cleaned speech and its captions
+remain attached when the scene is trimmed or moved; double-click the scene to
+edit its contents. Narration and music remain on independent tracks, so review
+their synchronization after changing scene timing. Extending footage beyond the
+originally transcribed interval may require additional captions.
+
+Caption text, timing, font weight and spacing remain editable, with the selected
+font copied into the project. Music credits are retained as an editable closing
+layer and a text file. Undo and redo are available in the header on desktop and
+mobile. The aspect selector supports 9:16, 16:9, 1:1, 4:5 and 2:3; changes are saved,
+undoable and applied to the linked scene dimensions.
+
+Select a scene and open **Inspector** to adjust brightness, contrast, saturation,
+sharpening and camera/voice volume, or mute that cut. Each setting changes the
+selected cut by default; its **Apply to all** action copies only that setting.
+Split clips keep independent settings. Original Click, Pop and Whoosh sound
+effects can be added at a cut's start, with separate volume and removal controls.
+The effects remain at the cut boundary when source footage is trimmed. These
+changes are saved with the project and support undo/redo. On phones, Inspector
+opens as an overlay so the editing controls remain usable.
+
+Native compositions retain the generated framing, transitions and overlays.
+Review synchronization after moving or extending scenes. Automatic revisions
+receive separate saved documents; an existing editable project is not overwritten.
+
+Browser-incompatible camera media can use SDR preview proxies while the saved
+document retains original render sources. Native compositions retain their SDR
+or HDR render setting when opened in Studio.
+
+Older clips without a native artifact reference use the compatibility importer.
+That importer reconstructs Story transitions as cuts and uses static framing and
+SDR editing proxies up to 1280 pixels. Its untouched completed video remains in
+`original-export.html`, and `import-notes.txt` records the limitations. Existing
+legacy projects and manual edits remain available. This compatibility path cannot
+recover independently editable layers from a flattened MP4.
+
+## Assistant and import security
+
 Studio's **AI assistant** edits the active composition; **Ask agent** on a selected
 element passes its source file and selection context into the same assistant.
 Proposals remain read-only until applied, use the current file version as a write
@@ -29,9 +77,14 @@ remain a dark editing surface; the surrounding dashboard follows the app theme.
 Studio revalidates clip ownership through the Go API. It accepts only the clip ID
 from the browser, downloads the signed file from `SNEEPCUT_MEDIA_ORIGIN` (the
 application origin by default), and publishes the project after initialization
-completes. Downloads are bounded to 512 MB and 120 seconds. Media audio detection
-runs inside the same isolated job environment as rendering, so silent clips and
-clips with audio receive the correct composition metadata.
+completes. The finished-clip preview download is bounded to 512 MiB and 120 seconds.
+Additional Story media has a five-minute deadline per download. The complete
+editable Story project is limited to 500 MiB, including source files, proxies,
+retained originals/exports, processed audio, fonts and music. Imports exceeding
+that budget fail explicitly and clean up the partial project, before it opens.
+This leaves headroom below the isolated renderer's existing 512 MiB project cap.
+Media audio detection runs inside the same isolated job environment as rendering,
+so silent clips and clips with audio receive the correct composition metadata.
 
 For container deployments, `SNEEPCUT_MEDIA_INTERNAL_ORIGIN` optionally sets the
 internal HTTP(S) origin used to download media. Studio still validates signed
@@ -41,7 +94,8 @@ overlay uses `http://nginx`, since public `localhost` URLs cannot reach the app
 from inside the Studio container. The override accepts an origin only, without
 credentials, paths, queries or fragments.
 
-The import regression suite is `packages/sneepcut-server/src/clip-import.test.ts`.
+The import regression suites are `clip-import.test.ts`, `story-import.test.ts`
+and `story-caption-import.test.ts` in `editor/packages/sneepcut-server/src`.
 The sandbox suite also exercises audio detection on actual silent/audible MP4s.
 `frontend/scripts/test-studio-import.mjs` verifies the integrated frontend on
 localhost:3105 with disposable Studio on localhost:5195. Use the production-image
@@ -59,17 +113,16 @@ Local exports require both `ffmpeg` and `ffprobe` on PATH, plus Chromium.
 Alternatively set `HYPERFRAMES_FFMPEG_PATH`, `HYPERFRAMES_FFPROBE_PATH` and
 `PRODUCER_HEADLESS_SHELL_PATH` to locally installed executables. These names
 are compatibility configuration keys, not calls to external services.
-Alternatively add `docker-compose.studio.yml` after the base/development Compose
-files and build/start the `studio` service. This overlay binds only to loopback;
-it is not a production deployment configuration.
-The overlay uses the same unprivileged namespace security settings as production
+The base/development Compose stack includes `studio` by default and binds it only
+to loopback. `docker-compose.studio.yml` remains an empty compatibility overlay
+for older commands; it is not a production deployment configuration.
+The local service uses the same unprivileged namespace security settings as production
 and temporary job storage, as described in [the execution policy](../deploy/studio-sandbox.md).
 Sandbox rendering requires Linux namespace support; a native Windows server alone
 cannot run these isolated export jobs.
 
 The development frontend defaults to `http://localhost:5191`. Configure
-`NEXT_PUBLIC_STUDIO_URL` at frontend build time when changing that address.
-The Vite frontend uses `VITE_STUDIO_URL` for the same setting; set
+`VITE_STUDIO_URL` at frontend build time when changing that address; set
 `SNEEPCUT_APP_ORIGIN=http://localhost:5173` when running that frontend locally.
 `SNEEPCUT_APP_ORIGIN` must exactly match the browser's application origin;
 `SNEEPCUT_STUDIO_ORIGIN` must match the editor origin. Use same-site HTTPS origins
@@ -138,7 +191,10 @@ proxies Studio on its separate Docker network.
 
 Use `make prod-build-studio` to stage the image and `make deploy-studio` to
 build and activate Studio, its frontend integration and the gateway. The
-release scripts also include Studio when deploying `all`. `DEPLOY_HOST`
+release scripts also include Studio when deploying `all`, `backend` or `workers`.
+The initial switch to shared rendering requires the API, migration, worker,
+Studio and gateway to deploy together as described in the
+[composition pipeline](studio-composition-pipeline.md). `DEPLOY_HOST`
 selects the configured SSH destination. Deployment verifies service health
 and rejects unauthenticated project listing.
 

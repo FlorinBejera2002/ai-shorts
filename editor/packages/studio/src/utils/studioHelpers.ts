@@ -4,6 +4,8 @@ import type { TimelineElement } from "../player/store/playerStore";
 import type { DomEditSelection } from "../components/editor/domEditing";
 import type { TimelineAssetKind } from "./timelineAssetDrop";
 import { roundToCenti } from "./rounding";
+import { normalizeTimelineCompositionSource } from "../components/editor/domEditingDom";
+import { getTimelineElementSourceFile } from "../player/lib/timelineElementHelpers";
 
 export interface EditingFile {
   path: string;
@@ -129,7 +131,7 @@ export function getHistoryShortcutLabel(action: "undo" | "redo"): string {
 type ElementMatchSelection = Pick<
   DomEditSelection,
   "id" | "selector" | "selectorIndex" | "sourceFile" | "compositionSrc" | "isCompositionHost"
->;
+> & { element?: HTMLElement };
 
 function matchesByDomId(
   selection: ElementMatchSelection,
@@ -147,7 +149,10 @@ function matchesByCompositionHost(
   element: TimelineElement,
 ): boolean {
   if (!selection.isCompositionHost || !selection.compositionSrc) return false;
-  return element.compositionSrc === selection.compositionSrc;
+  return (
+    normalizeTimelineCompositionSource(element.compositionSrc) ===
+    normalizeTimelineCompositionSource(selection.compositionSrc)
+  );
 }
 
 function matchesBySelector(selection: ElementMatchSelection, element: TimelineElement): boolean {
@@ -163,7 +168,11 @@ export function findMatchingTimelineElementId(
   selection: ElementMatchSelection,
   elements: TimelineElement[],
 ): string | null {
-  const selectionSourceFile = selection.sourceFile || "index.html";
+  const selectionSourceFile =
+    (selection.element?.hasAttribute("data-source-window") &&
+      normalizeTimelineCompositionSource(getTimelineElementSourceFile(selection.element))) ||
+    selection.sourceFile ||
+    "index.html";
   // Priority matters, not just "any of the three": a composition-host
   // selection always carries its OWN id/selector too (computed generically
   // for any element), so two repeated hosts sharing the same compositionSrc
@@ -184,6 +193,14 @@ export function findMatchingTimelineElementId(
     ? elements.find((el) => matchesBySelector(selection, el))
     : undefined;
   if (bySelector) return bySelector.key ?? bySelector.id;
+
+  // Mounted hosts name their child source file, while the timeline row belongs
+  // to the parent. Runtime preview URLs may also be absolute. Resolve the host
+  // identity before the child fallback, retaining distinct repeated instances.
+  const byHostId = selection.id
+    ? elements.find((el) => el.domId === selection.id && matchesByCompositionHost(selection, el))
+    : undefined;
+  if (byHostId) return byHostId.key ?? byHostId.id;
 
   const byHost = elements.find((el) => matchesByCompositionHost(selection, el));
   if (byHost) return byHost.key ?? byHost.id;

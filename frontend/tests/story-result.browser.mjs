@@ -3,6 +3,18 @@ import { execFileSync } from 'node:child_process'
 import { resolve } from 'node:path'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { pathToFileURL } from 'node:url'
+import { setTimeout as delay } from 'node:timers/promises'
+
+// Windows file watchers can hold a source file briefly during Fast Refresh.
+async function writeSource(path, content) {
+  for (let attempt = 0; ; attempt++) {
+    try { return await writeFile(path, content) }
+    catch (error) {
+      if (attempt >= 9 || !['UNKNOWN', 'EBUSY', 'EPERM', 'EACCES'].includes(error.code)) throw error
+      await delay(100)
+    }
+  }
+}
 
 if (!process.env.PLAYWRIGHT_MODULE) throw new Error('Set PLAYWRIGHT_MODULE')
 const { chromium } = await import(
@@ -47,6 +59,7 @@ execFileSync(ffmpeg, [
 const media = await readFile(fixturePath)
 const projectID = '00000000-0000-4000-8000-000000000071'
 const mediaURL = '/fixture/preview.mp4'
+const exportURL = '/fixture/export-hdr.mp4'
 const userID = '00000000-0000-4000-8000-000000000072'
 const thumbnail =
   'data:image/svg+xml,' +
@@ -85,6 +98,7 @@ const version = (number, ready = false) => ({
   parent: number - 1,
   accepted: true,
   preview_url: mediaURL,
+  export_url: exportURL,
   thumbnail_url: thumbnail,
   plan: {
     title: 'Mountain weekend',
@@ -207,6 +221,14 @@ await page.route('**/v1/**', (route) =>
 )
 await page.route('**/api/**', async (route) => {
   const path = new URL(route.request().url()).pathname
+  if (path === `/api/clips/${projectID}`)
+    return route.fulfill({ json: {
+      id: projectID, title: 'HDR clip', duration: 45, viral_score: 0,
+      aspect_ratio: '9:16', resolution: '1080x1920', has_subtitles: true,
+      file_url: exportURL, preview_url: mediaURL, thumbnail_url: thumbnail,
+      story_project_id: projectID, created_at: '2026-10-14T10:00:00Z',
+      variants: [], transcript_text: '', hook_text: null
+    } })
   if (path === '/api/stories')
     return route.fulfill({ json: { stories: [project] } })
   if (path === `/api/stories/${projectID}/generate`) {
@@ -298,7 +320,7 @@ try {
     await page
       .getByRole('link', { name: 'Download draft', exact: true })
       .getAttribute('href'),
-    mediaURL
+    exportURL
   )
   assert.doesNotMatch(
     await page.locator('body').innerText(),
@@ -322,6 +344,7 @@ try {
   assert.equal(await player.evaluate((v) => v.paused), true)
   await page.getByRole('button', { name: /^Clip 1 / }).click()
   const scene = page.getByTestId('story-block')
+  assert.match(await scene.innerText(), /0:00\.00–0:02\.50/)
   await scene.locator('summary').click()
   await scene
     .getByRole('checkbox', { name: 'Entire scene', exact: true })
@@ -350,7 +373,7 @@ try {
     v.currentTime = 0.6
   })
   originalScene = await readFile(sceneFile, 'utf8')
-  await writeFile(
+  await writeSource(
     sceneFile,
     originalScene.replace(
       'Scene details and changes',
@@ -363,7 +386,7 @@ try {
   assert.equal(await playerNode.evaluate((n) => n.isConnected), true)
   assert.equal(await scene.locator('details').getAttribute('open'), '')
   assert.ok(Math.abs((await player.evaluate((v) => v.currentTime)) - 0.6) < 0.1)
-  await writeFile(sceneFile, originalScene)
+  await writeSource(sceneFile, originalScene)
   originalScene = undefined
   await scene
     .getByText('Scene details and changes 1', { exact: true })
@@ -435,6 +458,8 @@ try {
   )
   failAction = false
   await page.getByRole('button', { name: 'Appearance', exact: true }).click()
+  await page.getByTestId('story-result').getByLabel('Shape', { exact: true }).selectOption('16:9')
+  await page.getByTestId('story-result').getByLabel('Video color', { exact: true }).selectOption('hdr')
   await page.getByRole('combobox', { name: 'Brand kit', exact: true }).click()
   await page.getByRole('option', { name: 'My brand kit', exact: true }).click()
   await page
@@ -446,6 +471,8 @@ try {
     .waitFor()
   assert.equal(actions.at(-1).action, 'restyle')
   assert.equal(actions.at(-1).style.use_brand_kit, true)
+  assert.equal(actions.at(-1).style.aspect_ratio, '16:9')
+  assert.equal(actions.at(-1).style.dynamic_range, 'hdr')
   assert.equal(actions.at(-1).expected_state, project.expected_state)
   assert.equal(actions.at(-1).style.caption_style, undefined)
   await page.getByRole('button', { name: 'Appearance', exact: true }).click()
@@ -505,6 +532,7 @@ try {
     true
   )
   assert.equal(await sidebar.getAttribute('data-state'), state)
+  await page.waitForFunction(() => document.querySelector('video')?.readyState >= 2)
   await page.screenshot({ path: `${output}/desktop.png`, fullPage: true })
   for (const width of [390, 320]) {
     await page.setViewportSize({ width, height: 844 })
@@ -530,6 +558,10 @@ try {
     /Înainte de publicare|Raport tehnic/
   )
   await page.screenshot({ path: `${output}/mobile-ro.png`, fullPage: true })
+  await page.goto(`${origin}/dashboard/clips/${projectID}`, { waitUntil: 'domcontentloaded' })
+  await page.getByRole('heading', { name: 'HDR clip', exact: true }).waitFor()
+  assert.equal(await page.locator('video').getAttribute('src'), mediaURL, 'HDR clip detail plays its SDR preview')
+  assert.equal(await page.getByRole('link', { name: /Download/ }).first().getAttribute('href'), exportURL, 'Downloads keep the HDR original')
   assert.deepEqual(errors, [])
   console.log(
     'PASS: player-led result, no default scenes/reports, compact timeline, real media seeking, locks, alternate and all improvements, duplicate prevention, failure retains export, version comparison, sidebar/header DOM identity, component-scoped Fast Refresh, desktop/mobile EN/RO'
@@ -548,6 +580,6 @@ try {
   })
   throw error
 } finally {
-  if (originalScene !== undefined) await writeFile(sceneFile, originalScene)
+  if (originalScene !== undefined) await writeSource(sceneFile, originalScene)
   await browser.close()
 }

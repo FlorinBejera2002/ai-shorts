@@ -7,6 +7,7 @@ import {
   getTimelineFitPps,
 } from "./timelineLayout";
 import type { DraggedClipState, ResizingClipState } from "./useTimelineClipDrag";
+import { useInitialTimelineZoom } from "./useInitialTimelineZoom";
 
 interface UseTimelineGeometryInput {
   viewportWidth: number;
@@ -43,9 +44,16 @@ export function useTimelineGeometry({
   lastScrollLeftRef,
   contentOrigin,
 }: UseTimelineGeometryInput) {
-  // Fit pps maps at least MIN_TIMELINE_EXTENT_S onto the viewport, so short
-  // comps show a 60s ruler with usable empty space (see getTimelineFitPps).
+  // Phones fit short edits to the available width; desktops keep extra ruler space.
   const fitPps = getTimelineFitPps(viewportWidth, effectiveDuration, contentOrigin);
+  useInitialTimelineZoom({
+    viewportWidth,
+    contentOrigin,
+    fitPps,
+    hasSourceScenes: expandedElements.some((element) => element.sourceWindow),
+    scrollRef,
+    lastScrollLeftRef,
+  });
   const pps = getTimelinePixelsPerSecond(fitPps, zoomMode, manualZoomPercent);
   ppsRef.current = pps;
   const trackContentWidth = Math.max(0, effectiveDuration * pps);

@@ -39,7 +39,7 @@ type PendingScript =
 const EXTERNAL_SCRIPT_LOAD_TIMEOUT_MS = 8000;
 const BARE_RELATIVE_PATH_RE = /^(?![a-zA-Z][a-zA-Z\d+\-.]*:)(?!\/\/)(?!\/)(?!\.\.?\/).+/;
 const CSS_URL_RE = /\burl\(\s*(["']?)([^)"']+)\1\s*\)/g;
-const PATH_ATTRS = ["src", "href"] as const;
+const PATH_ATTRS = ["src", "href", "data-preview-src", "data-render-src"] as const;
 
 /**
  * Return true for URLs/prefixes that should never be rewritten — absolute

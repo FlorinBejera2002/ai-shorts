@@ -59,7 +59,7 @@ export async function verifyBearer(
       typeof user.id !== "string" ||
       !isUUID(user.id) ||
       !("access_role" in user) ||
-      user.access_role !== "member" ||
+      (user.access_role !== "member" && user.access_role !== "admin") ||
       !("deletion_pending" in user) ||
       user.deletion_pending !== false
     )

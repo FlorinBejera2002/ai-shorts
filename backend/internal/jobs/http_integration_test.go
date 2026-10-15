@@ -18,8 +18,21 @@ import (
 )
 
 func TestPostgresAuthenticatedJobHTTPContracts(t *testing.T) {
+	for _, role := range []string{"member", "admin"} {
+		t.Run(role, func(t *testing.T) { authenticatedJobHTTPContracts(t, role) })
+	}
+}
+
+func authenticatedJobHTTPContracts(t *testing.T, role string) {
 	db := testdb.Open(t)
 	user := seedUser(t, db)
+	wantCharge := 50
+	if role == "admin" {
+		wantCharge = 0
+		if _, err := db.Exec(`UPDATE users SET access_role='admin',credits=0 WHERE id=$1`, user); err != nil {
+			t.Fatal(err)
+		}
+	}
 	if _, err := db.Exec(`UPDATE users SET password_hash=$2 WHERE id=$1`, user, "$2b$12$tVLZOBSvFOx2sp4u1B6nT.0lG9HQ0XjxYkW72YPuUc1cQTsKGvCY2"); err != nil {
 		t.Fatal(err)
 	}
@@ -54,7 +67,7 @@ func TestPostgresAuthenticatedJobHTTPContracts(t *testing.T) {
 	if err = json.Unmarshal(w.Body.Bytes(), &batch); err != nil {
 		t.Fatal(err)
 	}
-	if batch.Total != 50 || len(batch.Jobs) != 1 || batch.Jobs[0]["progress_message"] != "Queued (batch)" || batch.Jobs[0]["include_brand"] != true || batch.Jobs[0]["language"] != "ro" {
+	if batch.Total != wantCharge || len(batch.Jobs) != 1 || batch.Jobs[0]["credits_charged"] != float64(wantCharge) || batch.Jobs[0]["progress_message"] != "Queued (batch)" || batch.Jobs[0]["include_brand"] != true || batch.Jobs[0]["language"] != "ro" {
 		t.Fatal(batch)
 	}
 	id := batch.Jobs[0]["id"].(string)

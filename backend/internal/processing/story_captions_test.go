@@ -129,7 +129,7 @@ func TestStoryRendersAllSelectiveAndOffWithOriginalMixedMedia(t *testing.T) {
 	metrics := map[string]any{"audibility_reviewer": "mocked; explicit clear/difficult source evidence", "speech_fixture": os.Getenv("SNEEPCUT_STORY_SPEECH_DIR") != "", "source_speed": "unchanged; 4s + 4s = 8s", "source_frames": "320x180 at 24fps; 180x320 at 60fps", "audio_gain_db": map[string]float64{}, "audio_correlation": map[string]float64{}, "audio_offset_ms": map[string]float64{}}
 	for _, mode := range []string{"all", "selective", "off"} {
 		request.Options.CaptionMode = mode
-		output, err := p.RenderStory(ctx, request, version)
+		output, err := renderStoryForTest(t, p, ctx, request, version)
 		if err != nil {
 			t.Fatal(mode, err)
 		}

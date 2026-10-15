@@ -9,6 +9,8 @@ import type { TimelineClipRenderContext } from "../player/components/TimelineTyp
 import { usePlayerStore, type TimelineElement } from "../player/store/playerStore";
 import { normalizeCompositionSrc } from "./useRenderClipContent";
 import { useRenderClipContent } from "./useRenderClipContent";
+import { createTimelineElementFromManifestClip } from "../player/lib/timelineDOM";
+import { videoThumbnailTimestamps } from "../player/lib/thumbnailVideoDecoder";
 
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -266,6 +268,83 @@ describe("useRenderClipContent", () => {
         sessionEpoch: 7,
         contentRevision: 11,
       });
+    }
+  });
+
+  it.each([1, 2])("shows a source scene's actual trimmed video at playback rate %s", (rate) => {
+    usePlayerStore.setState({ thumbnailMode: "adaptive" });
+    document.body.innerHTML = `
+      <div data-composition-id="root" data-composition-file="index.html">
+        <div id="scene-1" data-source-window data-composition-id="source-scene-1"
+          data-composition-src="source-scene-1.html" data-composition-file="source-scene-1.html"
+          data-start="6" data-duration="4" data-playback-start="20" data-playback-rate="${rate}">
+          <video class="source-video" src="assets/original clip.mp4"
+            data-start="0" data-duration="4" data-media-start="20" data-source-window-projected></video>
+        </div>
+      </div>`;
+    const scene = createTimelineElementFromManifestClip({
+      clip: {
+        id: "scene-1",
+        label: "Scene 1",
+        kind: "composition",
+        tagName: "div",
+        start: 6,
+        duration: 4,
+        track: 0,
+        compositionId: "source-scene-1",
+        parentCompositionId: "root",
+        compositionSrc: "source-scene-1.html",
+        assetUrl: `${window.location.origin}/api/projects/my-project/preview/source-scene-1.html`,
+      },
+      doc: document,
+      hostEl: document.getElementById("scene-1"),
+      fallbackIndex: 0,
+    });
+    const content = renderClipContent(scene, "/api/projects/my-project/preview", {
+      priority: "interaction",
+      rich: true,
+    });
+    expect(isValidElement(content)).toBe(true);
+    if (!isValidElement<{ sourceStart: number; sourceRangeDuration: number }>(content)) return;
+    expect(content.type).toBe(VideoThumbnail);
+    expect(content.props).toMatchObject({
+      videoSrc: "/api/projects/my-project/preview/assets/original%20clip.mp4",
+      sourceStart: 20,
+      sourceRangeDuration: 4 * rate,
+      priority: "interaction",
+      rich: true,
+    });
+    const frames = videoThumbnailTimestamps(
+      content.props.sourceStart,
+      content.props.sourceRangeDuration,
+      6,
+    );
+    expect(frames[0]).toBe(20);
+    expect(frames.at(-1)).toBe(20 + 4 * rate);
+    expect(
+      videoThumbnailTimestamps(content.props.sourceStart, content.props.sourceRangeDuration, 1),
+    ).toEqual([20 + 2 * rate]);
+  });
+
+  it("keeps legacy composition posters but waits for source media instead of rendering HTML posters", () => {
+    usePlayerStore.setState({ thumbnailMode: "adaptive" });
+    const scene: TimelineElement = {
+      id: "scene",
+      tag: "div",
+      start: 0,
+      duration: 4,
+      track: 0,
+      compositionSrc: "scene.html",
+      playbackStart: 20,
+      playbackRate: 2,
+    };
+    const legacy = renderClipContent(scene);
+    const source = renderClipContent({ ...scene, sourceWindow: true });
+    expect(isValidElement(legacy)).toBe(true);
+    expect(source).toBeNull();
+    if (isValidElement(legacy)) {
+      expect(legacy.type).toBe(CompositionThumbnail);
+      expect(legacy.props).toMatchObject({ seekTime: 0, duration: 4 });
     }
   });
 });

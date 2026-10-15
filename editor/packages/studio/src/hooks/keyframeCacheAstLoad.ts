@@ -4,6 +4,7 @@
  * Split from useGsapTweenCache to keep that file under the 600-line limit.
  */
 import type { GsapAnimation, GsapKeyframesData, ParsedGsap } from "@hyperframes/core/gsap-parser";
+import { normalizeTimelineCompositionSource } from "../components/editor/domEditingDom";
 import { isStudioHoldSet } from "@hyperframes/core/gsap-parser";
 import { usePlayerStore } from "../player/store/playerStore";
 import { replaceKeyframeCacheForFile } from "./gsapKeyframeCacheHelpers";
@@ -58,6 +59,7 @@ export function fetchParsedAnimations(
   sourceFile: string,
   options: { fresh?: boolean } = {},
 ): Promise<ParsedGsapAnimations | null> {
+  sourceFile = normalizeTimelineCompositionSource(sourceFile) ?? sourceFile;
   const key = `${projectId}|${sourceFile}`;
   if (options.fresh) inFlightParses.delete(key);
   const inFlight = inFlightParses.get(key);

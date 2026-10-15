@@ -8,6 +8,7 @@ import { redactTelemetryString } from "@hyperframes/core";
 import { FFPROBE_PATH_ENV, getFfprobeBinary } from "./ffmpegBinaries.js";
 import { ManagedChildProcess } from "./managedChildProcess.js";
 import { trackChildProcess } from "./processTracker.js";
+import { acquireMediaProcess, boundedFfprobeArgs } from "./renderResources.js";
 
 const FFPROBE_STDERR_MAX_BYTES = 8 * 1024;
 /** Bound on collected stdout. Generous — real -show_streams JSON is well
@@ -68,78 +69,87 @@ async function runFfprobe(
     throw new Error('[FFmpeg] Refusing to probe "-": stdin is not a supported input path.');
   }
 
-  const command = getFfprobeBinary();
-  // Some Windows ffprobe builds cannot open absolute paths beyond MAX_PATH.
-  // The native extended-length path preserves the transactional location and
-  // avoids changing cwd (which itself can exceed the Windows process limit).
-  const localWindowsInput =
-    process.platform === "win32" && isAbsolute(filePath) && filePath.length >= 240;
-  const input = localWindowsInput ? toNamespacedPath(filePath) : filePath;
-  const proc = spawn(command, ["-v", "error", ...argsWithoutInput, "--", input], {
-    // Nothing is ever written to the child's stdin; leaving it as a pipe is
-    // what lets a stdin-reading invocation block indefinitely.
-    stdio: ["ignore", "pipe", "pipe"],
-    // See runFfmpeg.ts: keeps a console window off the user's desktop on Windows.
-    windowsHide: true,
-  });
-  trackChildProcess(proc);
-  // Decoded through StringDecoder rather than per-chunk toString(): a
-  // multi-byte character split across a 64 KiB pipe boundary decodes to U+FFFD
-  // on both sides. -show_format output above ~64 KiB with non-ASCII tag text
-  // (an MKV with many chapters, or title/artist tags) came back silently
-  // mangled — JSON.parse still succeeds, so nothing surfaced it, and tag
-  // lookups like alpha_mode could miss.
-  const decoder = new StringDecoder("utf8");
-  let stdout = "";
-  let stdoutTruncated = false;
-  const stdoutMaxChars = stdoutOptions?.maxChars ?? FFPROBE_STDOUT_MAX_CHARS;
-  proc.stdout.on("data", (data: Buffer) => {
-    // stderr is capped by ManagedChildProcess; stdout had no bound at all, and
-    // analyzeKeyframeIntervals emits one line per frame — an all-intra ProRes
-    // proxy can produce an unbounded string.
-    if (stdoutTruncated) return;
-    stdout += decoder.write(data);
-    // Checked AFTER appending: a single chunk can already exceed the bound,
-    // so a pre-append check only ever stops the second one.
-    if (stdout.length > stdoutMaxChars) {
-      if (stdoutOptions?.retainTail) {
-        stdout = stdout.slice(-stdoutMaxChars);
-      } else {
-        stdoutTruncated = true;
-        stdout = "";
-      }
-    }
-  });
-  const managed = new ManagedChildProcess(proc, {
-    signal,
-    deadlineAtMs: Date.now() + 30_000,
-    stderrMaxBytes: FFPROBE_STDERR_MAX_BYTES,
-  });
-  const outcome = await managed.wait();
-  stdout += decoder.end();
-  if (stdoutTruncated) {
-    throw new Error(
-      `[FFmpeg] ffprobe output exceeded ${stdoutMaxChars} characters; refusing to parse a truncated result.`,
+  const release = await acquireMediaProcess(signal);
+  try {
+    const command = getFfprobeBinary();
+    // Some Windows ffprobe builds cannot open absolute paths beyond MAX_PATH.
+    // The native extended-length path preserves the transactional location and
+    // avoids changing cwd (which itself can exceed the Windows process limit).
+    const localWindowsInput =
+      process.platform === "win32" && isAbsolute(filePath) && filePath.length >= 240;
+    const input = localWindowsInput ? toNamespacedPath(filePath) : filePath;
+    const proc = spawn(
+      command,
+      boundedFfprobeArgs(["-v", "error", ...argsWithoutInput, "--", input]),
+      {
+        // Nothing is ever written to the child's stdin; leaving it as a pipe is
+        // what lets a stdin-reading invocation block indefinitely.
+        stdio: ["ignore", "pipe", "pipe"],
+        // See runFfmpeg.ts: keeps a console window off the user's desktop on Windows.
+        windowsHide: true,
+      },
     );
-  }
-  if (outcome.reason === "spawn_error") {
-    if ((outcome.error as NodeJS.ErrnoException | undefined)?.code === "ENOENT") {
-      const configured = process.env[FFPROBE_PATH_ENV]?.trim();
+    trackChildProcess(proc);
+    // Decoded through StringDecoder rather than per-chunk toString(): a
+    // multi-byte character split across a 64 KiB pipe boundary decodes to U+FFFD
+    // on both sides. -show_format output above ~64 KiB with non-ASCII tag text
+    // (an MKV with many chapters, or title/artist tags) came back silently
+    // mangled — JSON.parse still succeeds, so nothing surfaced it, and tag
+    // lookups like alpha_mode could miss.
+    const decoder = new StringDecoder("utf8");
+    let stdout = "";
+    let stdoutTruncated = false;
+    const stdoutMaxChars = stdoutOptions?.maxChars ?? FFPROBE_STDOUT_MAX_CHARS;
+    proc.stdout.on("data", (data: Buffer) => {
+      // stderr is capped by ManagedChildProcess; stdout had no bound at all, and
+      // analyzeKeyframeIntervals emits one line per frame — an all-intra ProRes
+      // proxy can produce an unbounded string.
+      if (stdoutTruncated) return;
+      stdout += decoder.write(data);
+      // Checked AFTER appending: a single chunk can already exceed the bound,
+      // so a pre-append check only ever stops the second one.
+      if (stdout.length > stdoutMaxChars) {
+        if (stdoutOptions?.retainTail) {
+          stdout = stdout.slice(-stdoutMaxChars);
+        } else {
+          stdoutTruncated = true;
+          stdout = "";
+        }
+      }
+    });
+    const managed = new ManagedChildProcess(proc, {
+      signal,
+      deadlineAtMs: Date.now() + 30_000,
+      stderrMaxBytes: FFPROBE_STDERR_MAX_BYTES,
+    });
+    const outcome = await managed.wait();
+    stdout += decoder.end();
+    if (stdoutTruncated) {
       throw new Error(
-        configured
-          ? `[FFmpeg] ffprobe not found at ${FFPROBE_PATH_ENV}="${configured}". Please install FFmpeg.`
-          : "[FFmpeg] ffprobe not found. Please install FFmpeg.",
+        `[FFmpeg] ffprobe output exceeded ${stdoutMaxChars} characters; refusing to parse a truncated result.`,
       );
     }
-    throw outcome.error ?? new Error(outcome.stderr);
+    if (outcome.reason === "spawn_error") {
+      if ((outcome.error as NodeJS.ErrnoException | undefined)?.code === "ENOENT") {
+        const configured = process.env[FFPROBE_PATH_ENV]?.trim();
+        throw new Error(
+          configured
+            ? `[FFmpeg] ffprobe not found at ${FFPROBE_PATH_ENV}="${configured}". Please install FFmpeg.`
+            : "[FFmpeg] ffprobe not found. Please install FFmpeg.",
+        );
+      }
+      throw outcome.error ?? new Error(outcome.stderr);
+    }
+    if (outcome.reason !== "exit" || outcome.exitCode !== 0) {
+      const diagnostic = sanitizeFfprobeDiagnostic(outcome.stderr, filePath);
+      throw new Error(
+        `[FFmpeg] ffprobe ${outcome.reason} with code ${outcome.exitCode}: ${diagnostic}`,
+      );
+    }
+    return stdout;
+  } finally {
+    release();
   }
-  if (outcome.reason !== "exit" || outcome.exitCode !== 0) {
-    const diagnostic = sanitizeFfprobeDiagnostic(outcome.stderr, filePath);
-    throw new Error(
-      `[FFmpeg] ffprobe ${outcome.reason} with code ${outcome.exitCode}: ${diagnostic}`,
-    );
-  }
-  return stdout;
 }
 
 function parseProbeJson(stdout: string): FFProbeOutput {

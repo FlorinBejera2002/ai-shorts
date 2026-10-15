@@ -1,6 +1,6 @@
 # Sneepcut
 
-Sneepcut is a video-to-shorts stack with a React/Vite frontend, Go application API and media worker, PostgreSQL, Redis, and Nginx.
+Sneepcut is a video-to-shorts stack with a React/Vite frontend, Go application API and media worker, Studio composition renderer, PostgreSQL, Redis, and Nginx.
 
 ## Prerequisites
 
@@ -17,7 +17,7 @@ From the repository root:
 make setup
 ```
 
-This creates an ignored `.env` from `.env.example` when needed, builds the images, applies the embedded SQL database migrations, starts the stack in the background, and verifies Go/PostgreSQL/Redis readiness plus a running media worker. Existing installations must add the new Go variables in [the migration handoff](docs/go-migration/handoff.md) before restarting. The first build is slower because the worker builds whisper.cpp and downloads its speech and face detection models.
+This creates an ignored `.env` from `.env.example` when needed, generates a missing local Studio service credential once, builds the images, applies the embedded SQL database migrations, and starts the stack including Studio. Existing credentials are retained. The worker waits for Studio and the media gateway before starting. Existing installations must add the new Go variables in [the migration handoff](docs/go-migration/handoff.md) before restarting. The first build is slower because the worker builds whisper.cpp and downloads its speech and face detection models, and Studio builds its browser renderer.
 
 Run `make help` to see every available project command. `bash scripts/setup.sh` remains available as the original setup entry point.
 
@@ -57,6 +57,49 @@ generation fails before source analysis instead of silently dropping the music.
 There is no provider subscription; normal storage, bandwidth and rendering
 costs still apply. The API and worker must run the updated Go code; no database
 migration or additional music service is required.
+
+## Story uploads and HDR
+
+Story Builder accepts H.264, HEVC and ProRes video in MP4/MOV, including HLG,
+HDR10 and Dolby Vision profile 8 with a compatible HLG/PQ base layer. Originals
+are retained. Files still undergo complete decoding before registration; damaged
+media and Dolby Vision profiles without a compatible base layer remain rejected
+with a specific explanation. Uploads use two concurrent transfers while up to two
+additional files complete validation. A 200-file collection fits within the
+registration rate limit, including retries.
+
+The **Video color** selector offers SDR H.264 or HDR HEVC Main10 with BT.2020/PQ color.
+HDR export preserves original highlights and composites captions, logos and music
+credits in linear light at 203-nit graphics white. SDR clips in a mixed HDR story
+retain their SDR detail. HDR exports include a separate tone-mapped H.264 preview
+for browsers without HEVC playback; downloads and publishing retain the HDR file.
+Analysis previews are always SDR, and their cache is independent of speech-model
+and language changes so those changes do not re-encode the original video.
+
+New automatic montages and clip edits share one editable Studio project.
+Dashboard regeneration combines its current saved manual edits with the new
+automatic changes, and commits only if no newer edit arrived during rendering.
+Opening later results returns to that same project. Browser previews may
+use SDR proxies for camera codecs, while export retains the original sources and
+the composition's SDR/HDR setting. Legacy clips without a saved composition keep
+their compatibility import. See [the shared rendering flow](docs/studio-composition-pipeline.md)
+and [Studio editing behavior](docs/studio-self-hosting.md#story-editing).
+
+## Caption typography
+
+The caption editor supports named font weights, including bundled Inter Light
+through Black (300–900), plus sliders for letter, word and line spacing. Saved
+typography applies to the caption preview and rendered captions. Studio imports
+the selected font and editable captions with their verified word timing.
+Captions require recognized speech: when captions were requested for all speech
+but none could be rendered, Story Builder explains the missing transcript instead
+of presenting it as a font failure. Low-confidence phrases retain a proposed
+transcript for explicit review: listen to the source, correct the text and approve
+the passage to rebuild captions without changing the cuts or audio. Approval
+requires measured voice timing; it does not lower the automatic confidence
+threshold. Existing projects acquire proposals when their analysis is rerun.
+Extending a scene in Studio can expose footage
+outside its original transcript and may require additional captions.
 
 ## Hot-reload development
 

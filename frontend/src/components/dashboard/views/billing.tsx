@@ -1,6 +1,7 @@
 'use client'
 
 import { usePlanCatalog } from '@/components/billing/use-plan-catalog'
+import { useAuth } from '@/components/auth/use-auth'
 import { ApiState } from '@/components/shared/api-state'
 import { Card } from '@/components/ui/card'
 import { LoadingIndicator } from '@/components/ui/loading-indicator'
@@ -70,6 +71,7 @@ export default function BillingPage() {
 function BillingPageContent() {
   const locale = normalizeBillingLocale(useLocale())
   const t = useTranslations('billing')
+  const { user: authenticatedUser } = useAuth()
   const search = useSearchParams()
   const billingSearch = new URLSearchParams(search)
   billingSearch.delete('tab')
@@ -85,6 +87,8 @@ function BillingPageContent() {
     providerAvailable,
     checkoutVerification
   } = data
+  const creditsUnlimited =
+    user.creditsUnlimited ?? authenticatedUser?.access_role === 'admin'
 
   const plans: Plan[] = [
     {
@@ -237,7 +241,8 @@ function BillingPageContent() {
 
       <BillingSummary
         credits={user.credits}
-        planName={currentPlanName}
+        creditsUnlimited={creditsUnlimited}
+        planName={creditsUnlimited ? t('adminPlan') : currentPlanName}
         locale={locale}
         subscription={subscription}
         statusLabel={subscriptionStatusLabel}
@@ -255,11 +260,17 @@ function BillingPageContent() {
           manageBilling: t('manageBilling'),
           openingPortal: t('openingPortal'),
           portalError: t('portalError'),
-          providerStale: t('providerStale')
+          providerStale: t('providerStale'),
+          creditsUnlimited: t('creditsUnlimited'),
+          adminAccess: t('adminAccess')
         }}
       />
 
-      <section className="mt-6" aria-labelledby="billing-plans-title">
+      <section
+        hidden={creditsUnlimited}
+        className="mt-6"
+        aria-labelledby="billing-plans-title"
+      >
         <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 id="billing-plans-title" className="text-base font-semibold">

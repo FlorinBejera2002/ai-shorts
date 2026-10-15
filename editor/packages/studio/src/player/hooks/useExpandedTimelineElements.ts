@@ -324,6 +324,9 @@ export function buildExpandedElements(
 ): TimelineElement[] {
   const topLevelElement = elements.find((el) => el.id === topLevelId || el.domId === topLevelId);
   if (!topLevelElement) return filterToTopLevel(elements, parentMap);
+  // Source scenes keep their video, camera audio and captions attached to one
+  // trim handle. Their full-source contents are edited by opening the scene.
+  if (topLevelElement.sourceWindow) return filterToTopLevel(elements, parentMap);
 
   // The sub-comp host the children actually live in: top-level host for 1-level
   // nesting, a nested host for deeper nesting. Its start/file anchor edits.

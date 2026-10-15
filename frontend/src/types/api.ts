@@ -40,6 +40,7 @@ export type DashboardData = {
     clipCount: number
     durationMinutes: number
     credits: number
+    creditsUnlimited?: boolean
     plan: string
   }
   recentClips: FullClip[]
@@ -74,7 +75,12 @@ export type ClipLibraryData = {
 export type BillingPlanPrice = { amount: number; currency: string }
 export type PlanCatalog = Partial<Record<PaidBillingPlanId, BillingPlanPrice>>
 export type BillingData = {
-  account: { credits: number; plan: string; hasBillingProfile: boolean }
+  account: {
+    credits: number
+    creditsUnlimited?: boolean
+    plan: string
+    hasBillingProfile: boolean
+  }
   subscription: BillingSubscription | null
   invoices: BillingInvoice[]
   providerAvailable: boolean

@@ -22,7 +22,7 @@ func TestStoryBrandingRendersOwnedLogoAndColoredCaptions(t *testing.T) {
 	opacity := 1.0
 	req := story.Request{ID: "brand-story", UserID: "owner", LogoKey: key, Options: story.Options{AspectRatio: "16:9", Captions: true, SubtitleColor: "#00FF00", SubtitleSize: 70, SubtitlePosition: "top", LogoPosition: "bottom-right", LogoOpacity: &opacity}, Assets: []story.Asset{source}}
 	version := story.Version{Number: 1, Timeline: []story.Entry{{OutputIn: 0, OutputOut: 1, Video: story.Interval{SourceID: source.ID, In: 0, Out: 1}, Audio: &story.Interval{SourceID: source.ID, In: 0, Out: 1}, Words: []story.Word{{Text: "BRAND", Start: .1, End: .9}}}}}
-	output, err := p.RenderStory(ctx, req, version)
+	output, err := renderStoryForTest(t, p, ctx, req, version)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -53,7 +53,7 @@ func TestStoryBrandingRendersOwnedLogoAndColoredCaptions(t *testing.T) {
 		t.Fatalf("rendered branding absent/wrong placement: red=%d green=%d", red, green)
 	}
 	req.Options.SubtitleColor = "#FFFFFF"
-	next, err := p.RenderStory(ctx, req, version)
+	next, err := renderStoryForTest(t, p, ctx, req, version)
 	if err != nil || next.Key == output.Key || storage.segments != 1 {
 		t.Fatalf("branding cache incorrect: %v segments=%d", err, storage.segments)
 	}

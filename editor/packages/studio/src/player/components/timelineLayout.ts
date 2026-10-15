@@ -304,12 +304,8 @@ export const FIT_ZOOM_HEADROOM = 1.2;
 /* ── Tick generation ──────────────────────────────────────────────── */
 /* ── Width / duration derivation ──────────────────────────────────── */
 /**
- * Fit-mode pixels-per-second: fill the viewport with the composition plus
- * FIT_ZOOM_HEADROOM trailing headroom (CapCut-style — the comp never slams
- * into the right edge), and never map fewer than MIN_TIMELINE_EXTENT_S
- * seconds onto it — a short comp takes a fraction of the width and the
- * remaining ruler runs to 1:00.
- * Manual zoom multiplies this base, so the floor only anchors the default.
+ * Fit content with trailing headroom. Phones keep short edits large enough to
+ * trim; wider workspaces retain a minute of empty ruler space for arranging clips.
  */
 export function getTimelineFitPps(
   viewportWidth: number,
@@ -318,7 +314,9 @@ export function getTimelineFitPps(
 ): number {
   const safeDuration =
     Number.isFinite(effectiveDuration) && effectiveDuration > 0 ? effectiveDuration : 0;
-  const span = Math.max(safeDuration * FIT_ZOOM_HEADROOM, MIN_TIMELINE_EXTENT_S);
+  // A minute-wide ruler reduced short phone edits to handles only a few pixels wide.
+  const minimumSpan = viewportWidth < 640 ? 4 : MIN_TIMELINE_EXTENT_S;
+  const span = Math.max(safeDuration * FIT_ZOOM_HEADROOM, minimumSpan);
   if (!Number.isFinite(viewportWidth) || viewportWidth <= contentOrigin) return 100;
   return (viewportWidth - contentOrigin - 2) / span;
 }

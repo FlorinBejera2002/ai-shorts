@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	creditledger "sneepcut/backend-go/internal/credits"
 	"sneepcut/backend-go/internal/story"
 )
 
@@ -16,6 +17,7 @@ var (
 	ErrConflict  = errors.New("The story changed or is still processing; refresh and try again")
 	ErrOwnership = errors.New("Story execution ownership lost")
 	ErrCredits   = errors.New("Insufficient credits; one story costs 10 credits including automatic repairs")
+	ErrInactive  = creditledger.ErrInactive
 	ErrInvalid   = errors.New("Invalid story request")
 	idPattern    = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
 )
