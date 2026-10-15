@@ -14,6 +14,7 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { runInNewContext } from "node:vm";
 import { registerPreviewRoutes } from "./preview";
 import type { StudioApiAdapter } from "../types";
 
@@ -75,6 +76,80 @@ async function getPreviewSignature(projectDir: string): Promise<string> {
 }
 
 describe("registerPreviewRoutes", () => {
+  it.each(["null", "throw"])(
+    "bootstraps disk previews before authored head/body scripts when bundling returns %s",
+    async (failure) => {
+      const projectDir = createProjectDir();
+      writeFileSync(
+        join(projectDir, "index.html"),
+        `<!doctype html><html><head>
+          <script data-hyperframes-preview-runtime="1">window.__hyperframeRuntime = "stale";</script>
+          <script data-author-timeline>window.__timelines.head = {duration: 2};</script>
+        </head><body>
+          <div id="main" data-composition-id="main" data-width="1080" data-height="1920" data-duration="90.3"></div>
+          <video src="assets/source.mp4"></video>
+          <script data-author-timeline>window.__timelines.main = {duration: 90.3};</script>
+        </body></html>`,
+      );
+      const app = new Hono();
+      registerPreviewRoutes(
+        app,
+        createAdapter(projectDir, {
+          bundle: async () => {
+            if (failure === "throw") throw new Error("bundler unavailable");
+            return null;
+          },
+        }),
+      );
+
+      const response = await app.request("http://localhost/projects/demo/preview");
+      const html = await response.text();
+      const document = new DOMParser().parseFromString(html, "text/html");
+      const sandbox = { window: {} };
+      const scripts = [...document.querySelectorAll("script")];
+      expect(
+        scripts.filter((script) => script.getAttribute("src") === "/api/runtime.js"),
+      ).toHaveLength(1);
+      for (const script of scripts) {
+        if (script.getAttribute("src") === "/api/runtime.js") {
+          // This is the runtime entry's synchronous registry contract. Execute
+          // authored registrations in document order to catch a late bootstrap.
+          runInNewContext("window.__timelines = window.__timelines || {};", sandbox);
+        } else if (script.hasAttribute("data-author-timeline")) {
+          runInNewContext(script.textContent ?? "", sandbox);
+        }
+      }
+      expect(response.status).toBe(200);
+      expect(sandbox.window).toEqual({
+        __timelines: { head: { duration: 2 }, main: { duration: 90.3 } },
+      });
+      expect(html).not.toContain('window.__hyperframeRuntime = "stale"');
+      expect(document.querySelector("base")?.getAttribute("href")).toBe(
+        "/api/projects/demo/preview/",
+      );
+      expect(document.querySelector("video")?.getAttribute("src")).toBe("assets/source.mp4");
+      expect(document.querySelector("#main")?.getAttribute("data-width")).toBe("1080");
+      expect(document.querySelector("#main")?.getAttribute("data-duration")).toBe("90.3");
+    },
+  );
+
+  it("preserves a bundled runtime and existing base without injecting duplicates", async () => {
+    const app = new Hono();
+    registerPreviewRoutes(
+      app,
+      createAdapter(createProjectDir(), {
+        bundle: async () => `<html><head><base href="/existing/assets/">
+        <script data-hyperframes-preview-runtime="1" src="/api/runtime.js"></script>
+      </head><body>Bundled</body></html>`,
+      }),
+    );
+    const response = await app.request("http://localhost/projects/demo/preview");
+    const document = new DOMParser().parseFromString(await response.text(), "text/html");
+    expect(document.querySelectorAll("base")).toHaveLength(1);
+    expect(document.querySelector("base")?.getAttribute("href")).toBe("/existing/assets/");
+    expect(document.querySelectorAll("script[data-hyperframes-preview-runtime]")).toHaveLength(1);
+  });
+
   it("injects Studio GSAP motion manifest runtime into project preview", async () => {
     const projectDir = createProjectDir();
     writeFileSync(

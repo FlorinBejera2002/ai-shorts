@@ -3,7 +3,11 @@ import { createReadStream, existsSync, readFileSync, statSync } from "node:fs";
 import { Readable } from "node:stream";
 import { join, resolve } from "node:path";
 import { createHash } from "node:crypto";
-import { injectScriptsIntoHtml, stripEmbeddedRuntimeScripts } from "@hyperframes/core/compiler";
+import {
+  injectScriptsIntoHtml,
+  injectTagsAtHeadStart,
+  stripEmbeddedRuntimeScripts,
+} from "@hyperframes/core/compiler";
 import { isWithinProjectRoot } from "@hyperframes/parsers/asset-resolution";
 import type { StudioApiAdapter } from "../types.js";
 import { resolveWithinProject } from "../helpers/safePath.js";
@@ -306,6 +310,20 @@ function resolveProjectMainHtml(
   return null;
 }
 
+function prepareRootPreviewHtml(html: string, runtimeUrl: string, projectId: string): string {
+  const tags: string[] = [];
+  if (!/<base\b/i.test(html)) {
+    tags.push(`<base href="/api/projects/${projectId}/preview/">`);
+  }
+  if (!html.includes("hyperframe.runtime") && !html.includes("hyperframes-preview-runtime")) {
+    // Authored scripts register timelines while the document is still parsing.
+    // The fallback must initialize the runtime before those scripts, just as
+    // the normal bundler does, including scripts authored in <head>.
+    tags.push(`<script data-hyperframes-preview-runtime="1" src="${runtimeUrl}"></script>`);
+  }
+  return tags.length ? injectTagsAtHeadStart(html, tags.join("\n")) : html;
+}
+
 export function registerPreviewRoutes(api: Hono, adapter: PreviewApiAdapter): void {
   const previewCacheHeaders = (etag: string) => ({
     "Cache-Control": "private, no-cache",
@@ -329,7 +347,7 @@ export function registerPreviewRoutes(api: Hono, adapter: PreviewApiAdapter): vo
     if (vars.error !== undefined) return c.json({ error: vars.error }, 400);
     const previewVariables = vars.values;
 
-    const etag = `"preview:${signature}${variablesEtagSalt(vars.raw)}"`;
+    const etag = `"preview:v2:${signature}${variablesEtagSalt(vars.raw)}"`;
     const ifNoneMatch = c.req.header("If-None-Match");
     if (ifNoneMatch === etag) {
       return new Response(null, {
@@ -356,22 +374,7 @@ export function registerPreviewRoutes(api: Hono, adapter: PreviewApiAdapter): vo
         mainCompositionPath = diskMain.compositionPath;
       }
 
-      // Inject runtime if not already present (check URL pattern and bundler attribute)
-      if (
-        !bundled.includes("hyperframe.runtime") &&
-        !bundled.includes("hyperframes-preview-runtime")
-      ) {
-        const runtimeTag = `<script src="${adapter.runtimeUrl}"></script>`;
-        bundled = bundled.includes("</body>")
-          ? bundled.replace("</body>", `${runtimeTag}\n</body>`)
-          : bundled + `\n${runtimeTag}`;
-      }
-
-      // Inject <base> for relative asset resolution
-      const baseHref = `/api/projects/${project.id}/preview/`;
-      if (!bundled.includes("<base")) {
-        bundled = bundled.replace(/<head>/i, `<head><base href="${baseHref}">`);
-      }
+      bundled = prepareRootPreviewHtml(bundled, adapter.runtimeUrl, project.id);
 
       // ensureHfIds runs after transformPreviewHtml in case the adapter injected
       // new elements. On the no-bundle path bundled=normalizedDisk (already tagged)
@@ -398,9 +401,12 @@ export function registerPreviewRoutes(api: Hono, adapter: PreviewApiAdapter): vo
       // not the pre-request snapshot that may have been saved over.
       const fallback = resolveProjectMainHtml(project.dir, project.id);
       if (fallback) {
-        const fallbackHtml = persistHfIdsIfNeeded(
-          join(project.dir, fallback.compositionPath),
-          fallback.html,
+        const fallbackHtml = prepareRootPreviewHtml(
+          stripEmbeddedRuntimeScripts(
+            persistHfIdsIfNeeded(join(project.dir, fallback.compositionPath), fallback.html),
+          ),
+          adapter.runtimeUrl,
+          project.id,
         );
         let fallbackAugmented = injectStudioPreviewAugmentations(
           await transformPreviewHtml(fallbackHtml, adapter, project, fallback.compositionPath),

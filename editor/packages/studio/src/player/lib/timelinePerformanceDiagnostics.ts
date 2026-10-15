@@ -36,8 +36,8 @@ function countPosters(root: ParentNode): Readonly<Record<TimelinePosterState, nu
     fallback: 0,
     error: 0,
   };
-  for (const node of root.querySelectorAll<HTMLElement>("[data-timeline-poster-state]")) {
-    const state = node.dataset.timelinePosterState;
+  for (const node of root.querySelectorAll<HTMLElement>("[data-thumbnail-state]")) {
+    const state = node.dataset.thumbnailState;
     if (state && Object.hasOwn(counts, state)) counts[state as TimelinePosterState] += 1;
   }
   return Object.freeze(counts);

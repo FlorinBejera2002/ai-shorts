@@ -1,11 +1,22 @@
 // @vitest-environment happy-dom
-import { afterEach, describe, expect, it } from "vitest";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { CompositionThumbnail } from "../components/CompositionThumbnail";
+import { VideoThumbnail } from "../components/VideoThumbnail";
 import {
   getTimelineResourceBudgetStatus,
   readTimelinePerformanceDiagnostics,
   resolveTimelineScrollStrategy,
 } from "./timelinePerformanceDiagnostics";
 import { resolveTimelineViewportBudgets } from "./timelineViewportBudgets";
+
+vi.mock("../../hooks/useThumbnailLease", () => ({
+  useThumbnailLease: () => ({
+    status: "ready",
+    value: { kind: "image", url: "blob:poster", aspect: 16 / 9 },
+  }),
+}));
 
 describe("timeline performance diagnostics", () => {
   afterEach(() => {
@@ -20,9 +31,9 @@ describe("timeline performance diagnostics", () => {
         <div data-timeline-row><div data-clip="true"></div></div>
         <div data-clip="true"></div>
         <div data-timeline-grid-cell></div><div data-timeline-grid-cell></div>
-        <div data-timeline-poster-state="ready"></div>
-        <div data-timeline-poster-state="error"></div>
-        <div data-timeline-poster-state="constructor"></div>
+        <div data-thumbnail-kind="video" data-thumbnail-state="ready"></div>
+        <div data-thumbnail-kind="composition" data-thumbnail-state="error"></div>
+        <div data-thumbnail-kind="video" data-thumbnail-state="constructor"></div>
       </div>`;
     const before = document.body.innerHTML;
 
@@ -38,6 +49,26 @@ describe("timeline performance diagnostics", () => {
       posterStates: { idle: 0, loading: 0, ready: 1, fallback: 0, error: 1 },
     });
     expect(document.body.innerHTML).toBe(before);
+  });
+
+  it("counts the DOM emitted by ready video and composition posters", () => {
+    document.body.innerHTML = renderToStaticMarkup([
+      createElement(VideoThumbnail, {
+        key: "video",
+        videoSrc: "/api/projects/p/preview/assets/clip.mp4",
+        label: "",
+        labelColor: "#fff",
+      }),
+      createElement(CompositionThumbnail, {
+        key: "composition",
+        previewUrl: "/api/projects/p/preview",
+        label: "",
+        labelColor: "#fff",
+      }),
+    ]);
+
+    expect(document.querySelectorAll('img[src="blob:poster"]')).toHaveLength(2);
+    expect(readTimelinePerformanceDiagnostics().posterStates.ready).toBe(2);
   });
 
   it("returns the zero baseline after unmount or reset removes the DOM", () => {
