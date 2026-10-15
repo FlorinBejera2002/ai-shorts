@@ -796,7 +796,8 @@ export async function extractVideoFramesRange(
   // When extracting from HDR source, tone-map to SDR in FFmpeg rather than
   // letting Chrome's uncontrollable tone-mapper handle it (which washes out).
   // macOS: VideoToolbox hardware decoder does HDR→SDR natively on Apple Silicon.
-  // Linux: zscale filter (when available) or colorspace filter as fallback.
+  // Other platforms use an explicit linear-light tone map. A colorspace tag or
+  // YUV→RGB matrix conversion alone leaves the HDR transfer in the SDR pixels.
   const isHdr = isHdrColorSpaceUtil(metadata.colorSpace);
   const isMacOS = process.platform === "darwin";
 
@@ -830,6 +831,25 @@ export async function extractVideoFramesRange(
   if (isHdr && isMacOS) {
     // VideoToolbox tone-maps during decode; force output to bt709 SDR format
     vfFilters.push("format=nv12");
+  } else if (isHdr) {
+    const preserveAlpha = metadata.hasAlpha || codecMayHaveAlpha(metadata.videoCodec);
+    vfFilters.push(
+      "zscale=t=linear:npl=100",
+      preserveAlpha ? "format=gbrapf32le" : "format=gbrpf32le",
+      "zscale=p=bt709",
+      "tonemap=tonemap=hable:desat=0",
+      preserveAlpha
+        ? "zscale=t=bt709:m=gbr:r=full,format=rgba"
+        : "zscale=t=bt709:m=bt709:r=limited,format=yuv420p",
+    );
+    if (format === "jpg") {
+      // JPEG is decoded as full-range BT.601. Make that handoff explicit;
+      // FFmpeg's implicit BT.709 limited→JPEG conversion changes saturated
+      // colors on supported production versions even after correct tone mapping.
+      vfFilters.push(
+        "scale=in_color_matrix=bt709:out_color_matrix=bt601:in_range=tv:out_range=pc,format=yuvj420p",
+      );
+    }
   }
   if (!options.finalFrameOnly && !metadata.isVFR) {
     vfFilters.push(`fps=${ffmpegFps}`);
@@ -1834,6 +1854,11 @@ export async function extractAllVideoFrames(
     if (!keyInput) return { work };
     const transformParts = [
       work.sdrToHdrTransfer ? sdrToHdrTransformKey(work.sdrToHdrTransfer) : undefined,
+      // Older HDR JPEG/PNG entries contain unconverted transfer values. Keep
+      // SDR entries warm while preventing those pixels surviving this fix.
+      process.platform !== "darwin" && isHdrColorSpaceUtil(work.metadata.colorSpace)
+        ? "hdr-to-sdr-hable-v1"
+        : undefined,
       work.finalFrameOnly ? "final-frame" : undefined,
     ].filter((part): part is string => part !== undefined);
     const transform = transformParts.length > 0 ? transformParts.join("+") : undefined;
