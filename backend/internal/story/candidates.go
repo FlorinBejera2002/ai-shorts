@@ -112,10 +112,13 @@ func prepareCandidates(assets []Asset) error {
 			// Visual gap windows cannot establish the meaning of a dependent
 			// opening. Its preceding spoken phrase must also be selected. With
 			// no known antecedent, leave context unresolved for normal review.
-			if needsContext(c.Text) && previousSpoken != "" && len(c.Dependencies) == 0 {
+			// Derived speech unions already carry the original prerequisites.
+			// Their overlapping component phrases are not preceding context.
+			derivedSpeech := strings.HasPrefix(c.ID, a.ID+"-original-speech-")
+			if !derivedSpeech && needsContext(c.Text) && previousSpoken != "" && len(c.Dependencies) == 0 {
 				c.Dependencies = appendUnique(c.Dependencies, previousSpoken)
 			}
-			if strings.TrimSpace(c.Text) != "" {
+			if !derivedSpeech && strings.TrimSpace(c.Text) != "" {
 				previousSpoken = c.ID
 			}
 		}

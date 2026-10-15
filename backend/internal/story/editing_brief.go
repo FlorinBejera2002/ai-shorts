@@ -49,14 +49,15 @@ type EditingBrief struct {
 }
 
 type BriefSettings struct {
-	TargetSeconds      int    `json:"target_seconds"`
-	AspectRatio        string `json:"aspect_ratio"`
-	AspectRatioRevised bool   `json:"aspect_ratio_revised,omitempty"`
-	Language           string `json:"language"`
-	CaptionMode        string `json:"caption_mode"`
-	CaptionModeRevised bool   `json:"caption_mode_revised,omitempty"`
-	PreserveOrder      bool   `json:"preserve_order"`
-	Narration          bool   `json:"recorded_narration"`
+	TargetSeconds          int    `json:"target_seconds"`
+	AspectRatio            string `json:"aspect_ratio"`
+	AspectRatioRevised     bool   `json:"aspect_ratio_revised,omitempty"`
+	Language               string `json:"language"`
+	CaptionMode            string `json:"caption_mode"`
+	CaptionModeRevised     bool   `json:"caption_mode_revised,omitempty"`
+	PreserveOrder          bool   `json:"preserve_order"`
+	PreserveOriginalSpeech bool   `json:"preserve_original_speech,omitempty"`
+	Narration              bool   `json:"recorded_narration"`
 }
 
 type BriefSourceConstraint struct {
@@ -72,7 +73,7 @@ func BuildEditingBrief(req Request) EditingBrief {
 	brief := EditingBrief{
 		Version: 1, OriginalRequest: o.Brief,
 		ExplicitInstructions: []string{},
-		SelectedSettings:     BriefSettings{TargetSeconds: o.TargetSeconds, AspectRatio: o.AspectRatio, AspectRatioRevised: o.AspectRatioRevised, Language: o.Language, CaptionMode: EffectiveCaptionMode(o), CaptionModeRevised: o.CaptionModeRevised, PreserveOrder: o.PreserveOrder, Narration: o.Narration},
+		SelectedSettings:     BriefSettings{TargetSeconds: o.TargetSeconds, AspectRatio: o.AspectRatio, AspectRatioRevised: o.AspectRatioRevised, Language: o.Language, CaptionMode: EffectiveCaptionMode(o), CaptionModeRevised: o.CaptionModeRevised, PreserveOrder: o.PreserveOrder, PreserveOriginalSpeech: PreserveOriginalSpeech(o), Narration: o.Narration},
 		SourceConstraints:    []BriefSourceConstraint{},
 		ConservativeDefaults: []string{
 			"Preserve original voices, appearance, speed, complete ideas, meaningful pauses and gestures.",
@@ -134,8 +135,7 @@ var explicitAspect = regexp.MustCompile(`(?:^|[.!?;\n])\s*(?:format|aspect ratio
 // negated commands and vague preferences must not become fabricated choices.
 // The complete remaining instructions are checked by editorial/media review.
 func ValidateBriefSettings(o Options) error {
-	text := strings.ToLower(o.Brief)
-	text = strings.NewReplacer("ă", "a", "â", "a", "î", "i", "ș", "s", "ş", "s", "ț", "t", "ţ", "t", "’", "'").Replace(text)
+	text := normalizedBrief(o.Brief)
 	for _, directive := range captionDirectives {
 		if !o.CaptionModeRevised && directive.text.MatchString(text) && EffectiveCaptionMode(o) != directive.mode {
 			return fmt.Errorf("the brief requests caption mode %q but the selected option is %q; update the brief or subtitle option before generating", directive.mode, EffectiveCaptionMode(o))

@@ -49,6 +49,7 @@ func cloneAssets(assets []Asset) []Asset {
 	cloned := slices.Clone(assets)
 	for i := range cloned {
 		cloned[i].Warnings = slices.Clone(assets[i].Warnings)
+		cloned[i].VoiceIntervals = slices.Clone(assets[i].VoiceIntervals)
 		cloned[i].Candidates = slices.Clone(assets[i].Candidates)
 		cloned[i].TranscriptProposals = slices.Clone(assets[i].TranscriptProposals)
 		for j := range cloned[i].TranscriptProposals {

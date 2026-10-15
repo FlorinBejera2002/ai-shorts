@@ -84,6 +84,10 @@ type plannerProposal struct {
 
 func (b *Builder) plan(ctx context.Context, req Request, budget *runBudget) (Plan, error) {
 	fallback := fallbackPlan(req)
+	fallback, completionErr := CompleteOriginalSpeech(fallback, req.Assets, req.Options)
+	if completionErr != nil {
+		return Plan{}, completionErr
+	}
 	visualDirection := strings.TrimSpace(req.Options.Brief) != "" && hasDescribedStoryVisuals(req.Assets)
 	if !hasReliableStorySpeech(req.Assets) && !visualDirection {
 		return fallback, nil
@@ -155,6 +159,10 @@ func (b *Builder) plan(ctx context.Context, req Request, budget *runBudget) (Pla
 			plan.Gaps = append(plan.Gaps, fmt.Sprintf("Optional supporting visual for block %q was rejected; the original source-backed shot was retained.", block.ID))
 			block.BRollID = ""
 		}
+	}
+	plan, err = CompleteOriginalSpeech(plan, req.Assets, req.Options)
+	if err != nil {
+		return Plan{}, err
 	}
 	issues := ValidatePlan(plan, req.Assets, req.Options, nil)
 	var rejected []Issue

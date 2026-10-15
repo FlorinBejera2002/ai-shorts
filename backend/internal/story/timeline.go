@@ -184,6 +184,11 @@ func ValidatePlan(plan Plan, assets []Asset, options Options, base *Version) []I
 			}
 		}
 	}
+	if PreserveOriginalSpeech(options) && !options.Narration {
+		if timeline, err := BuildTimeline(plan, assets); err == nil {
+			issues = append(issues, OriginalSpeechCoverage(assets, timeline)...)
+		}
+	}
 	return issues
 }
 

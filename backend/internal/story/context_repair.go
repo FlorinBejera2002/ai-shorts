@@ -15,6 +15,15 @@ func restoreSourceContext(plan Plan, op repairOperation, assets []Asset) (Plan, 
 	for _, source := range assets {
 		sources[source.ID] = source
 	}
+	preserveOrder := plan.EditingBrief != nil && plan.EditingBrief.SelectedSettings.PreserveOrder
+	follows := func(candidate, anchor Candidate) bool {
+		if candidate.SourceID == anchor.SourceID {
+			return candidate.In >= anchor.Out-.001
+		}
+		candidateSource, candidateExists := sources[candidate.SourceID]
+		anchorSource, anchorExists := sources[anchor.SourceID]
+		return preserveOrder && candidateExists && anchorExists && candidateSource.Order > anchorSource.Order
+	}
 	position := func(id string) int {
 		for i, block := range updated.Blocks {
 			if block.ID == id {
@@ -44,9 +53,10 @@ func restoreSourceContext(plan Plan, op repairOperation, assets []Asset) (Plan, 
 		return Plan{}, fmt.Errorf("missing source prerequisite %.160q", op.candidateID)
 	}
 	// A media reviewer can request the following part of a cut-off utterance.
-	// Source clocks establish this direction only within the same recording.
+	// Source clocks establish this direction only within the same recording;
+	// between recordings, only the saved original-order contract establishes it.
 	// Explicit prerequisite relations still require their original before-order.
-	following := requested.SourceID == dependent.SourceID && requested.In >= dependent.Out-.001 && !requiresCandidate(dependent.ID, requested.ID, all)
+	following := follows(requested, dependent) && !requiresCandidate(dependent.ID, requested.ID, all)
 	active, finished := map[string]bool{dependent.ID: true}, make(map[string]bool)
 	var ensureBefore func(string, string, Candidate) error
 	ensureBefore = func(id, anchorID string, parent Candidate) error {
@@ -70,15 +80,20 @@ func restoreSourceContext(plan Plan, op repairOperation, assets []Asset) (Plan, 
 			return fmt.Errorf("source context %.160q [%.3f, %.3f] overlaps %.160q [%.3f, %.3f]; whole intervals cannot be restored without repeating original audio", id, candidate.In, candidate.Out, parent.ID, parent.In, parent.Out)
 		}
 		if following {
-			if candidate.SourceID == parent.SourceID && candidate.In >= parent.Out-.001 {
-				return fmt.Errorf("source prerequisite %.160q follows %.160q in the original recording; placing it before that phrase would reverse source chronology", id, parent.ID)
+			if follows(candidate, parent) {
+				return fmt.Errorf("source prerequisite %.160q follows %.160q in original source order; placing it before that phrase would reverse source chronology", id, parent.ID)
 			}
 			if candidate.ID != dependent.ID && overlappingContextIntervals(candidate, dependent) {
 				return fmt.Errorf("source prerequisite %.160q overlaps the original context anchor %.160q", id, dependent.ID)
 			}
-			// Earlier/cross-source setup belongs before the original anchor,
-			// never between that anchor and its following speech continuation.
-			if candidate.SourceID != dependent.SourceID || candidate.Out <= dependent.In+.001 {
+			// Earlier setup belongs before the original anchor. A prerequisite
+			// from an intervening source stays between that anchor and the
+			// continuation when the project preserves original source order.
+			beforeAnchor := candidate.Out <= dependent.In+.001
+			if candidate.SourceID != dependent.SourceID {
+				beforeAnchor = !preserveOrder || sources[candidate.SourceID].Order <= sources[dependent.SourceID].Order
+			}
+			if beforeAnchor {
 				if position(anchorID) > position(op.blockID) {
 					anchorID = op.blockID
 				}

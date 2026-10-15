@@ -17,7 +17,7 @@ func TestTranscriptProposalUsesVoiceEvidenceBeforeApprovingOverlappingWords(t *t
 	if err != nil {
 		t.Fatal(err)
 	}
-	asset = prepareStoryTranscriptProposals(asset, []Segment{{1.9, 4.1}}, true)
+	asset = prepareStoryTranscriptProposals(asset, []Segment{{1.9, 4.1}}, true, nil)
 	p := asset.TranscriptProposals[0]
 	if !p.TimingVerified || len(p.Words) != 2 || p.Words[0].Text != "o să" || p.Words[1].Text != "un follow" {
 		t.Fatalf("overlap was not resolved by measured voice bounds: %+v", p)
@@ -31,7 +31,7 @@ func TestTranscriptProposalUsesVoiceEvidenceBeforeApprovingOverlappingWords(t *t
 	}
 	for _, intervals := range [][]Segment{nil, {{1.9, 2.1}, {3.8, 4.1}}} {
 		unsafe, _ := applyStorySpeechPolicy(raw, story.DefaultOptions())
-		unsafe = prepareStoryTranscriptProposals(unsafe, intervals, len(intervals) > 0)
+		unsafe = prepareStoryTranscriptProposals(unsafe, intervals, len(intervals) > 0, nil)
 		if unsafe.TranscriptProposals[0].TimingVerified {
 			t.Fatal("missing or ambiguous voice timing certified")
 		}

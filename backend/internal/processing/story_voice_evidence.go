@@ -18,14 +18,15 @@ import (
 
 var storyVADArguments = []string{"--vad-threshold", "0.5", "--vad-min-speech-duration-ms", "150", "--vad-min-silence-duration-ms", "200", "--vad-speech-pad-ms", "150", "--vad-samples-overlap", "0.1"}
 
-const storyVoiceClockVersion = "voice-clock-2"
+const storyVoiceClockVersion = "voice-clock-3-padding-provenance"
 const storyVoiceAlignmentWarning = "Automatic captions withheld because voice timing could not be verified"
 
 type storyVoiceEvidence struct {
-	Version    string    `json:"version"`
-	SourceHash string    `json:"source_hash"`
-	Duration   float64   `json:"duration"`
-	Intervals  []Segment `json:"intervals"`
+	Version    string             `json:"version"`
+	SourceHash string             `json:"source_hash"`
+	Duration   float64            `json:"duration"`
+	Intervals  []Segment          `json:"intervals"`
+	Padding    *storyVoicePadding `json:"padding,omitempty"`
 }
 
 func (p *Processor) storyVADExecutable() string {
@@ -48,6 +49,11 @@ func (p *Processor) prepareStorySpeechCatalogWithAudio(ctx context.Context, dir 
 	if err != nil {
 		return asset, err
 	}
+	// Voice coverage is source evidence, independent of whether ASR words are
+	// allowed to become captions. Refresh it from the measured sidecar rather
+	// than trusting an older saved catalog's intervals.
+	asset.VoiceIntervals = nil
+	preserveVoice := story.PreserveOriginalSpeech(options) && asset.HasAudio && asset.Kind != "narration" && asset.Include != "excluded"
 	model := p.cfg.StoryWhisperModel
 	if model == "" {
 		model = p.cfg.WhisperModel
@@ -58,18 +64,24 @@ func (p *Processor) prepareStorySpeechCatalogWithAudio(ctx context.Context, dir 
 	for _, candidate := range asset.Candidates {
 		spoken = spoken || len(candidate.Words) > 0
 	}
-	if !spoken && len(asset.TranscriptProposals) == 0 {
+	if !spoken && len(asset.TranscriptProposals) == 0 && !preserveVoice {
 		return asset, nil
 	}
-	intervals, err := p.storyVoiceIntervals(ctx, dir, raw, clockVersion, p.storyVADModel(model), audio)
+	intervals, padding, err := p.storyVoiceIntervals(ctx, dir, raw, clockVersion, p.storyVADModel(model), audio)
 	if ctx.Err() != nil {
 		return asset, ctx.Err()
 	}
+	if err != nil && preserveVoice {
+		return asset, fmt.Errorf("cannot verify complete original speech for source %s: %w", asset.ID, err)
+	}
 	if err != nil {
-		asset = prepareStoryTranscriptProposals(asset, nil, false)
+		asset = prepareStoryTranscriptProposals(asset, nil, false, nil)
 		asset, err = boundStorySpeechToVoice(asset, nil, false)
 	} else {
-		asset = prepareStoryTranscriptProposals(asset, intervals, true)
+		for _, interval := range intervals {
+			asset.VoiceIntervals = append(asset.VoiceIntervals, story.Interval{SourceID: asset.ID, In: interval.Start, Out: interval.End})
+		}
+		asset = prepareStoryTranscriptProposals(asset, intervals, true, padding)
 		asset, err = boundStorySpeechToVoice(asset, intervals, true)
 	}
 	if err == nil {
@@ -105,14 +117,22 @@ func (p *Processor) prepareStorySpeechCatalogWithAudio(ctx context.Context, dir 
 
 // Suggested lexical text uses the same independent voice-clock gate as automatic
 // captions. A reviewer may correct text, but cannot certify arbitrary timestamps.
-func prepareStoryTranscriptProposals(asset story.Asset, intervals []Segment, available bool) story.Asset {
+func prepareStoryTranscriptProposals(asset story.Asset, intervals []Segment, available bool, padding *storyVoicePadding) story.Asset {
 	for i := range asset.TranscriptProposals {
 		proposal := &asset.TranscriptProposals[i]
-		probe := story.Asset{Duration: asset.Duration, Candidates: []story.Candidate{{ID: proposal.CandidateID, SourceID: asset.ID, In: proposal.In, Out: proposal.Out, Words: proposal.Words}}}
+		proposal.Reviewed = false
+		words, normalized := proposal.Words, false
+		if available {
+			words, normalized = normalizeStoryProposalPadding(words, intervals, asset.Duration, padding)
+		}
+		probe := story.Asset{Duration: asset.Duration, Candidates: []story.Candidate{{ID: proposal.CandidateID, SourceID: asset.ID, In: proposal.In, Out: proposal.Out, Words: words}}}
 		bounded, err := boundStorySpeechToVoice(probe, intervals, available)
 		proposal.TimingVerified = err == nil && len(bounded.Candidates[0].Words) > 0
 		if proposal.TimingVerified {
 			proposal.Words = bounded.Candidates[0].Words
+			if normalized {
+				proposal.Reason += " " + storyProposalPaddingReason
+			}
 		} else {
 			proposal.Reason += " Voice timing could not be verified; these words cannot be approved yet."
 		}
@@ -123,14 +143,14 @@ func prepareStoryTranscriptProposals(asset story.Asset, intervals []Segment, ava
 
 // This sidecar is intentionally separate from ASR analysis. Older expensive
 // transcripts can acquire measured voice bounds without another ASR run.
-func (p *Processor) storyVoiceIntervals(ctx context.Context, dir string, asset story.Asset, version, model string, audio storyPreparedAudio) ([]Segment, error) {
+func (p *Processor) storyVoiceIntervals(ctx context.Context, dir string, asset story.Asset, version, model string, audio storyPreparedAudio) ([]Segment, *storyVoicePadding, error) {
 	key := path.Dir(asset.ProxyKey) + "/voice-intervals-" + version + ".json"
 	file := filepath.Join(dir, "voice-intervals.json")
 	if p.materialize(ctx, key, file) == nil {
 		data, err := os.ReadFile(file)
 		var cached storyVoiceEvidence
-		if err == nil && len(data) < 1<<20 && json.Unmarshal(data, &cached) == nil && cached.Version == version && cached.SourceHash == asset.Hash && cached.Duration == asset.Duration && validStoryVoiceIntervals(cached.Intervals, asset.Duration) {
-			return cached.Intervals, nil
+		if err == nil && len(data) < 1<<20 && json.Unmarshal(data, &cached) == nil && cached.Version == version && cached.SourceHash == asset.Hash && cached.Duration == asset.Duration && cached.Padding.valid() && validStoryVoiceIntervals(cached.Intervals, asset.Duration) {
+			return cached.Intervals, cached.Padding, nil
 		}
 	}
 	var intervals []Segment
@@ -147,16 +167,17 @@ func (p *Processor) storyVoiceIntervals(ctx context.Context, dir string, asset s
 		}
 	}
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	data, err := json.Marshal(storyVoiceEvidence{version, asset.Hash, asset.Duration, intervals})
+	padding := configuredStoryVoicePadding(storyVADArguments)
+	data, err := json.Marshal(storyVoiceEvidence{Version: version, SourceHash: asset.Hash, Duration: asset.Duration, Intervals: intervals, Padding: padding})
 	if err != nil || os.WriteFile(file, data, 0600) != nil {
-		return nil, storyWorkError("voice evidence")
+		return nil, nil, storyWorkError("voice evidence")
 	}
 	if err := p.storySave(ctx, file, key, "application/json"); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return intervals, nil
+	return intervals, padding, nil
 }
 
 func (audio storyPreparedAudio) matches(proxyKey, dir string) bool {

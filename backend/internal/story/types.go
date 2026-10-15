@@ -42,29 +42,30 @@ func DefaultLimits() Limits {
 }
 
 type Options struct {
-	CaptionStyle       *captions.Style        `json:"caption_style,omitempty"`
-	UseBrandKit        bool                   `json:"use_brand_kit,omitempty"`
-	AudioCleanup       *audiocleanup.Settings `json:"audio_cleanup,omitempty"`
-	Music              *MusicSelection        `json:"music,omitempty"`
-	Narration          bool                   `json:"narration,omitempty"`
-	Brief              string                 `json:"brief"`
-	TargetSeconds      int                    `json:"target_seconds"`
-	AspectRatio        string                 `json:"aspect_ratio"`
-	AspectRatioRevised bool                   `json:"aspect_ratio_revised,omitempty"` // later explicit format choice supersedes original format wording
-	DynamicRange       string                 `json:"dynamic_range,omitempty"`
-	Language           string                 `json:"language"`
-	Mode               string                 `json:"mode"`
-	PreserveOrder      bool                   `json:"preserve_order"`
-	Captions           bool                   `json:"captions"`
-	CaptionMode        string                 `json:"caption_mode,omitempty"`         // all, selective, off; empty reads legacy captions
-	CaptionModeRevised bool                   `json:"caption_mode_revised,omitempty"` // later explicit style choice supersedes original caption wording
-	SubtitleColor      string                 `json:"subtitle_color,omitempty"`
-	SubtitlePosition   string                 `json:"subtitle_position,omitempty"`
-	SubtitleFont       string                 `json:"subtitle_font,omitempty"`
-	SubtitleSize       int                    `json:"subtitle_size,omitempty"`
-	LogoResourceID     string                 `json:"logo_resource_id,omitempty"`
-	LogoPosition       string                 `json:"logo_position,omitempty"`
-	LogoOpacity        *float64               `json:"logo_opacity,omitempty"`
+	CaptionStyle           *captions.Style        `json:"caption_style,omitempty"`
+	UseBrandKit            bool                   `json:"use_brand_kit,omitempty"`
+	AudioCleanup           *audiocleanup.Settings `json:"audio_cleanup,omitempty"`
+	Music                  *MusicSelection        `json:"music,omitempty"`
+	Narration              bool                   `json:"narration,omitempty"`
+	Brief                  string                 `json:"brief"`
+	TargetSeconds          int                    `json:"target_seconds"`
+	AspectRatio            string                 `json:"aspect_ratio"`
+	AspectRatioRevised     bool                   `json:"aspect_ratio_revised,omitempty"` // later explicit format choice supersedes original format wording
+	DynamicRange           string                 `json:"dynamic_range,omitempty"`
+	Language               string                 `json:"language"`
+	Mode                   string                 `json:"mode"`
+	PreserveOrder          bool                   `json:"preserve_order"`
+	PreserveOriginalSpeech bool                   `json:"preserve_original_speech,omitempty"`
+	Captions               bool                   `json:"captions"`
+	CaptionMode            string                 `json:"caption_mode,omitempty"`         // all, selective, off; empty reads legacy captions
+	CaptionModeRevised     bool                   `json:"caption_mode_revised,omitempty"` // later explicit style choice supersedes original caption wording
+	SubtitleColor          string                 `json:"subtitle_color,omitempty"`
+	SubtitlePosition       string                 `json:"subtitle_position,omitempty"`
+	SubtitleFont           string                 `json:"subtitle_font,omitempty"`
+	SubtitleSize           int                    `json:"subtitle_size,omitempty"`
+	LogoResourceID         string                 `json:"logo_resource_id,omitempty"`
+	LogoPosition           string                 `json:"logo_position,omitempty"`
+	LogoOpacity            *float64               `json:"logo_opacity,omitempty"`
 }
 
 func DefaultOptions() Options {
@@ -103,6 +104,7 @@ type Asset struct {
 	AnalysisVersion         string                   `json:"analysis_version,omitempty"`
 	SemanticAnalysisVersion string                   `json:"semantic_analysis_version,omitempty"`
 	Candidates              []Candidate              `json:"candidates,omitempty"`
+	VoiceIntervals          []Interval               `json:"voice_intervals,omitempty"` // Measured voice activity in original source seconds, independent of transcript confidence.
 	TranscriptProposals     []TranscriptProposal     `json:"transcript_proposals,omitempty"`
 	TranscriptReviews       []TranscriptReview       `json:"transcript_reviews,omitempty"`
 	Warnings                []string                 `json:"warnings,omitempty"`

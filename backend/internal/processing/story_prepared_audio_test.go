@@ -167,7 +167,7 @@ func TestStoryPreparedAudioRejectsUnrelatedOrUnavailableSamples(t *testing.T) {
 			} else if mode == "different-proxy" {
 				audio.proxyKey = "another/immutable/proxy.mp4"
 			}
-			intervals, err := p.storyVoiceIntervals(context.Background(), dir, asset, "prepared-fallback", p.cfg.WhisperVADModel, audio)
+			intervals, _, err := p.storyVoiceIntervals(context.Background(), dir, asset, "prepared-fallback", p.cfg.WhisperVADModel, audio)
 			if err != nil || !reflect.DeepEqual(intervals, []Segment{{.3, 1.5}}) {
 				t.Fatalf("source fallback lost VAD evidence: %v %v", intervals, err)
 			}
@@ -199,7 +199,7 @@ func TestStoryPreparedAudioPreservesMissingDetectorAndCancellation(t *testing.T)
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	asset.ProxyKey = asset.Key
-	if _, err := p.storyVoiceIntervals(ctx, dir, asset, "cancelled-voice", model, audio); !errors.Is(err, context.Canceled) {
+	if _, _, err := p.storyVoiceIntervals(ctx, dir, asset, "cancelled-voice", model, audio); !errors.Is(err, context.Canceled) {
 		t.Fatalf("prepared VAD ignored cancellation: %v", err)
 	}
 	assertPreparedAudioExtractions(t, log, []string{"audio.wav"})

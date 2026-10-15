@@ -77,6 +77,12 @@ func reuseDuplicateAnalysis(analyzed, original Asset) (Asset, bool) {
 	// This marker covers the entire semantic batch, including its source IDs.
 	// The optional semantic adapter must validate it again after expansion.
 	reused.SemanticAnalysisVersion = ""
+	for i := range reused.VoiceIntervals {
+		if reused.VoiceIntervals[i].SourceID != analyzed.ID {
+			return Asset{}, false
+		}
+		reused.VoiceIntervals[i].SourceID = original.ID
+	}
 	for i := range reused.Candidates {
 		candidate := &reused.Candidates[i]
 		candidate.ID, candidate.SourceID = ids[candidate.ID], original.ID
@@ -201,6 +207,15 @@ func sameSemanticCatalog(a, b Asset) bool {
 		return false
 	}
 	rebound := cloneAssets([]Asset{a})[0]
+	for i := range rebound.VoiceIntervals {
+		if rebound.VoiceIntervals[i].SourceID != a.ID {
+			return false
+		}
+		rebound.VoiceIntervals[i].SourceID = b.ID
+	}
+	if !slices.Equal(rebound.VoiceIntervals, b.VoiceIntervals) {
+		return false
+	}
 	for i := range rebound.Candidates {
 		c := &rebound.Candidates[i]
 		c.ID, c.SourceID = ids[c.ID], b.ID

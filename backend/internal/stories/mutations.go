@@ -171,7 +171,7 @@ func (r *Repository) patchTx(ctx context.Context, tx *sql.Tx, user, id string, i
 }
 
 func (r *Repository) Queue(ctx context.Context, user, id string, in Generate) error {
-	if (len(in.TranscriptReviews) > 0) != (in.Action == "review_transcript") || in.Action == "review_transcript" && (in.Version < 1 || len(in.ExpectedState) != 64 || len(in.TranscriptReviews) > 200) {
+	if (len(in.TranscriptReviews) > 0) != (in.Action == "review_transcript") || in.Action == "review_transcript" && (in.Version < 0 || len(in.ExpectedState) != 64 || len(in.TranscriptReviews) > 200) {
 		return ErrInvalid
 	}
 	if (in.Style != nil) != (in.Action == "restyle") || in.Action == "restyle" && (in.Version < 1 || len(in.ExpectedState) != 64) {
@@ -291,6 +291,27 @@ func (r *Repository) Queue(ctx context.Context, user, id string, in Generate) er
 	if err = story.ValidateNarrationAssets(req.Assets, req.Options); err != nil {
 		return fmt.Errorf("%w: %s", ErrInvalid, err)
 	}
+	if in.Action == "review_transcript" {
+		for _, asset := range req.Assets {
+			if _, err = tx.ExecContext(ctx, `UPDATE story_assets SET asset=$3 WHERE project_id=$1 AND id=$2`, id, asset.ID, encoded(asset)); err != nil {
+				return err
+			}
+		}
+		if current == 0 {
+			// Reviewing analyzed sources before the first render only saves evidence.
+			// The owner's later generate/retry request queues work and reserves credits.
+			if err = checkLifecycleMember(ctx, tx, user); err != nil {
+				return err
+			}
+			if _, err = tx.ExecContext(ctx, `INSERT INTO story_requests(project_id,id,payload) VALUES($1,$2,$3)`, id, in.RequestID, encoded(in)); err != nil {
+				return err
+			}
+			if _, err = tx.ExecContext(ctx, `UPDATE story_projects SET updated_at=now() WHERE id=$1`, id); err != nil {
+				return err
+			}
+			return tx.Commit()
+		}
+	}
 	if current == 0 {
 		expected := []string{}
 		for _, a := range req.Assets {
@@ -375,13 +396,6 @@ func (r *Repository) Queue(ctx context.Context, user, id string, in Generate) er
 	}
 	if err != nil {
 		return err
-	}
-	if in.Action == "review_transcript" {
-		for _, asset := range req.Assets {
-			if _, err = tx.ExecContext(ctx, `UPDATE story_assets SET asset=$3 WHERE project_id=$1 AND id=$2`, id, asset.ID, encoded(asset)); err != nil {
-				return err
-			}
-		}
 	}
 	if _, err = tx.ExecContext(ctx, `INSERT INTO story_requests(project_id,id,payload) VALUES($1,$2,$3)`, id, in.RequestID, encoded(in)); err != nil {
 		return err

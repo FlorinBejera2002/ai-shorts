@@ -16,7 +16,21 @@ export function StoryReview({
 }) {
   const text = useStoryLanguage()
   const issues = customerReviewIssues(version)
-  if (!issues.length) return null
+  if (!issues.length) {
+    if (!version.accepted || version.report.status !== 'needs_review') return null
+    return (
+      <p
+        role="status"
+        className="rounded-md border bg-muted px-3 py-2 text-sm text-foreground"
+        data-testid="story-review-notice"
+      >
+        {text(
+          'Review the picture, sound and captions in this version before using it.',
+          'Verifică imaginea, sunetul și subtitrările acestei versiuni înainte de a o folosi.'
+        )}
+      </p>
+    )
+  }
   const labels = {
     captions: text(
       'Check the captions at this moment.',

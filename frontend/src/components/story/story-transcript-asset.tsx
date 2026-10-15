@@ -8,10 +8,12 @@ import { useStoryLanguage } from './use-story-language'
 export function StoryTranscriptAsset({
   asset,
   disabled,
+  hasVersion,
   onApprove
 }: {
   asset: StoryAsset
   disabled: boolean
+  hasVersion: boolean
   onApprove: (
     reviews: StoryTranscriptApproval[]
   ) => Promise<boolean | undefined>
@@ -131,10 +133,15 @@ export function StoryTranscriptAsset({
           disabled={disabled || !selected.length || !source}
           onClick={() => void approve()}
         >
-          {text(
-            'Approve selected and rebuild captions',
-            'Confirmă selecția și regenerează subtitrările'
-          )}
+          {hasVersion
+            ? text(
+                'Approve selected and rebuild captions',
+                'Confirmă selecția și regenerează subtitrările'
+              )
+            : text(
+                'Confirm selected passages',
+                'Confirmă pasajele selectate'
+              )}
         </Button>
         {error && (
           <p role="alert" className="text-sm text-destructive">

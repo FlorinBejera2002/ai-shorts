@@ -105,9 +105,18 @@ func (b *Builder) Run(parent context.Context, req Request, checkpoints Checkpoin
 			return state.result, &NoChangeError{Message: "No shorter edit is available without changing the spoken content. Your previous video is retained."}
 		}
 	}
+	if req.Base == nil || req.Action == "" || req.Action == "improve_flow" {
+		plan, err = CompleteOriginalSpeech(plan, req.Assets, req.Options)
+		if err != nil {
+			return state.result, err
+		}
+	}
 	version, err := state.version(plan, req.Base, repairOperation{})
 	if err != nil {
 		return state.result, err
+	}
+	if timelineDuration(version.Timeline) > b.limits.MaxTotalSeconds {
+		return state.result, fmt.Errorf("story timeline exceeds the configured duration limit: %.2fs exceeds %.2fs; the previous edit was retained", timelineDuration(version.Timeline), b.limits.MaxTotalSeconds)
 	}
 	if req.Action == "improve_flow" && req.Base != nil && reflect.DeepEqual(version.Timeline, req.Base.Timeline) {
 		return state.result, &NoChangeError{Message: "No different source-backed edit is available. Your previous video is retained."}
@@ -133,7 +142,7 @@ func (b *Builder) Run(parent context.Context, req Request, checkpoints Checkpoin
 		}
 		candidate.Report = b.preReview(ctx, req, candidate, state.budget)
 		accepted := repairImproves(pre, candidate.Report, issue, version.Timeline, candidate.Timeline)
-		attempt := state.attempt(version, candidate, issue, operation, accepted, "Pre-render source and semantic checks did not improve.")
+		attempt := state.attempt(version, candidate, issue, operation, accepted, repairRejectionReason(pre, candidate.Report, issue, version.Timeline, candidate.Timeline))
 		if accepted {
 			attempt.Reason = "Restored source-backed context before rendering."
 		}
@@ -152,7 +161,7 @@ func (b *Builder) Run(parent context.Context, req Request, checkpoints Checkpoin
 		if err = checkpoints.SaveVersion(ctx, version); err != nil {
 			return state.result, err
 		}
-		return state.result, fmt.Errorf("story plan failed source or lock safety checks")
+		return state.result, fmt.Errorf("story plan failed source, lock, or semantic checks")
 	}
 	version, err = state.renderAndReview(ctx, version, pre)
 	if err != nil {
@@ -207,7 +216,11 @@ func (b *Builder) Run(parent context.Context, req Request, checkpoints Checkpoin
 		}
 		accepted := candidate.Output.Key != "" && repairImproves(best.Report, candidate.Report, issue, best.Timeline, candidate.Timeline)
 		candidate.Accepted = accepted
-		attempt := state.attempt(best, candidate, issue, operation, accepted, "Candidate rejected: target persists, coverage is incomplete, or a blocking regression was introduced.")
+		reason := repairRejectionReason(best.Report, candidate.Report, issue, best.Timeline, candidate.Timeline)
+		if candidate.Output.Key == "" {
+			reason = "Candidate rejected: no rendered output. " + reason
+		}
+		attempt := state.attempt(best, candidate, issue, operation, accepted, reason)
 		if accepted {
 			attempt.Reason = "Target issue resolved with no new blocking issue; complete story rechecked."
 		}
@@ -286,11 +299,12 @@ func (s *runState) analyze(ctx context.Context) error {
 			// Candidate IDs are not immutable across model/segmentation upgrades.
 			// Keep the complete saved catalog so the accepted version's blocks,
 			// captions, alternate choices and identity references retain meaning.
-			proposals := analyzed.TranscriptProposals
+			proposals, voiceIntervals := analyzed.TranscriptProposals, analyzed.VoiceIntervals
 			analyzed = original
 			// Suggestions are not executable captions, so a pinned legacy catalog
 			// can expose new evidence without rewriting its accepted source cuts.
 			analyzed.TranscriptProposals = proposals
+			analyzed.VoiceIntervals = append([]Interval(nil), voiceIntervals...)
 			analyzed.Warnings = appendUnique(analyzed.Warnings, pinnedSourceWarning)
 		} else if pinnedSources[original.ID] {
 			// Local cache files may precede semantic context enrichment. Preserve
@@ -311,6 +325,12 @@ func (s *runState) analyze(ctx context.Context) error {
 		return err
 	}
 	if err := s.analyzeSourceMeaning(ctx); err != nil {
+		return err
+	}
+	if err := prepareCandidates(s.req.Assets); err != nil {
+		return err
+	}
+	if err := PrepareOriginalSpeech(s.req.Assets, s.req.Options); err != nil {
 		return err
 	}
 	if err := prepareCandidates(s.req.Assets); err != nil {

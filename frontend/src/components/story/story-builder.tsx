@@ -688,7 +688,8 @@ function StoryWorkspace({
       )}
       <StoryTranscriptReview
         assets={assets}
-        disabled={active || busy || !version}
+        disabled={active || busy}
+        hasVersion={Boolean(version)}
         onApprove={(reviews) => mutate('/transcript-review', 'POST', {
           version: project.current_version,
           expected_state: project.expected_state,

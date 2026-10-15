@@ -11,6 +11,7 @@ const page = await browser.newPage({ viewport: { width: 390, height: 844 } })
 page.setDefaultTimeout(30000)
 const origin = process.env.TEST_ORIGIN || 'http://127.0.0.1:5194'
 const projectID = '00000000-0000-4000-8000-000000000095'
+const preflight = process.env.TEST_PREFLIGHT_REVIEW === '1'
 const requests = [],
   errors = []
 let conflict = true
@@ -38,9 +39,9 @@ const version = {
 }
 let project = {
   id: projectID,
-  status: 'ready',
-  current_version: 1,
-  versions: [version],
+  status: preflight ? 'failed' : 'ready',
+  current_version: preflight ? 0 : 1,
+  versions: preflight ? [] : [version],
   expected_state: 'a'.repeat(64),
   options: {
     brief: '',
@@ -150,8 +151,8 @@ try {
       }
       project = {
         ...project,
-        status: 'queued',
-        stage: 'analyze',
+        status: preflight ? 'failed' : 'queued',
+        stage: preflight ? undefined : 'analyze',
         expected_state: 'c'.repeat(64),
         assets: project.assets.map((asset) => ({
           ...asset,
@@ -182,9 +183,13 @@ try {
   await page.goto(`${origin}/dashboard/create?story=${projectID}`, {
     waitUntil: 'domcontentloaded', timeout: 90000
   })
-  await page
-    .getByRole('link', { name: 'Review transcripts', exact: true })
-    .click()
+  if (!preflight) {
+    await page
+      .getByRole('link', { name: 'Review transcripts', exact: true })
+      .click()
+  } else {
+    await page.getByText('Confirmation saves the reviewed text', { exact: false }).waitFor()
+  }
   await page.getByTestId('transcript-asset').locator('summary').click()
   const passages = page.getByTestId('transcript-passage')
   const first = passages.nth(0),
@@ -212,7 +217,7 @@ try {
     .evaluate((video) => video.pause())
   await first.getByRole('textbox').first().fill('Hello')
   const approve = page.getByRole('button', {
-    name: 'Approve selected and rebuild captions'
+    name: preflight ? 'Confirm selected passages' : 'Approve selected and rebuild captions'
   })
   assert.equal(await approve.isDisabled(), true)
   await first.getByRole('checkbox').check()
@@ -247,13 +252,18 @@ try {
       words: ['Hello', 'world!']
     }
   ])
-  assert.equal(requests[1].version, 1)
+  assert.equal(requests[1].version, preflight ? 0 : 1)
   assert.equal(requests[1].expected_state, 'b'.repeat(64))
   assert.match(requests[1].request_id, /^[0-9a-f-]{36}$/)
+  if (preflight) {
+    await page.waitForFunction(() =>
+      document.querySelector('[data-testid="transcript-passage"]')?.disabled === false
+    )
+  }
   assert.equal(
     await first.getByRole('textbox').first().isDisabled(),
-    true,
-    'Queued revision locks review edits'
+    !preflight,
+    preflight ? 'Preflight approval leaves review available for the next source' : 'Queued revision locks review edits'
   )
   assert.equal(
     await page.evaluate(
@@ -265,18 +275,19 @@ try {
     process.env.TEST_SCREENSHOT_DIR || 'test-results/story-transcript-review'
   await mkdir(output, { recursive: true })
   await page.screenshot({ path: `${output}/mobile.png`, fullPage: true })
-  project = { ...project, status: 'ready', stage: undefined }
+  project = { ...project, status: preflight ? 'failed' : 'ready', stage: undefined }
   await page.goto(`${origin}/ro/dashboard/create?story=${projectID}`, { waitUntil: 'domcontentloaded', timeout: 90000 })
   await page.getByTestId('transcript-asset').locator('summary').click()
-  const translatedAction = page.getByRole('button', { name: 'Confirmă selecția și regenerează subtitrările' })
+  const translatedAction = page.getByRole('button', { name: preflight ? 'Confirmă pasajele selectate' : 'Confirmă selecția și regenerează subtitrările' })
   await translatedAction.scrollIntoViewIfNeeded()
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), false, 'Romanian controls fit the mobile viewport')
   await page.screenshot({ path: `${output}/mobile-ro.png`, fullPage: true })
   assert.deepEqual(errors, [])
   console.log(
     JSON.stringify({
-      verified:
-        'Explicit fixed-timing review, source playback, edit invalidates confirmation, owner-state conflict retains draft, approval queues caption revision',
+      verified: preflight
+        ? 'Failed first generation allows mobile review, fixed timing remains required, conflict retains draft, preflight approval sends version 0 and leaves review enabled'
+        : 'Explicit fixed-timing review, source playback, edit invalidates confirmation, owner-state conflict retains draft, approval queues caption revision',
       requests: requests.length
     })
   )
