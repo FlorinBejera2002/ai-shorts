@@ -118,9 +118,26 @@ describe("per-seek media clip index", () => {
     const many = visitsForOneFrameSeek(32);
 
     expect(many).toBe(few);
-    // A ceiling too: within one frame at t=3.0 only the clip covering [3,4) is
-    // in window and no boundary is crossed, so this is the active set alone.
-    expect(many).toBeLessThanOrEqual(2);
+    // Active, just-ended boundary, and next-video preparation stay constant.
+    expect(many).toBeLessThanOrEqual(3);
+  });
+
+  it("prepares the next trimmed video through the normal index without advancing future audio", () => {
+    mountClips(16);
+    const next = document.querySelector<HTMLVideoElement>("#clip3")!;
+    next.setAttribute("data-media-start", "0.3");
+    const audio = document.createElement("audio");
+    audio.setAttribute("data-start", "3");
+    audio.setAttribute("data-duration", "1");
+    audio.setAttribute("data-media-start", "0.3");
+    document.querySelector("[data-root]")!.appendChild(audio);
+    initSandboxRuntimeModular();
+    expect(next.currentTime).toBe(0);
+    window.__player!.seek(2.25);
+    expect(next.currentTime).toBe(0.3);
+    expect(next.paused).toBe(true);
+    expect(audio.currentTime).toBe(0);
+    expect(document.querySelector<HTMLVideoElement>("#clip15")!.currentTime).toBe(0);
   });
 
   it("still visits every clip whose window a long jump crosses", () => {

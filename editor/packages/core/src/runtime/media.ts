@@ -57,6 +57,25 @@ export type RuntimeMediaClip = {
   volumeKeyframes?: VolumeKeyframe[];
 };
 
+/** At most two incoming decoders, within one second of playback, may warm up. */
+export function collectUpcomingVideoClips(
+  clips: RuntimeMediaClip[],
+  timeSeconds: number,
+  playbackRate: number,
+): RuntimeMediaClip[] {
+  return clips
+    .filter(
+      (clip) =>
+        clip.el.tagName === "VIDEO" &&
+        clip.freezeAt == null &&
+        clip.end > clip.start &&
+        clip.start > timeSeconds &&
+        clip.start - timeSeconds <= playbackRate,
+    )
+    .sort((left, right) => left.start - right.start)
+    .slice(0, 2);
+}
+
 export function refreshRuntimeMediaCache(params?: {
   resolveStartSeconds?: (element: Element) => number;
   resolveDurationSeconds?: (element: HTMLVideoElement | HTMLAudioElement) => number | null;
@@ -244,6 +263,11 @@ export function syncRuntimeMedia(params: {
   forceSync?: boolean;
 }): void {
   const forceMuteAll = !!(params.outputMuted || params.userMuted);
+  const upcomingVideos = new Set(
+    collectUpcomingVideoClips(params.clips, params.timeSeconds, params.playbackRate).map(
+      (clip) => clip.el,
+    ),
+  );
   for (const clip of params.clips) {
     const { el } = clip;
     if (!el.isConnected) continue;
@@ -251,18 +275,21 @@ export function syncRuntimeMedia(params: {
     let relTime = isFrozenVideo
       ? Math.min(clip.freezeAt!, clip.sourceDuration ?? Infinity)
       : (params.timeSeconds - clip.start) * clip.playbackRate + clip.mediaStart;
-    // Prepare held pictures while their transition is still hidden. Waiting for
-    // activation briefly exposes the decoder's initial (possibly excluded) frame
-    // before the boundary seek has reached the compositor.
-    if (isFrozenVideo && !findInjectedRenderFrame(el)) {
+    // Prepare upcoming videos and held pictures while hidden. Seeking only on
+    // activation can expose excluded opening frames while the decoder catches up.
+    const isUpcomingVideo = upcomingVideos.has(el);
+    if ((isFrozenVideo || isUpcomingVideo) && !findInjectedRenderFrame(el)) {
+      const preparedTime = isFrozenVideo
+        ? relTime
+        : Math.min(clip.mediaStart, clip.sourceDuration ?? Infinity);
       if (el.preload !== "auto") el.preload = "auto";
-      el.muted = true;
+      if (isFrozenVideo) el.muted = true;
       if (!el.paused) el.pause();
-      if (Math.abs(el.currentTime - relTime) > 0.0000001) {
+      if (Math.abs(el.currentTime - preparedTime) > 0.0000001) {
         try {
-          el.currentTime = relTime;
+          el.currentTime = preparedTime;
         } catch (err) {
-          swallow("runtime.media.freezePreload", err);
+          swallow("runtime.media.videoPreload", err);
         }
       }
     }
@@ -434,11 +461,19 @@ export function syncRuntimeMedia(params: {
         el.tagName === "AUDIO" &&
         firstTickOfClip &&
         currentElTime - relTime > STRICT_DRIFT_THRESHOLD;
+      // A newly inserted/uncached video may not have had a hidden preparation
+      // pass. Align it once before play; steady-state video must retain its
+      // native clock instead of repeatedly seeking and resetting the decoder.
+      const unalignedVideoOnFirstTick =
+        el.tagName === "VIDEO" &&
+        firstTickOfClip &&
+        (currentElTime < clip.mediaStart - 0.0000001 || drift > STRICT_DRIFT_THRESHOLD);
       const hardSync =
         (isFrozenVideo && drift > 0.0000001) ||
         (isHeldVideoTail && drift > 0.001) ||
         (el.ended && canSeekEndedMediaBackward && drift > 0.001) ||
         staleAudioOnFirstTick ||
+        unalignedVideoOnFirstTick ||
         (drift > 0.5 && (firstTickOfClip || offsetJumped || catastrophicDrift));
       // Playing video elements use the browser's native decoder pipeline for
       // timing. Seeking a playing video resets the decoder, causing a ~150ms

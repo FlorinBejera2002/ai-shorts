@@ -1103,6 +1103,99 @@ describe("syncRuntimeMedia", () => {
     expect(clip.el.currentTime).toBe(5);
   });
 
+  it("prepares an upcoming trimmed video while leaving audio and finished videos alone", () => {
+    const upcoming = createMockClip({ start: 1, end: 2, duration: 1, mediaStart: 0.25 });
+    const audio = createMockClip({ start: 1, end: 2, duration: 1, mediaStart: 0.25 }, "audio");
+    const finished = createMockClip({ start: 0, end: 0.5, duration: 0.5, mediaStart: 0.25 });
+    finished.el.currentTime = 0.75;
+    syncRuntimeMedia({
+      clips: [upcoming, audio, finished],
+      timeSeconds: 0.75,
+      playing: true,
+      playbackRate: 1,
+    });
+    expect(upcoming.el.currentTime).toBe(0.25);
+    expect(upcoming.el.play).not.toHaveBeenCalled();
+    expect(upcoming.el.muted).toBe(false);
+    expect(audio.el.currentTime).toBe(0);
+    expect(finished.el.currentTime).toBe(0.75);
+  });
+
+  it.each([0.5, 1, 2])("only prepares one second ahead at transport rate %s", (playbackRate) => {
+    const near = createMockClip({ start: playbackRate, mediaStart: 0.25 });
+    const distant = createMockClip({ start: playbackRate + 0.1, mediaStart: 0.25 });
+    syncRuntimeMedia({
+      clips: [near, distant],
+      timeSeconds: 0,
+      playing: false,
+      playbackRate,
+    });
+    expect(near.el.currentTime).toBe(0.25);
+    expect(distant.el.currentTime).toBe(0);
+    expect(distant.el.play).not.toHaveBeenCalled();
+  });
+
+  it("prepares only the two nearest videos even when many cuts start within the lead window", () => {
+    const clips = Array.from({ length: 30 }, (_, index) =>
+      createMockClip({ start: 0.1 + index / 100, mediaStart: 0.25 }),
+    );
+    syncRuntimeMedia({
+      clips: [...clips].reverse(),
+      timeSeconds: 0,
+      playing: false,
+      playbackRate: 1,
+    });
+    expect(clips.map((clip) => clip.el.currentTime)).toEqual([0.25, 0.25, ...Array(28).fill(0)]);
+  });
+
+  it.each([0.01, 0.25, 0.5])(
+    "seeks an unprepared video with source offset %s once before uninterrupted playback",
+    (mediaStart) => {
+      const clip = createMockClip({ start: 1, end: 2, duration: 1, mediaStart });
+      let currentTime = 0;
+      const seek = vi.fn((time: number) => {
+        currentTime = time;
+      });
+      Object.defineProperty(clip.el, "currentTime", { get: () => currentTime, set: seek });
+      clip.el.play = vi.fn(async () => {
+        Object.defineProperty(clip.el, "paused", { value: false, writable: true });
+      });
+      syncRuntimeMedia({ clips: [clip], timeSeconds: 1, playing: true, playbackRate: 1 });
+      expect(seek).toHaveBeenCalledExactlyOnceWith(mediaStart);
+      // Browser playback advances independently between transport ticks.
+      for (let frame = 1; frame <= 8; frame++) {
+        currentTime = mediaStart + frame / 30;
+        syncRuntimeMedia({
+          clips: [clip],
+          timeSeconds: 1 + frame / 30,
+          playing: true,
+          playbackRate: 1,
+        });
+      }
+      expect(seek).toHaveBeenCalledTimes(1);
+      expect(clip.el.play).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it("does not reset an already prepared decoder for a late first playback tick", () => {
+    const clip = createMockClip({ start: 1, end: 2, duration: 1, mediaStart: 0.25 });
+    syncRuntimeMedia({ clips: [clip], timeSeconds: 0, playing: false, playbackRate: 1 });
+    syncRuntimeMedia({ clips: [clip], timeSeconds: 1.012, playing: true, playbackRate: 1 });
+    expect(clip.el.currentTime).toBe(0.25);
+    expect(clip.el.play).toHaveBeenCalledOnce();
+  });
+
+  it("preserves injected export frames during hidden preparation and first activation", () => {
+    const clip = createMockClip({ start: 1, end: 2, duration: 1, mediaStart: 0.25 });
+    clip.el.id = "injected-video";
+    const frame = document.createElement("img");
+    frame.id = "__render_frame_injected-video__";
+    document.body.appendChild(frame);
+    syncRuntimeMedia({ clips: [clip], timeSeconds: 0, playing: false, playbackRate: 1 });
+    syncRuntimeMedia({ clips: [clip], timeSeconds: 1, playing: false, playbackRate: 1 });
+    expect(clip.el.currentTime).toBe(0);
+  });
+
   it("does not seek on sub-0.5s drift in steady-state — avoids pause/play hiccups", () => {
     const clip = createMockClip({ start: 0, end: 10, mediaStart: 0 });
     Object.defineProperty(clip.el, "currentTime", { value: 5.4, writable: true });

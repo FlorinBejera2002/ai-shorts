@@ -20,6 +20,7 @@ import {
 import { forceDispatchSeekEvent, waitForSeekCompletion } from "./adapters/seek-dispatch";
 import { createWaapiAdapter } from "./adapters/waapi";
 import {
+  collectUpcomingVideoClips,
   readElementPlaybackRate,
   readElementPlaybackStart,
   refreshRuntimeMediaCache,
@@ -2527,6 +2528,20 @@ export function initSandboxRuntimeModular(): void {
       visiting.add(clip.el);
     }
     for (const clip of clipsWithEndpointBetween(index.byEnd, (c) => c.end, lo, hi)) {
+      visiting.add(clip.el);
+    }
+    // The normal sweep sees a new clip only after activation. Include a bounded
+    // video-only lookahead so its first included frame can decode while hidden.
+    for (const clip of collectUpcomingVideoClips(
+      clipsWithEndpointBetween(
+        index.byStart,
+        (c) => c.start,
+        toSeconds,
+        toSeconds + state.playbackRate,
+      ),
+      toSeconds,
+      state.playbackRate,
+    )) {
       visiting.add(clip.el);
     }
     return [...visiting];
