@@ -43,6 +43,12 @@ const width = 320,
   fps = 30,
   frameSize = width * height * 3;
 type Picture = { rgb: number[]; captionPixels: number };
+const expectedPreviewVideoIds = [
+  "source-scene-1-video",
+  "source-scene-2-video",
+  "hf-transition-scene-scene-right-before",
+  "hf-transition-scene-scene-right-after",
+];
 
 async function command(executable: string, args: string[]): Promise<Buffer> {
   const child = Bun.spawn([executable, ...args], { stdout: "pipe", stderr: "pipe" });
@@ -68,7 +74,10 @@ function framePicture(bytes: Uint8Array): Picture {
 // own unblended endpoints so this test measures compositing, not color policy.
 function blendWeights(rgb: number[], red: number[], blue: number[]): number[] {
   const determinant = red[0]! * blue[2]! - blue[0]! * red[2]!;
-  assert.ok(Math.abs(determinant) > 1000, "fixture endpoints must be distinct");
+  assert.ok(
+    Math.abs(determinant) > 1000,
+    `fixture endpoints must be distinct: red=${red}, blue=${blue}`,
+  );
   return [
     (rgb[0]! * blue[2]! - rgb[2]! * blue[0]!) / determinant,
     (red[0]! * rgb[2]! - red[2]! * rgb[0]!) / determinant,
@@ -154,6 +163,49 @@ async function previewPicture(page: Page, frame: number): Promise<Picture> {
     }
     return { rgb: [...bytes.slice(at, at + 3)], captionPixels };
   }, Buffer.from(screenshot).toString("base64"));
+}
+
+async function previewMediaState(page: Page) {
+  return page.evaluate(() =>
+    Array.from(document.querySelectorAll("video"), (video) => {
+      const canvas = document.createElement("canvas");
+      canvas.width = canvas.height = 1;
+      const context = canvas.getContext("2d")!;
+      context.drawImage(video, 0, 0, 1, 1);
+      return {
+        id: video.id,
+        time: video.currentTime,
+        start: video.dataset.start,
+        mediaStart: video.dataset.mediaStart,
+        freeze: video.dataset.freezeAt,
+        readyState: video.readyState,
+        seeking: video.seeking,
+        paused: video.paused,
+        rgb: Array.from(context.getImageData(0, 0, 1, 1).data),
+        visible: getComputedStyle(video).visibility,
+      };
+    }),
+  );
+}
+
+async function waitForPreviewReady(page: Page): Promise<void> {
+  // Player construction precedes composition loading and timeline binding.
+  // Require the fixture's source and transition videos so an empty DOM cannot
+  // satisfy readiness checks before deterministic seeking is available.
+  await page.waitForFunction(
+    (expectedIds) => {
+      if (!(window as unknown as { __renderReady?: boolean }).__renderReady) return false;
+      const videos = Array.from(document.querySelectorAll("video"));
+      return (
+        videos.length === expectedIds.length &&
+        expectedIds.every((id) =>
+          videos.some((video) => video.id === id && video.readyState >= 2 && !video.seeking),
+        )
+      );
+    },
+    {},
+    expectedPreviewVideoIds,
+  );
 }
 
 async function createFixture(name: string, trimmed: boolean): Promise<string> {
@@ -331,12 +383,18 @@ try {
       await page.goto(`http://127.0.0.1:${server.port}/api/projects/${name}/preview`, {
         waitUntil: "domcontentloaded",
       });
-      await page.waitForFunction(() =>
-        Boolean((window as unknown as { __playerReady?: boolean }).__playerReady),
-      );
+      await waitForPreviewReady(page);
       await page.evaluate(() => document.fonts.ready);
       const previewRed = (await previewPicture(page, 18)).rgb;
       const previewBlue = (await previewPicture(page, 42)).rgb;
+      console.log(
+        JSON.stringify({
+          fixture: name,
+          previewEndpoints: { red: previewRed, blue: previewBlue },
+        }),
+      );
+      if (Math.abs(previewRed[0]! * previewBlue[2]! - previewBlue[0]! * previewRed[2]!) <= 1000)
+        console.log(JSON.stringify({ fixture: name, blueMedia: await previewMediaState(page) }));
       const exportRed = exported(18).rgb,
         exportBlue = exported(42).rgb;
       const checkpoints = [
