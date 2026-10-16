@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { chooseCreationSource } from './creation-browser-helpers.mjs'
 import { pathToFileURL } from 'node:url'
 import { settleStoryNavigation } from './story-browser-helpers.mjs'
 
@@ -296,10 +297,10 @@ try {
     timeout: 180000
   })
   await page
-    .getByRole('heading', { name: 'Create a story', exact: true })
+    .getByRole('heading', { name: 'Create clips', exact: true })
     .waitFor({ timeout: 30000 })
   const fileInput = page.getByLabel('Upload story clips')
-  assert.equal(await page.locator('#youtube-url').count(), 0, 'Legacy import mounts only when opened')
+  assert.equal(await page.locator('#youtube-url').isVisible(), false, 'Only the selected source workspace is visible')
   await fileInput.setInputFiles(
     Array.from({ length: fileCount }, (_, index) => ({
       name: `clip-${index + 1}.mp4`,
@@ -360,27 +361,26 @@ try {
     'Reload restores the first page of successful uploads'
   )
   const storyHeading = await page.getByTestId('story-result').elementHandle()
-  await page.getByRole('button', { name: 'Import a video or link' }).click()
+  await chooseCreationSource(page, 'youtube')
   await page.locator('#youtube-url').fill('draft source link to preserve')
-  await page.getByRole('tab', { name: 'Batch', exact: true }).click()
+  await page.getByRole('button', { name: 'Add URL', exact: true }).click()
   const batchInput = page.getByRole('textbox', { name: 'YouTube URL 1', exact: true })
   await batchInput.fill('draft batch source to preserve')
-  const legacyInput = await batchInput.elementHandle()
-  const legacySlider = page.getByRole('slider', { name: 'Clips per video' })
-  await legacySlider.focus()
-  await legacySlider.press('ArrowRight')
-  const selectedClipCount = await legacySlider.getAttribute('aria-valuenow')
-  await page.getByRole('button', { name: 'Multi-clip story', exact: true }).click()
-  assert.equal(await legacyInput.evaluate((node) => node.isConnected), true, 'Legacy import stays mounted while hidden')
+  const youtubeInput = await batchInput.elementHandle()
+  const youtubeSlider = page.getByRole('slider', { name: 'Clips per video' })
+  await youtubeSlider.focus()
+  await youtubeSlider.press('ArrowRight')
+  const selectedClipCount = await youtubeSlider.getAttribute('aria-valuenow')
+  await chooseCreationSource(page, 'upload')
+  assert.equal(await youtubeInput.evaluate((node) => node.isConnected), true, 'YouTube workspace stays mounted while hidden')
   assert.equal(await storyHeading.evaluate((node) => node.isConnected), true, 'Story result keeps its mounted state')
   await page.getByText('0:08 · Vertical · Version 1', { exact: true }).waitFor()
-  await page.getByRole('button', { name: 'Import a video or link' }).click()
-  assert.equal(await page.getByRole('tab', { name: 'Batch', exact: true }).getAttribute('aria-selected'), 'true')
+  await chooseCreationSource(page, 'youtube')
   assert.equal(await batchInput.inputValue(), 'draft batch source to preserve')
-  assert.equal(await legacySlider.getAttribute('aria-valuenow'), selectedClipCount)
-  await page.getByRole('tab', { name: 'YouTube', exact: true }).click()
-  assert.equal(await page.locator('#youtube-url').inputValue(), 'draft source link to preserve')
-  await page.getByRole('button', { name: 'Multi-clip story', exact: true }).click()
+  assert.equal(await youtubeSlider.getAttribute('aria-valuenow'), selectedClipCount)
+  await page.getByRole('button', { name: 'Remove link', exact: true }).last().click()
+  assert.equal(await page.locator('#youtube-url').inputValue(), 'draft batch source to preserve')
+  await chooseCreationSource(page, 'upload')
   if (process.env.TEST_SCREENSHOT)
     await page.screenshot({
       path: process.env.TEST_SCREENSHOT.replace(/\.png$/, '-desktop.png'),

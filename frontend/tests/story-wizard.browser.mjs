@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { chooseCreationSource } from './creation-browser-helpers.mjs'
 import { pathToFileURL } from 'node:url'
 import { settleStoryNavigation } from './story-browser-helpers.mjs'
 
@@ -365,9 +366,7 @@ try {
   await waitForComposerFocus()
   const helpDraft = await composer.inputValue()
   await closeAgent()
-  await page
-    .getByRole('button', { name: 'Import a video or link', exact: true })
-    .click()
+  await chooseCreationSource(page, 'youtube')
   await page
     .getByRole('button', { name: 'Open Workspace Agent', exact: true })
     .click()
@@ -397,9 +396,7 @@ try {
   await panel
     .getByRole('button', { name: 'Collapse agent', exact: true })
     .click()
-  await page
-    .getByRole('button', { name: 'Multi-clip story', exact: true })
-    .click()
+  await chooseCreationSource(page, 'upload')
   await askAgent.click()
   await waitForComposerFocus()
   const routeDraft = await composer.inputValue()
@@ -465,7 +462,7 @@ try {
     'Click pins help after the pointer leaves'
   )
   await page
-    .getByRole('heading', { name: 'Create a story', exact: true })
+    .getByRole('heading', { name: 'Create clips', exact: true })
     .click()
   await tooltip.waitFor({ state: 'hidden' })
   await help.click()
@@ -645,17 +642,11 @@ try {
     sidebarState
   )
   const chosenSidebarState = await sidebar.getAttribute('data-state')
-  await page
-    .getByRole('button', { name: 'Import a video or link', exact: true })
-    .click()
-  await page
-    .getByRole('heading', { name: 'Import a video', exact: true })
-    .waitFor()
+  await chooseCreationSource(page, 'youtube')
+  await page.getByTestId('creation-youtube-workspace').waitFor({ state: 'visible' })
   assert.equal(await wizardNode.evaluate((node) => node.isConnected), true)
   assert.equal(await wizard.isVisible(), false)
-  await page
-    .getByRole('button', { name: 'Multi-clip story', exact: true })
-    .click()
+  await chooseCreationSource(page, 'upload')
   await page.getByTestId('story-step-1').waitFor({ state: 'visible' })
   assert.equal(
     await brief.inputValue(),
@@ -727,6 +718,10 @@ try {
   await composer.fill('Preserve this mobile draft.')
   await page.keyboard.press('Escape')
   await page.getByRole('dialog').waitFor({ state: 'hidden' })
+  await page.waitForFunction(
+    (button) => button === document.activeElement,
+    await askAgent.elementHandle()
+  )
   assert.equal(
     await askAgent.evaluate((button) => button === document.activeElement),
     true
@@ -787,7 +782,7 @@ try {
   project.status = 'draft'
   await page.goto(`${origin}/ro/dashboard/create`, { waitUntil: 'networkidle' })
   await page
-    .getByRole('button', { name: 'Poveste din mai multe filmări', exact: true })
+    .getByRole('combobox', { name: 'Sursa filmărilor', exact: true })
     .waitFor()
   await page.getByTestId('story-step-2').waitFor({ state: 'visible' })
   await noOverflow()

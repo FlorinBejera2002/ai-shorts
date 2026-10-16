@@ -18,8 +18,7 @@
 .story-select:disabled {
   opacity: 0.6;
 }
-.story-workspace,
-.story-mode-switch {
+.story-workspace {
   --primary: var(--foreground);
   --primary-foreground: var(--background);
   --ring: var(--foreground);

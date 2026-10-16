@@ -18,7 +18,7 @@ interface SourceBatchProps {
 
 export function SourceBatch({ urls, onChange }: SourceBatchProps) {
   const t = useTranslations('create')
-  const validCount = urls.filter((u) => extractYouTubeId(u)).length
+  const validCount = new Set(urls.map(extractYouTubeId).filter(Boolean)).size
 
   const seen = new Map<string, number>()
   const rows = urls.map((url, index) => {
@@ -91,7 +91,7 @@ export function SourceBatch({ urls, onChange }: SourceBatchProps) {
                     placeholder={`https://youtube.com/watch?v=... (${index + 1})`}
                     spellCheck={false}
                     aria-invalid={invalid || row.duplicate}
-                    className={`w-full rounded-lg border bg-background py-2.5 pl-3 pr-8 text-[13px] text-foreground placeholder:text-muted-foreground/55 transition-all outline-none focus:ring-2 ${
+                    className={`w-full rounded-md border bg-background py-2.5 pl-3 pr-8 text-[13px] text-foreground placeholder:text-muted-foreground/55 transition-all outline-none focus:ring-2 ${
                       invalid || row.duplicate
                         ? 'border-warning/60 focus:border-warning focus:ring-warning/15'
                         : 'border-input focus:border-primary focus:ring-primary/15'
@@ -109,7 +109,7 @@ export function SourceBatch({ urls, onChange }: SourceBatchProps) {
                     type="button"
                     onClick={() => onChange(urls.filter((_, i) => i !== index))}
                     aria-label={t('removeUrl')}
-                    className="shrink-0 rounded-lg border border-border p-2 text-muted-foreground transition-colors hover:border-destructive/30 hover:text-destructive"
+                    className="shrink-0 rounded-md border border-border p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                   >
                     <X className="h-3.5 w-3.5" strokeWidth={1.75} />
                   </button>

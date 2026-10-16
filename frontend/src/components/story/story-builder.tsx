@@ -92,8 +92,10 @@ export function StoryBuilder() {
   const params = useSearchParams()
   const userID = authClient.getSnapshot().user?.id ?? ''
   const storageKey = `sneepcut:story:${userID}`
+  const requestedID = params.get('story')
+  const [previousRequestedID, setPreviousRequestedID] = useState(requestedID)
   const [id, setID] = useState(
-    () => params.get('story') || savedProject(storageKey)
+    () => requestedID || savedProject(storageKey)
   )
   const [incoming, setIncoming] = useState<{
     id: string
@@ -108,6 +110,12 @@ export function StoryBuilder() {
   const createBusy = useRef(false)
   const [retainedFiles, setRetainedFiles] = useState<File[]>([])
   const requestedStep = useRef<StoryStep>(0)
+
+  useEffect(() => {
+    rememberProject(storageKey, id)
+    createID.current = crypto.randomUUID()
+  }, [storageKey, id])
+
   const queryKey = ['story', userID, id]
   const projectQuery = useQuery({
     queryKey,
@@ -146,16 +154,15 @@ export function StoryBuilder() {
     [queryClient, userID, id]
   )
 
-  function selectProject(value: string) {
+  const selectProject = useCallback((value: string) => {
     setID(value)
-    rememberProject(storageKey, value)
     setIncoming(null)
     setError('')
     setRetainedFiles([])
     createID.current = crypto.randomUUID()
-  }
+  }, [])
 
-  async function createProject(files: File[], nextStep: StoryStep = 0) {
+  function createProject(files: File[], nextStep: StoryStep = 0) {
     if (createBusy.current) return
     const validation = validateStoryFiles(files, [], [], limits)
     if (validation) {
@@ -167,26 +174,27 @@ export function StoryBuilder() {
     createBusy.current = true
     setCreating(true)
     setError('')
-    try {
-      const project = await storyRequest<StoryProject>('/api/stories', 'POST', {
-        id: createID.current,
-        options: defaultOptions
+    return storyRequest<StoryProject>('/api/stories', 'POST', {
+      id: createID.current,
+      options: defaultOptions
+    })
+      .then((project) => {
+        queryClient.setQueryData(['story', userID, project.id], project)
+        setIncoming({ id: project.id, files, step: nextStep })
+        setID(project.id)
+        void queryClient.invalidateQueries({ queryKey: ['stories', userID] })
       })
-      queryClient.setQueryData(['story', userID, project.id], project)
-      setIncoming({ id: project.id, files, step: nextStep })
-      setID(project.id)
-      rememberProject(storageKey, project.id)
-      void queryClient.invalidateQueries({ queryKey: ['stories', userID] })
-    } catch (cause) {
-      setError(
-        cause instanceof Error
-          ? storyProblem(cause.message, text)
-          : text('Could not create project.', 'Proiectul nu a putut fi creat.')
-      )
-    } finally {
-      createBusy.current = false
-      setCreating(false)
-    }
+      .catch((cause: unknown) => {
+        setError(
+          cause instanceof Error
+            ? storyProblem(cause.message, text)
+            : text('Could not create project.', 'Proiectul nu a putut fi creat.')
+        )
+      })
+      .finally(() => {
+        createBusy.current = false
+        setCreating(false)
+      })
   }
 
   const switchingDisabled =
@@ -194,8 +202,21 @@ export function StoryBuilder() {
     uploading ||
     unsavedChanges ||
     storyIsBusy(projectQuery.data?.status)
+
+  // Consume a changed link once switching is safe; unchanged links must not
+  // override a manual selection or the creation of a new project.
+  if (requestedID !== previousRequestedID && !switchingDisabled) {
+    setPreviousRequestedID(requestedID)
+    if (requestedID && requestedID !== id) {
+      setID(requestedID)
+      setIncoming(null)
+      setError('')
+      setRetainedFiles([])
+    }
+  }
+
   return (
-    <div className="story-workspace mt-5 w-full space-y-5">
+    <div className="story-workspace w-full space-y-5">
       <StoryProjectHeader
         id={id}
         projects={projects}

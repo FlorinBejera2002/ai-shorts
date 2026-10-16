@@ -39,6 +39,8 @@ try {
     const end = range[2] ? Math.min(Number(range[2]), media.length - 1) : media.length - 1
     return route.fulfill({ status: 206, contentType: 'video/mp4', headers: { 'Accept-Ranges': 'bytes', 'Content-Range': `bytes ${start}-${end}/${media.length}`, 'Content-Length': String(end - start + 1) }, body: media.subarray(start, end + 1) })
   })
+  await page.route('https://www.youtube.com/oembed**', (route) => route.fulfill({ json: { title: 'Synthetic audio source', author_name: 'Fixture' } }))
+  await page.route('https://img.youtube.com/**', (route) => route.fulfill({ status: 204 }))
   await page.route('**/v1/**', (route) => route.fulfill({ json: { access_token: 'synthetic-token', user: { id: '00000000-0000-4000-8000-000000000089', email: 'audio-fixture@example.invalid', name: 'Audio fixture', credits: 1000, plan: 'free', access_role: 'member' } } }))
   await page.route('**/api/**', async (route) => {
     const request = route.request()
@@ -73,7 +75,7 @@ try {
     if (path === `/api/jobs/${id}`) return route.fulfill({ json: { job } })
     return route.fulfill({ json: {} })
   })
-  await page.goto(origin + '/dashboard/create?mode=upload', { waitUntil: 'domcontentloaded', timeout: 180000 })
+  await page.goto(origin + '/dashboard/create?mode=youtube', { waitUntil: 'domcontentloaded', timeout: 180000 })
   const toggle = page.locator('#create-noise-reduction')
   await toggle.waitFor({ state: 'visible' })
   assert.equal(await toggle.getAttribute('aria-checked'), 'false')
@@ -85,7 +87,7 @@ try {
   await page.waitForFunction(() => document.querySelector('#create-noise-reduction')?.disabled === false)
   await toggle.click()
   assert.equal(await toggle.getAttribute('aria-checked'), 'true')
-  await page.locator('input[type=file][accept*="video/mp4"]').last().setInputFiles(fixture)
+  await page.locator('#youtube-url').fill('https://www.youtube.com/watch?v=abcdefghijk')
   await page.getByRole('button', { name: 'Generate', exact: true }).click()
   await page.getByRole('button', { name: 'Continue with original audio', exact: true }).waitFor()
   assert.equal(creates.length, 1)

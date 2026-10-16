@@ -27,11 +27,11 @@ export function StoryProjectHeader({
   const text = useStoryLanguage()
   return (
     <div className="flex w-full flex-wrap items-center justify-between gap-3">
-      <h1 className="text-xl font-semibold">
+      <h2 className="text-base font-semibold">
         {hasOutput
           ? text('Your story', 'Povestea ta')
-          : text('Create a story', 'Creează o poveste')}
-      </h1>
+          : text('Your project', 'Proiectul tău')}
+      </h2>
       <div className="flex min-w-0 flex-wrap items-center gap-2 sm:flex-nowrap">
         {projects.length > 0 && (
           <select

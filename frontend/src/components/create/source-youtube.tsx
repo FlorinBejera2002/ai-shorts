@@ -30,17 +30,19 @@ export function SourceYoutube({ url, onChange }: SourceYoutubeProps) {
   const t = useTranslations('create')
   const videoId = extractYouTubeId(url)
   const isInvalid = url.trim().length > 0 && !videoId
-  const [meta, setMeta] = useState<{ title: string; author: string } | null>(
-    null
-  )
+  const [metadata, setMetadata] = useState<{
+    url: string
+    title: string
+    author: string
+  } | null>(null)
+  const meta = metadata?.url === url ? metadata : null
 
   useEffect(() => {
-    setMeta(null)
     if (!videoId) return
     const controller = new AbortController()
     const timer = setTimeout(() => {
       void fetchYouTubeMeta(url, controller.signal).then((m) => {
-        if (!controller.signal.aborted) setMeta(m)
+        if (!controller.signal.aborted) setMetadata(m ? { url, ...m } : null)
       })
     }, 350)
     return () => {
@@ -81,7 +83,7 @@ export function SourceYoutube({ url, onChange }: SourceYoutubeProps) {
           spellCheck={false}
           autoComplete="off"
           aria-invalid={isInvalid}
-          className={`w-full rounded-xl border bg-background py-3 pl-4 pr-10 text-[13px] text-foreground placeholder:text-muted-foreground/55 transition-all outline-none focus:ring-2 ${
+          className={`w-full rounded-md border bg-background py-3 pl-4 pr-10 text-[13px] text-foreground placeholder:text-muted-foreground/55 transition-all outline-none focus:ring-2 ${
             isInvalid
               ? 'border-destructive/60 focus:border-destructive focus:ring-destructive/15'
               : 'border-input focus:border-primary focus:ring-primary/15'
@@ -108,10 +110,10 @@ export function SourceYoutube({ url, onChange }: SourceYoutubeProps) {
 
       {videoId && (
         <Card
-          className="mt-4 flex flex-col items-stretch gap-4 rounded-xl bg-muted/20 p-4 shadow-none animate-slide-up sm:flex-row sm:items-center sm:gap-5"
+          className="mt-4 flex flex-col items-stretch gap-4 bg-muted/20 p-4 shadow-none animate-slide-up sm:flex-row sm:items-center sm:gap-5"
           data-testid="youtube-preview"
         >
-          <div className="relative aspect-video w-full shrink-0 overflow-hidden rounded-lg bg-muted sm:w-44">
+          <div className="relative aspect-video w-full shrink-0 overflow-hidden rounded-sm bg-muted sm:w-44">
             <Image
               src={youtubeThumbnailUrl(videoId)}
               alt=""
@@ -144,7 +146,7 @@ export function SourceYoutube({ url, onChange }: SourceYoutubeProps) {
             </p>
             <span
               role="status"
-              className="mt-3 inline-flex max-w-full items-center gap-1.5 rounded-full border border-success/15 bg-success/10 px-2.5 py-1 text-[11px] font-medium text-success"
+              className="mt-3 inline-flex max-w-full items-center gap-1.5 rounded-sm border border-success/15 bg-success/10 px-2.5 py-1 text-[11px] font-medium text-success"
             >
               <CheckCircle2
                 className="h-3.5 w-3.5 shrink-0"

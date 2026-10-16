@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { chooseCreationSource } from './creation-browser-helpers.mjs'
 import { pathToFileURL } from 'node:url'
 
 if (!process.env.PLAYWRIGHT_MODULE)
@@ -661,18 +662,14 @@ try {
   const narrationPanel = await page
     .getByTestId('story-narration')
     .elementHandle()
-  await page
-    .getByRole('button', { name: 'Import a video or link', exact: true })
-    .click()
+  await chooseCreationSource(page, 'youtube')
   await tracksStopped()
   assert.equal(
     await narrationPanel.evaluate((node) => node.isConnected),
     true,
     'Mode switches preserve the panel while stopping its microphone'
   )
-  await page
-    .getByRole('button', { name: 'Multi-clip story', exact: true })
-    .click()
+  await chooseCreationSource(page, 'upload')
   await page.getByLabel('Narration preview', { exact: true }).waitFor()
   assert.equal(project.assets[0].id, retainedVideo)
   await startRecord('Record again')
