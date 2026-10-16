@@ -105,6 +105,13 @@ This is shared by preview and export; it is not a claim of bit-identical audio t
 the previous FFmpeg sidechain compressor. Typography likewise follows Studio's
 caption renderer for both automatic and manual work.
 
+Eligible shot boundaries use the shared native picture dissolve described in
+[natural transitions](smart-transitions.md). The canonical `transition_in`
+duration does not shorten scenes or overlap speech. Studio rebuilds its transient
+boundary pictures from current source-window edits; only the transition metadata
+is persisted. Frozen boundary frames use the same source-time contract in browser
+preview and in the existing frame extractor, including trimmed and VFR sources.
+
 Verify authentication and owner isolation, retry behavior, exact snapshot copies,
 native trim layers, SDR/HDR output and browser preview/export source selection.
 Actual sandbox rendering requires Linux namespaces; a passing mocked transport

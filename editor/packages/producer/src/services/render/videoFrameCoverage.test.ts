@@ -20,6 +20,7 @@ function makeVideo(overrides: Partial<VideoElement> & { id: string }): VideoElem
     end: overrides.end ?? 1,
     mediaStart: overrides.mediaStart ?? 0,
     playbackRate: overrides.playbackRate,
+    freezeAt: overrides.freezeAt,
     loop: overrides.loop ?? false,
     hasAudio: overrides.hasAudio ?? false,
   };
@@ -76,6 +77,21 @@ function makeExtracted(
     framePaths,
   };
 }
+
+describe("frozen picture coverage", () => {
+  it("requires exactly one delivered picture throughout the authored window", () => {
+    const videos = [makeVideo({ id: "frozen", end: 5, freezeAt: 2 })];
+    const report = computeVideoFrameCoverage(videos, [makeExtracted("frozen", 1)], 30);
+    expect(report[0]).toMatchObject({ expectedFrames: 1, capturedFrames: 1, ratio: 1 });
+    expect(() => assertVideoFrameCoverage(report, 1)).not.toThrow();
+  });
+
+  it("still rejects a missing frozen picture instead of bypassing the gate", () => {
+    const videos = [makeVideo({ id: "frozen", freezeAt: 0 })];
+    const report = computeVideoFrameCoverage(videos, [], 30);
+    expect(() => assertVideoFrameCoverage(report, 0.95)).toThrow(VideoFrameCoverageError);
+  });
+});
 
 describe("expectedFramesForClip", () => {
   it("returns 0 for invalid inputs", () => {

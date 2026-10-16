@@ -58,6 +58,7 @@ type studioScene struct {
 	CropKeyframes []studioCropFrame `json:"crop_keyframes,omitempty"`
 	FadeIn        float64           `json:"fade_in,omitempty"`
 	FadeOut       float64           `json:"fade_out,omitempty"`
+	TransitionIn  float64           `json:"transition_in,omitempty"`
 }
 type studioAudio struct {
 	ID       string        `json:"id"`
@@ -327,19 +328,31 @@ func (p *Processor) studioLogo(ctx context.Context, dir string, plan *studioPlan
 	scale := min(w/float64(geometry.Width), h/float64(geometry.Height))
 	w, h = float64(geometry.Width)*scale, float64(geometry.Height)*scale
 	m := float64(min(plan.Width, plan.Height)) * margin
-	x, y := m, m
+	x, y := studioLogoOrigin(float64(plan.Width), float64(plan.Height), w, h, m, brand)
+	plan.Overlays = append(plan.Overlays, studioOverlay{ID: "brand-logo", AssetID: id, Duration: plan.Duration, X: x, Y: y, Width: w, Height: h, Opacity: opacity})
+	return nil
+}
+
+func studioLogoOrigin(width, height, logoWidth, logoHeight, margin float64, brand map[string]any) (float64, float64) {
+	xCenter, hasX := brand["watermark_x"].(float64)
+	yCenter, hasY := brand["watermark_y"].(float64)
+	if hasX && hasY && !math.IsNaN(xCenter) && !math.IsNaN(yCenter) &&
+		xCenter >= 0 && xCenter <= 1 && yCenter >= 0 && yCenter <= 1 {
+		return max(0, min(width-logoWidth, width*xCenter-logoWidth/2)),
+			max(0, min(height-logoHeight, height*yCenter-logoHeight/2))
+	}
+	x, y := margin, margin
 	position := brandString(brand, "watermark_position")
 	if position == "" {
 		position = "bottom-right"
 	}
 	if strings.HasSuffix(position, "right") {
-		x = float64(plan.Width) - w - m
+		x = width - logoWidth - margin
 	}
 	if strings.HasPrefix(position, "bottom") {
-		y = float64(plan.Height) - h - m
+		y = height - logoHeight - margin
 	}
-	plan.Overlays = append(plan.Overlays, studioOverlay{ID: "brand-logo", AssetID: id, Duration: plan.Duration, X: x, Y: y, Width: w, Height: h, Opacity: opacity})
-	return nil
+	return x, y
 }
 
 func studioRound(value float64) float64 { return math.Round(value*1000000) / 1000000 }

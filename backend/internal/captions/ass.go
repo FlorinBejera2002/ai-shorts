@@ -108,6 +108,19 @@ func ASSCues(s Style, fontData []byte, cues []Cue, w, h int) (string, error) {
 	case "stacked":
 		size *= 1.08
 	}
+	if s.OutlineEnabled != nil && !*s.OutlineEnabled {
+		outline = 0
+	}
+	if s.OutlineEnabled != nil && *s.OutlineEnabled && outline == 0 {
+		outline = math.Max(s.Outline, 2) * float64(min(w, h)) / 720
+	}
+	if s.BackgroundEnabled != nil {
+		if !*s.BackgroundEnabled {
+			opacity = 0
+		} else if opacity == 0 {
+			opacity = .82
+		}
+	}
 	letterSpacing, wordSpacing := s.LetterSpacing*size, s.WordSpacing*size
 	measure := func(text string) float64 {
 		n := fixed.Int26_6(0)
@@ -255,6 +268,12 @@ func ASSCues(s Style, fontData []byte, cues []Cue, w, h int) (string, error) {
 					rect(start, end, lx-pad, ly-lineHeight/2, l.width*scale+pad*2, lineHeight, s.BackgroundColor, opacity)
 				}
 				preset := s.Preset
+				if s.ActiveWordEnabled != nil && !*s.ActiveWordEnabled && (preset == "active-color" || preset == "active-background" || preset == "karaoke") {
+					preset = "classic"
+				}
+				if s.Animation == "none" && (preset == "phrase-pop" || preset == "subtle-fade") {
+					preset = "classic"
+				}
 				if phraseOnly {
 					preset = "classic"
 				}

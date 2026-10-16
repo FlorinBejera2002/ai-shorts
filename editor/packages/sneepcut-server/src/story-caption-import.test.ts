@@ -92,3 +92,47 @@ test("selective narration captions follow audio words across unrelated visual cu
   expect(markup.html).toContain("Știință");
   expect(markup.html).not.toContain("Later");
 });
+
+test("explicit Off overrides presets without discarding stored colors", () => {
+  for (const preset of ["bold-outline", "contrast-box", "active-background", "karaoke"]) {
+    const fixture = version("all", preset);
+    Object.assign(fixture.render_options.caption_style, {
+      outline_enabled: false,
+      background_enabled: false,
+      active_word_enabled: false,
+      outline: 4,
+      background_opacity: 0.7,
+      highlight_color: "#ABCDEF",
+    });
+    const result = storyCaptionMarkup(fixture, dimensions);
+    expect(result.css).toContain("-webkit-text-stroke:0px");
+    expect(result.css).toContain("background:#00000000");
+    expect(result.html).not.toContain('class="story-caption-word story-caption-active"');
+    expect(result.html).not.toContain('class="story-caption-word story-caption-karaoke"');
+    expect(result.html).toContain("#ABCDEF");
+  }
+});
+
+test("highlight padding is stable and all entrance effects retain source word timing", () => {
+  const active = storyCaptionMarkup(version("all", "active-background"), dimensions);
+  expect(active.css).toContain("padding:0 .14em;margin:0 -.14em;border-radius:.12em");
+  const fixture = version();
+  Object.assign(fixture.render_options.caption_style, { animation: "word-pop" });
+  const result = storyCaptionMarkup(fixture, dimensions);
+  expect(result.html).toContain('data-caption-word-start="0.9"');
+  expect(result.animation).toContain("{opacity:0,scale:.8}");
+  expect(result.animation).toContain('ease:"none"},0.9)');
+  expect(result.css).toContain("display:inline-block");
+});
+
+test("the independent active word switch also works in the single-word preset", () => {
+  const fixture = version("all", "word-by-word");
+  Object.assign(fixture.render_options.caption_style, { active_word_enabled: true });
+  expect(storyCaptionMarkup(fixture, dimensions).html).toContain(
+    'class="story-caption-word story-caption-active"',
+  );
+  Object.assign(fixture.render_options.caption_style, { active_word_enabled: false });
+  expect(storyCaptionMarkup(fixture, dimensions).html).not.toContain(
+    'class="story-caption-word story-caption-active"',
+  );
+});

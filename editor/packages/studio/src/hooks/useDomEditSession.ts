@@ -239,6 +239,8 @@ export function useDomEditSession({
     handleDomTextFieldStyleCommit,
     handleDomAddTextField,
     handleDomRemoveTextField,
+    handleDomPathOffsetCommit,
+    handleDomRotationCommit,
     handleDomBoxSizeCommit,
     handleDomManualEditsReset,
     handleDomEditElementsDelete,
@@ -358,14 +360,8 @@ export function useDomEditSession({
       showToast("Select at least 2 elements to group", "info");
       return;
     }
-    // A layout group is a positioned wrapper: it takes the members' bounding
-    // box, rebases each child's left/top against it, and adopts the topmost
-    // z-index. An <audio> clip has no box — offsetWidth/Height are 0 — so
-    // grouping audio produced a 0x0 div with inline left/top written onto
-    // elements that have never been laid out, and the timeline gained a
-    // wrapper standing for nothing audible. The audio answer to "these clips
-    // belong together" is an <hf-audio-group> bus, which the timeline's own FX
-    // pointer creates, so the refusal names it rather than just declining.
+    // Layout groups rebase visible child boxes. Audio has no layout box;
+    // grouping it would create an empty wrapper. Use the track's audio bus.
     if (members.some((m) => isAudioDomElement(m.element))) {
       showToast(
         members.every((m) => isAudioDomElement(m.element))
@@ -500,6 +496,8 @@ export function useDomEditSession({
     bumpGsapCache,
     makeFetchFallback,
     trackGsapInteractionFailure,
+    handleDomPathOffsetCommit,
+    handleDomRotationCommit,
     handleDomBoxSizeCommit,
     addGsapAnimation,
     convertToKeyframes,

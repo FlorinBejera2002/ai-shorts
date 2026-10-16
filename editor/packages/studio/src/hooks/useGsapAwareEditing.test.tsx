@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { GsapAnimation } from "@hyperframes/core/gsap-parser";
 import type { DomEditSelection } from "../components/editor/domEditingTypes";
 import type { DomEditGroupPathOffsetCommit } from "../components/editor/DomEditOverlay";
-import { mountReactHarness } from "./domSelectionTestHarness";
+import { makeSelection, mountReactHarness } from "./domSelectionTestHarness";
 
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -71,6 +71,8 @@ function mountResizeHandler(
       bumpGsapCache: vi.fn(),
       makeFetchFallback: () => vi.fn().mockResolvedValue(targetAnimations),
       trackGsapInteractionFailure: vi.fn(),
+      handleDomPathOffsetCommit: vi.fn(),
+      handleDomRotationCommit: vi.fn(),
       handleDomBoxSizeCommit: fallback,
       addGsapAnimation: vi.fn(),
       convertToKeyframes: vi.fn(),
@@ -89,8 +91,9 @@ function mountGroupHandler({
   gsapCommitMutation,
   makeFetchFallback,
   trackGsapInteractionFailure = vi.fn(),
+  handleDomPathOffsetCommit = vi.fn(),
 }: Pick<AwareEditingParams, "gsapCommitMutation" | "makeFetchFallback"> &
-  Partial<Pick<AwareEditingParams, "trackGsapInteractionFailure">>) {
+  Partial<Pick<AwareEditingParams, "trackGsapInteractionFailure" | "handleDomPathOffsetCommit">>) {
   let groupCommit!: (updates: DomEditGroupPathOffsetCommit[]) => Promise<void>;
   function Harness() {
     groupCommit = useGsapAwareEditing({
@@ -102,6 +105,8 @@ function mountGroupHandler({
       bumpGsapCache: vi.fn(),
       makeFetchFallback,
       trackGsapInteractionFailure,
+      handleDomPathOffsetCommit,
+      handleDomRotationCommit: vi.fn(),
       handleDomBoxSizeCommit: vi.fn(),
       addGsapAnimation: vi.fn(),
       convertToKeyframes: vi.fn(),
@@ -258,6 +263,53 @@ describe("useGsapAwareEditing anchored resize", () => {
     expect(capturedKeys[0]).toMatch(/^group-drag:\d+$/);
     // Both members share ONE coalesceKey → they fold into a single undo entry.
     expect(capturedKeys[0]).toBe(capturedKeys[1]);
+    act(() => root.unmount());
+  });
+
+  it("isolates root narration in group drags and shares the group's undo key", async () => {
+    const element = document.createElement("div");
+    element.id = "story-caption-1";
+    element.className = "story-caption";
+    const caption = makeSelection("Caption", element);
+    const otherElement = document.createElement("div");
+    otherElement.id = "other";
+    const other = makeSelection("Other", otherElement);
+    const commitMutation = vi.fn().mockResolvedValue(undefined);
+    const handleDomPathOffsetCommit = vi.fn().mockResolvedValue(undefined);
+    const makeFetchFallback = vi.fn(() => vi.fn().mockResolvedValue([]));
+    mocks.drag.mockImplementation(
+      async (selection, _next, _animations, _iframe, commit, _fetch, options) => {
+        if (!options?.preflightOnly)
+          await commit(selection, { type: "move" }, { label: "Move", softReload: true });
+        return { status: "persisted" };
+      },
+    );
+    const { groupCommit, root } = mountGroupHandler({
+      gsapCommitMutation: commitMutation,
+      makeFetchFallback,
+      handleDomPathOffsetCommit,
+    });
+    await act(() =>
+      groupCommit([
+        { selection: other, next: { x: 10, y: 20 } },
+        { selection: caption, next: { x: 10, y: 20 } },
+      ]),
+    );
+    expect(handleDomPathOffsetCommit).toHaveBeenCalledWith(
+      caption,
+      { x: 10, y: 20 },
+      {
+        coalesceKey: expect.stringMatching(/^group-drag:/),
+        coalesceMs: Number.POSITIVE_INFINITY,
+      },
+    );
+    expect(mocks.drag.mock.calls.every(([selection]) => selection === other)).toBe(true);
+    expect(commitMutation.mock.calls[0]?.[2].coalesceKey).toBe(
+      handleDomPathOffsetCommit.mock.calls[0]?.[2].coalesceKey,
+    );
+    expect(handleDomPathOffsetCommit.mock.invocationCallOrder[0]).toBeLessThan(
+      commitMutation.mock.invocationCallOrder[0]!,
+    );
     act(() => root.unmount());
   });
 

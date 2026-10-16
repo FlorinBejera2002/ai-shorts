@@ -70,6 +70,24 @@
       "import": "./src/mediaTiming.ts",
       "types": "./src/mediaTiming.ts"
     },
+    "./visual-transitions": {
+      "bun": "./src/visualTransitions.ts",
+      "node": "./dist/visualTransitions.js",
+      "import": "./src/visualTransitions.ts",
+      "types": "./src/visualTransitions.ts"
+    },
+    "./caption-animations": {
+      "bun": "./src/captionAnimations.ts",
+      "node": "./dist/captionAnimations.js",
+      "import": "./src/captionAnimations.ts",
+      "types": "./src/captionAnimations.ts"
+    },
+    "./compiler/composition-scoping": {
+      "bun": "./src/compiler/compositionScoping.ts",
+      "node": "./dist/compiler/compositionScoping.js",
+      "import": "./src/compiler/compositionScoping.ts",
+      "types": "./src/compiler/compositionScoping.ts"
+    },
     "./editing": {
       "bun": "./src/editing/affordances.ts",
       "node": "./dist/editing/affordances.js",
@@ -433,6 +451,18 @@
       "./media-timing": {
         "import": "./dist/mediaTiming.js",
         "types": "./dist/mediaTiming.d.ts"
+      },
+      "./visual-transitions": {
+        "import": "./dist/visualTransitions.js",
+        "types": "./dist/visualTransitions.d.ts"
+      },
+      "./caption-animations": {
+        "import": "./dist/captionAnimations.js",
+        "types": "./dist/captionAnimations.d.ts"
+      },
+      "./compiler/composition-scoping": {
+        "import": "./dist/compiler/compositionScoping.js",
+        "types": "./dist/compiler/compositionScoping.d.ts"
       },
       "./editing": {
         "import": "./dist/editing/affordances.js",

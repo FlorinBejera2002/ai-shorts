@@ -923,6 +923,75 @@ export async function extractFinalVideoFrameTimestamp(
 }
 
 /**
+ * Locate the frame displayed at a source time, including sparse/VFR sources.
+ * Seeking FFmpeg directly to that time selects the NEXT frame; a frozen
+ * boundary must instead retain the preceding picture that the browser shows.
+ */
+export async function extractVideoFrameTimestampAt(
+  filePath: string,
+  metadata: Pick<VideoMetadata, "videoStreamDurationSeconds" | "videoStreamStartSeconds">,
+  sourceTime: number,
+  signal?: AbortSignal,
+): Promise<number> {
+  const streamStart = Number.isFinite(metadata.videoStreamStartSeconds)
+    ? (metadata.videoStreamStartSeconds ?? 0)
+    : 0;
+  const target = streamStart + sourceTime;
+  const key = `freeze\0${filePath}\0${String(target)}`;
+  let cache = finalVideoFrameTimestampCache;
+  if (signal) {
+    cache = finalVideoFrameTimestampSignalCaches.get(signal) ?? new Map();
+    finalVideoFrameTimestampSignalCaches.set(signal, cache);
+  }
+  const cached = cache.get(key);
+  if (cached) return cached;
+  const pending = (async () => {
+    if (!Number.isFinite(sourceTime) || sourceTime < 0) {
+      throw new Error("[FFmpeg] Frozen video source time must be finite and non-negative");
+    }
+    const probe = async (start: string): Promise<number | undefined> => {
+      const stdout = await runFfprobe(
+        filePath,
+        [
+          "-select_streams",
+          "v:0",
+          "-read_intervals",
+          `${start}%${String(target + 0.001)}`,
+          "-show_entries",
+          "frame=best_effort_timestamp_time",
+          "-of",
+          "csv=p=0",
+        ],
+        signal,
+        { retainTail: true, maxChars: 64 * 1024 },
+      );
+      let previous: number | undefined;
+      for (const line of stdout.split("\n")) {
+        const value = line.trim().split(",")[0]?.trim();
+        if (!value) continue;
+        const timestamp = Number(value);
+        if (Number.isFinite(timestamp) && timestamp <= target + 1e-9) {
+          previous = previous === undefined ? timestamp : Math.max(previous, timestamp);
+        }
+      }
+      return previous;
+    };
+    const timestamp = (await probe(String(Math.max(streamStart, target - 1)))) ?? (await probe(""));
+    if (timestamp === undefined) {
+      throw new Error("[FFmpeg] ffprobe found no decodable frame at frozen source time");
+    }
+    // ffprobe prints microseconds. Seek just before the rounded timestamp so
+    // output-side -ss cannot skip a frame whose true PTS rounded upwards.
+    return Math.max(0, timestamp - streamStart - 0.000001);
+  })();
+  cache.set(key, pending);
+  pending.catch(() => {
+    if (cache.get(key) === pending) cache.delete(key);
+  });
+  return pending;
+}
+
+/**
  * @deprecated Use `extractMediaMetadata` — this name is kept for backward
  * compatibility with consumers that imported the original video-only name
  * before still-image (PNG) support was added. New callers should prefer

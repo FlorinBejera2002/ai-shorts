@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { createEmptyEditHistory } from "../utils/editHistory";
 import type { EditHistoryStorageAdapter } from "../utils/editHistoryStorage";
 import { createMemoryEditHistoryStorage } from "../utils/editHistoryStorage";
+import { saveProjectFilesWithHistory } from "../utils/studioFileHistory";
 import {
   serializeStudioFileMutation,
   serializeStudioFileMutations,
@@ -12,6 +13,186 @@ import {
 } from "./usePersistentEditHistory";
 
 describe("createPersistentEditHistoryController", () => {
+  it("undo waits for an in-flight save and then restores its latest recorded edit", async () => {
+    const store = createPersistentEditHistoryStore({
+      projectId: "project-1",
+      storage: createMemoryEditHistoryStorage(),
+      initialState: createEmptyEditHistory(),
+      onChange: () => {},
+    });
+    await store.recordEdit({
+      label: "Earlier resize",
+      kind: "timeline",
+      files: { "index.html": { before: "original", after: "resized" } },
+    });
+    let disk = "resized";
+    let releaseWrite!: () => void;
+    let writeStarted!: () => void;
+    let undoWaiting!: () => void;
+    const writeGate = new Promise<void>((resolve) => {
+      releaseWrite = resolve;
+    });
+    const writing = new Promise<void>((resolve) => {
+      writeStarted = resolve;
+    });
+    const waiting = new Promise<void>((resolve) => {
+      undoWaiting = resolve;
+    });
+    const writeFile = async (_path: string, content: string) => {
+      if (content === "trimmed") {
+        writeStarted();
+        await writeGate;
+      }
+      disk = content;
+    };
+    const callbacks = {
+      readFile: async () => disk,
+      writeFile,
+      serialize: <T>(paths: readonly string[], task: () => Promise<T>) => {
+        undoWaiting();
+        return serializeStudioFileMutations(writeFile, paths, task);
+      },
+    };
+    const save = saveProjectFilesWithHistory({
+      projectId: "project-1",
+      label: "Left trim",
+      kind: "timeline",
+      files: { "index.html": "trimmed" },
+      readFile: callbacks.readFile,
+      writeFile,
+      recordEdit: store.recordEdit,
+    });
+    await writing;
+    const undo = store.undo(callbacks);
+    await waiting;
+    // The save owns the file lock; undo has requested that same lock before
+    // the save records its history. A reversed lock order deadlocks here.
+    releaseWrite();
+    const [, result] = await Promise.all([save, undo]);
+    expect(result).toMatchObject({ ok: true, label: "Left trim" });
+    expect(disk).toBe("resized");
+    expect(store.snapshot().undoLabel).toBe("Earlier resize");
+    expect(store.snapshot().redoLabel).toBe("Left trim");
+    await expect(store.redo(callbacks)).resolves.toMatchObject({ ok: true, label: "Left trim" });
+    expect(disk).toBe("trimmed");
+  }, 1000);
+
+  it("reacquires the latest entry's files when a different file is saved while undo waits", async () => {
+    const store = createPersistentEditHistoryStore({
+      projectId: "project-1",
+      storage: createMemoryEditHistoryStorage(),
+      initialState: createEmptyEditHistory(),
+      onChange: () => {},
+    });
+    await store.recordEdit({
+      label: "Earlier edit",
+      kind: "timeline",
+      files: { "first.html": { before: "original", after: "edited" } },
+    });
+    const disk: Record<string, string> = { "first.html": "edited", "second.html": "original" };
+    const readFile = vi.fn(async (path: string) => disk[path]);
+    const writeFile = async (path: string, content: string) => {
+      disk[path] = content;
+    };
+    let releaseFile!: () => void;
+    let undoWaiting!: () => void;
+    const fileGate = new Promise<void>((resolve) => {
+      releaseFile = resolve;
+    });
+    const waiting = new Promise<void>((resolve) => {
+      undoWaiting = resolve;
+    });
+    const prior = serializeStudioFileMutation(writeFile, "first.html", () => fileGate);
+    const lockedPaths: string[][] = [];
+    const undo = store.undo({
+      readFile,
+      writeFile,
+      serialize: (paths, task) => {
+        lockedPaths.push([...paths]);
+        undoWaiting();
+        return serializeStudioFileMutations(writeFile, paths, task);
+      },
+    });
+    await waiting;
+    await saveProjectFilesWithHistory({
+      projectId: "project-1",
+      label: "New second-file edit",
+      kind: "timeline",
+      files: { "second.html": "newer" },
+      readFile,
+      writeFile,
+      recordEdit: store.recordEdit,
+    });
+    readFile.mockClear();
+    releaseFile();
+    await prior;
+    await expect(undo).resolves.toMatchObject({ ok: true, label: "New second-file edit" });
+    expect(lockedPaths).toEqual([["first.html"], ["second.html"]]);
+    expect(readFile.mock.calls).toEqual([["second.html"]]);
+    expect(disk).toEqual({ "first.html": "edited", "second.html": "original" });
+  }, 1000);
+
+  it("does not deadlock or replay stale redo after an in-flight save clears the redo stack", async () => {
+    const store = createPersistentEditHistoryStore({
+      projectId: "project-1",
+      storage: createMemoryEditHistoryStorage(),
+      initialState: createEmptyEditHistory(),
+      onChange: () => {},
+    });
+    await store.recordEdit({
+      label: "Earlier edit",
+      kind: "timeline",
+      files: { "index.html": { before: "original", after: "edited" } },
+    });
+    let disk = "edited";
+    let releaseWrite!: () => void;
+    let writeStarted!: () => void;
+    let redoWaiting!: () => void;
+    const writeGate = new Promise<void>((resolve) => {
+      releaseWrite = resolve;
+    });
+    const writing = new Promise<void>((resolve) => {
+      writeStarted = resolve;
+    });
+    const waiting = new Promise<void>((resolve) => {
+      redoWaiting = resolve;
+    });
+    const readFile = async () => disk;
+    const writeFile = async (_path: string, content: string) => {
+      if (content === "newer") {
+        writeStarted();
+        await writeGate;
+      }
+      disk = content;
+    };
+    await store.undo({ readFile, writeFile });
+    const save = saveProjectFilesWithHistory({
+      projectId: "project-1",
+      label: "New edit",
+      kind: "timeline",
+      files: { "index.html": "newer" },
+      readFile,
+      writeFile,
+      recordEdit: store.recordEdit,
+    });
+    await writing;
+    const redo = store.redo({
+      readFile,
+      writeFile,
+      serialize: (paths, task) => {
+        redoWaiting();
+        return serializeStudioFileMutations(writeFile, paths, task);
+      },
+    });
+    await waiting;
+    releaseWrite();
+    const [, result] = await Promise.all([save, redo]);
+    expect(result).toEqual({ ok: false, reason: "empty" });
+    expect(disk).toBe("newer");
+    expect(store.snapshot().undoLabel).toBe("New edit");
+    expect(store.snapshot().canRedo).toBe(false);
+  }, 1000);
+
   it("records history and reloads it for the same project", async () => {
     const storage = createMemoryEditHistoryStorage();
     const first = await createPersistentEditHistoryController({

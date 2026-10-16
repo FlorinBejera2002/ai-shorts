@@ -11,9 +11,86 @@ import { StudioSaveHttpError } from "../utils/studioSaveDiagnostics";
 import { createDomEditSaveQueue } from "../utils/domEditSaveQueue";
 import { trackStudioEvent } from "../utils/studioTelemetry";
 import type { CutoverResult } from "../utils/sdkCutover";
-import { useDomEditCommits } from "./useDomEditCommits";
+import { useDomEditCommits, type UseDomEditCommitsParams } from "./useDomEditCommits";
+import { applyPatchByTarget, type PatchOperation, type PatchTarget } from "../utils/sourcePatcher";
 
 Reflect.set(globalThis, "IS_REACT_ACT_ENVIRONMENT", true);
+
+it("persists advanced edits to a split cut with one undoable file fork and no preview reload", async () => {
+  ensureCssEscape();
+  const original =
+    '<div data-composition-id="source-scene-1"><video id="source-video" data-hf-id="hf-card" class="source-video" data-duration="10" data-volume="1"></video></div>';
+  const parent =
+    '<main data-composition-id="main"><div id="first" data-source-window data-composition-src="source-scene-1.html" data-start="0" data-duration="2"></div><div id="second" data-source-window data-composition-src="source-scene-1.html" data-start="2" data-duration="2"></div></main>';
+  const storage: Record<string, string> = { "index.html": parent, "source-scene-1.html": original };
+  const { iframe, element } = createPreviewElement(
+    `<main data-composition-id="main" data-composition-file="index.html"><div id="second" data-source-window data-duration="2" data-composition-id="source-scene-1" data-composition-file="source-scene-1.html">${original}</div></main>`,
+  );
+  const selection = createSelection(element, {
+    id: "source-video",
+    tagName: "video",
+    sourceFile: "source-scene-1.html",
+  });
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+      const url = requestUrl(input);
+      const path = decodeURIComponent(url.split("/").at(-1)!);
+      if (url.includes("/files/"))
+        return path in storage ? jsonResponse({ content: storage[path] }) : jsonResponse({}, 404);
+      if (url.includes("/patch-element/")) {
+        expect(init?.headers).toHaveProperty("X-Hyperframes-Write-Token");
+        const body = JSON.parse(String(init?.body)) as {
+          target: PatchTarget;
+          operations: PatchOperation[];
+        };
+        const before = storage[path];
+        for (const operation of body.operations)
+          storage[path] = applyPatchByTarget(storage[path], body.target, operation);
+        return jsonResponse({
+          changed: storage[path] !== before,
+          matched: true,
+          content: storage[path],
+          path,
+          version: "saved-version",
+        });
+      }
+      throw new Error(`Unexpected fetch: ${url}`);
+    }),
+  );
+  const view = renderDomEditCommits(selection, iframe, {
+    writeProjectFile: async (path, content, expected) => {
+      if (expected !== undefined) expect(storage[path]).toBe(expected);
+      else expect(storage[path]).toBeUndefined();
+      storage[path] = content;
+    },
+  });
+  try {
+    await act(async () => {
+      await view.hook.handleDomAttributeQuietCommit("volume", "0.4");
+    });
+    expect(storage["source-scene-1.html"]).toBe(original);
+    expect(storage["source-scene-2.html"]).toContain('data-volume="0.4"');
+    expect(storage["index.html"]).toContain(
+      'id="second" data-source-window="" data-composition-src="source-scene-2.html"',
+    );
+    expect(iframe.contentDocument?.querySelector("video")).toBe(element);
+    expect(view.reloadPreview).not.toHaveBeenCalled();
+    await act(async () => {
+      await view.hook.handleDomAttributeQuietCommit("volume", "0.7");
+    });
+    expect(Object.keys(storage)).toHaveLength(3);
+    expect(storage["source-scene-2.html"]).toContain('data-volume="0.7"');
+    expect(view.recordEdit).toHaveBeenCalledTimes(2);
+    const firstEdit = view.recordEdit.mock.calls[0][0];
+    expect(firstEdit.files["index.html"].before).toBe(parent);
+    expect(firstEdit.files["source-scene-2.html"].before).toBe(original);
+  } finally {
+    view.cleanup();
+    iframe.remove();
+    vi.unstubAllGlobals();
+  }
+});
 
 vi.mock("../utils/studioTelemetry", () => ({
   trackStudioEvent: vi.fn(),
@@ -28,10 +105,12 @@ interface PatchResponseBody {
   version?: string;
 }
 
+type RecordEdit = UseDomEditCommitsParams["editHistory"]["recordEdit"];
+
 interface RenderedDomEditCommits {
   hook: ReturnType<typeof useDomEditCommits>;
   showToast: ReturnType<typeof makeShowToast>;
-  recordEdit: ReturnType<typeof vi.fn<() => Promise<void>>>;
+  recordEdit: ReturnType<typeof vi.fn<RecordEdit>>;
   reloadPreview: ReturnType<typeof vi.fn>;
   cleanup: () => void;
 }
@@ -206,7 +285,7 @@ function renderDomEditCommits(
 ) {
   const captured: { current: ReturnType<typeof useDomEditCommits> | null } = { current: null };
   const showToast = makeShowToast();
-  const recordEdit = vi.fn(async () => {});
+  const recordEdit = vi.fn<RecordEdit>(async () => {});
   const previewIframeRef: MutableRefObject<HTMLIFrameElement | null> = { current: iframe };
   const projectIdRef: MutableRefObject<string | null> = options.projectIdRef ?? { current: "p1" };
   const domEditSaveTimestampRef: MutableRefObject<number> = { current: 0 };

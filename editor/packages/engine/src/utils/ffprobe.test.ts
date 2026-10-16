@@ -12,6 +12,58 @@ import {
   pixelFormatHasAlpha,
 } from "./ffprobe.js";
 
+describe("frozen source frame timestamps", () => {
+  afterEach(() => {
+    vi.resetModules();
+    vi.doUnmock("child_process");
+  });
+
+  it.each([
+    [0.999999, "0.000000\n0.966667\n1.000000\n", 0.966666],
+    [1, "0.000000\n0.966667\n1.000000\n", 0.999999],
+    [4.999999, "0.000000\n2.000000\n5.000000\n", 1.999999],
+  ])(
+    "selects the displayed frame at %s without advancing into an excluded frame",
+    async (time, stdout, expected) => {
+      const { spawn } = createSpawnSpy([{ kind: "exit", code: 0, stdout }]);
+      vi.resetModules();
+      vi.doMock("child_process", () => ({ spawn }));
+      const { extractVideoFrameTimestampAt } = await import("./ffprobe.js");
+      await expect(
+        extractVideoFrameTimestampAt(
+          "/tmp/frozen.mp4",
+          {
+            videoStreamDurationSeconds: 10,
+            videoStreamStartSeconds: 0,
+          },
+          time,
+        ),
+      ).resolves.toBeCloseTo(expected, 7);
+    },
+  );
+
+  it("normalizes nonzero stream timestamps and retries an unindexed seek without advancing the target", async () => {
+    const { spawn, calls } = createSpawnSpy([
+      { kind: "exit", code: 0, stdout: "" },
+      { kind: "exit", code: 0, stdout: "-1.000000\n-0.533333\n-0.500000\n" },
+    ]);
+    vi.resetModules();
+    vi.doMock("child_process", () => ({ spawn }));
+    const { extractVideoFrameTimestampAt } = await import("./ffprobe.js");
+    const metadata = { videoStreamDurationSeconds: 2, videoStreamStartSeconds: -1 };
+    const signal = new AbortController().signal;
+    const results = await Promise.all([
+      extractVideoFrameTimestampAt("/tmp/frozen.ts", metadata, 0.499999, signal),
+      extractVideoFrameTimestampAt("/tmp/frozen.ts", metadata, 0.499999, signal),
+    ]);
+    expect(results[0]).toBeCloseTo(0.466666, 7);
+    expect(results[1]).toBe(results[0]);
+    expect(calls).toHaveLength(2);
+    const args = calls[1]!.args;
+    expect(args[args.indexOf("-read_intervals") + 1]).toMatch(/^%/);
+  });
+});
+
 function crc32(buf: Buffer): number {
   let crc = 0xffffffff;
   for (let i = 0; i < buf.length; i++) {

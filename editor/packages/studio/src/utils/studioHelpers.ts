@@ -87,7 +87,7 @@ export function normalizeDomEditStyleValue(property: string, value: string): str
   if (!trimmed) return trimmed;
 
   if (
-    ["border-radius", "border-width", "font-size", "letter-spacing"].includes(property) &&
+    ["border-radius", "border-width", "font-size", "letter-spacing", "word-spacing"].includes(property) &&
     /^-?\d+(\.\d+)?$/.test(trimmed)
   ) {
     return `${trimmed}px`;

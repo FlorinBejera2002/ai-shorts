@@ -255,7 +255,7 @@ export interface StoryProject {
 }
 
 export const defaultLimits: StoryProject['limits'] = {
-  max_files: 200, // Compatibility field; storage and duration limits protect resources.
+  max_files: 0, // Compatibility field; storage and duration limits protect resources.
   max_file_bytes: 2 * 1024 ** 3,
   max_total_bytes: 10 * 1024 ** 3,
   max_source_seconds: 900,

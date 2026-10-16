@@ -5,6 +5,8 @@ export const BRAND_DEFAULTS: BrandKit = {
   watermarkEnabled: true,
   watermarkSize: 0.18,
   watermarkMargin: 0.025,
+  watermarkX: null,
+  watermarkY: null,
   logoUrl: null,
   primaryColor: '#6366F1',
   secondaryColor: '#8B5CF6',

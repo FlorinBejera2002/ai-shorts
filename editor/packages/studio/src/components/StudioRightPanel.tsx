@@ -383,7 +383,7 @@ export function StudioRightPanel({
       </div>
       <div
         aria-label="Inspector panel"
-        className="absolute inset-0 z-[60] flex min-w-0 flex-col overflow-hidden rounded-md border border-neutral-800 bg-neutral-950 sm:static sm:z-auto sm:w-[var(--inspector-width)] sm:flex-shrink-0"
+        className="relative flex h-[38dvh] max-h-[45%] min-h-[140px] min-w-0 shrink-0 flex-col overflow-hidden rounded-md border border-neutral-800 bg-neutral-950 sm:h-auto sm:max-h-none sm:min-h-0 sm:w-[var(--inspector-width)]"
         style={{ "--inspector-width": `${rightWidth}px` } as CSSProperties}
       >
         <div className="flex items-center justify-between border-b border-neutral-800 px-3 py-1 sm:hidden">

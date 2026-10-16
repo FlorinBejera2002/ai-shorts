@@ -15,7 +15,7 @@ func NormalizeLimits(l Limits) Limits {
 	if l == (Limits{}) {
 		return d
 	}
-	// Product admission limit applies to new additions; legacy projects remain renderable.
+	// Admission uses byte/duration budgets, not a clip-count limit.
 	l.MaxFiles = d.MaxFiles
 	if l.MaxFileBytes <= 0 {
 		l.MaxFileBytes = d.MaxFileBytes

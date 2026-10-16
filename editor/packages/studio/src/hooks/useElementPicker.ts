@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef } from "react";
 import { useMountEffect } from "./useMountEffect";
 import { resolveSourceFile, applyPatch } from "../utils/sourcePatcher";
+import { authoredElementHtml } from "../utils/authoredElementHtml";
 import {
   acceptStudioRuntimeMessage,
   postRuntimeControlMessage,
@@ -205,7 +206,7 @@ export function useElementPicker(
             // No ID — save the full composition HTML from the iframe
             // This captures ALL inline style changes, not just the targeted one
             try {
-              const fullHtml = activeIframe.contentDocument?.documentElement.outerHTML;
+              const fullHtml = authoredElementHtml(activeIframe.contentDocument?.documentElement);
               if (fullHtml && optionsRef.current?.onSyncFiles) {
                 // Determine which file this iframe represents
                 const src = activeIframe.getAttribute("src") ?? "";

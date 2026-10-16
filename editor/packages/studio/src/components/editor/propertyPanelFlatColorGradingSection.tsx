@@ -9,6 +9,8 @@ import {
 } from "@hyperframes/core/color-grading";
 import { Plus, Settings } from "../../icons/SystemIcons";
 import { useTrackDesignInput } from "../../contexts/DesignPanelInputContext";
+import { ApplyCutSettingToAll } from "./CutSettingsScope";
+import { useCutSettingsScope } from "./cutSettingsScopeContext";
 import { LUT_EXT } from "../../utils/mediaTypes";
 import { FLAT_PREVIEW_GRID, FlatSlider } from "./propertyPanelFlatPrimitives";
 import type {
@@ -130,6 +132,7 @@ export function FlatColorGradingSection({
   captureGradedFrame: ColorGradingControllerState["captureGradedFrame"];
 }) {
   const track = useTrackDesignInput();
+  const cutScope = useCutSettingsScope();
   const lutInputRef = useRef<HTMLInputElement>(null);
   const [lutOpen, setLutOpen] = useState(false);
   const [detailSettingsOpen, setDetailSettingsOpen] = useState<"vignette" | "grain" | null>(null);
@@ -493,7 +496,19 @@ export function FlatColorGradingSection({
         )}
       </div>
 
-      {onApplyScopeAvailable && (
+      {cutScope && (
+        <ApplyCutSettingToAll
+          label="color grading"
+          settings={[
+            {
+              type: "attribute",
+              name: "data-color-grading",
+              value: serializeHfColorGrading(grading),
+            },
+          ]}
+        />
+      )}
+      {onApplyScopeAvailable && !cutScope && (
         <div className="flex items-center justify-between gap-2 border-t border-panel-hairline pt-1.5">
           <span className="flex items-center gap-1.5 text-[11px] text-panel-text-2">
             Copy grade to

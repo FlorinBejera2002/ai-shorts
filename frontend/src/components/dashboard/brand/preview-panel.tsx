@@ -4,6 +4,7 @@ import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { CaptionPreview } from './caption-preview'
 import { legacyCaptionStyle } from './caption-style'
+import { LogoPreview } from './logo-preview'
 import type { BrandKit, BrandKitUpdate, PreviewRatio } from './types'
 export function PreviewPanel({
   kit,
@@ -19,18 +20,6 @@ export function PreviewPanel({
   const t = useTranslations('brand'),
     [ratio, setRatio] = useState<PreviewRatio>('9:16'),
     style = legacyCaptionStyle(kit)
-  const [rw = 1, rh = 1] = ratio.split(':').map(Number)
-  const short = Math.min(rw, rh)
-  const position: React.CSSProperties = {
-    opacity: kit.watermarkOpacity,
-    width: `${kit.watermarkSize * 100}%`,
-    height: `${kit.watermarkSize * 100}%`,
-    objectPosition: kit.watermarkPosition.replace('-', ' '),
-    [kit.watermarkPosition.startsWith('top') ? 'top' : 'bottom']:
-      `${((kit.watermarkMargin * short) / rh) * 100}%`,
-    [kit.watermarkPosition.endsWith('left') ? 'left' : 'right']:
-      `${((kit.watermarkMargin * short) / rw) * 100}%`
-  }
   return (
     <aside className="order-1 w-full xl:order-2 xl:sticky xl:top-20">
       <Card className="gap-3 p-3">
@@ -54,13 +43,17 @@ export function PreviewPanel({
           onPositionChange={(position) =>
             update('captionStyle', { ...style, position })
           }
+          onTransformChange={(position, size) =>
+            update('captionStyle', { ...style, position, size })
+          }
         >
           {logoUrl && kit.watermarkEnabled && (
-            <img
+            <LogoPreview
+              kit={kit}
               src={logoUrl}
-              alt={t('yourLogo')}
-              className="pointer-events-none absolute object-contain"
-              style={position}
+              label={t('yourLogo')}
+              ratio={ratio}
+              update={update}
             />
           )}
           {(!canWhiteLabel || !kit.hidePlatformBadge) && (

@@ -2,6 +2,7 @@ import { swallow } from "./diagnostics";
 import { interpolateVolumeGain, type VolumeKeyframe } from "./mediaVolumeEnvelope.js";
 import { elementVolumeLaneGain } from "./audioAutomationVolume.js";
 import { readElementPlaybackRate, readMediaStart } from "./playbackRate.js";
+import { readVideoFreezeTime } from "./frozenVideo.js";
 import { clampAudioGain } from "../audioGain.js";
 import { isMemberGroupHidden } from "../audioGroups.js";
 import { findInjectedRenderFrame } from "./renderFrameSibling.js";
@@ -44,6 +45,7 @@ export type RuntimeMediaClip = {
   volume: number | null;
   playbackRate: number;
   loop: boolean;
+  freezeAt?: number;
   /** Source media duration in seconds (from el.duration). Used for loop wrapping. */
   sourceDuration: number | null;
   /**
@@ -94,7 +96,8 @@ export function refreshRuntimeMediaCache(params?: {
     if (!Number.isFinite(start)) continue;
     const mediaStart = readElementPlaybackStart(el);
     const playbackRate = readElementPlaybackRate(el);
-    const loop = el.loop;
+    const freezeAt = readVideoFreezeTime(el);
+    const loop = freezeAt == null && el.loop;
     const sourceDuration = Number.isFinite(el.duration) && el.duration > 0 ? el.duration : null;
     let duration =
       params?.resolveDurationSeconds?.(el) ?? Number.parseFloat(el.dataset.duration ?? "");
@@ -116,6 +119,7 @@ export function refreshRuntimeMediaCache(params?: {
       playbackRate,
       loop,
       sourceDuration,
+      ...(freezeAt == null ? {} : { freezeAt }),
     };
     mediaClips.push(clip);
     if (el.tagName === "VIDEO") videoClips.push(clip);
@@ -243,7 +247,25 @@ export function syncRuntimeMedia(params: {
   for (const clip of params.clips) {
     const { el } = clip;
     if (!el.isConnected) continue;
-    let relTime = (params.timeSeconds - clip.start) * clip.playbackRate + clip.mediaStart;
+    const isFrozenVideo = el.tagName === "VIDEO" && clip.freezeAt != null;
+    let relTime = isFrozenVideo
+      ? Math.min(clip.freezeAt!, clip.sourceDuration ?? Infinity)
+      : (params.timeSeconds - clip.start) * clip.playbackRate + clip.mediaStart;
+    // Prepare held pictures while their transition is still hidden. Waiting for
+    // activation briefly exposes the decoder's initial (possibly excluded) frame
+    // before the boundary seek has reached the compositor.
+    if (isFrozenVideo && !findInjectedRenderFrame(el)) {
+      if (el.preload !== "auto") el.preload = "auto";
+      el.muted = true;
+      if (!el.paused) el.pause();
+      if (Math.abs(el.currentTime - relTime) > 0.0000001) {
+        try {
+          el.currentTime = relTime;
+        } catch (err) {
+          swallow("runtime.media.freezePreload", err);
+        }
+      }
+    }
     const isNonLoopVideo = el.tagName === "VIDEO" && !clip.loop;
     const isHeldVideoTail =
       isNonLoopVideo &&
@@ -274,7 +296,7 @@ export function syncRuntimeMedia(params: {
       params.timeSeconds >= clip.start &&
       params.timeSeconds < clip.end &&
       relTime >= 0 &&
-      (!el.ended || clip.loop || isHeldVideoTail || canSeekEndedMediaBackward);
+      (!el.ended || clip.loop || isHeldVideoTail || isFrozenVideo || canSeekEndedMediaBackward);
     if (isActive) {
       lastRelativeTime.set(el, relTime);
       // Loop wrapping: when media reaches end, restart from mediaStart
@@ -353,13 +375,15 @@ export function syncRuntimeMedia(params: {
       // fallback played at full level.
       const silencedByHidden =
         el.closest("[data-hidden]") !== null || isMemberGroupHidden(el.ownerDocument, el);
-      const effectiveVolume = silencedByHidden ? 0 : clampVolume(authorVolume * userVol);
+      if (isFrozenVideo) authorVolume = 0;
+      const effectiveVolume =
+        silencedByHidden || isFrozenVideo ? 0 : clampVolume(authorVolume * userVol);
       el.volume = effectiveVolume;
       lastRuntimeAppliedVolume.set(el, effectiveVolume);
       params.onElementVolume?.(el, effectiveVolume, authorVolume);
       // Mute only when force-muted or the transport owns this element; an unclaimed
       // track stays audible via the HTMLMedia fallback.
-      if (forceMuteAll || params.isWebAudioOwned?.(el)) el.muted = true;
+      if (forceMuteAll || isFrozenVideo || params.isWebAudioOwned?.(el)) el.muted = true;
       // Ensure full preload for every active media element. Streaming
       // formats (MP3) may arrive with preload="metadata", which only
       // buffers the first few seconds and causes seeks to silently fail
@@ -411,6 +435,7 @@ export function syncRuntimeMedia(params: {
         firstTickOfClip &&
         currentElTime - relTime > STRICT_DRIFT_THRESHOLD;
       const hardSync =
+        (isFrozenVideo && drift > 0.0000001) ||
         (isHeldVideoTail && drift > 0.001) ||
         (el.ended && canSeekEndedMediaBackward && drift > 0.001) ||
         staleAudioOnFirstTick ||
@@ -476,7 +501,7 @@ export function syncRuntimeMedia(params: {
         }
         playRequested.delete(el);
       }
-      if (isHeldVideoTail) {
+      if (isHeldVideoTail || isFrozenVideo) {
         if (!el.paused) el.pause();
       } else if (params.playing && el.paused && !playRequested.has(el) && !isUnplayable(el)) {
         // `HTMLMediaElement.play()` is spec'd to queue playback and resolve

@@ -14,10 +14,15 @@ var ErrPlan = errors.New("Removing the platform badge requires an Agency plan")
 var ErrInactive = errors.New("Account is unavailable")
 var colorPattern = regexp.MustCompile(`^#[0-9a-fA-F]{6}$`)
 var fontPattern = regexp.MustCompile(`^[A-Za-z0-9 -]+$`)
-var columns = map[string]string{"captionStyle": "caption_style", "watermarkEnabled": "watermark_enabled", "watermarkSize": "watermark_size", "watermarkMargin": "watermark_margin", "primaryColor": "primary_color", "secondaryColor": "secondary_color", "fontFamily": "font_family", "applyBrandColors": "apply_brand_colors", "applyBrandFont": "apply_brand_font", "subtitleFont": "subtitle_font", "subtitleColor": "subtitle_color", "subtitleBgColor": "subtitle_bg_color", "subtitleBgOpacity": "subtitle_bg_opacity", "subtitlePosition": "subtitle_position", "watermarkPosition": "watermark_position", "watermarkOpacity": "watermark_opacity", "hidePlatformBadge": "hide_platform_badge"}
+var columns = map[string]string{"captionStyle": "caption_style", "watermarkEnabled": "watermark_enabled", "watermarkSize": "watermark_size", "watermarkMargin": "watermark_margin", "watermarkX": "watermark_x", "watermarkY": "watermark_y", "primaryColor": "primary_color", "secondaryColor": "secondary_color", "fontFamily": "font_family", "applyBrandColors": "apply_brand_colors", "applyBrandFont": "apply_brand_font", "subtitleFont": "subtitle_font", "subtitleColor": "subtitle_color", "subtitleBgColor": "subtitle_bg_color", "subtitleBgOpacity": "subtitle_bg_opacity", "subtitlePosition": "subtitle_position", "watermarkPosition": "watermark_position", "watermarkOpacity": "watermark_opacity", "hidePlatformBadge": "hide_platform_badge"}
 
 func Validate(input map[string]any) (map[string]any, error) {
 	if len(input) == 0 {
+		return nil, ErrInvalid
+	}
+	x, hasX := input["watermarkX"]
+	y, hasY := input["watermarkY"]
+	if hasX != hasY || (hasX && (x == nil) != (y == nil)) {
 		return nil, ErrInvalid
 	}
 	output := make(map[string]any, len(input))
@@ -26,6 +31,16 @@ func Validate(input map[string]any) (map[string]any, error) {
 			return nil, ErrInvalid
 		}
 		switch {
+		case key == "watermarkX" || key == "watermarkY":
+			if value == nil {
+				output[key] = nil
+				continue
+			}
+			number, ok := value.(float64)
+			if !ok || math.IsNaN(number) || math.IsInf(number, 0) || number < 0 || number > 1 {
+				return nil, ErrInvalid
+			}
+			output[key] = number
 		case key == "captionStyle":
 			if value == nil {
 				output[key] = nil

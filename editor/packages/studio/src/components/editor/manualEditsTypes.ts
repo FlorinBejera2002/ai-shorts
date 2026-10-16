@@ -64,6 +64,7 @@ export type StudioManualEditSeekWindow = Window & {
 
 /* ── Snapshot types (used by drag/drop restore) ───────────────────── */
 export interface StudioBoxSizeSnapshot {
+  textResize?: import("./manualTextResize").TextResizeSnapshot;
   width: string;
   height: string;
   minWidth: string;

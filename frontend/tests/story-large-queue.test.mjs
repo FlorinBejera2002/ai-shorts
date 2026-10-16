@@ -4,7 +4,7 @@ import test from 'node:test'
 import vm from 'node:vm'
 import ts from 'typescript'
 
-for (const count of [80, 125, 200]) test(`large upload queue: ${count} selections, retry, backpressure, cancellation and cleanup`, async () => {
+for (const count of [80, 125, 200, 250]) test(`large upload queue: ${count} selections, retry, backpressure, cancellation and cleanup`, async () => {
  const source=readFileSync(new URL('../src/components/story/use-story-uploads.ts',import.meta.url),'utf8')
  const compiled=ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText
  const states=[],refs=[],effects=[];let stateIndex=0,refIndex=0,active=0,maximum=0

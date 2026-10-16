@@ -1,3 +1,9 @@
+import {
+  captionAnimation,
+  captionAnimationScript,
+  type CaptionAnimationCue,
+} from "@hyperframes/core/caption-animations";
+
 type RecordValue = Record<string, unknown>;
 type CaptionWord = { text: string; start: number; end: number };
 type CaptionPhrase = { id: string; source: string; words: CaptionWord[] };
@@ -171,34 +177,59 @@ export function storyCaptionMarkup(
   const textColor = color(style.text_color ?? options.subtitle_color, "#FFFFFF");
   const outlineColor = color(style.outline_color, "#000000");
   const outline =
-    preset === "minimal"
+    (preset === "minimal" && style.outline_enabled !== true) || style.outline_enabled === false
       ? 0
       : Math.max(
-          (number(style.outline, 2, 0, 8) * shortEdge) / 720,
+          (number(
+            style.outline_enabled === true && style.outline === 0 ? 2 : style.outline,
+            2,
+            0,
+            8,
+          ) *
+            shortEdge) /
+            720,
           preset === "bold-outline" ? size * 0.075 : 0,
         );
   const shadow = preset === "minimal" ? 0 : (number(style.shadow, 0, 0, 8) * shortEdge) / 720;
-  const opacity = Math.max(
-    number(style.background_opacity, 0, 0, 1),
-    preset === "contrast-box" ? 0.82 : 0,
-  );
+  const opacity =
+    style.background_enabled === false
+      ? 0
+      : Math.max(
+          number(style.background_opacity, 0, 0, 1),
+          preset === "contrast-box" ||
+            (style.background_enabled === true && !style.background_opacity)
+            ? 0.82
+            : 0,
+        );
   const background =
     color(style.background_color, "#000000") +
     Math.round(opacity * 255)
       .toString(16)
       .padStart(2, "0");
   const highlight = color(style.highlight_color, "#FFE066");
+  const activeWord =
+    style.active_word_enabled ?? ["active-color", "active-background", "karaoke"].includes(preset);
+  const animation = captionAnimation(style.animation, preset);
   const align = ["left", "center", "right"].includes(String(style.align)) ? style.align : "center";
   const path = "assets/caption-font.ttf";
   const css = `@font-face{font-family:SneepCaption;src:url("${path}");font-weight:${weight};font-display:block}
 .story-caption.clip{position:absolute;inset:auto;left:${number(position.x, 0.5, 0.05, 0.95) * 100}%;top:${number(position.y, options.subtitle_position === "top" ? 0.16 : options.subtitle_position === "center" ? 0.5 : 0.84, 0.05, 0.95) * 100}%;transform:translate(-50%,-50%);width:max-content;max-width:${number(style.max_width, 0.88, 0.2, 0.96) * 100}%;height:auto;z-index:3;text-align:${align};font-family:SneepCaption;font-weight:${weight};font-size:${size}px;line-height:${number(style.line_spacing, 1.15, 1, 1.8)};letter-spacing:${number(style.letter_spacing, 0, -0.05, 0.3)}em;word-spacing:${number(style.word_spacing, 0, 0, 1)}em;color:${textColor};-webkit-text-stroke:${outline}px ${outlineColor};paint-order:stroke fill;text-shadow:${shadow}px ${shadow}px ${shadow}px ${outlineColor};overflow-wrap:anywhere}
-.story-caption-text{background:${background};padding:0 .14em;box-decoration-break:clone;-webkit-box-decoration-break:clone}
-.story-caption-active{${preset === "active-background" ? `background:${highlight}` : `color:${highlight}`}}
+.story-caption-text{display:inline-block;transform-origin:center;background:${background};padding:0 .14em;box-decoration-break:clone;-webkit-box-decoration-break:clone}
+.story-caption-word{display:inline-block;transform-origin:center}
+.story-caption-active{${preset === "active-background" ? `background:${highlight};padding:0 .14em;margin:0 -.14em;border-radius:.12em;box-decoration-break:clone;-webkit-box-decoration-break:clone` : `color:${highlight}`}}
 .story-caption-karaoke{color:transparent;-webkit-text-stroke:0;text-shadow:none;background-image:linear-gradient(${highlight},${highlight}),linear-gradient(${textColor},${textColor});background-size:0% 100%,100% 100%;background-repeat:no-repeat;background-clip:text;-webkit-background-clip:text}`;
   const cues = groups.flatMap((words) => {
     if (preset === "word-by-word")
-      return words.map((word) => ({ words: [word], start: word.start, end: word.end, active: -1 }));
-    if (["active-color", "active-background"].includes(preset)) {
+      return words.map((word) => ({
+        words: [word],
+        start: word.start,
+        end: word.end,
+        active: activeWord ? 0 : -1,
+      }));
+    if (
+      (activeWord || ["active-color", "active-background"].includes(preset)) &&
+      preset !== "karaoke"
+    ) {
       const cues: { words: CaptionWord[]; start: number; end: number; active: number }[] = [];
       for (const [index, word] of words.entries()) {
         const previous = words[index - 1];
@@ -223,38 +254,36 @@ export function storyCaptionMarkup(
     ];
   });
   const animations: string[] = [];
+  const animationCues: CaptionAnimationCue[] = [];
   const html = cues
     .filter((cue) => cue.end > cue.start)
     .map((cue, index) => {
       const id = `story-caption-${index + 1}`;
-      if (preset === "phrase-pop")
-        animations.push(
-          `window.__timelines["main"].fromTo("#${id} .story-caption-text",{scale:.88},{scale:1,duration:.12,ease:"none"},${cue.start});`,
-        );
-      if (preset === "subtle-fade") {
-        const duration = Math.min(0.14, (cue.end - cue.start) / 2);
-        animations.push(
-          `window.__timelines["main"].fromTo("#${id} .story-caption-text",{opacity:0},{opacity:1,duration:${duration},ease:"none"},${cue.start}).to("#${id} .story-caption-text",{opacity:0,duration:${duration},ease:"none"},${cue.end - duration});`,
-        );
-      }
+      animationCues.push({
+        id,
+        start: cue.start,
+        end: cue.end,
+        words: cue.words.map((word, i) => ({ ...word, id: `${id}-word-${i + 1}` })),
+      });
       const text = cue.words
         .map((word, wordIndex) => {
           const wordId = `${id}-word-${wordIndex + 1}`;
-          if (preset === "karaoke")
+          if (preset === "karaoke" && activeWord)
             animations.push(
               `window.__timelines["main"].fromTo("#${wordId}",{backgroundSize:"0% 100%,100% 100%"},{backgroundSize:"100% 100%,100% 100%",duration:${word.end - word.start},ease:"none"},${word.start});`,
             );
           const className =
-            preset === "karaoke"
+            preset === "karaoke" && activeWord
               ? "story-caption-karaoke"
-              : wordIndex === cue.active
+              : activeWord && wordIndex === cue.active
                 ? "story-caption-active"
                 : "";
-          return `<span id="${wordId}"${className ? ` class="${className}"` : ""}>${escape(word.text)}</span>`;
+          return `<span id="${wordId}" class="story-caption-word ${className}" data-caption-word-start="${word.start}" data-caption-word-end="${word.end}"${wordIndex === cue.active ? ' data-caption-active="true"' : ""}>${escape(word.text)}</span>`;
         })
         .join(" ");
-      return `<div id="${id}" class="clip story-caption" data-start="${cue.start}" data-duration="${cue.end - cue.start}" data-track-index="2"><span class="story-caption-text">${text}</span></div>`;
+      return `<div id="${id}" class="clip story-caption" data-caption-style="${escape(JSON.stringify({ ...style, preset, animation }))}" data-start="${cue.start}" data-duration="${cue.end - cue.start}" data-track-index="2"><span class="story-caption-text" data-caption-text>${text}</span></div>`;
     })
     .join("");
+  animations.push(captionAnimationScript(animationCues, animation));
   return { html, css, animation: animations.join(""), font: { id: fontId, weight, path } };
 }

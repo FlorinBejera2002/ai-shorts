@@ -18,6 +18,7 @@ import {
   normalizePlaybackRate,
   parseStrictFiniteTimingNumber,
   readMediaStart,
+  readVideoFreezeTime,
   toFps,
   type FpsInput,
 } from "@hyperframes/core";
@@ -25,6 +26,7 @@ import { resolveReferencedStart, type RefResolverEl } from "./referenceResolver.
 import { isKnownInactiveTimelineWindow } from "./mediaTimelineWindow.js";
 import {
   extractFinalVideoFrameTimestamp,
+  extractVideoFrameTimestampAt,
   extractMediaMetadata,
   type VideoMetadata,
 } from "../utils/ffprobe.js";
@@ -66,6 +68,7 @@ export interface VideoElement {
   end: number;
   mediaStart: number;
   playbackRate?: number;
+  freezeAt?: number;
   loop: boolean;
   hasAudio: boolean;
 }
@@ -186,6 +189,9 @@ export interface ExtractionOptions {
   /** Extract exactly one frame at `startTime`. Used only after ffprobe has
    *  resolved the actual final decoded-frame timestamp for a held tail. */
   finalFrameOnly?: boolean;
+  /** Frozen boundary pictures use accurate input seeking to avoid decoding a
+   * long source from the beginning. A zero-frame result retries output seeking. */
+  preferInputSeek?: boolean;
   /**
    * Absolute composition/timeline end in seconds. Applied only after source
    * metadata resolves open-ended/natural-duration media. Invisible negative
@@ -674,6 +680,7 @@ export function parseVideoElements(html: string): VideoElement[] {
       end = Infinity; // no explicit bounds — play for the full natural video duration
     }
 
+    const freezeAt = readVideoFreezeTime(el);
     videos.push({
       id,
       src,
@@ -683,8 +690,9 @@ export function parseVideoElements(html: string): VideoElement[] {
       playbackRate: normalizePlaybackRate(
         playbackRateAttr ? parseFloat(playbackRateAttr) : Number.NaN,
       ),
-      loop: el.hasAttribute("loop"),
-      hasAudio: hasAudioAttr === "true",
+      loop: freezeAt == null && el.hasAttribute("loop"),
+      hasAudio: freezeAt == null && hasAudioAttr === "true",
+      ...(freezeAt == null ? {} : { freezeAt }),
     });
   }
 
@@ -818,11 +826,15 @@ export async function extractVideoFramesRange(
     args.push("-c:v", decoderForCodec(metadata.videoCodec));
   }
   if (options.finalFrameOnly) {
-    // Output-side seek decodes from the start before selecting the final
-    // sample. This is intentionally reserved for the one-frame path: input
-    // seeking is faster, but valid unindexed transports (notably MPEG-TS with
-    // a negative timestamp base) can seek to EOF and emit zero frames.
-    args.push("-i", videoPath, "-ss", String(startTime), "-frames:v", "1");
+    if (options.preferInputSeek) {
+      // FFmpeg's default accurate seek decodes from the preceding seek point
+      // and discards samples before the probed frame, not the entire source.
+      args.push("-ss", String(startTime), "-i", videoPath, "-frames:v", "1");
+    } else {
+      // Keep the established held-tail path and the fallback for unindexed
+      // transports whose input seek reaches EOF without emitting a frame.
+      args.push("-i", videoPath, "-ss", String(startTime), "-frames:v", "1");
+    }
   } else {
     args.push("-ss", String(startTime), "-i", videoPath, "-t", String(duration));
   }
@@ -926,6 +938,18 @@ export async function extractVideoFramesRange(
 
   const framePaths = framePathsFromDirectory(videoOutputDir, format);
   if (framePaths.size === 0 && duration > 0) {
+    if (options.finalFrameOnly && options.preferInputSeek) {
+      return extractVideoFramesRange(
+        videoPath,
+        videoId,
+        startTime,
+        duration,
+        { ...options, preferInputSeek: false },
+        signal,
+        config,
+        outputDirOverride,
+      );
+    }
     throw new VideoSourceExtractionError(
       "zero_output",
       false,
@@ -1033,7 +1057,7 @@ export interface TimelineExtractionWindow {
 }
 
 type TimelineWindowVideo = Pick<VideoElement, "start" | "end" | "mediaStart"> &
-  Partial<Pick<VideoElement, "playbackRate">> &
+  Partial<Pick<VideoElement, "playbackRate" | "freezeAt">> &
   Partial<Pick<VideoElement, "loop">>;
 
 // Logical duration assigned to a one-frame held-tail representation. This is
@@ -1163,6 +1187,18 @@ export async function resolveFinalFrameExtractionWindow(
   window: TimelineExtractionWindow,
   signal?: AbortSignal,
 ): Promise<TimelineExtractionWindow> {
+  if (video.freezeAt != null && window.durationSeconds > 0) {
+    return {
+      ...window,
+      extractionMediaStart: await extractVideoFrameTimestampAt(
+        videoPath,
+        metadata,
+        window.mediaStart,
+        signal,
+      ),
+      finalFrameOnly: true,
+    };
+  }
   if (!window.ensureFinalFrame) return window;
   const playableDuration = resolvePlayableVideoDuration(metadata);
   const finalFrameTimestamp = await extractFinalVideoFrameTimestamp(
@@ -1204,6 +1240,20 @@ export function resolveVideoExtractionWindow(
       "Video source has no positive duration",
       `Playable video stream duration is ${playableDuration}s`,
     );
+  }
+  if (video.freezeAt != null && Number.isFinite(video.freezeAt) && video.freezeAt >= 0) {
+    if (timelineEnd !== undefined && !Number.isFinite(timelineEnd)) {
+      throw new Error(`Video extraction timelineEnd must be finite; got ${String(timelineEnd)}`);
+    }
+    const compositionStart = Math.max(0, video.start);
+    const end = Math.min(video.end, timelineEnd ?? Infinity);
+    return {
+      compositionStart,
+      mediaStart: Math.min(video.freezeAt, playableDuration),
+      durationSeconds: end > compositionStart ? FINAL_FRAME_LOGICAL_DURATION_SECONDS : 0,
+      preserveTimelineEnd: true,
+      finalFrameOnly: true,
+    };
   }
   if (video.mediaStart >= playableDuration) {
     throw new VideoSourceExtractionError(
@@ -1834,6 +1884,7 @@ export async function extractAllVideoFrames(
       format: work.format,
       sdrToHdrTransfer: work.sdrToHdrTransfer,
       finalFrameOnly: work.finalFrameOnly,
+      preferInputSeek: work.video.freezeAt != null,
     };
   }
 

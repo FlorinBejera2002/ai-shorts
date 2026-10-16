@@ -115,6 +115,7 @@ export function createClipTree(params: {
 
   for (const el of document.querySelectorAll("[data-start]")) {
     if (el === root || DECORATIVE_TAGS.has(el.tagName)) continue;
+    if (el.closest("[data-hf-visual-transition]")) continue;
     const absoluteStart = startResolver.resolveStartForElement(el, 0);
     if (resolveDuration(el, timelineRegistry, rootDuration, absoluteStart) <= 0) continue;
     const node: MutableClipNode = {

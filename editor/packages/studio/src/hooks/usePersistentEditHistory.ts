@@ -169,31 +169,28 @@ async function applyHistoryStep(
     return { state: currentState, result: { ok: false, reason: "empty" } };
   }
   const paths = Object.keys(entry.files);
-  const apply = async (): Promise<{ state: EditHistoryState; result: ApplyResult }> => {
-    const { currentFiles, currentHashes } = await readCurrentFileHashes(paths, callbacks.readFile);
-    const result = transition(currentState, currentHashes, now());
-    if (!result.ok) {
-      return {
-        state: currentState,
-        result: { ok: false, reason: result.reason },
-      };
-    }
-    await writeFilesWithRollback({
-      files: result.filesToWrite,
-      rollbackFiles: currentFiles,
-      writeFile: callbacks.writeFile,
-    });
+  const { currentFiles, currentHashes } = await readCurrentFileHashes(paths, callbacks.readFile);
+  const result = transition(currentState, currentHashes, now());
+  if (!result.ok) {
     return {
-      state: result.state,
-      result: {
-        ok: true,
-        label: result.entry.label,
-        paths: Object.keys(result.entry.files),
-        files: restoredFilesMap(result.filesToWrite, currentFiles),
-      },
+      state: currentState,
+      result: { ok: false, reason: result.reason },
     };
+  }
+  await writeFilesWithRollback({
+    files: result.filesToWrite,
+    rollbackFiles: currentFiles,
+    writeFile: callbacks.writeFile,
+  });
+  return {
+    state: result.state,
+    result: {
+      ok: true,
+      label: result.entry.label,
+      paths: Object.keys(result.entry.files),
+      files: restoredFilesMap(result.filesToWrite, currentFiles),
+    },
   };
-  return callbacks.serialize ? callbacks.serialize(paths, apply) : apply();
 }
 
 export function createPersistentEditHistoryStore({
@@ -205,6 +202,7 @@ export function createPersistentEditHistoryStore({
 }: PersistentEditHistoryStoreOptions) {
   let state = initialState;
   let queue = Promise.resolve();
+  let historyActions = Promise.resolve();
 
   const save = async (nextState: EditHistoryState) => {
     state = nextState;
@@ -229,6 +227,48 @@ export function createPersistentEditHistoryStore({
     return run;
   };
 
+  const applyHistory = (
+    direction: "undo" | "redo",
+    callbacks: ApplyCallbacks,
+  ): Promise<ApplyResult> => {
+    // Saves hold their file locks while recording history. Undo/redo must take
+    // those locks BEFORE entering the history queue, or each can wait on the
+    // other forever. This separate queue orders clicks without blocking saves.
+    const run = historyActions.then(async (): Promise<ApplyResult> => {
+      for (;;) {
+        await queue;
+        const entries = state[direction];
+        const entry = entries[entries.length - 1];
+        if (!entry) return { ok: false, reason: "empty" };
+        const apply = () =>
+          mutate<ApplyResult | null>((currentState) => {
+            const currentEntries = currentState[direction];
+            if (currentEntries[currentEntries.length - 1] !== entry) {
+              // A save completed while the file locks were pending. Release them
+              // and acquire the new top entry's paths before reading or writing.
+              return Promise.resolve({ state: currentState, result: null });
+            }
+            return applyHistoryStep(
+              currentState,
+              entry,
+              direction === "undo" ? undoEditHistory : redoEditHistory,
+              now,
+              callbacks,
+            );
+          });
+        const result = callbacks.serialize
+          ? await callbacks.serialize(Object.keys(entry.files), apply)
+          : await apply();
+        if (result) return result;
+      }
+    });
+    historyActions = run.then(
+      () => undefined,
+      () => undefined,
+    );
+    return run;
+  };
+
   return {
     snapshot: () => snapshotEditHistoryState(state),
     async recordEdit(input: RecordEditInput) {
@@ -247,26 +287,10 @@ export function createPersistentEditHistoryStore({
       });
     },
     async undo(callbacks: ApplyCallbacks): Promise<ApplyResult> {
-      return mutate<ApplyResult>((currentState) =>
-        applyHistoryStep(
-          currentState,
-          currentState.undo[currentState.undo.length - 1],
-          undoEditHistory,
-          now,
-          callbacks,
-        ),
-      );
+      return applyHistory("undo", callbacks);
     },
     async redo(callbacks: ApplyCallbacks): Promise<ApplyResult> {
-      return mutate<ApplyResult>((currentState) =>
-        applyHistoryStep(
-          currentState,
-          currentState.redo[currentState.redo.length - 1],
-          redoEditHistory,
-          now,
-          callbacks,
-        ),
-      );
+      return applyHistory("redo", callbacks);
     },
   };
 }

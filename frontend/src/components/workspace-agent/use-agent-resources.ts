@@ -4,6 +4,7 @@ import { storyRequest } from '@/components/story/api'
 import { useStoryUploads } from '@/components/story/use-story-uploads'
 import { storyIsBusy } from '@/components/story/types'
 import type { StoryProject } from '@/components/story/types'
+import { validateStoryFiles } from '@/components/story/story-file-validation'
 
 export function useAgentResources(projectId?: string) {
   const client = useQueryClient()
@@ -21,11 +22,7 @@ export function useAgentResources(projectId?: string) {
     if (!project || storyIsBusy(project.status)) return
     const pending = uploads.items.filter(item => item.projectId === projectId && item.status !== 'complete')
     const limits = project.limits
-    if (project.assets.filter(item => item.kind !== 'narration').length + pending.length + files.length > (limits.max_files || 200)) {
-      setError(ro ? 'Un proiect poate conține maximum 200 de filmări. Alege mai puține sau începe un proiect nou.' : 'A project supports up to 200 clips. Choose fewer files or start another project.'); return
-    }
-    const bytes = project.assets.reduce((sum, item) => sum + item.size, 0) + pending.reduce((sum, item) => sum + item.file.size, 0) + files.reduce((sum, item) => sum + item.size, 0)
-    if (files.some(file => !/\.(mp4|mov|webm|mkv)$/i.test(file.name) || file.size === 0 || file.size > limits.max_file_bytes) || bytes > limits.max_total_bytes) {
+    if (validateStoryFiles(files, project.assets, pending.map(item => item.file), limits)) {
       setError(ro ? 'Verifică formatul și dimensiunea fișierelor.' : 'Check file format and size.'); return
     }
     setError(''); uploads.add(files, project.assets.reduce((maximum, asset) => Math.max(maximum, asset.order), -1) + 1)

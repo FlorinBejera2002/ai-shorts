@@ -270,9 +270,9 @@ function EditorShellBody({
       <SourceImportNotice />
       {/* Top row: [left | preview | right] — outer padding + the 8px resize
           seams give the panels CapCut-style separation on the dark canvas. */}
-      <div className="relative flex flex-row flex-1 min-h-0 px-px pt-px">
+      <div className="relative flex flex-col sm:flex-row flex-1 min-h-0 px-px pt-px">
         {left}
-        <div className="flex-1 min-w-0 flex flex-col relative">
+        <div className="flex-1 min-h-[160px] sm:min-h-0 min-w-0 flex flex-col relative">
           <PreviewPane
             previewOverlay={previewOverlay}
             onSelectTimelineElement={onSelectTimelineElement}

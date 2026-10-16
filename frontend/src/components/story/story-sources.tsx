@@ -70,7 +70,7 @@ export function StorySources({
       <div className="flex items-center justify-between gap-3">
         <span className="text-xs tabular-nums text-muted-foreground">
           {assets.length + pending.length}{' '}
-          {text('clips', 'filmări')} / {limits.max_files || 200}
+          {text('clips', 'filmări')}
         </span>
         <StoryHelp label={text('Your recordings', 'Filmările tale')}>
           {narration
@@ -118,8 +118,8 @@ export function StorySources({
             </span>
             <span className="text-xs text-muted-foreground">
               {text(
-                'MP4, MOV, WebM, MKV · Up to 200 clips per project',
-                'MP4, MOV, WebM, MKV · Până la 200 de filmări pe proiect'
+                'MP4, MOV, WebM, MKV · Add clips to your project',
+                'MP4, MOV, WebM, MKV · Adaugă filmări în proiect'
               )}
             </span>
           </button>

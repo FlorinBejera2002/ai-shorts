@@ -158,6 +158,19 @@ function FlatTextFieldEditor({
         onReset={() => onSetTextFieldStyle(field.key, "letter-spacing", "")}
       />
       <FlatRow
+        label="Word spacing"
+        value={getTextStyleValue(field, styles, "word-spacing", "0px")}
+        tier={resolveValueTier(field.inlineStyles["word-spacing"], "0px")}
+        onCommit={(next) =>
+          onSetTextFieldStyle(
+            field.key,
+            "word-spacing",
+            normalizeTextMetricValue("word-spacing", next),
+          )
+        }
+        onReset={() => onSetTextFieldStyle(field.key, "word-spacing", "")}
+      />
+      <FlatRow
         label="Line height"
         value={getTextStyleValue(field, styles, "line-height", "normal")}
         tier={resolveValueTier(field.inlineStyles["line-height"], "normal")}

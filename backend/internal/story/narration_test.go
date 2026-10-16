@@ -55,6 +55,9 @@ func TestNarrationMontagePreservesCompleteOriginalVoicePausesAndCaptions(t *test
 	clock := 0.0
 	var words []Word
 	for _, entry := range result.Best.Timeline {
+		if entry.Transition != "natural" {
+			t.Fatalf("new narrated shots should use native visual smoothing: %+v", entry)
+		}
 		if entry.Audio == nil || entry.Audio.SourceID != "voice" || entry.Audio.In != clock || entry.OutputIn != clock || entry.Audio.Out != entry.OutputOut || entry.Video.SourceID == "voice" {
 			t.Fatalf("voice was reordered, replaced with video audio or omitted: %+v", entry)
 		}

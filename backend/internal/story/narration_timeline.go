@@ -127,7 +127,7 @@ func BuildNarrationTimeline(plan Plan, assets []Asset) ([]Entry, error) {
 		if block.Crop != "fit" && block.Crop != "track" {
 			return nil, fmt.Errorf("visual block %s has an unsupported crop", block.ID)
 		}
-		entry := Entry{BlockID: block.ID, CandidateID: block.CandidateID, OutputIn: clock, OutputOut: audio.Out, Video: visual, Audio: &audio, Crop: block.Crop, Transition: "cut"}
+		entry := Entry{BlockID: block.ID, CandidateID: block.CandidateID, OutputIn: clock, OutputOut: audio.Out, Video: visual, Audio: &audio, Crop: block.Crop, Transition: "natural"}
 		for _, word := range words {
 			if word.Start >= clock-.000001 && word.Start < audio.Out-.000001 {
 				entry.Words = append(entry.Words, word)

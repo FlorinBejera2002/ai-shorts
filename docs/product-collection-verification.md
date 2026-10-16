@@ -2,6 +2,11 @@
 
 This records synthetic local verification, not production deployment or real provider quality claims. The final requested product admission limit is 200 clips per project.
 
+The 16 October feedback follow-up supersedes that admission policy: new projects
+accept collections beyond 200 clips, bounded by the existing file-size, combined
+size and duration budgets. The API's deprecated `max_files` field is now zero.
+The historical evidence below describes the earlier release, not the new policy.
+
 | Area | Executed evidence |
 | --- | --- |
 | Collection domain | TestLargeCollectionsRetainEveryAssetAndTimelineEntry passes 80, 125, 250 assets (250 preserves legacy rendering); byte and duration protections remain. |

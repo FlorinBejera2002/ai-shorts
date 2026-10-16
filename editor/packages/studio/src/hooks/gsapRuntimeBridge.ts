@@ -235,6 +235,9 @@ export async function tryGsapDragIntercept(
     }
   }
 
+  // The fallback finder also returns a sole opacity/size tween. It cannot own
+  // position: adding x/y there creates a timed hold that is absent at frame zero.
+  if (posAnim && !animationWritesAnyProperty(posAnim, POSITION_CHANNEL_SET)) posAnim = null;
   const gsapPos = readGsapPositionFromIframe(iframe, selector) ?? { x: 0, y: 0 };
 
   // STATIC case (single source of truth = GSAP timeline): the element has no LIVE

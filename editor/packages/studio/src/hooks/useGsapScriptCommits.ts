@@ -3,10 +3,21 @@ import { findUnsafeMutationValues } from "@hyperframes/core/studio-api/finite-mu
 import { readProjectFileContent as readSharedProjectFileContent } from "../utils/studioFileHistory";
 import type { DomEditSelection } from "../components/editor/domEditingTypes";
 import { usePlayerStore } from "../player/store/playerStore";
-import { applySoftReload, extractGsapScriptText } from "../utils/gsapSoftReload";
+import {
+  applySoftReload,
+  applySoftReloadFinalization,
+  extractGsapScriptText,
+} from "../utils/gsapSoftReload";
+import { syncSourceCutGsapPreview } from "../utils/sourceCutGsapPreview";
+import { sourceCutHost } from "../utils/sourceCutIsolation";
 import type { SoftReloadResult } from "../utils/gsapSoftReload";
 import { trackStudioEvent } from "../utils/studioTelemetry";
-import { serializeStudioFileMutation } from "../utils/studioFileMutationCoordinator";
+import { serializeStudioFileMutations } from "../utils/studioFileMutationCoordinator";
+import {
+  runSourceCutMutationGroups,
+  mutateIsolatedSourceCut,
+  sourceCutMutationFiles,
+} from "./sourceCutGsapMutation";
 import {
   getStudioSaveErrorMessage,
   isStudioSaveErrorAlreadyToasted,
@@ -141,9 +152,10 @@ function refreshMutationPreview(
   options: CommitMutationOptions,
   reloadPreview: () => void,
   onCacheInvalidate: () => void,
+  sourceCut?: HTMLElement | null,
 ): void {
   options.beforeReload?.();
-  applyPreviewSync(iframe, result, options, reloadPreview);
+  applyPreviewSync(iframe, result, options, reloadPreview, sourceCut);
   onCacheInvalidate();
 }
 
@@ -195,7 +207,15 @@ function syncCommittedGsapMutation({
       iframe?.contentDocument,
     );
   }
-  refreshMutationPreview(iframe, result, options, reloadPreview, onCacheInvalidate);
+  const host = selection.element ? sourceCutHost(selection.element) : null;
+  refreshMutationPreview(
+    iframe,
+    result,
+    options,
+    reloadPreview,
+    onCacheInvalidate,
+    host !== selection.element ? host : null,
+  );
 }
 
 /**
@@ -251,7 +271,23 @@ export function applyPreviewSync(
   result: MutationResult,
   options: CommitMutationOptions,
   reloadPreview: () => void,
+  sourceCut?: HTMLElement | null,
 ): void {
+  // Authored selectors/timeline keys are shared by duplicate cuts. The compiled
+  // instance scope must apply even when an unscoped instant patch could succeed.
+  if (sourceCut && result.scriptText) {
+    const outcome = syncSourceCutGsapPreview(
+      iframe,
+      sourceCut,
+      result.scriptText,
+      result.after,
+      usePlayerStore.getState().currentTime,
+      reloadPreview,
+      options.deferPreviewSync,
+    );
+    if (outcome === "cannot-soft-reload") reloadPreview();
+    return;
+  }
   const patches = instantPatchesFor(options);
   let needsFallback = options.previewFallbackLatch?.pending === true;
   if (patches.length > 0) {
@@ -329,7 +365,7 @@ export function useGsapScriptCommits({ projectIdRef, activeCompPath, previewIfra
       kind: "manual",
       coalesceKey: options.coalesceKey,
       coalesceMs: options.coalesceMs,
-      files: { [targetPath]: { before: result.before, after: result.after } },
+      files: { ...result.isolatedHistoryFiles, [targetPath]: { before: result.before, after: result.after } },
     });
   }, [editHistory]);
 
@@ -369,12 +405,13 @@ export function useGsapScriptCommits({ projectIdRef, activeCompPath, previewIfra
 
   const runCommit = useCallback(async (pid: string, compositionPath: string | null, targetPath: string, selection: DomEditSelection, mutation: Record<string, unknown>, options: CommitMutationOptions) => {
     const result = await runMutationRequest([mutation], options, showToast, () =>
-      mutateGsapScript(pid, targetPath, mutation),
+      mutateIsolatedSourceCut(pid, compositionPath, selection, targetPath, writeProjectFile,
+        (path) => mutateGsapScript(pid, path, mutation)),
     );
     if (!result) return;
     options.onResult?.(result);
-    await finalizeSuccessfulMutation(pid, compositionPath, selection, mutation, targetPath, result, options);
-  }, [showToast, finalizeSuccessfulMutation]);
+    await finalizeSuccessfulMutation(pid, compositionPath, selection, mutation, result.isolatedSourceFile ?? targetPath, result, options);
+  }, [showToast, finalizeSuccessfulMutation, writeProjectFile]);
 
   const runBatchCommit = useCallback(async (pid: string, compositionPath: string | null, targetPath: string, calls: CommitMutationCall[], options: CommitMutationOptions) => {
     const first = calls[0];
@@ -382,7 +419,8 @@ export function useGsapScriptCommits({ projectIdRef, activeCompPath, previewIfra
     if (!first || !last) return;
     const mutations = calls.map(({ mutation }) => mutation);
     const result = await runMutationRequest(mutations, options, showToast, () =>
-      mutateGsapScriptBatch(pid, targetPath, mutations),
+      mutateIsolatedSourceCut(pid, compositionPath, first.selection, targetPath, writeProjectFile,
+        (path) => mutateGsapScriptBatch(pid, path, mutations)),
     );
     if (!result) return;
     options.onResult?.(result);
@@ -392,27 +430,29 @@ export function useGsapScriptCommits({ projectIdRef, activeCompPath, previewIfra
       .map(({ options: callOptions }) => callOptions.instantPatch)
       .filter((patch) => patch !== undefined);
     const { instantPatch: _instantPatch, ...batchOptions } = options;
-    await finalizeSuccessfulMutation(pid, compositionPath, last.selection, last.mutation, targetPath, result, instantPatches.length > 0 ? { ...batchOptions, instantPatches } : batchOptions);
-  }, [showToast, finalizeSuccessfulMutation]);
+    await finalizeSuccessfulMutation(pid, compositionPath, last.selection, last.mutation, result.isolatedSourceFile ?? targetPath, result, instantPatches.length > 0 ? { ...batchOptions, instantPatches } : batchOptions);
+    return result;
+  }, [showToast, finalizeSuccessfulMutation, writeProjectFile]);
 
   // Every GSAP-script commit is a read-modify-write of one file. Overlapping
   // commits to the SAME file (any op type, any animation) interleave server-side,
   // so every legacy request takes the same project/file lock as SDK writes. An
   // explicit key adds ordering for related calls but never replaces the file lock.
   const commitMutation = useMemo<CommitMutation>(() => {
-    const serializeFile = <T,>(file: string, task: () => Promise<T>): Promise<T> => {
+    const serializeFile = <T,>(selection: DomEditSelection, file: string, task: () => Promise<T>): Promise<T> => {
       if (writeProjectFile) {
-        return serializeStudioFileMutation(writeProjectFile, file, task);
+        return serializeStudioFileMutations(writeProjectFile, sourceCutMutationFiles(selection, activeCompPath), task);
       }
       return serializerRef.current(`gsap-file:${file}`, task);
     };
     const serializeCommit = <T,>(
+      selection: DomEditSelection,
       file: string,
       serializeKey: string | undefined,
       task: () => Promise<T>,
     ): Promise<T> => {
       const fileKey = `gsap-file:${file}`;
-      const run = () => serializeFile(file, task);
+      const run = () => serializeFile(selection, file, task);
       if (serializeKey && (writeProjectFile || serializeKey !== fileKey)) {
         return serializerRef.current(serializeKey, run);
       }
@@ -421,19 +461,25 @@ export function useGsapScriptCommits({ projectIdRef, activeCompPath, previewIfra
     const commit: CommitMutation = (selection, mutation, options) => {
       if (!activeProjectId) return Promise.resolve();
       const file = selection.sourceFile || activeCompPath || "index.html";
-      return serializeCommit(file, options.serializeKey, () =>
+      return serializeCommit(selection, file, options.serializeKey, () =>
         runCommit(activeProjectId, activeCompPath, file, selection, mutation, options),
       );
     };
     commit.batch = (calls, options) => {
       if (!activeProjectId) return Promise.resolve();
-      const file = calls[0]?.selection.sourceFile || activeCompPath || "index.html";
-      return serializeCommit(file, options.serializeKey, () =>
-        runBatchCommit(activeProjectId, activeCompPath, file, calls, options),
-      );
+      return runSourceCutMutationGroups(calls, options, (group, groupOptions) => {
+        const selection = group[0]!.selection;
+        const file = selection.sourceFile || activeCompPath || "index.html";
+        return serializeCommit(selection, file, groupOptions.serializeKey, () =>
+          runBatchCommit(activeProjectId, activeCompPath, file, group, groupOptions),
+        );
+      }, () => {
+        if (!isActiveCommitTarget(projectIdRef, activeCompPathRef, activeProjectId, activeCompPath)) return;
+        if (!applySoftReloadFinalization(previewIframeRef.current, usePlayerStore.getState().currentTime)) reloadPreview();
+      });
     };
     return commit;
-  }, [runCommit, runBatchCommit, activeCompPath, activeProjectId, writeProjectFile]);
+  }, [runCommit, runBatchCommit, activeCompPath, activeProjectId, writeProjectFile, projectIdRef, previewIframeRef, reloadPreview]);
   const trackGsapSaveFailure = useGsapSaveFailureTelemetry(activeCompPath);
   const handleGsapSaveFailure = useCallback(
     (

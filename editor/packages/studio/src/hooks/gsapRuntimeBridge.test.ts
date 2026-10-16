@@ -58,6 +58,42 @@ const stalePositionAnim = {
 
 afterEach(() => vi.restoreAllMocks());
 
+it("keeps an opacity hold separate from a resize's static center offset", async () => {
+  const opacity = {
+    ...stalePositionAnim,
+    id: "#puck-b-set-0-fill",
+    method: "set",
+    propertyGroup: "fill",
+    properties: { opacity: 1 },
+    position: 0,
+    resolvedStart: 0,
+    duration: 0,
+  } as unknown as GsapAnimation;
+  const commit = vi.fn();
+  await tryGsapDragIntercept(
+    selection,
+    { x: -60, y: -15 },
+    [opacity],
+    fakeIframe("puck-b", []),
+    commit,
+  );
+  expect(commit).toHaveBeenCalledWith(
+    selection,
+    expect.objectContaining({
+      type: "add",
+      method: "set",
+      global: true,
+      properties: { x: -60, y: -15 },
+    }),
+    expect.anything(),
+  );
+  expect(commit).not.toHaveBeenCalledWith(
+    selection,
+    expect.objectContaining({ animationId: opacity.id }),
+    expect.anything(),
+  );
+});
+
 describe("tryGsapDragIntercept — stale-parse guard (no resurrection after delete-all)", () => {
   async function runHelperOwnedDrag(fetchFallbackAnimations?: () => Promise<GsapAnimation[]>) {
     const helperTween = {

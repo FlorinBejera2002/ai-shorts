@@ -1,5 +1,7 @@
 import { type PointerEvent as ReactPointerEvent, type RefObject } from "react";
-import { isHfColorGradingActive } from "@hyperframes/core/color-grading";
+import { isHfColorGradingActive, serializeHfColorGrading } from "@hyperframes/core/color-grading";
+import { ApplyCutSettingToAll } from "./CutSettingsScope";
+import { useCutSettingsScope } from "./cutSettingsScopeContext";
 import { Compare, Palette, RotateCcw } from "../../icons/SystemIcons";
 import type { DomEditSelection } from "./domEditing";
 import { ColorGradingControls } from "./propertyPanelColorGradingControls";
@@ -155,6 +157,7 @@ export function ColorGradingSection({
   ) => Promise<{ changedFiles: number; changedElements: number }>;
 }) {
   const track = useTrackDesignInput();
+  const cutScope = useCutSettingsScope();
   const {
     grading,
     compareEnabled,
@@ -209,7 +212,19 @@ export function ColorGradingSection({
         onImportAssets={onImportAssets}
         onCommitColorGrading={commitColorGrading}
       />
-      {onApplyScope && (
+      {cutScope && (
+        <ApplyCutSettingToAll
+          label="color grading"
+          settings={[
+            {
+              type: "attribute",
+              name: "data-color-grading",
+              value: serializeHfColorGrading(grading),
+            },
+          ]}
+        />
+      )}
+      {onApplyScope && !cutScope && (
         <div className="mt-4 grid min-w-0 grid-cols-[minmax(0,1fr)_auto] gap-2">
           <select
             value={applyScope}

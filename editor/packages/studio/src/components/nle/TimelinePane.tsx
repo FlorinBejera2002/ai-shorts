@@ -256,8 +256,8 @@ export function TimelinePane({
       {/* Timeline section — inner padding (not margin) keeps the divider's
           height math exact while giving the panel a gap from the shell edges. */}
       <div
-        className="relative flex flex-col flex-shrink-0 px-px pb-px"
-        style={{ height: timelineH }}
+        className="relative flex h-[min(var(--timeline-height),26dvh)] flex-col flex-shrink-0 px-px pb-px sm:h-[var(--timeline-height)]"
+        style={{ "--timeline-height": `${timelineH}px` } as React.CSSProperties}
         aria-disabled={timelineDisabled || undefined}
       >
         <div

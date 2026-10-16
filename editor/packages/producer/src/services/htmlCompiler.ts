@@ -33,6 +33,7 @@ import {
   type UnresolvedElement,
 } from "@hyperframes/core";
 import { MAX_AUDIO_GAIN } from "@hyperframes/core/audio-gain";
+import { lowerVisualTransitions } from "@hyperframes/core/visual-transitions";
 import {
   assignBundledRuntimeCompositionIds,
   assignMediaRenderIds,
@@ -1100,6 +1101,7 @@ function inlineSubCompositions(
   // internally consistent, the union of them is not. Hand every media element a
   // document-unique key here, while the merged document is in hand and before
   // anything downstream keys media on an id. See core's mediaRenderIds.ts.
+  lowerVisualTransitions(document as unknown as Document);
   assignMediaRenderIds(document as unknown as Document);
 
   return document.toString();

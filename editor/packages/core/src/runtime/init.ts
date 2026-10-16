@@ -35,7 +35,11 @@ import { createRuntimePlayer, type RuntimePlayerTransport } from "./player";
 import { createRuntimeState } from "./state";
 import { collectRuntimeTimelinePayload } from "./timeline";
 import { createRuntimeStartTimeResolver } from "./startResolver";
-import { projectSourceCompositionWindows } from "./sourceCompositionWindow";
+import {
+  projectSourceCompositionWindows,
+  sourceCompositionAnimationTime,
+} from "./sourceCompositionWindow";
+import { lowerVisualTransitions, syncVisualTransitions } from "../visualTransitions";
 import { createClipTree } from "./clipTree";
 import { loadExternalCompositions, loadInlineTemplateCompositions } from "./compositionLoader";
 import { applyCaptionOverrides } from "./captionOverrides";
@@ -1015,6 +1019,7 @@ export function initSandboxRuntimeModular(): void {
     "data-playback-rate",
     "data-playback-start",
     "data-media-start",
+    "data-transition-in",
     // `data-start` may be an expression referencing another element by id, and
     // a media element's `duration` follows its source.
     "id",
@@ -1041,6 +1046,7 @@ export function initSandboxRuntimeModular(): void {
   let wakeTransport: () => void = () => {};
 
   const invalidateCompositionTimingCaches = () => {
+    lowerVisualTransitions(document);
     projectSourceCompositionWindows(document);
     compositionTimingRevision += 1;
     // The same records that stale the duration caches are what a parked
@@ -1619,6 +1625,7 @@ export function initSandboxRuntimeModular(): void {
     // no-op with no retry — so re-assert here, at the render site. Idempotent.
     ensureStudioCustomEase();
     if (!externalCompositionsReady) return false;
+    lowerVisualTransitions(document);
     projectSourceCompositionWindows(document);
     const currentTimeline = state.capturedTimeline;
     const currentDuration = getTimelineDurationSeconds(currentTimeline);
@@ -2379,6 +2386,7 @@ export function initSandboxRuntimeModular(): void {
     }
     hiddenAudioDirty = false;
     syncAudioGroupMute();
+    syncVisualTransitions(document, currentTime);
   };
 
   // Scope 2 of 3 (see `withTimingResolver`). One resolver for the whole
@@ -3225,9 +3233,7 @@ export function initSandboxRuntimeModular(): void {
       const start = resolveStartForElement(node, 0);
       if (!Number.isFinite(start)) continue;
       const timelineDuration = getTimelineDurationSeconds(timeline);
-      const sourceTime =
-        readElementPlaybackStart(node) +
-        Math.max(0, timeSeconds - start) * readElementPlaybackRate(node);
+      const sourceTime = sourceCompositionAnimationTime(node, timeSeconds - start);
       const localTime = Math.max(
         0,
         timelineDuration != null && timelineDuration > 0

@@ -3,11 +3,6 @@ export function storyProblem(
   message: string,
   text: (en: string, ro: string) => string
 ) {
-  if (/200 clips|clip count|too many (?:files|clips)/i.test(message))
-    return text(
-      'A project can contain up to 200 clips. Remove some selected files or start another project.',
-      'Un proiect poate conține până la 200 de filmări. Elimină unele fișiere selectate sau începe alt proiect.'
-    )
   if (/caption choice conflicts/i.test(message))
     return text(
       'Your caption choice conflicts with the description. Update the description or choose matching captions.',

@@ -255,6 +255,14 @@ function AdvancedTextControls({
             onCommit("letter-spacing", normalizeTextMetricValue("letter-spacing", n))
           }
         />
+        <MetricField
+          label="Word spacing"
+          value={getTextStyleValue(field, inheritedStyles, "word-spacing", "0px")}
+          disabled={disabled}
+          onCommit={(next) =>
+            onCommit("word-spacing", normalizeTextMetricValue("word-spacing", next))
+          }
+        />
       </div>
       <div className={RESPONSIVE_GRID}>
         <SelectField

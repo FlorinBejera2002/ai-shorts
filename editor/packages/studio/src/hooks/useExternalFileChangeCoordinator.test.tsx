@@ -130,6 +130,71 @@ describe("external file change coordinator", () => {
     expect(reloadSdkSession).not.toHaveBeenCalled();
   });
 
+  it("recognizes production SSE write receipts without hiding the next external edit", async () => {
+    const { options } = await mountCoordinator();
+    markStudioWriteToken("studio-sse-write");
+    const own = new MessageEvent("file-change", {
+      data: JSON.stringify({
+        path: "index.html",
+        version: "studio-v2",
+        writeToken: "studio-sse-write",
+      }),
+    });
+    await act(async () => handler?.(own));
+    await act(async () => handler?.(own));
+    expect(options.onAcceptedPersistedFileChange).toHaveBeenCalledOnce();
+    expect(options.drainPendingChanges).not.toHaveBeenCalled();
+    expect(options.reloadPreview).not.toHaveBeenCalled();
+    expect(options.reloadSdkSession).not.toHaveBeenCalled();
+
+    await act(async () =>
+      handler?.(
+        new MessageEvent("file-change", {
+          data: JSON.stringify({ path: "index.html", version: "external-v3" }),
+        }),
+      ),
+    );
+    expect(options.drainPendingChanges).toHaveBeenCalledOnce();
+    expect(options.reloadPreview).toHaveBeenCalledOnce();
+    expect(options.reloadSdkSession).toHaveBeenCalledOnce();
+  });
+
+  it("decodes SSE content echoes and retains the next external bytes in failure recovery", async () => {
+    const failure = new Error("save failed");
+    const persistFailureSnapshot = vi.fn(async () => undefined);
+    const { options } = await mountCoordinator({
+      drainPendingChanges: vi.fn(async () => ({ status: "failed" as const, error: failure })),
+      getPendingCandidate: () => ({ path: "index.html", content: "pending local" }),
+      persistFailureSnapshot,
+    });
+    markSelfWrite("index.html", "studio content");
+    await act(async () =>
+      handler?.(
+        new MessageEvent("file-change", {
+          data: JSON.stringify({ path: "index.html", content: "studio content", version: "v2" }),
+        }),
+      ),
+    );
+    expect(options.drainPendingChanges).not.toHaveBeenCalled();
+    expect(options.reloadPreview).not.toHaveBeenCalled();
+    await act(async () =>
+      handler?.(
+        new MessageEvent("file-change", {
+          data: JSON.stringify({ path: "index.html", content: "external content", version: "v3" }),
+        }),
+      ),
+    );
+    expect(persistFailureSnapshot).toHaveBeenCalledWith(
+      "project-a",
+      "index.html",
+      "pending local",
+      "v3",
+      "external content",
+      failure,
+    );
+    expect(options.reloadPreview).not.toHaveBeenCalled();
+  });
+
   it("does not suppress a racing external write by path alone", async () => {
     const pendingTimelineEditPathRef = { current: new Set(["index.html"]) };
     const drainPendingChanges = vi.fn(async () => ({ status: "clean" as const }));
@@ -162,7 +227,13 @@ describe("external file change coordinator", () => {
       persistConflictSnapshot,
       onAcceptedPersistedFileChange,
     });
-    await act(async () => handler?.({ path: "index.html", content: "external", version: "v2" }));
+    await act(async () =>
+      handler?.(
+        new MessageEvent("file-change", {
+          data: JSON.stringify({ path: "index.html", content: "external", version: "v2" }),
+        }),
+      ),
+    );
     expect(persistConflictSnapshot).toHaveBeenCalledWith("project-a", conflict);
     expect(captured.handle?.blocked).toMatchObject({ status: "conflict", error: conflict });
     expect(options.reloadPreview).not.toHaveBeenCalled();

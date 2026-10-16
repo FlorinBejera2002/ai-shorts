@@ -35,6 +35,7 @@ import { isInstantHold, selectorFromSelection, writeTargetSelector } from "./gsa
 import { roundTo3 } from "../utils/rounding";
 import { resolveGroupTween } from "./gsapRuntimeBridge";
 import { logResize } from "../utils/resizeDebug";
+import { tryTextResizeIntercept } from "./gsapTextResizeIntercept";
 import {
   animationWritesAnyProperty,
   directEditOutcomeForProperties,
@@ -104,6 +105,13 @@ export async function tryGsapResizeIntercept(
 ): Promise<GsapEditOutcome> {
   const fetchedAnimations = fetchFallbackAnimations ? await fetchFallbackAnimations() : [];
   const allKnownAnimations = [...animations, ...fetchedAnimations];
+  const textOutcome = await tryTextResizeIntercept(
+    selection,
+    size,
+    allKnownAnimations,
+    commitMutation,
+  );
+  if (textOutcome) return textOutcome;
   // If the element already has a scale-group tween, resize should modify scale
   // (the user is resizing something whose visual size is driven by scale).
   // Otherwise, use the size group (width/height).

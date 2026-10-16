@@ -2,9 +2,30 @@ import type { ReactNode } from "react";
 import type { RecordEditInput } from "../../utils/studioFileHistory";
 import { ClipAdjustments } from "./ClipAdjustments";
 import { CutSoundEffect } from "./CutSoundEffect";
+import { SourceCutCaptions } from "./SourceCutCaptions";
+import { SourceCutMediaSettings } from "./SourceCutMediaSettings";
+import { CutSettingsScopeProvider } from "./CutSettingsScope";
 import type { DomEditSelection } from "./domEditingTypes";
 
 export function SourceCutInspector({
+  selection,
+  recordEdit,
+  children,
+}: {
+  selection: DomEditSelection | null;
+  recordEdit: (entry: RecordEditInput) => Promise<void>;
+  children: ReactNode;
+}) {
+  return (
+    <CutSettingsScopeProvider selection={selection} recordEdit={recordEdit}>
+      <SourceCutInspectorContent selection={selection} recordEdit={recordEdit}>
+        {children}
+      </SourceCutInspectorContent>
+    </CutSettingsScopeProvider>
+  );
+}
+
+function SourceCutInspectorContent({
   selection,
   recordEdit,
   children,
@@ -23,6 +44,16 @@ export function SourceCutInspector({
       />
       <CutSoundEffect
         key={`sound:${selection.sourceFile}:${selection.id}`}
+        selection={selection}
+        recordEdit={recordEdit}
+      />
+      <SourceCutCaptions
+        key={`captions:${selection.sourceFile}:${selection.id}`}
+        selection={selection}
+        recordEdit={recordEdit}
+      />
+      <SourceCutMediaSettings
+        key={`media:${selection.sourceFile}:${selection.id}`}
         selection={selection}
         recordEdit={recordEdit}
       />

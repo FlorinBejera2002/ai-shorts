@@ -10,6 +10,7 @@ import type { EditHistoryKind } from "../utils/editHistory";
 import { formatTimelineAttributeNumber } from "../player/components/timelineEditing";
 import { findElementForSelection } from "../components/editor/domEditingElement";
 import { readFileContent } from "./timelineEditingHelpers";
+import { authoredElementHtml } from "../utils/authoredElementHtml";
 
 interface RecordEditInput {
   label: string;
@@ -45,7 +46,7 @@ function getElementOuterHtml(
   }
   if (!doc) return null;
 
-  return findElementForSelection(doc, selection, activeCompositionPath)?.outerHTML ?? null;
+  return authoredElementHtml(findElementForSelection(doc, selection, activeCompositionPath));
 }
 
 export function useClipboard({
@@ -81,7 +82,7 @@ export function useClipboard({
       try {
         const doc = previewIframeRef.current?.contentDocument;
         if (doc) {
-          html =
+          html = authoredElementHtml(
             findElementForSelection(
               doc,
               {
@@ -92,7 +93,8 @@ export function useClipboard({
                 sourceFile: targetPath,
               },
               activeCompPath,
-            )?.outerHTML ?? null;
+            ),
+          );
         }
       } catch {
         // cross-origin frame

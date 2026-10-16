@@ -70,6 +70,16 @@ function buildMockIframe(overrides: Record<string, unknown> = {}) {
 }
 
 describe("applySoftReload", () => {
+  it("rebuilds a deferred group member without seeking until the final member", () => {
+    const { iframe, contentWindow, mockTimeline } = buildMockIframe();
+    expect(applySoftReload(iframe, SCRIPT_TEXT, { deferFinalization: true })).toBe("applied");
+    expect(mockTimeline.kill).toHaveBeenCalledOnce();
+    expect(contentWindow.__player.seek).not.toHaveBeenCalled();
+    expect(contentWindow.__hfForceTimelineRebind).not.toHaveBeenCalled();
+    expect(applySoftReloadFinalization(iframe, 2)).toBe(true);
+    expect(contentWindow.__player.seek).toHaveBeenCalledWith(2);
+  });
+
   it('returns "cannot-soft-reload" when iframe is null', () => {
     expect(applySoftReload(null, SCRIPT_TEXT)).toBe("cannot-soft-reload");
   });

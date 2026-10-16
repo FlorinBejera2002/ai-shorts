@@ -36,6 +36,7 @@ import { roundRotationAngle } from "./manualEditsParsing";
 import { applyStudioMotionFromDom } from "./studioMotion";
 import { gsapAnimatesProperty } from "./gsapAnimatesProperty";
 import { splitTopLevelWhitespace } from "./manualEditsStyleHelpers";
+import { applyTextResize, readPreciseLayoutWidth } from "./manualTextResize";
 
 /* ── Gesture tracking ─────────────────────────────────────────────── */
 let studioManualEditGestureId = 0;
@@ -369,7 +370,7 @@ function writeStudioBoxSizeVars(
   // Offset sizes are layout values, so a running scale animation does not
   // distort them.
   if (!element.hasAttribute(STUDIO_ORIGINAL_BOX_WIDTH_ATTR)) {
-    element.setAttribute(STUDIO_ORIGINAL_BOX_WIDTH_ATTR, String(element.offsetWidth));
+    element.setAttribute(STUDIO_ORIGINAL_BOX_WIDTH_ATTR, String(readPreciseLayoutWidth(element)));
   }
   if (!element.hasAttribute(STUDIO_ORIGINAL_BOX_HEIGHT_ATTR)) {
     element.setAttribute(STUDIO_ORIGINAL_BOX_HEIGHT_ATTR, String(element.offsetHeight));
@@ -453,20 +454,20 @@ function applyStudioBoxSizeDimensions(
 export function applyStudioBoxSize(
   element: HTMLElement,
   size: { width: number; height: number },
+  options: { resizeText?: boolean } = {},
 ): void {
   promoteInlineForTransform(element);
   applyStudioBoxSizeDimensions(element, size);
+  if (options.resizeText !== false) applyTextResize(element, Math.round(Math.max(1, size.width)));
 }
 
 export function applyStudioBoxSizeDraft(
   element: HTMLElement,
   size: { width: number; height: number },
 ): void {
-  promoteInlineForTransform(element);
-  applyStudioBoxSizeDimensions(element, size);
+  applyStudioBoxSize(element, size);
 }
 
-/* ── Rotation apply ───────────────────────────────────────────────── */
 function isSimpleRotateAngle(value: string): boolean {
   return /^-?(?:\d+(?:\.\d+)?|\.\d+)(?:deg|rad|turn|grad)$/.test(value.trim());
 }
@@ -578,7 +579,7 @@ function reapplyBoxSizes(doc: Document): void {
     const w = Number.parseFloat(el.style.getPropertyValue(STUDIO_WIDTH_PROP));
     const h = Number.parseFloat(el.style.getPropertyValue(STUDIO_HEIGHT_PROP));
     if (Number.isFinite(w) && Number.isFinite(h) && w > 0 && h > 0) {
-      applyStudioBoxSize(el, { width: w, height: h });
+      applyStudioBoxSize(el, { width: w, height: h }, { resizeText: false });
     }
   }
 }

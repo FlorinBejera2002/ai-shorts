@@ -22,9 +22,9 @@ const RESIZE_HANDLE_DEFS: Array<{
   { handle: "se", cursor: "nwse-resize", x: "right", y: "bottom" },
 ];
 
-// Visible dot is 9px; the pointer target is a 16px invisible square centered
+// Visible dot is 9px; the pointer target is a 28px invisible square centered
 // on the corner so click targets don't shrink with the smaller dot.
-const RESIZE_HANDLE_HIT_PX = 16;
+const RESIZE_HANDLE_HIT_PX = 28;
 
 type CropInset = { top: number; right: number; bottom: number; left: number };
 const NO_CROP_INSET: CropInset = { top: 0, right: 0, bottom: 0, left: 0 };
@@ -195,6 +195,7 @@ export function DomEditSelectionChrome({
             width: overlayRect.width,
             height: overlayRect.height,
             clipPath: boxClipPath,
+            touchAction: "none",
             cursor:
               allowCanvasMovement && selection.capabilities.canApplyManualOffset
                 ? "move"
@@ -206,7 +207,7 @@ export function DomEditSelectionChrome({
             // default on the first press, which suppresses the compatibility
             // mousedown the canvas would otherwise see, and the pointer capture
             // it takes stops the browser pairing the presses into a dblclick.
-            if (inlineText?.startFromPress(e)) {
+            if (e.pointerType !== "touch" && inlineText?.startFromPress(e)) {
               e.preventDefault();
               e.stopPropagation();
               return;
@@ -252,7 +253,7 @@ export function DomEditSelectionChrome({
             def.handle !== "se" && !selection.capabilities.canApplyManualOffset ? null : (
               <div
                 key={def.handle}
-                className="pointer-events-auto absolute flex h-4 w-4 items-center justify-center"
+                className="pointer-events-auto absolute flex h-7 w-7 items-center justify-center"
                 style={{
                   ...resizeHandleStyle(def, overlayRect, cropOutlineInsetPx ?? undefined),
                   // Cursor rotates with the object: bucket the corner's base

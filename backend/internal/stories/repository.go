@@ -293,9 +293,6 @@ func (r *Repository) AddOrReplaceAsset(ctx context.Context, user, id string, a s
 	if duplicate != nil {
 		return *duplicate, tx.Commit()
 	}
-	if a.Kind != "narration" && videoCount >= r.limits.MaxFiles {
-		return a, fmt.Errorf("%w: a project supports up to %d clips; remove a clip or start another project", ErrInvalid, r.limits.MaxFiles)
-	}
 	if a.Order < 0 {
 		a.Order = videoCount
 	}

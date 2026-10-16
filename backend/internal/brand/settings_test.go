@@ -21,3 +21,28 @@ func TestSettingsNormalizeAndRejectUneditableFields(t *testing.T) {
 		}
 	}
 }
+
+func TestWatermarkCenterValidation(t *testing.T) {
+	for _, fields := range []map[string]any{
+		{"watermarkX": 0.0, "watermarkY": 1.0},
+		{"watermarkX": .25, "watermarkY": .65},
+		{"watermarkX": nil, "watermarkY": nil},
+	} {
+		if _, err := Validate(fields); err != nil {
+			t.Fatalf("valid logo center rejected: %v", err)
+		}
+	}
+	for _, fields := range []map[string]any{
+		{"watermarkX": .5}, {"watermarkY": .5},
+		{"watermarkX": nil, "watermarkY": .5},
+		{"watermarkX": -.1, "watermarkY": .5},
+		{"watermarkX": .5, "watermarkY": 1.01},
+		{"watermarkX": math.NaN(), "watermarkY": .5},
+		{"watermarkX": .5, "watermarkY": math.Inf(1)},
+		{"watermarkX": "0.5", "watermarkY": .5},
+	} {
+		if _, err := Validate(fields); err == nil {
+			t.Fatalf("invalid logo center accepted: %#v", fields)
+		}
+	}
+}

@@ -47,6 +47,7 @@ import {
   normalizePlaybackRate,
   parseStrictFiniteTimingNumber,
   readMediaStart,
+  readVideoFreezeTime,
 } from "@hyperframes/core";
 import { HF_AUDIO_GROUP_ATTR, resolveAudioGroups } from "@hyperframes/core/audio-groups";
 import { AUDIO_GROUP_RENDER_ID_ATTR } from "@hyperframes/core";
@@ -573,6 +574,7 @@ export function parseAudioElements(html: string): AudioElement[] {
   }
 
   for (const el of document.querySelectorAll('video[id][data-has-audio="true"]')) {
+    if (readVideoFreezeTime(el) != null) continue;
     const id = trackId(el);
     const src = resolveMediaElementSrc(el);
     if (!id || !src || isHidden(el)) continue;

@@ -6,6 +6,7 @@ import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
 import {
   CAPTION_PRESETS,
+  captionEffects,
   type CaptionFont,
   type CaptionStyle
 } from './caption-style'
@@ -43,6 +44,7 @@ export function CaptionStyleEditor({
     }
   }, [t])
   const selected = fonts.find((f) => f.id === value.font_id)
+  const effects = captionEffects(value, 720, value.size * 720)
   const update = <K extends keyof CaptionStyle>(key: K, v: CaptionStyle[K]) =>
     onChange({ ...value, [key]: v })
   async function upload(file?: File) {
@@ -54,7 +56,10 @@ export function CaptionStyleEditor({
       form.append('file', file)
       const r = await apiFetch(
         `/api/user/brand/fonts?license_confirmed=${confirmed}`,
-        { method: 'POST', body: form }
+        {
+          method: 'POST',
+          body: form
+        }
       )
       const data = await r.json()
       if (!r.ok) throw Error(data.error || t('fontUploadError'))
@@ -184,13 +189,70 @@ export function CaptionStyleEditor({
           >
             {(selected?.weights ?? [value.weight]).map((w) => (
               <option key={w} value={w}>
-                {w % 100 === 0 ? t(`fontWeight_${w}`) : selected?.style || w} · {w}
+                {w % 100 === 0 ? t(`fontWeight_${w}`) : selected?.style || w} ·{' '}
+                {w}
               </option>
             ))}
           </select>
         </Label>
       </div>
       <CaptionSpacingControls value={value} onChange={onChange} />
+      <div className="grid gap-3 rounded-md border p-3">
+        {(
+          [
+            ['outline_enabled', 'captionOutline', effects.outline > 0],
+            ['background_enabled', 'background', effects.backgroundOpacity > 0],
+            ['active_word_enabled', 'highlightColor', effects.activeWord]
+          ] as const
+        ).map(([key, label, enabled]) => (
+          <label
+            key={key}
+            className="flex min-h-10 items-center justify-between gap-3 text-sm"
+          >
+            {t(label)}
+            <span className="flex items-center gap-2 text-xs text-muted-foreground">
+              {t(enabled ? 'effectOn' : 'effectOff')}
+              <Switch
+                checked={enabled}
+                aria-label={t(label)}
+                onCheckedChange={(checked) => update(key, checked)}
+              />
+            </span>
+          </label>
+        ))}
+        <label className="grid gap-1 text-sm">
+          {t('captionAnimation')}
+          <select
+            className="min-h-10 rounded-md border bg-background p-2"
+            value={effects.animation}
+            onChange={(event) => {
+              const choice = event.target.value
+              if (
+                choice === 'none' ||
+                choice === 'phrase-pop' ||
+                choice === 'subtle-fade' ||
+                choice === 'word-pop' ||
+                choice === 'word-fade'
+              )
+                update('animation', choice)
+            }}
+          >
+            {(
+              [
+                'none',
+                'phrase-pop',
+                'subtle-fade',
+                'word-pop',
+                'word-fade'
+              ] as const
+            ).map((choice) => (
+              <option key={choice} value={choice}>
+                {t(`animation_${choice}`)}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
       <details className="rounded-md border p-3">
         <summary className="cursor-pointer text-sm font-medium">
           {t('customFont')}

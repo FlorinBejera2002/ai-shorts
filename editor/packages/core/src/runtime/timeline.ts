@@ -344,6 +344,7 @@ export function collectRuntimeTimelinePayload(params: {
   let maxEnd = 0;
   for (const [i, node] of nodes.entries()) {
     if (node === root) continue;
+    if (node.closest("[data-hf-visual-transition]")) continue;
     if (["SCRIPT", "STYLE", "LINK", "META", "TEMPLATE", "NOSCRIPT"].includes(node.tagName))
       continue;
     const compositionContext = resolveNearestCompositionContext(node, root);

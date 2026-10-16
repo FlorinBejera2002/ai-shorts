@@ -59,6 +59,8 @@ import { logResize, logResizeMove, logResizeSettle } from "../../utils/resizeDeb
 import { logDrag, logDragSettle, readDragPositions } from "../../utils/dragDebug";
 import { createGroupDragMover } from "./groupDragMove";
 import { DomEditSaveQueueOpenError } from "../../utils/domEditSaveQueue";
+import { addPinchPointer, resolvePinchDraft } from "./domEditPinch";
+import { rebaseTextResize } from "./manualTextResize";
 
 function logGestureCommitFailure(message: string, error: unknown): void {
   if (error instanceof DomEditSaveQueueOpenError) return;
@@ -101,7 +103,20 @@ export function createDomEditOverlayGestureHandlers(opts: UseDomEditOverlayGestu
       rect?: OverlayRect | null;
       resizeHandle?: ResizeHandle;
     },
-  ) => _startGesture(kind, e, opts, options);
+  ) => {
+    if (addPinchPointer(e, opts)) return true;
+    const started = _startGesture(kind, e, opts, options);
+    if (started && kind === "resize" && opts.gestureRef.current) {
+      const gesture = opts.gestureRef.current;
+      rebaseTextResize(gesture.selection.element, gesture.actualWidth);
+    }
+    if (started && e.pointerType === "touch" && opts.gestureRef.current) {
+      opts.gestureRef.current.touchPoints = new Map([
+        [e.pointerId, { x: e.clientX, y: e.clientY }],
+      ]);
+    }
+    return started;
+  };
 
   const moveGroupDrag = createGroupDragMover(opts, setDraftGroupOverlayItems);
 
@@ -133,6 +148,10 @@ export function createDomEditOverlayGestureHandlers(opts: UseDomEditOverlayGestu
     }
 
     if (!g || !sel) return;
+    if (g.touchPoints) {
+      if (!g.touchPoints.has(e.pointerId)) return;
+      g.touchPoints.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    }
     let dx = e.clientX - g.startX;
     let dy = e.clientY - g.startY;
 
@@ -238,13 +257,15 @@ export function createDomEditOverlayGestureHandlers(opts: UseDomEditOverlayGestu
       // free-form stretch gesture. Edge-snapping is intentionally NOT applied:
       // with center anchoring both edges move symmetrically, so the corner-anchored
       // snap math no longer holds — CapCut does not edge-snap during scale either.
-      const nextSize = resolveCenterResizeSize({
-        baseWidth: g.actualWidth,
-        baseHeight: g.actualHeight,
-        pointer: { x: e.clientX, y: e.clientY },
-        pointerStart: { x: g.startX, y: g.startY },
-        centerStart: { x: g.centerX, y: g.centerY },
-      });
+      const nextSize =
+        resolvePinchDraft(g) ??
+        resolveCenterResizeSize({
+          baseWidth: g.actualWidth,
+          baseHeight: g.actualHeight,
+          pointer: { x: e.clientX, y: e.clientY },
+          pointerStart: { x: g.startX, y: g.startY },
+          centerStart: { x: g.centerX, y: g.centerY },
+        });
       applyStudioBoxSizeDraft(sel.element, nextSize);
 
       const overlayEl = opts.overlayRef.current;
@@ -276,6 +297,8 @@ export function createDomEditOverlayGestureHandlers(opts: UseDomEditOverlayGestu
 
   // fallow-ignore-next-line complexity
   const onPointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    const touchPoints = opts.gestureRef.current?.touchPoints;
+    if (touchPoints && !touchPoints.has(e.pointerId)) return;
     opts.snapGuidesRef.current = null;
     const g = opts.gestureRef.current;
     const groupG = opts.groupGestureRef.current;
@@ -350,7 +373,11 @@ export function createDomEditOverlayGestureHandlers(opts: UseDomEditOverlayGestu
     }
     opts.gestureRef.current = null;
     opts.rafPausedRef.current = false;
-    const movedDistance = Math.hypot(e.clientX - g.startX, e.clientY - g.startY);
+    const movedDistance = g.pinch
+      ? g.pinch.changed
+        ? BLOCKED_MOVE_THRESHOLD_PX
+        : 0
+      : Math.hypot(e.clientX - g.startX, e.clientY - g.startY);
 
     if (g.kind === "drag" && movedDistance < BLOCKED_MOVE_THRESHOLD_PX) {
       restoreStudioPathOffset(sel.element, g.initialPathOffset);
@@ -541,5 +568,12 @@ export function createDomEditOverlayGestureHandlers(opts: UseDomEditOverlayGestu
     opts.rafPausedRef.current = false;
   };
 
-  return { startGesture, startGroupDrag, onPointerMove, onPointerUp, clearPointerState };
+  return {
+    startGesture,
+    startGroupDrag,
+    onPointerMove,
+    onPointerUp,
+    clearPointerState,
+    addTouchPointer: (event: React.PointerEvent<HTMLElement>) => addPinchPointer(event, opts),
+  };
 }

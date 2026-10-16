@@ -169,6 +169,11 @@ function expectedFramesForVideo(
   const playbackRate = normalizePlaybackRate(video.playbackRate ?? 1);
   const slotSourceDuration = Math.max(0, video.end - video.start) * playbackRate;
   const slotFrames = expectedFramesForClip(0, slotSourceDuration, fps, rounding);
+  // A frozen picture deliberately delivers one decoded source frame for its
+  // whole slot. Missing that one frame must still fail the coverage gate.
+  if (video.freezeAt != null && Number.isFinite(video.freezeAt) && video.freezeAt >= 0) {
+    return video.end > video.start ? 1 : 0;
+  }
   if (!entry) return slotFrames;
 
   // A short source in a longer slot has a legitimate delivery ceiling of

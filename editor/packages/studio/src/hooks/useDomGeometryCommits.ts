@@ -24,6 +24,7 @@ import {
 } from "../components/editor/manualEditsDomPatches";
 import type { PatchOperation } from "../utils/sourcePatcher";
 import { isElementGsapTargeted } from "./gsapTargetCache";
+import { rootCaptionElement } from "../utils/rootCaptionEdit";
 
 const GSAP_CSS_FALLBACK_BLOCKED_MESSAGE =
   "This element is GSAP-animated — dragging via CSS would corrupt keyframes";
@@ -36,7 +37,7 @@ interface UseDomGeometryCommitsParams {
   commitPositionPatchToHtml: (
     selection: DomEditSelection,
     patches: PatchOperation[],
-    options: { label: string; coalesceKey: string; skipRefresh?: boolean },
+    options: { label: string; coalesceKey: string; coalesceMs?: number; skipRefresh?: boolean },
   ) => Promise<void>;
 }
 
@@ -46,13 +47,17 @@ export function useDomGeometryCommits({
   commitPositionPatchToHtml,
 }: UseDomGeometryCommitsParams) {
   const handleDomPathOffsetCommit = useCallback(
-    (selection: DomEditSelection, next: { x: number; y: number }) => {
+    (
+      selection: DomEditSelection,
+      next: { x: number; y: number },
+      history?: { coalesceKey: string; coalesceMs: number },
+    ) => {
       // ponytail: GSAP-targeted elements are blocked (no SDK position-in-script op); CSS-path
       // elements fall through to commitPositionPatchToHtml → persistDomEditOperations →
       // onTrySdkPersist and are already SDK-cut-over as setStyle/setAttribute (§3.3 done).
       // Upgrade path for GSAP: add a moveElementGsap SDK op in a separate SDK PR.
       const gsapTargeted = isElementGsapTargeted(previewIframeRef.current, selection.element);
-      if (gsapTargeted) {
+      if (gsapTargeted && !rootCaptionElement(selection)) {
         const error = new Error(GSAP_CSS_FALLBACK_BLOCKED_MESSAGE);
         showToast(error.message, "error");
         return Promise.reject(error);
@@ -62,6 +67,7 @@ export function useDomGeometryCommits({
       return commitPositionPatchToHtml(selection, buildPathOffsetPatches(selection.element), {
         label: "Move layer",
         coalesceKey: `path-offset:${getDomEditTargetKey(selection)}`,
+        ...history,
       }).catch((error) => {
         restoreStudioPathOffset(selection.element, before);
         throw error;
@@ -76,7 +82,10 @@ export function useDomGeometryCommits({
       next: { width: number; height: number },
       offset?: { x: number; y: number },
     ) => {
-      if (isElementGsapTargeted(previewIframeRef.current, selection.element)) {
+      if (
+        isElementGsapTargeted(previewIframeRef.current, selection.element) &&
+        !rootCaptionElement(selection)
+      ) {
         const error = new Error(GSAP_CSS_FALLBACK_BLOCKED_MESSAGE);
         showToast(error.message, "error");
         return Promise.reject(error);
@@ -109,7 +118,10 @@ export function useDomGeometryCommits({
 
   const handleDomRotationCommit = useCallback(
     (selection: DomEditSelection, next: { angle: number }) => {
-      if (isElementGsapTargeted(previewIframeRef.current, selection.element)) {
+      if (
+        isElementGsapTargeted(previewIframeRef.current, selection.element) &&
+        !rootCaptionElement(selection)
+      ) {
         const error = new Error(GSAP_CSS_FALLBACK_BLOCKED_MESSAGE);
         showToast(error.message, "error");
         return Promise.reject(error);

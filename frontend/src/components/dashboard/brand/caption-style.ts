@@ -7,10 +7,14 @@ export type CaptionStyle = {
   text_color: string
   outline_color: string
   outline: number
+  outline_enabled?: boolean
   shadow: number
   background_color: string
   background_opacity: number
+  background_enabled?: boolean
   highlight_color: string
+  active_word_enabled?: boolean
+  animation?: 'none' | 'phrase-pop' | 'subtle-fade' | 'word-pop' | 'word-fade'
   align: 'left' | 'center' | 'right'
   max_width: number
   max_lines: number
@@ -18,6 +22,45 @@ export type CaptionStyle = {
   letter_spacing?: number
   word_spacing?: number
   position: { x: number; y: number; anchor: 'center' }
+}
+/** Missing switches preserve the appearance of previously saved presets. */
+export function captionEffects(
+  style: CaptionStyle,
+  shortEdge: number,
+  fontSize: number
+) {
+  return {
+    outline:
+      style.outline_enabled === false ||
+      (style.preset === 'minimal' && style.outline_enabled !== true)
+        ? 0
+        : Math.max(
+            ((style.outline_enabled === true && style.outline === 0
+              ? 2
+              : style.outline) *
+              shortEdge) /
+              720,
+            style.preset === 'bold-outline' ? fontSize * 0.075 : 0
+          ),
+    backgroundOpacity:
+      style.background_enabled === false
+        ? 0
+        : Math.max(
+            style.background_opacity,
+            style.preset === 'contrast-box' ||
+              (style.background_enabled && !style.background_opacity)
+              ? 0.82
+              : 0
+          ),
+    activeWord:
+      style.active_word_enabled ??
+      ['active-color', 'active-background', 'karaoke'].includes(style.preset),
+    animation:
+      style.animation ??
+      (style.preset === 'phrase-pop' || style.preset === 'subtle-fade'
+        ? style.preset
+        : 'none')
+  }
 }
 export const CAPTION_PRESETS = [
   'classic',

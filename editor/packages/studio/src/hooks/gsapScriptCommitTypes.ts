@@ -12,6 +12,9 @@ export interface MutationResult {
   before?: string;
   after?: string;
   scriptText?: string;
+  /** Client-side cut isolation is recorded in the same undo entry as the mutation. */
+  isolatedSourceFile?: string;
+  isolatedHistoryFiles?: Record<string, { before: string; after: string }>;
 }
 
 export interface CommitMutationOptions {
@@ -111,7 +114,7 @@ export interface GsapScriptCommitsParams {
   sdkSession?: Composition | null;
   /** Publish a fully persisted candidate SDK session. */
   publishSdkSession?: PublishSdkSession;
-  writeProjectFile?: (path: string, content: string) => Promise<void>;
+  writeProjectFile?: (path: string, content: string, expectedContent?: string) => Promise<void>;
   /** Resync the in-memory SDK session after a server-authoritative write. */
   forceReloadSdkSession?: () => void;
 }

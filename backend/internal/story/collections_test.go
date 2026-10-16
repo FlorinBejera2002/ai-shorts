@@ -41,14 +41,14 @@ func TestLargeCollectionsRetainEveryAssetAndTimelineEntry(t *testing.T) {
 		})
 	}
 }
-func TestProductFileAdmissionLimitDoesNotChangeLegacyResourceBudgets(t *testing.T) {
+func TestObsoleteFileCountSettingDoesNotChangeResourceBudgets(t *testing.T) {
 	limits, err := LimitsFromEnv(func(key string) string {
 		if key == "STORY_MAX_FILES" {
 			return "20"
 		}
 		return ""
 	})
-	if err != nil || limits.MaxFiles != 200 || limits.MaxTotalBytes <= 0 || limits.MaxTotalSeconds <= 0 {
+	if err != nil || limits.MaxFiles != 0 || limits.MaxTotalBytes <= 0 || limits.MaxTotalSeconds <= 0 {
 		t.Fatal(limits, err)
 	}
 }

@@ -81,25 +81,33 @@ function testHotAdapter(): HotTestAdapter | null {
     : null;
 }
 
-function readFileChangeContent(payload: unknown): string | null {
+function readFileChangeField(payload: unknown, key: string, depth = 0): string | null {
+  if (depth > 8) return null;
+  // EventSource delivers JSON in MessageEvent.data; Vite delivers the object.
+  // Decode both transports before checking the write identity, not just its path.
+  if (typeof payload === "string") {
+    try {
+      return readFileChangeField(JSON.parse(payload), key, depth + 1);
+    } catch {
+      return null;
+    }
+  }
   if (!payload || typeof payload !== "object") return null;
   const record = payload as Record<string, unknown>;
-  if (typeof record.content === "string") return record.content;
-  return "data" in record ? readFileChangeContent(record.data) : null;
+  if (typeof record[key] === "string") return record[key];
+  return "data" in record ? readFileChangeField(record.data, key, depth + 1) : null;
+}
+
+function readFileChangeContent(payload: unknown): string | null {
+  return readFileChangeField(payload, "content");
 }
 
 function readFileChangeVersion(payload: unknown): string | null {
-  if (!payload || typeof payload !== "object") return null;
-  const record = payload as Record<string, unknown>;
-  if (typeof record.version === "string") return record.version;
-  return "data" in record ? readFileChangeVersion(record.data) : null;
+  return readFileChangeField(payload, "version");
 }
 
 function readFileChangeWriteToken(payload: unknown): string | null {
-  if (!payload || typeof payload !== "object") return null;
-  const record = payload as Record<string, unknown>;
-  if (typeof record.writeToken === "string") return record.writeToken;
-  return "data" in record ? readFileChangeWriteToken(record.data) : null;
+  return readFileChangeField(payload, "writeToken");
 }
 
 function eventIdentity(path: string, payload: unknown): string | null {

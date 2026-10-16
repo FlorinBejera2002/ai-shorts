@@ -26,7 +26,7 @@ func ReserveAICall(ctx context.Context) error {
 }
 
 type Limits struct {
-	MaxFiles         int           `json:"max_files"`
+	MaxFiles         int           `json:"max_files"` // Deprecated compatibility field; zero means resource budgets only.
 	MaxFileBytes     int64         `json:"max_file_bytes"`
 	MaxTotalBytes    int64         `json:"max_total_bytes"`
 	MaxSourceSeconds float64       `json:"max_source_seconds"`
@@ -38,7 +38,7 @@ type Limits struct {
 }
 
 func DefaultLimits() Limits {
-	return Limits{200, 2 << 30, 10 << 30, 900, 3600, 2, 2, 12, 2 * time.Hour}
+	return Limits{0, 2 << 30, 10 << 30, 900, 3600, 2, 2, 12, 2 * time.Hour}
 }
 
 type Options struct {
@@ -215,20 +215,21 @@ type Report struct {
 }
 
 type Output struct {
-	StudioManualEdits     bool         `json:"studio_manual_edits,omitempty"`
-	StudioTimeline        []Entry      `json:"studio_timeline,omitempty"`
-	StudioArtifactID      string       `json:"studio_artifact_id,omitempty"`
-	PreviewKey            string       `json:"preview_key,omitempty"`
-	Music                 *MusicCredit `json:"music,omitempty"`
-	CaptionMode           string       `json:"caption_mode,omitempty"`
-	CaptionWarnings       []string     `json:"caption_warnings,omitempty"`
-	CaptionedCandidateIDs []string     `json:"captioned_candidate_ids,omitempty"`
-	Key                   string       `json:"key"`
-	ThumbnailKey          string       `json:"thumbnail_key"`
-	Duration              float64      `json:"duration"`
-	Size                  int64        `json:"size"`
-	Resolution            string       `json:"resolution"`
-	Captions              bool         `json:"captions"`
+	NativeTransitionVersion int          `json:"native_transition_version,omitempty"`
+	StudioManualEdits       bool         `json:"studio_manual_edits,omitempty"`
+	StudioTimeline          []Entry      `json:"studio_timeline,omitempty"`
+	StudioArtifactID        string       `json:"studio_artifact_id,omitempty"`
+	PreviewKey              string       `json:"preview_key,omitempty"`
+	Music                   *MusicCredit `json:"music,omitempty"`
+	CaptionMode             string       `json:"caption_mode,omitempty"`
+	CaptionWarnings         []string     `json:"caption_warnings,omitempty"`
+	CaptionedCandidateIDs   []string     `json:"captioned_candidate_ids,omitempty"`
+	Key                     string       `json:"key"`
+	ThumbnailKey            string       `json:"thumbnail_key"`
+	Duration                float64      `json:"duration"`
+	Size                    int64        `json:"size"`
+	Resolution              string       `json:"resolution"`
+	Captions                bool         `json:"captions"`
 }
 
 type Version struct {

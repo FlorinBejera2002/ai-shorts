@@ -16,7 +16,6 @@ import type {
 import {
   buildElementLabel,
   buildStableSelector,
-  findClosestByAttribute,
   getCuratedComputedStyles,
   getDataAttributes,
   getInlineStyles,
@@ -33,6 +32,7 @@ import {
 import { isCompositionRootLayer } from "./domEditingRootLayer";
 import { withSelectorIndexPass } from "../../utils/sourceScopedSelectorIndex";
 import { type DomEditLayerWalkCache, readDomEditLayerWalkEntry } from "./domEditLayerWalkCache";
+import { isInsideAuthoredLockedComposition } from "../../utils/sourceCutLocks";
 
 export function isEditableTextLeaf(el: HTMLElement): boolean {
   return isTextBearingTag(el.tagName.toLowerCase()) && el.children.length === 0;
@@ -331,7 +331,7 @@ export async function resolveDomEditSelection(
       (current.hasAttribute("data-composition-id") && !compositionSrc) ||
       isCompositionRootLayer(current, doc, computedStyles);
     const textFields = collectDomEditTextFields(current);
-    const isInsideLocked = Boolean(findClosestByAttribute(current, ["data-timeline-locked"]));
+    const isInsideLocked = isInsideAuthoredLockedComposition(current);
     let existsInSource: boolean | undefined;
     if (!options.skipSourceProbe && options.projectId && (current.id || selector || hfId)) {
       const probeTarget: { id?: string; hfId?: string; selector?: string; selectorIndex?: number } =

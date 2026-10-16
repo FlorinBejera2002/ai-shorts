@@ -27,7 +27,7 @@ vi.mock("../utils/studioTelemetry", () => ({
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 import type { DomEditSelection } from "../components/editor/domEditingTypes";
-import type { MutationResult } from "./gsapScriptCommitTypes";
+import type { GsapScriptCommitsParams, MutationResult } from "./gsapScriptCommitTypes";
 import { persistSdkSerialize } from "../utils/sdkCutover";
 import { applyPreviewSync, useGsapScriptCommits } from "./useGsapScriptCommits";
 
@@ -362,14 +362,14 @@ let cleanup: (() => void) | null = null;
 
 function renderCommitHook(
   options: {
-    writeProjectFile?: (path: string, content: string) => Promise<void>;
+    writeProjectFile?: GsapScriptCommitsParams["writeProjectFile"];
   } = {},
 ) {
   const reloadPreview = vi.fn();
   const onCacheInvalidate = vi.fn();
   const onFileContentChanged = vi.fn();
   const forceReloadSdkSession = vi.fn();
-  const recordEdit = vi.fn(async () => {});
+  const recordEdit = vi.fn<GsapScriptCommitsParams["editHistory"]["recordEdit"]>(async () => {});
   const showToast = vi.fn();
 
   const captured: { api: HookApi | null } = { api: null };
@@ -689,5 +689,54 @@ describe("runCommit — instantPatch wiring", () => {
       "/api/projects/proj-1/gsap-mutations/index.html",
       expect.objectContaining({ method: "POST" }),
     );
+  });
+
+  it("isolates a GSAP gesture on a split source and records the fork in the same undo entry", async () => {
+    const parent = `<html><body><div id="main" data-composition-id="main"><div id="left" data-source-window data-start="0" data-duration="1" data-composition-src="source-scene-1.html"></div><div id="right" data-source-window data-start="1" data-duration="1" data-media-start="1" data-composition-src="source-scene-1.html"></div></div></body></html>`;
+    const original = `<html><body><video id="picture"></video><script>tl.set('#picture',{x:0});</script></body></html>`;
+    const storage: Record<string, string> = {
+      "index.html": parent,
+      "source-scene-1.html": original,
+    };
+    const doc = new DOMParser().parseFromString(parent, "text/html");
+    const element = doc.createElement("video");
+    element.id = "picture";
+    element.setAttribute("data-composition-file", "source-scene-1.html");
+    doc.getElementById("right")!.append(element);
+    const selected = { ...selection, element, id: "picture", sourceFile: "source-scene-1.html" };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: string) => {
+        const path = decodeURIComponent(input.split("/").at(-1)!);
+        if (input.includes("/files/"))
+          return Response.json({ content: storage[path] }, { status: path in storage ? 200 : 404 });
+        const before = storage[path];
+        storage[path] = before.replace("x:0", "x:45");
+        return Response.json({ ok: true, changed: true, before, after: storage[path] });
+      }),
+    );
+    const deps = renderCommitHook({
+      writeProjectFile: async (path, content, expected) => {
+        if (expected !== undefined) expect(storage[path]).toBe(expected);
+        else expect(storage[path]).toBeUndefined();
+        storage[path] = content;
+      },
+    });
+    await act(async () => {
+      await deps.api.commitMutation(
+        selected,
+        { type: "update-properties", properties: { x: 45 } },
+        { label: "Move cut", skipReload: true },
+      );
+    });
+    expect(storage["source-scene-1.html"]).toBe(original);
+    expect(storage["source-scene-2.html"]).toContain("x:45");
+    expect(selected.sourceFile).toBe("source-scene-2.html");
+    expect(doc.getElementById("right")?.firstElementChild).toBe(element);
+    expect(deps.recordEdit).toHaveBeenCalledTimes(1);
+    const entry = deps.recordEdit.mock.calls[0]![0];
+    expect(entry.files["index.html"].before).toBe(parent);
+    expect(entry.files["source-scene-2.html"].before).toBe(original);
+    expect(deps.reloadPreview).not.toHaveBeenCalled();
   });
 });

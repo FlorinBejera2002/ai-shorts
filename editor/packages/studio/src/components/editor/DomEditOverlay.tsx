@@ -472,8 +472,9 @@ export const DomEditOverlay = memo(function DomEditOverlay({
       tabIndex={-1}
       aria-label="Composition canvas"
       // Cursor follows marquee rect *state* (re-renders), not the mutable ref.
-      style={marquee.marqueeRect ? { cursor: "crosshair" } : undefined}
+      style={{ touchAction: "none", cursor: marquee.marqueeRect ? "crosshair" : undefined }}
       onPointerDownCapture={(event) => {
+        if (gestures.addTouchPointer(event)) return;
         // A pointer gesture supersedes a pending nudge burst — commit it first
         // so the gesture's member snapshot starts from the nudged position.
         flushNudge();

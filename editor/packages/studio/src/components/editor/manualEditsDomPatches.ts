@@ -1,4 +1,5 @@
 import type { PatchOperation } from "../../utils/sourcePatcher";
+import { captureTextResize, readTextResizeFont, textResizeAttributes } from "./manualTextResize";
 import {
   STUDIO_OFFSET_X_PROP,
   STUDIO_OFFSET_Y_PROP,
@@ -156,6 +157,10 @@ const BOX_SIZE_ORIG_ATTRS: ReadonlyArray<[string, string]> = [
 
 export function buildBoxSizePatches(element: HTMLElement): PatchOperation[] {
   const ops: PatchOperation[] = [];
+  if (readTextResizeFont(element) != null) {
+    collectInlineStyleOps(element, ["font-size"], ops);
+    collectAttributeOps(element, textResizeAttributes(), ops);
+  }
   collectInlineStyleOps(element, [STUDIO_WIDTH_PROP, STUDIO_HEIGHT_PROP], ops);
   collectInlineStyleOps(element, BOX_SIZE_STYLE_PROPS, ops);
   ops.push({ type: "attribute", property: STUDIO_BOX_SIZE_ATTR, value: "true" });
@@ -173,6 +178,15 @@ export function buildClearBoxSizePatches(element: HTMLElement): PatchOperation[]
     { type: "inline-style", property: STUDIO_HEIGHT_PROP, value: null },
     { type: "attribute", property: STUDIO_BOX_SIZE_ATTR, value: null },
   ];
+  if (readTextResizeFont(element) != null) {
+    ops.push({
+      type: "inline-style",
+      property: "font-size",
+      value: captureTextResize(element).inline || null,
+    });
+    for (const property of textResizeAttributes())
+      ops.push({ type: "attribute", property, value: null });
+  }
   for (const [attrName, styleProp] of BOX_SIZE_ORIG_ATTRS) {
     const origVal = element.getAttribute(attrName);
     if (origVal !== null && styleProp) {

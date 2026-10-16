@@ -4,6 +4,27 @@ The initial Go generation pipeline enables natural transitions for every selecte
 clip. Highlight-provider fade/dissolve suggestions no longer select a decorative
 effect for the entire clip. Explicit legacy render styles remain supported.
 
+## Shared Studio picture transitions
+
+Generated montages and Story scenes use a 300 ms smooth dissolve around eligible
+cuts in the main Studio. The blend is shortened for short shots and omitted for
+continuous source windows, explicit hard cuts, legacy fades, and boundaries with
+an approved interpolation bridge. Scene start times and the total duration do not
+move; speech and caption timing remain unchanged.
+
+The canonical plan stores `transition_in` on the incoming scene. Studio derives
+picture-only overlays from the current neighboring source windows, including
+manual trims and reordering. Before the cut it blends in the incoming first
+selected frame; after it, it blends out the outgoing last selected frame. It does
+not reveal excluded source frames or overlap spoken audio. The source hosts,
+captions and audio remain editable. Preview and export share this same lowering
+and easing, without a second montage backend.
+
+New Story outputs record their native transition policy. The improvement action
+does not report a change for an already-smoothed default transition; old natural
+cuts and explicit cut/fade scenes can still be upgraded to `crossfade`. Existing
+MP4 exports are not rewritten merely by opening the library.
+
 ## Decisions and rendering
 
 - Selected source windows are copied before modification. Cuts inside words can
@@ -21,10 +42,11 @@ effect for the entire clip. Explicit legacy render styles remain supported.
   approval. An approved candidate uses FFmpeg motion-compensated interpolation
   for a 200 ms visual bridge. This is AI-selected local interpolation, not a
   neural video-generation service. At most one bridge is used per clip. A
-  continuity/overshoot gate rejects unhelpful output, retaining the simpler cut.
+  continuity/overshoot gate rejects unhelpful output, retaining the normal Studio transition.
   Source audio and timeline duration are preserved by visual bridging.
 - Missing visual evidence, tracking models, model advice, or rejected bridges
-  retain the simpler edit. Cancellation is still propagated.
+  retain the normal source edit and native picture transition. Cancellation is
+  still propagated.
 
 The quality gate is conservative and heuristic. Representative footage review
 is still necessary for tracking accuracy and subjective edit quality; numerical
@@ -66,3 +88,10 @@ API and worker. It adds the private recipe and permits the transition edit kind.
   and mocks all API requests; Go tests cover automatic transition behavior.
 
 FFmpeg filter reference: <https://ffmpeg.org/ffmpeg-filters.html#minterpolate>.
+
+The focused native render fixture
+`editor/packages/sneepcut-server/verification/native-transitions.ts` compares
+Studio preview pixels with decoded MP4 frames, including interior source trims,
+caption visibility, blend brightness and unchanged frame count. The opt-in Go
+Story transition tests additionally compare decoded audio exactly. See the
+[shared pipeline guide](studio-composition-pipeline.md) for local render settings.

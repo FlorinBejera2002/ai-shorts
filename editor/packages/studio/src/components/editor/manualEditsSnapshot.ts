@@ -4,6 +4,7 @@ import {
   styleUsesStudioRotation,
   restoreInlineDisplay,
 } from "./manualEditsDom";
+import { captureTextResize, restoreTextResize, clearTextResize } from "./manualTextResize";
 import {
   STUDIO_OFFSET_X_PROP,
   STUDIO_OFFSET_Y_PROP,
@@ -44,6 +45,7 @@ import type {
 /* ── Capture ──────────────────────────────────────────────────────── */
 export function captureStudioBoxSize(element: HTMLElement): StudioBoxSizeSnapshot {
   return {
+    textResize: captureTextResize(element),
     width: element.style.getPropertyValue("width"),
     height: element.style.getPropertyValue("height"),
     minWidth: element.style.getPropertyValue("min-width"),
@@ -114,6 +116,7 @@ function restoreStyleProperty(element: HTMLElement, property: string, value: str
 }
 
 export function restoreStudioBoxSize(element: HTMLElement, previous: StudioBoxSizeSnapshot): void {
+  if (previous.textResize) restoreTextResize(element, previous.textResize);
   restoreStyleProperty(element, "width", previous.width);
   restoreStyleProperty(element, "height", previous.height);
   restoreStyleProperty(element, "min-width", previous.minWidth);
@@ -290,6 +293,7 @@ export function clearStudioRotation(element: HTMLElement): void {
 }
 
 export function clearStudioBoxSize(element: HTMLElement): void {
+  clearTextResize(element);
   if (
     element.hasAttribute(STUDIO_BOX_SIZE_ATTR) ||
     styleUsesStudioSize(element.style.getPropertyValue("width")) ||

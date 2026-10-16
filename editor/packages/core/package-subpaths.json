@@ -56,6 +56,24 @@
       "types": "./dist/mediaTiming.d.ts",
       "environments": ["browser", "bun", "node"]
     },
+    "./visual-transitions": {
+      "source": "./src/visualTransitions.ts",
+      "runtime": "./dist/visualTransitions.js",
+      "types": "./dist/visualTransitions.d.ts",
+      "environments": ["browser", "bun", "node"]
+    },
+    "./caption-animations": {
+      "source": "./src/captionAnimations.ts",
+      "runtime": "./dist/captionAnimations.js",
+      "types": "./dist/captionAnimations.d.ts",
+      "environments": ["browser", "bun", "node"]
+    },
+    "./compiler/composition-scoping": {
+      "source": "./src/compiler/compositionScoping.ts",
+      "runtime": "./dist/compiler/compositionScoping.js",
+      "types": "./dist/compiler/compositionScoping.d.ts",
+      "environments": ["browser", "bun", "node"]
+    },
     "./editing": {
       "source": "./src/editing/affordances.ts",
       "runtime": "./dist/editing/affordances.js",

@@ -318,6 +318,7 @@ export {
 // publishConfig entry points at a file the pack doesn't contain
 // (verify:packed-manifests catches exactly that).
 export { createRuntimeStartTimeResolver } from "./runtime/startResolver.js";
+export { readVideoFreezeTime } from "./runtime/frozenVideo.js";
 export {
   normalizePlaybackRate,
   parseStrictFiniteTimingNumber,

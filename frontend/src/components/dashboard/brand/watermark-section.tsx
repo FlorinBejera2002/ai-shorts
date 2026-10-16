@@ -58,7 +58,11 @@ export function WatermarkSection({
               min={key === 'watermarkSize' ? 1 : 0}
               max={key === 'watermarkSize' ? 50 : 20}
               value={Math.round(kit[key] * 100)}
-              onChange={(e) =>
+              onChange={(e) => {
+                if (key === 'watermarkMargin') {
+                  update('watermarkX', null)
+                  update('watermarkY', null)
+                }
                 update(
                   key,
                   Math.max(
@@ -69,7 +73,7 @@ export function WatermarkSection({
                     )
                   )
                 )
-              }
+              }}
               className="rounded-md border bg-background p-2"
             />
           </label>
@@ -89,8 +93,14 @@ export function WatermarkSection({
                 variant="ghost"
                 title={t(label)}
                 aria-label={t(label)}
-                onClick={() => update('watermarkPosition', value)}
+                onClick={() => {
+                  update('watermarkX', null)
+                  update('watermarkY', null)
+                  update('watermarkPosition', value)
+                }}
                 className={`h-8 rounded-sm px-1 hover:bg-muted ${
+                  kit.watermarkX == null &&
+                  kit.watermarkY == null &&
                   kit.watermarkPosition === value
                     ? 'bg-primary text-primary-foreground hover:bg-primary'
                     : 'text-muted-foreground'

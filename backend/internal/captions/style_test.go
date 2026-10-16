@@ -139,3 +139,48 @@ func TestLegacyKitRetainsExactAvailableFamilyAndWeight(t *testing.T) {
 		t.Fatal("unavailable legacy font silently substituted")
 	}
 }
+
+func TestIndependentCaptionSwitchesPreserveExplicitFalse(t *testing.T) {
+	s := Default()
+	off := false
+	s.OutlineEnabled, s.BackgroundEnabled, s.ActiveWordEnabled = &off, &off, &off
+	s.Animation = "word-pop"
+	raw, err := json.Marshal(s)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var restored Style
+	if err := json.Unmarshal(raw, &restored); err != nil {
+		t.Fatal(err)
+	}
+	if restored.OutlineEnabled == nil || *restored.OutlineEnabled || restored.BackgroundEnabled == nil || *restored.BackgroundEnabled || restored.ActiveWordEnabled == nil || *restored.ActiveWordEnabled || restored.Animation != "word-pop" || restored.Validate() != nil {
+		t.Fatal("explicit Off or animation lost", string(raw))
+	}
+	if restored.Outline != s.Outline || restored.HighlightColor != s.HighlightColor {
+		t.Fatal("Off erased saved appearance")
+	}
+	restored.Animation = "unsafe-animation"
+	if restored.Validate() == nil {
+		t.Fatal("unsupported animation accepted")
+	}
+}
+
+func TestDisabledPresetEffectsDoNotOverrideOff(t *testing.T) {
+	font, _ := FontBytes("builtin:inter", 700)
+	style := Default()
+	off := false
+	style.OutlineEnabled, style.BackgroundEnabled, style.ActiveWordEnabled = &off, &off, &off
+	for _, preset := range []string{"bold-outline", "contrast-box", "active-background", "karaoke"} {
+		style.Preset = preset
+		ass, err := ASS(style, font, [][]Word{{{Text: "hello", Start: 0, End: 1}}}, 720, 1280)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if strings.Contains(ass, "Dialogue: 0,") || strings.Contains(ass, "Dialogue: 2,") {
+			t.Fatalf("%s revived a disabled effect", preset)
+		}
+		if !strings.Contains(ass, ",1,0.00,0.00,5,") {
+			t.Fatal("outline Off ignored", ass)
+		}
+	}
+}

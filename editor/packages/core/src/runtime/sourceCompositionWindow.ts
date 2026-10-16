@@ -1,4 +1,9 @@
-import { projectSourceWindow, SOURCE_WINDOW_ATTR } from "../mediaTiming";
+import {
+  projectSourceWindow,
+  SOURCE_WINDOW_ATTR,
+  SOURCE_WINDOW_TIMING_UPDATE_ATTR,
+  SOURCE_WINDOW_TIMING_LOCK_ATTR,
+} from "../mediaTiming";
 import { readClipTiming } from "../compositionContract";
 import { resolveAuthoredTimingWindow } from "./authoredTiming";
 import { readElementPlaybackRate, readMediaStart } from "./playbackRate";
@@ -15,27 +20,67 @@ interface SourceTiming {
 }
 const authored = new WeakMap<Element, SourceTiming>();
 
+function consumeAuthoredTimingUpdate(child: Element, timing: SourceTiming): SourceTiming {
+  const update = child.getAttribute(SOURCE_WINDOW_TIMING_UPDATE_ATTR);
+  if (update == null) return timing;
+  child.removeAttribute(SOURCE_WINDOW_TIMING_UPDATE_ATTR);
+  try {
+    const next = JSON.parse(update) as SourceTiming;
+    if (
+      ![next.start, next.duration, next.mediaStart, next.playbackRate].every(Number.isFinite) ||
+      next.duration < 0 ||
+      next.playbackRate <= 0 ||
+      typeof next.hidden !== "boolean" ||
+      (next.automation !== null && typeof next.automation !== "string")
+    )
+      return timing;
+    authored.set(child, next);
+    return next;
+  } catch {
+    return timing;
+  }
+}
+
 function setAttribute(element: Element, name: string, value: string): void {
   if (element.getAttribute(name) !== value) element.setAttribute(name, value);
+}
+
+function sourceWindowDuration(host: Element): number | null | undefined {
+  const publicDuration = host.getAttribute("data-duration");
+  const publicEnd = host.getAttribute("data-end");
+  return resolveAuthoredTimingWindow({
+    start: readClipTiming(host).start ?? 0,
+    duration: publicDuration,
+    end: publicEnd,
+    // A live end-based edit replaces the previously preserved duration.
+    authoredDuration:
+      publicDuration == null && publicEnd != null
+        ? null
+        : host.getAttribute("data-hf-authored-duration"),
+    authoredEnd: host.getAttribute("data-hf-authored-end"),
+  })?.duration;
+}
+
+/** Hold crop/visual animation at selected boundaries just like a frozen picture.
+ * Legacy compositions without source windows retain their existing timeline clock.
+ */
+export function sourceCompositionAnimationTime(host: Element, elapsed: number): number {
+  const duration = host.hasAttribute(SOURCE_WINDOW_ATTR) ? sourceWindowDuration(host) : null;
+  const boundedElapsed = Math.max(0, duration == null ? elapsed : Math.min(duration, elapsed));
+  const sourceElapsed = boundedElapsed * readElementPlaybackRate(host);
+  // The selected end is exclusive: a step/crop keyframe exactly there belongs
+  // to excluded footage, just like the frame excluded by data-freeze-at.
+  return (
+    readMediaStart(host) +
+    Math.max(0, duration != null && elapsed >= duration ? sourceElapsed - 0.000001 : sourceElapsed)
+  );
 }
 
 /** Imported scenes retain full source contents. Project only their visible host window,
  * keeping picture, camera audio and timed captions on the same source clock. */
 export function projectSourceCompositionWindows(doc: Document): void {
   for (const host of doc.querySelectorAll(`[${SOURCE_WINDOW_ATTR}]`)) {
-    const publicDuration = host.getAttribute("data-duration");
-    const publicEnd = host.getAttribute("data-end");
-    const hostDuration = resolveAuthoredTimingWindow({
-      start: readClipTiming(host).start ?? 0,
-      duration: publicDuration,
-      end: publicEnd,
-      // A live end-based edit replaces the previously preserved duration.
-      authoredDuration:
-        publicDuration == null && publicEnd != null
-          ? null
-          : host.getAttribute("data-hf-authored-duration"),
-      authoredEnd: host.getAttribute("data-hf-authored-end"),
-    })?.duration;
+    const hostDuration = sourceWindowDuration(host);
     if (hostDuration == null || !Number.isFinite(hostDuration) || hostDuration <= 0) continue;
     const hostPlaybackStart = readMediaStart(host);
     const hostPlaybackRate = readElementPlaybackRate(host);
@@ -60,6 +105,7 @@ export function projectSourceCompositionWindows(doc: Document): void {
         if (!Number.isFinite(timing.start) || !Number.isFinite(timing.duration)) continue;
         authored.set(child, timing);
       }
+      timing = consumeAuthoredTimingUpdate(child, timing);
       const window = child.hasAttribute("data-cut-boundary")
         ? {
             start: 0,
@@ -89,7 +135,10 @@ export function projectSourceCompositionWindows(doc: Document): void {
         setAttribute(child, "data-end", String(window.start + window.duration));
       }
       setAttribute(child, "data-source-window-projected", "");
-      // Edit source contents in their own composition; the parent scene owns trim.
+      // The parent owns trim; canvas appearance remains editable. Preserve an
+      // explicit authored lock separately from this runtime-only timing lock.
+      if (!child.hasAttribute("data-timeline-locked"))
+        setAttribute(child, SOURCE_WINDOW_TIMING_LOCK_ATTR, "");
       setAttribute(child, "data-timeline-locked", "");
       if (["VIDEO", "AUDIO"].includes(child.tagName) || child.hasAttribute(SOURCE_WINDOW_ATTR)) {
         setAttribute(child, "data-media-start", String(window.mediaStart));
@@ -114,7 +163,7 @@ export function projectSourceCompositionWindows(doc: Document): void {
           } catch {
             // Invalid authored automation keeps the existing runtime fallback.
           }
-        }
+        } else if (child.hasAttribute("data-automation")) child.removeAttribute("data-automation");
       }
       if (timing.hidden || window.duration <= 0) setAttribute(child, "data-hidden", "");
       else if (child.hasAttribute("data-hidden")) child.removeAttribute("data-hidden");

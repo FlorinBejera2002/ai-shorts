@@ -22,7 +22,16 @@ describe("source clip image and sound adjustments", () => {
       sourceCutTargets(
         '<div id="scene-1" data-source-window data-composition-src="source-scene-1.html" data-start="4" data-end="5.5" data-playback-start="2"></div>',
       ),
-    ).toEqual([{ id: "scene-1", path: "source-scene-1.html", sourceStart: 2, duration: 1.5 }]);
+    ).toEqual([
+      {
+        id: "scene-1",
+        path: "source-scene-1.html",
+        start: 4,
+        sourceStart: 2,
+        duration: 1.5,
+        playbackRate: 1,
+      },
+    ]);
   });
   it("changes the video's image only and keeps authored filters, source timing, captions and sound", () => {
     const before = scene(1).replace("object-fit:cover", "object-fit:cover;filter:blur(0.2px)");

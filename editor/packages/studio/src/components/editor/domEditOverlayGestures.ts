@@ -30,6 +30,15 @@ const ROTATION_SNAP_DEGREES = 15;
 export const ROTATED_SNAP_BYPASS_DEGREES = 0.5;
 
 export interface GestureState {
+  touchPoints?: Map<number, { x: number; y: number }>;
+  pinch?: {
+    distance: number;
+    centerX: number;
+    centerY: number;
+    offsetX: number;
+    offsetY: number;
+    changed: boolean;
+  };
   kind: GestureKind;
   mode: "path-offset" | "box-size" | "rotation";
   selection: DomEditSelection;

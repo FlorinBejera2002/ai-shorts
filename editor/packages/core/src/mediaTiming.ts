@@ -1,5 +1,8 @@
 export const MEDIA_START_BASIS_ATTR = "data-hf-media-start-basis";
 export const SOURCE_WINDOW_ATTR = "data-source-window";
+/** One-shot Studio update of authored timing, before source-window projection. */
+export const SOURCE_WINDOW_TIMING_UPDATE_ATTR = "data-hf-source-timing-update";
+export const SOURCE_WINDOW_TIMING_LOCK_ATTR = "data-hf-source-timing-lock";
 
 export interface SourceWindow {
   start: number;

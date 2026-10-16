@@ -278,14 +278,14 @@ export function formatPxMetricValue(value: number): string {
 }
 
 export function normalizeTextMetricValue(
-  property: "letter-spacing" | "line-height",
+  property: "letter-spacing" | "word-spacing" | "line-height",
   value: string,
 ) {
   const trimmed = value.trim();
   if (!trimmed || trimmed === "normal") return trimmed || "normal";
   const token = parseNumericToken(trimmed);
   if (!token) return trimmed;
-  if (property === "letter-spacing") {
+  if (property === "letter-spacing" || property === "word-spacing") {
     return token.unit ? trimmed : `${formatNumericValue(token.value)}px`;
   }
   if (token.unit) return trimmed;

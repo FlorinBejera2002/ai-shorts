@@ -28,6 +28,8 @@ export interface CanonicalScene {
   crop_keyframes?: (CanonicalCrop & { time: number })[];
   fade_in?: number;
   fade_out?: number;
+  /** Visual-only dissolve centered on this scene's nominal start. */
+  transition_in?: number;
   role?: "bridge";
   parent_scene_id?: string;
 }
@@ -312,7 +314,8 @@ export function parseCanonicalComposition(value: unknown): CanonicalCompositionP
       (item.crop !== undefined ||
         item.crop_keyframes !== undefined ||
         item.fade_in ||
-        item.fade_out)
+        item.fade_out ||
+        item.transition_in)
     )
       invalid("bridge picture must already match its parent canvas");
     const checkCrop = (candidate: unknown): CanonicalCrop => {
@@ -345,7 +348,7 @@ export function parseCanonicalComposition(value: unknown): CanonicalCompositionP
         previous = frame.time;
       }
     }
-    for (const field of ["fade_in", "fade_out"])
+    for (const field of ["fade_in", "fade_out", "transition_in"])
       if (
         item[field] !== undefined &&
         (!finite(item[field]) ||
@@ -367,6 +370,7 @@ export function parseCanonicalComposition(value: unknown): CanonicalCompositionP
         : undefined,
       fade_in: optionalNumber(item.fade_in),
       fade_out: optionalNumber(item.fade_out),
+      transition_in: optionalNumber(item.transition_in),
       role: item.role === "bridge" ? "bridge" : undefined,
       parent_scene_id: typeof item.parent_scene_id === "string" ? item.parent_scene_id : undefined,
     });
@@ -716,7 +720,7 @@ export function compileCanonicalComposition(
       ),
     );
     hosts.push(
-      `<div id="scene-${scene.id}" class="clip canonical-stage source-video" data-canonical-scene="${scene.id}" data-canonical-asset="${scene.asset_id}" data-label="${escape(asset.name)}" data-source-window data-composition-id="${root}" data-composition-src="${root}.html" data-start="${scene.start}" data-duration="${scene.duration}" data-track-index="0" data-playback-start="${scene.source_in}" data-source-duration="${asset.duration}" data-width="${plan.width}" data-height="${plan.height}" style="z-index:${index + 1}"></div>`,
+      `<div id="scene-${scene.id}" class="clip canonical-stage source-video" data-canonical-scene="${scene.id}" data-canonical-asset="${scene.asset_id}" data-label="${escape(asset.name)}" data-source-window data-composition-id="${root}" data-composition-src="${root}.html" data-start="${scene.start}" data-duration="${scene.duration}" data-track-index="0" data-playback-start="${scene.source_in}" data-source-duration="${asset.duration}" data-width="${plan.width}" data-height="${plan.height}"${scene.transition_in ? ` data-transition-in="${scene.transition_in}"` : ""}${scene.fade_in || scene.fade_out || bridges ? " data-transition-blocked" : ""} style="z-index:${index + 1}"></div>`,
     );
     // Fade only the picture group; independent captions and branding retain their clock.
     if (scene.fade_in)

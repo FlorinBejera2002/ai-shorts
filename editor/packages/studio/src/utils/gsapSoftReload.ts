@@ -182,6 +182,14 @@ export interface SoftReloadOptions {
   currentTimeOverride?: number;
   /** After-write file HTML — the primary source for authored-opacity restore. */
   authoredHtml?: string;
+  /** Rebuild a member of an atomic group; the final member seeks/rebinds all. */
+  deferFinalization?: boolean;
+  /** Compiled child instance; authored timeline keys can be shared by many cuts. */
+  compositionScope?: {
+    root: HTMLElement;
+    timelineKey: string;
+    script?: HTMLScriptElement;
+  };
 }
 
 /**
@@ -238,7 +246,7 @@ export function applySoftReload(
   scriptText: string,
   options: SoftReloadOptions = {},
 ): SoftReloadResult {
-  const { onAsyncFailure, currentTimeOverride, authoredHtml } = options;
+  const { onAsyncFailure, currentTimeOverride, authoredHtml, compositionScope } = options;
   if (!iframe || !scriptText) return "cannot-soft-reload";
 
   const win = iframe.contentWindow as IframeWindow | null;
@@ -253,25 +261,32 @@ export function applySoftReload(
   // of the global timeline — so tearing down ALL of them (or the global timeline's
   // children) and re-running a single script wipes every OTHER composition,
   // reverting its edits. Scope the teardown to the keys THIS script re-registers.
-  const targetKeys = [...scriptText.matchAll(/__timelines\s*\[\s*["'`]([^"'`]+)["'`]\s*\]/g)]
-    .map((m) => m[1]!)
-    .filter((key) => key !== "__proxied");
+  const targetKeys = compositionScope
+    ? [compositionScope.timelineKey]
+    : [...scriptText.matchAll(/__timelines\s*\[\s*["'`]([^"'`]+)["'`]\s*\]/g)]
+        .map((m) => m[1]!)
+        .filter((key) => key !== "__proxied");
   if (targetKeys.length === 0) return "cannot-soft-reload"; // can't scope safely → full reload
   const gsapScripts = findGsapScriptElements(doc);
-  if (gsapScripts.length === 0) return "cannot-soft-reload";
+  if (gsapScripts.length === 0 && !compositionScope) return "cannot-soft-reload";
   // Remove only the stale script element(s) that registered a target key; one we
   // can't match in the doc is left alone (re-running appends a fresh element).
-  const staleScripts = gsapScripts.filter((script) =>
-    targetKeys.some((key) => {
-      const text = script.textContent || "";
-      return text.includes(`__timelines["${key}"]`) || text.includes(`__timelines['${key}']`);
-    }),
-  );
+  const staleScripts = compositionScope
+    ? compositionScope.script
+      ? [compositionScope.script]
+      : []
+    : gsapScripts.filter((script) =>
+        targetKeys.some((key) => {
+          const text = script.textContent || "";
+          return text.includes(`__timelines["${key}"]`) || text.includes(`__timelines['${key}']`);
+        }),
+      );
   // Multiple GSAP scripts exist but none registers a key this script owns — we
   // can't identify which element to replace (ambiguous, matching
   // extractGsapScriptText's single-script requirement). Escalate to a full reload
   // rather than killing the target timeline and appending an orphan script.
-  if (gsapScripts.length > 1 && staleScripts.length === 0) return "cannot-soft-reload";
+  if (!compositionScope && gsapScripts.length > 1 && staleScripts.length === 0)
+    return "cannot-soft-reload";
 
   // Prefer the caller-supplied scrub position (the studio's own authoritative
   // currentTime, e.g. usePlayerStore) over the iframe's raw `__player.getTime()`:
@@ -361,7 +376,8 @@ export function applySoftReload(
     // below runs BEFORE the re-run, which re-applies the transform for any
     // element the new script still animates.
     const seenTargets = new Set<Element>(allTargets);
-    for (const el of doc.querySelectorAll<HTMLElement>("[style*='transform']")) {
+    const transformRoot = compositionScope?.root ?? doc;
+    for (const el of transformRoot.querySelectorAll<HTMLElement>("[style*='transform']")) {
       // Gate on the GSAP cache (`_gsap`) so we only reset transforms GSAP owns —
       // never strip an authored, non-GSAP inline transform.
       if (el.style.transform && "_gsap" in el && !seenTargets.has(el)) {
@@ -420,7 +436,7 @@ export function applySoftReload(
       const s = doc.createElement("script");
       s.textContent = `(function(){${scriptText}\n})();`;
       doc.body.appendChild(s);
-      finalizeSoftReload(win, currentTime);
+      if (!options.deferFinalization) finalizeSoftReload(win, currentTime);
     };
 
     const needsMotionPath = /motionPath\s*[:{]/.test(scriptText);

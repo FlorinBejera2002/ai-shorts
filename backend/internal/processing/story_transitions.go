@@ -3,13 +3,14 @@ package processing
 import (
 	"context"
 	"fmt"
+	"math"
 	"os"
 	"reflect"
 	"sneepcut/backend-go/internal/story"
 )
 
-// This is a video-only dip, applied inside existing intervals. It neither
-// overlaps speech nor removes, repeats, shifts or accelerates source samples.
+// Retained for saved legacy fade treatments. New smoothing is a native Studio
+// visual blend that leaves the source, speech and caption clocks unchanged.
 const storyFadeSeconds = .08
 
 func (p *Processor) PrepareStoryTransitions(ctx context.Context, request story.Request, version story.Version) (story.Version, error) {
@@ -36,7 +37,9 @@ func (p *Processor) PrepareStoryTransitions(ctx context.Context, request story.R
 	candidates := map[int]bool{}
 	for i := 1; i < len(version.Timeline); i++ {
 		left, right := version.Timeline[i-1], version.Timeline[i]
-		if !locked[left.BlockID] && !locked[right.BlockID] && right.Transition != "fade" && left.OutputOut-left.OutputIn >= .4 && right.OutputOut-right.OutputIn >= .4 {
+		continuous := left.Video.SourceID == right.Video.SourceID && math.Abs(left.Video.Out-right.Video.In) <= .002
+		alreadyNatural := request.Base.Output.NativeTransitionVersion >= studioNativeTransitionVersion && (right.Transition == "" || right.Transition == "natural")
+		if !locked[left.BlockID] && !locked[right.BlockID] && !continuous && !alreadyNatural && right.Transition != "crossfade" && left.OutputOut-left.OutputIn >= .4 && right.OutputOut-right.OutputIn >= .4 {
 			candidates[i-1] = true
 		}
 	}
@@ -62,7 +65,7 @@ func (p *Processor) PrepareStoryTransitions(ctx context.Context, request story.R
 		// This explicit improvement request may soften an unlocked hard cut.
 		// Identical/smooth joins and speech crossing a cut are left untouched.
 		if candidates[decision.Index] && decision.SpeechSafe && decision.VisualSimilarity < .985 {
-			version.Timeline[decision.Index+1].Transition = "fade"
+			version.Timeline[decision.Index+1].Transition = "crossfade"
 			changed++
 		}
 	}

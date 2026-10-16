@@ -175,6 +175,7 @@ func (p *Processor) render(ctx context.Context, in RenderInput) (Clip, error) {
 		if err = p.studioNaturalBridges(ctx, dir, source, in, &plan, decisions); err != nil {
 			return clip, err
 		}
+		studioApplyNativeTransitions(&plan, nil)
 	}
 	if in.BurnSubtitles && in.SubtitleStyle != "none" {
 		words := RemapWords(in.Transcript.Words, in.Segments, in.Transition, in.TransitionDuration)

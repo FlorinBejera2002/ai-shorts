@@ -1,9 +1,88 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from "vitest";
-import { projectSourceCompositionWindows } from "./sourceCompositionWindow";
+import {
+  projectSourceCompositionWindows,
+  sourceCompositionAnimationTime,
+} from "./sourceCompositionWindow";
 import { parseAutomation, sampleAutomationLane } from "../audioAutomation";
+import { SOURCE_WINDOW_TIMING_UPDATE_ATTR } from "../mediaTiming";
 
 describe("source composition windows", () => {
+  it("marks projector timing locks separately from authored locks", () => {
+    const doc = new DOMParser().parseFromString(
+      '<div data-source-window data-start="0" data-duration="2"><video id="normal" data-start="0" data-duration="8"></video><video id="locked" data-start="0" data-duration="8" data-timeline-locked></video></div>',
+      "text/html",
+    );
+    projectSourceCompositionWindows(doc);
+    projectSourceCompositionWindows(doc);
+    expect(doc.getElementById("normal")?.hasAttribute("data-hf-source-timing-lock")).toBe(true);
+    expect(doc.getElementById("normal")?.hasAttribute("data-timeline-locked")).toBe(true);
+    expect(doc.getElementById("locked")?.hasAttribute("data-hf-source-timing-lock")).toBe(false);
+  });
+  it("refreshes authored media timing, automation and visibility without accumulating projection", () => {
+    const doc = new DOMParser().parseFromString(
+      '<div data-source-window data-start="0" data-duration="1" data-playback-start="2" data-playback-rate="2"><audio id="audio" data-start="0" data-duration="8"></audio></div>',
+      "text/html",
+    );
+    const audio = doc.getElementById("audio")!;
+    projectSourceCompositionWindows(doc);
+    expect(audio.getAttribute("data-media-start")).toBe("2");
+    const next = {
+      start: 0,
+      duration: 8,
+      mediaStart: 1,
+      playbackRate: 1.5,
+      hidden: true,
+      automation: JSON.stringify({
+        version: 1,
+        lanes: [
+          {
+            target: "volume",
+            points: [
+              { t: 0, v: 0 },
+              { t: 4, v: 1 },
+            ],
+          },
+        ],
+      }),
+    };
+    audio.setAttribute(SOURCE_WINDOW_TIMING_UPDATE_ATTR, JSON.stringify(next));
+    projectSourceCompositionWindows(doc);
+    expect(audio.getAttribute("data-media-start")).toBe("4");
+    expect(audio.getAttribute("data-playback-rate")).toBe("3");
+    expect(audio.hasAttribute("data-hidden")).toBe(true);
+    expect(audio.hasAttribute(SOURCE_WINDOW_TIMING_UPDATE_ATTR)).toBe(false);
+    expect(
+      sampleAutomationLane(parseAutomation(audio.getAttribute("data-automation")!).lanes[0]!, 0),
+    ).toBeCloseTo(0.5);
+    projectSourceCompositionWindows(doc);
+    expect(audio.getAttribute("data-media-start")).toBe("4");
+    audio.setAttribute(
+      SOURCE_WINDOW_TIMING_UPDATE_ATTR,
+      JSON.stringify({ ...next, hidden: false, automation: null, mediaStart: 0, playbackRate: 1 }),
+    );
+    projectSourceCompositionWindows(doc);
+    expect(audio.hasAttribute("data-automation")).toBe(false);
+    expect(audio.hasAttribute("data-hidden")).toBe(false);
+    expect(audio.getAttribute("data-media-start")).toBe("2");
+  });
+  it("holds visual animation on included source boundaries after trim and playback-rate edits", () => {
+    const host = document.createElement("div");
+    host.setAttribute("data-source-window", "");
+    host.setAttribute("data-start", "1");
+    host.setAttribute("data-duration", ".5");
+    host.setAttribute("data-playback-start", "2");
+    host.setAttribute("data-playback-rate", "2");
+    expect(sourceCompositionAnimationTime(host, -0.1)).toBe(2);
+    expect(sourceCompositionAnimationTime(host, 0.25)).toBe(2.5);
+    expect(sourceCompositionAnimationTime(host, 0.65)).toBe(3 - 0.000001);
+    host.removeAttribute("data-duration");
+    host.setAttribute("data-hf-authored-duration", ".5");
+    host.setAttribute("data-end", "1.2");
+    expect(sourceCompositionAnimationTime(host, 0.65)).toBeCloseTo(2.4);
+    host.removeAttribute("data-source-window");
+    expect(sourceCompositionAnimationTime(host, 0.65)).toBe(3.3);
+  });
   it("keeps ducking and fades on the original clock through trims, rate changes and extension", () => {
     const doc = new DOMParser().parseFromString(
       `<div id="host" data-source-window data-start="0" data-duration="1" data-playback-start="2" data-playback-rate="2"><audio id="music" data-start="0" data-duration="8" data-media-start="5" data-automation='{"version":1,"lanes":[{"target":"volume","points":[{"t":0,"v":0},{"t":4,"v":1},{"t":8,"v":0}]}]}'></audio></div>`,

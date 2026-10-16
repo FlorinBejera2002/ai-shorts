@@ -24,10 +24,14 @@ type Style struct {
 	TextColor         string   `json:"text_color"`
 	OutlineColor      string   `json:"outline_color"`
 	Outline           float64  `json:"outline"`
+	OutlineEnabled    *bool    `json:"outline_enabled,omitempty"`
 	Shadow            float64  `json:"shadow"`
 	BackgroundColor   string   `json:"background_color"`
 	BackgroundOpacity float64  `json:"background_opacity"`
+	BackgroundEnabled *bool    `json:"background_enabled,omitempty"`
 	HighlightColor    string   `json:"highlight_color"`
+	ActiveWordEnabled *bool    `json:"active_word_enabled,omitempty"`
+	Animation         string   `json:"animation,omitempty"`
 	Align             string   `json:"align"`
 	MaxWidth          float64  `json:"max_width"`
 	MaxLines          int      `json:"max_lines"`
@@ -48,6 +52,9 @@ func finiteRange(v, a, b float64) bool {
 	return !math.IsNaN(v) && !math.IsInf(v, 0) && v >= a && v <= b
 }
 func (s Style) Validate() error {
+	if s.Animation != "" && !slices.Contains([]string{"none", "phrase-pop", "subtle-fade", "word-pop", "word-fade"}, s.Animation) {
+		return errors.New("unsupported caption animation")
+	}
 	if s.Version != 1 || !slices.Contains(Presets, s.Preset) || !(resource.MatchString(s.FontID) || IsBuiltin(s.FontID)) || !slices.Contains([]string{"left", "center", "right"}, s.Align) || s.Position.Anchor != "center" {
 		return errors.New("unsupported caption style or font")
 	}

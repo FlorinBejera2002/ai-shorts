@@ -33,6 +33,7 @@ import { StoryAudioComparison } from './story-audio-comparison'
 import { StoryTranscriptReview } from './story-transcript-review'
 import { storyProblem } from './story-error'
 import { storyRetryPayload } from './story-retry'
+import { validateStoryFiles } from './story-file-validation'
 import './story.css'
 
 function savedProject(key: string) {
@@ -83,31 +84,6 @@ function stepHint(
       'Your clips are still uploading. You can keep working on your story.',
       'Filmările încă se încarcă. Poți continua să pregătești povestea.'
     )
-}
-
-function validateFiles(
-  files: File[],
-  assets: StoryAsset[],
-  pending: File[],
-  limits: StoryProject['limits']
-) {
-  if (!files.length) return ''
-  if (assets.length + pending.length + files.length > 200)
-    return 'A project can contain up to 200 clips. Remove some selected files or start another project.'
-  const invalid = files.find(
-    (file) =>
-      !/\.(mp4|mov|webm|mkv)$/i.test(file.name) ||
-      file.size === 0 ||
-      file.size > limits.max_file_bytes
-  )
-  if (invalid)
-    return `${invalid.name}: unsupported format, empty file, or file size exceeds the limit.`
-  const bytes =
-    assets.reduce((sum, asset) => sum + asset.size, 0) +
-    [...pending, ...files].reduce((sum, file) => sum + file.size, 0)
-  return bytes > limits.max_total_bytes
-    ? 'The selected files exceed the total size limit.'
-    : ''
 }
 
 export function StoryBuilder() {
@@ -181,7 +157,7 @@ export function StoryBuilder() {
 
   async function createProject(files: File[], nextStep: StoryStep = 0) {
     if (createBusy.current) return
-    const validation = validateFiles(files, [], [], limits)
+    const validation = validateStoryFiles(files, [], [], limits)
     if (validation) {
       setError(storyProblem(validation, text))
       return
@@ -439,7 +415,7 @@ function StoryWorkspace({
   }
 
   function addFiles(files: File[]) {
-    const validation = validateFiles(
+    const validation = validateStoryFiles(
       files,
       videos,
       pending.map((item) => item.file),

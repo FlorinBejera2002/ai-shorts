@@ -54,6 +54,7 @@ import {
   resolveAudioGroups,
 } from "@hyperframes/core/audio-groups";
 import { useFxLevelling } from "./useFxLevelling.js";
+import { ApplyCutSettingToAll } from "./CutSettingsScope";
 
 function auditionSpan(startRaw: string | undefined, durationRaw: string | undefined) {
   const start = Number.parseFloat(startRaw ?? "");
@@ -311,83 +312,128 @@ export function AudioFxGroup({
     );
 
   return (
-    <FxSection
-      // A lane's reveal request, but only when it names THIS element: the rack
-      // shows one element, and a request aimed at another must not reopen
-      // whatever happens to be mounted. Stale requests (other project, pre-
-      // reload session) are refused by the same check.
-      revealTarget={
-        revealRequest &&
-        revealRequest.elementKey === element.id &&
-        isRevealedAudioFxRequestCurrent(revealRequest, {
-          timelineProjectId,
-          timelineSessionEpoch,
-        })
-          ? revealRequest.automationTarget
-          : null
-      }
-      // Forwarded, not dropped: the section consumes by nonce, so without it a
-      // request never fires and a second click on the same lane is inert.
-      revealNonce={
-        revealRequest &&
-        revealRequest.elementKey === element.id &&
-        isRevealedAudioFxRequestCurrent(revealRequest, {
-          timelineProjectId,
-          timelineSessionEpoch,
-        })
-          ? revealRequest.nonce
-          : null
-      }
-      // Locked while the carve is measuring. `analyse` captures the chain and
-      // the automation BEFORE its fetch and decode, then rewrites the whole
-      // attribute from that snapshot — so an effect added, or a knob committed,
-      // during those seconds was silently discarded when the analysis landed.
-      // Only the Analyse button was disabled, so every other control in the rack
-      // stayed live throughout. Refusing the edit is honest; merging it into a
-      // measurement that did not account for it would not be.
-      disabled={analysing}
-      chain={chain}
-      automatedTargets={automatedTargets}
-      liveAutomationValues={liveAutomationValues}
-      onAutomateParam={automateParam}
-      onRemoveParamAutomation={removeParamAutomation}
-      onRemoveNodeAutomation={removeNodeAutomation}
-      onRemoveNodesAutomation={removeNodesAutomation}
-      onChainChange={(next) =>
-        // Live for the same reason as automation above: adding, removing or
-        // bypassing an effect is applied to the running graph, so a reload would
-        // only interrupt the audio to reach the same state.
-        onSetAttributeQuiet(
-          HF_AUDIO_FX_ATTR,
-          next.nodes.length ? serializeAudioFxChain(next) : null,
-        )
-      }
-      signalPath={signalPath}
-      onAuditionTransport={(on) => auditionTransport(on, auditionSpans)}
-      onChainPreview={(next) =>
-        // Live writes skip the preview refresh entirely, so dragging a knob no
-        // longer reloads the composition and restarts playback on every pixel.
-        // The gesture-end write above is the one that resyncs.
-        onSetAttributeLive(HF_AUDIO_FX_ATTR, next.nodes.length ? serializeAudioFxChain(next) : null)
-      }
-      carve={carve}
-      onCarveChange={(next) => void setCarve(next)}
-      onCarvePreview={(next) => onSetAttributeLive(HF_AUDIO_CARVE_ATTR, JSON.stringify(next))}
-      sourceOptions={sourceOptions}
-      // What this track sounds like, by the same reading that decides which
-      // OTHER tracks a carve may listen to. The shelf uses it to stop offering
-      // "My voice sounds amateur" on a music bed.
-      trackKind={classifyAudioName(element.id, element.element?.getAttribute("src"))}
-      onLevel={() => void runLeveller()}
-      onRemoveLevel={removeLeveller}
-      levelled={chain.nodes.some((n) => n.fromLeveller)}
-      onAutomatePreset={automatePreset}
-      onRemovePresetAutomation={removePresetAutomation}
-      automatedPresets={automatedPresets}
-      onAuditionLevel={(on) => void auditionLevel(on)}
-      auditioningLevel={auditioningLevel}
-      carvedAgainstBy={carvedAgainstBy}
-      analysing={analysing}
-    />
+    <div className="space-y-2">
+      <ApplyCutSettingToAll
+        label="audio effects"
+        settings={[
+          {
+            type: "attribute",
+            name: HF_AUDIO_FX_ATTR,
+            value: chain.nodes.length ? serializeAudioFxChain(chain) : null,
+          },
+          {
+            type: "attribute",
+            name: HF_AUDIO_AUTOMATION_ATTR,
+            value: element.element.getAttribute(HF_AUDIO_AUTOMATION_ATTR),
+          },
+        ]}
+      />
+      <ApplyCutSettingToAll
+        label="audio automation"
+        settings={[
+          {
+            type: "attribute",
+            name: HF_AUDIO_FX_ATTR,
+            value: chain.nodes.length ? serializeAudioFxChain(chain) : null,
+          },
+          {
+            type: "attribute",
+            name: HF_AUDIO_AUTOMATION_ATTR,
+            value: element.element.getAttribute(HF_AUDIO_AUTOMATION_ATTR),
+          },
+        ]}
+      />
+      <ApplyCutSettingToAll
+        label="audio carve"
+        settings={[
+          {
+            type: "attribute",
+            name: HF_AUDIO_CARVE_ATTR,
+            value: element.element.getAttribute(HF_AUDIO_CARVE_ATTR),
+          },
+        ]}
+      />
+      <FxSection
+        // A lane's reveal request, but only when it names THIS element: the rack
+        // shows one element, and a request aimed at another must not reopen
+        // whatever happens to be mounted. Stale requests (other project, pre-
+        // reload session) are refused by the same check.
+        revealTarget={
+          revealRequest &&
+          revealRequest.elementKey === element.id &&
+          isRevealedAudioFxRequestCurrent(revealRequest, {
+            timelineProjectId,
+            timelineSessionEpoch,
+          })
+            ? revealRequest.automationTarget
+            : null
+        }
+        // Forwarded, not dropped: the section consumes by nonce, so without it a
+        // request never fires and a second click on the same lane is inert.
+        revealNonce={
+          revealRequest &&
+          revealRequest.elementKey === element.id &&
+          isRevealedAudioFxRequestCurrent(revealRequest, {
+            timelineProjectId,
+            timelineSessionEpoch,
+          })
+            ? revealRequest.nonce
+            : null
+        }
+        // Locked while the carve is measuring. `analyse` captures the chain and
+        // the automation BEFORE its fetch and decode, then rewrites the whole
+        // attribute from that snapshot — so an effect added, or a knob committed,
+        // during those seconds was silently discarded when the analysis landed.
+        // Only the Analyse button was disabled, so every other control in the rack
+        // stayed live throughout. Refusing the edit is honest; merging it into a
+        // measurement that did not account for it would not be.
+        disabled={analysing}
+        chain={chain}
+        automatedTargets={automatedTargets}
+        liveAutomationValues={liveAutomationValues}
+        onAutomateParam={automateParam}
+        onRemoveParamAutomation={removeParamAutomation}
+        onRemoveNodeAutomation={removeNodeAutomation}
+        onRemoveNodesAutomation={removeNodesAutomation}
+        onChainChange={(next) =>
+          // Live for the same reason as automation above: adding, removing or
+          // bypassing an effect is applied to the running graph, so a reload would
+          // only interrupt the audio to reach the same state.
+          onSetAttributeQuiet(
+            HF_AUDIO_FX_ATTR,
+            next.nodes.length ? serializeAudioFxChain(next) : null,
+          )
+        }
+        signalPath={signalPath}
+        onAuditionTransport={(on) => auditionTransport(on, auditionSpans)}
+        onChainPreview={(next) =>
+          // Live writes skip the preview refresh entirely, so dragging a knob no
+          // longer reloads the composition and restarts playback on every pixel.
+          // The gesture-end write above is the one that resyncs.
+          onSetAttributeLive(
+            HF_AUDIO_FX_ATTR,
+            next.nodes.length ? serializeAudioFxChain(next) : null,
+          )
+        }
+        carve={carve}
+        onCarveChange={(next) => void setCarve(next)}
+        onCarvePreview={(next) => onSetAttributeLive(HF_AUDIO_CARVE_ATTR, JSON.stringify(next))}
+        sourceOptions={sourceOptions}
+        // What this track sounds like, by the same reading that decides which
+        // OTHER tracks a carve may listen to. The shelf uses it to stop offering
+        // "My voice sounds amateur" on a music bed.
+        trackKind={classifyAudioName(element.id, element.element?.getAttribute("src"))}
+        onLevel={() => void runLeveller()}
+        onRemoveLevel={removeLeveller}
+        levelled={chain.nodes.some((n) => n.fromLeveller)}
+        onAutomatePreset={automatePreset}
+        onRemovePresetAutomation={removePresetAutomation}
+        automatedPresets={automatedPresets}
+        onAuditionLevel={(on) => void auditionLevel(on)}
+        auditioningLevel={auditioningLevel}
+        carvedAgainstBy={carvedAgainstBy}
+        analysing={analysing}
+      />
+    </div>
   );
 }

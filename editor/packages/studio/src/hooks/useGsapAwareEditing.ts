@@ -36,6 +36,7 @@ import { runGestureTransaction } from "./gestureTransaction";
 import { hasNonHoldTweenForElement } from "./gsapRuntimeKeyframes";
 import { assertGsapEditPersisted } from "./gsapEditOutcome";
 import type { GsapAnimationFetchOptions } from "./useGsapAnimationFetchFallback";
+import { rootCaptionElement } from "../utils/rootCaptionEdit";
 
 // Distinct coalesceKey per group drag so consecutive group drags don't fold
 // into one another's undo entry (module-local counter, not Date.now()).
@@ -71,6 +72,12 @@ export interface UseGsapAwareEditingParams {
     label: string,
   ) => void;
   // DOM fallbacks (from useDomEditCommits)
+  handleDomPathOffsetCommit: (
+    selection: DomEditSelection,
+    next: { x: number; y: number },
+    history?: { coalesceKey: string; coalesceMs: number },
+  ) => Promise<void>;
+  handleDomRotationCommit: (selection: DomEditSelection, next: { angle: number }) => Promise<void>;
   handleDomBoxSizeCommit: (
     selection: DomEditSelection,
     next: { width: number; height: number },
@@ -117,6 +124,8 @@ export function useGsapAwareEditing({
   bumpGsapCache,
   makeFetchFallback,
   trackGsapInteractionFailure,
+  handleDomPathOffsetCommit,
+  handleDomRotationCommit,
   handleDomBoxSizeCommit,
   addGsapAnimation,
   convertToKeyframes,
@@ -139,6 +148,7 @@ export function useGsapAwareEditing({
       next: { x: number; y: number },
       modifiers?: { altKey?: boolean },
     ) => {
+      if (rootCaptionElement(selection)) return handleDomPathOffsetCommit(selection, next);
       if (gsapCommitMutation) {
         try {
           const ownedAnimations = getGsapAnimationsForSelection(selection);
@@ -162,6 +172,7 @@ export function useGsapAwareEditing({
       }
     },
     [
+      handleDomPathOffsetCommit,
       gsapCommitMutation,
       previewIframeRef,
       makeFetchFallback,
@@ -170,14 +181,13 @@ export function useGsapAwareEditing({
     ],
   );
 
-  // Multi-select (group) drag: route EACH element through the SAME GSAP intercept as
-  // a single drag, so every position is written as GSAP code (tl.set / keyframes /
-  // gsap.set) — NEVER the deprecated `--hf-studio-offset` CSS var, and GSAP-animated
-  // elements are no longer blocked in a group. No CSS fallback: with no GSAP
-  // composition there's nothing to write (a no-op, exactly like the single-drag path).
+  // Group members follow the single-element route: root narration uses a per-cut
+  // DOM edit; other elements preserve their GSAP position ownership.
   const handleGsapAwareGroupPathOffsetCommit = useCallback(
     async (updates: DomEditGroupPathOffsetCommit[]) => {
       if (!gsapCommitMutation || updates.length === 0) return;
+      const scriptUpdates = updates.filter(({ selection }) => !rootCaptionElement(selection));
+      const captionUpdates = updates.filter(({ selection }) => rootCaptionElement(selection));
       // A group drag is ONE user action: fold every member's position write into
       // a single undo entry by forcing a shared coalesceKey (infinite window, so
       // it survives the N sequential server round-trips) onto each commit —
@@ -230,7 +240,7 @@ export function useGsapAwareEditing({
       // them together. The parse layer shares one in-flight request per file, which
       // turns N sequential round trips into one.
       const preflightResults = await Promise.allSettled(
-        updates.map(async ({ selection }) => {
+        scriptUpdates.map(async ({ selection }) => {
           const animations = await makeFetchFallback(selection, { failOnFetchError: true })();
           preflightAnimations.set(selection, animations);
           const outcome = await tryGsapDragIntercept(
@@ -245,7 +255,7 @@ export function useGsapAwareEditing({
           assertGsapEditPersisted(outcome);
         }),
       );
-      const preflightFailure = firstPreflightFailure(preflightResults, updates);
+      const preflightFailure = firstPreflightFailure(preflightResults, scriptUpdates);
       if (preflightFailure) {
         trackGsapInteractionFailure(
           preflightFailure.error,
@@ -255,8 +265,17 @@ export function useGsapAwareEditing({
         );
         throw preflightFailure.error;
       }
-      for (const [index, { selection, next }] of updates.entries()) {
-        renderOnCommit = index === updates.length - 1;
+      // Split narration first so subsequent script writes read its final source.
+      // Every member keeps the same history key, including mixed caption groups.
+      for (const { selection, next } of captionUpdates) {
+        // eslint-disable-next-line react-doctor/async-await-in-loop -- Each cue writes the same root file and must read the preceding split.
+        await handleDomPathOffsetCommit(selection, next, {
+          coalesceKey,
+          coalesceMs: Number.POSITIVE_INFINITY,
+        });
+      }
+      for (const [index, { selection, next }] of scriptUpdates.entries()) {
+        renderOnCommit = index === scriptUpdates.length - 1;
         try {
           const outcome = await tryGsapDragIntercept(
             selection,
@@ -288,7 +307,13 @@ export function useGsapAwareEditing({
         throw error;
       }
     },
-    [gsapCommitMutation, previewIframeRef, makeFetchFallback, trackGsapInteractionFailure],
+    [
+      gsapCommitMutation,
+      previewIframeRef,
+      makeFetchFallback,
+      trackGsapInteractionFailure,
+      handleDomPathOffsetCommit,
+    ],
   );
 
   const handleGsapAwareBoxSizeCommit = useCallback(
@@ -298,6 +323,17 @@ export function useGsapAwareEditing({
       offset?: { x: number; y: number },
       restore: () => void = () => undefined,
     ) => {
+      // Narration cues may span several source cuts. The DOM actor splits the
+      // cue at this cut before saving font/geometry, keeping adjacent cuts intact.
+      if (rootCaptionElement(selection)) {
+        return runGestureTransaction({
+          element: selection.element,
+          label: "Resize cut subtitles",
+          settle: () => undefined,
+          persist: () => handleDomBoxSizeCommit(selection, next, offset),
+          restore,
+        });
+      }
       const ownedAnimations = getGsapAnimationsForSelection(selection);
       const targetAnimations = Array.isArray(ownedAnimations)
         ? ownedAnimations
@@ -403,6 +439,7 @@ export function useGsapAwareEditing({
 
   const handleGsapAwareRotationCommit = useCallback(
     async (selection: DomEditSelection, next: { angle: number }) => {
+      if (rootCaptionElement(selection)) return handleDomRotationCommit(selection, next);
       if (gsapCommitMutation) {
         try {
           const ownedAnimations = getGsapAnimationsForSelection(selection);
@@ -429,6 +466,7 @@ export function useGsapAwareEditing({
       }
     },
     [
+      handleDomRotationCommit,
       gsapCommitMutation,
       previewIframeRef,
       makeFetchFallback,

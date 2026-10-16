@@ -111,6 +111,11 @@ func (p *Processor) RenderStory(ctx context.Context, request story.Request, vers
 			plan.Audio = append(plan.Audio, studioAudio{ID: "audio-" + sceneID, AssetID: aid, Start: entry.OutputIn, Duration: scene.Duration, SourceIn: entry.Audio.In, Volume: 1, SceneID: scene.ID})
 		}
 	}
+	transitions := make([]string, len(version.Timeline))
+	for i, entry := range version.Timeline {
+		transitions[i] = entry.Transition
+	}
+	studioApplyNativeTransitions(&plan, transitions)
 	if validated.narration != nil {
 		key, e := effectiveStoryAudioKey(request.ID, *validated.narration, request.Options.AudioCleanup)
 		if e != nil {
@@ -191,7 +196,7 @@ func (p *Processor) RenderStory(ctx context.Context, request story.Request, vers
 		return story.Output{}, err
 	}
 	manual, timeline := studioStoryTimeline(result.EffectiveTimeline, request, version, plan)
-	return story.Output{StudioManualEdits: manual, StudioTimeline: timeline, StudioArtifactID: id, Key: prefix + "/clip.mp4", PreviewKey: preview, ThumbnailKey: thumb, Duration: info.Duration, Size: size, Resolution: fmt.Sprintf("%dx%d", info.Width, info.Height), Captions: len(selection.Groups) > 0, CaptionMode: story.EffectiveCaptionMode(request.Options), CaptionWarnings: selection.Warnings, CaptionedCandidateIDs: selection.IDs, Music: storyMusicCredit(request, version)}, nil
+	return story.Output{NativeTransitionVersion: studioNativeTransitionVersion, StudioManualEdits: manual, StudioTimeline: timeline, StudioArtifactID: id, Key: prefix + "/clip.mp4", PreviewKey: preview, ThumbnailKey: thumb, Duration: info.Duration, Size: size, Resolution: fmt.Sprintf("%dx%d", info.Width, info.Height), Captions: len(selection.Groups) > 0, CaptionMode: story.EffectiveCaptionMode(request.Options), CaptionWarnings: selection.Warnings, CaptionedCandidateIDs: selection.IDs, Music: storyMusicCredit(request, version)}, nil
 }
 
 // Audio may come from a source that never appears as a visual. Its preview must

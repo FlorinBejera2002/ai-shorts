@@ -12,7 +12,6 @@ import {
 } from "../utils/studioSaveDiagnostics";
 import { buildDomEditPatchTarget, type DomEditSelection } from "../components/editor/domEditing";
 import { fontFamilyFromAssetPath, type ImportedFontAsset } from "../components/editor/fontAssets";
-import type { EditHistoryKind } from "../utils/editHistory";
 import type { CommitDomEditPatchBatches, PersistDomEditOperations } from "./domEditCommitTypes";
 import type { PatchOperation } from "../utils/sourcePatcher";
 import {
@@ -36,14 +35,23 @@ import {
 import type { CutoverResult } from "../utils/sdkCutover";
 import { studioWriteHeaders } from "../utils/studioFileVersion";
 import { reseekPreviewRuntime } from "./timelineTrackVisibility";
-interface RecordEditInput {
-  label: string;
-  kind: EditHistoryKind;
-  coalesceKey?: string;
-  coalesceMs?: number;
-  files: Record<string, { before: string; after: string }>;
-}
-
+import {
+  applySourceCutIsolationToPreview,
+  planSourceCutIsolation,
+  sourceCutHost,
+} from "../utils/sourceCutIsolation";
+import {
+  readProjectFileContent,
+  saveProjectFilesWithHistory,
+  type RecordEditInput,
+} from "../utils/studioFileHistory";
+import { persistRootCaptionEdit } from "./persistRootCaptionEdit";
+import { syncSourceCutAuthoredTiming } from "../utils/sourceCutTiming";
+import { notifySourceCutChange } from "../utils/sourceCutRevision";
+import {
+  boundSourceCutOperations,
+  syncBoundedSourceCutOperations,
+} from "../utils/sourceCutEditOperations";
 export interface UseDomEditCommitsParams {
   activeCompPath: string | null;
   previewIframeRef: React.MutableRefObject<HTMLIFrameElement | null>;
@@ -155,19 +163,67 @@ export function useDomEditCommits({
       const pid = expectedProjectId;
       if (options?.shouldSave && !options.shouldSave()) return;
 
-      const targetPath = selection.sourceFile || activeCompPath || "index.html";
+      if (
+        await persistRootCaptionEdit(
+          {
+            activeCompPath,
+            previewIframeRef,
+            writeProjectFile,
+            editHistory,
+            domEditSaveTimestampRef,
+            forceReloadSdkSession,
+            reloadPreview,
+            projectIdRef,
+          },
+          selection,
+          operations,
+          options,
+          pid,
+        )
+      )
+        return;
+
+      const isolation = await planSourceCutIsolation(
+        selection,
+        activeCompPath,
+        (path) => readProjectFileContent(pid, path),
+        async (path) => {
+          const response = await fetch(
+            buildProjectApiPath(pid, `/files/${encodeURIComponent(path)}`),
+          );
+          if (response.status === 404) return false;
+          if (!response.ok)
+            throw await createStudioSaveHttpError(response, `Failed to read ${path}`);
+          return true;
+        },
+      );
+      const host = sourceCutHost(selection.element);
+      const isCutContentEdit = Boolean(host && host !== selection.element);
+      const targetPath =
+        isolation?.path ||
+        (host !== selection.element
+          ? (host?.getAttribute("data-composition-src") ??
+            host?.getAttribute("data-composition-file"))
+          : null) ||
+        selection.sourceFile ||
+        activeCompPath ||
+        "index.html";
       const completePersistence = <T>(result: T, changed: boolean): T => {
-        if (options?.skipRefresh && changed) reseekPreviewRuntime(previewIframeRef.current);
+        if (isCutContentEdit && changed) notifySourceCutChange();
+        if ((options?.skipRefresh || isCutContentEdit) && changed)
+          reseekPreviewRuntime(previewIframeRef.current);
         return result;
       };
 
-      const readResponse = await fetch(
-        buildProjectApiPath(pid, `/files/${encodeURIComponent(targetPath)}`),
-      );
-      if (!readResponse.ok) {
+      const readResponse = isolation
+        ? null
+        : await fetch(buildProjectApiPath(pid, `/files/${encodeURIComponent(targetPath)}`));
+      if (readResponse && !readResponse.ok) {
         throw await createStudioSaveHttpError(readResponse, `Failed to read ${targetPath}`);
       }
-      const readData = (await readResponse.json()) as { content?: string };
+      const readData = isolation
+        ? { content: isolation.content }
+        : ((await readResponse!.json()) as { content?: string });
       const originalContent = readData.content;
       if (typeof originalContent !== "string") {
         throw new Error(`Missing file contents for ${targetPath}`);
@@ -184,7 +240,8 @@ export function useDomEditCommits({
       // after it let invalid numeric values bypass the guard whenever the
       // cutover flag was on.
       const patchTarget = buildDomEditPatchTarget(selection);
-      const patchBody = { target: patchTarget, operations };
+      const boundedOperations = boundSourceCutOperations(selection, originalContent, operations);
+      const patchBody = { target: patchTarget, operations: boundedOperations };
       const unsafeFields = findUnsafeDomPatchValues(patchBody);
       if (unsafeFields.length > 0) {
         const fields = formatUnsafeFieldList(unsafeFields);
@@ -197,14 +254,21 @@ export function useDomEditCommits({
       // Skip the SDK path when prepareContent is set (e.g. @font-face injection
       // for a custom font): sdkCutoverPersist serializes only the patched DOM
       // and would drop the injected content. Let the server path run prepareContent.
-      if (onTrySdkPersist && !options?.prepareContent) {
-        const cutover = await onTrySdkPersist(selection, operations, originalContent, targetPath, {
-          label: options?.label,
-          coalesceKey: options?.coalesceKey,
-          skipRefresh: options?.skipRefresh,
-        });
+      if (onTrySdkPersist && !options?.prepareContent && !isolation && !isCutContentEdit) {
+        const cutover = await onTrySdkPersist(
+          selection,
+          boundedOperations,
+          originalContent,
+          targetPath,
+          {
+            label: options?.label,
+            coalesceKey: options?.coalesceKey,
+            skipRefresh: options?.skipRefresh || isCutContentEdit,
+          },
+        );
         if (cutover.status === "failed") throw cutover.error;
         if (cutover.status === "committed") {
+          syncBoundedSourceCutOperations(selection.element, operations, boundedOperations);
           // SDK handled it — its in-memory doc is already current, so do NOT
           // forceReload (that would echo-reload the session we just wrote).
           return completePersistence(
@@ -218,6 +282,7 @@ export function useDomEditCommits({
       // handler suppresses the reload even if the event arrives before the
       // response (the server writes the file and emits SSE during the fetch).
       domEditSaveTimestampRef.current = Date.now();
+      if (isolation) await writeProjectFile(targetPath, originalContent);
 
       const patchResponse = await fetch(
         buildProjectApiPath(pid, `/file-mutations/patch-element/${encodeURIComponent(targetPath)}`),
@@ -289,16 +354,31 @@ export function useDomEditCommits({
         }
       }
 
-      await editHistory.recordEdit({
+      const historyEntry = {
         label: options?.label ?? "Edit layer",
-        kind: "manual",
+        kind: "manual" as const,
         coalesceKey: options?.coalesceKey,
         coalesceMs: options?.coalesceMs,
         files: { [targetPath]: { before: originalContent, after: finalContent } },
-      });
+      };
+      if (isolation) {
+        await saveProjectFilesWithHistory({
+          projectId: pid,
+          ...historyEntry,
+          files: { [targetPath]: finalContent, [isolation.parentPath]: isolation.parentAfter },
+          readFile: async (path) =>
+            path === isolation.parentPath ? isolation.parentBefore : originalContent,
+          diskContent: { [targetPath]: finalContent },
+          writeFile: writeProjectFile,
+          recordEdit: editHistory.recordEdit,
+        });
+        applySourceCutIsolationToPreview(isolation, selection);
+      } else await editHistory.recordEdit(historyEntry);
       forceReloadSdkSession?.();
+      syncBoundedSourceCutOperations(selection.element, operations, boundedOperations);
+      if (isCutContentEdit) syncSourceCutAuthoredTiming(selection, finalContent);
 
-      if (!options?.skipRefresh) {
+      if (!options?.skipRefresh && !isCutContentEdit) {
         reloadPreview();
       }
       return completePersistence(

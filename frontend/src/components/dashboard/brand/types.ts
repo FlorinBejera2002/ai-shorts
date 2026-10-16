@@ -5,6 +5,8 @@ export type BrandKit = {
   watermarkEnabled: boolean
   watermarkSize: number
   watermarkMargin: number
+  watermarkX?: number | null
+  watermarkY?: number | null
   logoUrl: string | null
   primaryColor: string
   secondaryColor: string

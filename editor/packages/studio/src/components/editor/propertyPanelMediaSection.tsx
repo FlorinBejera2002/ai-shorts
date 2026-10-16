@@ -13,6 +13,7 @@ import {
 } from "./propertyPanelHelpers";
 import { Section, SegmentedControl, SelectField, SliderControl } from "./propertyPanelPrimitives";
 import { useTrackDesignInput } from "../../contexts/DesignPanelInputContext";
+import { CutMediaApplyControls } from "./CutMediaApplyControls";
 import {
   AUDIO_GAIN_FADER_MAX,
   AUDIO_GAIN_FADER_MIN,
@@ -139,6 +140,7 @@ export function MediaSection({
   return (
     <Section title={panelTitle} icon={isAudio ? <Music size={15} /> : <Film size={15} />}>
       <div className="space-y-4">
+        <CutMediaApplyControls />
         {srcAttr && (
           <div className="min-w-0">
             <div className="flex items-center justify-between gap-2">

@@ -2,17 +2,21 @@ import { useEffect, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { loadCaptionFont, retainCaptionFont } from './caption-fonts'
 import { previewCaptionLines } from './caption-preview-layout'
-import type { CaptionStyle } from './caption-style'
+import { captionEffects, type CaptionStyle } from './caption-style'
+import { clampPreviewCenter } from './preview-gesture'
+import { usePreviewGesture } from './use-preview-gesture'
 
 type Props = {
   style: CaptionStyle
   onPositionChange?: (position: CaptionStyle['position']) => void
+  onTransformChange?: (position: CaptionStyle['position'], size: number) => void
   ratio?: '9:16' | '1:1' | '16:9'
   children?: React.ReactNode
 }
 export function CaptionPreview({
   style,
   onPositionChange,
+  onTransformChange,
   ratio = '9:16',
   children
 }: Props) {
@@ -30,9 +34,27 @@ export function CaptionPreview({
   const font = fontState.key === fontKey ? fontState.family : ''
   const fontError = fontState.key === fontKey && fontState.error
   const [tick, setTick] = useState(0)
-  const drag = useRef<{ x: number; y: number; px: number; py: number } | null>(
-    null
-  )
+  const gestures = usePreviewGesture({
+    value: { ...style.position, size: style.size },
+    frame: { width: size.w, height: size.h },
+    min: 0.025,
+    max: 0.12,
+    onChange: onTransformChange
+      ? (next) => {
+          const factor = next.size / style.size
+          onTransformChange(
+            {
+              x: clampPreviewCenter(next.x, (box.w * factor) / size.w, 0.01),
+              y: clampPreviewCenter(next.y, (box.h * factor) / size.h, 0.01),
+              anchor: 'center'
+            },
+            next.size
+          )
+        }
+      : onPositionChange
+        ? (next) => move(next.x, next.y)
+        : undefined
+  })
   useEffect(() => {
     let active = true
     const release = retainCaptionFont(style.font_id, style.weight)
@@ -149,13 +171,8 @@ export function CaptionPreview({
     Math.min(size.w * style.max_width, size.w - 2 * pad) / blockWidth,
     (size.h - 2 * pad) / (fontSize * style.line_spacing * lines.length)
   )
-  const outline =
-    style.preset === 'minimal'
-      ? 0
-      : Math.max(
-          (style.outline * shortEdge) / 720,
-          style.preset === 'bold-outline' ? fontSize * 0.075 : 0
-        )
+  const effects = captionEffects(style, shortEdge, fontSize)
+  const outline = effects.outline
   const shadow =
     style.preset === 'minimal' ? 0 : (style.shadow * shortEdge) / 720
   function move(x: number, y: number, snap = true) {
@@ -170,10 +187,7 @@ export function CaptionPreview({
       anchor: 'center'
     })
   }
-  const opacity =
-    style.preset === 'contrast-box'
-      ? Math.max(style.background_opacity, 0.82)
-      : style.background_opacity
+  const opacity = effects.backgroundOpacity
   const background = `${style.background_color}${Math.round(opacity * 255)
     .toString(16)
     .padStart(2, '0')}`
@@ -216,7 +230,19 @@ export function CaptionPreview({
           role={onPositionChange ? 'button' : undefined}
           tabIndex={onPositionChange ? 0 : undefined}
           aria-label={onPositionChange ? t('dragCaption') : undefined}
+          {...gestures}
           onKeyDown={(e) => {
+            if (onTransformChange && ['+', '=', '-'].includes(e.key)) {
+              e.preventDefault()
+              onTransformChange(
+                style.position,
+                Math.max(
+                  0.025,
+                  Math.min(0.12, style.size + (e.key === '-' ? -0.005 : 0.005))
+                )
+              )
+              return
+            }
             const d = e.shiftKey ? 0.05 : 0.01
             if (
               ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(
@@ -232,29 +258,6 @@ export function CaptionPreview({
                 false
               )
             }
-          }}
-          onPointerDown={(e) => {
-            if (!onPositionChange) return
-            e.currentTarget.setPointerCapture(e.pointerId)
-            drag.current = {
-              x: e.clientX,
-              y: e.clientY,
-              px: style.position.x,
-              py: style.position.y
-            }
-          }}
-          onPointerMove={(e) => {
-            if (drag.current)
-              move(
-                drag.current.px + (e.clientX - drag.current.x) / size.w,
-                drag.current.py + (e.clientY - drag.current.y) / size.h
-              )
-          }}
-          onPointerUp={() => {
-            drag.current = null
-          }}
-          onPointerCancel={() => {
-            drag.current = null
           }}
           className={`absolute rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-white ${onPositionChange ? 'touch-none cursor-move outline-dashed outline-1 outline-white/60' : ''}`}
           style={{
@@ -276,14 +279,14 @@ export function CaptionPreview({
             WebkitTextStroke: `${outline}px ${style.outline_color}`,
             paintOrder: 'stroke fill',
             opacity:
-              style.preset === 'subtle-fade'
+              effects.animation === 'subtle-fade'
                 ? Math.max(
                     0,
                     Math.min(1, phraseTime / 0.14, (phraseEnd - time) / 0.14)
                   )
                 : 1,
             scale:
-              style.preset === 'phrase-pop'
+              effects.animation === 'phrase-pop'
                 ? String(0.88 + 0.12 * Math.min(1, phraseTime / 0.12))
                 : undefined
           }}
@@ -300,33 +303,65 @@ export function CaptionPreview({
                   const progress =
                     Math.max(0, Math.min(1, (time - word.index * 0.5) / 0.5)) *
                     100
-                  const karaoke = style.preset === 'karaoke'
+                  const karaoke =
+                    effects.activeWord && style.preset === 'karaoke'
+                  const activeBackground =
+                    effects.activeWord &&
+                    style.preset === 'active-background' &&
+                    word.index === index
+                  const wordAnimation =
+                    effects.animation === 'word-pop' ||
+                    effects.animation === 'word-fade'
+                  const reveal = Math.max(
+                    0,
+                    Math.min(1, (time - word.index * 0.5) / 0.14)
+                  )
                   return (
-                    <span
-                      key={word.index}
-                      style={{
-                        backgroundColor:
-                          style.preset === 'active-background' &&
-                          word.index === index
+                    <span key={word.index}>
+                      <span
+                        style={{
+                          display: wordAnimation ? 'inline-block' : undefined,
+                          opacity: wordAnimation ? reveal : undefined,
+                          transform:
+                            effects.animation === 'word-pop'
+                              ? `scale(${0.8 + 0.2 * reveal})`
+                              : effects.animation === 'word-fade'
+                                ? `translateY(${(1 - reveal) * 15}%)`
+                                : undefined,
+                          backgroundColor: activeBackground
                             ? style.highlight_color
                             : undefined,
-                        color:
-                          style.preset === 'active-color' &&
-                          word.index === index
-                            ? style.highlight_color
-                            : karaoke
-                              ? 'transparent'
-                              : undefined,
-                        backgroundImage: karaoke
-                          ? `linear-gradient(to right,${style.highlight_color} ${progress}%,${style.text_color} ${progress}%)`
-                          : undefined,
-                        textShadow: karaoke ? 'none' : undefined,
-                        WebkitTextStroke: karaoke ? '0 transparent' : undefined,
-                        backgroundClip: karaoke ? 'text' : undefined,
-                        WebkitBackgroundClip: karaoke ? 'text' : undefined
-                      }}
-                    >
-                      {word.text}
+                          borderRadius: activeBackground ? '.12em' : undefined,
+                          paddingInline: activeBackground ? '.14em' : undefined,
+                          marginInline: activeBackground ? '-.14em' : undefined,
+                          boxDecorationBreak: activeBackground
+                            ? 'clone'
+                            : undefined,
+                          WebkitBoxDecorationBreak: activeBackground
+                            ? 'clone'
+                            : undefined,
+                          color:
+                            effects.activeWord &&
+                            style.preset !== 'active-background' &&
+                            !karaoke &&
+                            word.index === index
+                              ? style.highlight_color
+                              : karaoke
+                                ? 'transparent'
+                                : undefined,
+                          backgroundImage: karaoke
+                            ? `linear-gradient(to right,${style.highlight_color} ${progress}%,${style.text_color} ${progress}%)`
+                            : undefined,
+                          textShadow: karaoke ? 'none' : undefined,
+                          WebkitTextStroke: karaoke
+                            ? '0 transparent'
+                            : undefined,
+                          backgroundClip: karaoke ? 'text' : undefined,
+                          WebkitBackgroundClip: karaoke ? 'text' : undefined
+                        }}
+                      >
+                        {word.text}
+                      </span>
                       {i < line.length - 1 ? ' ' : ''}
                     </span>
                   )

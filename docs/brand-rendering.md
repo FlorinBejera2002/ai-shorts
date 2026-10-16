@@ -23,6 +23,13 @@ Logo removal detaches supported raster files rather than removing bytes needed
 by saved snapshots. Font removal archives its resource; saved projects can still
 read and export it. Account cleanup removes both retained owner namespaces.
 
+Migration `048_20261016_logo_position.sql` adds nullable normalized logo center
+coordinates. A paired X/Y value places the contained image freely inside the
+frame; the renderer clamps it to the frame after applying its saved size. Null
+coordinates retain the existing corner and margin behavior. Selecting a corner
+clears the free position. Brand snapshots carry these fields into the main Studio
+composition, so saved placement is used by both preview and export.
+
 ## One caption contract
 
 `internal/captions.Style` and the frontend `CaptionStyle` define version 1. Font
@@ -53,6 +60,27 @@ with no-store caching, including for object storage; bucket CORS is not required
 for font previews. Existing archived fonts remain usable by their owner.
 
 ## Presentation and timing
+
+### Main Studio captions
+
+New generated clips use editable `.story-caption` elements in the main Studio
+composition. Preview and export use the same caption HTML, font bytes and GSAP
+animation generator. Independent optional `outline_enabled`, `background_enabled`
+and `active_word_enabled` switches override preset defaults without erasing saved
+colors or effect strengths. Missing switches preserve historical defaults.
+`animation` supports `none`, `phrase-pop`, `subtle-fade`, `word-pop` and `word-fade`.
+Active-word backgrounds include horizontal padding and rounded corners; phrase
+and word transforms operate on inline-block spans.
+
+The cut inspector applies subtitle settings to the selected cut, with explicit
+Apply to all controls. A narration cue crossing a cut boundary is split into
+timed segments before a local edit; original word clocks and entrance phases are
+retained. New segments receive unique stable IDs before saving, so preview
+normalization cannot invalidate undo history. Mobile pinch and corner resizing
+scale the glyph size as well as the text box; dragging, saved size and placement
+remain part of the same editable composition used for export.
+
+### Historical ASS rendering
 
 Twelve preset IDs implement actual ASS presentation: classic, minimal,
 bold-outline, contrast-box, headline, word-by-word, karaoke, active-color,
