@@ -52,7 +52,7 @@ func ValidateMediaTypes(provider string, types []string) error {
 		}
 	}
 	switch provider {
-	case "youtube", "linkedin":
+	case "youtube":
 		if len(types) != 1 || videos != 1 {
 			return errors.New("This platform supports one video per post")
 		}

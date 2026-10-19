@@ -1,7 +1,8 @@
 # Social publishing setup
 
 The Publish page connects user-owned Facebook Pages, Instagram professional
-accounts, TikTok accounts, YouTube channels and LinkedIn member profiles or approved organization Pages through separate OAuth flows. Scenarios remains a
+accounts, TikTok accounts and YouTube channels through separate OAuth flows.
+These are the only supported platforms. Scenarios remains a
 separate page. Publishing requires an explicit review and confirmation.
 
 ## Recorded provider resources
@@ -25,7 +26,6 @@ Register these exact OAuth redirect URLs in the corresponding product:
 | Instagram | `https://sneepcut.com/api/publishing/callback/instagram` |
 | TikTok | `https://sneepcut.com/api/publishing/callback/tiktok` |
 | YouTube | `https://sneepcut.com/api/publishing/callback/youtube` |
-| LinkedIn | `https://sneepcut.com/api/publishing/callback/linkedin` |
 
 Serve `/privacy`, `/terms` and `/data-deletion` publicly on the production domain.
 The data-deletion page is a human-readable instructions URL, not a webhook.
@@ -61,23 +61,20 @@ TikTok uses `user.info.basic` and `video.publish`.
 YouTube uses `youtube.readonly` and `youtube.upload` for channel connection and
 user-confirmed video publishing. See [the YouTube integration guide](youtube-integration.md)
 for current migrations, Google setup, private-only audit mode and data lifecycle.
-LinkedIn uses `openid`, `profile` and `w_member_social` for member video posts.
-Organization destinations additionally require approved Community Management
-access and `rw_organization_admin`, `r_organization_social` and
-`w_organization_social`. See [the LinkedIn integration guide](linkedin-integration.md).
-X uses OAuth 2.0 Authorization Code with PKCE and the minimum scopes
-`tweet.read`, `users.read`, `tweet.write`, `media.write` and `offline.access`.
-See [the X integration guide](x-integration.md).
 
 ## Behavior and limitations
 
 Credentials are encrypted at rest and are never returned in browser responses.
+Accounts for retired platforms are excluded from connections and publishing
+destinations. Existing calendar entries, scripts and media are retained; editing
+a retired destination requires an explicit supported replacement. Queued work
+for an unsupported platform fails without contacting that provider.
 OAuth states are single-use and bound to browser, user and session. Posting is
 durably queued with per-user idempotency; ambiguous provider outcomes are shown
 as unknown and are not blindly retried. A changed clip is rejected before it can
 replace the clip the user reviewed. Disconnect removes local credentials and
 cancels pending work; an operation already accepted remotely can still complete.
-Published Facebook and LinkedIn posts can be deleted remotely when the user
+Published Facebook posts can be deleted remotely when the user
 explicitly selects that option; other posts must be managed as described in the UI.
 
 TikTok creator options are fetched before confirmation. Privacy has no default;
@@ -99,5 +96,3 @@ Provider references:
 - [Meta Facebook API](https://www.postman.com/meta/facebook/documentation/r56bjfd/facebook-api)
 - [TikTok content sharing requirements](https://developers.tiktok.com/doc/content-sharing-guidelines/)
 - [TikTok application review](https://developers.tiktok.com/docs/en/app-review-guidelines)
-- [LinkedIn Share on LinkedIn](https://learn.microsoft.com/en-us/linkedin/consumer/integrations/self-serve/share-on-linkedin)
-- [LinkedIn Community Management API](https://learn.microsoft.com/en-us/linkedin/marketing/community-management/community-management-overview)

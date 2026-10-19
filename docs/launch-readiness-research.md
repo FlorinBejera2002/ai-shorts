@@ -13,7 +13,7 @@ The closest mature products are OpusClip, quso/vidyo.ai, Vizard and Klap. The sh
 - Text/transcript-based editing so users can trim clips without a timeline-first editor.
 - Brand kits, reusable templates, safe areas and platform-specific export presets.
 - Batch generation, regeneration, clip ranking, folders/projects and team workspaces.
-- Publishing or scheduling to TikTok, YouTube Shorts, Instagram Reels and LinkedIn.
+- Publishing or scheduling to TikTok, YouTube Shorts, Instagram Reels and Facebook.
 - Strong media lifecycle controls: private assets, expiring URLs, deletion, retention and auditability.
 - Usage-based credits, plan limits, billing, onboarding and clear job progress/error recovery.
 
@@ -41,7 +41,7 @@ Useful references:
 - Registration, upload and job creation have request rate limits at the Next route layer.
 - Next image remote wildcard was removed; remote hosts must be explicitly configured.
 - Next.js sends baseline browser security headers and a conservative CSP.
-- Create flow now includes platform presets for TikTok, Reels, Shorts and LinkedIn.
+- Create flow includes platform presets for TikTok, Instagram Reels, YouTube Shorts and Facebook.
 - Dashboard now has a Review queue for sorting generated clips by viral score and publishing readiness.
 - Clip detail now has a review workspace with editable title/hook, readiness checklist, platform fit, transcript copy and social caption copy.
 

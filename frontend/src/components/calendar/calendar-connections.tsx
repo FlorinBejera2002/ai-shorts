@@ -46,9 +46,7 @@ export function CalendarConnections({
   const t = useTranslations('contentCalendar.connections')
   const locale = useLocale()
   const youtubeT = useTranslations('youtubePublishing')
-  const linkedinT = useTranslations('linkedinPublishing')
   const [youtubeConsent, setYouTubeConsent] = useState(false)
-  const [linkedinConsent, setLinkedInConsent] = useState(false)
   const toast = useToast()
   const [busyAccount, setBusyAccount] = useState<string | null>(null)
   const [disconnectingAccount, setDisconnectingAccount] =
@@ -132,8 +130,7 @@ export function CalendarConnections({
                 'instagram',
                 'facebook',
                 'tiktok',
-                'youtube',
-                'linkedin'
+                'youtube'
               ] as const
             ).map((provider) => (
               <div key={provider} className="skeleton h-14 w-full rounded-md" />
@@ -179,16 +176,13 @@ export function CalendarConnections({
                           size="sm"
                           disabled={
                             !provider.configured || busyProvider !== null ||
-                            (provider.id === 'youtube' && !youtubeConsent) ||
-                            (provider.id === 'linkedin' && !linkedinConsent)
+                            (provider.id === 'youtube' && !youtubeConsent)
                           }
                           onClick={() => void onConnect(
                             provider.id,
                             provider.id === 'youtube'
                               ? youtubeConsent
-                              : provider.id === 'linkedin'
-                                ? linkedinConsent
-                                : false
+                              : false
                           )}
                           className="ml-auto h-8 rounded-md bg-background px-2.5 text-[10px] shadow-none hover:bg-muted hover:text-foreground"
                         >
@@ -212,19 +206,6 @@ export function CalendarConnections({
                           terms: chunks => <a className="underline" href="https://www.youtube.com/t/terms" target="_blank" rel="noreferrer">{chunks}</a>,
                           privacy: chunks => <a className="underline" href={locale === 'ro' ? '/ro/privacy' : '/privacy'} target="_blank" rel="noreferrer">{chunks}</a>
                         })}</span></label>
-                      </div>
-                    )}
-                    {provider.id === 'linkedin' && !connected && provider.configured && (
-                      <div className="mt-2 space-y-2 text-xs text-muted-foreground">
-                        <p>{linkedinT('dataUse')}</p>
-                        <label className="flex items-start gap-2">
-                          <Switch checked={linkedinConsent} onCheckedChange={setLinkedInConsent} />
-                          <span>{linkedinT.rich('connectionConsent', {
-                            terms: chunks => <a className="underline" href="https://www.linkedin.com/legal/l/api-terms-of-use" target="_blank" rel="noreferrer">{chunks}</a>,
-                            privacy: chunks => <a className="underline" href={locale === 'ro' ? '/ro/privacy' : '/privacy'} target="_blank" rel="noreferrer">{chunks}</a>,
-                            deletion: chunks => <a className="underline" href={locale === 'ro' ? '/ro/data-deletion' : '/data-deletion'} target="_blank" rel="noreferrer">{chunks}</a>
-                          })}</span>
-                        </label>
                       </div>
                     )}
                     {connected ? (

@@ -29,6 +29,7 @@ async function loadTypeScriptModule(relativePath) {
 const { CONTENT_PLATFORMS, validateScheduledPostPayload } =
   await loadTypeScriptModule('../src/lib/content-calendar.ts')
 const {
+  CALENDAR_PLATFORMS,
   getDefaultPlanningTime,
   getWeekRange,
   movePostToLocalDate,
@@ -149,14 +150,43 @@ test('normalizes missing and malformed account ids from calendar responses', () 
   assert.deepEqual(normalizeScheduledPost(malformedPost).accountIds, ['valid'])
 })
 
+test('keeps legacy calendar content while removing unsupported destinations', () => {
+  const media = [{ type: 'video', reference: 'clip.mp4', name: 'Clip' }]
+  const post = {
+    id: 'legacy-post',
+    title: 'Keep my video',
+    media,
+    platforms: ['linkedin', 'instagram', 'x'],
+    publishingDestinations: [
+      { provider: 'linkedin', status: 'published' },
+      { provider: 'instagram', status: 'published' },
+      { provider: 'x', status: 'published' }
+    ]
+  }
+
+  const normalized = normalizeScheduledPost(post)
+  assert.equal(normalized.id, post.id)
+  assert.equal(normalized.title, post.title)
+  assert.equal(normalized.media, media)
+  assert.deepEqual(normalized.platforms, ['instagram'])
+  assert.deepEqual(normalized.publishingDestinations, [
+    { provider: 'instagram', status: 'published' }
+  ])
+  assert.deepEqual(post.platforms, ['linkedin', 'instagram', 'x'])
+  assert.deepEqual(
+    normalizeScheduledPost({ ...post, platforms: ['linkedin'] }).platforms,
+    []
+  )
+})
+
 test('supports exactly the product platforms', () => {
   assert.deepEqual(CONTENT_PLATFORMS, [
     'tiktok',
     'instagram',
     'facebook',
-    'youtube',
-    'linkedin'
+    'youtube'
   ])
+  assert.deepEqual(CALENDAR_PLATFORMS, CONTENT_PLATFORMS)
 
   const facebook = validateScheduledPostPayload(
     { ...validCreatePayload, platforms: ['facebook'] },
@@ -167,6 +197,10 @@ test('supports exactly the product platforms', () => {
   for (const platforms of [
     [],
     ['unsupported'],
+    ['linkedin'],
+    ['x'],
+    ['twitter'],
+    ['instagram', 'linkedin'],
     ['tiktok', 'tiktok'],
     ['youtube', 42]
   ]) {
@@ -231,7 +265,7 @@ test('enforces text limits and required create fields', () => {
       title: ' ',
       caption: 'c'.repeat(5_001),
       notes: 'n'.repeat(2_001),
-      platforms: ['linkedin']
+      platforms: ['instagram']
     },
     'create'
   )

@@ -78,10 +78,12 @@ func decode(w http.ResponseWriter, r *http.Request, v any) bool {
 func param(r *http.Request, key string) string {
 	return httprouter.ParamsFromContext(r.Context()).ByName(key)
 }
-func providerValid(p string) bool {
-	return p == "instagram" || p == "facebook" || p == "tiktok" || p == "youtube" || p == "linkedin"
+
+// SupportedProvider reports whether the product supports this publishing destination.
+func SupportedProvider(p string) bool {
+	return p == "instagram" || p == "facebook" || p == "tiktok" || p == "youtube"
 }
-func providerScopes(p string, linkedinOrganizations bool) []string {
+func providerScopes(p string) []string {
 	switch p {
 	case "instagram":
 		return []string{"profile", "publish_content"}
@@ -91,12 +93,6 @@ func providerScopes(p string, linkedinOrganizations bool) []string {
 		return []string{"profile", "video_publish"}
 	case "youtube":
 		return []string{"channel_read", "video_publish"}
-	case "linkedin":
-		scopes := []string{"profile", "video_publish"}
-		if linkedinOrganizations {
-			scopes = append(scopes, "organization_publish")
-		}
-		return scopes
 	default:
 		return []string{}
 	}
@@ -112,15 +108,12 @@ func publishingReturnURL(appURL, locale, key, value string) string {
 
 func (h *Handler) overview(w http.ResponseWriter, r *http.Request) {
 	providers := []map[string]any{}
-	providerNames := map[string]string{"instagram": "Instagram", "facebook": "Facebook", "tiktok": "TikTok", "youtube": "YouTube", "linkedin": "LinkedIn"}
-	for _, p := range []string{"instagram", "facebook", "tiktok", "youtube", "linkedin"} {
+	providerNames := map[string]string{"instagram": "Instagram", "facebook": "Facebook", "tiktok": "TikTok", "youtube": "YouTube"}
+	for _, p := range []string{"instagram", "facebook", "tiktok", "youtube"} {
 		configured := h.configured(p)
 		entry := map[string]any{"id": p, "name": providerNames[p], "configured": configured, "supportsPublishing": configured}
 		if p == "youtube" {
 			entry["youtubeAuditApproved"] = h.cfg.YouTubeAuditApproved
-		}
-		if p == "linkedin" {
-			entry["linkedinOrganizationEnabled"] = h.cfg.LinkedInOrganizationEnabled
 		}
 		if !configured {
 			entry["reason"] = "Developer setup and a public HTTPS address are required."
@@ -136,7 +129,7 @@ func (h *Handler) overview(w http.ResponseWriter, r *http.Request) {
 }
 func (h *Handler) connect(w http.ResponseWriter, r *http.Request) {
 	p := param(r, "provider")
-	if !providerValid(p) {
+	if !SupportedProvider(p) {
 		fail(w, 404, "Unknown provider.")
 		return
 	}
@@ -145,19 +138,14 @@ func (h *Handler) connect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var input struct {
-		Locale          string `json:"locale"`
-		YouTubeConsent  bool   `json:"youtubeConsent"`
-		LinkedInConsent bool   `json:"linkedinConsent"`
+		Locale         string `json:"locale"`
+		YouTubeConsent bool   `json:"youtubeConsent"`
 	}
 	if !decode(w, r, &input) {
 		return
 	}
 	if p == "youtube" && !input.YouTubeConsent {
 		fail(w, 400, "Accept the privacy policy and YouTube Terms before connecting.")
-		return
-	}
-	if p == "linkedin" && !input.LinkedInConsent {
-		fail(w, 400, "Review the LinkedIn data use and deletion terms before connecting.")
 		return
 	}
 	if input.Locale != "ro" {
@@ -184,7 +172,7 @@ func (h *Handler) callback(w http.ResponseWriter, r *http.Request) {
 	redirect := func(key, value string) {
 		http.Redirect(w, r, publishingReturnURL(h.cfg.AppURL, locale, key, value), http.StatusSeeOther)
 	}
-	if !providerValid(p) || !h.configured(p) {
+	if !SupportedProvider(p) || !h.configured(p) {
 		redirect("connectionError", "unavailable")
 		return
 	}
@@ -234,20 +222,13 @@ func (h *Handler) callback(w http.ResponseWriter, r *http.Request) {
 		if !a.Credentials.ExpiresAt.IsZero() {
 			expiresAt = a.Credentials.ExpiresAt
 		}
-		_, e = tx.ExecContext(ctx, `INSERT INTO social_accounts(id,user_id,provider,remote_id,name,username,avatar_url,credentials,scopes,token_expires_at) VALUES(gen_random_uuid(),$1,$2,$3,$4,$5,$6,$7,$8,$9) ON CONFLICT(user_id,provider,remote_id) DO UPDATE SET name=excluded.name,username=excluded.username,avatar_url=excluded.avatar_url,credentials=excluded.credentials,scopes=excluded.scopes,token_expires_at=excluded.token_expires_at,status='connected',updated_at=now()`, user, p, a.ID, a.Name, a.Username, a.AvatarURL, encrypted, pq.Array(providerScopes(p, h.cfg.LinkedInOrganizationEnabled)), expiresAt)
+		_, e = tx.ExecContext(ctx, `INSERT INTO social_accounts(id,user_id,provider,remote_id,name,username,avatar_url,credentials,scopes,token_expires_at) VALUES(gen_random_uuid(),$1,$2,$3,$4,$5,$6,$7,$8,$9) ON CONFLICT(user_id,provider,remote_id) DO UPDATE SET name=excluded.name,username=excluded.username,avatar_url=excluded.avatar_url,credentials=excluded.credentials,scopes=excluded.scopes,token_expires_at=excluded.token_expires_at,status='connected',updated_at=now()`, user, p, a.ID, a.Name, a.Username, a.AvatarURL, encrypted, pq.Array(providerScopes(p)), expiresAt)
 		if e != nil {
 			redirect("connectionError", "unavailable")
 			return
 		}
 		if p == "youtube" {
 			_, e = tx.ExecContext(ctx, `UPDATE social_accounts SET youtube_verified_at=now(),youtube_check_after=now()+interval '1 day',youtube_consent_at=now() WHERE user_id=$1 AND provider='youtube' AND remote_id=$2`, user, a.ID)
-			if e != nil {
-				redirect("connectionError", "unavailable")
-				return
-			}
-		}
-		if p == "linkedin" {
-			_, e = tx.ExecContext(ctx, `UPDATE social_accounts SET linkedin_verified_at=now(),linkedin_check_after=now()+interval '1 day',linkedin_consent_at=now() WHERE user_id=$1 AND provider='linkedin' AND remote_id=$2`, user, a.ID)
 			if e != nil {
 				redirect("connectionError", "unavailable")
 				return

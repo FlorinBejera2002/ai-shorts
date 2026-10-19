@@ -1,5 +1,5 @@
 import type { ContentPlatform } from '@/lib/content-calendar'
-import { Facebook, Instagram, Linkedin, Music2, Youtube } from 'lucide-react'
+import { Facebook, Instagram, Music2, Youtube } from 'lucide-react'
 
 const platformStyles = {
   tiktok: {
@@ -18,10 +18,6 @@ const platformStyles = {
   youtube: {
     icon: Youtube,
     className: 'bg-red-600 text-white'
-  },
-  linkedin: {
-    icon: Linkedin,
-    className: 'bg-blue-700 text-white'
   }
 } satisfies Record<
   ContentPlatform,

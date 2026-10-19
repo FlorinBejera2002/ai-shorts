@@ -2,8 +2,7 @@ export const CONTENT_PLATFORMS = [
   'tiktok',
   'instagram',
   'facebook',
-  'youtube',
-  'linkedin'
+  'youtube'
 ] as const
 
 export const CONTENT_POST_STATUSES = [

@@ -36,8 +36,8 @@ export type LegalDocumentCopy = {
 }
 
 const updated = {
-  en: 'Last updated: September 22, 2026',
-  ro: 'Ultima actualizare: 22 septembrie 2026'
+  en: 'Last updated: October 19, 2026',
+  ro: 'Ultima actualizare: 19 octombrie 2026'
 } as const
 
 export const PRIVACY_COPY: Record<SiteLocale, LegalDocumentCopy> = {
@@ -69,22 +69,6 @@ export const PRIVACY_COPY: Record<SiteLocale, LegalDocumentCopy> = {
             label: 'Google account permissions',
             href: 'https://myaccount.google.com/permissions'
           }
-        ]
-      },
-      {
-        title: 'LinkedIn API integration',
-        paragraphs: [
-          'Sneep Cut uses the LinkedIn APIs only after you deliberately connect LinkedIn. We request OpenID profile access and permission to publish posts for your member account. Access to Pages you administer is requested only when organization publishing has been approved and enabled for Sneep Cut.',
-          'We store your LinkedIn member or organization identifier, display name, public profile or Page URL, image URL, granted permissions, token expiry, connection state, encrypted OAuth credentials, and identifiers and status for posts submitted through Sneep Cut. We use this data only to show eligible destinations, verify continued authorization, and upload the video and commentary you explicitly approve. We do not export LinkedIn member data or use it for advertising, sales, recruiting, CRM enrichment, profiling, or AI training.',
-          'We verify connected LinkedIn destinations periodically. Disconnecting LinkedIn, a detected revocation, or an expired authorization immediately deletes locally stored LinkedIn credentials, cached profile or Page data, and API-derived publishing records for that connection. Your source media and projects remain subject to your independent Sneep Cut retention choices. Posts already published remain on LinkedIn unless you explicitly select LinkedIn deletion in the calendar or remove them on LinkedIn.',
-          'Your use of LinkedIn features is also governed by LinkedIn’s User Agreement, Privacy Policy, API Terms, and Marketing Developer Platform Terms. You can revoke Sneep Cut through LinkedIn’s permitted services settings as well as from Sneep Cut.'
-        ],
-        links: [
-          { label: 'LinkedIn User Agreement', href: 'https://www.linkedin.com/legal/user-agreement' },
-          { label: 'LinkedIn Privacy Policy', href: 'https://www.linkedin.com/legal/privacy-policy' },
-          { label: 'LinkedIn API Terms', href: 'https://www.linkedin.com/legal/l/api-terms-of-use' },
-          { label: 'LinkedIn Marketing API Terms', href: 'https://www.linkedin.com/legal/l/marketing-api-terms' },
-          { label: 'LinkedIn permitted services', href: 'https://www.linkedin.com/mypreferences/d/permitted-services' }
         ]
       },
       {
@@ -230,22 +214,6 @@ export const PRIVACY_COPY: Record<SiteLocale, LegalDocumentCopy> = {
             label: 'Google account permissions',
             href: 'https://myaccount.google.com/permissions'
           }
-        ]
-      },
-      {
-        title: 'Integrarea API LinkedIn',
-        paragraphs: [
-          'Sneep Cut folosește API-urile LinkedIn numai după ce conectezi intenționat LinkedIn. Solicităm acces OpenID la profil și permisiunea de a publica pentru contul tău de membru. Accesul la Paginile pe care le administrezi este solicitat numai după ce publicarea pentru organizații a fost aprobată și activată pentru Sneep Cut.',
-          'Stocăm identificatorul LinkedIn de membru sau organizație, numele afișat, adresa publică a profilului ori Paginii, adresa imaginii, permisiunile acordate, expirarea tokenului, starea conexiunii, credențialele OAuth criptate și identificatorii și starea postărilor trimise prin Sneep Cut. Folosim datele numai pentru a afișa destinațiile eligibile, a verifica autorizarea și a încărca videoclipul și textul aprobate explicit. Nu exportăm date despre membrii LinkedIn și nu le folosim pentru publicitate, vânzări, recrutare, îmbogățirea bazelor CRM, profilare ori antrenarea AI.',
-          'Verificăm periodic destinațiile LinkedIn conectate. Deconectarea LinkedIn, detectarea revocării ori expirarea autorizării șterge imediat credențialele LinkedIn stocate local, datele de profil sau Pagină din cache și înregistrările de publicare obținute prin API pentru conexiunea respectivă. Fișierele sursă și proiectele rămân sub controlul separat al retenției Sneep Cut. Postările deja publicate rămân pe LinkedIn dacă nu selectezi explicit ștergerea de pe LinkedIn în calendar sau nu le elimini direct din LinkedIn.',
-          'Utilizarea funcțiilor LinkedIn este guvernată și de Acordul utilizatorului, Politica de confidențialitate, Termenii API și Termenii Marketing Developer Platform LinkedIn. Poți revoca Sneep Cut din setările serviciilor permise LinkedIn sau din Sneep Cut.'
-        ],
-        links: [
-          { label: 'Acordul utilizatorului LinkedIn', href: 'https://www.linkedin.com/legal/user-agreement' },
-          { label: 'Politica de confidențialitate LinkedIn', href: 'https://www.linkedin.com/legal/privacy-policy' },
-          { label: 'Termenii API LinkedIn', href: 'https://www.linkedin.com/legal/l/api-terms-of-use' },
-          { label: 'Termenii Marketing API LinkedIn', href: 'https://www.linkedin.com/legal/l/marketing-api-terms' },
-          { label: 'Servicii permise LinkedIn', href: 'https://www.linkedin.com/mypreferences/d/permitted-services' }
         ]
       },
       {
@@ -397,21 +365,6 @@ export const TERMS_COPY: Record<SiteLocale, LegalDocumentCopy> = {
         ]
       },
       {
-        title: 'LinkedIn API Services',
-        paragraphs: [
-          'When you connect LinkedIn, you authorize Sneep Cut to identify your member profile and publish only the video posts you approve. If organization publishing is enabled, you also authorize access to Pages for which LinkedIn confirms you are an administrator. You must keep that authority and may not select a destination you are not entitled to represent.',
-          'You remain responsible for the video, commentary, claims, permissions, releases, intellectual-property rights, advertising disclosures, and legal compliance of every LinkedIn post. Do not use Sneep Cut to scrape, export, enrich, sell, or repurpose LinkedIn member data, or to automate prohibited advertising, sales, recruiting, surveillance, or profiling.',
-          'LinkedIn may limit, review, suspend, or withdraw API access. Sneep Cut may disable LinkedIn features when required by LinkedIn, law, security, permissions, quota, or technical availability. Disconnecting stops future submissions and deletes local LinkedIn connection data, but does not remove posts already delivered unless you separately request supported remote deletion.',
-          'By using the LinkedIn integration, you agree to comply with LinkedIn’s User Agreement, Professional Community Policies, API Terms, and Marketing Developer Platform Terms, as updated by LinkedIn.'
-        ],
-        links: [
-          { label: 'LinkedIn User Agreement', href: 'https://www.linkedin.com/legal/user-agreement' },
-          { label: 'LinkedIn Professional Community Policies', href: 'https://www.linkedin.com/legal/professional-community-policies' },
-          { label: 'LinkedIn API Terms', href: 'https://www.linkedin.com/legal/l/api-terms-of-use' },
-          { label: 'LinkedIn Marketing API Terms', href: 'https://www.linkedin.com/legal/l/marketing-api-terms' }
-        ]
-      },
-      {
         title: '1. Operator and agreement',
         paragraphs: [
           `${LEGAL_OPERATOR.brand} is a service of ${LEGAL_OPERATOR.legalName}, CUI ${LEGAL_OPERATOR.taxId}, Trade Register ${LEGAL_OPERATOR.tradeRegister}, registered office ${LEGAL_OPERATOR.address}. These Terms, the Privacy Policy, Acceptable Use Policy, Refund and Cancellation Policy, and the order information shown at checkout form the applicable agreement.`,
@@ -547,21 +500,6 @@ export const TERMS_COPY: Record<SiteLocale, LegalDocumentCopy> = {
         ]
       },
       {
-        title: 'Serviciile API LinkedIn',
-        paragraphs: [
-          'Când conectezi LinkedIn, autorizezi Sneep Cut să identifice profilul tău de membru și să publice numai postările video aprobate de tine. Dacă publicarea pentru organizații este activată, autorizezi și accesul la Paginile pentru care LinkedIn confirmă că ești administrator. Trebuie să păstrezi această autoritate și să nu selectezi o destinație pe care nu ai dreptul să o reprezinți.',
-          'Rămâi responsabil pentru videoclip, text, afirmații, permisiuni, acorduri, drepturi de proprietate intelectuală, marcaje publicitare și respectarea legii pentru fiecare postare LinkedIn. Nu folosi Sneep Cut pentru a extrage, exporta, îmbogăți, vinde ori reutiliza datele membrilor LinkedIn sau pentru a automatiza activități interzise de publicitate, vânzări, recrutare, supraveghere ori profilare.',
-          'LinkedIn poate limita, verifica, suspenda ori retrage accesul API. Sneep Cut poate dezactiva funcțiile LinkedIn când o cer LinkedIn, legea, securitatea, permisiunile, cotele ori disponibilitatea tehnică. Deconectarea oprește trimiterile viitoare și șterge datele locale ale conexiunii LinkedIn, dar nu elimină postările deja livrate dacă nu soliciți separat ștergerea la distanță acceptată.',
-          'Prin utilizarea integrării LinkedIn, accepți să respecți Acordul utilizatorului, Regulile comunității profesionale, Termenii API și Termenii Marketing Developer Platform LinkedIn, în forma actualizată de LinkedIn.'
-        ],
-        links: [
-          { label: 'Acordul utilizatorului LinkedIn', href: 'https://www.linkedin.com/legal/user-agreement' },
-          { label: 'Regulile comunității profesionale LinkedIn', href: 'https://www.linkedin.com/legal/professional-community-policies' },
-          { label: 'Termenii API LinkedIn', href: 'https://www.linkedin.com/legal/l/api-terms-of-use' },
-          { label: 'Termenii Marketing API LinkedIn', href: 'https://www.linkedin.com/legal/l/marketing-api-terms' }
-        ]
-      },
-      {
         title: '1. Operator și acord',
         paragraphs: [
           `${LEGAL_OPERATOR.brand} este un serviciu al ${LEGAL_OPERATOR.legalName}, CUI ${LEGAL_OPERATOR.taxId}, Registrul Comerțului ${LEGAL_OPERATOR.tradeRegister}, sediul social ${LEGAL_OPERATOR.address}. Acești Termeni, Politica de confidențialitate, Politica de utilizare acceptabilă, Politica de anulare și rambursare și informațiile comenzii afișate la plată formează acordul aplicabil.`,
@@ -682,10 +620,9 @@ export const DATA_DELETION_COPY: Record<SiteLocale, LegalDocumentCopy> = {
         ]
       },
       {
-        title: '2. Disconnect Instagram, Facebook, TikTok, YouTube, or LinkedIn',
+        title: '2. Disconnect Instagram, Facebook, TikTok, or YouTube',
         paragraphs: [
           'Open Publish or Calendar, locate Connected accounts, choose Disconnect for the account, and confirm. Sneep Cut removes the locally stored authorization and prevents new submissions through that connection. Pending work is cancelled where cancellation remains possible; a request already sent to a platform may still complete.',
-          'For LinkedIn, disconnecting immediately deletes the encrypted token, cached member or Page data, and LinkedIn API post identifiers and status records for that connection. It does not delete your source media or projects, and posts already delivered remain on LinkedIn unless you separately select supported LinkedIn deletion.',
           'You may also revoke Sneep Cut from the connected-app settings of the platform. Revoking access on the platform can take time to be reflected in Sneep Cut. Never send us a platform password, access token, recovery code, or one-time login code.'
         ]
       },
@@ -742,10 +679,9 @@ export const DATA_DELETION_COPY: Record<SiteLocale, LegalDocumentCopy> = {
         ]
       },
       {
-        title: '2. Deconectează Instagram, Facebook, TikTok, YouTube, LinkedIn',
+        title: '2. Deconectează Instagram, Facebook, TikTok, YouTube',
         paragraphs: [
           'Deschide Publicare ori Calendar, găsește Conturi conectate, alege Deconectează și confirmă. Sneep Cut elimină autorizarea stocată local și împiedică trimiteri noi prin acea conexiune. Lucrările în așteptare sunt anulate unde mai este posibil; o cerere deja trimisă platformei se poate finaliza.',
-          'Pentru LinkedIn, deconectarea șterge imediat tokenul criptat, datele de membru sau Pagină din cache și identificatorii și stările postărilor LinkedIn obținute prin API pentru acea conexiune. Nu șterge fișierele sursă ori proiectele, iar postările deja livrate rămân pe LinkedIn dacă nu selectezi separat ștergerea LinkedIn acceptată.',
           'Poți retrage autorizarea Sneep Cut și din setările aplicațiilor conectate ale platformei. Retragerea poate avea nevoie de timp pentru a apărea în Sneep Cut. Nu ne trimite niciodată parola platformei, tokenuri, coduri de recuperare ori coduri de autentificare.'
         ]
       },

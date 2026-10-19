@@ -53,7 +53,7 @@ func (h *Handler) resolve(ctx context.Context, raw []byte, camel bool) (map[stri
 	delete(record, "preview_storage_key")
 	variants := []map[string]any{}
 	if fileURL, _ := record["file_url"].(string); fileURL != "" {
-		platforms := []string{"instagram", "facebook", "linkedin", "youtube"}
+		platforms := []string{"instagram", "facebook", "youtube"}
 		if containsBadge, _ := record["contains_platform_badge"].(bool); !containsBadge {
 			platforms = append(platforms, "tiktok")
 		}

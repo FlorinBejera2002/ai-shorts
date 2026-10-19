@@ -30,6 +30,16 @@ type ValidationError struct{ Issues []Issue }
 func (e *ValidationError) Error() string { return "Please correct the highlighted fields." }
 func utf16Length(value string) int       { return len(utf16.Encode([]rune(value))) }
 
+func supportedPlatforms(platforms []string) []string {
+	result := make([]string, 0, len(platforms))
+	for _, platform := range platforms {
+		if publishing.SupportedProvider(platform) {
+			result = append(result, platform)
+		}
+	}
+	return result
+}
+
 func ParseDateTime(value string) (time.Time, error) {
 	match := datePattern.FindStringSubmatch(value)
 	if match == nil {
@@ -142,7 +152,7 @@ func Validate(input map[string]any, create bool) (map[string]any, error) {
 					continue
 				}
 				text = strings.ToLower(strings.TrimSpace(text))
-				if slices.Contains(normalized, text) || !slices.Contains([]string{"tiktok", "instagram", "facebook", "youtube", "linkedin"}, text) {
+				if slices.Contains(normalized, text) || !publishing.SupportedProvider(text) {
 					invalid = true
 				}
 				normalized = append(normalized, text)

@@ -9,7 +9,6 @@ type PlatformBrandIconProps = {
 const PLATFORM_LOGOS: Record<PublishingProvider, string> = {
   facebook: '/brand/social/facebook-square.svg',
   instagram: '/brand/social/instagram.svg',
-  linkedin: '/brand/social/linkedin.svg',
   tiktok: '/brand/social/tiktok.svg',
   youtube: '/brand/social/youtube.svg'
 }

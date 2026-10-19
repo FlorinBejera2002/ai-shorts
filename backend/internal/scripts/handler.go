@@ -57,7 +57,7 @@ type Request struct {
 }
 
 func BuildPrompt(input Request) string {
-	platform := map[string]string{"tiktok": "TikTok", "instagram": "Instagram Reels", "facebook": "Facebook Reels", "youtube": "YouTube Shorts", "linkedin": "LinkedIn"}[input.Platform]
+	platform := map[string]string{"tiktok": "TikTok", "instagram": "Instagram Reels", "facebook": "Facebook Reels", "youtube": "YouTube Shorts"}[input.Platform]
 	if platform == "" {
 		platform = input.Platform
 	}
@@ -102,7 +102,7 @@ func (h *Handler) generate(w http.ResponseWriter, r *http.Request) {
 }
 
 func (input Request) Validate() error {
-	if utf8.RuneCountInString(input.Topic) < 3 || utf8.RuneCountInString(input.Topic) > 1000 || input.Duration < 15 || input.Duration > 180 || len(input.Audience) > 2000 || len(input.Platform) > 100 || len(input.Tone) > 200 || len(input.Language) > 100 || len(input.Style) > 100 {
+	if utf8.RuneCountInString(input.Topic) < 3 || utf8.RuneCountInString(input.Topic) > 1000 || input.Duration < 15 || input.Duration > 180 || len(input.Audience) > 2000 || !validPlatforms[input.Platform] || len(input.Tone) > 200 || len(input.Language) > 100 || len(input.Style) > 100 {
 		return errors.New("Script parameters are invalid")
 	}
 	return nil

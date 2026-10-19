@@ -3,6 +3,7 @@
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
+import { PUBLISHING_PROVIDER_CATALOG } from '@/lib/publishing'
 import type { ScriptRecord } from '@/lib/scripts-workspace'
 import { Archive, Clock3, FileText, Plus, Search } from 'lucide-react'
 
@@ -93,7 +94,11 @@ export function ScriptLibrary({
                 {record.topic || labels.noBrief}
               </p>
               <div className="mt-5 flex items-center justify-between border-t pt-3 text-[11px] text-muted-foreground">
-                <span className="capitalize">{record.platform}</span>
+                <span>
+                  {PUBLISHING_PROVIDER_CATALOG.find(
+                    ({ id }) => id === record.platform
+                  )?.name ?? labels.platformRequired}
+                </span>
                 <span className="flex items-center gap-1">
                   <Clock3 className="size-3" />
                   {new Intl.DateTimeFormat(undefined, {

@@ -61,8 +61,7 @@ export function useSocialConnection(onComplete: () => void) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           locale,
-          ...(provider === 'youtube' ? { youtubeConsent: providerConsent } : {}),
-          ...(provider === 'linkedin' ? { linkedinConsent: providerConsent } : {})
+          ...(provider === 'youtube' ? { youtubeConsent: providerConsent } : {})
         }),
         signal: controller.signal
       })

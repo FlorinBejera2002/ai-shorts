@@ -12,32 +12,31 @@ import (
 
 // Application carries validated process settings into focused feature adapters.
 type Application struct {
-	StudioAgentURL, StudioAgentSecret                                                                                                                                                                                                                                   string
-	YouTubeMediaURLPrefix, LinkedInMediaURLPrefix                                                                                                                                                                                                                       string
-	YouTubeAuditApproved                                                                                                                                                                                                                                                bool
-	YouTubeImportApproved                                                                                                                                                                                                                                               bool
-	SocialEncryptionKey, MetaAppID, MetaAppSecret, InstagramAppID, InstagramAppSecret, TikTokClientKey, TikTokClientSecret, YouTubeClientID, YouTubeClientSecret, LinkedInClientID, LinkedInClientSecret, LinkedInAPIVersion, MetaGraphVersion, TikTokVerifiedURLPrefix string
-	LinkedInOrganizationEnabled                                                                                                                                                                                                                                         bool
-	SocialPublishingEnabled                                                                                                                                                                                                                                             bool
-	AppURL, RedisURL, MediaRoot, StorageType, PublicMediaURL, SigningSecret, UploadSecret, StagingDirectory, DirectUploadURL                                                                                                                                            string
-	MaxUploadBytes                                                                                                                                                                                                                                                      int64
-	MaxClipDuration                                                                                                                                                                                                                                                     float64
-	ScannerEnabled                                                                                                                                                                                                                                                      bool
-	ScannerAddress                                                                                                                                                                                                                                                      string
-	ScannerTimeout                                                                                                                                                                                                                                                      time.Duration
-	AllowedHosts, TrustedProxies                                                                                                                                                                                                                                        []string
-	RequireEmailVerification                                                                                                                                                                                                                                            bool
-	InitialCredits                                                                                                                                                                                                                                                      int
-	GoogleClientID, GoogleClientSecret, GoogleRedirectURL                                                                                                                                                                                                               string
-	EmailFrom, ResendKey, SMTPHost, SMTPUser, SMTPPassword                                                                                                                                                                                                              string
-	SMTPPort                                                                                                                                                                                                                                                            int
-	SMTPRequireTLS                                                                                                                                                                                                                                                      bool
-	AIProvider, GeminiKey, GeminiModel, OpenRouterKey, OpenRouterModel                                                                                                                                                                                                  string
-	S3AccessKey, S3SecretKey, S3SessionToken, S3Region, S3Bucket, S3Endpoint                                                                                                                                                                                            string
-	S3PathStyle                                                                                                                                                                                                                                                         bool
-	StripeKey, StripeWebhookSecret                                                                                                                                                                                                                                      string
-	StripePlans                                                                                                                                                                                                                                                         map[string]string
-	StripeCreditPacks                                                                                                                                                                                                                                                   map[string]int
+	StudioAgentURL, StudioAgentSecret                                                                                                                                                                       string
+	YouTubeMediaURLPrefix                                                                                                                                                                                   string
+	YouTubeAuditApproved                                                                                                                                                                                    bool
+	YouTubeImportApproved                                                                                                                                                                                   bool
+	SocialEncryptionKey, MetaAppID, MetaAppSecret, InstagramAppID, InstagramAppSecret, TikTokClientKey, TikTokClientSecret, YouTubeClientID, YouTubeClientSecret, MetaGraphVersion, TikTokVerifiedURLPrefix string
+	SocialPublishingEnabled                                                                                                                                                                                 bool
+	AppURL, RedisURL, MediaRoot, StorageType, PublicMediaURL, SigningSecret, UploadSecret, StagingDirectory, DirectUploadURL                                                                                string
+	MaxUploadBytes                                                                                                                                                                                          int64
+	MaxClipDuration                                                                                                                                                                                         float64
+	ScannerEnabled                                                                                                                                                                                          bool
+	ScannerAddress                                                                                                                                                                                          string
+	ScannerTimeout                                                                                                                                                                                          time.Duration
+	AllowedHosts, TrustedProxies                                                                                                                                                                            []string
+	RequireEmailVerification                                                                                                                                                                                bool
+	InitialCredits                                                                                                                                                                                          int
+	GoogleClientID, GoogleClientSecret, GoogleRedirectURL                                                                                                                                                   string
+	EmailFrom, ResendKey, SMTPHost, SMTPUser, SMTPPassword                                                                                                                                                  string
+	SMTPPort                                                                                                                                                                                                int
+	SMTPRequireTLS                                                                                                                                                                                          bool
+	AIProvider, GeminiKey, GeminiModel, OpenRouterKey, OpenRouterModel                                                                                                                                      string
+	S3AccessKey, S3SecretKey, S3SessionToken, S3Region, S3Bucket, S3Endpoint                                                                                                                                string
+	S3PathStyle                                                                                                                                                                                             bool
+	StripeKey, StripeWebhookSecret                                                                                                                                                                          string
+	StripePlans                                                                                                                                                                                             map[string]string
+	StripeCreditPacks                                                                                                                                                                                       map[string]int
 }
 
 func splitValues(raw string) []string {
@@ -82,20 +81,6 @@ func ApplicationFromEnv(getenv func(string) string, environment string) (Applica
 	a.TikTokClientSecret = getenv("TIKTOK_CLIENT_SECRET")
 	a.YouTubeClientID = getenv("YOUTUBE_CLIENT_ID")
 	a.YouTubeClientSecret = getenv("YOUTUBE_CLIENT_SECRET")
-	a.LinkedInClientID = getenv("LINKEDIN_CLIENT_ID")
-	a.LinkedInClientSecret = getenv("LINKEDIN_CLIENT_SECRET")
-	a.LinkedInAPIVersion = value("LINKEDIN_API_VERSION", "202609")
-	a.LinkedInMediaURLPrefix = value("LINKEDIN_MEDIA_URL_PREFIX", a.PublicMediaURL)
-	if a.LinkedInMediaURLPrefix == "" {
-		a.LinkedInMediaURLPrefix = a.AppURL + "/media/"
-	}
-	if len(a.LinkedInAPIVersion) != 6 || strings.Trim(a.LinkedInAPIVersion, "0123456789") != "" {
-		return a, errors.New("LINKEDIN_API_VERSION must use YYYYMM format")
-	}
-	a.LinkedInOrganizationEnabled, err = parseBool("LINKEDIN_ORGANIZATION_ENABLED", false)
-	if err != nil {
-		return a, err
-	}
 	a.YouTubeMediaURLPrefix = value("YOUTUBE_MEDIA_URL_PREFIX", a.PublicMediaURL)
 	if a.YouTubeMediaURLPrefix == "" {
 		a.YouTubeMediaURLPrefix = a.AppURL + "/media/"

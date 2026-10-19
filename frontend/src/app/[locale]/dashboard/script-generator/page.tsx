@@ -3,6 +3,7 @@
 import '@/components/create/creation-workbench.css'
 
 import { ScriptLibrary } from '@/components/script/script-library'
+import { ScriptPlatformSelect } from '@/components/script/script-platform-select'
 import {
   type CoachScene,
   ShootingCoach,
@@ -18,6 +19,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { useToast } from '@/components/ui/toast'
 import { Link } from '@/i18n/navigation'
 import { apiFetch } from '@/lib/auth'
+import { isPublishingProvider } from '@/lib/publishing'
 import {
   type GeneratedScript,
   type ScriptRecord,
@@ -43,13 +45,6 @@ import {
 import { useTranslations } from 'next-intl'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
-const PLATFORMS = [
-  { value: 'tiktok', label: 'TikTok' },
-  { value: 'instagram', label: 'Instagram Reels' },
-  { value: 'facebook', label: 'Facebook' },
-  { value: 'youtube', label: 'YouTube Shorts' },
-  { value: 'linkedin', label: 'LinkedIn' }
-]
 const DURATIONS = [15, 30, 45, 60, 90, 120, 180]
 const LANGUAGES = ['en', 'ro', 'es', 'fr', 'de', 'it', 'pt']
 const STATUSES = [
@@ -216,6 +211,9 @@ export default function ScriptGeneratorPage() {
   }
 
   async function createScript() {
+    const draftPlatform = isPublishingProvider(payload.platform)
+      ? payload.platform
+      : 'tiktok'
     try {
       const draft = emptyScript(t('workspace.untitled'))
       const response = await apiFetch('/api/scripts/items', {
@@ -223,6 +221,7 @@ export default function ScriptGeneratorPage() {
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
           ...payload,
+          platform: draftPlatform,
           title: draft.title,
           snapshot: draft
         })
@@ -241,7 +240,11 @@ export default function ScriptGeneratorPage() {
 
   const save = useCallback(
     async (submitted: typeof payload, summary = '') => {
-      if (!activeId || savingRef.current) return
+      if (
+        !activeId ||
+        savingRef.current ||
+        !isPublishingProvider(submitted.platform)
+      ) return
       savingRef.current = true
       setSaveState('saving')
       const serialized = JSON.stringify(submitted)
@@ -278,6 +281,7 @@ export default function ScriptGeneratorPage() {
   useEffect(() => {
     if (
       !activeId ||
+      !isPublishingProvider(platform) ||
       serializedPayload === lastSavedRef.current ||
       saveState === 'saving' ||
       saveState === 'error'
@@ -285,9 +289,13 @@ export default function ScriptGeneratorPage() {
       return
     const timer = window.setTimeout(() => save(payload), 900)
     return () => window.clearTimeout(timer)
-  }, [activeId, payload, save, saveState, serializedPayload])
+  }, [activeId, payload, platform, save, saveState, serializedPayload])
 
   async function generate() {
+    if (!isPublishingProvider(platform)) {
+      toast.add('error', t('platformRequired'))
+      return
+    }
     if (!topic.trim()) {
       toast.add('error', t('topicRequired'))
       return
@@ -506,7 +514,8 @@ export default function ScriptGeneratorPage() {
               new: t('workspace.new'),
               emptyTitle: t('workspace.emptyTitle'),
               emptyDescription: t('workspace.emptyDescription'),
-              noBrief: t('workspace.noBrief')
+              noBrief: t('workspace.noBrief'),
+              platformRequired: t('platformRequired')
             }}
           />
         ) : (
@@ -610,20 +619,12 @@ export default function ScriptGeneratorPage() {
                       className="mt-2"
                     />
                   </div>
-                  <div>
-                    <Label>{t('platformLabel')}</Label>
-                    <NativeSelect
-                      value={platform}
-                      onChange={(event) => setPlatform(event.target.value)}
-                      className="mt-2 w-full"
-                    >
-                      {PLATFORMS.map((item) => (
-                        <option key={item.value} value={item.value}>
-                          {item.label}
-                        </option>
-                      ))}
-                    </NativeSelect>
-                  </div>
+                  <ScriptPlatformSelect
+                    value={platform}
+                    onValueChange={setPlatform}
+                    label={t('platformLabel')}
+                    placeholder={t('platformRequired')}
+                  />
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <Label>{t('durationLabel')}</Label>

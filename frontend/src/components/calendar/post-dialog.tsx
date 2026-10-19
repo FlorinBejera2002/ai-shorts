@@ -291,7 +291,6 @@ export function PostDialog({
     [post?.publishingDestinations]
   )
   const canDeleteFromFacebook = publishedProviders.includes('facebook')
-  const canDeleteFromLinkedIn = publishedProviders.includes('linkedin')
   const requiresManualInstagramDelete = publishedProviders.includes('instagram')
   const selectedAccountIds = useMemo(
     () => new Set(form.accountIds),
@@ -1047,44 +1046,6 @@ export function PostDialog({
                         </span>
                         <span className="mt-0.5 block text-[11px] text-muted-foreground">
                           {t('dialog.deleteFromFacebookDescription')}
-                        </span>
-                      </span>
-                    </button>
-                  )}
-                  {canDeleteFromLinkedIn && (
-                    <button
-                      type="button"
-                      aria-pressed={deletePlatforms.includes('linkedin')}
-                      disabled={busy}
-                      onClick={() =>
-                        setDeletePlatforms((current) =>
-                          current.includes('linkedin')
-                            ? current.filter(
-                                (platform) => platform !== 'linkedin'
-                              )
-                            : [...current, 'linkedin']
-                        )
-                      }
-                      className="flex w-full items-center gap-3 rounded-md border px-3.5 py-3 text-left transition-colors hover:bg-muted disabled:opacity-50"
-                    >
-                      <span
-                        className={`inline-flex size-5 shrink-0 items-center justify-center rounded-sm border ${
-                          deletePlatforms.includes('linkedin')
-                            ? 'border-foreground bg-foreground text-background'
-                            : 'border-border bg-background'
-                        }`}
-                      >
-                        {deletePlatforms.includes('linkedin') && (
-                          <Check className="size-3.5" />
-                        )}
-                      </span>
-                      <PlatformOptionIcon platform="linkedin" />
-                      <span className="min-w-0">
-                        <span className="block text-xs font-semibold">
-                          {t('dialog.deleteFromLinkedIn')}
-                        </span>
-                        <span className="mt-0.5 block text-[11px] text-muted-foreground">
-                          {t('dialog.deleteFromLinkedInDescription')}
                         </span>
                       </span>
                     </button>

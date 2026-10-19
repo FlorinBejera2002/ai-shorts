@@ -28,13 +28,13 @@ func mockProvider(t *testing.T, h http.HandlerFunc) *ProviderClient {
 	s := httptest.NewServer(h)
 	t.Cleanup(s.Close)
 	u, _ := url.Parse(s.URL)
-	p := NewProviderClient(ProviderConfig{AppURL: "https://app.example", MetaAppID: "fb", MetaAppSecret: "secret", InstagramAppID: "ig", InstagramAppSecret: "secret", TikTokClientKey: "tt", TikTokClientSecret: "secret", TikTokVerifiedURLPrefix: "https://media.example/", YouTubeClientID: "yt", YouTubeClientSecret: "secret", LinkedInClientID: "li", LinkedInClientSecret: "secret", LinkedInAPIVersion: "202609", LinkedInMediaURLPrefix: "https://media.example/"})
+	p := NewProviderClient(ProviderConfig{AppURL: "https://app.example", MetaAppID: "fb", MetaAppSecret: "secret", InstagramAppID: "ig", InstagramAppSecret: "secret", TikTokClientKey: "tt", TikTokClientSecret: "secret", TikTokVerifiedURLPrefix: "https://media.example/", YouTubeClientID: "yt", YouTubeClientSecret: "secret"})
 	p.httpClient.Transport = providerTransport{u}
 	return p
 }
 func TestProviderAuthorizationScopes(t *testing.T) {
-	p := NewProviderClient(ProviderConfig{AppURL: "https://app.example", MetaAppID: "fb", MetaAppSecret: "s", InstagramAppID: "ig", InstagramAppSecret: "s", TikTokClientKey: "tt", TikTokClientSecret: "s", TikTokVerifiedURLPrefix: "https://media.example/", YouTubeClientID: "yt", YouTubeClientSecret: "s", LinkedInClientID: "li", LinkedInClientSecret: "s", LinkedInAPIVersion: "202609", LinkedInMediaURLPrefix: "https://media.example/"})
-	for _, provider := range []string{"instagram", "facebook", "tiktok", "youtube", "linkedin"} {
+	p := NewProviderClient(ProviderConfig{AppURL: "https://app.example", MetaAppID: "fb", MetaAppSecret: "s", InstagramAppID: "ig", InstagramAppSecret: "s", TikTokClientKey: "tt", TikTokClientSecret: "s", TikTokVerifiedURLPrefix: "https://media.example/", YouTubeClientID: "yt", YouTubeClientSecret: "s"})
+	for _, provider := range []string{"instagram", "facebook", "tiktok", "youtube"} {
 		got, err := p.Authorize(provider, "csrf-state", "verifier")
 		if err != nil {
 			t.Fatal(err)
@@ -50,40 +50,9 @@ func TestProviderAuthorizationScopes(t *testing.T) {
 		if provider == "youtube" && (q.Get("code_challenge") == "" || q.Get("scope") != youtubeScopes) {
 			t.Fatal("YouTube OAuth is missing PKCE or its channel scope")
 		}
-		if provider == "linkedin" && q.Get("scope") != "openid profile w_member_social" {
-			t.Fatalf("unexpected LinkedIn member scopes: %q", q.Get("scope"))
-		}
 	}
 	if _, err := p.Authorize("unknown", "state", ""); err == nil {
 		t.Fatal("unsupported provider accepted")
-	}
-}
-
-func TestLinkedInOrganizationAuthorizationAndScopeValidation(t *testing.T) {
-	p := NewProviderClient(ProviderConfig{
-		AppURL:                      "https://app.example",
-		LinkedInClientID:            "li",
-		LinkedInClientSecret:        "secret",
-		LinkedInAPIVersion:          "202609",
-		LinkedInMediaURLPrefix:      "https://media.example/",
-		LinkedInOrganizationEnabled: true,
-	})
-	target, err := p.Authorize("linkedin", "state", "")
-	if err != nil {
-		t.Fatal(err)
-	}
-	u, _ := url.Parse(target)
-	scopes := u.Query().Get("scope")
-	for _, required := range []string{"openid", "profile", "w_member_social", "rw_organization_admin", "r_organization_social", "w_organization_social"} {
-		if !strings.Contains(" "+scopes+" ", " "+required+" ") {
-			t.Fatalf("missing organization scope %q in %q", required, scopes)
-		}
-	}
-	if linkedInScopesGranted("openid profile w_member_social", true) {
-		t.Fatal("organization publishing accepted member-only permissions")
-	}
-	if !linkedInScopesGranted(scopes, true) {
-		t.Fatal("requested organization permissions were rejected")
 	}
 }
 

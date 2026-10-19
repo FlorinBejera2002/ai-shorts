@@ -31,9 +31,6 @@ func (h *Handler) Start(parent context.Context) func() {
 				if err := h.maintainYouTubeData(work); err != nil {
 					slog.Error("YouTube data maintenance failed", "error", err)
 				}
-				if err := h.maintainLinkedInData(work); err != nil {
-					slog.Error("LinkedIn data maintenance failed", "error", err)
-				}
 				if !h.cfg.Enabled {
 					c()
 					continue
@@ -103,14 +100,14 @@ func (h *Handler) dispatchCalendar(ctx context.Context) error {
 	}
 	var id, userID, caption, reference, tiktokReference string
 	var clipID sql.NullString
-	var accountIDs pq.StringArray
+	var accountIDs, platforms pq.StringArray
 	var postMedia, tiktokJSON, igJSON, youtubeJSON []byte
-	e = tx.QueryRowContext(ctx, `SELECT s.id,s.user_id,s.clip_id,COALESCE(s.caption,''),s.account_ids,
+	e = tx.QueryRowContext(ctx, `SELECT s.id,s.user_id,s.clip_id,COALESCE(s.caption,''),s.account_ids,s.platforms,
 		COALESCE(NULLIF(c.file_storage_key,''),NULLIF(c.file_path,''),c.file_url,''),
 		COALESCE(NULLIF(c.tiktok_file_storage_key,''),NULLIF(c.file_storage_key,''),NULLIF(c.file_path,''),c.file_url,''),s.media,s.tiktok_options,s.instagram_options,s.youtube_options
 		FROM scheduled_posts s LEFT JOIN clips c ON c.id=s.clip_id AND c.user_id=s.user_id
 		WHERE s.id=$1 AND s.status='scheduled' AND s.scheduled_at<=now()
-		FOR UPDATE OF s`, candidateID).Scan(&id, &userID, &clipID, &caption, &accountIDs, &reference, &tiktokReference, &postMedia, &tiktokJSON, &igJSON, &youtubeJSON)
+		FOR UPDATE OF s`, candidateID).Scan(&id, &userID, &clipID, &caption, &accountIDs, &platforms, &reference, &tiktokReference, &postMedia, &tiktokJSON, &igJSON, &youtubeJSON)
 	if errors.Is(e, sql.ErrNoRows) {
 		return nil
 	}
@@ -119,6 +116,11 @@ func (h *Handler) dispatchCalendar(ctx context.Context) error {
 	}
 	if userID != candidateUserID || !slices.Equal([]string(accountIDs), []string(candidateAccountIDs)) {
 		return nil
+	}
+	for _, provider := range platforms {
+		if !SupportedProvider(provider) {
+			return h.failCalendar(ctx, tx, id, "A saved platform is no longer supported. Review the destinations before scheduling again.")
+		}
 	}
 	if prepareErr != nil {
 		return h.failCalendar(ctx, tx, id, "TikTok authorization could not be refreshed. Reconnect the account and reschedule the post.")
@@ -157,17 +159,12 @@ func (h *Handler) dispatchCalendar(ctx context.Context) error {
 	for _, accountID := range accountIDs {
 		var provider string
 		e = tx.QueryRowContext(ctx, `SELECT provider FROM social_accounts WHERE id=$1 AND user_id=$2 AND status='connected' AND (provider IN ('tiktok','youtube') OR COALESCE(token_expires_at>now(),true)) FOR UPDATE`, accountID, userID).Scan(&provider)
-		if e != nil || (provider != "instagram" && provider != "facebook" && provider != "tiktok" && provider != "youtube" && provider != "linkedin") || !h.configured(provider) {
+		if e != nil || !SupportedProvider(provider) || !h.configured(provider) {
 			return h.failCalendar(ctx, tx, id, "A selected account is disconnected or unavailable. Reconnect it and reschedule the post.")
 		}
 		if provider == "youtube" {
 			if _, err := h.ValidateYouTubeSchedule(ctx, tx, userID, accountID, youtubeOptions); err != nil {
 				return h.failCalendar(ctx, tx, id, "Review YouTube settings and reconnect the channel if necessary.")
-			}
-		}
-		if provider == "linkedin" {
-			if _, err := h.ValidateLinkedInSchedule(ctx, tx, userID, accountID); err != nil {
-				return h.failCalendar(ctx, tx, id, "Reconnect LinkedIn and review the selected destination.")
 			}
 		}
 		if provider == "tiktok" {
@@ -294,6 +291,12 @@ func (h *Handler) runOne(ctx context.Context) error {
 	if e != nil {
 		return e
 	}
+	if !SupportedProvider(job.Provider) {
+		if _, e = tx.ExecContext(ctx, `UPDATE social_posts SET status='failed',error='Publishing to this platform is no longer available.',updated_at=now() WHERE id=$1`, job.ID); e != nil {
+			return e
+		}
+		return tx.Commit()
+	}
 	if json.Unmarshal(raw, &job.Options) != nil {
 		return errInvalid
 	}
@@ -372,6 +375,9 @@ func (h *Handler) process(ctx context.Context, job workItem, action string) erro
 			return err
 		}
 		return tx.Commit()
+	}
+	if !SupportedProvider(job.Provider) || !SupportedProvider(a.Provider) || job.Provider != a.Provider {
+		return set("failed", "Publishing to this platform is no longer available.", job.RemoteID, "")
 	}
 	if !active || a.Status != "connected" {
 		return set("cancelled", "Account is no longer connected.", job.RemoteID, "")
@@ -536,11 +542,6 @@ func (h *Handler) process(ctx context.Context, job workItem, action string) erro
 				return set("failed", "Review the YouTube settings or reconnect the channel.", "", "")
 			}
 			id, status, err = h.client.PublishYouTube(ctx, creds, media, job.YouTubeOptions)
-		} else if a.Provider == "linkedin" {
-			if _, err = h.ValidateLinkedInSchedule(ctx, tx, job.UserID, a.ID); err != nil {
-				return set("failed", "Reconnect LinkedIn and review the selected destination.", "", "")
-			}
-			id, status, err = h.client.PublishLinkedIn(ctx, a.RemoteID, creds, media, job.Caption)
 		} else {
 			id, status, err = h.client.PublishMedia(ctx, a.Provider, a.RemoteID, creds, media, job.Caption, job.Options, job.IGOptions)
 		}

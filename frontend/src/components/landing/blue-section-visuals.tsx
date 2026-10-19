@@ -139,7 +139,7 @@ export function ExportWorkflowVisual() {
         <span className="absolute inset-x-2 bottom-3 h-1 rounded-full bg-[#5139ef]" />
       </motion.div>
       <div className="absolute bottom-2 right-1 top-1 grid w-[68%] grid-cols-2 content-center gap-1.5">
-        {['TikTok', 'Instagram', 'Facebook', 'YouTube', 'LinkedIn', 'X'].map(
+        {['TikTok', 'Instagram', 'Facebook', 'YouTube'].map(
           (platform, index) => (
             <motion.div
               key={platform}

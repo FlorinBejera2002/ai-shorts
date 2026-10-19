@@ -40,7 +40,7 @@ func TestManualAndWorkspaceScriptDraftUseScriptsTask(t *testing.T) {
 	if response.Code != 200 {
 		t.Fatalf("manual generation failed: %d %s", response.Code, response.Body.String())
 	}
-	draft, err := GenerateDraft(context.Background(), provider, Request{Topic: "Interesting story", Duration: 30})
+	draft, err := GenerateDraft(context.Background(), provider, Request{Topic: "Interesting story", Platform: "tiktok", Duration: 30})
 	if err != nil || draft["title"] != "Task-routed draft" || calls != 2 || len(provider.tasks) != 2 {
 		t.Fatalf("workspace draft bypassed script routing: %#v %v tasks=%v calls=%d", draft, err, provider.tasks, calls)
 	}

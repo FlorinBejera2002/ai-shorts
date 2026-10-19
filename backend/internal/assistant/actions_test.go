@@ -9,7 +9,7 @@ import (
 	"testing"
 )
 
-func TestActionsAndSystemPromptsMatchPythonFixtures(t *testing.T) {
+func TestActionsAndSystemPromptsPreserveRecordedContracts(t *testing.T) {
 	var fixture struct {
 		Cases []struct {
 			Context  string  `json:"context"`
@@ -27,8 +27,11 @@ func TestActionsAndSystemPromptsMatchPythonFixtures(t *testing.T) {
 	if e = json.Unmarshal(raw, &fixture); e != nil {
 		t.Fatal(e)
 	}
-	if createPrompt != fixture.CreatePrompt || editorPrompt != fixture.EditorPrompt {
-		t.Error("system prompts differ from Python")
+	// Keep the recorded contract intact while allowing the retired platform's
+	// square-video example to reflect the current publishing destinations.
+	expectedCreatePrompt := strings.ReplaceAll(fixture.CreatePrompt, "LinkedIn/feed", "Instagram/Facebook feed")
+	if createPrompt != expectedCreatePrompt || editorPrompt != fixture.EditorPrompt {
+		t.Error("system prompts differ from the supported contract")
 	}
 	for i, tc := range fixture.Cases {
 		actions := Actions(tc.Context, tc.Input, tc.Duration)

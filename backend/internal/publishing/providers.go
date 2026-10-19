@@ -13,13 +13,11 @@ import (
 )
 
 type ProviderConfig struct {
-	AppURL, MetaAppID, MetaAppSecret, InstagramAppID, InstagramAppSecret               string
-	TikTokClientKey, TikTokClientSecret, TikTokVerifiedURLPrefix, GraphVersion         string
-	YouTubeClientID, YouTubeClientSecret                                               string
-	YouTubeMediaURLPrefix                                                              string
-	YouTubeAuditApproved                                                               bool
-	LinkedInClientID, LinkedInClientSecret, LinkedInAPIVersion, LinkedInMediaURLPrefix string
-	LinkedInOrganizationEnabled                                                        bool
+	AppURL, MetaAppID, MetaAppSecret, InstagramAppID, InstagramAppSecret       string
+	TikTokClientKey, TikTokClientSecret, TikTokVerifiedURLPrefix, GraphVersion string
+	YouTubeClientID, YouTubeClientSecret                                       string
+	YouTubeMediaURLPrefix                                                      string
+	YouTubeAuditApproved                                                       bool
 }
 type Credentials struct {
 	AccessToken, RefreshToken string
@@ -83,8 +81,6 @@ func (p *ProviderClient) Configured(provider string) bool {
 		return p.config.TikTokClientKey != "" && p.config.TikTokClientSecret != "" && verifiedMediaURL(p.config.TikTokVerifiedURLPrefix, p.config.TikTokVerifiedURLPrefix)
 	case "youtube":
 		return p.config.YouTubeClientID != "" && p.config.YouTubeClientSecret != ""
-	case "linkedin":
-		return p.config.LinkedInClientID != "" && p.config.LinkedInClientSecret != "" && p.config.LinkedInAPIVersion != "" && verifiedMediaURL(p.config.LinkedInMediaURLPrefix, p.config.LinkedInMediaURLPrefix)
 	}
 	return false
 }
@@ -145,14 +141,6 @@ func (p *ProviderClient) Authorize(provider, state, verifier string) (string, er
 		q.Set("prompt", "consent")
 		q.Set("code_challenge", pkceChallenge(verifier))
 		q.Set("code_challenge_method", "S256")
-	case "linkedin":
-		endpoint = "https://www.linkedin.com/oauth/v2/authorization"
-		q.Set("client_id", p.config.LinkedInClientID)
-		scopes := []string{"openid", "profile", "w_member_social"}
-		if p.config.LinkedInOrganizationEnabled {
-			scopes = append(scopes, "rw_organization_admin", "r_organization_social", "w_organization_social")
-		}
-		q.Set("scope", strings.Join(scopes, " "))
 	}
 	return endpoint + "?" + q.Encode(), nil
 }
@@ -324,10 +312,6 @@ func (p *ProviderClient) Exchange(ctx context.Context, provider, code, verifier 
 		form.Set("client_id", p.config.YouTubeClientID)
 		form.Set("client_secret", p.config.YouTubeClientSecret)
 		form.Set("code_verifier", verifier)
-	case "linkedin":
-		endpoint = "https://www.linkedin.com/oauth/v2/accessToken"
-		form.Set("client_id", p.config.LinkedInClientID)
-		form.Set("client_secret", p.config.LinkedInClientSecret)
 	}
 	if err := p.request(ctx, "POST", endpoint, "", form, nil, &tok); err != nil {
 		return nil, err
@@ -340,9 +324,6 @@ func (p *ProviderClient) Exchange(ctx context.Context, provider, code, verifier 
 	}
 	if provider == "youtube" && (!youtubeScopesGranted(tok.Scope) || tok.RefreshToken == "") {
 		return nil, errors.New("grant YouTube channel and upload permissions with offline access; reconnect YouTube")
-	}
-	if provider == "linkedin" && !linkedInScopesGranted(tok.Scope, p.config.LinkedInOrganizationEnabled) {
-		return nil, errors.New("grant the requested LinkedIn profile and publishing permissions; reconnect LinkedIn")
 	}
 	if provider == "tiktok" {
 		publishingGranted := false
@@ -490,8 +471,6 @@ func (p *ProviderClient) Exchange(ctx context.Context, provider, code, verifier 
 			return nil, errors.New("no YouTube channel is available for this account")
 		}
 		return accounts, nil
-	case "linkedin":
-		return p.LinkedInAccounts(ctx, creds)
 	}
 	return nil, errors.New("unsupported provider")
 }
@@ -703,9 +682,6 @@ func (p *ProviderClient) Poll(ctx context.Context, provider, job string, c Crede
 		}
 		return "processing", "", nil
 	}
-	if provider == "linkedin" {
-		return p.pollLinkedIn(ctx, job, c)
-	}
 	parts := strings.SplitN(job, ":", 3)
 	if len(parts) < 2 {
 		return "failed", "", errors.New("invalid provider job")
@@ -763,9 +739,6 @@ func (p *ProviderClient) Poll(ctx context.Context, provider, job string, c Crede
 // Finalize performs the final, non-idempotent publication. The worker records
 // finalizing durably first; ambiguous failures must be reconciled by the user.
 func (p *ProviderClient) Finalize(ctx context.Context, provider, job string, c Credentials) (string, string, error) {
-	if provider == "linkedin" {
-		return p.finalizeLinkedIn(ctx, job, c)
-	}
 	parts := strings.SplitN(job, ":", 3)
 	if len(parts) < 2 {
 		return "", "", errors.New("invalid provider job")
@@ -803,9 +776,6 @@ func (p *ProviderClient) Finalize(ctx context.Context, provider, job string, c C
 // DeletePost removes content previously published by Sneep Cut when the
 // provider exposes a supported deletion endpoint.
 func (p *ProviderClient) DeletePost(ctx context.Context, provider, remoteID string, c Credentials) error {
-	if provider == "linkedin" {
-		return p.deleteLinkedInPost(ctx, remoteID, c)
-	}
 	if provider != "facebook" {
 		return errors.New("provider does not support post deletion")
 	}
@@ -837,11 +807,6 @@ func (p *ProviderClient) Refresh(ctx context.Context, provider string, c Credent
 			return c, errors.New("reconnect YouTube")
 		}
 		err = p.request(ctx, "POST", "https://oauth2.googleapis.com/token", "", url.Values{"client_id": {p.config.YouTubeClientID}, "client_secret": {p.config.YouTubeClientSecret}, "grant_type": {"refresh_token"}, "refresh_token": {c.RefreshToken}}, nil, &t)
-	case "linkedin":
-		if c.RefreshToken == "" {
-			return c, errors.New("reconnect LinkedIn")
-		}
-		err = p.request(ctx, "POST", "https://www.linkedin.com/oauth/v2/accessToken", "", url.Values{"client_id": {p.config.LinkedInClientID}, "client_secret": {p.config.LinkedInClientSecret}, "grant_type": {"refresh_token"}, "refresh_token": {c.RefreshToken}}, nil, &t)
 	default:
 		return c, errors.New("unsupported provider")
 	}

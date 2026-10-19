@@ -62,7 +62,7 @@ func (h *Handler) account(ctx context.Context, user, id string) (Account, error)
 	if !data.ValidUUID(id) {
 		return a, sql.ErrNoRows
 	}
-	e := h.db.QueryRowContext(ctx, `SELECT id,user_id,provider,remote_id,name,username,status,credentials FROM social_accounts WHERE user_id=$1 AND id=$2 AND status='connected'`, user, id).Scan(&a.ID, &a.UserID, &a.Provider, &a.RemoteID, &a.Name, &a.Username, &a.Status, &a.Encrypted)
+	e := h.db.QueryRowContext(ctx, `SELECT id,user_id,provider,remote_id,name,username,status,credentials FROM social_accounts WHERE user_id=$1 AND id=$2 AND status='connected' AND provider IN ('instagram','facebook','tiktok','youtube')`, user, id).Scan(&a.ID, &a.UserID, &a.Provider, &a.RemoteID, &a.Name, &a.Username, &a.Status, &a.Encrypted)
 	return a, e
 }
 func (h *Handler) credentials(a Account) (Credentials, error) {
@@ -166,7 +166,7 @@ func (h *Handler) PrepareTikTokSchedule(ctx context.Context, userID string, acco
 // calendar entry. The calendar row is deleted only after every requested
 // remote deletion has been confirmed.
 func (h *Handler) DeletePublishedPosts(ctx context.Context, user, scheduledPostID string, providers []string) error {
-	if !data.ValidUUID(scheduledPostID) || len(providers) != 1 || (providers[0] != "facebook" && providers[0] != "linkedin") {
+	if !data.ValidUUID(scheduledPostID) || len(providers) != 1 || providers[0] != "facebook" {
 		return errInvalid
 	}
 	rows, e := h.db.QueryContext(ctx, `SELECT sp.id,sp.remote_id,a.id,a.user_id,a.provider,a.remote_id,a.name,a.username,a.status,a.credentials
@@ -219,7 +219,7 @@ func (h *Handler) DeletePublishedPosts(ctx context.Context, user, scheduledPostI
 
 func (h *Handler) list(ctx context.Context, user string) ([]Account, []Clip, []Post, error) {
 	accounts, clips, posts := []Account{}, []Clip{}, []Post{}
-	rows, e := h.db.QueryContext(ctx, `SELECT id,provider,name,username,avatar_url,status,scopes,token_expires_at,(CASE WHEN provider='youtube' THEN NOT ('video_publish'=ANY(scopes)) WHEN provider='linkedin' THEN NOT ('video_publish'=ANY(scopes)) OR linkedin_consent_at IS NULL OR COALESCE(token_expires_at<=now(),false) ELSE COALESCE(token_expires_at<=now(),false) END) FROM social_accounts WHERE user_id=$1 AND status='connected' AND (provider<>'youtube' OR youtube_verified_at>now()-interval '6 days') ORDER BY provider,name`, user)
+	rows, e := h.db.QueryContext(ctx, `SELECT id,provider,name,username,avatar_url,status,scopes,token_expires_at,(CASE WHEN provider='youtube' THEN NOT ('video_publish'=ANY(scopes)) ELSE COALESCE(token_expires_at<=now(),false) END) FROM social_accounts WHERE user_id=$1 AND provider IN ('instagram','facebook','tiktok','youtube') AND status='connected' AND (provider<>'youtube' OR youtube_verified_at>now()-interval '6 days') ORDER BY provider,name`, user)
 	if e != nil {
 		return accounts, clips, posts, e
 	}
@@ -260,7 +260,7 @@ func (h *Handler) list(ctx context.Context, user string) ([]Account, []Clip, []P
 	if e != nil {
 		return accounts, clips, posts, e
 	}
-	rows, e = h.db.QueryContext(ctx, `SELECT id,clip_id,account_id,provider,status,error,created_at,url FROM social_posts WHERE user_id=$1 ORDER BY created_at DESC LIMIT 100`, user)
+	rows, e = h.db.QueryContext(ctx, `SELECT id,clip_id,account_id,provider,status,error,created_at,url FROM social_posts WHERE user_id=$1 AND provider IN ('instagram','facebook','tiktok','youtube') ORDER BY created_at DESC LIMIT 100`, user)
 	if e != nil {
 		return accounts, clips, posts, e
 	}
@@ -346,11 +346,6 @@ func (h *Handler) enqueue(ctx context.Context, user string, in postInput) ([]Pos
 				return nil, errInvalid
 			}
 			options, _ = json.Marshal(in.YouTube)
-		}
-		if a.Provider == "linkedin" {
-			if _, err := h.ValidateLinkedInSchedule(ctx, tx, user, a.ID); err != nil {
-				return nil, errInvalid
-			}
 		}
 		var existingHash string
 		var p Post

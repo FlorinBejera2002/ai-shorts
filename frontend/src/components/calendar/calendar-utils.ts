@@ -12,8 +12,7 @@ export const CALENDAR_PLATFORMS: readonly ContentPlatform[] = [
   'tiktok',
   'instagram',
   'facebook',
-  'youtube',
-  'linkedin'
+  'youtube'
 ]
 
 export const CALENDAR_STATUSES: readonly ContentPostStatus[] = [
@@ -63,6 +62,14 @@ export function normalizeScheduledPost(
 ): ScheduledPostRecord {
   return {
     ...post,
+    platforms: Array.isArray(post.platforms)
+      ? post.platforms.filter((platform) => CALENDAR_PLATFORMS.includes(platform))
+      : [],
+    publishingDestinations: Array.isArray(post.publishingDestinations)
+      ? post.publishingDestinations.filter((destination) =>
+          CALENDAR_PLATFORMS.includes(destination.provider)
+        )
+      : [],
     accountIds: Array.isArray(post.accountIds)
       ? post.accountIds.filter(
           (accountId): accountId is string => typeof accountId === 'string'

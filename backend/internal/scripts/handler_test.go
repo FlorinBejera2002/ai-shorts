@@ -77,3 +77,28 @@ func TestGenerateValidationAndProviderFailure(t *testing.T) {
 		}
 	}
 }
+
+func TestGenerateRejectsUnsupportedPlatformsBeforeProviderCall(t *testing.T) {
+	h := New(nil, generatorFunc(func(context.Context, string) (string, error) {
+		t.Fatal("unsupported platform reached the generator")
+		return "", nil
+	}))
+	for _, platform := range []string{"linkedin", "twitter", "x", "other", ""} {
+		body, err := json.Marshal(map[string]string{"topic": "A useful story", "platform": platform})
+		if err != nil {
+			t.Fatal(err)
+		}
+		request := httptest.NewRequest("POST", "/api/scripts/generate", strings.NewReader(string(body)))
+		request.Header.Set("Content-Type", "application/json")
+		response := httptest.NewRecorder()
+		h.generate(response, request)
+		if response.Code != 422 {
+			t.Fatalf("platform %q received %d: %s", platform, response.Code, response.Body.String())
+		}
+	}
+	for _, platform := range []string{"instagram", "facebook", "tiktok", "youtube"} {
+		if err := (Request{Topic: "A useful story", Platform: platform, Duration: 30}).Validate(); err != nil {
+			t.Fatalf("supported platform %q rejected: %v", platform, err)
+		}
+	}
+}

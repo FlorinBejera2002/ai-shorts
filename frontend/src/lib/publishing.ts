@@ -2,12 +2,18 @@ export const PUBLISHING_PROVIDER_CATALOG = [
   { id: 'instagram', name: 'Instagram' },
   { id: 'facebook', name: 'Facebook' },
   { id: 'tiktok', name: 'TikTok' },
-  { id: 'youtube', name: 'YouTube' },
-  { id: 'linkedin', name: 'LinkedIn' }
+  { id: 'youtube', name: 'YouTube' }
 ] as const
 
 export type PublishingProvider =
   (typeof PUBLISHING_PROVIDER_CATALOG)[number]['id']
+
+export function isPublishingProvider(
+  value: unknown
+): value is PublishingProvider {
+  return PUBLISHING_PROVIDER_CATALOG.some(({ id }) => id === value)
+}
+
 export type PublishingAccount = {
   id: string
   provider: PublishingProvider
@@ -44,7 +50,6 @@ export type PublishingData = {
     configured: boolean
     supportsPublishing: boolean
     youtubeAuditApproved?: boolean
-    linkedinOrganizationEnabled?: boolean
     reason?: string
   }[]
   accounts: PublishingAccount[]
@@ -87,6 +92,7 @@ export type CreatorOptions = {
 
 export function isPublishingAccountUsable(account: PublishingAccount) {
   return (
+    isPublishingProvider(account.provider) &&
     account.status === 'connected' &&
     (account.provider !== 'youtube' || account.scopes?.includes('video_publish') === true) &&
     (['tiktok', 'youtube'].includes(account.provider) || account.tokenExpired !== true)

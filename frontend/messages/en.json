@@ -102,15 +102,14 @@
     "ctaNote": "Start free. Continue when you're ready.",
     "proofLabel": "Connect once, publish everywhere",
     "platformsEyebrow": "Connected publishing",
-    "platformsTitle": "Six destinations. One publishing calendar.",
-    "platformsDesc": "Connect your social channels, review each platform's settings, and publish immediately or on schedule from one place. Instagram, Facebook, TikTok, YouTube, LinkedIn, and X are supported; availability depends on each platform's developer access.",
+    "platformsTitle": "Four destinations. One publishing calendar.",
+    "platformsDesc": "Connect your social channels, review each platform's settings, and publish immediately or on schedule from one place. Instagram, Facebook, TikTok, and YouTube are supported; availability depends on each platform's developer access.",
     "platformAvailable": "Connect & publish",
     "platformComingSoon": "Coming soon",
     "platformInstagramDesc": "Connect your professional Instagram account and publish reels, photos, or carousels.",
     "platformFacebookDesc": "Connect an eligible Facebook Page and send approved content directly to its audience.",
     "platformTikTokDesc": "Connect your creator account and publish with the privacy and interaction settings you choose.",
     "platformYouTubeDesc": "Connect your channel and upload vertical videos directly as YouTube Shorts.",
-    "platformLinkedInDesc": "Publish approved video posts to your profile and, after organization access is approved, Pages you administer.",
     "youtubeConnectionTitle": "Your YouTube channel stays under your control.",
     "youtubeConnectionDesc": "When you connect YouTube through Google OAuth, Sneep Cut uses read-only channel access to identify and validate your channel and upload access only to publish videos you explicitly select with the settings you approve. Disconnect at any time. YouTube API data is not used for advertising or AI model training.",
     "youtubeConnectionLinks": "YouTube connection policies",
@@ -1189,6 +1188,7 @@
     "topicPlaceholder": "Describe your video idea, product, or topic...",
     "topicRequired": "Please enter a topic",
     "platformLabel": "Platform",
+    "platformRequired": "Choose a supported platform",
     "durationLabel": "Duration",
     "toneLabel": "Tone",
     "toneEntertaining": "Entertaining",
@@ -1415,8 +1415,7 @@
       "tiktok": "TikTok",
       "instagram": "Instagram",
       "facebook": "Facebook",
-      "youtube": "YouTube",
-      "linkedin": "LinkedIn"
+      "youtube": "YouTube"
     },
     "statuses": {
       "draft": "Draft",
@@ -1489,8 +1488,6 @@
       "calendarRemovalDescription": "This always removes the calendar entry. Published platform posts remain online unless you select them below.",
       "deleteFromFacebook": "Also delete from Facebook",
       "deleteFromFacebookDescription": "Deletes the published Reel from the connected Facebook Page.",
-      "deleteFromLinkedIn": "Also delete from LinkedIn",
-      "deleteFromLinkedInDescription": "Deletes the published video post from the connected LinkedIn profile or Page.",
       "instagramManualDelete": "Instagram must be deleted manually",
       "instagramManualDeleteDescription": "Instagram does not allow published posts to be deleted through its API. Delete the Reel in Instagram if you also want it removed there."
     },
@@ -1612,7 +1609,7 @@
     "briefRemove": "Remove brief",
     "suggestCreate1": "Energetic TikTok clips with bold subtitles",
     "suggestCreate2": "Focus on the most emotional moments",
-    "suggestCreate3": "3 clips for LinkedIn, square format",
+    "suggestCreate3": "3 clips for Instagram, square format",
     "suggestEditor1": "Trim the pauses at the beginning and end",
     "suggestEditor2": "Keep only the strongest 20 seconds",
     "suggestEditor3": "Where is the key moment of this clip?"
@@ -1634,8 +1631,7 @@
       "instagram": "Business and Creator accounts · Instagram Reels",
       "facebook": "Pages you manage · Facebook Reels",
       "tiktok": "Your TikTok account · video posts",
-      "youtube": "Your YouTube channel · video uploads",
-      "linkedin": "Your LinkedIn profile or organization · video posts"
+      "youtube": "Your YouTube channel · video uploads"
     },
     "connect": "Connect account",
     "connectAnother": "Connect another account",
@@ -1746,9 +1742,5 @@
     "reviewConsent": "I reviewed the channel, title, description and visibility, and agree to the <terms>YouTube Terms of Service</terms> for this upload.",
     "connectionConsent": "I agree to the <terms>YouTube Terms of Service</terms> and acknowledge the <privacy>Privacy Policy</privacy> for connecting my channel and uploading selected videos.",
     "reconnect": "Reconnect YouTube to grant upload access or renew revoked access."
-  },
-  "linkedinPublishing": {
-    "dataUse": "Sneep Cut uses LinkedIn data only to identify destinations you administer and publish videos you explicitly approve. It does not export member data or use it for advertising, sales, recruiting, or AI training.",
-    "connectionConsent": "I agree to the <terms>LinkedIn API Terms</terms> and acknowledge the <privacy>Privacy Policy</privacy> and <deletion>data deletion instructions</deletion>. I can disconnect at any time; Sneep Cut then deletes the LinkedIn token, cached account data, and LinkedIn API identifiers."
   }
 }

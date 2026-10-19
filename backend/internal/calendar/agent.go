@@ -101,7 +101,7 @@ func (s *Repository) AgentList(ctx context.Context, user, start, end string) ([]
 	if err != nil {
 		return nil, err
 	}
-	rows, err := s.db.QueryContext(ctx, `SELECT jsonb_build_object('id',id,'title',title,'status',status,'scheduled_at',scheduled_at,'account_ids',account_ids,'platforms',platforms,'clip_id',coalesce(clip_id::text,'')) FROM scheduled_posts WHERE user_id=$1 AND scheduled_at >= $2 AND scheduled_at < $3 ORDER BY scheduled_at,id LIMIT 100`, user, from, to)
+	rows, err := s.db.QueryContext(ctx, `SELECT jsonb_build_object('id',p.id,'title',p.title,'status',p.status,'scheduled_at',p.scheduled_at,'account_ids',`+supportedAccountIDs+`,'platforms',p.platforms,'clip_id',coalesce(p.clip_id::text,'')) FROM scheduled_posts p WHERE p.user_id=$1 AND p.scheduled_at >= $2 AND p.scheduled_at < $3 ORDER BY p.scheduled_at,p.id LIMIT 100`, user, from, to)
 	if err != nil {
 		return nil, err
 	}
@@ -116,6 +116,7 @@ func (s *Repository) AgentList(ctx context.Context, user, start, end string) ([]
 		if err = json.Unmarshal(raw, &post); err != nil {
 			return nil, err
 		}
+		post.Platforms = supportedPlatforms(post.Platforms)
 		out = append(out, post)
 	}
 	return out, rows.Err()

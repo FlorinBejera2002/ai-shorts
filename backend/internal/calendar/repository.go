@@ -33,9 +33,6 @@ type TikTokScheduleValidator interface {
 type YouTubeScheduleValidator interface {
 	ValidateYouTubeSchedule(context.Context, *sql.Tx, string, string, publishing.YouTubeOptions) (string, error)
 }
-type LinkedInScheduleValidator interface {
-	ValidateLinkedInSchedule(context.Context, *sql.Tx, string, string) (string, error)
-}
 
 type PostClip struct {
 	ID             string  `json:"id"`
@@ -81,11 +78,10 @@ type PublishingDestination struct {
 	UpdatedAt   string `json:"updatedAt"`
 }
 type Repository struct {
-	db                *sql.DB
-	media             Media
-	tiktokValidator   TikTokScheduleValidator
-	youtubeValidator  YouTubeScheduleValidator
-	linkedinValidator LinkedInScheduleValidator
+	db               *sql.DB
+	media            Media
+	tiktokValidator  TikTokScheduleValidator
+	youtubeValidator YouTubeScheduleValidator
 }
 
 func NewRepository(db *sql.DB, media Media, validators ...TikTokScheduleValidator) *Repository {
@@ -93,7 +89,6 @@ func NewRepository(db *sql.DB, media Media, validators ...TikTokScheduleValidato
 	if len(validators) > 0 {
 		repository.tiktokValidator = validators[0]
 		repository.youtubeValidator, _ = validators[0].(YouTubeScheduleValidator)
-		repository.linkedinValidator, _ = validators[0].(LinkedInScheduleValidator)
 	}
 	return repository
 }
@@ -118,13 +113,15 @@ func (s *Repository) thumbnail(ctx context.Context, references ...sql.NullString
 	return nil
 }
 
-const postSelect = `SELECT p.id,p.title,p.caption,p.notes,p.platforms,p.account_ids,p.status,p.publishing_error,p.scheduled_at,p.created_at,p.updated_at,p.media,p.tiktok_options,p.instagram_options,p.youtube_options,
+const supportedAccountIDs = `ARRAY(SELECT a.id FROM social_accounts a WHERE a.user_id=p.user_id AND a.id=ANY(p.account_ids) AND a.provider IN ('instagram','facebook','tiktok','youtube') ORDER BY array_position(p.account_ids,a.id))`
+
+const postSelect = `SELECT p.id,p.title,p.caption,p.notes,p.platforms,` + supportedAccountIDs + `,p.status,p.publishing_error,p.scheduled_at,p.created_at,p.updated_at,p.media,p.tiktok_options,p.instagram_options,p.youtube_options,
 	c.id,c.title,c.viral_score,c.duration,COALESCE(NULLIF(c.tiktok_file_storage_key,''),NULLIF(c.file_storage_key,''),NULLIF(c.file_path,''),c.file_url,'')<>'',c.thumbnail_storage_key,c.thumbnail_path,c.thumbnail_url,
 	COALESCE((SELECT jsonb_agg(jsonb_build_object(
 		'provider',sp.provider,'accountId',sp.account_id,'accountName',COALESCE(NULLIF(a.username,''),NULLIF(a.name,''),sp.provider),
 		'status',sp.status,'error',sp.error,'url',sp.url,'createdAt',sp.created_at,'updatedAt',sp.updated_at
 	) ORDER BY sp.created_at) FROM social_posts sp LEFT JOIN social_accounts a ON a.id=sp.account_id
-	WHERE sp.scheduled_post_id=p.id),'[]'::jsonb)
+	WHERE sp.scheduled_post_id=p.id AND sp.provider IN ('instagram','facebook','tiktok','youtube')),'[]'::jsonb)
 	FROM scheduled_posts p LEFT JOIN clips c ON c.id=p.clip_id AND c.user_id=p.user_id`
 
 type rowScanner interface{ Scan(...any) error }
@@ -140,6 +137,7 @@ func (s *Repository) readPost(ctx context.Context, row rowScanner) (Post, error)
 	if e != nil {
 		return p, e
 	}
+	p.Platforms = supportedPlatforms(p.Platforms)
 	if e = json.Unmarshal(destinations, &p.PublishingDestinations); e != nil {
 		return p, e
 	}
@@ -433,9 +431,24 @@ func (s *Repository) mutateGuarded(ctx context.Context, userID, id string, input
 	if value, ok := fields["platforms"]; ok {
 		platforms = value.([]string)
 	}
+	for _, platform := range platforms {
+		if !publishing.SupportedProvider(platform) {
+			return empty, &ValidationError{Issues: []Issue{{"platforms", "Choose one or more supported platforms"}}}
+		}
+	}
 	accountIDs := []string(currentAccountIDs)
 	if value, ok := fields["accountIds"]; ok {
 		accountIDs = value.([]string)
+	}
+	if status != "scheduled" && len(accountIDs) > 0 {
+		var unsupported bool
+		e = tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM social_accounts WHERE user_id=$1 AND id=ANY($2::uuid[]) AND provider NOT IN ('instagram','facebook','tiktok','youtube'))`, userID, pq.Array(accountIDs)).Scan(&unsupported)
+		if e != nil {
+			return empty, e
+		}
+		if unsupported {
+			return empty, &ValidationError{Issues: []Issue{{"accountIds", "Choose connected Instagram, Facebook, TikTok or YouTube accounts"}}}
+		}
 	}
 	if status == "scheduled" && s.tiktokValidator != nil && !slices.Equal(accountIDs, preparedAccountIDs) {
 		return empty, &ValidationError{Issues: []Issue{{"accountIds", "Publishing accounts changed while the post was being validated. Try again"}}}
@@ -530,8 +543,8 @@ func (s *Repository) mutateGuarded(ctx context.Context, userID, id string, input
 				if account.provider == "tiktok" {
 					tiktokAccounts = append(tiktokAccounts, account)
 				}
-				if !slices.Contains([]string{"instagram", "facebook", "tiktok", "youtube", "linkedin"}, account.provider) || !slices.Contains(platforms, account.provider) {
-					issues = append(issues, Issue{"accountIds", "Only connected Instagram, Facebook, TikTok, YouTube and LinkedIn accounts can be scheduled"})
+				if !publishing.SupportedProvider(account.provider) || !slices.Contains(platforms, account.provider) {
+					issues = append(issues, Issue{"accountIds", "Only connected Instagram, Facebook, TikTok and YouTube accounts can be scheduled"})
 					break
 				}
 				if len(selectedMedia) > 0 {
@@ -569,22 +582,6 @@ func (s *Repository) mutateGuarded(ctx context.Context, userID, id string, input
 						return empty, validationErr
 					}
 					issues = append(issues, Issue{field, validationErr.Error()})
-				}
-			}
-			for _, account := range accounts {
-				if account.provider != "linkedin" {
-					continue
-				}
-				if s.linkedinValidator == nil {
-					issues = append(issues, Issue{"accountIds", "LinkedIn publishing is temporarily unavailable"})
-					continue
-				}
-				field, validationErr := s.linkedinValidator.ValidateLinkedInSchedule(ctx, tx, userID, account.id)
-				if validationErr != nil {
-					if field == "" {
-						return empty, validationErr
-					}
-					issues = append(issues, Issue{field, "Reconnect LinkedIn and review the selected destination"})
 				}
 			}
 			if len(tiktokAccounts) > 1 {

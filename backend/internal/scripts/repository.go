@@ -157,6 +157,10 @@ func (r *Repository) CreateWithID(ctx context.Context, userID, id string, input 
 }
 
 func (r *Repository) Update(ctx context.Context, userID, id string, input WorkspaceInput, expectedRevision int, changeType, summary string) (ScriptRecord, error) {
+	input, err := NormalizeWorkspaceInput(input)
+	if err != nil {
+		return ScriptRecord{}, err
+	}
 	versionID, err := data.NewUUID()
 	if err != nil {
 		return ScriptRecord{}, err

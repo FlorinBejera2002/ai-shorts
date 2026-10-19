@@ -19,6 +19,34 @@ const source = compile('../src/lib/social-connection.ts')
 const publishing = {}
 vm.runInNewContext(compile('../src/lib/publishing.ts'), { exports: publishing })
 
+test('only offers the four supported providers even when the API returns legacy data', () => {
+  const expectedProviders = ['instagram', 'facebook', 'tiktok', 'youtube']
+  assert.deepEqual(
+    Array.from(publishing.PUBLISHING_PROVIDER_CATALOG, ({ id }) => id),
+    expectedProviders
+  )
+  const instagram = { id: 'instagram', name: 'Instagram', configured: true }
+  const providers = publishing.withAllPublishingProviders([
+    instagram,
+    { id: 'linkedin', name: 'LinkedIn', configured: true },
+    { id: 'x', name: 'X', configured: true }
+  ])
+  assert.deepEqual(Array.from(providers, ({ id }) => id), expectedProviders)
+  assert.equal(providers[0], instagram)
+  assert.equal(providers[1].configured, false)
+  for (const provider of ['linkedin', 'x', 'twitter', 'unsupported']) {
+    assert.equal(
+      publishing.isPublishingAccountUsable({
+        id: 'legacy-account',
+        name: 'Legacy account',
+        provider,
+        status: 'connected'
+      }),
+      false
+    )
+  }
+})
+
 test('keeps refreshable expired TikTok accounts connected without changing other providers', () => {
   const base = { id: 'account', name: 'Account', status: 'connected' }
   assert.equal(
@@ -134,6 +162,9 @@ test('only supported successful callbacks animate; errors take precedence', () =
   for (const input of [
     '',
     '?connected=unknown',
+    '?connected=linkedin',
+    '?connected=x',
+    '?connected=twitter',
     '?connected=__proto__',
     '?connected=toString'
   ])

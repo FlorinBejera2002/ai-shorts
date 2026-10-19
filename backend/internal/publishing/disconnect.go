@@ -2,6 +2,7 @@ package publishing
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"sneepcut/backend-go/internal/agentaction"
 	"sneepcut/backend-go/internal/data"
@@ -51,6 +52,9 @@ func (h *Handler) disconnectAccount(ctx context.Context, user, id string, guard 
 	if err = tx.QueryRowContext(ctx, `SELECT provider,remote_id,credentials FROM social_accounts WHERE id=$1 AND user_id=$2 FOR UPDATE`, id, user).Scan(&provider, &remote, &encrypted); err != nil {
 		return result, err
 	}
+	if !SupportedProvider(provider) {
+		return result, sql.ErrNoRows
+	}
 	if guard != nil {
 		state, e := AgentAccountBinding(ctx, tx, user, id)
 		if e != nil {
@@ -71,11 +75,6 @@ func (h *Handler) disconnectAccount(ctx context.Context, user, id string, guard 
 	}
 	if provider == "youtube" {
 		if err = purgeYouTubeAccount(ctx, tx, user, id); err != nil {
-			return result, err
-		}
-	}
-	if provider == "linkedin" {
-		if err = purgeLinkedInAccount(ctx, tx, user, id); err != nil {
 			return result, err
 		}
 	}

@@ -108,12 +108,6 @@ export function HomePageView({
       name: 'YouTube Shorts',
       description: 'platformYouTubeDesc',
       available: true
-    },
-    {
-      id: 'linkedin',
-      name: 'LinkedIn',
-      description: 'platformLinkedInDesc',
-      available: false
     }
   ] as const
 
@@ -226,9 +220,7 @@ export function HomePageView({
               'Instagram',
               'Facebook',
               'TikTok',
-              'YouTube Shorts',
-              'LinkedIn',
-              'X'
+              'YouTube Shorts'
             ].map((platform) => (
                 <span key={platform} className="flex items-center gap-2">
                   <span className="h-1 w-1 rounded-full bg-white" />
@@ -256,7 +248,7 @@ export function HomePageView({
             </p>
           </SectionReveal>
 
-          <StaggerGrid className="mt-10 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <StaggerGrid className="mt-10 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {publishingPlatforms.map((platform, index) => (
               <StaggerItem key={platform.id}>
                 <article className="group relative min-h-52 overflow-hidden rounded-md border border-white/[0.09] bg-[#111111] p-6 transition-colors hover:border-[#5139ef]/45">

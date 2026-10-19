@@ -12,6 +12,26 @@ import (
 func validInput() map[string]any {
 	return map[string]any{"title": "  Product launch teaser  ", "caption": "  caption  ", "notes": "  ", "platforms": []any{" TIKTOK ", "instagram"}, "accountIds": []any{"123e4567-e89b-42d3-a456-426614174001"}, "status": "scheduled", "scheduledAt": "2026-09-04T10:30:00+03:00", "clipId": "123e4567-e89b-42d3-a456-426614174000"}
 }
+
+func TestCalendarAcceptsOnlyCurrentPlatformsForCreatesAndUpdates(t *testing.T) {
+	for _, create := range []bool{true, false} {
+		for _, platform := range []string{"instagram", "facebook", "tiktok", "youtube", "linkedin", "twitter", "x", "other"} {
+			input := validInput()
+			input["platforms"] = []any{platform}
+			_, err := Validate(input, create)
+			wantAllowed := platform == "instagram" || platform == "facebook" || platform == "tiktok" || platform == "youtube"
+			if (err == nil) != wantAllowed {
+				t.Fatalf("create=%t platform=%q: %v", create, platform, err)
+			}
+			if !wantAllowed {
+				input["platforms"] = []any{"instagram", platform}
+				if _, err := Validate(input, create); err == nil {
+					t.Fatalf("accepted retired platform in mixed selection: %q", platform)
+				}
+			}
+		}
+	}
+}
 func TestValidationMatchesBrowserNormalizationAndDefaults(t *testing.T) {
 	input := validInput()
 	out, e := Validate(input, true)

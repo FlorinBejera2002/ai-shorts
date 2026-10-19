@@ -25,7 +25,7 @@ func AgentPostBinding(ctx context.Context, tx *sql.Tx, user, id string, lock boo
 	err := tx.QueryRowContext(ctx, `SELECT jsonb_build_object(
  'id',p.id,'title',p.title,'caption',p.caption,'notes',p.notes,'platforms',p.platforms,'accounts',p.account_ids,'scheduled_at',p.scheduled_at,'clip_id',p.clip_id,'media',p.media,'tiktok',p.tiktok_options,'instagram',p.instagram_options,'youtube',p.youtube_options,
  'clip',CASE WHEN c.id IS NULL THEN NULL ELSE jsonb_build_object('id',c.id,'file',c.file_storage_key,'path',c.file_path,'url',c.file_url,'tiktok',c.tiktok_file_storage_key,'size',c.file_size,'duration',c.duration) END,
- 'destinations',COALESCE((SELECT jsonb_agg(jsonb_build_object('id',a.id,'provider',a.provider,'remote',a.remote_id,'status',a.status,'scopes',a.scopes,'youtube_consent',a.youtube_consent_at,'linkedin_consent',a.linkedin_consent_at) ORDER BY a.id) FROM social_accounts a WHERE a.user_id=p.user_id AND a.id=ANY(p.account_ids)),'[]'::jsonb)) FROM scheduled_posts p LEFT JOIN clips c ON c.id=p.clip_id AND c.user_id=p.user_id WHERE p.id=$1 AND p.user_id=$2`, id, user).Scan(&raw)
+ 'destinations',COALESCE((SELECT jsonb_agg(jsonb_build_object('id',a.id,'provider',a.provider,'remote',a.remote_id,'status',a.status,'scopes',a.scopes,'youtube_consent',a.youtube_consent_at) ORDER BY a.id) FROM social_accounts a WHERE a.user_id=p.user_id AND a.id=ANY(p.account_ids)),'[]'::jsonb)) FROM scheduled_posts p LEFT JOIN clips c ON c.id=p.clip_id AND c.user_id=p.user_id WHERE p.id=$1 AND p.user_id=$2`, id, user).Scan(&raw)
 	if err != nil {
 		return "", err
 	}
@@ -33,7 +33,7 @@ func AgentPostBinding(ctx context.Context, tx *sql.Tx, user, id string, lock boo
 }
 func AgentAccountBinding(ctx context.Context, tx *sql.Tx, user, id string) (string, error) {
 	var raw []byte
-	err := tx.QueryRowContext(ctx, `SELECT jsonb_build_object('id',id,'provider',provider,'remote',remote_id,'status',status,'scopes',scopes,'youtube_consent',youtube_consent_at,'linkedin_consent',linkedin_consent_at) FROM social_accounts WHERE id=$1 AND user_id=$2`, id, user).Scan(&raw)
+	err := tx.QueryRowContext(ctx, `SELECT jsonb_build_object('id',id,'provider',provider,'remote',remote_id,'status',status,'scopes',scopes,'youtube_consent',youtube_consent_at) FROM social_accounts WHERE id=$1 AND user_id=$2 AND provider IN ('instagram','facebook','tiktok','youtube')`, id, user).Scan(&raw)
 	if err != nil {
 		return "", err
 	}
@@ -51,7 +51,7 @@ type AgentAccount struct {
 }
 
 func (h *Handler) AgentAccounts(ctx context.Context, user string) ([]AgentAccount, error) {
-	rows, err := h.db.QueryContext(ctx, `SELECT id,provider,name,username,status,jsonb_build_object('id',id,'provider',provider,'remote',remote_id,'status',status,'scopes',scopes,'youtube_consent',youtube_consent_at,'linkedin_consent',linkedin_consent_at) FROM social_accounts WHERE user_id=$1 ORDER BY provider,id`, user)
+	rows, err := h.db.QueryContext(ctx, `SELECT id,provider,name,username,status,jsonb_build_object('id',id,'provider',provider,'remote',remote_id,'status',status,'scopes',scopes,'youtube_consent',youtube_consent_at) FROM social_accounts WHERE user_id=$1 AND provider IN ('instagram','facebook','tiktok','youtube') ORDER BY provider,id`, user)
 	if err != nil {
 		return nil, err
 	}
