@@ -15,6 +15,7 @@ import {
 import { useTranslations } from 'next-intl'
 import { useSearchParams } from 'next/navigation'
 import { useState } from 'react'
+import { useQueryClient, type QueryFilters } from '@tanstack/react-query'
 import {
   type CalendarResponse,
   type PostResponse,
@@ -29,11 +30,19 @@ import {
 } from './calendar-utils'
 import { PostDialog } from './post-dialog'
 
+const calendarQueries: QueryFilters = {
+  queryKey: ['api-resource'],
+  predicate: (query) =>
+    typeof query.queryKey[1] === 'string' &&
+    query.queryKey[1].startsWith('/api/calendar?')
+}
+
 export function PostEditorPage({ postId }: { postId?: string }) {
   const t = useTranslations('contentCalendar')
   const router = useRouter()
   const search = useSearchParams()
   const toast = useToast()
+  const queryClient = useQueryClient()
   const [today] = useState(() => startOfLocalDay(new Date()))
   const requestedDate = search.get('date')
   const parsedDate =
@@ -64,6 +73,19 @@ export function PostEditorPage({ postId }: { postId?: string }) {
         body: JSON.stringify(payload)
       }
     )
+    // Reopening initializes the form from cache before a background fetch finishes.
+    await queryClient.cancelQueries(calendarQueries)
+    queryClient.setQueriesData<CalendarResponse>(calendarQueries, (cached) =>
+      cached
+        ? {
+            ...cached,
+            posts: cached.posts.map((item) =>
+              item.id === data.post.id ? data.post : item
+            )
+          }
+        : cached
+    )
+    void queryClient.invalidateQueries(calendarQueries)
     toast.add(
       'success',
       t(

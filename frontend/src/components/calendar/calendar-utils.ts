@@ -2,6 +2,8 @@ import type {
   CalendarMutationStatus,
   ContentPlatform,
   ContentPostStatus,
+  FacebookPublishingOptions,
+  InstagramPublishingOptions,
   PublishingMedia,
   ScheduledPostRecord,
   YouTubePublishingOptions,
@@ -50,6 +52,8 @@ export type PostFormPayload = {
   media?: PublishingMedia[]
   youtube?: YouTubePublishingOptions
   tiktok?: TikTokPublishingOptions
+  instagram?: InstagramPublishingOptions
+  facebook?: FacebookPublishingOptions
 }
 
 export type CalendarIssue = {

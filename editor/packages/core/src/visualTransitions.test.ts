@@ -5,6 +5,7 @@ import { lowerVisualTransitions, syncVisualTransitions } from "./visualTransitio
 import { projectSourceCompositionWindows } from "./runtime/sourceCompositionWindow";
 import { collectRuntimeTimelinePayload } from "./runtime/timeline";
 import { createClipTree } from "./runtime/clipTree";
+import { HF_COLOR_GRADING_ATTR } from "./colorGrading";
 
 const markup = `<div id="main" data-composition-id="main" data-duration="3">
   <div id="a" data-canonical-scene="a" data-canonical-asset="red" data-source-window data-composition-id="source-a" data-start="0" data-duration="1" data-playback-start="0.5" data-source-duration="2">
@@ -41,6 +42,7 @@ describe("native source-window visual transitions", () => {
       8,
     );
     expect(picture(doc, "before").getAttribute("data-has-audio")).toBe("false");
+    expect(picture(doc, "before").preload).toBe("none");
     expect(layers(doc).map((layer) => layer.parentElement!.id)).toEqual(["a", "b"]);
     expect(layers(doc).every((layer) => Number(layer.style.zIndex) < 2000)).toBe(true);
     layers(doc).forEach((layer) => layer.remove());
@@ -101,6 +103,38 @@ describe("native source-window visual transitions", () => {
     b.setAttribute("data-start", "1.5");
     lowerVisualTransitions(doc);
     expect(layers(doc)).toHaveLength(0);
+  });
+
+  it("leaves inactive pictures untouched and picks up source edits when seeking into a cut", () => {
+    const doc = fixture();
+    lowerVisualTransitions(doc);
+    projectSourceCompositionWindows(doc);
+    const after = picture(doc, "after");
+    const source = doc.getElementById("picture-a") as HTMLElement;
+    const observer = new MutationObserver(() => {});
+    for (const layer of layers(doc)) observer.observe(layer, { attributes: true, subtree: true });
+    try {
+      source.style.left = "-70px";
+      source.setAttribute(HF_COLOR_GRADING_ATTR, '{"brightness":0.2}');
+      for (const time of [0, 0.5, 1.5, 2.5]) syncVisualTransitions(doc, time);
+      expect(observer.takeRecords()).toHaveLength(0);
+      expect(after.style.left).toBe("-20px");
+      expect(after.hasAttribute(HF_COLOR_GRADING_ATTR)).toBe(false);
+
+      syncVisualTransitions(doc, 1.05);
+      expect(after.style.left).toBe("-70px");
+      expect(after.getAttribute(HF_COLOR_GRADING_ATTR)).toBe('{"brightness":0.2}');
+      syncVisualTransitions(doc, 1.2);
+      observer.takeRecords();
+      for (const time of [1.3, 2, 0]) syncVisualTransitions(doc, time);
+      expect(observer.takeRecords()).toHaveLength(0);
+
+      source.style.left = "-90px";
+      syncVisualTransitions(doc, 1.05);
+      expect(after.style.left).toBe("-90px");
+    } finally {
+      observer.disconnect();
+    }
   });
 
   it("keeps explicit fades and motion bridges, and skips newly contiguous source selections", () => {

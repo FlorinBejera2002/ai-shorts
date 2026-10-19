@@ -1148,6 +1148,31 @@ describe("syncRuntimeMedia", () => {
     expect(clips.map((clip) => clip.el.currentTime)).toEqual([0.25, 0.25, ...Array(28).fill(0)]);
   });
 
+  it("bounds held-picture lookahead separately from incoming video without changing the source clock", () => {
+    const active = createMockClip({ start: 0, end: 10, duration: 10, mediaStart: 2 });
+    active.el.currentTime = 2;
+    const activeSeek = vi.spyOn(active.el, "currentTime", "set");
+    active.el.play = vi.fn(async () => {
+      Object.defineProperty(active.el, "paused", { value: false, writable: true });
+    });
+    const upcoming = createMockClip({ start: 0.5, mediaStart: 0.25 });
+    const pictures = Array.from({ length: 20 }, (_, index) =>
+      createMockClip({ start: 0.1 + index / 100, freezeAt: 1.5 }),
+    );
+    const clips = [active, ...pictures, upcoming];
+    syncRuntimeMedia({ clips, timeSeconds: 0, playing: true, playbackRate: 1 });
+    expect(pictures.map((clip) => clip.el.currentTime)).toEqual([1.5, 1.5, ...Array(18).fill(0)]);
+    expect(upcoming.el.currentTime).toBe(0.25);
+    expect(active.el.playbackRate).toBe(1);
+    expect(active).toMatchObject({ start: 0, end: 10, duration: 10, mediaStart: 2 });
+    // Ordinary source video advances on its native clock, untouched by pictures.
+    active.el.currentTime = 2.03;
+    activeSeek.mockClear();
+    syncRuntimeMedia({ clips, timeSeconds: 0.03, playing: true, playbackRate: 1 });
+    expect(activeSeek).not.toHaveBeenCalled();
+    expect(active.el.play).toHaveBeenCalledOnce();
+  });
+
   it.each([0.01, 0.25, 0.5])(
     "seeks an unprepared video with source offset %s once before uninterrupted playback",
     (mediaStart) => {

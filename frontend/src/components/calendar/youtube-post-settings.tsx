@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/select'
 import type { YouTubePublishingOptions } from '@/lib/content-calendar'
 import { useTranslations } from 'next-intl'
+import { YouTubeAdvancedSettings } from './youtube-advanced-settings'
 
 interface YouTubePostSettingsProps {
   settings: YouTubePublishingOptions
@@ -132,6 +133,12 @@ export function YouTubePostSettings({
         />
         {t('notifySubscribers')}
       </label>
+      <YouTubeAdvancedSettings
+        settings={settings}
+        onChange={update}
+        idPrefix={idPrefix}
+        disabled={disabled}
+      />
       <label className="flex items-start gap-2 text-sm">
         <Switch
           disabled={disabled}

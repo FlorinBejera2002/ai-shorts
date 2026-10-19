@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 	"unicode/utf8"
 )
 
@@ -59,13 +60,16 @@ func youtubePublicIP(ip netip.Addr) bool {
 }
 
 type YouTubeOptions struct {
-	TermsAccepted          bool   `json:"termsAccepted"`
-	Title                  string `json:"title"`
-	Description            string `json:"description"`
-	PrivacyStatus          string `json:"privacyStatus"`
-	MadeForKids            *bool  `json:"madeForKids"`
-	ContainsSyntheticMedia *bool  `json:"containsSyntheticMedia"`
-	NotifySubscribers      bool   `json:"notifySubscribers"`
+	TermsAccepted          bool     `json:"termsAccepted"`
+	Title                  string   `json:"title"`
+	Description            string   `json:"description"`
+	PrivacyStatus          string   `json:"privacyStatus"`
+	MadeForKids            *bool    `json:"madeForKids"`
+	ContainsSyntheticMedia *bool    `json:"containsSyntheticMedia"`
+	NotifySubscribers      bool     `json:"notifySubscribers"`
+	Tags                   []string `json:"tags,omitempty"`
+	License                string   `json:"license,omitempty"`
+	Embeddable             *bool    `json:"embeddable,omitempty"`
 }
 
 func youtubeScopesGranted(granted string) bool {
@@ -85,6 +89,9 @@ func youtubeScopesGranted(granted string) bool {
 }
 
 func ValidateYouTubeOptions(o YouTubeOptions, auditApproved bool) error {
+	if err := ValidateYouTubeAdvancedOptions(o); err != nil {
+		return err
+	}
 	if !o.TermsAccepted {
 		return errors.New("accept YouTube terms before publishing")
 	}
@@ -104,6 +111,31 @@ func ValidateYouTubeOptions(o YouTubeOptions, auditApproved bool) error {
 	}
 	if o.MadeForKids == nil || o.ContainsSyntheticMedia == nil {
 		return errors.New("answer YouTube audience and altered or synthetic content questions")
+	}
+	return nil
+}
+
+// ValidateYouTubeAdvancedOptions also applies to drafts, which may not yet have
+// the title, audience choices, or publishing consent required by YouTube.
+func ValidateYouTubeAdvancedOptions(o YouTubeOptions) error {
+	if o.License != "" && o.License != "youtube" && o.License != "creativeCommon" {
+		return errors.New("select a valid YouTube license")
+	}
+	tagLength := 0
+	for index, tag := range o.Tags {
+		if !utf8.ValidString(tag) || strings.TrimSpace(tag) == "" || strings.ContainsAny(tag, "<>") || strings.ContainsFunc(tag, unicode.IsControl) {
+			return errors.New("YouTube tags must be nonempty text without angle brackets or control characters")
+		}
+		if index > 0 {
+			tagLength++ // Commas between tags count toward YouTube's limit.
+		}
+		tagLength += utf8.RuneCountInString(tag)
+		if strings.ContainsRune(tag, ' ') {
+			tagLength += 2 // YouTube counts surrounding quotes for tags with spaces.
+		}
+		if tagLength > 500 {
+			return errors.New("YouTube tags must total at most 500 characters, including separators and quotes around tags with spaces")
+		}
 	}
 	return nil
 }
@@ -170,10 +202,18 @@ func (p *ProviderClient) PublishYouTube(ctx context.Context, c Credentials, medi
 	if source.StatusCode != http.StatusOK || source.ContentLength <= 0 || source.ContentLength > youtubeMaxUploadBytes || (!strings.HasPrefix(contentType, "video/") && contentType != "application/octet-stream") {
 		return "", "failed", errors.New("YouTube source video has an invalid response, size, or content type")
 	}
-	metadata, _ := json.Marshal(map[string]any{
-		"snippet": map[string]any{"title": o.Title, "description": o.Description, "categoryId": "22"},
-		"status":  map[string]any{"privacyStatus": o.PrivacyStatus, "selfDeclaredMadeForKids": *o.MadeForKids, "containsSyntheticMedia": *o.ContainsSyntheticMedia},
-	})
+	snippet := map[string]any{"title": o.Title, "description": o.Description, "categoryId": "22"}
+	if len(o.Tags) > 0 {
+		snippet["tags"] = o.Tags
+	}
+	status := map[string]any{"privacyStatus": o.PrivacyStatus, "selfDeclaredMadeForKids": *o.MadeForKids, "containsSyntheticMedia": *o.ContainsSyntheticMedia}
+	if o.License != "" {
+		status["license"] = o.License
+	}
+	if o.Embeddable != nil {
+		status["embeddable"] = *o.Embeddable
+	}
+	metadata, _ := json.Marshal(map[string]any{"snippet": snippet, "status": status})
 	endpoint := "https://www.googleapis.com/upload/youtube/v3/videos?uploadType=resumable&part=snippet,status&notifySubscribers=" + strconv.FormatBool(o.NotifySubscribers)
 	req, _ = http.NewRequestWithContext(ctx, http.MethodPost, endpoint, strings.NewReader(string(metadata)))
 	req.Header.Set("Authorization", "Bearer "+c.AccessToken)

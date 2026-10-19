@@ -20,6 +20,13 @@ not reveal excluded source frames or overlap spoken audio. The source hosts,
 captions and audio remain editable. Preview and export share this same lowering
 and easing, without a second montage backend.
 
+Studio prepares the held boundary pictures only within one second of playback
+before their slots, with separate limits for incoming source videos and transition
+pictures. Hidden transitions skip crop and grade updates until their active
+window. This keeps transition decoding and style work near the cut instead of
+running it across the montage; ordinary scene playback remains at its authored
+speed.
+
 New Story outputs record their native transition policy. The improvement action
 does not report a change for an already-smoothed default transition; old natural
 cuts and explicit cut/fade scenes can still be upgraded to `crossfade`. Existing
@@ -92,6 +99,8 @@ FFmpeg filter reference: <https://ffmpeg.org/ffmpeg-filters.html#minterpolate>.
 The focused native render fixture
 `editor/packages/sneepcut-server/verification/native-transitions.ts` compares
 Studio preview pixels with decoded MP4 frames, including interior source trims,
-caption visibility, blend brightness and unchanged frame count. The opt-in Go
+caption visibility, blend brightness and unchanged frame count. It also checks
+steady 1× preview playback between cuts and that distant transition pictures
+remain unloaded. The opt-in Go
 Story transition tests additionally compare decoded audio exactly. See the
 [shared pipeline guide](studio-composition-pipeline.md) for local render settings.

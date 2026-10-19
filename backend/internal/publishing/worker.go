@@ -101,13 +101,13 @@ func (h *Handler) dispatchCalendar(ctx context.Context) error {
 	var id, userID, caption, reference, tiktokReference string
 	var clipID sql.NullString
 	var accountIDs, platforms pq.StringArray
-	var postMedia, tiktokJSON, igJSON, youtubeJSON []byte
+	var postMedia, tiktokJSON, igJSON, youtubeJSON, facebookJSON []byte
 	e = tx.QueryRowContext(ctx, `SELECT s.id,s.user_id,s.clip_id,COALESCE(s.caption,''),s.account_ids,s.platforms,
 		COALESCE(NULLIF(c.file_storage_key,''),NULLIF(c.file_path,''),c.file_url,''),
-		COALESCE(NULLIF(c.tiktok_file_storage_key,''),NULLIF(c.file_storage_key,''),NULLIF(c.file_path,''),c.file_url,''),s.media,s.tiktok_options,s.instagram_options,s.youtube_options
+		COALESCE(NULLIF(c.tiktok_file_storage_key,''),NULLIF(c.file_storage_key,''),NULLIF(c.file_path,''),c.file_url,''),s.media,s.tiktok_options,s.instagram_options,s.youtube_options,s.facebook_options
 		FROM scheduled_posts s LEFT JOIN clips c ON c.id=s.clip_id AND c.user_id=s.user_id
 		WHERE s.id=$1 AND s.status='scheduled' AND s.scheduled_at<=now()
-		FOR UPDATE OF s`, candidateID).Scan(&id, &userID, &clipID, &caption, &accountIDs, &platforms, &reference, &tiktokReference, &postMedia, &tiktokJSON, &igJSON, &youtubeJSON)
+		FOR UPDATE OF s`, candidateID).Scan(&id, &userID, &clipID, &caption, &accountIDs, &platforms, &reference, &tiktokReference, &postMedia, &tiktokJSON, &igJSON, &youtubeJSON, &facebookJSON)
 	if errors.Is(e, sql.ErrNoRows) {
 		return nil
 	}
@@ -135,25 +135,35 @@ func (h *Handler) dispatchCalendar(ctx context.Context) error {
 		return h.failCalendar(ctx, tx, id, "Choose an available clip and at least one connected account.")
 	}
 	selectedMedia := []PublishMedia{{Type: "video", URL: reference}}
+	var attachments []MediaAttachment
 	if !clipID.Valid {
-		var attached []struct{ Type, Reference string }
+		var attached []MediaAttachment
 		if json.Unmarshal(postMedia, &attached) != nil || len(attached) == 0 {
 			return h.failCalendar(ctx, tx, id, "Choose available images or videos before publication.")
 		}
+		attachments = attached
 		selectedMedia = make([]PublishMedia, 0, len(attached))
 		for _, item := range attached {
-			selectedMedia = append(selectedMedia, PublishMedia{Type: item.Type, URL: item.Reference})
+			selectedMedia = append(selectedMedia, item.PublishMedia())
 		}
 	}
 	var tiktokOptions TikTokOptions
 	if json.Unmarshal(tiktokJSON, &tiktokOptions) != nil {
 		return h.failCalendar(ctx, tx, id, "The saved TikTok settings are invalid. Review the post and schedule it again.")
 	}
+	var facebookOptions FacebookOptions
+	if json.Unmarshal(facebookJSON, &facebookOptions) != nil {
+		return h.failCalendar(ctx, tx, id, "Review the saved Facebook settings.")
+	}
+	var instagramOptions InstagramOptions
+	if json.Unmarshal(igJSON, &instagramOptions) != nil {
+		return h.failCalendar(ctx, tx, id, "Review the saved Instagram settings.")
+	}
 	var youtubeOptions YouTubeOptions
 	if json.Unmarshal(youtubeJSON, &youtubeOptions) != nil {
 		return h.failCalendar(ctx, tx, id, "Review the YouTube settings.")
 	}
-	requestHash := digest(string(youtubeJSON) + id + ":" + reference + ":" + caption + ":" + string(tiktokJSON))
+	requestHash := digest(string(facebookJSON) + string(igJSON) + string(youtubeJSON) + id + ":" + reference + ":" + caption + ":" + string(tiktokJSON))
 	providers := make([]string, 0, len(accountIDs))
 	tiktokAccounts := 0
 	for _, accountID := range accountIDs {
@@ -179,6 +189,22 @@ func (h *Handler) dispatchCalendar(ctx context.Context) error {
 		accountID := accountIDs[i]
 		if err := ValidateMediaReferences(provider, selectedMedia); err != nil {
 			return h.failCalendar(ctx, tx, id, err.Error())
+		}
+		if provider == "instagram" {
+			if err := ValidateInstagramMedia(selectedMedia, instagramOptions); err != nil {
+				return h.failCalendar(ctx, tx, id, err.Error())
+			}
+			if err := PrepareInstagramAttachments(ctx, h.media, userID, attachments, instagramOptions); err != nil {
+				return h.failCalendar(ctx, tx, id, err.Error())
+			}
+		}
+		if provider == "facebook" {
+			if err := ValidateFacebookSettings(selectedMedia, facebookOptions); err != nil {
+				return h.failCalendar(ctx, tx, id, err.Error())
+			}
+			if err := PrepareFacebookAttachments(ctx, h.media, userID, attachments); err != nil {
+				return h.failCalendar(ctx, tx, id, err.Error())
+			}
 		}
 		if provider == "tiktok" {
 			var field string
@@ -239,8 +265,17 @@ func (h *Handler) dispatchCalendar(ctx context.Context) error {
 			options = youtubeJSON
 		} else if providers[i] == "instagram" {
 			options = igJSON
+		} else if providers[i] == "facebook" {
+			options = facebookJSON
 		}
 		publishReference := reference
+		if !clipID.Valid {
+			encoded, err := json.Marshal(attachmentsForProvider(providers[i], attachments))
+			if err != nil {
+				return err
+			}
+			publishReference = string(encoded)
+		}
 		if providers[i] == "tiktok" && clipID.Valid {
 			publishReference = tiktokReference
 			if publishReference == "" {
@@ -262,6 +297,7 @@ func (h *Handler) dispatchCalendar(ctx context.Context) error {
 }
 
 type workItem struct {
+	FacebookOptions                                                       FacebookOptions
 	YouTubeOptions                                                        YouTubeOptions
 	ID, UserID, AccountID, Provider, Status, RemoteID, Caption, Reference string
 	Options                                                               TikTokOptions
@@ -305,8 +341,15 @@ func (h *Handler) runOne(ctx context.Context) error {
 			return errInvalid
 		}
 	}
+	if job.Provider == "facebook" {
+		if json.Unmarshal(raw, &job.FacebookOptions) != nil {
+			return errInvalid
+		}
+	}
 	if job.Provider == "instagram" {
-		_ = json.Unmarshal(raw, &job.IGOptions)
+		if json.Unmarshal(raw, &job.IGOptions) != nil {
+			return errInvalid
+		}
 	}
 	next := job.Status
 	if next == "queued" {
@@ -436,7 +479,7 @@ func (h *Handler) process(ctx context.Context, job workItem, action string) erro
 		return set("processing", "", id, "")
 	}
 	if action == "finalize" {
-		id, link, err := h.client.Finalize(ctx, a.Provider, job.RemoteID, creds)
+		id, link, err := h.client.Finalize(ctx, a.Provider, job.RemoteID, creds, job.FacebookOptions)
 		if err != nil {
 			return set("unknown", "Publication outcome is unknown. Check the destination account before posting again.", job.RemoteID, "")
 		}
@@ -451,31 +494,34 @@ func (h *Handler) process(ctx context.Context, job workItem, action string) erro
 	}
 	if job.Status == "queued" {
 		media := []PublishMedia{}
-		var attached []struct{ Type, Reference, Name string }
+		var attached []MediaAttachment
 		if json.Unmarshal([]byte(job.Reference), &attached) == nil && len(attached) > 0 {
 			for _, item := range attached {
 				reference := item.Reference
 				if a.Provider == "instagram" && item.Type == "image" {
-					if resolver, ok := h.media.(interface {
-						InstagramPublishingKey(context.Context, string) (string, error)
-					}); ok {
+					if resolver, ok := h.media.(instagramImagePreparer); ok {
 						var err error
-						reference, err = resolver.InstagramPublishingKey(ctx, reference)
+						reference, err = resolver.PrepareInstagramImage(ctx, reference, item.Crop)
 						if err != nil {
 							return set("failed", err.Error(), "", "")
 						}
 					}
 				}
+				if a.Provider == "facebook" && item.Type == "image" && item.Crop != nil {
+					resolver, ok := h.media.(facebookImagePreparer)
+					if !ok {
+						return set("failed", "Facebook crop preparation is unavailable.", "", "")
+					}
+					var err error
+					reference, err = resolver.PrepareFacebookImage(ctx, reference, item.Crop)
+					if err != nil {
+						return set("failed", err.Error(), "", "")
+					}
+				}
 				if a.Provider == "tiktok" {
 					if item.Type == "image" {
-						resolver, ok := h.media.(interface {
-							TikTokPublishingKey(context.Context, string) (string, error)
-						})
-						if !ok {
-							return set("failed", "TikTok image preparation is unavailable.", "", "")
-						}
 						var err error
-						reference, err = resolver.TikTokPublishingKey(ctx, reference)
+						reference, err = prepareTikTokPhoto(ctx, h.media, reference, item.Crop)
 						if err != nil {
 							return set("failed", err.Error(), "", "")
 						}
@@ -492,7 +538,14 @@ func (h *Handler) process(ctx context.Context, job workItem, action string) erro
 				if err != nil || !publicHTTPS(source) {
 					return set("failed", "A public HTTPS media URL is required.", "", "")
 				}
-				media = append(media, PublishMedia{Type: item.Type, URL: source})
+				prepared := PublishMedia{Type: item.Type, URL: source}
+				if a.Provider == "instagram" || a.Provider == "facebook" {
+					prepared.AltText = item.AltText
+				}
+				if a.Provider == "instagram" {
+					prepared.UserTags = item.UserTags
+				}
+				media = append(media, prepared)
 			}
 		} else {
 			var currentReference string
@@ -522,7 +575,7 @@ func (h *Handler) process(ctx context.Context, job workItem, action string) erro
 			} else {
 				originals := make([]PublishMedia, 0, len(attached))
 				for _, item := range attached {
-					originals = append(originals, PublishMedia{Type: item.Type, URL: item.Reference})
+					originals = append(originals, item.PublishMedia())
 				}
 				field, err = h.ValidateTikTokMediaSchedule(ctx, tx, job.UserID, a.ID, originals, job.Caption, job.Options)
 			}
@@ -535,6 +588,17 @@ func (h *Handler) process(ctx context.Context, job workItem, action string) erro
 				return set("failed", message, "", "")
 			}
 		}
+		if a.Provider == "instagram" && job.IGOptions.CoverReference != "" {
+			key, err := instagramCoverKey(ctx, h.media, job.UserID, job.IGOptions.CoverReference)
+			if err != nil {
+				return set("failed", err.Error(), "", "")
+			}
+			coverURL, err := h.media.SignedURL(ctx, key)
+			if err != nil || !publicHTTPS(coverURL) {
+				return set("failed", "A public HTTPS Reel cover URL is required.", "", "")
+			}
+			job.IGOptions.CoverURL = coverURL
+		}
 		var id, status string
 		var err error
 		if a.Provider == "youtube" {
@@ -543,7 +607,7 @@ func (h *Handler) process(ctx context.Context, job workItem, action string) erro
 			}
 			id, status, err = h.client.PublishYouTube(ctx, creds, media, job.YouTubeOptions)
 		} else {
-			id, status, err = h.client.PublishMedia(ctx, a.Provider, a.RemoteID, creds, media, job.Caption, job.Options, job.IGOptions)
+			id, status, err = h.client.PublishMedia(ctx, a.Provider, a.RemoteID, creds, media, job.Caption, job.Options, job.IGOptions, job.FacebookOptions)
 		}
 		if err != nil {
 			if status == "failed" {

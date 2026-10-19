@@ -2,9 +2,12 @@
 
 import type { PublishingMedia } from '@/lib/content-calendar'
 import { Reorder, useDragControls } from 'framer-motion'
-import { GripVertical, ImagePlus, Play, X } from 'lucide-react'
+import { Crop, GripVertical, ImagePlus, Play, X } from 'lucide-react'
 import { useTranslations } from 'next-intl'
-import { useId } from 'react'
+import { useId, useState } from 'react'
+import { Button } from '@/components/ui/button'
+import { PublishingImageEditor } from './publishing-image-editor'
+import { PublishingImagePreview } from './publishing-image-preview'
 
 const controlClass =
   'inline-flex size-11 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-foreground disabled:pointer-events-none disabled:opacity-25'
@@ -15,6 +18,10 @@ export function PublishingMediaItem({
   count,
   previewUrl,
   disabled,
+  instagramEnabled = false,
+  facebookEnabled = false,
+  tiktokEnabled = false,
+  onChange,
   onMove,
   onRemove
 }: {
@@ -23,12 +30,20 @@ export function PublishingMediaItem({
   count: number
   previewUrl?: string
   disabled: boolean
+  instagramEnabled?: boolean
+  facebookEnabled?: boolean
+  tiktokEnabled?: boolean
+  onChange: (item: PublishingMedia) => void
   onMove: (reference: string, targetIndex: number) => void
   onRemove: (reference: string) => void
 }) {
   const t = useTranslations('contentCalendar.form')
+  const imageT = useTranslations('contentCalendar.imageEditor')
+  const [expanded, setExpanded] = useState(false)
   const dragControls = useDragControls()
   const keyboardHintId = useId()
+  const editorId = useId()
+  const photoEditorEnabled = instagramEnabled || facebookEnabled || tiktokEnabled
   return (
     <Reorder.Item
       value={item}
@@ -69,29 +84,11 @@ export function PublishingMediaItem({
           {t('mediaKeyboardHint')}
         </span>
         <div className="flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-sm border border-border">
-          {previewUrl ? (
-            item.type === 'image' ? (
-              <img
-                src={previewUrl}
-                alt={item.name}
-                draggable={false}
-                className="size-full object-contain"
-              />
-            ) : (
-              <video
-                src={previewUrl}
-                className="size-full object-contain"
-                muted={true}
-                playsInline={true}
-                controls={true}
-                preload="metadata"
-              />
-            )
-          ) : item.type === 'video' ? (
-            <Play className="size-5" />
-          ) : (
-            <ImagePlus className="size-5" />
-          )}
+          <PublishingMediaThumbnail
+            item={item}
+            previewUrl={previewUrl}
+            showCrop={photoEditorEnabled}
+          />
         </div>
         <div className="min-w-0 flex-1">
           <p className="truncate text-xs font-medium" title={item.name}>
@@ -101,6 +98,22 @@ export function PublishingMediaItem({
             {index + 1} / {count}
             {index === 0 ? ` · ${t('mediaCover')}` : ''}
           </p>
+          {photoEditorEnabled && item.type === 'image' && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="xs"
+              className="mt-1 -ml-2"
+              disabled={disabled}
+              aria-label={imageT('edit', { name: item.name })}
+              aria-expanded={expanded}
+              aria-controls={editorId}
+              onClick={() => setExpanded(value => !value)}
+            >
+              <Crop className="size-3" />
+              {imageT(expanded ? 'close' : 'editButton')}
+            </Button>
+          )}
         </div>
         <button
           type="button"
@@ -112,6 +125,54 @@ export function PublishingMediaItem({
           <X className="size-4" />
         </button>
       </div>
+      {photoEditorEnabled && item.type === 'image' && expanded && (
+        <div id={editorId}>
+          <PublishingImageEditor
+            item={item}
+            previewUrl={previewUrl}
+            disabled={disabled}
+            instagramEnabled={instagramEnabled}
+            facebookEnabled={facebookEnabled}
+            tiktokEnabled={tiktokEnabled}
+            onChange={onChange}
+          />
+        </div>
+      )}
     </Reorder.Item>
+  )
+}
+
+function PublishingMediaThumbnail({
+  item,
+  previewUrl,
+  showCrop
+}: {
+  item: PublishingMedia
+  previewUrl?: string
+  showCrop: boolean
+}) {
+  if (!previewUrl) {
+    return item.type === 'video'
+      ? <Play className="size-5" />
+      : <ImagePlus className="size-5" />
+  }
+  if (item.type === 'image') {
+    return (
+      <PublishingImagePreview
+        item={showCrop ? item : { ...item, crop: undefined }}
+        src={previewUrl}
+        thumbnail={true}
+      />
+    )
+  }
+  return (
+    <video
+      src={previewUrl}
+      className="size-full object-contain"
+      muted={true}
+      playsInline={true}
+      controls={true}
+      preload="metadata"
+    />
   )
 }

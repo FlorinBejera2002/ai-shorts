@@ -27,7 +27,47 @@ Open:
 - Backend liveness: <http://localhost/api/health>
 - Backend readiness: <http://localhost/api/ready>
 
-The default stack uses production-style frontend and backend images. Before using OAuth, Stripe, Gemini, or email delivery, configure their variables in `.env`. Unconfigured providers return explicit unavailable responses. The calendar stores a publishing plan; it does not automatically publish to social networks.
+The default stack uses production-style frontend and backend images. Before using OAuth, Stripe, Gemini, or email delivery, configure their variables in `.env`. Unconfigured providers return explicit unavailable responses. The calendar stores drafts and scheduled posts; publishing requires a connected account and the configured publishing worker.
+
+## Social publishing options
+
+The Calendar composer supports a shared photo format for Instagram, Facebook and TikTok
+(square, 4:5 portrait or 1.91:1 landscape), with position and zoom for each
+photo. Alternative text and positioned user tags stay with their photo when
+reordered, saved or scheduled. Crop previews use the same geometry as the
+publishing copy; originals are retained. Alternative text is limited to 1,000
+Unicode characters per image and is sent to Instagram and Facebook. Positioned
+user tags are sent only to Instagram.
+
+Instagram options include up to three collaborators, a Facebook Place ID,
+and AI disclosure. Single Reels also support an uploaded cover or a cover
+frame, an original audio name, feed sharing and trial sharing. Name-based
+location search is unavailable through the current Instagram Login connection.
+Comment controls are managed in Instagram: the publishing connection does not
+request comment-management permission. Legacy drafts requesting disabled
+comments must be reviewed before scheduling. Meta's [publishing reference](https://developers.facebook.com/documentation/instagram-platform/instagram-graph-api/reference/ig-user/media)
+defines the platform restrictions; uploading a cover or naming original audio
+does not add licensed music, filters or stickers.
+
+Facebook Pages support a Place ID for posts and Reels, with an optional Reel
+title and AI disclosure for single-video Reels. Photo alt text is sent through
+`alt_text_custom`. Migration `049_20261019_facebook_options.sql` adds persistent
+Facebook settings and must be applied when deploying this version.
+
+TikTok photo posts support a chosen cover photo that follows the image when
+reordered, automatic music and AI disclosure. Videos can select a cover frame
+in seconds (sent as milliseconds). Existing creator-specific audience and
+interaction controls still apply. TikTok does not expose per-photo alternative
+text in its [photo publishing endpoint](https://developers.tiktok.com/docs/en/content-posting-api-reference-photo-post).
+
+YouTube accepts a single video in this publishing flow. In addition to title,
+description, visibility, audience, synthetic-media disclosure and notifications,
+the composer supports tags, the standard or Creative Commons Attribution license,
+and embedding permission. The 500-character tag budget includes comma separators
+and quotes around tags containing spaces. Uploads use the documented
+[videos.insert fields](https://developers.google.com/youtube/data/reference/rest/v3/videos/insert).
+Changing upload settings requires renewed review consent. Custom thumbnails
+are not included in this extension.
 
 ## Story Builder music
 

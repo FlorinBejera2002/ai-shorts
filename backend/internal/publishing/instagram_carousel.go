@@ -12,12 +12,13 @@ import (
 // Carousel children process independently. Persist their ordered IDs so a slow
 // video does not hold the worker open or force it to recreate remote containers.
 type instagramCarousel struct {
-	Children []string `json:"children"`
-	Caption  string   `json:"caption"`
+	Children []string         `json:"children"`
+	Caption  string           `json:"caption"`
+	Options  InstagramOptions `json:"options,omitempty"`
 }
 
 func (p *ProviderClient) createInstagramItems(ctx context.Context, account string, c Credentials, media []PublishMedia, caption string, igOptions InstagramOptions) (string, string, error) {
-	carousel := instagramCarousel{Caption: caption}
+	carousel := instagramCarousel{Caption: caption, Options: igOptions}
 	for _, item := range media {
 		form := url.Values{"is_carousel_item": {"true"}}
 		if item.Type == "video" {
@@ -25,6 +26,7 @@ func (p *ProviderClient) createInstagramItems(ctx context.Context, account strin
 			form.Set("video_url", item.URL)
 		} else {
 			form.Set("image_url", item.URL)
+			instagramImageFields(form, item)
 		}
 		var child struct{ ID string }
 		if err := p.request(ctx, "POST", p.graph("instagram", url.PathEscape(account)+"/media"), c.AccessToken, form, nil, &child); err != nil || child.ID == "" {
@@ -93,6 +95,7 @@ func (p *ProviderClient) CreateCarousel(ctx context.Context, job string, c Crede
 	}
 	var parent struct{ ID string }
 	form := url.Values{"media_type": {"CAROUSEL"}, "children": {strings.Join(carousel.Children, ",")}, "caption": {carousel.Caption}}
+	instagramParentFields(form, carousel.Options)
 	if err := p.request(ctx, "POST", p.graph("instagram", url.PathEscape(account)+"/media"), c.AccessToken, form, nil, &parent); err != nil {
 		return "", err
 	}

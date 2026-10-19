@@ -142,9 +142,9 @@ func TestValidationPreservesMixedCarouselAndReorderedCover(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		actual := out["media"].([]map[string]string)
+		actual := out["media"].([]publishing.MediaAttachment)
 		for i, item := range selection {
-			if actual[i]["reference"] != item.(map[string]any)["reference"] {
+			if actual[i].Reference != item.(map[string]any)["reference"] {
 				t.Fatalf("carousel order changed: %v", actual)
 			}
 		}

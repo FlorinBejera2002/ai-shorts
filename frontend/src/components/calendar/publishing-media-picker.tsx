@@ -7,6 +7,8 @@ import { ImagePlus } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useEffect, useId, useRef, useState } from 'react'
 import { PublishingMediaItem } from './publishing-media-item'
+import { PublishingImageFormatSelector } from './publishing-image-format'
+import { applyPublishingImageFormat } from './publishing-image-utils'
 import {
   MAX_PUBLISHING_MEDIA,
   PUBLISHING_FILE_ACCEPT,
@@ -20,6 +22,9 @@ import { PublishingUploadProgress } from './publishing-upload-progress'
 export function PublishingMediaPicker({
   media,
   disabled,
+  instagramEnabled = false,
+  facebookEnabled = false,
+  tiktokEnabled = false,
   error,
   onChange,
   onError,
@@ -27,6 +32,9 @@ export function PublishingMediaPicker({
 }: {
   media: PublishingMedia[]
   disabled: boolean
+  instagramEnabled?: boolean
+  facebookEnabled?: boolean
+  tiktokEnabled?: boolean
   error?: string
   onChange: (media: PublishingMedia[]) => void
   onError: (message?: string) => void
@@ -42,6 +50,9 @@ export function PublishingMediaPicker({
   } | null>(null)
   const previewUrls = useRef<Record<string, string>>({})
   const controller = useRef<AbortController | null>(null)
+  const photoEditorEnabled = instagramEnabled || facebookEnabled || tiktokEnabled
+  const imageFormat =
+    media.find(item => item.type === 'image')?.crop?.aspectRatio ?? 'original'
 
   useEffect(
     () => () => {
@@ -109,7 +120,11 @@ export function PublishingMediaPicker({
           if (request.signal.aborted) return
           previewUrls.current[item.reference] = URL.createObjectURL(file)
           setPreviews({ ...previewUrls.current })
-          uploaded.push(item)
+          uploaded.push(
+            photoEditorEnabled
+              ? applyPublishingImageFormat([item], imageFormat)[0]!
+              : item
+          )
           onChange([...uploaded])
         } catch (cause) {
           if (request.signal.aborted) return
@@ -144,6 +159,16 @@ export function PublishingMediaPicker({
       >
         {t('form.mediaLabel')}
       </label>
+      {photoEditorEnabled && (
+        <PublishingImageFormatSelector
+          media={media}
+          disabled={disabled}
+          instagramEnabled={instagramEnabled}
+          facebookEnabled={facebookEnabled}
+          tiktokEnabled={tiktokEnabled}
+          onChange={onChange}
+        />
+      )}
       <label
         className={`relative mt-2 flex items-center gap-3 rounded-md border border-border bg-card px-4 ${progress ? 'min-h-48 cursor-wait py-5' : `min-h-20 py-3 ${disabled ? 'opacity-60' : 'cursor-pointer'}`}`}
       >
@@ -207,6 +232,16 @@ export function PublishingMediaPicker({
                 count={media.length}
                 previewUrl={previews[item.reference]}
                 disabled={disabled}
+                instagramEnabled={instagramEnabled}
+                facebookEnabled={facebookEnabled}
+                tiktokEnabled={tiktokEnabled}
+                onChange={updated => {
+                  if (!disabled) {
+                    onChange(media.map(current =>
+                      current.reference === updated.reference ? updated : current
+                    ))
+                  }
+                }}
                 onRemove={remove}
                 onMove={(reference, target) => {
                   if (!disabled)

@@ -10,6 +10,8 @@ import (
 	"path"
 	"strings"
 	"time"
+
+	"sneepcut/backend-go/internal/media"
 )
 
 type ProviderConfig struct {
@@ -28,20 +30,18 @@ type RemoteAccount struct {
 	Credentials                   Credentials
 }
 type TikTokOptions struct {
-	PhotoTitle          string `json:"photoTitle,omitempty"`
-	AutoAddMusic        bool   `json:"autoAddMusic"`
-	MusicUsageConfirmed bool   `json:"musicUsageConfirmed"`
-	PrivacyLevel        string `json:"privacyLevel"`
-	DisableComment      bool   `json:"disableComment"`
-	DisableDuet         bool   `json:"disableDuet"`
-	DisableStitch       bool   `json:"disableStitch"`
-	BrandContentToggle  bool   `json:"brandContentToggle"`
-	BrandOrganicToggle  bool   `json:"brandOrganicToggle"`
-	IsAIGC              bool   `json:"isAigc"`
-}
-type InstagramOptions struct {
-	CommentEnabled bool `json:"commentEnabled"`
-	ShareToFeed    bool `json:"shareToFeed"`
+	PhotoCoverIndex       *int   `json:"photoCoverIndex,omitempty"`
+	VideoCoverTimestampMs *int64 `json:"videoCoverTimestampMs,omitempty"`
+	PhotoTitle            string `json:"photoTitle,omitempty"`
+	AutoAddMusic          bool   `json:"autoAddMusic"`
+	MusicUsageConfirmed   bool   `json:"musicUsageConfirmed"`
+	PrivacyLevel          string `json:"privacyLevel"`
+	DisableComment        bool   `json:"disableComment"`
+	DisableDuet           bool   `json:"disableDuet"`
+	DisableStitch         bool   `json:"disableStitch"`
+	BrandContentToggle    bool   `json:"brandContentToggle"`
+	BrandOrganicToggle    bool   `json:"brandOrganicToggle"`
+	IsAIGC                bool   `json:"isAigc"`
 }
 type CreatorOptions struct {
 	PrivacyLevels   []string `json:"privacyLevels"`
@@ -495,9 +495,17 @@ func (p *ProviderClient) Publish(ctx context.Context, provider, account string, 
 	return p.PublishMedia(ctx, provider, account, c, []PublishMedia{{Type: "video", URL: mediaURL}}, caption, options, InstagramOptions{})
 }
 
-type PublishMedia struct{ Type, URL string }
+type PublishMedia struct {
+	Type, URL, AltText string
+	Crop               *media.InstagramCrop
+	UserTags           []InstagramUserTag
+}
 
-func (p *ProviderClient) PublishMedia(ctx context.Context, provider, account string, c Credentials, media []PublishMedia, caption string, options TikTokOptions, igOptions InstagramOptions) (string, string, error) {
+func (p *ProviderClient) PublishMedia(ctx context.Context, provider, account string, c Credentials, media []PublishMedia, caption string, options TikTokOptions, igOptions InstagramOptions, facebookSettings ...FacebookOptions) (string, string, error) {
+	facebookOptions := FacebookOptions{}
+	if len(facebookSettings) > 0 {
+		facebookOptions = facebookSettings[0]
+	}
 	if err := ValidateMediaReferences(provider, media); err != nil {
 		return "", "failed", err
 	}
@@ -509,27 +517,25 @@ func (p *ProviderClient) PublishMedia(ctx context.Context, provider, account str
 	}
 	switch provider {
 	case "instagram":
+		if err := ValidateInstagramMedia(media, igOptions); err != nil {
+			return "", "failed", err
+		}
 		if len(media) > 1 {
 			return p.createInstagramItems(ctx, account, c, media, caption, igOptions)
 		}
 		var r struct{ ID string }
 		if media[0].Type == "image" {
 			form := url.Values{"image_url": {media[0].URL}, "caption": {caption}}
-			if !igOptions.CommentEnabled {
-				form.Set("comment_enabled", "false")
-			}
+			instagramImageFields(form, media[0])
+			instagramParentFields(form, igOptions)
 			err := p.request(ctx, "POST", p.graph(provider, url.PathEscape(account)+"/media"), c.AccessToken, form, nil, &r)
 			if err != nil {
 				return "", "unknown", err
 			}
 		} else {
 			form := url.Values{"media_type": {"REELS"}, "video_url": {mediaURL}, "caption": {caption}}
-			if igOptions.ShareToFeed {
-				form.Set("share_to_feed", "true")
-			}
-			if !igOptions.CommentEnabled {
-				form.Set("comment_enabled", "false")
-			}
+			instagramReelFields(form, igOptions)
+			instagramParentFields(form, igOptions)
 			err := p.request(ctx, "POST", p.graph(provider, url.PathEscape(account)+"/media"), c.AccessToken, form, nil, &r)
 			if err != nil {
 				return "", "unknown", err
@@ -540,17 +546,28 @@ func (p *ProviderClient) PublishMedia(ctx context.Context, provider, account str
 		}
 		return account + ":" + r.ID, "processing", nil
 	case "facebook":
+		if err := ValidateFacebookSettings(media, facebookOptions); err != nil {
+			return "", "failed", err
+		}
 		if media[0].Type == "image" {
 			attached := make([]map[string]string, 0, len(media))
 			for _, item := range media {
 				var photo struct{ ID string }
-				if err := p.request(ctx, "POST", p.graph(provider, url.PathEscape(account)+"/photos"), c.AccessToken, url.Values{"url": {item.URL}, "published": {"false"}}, nil, &photo); err != nil || photo.ID == "" {
+				form := url.Values{"url": {item.URL}, "published": {"false"}}
+				if item.AltText != "" {
+					form.Set("alt_text_custom", item.AltText)
+				}
+				if err := p.request(ctx, "POST", p.graph(provider, url.PathEscape(account)+"/photos"), c.AccessToken, form, nil, &photo); err != nil || photo.ID == "" {
 					return "", "unknown", errors.New("Facebook carousel image failed")
 				}
 				attached = append(attached, map[string]string{"media_fbid": photo.ID})
 			}
 			var post struct{ ID string }
-			if err := p.request(ctx, "POST", p.graph(provider, url.PathEscape(account)+"/feed"), c.AccessToken, nil, map[string]any{"message": caption, "attached_media": attached}, &post); err != nil {
+			body := map[string]any{"message": caption, "attached_media": attached}
+			if facebookOptions.PlaceID != "" {
+				body["place"] = facebookOptions.PlaceID
+			}
+			if err := p.request(ctx, "POST", p.graph(provider, url.PathEscape(account)+"/feed"), c.AccessToken, nil, body, &post); err != nil {
 				return "", "unknown", err
 			}
 			return post.ID, "published", nil
@@ -583,6 +600,9 @@ func (p *ProviderClient) PublishMedia(ctx context.Context, provider, account str
 		return account + ":" + r.ID + ":" + url.QueryEscape(caption), "processing", nil
 	case "tiktok":
 		if err := validateTikTokPreparedMedia(media); err != nil {
+			return "", "failed", err
+		}
+		if err := ValidateTikTokMediaOptions(media, options); err != nil {
 			return "", "failed", err
 		}
 		for _, item := range media {
@@ -632,6 +652,10 @@ func (p *ProviderClient) PublishMedia(ctx context.Context, provider, account str
 			postInfo["auto_add_music"] = options.AutoAddMusic
 			sourceInfo["photo_images"] = photos
 			sourceInfo["photo_cover_index"] = 0
+			if options.PhotoCoverIndex != nil {
+				sourceInfo["photo_cover_index"] = *options.PhotoCoverIndex
+			}
+			body["is_aigc"] = options.IsAIGC
 			body["media_type"] = "PHOTO"
 			body["post_mode"] = "DIRECT_POST"
 			endpoint = "https://open.tiktokapis.com/v2/post/publish/content/init/"
@@ -640,6 +664,9 @@ func (p *ProviderClient) PublishMedia(ctx context.Context, provider, account str
 			postInfo["disable_duet"] = options.DisableDuet || creator.DuetDisabled
 			postInfo["disable_stitch"] = options.DisableStitch || creator.StitchDisabled
 			postInfo["is_aigc"] = options.IsAIGC
+			if options.VideoCoverTimestampMs != nil {
+				postInfo["video_cover_timestamp_ms"] = *options.VideoCoverTimestampMs
+			}
 			sourceInfo["video_url"] = mediaURL
 		}
 
@@ -738,7 +765,7 @@ func (p *ProviderClient) Poll(ctx context.Context, provider, job string, c Crede
 
 // Finalize performs the final, non-idempotent publication. The worker records
 // finalizing durably first; ambiguous failures must be reconciled by the user.
-func (p *ProviderClient) Finalize(ctx context.Context, provider, job string, c Credentials) (string, string, error) {
+func (p *ProviderClient) Finalize(ctx context.Context, provider, job string, c Credentials, facebookSettings ...FacebookOptions) (string, string, error) {
 	parts := strings.SplitN(job, ":", 3)
 	if len(parts) < 2 {
 		return "", "", errors.New("invalid provider job")
@@ -761,7 +788,14 @@ func (p *ProviderClient) Finalize(ctx context.Context, provider, job string, c C
 			caption, _ = url.QueryUnescape(parts[2])
 		}
 		var r struct{ Success bool }
-		err := p.request(ctx, "POST", p.graph(provider, url.PathEscape(parts[0])+"/video_reels"), c.AccessToken, url.Values{"upload_phase": {"finish"}, "video_id": {parts[1]}, "video_state": {"PUBLISHED"}, "description": {caption}}, nil, &r)
+		form := url.Values{"upload_phase": {"finish"}, "video_id": {parts[1]}, "video_state": {"PUBLISHED"}, "description": {caption}}
+		if len(facebookSettings) > 0 {
+			if err := ValidateFacebookOptions(facebookSettings[0]); err != nil {
+				return "", "", err
+			}
+			facebookReelFields(form, facebookSettings[0])
+		}
+		err := p.request(ctx, "POST", p.graph(provider, url.PathEscape(parts[0])+"/video_reels"), c.AccessToken, form, nil, &r)
 		if err != nil {
 			return "", "", err
 		}

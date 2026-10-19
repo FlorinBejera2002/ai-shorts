@@ -57,23 +57,25 @@ export type RuntimeMediaClip = {
   volumeKeyframes?: VolumeKeyframe[];
 };
 
-/** At most two incoming decoders, within one second of playback, may warm up. */
+/** Warm at most two moving videos and two boundary pictures, one second ahead.
+ * Separate budgets keep held pictures from delaying the incoming shot itself. */
 export function collectUpcomingVideoClips(
   clips: RuntimeMediaClip[],
   timeSeconds: number,
   playbackRate: number,
 ): RuntimeMediaClip[] {
+  let moving = 0;
+  let frozen = 0;
   return clips
     .filter(
       (clip) =>
         clip.el.tagName === "VIDEO" &&
-        clip.freezeAt == null &&
         clip.end > clip.start &&
         clip.start > timeSeconds &&
         clip.start - timeSeconds <= playbackRate,
     )
     .sort((left, right) => left.start - right.start)
-    .slice(0, 2);
+    .filter((clip) => (clip.freezeAt == null ? moving++ < 2 : frozen++ < 2));
 }
 
 export function refreshRuntimeMediaCache(params?: {
@@ -278,7 +280,9 @@ export function syncRuntimeMedia(params: {
     // Prepare upcoming videos and held pictures while hidden. Seeking only on
     // activation can expose excluded opening frames while the decoder catches up.
     const isUpcomingVideo = upcomingVideos.has(el);
-    if ((isFrozenVideo || isUpcomingVideo) && !findInjectedRenderFrame(el)) {
+    const isFrozenVideoInWindow =
+      isFrozenVideo && params.timeSeconds >= clip.start && params.timeSeconds < clip.end;
+    if ((isFrozenVideoInWindow || isUpcomingVideo) && !findInjectedRenderFrame(el)) {
       const preparedTime = isFrozenVideo
         ? relTime
         : Math.min(clip.mediaStart, clip.sourceDuration ?? Infinity);

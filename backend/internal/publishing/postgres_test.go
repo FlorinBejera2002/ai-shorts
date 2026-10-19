@@ -14,6 +14,7 @@ import (
 
 	"github.com/julienschmidt/httprouter"
 	"sneepcut/backend-go/internal/data"
+	"sneepcut/backend-go/internal/media"
 	"sneepcut/backend-go/internal/testdb"
 )
 
@@ -600,6 +601,9 @@ func (m uploadedTikTokMedia) KeyFromReference(key string) (string, error) { retu
 func (m uploadedTikTokMedia) TikTokPublishingKey(_ context.Context, key string) (string, error) {
 	return strings.TrimSuffix(key, ".png") + ".jpg", nil
 }
+func (m uploadedTikTokMedia) PrepareTikTokImage(_ context.Context, key string, _ *media.InstagramCrop) (string, error) {
+	return strings.TrimSuffix(key, ".png") + "-crop.jpg", nil
+}
 func (m uploadedTikTokMedia) PublishingVideoDuration(context.Context, string) (float64, error) {
 	return m.duration, nil
 }
@@ -668,10 +672,10 @@ func TestPostgresTikTokUploadedMediaDispatchAndWorker(t *testing.T) {
 					source := body["source_info"].(map[string]any)
 					if kind == "image" {
 						photos := source["photo_images"].([]any)
-						if len(photos) != 2 || !strings.HasSuffix(photos[0].(string), "first.jpg") {
+						if len(photos) != 2 || !strings.HasSuffix(photos[0].(string), "first-crop.jpg") || source["photo_cover_index"] != float64(1) || body["is_aigc"] != true {
 							t.Errorf("photo preparation/order lost: %v", source)
 						}
-					} else if !strings.HasSuffix(source["video_url"].(string), "first.webm") {
+					} else if !strings.HasSuffix(source["video_url"].(string), "first.webm") || body["post_info"].(map[string]any)["video_cover_timestamp_ms"] != float64(1250) {
 						t.Errorf("uploaded video lost: %v", source)
 					}
 					fmt.Fprint(w, `{"data":{"publish_id":"accepted"},"error":{"code":"ok"}}`)
@@ -685,12 +689,20 @@ func TestPostgresTikTokUploadedMediaDispatchAndWorker(t *testing.T) {
 			if kind == "image" {
 				reference = "publishing/" + user + "/first.png"
 			}
-			media := []map[string]string{{"type": kind, "reference": reference, "name": "first"}}
+			attachments := []MediaAttachment{{Type: kind, Reference: reference, Name: "first"}}
+			tiktokOptions := TikTokOptions{PrivacyLevel: "SELF_ONLY", MusicUsageConfirmed: true, AutoAddMusic: true, IsAIGC: true}
 			if kind == "image" {
-				media = append(media, map[string]string{"type": "image", "reference": "publishing/" + user + "/second.png", "name": "second"})
+				attachments[0].Crop = &media.InstagramCrop{AspectRatio: "4:5", X: .25, Y: .75, Zoom: 2}
+				attachments[0].AltText = "Instagram/Facebook accessibility only"
+				attachments = append(attachments, MediaAttachment{Type: "image", Reference: "publishing/" + user + "/second.png", Name: "second"})
+				cover := 1
+				tiktokOptions.PhotoCoverIndex = &cover
+			} else {
+				cover := int64(1250)
+				tiktokOptions.VideoCoverTimestampMs = &cover
 			}
-			raw, _ := json.Marshal(media)
-			options, _ := json.Marshal(TikTokOptions{PrivacyLevel: "SELF_ONLY", MusicUsageConfirmed: true, AutoAddMusic: true})
+			raw, _ := json.Marshal(attachments)
+			options, _ := json.Marshal(tiktokOptions)
 			if _, err = h.db.Exec(`INSERT INTO scheduled_posts(id,user_id,title,caption,platforms,account_ids,status,scheduled_at,media,tiktok_options,updated_at) VALUES($1,$2,'Upload','',ARRAY['tiktok']::varchar[],ARRAY[$3]::uuid[],'scheduled',now()-interval '1 minute',$4,$5,now())`, calendarID, user, account, raw, options); err != nil {
 				t.Fatal(err)
 			}

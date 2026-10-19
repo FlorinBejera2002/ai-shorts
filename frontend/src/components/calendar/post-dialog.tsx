@@ -27,6 +27,7 @@ import {
   type TikTokDirectPostSettings,
   createCalendarTikTokPublishingOptions,
   resolveCalendarTikTokClip,
+  remapTikTokPhotoCover,
   settingsFromTikTokPublishingOptions,
   validateTikTokDirectPost
 } from '@/lib/tiktok-direct-post'
@@ -72,15 +73,22 @@ import { PlatformOptionIcon } from './platform-mark'
 import { SchedulePicker } from './schedule-picker'
 import { TikTokPostSettings } from './tiktok-post-settings'
 import { InstagramPostSettings as InstagramPostSettingsComponent } from './instagram-post-settings'
+import { FacebookPostSettings } from './facebook-post-settings'
+import {
+  createFacebookPublishingOptions,
+  settingsFromFacebookPublishingOptions,
+  validateFacebookSettings
+} from '@/lib/facebook-post-settings'
 import {
   INITIAL_INSTAGRAM_SETTINGS,
   type InstagramPostSettings,
   createInstagramPublishingOptions,
+  validateInstagramSettings,
   settingsFromInstagramPublishingOptions
 } from '@/lib/instagram-post-settings'
 
 import { YouTubePostSettings } from './youtube-post-settings'
-import { initialYouTubeSettings, validateYouTubeSettings } from '@/lib/youtube-post-settings'
+import { initialYouTubeSettings, validateYouTubeAdvancedSettings, validateYouTubeSettings } from '@/lib/youtube-post-settings'
 
 type DialogMode = 'create' | 'edit' | 'reschedule' | 'delete'
 
@@ -97,7 +105,7 @@ type FormState = {
   media: PublishingMedia[]
 }
 
-type FormErrors = Partial<Record<keyof FormState | 'form' | 'tiktok' | 'instagram' | 'youtube', string>>
+type FormErrors = Partial<Record<keyof FormState | 'form' | 'tiktok' | 'instagram' | 'facebook' | 'youtube', string>>
 
 const inputClassName =
   'w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground shadow-none outline-none placeholder:text-muted-foreground/60 focus:border-border focus:ring-0 focus:shadow-none focus-visible:border-border focus-visible:ring-0 focus-visible:shadow-none'
@@ -264,7 +272,7 @@ export function PostDialog({
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [uploading, setUploading] = useState(false)
-  const [mediaSource, setMediaSource] = useState<'clip' | 'upload'>('clip')
+  const [mediaSource, setMediaSource] = useState<'clip' | 'upload'>(() => post?.media?.length ? 'upload' : 'clip')
   const [clipSearch, setClipSearch] = useState('')
   const [clipPage, setClipPage] = useState(0)
   const [confirmDelete, setConfirmDelete] = useState(mode === 'delete')
@@ -278,6 +286,9 @@ export function PostDialog({
       settingsFromInstagramPublishingOptions(post?.instagram)
     )
   const [youtubeSettings, setYouTubeSettings] = useState(() => initialYouTubeSettings(post?.youtube))
+  const [facebookSettings, setFacebookSettings] = useState(() =>
+    settingsFromFacebookPublishingOptions(post?.facebook)
+  )
   const busy = saving || deleting || uploading
 
   const publishedProviders = useMemo(
@@ -315,16 +326,16 @@ export function PostDialog({
     [publishingAccounts, selectedAccountIds]
   )
   const selectedInstagramAccount = selectedInstagramAccounts[0]
+  const selectedFacebookAccounts = publishingAccounts.filter(
+    account => account.provider === 'facebook' && selectedAccountIds.has(account.id)
+  )
   const isTikTokPhotoPost =
     selectedTikTokAccounts.length > 0 &&
     form.media.length > 0 &&
     form.media.every((item) => item.type === 'image')
-  const isInstagramPhotoPost = useMemo(() => {
-    if (selectedInstagramAccounts.length === 0) return false
-    if (form.clipId) return false
-    return form.media.length > 0 && form.media.every((m) => m.type === 'image')
-  }, [selectedInstagramAccounts.length, form.clipId, form.media])
-  const captionLimit = selectedTikTokAccounts.length > 0
+  const isMetaReel = Boolean(form.clipId) ||
+    (form.media.length === 1 && form.media[0]?.type === 'video')
+  const captionLimit = selectedInstagramAccounts.length > 0 ? 2200 : selectedTikTokAccounts.length > 0
     ? isTikTokPhotoPost
         ? 4000
         : 2200
@@ -487,8 +498,7 @@ export function PostDialog({
       return {
         ...current,
         accountIds: nextAccountIds,
-        platforms: [...selectedProviders],
-        media: !removed && account.provider === 'tiktok' ? [] : current.media
+        platforms: [...selectedProviders]
       }
     })
     setErrors((current) => ({
@@ -565,7 +575,27 @@ export function PostDialog({
       : []
 
     if (mode !== 'reschedule') {
-      if (form.status !== 'draft' && selectedYouTubeAccounts.length && !validateYouTubeSettings(youtubeSettings, youtubeAuditApproved)) nextErrors.youtube = publishingT('youtubeSettingsRequired')
+      if (tiktokValidationErrors.includes('coverInvalid')) {
+        nextErrors.tiktok = publishingT('tiktokCoverInvalid')
+      }
+      if (selectedInstagramAccounts.length) {
+        const instagramError = validateInstagramSettings(instagramSettings, isMetaReel)
+        if (instagramError) nextErrors.instagram = publishingT(instagramError)
+        if (form.status !== 'draft' && !instagramSettings.commentEnabled) {
+          nextErrors.instagram = publishingT('instagramLegacyComments')
+        }
+      }
+      if (selectedFacebookAccounts.length) {
+        const facebookError = validateFacebookSettings(facebookSettings, isMetaReel)
+        if (facebookError) nextErrors.facebook = publishingT(facebookError)
+      }
+      if (selectedYouTubeAccounts.length) {
+        if (!validateYouTubeAdvancedSettings(youtubeSettings)) {
+          nextErrors.youtube = publishingT('youtubeAdvancedInvalid')
+        } else if (form.status !== 'draft' && !validateYouTubeSettings(youtubeSettings, youtubeAuditApproved)) {
+          nextErrors.youtube = publishingT('youtubeSettingsRequired')
+        }
+      }
       if (!form.title.trim()) nextErrors.title = t('validation.titleRequired')
       else if (form.title.trim().length > 120) {
         nextErrors.title = t('validation.titleLength')
@@ -674,7 +704,7 @@ export function PostDialog({
     })
 
     const instagram = selectedInstagramAccounts.length > 0
-      ? createInstagramPublishingOptions(instagramSettings)
+      ? createInstagramPublishingOptions(instagramSettings, isMetaReel)
       : undefined
 
     return {
@@ -694,6 +724,9 @@ export function PostDialog({
         media: form.media,
         ...(tiktok ? { tiktok } : {}),
         ...(instagram ? { instagram } : {}),
+        ...(selectedFacebookAccounts.length
+          ? { facebook: createFacebookPublishingOptions(facebookSettings, isMetaReel) }
+          : {}),
         ...(selectedYouTubeAccounts.length ? { youtube: youtubeSettings } : {})
       }
     }
@@ -740,6 +773,8 @@ export function PostDialog({
         fieldErrors.tiktok = t('validation.tiktokSettingsRequired')
       } else if (issue.field === 'instagram') {
         fieldErrors.instagram = t('validation.instagramSettingsRequired')
+      } else if (issue.field === 'facebook') {
+        fieldErrors.facebook = publishingT('facebookSettingsInvalid')
       }
     }
 
@@ -1230,6 +1265,9 @@ export function PostDialog({
                               >
                                 <PublishingMediaPicker
                                   media={form.media}
+                                  instagramEnabled={selectedInstagramAccounts.length > 0}
+                                  facebookEnabled={selectedFacebookAccounts.length > 0}
+                                  tiktokEnabled={selectedTikTokAccounts.length > 0}
                                   disabled={busy}
                                   error={errors.media}
                                   onUploadingChange={setUploading}
@@ -1240,6 +1278,11 @@ export function PostDialog({
                                     }))
                                   }
                                   onChange={(media) => {
+                                    setYouTubeSettings(current => ({ ...current, termsAccepted: false }))
+                                    setTikTokSettings(current => ({
+                                      ...current,
+                                      photoCoverIndex: remapTikTokPhotoCover(form.media, media, current.photoCoverIndex)
+                                    }))
                                     setForm((current) => ({
                                       ...current,
                                       media,
@@ -1502,6 +1545,7 @@ export function PostDialog({
                           >
                             <TikTokPostSettings
                               isPhotoPost={isTikTokPhotoPost}
+                              media={form.media}
                               clip={selectedTikTokClip}
                               disabled={busy}
                               idPrefix={`${titleId}-tiktok`}
@@ -1530,7 +1574,8 @@ export function PostDialog({
                             <InstagramPostSettingsComponent
                               disabled={busy}
                               idPrefix={`${titleId}-instagram`}
-                              isVideoPost={!isInstagramPhotoPost}
+                              isReel={isMetaReel}
+                              onUploadingChange={setUploading}
                               onChange={(key, value) =>
                                 setInstagramSettings((prev) => ({ ...prev, [key]: value }))
                               }
@@ -1541,6 +1586,21 @@ export function PostDialog({
                               message={errors.instagram}
                             />
                           </motion.div>
+                        )}
+                        {selectedFacebookAccounts.length > 0 && (
+                          <div className={`space-y-2 ${isPage ? styles.editorWide : ''}`}>
+                            <FacebookPostSettings
+                              disabled={busy}
+                              idPrefix={`${titleId}-facebook`}
+                              isReel={isMetaReel}
+                              settings={facebookSettings}
+                              onChange={setFacebookSettings}
+                            />
+                            <FieldError
+                              id={`${titleId}-facebook-error`}
+                              message={errors.facebook}
+                            />
+                          </div>
                         )}
                         <motion.div
                           variants={isPage ? staggerItem : undefined}

@@ -193,6 +193,18 @@ async function waitForPreviewReady(page: Page): Promise<void> {
   // Require the fixture's source and transition videos so an empty DOM cannot
   // satisfy readiness checks before deterministic seeking is available.
   await page.waitForFunction(
+    (expectedIds) =>
+      (window as unknown as { __renderReady?: boolean }).__renderReady &&
+      expectedIds.every((id) => document.getElementById(id) instanceof HTMLVideoElement),
+    {},
+    expectedPreviewVideoIds,
+  );
+  // A paused preview intentionally leaves boundary pictures cold. Seeking
+  // requests only this cut's lookahead; readiness must not rely on eager loads.
+  await page.evaluate(() =>
+    (window as unknown as { __player: { seek(time: number): void } }).__player.seek(0),
+  );
+  await page.waitForFunction(
     (expectedIds) => {
       if (!(window as unknown as { __renderReady?: boolean }).__renderReady) return false;
       const videos = Array.from(document.querySelectorAll("video"));
@@ -208,11 +220,11 @@ async function waitForPreviewReady(page: Page): Promise<void> {
   );
 }
 
-async function createFixture(name: string, trimmed: boolean): Promise<string> {
+async function createFixture(name: string, trimmed: boolean, shotDuration = 1): Promise<string> {
   const project = join(scratch, name);
   await mkdir(join(project, "assets"), { recursive: true });
   await mkdir(join(project, "vendor"));
-  const assetDuration = trimmed ? 2 : 1;
+  const assetDuration = shotDuration + (trimmed ? 1 : 0);
   for (const [id, color, excluded] of [
     ["left", "red", "lime"],
     ["right", "blue", "yellow"],
@@ -220,7 +232,9 @@ async function createFixture(name: string, trimmed: boolean): Promise<string> {
     // Excluded pictures make accidental pre-roll/post-roll disclosure detectable.
     const filter =
       `color=${color}:s=${width}x${height}:r=${fps}:d=${assetDuration}` +
-      (trimmed ? `,drawbox=color=${excluded}:t=fill:enable='lt(t,0.5)+gte(t,1.5)'` : "");
+      (trimmed
+        ? `,drawbox=color=${excluded}:t=fill:enable='lt(t,0.5)+gte(t,${shotDuration + 0.5})'`
+        : "");
     await command(ffmpeg, [
       "-v",
       "error",
@@ -241,7 +255,7 @@ async function createFixture(name: string, trimmed: boolean): Promise<string> {
     "-f",
     "lavfi",
     "-i",
-    "sine=frequency=440:sample_rate=48000:duration=2",
+    `sine=frequency=440:sample_rate=48000:duration=${2 * shotDuration}`,
     "-c:a",
     "pcm_s16le",
     join(project, "assets/voice.wav"),
@@ -251,7 +265,7 @@ async function createFixture(name: string, trimmed: boolean): Promise<string> {
     title: name,
     width,
     height,
-    duration: 2,
+    duration: 2 * shotDuration,
     dynamic_range: "sdr",
     assets: [
       ...["left", "right"].map((id) => ({
@@ -268,22 +282,30 @@ async function createFixture(name: string, trimmed: boolean): Promise<string> {
         name: "Continuous tone",
         kind: "audio",
         url: "/media/voice.wav",
-        duration: 2,
+        duration: 2 * shotDuration,
         has_audio: true,
       },
     ],
     scenes: [
-      { id: "scene-left", asset_id: "left", start: 0, duration: 1, source_in: trimmed ? 0.5 : 0 },
+      {
+        id: "scene-left",
+        asset_id: "left",
+        start: 0,
+        duration: shotDuration,
+        source_in: trimmed ? 0.5 : 0,
+      },
       {
         id: "scene-right",
         asset_id: "right",
-        start: 1,
-        duration: 1,
+        start: shotDuration,
+        duration: shotDuration,
         source_in: trimmed ? 0.5 : 0,
         transition_in: 0.3,
       },
     ],
-    audio: [{ id: "voice-layer", asset_id: "voice", start: 0, duration: 2, source_in: 0 }],
+    audio: [
+      { id: "voice-layer", asset_id: "voice", start: 0, duration: 2 * shotDuration, source_in: 0 },
+    ],
     captions: {
       groups: [
         [{ text: "LEFT", start: 0.7, end: 0.95 }],
@@ -305,6 +327,119 @@ async function createFixture(name: string, trimmed: boolean): Promise<string> {
   assert.ok(gsap, "bundled GSAP is required");
   await writeFile(join(project, "vendor/gsap.min.js"), gsap);
   return project;
+}
+
+async function verifySteadyPlayback(browser: Browser): Promise<void> {
+  const name = "steady-playback";
+  const project = await createFixture(name, false, 5);
+  const runtime = createStudioServer({ projectDir: project, projectName: name });
+  const server = Bun.serve({ hostname: "127.0.0.1", port: 0, fetch: runtime.app.fetch });
+  const page = await browser.newPage();
+  try {
+    await page.goto(`http://127.0.0.1:${server.port}/api/projects/${name}/preview`, {
+      waitUntil: "domcontentloaded",
+    });
+    await page.waitForFunction(() => {
+      const video = document.getElementById("source-scene-1-video");
+      return (
+        (window as unknown as { __renderReady?: boolean }).__renderReady &&
+        video instanceof HTMLVideoElement &&
+        video.readyState >= 2 &&
+        document.querySelectorAll("video[data-freeze-at]").length === 2
+      );
+    });
+    const playback = await page.evaluate(async () => {
+      const player = (
+        window as unknown as {
+          __player: {
+            play(): void;
+            pause(): void;
+            seek(time: number): void;
+            getTime(): number;
+            getDuration(): number;
+            isPlaying(): boolean;
+          };
+        }
+      ).__player;
+      const source = document.getElementById("source-scene-1-video");
+      if (!(source instanceof HTMLVideoElement)) throw new Error("Missing source video");
+      const distantPictures = () =>
+        Array.from(document.querySelectorAll("video[data-freeze-at]"), (node) => {
+          if (!(node instanceof HTMLVideoElement)) throw new Error("Invalid boundary picture");
+          return {
+            id: node.id,
+            time: node.currentTime,
+            preload: node.preload,
+            paused: node.paused,
+          };
+        });
+      player.pause();
+      player.seek(0);
+      const before = distantPictures();
+      let presentedFrames = 0;
+      let callback = 0;
+      const observe = () => {
+        presentedFrames++;
+        callback = source.requestVideoFrameCallback(observe);
+      };
+      callback = source.requestVideoFrameCallback(observe);
+      const requestedAt = performance.now();
+      player.play();
+      try {
+        // The transport follows audio. Measure steady speed after its cold
+        // device startup, without treating that one-time delay as a rate change.
+        while (player.getTime() < 0.1) {
+          if (performance.now() - requestedAt > 2000)
+            throw new Error("Audio transport did not start");
+          await new Promise<void>((resolve) => setTimeout(resolve, 20));
+        }
+        const start = performance.now();
+        const timelineStart = player.getTime();
+        const mediaStart = source.currentTime;
+        presentedFrames = 0;
+        await new Promise<void>((resolve) => setTimeout(resolve, 1500));
+        return {
+          coldStartSeconds: (start - requestedAt) / 1000,
+          elapsed: (performance.now() - start) / 1000,
+          timeline: player.getTime() - timelineStart,
+          duration: player.getDuration(),
+          playing: player.isPlaying(),
+          media: source.currentTime - mediaStart,
+          rate: source.playbackRate,
+          presentedFrames,
+          before,
+          after: distantPictures(),
+        };
+      } finally {
+        player.pause();
+        source.cancelVideoFrameCallback(callback);
+      }
+    });
+    assert.equal(playback.rate, 1, "transition changed ordinary video playback rate");
+    assert.ok(
+      Math.abs(playback.timeline - playback.elapsed) < 0.25,
+      "preview timeline slowed outside the cut",
+    );
+    assert.ok(
+      playback.media > playback.elapsed - 0.35,
+      "source decoder did not advance at normal speed",
+    );
+    assert.ok(playback.presentedFrames >= 10, "ordinary source playback stalled");
+    for (const picture of [...playback.before, ...playback.after]) {
+      assert.equal(
+        picture.time,
+        0,
+        `distant transition ${picture.id} decoded before its lookahead`,
+      );
+      assert.notEqual(picture.preload, "auto", `distant transition ${picture.id} eagerly loaded`);
+      assert.equal(picture.paused, true);
+    }
+    console.log(JSON.stringify({ verified: name, playback }));
+  } finally {
+    await page.close();
+    server.stop(true);
+    await runtime.watcher.close();
+  }
 }
 
 let browser: Browser | undefined;
@@ -383,7 +518,25 @@ try {
       await page.goto(`http://127.0.0.1:${server.port}/api/projects/${name}/preview`, {
         waitUntil: "domcontentloaded",
       });
-      await waitForPreviewReady(page);
+      try {
+        await waitForPreviewReady(page);
+      } catch (error) {
+        console.error(
+          await page.evaluate(() =>
+            Array.from(document.querySelectorAll("video"), (video) => ({
+              id: video.id,
+              time: video.currentTime,
+              start: video.dataset.start,
+              duration: video.dataset.duration,
+              freeze: video.dataset.freezeAt,
+              ready: video.readyState,
+              seeking: video.seeking,
+              preload: video.preload,
+            })),
+          ),
+        );
+        throw error;
+      }
       await page.evaluate(() => document.fonts.ready);
       const previewRed = (await previewPicture(page, 18)).rgb;
       const previewBlue = (await previewPicture(page, 42)).rgb;
@@ -484,6 +637,7 @@ try {
       await runtime.watcher.close();
     }
   }
+  await verifySteadyPlayback(browser);
   assert.equal(
     createHash("sha256")
       .update(await readFile(runtimePath))

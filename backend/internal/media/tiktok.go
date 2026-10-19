@@ -16,6 +16,19 @@ import (
 	"time"
 )
 
+// PrepareTikTokImage reuses the immutable crop derivative while applying
+// TikTok's media constraints before any verified-domain URL is issued.
+func (s *Service) PrepareTikTokImage(ctx context.Context, reference string, crop *InstagramCrop) (string, error) {
+	if crop != nil {
+		prepared, err := s.PrepareInstagramImage(ctx, reference, crop)
+		if err != nil {
+			return "", err
+		}
+		reference = prepared
+	}
+	return s.TikTokPublishingKey(ctx, reference)
+}
+
 // TikTokPublishingKey keeps JPEG and WebP originals and uses the existing JPEG
 // copy for PNG. Instagram's separate 8 MB limit must never apply here.
 func (s *Service) TikTokPublishingKey(ctx context.Context, reference string) (string, error) {

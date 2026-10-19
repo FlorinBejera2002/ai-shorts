@@ -15,6 +15,8 @@ export type TikTokDirectPostSettings = {
   policyConsent: boolean
   autoAddMusic: boolean
   isAigc: boolean
+  photoCoverIndex: number
+  videoCoverSeconds: string
 }
 
 export const INITIAL_TIKTOK_SETTINGS: TikTokDirectPostSettings = {
@@ -27,7 +29,9 @@ export const INITIAL_TIKTOK_SETTINGS: TikTokDirectPostSettings = {
   brandedContent: false,
   policyConsent: false,
   autoAddMusic: false,
-  isAigc: false
+  isAigc: false,
+  photoCoverIndex: 0,
+  videoCoverSeconds: ''
 }
 
 export function resolveCalendarTikTokClip({
@@ -80,6 +84,7 @@ export type TikTokDirectPostValidationError =
   | 'commercialTypeRequired'
   | 'brandedContentPrivacy'
   | 'policyConsentRequired'
+  | 'coverInvalid'
 
 export function validateTikTokDirectPost({
   accountId,
@@ -94,6 +99,9 @@ export function validateTikTokDirectPost({
   if (!accountId) errors.push('accountRequired')
   const isPhotoPost =
     media.length > 0 && media.every((item) => item.type === 'image')
+  if (!validTikTokCover(settings, isPhotoPost, media.length, clip?.duration ?? options?.maxDuration)) {
+    errors.push('coverInvalid')
+  }
   if (!clip && media.length === 0) errors.push('clipRequired')
   if (caption.length > (isPhotoPost ? 4000 : 2200))
     errors.push('captionTooLong')
@@ -145,9 +153,16 @@ export function createTikTokPublishingOptions({
     brandOrganicToggle: settings.ownBrand,
     musicUsageConfirmed: settings.policyConsent,
     ...(isPhotoPost
-      ? { autoAddMusic: settings.autoAddMusic, photoTitle: photoTitle.trim() }
+      ? {
+          autoAddMusic: settings.autoAddMusic,
+          photoTitle: photoTitle.trim(),
+          photoCoverIndex: settings.photoCoverIndex ?? 0
+        }
       : {}),
-    isAigc: isPhotoPost ? false : settings.isAigc
+    ...(!isPhotoPost && settings.videoCoverSeconds?.trim()
+      ? { videoCoverTimestampMs: Math.round(Number(settings.videoCoverSeconds) * 1000) }
+      : {}),
+    isAigc: settings.isAigc
   }
 }
 
@@ -194,6 +209,36 @@ export function settingsFromTikTokPublishingOptions(
     brandedContent: options.brandContentToggle,
     policyConsent: options.musicUsageConfirmed,
     autoAddMusic: options.autoAddMusic ?? false,
-    isAigc: options.isAigc
+    isAigc: options.isAigc,
+    photoCoverIndex: options.photoCoverIndex ?? 0,
+    videoCoverSeconds: options.videoCoverTimestampMs === undefined
+      ? ''
+      : String(options.videoCoverTimestampMs / 1000)
   }
+}
+
+export function validTikTokCover(
+  settings: TikTokDirectPostSettings,
+  isPhotoPost: boolean,
+  mediaCount: number,
+  maxDuration?: number
+) {
+  if (isPhotoPost) {
+    const index = settings.photoCoverIndex ?? 0
+    return Number.isInteger(index) && index >= 0 && index < mediaCount
+  }
+  if (!settings.videoCoverSeconds?.trim()) return true
+  const seconds = Number(settings.videoCoverSeconds)
+  return Number.isFinite(seconds) && seconds >= 0 &&
+    Number.isSafeInteger(Math.round(seconds * 1000)) &&
+    (maxDuration === undefined || maxDuration <= 0 || seconds < maxDuration)
+}
+
+export function remapTikTokPhotoCover(
+  previous: readonly { reference: string }[],
+  next: readonly { reference: string }[],
+  index: number
+) {
+  const reference = previous[index]?.reference
+  return Math.max(0, next.findIndex(item => item.reference === reference))
 }

@@ -150,8 +150,8 @@ func TestCalendarWorkerRejectsUnsupportedStoredPlatforms(t *testing.T) {
 			mock.ExpectBegin()
 			mock.ExpectQuery("SELECT NOT EXISTS.*FROM users").WithArgs("user").WillReturnRows(sqlmock.NewRows([]string{"active"}).AddRow(true))
 			mock.ExpectQuery("SELECT s.id,s.user_id,s.clip_id").WithArgs("post").WillReturnRows(
-				sqlmock.NewRows([]string{"id", "user_id", "clip_id", "caption", "account_ids", "platforms", "reference", "tiktok_reference", "media", "tiktok", "instagram", "youtube"}).
-					AddRow("post", "user", nil, "saved caption", "{}", "{instagram,"+provider+"}", "", "", `[]`, `{}`, `{}`, `{}`))
+				sqlmock.NewRows([]string{"id", "user_id", "clip_id", "caption", "account_ids", "platforms", "reference", "tiktok_reference", "media", "tiktok", "instagram", "youtube", "facebook"}).
+					AddRow("post", "user", nil, "saved caption", "{}", "{instagram,"+provider+"}", "", "", `[]`, `{}`, `{}`, `{}`, `{}`))
 			mock.ExpectExec(regexp.QuoteMeta("UPDATE scheduled_posts SET status='failed',publishing_error=$2,updated_at=now() WHERE id=$1")).
 				WithArgs("post", "A saved platform is no longer supported. Review the destinations before scheduling again.").WillReturnResult(sqlmock.NewResult(0, 1))
 			mock.ExpectCommit()

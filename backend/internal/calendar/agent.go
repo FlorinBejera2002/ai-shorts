@@ -34,14 +34,15 @@ type AgentPost struct {
 	TikTok          *publishing.TikTokOptions    `json:"tiktok,omitempty"`
 	YouTube         *publishing.YouTubeOptions   `json:"youtube,omitempty"`
 	Instagram       *publishing.InstagramOptions `json:"instagram,omitempty"`
+	Facebook        *publishing.FacebookOptions  `json:"facebook,omitempty"`
 }
 
 func safeAgentPost(p Post, state string) AgentPost {
 	media := []map[string]string{}
 	for _, m := range p.Media {
-		media = append(media, map[string]string{"type": m["type"], "name": m["name"]})
+		media = append(media, map[string]string{"type": m.Type, "name": m.Name})
 	}
-	out := AgentPost{ID: p.ID, Title: p.Title, Caption: p.Caption, Notes: p.Notes, Platforms: p.Platforms, AccountIDs: p.AccountIDs, Status: p.Status, ScheduledAt: p.ScheduledAt, ExpectedState: state, Media: media, Destinations: p.PublishingDestinations, PublishingError: p.PublishingError, TikTok: p.TikTok, YouTube: p.YouTube, Instagram: p.Instagram}
+	out := AgentPost{ID: p.ID, Title: p.Title, Caption: p.Caption, Notes: p.Notes, Platforms: p.Platforms, AccountIDs: p.AccountIDs, Status: p.Status, ScheduledAt: p.ScheduledAt, ExpectedState: state, Media: media, Destinations: p.PublishingDestinations, PublishingError: p.PublishingError, TikTok: p.TikTok, YouTube: p.YouTube, Instagram: p.Instagram, Facebook: p.Facebook}
 	if p.Clip != nil {
 		out.ClipID = p.Clip.ID
 		copy := *p.Clip
@@ -136,7 +137,7 @@ func (s *Repository) AgentMutate(ctx context.Context, user, request, id, expecte
 	for k, v := range input {
 		fields[k] = v
 	}
-	allowed := map[string]bool{"title": true, "caption": true, "notes": true, "platforms": true, "accountIds": true, "scheduledAt": true, "clipId": true, "instagram": true, "media": true}
+	allowed := map[string]bool{"title": true, "caption": true, "notes": true, "platforms": true, "accountIds": true, "scheduledAt": true, "clipId": true, "instagram": true, "facebook": true, "media": true}
 	for key := range fields {
 		if !allowed[key] {
 			return AgentPost{}, errors.New("Unsupported calendar edit field; provider consent must be reviewed in Publishing")
@@ -153,8 +154,8 @@ func (s *Repository) AgentMutate(ctx context.Context, user, request, id, expecte
 		if !ok {
 			return AgentPost{}, errors.New("Publishing upload verification is unavailable")
 		}
-		for _, item := range validated["media"].([]map[string]string) {
-			if _, err := verifier.PublishingPreviewURL(ctx, user, item["reference"]); err != nil {
+		for _, item := range validated["media"].([]publishing.MediaAttachment) {
+			if _, err := verifier.PublishingPreviewURL(ctx, user, item.Reference); err != nil {
 				return AgentPost{}, errors.New("Choose an existing publishing upload owned by this account")
 			}
 		}

@@ -9,7 +9,7 @@ async function load(path) {
   }).outputText
   return import(`data:text/javascript;base64,${Buffer.from(source).toString('base64')}`)
 }
-const { initialYouTubeSettings, validateYouTubeSettings } = await load('../src/lib/youtube-post-settings.ts')
+const { initialYouTubeSettings, validateYouTubeSettings, validateYouTubeAdvancedSettings, parseYouTubeTags } = await load('../src/lib/youtube-post-settings.ts')
 const { isPublishingAccountUsable } = await load('../src/lib/publishing.ts')
 const { validateScheduledPostPayload } = await load('../src/lib/content-calendar.ts')
 const complete = { ...initialYouTubeSettings(), title: 'My video', madeForKids: false, containsSyntheticMedia: false, termsAccepted: true }
@@ -42,4 +42,23 @@ test('calendar retains YouTube options and accepts incomplete choices only for d
   const publish = validateScheduledPostPayload({ ...payload, status: 'publish' }, 'create')
   assert.equal(publish.success, false)
   assert.ok(publish.issues.some(issue => issue.field === 'youtube'))
+})
+
+test('advanced YouTube settings preserve tags, license and disabled embedding across draft edits', () => {
+  const settings = {...complete, tags:parseYouTubeTags('  tutorial, video editing, , română '), license:'creativeCommon', embeddable:false}
+  assert.deepEqual(settings.tags,['tutorial','video editing','română'])
+  assert.equal(validateYouTubeSettings(settings,true),true)
+  const restored = initialYouTubeSettings(settings)
+  assert.deepEqual(restored,{...settings, termsAccepted:false})
+  assert.equal(initialYouTubeSettings().embeddable,true)
+})
+
+test('YouTube tag budget includes commas, Unicode characters and quotes around spaces', () => {
+  assert.equal(validateYouTubeAdvancedSettings({...complete,tags:['😀'.repeat(500)]}),true)
+  assert.equal(validateYouTubeAdvancedSettings({...complete,tags:['😀'.repeat(500),'a']}),false)
+  assert.equal(validateYouTubeAdvancedSettings({...complete,tags:['a '.repeat(249)]}),true)
+  for (const tags of [['a '.repeat(250)],[' '],['bad<'],['bad\u0001'],['bad\u0085']]) {
+    assert.equal(validateYouTubeAdvancedSettings({...complete,tags}),false)
+  }
+  assert.equal(validateYouTubeAdvancedSettings({...complete,license:'unknown'}),false)
 })

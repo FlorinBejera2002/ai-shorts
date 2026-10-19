@@ -23,6 +23,12 @@ func (h *Handler) validateTikTokSelectionWithCredentials(ctx context.Context, ac
 
 func (h *Handler) validateTikTokMediaSelection(ctx context.Context, account Account, credentials Credentials, duration float64, badge sql.NullBool, media []PublishMedia, caption string, options TikTokOptions) (string, error) {
 	photo := len(media) > 0 && media[0].Type == "image"
+	if err := ValidateTikTokMediaOptions(media, options); err != nil {
+		return "tiktok", &TikTokMediaError{Message: err.Error()}
+	}
+	if !photo && options.VideoCoverTimestampMs != nil && duration > 0 && float64(*options.VideoCoverTimestampMs) >= duration*1000 {
+		return "tiktok", &TikTokMediaError{Message: "Choose a TikTok cover time within the selected video"}
+	}
 	if account.Provider != "tiktok" || !h.configured("tiktok") {
 		return "accountIds", errInvalid
 	}
@@ -166,13 +172,7 @@ func (h *Handler) ValidateTikTokMediaSchedule(ctx context.Context, tx *sql.Tx, u
 	for _, item := range media {
 		reference := item.URL
 		if item.Type == "image" {
-			resolver, ok := h.media.(interface {
-				TikTokPublishingKey(context.Context, string) (string, error)
-			})
-			if !ok {
-				return "media", errInvalid
-			}
-			reference, err = resolver.TikTokPublishingKey(ctx, reference)
+			reference, err = prepareTikTokPhoto(ctx, h.media, reference, item.Crop)
 			if err != nil {
 				return "media", &TikTokMediaError{Message: err.Error()}
 			}

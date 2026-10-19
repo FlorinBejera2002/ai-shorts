@@ -1,6 +1,7 @@
 package calendar
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"regexp"
@@ -19,7 +20,7 @@ const RecentClipLimit = 100
 
 var idPattern = regexp.MustCompile(`(?i)^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`)
 var datePattern = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,9})?(Z|[+-]\d{2}:\d{2})$`)
-var mutationColumns = map[string]string{"title": "title", "caption": "caption", "notes": "notes", "platforms": "platforms", "accountIds": "account_ids", "status": "status", "scheduledAt": "scheduled_at", "clipId": "clip_id", "media": "media", "tiktok": "tiktok_options", "instagram": "instagram_options", "youtube": "youtube_options"}
+var mutationColumns = map[string]string{"title": "title", "caption": "caption", "notes": "notes", "platforms": "platforms", "accountIds": "account_ids", "status": "status", "scheduledAt": "scheduled_at", "clipId": "clip_id", "media": "media", "tiktok": "tiktok_options", "instagram": "instagram_options", "youtube": "youtube_options", "facebook": "facebook_options"}
 
 type Issue struct {
 	Field   string `json:"field"`
@@ -224,26 +225,9 @@ func Validate(input map[string]any, create bool) (map[string]any, error) {
 		}
 	}
 	if raw, exists := input["media"]; exists {
-		values, ok := raw.([]any)
-		valid := ok && len(values) <= 35
-		normalized := make([]map[string]string, 0, len(values))
-		for _, item := range values {
-			entry, entryOK := item.(map[string]any)
-			if !entryOK {
-				valid = false
-				continue
-			}
-			t, tok := entry["type"].(string)
-			ref, rok := entry["reference"].(string)
-			name, nok := entry["name"].(string)
-			if !tok || !rok || !nok || (t != "image" && t != "video") || ref == "" || name == "" || len(entry) != 3 {
-				valid = false
-				continue
-			}
-			normalized = append(normalized, map[string]string{"type": t, "reference": ref, "name": name})
-		}
-		if !valid {
-			issues = append(issues, Issue{"media", "Choose up to 35 images or videos"})
+		normalized, err := validateAttachments(raw)
+		if err != nil {
+			issues = append(issues, Issue{"media", err.Error()})
 		} else {
 			output["media"] = normalized
 		}
@@ -257,6 +241,7 @@ func Validate(input map[string]any, create bool) (map[string]any, error) {
 				valid = false
 			} else {
 				allowed := map[string]bool{
+					"photoCoverIndex": true, "videoCoverTimestampMs": true,
 					"photoTitle": true, "autoAddMusic": true, "privacyLevel": true, "disableComment": true, "disableDuet": true,
 					"disableStitch": true, "brandContentToggle": true,
 					"brandOrganicToggle": true, "musicUsageConfirmed": true, "isAigc": true,
@@ -265,6 +250,14 @@ func Validate(input map[string]any, create bool) (map[string]any, error) {
 					if !allowed[key] {
 						valid = false
 					}
+				}
+				encoded, encodeErr := json.Marshal(value)
+				var typed publishing.TikTokOptions
+				if encodeErr != nil || json.Unmarshal(encoded, &typed) != nil {
+					valid = false
+				} else {
+					options.PhotoCoverIndex = typed.PhotoCoverIndex
+					options.VideoCoverTimestampMs = typed.VideoCoverTimestampMs
 				}
 				if privacy, present := value["privacyLevel"]; present {
 					text, textOK := privacy.(string)
@@ -301,51 +294,29 @@ func Validate(input map[string]any, create bool) (map[string]any, error) {
 				}
 			}
 		}
-		if !valid {
+		if !valid || publishing.ValidateTikTokAdvancedOptions(options) != nil {
 			issues = append(issues, Issue{"tiktok", "Choose valid TikTok publishing settings"})
 		} else {
 			output["tiktok"] = options
 		}
 	}
 	if raw, exists := input["instagram"]; exists {
-		igOptions := publishing.InstagramOptions{}
-		valid := true
-		if raw != nil {
-			value, ok := raw.(map[string]any)
-			if !ok {
-				valid = false
-			} else {
-				allowed := map[string]bool{"commentEnabled": true, "shareToFeed": true}
-				for key := range value {
-					if !allowed[key] {
-						valid = false
-					}
-				}
-				if v, ok := value["commentEnabled"]; ok {
-					flag, flagOK := v.(bool)
-					if !flagOK {
-						valid = false
-					} else {
-						igOptions.CommentEnabled = flag
-					}
-				}
-				if v, ok := value["shareToFeed"]; ok {
-					flag, flagOK := v.(bool)
-					if !flagOK {
-						valid = false
-					} else {
-						igOptions.ShareToFeed = flag
-					}
-				}
-			}
-		}
-		if !valid {
-			issues = append(issues, Issue{"instagram", "Choose valid Instagram publishing settings"})
+		options, err := validateInstagramOptions(raw)
+		if err != nil {
+			issues = append(issues, Issue{"instagram", err.Error()})
 		} else {
-			output["instagram"] = igOptions
+			output["instagram"] = options
 		}
 	}
 
+	if raw, exists := input["facebook"]; exists {
+		options, err := validateFacebookOptions(raw)
+		if err != nil {
+			issues = append(issues, Issue{"facebook", err.Error()})
+		} else {
+			output["facebook"] = options
+		}
+	}
 	if raw, exists := input["youtube"]; exists {
 		options := publishing.YouTubeOptions{}
 		valid := true
@@ -354,13 +325,13 @@ func Validate(input map[string]any, create bool) (map[string]any, error) {
 			if !ok {
 				valid = false
 			} else {
-				allowed := map[string]bool{"title": true, "description": true, "privacyStatus": true, "madeForKids": true, "containsSyntheticMedia": true, "notifySubscribers": true, "termsAccepted": true}
+				allowed := map[string]bool{"title": true, "description": true, "privacyStatus": true, "madeForKids": true, "containsSyntheticMedia": true, "notifySubscribers": true, "termsAccepted": true, "tags": true, "license": true, "embeddable": true}
 				for key := range value {
 					if !allowed[key] {
 						valid = false
 					}
 				}
-				for key, target := range map[string]*string{"title": &options.Title, "description": &options.Description, "privacyStatus": &options.PrivacyStatus} {
+				for key, target := range map[string]*string{"title": &options.Title, "description": &options.Description, "privacyStatus": &options.PrivacyStatus, "license": &options.License} {
 					if candidate, present := value[key]; present {
 						text, ok := candidate.(string)
 						if !ok {
@@ -370,7 +341,13 @@ func Validate(input map[string]any, create bool) (map[string]any, error) {
 						}
 					}
 				}
-				for key, target := range map[string]**bool{"madeForKids": &options.MadeForKids, "containsSyntheticMedia": &options.ContainsSyntheticMedia} {
+				if tags, present := value["tags"]; present {
+					rawTags, err := json.Marshal(tags)
+					if err != nil || json.Unmarshal(rawTags, &options.Tags) != nil {
+						valid = false
+					}
+				}
+				for key, target := range map[string]**bool{"madeForKids": &options.MadeForKids, "containsSyntheticMedia": &options.ContainsSyntheticMedia, "embeddable": &options.Embeddable} {
 					if candidate, present := value[key]; present && candidate != nil {
 						flag, ok := candidate.(bool)
 						if !ok {
@@ -398,7 +375,7 @@ func Validate(input map[string]any, create bool) (map[string]any, error) {
 				}
 			}
 		}
-		if !valid {
+		if !valid || publishing.ValidateYouTubeAdvancedOptions(options) != nil {
 			issues = append(issues, Issue{"youtube", "Choose valid YouTube publishing settings"})
 		} else {
 			output["youtube"] = options

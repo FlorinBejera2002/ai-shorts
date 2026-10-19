@@ -82,7 +82,7 @@ func TestPostgresCarouselOrderPersistsAndFacebookRejectsVideoSets(t *testing.T) 
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(post.Media) != 3 || post.Media[0]["name"] != "first.mp4" {
+	if len(post.Media) != 3 || post.Media[0].Name != "first.mp4" {
 		t.Fatalf("created order: %v", post.Media)
 	}
 	post, err = repo.Mutate(ctx, user, post.ID, map[string]any{"media": []any{media[1], media[2], media[0]}}, false)
@@ -90,7 +90,7 @@ func TestPostgresCarouselOrderPersistsAndFacebookRejectsVideoSets(t *testing.T) 
 		t.Fatal(err)
 	}
 	loaded, err := repo.Get(ctx, user, post.ID)
-	if err != nil || loaded.Media[0]["name"] != "second.jpg" || loaded.Media[2]["name"] != "first.mp4" {
+	if err != nil || loaded.Media[0].Name != "second.jpg" || loaded.Media[2].Name != "first.mp4" {
 		t.Fatalf("reordered cover did not persist: %v %v", loaded.Media, err)
 	}
 	// A partial update must inspect stored media, not just the PATCH payload.

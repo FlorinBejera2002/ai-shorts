@@ -200,7 +200,7 @@ func decodePublishingImage(source, suffix string) (image.Image, error) {
 	if e != nil || format != logoFormats[suffix] || decoded.Bounds().Dx() != config.Width || decoded.Bounds().Dy() != config.Height {
 		return nil, failure(400, "Image could not be decoded")
 	}
-	return decoded, nil
+	return orientImage(decoded, readImageOrientation(in, format)), nil
 }
 
 func prepareInstagramImage(decoded image.Image, stagingDirectory string) (string, error) {

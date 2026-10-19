@@ -30,6 +30,7 @@ import {
   syncRuntimeMedia,
 } from "./media";
 import { handleErrorForProxy, handleMetadataForProxy, maybeProxyProactively } from "./mediaProxy";
+import { readVideoFreezeTime } from "./frozenVideo";
 import { probeAndCacheElementVolume, type VolumeKeyframe } from "./mediaVolumeEnvelope.js";
 import { createPickerModule } from "./picker";
 import { createRuntimePlayer, type RuntimePlayerTransport } from "./player";
@@ -2208,11 +2209,15 @@ export function initSandboxRuntimeModular(): void {
       // Eagerly preload media data so audio/video is buffered before the user
       // clicks play. Without this, the first play() call fires on un-fetched
       // media, producing silence or choppy audio until the browser caches it.
-      if (mediaEl.preload !== "auto") {
-        mediaEl.preload = "auto";
-      }
-      if (mediaEl.readyState < HTMLMediaElement.HAVE_FUTURE_DATA) {
-        mediaEl.load();
+      // Boundary pictures warm through the bounded media lookahead. Loading
+      // every frozen copy here competes with playback across the whole clip.
+      if (readVideoFreezeTime(mediaEl) == null) {
+        if (mediaEl.preload !== "auto") {
+          mediaEl.preload = "auto";
+        }
+        if (mediaEl.readyState < HTMLMediaElement.HAVE_FUTURE_DATA) {
+          mediaEl.load();
+        }
       }
 
       // Probe volume automation from the GSAP timeline — same approach as the
@@ -2367,7 +2372,8 @@ export function initSandboxRuntimeModular(): void {
           ancestor = ancestor.parentElement;
         }
       }
-      rawNode.style.visibility = isVisibleNow ? "visible" : "hidden";
+      const visibility = isVisibleNow ? "visible" : "hidden";
+      if (rawNode.style.visibility !== visibility) rawNode.style.visibility = visibility;
       if (isVideoElement(rawNode) || isImageElement(rawNode)) {
         colorGradingRuntime?.setSourceVisibility(rawNode, isVisibleNow);
       }

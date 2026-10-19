@@ -114,7 +114,8 @@ function boundaryPicture(
     "data-has-audio": "false",
     muted: "",
     playsinline: "",
-    preload: "auto",
+    // The runtime warms only nearby boundary pictures, not every cut's decoder.
+    preload: "none",
     style: source.picture.getAttribute("style") ?? "",
   });
   if (isHtmlElement(picture)) {
@@ -222,10 +223,7 @@ function absoluteStart(host: Element): number {
 export function syncVisualTransitions(doc: Document, time: number): void {
   for (const layer of doc.querySelectorAll(DERIVED_SELECTOR)) {
     const owner = doc.getElementById(layer.getAttribute("data-transition-owner") ?? "");
-    const source = doc.getElementById(layer.getAttribute("data-transition-picture") ?? "");
-    const picture = layer.querySelector("video");
-    if (!owner || !isHtmlElement(layer) || !isHtmlElement(source) || !isHtmlElement(picture))
-      continue;
+    if (!owner || !isHtmlElement(layer)) continue;
     const duration = number(layer.getAttribute("data-transition-duration")) ?? 0;
     const boundary = absoluteStart(owner);
     const before = layer.getAttribute(DERIVED_TRANSITION_ATTR) === "before";
@@ -235,7 +233,15 @@ export function syncVisualTransitions(doc: Document, time: number): void {
     const active = before
       ? time >= boundary - duration / 2 && time < boundary
       : time >= boundary && time < boundary + duration / 2;
-    layer.style.opacity = String(active ? (before ? eased : 1 - eased) : 0);
+    const opacity = String(active ? (before ? eased : 1 - eased) : 0);
+    if (layer.style.opacity !== opacity) layer.style.opacity = opacity;
+    // Hidden pictures do not need crop/grade/style updates on every frame of
+    // the montage. Read their current source when the boundary becomes active,
+    // including direct and backward seeks, so manual edits still take effect.
+    if (!active) continue;
+    const source = doc.getElementById(layer.getAttribute("data-transition-picture") ?? "");
+    const picture = layer.querySelector("video");
+    if (!isHtmlElement(source) || !isHtmlElement(picture)) continue;
     // Animation owns crop transforms on the original. Visibility belongs to the runtime.
     const visibility = picture.style.visibility;
     const grading = source.getAttribute(HF_COLOR_GRADING_ATTR);

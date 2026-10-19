@@ -185,7 +185,9 @@ test('edit flow restores and reserializes every saved TikTok option', () => {
       brandedContent: false,
       policyConsent: true,
       autoAddMusic: false,
-      isAigc: true
+      isAigc: true,
+      photoCoverIndex: 0,
+      videoCoverSeconds: ''
     }
   )
 
@@ -233,9 +235,38 @@ test('photo captions use 4000 UTF-16 units and photo titles use 90', () => {
  assert.deepEqual([...exports.validateTikTokDirectPost(input)], [])
  assert.deepEqual([...exports.validateTikTokDirectPost({...input, title:'x'.repeat(91), caption:'x'.repeat(3999)+'\u{1f600}'})], ['captionTooLong','photoTitleTooLong'])
 })
-test('photo settings serialize music without video AIGC settings', () => {
+test('photo settings serialize music, selected cover and AI disclosure', () => {
  const result=exports.createCalendarTikTokPublishingOptions({creatorOptions:options,isPhotoPost:true,photoTitle: ' Summer photos ',selectedAccountCount:1,settings:{...settings,autoAddMusic:true},status:'publish',validationErrors:[]})
  assert.equal(result.photoTitle,'Summer photos')
  assert.equal(result.autoAddMusic,true)
- assert.equal(result.isAigc,false)
+ assert.equal(result.isAigc,true)
+ assert.equal(result.photoCoverIndex,0)
+})
+
+test('photo cover follows the selected file after reorder and falls back after removal', () => {
+ const photos = [{reference:'one'}, {reference:'two'}, {reference:'three'}]
+ assert.equal(exports.remapTikTokPhotoCover(photos, [photos[1], photos[2], photos[0]], 1), 0)
+ assert.equal(exports.remapTikTokPhotoCover(photos, [photos[2], photos[0]], 1), 0)
+ assert.equal(exports.validTikTokCover({...settings, photoCoverIndex:2}, true, 2), false)
+ assert.equal(exports.validTikTokCover({...settings, photoCoverIndex:1}, true, 2), true)
+})
+
+test('video cover saves millisecond precision including zero and restores seconds', () => {
+ for (const [seconds, timestamp] of [['0', 0], ['2.567', 2567]]) {
+  const result = exports.createTikTokPublishingOptions({options, settings:{...settings, videoCoverSeconds:seconds}})
+  assert.equal(result.videoCoverTimestampMs,timestamp)
+  assert.equal(exports.settingsFromTikTokPublishingOptions(result).videoCoverSeconds,seconds)
+  assert.equal(result.photoCoverIndex,undefined)
+ }
+ assert.equal(exports.createTikTokPublishingOptions({options, settings}).videoCoverTimestampMs,undefined)
+})
+
+test('invalid video covers block drafts and cannot exceed known video duration', () => {
+ for (const seconds of ['-1', 'Infinity', 'invalid', '30', '9007199254740992']) {
+  assert.equal(exports.validTikTokCover({...settings, videoCoverSeconds:seconds}, false, 0, 30), false)
+ }
+ assert.equal(exports.validTikTokCover({...settings, videoCoverSeconds:'29.999'}, false, 0, 30), true)
+ assert.equal(exports.validTikTokCover({...settings, videoCoverSeconds:'2.5'}, false, 0, 0), true)
+ const errors = exports.validateTikTokDirectPost({accountId:'a',caption:'',clip:{duration:30,tiktokEligible:true},options,settings:{...settings, videoCoverSeconds:'30'}})
+ assert.deepEqual([...errors],['coverInvalid'])
 })

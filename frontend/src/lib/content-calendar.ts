@@ -49,10 +49,26 @@ export type CalendarClipOption = {
   captionYoutube: string | null
 }
 
+export type PublishingImageCrop = {
+  aspectRatio: '1:1' | '4:5' | '1.91:1'
+  x: number
+  y: number
+  zoom: number
+}
+
+export type PublishingImageUserTag = {
+  username: string
+  x: number
+  y: number
+}
+
 export type PublishingMedia = {
   type: 'image' | 'video'
   reference: string
   name: string
+  altText?: string
+  crop?: PublishingImageCrop
+  userTags?: PublishingImageUserTag[]
 }
 
 export type TikTokPublishingOptions = {
@@ -65,6 +81,8 @@ export type TikTokPublishingOptions = {
   musicUsageConfirmed: boolean
   photoTitle?: string
   autoAddMusic?: boolean
+  photoCoverIndex?: number
+  videoCoverTimestampMs?: number
   isAigc: boolean
 }
 
@@ -76,11 +94,27 @@ export type YouTubePublishingOptions = {
   containsSyntheticMedia: boolean | null
   notifySubscribers: boolean
   termsAccepted: boolean
+  tags?: string[]
+  license?: 'youtube' | 'creativeCommon'
+  embeddable?: boolean
 }
 
 export type InstagramPublishingOptions = {
   commentEnabled: boolean
   shareToFeed: boolean
+  locationId?: string
+  collaborators?: string[]
+  coverReference?: string
+  thumbOffset?: number
+  audioName?: string
+  isAiGenerated?: boolean
+  trialReel?: 'MANUAL' | 'SS_PERFORMANCE'
+}
+
+export type FacebookPublishingOptions = {
+  placeId?: string
+  reelTitle?: string
+  isAiGenerated?: boolean
 }
 
 export type ScheduledPostRecord = {
@@ -107,6 +141,7 @@ export type ScheduledPostRecord = {
   media: PublishingMedia[]
   tiktok?: TikTokPublishingOptions
   instagram?: InstagramPublishingOptions
+  facebook?: FacebookPublishingOptions
   youtube?: YouTubePublishingOptions
 }
 
@@ -122,6 +157,7 @@ export type ScheduledPostMutation = {
   media?: PublishingMedia[]
   tiktok?: TikTokPublishingOptions
   instagram?: InstagramPublishingOptions
+  facebook?: FacebookPublishingOptions
   youtube?: YouTubePublishingOptions
 }
 
@@ -152,11 +188,180 @@ const MUTATION_FIELDS = new Set([
   'media',
   'tiktok',
   'instagram',
+  'facebook',
   'youtube'
+])
+const MEDIA_FIELDS = new Set([
+  'type', 'reference', 'name', 'altText', 'crop', 'userTags'
+])
+const IMAGE_CROP_RATIOS = new Set(['1:1', '4:5', '1.91:1'])
+const INSTAGRAM_FIELDS = new Set([
+  'commentEnabled',
+  'shareToFeed',
+  'locationId',
+  'collaborators',
+  'coverReference',
+  'thumbOffset',
+  'audioName',
+  'isAiGenerated',
+  'trialReel'
+])
+const INSTAGRAM_BOOLEAN_FIELDS = [
+  'commentEnabled', 'shareToFeed', 'isAiGenerated'
+] as const
+const FACEBOOK_FIELDS = new Set(['placeId', 'reelTitle', 'isAiGenerated'])
+const TIKTOK_BOOLEAN_FIELDS = [
+  'disableComment',
+  'disableDuet',
+  'disableStitch',
+  'brandContentToggle',
+  'brandOrganicToggle',
+  'musicUsageConfirmed',
+  'isAigc'
+] as const
+const TIKTOK_FIELDS = new Set([
+  ...TIKTOK_BOOLEAN_FIELDS,
+  'privacyLevel',
+  'autoAddMusic',
+  'photoTitle',
+  'photoCoverIndex',
+  'videoCoverTimestampMs'
+])
+const YOUTUBE_FIELDS = new Set([
+  'title',
+  'description',
+  'privacyStatus',
+  'madeForKids',
+  'containsSyntheticMedia',
+  'notifySubscribers',
+  'termsAccepted',
+  'tags',
+  'license',
+  'embeddable'
 ])
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function isFiniteRange(value: unknown, min: number, max: number) {
+  return (
+    typeof value === 'number' &&
+    Number.isFinite(value) &&
+    value >= min && value <= max
+  )
+}
+
+function isInstagramUsername(value: unknown): value is string {
+  return typeof value === 'string' && /^[a-zA-Z0-9._]{1,30}$/.test(value)
+}
+
+function isPublishingMedia(value: unknown): value is PublishingMedia {
+  if (
+    !isRecord(value) ||
+    (value.type !== 'image' && value.type !== 'video') ||
+    typeof value.reference !== 'string' || !value.reference ||
+    typeof value.name !== 'string' || !value.name ||
+    Object.keys(value).some(key => !MEDIA_FIELDS.has(key))
+  ) return false
+
+  if (value.type === 'video') {
+    return !['altText', 'crop', 'userTags'].some(key => key in value)
+  }
+  if (
+    value.altText !== undefined &&
+    (typeof value.altText !== 'string' || Array.from(value.altText).length > 1000)
+  ) return false
+  if (value.crop !== undefined) {
+    const crop = value.crop
+    if (
+      !isRecord(crop) || Object.keys(crop).length !== 4 ||
+      typeof crop.aspectRatio !== 'string' ||
+      !IMAGE_CROP_RATIOS.has(crop.aspectRatio) ||
+      !isFiniteRange(crop.x, 0, 1) ||
+      !isFiniteRange(crop.y, 0, 1) ||
+      !isFiniteRange(crop.zoom, 1, 3)
+    ) return false
+  }
+  if (value.userTags !== undefined) {
+    if (
+      !Array.isArray(value.userTags) || value.userTags.length > 20 ||
+      !value.userTags.every(tag =>
+        isRecord(tag) && Object.keys(tag).length === 3 &&
+        isInstagramUsername(tag.username) &&
+        isFiniteRange(tag.x, 0, 1) && isFiniteRange(tag.y, 0, 1)
+      )
+    ) return false
+    const usernames = value.userTags.map(tag => String(tag.username).toLowerCase())
+    if (new Set(usernames).size !== usernames.length) return false
+  }
+  return true
+}
+
+function isInstagramPublishingOptions(value: unknown) {
+  if (value === undefined) return true
+  if (
+    !isRecord(value) ||
+    Object.keys(value).some(key => !INSTAGRAM_FIELDS.has(key))
+  ) return false
+  if (!INSTAGRAM_BOOLEAN_FIELDS.every(key =>
+    value[key] === undefined || typeof value[key] === 'boolean'
+  )) return false
+  if (
+    value.locationId !== undefined &&
+    (typeof value.locationId !== 'string' || !/^\d{1,64}$/.test(value.locationId))
+  ) return false
+  if (value.collaborators !== undefined) {
+    if (
+      !Array.isArray(value.collaborators) || value.collaborators.length > 3 ||
+      !value.collaborators.every(isInstagramUsername)
+    ) return false
+    const usernames = value.collaborators.map(name => name.toLowerCase())
+    if (new Set(usernames).size !== usernames.length) return false
+  }
+  if (
+    value.coverReference !== undefined &&
+    (typeof value.coverReference !== 'string' ||
+      !value.coverReference.trim() || value.coverReference.length > 1024)
+  ) return false
+  if (
+    value.thumbOffset !== undefined &&
+    (!isFiniteRange(value.thumbOffset, 0, 900_000) || !Number.isInteger(value.thumbOffset))
+  ) return false
+  if (
+    value.audioName !== undefined &&
+    (typeof value.audioName !== 'string' || Array.from(value.audioName).length > 100)
+  ) return false
+  return (
+    value.trialReel === undefined ||
+    value.trialReel === 'MANUAL' ||
+    value.trialReel === 'SS_PERFORMANCE'
+  )
+}
+
+function isFacebookPublishingOptions(value: unknown): value is FacebookPublishingOptions {
+  if (!isRecord(value) || Object.keys(value).some(key => !FACEBOOK_FIELDS.has(key))) {
+    return false
+  }
+  if (
+    value.placeId !== undefined &&
+    (typeof value.placeId !== 'string' || !/^\d{1,64}$/.test(value.placeId))
+  ) return false
+  if (
+    value.reelTitle !== undefined &&
+    (typeof value.reelTitle !== 'string' || Array.from(value.reelTitle).length > 255)
+  ) return false
+  return value.isAiGenerated === undefined || typeof value.isAiGenerated === 'boolean'
+}
+
+function isYouTubeTags(value: unknown): value is string[] {
+  if (!Array.isArray(value)) return false
+  let characters = Math.max(0, value.length - 1)
+  for (const tag of value) {
+    if (typeof tag !== 'string' || !tag.trim()) return false
+    characters += Array.from(tag).length + (tag.includes(' ') ? 2 : 0)
+  }
+  return characters <= 500
 }
 
 function isLeapYear(year: number) {
@@ -393,16 +598,7 @@ export function validateScheduledPostPayload(
     if (
       !Array.isArray(media) ||
       media.length > 35 ||
-      !media.every(
-        (item) =>
-          isRecord(item) &&
-          (item.type === 'image' || item.type === 'video') &&
-          typeof item.reference === 'string' &&
-          typeof item.name === 'string' &&
-          item.reference.length > 0 &&
-          item.name.length > 0 &&
-          Object.keys(item).length === 3
-      )
+      !media.every(isPublishingMedia)
     ) {
       issues.push({
         field: 'media',
@@ -410,37 +606,34 @@ export function validateScheduledPostPayload(
       })
     } else {
       data.media = media as PublishingMedia[]
+      if (data.platforms?.includes('instagram')) {
+        const imageFormats = new Set(data.media.filter(item => item.type === 'image').map(item => item.crop?.aspectRatio ?? 'original'))
+        if (imageFormats.size > 1) {
+          issues.push({ field: 'media', message: 'Choose one photo format for the Instagram carousel' })
+        }
+      }
     }
   }
 
   if ('tiktok' in value) {
     const tiktok = value.tiktok
-    const booleanFields = [
-      'disableComment',
-      'disableDuet',
-      'disableStitch',
-      'brandContentToggle',
-      'brandOrganicToggle',
-      'musicUsageConfirmed',
-      'isAigc'
-    ] as const
     const valid =
       isRecord(tiktok) &&
-      Object.keys(tiktok).every(
-        (key) =>
-          key === 'privacyLevel' ||
-          key === 'autoAddMusic' ||
-          key === 'photoTitle' ||
-          booleanFields.some((field) => field === key)
-      ) &&
+      Object.keys(tiktok).every(key => TIKTOK_FIELDS.has(key)) &&
       (tiktok.photoTitle === undefined ||
         (typeof tiktok.photoTitle === 'string' &&
           tiktok.photoTitle.length <= 90)) &&
       (tiktok.autoAddMusic === undefined ||
         typeof tiktok.autoAddMusic === 'boolean') &&
+      (tiktok.photoCoverIndex === undefined ||
+        (isFiniteRange(tiktok.photoCoverIndex, 0, 34) &&
+          Number.isInteger(tiktok.photoCoverIndex))) &&
+      (tiktok.videoCoverTimestampMs === undefined ||
+        (isFiniteRange(tiktok.videoCoverTimestampMs, 0, Number.MAX_SAFE_INTEGER) &&
+          Number.isInteger(tiktok.videoCoverTimestampMs))) &&
       typeof tiktok.privacyLevel === 'string' &&
       (data.status === 'draft' || tiktok.privacyLevel.length > 0) &&
-      booleanFields.every((field) => typeof tiktok[field] === 'boolean')
+      TIKTOK_BOOLEAN_FIELDS.every(field => typeof tiktok[field] === 'boolean')
     if (!valid) {
       issues.push({
         field: 'tiktok',
@@ -453,13 +646,15 @@ export function validateScheduledPostPayload(
 
   if ('youtube' in value) {
     const youtube = value.youtube
-    const fields = ['title', 'description', 'privacyStatus', 'madeForKids', 'containsSyntheticMedia', 'notifySubscribers', 'termsAccepted']
-    if (!isRecord(youtube) || Object.keys(youtube).some(key => !fields.includes(key)) ||
+    if (!isRecord(youtube) || Object.keys(youtube).some(key => !YOUTUBE_FIELDS.has(key)) ||
       typeof youtube.title !== 'string' || Array.from(youtube.title).length > 100 || /[<>]/.test(youtube.title) ||
       typeof youtube.description !== 'string' || new TextEncoder().encode(youtube.description).length > 5000 || /[<>]/.test(youtube.description) ||
       !['private', 'unlisted', 'public'].includes(String(youtube.privacyStatus)) ||
       !['madeForKids', 'containsSyntheticMedia'].every(key => typeof youtube[key] === 'boolean' || (data.status === 'draft' && youtube[key] === null)) ||
       typeof youtube.notifySubscribers !== 'boolean' || typeof youtube.termsAccepted !== 'boolean' ||
+      (youtube.tags !== undefined && !isYouTubeTags(youtube.tags)) ||
+      (youtube.license !== undefined && youtube.license !== 'youtube' && youtube.license !== 'creativeCommon') ||
+      (youtube.embeddable !== undefined && typeof youtube.embeddable !== 'boolean') ||
       (data.status !== 'draft' && (!youtube.title.trim() || youtube.termsAccepted !== true))) {
       issues.push({ field: 'youtube', message: 'Review all YouTube publishing settings.' })
     } else data.youtube = youtube as YouTubePublishingOptions
@@ -467,23 +662,24 @@ export function validateScheduledPostPayload(
 
   if ('instagram' in value) {
     const instagram = value.instagram as Record<string, unknown> | undefined
-    const valid =
-      instagram === undefined ||
-      (isRecord(instagram) &&
-        Object.keys(instagram).every((k) =>
-          ['commentEnabled', 'shareToFeed'].includes(k)
-        ) &&
-        (instagram.commentEnabled === undefined ||
-          typeof instagram.commentEnabled === 'boolean') &&
-        (instagram.shareToFeed === undefined ||
-          typeof instagram.shareToFeed === 'boolean'))
-    if (!valid) {
+    if (!isInstagramPublishingOptions(instagram)) {
       issues.push({
         field: 'instagram',
         message: 'Choose valid Instagram publishing settings'
       })
     } else if (instagram) {
       data.instagram = instagram as InstagramPublishingOptions
+    }
+  }
+
+  if ('facebook' in value) {
+    if (!isFacebookPublishingOptions(value.facebook)) {
+      issues.push({
+        field: 'facebook',
+        message: 'Choose valid Facebook publishing settings'
+      })
+    } else {
+      data.facebook = value.facebook
     }
   }
 

@@ -1,13 +1,14 @@
 'use client'
 
 import { Label } from '@/components/ui/label'
+import { Input } from '@/components/ui/input'
+import { Button } from '@/components/ui/button'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
-import { PlatformBrandIcon } from '@/components/publishing/platform-brand-icon'
 import type { InstagramPostSettings } from '@/lib/instagram-post-settings'
-import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
-import { ChevronDown } from 'lucide-react'
 import { useTranslations } from 'next-intl'
-import { useState } from 'react'
+import { InstagramCoverPicker } from './instagram-cover-picker'
+import { PostSettingsSection } from './post-settings-section'
 
 function SettingRow({
   checked,
@@ -40,13 +41,15 @@ function SettingRow({
 export function InstagramPostSettings({
   disabled,
   idPrefix,
-  isVideoPost = true,
+  isReel = true,
   onChange,
+  onUploadingChange,
   settings
 }: {
   disabled: boolean
   idPrefix: string
-  isVideoPost?: boolean
+  isReel?: boolean
+  onUploadingChange: (uploading: boolean) => void
   onChange: <Key extends keyof InstagramPostSettings>(
     key: Key,
     value: InstagramPostSettings[Key]
@@ -54,71 +57,76 @@ export function InstagramPostSettings({
   settings: InstagramPostSettings
 }) {
   const t = useTranslations('publishing')
-  const [expanded, setExpanded] = useState(false)
-  const reduceMotion = useReducedMotion()
 
   return (
-    <section
-      aria-labelledby={`${idPrefix}-title`}
-      className="overflow-hidden rounded-lg border"
+    <PostSettingsSection
+      idPrefix={idPrefix}
+      provider="instagram"
+      title={t('instagramOptions')}
+      subtitle="Instagram"
     >
-      <button
-        type="button"
-        onClick={() => setExpanded((v) => !v)}
-        aria-expanded={expanded}
-        className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/30"
-      >
-        <PlatformBrandIcon provider="instagram" className="h-5 w-5" />
-        <div className="min-w-0 flex-1">
-          <h3 id={`${idPrefix}-title`} className="text-xs font-semibold">
-            {t('instagramOptions')}
-          </h3>
-          <p className="mt-0.5 text-[11px] text-muted-foreground">
-            Instagram
-          </p>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="space-y-2">
+          <Label htmlFor={`${idPrefix}-collaborators`}>{t('instagramCollaborators')}</Label>
+          <Input id={`${idPrefix}-collaborators`} value={settings.collaboratorsText} disabled={disabled}
+            placeholder="@username, @username" aria-describedby={`${idPrefix}-collaborators-hint`}
+            onChange={event => onChange('collaboratorsText', event.target.value)} />
+          <p id={`${idPrefix}-collaborators-hint`} className="text-xs text-muted-foreground">{t('instagramCollaboratorsHint')}</p>
         </div>
-        <motion.div
-          animate={{ rotate: expanded ? 180 : 0 }}
-          transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-        >
-          <ChevronDown className="size-4 text-muted-foreground" />
-        </motion.div>
-      </button>
-
-      <AnimatePresence initial={false}>
-        {expanded && (
-          <motion.div
-            initial={reduceMotion ? false : { height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.3, ease: [0.04, 0.62, 0.23, 0.98] }}
-            className="overflow-hidden"
-          >
-            <div className="space-y-1 border-t px-4 py-3">
-              <SettingRow
-                id={`${idPrefix}-comments`}
-                label={t('instagramComments')}
-                checked={settings.commentEnabled}
-                disabled={disabled}
-                onCheckedChange={(checked) =>
-                  onChange('commentEnabled', checked)
-                }
-              />
-              {isVideoPost && (
-                <SettingRow
-                  id={`${idPrefix}-share-to-feed`}
-                  label={t('instagramShareToFeed')}
-                  checked={settings.shareToFeed}
-                  disabled={disabled}
-                  onCheckedChange={(checked) =>
-                    onChange('shareToFeed', checked)
-                  }
-                />
-              )}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </section>
+        <div className="space-y-2">
+          <Label htmlFor={`${idPrefix}-location`}>{t('instagramLocation')}</Label>
+          <Input id={`${idPrefix}-location`} value={settings.locationId} disabled={disabled} inputMode="numeric"
+            aria-describedby={`${idPrefix}-location-hint`} onChange={event => onChange('locationId', event.target.value)} />
+          <p id={`${idPrefix}-location-hint`} className="text-xs text-muted-foreground">{t('instagramLocationHint')}</p>
+        </div>
+      </div>
+      <SettingRow id={`${idPrefix}-ai`} label={t('instagramAiGenerated')} checked={settings.isAiGenerated}
+        disabled={disabled} onCheckedChange={checked => onChange('isAiGenerated', checked)} />
+      <p className="text-xs text-muted-foreground">{t('instagramCommentsManaged')}</p>
+      {!settings.commentEnabled && (
+        <div className="space-y-2 rounded-md border p-3">
+          <p className="text-xs">{t('instagramLegacyComments')}</p>
+          <Button type="button" size="sm" variant="outline" disabled={disabled} onClick={() => onChange('commentEnabled', true)}>
+            {t('instagramUseAccountSettings')}
+          </Button>
+        </div>
+      )}
+      {isReel && <div className="space-y-4 border-t pt-4">
+        <SettingRow
+          id={`${idPrefix}-share-to-feed`}
+          label={t('instagramShareToFeed')}
+          checked={settings.shareToFeed}
+          disabled={disabled}
+          onCheckedChange={(checked) =>
+            onChange('shareToFeed', checked)
+          }
+        />
+        <InstagramCoverPicker id={`${idPrefix}-cover`} reference={settings.coverReference} disabled={disabled}
+          onChange={reference => onChange('coverReference', reference)} onUploadingChange={onUploadingChange} />
+        {!settings.coverReference && <div className="space-y-2">
+          <Label htmlFor={`${idPrefix}-cover-time`}>{t('instagramCoverTime')}</Label>
+          <Input id={`${idPrefix}-cover-time`} type="number" min="0" max="900" step="0.1" disabled={disabled}
+            value={settings.thumbOffsetSeconds} placeholder="0" onChange={event => onChange('thumbOffsetSeconds', event.target.value)} />
+        </div>}
+        <div className="space-y-2">
+          <Label htmlFor={`${idPrefix}-audio`}>{t('instagramAudioName')}</Label>
+          <Input id={`${idPrefix}-audio`} value={settings.audioName} disabled={disabled}
+            onChange={event => onChange('audioName', event.target.value)} />
+          <p className="text-xs text-muted-foreground">{t('instagramAudioHint')}</p>
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor={`${idPrefix}-trial`}>{t('instagramTrial')}</Label>
+          <Select value={settings.trialReel} disabled={disabled} onValueChange={value => onChange('trialReel', value as InstagramPostSettings['trialReel'])}>
+            <SelectTrigger id={`${idPrefix}-trial`} className="w-full"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="off">{t('instagramTrialOff')}</SelectItem>
+              <SelectItem value="MANUAL">{t('instagramTrialManual')}</SelectItem>
+              <SelectItem value="SS_PERFORMANCE">{t('instagramTrialAutomatic')}</SelectItem>
+            </SelectContent>
+          </Select>
+          <p className="text-xs text-muted-foreground">{t('instagramTrialHint')}</p>
+        </div>
+      </div>}
+    </PostSettingsSection>
   )
 }

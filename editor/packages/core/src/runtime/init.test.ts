@@ -150,6 +150,34 @@ describe("initSandboxRuntimeModular", () => {
     },
   );
 
+  it("defers distant boundary decoders at initialization and warms them through indexed lookahead", () => {
+    const raf = createManualRaf();
+    window.requestAnimationFrame = raf.requestAnimationFrame;
+    window.cancelAnimationFrame = raf.cancelAnimationFrame;
+    document.body.innerHTML = `<div data-composition-id="main" data-root="true" data-duration="10">
+      <video id="source" data-start="0" data-duration="10"></video>
+      <video id="held" data-start="8" data-duration=".15" data-freeze-at="2" preload="none"></video>
+    </div>`;
+    const source = document.getElementById("source") as HTMLVideoElement;
+    const held = document.getElementById("held") as HTMLVideoElement;
+    for (const video of [source, held])
+      Object.defineProperty(video, "duration", { value: 10, configurable: true });
+    source.load = vi.fn();
+    held.load = vi.fn();
+    window.__timelines = { main: createMockTimeline(10) };
+    initSandboxRuntimeModular();
+    expect(source.load).toHaveBeenCalled();
+    expect(held.load).not.toHaveBeenCalled();
+    expect(held.preload).toBe("none");
+    expect(held.currentTime).toBe(0);
+
+    window.__player?.seek(7.5);
+    expect(held.preload).toBe("auto");
+    expect(held.currentTime).toBe(2);
+    expect(held.paused).toBe(true);
+    expect(window.__player?.getDuration()).toBe(10);
+  });
+
   it("keeps a boosted clip legal on the element when the bridge sets volume", () => {
     // `data-volume` may hold up to 12 dB of authored gain. `el.volume` is
     // spec-pinned to [0,1] and THROWS outside it, so assigning the product raw
