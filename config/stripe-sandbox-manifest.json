@@ -1,0 +1,417 @@
+{
+  "version": 1,
+  "recordedAt": "2026-10-21T13:07:30Z",
+  "configurationKey": "sneepcut-billing-v1",
+  "account": {
+    "id": "acct_1USys6IBapm0ztYV",
+    "name": "GENESIS PROCUREMENT S.R.L. sandbox",
+    "livemode": false,
+    "verification": "Sole exact business sandbox returned by connected Stripe list_available_accounts_or_orgs; user requested this account."
+  },
+  "provider": "Connected Stripe API tools",
+  "connectorOpenapiVersion": "2026-09-30.preview",
+  "webhookApiVersion": "2026-06-24.dahlia",
+  "localWebhookPayloadApiVersion": "2026-09-30.endive",
+  "initialInventory": {
+    "products": 0,
+    "prices": 0,
+    "portalConfigurations": 0,
+    "paginationComplete": true
+  },
+  "catalog": [
+    {
+      "key": "creator",
+      "productId": "prod_sneepcutCreatorV1",
+      "priceId": "price_1USzDfIBapm0ztYVFtBt7ZOu",
+      "name": "Sneep Cut Creator",
+      "currency": "eur",
+      "unitAmount": 1900,
+      "taxBehavior": "inclusive",
+      "interval": "month",
+      "intervalCount": 1,
+      "usageType": "licensed",
+      "trialPeriodDays": null,
+      "creditsPerPaidCycle": 1500,
+      "livemode": false,
+      "active": true,
+      "lookupKey": "sneepcut-billing-v1:creator",
+      "metadata": {
+        "billing_owner": "user",
+        "credits_per_cycle": "1500",
+        "environment": "sandbox",
+        "sneepcut_catalog_key": "creator",
+        "sneepcut_configuration": "sneepcut-billing-v1"
+      },
+      "readBackVerified": true
+    },
+    {
+      "key": "pro",
+      "productId": "prod_sneepcutProV1",
+      "priceId": "price_1USzDiIBapm0ztYVQCZc1iNT",
+      "name": "Sneep Cut Pro",
+      "currency": "eur",
+      "unitAmount": 4900,
+      "taxBehavior": "inclusive",
+      "interval": "month",
+      "intervalCount": 1,
+      "usageType": "licensed",
+      "trialPeriodDays": null,
+      "creditsPerPaidCycle": 5000,
+      "livemode": false,
+      "active": true,
+      "lookupKey": "sneepcut-billing-v1:pro",
+      "metadata": {
+        "billing_owner": "user",
+        "credits_per_cycle": "5000",
+        "environment": "sandbox",
+        "sneepcut_catalog_key": "pro",
+        "sneepcut_configuration": "sneepcut-billing-v1"
+      },
+      "readBackVerified": true
+    },
+    {
+      "key": "agency",
+      "productId": "prod_sneepcutAgencyV1",
+      "priceId": "price_1USzDlIBapm0ztYVkparwEHN",
+      "name": "Sneep Cut Agency",
+      "currency": "eur",
+      "unitAmount": 14900,
+      "taxBehavior": "inclusive",
+      "interval": "month",
+      "intervalCount": 1,
+      "usageType": "licensed",
+      "trialPeriodDays": null,
+      "creditsPerPaidCycle": 20000,
+      "livemode": false,
+      "active": true,
+      "lookupKey": "sneepcut-billing-v1:agency",
+      "metadata": {
+        "billing_owner": "user",
+        "credits_per_cycle": "20000",
+        "environment": "sandbox",
+        "sneepcut_catalog_key": "agency",
+        "sneepcut_configuration": "sneepcut-billing-v1"
+      },
+      "readBackVerified": true
+    }
+  ],
+  "portalConfiguration": {
+    "id": "bpc_1USzDwIBapm0ztYV3aiFMi76",
+    "livemode": false,
+    "active": true,
+    "defaultReturnUrl": "http://localhost:3000/ro/dashboard/billing",
+    "features": {
+      "customer_update": {
+        "allowed_updates": [
+          "name",
+          "email",
+          "address"
+        ],
+        "enabled": true
+      },
+      "invoice_history": {
+        "enabled": true
+      },
+      "payment_method_update": {
+        "enabled": true,
+        "payment_method_configuration": null
+      },
+      "subscription_cancel": {
+        "cancellation_reason": {
+          "enabled": false,
+          "feedback_options": [],
+          "options": [
+            "too_expensive",
+            "missing_features",
+            "switched_service",
+            "unused",
+            "other"
+          ]
+        },
+        "enabled": true,
+        "mode": "at_period_end",
+        "proration_behavior": "none"
+      },
+      "subscription_pause": {
+        "duration": {
+          "interval_options": [],
+          "type": "indefinite"
+        },
+        "enabled": false
+      },
+      "subscription_update": {
+        "billing_cycle_anchor": "unchanged",
+        "default_allowed_updates": [
+          "price"
+        ],
+        "enabled": true,
+        "products": [
+          {
+            "adjustable_quantity": {
+              "enabled": false,
+              "maximum": null,
+              "minimum": 1
+            },
+            "prices": [
+              "price_1USzDfIBapm0ztYVFtBt7ZOu"
+            ],
+            "product": "prod_sneepcutCreatorV1"
+          },
+          {
+            "adjustable_quantity": {
+              "enabled": false,
+              "maximum": null,
+              "minimum": 1
+            },
+            "prices": [
+              "price_1USzDiIBapm0ztYVQCZc1iNT"
+            ],
+            "product": "prod_sneepcutProV1"
+          },
+          {
+            "adjustable_quantity": {
+              "enabled": false,
+              "maximum": null,
+              "minimum": 1
+            },
+            "prices": [
+              "price_1USzDlIBapm0ztYVkparwEHN"
+            ],
+            "product": "prod_sneepcutAgencyV1"
+          }
+        ],
+        "proration_behavior": "none",
+        "schedule_at_period_end": {
+          "conditions": []
+        },
+        "trial_update_behavior": "end_trial"
+      }
+    },
+    "loginPage": {
+      "enabled": false,
+      "url": null
+    },
+    "metadata": {
+      "billing_owner": "user",
+      "environment": "sandbox",
+      "sneepcut_catalog_key": "portal",
+      "sneepcut_configuration": "sneepcut-billing-v1"
+    },
+    "readBackVerified": true,
+    "productsExpanded": true
+  },
+  "webhook": {
+    "status": "local_cli_verified_and_stopped",
+    "id": null,
+    "url": null,
+    "signingSecretStored": false,
+    "runtimeSigningSecretProvisioned": true,
+    "persistentEndpointStatus": "not_created_production_launch_step",
+    "transport": "official_stripe_cli_1.54.1_loopback",
+    "forwardTo": "http://127.0.0.1:58081/api/webhooks/stripe",
+    "accountPayloadApiVersion": "2026-09-30.endive",
+    "applicationSourceApiVersion": "2026-06-24.dahlia",
+    "cliApiVersionOverrideSupported": false,
+    "listenerStoppedAt": "2026-10-21T13:40:51.499Z",
+    "terminatedProcessIds": [24144, 35996],
+    "terminatedProcessesVerifiedAbsent": true,
+    "note": "Genuine sandbox CLI deliveries verified, including deliberate HTTP503 then locally signed recovery/deduplication. Listener and wrapper intentionally stopped after the final pass. Signing secret provisioned only in ignored local .env; never retained in this manifest. No durable endpoint, provider-side resend or unattended automatic retry was verified."
+  },
+  "commercialPolicy": {
+    "billingOwner": "user",
+    "signupCredits": 1000,
+    "rollover": "indefinite",
+    "paidTrialDays": 0,
+    "launchTopupPacks": false,
+    "automaticTaxSandbox": false,
+    "planChange": "immediate_no_proration",
+    "planChangeCreditGrant": "next_successful_regular_cycle",
+    "cancelMode": "at_period_end",
+    "extraPastDueGraceDays": 0,
+    "stripeFeatureAccess": "Actual configured plan only for active/trialing with a future verified effective currentPeriodEnd; otherwise free feature access without overwriting raw financial state or credits. Manual non-Stripe grants and admin allowances retain their rules.",
+    "scheduledCancellationSemantics": "cancelAtPeriodEnd and persisted stripe_cancel_at_period_end mean any scheduled cancellation: native flag or positive cancel_at. Explicit cancel_at bounds the effective verified currentPeriodEnd and is displayed as the scheduled end.",
+    "taxTreatmentLive": "Requires owner/accountant confirmation before authorized live activation."
+  },
+  "verification": {
+    "completedDate": "2026-10-21",
+    "environment": "confirmed_Stripe_sandbox_with_disposable_sneepcut_integration_test_database",
+    "runs": [
+      {
+        "command": "node scripts/test-stripe-sandbox.mjs --browser --verify-delivery",
+        "result": "passed",
+        "exitCode": 0,
+        "durationSeconds": 172.166,
+        "source": "Final source after explicit cancel_at and verified-coverage regression fixes"
+      },
+      {
+        "command": "node scripts/test-stripe-sandbox.mjs --browser",
+        "result": "passed",
+        "exitCode": 0,
+        "durationSeconds": 878.968,
+        "source": "Earlier complete real-provider and hosted-browser run"
+      }
+    ],
+    "checks": {
+      "backendPostgresRegressionTests": {
+        "passed": 74,
+        "raceInstrumentedFocusedRerun": "passed"
+      },
+      "frontendBillingUnitTests": {
+        "passed": 13
+      },
+      "reactBrowserWithMockedAPIs": "passed_including_confirmation_recovery_submission_guards_fast_refresh_and_layout_identity",
+      "frontendTypecheck": "passed",
+      "frontendLint": "passed",
+      "operationalRegressionTests": {
+        "passed": 15
+      }
+    },
+    "actualProviderScenarios": [
+      {
+        "scenario": "hosted_checkout_success",
+        "result": "passed",
+        "cardFixture": "4242",
+        "plan": "creator",
+        "credits": 1600
+      },
+      {
+        "scenario": "hosted_checkout_abandoned",
+        "result": "passed",
+        "plan": "free",
+        "credits": 100
+      },
+      {
+        "scenario": "hosted_checkout_declined",
+        "result": "passed",
+        "cardFixture": "4000000000000002",
+        "plan": "free",
+        "credits": 100
+      },
+      {
+        "scenario": "hosted_sca_failed_then_completed",
+        "result": "passed",
+        "cardFixture": "4000000000003220",
+        "failed": {
+          "plan": "free",
+          "credits": 100
+        },
+        "completed": {
+          "plan": "creator",
+          "credits": 1600
+        }
+      },
+      {
+        "scenario": "real_test_clock_renewal_failure_and_payment_recovery",
+        "result": "passed",
+        "verified": "One allocation per paid regular invoice; failure removes paid feature access while retaining balance; recovery grants exactly once."
+      },
+      {
+        "scenario": "hosted_portal_creator_to_pro",
+        "result": "passed",
+        "proration": "none",
+        "immediatePayment": false,
+        "creditsBefore": 1600,
+        "creditsAfter": 1600
+      },
+      {
+        "scenario": "hosted_portal_explicit_cancel_at",
+        "result": "passed_after_regression_fix_and_final_revalidation",
+        "subscriptionId": "sub_1USzhKIBapm0ztYVx00XBCKd",
+        "cancelAtPeriodEnd": true,
+        "currentPeriodEnd": "2026-11-21T13:36:52Z",
+        "plan": "creator",
+        "credits": 1600
+      },
+      {
+        "scenario": "real_test_clock_cancellation_expiration",
+        "result": "passed",
+        "verified": "Future scheduled coverage expires to free feature access; earned credits preserved."
+      },
+      {
+        "scenario": "genuine_cli_503_and_local_recovery",
+        "result": "passed",
+        "eventId": "evt_1USzg4IBapm0ztYVNRikp5U6",
+        "genuineProviderDeliveryHttpStatus": 503,
+        "recoveryTransport": "locally_signed_retrieved_genuine_event",
+        "localReplayHttpStatus": 200,
+        "secondReplayDuplicate": true,
+        "providerResendVerified": false
+      }
+    ],
+    "isolatedRegressionScenarios": [
+      {
+        "scenario": "unauthorized_foreign_user_billing",
+        "result": "passed",
+        "surface": "Authenticated Go HTTP/PostgreSQL with two synthetic users and mocked provider responses"
+      },
+      {
+        "scenario": "duplicate_concurrent_and_stale_out_of_order_snapshots",
+        "result": "passed",
+        "surface": "PostgreSQL/provider fixtures plus local stale snapshot replay against real current Stripe source state"
+      }
+    ],
+    "evidence": {
+      "browserResults": "frontend/test-results/stripe-browser-results.json",
+      "genuineCliDeliveries": "frontend/test-results/stripe-deliveries.jsonl",
+      "localReplayResults": "frontend/test-results/stripe-replays.jsonl",
+      "screenshots": [
+        "frontend/test-results/stripe-checkout-confirmed.png",
+        "frontend/test-results/stripe-checkout-declined.png",
+        "frontend/test-results/stripe-portal-cancellation.png",
+        "frontend/test-results/stripe-cancellation-synchronized.png"
+      ],
+      "finalHostedCheckoutId": "cs_test_a1QqKCnKAbNsoZ7BLcbIt3ojEj1KY8v7CzbtYCLrA63VmCKcjKPXN2HPyz",
+      "finalHostedInvoiceId": "in_1USzhIIBapm0ztYVZiQKbhHp",
+      "genuineInterruptedEventId": "evt_1USzg4IBapm0ztYVNRikp5U6",
+      "standaloneGenuineEventLocalReplayId": "evt_1USzUoIBapm0ztYVbJDO3fvx"
+    },
+    "boundaries": {
+      "realBackendAndStripeHostedUI": "verified_through_isolated_harness",
+      "fullReactUIAgainstRealBackend": "not_performed_React_UI_verified_separately_with_mocked_APIs",
+      "registeredPublicWebhookDelivery": "not_performed_no_durable_endpoint_created",
+      "providerSideResendOrUnattendedRetry": "not_performed",
+      "liveModeOrRealMoney": "not_performed",
+      "productionDeployment": "not_performed",
+      "fixtureStartingCredits": 100,
+      "productSignupCredits": 1000
+    },
+    "cleanup": {
+      "taskOwnedStripeFixtures": "cleaned_after_verification_catalog_and_portal_retained",
+      "disposablePostgresContainer": "stopped_and_auto_removed",
+      "listenerAndWrapper": "stopped_and_both_process_ids_verified_absent",
+      "expectedPostHarnessCleanupDeliveryErrors": "retained_in_structural_log_not_failed_billing_assertions",
+      "taskScratch": "removed_after_absolute_target_validation_by_parent",
+      "goBuildCache": "allowlisted_cleanup_after_all_tests_stopped",
+      "storageCheck": {
+        "result": "passed",
+        "checkoutMiB": 5911.1,
+        "cacheMiB": 1964.5,
+        "regenerableMiB": 362.3
+      },
+      "evidenceRetained": true,
+      "localEnvironmentIgnoredByGit": true,
+      "gitVisibleSecretScan": "passed_without_printing_values"
+    }
+  },
+  "operations": {
+    "createdProducts": [
+      "prod_sneepcutAgencyV1",
+      "prod_sneepcutProV1",
+      "prod_sneepcutCreatorV1"
+    ],
+    "createdPrices": [
+      "price_1USzDlIBapm0ztYVkparwEHN",
+      "price_1USzDiIBapm0ztYVQCZc1iNT",
+      "price_1USzDfIBapm0ztYVFtBt7ZOu"
+    ],
+    "createdPortalConfiguration": "bpc_1USzDwIBapm0ztYV3aiFMi76",
+    "updatedPortalConfiguration": "Explicitly disabled adjustable quantities; price switching only.",
+    "readBackOperations": [
+      "GetProducts(limit=100)",
+      "GetPrices(limit=100)",
+      "GetBillingPortalConfigurations(limit=100, expand=data.features.subscription_update.products)"
+    ],
+    "liveChanges": false,
+    "bankTaxLegalSettingsChanged": false
+  }
+}

@@ -1,18 +1,25 @@
 'use client'
 
+import { PlatformBrandIcon } from '@/components/publishing/platform-brand-icon'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
-import { PUBLISHING_PROVIDER_CATALOG } from '@/lib/publishing'
+import {
+  isPublishingProvider,
+  PUBLISHING_PROVIDER_CATALOG
+} from '@/lib/publishing'
 import type { ScriptRecord } from '@/lib/scripts-workspace'
-import { Archive, Clock3, FileText, Plus, Search } from 'lucide-react'
+import { Check, FileText, Plus, Search } from 'lucide-react'
+import styles from './script-library.module.css'
 
-type Props = {
+type ScriptLibraryProps = {
   records: ScriptRecord[]
   query: string
   includeArchived: boolean
   busy: boolean
   labels: Record<string, string>
+  locale?: string
+  creating?: boolean
   onQueryChange: (value: string) => void
   onArchivedChange: (value: boolean) => void
   onOpen: (record: ScriptRecord) => void
@@ -25,89 +32,127 @@ export function ScriptLibrary({
   includeArchived,
   busy,
   labels,
+  locale,
+  creating = false,
   onQueryChange,
   onArchivedChange,
   onOpen,
   onNew
-}: Props) {
+}: ScriptLibraryProps) {
+  const dateFormatter = new Intl.DateTimeFormat(locale, {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric'
+  })
+
   return (
-    <section className="space-y-5" aria-label={labels.title}>
-      <div className="flex flex-col gap-3 rounded-2xl border bg-card p-4 sm:flex-row sm:items-center">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            value={query}
-            onChange={(event) => onQueryChange(event.target.value)}
-            placeholder={labels.search}
-            className="pl-9"
-          />
-        </div>
-        <label className="flex min-h-10 cursor-pointer items-center gap-2 rounded-lg border px-3 text-xs font-medium">
-          <input
-            type="checkbox"
-            checked={includeArchived}
-            onChange={(event) => onArchivedChange(event.target.checked)}
-          />
-          <Archive className="size-3.5" />
-          {labels.archived}
-        </label>
-        <Button onClick={onNew}>
-          <Plus className="size-4" />
+    <section
+      className={styles.library}
+      aria-labelledby="script-library-heading"
+      aria-busy={busy}
+      data-script-library
+    >
+      <div className={styles.heading}>
+        <h1 id="script-library-heading" className={styles.title}>
+          {labels.title}
+        </h1>
+        <Button
+          onClick={onNew}
+          disabled={creating}
+          className={styles.newButton}
+        >
+          <Plus className="size-5" aria-hidden="true" />
           {labels.new}
         </Button>
       </div>
 
+      <div className={styles.filters}>
+        <div className={styles.search}>
+          <Search className={styles.searchIcon} aria-hidden="true" />
+          <Input
+            type="search"
+            value={query}
+            onChange={(event) => onQueryChange(event.target.value)}
+            placeholder={labels.search}
+            aria-label={labels.search}
+            className={styles.searchInput}
+          />
+        </div>
+        <label className={styles.archived}>
+          <span className={styles.checkbox}>
+            <input
+              type="checkbox"
+              checked={includeArchived}
+              onChange={(event) => onArchivedChange(event.target.checked)}
+            />
+            <Check aria-hidden="true" />
+          </span>
+          {labels.archived}
+        </label>
+      </div>
+
       {records.length === 0 && !busy ? (
-        <Card className="flex min-h-72 flex-col items-center justify-center gap-3 p-8 text-center">
-          <div className="flex size-14 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-            <FileText className="size-7" />
-          </div>
-          <div>
-            <h2 className="font-semibold">{labels.emptyTitle}</h2>
-            <p className="mt-1 max-w-sm text-sm text-muted-foreground">
-              {labels.emptyDescription}
-            </p>
-          </div>
-          <Button onClick={onNew}>{labels.new}</Button>
-        </Card>
+        <div className={styles.empty}>
+          <FileText
+            className={styles.emptyIcon}
+            strokeWidth={1.2}
+            aria-hidden="true"
+          />
+          <h2 className={styles.emptyTitle}>{labels.emptyTitle}</h2>
+          <Button
+            onClick={onNew}
+            disabled={creating}
+            className={styles.newButton}
+          >
+            <Plus className="size-5" aria-hidden="true" />
+            {labels.new}
+          </Button>
+        </div>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {records.map((record) => (
-            <button
-              type="button"
-              key={record.id}
-              onClick={() => onOpen(record)}
-              className="group rounded-2xl border bg-card p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md"
-            >
-              <div className="flex items-start justify-between gap-4">
-                <span className="rounded-full bg-primary/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-primary">
-                  {record.status.replace('_', ' ')}
-                </span>
-                <span className="text-[11px] text-muted-foreground">
-                  v{record.revision}
-                </span>
-              </div>
-              <h2 className="mt-5 line-clamp-2 text-base font-semibold group-hover:text-primary">
-                {record.title}
-              </h2>
-              <p className="mt-2 line-clamp-2 min-h-10 text-xs leading-5 text-muted-foreground">
-                {record.topic || labels.noBrief}
-              </p>
-              <div className="mt-5 flex items-center justify-between border-t pt-3 text-[11px] text-muted-foreground">
-                <span>
-                  {PUBLISHING_PROVIDER_CATALOG.find(
-                    ({ id }) => id === record.platform
-                  )?.name ?? labels.platformRequired}
-                </span>
-                <span className="flex items-center gap-1">
-                  <Clock3 className="size-3" />
-                  {new Intl.DateTimeFormat(undefined, {
-                    dateStyle: 'medium'
-                  }).format(new Date(record.updatedAt))}
-                </span>
-              </div>
-            </button>
-          ))}
+        <div className={styles.grid}>
+          {records.map((record) => {
+            const status = record.archived ? 'archived' : record.status
+            const platform = PUBLISHING_PROVIDER_CATALOG.find(
+              ({ id }) => id === record.platform
+            )
+
+            return (
+              <Card key={record.id} as="article" className={styles.card}>
+                <button
+                  type="button"
+                  onClick={() => onOpen(record)}
+                  className={styles.cardButton}
+                  data-script-card={record.id}
+                >
+                  <div className={styles.cardTop}>
+                    <span className={styles.status}>
+                      {labels[`status.${status}`] ??
+                        status.replaceAll('_', ' ')}
+                    </span>
+                    <span className={styles.version}>v{record.revision}</span>
+                  </div>
+                  <h2 className={styles.cardTitle}>{record.title}</h2>
+                  <p className={styles.topic}>
+                    {record.topic || labels.noBrief}
+                  </p>
+                  <div className={styles.cardFooter}>
+                    <span className={styles.platform}>
+                      {isPublishingProvider(record.platform) && (
+                        <PlatformBrandIcon
+                          provider={record.platform}
+                          className={styles.platformIcon}
+                        />
+                      )}
+                      {platform?.name ?? labels.platformRequired}
+                    </span>
+                    <time dateTime={record.updatedAt}>
+                      {dateFormatter.format(new Date(record.updatedAt))}
+                    </time>
+                  </div>
+                </button>
+              </Card>
+            )
+          })}
         </div>
       )}
     </section>

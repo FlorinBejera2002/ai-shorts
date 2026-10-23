@@ -1,0 +1,881 @@
+.workspace {
+  --primary: var(--foreground);
+  --primary-foreground: var(--background);
+  --accent: var(--muted);
+  --accent-foreground: var(--foreground);
+  --ring: var(--foreground);
+  min-width: 0;
+  padding: 10px 14px 38px;
+  color: var(--foreground);
+}
+.workspace [hidden] {
+  display: none !important;
+}
+:global(#dashboard-main) .workspace :global([data-slot='button'][data-coach-play]) {
+  border-radius: 9999px;
+}
+.editor {
+  display: grid;
+  min-width: 0;
+  gap: 22px;
+}
+.title {
+  font-size: clamp(28px, 3vw, 38px);
+  line-height: 1.25;
+  font-weight: 650 !important;
+  letter-spacing: -0.045em;
+  margin: 0 0 -7px;
+}
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px 20px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 12px;
+  background: var(--card);
+}
+.toolbarContext {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+.toolbarContext > button {
+  padding-inline: 14px;
+}
+.toolbarContext > button,
+.toolbarActions > button {
+  height: 44px;
+  font-size: 14px;
+}
+.statusSelect {
+  border-left: 1px solid var(--border);
+  padding-left: 14px;
+  min-width: 150px;
+}
+.statusSelect > button {
+  width: 100%;
+  height: 44px;
+  background: color-mix(in srgb, var(--muted) 40%, var(--card));
+}
+.saveStatus {
+  min-width: 120px;
+  display: flex;
+  align-items: flex-start;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 14px;
+  padding-inline: 3px;
+}
+.saveStatus > span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.saveStatus svg {
+  width: 17px;
+  height: 17px;
+}
+.saveStatus[data-save-state='error'] > span {
+  color: var(--destructive);
+}
+.saveStatus time {
+  font-size: 13px;
+  color: var(--muted-foreground);
+}
+.toolbarActions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.toolbarActions svg {
+  width: 19px;
+  height: 19px;
+}
+.editorGrid {
+  display: grid;
+  grid-template-columns: minmax(290px, 0.68fr) minmax(0, 1.1fr);
+  align-items: stretch;
+  gap: 20px;
+}
+.editorGrid[data-generated='true'] {
+  grid-template-columns: minmax(280px, 0.58fr) minmax(0, 1fr);
+  align-items: start;
+}
+.briefColumn {
+  min-width: 0;
+  display: grid;
+  align-content: start;
+  gap: 18px;
+}
+.brief,
+.document {
+  gap: 20px;
+  min-width: 0;
+  padding: 20px;
+  background: var(--card);
+  box-shadow: none;
+}
+.briefHeading {
+  font-size: 20px;
+  font-weight: 650;
+  letter-spacing: -0.025em;
+}
+.briefToggle {
+  display: none;
+}
+.briefFields {
+  display: grid;
+  gap: 18px;
+  min-width: 0;
+}
+.field {
+  display: grid;
+  min-width: 0;
+  gap: 8px;
+}
+.fieldLabel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.counter {
+  color: var(--muted-foreground);
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+.fieldPair {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 14px;
+}
+.workspace label {
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.5;
+}
+.editor input:not([type='checkbox']),
+.editor textarea,
+.editor select {
+  min-width: 0;
+  border-color: var(--border);
+  background: color-mix(in srgb, var(--muted) 40%, var(--card));
+  color: var(--foreground);
+  font-size: 15px;
+  line-height: 1.5;
+  box-shadow: none;
+}
+.editor input:not([type='checkbox']),
+.editor select {
+  height: 44px;
+}
+.editor textarea {
+  padding: 10px 14px;
+  resize: vertical;
+}
+.editor textarea::placeholder {
+  color: var(--muted-foreground);
+}
+.briefFields .topicInput {
+  min-height: 104px;
+  height: 104px;
+}
+.brief[data-generated='true'] .topicInput {
+  min-height: 80px;
+  height: 80px;
+}
+.briefFields .audienceInput {
+  min-height: 72px;
+  height: 72px;
+}
+.document .hookInput {
+  min-height: 154px;
+  height: 154px;
+}
+.document[data-empty='false'] .hookInput {
+  min-height: 68px;
+  height: 68px;
+}
+:global(#dashboard-main) .editor input:not([type='checkbox']),
+:global(#dashboard-main) .editor textarea,
+:global(#dashboard-main) .editor select,
+:global(#dashboard-main) .workspace :global([data-slot='button']) {
+  border-radius: var(--radius-md);
+}
+.generate {
+  height: 48px;
+  width: 100%;
+  margin-top: 4px;
+  font-size: 15px;
+  font-weight: 650;
+}
+.spinner {
+  animation: spin 0.8s linear infinite;
+}
+.document {
+  align-self: stretch;
+  gap: 18px;
+}
+.document[data-empty='true'] {
+  min-height: 720px;
+}
+.document .emptyTitle {
+  height: 50px;
+  font-size: 20px;
+  font-weight: 650;
+  background: transparent;
+}
+.scenes {
+  display: grid;
+  gap: 10px;
+}
+.scene {
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  background: var(--card);
+}
+.sceneHeader {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: center;
+}
+.sceneToggle {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  text-align: left;
+  min-width: 0;
+  min-height: 30px;
+  flex: 1;
+  border-radius: var(--radius-sm);
+}
+.sceneToggle svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+.sceneToggle h3 {
+  font-size: 14px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+.sceneToggle > span {
+  border-left: 1px solid var(--border);
+  padding-left: 14px;
+  font-size: 13px;
+}
+.collapsedChevron {
+  transform: rotate(-90deg);
+}
+.sceneActions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.sceneFields {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+.sceneField {
+  display: grid;
+  grid-template-columns: 100px minmax(0, 1fr);
+  align-items: start;
+  gap: 12px;
+  min-width: 0;
+}
+.sceneField label {
+  padding-top: 9px;
+  font-size: 13px;
+}
+.sceneField textarea,
+.sceneField input {
+  min-height: 38px;
+  height: auto;
+  font-size: 14px;
+  padding: 8px 12px;
+}
+.sceneSummary {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  margin: 10px 0 0 40px;
+  gap: 12px;
+}
+.sceneSummary > div {
+  min-width: 0;
+  border-left: 1px solid var(--border);
+  padding-left: 12px;
+}
+.sceneSummary > div:first-child {
+  border-left: 0;
+  padding-left: 0;
+}
+.sceneSummary dt {
+  color: var(--muted-foreground);
+  font-size: 11px;
+  margin-bottom: 4px;
+}
+.sceneSummary dd {
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.addScene {
+  justify-self: start;
+  min-height: 40px;
+  font-size: 14px;
+}
+.documentFooter {
+  display: grid;
+  gap: 10px;
+}
+.documentMeta {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted-foreground);
+  font-size: 12px;
+}
+.documentMeta svg {
+  width: 15px;
+  height: 15px;
+}
+.emptyCoach {
+  margin-top: auto;
+  border-top: 1px solid var(--border);
+  padding: 24px 6px 20px;
+  display: grid;
+  gap: 12px;
+}
+.emptyCoach > p {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 14px;
+}
+.emptyCoach > p svg {
+  width: 20px;
+  height: 20px;
+}
+.emptyCoach > span {
+  padding-left: 32px;
+  color: var(--muted-foreground);
+  font-size: 14px;
+}
+.emptyCoach > button {
+  margin-top: 4px;
+  margin-left: 32px;
+}
+.coachShortcut {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  text-align: left;
+  font-size: 14px;
+}
+.coachShortcut:hover,
+.mobileCoachShortcut:hover {
+  background: var(--muted);
+}
+.coachShortcut > svg {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+}
+.coachShortcut > svg:last-child {
+  width: 17px;
+  height: 17px;
+  margin: auto 0 auto auto;
+}
+.coachShortcut small {
+  display: block;
+  margin-top: 8px;
+  color: var(--muted-foreground);
+  font-size: 13px;
+}
+.coachSection {
+  scroll-margin-top: 86px;
+  min-width: 0;
+}
+.mobileCoachShortcut {
+  display: none;
+}
+.versions {
+  min-width: 0;
+  padding: 20px;
+  gap: 18px;
+  background: var(--card);
+  box-shadow: none;
+}
+.versions h2 {
+  font-size: 23px;
+  font-weight: 650;
+  letter-spacing: -0.03em;
+}
+.versions table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+.versions th {
+  padding: 14px 18px;
+  text-align: left;
+  font-weight: 500;
+  background: color-mix(in srgb, var(--muted) 40%, var(--card));
+}
+.versions th:first-child {
+  width: 18%;
+}
+.versions th:nth-child(2) {
+  width: 16%;
+}
+.versions th:nth-child(3) {
+  width: 12%;
+}
+.versions th:last-child {
+  width: 130px;
+}
+.versions td {
+  border-bottom: 1px solid var(--border);
+  padding: 18px;
+  overflow-wrap: anywhere;
+}
+.versions tr:last-child td {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+.versionBadge > span,
+.versionBadge > small {
+  display: inline-block;
+  background: var(--muted);
+  border-radius: var(--radius-sm);
+  padding: 5px 10px;
+  font-size: 13px;
+}
+.versionBadge > small {
+  margin: 4px 0 0 8px;
+  font-size: 11px;
+  color: var(--muted-foreground);
+}
+.versionAction {
+  text-align: right;
+}
+.sceneToggle:focus-visible,
+.briefToggle:focus-visible,
+.coachShortcut:focus-visible,
+.mobileCoachShortcut:focus-visible {
+  outline: 2px solid var(--foreground);
+  outline-offset: 3px;
+}
+@media (max-width: 1200px) {
+  .toolbar {
+    gap: 12px;
+  }
+  .toolbarContext {
+    flex: 1;
+  }
+  .toolbarActions {
+    margin-left: auto;
+  }
+  .editorGrid,
+  .editorGrid[data-generated='true'] {
+    grid-template-columns: minmax(260px, 0.65fr) minmax(0, 1fr);
+    gap: 16px;
+  }
+  .brief,
+  .document {
+    padding: 18px;
+  }
+  .sceneSummary {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .sceneSummary > div:nth-child(n + 4) {
+    display: none;
+  }
+  .sceneField {
+    grid-template-columns: 82px minmax(0, 1fr);
+  }
+}
+@media (max-width: 1023px) {
+  .workspace {
+    padding: 4px 0 24px;
+  }
+  .editorGrid,
+  .editorGrid[data-generated='true'] {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .brief,
+  .document {
+    border: 0;
+    background: transparent;
+    padding: 0;
+  }
+  .brief {
+    gap: 20px;
+  }
+  .briefHeading {
+    font-size: 23px;
+  }
+  .brief[data-generated='true'] .briefHeading {
+    display: none;
+  }
+  .briefToggle {
+    display: none;
+  }
+  .brief[data-generated='true'] .briefToggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 52px;
+    padding: 12px 16px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background: var(--card);
+    text-align: left;
+    font-size: 20px;
+    font-weight: 650;
+  }
+  .briefToggle svg {
+    width: 22px;
+    height: 22px;
+  }
+  .briefFields[data-expanded='false'] {
+    display: none;
+  }
+  .rotated {
+    transform: rotate(180deg);
+  }
+  .document[data-empty='true'] {
+    min-height: 300px;
+  }
+  .document[data-empty='true'] .emptyCoach {
+    margin-top: 20px;
+  }
+  .coachShortcut {
+    display: none;
+  }
+  .mobileCoachShortcut {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 14px;
+    text-align: left;
+    font-size: 15px;
+  }
+  .mobileCoachShortcut svg {
+    width: 20px;
+    height: 20px;
+  }
+  .coachSection {
+    scroll-margin-top: 16px;
+  }
+}
+@media (max-width: 639px) {
+  .editor[data-coach-open='true'] > .title {
+    display: none;
+  }
+  .editor[data-coach-open='true'] > .toolbar {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    order: 3;
+    padding: 0;
+    border: 0;
+    background: transparent;
+  }
+  .editor[data-coach-open='true'] > .coachDocumentHeading {
+    order: 0;
+    gap: 12px;
+  }
+  .editor[data-coach-open='true'] > .coachSection {
+    order: 1;
+  }
+  .editor[data-coach-open='true'] > .versions {
+    order: 2;
+  }
+  .editor {
+    gap: 20px;
+  }
+  .title {
+    font-size: 30px;
+    margin-bottom: 0;
+  }
+  .toolbar {
+    display: contents;
+  }
+  .toolbarContext {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) minmax(80px, auto);
+    width: 100%;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background: var(--card);
+    padding: 8px;
+    gap: 8px;
+  }
+  .toolbarContext > button {
+    min-width: 0;
+    padding-inline: 8px;
+    gap: 6px;
+    font-size: 12px;
+  }
+  .toolbarContext > button svg {
+    width: 17px;
+    height: 17px;
+  }
+  .statusSelect {
+    flex: 1;
+    min-width: 75px;
+    border: 0;
+    padding: 0;
+  }
+  .statusSelect > button {
+    font-size: 13px;
+    padding-inline: 10px;
+  }
+  .saveStatus {
+    min-width: 0;
+    max-width: 112px;
+    font-size: 12px;
+    border-left: 1px solid var(--border);
+    padding-left: 10px;
+  }
+  .saveStatus time {
+    font-size: 11px;
+  }
+  .toolbarActions {
+    display: grid;
+    width: 100%;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 6px;
+  }
+  .toolbarActions > button {
+    min-width: 0;
+    gap: 5px;
+    padding: 8px 5px;
+    font-size: 11px;
+  }
+  .toolbarActions svg {
+    width: 17px;
+    height: 17px;
+  }
+  .editorGrid {
+    gap: 24px;
+  }
+  .briefFields {
+    gap: 18px;
+  }
+  .editor input:not([type='checkbox']),
+  .editor textarea,
+  .editor select {
+    font-size: 16px;
+  }
+  .workspace label {
+    font-size: 14px;
+  }
+  .fieldPair {
+    gap: 14px;
+  }
+  .generate {
+    height: 48px;
+    margin-top: 4px;
+  }
+  .document {
+    gap: 20px;
+  }
+  .scene {
+    padding: 12px;
+  }
+  .sceneToggle {
+    gap: 10px;
+  }
+  .sceneToggle h3 {
+    font-size: 15px;
+  }
+  .sceneToggle > span {
+    font-size: 12px;
+    padding-left: 10px;
+  }
+  .sceneActions {
+    gap: 0;
+  }
+  .sceneActions > button {
+    width: 30px;
+    height: 36px;
+  }
+  .sceneFields {
+    gap: 12px;
+  }
+  .sceneField {
+    grid-template-columns: 76px minmax(0, 1fr);
+    gap: 10px;
+  }
+  .sceneField label {
+    font-size: 12px;
+  }
+  .sceneField input,
+  .sceneField textarea {
+    font-size: 14px;
+  }
+  .sceneSummary {
+    display: none;
+  }
+  .addScene {
+    width: 100%;
+  }
+  .emptyCoach > button {
+    margin-left: 0;
+  }
+  .versions {
+    padding: 14px;
+    gap: 14px;
+  }
+  .versions h2 {
+    font-size: 22px;
+  }
+  .versions table,
+  .versions tbody {
+    display: block;
+  }
+  .versions thead {
+    display: none;
+  }
+  .versions tr {
+    display: grid;
+    grid-template-columns: 60px minmax(0, 1fr) auto;
+    gap: 4px 10px;
+    padding: 16px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .versions tr:last-child {
+    border: 0;
+    padding-bottom: 0;
+  }
+  .versions td,
+  .versions tr:last-child td {
+    padding: 0;
+    border: 0;
+  }
+  .versionBadge {
+    grid-column: 1;
+    grid-row: 1 / 4;
+  }
+  .versionBadge > small {
+    margin: 6px 0 0;
+    font-size: 10px;
+    padding: 3px 5px;
+  }
+  .versionSummary {
+    grid-column: 2;
+    grid-row: 1;
+  }
+  .versionDate {
+    grid-column: 2;
+    grid-row: 2;
+    color: var(--muted-foreground);
+    font-size: 12px;
+  }
+  .versionTime {
+    grid-column: 2;
+    grid-row: 3;
+    color: var(--muted-foreground);
+    font-size: 12px;
+  }
+  .versionAction {
+    grid-column: 3;
+    grid-row: 1 / 4;
+    align-self: center;
+  }
+  .versionAction button {
+    padding-inline: 8px;
+    font-size: 12px;
+  }
+}
+@media (max-width: 359px) {
+  .sceneField {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 5px;
+  }
+  .sceneToggle {
+    gap: 6px;
+  }
+  .sceneToggle > span {
+    padding-left: 6px;
+  }
+  .sceneActions > button {
+    width: 26px;
+  }
+  .toolbarContext {
+    flex-wrap: wrap;
+  }
+  .saveStatus {
+    max-width: none;
+  }
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation: none;
+  }
+}
+
+.coachDocumentHeading {
+  display: grid;
+  gap: 14px;
+}
+.coachDocumentHeading h1 {
+  font-size: clamp(24px, 3vw, 36px);
+  font-weight: 650;
+  letter-spacing: -0.04em;
+}
+.coachDocumentHeading > button {
+  display: flex;
+  justify-self: start;
+  gap: 10px;
+  align-items: center;
+  font-size: 14px;
+  color: var(--muted-foreground);
+}
+.coachDocumentHeading > button:hover {
+  color: var(--foreground);
+}
+.coachDocumentHeading > button svg {
+  width: 18px;
+  height: 18px;
+}
+.coachDocumentHeading > p {
+  font-size: 16px;
+}
+.scriptMetadata {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  color: var(--muted-foreground);
+}
+
+@media (max-width: 639px) {
+  .editor[data-coach-open="true"] .coachDocumentHeading > p { font-size: 14px; }
+  .editor[data-coach-open="true"] .coachDocumentHeading h1 { font-size: 25px; }
+}
+
+.coachDocumentHeading h1 { font-weight: 650 !important; }

@@ -71,6 +71,34 @@ the API waits for its initial signature download/readiness. Media volume ownersh
 is initialized by the application image as UID/GID 10001; do not prepopulate it
 with root-owned upload directories.
 
+## Stripe billing
+
+Use independent live resources and credentials for real payments. Set
+`STRIPE_MODE=live`, the verified `STRIPE_EXPECTED_ACCOUNT_ID`,
+`STRIPE_SECRET_KEY`, all three approved `STRIPE_PRICE_*` plan IDs,
+`STRIPE_PORTAL_CONFIGURATION` and the production endpoint's
+`STRIPE_WEBHOOK_SECRET` in the private server environment. The expected account
+identifier is shown in Admin as configuration context; provisioning must verify
+the key's actual account before activation. Presence flags in Admin are not a
+provider connectivity or account-activation check.
+
+Register the HTTPS snapshot callback at
+`https://api.sneepcut.com/api/webhooks/stripe`, with the version and event list in
+[the billing runbook](stripe-billing.md). A local CLI listener secret cannot
+authenticate deliveries from this registered endpoint. The owner explicitly
+authorized an initial public-server test phase on 21 October 2026. During this
+phase use `STRIPE_MODE=test`, the reviewed sandbox resources and a visible
+test-payment notice in the product and Admin. Use Stripe test cards only; this
+phase does not accept real payments. Otherwise leave billing credentials empty
+until the intended environment is ready. A later switch to real payments needs
+independent live resources, keys and the live endpoint's signing secret.
+
+Admin's **Facturare** view reads authenticated `/api/admin/billing/*` endpoints.
+It shows effective plans, synchronized subscription state, scheduled cancellation,
+credit balances and committed event history. Failed attempts do not enter that
+ledger; inspect application logs and Stripe Workbench for failed delivery. The
+view cannot charge, refund, cancel or alter a customer's subscription.
+
 ## YouTube download authentication
 
 The worker mounts `/opt/sneepcut-secrets` read-only at `/run/secrets`. When
@@ -146,8 +174,11 @@ environment files are never included. A new release is built at
 operations are serialized with a lock. If the same source release is deployed
 component-by-component, it is not rotated again. Rollback first rebuilds the
 retained release with the current production environment, then swaps the current
-and previous checkouts and redeploys the complete stack. If activation fails, it
-attempts to restore and redeploy the release that had been active.
+and previous checkouts and redeploys the complete stack. A failed new activation
+requires an explicit operator recovery; the release script does not automatically
+roll it back. The rollback command itself attempts to restore the release that
+had been active if that rollback fails. Retain the running image IDs before
+building, since normal image tags are reused by subsequent builds.
 
 This one-version policy applies only to application checkouts. PostgreSQL, Redis,
 media, ClamAV signatures, and Caddy certificate state remain in named volumes and

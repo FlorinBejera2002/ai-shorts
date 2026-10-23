@@ -2,14 +2,16 @@
 
 import { Button } from '@/components/ui/button'
 import { LoadingIndicator } from '@/components/ui/loading-indicator'
-import { Check, RotateCcw, Save, Undo2 } from 'lucide-react'
+import { Check, RotateCcw } from 'lucide-react'
 import { useTranslations } from 'next-intl'
+import styles from './save-bar.module.css'
 
 type SaveBarProps = {
   dirty: boolean
   saving: boolean
   saved: boolean
   logoBusy: boolean
+  fontBusy?: boolean
   hasInvalidColor: boolean
   onDiscard: () => void
   onReset: () => void
@@ -19,8 +21,8 @@ type SaveBarProps = {
 export function SaveBar({
   dirty,
   saving,
-  saved,
   logoBusy,
+  fontBusy = false,
   hasInvalidColor,
   onDiscard,
   onReset,
@@ -28,63 +30,60 @@ export function SaveBar({
 }: SaveBarProps) {
   const t = useTranslations('brand')
   const common = useTranslations('common')
-  const busy = saving || logoBusy
+  const busy = saving || logoBusy || fontBusy
+  const state = saving ? 'saving' : dirty ? 'unsaved' : 'saved'
 
   return (
-    <div className="brand-save-bar flex flex-wrap items-center gap-2 rounded-md border border-border bg-card px-3 py-2">
+    <div className={styles.bar} data-brand-save-bar="">
       <Button
         type="button"
+        variant="ghost"
         onClick={onReset}
         disabled={busy}
-        variant="ghost"
-        aria-label={common('reset')}
-        title={common('reset')}
-        className="size-9 rounded-md text-muted-foreground sm:w-auto"
+        className={styles.reset}
       >
-        <RotateCcw />
-        <span className="hidden sm:inline">{common('reset')}</span>
+        <RotateCcw aria-hidden="true" />
+        {common('reset')}
       </Button>
       <div
         role="status"
-        className="flex min-w-0 flex-1 items-center gap-2 text-[11px] text-muted-foreground"
+        className={styles.status}
+        data-brand-save-state={state}
       >
-        {dirty && (
-          <>
-            <span
-              className="size-1.5 shrink-0 rounded-full bg-amber-500"
-              aria-hidden="true"
-            />
-            <span className="sr-only sm:not-sr-only">{t('unsaved')}</span>
-          </>
+        {saving ? (
+          <LoadingIndicator className="size-4" />
+        ) : dirty ? (
+          <span className={styles.dot} aria-hidden="true" />
+        ) : (
+          <Check className="size-4" aria-hidden="true" />
         )}
+        <span>
+          {t(
+            saving
+              ? 'workspaceDesign.saving'
+              : dirty
+                ? 'workspaceDesign.unsaved'
+                : 'workspaceDesign.saved'
+          )}
+        </span>
       </div>
-
-      <div className="flex items-center gap-2">
+      <div className={styles.actions}>
         <Button
           type="button"
+          variant="outline"
           onClick={onDiscard}
           disabled={!dirty || busy}
-          variant="ghost"
-          className="h-9 rounded-md px-3 text-xs"
         >
-          <Undo2 />
           {t('discard')}
         </Button>
         <Button
           type="button"
           onClick={() => void onSave()}
-          disabled={busy || hasInvalidColor}
+          disabled={!dirty || busy || hasInvalidColor}
           title={hasInvalidColor ? t('fixColors') : undefined}
-          className="h-9 min-w-24 rounded-md px-3 text-xs"
         >
-          {saving ? (
-            <LoadingIndicator />
-          ) : saved ? (
-            <Check />
-          ) : (
-            <Save />
-          )}
-          {saved ? common('saved') : common('save')}
+          {saving && <LoadingIndicator />}
+          {t('workspaceDesign.saveChanges')}
         </Button>
       </div>
     </div>

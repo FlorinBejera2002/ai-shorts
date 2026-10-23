@@ -1,55 +1,101 @@
-import { Card } from '@/components/ui/card'
-import { Gauge, LockKeyhole, RefreshCw } from 'lucide-react'
+'use client'
+
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger
+} from '@/components/ui/accordion'
+import { Clock3, CreditCard, Database, Settings } from 'lucide-react'
+import { useTranslations } from 'next-intl'
+import styles from './billing-guide.module.css'
+
+type LegacyGuideLabels = {
+  title: string
+  description: string
+  predictableTitle: string
+  predictableDescription: string
+  rolloverTitle: string
+  rolloverDescription: string
+  controlTitle: string
+  controlDescription: string
+}
 
 type BillingGuideProps = {
-  labels: {
-    title: string
-    description: string
-    predictableTitle: string
-    predictableDescription: string
-    rolloverTitle: string
-    rolloverDescription: string
-    controlTitle: string
-    controlDescription: string
-  }
+  labels?: LegacyGuideLabels
+  expanded?: boolean
+  onOpenDetails?: () => void
 }
 
 const ITEMS = [
-  { key: 'predictable', Icon: Gauge },
-  { key: 'rollover', Icon: RefreshCw },
-  { key: 'control', Icon: LockKeyhole }
+  { key: 'credits', Icon: Database },
+  { key: 'access', Icon: CreditCard },
+  { key: 'changes', Icon: Clock3 }
 ] as const
 
-export function BillingGuide({ labels }: BillingGuideProps) {
+function BillingTerms() {
+  const t = useTranslations('billing.sectionDesign')
   return (
-    <section aria-labelledby="billing-guide-title">
-      <div className="mb-5">
-        <h2 id="billing-guide-title" className="text-lg font-semibold">
-          {labels.title}
-        </h2>
-        <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-          {labels.description}
-        </p>
-      </div>
+    <div className={styles.terms}>
+      {ITEMS.map(({ key, Icon }) => (
+        <article key={key}>
+          <Icon aria-hidden="true" />
+          <div>
+            <h3>{t(`${key}Title`)}</h3>
+            <p>{t(`${key}Description`)}</p>
+          </div>
+        </article>
+      ))}
+    </div>
+  )
+}
 
-      <div className="grid gap-3 md:grid-cols-3">
-        {ITEMS.map(({ key, Icon }) => (
-          <Card
-            key={key}
-            as="article"
-            className="block gap-0 py-0 p-5 shadow-none"
+export function BillingGuide({
+  expanded = false,
+  onOpenDetails
+}: BillingGuideProps) {
+  const t = useTranslations('billing.sectionDesign')
+  return (
+    <section
+      className={styles.guide}
+      data-billing-guide=""
+      data-expanded={expanded}
+      aria-label={t('billingDetails')}
+    >
+      <div hidden={!expanded}>
+        <BillingTerms />
+      </div>
+      <div hidden={expanded}>
+        <div className={onOpenDetails ? styles.desktop : undefined}>
+          <Accordion type="single" collapsible>
+            <AccordionItem value="details" className={styles.item}>
+              <AccordionTrigger
+                className={styles.trigger}
+                data-billing-details-trigger=""
+              >
+                <span>
+                  <Settings aria-hidden="true" />
+                  {t('billingDetails')}
+                </span>
+              </AccordionTrigger>
+              <AccordionContent className={styles.content}>
+                <BillingTerms />
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
+        </div>
+        {onOpenDetails && (
+          <button
+            type="button"
+            className={styles.mobileTrigger}
+            onClick={onOpenDetails}
+            data-billing-details-trigger=""
           >
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
-              <Icon className="h-4 w-4" aria-hidden="true" />
-            </div>
-            <h3 className="mt-5 text-sm font-semibold">
-              {labels[`${key}Title`]}
-            </h3>
-            <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-              {labels[`${key}Description`]}
-            </p>
-          </Card>
-        ))}
+            <Settings aria-hidden="true" />
+            <span>{t('billingDetails')}</span>
+            <span aria-hidden="true">⌄</span>
+          </button>
+        )}
       </div>
     </section>
   )

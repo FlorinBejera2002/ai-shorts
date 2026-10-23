@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"mime"
 	"net/http"
 	"net/url"
@@ -13,15 +14,18 @@ import (
 	"time"
 
 	"github.com/julienschmidt/httprouter"
+	"sneepcut/backend-go/internal/entitlements"
 	"sneepcut/backend-go/internal/identity"
 	"sneepcut/backend-go/internal/jsonutil"
 )
 
 type Config struct {
 	SecretKey, WebhookSecret, AppURL, APIBaseURL string
+	Mode, PortalConfiguration                    string
 	PlanPrices                                   map[string]string
 	CreditPacks                                  map[string]int
 	Client                                       *http.Client
+	Logger                                       *slog.Logger
 }
 type Service struct {
 	cfg    Config
@@ -34,11 +38,20 @@ type Service struct {
 var currencyPattern = regexp.MustCompile(`^[A-Z]{3}$`)
 var uuidPattern = regexp.MustCompile(`(?i)^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
 var checkoutIDPattern = regexp.MustCompile(`^cs_(?:test_|live_)?[A-Za-z0-9]+$`)
-var planCredits = map[string]int{"creator": 300, "pro": 1000, "agency": 999999}
+var planCredits = map[string]int{"creator": 1500, "pro": 5000, "agency": 20000}
 
 func NewService(cfg Config, db *sql.DB, auth *identity.Handler) (*Service, error) {
 	cfg.SecretKey = strings.TrimSpace(cfg.SecretKey)
 	cfg.WebhookSecret = strings.TrimSpace(cfg.WebhookSecret)
+	if cfg.Mode == "" {
+		cfg.Mode = "test"
+	}
+	if cfg.Mode != "test" && cfg.Mode != "live" {
+		return nil, errors.New("invalid Stripe mode")
+	}
+	if cfg.SecretKey != "" && !strings.HasPrefix(cfg.SecretKey, "sk_"+cfg.Mode+"_") && !strings.HasPrefix(cfg.SecretKey, "rk_"+cfg.Mode+"_") {
+		return nil, errors.New("Stripe key does not match configured mode")
+	}
 	if cfg.APIBaseURL == "" {
 		cfg.APIBaseURL = "https://api.stripe.com/v1"
 	}
@@ -76,11 +89,11 @@ func (s *Service) Register(router *httprouter.Router) {
 		handler http.HandlerFunc
 		limit   int
 	}{
-		"/api/stripe/billing": {http.MethodGet, s.billing, 120}, "/api/stripe/checkout": {http.MethodPost, s.checkout, 10}, "/api/stripe/portal": {http.MethodPost, s.openPortal, 20},
+		"/api/stripe/billing": {http.MethodGet, s.billing, 120}, "/api/stripe/checkout": {http.MethodPost, s.checkout, 10}, "/api/stripe/portal": {http.MethodPost, s.openPortal, 20}, "/api/stripe/reconcile": {http.MethodPost, s.reconcile, 40},
 	} {
 		router.Handler(route.method, path, s.auth.Require(s.auth.Limit(route.handler, "billing:"+path, route.limit, time.Hour)))
 	}
-	for _, path := range []string{"/api/stripe/plans", "/api/stripe/billing", "/api/stripe/checkout", "/api/stripe/portal"} {
+	for _, path := range []string{"/api/stripe/plans", "/api/stripe/billing", "/api/stripe/checkout", "/api/stripe/portal", "/api/stripe/reconcile"} {
 		router.Handler(http.MethodOptions, path, s.auth.Policy(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(http.StatusNoContent) })))
 	}
 	router.HandlerFunc(http.MethodPost, "/api/webhooks/stripe", s.webhook)
@@ -124,6 +137,14 @@ func billingPath(locale string) string {
 func safeURL(raw string) string {
 	parsed, err := url.Parse(raw)
 	if err != nil || parsed.Scheme != "https" || parsed.Host == "" || parsed.User != nil {
+		return ""
+	}
+	return parsed.String()
+}
+
+func hostedURL(raw, hostname string) string {
+	parsed, err := url.Parse(safeURL(raw))
+	if err != nil || parsed.Host != hostname {
 		return ""
 	}
 	return parsed.String()
@@ -224,13 +245,23 @@ func periodEnd(subscription object) any {
 	if end == 0 {
 		end = subscription.number("current_period_end")
 	}
+	// The portal can schedule cancellation with cancel_at while leaving
+	// cancel_at_period_end false. Coverage cannot extend past that explicit end.
+	if cancelAt := subscription.number("cancel_at"); cancelAt > 0 && (end == 0 || cancelAt < end) {
+		end = cancelAt
+	}
 	if end == 0 {
 		return nil
 	}
 	return time.Unix(end, 0).UTC().Format(time.RFC3339)
 }
+
+func scheduledCancellation(subscription object) bool {
+	return subscription.boolean("cancel_at_period_end") || subscription.number("cancel_at") > 0
+}
+
 func mapSubscription(sub object) object {
-	return object{"status": sub.text("status"), "cancelAtPeriodEnd": sub.boolean("cancel_at_period_end"), "currentPeriodEnd": periodEnd(sub)}
+	return object{"status": sub.text("status"), "cancelAtPeriodEnd": scheduledCancellation(sub), "currentPeriodEnd": periodEnd(sub)}
 }
 func (s *Service) billing(w http.ResponseWriter, r *http.Request) {
 	a, err := s.account(r.Context(), identity.Current(r).User.ID)
@@ -265,24 +296,6 @@ func (s *Service) billing(w http.ResponseWriter, r *http.Request) {
 				invoices = append(invoices, object{"id": invoice.text("id"), "number": invoice.text("number"), "status": invoice.text("status"), "createdAt": time.Unix(invoice.number("created"), 0).UTC().Format(time.RFC3339), "amount": amount, "currency": currency, "hostedUrl": nullable(safeURL(invoice.text("hosted_invoice_url"))), "pdfUrl": nullable(safeURL(invoice.text("invoice_pdf")))})
 			}
 		}
-		var sub object
-		if a.SubscriptionID != "" {
-			sub, err = s.provider(r.Context(), http.MethodGet, "/subscriptions/"+url.PathEscape(a.SubscriptionID), nil, "")
-		} else {
-			var all []object
-			all, err = s.subscriptions(r.Context(), a.CustomerID)
-			for _, candidate := range all {
-				if !terminal(candidate.text("status")) {
-					sub = candidate
-					break
-				}
-			}
-		}
-		if err != nil || (sub != nil && sub.id("customer") != a.CustomerID) {
-			available = false
-		} else if sub != nil {
-			subscription = mapSubscription(sub)
-		}
 	} else if a.SubscriptionID != "" {
 		available = false
 	}
@@ -299,19 +312,21 @@ func (s *Service) billing(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
-	write(w, 200, object{"account": object{"credits": a.Credits, "plan": normalizePlan(a.Plan), "hasBillingProfile": a.CustomerID != "", "creditsUnlimited": identity.Current(r).User.AccessRole == "admin"}, "subscription": subscription, "invoices": invoices, "providerAvailable": available, "checkoutVerification": verification})
+	effective := entitlements.EffectivePlan(a.Plan, identity.Current(r).User.AccessRole, a.SubscriptionID, a.SubscriptionStatus, a.CurrentPeriodEnd.Time, s.now())
+	write(w, 200, object{"mode": s.cfg.Mode, "account": object{"credits": a.Credits, "plan": normalizePlan(effective), "hasBillingProfile": a.CustomerID != "", "creditsUnlimited": identity.Current(r).User.AccessRole == "admin"}, "subscription": subscription, "invoices": invoices, "providerAvailable": available, "checkoutVerification": verification})
 }
 func (s *Service) verifyCheckout(session object, a account) object {
 	meta := session.child("metadata")
 	plan := s.planForPrice(meta.text("priceId"))
 	customer := session.id("customer")
 	subscription := session.id("subscription")
-	owns := session.text("mode") == "subscription" && meta.text("userId") == a.ID && (session.text("client_reference_id") == "" || session.text("client_reference_id") == a.ID) && plan != "" && meta.text("planId") == plan && customer != "" && subscription != "" && (a.CustomerID == "" || a.CustomerID == customer) && (a.SubscriptionID == "" || a.SubscriptionID == subscription)
+	owns := session.text("mode") == "subscription" && meta.text("userId") == a.ID && (session.text("client_reference_id") == "" || session.text("client_reference_id") == a.ID) && plan != "" && meta.text("planId") == plan && customer != "" && subscription != "" && (a.CustomerID == "" || a.CustomerID == customer) && (a.SubscriptionID == "" || a.SubscriptionID == subscription || terminal(a.SubscriptionStatus))
 	if !owns || session.text("status") == "expired" {
 		return object{"status": "invalid", "planId": nil}
 	}
 	status := "pending"
-	if session.text("status") == "complete" && (session.text("payment_status") == "paid" || session.text("payment_status") == "no_payment_required") {
+	effective := entitlements.EffectivePlan(a.Plan, "", a.SubscriptionID, a.SubscriptionStatus, a.CurrentPeriodEnd.Time, s.now())
+	if session.text("status") == "complete" && (session.text("payment_status") == "paid" || session.text("payment_status") == "no_payment_required") && a.SubscriptionID == subscription && effective == plan && (a.SubscriptionStatus == "active" || a.SubscriptionStatus == "trialing") {
 		status = "complete"
 	}
 	return object{"status": status, "planId": plan}

@@ -1,96 +1,128 @@
 'use client'
 
+import { WorkspaceMobileHeader } from '@/components/dashboard/workspace-mobile-header'
 import { Button } from '@/components/ui/button'
 import { LoadingIndicator } from '@/components/ui/loading-indicator'
-import { PageHeader } from '@/components/ui/page-header'
-import { AlertCircle } from 'lucide-react'
+import { useIsMobile } from '@/hooks/use-mobile'
+import { AlertCircle, ChevronRight } from 'lucide-react'
 import { useTranslations } from 'next-intl'
-
+import { useState } from 'react'
 import { CaptionsSection } from './captions-section'
-import { Card } from '@/components/ui/card'
-import { LogoSection } from './logo-section'
+import { BrandLogoGroup } from './brand-logo-group'
+import { BrandWorkspaceHeader } from './brand-workspace-header'
+import type {
+  BrandKitController,
+  BrandWorkspaceSection
+} from './brand-workspace-types'
 import { PreviewPanel } from './preview-panel'
-import { SaveBar } from './save-bar'
+import type { PreviewRatio } from './types'
 import { useBrandKit } from './use-brand-kit'
-import { WatermarkSection } from './watermark-section'
+import styles from './brand-page.module.css'
 
 export default function BrandPage() {
   const t = useTranslations('brand')
   const brand = useBrandKit((key) => t(key as Parameters<typeof t>[0]))
+  return (
+    <div className={styles.workspace}>
+      {brand.loading ? (
+        <>
+          <WorkspaceMobileHeader />
+          <div className={styles.loading} aria-label={t('loading')}>
+            <LoadingIndicator className="size-6" />
+          </div>
+        </>
+      ) : brand.loadError ? (
+        <>
+          <WorkspaceMobileHeader />
+          <div className={styles.error} role="alert">
+            <AlertCircle className="size-7 text-destructive" />
+            <h1>{t('loadErrorTitle')}</h1>
+            <p>{t('loadErrorDesc')}</p>
+            <Button onClick={() => void brand.retry()}>{t('retry')}</Button>
+          </div>
+        </>
+      ) : (
+        <BrandWorkspace brand={brand} />
+      )}
+    </div>
+  )
+}
 
-  if (brand.loading) {
-    return (
-      <div
-        className="animate-fade-in flex min-h-80 items-center justify-center"
-        aria-label={t('loading')}
-      >
-        <LoadingIndicator className="size-5 text-muted-foreground" />
-      </div>
-    )
-  }
-
-  if (brand.loadError) {
-    return (
-      <div className="animate-fade-in py-16">
-        <div className="mx-auto max-w-md rounded-md border bg-card p-8 text-center shadow-sm">
-          <span className="mx-auto flex size-11 items-center justify-center rounded-full bg-destructive/10 text-destructive">
-            <AlertCircle className="size-5" />
-          </span>
-          <h1 className="mt-4 text-lg font-semibold">{t('loadErrorTitle')}</h1>
-          <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-            {t('loadErrorDesc')}
-          </p>
-          <Button
-            type="button"
-            onClick={() => void brand.retry()}
-            className="mt-5 rounded-md"
-          >
-            {t('retry')}
-          </Button>
-        </div>
-      </div>
-    )
+function BrandWorkspace({ brand }: { brand: BrandKitController }) {
+  const t = useTranslations('brand')
+  const mobile = useIsMobile()
+  const [section, setSection] = useState<BrandWorkspaceSection>('overview')
+  const [previewExpanded, setPreviewExpanded] = useState(false)
+  const [ratio, setRatio] = useState<PreviewRatio>('9:16')
+  const [fontBusy, setFontBusy] = useState(false)
+  function goBack() {
+    if (previewExpanded) setPreviewExpanded(false)
+    else setSection('overview')
   }
 
   return (
-    <div className="brand-workspace dashboard-workspace animate-fade-in [--primary:var(--foreground)] [--primary-foreground:var(--background)] [--accent:var(--muted)]">
-      <PageHeader title={t('title')} description={t('desc')} />
-
-      <SaveBar
-        dirty={brand.dirty}
-        saving={brand.saving}
-        saved={brand.saved}
-        logoBusy={brand.logoBusy}
-        hasInvalidColor={brand.hasInvalidColor}
-        onDiscard={brand.discard}
-        onReset={brand.reset}
-        onSave={brand.save}
+    <div
+      className={styles.content}
+      data-brand-workspace=""
+      data-section={section}
+      data-preview-expanded={previewExpanded}
+    >
+      <WorkspaceMobileHeader />
+      <BrandWorkspaceHeader
+        brand={brand}
+        section={section}
+        expanded={previewExpanded}
+        fontBusy={fontBusy}
+        onBack={goBack}
       />
-
-      <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
-        <main className="@container order-2 grid min-w-0 gap-4 xl:order-1">
-          <Card as="section" className="gap-4 p-4">
-            <h2 className="text-sm font-semibold">{t('logoWatermark')}</h2>
-            <LogoSection
-              logoUrl={brand.logoPreviewUrl}
-              busy={brand.logoBusy || brand.saving}
-              onUpload={brand.uploadLogo}
-              onRemove={brand.removeLogo}
-            />
-            <WatermarkSection
+      <div className={styles.layout}>
+        <fieldset
+          disabled={brand.saving || brand.logoBusy}
+          className={styles.controls}
+          hidden={previewExpanded}
+        >
+          <BrandLogoGroup
+            brand={brand}
+            section={section}
+            fontBusy={fontBusy}
+            onSectionChange={setSection}
+          />
+          <div hidden={section === 'logo'} className={styles.captionControls}>
+            <CaptionsSection
               kit={brand.kit}
-              canWhiteLabel={brand.canWhiteLabel}
               update={brand.update}
+              section={section === 'logo' ? 'overview' : section}
+              onSectionChange={setSection}
+              onBusyChange={setFontBusy}
             />
-          </Card>
-          <CaptionsSection kit={brand.kit} update={brand.update} />
-        </main>
-        <PreviewPanel
-          kit={brand.kit}
-          logoUrl={brand.logoPreviewUrl}
-          canWhiteLabel={brand.canWhiteLabel}
-          update={brand.update}
-        />
+          </div>
+          {section === 'logo' && (
+            <button
+              type="button"
+              className={styles.collapsedCaption}
+              data-brand-section-trigger="styles"
+              onClick={() => setSection('styles')}
+            >
+              <span>{t('subtitleStyle')}</span>
+              <ChevronRight aria-hidden="true" />
+            </button>
+          )}
+        </fieldset>
+        <div className={styles.preview}>
+          <PreviewPanel
+            kit={brand.kit}
+            logoUrl={brand.logoPreviewUrl}
+            canWhiteLabel={brand.canWhiteLabel}
+            update={brand.saving ? () => {} : brand.update}
+            presentation={
+              previewExpanded ? 'expanded' : mobile ? 'compact' : 'panel'
+            }
+            section={section}
+            ratio={ratio}
+            onRatioChange={setRatio}
+            onExpand={() => setPreviewExpanded(true)}
+          />
+        </div>
       </div>
     </div>
   )

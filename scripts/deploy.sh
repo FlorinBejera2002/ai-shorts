@@ -87,7 +87,9 @@ git ls-files -co --exclude-standard -z -- \
   editor/package.json editor/bun.lock editor/Dockerfile.sneepcut editor/.dockerignore \
   'editor/tsconfig*.json' editor/packages editor/registry editor/scripts editor/LICENSE editor/NOTICE \
   docker-compose.production.yml Makefile .gitattributes \
-  ':(exclude)editor/packages/producer/tests' > "$file_list"
+  ':(exclude)editor/packages/producer/tests' \
+  ':(exclude)admin/test-results' ':(exclude)frontend/test-results' \
+  ':(exclude)admin/dist' ':(exclude)frontend/dist' > "$file_list"
 
 if [[ ! -s "$file_list" ]]; then
   echo "No production source files were found." >&2

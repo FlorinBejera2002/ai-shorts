@@ -12,13 +12,29 @@ type Props = {
   onTransformChange?: (position: CaptionStyle['position'], size: number) => void
   ratio?: '9:16' | '1:1' | '16:9'
   children?: React.ReactNode
+  underlay?: React.ReactNode
+  overlay?: React.ReactNode
+  className?: string
+  safeGuides?: boolean
+  showSelection?: boolean
+  playbackTime?: number
+  playing?: boolean
+  fitWidth?: boolean
 }
 export function CaptionPreview({
   style,
   onPositionChange,
   onTransformChange,
   ratio = '9:16',
-  children
+  children,
+  underlay,
+  overlay,
+  className = '',
+  safeGuides = true,
+  showSelection = true,
+  playbackTime,
+  playing = true,
+  fitWidth = false
 }: Props) {
   const t = useTranslations('brand')
   const frame = useRef<HTMLDivElement>(null),
@@ -37,8 +53,8 @@ export function CaptionPreview({
   const gestures = usePreviewGesture({
     value: { ...style.position, size: style.size },
     frame: { width: size.w, height: size.h },
-    min: 0.025,
-    max: 0.12,
+    min: 0.02,
+    max: 0.16,
     onChange: onTransformChange
       ? (next) => {
           const factor = next.size / style.size
@@ -80,9 +96,10 @@ export function CaptionPreview({
     return () => observer.disconnect()
   }, [])
   useEffect(() => {
+    if (playbackTime !== undefined || !playing) return
     const timer = setInterval(() => setTick((t) => (t + 1) % 1000), 50)
     return () => clearInterval(timer)
-  }, [])
+  }, [playbackTime, playing])
   useEffect(() => {
     const node = caption.current
     if (!node) return
@@ -108,7 +125,7 @@ export function CaptionPreview({
   const words = t('captionSample').split(' ')
   // Demonstration word cues are fixed preview content, not generated speech timing.
   // Exports receive only the source's aligned word cues from the worker.
-  const time = (tick * 0.05) % (words.length * 0.5 + 0.3),
+  const time = (playbackTime ?? tick * 0.05) % (words.length * 0.5 + 0.3),
     index = Math.min(words.length - 1, Math.floor(time / 0.5))
   const canvas = document.createElement('canvas'),
     measure = canvas.getContext('2d')
@@ -194,17 +211,20 @@ export function CaptionPreview({
   return (
     <div
       ref={frame}
-      className="relative mx-auto w-full overflow-hidden rounded-md bg-neutral-900"
+      className={`relative mx-auto w-full overflow-hidden rounded-md bg-neutral-900 ${className}`}
+      data-brand-preview-stage=""
       style={{
         aspectRatio: ratio.replace(':', '/'),
-        maxWidth: ratio === '9:16' ? 300 : 540
+        maxWidth: fitWidth ? undefined : ratio === '9:16' ? 300 : 540
       }}
     >
-      <div
+      {underlay}
+      {safeGuides && <div
         className="pointer-events-none absolute inset-[6%] border border-dashed border-white/20"
         aria-hidden="true"
-      />
-      {onPositionChange && (
+        data-brand-preview-guides=""
+      />}
+      {safeGuides && onPositionChange && (
         <div
           className="pointer-events-none absolute inset-y-0 left-1/2 border-l border-dashed border-white/10"
           aria-hidden="true"
@@ -227,6 +247,7 @@ export function CaptionPreview({
       ) : (
         <div
           ref={caption}
+          data-brand-caption=""
           role={onPositionChange ? 'button' : undefined}
           tabIndex={onPositionChange ? 0 : undefined}
           aria-label={onPositionChange ? t('dragCaption') : undefined}
@@ -237,8 +258,8 @@ export function CaptionPreview({
               onTransformChange(
                 style.position,
                 Math.max(
-                  0.025,
-                  Math.min(0.12, style.size + (e.key === '-' ? -0.005 : 0.005))
+                  0.02,
+                  Math.min(0.16, style.size + (e.key === '-' ? -0.005 : 0.005))
                 )
               )
               return
@@ -259,7 +280,7 @@ export function CaptionPreview({
               )
             }
           }}
-          className={`absolute rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-white ${onPositionChange ? 'touch-none cursor-move outline-dashed outline-1 outline-white/60' : ''}`}
+          className={`absolute rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-white ${onPositionChange ? 'touch-none cursor-move' : ''} ${onPositionChange && showSelection ? 'outline-dashed outline-1 outline-white/60' : ''}`}
           style={{
             left: `${safeX * 100}%`,
             top: `${safeY * 100}%`,
@@ -372,6 +393,7 @@ export function CaptionPreview({
         </div>
       )}
       {children}
+      {overlay}
     </div>
   )
 }

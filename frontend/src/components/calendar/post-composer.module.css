@@ -1,0 +1,489 @@
+.workspace {
+  --primary: var(--foreground);
+  --primary-foreground: var(--background);
+  --ring: var(--foreground);
+  --accent: var(--muted);
+  min-width: 0;
+}
+
+:global(#dashboard-main) .workspace [data-slot="button"], :global(#dashboard-main) .workspace input, :global(#dashboard-main) .workspace textarea {
+  border-radius: var(--radius-md);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 10px 0 30px;
+}
+
+.header h1 {
+  font-size: clamp(28px, 3vw, 36px);
+  font-weight: 650 !important;
+}
+
+.form {
+  display: grid;
+  grid-template-columns: minmax(280px, 35%) minmax(0, 1fr);
+  column-gap: 36px;
+  row-gap: 28px;
+  align-items: start;
+}
+
+.accounts, .caption, .options, .scheduling, .moreOptions {
+  min-width: 0;
+  grid-column: 2;
+}
+
+.accounts legend, .caption label {
+  margin-bottom: 12px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.accountTiles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.accountTile {
+  position: relative;
+  display: grid;
+  width: 88px;
+  height: 78px;
+  place-items: center;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--background);
+  transition: background 150ms ease, border-color 150ms ease;
+}
+
+.accountTile[aria-pressed="true"] {
+  border-color: var(--foreground);
+  box-shadow: inset 0 0 0 1px var(--foreground);
+}
+
+.accountTile:hover:not(:disabled) {
+  background: var(--muted);
+}
+
+.accountTile:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.accountTile:focus-visible, .thumbnailButton:focus-visible, .moreOptions summary:focus-visible {
+  outline: 2px solid var(--foreground);
+  outline-offset: 3px;
+}
+
+.selectedBadge {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  display: grid;
+  width: 18px;
+  height: 18px;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--foreground);
+  color: var(--background);
+}
+
+.accountNames {
+  margin-top: 10px;
+  color: var(--muted-foreground);
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.previewPane {
+  display: flex;
+  min-width: 0;
+  grid-column: 1;
+  grid-row: 1 / span 5;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  padding-right: 36px;
+  border-right: 1px solid var(--border);
+}
+
+.desktopPreview {
+  width: 100%;
+  max-width: 340px;
+}
+
+.previewTabs {
+  justify-content: center;
+  width: 100%;
+  gap: 28px;
+  border-radius: 0;
+  padding: 0 0 14px;
+  background: transparent;
+}
+
+.previewTab, .modeTab {
+  flex: 0 1 auto;
+  min-height: 46px;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  padding: 8px 14px;
+  color: var(--muted-foreground);
+}
+
+.previewTab[data-state="active"], .modeTab[data-state="active"] {
+  border-bottom-color: var(--foreground);
+  background: transparent;
+  color: var(--foreground);
+  box-shadow: none;
+}
+
+.previewTab:hover, .modeTab:hover {
+  background: var(--muted);
+}
+
+.previewPlayer {
+  width: 100%;
+}
+
+.changeMedia {
+  width: 100%;
+  max-width: 340px;
+  min-height: 44px;
+  color: var(--foreground);
+}
+
+.expandMedia, .mobileThumbnail {
+  display: none;
+}
+
+.emptyPreview {
+  display: flex;
+  width: 100%;
+  min-height: 440px;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 16px;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-md);
+  background: var(--muted);
+  color: var(--muted-foreground);
+  font-size: 14px;
+}
+
+.caption {
+  display: grid;
+}
+
+.caption textarea {
+  min-height: 160px;
+  padding: 14px 16px;
+  font-size: 16px;
+  line-height: 1.65;
+  resize: vertical;
+}
+
+.characterCount {
+  margin-top: 8px;
+  color: var(--muted-foreground);
+  font-size: 13px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.optionsTrigger {
+  width: 100%;
+  min-height: 52px;
+  justify-content: flex-start;
+  gap: 16px;
+  padding-inline: 20px;
+  color: var(--foreground);
+  background: transparent;
+}
+
+.modeTabs {
+  justify-content: flex-start;
+  width: 100%;
+  gap: 24px;
+  border-bottom: 1px solid var(--border);
+  border-radius: 0;
+  padding: 0;
+  background: transparent;
+}
+
+.modeTab {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.scheduleControls {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: start;
+  gap: 16px;
+  margin-top: 24px;
+}
+
+.schedulePicker {
+  min-width: 0;
+  grid-column: span 2;
+}
+
+.zoneTrigger {
+  width: 100%;
+  height: 44px;
+  gap: 8px;
+  color: var(--foreground);
+  font-size: 13px;
+}
+
+.zoneTrigger > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.moreOptions {
+  font-size: 13px;
+}
+
+.moreOptions summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: fit-content;
+  cursor: pointer;
+  color: var(--muted-foreground);
+  list-style: none;
+}
+
+.moreOptions summary::-webkit-details-marker {
+  display: none;
+}
+
+.moreOptions[open] summary svg {
+  transform: rotate(180deg);
+}
+
+.fieldError {
+  margin-top: 8px;
+  color: var(--destructive);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.formError {
+  grid-column: 1 / -1;
+  padding: 12px 16px;
+  border: 1px solid var(--destructive);
+  border-radius: var(--radius-md);
+  color: var(--destructive);
+  font-size: 14px;
+}
+
+.footer {
+  display: flex;
+  grid-column: 1 / -1;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 16px;
+  margin-top: 8px;
+  padding: 24px 0 4px;
+  border-top: 1px solid var(--border);
+}
+
+.footer > button {
+  min-height: 46px;
+  padding-inline: 24px;
+}
+
+.primary {
+  background: var(--foreground);
+  color: var(--background);
+}
+
+.primary:hover {
+  background: color-mix(in srgb, var(--foreground) 85%, var(--background));
+}
+
+.delete {
+  margin-right: auto;
+  color: var(--destructive);
+}
+
+@media (max-width: 1099px) {
+  .form {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+  }
+
+  .form > * {
+    width: 100%;
+  }
+
+  .previewPane {
+    flex-direction: row;
+    gap: 12px;
+    padding: 0;
+    border: 0;
+  }
+
+  .desktopPreview {
+    display: none;
+  }
+
+  .mobileThumbnail {
+    display: block;
+    width: 88px;
+    flex-shrink: 0;
+  }
+
+  .thumbnailButton {
+    position: relative;
+    display: block;
+    width: 100%;
+    height: 128px;
+    border-radius: var(--radius-md);
+  }
+
+  .thumbnailButton > span:first-child {
+    height: 100%;
+    aspect-ratio: auto;
+  }
+
+  .playBadge {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    display: grid;
+    width: 36px;
+    height: 36px;
+    transform: translate(-50%, -50%);
+    place-items: center;
+    border-radius: 50%;
+    background: rgb(0 0 0 / 65%);
+    color: #fff;
+  }
+
+  .changeMedia {
+    flex: 1;
+    width: auto;
+    max-width: none;
+    min-height: 48px;
+  }
+
+  .expandMedia {
+    display: inline-flex;
+    width: 48px;
+    min-height: 48px;
+    flex-shrink: 0;
+    padding: 0;
+    color: var(--foreground);
+  }
+
+  .scheduleControls {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .zoneTrigger {
+    grid-column: span 2;
+  }
+
+  .footer {
+    position: sticky;
+    bottom: 0;
+    z-index: 20;
+    margin-top: 8px;
+    padding: 16px 0;
+    background: var(--background);
+  }
+
+  .cancel {
+    display: none;
+  }
+
+  .footer > button {
+    flex: 1;
+    min-width: 0;
+    padding-inline: 12px;
+  }
+
+}
+
+@media (max-width: 639px) {
+  .header {
+    gap: 12px;
+    padding: 0 0 28px;
+  }
+
+  .header h1 {
+    font-size: 30px;
+  }
+
+  .accountTiles {
+    gap: 9px;
+  }
+
+  .accountTile {
+    width: 65px;
+    height: 60px;
+  }
+
+  .accountTile > img {
+    width: 30px;
+    height: 30px;
+  }
+
+  .selectedBadge {
+    width: 15px;
+    height: 15px;
+    top: 4px;
+    right: 4px;
+  }
+
+  .caption textarea {
+    min-height: 100px;
+    font-size: 15px;
+  }
+
+  .modeTabs {
+    gap: 0;
+    justify-content: space-between;
+  }
+
+  .modeTab {
+    padding-inline: 10px;
+    font-size: 14px;
+  }
+
+  .optionsTrigger {
+    gap: 12px;
+    padding-inline: 14px;
+  }
+
+  .changeMedia {
+    font-size: 13px;
+    gap: 8px;
+  }
+
+  .expandMedia {
+    width: 40px;
+  }
+
+  .previewPane {
+    gap: 10px;
+  }
+
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .accountTile {
+    transition: none;
+  }
+
+}

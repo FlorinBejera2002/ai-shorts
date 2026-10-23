@@ -1,0 +1,53 @@
+.field {
+  display: grid;
+  min-width: 0;
+  gap: 0.5rem;
+}
+
+.label {
+  font-size: 0.9375rem;
+  font-weight: 500;
+}
+
+.trigger {
+  width: 100%;
+  min-height: 2.75rem;
+  padding-inline: 0.875rem;
+  border-color: var(--border);
+  background: color-mix(in srgb, var(--muted) 55%, var(--card));
+  color: var(--foreground);
+  font-size: 0.9375rem;
+  box-shadow: none;
+}
+
+.trigger:hover {
+  background: var(--muted);
+}
+
+.trigger:focus-visible {
+  outline: 2px solid var(--foreground);
+  outline-offset: 2px;
+}
+
+.content {
+  min-width: var(--radix-select-trigger-width);
+  border-color: var(--border);
+  background: var(--popover);
+}
+
+.item {
+  min-height: 2.75rem;
+  padding-left: 0.75rem;
+  font-size: 0.9375rem;
+}
+
+.item[data-state='checked'],
+.item[data-highlighted] {
+  background: var(--muted);
+  color: var(--foreground);
+}
+
+.icon {
+  width: 1.5rem;
+  height: 1.5rem;
+}

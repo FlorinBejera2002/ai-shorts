@@ -5,6 +5,7 @@ import (
 	"errors"
 	"sync"
 	"testing"
+	"time"
 
 	"sneepcut/backend-go/internal/media"
 	"sneepcut/backend-go/internal/testdb"
@@ -74,5 +75,54 @@ func TestPostgresBrandDefaultsPartialUpdatesAndEntitlements(t *testing.T) {
 	}
 	if e = repo.Update(ctx, userID, map[string]any{"fontFamily": "Arial"}); !errors.Is(e, ErrInactive) {
 		t.Fatalf("deleting mutation %v", e)
+	}
+}
+
+func TestPostgresBrandChecksCoverageAfterWaitingForAccountLock(t *testing.T) {
+	db := testdb.Open(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	user := "123e4567-e89b-42d3-a456-426614174099"
+	if _, err := db.ExecContext(ctx, `INSERT INTO users(id,email,provider,credits,plan,stripe_subscription_id,stripe_subscription_status,stripe_current_period_end) VALUES($1,'brand-expiry-lock@example.invalid','credentials',100,'agency','sub_brand_expiry_lock','active',clock_timestamp()+interval '2 seconds')`, user); err != nil {
+		t.Fatal(err)
+	}
+	owner, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer owner.Rollback()
+	var locked string
+	if err := owner.QueryRowContext(ctx, `SELECT id::text FROM users WHERE id=$1 FOR UPDATE`, user).Scan(&locked); err != nil {
+		t.Fatal(err)
+	}
+	var ownerPID int
+	if err := owner.QueryRowContext(ctx, `SELECT pg_backend_pid()`).Scan(&ownerPID); err != nil {
+		t.Fatal(err)
+	}
+	result := make(chan error, 1)
+	go func() { result <- NewRepository(db).Update(ctx, user, map[string]any{"hidePlatformBadge": true}) }()
+	blocked := false
+	deadline := time.Now().Add(time.Second)
+	for time.Now().Before(deadline) {
+		if err := db.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM pg_stat_activity WHERE $1=ANY(pg_blocking_pids(pid)))`, ownerPID).Scan(&blocked); err != nil {
+			t.Fatal(err)
+		}
+		if blocked {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	if !blocked {
+		t.Fatal("protected update did not wait behind the account lock")
+	}
+	// Leave the financial row unchanged while time crosses its verified bound.
+	if _, err := owner.ExecContext(ctx, `SELECT pg_sleep(2.1)`); err != nil {
+		t.Fatal(err)
+	}
+	if err := owner.Commit(); err != nil {
+		t.Fatal(err)
+	}
+	if err := <-result; !errors.Is(err, ErrPlan) {
+		t.Fatalf("expired protected mutation was authorized after lock wait: %v", err)
 	}
 }

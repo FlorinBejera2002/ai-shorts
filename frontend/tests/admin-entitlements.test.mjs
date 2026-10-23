@@ -21,6 +21,8 @@ function load(relative, imports = {}) {
       URLSearchParams,
       require: (name) => {
         if (name === 'react/jsx-runtime') return jsxRuntime
+        if (name.endsWith('.module.css'))
+          return { default: new Proxy({}, { get: (_, key) => String(key) }) }
         if (!(name in imports)) throw Error(`Unexpected import ${name}`)
         return imports[name]
       }
@@ -67,6 +69,14 @@ function content(tree) {
   if (Array.isArray(tree)) return tree.map(content).join(' ')
   if (typeof tree !== 'object') return String(tree)
   return content(tree.props?.children)
+}
+
+function renderComponents(tree) {
+  if (Array.isArray(tree)) return tree.map(renderComponents)
+  if (!tree || typeof tree !== 'object') return tree
+  if (typeof tree.type === 'function')
+    return renderComponents(tree.type(tree.props))
+  return { ...tree, props: { ...tree.props, children: renderComponents(tree.props?.children) } }
 }
 
 const auth = (role) => ({ useAuth: () => ({ user: { access_role: role } }) })
@@ -153,7 +163,7 @@ test('brand kit unlocks white label for admins and respects current server entit
 test('dashboard shows unlimited entitlement without replacing real credit balances', () => {
   const { StatsBar } = load('../src/components/dashboard/stats-bar.tsx', {
     'next-intl': translations,
-    'lucide-react': { Clock3: 'svg', Film: 'svg', FolderOpen: 'svg', Zap: 'svg' },
+    'lucide-react': { Clock3: 'svg', Film: 'svg', Layers: 'svg', Coins: 'svg' },
     '@/components/auth/use-auth': auth('admin'),
     '@/i18n/navigation': { Link: 'a' }
   })
@@ -167,11 +177,20 @@ test('dashboard shows unlimited entitlement without replacing real credit balanc
 
 const billing = load('../src/lib/billing.ts')
 
-test('billing summary removes the finite clip allowance for unlimited accounts', () => {
-  const { BillingSummary } = load('../src/components/billing/billing-summary.tsx', {
+function loadBillingSummary(intl = translations) {
+  return load('../src/components/billing/billing-summary.tsx', {
+    'next-intl': intl,
+    'lucide-react': { CalendarDays: 'svg', Coins: 'svg', FileVideo: 'svg', Package: 'svg' },
     '@/components/billing/portal-button': { PortalButton: 'button' },
-    '@/components/ui/card': { Card: 'section' },
+    '@/components/ui/button': { Button: 'button' },
     '@/lib/billing': billing
+  }).BillingSummary
+}
+
+test('billing summary removes the finite clip allowance for unlimited accounts', () => {
+  const BillingSummary = loadBillingSummary({
+    ...translations,
+    useTranslations: () => (key, values) => key === 'availableClips' ? `${values.count} clips ready` : key
   })
   const props = {
     credits: 0, planName: 'Administrator', locale: 'en', subscription: null,
@@ -179,45 +198,64 @@ test('billing summary removes the finite clip allowance for unlimited accounts',
     labels: { creditsUnlimited: 'Unlimited credits', adminAccess: 'All features included',
       clipRunwayValue: ({ count }) => `${count} clips ready` }
   }
-  const admin = BillingSummary({ ...props, creditsUnlimited: true })
+  const admin = renderComponents(BillingSummary({ ...props, creditsUnlimited: true }))
   assert.match(content(admin), /Unlimited credits/)
   assert.match(content(admin), /All features included/)
   assert.doesNotMatch(content(admin), /0 clips ready/)
-  assert.match(content(BillingSummary({ ...props, creditsUnlimited: false })), /0 clips ready/)
+  assert.match(content(renderComponents(BillingSummary({ ...props, creditsUnlimited: false }))), /0 clips ready/)
 })
 
 test('billing keeps account management available while hiding subscription upsells for admins', () => {
   const messages = JSON.parse(readFileSync(new URL('../messages/en.json', import.meta.url), 'utf8')).billing
   for (const creditsUnlimited of [true, false]) {
-    const { default: BillingPage } = load('../src/components/dashboard/views/billing.tsx', {
-      react: { Suspense: 'div' },
-      'next-intl': { ...translations, useTranslations: () => (key) => messages[key] ?? key },
-      'next/navigation': { useSearchParams: () => new URLSearchParams() },
-      'lucide-react': Object.fromEntries(['AlertTriangle', 'Check', 'CheckCircle2', 'Info', 'ShieldCheck'].map((key) => [key, 'svg'])),
-      '@/components/auth/use-auth': auth('admin'),
-      '@/components/billing/use-plan-catalog': { usePlanCatalog: () => ({}) },
-      '@/components/shared/api-state': { ApiState: 'div' },
-      '@/components/ui/card': { Card: 'article' },
+    const data = {
+      account: { credits: 0, creditsUnlimited, plan: 'free', hasBillingProfile: true },
+      subscription: null, providerAvailable: true, invoices: []
+    }
+    const translated = { ...translations, useTranslations: () => (key) => messages[key] ?? key }
+    const workspaceViews = load('../src/components/billing/billing-workspace-views.tsx', {
+      'next-intl': translated,
+      'lucide-react': { RefreshCw: 'svg' },
+      './billing-guide': { BillingGuide: 'billing-guide' },
+      './billing-notices': { BillingNotices: 'billing-notices' },
+      './billing-summary': { BillingSummary: 'billing-summary' },
+      './billing-test-mode-notice': { BillingTestModeNotice: 'billing-test-mode-notice' },
+      './invoice-history': { InvoiceHistory: 'invoice-history' },
+      './plan-selector': { PlanSelector: 'plan-selector' },
+      '@/components/ui/button': { Button: 'button' },
       '@/components/ui/loading-indicator': { LoadingIndicator: 'span' },
-      '@/components/ui/page-header': { PageHeader: 'header' },
-      '@/components/billing/billing-summary': { BillingSummary: 'billing-summary' },
-      '@/components/billing/checkout-button': { CheckoutButton: 'checkout-button' },
-      '@/components/billing/invoice-history': { InvoiceHistory: 'invoice-history' },
-      '@/components/billing/portal-button': { PortalButton: 'portal-button' },
-      '@/lib/billing': billing,
-      '@/hooks/use-api-resource': { useApiResource: () => ({ data: {
-        account: { credits: 0, creditsUnlimited, plan: 'free', hasBillingProfile: true },
-        subscription: null, providerAvailable: true, invoices: []
-      } }) }
+      '@/lib/billing': billing
     })
-    const tree = BillingPage().props.children.type()
-    const plans = nodes(tree).find((node) => node.props?.['aria-labelledby'] === 'billing-plans-title')
+    const { default: BillingPage } = load('../src/components/dashboard/views/billing.tsx', {
+      // Requesting plans exercises the member plan view and the admin guard
+      // that redirects the same requested view back to the overview.
+      react: { Suspense: 'div', useState: () => ['plans', () => {}] },
+      'next-intl': translated,
+      'next/navigation': { useSearchParams: () => new URLSearchParams() },
+      '@/components/auth/use-auth': auth('admin'),
+      '@/components/billing/billing-initial-state': { BillingInitialState: 'billing-initial-state' },
+      '@/components/billing/billing-page-header': { BillingPageHeader: 'billing-page-header' },
+      '@/components/billing/billing-workspace-views': workspaceViews,
+      '@/components/billing/use-billing-resource': { useBillingResource: () => ({ data, reload() {} }) },
+      '@/components/billing/use-plan-catalog': { usePlanCatalog: () => ({}) },
+      '@/components/dashboard/workspace-mobile-header': { WorkspaceMobileHeader: 'header' },
+      '@/lib/billing': billing
+    })
+    const tree = renderComponents(BillingPage())
+    const plans = nodes(tree).find((node) => node.props?.children?.type === 'plan-selector')
     assert.equal(plans.props.hidden, creditsUnlimited)
     const summary = nodes(tree).find((node) => node.type === 'billing-summary')
     assert.equal(summary.props.canManageBilling, true)
     assert.equal(summary.props.creditsUnlimited, creditsUnlimited)
     assert.equal(summary.props.planName, creditsUnlimited ? 'Administrator · unlimited' : 'Free')
-    assert.equal(summary.props.labels.adminAccess, 'All features included without a subscription')
+    assert.equal(summary.props.canChangePlan, !creditsUnlimited)
+    const workspace = nodes(tree).find((node) => node.props?.['data-billing-workspace'] === '')
+    assert.equal(workspace.props['data-view'], creditsUnlimited ? 'overview' : 'plans')
+    const renderedSummary = renderComponents(loadBillingSummary(translated)(summary.props))
+    if (creditsUnlimited)
+      assert.match(content(renderedSummary), /All features included without a subscription/)
+    else
+      assert.doesNotMatch(content(renderedSummary), /All features included without a subscription/)
     assert.ok(nodes(tree).find((node) => node.type === 'invoice-history'))
   }
 })

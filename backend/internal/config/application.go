@@ -34,7 +34,8 @@ type Application struct {
 	AIProvider, GeminiKey, GeminiModel, OpenRouterKey, OpenRouterModel                                                                                                                                      string
 	S3AccessKey, S3SecretKey, S3SessionToken, S3Region, S3Bucket, S3Endpoint                                                                                                                                string
 	S3PathStyle                                                                                                                                                                                             bool
-	StripeKey, StripeWebhookSecret                                                                                                                                                                          string
+	StripeKey, StripeWebhookSecret, StripeMode, StripePortalConfiguration                                                                                                                                   string
+	StripeExpectedAccountID                                                                                                                                                                                 string
 	StripePlans                                                                                                                                                                                             map[string]string
 	StripeCreditPacks                                                                                                                                                                                       map[string]int
 }
@@ -198,6 +199,12 @@ func ApplicationFromEnv(getenv func(string) string, environment string) (Applica
 	if a.RequireEmailVerification && a.ResendKey == "" && a.SMTPHost == "" {
 		return a, errors.New("Email verification requires configured Resend or SMTP delivery")
 	}
+	a.StripeMode = strings.TrimSpace(value("STRIPE_MODE", "test"))
+	if a.StripeMode != "test" && a.StripeMode != "live" {
+		return a, errors.New("STRIPE_MODE must be test or live")
+	}
+	a.StripePortalConfiguration = strings.TrimSpace(getenv("STRIPE_PORTAL_CONFIGURATION"))
+	a.StripeExpectedAccountID = strings.TrimSpace(getenv("STRIPE_EXPECTED_ACCOUNT_ID"))
 	for _, plan := range []string{"creator", "pro", "agency"} {
 		a.StripePlans[plan] = getenv("STRIPE_PRICE_" + strings.ToUpper(plan))
 	}

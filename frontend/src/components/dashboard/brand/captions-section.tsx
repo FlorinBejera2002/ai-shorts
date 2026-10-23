@@ -1,23 +1,32 @@
-import { Card } from '@/components/ui/card'
 import { useTranslations } from 'next-intl'
 import { CaptionStyleEditor } from './caption-style-editor'
 import { legacyCaptionStyle } from './caption-style'
+import type { CaptionEditorSection } from './caption-editor-types'
 import type { BrandKit, BrandKitUpdate } from './types'
+
 export function CaptionsSection({
   kit,
-  update
+  update,
+  section,
+  onSectionChange,
+  onBusyChange
 }: {
   kit: BrandKit
   update: BrandKitUpdate
+  section?: CaptionEditorSection
+  onSectionChange?: (section: CaptionEditorSection) => void
+  onBusyChange?: (busy: boolean) => void
 }) {
   const t = useTranslations('brand')
   return (
-    <Card as="section" id="brand-captions" className="gap-4 p-4">
-      <h2 className="text-sm font-semibold">{t('subtitleStyle')}</h2>
+    <section id="brand-captions" aria-label={t('subtitleStyle')}>
       <CaptionStyleEditor
         value={legacyCaptionStyle(kit)}
-        onChange={(value) => update('captionStyle', value)}
+        onChange={value => update('captionStyle', value)}
+        section={section}
+        onSectionChange={onSectionChange}
+        onBusyChange={onBusyChange}
       />
-    </Card>
+    </section>
   )
 }

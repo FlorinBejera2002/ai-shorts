@@ -1,0 +1,335 @@
+.workspace {
+  --primary: var(--foreground);
+  --primary-foreground: var(--background);
+  --accent: var(--muted);
+  --accent-foreground: var(--foreground);
+  --ring: var(--foreground);
+  min-width: 0;
+  padding: 10px 14px 32px;
+  color: var(--foreground);
+}
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 38px;
+}
+.title {
+  font-size: clamp(30px, 3vw, 40px);
+  font-weight: 650 !important;
+  letter-spacing: -0.045em;
+}
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: 32px;
+}
+.primaryAction {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 46px;
+  padding: 12px 24px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  background: var(--foreground);
+  color: var(--background);
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  transition: opacity 150ms;
+}
+.primaryAction:hover {
+  opacity: 0.88;
+}
+.primaryAction svg {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+.libraryLink {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-height: 44px;
+  font-size: 14px;
+  color: var(--muted-foreground);
+  border-radius: var(--radius-md);
+}
+.libraryLink:hover {
+  color: var(--foreground);
+}
+.libraryLink svg {
+  width: 18px;
+  height: 18px;
+}
+.primaryAction:focus-visible,
+.libraryLink:focus-visible,
+.stat:focus-visible {
+  outline: 2px solid var(--foreground);
+  outline-offset: 4px;
+}
+.stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  min-width: 0;
+  padding-bottom: 32px;
+  margin-bottom: 30px;
+  border-bottom: 1px solid var(--border);
+}
+.stat {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  min-width: 0;
+  min-height: 88px;
+  padding: 6px 26px;
+  border-left: 1px solid var(--border);
+  border-radius: 0;
+}
+.stat:first-child {
+  border-left: 0;
+  padding-left: 0;
+}
+.stat:last-child {
+  padding-right: 0;
+}
+.stat:hover .statIcon {
+  background: var(--muted);
+}
+.statIcon {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 62px;
+  height: 62px;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  color: var(--foreground);
+  background: color-mix(in srgb, var(--muted) 25%, transparent);
+  transition: background 150ms;
+}
+.statIcon svg {
+  width: 27px;
+  height: 27px;
+}
+.statCopy {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  min-width: 0;
+}
+.statLabel {
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--muted-foreground);
+}
+.statValue {
+  font-size: 32px;
+  line-height: 1;
+  letter-spacing: -0.04em;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.statHint {
+  font-size: 12px;
+  color: var(--muted-foreground);
+  line-height: 1.4;
+}
+.empty {
+  display: flex;
+  min-height: calc(100dvh - 360px);
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  text-align: center;
+  padding-block: 40px;
+}
+.emptyIcon {
+  display: grid;
+  place-items: center;
+  width: 78px;
+  height: 78px;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--muted) 24%, transparent);
+}
+.emptyIcon svg {
+  width: 34px;
+  height: 34px;
+}
+.empty h2 {
+  font-size: clamp(22px, 2.5vw, 30px);
+  font-weight: 650;
+  letter-spacing: -0.035em;
+}
+.initial {
+  display: flex;
+  min-height: calc(100dvh - 160px);
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 22px;
+  text-align: center;
+}
+.initial p {
+  font-size: 18px;
+  color: var(--muted-foreground);
+}
+.initial[data-home-initial='error'] p {
+  color: var(--foreground);
+  font-weight: 550;
+}
+.errorIcon,
+.spinner {
+  width: 44px;
+  height: 44px;
+  color: var(--muted-foreground);
+}
+.spinner {
+  animation: home-spin 1s linear infinite;
+}
+@keyframes home-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (min-width: 1024px) and (max-width: 1350px) {
+  .stat {
+    padding-inline: 18px;
+    gap: 14px;
+  }
+  .statIcon {
+    width: 48px;
+    height: 48px;
+  }
+  .statLabel {
+    font-size: 12px;
+  }
+  .statValue {
+    font-size: 29px;
+  }
+}
+@media (max-width: 1023px) {
+  .workspace {
+    padding: 6px 4px 18px;
+  }
+  .header {
+    gap: 18px;
+    margin-bottom: 18px;
+  }
+  .title {
+    font-size: 32px;
+  }
+  .headerActions {
+    align-items: flex-end;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .primaryAction {
+    min-height: 44px;
+    padding: 10px 20px;
+    font-size: 14px;
+  }
+  .libraryLink {
+    min-height: 32px;
+    font-size: 13px;
+    gap: 8px;
+  }
+  .stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    padding-bottom: 0;
+    margin-bottom: 24px;
+  }
+  .stat {
+    min-height: 80px;
+    gap: 10px;
+    padding: 10px 0 10px 14px;
+  }
+  .stat:nth-child(odd) {
+    border-left: 0;
+    padding-left: 0;
+    padding-right: 16px;
+  }
+  .stat:nth-child(n + 3) {
+    border-top: 1px solid var(--border);
+  }
+  .statIcon {
+    width: 44px;
+    height: 44px;
+  }
+  .statIcon svg {
+    width: 23px;
+    height: 23px;
+  }
+  .statCopy {
+    gap: 4px;
+  }
+  .statLabel {
+    font-size: 13px;
+  }
+  .statValue {
+    font-size: 30px;
+  }
+  .empty {
+    min-height: calc(100dvh - 365px);
+    gap: 22px;
+    padding-block: 45px;
+  }
+  .emptyIcon {
+    width: 58px;
+    height: 58px;
+  }
+  .emptyIcon svg {
+    width: 29px;
+    height: 29px;
+  }
+  .empty h2 {
+    max-width: 400px;
+    font-size: 23px;
+    text-wrap: balance;
+  }
+  .initial {
+    min-height: calc(100dvh - 150px);
+  }
+  .initial p {
+    font-size: 16px;
+  }
+}
+@media (max-width: 380px) {
+  .stat {
+    gap: 10px;
+    padding-left: 12px;
+  }
+  .statIcon {
+    width: 40px;
+    height: 40px;
+  }
+  .statLabel {
+    font-size: 12px;
+  }
+  .statValue {
+    font-size: 27px;
+  }
+  .title {
+    font-size: 30px;
+  }
+  .primaryAction {
+    padding-inline: 16px;
+    font-size: 13px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .primaryAction,
+  .statIcon {
+    transition: none;
+  }
+  .spinner {
+    animation-duration: 3s;
+  }
+}

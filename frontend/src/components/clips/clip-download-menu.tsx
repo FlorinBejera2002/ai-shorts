@@ -10,6 +10,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Download, Files } from 'lucide-react'
 import type { ClipVariant } from '@/types'
+import { availableClipDownloads, clipDownloadName } from './clip-download-utils'
 
 export function ClipDownloadMenu({
   title,
@@ -26,19 +27,16 @@ export function ClipDownloadMenu({
   label?: string
   formatsLabel?: string
 }) {
-  const available =
-    variants?.filter((variant) => variant.status !== 'failed' && variant.url) ??
-    []
-  const downloads =
-    available.length > 0
-      ? available
-      : fallbackUrl
-        ? [{ id: 'primary', name: 'Universal Social', url: fallbackUrl }]
-        : []
+  const downloads = availableClipDownloads(variants, fallbackUrl)
 
   if (downloads.length === 0) {
     return (
-      <Button type="button" variant="outline" disabled={true} size={compact ? 'sm' : 'default'}>
+      <Button
+        type="button"
+        variant="outline"
+        disabled={true}
+        size={compact ? 'sm' : 'default'}
+      >
         <Download className="size-4" />
         {label}
       </Button>
@@ -48,8 +46,15 @@ export function ClipDownloadMenu({
   if (downloads.length === 1) {
     const download = downloads[0]
     return (
-      <Button asChild={true} variant="outline" size={compact ? 'sm' : 'default'}>
-        <a href={download.url} download={downloadName(title, download.name)}>
+      <Button
+        asChild={true}
+        variant="outline"
+        size={compact ? 'sm' : 'default'}
+      >
+        <a
+          href={download.url}
+          download={clipDownloadName(title, download.name)}
+        >
           <Download className="size-4" />
           {label}
         </a>
@@ -60,7 +65,11 @@ export function ClipDownloadMenu({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild={true}>
-        <Button type="button" variant="outline" size={compact ? 'sm' : 'default'}>
+        <Button
+          type="button"
+          variant="outline"
+          size={compact ? 'sm' : 'default'}
+        >
           <Download className="size-4" />
           {label}
         </Button>
@@ -69,12 +78,17 @@ export function ClipDownloadMenu({
         <DropdownMenuLabel>{formatsLabel}</DropdownMenuLabel>
         {downloads.map((variant) => (
           <DropdownMenuItem key={variant.id} asChild={true}>
-            <a href={variant.url} download={downloadName(title, variant.name)}>
+            <a
+              href={variant.url}
+              download={clipDownloadName(title, variant.name)}
+            >
               <Files className="size-4" />
               <span className="min-w-0">
                 <span className="block font-medium">{variant.name}</span>
                 <span className="block truncate text-[10px] text-muted-foreground">
-                  {[variant.resolution, variant.platforms?.join(', ')].filter(Boolean).join(' · ')}
+                  {[variant.resolution, variant.platforms?.join(', ')]
+                    .filter(Boolean)
+                    .join(' · ')}
                 </span>
               </span>
             </a>
@@ -83,10 +97,4 @@ export function ClipDownloadMenu({
       </DropdownMenuContent>
     </DropdownMenu>
   )
-}
-
-function downloadName(title: string, variant?: string) {
-  const safeTitle = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'clip'
-  const safeVariant = (variant ?? 'video').toLowerCase().replace(/[^a-z0-9]+/g, '-')
-  return `${safeTitle}-${safeVariant}.mp4`
 }

@@ -1,7 +1,7 @@
 'use client'
 
 import { Button } from '@/components/ui/button'
-import { CalendarDays, ChevronLeft, ChevronRight, Clock3 } from 'lucide-react'
+import { CalendarDays, ChevronDown, ChevronLeft, ChevronRight, Clock3 } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { localDateKey, parseLocalDateKey } from './calendar-utils'
@@ -28,7 +28,8 @@ export function SchedulePicker({
   onDateChange,
   onTimeChange,
   dateError,
-  timeError
+  timeError,
+  compact = false
 }: {
   date: string
   time: string
@@ -36,6 +37,7 @@ export function SchedulePicker({
   onTimeChange: (value: string) => void
   dateError?: string
   timeError?: string
+  compact?: boolean
 }) {
   const locale = useLocale()
   const t = useTranslations('contentCalendar')
@@ -93,7 +95,7 @@ export function SchedulePicker({
   }, [locale, weekStartsOn])
   const todayKey = localDateKey(new Date())
   const dateLabel = new Intl.DateTimeFormat(locale, {
-    weekday: 'short',
+    ...(compact ? {} : { weekday: 'short' as const }),
     day: 'numeric',
     month: 'short',
     year: 'numeric'
@@ -104,9 +106,9 @@ export function SchedulePicker({
   }
 
   return (
-    <div ref={rootRef} className="relative grid gap-3 sm:grid-cols-2">
+    <div ref={rootRef} className={compact ? 'relative grid grid-cols-2 gap-4' : 'relative grid gap-3 sm:grid-cols-2'}>
       <div className="relative">
-        <p className="text-xs font-semibold text-foreground">
+        <p className={compact ? 'sr-only' : 'text-xs font-semibold text-foreground'}>
           {t('form.dateLabel')}
         </p>
         <button
@@ -117,10 +119,11 @@ export function SchedulePicker({
           onClick={() =>
             setOpenPanel((current) => (current === 'date' ? null : 'date'))
           }
-          className="mt-1.5 flex h-11 w-full items-center gap-2 rounded-md border border-border bg-background px-3 text-left text-sm font-medium transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className={`${compact ? '' : 'mt-1.5'} flex h-11 w-full items-center gap-2 rounded-md border border-border bg-background px-3 text-left text-sm font-medium transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring`}
         >
           <CalendarDays className="size-4 text-muted-foreground" />
           <span className="truncate">{dateLabel}</span>
+          {compact && <ChevronDown className="ml-auto size-3 shrink-0" />}
         </button>
         {dateError && (
           <p className="mt-1.5 text-xs font-medium text-destructive">
@@ -205,7 +208,7 @@ export function SchedulePicker({
       </div>
 
       <div className="relative">
-        <p className="text-xs font-semibold text-foreground">
+        <p className={compact ? 'sr-only' : 'text-xs font-semibold text-foreground'}>
           {t('form.timeLabel')}
         </p>
         <button
@@ -216,12 +219,13 @@ export function SchedulePicker({
           onClick={() =>
             setOpenPanel((current) => (current === 'time' ? null : 'time'))
           }
-          className="mt-1.5 flex h-11 w-full items-center gap-2 rounded-md border border-border bg-background px-3 text-left text-sm font-medium tabular-nums transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className={`${compact ? '' : 'mt-1.5'} flex h-11 w-full items-center gap-2 rounded-md border border-border bg-background px-3 text-left text-sm font-medium tabular-nums transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring`}
         >
           <Clock3 className="size-4 text-muted-foreground" />
           <span>
             {hour}:{minute}
           </span>
+          {compact && <ChevronDown className="ml-auto size-3 shrink-0" />}
         </button>
         {timeError && (
           <p className="mt-1.5 text-xs font-medium text-destructive">

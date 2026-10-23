@@ -1,7 +1,16 @@
-﻿import { Link } from '@/i18n/navigation'
-import { Clock3, Film, FolderOpen, Zap } from 'lucide-react'
 import { useAuth } from '@/components/auth/use-auth'
+import { Link } from '@/i18n/navigation'
+import { Clock3, Coins, Film, Layers } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
+import styles from './home-workspace.module.css'
+
+interface StatsBarProps {
+  credits: number
+  creditsUnlimited?: boolean
+  jobCount: number
+  clipCount: number
+  durationMinutes: number
+}
 
 export function StatsBar({
   credits,
@@ -9,73 +18,59 @@ export function StatsBar({
   jobCount,
   clipCount,
   durationMinutes
-}: {
-  credits: number
-  creditsUnlimited?: boolean
-  jobCount: number
-  clipCount: number
-  durationMinutes: number
-}) {
+}: StatsBarProps) {
   const t = useTranslations('dashboard.studio')
+  const design = useTranslations('dashboard.homeDesign')
   const billing = useTranslations('billing')
   const { user } = useAuth()
-  const unlimited = creditsUnlimited ?? user?.access_role === 'admin'
   const locale = useLocale()
+  const unlimited = creditsUnlimited ?? user?.access_role === 'admin'
   const stats = [
     {
+      id: 'clips',
       label: t('clips'),
       value: clipCount,
       icon: Film,
-      hint: t('clipsHint'),
       href: '/dashboard/clips'
     },
     {
+      id: 'projects',
       label: t('projects'),
       value: jobCount,
-      icon: FolderOpen,
-      hint: t('projectsHint'),
+      icon: Layers,
       href: '/dashboard/clips'
     },
     {
+      id: 'minutes',
       label: t('output'),
       value: durationMinutes,
       icon: Clock3,
-      hint: t('outputHint'),
       href: '/dashboard/clips'
     },
     {
+      id: 'credits',
       label: t('credits'),
       value: unlimited ? '∞' : credits,
-      icon: Zap,
-      hint: unlimited ? billing('creditsUnlimited') : t('creditsHint'),
+      icon: Coins,
       href: '/dashboard/billing'
     }
   ]
   return (
-    <div className="grid grid-cols-2 overflow-hidden border-y bg-transparent xl:grid-cols-4">
-      {stats.map(({ label, value, icon: Icon, hint, href }) => (
-        <Link
-          key={label}
-          href={href}
-          className="group min-w-0 rounded-none border-border py-5 px-4 transition-colors hover:bg-muted/40 focus-visible:-outline-offset-2 [&:nth-child(even)]:border-l [&:nth-child(n+3)]:border-t xl:px-5 xl:[&:nth-child(n+2)]:border-l xl:[&:nth-child(n+3)]:border-t-0"
-        >
-          <div className="flex items-center justify-between gap-3">
-            <span className="text-xs font-medium text-muted-foreground">
-              {label}
-            </span>
-            <Icon
-              className="size-4 shrink-0 text-muted-foreground/70"
-              strokeWidth={1.5}
-            />
-          </div>
-          <div className="mt-2 text-[1.9rem] font-medium leading-none tracking-tight tabular-nums">
-            {typeof value === 'number' ? value.toLocaleString(locale) : value}
-          </div>
-          <div className="mt-2 flex items-center justify-between gap-2 text-xs text-muted-foreground">
-            <span>{hint}</span>
-          </div>
+    <nav className={styles.stats} aria-label={design('statistics')}>
+      {stats.map(({ id, label, value, icon: Icon, href }) => (
+        <Link key={id} href={href} className={styles.stat} data-home-stat={id}>
+          <span className={styles.statIcon}>
+            <Icon aria-hidden="true" strokeWidth={1.6} />
+          </span>
+          <span className={styles.statCopy}>
+            <span className={styles.statLabel}>{label}</span>
+            <strong className={styles.statValue}>
+              {typeof value === 'number' ? value.toLocaleString(locale) : value}
+            </strong>
+            {id === 'credits' && unlimited && <span className={styles.statHint}>{billing('creditsUnlimited')}</span>}
+          </span>
         </Link>
       ))}
-    </div>
+    </nav>
   )
 }

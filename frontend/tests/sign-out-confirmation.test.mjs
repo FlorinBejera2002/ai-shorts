@@ -15,6 +15,7 @@ function fixture(iconOnly) {
     if (name === 'next-intl') return { useLocale: () => 'en' }
     if (name.endsWith('/toast')) return { useToast: () => ({ add() {} }) }
     if (name === '@/lib/auth') return { authClient: { logout: async () => { calls++ } } }
+    if (name === '@/lib/utils') return { cn: (...values) => values.filter(Boolean).join(' ') }
     return new Proxy({}, { get: (_, key) => key })
   }
   vm.runInNewContext(source, { exports, require })
@@ -25,6 +26,8 @@ function fixture(iconOnly) {
 for (const iconOnly of [true, false]) {
   test(`logout requires confirmation (${iconOnly ? 'sidebar icon' : 'settings button'})`, async () => {
     const f = fixture(iconOnly); let tree = f.render()
+    const confirmationButton = root => f.nodes(f.nodes(root, 'DialogFooter')[0], 'Button')
+      .find(node => [node.props.children].flat(Infinity).includes('Sign out'))
     const trigger = f.nodes(tree, 'DialogTrigger')[0]
     assert.equal(trigger.props.children.props.onClick, undefined)
     tree.props.onOpenChange(true)
@@ -37,10 +40,10 @@ for (const iconOnly of [true, false]) {
     assert.equal(f.calls(), 0)
     tree.props.onOpenChange(true)
     tree = f.render()
-    const confirm = f.nodes(tree, 'Button').find(node => node.props.variant === 'destructive')
+    const confirm = confirmationButton(tree)
     confirm.props.onClick()
     assert.equal(f.calls(), 1)
-    assert.equal(f.nodes(f.render(), 'Button').find(node => node.props.variant === 'destructive').props.disabled, true)
+    assert.equal(confirmationButton(f.render()).props.disabled, true)
     await new Promise(resolve => setImmediate(resolve))
     assert.equal(f.render().props.open, false)
   })

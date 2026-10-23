@@ -7,6 +7,7 @@ import {
   CircleGauge,
   Clock3,
   Coins,
+  CreditCard,
   Cpu,
   LogOut,
   Search,
@@ -19,6 +20,7 @@ import { type FormEvent, type ReactNode, useCallback, useEffect, useMemo, useSta
 import { toast } from 'sonner'
 import { api, type AdminUser, type SessionUser } from './api'
 import { AiRoutingPage } from './ai-routing/ai-routing-page'
+import { BillingPage } from './billing/billing-page'
 import { Alert } from './components/ui/alert'
 import { Badge } from './components/ui/badge'
 import { Button } from './components/ui/button'
@@ -34,7 +36,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 import { Tabs, TabsList, TabsTrigger } from './components/ui/tabs'
 import { Textarea } from './components/ui/textarea'
 
-type View = 'overview' | 'users' | 'ai-routing' | 'audit'
+type View = 'overview' | 'users' | 'billing' | 'ai-routing' | 'audit'
+const viewTitles: Record<View, string> = {
+  overview: 'Platform overview', users: 'Utilizatori', billing: 'Facturare Stripe',
+  'ai-routing': 'Modele AI', audit: 'Jurnal de audit'
+}
 type Overview = {
   usersTotal: number
   usersActive: number
@@ -81,12 +87,13 @@ export function App() {
         <header className="topbar">
           <div>
             <p className="eyebrow">Sneep Cut / control room</p>
-            <h1>{view === 'overview' ? 'Platform overview' : view === 'users' ? 'Utilizatori' : view === 'ai-routing' ? 'Modele AI' : 'Jurnal de audit'}</h1>
+            <h1>{viewTitles[view]}</h1>
           </div>
           <div className="environment"><span /> Producție</div>
         </header>
         {view === 'overview' && <OverviewPage onOpenUsers={() => setView('users')} />}
         {view === 'users' && <UsersPage />}
+        {view === 'billing' && <BillingPage />}
         {view === 'ai-routing' && <AiRoutingPage />}
         {view === 'audit' && <AuditPage />}
       </main>
@@ -139,6 +146,7 @@ function Sidebar({ view, session, onView, onLogout }: { view: View; session: Ses
   const links: { id: View; label: string; icon: ReactNode }[] = [
     { id: 'overview', label: 'Overview', icon: <CircleGauge size={18} /> },
     { id: 'users', label: 'Utilizatori', icon: <Users size={18} /> },
+    { id: 'billing', label: 'Facturare', icon: <CreditCard size={18} /> },
     { id: 'ai-routing', label: 'Modele AI', icon: <Cpu size={18} /> },
     { id: 'audit', label: 'Audit', icon: <Activity size={18} /> }
   ]

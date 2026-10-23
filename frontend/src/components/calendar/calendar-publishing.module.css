@@ -1,0 +1,540 @@
+.workspace.workspace {
+  gap: 0;
+}
+
+:global(#dashboard-main) .workspace [data-slot="button"] {
+  border-radius: var(--radius-md);
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 8px 0 0;
+}
+
+.header h1 {
+  font-size: clamp(30px, 3.2vw, 44px);
+  font-weight: 650 !important;
+  letter-spacing: -0.045em;
+}
+
+.header p {
+  margin-top: 8px;
+  color: var(--muted-foreground);
+  font-size: 15px;
+}
+
+.mobileDescription {
+  display: none;
+}
+
+.newPost {
+  min-height: 46px;
+  padding-inline: 20px;
+  background: var(--foreground);
+  color: var(--background);
+  white-space: nowrap;
+}
+
+.newPost:hover {
+  background: color-mix(in srgb, var(--foreground) 85%, var(--background));
+}
+
+.connections {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  min-width: 0;
+  padding: 20px 0 24px;
+}
+
+.accountList {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.account {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.accountUsername {
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--muted-foreground);
+  font-size: 13px;
+}
+
+.accountCount {
+  display: none;
+  color: var(--muted-foreground);
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+.manage {
+  margin-left: auto;
+  flex-shrink: 0;
+  gap: 6px;
+  color: var(--foreground);
+}
+
+.planner {
+  display: block;
+  padding: 12px 0;
+  gap: 0;
+  border-radius: var(--radius-md);
+  background: var(--background);
+  overflow: hidden;
+}
+
+.splitView {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: stretch;
+  min-height: 700px;
+}
+
+.listPane {
+  min-width: 0;
+  gap: 0;
+  padding: 0 22px 24px 16px;
+}
+
+.tabs {
+  justify-content: flex-start;
+  gap: 24px;
+  width: 100%;
+  border-bottom: 1px solid var(--border);
+  border-radius: 0;
+  background: transparent;
+  padding: 0;
+}
+
+.tab {
+  flex: 0 1 auto;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  min-height: 48px;
+  padding: 10px 12px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.tab[data-state="active"] {
+  border-bottom-color: var(--foreground);
+  color: var(--foreground);
+  background: transparent;
+  box-shadow: none;
+}
+
+.tab:hover {
+  color: var(--foreground);
+  background: var(--muted);
+}
+
+.tabPanel {
+  flex: none;
+}
+
+.toolbar {
+  padding: 18px 0 16px;
+}
+
+.periodControls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.periodTitle {
+  margin-left: 10px;
+  font-size: 16px;
+  font-weight: 650;
+  text-transform: capitalize;
+}
+
+.today {
+  height: 36px;
+  color: var(--foreground);
+}
+
+.today:hover {
+  background: var(--muted);
+  color: var(--foreground);
+}
+
+.postList {
+  display: flex;
+  flex-direction: column;
+}
+
+.postRow {
+  display: grid;
+  grid-template-columns: 100px minmax(0, 1fr) 20px;
+  align-items: center;
+  gap: 22px;
+  width: 100%;
+  min-width: 0;
+  padding: 16px 8px;
+  border-bottom: 1px solid var(--border);
+  border-radius: 0;
+  text-align: left;
+  transition: background-color 150ms ease;
+}
+
+.postRow[aria-pressed="true"] {
+  border-radius: var(--radius-md);
+  border-bottom-color: transparent;
+  background: color-mix(in srgb, var(--muted) 65%, var(--background));
+}
+
+.postRow:hover {
+  background: var(--muted);
+}
+
+.postRow:focus-visible {
+  outline: 2px solid var(--foreground);
+  outline-offset: -2px;
+  border-radius: var(--radius-md);
+}
+
+.postInfo {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.postTitle {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  color: var(--foreground);
+  font-size: 18px;
+  font-weight: 650;
+  line-height: 1.35;
+  letter-spacing: -0.025em;
+}
+
+.platforms, .platform {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.platforms {
+  flex-wrap: wrap;
+  gap: 14px;
+}
+
+.platformName {
+  color: var(--muted-foreground);
+  font-size: 12px;
+}
+
+.postDate {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--muted-foreground);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.postDate svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+.rowArrow {
+  width: 20px;
+  height: 20px;
+  color: var(--muted-foreground);
+}
+
+.detailPane {
+  min-width: 0;
+  border-left: 1px solid var(--border);
+  padding: 12px 24px;
+  outline: none;
+}
+
+.emptyState, .emptyPreview {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-height: 380px;
+  padding: 32px 16px;
+  text-align: center;
+}
+
+.emptyState h3 {
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.emptyState p, .emptyPreview {
+  color: var(--muted-foreground);
+  font-size: 14px;
+}
+
+.emptyState p {
+  max-width: 300px;
+  line-height: 1.65;
+}
+
+@media (max-width: 1279px) and (min-width: 1100px) {
+  .postRow {
+    grid-template-columns: 76px minmax(0, 1fr) 16px;
+    gap: 14px;
+  }
+
+  .platformName {
+    display: none;
+  }
+
+  .accountList {
+    gap: 18px;
+  }
+
+  .accountUsername {
+    max-width: 110px;
+  }
+
+  .detailPane {
+    padding-inline: 20px;
+  }
+
+}
+
+@media (max-width: 1099px) {
+  .splitView {
+    grid-template-columns: minmax(0, 1fr);
+    min-height: 400px;
+  }
+
+  .planner {
+    border: 0;
+    padding: 0;
+    overflow: visible;
+  }
+
+  .listPane {
+    padding: 0;
+  }
+
+  .detailPane {
+    display: none;
+    border-left: 0;
+    padding: 0;
+  }
+
+  .splitView[data-mobile-detail="true"] .listPane {
+    display: none;
+  }
+
+  .splitView[data-mobile-detail="true"] .detailPane {
+    display: block;
+  }
+
+  .workspace:has(.splitView[data-mobile-detail="true"]) > .header,
+  .workspace:has(.splitView[data-mobile-detail="true"]) .connections {
+    display: none;
+  }
+
+  .tabs {
+    gap: 0;
+    justify-content: space-between;
+  }
+
+  .tab {
+    flex: 1;
+  }
+
+  .postRow {
+    grid-template-columns: 92px minmax(0, 1fr) 20px;
+    gap: 20px;
+    padding-block: 18px;
+  }
+
+  .accountUsername {
+    display: none;
+  }
+
+  .accountCount {
+    display: block;
+  }
+
+  .connections {
+    gap: 16px;
+    padding-bottom: 22px;
+  }
+
+  .accountList {
+    gap: 16px;
+    flex-wrap: nowrap;
+  }
+
+  .periodControls {
+    gap: 10px;
+  }
+
+  .periodTitle {
+    margin-left: 0;
+    flex: 1;
+    text-align: center;
+    font-size: 16px;
+  }
+
+  .today {
+    order: 1;
+    padding-inline: 16px;
+  }
+
+}
+
+@media (max-width: 639px) {
+  .desktopDescription {
+    display: none;
+  }
+
+  .mobileDescription {
+    display: inline;
+  }
+  .header {
+    align-items: center;
+    gap: 10px;
+    padding-top: 0;
+  }
+
+  .header h1 {
+    font-size: 32px;
+  }
+
+  .header p {
+    max-width: 200px;
+    font-size: 13px;
+    margin-top: 6px;
+  }
+
+  .newPost {
+    min-height: 40px;
+    padding-inline: 12px;
+    font-size: 13px;
+    gap: 6px;
+  }
+
+  .newPost svg {
+    width: 17px;
+    height: 17px;
+  }
+
+  .accountList {
+    gap: 12px;
+  }
+
+  .account img {
+    width: 27px;
+    height: 27px;
+  }
+
+  .connections {
+    gap: 12px;
+    padding-top: 24px;
+    padding-bottom: 18px;
+  }
+
+  .accountCount {
+    font-size: 12px;
+  }
+
+  .manage {
+    padding: 0;
+    font-size: 13px;
+  }
+
+  .postRow {
+    gap: 16px;
+    padding: 16px 8px;
+    grid-template-columns: 88px minmax(0, 1fr) 16px;
+  }
+
+  .postInfo {
+    gap: 10px;
+  }
+
+  .postTitle {
+    font-size: 16px;
+  }
+
+  .platformName {
+    display: none;
+  }
+
+  .postDate {
+    font-size: 12px;
+    gap: 8px;
+  }
+
+  .platforms {
+    gap: 10px;
+  }
+
+  .tab {
+    font-size: 14px;
+    padding-inline: 8px;
+  }
+
+  .periodControls {
+    gap: 8px;
+  }
+
+  .periodTitle {
+    font-size: 14px;
+  }
+
+  .today {
+    padding-inline: 12px;
+    font-size: 13px;
+  }
+
+}
+
+@media (max-width: 359px) {
+  .accountCount {
+    display: none;
+  }
+
+  .postRow {
+    grid-template-columns: 72px minmax(0, 1fr) 14px;
+    gap: 12px;
+  }
+
+  .header h1 {
+    font-size: 28px;
+  }
+
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .postRow {
+    transition: none;
+  }
+
+}

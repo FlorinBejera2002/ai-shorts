@@ -13,19 +13,30 @@ import {
 import { LoadingIndicator } from '@/components/ui/loading-indicator'
 import { useToast } from '@/components/ui/toast'
 import { authClient } from '@/lib/auth'
-import { LogOut } from 'lucide-react'
+import { LogOut, X } from 'lucide-react'
 import { useLocale } from 'next-intl'
 import { useRef, useState } from 'react'
+import { cn } from '@/lib/utils'
 
-export function SignOutAction({ iconOnly = false }: { iconOnly?: boolean }) {
+export function SignOutAction({
+  iconOnly = false,
+  disabled = false,
+  className
+}: {
+  iconOnly?: boolean
+  disabled?: boolean
+  className?: string
+}) {
   const locale = useLocale()
   const toast = useToast()
   const [open, setOpen] = useState(false)
   const cancelRef = useRef<HTMLButtonElement>(null)
   const [pending, setPending] = useState(false)
+  const pendingRef = useRef(false)
   const label = locale === 'ro' ? 'Deconectare' : 'Sign out'
   async function signOut() {
-    if (pending) return
+    if (pendingRef.current || disabled) return
+    pendingRef.current = true
     setPending(true)
     try {
       await authClient.logout()
@@ -38,6 +49,7 @@ export function SignOutAction({ iconOnly = false }: { iconOnly?: boolean }) {
           : 'Unable to sign out. Please try again.'
       )
     } finally {
+      pendingRef.current = false
       setPending(false)
     }
   }
@@ -65,18 +77,20 @@ export function SignOutAction({ iconOnly = false }: { iconOnly?: boolean }) {
           size={iconOnly ? 'icon' : 'default'}
           aria-label={label}
           title={iconOnly ? label : undefined}
-          className={
+          className={cn(
+            className,
             iconOnly
               ? 'size-8 shrink-0 text-muted-foreground hover:text-destructive'
               : undefined
-          }
-          disabled={pending}
+          )}
+          disabled={pending || disabled}
         >
           {content}
         </Button>
       </DialogTrigger>
       <DialogContent
-        className="max-w-sm gap-5 rounded-2xl bg-card"
+        className="max-w-sm gap-5 rounded-md bg-card"
+        data-settings-sign-out-dialog=""
         onOpenAutoFocus={(event) => {
           event.preventDefault()
           cancelRef.current?.focus()
@@ -89,13 +103,24 @@ export function SignOutAction({ iconOnly = false }: { iconOnly?: boolean }) {
         }}
       >
         <DialogHeader>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            onClick={() => setOpen(false)}
+            disabled={pending}
+            aria-label={locale === 'ro' ? 'Închide' : 'Close'}
+            className="absolute right-3 top-3 text-muted-foreground hover:bg-muted"
+          >
+            <X aria-hidden="true" />
+          </Button>
           <DialogTitle>
             {locale === 'ro' ? 'Te deconectezi?' : 'Sign out?'}
           </DialogTitle>
           <DialogDescription>
             {locale === 'ro'
               ? 'Va trebui s\u0103 te autentifici din nou pentru a reveni \u00een cont.'
-              : 'You will need to sign in again to access your account.'}
+              : 'You’ll need to sign in again to access your workspace.'}
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>
@@ -110,7 +135,7 @@ export function SignOutAction({ iconOnly = false }: { iconOnly?: boolean }) {
           </Button>
           <Button
             type="button"
-            variant="destructive"
+            className="bg-foreground text-background hover:bg-foreground/90"
             disabled={pending}
             onClick={() => {
               void signOut()

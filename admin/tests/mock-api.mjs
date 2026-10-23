@@ -1,5 +1,6 @@
 import { createServer } from 'node:http'
 import { createRoutingFixture } from './ai-routing-fixture.mjs'
+import { createBillingFixture, filterBillingSubscriptions } from './billing-fixture.mjs'
 
 const admin = { id: '11111111-1111-4111-8111-111111111111', email: 'admin@sneepcut.com', name: 'Sneep Cut Admin', access_role: 'admin' }
 const users = [
@@ -8,6 +9,7 @@ const users = [
   { id: '44444444-4444-4444-8444-444444444444', email: 'review@example.com', name: 'Review Account', plan: 'free', credits: 0, accessRole: 'viewer', accountStatus: 'suspended', createdAt: new Date().toISOString(), lastSeenAt: null, jobsCount: 2, clipsCount: 1 }
 ]
 const routing = createRoutingFixture()
+const billing = createBillingFixture()
 const auditEvents = [{ id: 1, actorEmail: admin.email, targetEmail: users[2].email, action: 'set_status', reason: 'Cont de test suspendat după verificarea operațională.', before: {}, after: {}, createdAt: new Date().toISOString() }]
 
 function json(response, status, body) {
@@ -20,6 +22,9 @@ createServer(async (request, response) => {
   if (request.url === '/v1/auth/login') return json(response, 200, { access_token: 'mock-token', user: admin })
   if (request.url === '/v1/auth/logout') return json(response, 200, {})
   if (request.url === '/api/admin/overview') return json(response, 200, { usersTotal: 1284, usersActive: 1267, usersSuspended: 17, newUsersSevenDays: 83, jobsTotal: 18420, jobsActive: 34, jobsFailed: 21, clipsTotal: 56291, creditsOutstanding: 892430 })
+  if (request.url === '/api/admin/billing/overview') return json(response, 200, billing.overview)
+  if (request.url?.startsWith('/api/admin/billing/subscriptions?')) return json(response, 200, filterBillingSubscriptions(billing, new URL(request.url, 'http://127.0.0.1').searchParams))
+  if (request.url?.startsWith('/api/admin/billing/events?')) return json(response, 200, billing.events)
   if (request.url?.startsWith('/api/admin/users')) return json(response, 200, { items: users, total: users.length, page: 1, pageSize: 20 })
   if (request.url === '/api/admin/ai-routing' && request.method === 'GET') return json(response, 200, routing)
   if (request.url === '/api/admin/ai-routing' && request.method === 'PUT') {

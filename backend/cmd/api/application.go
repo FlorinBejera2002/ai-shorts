@@ -107,7 +107,7 @@ func buildApplication(db *sql.DB, cfg config.Config, a config.Application, logge
 		closeServices()
 	}
 	mediaService := media.NewService(media.Config{StudioURL: a.StudioAgentURL, StudioSecret: a.StudioAgentSecret, LocalRoot: a.MediaRoot, PublicBaseURL: a.PublicMediaURL, AppURL: a.AppURL, SigningSecret: a.SigningSecret, UploadSecret: a.UploadSecret, DirectUploadURL: a.DirectUploadURL, StagingDirectory: a.StagingDirectory, MaxUploadBytes: a.MaxUploadBytes}, db, storage, nonce, media.NewClamAV(media.ClamAVConfig{Address: a.ScannerAddress, Timeout: a.ScannerTimeout, MaxBytes: a.MaxUploadBytes, Enabled: a.ScannerEnabled, Environment: cfg.Environment}))
-	billingService, err := billing.NewService(billing.Config{SecretKey: a.StripeKey, WebhookSecret: a.StripeWebhookSecret, AppURL: a.AppURL, PlanPrices: a.StripePlans, CreditPacks: a.StripeCreditPacks}, db, auth)
+	billingService, err := billing.NewService(billing.Config{SecretKey: a.StripeKey, WebhookSecret: a.StripeWebhookSecret, Mode: a.StripeMode, PortalConfiguration: a.StripePortalConfiguration, Logger: logger, AppURL: a.AppURL, PlanPrices: a.StripePlans, CreditPacks: a.StripeCreditPacks}, db, auth)
 	if err != nil {
 		cleanup()
 		return nil, noop, err
@@ -121,6 +121,16 @@ func buildApplication(db *sql.DB, cfg config.Config, a config.Application, logge
 	stopPublishing := publishingHandler.Start(context.Background())
 	previousCleanup := cleanup
 	cleanup = func() { stopPublishing(); previousCleanup() }
+	billingConfiguration := admin.BillingConfiguration{
+		Mode:                a.StripeMode,
+		SecretKeyConfigured: a.StripeKey != "",
+		WebhookConfigured:   a.StripeWebhookSecret != "",
+		PlansConfigured:     a.StripePlans["creator"] != "" && a.StripePlans["pro"] != "" && a.StripePlans["agency"] != "",
+		PortalConfigured:    a.StripePortalConfiguration != "",
+	}
+	if a.StripeExpectedAccountID != "" {
+		billingConfiguration.ExpectedAccountID = &a.StripeExpectedAccountID
+	}
 	generator := configuredGenerator(db, a)
 	storyLimits, err := story.LimitsFromEnv(os.Getenv)
 	if err != nil {
@@ -184,6 +194,6 @@ func buildApplication(db *sql.DB, cfg config.Config, a config.Application, logge
 			httpx.JSON(w, status, map[string]any{"ready": status == 200, "database": database, "schema": schema, "redis": redisReady})
 		})
 	}
-	handler := httpapi.New(logger, cfg.Environment, version, auth.Register, audiocleanup.Registration(auth), admin.New(db, auth).WithAIRouting(generator).Register, media.NewHandler(mediaService, auth).Register, music.NewHandler(music.NewCatalog(), auth).Register, jobHandler.Register, storyHandler.Register, projects.New(db, auth, mediaService).Register, clipHandler.Register, brand.New(db, auth, mediaService).Register, calendarHandler.Register, billingService.Register, account.New(db, auth, mediaService, billingService, account.Config{MFA: accounts}).Register, dashboard.New(db, auth, clipHandler).Register, scripts.NewWithDB(db, auth, generator).Register, assistant.New(db, auth, generator).Register, agentHandler.Register, publishingHandler.Register, generator.StudioRegistration(a.StudioAgentSecret), readiness)
+	handler := httpapi.New(logger, cfg.Environment, version, auth.Register, audiocleanup.Registration(auth), admin.New(db, auth).WithAIRouting(generator).WithBillingConfiguration(billingConfiguration).Register, media.NewHandler(mediaService, auth).Register, music.NewHandler(music.NewCatalog(), auth).Register, jobHandler.Register, storyHandler.Register, projects.New(db, auth, mediaService).Register, clipHandler.Register, brand.New(db, auth, mediaService).Register, calendarHandler.Register, billingService.Register, account.New(db, auth, mediaService, billingService, account.Config{MFA: accounts}).Register, dashboard.New(db, auth, clipHandler).Register, scripts.NewWithDB(db, auth, generator).Register, assistant.New(db, auth, generator).Register, agentHandler.Register, publishingHandler.Register, generator.StudioRegistration(a.StudioAgentSecret), readiness)
 	return httpapi.Policy(auth.Policy(handler), httpapi.PolicyConfig{AllowedHosts: a.AllowedHosts}), cleanup, nil
 }

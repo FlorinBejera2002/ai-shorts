@@ -1,12 +1,11 @@
 'use client'
 
 import { LoadingIndicator } from '@/components/ui/loading-indicator'
-import { apiFetch } from '@/lib/auth'
 
 import { Button } from '@/components/ui/button'
 
 import { ExternalLink } from 'lucide-react'
-import { useId, useState } from 'react'
+import { useHostedBillingAction } from './use-hosted-billing-action'
 
 import type { BillingLocale } from '@/lib/billing'
 
@@ -29,51 +28,17 @@ export function PortalButton({
   emphasized = false,
   disabled = false
 }: PortalButtonProps) {
-  const errorId = useId()
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-
-  async function openPortal() {
-    if (disabled || loading) return
-
-    setLoading(true)
-    setError(null)
-    try {
-      const response = await apiFetch('/api/stripe/portal', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ locale })
-      })
-      const data: unknown = await response.json().catch(() => null)
-      const destinationUrl =
-        typeof data === 'object' &&
-        data !== null &&
-        'url' in data &&
-        typeof data.url === 'string'
-          ? data.url
-          : null
-      if (!response.ok || !destinationUrl) {
-        throw new Error('Billing portal could not be opened')
-      }
-
-      const destination = new URL(destinationUrl)
-      if (destination.protocol !== 'https:') {
-        throw new Error('Invalid billing destination')
-      }
-      window.location.assign(destination.toString())
-    } catch {
-      setError(errorLabel)
-      setLoading(false)
-    }
-  }
+  const { start, busy, loading, error, errorId } = useHostedBillingAction(
+    'portal', { locale }, errorLabel
+  )
 
   return (
     <div>
       <Button
         variant={emphasized ? 'default' : 'outline'}
         type="button"
-        onClick={() => void openPortal()}
-        disabled={disabled || loading}
+        onClick={() => void start(disabled)}
+        disabled={disabled || busy}
         aria-busy={loading}
         aria-describedby={error ? errorId : undefined}
         className={`${className} disabled:cursor-not-allowed disabled:opacity-65`}

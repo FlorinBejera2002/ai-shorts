@@ -88,7 +88,7 @@ button:disabled { cursor: default; }
   .app-shell { display: block; }
   .sidebar { position: fixed; inset: auto 0 0; height: 64px; z-index: 10; padding: 7px; border-top: 1px solid var(--border); border-right: 0; }
   .sidebar .brand, .sidebar-spacer, .admin-profile, .logout { display: none; }
-  .sidebar nav { grid-template-columns: repeat(4, 1fr); }
+  .sidebar nav { grid-template-columns: repeat(5, 1fr); }
   .sidebar nav button { font-size: 10px; height: 48px; flex-direction: column; gap: 4px; padding: 4px; }
   .topbar { padding: 18px 16px; min-height: 80px; }
   .topbar h1 { font-size: 21px; }

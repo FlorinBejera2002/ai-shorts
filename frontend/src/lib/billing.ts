@@ -11,9 +11,9 @@ export const INITIAL_FREE_CREDITS = 1000
 export const CREDITS_PER_CLIP = 10
 
 export const PLAN_CREDITS: Record<PaidBillingPlanId, number> = {
-  creator: 300,
-  pro: 1000,
-  agency: 999999
+  creator: 1500,
+  pro: 5000,
+  agency: 20000
 }
 
 export function estimateAvailableClips(credits: number): number {
@@ -55,6 +55,62 @@ export type CheckoutVerification =
   | { status: 'complete'; planId: PaidBillingPlanId }
   | { status: 'pending'; planId: PaidBillingPlanId }
   | { status: 'invalid'; planId: null }
+
+export const CHECKOUT_CONFIRMATION_ATTEMPTS = 10
+export const CHECKOUT_CONFIRMATION_INTERVAL_MS = 4000
+
+export function shouldConfirmCheckout(
+  verification: CheckoutVerification | { status: 'unavailable' } | null,
+  attempts: number
+): boolean {
+  return (
+    attempts < CHECKOUT_CONFIRMATION_ATTEMPTS &&
+    (verification?.status === 'pending' || verification?.status === 'unavailable')
+  )
+}
+
+export function safeStripeDestination(
+  value: unknown,
+  kind: 'checkout' | 'portal'
+): string | null {
+  const safe = safeHttpsUrl(value)
+  if (!safe) return null
+  const url = new URL(safe)
+  const hostname = kind === 'checkout' ? 'checkout.stripe.com' : 'billing.stripe.com'
+  return url.hostname === hostname && !url.username && !url.password && !url.port
+    ? url.toString()
+    : null
+}
+
+export function hostedBillingDestination(
+  response: unknown,
+  requestedKind: 'checkout' | 'portal'
+): string | null {
+  if (!isRecord(response)) return null
+  const kind = 'kind' in response ? response.kind : requestedKind === 'portal' ? 'portal' : null
+  if (kind !== 'checkout' && kind !== 'portal') return null
+  if (requestedKind === 'portal' && kind !== 'portal') return null
+  return safeStripeDestination(response.url, kind)
+}
+
+export function subscriptionPeriodKind(
+  subscription: BillingSubscription | null
+): 'renews' | 'ends' | 'period' | 'none' {
+  if (!subscription || isTerminalSubscriptionStatus(subscription.status)) return 'none'
+  if (subscription.cancelAtPeriodEnd) return 'ends'
+  if (subscription.status === 'active' || subscription.status === 'trialing') return 'renews'
+  return 'period'
+}
+
+export function needsSubscriptionConfirmation(
+  effectivePlan: BillingPlanId,
+  subscription: BillingSubscription | null,
+  hasBillingProfile: boolean,
+  creditsUnlimited = false
+): boolean {
+  return !creditsUnlimited && hasBillingProfile && effectivePlan === 'free' &&
+    (subscription?.status === 'active' || subscription?.status === 'trialing')
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)

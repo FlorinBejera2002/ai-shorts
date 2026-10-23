@@ -49,7 +49,7 @@ run_at() {
   cd "$release_root"
   DEPLOYMENT_VERSION="$current_release" \
     PRODUCTION_ENV_FILE="$release_root/.env.production.local" \
-    "$release_root/scripts/production-compose.sh" "$current_action" "$current_component"
+    "$release_root/scripts/production-compose.sh" "$current_action" "$current_component" </dev/null
 }
 
 run_current() {

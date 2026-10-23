@@ -223,6 +223,7 @@ export function useBrandKit(t: Translate) {
     saved,
     logoBusy,
     logoPreviewUrl,
+    logoName: logoFile?.name,
     dirty,
     hasInvalidColor,
     canWhiteLabel:

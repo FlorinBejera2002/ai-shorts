@@ -1,0 +1,40 @@
+.header {
+  display: none;
+}
+
+@media (max-width: 1023px) {
+  .header.header {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    min-height: 50px;
+    margin: -4px -16px 24px !important;
+    border-bottom: 1px solid var(--border);
+    padding: 0 64px 10px 16px;
+  }
+
+  :global(#dashboard-shell:has([data-workspace-mobile-header])) {
+    position: relative;
+  }
+  :global(
+    body:has([data-workspace-mobile-header]) [data-mobile-dashboard-dock]
+  ) {
+    display: none;
+  }
+  :global(body:has([data-workspace-mobile-header]) [data-agent-trigger]) {
+    position: absolute;
+    top: 18px;
+    right: 16px;
+    bottom: auto;
+    width: 40px;
+    height: 40px;
+    gap: 0;
+    padding: 0;
+    font-size: 0;
+  }
+  :global(body:has([data-workspace-mobile-header]) [data-agent-trigger] svg) {
+    margin: 0;
+    width: 18px;
+    height: 18px;
+  }
+}

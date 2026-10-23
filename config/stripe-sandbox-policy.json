@@ -1,0 +1,54 @@
+{
+  "version": 1,
+  "configurationKey": "sneepcut-billing-v1",
+  "expectedAccountId": "acct_1USys6IBapm0ztYV",
+  "appOrigin": "http://localhost:3000",
+  "catalog": [
+    {
+      "key": "creator",
+      "name": "Sneep Cut Creator",
+      "currency": "eur",
+      "unitAmount": 1900,
+      "taxBehavior": "inclusive",
+      "interval": "month",
+      "intervalCount": 1,
+      "productId": "prod_sneepcutCreatorV1",
+      "priceId": "price_1USzDfIBapm0ztYVFtBt7ZOu"
+    },
+    {
+      "key": "pro",
+      "name": "Sneep Cut Pro",
+      "currency": "eur",
+      "unitAmount": 4900,
+      "taxBehavior": "inclusive",
+      "interval": "month",
+      "intervalCount": 1,
+      "productId": "prod_sneepcutProV1",
+      "priceId": "price_1USzDiIBapm0ztYVQCZc1iNT"
+    },
+    {
+      "key": "agency",
+      "name": "Sneep Cut Agency",
+      "currency": "eur",
+      "unitAmount": 14900,
+      "taxBehavior": "inclusive",
+      "interval": "month",
+      "intervalCount": 1,
+      "productId": "prod_sneepcutAgencyV1",
+      "priceId": "price_1USzDlIBapm0ztYVkparwEHN"
+    }
+  ],
+  "portal": {
+    "paymentMethodUpdate": true,
+    "invoiceHistory": true,
+    "customerUpdates": ["name", "email", "address"],
+    "cancelEnabled": true,
+    "cancelMode": "at_period_end",
+    "cancelProrationBehavior": "none",
+    "updateEnabled": true,
+    "updateProrationBehavior": "none",
+    "returnPath": "/ro/dashboard/billing",
+    "configurationId": "bpc_1USzDwIBapm0ztYV3aiFMi76"
+  },
+  "webhookUrl": null
+}

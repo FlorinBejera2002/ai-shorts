@@ -1,7 +1,7 @@
 'use client'
 
 import { Card } from '@/components/ui/card'
-import { PageHeader } from '@/components/ui/page-header'
+import { Button } from '@/components/ui/button'
 import { useToast } from '@/components/ui/toast'
 import { useApiResource } from '@/hooks/use-api-resource'
 import { useSocialConnection } from '@/hooks/use-social-connection'
@@ -15,12 +15,12 @@ import {
   type PublishingData,
   isPublishingAccountUsable
 } from '@/lib/publishing'
-import { AlertCircle, RefreshCw } from 'lucide-react'
+import { AlertCircle, Plus, RefreshCw } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
 import { useSearchParams } from 'next/navigation'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { CalendarConnections } from './calendar-connections'
-import { CalendarMetrics } from './calendar-metrics'
+import { CalendarAccountSummary } from './calendar-account-summary'
+import { CalendarMobileHeader } from './calendar-mobile-header'
 import { CalendarPreviewList } from './calendar-preview-list'
 import {
   type CalendarResponse,
@@ -44,6 +44,7 @@ import {
   startOfLocalMonth
 } from './calendar-utils'
 import styles from './calendar-workspace.module.css'
+import publishingStyles from './calendar-publishing.module.css'
 import { ConnectionSuccessOverlay } from './connection-success-overlay'
 import { PostDialog } from './post-dialog'
 import { PublishingStatusDialog } from './publishing-status-dialog'
@@ -359,7 +360,10 @@ export function ContentCalendar() {
   }
 
   return (
-    <div className={`${styles.workspace} dashboard-workspace`}>
+    <div
+      className={`${styles.workspace} dashboard-workspace ${publishingStyles.workspace}`}
+      data-publishing-workspace=""
+    >
       {connectedProvider && (
         <ConnectionSuccessOverlay
           key={connectedProvider}
@@ -367,18 +371,24 @@ export function ContentCalendar() {
           onComplete={finishConfirmation}
         />
       )}
-      <PageHeader
-        title={t('title')}
-        description={t('description')}
-        actions={
-          <CalendarMetrics posts={posts} month={viewDate} variant="header" />
-        }
-      />
+      <CalendarMobileHeader />
+      <header className={publishingStyles.header}>
+        <div>
+          <h1>{t('title')}</h1>
+          <p>
+            <span className={publishingStyles.desktopDescription}>{t('publishing.description')}</span>
+            <span className={publishingStyles.mobileDescription}>{t('publishing.shortDescription')}</span>
+          </p>
+        </div>
+        <Button disabled={!ready} onClick={() => openCreate()} className={publishingStyles.newPost}>
+          <Plus />{t('actions.newPost')}
+        </Button>
+      </header>
 
       {!ready || (loading && !hasLoaded) ? (
         <CalendarSkeleton />
       ) : (
-        <div className="space-y-5">
+        <div>
           {loadError && (
             <div
               role="alert"
@@ -407,8 +417,8 @@ export function ContentCalendar() {
             </div>
           )}
 
-          <div className={styles.planningLayout}>
-            <CalendarConnections
+          <div>
+            <CalendarAccountSummary
               data={publishingData}
               error={publishingError}
               onReload={reloadPublishing}
@@ -419,25 +429,25 @@ export function ContentCalendar() {
               as="section"
               aria-label={t('calendarSectionLabel')}
               aria-busy={loading}
-              className={`${styles.planner} block gap-0 overflow-hidden py-0`}
+              className={publishingStyles.planner}
             >
-              <CalendarToolbar
-                title={title}
-                loading={loading && hasLoaded}
-                onPrevious={() => navigatePeriod(-1)}
-                onNext={() => navigatePeriod(1)}
-                onToday={() => focusDate(new Date())}
-                onNewPost={() => openCreate()}
+              <CalendarPreviewList
+                posts={posts}
+                publishingClips={publishingData?.clips ?? []}
+                month={viewDate}
+                locale={locale}
+                onCreatePost={() => openCreate()}
+                onOpenPost={openEdit}
+                toolbar={
+                  <CalendarToolbar
+                    title={title}
+                    loading={loading && hasLoaded}
+                    onPrevious={() => navigatePeriod(-1)}
+                    onNext={() => navigatePeriod(1)}
+                    onToday={() => focusDate(new Date())}
+                  />
+                }
               />
-              <div className={styles.gridWrap}>
-                <CalendarPreviewList
-                  posts={posts}
-                  accounts={publishingAccounts}
-                  locale={locale}
-                  onCreatePost={() => openCreate()}
-                  onOpenPost={openEdit}
-                />
-              </div>
             </Card>
           </div>
         </div>

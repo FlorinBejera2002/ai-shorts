@@ -1,0 +1,658 @@
+.panel {
+  min-width: 0;
+}
+.panel [hidden] {
+  display: none !important;
+}
+.heading {
+  margin: 0 0 34px;
+  font-size: 25px;
+  line-height: 1.25;
+  font-weight: 700;
+  letter-spacing: -0.035em;
+}
+.subheading {
+  margin: 0;
+  font-size: 20px;
+  line-height: 1.35;
+  font-weight: 650;
+  letter-spacing: -0.025em;
+}
+.hint {
+  margin: 5px 0 0;
+  font-size: 13px;
+  line-height: 1.65;
+  color: var(--muted-foreground);
+}
+.field {
+  min-width: 0;
+}
+.label {
+  display: block;
+  margin-bottom: 9px;
+  font-size: 14px;
+  font-weight: 500;
+}
+.input,
+.selectTrigger {
+  width: 100%;
+  min-height: 45px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: transparent;
+  font-size: 14px;
+  box-shadow: none;
+}
+.selectTrigger {
+  padding: 10px 14px;
+}
+.selectPopup {
+  max-height: 360px;
+}
+.selectPopup [role='option'] {
+  min-height: 36px;
+  font-size: 14px;
+}
+.preferencesGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 30px 34px;
+}
+.timezoneField {
+  grid-column: 1;
+  grid-row: 2 / 4;
+}
+.clipCountField {
+  grid-column: 2;
+}
+.saveArea {
+  margin-top: 35px;
+}
+@media (min-width: 768px) {
+  :global([data-settings-panel='preferences']) .saveArea {
+    text-align: right;
+  }
+}
+.primaryAction {
+  min-height: 46px;
+  padding-inline: 25px;
+}
+.notificationGroup {
+  margin: 0 0 34px;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+.notificationGroup legend {
+  width: 100%;
+  padding: 0 0 12px;
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: 0.055em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+  border-bottom: 1px solid var(--border);
+}
+.switchRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  min-height: 65px;
+  padding: 17px 0;
+  border-bottom: 1px solid var(--border);
+}
+.switchRow > div {
+  min-width: 0;
+}
+.switchLabel {
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+}
+.switchRow button {
+  flex: 0 0 auto;
+}
+.loadState {
+  min-height: 510px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 22px;
+  text-align: center;
+  font-size: 19px;
+  font-weight: 600;
+}
+.loadIcon {
+  width: 44px;
+  height: 44px;
+  color: var(--muted-foreground);
+}
+.retry {
+  min-width: 145px;
+  min-height: 46px;
+}
+.error,
+.success {
+  margin: 18px 0;
+  font-size: 14px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.error {
+  color: var(--destructive);
+}
+.success {
+  color: var(--success);
+}
+.backAction {
+  margin: -8px 0 25px -12px;
+  color: var(--muted-foreground);
+}
+.securityGroup {
+  padding-block: 30px;
+  border-top: 1px solid var(--border);
+}
+.authenticatorRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 18px;
+  margin-top: 24px;
+  font-size: 15px;
+}
+.authenticatorRow > div {
+  flex: 1;
+  min-width: 135px;
+}
+.authenticatorIcon {
+  display: grid;
+  width: 46px;
+  height: 46px;
+  place-items: center;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--muted);
+}
+.authenticatorIcon svg {
+  width: 23px;
+  height: 23px;
+}
+.enabledBadge,
+.neutralBadge,
+.currentBadge {
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  border-radius: var(--radius-sm);
+  padding: 5px 10px;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.enabledBadge {
+  background: color-mix(in srgb, var(--success) 15%, transparent);
+  color: var(--success);
+}
+.neutralBadge {
+  background: var(--muted);
+  color: var(--muted-foreground);
+}
+.currentBadge {
+  border: 1px solid var(--border);
+  padding: 4px 9px;
+  font-size: 11px;
+  color: var(--muted-foreground);
+}
+.mfaSetupAction {
+  min-height: 44px;
+}
+.sectionLink {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  text-align: left;
+  color: var(--foreground);
+}
+.sectionLink strong {
+  font-size: 18px;
+  font-weight: 600;
+}
+.sectionLink .hint {
+  display: block;
+}
+.sectionLink > svg {
+  width: 20px;
+  height: 20px;
+}
+.mfaHeading {
+  display: flex;
+  gap: 18px;
+  align-items: center;
+  font-size: 16px;
+  margin-bottom: 25px;
+}
+.mfaHeading > svg {
+  width: 26px;
+  height: 26px;
+}
+.mfaSetupHint {
+  margin-bottom: 34px;
+  max-width: 620px;
+  color: var(--muted-foreground);
+  font-size: 15px;
+  line-height: 1.75;
+}
+.copyField {
+  display: flex;
+  align-items: stretch;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+.copyField .input {
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  font-family: ui-monospace, monospace;
+}
+.copyField button {
+  height: auto;
+  width: 56px;
+  border-left: 1px solid var(--border);
+  border-radius: 0;
+}
+.mfaForm {
+  display: grid;
+  gap: 26px;
+  margin-top: 35px;
+}
+.mfaForm > button {
+  justify-self: start;
+}
+.mfaForm .field .hint {
+  margin: 0 0 12px;
+}
+.enabledHeading {
+  display: flex;
+  align-items: center;
+  gap: 17px;
+}
+.mfaApp {
+  display: flex;
+  align-items: center;
+  gap: 25px;
+  padding: 27px 0;
+  margin-top: 20px;
+  border-block: 1px solid var(--border);
+}
+.mfaApp > svg {
+  width: 25px;
+  height: 25px;
+}
+.recoveryCodes {
+  margin-top: 25px;
+  border-left: 3px solid var(--warning);
+  padding: 10px 0 10px 25px;
+}
+.recoveryHeading {
+  display: flex;
+  gap: 17px;
+  align-items: start;
+}
+.recoveryHeading > svg {
+  width: 23px;
+  height: 23px;
+  flex-shrink: 0;
+  color: var(--warning);
+}
+.recoveryHeading h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+.codesGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 9px 12px;
+  margin-top: 18px;
+}
+.codesGrid code {
+  padding: 11px 7px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  text-align: center;
+  font-size: 14px;
+  letter-spacing: 0.04em;
+  overflow-wrap: anywhere;
+}
+.copyCodesAction {
+  margin-top: 17px;
+  min-height: 40px;
+  min-width: 200px;
+}
+.mfaActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 15px;
+}
+.mfaActions button {
+  min-height: 44px;
+  padding-inline: 23px;
+}
+.sessionsHeader {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 20px;
+}
+.sessionsHeader .heading {
+  margin-bottom: 9px;
+}
+.sessionsHeader button {
+  min-height: 43px;
+}
+.sessionsList {
+  list-style: none;
+  padding: 0;
+  margin: 20px 0 40px;
+}
+.sessionsList li {
+  display: flex;
+  align-items: center;
+  gap: 23px;
+  padding: 25px 0;
+  border-bottom: 1px solid var(--border);
+}
+.sessionsList li > svg {
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+}
+.sessionsList li > button {
+  min-height: 42px;
+  min-width: 100px;
+}
+.sessionInfo {
+  flex: 1;
+  min-width: 0;
+}
+.sessionName {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px 20px;
+  font-size: 15px;
+}
+.activity summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  cursor: pointer;
+  list-style: none;
+  padding: 14px 0 20px;
+}
+.activity summary::-webkit-details-marker {
+  display: none;
+}
+.activity summary svg {
+  width: 18px;
+  height: 18px;
+}
+.activity[open] summary svg {
+  transform: rotate(180deg);
+}
+.activityList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  border-top: 1px solid var(--border);
+}
+.activityList li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 20px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 14px;
+}
+.activityList time {
+  color: var(--muted-foreground);
+  flex-shrink: 0;
+}
+.exportHistory {
+  padding-block: 26px;
+  border-top: 1px solid var(--border);
+}
+.historyTable {
+  border-collapse: collapse;
+  width: 100%;
+  margin-top: 15px;
+  text-align: left;
+  font-size: 14px;
+}
+.historyTable th {
+  color: var(--muted-foreground);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+.historyTable td {
+  padding: 15px 0;
+  border-bottom: 1px solid var(--border);
+}
+.historyTable th:first-child,
+.historyTable td:first-child {
+  width: 51%;
+  padding-right: 15px;
+}
+.exportStatus {
+  display: inline-flex;
+  gap: 16px;
+  align-items: center;
+  color: var(--muted-foreground);
+}
+.statusDot {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--muted-foreground);
+}
+.exportStatus[data-export-status='completed'] .statusDot {
+  background: var(--success);
+}
+.exportStatus[data-export-status='failed'] .statusDot {
+  background: var(--destructive);
+}
+@media (max-width: 1023px) {
+  .heading {
+    font-size: 23px;
+    margin-bottom: 29px;
+  }
+  .subheading {
+    font-size: 20px;
+  }
+  .preferencesGrid {
+    grid-template-columns: 1fr;
+    gap: 26px;
+  }
+  .timezoneField {
+    grid-column: auto;
+    grid-row: 5;
+  }
+  .clipCountField {
+    grid-column: auto;
+  }
+  .input,
+  .selectTrigger {
+    min-height: 46px;
+    font-size: 15px;
+  }
+  .label {
+    font-size: 15px;
+  }
+  .primaryAction {
+    width: 100%;
+    min-height: 48px;
+  }
+  .saveArea {
+    margin-top: 32px;
+  }
+  .notificationGroup {
+    margin-bottom: 37px;
+  }
+  .switchLabel {
+    font-size: 16px;
+  }
+  .switchRow {
+    min-height: 73px;
+    padding-block: 22px;
+    gap: 20px;
+  }
+  .hint {
+    font-size: 13px;
+  }
+  .authenticatorRow {
+    gap: 17px 15px;
+  }
+  .authenticatorRow > div {
+    min-width: 100px;
+  }
+  .authenticatorIcon {
+    width: 44px;
+    height: 44px;
+  }
+  .mfaSetupAction {
+    width: 100%;
+    margin-top: 10px;
+    min-height: 47px;
+  }
+  .codesGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+  .codesGrid code {
+    font-size: 14px;
+    padding: 11px 5px;
+  }
+  .copyCodesAction {
+    width: 100%;
+  }
+  .recoveryCodes {
+    padding-left: 18px;
+  }
+  .recoveryHeading {
+    gap: 12px;
+  }
+  .mfaActions {
+    flex-direction: column;
+  }
+  .mfaActions button {
+    width: 100%;
+    min-height: 47px;
+    white-space: normal;
+  }
+  .mfaHeading {
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .enabledHeading {
+    flex-wrap: wrap;
+  }
+  .sessionsHeader {
+    gap: 17px;
+  }
+  .sessionsHeader > div {
+    display: contents;
+  }
+  .sessionsHeader .heading {
+    order: 0;
+    flex: 1;
+    margin-bottom: 0;
+  }
+  .sessionsHeader > button {
+    order: 1;
+    min-height: 39px;
+    font-size: 12px;
+    padding-inline: 12px;
+  }
+  .sessionsHeader .hint {
+    order: 2;
+    width: 100%;
+  }
+  .sessionsList li {
+    gap: 14px;
+    align-items: flex-start;
+    padding-block: 25px;
+  }
+  .sessionsList li > svg {
+    width: 23px;
+    height: 23px;
+    margin-top: 4px;
+  }
+  .sessionsList li > button {
+    min-width: 70px;
+    font-size: 12px;
+    min-height: 38px;
+    padding-inline: 12px;
+  }
+  .sessionName {
+    font-size: 14px;
+    gap: 8px;
+  }
+  .currentBadge {
+    font-size: 10px;
+  }
+  .activityList li {
+    font-size: 13px;
+    gap: 20px;
+    align-items: flex-start;
+  }
+  .activityList time {
+    max-width: 44%;
+    text-align: right;
+    flex-shrink: 1;
+  }
+  .historyTable {
+    font-size: 13px;
+  }
+  .historyTable th {
+    font-size: 13px;
+  }
+  .historyTable td {
+    padding-block: 16px;
+  }
+  .exportStatus {
+    gap: 10px;
+  }
+  .loadState {
+    min-height: 500px;
+    font-size: 21px;
+  }
+}
+@media (max-width: 370px) {
+  .sessionsHeader > button {
+    width: 100%;
+    order: 3;
+  }
+  .sessionsList li {
+    flex-wrap: wrap;
+  }
+  .sessionsList li > button {
+    margin-left: 37px;
+  }
+  .codesGrid {
+    gap: 7px;
+  }
+  .codesGrid code {
+    font-size: 12px;
+  }
+}

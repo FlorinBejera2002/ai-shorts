@@ -1,7 +1,6 @@
 'use client'
 
 import { Button } from '@/components/ui/button'
-import { Card } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
 import { Slider } from '@/components/ui/slider'
 import { Switch } from '@/components/ui/switch'
@@ -17,6 +16,7 @@ import {
 import { useTranslations } from 'next-intl'
 
 import type { BrandKit, BrandKitUpdate } from './types'
+import styles from './watermark-section.module.css'
 
 const POSITIONS = [
   { value: 'top-left', label: 'topLeft', icon: CornerUpLeft },
@@ -37,19 +37,16 @@ export function WatermarkSection({
   const t = useTranslations('brand')
 
   return (
-    <Card
-      as="section"
-      id="brand-watermark"
-      className="@container/watermark min-w-0 gap-3 border-0 p-0 shadow-none"
-    >
-      <label className="flex items-center justify-between gap-3 text-sm">
+    <section id="brand-watermark" className={styles.section}>
+      <label className={styles.enabled}>
         <span>{t('watermarkEnabled')}</span>
         <Switch
           checked={kit.watermarkEnabled}
+          aria-label={t('watermarkEnabled')}
           onCheckedChange={(v) => update('watermarkEnabled', v)}
         />
       </label>
-      <div className="grid grid-cols-2 gap-3">
+      <div className={styles.fields}>
         {(['watermarkSize', 'watermarkMargin'] as const).map((key) => (
           <label key={key} className="grid gap-1 text-xs">
             {t(key)}
@@ -57,7 +54,8 @@ export function WatermarkSection({
               type="number"
               min={key === 'watermarkSize' ? 1 : 0}
               max={key === 'watermarkSize' ? 50 : 20}
-              value={Math.round(kit[key] * 100)}
+              step={key === 'watermarkSize' ? 1 : 0.5}
+              value={Number((kit[key] * 100).toFixed(2))}
               onChange={(e) => {
                 if (key === 'watermarkMargin') {
                   update('watermarkX', null)
@@ -80,12 +78,12 @@ export function WatermarkSection({
         ))}
       </div>
 
-      <div className="grid gap-3 @min-[520px]/watermark:grid-cols-2">
+      <div className={styles.controls}>
         <div>
           <Label className="text-xs text-muted-foreground">
             {t('position')}
           </Label>
-          <div className="mt-1 grid grid-cols-4 gap-1 rounded-md border border-border/70 bg-card p-1">
+          <div className={styles.positions}>
             {POSITIONS.map(({ value, label, icon: Icon }) => (
               <Button
                 key={value}
@@ -93,6 +91,11 @@ export function WatermarkSection({
                 variant="ghost"
                 title={t(label)}
                 aria-label={t(label)}
+                aria-pressed={
+                  kit.watermarkX == null &&
+                  kit.watermarkY == null &&
+                  kit.watermarkPosition === value
+                }
                 onClick={() => {
                   update('watermarkX', null)
                   update('watermarkY', null)
@@ -102,7 +105,7 @@ export function WatermarkSection({
                   kit.watermarkX == null &&
                   kit.watermarkY == null &&
                   kit.watermarkPosition === value
-                    ? 'bg-primary text-primary-foreground hover:bg-primary'
+                    ? 'border-foreground bg-muted text-foreground hover:bg-muted'
                     : 'text-muted-foreground'
                 }`}
               >
@@ -133,7 +136,7 @@ export function WatermarkSection({
           />
         </div>
 
-        <div className="border-t border-border/70 pt-3 @min-[520px]/watermark:col-span-2">
+        <div className={styles.badge}>
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-2 text-sm font-semibold">
               {!canWhiteLabel && (
@@ -161,6 +164,6 @@ export function WatermarkSection({
           )}
         </div>
       </div>
-    </Card>
+    </section>
   )
 }

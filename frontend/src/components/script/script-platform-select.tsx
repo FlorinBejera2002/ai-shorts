@@ -1,8 +1,18 @@
-import { Label } from '@/components/ui/label'
-import { NativeSelect } from '@/components/ui/native-select'
-import { isPublishingProvider } from '@/lib/publishing'
+'use client'
 
-const PLATFORMS = [
+import { PlatformBrandIcon } from '@/components/publishing/platform-brand-icon'
+import { Label } from '@/components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@/components/ui/select'
+import { isPublishingProvider, type PublishingProvider } from '@/lib/publishing'
+import styles from './script-platform-select.module.css'
+
+const PLATFORMS: { value: PublishingProvider; label: string }[] = [
   { value: 'tiktok', label: 'TikTok' },
   { value: 'instagram', label: 'Instagram Reels' },
   { value: 'facebook', label: 'Facebook' },
@@ -25,23 +35,35 @@ export function ScriptPlatformSelect({
   const supported = isPublishingProvider(value)
 
   return (
-    <div>
-      <Label htmlFor="script-platform">{label}</Label>
-      <NativeSelect
-        id="script-platform"
+    <div className={styles.field}>
+      <Label htmlFor="script-platform" className={styles.label}>
+        {label}
+      </Label>
+      <Select
         value={supported ? value : ''}
-        onChange={(event) => onValueChange(event.target.value)}
-        className="mt-2 w-full"
+        onValueChange={onValueChange}
+        required
       >
-        {!supported && (
-          <option value="" disabled>{placeholder}</option>
-        )}
-        {PLATFORMS.map((platform) => (
-          <option key={platform.value} value={platform.value}>
-            {platform.label}
-          </option>
-        ))}
-      </NativeSelect>
+        <SelectTrigger id="script-platform" className={styles.trigger}>
+          <SelectValue placeholder={placeholder} />
+        </SelectTrigger>
+        <SelectContent position="popper" className={styles.content}>
+          {PLATFORMS.map((platform) => (
+            <SelectItem
+              key={platform.value}
+              value={platform.value}
+              textValue={platform.label}
+              className={styles.item}
+            >
+              <PlatformBrandIcon
+                provider={platform.value}
+                className={styles.icon}
+              />
+              {platform.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
     </div>
   )
 }

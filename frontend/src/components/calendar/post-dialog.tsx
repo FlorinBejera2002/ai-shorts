@@ -18,7 +18,6 @@ import type {
   CalendarClipOption,
   CalendarMutationStatus,
   ContentPlatform,
-  PublishingMedia,
   ScheduledPostRecord
 } from '@/lib/content-calendar'
 import type { PublishingAccount, PublishingData } from '@/lib/publishing'
@@ -71,6 +70,9 @@ import styles from './calendar-workspace.module.css'
 import { PlatformBrandIcon } from '@/components/publishing/platform-brand-icon'
 import { PlatformOptionIcon } from './platform-mark'
 import { SchedulePicker } from './schedule-picker'
+import { PostComposer } from './post-composer'
+import type { PostComposerForm as FormState, PostComposerErrors as FormErrors } from './post-composer-types'
+import { combineZonedDateTime } from './post-composer-time'
 import { TikTokPostSettings } from './tiktok-post-settings'
 import { InstagramPostSettings as InstagramPostSettingsComponent } from './instagram-post-settings'
 import { FacebookPostSettings } from './facebook-post-settings'
@@ -91,21 +93,6 @@ import { YouTubePostSettings } from './youtube-post-settings'
 import { initialYouTubeSettings, validateYouTubeAdvancedSettings, validateYouTubeSettings } from '@/lib/youtube-post-settings'
 
 type DialogMode = 'create' | 'edit' | 'reschedule' | 'delete'
-
-type FormState = {
-  title: string
-  caption: string
-  notes: string
-  platforms: ContentPlatform[]
-  accountIds: string[]
-  status: CalendarMutationStatus
-  date: string
-  time: string
-  clipId: string
-  media: PublishingMedia[]
-}
-
-type FormErrors = Partial<Record<keyof FormState | 'form' | 'tiktok' | 'instagram' | 'facebook' | 'youtube', string>>
 
 const inputClassName =
   'w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground shadow-none outline-none placeholder:text-muted-foreground/60 focus:border-border focus:ring-0 focus:shadow-none focus-visible:border-border focus-visible:ring-0 focus-visible:shadow-none'
@@ -289,6 +276,13 @@ export function PostDialog({
   const [facebookSettings, setFacebookSettings] = useState(() =>
     settingsFromFacebookPublishingOptions(post?.facebook)
   )
+  const [selectedTimeZone, setSelectedTimeZone] = useState(timeZone)
+  const optionsSnapshot = useRef<{
+    instagram: typeof instagramSettings
+    tiktok: typeof tiktokSettings
+    facebook: typeof facebookSettings
+    youtube: typeof youtubeSettings
+  } | null>(null)
   const busy = saving || deleting || uploading
 
   const publishedProviders = useMemo(
@@ -556,19 +550,28 @@ export function PostDialog({
     }))
   }
 
-  function validate(): { payload?: PostFormPayload; errors: FormErrors } {
+  function validate(status: CalendarMutationStatus): { payload?: PostFormPayload; errors: FormErrors } {
+    const submission = {
+      ...form,
+      status,
+      title: isPage
+        ? form.title.trim() || form.caption.trim().split('\n')[0].slice(0, isTikTokPhotoPost ? 90 : 120) || t('composer.untitledPost')
+        : form.title
+    }
     const nextErrors: FormErrors = {}
-    const scheduledAt = combineLocalDateTime(form.date, form.time)
+    const scheduledAt = isPage
+      ? combineZonedDateTime(submission.date, submission.time, selectedTimeZone)
+      : combineLocalDateTime(submission.date, submission.time)
     const tiktokValidationErrors = selectedTikTokAccounts.length
       ? validateTikTokDirectPost({
           accountId:
             selectedTikTokAccounts.length === 1
               ? (selectedTikTokAccount?.id ?? '')
               : '',
-          caption: form.caption,
+          caption: submission.caption,
           clip: selectedTikTokClip,
-          media: form.media,
-          title: form.title.trim(),
+          media: submission.media,
+          title: submission.title.trim(),
           options: tiktokOptionsState.value,
           settings: tiktokSettings
         })
@@ -581,7 +584,7 @@ export function PostDialog({
       if (selectedInstagramAccounts.length) {
         const instagramError = validateInstagramSettings(instagramSettings, isMetaReel)
         if (instagramError) nextErrors.instagram = publishingT(instagramError)
-        if (form.status !== 'draft' && !instagramSettings.commentEnabled) {
+        if (submission.status !== 'draft' && !instagramSettings.commentEnabled) {
           nextErrors.instagram = publishingT('instagramLegacyComments')
         }
       }
@@ -592,43 +595,43 @@ export function PostDialog({
       if (selectedYouTubeAccounts.length) {
         if (!validateYouTubeAdvancedSettings(youtubeSettings)) {
           nextErrors.youtube = publishingT('youtubeAdvancedInvalid')
-        } else if (form.status !== 'draft' && !validateYouTubeSettings(youtubeSettings, youtubeAuditApproved)) {
+        } else if (submission.status !== 'draft' && !validateYouTubeSettings(youtubeSettings, youtubeAuditApproved)) {
           nextErrors.youtube = publishingT('youtubeSettingsRequired')
         }
       }
-      if (!form.title.trim()) nextErrors.title = t('validation.titleRequired')
-      else if (form.title.trim().length > 120) {
+      if (!submission.title.trim()) nextErrors.title = t('validation.titleRequired')
+      else if (submission.title.trim().length > 120) {
         nextErrors.title = t('validation.titleLength')
       }
-      if (form.caption.length > captionLimit) {
+      if (submission.caption.length > captionLimit) {
         nextErrors.caption =
           captionLimit === 5000
             ? t('validation.captionLength')
             : t('validation.platformCaptionLength', { limit: captionLimit })
       }
-      if (form.notes.length > 2000) {
+      if (submission.notes.length > 2000) {
         nextErrors.notes = t('validation.notesLength')
       }
-      if (form.platforms.length === 0) {
+      if (submission.platforms.length === 0) {
         nextErrors.platforms = t('validation.platformRequired')
       }
-      if (form.status !== 'draft' && form.accountIds.length === 0) {
+      if (submission.status !== 'draft' && submission.accountIds.length === 0) {
         nextErrors.accountIds = t('validation.accountRequired')
       }
       const unsupportedVideos = unsupportedMetaVideos(
-        form.media,
-        form.platforms
+        submission.media,
+        submission.platforms
       )
-      if (form.status !== 'draft' && unsupportedVideos.length) {
+      if (submission.status !== 'draft' && unsupportedVideos.length) {
         nextErrors.media = t('validation.mediaVideoFormat', {
           names: unsupportedVideos.join(', ')
         })
       }
       const incompatible = incompatibleMediaPlatforms(
-        form.media,
-        form.platforms
+        submission.media,
+        submission.platforms
       )
-      if (form.status !== 'draft' && incompatible.length) {
+      if (submission.status !== 'draft' && incompatible.length) {
         nextErrors.media = t(
           incompatible.includes('tiktok')
             ? 'validation.mediaTikTokUnsupported'
@@ -638,10 +641,10 @@ export function PostDialog({
           }
         )
       }
-      if (form.status !== 'draft' && !form.clipId && form.media.length === 0) {
+      if (submission.status !== 'draft' && !submission.clipId && submission.media.length === 0) {
         nextErrors.clipId = t('validation.clipRequired')
       }
-      if (form.status !== 'draft' && selectedTikTokAccounts.length > 0) {
+      if (submission.status !== 'draft' && selectedTikTokAccounts.length > 0) {
         if (selectedTikTokAccounts.length !== 1) {
           nextErrors.accountIds = t('validation.tiktokAccountRequired')
         }
@@ -676,9 +679,9 @@ export function PostDialog({
       }
     }
 
-    if (!form.date) nextErrors.date = t('validation.dateRequired')
-    if (!form.time) nextErrors.time = t('validation.timeRequired')
-    if (form.date && form.time && !scheduledAt) {
+    if (!submission.date) nextErrors.date = t('validation.dateRequired')
+    if (!submission.time) nextErrors.time = t('validation.timeRequired')
+    if (submission.date && submission.time && !scheduledAt) {
       nextErrors.date = t('validation.dateInvalid')
     }
 
@@ -696,10 +699,10 @@ export function PostDialog({
     const tiktok = createCalendarTikTokPublishingOptions({
       creatorOptions: tiktokOptionsState.value,
       isPhotoPost: isTikTokPhotoPost,
-      photoTitle: form.title.trim(),
+      photoTitle: submission.title.trim(),
       selectedAccountCount: selectedTikTokAccounts.length,
       settings: tiktokSettings,
-      status: form.status,
+      status: submission.status,
       validationErrors: tiktokValidationErrors
     })
 
@@ -710,18 +713,18 @@ export function PostDialog({
     return {
       errors: nextErrors,
       payload: {
-        title: form.title.trim(),
-        caption: form.caption.trim() || null,
-        notes: form.notes.trim() || null,
-        platforms: form.platforms,
-        accountIds: form.accountIds,
-        status: form.status,
+        title: submission.title.trim(),
+        caption: submission.caption.trim() || null,
+        notes: submission.notes.trim() || null,
+        platforms: submission.platforms,
+        accountIds: submission.accountIds,
+        status: submission.status,
         scheduledAt:
-          form.status === 'scheduled'
+          submission.status === 'scheduled'
             ? scheduledAt.toISOString()
             : new Date().toISOString(),
-        clipId: form.clipId || null,
-        media: form.media,
+        clipId: submission.clipId || null,
+        media: submission.media,
         ...(tiktok ? { tiktok } : {}),
         ...(instagram ? { instagram } : {}),
         ...(selectedFacebookAccounts.length
@@ -785,10 +788,9 @@ export function PostDialog({
     return { form: t('errors.save') }
   }
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
+  async function submitPost(status: CalendarMutationStatus) {
     if (busy) return
-    const validation = validate()
+    const validation = validate(status)
     if (!validation.payload) {
       setErrors(validation.errors)
       return
@@ -804,6 +806,11 @@ export function PostDialog({
     } finally {
       setSaving(false)
     }
+  }
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    void submitPost(form.status)
   }
 
   async function handleDelete() {
@@ -845,6 +852,90 @@ export function PostDialog({
       : isReschedule
         ? t('dialog.rescheduleTitle')
         : t('dialog.editTitle')
+
+  if (isPage && !confirmDelete && !isReschedule) {
+    return (
+      <PostComposer
+        title={mode === 'create' ? t('composer.newPost') : dialogTitle}
+        form={form}
+        errors={errors}
+        accounts={publishingAccounts}
+        clips={selectableClips}
+        publishingClips={publishingClips}
+        captionLimit={captionLimit}
+        timeZone={selectedTimeZone}
+        busy={busy}
+        saving={saving}
+        onFieldChange={setField}
+        onTimeZoneChange={setSelectedTimeZone}
+        onToggleAccount={toggleAccount}
+        onUploadingChange={setUploading}
+        onMediaConfirm={({ clipId, media }) => {
+          setYouTubeSettings(current => ({ ...current, termsAccepted: false }))
+          setTikTokSettings(current => ({
+            ...current,
+            photoCoverIndex: remapTikTokPhotoCover(form.media, media, current.photoCoverIndex)
+          }))
+          if (clipId) handleClipChange(clipId)
+          else setForm(current => ({ ...current, clipId: '', media }))
+          setErrors(current => ({ ...current, clipId: undefined, media: undefined, form: undefined }))
+        }}
+        onOptionsOpen={() => {
+          optionsSnapshot.current = { instagram: instagramSettings, tiktok: tiktokSettings, facebook: facebookSettings, youtube: youtubeSettings }
+        }}
+        onOptionsCancel={() => {
+          const snapshot = optionsSnapshot.current
+          if (!snapshot) return
+          setInstagramSettings(snapshot.instagram)
+          setTikTokSettings(snapshot.tiktok)
+          setFacebookSettings(snapshot.facebook)
+          setYouTubeSettings(snapshot.youtube)
+        }}
+        onSave={submitPost}
+        onClose={onClose}
+        onDelete={mode === 'edit' && onDelete ? () => setConfirmDelete(true) : undefined}
+        platformOptions={{
+          instagram: selectedInstagramAccount && (
+            <div className="space-y-3">
+              <InstagramPostSettingsComponent
+                presentation="drawer"
+                previewUrl={selectableClips.find(clip => clip.id === form.clipId)?.thumbnailUrl || undefined}
+                disabled={busy}
+                idPrefix={`${titleId}-instagram`}
+                isReel={isMetaReel}
+                onUploadingChange={setUploading}
+                settings={instagramSettings}
+                onChange={(key, value) => setInstagramSettings(current => ({ ...current, [key]: value }))}
+              />
+              <FieldError id={`${titleId}-instagram-error`} message={errors.instagram} />
+            </div>
+          ),
+          tiktok: selectedTikTokAccount && (
+            <div className="space-y-3">
+              <TikTokPostSettings
+                isPhotoPost={isTikTokPhotoPost} media={form.media} clip={selectedTikTokClip}
+                disabled={busy} idPrefix={`${titleId}-tiktok`} settings={tiktokSettings}
+                optionsState={tiktokOptionsState} onChange={updateTikTokSetting} onRetry={retryTikTokOptions}
+              />
+              <FieldError id={`${titleId}-tiktok-error`} message={errors.tiktok} />
+            </div>
+          ),
+          facebook: selectedFacebookAccounts.length > 0 && (
+            <div className="space-y-3">
+              <FacebookPostSettings disabled={busy} idPrefix={`${titleId}-facebook`} isReel={isMetaReel} settings={facebookSettings} onChange={setFacebookSettings} />
+              <FieldError id={`${titleId}-facebook-error`} message={errors.facebook} />
+            </div>
+          ),
+          youtube: selectedYouTubeAccounts.length > 0 && (
+            <div className="space-y-3">
+              <YouTubePostSettings settings={youtubeSettings} onChange={setYouTubeSettings} auditApproved={youtubeAuditApproved} channelNames={selectedYouTubeAccounts.map(account => account.name).join(', ')} disabled={busy} idPrefix={`${titleId}-youtube`} />
+              <FieldError id={`${titleId}-youtube-error`} message={errors.youtube} />
+            </div>
+          )
+        }}
+      />
+    )
+  }
 
   const platformSelection = (
     <fieldset

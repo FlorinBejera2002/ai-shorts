@@ -3,6 +3,7 @@ package worker
 import (
 	"context"
 	"testing"
+	"time"
 
 	"sneepcut/backend-go/internal/jobs"
 	"sneepcut/backend-go/internal/testdb"
@@ -12,15 +13,19 @@ func TestPostgresBrandBadgeEntitlementAndAdminFailureRefund(t *testing.T) {
 	db := testdb.Open(t)
 	ctx := context.Background()
 	for _, tc := range []struct {
-		role, plan       string
-		preference, hide bool
+		role, plan, coverage string
+		preference, hide     bool
 	}{
-		{"admin", "free", true, true},
-		{"admin", "free", false, false},
-		{"member", "free", true, false},
-		{"member", "agency", true, true},
+		{"admin", "free", "manual", true, true},
+		{"admin", "free", "manual", false, false},
+		{"member", "free", "manual", true, false},
+		{"member", "agency", "manual", true, true},
+		{"member", "agency", "current", true, true},
+		{"member", "agency", "expired", true, false},
+		{"member", "agency", "unknown", true, false},
+		{"admin", "free", "expired", true, true},
 	} {
-		t.Run(tc.role+"/"+tc.plan+"/"+map[bool]string{true: "hide", false: "show"}[tc.preference], func(t *testing.T) {
+		t.Run(tc.role+"/"+tc.plan+"/"+tc.coverage+"/"+map[bool]string{true: "hide", false: "show"}[tc.preference], func(t *testing.T) {
 			user := token()
 			balance := 100
 			if tc.role == "admin" {
@@ -28,6 +33,17 @@ func TestPostgresBrandBadgeEntitlementAndAdminFailureRefund(t *testing.T) {
 			}
 			if _, err := db.Exec(`INSERT INTO users(id,email,provider,access_role,credits,plan) VALUES($1,$2,'credentials',$3,$4,$5)`, user, user+"@example.invalid", tc.role, balance, tc.plan); err != nil {
 				t.Fatal(err)
+			}
+			if tc.coverage != "manual" {
+				var end any
+				if tc.coverage == "current" {
+					end = time.Now().Add(time.Hour)
+				} else if tc.coverage == "expired" {
+					end = time.Now().Add(-time.Hour)
+				}
+				if _, err := db.Exec(`UPDATE users SET stripe_subscription_id=$2,stripe_subscription_status='active',stripe_current_period_end=$3 WHERE id=$1`, user, "sub_"+user, end); err != nil {
+					t.Fatal(err)
+				}
 			}
 			source := "https://youtube.com/watch?v=fixture"
 			options := jobs.DefaultOptions()
@@ -51,7 +67,8 @@ func TestPostgresBrandBadgeEntitlementAndAdminFailureRefund(t *testing.T) {
 				t.Fatal(err)
 			}
 			var after int
-			if err := db.QueryRow(`SELECT credits FROM users WHERE id=$1`, user).Scan(&after); err != nil || after != balance {
+			var rawPlan string
+			if err := db.QueryRow(`SELECT credits,plan FROM users WHERE id=$1`, user).Scan(&after, &rawPlan); err != nil || after != balance || rawPlan != tc.plan {
 				t.Fatalf("refund changed original balance: %d want %d (%v)", after, balance, err)
 			}
 		})

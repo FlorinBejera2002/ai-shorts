@@ -1,9 +1,13 @@
 'use client'
 
 import '@/components/clips/media-workbench.css'
-import { ClipCard as LibraryClipCard } from '@/components/clips/clip-card'
-import { ClipsLibraryToolbar } from '@/components/clips/clips-library-toolbar'
-import { ClipsPagination } from '@/components/clips/clips-pagination'
+import { ClipsProjectWorkspace } from '@/components/clips/clips-project-workspace'
+import type {
+  Project,
+  ProjectBrand
+} from '@/components/clips/clips-project-types'
+import styles from '@/components/clips/clips-workspace.module.css'
+import { WorkspaceMobileHeader } from '@/components/dashboard/workspace-mobile-header'
 import { ApiState } from '@/components/shared/api-state'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -15,76 +19,16 @@ import {
   DialogHeader,
   DialogTitle
 } from '@/components/ui/dialog'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger
-} from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { PageHeader } from '@/components/ui/page-header'
 import { useToast } from '@/components/ui/toast'
 import { useApiResource } from '@/hooks/use-api-resource'
 import { Link } from '@/i18n/navigation'
 import { apiFetch } from '@/lib/auth'
-import {
-  CLIPS_PAGE_SIZE,
-  clipsLibraryHref,
-  hasActiveClipFilters,
-  parseClipsLibraryQuery
-} from '@/lib/clips-library'
-import {
-  Folder,
-  FolderOpen,
-  Grid2X2,
-  MoreHorizontal,
-  Palette,
-  Pencil,
-  Plus,
-  Sparkles,
-  Trash2
-} from 'lucide-react'
-import { useLocale, useTranslations } from 'next-intl'
+import { Palette, Plus, Sparkles } from 'lucide-react'
+import { useLocale } from 'next-intl'
 import Image from 'next/image'
-import { useSearchParams } from 'next/navigation'
 import { type CSSProperties, useMemo, useState } from 'react'
-
-type ProjectFolder = { id: string; parentId: string | null; name: string }
-type ProjectClip = {
-  id: string
-  folderId: string | null
-  title: string
-  duration: number
-  viralScore: number | null
-  aspectRatio: string
-  thumbnailUrl: string | null
-  hookText: string | null
-  resolution: string
-  hasSubtitles: boolean
-  fileUrl?: string | null
-  createdAt: string
-}
-type ProjectBrand = {
-  name?: string
-  logoPath?: string
-  logoUrl?: string
-  primaryColor?: string
-  secondaryColor?: string
-  fontFamily?: string
-  subtitleFont?: string
-  subtitleColor?: string
-}
-type Project = {
-  id: string
-  name: string
-  status: string
-  source: string
-  brandKit: ProjectBrand
-  folders: ProjectFolder[]
-  clips: ProjectClip[]
-  updatedAt: string
-}
 
 const translations = {
   ro: {
@@ -203,9 +147,11 @@ export default function ProjectsPage() {
   const projects = useMemo(() => data?.projects ?? [], [data])
   const project = projects.find((item) => item.id === projectId)
 
-  if (!data) return <ApiState error={error} retry={reload} />
-
-  async function mutate(path: string, options: RequestInit) {
+  async function mutate(
+    path: string,
+    options: RequestInit,
+    reportError = true
+  ) {
     setSaving(true)
     try {
       const response = await apiFetch(path, {
@@ -216,7 +162,7 @@ export default function ProjectsPage() {
       await reload()
       return true
     } catch {
-      toast.add('error', text.failed)
+      if (reportError) toast.add('error', text.failed)
       return false
     } finally {
       setSaving(false)
@@ -232,9 +178,11 @@ export default function ProjectsPage() {
       {
         method: 'PATCH',
         body: JSON.stringify({ folderId: destination })
-      }
+      },
+      false
     )
     if (done) toast.add('success', text.saved)
+    return done
   }
   async function saveFolder() {
     const ownerId = editingFolder?.projectId ?? project?.id ?? projects[0]?.id
@@ -316,21 +264,31 @@ export default function ProjectsPage() {
   }
 
   return (
-    <div className="media-workbench projects-workspace">
-      <PageHeader
-        title={text.title}
-        description={text.description}
-        actions={
-          <Button asChild={true}>
-            <Link href="/dashboard/create">
-              <Plus aria-hidden="true" />
-              {text.newProject}
-            </Link>
-          </Button>
-        }
-      />
-      {projects.length ? (
-        <ProjectsWorkspace
+    <div
+      className={`${styles.workspace} media-workbench projects-workspace`}
+      data-clips-workspace=""
+    >
+      <WorkspaceMobileHeader />
+      <header className={styles.header}>
+        <div className={styles.heading}>
+          <h1>{text.title}</h1>
+          {data && (
+            <span className={styles.count}>
+              {projects.reduce((total, owner) => total + owner.clips.length, 0)}
+            </span>
+          )}
+        </div>
+        <Button asChild={true} className={styles.newClip}>
+          <Link href="/dashboard/create">
+            <Plus aria-hidden="true" />
+            {text.newProject}
+          </Link>
+        </Button>
+      </header>
+      {!data ? (
+        <ApiState error={error} retry={reload} />
+      ) : projects.length ? (
+        <ClipsProjectWorkspace
           projects={projects}
           project={project}
           folderId={folderId}
@@ -377,424 +335,6 @@ export default function ProjectsPage() {
         onSubmit={saveFolder}
       />
     </div>
-  )
-}
-
-type WorkspaceProps = {
-  projects: Project[]
-  project?: Project
-  folderId: string | null | 'all'
-  text: Copy
-  onProject: (id: string) => void
-  onFolder: (id: string | null | 'all') => void
-  onBrand: (project: Project) => void
-  onMoveClip: (
-    projectId: string,
-    clipId: string,
-    folderId: string | null
-  ) => void
-  onCreateFolder: () => void
-  onRenameFolder: (projectId: string, folder: ProjectFolder) => void
-  onDeleteFolder: (projectId: string, folderId: string) => void
-  onDeleted: () => void | Promise<void>
-}
-function ProjectsWorkspace(props: WorkspaceProps) {
-  return (
-    <div className="projects-layout">
-      <FolderRail
-        projects={props.projects}
-        project={props.project}
-        folderId={props.folderId}
-        text={props.text}
-        onProject={props.onProject}
-        onFolder={props.onFolder}
-        onMoveClip={props.onMoveClip}
-        onCreateFolder={props.onCreateFolder}
-        onRenameFolder={props.onRenameFolder}
-        onDeleteFolder={props.onDeleteFolder}
-        onBrand={props.onBrand}
-      />
-      <ProjectBrowser {...props} />
-    </div>
-  )
-}
-
-function FolderRail({
-  projects,
-  project,
-  folderId,
-  text,
-  onProject,
-  onFolder,
-  onMoveClip,
-  onCreateFolder,
-  onRenameFolder,
-  onDeleteFolder,
-  onBrand
-}: {
-  projects: Project[]
-  project?: Project
-  folderId: string | null | 'all'
-  text: Copy
-  onProject: (id: string) => void
-  onFolder: (id: string | null | 'all') => void
-  onMoveClip: (
-    projectId: string,
-    clipId: string,
-    folderId: string | null
-  ) => void
-  onCreateFolder: () => void
-  onRenameFolder: (projectId: string, folder: ProjectFolder) => void
-  onDeleteFolder: (projectId: string, folderId: string) => void
-  onBrand: (project: Project) => void
-}) {
-  const [dragOver, setDragOver] = useState<string | null>(null)
-  const folders = projects.flatMap((owner) =>
-    owner.folders.map((folder) => ({ folder, owner }))
-  )
-  const allClipsCount = projects.reduce(
-    (total, owner) => total + owner.clips.length,
-    0
-  )
-  return (
-    <aside className="projects-rail" aria-label={text.foldersTitle}>
-      <div className="projects-rail-heading">
-        <span>{text.foldersTitle}</span>
-        <button
-          type="button"
-          className="projects-rail-add"
-          onClick={onCreateFolder}
-          aria-label={text.createFolder}
-        >
-          <Plus aria-hidden="true" />
-        </button>
-      </div>
-      <div className="projects-rail-list">
-        <div
-          className="projects-rail-item projects-rail-all"
-          data-active={!project && folderId === 'all'}
-        >
-          <button
-            type="button"
-            className="projects-rail-select"
-            onClick={() => {
-              onProject('')
-              onFolder('all')
-            }}
-          >
-            <span className="projects-rail-folder-icon">
-              <Grid2X2 aria-hidden="true" />
-            </span>
-            <span className="min-w-0 flex-1">
-              <strong>{text.allProjects}</strong>
-              <small>
-                {allClipsCount} {text.clips}
-              </small>
-            </span>
-          </button>
-        </div>
-        {folders.map(({ folder, owner }) => {
-          const dropKey = `${owner.id}:${folder.id}`
-          const clipCount = owner.clips.filter(
-            (clip) => clip.folderId === folder.id
-          ).length
-          return (
-            <div
-              key={dropKey}
-              className="projects-rail-item"
-              data-active={project?.id === owner.id && folderId === folder.id}
-              data-dragover={dragOver === dropKey}
-              onDragOver={(event) => {
-                event.preventDefault()
-                event.dataTransfer.dropEffect = 'move'
-                setDragOver(dropKey)
-              }}
-              onDragLeave={() => setDragOver(null)}
-              onDrop={(event) => {
-                event.preventDefault()
-                setDragOver(null)
-                const clipId = event.dataTransfer.getData(
-                  'application/x-sneepcut-clip'
-                )
-                if (clipId) onMoveClip(owner.id, clipId, folder.id)
-              }}
-            >
-              <button
-                type="button"
-                className="projects-rail-select"
-                onClick={() => {
-                  onProject(owner.id)
-                  onFolder(folder.id)
-                }}
-              >
-                <span className="projects-rail-folder-icon">
-                  <Folder aria-hidden="true" />
-                </span>
-                <span className="min-w-0 flex-1">
-                  <strong>{folder.name}</strong>
-                  <small>
-                    {clipCount} {text.clips}
-                  </small>
-                </span>
-              </button>
-              {dragOver === dropKey ? (
-                <span className="projects-rail-drop-hint">{text.dropHere}</span>
-              ) : (
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild={true}>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      aria-label={folder.name}
-                    >
-                      <MoreHorizontal aria-hidden="true" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem onSelect={() => onBrand(owner)}>
-                      <Palette aria-hidden="true" />
-                      {text.brand}
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onSelect={() => onRenameFolder(owner.id, folder)}
-                    >
-                      <Pencil aria-hidden="true" />
-                      {text.renameFolder}
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onSelect={() => onDeleteFolder(owner.id, folder.id)}
-                    >
-                      <Trash2 aria-hidden="true" />
-                      {text.deleteFolder}
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              )}
-            </div>
-          )
-        })}
-      </div>
-    </aside>
-  )
-}
-
-function ProjectBrowser({
-  projects,
-  project,
-  folderId,
-  text,
-  onProject,
-  onFolder,
-  onDeleted
-}: WorkspaceProps) {
-  const locale = useLocale()
-  const t = useTranslations('clips')
-  const studio = useTranslations('studioEditor')
-  const searchParams = useSearchParams()
-  const query = parseClipsLibraryQuery(Object.fromEntries(searchParams))
-  const sourceClips = project
-    ? project.clips.map((clip) => ({
-        ...clip,
-        projectId: project.id,
-        folderName:
-          project.folders.find((folder) => folder.id === clip.folderId)?.name ??
-          null
-      }))
-    : projects.flatMap((owner) =>
-        owner.clips.map((clip) => ({
-          ...clip,
-          projectId: owner.id,
-          folderName:
-            owner.folders.find((folder) => folder.id === clip.folderId)?.name ??
-            null
-        }))
-      )
-  const matchingClips = sourceClips
-    .filter((clip) =>
-      folderId === 'unassigned'
-        ? clip.folderId === null
-        : !project || folderId === 'all' || clip.folderId === folderId
-    )
-    .filter((clip) => {
-      const search = query.search.toLocaleLowerCase(locale)
-      if (
-        search &&
-        !`${clip.title} ${clip.hookText ?? ''}`
-          .toLocaleLowerCase(locale)
-          .includes(search)
-      )
-        return false
-      const score = clip.viralScore ?? 0
-      if (query.score === 'high' && score < 8) return false
-      if (query.score === 'promising' && (score < 5 || score >= 8)) return false
-      if (query.score === 'low' && score >= 5) return false
-      if (query.aspect !== 'all' && clip.aspectRatio !== query.aspect)
-        return false
-      if (query.subtitles === 'yes' && !clip.hasSubtitles) return false
-      if (query.subtitles === 'no' && clip.hasSubtitles) return false
-      return true
-    })
-    .sort((left, right) => {
-      if (query.sort === 'oldest')
-        return Date.parse(left.createdAt) - Date.parse(right.createdAt)
-      if (query.sort === 'score')
-        return (right.viralScore ?? 0) - (left.viralScore ?? 0)
-      if (query.sort === 'duration') return right.duration - left.duration
-      return Date.parse(right.createdAt) - Date.parse(left.createdAt)
-    })
-  const total = matchingClips.length
-  const totalPages = Math.max(1, Math.ceil(total / CLIPS_PAGE_SIZE))
-  const currentPage = Math.min(query.page, totalPages)
-  const clips = matchingClips.slice(
-    (currentPage - 1) * CLIPS_PAGE_SIZE,
-    currentPage * CLIPS_PAGE_SIZE
-  )
-  const firstResult = total === 0 ? 0 : (currentPage - 1) * CLIPS_PAGE_SIZE + 1
-  const lastResult = Math.min(total, currentPage * CLIPS_PAGE_SIZE)
-  const filtersActive = hasActiveClipFilters(query)
-
-  return (
-    <section className="projects-browser">
-      <ClipsLibraryToolbar
-        showSearch={sourceClips.length > 15}
-        query={query}
-        organizationFilter={{
-          label: text.organization,
-          value: folderId === 'unassigned' ? 'unassigned' : 'all',
-          options: [
-            { value: 'all', label: text.allProjects },
-            { value: 'unassigned', label: text.unassignedClips }
-          ],
-          onChange: (value) => {
-            onProject('')
-            onFolder(value === 'unassigned' ? 'unassigned' : 'all')
-          }
-        }}
-        labels={{
-          search: t('searchLabel'),
-          searchPlaceholder: t('searchPlaceholder'),
-          score: t('scoreLabel'),
-          aspect: t('aspectLabel'),
-          subtitles: t('subtitlesLabel'),
-          sort: t('sortLabel'),
-          apply: t('applyFilters'),
-          clear: t('clearFilters')
-        }}
-        scoreOptions={[
-          { value: 'all', label: t('scoreAll') },
-          { value: 'high', label: t('scoreHigh') },
-          { value: 'promising', label: t('scorePromising') },
-          { value: 'low', label: t('scoreLow') }
-        ]}
-        aspectOptions={[
-          { value: 'all', label: t('aspectAll') },
-          { value: '9:16', label: '9:16' },
-          { value: '1:1', label: '1:1' },
-          { value: '16:9', label: '16:9' }
-        ]}
-        subtitleOptions={[
-          { value: 'all', label: t('subtitlesAll') },
-          { value: 'yes', label: t('subtitlesYes') },
-          { value: 'no', label: t('subtitlesNo') }
-        ]}
-        sortOptions={[
-          { value: 'newest', label: t('sortNewest') },
-          { value: 'oldest', label: t('sortOldest') },
-          { value: 'score', label: t('sortScore') },
-          { value: 'duration', label: t('sortDuration') }
-        ]}
-      />
-      {clips.length > 0 ? (
-        <>
-          <div className="mt-6 flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
-            <p aria-live="polite">
-              {t('showingResults', {
-                first: firstResult,
-                last: lastResult,
-                total
-              })}
-            </p>
-            {filtersActive && (
-              <Link
-                href={clipsLibraryHref(query, {
-                  search: '',
-                  score: 'all',
-                  aspect: 'all',
-                  subtitles: 'all',
-                  sort: 'newest',
-                  page: 1
-                })}
-                className="font-semibold text-foreground hover:underline"
-              >
-                {t('clearFilters')}
-              </Link>
-            )}
-          </div>
-          <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-            {clips.map((clip, index) => (
-              <div
-                key={clip.id}
-                className="clips-organized-card"
-                draggable={true}
-                onDragStart={(event) => {
-                  event.dataTransfer.effectAllowed = 'move'
-                  event.dataTransfer.setData(
-                    'application/x-sneepcut-clip',
-                    clip.id
-                  )
-                  event.currentTarget.dataset.dragging = 'true'
-                }}
-                onDragEnd={(event) =>
-                  delete event.currentTarget.dataset.dragging
-                }
-              >
-                <LibraryClipCard
-                  index={index}
-                  locale={locale}
-                  labels={{
-                    open: studio('edit'),
-                    score: t('viralScoreLabel'),
-                    subtitles: t('hasSubtitles')
-                  }}
-                  actions={{
-                    edit: studio('edit'),
-                    publish: t('publishClip'),
-                    download: t('downloadClip'),
-                    delete: t('deleteClip'),
-                    deleteConfirm: t('deleteConfirm'),
-                    deleteSuccess: t('deleteSuccess'),
-                    deleteError: t('deleteError')
-                  }}
-                  onDeleted={onDeleted}
-                  clip={{
-                    ...clip,
-                    hookText: clip.hookText,
-                    viralScore: clip.viralScore ?? 0
-                  }}
-                  projectName={clip.folderName}
-                />
-              </div>
-            ))}
-          </div>
-          <ClipsPagination
-            query={{ ...query, page: currentPage }}
-            currentPage={currentPage}
-            totalPages={totalPages}
-            labels={{
-              previous: t('previousPage'),
-              next: t('nextPage'),
-              page: t('paginationLabel')
-            }}
-          />
-        </>
-      ) : (
-        <div className="projects-empty">
-          <FolderOpen aria-hidden="true" />
-          <h3>{filtersActive ? t('noMatches') : text.emptyFolder}</h3>
-          <p>{filtersActive ? t('noMatchesDesc') : text.emptyHint}</p>
-        </div>
-      )}
-    </section>
   )
 }
 
@@ -1000,7 +540,11 @@ function BrandField({
   label,
   value,
   onChange
-}: { label: string; value: string; onChange: (value: string) => void }) {
+}: {
+  label: string
+  value: string
+  onChange: (value: string) => void
+}) {
   const id = `brand-${label.toLowerCase().replace(/\s+/g, '-')}`
   return (
     <div>
@@ -1018,7 +562,11 @@ function ColorField({
   label,
   value,
   onChange
-}: { label: string; value: string; onChange: (value: string) => void }) {
+}: {
+  label: string
+  value: string
+  onChange: (value: string) => void
+}) {
   return (
     <label className="projects-color-field">
       <span>{label}</span>

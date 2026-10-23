@@ -5,6 +5,28 @@ import (
 	"testing"
 )
 
+func TestStripeEnvironmentDefaultsToIsolatedTestMode(t *testing.T) {
+	env := map[string]string{}
+	load := func() (Application, error) {
+		return ApplicationFromEnv(func(key string) string { return env[key] }, "test")
+	}
+	a, err := load()
+	if err != nil || a.StripeMode != "test" {
+		t.Fatalf("Stripe must default to test mode: %q, %v", a.StripeMode, err)
+	}
+	env["STRIPE_MODE"] = "live"
+	env["STRIPE_PORTAL_CONFIGURATION"] = "bpc_reviewed"
+	env["STRIPE_EXPECTED_ACCOUNT_ID"] = " acct_reviewed "
+	a, err = load()
+	if err != nil || a.StripeMode != "live" || a.StripePortalConfiguration != "bpc_reviewed" || a.StripeExpectedAccountID != "acct_reviewed" {
+		t.Fatal("explicit Stripe mode/portal/account configuration was not loaded", err)
+	}
+	env["STRIPE_MODE"] = "production"
+	if _, err = load(); err == nil || !strings.Contains(err.Error(), "STRIPE_MODE") {
+		t.Fatal("ambiguous Stripe mode accepted")
+	}
+}
+
 func TestYouTubeApprovalFlagsDefaultDenyAndMediaPrefix(t *testing.T) {
 	env := map[string]string{"APP_URL": "https://app.example.com"}
 	load := func() (Application, error) {

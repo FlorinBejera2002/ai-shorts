@@ -1,25 +1,20 @@
 'use client'
 
-import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
-import { ClipDownloadMenu } from '@/components/clips/clip-download-menu'
-import { LoadingIndicator } from '@/components/ui/loading-indicator'
 import { useToast } from '@/components/ui/toast'
 import { Link } from '@/i18n/navigation'
 import { apiFetch } from '@/lib/auth'
-import {
-  Captions,
-  Film,
-  Folder,
-  Pencil,
-  Play,
-  Send,
-  Trash2,
-  Zap
-} from 'lucide-react'
+import { formatDuration } from '@/lib/utils'
+import { Film, Play, TrendingUp } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import type { ClipVariant } from '@/types'
+import {
+  ClipActionsMenu,
+  type ClipCardActions,
+  type ClipMoveTarget
+} from './clip-actions-menu'
+import styles from './clip-card.module.css'
 
 export type ClipCardData = {
   id: string
@@ -34,16 +29,6 @@ export type ClipCardData = {
   fileUrl?: string | null
   variants?: ClipVariant[]
   createdAt: string
-}
-
-type ClipCardActions = {
-  edit: string
-  publish: string
-  download: string
-  delete: string
-  deleteConfirm: string
-  deleteSuccess: string
-  deleteError: string
 }
 
 const dateFormatters = new Map<string, Intl.DateTimeFormat>()
@@ -68,7 +53,13 @@ export function ClipCard({
   index,
   projectName,
   actions,
-  onDeleted
+  onDeleted,
+  moveTargets = [],
+  currentMoveTarget,
+  onMove,
+  moveLabel = 'Move to project',
+  menuLabel,
+  cancelLabel = 'Cancel'
 }: {
   clip: ClipCardData
   locale: string
@@ -77,20 +68,26 @@ export function ClipCard({
   projectName?: string | null
   actions?: ClipCardActions
   onDeleted?: () => void | Promise<void>
+  moveTargets?: ClipMoveTarget[]
+  currentMoveTarget?: string
+  onMove?: (value: string) => void | Promise<void>
+  moveLabel?: string
+  menuLabel?: string
+  cancelLabel?: string
 }) {
   const router = useRouter()
   const toast = useToast()
   const [deleting, setDeleting] = useState(false)
   const clipHref = `/dashboard/clips/${encodeURIComponent(clip.id)}`
-  const date = formatClipDate(clip.createdAt, locale)
 
   async function deleteClip() {
     if (!actions || !window.confirm(actions.deleteConfirm)) return
     setDeleting(true)
     try {
-      const response = await apiFetch(`/api/clips/${clip.id}`, {
-        method: 'DELETE'
-      })
+      const response = await apiFetch(
+        `/api/clips/${encodeURIComponent(clip.id)}`,
+        { method: 'DELETE' }
+      )
       if (!response.ok) {
         const data = await response.json().catch(() => ({}))
         toast.add('error', data.error ?? actions.deleteError)
@@ -108,156 +105,81 @@ export function ClipCard({
 
   return (
     <Card
+      as="article"
+      data-clip-card={clip.id}
+      className={`${styles.card} media-asset`}
       style={{ animationDelay: `${Math.min(index, 10) * 25}ms` }}
-      className="media-asset group min-w-0 gap-0 overflow-hidden py-0 shadow-none transition-colors hover:border-primary/50"
     >
-      <div
-        className="relative flex h-full min-w-0 flex-col rounded-md"
-        style={{ animationDelay: `${Math.min(index, 10) * 35}ms` }}
+      <Link
+        href={clipHref}
+        className={styles.preview}
+        aria-label={`${labels.open}: ${clip.title}`}
       >
-        <Link
-          href={clipHref}
-          className="media-asset-preview relative block aspect-video overflow-hidden border-b outline-none"
-          aria-label={`${labels.open}: ${clip.title}`}
-        >
-          {clip.thumbnailUrl ? (
-            <img
-              src={clip.thumbnailUrl}
-              alt=""
-              loading="lazy"
-              className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
-            />
-          ) : (
-            <div className="absolute inset-0 flex items-center justify-center">
-              <Film className="h-9 w-9 text-slate-500" aria-hidden="true" />
-            </div>
-          )}
-          <div className="absolute inset-0 flex items-center justify-center bg-black/0 transition-colors group-hover:bg-black/25">
-            <div className="flex h-10 w-10 scale-90 items-center justify-center rounded-full bg-white text-black opacity-0 shadow-lg transition-all group-hover:scale-100 group-hover:opacity-100 group-focus-within:scale-100 group-focus-within:opacity-100">
-              <Play className="ml-0.5 h-4 w-4" fill="currentColor" />
-            </div>
-          </div>
-          <div className="absolute bottom-2 right-2 rounded-md bg-black/70 px-2 py-1 text-[10px] font-semibold text-white backdrop-blur-sm">
-            {Math.round(clip.duration)}s · {clip.aspectRatio}
-          </div>
-        </Link>
-
-        <div className="flex flex-1 flex-col p-4">
-          <div className="flex items-start justify-between gap-3">
-            <h2 className="line-clamp-2 min-w-0 text-sm font-semibold leading-snug">
-              <Link href={clipHref} className="outline-none hover:underline">
-                {clip.title}
-              </Link>
-            </h2>
-            {clip.viralScore > 0 && (
-              <Badge
-                variant="secondary"
-                className={`inline-flex shrink-0 items-center gap-1 rounded-sm px-2 py-1 text-[10px] font-bold tabular-nums ${
-                  clip.viralScore >= 8
-                    ? 'bg-success/10 text-success'
-                    : clip.viralScore >= 5
-                      ? 'bg-warning/10 text-warning'
-                      : 'bg-muted text-muted-foreground'
-                }`}
-                title={labels.score}
-              >
-                <Zap className="h-2.5 w-2.5" aria-hidden="true" />
-                {clip.viralScore}/10
-              </Badge>
-            )}
-          </div>
-          {clip.hookText && (
-            <p className="mt-2 line-clamp-2 text-xs leading-relaxed text-muted-foreground">
-              {clip.hookText}
-            </p>
-          )}
-          <div className="mt-auto flex flex-wrap items-center gap-x-2 gap-y-1 pt-4 text-[11px] text-muted-foreground">
-            {projectName && (
-              <span className="inline-flex min-w-0 items-center gap-1 font-medium text-foreground/75">
-                <Folder className="size-3 shrink-0" aria-hidden="true" />
-                <span className="max-w-28 truncate">{projectName}</span>
-              </span>
-            )}
-            <span>{date}</span>
-            <span aria-hidden="true">·</span>
-            <span>{clip.resolution}</span>
-            {clip.hasSubtitles && (
-              <span
-                className="ml-auto inline-flex items-center gap-1"
-                title={labels.subtitles}
-              >
-                <Captions className="h-3.5 w-3.5" aria-hidden="true" />
-                <span className="sr-only">{labels.subtitles}</span>
-              </span>
-            )}
-          </div>
+        {clip.thumbnailUrl ? (
+          <img
+            src={clip.thumbnailUrl}
+            alt=""
+            loading="lazy"
+            className={styles.image}
+          />
+        ) : (
+          <Film className={styles.fallback} aria-hidden="true" />
+        )}
+        <span className={styles.play}>
+          <Play className="size-4 fill-current" aria-hidden="true" />
+        </span>
+        {clip.hasSubtitles && (
+          <span className={styles.captions} title={labels.subtitles}>
+            <span aria-hidden="true">CC</span>
+            <span className="sr-only">{labels.subtitles}</span>
+          </span>
+        )}
+        {clip.viralScore > 0 && (
+          <span className={styles.score} title={labels.score}>
+            <TrendingUp aria-hidden="true" />
+            <span>{clip.viralScore}</span>
+            <span className="sr-only">{labels.score}</span>
+          </span>
+        )}
+        <span className={styles.duration}>{formatDuration(clip.duration)}</span>
+      </Link>
+      <div className={styles.details}>
+        <div className={styles.titleRow}>
+          <h2>
+            <Link href={clipHref} title={clip.title}>
+              {clip.title}
+            </Link>
+          </h2>
           {actions && (
-            <div className="mt-3 grid grid-cols-2 gap-1.5 border-t border-border/70 pt-3">
-              <CardAction
-                href={clipHref}
-                label={actions.edit}
-                icon={Pencil}
-              />
-              <CardAction
-                href={`/dashboard/publish/new?clip=${encodeURIComponent(clip.id)}`}
-                label={actions.publish}
-                icon={Send}
-                primary={true}
-              />
-              <ClipDownloadMenu
-                title={clip.title}
-                variants={clip.variants}
-                fallbackUrl={clip.fileUrl}
-                compact={true}
-                label={actions.download}
-              />
-              <button
-                type="button"
-                onClick={() => void deleteClip()}
-                disabled={deleting}
-                aria-label={actions.delete}
-                title={actions.delete}
-                className="flex h-9 items-center justify-center gap-1.5 rounded-md border border-transparent bg-background px-2 text-[11px] font-semibold text-destructive/80 transition-[border-color,color] hover:border-destructive/25 hover:text-destructive disabled:opacity-50"
-              >
-                {deleting ? (
-                  <LoadingIndicator className="size-4" />
-                ) : (
-                  <Trash2 className="size-4" aria-hidden="true" />
-                )}
-                <span>{actions.delete}</span>
-              </button>
-            </div>
+            <ClipActionsMenu
+              clip={clip}
+              locale={locale}
+              actions={actions}
+              disabled={deleting}
+              clipHref={clipHref}
+              moveTargets={moveTargets}
+              currentMoveTarget={currentMoveTarget}
+              onMove={onMove}
+              moveLabel={moveLabel}
+              menuLabel={
+                menuLabel ??
+                `${locale === 'ro' ? 'Acțiuni pentru' : 'Actions for'} ${clip.title}`
+              }
+              cancelLabel={cancelLabel}
+              onDelete={deleteClip}
+            />
           )}
         </div>
+        <p className={styles.metadata} title={projectName || undefined}>
+          <time dateTime={clip.createdAt}>
+            {formatClipDate(clip.createdAt, locale)}
+          </time>
+          <span aria-hidden="true">·</span>
+          <span>{clip.aspectRatio}</span>
+          <span aria-hidden="true">·</span>
+          <span>{clip.resolution}</span>
+        </p>
       </div>
     </Card>
-  )
-}
-
-function CardAction({
-  href,
-  label,
-  icon: Icon,
-  primary = false
-}: {
-  href: string
-  label: string
-  icon: typeof Pencil
-  primary?: boolean
-}) {
-  return (
-    <Link
-      href={href}
-      aria-label={label}
-      title={label}
-      className={`flex h-9 items-center justify-center gap-1.5 rounded-md border px-2 text-[11px] font-semibold transition-[border-color,color,opacity] ${
-        primary
-          ? 'border-foreground bg-foreground text-background hover:opacity-85'
-          : 'border-border bg-background text-foreground hover:border-foreground/35'
-      }`}
-    >
-      <Icon className="size-4" aria-hidden="true" />
-      <span>{label}</span>
-    </Link>
   )
 }

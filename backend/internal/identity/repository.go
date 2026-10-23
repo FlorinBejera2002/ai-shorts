@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	"errors"
 	"time"
+
+	"sneepcut/backend-go/internal/entitlements"
 )
 
 // User maps the current Sneepcut schema, not the example's integer-ID schema.
@@ -45,7 +47,7 @@ type Postgres struct {
 
 func NewPostgres(db *sql.DB) *Postgres { return &Postgres{db: db} }
 
-const userColumns = `u.id, u.email, u.name, u.avatar_url, u.credits, u.plan,
+const userColumns = `u.id, u.email, u.name, u.avatar_url, u.credits, ` + entitlements.EffectivePlanSQL + `,
 	u.access_role, u.account_status, u.email_verified, u.created_at, COALESCE(u.password_hash, ''),
 	u.session_version, COALESCE(u.mfa_enabled,false), EXISTS (SELECT 1 FROM account_deletion_requests d WHERE d.user_id = u.id),u.email_activation_required`
 

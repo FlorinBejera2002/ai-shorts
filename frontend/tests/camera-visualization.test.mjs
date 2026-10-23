@@ -180,6 +180,36 @@ test('director, plan and camera projections are finite and distinct', () => {
   assert.ok(director.frustumLines.length > 0)
 })
 
+test('studio observer centres the setup and keeps the real recording camera pose', () => {
+  const studio = buildCameraVisualization({}, 'director')
+  const centre = studio.width / 2
+  const rigPoints = studio.cameraRig.body.points
+  const rigCentre = rigPoints.reduce((sum, point) => sum + point.x, 0) / rigPoints.length
+  assert.ok(Math.abs(studio.subject.head.x - centre) < 1e-8)
+  assert.ok(Math.abs(studio.subject.ground.x - centre) < 1e-8)
+  assert.ok(Math.abs(rigCentre - centre) < 1e-8)
+  assert.ok(studio.subject.head.y > studio.height * 0.15)
+  assert.ok(studio.subject.head.y < studio.height * 0.5)
+  assert.ok(studio.subject.ground.y > studio.height * 0.5)
+  assert.ok(studio.subject.ground.y < studio.height * 0.85)
+  assert.ok(rigPoints.every(point => point.visible && point.x > 0 && point.x < studio.width))
+
+  const inputs = [
+    {},
+    { camera_height: 0.4, camera_distance: 0.5, camera_yaw: -45, subject_position: [-3, 0, -3] },
+    { camera_height: 2.6, camera_distance: 6, camera_yaw: 45, subject_position: [3, 2.5, 5] }
+  ]
+  for (const input of inputs) {
+    const visualization = buildCameraVisualization(input, 'director')
+    assert.deepEqual(visualization.camera, createCameraPose(input))
+    for (const segment of [...visualization.floorLines, ...visualization.studioLines]) {
+      assert.ok([segment.from.x, segment.from.y, segment.to.x, segment.to.y].every(Number.isFinite))
+    }
+    assert.deepEqual(buildCameraVisualization(input, 'camera').camera, visualization.camera)
+    assert.deepEqual(buildCameraVisualization(input, 'top').camera, visualization.camera)
+  }
+})
+
 test('canonical camera movement uses repeatable geometry without mutating the source', () => {
   const source = {
     camera_yaw: 4,

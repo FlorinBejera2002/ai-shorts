@@ -39,6 +39,7 @@ Before starting every new project task, create a new ticket on the **Sneep Cut >
 
 ## Context and skills
 
+- For UI design work, use the approved Sneep Cut references and interaction guidance in [publishing-design.md](docs/design/publishing-design.md). The user selected the minimal New post design with one public text field; use it as the visual baseline for related surfaces.
 - Read the files and documentation needed for the current task. Do not load a full repository map or every design and verification document before a small edit.
 - Use skills only when their workflow fits the task. User instructions take precedence over skill guidelines. If a skill blocks progress, identify the exact file and instruction and explain why it applies.
 - Keep any new repository skill narrowly scoped, with a short description and supporting references loaded only when needed. Avoid duplicating general coding guidance or prescribing a fixed itinerary for every change.

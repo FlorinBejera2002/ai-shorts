@@ -7,8 +7,8 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import * as jsx from 'react/jsx-runtime'
 import ts from 'typescript'
 
-const exports = {}
 const icon = () => React.createElement('svg', { 'aria-hidden': true })
+const wrapper = ({ children }) => React.createElement(React.Fragment, null, children)
 const modules = {
   react: React,
   'react/jsx-runtime': jsx,
@@ -18,22 +18,42 @@ const modules = {
   '@/components/ui/card': { Card: ({ children }) => React.createElement('article', {}, children) },
   '@/components/ui/loading-indicator': { LoadingIndicator: icon },
   '@/components/ui/toast': { useToast: () => ({ add() {} }) },
-  '@/components/clips/clip-download-menu': {
-    ClipDownloadMenu: ({ label, fallbackUrl }) => React.createElement('a', { href: fallbackUrl }, label)
-  },
+  '@/components/ui/button': { Button: ({ children }) => React.createElement('button', {}, children) },
+  '@/components/ui/dropdown-menu': Object.fromEntries([
+    'DropdownMenu', 'DropdownMenuContent', 'DropdownMenuItem', 'DropdownMenuPortal',
+    'DropdownMenuSeparator', 'DropdownMenuSub', 'DropdownMenuSubContent',
+    'DropdownMenuSubTrigger', 'DropdownMenuTrigger'
+  ].map(name => [name, wrapper])),
+  '@/components/ui/sheet': Object.fromEntries([
+    'Sheet', 'SheetClose', 'SheetContent', 'SheetTitle', 'SheetTrigger'
+  ].map(name => [name, wrapper])),
+  '@/hooks/use-mobile': { useIsMobile: () => false },
   '@/i18n/navigation': { Link: ({ children, ...props }) => React.createElement('a', props, children) },
-  '@/lib/auth': { apiFetch: () => { throw new Error('Rendering a clip must not mutate it') } }
+  '@/lib/auth': { apiFetch: () => { throw new Error('Rendering a clip must not mutate it') } },
+  '@/lib/utils': { formatDuration: value => `${Math.floor(value / 60)}:${String(value % 60).padStart(2, '0')}` }
 }
-vm.runInNewContext(
-  ts.transpileModule(
-    readFileSync(new URL('../src/components/clips/clip-card.tsx', import.meta.url), 'utf8'),
-    { compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX, target: ts.ScriptTarget.ES2022 } }
-  ).outputText,
-  { exports, require: name => {
-    assert.ok(name in modules, `Unexpected dependency: ${name}`)
-    return modules[name]
-  }, Intl, Date, Map, encodeURIComponent }
-)
+
+function load(relative) {
+  const exports = {}
+  vm.runInNewContext(
+    ts.transpileModule(readFileSync(new URL(relative, import.meta.url), 'utf8'), {
+      compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX, target: ts.ScriptTarget.ES2022 }
+    }).outputText,
+    { exports, require: name => {
+      if (name.endsWith('.module.css'))
+        return { default: new Proxy({}, { get: (_, key) => String(key) }) }
+      assert.ok(name in modules, `Unexpected dependency: ${name}`)
+      return modules[name]
+    }, Intl, Date, Map, encodeURIComponent }
+  )
+  return exports
+}
+
+// Transparent menu primitives expose the actual extracted action links to the
+// route-contract test. Browser fixtures separately verify open/closed behavior.
+modules['./clip-download-utils'] = load('../src/components/clips/clip-download-utils.ts')
+modules['./clip-actions-menu'] = load('../src/components/clips/clip-actions-menu.tsx')
+const { ClipCard } = load('../src/components/clips/clip-card.tsx')
 
 const clip = {
   id: 'synthetic-clip', title: 'Generated clip', hookText: null, duration: 12,
@@ -42,7 +62,7 @@ const clip = {
 }
 
 function renderCard(id = clip.id) {
-  return renderToStaticMarkup(React.createElement(exports.ClipCard, {
+  return renderToStaticMarkup(React.createElement(ClipCard, {
     clip: { ...clip, id }, locale: 'en', index: 0,
     labels: { open: 'Open in Studio', score: 'Score', subtitles: 'Subtitles' },
     actions: {

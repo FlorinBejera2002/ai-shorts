@@ -3,7 +3,6 @@
 import { apiFetch } from '@/lib/auth'
 import type { PublishingMedia } from '@/lib/content-calendar'
 import { Reorder } from 'framer-motion'
-import { ImagePlus } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useEffect, useId, useRef, useState } from 'react'
 import { PublishingMediaItem } from './publishing-media-item'
@@ -11,15 +10,15 @@ import { PublishingImageFormatSelector } from './publishing-image-format'
 import { applyPublishingImageFormat } from './publishing-image-utils'
 import {
   MAX_PUBLISHING_MEDIA,
-  PUBLISHING_FILE_ACCEPT,
   movePublishingMedia,
   publishingFileType,
   publishingUploadErrorKey,
   uploadPublishingFile
 } from './publishing-media-utils'
-import { PublishingUploadProgress } from './publishing-upload-progress'
+import { PublishingMediaUploadZone } from './publishing-media-upload-zone'
 
 export function PublishingMediaPicker({
+  presentation = 'inline',
   media,
   disabled,
   instagramEnabled = false,
@@ -30,6 +29,7 @@ export function PublishingMediaPicker({
   onError,
   onUploadingChange
 }: {
+  presentation?: 'inline' | 'dialog'
   media: PublishingMedia[]
   disabled: boolean
   instagramEnabled?: boolean
@@ -41,6 +41,7 @@ export function PublishingMediaPicker({
   onUploadingChange: (uploading: boolean) => void
 }) {
   const t = useTranslations('contentCalendar')
+  const isDialog = presentation === 'dialog'
   const inputId = useId()
   const [previews, setPreviews] = useState<Record<string, string>>({})
   const [progress, setProgress] = useState<{
@@ -50,13 +51,19 @@ export function PublishingMediaPicker({
   } | null>(null)
   const previewUrls = useRef<Record<string, string>>({})
   const controller = useRef<AbortController | null>(null)
+  const uploadingCallback = useRef(onUploadingChange)
   const photoEditorEnabled = instagramEnabled || facebookEnabled || tiktokEnabled
   const imageFormat =
     media.find(item => item.type === 'image')?.crop?.aspectRatio ?? 'original'
 
+  useEffect(() => {
+    uploadingCallback.current = onUploadingChange
+  }, [onUploadingChange])
+
   useEffect(
     () => () => {
       controller.current?.abort()
+      uploadingCallback.current(false)
       for (const url of Object.values(previewUrls.current)) {
         if (url.startsWith('blob:')) URL.revokeObjectURL(url)
       }
@@ -152,10 +159,10 @@ export function PublishingMediaPicker({
   }
 
   return (
-    <div className="pt-1">
+    <div className={isDialog ? undefined : 'pt-1'}>
       <label
         htmlFor={inputId}
-        className="text-xs font-semibold text-foreground"
+        className={isDialog ? 'sr-only' : 'text-xs font-semibold text-foreground'}
       >
         {t('form.mediaLabel')}
       </label>
@@ -169,47 +176,15 @@ export function PublishingMediaPicker({
           onChange={onChange}
         />
       )}
-      <label
-        className={`relative mt-2 flex items-center gap-3 rounded-md border border-border bg-card px-4 ${progress ? 'min-h-48 cursor-wait py-5' : `min-h-20 py-3 ${disabled ? 'opacity-60' : 'cursor-pointer'}`}`}
-      >
-        <input
-          id={inputId}
-          type="file"
-          accept={PUBLISHING_FILE_ACCEPT}
-          multiple={true}
-          disabled={
-            disabled || !!progress || media.length >= MAX_PUBLISHING_MEDIA
-          }
-          aria-busy={!!progress}
-          className="absolute inset-0 size-full cursor-pointer opacity-0 disabled:cursor-not-allowed"
-          aria-describedby={
-            progress
-              ? undefined
-              : `${inputId}-hint${error ? ` ${inputId}-error` : ''}`
-          }
-          aria-invalid={Boolean(error)}
-          onChange={(event) => {
-            const files = Array.from(event.currentTarget.files ?? [])
-            event.currentTarget.value = ''
-            void upload(files)
-          }}
-        />
-        {progress ? (
-          <PublishingUploadProgress {...progress} />
-        ) : (
-          <>
-            <ImagePlus className="size-5 shrink-0" />
-            <span className="min-w-0">
-              <span id={`${inputId}-hint`} className="block text-xs font-semibold">
-                {media.length ? t('form.mediaAdd') : t('form.mediaChoose')}
-              </span>
-            </span>
-            <span className="ml-auto shrink-0 text-xs tabular-nums text-muted-foreground">
-              {media.length}/{MAX_PUBLISHING_MEDIA}
-            </span>
-          </>
-        )}
-      </label>
+      <PublishingMediaUploadZone
+        presentation={presentation}
+        inputId={inputId}
+        mediaCount={media.length}
+        disabled={disabled}
+        error={error}
+        progress={progress}
+        onUpload={upload}
+      />
       {media.length > 0 && (
         <div className="mt-3">
           <p className="mb-2 text-[11px] text-muted-foreground">

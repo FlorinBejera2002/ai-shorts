@@ -1,0 +1,253 @@
+.coach {
+  container-type: inline-size;
+}
+
+.content {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas: 'views' 'stage' 'playback' 'timeline' 'metrics';
+  gap: 1rem;
+}
+
+.views {
+  grid-area: views;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+.stage {
+  grid-area: stage;
+  position: relative;
+  min-width: 0;
+  aspect-ratio: 3 / 2;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: radial-gradient(
+    ellipse at 45% 35%,
+    #363636,
+    #1d1d1d 65%,
+    #151515
+  );
+  color: white;
+}
+
+.readouts {
+  position: absolute;
+  top: 0.75rem;
+  left: 0.75rem;
+  right: 0.75rem;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.4rem;
+  pointer-events: none;
+  font-size: 0.75rem;
+  line-height: 1.4;
+}
+
+.readout {
+  max-width: 40%;
+  border: 1px solid rgb(255 255 255 / 14%);
+  border-radius: var(--radius-sm);
+  background: rgb(42 42 42 / 85%);
+  padding: 0.35rem 0.5rem;
+  backdrop-filter: blur(8px);
+}
+
+.overlay {
+  margin-left: auto;
+  max-width: 40%;
+  border-radius: var(--radius-sm);
+  background: #fff;
+  color: #101010;
+  padding: 0.35rem 0.6rem;
+  font-weight: 700;
+}
+
+.metrics {
+  grid-area: metrics;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 0 0.75rem;
+}
+
+.metric {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+  align-items: center;
+  gap: 0.75rem;
+  flex: 1;
+  border-bottom: 1px solid var(--border);
+  padding: 0.8rem 0;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+
+.metric:last-child {
+  border-bottom: 0;
+}
+
+.metric dt {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  color: var(--muted-foreground);
+}
+
+.metric dd {
+  margin: 0;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+.playback {
+  grid-area: playback;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 0.5rem;
+}
+
+.time {
+  margin-right: auto;
+  padding-left: 0.25rem;
+  font-size: 0.875rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.controlText {
+  display: none;
+}
+
+.timeline {
+  grid-area: timeline;
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(6.5rem, 1fr);
+  gap: 0.5rem;
+  overflow-x: auto;
+  padding: 2px;
+  margin: -2px;
+}
+
+.sceneCard {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
+  min-height: 4.25rem;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 0.5rem;
+  text-align: left;
+  transition:
+    background-color 150ms,
+    border-color 150ms;
+}
+
+.sceneCard:hover {
+  background: var(--muted);
+}
+
+.sceneCard[aria-pressed='true'] {
+  border-color: var(--foreground);
+  box-shadow: inset 0 0 0 1px var(--foreground);
+}
+
+.sceneCard:focus-visible {
+  outline: 2px solid var(--foreground);
+  outline-offset: 2px;
+}
+
+.sceneNumber {
+  display: flex;
+  width: 1.6rem;
+  height: 1.6rem;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  background: var(--muted);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.sceneCard[aria-pressed='true'] .sceneNumber {
+  background: var(--foreground);
+  color: var(--background);
+}
+
+.sceneText {
+  display: grid;
+  min-width: 0;
+  gap: 0.15rem;
+  font-size: 0.75rem;
+}
+
+.sceneTime {
+  color: var(--muted-foreground);
+  font-size: 0.625rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.progress {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 2px;
+  background: var(--foreground);
+}
+
+@container (min-width: 480px) {
+  .sceneNumber {
+    width: 2.4rem;
+    height: 2.4rem;
+  }
+  .controlText {
+    display: inline;
+  }
+
+  .time {
+    padding-left: 0.5rem;
+    font-size: 1rem;
+  }
+
+  .sceneCard {
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+  }
+
+  .sceneText {
+    font-size: 0.875rem;
+  }
+
+  .sceneTime {
+    font-size: 0.75rem;
+  }
+}
+
+@container (min-width: 850px) {
+  .content {
+    grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr);
+    grid-template-areas: 'views .' 'stage metrics' 'playback playback' 'timeline timeline';
+  }
+
+  .stage {
+    aspect-ratio: 12 / 7;
+  }
+
+  .metric {
+    padding: 0.6rem 0;
+  }
+}

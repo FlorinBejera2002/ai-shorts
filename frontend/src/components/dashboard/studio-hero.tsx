@@ -1,47 +1,34 @@
-﻿'use client'
+'use client'
 
 import { Link } from '@/i18n/navigation'
-import { motion, useReducedMotion } from 'framer-motion'
-import { ArrowUpRight, Clapperboard, Plus } from 'lucide-react'
-import { useLocale, useTranslations } from 'next-intl'
-import styles from './studio-home.module.css'
+import { ArrowRight, Plus } from 'lucide-react'
+import { useTranslations } from 'next-intl'
+import styles from './home-workspace.module.css'
 
 export function StudioHero() {
-  const ro = useLocale() === 'ro'
-  const t = useTranslations('dashboard.studio')
-  const reduced = useReducedMotion()
+  const t = useTranslations('dashboard.homeDesign')
+  const nav = useTranslations('nav')
   return (
-    <motion.section
-      className={styles.hero}
-      initial={reduced ? false : { opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.45 }}
-      aria-label={ro ? 'Începe un proiect' : 'Start a project'}
-    >
-      <div className={styles.heroCopy}>
-        <div className={styles.eyebrow}>
-          <Clapperboard size={15} strokeWidth={1.5} /> SNEEP CUT STUDIO
-        </div>
-        <h2 className={styles.heroTitle}>
-          {ro
-            ? 'Creează clipuri din orice material.'
-            : 'Create clips from any footage.'}
-        </h2>
-        <p className={styles.heroDescription}>
-          {ro
-            ? 'Încarcă un video sau adaugă un link. Sneep Cut găsește momentele bune și le pregătește pentru editare.'
-            : 'Upload a video or add a link. Sneep Cut finds the strongest moments and prepares them for editing.'}
-        </p>
-        <div className={styles.heroLinks}>
-          <Link href="/dashboard/create" className={styles.primaryAction}>
-            <Plus size={15} />
-            {ro ? 'Clip nou' : 'New clip'}
-          </Link>
-          <Link href="/dashboard/clips" className={styles.libraryLink}>
-            {t('openLibrary')} <ArrowUpRight size={14} />
-          </Link>
-        </div>
+    <header className={styles.header} data-home-refresh-anchor="">
+      <h1 className={styles.title}>{nav('home')}</h1>
+      <div className={styles.headerActions}>
+        <Link
+          href="/dashboard/create"
+          className={styles.primaryAction}
+          data-home-new-clip=""
+        >
+          <Plus aria-hidden="true" />
+          {t('newClip')}
+        </Link>
+        <Link
+          href="/dashboard/clips"
+          className={styles.libraryLink}
+          data-home-open-library=""
+        >
+          {t('openLibrary')}
+          <ArrowRight aria-hidden="true" />
+        </Link>
       </div>
-    </motion.section>
+    </header>
   )
 }

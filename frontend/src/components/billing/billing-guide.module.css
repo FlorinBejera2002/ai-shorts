@@ -1,0 +1,129 @@
+.guide {
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+.item {
+  border: 0;
+}
+.trigger {
+  padding: 1.3rem 0.5rem;
+  color: var(--foreground);
+  font-size: 0.95rem;
+}
+.trigger:hover {
+  color: var(--foreground);
+  background: var(--muted);
+}
+.trigger > span {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+.trigger > span svg {
+  width: 1.35rem;
+  height: 1.35rem;
+}
+.content {
+  padding: 0.6rem 1rem 1.8rem;
+}
+.terms {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.terms article {
+  padding: 0.3rem 2rem;
+  border-right: 1px solid var(--border);
+}
+.terms article:first-child {
+  padding-left: 0;
+}
+.terms article:last-child {
+  border-right: 0;
+  padding-right: 0;
+}
+.terms article > svg {
+  width: 1.5rem;
+  height: 1.5rem;
+  margin-bottom: 1rem;
+  color: var(--foreground);
+  stroke-width: 1.5;
+}
+.terms h3 {
+  font-weight: 650;
+  font-size: 0.98rem;
+  color: var(--foreground);
+  line-height: 1.5;
+}
+.terms p {
+  margin-top: 0.5rem;
+  color: var(--muted-foreground);
+  font-size: 0.88rem;
+  line-height: 1.65;
+  white-space: pre-line;
+}
+.mobileTrigger {
+  display: none;
+}
+.guide[data-expanded='true'] {
+  border: 0;
+}
+@media (max-width: 767px) {
+  .desktop {
+    display: none;
+  }
+  .mobileTrigger {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    gap: 1rem;
+    padding: 1.5rem 0.25rem;
+    text-align: left;
+    font-size: 0.98rem;
+    border-radius: var(--radius-md);
+  }
+  .mobileTrigger > svg {
+    width: 1.5rem;
+    height: 1.5rem;
+  }
+  .mobileTrigger > span:last-child {
+    margin-left: auto;
+    font-size: 1.6rem;
+  }
+  .mobileTrigger:hover {
+    background: var(--muted);
+  }
+  .mobileTrigger:focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 3px;
+  }
+  .terms {
+    display: flex;
+    flex-direction: column;
+  }
+  .terms article,
+  .terms article:first-child,
+  .terms article:last-child {
+    display: flex;
+    align-items: flex-start;
+    padding: 2rem 0;
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+    gap: 1.5rem;
+  }
+  .terms article:last-child {
+    border: 0;
+  }
+  .terms article > svg {
+    width: 2rem;
+    height: 2rem;
+    flex-shrink: 0;
+    margin-top: 0.2rem;
+  }
+  .terms h3 {
+    font-size: 1.3rem;
+  }
+  .terms p {
+    font-size: 1rem;
+    margin-top: 0.75rem;
+  }
+}

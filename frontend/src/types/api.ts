@@ -75,6 +75,7 @@ export type ClipLibraryData = {
 export type BillingPlanPrice = { amount: number; currency: string }
 export type PlanCatalog = Partial<Record<PaidBillingPlanId, BillingPlanPrice>>
 export type BillingData = {
+  mode?: 'test' | 'live'
   account: {
     credits: number
     creditsUnlimited?: boolean

@@ -87,6 +87,19 @@ func lockUser(ctx context.Context, tx *sql.Tx, userID string) error {
 	var id string
 	return tx.QueryRowContext(ctx, `SELECT id::text FROM users WHERE id=$1 FOR UPDATE`, userID).Scan(&id)
 }
+
+// The request's initial account snapshot can become stale while a webhook
+// activates a subscription. Recheck under the same row lock as webhook writes.
+func validateCheckoutAccount(ctx context.Context, tx *sql.Tx, snapshot claim) error {
+	a, err := scanAccount(tx.QueryRowContext(ctx, `SELECT `+accountColumns+` FROM users WHERE id=$1 FOR UPDATE`, snapshot.UserID))
+	if err != nil {
+		return err
+	}
+	if a.CustomerID != snapshot.CustomerID || (a.SubscriptionID != "" && !terminal(a.SubscriptionStatus)) {
+		return conflict("checkout_processing")
+	}
+	return nil
+}
 func pendingInTransaction(ctx context.Context, tx *sql.Tx, userID string) (bool, error) {
 	var pending bool
 	err := tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM account_deletion_requests WHERE user_id=$1)`, userID).Scan(&pending)
@@ -127,6 +140,9 @@ func (s *Service) claimOrLoad(ctx context.Context, snapshot claim) (claim, bool,
 	}
 	c, err := scanClaim(tx.QueryRowContext(ctx, `SELECT `+claimColumns+` FROM billing_checkout_claims WHERE user_id=$1 FOR UPDATE`, snapshot.UserID))
 	if errors.Is(err, sql.ErrNoRows) {
+		if err = validateCheckoutAccount(ctx, tx, snapshot); err != nil {
+			return claim{}, false, err
+		}
 		c, err = s.newClaim(ctx, tx, snapshot)
 		if err != nil {
 			return claim{}, false, err
@@ -202,6 +218,9 @@ func (s *Service) rotateClaim(ctx context.Context, previous, snapshot claim) (cl
 	}
 	if current.Token != previous.Token || current.Generation != previous.Generation || current.SessionID != previous.SessionID {
 		return claim{}, conflict("checkout_in_progress")
+	}
+	if err = validateCheckoutAccount(ctx, tx, snapshot); err != nil {
+		return claim{}, err
 	}
 	next, err := s.newClaim(ctx, tx, snapshot)
 	if err != nil {
@@ -347,7 +366,7 @@ func (s *Service) startCheckout(ctx context.Context, userID, plan, locale string
 		case "complete":
 			return nil, conflict("checkout_processing")
 		case "open":
-			if c.PlanID == plan && safeURL(session.text("url")) != "" {
+			if c.PlanID == plan && hostedURL(session.text("url"), "checkout.stripe.com") != "" {
 				pending, e := s.deletionPending(ctx, userID)
 				if e != nil {
 					return nil, e
@@ -418,7 +437,7 @@ func (s *Service) startCheckout(ctx context.Context, userID, plan, locale string
 			}
 			continue
 		}
-		if session.text("status") != "open" || safeURL(session.text("url")) == "" {
+		if session.text("status") != "open" || hostedURL(session.text("url"), "checkout.stripe.com") == "" {
 			return nil, conflict("billing_state_invalid")
 		}
 		pending, err = s.deletionPending(ctx, userID)

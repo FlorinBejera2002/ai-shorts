@@ -2,22 +2,28 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { apiFetch } from '@/lib/auth'
+import { ImageIcon } from 'lucide-react'
 import { useTranslations } from 'next-intl'
-import { useEffect, useRef, useState } from 'react'
+import { type ChangeEvent, useEffect, useRef, useState } from 'react'
 import { publishingFileType, publishingUploadErrorKey, uploadPublishingFile } from './publishing-media-utils'
+import styles from './post-platform-options.module.css'
 
-export function InstagramCoverPicker({ reference, disabled, id, onChange, onUploadingChange }: {
+export function InstagramCoverPicker({ reference, disabled, id, onChange, onUploadingChange, presentation = 'section', previewUrl }: {
   reference: string
   disabled: boolean
   id: string
   onChange: (reference: string) => void
   onUploadingChange: (uploading: boolean) => void
+  presentation?: 'section' | 'drawer'
+  previewUrl?: string
 }) {
   const t = useTranslations('publishing')
   const calendarT = useTranslations('contentCalendar')
+  const composerT = useTranslations('contentCalendar.composer')
   const [preview, setPreview] = useState<{ reference: string; url: string } | null>(null)
   const [error, setError] = useState('')
   const request = useRef<AbortController | null>(null)
+  const fileInput = useRef<HTMLInputElement>(null)
   useEffect(() => () => request.current?.abort(), [])
   useEffect(() => {
     if (!reference) return
@@ -52,15 +58,56 @@ export function InstagramCoverPicker({ reference, disabled, id, onChange, onUplo
     }
   }
 
+  function onFileChange(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0]
+    event.target.value = ''
+    if (file) void upload(file)
+  }
+
+  if (presentation === 'drawer') {
+    const imageUrl = reference
+      ? (preview?.reference === reference ? preview.url : undefined)
+      : previewUrl
+
+    return (
+      <div className={styles.coverField}>
+        <Label htmlFor={id} className={styles.fieldLabel}>{composerT('cover')}</Label>
+        <input
+          ref={fileInput}
+          id={id}
+          type="file"
+          className="sr-only"
+          accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
+          disabled={disabled}
+          aria-describedby={`${id}-hint`}
+          onChange={onFileChange}
+        />
+        <div className={styles.coverContent}>
+          <div className={styles.coverPreview}>
+            {imageUrl
+              ? <img src={imageUrl} alt={t('instagramCover')} />
+              : <ImageIcon className="size-7" aria-hidden="true" />}
+          </div>
+          <Button type="button" variant="outline" disabled={disabled} onClick={() => fileInput.current?.click()}>
+            {composerT('change')}
+          </Button>
+        </div>
+        <p id={`${id}-hint`} className={styles.coverHint}>{t('instagramCoverHint')}</p>
+        {reference && (
+          <Button className={styles.removeCover} type="button" variant="ghost" size="sm" disabled={disabled} onClick={() => onChange('')}>
+            {t('instagramRemoveCover')}
+          </Button>
+        )}
+        {error && <p role="alert" className="text-xs text-destructive">{error}</p>}
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-2">
       <Label htmlFor={id}>{t('instagramCover')}</Label>
       <Input id={id} type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" disabled={disabled}
-        aria-describedby={`${id}-hint`} onChange={event => {
-          const file = event.target.files?.[0]
-          event.target.value = ''
-          if (file) void upload(file)
-        }} />
+        aria-describedby={`${id}-hint`} onChange={onFileChange} />
       <p id={`${id}-hint`} className="text-xs text-muted-foreground">{t('instagramCoverHint')}</p>
       {reference && (
         <div className="flex items-center gap-3 rounded-md border p-2">

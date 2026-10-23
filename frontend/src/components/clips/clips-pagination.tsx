@@ -2,6 +2,7 @@ import { Link } from '@/i18n/navigation'
 import { type ClipsLibraryQuery, clipsLibraryHref } from '@/lib/clips-library'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import type { ReactNode } from 'react'
+import styles from './clips-pagination.module.css'
 
 export function ClipsPagination({
   query,
@@ -25,17 +26,13 @@ export function ClipsPagination({
   ).sort((a, b) => a - b)
 
   return (
-    <nav
-      className="mt-8 flex flex-wrap items-center justify-center gap-2"
-      aria-label={labels.page}
-    >
+    <nav className={styles.pagination} aria-label={labels.page}>
       <PaginationLink
         href={clipsLibraryHref(query, { page: Math.max(1, currentPage - 1) })}
         label={labels.previous}
         disabled={currentPage === 1}
       >
         <ChevronLeft className="h-4 w-4" />
-        <span className="hidden sm:inline">{labels.previous}</span>
       </PaginationLink>
 
       {pageNumbers.map((page, index) => {
@@ -43,16 +40,12 @@ export function ClipsPagination({
         const gap = previous !== undefined && page - previous > 1
         return (
           <span key={page} className="contents">
-            {gap && <span className="px-1 text-muted-foreground">…</span>}
+            {gap && <span className={styles.ellipsis}>…</span>}
             <Link
               href={clipsLibraryHref(query, { page })}
               aria-label={`${labels.page} ${page}`}
               aria-current={page === currentPage ? 'page' : undefined}
-              className={`flex h-10 min-w-10 items-center justify-center rounded-lg border px-3 text-sm font-semibold transition-colors ${
-                page === currentPage
-                  ? 'border-primary bg-primary text-primary-foreground'
-                  : 'border-border bg-card hover:border-primary/40 hover:text-primary'
-              }`}
+              className={styles.page}
             >
               {page}
             </Link>
@@ -67,7 +60,6 @@ export function ClipsPagination({
         label={labels.next}
         disabled={currentPage === totalPages}
       >
-        <span className="hidden sm:inline">{labels.next}</span>
         <ChevronRight className="h-4 w-4" />
       </PaginationLink>
     </nav>
@@ -87,20 +79,13 @@ function PaginationLink({
 }) {
   if (disabled) {
     return (
-      <span
-        aria-disabled="true"
-        className="flex min-h-10 items-center gap-1 rounded-lg border border-border bg-muted/40 px-3 text-sm font-semibold text-muted-foreground opacity-55"
-      >
+      <span aria-disabled="true" aria-label={label} className={styles.arrow}>
         {children}
       </span>
     )
   }
   return (
-    <Link
-      href={href}
-      aria-label={label}
-      className="flex min-h-10 items-center gap-1 rounded-lg border border-border bg-card px-3 text-sm font-semibold transition-colors hover:border-primary/40 hover:text-primary"
-    >
+    <Link href={href} aria-label={label} className={styles.arrow}>
       {children}
     </Link>
   )

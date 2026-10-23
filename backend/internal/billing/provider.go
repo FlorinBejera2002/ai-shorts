@@ -43,6 +43,9 @@ func (o object) number(key string) int64 {
 func (o object) boolean(key string) bool { v, _ := o[key].(bool); return v }
 func (o object) list(key string) []object {
 	out := []object{}
+	if values, ok := o[key].([]object); ok {
+		return values
+	}
 	if values, ok := o[key].([]any); ok {
 		for _, v := range values {
 			if item, ok := v.(map[string]any); ok {
@@ -159,11 +162,15 @@ func (s *Service) expire(ctx context.Context, id string) error {
 	return err
 }
 func (s *Service) portal(ctx context.Context, customer, locale string) (string, error) {
-	response, err := s.provider(ctx, http.MethodPost, "/billing_portal/sessions", url.Values{"customer": {customer}, "return_url": {s.cfg.AppURL + billingPath(locale)}}, "")
+	form := url.Values{"customer": {customer}, "return_url": {s.cfg.AppURL + billingPath(locale) + "?portal_return=true"}}
+	if s.cfg.PortalConfiguration != "" {
+		form.Set("configuration", s.cfg.PortalConfiguration)
+	}
+	response, err := s.provider(ctx, http.MethodPost, "/billing_portal/sessions", form, "")
 	if err != nil {
 		return "", err
 	}
-	result := safeURL(response.text("url"))
+	result := hostedURL(response.text("url"), "billing.stripe.com")
 	if result == "" {
 		return "", errors.New("invalid portal URL")
 	}
@@ -171,7 +178,9 @@ func (s *Service) portal(ctx context.Context, customer, locale string) (string, 
 }
 func (s *Service) createProviderCheckout(ctx context.Context, c claim) (object, error) {
 	meta := map[string]string{"userId": c.UserID, "planId": c.PlanID, "priceId": c.PriceID, "locale": c.Locale, "checkoutGeneration": strconv.Itoa(c.Generation)}
-	form := url.Values{"mode": {"subscription"}, "line_items[0][price]": {c.PriceID}, "line_items[0][quantity]": {"1"}, "success_url": {c.SuccessURL}, "cancel_url": {c.CancelURL}, "client_reference_id": {c.UserID}, "expires_at": {strconv.FormatInt(c.CheckoutExpiresAt.Unix(), 10)}}
+	// Launch with immediate-confirmation card payments only. Delayed bank
+	// methods can make a subscription active before its first payment settles.
+	form := url.Values{"mode": {"subscription"}, "payment_method_types[0]": {"card"}, "line_items[0][price]": {c.PriceID}, "line_items[0][quantity]": {"1"}, "success_url": {c.SuccessURL}, "cancel_url": {c.CancelURL}, "client_reference_id": {c.UserID}, "expires_at": {strconv.FormatInt(c.CheckoutExpiresAt.Unix(), 10)}}
 	for key, value := range meta {
 		form.Set("metadata["+key+"]", value)
 		form.Set("subscription_data[metadata]["+key+"]", value)
@@ -217,7 +226,7 @@ func (s *Service) price(ctx context.Context, plan string) (string, object, error
 	amountValue, amountErr := amount.Int64()
 	recurring := data.child("recurring")
 	currency := strings.ToUpper(data.text("currency"))
-	if data.text("id") != id || !data.boolean("active") || data.text("type") != "recurring" || recurring.text("interval") != "month" || recurring.number("interval_count") != 1 || !hasAmount || amountErr != nil || amountValue < 0 || !currencyPattern.MatchString(currency) {
+	if data.text("id") != id || !s.matchesMode(data) || !data.boolean("active") || data.text("type") != "recurring" || recurring.text("interval") != "month" || recurring.number("interval_count") != 1 || !hasAmount || amountErr != nil || amountValue < 0 || !currencyPattern.MatchString(currency) {
 		return "", nil, fmt.Errorf("invalid billing price")
 	}
 	return id, object{"amount": amountValue, "currency": currency}, nil

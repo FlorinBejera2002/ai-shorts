@@ -499,6 +499,31 @@ export function buildCameraVisualization(
     ]
   ]
 
+  if (view === 'director') {
+    // Side edges and wall grids make the room legible from the studio observer.
+    // Keep recording-camera and overhead projections on their existing geometry.
+    for (const x of [-3.5, 3.5]) {
+      studioSegments.push(
+        [{ x, y: 0, z: -3 }, { x, y: 0, z: 4.5 }],
+        [{ x, y: 3.2, z: -3 }, { x, y: 3.2, z: 4.5 }],
+        [{ x, y: 0, z: -3 }, { x, y: 3.2, z: -3 }]
+      )
+    }
+    for (let x = -3; x <= 3; x += 0.5) {
+      if (x === 0) continue
+      studioSegments.push([
+        { x, y: 0, z: 4.5 },
+        { x, y: 3.2, z: 4.5 }
+      ])
+    }
+    for (const y of [0.4, 0.8, 1.2, 2, 2.4, 2.8]) {
+      studioSegments.push([
+        { x: -3.5, y, z: 4.5 },
+        { x: 3.5, y, z: 4.5 }
+      ])
+    }
+  }
+
   const stageSegments: [Vec3, Vec3][] = []
   const stageRadius = 1.05
   for (let index = 0; index < 32; index += 1) {
@@ -703,8 +728,10 @@ function createProjector(
   }
 
   const midpoint = scale(add(camera.position, scene.subjectPosition), 0.5)
-  const observerPosition = add(midpoint, { x: 5.8, y: 4.1, z: -7.7 })
-  const observerTarget = add(midpoint, { x: 0, y: 0.82, z: 0.7 })
+  // Observe from behind the centre of the setup instead of an elevated corner.
+  // This pose belongs only to Studio; the recording camera remains untouched.
+  const observerPosition = add(midpoint, { x: 0, y: 3.6, z: -7.7 })
+  const observerTarget = add(midpoint, { x: 0, y: 0.1, z: 0.7 })
   return {
     kind: 'perspective',
     pose: lookAtPose(observerPosition, observerTarget),

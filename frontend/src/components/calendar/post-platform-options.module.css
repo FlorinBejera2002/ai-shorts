@@ -1,0 +1,331 @@
+.drawer.drawer {
+  --primary: var(--foreground);
+  --primary-foreground: var(--background);
+  --ring: var(--foreground);
+  width: 420px;
+  max-width: 100vw;
+  gap: 0;
+  padding: 0;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 32px 28px 22px;
+}
+
+.title.title {
+  flex: 1;
+  font-family: var(--font-display);
+  font-size: 25px;
+  font-weight: 600;
+  letter-spacing: -0.04em;
+  line-height: 1.35;
+}
+
+.close {
+  margin-right: -10px;
+}
+
+.back.back,
+.mobileHeader {
+  display: none;
+}
+
+.tabs {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+}
+
+.tabList {
+  display: flex;
+  flex-shrink: 0;
+  gap: 18px;
+  overflow-x: auto;
+  margin: 0 28px;
+  border-bottom: 1px solid var(--border);
+}
+
+.tab {
+  position: relative;
+  display: flex;
+  flex: 1 0 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-height: 50px;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  padding: 8px 10px 13px;
+  color: var(--muted-foreground);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.tab[data-state='active'] {
+  border-color: var(--foreground);
+  color: var(--foreground);
+}
+
+.tab:hover {
+  background: var(--muted);
+  color: var(--foreground);
+}
+
+.tab:focus-visible,
+.more summary:focus-visible {
+  outline: 2px solid var(--foreground);
+  outline-offset: -2px;
+}
+
+.tab:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.scrollArea {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0 28px 24px;
+}
+
+.panel {
+  outline: none;
+}
+
+.account {
+  margin-bottom: 18px;
+  border-bottom: 1px solid var(--border);
+  padding: 25px 0 18px;
+  overflow-wrap: anywhere;
+  color: var(--foreground);
+  font-size: 14px;
+}
+
+.settings > section,
+.settings > fieldset {
+  border-color: var(--border);
+  box-shadow: none;
+}
+
+.empty {
+  flex: 1;
+  padding: 10px 28px 28px;
+  color: var(--muted-foreground);
+  font-size: 14px;
+}
+
+.footer {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  flex-shrink: 0;
+  gap: 14px;
+  border-top: 1px solid var(--border);
+  padding: 18px 28px max(22px, env(safe-area-inset-bottom));
+}
+
+.footer button {
+  min-height: 44px;
+  border-radius: var(--radius-md);
+  font-size: 14px;
+}
+
+.instagramSettings {
+  display: flex;
+  flex-direction: column;
+}
+
+.coverField {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 20px;
+}
+
+.coverContent {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.coverPreview {
+  display: flex;
+  width: 60%;
+  aspect-ratio: 2 / 1;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--muted);
+  color: var(--muted-foreground);
+}
+
+.coverPreview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.coverContent button {
+  flex: 1;
+  min-height: 40px;
+}
+
+.fieldLabel {
+  color: var(--foreground);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.coverHint,
+.fieldHint {
+  color: var(--muted-foreground);
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+.removeCover {
+  align-self: flex-start;
+}
+
+.settingRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  border-bottom: 1px solid var(--border);
+  padding: 20px 0;
+}
+
+.settingRow label {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.settingRow [data-slot='switch'] {
+  border: 1px solid var(--border);
+  background: var(--muted);
+}
+
+.settingRow [data-slot='switch'][data-state='checked'] {
+  border-color: var(--foreground);
+  background: var(--foreground);
+}
+
+.settingRow [data-slot='switch-thumb'] {
+  background: var(--muted-foreground);
+}
+
+.settingRow [data-state='checked'] [data-slot='switch-thumb'] {
+  background: var(--background);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 23px;
+}
+
+.field input {
+  min-height: 44px;
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--muted) 25%, var(--background));
+}
+
+.more {
+  margin-top: 24px;
+  border-block: 1px solid var(--border);
+}
+
+.more summary {
+  display: flex;
+  cursor: pointer;
+  list-style: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 19px 0;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.more summary::-webkit-details-marker {
+  display: none;
+}
+
+.more[open] summary svg {
+  transform: rotate(180deg);
+}
+
+.advanced {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding-bottom: 20px;
+}
+
+@media (max-width: 1023px) {
+  .drawer.drawer {
+    width: 100%;
+    max-width: 100%;
+    border-left: 0;
+  }
+
+  .mobileHeader {
+    display: block;
+    padding: 14px 24px 0;
+  }
+
+  .mobileHeader > div {
+    min-height: 50px;
+    margin: 0 -24px;
+    padding: 0 24px 14px;
+  }
+
+  .header {
+    gap: 18px;
+    padding: 24px 24px 18px;
+  }
+
+  .back.back {
+    display: inline-flex;
+    margin-left: -7px;
+  }
+
+  .close.close {
+    display: none;
+  }
+
+  .title.title {
+    font-size: clamp(23px, 5vw, 30px);
+  }
+
+  .tabList {
+    margin-inline: 24px;
+  }
+
+  .tab {
+    min-height: 57px;
+    font-size: 15px;
+  }
+
+  .scrollArea {
+    padding-inline: 24px;
+  }
+
+  .footer {
+    padding-inline: 24px;
+  }
+
+  .footer button {
+    min-height: 46px;
+  }
+}

@@ -48,11 +48,11 @@ func claimSnapshot() claim {
 	return claim{UserID: fixtureUser, PlanID: "creator", PriceID: "price_creator", Locale: "ro", CustomerEmail: "snapshot@example.test", SuccessURL: "https://app.example.test/ro/dashboard/billing?checkout_session_id={CHECKOUT_SESSION_ID}", CancelURL: "https://app.example.test/ro/dashboard/billing?canceled=true"}
 }
 func checkoutForClaim(c claim, id, status string) object {
-	return object{"id": id, "mode": "subscription", "status": status, "client_reference_id": c.UserID, "customer": "cus_recovered", "subscription": "sub_recovered", "url": "https://checkout.stripe.test/" + id, "metadata": object{"userId": c.UserID, "planId": c.PlanID, "priceId": c.PriceID, "checkoutGeneration": fmt.Sprint(c.Generation)}}
+	return object{"id": id, "mode": "subscription", "status": status, "client_reference_id": c.UserID, "customer": "cus_recovered", "subscription": "sub_recovered", "url": "https://checkout.stripe.com/" + id, "metadata": object{"userId": c.UserID, "planId": c.PlanID, "priceId": c.PriceID, "checkoutGeneration": fmt.Sprint(c.Generation)}}
 }
 func eventFor(id, kind string, data object, created int64) object {
 	// Pass through JSON to reproduce expandable objects and numeric decoding.
-	raw, _ := json.Marshal(object{"id": id, "type": kind, "created": created, "data": object{"object": data}})
+	raw, _ := json.Marshal(object{"id": id, "type": kind, "created": created, "livemode": false, "data": object{"object": data}})
 	event, _ := decodeObject(raw)
 	return event
 }
@@ -271,10 +271,15 @@ func TestPostgresDeletionReopensCompletedCheckpointForRecoveredCustomer(t *testi
 }
 
 func invoiceFixture() object {
-	return object{"id": "in_cycle", "customer": "cus_invoice", "billing_reason": "subscription_cycle", "parent": object{"subscription_details": object{"subscription": "sub_invoice", "metadata": object{"userId": fixtureUser, "planId": "creator"}}}, "lines": object{"data": []object{{"pricing": object{"price_details": object{"price": "price_creator"}}}}}}
+	return object{"id": "in_cycle", "customer": "cus_invoice", "status": "paid", "amount_remaining": 0, "billing_reason": "subscription_cycle", "parent": object{"subscription_details": object{"subscription": "sub_invoice", "metadata": object{"userId": fixtureUser, "planId": "creator"}}}, "lines": object{"data": []object{{"pricing": object{"price_details": object{"price": "price_creator"}}}}}}
+}
+
+func subscriptionFixture(id, customer, plan, status string, generation int) object {
+	return object{"id": id, "customer": customer, "status": status, "metadata": object{"userId": fixtureUser, "planId": plan, "checkoutGeneration": fmt.Sprint(generation)}, "items": object{"data": []object{{"price": "price_" + plan, "quantity": 1, "current_period_end": 1788699999}}}}
 }
 func TestPostgresConcurrentInvoiceAndPackCreditLedger(t *testing.T) {
-	s, _, db := billingDatabase(t)
+	s, p, db := billingDatabase(t)
+	p.subs = []object{subscriptionFixture("sub_invoice", "cus_invoice", "creator", "canceled", 1)}
 	execute(t, db, `UPDATE users SET stripe_customer_id='cus_invoice',stripe_subscription_id='sub_invoice',stripe_subscription_status='canceled' WHERE id=$1`, fixtureUser)
 	invoice := invoiceFixture()
 	var wg sync.WaitGroup
@@ -294,29 +299,31 @@ func TestPostgresConcurrentInvoiceAndPackCreditLedger(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	requireAccount(t, s, 400, "free", "canceled")
+	requireAccount(t, s, 1600, "free", "canceled")
 	var count int
-	if err := db.QueryRow(`SELECT count(*) FROM stripe_events`).Scan(&count); err != nil || count != 1 {
+	if err := db.QueryRow(`SELECT count(*) FROM stripe_events WHERE credit_grant_id IS NOT NULL`).Scan(&count); err != nil || count != 1 {
 		t.Fatalf("credit ledger entries %d: %v", count, err)
 	}
 	// The same checkout can arrive under distinct event IDs, but grants once.
 	pack := object{"id": "cs_test_pack", "mode": "payment", "payment_status": "paid", "customer": "cus_invoice", "metadata": object{"userId": fixtureUser, "priceId": "price_pack"}}
+	p.checkoutLines["cs_test_pack"] = []object{{"price": "price_pack", "quantity": 1}}
 	for _, id := range []string{"evt_pack_a", "evt_pack_b", "evt_pack_a"} {
 		if _, err := s.processEvent(context.Background(), eventFor(id, "checkout.session.completed", pack, 101)); err != nil {
 			t.Fatal(err)
 		}
 	}
-	requireAccount(t, s, 450, "free", "canceled")
+	requireAccount(t, s, 1650, "free", "canceled")
 	invoice["billing_reason"] = "subscription_update"
 	invoice["id"] = "in_proration"
 	if _, err := s.processEvent(context.Background(), eventFor("evt_proration", "invoice.payment_succeeded", invoice, 102)); err != nil {
 		t.Fatal(err)
 	}
-	requireAccount(t, s, 450, "free", "canceled")
+	requireAccount(t, s, 1650, "free", "canceled")
 }
 
 func TestPostgresWebhookFailureRollsBackLedgerAndRejectsForeignOwner(t *testing.T) {
-	s, _, db := billingDatabase(t)
+	s, p, db := billingDatabase(t)
+	p.subs = []object{subscriptionFixture("sub_invoice", "cus_invoice", "creator", "active", 1)}
 	execute(t, db, `UPDATE users SET stripe_customer_id='cus_invoice',stripe_subscription_id='sub_invoice',stripe_subscription_status='active' WHERE id=$1`, fixtureUser)
 	broken := invoiceFixture()
 	broken["parent"] = object{"subscription_details": object{"subscription": "sub_invoice"}}
@@ -331,14 +338,14 @@ func TestPostgresWebhookFailureRollsBackLedgerAndRejectsForeignOwner(t *testing.
 	if _, err := s.processEvent(context.Background(), eventFor("evt_retry", "invoice.payment_succeeded", invoiceFixture(), 100)); err != nil {
 		t.Fatal(err)
 	}
-	requireAccount(t, s, 400, "free", "active")
+	requireAccount(t, s, 1600, "creator", "active")
 	foreign := invoiceFixture()
 	foreign["id"] = "in_foreign"
 	foreign.child("parent").child("subscription_details")["metadata"] = object{"userId": fixtureOther, "planId": "creator"}
 	if _, err := s.processEvent(context.Background(), eventFor("evt_foreign", "invoice.payment_succeeded", foreign, 101)); err != nil {
 		t.Fatal(err)
 	}
-	requireAccount(t, s, 400, "free", "active")
+	requireAccount(t, s, 1600, "creator", "active")
 	other, err := s.account(context.Background(), fixtureOther)
 	if err != nil || other.Credits != 100 {
 		t.Fatal("foreign metadata credited another user")
@@ -349,7 +356,7 @@ func TestPostgresWebhookFailureRollsBackLedgerAndRejectsForeignOwner(t *testing.
 	if _, err = s.processEvent(context.Background(), eventFor("evt_deletion", "invoice.payment_succeeded", pending, 102)); err != nil {
 		t.Fatal(err)
 	}
-	requireAccount(t, s, 400, "free", "active")
+	requireAccount(t, s, 1600, "creator", "active")
 }
 
 func TestPostgresSubscriptionReconciliationAndOrdering(t *testing.T) {
@@ -364,7 +371,6 @@ func TestPostgresSubscriptionReconciliationAndOrdering(t *testing.T) {
 	if a.SubscriptionID != "sub_new" || !a.CurrentPeriodEnd.Valid {
 		t.Fatal("provider state not adopted")
 	}
-	p.subs = nil
 	if _, err := s.processEvent(context.Background(), eventFor("evt_old_generation", "customer.subscription.updated", oldSub, 999)); err != nil {
 		t.Fatal(err)
 	}
@@ -373,15 +379,16 @@ func TestPostgresSubscriptionReconciliationAndOrdering(t *testing.T) {
 	if _, err := s.processEvent(context.Background(), eventFor("evt_current_cancel", "customer.subscription.deleted", newSub, 300)); err != nil {
 		t.Fatal(err)
 	}
-	newSub["status"] = "active"
-	if _, err := s.processEvent(context.Background(), eventFor("evt_stale_active", "customer.subscription.updated", newSub, 250)); err != nil {
+	stale := subscriptionFixture("sub_new", "cus_owner", "pro", "active", 2)
+	if _, err := s.processEvent(context.Background(), eventFor("evt_stale_active", "customer.subscription.updated", stale, 250)); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.processEvent(context.Background(), eventFor("evt_same_second_active", "customer.subscription.updated", newSub, 300)); err != nil {
+	if _, err := s.processEvent(context.Background(), eventFor("evt_same_second_active", "customer.subscription.updated", stale, 300)); err != nil {
 		t.Fatal(err)
 	}
 	requireAccount(t, s, 100, "free", "canceled")
 	// Authoritative provider state repairs a stale timestamp at the same generation.
+	newSub["status"] = "active"
 	p.subs = []object{newSub}
 	if _, err := s.processEvent(context.Background(), eventFor("evt_provider_repair", "customer.subscription.updated", newSub, 250)); err != nil {
 		t.Fatal(err)
@@ -390,7 +397,7 @@ func TestPostgresSubscriptionReconciliationAndOrdering(t *testing.T) {
 	var generation int
 	var created int64
 	var priority int
-	if err := db.QueryRow(`SELECT stripe_state_generation,stripe_state_event_created,stripe_state_event_priority FROM users WHERE id=$1`, fixtureUser).Scan(&generation, &created, &priority); err != nil || !reflect.DeepEqual([]int64{int64(generation), created, int64(priority)}, []int64{2, 300, 60}) {
+	if err := db.QueryRow(`SELECT stripe_state_generation,stripe_state_event_created,stripe_state_event_priority FROM users WHERE id=$1`, fixtureUser).Scan(&generation, &created, &priority); err != nil || !reflect.DeepEqual([]int64{int64(generation), created, int64(priority)}, []int64{2, 999, 60}) {
 		t.Fatalf("ordering state: %d %d %d %v", generation, created, priority, err)
 	}
 }

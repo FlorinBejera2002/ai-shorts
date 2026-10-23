@@ -1,0 +1,28 @@
+{
+  "mode": "test",
+  "accountId": "acct_1USys6IBapm0ztYV",
+  "verifiedPrices": 3,
+  "portalId": "bpc_1USzDwIBapm0ztYV3aiFMi76",
+  "webhookId": "we_1UT0CYIBapm0ztYV3JaOHcyz",
+  "callback": "https://api.sneepcut.com/api/webhooks/stripe",
+  "apiVersion": "2026-06-24.dahlia",
+  "events": [
+    "checkout.session.completed",
+    "checkout.session.expired",
+    "checkout.session.async_payment_succeeded",
+    "customer.subscription.created",
+    "customer.subscription.updated",
+    "customer.subscription.deleted",
+    "customer.subscription.paused",
+    "customer.subscription.resumed",
+    "customer.subscription.pending_update_applied",
+    "customer.subscription.pending_update_expired",
+    "invoice.paid",
+    "invoice.payment_succeeded",
+    "invoice.payment_failed",
+    "invoice.payment_action_required",
+    "invoice.finalization_failed"
+  ],
+  "environmentUpdated": true,
+  "secretsStoredServerSide": true
+}

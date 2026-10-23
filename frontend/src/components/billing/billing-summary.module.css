@@ -1,0 +1,298 @@
+.summary {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 0.72fr) minmax(180px, 214px);
+  gap: 0 38px;
+  min-width: 0;
+  padding: 8px 0 28px;
+  border-bottom: 1px solid var(--border);
+}
+.plan {
+  grid-column: 1;
+  grid-row: 1;
+  min-width: 0;
+}
+.label {
+  margin: 0 0 12px;
+  color: var(--muted-foreground);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.5;
+}
+.planHeading {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.planName {
+  margin: 0;
+  font-size: 38px;
+  line-height: 1.15;
+  font-weight: 650;
+  letter-spacing: -0.04em;
+}
+.status {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 4px 11px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  line-height: 1.4;
+  font-weight: 500;
+}
+.activeStatus {
+  color: var(--success);
+  background: color-mix(in srgb, var(--success) 12%, transparent);
+}
+.warningStatus {
+  color: var(--warning);
+  background: color-mix(in srgb, var(--warning) 12%, transparent);
+}
+.neutralStatus {
+  color: var(--foreground);
+  background: var(--muted);
+}
+.financialStatus {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 10px;
+  font-size: 16px;
+}
+.price {
+  margin: 10px 0 0;
+  font-size: 17px;
+  color: var(--muted-foreground);
+  line-height: 1.4;
+}
+.price strong {
+  color: var(--foreground);
+  font-size: 29px;
+  font-weight: 500;
+  letter-spacing: -0.035em;
+}
+.metadata {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 18px 24px;
+  margin-top: 18px;
+  padding-top: 21px;
+  border-top: 1px solid var(--border);
+}
+.metadataItem {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  min-width: 0;
+  font-size: 14px;
+  color: var(--muted-foreground);
+  line-height: 1.55;
+}
+.metadataItem svg {
+  width: 21px;
+  height: 21px;
+  flex-shrink: 0;
+  color: var(--foreground);
+}
+.metadataItem p {
+  margin: 0;
+}
+.metadataItem strong {
+  color: var(--foreground);
+  font-weight: 650;
+}
+.adminAccess {
+  margin-top: 20px;
+  font-size: 14px;
+  color: var(--muted-foreground);
+}
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  grid-column: 3;
+  grid-row: 1;
+  align-self: start;
+  padding-top: 0;
+}
+.actions > div {
+  min-width: 0;
+}
+.actions button.action {
+  width: 100%;
+  min-height: 44px;
+  height: auto;
+  padding: 11px 16px;
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  white-space: normal;
+}
+.actions button.action > svg {
+  order: 1;
+  margin-left: 2px;
+}
+.credits {
+  grid-column: 2;
+  grid-row: 1;
+  min-width: 0;
+  border-left: 1px solid var(--border);
+  padding-left: 38px;
+}
+.balance {
+  margin: 0;
+  font-size: 48px;
+  font-weight: 650;
+  line-height: 1.1;
+  letter-spacing: -0.04em;
+  font-variant-numeric: tabular-nums;
+}
+.runway {
+  margin: 8px 0 0;
+  font-size: 20px;
+  color: var(--muted-foreground);
+  line-height: 1.5;
+}
+.creditRate {
+  margin: 22px 0 0;
+  color: var(--muted-foreground);
+  font-size: 14px;
+  line-height: 1.5;
+}
+.notice,
+.notices {
+  grid-column: 1 / -1;
+  margin: 20px 0 0;
+  color: var(--muted-foreground);
+  font-size: 13px;
+  line-height: 1.65;
+}
+.notices:empty {
+  display: none;
+}
+.notices p {
+  margin: 0;
+}
+.paymentNotice {
+  color: var(--warning);
+}
+@media (min-width: 1024px) and (max-width: 1200px) {
+  .summary {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 0.8fr);
+    gap: 20px 28px;
+  }
+  .actions {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    flex-direction: row;
+  }
+  .actions > div,
+  .actions > button {
+    width: 200px;
+  }
+  .credits {
+    padding-left: 28px;
+  }
+}
+@media (max-width: 1023px) {
+  .summary {
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+    border-bottom: 0;
+  }
+  .label {
+    margin-bottom: 12px;
+    font-size: 13px;
+    letter-spacing: 0.025em;
+    text-transform: uppercase;
+    font-weight: 650;
+  }
+  .planName {
+    font-size: clamp(34px, 6vw, 44px);
+  }
+  .status {
+    min-height: 29px;
+    font-size: 12px;
+    padding: 5px 10px;
+  }
+  .price {
+    margin-top: 12px;
+    font-size: 19px;
+  }
+  .price strong {
+    font-size: 30px;
+  }
+  .metadata {
+    margin-top: 20px;
+    padding-top: 20px;
+    gap: 18px;
+  }
+  .metadataItem {
+    font-size: 14px;
+  }
+  .metadataItem svg {
+    width: 23px;
+    height: 23px;
+  }
+  .actions {
+    align-self: stretch;
+    width: 100%;
+    padding: 22px 0 26px;
+    gap: 11px;
+  }
+  .actions > div {
+    width: 100%;
+  }
+  .actions button.action {
+    min-height: 46px;
+    font-size: 15px;
+  }
+  .credits {
+    padding: 26px 0;
+    border-left: 0;
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+  }
+  .balance {
+    font-size: clamp(42px, 7vw, 50px);
+  }
+  .runway {
+    margin-top: 7px;
+    font-size: 21px;
+  }
+  .creditRate {
+    margin-top: 6px;
+    font-size: 14px;
+  }
+  .notice,
+  .notices {
+    order: -1;
+    margin: 0 0 22px;
+  }
+}
+@media (max-width: 420px) {
+  .metadata {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .metadataItem {
+    gap: 12px;
+  }
+}
+.summary[data-presentation='details'] {
+  display: block;
+  padding: 4px 0 26px;
+  border-bottom: 1px solid var(--border);
+}
+.summary[data-presentation='details'] .label,
+.summary[data-presentation='details'] .metadata,
+.summary[data-presentation='details'] .adminAccess,
+.summary[data-presentation='details'] .actions,
+.summary[data-presentation='details'] .credits,
+.summary[data-presentation='details'] .notice,
+.summary[data-presentation='details'] .notices {
+  display: none;
+}

@@ -1,87 +1,75 @@
 'use client'
 
 import { Button } from '@/components/ui/button'
-import { Card } from '@/components/ui/card'
 import { LoadingIndicator } from '@/components/ui/loading-indicator'
-import { Trash2, Upload } from 'lucide-react'
+import { ImagePlus, Trash2, Upload } from 'lucide-react'
 import { useTranslations } from 'next-intl'
-import Image from 'next/image'
 import { useRef, useState } from 'react'
-
 import { LOGO_ACCEPT } from './constants'
+import styles from './logo-section.module.css'
 
 export function LogoSection({
   logoUrl,
+  fileName,
   busy,
   onUpload,
   onRemove
 }: {
   logoUrl: string | null
+  fileName?: string
   busy: boolean
   onUpload: (file: File) => Promise<void>
   onRemove: () => Promise<void>
 }) {
   const t = useTranslations('brand')
-  const inputRef = useRef<HTMLInputElement>(null)
+  const input = useRef<HTMLInputElement>(null)
   const [dragActive, setDragActive] = useState(false)
 
   function uploadFirstFile(files: FileList | null) {
-    if (busy) return
-    const file = files?.[0]
-    if (file) void onUpload(file)
+    if (!busy && files?.[0]) void onUpload(files[0])
   }
 
   return (
-    <Card
-      as="section"
-      id="brand-logo"
-      className="@container/logo min-w-0 gap-3 border-0 p-0 shadow-none"
-    >
+    <div id="brand-logo" className={styles.logo}>
       <input
-        ref={inputRef}
+        ref={input}
         type="file"
         accept={LOGO_ACCEPT}
         aria-label={t('uploadLogo')}
         className="sr-only"
+        data-brand-logo-file=""
         onChange={(event) => {
           uploadFirstFile(event.target.files)
           event.target.value = ''
         }}
       />
-
       {logoUrl ? (
-        <div className="brand-asset-row grid grid-cols-[80px_minmax(0,1fr)] items-center gap-3">
-          <div className="brand-transparency-grid flex h-14 w-20 items-center justify-center rounded-md border border-border p-2">
-            <Image
-              src={logoUrl}
-              alt={t('yourLogo')}
-              width={112}
-              height={80}
-              unoptimized={true}
-              className="max-h-full max-w-full object-contain"
-            />
+        <div className={styles.asset}>
+          <div className={`${styles.image} brand-transparency-grid`}>
+            <img src={logoUrl} alt={t('yourLogo')} />
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className={styles.description}>
+            <p>{fileName || t('workspaceDesign.logoFile')}</p>
+            <small>{t('logoFormats')}</small>
+          </div>
+          <div className={styles.actions}>
             <Button
               type="button"
-              size="sm"
-              disabled={busy}
-              onClick={() => inputRef.current?.click()}
               variant="outline"
-              className="rounded-md bg-card shadow-none"
+              disabled={busy}
+              onClick={() => input.current?.click()}
             >
-              {busy ? <LoadingIndicator /> : <Upload />}
+              {busy ? <LoadingIndicator /> : <Upload aria-hidden="true" />}
               {t('replace')}
             </Button>
             <Button
               type="button"
-              size="sm"
+              variant="ghost"
               disabled={busy}
               onClick={() => void onRemove()}
-              variant="ghost"
-              className="rounded-md text-destructive hover:bg-destructive/10 hover:text-destructive"
+              className="text-destructive hover:bg-muted hover:text-destructive"
             >
-              <Trash2 />
+              <Trash2 aria-hidden="true" />
               {t('remove')}
             </Button>
           </div>
@@ -89,12 +77,14 @@ export function LogoSection({
       ) : (
         <button
           type="button"
+          className={styles.upload}
           disabled={busy}
+          data-drag-active={dragActive}
           title={t('clickOrDrag')}
-          onClick={() => inputRef.current?.click()}
+          onClick={() => input.current?.click()}
           onDragOver={(event) => {
             event.preventDefault()
-            setDragActive(true)
+            if (!busy) setDragActive(true)
           }}
           onDragLeave={() => setDragActive(false)}
           onDrop={(event) => {
@@ -102,25 +92,16 @@ export function LogoSection({
             setDragActive(false)
             uploadFirstFile(event.dataTransfer.files)
           }}
-          className={`brand-upload-zone flex min-h-16 w-full items-center gap-3 rounded-md border border-dashed px-3 py-3 text-left outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring/30 disabled:cursor-wait ${
-            dragActive ? 'is-dragging' : ''
-          }`}
         >
-          <span className="flex size-8 shrink-0 items-center justify-center text-primary">
-            {busy ? (
-              <LoadingIndicator className="size-5" />
-            ) : (
-              <Upload className="size-5" />
-            )}
-          </span>
-          <span className="grid gap-1">
-            <span className="text-xs font-semibold">{t('uploadLogo')}</span>
-            <span className="text-[11px] text-muted-foreground">
-              {t('logoFormats')}
-            </span>
-          </span>
+          {busy ? (
+            <LoadingIndicator className="size-6" />
+          ) : (
+            <ImagePlus className="size-6" aria-hidden="true" />
+          )}
+          <span>{t('uploadLogo')}</span>
+          <small>{t('logoFormats')}</small>
         </button>
       )}
-    </Card>
+    </div>
   )
 }

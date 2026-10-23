@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"sneepcut/backend-go/internal/agentaction"
 	"sneepcut/backend-go/internal/captions"
+	"sneepcut/backend-go/internal/entitlements"
 	"sort"
 	"strings"
 )
@@ -41,10 +42,17 @@ func (r *Repository) update(ctx context.Context, userID string, input map[string
 	}
 	var role, plan string
 	var activation bool
-	e = tx.QueryRowContext(ctx, `SELECT access_role,plan,email_activation_required FROM users WHERE id=$1 FOR UPDATE`, userID).Scan(&role, &plan, &activation)
+	var lockedUser string
+	e = tx.QueryRowContext(ctx, `SELECT id::text FROM users WHERE id=$1 FOR UPDATE`, userID).Scan(&lockedUser)
 	if errors.Is(e, sql.ErrNoRows) {
 		return out, ErrInactive
 	}
+	if e != nil {
+		return out, e
+	}
+	// Evaluate coverage after acquiring the row lock. A request waiting behind
+	// another mutation can cross the paid-period boundary while it is blocked.
+	e = tx.QueryRowContext(ctx, `SELECT u.access_role,`+entitlements.EffectivePlanSQL+`,u.email_activation_required FROM users u WHERE u.id=$1`, userID).Scan(&role, &plan, &activation)
 	if e != nil {
 		return out, e
 	}

@@ -1,0 +1,67 @@
+.section {
+  display: grid;
+  gap: 24px;
+  padding-top: 22px;
+  min-width: 0;
+}
+.enabled {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  border-top: 1px solid var(--border);
+  padding-top: 22px;
+  font-size: 14px;
+}
+.fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+}
+.fields input {
+  width: 100%;
+  min-height: 42px;
+  margin-top: 6px;
+  padding: 10px 12px;
+  font-size: 13px;
+}
+.controls {
+  display: grid;
+  gap: 26px;
+}
+.positions {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 66px));
+  gap: 18px;
+  margin-top: 10px;
+}
+.positions button {
+  min-height: 54px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+.positions button[aria-pressed='true'] {
+  border-color: var(--foreground);
+}
+.positions svg {
+  width: 20px;
+  height: 20px;
+}
+.badge {
+  border-top: 1px solid var(--border);
+  padding-top: 22px;
+}
+@media (max-width: 639px) {
+  .section {
+    gap: 20px;
+  }
+  .fields {
+    gap: 16px;
+  }
+  .positions {
+    gap: 12px;
+  }
+  .positions button {
+    min-height: 44px;
+  }
+}
