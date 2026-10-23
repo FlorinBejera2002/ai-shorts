@@ -3,7 +3,7 @@
 // Real production HTML/assets; every authenticated API response is synthetic.
 // Fresh contexts contain no production identity, cookies or saved browser state.
 import assert from 'node:assert/strict'
-import { mkdir, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { generatedSnapshot, libraryRecords, scriptId } from './fixtures/scripts-workspace.mjs'
 import { createBillingFixture, filterBillingSubscriptions } from '../../admin/tests/billing-fixture.mjs'
@@ -14,8 +14,10 @@ const frontend = 'https://sneepcut.com'
 const admin = 'https://admin.sneepcut.com'
 const approved = new Set([frontend, admin, 'https://api.sneepcut.com'])
 const output = new URL('../test-results/production-ui/', import.meta.url)
+const diagnostic = process.env.PRODUCTION_UI_DIAGNOSTIC === '1'
 const report = {
   startedAt: new Date().toISOString(), expectedCommit: process.env.PRODUCTION_EXPECTED_COMMIT || null,
+  diagnostic,
   origins: [...approved], checks: [], screenshots: [], assets: [], mockedApiRequests: 0,
   unexpectedMutations: [], blockedExternalRequests: [], blockedWebSockets: [],
   unknownSyntheticReads: [], runtimeErrors: [], unauthenticated: [], passed: false
@@ -25,6 +27,8 @@ const user = {
   id: '00000000-0000-4000-8000-000000004299', name: 'Alex Morgan',
   email: 'production-ui@example.invalid', credits: 1000, plan: 'pro', access_role: 'member'
 }
+const fontAssets = new URL('../../backend/internal/captions/assets/', import.meta.url)
+const fontCatalog = JSON.parse(await readFile(new URL('catalog.json', fontAssets), 'utf8'))
 const settings = {
   preferences: { locale: 'en', theme: 'system', timezone: 'Europe/Bucharest',
     defaultAspectRatio: '9:16', defaultClipCount: 3, emailSecurity: true,
@@ -50,13 +54,15 @@ function commonReads(identity) {
     '/api/publishing': { providers: [], accounts: [], clips: [], posts: [] },
     '/api/calendar': { posts: [], clips: [] },
     '/api/user/brand': { brandKit: {}, plan: 'pro', canWhiteLabel: true },
-    '/api/user/brand/fonts': { fonts: [] },
+    '/api/user/brand/fonts': { fonts: fontCatalog.map(({ id, family, category, weights }) =>
+      ({ id, family, category, weights, romanian: true })) },
     '/api/user/profile': { profile: { ...identity, image: null, provider: 'credentials',
       canChangePassword: true, recentlyAuthenticated: true,
       emailVerified: '2026-10-01T09:00:00Z', createdAt: '2026-10-01T09:00:00Z' } },
     '/api/user/settings': settings,
     '/api/workspace-agent/runs': { runs: [], has_more: false },
     '/api/workspace-agent/suggestions': { suggestions: [], capabilities: [] },
+    '/api/workspace-agent/preferences': { follow: false, recommendations: false },
     '/api/stripe/billing': { mode: 'test', account: { credits: 1000, plan: 'pro', hasBillingProfile: true },
       subscription: { status: 'active', currentPeriodEnd: '2026-11-23T00:00:00Z', cancelAtPeriodEnd: false },
       invoices: [], providerAvailable: true, checkoutVerification: null },
@@ -131,6 +137,11 @@ async function fixture(browser, { mobile = false, administrative = false } = {})
       report.unexpectedMutations.push(`${method} ${url.origin}${path}`)
       return respond({ error: 'Unknown mutation blocked by production UI synthetic fixture' }, 405)
     }
+    if (path === '/api/user/brand/font-file') {
+      const font = fontCatalog.find(item => item.id === url.searchParams.get('id')) || fontCatalog[0]
+      const filename = font.files[url.searchParams.get('weight')] || Object.values(font.files)[0]
+      return route.fulfill({ headers, contentType: 'font/ttf', body: await readFile(new URL(filename, fontAssets)) })
+    }
     if (path === '/api/admin/overview') return respond({ usersTotal: 27, usersActive: 26,
       usersSuspended: 1, newUsersSevenDays: 3, jobsTotal: 10, jobsActive: 0,
       jobsFailed: 1, clipsTotal: 24, creditsOutstanding: 40000 })
@@ -174,7 +185,7 @@ async function until(predicate, message) {
 async function capture(page, name) {
   await page.evaluate(async () => { await document.fonts.ready; window.scrollTo(0, 0) })
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), true, `${name}: no horizontal overflow`)
-  await page.screenshot({ path: fileURLToPath(new URL(`${name}.png`, output)), fullPage: true })
+  await page.screenshot({ path: fileURLToPath(new URL(`${name}.png`, output)), fullPage: false })
   report.screenshots.push(name)
 }
 
@@ -188,29 +199,53 @@ async function rememberShell(page, mobile) {
   }, mobile)
 }
 
-async function assertShell(page, mobile) {
-  assert.equal(await page.evaluate(isMobile => {
+async function assertShell(page, mobile, stage = 'navigation') {
+  const fields = await page.evaluate(isMobile => {
     const probe = window.productionShellProbe, sidebar = document.querySelector('[data-slot="sidebar"]')
-    return probe?.document === document && probe.main === document.querySelector('main') &&
-      probe.header === document.querySelector('header.studio-topbar') &&
-      (isMobile ? probe.dock === document.querySelector('[data-mobile-dashboard-dock]') :
-        probe.sidebar === sidebar && probe.state === sidebar?.getAttribute('data-state'))
-  }, mobile), true, 'Dashboard document, shell DOM and navigation state stay mounted')
+    return { probeExists: Boolean(probe), document: probe?.document === document,
+      main: probe?.main === document.querySelector('main'),
+      header: probe?.header === document.querySelector('header.studio-topbar'),
+      navigation: isMobile ? probe?.dock === document.querySelector('[data-mobile-dashboard-dock]') : probe?.sidebar === sidebar,
+      state: isMobile || probe?.state === sidebar?.getAttribute('data-state'),
+      initialState: probe?.state, currentState: sidebar?.getAttribute('data-state'),
+      oldSidebarConnected: probe?.sidebar?.isConnected,
+      oldSidebarTag: probe?.sidebar?.tagName, currentSidebarTag: sidebar?.tagName,
+      sidebarCount: document.querySelectorAll('[data-slot="sidebar"]').length,
+      oldSidebarHtml: probe?.sidebar?.outerHTML.slice(0, 220), currentSidebarHtml: sidebar?.outerHTML.slice(0, 220) }
+  }, mobile)
+  report.shellDiagnostics ??= []
+  report.shellDiagnostics.push({ url: page.url(), stage, ...fields })
+  const preserved = ['probeExists', 'document', 'main', 'header', 'navigation', 'state'].every(key => fields[key])
+  if (!preserved && diagnostic) return
+  assert.ok(preserved,
+    `Dashboard document, shell DOM and navigation state stay mounted: ${JSON.stringify(fields)}`)
 }
 
 async function navigate(f, entry) {
   const [, path, selector] = entry
   if (f.mobile) {
-    const primary = f.page.locator(`[data-mobile-dashboard-dock] a[href="${path}"]`)
+    const primary = f.page.locator(`[data-mobile-dashboard-dock] a[href="${path}"]`).filter({ visible: true })
     if (await primary.count()) await primary.click()
     else {
-      await f.page.locator('[data-mobile-menu-trigger]').click()
-      await f.page.locator(`[data-mobile-menu-dialog] a[href="${path}"]`).click()
-      await f.page.locator('[data-mobile-menu-dialog]').waitFor({ state: 'hidden' })
+      const headerTrigger = f.page.locator('[data-workspace-mobile-header] button[aria-controls="dashboard-navigation"]').filter({ visible: true })
+      if (await headerTrigger.count()) {
+        await headerTrigger.first().click()
+        const sidebar = f.page.locator('[data-slot="sidebar"][data-mobile="true"]')
+        await sidebar.locator(`a[href="${path}"]`).click()
+        await sidebar.waitFor({ state: 'hidden' })
+      } else {
+        await f.page.locator('[data-mobile-menu-trigger]').filter({ visible: true }).click()
+        await f.page.locator(`[data-mobile-menu-dialog] a[href="${path}"]`).click()
+        await f.page.locator('[data-mobile-menu-dialog]').waitFor({ state: 'hidden' })
+      }
     }
   } else await f.page.locator(`[data-slot="sidebar"] a[href="${path}"]`).filter({ visible: true }).first().click()
   await f.page.waitForURL(url => url.origin === frontend && url.pathname === path)
   await f.page.locator(selector).waitFor({ state: 'visible' })
+  if (path === '/dashboard/script-generator') {
+    await f.page.waitForFunction(count => document.querySelectorAll('[data-script-card]').length === count,
+      f.records.filter(record => !record.archived).length)
+  }
   await assertShell(f.page, f.mobile)
 }
 
@@ -277,6 +312,7 @@ async function dashboardFlow(browser, mobile) {
     for (const route of routes) {
       if (route !== routes[0]) await navigate(f, route)
       await capture(f.page, `${prefix}-${route[0]}`)
+      await assertShell(f.page, mobile, `after ${route[0]} screenshot`)
     }
     report.checks.push(`${prefix}: Home/Scripts/Clips/Publish/Brand/Billing/Settings navigation, mounted shell/state and overflow`)
     await scriptsFlow(f, prefix)
@@ -345,7 +381,8 @@ try {
   assert.ok(report.assets.some(asset => asset.type === 'script' && asset.status === 200), 'Real deployed JavaScript loaded')
   assert.ok(report.assets.some(asset => asset.type === 'stylesheet' && asset.status === 200), 'Real deployed CSS loaded')
   assert.ok(report.assets.every(asset => asset.status < 400), 'All observed deployed assets loaded successfully')
-  report.passed = true
+  report.diagnosticComplete = diagnostic
+  report.passed = !diagnostic
 } catch (error) {
   report.failure = error.stack || error.message
   process.exitCode = 1

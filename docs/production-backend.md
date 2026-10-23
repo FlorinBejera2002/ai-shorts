@@ -42,8 +42,10 @@ the running containers; deployment applies migrations and recreates services.
 
 Verify the backup with an isolated restore before activation. Stop application
 writers briefly for a consistent final database and media snapshot when needed.
-Keep the previous images and checkout for recovery. Source rotation does not roll
-back database migrations: an older Go migrator can reject an unknown newer
+Before building, pin the running application images with release-specific recovery
+tags. Recording image IDs alone does not retain overwritten image manifests.
+Keep those tagged images and the previous checkout for recovery. Source rotation
+does not roll back database migrations: an older Go migrator can reject an unknown newer
 revision, so assess schema compatibility before invoking `rollback`. Do not
 restore an older database over newer user writes as an automatic rollback step.
 
