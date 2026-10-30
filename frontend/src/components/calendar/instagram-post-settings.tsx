@@ -8,6 +8,7 @@ import { Switch } from '@/components/ui/switch'
 import type { InstagramPostSettings } from '@/lib/instagram-post-settings'
 import { ChevronDown } from 'lucide-react'
 import { useTranslations } from 'next-intl'
+import theme from './publishing-theme.module.css'
 import { InstagramCoverPicker } from './instagram-cover-picker'
 import { PostSettingsSection } from './post-settings-section'
 import styles from './post-platform-options.module.css'
@@ -139,7 +140,7 @@ export function InstagramPostSettings({
       <Label htmlFor={`${idPrefix}-trial`}>{t('instagramTrial')}</Label>
       <Select value={settings.trialReel} disabled={disabled} onValueChange={value => onChange('trialReel', value as InstagramPostSettings['trialReel'])}>
         <SelectTrigger id={`${idPrefix}-trial`} className="w-full"><SelectValue /></SelectTrigger>
-        <SelectContent>
+        <SelectContent className={theme.surface} data-publish-surface="">
           <SelectItem value="off">{t('instagramTrialOff')}</SelectItem>
           <SelectItem value="MANUAL">{t('instagramTrialManual')}</SelectItem>
           <SelectItem value="SS_PERFORMANCE">{t('instagramTrialAutomatic')}</SelectItem>
@@ -153,17 +154,17 @@ export function InstagramPostSettings({
     return (
       <div className={styles.instagramSettings}>
         {isReel && cover}
-        {isReel && shareToFeed}
-        {aiGenerated}
         {collaborators}
         {location}
         {isReel && audio}
+        {isReel && <div className={styles.field}>{trial}</div>}
+        {isReel && shareToFeed}
+        {aiGenerated}
+        <div className={styles.field}>{comments}</div>
         <details className={styles.more}>
           <summary>{composerT('moreOptions')}<ChevronDown className="size-4" aria-hidden="true" /></summary>
           <div className={styles.advanced}>
             {isReel && coverFrame}
-            {isReel && trial}
-            {comments}
           </div>
         </details>
       </div>

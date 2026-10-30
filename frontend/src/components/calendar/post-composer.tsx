@@ -1,6 +1,6 @@
 'use client'
 
-import { PlatformBrandIcon } from '@/components/publishing/platform-brand-icon'
+import { PublishingPlatformIcon } from '@/components/publishing/publishing-platform-icon'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -10,16 +10,19 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
 import type { CalendarClipOption, CalendarMutationStatus, ContentPlatform, PublishingMedia, ScheduledPostRecord } from '@/lib/content-calendar'
 import type { PublishingAccount, PublishingData } from '@/lib/publishing'
-import { ArrowLeft, Check, ChevronDown, MapPin, Settings2 } from 'lucide-react'
+import { ArrowLeft, Check, ChevronDown, Film, MapPin, Plus, Save, Trash2 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useId, useRef, useState, type ReactNode } from 'react'
 import { CalendarMobileHeader } from './calendar-mobile-header'
+import { CalendarPostThumbnail } from './calendar-post-media'
+import { formatDuration } from '@/lib/utils'
 import { PostComposerPreview } from './post-composer-preview'
 import type { PostComposerErrors, PostComposerForm } from './post-composer-types'
 import { PostMediaDialog } from './post-media-dialog'
 import { PostPlatformOptions } from './post-platform-options'
 import { SchedulePicker } from './schedule-picker'
 import styles from './post-composer.module.css'
+import theme from './publishing-theme.module.css'
 
 type PostComposerProps = {
   title: string
@@ -43,9 +46,10 @@ type PostComposerProps = {
   onSave: (status: CalendarMutationStatus) => Promise<void>
   onClose: () => void
   onDelete?: () => void
+  onConnectRequest?: () => void
 }
 
-const providerOrder: ContentPlatform[] = ['instagram', 'tiktok', 'facebook', 'youtube']
+const providerOrder: ContentPlatform[] = ['tiktok', 'youtube', 'instagram', 'facebook']
 const modes: CalendarMutationStatus[] = ['draft', 'scheduled', 'publish']
 const commonZones = ['Europe/Bucharest', 'Europe/London', 'Europe/Paris', 'Europe/Berlin', 'America/New_York', 'America/Los_Angeles', 'Asia/Dubai', 'Asia/Tokyo', 'UTC']
 
@@ -53,7 +57,7 @@ export function PostComposer({
   title, form, errors, accounts, clips, publishingClips, captionLimit, timeZone,
   busy, saving, platformOptions, onFieldChange, onTimeZoneChange, onToggleAccount,
   onMediaConfirm, onUploadingChange, onOptionsOpen, onOptionsCancel, onSave,
-  onClose, onDelete
+  onClose, onDelete, onConnectRequest
 }: PostComposerProps) {
   const t = useTranslations('contentCalendar')
   const formId = useId()
@@ -62,6 +66,7 @@ export function PostComposer({
   const mediaOpener = useRef<HTMLElement | null>(null)
   const optionsOpener = useRef<HTMLElement | null>(null)
   const selectedAccounts = accounts.filter(account => form.accountIds.includes(account.id))
+  const selectedPlatforms = new Set(form.platforms)
   const accountNames = Object.fromEntries(providerOrder.map(provider => [
     provider,
     selectedAccounts.filter(account => account.provider === provider)
@@ -104,11 +109,12 @@ export function PostComposer({
   }
 
   return (
-    <div className={styles.workspace} data-post-composer="" data-publishing-workspace="">
+    <div className={`${theme.surface} ${styles.workspace}`} data-publish-surface="" data-post-composer="" data-publishing-workspace="">
       <CalendarMobileHeader />
       <header className={styles.header}>
-        <Button type="button" variant="ghost" size="icon" onClick={onClose} disabled={busy} aria-label={t('page.back')}><ArrowLeft /></Button>
+        <Button type="button" variant="ghost" size="icon" className={styles.back} onClick={onClose} disabled={busy} aria-label={t('page.back')}><ArrowLeft /></Button>
         <h1>{title}</h1>
+        {onDelete && <Button type="button" variant="ghost" size="icon" className={styles.mobileDelete} disabled={busy} onClick={onDelete} aria-label={t('actions.delete')}><Trash2 className="size-4" /></Button>}
       </header>
       <form className={styles.form} noValidate onSubmit={event => { event.preventDefault(); void onSave(form.status) }}>
         <fieldset className={styles.accounts} disabled={busy} aria-describedby={errors.platforms ? `${formId}-platforms-error` : undefined}>
@@ -122,33 +128,53 @@ export function PostComposer({
                   <button
                     key={account?.id ?? provider}
                     type="button"
-                    disabled={busy || !account}
+                    disabled={busy || (!account && !onConnectRequest)}
                     data-composer-account={account?.id}
+                    data-provider={provider}
+                    data-connected={Boolean(account)}
                     aria-label={t('composer.selectAccount', { platform: t(`platforms.${provider}`), account: account?.username || account?.name || t('composer.notConnected') })}
                     aria-pressed={selected}
-                    onClick={() => account && onToggleAccount(account)}
+                    onClick={() => account ? onToggleAccount(account) : onConnectRequest?.()}
                     className={styles.accountTile}
                     title={account?.username || account?.name || t('composer.notConnected')}
                   >
-                    <PlatformBrandIcon provider={provider} className="size-9" />
-                    {selected && <span className={styles.selectedBadge}><Check className="size-3" /></span>}
+                    <span className={styles.accountCircle}>
+                      <PublishingPlatformIcon platform={provider} />
+                      {selected && <span className={styles.selectedBadge}><Check className="size-3" /></span>}
+                      {!account && <span className={styles.connectBadge}><Plus className="size-3" /></span>}
+                    </span>
+                    <span className={styles.accountLabel}>{account?.username ? `@${account.username.replace(/^@/, '')}` : account?.name || t(`platforms.${provider}`)}</span>
                   </button>
                 )
               })
             })}
           </div>
-          <p className={styles.accountNames}>{selectedAccounts.length ? [...new Set(Object.values(accountNames).filter(Boolean))].join(' · ') : t('composer.chooseAccounts')}</p>
-          {accounts.length === 0 && <Button type="button" variant="link" onClick={onClose}>{t('form.closeAndConnect')}</Button>}
+          {selectedAccounts.length === 0 && <p className={styles.accountNames}>{t('composer.chooseAccounts')}</p>}
+          {accounts.length === 0 && <Button type="button" variant="link" onClick={onConnectRequest ?? onClose}>{t('form.closeAndConnect')}</Button>}
           {showError('platforms')}{showError('accountIds')}
         </fieldset>
 
-        <PostComposerPreview post={previewPost} publishingClips={publishingClips} disabled={busy} onChangeMedia={openMedia} />
+        <PostComposerPreview post={previewPost} accountNames={accountNames} publishingClips={publishingClips} disabled={busy} onChangeMedia={openMedia} />
+
+        <section className={styles.media} aria-labelledby={`${formId}-media`}>
+          <h2 id={`${formId}-media`}>{t('form.mediaSectionTitle')}</h2>
+          <div className={styles.mediaSummary}>
+            <div className={styles.mediaThumbnail}>{selectedClip || form.media.length ? <CalendarPostThumbnail post={previewPost} /> : <Film className="size-5" />}</div>
+            <div className={styles.mediaMetadata}>
+              <strong>{selectedClip?.title || form.media[0]?.name || t('composer.chooseMedia')}</strong>
+              {selectedClip && <span>{formatDuration(selectedClip.duration)}</span>}
+              {form.media.length > 1 && <span>{t('composer.mediaCount', { count: form.media.length })}</span>}
+            </div>
+            <Button type="button" variant="outline" onClick={openMedia} disabled={busy} aria-label={t('composer.changeMedia')}>{t('composer.change')}</Button>
+          </div>
+          {showError('media')}{showError('clipId')}
+        </section>
 
         <div className={styles.caption}>
           <Label htmlFor={`${formId}-caption`}>{t('composer.postText')}</Label>
           <Textarea
             id={`${formId}-caption`} value={form.caption} disabled={busy} maxLength={captionLimit}
-            rows={5} onChange={event => onFieldChange('caption', event.target.value)}
+            rows={4} onChange={event => onFieldChange('caption', event.target.value)}
             placeholder={t('form.captionPlaceholder')} aria-invalid={Boolean(errors.caption)}
             aria-describedby={errors.caption ? `${formId}-caption-error` : undefined}
           />
@@ -157,14 +183,14 @@ export function PostComposer({
         </div>
 
         <div className={styles.options}>
-          <Button type="button" variant="outline" className={styles.optionsTrigger} disabled={busy} onClick={() => { optionsOpener.current = document.activeElement as HTMLElement | null; onOptionsOpen(); setOptionsOpen(true) }}>
-            <Settings2 className="size-5" /><span>{t('composer.platformOptions')}</span><ChevronDown className="ml-auto size-4" />
+          <Button type="button" variant="ghost" className={styles.optionsTrigger} aria-label={t('composer.platformOptions')} disabled={busy} onClick={() => { optionsOpener.current = document.activeElement as HTMLElement | null; onOptionsOpen(); setOptionsOpen(true) }}>
+            <span>{t('composer.platformOptions')}</span><span className={styles.optionPlatforms} aria-hidden="true">{providerOrder.filter(provider => selectedPlatforms.has(provider)).map(provider => <span key={provider} className={styles.optionPlatform} data-provider={provider}><PublishingPlatformIcon platform={provider} /></span>)}</span><ChevronDown className="size-4" />
           </Button>
           {showError('instagram')}{showError('facebook')}{showError('tiktok')}{showError('youtube')}
-          {showError('media')}{showError('clipId')}
         </div>
 
         <div className={styles.scheduling}>
+          <h2>{t('composer.when')}</h2>
           <Tabs value={form.status} onValueChange={value => onFieldChange('status', value as CalendarMutationStatus)} className="gap-0">
             <TabsList className={styles.modeTabs} aria-label={t('form.statusLabel')}>
               {modes.map(mode => <TabsTrigger key={mode} value={mode} disabled={busy} className={styles.modeTab}>{t(`composer.modes.${mode}`)}</TabsTrigger>)}
@@ -173,11 +199,11 @@ export function PostComposer({
           {form.status === 'scheduled' && (
             <div className={styles.scheduleControls}>
               <div className={styles.schedulePicker}>
-                <SchedulePicker compact date={form.date} time={form.time} onDateChange={value => onFieldChange('date', value)} onTimeChange={value => onFieldChange('time', value)} dateError={errors.date} timeError={errors.time} />
+                <SchedulePicker compact disabled={busy} date={form.date} time={form.time} onDateChange={value => onFieldChange('date', value)} onTimeChange={value => onFieldChange('time', value)} dateError={errors.date} timeError={errors.time} />
               </div>
               <Select value={timeZone} onValueChange={onTimeZoneChange} disabled={busy}>
                 <SelectTrigger aria-label={t('composer.timeZone')} className={styles.zoneTrigger}><MapPin className="size-4 shrink-0" /><SelectValue /></SelectTrigger>
-                <SelectContent>
+                <SelectContent className={`${theme.surface} ${styles.zonePopup}`} data-publish-surface="">
                   {[...new Set([timeZone, ...commonZones])].map(zone => <SelectItem key={zone} value={zone}>{zone}</SelectItem>)}
                 </SelectContent>
               </Select>
@@ -205,7 +231,7 @@ export function PostComposer({
         <footer className={styles.footer}>
           {onDelete && <Button type="button" variant="ghost" className={styles.delete} disabled={busy} onClick={onDelete}>{t('actions.delete')}</Button>}
           <Button type="button" variant="ghost" onClick={onClose} disabled={busy} className={styles.cancel}>{t('actions.cancel')}</Button>
-          {form.status !== 'draft' && <Button type="button" variant="outline" onClick={() => void onSave('draft')} disabled={busy}>{t('composer.saveDraft')}</Button>}
+          {form.status !== 'draft' && <Button type="button" variant="outline" className={styles.saveDraft} onClick={() => void onSave('draft')} disabled={busy} aria-label={t('composer.saveDraft')}><Save className={styles.saveDraftIcon} aria-hidden="true" /><span className={styles.saveDraftLabel}>{t('composer.saveDraft')}</span></Button>}
           <Button type="submit" disabled={busy} className={styles.primary}>{saving && <LoadingIndicator className="size-4" />}{saving ? t('actions.saving') : primaryLabel}</Button>
         </footer>
       </form>

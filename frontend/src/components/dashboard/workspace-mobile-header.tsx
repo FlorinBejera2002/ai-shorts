@@ -1,13 +1,13 @@
 'use client'
 
-import { ThemeBrandLogo } from '@/components/shared/brand-logo'
+import { BrandLogo, ThemeBrandLogo } from '@/components/shared/brand-logo'
 import { Button } from '@/components/ui/button'
 import { useSidebar } from '@/components/ui/sidebar'
 import { Menu } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import styles from './workspace-mobile-header.module.css'
 
-export function WorkspaceMobileHeader() {
+export function WorkspaceMobileHeader({ appearance = 'theme' }: { appearance?: 'theme' | 'light' }) {
   const t = useTranslations('nav')
   const { openMobile, toggleSidebar } = useSidebar()
 
@@ -24,7 +24,7 @@ export function WorkspaceMobileHeader() {
       >
         <Menu className="size-6" />
       </Button>
-      <ThemeBrandLogo size="md" />
+      {appearance === 'light' ? <BrandLogo size="md" /> : <ThemeBrandLogo size="md" />}
     </div>
   )
 }

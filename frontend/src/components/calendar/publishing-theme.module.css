@@ -1,0 +1,67 @@
+@import '@fontsource-variable/inter';
+
+/* Exact Publish reference palette. This is an explicit, scoped design exception. */
+.surface {
+  --background: #f5f7fb;
+  --foreground: #152035;
+  --card: #fff;
+  --card-foreground: #152035;
+  --popover: #fff;
+  --popover-foreground: #152035;
+  --primary: #2563eb;
+  --primary-foreground: #fff;
+  --secondary: #edf2f8;
+  --secondary-foreground: #152035;
+  --muted: #f5f7fb;
+  --muted-foreground: #647188;
+  --accent: #edf2f8;
+  --accent-foreground: #152035;
+  --destructive: #b91c1c;
+  --border: #e3e9f2;
+  --input: #e3e9f2;
+  --ring: #2563eb;
+  --success: #15803d;
+  --warning: #9a3412;
+  --warning-foreground: #7c2d12;
+  --radius-md: 14px;
+  --radius-sm: 12px;
+  --publish-card-radius: 24px;
+  --publish-dialog-radius: 28px;
+  --publish-pill-radius: 999px;
+  --publish-card-shadow: 0 1px 3px rgba(21, 32, 53, .06);
+  --publish-preview-shadow: 0 1px 3px rgba(21, 32, 53, .06), 0 12px 32px rgba(21, 32, 53, .06);
+  --publish-dialog-shadow: 0 24px 64px rgba(21, 32, 53, .25);
+  --publish-primary-shadow: 0 6px 16px rgba(37, 99, 235, .25);
+  --font-body: 'Inter Variable', Inter, system-ui, sans-serif;
+  --font-studio: 'Inter Variable', Inter, system-ui, sans-serif;
+  color-scheme: light;
+  color: var(--foreground);
+  font-family: var(--font-body);
+  font-size: 15px;
+}
+
+.surface :is(button, input, textarea, select) {
+  font-family: inherit;
+}
+
+.surface :is(h1, h2, h3),
+:global(#dashboard-shell) .surface :is(h1, h2, h3) {
+  font-family: 'Sora Variable', Sora, sans-serif;
+}
+
+.surface[data-slot='dialog-content'],
+.surface[data-slot='popover-content'],
+.surface[data-slot='select-content'] {
+  border: 0;
+  background: var(--card);
+}
+
+.overlay {
+  background: rgba(21, 32, 53, .45);
+  backdrop-filter: none;
+}
+
+/* Paint the existing mounted route container without replacing the shell. */
+:global(#dashboard-main):has([data-publish-surface]) {
+  background: #f5f7fb;
+}

@@ -1,3 +1,7 @@
 'use client'
 
-export { WorkspaceMobileHeader as CalendarMobileHeader } from '@/components/dashboard/workspace-mobile-header'
+import { WorkspaceMobileHeader } from '@/components/dashboard/workspace-mobile-header'
+
+export function CalendarMobileHeader() {
+  return <WorkspaceMobileHeader appearance="light" />
+}

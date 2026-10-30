@@ -1,0 +1,22 @@
+.dialog { max-width: 440px; gap: 16px; padding: 24px; border: 0; border-radius: var(--publish-dialog-radius); background: #fff; }
+.title { font-family: var(--font-display), 'Sora', sans-serif; font-size: 19px; font-weight: 600; letter-spacing: -.025em; }
+.description { color: #4f5c72; font-size: 14px; line-height: 1.6; }
+.remoteDelete { display: flex; min-height: 48px; align-items: center; gap: 12px; padding: 12px; border-radius: 14px; background: #f5f7fb; color: #4f5c72; font-size: 14px; line-height: 1.5; }
+.remoteDelete input { width: 18px; height: 18px; flex-shrink: 0; accent-color: #2563eb; }
+.warning { color: #9a3412; font-size: 13px; line-height: 1.6; }
+.actions { display: flex; justify-content: flex-end; gap: 10px; }
+.actions button { height: 48px; border: 0; border-radius: var(--publish-pill-radius); padding-inline: 20px; font-size: 14px; font-weight: 600; box-shadow: none; }
+.cancel { background: #edf2f8; color: #4f5c72; }
+.cancel:hover { background: #e3e9f2; }
+.confirm { background: #b91c1c; color: #fff; }
+.confirm:hover { background: #991b1b; }
+.sheetHandle { display: none; }
+@media (max-width: 767px) {
+  .dialog { inset: auto 0 0; width: 100%; max-width: none; max-height: 92dvh; padding: 12px 20px max(28px, env(safe-area-inset-bottom)); border-radius: 28px 28px 0 0; translate: none; transform: none; }
+  .sheetHandle { display: block; width: 40px; height: 5px; margin: 0 auto 4px; border-radius: 999px; background: #dfe6f0; }
+  .remoteDelete { min-height: 52px; }
+  .actions { flex-direction: column-reverse; gap: 8px; }
+  .actions button { width: 100%; }
+  .actions .confirm { height: 52px; }
+  .cancel { background: transparent; }
+}

@@ -8,12 +8,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useIsMobile } from '@/hooks/use-mobile'
 import type { CalendarClipOption, PublishingMedia } from '@/lib/content-calendar'
 import { formatDuration } from '@/lib/utils'
-import { ArrowLeft, Check, ChevronLeft, ChevronRight, Film, Search, X } from 'lucide-react'
+import { Check, ChevronLeft, ChevronRight, Film, Search, X } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useState } from 'react'
-import { CalendarMobileHeader } from './calendar-mobile-header'
 import { PublishingMediaPicker } from './publishing-media-picker'
 import styles from './post-media-dialog.module.css'
+import theme from './publishing-theme.module.css'
 
 type PostMediaSelection = {
   clipId: string
@@ -77,15 +77,9 @@ export function PostMediaDialog({
 
   return (
     <Dialog open={true} onOpenChange={open => { if (!open) onClose() }}>
-      <DialogContent className={styles.dialog} aria-describedby={undefined} data-post-media-dialog="">
-        <div className={styles.mobileHeader}>
-          <CalendarMobileHeader />
-        </div>
+      <DialogContent className={`${theme.surface} ${styles.dialog}`} overlayClassName={theme.overlay} aria-describedby={undefined} data-publish-surface="" data-post-media-dialog="">
         <header className={styles.header}>
-          <Button type="button" variant="ghost" size="icon" className={styles.back} onClick={onClose} aria-label={t('closeMedia')}>
-            <ArrowLeft aria-hidden="true" />
-          </Button>
-          <DialogTitle className={styles.title}>{t('changeMedia')}</DialogTitle>
+          <DialogTitle className={styles.title}>{t('mediaTitle')}</DialogTitle>
           <Button type="button" variant="ghost" size="icon" className={styles.close} onClick={onClose} aria-label={t('closeMedia')}>
             <X aria-hidden="true" />
           </Button>
@@ -156,7 +150,7 @@ export function PostMediaDialog({
           <footer className={styles.footer}>
             {source === 'clips' && (
               <>
-                <span className={styles.selectionCount} role="status">{t('selectedClips', { count: selectedClip ? 1 : 0 })}</span>
+                <span className="sr-only" role="status">{t('selectedClips', { count: selectedClip ? 1 : 0 })}</span>
                 <div className={styles.pagination}>
                   <Button type="button" variant="outline" size="icon" disabled={currentPage === 0} onClick={() => setPage(currentPage - 1)} aria-label={t('previousPage')}>
                     <ChevronLeft aria-hidden="true" />

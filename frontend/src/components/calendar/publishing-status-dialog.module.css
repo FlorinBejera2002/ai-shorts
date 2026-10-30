@@ -1,0 +1,242 @@
+.dialog.dialog {
+  width: calc(100% - 32px);
+  max-width: 440px;
+  max-height: 85dvh;
+  gap: 16px;
+  padding: 24px;
+  overflow-y: auto;
+  border: 0;
+  border-radius: var(--publish-dialog-radius);
+  background: var(--card);
+  box-shadow: var(--publish-dialog-shadow);
+}
+
+.close.close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--publish-pill-radius);
+  background: #edf2f8;
+}
+
+.header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  text-align: center;
+}
+
+.symbol {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: #e9f1ff;
+  color: var(--primary);
+}
+
+.symbol[data-status="published"] {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.symbol[data-status="failed"] {
+  background: #fdecec;
+  color: #b91c1c;
+}
+
+.symbol svg {
+  width: 30px;
+  height: 30px;
+}
+
+.title.title {
+  font-family: var(--font-display);
+  font-size: 19px;
+  font-weight: 600;
+}
+
+.description.description {
+  font-size: 13px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.destinations {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.destination {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  min-height: 52px;
+  border-radius: 16px;
+  padding: 8px 12px;
+  background: #f5f7fb;
+}
+
+.destination > :first-child {
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  border-radius: var(--publish-pill-radius);
+}
+
+.destinationBody {
+  min-width: 0;
+  flex: 1;
+}
+
+.destinationLabel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.destinationLabel > span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.destinationLabel > span:last-child {
+  color: var(--muted-foreground);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.destinationLabel > [data-status='published']:last-child {
+  color: #15803d;
+}
+
+.destinationLabel > [data-status='failed']:last-child {
+  color: #b91c1c;
+}
+
+.progress {
+  position: relative;
+  height: 6px;
+  margin-top: 8px;
+  overflow: hidden;
+  border-radius: 9999px;
+  background: var(--border);
+}
+
+.progress span {
+  position: absolute;
+  height: 100%;
+  width: 36%;
+  background: var(--primary);
+  border-radius: inherit;
+  animation: publishing-progress 1.6s ease-in-out infinite alternate;
+}
+
+.destinationError, .error {
+  color: var(--destructive);
+  font-size: 12px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+.note {
+  margin-top: 5px;
+  color: var(--muted-foreground);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.link.link {
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+}
+
+.footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-top: 0;
+}
+
+.footer > button {
+  min-width: 100px;
+  min-height: 48px;
+  border-radius: var(--publish-pill-radius);
+  background: #edf2f8;
+}
+
+.primary.primary {
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+
+.primary.closeAction {
+  background: #152035;
+  color: #fff;
+}
+
+.delete.delete {
+  margin-right: auto;
+  color: var(--destructive);
+}
+
+@keyframes publishing-progress {
+  from {
+    left: 0;
+  }
+  to {
+    left: 64%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .progress span {
+    animation: none;
+    left: 32%;
+  }
+}
+
+@media (max-width: 767px) {
+  .dialog.dialog {
+    inset: auto 0 0;
+    width: 100%;
+    max-width: none;
+    max-height: 85dvh;
+    padding: 12px 20px max(28px, env(safe-area-inset-bottom));
+    border-radius: var(--publish-dialog-radius) var(--publish-dialog-radius) 0 0;
+    transform: none;
+    translate: none;
+  }
+  .dialog::before {
+    content: '';
+    width: 40px;
+    height: 5px;
+    margin: 0 auto;
+    border-radius: var(--publish-pill-radius);
+    background: #dfe6f0;
+  }
+  .symbol {
+    width: 60px;
+    height: 60px;
+  }
+  .destination {
+    padding: 10px 12px;
+  }
+  .footer > button {
+    flex: 1;
+    min-height: 52px;
+  }
+}

@@ -1593,7 +1593,11 @@
       "removeTag": "Remove tag for {username}",
       "photoFormatHint": "Choose a format for these photos, then adjust each photo below.",
       "photoOriginalHint": "Original keeps each photo uncropped.",
-      "photoDestinationsHint": "Crops apply to the selected photo destinations. Alternative text is sent only to Instagram and Facebook."
+      "photoDestinationsHint": "Crops apply to the selected photo destinations. Alternative text is sent only to Instagram and Facebook.",
+      "title": "Edit photo",
+      "done": "Done",
+      "cancel": "Cancel",
+      "formatLabel": "Format"
     },
     "title": "Publishing",
     "composer": {
@@ -1639,7 +1643,11 @@
         "draft": "Draft",
         "scheduled": "Schedule",
         "publish": "Publish now"
-      }
+      },
+      "mediaTitle": "Media",
+      "when": "When",
+      "mediaCount": "{count} files",
+      "dateAndTime": "Date and time"
     },
     "publishing": {
       "description": "Manage and schedule your social posts.",
@@ -1664,13 +1672,20 @@
       "empty": {
         "scheduled": "No scheduled posts this month",
         "drafts": "No drafts this month",
-        "published": "No published posts this month"
+        "published": "No published posts this month",
+        "all": "No posts"
       },
       "back": {
         "scheduled": "Back to scheduled",
         "drafts": "Back to drafts",
-        "published": "Back to published"
-      }
+        "published": "Back to published",
+        "all": "Back to posts"
+      },
+      "all": "All",
+      "tomorrow": "Tomorrow",
+      "undated": "Undated",
+      "failedCount": "{count, plural, one {# failed post} other {# failed posts}}",
+      "resolve": "Resolve"
     },
     "description": "Plan, organize, and track every social post from one focused workspace.",
     "loading": "Loading calendar",
@@ -1834,7 +1849,10 @@
       "popupBlocked": "Allow pop-ups for Sneepcut to connect this account",
       "unavailable": "Unavailable",
       "loadError": "Accounts could not be loaded.",
-      "retry": "Try again"
+      "retry": "Try again",
+      "reconnect": "Reconnect",
+      "addAccount": "Add account",
+      "noAccounts": "Connect an account"
     },
     "dialog": {
       "eyebrow": "Content planning",
@@ -1852,7 +1870,8 @@
       "deleteFromFacebook": "Also delete from Facebook",
       "deleteFromFacebookDescription": "Deletes the published Reel from the connected Facebook Page.",
       "instagramManualDelete": "Instagram must be deleted manually",
-      "instagramManualDeleteDescription": "Instagram does not allow published posts to be deleted through its API. Delete the Reel in Instagram if you also want it removed there."
+      "instagramManualDeleteDescription": "Instagram does not allow published posts to be deleted through its API. Delete the Reel in Instagram if you also want it removed there.",
+      "deleteSummary": "The post is removed from your calendar. Your media stays in the library."
     },
     "form": {
       "titleLabel": "Post title",

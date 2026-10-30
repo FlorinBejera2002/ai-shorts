@@ -1,31 +1,39 @@
 .drawer.drawer {
-  --primary: var(--foreground);
-  --primary-foreground: var(--background);
-  --ring: var(--foreground);
-  width: 420px;
-  max-width: 100vw;
-  gap: 0;
-  padding: 0;
+  display: flex;
+  flex-direction: column;
+  width: calc(100% - 32px);
+  max-width: 480px;
+  max-height: min(90dvh, 820px);
+  overflow: hidden;
+  border: 0;
+  border-radius: var(--publish-dialog-radius);
+  background: var(--card);
+  box-shadow: var(--publish-dialog-shadow);
+  gap: 16px;
+  padding: 20px;
 }
 
 .header {
   display: flex;
   align-items: center;
   gap: 14px;
-  padding: 32px 28px 22px;
+  padding: 0;
 }
 
 .title.title {
   flex: 1;
   font-family: var(--font-display);
-  font-size: 25px;
+  font-size: 18px;
   font-weight: 600;
   letter-spacing: -0.04em;
   line-height: 1.35;
 }
 
 .close {
-  margin-right: -10px;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--publish-pill-radius);
+  background: #edf2f8;
 }
 
 .back.back,
@@ -38,46 +46,56 @@
   min-height: 0;
   flex: 1;
   flex-direction: column;
+  gap: 16px;
 }
 
 .tabList {
   display: flex;
   flex-shrink: 0;
-  gap: 18px;
+  gap: 5px;
   overflow-x: auto;
-  margin: 0 28px;
-  border-bottom: 1px solid var(--border);
+  width: fit-content;
+  padding: 5px;
+  border-radius: var(--publish-pill-radius);
+  background: #f5f7fb;
 }
 
 .tab {
   position: relative;
   display: flex;
-  flex: 1 0 auto;
+  flex: 0 0 auto;
   align-items: center;
   justify-content: center;
-  gap: 12px;
-  min-height: 50px;
-  border-bottom: 2px solid transparent;
-  border-radius: 0;
-  padding: 8px 10px 13px;
-  color: var(--muted-foreground);
+  gap: 8px;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: var(--publish-pill-radius);
+  padding: 8px;
+  color: #4f5c72;
   font-size: 13px;
   font-weight: 500;
 }
 
 .tab[data-state='active'] {
-  border-color: var(--foreground);
-  color: var(--foreground);
+  background: var(--platform-color);
+  box-shadow: none;
+  color: #fff;
 }
 
-.tab:hover {
-  background: var(--muted);
+.tab[data-provider='tiktok'] { --platform-color: #111; }
+.tab[data-provider='youtube'] { --platform-color: #e0002b; }
+.tab[data-provider='instagram'] { --platform-color: #b0306f; }
+.tab[data-provider='facebook'] { --platform-color: #1764d6; }
+
+.tab:hover:not([data-state='active']) {
+  background: #e3e9f2;
   color: var(--foreground);
 }
 
 .tab:focus-visible,
 .more summary:focus-visible {
-  outline: 2px solid var(--foreground);
+  outline: 2px solid var(--primary);
   outline-offset: -2px;
 }
 
@@ -90,7 +108,7 @@
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
-  padding: 0 28px 24px;
+  padding: 0;
 }
 
 .panel {
@@ -98,18 +116,52 @@
 }
 
 .account {
-  margin-bottom: 18px;
-  border-bottom: 1px solid var(--border);
-  padding: 25px 0 18px;
+  margin-bottom: 14px;
+  padding: 0;
   overflow-wrap: anywhere;
   color: var(--foreground);
-  font-size: 14px;
+  font-size: 12px;
 }
 
 .settings > section,
 .settings > fieldset {
-  border-color: var(--border);
+  border: 0;
+  padding: 0;
   box-shadow: none;
+}
+
+.settings > fieldset > legend,
+.settings > section > header {
+  display: none;
+}
+
+.settings [data-slot='input'],
+.settings [data-slot='select-trigger'],
+.settings [data-slot='textarea'] {
+  min-height: 46px;
+  border: 0;
+  border-radius: 14px;
+  background: #f5f7fb;
+  box-shadow: none;
+}
+
+.settings [data-slot='input'],
+.settings [data-slot='select-trigger'] {
+  padding-inline: 14px;
+}
+
+.settings [data-slot='switch'] {
+  border-color: transparent;
+  background: #dfe6f0;
+  box-shadow: none;
+}
+
+.settings [data-slot='switch'][data-state='checked'] {
+  background: var(--primary);
+}
+
+.settings [data-slot='switch-thumb'] {
+  background: #fff;
 }
 
 .empty {
@@ -120,18 +172,22 @@
 }
 
 .footer {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+  display: flex;
+  justify-content: flex-end;
   flex-shrink: 0;
-  gap: 14px;
-  border-top: 1px solid var(--border);
-  padding: 18px 28px max(22px, env(safe-area-inset-bottom));
+  gap: 8px;
+  padding: 0;
 }
 
 .footer button {
-  min-height: 44px;
-  border-radius: var(--radius-md);
+  min-height: 48px;
+  border-radius: var(--publish-pill-radius);
+  border: 0;
   font-size: 14px;
+}
+
+.footer button:first-child {
+  background: #edf2f8;
 }
 
 .instagramSettings {
@@ -155,14 +211,14 @@
 
 .coverPreview {
   display: flex;
-  width: 60%;
-  aspect-ratio: 2 / 1;
+  width: 52px;
+  aspect-ratio: 9 / 16;
   flex-shrink: 0;
   align-items: center;
   justify-content: center;
   overflow: hidden;
   border: 1px solid var(--border);
-  border-radius: var(--radius-md);
+  border-radius: 12px;
   background: var(--muted);
   color: var(--muted-foreground);
 }
@@ -175,7 +231,10 @@
 
 .coverContent button {
   flex: 1;
-  min-height: 40px;
+  min-height: 46px;
+  border: 0;
+  border-radius: 14px;
+  background: #f5f7fb;
 }
 
 .fieldLabel {
@@ -200,8 +259,9 @@
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  border-bottom: 1px solid var(--border);
-  padding: 20px 0;
+  min-height: 48px;
+  border-bottom: 1px solid #edf2f8;
+  padding: 10px 0;
 }
 
 .settingRow label {
@@ -210,34 +270,35 @@
 }
 
 .settingRow [data-slot='switch'] {
-  border: 1px solid var(--border);
-  background: var(--muted);
+  border: 2px solid transparent;
+  background: #dfe6f0;
 }
 
 .settingRow [data-slot='switch'][data-state='checked'] {
-  border-color: var(--foreground);
-  background: var(--foreground);
+  border-color: var(--primary);
+  background: var(--primary);
 }
 
 .settingRow [data-slot='switch-thumb'] {
-  background: var(--muted-foreground);
+  background: #fff;
 }
 
 .settingRow [data-state='checked'] [data-slot='switch-thumb'] {
-  background: var(--background);
+  background: #fff;
 }
 
 .field {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  padding-top: 23px;
+  padding-top: 16px;
 }
 
 .field input {
-  min-height: 44px;
-  border-radius: var(--radius-md);
-  background: color-mix(in srgb, var(--muted) 25%, var(--background));
+  min-height: 46px;
+  border-radius: 14px;
+  border: 0;
+  background: #f5f7fb;
 }
 
 .more {
@@ -272,60 +333,113 @@
   padding-bottom: 20px;
 }
 
-@media (max-width: 1023px) {
+.radioGroup {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.radioGroup label {
+  position: relative;
+  flex: 1;
+  min-width: 72px;
+  cursor: pointer;
+}
+
+.radioGroup input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+}
+
+.radioGroup span,
+.choice {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 12px;
+  padding: 10px;
+  background: #f5f7fb;
+  color: #4f5c72;
+  font-size: 12px;
+  text-align: center;
+}
+
+.radioGroup input:checked + span,
+.choice[aria-pressed='true'] {
+  background: #152035;
+  color: #fff;
+}
+
+.radioGroup input:disabled + span,
+.choice:disabled {
+  cursor: not-allowed;
+  opacity: .45;
+}
+
+.radioGroup input:focus-visible + span,
+.choice:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+@media (max-width: 767px) {
   .drawer.drawer {
+    inset: 40px 0 0;
     width: 100%;
     max-width: 100%;
-    border-left: 0;
+    height: calc(100dvh - 40px);
+    max-height: calc(100dvh - 40px);
+    border: 0;
+    border-radius: var(--publish-dialog-radius) var(--publish-dialog-radius) 0 0;
+    padding: 12px 16px 0;
+    gap: 16px;
+    transform: none;
+    translate: none;
   }
 
-  .mobileHeader {
-    display: block;
-    padding: 14px 24px 0;
-  }
-
-  .mobileHeader > div {
-    min-height: 50px;
-    margin: 0 -24px;
-    padding: 0 24px 14px;
+  .drawer::before {
+    content: '';
+    width: 40px;
+    height: 5px;
+    margin: 0 auto;
+    flex-shrink: 0;
+    border-radius: var(--publish-pill-radius);
+    background: #dfe6f0;
   }
 
   .header {
-    gap: 18px;
-    padding: 24px 24px 18px;
-  }
-
-  .back.back {
-    display: inline-flex;
-    margin-left: -7px;
-  }
-
-  .close.close {
-    display: none;
+    gap: 12px;
+    padding: 0;
   }
 
   .title.title {
-    font-size: clamp(23px, 5vw, 30px);
+    font-size: 18px;
   }
 
   .tabList {
-    margin-inline: 24px;
+    margin: 0;
   }
 
   .tab {
-    min-height: 57px;
-    font-size: 15px;
+    min-height: 44px;
   }
 
   .scrollArea {
-    padding-inline: 24px;
+    flex: 1;
+    padding: 0;
   }
 
   .footer {
-    padding-inline: 24px;
+    margin-inline: -16px;
+    border-top: 1px solid var(--border);
+    padding: 12px 16px max(24px, env(safe-area-inset-bottom));
   }
 
   .footer button {
-    min-height: 46px;
+    flex: 1;
+    min-height: 52px;
   }
 }

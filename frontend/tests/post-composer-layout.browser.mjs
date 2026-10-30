@@ -23,8 +23,11 @@ const blockedMutations = []
 const uploads = []
 const clipRequests = []
 const creatorRequests = []
+let failPublishingReload = false
+let expectedPublishingFailure = false
 page.on('pageerror', error => errors.push(error.message))
 page.on('console', message => {
+  if (expectedPublishingFailure && message.location().url.includes('/api/publishing') && /503/.test(message.text())) return
   if (message.type() === 'error') errors.push(message.text())
 })
 
@@ -79,11 +82,13 @@ await context.route('**/__post-composer-fixture__/preview.mp4', route => route.f
 await context.route('**/api/**', async route => {
   const request = route.request()
   const url = new URL(request.url())
-  if (url.pathname === '/api/publishing' && request.method() === 'GET')
+  if (url.pathname === '/api/publishing' && request.method() === 'GET') {
+    if (failPublishingReload) return route.fulfill({ status: 503, json: { error: 'Synthetic account refresh failure' } })
     return route.fulfill({ json: {
       providers: Object.entries(providerNames).map(([id, name]) => ({ id, name, configured: true, supportsPublishing: true })),
-      accounts, clips, posts: []
+      accounts: accounts.filter(item => item.provider !== 'facebook'), clips, posts: []
     } })
+  }
   if (url.pathname === '/api/calendar' && request.method() === 'GET')
     return route.fulfill({ json: { posts: [...posts.values()], clips } })
   if ((url.pathname === '/api/calendar' && request.method() === 'POST') ||
@@ -142,7 +147,7 @@ await context.route('**/api/**', async route => {
 const root = page.locator('[data-post-composer]')
 const preview = page.locator('[data-composer-preview]')
 const caption = page.getByLabel('Post text', { exact: true })
-const mediaDialog = page.getByRole('dialog', { name: 'Change media', exact: true })
+const mediaDialog = page.getByRole('dialog', { name: 'Media', exact: true })
 const optionsDialog = page.getByRole('dialog', { name: 'Platform options', exact: true })
 const modeTab = name => root.getByRole('tab', { name, exact: true })
 const accountTile = provider => root.locator(`[data-composer-account="${account(provider).id}"]`)
@@ -156,17 +161,31 @@ async function rememberShell() {
       header: document.querySelector('header.studio-topbar'),
       sidebarState: document.querySelector('[data-slot="sidebar"]')?.getAttribute('data-state')
     }
+    window.composerShellEvents = []
+    window.composerSidebarObserver?.disconnect()
+    window.composerSidebarObserver = new MutationObserver(() => {
+      const sidebar = document.querySelector('[data-slot="sidebar"]')
+      if (window.composerShellProbe.sidebar !== sidebar && window.composerShellEvents.length < 6) {
+        window.composerShellEvents.push({ width: window.innerWidth, mediaMobile: matchMedia('(max-width: 1023px)').matches, originalConnected: window.composerShellProbe.sidebar?.isConnected, current: sidebar?.outerHTML.slice(0, 220), path: location.pathname })
+      }
+    })
+    window.composerSidebarObserver.observe(document.getElementById('dashboard-shell'), { childList: true, subtree: true })
   })
 }
 
 async function assertShell() {
-  assert.equal(await page.evaluate(() => {
+  const state = await page.evaluate(() => {
     const probe = window.composerShellProbe
     const sidebar = document.querySelector('[data-slot="sidebar"]')
-    return !!probe?.main && !!probe.header && probe.main === document.querySelector('main') &&
-      probe.header === document.querySelector('header.studio-topbar') && probe.sidebar === sidebar &&
-      probe.sidebarState === sidebar?.getAttribute('data-state')
-  }), true, 'Composer routes and dialogs preserve dashboard DOM and sidebar state')
+    return {
+      main: !!probe?.main && probe.main === document.querySelector('main'),
+      header: !!probe?.header && probe.header === document.querySelector('header.studio-topbar'),
+      sidebar: probe?.sidebar === sidebar,
+      sidebarState: probe?.sidebarState === sidebar?.getAttribute('data-state')
+    }
+  })
+  if (Object.values(state).some(value => !value)) console.error('Shell diagnostics:', await page.evaluate(() => window.composerShellEvents))
+  assert.deepEqual(state, { main: true, header: true, sidebar: true, sidebarState: true }, 'Composer routes and dialogs preserve dashboard DOM and sidebar state')
 }
 
 async function noOverflow(label) {
@@ -193,9 +212,10 @@ async function capture(name, options = {}) {
     .filter(video => video.getBoundingClientRect().width > 0)
     .every(video => video.readyState >= 2))
   await page.waitForLoadState('networkidle')
-  const mobileDialog = page.viewportSize().width < 768 &&
-    (await mediaDialog.isVisible() || await optionsDialog.isVisible())
-  await page.screenshot({ path: fileURLToPath(new URL(`${name}.png`, output)), fullPage: options.fullPage ?? !mobileDialog })
+  // Full-page capture can transiently resize Chrome to a 1px document width
+  // around portal scroll-lock cleanup. Viewport captures preserve the layout
+  // under test; separate focused captures cover the lower mobile sections.
+  await page.screenshot({ path: fileURLToPath(new URL(`${name}.png`, output)), fullPage: options.fullPage ?? false })
 }
 
 async function openMedia() {
@@ -210,7 +230,7 @@ async function openOptions() {
 
 async function assertOpenerFocus(label) {
   await page.waitForFunction(name => [...document.querySelectorAll('[data-post-composer] button')]
-    .some(button => button.textContent.trim() === name && document.activeElement === button), label)
+    .some(button => (button.getAttribute('aria-label') === name || button.textContent.trim() === name) && document.activeElement === button), label)
 }
 
 async function assertDraftState(text) {
@@ -242,6 +262,7 @@ async function verifyFastRefresh(text) {
   const source = await readFile(sourcePath, 'utf8')
   assert.equal(source.split(anchor).length, 2, 'Composer refresh probe anchor is unique')
   await openOptions()
+  await optionsDialog.getByRole('tab', { name: 'Instagram', exact: true }).click()
   try {
     await writeFile(sourcePath, source.replace(anchor, probe))
     await page.locator('[data-composer-refresh-probe="updated"]').waitFor()
@@ -283,10 +304,26 @@ try {
   await caption.fill(text)
   await accountTile('tiktok').click()
   await assertDraftState(text)
+  await root.getByRole('button', { name: 'Facebook: Not connected', exact: true }).click()
+  const connections = page.getByRole('dialog', { name: 'Connected accounts', exact: true })
+  await connections.waitFor()
+  expectedPublishingFailure = true
+  failPublishingReload = true
+  await page.evaluate(async () => {
+    const { queryClient } = await import('/src/query/query-client.ts')
+    await queryClient.refetchQueries({ queryKey: ['api-resource', '/api/publishing'] })
+  })
+  await connections.getByRole('alert').waitFor()
+  assert.equal(await caption.inputValue(), text, 'A failed account refresh does not unmount the unsaved editor')
+  failPublishingReload = false
+  await connections.getByRole('button', { name: 'Try again', exact: true }).click()
+  await connections.getByRole('alert').waitFor({ state: 'hidden' })
+  await connections.getByRole('button', { name: 'Done', exact: true }).click()
+  await assertDraftState(text)
   await modeTab('Schedule').click()
   await root.getByRole('button', { name: 'Schedule post', exact: true }).click()
   assert.equal(writes.length, 0, 'Scheduling without media does not issue a mutation')
-  await root.getByText(/Add photos or videos|choose a linked clip|TikTok.*clip/i).first().waitFor()
+  await root.getByText(/Add photos or videos|choose a linked clip|eligible clip|TikTok.*clip/i).first().waitFor()
 
   await openMedia()
   await mediaDialog.getByRole('tab', { name: 'My clips', exact: true }).click()
@@ -322,6 +359,18 @@ try {
   await player.evaluate(element => { element.pause(); element.load() })
   await page.waitForFunction(() => document.querySelector('[data-composer-preview] video')?.readyState >= 2)
   assert.equal(await player.evaluate(element => element.controls), true, 'Preview has working native video controls')
+  await preview.getByRole('tab', { name: 'TikTok', exact: true }).click()
+  await preview.locator('[data-brand-social-overlay="tiktok"]').waitFor()
+  assert.equal(await preview.locator('[data-brand-social-overlay="tiktok"]').getByText(text, { exact: true }).count(), 1, 'Platform preview uses the current public text')
+  await preview.getByRole('tab', { name: 'Instagram', exact: true }).click()
+  await preview.locator('[data-brand-social-overlay="instagram"]').waitFor()
+  const captionBounds = await caption.boundingBox()
+  const previewBounds = await preview.boundingBox()
+  assert.ok(previewBounds.x > captionBounds.x + captionBounds.width, 'Desktop preview is on the right of the form')
+  await preview.getByRole('button', { name: 'Expand preview', exact: true }).click()
+  const expandedPreview = page.getByRole('dialog', { name: 'Post preview', exact: true })
+  await expandedPreview.waitFor()
+  await expandedPreview.getByRole('button', { name: 'Close dialog', exact: true }).click()
   await assertDraftState(text)
 
   await openOptions()
@@ -363,6 +412,18 @@ try {
   assert.equal(await modeTab('Publish now').getAttribute('aria-selected'), 'true')
   assert.equal(writes.length, 0, 'Choosing a mode never publishes automatically')
   await modeTab('Schedule').click()
+  await root.getByRole('button', { name: 'Date', exact: true }).click()
+  const datePopover = page.locator('[data-schedule-picker-panel]')
+  await datePopover.waitFor()
+  await datePopover.getByRole('button', { name: 'Next month', exact: true }).click()
+  await page.keyboard.press('Escape')
+  await datePopover.waitFor({ state: 'hidden' })
+  await root.getByRole('button', { name: 'Time', exact: true }).click()
+  const timePopover = page.locator('[data-schedule-picker-panel]')
+  await timePopover.getByRole('group', { name: 'Hour', exact: true }).getByRole('button', { name: '18', exact: true }).click()
+  await timePopover.getByRole('group', { name: 'Minute', exact: true }).getByRole('button', { name: '30', exact: true }).click()
+  await timePopover.getByRole('button', { name: 'Done', exact: true }).click()
+  assert.equal(await root.getByRole('button', { name: 'Time', exact: true }).innerText(), '18:30')
   await noOverflow('Desktop composer')
   await capture('desktop-new-post')
   await root.getByRole('button', { name: 'Schedule post', exact: true }).click()
@@ -404,20 +465,43 @@ try {
   await mediaDialog.getByRole('tab', { name: 'From device', exact: true }).click()
   await mediaDialog.locator('input[type="file"]').first().setInputFiles({ name: 'synthetic-upload.png', mimeType: 'image/png', buffer: image })
   const useMedia = mediaDialog.getByRole('button', { name: 'Use media', exact: true })
+  await mediaDialog.getByRole('button', { name: 'Edit synthetic-upload.png', exact: true }).click()
+  const photoEditor = page.getByRole('dialog', { name: 'Edit photo', exact: true })
+  await photoEditor.getByRole('radio', { name: '4:5', exact: true }).check()
+  await photoEditor.getByLabel('Alternative text', { exact: true }).fill('Discard this crop description')
+  await photoEditor.getByRole('button', { name: 'Close editor', exact: true }).click()
+  await photoEditor.waitFor({ state: 'hidden' })
+  await mediaDialog.getByRole('button', { name: 'Edit synthetic-upload.png', exact: true }).click()
+  assert.equal(await photoEditor.getByLabel('Alternative text', { exact: true }).inputValue(), '', 'Closing the photo editor discards local edits')
+  await photoEditor.getByRole('radio', { name: '1.91:1', exact: true }).check()
+  await photoEditor.getByLabel('Alternative text', { exact: true }).fill('A synthetic image for an accessibility test')
+  await capture('desktop-photo-editor')
+  await photoEditor.getByRole('button', { name: 'Done', exact: true }).click()
+  await photoEditor.waitFor({ state: 'hidden' })
   await useMedia.click()
   await mediaDialog.waitFor({ state: 'hidden' })
   await preview.locator('img:not([data-platform-mark])').first().waitFor()
+  const imageStage = preview.locator('[data-publishing-media-stage]')
+  const imageStageBounds = await imageStage.boundingBox()
+  assert.ok(Math.abs(imageStageBounds.width / imageStageBounds.height - 9 / 16) < .01, 'Landscape photo keeps a vertical platform stage')
+  const imageCropBounds = await imageStage.locator('[data-publishing-image-preview]').boundingBox()
+  assert.ok(Math.abs(imageCropBounds.width / imageCropBounds.height - 1.91) < .02, 'Landscape crop is letterboxed without stretching')
   assert.equal(await preview.locator('video').count(), 0, 'Confirmed image replaces the linked clip')
   await assertDraftState(text)
   const updated = await saveDraft('PATCH')
   assert.equal(updated.clipId, null, 'Uploaded media clears the associated clip')
   assert.equal(updated.media[0].reference, uploadReference)
+  assert.equal(updated.media[0].crop.aspectRatio, '1.91:1', 'Confirmed photo crop reaches the save payload')
+  assert.equal(updated.media[0].altText, 'A synthetic image for an accessibility test')
   assert.equal(updated.caption, text)
   assert.equal(updated.title, 'Synthetic internal draft title', 'Optional internal metadata remains editable in More options')
   assert.ok(uploads.length >= 2, 'Device upload uses the mocked media API')
   console.log('Edit route and device upload preserve text/accounts; Cancel discards and Use media applies the replacement')
 
   await page.setViewportSize({ width: 390, height: 844 })
+  if (!await page.getByRole('button', { name: 'New post', exact: true }).first().isVisible()) {
+    await page.locator('[data-publishing-preview]').getByRole('button', { name: /Back to/ }).click()
+  }
   await rememberShell()
   await page.getByRole('button', { name: 'New post', exact: true }).first().click()
   await root.waitFor()
@@ -441,6 +525,16 @@ try {
   await assertOpenerFocus('Platform options')
   await assertDraftState(mobileText)
   await modeTab('Schedule').click()
+  await root.getByRole('button', { name: 'Date', exact: true }).click()
+  const mobileSchedule = page.getByRole('dialog', { name: 'Date and time', exact: true })
+  await mobileSchedule.waitFor()
+  const scheduleBounds = await mobileSchedule.boundingBox()
+  assert.ok(scheduleBounds.x >= -1 && scheduleBounds.x + scheduleBounds.width <= 391 && scheduleBounds.y >= 0 && scheduleBounds.y + scheduleBounds.height <= 845, 'Mobile date/time sheet fits the viewport')
+  await capture('mobile-date-time')
+  await mobileSchedule.getByLabel('Hour', { exact: true }).selectOption('19')
+  await mobileSchedule.getByLabel('Minute', { exact: true }).selectOption('45')
+  await mobileSchedule.getByRole('button', { name: 'Done', exact: true }).click()
+  assert.equal(await root.getByRole('button', { name: 'Time', exact: true }).innerText(), '19:45')
   await noOverflow('Mobile composer')
   await capture('mobile-new-post', { fullPage: false })
   await root.getByRole('combobox', { name: 'Time zone', exact: true }).scrollIntoViewIfNeeded()

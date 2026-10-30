@@ -1590,7 +1590,11 @@
       "removeTag": "Elimină eticheta pentru {username}",
       "photoFormatHint": "Alege un format pentru fotografii, apoi ajustează fiecare fotografie mai jos.",
       "photoOriginalHint": "Original păstrează fiecare fotografie fără decupare.",
-      "photoDestinationsHint": "Decuparea se aplică destinațiilor foto selectate. Textul alternativ este trimis doar către Instagram și Facebook."
+      "photoDestinationsHint": "Decuparea se aplică destinațiilor foto selectate. Textul alternativ este trimis doar către Instagram și Facebook.",
+      "title": "Editează foto",
+      "done": "Gata",
+      "cancel": "Anulează",
+      "formatLabel": "Format"
     },
     "title": "Publicare",
     "composer": {
@@ -1636,7 +1640,11 @@
         "draft": "Ciornă",
         "scheduled": "Programare",
         "publish": "Publică acum"
-      }
+      },
+      "mediaTitle": "Media",
+      "when": "Când",
+      "mediaCount": "{count} fișiere",
+      "dateAndTime": "Data și ora"
     },
     "publishing": {
       "description": "Gestionează și programează postările sociale.",
@@ -1661,13 +1669,20 @@
       "empty": {
         "scheduled": "Nicio postare programată în această lună",
         "drafts": "Nicio ciornă în această lună",
-        "published": "Nicio postare publicată în această lună"
+        "published": "Nicio postare publicată în această lună",
+        "all": "Nicio postare"
       },
       "back": {
         "scheduled": "Înapoi la programate",
         "drafts": "Înapoi la ciorne",
-        "published": "Înapoi la publicate"
-      }
+        "published": "Înapoi la publicate",
+        "all": "Înapoi la postări"
+      },
+      "all": "Toate",
+      "tomorrow": "Mâine",
+      "undated": "Fără dată",
+      "failedCount": "{count, plural, one {# postare eșuată} other {# postări eșuate}}",
+      "resolve": "Rezolvă"
     },
     "description": "Planifică, organizează și urmărește fiecare postare socială dintr-un singur spațiu clar.",
     "loading": "Se încarcă calendarul",
@@ -1831,7 +1846,10 @@
       "popupBlocked": "Permite ferestrele pop-up pentru Sneepcut ca să conectezi acest cont",
       "unavailable": "Indisponibil",
       "loadError": "Conturile nu au putut fi încărcate.",
-      "retry": "Reîncearcă"
+      "retry": "Reîncearcă",
+      "reconnect": "Reconectează",
+      "addAccount": "Adaugă un cont",
+      "noAccounts": "Conectează un cont"
     },
     "dialog": {
       "eyebrow": "Planificare conținut",
@@ -1849,7 +1867,8 @@
       "deleteFromFacebook": "Șterge și de pe Facebook",
       "deleteFromFacebookDescription": "Șterge Reel-ul publicat de pe Pagina Facebook conectată.",
       "instagramManualDelete": "Postarea Instagram trebuie ștearsă manual",
-      "instagramManualDeleteDescription": "Instagram nu permite ștergerea postărilor publicate prin API. Șterge Reel-ul din Instagram dacă vrei să dispară și de acolo."
+      "instagramManualDeleteDescription": "Instagram nu permite ștergerea postărilor publicate prin API. Șterge Reel-ul din Instagram dacă vrei să dispară și de acolo.",
+      "deleteSummary": "Postarea se elimină din calendar. Fișierele media rămân în bibliotecă."
     },
     "form": {
       "titleLabel": "Titlul postării",
