@@ -217,6 +217,9 @@
     max-height: 85dvh;
     padding: 12px 20px max(28px, env(safe-area-inset-bottom));
     border-radius: var(--publish-dialog-radius) var(--publish-dialog-radius) 0 0;
+    /* Minification can fold translate:none into transform; reset Tailwind's separate translation too. */
+    --tw-translate-x: 0;
+    --tw-translate-y: 0;
     transform: none;
     translate: none;
   }

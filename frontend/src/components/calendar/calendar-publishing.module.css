@@ -586,6 +586,9 @@
     width: 100%;
     max-width: none;
     max-height: 85dvh;
+    /* Minification can fold translate:none into transform; reset Tailwind's separate translation too. */
+    --tw-translate-x: 0;
+    --tw-translate-y: 0;
     transform: none;
     translate: none;
     border-radius: var(--publish-dialog-radius) var(--publish-dialog-radius) 0 0;

@@ -140,6 +140,12 @@ async function capture(name) {
   if (dialogOpen) {
     const dialog = page.getByRole('dialog').last()
     const fullscreen = mobile && (await dialog.getAttribute('data-post-media-dialog') !== null || await dialog.getAttribute('data-publishing-image-editor') !== null)
+    if (fullscreen) await assertFullscreenDialog(dialog)
+    if (mobile) {
+      const bounds = await dialog.boundingBox()
+      const viewport = page.viewportSize()
+      assert.ok(bounds.x >= -1 && bounds.y >= -1 && bounds.x + bounds.width <= viewport.width + 1 && bounds.y + bounds.height <= viewport.height + 1, `${name}: dialog stays inside the phone viewport`)
+    }
     await expectStyle(dialog, { backgroundColor: dark ? 'rgb(24, 31, 43)' : 'rgb(255, 255, 255)', borderTopLeftRadius: fullscreen ? '0px' : '28px', borderTopWidth: '0px' }, 'themed dialog surface')
     const backdrop = await dialog.evaluate(element => {
       const overlay = element.previousElementSibling
@@ -170,6 +176,13 @@ async function openEditor(id = uid(840), query = '') {
 async function openMedia() {
   await composer.getByRole('button', { name: messages.composer.changeMedia, exact: true }).click()
   await media().waitFor()
+  if (page.viewportSize().width < 768) await assertFullscreenDialog(media())
+}
+async function assertFullscreenDialog(dialog) {
+  const bounds = await dialog.boundingBox()
+  const viewport = page.viewportSize()
+  assert.ok(Math.abs(bounds.x) <= 1 && Math.abs(bounds.y) <= 1, 'Mobile dialog begins at the viewport origin, including in minified production CSS')
+  assert.ok(Math.abs(bounds.width - viewport.width) <= 1 && Math.abs(bounds.height - viewport.height) <= 1, 'Mobile dialog fills the viewport')
 }
 async function assertFormActions(label) {
   const footer = composer.locator('footer')
@@ -394,6 +407,10 @@ try {
   console.log(passed.join('\n'))
 } catch (error) {
   console.error(JSON.stringify({ url: page.url(), errors, body: (await page.locator('body').innerText().catch(() => '')).slice(0, 500) }))
+  console.error(JSON.stringify(await page.getByRole('dialog').evaluateAll(elements => elements.map(element => {
+    const style = getComputedStyle(element)
+    return { className: element.className, rect: element.getBoundingClientRect().toJSON(), position: style.position, top: style.top, left: style.left, transform: style.transform, translate: style.translate }
+  }))))
   await capture('failure').catch(() => {})
   throw error
 } finally {

@@ -282,8 +282,9 @@ async function verifyFastRefresh(text) {
 
 async function assertFullscreenDialog(dialog, label) {
   const bounds = await dialog.boundingBox()
-  assert.ok(bounds && bounds.x <= 1 && bounds.width >= 388, `${label} fills the mobile viewport width`)
-  assert.ok(bounds.y <= 80 && bounds.height >= 700, `${label} uses a focused mobile view`)
+  const viewport = page.viewportSize()
+  assert.ok(bounds && bounds.x >= -1 && bounds.x <= 1 && bounds.width >= viewport.width - 2 && bounds.x + bounds.width <= viewport.width + 1, `${label} fills the mobile viewport width without clipping`)
+  assert.ok(bounds.y >= -1 && bounds.y <= 80 && bounds.height >= 700 && bounds.y + bounds.height <= viewport.height + 1, `${label} uses a focused mobile view inside the viewport`)
   await noOverflow(label)
 }
 
@@ -309,10 +310,10 @@ try {
   await connections.waitFor()
   expectedPublishingFailure = true
   failPublishingReload = true
-  await page.evaluate(async () => {
-    const { queryClient } = await import('/src/query/query-client.ts')
-    await queryClient.refetchQueries({ queryKey: ['api-resource', '/api/publishing'] })
-  })
+  // A normal browser reconnect refetches stale resources in development and
+  // compiled builds, without importing implementation modules from the page.
+  await page.evaluate(() => window.dispatchEvent(new Event('offline')))
+  await page.evaluate(() => window.dispatchEvent(new Event('online')))
   await connections.getByRole('alert').waitFor()
   assert.equal(await caption.inputValue(), text, 'A failed account refresh does not unmount the unsaved editor')
   failPublishingReload = false

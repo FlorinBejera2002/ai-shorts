@@ -279,6 +279,9 @@
     border-radius: 0;
     padding: 0;
     gap: 0;
+    /* Minification can fold translate:none into transform; reset Tailwind's separate translation too. */
+    --tw-translate-x: 0;
+    --tw-translate-y: 0;
     transform: none;
     translate: none;
   }
