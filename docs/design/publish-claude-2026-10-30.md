@@ -1,10 +1,10 @@
 # Publish: approved Claude reference
 
-The user requested implementation of all 16 desktop/mobile artboards in [Sneepcut – Redesign pagina Publish](https://claude.ai/artifact/GxXHfmy7iu1vKNB6KAZeAW#artboard-15dd8cd198dd) on 2026-10-30. The subsequent correction explicitly requires exact visual fidelity, including borders, cards, colors and rounding. This supersedes the initial adaptation to Sneep Cut's neutral palette and shared radii.
+The user requested implementation of all 16 desktop/mobile artboards in [Sneepcut – Redesign pagina Publish](https://claude.ai/artifact/GxXHfmy7iu1vKNB6KAZeAW#artboard-15dd8cd198dd) on 2026-10-30. The subsequent correction explicitly requires exact visual fidelity, including borders, cards, colors and rounding. This supersedes the initial adaptation to Sneep Cut's neutral palette and shared radii. The latest explicit requests add app-theme support and refine the Media chooser and form actions as described below.
 
 ## Exact reference styling
 
-Publish and its portals use a scoped light palette, independent of the surrounding dashboard theme: canvas `#f5f7fb`, white cards, text `#152035`, secondary text `#4f5c72` / `#647188`, borders `#e3e9f2`, blue primary actions `#2563eb`. Body text uses locally bundled Inter; headings use Sora. Primary actions and segmented controls are pills; cards use 24px desktop / 20px mobile radii, dialogs use 28px, and individual inputs/previews follow the artboard dimensions. Shadows use the reference's `rgba(21,32,53,…)` values. Modal backdrops use `rgba(21,32,53,.45)` without blur.
+Publish and all its portals follow the app's light or dark theme. Light mode retains the reference palette: canvas `#f5f7fb`, white cards, text `#152035`, secondary text `#4f5c72` / `#647188`, borders `#e3e9f2`, blue primary actions `#2563eb`. Dark mode uses scoped theme tokens for surfaces, controls, text, borders, hover, selected and status states, including dialogs, sheets and dropdowns. Platform brand colors and image/video overlays retain their intended colors. Body text uses locally bundled Inter; headings use Sora. Primary actions and segmented controls are pills; cards use 24px desktop / 20px mobile radii, dialogs use 28px, and individual inputs/previews follow the artboard dimensions. Light-mode shadows use the reference's `rgba(21,32,53,…)` values, with a `rgba(21,32,53,.45)` modal backdrop without blur; dark-mode shadows and backdrops adapt through the scoped theme.
 
 These are explicit exceptions documented in `AGENTS.md`, implemented through `publishing-theme.module.css` and component-specific styles. They do not change other dashboard routes or the mounted shared layout.
 
@@ -21,7 +21,9 @@ These are explicit exceptions documented in `AGENTS.md`, implemented through `pu
 | 13–14. Publishing status | Actual destination stages, indeterminate progress, success links, failures and recovery actions; mobile bottom sheet |
 | 15–16. Confirmations and popups | Deletion, disconnect, connection success, expanded preview, date/time controls and timezone |
 
-The desktop composer places its form on the left and preview on the right. The mobile composer places a compact preview between destination selection and the public text. Shared dashboard layout, navigation and state remain mounted. Queue view, selection and scroll are restored after editor navigation.
+The desktop composer places its form on the left and preview on the right. The Media chooser occupies the full row and has no thumbnail; the separate preview displays the selected media. The mobile composer places a compact preview between destination selection and the public text. Form actions remain in normal document flow at the end of the form, without sticky or fixed positioning, and use the same Publish card and button styling as the other composer sections. Shared dashboard layout, navigation and state remain mounted. Queue view, selection and scroll are restored after editor navigation.
+
+The theme, Media chooser and normal-flow action refinements have passed the focused checks described at the end of this document.
 
 Choosing Publish now in a queue detail opens the editor in publish mode. Submission still runs the existing account, media and provider consent validation. A preview is a simulation; it does not publish anything. Tests mock authentication and every API request, so no provider connection or publication is required.
 
@@ -35,6 +37,7 @@ Use the running local Vite server, or start `npm --prefix frontend run dev -- --
 - `node frontend/tests/publishing-layout.browser.mjs`
 - `node frontend/tests/post-composer-layout.browser.mjs` (set `RUN_FAST_REFRESH=1` after all concurrent source edits finish)
 - `node frontend/tests/publish-workflows.browser.mjs`
+- `PUBLISH_THEME=dark node frontend/tests/publish-workflows.browser.mjs` (set the environment variable using the current shell)
 - `npx react-doctor@latest --verbose --scope changed` from `frontend/`
 - `node scripts/storage.mjs --check`
 
@@ -46,8 +49,18 @@ On 2026-10-30, TypeScript and all 54 focused unit tests passed. All three browse
 
 ESLint completed successfully with existing warnings. The final React Doctor changed-file scan reported no diagnostics (project score remained 66/100). The repository storage budget and diff whitespace checks passed. No deployment or real social publication was performed.
 
-The exact-style follow-up added browser assertions against computed colors, radii, border widths, typography and modal overlays. The integrated workflow passed all nine interaction groups and 36 recorded style checks, including Romanian desktop/mobile views, 12px platform choices, square photo crops with a 2px white outline, a single 16px mobile queue gutter, and a bottom-aligned action bar with reachable fields. Queue and composer browser suites also passed after the visual changes. The reference palette stays light when the surrounding dashboard uses dark mode; its mobile wordmark retains proper contrast.
+The exact-style follow-up added browser assertions against computed colors, radii, border widths, typography and modal overlays. The integrated workflow passed all nine interaction groups and 36 recorded style checks, including Romanian desktop/mobile views, 12px platform choices, square photo crops with a 2px white outline, a single 16px mobile queue gutter, and a bottom-aligned action bar with reachable fields. Queue and composer browser suites also passed after the visual changes. At that stage, the reference palette remained light when the surrounding dashboard used dark mode, and the mobile wordmark retained proper contrast. The latest requests supersede that fixed-light behavior and the earlier action-bar placement.
 
 Tracking: the follow-up ticket `409c7071-a198-811a-a60e-f1bf1b9712e4` was created and moved to Testing. The final Notion update could not complete because the connection returned `object_not_found` for both the ticket and its board; completion evidence is retained here for reconciliation once access is restored.
 
 The final TypeScript and focused lint checks passed after the shared platform-icon extraction. A repeated React Doctor scan did not complete while analyzing the larger, previously modified Create/Story file set and was stopped after an extended wait; that repeat is not counted as a pass. The preceding completed scan reported no diagnostics. Final browser verification and the storage budget check passed.
+
+## Theme and composer refinements verified on 2026-10-30
+
+TypeScript, focused calendar lint (existing warnings only), and 18 affected unit tests passed. The queue browser suite verified light/dark computed colors and switching themes without reloading, remounting the shared shell or losing queue state; the account portal also stayed mounted while changing themes. The composer suite passed media, options, save/edit, scheduling and mobile navigation checks.
+
+The integrated workflow passed in both light and dark mode, including the entire Media row opening from its text and with Enter/Space, no duplicate thumbnail, draft/schedule/publish payloads, photo editing, provider options, status and deletion with mocked APIs. Action cards are the final form child, follow all expanded fields, keep visible text labels on phones, scroll out of view at the top of the mobile form, and remain clear of the shared workspace assistant. Dark-mode text contrast assertions passed for primary actions, captions, metadata and provider inputs. Desktop/mobile light and dark screenshots were inspected. The final React Doctor scan reported no diagnostics, with the project score unchanged at 66/100.
+
+The final composer rerun with `RUN_FAST_REFRESH=1` passed: an open options drawer, unsaved caption, selected destinations/options and the dashboard DOM survived component refresh; the temporary source probe was restored. Storage budgets and whitespace checks passed.
+
+The required new task ticket could not be created because the connected Notion workspace returned `object_not_found` for Sneep Cut's IT board. No unrelated board was used. Real OAuth connections and external publication remain outside the synthetic checks.

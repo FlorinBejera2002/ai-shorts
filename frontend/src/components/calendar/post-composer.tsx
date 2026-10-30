@@ -10,11 +10,10 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
 import type { CalendarClipOption, CalendarMutationStatus, ContentPlatform, PublishingMedia, ScheduledPostRecord } from '@/lib/content-calendar'
 import type { PublishingAccount, PublishingData } from '@/lib/publishing'
-import { ArrowLeft, Check, ChevronDown, Film, MapPin, Plus, Save, Trash2 } from 'lucide-react'
+import { ArrowLeft, Check, ChevronDown, MapPin, Plus, Trash2 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useId, useRef, useState, type ReactNode } from 'react'
 import { CalendarMobileHeader } from './calendar-mobile-header'
-import { CalendarPostThumbnail } from './calendar-post-media'
 import { formatDuration } from '@/lib/utils'
 import { PostComposerPreview } from './post-composer-preview'
 import type { PostComposerErrors, PostComposerForm } from './post-composer-types'
@@ -158,15 +157,14 @@ export function PostComposer({
 
         <section className={styles.media} aria-labelledby={`${formId}-media`}>
           <h2 id={`${formId}-media`}>{t('form.mediaSectionTitle')}</h2>
-          <div className={styles.mediaSummary}>
-            <div className={styles.mediaThumbnail}>{selectedClip || form.media.length ? <CalendarPostThumbnail post={previewPost} /> : <Film className="size-5" />}</div>
-            <div className={styles.mediaMetadata}>
+          <Button type="button" variant="ghost" className={styles.mediaSummary} onClick={openMedia} disabled={busy} aria-label={t('composer.changeMedia')} aria-describedby={`${formId}-media-description`}>
+            <span id={`${formId}-media-description`} className={styles.mediaMetadata}>
               <strong>{selectedClip?.title || form.media[0]?.name || t('composer.chooseMedia')}</strong>
               {selectedClip && <span>{formatDuration(selectedClip.duration)}</span>}
               {form.media.length > 1 && <span>{t('composer.mediaCount', { count: form.media.length })}</span>}
-            </div>
-            <Button type="button" variant="outline" onClick={openMedia} disabled={busy} aria-label={t('composer.changeMedia')}>{t('composer.change')}</Button>
-          </div>
+            </span>
+            <span className={styles.mediaChange} aria-hidden="true">{t('composer.change')}</span>
+          </Button>
           {showError('media')}{showError('clipId')}
         </section>
 
@@ -231,7 +229,7 @@ export function PostComposer({
         <footer className={styles.footer}>
           {onDelete && <Button type="button" variant="ghost" className={styles.delete} disabled={busy} onClick={onDelete}>{t('actions.delete')}</Button>}
           <Button type="button" variant="ghost" onClick={onClose} disabled={busy} className={styles.cancel}>{t('actions.cancel')}</Button>
-          {form.status !== 'draft' && <Button type="button" variant="outline" className={styles.saveDraft} onClick={() => void onSave('draft')} disabled={busy} aria-label={t('composer.saveDraft')}><Save className={styles.saveDraftIcon} aria-hidden="true" /><span className={styles.saveDraftLabel}>{t('composer.saveDraft')}</span></Button>}
+          {form.status !== 'draft' && <Button type="button" variant="outline" className={styles.saveDraft} onClick={() => void onSave('draft')} disabled={busy}>{t('composer.saveDraft')}</Button>}
           <Button type="submit" disabled={busy} className={styles.primary}>{saving && <LoadingIndicator className="size-4" />}{saving ? t('actions.saving') : primaryLabel}</Button>
         </footer>
       </form>

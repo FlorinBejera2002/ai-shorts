@@ -30,12 +30,14 @@ Before starting every new project task, create a new ticket on the **Sneep Cut >
 - Reuse the shared `Card` default. Do not add `rounded-lg`, `rounded-xl`, larger radii or pill-shaped text badges as decoration. Preserve a larger radius only for an explicit component-specific design exception or user request, and document that exception here.
 - The Calendar view switcher intentionally keeps Rare UI Gooey Nav's `sm` geometry (10px animated segment radius) because the user explicitly requested the reference interaction exactly.
 - Story Builder's step navigation also keeps Rare UI Gooey Nav's `sm` geometry (10px animated segment radius), adapted vertically on desktop at the user's explicit request.
+- Publish has an explicit design exception requested on 2026-10-30: reproduce the Claude reference exactly, including 24px desktop / 20px mobile cards, 28px dialogs, pill actions and the reference's other corner radii. Use the scoped Publish theme and component styles; do not replace them with the global `rounded-md` convention. The latest user refinements require a full-row Media chooser without a thumbnail (media appears in the separate preview, on the right on desktop) and form actions in normal flow at the end of the form, without sticky/fixed positioning, using consistent Publish card and button styling. See [Publish reference](docs/design/publish-claude-2026-10-30.md).
 
 ## UI interaction colors
 
 - Black is Sneep Cut's primary brand color. In light mode, use black (through the semantic `foreground` token) for primary actions and selected states; invert it appropriately in dark mode. Blue is not a primary brand color and should not be introduced as a default accent.
 - Use a subtle neutral gray (`bg-muted` with normal foreground text) for hover and highlighted states on selects, dropdown menus, secondary controls and similar choices. Do not use blue or the primary brand color for hover decoration.
 - Reserve the primary color for selected states, primary actions and keyboard focus indicators where it communicates state or accessibility.
+- The Publish reference exception also covers its exact light palette (`#f5f7fb` canvas, white cards, `#152035` text, `#2563eb` primary actions), shadows and Inter/Sora typography. The latest explicit user request requires Publish and every portal to follow the app theme: preserve the reference in light mode and adapt UI surfaces, text, controls and states with scoped dark-mode tokens. Keep these choices scoped to Publish and its portals; other dashboard routes retain the brand rules above.
 
 ## Context and skills
 

@@ -8,7 +8,9 @@ import { syntheticMp4Response, syntheticPng } from './fixtures/synthetic-media.m
 assert.ok(process.env.PLAYWRIGHT_MODULE, 'Set PLAYWRIGHT_MODULE to the installed Playwright entry point')
 const { chromium } = await import(pathToFileURL(process.env.PLAYWRIGHT_MODULE).href)
 const origin = process.env.FRONTEND_ORIGIN || 'http://127.0.0.1:5173'
-const output = new URL('../test-results/publish-workflows/', import.meta.url)
+const theme = process.env.PUBLISH_THEME === 'dark' ? 'dark' : 'light'
+const dark = theme === 'dark'
+const output = new URL(`../test-results/publish-workflows${dark ? '-dark' : ''}/`, import.meta.url)
 const messages = JSON.parse(await readFile(new URL('../messages/en.json', import.meta.url), 'utf8')).contentCalendar
 const browser = await chromium.launch({ channel: 'chrome', headless: true })
 const context = await browser.newContext({ viewport: { width: 1440, height: 1000 }, timezoneId: 'Europe/Bucharest', reducedMotion: 'reduce' })
@@ -20,6 +22,30 @@ const writes = []
 const blocked = []
 const passed = []
 const visualChecks = []
+const contrastChecks = []
+
+async function assertTextContrast(locator, label) {
+  const ratio = await locator.evaluate(element => {
+    const rgba = value => (value.match(/[\d.]+/g) || []).map(Number)
+    const foreground = rgba(getComputedStyle(element).color)
+    let ancestor = element
+    let background
+    while (ancestor) {
+      const color = rgba(getComputedStyle(ancestor).backgroundColor)
+      if (color.length >= 3 && (color[3] ?? 1) >= .99) { background = color; break }
+      ancestor = ancestor.parentElement
+    }
+    if (!background) throw new Error('No opaque text background')
+    const luminance = values => values.slice(0, 3).map(value => {
+      const s = value / 255
+      return s <= .04045 ? s / 12.92 : ((s + .055) / 1.055) ** 2.4
+    }).reduce((sum, value, index) => sum + value * [.2126, .7152, .0722][index], 0)
+    const a = luminance(foreground), b = luminance(background)
+    return (Math.max(a, b) + .05) / (Math.min(a, b) + .05)
+  })
+  assert.ok(ratio >= 4.5, `${label} contrast ${ratio.toFixed(2)} meets 4.5:1`)
+  contrastChecks.push({ label, ratio: Number(ratio.toFixed(2)) })
+}
 page.on('pageerror', error => errors.push(error.message))
 const uid = number => `00000000-0000-4000-8000-${String(number).padStart(12, '0')}`
 const user = { id: uid(810), email: 'publish-workflows@example.invalid', name: 'Synthetic workspace', plan: 'pro', credits: 100, access_role: 'member' }
@@ -84,7 +110,7 @@ const photo = () => page.getByRole('dialog', { name: messages.imageEditor.title,
 async function capture(name) {
   await mkdir(output, { recursive: true })
   // Compare resting reference colors, not an incidental hover left by the
-  // preceding click when a dialog or sticky footer changes position.
+  // preceding click when a dialog or form action changes position.
   await page.mouse.move(0, 0)
   await page.waitForTimeout(200)
   const dialogOpen = await page.getByRole('dialog').count() > 0
@@ -98,36 +124,43 @@ async function capture(name) {
     visualChecks.push(`${name}: ${label}`)
   }
   if (!dialogOpen && await composer.isVisible()) {
-    await expectStyle(page.locator('#dashboard-main'), { backgroundColor: 'rgb(245, 247, 251)' }, 'reference canvas')
-    await expectStyle(composer.locator('fieldset').first(), { backgroundColor: 'rgb(255, 255, 255)', borderRadius: mobile ? '20px' : '24px' }, 'white rounded account card')
-    await expectStyle(composer.locator('textarea').first(), { backgroundColor: 'rgb(245, 247, 251)', borderRadius: mobile ? '14px' : '16px', borderTopWidth: '0px' }, 'borderless inset text field')
-    await expectStyle(composer.locator('button[type="submit"]'), { backgroundColor: 'rgb(37, 99, 235)', borderRadius: '999px' }, 'blue pill action')
+    await expectStyle(page.locator('#dashboard-main'), { backgroundColor: dark ? 'rgb(14, 19, 28)' : 'rgb(245, 247, 251)' }, 'themed canvas')
+    await expectStyle(composer.locator('fieldset').first(), { backgroundColor: dark ? 'rgb(24, 31, 43)' : 'rgb(255, 255, 255)', borderRadius: mobile ? '20px' : '24px' }, 'themed account card')
+    await expectStyle(composer.locator('textarea').first(), { backgroundColor: dark ? 'rgb(17, 24, 36)' : 'rgb(245, 247, 251)', borderRadius: mobile ? '14px' : '16px', borderTopWidth: '0px' }, 'themed inset text field')
+    await expectStyle(composer.locator('button[type="submit"]'), { backgroundColor: dark ? 'rgb(122, 167, 255)' : 'rgb(37, 99, 235)', borderRadius: '999px' }, 'themed primary action')
+    await expectStyle(composer.locator('footer'), { position: 'static', backgroundColor: dark ? 'rgb(24, 31, 43)' : 'rgb(255, 255, 255)', borderRadius: mobile ? '20px' : '24px', backdropFilter: 'none' }, 'actions follow the form in a themed card')
+    if (dark) {
+      await assertTextContrast(composer.locator('button[type="submit"]'), `${name}: primary action`)
+      await assertTextContrast(composer.locator('textarea').first(), `${name}: caption`)
+      await assertTextContrast(composer.locator('[class*="characterCount"]'), `${name}: character count`)
+    }
     assert.ok(await composer.evaluate(element => getComputedStyle(element).fontFamily.includes('Inter Variable')), 'Reference Inter font is applied')
-    if (mobile) assert.equal(await page.locator('[data-workspace-mobile-header] img').getAttribute('src'), '/sneepcut-logo.svg', 'Light Publish surface uses the dark wordmark')
+    if (mobile) assert.equal(await page.locator('[data-workspace-mobile-header] img:visible').getAttribute('src'), dark ? '/sneepcut-logo-white-text.svg' : '/sneepcut-logo.svg', 'Publish wordmark follows the active theme')
   }
   if (dialogOpen) {
     const dialog = page.getByRole('dialog').last()
     const fullscreen = mobile && (await dialog.getAttribute('data-post-media-dialog') !== null || await dialog.getAttribute('data-publishing-image-editor') !== null)
-    await expectStyle(dialog, { backgroundColor: 'rgb(255, 255, 255)', borderTopLeftRadius: fullscreen ? '0px' : '28px', borderTopWidth: '0px' }, 'reference dialog surface')
+    await expectStyle(dialog, { backgroundColor: dark ? 'rgb(24, 31, 43)' : 'rgb(255, 255, 255)', borderTopLeftRadius: fullscreen ? '0px' : '28px', borderTopWidth: '0px' }, 'themed dialog surface')
     const backdrop = await dialog.evaluate(element => {
       const overlay = element.previousElementSibling
       return overlay ? { background: getComputedStyle(overlay).backgroundColor, blur: getComputedStyle(overlay).backdropFilter } : null
     })
-    assert.deepEqual(backdrop, { background: 'rgba(21, 32, 53, 0.45)', blur: 'none' }, 'Reference backdrop is tinted without blur')
+    assert.deepEqual(backdrop, { background: dark ? 'rgba(0, 0, 0, 0.68)' : 'rgba(21, 32, 53, 0.45)', blur: 'none' }, 'Themed backdrop is tinted without blur')
     if (name.startsWith('options-youtube')) {
       const choice = dialog.getByRole('radio', { name: 'Unlisted', exact: true })
       const choiceStyle = await choice.evaluate(input => {
         const style = getComputedStyle(input.nextElementSibling)
         return { radius: style.borderRadius, background: style.backgroundColor, border: style.borderTopWidth, height: input.nextElementSibling.getBoundingClientRect().height }
       })
-      assert.deepEqual(choiceStyle, { radius: '12px', background: 'rgb(245, 247, 251)', border: '0px', height: 44 }, 'Reference platform choices have square-rounded gray surfaces')
-      await expectStyle(dialog.getByRole('textbox').first(), { backgroundColor: 'rgb(245, 247, 251)', borderRadius: '14px', borderTopWidth: '0px' }, 'reference platform input')
+      assert.deepEqual(choiceStyle, { radius: '12px', background: dark ? 'rgb(17, 24, 36)' : 'rgb(245, 247, 251)', border: '0px', height: 44 }, 'Platform choices have themed inset surfaces')
+      await expectStyle(dialog.getByRole('textbox').first(), { backgroundColor: dark ? 'rgb(17, 24, 36)' : 'rgb(245, 247, 251)', borderRadius: '14px', borderTopWidth: '0px' }, 'themed platform input')
+      if (dark) await assertTextContrast(dialog.getByRole('textbox').first(), `${name}: provider input`)
     }
     if (name.startsWith('photo-')) {
       await expectStyle(dialog.locator('[data-publishing-image-preview]'), { borderRadius: '0px', outlineWidth: '2px', outlineColor: 'rgb(255, 255, 255)' }, 'square photo crop with white outline')
     }
   }
-  await page.screenshot({ path: fileURLToPath(new URL(`${name}.png`, output)), fullPage: !dialogOpen && page.viewportSize().width >= 768 })
+  await page.screenshot({ path: fileURLToPath(new URL(`${name}.png`, output)), fullPage: false })
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), true, `${name} has no horizontal overflow`)
 }
 async function openEditor(id = uid(840), query = '') {
@@ -137,6 +170,40 @@ async function openEditor(id = uid(840), query = '') {
 async function openMedia() {
   await composer.getByRole('button', { name: messages.composer.changeMedia, exact: true }).click()
   await media().waitFor()
+}
+async function assertFormActions(label) {
+  const footer = composer.locator('footer')
+  assert.equal(await footer.evaluate(element => element === element.parentElement.lastElementChild), true, `${label}: actions end the form`)
+  const details = composer.locator('details')
+  const wasOpen = await details.evaluate(element => element.open)
+  await details.evaluate(element => { element.open = true })
+  const preceding = await details.boundingBox()
+  const actions = await footer.boundingBox()
+  assert.ok(actions.y >= preceding.y + preceding.height, `${label}: actions follow all form fields`)
+  await footer.scrollIntoViewIfNeeded()
+  await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight))
+  const assistant = page.locator('[data-agent-trigger]:visible')
+  const assistantBounds = await assistant.count() ? await assistant.boundingBox() : null
+  for (const button of await footer.getByRole('button').all()) {
+    if (!await button.isVisible()) continue
+    const bounds = await button.boundingBox()
+    assert.ok(bounds.y >= 0 && bounds.y + bounds.height <= page.viewportSize().height, `${label}: action is reachable`)
+    assert.ok((await button.innerText()).trim(), `${label}: action retains a visible text label`)
+    if (assistantBounds) {
+      const overlaps = bounds.x < assistantBounds.x + assistantBounds.width && bounds.x + bounds.width > assistantBounds.x && bounds.y < assistantBounds.y + assistantBounds.height && bounds.y + bounds.height > assistantBounds.y
+      assert.equal(overlaps, false, `${label}: assistant does not cover a form action`)
+    }
+  }
+  await capture(`${label}-actions`)
+  if (page.viewportSize().width < 768) {
+    const bottomPosition = await footer.boundingBox()
+    await page.evaluate(() => window.scrollTo(0, 0))
+    const topPosition = await footer.boundingBox()
+    assert.ok(topPosition.y > bottomPosition.y + 100, `${label}: actions scroll with the form`)
+    assert.ok(topPosition.y > page.viewportSize().height, `${label}: actions do not overlay fields at the top`)
+  }
+  await details.evaluate((element, value) => { element.open = value }, wasOpen)
+  await page.evaluate(() => window.scrollTo(0, 0))
 }
 async function openPhoto() {
   await media().getByRole('button', { name: /^Edit /i }).first().click()
@@ -154,9 +221,24 @@ async function selectQueuePost(id) {
 }
 
 try {
-  await page.addInitScript(() => localStorage.setItem('theme', 'light'))
+  await page.addInitScript(value => localStorage.setItem('theme', value), theme)
   await openEditor()
   await caption().fill('Text retained through all focused views')
+  const mediaRow = composer.getByRole('button', { name: messages.composer.changeMedia, exact: true })
+  assert.equal(await mediaRow.locator('img, video').count(), 0, 'The Media card has no duplicate thumbnail')
+  assert.equal(await mediaRow.locator('button').count(), 0, 'The Media row is one accessible control')
+  await mediaRow.locator('strong').click()
+  await media().waitFor()
+  await media().getByRole('button', { name: 'Cancel', exact: true }).last().click()
+  for (const key of ['Enter', 'Space']) {
+    await mediaRow.focus()
+    await mediaRow.press(key)
+    await media().waitFor()
+    await media().getByRole('button', { name: 'Cancel', exact: true }).last().click()
+  }
+  assert.equal(await caption().inputValue(), 'Text retained through all focused views')
+  passed.push('The full Media row opens by text click, Enter and Space without a duplicate thumbnail')
+  await assertFormActions('composer-desktop')
   await openMedia()
   await media().getByRole('tab', { name: 'From device', exact: true }).click()
   await media().locator('input[type="file"]').setInputFiles([
@@ -233,14 +315,13 @@ try {
   await media().getByRole('button', { name: 'Use media', exact: true }).click()
   await capture('composer-mobile')
   assert.equal(await page.locator('[data-mobile-dashboard-dock]').isVisible(), false, 'Workspace mobile header replaces the global dock')
-  const mobileFooter = await composer.locator('footer').boundingBox()
-  assert.ok(Math.abs(mobileFooter.y + mobileFooter.height - page.viewportSize().height) <= 1, 'Composer actions sit at the bottom without reserving an invisible dock')
+  await assertFormActions('composer-mobile-draft')
   await composer.getByRole('tab', { name: messages.composer.modes.scheduled, exact: true }).click()
+  await assertFormActions('composer-mobile-scheduled')
   for (const [field, name] of [[caption(), 'composer-caption-mobile'], [composer.getByRole('combobox', { name: messages.composer.timeZone, exact: true }), 'composer-scheduling-mobile']]) {
     await field.evaluate(element => element.scrollIntoView({ block: 'center' }))
     const bounds = await field.boundingBox()
-    const footer = await composer.locator('footer').boundingBox()
-    assert.ok(bounds.y >= 0 && bounds.y + bounds.height <= footer.y, `${name}: field is reachable above the fixed action bar`)
+    assert.ok(bounds.y >= 0 && bounds.y + bounds.height <= page.viewportSize().height, `${name}: field is reachable without an action overlay`)
     await capture(name)
   }
   passed.push('Mobile focused photo and media editors return to the same draft')
@@ -309,9 +390,10 @@ try {
 
   assert.deepEqual(blocked, [], 'No unexpected or real mutations')
   assert.deepEqual(errors, [], 'No uncaught browser errors')
-  await writeFile(new URL('report.json', output), JSON.stringify({ passed, visualChecks, writes: writes.map(({ method, path, body }) => ({ method, path, status: body.status })), errors }, null, 2))
+  await writeFile(new URL('report.json', output), JSON.stringify({ origin, theme, passed, visualChecks, contrastChecks, writes: writes.map(({ method, path, body }) => ({ method, path, status: body.status })), errors }, null, 2))
   console.log(passed.join('\n'))
 } catch (error) {
+  console.error(JSON.stringify({ url: page.url(), errors, body: (await page.locator('body').innerText().catch(() => '')).slice(0, 500) }))
   await capture('failure').catch(() => {})
   throw error
 } finally {

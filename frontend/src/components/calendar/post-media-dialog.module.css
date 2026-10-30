@@ -32,7 +32,7 @@
   height: 44px;
   margin-left: auto;
   border-radius: var(--publish-pill-radius);
-  background: #edf2f8;
+  background: var(--publish-secondary);
 }
 
 .close svg {
@@ -55,7 +55,7 @@
   height: auto;
   margin: 0;
   padding: 5px;
-  background: #f5f7fb;
+  background: var(--publish-inset);
   border-radius: var(--publish-pill-radius);
 }
 
@@ -68,8 +68,8 @@
 }
 
 .tab.tab[data-state="active"] {
-  background: var(--foreground);
-  color: #fff;
+  background: var(--publish-selected);
+  color: var(--publish-on-selected);
   box-shadow: none;
 }
 
@@ -108,7 +108,7 @@
   border: 0;
   padding: 12px 16px 12px 44px;
   border-radius: var(--publish-pill-radius);
-  background: #f5f7fb;
+  background: var(--publish-inset);
   box-shadow: none;
 }
 
@@ -273,7 +273,7 @@
   min-height: 44px;
   border: 0;
   padding: 0;
-  background: #edf2f8;
+  background: var(--publish-secondary);
 }
 
 .actions > button:first-child {
@@ -294,7 +294,7 @@
 }
 
 .confirm.confirm:hover {
-  background: color-mix(in srgb, var(--primary) 90%, #152035);
+  background: color-mix(in srgb, var(--primary) 90%, var(--publish-text));
 }
 
 .uploadArea {
@@ -305,9 +305,9 @@
   justify-content: center;
   min-height: 180px;
   gap: 12px;
-  border: 1.5px dashed #c9d5e7;
+  border: 1.5px dashed var(--publish-upload-border);
   border-radius: 20px;
-  background: #f5f7fb;
+  background: var(--publish-inset);
   padding: 24px 16px;
   text-align: center;
   cursor: pointer;
@@ -356,7 +356,7 @@
 .mediaItem {
   position: relative;
   border-radius: 16px;
-  background: #f5f7fb;
+  background: var(--publish-inset);
   padding: 8px;
 }
 
@@ -467,7 +467,7 @@
   .uploadArea {
     min-height: 120px;
     gap: 8px;
-    border: 2px dashed #b9c5d6;
+    border: 2px dashed var(--publish-upload-border-mobile);
     padding: 16px;
   }
 }

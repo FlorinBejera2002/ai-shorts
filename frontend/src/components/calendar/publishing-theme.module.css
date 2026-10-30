@@ -1,28 +1,68 @@
 @import '@fontsource-variable/inter';
 
-/* Exact Publish reference palette. This is an explicit, scoped design exception. */
+/* Reference geometry and palette, with a scoped dark appearance. */
 .surface {
-  --background: #f5f7fb;
-  --foreground: #152035;
-  --card: #fff;
-  --card-foreground: #152035;
-  --popover: #fff;
-  --popover-foreground: #152035;
-  --primary: #2563eb;
-  --primary-foreground: #fff;
-  --secondary: #edf2f8;
-  --secondary-foreground: #152035;
-  --muted: #f5f7fb;
-  --muted-foreground: #647188;
-  --accent: #edf2f8;
-  --accent-foreground: #152035;
-  --destructive: #b91c1c;
-  --border: #e3e9f2;
-  --input: #e3e9f2;
-  --ring: #2563eb;
-  --success: #15803d;
-  --warning: #9a3412;
-  --warning-foreground: #7c2d12;
+  --publish-canvas: #f5f7fb;
+  --publish-surface: #fff;
+  --publish-inset: #f5f7fb;
+  --publish-secondary: #edf2f8;
+  --publish-subtle-bg: #f1f5f9;
+  --publish-hover: #e3e9f2;
+  --publish-text: #152035;
+  --publish-secondary-text: #4f5c72;
+  --publish-muted-text: #647188;
+  --publish-placeholder: #95a1b4;
+  --publish-border: #e3e9f2;
+  --publish-border-strong: #c9d4e4;
+  --publish-dashed-border: #9fb0c8;
+  --publish-upload-border: #c9d5e7;
+  --publish-upload-border-mobile: #b9c5d6;
+  --publish-primary: #2563eb;
+  --publish-primary-hover: #1d4ed8;
+  --publish-primary-ring: #dbeafe;
+  --publish-on-primary: #fff;
+  --publish-selected: #152035;
+  --publish-selected-hover: #263650;
+  --publish-on-selected: #fff;
+  --publish-selected-row: #eef4ff;
+  --publish-info-bg: #e9f1ff;
+  --publish-info-text: #1d4ed8;
+  --publish-success-bg: #dcfce7;
+  --publish-success-text: #166534;
+  --publish-success: #15803d;
+  --publish-warning-bg: #fff7ed;
+  --publish-warning-text: #7c2d12;
+  --publish-warning: #9a3412;
+  --publish-warning-hover: #7c2d12;
+  --publish-reconnect: #ea580c;
+  --publish-draft-dot: #8a96aa;
+  --publish-danger: #b91c1c;
+  --publish-danger-hover: #991b1b;
+  --publish-danger-bg: #fdecec;
+  --publish-handle: #dfe6f0;
+  --publish-focus-gap: #fff;
+  --publish-switch-thumb: #fff;
+  --background: var(--publish-canvas);
+  --foreground: var(--publish-text);
+  --card: var(--publish-surface);
+  --card-foreground: var(--publish-text);
+  --popover: var(--publish-surface);
+  --popover-foreground: var(--publish-text);
+  --primary: var(--publish-primary);
+  --primary-foreground: var(--publish-on-primary);
+  --secondary: var(--publish-secondary);
+  --secondary-foreground: var(--publish-text);
+  --muted: var(--publish-inset);
+  --muted-foreground: var(--publish-muted-text);
+  --accent: var(--publish-secondary);
+  --accent-foreground: var(--publish-text);
+  --destructive: var(--publish-danger);
+  --border: var(--publish-border);
+  --input: var(--publish-border);
+  --ring: var(--publish-primary);
+  --success: var(--publish-success);
+  --warning: var(--publish-warning);
+  --warning-foreground: var(--publish-warning-text);
   --radius-md: 14px;
   --radius-sm: 12px;
   --publish-card-radius: 24px;
@@ -32,12 +72,66 @@
   --publish-preview-shadow: 0 1px 3px rgba(21, 32, 53, .06), 0 12px 32px rgba(21, 32, 53, .06);
   --publish-dialog-shadow: 0 24px 64px rgba(21, 32, 53, .25);
   --publish-primary-shadow: 0 6px 16px rgba(37, 99, 235, .25);
+  --publish-account-dialog-shadow: 0 24px 80px rgba(21, 32, 53, .16);
+  --publish-menu-shadow: 0 12px 32px rgba(21, 32, 53, .12);
+  --publish-picker-shadow: 0 12px 40px rgba(21, 32, 53, .16);
   --font-body: 'Inter Variable', Inter, system-ui, sans-serif;
   --font-studio: 'Inter Variable', Inter, system-ui, sans-serif;
   color-scheme: light;
   color: var(--foreground);
   font-family: var(--font-body);
   font-size: 15px;
+}
+
+:global(.dark) .surface {
+  --publish-canvas: #0e131c;
+  --publish-surface: #181f2b;
+  --publish-inset: #111824;
+  --publish-secondary: #263246;
+  --publish-subtle-bg: #202b3c;
+  --publish-hover: #334158;
+  --publish-text: #edf2fa;
+  --publish-secondary-text: #bdc9dc;
+  --publish-muted-text: #9eafc7;
+  --publish-placeholder: #99aac3;
+  --publish-border: #334158;
+  --publish-border-strong: #465974;
+  --publish-dashed-border: #60728e;
+  --publish-upload-border: #536680;
+  --publish-upload-border-mobile: #536680;
+  --publish-primary: #7aa7ff;
+  --publish-primary-hover: #a3c2ff;
+  --publish-primary-ring: #304976;
+  --publish-on-primary: #0c1524;
+  --publish-selected: #e8eef9;
+  --publish-selected-hover: #cbd8ee;
+  --publish-on-selected: #111722;
+  --publish-selected-row: #1b3153;
+  --publish-info-bg: #1c3151;
+  --publish-info-text: #accbff;
+  --publish-success-bg: #153b2c;
+  --publish-success-text: #a2e8c1;
+  --publish-success: #67dca5;
+  --publish-warning-bg: #3b2a1d;
+  --publish-warning-text: #f7ca9c;
+  --publish-warning: #f5ba82;
+  --publish-warning-hover: #ffd8b2;
+  --publish-reconnect: #f5ba82;
+  --publish-draft-dot: #a1b0c6;
+  --publish-danger: #ff91a4;
+  --publish-danger-hover: #ffb5c2;
+  --publish-danger-bg: #431f2b;
+  --publish-handle: #53627a;
+  --publish-focus-gap: #181f2b;
+  --publish-switch-thumb: #cbd5e1;
+  --publish-card-shadow: 0 1px 3px rgb(0 0 0 / 18%), inset 0 0 0 1px rgb(180 201 234 / 6%);
+  --publish-preview-shadow: 0 1px 3px rgb(0 0 0 / 18%), 0 12px 32px rgb(0 0 0 / 22%), inset 0 0 0 1px rgb(180 201 234 / 7%);
+  --publish-dialog-shadow: 0 24px 64px rgb(0 0 0 / 55%);
+  --publish-primary-shadow: 0 6px 20px rgb(45 100 207 / 20%);
+  --publish-account-dialog-shadow: 0 24px 80px rgb(0 0 0 / 55%);
+  --publish-menu-shadow: 0 12px 32px rgb(0 0 0 / 40%);
+  --publish-picker-shadow: 0 12px 40px rgb(0 0 0 / 45%);
+  color-scheme: dark;
 }
 
 .surface :is(button, input, textarea, select) {
@@ -61,7 +155,15 @@
   backdrop-filter: none;
 }
 
+:global(.dark) .overlay {
+  background: rgb(0 0 0 / 68%);
+}
+
 /* Paint the existing mounted route container without replacing the shell. */
 :global(#dashboard-main):has([data-publish-surface]) {
   background: #f5f7fb;
+}
+
+:global(.dark #dashboard-main):has([data-publish-surface]) {
+  background: #0e131c;
 }

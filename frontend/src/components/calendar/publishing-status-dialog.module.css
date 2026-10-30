@@ -18,7 +18,7 @@
   width: 44px;
   height: 44px;
   border-radius: var(--publish-pill-radius);
-  background: #edf2f8;
+  background: var(--publish-secondary);
 }
 
 .header {
@@ -36,18 +36,18 @@
   width: 64px;
   height: 64px;
   border-radius: 50%;
-  background: #e9f1ff;
+  background: var(--publish-info-bg);
   color: var(--primary);
 }
 
 .symbol[data-status="published"] {
-  background: #dcfce7;
-  color: #15803d;
+  background: var(--publish-success-bg);
+  color: var(--publish-success);
 }
 
 .symbol[data-status="failed"] {
-  background: #fdecec;
-  color: #b91c1c;
+  background: var(--publish-danger-bg);
+  color: var(--publish-danger);
 }
 
 .symbol svg {
@@ -81,7 +81,7 @@
   min-height: 52px;
   border-radius: 16px;
   padding: 8px 12px;
-  background: #f5f7fb;
+  background: var(--publish-inset);
 }
 
 .destination > :first-child {
@@ -119,11 +119,11 @@
 }
 
 .destinationLabel > [data-status='published']:last-child {
-  color: #15803d;
+  color: var(--publish-success);
 }
 
 .destinationLabel > [data-status='failed']:last-child {
-  color: #b91c1c;
+  color: var(--publish-danger);
 }
 
 .progress {
@@ -175,7 +175,7 @@
   min-width: 100px;
   min-height: 48px;
   border-radius: var(--publish-pill-radius);
-  background: #edf2f8;
+  background: var(--publish-secondary);
 }
 
 .primary.primary {
@@ -184,8 +184,8 @@
 }
 
 .primary.closeAction {
-  background: #152035;
-  color: #fff;
+  background: var(--publish-selected);
+  color: var(--publish-on-selected);
 }
 
 .delete.delete {
@@ -226,7 +226,7 @@
     height: 5px;
     margin: 0 auto;
     border-radius: var(--publish-pill-radius);
-    background: #dfe6f0;
+    background: var(--publish-handle);
   }
   .symbol {
     width: 60px;

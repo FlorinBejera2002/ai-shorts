@@ -15,17 +15,17 @@
   height: 44px;
   border: 0;
   border-radius: 50%;
-  background: #fff;
-  color: #4f5c72;
+  background: var(--publish-surface);
+  color: var(--publish-secondary-text);
   box-shadow: var(--publish-card-shadow);
   cursor: pointer;
 }
 .back:hover {
-  background: #edf2f8;
+  background: var(--publish-secondary);
 }
 .back:focus-visible,
 .video:focus-visible {
-  outline: 3px solid #2563eb;
+  outline: 3px solid var(--publish-primary);
   outline-offset: 3px;
 }
 .title {
@@ -37,7 +37,7 @@
   letter-spacing: -0.025em;
   overflow-wrap: anywhere;
   text-align: center;
-  color: #152035;
+  color: var(--publish-text);
 }
 .media {
   display: flex;
@@ -73,13 +73,13 @@
   border-radius: 50%;
 }
 .schedule {
-  color: #647188;
+  color: var(--publish-muted-text);
   font-size: 14px;
   line-height: 1.5;
   text-align: center;
 }
 .error {
-  color: #9a3412;
+  color: var(--publish-warning);
   font-size: 13px;
   line-height: 1.5;
   overflow-wrap: anywhere;
@@ -102,11 +102,11 @@
 }
 .actions > .edit {
   flex: 1;
-  background: #152035;
-  color: #fff;
+  background: var(--publish-selected);
+  color: var(--publish-on-selected);
 }
 .edit:hover {
-  background: #263650;
+  background: var(--publish-selected-hover);
 }
 .actions > .publish,
 .actions > .desktopDelete {
@@ -115,12 +115,12 @@
   height: 48px;
   padding: 0;
   border-radius: 50%;
-  background: #edf2f8;
-  color: #4f5c72;
+  background: var(--publish-secondary);
+  color: var(--publish-secondary-text);
 }
 .actions > .publish:hover,
 .actions > .desktopDelete:hover {
-  background: #e3e9f2;
+  background: var(--publish-hover);
 }
 .publishIcon {
   width: 19px;
@@ -141,16 +141,16 @@
   padding: 20px;
   border: 0;
   border-radius: 22px;
-  background: #edf2f8;
-  color: #647188;
+  background: var(--publish-secondary);
+  color: var(--publish-muted-text);
   font-size: 13px;
   text-align: center;
 }
 .unavailable > button {
   border-radius: var(--publish-pill-radius);
   border: 0;
-  background: #fff;
-  color: #4f5c72;
+  background: var(--publish-surface);
+  color: var(--publish-secondary-text);
 }
 .carousel {
   display: grid;
@@ -166,20 +166,20 @@
   overflow: hidden;
   border: 0;
   border-radius: 22px;
-  background: #edf2f8;
+  background: var(--publish-secondary);
 }
 .carouselNavigation {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 12px;
-  color: #647188;
+  color: var(--publish-muted-text);
   font-size: 12px;
 }
 .carouselNavigation > button {
   border: 0;
   border-radius: 50%;
-  background: #edf2f8;
+  background: var(--publish-secondary);
 }
 .thumbnail {
   position: relative;
@@ -192,8 +192,8 @@
   overflow: hidden;
   border: 0;
   border-radius: 10px;
-  background: #edf2f8;
-  color: #647188;
+  background: var(--publish-secondary);
+  color: var(--publish-muted-text);
 }
 .thumbnailContent {
   display: flex;
@@ -238,12 +238,12 @@
     height: 44px;
     padding: 0;
     border-radius: 50%;
-    background: #fff;
-    color: #4f5c72;
+    background: var(--publish-surface);
+    color: var(--publish-secondary-text);
     box-shadow: var(--publish-card-shadow);
   }
   .mobileDelete:hover {
-    background: #edf2f8;
+    background: var(--publish-secondary);
   }
   .media {
     width: min(100%, 250px);
@@ -270,8 +270,8 @@
     width: auto;
     height: 52px;
     border-radius: var(--publish-pill-radius);
-    background: #e9f1ff;
-    color: #1d4ed8;
+    background: var(--publish-info-bg);
+    color: var(--publish-info-text);
   }
   .publishLabel {
     display: inline;

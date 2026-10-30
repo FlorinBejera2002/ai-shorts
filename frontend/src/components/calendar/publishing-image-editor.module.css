@@ -32,7 +32,7 @@
   width: 44px;
   height: 44px;
   border-radius: var(--publish-pill-radius);
-  background: #edf2f8;
+  background: var(--publish-secondary);
 }
 
 .mobileDone.mobileDone {
@@ -129,16 +129,16 @@
   min-height: 44px;
   border: 0;
   border-radius: 12px;
-  background: #f5f7fb;
+  background: var(--publish-inset);
   padding: 13px 4px;
   text-align: center;
   font-size: 12px;
 }
 
 .ratios input:checked + span {
-  background: var(--foreground);
-  border-color: var(--foreground);
-  color: #fff;
+  background: var(--publish-selected);
+  border-color: var(--publish-selected);
+  color: var(--publish-on-selected);
 }
 
 .ratios input:focus-visible + span {
@@ -216,7 +216,7 @@
 .metadata input {
   border: 0;
   border-radius: 14px;
-  background: #f5f7fb;
+  background: var(--publish-inset);
   box-shadow: none;
 }
 
@@ -227,8 +227,8 @@
   border: 0;
   border-radius: var(--publish-pill-radius);
   padding: 0 8px 0 12px;
-  background: #e9f1ff;
-  color: #1d4ed8;
+  background: var(--publish-info-bg);
+  color: var(--publish-info-text);
 }
 
 .tag summary {
@@ -336,7 +336,7 @@
   .disclosure {
     min-height: 48px;
     border-radius: 14px;
-    background: #f5f7fb;
+    background: var(--publish-inset);
     padding: 12px;
   }
   .metadata > div {

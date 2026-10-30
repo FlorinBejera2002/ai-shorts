@@ -33,7 +33,7 @@
   width: 44px;
   height: 44px;
   border-radius: var(--publish-pill-radius);
-  background: #edf2f8;
+  background: var(--publish-secondary);
 }
 
 .back.back,
@@ -57,7 +57,7 @@
   width: fit-content;
   padding: 5px;
   border-radius: var(--publish-pill-radius);
-  background: #f5f7fb;
+  background: var(--publish-inset);
 }
 
 .tab {
@@ -72,7 +72,7 @@
   border: 0;
   border-radius: var(--publish-pill-radius);
   padding: 8px;
-  color: #4f5c72;
+  color: var(--publish-secondary-text);
   font-size: 13px;
   font-weight: 500;
 }
@@ -89,7 +89,7 @@
 .tab[data-provider='facebook'] { --platform-color: #1764d6; }
 
 .tab:hover:not([data-state='active']) {
-  background: #e3e9f2;
+  background: var(--publish-hover);
   color: var(--foreground);
 }
 
@@ -141,7 +141,7 @@
   min-height: 46px;
   border: 0;
   border-radius: 14px;
-  background: #f5f7fb;
+  background: var(--publish-inset);
   box-shadow: none;
 }
 
@@ -152,7 +152,7 @@
 
 .settings [data-slot='switch'] {
   border-color: transparent;
-  background: #dfe6f0;
+  background: var(--publish-handle);
   box-shadow: none;
 }
 
@@ -161,7 +161,11 @@
 }
 
 .settings [data-slot='switch-thumb'] {
-  background: #fff;
+  background: var(--publish-switch-thumb);
+}
+
+.settings [data-state='checked'] [data-slot='switch-thumb'] {
+  background: var(--publish-on-primary);
 }
 
 .empty {
@@ -187,7 +191,7 @@
 }
 
 .footer button:first-child {
-  background: #edf2f8;
+  background: var(--publish-secondary);
 }
 
 .instagramSettings {
@@ -234,7 +238,7 @@
   min-height: 46px;
   border: 0;
   border-radius: 14px;
-  background: #f5f7fb;
+  background: var(--publish-inset);
 }
 
 .fieldLabel {
@@ -260,7 +264,7 @@
   justify-content: space-between;
   gap: 16px;
   min-height: 48px;
-  border-bottom: 1px solid #edf2f8;
+  border-bottom: 1px solid var(--publish-secondary);
   padding: 10px 0;
 }
 
@@ -271,7 +275,7 @@
 
 .settingRow [data-slot='switch'] {
   border: 2px solid transparent;
-  background: #dfe6f0;
+  background: var(--publish-handle);
 }
 
 .settingRow [data-slot='switch'][data-state='checked'] {
@@ -280,11 +284,11 @@
 }
 
 .settingRow [data-slot='switch-thumb'] {
-  background: #fff;
+  background: var(--publish-switch-thumb);
 }
 
 .settingRow [data-state='checked'] [data-slot='switch-thumb'] {
-  background: #fff;
+  background: var(--publish-on-primary);
 }
 
 .field {
@@ -298,7 +302,7 @@
   min-height: 46px;
   border-radius: 14px;
   border: 0;
-  background: #f5f7fb;
+  background: var(--publish-inset);
 }
 
 .more {
@@ -361,16 +365,16 @@
   border: 0;
   border-radius: 12px;
   padding: 10px;
-  background: #f5f7fb;
-  color: #4f5c72;
+  background: var(--publish-inset);
+  color: var(--publish-secondary-text);
   font-size: 12px;
   text-align: center;
 }
 
 .radioGroup input:checked + span,
 .choice[aria-pressed='true'] {
-  background: #152035;
-  color: #fff;
+  background: var(--publish-selected);
+  color: var(--publish-on-selected);
 }
 
 .radioGroup input:disabled + span,
@@ -407,7 +411,7 @@
     margin: 0 auto;
     flex-shrink: 0;
     border-radius: var(--publish-pill-radius);
-    background: #dfe6f0;
+    background: var(--publish-handle);
   }
 
   .header {

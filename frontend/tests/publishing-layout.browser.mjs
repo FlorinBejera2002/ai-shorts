@@ -185,31 +185,74 @@ async function assertNoOverflow(label) {
 }
 
 async function assertReferenceStyles(mobile = false) {
+  const dark = await page.evaluate(() => document.documentElement.classList.contains('dark'))
+  const palette = dark ? {
+    canvas: 'rgb(14, 19, 28)', row: 'rgb(27, 49, 83)', primary: 'rgb(122, 167, 255)',
+    surface: 'rgb(24, 31, 43)', info: 'rgb(28, 49, 81)', infoText: 'rgb(172, 203, 255)'
+  } : {
+    canvas: 'rgb(245, 247, 251)', row: 'rgb(238, 244, 255)', primary: 'rgb(37, 99, 235)',
+    surface: 'rgb(255, 255, 255)', info: 'rgb(233, 241, 255)', infoText: 'rgb(29, 78, 216)'
+  }
   const style = (locator, property) => locator.evaluate((element, property) =>
     getComputedStyle(element).getPropertyValue(property), property)
   const selectedRow = workspace.locator('[data-publishing-post][aria-pressed="true"]')
-  assert.equal(await style(workspace, 'background-color'), 'rgb(245, 247, 251)', 'Publish retains the reference light canvas in either app theme')
-  assert.equal(await style(selectedRow, 'background-color'), 'rgb(238, 244, 255)', 'Selection uses the reference pale blue')
+  assert.equal(await style(workspace, 'background-color'), palette.canvas, 'Publish canvas follows the active theme')
+  assert.equal(await style(selectedRow, 'background-color'), palette.row, 'Selection uses the theme-specific blue surface')
   assert.equal(await style(selectedRow, 'border-radius'), '16px', 'Post rows retain the reference corner radius')
   assert.equal(await style(selectedRow, 'border-top-width'), '0px', 'Selection does not add a row border')
-  assert.match(await style(selectedRow, 'box-shadow'), /rgb\(37, 99, 235\).*2px.*inset/, 'Selected rows have the blue inset outline')
+  const selectionShadow = await style(selectedRow, 'box-shadow')
+  assert.ok(selectionShadow.includes(palette.primary) && selectionShadow.includes('2px') && selectionShadow.includes('inset'), 'Selected rows retain the theme-specific blue inset outline')
   const create = workspace.getByRole('button', { name: 'New post', exact: true }).first()
-  assert.equal(await style(create, 'background-color'), 'rgb(37, 99, 235)', 'The reference primary action is blue')
+  assert.equal(await style(create, 'background-color'), palette.primary, 'The primary action follows the active theme')
   if (mobile) {
     const bounds = await create.boundingBox()
     assert.equal(bounds.width, 44, 'Mobile New post is a compact circular action')
     assert.equal(bounds.height, 44)
     assert.equal(await style(create, 'border-radius'), '50%')
   } else {
-    assert.equal(await style(preview, 'background-color'), 'rgb(255, 255, 255)')
+    assert.equal(await style(preview, 'background-color'), palette.surface)
     assert.equal(await style(preview, 'border-radius'), '24px')
     assert.equal(await style(preview, 'border-top-width'), '0px')
     assert.equal(await style(create, 'border-radius'), '999px')
     const status = row(0).locator('[data-status="scheduled"]')
-    assert.equal(await style(status, 'background-color'), 'rgb(233, 241, 255)')
-    assert.equal(await style(status, 'color'), 'rgb(29, 78, 216)')
+    assert.equal(await style(status, 'background-color'), palette.info)
+    assert.equal(await style(status, 'color'), palette.infoText)
     assert.equal(await style(status, 'border-radius'), '999px')
   }
+}
+
+async function switchTheme(theme) {
+  await page.waitForLoadState('networkidle')
+  await page.evaluate(() => {
+    window.publishingThemeProbe = {
+      document,
+      workspace: document.querySelector('[data-publishing-workspace]'),
+      selectedRow: document.querySelector('[data-publishing-post][aria-pressed="true"]'),
+      selectedTab: document.querySelector('[role="tab"][aria-selected="true"]'),
+      preview: document.querySelector('[data-post-preview]'),
+      dialog: document.querySelector('[role="dialog"]'),
+      savedView: sessionStorage.getItem('sneepcut:publishing-view:v1')
+    }
+  })
+  await page.emulateMedia({ colorScheme: theme })
+  await page.waitForFunction(theme => document.documentElement.classList.contains(theme), theme)
+  await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))))
+  const retained = await page.evaluate(() => {
+    const probe = window.publishingThemeProbe
+    return {
+      document: probe?.document === document,
+      workspace: probe?.workspace === document.querySelector('[data-publishing-workspace]'),
+      selectedRow: probe?.selectedRow === document.querySelector('[data-publishing-post][aria-pressed="true"]'),
+      selectedTab: probe?.selectedTab === document.querySelector('[role="tab"][aria-selected="true"]'),
+      preview: probe?.preview === document.querySelector('[data-post-preview]'),
+      dialog: probe?.dialog === document.querySelector('[role="dialog"]'),
+      savedView: probe?.savedView === sessionStorage.getItem('sneepcut:publishing-view:v1')
+    }
+  })
+  for (const [name, stable] of Object.entries(retained)) {
+    assert.equal(stable, true, `Switching to ${theme} preserves ${name}`)
+  }
+  await assertShell()
 }
 
 async function capture(name) {
@@ -235,7 +278,7 @@ async function capture(name) {
   // Native video controls finish their loading fade after the media request;
   // settling the network also keeps captures free of that transient throbber.
   await page.waitForLoadState('networkidle')
-  await page.screenshot({ path: fileURLToPath(new URL(`${name}.png`, output)), fullPage: true })
+  await page.screenshot({ path: fileURLToPath(new URL(`${name}.png`, output)), fullPage: false })
 }
 
 async function rememberShell() {
@@ -430,15 +473,15 @@ try {
   await assertShell()
   console.log('Manage dialog and existing New/Edit routes work without API mutations or dashboard remounts')
 
-  await page.emulateMedia({ colorScheme: 'light' })
-  await page.waitForFunction(() => document.documentElement.classList.contains('light'))
+  await switchTheme('light')
   await row(0).click()
   await assertPreview(0)
+  await assertReferenceStyles()
   await assertNoOverflow('Desktop light')
   await capture('desktop-light')
   await assertShell()
-  await page.emulateMedia({ colorScheme: 'dark' })
-  await page.waitForFunction(() => document.documentElement.classList.contains('dark'))
+  await switchTheme('dark')
+  await assertReferenceStyles()
 
   // Reset the detail choice before entering the mobile list, as a fresh visit
   // would. Resizing alone is allowed to retain a desktop selection.
@@ -453,10 +496,14 @@ try {
   await connections.waitFor()
   const accountSheet = await connections.boundingBox()
   assert.equal(await connections.evaluate(element => getComputedStyle(element).borderTopLeftRadius), '28px', 'The account sheet retains the reference top corners')
-  assert.equal(await connections.evaluate(element => getComputedStyle(element).backgroundColor), 'rgb(255, 255, 255)')
+  assert.equal(await connections.evaluate(element => getComputedStyle(element).backgroundColor), 'rgb(24, 31, 43)', 'The portaled account sheet inherits dark surfaces')
   assert.ok(accountSheet && Math.abs(accountSheet.x) <= 1 && accountSheet.width >= 388 && accountSheet.x + accountSheet.width <= 391, 'Mobile account management stays within the viewport and uses the full sheet width')
   assert.ok(Math.abs(accountSheet.y + accountSheet.height - 844) <= 1, 'Mobile account sheet is anchored to the viewport bottom')
-  await page.screenshot({ path: fileURLToPath(new URL('mobile-accounts.png', output)), fullPage: true })
+  await page.screenshot({ path: fileURLToPath(new URL('mobile-accounts.png', output)), fullPage: false })
+  await switchTheme('light')
+  assert.equal(await connections.evaluate(element => getComputedStyle(element).backgroundColor), 'rgb(255, 255, 255)', 'The open account sheet switches to light without remounting')
+  await switchTheme('dark')
+  assert.equal(await connections.evaluate(element => getComputedStyle(element).backgroundColor), 'rgb(24, 31, 43)', 'The open account sheet switches back to dark without remounting')
   await connections.getByRole('button', { name: 'Close dialog', exact: true }).click()
   await connections.waitFor({ state: 'hidden' })
   await assertReferenceStyles(true)
@@ -484,8 +531,8 @@ try {
     await assertShell()
   }
   await selectTab('Scheduled', [0, 1, 2, 3, 4])
-  await page.emulateMedia({ colorScheme: 'light' })
-  await page.waitForFunction(() => document.documentElement.classList.contains('light'))
+  await switchTheme('light')
+  await assertReferenceStyles(true)
   await assertNoOverflow('Mobile light list')
   await capture('mobile-light-list')
   await row(2).click()
@@ -518,7 +565,7 @@ try {
   calendarState = 'loading'
   await page.reload({ waitUntil: 'domcontentloaded' })
   await workspace.locator('[aria-busy="true"]').waitFor()
-  await page.screenshot({ path: fileURLToPath(new URL('desktop-loading.png', output)), fullPage: true })
+  await page.screenshot({ path: fileURLToPath(new URL('desktop-loading.png', output)), fullPage: false })
   assert.ok(pendingCalendar, 'The loading screen is displayed while the request is pending')
   calendarState = 'ready'
   await pendingCalendar.fulfill({ json: { posts, clips: calendarClips } })

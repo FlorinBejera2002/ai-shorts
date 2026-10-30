@@ -5,7 +5,7 @@
   margin-inline: auto;
   padding: 40px clamp(16px, 3vw, 48px);
   gap: 0;
-  background: #f5f7fb;
+  background: var(--publish-canvas);
 }
 .header {
   display: grid;
@@ -23,7 +23,7 @@
   font-weight: 600 !important;
   letter-spacing: -0.045em;
   line-height: 1.2;
-  color: #152035;
+  color: var(--publish-text);
 }
 .newPost {
   grid-column: 2;
@@ -32,15 +32,15 @@
   padding-inline: 22px;
   border: 0;
   border-radius: var(--publish-pill-radius);
-  background: #2563eb;
-  color: #fff;
+  background: var(--publish-primary);
+  color: var(--publish-on-primary);
   font-size: 15px;
   font-weight: 600;
-  box-shadow: 0 6px 16px rgba(37, 99, 235, 0.25);
+  box-shadow: var(--publish-primary-shadow);
   white-space: nowrap;
 }
 .newPost:hover {
-  background: #1d4ed8;
+  background: var(--publish-primary-hover);
 }
 .connections {
   grid-column: 1;
@@ -61,7 +61,7 @@
   width: 48px;
   height: 48px;
   border-radius: 50%;
-  background: #fff;
+  background: var(--publish-surface);
   box-shadow: var(--publish-card-shadow);
   cursor: pointer;
 }
@@ -71,11 +71,11 @@
   border-radius: 50%;
 }
 .account:hover {
-  outline: 3px solid #dbeafe;
+  outline: 3px solid var(--publish-primary-ring);
 }
 .account:focus-visible,
 .mobileAccounts:focus-visible {
-  outline: 3px solid #2563eb;
+  outline: 3px solid var(--publish-primary);
   outline-offset: 3px;
 }
 .connectionStatus {
@@ -86,10 +86,10 @@
   place-items: center;
   width: 20px;
   height: 20px;
-  border: 3px solid #f5f7fb;
+  border: 3px solid var(--publish-canvas);
   border-radius: 50%;
-  background: #e9f1ff;
-  color: #2563eb;
+  background: var(--publish-info-bg);
+  color: var(--publish-primary);
 }
 .connectionStatus svg {
   width: 10px;
@@ -97,12 +97,12 @@
   stroke-width: 3;
 }
 .connectionStatus[data-connected='true'] {
-  background: #15803d;
-  color: #fff;
+  background: var(--publish-success);
+  color: var(--publish-on-primary);
 }
 .connectionStatus[data-reconnect='true'] {
-  background: #ea580c;
-  color: #fff;
+  background: var(--publish-reconnect);
+  color: var(--publish-on-primary);
 }
 .mobileAccounts,
 .sheetHandle {
@@ -114,8 +114,8 @@
   gap: 24px;
   padding: 28px;
   max-width: 420px;
-  background: #fff;
-  box-shadow: 0 24px 80px rgba(21, 32, 53, 0.16);
+  background: var(--publish-surface);
+  box-shadow: var(--publish-account-dialog-shadow);
 }
 .dialogClose {
   position: absolute;
@@ -125,19 +125,19 @@
   height: 44px;
   border: 0;
   border-radius: 50%;
-  background: #edf2f8;
-  color: #4f5c72;
+  background: var(--publish-secondary);
+  color: var(--publish-secondary-text);
 }
 .dialogClose:hover {
-  background: #e3e9f2;
+  background: var(--publish-hover);
 }
 .confirmationDialog {
   max-width: 380px;
   border: 0;
   border-radius: var(--publish-card-radius);
   padding: 24px;
-  background: #fff;
-  box-shadow: 0 24px 80px rgba(21, 32, 53, 0.16);
+  background: var(--publish-surface);
+  box-shadow: var(--publish-account-dialog-shadow);
 }
 .planner {
   display: block;
@@ -151,7 +151,7 @@
 .skeletonCard {
   border: 0;
   border-radius: var(--publish-card-radius);
-  background: #fff;
+  background: var(--publish-surface);
   box-shadow: var(--publish-card-shadow);
 }
 .splitView {
@@ -170,24 +170,24 @@
   padding: 10px 10px 10px 18px;
   border: 0;
   border-radius: var(--publish-pill-radius);
-  background: #fff7ed;
-  color: #7c2d12;
+  background: var(--publish-warning-bg);
+  color: var(--publish-warning-text);
   font-size: 14px;
 }
 .failureBanner > svg {
-  color: #9a3412;
+  color: var(--publish-warning);
 }
 .failureBanner > button {
   margin-left: auto;
   height: 40px;
   padding-inline: 18px;
   border-radius: var(--publish-pill-radius);
-  background: #9a3412;
-  color: #fff;
+  background: var(--publish-warning);
+  color: var(--publish-on-primary);
   font-weight: 600;
 }
 .failureBanner > button:hover {
-  background: #7c2d12;
+  background: var(--publish-warning-hover);
 }
 .listPane {
   min-width: 0;
@@ -207,7 +207,7 @@
   width: auto;
   height: auto;
   border-radius: var(--publish-pill-radius);
-  background: #fff;
+  background: var(--publish-surface);
   padding: 5px;
   box-shadow: var(--publish-card-shadow);
 }
@@ -219,16 +219,16 @@
   border-radius: var(--publish-pill-radius);
   font-size: 14px;
   font-weight: 600;
-  color: #647188;
+  color: var(--publish-muted-text);
 }
 .tab[data-state='active'] {
-  color: #fff;
-  background: #152035;
+  color: var(--publish-on-selected);
+  background: var(--publish-selected);
   box-shadow: none;
 }
 .tab:hover:not([data-state='active']) {
-  color: #152035;
-  background: #f1f5f9;
+  color: var(--publish-text);
+  background: var(--publish-subtle-bg);
 }
 .tabPanel {
   flex: none;
@@ -242,7 +242,7 @@
   gap: 2px;
   min-width: 0;
   border-radius: var(--publish-pill-radius);
-  background: #fff;
+  background: var(--publish-surface);
   padding: 5px;
   box-shadow: var(--publish-card-shadow);
 }
@@ -254,10 +254,10 @@
   border-radius: 50%;
   background: transparent;
   box-shadow: none;
-  color: #4f5c72;
+  color: var(--publish-secondary-text);
 }
 .periodControls > button:hover {
-  background: #edf2f8;
+  background: var(--publish-secondary);
 }
 .periodControls > .today {
   width: auto;
@@ -270,7 +270,7 @@
   order: -1;
   font-size: 12px;
   font-weight: 500;
-  color: #647188;
+  color: var(--publish-muted-text);
   text-transform: capitalize;
 }
 .dayGroup {
@@ -287,12 +287,12 @@
   font-weight: 600;
   text-transform: capitalize;
   line-height: 1.5;
-  color: #4f5c72;
+  color: var(--publish-secondary-text);
 }
 .dayPosts {
   padding: 6px;
   border-radius: 22px;
-  background: #fff;
+  background: var(--publish-surface);
   box-shadow: var(--publish-card-shadow);
 }
 .postRow {
@@ -312,24 +312,24 @@
     box-shadow 150ms ease;
 }
 .postRow[aria-pressed='true'] {
-  background: #eef4ff;
-  box-shadow: inset 0 0 0 2px #2563eb;
+  background: var(--publish-selected-row);
+  box-shadow: inset 0 0 0 2px var(--publish-primary);
 }
 .postRow:hover {
-  background: #f5f7fb;
+  background: var(--publish-inset);
 }
 .postRow[aria-pressed='true']:hover {
-  background: #eef4ff;
+  background: var(--publish-selected-row);
 }
 .postRow:focus-visible {
-  outline: 3px solid #2563eb;
+  outline: 3px solid var(--publish-primary);
   outline-offset: 2px;
 }
 .postTime {
   font-family: 'Sora Variable', Sora, sans-serif;
   font-size: 15px;
   font-weight: 600;
-  color: #4f5c72;
+  color: var(--publish-secondary-text);
   font-variant-numeric: tabular-nums;
 }
 .rowThumbnail {
@@ -356,7 +356,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: #152035;
+  color: var(--publish-text);
   font-size: 15px;
   font-weight: 600;
   line-height: 1.4;
@@ -377,8 +377,8 @@
   height: 28px;
   padding: 0 12px;
   border-radius: var(--publish-pill-radius);
-  color: #647188;
-  background: #f1f5f9;
+  color: var(--publish-muted-text);
+  background: var(--publish-subtle-bg);
   font-size: 12px;
   font-weight: 600;
   white-space: nowrap;
@@ -391,16 +391,16 @@
 }
 .rowStatus[data-status='scheduled'],
 .rowStatus[data-status='publishing'] {
-  color: #1d4ed8;
-  background: #e9f1ff;
+  color: var(--publish-info-text);
+  background: var(--publish-info-bg);
 }
 .rowStatus[data-status='published'] {
-  color: #166534;
-  background: #dcfce7;
+  color: var(--publish-success-text);
+  background: var(--publish-success-bg);
 }
 .rowStatus[data-status='failed'] {
-  color: #9a3412;
-  background: #fff7ed;
+  color: var(--publish-warning);
+  background: var(--publish-warning-bg);
 }
 .detailPane {
   width: 100%;
@@ -409,10 +409,8 @@
   padding: 24px;
   border: 0;
   border-radius: var(--publish-card-radius);
-  background: #fff;
-  box-shadow:
-    var(--publish-card-shadow),
-    0 12px 32px rgba(21, 32, 53, 0.06);
+  background: var(--publish-surface);
+  box-shadow: var(--publish-preview-shadow);
   outline: none;
 }
 .emptyState,
@@ -425,7 +423,7 @@
   min-height: 330px;
   padding: 32px 24px;
   border-radius: var(--publish-card-radius);
-  background: #fff;
+  background: var(--publish-surface);
   text-align: center;
 }
 .emptyState {
@@ -440,11 +438,11 @@
   min-height: 44px;
   padding-inline: 20px;
   border-radius: var(--publish-pill-radius);
-  background: #152035;
-  color: #fff;
+  background: var(--publish-selected);
+  color: var(--publish-on-selected);
 }
 .emptyPreview {
-  color: #647188;
+  color: var(--publish-muted-text);
   font-size: 14px;
 }
 .loadError,
@@ -458,13 +456,13 @@
   padding: 32px 24px;
   border: 0;
   border-radius: var(--publish-card-radius);
-  background: #fff;
+  background: var(--publish-surface);
   box-shadow: var(--publish-card-shadow);
-  color: #647188;
+  color: var(--publish-muted-text);
 }
 .loadError h2,
 .noAccounts h2 {
-  color: #152035;
+  color: var(--publish-text);
   font-family: 'Sora Variable', Sora, sans-serif;
   font-size: 18px;
   font-weight: 600;
@@ -472,8 +470,8 @@
 .loadError > button {
   border: 0;
   border-radius: var(--publish-pill-radius);
-  background: #152035;
-  color: #fff;
+  background: var(--publish-selected);
+  color: var(--publish-on-selected);
 }
 @media (max-width: 1279px) and (min-width: 1100px) {
   .workspace.workspace {
@@ -567,7 +565,7 @@
     height: 44px;
     border-radius: var(--publish-pill-radius);
     padding: 10px 12px;
-    background: #fff;
+    background: var(--publish-surface);
     box-shadow: var(--publish-card-shadow);
   }
   .mobileAccountIcons {
@@ -578,7 +576,7 @@
     width: 24px;
     height: 24px;
     margin-left: -5px;
-    border: 2px solid #fff;
+    border: 2px solid var(--publish-surface);
     border-radius: 50%;
   }
   .accountsDialog {
@@ -599,7 +597,7 @@
     height: 5px;
     justify-self: center;
     border-radius: var(--publish-pill-radius);
-    background: #dfe6f0;
+    background: var(--publish-handle);
   }
   .dialogClose {
     top: 34px;
@@ -669,7 +667,7 @@
     gap: 12px;
     padding: 14px;
     border-radius: 16px;
-    background: #fff;
+    background: var(--publish-surface);
     box-shadow: var(--publish-card-shadow);
   }
   .postTime {
@@ -724,8 +722,8 @@
 }
 
 .account[data-connection='disconnected'] {
-  border: 2px dashed #9fb0c8;
-  background: #fff;
+  border: 2px dashed var(--publish-dashed-border);
+  background: var(--publish-surface);
 }
 .account[data-connection='disconnected'] > img {
   width: 32px;
@@ -733,21 +731,21 @@
   opacity: 0.55;
 }
 .rowStatus[data-status='draft'] {
-  color: #4f5c72;
-  background: #edf2f8;
+  color: var(--publish-secondary-text);
+  background: var(--publish-secondary);
 }
 .rowStatus[data-status='scheduled'] .statusDot,
 .rowStatus[data-status='publishing'] .statusDot {
-  background: #2563eb;
+  background: var(--publish-primary);
 }
 .rowStatus[data-status='published'] .statusDot {
-  background: #15803d;
+  background: var(--publish-success);
 }
 .rowStatus[data-status='draft'] .statusDot {
-  background: #8a96aa;
+  background: var(--publish-draft-dot);
 }
 .connectionRows {
-  color: #152035;
+  color: var(--publish-text);
 }
 .connectionBrand {
   width: 36px;
@@ -758,27 +756,27 @@
 .connectedMark {
   width: 18px;
   height: 18px;
-  color: #15803d;
+  color: var(--publish-success);
   flex-shrink: 0;
 }
 .connectionRows [data-variant='outline'] {
   min-height: 40px;
-  border: 1.5px solid #e3e9f2;
+  border: 1.5px solid var(--publish-border);
   border-radius: var(--publish-pill-radius);
   padding-inline: 16px;
-  background: #fff;
-  color: #4f5c72;
+  background: var(--publish-surface);
+  color: var(--publish-secondary-text);
   box-shadow: none;
   font-size: 13px;
   font-weight: 600;
 }
 .connectionRows [data-reconnect='true'] {
-  border-color: #9a3412;
-  color: #9a3412;
+  border-color: var(--publish-warning);
+  color: var(--publish-warning);
 }
 .connectionRows [data-variant='ghost'] {
   border-radius: 50%;
-  color: #647188;
+  color: var(--publish-muted-text);
 }
 .confirmationDialog {
   border-radius: var(--publish-dialog-radius);
@@ -797,7 +795,7 @@
 .confirmationDialog [data-slot='dialog-description'] {
   font-size: 14px;
   line-height: 1.5;
-  color: #647188;
+  color: var(--publish-muted-text);
 }
 .confirmationDialog [data-slot='dialog-footer'] {
   gap: 10px;
@@ -813,12 +811,12 @@
   box-shadow: none;
 }
 .confirmationDialog [data-variant='outline'] {
-  background: #edf2f8;
-  color: #4f5c72;
+  background: var(--publish-secondary);
+  color: var(--publish-secondary-text);
 }
 .confirmationDialog [data-variant='destructive'] {
-  background: #b91c1c;
-  color: #fff;
+  background: var(--publish-danger);
+  color: var(--publish-on-primary);
 }
 .successCard {
   display: flex;
@@ -829,7 +827,7 @@
   padding: 40px 24px;
   border: 0;
   border-radius: var(--publish-dialog-radius);
-  background: #fff;
+  background: var(--publish-surface);
   box-shadow: var(--publish-dialog-shadow);
 }
 .successProvider {
@@ -848,10 +846,10 @@
   place-items: center;
   width: 32px;
   height: 32px;
-  border: 3px solid #fff;
+  border: 3px solid var(--publish-surface);
   border-radius: 50%;
-  background: #15803d;
-  color: #fff;
+  background: var(--publish-success);
+  color: var(--publish-on-primary);
 }
 .successCheck > svg {
   width: 18px;
@@ -863,5 +861,5 @@
   font-size: 19px;
   font-weight: 600;
   letter-spacing: -0.025em;
-  color: #152035;
+  color: var(--publish-text);
 }
