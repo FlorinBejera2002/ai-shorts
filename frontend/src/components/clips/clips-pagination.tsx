@@ -4,63 +4,40 @@ import { ChevronLeft, ChevronRight } from 'lucide-react'
 import type { ReactNode } from 'react'
 import styles from './clips-pagination.module.css'
 
+/** “1–24 of 48” summary with previous/next page links. */
 export function ClipsPagination({
   query,
   currentPage,
   totalPages,
+  summary,
   labels
 }: {
   query: ClipsLibraryQuery
   currentPage: number
   totalPages: number
+  summary: string
   labels: { previous: string; next: string; page: string }
 }) {
-  if (totalPages <= 1) return null
-
-  const pageNumbers = Array.from(
-    new Set(
-      [1, currentPage - 1, currentPage, currentPage + 1, totalPages].filter(
-        (page) => page >= 1 && page <= totalPages
-      )
-    )
-  ).sort((a, b) => a - b)
-
   return (
     <nav className={styles.pagination} aria-label={labels.page}>
+      <p className={styles.summary} aria-live="polite">
+        {summary}
+      </p>
       <PaginationLink
         href={clipsLibraryHref(query, { page: Math.max(1, currentPage - 1) })}
         label={labels.previous}
-        disabled={currentPage === 1}
+        disabled={currentPage <= 1}
       >
-        <ChevronLeft className="h-4 w-4" />
+        <ChevronLeft aria-hidden="true" />
       </PaginationLink>
-
-      {pageNumbers.map((page, index) => {
-        const previous = pageNumbers[index - 1]
-        const gap = previous !== undefined && page - previous > 1
-        return (
-          <span key={page} className="contents">
-            {gap && <span className={styles.ellipsis}>…</span>}
-            <Link
-              href={clipsLibraryHref(query, { page })}
-              aria-label={`${labels.page} ${page}`}
-              aria-current={page === currentPage ? 'page' : undefined}
-              className={styles.page}
-            >
-              {page}
-            </Link>
-          </span>
-        )
-      })}
-
       <PaginationLink
         href={clipsLibraryHref(query, {
           page: Math.min(totalPages, currentPage + 1)
         })}
         label={labels.next}
-        disabled={currentPage === totalPages}
+        disabled={currentPage >= totalPages}
       >
-        <ChevronRight className="h-4 w-4" />
+        <ChevronRight aria-hidden="true" />
       </PaginationLink>
     </nav>
   )
@@ -77,13 +54,18 @@ function PaginationLink({
   disabled: boolean
   children: ReactNode
 }) {
-  if (disabled) {
+  if (disabled)
     return (
-      <span aria-disabled="true" aria-label={label} className={styles.arrow}>
+      <button
+        type="button"
+        disabled={true}
+        aria-disabled="true"
+        aria-label={label}
+        className={styles.arrow}
+      >
         {children}
-      </span>
+      </button>
     )
-  }
   return (
     <Link href={href} aria-label={label} className={styles.arrow}>
       {children}

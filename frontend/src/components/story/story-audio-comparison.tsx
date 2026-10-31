@@ -2,6 +2,7 @@ import { useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import type { StoryAsset } from './types'
 import { useStoryLanguage } from './use-story-language'
+import './story-output.css'
 
 export function StoryAudioComparison({
   assets,
@@ -33,12 +34,12 @@ export function StoryAudioComparison({
     setProcessed(next)
   }
   return (
-    <details className="border-t pt-3">
-      <summary className="cursor-pointer text-sm font-medium">
+    <details className="story-audio-comparison">
+      <summary>
         {text('Compare audio', 'Compară sunetul')}
       </summary>
-      <div className="mt-3 space-y-3">
-        <label className="block text-sm">
+      <div className="story-audio-content">
+        <label className="story-audio-recording">
           {text('Recording', 'Înregistrare')}
           <select
             aria-label={text('Recording', 'Înregistrare')}
@@ -63,7 +64,7 @@ export function StoryAudioComparison({
           </p>
         ) : (
           <>
-            <div className="flex gap-2">
+            <div className="story-audio-modes">
               <Button
                 size="sm"
                 variant={!processed ? 'default' : 'outline'}
@@ -107,7 +108,7 @@ export function StoryAudioComparison({
           </>
         )}
         {failed && (
-          <div className="space-y-2" role="alert">
+          <div className="story-audio-recovery" role="alert">
             <p className="text-sm">
               {text(
                 'Audio cleanup failed. Your originals are preserved.',
@@ -117,7 +118,6 @@ export function StoryAudioComparison({
             <div className="flex flex-wrap gap-2">
               {onRetry && <Button
                 size="sm"
-                variant="outline"
                 disabled={disabled}
                 onClick={onRetry}
               >

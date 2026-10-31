@@ -224,3 +224,205 @@
     height: 30px;
   }
 }
+
+/* Clips page reference design (light/dark tokens from publishing-theme). */
+.dropdown.reference,
+.submenu.reference {
+  min-width: 220px;
+  border: 0;
+  border-radius: 18px;
+  background: var(--publish-surface);
+  padding: 6px;
+  color: var(--publish-text);
+  box-shadow: 0 16px 40px rgba(21, 32, 53, .18);
+}
+
+:global(.dark) .dropdown.reference,
+:global(.dark) .submenu.reference {
+  box-shadow: var(--publish-menu-shadow);
+}
+
+.submenu.reference {
+  min-width: 190px;
+}
+
+.dropdown.reference > [role="menuitem"],
+.dropdown.reference [data-slot="dropdown-menu-sub-trigger"],
+.submenu.reference > [role="menuitem"] {
+  min-height: 44px;
+  gap: 12px;
+  border-radius: 12px;
+  padding: 0 12px;
+  color: var(--publish-text);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.submenu.reference > [role="menuitem"] {
+  min-height: 42px;
+  font-weight: 400;
+}
+
+.reference [role="menuitem"] svg,
+.reference [data-slot="dropdown-menu-sub-trigger"] svg {
+  width: 16px;
+  height: 16px;
+  color: var(--publish-text);
+}
+
+.dropdown.reference [data-slot="dropdown-menu-sub-trigger"] > svg:last-child {
+  color: var(--publish-muted-text);
+}
+
+.reference [role="menuitem"][data-highlighted],
+.reference [data-slot="dropdown-menu-sub-trigger"][data-highlighted],
+.reference [data-slot="dropdown-menu-sub-trigger"][data-state="open"] {
+  background: var(--publish-inset);
+  color: var(--publish-text);
+}
+
+.submenu.reference > [data-current="true"] {
+  background: var(--publish-selected-row);
+  font-weight: 600;
+}
+
+.dropdown.reference > [data-variant="destructive"],
+.dropdown.reference > [data-variant="destructive"] svg {
+  color: var(--publish-danger) !important;
+  font-weight: 600;
+}
+
+.dropdown.reference > [data-variant="destructive"][data-highlighted] {
+  background: var(--publish-danger-bg);
+}
+
+.sheet.reference {
+  max-height: min(92dvh, 760px);
+  gap: 6px;
+  border: 0;
+  border-radius: 28px 28px 0 0;
+  background: var(--publish-surface);
+  padding: 12px 16px max(28px, env(safe-area-inset-bottom));
+}
+
+.reference .handle {
+  margin: 0 auto 6px;
+  background: var(--publish-handle);
+  opacity: 1;
+}
+
+.reference .header {
+  gap: 12px;
+  border-bottom: 1px solid var(--publish-secondary);
+  padding: 4px 4px 12px;
+}
+
+.reference .thumbnail {
+  width: 40px;
+  height: 64px;
+  aspect-ratio: auto;
+  border: 0;
+  border-radius: 10px;
+  background: var(--publish-subtle-bg);
+}
+
+.reference .title.title {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.reference .header p {
+  margin-top: 2px;
+  color: var(--publish-muted-text);
+}
+
+.reference .mobileActions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border: 0;
+}
+
+.reference .row {
+  gap: 14px;
+  border: 0;
+  border-radius: 14px;
+  padding: 0 8px;
+  color: var(--publish-text);
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.reference .row > svg:last-child {
+  width: 16px;
+  height: 16px;
+  color: var(--publish-muted-text);
+}
+
+.reference .row[data-active="true"] {
+  background: var(--publish-inset);
+}
+
+.reference .row:hover,
+.reference .subrow:hover {
+  background: var(--publish-inset);
+}
+
+.icon {
+  display: flex;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--publish-inset);
+}
+
+.icon svg {
+  width: 16px;
+  height: 16px;
+}
+
+.reference .row[data-active="true"] .icon {
+  background: var(--publish-surface);
+}
+
+.reference .mobileSubmenu {
+  max-height: 240px;
+  border: 0;
+  padding: 0 0 0 58px;
+}
+
+.reference .subrow {
+  min-height: 44px;
+  color: var(--publish-text);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.reference .destructive.destructive {
+  margin-top: 4px;
+  border-top: 1px solid var(--publish-secondary);
+  border-radius: 0;
+  color: var(--publish-danger);
+  font-weight: 600;
+}
+
+.reference .destructive .icon {
+  background: var(--publish-danger-bg);
+  color: var(--publish-danger);
+}
+
+.reference .row:focus-visible,
+.reference .subrow:focus-visible {
+  outline-color: var(--publish-primary);
+}
+
+.reference .row > .icon {
+  flex: none;
+}

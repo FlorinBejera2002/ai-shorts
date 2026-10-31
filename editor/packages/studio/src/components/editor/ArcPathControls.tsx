@@ -81,7 +81,7 @@ export const ArcPathControls = memo(function ArcPathControls({
               style={{
                 width: 28,
                 height: 16,
-                background: arcPath.autoRotate ? P.accent : "#27272A",
+                background: arcPath.autoRotate ? P.accent : "#243147",
               }}
               title={
                 arcPath.autoRotate

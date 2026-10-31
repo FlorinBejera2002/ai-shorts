@@ -17,31 +17,27 @@ function compile(path) {
   ).outputText
 }
 
-const publishing = {}
-vm.runInNewContext(compile('../src/lib/publishing.ts'), { exports: publishing })
-const component = {}
+function load(path, require) {
+  const exports = {}
+  vm.runInNewContext(compile(path), { exports, require })
+  return exports
+}
+
+const publishing = load('../src/lib/publishing.ts', () => ({}))
+const options = load('../src/components/script/script-options.ts', () => ({}))
+const radioKeys = load('../src/components/script/script-radio-keys.ts', () => ({}))
 const jsx = (type, props) => ({ type, props })
-vm.runInNewContext(
-  compile('../src/components/script/script-platform-select.tsx'),
-  {
-    exports: component,
-    require: (name) => {
-      if (name === 'react/jsx-runtime') return { jsx, jsxs: jsx }
-      if (name === '@/lib/publishing') return publishing
-      if (name.endsWith('/label')) return { Label: 'label' }
-      if (name.endsWith('/select')) return {
-        Select: 'select',
-        SelectContent: 'select-content',
-        SelectItem: 'select-item',
-        SelectTrigger: 'select-trigger',
-        SelectValue: 'select-value'
-      }
-      if (name.endsWith('/platform-brand-icon')) return { PlatformBrandIcon: 'platform-icon' }
-      if (name.endsWith('.module.css')) return { default: {} }
-      throw new Error(`Unexpected dependency: ${name}`)
-    }
-  }
-)
+let ids = 0
+const component = load('../src/components/script/script-platform-select.tsx', (name) => {
+  if (name === 'react/jsx-runtime') return { jsx, jsxs: jsx }
+  if (name === 'react') return { useId: () => `id-${++ids}` }
+  if (name === '@/lib/publishing') return publishing
+  if (name === './script-options') return options
+  if (name === './script-radio-keys') return radioKeys
+  if (name === './script-badges') return { ScriptPlatformBadge: 'platform-badge' }
+  if (name.endsWith('.module.css')) return { default: {} }
+  throw new Error(`Unexpected dependency: ${name}`)
+})
 
 function render(value) {
   const changes = []
@@ -51,50 +47,72 @@ function render(value) {
     label: 'Platform',
     placeholder: 'Choose a supported platform'
   })
-  const select = tree.props.children.find((child) => child.type === 'select')
-  const trigger = select.props.children.find((child) => child.type === 'select-trigger')
-  const content = select.props.children.find((child) => child.type === 'select-content')
-  const options = content.props.children
-  const label = tree.props.children.find((child) => child.type === 'label')
-  return { select, trigger, options, label, changes }
+  const [label, group, hint] = tree.props.children
+  const radios = Array.from(group.props.children)
+  return { label, group, radios, hint, changes }
 }
 
 test('retired script destinations require explicit selection without choosing a replacement', () => {
   for (const value of ['linkedin', 'x', 'twitter', 'unknown']) {
     const view = render(value)
-    assert.equal(view.select.props.value, '')
-    assert.equal(view.select.props.required, true)
-    assert.equal(view.trigger.props.children.props.placeholder, 'Choose a supported platform')
+    assert.equal(view.group.props.role, 'radiogroup')
+    assert.equal(view.group.props['aria-required'], 'true')
+    assert.ok(view.radios.every((radio) => radio.props['aria-checked'] === false))
+    assert.equal(view.hint.props.children, 'Choose a supported platform')
+    assert.equal(view.group.props['aria-describedby'], view.hint.props.id)
     assert.deepEqual(
-      Array.from(view.options, (option) => option.props.value),
-      ['tiktok', 'instagram', 'facebook', 'youtube']
+      view.radios.map((radio) => radio.props['data-platform']),
+      ['tiktok', 'youtube', 'instagram', 'facebook']
     )
+    // The first radio stays reachable with Tab while nothing is selected.
+    assert.deepEqual(view.radios.map((radio) => radio.props.tabIndex), [0, -1, -1, -1])
     assert.deepEqual(view.changes, [])
-    view.select.props.onValueChange('instagram')
+    view.radios[2].props.onClick()
     assert.deepEqual(view.changes, ['instagram'])
   }
 })
 
-test('supported script destinations remain selected without an empty option', () => {
+test('supported script destinations remain selected without a requirement hint', () => {
   for (const value of ['instagram', 'facebook', 'tiktok', 'youtube']) {
     const view = render(value)
-    assert.equal(view.select.props.value, value)
-    assert.equal(view.options.length, 4)
-    assert.equal(view.options.some((option) => option.props.value === ''), false)
+    const checked = view.radios.filter((radio) => radio.props['aria-checked'])
+    assert.deepEqual(checked.map((radio) => radio.props['data-platform']), [value])
+    assert.equal(checked[0].props.tabIndex, 0)
+    assert.equal(view.hint, false)
+    assert.equal(view.group.props['aria-describedby'], undefined)
     assert.deepEqual(view.changes, [])
   }
 })
 
-test('the platform control retains an accessible label and recognizable named options', () => {
+test('the platform radios keep an accessible group label and recognizable names', () => {
   const view = render('tiktok')
-  assert.equal(view.label.props.htmlFor, view.trigger.props.id)
+  assert.equal(view.group.props['aria-labelledby'], view.label.props.id)
   assert.equal(view.label.props.children, 'Platform')
   assert.deepEqual(
-    Array.from(view.options, (option) => option.props.textValue),
-    ['TikTok', 'Instagram Reels', 'Facebook', 'YouTube Shorts']
+    view.radios.map((radio) => radio.props['aria-label']),
+    ['TikTok', 'YouTube Shorts', 'Instagram Reels', 'Facebook']
   )
-  for (const option of view.options) {
-    const icon = option.props.children.find((child) => child.type === 'platform-icon')
-    assert.equal(icon.props.provider, option.props.value)
+  for (const radio of view.radios) {
+    assert.equal(radio.props.role, 'radio')
+    assert.equal(radio.props.children.props.platform, radio.props['data-platform'])
+    assert.equal(radio.props.children.props.decorative, true)
   }
+})
+
+test('arrow keys move the platform choice like a native radio group', () => {
+  const view = render('facebook')
+  let prevented = false
+  const focused = []
+  const event = (key) => ({
+    key,
+    preventDefault: () => { prevented = true },
+    currentTarget: { parentElement: { querySelectorAll: () => [0, 1, 2, 3].map((index) => ({ focus: () => focused.push(index) })) } }
+  })
+  view.radios[3].props.onKeyDown(event('ArrowRight'))
+  view.radios[0].props.onKeyDown(event('ArrowLeft'))
+  view.radios[1].props.onKeyDown(event('Home'))
+  view.radios[1].props.onKeyDown(event('Tab'))
+  assert.equal(prevented, true)
+  assert.deepEqual(view.changes, ['tiktok', 'facebook', 'tiktok'])
+  assert.deepEqual(focused, [0, 3, 0])
 })

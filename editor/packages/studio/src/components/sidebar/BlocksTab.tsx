@@ -424,7 +424,7 @@ function BlockCard({
               className={`flex items-center gap-1 px-3 py-1.5 rounded-md text-[10px] font-semibold transition-colors active:scale-[0.97] ${
                 addState === "failed"
                   ? "bg-red-500 text-white"
-                  : "bg-white text-black hover:bg-neutral-200"
+                  : "bg-[#2563eb] text-white hover:bg-[#1d4ed8]"
               }`}
             >
               <svg

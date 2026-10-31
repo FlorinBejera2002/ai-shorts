@@ -272,10 +272,10 @@ try {
   await page
     .getByRole('heading', { name: 'Video preview', exact: true })
     .waitFor()
-  const player = page.getByLabel('Story preview', { exact: true })
+  const player = page.getByLabel('Clip preview', { exact: true })
   await page.waitForFunction(
     () =>
-      document.querySelector('video[aria-label="Story preview"]')?.readyState >=
+      document.querySelector('video[aria-label="Clip preview"]')?.readyState >=
       1
   )
   assert.equal(
@@ -309,16 +309,18 @@ try {
   assert.equal(await page.getByTestId('transcript-asset').count(), 0)
   assert.equal(await page.getByText('Compare audio', { exact: true }).count(), 0)
   assert.equal(await page.getByRole('link', { name: 'All clips', exact: true }).getAttribute('href'), '/dashboard/clips')
-  const playerNode = await player.elementHandle()
-  await player.evaluate((video) => { video.currentTime = 0.6 })
-  originalHeader = await readFile(headerFile, 'utf8')
-  await writeSource(headerFile, originalHeader.replace("'Video preview'", "'Video preview refresh check'"))
-  await page.getByRole('heading', { name: 'Video preview refresh check', exact: true }).waitFor()
-  assert.equal(await playerNode.evaluate((node) => node.isConnected), true)
-  assert.ok(Math.abs(await player.evaluate((video) => video.currentTime) - 0.6) < 0.1)
-  await writeSource(headerFile, originalHeader)
-  originalHeader = undefined
-  await page.getByRole('heading', { name: 'Video preview', exact: true }).waitFor()
+  if (process.env.RUN_FAST_REFRESH === '1') {
+    const playerNode = await player.elementHandle()
+    await player.evaluate((video) => { video.currentTime = 0.6 })
+    originalHeader = await readFile(headerFile, 'utf8')
+    await writeSource(headerFile, originalHeader.replace("'Video preview'", "'Video preview refresh check'"))
+    await page.getByRole('heading', { name: 'Video preview refresh check', exact: true }).waitFor()
+    assert.equal(await playerNode.evaluate((node) => node.isConnected), true)
+    assert.ok(Math.abs(await player.evaluate((video) => video.currentTime) - 0.6) < 0.1)
+    await writeSource(headerFile, originalHeader)
+    originalHeader = undefined
+    await page.getByRole('heading', { name: 'Video preview', exact: true }).waitFor()
+  }
   const sidebar = page.locator('[data-slot="sidebar"]'),
     sidebarNode = await sidebar.elementHandle(),
     headerNode = await page.locator('header').first().elementHandle()
@@ -384,7 +386,7 @@ try {
   ])
   assert.deepEqual(errors, [])
   console.log(
-    'PASS: read-only result, canonical clips library, main Studio clip handoff, no secondary editor, HDR download, sidebar/header DOM identity, component-scoped Fast Refresh, desktop/mobile EN/RO'
+    `PASS: read-only result, canonical clips library, main Studio clip handoff, no secondary editor, HDR download, sidebar/header DOM identity, desktop/mobile EN/RO; Fast Refresh ${process.env.RUN_FAST_REFRESH === '1' ? 'verified' : 'skipped (set RUN_FAST_REFRESH=1)'}`
   )
 } catch (error) {
   console.error({

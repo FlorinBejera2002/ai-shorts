@@ -1,13 +1,9 @@
 'use client'
 
 import { Card } from '@/components/ui/card'
-import { useToast } from '@/components/ui/toast'
 import { Link } from '@/i18n/navigation'
-import { apiFetch } from '@/lib/auth'
 import { formatDuration } from '@/lib/utils'
 import { Film, Play, TrendingUp } from 'lucide-react'
-import { useRouter } from 'next/navigation'
-import { useState } from 'react'
 import type { ClipVariant } from '@/types'
 import {
   ClipActionsMenu,
@@ -15,6 +11,7 @@ import {
   type ClipMoveTarget
 } from './clip-actions-menu'
 import styles from './clip-card.module.css'
+import { useDeleteClip } from './use-delete-clip'
 
 export type ClipCardData = {
   id: string
@@ -75,32 +72,17 @@ export function ClipCard({
   menuLabel?: string
   cancelLabel?: string
 }) {
-  const router = useRouter()
-  const toast = useToast()
-  const [deleting, setDeleting] = useState(false)
   const clipHref = `/dashboard/clips/${encodeURIComponent(clip.id)}`
+  const { deleting, deleteClip: removeClip } = useDeleteClip({
+    clipId: clip.id,
+    successMessage: actions?.deleteSuccess ?? '',
+    errorMessage: actions?.deleteError ?? '',
+    onDeleted
+  })
 
   async function deleteClip() {
     if (!actions || !window.confirm(actions.deleteConfirm)) return
-    setDeleting(true)
-    try {
-      const response = await apiFetch(
-        `/api/clips/${encodeURIComponent(clip.id)}`,
-        { method: 'DELETE' }
-      )
-      if (!response.ok) {
-        const data = await response.json().catch(() => ({}))
-        toast.add('error', data.error ?? actions.deleteError)
-        return
-      }
-      toast.add('success', actions.deleteSuccess)
-      await onDeleted?.()
-      router.refresh()
-    } catch {
-      toast.add('error', actions.deleteError)
-    } finally {
-      setDeleting(false)
-    }
+    await removeClip()
   }
 
   return (

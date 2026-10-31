@@ -1,0 +1,636 @@
+.editor {
+  width: 100%;
+  max-width: 1180px;
+  margin-inline: auto;
+}
+
+.editorView,
+.coachView {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.coachView {
+  gap: 18px;
+}
+
+/* Header bar */
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding: 8px;
+  border-radius: var(--publish-pill-radius);
+  background: var(--publish-surface);
+  box-shadow: var(--publish-card-shadow);
+}
+
+.backButton,
+.toolbarButton {
+  display: inline-flex;
+  height: 44px;
+  align-items: center;
+  gap: 6px;
+  padding: 0 16px 0 10px;
+  border: 0;
+  border-radius: var(--publish-pill-radius);
+  background: var(--publish-inset);
+  color: var(--publish-text);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.toolbarButton {
+  gap: 8px;
+  padding: 0 16px;
+}
+
+.backButton:hover,
+.toolbarButton:hover {
+  background: var(--publish-hover);
+}
+
+.backButton svg {
+  width: 18px;
+  height: 18px;
+}
+
+.toolbarButton svg {
+  width: 16px;
+  height: 16px;
+}
+
+.toolbarSpacer {
+  flex: 1;
+}
+
+.statusTrigger.statusTrigger {
+  height: 36px;
+  gap: 6px;
+  border: 0;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.statusTrigger svg {
+  width: 14px;
+  height: 14px;
+}
+
+.statusTrigger:disabled {
+  cursor: default;
+}
+
+.statusTrigger:disabled svg {
+  display: none;
+}
+
+.statusMenu.statusMenu {
+  z-index: 60;
+  min-width: max(220px, var(--radix-select-trigger-width));
+}
+
+.statusOption {
+  outline: 0;
+}
+
+.statusOption[data-state='checked'] {
+  background: var(--publish-selected-row);
+  font-weight: 600;
+}
+
+.statusDot {
+  width: 10px;
+  height: 10px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--script-dot);
+}
+
+.statusOption > span:nth-child(2) {
+  flex: 1;
+}
+
+.statusCheck {
+  display: flex;
+}
+
+.statusCheck svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* Save state */
+.saveStatus {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--publish-muted-text);
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.savedIcon {
+  width: 16px;
+  height: 16px;
+  color: var(--publish-success);
+  stroke-width: 2.4;
+}
+
+.saveError {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 4px 4px 14px;
+  border-radius: var(--publish-pill-radius);
+  background: var(--script-alert-bg);
+  color: var(--script-alert-text);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.saveError button {
+  height: 36px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: var(--publish-pill-radius);
+  background: var(--publish-surface);
+  color: var(--publish-text);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* Versions */
+.versionsPanel {
+  z-index: 50;
+  display: flex;
+  width: min(460px, calc(100vw - 32px));
+  max-height: min(560px, var(--radix-popover-content-available-height));
+  flex-direction: column;
+  gap: 12px;
+  padding: 20px;
+  overflow-y: auto;
+  border-radius: var(--publish-card-radius);
+  background: var(--publish-surface);
+  color: var(--publish-text);
+  box-shadow: var(--script-panel-shadow), var(--publish-card-shadow);
+  outline: 0;
+}
+
+.versionsHeader {
+  display: flex;
+  align-items: center;
+}
+
+.versionsHeader h2 {
+  flex: 1;
+  margin: 0;
+  font-family: 'Sora Variable', Sora, sans-serif;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.closeButton.closeButton {
+  width: 40px;
+  height: 40px;
+  background: var(--publish-secondary);
+}
+
+.versionList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.version {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 16px;
+  background: var(--publish-inset);
+}
+
+.version[data-current='true'] {
+  background: var(--publish-selected-row);
+}
+
+.versionNumber {
+  display: flex;
+  width: 40px;
+  height: 40px;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--publish-border);
+  border-radius: 12px;
+  background: var(--publish-surface);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.versionText {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.versionText > span {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.versionText time {
+  color: var(--publish-muted-text);
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.currentBadge {
+  display: inline-flex;
+  height: 28px;
+  flex: none;
+  align-items: center;
+  padding: 0 10px;
+  border-radius: var(--publish-pill-radius);
+  background: var(--publish-success-bg);
+  color: var(--publish-success-text);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.restoreButton {
+  height: 36px;
+  flex: none;
+  padding: 0 14px;
+  border: 0;
+  border-radius: var(--publish-pill-radius);
+  background: var(--publish-secondary);
+  color: var(--publish-text);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.restoreButton:hover {
+  background: var(--publish-hover);
+}
+
+.versionsSheet .versionList {
+  gap: 10px;
+  overflow-y: auto;
+}
+
+.versionsSheet .restoreButton {
+  height: 40px;
+  background: var(--publish-surface);
+}
+
+/* Body: brief column on the left, title and document on the right. */
+.body {
+  display: grid;
+  grid-template-columns: minmax(300px, 360px) minmax(0, 1fr);
+  grid-template-areas:
+    'aside title'
+    'aside document';
+  grid-template-rows: auto 1fr;
+  align-items: start;
+  gap: 16px 24px;
+}
+
+.body > article {
+  grid-area: document;
+}
+
+.titleInput.titleInput {
+  --script-control-bg: transparent;
+  --script-control-radius: 0;
+  grid-area: title;
+  width: 100%;
+  min-width: 0;
+  height: 56px;
+  padding: 0 4px;
+  border: 0;
+  background: transparent;
+  color: var(--publish-text);
+  font-family: 'Sora Variable', Sora, sans-serif;
+  font-size: 30px;
+  font-weight: 600;
+  letter-spacing: -0.04em;
+  outline: 0;
+  box-shadow: none;
+}
+
+.titleInput:focus-visible {
+  border-radius: 14px;
+  box-shadow: 0 0 0 3px var(--publish-primary-ring);
+}
+
+.aside {
+  grid-area: aside;
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.coachCard {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 20px;
+  border: 0;
+  border-radius: var(--publish-card-radius);
+  background: var(--publish-selected);
+  color: var(--publish-on-selected);
+  text-align: left;
+  cursor: pointer;
+}
+
+.coachCard:hover {
+  background: var(--publish-selected-hover);
+}
+
+.coachIcon {
+  display: flex;
+  width: 44px;
+  height: 44px;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  border-radius: 14px;
+  background: color-mix(in srgb, currentColor 12%, transparent);
+}
+
+.coachIcon svg {
+  width: 22px;
+  height: 22px;
+}
+
+.coachText {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.coachCount {
+  font-size: 12px;
+  font-weight: 400;
+  opacity: .7;
+}
+
+.coachChevron {
+  width: 18px;
+  height: 18px;
+  flex: none;
+}
+
+/* Coach page header */
+.coachHeader {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px;
+}
+
+.coachBack {
+  display: inline-flex;
+  height: 44px;
+  align-items: center;
+  gap: 6px;
+  padding: 0 16px 0 10px;
+  border: 0;
+  border-radius: var(--publish-pill-radius);
+  background: var(--publish-surface);
+  color: var(--publish-text);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.coachBack svg {
+  width: 18px;
+  height: 18px;
+}
+
+.coachBack:hover {
+  background: var(--publish-hover);
+}
+
+.coachHeading {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.coachHeading h1 {
+  margin: 0;
+  overflow: hidden;
+  font-size: 22px;
+  letter-spacing: -0.03em;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.coachHeading p {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  color: var(--publish-muted-text);
+  font-size: 13px;
+}
+
+.coachPlatform {
+  --script-badge-size: 18px;
+  --script-badge-font: 7px;
+}
+
+/* "Copied" confirmation */
+.copiedRegion {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  z-index: 70;
+  translate: -50% 0;
+  pointer-events: none;
+}
+
+.copiedPill {
+  display: inline-flex;
+  height: 44px;
+  align-items: center;
+  gap: 8px;
+  padding: 0 16px;
+  border-radius: var(--publish-pill-radius);
+  background: var(--publish-selected);
+  color: var(--publish-on-selected);
+  font-size: 13px;
+  font-weight: 600;
+  box-shadow: var(--publish-dialog-shadow);
+}
+
+.copiedPill svg {
+  width: 16px;
+  height: 16px;
+  color: var(--script-copied-icon);
+  stroke-width: 2.4;
+}
+
+@media (max-width: 1023px) {
+  .body {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      'title'
+      'aside'
+      'document';
+    grid-template-rows: auto;
+  }
+}
+
+@media (max-width: 639px) {
+  .editorView {
+    gap: 14px;
+  }
+
+  .toolbar {
+    flex-wrap: nowrap;
+    gap: 8px;
+    padding: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .backButton {
+    width: 44px;
+    flex: none;
+    justify-content: center;
+    padding: 0;
+    border-radius: 50%;
+    background: var(--publish-surface);
+  }
+
+  .backButton svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  .backLabel,
+  .coachBackLabel {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .toolbarIcon.toolbarIcon {
+    background: var(--publish-surface);
+  }
+
+  .saveStatus {
+    gap: 4px;
+    font-size: 12px;
+  }
+
+  .savedIcon {
+    width: 14px;
+    height: 14px;
+  }
+
+  .saveError {
+    min-width: 0;
+    padding-left: 10px;
+    font-size: 12px;
+  }
+
+  .saveError > span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .body {
+    gap: 14px;
+  }
+
+  .titleInput.titleInput {
+    height: 44px;
+    padding: 0 2px;
+    font-size: 24px;
+  }
+
+  .coachCard {
+    gap: 12px;
+    padding: 14px 16px;
+    border-radius: 20px;
+  }
+
+  .coachIcon {
+    width: auto;
+    height: auto;
+    background: none;
+  }
+
+  .coachText {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .coachChevron {
+    display: none;
+  }
+
+  .coachView {
+    gap: 12px;
+  }
+
+  .coachHeader {
+    flex-wrap: nowrap;
+    gap: 10px;
+  }
+
+  .coachBack {
+    width: 44px;
+    flex: none;
+    justify-content: center;
+    padding: 0;
+    border-radius: 50%;
+  }
+
+  .coachBack svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  .coachHeading h1 {
+    font-size: 18px;
+  }
+
+  .copiedRegion {
+    bottom: calc(20px + env(safe-area-inset-bottom));
+  }
+}

@@ -10,7 +10,8 @@ if (!process.env.PLAYWRIGHT_MODULE)
 const { chromium } = await import(pathToFileURL(process.env.PLAYWRIGHT_MODULE).href)
 const origin = process.env.FRONTEND_ORIGIN || 'http://127.0.0.1:5173'
 const output = new URL('../test-results/clips-layout/', import.meta.url)
-const browser = await chromium.launch({ channel: 'chrome', headless: true })
+const channel = process.env.PLAYWRIGHT_CHANNEL ?? 'chrome'
+const browser = await chromium.launch({ ...(channel ? { channel } : {}), headless: true })
 const context = await browser.newContext({
   viewport: { width: 1488, height: 1058 }, timezoneId: 'Europe/Bucharest',
   colorScheme: 'dark', reducedMotion: 'reduce'
@@ -154,7 +155,8 @@ const workspace = page.locator('[data-clips-workspace]')
 const cards = workspace.locator('[data-clip-card]')
 const card = index => workspace.locator(`[data-clip-card="${clipId(index)}"]`)
 const search = workspace.getByRole('searchbox', { name: 'Search clips', exact: true })
-const filters = page.getByRole('dialog', { name: 'Filters', exact: true })
+const filters = page.locator('[data-clips-filters]')
+const mobileViewport = () => (page.viewportSize()?.width ?? 1488) < 1024
 const menuTrigger = index => card(index).locator(`[data-clip-menu-trigger="${clipId(index)}"]`)
 const desktopMenu = page.locator('[data-clip-actions="desktop"]')
 const mobileMenu = page.locator('[data-clip-actions="mobile"]')
@@ -228,16 +230,36 @@ async function choose(label, option, scope = page) {
   await control.filter({ hasText: option }).waitFor()
 }
 
+const filterKeys = { 'Viral score': 'score', 'Aspect ratio': 'aspect', Subtitles: 'subtitles' }
+const filterValues = {
+  'All scores': null, 'High · 8–10': 'high', 'Promising · 5–7': 'promising', 'Developing · 0–4': 'low',
+  'All formats': null, '9:16': '9:16', '1:1': '1:1', '16:9': '16:9',
+  Any: null, 'With subtitles': 'yes', 'Without subtitles': 'no'
+}
+const filterChips = {
+  'All scores': 'All', 'High · 8–10': 'High 8–10', 'Promising · 5–7': 'Promising 5–7', 'Developing · 0–4': 'Low 0–4',
+  'All formats': 'All', 'With subtitles': 'With', 'Without subtitles': 'Without', Any: 'Any'
+}
+
+async function openFilterSheet() {
+  if (!await filters.isVisible()) await workspace.getByRole('button', { name: /^Filters/ }).click()
+  await filters.waitFor()
+}
+
 async function filterBy(label, option) {
-  if (!await filters.isVisible()) await workspace.getByRole('button', { name: 'Filters', exact: true }).click()
-  await choose(label, option, filters)
-  const key = { 'Viral score': 'score', 'Aspect ratio': 'aspect', Subtitles: 'subtitles' }[label]
-  const value = {
-    'All scores': null, 'High · 8–10': 'high', 'Promising · 5–7': 'promising', 'Developing · 0–4': 'low',
-    'All formats': null, '9:16': '9:16', '1:1': '1:1', '16:9': '16:9',
-    Any: null, 'With subtitles': 'yes', 'Without subtitles': 'no'
-  }[option]
-  await page.waitForURL(url => url.searchParams.get(key) === value)
+  const key = filterKeys[label]
+  if (mobileViewport()) {
+    await openFilterSheet()
+    const group = label === 'Aspect ratio' ? 'Format' : label
+    await filters.getByRole('radiogroup', { name: group, exact: true })
+      .getByRole('radio', { name: filterChips[option] ?? option, exact: true }).click()
+    await filters.getByRole('button', { name: 'Apply', exact: true }).click()
+    await filters.waitFor({ state: 'hidden' })
+  } else {
+    await workspace.getByRole('combobox', { name: label, exact: true }).click()
+    await page.getByRole('option', { name: option, exact: true }).click()
+  }
+  await page.waitForURL(url => url.searchParams.get(key) === filterValues[option])
 }
 
 async function closeFilters() {
@@ -259,11 +281,23 @@ async function submitSearch(value) {
 }
 
 async function clearFilters() {
-  if (!await filters.isVisible()) await workspace.getByRole('button', { name: 'Filters', exact: true }).click()
-  await filters.getByRole('button', { name: 'Clear filters', exact: true }).click()
+  if (mobileViewport()) {
+    await openFilterSheet()
+    await filters.getByRole('button', { name: 'Clear filters', exact: true }).click()
+    await filters.getByRole('button', { name: 'Apply', exact: true }).click()
+    await filters.waitFor({ state: 'hidden' })
+    await page.waitForURL(url => !['score', 'aspect', 'subtitles', 'sort'].some(key => url.searchParams.has(key)))
+    return
+  }
+  await workspace.getByRole('button', { name: 'Clear filters', exact: true }).click()
   await page.waitForURL(url => !url.search)
   await workspace.getByRole('combobox', { name: 'Sort by', exact: true }).filter({ hasText: 'Newest first' }).waitFor()
-  await closeFilters()
+}
+
+async function pickProject(name) {
+  await workspace.locator('[data-clips-project-picker]').click()
+  await page.getByRole('dialog').locator('[data-clips-project]').filter({ hasText: name }).first().click()
+  await workspace.locator('[data-clips-project-picker]').filter({ hasText: name }).waitFor()
 }
 
 async function openActions(index, mobile = false) {
@@ -274,7 +308,7 @@ async function openActions(index, mobile = false) {
 }
 
 async function assertActionLinks(menu, index) {
-  const edit = menu.locator('a').filter({ hasText: 'Open in Studio' })
+  const edit = menu.locator('a').filter({ hasText: /^Open$/ })
   const publish = menu.locator('a').filter({ hasText: 'Publish' })
   assert.equal(await edit.getAttribute('href'), `/dashboard/clips/${clipId(index)}`)
   assert.equal(await publish.getAttribute('href'), `/dashboard/publish/new?clip=${clipId(index)}`)
@@ -389,9 +423,9 @@ try {
   assert.deepEqual(moves.at(-1), { id: clipId(0), folderId: folders[1].id })
   await dismissToasts()
   await openActions(1)
-  page.once('dialog', dialog => dialog.accept())
   const deleted = page.waitForResponse(response => response.request().method() === 'DELETE' && new URL(response.url()).pathname === `/api/clips/${clipId(1)}`)
   await desktopMenu.getByText('Delete', { exact: true }).click()
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Delete', exact: true }).click()
   assert.equal((await deleted).status(), 200)
   await card(1).waitFor({ state: 'detached' })
   assert.deepEqual(deletes, [clipId(1)])
@@ -417,8 +451,8 @@ try {
   assert.equal(await workspace.locator('[data-clips-projects]').isVisible(), false, 'Tablet replaces the project rail with its selector')
   await page.getByRole('link', { name: 'Next', exact: true }).click()
   await assertQuery({ page: '2' })
-  await search.fill('perspective')
-  await choose('Organization', folders[0].name, workspace)
+  await submitSearch('perspective')
+  await pickProject(folders[0].name)
   await assertQuery({ search: 'perspective', page: null })
   await expectedCards(allClips.map((_, index) => index).filter(index => project.clips.some(clip => clip.id === clipId(index) && clip.folderId === folders[0].id)))
   await submitSearch('')
@@ -426,13 +460,13 @@ try {
   await noOverflow('Tablet project selector')
   await assertShell()
   await capture('tablet-clips')
-  await choose('Organization', 'All clips', workspace)
+  await pickProject('All clips')
   await page.setViewportSize({ width: 390, height: 844 })
   await rememberShell()
   await search.waitFor({ state: 'visible' })
   await noOverflow('Mobile clips grid')
   await capture('mobile-clips-after-actions')
-  await choose('Organization', folders[0].name, workspace)
+  await pickProject(folders[0].name)
   const mobileFolderIds = allClips.map((_, index) => index).filter(index => project.clips.some(clip => clip.id === clipId(index) && clip.folderId === folders[0].id))
   await expectedCards(mobileFolderIds)
   await search.waitFor({ state: 'visible' })
@@ -441,7 +475,7 @@ try {
   await noOverflow('Mobile combined controls')
   await capture('mobile-filters')
   await clearFilters()
-  await choose('Organization', 'All clips', workspace)
+  await pickProject('All clips')
   await card(0).waitFor()
   const sheet = await openActions(0, true)
   await assertActionLinks(sheet, 0)
@@ -465,7 +499,7 @@ try {
   await noOverflow('320px clips layout')
   await openActions(0, true)
   await noOverflow('320px clip actions')
-  await mobileMenu.getByRole('button', { name: 'Cancel', exact: true }).click()
+  await page.keyboard.press('Escape')
   await mobileMenu.waitFor({ state: 'hidden' })
   await assertShell()
   assert.deepEqual(blockedMutations, [], 'No API mutations escaped the explicit synthetic fixture handlers')

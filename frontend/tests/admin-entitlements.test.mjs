@@ -270,7 +270,8 @@ test('story review explains admin generation has no credit charge', () => {
       '@/lib/youtube': { formatDuration: (value) => `${value}s` },
       './types': types,
       './use-story-language': { useStoryLanguage: () => (english) => english },
-      './story-music-summary': { StoryMusicSummary: 'div' }
+      './story-music-summary': { StoryMusicSummary: 'div' },
+      './story-source-preview': { StorySourcePreview: 'div' }
     })
     const tree = StoryCreateReview({
       options: types.defaultOptions, videos: [], ready: false, busy: false,

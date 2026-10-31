@@ -79,8 +79,10 @@ export function ViewModeToggle() {
             tabIndex={active ? 0 : -1}
             onClick={() => selectMode(mode)}
             onKeyDown={(e) => handleKeyDown(e, index)}
-            className={`rounded px-3 py-1 text-[11px] font-medium transition-colors active:scale-[0.98] outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-studio-accent ${
-              active ? "bg-neutral-200 text-neutral-900" : "text-neutral-400 hover:text-neutral-200"
+            className={`rounded-full px-3 py-1 text-[11px] font-medium transition-colors active:scale-[0.98] outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-studio-accent ${
+              active
+                ? "bg-neutral-800 text-neutral-50 font-semibold"
+                : "text-neutral-400 hover:text-neutral-200"
             }`}
           >
             {label}
@@ -311,7 +313,7 @@ export function StudioHeader({
               if (ffmpegMissing) return;
               onExport?.();
             }}
-            className="h-9 sm:h-7 flex items-center gap-1.5 px-3 rounded-md text-[11px] font-semibold bg-studio-accent text-[#09090B] enabled:hover:brightness-110 transition-[filter,transform] enabled:active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+            className="h-9 sm:h-7 flex items-center gap-1.5 px-3 rounded-md text-[11px] font-semibold bg-studio-accent text-white enabled:hover:brightness-110 transition-[filter,transform] enabled:active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isRendering ? "Rendering…" : "Export"}
           </button>

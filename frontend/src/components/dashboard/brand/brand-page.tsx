@@ -18,12 +18,13 @@ import { PreviewPanel } from './preview-panel'
 import type { PreviewRatio } from './types'
 import { useBrandKit } from './use-brand-kit'
 import styles from './brand-page.module.css'
+import theme from '@/components/calendar/publishing-theme.module.css'
 
 export default function BrandPage() {
   const t = useTranslations('brand')
   const brand = useBrandKit((key) => t(key as Parameters<typeof t>[0]))
   return (
-    <div className={styles.workspace}>
+    <div className={`${theme.surface} ${styles.workspace}`} data-reference-surface="">
       {brand.loading ? (
         <>
           <WorkspaceMobileHeader />

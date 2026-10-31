@@ -1,0 +1,32 @@
+{
+  "tool": "built-in image_gen",
+  "date": "2026-10-23",
+  "rootDelegatedRevisions": [
+    {
+      "file": "desktop-narration-draft.png",
+      "source": "C:\\Users\\flori\\.codex\\generated_images\\01a16867-9ff3-7dd2-a75d-e3f96005b1bb\\exec-c1e1bad2-fd47-44b1-9cab-a3e0d1bab957.png",
+      "prompt": "Precise UI text/color edit. FIRST attached image is target. SECOND is approved compact-inspector reference. Preserve FIRST image EXACTLY in dimensions,composition,layout,all media,icons,controls,text,spacing,navigation. Make ONLY these2targeted corrections: In left Studio day project metadata, replace '3 videos · YouTube' with '3 videos · Upload videos' (Upload videos is localfilemode). In Recorded audio top-right 'Draft (unsaved)' badge change only the YELLOWstatusdot to neutralGRAY. Text Draft (unsaved) remainsneutralasnow. Do not change green Recording ready status, no otherlabelchanges. No newfeatures,nootherchanges.",
+      "corrections": [
+        "Metadata Upload videos",
+        "Draft unsaved dot neutral gray"
+      ]
+    },
+    {
+      "file": "desktop-story-captions.png",
+      "source": "C:\\Users\\flori\\.codex\\generated_images\\01a16867-9ff3-7dd2-a75d-e3f96005b1bb\\exec-b5a37f8f-1ed0-4658-a0db-758de8da4190.png",
+      "prompt": "Precise UI numbering correction. FIRST attached image is the TARGET, SECOND theapprovedstyleguide. PreserveFIRSTimageEXACTLYinlayout,allmedia,allcontrols,colors,text,positioning,typography. ChangeONLYthenumberinside2navigationcirclesintheleftStory3stepmenu: activewhitecircle nextto 'Choose the result' currentlysays1; replaceitwith '2'. Emptyoutlinedcircle nextto 'Generate & review' below mustcontain '3' inneutralmutedtext. CompletedAddfootagestepcheck stayscheck. Do not change any other text,media,colors,buttons orfeatures.",
+      "corrections": [
+        "Choose result step2",
+        "Generate review step3"
+      ]
+    },
+    {
+      "file": "mobile-story-delete.png",
+      "source": "C:\\Users\\flori\\.codex\\generated_images\\01a16867-9ff3-7dd2-a75d-e3f96005b1bb\\exec-c8ed059a-a36a-4dd8-a409-6513219c9c83.png",
+      "prompt": "Precise UI deletion-only edit. FIRSTimage is TARGET. Preserve itEXACTLY inoveralllayout,allcontrols,thumbnails,text,colors,navigation,Continuebuttonandbottom7icondock. RemoveONLYthewholeline '50 credits · Balance 360' immediatelyaboveContinuebutton. Fillremovedlinewithnormalnearblackpagebackground. This is Upload videosStory firststep/deletionconfirmationandhasNOYouTubecreditssummary. Do not replacelinewithanothercost/dontadd10credits,don'tmoveContinue/dock,don'tmodifyanythingelse. SECONDimageonlyapprovestyling.",
+      "corrections": [
+        "Removed inapplicable50credits Balance360 line"
+      ]
+    }
+  ]
+}

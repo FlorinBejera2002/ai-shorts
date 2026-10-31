@@ -1,0 +1,163 @@
+{
+  "date_anchor": "2026-10-23",
+  "tool": "built-in image_gen",
+  "selected_reference": "docs/design/create-clips-settings-left/compact-inspector.png",
+  "mobile_reference": "docs/design/create-clips-complete/mobile-youtube-ready.png",
+  "scope": "13 final images assigned after delegation changes; other states are authored by root and peers.",
+  "images": [
+    {
+      "file": "mobile-youtube-ready.png",
+      "source": "C:\\Users\\flori\\.codex\\generated_images\\01a16786-0ce3-70a3-bc07-aed514c7c63e\\exec-3e312e5d-00e7-49b6-85f7-03806e943f8a.png",
+      "dimensions": [
+        853,
+        1844
+      ],
+      "bytes": 1468379,
+      "sha256": "44c0424113c3a9faeb3fddcd956b236944e3f7eaf053be1f57e973f6df534288",
+      "png_verified": true
+    },
+    {
+      "file": "desktop-footage.png",
+      "source": "C:\\Users\\flori\\.codex\\generated_images\\01a16786-0ce3-70a3-bc07-aed514c7c63e\\exec-064faa0e-fda8-4df6-8470-bad82c1a4de0.png",
+      "dimensions": [
+        1487,
+        1058
+      ],
+      "bytes": 1374681,
+      "sha256": "ea89ec04d704e34ebabbe7be8825f6e11d9ab79d5ffd2b968df90e3c3256631a",
+      "png_verified": true
+    },
+    {
+      "file": "mobile-footage.png",
+      "source": "C:\\Users\\flori\\.codex\\generated_images\\01a16786-0ce3-70a3-bc07-aed514c7c63e\\exec-0f7df471-5659-4b68-9af4-71af879335af.png",
+      "dimensions": [
+        853,
+        1844
+      ],
+      "bytes": 1494420,
+      "sha256": "582a6de9acf3f199fdea0d4b33a512e156ccefaeccf4983866de507e8b9ee382",
+      "png_verified": true
+    },
+    {
+      "file": "desktop-projects.png",
+      "source": "C:\\Users\\flori\\.codex\\generated_images\\01a16786-0ce3-70a3-bc07-aed514c7c63e\\exec-2c299166-219d-4b8e-9599-4ba7249c87de.png",
+      "dimensions": [
+        1487,
+        1058
+      ],
+      "bytes": 1349866,
+      "sha256": "5ea6e73d3fb855040c9eef20931a8c128e3ac3a8ca714684a3720c78520a8d24",
+      "png_verified": true
+    },
+    {
+      "file": "mobile-projects.png",
+      "source": "C:\\Users\\flori\\.codex\\generated_images\\01a16786-0ce3-70a3-bc07-aed514c7c63e\\exec-ff56f3aa-f800-46df-9ec8-f63d63b0d77e.png",
+      "dimensions": [
+        853,
+        1844
+      ],
+      "bytes": 1374027,
+      "sha256": "92807517be264e060c4085164695b4837866cb45068d38c85afce97b836f85b2",
+      "png_verified": true
+    },
+    {
+      "file": "desktop-uploads.png",
+      "source": "C:\\Users\\flori\\.codex\\generated_images\\01a16786-0ce3-70a3-bc07-aed514c7c63e\\exec-8fef93c3-5915-4590-9d68-e6750f47dc94.png",
+      "dimensions": [
+        1487,
+        1058
+      ],
+      "bytes": 1400778,
+      "sha256": "55c080893b5f824edff9cd03aaf0108b28cb64b91d64a4fe5714b9356d6a84ba",
+      "png_verified": true
+    },
+    {
+      "file": "mobile-uploads.png",
+      "source": "C:\\Users\\flori\\.codex\\generated_images\\01a16786-0ce3-70a3-bc07-aed514c7c63e\\exec-2c45b279-d09e-4815-815f-2d01933dff99.png",
+      "dimensions": [
+        853,
+        1844
+      ],
+      "bytes": 1377688,
+      "sha256": "b7a9d1b5b5ba19b48a7f83e1447d0ab16530c6918970256dbf3ec27a3d32fb51",
+      "png_verified": true
+    },
+    {
+      "file": "desktop-upload-recovery.png",
+      "source": "C:\\Users\\flori\\.codex\\generated_images\\01a16786-0ce3-70a3-bc07-aed514c7c63e\\exec-dfb000a8-79a8-4667-9ff8-36f157c4525b.png",
+      "dimensions": [
+        1487,
+        1058
+      ],
+      "bytes": 1412877,
+      "sha256": "3cc47360abc393e700b83fe6d248e2d56e18ca035538f843aa44e2b304827de7",
+      "png_verified": true
+    },
+    {
+      "file": "mobile-upload-recovery.png",
+      "source": "C:\\Users\\flori\\.codex\\generated_images\\01a16786-0ce3-70a3-bc07-aed514c7c63e\\exec-8d2fe799-c20f-4beb-81de-3a3e6620fdb6.png",
+      "dimensions": [
+        853,
+        1844
+      ],
+      "bytes": 1381081,
+      "sha256": "1a164075585449733f4921595ef892c27672884544958ce1e843d9a45cee3a57",
+      "png_verified": true
+    },
+    {
+      "file": "desktop-clip-preferences.png",
+      "source": "C:\\Users\\flori\\.codex\\generated_images\\01a16786-0ce3-70a3-bc07-aed514c7c63e\\exec-da2d8758-0496-4305-b964-a8213232d597.png",
+      "dimensions": [
+        1487,
+        1058
+      ],
+      "bytes": 1541059,
+      "sha256": "822eed1702da05d0370347f4ee3fb3db2fcb188a18358929049516b8117428a8",
+      "png_verified": true
+    },
+    {
+      "file": "mobile-clip-preferences.png",
+      "source": "C:\\Users\\flori\\.codex\\generated_images\\01a16786-0ce3-70a3-bc07-aed514c7c63e\\exec-a4a3371d-e866-434b-9b81-4e757a22c749.png",
+      "dimensions": [
+        853,
+        1844
+      ],
+      "bytes": 1527106,
+      "sha256": "6166350207d578d3d6342a9c2af2c7924c140f39422398c1ea111b85864fa167",
+      "png_verified": true
+    },
+    {
+      "file": "desktop-story-brief.png",
+      "source": "C:\\Users\\flori\\.codex\\generated_images\\01a16786-0ce3-70a3-bc07-aed514c7c63e\\exec-59660065-8016-4f1e-846d-b0a5ce787ba2.png",
+      "dimensions": [
+        1487,
+        1058
+      ],
+      "bytes": 1637779,
+      "sha256": "eb6bbac4b3ea3fae272021eb3e40b3b7994bef11bda2d817e52f403df80065b2",
+      "png_verified": true
+    },
+    {
+      "file": "mobile-story-brief.png",
+      "source": "C:\\Users\\flori\\.codex\\generated_images\\01a16786-0ce3-70a3-bc07-aed514c7c63e\\exec-e6a4a84b-446f-4217-923c-7aba99c47efc.png",
+      "dimensions": [
+        853,
+        1844
+      ],
+      "bytes": 1593057,
+      "sha256": "d0364d4350d9c881e03517ca99eb49b935d0110a9af36732d040aba921067ca3",
+      "png_verified": true
+    }
+  ],
+  "limitations": [
+    "Static image mockups; no uploads, microphone, generation, account or payment actions performed.",
+    "Natural ImageGen dimensions preserve target viewport ratios; shared application tokens override minor generated geometry.",
+    "Desktop footage has a monochrome generated logo instead of the authentic violet mark; implementation must retain the real logo asset."
+  ],
+  "repairs": [
+    "Mobile footage: corrected source mode to Upload videos.",
+    "Desktop clip preferences: restored separate Role, Selection and Source order; removed invented toggle.",
+    "Mobile clip preferences: corrected Continue, project name and source metadata.",
+    "Mobile story brief: removed incorrect character counter, restored field label and Back action."
+  ]
+}

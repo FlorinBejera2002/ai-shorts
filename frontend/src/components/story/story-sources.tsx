@@ -60,17 +60,19 @@ export function StorySources({
   const first = visiblePage * pageSize
   const visibleAssets = assets.slice(first, first + pageSize)
   const pendingStart = Math.max(0, first - assets.length)
-  const visiblePending = pending.slice(pendingStart, Math.max(0, first + pageSize - assets.length))
+  const visiblePending = pending.slice(
+    pendingStart,
+    Math.max(0, first + pageSize - assets.length)
+  )
   return (
     <section
-      className="space-y-4"
+      className="story-sources space-y-4"
       role="group"
       aria-label={text('Your recordings', 'Filmările tale')}
     >
       <div className="flex items-center justify-between gap-3">
         <span className="text-xs tabular-nums text-muted-foreground">
-          {assets.length + pending.length}{' '}
-          {text('clips', 'filmări')}
+          {assets.length + pending.length} {text('clips', 'filmări')}
         </span>
         <StoryHelp label={text('Your recordings', 'Filmările tale')}>
           {narration
@@ -79,8 +81,8 @@ export function StorySources({
                 'Alege imaginile pentru narațiune. Sunetul original al filmărilor va fi oprit.'
               )
             : text(
-                'Ideas, alternate takes, and supporting footage — together in one story.',
-                'Idei, duble alternative și imagini de susținere — împreună într-o poveste.'
+                'Upload one or more clips. We turn them into short clips.',
+                'Încarcă una sau mai multe filmări. Le transformăm în clipuri.'
               )}{' '}
           {formatBytes(limits.max_file_bytes)} / {text('file', 'fișier')} ·{' '}
           {formatDuration(limits.max_source_seconds)} / clip ·{' '}
@@ -107,7 +109,7 @@ export function StorySources({
               setDragging(false)
               onAdd(Array.from(event.dataTransfer.files))
             }}
-            className={`flex w-full flex-col items-center justify-center gap-2 rounded-md border border-dashed p-5 text-center transition-colors hover:bg-muted disabled:opacity-50 ${assets.length ? 'min-h-24' : 'min-h-36'} ${dragging ? 'border-foreground bg-muted' : 'border-border'}`}
+            className={`story-upload-area flex w-full flex-col items-center justify-center gap-2 rounded-md border border-dashed p-5 text-center transition-colors hover:bg-muted disabled:opacity-50 ${assets.length ? 'min-h-24' : 'min-h-36'} ${dragging ? 'border-foreground bg-muted' : 'border-border'}`}
           >
             <Upload className="size-6" />
             <span className="text-sm font-medium">
@@ -117,10 +119,10 @@ export function StorySources({
               )}
             </span>
             <span className="text-xs text-muted-foreground">
-              {text(
-                'MP4, MOV, WebM, MKV · Add clips to your project',
-                'MP4, MOV, WebM, MKV · Adaugă filmări în proiect'
-              )}
+              {text('MP4, MOV, WebM, MKV', 'MP4, MOV, WebM, MKV')}
+            </span>
+            <span className="inline-flex min-h-[44px] items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground">
+              {text('Choose files', 'Alege fișiere')}
             </span>
           </button>
           <input
@@ -130,8 +132,8 @@ export function StorySources({
             accept="video/mp4,video/quicktime,video/webm,video/x-matroska,.mp4,.mov,.webm,.mkv"
             className="hidden"
             aria-label={text(
-              'Upload story clips',
-              'Încarcă filmări pentru poveste'
+              'Upload clips',
+              'Încarcă filmări'
             )}
             onChange={(event) => {
               onAdd(Array.from(event.target.files ?? []))
@@ -168,7 +170,7 @@ export function StorySources({
           <li
             key={asset.id}
             data-testid="validated-source"
-            className="rounded-md border p-3"
+            className="story-source-row rounded-md border p-3"
           >
             <div className="flex items-center gap-3">
               <SourceThumbnail
@@ -201,7 +203,7 @@ export function StorySources({
                 </Button>
               )}
             </div>
-            <details className="mt-3">
+            <details className="story-source-preferences mt-3">
               <summary className="cursor-pointer text-xs text-muted-foreground hover:text-foreground">
                 {text('Clip preferences', 'Preferințe pentru clip')}
               </summary>
@@ -313,7 +315,7 @@ export function StorySources({
         {visiblePending.map((upload) => (
           <li
             key={upload.id}
-            className="rounded-md border p-3"
+            className="story-source-row rounded-md border p-3"
             data-testid="pending-source"
           >
             <div className="flex items-center gap-3">
@@ -323,7 +325,7 @@ export function StorySources({
                 muted
                 playsInline
                 aria-hidden="true"
-                className="h-14 w-20 shrink-0 rounded-sm bg-muted object-cover"
+                className="h-14 w-20 shrink-0 rounded-md bg-muted object-cover"
                 onLoadedMetadata={(event) => {
                   if (Number.isFinite(event.currentTarget.duration))
                     onDuration(upload.id, event.currentTarget.duration)
@@ -345,12 +347,12 @@ export function StorySources({
                   {upload.retryAt
                     ? `${text('Uploads temporarily paused. Will retry at', 'Încărcări în pauză temporară. Reîncearcă la')} ${new Date(upload.retryAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
                     : upload.status === 'validating'
-                    ? text('Validating on server…', 'Validare pe server…')
-                    : upload.status === 'failed'
-                      ? text('Upload failed', 'Încărcare eșuată')
-                      : upload.status === 'queued'
-                        ? text('Waiting to upload', 'Așteaptă încărcarea')
-                        : `${text('Uploading', 'Se încarcă')} ${Math.round((upload.bytes / upload.file.size) * 100)}%`}
+                      ? text('Validating on server…', 'Validare pe server…')
+                      : upload.status === 'failed'
+                        ? text('Upload failed', 'Încărcare eșuată')
+                        : upload.status === 'queued'
+                          ? text('Waiting to upload', 'Așteaptă încărcarea')
+                          : `${text('Uploading', 'Se încarcă')} ${Math.round((upload.bytes / upload.file.size) * 100)}%`}
                 </p>
               </div>
               {upload.status === 'failed' && (
@@ -388,10 +390,29 @@ export function StorySources({
         ))}
       </ul>
       {pages > 1 && (
-        <nav aria-label={text('Clip pages', 'Pagini de filmări')} className="flex items-center justify-between gap-3">
-          <Button type="button" variant="outline" disabled={visiblePage === 0} onClick={() => setPage(visiblePage - 1)}>{text('Previous', 'Înapoi')}</Button>
-          <span className="text-xs text-muted-foreground">{first + 1}–{Math.min(first + pageSize, totalItems)} / {totalItems}</span>
-          <Button type="button" variant="outline" disabled={visiblePage === pages - 1} onClick={() => setPage(visiblePage + 1)}>{text('Next', 'Înainte')}</Button>
+        <nav
+          aria-label={text('Clip pages', 'Pagini de filmări')}
+          className="flex items-center justify-between gap-3"
+        >
+          <Button
+            type="button"
+            variant="outline"
+            disabled={visiblePage === 0}
+            onClick={() => setPage(visiblePage - 1)}
+          >
+            {text('Previous', 'Înapoi')}
+          </Button>
+          <span className="text-xs text-muted-foreground">
+            {first + 1}–{Math.min(first + pageSize, totalItems)} / {totalItems}
+          </span>
+          <Button
+            type="button"
+            variant="outline"
+            disabled={visiblePage === pages - 1}
+            onClick={() => setPage(visiblePage + 1)}
+          >
+            {text('Next', 'Înainte')}
+          </Button>
         </nav>
       )}
       {hasFailed && (
@@ -426,7 +447,7 @@ function SourceThumbnail({
       <img
         src={asset.thumbnail_url}
         alt=""
-        className="h-14 w-20 shrink-0 rounded-sm object-cover"
+        className="h-14 w-20 shrink-0 rounded-md object-cover"
       />
     )
   if (source && failed !== source)
@@ -437,12 +458,12 @@ function SourceThumbnail({
         muted
         playsInline
         aria-hidden="true"
-        className="h-14 w-20 shrink-0 rounded-sm bg-muted object-cover"
+        className="h-14 w-20 shrink-0 rounded-md bg-muted object-cover"
         onError={() => setFailed(source)}
       />
     )
   return (
-    <div className="flex h-14 w-20 shrink-0 items-center justify-center rounded-sm bg-muted">
+    <div className="flex h-14 w-20 shrink-0 items-center justify-center rounded-md bg-muted">
       <FileVideo className="size-6 text-muted-foreground" />
     </div>
   )

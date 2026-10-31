@@ -99,7 +99,7 @@ export const TimelineRuler = memo(function TimelineRuler({
           style={{
             height: RULER_H,
             width: trackContentWidth,
-            // Ruler background = panel surface (#0A0A0B) — no bottom border,
+            // Ruler background = panel surface (shellBackground) — no bottom border,
             // no tick lines (CapCut-style clean ruler, labels only).
             background: theme.shellBackground,
           }}

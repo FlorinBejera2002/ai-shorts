@@ -17,10 +17,14 @@ function renderResult(version, locale = 'en') {
     '@/components/studio/open-studio-button': {
       OpenStudioButton: ({ clipId }) => React.createElement('button', { 'data-clip-id': clipId }, 'Open in Studio')
     },
-    './story-result-header': { StoryResultHeader: () => null },
+    './story-result-header': {
+      StoryResultHeader: () => null,
+      StoryResultDownload: () => null
+    },
     './story-review': { StoryReview: () => null },
     './story-music-credits': { StoryMusicCredits: () => null },
     './story-caption-status': { StoryCaptionStatus: () => null },
+    './story-output.css': {},
     './use-story-language': { useStoryLanguage: () => (en, ro) => locale === 'ro' ? ro : en }
   }
   vm.runInNewContext(ts.transpileModule(

@@ -14,8 +14,8 @@
 }
 
 .heading h2 {
-  font-size: 21px;
-  font-weight: 650;
+  font-size: 20px;
+  font-weight: 600;
   letter-spacing: -0.035em;
   line-height: 1.3;
 }
@@ -25,11 +25,10 @@
   min-width: 29px;
   min-height: 29px;
   place-items: center;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  background: var(--muted);
-  padding: 2px 7px;
-  color: var(--foreground);
+  border-radius: 999px;
+  background: var(--publish-secondary, var(--muted));
+  padding: 2px 10px;
+  color: var(--publish-secondary-text, var(--foreground));
   font-size: 13px;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
@@ -41,14 +40,15 @@
   flex-shrink: 0;
   align-items: center;
   gap: 9px;
-  border-radius: var(--radius-md);
-  color: var(--muted-foreground);
-  font-size: 13px;
+  border-radius: 999px;
+  color: var(--publish-primary, var(--foreground));
+  font-size: 14px;
+  font-weight: 600;
   transition: color 160ms ease;
 }
 
 .viewAll:hover {
-  color: var(--foreground);
+  color: var(--publish-primary-hover, var(--foreground));
 }
 
 .viewAll:focus-visible,
@@ -60,7 +60,7 @@
 .grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 24px;
+  gap: 16px;
 }
 
 .item,
@@ -79,11 +79,10 @@
 
 .poster {
   position: relative;
-  aspect-ratio: 2 / 3;
+  aspect-ratio: 9 / 13;
   overflow: hidden;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  background: var(--muted);
+  border-radius: 20px;
+  background: var(--publish-secondary, var(--muted));
 }
 
 .poster img {
@@ -99,6 +98,7 @@
 }
 
 .placeholder {
+  color: var(--publish-muted-text, var(--muted-foreground)) !important;
   display: flex;
   height: 100%;
   flex-direction: column;
@@ -117,47 +117,28 @@
   position: absolute;
   bottom: 9px;
   left: 9px;
-  border: 1px solid rgb(255 255 255 / 20%);
-  border-radius: var(--radius-sm);
-  background: rgb(0 0 0 / 78%);
-  padding: 4px 7px;
+  border-radius: 999px;
+  background: rgb(0 0 0 / 55%);
+  padding: 3px 8px;
   color: #fff;
   font-size: 12px;
-  font-weight: 500;
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
   line-height: 1.35;
 }
 
-.open {
-  position: absolute;
-  right: 10px;
-  bottom: 9px;
-  display: grid;
-  width: 38px;
-  height: 38px;
-  place-items: center;
-  border: 1px solid rgb(255 255 255 / 30%);
-  border-radius: 50%;
-  background: rgb(0 0 0 / 70%);
-  color: #fff;
-  transition: background 160ms ease;
-}
 
-.card:hover .open,
-.card:focus-visible .open {
-  background: rgb(0 0 0 / 90%);
-}
 
 .meta {
-  padding-top: 13px;
+  padding-top: 10px;
 }
 
 .title {
   overflow: hidden;
   color: var(--foreground);
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 600;
-  letter-spacing: -0.025em;
+  letter-spacing: -0.01em;
   line-height: 1.5;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -198,11 +179,11 @@
 @media (max-width: 1023px) {
   .grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 25px 16px;
+    gap: 16px 10px;
   }
 
   .poster {
-    aspect-ratio: 4 / 5;
+    border-radius: 18px;
   }
 }
 
@@ -255,17 +236,7 @@
     font-size: 11px;
   }
 
-  .open {
-    right: 7px;
-    bottom: 7px;
-    width: 31px;
-    height: 31px;
-  }
 
-  .open svg {
-    width: 18px;
-    height: 18px;
-  }
 
   .meta {
     padding-top: 8px;
@@ -283,7 +254,6 @@
 
 @media (prefers-reduced-motion: reduce) {
   .poster img,
-  .open,
   .viewAll {
     transition: none;
   }

@@ -488,8 +488,9 @@ try {
     .click()
   await go(2)
   await page
-    .getByRole('button', { name: 'Build my story', exact: true })
+    .getByRole('button', { name: 'Create my clip', exact: true })
     .click()
+  await page.locator('.story-result-credits > summary').click()
   const credits = page.getByRole('region', {
     name: 'Music credits',
     exact: true

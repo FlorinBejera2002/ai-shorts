@@ -1,6 +1,5 @@
 'use client'
 
-import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
@@ -13,7 +12,7 @@ import {
 import { AlertCircle, CheckCircle2, Info, X, Youtube } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import Image from 'next/image'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 
 import {
   extractYouTubeId,
@@ -24,9 +23,10 @@ import {
 interface SourceYoutubeProps {
   url: string
   onChange: (url: string) => void
+  actions?: ReactNode
 }
 
-export function SourceYoutube({ url, onChange }: SourceYoutubeProps) {
+export function SourceYoutube({ url, onChange, actions }: SourceYoutubeProps) {
   const t = useTranslations('create')
   const videoId = extractYouTubeId(url)
   const isInvalid = url.trim().length > 0 && !videoId
@@ -53,8 +53,8 @@ export function SourceYoutube({ url, onChange }: SourceYoutubeProps) {
 
   return (
     <div className="animate-scale-in">
-      <div className="flex items-center gap-1.5">
-        <Label className="section-label" htmlFor="youtube-url">
+      <div className="relative">
+        <Label htmlFor="youtube-url" className="sr-only">
           {t('youtubeUrl')}
         </Label>
         <TooltipProvider>
@@ -62,7 +62,7 @@ export function SourceYoutube({ url, onChange }: SourceYoutubeProps) {
             <TooltipTrigger asChild>
               <button
                 type="button"
-                className="rounded-full text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="creation-source-info absolute right-[48px] top-0 inline-flex size-11 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 aria-label={t('youtubeSourceInfo')}
               >
                 <Info className="size-3.5" aria-hidden="true" />
@@ -73,8 +73,6 @@ export function SourceYoutube({ url, onChange }: SourceYoutubeProps) {
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
-      </div>
-      <div className="relative mt-3">
         <Input
           id="youtube-url"
           value={url}
@@ -83,7 +81,7 @@ export function SourceYoutube({ url, onChange }: SourceYoutubeProps) {
           spellCheck={false}
           autoComplete="off"
           aria-invalid={isInvalid}
-          className={`w-full rounded-md border bg-background py-3 pl-4 pr-10 text-[13px] text-foreground placeholder:text-muted-foreground/55 transition-all outline-none focus:ring-2 ${
+          className={`min-h-11 w-full rounded-md border bg-background py-3 pl-4 pr-[96px] text-sm text-foreground placeholder:text-muted-foreground/55 transition-all outline-none focus:ring-2 ${
             isInvalid
               ? 'border-destructive/60 focus:border-destructive focus:ring-destructive/15'
               : 'border-input focus:border-primary focus:ring-primary/15'
@@ -94,7 +92,7 @@ export function SourceYoutube({ url, onChange }: SourceYoutubeProps) {
             type="button"
             onClick={() => onChange('')}
             aria-label={t('clearUrl')}
-            className="absolute right-3 top-1/2 -translate-y-1/2 rounded-md p-0.5 text-muted-foreground transition-colors hover:text-foreground"
+            className="absolute right-1 top-1/2 inline-flex size-11 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <X className="h-3.5 w-3.5" strokeWidth={1.75} />
           </button>
@@ -108,55 +106,54 @@ export function SourceYoutube({ url, onChange }: SourceYoutubeProps) {
         </p>
       )}
 
-      {videoId && (
-        <Card
-          className="mt-4 flex flex-col items-stretch gap-4 bg-muted/20 p-4 shadow-none animate-slide-up sm:flex-row sm:items-center sm:gap-5"
+      {actions}
+      {videoId ? (
+        <div
+          className="creation-video-preview"
           data-testid="youtube-preview"
         >
-          <div className="relative aspect-video w-full shrink-0 overflow-hidden rounded-sm bg-muted sm:w-44">
+          <div className="relative aspect-video w-full overflow-hidden rounded-md bg-muted">
             <Image
               src={youtubeThumbnailUrl(videoId)}
               alt=""
               fill={true}
-              sizes="(min-width: 640px) 176px, 100vw"
+              sizes="(min-width: 900px) 65vw, 100vw"
               unoptimized={true}
               className="object-cover"
             />
           </div>
           <div className="min-w-0 flex-1">
-            <span className="mb-2 inline-flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground">
-              <Youtube
-                className="h-3.5 w-3.5 text-destructive"
-                strokeWidth={1.75}
-                aria-hidden="true"
-              />
-              YouTube
-            </span>
             <p
-              className="line-clamp-2 break-words text-sm font-semibold leading-relaxed text-foreground"
+              className="line-clamp-2 break-words text-lg font-semibold leading-snug text-foreground sm:text-xl"
               title={meta?.title}
             >
               {meta?.title ?? t('videoDetected')}
             </p>
-            <p
-              className="mt-1 truncate text-xs text-muted-foreground"
-              title={meta?.author}
-            >
-              {meta?.author || `youtube.com/watch?v=${videoId}`}
-            </p>
-            <span
-              role="status"
-              className="mt-3 inline-flex max-w-full items-center gap-1.5 rounded-sm border border-success/15 bg-success/10 px-2.5 py-1 text-[11px] font-medium text-success"
-            >
-              <CheckCircle2
-                className="h-3.5 w-3.5 shrink-0"
-                strokeWidth={2}
-                aria-hidden="true"
-              />
-              {t('readyToProcess')}
-            </span>
+            <div className="creation-video-meta">
+              <p
+                className="min-w-0 truncate text-sm text-muted-foreground"
+                title={meta?.author}
+              >
+                {meta?.author || `youtube.com/watch?v=${videoId}`}
+              </p>
+              <span
+                role="status"
+                className="inline-flex max-w-full items-center gap-1.5 text-xs font-medium text-muted-foreground"
+              >
+                <CheckCircle2
+                  className="h-3.5 w-3.5 shrink-0 text-success"
+                  strokeWidth={2}
+                  aria-hidden="true"
+                />
+                {t('readyToProcess')}
+              </span>
+            </div>
           </div>
-        </Card>
+        </div>
+      ) : (
+        <div className="creation-source-empty" aria-hidden="true">
+          <Youtube className="size-9" strokeWidth={1.25} />
+        </div>
       )}
     </div>
   )

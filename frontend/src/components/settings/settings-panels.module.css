@@ -5,10 +5,10 @@
   display: none !important;
 }
 .heading {
-  margin: 0 0 34px;
-  font-size: 25px;
+  margin: 0 0 20px;
+  font-size: 20px;
   line-height: 1.25;
-  font-weight: 700;
+  font-weight: 600;
   letter-spacing: -0.035em;
 }
 .subheading {
@@ -36,10 +36,10 @@
 .input,
 .selectTrigger {
   width: 100%;
-  min-height: 45px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  background: transparent;
+  min-height: 48px;
+  border: 0;
+  border-radius: 14px;
+  background: var(--publish-secondary);
   font-size: 14px;
   box-shadow: none;
 }

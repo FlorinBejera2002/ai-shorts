@@ -3,8 +3,8 @@
 // This file provides the same values for inline styles where Tailwind can't reach.
 
 export const P = {
-  accent: "#FAFAFA",
-  borderInput: "#27272A",
-  textMuted: "#52525B",
-  white: "#FAFAFA",
+  accent: "#5B8CFF",
+  borderInput: "#2B3A52",
+  textMuted: "#6B7A92",
+  white: "#EEF3FB",
 } as const;

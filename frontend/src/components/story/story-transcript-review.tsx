@@ -1,6 +1,7 @@
 import type { StoryAsset, StoryTranscriptApproval } from './types'
 import { StoryTranscriptAsset } from './story-transcript-asset'
 import { useStoryLanguage } from './use-story-language'
+import './story-output.css'
 
 export function StoryTranscriptReview({
   assets,
@@ -22,15 +23,15 @@ export function StoryTranscriptReview({
     <section
       id="story-transcript-review"
       aria-label={text('Review transcripts', 'Verifică transcrierile')}
-      className="space-y-3 rounded-md border p-4"
+      className="story-transcript-review"
     >
-      <h3 className="text-sm font-medium">
+      <h3>
         {text('Review transcripts', 'Verifică transcrierile')}
       </h3>
-      <p className="text-sm text-muted-foreground">
+      <p className="story-output-hint">
         {text(
-          'Check the words against each recording and confirm the passages you want to use. Confirmation saves the reviewed text without starting generation or using credits. When you are ready, generate or retry the story.',
-          'Verifică textul ascultând fiecare înregistrare și confirmă pasajele dorite. Confirmarea salvează textul verificat fără să pornească generarea sau să consume credite. Când ești gata, generează povestea sau reîncearcă.'
+          'Check the recording. Confirmation saves the reviewed text without generating a video or using credits.',
+          'Verifică înregistrarea. Confirmarea salvează textul verificat fără să genereze un video sau să consume credite.'
         )}
       </p>
       {reviewable.map((asset) => (

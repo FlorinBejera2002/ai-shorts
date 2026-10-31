@@ -1,18 +1,23 @@
 .guide {
-  border-top: 1px solid var(--border);
-  border-bottom: 1px solid var(--border);
+  padding: 4px 22px;
+  border-radius: var(--publish-card-radius);
+  background: var(--publish-surface);
+  box-shadow: var(--publish-card-shadow);
 }
 .item {
   border: 0;
 }
 .trigger {
-  padding: 1.3rem 0.5rem;
-  color: var(--foreground);
-  font-size: 0.95rem;
+  min-height: 56px;
+  padding: 0;
+  color: var(--publish-text);
+  font-size: 15px;
+  font-weight: 600;
 }
 .trigger:hover {
-  color: var(--foreground);
-  background: var(--muted);
+  color: var(--publish-text);
+  background: transparent;
+  text-decoration: none;
 }
 .trigger > span {
   display: flex;

@@ -99,14 +99,14 @@ html.dark body:has(#dashboard-shell) {
 .studio-account:hover {
   border-color: var(--primary);
 }
-#dashboard-main [data-slot="card"]:not(:where([data-publish-surface] *)) {
+#dashboard-main [data-slot="card"]:not(:where([data-publish-surface] *, [data-reference-surface] *)) {
   box-shadow: none;
 }
-#dashboard-main [data-slot="card"]:not([class*="rounded-"]):not(:where([data-publish-surface] *)) {
+#dashboard-main [data-slot="card"]:not([class*="rounded-"]):not(:where([data-publish-surface] *, [data-reference-surface] *)) {
   border-radius: var(--radius-md);
 }
-#dashboard-main input:not([type="checkbox"]):not([type="radio"]):not(:where([data-publish-surface] *)),
-#dashboard-main textarea:not(:where([data-publish-surface] *)) {
+#dashboard-main input:not([type="checkbox"]):not([type="radio"]):not(:where([data-publish-surface] *, [data-reference-surface] *)),
+#dashboard-main textarea:not(:where([data-publish-surface] *, [data-reference-surface] *)) {
   background-color: var(--card);
 }
 @media (prefers-reduced-motion: reduce) {
@@ -352,11 +352,11 @@ html.dark body:has(#dashboard-shell) {
   width: 16px;
   height: 16px;
 }
-#dashboard-main [data-slot="button"]:not(:where([data-publish-surface] *)) {
+#dashboard-main [data-slot="button"]:not(:where([data-publish-surface] *, [data-reference-surface] *)) {
   border-radius: 7px;
   box-shadow: none;
 }
-#dashboard-main [data-slot="card"]:not(:where([data-publish-surface] *)) {
+#dashboard-main [data-slot="card"]:not(:where([data-publish-surface] *, [data-reference-surface] *)) {
   border-color: color-mix(in srgb, var(--border) 82%, transparent);
 }
 #dashboard-main [data-slot="table-head"] {
@@ -367,9 +367,9 @@ html.dark body:has(#dashboard-shell) {
 #dashboard-main [data-slot="table-row"] {
   transition: background-color 160ms ease;
 }
-#dashboard-main input:not(:where([data-publish-surface] *)),
-#dashboard-main textarea:not(:where([data-publish-surface] *)),
-#dashboard-main select:not(:where([data-publish-surface] *)) {
+#dashboard-main input:not(:where([data-publish-surface] *, [data-reference-surface] *)),
+#dashboard-main textarea:not(:where([data-publish-surface] *, [data-reference-surface] *)),
+#dashboard-main select:not(:where([data-publish-surface] *, [data-reference-surface] *)) {
   border-radius: 7px;
 }
 .studio-nav-item:hover svg {

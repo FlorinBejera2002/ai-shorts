@@ -192,7 +192,7 @@ const brief = page.getByRole('textbox', {
   name: 'Describe your video (optional)',
   exact: true
 })
-const build = page.getByRole('button', { name: 'Build my story', exact: true })
+const build = page.getByRole('button', { name: 'Create my clip', exact: true })
 const next = async (step) => {
   await wizard.getByRole('button', { name: 'Continue', exact: true }).click()
   await page.getByTestId(`story-step-${step}`).waitFor({ state: 'visible' })
@@ -202,7 +202,7 @@ const chooseStep = async (index) => {
   await page.getByTestId(`story-step-${index}`).waitFor({ state: 'visible' })
 }
 const upload = async () => {
-  await page.getByLabel('Upload story clips', { exact: true }).setInputFiles({
+  await page.getByLabel('Upload clips', { exact: true }).setInputFiles({
     name: 'source.mp4',
     mimeType: 'video/mp4',
     buffer: video ?? Buffer.from('synthetic clip')
@@ -350,15 +350,15 @@ try {
   if (video) {
     await page.waitForFunction(
       () =>
-        document.querySelector('video[aria-label="Story preview"]')
+        document.querySelector('video[aria-label="Clip preview"]')
           ?.readyState >= 2
     )
     await page
-      .getByLabel('Story preview', { exact: true })
+      .getByLabel('Clip preview', { exact: true })
       .evaluate((node) => node.play())
     await page.waitForFunction(
       () =>
-        document.querySelector('video[aria-label="Story preview"]')
+        document.querySelector('video[aria-label="Clip preview"]')
           ?.currentTime > 0
     )
   }
@@ -367,7 +367,7 @@ try {
     ['selective', 'Only hard-to-hear speech'],
     ['off', 'No captions']
   ]) {
-    await page.getByRole('button', { name: 'New story', exact: true }).click()
+    await page.getByRole('button', { name: 'New project', exact: true }).click()
     await upload()
     await page.getByTestId('validated-source').waitFor()
     await next(1)

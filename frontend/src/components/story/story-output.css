@@ -1,0 +1,305 @@
+.story-result,
+.story-transcript-review,
+.story-audio-comparison {
+  --primary: var(--foreground);
+  --primary-foreground: var(--background);
+  --ring: var(--foreground);
+  --accent: var(--muted);
+  --accent-foreground: var(--foreground);
+  min-width: 0;
+}
+
+.story-result {
+  display: grid;
+  gap: 1.5rem;
+  align-items: start;
+}
+
+.story-result-inspector,
+.story-result-workarea,
+.story-result-header,
+.story-result-actions {
+  display: grid;
+  min-width: 0;
+  gap: 1rem;
+}
+
+.story-result-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.story-result-heading h2,
+.story-transcript-review > h3 {
+  font-family: var(--font-display);
+  font-size: 1.125rem;
+  font-weight: 600;
+  line-height: 1.4;
+  letter-spacing: -0.025em;
+}
+
+.story-result-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--muted-foreground);
+  font-size: 0.8125rem;
+}
+
+.story-result-status > span {
+  width: 0.375rem;
+  height: 0.375rem;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.story-result-metadata {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+  padding-block: 1rem;
+  border-block: 1px solid var(--border);
+}
+
+.story-result-metadata dt {
+  margin-bottom: 0.375rem;
+  color: var(--muted-foreground);
+  font-size: 0.75rem;
+}
+
+.story-result-metadata dd {
+  font-size: 0.875rem;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+  font-variant-numeric: tabular-nums;
+}
+
+.story-result-download,
+.story-result-actions > [data-slot='button'] {
+  width: 100%;
+  min-height: 44px;
+  height: auto;
+  white-space: normal;
+  text-align: center;
+}
+
+.story-result [data-slot='button']:focus-visible,
+.story-transcript-review [data-slot='button']:focus-visible,
+.story-audio-comparison [data-slot='button']:focus-visible {
+  outline: 2px solid var(--foreground);
+  outline-offset: 3px;
+}
+
+.story-result-actions .story-result-studio {
+  border: 1px solid var(--input);
+  background: transparent;
+  color: var(--foreground);
+}
+
+.story-result-actions .story-result-studio:hover,
+.story-result-library:hover {
+  background: var(--muted);
+}
+
+.story-result-library {
+  border-top: 1px solid var(--border);
+}
+
+.story-result-help,
+.story-output-hint {
+  color: var(--muted-foreground);
+  font-size: 0.8125rem;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+.story-result-stage {
+  display: flex;
+  min-width: 0;
+  justify-content: center;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: #000;
+}
+
+.story-result-video {
+  display: block;
+  width: 100%;
+  min-height: 12rem;
+  max-height: min(72dvh, 48rem);
+  object-fit: contain;
+}
+
+.story-result-unavailable,
+.story-result-review-notice {
+  padding: 0.875rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  font-size: 0.875rem;
+  line-height: 1.6;
+}
+
+.story-result-issues {
+  display: grid;
+  gap: 0.625rem;
+  list-style: none;
+}
+
+.story-result-credits,
+.story-audio-comparison {
+  border-block: 1px solid var(--border);
+}
+
+.story-result-credits > summary,
+.story-audio-comparison > summary,
+.story-transcript-review [data-testid='transcript-asset'] > summary {
+  min-height: 44px;
+  padding-block: 0.875rem;
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+.story-result-credits > summary:focus-visible,
+.story-audio-comparison > summary:focus-visible,
+.story-transcript-review summary:focus-visible {
+  outline: 2px solid var(--foreground);
+  outline-offset: 3px;
+}
+
+.story-result-credits > section {
+  padding-bottom: 1rem;
+  border-top: 0;
+}
+
+.story-transcript-review {
+  display: grid;
+  gap: 1rem;
+}
+
+.story-transcript-review [data-testid='transcript-asset'] {
+  padding: 0;
+  border: 0;
+  border-top: 1px solid var(--border);
+  border-radius: 0;
+}
+
+.story-transcript-review [data-testid='transcript-asset'] > div {
+  margin-top: 0;
+}
+
+.story-transcript-review video {
+  max-height: min(52dvh, 28rem);
+}
+
+.story-transcript-review [data-testid='transcript-passage'] {
+  padding: 1rem;
+}
+
+.story-transcript-review [data-testid='transcript-passage'] input[type='text'] {
+  min-height: 44px;
+}
+
+.story-transcript-review [data-slot='button'],
+.story-audio-comparison [data-slot='button'] {
+  min-height: 44px;
+  height: auto;
+  white-space: normal;
+  text-align: center;
+}
+
+.story-audio-content {
+  display: grid;
+  gap: 1.25rem;
+  padding-bottom: 1.25rem;
+}
+
+.story-audio-recording {
+  display: grid;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+}
+
+.story-audio-recording select {
+  margin-top: 0;
+  min-height: 44px;
+}
+
+.story-audio-modes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.story-audio-recovery {
+  display: grid;
+  gap: 1rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--border);
+}
+
+@media (min-width: 1024px) {
+  .story-result {
+    grid-template-columns: minmax(15rem, 0.4fr) minmax(0, 1fr);
+    grid-template-rows: min-content 1fr;
+    grid-template-areas:
+      'inspector workarea'
+      'actions workarea';
+    gap: 1rem 2rem;
+  }
+
+  .story-result-inspector,
+  .story-result-actions {
+    padding-right: 1.5rem;
+    border-right: 1px solid var(--border);
+  }
+
+  .story-result-inspector {
+    grid-area: inspector;
+  }
+
+  .story-result-actions {
+    grid-area: actions;
+  }
+
+  .story-result-workarea {
+    grid-area: workarea;
+  }
+
+  .story-audio-recording {
+    grid-template-columns: 7rem minmax(0, 24rem);
+    gap: 1rem;
+  }
+}
+
+@media (max-width: 639px) {
+  .story-result {
+    gap: 1rem;
+  }
+
+  .story-result-video {
+    max-height: min(40dvh, 20rem);
+  }
+
+  .story-result-header {
+    gap: 0.75rem;
+  }
+
+  .story-result-metadata {
+    padding-block: 0.5rem;
+  }
+
+  .story-transcript-review [data-testid='transcript-passage'] {
+    padding: 0.75rem;
+  }
+
+  .story-audio-recovery [data-slot='button'] {
+    flex: 1 1 100%;
+  }
+}

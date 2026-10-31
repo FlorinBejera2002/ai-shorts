@@ -156,8 +156,8 @@ export function StoryNarration({
           {text('Your narration', 'Narațiunea ta')}
           <StoryHelp label={text('Your narration', 'Narațiunea ta')}>
             {text(
-              'Tell your story in your own voice. We match your footage to your words and keep the full narration. Your voice replaces the clip audio.',
-              'Spune povestea cu vocea ta. Potrivim imaginile cu ceea ce povestești și păstrăm întreaga narațiune. Vocea ta înlocuiește sunetul filmărilor.'
+              'Add your voice. We match your footage to your words and keep the full narration. Your voice replaces the clip audio.',
+              'Adaugă vocea ta. Potrivim imaginile cu ce spui și păstrăm întreaga narațiune. Vocea ta înlocuiește sunetul filmărilor.'
             )}
           </StoryHelp>
         </h2>

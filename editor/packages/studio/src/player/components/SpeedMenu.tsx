@@ -42,7 +42,7 @@ export const SpeedMenu = memo(function SpeedMenu({
           role="menu"
           aria-label="Playback speed options"
           className="absolute bottom-full right-0 mb-1.5 rounded-lg shadow-xl z-50 min-w-[56px] overflow-hidden"
-          style={{ background: "#161618", border: "1px solid rgba(255,255,255,0.08)" }}
+          style={{ background: "#121A27", border: "1px solid rgba(255,255,255,0.08)" }}
         >
           {SPEED_OPTIONS.map((rate) => {
             const isCurrent = rate === playbackRate;

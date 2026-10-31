@@ -15,7 +15,7 @@ export function StoryReview({
     return (
       <p
         role="status"
-        className="rounded-md border bg-muted px-3 py-2 text-sm text-foreground"
+        className="story-result-review-notice bg-muted"
         data-testid="story-review-notice"
       >
         {text(
@@ -53,13 +53,13 @@ export function StoryReview({
   }
   return (
     <ul
-      className="space-y-2"
+      className="story-result-issues"
       aria-label={text('Video issues', 'Probleme video')}
     >
       {issues.map((issue) => (
         <li
           key={issue.id}
-          className="flex flex-wrap items-center justify-between gap-2 rounded-md border px-3 py-2 text-sm"
+          className="story-result-review-notice"
           data-testid="story-review-issue"
         >
           <span>

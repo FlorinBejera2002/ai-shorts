@@ -22,6 +22,7 @@ import { StorySources } from './story-sources'
 import { StoryNarration } from './story-narration'
 import { StoryWizard, type StoryStep } from './story-wizard'
 import { StoryCreateReview } from './story-create-review'
+import { StorySourcePreview } from './story-source-preview'
 import {
   StoryProjectDelete,
   StoryProjectHeader,
@@ -81,8 +82,8 @@ function stepHint(
     )
   if (uploading && step !== 0)
     return text(
-      'Your clips are still uploading. You can keep working on your story.',
-      'Filmările încă se încarcă. Poți continua să pregătești povestea.'
+      'Your clips are still uploading. You can keep preparing your video.',
+      'Filmările încă se încarcă. Poți continua să pregătești clipul.'
     )
 }
 
@@ -94,9 +95,7 @@ export function StoryBuilder() {
   const storageKey = `sneepcut:story:${userID}`
   const requestedID = params.get('story')
   const [previousRequestedID, setPreviousRequestedID] = useState(requestedID)
-  const [id, setID] = useState(
-    () => requestedID || savedProject(storageKey)
-  )
+  const [id, setID] = useState(() => requestedID || savedProject(storageKey))
   const [incoming, setIncoming] = useState<{
     id: string
     files: File[]
@@ -188,7 +187,10 @@ export function StoryBuilder() {
         setError(
           cause instanceof Error
             ? storyProblem(cause.message, text)
-            : text('Could not create project.', 'Proiectul nu a putut fi creat.')
+            : text(
+                'Could not create project.',
+                'Proiectul nu a putut fi creat.'
+              )
         )
       })
       .finally(() => {
@@ -252,7 +254,7 @@ export function StoryBuilder() {
           onContinue={() => void createProject(retainedFiles, 1)}
           navigationDisabled={creating}
         >
-          <div data-testid="story-step-0">
+          <div className="story-step-panel" data-testid="story-step-0">
             <StorySources
               assets={[]}
               uploads={[]}
@@ -297,7 +299,7 @@ export function StoryBuilder() {
         </Card>
       ) : (
         <p role="status" className="py-10 text-sm text-muted-foreground">
-          {text('Loading your story…', 'Se încarcă povestea…')}
+          {text('Loading your project…', 'Se încarcă proiectul…')}
         </p>
       )}
     </div>
@@ -393,7 +395,9 @@ function StoryWorkspace({
     setError('')
     try {
       const signature = JSON.stringify({ path, payload })
-      const idempotent = ['/generate', '/retry', '/transcript-review'].includes(path)
+      const idempotent = ['/generate', '/retry', '/transcript-review'].includes(
+        path
+      )
       let requestID = requests.current.get(signature)
       if (idempotent && !requestID) {
         requestID = crypto.randomUUID()
@@ -534,9 +538,7 @@ function StoryWorkspace({
     project.status === 'failed' ||
     project.status === 'cancelled' ||
     project.operation_status === 'failed'
-  const retryPayload = failedOperation
-    ? storyRetryPayload(project)
-    : undefined
+  const retryPayload = failedOperation ? storyRetryPayload(project) : undefined
   const retryOperation = retryPayload
     ? () => void mutate('/retry', 'POST', retryPayload)
     : undefined
@@ -578,7 +580,10 @@ function StoryWorkspace({
       onRemove={(assetID) => void removeAsset(assetID)}
     />
   )
-  const optionsPanel = (section: 'story' | 'settings' | 'all') => (
+  const optionsPanel = (
+    section: 'story' | 'settings' | 'all',
+    workspace = false
+  ) => (
     <StoryOptionsPanel
       section={section}
       active={step === 1}
@@ -586,6 +591,9 @@ function StoryWorkspace({
       hasNarration={Boolean(narration)}
       disabled={!canEditSources || narrationPending}
       onChange={changeOptions}
+      workspace={workspace}
+      preview={<StorySourcePreview assets={videos} />}
+      narration={narrationPanel}
     />
   )
 
@@ -609,17 +617,6 @@ function StoryWorkspace({
       {version && <StoryResult project={project} version={version} />}
       {!version && (
         <>
-          <StoryTranscriptReview
-            assets={assets}
-            disabled={active || busy}
-            onApprove={(reviews) =>
-              mutate('/transcript-review', 'POST', {
-                version: project.current_version,
-                expected_state: project.expected_state,
-                reviews
-              })
-            }
-          />
           <StoryAudioComparison
             assets={assets}
             enabled={Boolean(project.options.audio_cleanup?.enabled)}
@@ -639,18 +636,25 @@ function StoryWorkspace({
           continueDisabled={step === 1 && narrationMissing}
           navigationHint={navigationHint}
         >
-          <div hidden={step !== 0} data-testid="story-step-0">
+          <div
+            className="story-step-panel"
+            hidden={step !== 0}
+            data-testid="story-step-0"
+          >
             {sourcesPanel}
           </div>
           <div
             hidden={step !== 1}
             data-testid="story-step-1"
-            className="story-audio-layout"
+            className="story-step-panel"
           >
-            {optionsPanel('all')}
-            {narrationPanel}
+            {optionsPanel('all', true)}
           </div>
-          <div hidden={step !== 2} data-testid="story-step-2">
+          <div
+            className="story-step-panel"
+            hidden={step !== 2}
+            data-testid="story-step-2"
+          >
             <StoryCreateReview
               options={options}
               videos={videos}
@@ -664,17 +668,38 @@ function StoryWorkspace({
           </div>
         </StoryWizard>
       ) : (
-        <details className="w-full border-t">
+        <details className="story-original-settings w-full border-t">
           <summary className="cursor-pointer py-4 text-sm font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground">
             {text('Original files and settings', 'Fișiere originale și setări')}
           </summary>
           <div className="space-y-6 pb-4">
             {sourcesPanel}
-            {narrationPanel}
             {optionsPanel('all')}
           </div>
         </details>
       )}
+      {!version &&
+        assets.some((asset) => asset.transcript_proposals?.length) && (
+          <details
+            className="story-transcript-disclosure border-t"
+            data-testid="story-transcript-disclosure"
+          >
+            <summary className="cursor-pointer py-3 text-sm font-medium">
+              {text('Review transcripts', 'Verifică transcrierile')}
+            </summary>
+            <StoryTranscriptReview
+              assets={assets}
+              disabled={active || busy}
+              onApprove={(reviews) =>
+                mutate('/transcript-review', 'POST', {
+                  version: project.current_version,
+                  expected_state: project.expected_state,
+                  reviews
+                })
+              }
+            />
+          </details>
+        )}
       {!active && (
         <StoryProjectDelete
           disabled={busy || mediaPending}

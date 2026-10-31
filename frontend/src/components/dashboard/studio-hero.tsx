@@ -13,20 +13,20 @@ export function StudioHero() {
       <h1 className={styles.title}>{nav('home')}</h1>
       <div className={styles.headerActions}>
         <Link
-          href="/dashboard/create"
-          className={styles.primaryAction}
-          data-home-new-clip=""
-        >
-          <Plus aria-hidden="true" />
-          {t('newClip')}
-        </Link>
-        <Link
           href="/dashboard/clips"
           className={styles.libraryLink}
           data-home-open-library=""
         >
           {t('openLibrary')}
           <ArrowRight aria-hidden="true" />
+        </Link>
+        <Link
+          href="/dashboard/create"
+          className={styles.primaryAction}
+          data-home-new-clip=""
+        >
+          <Plus aria-hidden="true" />
+          {t('newClip')}
         </Link>
       </div>
     </header>

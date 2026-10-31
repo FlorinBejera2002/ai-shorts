@@ -3,5 +3,5 @@
 import { WorkspaceMobileHeader } from '@/components/dashboard/workspace-mobile-header'
 
 export function CalendarMobileHeader() {
-  return <WorkspaceMobileHeader />
+  return <WorkspaceMobileHeader variant="menu" />
 }

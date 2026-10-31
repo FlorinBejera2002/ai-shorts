@@ -1,12 +1,14 @@
 .history {
-  padding-top: 2rem;
-  border-top: 1px solid var(--border);
   min-width: 0;
+  padding: 22px;
+  border-radius: var(--publish-card-radius);
+  background: var(--publish-surface);
+  box-shadow: var(--publish-card-shadow);
 }
 .history h2 {
-  margin: 0 0 1.75rem;
-  font-size: 1.35rem;
-  font-weight: 650;
+  margin: 0 0 14px;
+  font-size: 20px;
+  font-weight: 600;
 }
 .table {
   width: 100%;
@@ -20,9 +22,19 @@
   border-bottom: 1px solid var(--border);
 }
 .table thead th {
-  color: var(--muted-foreground);
-  font-size: 0.8rem;
-  font-weight: 500;
+  background: var(--publish-secondary);
+  color: var(--publish-muted-text);
+  font-size: 12px;
+  font-weight: 600;
+}
+.table thead th:first-child {
+  border-radius: 14px 0 0 14px;
+}
+.table thead th:last-child {
+  border-radius: 0 14px 14px 0;
+}
+.table thead th {
+  border-bottom: 0;
 }
 .table tbody th {
   font-weight: 500;
@@ -38,10 +50,13 @@
 .status {
   display: inline-flex;
   align-items: center;
-  gap: 0.55rem;
-  padding: 0.35rem 0.65rem;
-  border-radius: var(--radius-sm);
-  background: var(--muted);
+  gap: 6px;
+  min-height: 26px;
+  padding: 0 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  background: var(--publish-secondary);
   color: var(--foreground);
   white-space: nowrap;
 }
@@ -52,21 +67,22 @@
   background: var(--muted-foreground);
 }
 .status[data-status='paid'] {
-  background: color-mix(in oklch, var(--success) 12%, transparent);
+  color: var(--publish-success);
+  background: var(--publish-success-bg);
 }
 .status[data-status='paid'] > span {
   background: var(--success);
 }
 .status[data-status='open'] {
-  color: var(--warning);
-  background: color-mix(in oklch, var(--warning) 12%, transparent);
+  color: var(--publish-warning);
+  background: var(--publish-warning-bg);
 }
 .status[data-status='open'] > span {
   background: var(--warning);
 }
 .status[data-status='uncollectible'] {
-  color: var(--destructive);
-  background: color-mix(in oklch, var(--destructive) 12%, transparent);
+  color: var(--publish-danger);
+  background: var(--publish-danger-bg);
 }
 .status[data-status='uncollectible'] > span {
   background: var(--destructive);
@@ -82,14 +98,17 @@
   justify-content: center;
   gap: 0.65rem;
   min-width: 2.5rem;
-  min-height: 2.5rem;
-  padding: 0.35rem 0.5rem;
-  border-radius: var(--radius-md);
-  color: var(--foreground);
+  min-height: 36px;
+  padding: 0 14px;
+  border-radius: 999px;
+  background: var(--publish-secondary);
+  color: var(--publish-text);
+  font-size: 13px;
+  font-weight: 600;
   transition: background 0.15s;
 }
 .actions a:hover {
-  background: var(--muted);
+  background: var(--publish-hover);
 }
 .actions a:focus-visible,
 .viewAll:focus-visible {
@@ -108,14 +127,16 @@
   justify-content: space-between;
   align-items: center;
   width: 100%;
-  padding: 1.1rem 0.3rem;
-  font-size: 0.9rem;
-  border-bottom: 1px solid var(--border);
-  border-radius: var(--radius-md);
+  padding: 14px 4px 0;
+  color: var(--publish-primary);
+  font-size: 14px;
+  font-weight: 600;
+  border-bottom: 0;
+  border-radius: 12px;
   text-align: left;
 }
 .viewAll:hover {
-  background: var(--muted);
+  color: var(--publish-primary-hover);
 }
 .viewAll svg {
   width: 1.1rem;
@@ -157,13 +178,18 @@
   gap: 1rem;
   padding: 1rem;
   margin-bottom: 1rem;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  background: var(--muted);
+  border: 0;
+  border-radius: 16px;
+  background: var(--publish-warning-bg);
+}
+.empty > svg {
+  padding: 12px;
+  border-radius: 16px;
+  background: var(--publish-secondary);
 }
 @media (max-width: 767px) {
   .history {
-    padding-top: 1.4rem;
+    padding: 16px 18px;
   }
   .history h2 {
     margin-bottom: 1.2rem;
