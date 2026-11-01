@@ -18,6 +18,7 @@ PRODUCTION_DEPLOY := ./scripts/deploy.sh
 
 .PHONY: storage storage-check clean-cache-plan clean-cache test-storage
 .PHONY: seaweed-up test-s3
+.PHONY: ensure-runtime runtime-migrate test-runtime
 
 help: ## Show available commands
 	@awk 'BEGIN {FS = ":.*## "; printf "Usage: make <target>\n\nTargets:\n"} /^[a-zA-Z0-9_-]+:.*## / {printf "  %-18s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -35,24 +36,33 @@ doctor: ## Check required local tools
 ensure-env: ## Create .env from .env.example when missing
 	@node scripts/ensure-env.mjs
 
-setup: ensure-env ## Build, start, and verify the default stack
+ensure-runtime: ensure-env ## Prepare the host-visible runtime directories
+	@node scripts/runtime-storage.mjs init
+
+runtime-migrate: ensure-env ## Copy and verify legacy runtime volumes; stop file writers
+	@node scripts/runtime-storage.mjs migrate
+
+test-runtime: ## Test runtime path safety and real Docker volume copying
+	@node --test scripts/tests/runtime-storage.test.mjs
+
+setup: ensure-runtime ## Build, start, and verify the default stack
 	@$(COMPOSE) up --build -d
 	@$(MAKE) health
 
-up: ensure-env ## Build and start the default stack in the background
+up: ensure-runtime ## Build and start the default stack in the background
 	@$(COMPOSE) up --build -d
 
-dev: ensure-env ## Switch to the hot-reload development stack in the foreground
+dev: ensure-runtime ## Switch to the hot-reload development stack in the foreground
 	@$(DEV_COMPOSE) up --build --watch
 
-dev-up: ensure-env ## Switch to the hot-reload development stack in the background
+dev-up: ensure-runtime ## Switch to the hot-reload development stack in the background
 	@$(DEV_COMPOSE) up --build -d
 	@echo "Frontend hot reload is active. Run make dev-watch for Go reload."
 
 dev-watch: ## Watch Go changes after make dev-up (keep this terminal open)
 	@$(DEV_COMPOSE) watch --no-up
 
-seaweed-up: ensure-env ## Start only the local development S3 service
+seaweed-up: ensure-runtime ## Start only the local development S3 service
 	@$(DEV_COMPOSE) up -d --wait --no-deps seaweedfs
 
 test-s3: ## Test the real media storage adapter against local SeaweedFS
@@ -114,7 +124,7 @@ redis-shell: ## Open redis-cli in the running Redis container
 migrate: ensure-env ## Apply pending Go migrations
 	@$(COMPOSE) run --rm migrate
 
-security-up: ensure-env ## Start the stack with ClamAV upload scanning available
+security-up: ensure-runtime ## Start the stack with ClamAV upload scanning available
 	@$(COMPOSE) --profile security up --build -d
 
 install: ## Install locked frontend dependencies

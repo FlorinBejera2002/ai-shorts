@@ -26,7 +26,8 @@ services:
         aliases: ["s3.localhost"]
     volumes:
       # The image also keeps filer metadata under /data/filerldb2.
-      - seaweedfs_data:/data
+      - ${SNEEPCUT_RUNTIME_ROOT:-../ai-shorts-runtime}/seaweedfs:/data
+      - ${SNEEPCUT_RUNTIME_ROOT:-../ai-shorts-runtime}/tmp/seaweedfs:/tmp
     healthcheck:
       test:
         - CMD-SHELL
@@ -73,14 +74,12 @@ services:
     entrypoint: []
     read_only: false
     user: "10001:10001"
-    tmpfs:
-      - /tmp:uid=10001,gid=10001,mode=1770,exec
     environment:
       GOCACHE: /src/.cache/go-build
       GOFLAGS: -p=1
       GOMAXPROCS: "2"
     volumes:
-      - media_data:/app/media
+      - ${SNEEPCUT_RUNTIME_ROOT:-../ai-shorts-runtime}/cache/go-build:/src/.cache/go-build
     develop:
       watch:
         - action: sync+restart
@@ -114,6 +113,7 @@ services:
       - ./frontend/src:/app/src
       - ./frontend/public:/app/public
       - ./frontend/messages:/app/messages
+      - ${SNEEPCUT_RUNTIME_ROOT:-../ai-shorts-runtime}/cache/frontend:/app/node_modules/.vite
     ports:
       - "127.0.0.1:${FRONTEND_HOST_PORT:-3001}:80"
 
@@ -128,6 +128,7 @@ services:
     volumes:
       - ./admin/src:/app/src
       - ./admin/index.html:/app/index.html
+      - ${SNEEPCUT_RUNTIME_ROOT:-../ai-shorts-runtime}/cache/admin:/app/node_modules/.vite
     ports:
       - "127.0.0.1:${ADMIN_HOST_PORT:-3002}:8080"
     read_only: false
@@ -141,6 +142,3 @@ services:
       backend:
         condition: service_started
         restart: true
-
-volumes:
-  seaweedfs_data:

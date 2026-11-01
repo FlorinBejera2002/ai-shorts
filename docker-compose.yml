@@ -74,9 +74,8 @@ services:
       migrate:
         condition: service_completed_successfully
     volumes:
-      - media_data:/app/media
-    tmpfs:
-      - /tmp:uid=10001,gid=10001,mode=1770
+      - ${SNEEPCUT_RUNTIME_ROOT:-../ai-shorts-runtime}/media:/app/media
+      - ${SNEEPCUT_RUNTIME_ROOT:-../ai-shorts-runtime}/tmp/backend:/tmp
     expose:
       - "8080"
     read_only: true
@@ -113,9 +112,8 @@ services:
       nginx:
         condition: service_healthy
     volumes:
-      - media_data:/app/media
-    tmpfs:
-      - /tmp:uid=10001,gid=10001,mode=1770
+      - ${SNEEPCUT_RUNTIME_ROOT:-../ai-shorts-runtime}/media:/app/media
+      - ${SNEEPCUT_RUNTIME_ROOT:-../ai-shorts-runtime}/tmp/worker:/tmp
     read_only: true
     user: '10001:10001'
     security_opt: ['no-new-privileges:true']
@@ -156,9 +154,9 @@ services:
     ports:
       - "127.0.0.1:${STUDIO_HOST_PORT:-5191}:5191"
     volumes:
-      - studio_data:/data
+      - ${SNEEPCUT_RUNTIME_ROOT:-../ai-shorts-runtime}/studio:/data
+      - ${SNEEPCUT_RUNTIME_ROOT:-../ai-shorts-runtime}/tmp/studio:/tmp
     shm_size: 1gb
-    tmpfs: ["/tmp:size=3g,uid=1000,gid=1000,mode=1770"]
     read_only: true
     user: "1000:1000"
     cap_drop: ["ALL"]
@@ -192,6 +190,8 @@ services:
         condition: service_healthy
     expose:
       - "80"
+    volumes:
+      - ${SNEEPCUT_RUNTIME_ROOT:-../ai-shorts-runtime}/tmp/frontend:/tmp
 
   admin:
     build: ./admin
@@ -201,8 +201,8 @@ services:
     ports:
       - "127.0.0.1:${ADMIN_HOST_PORT:-3002}:8080"
     read_only: true
-    tmpfs:
-      - /tmp:uid=10001,gid=10001,mode=1770
+    volumes:
+      - ${SNEEPCUT_RUNTIME_ROOT:-../ai-shorts-runtime}/tmp/admin:/tmp
     security_opt: ["no-new-privileges:true"]
     cap_drop: ["ALL"]
     restart: unless-stopped
@@ -210,14 +210,13 @@ services:
   nginx:
     image: nginx:alpine
     user: "10001:10001"
-    tmpfs:
-      - /tmp:uid=10001,gid=10001,mode=1770
     ports:
       - "80:80"
       - "127.0.0.1:3000:80"
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - media_data:/app/media:ro
+      - ${SNEEPCUT_RUNTIME_ROOT:-../ai-shorts-runtime}/media:/app/media:ro
+      - ${SNEEPCUT_RUNTIME_ROOT:-../ai-shorts-runtime}/tmp/nginx:/tmp
     depends_on:
       - frontend
       - backend
@@ -229,6 +228,4 @@ services:
 
 volumes:
   postgres_data:
-  media_data:
   clamav_data:
-  studio_data:

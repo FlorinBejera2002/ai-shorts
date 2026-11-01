@@ -197,7 +197,7 @@ make down
 
 The development Compose overlay includes a pinned SeaweedFS image in the same
 Docker project as the app. It provides an authenticated, private, unversioned
-S3 bucket backed by the `seaweedfs_data` volume. Production Compose uses the
+S3 bucket backed by the runtime root's `seaweedfs/` directory. Production Compose uses the
 configured external object store and does not include SeaweedFS.
 
 ```sh
@@ -276,18 +276,45 @@ and [private presigned URL guidance](https://docs.hetzner.com/storage/object-sto
 
 ### Local runtime directory layout
 
-A common parent such as `/data/sneepcut/` can group `studio/`, `cache/` and
-`tmp/`, while each child remains a separate mount with its own retention policy.
-Keep scratch files in the dedicated `tmp/` child, never mixed with saved project
-files. `TMPDIR`, `PROCESSING_TEMP_DIR` and `UPLOAD_STAGING_DIR` cover Go processing
-and upload staging; Studio also has sandbox assumptions about `/tmp` that must
-be updated and tested before relocating its scratch directory.
+Local Compose stores application files under `SNEEPCUT_RUNTIME_ROOT`, defaulting
+to `../ai-shorts-runtime` beside the checkout. It is a normal host directory you
+can inspect in Finder. Keep this root outside the checkout and disposable caches.
 
-Persistent object-store data and current Studio state must not be put under
-the repository's disposable `.cache/tmp/`. A large rendering scratch directory
-can use a disposable disk volume rather than RAM-backed tmpfs. Moving the
-existing roots needs its own migration; this setup adds SeaweedFS without
-relocating existing media, Studio projects or scratch mounts.
+| Directory | Contents |
+| --- | --- |
+| `media/` | Local media assets, shared by the API, worker and Nginx |
+| `studio/` | Saved Studio projects and composition revisions |
+| `seaweedfs/` | Complete local object-store data and metadata; manage objects through S3 |
+| `tmp/<service>/` | Disposable processing, upload, rendering and server scratch files |
+| `cache/` | Regenerable Go and Vite development caches |
+
+For an existing checkout, run this once before restarting the stack:
+
+```sh
+make runtime-migrate # Stops file writers, copies legacy volumes, verifies every file
+make dev-up
+make health
+```
+
+Migration verifies filenames, file hashes and symbolic-link targets before
+marking the destination ready. It refuses to overwrite a nonempty unmarked
+directory. If interrupted, inspect the partial destination before retrying;
+the original named volumes remain intact. They are detached on the next start
+and are never automatically deleted. Fresh installs initialize the directories
+through `make setup` or `make dev-up`. `make test-runtime` uses a disposable Docker
+volume to verify copying and path safety.
+
+Paths inside containers stay `/app/media`, `/data` and `/tmp`, so saved references
+and Studio sandbox paths keep working. Temp files now use host disk instead of
+the previous RAM-backed tmpfs; each service has its own directory and permissions.
+Studio's isolated render sandbox still has a private in-memory `/tmp`; its staged
+inputs and outputs live under `tmp/studio/`. Old scratch files and caches are
+disposable and are regenerated. Stop the relevant service before clearing its
+scratch/cache directory; never treat `media/`, `studio/` or `seaweedfs/` as caches.
+
+PostgreSQL, Redis and optional ClamAV keep their existing Docker-managed storage.
+Production Compose remains separate and unchanged. This relocation does not
+upload media or Studio state to S3, or switch the application from `STORAGE_TYPE=local`.
 
 ## Common commands
 
