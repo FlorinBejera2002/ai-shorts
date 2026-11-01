@@ -255,7 +255,10 @@ export interface SandboxJobCompletion {
   settled: Promise<void>;
 }
 
-export function startSandboxRender(options: RenderOptions): RenderJobState & SandboxJobCompletion {
+export function startSandboxRender(
+  options: RenderOptions,
+  persist?: () => Promise<void>,
+): RenderJobState & SandboxJobCompletion {
   const startedAt = Date.now();
   const controller = new AbortController();
   const state: RenderJobState = {
@@ -287,6 +290,7 @@ export function startSandboxRender(options: RenderOptions): RenderJobState & San
         state.status = "cancelled";
         return;
       }
+      await persist?.();
       state.status = "complete";
       state.progress = 100;
     } catch (error) {
@@ -303,6 +307,7 @@ export async function sandboxThumbnail(options: ThumbnailOptions): Promise<Buffe
 
 export function startSandboxBackgroundRemoval(
   options: BackgroundOptions,
+  persist?: () => Promise<void>,
 ): MediaProcessingJobState & SandboxJobCompletion {
   const controller = new AbortController();
   const state: MediaProcessingJobState = {
@@ -332,6 +337,7 @@ export function startSandboxBackgroundRemoval(
       await writeFile(options.outputPath, result.main);
       if (options.backgroundOutputPath && result.background)
         await writeFile(options.backgroundOutputPath, result.background);
+      await persist?.();
       state.status = "complete";
       state.progress = 100;
     } catch (error) {

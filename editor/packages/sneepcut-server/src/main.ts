@@ -3,11 +3,11 @@ import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { getMimeType } from "@hyperframes/studio-server";
 import { createApp, normalizeAppOrigin } from "./app";
-import { ProjectStore } from "./store";
 import { createUserRuntime } from "./runtime";
 import { initializeProject } from "./starter";
 import { createClipImporter } from "./clip-import";
-import { CompositionStore } from "./composition-store";
+import { configuredStateStores } from "./state-stores";
+import { verifyStateObjectConditions } from "./state-objects";
 import { createCompositionService } from "./composition-service";
 import { HTTPException } from "hono/http-exception";
 import { enableStudioSessionRenewal } from "./session-recovery";
@@ -23,10 +23,10 @@ const additionalAppOrigins = (process.env.SNEEPCUT_APP_ADDITIONAL_ORIGINS ?? "")
   .filter(Boolean)
   .map(normalizeAppOrigin);
 const frameAncestors = [...new Set([appOrigin, ...additionalAppOrigins])].join(" ");
-const store = new ProjectStore(
+const { store, compositions, agentReceipts, ownerAssets, objects, prefix } = configuredStateStores(
   process.env.SNEEPCUT_STUDIO_DATA ?? resolve(directory, "../../../data/sneepcut"),
 );
-const compositions = new CompositionStore(`${store.root}-compositions`);
+if (objects) await verifyStateObjectConditions(objects, prefix);
 const runtimes = new Map<string, ReturnType<typeof createUserRuntime>>();
 const runtimeGenerations = new Map<string, number>();
 const closingOwners = new Set<string>();
@@ -37,6 +37,7 @@ const app = createApp({
   authBaseUrl: process.env.SNEEPCUT_AUTH_BASE_URL ?? "http://localhost:8080",
   agentSecret: process.env.STUDIO_AGENT_SECRET,
   store,
+  agentReceipts,
   studioApiGeneration: (owner) => runtimeGenerations.get(owner) ?? 0,
   compositionService: createCompositionService({
     store: compositions,
@@ -47,6 +48,10 @@ const app = createApp({
     async closeOwner(owner) {
       closingOwners.add(owner);
       await runtimes.get(owner)?.close();
+      if (await store.ownerDisabled(owner)) {
+        await agentReceipts?.removeOwner(owner);
+        await ownerAssets?.removeOwner(owner);
+      }
       return () => {
         runtimes.delete(owner);
         runtimeGenerations.set(owner, (runtimeGenerations.get(owner) ?? 0) + 1);
@@ -74,7 +79,7 @@ const app = createApp({
       throw new HTTPException(410, { message: "Studio cleanup in progress" });
     let runtime = runtimes.get(user.id);
     if (!runtime) {
-      runtime = createUserRuntime(user.id, store);
+      runtime = createUserRuntime(user.id, store, ownerAssets);
       runtimes.set(user.id, runtime);
     }
     return runtime.api;

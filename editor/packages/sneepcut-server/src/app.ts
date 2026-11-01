@@ -21,6 +21,7 @@ export interface EditorAppOptions {
   editorOrigin: string;
   authBaseUrl: string;
   store: ProjectStore;
+  agentReceipts?: ProjectStore;
   createStudioApiForUser: (user: EditorUser) => Hono | Promise<Hono>;
   studioApiGeneration?: (owner: string) => number;
   initializeProject?: (project: StoredProject) => Promise<void>;
@@ -76,6 +77,7 @@ export function createApp(options: EditorAppOptions) {
   const bridge = createAgentBridge({
     secret: options.agentSecret,
     store: options.store,
+    receipts: options.agentReceipts,
     now: options.now,
     api: (user) => userApi({ id: user, name: null }),
     initialize: async (project) => {
@@ -174,7 +176,7 @@ export function createApp(options: EditorAppOptions) {
     }),
   );
   app.get("/sneepcut/projects", async (c) =>
-    c.json({ projects: (await options.store.list(c.get("user").id)).map(publicProject) }),
+    c.json({ projects: (await options.store.catalog(c.get("user").id)).map(publicProject) }),
   );
   app.post("/sneepcut/workspace", async (c) =>
     c.json({ project: publicProject(await openEmptyWorkspace(options.store, c.get("user").id)) }),

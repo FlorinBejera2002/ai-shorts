@@ -42,6 +42,18 @@ metadata is synthetic; its signed download, bytes, thumbnail and MP4 are real.
 No model-provider or publishing calls run. Test schemas, synthetic objects,
 projects and scratch files are cleaned automatically.
 
+### Durable Studio S3 state
+
+After `make studio-s3-up`, run `make test-studio-s3`. It requires the running
+local SeaweedFS and Studio containers; no paid bucket, database mutation or model
+provider is needed. Random synthetic prefixes and temporary directories are
+cleaned in `finally`. The suite checks private HTTP saves, stale-edit rejection,
+a real sandbox MP4 and thumbnail, complete working-copy loss, restored source
+and export bytes, composition history, agent receipts, deletion fences, and
+publication/regeneration across independent server instances. Composition
+regeneration uses a synthetic renderer to isolate state transitions; the first
+scenario runs the real isolated renderer.
+
 ## Browser verification
 
 Use mocked APIs or a synthetic account backed by an isolated database. Read the specific runner in `frontend/tests/*.browser.mjs` for its environment variables, Playwright module, origin and media prerequisites; do not reuse old Next.js/Auth.js setup commands.

@@ -260,9 +260,37 @@ the original signed `Host`, path and query. This optional internal override is
 unnecessary when the public provider hostname is reachable normally.
 
 Starting SeaweedFS alone does not change `STORAGE_TYPE`; use `make media-s3-up`
-for that transition. Studio's durable projects/compositions remain filesystem-backed
-until its persistence layer is migrated; the media S3 adapter alone does not make
-those directories disposable.
+for that transition. To move Studio's durable state too, run:
+
+```sh
+make studio-s3-up
+make test-studio-s3
+```
+
+This stops Studio, imports and downloads/verifies existing projects, compositions,
+agent receipts and reusable assets, retains the originals, then enables
+`SNEEPCUT_STUDIO_STORAGE=s3`. It uses the same private bucket under `studio/v1`;
+`SNEEPCUT_STUDIO_S3_ENDPOINT=http://seaweedfs:8333` is the local server transport.
+On production, use the provider endpoint and provision credentials separately.
+No production deployment or bucket purchase is performed by these commands.
+
+Studio stores immutable file blobs and revision manifests, then conditionally
+updates each project's current revision. Saves wait for this commit; competing
+servers receive a conflict instead of overwriting saved edits. A startup probe
+requires both `If-None-Match` and `If-Match` support. Restoring a working copy
+checks every file's SHA-256. Project lists read small heads without downloading
+every project's media. Composition baselines, export files, accepted workspace
+heads, agent undo receipts and deletion fences are durable too. Running render
+jobs remain disposable; interrupted jobs can be retried from their saved sources.
+
+With S3 enabled, only `studio/projects-cache/`,
+`studio/projects-compositions-cache/`, `studio/projects-agent-receipts-cache/`
+and `studio/projects-owner-assets-cache/` are disposable working copies. Stop
+Studio before clearing them. The legacy `studio/projects/` and
+`studio/projects-compositions/` originals remain valuable migration sources;
+do not remove the whole `studio/` directory. S3 revision history needs an explicit
+retention/garbage-collection policy before production growth; it is separate
+from provider backups and bucket versioning.
 
 For real application verification, run `make test-media-s3` with
 `PLAYWRIGHT_MODULE=/absolute/path/to/playwright/index.mjs`. It requires Chrome,
@@ -314,7 +342,7 @@ can inspect in Finder. Keep this root outside the checkout and disposable caches
 | Directory | Contents |
 | --- | --- |
 | `media/` | Local media assets, shared by the API, worker and Nginx |
-| `studio/` | Saved Studio projects and composition revisions |
+| `studio/` | Legacy originals plus Studio working copies; see the S3 cutover above |
 | `seaweedfs/` | Complete local object-store data and metadata; manage objects through S3 |
 | `tmp/<service>/` | Disposable processing, upload, rendering and server scratch files |
 | `cache/` | Regenerable Go and Vite development caches |

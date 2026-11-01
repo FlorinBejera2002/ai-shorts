@@ -109,6 +109,7 @@ services:
     # Keep server changes testable without rebuilding the bundled Studio UI.
     volumes:
       - ./editor/packages/sneepcut-server/src:/app/packages/sneepcut-server/src:ro
+      - ./editor/packages/sneepcut-server/tsconfig.json:/app/packages/sneepcut-server/tsconfig.json:ro
 
   frontend:
     build:

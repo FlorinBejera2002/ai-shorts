@@ -20,6 +20,7 @@ import { parseHTML } from "linkedom";
 import { withWorkspace, trackWorkspaceWrite, workspaceFileIncluded } from "./workspace";
 import { isUUID } from "./store";
 import { RuntimeLifecycle } from "./runtime-lifecycle";
+import { OWNER_ASSETS_ID } from "./state-stores";
 
 /** Preview-only transport; persisted HTML and the renderer always keep originals. */
 export function canonicalPreviewSources(html: string): string {
@@ -42,15 +43,17 @@ export function canonicalPreviewSources(html: string): string {
 }
 
 /** Keep the complete upstream editor API, with a separate API/job store per account. */
-export function createUserRuntime(userId: string, store: ProjectStore) {
+export function createUserRuntime(userId: string, store: ProjectStore, ownerAssets?: ProjectStore) {
   const lifecycle = new RuntimeLifecycle();
   const projects = new Map<string, StudioServer>();
   const projectDirectories = new Map<string, string>();
+  const renderJobs = new Map<string, ReturnType<typeof startSandboxRender>>();
   const listeners = new Set<(event: unknown) => void>();
   function runtime(project: ResolvedProject): StudioServer {
     lifecycle.ensureOpen();
     const existing = projects.get(project.id);
-    if (existing && projectDirectories.get(project.id) === project.dir) return existing;
+    const identity = `${project.dir}:${"cacheKey" in project ? project.cacheKey : ""}`;
+    if (existing && projectDirectories.get(project.id) === identity) return existing;
     existing?.watcher.close();
     const server = createStudioServer({ projectDir: project.dir, projectName: project.id });
     server.watcher.addListener((path) => {
@@ -72,17 +75,18 @@ export function createUserRuntime(userId: string, store: ProjectStore) {
       for (const listener of listeners) listener(receipt ?? { path, projectId: project.id });
     });
     projects.set(project.id, server);
-    projectDirectories.set(project.id, project.dir);
+    projectDirectories.set(project.id, identity);
     return server;
   }
   async function byDirectory(dir: string) {
-    const project = (await store.list(userId)).find((entry) => entry.dir === dir);
+    const entry = (await store.catalog(userId)).find((entry) => entry.dir === dir);
+    const project = entry ? await store.resolve(userId, entry.id) : null;
     if (!project) throw new Error("Project not found");
     return runtime(project).adapter;
   }
   const adapter: StudioApiAdapter = {
     lifecycleSignal: lifecycle.signal,
-    listProjects: () => store.list(userId),
+    listProjects: () => store.catalog(userId),
     async resolveProject(id) {
       const project = await store.resolve(userId, id);
       if (project) runtime(project);
@@ -107,13 +111,19 @@ export function createUserRuntime(userId: string, store: ProjectStore) {
     rendersDir: (project) => join(project.dir, "renders"),
     startRender(options) {
       lifecycle.ensureOpen();
-      const job = lifecycle.trackJob(startSandboxRender(options));
+      const job = lifecycle.trackJob(
+        startSandboxRender(options, store.checkpoint(userId, options.project.id)),
+      );
+      renderJobs.set(options.jobId, job);
+      void job.settled.finally(() => renderJobs.delete(options.jobId)).catch(() => {});
       trackWorkspaceWrite(userId, options.project.id, job.settled);
       return job;
     },
     startBackgroundRemoval(options) {
       lifecycle.ensureOpen();
-      const job = lifecycle.trackJob(startSandboxBackgroundRemoval(options));
+      const job = lifecycle.trackJob(
+        startSandboxBackgroundRemoval(options, store.checkpoint(userId, options.project.id)),
+      );
       trackWorkspaceWrite(userId, options.project.id, job.settled);
       return job;
     },
@@ -137,9 +147,22 @@ export function createUserRuntime(userId: string, store: ProjectStore) {
   };
   const api = new Hono();
   api.use("*", async (c, next) => {
-    const id = /^\/projects\/([^/]+)(?:\/|$)/.exec(c.req.path)?.[1];
+    const renderMutation =
+      c.req.method === "DELETE"
+        ? /^\/render\/([^/]+)$/.exec(c.req.path)?.[1]
+        : c.req.method === "POST"
+          ? /^\/render\/([^/]+)\/cancel$/.exec(c.req.path)?.[1]
+          : undefined;
+    const renderProject =
+      renderMutation &&
+      /^([a-f0-9-]{36})_\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}(?:_[a-f0-9-]{36})?$/i.exec(
+        renderMutation,
+      )?.[1];
+    const id = /^\/projects\/([^/]+)(?:\/|$)/.exec(c.req.path)?.[1] || renderProject;
     if (!id) return next();
     if (!isUUID(id)) return c.json({ error: "Invalid project identifier" }, 400);
+    // Abort before joining the workspace gate, which drains the renderer's writes.
+    if (renderMutation) renderJobs.get(renderMutation)?.cancel();
     // Legacy projects can still have their private container at the project root.
     // New generations live below it, but neither layout exposes its head controls.
     const privatePath = (value: string) =>
@@ -174,7 +197,15 @@ export function createUserRuntime(userId: string, store: ProjectStore) {
         .catch(() => null);
       if (containsPrivatePath(body)) return c.json({ error: "Private project metadata" }, 403);
     }
-    return withWorkspace(userId, id, next);
+    return withWorkspace(userId, id, async () => {
+      if (renderMutation && !(await store.resolve(userId, id)))
+        return c.json({ error: "not found" }, 404);
+      await next();
+      if (!["GET", "HEAD", "OPTIONS"].includes(c.req.method)) {
+        if (c.res.ok) await store.save(userId, id);
+        else store.discard(userId, id);
+      }
+    });
   });
   api.use("*", async (c, next) => {
     const release = lifecycle.admitRequest();
@@ -200,11 +231,14 @@ export function createUserRuntime(userId: string, store: ProjectStore) {
       : c.notFound();
   });
   api.get("/projects", async (c) =>
-    c.json({ projects: (await store.list(userId)).map(({ id, title }) => ({ id, title })) }),
+    c.json({ projects: (await store.catalog(userId)).map(({ id, title }) => ({ id, title })) }),
   );
-  api.get("/assets/global", async (c) =>
-    c.json({ assets: readGlobalAssets(await store.userHome(userId)).map(toPublicAsset) }),
-  );
+  api.get("/assets/global", async (c) => {
+    const directory = ownerAssets
+      ? (await ownerAssets.resolve(userId, OWNER_ASSETS_ID))?.dir
+      : await store.userHome(userId);
+    return c.json({ assets: directory ? readGlobalAssets(directory).map(toPublicAsset) : [] });
+  });
   api.get("/runtime.js", (c) =>
     c.body(
       Uint8Array.from(

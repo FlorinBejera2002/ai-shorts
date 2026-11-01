@@ -17,7 +17,7 @@ PRODUCTION_DEPLOY := ./scripts/deploy.sh
 	deploy-gateway rollback production-status production-verify
 
 .PHONY: storage storage-check clean-cache-plan clean-cache test-storage
-.PHONY: seaweed-up test-s3 media-s3-up test-media-s3
+.PHONY: seaweed-up test-s3 media-s3-up test-media-s3 studio-s3-up test-studio-s3
 .PHONY: ensure-runtime runtime-migrate test-runtime
 
 help: ## Show available commands
@@ -73,6 +73,12 @@ test-s3: ## Test the real media storage adapter against local SeaweedFS
 
 test-media-s3: ## Verify S3 uploads, database ownership, browser playback and Studio rendering
 	@node scripts/test-media-s3.mjs
+
+studio-s3-up: seaweed-up ## Verify/copy Studio state and enable disposable local working copies
+	@node scripts/enable-local-studio-s3.mjs
+
+test-studio-s3: ## Verify durable Studio saves, history, exports and recovery through local S3
+	@node scripts/test-studio-s3.mjs
 
 down: ## Stop containers while preserving data volumes
 	@$(COMPOSE) down
