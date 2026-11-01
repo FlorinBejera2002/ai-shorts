@@ -267,10 +267,17 @@ services or SeaweedFS filesystem APIs are used by the media adapter. The Go SDK
 already requests checksums only when required. Configure CORS for the actual
 app and Studio origins when browser canvas/media access needs it.
 
-Local contract tests establish SeaweedFS behavior, not a live Hetzner pass.
-Verify the same private upload/download, conditional-write, range and deletion
-behavior against a dedicated Hetzner test bucket before production cutover;
-provider credentials and a live provider test are required for that evidence.
+The documentation supports the expected compatibility without buying a test
+bucket. Local contract tests establish SeaweedFS behavior; development can
+continue against that service. When the intended private, unversioned Hetzner
+bucket is available, verify private upload/download, conditional writes, ranges
+and cleanup with synthetic objects under a unique test prefix before production
+cutover. Keep that check restricted to its own objects; it must never overwrite
+or delete customer data. A separate test bucket is optional, not a prerequisite.
+Live credentials are needed for deployment verification, not for the API review.
+Hetzner's [billing overview](https://docs.hetzner.com/storage/object-storage/overview/#pricing)
+describes an account-wide hourly base price rather than a separate base charge
+per bucket; storage and traffic usage still count.
 See Hetzner's [Go SDK examples](https://docs.hetzner.com/storage/object-storage/getting-started/using-libraries/)
 and [private presigned URL guidance](https://docs.hetzner.com/storage/object-storage/faq/buckets-objects/).
 
