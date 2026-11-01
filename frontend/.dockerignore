@@ -1,3 +1,8 @@
 node_modules
 dist
 .git
+.next*
+.env*
+test-results
+*.tsbuildinfo
+*.log
