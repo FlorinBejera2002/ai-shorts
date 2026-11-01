@@ -12,6 +12,8 @@ import {
   mediaDownloadURL,
   remainingImportBudget,
   STORY_IMPORT_MAX_BYTES,
+  validateMediaS3Origin,
+  createMediaFetcher,
 } from "./import-media";
 import { compositionSize } from "./composition-size";
 import type { CompositionStore } from "./composition-store";
@@ -61,11 +63,14 @@ export function createClipImporter(options: {
   apiOrigin: string;
   mediaOrigin: string;
   mediaFetchOrigin?: string;
+  mediaS3Origin?: string;
+  mediaS3InternalOrigin?: string;
   fetcher?: AuthFetcher;
   probeAudio?: typeof sandboxProbeAudio;
 }) {
-  const fetcher = options.fetcher ?? fetch;
+  const fetcher = createMediaFetcher(options.fetcher ?? fetch, options.mediaS3Origin, options.mediaS3InternalOrigin);
   const mediaOrigin = new URL(options.mediaOrigin).origin;
+  validateMediaS3Origin(options.mediaS3Origin);
   const mediaFetchOrigin = options.mediaFetchOrigin ? new URL(options.mediaFetchOrigin) : null;
   if (
     mediaFetchOrigin &&
@@ -131,21 +136,7 @@ export function createClipImporter(options: {
         title,
       );
     }
-    const source = new URL(clip.file_url, mediaOrigin);
-    if (
-      source.origin !== mediaOrigin ||
-      source.username ||
-      source.password ||
-      !source.pathname.startsWith("/media/")
-    )
-      throw new HTTPException(422, { message: "The clip storage address is not supported." });
-    // Validate the public signed URL before changing only its transport destination.
-    // Assign path/search separately so neither can change the trusted internal host.
-    const downloadSource = mediaFetchOrigin ? new URL(mediaFetchOrigin.origin) : source;
-    if (mediaFetchOrigin) {
-      downloadSource.pathname = source.pathname;
-      downloadSource.search = source.search;
-    }
+    const downloadSource = mediaDownloadURL(clip.file_url, mediaOrigin, options.mediaFetchOrigin, options.mediaS3Origin);
     const aspect =
       "aspect_ratio" in clip && typeof clip.aspect_ratio === "string" ? clip.aspect_ratio : "16:9";
     const duration = clip.duration;
@@ -181,6 +172,7 @@ export function createClipImporter(options: {
                 story.version.preview_url,
                 options.mediaOrigin,
                 options.mediaFetchOrigin,
+                options.mediaS3Origin,
               )
             : downloadSource;
         const media = await fetcher(previewURL, {
@@ -231,6 +223,7 @@ export function createClipImporter(options: {
                 story.version.export_url,
                 options.mediaOrigin,
                 options.mediaFetchOrigin,
+                options.mediaS3Origin,
               ),
               join(project.dir, "assets/original-export.mp4"),
               await remainingImportBudget(project.dir),

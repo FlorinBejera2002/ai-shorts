@@ -17,7 +17,7 @@ import {
   type CanonicalCompositionPlan,
   type CanonicalAssetPath,
 } from "./canonical-composition";
-import { downloadImportFile, mediaDownloadURL } from "./import-media";
+import { createMediaFetcher, downloadImportFile, mediaDownloadURL, validateMediaS3Origin } from "./import-media";
 import { startSandboxRender } from "./sandbox";
 import { isUUID, type StoredProject, type ProjectStore } from "./store";
 import {
@@ -39,6 +39,7 @@ interface ServiceOptions {
   mediaOrigin: string;
   mediaFetchOrigin?: string;
   mediaS3Origin?: string;
+  mediaS3InternalOrigin?: string;
   editableStore?: ProjectStore;
   closeOwner?: (owner: string) => Promise<void | (() => void)>;
   workspaceCommitted?: (owner: string, projectID: string) => Promise<void>;
@@ -187,22 +188,10 @@ export function createCompositionService(options: ServiceOptions) {
     )
       throw new Error("Invalid internal composition media origin");
   }
-  const s3 = options.mediaS3Origin ? new URL(options.mediaS3Origin) : undefined;
-  if (
-    s3 &&
-    (!["http:", "https:"].includes(s3.protocol) ||
-      s3.username ||
-      s3.password ||
-      s3.pathname !== "/" ||
-      s3.search ||
-      s3.hash)
-  )
-    throw new Error("Invalid S3 composition media origin");
+  validateMediaS3Origin(options.mediaS3Origin);
+  const fetchMedia = createMediaFetcher(options.fetcher ?? fetch, options.mediaS3Origin, options.mediaS3InternalOrigin);
   function mediaURL(reference: string): URL {
-    const source = new URL(reference, options.mediaOrigin);
-    if (s3 && source.origin === s3.origin && !source.username && !source.password && !source.hash)
-      return source;
-    return mediaDownloadURL(reference, options.mediaOrigin, options.mediaFetchOrigin);
+    return mediaDownloadURL(reference, options.mediaOrigin, options.mediaFetchOrigin, options.mediaS3Origin);
   }
   async function locked<T>(key: string, operation: () => Promise<T>): Promise<T> {
     const previous = locks.get(key) ?? Promise.resolve();
@@ -257,7 +246,7 @@ export function createCompositionService(options: ServiceOptions) {
     await mkdir(join(project.dir, "assets"), { recursive: true });
     let remaining = maxBytes - 16 * 1024 ** 2;
     const fetcher: AuthFetcher = (input, init) =>
-      (options.fetcher ?? fetch)(input, {
+      fetchMedia(input, {
         ...init,
         signal: init?.signal ? AbortSignal.any([signal, init.signal]) : signal,
       });

@@ -22,6 +22,26 @@ Use only the dedicated loopback database `sneepcut_integration_test`, never deve
 
 A skipped database test is not a pass. Some Python integration runners still reference the removed stack; inspect a runner's prerequisites against current source before using it as verification evidence.
 
+### Local S3 media integration
+
+Start the development stack, then run `make media-s3-up` to migrate/configure
+local media for SeaweedFS. With Chrome, native Go/FFmpeg and an installed
+Playwright entry point available, run:
+
+```sh
+PLAYWRIGHT_MODULE=/absolute/path/to/playwright/index.mjs make test-media-s3
+```
+
+The runner creates the dedicated `sneepcut_integration_test` database if missing,
+builds a temporary schema fixture from the current migration chain, and uses an
+isolated schema plus a random synthetic owner. It exercises real media HTTP
+handlers and S3, browser uploads/ranges/CORS/canvas decoding, worker source access,
+and a real isolated Studio import/render. The browser fixture uses the local
+frontend's origin; it does not certify the full frontend upload UI. Studio clip
+metadata is synthetic; its signed download, bytes, thumbnail and MP4 are real.
+No model-provider or publishing calls run. Test schemas, synthetic objects,
+projects and scratch files are cleaned automatically.
+
 ## Browser verification
 
 Use mocked APIs or a synthetic account backed by an isolated database. Read the specific runner in `frontend/tests/*.browser.mjs` for its environment variables, Playwright module, origin and media prerequisites; do not reuse old Next.js/Auth.js setup commands.

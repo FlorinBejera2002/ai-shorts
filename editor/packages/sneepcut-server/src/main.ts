@@ -57,6 +57,7 @@ const app = createApp({
     mediaOrigin: process.env.SNEEPCUT_MEDIA_ORIGIN ?? appOrigin,
     mediaFetchOrigin: process.env.SNEEPCUT_MEDIA_INTERNAL_ORIGIN,
     mediaS3Origin: process.env.SNEEPCUT_MEDIA_S3_ORIGIN,
+    mediaS3InternalOrigin: process.env.SNEEPCUT_MEDIA_S3_INTERNAL_ORIGIN,
   }),
   initializeProject,
   importClip: createClipImporter({
@@ -65,6 +66,8 @@ const app = createApp({
     apiOrigin: process.env.SNEEPCUT_AUTH_BASE_URL ?? "http://localhost:8080",
     mediaOrigin: process.env.SNEEPCUT_MEDIA_ORIGIN ?? appOrigin,
     mediaFetchOrigin: process.env.SNEEPCUT_MEDIA_INTERNAL_ORIGIN,
+    mediaS3Origin: process.env.SNEEPCUT_MEDIA_S3_ORIGIN,
+    mediaS3InternalOrigin: process.env.SNEEPCUT_MEDIA_S3_INTERNAL_ORIGIN,
   }),
   createStudioApiForUser(user) {
     if (closingOwners.has(user.id))

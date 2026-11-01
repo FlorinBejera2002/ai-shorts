@@ -24,7 +24,8 @@ import (
 // Exercise the production adapter against a real, private, unversioned bucket.
 // Only loopback endpoints and a random test prefix are allowed; user objects
 // and configured production credentials are never used by this test.
-func TestS3Compatibility(t *testing.T) {
+func localS3ForTest(t *testing.T) *S3Storage {
+	t.Helper()
 	endpoint := os.Getenv("SNEEPCUT_TEST_S3_ENDPOINT")
 	if endpoint == "" {
 		t.Skip("run make seaweed-up and make test-s3 for real local S3 verification")
@@ -43,7 +44,7 @@ func TestS3Compatibility(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 25*time.Second)
 	defer cancel()
 	client := storage.client.(*s3.Client)
 	deadline := time.Now().Add(20 * time.Second)
@@ -57,6 +58,13 @@ func TestS3Compatibility(t *testing.T) {
 		}
 		time.Sleep(250 * time.Millisecond)
 	}
+	return storage
+}
+
+func TestS3Compatibility(t *testing.T) {
+	storage := localS3ForTest(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+	defer cancel()
 	var random [16]byte
 	if _, err := rand.Read(random[:]); err != nil {
 		t.Fatal(err)
@@ -79,6 +87,31 @@ func TestS3Compatibility(t *testing.T) {
 	if err := storage.Save(ctx, filename, key, "video/mp4"); err != nil {
 		t.Fatal(err)
 	}
+	t.Run("local_migration_preserves_keys_and_originals", func(t *testing.T) {
+		source, err := NewLocalStorage(t.TempDir())
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer source.Close()
+		original := filepath.Join(source.directory, filepath.FromSlash(root+"/migrated/original.mp4"))
+		if err := os.MkdirAll(filepath.Dir(original), 0750); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(original, content, 0600); err != nil {
+			t.Fatal(err)
+		}
+		result, err := MigrateLocal(ctx, source, storage)
+		if err != nil || result.Copied != 1 {
+			t.Fatalf("migration: %+v %v", result, err)
+		}
+		result, err = MigrateLocal(ctx, source, storage)
+		if err != nil || result.Existing != 1 || result.Copied != 0 {
+			t.Fatalf("migration retry: %+v %v", result, err)
+		}
+		if originalBytes, err := os.ReadFile(original); err != nil || !bytes.Equal(originalBytes, content) {
+			t.Fatal("migration did not preserve original bytes")
+		}
+	})
 
 	t.Run("private_signed_reads_ranges_and_metadata", func(t *testing.T) {
 		if exists, err := storage.Exists(ctx, key); err != nil || !exists {

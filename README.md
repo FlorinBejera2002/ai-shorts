@@ -203,9 +203,10 @@ configured external object store and does not include SeaweedFS.
 ```sh
 make seaweed-up # Start only SeaweedFS; make dev-up also starts it
 make test-s3    # Exercise the actual Go media storage adapter
+make media-s3-up # Copy/verify local media, enable S3 locally, restart the app
 ```
 
-The S3 endpoint is `http://s3.localhost:8333` for browsers and app containers.
+The S3 endpoint is `http://s3.localhost:8333` for browsers and Go app containers.
 Browsers resolve the localhost subdomain to loopback; Docker resolves the same
 name through the service's network alias. Native command-line tools can use
 `http://127.0.0.1:8333`. Only the S3 port is published, on loopback. Override
@@ -224,8 +225,18 @@ and paginated prefix deletion without deleting a neighboring prefix. It uses
 only loopback and a random synthetic prefix, removes its test objects, and
 cleans scratch files from `.cache/tmp/`. It never reads production S3 settings.
 
-To configure an installation that already has its media in the development
-bucket, use these app settings in `.env`:
+`make media-s3-up` is the local cutover command. It stops the API and worker,
+copies every regular file from the runtime root's `media/` directory with its
+existing key, and verifies downloaded SHA-256 hashes before updating `.env`.
+Original files are retained. Matching destination objects are verified and
+reused on retries; conflicting bytes or symlinks stop the cutover. If migration
+fails, the stack resumes using its previous configuration. The command refuses
+production mode, non-loopback browser origins and replacement of existing AWS
+settings for another provider.
+
+The cutover sets browser CORS for the local app/Studio origins without making
+the bucket public. It also sets the following media configuration (shown for
+the default development bucket and credentials):
 
 ```dotenv
 STORAGE_TYPE=s3
@@ -235,19 +246,32 @@ AWS_REGION=us-east-1
 AWS_S3_BUCKET=sneepcut-dev
 AWS_ENDPOINT_URL=http://s3.localhost:8333
 AWS_S3_FORCE_PATH_STYLE=true
+AWS_PUBLIC_BASE_URL=http://s3.localhost:8333/sneepcut-dev
 SNEEPCUT_MEDIA_S3_ORIGIN=http://s3.localhost:8333
+SNEEPCUT_MEDIA_S3_INTERNAL_ORIGIN=http://seaweedfs:8333
 ```
 
 Then recreate the affected services with `make dev-up`. Use the same bucket,
-port and credentials as SeaweedFS. Signed URLs include the hostname: the chosen
-endpoint must be reachable by the browser, API, worker and Studio; changing the
-hostname after signing invalidates the signature.
+port and credentials as SeaweedFS. `AWS_PUBLIC_BASE_URL` describes the URL shape
+for normalizing references; it does not grant public access. Signed URLs include
+the hostname. Bun resolves localhost subdomains to loopback even inside Docker,
+so Studio uses `SNEEPCUT_MEDIA_S3_INTERNAL_ORIGIN` for transport while preserving
+the original signed `Host`, path and query. This optional internal override is
+unnecessary when the public provider hostname is reachable normally.
 
-Provisioning SeaweedFS does not move existing media or change `STORAGE_TYPE`.
-Existing local media needs a separate migration with its storage keys preserved
-before switching the app. Studio's durable projects/compositions also remain
-filesystem-backed until its persistence layer is migrated; the media S3 adapter
-alone does not make those directories disposable.
+Starting SeaweedFS alone does not change `STORAGE_TYPE`; use `make media-s3-up`
+for that transition. Studio's durable projects/compositions remain filesystem-backed
+until its persistence layer is migrated; the media S3 adapter alone does not make
+those directories disposable.
+
+For real application verification, run `make test-media-s3` with
+`PLAYWRIGHT_MODULE=/absolute/path/to/playwright/index.mjs`. It requires Chrome,
+native Go/FFmpeg and the running local stack configured through `make media-s3-up`.
+It uses isolated schemas in `sneepcut_integration_test` and a random synthetic
+owner, then verifies authenticated uploads, ownership, private signed reads,
+browser ranges/CORS/canvas decoding, worker source access, Studio import and
+isolated thumbnail/MP4 rendering, and owner cleanup. Fixtures and scratch files
+are removed; the development user database is not used for mutations.
 
 ### Hetzner production compatibility
 

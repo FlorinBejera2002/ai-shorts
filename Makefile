@@ -17,7 +17,7 @@ PRODUCTION_DEPLOY := ./scripts/deploy.sh
 	deploy-gateway rollback production-status production-verify
 
 .PHONY: storage storage-check clean-cache-plan clean-cache test-storage
-.PHONY: seaweed-up test-s3
+.PHONY: seaweed-up test-s3 media-s3-up test-media-s3
 .PHONY: ensure-runtime runtime-migrate test-runtime
 
 help: ## Show available commands
@@ -65,8 +65,14 @@ dev-watch: ## Watch Go changes after make dev-up (keep this terminal open)
 seaweed-up: ensure-runtime ## Start only the local development S3 service
 	@$(DEV_COMPOSE) up -d --wait --no-deps seaweedfs
 
+media-s3-up: seaweed-up ## Verify/copy local media, configure development S3, restart the app
+	@node scripts/enable-local-s3.mjs
+
 test-s3: ## Test the real media storage adapter against local SeaweedFS
 	@node scripts/test-s3.mjs
+
+test-media-s3: ## Verify S3 uploads, database ownership, browser playback and Studio rendering
+	@node scripts/test-media-s3.mjs
 
 down: ## Stop containers while preserving data volumes
 	@$(COMPOSE) down

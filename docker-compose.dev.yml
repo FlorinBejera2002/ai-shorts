@@ -66,6 +66,9 @@ services:
     working_dir: /src
 
   backend:
+    depends_on:
+      seaweedfs:
+        condition: service_healthy
     build:
       context: ./backend
       target: dev
@@ -96,6 +99,16 @@ services:
       start_period: 60s
       timeout: 5s
       retries: 5
+
+  worker:
+    depends_on:
+      seaweedfs:
+        condition: service_healthy
+
+  studio:
+    # Keep server changes testable without rebuilding the bundled Studio UI.
+    volumes:
+      - ./editor/packages/sneepcut-server/src:/app/packages/sneepcut-server/src:ro
 
   frontend:
     build:

@@ -89,6 +89,31 @@ test("rejects other users and arbitrary media destinations before downloading", 
   }
 });
 
+test("imports private S3 clips without rewriting signatures or forwarding API credentials", async () => {
+  const signed = "https://bucket.storage.test/private/video.mp4?X-Amz-Signature=synthetic";
+  let downloads = 0;
+  const importer = createClipImporter({
+    store, apiOrigin: "https://api.test", mediaOrigin: "https://app.test",
+    mediaFetchOrigin: "http://nginx", mediaS3Origin: "https://bucket.storage.test",
+    probeAudio: async () => false,
+    fetcher: async (input, init) => {
+      if (String(input).includes("/api/clips/")) {
+        expect(new Headers(init?.headers).get("Authorization")).toBe("Bearer alice");
+        return Response.json({ ...clip(), file_url: signed });
+      }
+      expect(String(input)).toBe(signed);
+      expect(new Headers(init?.headers).has("Authorization")).toBe(false);
+      expect(init?.redirect).toBe("error");
+      downloads++;
+      return new Response("private-video");
+    },
+  });
+  const project = await importer(alice, "Bearer alice", id);
+  expect(await readFile(join(project.dir, "assets/clip.mp4"), "utf8")).toBe("private-video");
+  await importer(alice, "Bearer alice", id);
+  expect(downloads).toBe(1);
+});
+
 test("failed download never leaves a visible project and can be retried", async () => {
   let fail = true;
   const importer = createClipImporter({
