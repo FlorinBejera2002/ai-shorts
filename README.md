@@ -193,6 +193,102 @@ Press `Ctrl-C` to stop the foreground command. Then remove the stopped container
 make down
 ```
 
+## Local S3 development
+
+The development Compose overlay includes a pinned SeaweedFS image in the same
+Docker project as the app. It provides an authenticated, private, unversioned
+S3 bucket backed by the `seaweedfs_data` volume. Production Compose uses the
+configured external object store and does not include SeaweedFS.
+
+```sh
+make seaweed-up # Start only SeaweedFS; make dev-up also starts it
+make test-s3    # Exercise the actual Go media storage adapter
+```
+
+The S3 endpoint is `http://s3.localhost:8333` for browsers and app containers.
+Browsers resolve the localhost subdomain to loopback; Docker resolves the same
+name through the service's network alias. Native command-line tools can use
+`http://127.0.0.1:8333`. Only the S3 port is published, on loopback. Override
+`SEAWEEDFS_PORT` to change both its host and container port together.
+
+Development defaults are bucket `sneepcut-dev`, access key `sneepcut-dev`,
+secret key `sneepcut-local-development-only`, region `us-east-1`, and path-style
+addressing. Customize them with `SEAWEEDFS_BUCKET`, `SEAWEEDFS_ACCESS_KEY_ID`,
+and `SEAWEEDFS_SECRET_ACCESS_KEY`. Keep these development credentials local.
+The volume retains both object data and filer metadata across container
+recreation; it is user data and is not part of cache cleanup.
+
+`make test-s3` checks private access, signed GETs, HTTP range downloads, exact
+bytes/content type, conditional concurrent uploads, object size/existence,
+and paginated prefix deletion without deleting a neighboring prefix. It uses
+only loopback and a random synthetic prefix, removes its test objects, and
+cleans scratch files from `.cache/tmp/`. It never reads production S3 settings.
+
+To configure an installation that already has its media in the development
+bucket, use these app settings in `.env`:
+
+```dotenv
+STORAGE_TYPE=s3
+AWS_ACCESS_KEY_ID=sneepcut-dev
+AWS_SECRET_ACCESS_KEY=sneepcut-local-development-only
+AWS_REGION=us-east-1
+AWS_S3_BUCKET=sneepcut-dev
+AWS_ENDPOINT_URL=http://s3.localhost:8333
+AWS_S3_FORCE_PATH_STYLE=true
+SNEEPCUT_MEDIA_S3_ORIGIN=http://s3.localhost:8333
+```
+
+Then recreate the affected services with `make dev-up`. Use the same bucket,
+port and credentials as SeaweedFS. Signed URLs include the hostname: the chosen
+endpoint must be reachable by the browser, API, worker and Studio; changing the
+hostname after signing invalidates the signature.
+
+Provisioning SeaweedFS does not move existing media or change `STORAGE_TYPE`.
+Existing local media needs a separate migration with its storage keys preserved
+before switching the app. Studio's durable projects/compositions also remain
+filesystem-backed until its persistence layer is migrated; the media S3 adapter
+alone does not make those directories disposable.
+
+### Hetzner production compatibility
+
+The current adapter uses `PutObject` with `If-None-Match: *`, `HeadObject`,
+`DeleteObject`, `ListObjectsV2`, `DeleteObjects`, and presigned `GetObject`.
+Hetzner documents support for the core S3 API and AWS SDK for Go v2. Its
+[supported-actions list](https://docs.hetzner.com/storage/object-storage/supported-actions/)
+excludes conditional PUT/DELETE on **versioned buckets**, so use an unversioned
+bucket and unique application revision keys with this adapter. S3 bucket
+versioning is separate from the application's saved project revisions.
+
+The expected production change is configuration: Hetzner credentials, bucket,
+region (for example `fsn1`), endpoint `https://fsn1.your-objectstorage.com`,
+`AWS_S3_FORCE_PATH_STYLE=false`, and the matching bucket origin for Studio
+(for example `https://sneepcut-media.fsn1.your-objectstorage.com`). No AWS-only
+services or SeaweedFS filesystem APIs are used by the media adapter. The Go SDK
+already requests checksums only when required. Configure CORS for the actual
+app and Studio origins when browser canvas/media access needs it.
+
+Local contract tests establish SeaweedFS behavior, not a live Hetzner pass.
+Verify the same private upload/download, conditional-write, range and deletion
+behavior against a dedicated Hetzner test bucket before production cutover;
+provider credentials and a live provider test are required for that evidence.
+See Hetzner's [Go SDK examples](https://docs.hetzner.com/storage/object-storage/getting-started/using-libraries/)
+and [private presigned URL guidance](https://docs.hetzner.com/storage/object-storage/faq/buckets-objects/).
+
+### Local runtime directory layout
+
+A common parent such as `/data/sneepcut/` can group `studio/`, `cache/` and
+`tmp/`, while each child remains a separate mount with its own retention policy.
+Keep scratch files in the dedicated `tmp/` child, never mixed with saved project
+files. `TMPDIR`, `PROCESSING_TEMP_DIR` and `UPLOAD_STAGING_DIR` cover Go processing
+and upload staging; Studio also has sandbox assumptions about `/tmp` that must
+be updated and tested before relocating its scratch directory.
+
+Persistent object-store data and current Studio state must not be put under
+the repository's disposable `.cache/tmp/`. A large rendering scratch directory
+can use a disposable disk volume rather than RAM-backed tmpfs. Moving the
+existing roots needs its own migration; this setup adds SeaweedFS without
+relocating existing media, Studio projects or scratch mounts.
+
 ## Common commands
 
 ```bash

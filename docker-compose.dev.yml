@@ -1,4 +1,51 @@
 services:
+  seaweedfs:
+    # Development-only S3 endpoint, in the same Compose project as the app.
+    image: chrislusf/seaweedfs:4.51@sha256:f7a49e3f3972ebed5be2ed4befa4a0c68eb7bdddba6e692d42729ceb545134b8
+    user: "1000:1000"
+    command:
+      - mini
+      - -dir=/data
+      - -ip=seaweedfs
+      - -ip.bind=0.0.0.0
+      - -s3.port=${SEAWEEDFS_PORT:-8333}
+      - -master.volumeSizeLimitMB=128
+      - -volume.max=4
+      - -s3.port.iceberg=0
+      - -s3.port.lance=0
+      - -webdav=false
+    environment:
+      AWS_ACCESS_KEY_ID: ${SEAWEEDFS_ACCESS_KEY_ID:-sneepcut-dev}
+      AWS_SECRET_ACCESS_KEY: ${SEAWEEDFS_SECRET_ACCESS_KEY:-sneepcut-local-development-only}
+      S3_BUCKET: ${SEAWEEDFS_BUCKET:-sneepcut-dev}
+    ports:
+      - "127.0.0.1:${SEAWEEDFS_PORT:-8333}:${SEAWEEDFS_PORT:-8333}"
+    networks:
+      default:
+        # Browsers resolve *.localhost to loopback; containers use this alias.
+        aliases: ["s3.localhost"]
+    volumes:
+      # The image also keeps filer metadata under /data/filerldb2.
+      - seaweedfs_data:/data
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          wget -q -O /dev/null http://127.0.0.1:9333/cluster/status
+          && wget -S -O /dev/null http://127.0.0.1:${SEAWEEDFS_PORT:-8333}/ 2>&1
+          | grep -q 'HTTP/1.1 403 Forbidden'
+      interval: 5s
+      timeout: 5s
+      start_period: 15s
+      retries: 12
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: ["ALL"]
+    mem_limit: 768m
+    cpus: 2
+    pids_limit: 128
+    restart: unless-stopped
+    stop_grace_period: 30s
+
   postgres:
     ports:
       - "127.0.0.1:${POSTGRES_HOST_PORT:-5433}:5432"
@@ -94,3 +141,6 @@ services:
       backend:
         condition: service_started
         restart: true
+
+volumes:
+  seaweedfs_data:

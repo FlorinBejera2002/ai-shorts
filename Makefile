@@ -17,6 +17,7 @@ PRODUCTION_DEPLOY := ./scripts/deploy.sh
 	deploy-gateway rollback production-status production-verify
 
 .PHONY: storage storage-check clean-cache-plan clean-cache test-storage
+.PHONY: seaweed-up test-s3
 
 help: ## Show available commands
 	@awk 'BEGIN {FS = ":.*## "; printf "Usage: make <target>\n\nTargets:\n"} /^[a-zA-Z0-9_-]+:.*## / {printf "  %-18s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -50,6 +51,12 @@ dev-up: ensure-env ## Switch to the hot-reload development stack in the backgrou
 
 dev-watch: ## Watch Go changes after make dev-up (keep this terminal open)
 	@$(DEV_COMPOSE) watch --no-up
+
+seaweed-up: ensure-env ## Start only the local development S3 service
+	@$(DEV_COMPOSE) up -d --wait --no-deps seaweedfs
+
+test-s3: ## Test the real media storage adapter against local SeaweedFS
+	@node scripts/test-s3.mjs
 
 down: ## Stop containers while preserving data volumes
 	@$(COMPOSE) down
