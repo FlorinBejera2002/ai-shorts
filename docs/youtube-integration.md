@@ -97,9 +97,10 @@ the user owns a channel or an OAuth grant exists.
 The worker downloads imports with a pinned yt-dlp build plus Deno (its
 JavaScript runtime), both installed in `backend/Dockerfile`. When YouTube
 changes break downloads, bump `YTDLP_VERSION` and its checksums there. If
-YouTube rejects the server IP, set `YOUTUBE_COOKIES_FILE` to a read-only
-mounted Netscape cookies file and/or `YOUTUBE_PROXY`; the worker copies the
-cookies into each job's temporary directory.
+YouTube rejects the server IP ("Sign in to confirm you're not a bot"),
+provision the cookie export described in
+[production-backend.md](production-backend.md#youtube-download-authentication)
+and/or set `YOUTUBE_PROXY`.
 
 ## External acceptance
 

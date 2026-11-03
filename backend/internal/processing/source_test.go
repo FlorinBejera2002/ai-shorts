@@ -53,6 +53,17 @@ func TestYouTubeDownloadUsesYtDlpWithPrivateCookiesAndProxy(t *testing.T) {
 	}
 }
 
+func TestYouTubeDownloadWithoutProvisionedCookiesTriesPublicAccess(t *testing.T) {
+	binary, argsFile := fakeYtDlp(t, `while [ "$1" != "--output" ]; do shift; done; printf video > "$2"`+"\n")
+	p := New(Config{YtDlpPath: binary, YouTubeCookiesFile: filepath.Join(t.TempDir(), "absent.txt")}, nil, nil)
+	if err := p.download(context.Background(), "https://youtu.be/abc123", filepath.Join(t.TempDir(), "source.mp4")); err != nil {
+		t.Fatal(err)
+	}
+	if raw, _ := os.ReadFile(argsFile); strings.Contains(string(raw), "--cookies") {
+		t.Fatalf("absent cookie export must not be passed to yt-dlp: %q", raw)
+	}
+}
+
 func TestYouTubeDownloadReportsYtDlpFailure(t *testing.T) {
 	binary, _ := fakeYtDlp(t, "echo 'ERROR: [youtube] abc123: Video unavailable' >&2\nexit 1\n")
 	p := New(Config{YtDlpPath: binary}, nil, nil)

@@ -2,8 +2,10 @@ package processing
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"net/http"
 	"net/url"
 	"os"
@@ -91,25 +93,18 @@ func (p *Processor) download(ctx context.Context, address, dest string) error {
 		"--max-filesize", "5G", "--format", youtubeFormat, "--merge-output-format", "mp4", "--remux-video", "mp4",
 		"--paths", "temp:" + dir, "--output", dest,
 	}
-	if p.cfg.YouTubeCookiesFile != "" {
-		// yt-dlp rewrites its cookie jar, so give it a private copy.
-		cookies := filepath.Join(dir, "youtube-cookies.txt")
-		source, e := os.Open(p.cfg.YouTubeCookiesFile)
-		if e != nil {
-			return fmt.Errorf("YouTube cookies: %w", e)
-		}
-		e = copyBounded(source, cookies)
-		source.Close()
-		if e != nil {
-			return fmt.Errorf("YouTube cookies: %w", e)
-		}
+	cookies, e := p.privateYouTubeCookies(dir)
+	if e != nil {
+		return fmt.Errorf("YouTube cookies: %w", e)
+	}
+	if cookies != "" {
 		args = append(args, "--cookies", cookies)
 	}
 	if p.cfg.YouTubeProxy != "" {
 		args = append(args, "--proxy", p.cfg.YouTubeProxy)
 	}
 	args = append(args, "--", address)
-	if _, e := run(ctx, dir, p.cfg.YtDlpPath, args...); e != nil {
+	if _, e = run(ctx, dir, p.cfg.YtDlpPath, args...); e != nil {
 		return fmt.Errorf("YouTube download: %w", e)
 	}
 	info, e := os.Stat(dest)
@@ -120,4 +115,27 @@ func (p *Processor) download(ctx context.Context, address, dest string) error {
 		return fmt.Errorf("source exceeds 5 GiB limit")
 	}
 	return nil
+}
+
+// privateYouTubeCookies copies the configured cookie export into the job
+// directory because yt-dlp rewrites its cookie jar on exit; the secret itself
+// stays read-only. It returns "" when no export is configured or provisioned,
+// so downloads fall back to public access.
+func (p *Processor) privateYouTubeCookies(dir string) (string, error) {
+	if p.cfg.YouTubeCookiesFile == "" {
+		return "", nil
+	}
+	source, e := os.Open(p.cfg.YouTubeCookiesFile)
+	if errors.Is(e, fs.ErrNotExist) {
+		return "", nil
+	}
+	if e != nil {
+		return "", e
+	}
+	defer source.Close()
+	cookies := filepath.Join(dir, "youtube-cookies.txt")
+	if e := copyBounded(source, cookies); e != nil {
+		return "", e
+	}
+	return cookies, nil
 }
