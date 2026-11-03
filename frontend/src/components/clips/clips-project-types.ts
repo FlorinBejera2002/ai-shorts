@@ -41,30 +41,10 @@ export type Project = {
   updatedAt: string
 }
 
-export type ClipsWorkspaceCopy = {
-  allProjects: string
-  organization: string
-  foldersTitle: string
-  unassignedClips: string
-  dropHere: string
-  createFolder: string
-  renameFolder: string
-  deleteFolder: string
-  clips: string
-  moveTo: string
-  root: string
-  brand: string
-  cancel: string
-  emptyFolder: string
-  emptyHint: string
-  failed: string
-}
-
 export type ClipsWorkspaceProps = {
   projects: Project[]
   project?: Project
   folderId: string | null | 'all'
-  text: ClipsWorkspaceCopy
   onProject: (id: string) => void
   onFolder: (id: string | null | 'all') => void
   onBrand: (project: Project) => void
@@ -75,6 +55,6 @@ export type ClipsWorkspaceProps = {
   ) => Promise<boolean>
   onCreateFolder: () => void
   onRenameFolder: (projectId: string, folder: ProjectFolder) => void
-  onDeleteFolder: (projectId: string, folderId: string) => void
+  onDeleteFolder: (projectId: string, folder: ProjectFolder) => void
   onDeleted: () => void | Promise<void>
 }

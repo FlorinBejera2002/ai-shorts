@@ -4,11 +4,10 @@ import { PlatformBrandIcon } from '@/components/publishing/platform-brand-icon'
 import { Button } from '@/components/ui/button'
 import type { ScheduledPostRecord } from '@/lib/content-calendar'
 import type { PublishingData } from '@/lib/publishing'
-import { ArrowLeft, CalendarDays, Pencil } from 'lucide-react'
+import { ArrowLeft, Pencil, Send, Trash2 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useId } from 'react'
 import { CalendarPostMedia } from './calendar-post-media'
-import { StatusPill } from './calendar-presentation'
 import { safeTimeZone } from './calendar-utils'
 import styles from './calendar-post-preview.module.css'
 
@@ -17,6 +16,9 @@ type CalendarPostPreviewProps = {
   publishingClips: PublishingData['clips']
   locale: string
   onEdit: (post: ScheduledPostRecord) => void
+  onPublish: (post: ScheduledPostRecord) => void
+  onDelete: (post: ScheduledPostRecord) => void
+  onStatus: (post: ScheduledPostRecord) => void
   onBack: () => void
   backLabel: string
 }
@@ -26,6 +28,9 @@ export function CalendarPostPreview({
   publishingClips,
   locale,
   onEdit,
+  onPublish,
+  onDelete,
+  onStatus,
   onBack,
   backLabel
 }: CalendarPostPreviewProps) {
@@ -37,67 +42,126 @@ export function CalendarPostPreview({
     weekday: 'short',
     month: 'short',
     day: 'numeric',
-    year: 'numeric',
     timeZone
   }).format(scheduledAt)
   const timeLabel = new Intl.DateTimeFormat(locale, {
-    hour: 'numeric',
+    hour: '2-digit',
     minute: '2-digit',
+    hourCycle: 'h23',
     timeZone
   }).format(scheduledAt)
   const viewStatus = post.status === 'publishing' || post.status === 'published'
-  const showStatus = viewStatus || post.status === 'failed'
+  const editable = !viewStatus
+  const deletable = post.status !== 'publishing'
 
   return (
-    <section className={styles.preview} aria-labelledby={titleId} data-post-preview={post.id}>
-      <button type="button" className={styles.back} onClick={onBack}>
-        <ArrowLeft className="size-5" aria-hidden="true" />
-        {backLabel}
-      </button>
-
-      <h2 id={titleId} className={styles.title}>{post.title}</h2>
-
-      <div className={styles.media}>
-        <CalendarPostMedia key={post.id} post={post} publishingClips={publishingClips} />
+    <section
+      className={styles.preview}
+      aria-labelledby={titleId}
+      data-post-preview={post.id}
+    >
+      <div className={styles.mobileActions}>
+        <button type="button" className={styles.back} onClick={onBack}>
+          <ArrowLeft className="size-5" aria-hidden="true" />
+          <span className="sr-only">{backLabel}</span>
+        </button>
+        {deletable && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className={styles.mobileDelete}
+            onClick={() => onDelete(post)}
+            aria-label={t('actions.delete')}
+          >
+            <Trash2 className="size-4" />
+          </Button>
+        )}
       </div>
-
-      {post.caption && <p className={styles.caption}>{post.caption}</p>}
-
+      <div className={styles.media}>
+        <CalendarPostMedia
+          key={post.id}
+          post={post}
+          publishingClips={publishingClips}
+        />
+      </div>
+      <h2 id={titleId} className={styles.title}>
+        {post.title}
+      </h2>
+      <div className={styles.schedule}>
+        {post.status === 'draft' ? (
+          <span>{t('publishing.undated')}</span>
+        ) : (
+          <time dateTime={post.scheduledAt} title={timeZone}>
+            {dateLabel} · {timeLabel}
+          </time>
+        )}
+      </div>
       <div className={styles.platforms}>
-        {post.platforms.map(platform => (
-          <span key={platform} className={styles.platform}>
-            <PlatformBrandIcon provider={platform} className={styles.platformIcon} />
-            {t(`platforms.${platform}`)}
+        {post.platforms.map((platform) => (
+          <span
+            key={platform}
+            className={styles.platform}
+            title={t(`platforms.${platform}`)}
+          >
+            <PlatformBrandIcon
+              provider={platform}
+              className={styles.platformIcon}
+            />
+            <span className="sr-only">{t(`platforms.${platform}`)}</span>
           </span>
         ))}
       </div>
-
-      <div className={styles.schedule}>
-        <CalendarDays className={styles.calendarIcon} aria-hidden="true" />
-        <div>
-          <time dateTime={post.scheduledAt}>{dateLabel} · {timeLabel}</time>
-          <p className={styles.timeZone}>{timeZone}</p>
-        </div>
-      </div>
-
-      {showStatus && (
-        <div className={styles.status} aria-live="polite">
-          <StatusPill status={post.status} />
-          {post.status === 'failed' && post.publishingError && (
-            <p className={styles.error}>{post.publishingError}</p>
-          )}
+      {post.status === 'failed' && (
+        <div className={styles.error} role="status">
+          {post.publishingError && <p>{post.publishingError}</p>}
+          <Button
+            type="button"
+            variant="link"
+            size="sm"
+            className="h-auto px-0 pt-2 text-xs text-foreground"
+            onClick={() => onStatus(post)}
+          >
+            {t('preview.viewStatus')}
+          </Button>
         </div>
       )}
-
-      <Button
-        type="button"
-        variant="outline"
-        className={styles.edit}
-        onClick={() => onEdit(post)}
-      >
-        <Pencil className="size-4" aria-hidden="true" />
-        {viewStatus ? t('preview.viewStatus') : t('publishing.editPost')}
-      </Button>
+      <div className={styles.actions}>
+        <Button
+          type="button"
+          variant="outline"
+          className={styles.edit}
+          onClick={() => onEdit(post)}
+        >
+          <Pencil className="size-4" aria-hidden="true" />
+          {viewStatus ? t('preview.viewStatus') : t('publishing.editPost')}
+        </Button>
+        {editable && (
+          <Button
+            type="button"
+            onClick={() => onPublish(post)}
+            className={styles.publish}
+            aria-label={t('composer.publishNow')}
+          >
+            <Send className={styles.publishIcon} aria-hidden="true" />
+            <span className={styles.publishLabel}>
+              {t('composer.publishNow')}
+            </span>
+          </Button>
+        )}
+        {deletable && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className={styles.desktopDelete}
+            onClick={() => onDelete(post)}
+            aria-label={t('actions.delete')}
+          >
+            <Trash2 className="size-4" />
+          </Button>
+        )}
+      </div>
     </section>
   )
 }

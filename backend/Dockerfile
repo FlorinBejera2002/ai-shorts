@@ -1,9 +1,42 @@
 # syntax=docker/dockerfile:1
+# YouTube imports use yt-dlp's unpacked (onedir) build, which runs without
+# Python and without extracting libraries into the noexec /tmp tmpfs. Deno is
+# the JavaScript runtime yt-dlp needs to solve YouTube's player challenges.
+# Bump both together when YouTube changes break downloads.
+FROM debian:bookworm-slim AS youtube-tools
+ARG TARGETARCH=amd64
+ARG YTDLP_VERSION=2026.10.26
+ARG DENO_VERSION=v2.9.8
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates curl unzip \
+    && rm -rf /var/lib/apt/lists/*
+RUN set -eu; \
+    case "$TARGETARCH" in \
+      amd64) ytdlp=yt-dlp_linux.zip; ytdlp_sha=f34053415136e55073dd64ba5326d161ecc23ce0e98c081d8752867b37809450; \
+             deno=deno-x86_64-unknown-linux-gnu.zip; deno_sha=e890975bc2549807bbcc0b584ffafda72cc7c93349dd99c80483dd784f6c4609 ;; \
+      arm64) ytdlp=yt-dlp_linux_aarch64.zip; ytdlp_sha=74708e707e8fa8177c8347e58152337edf320149cd7b225defd453f7cde47822; \
+             deno=deno-aarch64-unknown-linux-gnu.zip; deno_sha=d49596c20b9788cf8f5d8ddf644103d4bde56ed239753f0bdb92ba9361d51905 ;; \
+      *) echo "unsupported architecture: $TARGETARCH" >&2; exit 1 ;; \
+    esac; \
+    curl -fsSLo /tmp/yt-dlp.zip "https://github.com/yt-dlp/yt-dlp/releases/download/${YTDLP_VERSION}/${ytdlp}"; \
+    echo "${ytdlp_sha}  /tmp/yt-dlp.zip" | sha256sum -c -; \
+    mkdir -p /opt/yt-dlp && unzip -q /tmp/yt-dlp.zip -d /opt/yt-dlp; \
+    ln -s "$(find /opt/yt-dlp -maxdepth 1 -type f -name 'yt-dlp_linux*' | head -n1)" /opt/yt-dlp/yt-dlp; \
+    chmod -R a+rX /opt/yt-dlp && chmod a+x /opt/yt-dlp/yt-dlp_linux*; \
+    curl -fsSLo /tmp/deno.zip "https://github.com/denoland/deno/releases/download/${DENO_VERSION}/${deno}"; \
+    echo "${deno_sha}  /tmp/deno.zip" | sha256sum -c -; \
+    unzip -q /tmp/deno.zip -d /usr/local/bin && chmod 0755 /usr/local/bin/deno; \
+    rm /tmp/yt-dlp.zip /tmp/deno.zip; \
+    /opt/yt-dlp/yt-dlp --version && deno --version
+
 FROM golang:1.26.5 AS dev
 WORKDIR /src
 RUN apt-get update \
     && apt-get install -y --no-install-recommends curl ffmpeg \
     && rm -rf /var/lib/apt/lists/*
+COPY --from=youtube-tools /opt/yt-dlp /opt/yt-dlp
+COPY --from=youtube-tools /usr/local/bin/deno /usr/local/bin/deno
+ENV YTDLP_PATH=/opt/yt-dlp/yt-dlp XDG_CACHE_HOME=/tmp/.cache DENO_DIR=/tmp/deno
 COPY go.mod go.sum ./
 RUN go mod download
 COPY --chown=10001:10001 . .
@@ -79,6 +112,10 @@ USER root
 RUN apt-get update && apt-get install -y --no-install-recommends libgomp1 libstdc++6 fonts-dejavu-core fonts-liberation \
     && rm -rf /var/lib/apt/lists/*
 COPY --from=build /worker /worker
+COPY --from=youtube-tools /opt/yt-dlp /opt/yt-dlp
+COPY --from=youtube-tools /usr/local/bin/deno /usr/local/bin/deno
+# The worker filesystem is read-only; tool caches live in the /tmp tmpfs.
+ENV YTDLP_PATH=/opt/yt-dlp/yt-dlp XDG_CACHE_HOME=/tmp/.cache DENO_DIR=/tmp/deno
 COPY --from=speech-build /whisper/build/bin/whisper-cli /usr/local/bin/whisper-cli
 COPY --from=speech-build /whisper/build/bin/whisper-vad-speech-segments /usr/local/bin/whisper-vad-speech-segments
 ENV WHISPER_CPP_PATH=/usr/local/bin/whisper-cli

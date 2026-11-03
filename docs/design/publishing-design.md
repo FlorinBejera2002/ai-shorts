@@ -1,5 +1,7 @@
 # Approved Sneep Cut design direction
 
+For Publish, the user approved a newer complete desktop/mobile reference on 2026-10-30: [Claude Publish screens and implementation mapping](publish-claude-2026-10-30.md). The subsequent explicit request requires its exact borders, cards, colors, radii and typography. This supersedes the older Publish visual rules below, including the neutral brand/radius adaptation; functional requirements still apply.
+
 The user approved this direction on 2026-10-22. Use it as the starting visual language for Sneep Cut UI design, especially Publish and New post. Read this guide and open the relevant image before extending these surfaces. Explicit later user feedback takes precedence.
 
 ## Visual sources
@@ -91,6 +93,16 @@ These images are approved design references, not screenshots of implemented inte
 - Do not turn unmounted activity, status, plan, ActiveJobs or latent CSS into Home features. Preserve the existing initial ApiState loader/error without invented metrics or content. An error with cached data retains the loaded Home. Keep the shared dashboard shell mounted.
 - Home's current mobile shell includes MobileDashboardDock below lg, while the desktop topbar is hidden. Keep Home/Editor/Clips/New project/Brand/Publish/Menu and the existing Menu dialog for Scripts, Plan & billing and Settings. Desktop Quick navigation searches pages; it is not a clip search. These actual controls explain the mobile chrome difference from earlier mockups.
 - Follow md/sm shared radius tokens over generated dock rounding, keep neutral states and accessible targets, and preserve all sidebar destinations. Image artifacts do not establish new component exceptions or working behavior.
+
+## Create clips
+
+- The user selected the **first displayed image from the final two-image Settings left set** on 2026-10-23: [compact-inspector.png](create-clips-settings-left/compact-inspector.png). Use this exact image as the desktop visual target. The earlier five concepts and balanced-inspector are not selected implementation targets.
+- Extend the chosen layout across [the complete desktop/mobile flow](create-clips-complete/README.md): a compact settings inspector on the left, source/media or working content on the right, Generate immediately below the inspector, full workspace width and little explanatory text. Story keeps its existing three-step flow and the explicitly requested Gooey navigation geometry.
+- Keep optional AI direction in a small two-line field. Remove the large default YouTube AssistantChat and the in-content Write script shortcut. A small explicit AI button may open the existing assistant in a Sheet, retaining its settings/instructions actions without occupying the default workspace. The global Scripts sidebar route and explicitly invoked global Story help remain available.
+- Preserve both mounted creation workflows, controlled drafts, source switching, actual upload/validation constraints, billing checks and API behavior. YouTube uses clips × unique videos × 10 credits; Story charges 10 credits once. Current Story result exposes only current_version and its actual download/Studio/library actions; the worker CLI Improve flow is not a UI control.
+- Mobile uses a readable single column with the existing dashboard dock, compact media and an accessible primary action above the dock. Do not shrink the desktop split or add permanent navigation. Follow md/sm and neutral tokens over generated-image artifacts.
+- The user also explicitly authorized implementation after mockup completion. Image approval does not establish functional verification or authorize real uploads, paid generation or deployment.
+- Later the user explicitly asked to keep the existing processing steps because they already work well. Preserve ProcessingPipeline structure, stage map, orbital visual, transitions, honest Story indeterminate progress and numeric YouTube progress; allow only small presentation refinements. This preference overrides generated processing mockups that reinterpret those elements.
 
 ## Verification when implemented
 

@@ -236,7 +236,7 @@ await page.route('**/api/**', async (route) => {
     )
     generations.push(body)
     project.status = 'pending'
-    project.message = 'Building your story'
+    project.message = 'Choosing moments'
     return route.fulfill({ status: 202, json: project })
   }
   if (project && path === `/api/stories/${project.id}`) {
@@ -298,7 +298,7 @@ const showStep = async (target) => {
 const generationUnavailable = async () => {
   assert.equal(
     await page
-      .getByRole('button', { name: 'Build my story', exact: true })
+      .getByRole('button', { name: 'Create my clip', exact: true })
       .count(),
     0,
     'Only the review step exposes generation'
@@ -356,7 +356,7 @@ try {
     true
   )
   await showStep(0)
-  await page.getByLabel('Upload story clips').setInputFiles({
+  await page.getByLabel('Upload clips').setInputFiles({
     name: 'footage.mp4',
     mimeType: 'video/mp4',
     buffer: Buffer.from('synthetic source')
@@ -364,7 +364,7 @@ try {
   await page.locator('[data-testid="validated-source"]').waitFor()
   const videoID = project.assets[0].id
   const build = page.getByRole('button', {
-    name: 'Build my story',
+    name: 'Create my clip',
     exact: true
   })
   await showStep(1)
@@ -535,8 +535,8 @@ try {
   // A separate draft starts from video uploads, then changes to narration mode.
   project.status = 'draft'
   await page.reload({ waitUntil: 'domcontentloaded' })
-  await page.getByRole('button', { name: 'New story', exact: true }).click()
-  await page.getByLabel('Upload story clips').setInputFiles({
+  await page.getByRole('button', { name: 'New project', exact: true }).click()
+  await page.getByLabel('Upload clips').setInputFiles({
     name: 'second-footage.mp4',
     mimeType: 'video/mp4',
     buffer: Buffer.from('another synthetic source')

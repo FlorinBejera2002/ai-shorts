@@ -10,6 +10,7 @@ import {
 import type { PublishingMedia } from '@/lib/content-calendar'
 import { useTranslations } from 'next-intl'
 import { useId } from 'react'
+import theme from './publishing-theme.module.css'
 import {
   applyPublishingImageFormat,
   publishingImageFormatsMatch,
@@ -76,7 +77,7 @@ export function PublishingImageFormatSelector({
         >
           <SelectValue placeholder={label} />
         </SelectTrigger>
-        <SelectContent>
+        <SelectContent className={theme.surface} data-publish-surface="">
           <SelectItem value="original">{t('original')}</SelectItem>
           <SelectItem value="1:1">{t('square')}</SelectItem>
           <SelectItem value="4:5">{t('portrait')}</SelectItem>

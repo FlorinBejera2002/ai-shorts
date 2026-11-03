@@ -4,13 +4,11 @@ import type { PublishingMedia } from '@/lib/content-calendar'
 import { Reorder, useDragControls } from 'framer-motion'
 import { Crop, GripVertical, ImagePlus, Play, X } from 'lucide-react'
 import { useTranslations } from 'next-intl'
-import { useId, useState } from 'react'
+import { useId, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { PublishingImageEditor } from './publishing-image-editor'
 import { PublishingImagePreview } from './publishing-image-preview'
-
-const controlClass =
-  'inline-flex size-11 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-foreground disabled:pointer-events-none disabled:opacity-25'
+import styles from './post-media-dialog.module.css'
 
 export function PublishingMediaItem({
   item,
@@ -42,7 +40,7 @@ export function PublishingMediaItem({
   const [expanded, setExpanded] = useState(false)
   const dragControls = useDragControls()
   const keyboardHintId = useId()
-  const editorId = useId()
+  const editButton = useRef<HTMLButtonElement>(null)
   const photoEditorEnabled = instagramEnabled || facebookEnabled || tiktokEnabled
   return (
     <Reorder.Item
@@ -51,13 +49,13 @@ export function PublishingMediaItem({
       dragMomentum={false}
       dragControls={dragControls}
       drag={disabled ? false : 'y'}
-      className="relative rounded-md border border-border bg-card p-2"
+      className={styles.mediaItem}
       whileDrag={{ zIndex: 1 }}
     >
-      <div className="flex min-w-0 items-center gap-2">
+      <div className={styles.mediaRow}>
         <button
           type="button"
-          className={`${controlClass} touch-none cursor-grab active:cursor-grabbing`}
+          className={`${styles.mediaControl} ${styles.mediaDrag} touch-none cursor-grab active:cursor-grabbing`}
           disabled={disabled || count < 2}
           aria-label={t('dragMedia', { name: item.name })}
           aria-describedby={keyboardHintId}
@@ -83,7 +81,7 @@ export function PublishingMediaItem({
         <span id={keyboardHintId} className="sr-only">
           {t('mediaKeyboardHint')}
         </span>
-        <div className="flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-sm border border-border">
+        <div className={styles.mediaThumbnail}>
           <PublishingMediaThumbnail
             item={item}
             previewUrl={previewUrl}
@@ -98,26 +96,27 @@ export function PublishingMediaItem({
             {index + 1} / {count}
             {index === 0 ? ` · ${t('mediaCover')}` : ''}
           </p>
-          {photoEditorEnabled && item.type === 'image' && (
-            <Button
-              type="button"
-              variant="ghost"
-              size="xs"
-              className="mt-1 -ml-2"
-              disabled={disabled}
-              aria-label={imageT('edit', { name: item.name })}
-              aria-expanded={expanded}
-              aria-controls={editorId}
-              onClick={() => setExpanded(value => !value)}
-            >
-              <Crop className="size-3" />
-              {imageT(expanded ? 'close' : 'editButton')}
-            </Button>
-          )}
         </div>
+        {photoEditorEnabled && item.type === 'image' && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className={styles.mediaControl}
+            disabled={disabled}
+            aria-label={imageT('edit', { name: item.name })}
+            ref={editButton}
+            aria-expanded={expanded}
+            aria-haspopup="dialog"
+            onClick={() => setExpanded(value => !value)}
+          >
+            <Crop className="size-4" />
+            <span className="sr-only">{imageT(expanded ? 'close' : 'editButton')}</span>
+          </Button>
+        )}
         <button
           type="button"
-          className={controlClass}
+          className={styles.mediaControl}
           disabled={disabled}
           aria-label={t('removeMedia', { name: item.name })}
           onClick={() => onRemove(item.reference)}
@@ -126,7 +125,6 @@ export function PublishingMediaItem({
         </button>
       </div>
       {photoEditorEnabled && item.type === 'image' && expanded && (
-        <div id={editorId}>
           <PublishingImageEditor
             item={item}
             previewUrl={previewUrl}
@@ -134,9 +132,13 @@ export function PublishingMediaItem({
             instagramEnabled={instagramEnabled}
             facebookEnabled={facebookEnabled}
             tiktokEnabled={tiktokEnabled}
+            carousel={instagramEnabled && count > 1}
             onChange={onChange}
+            onClose={() => {
+              setExpanded(false)
+              requestAnimationFrame(() => editButton.current?.focus())
+            }}
           />
-        </div>
       )}
     </Reorder.Item>
   )

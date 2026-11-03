@@ -1,0 +1,509 @@
+.document {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.stateActions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+}
+
+/* Hook */
+.hookCard {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 18px 20px;
+}
+
+.hookLabel {
+  color: var(--publish-primary);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+.hookInput {
+  --script-control-bg: transparent;
+  --script-control-radius: 0;
+  width: 100%;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--publish-text);
+  font: inherit;
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.4;
+  resize: none;
+  outline: 0;
+  box-shadow: none;
+  field-sizing: content;
+}
+
+.hookCard:focus-within {
+  box-shadow: var(--publish-card-shadow), 0 0 0 3px var(--publish-primary-ring);
+}
+
+/* Scenes */
+.scenes {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.scenesHeader {
+  display: flex;
+  align-items: center;
+  padding: 0 4px;
+}
+
+.scenesHeader h2 {
+  flex: 1;
+  margin: 0;
+  font-size: 16px;
+}
+
+.scenesSummary,
+.scenesSummaryCompact {
+  color: var(--publish-muted-text);
+  font-size: 13px;
+}
+
+.scenesSummaryCompact {
+  display: none;
+}
+
+.scene {
+  border-radius: 22px;
+  background: var(--publish-surface);
+  box-shadow: var(--publish-card-shadow);
+}
+
+.scene[data-expanded='true'] {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 18px 20px;
+  box-shadow: 0 0 0 2px var(--publish-primary);
+}
+
+.scene[data-expanded='false'] {
+  border-radius: 20px;
+}
+
+.sceneHeader {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.sceneToggle {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  align-items: center;
+  gap: 10px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.sceneNumber {
+  display: flex;
+  width: 32px;
+  height: 32px;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--publish-secondary);
+  color: var(--publish-text);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.scene[data-expanded='true'] .sceneNumber {
+  background: var(--publish-primary);
+  color: var(--publish-on-primary);
+}
+
+.sceneHeading {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.sceneAction {
+  display: flex;
+  width: 36px;
+  height: 36px;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--publish-inset);
+  color: var(--publish-text);
+  cursor: pointer;
+}
+
+.sceneAction svg {
+  width: 16px;
+  height: 16px;
+}
+
+.sceneAction:hover:not(:disabled) {
+  background: var(--publish-hover);
+}
+
+.sceneAction:disabled {
+  cursor: not-allowed;
+  opacity: .4;
+}
+
+.sceneDelete.sceneDelete {
+  background: var(--publish-danger-bg);
+  color: var(--publish-danger);
+}
+
+.sceneRow {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 20px;
+  border: 0;
+  border-radius: inherit;
+  background: none;
+  color: var(--publish-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.sceneRow:hover {
+  background: var(--publish-inset);
+}
+
+.sceneLine {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  font-size: 14px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.sceneDuration {
+  flex: none;
+  color: var(--publish-muted-text);
+  font-size: 13px;
+}
+
+.sceneFields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.tile {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: var(--publish-inset);
+  color: var(--publish-muted-text);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: text;
+}
+
+.tile[data-wide] {
+  grid-column: span 2;
+}
+
+.tile:focus-within {
+  box-shadow: 0 0 0 2px var(--publish-primary-ring);
+}
+
+.tileControl {
+  --script-control-bg: transparent;
+  --script-control-radius: 0;
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  height: auto;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--publish-text);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.4;
+  resize: none;
+  outline: 0;
+  box-shadow: none;
+  field-sizing: content;
+}
+
+.addScene {
+  display: flex;
+  height: 52px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 2px dashed var(--publish-upload-border-mobile);
+  border-radius: 20px;
+  background: transparent;
+  color: var(--publish-secondary-text);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.addScene svg {
+  width: 16px;
+  height: 16px;
+}
+
+.addScene:hover {
+  border-color: var(--publish-dashed-border);
+  background: var(--publish-surface);
+}
+
+/* CTA, caption and hashtags */
+.footer {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 18px 20px;
+}
+
+.hashtags {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.groupLabel {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.tagList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.tag {
+  display: inline-flex;
+  height: 32px;
+  align-items: center;
+  gap: 2px;
+  padding: 0 4px 0 12px;
+  border-radius: var(--publish-pill-radius);
+  background: var(--publish-info-bg);
+  color: var(--publish-info-text);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.tag button {
+  display: flex;
+  width: 26px;
+  height: 26px;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.tag button:hover {
+  background: rgb(37 99 235 / 12%);
+}
+
+.tag svg {
+  width: 14px;
+  height: 14px;
+}
+
+.tagInput.tagInput {
+  --script-control-radius: 999px;
+  --script-control-bg: var(--publish-inset);
+  width: 110px;
+  height: 32px;
+  min-height: 0;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--publish-inset);
+  color: var(--publish-text);
+  font: inherit;
+  font-size: 13px;
+  outline: 0;
+  box-shadow: none;
+}
+
+.tagInput::placeholder {
+  color: var(--publish-placeholder);
+}
+
+.tagInput:focus-visible {
+  box-shadow: 0 0 0 3px var(--publish-primary-ring);
+}
+
+@media (max-width: 639px) {
+  .document {
+    gap: 14px;
+  }
+
+  .hookCard,
+  .footer {
+    padding: 16px;
+    border-radius: 20px;
+    box-shadow: none;
+  }
+
+  .hookCard {
+    gap: 6px;
+  }
+
+  .hookLabel {
+    font-size: 11px;
+  }
+
+  .hookInput {
+    font-size: 16px;
+  }
+
+  .footer {
+    gap: 12px;
+  }
+
+  .footer :is(input, textarea):not(.tagInput) {
+    font-size: 15px;
+  }
+
+  .footer input:not(.tagInput) {
+    height: 48px;
+  }
+
+  .scenesHeader {
+    padding: 4px 2px 0;
+  }
+
+  .scenesSummary {
+    display: none;
+  }
+
+  .scenesSummaryCompact {
+    display: inline;
+    font-size: 12px;
+  }
+
+  .scene {
+    box-shadow: none;
+  }
+
+  .scene[data-expanded='true'] {
+    gap: 10px;
+    padding: 16px;
+    border-radius: 20px;
+  }
+
+  .scene[data-expanded='false'] {
+    border-radius: 18px;
+  }
+
+  .sceneHeader {
+    gap: 8px;
+  }
+
+  .sceneNumber {
+    width: 30px;
+    height: 30px;
+    font-size: 12px;
+  }
+
+  .sceneName {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .sceneAction {
+    width: 40px;
+    height: 40px;
+  }
+
+  .sceneAction:disabled {
+    display: none;
+  }
+
+  .sceneRow {
+    gap: 10px;
+    padding: 12px 14px;
+  }
+
+  .sceneDuration {
+    font-size: 12px;
+  }
+
+  .sceneFields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .tile[data-wide] {
+    grid-column: auto;
+  }
+
+  .tile[data-field='dialogue'] {
+    order: 1;
+  }
+
+  .tile[data-field='text_overlay'] {
+    order: 2;
+  }
+
+  .tile[data-field='music_mood'] {
+    order: 3;
+  }
+
+  .tile[data-field='transition'] {
+    order: 4;
+  }
+
+  .addScene {
+    border-radius: 18px;
+  }
+
+  .tag {
+    height: 34px;
+  }
+}

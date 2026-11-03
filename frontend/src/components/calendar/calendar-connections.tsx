@@ -1,10 +1,7 @@
 'use client'
 
-import { Switch } from '@/components/ui/switch'
-
 import { PlatformBrandIcon } from '@/components/publishing/platform-brand-icon'
 import { Button } from '@/components/ui/button'
-import { Card } from '@/components/ui/card'
 import {
   Dialog,
   DialogContent,
@@ -14,21 +11,22 @@ import {
   DialogTitle
 } from '@/components/ui/dialog'
 import { LoadingIndicator } from '@/components/ui/loading-indicator'
+import { Switch } from '@/components/ui/switch'
 import { useToast } from '@/components/ui/toast'
 import { extractApiError } from '@/lib/api-error'
 import { apiFetch } from '@/lib/auth'
-import type {
-  PublishingAccount,
-  PublishingData,
-  PublishingProvider
-} from '@/lib/publishing'
 import {
   isPublishingAccountUsable,
-  withAllPublishingProviders
+  withAllPublishingProviders,
+  type PublishingAccount,
+  type PublishingData,
+  type PublishingProvider
 } from '@/lib/publishing'
-import { Check, Lock, LogOut, RefreshCw } from 'lucide-react'
+import { Check, LogOut, RefreshCw } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
 import { useState } from 'react'
+import styles from './calendar-publishing.module.css'
+import theme from './publishing-theme.module.css'
 
 export function CalendarConnections({
   data,
@@ -40,7 +38,10 @@ export function CalendarConnections({
   data: PublishingData | null
   error: string | null
   onReload: () => void
-  onConnect: (provider: PublishingProvider, providerConsent?: boolean) => Promise<void>
+  onConnect: (
+    provider: PublishingProvider,
+    providerConsent?: boolean
+  ) => Promise<void>
   busyProvider: PublishingProvider | null
 }) {
   const t = useTranslations('contentCalendar.connections')
@@ -51,12 +52,9 @@ export function CalendarConnections({
   const [busyAccount, setBusyAccount] = useState<string | null>(null)
   const [disconnectingAccount, setDisconnectingAccount] =
     useState<PublishingAccount | null>(null)
-  const connectedAccounts =
-    data?.accounts.filter(isPublishingAccountUsable) ?? []
 
   async function disconnect() {
-    if (!disconnectingAccount) return
-
+    if (!disconnectingAccount || busyAccount) return
     setBusyAccount(disconnectingAccount.id)
     try {
       const response = await apiFetch(
@@ -67,10 +65,8 @@ export function CalendarConnections({
         string,
         unknown
       >
-      if (!response.ok) {
+      if (!response.ok)
         throw new Error(extractApiError(result, t('disconnectFailed')))
-      }
-
       setDisconnectingAccount(null)
       onReload()
       toast.add('success', t('disconnected'))
@@ -85,196 +81,202 @@ export function CalendarConnections({
   }
 
   return (
-    <Card
-      as="aside"
-      className="relative block min-w-0 gap-0 overflow-hidden bg-[#f5f6f7] p-0 shadow-none dark:bg-muted/30"
-    >
-      <div className="px-4 pb-2 pt-4">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground">
-              {t('eyebrow')}
-            </p>
-            <h2 className="mt-1 text-base font-semibold tracking-tight">
-              {t('title')}
-            </h2>
-          </div>
-          {data && (
-            <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[10px] font-medium tabular-nums text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/50 dark:text-emerald-300">
-              <span className="size-1.5 rounded-full bg-emerald-500" />
-              {t('summary', { count: connectedAccounts.length })}
-            </span>
-          )}
+    <div className="min-w-0">
+      {error ? (
+        <div className="space-y-3 text-sm text-muted-foreground" role="alert">
+          <p>{t('loadError')}</p>
+          <Button type="button" variant="outline" size="sm" onClick={onReload}>
+            <RefreshCw />
+            {t('retry')}
+          </Button>
         </div>
-      </div>
-
-      <div className="p-3">
-        {error ? (
-          <div className="rounded-md bg-muted/45 p-3 text-xs text-muted-foreground">
-            <p>{t('loadError')}</p>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="mt-2"
-              onClick={onReload}
-            >
-              <RefreshCw className="size-3.5" />
-              {t('retry')}
-            </Button>
-          </div>
-        ) : !data ? (
-          <div className="space-y-2" aria-busy="true">
-            {(
-              [
-                'instagram',
-                'facebook',
-                'tiktok',
-                'youtube'
-              ] as const
-            ).map((provider) => (
-              <div key={provider} className="skeleton h-14 w-full rounded-md" />
-            ))}
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {withAllPublishingProviders(data.providers).map((provider) => {
-              const accounts = data.accounts.filter(
-                (account) =>
-                  account.provider === provider.id &&
-                  isPublishingAccountUsable(account)
-              )
-              const connected = accounts.length > 0
-              return (
-                <div
-                  key={provider.id}
-                  className="relative rounded-md bg-white px-3 py-2.5 shadow-[0_2px_7px_-5px_rgba(15,23,42,0.28)] dark:bg-background dark:shadow-[0_2px_8px_-5px_rgba(0,0,0,0.65)]"
-                >
-                  <div className="min-w-0">
-                    <div className="flex min-h-10 items-center gap-3">
-                      <span className="relative flex size-10 shrink-0 items-center justify-center">
-                        <PlatformBrandIcon
-                          provider={provider.id}
-                          className="size-10"
-                        />
-                      </span>
-                      <p className="truncate text-xs font-semibold">
-                        {provider.name}
+      ) : !data ? (
+        <div className="space-y-3" aria-busy="true">
+          {[0, 1, 2, 3].map((index) => (
+            <div key={index} className="skeleton h-14 rounded-md" />
+          ))}
+        </div>
+      ) : (
+        <div className={`${styles.connectionRows} divide-y divide-border`}>
+          {withAllPublishingProviders(data.providers).map((provider) => {
+            const accounts = data.accounts.filter(
+              (account) => account.provider === provider.id
+            )
+            const connected = accounts.some(isPublishingAccountUsable)
+            const needsConsent =
+              provider.id === 'youtube' &&
+              (accounts.length === 0 ||
+                accounts.some((account) => !isPublishingAccountUsable(account)))
+            const unavailable = !provider.configured
+            return (
+              <div key={provider.id} className="py-3 first:pt-0 last:pb-0">
+                <div className="flex min-h-10 items-center gap-3">
+                  <PlatformBrandIcon
+                    provider={provider.id}
+                    className={styles.connectionBrand}
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium">{provider.name}</p>
+                    {accounts.length === 1 && (
+                      <p className="truncate text-xs text-muted-foreground">
+                        {accounts[0].username
+                          ? `@${accounts[0].username.replace(/^@/, '')}`
+                          : accounts[0].name}
                       </p>
-                      {connected && (
-                        <span
-                          className="ml-auto inline-flex size-6 shrink-0 animate-in items-center justify-center rounded-full bg-emerald-50 text-emerald-600 zoom-in-50 motion-reduce:animate-none dark:bg-emerald-950 dark:text-emerald-300"
-                          title={t('connected')}
-                        >
-                          <Check className="size-3" />
-                        </span>
+                    )}
+                  </div>
+                  {connected ? (
+                    <Check
+                      className={styles.connectedMark}
+                      aria-label={t('connected')}
+                    />
+                  ) : (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      data-reconnect={accounts.length > 0}
+                      disabled={
+                        unavailable ||
+                        busyProvider !== null ||
+                        busyAccount !== null ||
+                        (needsConsent && !youtubeConsent)
+                      }
+                      onClick={() =>
+                        void onConnect(
+                          provider.id,
+                          needsConsent && youtubeConsent
+                        )
+                      }
+                    >
+                      {busyProvider === provider.id && (
+                        <LoadingIndicator className="size-3" />
                       )}
-                      {!connected && (
+                      {unavailable
+                        ? t('unavailable')
+                        : accounts.length
+                          ? t('reconnect')
+                          : t('connect')}
+                    </Button>
+                  )}
+                  {accounts.length === 1 && connected && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-xs"
+                      disabled={busyAccount !== null}
+                      onClick={() => setDisconnectingAccount(accounts[0])}
+                      aria-label={t('disconnectAccount', {
+                        account: accounts[0].username || accounts[0].name
+                      })}
+                    >
+                      <LogOut className="size-3.5 text-muted-foreground" />
+                    </Button>
+                  )}
+                </div>
+                {accounts.length > 1 && (
+                  <div className="mt-2 pl-11">
+                    {accounts.map((account) => (
+                      <div
+                        key={account.id}
+                        className="flex items-center gap-2 py-1.5"
+                      >
+                        <p className="min-w-0 flex-1 truncate text-xs text-muted-foreground">
+                          {account.username
+                            ? `@${account.username.replace(/^@/, '')}`
+                            : account.name}
+                        </p>
+                        {!isPublishingAccountUsable(account) && (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="xs"
+                            data-reconnect="true"
+                            disabled={
+                              busyProvider !== null ||
+                              (needsConsent && !youtubeConsent)
+                            }
+                            onClick={() =>
+                              void onConnect(
+                                provider.id,
+                                needsConsent && youtubeConsent
+                              )
+                            }
+                          >
+                            {t('reconnect')}
+                          </Button>
+                        )}
                         <Button
                           type="button"
-                          variant="outline"
-                          size="sm"
-                          disabled={
-                            !provider.configured || busyProvider !== null ||
-                            (provider.id === 'youtube' && !youtubeConsent)
-                          }
-                          onClick={() => void onConnect(
-                            provider.id,
-                            provider.id === 'youtube'
-                              ? youtubeConsent
-                              : false
-                          )}
-                          className="ml-auto h-8 rounded-md bg-background px-2.5 text-[10px] shadow-none hover:bg-muted hover:text-foreground"
+                          variant="ghost"
+                          size="icon-xs"
+                          disabled={busyAccount !== null}
+                          onClick={() => setDisconnectingAccount(account)}
+                          aria-label={t('disconnectAccount', {
+                            account: account.username || account.name
+                          })}
                         >
-                          {busyProvider === provider.id ? (
-                            <LoadingIndicator className="size-3" />
-                          ) : provider.configured ? (
-                            <span aria-hidden="true">+</span>
-                          ) : (
-                            <Lock className="size-3" />
-                          )}
-                          {provider.configured
-                            ? t('connect')
-                            : t('unavailable')}
+                          <LogOut className="size-3.5" />
                         </Button>
-                      )}
-                    </div>
-                    {provider.id === 'youtube' && !connected && (
-                      <div className="mt-2 space-y-2 text-xs text-muted-foreground">
-                        {data.accounts.some(account => account.provider === 'youtube') && <p>{youtubeT('reconnect')}</p>}
-                        <label className="flex items-start gap-2"><Switch checked={youtubeConsent} onCheckedChange={setYouTubeConsent} /><span>{youtubeT.rich('connectionConsent', {
-                          terms: chunks => <a className="underline" href="https://www.youtube.com/t/terms" target="_blank" rel="noreferrer">{chunks}</a>,
-                          privacy: chunks => <a className="underline" href={locale === 'ro' ? '/ro/privacy' : '/privacy'} target="_blank" rel="noreferrer">{chunks}</a>
-                        })}</span></label>
                       </div>
-                    )}
-                    {connected ? (
-                      <div className="mt-2 border-t border-border/70">
-                        {accounts.map((account) => (
-                          <div
-                            key={account.id}
-                            className="flex min-w-0 items-center gap-2 border-b border-border/60 py-2 last:border-b-0"
-                          >
-                            <span className="flex size-7 shrink-0 items-center justify-center overflow-hidden rounded-full bg-foreground text-[10px] font-semibold uppercase text-background">
-                              {account.avatarUrl ? (
-                                <img
-                                  src={account.avatarUrl}
-                                  alt=""
-                                  className="h-full w-full object-cover"
-                                  loading="lazy"
-                                />
-                              ) : (
-                                (account.name || account.username || '?')
-                                  .trim()
-                                  .charAt(0)
-                              )}
-                            </span>
-                            <p
-                              className="min-w-0 flex-1 truncate text-[10px] text-muted-foreground"
-                              title={account.username || account.name}
-                            >
-                              {account.username
-                                ? `@${account.username.replace(/^@/, '')}`
-                                : account.name}
-                            </p>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon-xs"
-                              className="text-destructive hover:bg-destructive/5 hover:text-destructive"
-                              disabled={busyAccount !== null}
-                              onClick={() => setDisconnectingAccount(account)}
-                              aria-label={t('disconnectAccount', {
-                                account: account.username || account.name
-                              })}
-                              title={t('disconnect')}
-                            >
-                              {busyAccount === account.id ? (
-                                <LoadingIndicator />
-                              ) : (
-                                <LogOut />
-                              )}
-                            </Button>
-                          </div>
-                        ))}
-                      </div>
-                    ) : null}
+                    ))}
                   </div>
-                </div>
-              )
-            })}
-          </div>
-        )}
-      </div>
-
+                )}
+                {needsConsent && (
+                  <label className="mt-3 flex items-start gap-2 text-xs leading-5 text-muted-foreground">
+                    <Switch
+                      checked={youtubeConsent}
+                      onCheckedChange={setYouTubeConsent}
+                    />
+                    <span>
+                      {youtubeT.rich('connectionConsent', {
+                        terms: (chunks) => (
+                          <a
+                            className="underline"
+                            href="https://www.youtube.com/t/terms"
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            {chunks}
+                          </a>
+                        ),
+                        privacy: (chunks) => (
+                          <a
+                            className="underline"
+                            href={locale === 'ro' ? '/ro/privacy' : '/privacy'}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            {chunks}
+                          </a>
+                        )
+                      })}
+                    </span>
+                  </label>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      )}
       <Dialog
         open={disconnectingAccount !== null}
         onOpenChange={(open) => {
           if (!open && busyAccount === null) setDisconnectingAccount(null)
         }}
       >
-        <DialogContent className="rounded-md">
+        <DialogContent
+          className={`${theme.surface} ${styles.confirmationDialog}`}
+          overlayClassName={theme.overlay}
+          data-publish-surface=""
+        >
           <DialogHeader>
+            {disconnectingAccount && (
+              <PlatformBrandIcon
+                provider={disconnectingAccount.provider}
+                className={styles.disconnectProvider}
+              />
+            )}
             <DialogTitle>{t('disconnectTitle')}</DialogTitle>
             <DialogDescription>
               {disconnectingAccount
@@ -312,6 +314,6 @@ export function CalendarConnections({
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </Card>
+    </div>
   )
 }

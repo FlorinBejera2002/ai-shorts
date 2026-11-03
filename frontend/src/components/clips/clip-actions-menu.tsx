@@ -1,5 +1,6 @@
 'use client'
 
+import theme from '@/components/calendar/publishing-theme.module.css'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -25,13 +26,18 @@ import { Link } from '@/i18n/navigation'
 import { formatDuration } from '@/lib/utils'
 import type { ClipVariant } from '@/types'
 import {
+  ArrowDown,
+  ArrowRight,
+  ArrowUpRight,
   Check,
   ChevronDown,
   ChevronRight,
   Download,
   Film,
   Folder,
+  type LucideIcon,
   MoreHorizontal,
+  Play,
   Scissors,
   Send,
   Trash2
@@ -52,6 +58,8 @@ export type ClipCardActions = {
 }
 
 export type ClipMoveTarget = { value: string; label: string }
+/** `reference` renders the approved Clips page design; `default` keeps the dashboard style. */
+export type ClipActionsAppearance = 'default' | 'reference'
 type ActionPanel = 'download' | 'move' | null
 
 type ClipActionsProps = {
@@ -66,7 +74,11 @@ type ClipActionsProps = {
   moveLabel: string
   menuLabel: string
   cancelLabel: string
-  onDelete: () => Promise<void>
+  onDelete: () => void | Promise<void>
+  appearance?: ClipActionsAppearance
+  triggerClassName?: string
+  /** Secondary line under the clip title in the mobile sheet. */
+  summary?: string
 }
 
 type MenuContentProps = ClipActionsProps & {
@@ -79,6 +91,44 @@ type MenuContentProps = ClipActionsProps & {
   onPanelChange: (panel: ActionPanel, open: boolean) => void
   onMoveTarget: (value: string) => void
   onDeleteRequest: () => void
+}
+
+type ActionName = 'edit' | 'publish' | 'download' | 'move' | 'delete'
+
+const icons: Record<ClipActionsAppearance, Record<ActionName, LucideIcon>> = {
+  default: {
+    edit: Scissors,
+    publish: Send,
+    download: Download,
+    move: Folder,
+    delete: Trash2
+  },
+  reference: {
+    edit: Play,
+    publish: ArrowUpRight,
+    download: ArrowDown,
+    move: ArrowRight,
+    delete: Trash2
+  }
+}
+
+function classes(...names: (string | false | undefined)[]) {
+  return names.filter(Boolean).join(' ')
+}
+
+function ActionIcon({
+  icon: Icon,
+  reference
+}: {
+  icon: LucideIcon
+  reference: boolean
+}) {
+  if (!reference) return <Icon />
+  return (
+    <span className={styles.icon} aria-hidden="true">
+      <Icon />
+    </span>
+  )
 }
 
 function DownloadName({ variant }: { variant: ClipVariant }) {
@@ -103,6 +153,7 @@ function DesktopClipActions({
   currentMoveTarget,
   onMove,
   moveLabel,
+  appearance = 'default',
   trigger,
   open,
   panel,
@@ -113,17 +164,26 @@ function DesktopClipActions({
   onMoveTarget,
   onDeleteRequest
 }: MenuContentProps) {
+  const reference = appearance === 'reference'
+  const icon = icons[appearance]
+  const surface = reference && `${theme.surface} ${styles.reference}`
+  const EditIcon = icon.edit
+  const PublishIcon = icon.publish
+  const DownloadIcon = icon.download
+  const MoveIcon = icon.move
+  const DeleteIcon = icon.delete
   return (
     <DropdownMenu open={open} onOpenChange={onOpenChange}>
       <DropdownMenuTrigger asChild={true}>{trigger}</DropdownMenuTrigger>
       <DropdownMenuContent
-        align="end"
-        className={styles.dropdown}
+        align={reference ? 'start' : 'end'}
+        className={classes(styles.dropdown, surface)}
         data-clip-actions="desktop"
+        data-reference-surface={reference ? '' : undefined}
       >
         <DropdownMenuItem asChild={true} disabled={disabled}>
           <Link href={clipHref}>
-            <Scissors />
+            <EditIcon />
             {actions.edit}
           </Link>
         </DropdownMenuItem>
@@ -131,7 +191,7 @@ function DesktopClipActions({
           <Link
             href={`/dashboard/publish/new?clip=${encodeURIComponent(clip.id)}`}
           >
-            <Send />
+            <PublishIcon />
             {actions.publish}
           </Link>
         </DropdownMenuItem>
@@ -140,11 +200,11 @@ function DesktopClipActions({
           onOpenChange={(value) => onPanelChange('download', value)}
         >
           <DropdownMenuSubTrigger disabled={disabled || !downloads.length}>
-            <Download />
+            <DownloadIcon />
             {actions.download}
           </DropdownMenuSubTrigger>
           <DropdownMenuPortal>
-            <DropdownMenuSubContent className={styles.submenu}>
+            <DropdownMenuSubContent className={classes(styles.submenu, surface)}>
               {downloads.map((variant) => (
                 <DropdownMenuItem key={variant.id} asChild={true}>
                   <a
@@ -167,28 +227,33 @@ function DesktopClipActions({
           <DropdownMenuSubTrigger
             disabled={disabled || !onMove || !moveTargets.length}
           >
-            <Folder />
+            <MoveIcon />
             {moveLabel}
           </DropdownMenuSubTrigger>
           <DropdownMenuPortal>
-            <DropdownMenuSubContent className={styles.submenu}>
-              {moveTargets.map((target) => (
-                <DropdownMenuItem
-                  key={target.value}
-                  disabled={disabled || target.value === currentMoveTarget}
-                  data-clip-move-target={target.value}
-                  onSelect={(event) => {
-                    event.preventDefault()
-                    onMoveTarget(target.value)
-                  }}
-                >
-                  <Folder />
-                  <span>{target.label}</span>
-                  {target.value === currentMoveTarget && (
-                    <Check className="ml-auto size-4" />
-                  )}
-                </DropdownMenuItem>
-              ))}
+            <DropdownMenuSubContent
+              className={classes(styles.submenu, surface)}
+              aria-label={moveLabel}
+            >
+              {moveTargets.map((target) => {
+                const current = target.value === currentMoveTarget
+                return (
+                  <DropdownMenuItem
+                    key={target.value}
+                    disabled={disabled || (!reference && current)}
+                    data-current={current}
+                    data-clip-move-target={target.value}
+                    onSelect={(event) => {
+                      event.preventDefault()
+                      onMoveTarget(target.value)
+                    }}
+                  >
+                    {!reference && <Folder />}
+                    <span>{target.label}</span>
+                    {current && <Check className="ml-auto size-4" />}
+                  </DropdownMenuItem>
+                )
+              })}
               {moveError && (
                 <p role="alert" className={styles.error}>
                   {moveError}
@@ -197,17 +262,152 @@ function DesktopClipActions({
             </DropdownMenuSubContent>
           </DropdownMenuPortal>
         </DropdownMenuSub>
-        <DropdownMenuSeparator />
+        {!reference && <DropdownMenuSeparator />}
         <DropdownMenuItem
           variant="destructive"
           disabled={disabled}
           onSelect={onDeleteRequest}
         >
-          <Trash2 />
+          <DeleteIcon />
           {actions.delete}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
+  )
+}
+
+type MobilePanelProps = {
+  id: string
+  label: string
+  icon: LucideIcon
+  disabled: boolean
+  reference: boolean
+  expanded: boolean
+  onToggle: () => void
+}
+
+function MobileDownloadActions({
+  id,
+  label,
+  icon,
+  disabled,
+  reference,
+  expanded,
+  onToggle,
+  clipTitle,
+  downloads,
+  onSelect
+}: MobilePanelProps & {
+  clipTitle: string
+  downloads: ClipVariant[]
+  onSelect: () => void
+}) {
+  return (
+    <>
+      <button
+        type="button"
+        className={styles.row}
+        disabled={disabled || !downloads.length}
+        aria-expanded={expanded}
+        aria-controls={id}
+        onClick={onToggle}
+      >
+        <ActionIcon icon={icon} reference={reference} />
+        <span>{label}</span>
+        <ChevronDown className={expanded ? styles.expanded : undefined} />
+      </button>
+      {expanded && (
+        <div id={id} className={styles.mobileSubmenu}>
+          {downloads.map((variant) => (
+            <a
+              key={variant.id}
+              href={variant.url}
+              download={clipDownloadName(clipTitle, variant.name)}
+              className={styles.subrow}
+              data-clip-download={variant.id}
+              onClick={onSelect}
+            >
+              <Download />
+              <DownloadName variant={variant} />
+            </a>
+          ))}
+        </div>
+      )}
+    </>
+  )
+}
+
+function MobileMoveActions({
+  id,
+  label,
+  icon,
+  disabled,
+  reference,
+  expanded,
+  onToggle,
+  canMove,
+  moveTargets,
+  currentMoveTarget,
+  moveError,
+  onMoveTarget
+}: MobilePanelProps &
+  Pick<
+    MenuContentProps,
+    'moveTargets' | 'currentMoveTarget' | 'moveError' | 'onMoveTarget'
+  > & { canMove: boolean }) {
+  return (
+    <>
+      <button
+        type="button"
+        className={styles.row}
+        data-active={reference && expanded}
+        disabled={disabled || !canMove || !moveTargets.length}
+        aria-expanded={expanded}
+        aria-controls={id}
+        onClick={onToggle}
+      >
+        <ActionIcon icon={icon} reference={reference} />
+        <span>{label}</span>
+        {reference ? (
+          <ChevronDown className={expanded ? styles.expanded : undefined} />
+        ) : (
+          <ChevronRight className={expanded ? styles.moveExpanded : undefined} />
+        )}
+      </button>
+      {expanded && (
+        <div
+          id={id}
+          className={styles.mobileSubmenu}
+          role={reference ? 'radiogroup' : undefined}
+          aria-label={reference ? label : undefined}
+        >
+          {moveTargets.map((target) => {
+            const current = target.value === currentMoveTarget
+            return (
+              <button
+                key={target.value}
+                type="button"
+                role={reference ? 'radio' : undefined}
+                aria-checked={reference ? current : undefined}
+                className={styles.subrow}
+                disabled={disabled || (!reference && current)}
+                data-clip-move-target={target.value}
+                onClick={() => onMoveTarget(target.value)}
+              >
+                {!reference && <Folder />}
+                <span>{target.label}</span>
+                {current && <Check className="ml-auto size-4" />}
+              </button>
+            )
+          })}
+          {moveError && (
+            <p role="alert" className={styles.error}>
+              {moveError}
+            </p>
+          )}
+        </div>
+      )}
+    </>
   )
 }
 
@@ -221,6 +421,8 @@ function MobileClipActions({
   onMove,
   moveLabel,
   cancelLabel,
+  appearance = 'default',
+  summary,
   trigger,
   open,
   panel,
@@ -232,10 +434,13 @@ function MobileClipActions({
   onDeleteRequest
 }: MenuContentProps) {
   const panelId = useId()
+  const reference = appearance === 'reference'
+  const icon = icons[appearance]
   function navigate(event: MouseEvent<HTMLAnchorElement>) {
     if (disabled) event.preventDefault()
     else onOpenChange(false)
   }
+  const rowEnd = reference ? null : <ChevronRight />
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -243,9 +448,14 @@ function MobileClipActions({
       <SheetContent
         side="bottom"
         showCloseButton={false}
-        className={styles.sheet}
+        className={classes(
+          styles.sheet,
+          reference && `${theme.surface} ${styles.reference}`
+        )}
+        overlayClassName={reference ? theme.overlay : undefined}
         aria-describedby={undefined}
         data-clip-actions="mobile"
+        data-reference-surface={reference ? '' : undefined}
       >
         <span className={styles.handle} aria-hidden="true" />
         <header className={styles.header}>
@@ -258,7 +468,7 @@ function MobileClipActions({
           </span>
           <div>
             <SheetTitle className={styles.title}>{clip.title}</SheetTitle>
-            <p>{formatDuration(clip.duration)}</p>
+            <p>{summary ?? formatDuration(clip.duration)}</p>
           </div>
         </header>
         <div className={styles.mobileActions}>
@@ -269,9 +479,9 @@ function MobileClipActions({
             tabIndex={disabled ? -1 : undefined}
             onClick={navigate}
           >
-            <Scissors />
+            <ActionIcon icon={icon.edit} reference={reference} />
             <span>{actions.edit}</span>
-            <ChevronRight />
+            {rowEnd}
           </Link>
           <Link
             href={`/dashboard/publish/new?clip=${encodeURIComponent(clip.id)}`}
@@ -280,101 +490,59 @@ function MobileClipActions({
             tabIndex={disabled ? -1 : undefined}
             onClick={navigate}
           >
-            <Send />
+            <ActionIcon icon={icon.publish} reference={reference} />
             <span>{actions.publish}</span>
-            <ChevronRight />
+            {rowEnd}
           </Link>
-          <button
-            type="button"
-            className={styles.row}
-            disabled={disabled || !downloads.length}
-            aria-expanded={panel === 'download'}
-            aria-controls={`${panelId}-downloads`}
-            onClick={() => onPanelChange('download', panel !== 'download')}
-          >
-            <Download />
-            <span>{actions.download}</span>
-            <ChevronDown
-              className={panel === 'download' ? styles.expanded : undefined}
-            />
-          </button>
-          {panel === 'download' && (
-            <div id={`${panelId}-downloads`} className={styles.mobileSubmenu}>
-              {downloads.map((variant) => (
-                <a
-                  key={variant.id}
-                  href={variant.url}
-                  download={clipDownloadName(clip.title, variant.name)}
-                  className={styles.subrow}
-                  data-clip-download={variant.id}
-                  onClick={() => onOpenChange(false)}
-                >
-                  <Download />
-                  <DownloadName variant={variant} />
-                </a>
-              ))}
-            </div>
-          )}
-          <button
-            type="button"
-            className={styles.row}
-            disabled={disabled || !onMove || !moveTargets.length}
-            aria-expanded={panel === 'move'}
-            aria-controls={`${panelId}-move`}
-            onClick={() => onPanelChange('move', panel !== 'move')}
-          >
-            <Folder />
-            <span>{moveLabel}</span>
-            <ChevronRight
-              className={panel === 'move' ? styles.moveExpanded : undefined}
-            />
-          </button>
-          {panel === 'move' && (
-            <div id={`${panelId}-move`} className={styles.mobileSubmenu}>
-              {moveTargets.map((target) => (
-                <button
-                  key={target.value}
-                  type="button"
-                  className={styles.subrow}
-                  disabled={disabled || target.value === currentMoveTarget}
-                  data-clip-move-target={target.value}
-                  onClick={() => onMoveTarget(target.value)}
-                >
-                  <Folder />
-                  <span>{target.label}</span>
-                  {target.value === currentMoveTarget && (
-                    <Check className="ml-auto size-4" />
-                  )}
-                </button>
-              ))}
-              {moveError && (
-                <p role="alert" className={styles.error}>
-                  {moveError}
-                </p>
-              )}
-            </div>
-          )}
+          <MobileDownloadActions
+            id={`${panelId}-downloads`}
+            label={actions.download}
+            icon={icon.download}
+            disabled={disabled}
+            reference={reference}
+            expanded={panel === 'download'}
+            onToggle={() => onPanelChange('download', panel !== 'download')}
+            clipTitle={clip.title}
+            downloads={downloads}
+            onSelect={() => onOpenChange(false)}
+          />
+          <MobileMoveActions
+            id={`${panelId}-move`}
+            label={moveLabel}
+            icon={icon.move}
+            disabled={disabled}
+            reference={reference}
+            expanded={panel === 'move'}
+            onToggle={() => onPanelChange('move', panel !== 'move')}
+            canMove={Boolean(onMove)}
+            moveTargets={moveTargets}
+            currentMoveTarget={currentMoveTarget}
+            moveError={moveError}
+            onMoveTarget={onMoveTarget}
+          />
           <button
             type="button"
             className={`${styles.row} ${styles.destructive}`}
             disabled={disabled}
             onClick={onDeleteRequest}
           >
-            <Trash2 />
+            <ActionIcon icon={icon.delete} reference={reference} />
             <span>{actions.delete}</span>
-            <ChevronRight />
+            {rowEnd}
           </button>
         </div>
-        <SheetClose asChild={true}>
-          <Button
-            type="button"
-            variant="outline"
-            className={styles.cancel}
-            disabled={disabled}
-          >
-            {cancelLabel}
-          </Button>
-        </SheetClose>
+        {!reference && (
+          <SheetClose asChild={true}>
+            <Button
+              type="button"
+              variant="outline"
+              className={styles.cancel}
+              disabled={disabled}
+            >
+              {cancelLabel}
+            </Button>
+          </SheetClose>
+        )}
       </SheetContent>
     </Sheet>
   )
@@ -442,7 +610,7 @@ export function ClipActionsMenu(props: ClipActionsProps) {
       type="button"
       variant="ghost"
       size="icon"
-      className={styles.trigger}
+      className={props.triggerClassName ?? styles.trigger}
       disabled={props.disabled || moving}
       aria-label={props.menuLabel}
       data-clip-menu-trigger={props.clip.id}

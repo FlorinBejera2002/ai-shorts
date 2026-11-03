@@ -12,7 +12,11 @@ function SocialHeader({ platform }: { platform: ContentPlatform }) {
   return <><span className={styles.socialTopTabs}><strong>Reels</strong>{t('friends')}</span><Camera /></>
 }
 
-export function SocialPreviewOverlay({ platform }: { platform: ContentPlatform }) {
+export function SocialPreviewOverlay({ platform, accountName, caption }: {
+  platform: ContentPlatform
+  accountName?: string
+  caption?: string
+}) {
   const t = useTranslations('brand.previewDesign')
   return (
     <div className={styles.socialOverlay} aria-hidden="true" data-brand-social-overlay={platform}>
@@ -29,10 +33,10 @@ export function SocialPreviewOverlay({ platform }: { platform: ContentPlatform }
       <div className={styles.socialCaption}>
         <div className={styles.socialAccount}>
           {platform !== 'tiktok' && <span className={styles.avatar}><img src="/logo-icon.svg" alt="" /></span>}
-          <strong>{platform === 'youtube' || platform === 'tiktok' ? '@sneepcutstudio' : 'sneepcutstudio'}</strong>
+          <strong>{accountName || (platform === 'youtube' || platform === 'tiktok' ? '@sneepcutstudio' : 'sneepcutstudio')}</strong>
           {platform !== 'tiktok' && <span className={styles.follow}>{t(platform === 'youtube' ? 'subscribe' : 'follow')}</span>}
         </div>
-        <p>{t('sampleCaption')}</p>
+        <p>{caption === undefined ? t('sampleCaption') : caption}</p>
         <span className={styles.socialAudio}><Music2 />{t('sampleAudio')}</span>
       </div>
       {platform === 'tiktok' && <span className={styles.socialDisc}><PlatformBrandIcon provider="tiktok" className="size-5" /></span>}

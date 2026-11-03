@@ -31,7 +31,7 @@ export function ResultPreview({ run, ro }: { run: AgentRun; ro: boolean }) {
         const current = await storyRequest<StoryProject>(`/api/stories/${id}`, 'GET', undefined, signal)
         const expected = receipt?.result?.data?.current_version
         const version = current.versions.find(item => item.number === expected && item.accepted)
-        if (current.current_version !== expected || !version?.preview_url) throw new Error(ro ? 'Rezultatul s-a schimbat. Deschide povestea pentru versiunea curentă.' : 'The result changed. Open the story for its current version.')
+        if (current.current_version !== expected || !version?.preview_url) throw new Error(ro ? 'Rezultatul s-a schimbat. Deschide proiectul pentru versiunea curentă.' : 'The result changed. Open the project for its current version.')
         const url = mediaUrl(version.preview_url)
         if (!url) throw new Error(ro ? 'Previzualizarea nu este disponibilă.' : 'Preview is unavailable.')
         return { url, transcript: '' }

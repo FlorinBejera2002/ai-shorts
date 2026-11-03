@@ -69,29 +69,29 @@ export function StoryProcessing({ project, active, busy, onCancel }: Props) {
     pending: {
       label: text('Queued', 'În așteptare'),
       detail: text(
-        'Your files are saved. Your story is waiting to start.',
-        'Fișierele sunt salvate. Povestea așteaptă să înceapă.'
+        'Your files are saved. Processing is waiting to start.',
+        'Fișierele sunt salvate. Procesarea așteaptă să înceapă.'
       ),
       icon: Clock3
     },
     analyzing: {
       label: text('Understanding your clips', 'Analizăm filmările'),
       detail: text(
-        'Checking speech and footage for your story.',
-        'Analizăm vorbirea și imaginile pentru povestea ta.'
+        'Checking speech and footage.',
+        'Analizăm vorbirea și imaginile din filmări.'
       ),
       icon: AudioLines
     },
     building_story: {
-      label: text('Building your story', 'Construim povestea'),
+      label: text('Choosing moments', 'Alegem momentele'),
       detail: text(
-        'Choosing moments and arranging the story.',
-        'Alegem momentele și construim firul poveștii.'
+        'Picking the best moments from your footage.',
+        'Alegem cele mai bune momente din filmări.'
       ),
       icon: ListVideo
     },
     editing: {
-      label: text('Editing your story', 'Montăm povestea'),
+      label: text('Editing your clip', 'Montăm clipul'),
       detail: text(
         'Putting the selected moments together.',
         'Punem împreună momentele selectate.'
@@ -101,16 +101,16 @@ export function StoryProcessing({ project, active, busy, onCancel }: Props) {
     reviewing: {
       label: text('Checking your edit', 'Verificăm montajul'),
       detail: text(
-        'Reviewing the picture, sound and story.',
-        'Verificăm imaginea, sunetul și povestea.'
+        'Reviewing the picture, sound and edit.',
+        'Verificăm imaginea, sunetul și montajul.'
       ),
       icon: SearchCheck
     },
     improving: {
-      label: text('Improving your story', 'Îmbunătățim povestea'),
+      label: text('Improving your clip', 'Îmbunătățim clipul'),
       detail: text(
-        'Refining the story or edit before another check.',
-        'Ajustăm povestea sau montajul înaintea unei noi verificări.'
+        'Refining the edit before another check.',
+        'Ajustăm montajul înaintea unei noi verificări.'
       ),
       icon: Sparkles
     },
@@ -168,7 +168,7 @@ export function StoryProcessing({ project, active, busy, onCancel }: Props) {
   const labels = [
     text('Queued', 'În așteptare'),
     text('Analyze', 'Analiză'),
-    text('Story', 'Poveste'),
+    text('Moments', 'Momente'),
     text('Edit', 'Montaj'),
     text('Review', 'Verificare')
   ]
@@ -200,12 +200,12 @@ export function StoryProcessing({ project, active, busy, onCancel }: Props) {
       className="story-processing"
       testID="story-processing"
       status={project.status}
-      title={text('Your story', 'Povestea ta')}
+      title={text('Your clip', 'Clipul tău')}
       eyebrow={
         phase === 'pending'
           ? text('Waiting to start', 'În așteptarea pornirii')
           : running
-            ? text('Working on your story', 'Pregătim povestea')
+            ? text('Preparing your clip', 'Pregătim clipul')
             : focus.label
       }
       countLabel={countLabel}
@@ -221,7 +221,7 @@ export function StoryProcessing({ project, active, busy, onCancel }: Props) {
                 phase === 'pending'
                   ? text('Waiting to start', 'În așteptarea pornirii')
                   : text('In progress', 'În lucru'),
-              ariaLabel: text('Story processing', 'Procesarea poveștii')
+              ariaLabel: text('Clip processing', 'Procesarea clipului')
             }
           : undefined
       }

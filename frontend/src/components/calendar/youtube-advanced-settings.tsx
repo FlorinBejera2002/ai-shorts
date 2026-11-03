@@ -11,6 +11,7 @@ import { Switch } from '@/components/ui/switch'
 import type { YouTubePublishingOptions } from '@/lib/content-calendar'
 import { parseYouTubeTags } from '@/lib/youtube-post-settings'
 import { useTranslations } from 'next-intl'
+import theme from './publishing-theme.module.css'
 import { useState } from 'react'
 
 export function YouTubeAdvancedSettings({
@@ -57,7 +58,7 @@ export function YouTubeAdvancedSettings({
           <SelectTrigger id={`${idPrefix}-license`} className="w-full">
             <SelectValue />
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent className={theme.surface} data-publish-surface="">
             <SelectItem value="youtube">{t('standardLicense')}</SelectItem>
             <SelectItem value="creativeCommon">{t('creativeCommonsLicense')}</SelectItem>
           </SelectContent>

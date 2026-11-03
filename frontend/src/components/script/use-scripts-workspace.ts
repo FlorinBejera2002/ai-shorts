@@ -30,6 +30,7 @@ export function useScriptsWorkspace() {
   const [query, setQuery] = useState('')
   const [includeArchived, setIncludeArchived] = useState(false)
   const [loadingLibrary, setLoadingLibrary] = useState(true)
+  const [libraryError, setLibraryError] = useState('')
   const [activeId, setActiveId] = useState<string | null>(null)
   const [revision, setRevision] = useState(0)
   const revisionRef = useRef(0)
@@ -52,6 +53,8 @@ export function useScriptsWorkspace() {
   const [generating, setGenerating] = useState(false)
   const [updatedAt, setUpdatedAt] = useState('')
   const [creating, setCreating] = useState(false)
+  const [copied, setCopied] = useState(false)
+  const copiedTimer = useRef<number | undefined>(undefined)
 
   const payload = useMemo(
     () => ({
@@ -81,15 +84,15 @@ export function useScriptsWorkspace() {
       if (!response.ok)
         throw new Error(responseError(data, t('workspace.loadFailed')))
       setRecords(data.scripts ?? [])
+      setLibraryError('')
     } catch (error) {
-      toast.add(
-        'error',
+      setLibraryError(
         error instanceof Error ? error.message : t('workspace.loadFailed')
       )
     } finally {
       setLoadingLibrary(false)
     }
-  }, [includeArchived, query, t, toast])
+  }, [includeArchived, query, t])
 
   useEffect(() => {
     const timer = window.setTimeout(loadLibrary, 250)
@@ -288,14 +291,16 @@ export function useScriptsWorkspace() {
       )
     }))
   }
+  /** Appends an empty scene and returns its editor id for selection. */
   function addScene() {
+    const editorId = crypto.randomUUID()
     setScript((current) => ({
       ...current,
       scenes: [
         ...current.scenes,
         {
           scene_number: current.scenes.length + 1,
-          editor_id: crypto.randomUUID(),
+          editor_id: editorId,
           duration_seconds: 5,
           visual_description: '',
           camera_angle: 'Eye level',
@@ -309,6 +314,7 @@ export function useScriptsWorkspace() {
         }
       ]
     }))
+    return editorId
   }
   function moveScene(index: number, direction: -1 | 1) {
     setScript((current) => {
@@ -336,10 +342,10 @@ export function useScriptsWorkspace() {
     }))
   }
 
-  async function loadVersions() {
-    if (!activeId) return
-    setShowVersions((current) => !current)
-    if (versions.length) return
+  async function openVersions(open = true) {
+    setShowVersions(open)
+    if (!open || !activeId) return
+    // Every save adds a version, so the history is refreshed on each open.
     const response = await apiFetch(`/api/scripts/items/${activeId}/versions`)
     const data = await response.json()
     if (response.ok) setVersions(data.versions ?? [])
@@ -376,8 +382,8 @@ export function useScriptsWorkspace() {
     await loadLibrary()
   }
 
-  function copyScript() {
-    const text = [
+  function scriptText() {
+    return [
       script.title,
       script.hook,
       ...script.scenes.flatMap((scene) => [
@@ -389,18 +395,33 @@ export function useScriptsWorkspace() {
       script.caption,
       script.hashtags.map((tag) => `#${tag}`).join(' ')
     ].join('\n\n')
-    navigator.clipboard.writeText(text)
-    toast.add('success', t('copied'))
   }
-  function downloadScript() {
-    const url = URL.createObjectURL(
-      new Blob([JSON.stringify(script, null, 2)], { type: 'application/json' })
-    )
+  async function copyScript() {
+    try {
+      await navigator.clipboard.writeText(scriptText())
+    } catch {
+      toast.add('error', t('workspace.copyFailed'))
+      return
+    }
+    window.clearTimeout(copiedTimer.current)
+    setCopied(true)
+    copiedTimer.current = window.setTimeout(() => setCopied(false), 2200)
+  }
+  useEffect(() => () => window.clearTimeout(copiedTimer.current), [])
+
+  function download(body: string, type: string, extension: string) {
+    const url = URL.createObjectURL(new Blob([body], { type }))
     const anchor = document.createElement('a')
     anchor.href = url
-    anchor.download = `${script.title.replace(/[^a-z0-9]+/gi, '-').toLowerCase() || 'script'}.json`
+    anchor.download = `${script.title.replace(/[^a-z0-9]+/gi, '-').toLowerCase() || 'script'}.${extension}`
     anchor.click()
     URL.revokeObjectURL(url)
+  }
+  function downloadScript() {
+    download(scriptText(), 'text/plain;charset=utf-8', 'txt')
+  }
+  function downloadJson() {
+    download(JSON.stringify(script, null, 2), 'application/json', 'json')
   }
 
   function backToLibrary() {
@@ -416,7 +437,10 @@ export function useScriptsWorkspace() {
     includeArchived,
     setIncludeArchived,
     loadingLibrary,
+    libraryError,
+    retryLibrary: loadLibrary,
     creating,
+    copied,
     activeId,
     revision,
     saveState,
@@ -449,11 +473,12 @@ export function useScriptsWorkspace() {
     addScene,
     moveScene,
     deleteScene,
-    loadVersions,
+    openVersions,
     restoreVersion,
     archiveScript,
     copyScript,
     downloadScript,
+    downloadJson,
     backToLibrary,
     retrySave: () => save(payload)
   }

@@ -2,59 +2,129 @@
 
 import { PlatformBrandIcon } from '@/components/publishing/platform-brand-icon'
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogClose } from '@/components/ui/dialog'
-import { isPublishingAccountUsable, type PublishingData, type PublishingProvider } from '@/lib/publishing'
-import { ChevronRight, X } from 'lucide-react'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogClose
+} from '@/components/ui/dialog'
+import {
+  isPublishingAccountUsable,
+  type PublishingData,
+  type PublishingProvider
+} from '@/lib/publishing'
+import { AlertCircle, Check, ChevronDown, Plus, X } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useState } from 'react'
 import { CalendarConnections } from './calendar-connections'
 import styles from './calendar-publishing.module.css'
+import theme from './publishing-theme.module.css'
+
+const providerOrder: PublishingProvider[] = [
+  'tiktok',
+  'youtube',
+  'instagram',
+  'facebook'
+]
 
 export function CalendarAccountSummary(props: {
   data: PublishingData | null
   error: string | null
   onReload: () => void
-  onConnect: (provider: PublishingProvider, providerConsent?: boolean) => Promise<void>
+  onConnect: (
+    provider: PublishingProvider,
+    providerConsent?: boolean
+  ) => Promise<void>
   busyProvider: PublishingProvider | null
 }) {
   const t = useTranslations('contentCalendar')
   const [open, setOpen] = useState(false)
-  const accounts = props.data?.accounts.filter(isPublishingAccountUsable) ?? []
-  // Show one account per platform in the compact strip. Manage lists every account.
-  const providers = [...new Set(accounts.map(account => account.provider))]
-
   return (
     <>
       <div className={styles.connections} aria-label={t('connections.title')}>
         <div className={styles.accountList}>
-          {providers.map(provider => {
-            const account = accounts.find(item => item.provider === provider)!
+          {providerOrder.map((provider) => {
+            const accounts =
+              props.data?.accounts.filter(
+                (account) => account.provider === provider
+              ) ?? []
+            const connected = accounts.some(isPublishingAccountUsable)
+            const reconnect = !connected && accounts.length > 0
+            const status = t(
+              `connections.${connected ? 'connected' : reconnect ? 'reconnect' : 'connect'}`
+            )
+            const label = `${t(`platforms.${provider}`)} – ${status}`
             return (
-              <span key={provider} className={styles.account} title={account.username || account.name}>
+              <button
+                key={provider}
+                type="button"
+                className={styles.account}
+                data-connection={
+                  connected
+                    ? 'connected'
+                    : reconnect
+                      ? 'reconnect'
+                      : 'disconnected'
+                }
+                onClick={() => setOpen(true)}
+                aria-label={label}
+                title={label}
+              >
                 <PlatformBrandIcon provider={provider} className="size-8" />
-                <span className="sr-only">{t(`platforms.${provider}`)}</span>
-                <span className={styles.accountUsername}>
-                  {account.username ? `@${account.username.replace(/^@/, '')}` : account.name}
+                <span
+                  className={styles.connectionStatus}
+                  data-connected={connected}
+                  data-reconnect={reconnect}
+                >
+                  {connected ? (
+                    <Check />
+                  ) : reconnect ? (
+                    <AlertCircle />
+                  ) : (
+                    <Plus />
+                  )}
                 </span>
-              </span>
+              </button>
             )
           })}
         </div>
-        <span className={accounts.length ? styles.accountCount : 'text-sm text-muted-foreground'}>
-          {props.error ? t('connections.loadError') : t('publishing.accounts', { count: accounts.length })}
-        </span>
-        <Button variant="ghost" onClick={() => setOpen(true)} className={styles.manage}>
-          {t('publishing.manage')}<ChevronRight className="size-4" />
-        </Button>
+        <button
+          type="button"
+          className={styles.mobileAccounts}
+          onClick={() => setOpen(true)}
+          aria-label={t('connections.title')}
+        >
+          <span className={styles.mobileAccountIcons}>
+            {providerOrder.slice(0, 3).map((provider) => (
+              <PlatformBrandIcon
+                key={provider}
+                provider={provider}
+                className="size-6"
+              />
+            ))}
+          </span>
+          <ChevronDown className="size-3.5" />
+        </button>
       </div>
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="rounded-md p-5">
+        <DialogContent
+          className={`${theme.surface} ${styles.accountsDialog}`}
+          overlayClassName={theme.overlay}
+          data-publish-surface=""
+          aria-describedby={undefined}
+        >
+          <span className={styles.sheetHandle} aria-hidden="true" />
           <DialogHeader className="pr-8">
             <DialogTitle>{t('connections.title')}</DialogTitle>
-            <DialogDescription>{t('publishing.manageDescription')}</DialogDescription>
           </DialogHeader>
           <DialogClose asChild>
-            <Button variant="ghost" size="icon" className="absolute right-3 top-3" aria-label={t('actions.close')}>
+            <Button
+              variant="ghost"
+              size="icon"
+              className={styles.dialogClose}
+              aria-label={t('actions.close')}
+            >
               <X />
             </Button>
           </DialogClose>

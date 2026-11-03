@@ -299,7 +299,7 @@ try {
   await page
     .getByRole('heading', { name: 'Create clips', exact: true })
     .waitFor({ timeout: 30000 })
-  const fileInput = page.getByLabel('Upload story clips')
+  const fileInput = page.getByLabel('Upload clips')
   assert.equal(await page.locator('#youtube-url').isVisible(), false, 'Only the selected source workspace is visible')
   await fileInput.setInputFiles(
     Array.from({ length: fileCount }, (_, index) => ({
@@ -314,7 +314,7 @@ try {
     .first()
     .waitFor()
   assert.equal(
-    await page.getByRole('button', { name: 'Build my story', exact: true }).count(),
+    await page.getByRole('button', { name: 'Create my clip', exact: true }).count(),
     0,
     'Generation is unavailable on the footage step'
   )
@@ -342,8 +342,8 @@ try {
     await page.getByTestId(`story-step-${step}`).waitFor({ state: 'visible' })
     assert.equal(generations.length, 0, 'Wizard navigation never starts generation')
   }
-  assert.equal(await page.getByRole('button', { name: 'Build my story', exact: true }).isEnabled(), true, 'Sensible defaults allow generation after uploads complete')
-  await page.getByRole('button', { name: 'Build my story', exact: true }).click()
+  assert.equal(await page.getByRole('button', { name: 'Create my clip', exact: true }).isEnabled(), true, 'Sensible defaults allow generation after uploads complete')
+  await page.getByRole('button', { name: 'Create my clip', exact: true }).click()
   await page.getByTestId('story-result').waitFor()
   await page.getByTestId('story-processing').waitFor({ state: 'detached' })
   assert.equal(generations.length, 1, 'Multiple files produce one story job')

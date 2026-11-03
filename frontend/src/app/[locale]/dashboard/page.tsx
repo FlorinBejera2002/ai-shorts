@@ -5,7 +5,9 @@ import { HomeInitialState } from '@/components/dashboard/home-initial-state'
 import { RecentClips } from '@/components/dashboard/recent-clips'
 import { StatsBar } from '@/components/dashboard/stats-bar'
 import { StudioHero } from '@/components/dashboard/studio-hero'
+import { WorkspaceMobileHeader } from '@/components/dashboard/workspace-mobile-header'
 import styles from '@/components/dashboard/home-workspace.module.css'
+import theme from '@/components/calendar/publishing-theme.module.css'
 import { useApiResource } from '@/hooks/use-api-resource'
 import type { DashboardData } from '@/types/api'
 
@@ -14,10 +16,12 @@ export default function DashboardPage() {
     useApiResource<DashboardData>('/api/dashboard')
   return (
     <div
-      className={styles.workspace}
+      className={`${theme.surface} ${styles.workspace}`}
+      data-reference-surface=""
       data-testid="studio-dashboard"
       data-home-workspace=""
     >
+      <WorkspaceMobileHeader />
       {!data ? (
         <HomeInitialState error={error} onRetry={reload} />
       ) : (

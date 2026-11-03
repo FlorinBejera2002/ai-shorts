@@ -154,3 +154,106 @@
 :global(html.dark) .footer { border-top-color: rgb(255 255 255 / 14%); }
 :global([data-collapsible="icon"]) .profileRow { flex-direction: column; gap: 6px; }
 :global([data-collapsible="icon"]) .profileName { display: none; }
+
+/* ── Reference canvas "Panou principal" (2026-10-31): Inter/Sora, pill create action,
+   44px rounded items with icons, soft profile card. Overrides the rail styling above. ── */
+:global([data-slot="sidebar-inner"]):has(.header),
+:global([data-mobile="true"]):has(.header) {
+  --ref-surface: #fff;
+  --ref-text: #152035;
+  --ref-muted: #647188;
+  --ref-label: #8a96aa;
+  --ref-active: #e9f1ff;
+  --ref-hover: #f1f5f9;
+  --ref-soft: #edf2f8;
+  --ref-border: #e3e9f2;
+  --ref-primary: #2563eb;
+  --ref-primary-hover: #1d4ed8;
+  --ref-on-primary: #fff;
+  background: var(--ref-surface);
+  color: var(--ref-text);
+  border-color: var(--ref-border);
+  font-family: 'Inter Variable', Inter, system-ui, sans-serif;
+}
+:global(html.dark) :global([data-slot="sidebar-inner"]):has(.header),
+:global(html.dark) :global([data-mobile="true"]):has(.header) {
+  --ref-surface: #181f2b;
+  --ref-text: #edf2fa;
+  --ref-muted: #9eafc7;
+  --ref-label: #8494ab;
+  --ref-active: #1b3153;
+  --ref-hover: #202b3c;
+  --ref-soft: #202b3c;
+  --ref-border: #334158;
+  --ref-primary: #7aa7ff;
+  --ref-primary-hover: #a3c2ff;
+  --ref-on-primary: #0c1524;
+  background: var(--ref-surface);
+  color: var(--ref-text);
+}
+.header { gap: 18px; padding: 18px 14px; }
+.header button { color: var(--ref-text); }
+.create.create,
+:global(html.dark) .create.create {
+  height: 46px;
+  justify-content: center;
+  border: 0;
+  border-radius: 999px;
+  background: var(--ref-primary);
+  color: var(--ref-on-primary);
+  font-size: 15px;
+  box-shadow: 0 6px 16px rgb(37 99 235 / 25%);
+}
+.create.create:hover,
+:global(html.dark) .create.create:hover { background: var(--ref-primary-hover); color: var(--ref-on-primary); }
+.createArrow { display: none; }
+.content { padding: 0 14px; }
+.group { padding: 0 0 14px; }
+.group:last-child { margin-top: 0; }
+.groupLabel.groupLabel,
+:global(html.dark) .groupLabel.groupLabel {
+  height: 28px;
+  margin: 0;
+  padding-inline: 12px;
+  color: var(--ref-label);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: .04em;
+}
+.railLayer { display: none; }
+.navItem.navItem,
+:global(html.dark) .navItem.navItem {
+  height: 44px;
+  padding: 0 12px;
+  gap: 12px;
+  border-radius: 14px;
+  color: var(--ref-muted);
+  font-size: 15px;
+  font-weight: 500;
+}
+.navItem.navItem:hover,
+:global(html.dark) .navItem.navItem:hover { background: var(--ref-hover); color: var(--ref-text); }
+.navItem.navItem[data-active="true"],
+:global(html.dark) .navItem.navItem[data-active="true"] {
+  background: var(--ref-active);
+  color: var(--ref-text);
+  font-weight: 600;
+}
+.navIcon { display: flex; width: 20px; height: 20px; }
+.navIcon > svg { width: 20px; height: 20px; }
+.footer,
+:global(html.dark) .footer { margin: 0 14px 16px; padding: 0; border-top: 0; }
+.profileRow {
+  gap: 10px;
+  min-height: 56px;
+  padding: 10px;
+  border-radius: 16px;
+  background: var(--ref-soft);
+}
+.profileRow > span:first-child { width: 36px; height: 36px; }
+.profileName,
+:global(html.dark) .profileName { color: var(--ref-text); font-size: 14px; }
+:global([data-collapsible="icon"]) .profileRow { padding: 6px; background: transparent; }
+:global([data-collapsible="icon"]) .navItem { width: 44px !important; height: 44px !important; border-radius: 14px; }
+:global([data-collapsible="icon"]) .navIcon { width: 20px; height: 20px; }
+:global([data-collapsible="icon"]) .create.create { width: 44px !important; padding: 0 !important; }

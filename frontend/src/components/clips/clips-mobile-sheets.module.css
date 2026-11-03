@@ -1,0 +1,341 @@
+/* Phone controls and bottom sheets for the Clips library. */
+.projects {
+  display: none;
+  gap: 8px;
+}
+
+.projectButton {
+  display: flex;
+  min-width: 0;
+  height: 52px;
+  flex: 1;
+  align-items: center;
+  gap: 10px;
+  border: 0;
+  border-radius: 18px;
+  background: var(--publish-surface);
+  padding: 0 16px;
+  color: var(--publish-text);
+  text-align: left;
+  box-shadow: var(--publish-card-shadow);
+  cursor: pointer;
+}
+
+.projectButton > svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  color: var(--publish-muted-text);
+}
+
+.projectButton > svg:first-child {
+  width: 18px;
+  height: 18px;
+  color: var(--publish-primary);
+}
+
+.projectName {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  font-size: 15px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.projectCount {
+  color: var(--publish-muted-text);
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.newProject {
+  display: flex;
+  width: 52px;
+  height: 52px;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  border: 2px dashed var(--publish-upload-border-mobile);
+  border-radius: 18px;
+  background: transparent;
+  color: var(--publish-secondary-text);
+  cursor: pointer;
+}
+
+.newProject svg {
+  width: 20px;
+  height: 20px;
+}
+
+.filterButton {
+  position: relative;
+  display: none;
+  width: 48px;
+  height: 48px;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 50%;
+  background: var(--publish-surface);
+  color: var(--publish-text);
+  box-shadow: var(--publish-card-shadow);
+  cursor: pointer;
+}
+
+.filterButton[data-active="true"] {
+  background: var(--publish-selected);
+  color: var(--publish-on-selected);
+}
+
+.filterButton svg {
+  width: 18px;
+  height: 18px;
+}
+
+.badge {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  display: flex;
+  width: 18px;
+  height: 18px;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid var(--publish-canvas);
+  border-radius: 50%;
+  background: var(--publish-primary);
+  color: var(--publish-on-primary);
+  font-size: 11px;
+  font-weight: 700;
+  box-sizing: content-box;
+}
+
+.projectButton:focus-visible,
+.newProject:focus-visible,
+.filterButton:focus-visible,
+.chip:focus-visible,
+.link:focus-visible,
+.primary:focus-visible,
+.listSelect:focus-visible,
+.more:focus-visible,
+.action:focus-visible {
+  outline: 2px solid var(--publish-primary);
+  outline-offset: 2px;
+}
+
+@media (max-width: 1023px) {
+  .projects {
+    display: flex;
+  }
+
+  .filterButton {
+    display: flex;
+  }
+}
+
+/* Sheets */
+.sheet.sheet {
+  max-height: min(92dvh, 760px);
+  gap: 6px;
+  overflow-y: auto;
+  border: 0;
+  border-radius: 28px 28px 0 0;
+  background: var(--publish-surface);
+  padding: 12px 16px max(28px, env(safe-area-inset-bottom));
+  color: var(--publish-text);
+}
+
+.tall.tall {
+  height: calc(100dvh - 70px);
+  max-height: none;
+  gap: 16px;
+  padding-bottom: 0;
+}
+
+.handle {
+  width: 40px;
+  height: 5px;
+  flex-shrink: 0;
+  align-self: center;
+  margin-bottom: 6px;
+  border-radius: 99px;
+  background: var(--publish-handle);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+}
+
+.title.title,
+.sheetTitle.sheetTitle {
+  flex: 1;
+  margin: 0;
+  font-family: 'Sora Variable', Sora, sans-serif;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.sheetTitle.sheetTitle {
+  margin: 0 0 8px 8px;
+}
+
+.link {
+  height: 40px;
+  border: 0;
+  background: transparent;
+  color: var(--publish-primary);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.groups {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 16px;
+  overflow-y: auto;
+}
+
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.groupLabel {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.chip {
+  height: 40px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--publish-inset);
+  padding: 0 14px;
+  color: var(--publish-secondary-text);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.chip[aria-checked="true"] {
+  background: var(--publish-selected);
+  color: var(--publish-on-selected);
+}
+
+.footer {
+  margin: 0 -16px;
+  border-top: 1px solid var(--publish-border);
+  background: var(--publish-surface);
+  padding: 12px 16px max(24px, env(safe-area-inset-bottom));
+}
+
+.primary {
+  width: 100%;
+  height: 52px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--publish-primary);
+  color: var(--publish-on-primary);
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.list,
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.listRow {
+  display: flex;
+  align-items: center;
+  border-radius: 14px;
+}
+
+.listRow[data-active="true"] {
+  background: var(--publish-selected-row);
+}
+
+.listSelect {
+  display: flex;
+  min-width: 0;
+  min-height: 52px;
+  flex: 1;
+  align-items: center;
+  gap: 10px;
+  border: 0;
+  background: transparent;
+  padding: 0 8px;
+  color: var(--publish-text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.listSelect svg {
+  width: 16px;
+  height: 16px;
+  color: var(--publish-primary);
+}
+
+.more {
+  display: flex;
+  width: 44px;
+  height: 44px;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--publish-muted-text);
+  cursor: pointer;
+}
+
+.more svg {
+  width: 18px;
+  height: 18px;
+}
+
+.action {
+  display: flex;
+  min-height: 52px;
+  align-items: center;
+  border: 0;
+  border-radius: 14px;
+  background: transparent;
+  padding: 0 8px;
+  color: var(--publish-text);
+  font-size: 15px;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+}
+
+.action:hover,
+.listSelect:hover {
+  background: var(--publish-inset);
+}
+
+.danger {
+  border-top: 1px solid var(--publish-secondary);
+  border-radius: 0;
+  color: var(--publish-danger);
+  font-weight: 600;
+}

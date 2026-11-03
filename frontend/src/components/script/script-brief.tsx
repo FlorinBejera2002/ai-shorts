@@ -1,62 +1,75 @@
 'use client'
 
-import { Button } from '@/components/ui/button'
-import { Card } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { LoadingIndicator } from '@/components/ui/loading-indicator'
-import { NativeSelect } from '@/components/ui/native-select'
-import { Textarea } from '@/components/ui/textarea'
-import { ChevronDown } from 'lucide-react'
+import { ChevronDown, Sparkles } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
 import { useState } from 'react'
+import { ScriptPlatformBadge } from './script-badges'
+import { ScriptChoiceChips } from './script-choice-chips'
+import {
+  SCRIPT_DURATIONS,
+  SCRIPT_LANGUAGES,
+  SCRIPT_STYLES,
+  SCRIPT_TONES,
+  matchChoice
+} from './script-options'
 import { ScriptPlatformSelect } from './script-platform-select'
 import type { ScriptsWorkspace } from './use-scripts-workspace'
-import styles from './scripts-workspace.module.css'
-
-const DURATIONS = [15, 30, 45, 60, 90, 120, 180]
-const LANGUAGES = ['en', 'ro', 'es', 'fr', 'de', 'it', 'pt']
+import shared from './scripts-workspace.module.css'
+import styles from './script-brief.module.css'
 
 export function ScriptBrief({ workspace: w }: { workspace: ScriptsWorkspace }) {
   const t = useTranslations('scriptGenerator')
   const locale = useLocale()
   const [expanded, setExpanded] = useState(false)
   const hasScenes = w.script.scenes.length > 0
+  const open = !hasScenes || expanded
   const languageNames = new Intl.DisplayNames([locale], { type: 'language' })
+  const tones = SCRIPT_TONES.map(([value, key]) => ({ value, label: t(key) }))
+  const styleOptions = SCRIPT_STYLES.map(([value, key]) => ({
+    value,
+    label: t(key)
+  }))
+  const optionLabel = (options: { value: string; label: string }[], value: string) =>
+    matchChoice(options, value)?.label ?? value
+  const summary = [
+    t('workspace.secondsSpaced', { count: w.duration }),
+    optionLabel(tones, w.tone),
+    optionLabel(styleOptions, w.style)
+  ]
+    .filter(Boolean)
+    .join(' · ')
 
   return (
-    <Card
+    <section
       className={styles.brief}
+      aria-labelledby="script-brief-heading"
       data-script-brief=""
-      data-generated={hasScenes}
+      data-expanded={open}
     >
-      <h2 className={styles.briefHeading}>{t('workspace.brief')}</h2>
+      <h2 id="script-brief-heading" className={styles.heading}>
+        {t('workspace.brief')}
+      </h2>
       <button
         type="button"
-        className={styles.briefToggle}
-        aria-expanded={!hasScenes || expanded}
+        className={styles.toggle}
+        aria-expanded={open}
         aria-controls="script-brief-fields"
-        onClick={() => setExpanded(!expanded)}
+        data-brief-toggle=""
+        onClick={() => setExpanded(!open)}
       >
-        <span>{t('workspace.brief')}</span>
-        <ChevronDown
-          aria-hidden="true"
-          className={expanded ? styles.rotated : ''}
-        />
+        <ScriptPlatformBadge platform={w.platform} decorative />
+        <span className={styles.toggleText}>
+          <span>{t('workspace.brief')}</span>
+          <span className={styles.toggleSummary}>{summary}</span>
+        </span>
+        <ChevronDown aria-hidden="true" className={styles.toggleIcon} />
       </button>
-      <div
-        id="script-brief-fields"
-        className={styles.briefFields}
-        data-expanded={!hasScenes || expanded}
-      >
-        <div className={styles.field}>
-          <div className={styles.fieldLabel}>
-            <Label htmlFor="script-topic">{t('topicLabel')}</Label>
-            <span className={styles.counter}>{w.topic.length}/1000</span>
-          </div>
-          <Textarea
+      <div id="script-brief-fields" className={styles.fields}>
+        <div className={shared.field}>
+          <label htmlFor="script-topic">{t('topicLabel')}</label>
+          <textarea
             id="script-topic"
-            className={styles.topicInput}
+            className={`${shared.control} ${styles.topic}`}
             value={w.topic}
             maxLength={1000}
             rows={3}
@@ -70,74 +83,89 @@ export function ScriptBrief({ workspace: w }: { workspace: ScriptsWorkspace }) {
           label={t('platformLabel')}
           placeholder={t('platformRequired')}
         />
-        <div className={styles.fieldPair}>
-          <div className={styles.field}>
-            <Label htmlFor="script-duration">{t('durationLabel')}</Label>
-            <NativeSelect
+        <div className={styles.pair}>
+          <div className={shared.field}>
+            <label htmlFor="script-duration">{t('durationLabel')}</label>
+            <select
               id="script-duration"
+              className={shared.control}
               value={w.duration}
               onChange={(event) => w.setDuration(Number(event.target.value))}
             >
-              {DURATIONS.map((value) => (
+              {(SCRIPT_DURATIONS.includes(w.duration)
+                ? SCRIPT_DURATIONS
+                : [...SCRIPT_DURATIONS, w.duration].sort((a, b) => a - b)
+              ).map((value) => (
                 <option key={value} value={value}>
-                  {value}s
+                  {t('workspace.secondsSpaced', { count: value })}
                 </option>
               ))}
-            </NativeSelect>
+            </select>
           </div>
-          <div className={styles.field}>
-            <Label htmlFor="script-language">{t('languageLabel')}</Label>
-            <NativeSelect
+          <div className={shared.field}>
+            <label htmlFor="script-language">{t('languageLabel')}</label>
+            <select
               id="script-language"
+              className={shared.control}
               value={w.language}
               onChange={(event) => w.setLanguage(event.target.value)}
             >
-              {LANGUAGES.map((value) => (
+              {(SCRIPT_LANGUAGES.includes(w.language)
+                ? SCRIPT_LANGUAGES
+                : [...SCRIPT_LANGUAGES, w.language]
+              ).map((value) => (
                 <option key={value} value={value}>
-                  {languageNames.of(value)}
+                  {languageNames.of(value) ?? value}
                 </option>
               ))}
-            </NativeSelect>
+            </select>
           </div>
         </div>
-        <div className={styles.field}>
-          <Label htmlFor="script-tone">{t('toneLabel')}</Label>
-          <Input
-            id="script-tone"
-            value={w.tone}
-            onChange={(event) => w.setTone(event.target.value)}
-          />
-        </div>
-        <div className={styles.field}>
-          <Label htmlFor="script-style">{t('styleLabel')}</Label>
-          <Input
-            id="script-style"
-            value={w.style}
-            onChange={(event) => w.setStyle(event.target.value)}
-          />
-        </div>
-        <div className={styles.field}>
-          <Label htmlFor="script-audience">{t('audienceLabel')}</Label>
-          <Textarea
+        <ScriptChoiceChips
+          id="script-tone"
+          label={t('toneLabel')}
+          options={tones}
+          value={w.tone}
+          onValueChange={w.setTone}
+        />
+        <ScriptChoiceChips
+          id="script-style"
+          label={t('styleLabel')}
+          options={styleOptions}
+          value={w.style}
+          onValueChange={w.setStyle}
+        />
+        <div className={shared.field}>
+          <label htmlFor="script-audience">{t('audienceLabel')}</label>
+          <input
             id="script-audience"
-            className={styles.audienceInput}
+            className={shared.control}
             value={w.audience}
-            rows={2}
             placeholder={t('audiencePlaceholder')}
             onChange={(event) => w.setAudience(event.target.value)}
           />
         </div>
-        <Button
-          className={styles.generate}
+        <button
+          type="button"
+          className={`${shared.primaryButton} ${styles.generate}`}
           onClick={w.generate}
           disabled={w.generating}
+          data-script-generate=""
         >
-          {w.generating && (
-            <LoadingIndicator className="size-4" />
+          {w.generating ? (
+            <span className={shared.spinner} aria-hidden="true" />
+          ) : (
+            <Sparkles aria-hidden="true" />
           )}
-          {t(w.generating ? 'generating' : 'generateButton')}
-        </Button>
+          {t(
+            w.generating
+              ? 'generating'
+              : hasScenes
+                ? 'workspace.regenerate'
+                : 'generateButton'
+          )}
+        </button>
       </div>
-    </Card>
+    </section>
   )
 }

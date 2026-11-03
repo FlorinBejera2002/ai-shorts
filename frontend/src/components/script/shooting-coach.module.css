@@ -1,203 +1,309 @@
 .coach {
-  container-type: inline-size;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: 20px 20px;
 }
 
-.content {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  grid-template-areas: 'views' 'stage' 'playback' 'timeline' 'metrics';
-  gap: 1rem;
+/* Stage: a fixed dark set in both themes, with overlaid controls. */
+.stage {
+  position: relative;
+  min-width: 0;
+  height: 520px;
+  flex: 999 1 560px;
+  overflow: hidden;
+  border-radius: var(--publish-card-radius);
+  background: var(--script-stage, #0f172a);
+  color: #fff;
 }
 
 .views {
-  grid-area: views;
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.5rem;
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 10%);
 }
 
-.stage {
-  grid-area: stage;
-  position: relative;
-  min-width: 0;
-  aspect-ratio: 3 / 2;
-  overflow: hidden;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  background: radial-gradient(
-    ellipse at 45% 35%,
-    #363636,
-    #1d1d1d 65%,
-    #151515
-  );
-  color: white;
+.views button {
+  height: 36px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.views button:hover {
+  background: rgb(255 255 255 / 10%);
+}
+
+.views button[aria-pressed='true'] {
+  background: #fff;
+  color: #152035;
+  font-weight: 600;
 }
 
 .readouts {
   position: absolute;
-  top: 0.75rem;
-  left: 0.75rem;
-  right: 0.75rem;
+  top: 18px;
+  right: 14px;
   display: flex;
-  align-items: flex-start;
-  gap: 0.4rem;
+  max-width: 45%;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
   pointer-events: none;
-  font-size: 0.75rem;
+  font-size: 12px;
   line-height: 1.4;
 }
 
-.readout {
-  max-width: 40%;
-  border: 1px solid rgb(255 255 255 / 14%);
-  border-radius: var(--radius-sm);
-  background: rgb(42 42 42 / 85%);
-  padding: 0.35rem 0.5rem;
-  backdrop-filter: blur(8px);
+.readout,
+.overlayText {
+  max-width: 100%;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgb(15 23 42 / 70%);
+  color: rgb(255 255 255 / 88%);
+  text-transform: capitalize;
 }
 
-.overlay {
-  margin-left: auto;
-  max-width: 40%;
-  border-radius: var(--radius-sm);
+.overlayText {
   background: #fff;
-  color: #101010;
-  padding: 0.35rem 0.6rem;
+  color: #152035;
   font-weight: 700;
-}
-
-.metrics {
-  grid-area: metrics;
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  padding: 0 0.75rem;
-}
-
-.metric {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
-  align-items: center;
-  gap: 0.75rem;
-  flex: 1;
-  border-bottom: 1px solid var(--border);
-  padding: 0.8rem 0;
-  font-size: 0.8125rem;
-  line-height: 1.5;
-}
-
-.metric:last-child {
-  border-bottom: 0;
-}
-
-.metric dt {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  color: var(--muted-foreground);
-}
-
-.metric dd {
-  margin: 0;
-  text-align: right;
-  overflow-wrap: anywhere;
+  text-transform: none;
 }
 
 .playback {
-  grid-area: playback;
+  position: absolute;
+  right: 14px;
+  bottom: 14px;
+  left: 14px;
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  min-width: 0;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  padding: 0.5rem;
+  gap: 8px;
+  padding: 8px;
+  border-radius: 999px;
+  background: rgb(15 23 42 / 70%);
+}
+
+.stageButton,
+.playButton {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.stageButton {
+  width: 40px;
+  height: 40px;
+  background: rgb(255 255 255 / 12%);
+  color: #fff;
+}
+
+.stageButton:hover {
+  background: rgb(255 255 255 / 20%);
+}
+
+.stageButton svg,
+.playButton svg {
+  width: 16px;
+  height: 16px;
+}
+
+.playButton {
+  width: 44px;
+  height: 44px;
+  background: var(--publish-primary);
+  color: var(--publish-on-primary);
+}
+
+.playButton svg {
+  fill: currentColor;
+}
+
+.playButton:hover {
+  background: var(--publish-primary-hover);
+}
+
+:is(.views button, .stageButton, .playButton):focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
 }
 
 .time {
-  margin-right: auto;
-  padding-left: 0.25rem;
-  font-size: 0.875rem;
+  flex: 1;
+  margin: 0;
+  padding-left: 4px;
+  color: rgb(255 255 255 / 80%);
+  font-size: 13px;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 
-.controlText {
-  display: none;
+/* Scene details */
+.details {
+  display: flex;
+  min-width: 0;
+  max-width: 380px;
+  flex: 1 1 320px;
+  flex-direction: column;
+  gap: 12px;
+  padding: 20px;
+  border-radius: var(--publish-card-radius);
+  background: var(--publish-surface);
+  box-shadow: var(--publish-card-shadow);
 }
 
-.timeline {
-  grid-area: timeline;
-  display: grid;
-  grid-auto-flow: column;
-  grid-auto-columns: minmax(6.5rem, 1fr);
-  gap: 0.5rem;
-  overflow-x: auto;
-  padding: 2px;
-  margin: -2px;
-}
-
-.sceneCard {
-  position: relative;
+.detailsHeader {
   display: flex;
   align-items: center;
-  gap: 0.4rem;
-  min-width: 0;
-  min-height: 4.25rem;
-  overflow: hidden;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  padding: 0.5rem;
-  text-align: left;
-  transition:
-    background-color 150ms,
-    border-color 150ms;
+  gap: 10px;
 }
 
-.sceneCard:hover {
-  background: var(--muted);
+.detailsHeader h2 {
+  flex: 1;
+  margin: 0;
+  font-size: 17px;
 }
 
-.sceneCard[aria-pressed='true'] {
-  border-color: var(--foreground);
-  box-shadow: inset 0 0 0 1px var(--foreground);
-}
-
-.sceneCard:focus-visible {
-  outline: 2px solid var(--foreground);
-  outline-offset: 2px;
-}
-
-.sceneNumber {
+.detailsNumber {
   display: flex;
-  width: 1.6rem;
-  height: 1.6rem;
-  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
   align-items: center;
   justify-content: center;
-  border-radius: 9999px;
-  background: var(--muted);
-  font-size: 0.875rem;
+  border-radius: 50%;
+  background: var(--publish-primary);
+  color: var(--publish-on-primary);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.detailsDuration {
+  color: var(--publish-muted-text);
+  font-size: 13px;
+}
+
+.dialogue {
+  margin: 0;
+  padding: 14px;
+  border-radius: 16px;
+  background: var(--publish-selected-row);
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.45;
+}
+
+.dialogue[data-empty='true'] {
+  color: var(--publish-muted-text);
+  font-weight: 500;
+}
+
+.detailList {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+}
+
+.detail {
+  min-width: 0;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: var(--publish-inset);
+}
+
+.detail[data-wide] {
+  grid-column: span 2;
+}
+
+.detail dt {
+  color: var(--publish-muted-text);
+  font-size: 12px;
   font-weight: 600;
 }
 
-.sceneCard[aria-pressed='true'] .sceneNumber {
-  background: var(--foreground);
-  color: var(--background);
+.detail dd {
+  margin: 4px 0 0;
+  font-size: 14px;
+  font-weight: 500;
+  overflow-wrap: anywhere;
 }
 
-.sceneText {
-  display: grid;
+.detail dd::first-letter {
+  text-transform: uppercase;
+}
+
+/* Proportional scene timeline */
+.timeline {
+  display: flex;
   min-width: 0;
-  gap: 0.15rem;
-  font-size: 0.75rem;
+  flex: 1 1 100%;
+  gap: 6px;
+  padding: 8px;
+  overflow-x: auto;
+  border-radius: 20px;
+  background: var(--publish-surface);
 }
 
-.sceneTime {
-  color: var(--muted-foreground);
-  font-size: 0.625rem;
-  font-variant-numeric: tabular-nums;
+.timelineScene {
+  position: relative;
+  display: flex;
+  min-width: 72px;
+  height: 52px;
+  flex: 1 1 0;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 0 12px;
+  overflow: hidden;
+  border: 0;
+  border-radius: 14px;
+  background: var(--publish-inset);
+  color: var(--publish-text);
+  font-size: 13px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.timelineScene:hover {
+  background: var(--publish-hover);
+}
+
+.timelineScene[aria-current='step'] {
+  background: var(--publish-primary);
+  color: var(--publish-on-primary);
+}
+
+.timelineName {
+  max-width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.timelineNumber {
+  display: none;
+}
+
+.timelineDuration {
+  font-size: 11px;
+  font-weight: 500;
+  opacity: .75;
   white-space: nowrap;
 }
 
@@ -205,49 +311,155 @@
   position: absolute;
   bottom: 0;
   left: 0;
-  height: 2px;
-  background: var(--foreground);
+  height: 3px;
+  background: currentColor;
+  opacity: .7;
 }
 
-@container (min-width: 480px) {
-  .sceneNumber {
-    width: 2.4rem;
-    height: 2.4rem;
-  }
-  .controlText {
-    display: inline;
-  }
+.empty {
+  padding: 20px;
+  border-radius: var(--publish-card-radius);
+  background: var(--publish-surface);
+  color: var(--publish-muted-text);
+}
 
-  .time {
-    padding-left: 0.5rem;
-    font-size: 1rem;
-  }
+.empty h2 {
+  margin: 0 0 8px;
+  color: var(--publish-text);
+  font-size: 17px;
+}
 
-  .sceneCard {
-    gap: 0.75rem;
-    padding: 0.75rem 1rem;
-  }
-
-  .sceneText {
-    font-size: 0.875rem;
-  }
-
-  .sceneTime {
-    font-size: 0.75rem;
+@media (max-width: 1023px) {
+  .details {
+    max-width: none;
   }
 }
 
-@container (min-width: 850px) {
-  .content {
-    grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr);
-    grid-template-areas: 'views .' 'stage metrics' 'playback playback' 'timeline timeline';
+@media (max-width: 639px) {
+  .coach {
+    gap: 12px;
   }
 
   .stage {
-    aspect-ratio: 12 / 7;
+    height: 330px;
+    flex-basis: 100%;
+    border-radius: 22px;
   }
 
-  .metric {
-    padding: 0.6rem 0;
+  .views {
+    top: 10px;
+    right: 10px;
+    left: 10px;
+  }
+
+  .views button {
+    flex: 1;
+    padding: 0;
+  }
+
+  .readouts {
+    top: 60px;
+    right: 10px;
+    max-width: 60%;
+    font-size: 11px;
+  }
+
+  .playback {
+    right: 10px;
+    bottom: 10px;
+    left: 10px;
+    padding: 0;
+    background: transparent;
+  }
+
+  .stageButton {
+    width: 44px;
+    height: 44px;
+    background: rgb(255 255 255 / 14%);
+  }
+
+  .playButton {
+    width: 48px;
+    height: 48px;
+  }
+
+  .time {
+    text-align: center;
+    text-shadow: 0 1px 2px rgb(0 0 0 / 50%);
+  }
+
+  .timeline {
+    display: grid;
+    order: 1;
+    grid-auto-columns: minmax(44px, 1fr);
+    grid-auto-flow: column;
+    padding: 0;
+    border-radius: 0;
+    background: transparent;
+  }
+
+  .timelineScene {
+    min-width: 0;
+    height: 44px;
+    align-items: center;
+    padding: 0;
+    border-radius: 12px;
+    background: var(--publish-surface);
+    font-size: 14px;
+  }
+
+  .timelineScene[aria-current='step'] {
+    font-weight: 700;
+  }
+
+  .timelineName,
+  .timelineDuration {
+    display: none;
+  }
+
+  .timelineNumber {
+    display: inline;
+  }
+
+  .details {
+    order: 2;
+    flex-basis: 100%;
+    gap: 10px;
+    padding: 16px;
+    border-radius: 22px;
+    box-shadow: none;
+  }
+
+  .detailsNumber {
+    display: none;
+  }
+
+  .detailsHeader h2 {
+    font-size: 16px;
+  }
+
+  .dialogue {
+    padding: 12px;
+    border-radius: 14px;
+    font-size: 14px;
+  }
+
+  .detailList {
+    gap: 6px;
+  }
+
+  .detail {
+    padding: 8px 10px;
+    border-radius: 12px;
+  }
+
+  .detail dt {
+    font-size: 11px;
+  }
+
+  .detail dd {
+    margin-top: 2px;
+    font-size: 13px;
+    font-weight: 400;
   }
 }

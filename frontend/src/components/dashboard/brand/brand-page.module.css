@@ -1,8 +1,4 @@
 .workspace {
-  --primary: var(--foreground);
-  --primary-foreground: var(--background);
-  --accent: var(--muted);
-  --ring: var(--foreground);
   min-width: 0;
   color: var(--foreground);
   padding: 10px 14px 24px;
@@ -280,6 +276,105 @@
     font-size: 27px;
   }
   .mobileReset span {
+    display: none;
+  }
+}
+
+/* ── Reference canvas "Brand kit" (2026-10-31): card sections on the left,
+   sticky preview card on the right, pill actions. Scoped publishing-theme tokens. ── */
+.workspace {
+  max-width: 1240px;
+  margin-inline: auto;
+  padding: 12px 16px 40px;
+}
+.titleGroup h1 {
+  font-size: 30px;
+  font-weight: 600 !important;
+}
+.header {
+  margin-bottom: 22px;
+}
+.layout {
+  grid-template-columns: minmax(0, 1.25fr) minmax(320px, 1fr);
+  gap: 24px;
+}
+.controls {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.logoGroup,
+.captionControls,
+.collapsedCaption {
+  margin: 0;
+  padding: 22px;
+  border: 0;
+  border-radius: var(--publish-card-radius);
+  background: var(--publish-surface);
+  box-shadow: var(--publish-card-shadow);
+}
+.preview {
+  position: sticky;
+  top: 24px;
+  padding: 18px;
+  border-left: 0;
+  border-radius: var(--publish-card-radius);
+  background: var(--publish-surface);
+  box-shadow: var(--publish-card-shadow);
+}
+.workspace [data-slot='button'] {
+  min-height: 44px;
+  border-radius: 999px;
+  font-weight: 600;
+  box-shadow: none;
+}
+.workspace [data-slot='button'][data-variant='default'] {
+  background: var(--publish-primary);
+  color: var(--publish-on-primary);
+}
+.workspace [data-slot='button'][data-variant='default']:hover {
+  background: var(--publish-primary-hover);
+}
+.workspace [data-slot='button'][data-variant='outline'] {
+  border: 0;
+  background: var(--publish-secondary);
+  color: var(--publish-text);
+}
+.back {
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--publish-secondary);
+  color: var(--publish-text);
+}
+.loading,
+.error {
+  border-radius: var(--publish-card-radius);
+  background: var(--publish-surface);
+  box-shadow: var(--publish-card-shadow);
+}
+@media (max-width: 1023px) {
+  .workspace {
+    padding: 4px 0 28px;
+  }
+  .layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .preview {
+    position: static;
+  }
+  .logoGroup,
+  .captionControls,
+  .collapsedCaption,
+  .preview {
+    padding: 16px;
+    border-radius: 20px;
+  }
+}
+/* The mobile save bar replaces the dashboard dock while the brand kit is open. */
+@media (max-width: 1023px) {
+  :global(body:has([data-brand-workspace]) [data-mobile-dashboard-dock]) {
     display: none;
   }
 }

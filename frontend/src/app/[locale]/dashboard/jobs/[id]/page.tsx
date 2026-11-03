@@ -139,13 +139,13 @@ export default function JobProgressPage() {
 
       {/* Error banner */}
       {error && (
-        <div className="mb-6 animate-slide-down flex items-start gap-3 rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3">
+        <div className="mb-6 flex items-start gap-3 rounded-md border px-4 py-4" role="alert">
           <AlertCircle
-            className="w-5 h-5 shrink-0 text-destructive mt-0.5"
+            className="mt-0.5 size-5 shrink-0 text-muted-foreground"
             strokeWidth={1.75}
           />
           <div>
-            <p className="text-sm font-medium text-destructive shadow-lg shadow-destructive/5">
+            <p className="text-sm font-medium">
               {error === '__loadError'
                 ? t('loadError')
                 : error === '__connectionLost'
@@ -154,7 +154,7 @@ export default function JobProgressPage() {
             </p>
             <Button
               variant="outline"
-              className="mt-3"
+              className="mt-3 min-h-11"
               onClick={() => setRetry((value) => value + 1)}
             >
               {t('retry')}
@@ -163,14 +163,21 @@ export default function JobProgressPage() {
         </div>
       )}
 
-      <JobProcessingPanel
-        status={currentStep}
-        progress={progress}
-        message={message}
-        errorMessage={status?.job.error_message}
-        connected={Boolean(status) && !error}
-      />
-      {status && <JobAudioCleanup job={status.job} onRetried={() => setRetry((value) => value + 1)} />}
+      {(!error || status) && (
+        <JobProcessingPanel
+          status={currentStep}
+          progress={progress}
+          message={message}
+          errorMessage={status?.job.error_message}
+          connected={Boolean(status) && !error}
+        />
+      )}
+      {status && (
+        <JobAudioCleanup
+          job={status.job}
+          onRetried={() => setRetry((value) => value + 1)}
+        />
+      )}
     </div>
   )
 }

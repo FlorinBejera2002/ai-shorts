@@ -1,0 +1,155 @@
+{
+  "tool": "built-in ImageGen",
+  "date_anchor": "2026-10-23",
+  "approved_reference": "C:\\Users\\flori\\Documents\\projects\\sneepcut\\docs\\design\\create-clips-settings-left\\compact-inspector.png",
+  "files": {
+    "desktop-story-format.png": {
+      "source": "C:\\Users\\flori\\.codex\\generated_images\\01a16786-b56f-77f3-bd2b-d42131c21bbb\\exec-af3cee21-7eb9-46c5-be51-ba2d05d0e6fe.png",
+      "dimensions": [
+        1487,
+        1058
+      ],
+      "bytes": 1626458,
+      "sha256": "8941bdae42c51bb838f2df96764c3afbf41059a2f7cbda5e0c14cf441a7e1c78",
+      "decode_verified": true,
+      "source_hash_match": true
+    },
+    "mobile-story-format.png": {
+      "source": "C:\\Users\\flori\\.codex\\generated_images\\01a16786-b56f-77f3-bd2b-d42131c21bbb\\exec-c88cefca-0299-48b8-aa27-04d48c30f7b8.png",
+      "dimensions": [
+        853,
+        1844
+      ],
+      "bytes": 1456805,
+      "sha256": "25da8f1eb87c82e5e5ec694c795a7d780c3c724455f3ccf96c88616c6a616e4c",
+      "decode_verified": true,
+      "source_hash_match": true
+    },
+    "desktop-story-review.png": {
+      "source": "C:\\Users\\flori\\.codex\\generated_images\\01a16786-b56f-77f3-bd2b-d42131c21bbb\\exec-00b505d9-74cb-452a-a62e-30e32d51642c.png",
+      "dimensions": [
+        1487,
+        1058
+      ],
+      "bytes": 1613157,
+      "sha256": "ec8a902b983e6260824b8837142a58028344bcb4f5b8b50f035a3d1faa6dcc48",
+      "decode_verified": true,
+      "source_hash_match": true
+    },
+    "mobile-story-review.png": {
+      "source": "C:\\Users\\flori\\.codex\\generated_images\\01a16786-b56f-77f3-bd2b-d42131c21bbb\\exec-53ca4305-e2bf-408e-9972-1ab74d8479f1.png",
+      "dimensions": [
+        853,
+        1844
+      ],
+      "bytes": 1484370,
+      "sha256": "d1f2c59e2d564ba9049865f0601e4577c5a8c20553cfd662ff086020b58bcdc9",
+      "decode_verified": true,
+      "source_hash_match": true
+    },
+    "desktop-transcript-review.png": {
+      "source": "C:\\Users\\flori\\.codex\\generated_images\\01a16786-b56f-77f3-bd2b-d42131c21bbb\\exec-a827ef9d-4ebc-4d4f-91da-fa7129b16024.png",
+      "dimensions": [
+        1487,
+        1058
+      ],
+      "bytes": 1662926,
+      "sha256": "c9b5b73bf04f850889fa9abac05d094a4c29591768ce9de520b029396e26d9a4",
+      "decode_verified": true,
+      "source_hash_match": true
+    },
+    "mobile-transcript-review.png": {
+      "source": "C:\\Users\\flori\\.codex\\generated_images\\01a16786-b56f-77f3-bd2b-d42131c21bbb\\exec-d61636dd-e514-4831-a983-5e093ecc8a27.png",
+      "dimensions": [
+        853,
+        1844
+      ],
+      "bytes": 1517532,
+      "sha256": "8dc0144b3f2ce8d5bd232b0dbc40675e189d7fb47068ca5106cbf486d8ad94dc",
+      "decode_verified": true,
+      "source_hash_match": true
+    },
+    "desktop-audio-comparison.png": {
+      "source": "C:\\Users\\flori\\.codex\\generated_images\\01a16786-b56f-77f3-bd2b-d42131c21bbb\\exec-b8f78dd8-741c-4682-a937-9654e1664230.png",
+      "dimensions": [
+        1487,
+        1058
+      ],
+      "bytes": 1581133,
+      "sha256": "f8e2fa986ef55ec537d661e4009be17f8c1d9b383f0a9602c7fdc61e12b28e72",
+      "decode_verified": true,
+      "source_hash_match": true
+    },
+    "mobile-audio-comparison.png": {
+      "source": "C:\\Users\\flori\\.codex\\generated_images\\01a16786-b56f-77f3-bd2b-d42131c21bbb\\exec-80122f72-8e6e-4533-b189-9c9895a9300d.png",
+      "dimensions": [
+        853,
+        1844
+      ],
+      "bytes": 1406492,
+      "sha256": "48cad97e720eeb64007f183d18ba0e4bc4d6238634498f6d849441ce1ee5954f",
+      "decode_verified": true,
+      "source_hash_match": true
+    },
+    "desktop-story-agent.png": {
+      "source": "C:\\Users\\flori\\.codex\\generated_images\\01a16786-b56f-77f3-bd2b-d42131c21bbb\\exec-c028e8c7-858b-46a2-a1d6-ff4da2cfee7c.png",
+      "dimensions": [
+        1487,
+        1058
+      ],
+      "bytes": 1637142,
+      "sha256": "a10450a98a6bdd0c9ba34de3a34390dedcd467ed01ca5b0e33ebef3d3a9ef390",
+      "decode_verified": true,
+      "source_hash_match": true
+    },
+    "mobile-story-agent.png": {
+      "source": "C:\\Users\\flori\\.codex\\generated_images\\01a16786-b56f-77f3-bd2b-d42131c21bbb\\exec-9442850b-ed40-4f25-94ff-2e8db16b0934.png",
+      "dimensions": [
+        853,
+        1844
+      ],
+      "bytes": 1147712,
+      "sha256": "bcc36c7968ac4ee6df79dd0e8953c54214acba890c251f2805abc2cc0f81615c",
+      "decode_verified": true,
+      "source_hash_match": true
+    },
+    "desktop-story-processing.png": {
+      "source": "C:\\Users\\flori\\.codex\\generated_images\\01a16786-b56f-77f3-bd2b-d42131c21bbb\\exec-48c28a6d-3826-440c-9d74-4a9b6e846cb0.png",
+      "dimensions": [
+        1487,
+        1058
+      ],
+      "bytes": 1330664,
+      "sha256": "ebc45c43bdb13013903d9c8ea1f1bd339a13f396ca85ca69423eefae183fa7ac",
+      "decode_verified": true,
+      "source_hash_match": true
+    },
+    "mobile-story-processing.png": {
+      "source": "C:\\Users\\flori\\.codex\\generated_images\\01a16786-b56f-77f3-bd2b-d42131c21bbb\\exec-e5ec1e9f-9654-4daf-8c34-4a21ca8aeac5.png",
+      "dimensions": [
+        853,
+        1844
+      ],
+      "bytes": 1329072,
+      "sha256": "15e1ab8f6aff69a29924169c72b7dc1d35325ae98dd2a84409453a4f8a750ced",
+      "decode_verified": true,
+      "source_hash_match": true
+    }
+  },
+  "checks": {
+    "png_decodes": 12,
+    "source_hash_matches": 12,
+    "unique_images": 12,
+    "pairs": 6
+  },
+  "notes": [
+    "Static design proposals; playback, input, upload, generation, credits and Agent actions were not executed.",
+    "All calls attached the selected compact-inspector reference; mobile calls also attached the inspected mobile-youtube-ready shell.",
+    "Transcript confirmation saves words only. The planned generation cost shown in desktop context does not apply to transcript confirmation.",
+    "Continue with original audio disables cleanup and starts generation; Processed is disabled without a processed URL.",
+    "Workspace Agent is explicitly opened, with an unsent composer draft. The existing mobile full-height Sheet temporarily covers the underlying dock.",
+    "Processing preserves the actual captured ProcessingPipeline orbital visual, horizontal five-checkpoint map, indeterminate bar and Cancel action. Desktop shows Queued; mobile shows Improving with Queued/Analyze completed and the remaining checkpoints waiting.",
+    "Implementation must preserve existing ProcessingPipeline animation and behavior; raster art is not a replacement component.",
+    "Earlier rejected iterations were not copied into this final folder."
+  ]
+}

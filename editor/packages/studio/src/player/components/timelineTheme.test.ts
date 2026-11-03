@@ -10,8 +10,8 @@ describe("getTimelineTrackStyle", () => {
   it("uses one neutral clip style for every timeline tag", () => {
     const expectedStyle = {
       clip: "rgba(255,255,255,0.055)",
-      clipActive: "rgba(60,230,172,0.16)",
-      accent: "#3CE6AC",
+      clipActive: "rgba(91,140,255,0.18)",
+      accent: "#5B8CFF",
       label: "rgba(255,255,255,0.5)",
     };
 

@@ -3,16 +3,11 @@
 import { Switch } from '@/components/ui/switch'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
-} from '@/components/ui/select'
 import type { YouTubePublishingOptions } from '@/lib/content-calendar'
+import { ChevronDown } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { YouTubeAdvancedSettings } from './youtube-advanced-settings'
+import styles from './post-platform-options.module.css'
 
 interface YouTubePostSettingsProps {
   settings: YouTubePublishingOptions
@@ -32,6 +27,7 @@ export function YouTubePostSettings({
   idPrefix
 }: YouTubePostSettingsProps) {
   const t = useTranslations('youtubePublishing')
+  const composerT = useTranslations('contentCalendar.composer')
   function update<Key extends keyof YouTubePublishingOptions>(
     key: Key,
     value: YouTubePublishingOptions[Key]
@@ -42,121 +38,72 @@ export function YouTubePostSettings({
       ...(key !== 'termsAccepted' ? { termsAccepted: false } : {})
     })
   }
+
   return (
-    <fieldset
-      disabled={disabled}
-      className="space-y-4 rounded-md border border-border p-4"
-    >
-      <legend className="px-1 text-sm font-semibold">{t('heading')}</legend>
-      <p className="text-sm">{t('channel', { name: channelNames })}</p>
-      <label className="block space-y-2 text-sm" htmlFor={`${idPrefix}-title`}>
+    <fieldset disabled={disabled} className="space-y-5">
+      <legend className="sr-only">{t('heading')}</legend>
+      <p className="sr-only">{t('channel', { name: channelNames })}</p>
+      <label className="block space-y-2 text-sm" htmlFor={idPrefix + '-title'}>
         <span>{t('title')}</span>
-        <Input
-          id={`${idPrefix}-title`}
-          value={settings.title}
-          onChange={(event) => update('title', event.target.value)}
-        />
+        <Input id={idPrefix + '-title'} value={settings.title} onChange={event => update('title', event.target.value)} />
       </label>
-      <label
-        className="block space-y-2 text-sm"
-        htmlFor={`${idPrefix}-description`}
-      >
-        <span>{t('description')}</span>
-        <Textarea
-          id={`${idPrefix}-description`}
-          value={settings.description}
-          maxLength={5000}
-          onChange={(event) => update('description', event.target.value)}
-        />
-      </label>
-      <label
-        className="block space-y-2 text-sm"
-        htmlFor={`${idPrefix}-privacy`}
-      >
-        <span>{t('privacy')}</span>
-        <Select
-          disabled={disabled}
-          value={settings.privacyStatus}
-          onValueChange={(value) =>
-            update(
-              'privacyStatus',
-              value as YouTubePublishingOptions['privacyStatus']
-            )
-          }
-        >
-          <SelectTrigger id={`${idPrefix}-privacy`} className="w-full">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="private">{t('private')}</SelectItem>
-            <SelectItem value="unlisted" disabled={!auditApproved}>
-              {t('unlisted')}
-            </SelectItem>
-            <SelectItem value="public" disabled={!auditApproved}>
-              {t('public')}
-            </SelectItem>
-          </SelectContent>
-        </Select>
-      </label>
-      {!auditApproved && (
-        <p className="rounded-md bg-muted p-3 text-xs">
-          {t('auditRestriction')}
-        </p>
-      )}
-      {(['madeForKids', 'containsSyntheticMedia'] as const).map((key) => (
-        <label
-          key={key}
-          className="block space-y-2 text-sm"
-          htmlFor={`${idPrefix}-${key}`}
-        >
-          <span>{t(key)}</span>
-          <Select
-            disabled={disabled}
-            value={settings[key] === null ? '' : String(settings[key])}
-            onValueChange={(value) => update(key, value === 'true')}
-          >
-            <SelectTrigger id={`${idPrefix}-${key}`} className="w-full">
-              <SelectValue placeholder={t('choose')} />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="true">{t('yes')}</SelectItem>
-              <SelectItem value="false">{t('no')}</SelectItem>
-            </SelectContent>
-          </Select>
-        </label>
+      <fieldset>
+        <legend className="mb-2 text-sm">{t('privacy')}</legend>
+        <div className={styles.radioGroup}>
+          {(['private', 'unlisted', 'public'] as const).map(value => (
+            <label key={value}>
+              <input
+                type="radio"
+                name={idPrefix + '-privacy'}
+                value={value}
+                checked={settings.privacyStatus === value}
+                disabled={disabled || (value !== 'private' && !auditApproved)}
+                onChange={() => update('privacyStatus', value)}
+              />
+              <span>{t(value)}</span>
+            </label>
+          ))}
+        </div>
+      </fieldset>
+      {!auditApproved && <p className="rounded-md bg-muted p-3 text-xs">{t('auditRestriction')}</p>}
+      {(['madeForKids', 'containsSyntheticMedia'] as const).map(key => (
+        <fieldset key={key}>
+          <legend className="mb-2 text-sm">{t(key)}</legend>
+          <div className={styles.radioGroup}>
+            {[true, false].map(value => (
+              <label key={String(value)}>
+                <input
+                  type="radio"
+                  name={idPrefix + '-' + key}
+                  checked={settings[key] === value}
+                  disabled={disabled}
+                  onChange={() => update(key, value)}
+                />
+                <span>{t(value ? 'yes' : 'no')}</span>
+              </label>
+            ))}
+          </div>
+        </fieldset>
       ))}
-      <label className="flex items-start gap-2 text-sm">
-        <Switch
-          disabled={disabled}
-          checked={settings.notifySubscribers}
-          onCheckedChange={(checked) => update('notifySubscribers', checked)}
-        />
-        {t('notifySubscribers')}
+      <label className={styles.settingRow}>
+        <span>{t('notifySubscribers')}</span>
+        <Switch disabled={disabled} checked={settings.notifySubscribers} onCheckedChange={checked => update('notifySubscribers', checked)} />
       </label>
-      <YouTubeAdvancedSettings
-        settings={settings}
-        onChange={update}
-        idPrefix={idPrefix}
-        disabled={disabled}
-      />
-      <label className="flex items-start gap-2 text-sm">
-        <Switch
-          disabled={disabled}
-          checked={settings.termsAccepted}
-          onCheckedChange={(checked) => update('termsAccepted', checked)}
-        />
+      <details className={styles.more}>
+        <summary>{composerT('moreOptions')}<ChevronDown className="size-4" aria-hidden="true" /></summary>
+        <div className={styles.advanced}>
+          <label className="block space-y-2 text-sm" htmlFor={idPrefix + '-description'}>
+            <span>{t('description')}</span>
+            <Textarea id={idPrefix + '-description'} value={settings.description} maxLength={5000} onChange={event => update('description', event.target.value)} />
+          </label>
+          <YouTubeAdvancedSettings settings={settings} onChange={update} idPrefix={idPrefix} disabled={disabled} />
+        </div>
+      </details>
+      <label className="flex items-start gap-3 text-xs leading-5">
+        <Switch disabled={disabled} checked={settings.termsAccepted} onCheckedChange={checked => update('termsAccepted', checked)} className="mt-0.5 shrink-0" />
         <span>
           {t.rich('reviewConsent', {
-            terms: (chunks) => (
-              <a
-                className="underline"
-                target="_blank"
-                rel="noreferrer"
-                href="https://www.youtube.com/t/terms"
-              >
-                {chunks}
-              </a>
-            )
+            terms: chunks => <a className="underline" target="_blank" rel="noreferrer" href="https://www.youtube.com/t/terms">{chunks}</a>
           })}
         </span>
       </label>

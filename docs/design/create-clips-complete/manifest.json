@@ -1,0 +1,178 @@
+{
+  "date": "2026-10-23",
+  "status": "mockups_verified",
+  "selected_reference": "../create-clips-settings-left/compact-inspector.png",
+  "desktop_target": {
+    "width": 1440,
+    "height": 1024
+  },
+  "mobile_target": {
+    "width": 390,
+    "height": 844
+  },
+  "state_pairs": [
+    {
+      "stem": "footage",
+      "desktop": "desktop-footage.png",
+      "mobile": "mobile-footage.png"
+    },
+    {
+      "stem": "projects",
+      "desktop": "desktop-projects.png",
+      "mobile": "mobile-projects.png"
+    },
+    {
+      "stem": "uploads",
+      "desktop": "desktop-uploads.png",
+      "mobile": "mobile-uploads.png"
+    },
+    {
+      "stem": "upload-recovery",
+      "desktop": "desktop-upload-recovery.png",
+      "mobile": "mobile-upload-recovery.png"
+    },
+    {
+      "stem": "clip-preferences",
+      "desktop": "desktop-clip-preferences.png",
+      "mobile": "mobile-clip-preferences.png"
+    },
+    {
+      "stem": "story-brief",
+      "desktop": "desktop-story-brief.png",
+      "mobile": "mobile-story-brief.png"
+    },
+    {
+      "stem": "music",
+      "desktop": "desktop-music.png",
+      "mobile": "mobile-music.png"
+    },
+    {
+      "stem": "narration-recording",
+      "desktop": "desktop-narration-recording.png",
+      "mobile": "mobile-narration-recording.png"
+    },
+    {
+      "stem": "narration-draft",
+      "desktop": "desktop-narration-draft.png",
+      "mobile": "mobile-narration-draft.png"
+    },
+    {
+      "stem": "story-captions",
+      "desktop": "desktop-story-captions.png",
+      "mobile": "mobile-story-captions.png"
+    },
+    {
+      "stem": "story-format",
+      "desktop": "desktop-story-format.png",
+      "mobile": "mobile-story-format.png"
+    },
+    {
+      "stem": "story-review",
+      "desktop": "desktop-story-review.png",
+      "mobile": "mobile-story-review.png"
+    },
+    {
+      "stem": "transcript-review",
+      "desktop": "desktop-transcript-review.png",
+      "mobile": "mobile-transcript-review.png"
+    },
+    {
+      "stem": "audio-comparison",
+      "desktop": "desktop-audio-comparison.png",
+      "mobile": "mobile-audio-comparison.png"
+    },
+    {
+      "stem": "story-agent",
+      "desktop": "desktop-story-agent.png",
+      "mobile": "mobile-story-agent.png"
+    },
+    {
+      "stem": "story-processing",
+      "desktop": "desktop-story-processing.png",
+      "mobile": "mobile-story-processing.png"
+    },
+    {
+      "stem": "story-ready",
+      "desktop": "desktop-story-ready.png",
+      "mobile": "mobile-story-ready.png"
+    },
+    {
+      "stem": "story-needs-review",
+      "desktop": "desktop-story-needs-review.png",
+      "mobile": "mobile-story-needs-review.png"
+    },
+    {
+      "stem": "story-error",
+      "desktop": "desktop-story-error.png",
+      "mobile": "mobile-story-error.png"
+    },
+    {
+      "stem": "story-delete",
+      "desktop": "desktop-story-delete.png",
+      "mobile": "mobile-story-delete.png"
+    },
+    {
+      "stem": "story-load-error",
+      "desktop": "desktop-story-load-error.png",
+      "mobile": "mobile-story-load-error.png"
+    },
+    {
+      "stem": "youtube-empty",
+      "desktop": "desktop-youtube-empty.png",
+      "mobile": "mobile-youtube-empty.png"
+    },
+    {
+      "stem": "youtube-ready",
+      "desktop": "desktop-youtube-ready.png",
+      "mobile": "mobile-youtube-ready.png"
+    },
+    {
+      "stem": "youtube-batch",
+      "desktop": "desktop-youtube-batch.png",
+      "mobile": "mobile-youtube-batch.png"
+    },
+    {
+      "stem": "youtube-style",
+      "desktop": "desktop-youtube-style.png",
+      "mobile": "mobile-youtube-style.png"
+    },
+    {
+      "stem": "youtube-no-credits",
+      "desktop": "desktop-youtube-no-credits.png",
+      "mobile": "mobile-youtube-no-credits.png"
+    },
+    {
+      "stem": "youtube-advanced",
+      "desktop": "desktop-youtube-advanced.png",
+      "mobile": "mobile-youtube-advanced.png"
+    },
+    {
+      "stem": "job-processing",
+      "desktop": "desktop-job-processing.png",
+      "mobile": "mobile-job-processing.png"
+    },
+    {
+      "stem": "job-audio-recovery",
+      "desktop": "desktop-job-audio-recovery.png",
+      "mobile": "mobile-job-audio-recovery.png"
+    },
+    {
+      "stem": "job-failed",
+      "desktop": "desktop-job-failed.png",
+      "mobile": "mobile-job-failed.png"
+    },
+    {
+      "stem": "job-completed",
+      "desktop": "desktop-job-completed.png",
+      "mobile": "mobile-job-completed.png"
+    },
+    {
+      "stem": "job-load-error",
+      "desktop": "desktop-job-load-error.png",
+      "mobile": "mobile-job-load-error.png"
+    }
+  ],
+  "implementation_status": "verified_local",
+  "implementation_qa": "../../../design-qa.md",
+  "preview_url": "http://127.0.0.1:5189/dashboard/create?fixture=youtube&mode=youtube&demoVideo=ScDemoA0001"
+}

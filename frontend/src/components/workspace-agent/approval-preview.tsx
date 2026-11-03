@@ -19,7 +19,7 @@ export function ApprovalPreview({ value, ro }: { value: Record<string, unknown>;
       <p>{label(value.effect)}</p><p className="font-medium text-destructive">{ro ? 'Această acțiune nu are Undo.' : 'This action has no Undo.'}</p>
     </section>
   }
-  if (value.action === 'stories.delete') return <section className="space-y-2 rounded-md border p-3 text-xs" aria-label={ro ? 'Confirmă ștergerea poveștii' : 'Confirm story deletion'}>
+  if (value.action === 'stories.delete') return <section className="space-y-2 rounded-md border p-3 text-xs" aria-label={ro ? 'Confirmă ștergerea proiectului' : 'Confirm project deletion'}>
     <h4 className="text-sm font-semibold">{label(value.title)}</h4>
     <p>{ro ? 'Versiune' : 'Version'}: {typeof value.current_version === 'number' ? value.current_version : '—'} · {typeof value.asset_count === 'number' ? value.asset_count : 0} {ro ? 'surse' : 'sources'}</p>
     <p>{label(value.effect)}</p><p className="font-medium text-destructive">{ro ? 'Ștergerea este definitivă și nu poate fi anulată.' : 'Deletion is permanent and cannot be undone.'}</p>

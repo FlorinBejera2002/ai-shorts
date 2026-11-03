@@ -7,7 +7,7 @@ const source = readFileSync(new URL('../src/components/calendar/calendar-publish
 const compiled = ts.transpileModule(source, {
   compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 }
 })
-const { getPublishingPosts } = await import(`data:text/javascript;base64,${Buffer.from(compiled.outputText).toString('base64')}`)
+const { getPublishingPosts, groupPublishingPosts } = await import(`data:text/javascript;base64,${Buffer.from(compiled.outputText).toString('base64')}`)
 const month = new Date(2026, 9, 1)
 const post = (id, status, day) => ({ id, status, scheduledAt: new Date(2026, 9, day, 12).toISOString() })
 
@@ -28,4 +28,18 @@ test('status tabs isolate drafts and published posts and exclude neighboring mon
 test('month selection distinguishes the same month in different years', () => {
   const posts = [post('current-year', 'scheduled', 10), { ...post('last-year', 'scheduled', 10), scheduledAt: new Date(2025, 9, 10).toISOString() }]
   assert.deepEqual(getPublishingPosts(posts, 'scheduled', month).map(item => item.id), ['current-year'])
+})
+
+test('All includes each status, orders timed posts and puts undated drafts last', () => {
+  const posts = [post('draft', 'draft', 2), post('scheduled', 'scheduled', 24), post('published', 'published', 21), post('failed', 'failed', 22), post('publishing', 'publishing', 23)]
+  assert.deepEqual(getPublishingPosts(posts, 'all', month).map(item => item.id), ['published', 'failed', 'publishing', 'scheduled', 'draft'])
+})
+
+test('day groups keep the local calendar day and collect drafts under Undated', () => {
+  const posts = [post('morning', 'published', 21), post('afternoon', 'scheduled', 21), post('tomorrow', 'scheduled', 22), post('draft-1', 'draft', 2), post('draft-2', 'draft', 23)]
+  const groups = groupPublishingPosts(posts)
+  assert.deepEqual(groups.map(group => group.posts.map(item => item.id)), [['morning', 'afternoon'], ['tomorrow'], ['draft-1', 'draft-2']])
+  assert.equal(groups[0].date.getDate(), 21)
+  assert.equal(groups[2].key, 'undated')
+  assert.equal(groups[2].date, null)
 })

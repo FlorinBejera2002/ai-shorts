@@ -164,7 +164,7 @@ await page.route('**/api/**', async (route) => {
 })
 
 const wizard = page.getByTestId('story-wizard')
-const build = page.getByRole('button', { name: 'Build my story', exact: true })
+const build = page.getByRole('button', { name: 'Create my clip', exact: true })
 const brief = page.getByRole('textbox', {
   name: 'Describe your video (optional)',
   exact: true
@@ -248,7 +248,7 @@ try {
   })
   await page.getByTestId('story-step-0').waitFor({ state: 'visible' })
   const stepNavigation = wizard.getByRole('navigation', {
-    name: 'Story creation steps',
+    name: 'Clip creation steps',
     exact: true
   })
   const stepButtons = stepNavigation.getByRole('button')
@@ -313,7 +313,7 @@ try {
   }
   await askAgent.click()
   await waitForComposerFocus()
-  assert.match(await composer.inputValue(), /Which clips should I add/)
+  assert.match(await composer.inputValue(), /Which footage should I add/)
   assert.equal(
     agentSends.length,
     0,
@@ -469,7 +469,7 @@ try {
   await tooltip.waitFor({ state: 'visible' })
   await closeHelp()
 
-  await page.getByLabel('Upload story clips').setInputFiles([
+  await page.getByLabel('Upload clips').setInputFiles([
     {
       name: 'first-scene.mp4',
       mimeType: 'video/mp4',
@@ -560,7 +560,7 @@ try {
   )
   await page.waitForFunction(() =>
     [...document.querySelectorAll('button')].some(
-      (button) => button.textContent === 'Build my story' && !button.disabled
+      (button) => button.textContent === 'Create my clip' && !button.disabled
     )
   )
   assert.equal(
@@ -592,9 +592,9 @@ try {
     message,
     'Back preserves the story brief'
   )
-  const newStory = page.getByRole('button', { name: 'New story', exact: true })
+  const newStory = page.getByRole('button', { name: 'New project', exact: true })
   const projectSelector = page.getByRole('combobox', {
-    name: 'Open story project',
+    name: 'Open project',
     exact: true
   })
   assert.equal(await newStory.isEnabled(), true)
@@ -782,7 +782,7 @@ try {
   project.status = 'draft'
   await page.goto(`${origin}/ro/dashboard/create`, { waitUntil: 'networkidle' })
   await page
-    .getByRole('combobox', { name: 'Sursa filmărilor', exact: true })
+    .getByRole('radiogroup', { name: 'Sursa filmărilor', exact: true })
     .waitFor()
   await page.getByTestId('story-step-2').waitFor({ state: 'visible' })
   await noOverflow()

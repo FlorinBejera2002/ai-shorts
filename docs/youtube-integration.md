@@ -94,6 +94,13 @@ YouTube's prior written approval. Original file uploads remain supported. The
 flag is separate from the upload audit and must not be enabled merely because
 the user owns a channel or an OAuth grant exists.
 
+The worker downloads imports with a pinned yt-dlp build plus Deno (its
+JavaScript runtime), both installed in `backend/Dockerfile`. When YouTube
+changes break downloads, bump `YTDLP_VERSION` and its checksums there. If
+YouTube rejects the server IP, set `YOUTUBE_COOKIES_FILE` to a read-only
+mounted Netscape cookies file and/or `YOUTUBE_PROXY`; the worker copies the
+cookies into each job's temporary directory.
+
 ## External acceptance
 
 Complete Google OAuth verification and the separate YouTube API audit using

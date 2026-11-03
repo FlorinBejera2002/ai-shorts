@@ -26,27 +26,27 @@ export function StoryProjectHeader({
 }: HeaderProps) {
   const text = useStoryLanguage()
   return (
-    <div className="flex w-full flex-wrap items-center justify-between gap-3">
+    <div className="story-project-header flex w-full flex-wrap items-center justify-between gap-3">
       <h2 className="text-base font-semibold">
         {hasOutput
-          ? text('Your story', 'Povestea ta')
+          ? text('Your clip', 'Clipul tău')
           : text('Your project', 'Proiectul tău')}
       </h2>
-      <div className="flex min-w-0 flex-wrap items-center gap-2 sm:flex-nowrap">
+      <div className="story-project-actions flex min-w-0 flex-wrap items-center gap-2 sm:flex-nowrap">
         {projects.length > 0 && (
           <select
             className="story-select story-project-picker"
-            aria-label={text('Open story project', 'Deschide proiectul')}
+            aria-label={text('Open project', 'Deschide proiectul')}
             value={id}
             disabled={disabled}
             onChange={(event) => onSelect(event.target.value)}
           >
-            <option value="">{text('New story', 'Poveste nouă')}</option>
+            <option value="">{text('New project', 'Proiect nou')}</option>
             {projects.map((project) => (
               <option key={project.id} value={project.id}>
                 {project.options?.brief?.slice(0, 40) ||
                   project.assets?.[0]?.name ||
-                  text('Untitled story', 'Poveste fără titlu')}
+                  text('Untitled project', 'Proiect fără titlu')}
               </option>
             ))}
           </select>
@@ -54,11 +54,14 @@ export function StoryProjectHeader({
         {id && (
           <Button
             variant="outline"
+            aria-label={text('New project', 'Proiect nou')}
             disabled={disabled}
             onClick={() => onSelect('')}
           >
             <Plus />
-            {text('New story', 'Poveste nouă')}
+            <span className="story-new-project-label">
+              {text('New project', 'Proiect nou')}
+            </span>
           </Button>
         )}
       </div>
@@ -166,8 +169,8 @@ export function StoryProjectDelete({ disabled, onDelete }: DeleteProps) {
         <Card className="block space-y-3 p-4">
           <p className="text-sm">
             {text(
-              'Delete this story and its source files, previews, and saved versions?',
-              'Ștergi povestea, fișierele sursă, previzualizările și versiunile salvate?'
+              'Delete this project and its source files, previews, and saved versions?',
+              'Ștergi proiectul, fișierele sursă, previzualizările și versiunile salvate?'
             )}
           </p>
           <div className="flex gap-2">

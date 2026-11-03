@@ -36,9 +36,30 @@ export function StoryWizard({
   const headingID = useId()
   const hintID = useId()
   const steps = [
-    { label: text('Add footage', 'Adaugă filmări'), title: text('Add your clips', 'Adaugă filmările'), description: text('Upload clips in the order you want. You can reorder them any time before generating.', 'Încarcă filmările în ordinea dorită. Le poți reordona înainte de generare.') },
-    { label: text('Choose the result', 'Alege rezultatul'), title: text('Make it yours', 'Alege cum va arăta'), description: text('Choose captions and appearance. A description, music and narration are optional.', 'Alege subtitrările și aspectul. Descrierea, muzica și narațiunea sunt opționale.') },
-    { label: text('Generate & review', 'Generează și verifică'), title: text('Ready to generate', 'Pregătit de generare'), description: text('Generate your video, watch it, improve it and download the version you like.', 'Generează videoul, urmărește-l, îmbunătățește-l și descarcă versiunea dorită.') }
+    {
+      label: text('Add footage', 'Adaugă filmări'),
+      title: text('Add your clips', 'Adaugă filmările'),
+      description: text(
+        'Upload clips in the order you want. You can reorder them any time before generating.',
+        'Încarcă filmările în ordinea dorită. Le poți reordona înainte de generare.'
+      )
+    },
+    {
+      label: text('Choose the result', 'Alege rezultatul'),
+      title: text('Make it yours', 'Alege cum va arăta'),
+      description: text(
+        'Choose captions and appearance. A description, music and narration are optional.',
+        'Alege subtitrările și aspectul. Descrierea, muzica și narațiunea sunt opționale.'
+      )
+    },
+    {
+      label: text('Generate & review', 'Generează și verifică'),
+      title: text('Ready to generate', 'Pregătit de generare'),
+      description: text(
+        'Generate your video, watch it, improve it and download the version you like.',
+        'Generează videoul, urmărește-l, îmbunătățește-l și descarcă versiunea dorită.'
+      )
+    }
   ]
 
   useEffect(() => {
@@ -53,7 +74,7 @@ export function StoryWizard({
     >
       <GooeyNav
         className="story-wizard-navigation"
-        aria-label={text('Story creation steps', 'Pașii creării poveștii')}
+        aria-label={text('Clip creation steps', 'Pașii creării clipului')}
         orientation={mobile ? 'horizontal' : 'vertical'}
         currentStep
         stretch
@@ -72,18 +93,18 @@ export function StoryWizard({
           )
         }))}
       />
-      <div className="story-wizard-content space-y-5 min-w-0">
-        <div className="space-y-2">
+      <div className="story-wizard-content">
+        <div className="story-wizard-heading">
           <p className="sr-only">
             {text('Step', 'Pasul')} {step + 1} {text('of', 'din')} 3
           </p>
-          <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex min-w-0 items-center gap-2">
               <h2
                 ref={heading}
                 id={headingID}
                 tabIndex={-1}
-                className="text-xl font-semibold tracking-tight outline-none sm:text-2xl"
+                className="text-lg font-semibold tracking-tight outline-none"
                 data-testid="story-step-heading"
               >
                 {steps[step].title}
@@ -98,7 +119,7 @@ export function StoryWizard({
               type="button"
               variant="ghost"
               size="sm"
-              className="text-muted-foreground focus-visible:ring-2 focus-visible:ring-foreground focus-visible:ring-offset-2"
+              className="story-agent-help text-muted-foreground focus-visible:ring-2 focus-visible:ring-foreground focus-visible:ring-offset-2"
               onClick={(event) =>
                 requestStoryAgentHelp(
                   (['footage', 'style', 'review'] as const)[step],
@@ -112,41 +133,41 @@ export function StoryWizard({
           </div>
         </div>
         {children}
-        {navigationHint && (
-          <p
-            id={hintID}
-            role="status"
-            className="text-sm leading-relaxed text-muted-foreground"
-          >
-            {navigationHint}
-          </p>
-        )}
-        <div className="flex items-center justify-between gap-3 pt-4">
-          {step > 0 ? (
-            <Button
-              variant="ghost"
-              className="focus-visible:ring-2 focus-visible:ring-foreground focus-visible:ring-offset-2"
-              disabled={navigationDisabled}
-              aria-describedby={navigationHint ? hintID : undefined}
-              onClick={() => onStep((step - 1) as StoryStep)}
+        <div className="story-wizard-footer">
+          {navigationHint && (
+            <p
+              id={hintID}
+              role="status"
+              className="text-xs leading-relaxed text-muted-foreground"
             >
-              <ArrowLeft />
-              {text('Back', 'Înapoi')}
-            </Button>
-          ) : (
-            <span />
+              {navigationHint}
+            </p>
           )}
-          {step < 2 && (
-            <Button
-              className="focus-visible:ring-2 focus-visible:ring-foreground focus-visible:ring-offset-2"
-              disabled={navigationDisabled || continueDisabled}
-              aria-describedby={navigationHint ? hintID : undefined}
-              onClick={onContinue}
-            >
-              {text('Continue', 'Continuă')}
-              <ArrowRight />
-            </Button>
-          )}
+          <div className="flex items-center justify-between gap-3">
+            {step > 0 ? (
+              <Button
+                variant="ghost"
+                className="focus-visible:ring-2 focus-visible:ring-foreground focus-visible:ring-offset-2"
+                disabled={navigationDisabled}
+                aria-describedby={navigationHint ? hintID : undefined}
+                onClick={() => onStep((step - 1) as StoryStep)}
+              >
+                <ArrowLeft />
+                {text('Back', 'Înapoi')}
+              </Button>
+            ) : null}
+            {step < 2 && (
+              <Button
+                className="story-wizard-continue flex-1 focus-visible:ring-2 focus-visible:ring-foreground focus-visible:ring-offset-2"
+                disabled={navigationDisabled || continueDisabled}
+                aria-describedby={navigationHint ? hintID : undefined}
+                onClick={onContinue}
+              >
+                {text('Continue', 'Continuă')}
+                <ArrowRight />
+              </Button>
+            )}
+          </div>
         </div>
       </div>
     </section>

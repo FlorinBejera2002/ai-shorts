@@ -60,11 +60,11 @@ await page.route('**/api/**', (route) => {
   if (path === '/api/workspace-agent/suggestions') return route.fulfill({ json: { suggestions: [], capabilities: [] } })
   return route.fulfill({ json: {} })
 })
-const player = page.getByLabel('Story preview', { exact: true })
+const player = page.getByLabel('Clip preview', { exact: true })
 const inspect = async (seconds, capture = false) => {
   await player.evaluate((video, time) => { video.pause(); video.currentTime = time }, seconds)
   await page.waitForFunction((time) => {
-    const video = document.querySelector('video[aria-label="Story preview"]')
+    const video = document.querySelector('video[aria-label="Clip preview"]')
     return video && !video.seeking && video.readyState >= 2 && Math.abs(video.currentTime - time) < 0.03
   }, seconds)
   return player.evaluate(async (video, capture) => {
@@ -90,9 +90,9 @@ try {
   await page.goto(`${origin}/dashboard/create?story=${projects[0].id}`, { waitUntil: 'domcontentloaded', timeout: 180000 })
   for (const project of projects) {
     const mode = project.mode
-    if (mode !== modes[0]) await page.getByRole('combobox', { name: 'Open story project', exact: true }).selectOption(project.id)
+    if (mode !== modes[0]) await page.getByRole('combobox', { name: 'Open project', exact: true }).selectOption(project.id)
     await player.waitFor()
-    await page.waitForFunction(() => document.querySelector('video[aria-label="Story preview"]')?.readyState >= 2)
+    await page.waitForFunction(() => document.querySelector('video[aria-label="Clip preview"]')?.readyState >= 2)
     const metadata = await player.evaluate((video) => ({ duration: video.duration, width: video.videoWidth, height: video.videoHeight }))
     assert.ok(Math.abs(metadata.duration - 8) < 0.1, JSON.stringify(metadata))
     evidence.inputs[mode].metadata = metadata

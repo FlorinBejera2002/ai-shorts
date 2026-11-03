@@ -28,6 +28,24 @@ function load(relative, imports = {}) {
 }
 const types = load('../src/components/story/types.ts')
 let cleanupAvailable = false
+const { StorySoundOptions } = load(
+  '../src/components/story/story-sound-options.tsx',
+  {
+    react: { useId: () => 'sound-test' },
+    'next-intl': { useTranslations: () => (key) => key },
+    '@/hooks/use-audio-cleanup-availability': {
+      useAudioCleanupAvailability: () => ({
+        available: cleanupAvailable,
+        loading: false
+      })
+    },
+    'react/jsx-runtime': jsxRuntime,
+    'lucide-react': { ChevronDown: 'svg' },
+    '@/components/ui/button': { Button: 'button' },
+    './story-help': { StoryHelp: 'aside' },
+    './use-story-language': { useStoryLanguage: () => (english) => english }
+  }
+)
 const { StoryOptionsPanel } = load(
   '../src/components/story/story-options.tsx',
   {
@@ -44,7 +62,14 @@ const { StoryOptionsPanel } = load(
     '@/components/ui/textarea': { Textarea: 'textarea' },
     '@/components/ui/button': { Button: 'button' },
     './story-help': { StoryHelp: 'aside' },
-    './story-appearance': { StoryAppearance: 'section' },
+    './story-appearance': {
+      StoryAppearance: 'section',
+      StoryAppearancePreview: 'section'
+    },
+    './use-story-appearance': {
+      useStoryAppearance: () => ({ visible: false })
+    },
+    './story-sound-options': { StorySoundOptions },
     './story-music': { StoryMusic: 'section' },
     './story-format': { StoryFormat: 'section' },
     './story-dynamic-range': { StoryDynamicRange: 'section' },
@@ -170,9 +195,9 @@ test('unavailable cleanup cannot be enabled; saved selections remain reversible'
   let changed
   const toggle = (enabled) =>
     nodes(
-      StoryOptionsPanel({
+      StorySoundOptions({
         options: { ...types.defaultOptions, audio_cleanup: { enabled } },
-        disabled: false,
+        hasNarration: false,
         onChange: (value) => {
           changed = value
         }
