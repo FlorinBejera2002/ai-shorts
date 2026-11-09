@@ -10,9 +10,14 @@ from this report and Git.
 
 The APIs used by the Go media adapter and Bun Studio state store work with this
 bucket after the ETag fix described below. This is **not production reliability
-approval**: the bulk workload was inconsistent across repeated runs. CORS is
-also unset and must be configured for actual app origins before browser
-fetch/canvas access is enabled.
+approval**: the bulk workload was inconsistent across repeated runs, and four
+new full repetitions reproduced provider errors. Representative video transfers
+passed twice from the deployment server. CORS is unset; configure actual app
+origins if direct browser fetch/canvas access is used. Server requests and plain
+video-element playback do not require bucket CORS.
+
+The table below records the earlier functional checks. The instrumented repeat
+later in this report records the latest repeated results and their limits.
 
 | Check | Observed result |
 | --- | --- |
@@ -68,12 +73,106 @@ Hetzner's [general FAQ](https://docs.hetzner.com/storage/object-storage/faq/gene
 describes shared-cluster timeout risks. These tests establish functional API
 behavior, not sustained throughput, multi-user capacity or provider availability.
 
-Provider diagnostic references (all test objects have since been removed):
+Provider diagnostic references from the earlier runs (those objects were removed):
 
 - Unexpected conditional-create 412 request ID:
   `tx00000a2e4861c06b1cc5e-006af1c0a9-2697cbec-hel1-prod1-ceph4`.
 - First-run batch-delete response whose body exceeded the cleanup deadline:
   `tx00000cbb77dc5c869cd09-006af1be94-268f481a-hel1-prod1-ceph4`.
+
+### Instrumented repeat, 2026-11-09
+
+Four full repetitions ran from approximately 14:00–14:18 UTC: two on the local
+machine and two as isolated Go test executables over the existing `sc` SSH
+connection. No deployed application or database was started or modified.
+
+Each run retained the original 1003-object, eight-writer pagination contract
+(38-byte fixtures). It also transferred a real 17,853,374-byte H.264 MP4 once
+sequentially and twice concurrently, checking full SHA-256 and exact byte ranges.
+These workloads answer different questions: the tiny objects expose request-rate
+and pagination behavior; three videos do not establish SaaS capacity.
+
+| Run | Full contract | Verified video transfers | Traced HTTP 503 / 504 responses |
+| --- | --- | --- | --- |
+| Local 1 | Failed during deletion; cleanup also failed | 0/3; GET/upload 503s | 20 / 0 |
+| Local 2 | Failed during migration, metadata, conditional writes and bulk upload | 1/3; other transfers hit 503s | 804 / 0 |
+| Server 1 | Failed during signed read/bulk upload; cleanup body timed out | 3/3 | 339 / 2 |
+| Server 2 | Failed during bulk upload; cleanup listing returned 504 | 3/3 | 0 / 10 |
+
+The first three runs performed the contract before the video test. Server 2
+waited 60 seconds without test-bucket requests, then ran the videos **before**
+the bulk contract. Its three video checks passed in 37.44 seconds; server 1's
+passed in 27.78 seconds. Across those six verified transfers, individual uploads
+took 10.2–15.2 seconds and full downloads took 0.49–4.79 seconds. The full contract
+still failed on both server runs in approximately five minutes, including the
+one-minute cleanup deadline. The same bulk contract passed against local
+SeaweedFS in 1.57 seconds for the entire suite.
+
+The counts above are traced HTTP attempts, including SDK retries, not failed
+operations or an application error rate. Three additional attempts ended without
+HTTP headers; one HTTP 200 cleanup response timed out while reading its body.
+The contract's standalone signed-read client is not traced; its reported 503
+is visible in `run.log`. Expected 412 responses from losing conditional writers
+are retained separately from 5xx failures.
+
+Peak traced request starts in any sliding one-second window were 57, 62, 47 and
+37 respectively. These runners were below the
+[published 750 requests/second limits](https://docs.hetzner.com/storage/object-storage/overview/)
+per source IP and bucket. This measurement excludes unrelated clients and does
+not measure shared backend load or establish the cause of throttling.
+
+One server conditional PUT also illustrates an ambiguous retry outcome:
+`.../objects/bulk/0317.mp4` received a 504 on SDK attempt 2 and a 412 on attempt 3
+under invocation `fccbf26a-1636-414c-b4de-d0cb15ee8aa4`. That is consistent with an
+earlier request committing before its acknowledgement, but does not prove which
+attempt committed. It remains a failure; the test does not convert it into
+success or overwrite the object. The later 412 request ID is
+`tx00000c46e871357151e77-006af1d3e3-26ad6f94-hel1-prod1-ceph4`.
+
+Additional provider references:
+
+- 14:01:29 UTC, local listing, HTTP 503:
+  `tx00000e92e8ac038781cd1-006af1d239-26ad6f94-hel1-prod1-ceph4`.
+- 14:06:07 UTC, server bulk PUT, HTTP 503:
+  `tx000009ea2f972c0c46281-006af1d34f-2697cbec-hel1-prod1-ceph4`.
+- 14:13:38 UTC, server PUT to
+  `sneepcut-contract/9642ad979bd63e518b3b989ad24986cf/objects/bulk/0622.mp4`,
+  HTTP 504 after 60.037 seconds; the gateway supplied no request ID.
+
+The first two local test logs used the old generic checksum failure text when a
+signed GET returned 503. Their wire traces show error responses, not successful
+video responses with corrupted bytes. The test now checks status before hashing
+and reports HTTP errors separately. Every completed successful hash check matched.
+
+Native browser, worker and Studio checks were **not reached in these four runs**:
+the full contract failed before publishing their fixture. Their earlier passes
+in the result table remain historical evidence, not new passes. No contract
+assertion, concurrency limit or individual operation deadline was relaxed. The
+overall Go suite timeout increased to accommodate the additional video cases.
+
+At verification time, Hetzner's [status page](https://status.hetzner.com/) listed
+no new incident for November 9. Its [FSN1 storage incident](https://status.hetzner.com/incident/c3426c77-cb55-4eb0-ac85-315fc53efe1b)
+was resolved on November 6 and concerns a different region. Ongoing
+[core-router maintenance](https://status.hetzner.com/incident/cd31dd45-f431-4639-8f9a-d4bfb5353f30)
+warns of possible latency, but does not establish the cause of these HEL1 errors.
+The observed `SlowDown` responses confirm service-side throttling responses;
+whether they reflect a bucket limit, shared backend load or an incident needs
+provider investigation. This is not evidence that Hetzner is universally
+unsuitable for video storage, and it is not production reliability approval.
+
+Sanitized wire traces, retry summaries and full logs are retained locally in
+`artifacts/hetzner-retest-20261109T135951Z/{local-1,local-2,server-1,server-2}/`.
+This ignored report directory contains no credentials or signed URLs. The first
+server's IP-discovery response was HTML; it is not a valid source IP and must not
+be supplied to support as one. The second run validates that metadata field.
+
+Recovery cleanup completed at 14:32:42 UTC. It removed 1,961 residual synthetic
+objects using paced 25-key batches under only the eight exact roots created by
+these repetitions. All eight roots were confirmed empty, followed by a delayed
+listing check confirming zero objects in all three synthetic namespaces. That
+recovery does not turn the original cleanup/test failures into passes. The audit
+and request timings are in `cleanup-recovery.json` in the report directory.
+Temporary test bundles and credential files were removed on both machines.
 
 Before production, resolve the observed failures with the provider or test an
 alternative location/provider, then repeat the full check and a representative
@@ -116,10 +215,41 @@ The supplied bucket must already exist, be private and never have enabled
 versioning. The runner confirms its endpoint, bucket opt-in and versioning,
 but does not change ACL, CORS or any other bucket setting. Verify bucket privacy
 before running it. All object mutations stay under new random
-`sneepcut-contract/` and `sneepcut-verification/` subdirectories. Cleanup runs
+`sneepcut-contract/`, `sneepcut-verification/` and `sneepcut-video-check/`
+subdirectories. Cleanup runs
 on exit and logs the contract prefix for manual recovery if requests fail.
 Local scratch files live under `.cache/tmp/` and are removed in `finally`.
 The ordinary local S3 test runners retain their loopback-only guards.
+
+### Representative transfers and diagnostics
+
+The runner also generates a real 640 × 360 H.264 MP4 of approximately 17 MiB.
+It uploads/downloads it once sequentially and then twice concurrently. Each
+transfer checks metadata size, the complete SHA-256 digest and a byte range
+inside the file. The original tiny-object concurrency/pagination assertions
+remain unchanged; successful video transfers do not mask a failing bulk case.
+
+Request diagnostics record SDK attempt counters, invocation IDs, provider
+request IDs, status, timing and response-body errors. They exclude authorization
+headers, query strings, signed URLs and payload contents. An eventual successful
+retry retains the failed attempt in the trace. Sanitized reports are saved under
+`artifacts/hetzner-retest/` by default; `SNEEPCUT_HETZNER_REPORT_DIR` selects a
+different report directory. These are diagnostic artifacts, not credentials.
+
+For a focused video-transfer test, use `--transfers-only`; it deliberately does
+not claim a full media/Studio pass. To run the Go media contract and representative
+transfers from an explicitly authorized SSH server:
+
+```sh
+node scripts/test-hetzner-s3-server.mjs sc < /path/to/private-credentials.json
+```
+
+This compiles an isolated Linux test executable and streams it with the
+synthetic video and temporary credentials over SSH. The server runs no app or
+database processes. Its temporary directory is private and removed by a trap;
+application configuration and deployed binaries are untouched. The SSH target
+must already have a trusted host key and Python 3. The local runner additionally
+checks native browser playback, the worker and Studio rendering/recovery.
 
 ## Versioning
 

@@ -8,6 +8,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -20,6 +21,18 @@ import (
 
 // This separate opt-in must never relax the normal loopback-only integration tests.
 func TestHetznerS3Compatibility(t *testing.T) {
+	storage := hetznerS3ForTest(t)
+	testS3Compatibility(t, storage, 4*time.Minute)
+	if t.Failed() {
+		return
+	}
+	if manifest := os.Getenv("SNEEPCUT_HETZNER_MANIFEST"); manifest != "" {
+		t.Run("real_video_cross_client_fixture", func(t *testing.T) { serveHetznerFixture(t, storage, manifest) })
+	}
+}
+
+func hetznerS3ForTest(t *testing.T) *S3Storage {
+	t.Helper()
 	if os.Getenv("SNEEPCUT_HETZNER_SMOKE") != "1" {
 		t.Skip("run the explicitly opted-in Hetzner smoke runner")
 	}
@@ -39,6 +52,18 @@ func TestHetznerS3Compatibility(t *testing.T) {
 		t.Fatal(err)
 	}
 	client := storage.client.(*s3.Client)
+	if path := os.Getenv("SNEEPCUT_HETZNER_TRACE"); path != "" {
+		trace, err := newS3Trace(path, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		client.Options().HTTPClient.(*http.Client).Transport = trace
+		t.Cleanup(func() {
+			if err := trace.close(); err != nil {
+				t.Error(err)
+			}
+		})
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	if _, err := client.HeadBucket(ctx, &s3.HeadBucketInput{Bucket: aws.String(bucket)}); err != nil {
@@ -48,13 +73,7 @@ func TestHetznerS3Compatibility(t *testing.T) {
 	if err != nil || versioning.Status != "" {
 		t.Fatal("Hetzner smoke requires a bucket that has never enabled versioning")
 	}
-	testS3Compatibility(t, storage, 4*time.Minute)
-	if t.Failed() {
-		return
-	}
-	if manifest := os.Getenv("SNEEPCUT_HETZNER_MANIFEST"); manifest != "" {
-		t.Run("real_video_cross_client_fixture", func(t *testing.T) { serveHetznerFixture(t, storage, manifest) })
-	}
+	return storage
 }
 
 func serveHetznerFixture(t *testing.T, storage *S3Storage, manifest string) {

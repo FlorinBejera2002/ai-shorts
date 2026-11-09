@@ -322,10 +322,12 @@ app and Studio origins when browser canvas/media access needs it.
 Live verification on 2026-11-09 established media and Studio API compatibility
 after normalizing response ETags for conditional Studio updates. Private browser
 playback, real Studio rendering and cache-loss recovery passed. However, repeated
-bulk tests encountered timeouts and an unexpected conditional-create failure;
-production reliability is not signed off. The existing bucket also needs CORS
-for the intended browser origins. See [the verification report and opt-in
-runner](docs/hetzner-s3-verification.md) for evidence and repeatable commands.
+bulk tests encountered HTTP 503/504 responses and an ambiguous conditional-write
+retry. Two deployment-server runs passed all six video-sized transfers, but
+neither passed the full bulk contract; production reliability is not signed off.
+Configure bucket CORS if direct browser fetch/canvas access is used. See
+[the verification report and opt-in runner](docs/hetzner-s3-verification.md)
+for evidence and repeatable commands.
 A separate test bucket is optional. The runner never creates buckets, changes
 bucket settings, uses application credentials or modifies application storage
 configuration; its writes and cleanup use random synthetic prefixes only.
