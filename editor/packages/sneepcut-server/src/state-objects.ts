@@ -64,9 +64,14 @@ export class S3StateObjects implements StateObjects {
     return this.request(key, "GET");
   }
   async put(key: string, body: string | Blob, expected: string | null): Promise<string> {
+    // S3 conditional PUT expects the opaque ETag value. Hetzner rejects the
+    // HTTP quotes returned by GET/PUT responses; retain the exact value inside.
     const response = await this.request(key, "PUT", {
       body,
-      headers: expected === null ? { "If-None-Match": "*" } : { "If-Match": expected },
+      headers:
+        expected === null
+          ? { "If-None-Match": "*" }
+          : { "If-Match": expected.replace(/^"([^"]+)"$/, "$1") },
     });
     const etag = response.headers.get("ETag");
     if (!etag) throw new Error("Studio object storage did not acknowledge the revision");

@@ -62,17 +62,21 @@ func localS3ForTest(t *testing.T) *S3Storage {
 }
 
 func TestS3Compatibility(t *testing.T) {
-	storage := localS3ForTest(t)
-	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+	testS3Compatibility(t, localS3ForTest(t), 90*time.Second)
+}
+
+func testS3Compatibility(t *testing.T, storage *S3Storage, timeout time.Duration) {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 	var random [16]byte
 	if _, err := rand.Read(random[:]); err != nil {
 		t.Fatal(err)
 	}
 	root := "sneepcut-contract/" + hex.EncodeToString(random[:])
+	t.Logf("synthetic object prefix: %s", root)
 	prefix := root + "/objects"
 	t.Cleanup(func() {
-		cleanup, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+		cleanup, cancel := context.WithTimeout(context.Background(), time.Minute)
 		defer cancel()
 		if _, err := storage.DeletePrefix(cleanup, root); err != nil {
 			t.Errorf("clean synthetic S3 objects: %v", err)
