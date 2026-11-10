@@ -130,7 +130,7 @@ func TestStorySourceMeaningSamplesAreBoundedAcrossIntervals(t *testing.T) {
 	for i := 0; i < 100; i++ {
 		asset.Candidates = append(asset.Candidates, story.Candidate{In: float64(i * 8), Out: float64(i*8 + 8)})
 	}
-	frames := storySemanticSampleFrames(asset)
+	frames := storySemanticSampleFrames(asset, storySemanticFramesPerClip)
 	if len(frames) != 24 || frames[0] > 100 || frames[len(frames)-1] < 23000 {
 		t.Fatal("sampling lost whole-source distribution", frames)
 	}
@@ -152,8 +152,11 @@ func TestNarrationSourceMeaningAcceptsVisualSubsetAndNormalizesMutedInterviewRol
 	if visual.Candidates[0].Text != "" || voice.Candidates[0].Text != "This describes the scene." {
 		t.Fatal("normalizing a visual label altered speech")
 	}
-	if _, err := parseStorySemanticFindings(raw, []story.Asset{visual}, map[string]bool{"interview": true}); err == nil || !strings.Contains(err.Error(), "candidates[0].role") {
-		t.Fatal("source-only mode accepted invented spoken A-roll", err)
+	visual.Candidates[1].Text = "Spoken words."
+	mixed := `{"candidates":[{"candidate_id":"interview","role":"a_roll","idea":"A person seated for an interview.","evidence":"Actual supplied frames show one seated person facing the camera.","confidence":0.95,"dependencies":[]},{"candidate_id":"unseen","role":"a_roll","idea":"A person speaking.","evidence":"ASR text provisionally indicates spoken commentary.","confidence":0.9,"dependencies":[]}]}`
+	findings, err = parseStorySemanticFindings(mixed, []story.Asset{visual}, map[string]bool{"interview": true})
+	if _, invented := findings["interview"]; err != nil || invented || findings["unseen"].Role != "a_roll" {
+		t.Fatal("source-only mode accepted invented spoken A-roll or discarded valid findings", findings, err)
 	}
 }
 
@@ -169,5 +172,52 @@ func TestSourceMeaningDiagnosticsIdentifyBoundedInvalidEvidence(t *testing.T) {
 		if err == nil || !strings.Contains(err.Error(), test.diagnostic) || strings.ContainsAny(err.Error(), "\r\n") || len(err.Error()) > 600 {
 			t.Fatalf("diagnostic did not identify bounded schema error %q: %v", test.diagnostic, err)
 		}
+	}
+}
+
+// A 25-clip upload once sent 600 frames in one request and lost all meaning.
+func TestStorySourceMeaningSharesFrameBudgetAcrossSources(t *testing.T) {
+	var assets []story.Asset
+	for i := 0; i < 25; i++ {
+		asset := story.Asset{Duration: 60}
+		for c := 0; c < 10; c++ {
+			asset.Candidates = append(asset.Candidates, story.Candidate{In: float64(c * 6), Out: float64(c*6 + 6)})
+		}
+		assets = append(assets, asset)
+	}
+	assets = append(assets, story.Asset{Kind: "narration", Candidates: assets[0].Candidates})
+	total := 0
+	for i, limit := range storySemanticFrameLimits(assets) {
+		frames := storySemanticSampleFrames(assets[i], limit)
+		if assets[i].Kind == "narration" && len(frames) != 0 || assets[i].Kind != "narration" && len(frames) < 2 {
+			t.Fatalf("source %d got %d frames", i, len(frames))
+		}
+		total += len(frames)
+	}
+	if total > storySemanticFrameBudget {
+		t.Fatalf("request carries %d frames, budget %d", total, storySemanticFrameBudget)
+	}
+	if limits := storySemanticFrameLimits(assets[:1]); limits[0] != storySemanticFramesPerClip {
+		t.Fatalf("single source lost its per-clip sampling: %v", limits)
+	}
+	if frames := storySemanticSampleFrames(assets[0], 1); len(frames) != 1 {
+		t.Fatalf("single-frame sample: %v", frames)
+	}
+}
+
+func TestStorySourceMeaningBatchesBoundCandidatesPerRequest(t *testing.T) {
+	sized := func(n int) story.Asset { return story.Asset{Candidates: make([]story.Candidate, n)} }
+	assets := []story.Asset{sized(10), sized(10), sized(10), {Kind: "narration"}, sized(30), sized(2)}
+	got := storySemanticBatches(assets, []int{0, 1, 2, 4, 5})
+	if want := [][]int{{0, 1}, {2}, {4}, {5}}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("batches %v, want %v", got, want)
+	}
+	var many []story.Asset
+	var indexes []int
+	for i := 0; i < 45; i++ {
+		many, indexes = append(many, story.Asset{}), append(indexes, i)
+	}
+	if got := storySemanticBatches(many, indexes); len(got) != 3 || len(got[0]) != storySemanticBatchSources {
+		t.Fatalf("source-count limit not applied: %v", got)
 	}
 }

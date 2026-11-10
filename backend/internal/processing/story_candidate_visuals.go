@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	storyVisualGapMinimum = .5
+	storyVisualGapMinimum = 1.5
 	storyVisualGapMaximum = storyMaximumVisualShotSeconds
 )
 
@@ -18,7 +18,8 @@ const (
 // uncovered intervals as visual options, without inventing a transcript or
 // asserting that untranscribed audio is silent. Existing speech padding and
 // abstained/visual candidates reserve their complete source intervals. Short
-// gaps attach to an adjacent phrase rather than becoming flashing shots; the
+// gaps (under 1.5 s, e.g. the breath before a phrase) attach to an adjacent
+// phrase rather than becoming flashing sub-second shots cut at speech onset; the
 // catalog must not make original pauses/tails impossible for a plan to retain.
 func storyCandidatesWithVisualGaps(asset story.Asset, existing []story.Candidate, audio, visual float64) []story.Candidate {
 	// The duration bound matches the domain's maximum configurable source

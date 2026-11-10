@@ -26,7 +26,7 @@ func TestTranscriptProposalUsesVoiceEvidenceBeforeApprovingOverlappingWords(t *t
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(approved.Candidates[0].Words) != 2 || approved.Candidates[0].In != 1 || approved.Candidates[0].Out != 11 || strings.Contains(strings.Join(approved.Warnings, " "), storySpeechWithheldPrefix) {
+	if len(approved.Candidates[0].Words) != 2 || approved.Candidates[0].In > 1 || approved.Candidates[0].Out < 11 || strings.Contains(strings.Join(approved.Warnings, " "), storySpeechWithheldPrefix) {
 		t.Fatalf("review did not preserve full speech or clear resolved warning: %+v", approved)
 	}
 	for _, intervals := range [][]Segment{nil, {{1.9, 2.1}, {3.8, 4.1}}} {

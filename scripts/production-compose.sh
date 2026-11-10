@@ -99,6 +99,8 @@ start_api() {
 
 start_workers() {
   wait_for_health studio 120
+  "${compose[@]}" up -d --no-deps youtube-pot-provider
+  wait_for_health youtube-pot-provider 120
   "${compose[@]}" up -d --no-deps --force-recreate \
     worker
 }

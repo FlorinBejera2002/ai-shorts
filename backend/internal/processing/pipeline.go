@@ -56,15 +56,28 @@ func (p *Processor) process(ctx context.Context, in Input, progress Progress) (R
 		return r, fmt.Errorf("source video has no audio stream")
 	}
 	r.Duration = info.Duration
-	report("transcribing", 20, "Transcribing audio locally")
-	r.Transcript, e = p.transcribe(ctx, source, dir, in.Language, info.Duration)
+	jobID := strings.Split(in.Namespace, "/")[0]
+	hash, e := fileSHA256(source)
 	if e != nil {
 		return r, e
 	}
-	report("analyzing", 50, "Selecting highlights")
-	highlights, e := p.highlights(ctx, r.Transcript, in.RequestedClips, in.Instructions)
-	if e != nil {
-		return r, e
+	analysisKey, analysisDigest := p.clipAnalysisKey(in, jobID, hash, info.Duration)
+	var highlights []highlight
+	if saved, ok := p.loadClipAnalysis(ctx, dir, analysisKey, analysisDigest); ok {
+		report("analyzing", 50, "Reusing saved transcript and highlights")
+		r.Transcript, highlights = saved.Transcript, saved.Highlights
+	} else {
+		report("transcribing", 20, "Transcribing audio locally")
+		r.Transcript, e = p.transcribe(ctx, source, dir, in.Language, info.Duration)
+		if e != nil {
+			return r, e
+		}
+		report("analyzing", 50, "Selecting highlights")
+		highlights, e = p.highlights(ctx, r.Transcript, in.RequestedClips, in.Instructions)
+		if e != nil {
+			return r, e
+		}
+		p.saveClipAnalysis(ctx, dir, analysisKey, clipAnalysis{Digest: analysisDigest, Transcript: r.Transcript, Highlights: highlights})
 	}
 	r.SourceKey = "sources/" + in.Namespace + "/source.mp4"
 	if e = p.storage.Save(ctx, source, r.SourceKey, "video/mp4"); e != nil {
@@ -72,11 +85,7 @@ func (p *Processor) process(ctx context.Context, in Input, progress Progress) (R
 	}
 	if audiocleanup.Enabled(in.AudioCleanup) {
 		report("rendering", 56, "Reducing background noise; original audio is retained")
-		hash, hashErr := fileSHA256(source)
-		if hashErr != nil {
-			return r, hashErr
-		}
-		derivative, cleanupErr := p.cleanAudio(ctx, strings.Split(in.Namespace, "/")[0], r.SourceKey, hash, info.Duration)
+		derivative, cleanupErr := p.cleanAudio(ctx, jobID, r.SourceKey, hash, info.Duration)
 		if in.SourceKey != "" {
 			derivative.OriginalKey = in.SourceKey
 		}
@@ -87,7 +96,7 @@ func (p *Processor) process(ctx context.Context, in Input, progress Progress) (R
 	}
 	for i, h := range highlights {
 		report("rendering", 60+30*i/len(highlights), fmt.Sprintf("Rendering clip %d/%d", i+1, len(highlights)))
-		project := studiocomposition.Identity(in.UserID, fmt.Sprintf("project/%s/clip-%d", strings.Split(in.Namespace, "/")[0], i+1), nil)
+		project := studiocomposition.Identity(in.UserID, fmt.Sprintf("project/%s/clip-%d", jobID, i+1), nil)
 		clip, err := p.render(ctx, RenderInput{UserID: in.UserID, StudioProjectID: project, AudioCleanup: in.AudioCleanup, PreparedAudio: r.AudioCleanup, SourceKey: r.SourceKey, Namespace: fmt.Sprintf("%s/clip-%d", in.Namespace, i+1), AspectRatio: in.AspectRatio, SubtitleStyle: in.SubtitleStyle, SmartCrop: in.SmartCrop, BurnSubtitles: in.BurnSubtitles, Segments: h.Segments, NaturalTransitions: true, Transcript: r.Transcript, Brand: in.Brand, HookText: h.Hook})
 		if err != nil {
 			return r, err

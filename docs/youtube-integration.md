@@ -87,6 +87,11 @@ train models by this integration.
 
 ## Audiovisual imports
 
+Public imports can use the automatically refreshed PO token provider described
+in [automatic YouTube tokens](youtube-automatic-tokens.md). Token mode ignores
+account cookies. Token generation and video access are separate checks: the
+document records the failed cookie-free acceptance test on the production IP.
+
 OAuth publishing approval does not authorize downloading YouTube audiovisual
 content. YouTube imports, including previously queued remote processing, are
 disabled by default. Set `YOUTUBE_IMPORT_APPROVED=true` only after obtaining

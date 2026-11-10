@@ -51,6 +51,11 @@ func TestPostgresCompletionAndFailureOwnership(t *testing.T) {
 	if err := db.QueryRow(`SELECT file_storage_key,score_reason FROM clips WHERE job_id=$1`, job.ID).Scan(&key, &reason); err != nil || key != "clips/fixture.mp4" || reason != "fixture" {
 		t.Fatalf("clip persistence: %s %s %v", key, reason, err)
 	}
+	// One of the five requested clips was delivered: only its share stays charged.
+	var charged, balance int
+	if err := db.QueryRow(`SELECT j.credits_charged,u.credits FROM jobs j JOIN users u ON u.id=j.user_id WHERE j.id=$1`, job.ID).Scan(&charged, &balance); err != nil || charged != 10 || balance != 90 {
+		t.Fatalf("partial delivery settlement: charged=%d balance=%d %v", charged, balance, err)
+	}
 	failed := create()
 	if err := repo.Fail(ctx, failed, "fixture failure"); err != nil {
 		t.Fatal(err)
@@ -59,7 +64,7 @@ func TestPostgresCompletionAndFailureOwnership(t *testing.T) {
 		t.Fatal("released ownership accepted")
 	}
 	var credits int
-	if err := db.QueryRow(`SELECT credits FROM users WHERE id=$1`, user).Scan(&credits); err != nil || credits != 50 {
+	if err := db.QueryRow(`SELECT credits FROM users WHERE id=$1`, user).Scan(&credits); err != nil || credits != 90 {
 		t.Fatalf("refund: %d %v", credits, err)
 	}
 	cancelled := create()

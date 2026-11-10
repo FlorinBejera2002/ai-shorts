@@ -93,18 +93,39 @@ func (p *Processor) download(ctx context.Context, address, dest string) error {
 		"--max-filesize", "5G", "--format", youtubeFormat, "--merge-output-format", "mp4", "--remux-video", "mp4",
 		"--paths", "temp:" + dir, "--output", dest,
 	}
-	cookies, e := p.privateYouTubeCookies(dir)
-	if e != nil {
-		return fmt.Errorf("YouTube cookies: %w", e)
-	}
-	if cookies != "" {
-		args = append(args, "--cookies", cookies)
+	if p.cfg.YouTubeTokenProviderURL != "" {
+		provider, err := url.Parse(p.cfg.YouTubeTokenProviderURL)
+		if err != nil || provider.Hostname() == "" || (provider.Scheme != "http" && provider.Scheme != "https") || provider.User != nil || provider.RawQuery != "" || provider.Fragment != "" || strings.ContainsAny(p.cfg.YouTubeTokenProviderURL, ";\r\n") {
+			return fmt.Errorf("invalid YouTube token provider URL")
+		}
+		// Public imports use automatically generated tokens, never stale account
+		// cookies. The plugin requests fresh tokens for each video's context.
+		args = append(args, "--plugin-dirs", "/opt/yt-dlp/plugins",
+			"--extractor-args", "youtube:player_client=mweb,tv,web_safari",
+			"--extractor-args", "youtubepot-bgutilhttp:base_url="+provider.String())
+	} else {
+		cookies, err := p.privateYouTubeCookies(dir)
+		if err != nil {
+			return fmt.Errorf("YouTube cookies: %w", err)
+		}
+		if cookies != "" {
+			args = append(args, "--cookies", cookies)
+		}
 	}
 	if p.cfg.YouTubeProxy != "" {
+		proxy, err := url.Parse(p.cfg.YouTubeProxy)
+		if err != nil || proxy.Hostname() == "" || (proxy.Scheme != "http" && proxy.Scheme != "https") || (proxy.Path != "" && proxy.Path != "/") || proxy.RawQuery != "" || proxy.Fragment != "" {
+			return fmt.Errorf("invalid YouTube proxy URL; use an HTTP or HTTPS proxy endpoint")
+		}
 		args = append(args, "--proxy", p.cfg.YouTubeProxy)
 	}
 	args = append(args, "--", address)
-	if _, e = run(ctx, dir, p.cfg.YtDlpPath, args...); e != nil {
+	if _, e := run(ctx, dir, p.cfg.YtDlpPath, args...); e != nil {
+		// Proxy diagnostics may contain its authenticated URL. Never persist
+		// those credentials in a job error or return them to the browser.
+		if p.cfg.YouTubeProxy != "" && ctx.Err() == nil {
+			return fmt.Errorf("YouTube download through configured proxy failed; verify proxy access and YouTube availability")
+		}
 		return fmt.Errorf("YouTube download: %w", e)
 	}
 	info, e := os.Stat(dest)

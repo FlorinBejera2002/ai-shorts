@@ -40,7 +40,7 @@ func (p *Processor) Analyze(ctx context.Context, project string, asset story.Ass
 	if model == "" {
 		model = p.cfg.WhisperModel
 	}
-	digest := storyDigest([]any{story.AlgorithmVersion, asset.Hash, options.Language, storyModelSignature(model), storyModelSignature(p.storyVADModel(model)), options.Narration, "source-analysis-8"})
+	digest := storyDigest([]any{story.AlgorithmVersion, asset.Hash, options.Language, storyModelSignature(model), storyModelSignature(p.storyVADModel(model)), options.Narration, "source-analysis-9"})
 	prefix := "work/" + project + "/analysis/" + asset.ID + "/" + digest
 	cacheKey := prefix + "/analysis.json"
 	cacheFile := filepath.Join(dir, "analysis.json")
@@ -307,8 +307,22 @@ func storyTranscriptConfidence(raw []byte, candidates []story.Candidate) {
 		}
 		minimum, count := 1.0, 0
 		for _, segment := range doc.Transcription {
+			lexical := 0
 			for _, token := range segment.Tokens {
-				if token.Probability == nil || strings.HasPrefix(token.Text, "[_") || strings.TrimSpace(token.Text) == "" {
+				if !strings.HasPrefix(token.Text, "[_") && storyLexicalToken(token.Text) {
+					lexical++
+				}
+			}
+			for _, token := range segment.Tokens {
+				// Punctuation carries no spoken claim; its probability says
+				// nothing about whether a word was heard correctly.
+				if token.Probability == nil || strings.HasPrefix(token.Text, "[_") || !storyLexicalToken(token.Text) {
+					continue
+				}
+				// A weak but plausible connective cannot change a statement's
+				// meaning, so it does not withhold an otherwise confident phrase.
+				// It must be a whole word (one lexical token in its -ml 1 segment).
+				if lexical == 1 && storyNeutralConnective(token.Text, *token.Probability) {
 					continue
 				}
 				// Segment offsets stay on the original clock even when VAD has

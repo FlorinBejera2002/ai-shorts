@@ -30,6 +30,11 @@ type MediaPart struct {
 
 const MaxReviewBytes = 12 << 20
 
+// MediaReviewTimeout bounds one media review including the response body.
+// Providers send headers at once and the answer only when the model finishes;
+// a multi-source story with ~70 frames needs well over 90 s.
+const MediaReviewTimeout = 180 * time.Second
+
 func ValidateMedia(parts []MediaPart) error {
 	if len(parts) == 0 || len(parts) > 512 {
 		return errors.New("invalid media review inputs")
@@ -64,14 +69,12 @@ func MediaJSON(ctx context.Context, client *http.Client, endpoint string, header
 	for key, value := range headers {
 		request.Header.Set(key, value)
 	}
-	bounded := &http.Client{Timeout: 90 * time.Second}
+	bounded := &http.Client{}
 	if client != nil {
 		copy := *client
 		bounded = &copy
-		if bounded.Timeout == 0 || bounded.Timeout > 90*time.Second {
-			bounded.Timeout = 90 * time.Second
-		}
 	}
+	bounded.Timeout = MediaReviewTimeout
 	bounded.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
 	response, err := bounded.Do(request)
 	if err != nil {
@@ -82,7 +85,10 @@ func MediaJSON(ctx context.Context, client *http.Client, endpoint string, header
 		return nil, errors.New("configured model could not review the media")
 	}
 	data, err := io.ReadAll(io.LimitReader(response.Body, (2<<20)+1))
-	if err != nil || len(data) > 2<<20 {
+	if err != nil {
+		return nil, errors.New("media reviewer did not finish its response in time")
+	}
+	if len(data) > 2<<20 {
 		return nil, errors.New("media reviewer returned an invalid response")
 	}
 	return data, nil

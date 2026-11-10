@@ -362,7 +362,10 @@ export function createCompositionService(options: ServiceOptions) {
       outputPath: join(project.dir, "renders", outputName(preview)),
       format: "mp4",
       fps: { num: 30, den: 1 },
-      quality: "high",
+      // "standard" (x264 medium, CRF 18) is visually transparent for social
+      // delivery and encodes about twice as fast as "high" (slow, CRF 15),
+      // which exceeded the sandbox wall limit for 45 s 1080x1920 stories.
+      quality: "standard",
       jobId: `${project.id}_${preview ? "preview" : "video"}`,
       composition: "index.html",
       telemetryOptOut: true,

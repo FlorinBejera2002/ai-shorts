@@ -2,6 +2,7 @@ package worker
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"sneepcut/backend-go/internal/processing"
@@ -69,6 +70,9 @@ func (r *Repository) Complete(ctx context.Context, j *Job, result processing.Res
 	if err != nil {
 		return err
 	}
+	if err = settleDeliveredClips(ctx, tx, j.ID, len(result.Clips)); err != nil {
+		return err
+	}
 	if err = release(ctx, tx, j); err != nil {
 		return err
 	}
@@ -78,4 +82,34 @@ func (r *Repository) Complete(ctx context.Context, j *Job, result processing.Res
 		}
 	}
 	return tx.Commit()
+}
+
+// settleDeliveredClips converts the up-front reservation into the charge for
+// the clips actually delivered. Highlight selection may validate fewer clips
+// than requested; the reserved credits for the missing clips return to the
+// owner in the same transaction that records the completion.
+func settleDeliveredClips(ctx context.Context, tx *sql.Tx, jobID string, delivered int) error {
+	var userID string
+	var charged, requested int
+	if err := tx.QueryRowContext(ctx, `SELECT user_id,credits_charged,num_clips_requested FROM jobs WHERE id=$1`, jobID).Scan(&userID, &charged, &requested); err != nil {
+		return err
+	}
+	kept := deliveredCharge(charged, requested, delivered)
+	if kept == charged {
+		return nil
+	}
+	if _, err := tx.ExecContext(ctx, `UPDATE jobs SET credits_charged=$2 WHERE id=$1`, jobID, kept); err != nil {
+		return err
+	}
+	_, err := tx.ExecContext(ctx, `UPDATE users SET credits=credits+$2,updated_at=now() WHERE id=$1`, userID, charged-kept)
+	return err
+}
+
+// deliveredCharge prorates a reservation by delivered clips. It never charges
+// more than was reserved, and admin (zero) reservations stay zero.
+func deliveredCharge(charged, requested, delivered int) int {
+	if charged <= 0 || requested <= 0 || delivered >= requested {
+		return charged
+	}
+	return charged / requested * max(delivered, 0)
 }
