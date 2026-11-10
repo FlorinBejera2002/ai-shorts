@@ -224,6 +224,12 @@ async function assertShell(page, mobile, stage = 'navigation') {
 async function navigate(f, entry) {
   const [, path, selector] = entry
   if (f.mobile) {
+    if (new URL(f.page.url()).pathname === '/dashboard/brand' && path !== '/dashboard/brand') {
+      await f.page.locator('[data-brand-workspace]').getByRole('link', { name: 'Back', exact: true }).click()
+      await f.page.waitForURL(url => url.origin === frontend && url.pathname === '/dashboard')
+      await f.page.locator(routes[0][2]).waitFor({ state: 'visible' })
+      await assertShell(f.page, true, 'returning from mobile Brand kit')
+    }
     const primary = f.page.locator(`[data-mobile-dashboard-dock] a[href="${path}"]`).filter({ visible: true })
     if (await primary.count()) await primary.click()
     else {
@@ -276,7 +282,10 @@ async function scriptsFlow(f, prefix) {
   await workspace.getByRole('button', { name: /shooting coach/i }).filter({ visible: true }).first().click()
   const coach = page.locator('[data-shooting-coach]')
   await coach.waitFor({ state: 'visible' })
-  assert.equal(await coach.locator('dl > div').count(), 7)
+  assert.deepEqual(await coach.locator('dl > div > dt').allTextContents(), [
+    'Camera position', 'Lens and field of view', 'Movement',
+    'Lighting', 'Performance', 'Creator action'
+  ])
   for (const view of ['director', 'camera', 'top']) {
     await coach.locator(`[data-coach-view="${view}"]`).click()
     assert.equal(await coach.locator('[data-coach-stage]').getAttribute('data-view'), view)
@@ -289,9 +298,9 @@ async function scriptsFlow(f, prefix) {
   await coach.getByRole('button', { name: 'Pause preview', exact: true }).click()
   await coach.locator('[data-coach-scene="1"]').click()
   await coach.locator('[data-coach-scene="1"]').press('ArrowRight')
-  assert.equal(await coach.locator('[data-coach-scene="2"]').getAttribute('aria-pressed'), 'true')
+  assert.equal(await coach.locator('[data-coach-scene="2"]').getAttribute('aria-current'), 'step')
   await coach.getByRole('button', { name: 'Restart preview', exact: true }).click()
-  assert.equal(await coach.locator('[data-coach-scene="0"]').getAttribute('aria-pressed'), 'true')
+  assert.equal(await coach.locator('[data-coach-scene="0"]').getAttribute('aria-current'), 'step')
   await coach.getByRole('button', { name: 'Pause preview', exact: true }).click()
   await workspace.getByRole('button', { name: 'Edit script', exact: true }).click()
   await coach.waitFor({ state: 'hidden' })
