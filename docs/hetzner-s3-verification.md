@@ -1,6 +1,6 @@
 # Hetzner S3 verification
 
-Verified on 2026-11-09 against the existing private `sneepcut-test` bucket at
+Verified on 2026-11-09 and repeated on 2026-11-13 against the existing private `sneepcut-test` bucket at
 `https://hel1.your-objectstorage.com`, region `hel1`. No bucket was provisioned,
 no bucket settings changed, and no application was switched to remote storage.
 Development continues to use SeaweedFS. Credentials and signed URLs are excluded
@@ -9,15 +9,16 @@ from this report and Git.
 ## Result
 
 The APIs used by the Go media adapter and Bun Studio state store work with this
-bucket after the ETag fix described below. This is **not production reliability
-approval**: the bulk workload was inconsistent across repeated runs, and four
-new full repetitions reproduced provider errors. Representative video transfers
-passed twice from the deployment server. CORS is unset; configure actual app
+bucket after the ETag fix described below. Four full repetitions on November 9
+failed with provider errors. On November 13, all three ordinary-workload runs
+and both full server runs passed, including 15 video transfers, with no traced
+5xx responses or SDK retries. Some bulk requests still had long response times;
+the earlier failures' cause and SaaS capacity remain unresolved. CORS is unset; configure actual app
 origins if direct browser fetch/canvas access is used. Server requests and plain
 video-element playback do not require bucket CORS.
 
-The table below records the earlier functional checks. The instrumented repeat
-later in this report records the latest repeated results and their limits.
+The table below records the original November 9 functional checks. The dated
+repeats later in this report record subsequent results and their limits.
 
 | Check | Observed result |
 | --- | --- |
@@ -181,6 +182,66 @@ multi-replica Studio job routing/cancellation before cutover. Timeouts must be
 handled as potentially committed writes; do not remove conditional checks or
 silently overwrite a competing revision to hide them.
 
+### Ordinary-first repeat, 2026-11-13
+
+Tests ran approximately 10:54–11:08 UTC against the same existing bucket. All
+three ordinary runs completed before any bulk traffic was introduced. The two
+local runs exercised Go storage, native Chrome playback, worker FFprobe, Studio
+conditional writes, import, rendering, cache-loss recovery and competing saves.
+The server's ordinary mode exercised the Go cases and representative transfers.
+
+| Run | Ordinary workflow | Verified 17,853,374-byte videos | Original bulk contract |
+| --- | --- | --- | --- |
+| Local ordinary 1 | Passed, including Studio/browser/worker | 3/3 | Explicitly skipped |
+| Server ordinary 1 | Passed | 3/3 | Explicitly skipped |
+| Local ordinary 2 | Passed, including Studio/browser/worker | 3/3 | Explicitly skipped |
+| Server full 1 | Passed | 3/3 | Passed in 107.87 seconds |
+| Server full 2 | Passed | 3/3 | Passed in 105.65 seconds |
+
+Across 2,183 traced HTTP attempts there were zero 5xx responses, SDK retries,
+transport errors or body-read errors. Expected 404 and conditional-write 412
+responses remained part of the tests. The full contract retained eight writers,
+1003 tiny objects, all pagination/neighbor assertions and its original deadlines.
+No application retry or timeout behavior was changed to obtain these passes.
+
+There are still latency concerns worth asking the provider to inspect:
+
+- At 11:02:18.689 UTC, a 38-byte PUT to
+  `sneepcut-contract/a084a717a7f47f56a03cc819e4eb3ba5/objects/bulk/0442.mp4`
+  returned HTTP 200 after 27.918 seconds. Request ID:
+  `tx00000d2021678c61dd1e1-006af6ee3a-273c335e-hel1-prod1-ceph4`.
+- At 11:06:32.709 UTC, a batch-delete request returned HTTP 200 headers after
+  117 ms, but its complete response body took 50.539 seconds. Request ID:
+  `tx00000cc6f94073103c135-006af6ef38-27436e29-hel1-prod1-ceph4`.
+
+These are client-observed times, not measurements of provider execution time.
+Today's passes do not identify why November 9 failed or establish sustained
+multi-user capacity. They support continuing with the existing bucket for
+staging while provider health and application failure recovery are addressed.
+
+The immediate account-side action is to submit the
+[prepared support request](https://app.notion.com/p/417c7071a1988190827ad07482b13b39)
+through Hetzner Console, adding the bucket ID from the bucket page URL. Ask
+Hetzner to check the older 503/504 IDs, the two fresh slow requests above,
+bucket/cluster health and applicable limits. Their
+[support instructions](https://docs.hetzner.com/storage/object-storage/faq/general/)
+specify the bucket ID rather than its name. The draft includes current server
+IPv4 and UTC timestamps. No additional bucket or settings change is needed for
+that investigation. Return the reply before deciding on a different provider.
+
+Before production cutover, the next engineering work is bounded transient-error
+recovery with safe reconciliation of writes whose response was lost, plus a
+representative concurrent Studio/media workload check. Genuine revision conflicts
+must still be rejected. This work is separate from the successful smoke tests.
+
+Reports are retained in `artifacts/hetzner-recheck-20261113T105437Z/`, including
+`combined-summary.json`, per-run wire traces/logs, validated public-IP metadata
+and cleanup audits. All 14 exact test roots were already empty after their
+normal cleanup; final and delayed audits confirmed all three namespaces empty.
+No recovery deletions were needed. Temporary files/credentials were removed on
+both machines, and the retained reports were checked for credential/signed-URL
+leaks. The support request has not been sent.
+
 ## Repeat safely
 
 Prerequisites: Go, FFmpeg, Docker Compose and the built local Studio/worker images
@@ -243,6 +304,22 @@ transfers from an explicitly authorized SSH server:
 ```sh
 node scripts/test-hetzner-s3-server.mjs sc < /path/to/private-credentials.json
 ```
+
+To measure ordinary operations before any bulk traffic, pass `--skip-bulk`
+to either runner. The server reports `mode: ordinary-only`; this still checks
+the three video transfers, migration, private reads and conditional creates,
+but excludes the 1003-object pagination case. The local runner also checks
+Studio save/render/recovery and worker access, plus Chrome when enabled:
+
+```sh
+node scripts/test-hetzner-s3.mjs --skip-bulk < /path/to/private-credentials.json
+node scripts/test-hetzner-s3-server.mjs sc --skip-bulk < /path/to/private-credentials.json
+```
+
+Use fresh report directories for each repetition. Complete these ordinary
+checks before running the full contract so earlier bulk traffic cannot be
+mistaken for an ordinary-workload baseline. Both the Go fixture and Studio
+runner log their exact synthetic prefixes for cleanup diagnostics.
 
 This compiles an isolated Linux test executable and streams it with the
 synthetic video and temporary credentials over SSH. The server runs no app or

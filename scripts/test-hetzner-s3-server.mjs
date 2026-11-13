@@ -8,7 +8,11 @@ import { command, readConfig, sanitizer, traceSummary, videoFixture } from './he
 const root = fileURLToPath(new URL('../', import.meta.url))
 const target = process.argv[2]
 assert.ok(target && /^[a-zA-Z0-9][a-zA-Z0-9_.@-]*$/.test(target), 'Pass an explicitly authorized SSH host or alias')
-assert.equal(process.argv.length, 3, 'Expected one SSH target argument')
+assert.ok(process.argv.slice(3).every(argument => argument === '--skip-bulk'), 'Unknown server smoke argument')
+const skipBulk = process.argv.includes('--skip-bulk')
+const contractSelection = skipBulk
+  ? '^TestHetznerS3Compatibility$/(local_migration|private_signed|conditional_create)'
+  : '^TestHetznerS3Compatibility$'
 const config = await readConfig(), sanitize = sanitizer(config)
 const ssh = ['-T', '-o', 'BatchMode=yes', '-o', 'StrictHostKeyChecking=yes', '-o', 'UpdateHostKeys=no', '-o', 'ConnectTimeout=8', target]
 const report = path.resolve(process.env.SNEEPCUT_HETZNER_REPORT_DIR || path.join(root, 'artifacts/hetzner-retest', `server-${Date.now()}`))
@@ -34,7 +38,7 @@ try {
   const video = await videoFixture(scratch, root)
   console.log(`Server test fixture: ${video.size} bytes; no app or database processes are started`)
   await writeFile(path.join(scratch, 'config.json'), JSON.stringify(config), { mode: 0o600 })
-  await writeFile(path.join(scratch, 'run.py'), `import datetime, ipaddress, json, os, pathlib, subprocess, time, urllib.request
+  await writeFile(path.join(scratch, 'run.py'), `import datetime, ipaddress, json, os, pathlib, subprocess, time
 base=pathlib.Path(__file__).resolve().parent
 cfg=json.loads((base/'config.json').read_text())
 env=os.environ.copy()
@@ -44,17 +48,19 @@ env.update({'SNEEPCUT_HETZNER_SMOKE':'1','SNEEPCUT_HETZNER_REGION':cfg['region']
  'AWS_ACCESS_KEY_ID':cfg['access_key'],'AWS_SECRET_ACCESS_KEY':cfg['secret_key'],'AWS_SESSION_TOKEN':'',
  'SNEEPCUT_HETZNER_MANIFEST':'','SNEEPCUT_HETZNER_VIDEO_FIXTURE':str(base/'reference.mp4'),
  'SNEEPCUT_HETZNER_TRACE':str(base/'requests.jsonl'),'TMPDIR':str(base)})
-metadata={'started_utc':datetime.datetime.now(datetime.timezone.utc).isoformat(),'client':'deployment-server'}
+metadata={'started_utc':datetime.datetime.now(datetime.timezone.utc).isoformat(),'client':'deployment-server','mode':'${skipBulk ? 'ordinary-only' : 'full'}'}
 try:
- with urllib.request.urlopen('https://ip.hetzner.com',timeout=5) as response: metadata['reported_source_ip']=str(ipaddress.ip_address(response.read(256).decode().strip()))
+ result=subprocess.run(['curl','-4','--fail','--silent','--max-time','5','https://ip.hetzner.com'],capture_output=True,text=True,timeout=8,check=True)
+ metadata['reported_source_ip']=str(ipaddress.ip_address(result.stdout.strip()))
 except Exception: metadata['reported_source_ip']='unavailable'
 print('SERVER_METADATA '+json.dumps(metadata),flush=True)
+${skipBulk ? "print('SKIP bulk pagination case (explicit troubleshooting option); this is not a full provider pass',flush=True)" : ''}
 print('SETTLE waiting 60 seconds without test-bucket requests before video transfers',flush=True)
 time.sleep(60)
 exit_code=0
 # Measure videos before the 1003-object burst so throttling from that burst
 # cannot be mistaken for baseline video performance.
-for selected in ['^TestHetznerS3VideoTransfers$','^TestHetznerS3Compatibility$']:
+for selected in ${JSON.stringify(['^TestHetznerS3VideoTransfers$', contractSelection])}:
  result=subprocess.run([str(base/'media.test'),'-test.run='+selected,'-test.v','-test.timeout=8m'],env=env)
  if result.returncode: exit_code=1
 trace=base/'requests.jsonl'
@@ -72,7 +78,7 @@ trap 'rm -rf -- "$verification_root"' EXIT HUP INT TERM
 tar -xf - -C "$verification_root"
 python3 "$verification_root/run.py"`
   const remote = command('ssh', [...ssh, remoteScript], { cwd: root, timeout: 780000,
-    onLine: line => { if (/=== RUN|--- PASS|--- FAIL|VIDEO_TRANSFER|synthetic object prefix|SERVER_METADATA|SETTLE/.test(line)) console.log(sanitize(line)) },
+    onLine: line => { if (/=== RUN|--- PASS|--- FAIL|VIDEO_TRANSFER|synthetic object prefix|SERVER_METADATA|SETTLE|^SKIP/.test(line)) console.log(sanitize(line)) },
   })
   // Keep this stream binary; it must never pass through a text decoder/logger.
   const archive = spawn('tar', ['-cf', '-', '-C', scratch, 'media.test', 'reference.mp4', 'config.json', 'run.py'],

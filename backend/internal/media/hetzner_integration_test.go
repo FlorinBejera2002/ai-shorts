@@ -85,6 +85,7 @@ func serveHetznerFixture(t *testing.T, storage *S3Storage, manifest string) {
 		t.Fatal(err)
 	}
 	root := "sneepcut-verification/" + hex.EncodeToString(random[:])
+	t.Logf("synthetic object prefix: %s", root)
 	t.Cleanup(func() {
 		cleanup, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()

@@ -54,6 +54,7 @@ async function verify() {
   });
   assert.ok(objects);
   const prefix = `sneepcut-verification/${randomUUID()}/studio`;
+  console.log(`synthetic object prefix: ${prefix}`);
   const root = await realpath(await mkdtemp(join(tmpdir(), "hetzner-studio-")));
   const stores = (name: string) => createStateStores(join(root, name, "projects"), objects, prefix);
   const digest = (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");

@@ -323,8 +323,10 @@ Live verification on 2026-11-09 established media and Studio API compatibility
 after normalizing response ETags for conditional Studio updates. Private browser
 playback, real Studio rendering and cache-loss recovery passed. However, repeated
 bulk tests encountered HTTP 503/504 responses and an ambiguous conditional-write
-retry. Two deployment-server runs passed all six video-sized transfers, but
-neither passed the full bulk contract; production reliability is not signed off.
+retry. On November 13, three ordinary runs and two full server repeats all passed,
+including 15 video transfers, with no traced 5xx responses or retries. Some bulk
+requests still took tens of seconds; provider investigation, application failure
+recovery and representative load verification remain before production cutover.
 Configure bucket CORS if direct browser fetch/canvas access is used. See
 [the verification report and opt-in runner](docs/hetzner-s3-verification.md)
 for evidence and repeatable commands.
