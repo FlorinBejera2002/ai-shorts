@@ -25,7 +25,7 @@ const scratch = await mkdtemp(path.join(temporaryRoot, 's3-verification-'))
 try {
   process.exitCode = await new Promise((resolve, reject) => {
     const child = spawn('go', [
-      'test', './internal/media', '-run', '^TestS3Compatibility$', '-count=1', '-v', '-timeout=2m'
+      'test', './internal/media', '-run', '^TestS3(Compatibility|RecoveryAfterLostAcknowledgement)$', '-count=1', '-v', '-timeout=2m'
     ], {
       cwd: path.join(root, 'backend'),
       stdio: 'inherit',

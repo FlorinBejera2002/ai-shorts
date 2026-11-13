@@ -238,6 +238,14 @@ Reports are retained in `artifacts/hetzner-recheck-20261113T105437Z/`, including
 `combined-summary.json`, per-run wire traces/logs, validated public-IP metadata
 and cleanup audits. All 14 exact test roots were already empty after their
 normal cleanup; final and delayed audits confirmed all three namespaces empty.
+
+### Application recovery, 2026-11-13
+
+The request-level recovery work listed above is now implemented; see
+[S3 automatic recovery](s3-automatic-recovery.md) for the plan, retry budgets,
+write reconciliation, regression coverage and limitations. Fault-injection and
+private local SeaweedFS checks passed. This does not constitute a new Hetzner
+load test or resolve the provider latency and production-capacity questions.
 No recovery deletions were needed. Temporary files/credentials were removed on
 both machines, and the retained reports were checked for credential/signed-URL
 leaks. The support request has not been sent.
