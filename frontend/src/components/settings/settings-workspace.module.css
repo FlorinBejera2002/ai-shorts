@@ -1,9 +1,4 @@
 .workspace {
-  --primary: var(--foreground);
-  --primary-foreground: var(--background);
-  --accent: var(--muted);
-  --accent-foreground: var(--foreground);
-  --ring: var(--foreground);
   min-width: 0;
   padding: 10px 14px 38px;
   color: var(--foreground);
@@ -158,19 +153,25 @@
   height: auto;
   padding: 12px 22px;
   box-shadow: none;
-  border-radius: var(--radius-md);
+  border-radius: 999px;
   font-size: 14px;
+  font-weight: 600;
 }
 .workspace [data-slot='button'][data-variant='default'] {
-  background: var(--foreground);
-  color: var(--background);
+  background: var(--publish-primary);
+  color: var(--publish-on-primary);
 }
 .workspace [data-slot='button'][data-variant='default']:hover {
-  opacity: 0.9;
+  background: var(--publish-primary-hover);
+}
+.workspace [data-slot='button'][data-variant='outline'] {
+  border: 0;
+  background: var(--publish-secondary);
+  color: var(--publish-text);
 }
 .workspace [data-slot='button'][data-variant='outline']:hover {
-  background: var(--muted);
-  color: var(--foreground);
+  background: var(--publish-hover);
+  color: var(--publish-text);
 }
 .signOut {
   flex-direction: row-reverse;
@@ -485,8 +486,8 @@
 }
 .reauthentication button {
   width: 100%;
-  background: var(--foreground);
-  color: var(--background);
+  background: var(--publish-primary);
+  color: var(--publish-on-primary);
 }
 .reauthentication svg {
   width: 26px !important;
@@ -789,5 +790,109 @@
   }
   .dialogFooter button {
     width: 100%;
+  }
+}
+
+/* ── Reference canvas "Setări" (2026-10-31): sticky pill navigation, card panels,
+   soft 48px fields and pill buttons. Uses the scoped tokens from publishing-theme. ── */
+.workspace {
+  max-width: 1100px;
+  margin-inline: auto;
+  padding: 12px 16px 40px;
+}
+.title {
+  margin-bottom: 22px;
+  font-size: 30px;
+  font-weight: 600 !important;
+}
+.layout {
+  grid-template-columns: 240px minmax(0, 1fr);
+  gap: 28px;
+  min-height: 0;
+  align-items: start;
+}
+.navigation {
+  border-right: 0;
+  padding: 0;
+}
+.desktopNav {
+  gap: 4px;
+  top: 24px;
+}
+.desktopNav button {
+  gap: 12px;
+  min-height: 46px;
+  padding: 0 14px;
+  border-radius: 14px;
+  color: var(--publish-muted-text);
+  font-size: 15px;
+  font-weight: 500;
+}
+.desktopNav button svg {
+  width: 20px;
+  height: 20px;
+}
+.desktopNav button:hover {
+  background: var(--publish-secondary);
+  color: var(--publish-text);
+}
+.desktopNav button[aria-current] {
+  background: var(--publish-surface);
+  color: var(--publish-text);
+  font-weight: 600;
+  box-shadow: var(--publish-card-shadow);
+}
+.content {
+  padding: 0;
+}
+.content > .panel,
+.content > [data-settings-panel],
+.content > div > section {
+  padding: 26px;
+  border-radius: var(--publish-card-radius);
+  background: var(--publish-surface);
+  box-shadow: var(--publish-card-shadow);
+}
+.heading {
+  margin-bottom: 20px;
+  font-size: 20px;
+  font-weight: 600;
+}
+.workspace [data-slot='button'] {
+  min-height: 44px;
+  border-radius: 999px;
+  font-weight: 600;
+}
+.workspace [data-slot='input'],
+.workspace textarea {
+  min-height: 48px;
+  border: 0;
+  border-radius: 14px;
+  background: var(--publish-secondary);
+  box-shadow: none;
+}
+.workspace [data-slot='input']:focus-visible {
+  box-shadow: inset 0 0 0 2px var(--publish-primary);
+}
+.sectionSelect {
+  min-height: 52px;
+  border: 0;
+  border-radius: 16px;
+  background: var(--publish-surface);
+  box-shadow: var(--publish-card-shadow);
+  font-weight: 600;
+}
+@media (max-width: 767px) {
+  .workspace {
+    padding: 4px 0 28px;
+  }
+  .title {
+    font-size: 26px;
+  }
+  .content > .panel,
+  .content > [data-settings-panel],
+  .content > div > section {
+    padding: 18px;
+    border-radius: 20px;
   }
 }

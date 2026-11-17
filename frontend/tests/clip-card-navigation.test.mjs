@@ -52,6 +52,7 @@ function load(relative) {
 // Transparent menu primitives expose the actual extracted action links to the
 // route-contract test. Browser fixtures separately verify open/closed behavior.
 modules['./clip-download-utils'] = load('../src/components/clips/clip-download-utils.ts')
+modules['./use-delete-clip'] = load('../src/components/clips/use-delete-clip.ts')
 modules['./clip-actions-menu'] = load('../src/components/clips/clip-actions-menu.tsx')
 const { ClipCard } = load('../src/components/clips/clip-card.tsx')
 

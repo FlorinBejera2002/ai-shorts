@@ -2,8 +2,44 @@
   display: none;
 }
 
+/* Reference canvas: logo on the left, profile on the right. Navigation lives in the bottom dock. */
 @media (max-width: 1023px) {
   .header.header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-height: 52px;
+    margin: -4px 0 16px !important;
+  }
+
+  .spacer {
+    flex: 1;
+  }
+
+  .profile {
+    display: inline-flex;
+    width: 40px;
+    height: 40px;
+    flex-shrink: 0;
+    border-radius: 50%;
+  }
+
+  .profile > span {
+    width: 40px;
+    height: 40px;
+  }
+
+  .profile:focus-visible {
+    outline: 2px solid #2563eb;
+    outline-offset: 2px;
+  }
+}
+.menuHeader {
+  display: none;
+}
+
+@media (max-width: 1023px) {
+  .menuHeader.menuHeader {
     display: flex;
     align-items: center;
     gap: 18px;
@@ -13,15 +49,15 @@
     padding: 0 64px 10px 16px;
   }
 
-  :global(#dashboard-shell:has([data-workspace-mobile-header])) {
+  :global(#dashboard-shell:has([data-workspace-mobile-header="menu"])) {
     position: relative;
   }
   :global(
-    body:has([data-workspace-mobile-header]) [data-mobile-dashboard-dock]
+    body:has([data-workspace-mobile-header="menu"]) [data-mobile-dashboard-dock]
   ) {
     display: none;
   }
-  :global(body:has([data-workspace-mobile-header]) [data-agent-trigger]) {
+  :global(body:has([data-workspace-mobile-header="menu"]) [data-agent-trigger]) {
     position: absolute;
     top: 18px;
     right: 16px;
@@ -32,7 +68,7 @@
     padding: 0;
     font-size: 0;
   }
-  :global(body:has([data-workspace-mobile-header]) [data-agent-trigger] svg) {
+  :global(body:has([data-workspace-mobile-header="menu"]) [data-agent-trigger] svg) {
     margin: 0;
     width: 18px;
     height: 18px;

@@ -36,6 +36,9 @@ func TestGenerateUsesOpenRouterContract(t *testing.T) {
 		if input["model"] != "anthropic/claude-test" {
 			t.Fatal("model changed", input["model"])
 		}
+		if input["max_tokens"] != float64(maximumCompletionTokens) {
+			t.Fatal("completion reservation must be bounded", input["max_tokens"])
+		}
 		messages := input["messages"].([]any)
 		if messages[0].(map[string]any)["content"] != "Synthetic prompt" {
 			t.Fatal("prompt changed")
@@ -45,6 +48,17 @@ func TestGenerateUsesOpenRouterContract(t *testing.T) {
 	got, err := c.Generate(context.Background(), "Synthetic prompt")
 	if err != nil || got != `{"ok":true}` {
 		t.Fatalf("result %q %v", got, err)
+	}
+}
+
+func TestGenerateReportsProviderCreditLimitWithoutDiagnostics(t *testing.T) {
+	c := New("provider-test-secret", "test/model", "")
+	c.HTTP = &http.Client{Transport: transportFunc(func(*http.Request) (*http.Response, error) {
+		return response(http.StatusPaymentRequired, `{"error":{"message":"provider-test-secret private billing details"}}`), nil
+	})}
+	_, err := c.Generate(context.Background(), "prompt")
+	if err == nil || err.Error() != "AI provider credit limit reached; contact support before retrying" {
+		t.Fatalf("expected safe credit-limit error, got %v", err)
 	}
 }
 

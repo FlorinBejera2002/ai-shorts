@@ -238,16 +238,9 @@ async function dock(page, visible) {
   const element = page.locator('[data-mobile-dashboard-dock]')
   assert.equal(await element.isVisible(), visible)
   if (!visible) return
-  assert.equal(await element.locator('a').count(), 6)
+  assert.equal(await element.locator('a').count(), 4)
   assert.equal(await element.locator('button').count(), 1)
-  const expected = [
-    'Home',
-    'Video editor',
-    'Clips',
-    'New project',
-    'Brand kit',
-    'Publish'
-  ]
+  const expected = ['Home', 'Clips', 'New project', 'Publish']
   const names = await element
     .locator('a')
     .evaluateAll((elements) =>
@@ -259,14 +252,7 @@ async function dock(page, visible) {
     await element
       .locator('a')
       .evaluateAll((elements) => elements.map((el) => el.getAttribute('href'))),
-    [
-      '/dashboard',
-      '/dashboard/studio',
-      '/dashboard/clips',
-      '/dashboard/create',
-      '/dashboard/brand',
-      '/dashboard/publish'
-    ]
+    ['/dashboard', '/dashboard/clips', '/dashboard/create', '/dashboard/publish']
   )
   assert.equal(
     await element.locator('[aria-current="page"]').getAttribute('href'),
@@ -535,7 +521,7 @@ async function referenceStates() {
               await f.page.locator('[data-mobile-menu-trigger]').click()
               const menu = f.page.locator('[data-mobile-menu-dialog]')
               await menu.waitFor()
-              assert.equal(await menu.getByRole('link').count(), 3)
+              assert.equal(await menu.getByRole('link').count(), 5)
               assert.deepEqual(
                 await menu
                   .getByRole('link')
@@ -543,7 +529,9 @@ async function referenceStates() {
                     elements.map((el) => el.getAttribute('href'))
                   ),
                 [
+                  '/dashboard/studio',
                   '/dashboard/script-generator',
+                  '/dashboard/brand',
                   '/dashboard/billing',
                   '/dashboard/settings'
                 ]
@@ -602,12 +590,16 @@ async function dataEdges() {
     )
     await capture(f, 'desktop-broken-thumbnail')
     f.fail(true)
-    await f.page.evaluate(async () => {
-      const { queryClient } = await import('/src/query/query-client.ts')
-      await queryClient.invalidateQueries({
-        queryKey: ['api-resource', '/api/dashboard']
-      })
-    })
+    const failedRefresh = f.page.waitForResponse(
+      (response) =>
+        new URL(response.url()).pathname === '/api/dashboard' &&
+        response.status() === 503
+    )
+    // A browser reconnect refetches stale resources in development and compiled
+    // builds without relying on Vite-only source module imports.
+    await f.page.evaluate(() => window.dispatchEvent(new Event('offline')))
+    await f.page.evaluate(() => window.dispatchEvent(new Event('online')))
+    await failedRefresh
     assert.equal(f.calls.reads, 2)
     await f.workspace.waitFor()
     assert.equal(await f.page.locator('[data-home-initial]').count(), 0)
@@ -720,7 +712,7 @@ async function navigation() {
     }
     for (const [name, target] of [
       ['Scripts', '/dashboard/script-generator'],
-      ['Plan & billing', '/dashboard/billing'],
+      ['Billing', '/dashboard/billing'],
       ['Settings', '/dashboard/settings']
     ]) {
       await trigger.click()

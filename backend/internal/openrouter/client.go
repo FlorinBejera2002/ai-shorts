@@ -15,6 +15,10 @@ import (
 
 const defaultModel = "google/gemini-2.5-flash"
 
+// Bound the completion reservation instead of inheriting the model's maximum.
+// Large defaults can reject short requests against an otherwise usable balance.
+const maximumCompletionTokens = 16384
+
 type Client struct {
 	Key, Model, Referer string
 	HTTP                *http.Client
@@ -39,7 +43,8 @@ func (c *Client) Generate(ctx context.Context, prompt string) (string, error) {
 		return "", aiprovider.ErrNotConfigured
 	}
 	body, err := json.Marshal(map[string]any{
-		"model": c.Model,
+		"model":      c.Model,
+		"max_tokens": maximumCompletionTokens,
 		"messages": []any{
 			map[string]any{"role": "user", "content": prompt},
 		},
@@ -71,6 +76,9 @@ func (c *Client) Generate(ctx context.Context, prompt string) (string, error) {
 	// Read errors are handled below; closing the body is best-effort cleanup.
 	defer func() { _ = response.Body.Close() }()
 	if response.StatusCode != http.StatusOK {
+		if response.StatusCode == http.StatusPaymentRequired {
+			return "", errors.New("AI provider credit limit reached; contact support before retrying")
+		}
 		return "", errors.New("AI provider rejected the request")
 	}
 	payload, err := io.ReadAll(io.LimitReader(response.Body, 2*1024*1024+1))

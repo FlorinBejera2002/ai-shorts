@@ -8,7 +8,7 @@ import type { PublishingData } from '@/lib/publishing'
 import { formatDuration } from '@/lib/utils'
 import { ChevronLeft, ChevronRight, Film, ImageOff, RefreshCw } from 'lucide-react'
 import { useTranslations } from 'next-intl'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { PublishingImagePreview } from './publishing-image-preview'
 import styles from './calendar-post-preview.module.css'
 
@@ -78,7 +78,7 @@ function MediaUnavailable({ onRetry }: { onRetry?: () => void }) {
   )
 }
 
-function UploadedMediaPreview({ item }: { item: PublishingMedia }) {
+function UploadedMediaPreview({ item, socialPreview = false }: { item: PublishingMedia; socialPreview?: boolean }) {
   const { url, failed, loading, retry } = useMediaPreview(item.reference)
   const [mediaFailed, setMediaFailed] = useState(false)
 
@@ -91,7 +91,7 @@ function UploadedMediaPreview({ item }: { item: PublishingMedia }) {
   if (item.type === 'image') {
     return (
       <div className={styles.imageFrame} onErrorCapture={() => setMediaFailed(true)}>
-        <PublishingImagePreview item={item} src={url} />
+        <PublishingImagePreview item={item} src={url} fullSize={socialPreview} />
       </div>
     )
   }
@@ -198,10 +198,12 @@ function ClipPreview({
 
 export function CalendarPostMedia({
   post,
-  publishingClips
+  publishingClips,
+  overlay
 }: {
   post: ScheduledPostRecord
   publishingClips: PublishingData['clips']
+  overlay?: ReactNode
 }) {
   const t = useTranslations('contentCalendar.publishing')
   const [selectedIndex, setSelectedIndex] = useState(0)
@@ -211,7 +213,7 @@ export function CalendarPostMedia({
   const clip = publishingClips.find(item => item.id === post.clip?.id)
 
   if (post.clip) {
-    return (
+    const player = (
       <ClipPreview
         key={post.clip.id}
         clipId={post.clip.id}
@@ -219,6 +221,7 @@ export function CalendarPostMedia({
         poster={post.clip.thumbnailUrl}
       />
     )
+    return overlay ? <div data-publishing-media-stage="" data-media-type="video">{player}{overlay}</div> : player
   }
   if (!currentMedia) {
     return (
@@ -231,7 +234,10 @@ export function CalendarPostMedia({
 
   return (
     <div className={styles.carousel}>
-      <UploadedMediaPreview key={currentMedia.reference} item={currentMedia} />
+      <div data-publishing-media-stage={overlay ? '' : undefined} data-media-type={currentMedia.type}>
+        <UploadedMediaPreview key={currentMedia.reference} item={currentMedia} socialPreview={Boolean(overlay)} />
+        {overlay}
+      </div>
       {media.length > 1 && (
         <div className={styles.carouselNavigation}>
           <Button

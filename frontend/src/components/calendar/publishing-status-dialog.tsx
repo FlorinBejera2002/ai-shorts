@@ -1,222 +1,95 @@
 'use client'
 
+import { PlatformBrandIcon } from '@/components/publishing/platform-brand-icon'
 import { Button } from '@/components/ui/button'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle
-} from '@/components/ui/dialog'
-import { LoadingIndicator } from '@/components/ui/loading-indicator'
-import { Progress } from '@/components/ui/progress'
-import type {
-  PublishingDestination,
-  ScheduledPostRecord
-} from '@/lib/content-calendar'
-import { CheckCircle2, ExternalLink, Trash2, TriangleAlert } from 'lucide-react'
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
+import type { PublishingDestination, ScheduledPostRecord } from '@/lib/content-calendar'
+import { ArrowUp, Check, ExternalLink, TriangleAlert, X } from 'lucide-react'
 import { useTranslations } from 'next-intl'
-import { useEffect, useState } from 'react'
-import { PlatformMark } from './platform-mark'
-
-const stageProgress: Record<PublishingDestination['status'], number> = {
-  queued: 15,
-  submitting: 35,
-  processing: 65,
-  finalizing: 85,
-  published: 100,
-  failed: 100,
-  unknown: 100,
-  cancelled: 100
-}
-
-function elapsedLabel(startedAt: string, now: number) {
-  const elapsedSeconds = Math.max(
-    0,
-    Math.floor((now - new Date(startedAt).getTime()) / 1_000)
-  )
-  if (elapsedSeconds < 60) return `${elapsedSeconds}s`
-  return `${Math.floor(elapsedSeconds / 60)}m ${elapsedSeconds % 60}s`
-}
+import styles from './publishing-status-dialog.module.css'
+import theme from './publishing-theme.module.css'
 
 function isActive(status: PublishingDestination['status']) {
   return ['queued', 'submitting', 'processing', 'finalizing'].includes(status)
 }
 
-export function PublishingStatusDialog({
-  post,
-  onClose,
-  onDelete
-}: {
+interface PublishingStatusDialogProps {
   post: ScheduledPostRecord
   onClose: () => void
   onDelete: () => void
-}) {
+  onEdit?: () => void
+}
+
+export function PublishingStatusDialog({ post, onClose, onDelete, onEdit }: PublishingStatusDialogProps) {
   const t = useTranslations('contentCalendar.progress')
   const calendarT = useTranslations('contentCalendar')
-  const [now, setNow] = useState(() => Date.now())
-  const destinations = post.publishingDestinations ?? []
   const publishing = post.status === 'publishing'
-  const hasPublishedLink = destinations.some(
-    (destination) =>
-      destination.status === 'published' && Boolean(destination.url)
-  )
-
-  useEffect(() => {
-    if (!publishing) return
-    const timer = window.setInterval(() => setNow(Date.now()), 1_000)
-    return () => window.clearInterval(timer)
-  }, [publishing])
-
-  const progress =
-    post.status === 'published'
-      ? 100
-      : destinations.length === 0
-        ? publishing
-          ? 15
-          : 100
-        : Math.round(
-            destinations.reduce(
-              (total, destination) =>
-                total + stageProgress[destination.status],
-              0
-            ) / destinations.length
-          )
+  const published = post.status === 'published'
+  const title = t(publishing ? 'publishingTitle' : published ? 'publishedTitle' : 'failedTitle')
+  const destinations: PublishingDestination[] = post.publishingDestinations?.length
+    ? post.publishingDestinations
+    : post.platforms.map(provider => ({
+      provider,
+      accountName: calendarT('platforms.' + provider),
+      status: publishing ? 'queued' : published ? 'published' : 'failed',
+      createdAt: post.updatedAt,
+      updatedAt: post.updatedAt
+    }))
 
   return (
-    <Dialog open={true} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="rounded-md sm:max-w-xl">
-        <DialogHeader>
-          <DialogTitle>{t('title')}</DialogTitle>
-          <DialogDescription>{post.title}</DialogDescription>
-        </DialogHeader>
-
-        <div className="space-y-4">
-          <div className="rounded-md border bg-muted/35 p-4">
-            <div className="flex items-start gap-3">
-              {publishing ? (
-                <LoadingIndicator className="mt-0.5 h-5 w-5 shrink-0" />
-              ) : post.status === 'published' ? (
-                <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-success" />
-              ) : (
-                <TriangleAlert className="mt-0.5 h-5 w-5 shrink-0 text-destructive" />
-              )}
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-semibold">
-                  {publishing
-                    ? t('publishingTitle')
-                    : post.status === 'published'
-                      ? t('publishedTitle')
-                      : t('failedTitle')}
-                </p>
-                <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                  {publishing
-                    ? t('publishingEstimate')
-                    : post.status === 'published'
-                      ? t(
-                          hasPublishedLink
-                            ? 'publishedDescription'
-                            : 'publishedDescriptionNoLink'
-                        )
-                      : post.publishingError || t('failedDescription')}
-                </p>
-              </div>
-            </div>
-            {publishing && (
-              <div className="mt-4 space-y-2">
-                <Progress value={progress} aria-label={t('progressLabel')} />
-                <p className="text-[11px] text-muted-foreground">
-                  {t('elapsed', {
-                    duration: elapsedLabel(
-                      destinations[0]?.createdAt ?? post.updatedAt,
-                      now
-                    )
-                  })}
-                </p>
-              </div>
-            )}
-          </div>
-
-          {destinations.map((destination) => (
-            <div
-              key={`${destination.provider}-${destination.accountName}`}
-              className="flex items-start gap-3 rounded-md border p-3"
-            >
-              <PlatformMark
-                platform={destination.provider}
-                label={calendarT(`platforms.${destination.provider}`)}
-              />
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <p className="truncate text-sm font-semibold">
-                    {destination.accountName}
-                  </p>
-                  <span className="text-[11px] font-semibold text-muted-foreground">
-                    {t(`stages.${destination.status}`)}
-                  </span>
+    <Dialog open onOpenChange={open => { if (!open) onClose() }}>
+      <DialogContent className={`${theme.surface} ${styles.dialog}`} overlayClassName={theme.overlay} data-publish-surface="" data-publishing-status="" data-publishing-state={post.status}>
+        <Button type="button" variant="ghost" size="icon" className={styles.close} onClick={onClose} aria-label={t('close')}>
+          <X className="size-4" />
+        </Button>
+        <header className={styles.header}>
+          <span className={styles.symbol} data-status={post.status} aria-hidden="true">
+            {publishing ? <ArrowUp /> : published ? <Check /> : <TriangleAlert />}
+          </span>
+          <DialogTitle className={styles.title}>{title}</DialogTitle>
+          <DialogDescription className={styles.description}>{post.title}</DialogDescription>
+        </header>
+        {post.publishingError && !publishing && !published && (
+          <p className={styles.error} role="alert">{post.publishingError}</p>
+        )}
+        <ul className={styles.destinations}>
+          {destinations.map((destination, index) => (
+            <li key={destination.provider + '-' + destination.accountName + '-' + index} className={styles.destination}>
+              <PlatformBrandIcon provider={destination.provider} className="size-7" />
+              <div className={styles.destinationBody}>
+                <div className={styles.destinationLabel}>
+                  <span title={destination.accountName}>{destination.accountName}</span>
+                  <span data-status={destination.status}>{t('stages.' + destination.status)}</span>
                 </div>
                 {isActive(destination.status) && (
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {t('destinationElapsed', {
-                      duration: elapsedLabel(destination.createdAt, now)
-                    })}
-                  </p>
+                  <div className={styles.progress} role="progressbar" aria-label={t('progressLabel')} aria-valuetext={t('stages.' + destination.status)}>
+                    <span />
+                  </div>
                 )}
-                {destination.error && (
-                  <p className="mt-1 text-xs text-destructive">
-                    {destination.error}
-                  </p>
-                )}
-                {destination.url && (
-                  <Button
-                    asChild={true}
-                    variant="outline"
-                    size="sm"
-                    className="mt-3"
-                  >
-                    <a
-                      href={destination.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      <ExternalLink />
-                      {t('openPost', {
-                        provider: calendarT(`platforms.${destination.provider}`)
-                      })}
-                    </a>
-                  </Button>
-                )}
+                {destination.error && <p className={styles.destinationError}>{destination.error}</p>}
                 {destination.status === 'published' && !destination.url && (
-                  <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                    {t(
-                      destination.provider === 'tiktok'
-                        ? 'tiktokPrivateLinkUnavailable'
-                        : 'linkUnavailable'
-                    )}
-                  </p>
+                  <p className={styles.note}>{t(destination.provider === 'tiktok' ? 'tiktokPrivateLinkUnavailable' : 'linkUnavailable')}</p>
                 )}
               </div>
-            </div>
+              {destination.url && (
+                <Button asChild variant="ghost" size="icon" className={styles.link}>
+                  <a href={destination.url} target="_blank" rel="noopener noreferrer" aria-label={t('openPost', { provider: calendarT('platforms.' + destination.provider) })}>
+                    <ExternalLink className="size-4" />
+                  </a>
+                </Button>
+              )}
+            </li>
           ))}
-        </div>
-
-        <DialogFooter>
-          {post.status !== 'publishing' && (
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={onDelete}
-              className="text-destructive hover:bg-destructive/[0.07] hover:text-destructive sm:mr-auto"
-            >
-              <Trash2 />
-              {calendarT('actions.delete')}
-            </Button>
+        </ul>
+        <footer className={styles.footer}>
+          {!publishing && !published && (
+            <>
+              <Button type="button" variant="ghost" onClick={onDelete} className={styles.delete}>{calendarT('actions.delete')}</Button>
+              {onEdit && <Button type="button" onClick={onEdit} className={styles.primary}>{calendarT('actions.edit')}</Button>}
+            </>
           )}
-          <Button type="button" variant="outline" onClick={onClose}>
-            {t('close')}
-          </Button>
-        </DialogFooter>
+          {(publishing || published || !onEdit) && <Button type="button" onClick={onClose} className={`${styles.primary} ${styles.closeAction}`}>{t('close')}</Button>}
+        </footer>
       </DialogContent>
     </Dialog>
   )

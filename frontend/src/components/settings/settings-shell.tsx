@@ -6,6 +6,7 @@ import type { ReactNode } from 'react'
 import { SettingsNavigation } from './settings-navigation'
 import type { SettingsSection } from './settings-types'
 import styles from './settings-workspace.module.css'
+import theme from '@/components/calendar/publishing-theme.module.css'
 
 export function SettingsShell({
   section,
@@ -18,7 +19,11 @@ export function SettingsShell({
 }) {
   const t = useTranslations('settings')
   return (
-    <div className={styles.workspace} data-settings-workspace="">
+    <div
+      className={`${theme.surface} ${styles.workspace}`}
+      data-reference-surface=""
+      data-settings-workspace=""
+    >
       <WorkspaceMobileHeader />
       <h1 className={styles.title}>{t('title')}</h1>
       <div className={styles.layout}>

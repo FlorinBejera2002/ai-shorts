@@ -20,6 +20,7 @@ import { useLocale, useTranslations } from 'next-intl'
 import { useSearchParams } from 'next/navigation'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { CalendarAccountSummary } from './calendar-account-summary'
+import { CalendarConnections } from './calendar-connections'
 import { CalendarMobileHeader } from './calendar-mobile-header'
 import { CalendarPreviewList } from './calendar-preview-list'
 import {
@@ -43,11 +44,16 @@ import {
   startOfLocalDay,
   startOfLocalMonth
 } from './calendar-utils'
-import styles from './calendar-workspace.module.css'
 import publishingStyles from './calendar-publishing.module.css'
 import { ConnectionSuccessOverlay } from './connection-success-overlay'
 import { PostDialog } from './post-dialog'
 import { PublishingStatusDialog } from './publishing-status-dialog'
+import theme from './publishing-theme.module.css'
+import {
+  readPublishingView,
+  rememberPublishingScroll,
+  savePublishingView
+} from './calendar-publishing-state'
 
 type LoadErrorKey = 'auth' | 'rateLimit' | 'load'
 type DialogState =
@@ -62,7 +68,9 @@ function CalendarSkeleton() {
   const t = useTranslations('contentCalendar')
   return (
     <div aria-label={t('loading')} aria-busy="true" className="space-y-4">
-      <Card className="block min-h-[32rem] gap-0 overflow-hidden p-5">
+      <Card
+        className={`${publishingStyles.skeletonCard} block min-h-[32rem] gap-0 overflow-hidden p-5`}
+      >
         <div className="skeleton h-10 w-full" />
         <div className="skeleton mt-5 h-[27rem] w-full" />
       </Card>
@@ -122,6 +130,7 @@ export function ContentCalendar() {
   const [dialog, setDialog] = useState<DialogState>(null)
   const mutationRevisionRef = useRef(0)
   const openedRequestedClipRef = useRef(false)
+  const restoredScrollRef = useRef(false)
   const {
     data: publishingData,
     error: publishingError,
@@ -140,11 +149,32 @@ export function ContentCalendar() {
 
   useEffect(() => {
     const now = new Date()
-    setViewDate(startOfLocalMonth(now))
-    setSelectedDate(startOfLocalDay(now))
+    const saved = readPublishingView()
+    setViewDate(
+      saved.month
+        ? startOfLocalMonth(new Date(saved.month))
+        : startOfLocalMonth(now)
+    )
+    setSelectedDate(
+      saved.selectedDate
+        ? startOfLocalDay(new Date(saved.selectedDate))
+        : startOfLocalDay(now)
+    )
     setTimeZone(safeTimeZone())
     setReady(true)
   }, [])
+
+  useEffect(() => {
+    if (!hasLoaded || restoredScrollRef.current) return
+    const frame = requestAnimationFrame(() => {
+      window.scrollTo({
+        top: readPublishingView().scrollY ?? 0,
+        behavior: 'instant'
+      })
+      restoredScrollRef.current = true
+    })
+    return () => cancelAnimationFrame(frame)
+  }, [hasLoaded])
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: refreshToken intentionally retries the current range.
   useEffect(() => {
@@ -256,6 +286,10 @@ export function ContentCalendar() {
   function focusDate(date: Date) {
     const nextDate = startOfLocalDay(date)
     setSelectedDate(nextDate)
+    savePublishingView({
+      month: startOfLocalMonth(nextDate).toISOString(),
+      selectedDate: nextDate.toISOString()
+    })
     if (
       nextDate.getMonth() !== viewDate.getMonth() ||
       nextDate.getFullYear() !== viewDate.getFullYear()
@@ -269,6 +303,7 @@ export function ContentCalendar() {
   }
 
   function openCreate(date = selectedDate, hour?: number) {
+    rememberPublishingScroll()
     focusDate(date)
     const params = new URLSearchParams({ date: localDateKey(date) })
     if (hour !== undefined)
@@ -276,14 +311,17 @@ export function ContentCalendar() {
     router.push(`/dashboard/publish/new?${params}`)
   }
 
-  function openEdit(post: ScheduledPostRecord) {
+  function openEdit(post: ScheduledPostRecord, publishNow = false) {
     if (post.status === 'publishing' || post.status === 'published') {
       setDialog({ mode: 'status', post })
       return
     }
-    router.push(
-      `/dashboard/publish/${post.id}/edit?date=${localDateKey(new Date(post.scheduledAt))}`
-    )
+    rememberPublishingScroll()
+    const params = new URLSearchParams({
+      date: localDateKey(new Date(post.scheduledAt))
+    })
+    if (publishNow) params.set('mode', 'publish')
+    router.push(`/dashboard/publish/${post.id}/edit?${params}`)
   }
 
   function mergePost(post: ScheduledPostRecord) {
@@ -361,8 +399,9 @@ export function ContentCalendar() {
 
   return (
     <div
-      className={`${styles.workspace} dashboard-workspace ${publishingStyles.workspace}`}
+      className={`${theme.surface} dashboard-workspace ${publishingStyles.workspace}`}
       data-publishing-workspace=""
+      data-publish-surface=""
     >
       {connectedProvider && (
         <ConnectionSuccessOverlay
@@ -373,31 +412,44 @@ export function ContentCalendar() {
       )}
       <CalendarMobileHeader />
       <header className={publishingStyles.header}>
-        <div>
+        <div className={publishingStyles.headerTitle}>
           <h1>{t('title')}</h1>
-          <p>
-            <span className={publishingStyles.desktopDescription}>{t('publishing.description')}</span>
-            <span className={publishingStyles.mobileDescription}>{t('publishing.shortDescription')}</span>
-          </p>
         </div>
-        <Button disabled={!ready} onClick={() => openCreate()} className={publishingStyles.newPost}>
-          <Plus />{t('actions.newPost')}
+        <CalendarAccountSummary
+          data={publishingData}
+          error={publishingError}
+          onReload={reloadPublishing}
+          onConnect={connect}
+          busyProvider={busyProvider}
+        />
+        <Button
+          disabled={!ready}
+          onClick={() => openCreate()}
+          className={publishingStyles.newPost}
+          aria-label={t('actions.newPost')}
+        >
+          <Plus />
+          <span>{t('actions.newPost')}</span>
         </Button>
       </header>
 
-      {!ready || (loading && !hasLoaded) ? (
+      {!ready || (!hasLoaded && !loadError) ? (
         <CalendarSkeleton />
       ) : (
         <div>
           {loadError && (
             <div
               role="alert"
-              className="flex flex-wrap items-center gap-3 rounded-md border border-destructive/25 bg-destructive/[0.055] px-4 py-3 text-destructive"
+              className={
+                hasLoaded
+                  ? publishingStyles.failureBanner
+                  : publishingStyles.loadError
+              }
             >
               <AlertCircle className="h-4 w-4 shrink-0" />
-              <p className="min-w-0 flex-1 text-xs font-medium">
+              <h2 className="min-w-0 text-sm font-medium">
                 {t(`errors.${loadError}`)}
-              </p>
+              </h2>
               <button
                 type="button"
                 onClick={() => setRefreshToken((current) => current + 1)}
@@ -417,39 +469,57 @@ export function ContentCalendar() {
             </div>
           )}
 
-          <div>
-            <CalendarAccountSummary
-              data={publishingData}
-              error={publishingError}
-              onReload={reloadPublishing}
-              onConnect={connect}
-              busyProvider={busyProvider}
-            />
-            <Card
-              as="section"
-              aria-label={t('calendarSectionLabel')}
-              aria-busy={loading}
-              className={publishingStyles.planner}
-            >
-              <CalendarPreviewList
-                posts={posts}
-                publishingClips={publishingData?.clips ?? []}
-                month={viewDate}
-                locale={locale}
-                onCreatePost={() => openCreate()}
-                onOpenPost={openEdit}
-                toolbar={
-                  <CalendarToolbar
-                    title={title}
-                    loading={loading && hasLoaded}
-                    onPrevious={() => navigatePeriod(-1)}
-                    onNext={() => navigatePeriod(1)}
-                    onToday={() => focusDate(new Date())}
+          {hasLoaded && (
+            <div>
+              {publishingData &&
+                publishingAccounts.length === 0 &&
+                posts.length === 0 && (
+                  <div className={publishingStyles.noAccounts}>
+                    <h2>{t('connections.noAccounts')}</h2>
+                    <div className="w-full max-w-sm">
+                      <CalendarConnections
+                        data={publishingData}
+                        error={publishingError}
+                        onReload={reloadPublishing}
+                        onConnect={connect}
+                        busyProvider={busyProvider}
+                      />
+                    </div>
+                  </div>
+                )}
+              {(!publishingData ||
+                publishingAccounts.length > 0 ||
+                posts.length > 0) && (
+                <Card
+                  as="section"
+                  aria-label={t('calendarSectionLabel')}
+                  aria-busy={loading}
+                  className={publishingStyles.planner}
+                >
+                  <CalendarPreviewList
+                    posts={posts}
+                    publishingClips={publishingData?.clips ?? []}
+                    month={viewDate}
+                    locale={locale}
+                    onCreatePost={() => openCreate()}
+                    onOpenPost={(post) => openEdit(post)}
+                    onPublishPost={(post) => openEdit(post, true)}
+                    onDeletePost={(post) => setDialog({ mode: 'delete', post })}
+                    onViewStatus={(post) => setDialog({ mode: 'status', post })}
+                    toolbar={
+                      <CalendarToolbar
+                        title={title}
+                        loading={loading && hasLoaded}
+                        onPrevious={() => navigatePeriod(-1)}
+                        onNext={() => navigatePeriod(1)}
+                        onToday={() => focusDate(new Date())}
+                      />
+                    }
                   />
-                }
-              />
-            </Card>
-          </div>
+                </Card>
+              )}
+            </div>
+          )}
         </div>
       )}
 
@@ -458,6 +528,7 @@ export function ContentCalendar() {
           post={posts.find((post) => post.id === dialog.post.id) ?? dialog.post}
           onClose={() => setDialog(null)}
           onDelete={() => setDialog({ mode: 'delete', post: dialog.post })}
+          onEdit={() => openEdit(dialog.post)}
         />
       )}
 
@@ -478,7 +549,11 @@ export function ContentCalendar() {
           }
           post={dialog.mode === 'create' ? undefined : dialog.post}
           clips={clips}
-          youtubeAuditApproved={publishingData?.providers.find(provider => provider.id === 'youtube')?.youtubeAuditApproved === true}
+          youtubeAuditApproved={
+            publishingData?.providers.find(
+              (provider) => provider.id === 'youtube'
+            )?.youtubeAuditApproved === true
+          }
           publishingClips={publishingData?.clips ?? []}
           publishingAccounts={publishingAccounts}
           platformConnectionsLoaded={publishingData !== null}

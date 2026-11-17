@@ -6,6 +6,8 @@ import { LoadingIndicator } from '@/components/ui/loading-indicator'
 import { PageHeader } from '@/components/ui/page-header'
 import { useToast } from '@/components/ui/toast'
 import { useApiResource } from '@/hooks/use-api-resource'
+import { useSocialConnection } from '@/hooks/use-social-connection'
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import { useRouter } from '@/i18n/navigation'
 import type { ContentPlatform } from '@/lib/content-calendar'
 import {
@@ -29,6 +31,10 @@ import {
   startOfLocalDay
 } from './calendar-utils'
 import { PostDialog } from './post-dialog'
+import { CalendarConnections } from './calendar-connections'
+import { ConnectionSuccessOverlay } from './connection-success-overlay'
+import theme from './publishing-theme.module.css'
+import composerStyles from './post-composer.module.css'
 
 const calendarQueries: QueryFilters = {
   queryKey: ['api-resource'],
@@ -56,6 +62,8 @@ export function PostEditorPage({ postId }: { postId?: string }) {
   })
   const calendar = useApiResource<CalendarResponse>(`/api/calendar?${params}`)
   const publishing = useApiResource<PublishingData>('/api/publishing')
+  const [connectionsOpen, setConnectionsOpen] = useState(false)
+  const { connect, busyProvider, connectedProvider, finishConfirmation } = useSocialConnection(publishing.reload)
   const post = calendar.data?.posts.find((item) => item.id === postId)
   const error = calendar.error ?? publishing.error
   const loaded = calendar.data !== null && publishing.data !== null
@@ -111,9 +119,9 @@ export function PostEditorPage({ postId }: { postId?: string }) {
     toast.add('success', t('toasts.deleted'))
   }
 
-  if (!loaded || error || unavailable || locked) {
+  if (!loaded || unavailable || locked) {
     return (
-      <div className="dashboard-workspace space-y-6">
+      <div className={`${theme.surface} dashboard-workspace space-y-6`} data-publish-surface="">
         <PageHeader
           title={t(postId ? 'dialog.editTitle' : 'dialog.createTitle')}
         />
@@ -163,6 +171,7 @@ export function PostEditorPage({ postId }: { postId?: string }) {
       )
   )
   return (
+    <>
     <PostDialog
       key={`${postId ?? 'new'}-${requestedDate ?? ''}-${search.get('clip') ?? ''}`}
       presentation="page"
@@ -170,6 +179,8 @@ export function PostEditorPage({ postId }: { postId?: string }) {
       selectedDate={selectedDate}
       initialTime={search.get('time') ?? undefined}
       initialClipId={search.get('clip') ?? undefined}
+      initialStatus={search.get('mode') === 'publish' ? 'publish' : undefined}
+      onConnectRequest={() => setConnectionsOpen(true)}
       post={post ? normalizeScheduledPost(post) : undefined}
       clips={calendarData.clips}
       youtubeAuditApproved={publishingData.providers.find(provider => provider.id === 'youtube')?.youtubeAuditApproved === true}
@@ -181,5 +192,14 @@ export function PostEditorPage({ postId }: { postId?: string }) {
       onDelete={postId ? deletePost : undefined}
       onClose={close}
     />
+    <Dialog open={connectionsOpen} onOpenChange={setConnectionsOpen}>
+      <DialogContent className={`${theme.surface} ${composerStyles.connectionsDialog}`} overlayClassName={theme.overlay} data-publish-surface="" aria-describedby={undefined}>
+        <DialogTitle>{t('connections.title')}</DialogTitle>
+        <CalendarConnections data={publishingData} error={publishing.error} onReload={publishing.reload} onConnect={connect} busyProvider={busyProvider} />
+        <Button type="button" variant="outline" onClick={() => setConnectionsOpen(false)}>{t('actions.done')}</Button>
+      </DialogContent>
+    </Dialog>
+    {connectedProvider && <ConnectionSuccessOverlay provider={connectedProvider} onComplete={finishConfirmation} />}
+    </>
   )
 }

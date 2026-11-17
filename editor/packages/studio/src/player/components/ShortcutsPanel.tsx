@@ -194,7 +194,7 @@ export const ShortcutsPanel = memo(function ShortcutsPanel({
           // modality would make assistive tech treat the whole app as inert.
           className="absolute bottom-full right-0 mb-2 z-50 rounded-lg shadow-xl min-w-[220px] overflow-y-auto outline-none"
           style={{
-            background: "#161618",
+            background: "#121A27",
             border: "1px solid rgba(255,255,255,0.08)",
             maxHeight: "min(280px, calc(100vh - 80px))",
           }}

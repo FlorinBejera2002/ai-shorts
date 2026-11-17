@@ -161,6 +161,7 @@ try {
   await page.goto(`${origin}/dashboard/create?story=${projectID}`, {
     waitUntil: 'domcontentloaded', timeout: 90000
   })
+  await page.getByTestId('story-transcript-disclosure').locator(':scope > summary').click()
   await page.getByText('Confirmation saves the reviewed text', { exact: false }).waitFor()
   await page.getByTestId('transcript-asset').locator('summary').click()
   const passages = page.getByTestId('transcript-passage')
@@ -248,6 +249,7 @@ try {
   await page.screenshot({ path: `${output}/mobile.png`, fullPage: true })
   project = { ...project, status: 'failed', stage: undefined }
   await page.goto(`${origin}/ro/dashboard/create?story=${projectID}`, { waitUntil: 'domcontentloaded', timeout: 90000 })
+  await page.getByTestId('story-transcript-disclosure').locator(':scope > summary').click()
   await page.getByTestId('transcript-asset').locator('summary').click()
   const translatedAction = page.getByRole('button', { name: 'Confirmă pasajele selectate' })
   await translatedAction.scrollIntoViewIfNeeded()

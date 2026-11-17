@@ -113,8 +113,24 @@ and replace the export when its session expires.
 `YOUTUBE_COOKIES_DIR` changes the host directory; `YOUTUBE_COOKIES_PATH` is the
 path inside the container. The default path does not provision the cookie file.
 Without that optional file the downloader tries public access, which YouTube
-may reject from the server. The proof-of-origin provider does not supply an
-authenticated YouTube session.
+may reject from the server. The worker picks up a new or replaced export on
+the next job, without a restart.
+
+Provisioning steps:
+
+1. Use a separate Google account, not a personal one: YouTube may restrict
+   accounts used for automated downloads.
+2. In a private browser window, sign in to YouTube with that account, open
+   `https://www.youtube.com/robots.txt` in the same tab, export the
+   youtube.com cookies in Netscape format (for example with a "cookies.txt"
+   browser extension), then close the private window so the exported session
+   is not rotated.
+3. Copy the file to the server and make it readable only by the worker:
+
+   ```bash
+   scp youtube-cookies.txt sc:/opt/sneepcut-secrets/youtube-cookies.txt
+   ssh sc 'chown 10001:10001 /opt/sneepcut-secrets/youtube-cookies.txt && chmod 600 /opt/sneepcut-secrets/youtube-cookies.txt'
+   ```
 
 The downloader copies cookies into a private temporary directory for each
 YouTube request because yt-dlp saves its cookie jar when closing. The original

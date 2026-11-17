@@ -23,6 +23,9 @@ const requestedRanges = []
 const clipRequests = new Map()
 const expectedHttpFailures = new Set()
 let unavailableClipId = null
+let calendarState = 'ready'
+let accountState = 'connected'
+let pendingCalendar = null
 page.on('pageerror', error => {
   errors.push(error.message)
   console.error('Browser runtime error:', error.message)
@@ -112,7 +115,7 @@ await context.route('**/api/**', route => {
   if (url.pathname === '/api/publishing') return route.fulfill({ json: {
     providers: Object.entries(providerNames).map(([provider, name]) => ({
       id: provider, name, configured: true, supportsPublishing: true
-    })), accounts, clips: publishingClips, posts: []
+    })), accounts: accountState === 'empty' ? [] : accounts, clips: publishingClips, posts: []
   } })
   const requestedClip = publishingClips.find(clip => url.pathname === `/api/clips/${clip.id}`)
   if (requestedClip) {
@@ -133,11 +136,16 @@ await context.route('**/api/**', route => {
       maxDuration: 600, nickname: 'Synthetic TikTok'
     } })
   if (url.pathname === '/api/calendar') {
+    if (calendarState === 'loading') { pendingCalendar = route; return }
+    if (calendarState === 'error') {
+      expectedHttpFailures.add(url.href)
+      return route.fulfill({ status: 503, json: { error: 'Synthetic calendar failure' } })
+    }
     const start = new Date(url.searchParams.get('start'))
     const end = new Date(url.searchParams.get('end'))
     requestedRanges.push({ start: start.toISOString(), end: end.toISOString() })
     return route.fulfill({ json: {
-      posts: posts.filter(post => new Date(post.scheduledAt) >= start && new Date(post.scheduledAt) < end),
+      posts: calendarState === 'empty' ? [] : posts.filter(post => new Date(post.scheduledAt) >= start && new Date(post.scheduledAt) < end),
       clips: calendarClips
     } })
   }
@@ -176,6 +184,77 @@ async function assertNoOverflow(label) {
   ), true, `${label}: page has no horizontal overflow`)
 }
 
+async function assertReferenceStyles(mobile = false) {
+  const dark = await page.evaluate(() => document.documentElement.classList.contains('dark'))
+  const palette = dark ? {
+    canvas: 'rgb(14, 19, 28)', row: 'rgb(27, 49, 83)', primary: 'rgb(122, 167, 255)',
+    surface: 'rgb(24, 31, 43)', info: 'rgb(28, 49, 81)', infoText: 'rgb(172, 203, 255)'
+  } : {
+    canvas: 'rgb(245, 247, 251)', row: 'rgb(238, 244, 255)', primary: 'rgb(37, 99, 235)',
+    surface: 'rgb(255, 255, 255)', info: 'rgb(233, 241, 255)', infoText: 'rgb(29, 78, 216)'
+  }
+  const style = (locator, property) => locator.evaluate((element, property) =>
+    getComputedStyle(element).getPropertyValue(property), property)
+  const selectedRow = workspace.locator('[data-publishing-post][aria-pressed="true"]')
+  assert.equal(await style(workspace, 'background-color'), palette.canvas, 'Publish canvas follows the active theme')
+  assert.equal(await style(selectedRow, 'background-color'), palette.row, 'Selection uses the theme-specific blue surface')
+  assert.equal(await style(selectedRow, 'border-radius'), '16px', 'Post rows retain the reference corner radius')
+  assert.equal(await style(selectedRow, 'border-top-width'), '0px', 'Selection does not add a row border')
+  const selectionShadow = await style(selectedRow, 'box-shadow')
+  assert.ok(selectionShadow.includes(palette.primary) && selectionShadow.includes('2px') && selectionShadow.includes('inset'), 'Selected rows retain the theme-specific blue inset outline')
+  const create = workspace.getByRole('button', { name: 'New post', exact: true }).first()
+  assert.equal(await style(create, 'background-color'), palette.primary, 'The primary action follows the active theme')
+  if (mobile) {
+    const bounds = await create.boundingBox()
+    assert.equal(bounds.width, 44, 'Mobile New post is a compact circular action')
+    assert.equal(bounds.height, 44)
+    assert.equal(await style(create, 'border-radius'), '50%')
+  } else {
+    assert.equal(await style(preview, 'background-color'), palette.surface)
+    assert.equal(await style(preview, 'border-radius'), '24px')
+    assert.equal(await style(preview, 'border-top-width'), '0px')
+    assert.equal(await style(create, 'border-radius'), '999px')
+    const status = row(0).locator('[data-status="scheduled"]')
+    assert.equal(await style(status, 'background-color'), palette.info)
+    assert.equal(await style(status, 'color'), palette.infoText)
+    assert.equal(await style(status, 'border-radius'), '999px')
+  }
+}
+
+async function switchTheme(theme) {
+  await page.waitForLoadState('networkidle')
+  await page.evaluate(() => {
+    window.publishingThemeProbe = {
+      document,
+      workspace: document.querySelector('[data-publishing-workspace]'),
+      selectedRow: document.querySelector('[data-publishing-post][aria-pressed="true"]'),
+      selectedTab: document.querySelector('[role="tab"][aria-selected="true"]'),
+      preview: document.querySelector('[data-post-preview]'),
+      dialog: document.querySelector('[role="dialog"]'),
+      savedView: sessionStorage.getItem('sneepcut:publishing-view:v1')
+    }
+  })
+  await page.emulateMedia({ colorScheme: theme })
+  await page.waitForFunction(theme => document.documentElement.classList.contains(theme), theme)
+  await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))))
+  const retained = await page.evaluate(() => {
+    const probe = window.publishingThemeProbe
+    return {
+      document: probe?.document === document,
+      workspace: probe?.workspace === document.querySelector('[data-publishing-workspace]'),
+      selectedRow: probe?.selectedRow === document.querySelector('[data-publishing-post][aria-pressed="true"]'),
+      selectedTab: probe?.selectedTab === document.querySelector('[role="tab"][aria-selected="true"]'),
+      preview: probe?.preview === document.querySelector('[data-post-preview]'),
+      dialog: probe?.dialog === document.querySelector('[role="dialog"]'),
+      savedView: probe?.savedView === sessionStorage.getItem('sneepcut:publishing-view:v1')
+    }
+  })
+  for (const [name, stable] of Object.entries(retained)) {
+    assert.equal(stable, true, `Switching to ${theme} preserves ${name}`)
+  }
+  await assertShell()
+}
+
 async function capture(name) {
   await mkdir(output, { recursive: true })
   await page.evaluate(() => {
@@ -199,7 +278,7 @@ async function capture(name) {
   // Native video controls finish their loading fade after the media request;
   // settling the network also keeps captures free of that transient throbber.
   await page.waitForLoadState('networkidle')
-  await page.screenshot({ path: fileURLToPath(new URL(`${name}.png`, output)), fullPage: true })
+  await page.screenshot({ path: fileURLToPath(new URL(`${name}.png`, output)), fullPage: false })
 }
 
 async function rememberShell() {
@@ -265,6 +344,14 @@ async function verifyEmptyMonth() {
   }
   await selectTab('Scheduled', [])
   await capture('desktop-empty-month')
+  const emptyRange = requestedRanges.at(-1)
+  await page.getByRole('button', { name: 'New post', exact: true }).first().click()
+  await page.getByRole('button', { name: 'Back to publishing', exact: true }).waitFor()
+  await page.getByRole('button', { name: 'Back to publishing', exact: true }).click()
+  await page.getByRole('button', { name: /Previous (month|period)/i }).waitFor()
+  await assertRows([])
+  assert.equal(requestedRanges.at(-1).start, emptyRange.start, 'Returning from a new post restores the selected month')
+  assert.equal(await tab('Scheduled').getAttribute('aria-selected'), 'true')
   await page.getByRole('button', { name: /Previous (month|period)/i }).click()
   await assertRows([0, 1, 2, 3, 4])
   await page.getByRole('button', { name: /Next (month|period)/i }).click()
@@ -276,9 +363,14 @@ async function verifyEmptyMonth() {
 try {
   await page.goto(`${origin}/dashboard/publish`, { waitUntil: 'networkidle', timeout: 180000 })
   await workspace.waitFor()
-  await assertRows([0, 1, 2, 3, 4])
+  await assertRows([0, 1, 2, 3, 4, 5, 6])
+  assert.equal(await tab('All').getAttribute('aria-selected'), 'true')
+  await workspace.getByRole('heading', { name: 'Undated', exact: true }).waitFor()
+  await workspace.getByRole('button', { name: 'Resolve', exact: true }).click()
+  await assertPreview(4)
   await row(0).click()
   await assertPreview(0)
+  await assertReferenceStyles()
   const player = preview.locator('video')
   await player.evaluate(element => { element.preload = 'auto'; element.load() })
   await page.waitForFunction(() => document.querySelector('[data-publishing-preview] video')?.readyState >= 2)
@@ -319,6 +411,7 @@ try {
   await assertPreview(4)
   await preview.getByText(posts[4].publishingError, { exact: true }).waitFor()
 
+  await selectTab('Scheduled', [0, 1, 2, 3, 4])
   await tab('Scheduled').focus()
   await tab('Scheduled').press('ArrowRight')
   await page.waitForFunction(() => [...document.querySelectorAll('[role="tab"]')].some(element => element.textContent === 'Drafts' && element.getAttribute('aria-selected') === 'true'))
@@ -336,7 +429,7 @@ try {
   await assertShell()
   console.log('Status groups retain scheduled, publishing, failed, draft and published posts; tab keys and month navigation pass')
 
-  await page.getByRole('button', { name: 'Manage', exact: true }).click()
+  await page.getByRole('button', { name: /^TikTok – Connected$/ }).click()
   const connections = page.getByRole('dialog', { name: 'Connected accounts', exact: true })
   await connections.waitFor()
   for (const name of Object.values(providerNames)) await connections.getByText(name, { exact: true }).first().waitFor()
@@ -345,12 +438,28 @@ try {
   await assertShell()
 
   await row(0).click()
+  await page.setViewportSize({ width: 1488, height: 600 })
+  await page.evaluate(() => window.scrollTo(0, 180))
   await preview.getByRole('button', { name: 'Edit post', exact: true }).click()
+  const rememberedScroll = await page.evaluate(() => JSON.parse(sessionStorage.getItem('sneepcut:publishing-view:v1')).scrollY)
+  assert.ok(rememberedScroll > 0, 'The route transition remembers a nonzero queue scroll position')
   await page.waitForURL(url => url.pathname.endsWith(`/dashboard/publish/${id(0)}/edit`))
   await page.getByText('More options', { exact: true }).click()
   await page.getByLabel('Post title', { exact: true }).waitFor()
   assert.equal(await page.getByLabel('Post title', { exact: true }).inputValue(), posts[0].title)
   await assertShell()
+  await page.getByRole('button', { name: 'Back to publishing', exact: true }).click()
+  await workspace.waitFor()
+  await assertRows([0, 1, 2, 3, 4])
+  await page.waitForFunction(expected => Math.abs(window.scrollY - expected) < 2, rememberedScroll)
+  await page.setViewportSize({ width: 1488, height: 1058 })
+  assert.equal(await tab('Scheduled').getAttribute('aria-selected'), 'true', 'Editor return retains the queue filter')
+  await assertPreview(0)
+  await preview.getByRole('button', { name: 'Publish now', exact: true }).click()
+  await page.waitForURL(url => url.searchParams.get('mode') === 'publish')
+  await page.getByRole('tab', { name: 'Publish now', exact: true }).waitFor()
+  assert.equal(await page.getByRole('tab', { name: 'Publish now', exact: true }).getAttribute('aria-selected'), 'true', 'Quick publish opens the validated editor in Publish now mode')
+  assert.deepEqual(blockedMutations, [], 'Opening quick publish does not publish automatically')
   await page.getByRole('button', { name: 'Back to publishing', exact: true }).click()
   await workspace.waitFor()
   await page.getByRole('button', { name: 'New post', exact: true }).first().click()
@@ -364,15 +473,15 @@ try {
   await assertShell()
   console.log('Manage dialog and existing New/Edit routes work without API mutations or dashboard remounts')
 
-  await page.emulateMedia({ colorScheme: 'light' })
-  await page.waitForFunction(() => document.documentElement.classList.contains('light'))
+  await switchTheme('light')
   await row(0).click()
   await assertPreview(0)
+  await assertReferenceStyles()
   await assertNoOverflow('Desktop light')
   await capture('desktop-light')
   await assertShell()
-  await page.emulateMedia({ colorScheme: 'dark' })
-  await page.waitForFunction(() => document.documentElement.classList.contains('dark'))
+  await switchTheme('dark')
+  await assertReferenceStyles()
 
   // Reset the detail choice before entering the mobile list, as a fresh visit
   // would. Resizing alone is allowed to retain a desktop selection.
@@ -383,6 +492,21 @@ try {
   await row(0).waitFor({ state: 'visible' })
   await verifyMobileMenu()
   assert.equal(await preview.isVisible(), false, 'Mobile initially shows the post list')
+  await page.getByRole('button', { name: 'Connected accounts', exact: true }).click()
+  await connections.waitFor()
+  const accountSheet = await connections.boundingBox()
+  assert.equal(await connections.evaluate(element => getComputedStyle(element).borderTopLeftRadius), '28px', 'The account sheet retains the reference top corners')
+  assert.equal(await connections.evaluate(element => getComputedStyle(element).backgroundColor), 'rgb(24, 31, 43)', 'The portaled account sheet inherits dark surfaces')
+  assert.ok(accountSheet && Math.abs(accountSheet.x) <= 1 && accountSheet.width >= 388 && accountSheet.x + accountSheet.width <= 391, 'Mobile account management stays within the viewport and uses the full sheet width')
+  assert.ok(Math.abs(accountSheet.y + accountSheet.height - 844) <= 1, 'Mobile account sheet is anchored to the viewport bottom')
+  await page.screenshot({ path: fileURLToPath(new URL('mobile-accounts.png', output)), fullPage: false })
+  await switchTheme('light')
+  assert.equal(await connections.evaluate(element => getComputedStyle(element).backgroundColor), 'rgb(255, 255, 255)', 'The open account sheet switches to light without remounting')
+  await switchTheme('dark')
+  assert.equal(await connections.evaluate(element => getComputedStyle(element).backgroundColor), 'rgb(24, 31, 43)', 'The open account sheet switches back to dark without remounting')
+  await connections.getByRole('button', { name: 'Close dialog', exact: true }).click()
+  await connections.waitFor({ state: 'hidden' })
+  await assertReferenceStyles(true)
   await assertNoOverflow('Mobile dark list')
   await capture('mobile-dark-list')
   await row(0).click()
@@ -407,8 +531,8 @@ try {
     await assertShell()
   }
   await selectTab('Scheduled', [0, 1, 2, 3, 4])
-  await page.emulateMedia({ colorScheme: 'light' })
-  await page.waitForFunction(() => document.documentElement.classList.contains('light'))
+  await switchTheme('light')
+  await assertReferenceStyles(true)
   await assertNoOverflow('Mobile light list')
   await capture('mobile-light-list')
   await row(2).click()
@@ -417,6 +541,37 @@ try {
   await capture('mobile-light-detail')
   await assertShell()
   console.log('Mobile list/detail/back and dark/light layouts pass without horizontal overflow')
+
+  // Distinct empty, no-account, error and loading surfaces use isolated fixtures.
+  await page.setViewportSize({ width: 1488, height: 1058 })
+  calendarState = 'empty'
+  accountState = 'empty'
+  await page.reload({ waitUntil: 'networkidle' })
+  await page.getByRole('heading', { name: 'Connect an account', exact: true }).waitFor()
+  await page.getByRole('button', { name: 'Connect', exact: true }).first().waitFor()
+  await capture('desktop-no-accounts')
+  accountState = 'connected'
+  await page.reload({ waitUntil: 'networkidle' })
+  await page.getByRole('heading', { name: 'No scheduled posts this month', exact: true }).waitFor()
+  await capture('desktop-empty')
+  calendarState = 'error'
+  await page.reload({ waitUntil: 'networkidle' })
+  await workspace.getByRole('alert').waitFor()
+  assert.equal(await workspace.locator('[data-publishing-post]').count(), 0)
+  await capture('desktop-error')
+  calendarState = 'ready'
+  await workspace.getByRole('button', { name: 'Try again', exact: true }).click()
+  await assertRows([0, 1, 2, 3, 4])
+  calendarState = 'loading'
+  await page.reload({ waitUntil: 'domcontentloaded' })
+  await workspace.locator('[aria-busy="true"]').waitFor()
+  await page.screenshot({ path: fileURLToPath(new URL('desktop-loading.png', output)), fullPage: false })
+  assert.ok(pendingCalendar, 'The loading screen is displayed while the request is pending')
+  calendarState = 'ready'
+  await pendingCalendar.fulfill({ json: { posts, clips: calendarClips } })
+  pendingCalendar = null
+  await assertRows([0, 1, 2, 3, 4])
+  console.log('No-account, empty, load-error/retry and loading states pass')
   assert.deepEqual(blockedMutations, [], 'The layout harness makes no API mutations')
   assert.deepEqual(errors, [], 'No browser runtime or console errors')
   console.log('Publishing layout browser checks passed (mocked APIs only)')

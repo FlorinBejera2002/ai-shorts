@@ -1,0 +1,152 @@
+.state {
+  display: flex;
+  min-height: 320px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  border-radius: 24px;
+  background: var(--publish-surface);
+  padding: 24px;
+  color: var(--publish-text);
+  text-align: center;
+  box-shadow: var(--publish-card-shadow);
+}
+
+.state[data-kind="project"] {
+  border: 2px dashed var(--publish-upload-border-mobile);
+  box-shadow: none;
+}
+
+.icon {
+  display: flex;
+  width: 64px;
+  height: 64px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--publish-inset);
+  color: var(--publish-muted-text);
+}
+
+.state[data-kind="library"] .icon {
+  background: var(--publish-info-bg);
+  color: var(--publish-primary);
+}
+
+.state[data-kind="error"] .icon {
+  background: var(--publish-danger-bg);
+  color: var(--publish-danger);
+}
+
+.icon svg {
+  width: 28px;
+  height: 28px;
+}
+
+.state h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+.state p {
+  margin: 0;
+  color: var(--publish-secondary-text);
+  font-size: 14px;
+}
+
+.primary,
+.selected {
+  display: inline-flex;
+  height: 48px;
+  align-items: center;
+  border: 0;
+  border-radius: 999px;
+  padding: 0 22px;
+  font-size: 15px;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.primary {
+  background: var(--publish-primary);
+  color: var(--publish-on-primary);
+}
+
+.primary:hover {
+  background: var(--publish-primary-hover);
+}
+
+.selected {
+  background: var(--publish-selected);
+  color: var(--publish-on-selected);
+}
+
+.selected:hover {
+  background: var(--publish-selected-hover);
+}
+
+.primary:focus-visible,
+.selected:focus-visible {
+  outline: 2px solid var(--publish-primary);
+  outline-offset: 2px;
+}
+
+.skeleton {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 18px;
+}
+
+.tile {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.thumb,
+.line {
+  background: var(--publish-secondary);
+  animation: pulse 1.4s ease-in-out infinite;
+}
+
+.thumb {
+  aspect-ratio: 9 / 14;
+  border-radius: 18px;
+}
+
+.line {
+  width: 80%;
+  height: 14px;
+  border-radius: 99px;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: .55; }
+  50% { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .thumb,
+  .line {
+    animation: none;
+  }
+}
+
+@media (max-width: 1023px) {
+  .state {
+    min-height: 260px;
+  }
+
+  .skeleton {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+  }
+
+  .thumb {
+    border-radius: 16px;
+  }
+}

@@ -7,14 +7,17 @@ import type { PublishingImageUserTag } from '@/lib/content-calendar'
 import { Plus, X } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useId, useState } from 'react'
+import styles from './publishing-image-editor.module.css'
 
 export function PublishingImageTags({
   tags,
   disabled,
+  showLabel = true,
   onChange
 }: {
   tags: PublishingImageUserTag[]
   disabled: boolean
+  showLabel?: boolean
   onChange: (tags: PublishingImageUserTag[]) => void
 }) {
   const t = useTranslations('contentCalendar.imageEditor')
@@ -44,7 +47,7 @@ export function PublishingImageTags({
 
   return (
     <div className="space-y-2">
-      <label htmlFor={inputId} className="text-xs font-semibold">
+      <label htmlFor={inputId} className={showLabel ? 'text-xs font-semibold' : 'sr-only'}>
         {t('tags')}
       </label>
       <p id={`${inputId}-hint`} className="text-[11px] text-muted-foreground">
@@ -88,7 +91,7 @@ export function PublishingImageTags({
         </p>
       )}
       {tags.map((tag, index) => (
-        <div key={tag.username} className="flex items-start gap-1 rounded-md border px-3 py-1">
+        <div key={tag.username} className={styles.tag}>
           <details className="min-w-0 flex-1">
             <summary className="cursor-pointer py-2 text-xs font-medium">
               {index + 1}. @{tag.username}

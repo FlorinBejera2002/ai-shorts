@@ -4,8 +4,8 @@ import { Button } from '@/components/ui/button'
 import { apiFetch } from '@/lib/auth'
 import { extractApiError } from '@/lib/api-error'
 
-const selectedControl = 'bg-foreground text-background hover:bg-foreground/90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2'
-const neutralControl = 'hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2'
+const selectedControl = 'min-h-11 h-auto whitespace-normal bg-foreground text-background hover:bg-foreground/90 focus-visible:ring-2 focus-visible:ring-foreground focus-visible:ring-offset-2'
+const neutralControl = 'min-h-11 h-auto whitespace-normal hover:bg-muted focus-visible:ring-2 focus-visible:ring-foreground focus-visible:ring-offset-2'
 
 type CleanupState = {
   status: 'ready' | 'failed' | 'unchanged' | 'no_audio'
@@ -92,7 +92,7 @@ export function JobAudioCleanup({ job, onRetried }: {
     ? t('unavailable')
     : cleanup?.message?.includes('timed out') ? t('timedOut') : t('failed')
 
-  return <section className="mt-4 space-y-3 rounded-md border p-4" aria-label={t('title')} aria-busy={busy}>
+  return <section className="mt-5 min-w-0 space-y-4 border-t pt-5" aria-label={t('title')} aria-busy={busy}>
     {!stopped && job.status !== 'completed' && <div className="space-y-2">
       <Button className={neutralControl} variant="outline" disabled={busy} onClick={() => void cancel()}>{t('cancel')}</Button>
       {error && <p className="text-sm text-destructive" role="alert">{error}</p>}
@@ -107,7 +107,7 @@ export function JobAudioCleanup({ job, onRetried }: {
       {error && <p className="text-sm text-destructive" role="alert">{error}</p>}
     </div>}
     {job.original_audio_url && <details>
-      <summary className="cursor-pointer text-sm font-medium">{t('compare')}</summary>
+      <summary className="min-h-11 cursor-pointer py-3 text-sm font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground">{t('compare')}</summary>
       <div className="mt-3 space-y-3">
         <div className="flex gap-2">
           <Button className={processed ? neutralControl : selectedControl} size="sm" variant={processed ? 'outline' : 'default'} aria-pressed={!processed} onClick={() => switchAudio(false)}>{t('original')}</Button>

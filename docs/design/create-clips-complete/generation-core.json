@@ -1,0 +1,51 @@
+{
+  "date": "2026-10-23",
+  "latest_sources": [{"name":"desktop-narration-draft.png","source":"C:/Users/flori/.codex/generated_images/01a163b6-f34e-7cb3-bc4e-0f7d3bf800e6/exec-2c256d46-ca9c-4214-b2b1-cb39994bd53d.png"},{"name":"mobile-narration-draft.png","source":"C:/Users/flori/.codex/generated_images/01a163b6-f34e-7cb3-bc4e-0f7d3bf800e6/exec-471f9fe6-b00c-4cf9-936c-9bc45e834ce0.png"},{"name":"desktop-story-captions.png","source":"C:/Users/flori/.codex/generated_images/01a163b6-f34e-7cb3-bc4e-0f7d3bf800e6/exec-e6d7b513-1bcf-473b-8bd2-34efe859aea6.png"},{"name":"mobile-story-captions.png","source":"C:/Users/flori/.codex/generated_images/01a163b6-f34e-7cb3-bc4e-0f7d3bf800e6/exec-652cf29d-84db-43f6-bff4-bab999d046fb.png"},{"name":"desktop-story-delete.png","source":"C:/Users/flori/.codex/generated_images/01a163b6-f34e-7cb3-bc4e-0f7d3bf800e6/exec-48090891-04fe-47cf-8363-76d62475ae56.png"},{"name":"mobile-story-delete.png","source":"C:/Users/flori/.codex/generated_images/01a163b6-f34e-7cb3-bc4e-0f7d3bf800e6/exec-cf510422-b199-479b-a537-986c513bd8b4.png"},{"name":"desktop-story-load-error.png","source":"C:/Users/flori/.codex/generated_images/01a163b6-f34e-7cb3-bc4e-0f7d3bf800e6/exec-7f14b8cd-31df-46a5-8b68-debed1c3697e.png"},{"name":"mobile-story-load-error.png","source":"C:/Users/flori/.codex/generated_images/01a163b6-f34e-7cb3-bc4e-0f7d3bf800e6/exec-740e1423-c6ed-47b4-a5f9-b3bd42d95f97.png"},{"name":"mobile-job-completed.png","source":"C:/Users/flori/.codex/generated_images/01a163b6-f34e-7cb3-bc4e-0f7d3bf800e6/exec-048667b1-7983-4844-be14-fc746a75ba75.png"},{"name":"desktop-job-load-error.png","source":"C:/Users/flori/.codex/generated_images/01a163b6-f34e-7cb3-bc4e-0f7d3bf800e6/exec-a2c4a130-5816-4d44-a4af-07c82f19e9d8.png"},{"name":"mobile-job-load-error.png","source":"C:/Users/flori/.codex/generated_images/01a163b6-f34e-7cb3-bc4e-0f7d3bf800e6/exec-c1b59029-f3f9-4c5c-b939-70ed2cdcb286.png"},{"name":"desktop-music.png","source":"C:/Users/flori/.codex/generated_images/01a163b6-f34e-7cb3-bc4e-0f7d3bf800e6/exec-1bf8faa4-cfeb-4ad6-96eb-6a5d049f998d.png"},{"name":"mobile-music.png","source":"C:/Users/flori/.codex/generated_images/01a163b6-f34e-7cb3-bc4e-0f7d3bf800e6/exec-a234423e-2086-4db9-9d43-cc0c9de866c5.png"},{"name":"desktop-narration-recording.png","source":"C:/Users/flori/.codex/generated_images/01a163b6-f34e-7cb3-bc4e-0f7d3bf800e6/exec-79fa705c-b2df-4cb2-883f-ee8c725055c9.png"},{"name":"mobile-narration-recording.png","source":"C:/Users/flori/.codex/generated_images/01a163b6-f34e-7cb3-bc4e-0f7d3bf800e6/exec-a4b90a4d-297b-4ca2-b58c-b1d6c70dd461.png"},{"name":"desktop-narration-recording.png","source":"C:/Users/flori/.codex/generated_images/01a163b6-f34e-7cb3-bc4e-0f7d3bf800e6/exec-e7657d20-dc12-4191-9894-ea7389f62787.png","revision":"Removed invented noise amount slider; boolean only."},{"name":"mobile-music.png","source":"C:/Users/flori/.codex/generated_images/01a163b6-f34e-7cb3-bc4e-0f7d3bf800e6/exec-82362b82-f95c-49e6-a03b-7974bf0aa852.png","revision":"Horizontal mobile Story steps preserved."}],
+  "sources": [
+    {
+      "name": "desktop-narration-draft.png",
+      "source": "C:/Users/flori/.codex/generated_images/01a163b6-f34e-7cb3-bc4e-0f7d3bf800e6/exec-2c256d46-ca9c-4214-b2b1-cb39994bd53d.png"
+    },
+    {
+      "name": "mobile-narration-draft.png",
+      "source": "C:/Users/flori/.codex/generated_images/01a163b6-f34e-7cb3-bc4e-0f7d3bf800e6/exec-471f9fe6-b00c-4cf9-936c-9bc45e834ce0.png"
+    },
+    {
+      "name": "desktop-story-captions.png",
+      "source": "C:/Users/flori/.codex/generated_images/01a163b6-f34e-7cb3-bc4e-0f7d3bf800e6/exec-e6d7b513-1bcf-473b-8bd2-34efe859aea6.png"
+    },
+    {
+      "name": "mobile-story-captions.png",
+      "source": "C:/Users/flori/.codex/generated_images/01a163b6-f34e-7cb3-bc4e-0f7d3bf800e6/exec-652cf29d-84db-43f6-bff4-bab999d046fb.png"
+    },
+    {
+      "name": "desktop-story-delete.png",
+      "source": "C:/Users/flori/.codex/generated_images/01a163b6-f34e-7cb3-bc4e-0f7d3bf800e6/exec-48090891-04fe-47cf-8363-76d62475ae56.png"
+    },
+    {
+      "name": "mobile-story-delete.png",
+      "source": "C:/Users/flori/.codex/generated_images/01a163b6-f34e-7cb3-bc4e-0f7d3bf800e6/exec-cf510422-b199-479b-a537-986c513bd8b4.png"
+    },
+    {
+      "name": "desktop-story-load-error.png",
+      "source": "C:/Users/flori/.codex/generated_images/01a163b6-f34e-7cb3-bc4e-0f7d3bf800e6/exec-7f14b8cd-31df-46a5-8b68-debed1c3697e.png"
+    },
+    {
+      "name": "mobile-story-load-error.png",
+      "source": "C:/Users/flori/.codex/generated_images/01a163b6-f34e-7cb3-bc4e-0f7d3bf800e6/exec-740e1423-c6ed-47b4-a5f9-b3bd42d95f97.png"
+    },
+    {
+      "name": "mobile-job-completed.png",
+      "source": "C:/Users/flori/.codex/generated_images/01a163b6-f34e-7cb3-bc4e-0f7d3bf800e6/exec-048667b1-7983-4844-be14-fc746a75ba75.png"
+    },
+    {
+      "name": "desktop-job-load-error.png",
+      "source": "C:/Users/flori/.codex/generated_images/01a163b6-f34e-7cb3-bc4e-0f7d3bf800e6/exec-a2c4a130-5816-4d44-a4af-07c82f19e9d8.png"
+    },
+    {
+      "name": "mobile-job-load-error.png",
+      "source": "C:/Users/flori/.codex/generated_images/01a163b6-f34e-7cb3-bc4e-0f7d3bf800e6/exec-c1b59029-f3f9-4c5c-b939-70ed2cdcb286.png"
+    }
+  ],
+  "revision_note": "Final revisions of desktop-narration-draft, desktop-story-captions and mobile-story-delete are recorded in generation-youtube-revisions.json; those final PNGs supersede the first generated sources here."
+}

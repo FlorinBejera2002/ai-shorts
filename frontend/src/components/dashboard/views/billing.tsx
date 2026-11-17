@@ -15,6 +15,7 @@ import { useLocale, useTranslations } from 'next-intl'
 import { useSearchParams } from 'next/navigation'
 import { Suspense, useState, type ReactNode } from 'react'
 import styles from '@/components/billing/billing-page.module.css'
+import theme from '@/components/calendar/publishing-theme.module.css'
 
 function BillingFrame({
   children,
@@ -25,7 +26,8 @@ function BillingFrame({
 }) {
   return (
     <div
-      className={styles.workspace}
+      className={`${theme.surface} ${styles.workspace}`}
+      data-reference-surface=""
       data-billing-workspace=""
       data-view={view}
     >

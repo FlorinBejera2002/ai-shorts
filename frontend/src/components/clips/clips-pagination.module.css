@@ -1,70 +1,55 @@
 .pagination {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  justify-content: flex-end;
-  gap: 12px;
-  margin-left: auto;
+  gap: 10px;
+  padding-top: 8px;
 }
 
-.arrow,
-.page {
-  display: inline-flex;
-  width: 44px;
-  height: 44px;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid transparent;
-  border-radius: var(--radius-md);
-  color: var(--muted-foreground);
-  font-size: 13px;
-  font-weight: 500;
-  transition: background-color 150ms, color 150ms;
+.summary {
+  flex: 1;
+  margin: 0;
+  color: var(--publish-secondary-text);
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
 }
 
 .arrow {
-  border-color: var(--border);
-  background: transparent;
-  color: var(--foreground);
+  display: flex;
+  width: 44px;
+  height: 44px;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--publish-surface);
+  color: var(--publish-text);
+  box-shadow: var(--publish-card-shadow);
 }
 
-.page[aria-current='page'] {
-  background: var(--muted);
-  color: var(--foreground);
-  font-weight: 600;
+.arrow svg {
+  width: 18px;
+  height: 18px;
 }
 
-.arrow:not([aria-disabled='true']):hover,
-.page:hover {
-  background: var(--muted);
-  color: var(--foreground);
+a.arrow:hover {
+  background: var(--publish-inset);
 }
 
-.arrow:focus-visible,
-.page:focus-visible {
-  outline: 2px solid var(--foreground);
+a.arrow:focus-visible {
+  outline: 2px solid var(--publish-primary);
   outline-offset: 2px;
 }
 
-.arrow[aria-disabled='true'] {
-  color: var(--muted-foreground);
-  opacity: 0.5;
+.arrow[aria-disabled="true"] {
+  opacity: .5;
 }
 
-.ellipsis {
-  color: var(--muted-foreground);
-  font-size: 13px;
-}
-
-@media (max-width: 767px) {
+@media (max-width: 1023px) {
   .pagination {
-    gap: 8px;
+    padding-top: 4px;
   }
 
-  .arrow,
-  .page {
-    width: 36px;
-    height: 36px;
-    font-size: 12px;
+  .summary {
+    font-size: 13px;
   }
 }

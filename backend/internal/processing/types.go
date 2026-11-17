@@ -17,6 +17,8 @@ type Config struct {
 	AudioCleanupTimeout                                                    time.Duration
 	FFmpegPath, FFprobePath, WhisperPath, WhisperModel, FaceModel, TempDir string
 	StoryWhisperModel, WhisperVADModel, WhisperVADPath                     string
+	YtDlpPath, YouTubeCookiesFile, YouTubeProxy                            string
+	YouTubeTokenProviderURL                                                string
 	Timeout                                                                time.Duration
 }
 
@@ -27,6 +29,11 @@ func ConfigFromEnv(get func(string) string) (Config, error) {
 	}
 	if c.FFprobePath == "" {
 		c.FFprobePath = "ffprobe"
+	}
+	c.YtDlpPath, c.YouTubeCookiesFile, c.YouTubeProxy = get("YTDLP_PATH"), get("YOUTUBE_COOKIES_FILE"), get("YOUTUBE_PROXY")
+	c.YouTubeTokenProviderURL = get("YOUTUBE_TOKEN_PROVIDER_URL")
+	if c.YtDlpPath == "" {
+		c.YtDlpPath = "yt-dlp"
 	}
 	if c.WhisperPath == "" {
 		c.WhisperPath = "whisper-cli"

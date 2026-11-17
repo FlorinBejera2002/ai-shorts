@@ -10,7 +10,9 @@ const { chromium } = await import(pathToFileURL(process.env.PLAYWRIGHT_MODULE).h
 const origin = process.env.FRONTEND_ORIGIN || 'http://127.0.0.1:5173'
 assert.ok(['localhost', '127.0.0.1'].includes(new URL(origin).hostname), 'Use a local Vite server')
 const output = new URL('../test-results/scripts-layout/', import.meta.url)
-const browser = await chromium.launch({ channel: 'chrome', headless: true })
+// PLAYWRIGHT_CHANNEL='' uses Playwright's bundled Chromium instead of Chrome.
+const channel = process.env.PLAYWRIGHT_CHANNEL ?? 'chrome'
+const browser = await chromium.launch({ channel: channel || undefined, headless: true })
 const runtimeErrors = [], unexpectedMutations = [], reports = [], checks = []
 let fastRefreshVerified = false, sourceRestorationVerified = false
 
@@ -82,6 +84,7 @@ async function fixture(options = {}) {
     const restore = path.match(/^\/api\/scripts\/items\/([^/]+)\/versions\/([^/]+)\/restore$/)
     if (path === '/api/scripts/items' && method === 'GET') {
       calls.list.push(Object.fromEntries(url.searchParams))
+      if (await maybeFail(route, 'list')) return
       const query = (url.searchParams.get('query') || '').toLowerCase()
       return route.fulfill({ json: { scripts: records.filter(record =>
         (url.searchParams.get('archived') === 'true' || !record.archived) &&
@@ -179,8 +182,8 @@ async function fixture(options = {}) {
       gates.set(key, { promise, release })
     },
     release(key) { gates.get(key)?.release(); gates.delete(key) },
-    async open() {
-      await page.goto(`${origin}/dashboard/script-generator`, { waitUntil: 'networkidle' })
+    async open(locale = '') {
+      await page.goto(`${origin}${locale ? `/${locale}` : ''}/dashboard/script-generator`, { waitUntil: 'networkidle' })
       await page.locator('[data-script-library]').waitFor()
       await until(() => calls.list.length > 0)
     },
@@ -218,7 +221,7 @@ async function noOverflow(page, label) {
 async function capture(f, name, target) {
   await noOverflow(f.page, name)
   await f.page.mouse.move(0, 0)
-  const menuOpen = await f.page.getByRole('listbox').count() > 0
+  const menuOpen = await f.page.locator('[role="listbox"], [role="menu"], [role="dialog"]').count() > 0
   if (!menuOpen) await f.page.evaluate(() => window.scrollTo(0, 0))
   if (target) await target.screenshot({ path: fileURLToPath(new URL(`${name}.png`, output)) })
   // Radix closes its popup on viewport resize; full-page capture may resize the
@@ -258,8 +261,27 @@ async function newScript(f) {
   await f.editor.waitFor()
 }
 async function backToLibrary(f) {
-  await f.workspace.getByRole('button', { name: 'All scripts', exact: true }).click()
+  await f.workspace.getByRole('button', { name: 'Scripts', exact: true }).click()
   await f.library.waitFor()
+}
+async function moreActions(f) {
+  await f.workspace.getByRole('button', { name: 'More actions', exact: true }).click()
+}
+async function menuAction(f, name) {
+  await moreActions(f)
+  await f.page.getByRole('menuitem', { name, exact: true }).click()
+}
+async function readDownload(download) {
+  const chunks = []
+  for await (const chunk of await download.createReadStream()) chunks.push(chunk)
+  return Buffer.concat(chunks).toString('utf8')
+}
+async function expectStyle(locator, expected, label) {
+  const actual = await locator.evaluate((element, keys) => {
+    const style = getComputedStyle(element)
+    return Object.fromEntries(keys.map(key => [key, style.getPropertyValue(key)]))
+  }, Object.keys(expected))
+  assert.deepEqual(actual, expected, label)
 }
 async function settled(f) {
   await until(() => f.calls.save.length > 0, 'Autosave request missing')
@@ -270,12 +292,23 @@ const sceneToggle = (f, number) => scene(f, number).locator('button[aria-control
 const field = (f, id) => f.page.locator(`#script-${id}`)
 
 async function libraryAndShell() {
-  const f = await fixture()
+  const f = await fixture({ light: true, viewport: { width: 1440, height: 1000 } })
   try {
     await f.open()
     await expectCards(f, 6)
-    const checkboxSize = await f.library.getByRole('checkbox', { name: 'Show archived', exact: true }).boundingBox()
-    assert.ok(Math.abs(checkboxSize.width - checkboxSize.height) < 1, 'Archived checkbox stays square under dashboard input styles')
+    const archivedSwitch = f.library.getByRole('switch', { name: 'Archived', exact: true })
+    const switchSize = await archivedSwitch.boundingBox()
+    assert.deepEqual([Math.round(switchSize.width), Math.round(switchSize.height)], [40, 24], 'Archived switch keeps reference geometry under dashboard input styles')
+    // Reference palette, geometry and typography on the light canvas.
+    await expectStyle(f.page.locator('#dashboard-main'), { 'background-color': 'rgb(245, 247, 251)' }, 'Scripts paints the reference canvas')
+    await expectStyle(f.library.locator('article').first(), {
+      'background-color': 'rgb(255, 255, 255)', 'border-top-left-radius': '22px'
+    }, 'Library card')
+    await expectStyle(f.library.locator('[data-script-new]'), {
+      'background-color': 'rgb(37, 99, 235)', 'border-top-left-radius': '999px', height: '52px'
+    }, 'New script pill')
+    await expectStyle(f.library.getByRole('heading', { level: 1 }), { 'font-size': '34px', 'font-weight': '600' }, 'Library heading')
+    assert.match(await f.library.getByRole('heading', { level: 1 }).evaluate(element => getComputedStyle(element).fontFamily), /Sora/)
     await capture(f, 'desktop-library')
     await f.page.locator('[data-sidebar="trigger"]').filter({ visible: true }).first().click()
     await rememberShell(f.page)
@@ -283,27 +316,29 @@ async function libraryAndShell() {
     const search = f.library.getByRole('searchbox', { name: 'Search scripts', exact: true })
     await search.fill('creative studio')
     await expectCards(f, 1)
-    assert.equal(await f.library.locator('[data-script-card] h2').textContent(), 'Inside the creative studio')
+    assert.equal(await f.library.locator('[data-script-card]').textContent(), 'Inside the creative studio')
     assert.equal(f.calls.list.at(-1).query, 'creative studio')
     await search.fill('no synthetic match')
     await expectCards(f, 0)
-    await f.library.getByText('Your script library is ready', { exact: true }).waitFor()
+    await f.library.getByRole('heading', { name: 'No matching scripts', exact: true }).waitFor()
     await capture(f, 'desktop-library-empty-search')
     await search.fill('')
     await expectCards(f, 6)
-    await f.library.getByRole('checkbox', { name: 'Show archived', exact: true }).check()
+    await archivedSwitch.check()
     await expectCards(f, 7)
     assert.equal(f.calls.list.at(-1).archived, 'true')
     await capture(f, 'desktop-library-archived')
     await openCard(f, 6)
     assert.equal(await field(f, 'title').inputValue(), 'A slower weekend')
     assert.equal(await f.page.locator('#script-status').isDisabled(), true, 'Archived status cannot be changed with a new unarchive action')
-    assert.equal(await f.workspace.getByRole('button', { name: 'Archive', exact: true }).isDisabled(), true)
+    await moreActions(f)
+    assert.equal(await f.page.getByRole('menuitem', { name: 'Archive', exact: true }).isDisabled(), true)
+    await f.page.keyboard.press('Escape')
     assert.equal(await f.workspace.getByRole('button', { name: /Unarchive/i }).count(), 0)
     assert.equal(f.page.url(), route, 'Library/editor are local views of the same route')
     await assertShell(f.page)
     await backToLibrary(f)
-    await f.library.getByRole('checkbox', { name: 'Show archived', exact: true }).uncheck()
+    await archivedSwitch.uncheck()
     await expectCards(f, 6)
     await openCard(f)
     await assertShell(f.page)
@@ -314,27 +349,41 @@ async function libraryAndShell() {
     await f.page.locator('[data-slot="sidebar"] a[href="/dashboard/script-generator"]').filter({ visible: true }).first().click()
     await f.library.waitFor()
     await assertShell(f.page)
-    checks.push('Library search, inclusive archived filter, archived open, local views and route shell identity')
+    checks.push('Library search, archived switch, archived open, local views, reference styles and route shell identity')
   } finally { await f.close() }
+  const failing = await fixture({ light: true, viewport: { width: 1440, height: 1000 } })
+  try {
+    failing.fail('list')
+    await failing.open()
+    const alert = failing.library.getByRole('alert')
+    await alert.getByRole('heading', { name: "Couldn't load scripts", exact: true }).waitFor()
+    await capture(failing, 'desktop-library-load-error')
+    await alert.getByRole('button', { name: 'Retry', exact: true }).click()
+    await expectCards(failing, 6)
+    checks.push('Library load error is retryable')
+  } finally { await failing.close() }
   const unsupported = await fixture({ unsupportedPlatform: true })
   try {
     await unsupported.open()
     await openCard(unsupported)
-    await unsupported.page.locator('#script-platform').getByText('Choose a supported platform', { exact: true }).waitFor()
-    await unsupported.workspace.getByRole('button', { name: 'Generate script', exact: true }).click()
+    const platforms = unsupported.page.locator('#script-platform')
+    assert.equal(await platforms.locator('[aria-checked="true"]').count(), 0, 'Retired platform is not replaced silently')
+    await unsupported.editor.getByText('Choose a supported platform', { exact: true }).first().waitFor()
+    await unsupported.workspace.getByRole('button', { name: 'Regenerate', exact: true }).click()
     await unsupported.page.getByText('Choose a supported platform', { exact: true }).filter({ visible: true }).last().waitFor()
     assert.equal(unsupported.calls.generation.length, 0, 'Unsupported stored platform is validated before generation')
   } finally { await unsupported.close() }
 }
 
 async function briefAndGeneration() {
-  const f = await fixture({ empty: true })
+  const f = await fixture({ empty: true, light: true, viewport: { width: 1440, height: 1000 } })
   try {
     await f.open()
+    await f.library.getByRole('heading', { name: 'No scripts yet', exact: true }).waitFor()
     await capture(f, 'desktop-library-empty')
     await f.page.setViewportSize({ width: 390, height: 844 })
     await capture(f, 'mobile-library-empty')
-    await f.page.setViewportSize({ width: 1488, height: 1058 })
+    await f.page.setViewportSize({ width: 1440, height: 1000 })
     await newScript(f)
     assert.equal(f.calls.create.length, 1, 'New script creates a server draft before opening')
     assert.deepEqual({
@@ -343,25 +392,30 @@ async function briefAndGeneration() {
       style: f.calls.create[0].style, status: f.calls.create[0].status,
       topic: f.calls.create[0].topic, audience: f.calls.create[0].audience
     }, { platform: 'tiktok', duration: 30, language: 'en', tone: 'entertaining', style: 'talking_head', status: 'draft', topic: '', audience: '' })
+    const document = f.editor.locator('[data-script-document]')
+    await document.getByRole('heading', { name: 'Complete the brief', exact: true }).waitFor()
+    await capture(f, 'desktop-document-empty')
     const generate = f.workspace.getByRole('button', { name: 'Generate script', exact: true })
     await generate.click()
     assert.equal(f.calls.generation.length, 0, 'Empty topic does not call generation API')
     await field(f, 'topic').fill('A calm morning routine for busy creators')
     assert.equal(await field(f, 'topic').getAttribute('maxlength'), '1000')
     await field(f, 'audience').fill('Busy creators')
-    await field(f, 'tone').fill('Conversational')
-    await field(f, 'style').fill('Talking head')
-    await f.page.locator('#script-platform').click()
-    for (const name of ['TikTok', 'Instagram Reels', 'Facebook', 'YouTube Shorts'])
-      await f.page.getByRole('option', { name, exact: true }).waitFor()
-    await capture(f, 'desktop-platform-options')
-    await f.page.getByRole('option', { name: 'Instagram Reels', exact: true }).click()
+    await field(f, 'tone').getByRole('radio', { name: 'Educational', exact: true }).click()
+    await field(f, 'style').getByRole('radio', { name: 'Talking Head', exact: true }).press('ArrowRight')
+    assert.equal(await field(f, 'style').getByRole('radio', { name: 'B-Roll', exact: true }).getAttribute('aria-checked'), 'true', 'Arrow keys move the chip selection')
+    await field(f, 'style').getByRole('radio', { name: 'Tutorial', exact: true }).click()
+    const platforms = f.page.locator('#script-platform')
+    for (const name of ['TikTok', 'YouTube Shorts', 'Instagram Reels', 'Facebook'])
+      await platforms.getByRole('radio', { name, exact: true }).waitFor()
+    await platforms.getByRole('radio', { name: 'Instagram Reels', exact: true }).click()
+    assert.equal(await platforms.getByRole('radio', { name: 'Instagram Reels', exact: true }).getAttribute('aria-checked'), 'true')
     await f.page.locator('#script-duration').selectOption('45')
     await f.page.locator('#script-language').selectOption('ro')
     await capture(f, 'desktop-brief')
     await f.page.setViewportSize({ width: 390, height: 844 })
     await capture(f, 'mobile-brief')
-    await f.page.setViewportSize({ width: 1488, height: 1058 })
+    await f.page.setViewportSize({ width: 1440, height: 1000 })
     await settled(f)
     f.hold('generation')
     f.fail('generation')
@@ -369,51 +423,68 @@ async function briefAndGeneration() {
     const generating = f.workspace.getByRole('button', { name: /Generating/i })
     await generating.waitFor()
     assert.equal(await generating.isDisabled(), true)
+    await f.editor.locator('[aria-busy="true"]').getByRole('heading', { name: /Generating/i }).waitFor()
     assert.equal(await field(f, 'topic').inputValue(), 'A calm morning routine for busy creators')
     await capture(f, 'desktop-generating')
     await f.page.setViewportSize({ width: 390, height: 844 })
     await capture(f, 'mobile-generating')
-    await f.page.setViewportSize({ width: 1488, height: 1058 })
+    await f.page.setViewportSize({ width: 1440, height: 1000 })
     f.release('generation')
     await generate.waitFor()
     await f.page.getByText('Synthetic generation failure. Try again.', { exact: true }).waitFor()
     assert.equal(await field(f, 'audience').inputValue(), 'Busy creators')
-    assert.equal(await field(f, 'tone').inputValue(), 'Conversational')
-    assert.equal(await field(f, 'style').inputValue(), 'Talking head')
+    assert.equal(await field(f, 'tone').locator('[aria-checked="true"]').textContent(), 'Educational')
+    assert.equal(await field(f, 'style').locator('[aria-checked="true"]').textContent(), 'Tutorial')
     assert.equal(await f.page.locator('#script-duration').inputValue(), '45')
     assert.equal(await f.page.locator('#script-language').inputValue(), 'ro')
     await capture(f, 'desktop-generation-error')
-    await f.page.setViewportSize({ width: 390, height: 844 })
-    await capture(f, 'mobile-generation-error')
-    await f.page.setViewportSize({ width: 1488, height: 1058 })
     await generate.click()
-    await field(f, 'title').filter({ visible: true }).waitFor()
     await f.page.waitForFunction(() => document.querySelector('#script-title')?.value === 'A better morning routine')
     await until(() => f.calls.save.some(call => call.payload.summary === 'AI generation'))
     assert.deepEqual(f.calls.generation.at(-1), {
       topic: 'A calm morning routine for busy creators', platform: 'instagram', duration: 45,
-      tone: 'Conversational', target_audience: 'Busy creators', language: 'ro', style: 'Talking head'
+      tone: 'educational', target_audience: 'Busy creators', language: 'ro', style: 'tutorial'
     })
     assert.equal(await f.editor.locator('[data-script-scene]').count(), 3)
+    await f.workspace.getByRole('button', { name: 'Regenerate', exact: true }).waitFor()
     await capture(f, 'desktop-document')
     await f.page.setViewportSize({ width: 390, height: 844 })
     await capture(f, 'mobile-document')
-    checks.push('Server draft defaults, topic validation, platform options, preserved loading/failure and generation success')
+    checks.push('Server draft defaults, empty document, topic validation, platform radios, tone/style chips, preserved loading/failure and generation success')
   } finally { await f.close() }
+  const manual = await fixture({ empty: true })
+  try {
+    await manual.open()
+    await newScript(manual)
+    await manual.editor.getByRole('button', { name: "I'll write it", exact: true }).click()
+    await manual.page.waitForFunction(() => document.activeElement?.id === 'script-hook')
+    await manual.editor.getByRole('button', { name: 'Add scene', exact: true }).click()
+    assert.equal(await manual.editor.locator('[data-script-scene]').count(), 1)
+    checks.push('Manual writing starts at the hook without generation')
+  } finally { await manual.close() }
 }
 
 async function documentEditing() {
-  const f = await fixture()
+  const f = await fixture({ light: true, viewport: { width: 1440, height: 1000 } })
   try {
     await f.open()
     await openCard(f)
     await capture(f, 'desktop-document-default')
+    await expectStyle(f.editor.locator('[data-script-toolbar]'), {
+      'background-color': 'rgb(255, 255, 255)', 'border-top-left-radius': '999px'
+    }, 'Editor header bar')
+    await expectStyle(scene(f, 1), { 'box-shadow': 'rgb(37, 99, 235) 0px 0px 0px 2px' }, 'Selected scene ring')
     await rememberShell(f.page)
     await f.page.locator('#script-status').click()
     for (const status of ['Idea', 'Draft', 'In review', 'Ready', 'In production', 'Published'])
       await f.page.getByRole('option', { name: status, exact: true }).waitFor()
+    await capture(f, 'desktop-status-listbox')
     await f.page.getByRole('option', { name: 'Ready', exact: true }).click()
     await until(() => f.records.find(record => record.id === scriptId(0)).status === 'ready')
+    await moreActions(f)
+    await f.page.getByRole('menuitem', { name: 'Download JSON', exact: true }).waitFor()
+    await capture(f, 'desktop-actions-menu')
+    await f.page.keyboard.press('Escape')
     f.fail('save')
     await field(f, 'hook').fill('Give yourself one quiet minute.')
     await f.workspace.getByText('Save failed', { exact: true }).waitFor()
@@ -422,96 +493,118 @@ async function documentEditing() {
     await capture(f, 'desktop-save-error')
     await f.page.setViewportSize({ width: 390, height: 844 })
     await capture(f, 'mobile-save-error')
-    await f.page.setViewportSize({ width: 1488, height: 1058 })
-    await f.workspace.getByRole('button', { name: 'Retry save', exact: true }).click()
+    await f.page.setViewportSize({ width: 1440, height: 1000 })
+    await f.workspace.getByRole('button', { name: 'Retry', exact: true }).click()
     await settled(f)
     assert.equal(f.records.find(record => record.id === scriptId(0)).snapshot.hook, 'Give yourself one quiet minute.')
     const first = scene(f, 1)
     const firstId = await first.getAttribute('data-scene-id')
-    const expand = sceneToggle(f, 1)
-    if (await expand.getAttribute('aria-expanded') !== 'true') await expand.click()
+    assert.equal(await sceneToggle(f, 1).getAttribute('aria-expanded'), 'true', 'First scene is selected by default')
+    assert.equal(await sceneToggle(f, 2).getAttribute('aria-expanded'), 'false', 'Other scenes are collapsed rows')
     await first.getByLabel('Visual', { exact: true }).fill('Open the curtains slowly')
     await first.getByLabel('Dialogue', { exact: true }).fill('Take one quiet breath.')
     await first.getByLabel('Camera', { exact: true }).fill('wide shot')
     await first.getByLabel('Transition', { exact: true }).fill('Dissolve')
     await first.getByLabel('Text overlay', { exact: true }).fill('A calm start')
+    await first.getByLabel('Music', { exact: true }).fill('Soft piano')
     assert.equal(await first.getByRole('button', { name: 'Move scene up', exact: true }).isDisabled(), true)
     await first.getByRole('button', { name: 'Move scene down', exact: true }).click()
     assert.equal(await scene(f, 2).getAttribute('data-scene-id'), firstId, 'Scene identity follows reorder')
     assert.equal(await scene(f, 2).getByLabel('Visual', { exact: true }).inputValue(), 'Open the curtains slowly')
+    assert.equal(await sceneToggle(f, 2).getAttribute('aria-expanded'), 'true', 'Selection follows the moved scene')
     await scene(f, 2).getByRole('button', { name: 'Move scene up', exact: true }).click()
     assert.equal(await scene(f, 1).getAttribute('data-scene-id'), firstId)
+    await sceneToggle(f, 3).click()
+    assert.equal(await sceneToggle(f, 3).getAttribute('aria-expanded'), 'true')
+    assert.equal(await sceneToggle(f, 1).getAttribute('aria-expanded'), 'false', 'Selecting a row collapses the previous scene')
     await f.editor.getByRole('button', { name: 'Add scene', exact: true }).click()
     assert.equal(await f.editor.locator('[data-script-scene]').count(), 4)
     const fourth = scene(f, 4)
+    assert.equal(await sceneToggle(f, 4).getAttribute('aria-expanded'), 'true', 'A new scene opens for editing')
     assert.equal(await fourth.getByRole('button', { name: 'Move scene down', exact: true }).isDisabled(), true)
     await fourth.getByRole('button', { name: 'Delete scene', exact: true }).click()
     assert.equal(await f.editor.locator('[data-script-scene]').count(), 3)
     await field(f, 'cta').fill('Try a calmer morning tomorrow')
     await field(f, 'caption').fill('Start your day with intention')
+    for (const tag of ['morningroutine', 'creators'])
+      await f.editor.getByRole('button', { name: `Remove #${tag}`, exact: true }).click()
     await field(f, 'hashtags').fill('#calm, creators, #morning')
+    await field(f, 'hashtags').press('Enter')
     await until(() => f.records.find(record => record.id === scriptId(0)).snapshot.caption === 'Start your day with intention')
-    assert.deepEqual(f.records.find(record => record.id === scriptId(0)).snapshot.hashtags, ['calm', 'creators', 'morning'])
+    await until(() => f.records.find(record => record.id === scriptId(0)).snapshot.hashtags.join() === 'calm,creators,morning', 'Hashtag chips save in order')
     await capture(f, 'desktop-scene-editor')
     await f.page.setViewportSize({ width: 390, height: 844 })
     await capture(f, 'mobile-scene-editor')
-    await f.page.setViewportSize({ width: 1488, height: 1058 })
+    await f.page.setViewportSize({ width: 1440, height: 1000 })
     // Responsive sidebar variants may change their DOM at a breakpoint. Record
     // the desktop shell again before checking the local Archive transition.
     await noOverflow(f.page, 'Desktop scene editor after resize')
     await rememberShell(f.page)
     await f.workspace.getByRole('button', { name: 'Copy', exact: true }).click()
+    await f.workspace.getByRole('status').filter({ hasText: 'Copied' }).waitFor()
+    await capture(f, 'desktop-copied')
     const clipboard = await f.page.evaluate(() => navigator.clipboard.readText())
     assert.ok(clipboard.includes('A better morning routine') && clipboard.includes('Take one quiet breath.') && clipboard.includes('#calm #creators #morning'))
-    const downloadEvent = f.page.waitForEvent('download')
-    await f.workspace.getByRole('button', { name: /Download/i }).click()
-    const download = await downloadEvent
+    const textDownload = f.page.waitForEvent('download')
+    await f.workspace.getByRole('button', { name: 'Download', exact: true }).click()
+    const text = await textDownload
+    assert.equal(text.suggestedFilename(), 'a-better-morning-routine.txt')
+    assert.ok((await readDownload(text)).includes('Take one quiet breath.'))
+    const jsonDownload = f.page.waitForEvent('download')
+    await menuAction(f, 'Download JSON')
+    const download = await jsonDownload
     assert.equal(download.suggestedFilename(), 'a-better-morning-routine.json')
-    const stream = await download.createReadStream()
-    const chunks = []
-    for await (const chunk of stream) chunks.push(chunk)
-    const json = JSON.parse(Buffer.concat(chunks).toString('utf8'))
+    const json = JSON.parse(await readDownload(download))
     assert.equal(json.scenes[0].visual_description, 'Open the curtains slowly')
     assert.deepEqual(json.hashtags, ['calm', 'creators', 'morning'])
     for (let count = 3; count > 0; count--)
       await scene(f, 1).getByRole('button', { name: 'Delete scene', exact: true }).click()
     assert.equal(await f.editor.locator('[data-script-scene]').count(), 0)
-    for (const [id, expected] of [['cta', 'Try a calmer morning tomorrow'], ['caption', 'Start your day with intention'], ['hashtags', 'calm, creators, morning']]) {
+    for (const [id, expected] of [['cta', 'Try a calmer morning tomorrow'], ['caption', 'Start your day with intention']]) {
       await field(f, id).waitFor({ state: 'visible' })
       assert.equal(await field(f, id).inputValue(), expected, `${id} remains editable after deleting the last scene`)
     }
+    await f.editor.getByRole('button', { name: 'Remove #calm', exact: true }).waitFor()
     await f.editor.getByRole('button', { name: 'Add scene', exact: true }).click()
     assert.equal(await f.editor.locator('[data-script-scene]').count(), 1)
     assert.equal(await field(f, 'caption').inputValue(), 'Start your day with intention')
-    await f.workspace.getByRole('button', { name: 'Archive', exact: true }).click()
+    await menuAction(f, 'Archive')
     await f.library.waitFor()
     await until(() => f.calls.archive.length === 1)
     assert.equal(f.records.find(record => record.id === scriptId(0)).archived, true)
     await expectCards(f, 5)
     await assertShell(f.page)
-    checks.push('Autosave failure/retry, labeled scene edit/reorder/add/delete, metadata fields, clipboard, JSON download and archive')
+    checks.push('Status listbox, autosave failure/retry, single selected scene edit/reorder/add/delete, hashtag chips, clipboard pill, text/JSON downloads and archive')
   } finally { await f.close() }
 }
 
 async function versionsAndCoach() {
-  const f = await fixture()
+  const f = await fixture({ light: true, viewport: { width: 1440, height: 1000 } })
   try {
     await f.open()
     await openCard(f)
     await f.workspace.getByRole('button', { name: 'Versions', exact: true }).click()
-    const versions = f.workspace.locator('[data-script-versions]')
-    await versions.waitFor()
+    const panel = f.page.getByRole('dialog', { name: 'Version history', exact: true })
+    const versions = panel.locator('[data-script-versions]')
     await versions.getByText('Current', { exact: true }).waitFor()
-    assert.equal(await f.page.getByRole('dialog').count(), 0, 'Versions expand inline')
+    assert.equal(f.calls.versions.length, 1)
     assert.equal(await versions.getByRole('button', { name: 'Restore', exact: true }).count(), 2, 'Current version has no Restore')
     assert.equal(await versions.locator('[data-current="true"]').getByRole('button', { name: 'Restore', exact: true }).count(), 0)
     await capture(f, 'desktop-versions')
+    await panel.getByRole('button', { name: 'Close', exact: true }).click()
+    await panel.waitFor({ state: 'detached' })
+    await f.workspace.getByRole('button', { name: 'Versions', exact: true }).click()
     await versions.getByRole('button', { name: 'Restore', exact: true }).first().click()
+    assert.equal(f.calls.versions.length, 2, 'History refreshes each time it opens')
     await until(() => f.calls.restore.length === 1)
     await f.page.waitForFunction(() => document.querySelector('#script-hook')?.value === 'Restored hook from v2')
-    await f.workspace.getByRole('button', { name: /Shooting coach \(3D\)/i }).filter({ visible: true }).first().click()
+    await f.workspace.locator('[data-script-coach-open]').click()
     const coach = f.workspace.locator('[data-shooting-coach]')
     await coach.waitFor()
+    await f.workspace.getByRole('heading', { level: 1, name: 'A better morning routine' }).waitFor()
+    await expectStyle(coach.locator('[data-coach-stage]'), {
+      'background-color': 'rgb(15, 23, 42)', 'border-top-left-radius': '24px', height: '520px'
+    }, 'Coach stage')
     for (const [mode, name] of [['director', 'studio'], ['camera', 'camera'], ['top', 'plan']]) {
       await coach.locator(`[data-coach-view="${mode}"]`).click()
       assert.equal(await coach.locator(`[data-coach-view="${mode}"]`).getAttribute('aria-pressed'), 'true')
@@ -519,12 +612,15 @@ async function versionsAndCoach() {
       await capture(f, `desktop-coach-${name}`, coach)
       await capture(f, `desktop-coach-${name}-page`)
     }
+    const widths = await coach.locator('[data-coach-scene]').evaluateAll(elements => elements.map(element => element.getBoundingClientRect().width))
+    assert.ok(widths.every(width => Math.abs(width - widths[0]) < 2), 'Equal scene durations have equal timeline widths')
     await coach.locator('[data-coach-scene="1"]').click()
-    assert.equal(await coach.locator('[data-coach-scene="1"]').getAttribute('aria-pressed'), 'true')
+    assert.equal(await coach.locator('[data-coach-scene="1"]').getAttribute('aria-current'), 'step')
     await coach.locator('[data-coach-scene="1"]').press('ArrowRight')
-    assert.equal(await coach.locator('[data-coach-scene="2"]').getAttribute('aria-pressed'), 'true')
+    assert.equal(await coach.locator('[data-coach-scene="2"]').getAttribute('aria-current'), 'step')
+    await coach.getByRole('complementary', { name: 'Scene details' }).getByRole('heading', { name: 'Scene 3' }).waitFor()
     await coach.getByRole('button', { name: 'Restart preview', exact: true }).click()
-    assert.equal(await coach.locator('[data-coach-scene="0"]').getAttribute('aria-pressed'), 'true')
+    assert.equal(await coach.locator('[data-coach-scene="0"]').getAttribute('aria-current'), 'step')
     // Restart preserves the existing behavior: playback starts at scene one.
     await coach.getByRole('button', { name: 'Pause preview', exact: true }).click()
     await coach.getByRole('button', { name: 'Play preview', exact: true }).click()
@@ -539,7 +635,7 @@ async function versionsAndCoach() {
       .some(element => /^\d{2}:\d{2}\s*\//.test(element.textContent) && !element.textContent.startsWith('00:00')))
     await f.workspace.getByRole('button', { name: 'Edit script', exact: true }).click()
     const pausedAt = await playbackTime.textContent()
-    await f.workspace.getByRole('button', { name: /Shooting coach \(3D\)/i }).filter({ visible: true }).first().click()
+    await f.workspace.locator('[data-script-coach-open]').click()
     await coach.getByRole('button', { name: 'Play preview', exact: true }).waitFor()
     assert.equal(await playbackTime.textContent(), pausedAt, 'Returning to editor pauses Coach and preserves elapsed time')
     for (const width of [390, 768]) {
@@ -549,9 +645,9 @@ async function versionsAndCoach() {
         await capture(f, `${width === 390 ? 'mobile' : 'tablet'}-coach-${name}`, coach)
         if (width === 390) await capture(f, `mobile-coach-${name}-page`)
       }
-      const clippedTimes = await coach.locator('[data-coach-scene] [class*="sceneTime"]').evaluateAll(elements =>
+      const clippedTimes = await coach.locator('[data-coach-scene] [class*="timelineDuration"]').evaluateAll(elements =>
         elements.filter(element => element.scrollWidth > element.clientWidth + 1).map(element => element.textContent))
-      assert.deepEqual(clippedTimes, [], `${width}px scene time ranges stay readable without clipping`)
+      assert.deepEqual(clippedTimes, [], `${width}px scene durations stay readable without clipping`)
       const playSize = await coach.locator('[data-coach-play]').boundingBox()
       assert.ok(Math.abs(playSize.width - playSize.height) < 1, 'Coach Play control stays square before applying full circular radius')
       assert.equal(await coach.locator('[data-coach-play]').evaluate(element => {
@@ -559,47 +655,93 @@ async function versionsAndCoach() {
         return radius.includes('%') ? parseFloat(radius) >= 50 : parseFloat(radius) >= element.clientHeight / 2
       }), true, 'Coach Play keeps its circular exception')
     }
-    checks.push('Inline version history/older restore and Coach Studio/Camera/Plan, timeline mouse/keyboard, playback and audio controls')
+    checks.push('Version panel close/refresh/restore and Coach Studio/Camera/Plan, proportional timeline, keyboard, playback and audio controls')
   } finally { await f.close() }
 }
 
 async function responsiveVariants() {
   for (const light of [false, true]) {
+    const theme = light ? 'light' : 'dark'
     const f = await fixture({ light, viewport: { width: 390, height: 844 } })
     try {
       await f.open()
       await expectCards(f, 6)
       assert.equal(await f.page.evaluate(() => document.documentElement.classList.contains('dark')), !light)
-      await capture(f, `mobile-library-${light ? 'light' : 'dark'}`)
+      await expectStyle(f.page.locator('#dashboard-main'), { 'background-color': light ? 'rgb(245, 247, 251)' : 'rgb(14, 19, 28)' }, `${theme} canvas`)
+      await capture(f, `mobile-library-${theme}`)
       const positions = await f.library.locator('[data-script-card]').evaluateAll(cards => cards.slice(0, 3).map(card => card.getBoundingClientRect().left))
       assert.ok(positions.every(left => Math.abs(left - positions[0]) < 1), 'Mobile library is one column')
-      await f.library.getByRole('checkbox', { name: 'Show archived', exact: true }).check()
+      await f.library.getByRole('button', { name: 'Show archived', exact: true }).click()
       await expectCards(f, 7)
-      await capture(f, `mobile-library-archived-${light ? 'light' : 'dark'}`)
+      assert.equal(await f.library.getByRole('button', { name: 'Show archived', exact: true }).getAttribute('aria-pressed'), 'true')
+      await capture(f, `mobile-library-archived-${theme}`)
       await openCard(f)
-      await capture(f, `mobile-document-${light ? 'light' : 'dark'}`)
-      const briefToggle = f.workspace.getByRole('button', { name: 'Brief', exact: true })
+      await capture(f, `mobile-document-${theme}`)
+      const briefToggle = f.workspace.locator('[data-brief-toggle]')
       assert.equal(await briefToggle.getAttribute('aria-expanded'), 'false')
+      assert.equal(await field(f, 'topic').isVisible(), false)
       await briefToggle.click()
       assert.equal(await field(f, 'topic').inputValue(), 'A calm morning routine for busy creators')
+      await capture(f, `mobile-brief-open-${theme}`)
       await briefToggle.click()
       assert.equal(await briefToggle.getAttribute('aria-expanded'), 'false')
-      await f.workspace.getByRole('button', { name: 'Versions', exact: true }).click()
-      await f.workspace.locator('[data-script-versions]').waitFor()
-      await f.workspace.locator('[data-script-versions]').getByText('Current', { exact: true }).waitFor()
-      await capture(f, `mobile-versions-${light ? 'light' : 'dark'}`)
+      await moreActions(f)
+      const actions = f.page.getByRole('dialog', { name: 'Script actions', exact: true })
+      for (const name of ['Versions', 'Copy', 'Download', 'Download JSON', 'Archive'])
+        await actions.getByRole('button', { name, exact: true }).waitFor()
+      await capture(f, `mobile-actions-sheet-${theme}`)
+      await actions.getByRole('button', { name: 'Versions', exact: true }).click()
+      const sheet = f.page.getByRole('dialog', { name: 'Versions', exact: true })
+      await sheet.locator('[data-script-versions]').getByText('Current', { exact: true }).waitFor()
+      await capture(f, `mobile-versions-${theme}`)
+      await f.page.keyboard.press('Escape')
+      await sheet.waitFor({ state: 'detached' })
+      await f.workspace.locator('[data-script-coach-open]').click()
+      await f.workspace.locator('[data-shooting-coach]').waitFor()
+      await capture(f, `mobile-coach-${theme}`)
+      await f.workspace.getByRole('button', { name: 'Edit script', exact: true }).click()
       await backToLibrary(f)
       await newScript(f)
-      await capture(f, `mobile-brief-${light ? 'light' : 'dark'}`)
-      await f.page.locator('#script-platform').click()
-      await f.page.getByRole('option', { name: 'TikTok', exact: true }).waitFor()
-      await capture(f, `mobile-platform-options-${light ? 'light' : 'dark'}`)
-      await f.page.keyboard.press('Escape')
-      await f.page.setViewportSize({ width: 1488, height: 1058 })
-      await capture(f, `desktop-brief-${light ? 'light' : 'dark'}`)
+      await capture(f, `mobile-brief-${theme}`)
+      await f.page.setViewportSize({ width: 1440, height: 1000 })
+      await capture(f, `desktop-brief-${theme}`)
+      await f.page.locator('[data-script-library], [data-script-editor]').first().waitFor()
     } finally { await f.close() }
+    const desktop = await fixture({ light, viewport: { width: 1440, height: 1000 } })
+    try {
+      await desktop.open()
+      await expectCards(desktop, 6)
+      await capture(desktop, `desktop-library-${theme}`)
+      await openCard(desktop)
+      await capture(desktop, `desktop-document-${theme}`)
+      await desktop.page.locator('#script-status').click()
+      await desktop.page.getByRole('option', { name: 'Draft', exact: true }).waitFor()
+      await capture(desktop, `desktop-status-listbox-${theme}`)
+      await desktop.page.keyboard.press('Escape')
+      await desktop.workspace.getByRole('button', { name: 'Versions', exact: true }).click()
+      await desktop.page.getByRole('dialog', { name: 'Version history' }).getByText('Current', { exact: true }).waitFor()
+      await capture(desktop, `desktop-versions-${theme}`)
+      await desktop.page.keyboard.press('Escape')
+      await desktop.workspace.locator('[data-script-coach-open]').click()
+      await desktop.workspace.locator('[data-shooting-coach]').waitFor()
+      await capture(desktop, `desktop-coach-${theme}`)
+    } finally { await desktop.close() }
   }
-  checks.push('390/768/1488px layouts and dark/light themes preserve accessible controls without horizontal overflow')
+  const romanian = await fixture({ light: true, viewport: { width: 1440, height: 1000 } })
+  try {
+    await romanian.open('ro')
+    await expectCards(romanian, 6)
+    await romanian.library.getByRole('heading', { level: 1, name: 'Scripturi', exact: true }).waitFor()
+    await romanian.library.getByRole('button', { name: 'Script nou', exact: true }).waitFor()
+    await romanian.library.getByRole('switch', { name: 'Arhivate', exact: true }).waitFor()
+    await capture(romanian, 'desktop-library-ro')
+    await openCard(romanian)
+    await romanian.workspace.getByRole('button', { name: 'Versiuni', exact: true }).waitFor()
+    await capture(romanian, 'desktop-document-ro')
+    await romanian.page.setViewportSize({ width: 390, height: 844 })
+    await capture(romanian, 'mobile-document-ro')
+  } finally { await romanian.close() }
+  checks.push('390/768/1440px layouts, Romanian labels, mobile sheets and dark/light themes preserve accessible controls without horizontal overflow')
 }
 
 async function fastRefresh() {

@@ -32,7 +32,7 @@ Direcțiile de compoziție sunt cele din galerie: grilă echilibrată, sursă ma
 
 ## Etapa următoare
 
-Se așteaptă alegerea utilizatorului dintre modelele **1–5**. Abia apoi se continuă restul fluxului Create clips și adaptările mobile. [Drafturile inițiale](../create-clips-final/README.md) rămân provizorii; planul anterior pentru fluxul complet este amânat.
+În feedbackul din 23 octombrie, utilizatorul a indicat **Settings left** ca direcție de aprofundat și a cerut [încă două variante în același stil](../create-clips-settings-left/README.md). Numerele 1–5 din acest index rămân specifice setului inițial. Restul fluxului Create clips și adaptările mobile se continuă după alegerea variantei. [Drafturile inițiale](../create-clips-final/README.md) rămân provizorii; planul anterior pentru fluxul complet este amânat.
 
 Imaginile folosesc date fictive. Nu au fost încărcate fișiere, pornite generări video, cheltuite credite sau modificate date din aplicație. Fișierele PNG verifică prezentarea vizuală; nu verifică interacțiuni, accesibilitate sau comportamentul aplicației.
 

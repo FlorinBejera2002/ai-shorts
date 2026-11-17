@@ -67,10 +67,12 @@ import {
   localTimeValue
 } from './calendar-utils'
 import styles from './calendar-workspace.module.css'
+import theme from './publishing-theme.module.css'
 import { PlatformBrandIcon } from '@/components/publishing/platform-brand-icon'
 import { PlatformOptionIcon } from './platform-mark'
 import { SchedulePicker } from './schedule-picker'
 import { PostComposer } from './post-composer'
+import { PostDeleteConfirmation } from './post-delete-confirmation'
 import type { PostComposerForm as FormState, PostComposerErrors as FormErrors } from './post-composer-types'
 import { combineZonedDateTime } from './post-composer-time'
 import { TikTokPostSettings } from './tiktok-post-settings'
@@ -127,7 +129,8 @@ function initialFormState(
   clips: CalendarClipOption[],
   post?: ScheduledPostRecord,
   initialTime?: string,
-  initialClipId?: string
+  initialClipId?: string,
+  initialStatus?: CalendarMutationStatus
 ): FormState {
   const scheduledAt = post
     ? new Date(post.scheduledAt)
@@ -157,9 +160,9 @@ function initialFormState(
     notes: post?.notes ?? '',
     platforms: [...new Set(selectedProviders)],
     accountIds,
-    status: post?.status === 'draft' || post?.status === 'scheduled'
+    status: initialStatus ?? (post?.status === 'draft' || post?.status === 'scheduled'
       ? post.status
-      : 'draft',
+      : 'draft'),
     date: localDateKey(scheduledAt),
     time: post
       ? localTimeValue(scheduledAt)
@@ -211,6 +214,8 @@ export function PostDialog({
   timeZone,
   initialTime,
   initialClipId,
+  initialStatus,
+  onConnectRequest,
   onClose,
   onSave,
   onDelete
@@ -227,6 +232,8 @@ export function PostDialog({
   timeZone: string
   initialTime?: string
   initialClipId?: string
+  initialStatus?: CalendarMutationStatus
+  onConnectRequest?: () => void
   onClose: () => void
   onSave: (payload: PostFormPayload) => Promise<void>
   onDelete?: (platforms: ContentPlatform[]) => Promise<void>
@@ -252,7 +259,8 @@ export function PostDialog({
       clips,
       post,
       initialTime,
-      initialClipId
+      initialClipId,
+      initialStatus
     )
   )
   const [errors, setErrors] = useState<FormErrors>({})
@@ -361,7 +369,7 @@ export function PostDialog({
 
   useEffect(() => {
     setMounted(true)
-    if (isPage) return
+    if (isPage || mode === 'delete') return
     const previousFocus = document.activeElement as HTMLElement | null
     const previousOverflow = document.body.style.overflow
     const appShell =
@@ -424,7 +432,7 @@ export function PostDialog({
       if (!appShellWasInert) appShell?.removeAttribute('inert')
       previousFocus?.focus()
     }
-  }, [isPage])
+  }, [isPage, mode])
 
   useEffect(() => {
     const wasConfirming = wasConfirmingDeleteRef.current
@@ -853,10 +861,25 @@ export function PostDialog({
         ? t('dialog.rescheduleTitle')
         : t('dialog.editTitle')
 
-  if (isPage && !confirmDelete && !isReschedule) {
+  const deleteConfirmation = confirmDelete && <PostDeleteConfirmation
+    busy={busy}
+    deleting={deleting}
+    error={errors.form}
+    canDeleteFromFacebook={canDeleteFromFacebook}
+    requiresManualInstagramDelete={requiresManualInstagramDelete}
+    platforms={deletePlatforms}
+    onPlatformsChange={setDeletePlatforms}
+    onCancel={() => mode === 'delete' ? onClose() : setConfirmDelete(false)}
+    onConfirm={() => void handleDelete()}
+  />
+
+  if (mode === 'delete') return deleteConfirmation
+
+  if (isPage && !isReschedule) {
     return (
+      <>
       <PostComposer
-        title={mode === 'create' ? t('composer.newPost') : dialogTitle}
+        title={mode === 'create' ? t('composer.newPost') : t('dialog.editTitle')}
         form={form}
         errors={errors}
         accounts={publishingAccounts}
@@ -893,6 +916,7 @@ export function PostDialog({
         }}
         onSave={submitPost}
         onClose={onClose}
+        onConnectRequest={onConnectRequest}
         onDelete={mode === 'edit' && onDelete ? () => setConfirmDelete(true) : undefined}
         platformOptions={{
           instagram: selectedInstagramAccount && (
@@ -934,6 +958,8 @@ export function PostDialog({
           )
         }}
       />
+      {deleteConfirmation}
+      </>
     )
   }
 
@@ -1021,10 +1047,11 @@ export function PostDialog({
   const content = (
     <AnimatePresence>
       <div
+        data-publish-surface=""
         className={
           isPage
-            ? `${styles.workspace} dashboard-workspace`
-            : 'fixed inset-0 z-[120] overflow-y-auto'
+            ? `${theme.surface} ${styles.workspace} dashboard-workspace`
+            : `${theme.surface} fixed inset-0 z-[120] overflow-y-auto`
         }
       >
         {isPage && (
@@ -1048,7 +1075,7 @@ export function PostDialog({
         {!isPage && (
           <motion.div
             aria-hidden="true"
-            className="fixed inset-0 bg-slate-950/55 backdrop-blur-[3px]"
+            className={`${theme.overlay} fixed inset-0`}
             initial={reduceMotion ? false : { opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.18 }}
@@ -1202,9 +1229,7 @@ export function PostDialog({
                   <Button
                     type="button"
                     disabled={busy}
-                    onClick={() =>
-                      mode === 'delete' ? onClose() : setConfirmDelete(false)
-                    }
+                    onClick={() => setConfirmDelete(false)}
                     variant="outline"
                     className=""
                   >

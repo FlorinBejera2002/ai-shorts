@@ -13,6 +13,7 @@ import { AlertTriangle, Check, RefreshCw } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { TikTokCoverSettings } from './tiktok-cover-settings'
 import { PostSettingsSection } from './post-settings-section'
+import styles from './post-platform-options.module.css'
 
 function SettingRow({
   checked,
@@ -28,8 +29,8 @@ function SettingRow({
   onCheckedChange: (checked: boolean) => void
 }) {
   return (
-    <div className="flex items-center justify-between gap-3 py-1">
-      <Label htmlFor={id} className="cursor-pointer text-xs text-foreground">
+    <div className={styles.settingRow}>
+      <Label htmlFor={id} className="cursor-pointer text-sm text-foreground">
         {label}
       </Label>
       <Switch
@@ -116,13 +117,8 @@ export function TikTokPostSettings({
                   type="button"
                   disabled={disabled}
                   onClick={() => onChange('privacyLevel', level)}
-                  className={cn(
-                    'rounded-md border px-3 py-2 text-xs font-medium transition-colors',
-                    settings.privacyLevel === level
-                      ? 'border-foreground bg-foreground text-background'
-                      : 'border-border bg-background text-muted-foreground hover:border-foreground/20 hover:text-foreground',
-                    disabled && 'cursor-not-allowed opacity-60'
-                  )}
+                  aria-pressed={settings.privacyLevel === level}
+                  className={styles.choice}
                 >
                   {t.has(`privacyLevels.${level}`)
                     ? t(`privacyLevels.${level}`)
@@ -241,6 +237,7 @@ export function TikTokPostSettings({
             <button
               type="button"
               role="checkbox"
+              aria-label={t('consent')}
               aria-checked={settings.policyConsent}
               disabled={disabled}
               onClick={() =>
@@ -249,7 +246,7 @@ export function TikTokPostSettings({
               className={cn(
                 'mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-sm border transition-colors',
                 settings.policyConsent
-                  ? 'border-foreground bg-foreground text-background'
+                  ? 'border-primary bg-primary text-primary-foreground'
                   : 'border-border bg-background',
                 disabled && 'cursor-not-allowed opacity-60'
               )}

@@ -5,6 +5,9 @@ import { Check } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useEffect, useId, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { PlatformBrandIcon } from '@/components/publishing/platform-brand-icon'
+import theme from './publishing-theme.module.css'
+import styles from './calendar-publishing.module.css'
 
 const CONNECTION_EFFECTS = {
   instagram: { src: '/brand/instagram-connected-effect.svg', durationMs: 2377 },
@@ -55,18 +58,25 @@ export function ConnectionSuccessOverlay({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[200] flex items-center justify-center bg-background/55 backdrop-blur-md animate-in fade-in duration-300 motion-reduce:animate-none"
+      className={`${theme.overlay} fixed inset-0 z-[200] flex items-center justify-center animate-in fade-in duration-300 motion-reduce:animate-none`}
       role="status"
       aria-live="polite"
       aria-label={t('connected')}
     >
-      <div className="flex flex-col items-center gap-3 animate-in zoom-in-95 duration-300 motion-reduce:animate-none">
-        {imageState === 'failed' ? (
-          <Check
-            className="size-24 text-success motion-reduce:hidden"
-            aria-hidden="true"
+      <div
+        data-publish-surface=""
+        className={`${theme.surface} ${styles.successCard} animate-in zoom-in-95 duration-300 motion-reduce:animate-none`}
+      >
+        <div className={styles.successProvider}>
+          <PlatformBrandIcon
+            provider={provider}
+            className="size-20 rounded-full"
           />
-        ) : (
+          <span className={styles.successCheck}>
+            <Check aria-hidden="true" />
+          </span>
+        </div>
+        {imageState !== 'failed' && (
           <img
             key={provider}
             // A new confirmation gets its own SVG timeline, even for a cached image.
@@ -74,18 +84,12 @@ export function ConnectionSuccessOverlay({
             width={240}
             height={240}
             alt=""
-            className="size-60 max-h-[70vh] max-w-[70vw] motion-reduce:hidden"
+            className="sr-only"
             onLoad={() => setImageState('ready')}
             onError={() => setImageState('failed')}
           />
         )}
-        <Check
-          className="hidden size-24 text-success motion-reduce:block"
-          aria-hidden="true"
-        />
-        <p className="text-sm font-semibold text-foreground">
-          {t('connected')}
-        </p>
+        <p className={styles.successTitle}>{t('connected')}</p>
       </div>
     </div>,
     document.body

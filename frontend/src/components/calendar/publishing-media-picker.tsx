@@ -166,7 +166,7 @@ export function PublishingMediaPicker({
       >
         {t('form.mediaLabel')}
       </label>
-      {photoEditorEnabled && (
+      {photoEditorEnabled && !isDialog && (
         <PublishingImageFormatSelector
           media={media}
           disabled={disabled}
@@ -212,7 +212,12 @@ export function PublishingMediaPicker({
                 tiktokEnabled={tiktokEnabled}
                 onChange={updated => {
                   if (!disabled) {
-                    onChange(media.map(current =>
+                    // Instagram uses one format for its whole carousel. Commit
+                    // that format only when the focused editor is confirmed.
+                    const formatted = instagramEnabled
+                      ? applyPublishingImageFormat(media, updated.crop?.aspectRatio ?? 'original')
+                      : media
+                    onChange(formatted.map(current =>
                       current.reference === updated.reference ? updated : current
                     ))
                   }

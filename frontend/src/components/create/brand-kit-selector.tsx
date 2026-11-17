@@ -50,15 +50,7 @@ export function BrandKitSelector({
   return (
     <section className="creation-settings-brand">
       <div className="creation-brand-heading">
-        <div>
-          <h3>{t('brandKit')}</h3>
-          <p>{t('brandSelectHint')}</p>
-        </div>
-        <span className="creation-brand-count">
-          {status === 'ready'
-            ? t('brandKitCount', { count: kit ? 1 : 0 })
-            : '—'}
-        </span>
+        <h2>{t('brandKit')}</h2>
       </div>
       <div className="creation-brand-controls">
         <Select

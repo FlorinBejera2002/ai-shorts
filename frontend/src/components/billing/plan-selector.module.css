@@ -2,6 +2,9 @@
   padding-top: 0.8rem;
 }
 .plans {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
   min-width: 0;
   border: 0;
   padding: 0;
@@ -14,29 +17,35 @@
 }
 .plan {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto 2.5rem;
-  align-items: center;
-  gap: 2rem;
-  padding: 1.35rem 0.8rem;
-  border: 1px solid transparent;
-  border-bottom-color: var(--border);
-  border-radius: 0;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas: 'desc radio' 'price price';
+  align-items: start;
+  gap: 10px 16px;
+  padding: 18px;
+  border: 2px solid var(--publish-border);
+  border-radius: 18px;
+  background: var(--publish-surface);
   cursor: pointer;
 }
+.plan > :first-child { grid-area: desc; }
+.plan input[type='radio'] { grid-area: radio; }
 .plan[data-disabled='true'] {
   cursor: default;
 }
+.plan[data-disabled='true'] {
+  opacity: .55;
+}
 .plan[data-selected='true'] {
-  border-color: var(--foreground);
-  border-radius: var(--radius-md);
+  border-color: var(--publish-primary);
+  background: var(--publish-info-bg);
 }
 .plan:not([data-disabled='true']):hover {
-  background: color-mix(in oklch, var(--muted) 60%, transparent);
+  border-color: var(--publish-border-strong);
 }
 .plan:has(input:focus-visible) {
   outline: 2px solid var(--ring);
   outline-offset: 3px;
-  border-radius: var(--radius-md);
+  border-radius: 18px;
 }
 .name {
   display: flex;
@@ -44,29 +53,34 @@
   align-items: center;
   gap: 0.85rem;
   margin-bottom: 0.3rem;
-  font-size: 1.4rem;
-  font-weight: 650;
+  font-family: 'Sora Variable', Sora, sans-serif;
+  font-size: 18px;
+  font-weight: 600;
 }
 .name .current {
-  padding: 0.25rem 0.6rem;
-  border-radius: var(--radius-sm);
-  background: var(--muted);
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--publish-secondary);
+  font-family: 'Inter Variable', Inter, sans-serif;
   font-size: 0.75rem;
   font-weight: 500;
 }
 .description p {
-  line-height: 1.65;
-  font-size: 1rem;
+  line-height: 1.5;
+  font-size: 13px;
+  color: var(--publish-secondary-text);
 }
 .description .features {
-  color: var(--muted-foreground);
-  font-size: 0.9rem;
+  color: var(--publish-muted-text);
+  font-size: 13px;
 }
 .price {
+  grid-area: price;
   display: flex;
   align-self: start;
   align-items: baseline;
-  justify-content: flex-end;
+  justify-content: flex-start;
+  font-family: 'Sora Variable', Sora, sans-serif;
   gap: 0.3rem;
   padding-top: 0.15rem;
   white-space: nowrap;
@@ -82,36 +96,39 @@
   appearance: none;
   width: 1.5rem;
   height: 1.5rem;
-  border: 2px solid var(--muted-foreground);
+  border: 2px solid var(--publish-border-strong);
   border-radius: 9999px;
   background: transparent;
   outline: none;
 }
 .plan input[type='radio']:checked {
-  border-color: var(--foreground);
-  background: radial-gradient(circle, var(--foreground) 0 40%, transparent 44%);
+  border-color: var(--publish-primary);
+  background: radial-gradient(circle, var(--publish-primary) 0 40%, transparent 44%);
 }
 .plan input[type='radio']:disabled {
   opacity: 0.4;
 }
 .footer {
-  margin-top: 2rem;
+  margin-top: 18px;
   display: flex;
   flex-direction: column;
-  gap: 0.8rem;
+  gap: 10px;
 }
 .footer .continue,
 .footer > div > button {
   width: 100%;
-  min-height: 3rem;
-  font-size: 0.95rem;
-  color: var(--background);
-  background: var(--foreground);
-  border-radius: var(--radius-md);
+  min-height: 54px;
+  border: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--publish-on-primary);
+  background: var(--publish-primary);
+  border-radius: 999px;
+  box-shadow: var(--publish-primary-shadow);
 }
 .footer .continue:hover,
 .footer > div > button:hover {
-  background: color-mix(in oklch, var(--foreground) 90%, transparent);
+  background: var(--publish-primary-hover);
 }
 .footer p {
   text-align: center;
@@ -120,11 +137,12 @@
   line-height: 1.5;
 }
 .footer .cancel {
-  min-height: 2.8rem;
-  margin-top: 0.3rem;
+  min-height: 48px;
   width: 100%;
-  border-radius: var(--radius-md);
-  background: transparent;
+  border: 0;
+  border-radius: 999px;
+  background: var(--publish-secondary);
+  font-weight: 600;
 }
 @media (max-width: 767px) {
   .selector {
@@ -134,10 +152,12 @@
     margin-bottom: 0.5rem;
     font-size: 0.95rem;
   }
+  .plans {
+    grid-template-columns: minmax(0, 1fr);
+  }
   .plan {
-    grid-template-columns: minmax(0, 1fr) auto 1.4rem;
-    gap: 0.8rem;
-    padding: 1.4rem 0.2rem;
+    gap: 6px 12px;
+    padding: 16px;
   }
   .name {
     font-size: 1.25rem;

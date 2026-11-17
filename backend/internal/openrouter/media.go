@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"strings"
 
 	"sneepcut/backend-go/internal/aiprovider"
@@ -48,11 +49,51 @@ func (c *Client) ReviewMedia(ctx context.Context, prompt string, media []aiprovi
 	if err != nil {
 		return "", err
 	}
+	return mediaReviewContent(data)
+}
+
+// mediaReviewContent accepts string or text-part content. Failures report only
+// the provider's error code or finish reason, never the upstream body.
+func mediaReviewContent(data []byte) (string, error) {
 	var result struct {
-		Choices []struct{ Message struct{ Content string } }
+		Choices []struct {
+			FinishReason string `json:"finish_reason"`
+			Message      struct {
+				Content json.RawMessage `json:"content"`
+			} `json:"message"`
+		} `json:"choices"`
+		Error *struct {
+			Code any `json:"code"`
+		} `json:"error"`
 	}
-	if json.Unmarshal(data, &result) != nil || len(result.Choices) == 0 || strings.TrimSpace(result.Choices[0].Message.Content) == "" {
+	if json.Unmarshal(data, &result) != nil {
 		return "", errors.New("media reviewer returned an invalid response")
 	}
-	return result.Choices[0].Message.Content, nil
+	if result.Error != nil {
+		return "", fmt.Errorf("media reviewer returned provider error %v", result.Error.Code)
+	}
+	if len(result.Choices) == 0 {
+		return "", errors.New("media reviewer returned no choices")
+	}
+	choice := result.Choices[0]
+	var text string
+	if json.Unmarshal(choice.Message.Content, &text) != nil {
+		var parts []struct {
+			Type string `json:"type"`
+			Text string `json:"text"`
+		}
+		if json.Unmarshal(choice.Message.Content, &parts) == nil {
+			var joined strings.Builder
+			for _, part := range parts {
+				if part.Type == "text" {
+					joined.WriteString(part.Text)
+				}
+			}
+			text = joined.String()
+		}
+	}
+	if strings.TrimSpace(text) == "" {
+		return "", fmt.Errorf("media reviewer returned no content (finish_reason=%q)", choice.FinishReason)
+	}
+	return text, nil
 }

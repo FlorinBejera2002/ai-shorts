@@ -17,31 +17,29 @@ export function PublishingUploadProgress({
 
   return (
     <span
-      className="flex w-full min-w-0 flex-col items-center text-center"
+      className="flex w-full min-w-0 items-center gap-3 text-left"
       role="status"
       aria-live="polite"
       aria-atomic="true"
     >
-      <span className="flex size-20 items-center justify-center overflow-hidden">
-        <LoadingIndicator className="size-48 max-w-none motion-reduce:hidden" />
+      <span className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-sm bg-muted">
+        <LoadingIndicator className="size-5 motion-reduce:hidden" />
         <ImagePlus
-          className="hidden size-9 motion-reduce:block"
+          className="hidden size-5 motion-reduce:block"
           aria-hidden="true"
         />
       </span>
-      <span className="mt-2 text-sm font-semibold text-foreground">
-        {t('mediaProgress', { current, total })}
-      </span>
-      <span className="mt-1 w-full truncate text-xs text-muted-foreground">
-        {filename}
-      </span>
-      <span className="mt-4 flex w-40 max-w-full gap-1.5" aria-hidden="true">
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-xs font-medium">{filename}</span>
+        <span className="mt-1 block text-[11px] text-muted-foreground">{t('mediaProgress', { current, total })}</span>
+        <span className="mt-2 flex w-full gap-1" aria-hidden="true">
         {Array.from({ length: total }, (_, index) => (
           <span
             key={`upload-${index}`}
-            className={`h-1 flex-1 rounded-full ${index < current - 1 ? 'bg-foreground' : index === current - 1 ? 'animate-pulse bg-foreground/50 motion-reduce:animate-none' : 'bg-border'}`}
+            className={`h-1.5 flex-1 rounded-full ${index < current - 1 ? 'bg-primary' : index === current - 1 ? 'animate-pulse bg-primary/50 motion-reduce:animate-none' : 'bg-border'}`}
           />
         ))}
+        </span>
       </span>
     </span>
   )

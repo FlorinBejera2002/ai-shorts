@@ -88,9 +88,6 @@ function RecentClipCard({ clip }: { clip: ClipPreview }) {
           </div>
         )}
         <span className={styles.duration}>{formattedDuration}</span>
-        <span className={styles.open} aria-hidden="true">
-          <ArrowRight size={21} strokeWidth={1.5} />
-        </span>
       </div>
       <div className={styles.meta}>
         <h3 className={styles.title}>{clip.title}</h3>

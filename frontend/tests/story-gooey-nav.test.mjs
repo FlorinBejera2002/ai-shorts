@@ -40,7 +40,7 @@ test('story Gooey Nav uses a vertical seam without changing label direction or e
   const html = renderToStaticMarkup(React.createElement(exports.GooeyNav, {
     items: [{ label: 'Footage' }, { label: 'Story & audio', disabled: true }],
     value: 0, orientation: 'vertical', currentStep: true, stretch: true,
-    'aria-label': 'Story creation steps', onChange: () => {}
+    'aria-label': 'Clip creation steps', onChange: () => {}
   }))
   assert.match(html, /data-orientation="vertical"/)
   assert.equal((html.match(/aria-current="step"/g) ?? []).length, 1)

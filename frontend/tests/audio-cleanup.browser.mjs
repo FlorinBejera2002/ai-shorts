@@ -76,6 +76,7 @@ try {
     return route.fulfill({ json: {} })
   })
   await page.goto(origin + '/dashboard/create?mode=youtube', { waitUntil: 'domcontentloaded', timeout: 180000 })
+  await page.locator('.creation-advanced > summary').click()
   const toggle = page.locator('#create-noise-reduction')
   await toggle.waitFor({ state: 'visible' })
   assert.equal(await toggle.getAttribute('aria-checked'), 'false')
@@ -84,6 +85,7 @@ try {
   assert.equal(creates.length, 0)
   cleanupAvailable = true
   await page.reload({ waitUntil: 'domcontentloaded' })
+  await page.locator('.creation-advanced > summary').click()
   await page.waitForFunction(() => document.querySelector('#create-noise-reduction')?.disabled === false)
   await toggle.click()
   assert.equal(await toggle.getAttribute('aria-checked'), 'true')

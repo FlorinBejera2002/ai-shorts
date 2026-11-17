@@ -15,31 +15,48 @@ const secondURL = 'https://youtu.be/lmnopqrstuv'
 const user = { id: '00000000-0000-4000-8000-000000000041', email: 'unified-creation@example.invalid', name: 'Synthetic creator', credits: 1000, plan: 'free', access_role: 'member' }
 const limits = { max_file_bytes: 2 * 1024 ** 3, max_total_bytes: 10 * 1024 ** 3, max_source_seconds: 900, max_total_seconds: 3600 }
 const report = []
+const studioPhoto = await readFile(new URL('./fixtures/create-clips/studio-source.png', import.meta.url))
 
-async function installFixtures(page) {
+async function installFixtures(page, account = {}) {
+  const fixtureUser = { ...user, ...account }
   const errors = []
   const projects = new Map()
-  const calls = { uploads: 0, registrations: 0, jobs: [], batches: [], generations: [] }
+  const calls = { uploads: 0, registrations: 0, jobs: [], batches: [], generations: [], assistant: [] }
   let releaseUpload
   const uploadGate = new Promise((resolve) => { releaseUpload = resolve })
   page.on('pageerror', (error) => errors.push(error.message))
+  await page.addInitScript(() => localStorage.setItem('theme', 'dark'))
+  await page.route('**/*', (route) => {
+    const url = new URL(route.request().url())
+    if (['localhost', '127.0.0.1', '[::1]'].includes(url.hostname)) return route.continue()
+    return route.abort('blockedbyclient')
+  })
   await page.route('https://www.youtube.com/oembed**', (route) => route.fulfill({ json: { title: 'Synthetic YouTube title', author_name: 'Fixture author' } }))
   await page.route('https://img.youtube.com/**', (route) => route.fulfill({
-    contentType: 'image/svg+xml',
-    body: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 270"><rect width="480" height="270" fill="#e5e7eb"/><path d="M225 100v70l60-35z" fill="#6b7280"/></svg>'
+    contentType: 'image/png', body: studioPhoto
   }))
   await page.route('**/original/**', (route) => route.fulfill({ status: 204 }))
-  await page.route('**/v1/**', (route) => route.fulfill({ json: { access_token: 'synthetic-token', user } }))
+  await page.route('**/v1/**', (route) => route.fulfill({ json: { access_token: 'synthetic-token', user: fixtureUser } }))
   await page.route('**/api/**', async (route) => {
     const request = route.request()
     const path = new URL(request.url()).pathname
     const method = request.method()
     const reply = (json, status = 200) => route.fulfill({ json, status })
-    if (path === '/api/user/credits') return reply({ credits: 1000 })
+    if (path === '/api/user/credits') return account.creditsUnavailable
+      ? reply({ error: 'Synthetic credits connection failure' }, 503)
+      : reply({ credits: fixtureUser.credits, creditsUnlimited: fixtureUser.access_role === 'admin' })
     if (path === '/api/user/brand') return reply({ brandKit: null })
     if (path === '/api/media-capabilities') return reply({ audio_cleanup: { available: true } })
     if (path === '/api/workspace-agent/runs') return reply({ runs: [], has_more: false })
     if (path === '/api/workspace-agent/suggestions') return reply({ suggestions: [], capabilities: [] })
+    if (path === '/api/assistant/history') return reply({ messages: [] })
+    if (path === '/api/assistant/chat' && method === 'POST') {
+      calls.assistant.push(request.postDataJSON())
+      return reply({ reply: 'Configured three square clips.', actions: [
+        { type: 'update_settings', settings: { clips: 3, aspect_ratio: '1:1', subtitle_style: 'bold', smart_crop: false } },
+        { type: 'set_instructions', instructions: 'Keep the strongest practical tips.' }
+      ] })
+    }
     if (path === '/api/upload/authorize') return reply({ uploadUrl: '/api/upload', token: null })
     if (path === '/api/upload') {
       calls.uploads++
@@ -87,12 +104,68 @@ async function assertSinglePage(page, locale = 'en') {
   assert.equal(await page.getByRole('heading', { level: 1, name: locale === 'ro' ? 'Creează clipuri' : 'Create clips', exact: true }).count(), 1)
   assert.equal(await page.getByRole('button', { name: /^(Multi-clip story|Import a video or link|Poveste din mai multe filmări|Import dintr-un videoclip sau link)$/ }).count(), 0)
   assert.equal(await page.getByRole('tablist').count(), 0, 'Source selection is not duplicated by nested mode tabs')
+  assert.equal(await page.locator('.creation-workspace').getByRole('link', { name: /Write.*script|Scrie.*script/i }).count(), 0, 'No script shortcut in the creation content')
+  assert.equal(await page.locator('.creation-assistant').count(), 0, 'The large default assistant panel is removed')
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false, 'No horizontal page overflow')
   const duplicateIDs = await page.locator('[id]').evaluateAll((nodes) => {
     const seen = new Set()
     return nodes.map((node) => node.id).filter((id) => seen.has(id) || !seen.add(id))
   })
   assert.deepEqual(duplicateIDs, [], 'Both mounted workspaces have unique DOM IDs')
+}
+
+async function assertCreationGeometry(page, viewport) {
+  const elements = await Promise.all([
+    page.getByTestId('creation-settings-inspector'),
+    page.getByTestId('creation-source-media'),
+    page.getByTestId('creation-direction'),
+    page.getByRole('textbox', { name: 'AI direction (optional)', exact: true }),
+    page.getByRole('button', { name: 'Generate', exact: true })
+  ].map(locator => locator.elementHandle()))
+  // Capture every rectangle in the same frame after fonts settle. Separate
+  // browser round trips can observe different scroll/layout positions.
+  const [inspector, source, direction, instructions, action] = await page.evaluate(async nodes => {
+    await document.fonts.ready
+    return nodes.map(node => node?.getBoundingClientRect().toJSON())
+  }, elements)
+  assert.ok(inspector && source && direction && instructions && action, 'Every part of the selected layout is visible')
+  assert.ok(instructions.height <= 104, 'The optional AI field stays about two lines, not a large panel')
+  assert.ok(direction.height <= 150, 'AI direction has a compact label, field and optional counter')
+  for (const locator of [page.locator('#creation-source [role=radio]').first(), page.locator('#youtube-url'),
+    page.getByRole('combobox', { name: 'Subtitles', exact: true }),
+    page.getByRole('button', { name: 'AI Assistant', exact: true }),
+    page.getByRole('button', { name: 'Generate', exact: true })]) {
+    const bounds = await locator.boundingBox()
+    assert.ok(bounds && bounds.height >= 43.9, 'Main creation controls have a real 44px pointer target')
+  }
+  if (viewport.width >= 900) {
+    assert.ok(inspector.x + inspector.width <= source.x + 2, 'Desktop settings are left of the source')
+    assert.ok(source.width >= inspector.width, 'The source uses the larger workspace column')
+    assert.ok(Math.abs(inspector.y - source.y) < 12, 'The two desktop columns start together')
+    assert.ok(action.x < source.x && action.y >= inspector.y + inspector.height - 2, 'Generate follows the left inspector')
+    assert.ok(direction.x >= source.x - 2, 'Small AI direction belongs below the media column')
+  } else {
+    assert.ok(source.y + source.height <= inspector.y + 2, 'Mobile places source before settings')
+    assert.ok(inspector.y + inspector.height <= direction.y + 2,
+      `Mobile AI direction follows the settings: ${JSON.stringify({ viewport, inspector, direction })}`)
+    assert.ok(direction.y + direction.height <= action.y + 32, 'Mobile primary action follows the direction')
+    assert.ok(source.width <= viewport.width, 'Mobile source remains inside the viewport')
+    const generate = page.getByRole('button', { name: 'Generate', exact: true })
+    await generate.scrollIntoViewIfNeeded()
+    const visibleAction = await generate.boundingBox()
+    const dock = await page.locator('[data-mobile-dashboard-dock]').boundingBox()
+    assert.ok(dock && visibleAction.y + visibleAction.height <= dock.y, 'The mobile Generate action scrolls clear of the fixed dock')
+  }
+  const colors = await page.getByRole('button', { name: '9:16', exact: true }).evaluate(node => {
+    const probe = document.createElement('span')
+    probe.style.color = 'var(--publish-primary)'
+    node.append(probe)
+    const primary = getComputedStyle(probe).color
+    probe.remove()
+    return { border: getComputedStyle(node).borderColor, primary }
+  })
+  assert.equal(colors.border, colors.primary, 'The selected aspect ratio uses the reference primary token')
+  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false, 'Creation fits the viewport without horizontal scrolling')
 }
 
 async function changeQuery(page, query) {
@@ -103,7 +176,7 @@ async function changeQuery(page, query) {
 }
 
 try {
-  for (const viewport of [{ width: 1280, height: 960 }, { width: 390, height: 844 }]) {
+  for (const viewport of [{ width: 1487, height: 1058 }, { width: 390, height: 844 }, { width: 320, height: 844 }]) {
     const page = await browser.newPage({ viewport, hasTouch: viewport.width < 600 })
     page.setDefaultTimeout(30000)
     const fixture = await installFixtures(page)
@@ -122,7 +195,7 @@ try {
         await page.waitForFunction((previous) => document.querySelector('[data-slot="sidebar"]')?.dataset.state !== previous, before)
         sidebarState = await desktopSidebar.getAttribute('data-state')
       }
-      const uploadInput = page.getByLabel('Upload story clips')
+      const uploadInput = page.getByLabel('Upload clips')
       assert.equal(await uploadInput.getAttribute('multiple'), '')
       assert.match(await uploadInput.getAttribute('accept'), /video/)
       await uploadInput.setInputFiles({ name: 'phone-video.mp4', mimeType: 'video/mp4', buffer: Buffer.from('synthetic phone footage') })
@@ -142,6 +215,7 @@ try {
       await page.locator('#youtube-url').fill(firstURL)
       await page.getByTestId('youtube-preview').waitFor()
       assert.equal(await generate.isEnabled(), true)
+      await assertCreationGeometry(page, viewport)
       const clips = page.getByRole('slider', { name: 'Clips per video', exact: true })
       await clips.focus()
       await clips.press('ArrowRight')
@@ -198,6 +272,9 @@ try {
       assert.equal('source_file_path' in fixture.calls.jobs[0], false)
       assert.deepEqual(fixture.errors, [])
       report.push({ viewport, uploadRetained: true, draftRetained: true, singleYouTubeRequest: true, layoutIdentity: true })
+    } catch (error) {
+      await page.screenshot({ path: resolve(output, `failure-${viewport.width}.png`), fullPage: true, animations: 'disabled' })
+      throw error
     } finally {
       fixture.releaseUpload()
       await page.close()
@@ -227,7 +304,7 @@ try {
 
     await page.goto(origin + '/dashboard/create?mode=upload', { waitUntil: 'domcontentloaded' })
     await page.getByTestId('story-wizard').waitFor()
-    await page.getByLabel('Upload story clips').setInputFiles({ name: 'query-fixture.mp4', mimeType: 'video/mp4', buffer: Buffer.from('synthetic source') })
+    await page.getByLabel('Upload clips').setInputFiles({ name: 'query-fixture.mp4', mimeType: 'video/mp4', buffer: Buffer.from('synthetic source') })
     await page.getByTestId('validated-source').waitFor()
     const project = [...fixture.projects.values()][0]
     const other = structuredClone(project)
@@ -253,9 +330,9 @@ try {
     await changeQuery(page, '?mode=upload')
     await page.getByTestId('validated-source').getByText('other-linked-project.mp4', { exact: true }).waitFor()
     await changeQuery(page, `?story=${other.id}`)
-    await page.getByRole('button', { name: 'New story', exact: true }).click()
+    await page.getByRole('button', { name: 'New project', exact: true }).click()
     await page.getByTestId('validated-source').waitFor({ state: 'detached' })
-    assert.equal(await page.getByLabel('Open story project', { exact: true }).inputValue(), '', 'New story is not overridden by an unchanged linked project query')
+    assert.equal(await page.getByLabel('Open project', { exact: true }).inputValue(), '', 'New story is not overridden by an unchanged linked project query')
     await changeQuery(page, `?story=${project.id}`)
     await page.getByTestId('validated-source').getByText('query-fixture.mp4', { exact: true }).waitFor()
     await page.goto(origin + `/dashboard/create?story=${project.id}&mode=youtube`, { waitUntil: 'domcontentloaded' })
@@ -281,6 +358,78 @@ try {
     report.push({ romanianMobileSources: true })
   } finally { await romanian.close() }
 
+  for (const account of [
+    { credits: 20, label: 'low', blocked: true },
+    { credits: 0, access_role: 'admin', label: 'unlimited', blocked: false },
+    { creditsUnavailable: true, label: 'credits-unavailable', blocked: false }
+  ]) {
+    const page = await browser.newPage({ viewport: { width: 390, height: 844 }, hasTouch: true })
+    const fixture = await installFixtures(page, account)
+    fixture.releaseUpload()
+    try {
+      await page.goto(origin + '/dashboard/create?mode=youtube', { waitUntil: 'domcontentloaded' })
+      await page.locator('#youtube-url').fill(firstURL)
+      await page.getByTestId('youtube-preview').waitFor()
+      const generate = page.getByRole('button', { name: 'Generate', exact: true })
+      if (account.blocked) {
+        await page.getByRole('link', { name: 'Get credits', exact: true }).waitFor()
+        assert.equal(await generate.isDisabled(), true, 'Known insufficient credits disable generation')
+        assert.equal(await page.locator('#youtube-url').inputValue(), firstURL, 'A credit error retains the source')
+      } else {
+        await generate.waitFor({ state: 'visible' })
+        await page.waitForFunction(() => ![...document.querySelectorAll('button')].find(node => node.textContent.trim() === 'Generate')?.disabled)
+        if (account.access_role === 'admin') await page.getByText('Unlimited', { exact: false }).first().waitFor()
+        await generate.click()
+        await page.waitForURL('**/dashboard/jobs/*')
+        assert.equal(fixture.calls.jobs.length, 1, 'An unlimited account or unavailable credits query does not block a valid request')
+      }
+      assert.deepEqual(fixture.errors, [])
+      report.push({ creditState: account.label, blocked: account.blocked, draftRetained: true })
+    } finally { await page.close() }
+  }
+
+  for (const viewport of [{ width: 1487, height: 1058 }, { width: 390, height: 844 }]) {
+    const assistantPage = await browser.newPage({ viewport, hasTouch: viewport.width < 600 })
+    const assistantFixture = await installFixtures(assistantPage)
+    assistantFixture.releaseUpload()
+    try {
+      await assistantPage.goto(origin + '/dashboard/create?mode=youtube', { waitUntil: 'domcontentloaded' })
+      await assistantPage.locator('#youtube-url').fill(firstURL)
+      await assistantPage.getByTestId('youtube-preview').waitFor()
+      assert.equal(await assistantPage.getByRole('dialog', { name: 'AI Assistant', exact: true }).count(), 0, 'Optional chat starts closed')
+      assert.equal(assistantFixture.calls.assistant.length, 0)
+      await assistantPage.getByRole('button', { name: 'AI Assistant', exact: true }).click()
+      const sheet = assistantPage.getByRole('dialog', { name: 'AI Assistant', exact: true })
+      await sheet.waitFor()
+      const sheetBounds = await sheet.boundingBox()
+      if (viewport.width >= 600) assert.ok(sheetBounds.width <= 410, 'Optional desktop assistant stays a narrow sheet')
+      else assert.ok(Math.abs(sheetBounds.width - viewport.width) <= 2, 'Mobile assistant uses the full screen width')
+      await sheet.getByRole('textbox', { name: 'Describe what you want…', exact: true }).fill('Make three square clips with practical tips.')
+      assert.equal(assistantFixture.calls.assistant.length, 0, 'Opening or typing never sends an assistant request')
+      await sheet.getByRole('button', { name: 'Send', exact: true }).click()
+      await sheet.getByText('Configured three square clips.', { exact: true }).waitFor()
+      assert.equal(assistantFixture.calls.assistant.length, 1)
+      assert.equal(assistantFixture.calls.assistant[0].create_state.clips, 5, 'Assistant receives the original controlled form snapshot')
+      assert.equal(assistantFixture.calls.assistant[0].context, 'create')
+      await assistantPage.keyboard.press('Escape')
+      await sheet.waitFor({ state: 'detached' })
+      assert.equal(await assistantPage.getByRole('slider', { name: 'Clips per video', exact: true }).getAttribute('aria-valuenow'), '3')
+      assert.equal(await assistantPage.getByRole('button', { name: '1:1', exact: true }).getAttribute('aria-pressed'), 'true')
+      assert.equal(await assistantPage.locator('#ai-editing-direction').inputValue(), 'Keep the strongest practical tips.')
+      await assistantPage.getByRole('button', { name: 'Generate', exact: true }).click()
+      await assistantPage.waitForURL('**/dashboard/jobs/*')
+      const payload = assistantFixture.calls.jobs[0]
+      assert.equal(payload.num_clips_requested, 3)
+      assert.equal(payload.aspect_ratio, '1:1')
+      assert.equal(payload.subtitle_style, 'bold')
+      assert.equal(payload.smart_crop, false)
+      assert.equal(payload.user_instructions, 'Keep the strongest practical tips.')
+      assert.deepEqual(assistantFixture.errors, [])
+      report.push({ optionalAssistant: true, viewport, explicitSend: true, controlledActionsReachGeneration: true })
+    } finally { await assistantPage.close() }
+  }
+
+  await writeFile(resolve(output, 'report.json'), JSON.stringify(report, null, 2) + '\n')
   console.log('PASS: ' + JSON.stringify(report))
 } finally {
   await browser.close()

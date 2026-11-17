@@ -140,13 +140,13 @@
 }
 
 .settings-connections__primary {
-  background: var(--foreground);
-  color: var(--background);
+  background: var(--publish-primary, var(--foreground));
+  color: var(--publish-on-primary, var(--background));
   box-shadow: none;
 }
 
 .settings-connections__primary:hover {
-  background: color-mix(in srgb, var(--foreground) 90%, var(--background));
+  background: var(--publish-primary-hover, var(--foreground));
 }
 
 .settings-connections__secondary {

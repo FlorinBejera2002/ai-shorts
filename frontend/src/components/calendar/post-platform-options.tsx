@@ -1,21 +1,21 @@
 'use client'
 
-import { PlatformBrandIcon } from '@/components/publishing/platform-brand-icon'
 import { Button } from '@/components/ui/button'
-import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet'
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
+import { PublishingPlatformIcon } from '@/components/publishing/publishing-platform-icon'
 import type { ContentPlatform } from '@/lib/content-calendar'
-import { ArrowLeft, X } from 'lucide-react'
+import { X } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { Tabs } from 'radix-ui'
 import { type ReactNode, useState } from 'react'
-import { CalendarMobileHeader } from './calendar-mobile-header'
 import styles from './post-platform-options.module.css'
+import theme from './publishing-theme.module.css'
 
 const PLATFORM_NAMES: Record<ContentPlatform, string> = {
-  instagram: 'Instagram',
   tiktok: 'TikTok',
-  facebook: 'Facebook',
-  youtube: 'YouTube'
+  youtube: 'YouTube',
+  instagram: 'Instagram',
+  facebook: 'Facebook'
 }
 
 interface PostPlatformOptionsProps {
@@ -36,7 +36,7 @@ export function PostPlatformOptions({
   disabled
 }: PostPlatformOptionsProps) {
   const t = useTranslations('contentCalendar.composer')
-  const [selectedPlatform, setSelectedPlatform] = useState<ContentPlatform>('instagram')
+  const [selectedPlatform, setSelectedPlatform] = useState<ContentPlatform>('tiktok')
   const orderedPlatforms = (Object.keys(PLATFORM_NAMES) as ContentPlatform[])
     .filter(platform => platforms.includes(platform))
   const activePlatform = orderedPlatforms.includes(selectedPlatform)
@@ -44,25 +44,16 @@ export function PostPlatformOptions({
     : orderedPlatforms[0]
 
   return (
-    <Sheet open onOpenChange={open => { if (!open) onCancel() }}>
-      <SheetContent
-        className={styles.drawer}
-        showCloseButton={false}
+    <Dialog open onOpenChange={open => { if (!open) onCancel() }}>
+      <DialogContent
+        className={`${theme.surface} ${styles.drawer}`}
+        overlayClassName={theme.overlay}
         aria-describedby={undefined}
+        data-publish-surface=""
+        data-platform-options=""
       >
-        <div className={styles.mobileHeader}><CalendarMobileHeader /></div>
         <header className={styles.header}>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className={styles.back}
-            aria-label={t('cancel')}
-            onClick={onCancel}
-          >
-            <ArrowLeft className="size-5" />
-          </Button>
-          <SheetTitle className={styles.title}>{t('platformOptions')}</SheetTitle>
+          <DialogTitle className={styles.title}>{t('platformOptions')}</DialogTitle>
           <Button
             type="button"
             variant="ghost"
@@ -86,11 +77,13 @@ export function PostPlatformOptions({
                 <Tabs.Trigger
                   key={platform}
                   value={platform}
+                  data-provider={platform}
                   className={styles.tab}
                   disabled={disabled}
+                  aria-label={PLATFORM_NAMES[platform]}
+                  title={PLATFORM_NAMES[platform]}
                 >
-                  <PlatformBrandIcon provider={platform} className="size-6" />
-                  {PLATFORM_NAMES[platform]}
+                  <PublishingPlatformIcon platform={platform} />
                 </Tabs.Trigger>
               ))}
             </Tabs.List>
@@ -117,12 +110,11 @@ export function PostPlatformOptions({
             type="button"
             onClick={onDone}
             disabled={disabled}
-            className="bg-foreground text-background hover:bg-foreground/90"
           >
             {t('done')}
           </Button>
         </footer>
-      </SheetContent>
-    </Sheet>
+      </DialogContent>
+    </Dialog>
   )
 }

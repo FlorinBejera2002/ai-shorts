@@ -4,6 +4,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import type { PublishingMedia } from '@/lib/content-calendar'
 import type { TikTokDirectPostSettings } from '@/lib/tiktok-direct-post'
 import { useTranslations } from 'next-intl'
+import theme from './publishing-theme.module.css'
 
 export function TikTokCoverSettings({
   idPrefix,
@@ -39,7 +40,7 @@ export function TikTokCoverSettings({
           <SelectTrigger id={id} className="w-full" aria-describedby={`${id}-hint`}>
             <SelectValue />
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent className={theme.surface} data-publish-surface="">
             {media.map((item, index) => (
               <SelectItem key={item.reference} value={String(index)}>
                 {index + 1}. {item.name}
