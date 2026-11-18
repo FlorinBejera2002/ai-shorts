@@ -1,11 +1,12 @@
 import { useId, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { ChevronDown, Music2, Play, X } from 'lucide-react'
+import { ChevronDown, Music2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import type { MusicTrack, StoryMusicOptions } from './types'
 import { StoryMusicCatalog } from './story-music-catalog'
 import { StoryMusicPreview } from './story-music-preview'
-import { useStoryMusicTrack } from './use-story-music'
+import { StoryMusicUpload } from './story-music-upload'
+import { StoryMusicSelection } from './story-music-selection'
 import { useStoryLanguage } from './use-story-language'
 import { StoryHelp } from './story-help'
 
@@ -13,26 +14,28 @@ export function StoryMusic({
   value,
   disabled,
   active,
-  onChange
+  narration = false,
+  onChange,
+  onPending
 }: {
   value?: StoryMusicOptions | null
   disabled: boolean
   active: boolean
+  narration?: boolean
   onChange: (music: StoryMusicOptions | null) => void
+  onPending?: (pending: boolean) => void
 }) {
   const text = useStoryLanguage()
   const id = useId()
   const queryClient = useQueryClient()
   const [browsing, setBrowsing] = useState(false)
+  const [uploading, setUploading] = useState(false)
   const [preview, setPreview] = useState<{
-    track: MusicTrack
+    track: Pick<MusicTrack, 'id' | 'title' | 'preview_url'>
     selection?: string
+    selected?: boolean
   } | null>(null)
-  const selected = useStoryMusicTrack(value?.track_id)
-  const syncDescription = text(
-    'Eligible cuts follow the beat. Speech stays intact, and the music lowers while someone speaks.',
-    'Tăieturile potrivite urmează ritmul. Vorbirea rămâne intactă, iar muzica scade când cineva vorbește.'
-  )
+  const selectionKey = value?.upload_reference || value?.track_id
 
   function select(track: MusicTrack) {
     queryClient.setQueryData(['music-track', track.id], track)
@@ -40,7 +43,9 @@ export function StoryMusic({
     onChange({
       track_id: track.id,
       volume: value?.volume ?? 0.18,
-      sync: value?.sync ?? true
+      sync: value?.sync ?? true,
+      source_audio: value?.source_audio ?? 'preserve',
+      loop: true
     })
   }
 
@@ -57,160 +62,42 @@ export function StoryMusic({
         <h3 className="flex items-center gap-2 text-sm font-medium">
           <Music2 className="size-4" aria-hidden="true" />
           {text('Background music', 'Muzică de fundal')}
-          <span className="rounded-sm bg-muted px-1.5 py-0.5 text-xs font-normal">
-            {text('Free', 'Gratuit')}
-          </span>
           <StoryHelp label={text('Music credits', 'Creditele muzicale')}>
             {text(
-              'Music by Kevin MacLeod. Include the credits when publishing.',
-              'Muzică de Kevin MacLeod. Include creditele când publici.'
+              'Catalog music by Kevin MacLeod. Include the credits when publishing.',
+              'Muzica din catalog este de Kevin MacLeod. Include creditele când publici.'
             )}
           </StoryHelp>
         </h3>
+        <p className="text-xs leading-relaxed text-muted-foreground">
+          {text(
+            'Choose free catalog music or upload your own audio.',
+            'Alege muzică gratuită din catalog sau încarcă propriul fișier audio.'
+          )}
+        </p>
       </div>
       {value && (
-        <div
-          className="space-y-4 rounded-md border p-3"
-          data-testid="selected-music"
-        >
-          <div className="flex min-w-0 items-start justify-between gap-2">
-            <div className="min-w-0 space-y-1">
-              <p className="break-words text-sm font-medium">
-                {selected.data?.title ??
-                  text('Selected music', 'Muzica selectată')}
-              </p>
-              {selected.data && (
-                <p className="text-xs text-muted-foreground">
-                  {selected.data.artist} ·{' '}
-                  <a
-                    className="underline underline-offset-2"
-                    href={selected.data.license_url}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    {selected.data.license}
-                  </a>
-                </p>
-              )}
-              {selected.isLoading && (
-                <p role="status" className="text-xs text-muted-foreground">
-                  {text(
-                    'Loading track details…',
-                    'Se încarcă detaliile piesei…'
-                  )}
-                </p>
-              )}
-              {selected.isError && (
-                <div
-                  role="status"
-                  className="space-y-2 text-xs text-muted-foreground"
-                >
-                  <p>
-                    {text(
-                      'Track details are unavailable. Your choice is still saved.',
-                      'Detaliile piesei nu sunt disponibile. Alegerea ta este salvată.'
-                    )}
-                  </p>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => void selected.refetch()}
-                  >
-                    {text('Retry track details', 'Reîncearcă detaliile piesei')}
-                  </Button>
-                </div>
-              )}
-            </div>
-            <div className="flex shrink-0 gap-1">
-              {selected.data && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  aria-label={text(
-                    'Preview selected music',
-                    'Ascultă muzica selectată'
-                  )}
-                  onClick={() =>
-                    setPreview({
-                      track: selected.data!,
-                      selection: value.track_id
-                    })
-                  }
-                >
-                  <Play className="size-4" aria-hidden="true" />
-                </Button>
-              )}
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                aria-label={text('Remove music', 'Elimină muzica')}
-                onClick={() => {
-                  setPreview(null)
-                  onChange(null)
-                }}
-              >
-                <X className="size-4" aria-hidden="true" />
-              </Button>
-            </div>
-          </div>
-          <div className="space-y-2">
-            <label
-              htmlFor={`${id}-volume`}
-              className="flex items-center justify-between gap-3 text-xs"
-            >
-              <span>{text('Music volume', 'Volumul muzicii')}</span>
-              <span className="tabular-nums">
-                {Math.round(value.volume * 100)}%
-              </span>
-            </label>
-            <input
-              id={`${id}-volume`}
-              type="range"
-              min="0"
-              max="1"
-              step="0.01"
-              value={value.volume}
-              onChange={(event) =>
-                onChange({ ...value, volume: Number(event.target.value) })
-              }
-              className="block w-full accent-foreground"
-            />
-          </div>
-          <div className="flex items-start gap-2">
-            <label className="flex flex-1 items-start gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={value.sync}
-                onChange={(event) =>
-                  onChange({ ...value, sync: event.target.checked })
-                }
-                className="mt-0.5 size-4 shrink-0 accent-foreground"
-                aria-describedby={`${id}-sync-note`}
-              />
-              {text(
-                'Match the edit to the music',
-                'Potrivește montajul cu muzica'
-              )}
-            </label>
-            <span id={`${id}-sync-note`} className="sr-only">
-              {syncDescription}
-            </span>
-            <StoryHelp
-              label={text('About music sync', 'Despre sincronizarea muzicii')}
-            >
-              {syncDescription}
-            </StoryHelp>
-          </div>
-        </div>
+        <StoryMusicSelection
+          value={value}
+          narration={narration}
+          disabled={uploading}
+          onChange={onChange}
+          onRemove={() => {
+            setPreview(null)
+            onChange(null)
+          }}
+          onPreview={(track) =>
+            setPreview({ track, selection: selectionKey, selected: true })
+          }
+        />
       )}
-      {preview && preview.selection === value?.track_id && (
+      {preview && preview.selection === selectionKey && (
         <StoryMusicPreview
           key={preview.track.id}
           track={preview.track}
-          active={active && !disabled}
+          active={active && !disabled && !uploading}
+          startSeconds={preview.selected ? value?.start_seconds : 0}
+          endSeconds={preview.selected ? value?.end_seconds : 0}
           onClose={() => setPreview(null)}
         />
       )}
@@ -218,6 +105,7 @@ export function StoryMusic({
         type="button"
         variant="outline"
         className="w-full justify-between"
+        disabled={uploading}
         aria-expanded={browsing}
         aria-controls={`${id}-catalog`}
         onClick={() => {
@@ -235,17 +123,42 @@ export function StoryMusic({
           aria-hidden="true"
         />
       </Button>
-      <div id={`${id}-catalog`}>
+      <fieldset className="min-w-0" disabled={uploading} id={`${id}-catalog`}>
         {browsing && (
           <StoryMusicCatalog
             selectedID={value?.track_id}
             onSelect={select}
             onPreview={(track) =>
-              setPreview({ track, selection: value?.track_id })
+              setPreview({ track, selection: selectionKey })
             }
           />
         )}
-      </div>
+      </fieldset>
+      <StoryMusicUpload
+        disabled={disabled}
+        onPending={(pending) => {
+          setUploading(pending)
+          onPending?.(pending)
+        }}
+        onSelect={(upload) => {
+          if (upload.url)
+            queryClient.setQueryData(
+              ['uploaded-music-preview', upload.file_path],
+              { url: upload.url }
+            )
+          setPreview(null)
+          setBrowsing(false)
+          onChange({
+            track_id: '',
+            upload_reference: upload.file_path,
+            title: upload.file_name,
+            volume: value?.volume ?? 0.18,
+            sync: value?.sync ?? true,
+            source_audio: value?.source_audio ?? 'preserve',
+            loop: true
+          })
+        }}
+      />
     </fieldset>
   )
 }

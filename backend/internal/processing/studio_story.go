@@ -112,10 +112,12 @@ func (p *Processor) RenderStory(ctx context.Context, request story.Request, vers
 		}
 	}
 	transitions := make([]string, len(version.Timeline))
+	transitionDurations := make([]float64, len(version.Timeline))
 	for i, entry := range version.Timeline {
 		transitions[i] = entry.Transition
+		transitionDurations[i] = entry.TransitionSeconds
 	}
-	studioApplyNativeTransitions(&plan, transitions)
+	studioApplyNativeTransitionsWithDurations(&plan, transitions, transitionDurations)
 	if validated.narration != nil {
 		key, e := effectiveStoryAudioKey(request.ID, *validated.narration, request.Options.AudioCleanup)
 		if e != nil {
@@ -196,7 +198,13 @@ func (p *Processor) RenderStory(ctx context.Context, request story.Request, vers
 		return story.Output{}, err
 	}
 	manual, timeline := studioStoryTimeline(result.EffectiveTimeline, request, version, plan)
-	return story.Output{NativeTransitionVersion: studioNativeTransitionVersion, StudioManualEdits: manual, StudioTimeline: timeline, StudioArtifactID: id, Key: prefix + "/clip.mp4", PreviewKey: preview, ThumbnailKey: thumb, Duration: info.Duration, Size: size, Resolution: fmt.Sprintf("%dx%d", info.Width, info.Height), Captions: len(selection.Groups) > 0, CaptionMode: story.EffectiveCaptionMode(request.Options), CaptionWarnings: selection.Warnings, CaptionedCandidateIDs: selection.IDs, Music: storyMusicCredit(request, version)}, nil
+	credit := storyMusicCredit(request, version)
+	if manual && credit != nil {
+		credit.SyncStatus, credit.AdjustedCuts = "unchanged", 0
+		credit.AlignedCuts = 0
+		credit.Explanation = "Your Studio edits were preserved; automatic music alignment is not asserted for the edited composition."
+	}
+	return story.Output{NativeTransitionVersion: studioNativeTransitionVersion, StudioManualEdits: manual, StudioTimeline: timeline, StudioArtifactID: id, Key: prefix + "/clip.mp4", PreviewKey: preview, ThumbnailKey: thumb, Duration: info.Duration, Size: size, Resolution: fmt.Sprintf("%dx%d", info.Width, info.Height), Captions: len(selection.Groups) > 0, CaptionMode: story.EffectiveCaptionMode(request.Options), CaptionWarnings: selection.Warnings, CaptionedCandidateIDs: selection.IDs, Music: credit}, nil
 }
 
 // Audio may come from a source that never appears as a visual. Its preview must
@@ -233,6 +241,9 @@ func (p *Processor) studioSourcePreview(ctx context.Context, dir, project string
 
 func studioMusicCreditOverlay(request story.Request, plan *studioPlan) {
 	track := request.Music.Track
+	if track.Attribution == "" {
+		return
+	}
 	text := "Music: " + storyMusicCreditText(track.Title, 65) + "\n" + storyMusicCreditText(track.Artist, 40) + " · incompetech.com\nCC BY 4.0 · creativecommons.org/licenses/by/4.0/\nTrimmed / looped / mixed"
 	y := float64(plan.Height) * .04
 	if strings.EqualFold(request.Options.SubtitlePosition, "top") {

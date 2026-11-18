@@ -27,10 +27,10 @@ func validateStoryRender(request story.Request, version story.Version) (storyRen
 	if request.Options.DynamicRange != "" && request.Options.DynamicRange != "sdr" && request.Options.DynamicRange != "hdr" {
 		return result, errors.New("unsupported story dynamic range")
 	}
-	if request.Options.Music != nil && (request.Music == nil || request.Options.Music.TrackID != request.Music.Track.ID) {
+	if request.Options.Music != nil && !request.Options.Music.Matches(request.Music) {
 		return result, errors.New("selected music must be prepared before rendering")
 	}
-	if request.Music != nil && (request.Options.Music == nil || !finite(request.Options.Music.Volume) || request.Options.Music.Volume < 0 || request.Options.Music.Volume > 1 || !strings.HasPrefix(request.Music.Key, "music/incompetech/") || strings.Contains(request.Music.Key, "..") || strings.ContainsAny(request.Music.Key, "\\\x00")) {
+	if request.Music != nil && (request.Options.Music == nil || !finite(request.Options.Music.Volume) || request.Options.Music.Volume < 0 || request.Options.Music.Volume > 1 || !(strings.HasPrefix(request.Music.Key, "music/incompetech/") || (storyNamespace(request.UserID) && strings.HasPrefix(request.Music.Key, "uploads/"+request.UserID+"/music-cache/"))) || strings.Contains(request.Music.Key, "..") || strings.ContainsAny(request.Music.Key, "\\\x00")) {
 		return result, errors.New("invalid prepared music")
 	}
 	if err := story.ValidateBrandOptions(request.Options); err != nil {
@@ -84,6 +84,9 @@ func validateStoryRender(request story.Request, version story.Version) (storyRen
 			return result, errors.New("story video interval is outside its source")
 		}
 		if entry.Audio != nil {
+			if story.UsesMusicOnlyAudio(request.Options) && !request.Options.Narration {
+				return result, errors.New("music-only playback cannot contain original clip audio")
+			}
 			audio, ok := result.assets[entry.Audio.SourceID]
 			if !ok || !audio.HasAudio || !storyIntervalValid(*entry.Audio, audio, duration) {
 				return result, errors.New("story audio interval is outside its source")

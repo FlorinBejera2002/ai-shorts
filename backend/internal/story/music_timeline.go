@@ -11,6 +11,13 @@ import (
 // infer silence from an empty transcript: it can also mean unrecognized speech.
 func blockSourceInterval(block Block, candidate Candidate, source Asset) (Interval, error) {
 	interval := Interval{SourceID: candidate.SourceID, In: candidate.In, Out: candidate.Out}
+	if block.MusicWindow != nil {
+		trim := *block.MusicWindow
+		if block.Visual != nil || block.Pace != nil || block.Narration != nil || block.BRollID != "" || (!block.MuteSourceAudio && (source.HasAudio || candidate.Text != "" || len(candidate.Words) != 0)) || !validVisualMoment(candidate) || !finite(trim.In) || !finite(trim.Out) || trim.SourceID != candidate.SourceID || trim.In < candidate.In || trim.Out > candidate.Out || trim.Out-trim.In < .5 || trim.In > candidate.Moment.In || trim.Out < candidate.Moment.Out {
+			return Interval{}, fmt.Errorf("music window must preserve the complete verified action and any retained original audio")
+		}
+		return trim, nil
+	}
 	if block.Pace != nil {
 		trim := *block.Pace
 		if block.Visual != nil || block.BRollID != "" || !source.HasAudio || len(candidate.Words) == 0 || candidate.Confidence < .55 ||
@@ -36,9 +43,35 @@ func blockSourceInterval(block Block, candidate Candidate, source Asset) (Interv
 	return trim, nil
 }
 
+// BuildMusicTimeline applies musical timing and visual treatment to a validated
+// editorial plan. The resulting plan and timeline share one executable clock.
+// Recorded narration keeps its existing transition treatment.
+func BuildMusicTimeline(req Request, plan Plan) (Plan, []Entry, *MusicSync, error) {
+	plan, timeline, sync, err := synchronizeMusic(req, plan)
+	if err == nil && !req.Options.Narration {
+		applyMusicTransitions(req, plan, timeline)
+	}
+	if err == nil {
+		applyMeasuredMusicCuts(req, plan, timeline)
+	}
+	return plan, timeline, sync, err
+}
+
 // synchronizeMusic changes the saved plan, then derives the executable EDL from
 // it. Render, captions, review and the editor therefore all see the same cuts.
 func synchronizeMusic(req Request, plan Plan) (Plan, []Entry, *MusicSync, error) {
+	if !UsesMusicOnlyAudio(req.Options) && !req.Options.Narration {
+		sources := make(map[string]Asset, len(req.Assets))
+		for _, asset := range req.Assets {
+			sources[asset.ID] = asset
+		}
+		for _, block := range plan.Blocks {
+			if block.MuteSourceAudio && block.MusicWindow != nil && sources[block.MusicWindow.SourceID].HasAudio {
+				return plan, nil, nil, fmt.Errorf("this saved music-only edit trims original clip audio; keep Music only or create a new edit with original audio to restore complete source passages")
+			}
+		}
+	}
+	plan = preparePlanSourceAudio(plan, req.Options)
 	build := BuildTimeline
 	if req.Options.Narration {
 		build = BuildNarrationTimeline
@@ -52,6 +85,9 @@ func synchronizeMusic(req Request, plan Plan) (Plan, []Entry, *MusicSync, error)
 		return plan, timeline, result, nil
 	}
 	result.Status = "unchanged"
+	if req.Music != nil && req.Music.Analysis != nil {
+		return planMusicEvidence(req, plan, timeline)
+	}
 	beats := musicBeats(req.Music, timelineDuration(timeline))
 	if len(beats) == 0 || len(timeline) < 2 {
 		return plan, timeline, result, nil
@@ -122,6 +158,7 @@ func synchronizeMusic(req Request, plan Plan) (Plan, []Entry, *MusicSync, error)
 	} else if aligned > 0 || result.AdjustedCuts > 0 {
 		result.Status = "partial"
 	}
+	result.AlignedCuts = aligned
 	return plan, timeline, result, nil
 }
 
@@ -178,5 +215,21 @@ func nearestBeatDistance(beats []float64, boundary float64) float64 {
 }
 
 func sameBlockIntervals(a, b Block) bool {
-	return reflect.DeepEqual(a.Visual, b.Visual) && reflect.DeepEqual(a.Narration, b.Narration) && reflect.DeepEqual(a.Pace, b.Pace)
+	return a.MuteSourceAudio == b.MuteSourceAudio && reflect.DeepEqual(a.Visual, b.Visual) && reflect.DeepEqual(a.Narration, b.Narration) && reflect.DeepEqual(a.Pace, b.Pace) && reflect.DeepEqual(a.MusicWindow, b.MusicWindow)
+}
+
+// Persist the deliberate playback choice in the executable plan. Original
+// asset audio and transcript evidence remain intact for review and later edits.
+func preparePlanSourceAudio(plan Plan, options Options) Plan {
+	mute := UsesMusicOnlyAudio(options) && !options.Narration
+	for _, block := range plan.Blocks {
+		if block.MuteSourceAudio != mute {
+			plan = clonePlan(plan)
+			for i := range plan.Blocks {
+				plan.Blocks[i].MuteSourceAudio = mute
+			}
+			break
+		}
+	}
+	return plan
 }

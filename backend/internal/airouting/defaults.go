@@ -16,7 +16,8 @@ func defaultRoutes(options Options) map[aiprovider.Task]Route {
 		provider = "openrouter"
 	}
 	models := map[aiprovider.Task]string{
-		aiprovider.TaskSourceAnalysis: "qwen/qwen3.8-omni-flash",
+		aiprovider.TaskSourceAnalysis: "google/gemini-3.8-flash",
+		aiprovider.TaskMusicAnalysis:  "google/gemini-3.8-flash",
 		aiprovider.TaskSpeechReview:   "qwen/qwen3.8-omni-flash",
 		aiprovider.TaskHighlights:     "openai/gpt-6.1-sol",
 		aiprovider.TaskStoryPlanning:  "openai/gpt-6.1-sol",

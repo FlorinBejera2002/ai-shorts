@@ -83,6 +83,9 @@ func ValidateOptions(o Options) error {
 	if err := validateMusicSelection(o.Music); err != nil {
 		return err
 	}
+	if UsesMusicOnlyAudio(o) && !o.Narration && PreserveOriginalSpeech(o) {
+		return fmt.Errorf("music-only audio conflicts with preserving original speech; keep original audio or update the brief before generating")
+	}
 	if err := validateCaptionMode(o); err != nil {
 		return err
 	}

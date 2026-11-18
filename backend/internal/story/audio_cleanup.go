@@ -13,6 +13,9 @@ func (s *runState) prepareAudio(ctx context.Context) error {
 	if !audiocleanup.Enabled(s.req.Options.AudioCleanup) {
 		return nil
 	}
+	if UsesMusicOnlyAudio(s.req.Options) && !s.req.Options.Narration {
+		return nil
+	}
 	preparer, ok := s.builder.media.(AudioPreparer)
 	if !ok {
 		return &audiocleanup.Failure{Message: "Background noise reduction is unavailable. Turn it off to use original audio."}
@@ -22,6 +25,9 @@ func (s *runState) prepareAudio(ctx context.Context) error {
 	}
 	s.req.Assets = cloneAssets(s.req.Assets)
 	for i, asset := range s.req.Assets {
+		if s.req.Options.Narration && asset.Kind != "narration" {
+			continue
+		}
 		if err := ctx.Err(); err != nil {
 			return err
 		}

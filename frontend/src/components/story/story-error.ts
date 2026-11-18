@@ -1,8 +1,45 @@
 /** Keep engine details in the authenticated project response and worker logs. */
+export function storyFailureReason(project: {
+  status: string
+  operation_status?: string
+  error?: string
+  message?: string
+}) {
+  return project.error ||
+    (project.status === 'failed' || project.operation_status === 'failed'
+      ? project.message
+      : undefined)
+}
+
 export function storyProblem(
   message: string,
   text: (en: string, ro: string) => string
 ) {
+  if (/AI provider.*(?:credit|balance|payment|spending limit)/i.test(message))
+    return text(
+      'The editing service has reached its usage limit. Your files and previous video are saved. Try again later or contact support.',
+      'Serviciul de editare și-a atins limita de utilizare. Fișierele și videoul anterior sunt salvate. Reîncearcă mai târziu sau contactează asistența.'
+    )
+  if (/story planning could not finish/i.test(message))
+    return text(
+      'The edit could not be planned. Your clips, music and previous video are saved. Retry to finish planning before rendering.',
+      'Planificarea montajului nu s-a finalizat. Filmările, muzica și videoul anterior sunt salvate. Reîncearcă pentru a finaliza planul înainte de randare.'
+    )
+  if (/source analysis could not establish visual content/i.test(message))
+    return text(
+      'The clip analysis could not identify enough visual content for musical editing. Your files are saved. Retry analysis before generating the video.',
+      'Analiza filmărilor nu a identificat suficient conținut vizual pentru montajul pe muzică. Fișierele sunt salvate. Reîncearcă analiza înainte de a genera videoul.'
+    )
+  if (/music.only.*(?:speech|dialogue)|mute.*(?:speech|dialogue).*conflict|source audio.*conflict/i.test(message))
+    return text(
+      'Music only conflicts with keeping dialogue. Choose Keep original sound, or update your description to allow muted dialogue.',
+      'Opțiunea Doar muzică nu permite păstrarea dialogului. Alege Păstrează sunetul original sau modifică descrierea pentru a permite oprirea dialogului.'
+    )
+  if (/music analysis|music.*analy[sz]|soundtrack.*analy[sz]/i.test(message))
+    return text(
+      'Music analysis could not finish. Retry, or turn off Follow the music to continue with the same soundtrack and existing cut timing.',
+      'Analiza muzicii nu s-a finalizat. Reîncearcă sau dezactivează Urmărește muzica pentru a continua cu aceeași piesă și momentele existente ale tăieturilor.'
+    )
   if (/caption choice conflicts/i.test(message))
     return text(
       'Your caption choice conflicts with the description. Update the description or choose matching captions.',

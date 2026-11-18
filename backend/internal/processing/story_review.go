@@ -145,6 +145,9 @@ Coverage means you actually examined that modality across every reviewed range. 
 	if request.Music != nil {
 		prompt += "\nSELECTED MUSIC: DATA.music identifies a separately licensed soundtrack requested by the user. This continuous music bed is intentionally mixed with the source voice and ducked while source audio is present. Music itself is not generated speech, an unauthorized source take, or evidence of changed speaker identity. Compare original reference speech to the audible speech in the FINAL MIX, preserving all speech integrity, timing, intelligibility, clipping, attribution and caption checks. The final four seconds include an intentional music attribution overlay, also when dialogue captions are off; this licence credit is not a dialogue subtitle and must not be compared to spoken words. Check that it remains readable and does not obscure dialogue captions. Music masking words, harsh loop seams or poorly synchronized measured cuts are still defects. Do not waive an audio check because music was selected."
 	}
+	if story.UsesMusicOnlyAudio(request.Options) && !request.Options.Narration {
+		prompt += "\nMUSIC-ONLY PLAYBACK: The user explicitly chose to mute original video-source audio, including dialogue. No original clip speech or dialogue subtitles should be audible/visible; their absence is intentional, not a missing-speech defect. Verify actual music playback, coherent complete visual actions, source-backed visual claims, clean joins and absence of accidental original audio. Do not infer delivered narration from source transcripts. Narration is not enabled in this mode."
+	}
 	if request.Options.Narration {
 		prompt += "\nNARRATION MODE: the single ORIGINAL FULL NARRATION AUDIO reference must be preserved continuously from start to end, including pauses, without reordered/omitted/repeated words or any original video soundtrack. Compare full original and rendered audio directly. Visual cuts need not be audible cuts; a caption may continue across a visual cut. The visible people are not necessarily the narrator: do not infer identity, lip-sync or attribution from B-roll. Check the visual meaning of EVERY block against the audible narration at the same output time. Return narration_matches:[{block_id:known output block ID,match:true|false,confidence:0..1,evidence:specific visible subject/action and corresponding actually audible topic}]. A generic unrelated image, unsupported product/action/number, or absent evidence is not a match. Missing or ambiguous matches must stay incomplete, never assume narration text proves what the picture shows."
 	}
@@ -153,7 +156,7 @@ Coverage means you actually examined that modality across every reviewed range. 
 	}
 	raw, err := reviewer.ReviewMedia(ctx, prompt, parts)
 	if err != nil {
-		return incomplete("The media reviewer is unavailable or this model does not support the supplied audio and video.")
+		return incomplete("Actual media review could not finish: " + storyProviderFailure(err) + ".")
 	}
 	verdict, err := parseStoryMediaVerdict(raw, request, version)
 	if err != nil {

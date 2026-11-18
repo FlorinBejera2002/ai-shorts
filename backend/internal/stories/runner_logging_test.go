@@ -74,3 +74,40 @@ func TestRunnerLogsOnlyScopedRenderFailureDiagnostic(t *testing.T) {
 	// An optional logger must not alter execution failure handling.
 	(&Runner{}).logRunFailure(storyID, renderErr)
 }
+
+func TestRunnerLogsRejectedStudioRequestWithoutExposingWrapperOrCredentials(t *testing.T) {
+	const owner = "11111111-1111-4111-8111-111111111111"
+	const storyID = "22222222-2222-4222-8222-222222222222"
+	artifact := studiocomposition.Identity(owner, storyID, nil)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusUnprocessableEntity)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "Invalid scene duration\nAuthorization: Bearer private-token"})
+	}))
+	defer server.Close()
+	client, err := studiocomposition.New(server.URL, strings.Repeat("s", 32))
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = client.Render(context.Background(), owner, artifact, nil)
+	if err == nil {
+		t.Fatal("expected rejection")
+	}
+	var output bytes.Buffer
+	runner := Runner{Logger: slog.New(slog.NewJSONHandler(&output, nil))}
+	runner.logRunFailure(storyID, fmt.Errorf("wrapper-secret: %w", err))
+	var entry map[string]any
+	if err := json.Unmarshal(output.Bytes(), &entry); err != nil {
+		t.Fatal(err)
+	}
+	if entry["studio_artifact_id"] != artifact || entry["studio_http_status"] != float64(422) || entry["studio_request_cause"] != "Invalid scene duration [credential]" {
+		t.Fatalf("rejected request was not diagnosable: %v", entry)
+	}
+	if _, exists := entry["studio_render_status"]; exists {
+		t.Fatal("request rejection was reported as an attempted render")
+	}
+	for _, sensitive := range []string{"private-token", "wrapper-secret"} {
+		if strings.Contains(output.String(), sensitive) {
+			t.Fatalf("sensitive failure logged: %s", output.String())
+		}
+	}
+}

@@ -35,6 +35,8 @@ import { StoryTranscriptReview } from './story-transcript-review'
 import { storyProblem } from './story-error'
 import { storyRetryPayload } from './story-retry'
 import { validateStoryFiles } from './story-file-validation'
+import { musicRangeProblem } from './story-music-model'
+import { StoryMusicRecovery } from './story-music-recovery'
 import './story.css'
 
 function savedProject(key: string) {
@@ -332,6 +334,7 @@ function StoryWorkspace({
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [narrationPending, setNarrationPending] = useState(false)
+  const [musicPending, setMusicPending] = useState(false)
   const stepStorageKey = `sneepcut:story-step:${project.id}`
   const [step, setStep] = useState<StoryStep>(() =>
     savedStep(project, initialStep)
@@ -344,7 +347,8 @@ function StoryWorkspace({
   const assets = project.assets ?? []
   const narration = assets.find((asset) => asset.kind === 'narration')
   const videos = assets.filter((asset) => asset.kind !== 'narration')
-  const mediaPending = uploads.busy || narrationPending
+  const mediaPending = uploads.busy || narrationPending || musicPending
+  const musicProblem = musicRangeProblem(options.music, text)
   const optionsChanged =
     canEditStorySources(project) && !storyOptionsEqual(options, project.options)
   const sourceIDs = new Set(assets.map((asset) => asset.id))
@@ -487,6 +491,7 @@ function StoryWorkspace({
     if (
       pending.length > 0 ||
       mediaPending ||
+      musicProblem ||
       !videos.some((asset) => asset.include !== 'excluded') ||
       (options.narration && !narration)
     )
@@ -521,7 +526,18 @@ function StoryWorkspace({
   }
 
   async function goToStep(next: StoryStep) {
-    if (busy || mutation.current || narrationPending || next === step) return
+    if (
+      busy ||
+      mutation.current ||
+      narrationPending ||
+      musicPending ||
+      next === step
+    )
+      return
+    if (next === 2 && musicProblem) {
+      setError(musicProblem)
+      return
+    }
     // Keep Brief and Captions reachable while an unsaved choice conflicts with
     // the prompt. Validate the combined request before entering Generate.
     if (next === 2 && optionsChanged) {
@@ -546,16 +562,17 @@ function StoryWorkspace({
   const canCreate =
     pending.length === 0 &&
     !mediaPending &&
+    !musicProblem &&
     videos.some((asset) => asset.include !== 'excluded') &&
     (!options.narration || Boolean(narration))
   const narrationMissing = Boolean(options.narration && !narration)
-  const navigationHint = stepHint(
-    text,
-    step,
-    narrationPending,
-    narrationMissing,
-    uploads.busy
-  )
+  const navigationHint = musicPending
+    ? text(
+        'Finish or cancel the music upload to continue.',
+        'Finalizează sau anulează încărcarea muzicii pentru a continua.'
+      )
+    : musicProblem ||
+      stepHint(text, step, narrationPending, narrationMissing, uploads.busy)
   const sourcesPanel = (
     <StorySources
       assets={videos}
@@ -594,6 +611,7 @@ function StoryWorkspace({
       workspace={workspace}
       preview={<StorySourcePreview assets={videos} />}
       narration={narrationPanel}
+      onMusicPending={setMusicPending}
     />
   )
 
@@ -606,6 +624,14 @@ function StoryWorkspace({
         onRetry={retryOperation}
         onCancel={() => void mutate('/cancel', 'POST', {})}
       />
+      {!version && !active && failedOperation && options.music?.sync &&
+        /music analysis|music.*analy[sz]/i.test(project.error ?? '') && (
+          <StoryMusicRecovery
+            disabled={busy || mediaPending}
+            onRetry={optionsChanged ? undefined : retryOperation}
+            onSettings={() => void goToStep(1)}
+          />
+        )}
       {error && (
         <p
           role="alert"
@@ -632,8 +658,10 @@ function StoryWorkspace({
           furthest={furthest}
           onStep={(next) => void goToStep(next)}
           onContinue={() => void goToStep(Math.min(step + 1, 2) as StoryStep)}
-          navigationDisabled={busy || narrationPending}
-          continueDisabled={step === 1 && narrationMissing}
+          navigationDisabled={busy || narrationPending || musicPending}
+          continueDisabled={
+            step === 1 && (narrationMissing || Boolean(musicProblem))
+          }
           navigationHint={navigationHint}
         >
           <div
@@ -660,7 +688,7 @@ function StoryWorkspace({
               videos={videos}
               narration={narration}
               ready={canCreate}
-              busy={busy || narrationPending}
+              busy={busy || narrationPending || musicPending}
               pendingCount={pending.length}
               onEdit={(next) => void goToStep(next)}
               onCreate={() => void generate()}

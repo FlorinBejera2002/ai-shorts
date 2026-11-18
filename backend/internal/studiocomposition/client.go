@@ -65,6 +65,21 @@ func (e *RenderFailure) Error() string {
 
 func (e *RenderFailure) DiagnosticCause() string { return e.cause }
 
+// RequestFailure records a rejected request before Studio could start rendering.
+// Only a bounded error field from the service's JSON envelope is diagnostic;
+// arbitrary proxy bodies, request data and transport errors are not exposed.
+type RequestFailure struct {
+	ArtifactID string
+	StatusCode int
+	cause      string
+}
+
+func (e *RequestFailure) Error() string {
+	return fmt.Sprintf("Studio composition request failed (HTTP %d)", e.StatusCode)
+}
+
+func (e *RequestFailure) DiagnosticCause() string { return e.cause }
+
 const maxDiagnosticBytes = 512
 
 var diagnosticURL = regexp.MustCompile(`(?i)\b(?:https?|s3|file|ftp)://\S+`)
@@ -146,7 +161,7 @@ func (c *Client) request(ctx context.Context, user, id, operation string, input 
 	}
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
 		defer response.Body.Close()
-		body, _ := io.ReadAll(io.LimitReader(response.Body, 4096))
+		body, readErr := io.ReadAll(io.LimitReader(response.Body, 4097))
 		if response.StatusCode == http.StatusConflict {
 			var conflict struct {
 				Code string `json:"code"`
@@ -156,7 +171,17 @@ func (c *Client) request(ctx context.Context, user, id, operation string, input 
 			}
 			return nil, ErrProjectChanged
 		}
-		return nil, fmt.Errorf("Studio composition request failed (HTTP %d)", response.StatusCode)
+		failure := &RequestFailure{ArtifactID: id, StatusCode: response.StatusCode}
+		if readErr == nil && len(body) <= 4096 {
+			var envelope struct {
+				ArtifactID string `json:"artifact_id"`
+				Error      string `json:"error"`
+			}
+			if json.Unmarshal(body, &envelope) == nil && (envelope.ArtifactID == "" || envelope.ArtifactID == id) {
+				failure.cause = renderDiagnostic(envelope.Error, c.secret)
+			}
+		}
+		return nil, failure
 	}
 	return response, nil
 }

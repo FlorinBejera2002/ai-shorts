@@ -52,24 +52,20 @@ func TestStoryMusicBeatsUseObservedPhaseAndRejectIrregularAudio(t *testing.T) {
 	}
 }
 
-func TestStoryMusicPreparationDecodesActualTempoAndDuration(t *testing.T) {
+func TestStoryMusicPreparationUsesHostedEvidenceAndActualDuration(t *testing.T) {
 	p, _, dir := storyTestProcessor(t)
+	configureHostedMusicFixture(p, 12, .23)
 	ctx := context.Background()
 	file := filepath.Join(dir, "pulse.flac")
 	if err := p.ffmpeg(ctx, dir, "-f", "lavfi", "-i", "aevalsrc=if(lt(mod(t-0.23\\,0.5)\\,0.05)*gte(t\\,0.23)\\,0.5*sin(2*PI*350*t)\\,0):s=48000:d=12", "-c:a", "flac", file); err != nil {
 		t.Fatal(err)
 	}
-	prepared, err := p.prepareStoryMusicFile(ctx, dir, music.Track{ID: "incompetech:pulse", DurationSeconds: 99, BPM: 77}, "music/incompetech/pulse.flac", file)
+	prepared, err := p.prepareStoryMusicFile(ctx, dir, music.Track{ID: "incompetech:pulse", DurationSeconds: 99, BPM: 77}, "music/incompetech/pulse.flac", file, true)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if prepared.Track.DurationSeconds != 12 || len(prepared.Beats) < 20 || math.Abs(prepared.BPM-120) > 1 || prepared.Confidence < .9 {
+	if prepared.Track.DurationSeconds != 12 || prepared.Analysis == nil || len(prepared.Analysis.Events) != 0 || len(prepared.Analysis.Sections) != 1 || prepared.Analysis.Model != "mock:music-fixture" || len(prepared.Beats) != 0 || prepared.BPM != 0 {
 		t.Fatalf("metadata was substituted for actual audio: %#v", prepared)
-	}
-	for _, at := range prepared.Beats {
-		if math.Abs(math.Remainder(at-.23, .5)) > .025 {
-			t.Fatalf("decoded onset phase wrong: %.3f", at)
-		}
 	}
 }
 
@@ -157,12 +153,13 @@ func TestStoryMusicRenderIncludesSelectedCreditAndRejectsMissingPreparation(t *t
 		t.Fatal(err)
 	}
 	credit := "Fixture by Test Artist, CC BY 4.0. https://creativecommons.org/licenses/by/4.0/"
-	prepared, err := p.prepareStoryMusicFile(ctx, dir, music.Track{ID: request.Options.Music.TrackID, Title: "Fixture", Artist: "Test Artist", Attribution: credit, License: "CC BY 4.0"}, key, file)
+	configureHostedMusicFixture(p, 6, .1)
+	prepared, err := p.prepareStoryMusicFile(ctx, dir, music.Track{ID: request.Options.Music.TrackID, Title: "Fixture", Artist: "Test Artist", Attribution: credit, License: "CC BY 4.0"}, key, file, true)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(prepared.Beats) < 8 || math.Abs(prepared.BPM-120) > 1 {
-		t.Fatalf("render fixture must have measured beats: %#v", prepared)
+	if prepared.Analysis == nil || len(prepared.Analysis.Sections) != 1 || len(prepared.Analysis.Events) != 0 {
+		t.Fatalf("render fixture must retain hosted evidence: %#v", prepared)
 	}
 	request.Music = prepared
 	result, err := renderStoryForTest(t, p, ctx, request, version)

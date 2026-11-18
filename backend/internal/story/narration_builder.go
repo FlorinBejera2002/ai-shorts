@@ -11,7 +11,7 @@ func (s *runState) narrationVersion(plan Plan, parent *Version) (Version, error)
 	if parent != nil {
 		musicRequest.Base = parent
 	}
-	plan, timeline, sync, err := synchronizeMusic(musicRequest, plan)
+	plan, timeline, sync, err := BuildMusicTimeline(musicRequest, plan)
 	brief := BuildEditingBrief(s.req)
 	plan.EditingBrief = &brief
 	version := Version{Number: s.next, Plan: plan, Timeline: timeline, MusicSync: sync}

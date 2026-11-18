@@ -6,6 +6,7 @@ import { LoadingIndicator } from '@/components/ui/loading-indicator'
 import type { StoryProject } from './types'
 import { useStoryLanguage } from './use-story-language'
 import { StoryProcessing } from './story-processing'
+import { storyFailureReason, storyProblem } from './story-error'
 
 interface HeaderProps {
   id: string
@@ -94,6 +95,7 @@ export function StoryProjectStatus({
 }: StatusProps) {
   const text = useStoryLanguage()
   if (project.status === 'draft') return null
+  const failureReason = storyFailureReason(project)
   const hasResult = project.versions.some(
     (version) => version.number === project.current_version
   )
@@ -113,7 +115,9 @@ export function StoryProjectStatus({
           {active || busy
             ? text('Processing…', 'Se procesează…')
             : failed
-              ? text(
+              ? failureReason
+                ? storyProblem(failureReason, text)
+                : text(
                   'The last update did not finish. Open your saved video in Studio to continue.',
                   'Ultima modificare nu s-a finalizat. Deschide videoul salvat în Studio pentru a continua.'
                 )

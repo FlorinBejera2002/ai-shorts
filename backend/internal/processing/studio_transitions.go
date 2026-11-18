@@ -8,6 +8,12 @@ const studioNativeTransitionVersion = 1
 // TransitionIn describes a visual blend centered on the existing cut. Studio
 // owns the blend; source selection, audio, captions and montage clocks stay put.
 func studioApplyNativeTransitions(plan *studioPlan, treatments []string) {
+	studioApplyNativeTransitionsWithDurations(plan, treatments, nil)
+}
+
+// Explicit durations belong to the saved Story timeline. Legacy callers keep
+// their established .3 second treatment; new musical cuts remain hard cuts.
+func studioApplyNativeTransitionsWithDurations(plan *studioPlan, treatments []string, durations []float64) {
 	previous := -1
 	shot := 0
 	for i := range plan.Scenes {
@@ -29,6 +35,16 @@ func studioApplyNativeTransitions(plan *studioPlan, treatments []string) {
 		duration := studioNativeTransitionDuration(left, *right)
 		if duration == 0 {
 			continue
+		}
+		if shot-1 < len(durations) && durations[shot-1] != 0 {
+			requested := durations[shot-1]
+			if !finite(requested) || requested < 0 || requested > .6 {
+				continue
+			}
+			duration = studioRound(min(requested, left.Duration/2, right.Duration/2))
+			if duration < 2.0/30 {
+				continue
+			}
 		}
 		start, end := right.Start-duration/2, right.Start+duration/2
 		bridged := false

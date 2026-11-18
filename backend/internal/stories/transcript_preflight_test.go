@@ -61,6 +61,75 @@ func transcriptPreflightJobState(t *testing.T, r *Repository, id string) string 
 	return state
 }
 
+func TestTranscriptPreflightManualTimingIsDurableAtomicAndFree(t *testing.T) {
+	r, user, id, _, _ := transcriptPreflightFixture(t, true)
+	ctx := context.Background()
+	project, err := r.Get(ctx, user, id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw := project.Assets[0]
+	raw.TranscriptProposals[0].TimingVerified = false
+	raw.TranscriptProposals[0].Words = []story.Word{{Text: "Overlapping", Start: .2, End: 1}, {Text: "suggestion", Start: .3, End: 1}}
+	raw.TranscriptProposals[0].ID = story.TranscriptProposalID(raw, raw.TranscriptProposals[0])
+	if _, err = r.db.Exec(`UPDATE story_assets SET asset=$3 WHERE project_id=$1 AND id=$2`, id, raw.ID, encoded(raw)); err != nil {
+		t.Fatal(err)
+	}
+	state, err := r.AgentState(ctx, user, id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	in := Generate{RequestID: newID(), Action: "review_transcript", Version: 0, ExpectedState: state, TranscriptReviews: []TranscriptReviewInput{{AssetID: raw.ID, ProposalID: raw.TranscriptProposals[0].ID, TimedWords: []story.Word{{Text: "Owner", Start: .2, End: .7}, {Text: "correction", Start: .8, End: 1.5}}, TimingConfirmed: true}}}
+	before := transcriptPreflightJobState(t, r, id)
+	beforeCredits := credits(t, r, user)
+	if err = r.Queue(ctx, newID(), id, in); !errors.Is(err, sql.ErrNoRows) {
+		t.Fatalf("foreign owner accepted: %v", err)
+	}
+	stale := in
+	stale.ExpectedState = strings.Repeat("0", 64)
+	if err = r.Queue(ctx, user, id, stale); !errors.Is(err, ErrConflict) {
+		t.Fatalf("stale source guard accepted: %v", err)
+	}
+	bad := in
+	bad.TranscriptReviews = append(append([]TranscriptReviewInput(nil), in.TranscriptReviews...), TranscriptReviewInput{AssetID: project.Assets[1].ID, ProposalID: "stale", TimedWords: in.TranscriptReviews[0].TimedWords, TimingConfirmed: true})
+	if err = r.Queue(ctx, user, id, bad); !errors.Is(err, ErrInvalid) {
+		t.Fatalf("invalid manual batch accepted: %v", err)
+	}
+	unchanged, err := r.Get(ctx, user, id)
+	if err != nil || unchanged.Assets[0].TranscriptProposals[0].Reviewed || len(unchanged.Assets[0].TranscriptReviews) != 0 {
+		t.Fatal("failed batch partially persisted manual timing", err)
+	}
+	for range 2 {
+		if err = r.Queue(ctx, user, id, in); err != nil {
+			t.Fatal(err)
+		}
+	}
+	saved, err := r.Get(ctx, user, id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var corrected story.Asset
+	for _, asset := range saved.Assets {
+		if asset.ID == raw.ID {
+			corrected = asset
+		}
+	}
+	if len(corrected.TranscriptReviews) != 1 || !corrected.TranscriptProposals[0].Reviewed || corrected.TranscriptProposals[0].TimingSource != "owner" || corrected.Candidates[0].Text != "Owner correction" {
+		t.Fatalf("manual correction did not persist: %+v", corrected)
+	}
+	raw.TranscriptReviews = corrected.TranscriptReviews
+	if restored := story.ApplyTranscriptReviews(raw); !restored.TranscriptProposals[0].Reviewed || restored.Candidates[0].Text != "Owner correction" {
+		t.Fatal("stored correction was lost after raw ASR cache refresh")
+	}
+	if transcriptPreflightJobState(t, r, id) != before || credits(t, r, user) != beforeCredits {
+		t.Fatal("manual confirmation queued a job or changed credits")
+	}
+	var count int
+	if err = r.db.QueryRow(`SELECT count(*) FROM story_requests WHERE project_id=$1 AND id=$2`, id, in.RequestID).Scan(&count); err != nil || count != 1 {
+		t.Fatal("manual retry was not idempotent", count, err)
+	}
+}
+
 func TestTranscriptPreflightApprovalSavesSeveralSourcesWithoutQueuingOrCharging(t *testing.T) {
 	for _, failed := range []bool{false, true} {
 		name := "draft"

@@ -189,7 +189,7 @@ func (e *execution) Progress(ctx context.Context, status, message string) error 
 	return e.mutate(ctx, func(tx *sql.Tx) error {
 		if status != "" {
 			switch status {
-			case "analyzing", "building_story", "editing", "reviewing", "improving":
+			case "analyzing", "music_analysis", "building_story", "editing", "reviewing", "improving":
 			default:
 				return ErrInvalid
 			}
@@ -338,6 +338,9 @@ func (e *execution) finish(ctx context.Context, result story.Result, runErr erro
 				status = "ready"
 				message = "The edit could not finish; the previous reviewed version is retained"
 			}
+		}
+		if reason := providerFailureMessage(runErr); reason != "" {
+			message = reason + ". Uploaded clips and saved versions are retained."
 		}
 	} else {
 		status = result.Best.Report.Status

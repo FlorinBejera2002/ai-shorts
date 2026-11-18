@@ -81,22 +81,66 @@ included in the video's final seconds and MP4 metadata, and can be copied from
 the result for publication captions. See the provider's [catalogue documentation](https://incompetech.com/agent-section/)
 and [licensing terms](https://incompetech.com/music/royalty-free/licenses/).
 
-The worker detects rhythmic onsets from the selected recording, mixes music
-continuously with fades and ducking beneath original audio, and aligns eligible
-new-story visual cuts to nearby measured beats. It preserves the full recorded
-narration and original word timing. Clips with original audio, unrecognized
-speech, locked blocks and approved revision timings are not shortened to force
-a beat match. Audio-free clips can lose at most 350 ms from their tail; narration
-visual boundaries move only inside available distinct source footage. Uncertain
-rhythm leaves cuts unchanged, and the result reports partial/unchanged alignment
-instead of claiming full synchronization. Existing projects without music keep
-their previous rendering behavior.
+You can also upload MP3, WAV, FLAC, M4A/MP4, WebM or Ogg/Opus audio (128 MiB,
+up to 30 minutes). Choose an excerpt of 1 second to 10 minutes; an omitted end
+uses the available audio up to 10 minutes from the selected start. Preview and
+export use that same excerpt. Repeat can be disabled to play it once, with a
+fade at its actual ending. Uploaded music remains private to its account and
+does not acquire catalog credits or a license claim.
+
+“Follow the music” uses the existing OpenRouter or direct Gemini connection to
+listen to the selected excerpt and describe its broad sections, energy and pacing.
+The administrator can select an audio-capable model for the `music_analysis`
+task. Hosted beat timestamps and BPM guesses cannot move cuts. Separately,
+waveform analysis measures sharp attacks supported by a repeating local rhythm.
+The planner can align safe cuts to these observed accents on the 30 fps output
+clock; it never fills missing beats from a BPM estimate. Ambiguous rhythm falls
+back to section pacing. This requires no local AI model or additional provider.
+Switching guidance off skips both analyses.
+
+The planner combines musical sections with complete source moments. A bounded
+timing search can remove verified idle handles while retaining the requested
+duration where the source permits. One bounded extra visual request can inspect
+up to six useful short candidates more closely, distributing the budget across
+sources; excluded sources do not consume that budget. Action boundaries must come from actual closely spaced frames,
+including sampling uncertainty. Uncertain or long actions remain complete.
+
+Original sound is preserved by default. “Music only” explicitly mutes video-source
+audio and its dialogue captions, allowing eligible visual timing changes without
+discarding the original transcript or media. A request to preserve dialogue must
+be resolved before choosing this mode. Recorded narration always retains all words
+and its original clock. Locked blocks, approved revisions and manual Studio edits
+retain their existing protections. New guided montages use explicit cuts, with
+bounded dissolves only where both the musical section and verified visual handles
+support them; legacy projects retain their saved transition behavior.
+
+Music stays on separate editable Studio audio tracks, with fades and ducking
+beneath foreground audio. Results distinguish changed cuts from cuts aligned to
+measured rhythmic accents, and explain musical pacing and content constraints;
+manual edits never inherit an unverified alignment claim. Repeating an excerpt is
+not a phrase-aware musical splice. Existing projects without music keep their
+previous rendering behavior.
 
 Catalogue outages are shown explicitly. If a selected track cannot be prepared,
 generation fails before source analysis instead of silently dropping the music.
-There is no provider subscription; normal storage, bandwidth and rendering
-costs still apply. The API and worker must run the updated Go code; no database
-migration or additional music service is required.
+Hosted analysis failures offer retry or review of music settings; turning guidance
+off retains the soundtrack. Valid analysis is cached by audio content, model and
+schema version in the same account namespace as the excerpt. Measured timing has
+its own content/version cache, so upgrading timing does not repeat a paid music
+analysis. Each uncached music
+analysis uses one bounded provider call; normal AI, storage, bandwidth and rendering
+costs apply. The API and worker must run the updated Go code; no database migration
+or additional music-provider account is required.
+
+`TestHostedMusicLiveSyntheticEvaluation` is an opt-in diagnostic for precision,
+not a default test or a certification of musical quality. Set
+`SNEEPCUT_MUSIC_EVAL=1` and the existing provider credentials to run it;
+`SNEEPCUT_MUSIC_EVAL_WINDOW=1` tests a short excerpt. Initial Gemini and Qwen
+evaluations did not establish reliable beat timing, which is why hosted models
+provide broad structure while precise opportunities require waveform evidence.
+Measured attacks are not verified downbeats or a complete beat transcription.
+Real-song listening comparisons remain necessary to
+evaluate subjective editing quality.
 
 ## Story uploads and HDR
 

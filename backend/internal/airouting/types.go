@@ -70,6 +70,7 @@ type View struct {
 // Stages returns a fresh copy so API callers cannot mutate the routing policy.
 func Stages() []Stage {
 	return []Stage{
+		{aiprovider.TaskMusicAnalysis, "Analiza muzicii", "Ascultă piesa și propune secțiuni, accente și ritmul montajului.", []string{"text", "audio"}},
 		{aiprovider.TaskSourceAnalysis, "Analiza surselor", "Identifică subiectele și contextul din cadrele filmărilor.", []string{"text", "image"}},
 		{aiprovider.TaskSpeechReview, "Verificarea vorbirii", "Verifică ce se aude în fragmentele propuse pentru subtitrare.", []string{"text", "audio"}},
 		{aiprovider.TaskHighlights, "Selecția momentelor", "Alege fragmente relevante din transcriere pentru clipurile scurte.", []string{"text"}},

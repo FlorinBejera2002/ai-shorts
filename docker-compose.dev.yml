@@ -86,6 +86,9 @@ services:
     read_only: false
 
   nginx:
+    ports: !override
+      - "127.0.0.1:80:80"
+      - "127.0.0.1:3000:80"
     # Refresh Nginx's upstream DNS after Compose recreates an app container.
     depends_on:
       frontend:

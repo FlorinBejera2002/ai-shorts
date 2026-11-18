@@ -75,11 +75,14 @@ func MediaJSON(ctx context.Context, client *http.Client, endpoint string, header
 	bounded.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
 	response, err := bounded.Do(request)
 	if err != nil {
-		return nil, errors.New("media reviewer is unavailable")
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
+		}
+		return nil, ErrUnavailable
 	}
 	defer response.Body.Close()
 	if response.StatusCode != http.StatusOK {
-		return nil, errors.New("configured model could not review the media")
+		return nil, HTTPRequestError(response.StatusCode, response.Body)
 	}
 	data, err := io.ReadAll(io.LimitReader(response.Body, (2<<20)+1))
 	if err != nil || len(data) > 2<<20 {

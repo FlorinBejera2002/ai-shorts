@@ -42,17 +42,23 @@ func (c *Client) ReviewMedia(ctx context.Context, prompt string, media []aiprovi
 		headers["HTTP-Referer"] = c.Referer
 	}
 	data, err := aiprovider.MediaJSON(ctx, c.HTTP, strings.TrimRight(c.BaseURL, "/")+"/chat/completions", headers, map[string]any{
-		"model": c.Model, "temperature": 0, "messages": []any{map[string]any{"role": "user", "content": parts}},
+		"model": c.Model, "max_tokens": maxOutputTokens, "temperature": 0, "messages": []any{map[string]any{"role": "user", "content": parts}},
 		"provider": map[string]any{"data_collection": "deny"},
 	})
 	if err != nil {
 		return "", err
 	}
 	var result struct {
-		Choices []struct{ Message struct{ Content string } }
+		Choices []struct {
+			Message      struct{ Content string }
+			FinishReason string `json:"finish_reason"`
+		}
 	}
 	if json.Unmarshal(data, &result) != nil || len(result.Choices) == 0 || strings.TrimSpace(result.Choices[0].Message.Content) == "" {
 		return "", errors.New("media reviewer returned an invalid response")
+	}
+	if result.Choices[0].FinishReason == "length" {
+		return "", aiprovider.ErrOutputLimit
 	}
 	return result.Choices[0].Message.Content, nil
 }

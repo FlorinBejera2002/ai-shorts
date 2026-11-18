@@ -104,6 +104,7 @@ func applyOperation(plan Plan, op repairOperation, assets []Asset) (Plan, error)
 			// A trim belongs to the former candidate's source clock.
 			block.Visual = nil
 			block.Pace = nil
+			block.MusicWindow = nil
 			block.Alternatives = eligibleAlternatives(candidate, assets)
 			block.Reason = "Selected an equivalent complete take after review."
 			if block.IdentityReferenceID != "" {
@@ -141,6 +142,7 @@ func applyTimelineOperation(entries []Entry, op repairOperation) {
 		for i := range entries {
 			if entries[i].BlockID == op.blockID {
 				entries[i].Transition = "cut"
+				entries[i].TransitionSeconds = 0
 			}
 		}
 	}
@@ -338,6 +340,7 @@ func ValidateEdit(req Request) error {
 	if err != nil {
 		return err
 	}
+	plan = preparePlanSourceAudio(plan, req.Options)
 	before := ValidatePlan(req.Base.Plan, req.Assets, req.Options, req.Base)
 	after := ValidatePlan(plan, req.Assets, req.Options, req.Base)
 	if introducesRegression(Report{Issues: before}, Report{Issues: after}) {

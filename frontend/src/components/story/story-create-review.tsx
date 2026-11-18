@@ -169,7 +169,9 @@ export function StoryCreateReview({
               ? `${narration.name} · ${formatDuration(narration.duration)}`
               : text('Original audio', 'Sunet original')}
           </p>
-          {options.music && <StoryMusicSummary music={options.music} />}
+          {options.music && (
+            <StoryMusicSummary music={options.music} narration={options.narration} />
+          )}
         </div>
       </div>
     </div>

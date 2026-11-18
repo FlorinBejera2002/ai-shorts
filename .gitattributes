@@ -1,6 +1,6 @@
 # go:embed preserves bytes, unlike Python's universal-newline source reader.
 # Keep prompts identical to the Python contracts in checkouts and Git archives.
-backend-go/internal/**/prompts/*.txt text eol=lf
+backend/internal/**/prompts/*.txt text eol=lf
 
 # Linux interpreters and runtime configuration parsers require Unix newlines.
 scripts/*.sh text eol=lf

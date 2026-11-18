@@ -5,10 +5,22 @@ import { StringDecoder } from "node:string_decoder";
 
 export type SandboxKind = "render" | "thumbnail" | "background" | "probe";
 
+function renderTimeoutMilliseconds() {
+  const seconds = Number(process.env.SNEEPCUT_RENDER_TIMEOUT_SECONDS ?? 1800);
+  if (!Number.isSafeInteger(seconds) || seconds < 60 || seconds > 3600)
+    throw new RangeError("SNEEPCUT_RENDER_TIMEOUT_SECONDS must be between 60 and 3600 seconds");
+  return seconds * 1000;
+}
+
 export function sandboxProcessLimits(kind: SandboxKind, capacity = availableParallelism()) {
   if (!Number.isSafeInteger(capacity) || capacity < 1)
     throw new RangeError("Sandbox CPU capacity must be a positive integer");
-  const wallMilliseconds = kind === "thumbnail" || kind === "probe" ? 60_000 : 600_000;
+  const wallMilliseconds =
+    kind === "render"
+      ? renderTimeoutMilliseconds()
+      : kind === "thumbnail" || kind === "probe"
+        ? 60_000
+        : 600_000;
   // RLIMIT_CPU counts CPU time across a process's threads, not elapsed time.
   // Use affinity capacity rather than the renderer's smaller worker budget or a
   // cgroup quota that can increase while the job is running. Wall time stays bounded.
