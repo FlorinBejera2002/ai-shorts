@@ -4,12 +4,13 @@ import (
 	"fmt"
 	"math"
 	"strings"
+	"unicode"
 
 	"sneepcut/backend-go/internal/story"
 )
 
 const (
-	storySpeechPolicyVersion       = "speech-confidence-4-reviewed-proposals-whole-phrases"
+	storySpeechPolicyVersion       = "speech-confidence-5-lexical-tokens-neutral-connectives"
 	storyMinimumLexicalProbability = .55
 	storyMaximumVisualShotSeconds  = 4.0
 	storyNoSpeechWarning           = "No confident speech transcript. This source remains available as a supporting visual; audio needs human review."
@@ -91,6 +92,32 @@ func applyStorySpeechPolicy(asset story.Asset, options story.Options) (story.Ass
 	}
 	asset.AnalysisVersion = storyDigest([]any{asset.AnalysisVersion, storySpeechPolicyVersion})
 	return asset, nil
+}
+
+// storyNeutralConnectiveFloor keeps a token that is probably a different word
+// (for example a misheard negation) from being treated as a connective.
+const storyNeutralConnectiveFloor = .2
+
+// Connectives, articles and prepositions that cannot invert or quantify a
+// statement. Negations, numbers, quantifiers and pronouns are deliberately
+// absent: a weak one still withholds the complete phrase.
+var storyNeutralConnectives = map[string]bool{
+	// Romanian
+	"și": true, "iar": true, "sau": true, "că": true, "de": true, "la": true, "pe": true, "în": true,
+	"cu": true, "din": true, "a": true, "al": true, "ale": true, "o": true, "un": true, "e": true,
+	// English
+	"and": true, "or": true, "the": true, "an": true, "of": true, "to": true, "in": true, "on": true,
+	"at": true, "so": true, "that": true,
+}
+
+// storyLexicalToken reports whether ASR token text contains a spoken word.
+func storyLexicalToken(text string) bool {
+	return strings.ContainsFunc(text, func(r rune) bool { return unicode.IsLetter(r) || unicode.IsNumber(r) })
+}
+
+func storyNeutralConnective(text string, probability float64) bool {
+	word := strings.ToLower(strings.TrimFunc(text, func(r rune) bool { return !unicode.IsLetter(r) && !unicode.IsNumber(r) }))
+	return probability >= storyNeutralConnectiveFloor && storyNeutralConnectives[word]
 }
 
 // Long unverified visual intervals make a fallback look like an unedited source

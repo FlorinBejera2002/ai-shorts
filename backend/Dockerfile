@@ -7,6 +7,7 @@ FROM debian:bookworm-slim AS youtube-tools
 ARG TARGETARCH=amd64
 ARG YTDLP_VERSION=2026.10.26
 ARG DENO_VERSION=v2.9.8
+ARG YOUTUBE_TOKEN_PLUGIN_VERSION=2.0.2
 RUN apt-get update \
     && apt-get install -y --no-install-recommends ca-certificates curl unzip \
     && rm -rf /var/lib/apt/lists/*
@@ -23,6 +24,9 @@ RUN set -eu; \
     mkdir -p /opt/yt-dlp && unzip -q /tmp/yt-dlp.zip -d /opt/yt-dlp; \
     ln -s "$(find /opt/yt-dlp -maxdepth 1 -type f -name 'yt-dlp_linux*' | head -n1)" /opt/yt-dlp/yt-dlp; \
     chmod -R a+rX /opt/yt-dlp && chmod a+x /opt/yt-dlp/yt-dlp_linux*; \
+    mkdir -p /opt/yt-dlp/plugins; \
+    curl -fsSLo /opt/yt-dlp/plugins/bgutil.zip "https://github.com/Brainicism/bgutil-ytdlp-pot-provider/releases/download/${YOUTUBE_TOKEN_PLUGIN_VERSION}/bgutil-ytdlp-pot-provider.zip"; \
+    echo "a26b980bf6d8e8400d8f21445daa4d8381bf6183d20f0be309391f86b31e27ef  /opt/yt-dlp/plugins/bgutil.zip" | sha256sum -c -; \
     curl -fsSLo /tmp/deno.zip "https://github.com/denoland/deno/releases/download/${DENO_VERSION}/${deno}"; \
     echo "${deno_sha}  /tmp/deno.zip" | sha256sum -c -; \
     unzip -q /tmp/deno.zip -d /usr/local/bin && chmod 0755 /usr/local/bin/deno; \
@@ -100,7 +104,10 @@ COPY --from=speech-build /whisper/models/ggml-base.bin /models/ggml-base.bin
 COPY --from=speech-build /whisper/models/ggml-story.bin /models/ggml-story.bin
 COPY --from=speech-build /whisper/models/ggml-vad.bin /models/ggml-vad.bin
 COPY --from=speech-build /whisper/models/facefinder /models/facefinder
-ENV WHISPER_CPP_MODEL=/models/ggml-base.bin PIGO_FACE_MODEL=/models/facefinder
+# Clips and Story Builder share large-v3-turbo: clip selection, hooks and
+# captions all depend on transcript accuracy. ggml-base stays installed so
+# admin routing can still select it on constrained hosts.
+ENV WHISPER_CPP_MODEL=/models/ggml-story.bin PIGO_FACE_MODEL=/models/facefinder
 ENV STORY_WHISPER_CPP_MODEL=/models/ggml-story.bin WHISPER_CPP_VAD_MODEL=/models/ggml-vad.bin
 USER 10001:10001
 EXPOSE 8080

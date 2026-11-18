@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"math"
 	"os"
 	"sort"
@@ -79,15 +80,39 @@ func (p *Processor) AnalyzeStorySources(ctx context.Context, assets []story.Asse
 		}
 		return nil
 	}
-	// Bound frame payloads before decoding rather than retrying large source sets.
-	for start := 0; start < len(indexes); {
-		end := storySemanticBatchEnd(assets, indexes, start)
-		if err := analyze(indexes[start:end]); err != nil {
+	for _, batch := range storySemanticBatches(assets, indexes) {
+		if err := analyze(batch); err != nil {
 			return result, err
 		}
-		start = end
 	}
 	return p.refineStoryMusicMoments(ctx, assets, result, options)
+}
+
+// The provider answers with one JSON finding per candidate, so response time
+// grows with candidates: 60 in one request exceeded the 180 s review limit.
+const (
+	storySemanticBatchSources    = 20
+	storySemanticBatchCandidates = 24
+)
+
+// storySemanticBatches groups sources in upload order. A source with more
+// candidates than the limit still forms its own batch rather than being split.
+func storySemanticBatches(assets []story.Asset, indexes []int) [][]int {
+	var batches [][]int
+	var current []int
+	candidates := 0
+	for _, i := range indexes {
+		count := len(assets[i].Candidates)
+		if len(current) > 0 && (len(current) == storySemanticBatchSources || candidates+count > storySemanticBatchCandidates) {
+			batches, current, candidates = append(batches, current), nil, 0
+		}
+		current = append(current, i)
+		candidates += count
+	}
+	if len(current) > 0 {
+		batches = append(batches, current)
+	}
+	return batches
 }
 
 func (p *Processor) analyzeStorySourceBatch(ctx context.Context, assets []story.Asset, options story.Options) ([]story.Asset, error) {
@@ -118,6 +143,7 @@ func (p *Processor) analyzeStorySourceBatch(ctx context.Context, assets []story.
 	}
 	generator, err := aiprovider.ForTask(ctx, p.ai, aiprovider.TaskSourceAnalysis)
 	if err != nil {
+		slog.Warn("Story source analysis has no route", "reason", storyProviderFailure(err))
 		return providerFailure(err)
 	}
 	reviewer, ok := generator.(aiprovider.MediaReviewer)
@@ -146,7 +172,7 @@ func (p *Processor) analyzeStorySourceBatch(ctx context.Context, assets []story.
 	// Sort identity inputs so upload order alone does not spend another AI call.
 	sort.Slice(identities, func(i, j int) bool { return identities[i].ID < identities[j].ID })
 	sort.Slice(candidates, func(i, j int) bool { return candidates[i].ID < candidates[j].ID })
-	digest := storyDigest([]any{"source-semantics-8", model, identities, candidates, options.Language, options.Brief, options.Mode, options.Narration, musicMoments, story.UsesMusicOnlyAudio(options)})
+	digest := storyDigest([]any{"source-semantics-9", model, identities, candidates, options.Language, options.Brief, options.Mode, options.Narration, musicMoments, story.UsesMusicOnlyAudio(options)})
 	cached := true
 	for _, asset := range assets {
 		// Narration is immutable context, not an annotation target. Each visual batch
@@ -216,6 +242,7 @@ Describe visible subjects, objects, setting and actions only when supported by t
 	}
 	raw, err := reviewer.ReviewMedia(ctx, prompt, parts)
 	if err != nil {
+		slog.Warn("Story source analysis request failed", "model", model, "frames", len(parts), "reason", storyProviderFailure(err))
 		return providerFailure(err)
 	}
 	findings, err := parseStorySemanticFindingsForOptions(raw, assets, visible, options, samples)
@@ -275,7 +302,43 @@ func appendStoryWarning(values []string, value string) []string {
 	return append(values, value)
 }
 
-func storySemanticSampleFrames(asset story.Asset) []int {
+// storySemanticFrameBudget bounds one source-meaning request. Probes accepted 80
+// images; hundreds (24 per source across a large upload) exceeded the
+// provider's request, size and 90 s limits, so every source lost its meaning.
+const (
+	storySemanticFrameBudget   = 72
+	storySemanticFramesPerClip = 24
+)
+
+// storySemanticFrameLimits shares the request budget evenly between visual
+// sources, giving the remainder to the earliest ones and at least one frame each.
+func storySemanticFrameLimits(assets []story.Asset) []int {
+	limits := make([]int, len(assets))
+	visual := 0
+	for _, asset := range assets {
+		if asset.Kind != "narration" {
+			visual++
+		}
+	}
+	if visual == 0 {
+		return limits
+	}
+	each, extra := storySemanticFrameBudget/visual, storySemanticFrameBudget%visual
+	for i, asset := range assets {
+		if asset.Kind == "narration" {
+			continue
+		}
+		limits[i] = each
+		if extra > 0 {
+			limits[i]++
+			extra--
+		}
+		limits[i] = min(max(limits[i], 1), storySemanticFramesPerClip)
+	}
+	return limits
+}
+
+func storySemanticSampleFrames(asset story.Asset, limit int) []int {
 	var midpoints []int
 	for _, c := range asset.Candidates {
 		for _, fraction := range []float64{.2, .5, .8} {
@@ -289,10 +352,16 @@ func storySemanticSampleFrames(asset story.Asset) []int {
 			unique = append(unique, frame)
 		}
 	}
-	if len(unique) <= 24 {
+	if limit <= 0 {
+		return nil
+	}
+	if len(unique) <= limit {
 		return unique
 	}
-	frames := make([]int, 24)
+	if limit == 1 {
+		return []int{unique[len(unique)/2]}
+	}
+	frames := make([]int, limit)
 	for i := range frames {
 		frames[i] = unique[i*(len(unique)-1)/(len(frames)-1)]
 	}
@@ -363,7 +432,8 @@ func parseStorySemanticFindingsForOptions(raw string, assets []story.Asset, visi
 		mutedVisual := story.UsesMusicOnlyAudio(options) && visible[candidate.ID]
 		if finding.Role == "a_roll" && (strings.TrimSpace(candidate.Text) == "" || mutedVisual) {
 			if !narration && !mutedVisual {
-				return nil, fmt.Errorf("candidates[%d].role labels a silent source as spoken A-roll", i)
+				// Drop only this unsupported finding and retain its siblings.
+				continue
 			}
 			// A visible interview can look like A-roll even when deliberately
 			// muted. In narration/music-only mode the role is a visual label: retain

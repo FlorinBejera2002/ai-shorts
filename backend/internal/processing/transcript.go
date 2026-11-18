@@ -21,12 +21,15 @@ type storyPreparedAudio struct {
 	file     string
 }
 
+// Clip transcription gates ASR with the installed voice-activity model so
+// music, silence and room noise do not become hallucinated captions. Hosts
+// without the VAD model keep transcribing the full audio.
 func (p *Processor) transcribe(ctx context.Context, file, dir, language string, duration float64) (Transcript, error) {
-	return p.transcribeModel(ctx, file, dir, language, duration, p.cfg.WhisperModel)
-}
-
-func (p *Processor) transcribeModel(ctx context.Context, file, dir, language string, duration float64, model string) (Transcript, error) {
-	return p.transcribeWithVAD(ctx, file, dir, language, duration, model, "")
+	vad := p.storyVADModel(p.cfg.WhisperModel)
+	if info, err := os.Stat(vad); err != nil || !info.Mode().IsRegular() || info.Size() == 0 {
+		vad = ""
+	}
+	return p.transcribeWithVAD(ctx, file, dir, language, duration, p.cfg.WhisperModel, vad)
 }
 
 // Story speech needs independent voice evidence. Audio level alone cannot

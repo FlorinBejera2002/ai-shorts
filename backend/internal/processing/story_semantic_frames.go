@@ -16,32 +16,17 @@ import (
 	"sneepcut/backend-go/internal/story"
 )
 
-// A broad meaning pass needs three observations per candidate, capped per
-// source. Reserve dense action observation for selected candidates afterwards.
-// Budget images while retaining the source-count/context bound.
-func storySemanticBatchEnd(assets []story.Asset, indexes []int, start int) int {
-	end, images := start, 0
-	for end < len(indexes) && end-start < 20 {
-		frames := storySemanticSampleFrames(assets[indexes[end]])
-		if end > start && images+len(frames) > 96 {
-			break
-		}
-		images += len(frames)
-		end++
-	}
-	return end
-}
-
 func (p *Processor) storySemanticFrames(ctx context.Context, dir string, assets []story.Asset, musicMoments bool, samplers ...func(story.Asset) []int) ([]aiprovider.MediaPart, map[string]bool, map[string][]float64, error) {
 	var parts []aiprovider.MediaPart
 	visible := map[string]bool{}
 	samples := map[string][]float64{}
 	total := 0
+	limits := storySemanticFrameLimits(assets)
 	for ai, asset := range assets {
 		if asset.Kind == "narration" {
 			continue
 		}
-		frames := storySemanticSampleFrames(asset)
+		frames := storySemanticSampleFrames(asset, limits[ai])
 		if musicMoments {
 			frames = storyVisualMomentSampleFrames(asset)
 		}

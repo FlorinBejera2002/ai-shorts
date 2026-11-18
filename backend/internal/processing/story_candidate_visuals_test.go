@@ -141,3 +141,14 @@ func TestStoryVisualGapsDoNotMaskInvalidSourceCatalogs(t *testing.T) {
 		t.Fatal("unbounded duration allocated visual candidates")
 	}
 }
+
+// A sub-second breath before speech must not become a flashing b-roll shot cut
+// exactly at the speech onset; it belongs to the phrase that follows it.
+func TestStoryVisualGapsAttachShortLeadInsToSpeech(t *testing.T) {
+	asset := story.Asset{ID: "car", Duration: 20}
+	speech := story.Candidate{ID: "car-s1", SourceID: "car", In: .93, Out: 19.63, Words: []story.Word{{Text: "Și", Start: 1, End: 1.2}}}
+	got := storyCandidatesWithVisualGaps(asset, []story.Candidate{speech}, 0, .5)
+	if len(got) != 1 || got[0].In != 0 || got[0].Out != 20 {
+		t.Fatalf("short lead-in or tail became a separate shot: %+v", got)
+	}
+}

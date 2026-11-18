@@ -116,6 +116,22 @@ services:
       timeout: 5s
       retries: 6
 
+  youtube-pot-provider:
+    image: brainicism/bgutil-ytdlp-pot-provider:2.0.2@sha256:d7d34108b76e52c7d3b575fe9e797e4bf41c1b2a08f80c5292eff6f851ce8472
+    restart: unless-stopped
+    init: true
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+    mem_limit: 512m
+    cpus: 1
+    pids_limit: 128
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4416/ping').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 4
+      start_period: 15s
+
   worker:
     <<: *app
     networks: [default, studio]
@@ -126,11 +142,14 @@ services:
       <<: *environment
       STUDIO_AGENT_URL: ${STUDIO_AGENT_URL:-http://studio:5191}
       STUDIO_AGENT_SECRET: ${STUDIO_AGENT_SECRET:?Set STUDIO_AGENT_SECRET for Studio rendering}
-      # YouTube blocks datacenter IPs. An exported cookies file in the secrets
-      # directory (outside the rotating release) lets imports authenticate;
-      # the worker skips it when the file is absent.
+      # Automatic token mode ignores account cookies. Leave the provider URL
+      # empty only when explicitly using the legacy cookie-based importer.
       YOUTUBE_COOKIES_FILE: ${YOUTUBE_COOKIES_PATH:-/run/secrets/youtube-cookies.txt}
+      YOUTUBE_TOKEN_PROVIDER_URL: ${YOUTUBE_TOKEN_PROVIDER_URL-http://youtube-pot-provider:4416}
+      YOUTUBE_PROXY: ${YOUTUBE_PROXY:-}
     depends_on:
+      youtube-pot-provider:
+        condition: service_healthy
       migrate:
         condition: service_completed_successfully
       studio:

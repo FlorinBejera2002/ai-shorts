@@ -1,7 +1,6 @@
 package processing
 
 import (
-	"strings"
 	"testing"
 
 	"sneepcut/backend-go/internal/story"
@@ -26,8 +25,9 @@ func TestMusicOnlyMeaningRetainsObservedMainSubjectWithoutInventingSpeech(t *tes
 	if err != nil || len(got) != 1 || got["walking"].Idea != "" {
 		t.Fatalf("unseen muted source gained visual evidence: %#v %v", got, err)
 	}
-	if _, err = parseStorySemanticFindings(raw, assets, visible); err == nil || !strings.Contains(err.Error(), "spoken A-roll") {
-		t.Fatal("music-only normalization weakened ordinary speech validation", err)
+	got, err = parseStorySemanticFindings(raw, assets, visible)
+	if err != nil || len(got) != 1 || got["lake"].Role != "b_roll" {
+		t.Fatalf("ordinary speech validation should omit only the unsupported A-roll: %#v %v", got, err)
 	}
 	assets[0].Candidates[0].Text = "Saved camera dialogue from an earlier analysis."
 	got, err = parseStorySemanticFindingsForOptions(raw, assets, map[string]bool{"lake": true}, options)

@@ -67,6 +67,17 @@ func TestGenerateClassifiesHTTPFailuresWithoutLeakingBodies(t *testing.T) {
 	}
 }
 
+func TestGenerateReportsProviderCreditLimitWithoutDiagnostics(t *testing.T) {
+	c := New("provider-test-secret", "test/model", "")
+	c.HTTP = &http.Client{Transport: transportFunc(func(*http.Request) (*http.Response, error) {
+		return response(http.StatusPaymentRequired, `{"error":{"message":"provider-test-secret private billing details"}}`), nil
+	})}
+	_, err := c.Generate(context.Background(), "prompt")
+	if err == nil || !strings.Contains(err.Error(), "credit") || strings.Contains(err.Error(), "private") || strings.Contains(err.Error(), "provider-test-secret") || aiprovider.RetryableRequest(err) {
+		t.Fatalf("expected safe, actionable credit-limit error, got %v", err)
+	}
+}
+
 func TestGenerateIdentifiesExhaustedKey403(t *testing.T) {
 	c := New("private-key", "test/model", "")
 	c.HTTP = &http.Client{Transport: transportFunc(func(*http.Request) (*http.Response, error) {
