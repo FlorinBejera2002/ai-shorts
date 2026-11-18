@@ -31,6 +31,8 @@ FROM nginx:stable-alpine AS runner
 COPY --from=builder /app/dist /usr/share/nginx/html
 COPY <<'CONF' /etc/nginx/conf.d/default.conf
 server {
+    # The local gateway uses port 80; production Caddy uses port 8080.
+    listen 80;
     listen 8080;
     root /usr/share/nginx/html;
     index index.html;
@@ -45,5 +47,5 @@ server {
     }
 }
 CONF
-EXPOSE 8080
+EXPOSE 80 8080
 CMD ["nginx", "-g", "daemon off;"]

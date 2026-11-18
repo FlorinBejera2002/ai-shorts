@@ -279,6 +279,7 @@ export async function importStorySources(
     apiOrigin: string;
     mediaOrigin: string;
     mediaFetchOrigin?: string;
+    mediaS3Origin?: string;
     bearer: string;
   },
 ) {
@@ -302,6 +303,7 @@ export async function importStorySources(
         browserProxy ?? source.source_url,
         options.mediaOrigin,
         options.mediaFetchOrigin,
+        options.mediaS3Origin,
       ),
       join(dir, path),
       Math.min(2 * 1024 ** 3, remaining),
@@ -310,7 +312,7 @@ export async function importStorySources(
     if (browserProxy && browserProxy !== source.source_url) {
       remaining -= await downloadImportFile(
         options.fetcher,
-        mediaDownloadURL(source.source_url, options.mediaOrigin, options.mediaFetchOrigin),
+        mediaDownloadURL(source.source_url, options.mediaOrigin, options.mediaFetchOrigin, options.mediaS3Origin),
         join(dir, `assets/original-source-${index + 1}.mov`),
         Math.min(2 * 1024 ** 3, remaining),
       );
@@ -319,7 +321,7 @@ export async function importStorySources(
       const audioPath = `assets/audio-${index + 1}.wav`;
       remaining -= await downloadImportFile(
         options.fetcher,
-        mediaDownloadURL(source.processed_audio_url, options.mediaOrigin, options.mediaFetchOrigin),
+        mediaDownloadURL(source.processed_audio_url, options.mediaOrigin, options.mediaFetchOrigin, options.mediaS3Origin),
         join(dir, audioPath),
         Math.min(512 * 1024 ** 2, remaining),
       );

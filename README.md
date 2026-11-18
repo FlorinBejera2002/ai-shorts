@@ -237,6 +237,194 @@ Press `Ctrl-C` to stop the foreground command. Then remove the stopped container
 make down
 ```
 
+## Local S3 development
+
+The development Compose overlay includes a pinned SeaweedFS image in the same
+Docker project as the app. It provides an authenticated, private, unversioned
+S3 bucket backed by the runtime root's `seaweedfs/` directory. Production Compose uses the
+configured external object store and does not include SeaweedFS.
+
+```sh
+make seaweed-up # Start only SeaweedFS; make dev-up also starts it
+make test-s3    # Exercise the actual Go media storage adapter
+make media-s3-up # Copy/verify local media, enable S3 locally, restart the app
+```
+
+The S3 endpoint is `http://s3.localhost:8333` for browsers and Go app containers.
+Browsers resolve the localhost subdomain to loopback; Docker resolves the same
+name through the service's network alias. Native command-line tools can use
+`http://127.0.0.1:8333`. Only the S3 port is published, on loopback. Override
+`SEAWEEDFS_PORT` to change both its host and container port together.
+
+Development defaults are bucket `sneepcut-dev`, access key `sneepcut-dev`,
+secret key `sneepcut-local-development-only`, region `us-east-1`, and path-style
+addressing. Customize them with `SEAWEEDFS_BUCKET`, `SEAWEEDFS_ACCESS_KEY_ID`,
+and `SEAWEEDFS_SECRET_ACCESS_KEY`. Keep these development credentials local.
+The volume retains both object data and filer metadata across container
+recreation; it is user data and is not part of cache cleanup.
+
+`make test-s3` checks private access, signed GETs, HTTP range downloads, exact
+bytes/content type, conditional concurrent uploads, object size/existence,
+and paginated prefix deletion without deleting a neighboring prefix. It uses
+only loopback and a random synthetic prefix, removes its test objects, and
+cleans scratch files from `.cache/tmp/`. It never reads production S3 settings.
+
+`make media-s3-up` is the local cutover command. It stops the API and worker,
+copies every regular file from the runtime root's `media/` directory with its
+existing key, and verifies downloaded SHA-256 hashes before updating `.env`.
+Original files are retained. Matching destination objects are verified and
+reused on retries; conflicting bytes or symlinks stop the cutover. If migration
+fails, the stack resumes using its previous configuration. The command refuses
+production mode, non-loopback browser origins and replacement of existing AWS
+settings for another provider.
+
+The cutover sets browser CORS for the local app/Studio origins without making
+the bucket public. It also sets the following media configuration (shown for
+the default development bucket and credentials):
+
+```dotenv
+STORAGE_TYPE=s3
+AWS_ACCESS_KEY_ID=sneepcut-dev
+AWS_SECRET_ACCESS_KEY=sneepcut-local-development-only
+AWS_REGION=us-east-1
+AWS_S3_BUCKET=sneepcut-dev
+AWS_ENDPOINT_URL=http://s3.localhost:8333
+AWS_S3_FORCE_PATH_STYLE=true
+AWS_PUBLIC_BASE_URL=http://s3.localhost:8333/sneepcut-dev
+SNEEPCUT_MEDIA_S3_ORIGIN=http://s3.localhost:8333
+SNEEPCUT_MEDIA_S3_INTERNAL_ORIGIN=http://seaweedfs:8333
+```
+
+Then recreate the affected services with `make dev-up`. Use the same bucket,
+port and credentials as SeaweedFS. `AWS_PUBLIC_BASE_URL` describes the URL shape
+for normalizing references; it does not grant public access. Signed URLs include
+the hostname. Bun resolves localhost subdomains to loopback even inside Docker,
+so Studio uses `SNEEPCUT_MEDIA_S3_INTERNAL_ORIGIN` for transport while preserving
+the original signed `Host`, path and query. This optional internal override is
+unnecessary when the public provider hostname is reachable normally.
+
+Starting SeaweedFS alone does not change `STORAGE_TYPE`; use `make media-s3-up`
+for that transition. To move Studio's durable state too, run:
+
+```sh
+make studio-s3-up
+make test-studio-s3
+```
+
+This stops Studio, imports and downloads/verifies existing projects, compositions,
+agent receipts and reusable assets, retains the originals, then enables
+`SNEEPCUT_STUDIO_STORAGE=s3`. It uses the same private bucket under `studio/v1`;
+`SNEEPCUT_STUDIO_S3_ENDPOINT=http://seaweedfs:8333` is the local server transport.
+On production, use the provider endpoint and provision credentials separately.
+No production deployment or bucket purchase is performed by these commands.
+
+Studio stores immutable file blobs and revision manifests, then conditionally
+updates each project's current revision. Saves wait for this commit; competing
+servers receive a conflict instead of overwriting saved edits. A startup probe
+requires both `If-None-Match` and `If-Match` support. Restoring a working copy
+checks every file's SHA-256. Project lists read small heads without downloading
+every project's media. Composition baselines, export files, accepted workspace
+heads, agent undo receipts and deletion fences are durable too. Running render
+jobs remain disposable; interrupted jobs can be retried from their saved sources.
+
+With S3 enabled, only `studio/projects-cache/`,
+`studio/projects-compositions-cache/`, `studio/projects-agent-receipts-cache/`
+and `studio/projects-owner-assets-cache/` are disposable working copies. Stop
+Studio before clearing them. The legacy `studio/projects/` and
+`studio/projects-compositions/` originals remain valuable migration sources;
+do not remove the whole `studio/` directory. S3 revision history needs an explicit
+retention/garbage-collection policy before production growth; it is separate
+from provider backups and bucket versioning.
+
+For real application verification, run `make test-media-s3` with
+`PLAYWRIGHT_MODULE=/absolute/path/to/playwright/index.mjs`. It requires Chrome,
+native Go/FFmpeg and the running local stack configured through `make media-s3-up`.
+It uses isolated schemas in `sneepcut_integration_test` and a random synthetic
+owner, then verifies authenticated uploads, ownership, private signed reads,
+browser ranges/CORS/canvas decoding, worker source access, Studio import and
+isolated thumbnail/MP4 rendering, and owner cleanup. Fixtures and scratch files
+are removed; the development user database is not used for mutations.
+
+### Hetzner production compatibility
+
+The current adapter uses `PutObject` with `If-None-Match: *`, `HeadObject`,
+`DeleteObject`, `ListObjectsV2`, `DeleteObjects`, and presigned `GetObject`.
+Hetzner documents support for the core S3 API and AWS SDK for Go v2. Its
+[supported-actions list](https://docs.hetzner.com/storage/object-storage/supported-actions/)
+excludes conditional PUT/DELETE on **versioned buckets**, so use an unversioned
+bucket and unique application revision keys with this adapter. S3 bucket
+versioning is separate from the application's saved project revisions.
+
+The expected production change is configuration: Hetzner credentials, bucket,
+region (for example `fsn1`), endpoint `https://fsn1.your-objectstorage.com`,
+`AWS_S3_FORCE_PATH_STYLE=false`, and the matching bucket origin for Studio
+(for example `https://sneepcut-media.fsn1.your-objectstorage.com`). No AWS-only
+services or SeaweedFS filesystem APIs are used by the media adapter. The Go SDK
+already requests checksums only when required. Configure CORS for the actual
+app and Studio origins when browser canvas/media access needs it.
+
+Live verification on 2026-11-09 established media and Studio API compatibility
+after normalizing response ETags for conditional Studio updates. Private browser
+playback, real Studio rendering and cache-loss recovery passed. However, repeated
+bulk tests encountered HTTP 503/504 responses and an ambiguous conditional-write
+retry. On November 13, three ordinary runs and two full server repeats all passed,
+including 15 video transfers, with no traced 5xx responses or retries. Some bulk
+requests still took tens of seconds; provider investigation, application failure
+recovery and representative load verification remain before production cutover.
+Configure bucket CORS if direct browser fetch/canvas access is used. See
+[the verification report and opt-in runner](docs/hetzner-s3-verification.md)
+for evidence and repeatable commands.
+A separate test bucket is optional. The runner never creates buckets, changes
+bucket settings, uses application credentials or modifies application storage
+configuration; its writes and cleanup use random synthetic prefixes only.
+Hetzner's [billing overview](https://docs.hetzner.com/storage/object-storage/overview/#pricing)
+describes an account-wide hourly base price rather than a separate base charge
+per bucket; storage and traffic usage still count.
+See Hetzner's [Go SDK examples](https://docs.hetzner.com/storage/object-storage/getting-started/using-libraries/)
+and [private presigned URL guidance](https://docs.hetzner.com/storage/object-storage/faq/buckets-objects/).
+
+### Local runtime directory layout
+
+Local Compose stores application files under `SNEEPCUT_RUNTIME_ROOT`, defaulting
+to `../ai-shorts-runtime` beside the checkout. It is a normal host directory you
+can inspect in Finder. Keep this root outside the checkout and disposable caches.
+
+| Directory | Contents |
+| --- | --- |
+| `media/` | Local media assets, shared by the API, worker and Nginx |
+| `studio/` | Legacy originals plus Studio working copies; see the S3 cutover above |
+| `seaweedfs/` | Complete local object-store data and metadata; manage objects through S3 |
+| `tmp/<service>/` | Disposable processing, upload, rendering and server scratch files |
+| `cache/` | Regenerable Go and Vite development caches |
+
+For an existing checkout, run this once before restarting the stack:
+
+```sh
+make runtime-migrate # Stops file writers, copies legacy volumes, verifies every file
+make dev-up
+make health
+```
+
+Migration verifies filenames, file hashes and symbolic-link targets before
+marking the destination ready. It refuses to overwrite a nonempty unmarked
+directory. If interrupted, inspect the partial destination before retrying;
+the original named volumes remain intact. They are detached on the next start
+and are never automatically deleted. Fresh installs initialize the directories
+through `make setup` or `make dev-up`. `make test-runtime` uses a disposable Docker
+volume to verify copying and path safety.
+
+Paths inside containers stay `/app/media`, `/data` and `/tmp`, so saved references
+and Studio sandbox paths keep working. Temp files now use host disk instead of
+the previous RAM-backed tmpfs; each service has its own directory and permissions.
+Studio's isolated render sandbox still has a private in-memory `/tmp`; its staged
+inputs and outputs live under `tmp/studio/`. Old scratch files and caches are
+disposable and are regenerated. Stop the relevant service before clearing its
+scratch/cache directory; never treat `media/`, `studio/` or `seaweedfs/` as caches.
+
+PostgreSQL, Redis and optional ClamAV keep their existing Docker-managed storage.
+Production Compose remains separate and unchanged. This relocation does not
+upload media or Studio state to S3, or switch the application from `STORAGE_TYPE=local`.
+
 ## Common commands
 
 ```bash

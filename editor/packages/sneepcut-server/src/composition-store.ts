@@ -41,6 +41,8 @@ export interface CompositionReceipt {
   size?: number;
   preview_available: boolean;
   error?: string;
+  runner_id?: string;
+  heartbeat_at?: number;
 }
 
 /** Generated projects have no browser-facing project API and are never edited in place. */
@@ -58,18 +60,23 @@ export class CompositionStore {
   private readonly workspaceHeads: ProjectStore;
   private readonly pending = new Map<string, Promise<void>>();
   private readonly ownerLocks = new Map<string, Promise<void>>();
-  constructor(root: string) {
-    this.snapshots = new ProjectStore(join(root, "snapshots"));
-    this.baselines = new ProjectStore(join(root, "baselines"));
-    this.sources = new ProjectStore(join(root, "sources"));
-    this.generated = new ProjectStore(join(root, "generated"));
-    this.staged = new ProjectStore(join(root, "staged"));
-    this.workspaces = new ProjectStore(join(root, "workspaces"));
-    this.receipts = new ProjectStore(join(root, "receipts"));
-    this.deletedArtifacts = new ProjectStore(join(root, "deleted-artifacts"));
-    this.deletedScopes = new ProjectStore(join(root, "deleted-scopes"));
-    this.imports = new ProjectStore(join(root, "imports"));
-    this.workspaceHeads = new ProjectStore(join(root, "workspace-heads"));
+  private readonly receiptVersions = new WeakMap<CompositionReceipt, string | null | undefined>();
+  constructor(
+    root: string,
+    factory = (path: string, _namespace: string): ProjectStore => new ProjectStore(path),
+  ) {
+    const store = (name: string) => factory(join(root, name), name);
+    this.snapshots = store("snapshots");
+    this.baselines = store("baselines");
+    this.sources = store("sources");
+    this.generated = store("generated");
+    this.staged = store("staged");
+    this.workspaces = store("workspaces");
+    this.receipts = store("receipts");
+    this.deletedArtifacts = store("deleted-artifacts");
+    this.deletedScopes = store("deleted-scopes");
+    this.imports = store("imports");
+    this.workspaceHeads = store("workspace-heads");
   }
   /** Serialize publication and deletion, including the editable copy's final rename. */
   async withOwner<T>(owner: string, operation: () => Promise<T>): Promise<T> {
@@ -232,6 +239,7 @@ export class CompositionStore {
       const temporary = join(head.dir, `${randomUUID()}.tmp`);
       await writeFile(temporary, JSON.stringify({ artifact_id: artifact }), { flag: "wx" });
       await rename(temporary, join(head.dir, "origin.json"));
+      await this.workspaceHeads.save(owner, projectId);
     }
   }
   async workspaceHead(owner: string, projectID: string): Promise<string | undefined> {
@@ -382,7 +390,7 @@ export class CompositionStore {
         status !== "cancelled"
       )
         throw new Error("Invalid composition status");
-      return {
+      const receipt: CompositionReceipt = {
         artifact_id: id,
         ...("scope_id" in value && typeof value.scope_id === "string"
           ? { scope_id: value.scope_id }
@@ -398,6 +406,8 @@ export class CompositionStore {
         ...("size" in value && typeof value.size === "number" ? { size: value.size } : {}),
         ...("error" in value && typeof value.error === "string" ? { error: value.error } : {}),
       };
+      this.receiptVersions.set(receipt, this.receipts.version(owner, id));
+      return receipt;
     });
   }
   async write(owner: string, receipt: CompositionReceipt): Promise<void> {
@@ -407,6 +417,8 @@ export class CompositionStore {
       const temporary = join(project.dir, `receipt-${randomUUID()}.tmp`);
       await writeFile(temporary, JSON.stringify(receipt), { flag: "wx", mode: 0o600 });
       await rename(temporary, join(project.dir, "receipt.json"));
+      await this.receipts.save(owner, receipt.artifact_id, this.receiptVersions.get(receipt));
+      this.receiptVersions.set(receipt, this.receipts.version(owner, receipt.artifact_id));
     });
   }
   async completed(owner: string, id: string): Promise<StoredProject> {
@@ -452,10 +464,13 @@ function optionalReceiptFields(value: object): Partial<CompositionReceipt> {
     "base_revision",
     "committed_revision",
     "publishing_revision",
+    "runner_id",
   ] as const) {
     if (key in value && typeof Reflect.get(value, key) === "string")
       result[key] = Reflect.get(value, key);
   }
+  if ("heartbeat_at" in value && typeof value.heartbeat_at === "number")
+    result.heartbeat_at = value.heartbeat_at;
   for (const key of ["workspace_absent", "export_only", "manually_edited"] as const) {
     if (key in value && typeof Reflect.get(value, key) === "boolean")
       result[key] = Reflect.get(value, key);

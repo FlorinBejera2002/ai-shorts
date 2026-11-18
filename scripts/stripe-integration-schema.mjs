@@ -4,7 +4,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 
 // Mirrors migrations.All(): lexical SQL file order plus a strict linear chain.
 // This only writes a disposable schema fixture; it never connects to a database.
-export async function buildSchema(root) {
+export async function buildSchema(root, target = path.join(root, '.cache', 'tmp', 'stripe-billing', 'schema.sql')) {
   const directory = path.join(root, 'backend', 'migrations')
   const names = (await readdir(directory)).filter(name => name.endsWith('.sql')).sort()
   if (!names.length) throw new Error('Migration history is empty')
@@ -19,7 +19,6 @@ export async function buildSchema(root) {
     revisions.add(previous)
     statements.push(`-- ${name}\n${match[3]}`)
   }
-  const target = path.join(root, '.cache', 'tmp', 'stripe-billing', 'schema.sql')
   await mkdir(path.dirname(target), { recursive: true })
   await writeFile(target, statements.join('\n'), 'utf8')
   return { path: target, revision: previous, migrations: names.length }

@@ -16,6 +16,7 @@ export interface StoredProject {
   id: string;
   dir: string;
   title: string;
+  cacheKey?: string;
 }
 export const isUUID = (value: string): boolean =>
   /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(value);
@@ -30,6 +31,14 @@ export class ProjectStore {
   constructor(root: string) {
     this.root = resolve(root);
   }
+  /** Filesystem stores are already durable; object-backed stores flush before acknowledgement. */
+  async save(_userId: string, _projectId: string, _expected?: string | null): Promise<void> {}
+  catalog(userId: string): Promise<StoredProject[]> { return this.list(userId); }
+  version(_userId: string, _projectId: string): string | null | undefined { return undefined; }
+  checkpoint(userId: string, projectId: string): () => Promise<void> {
+    return () => this.save(userId, projectId);
+  }
+  discard(_userId: string, _projectId: string): void {}
   private async directory(path: string, create: boolean): Promise<string> {
     if (create) await mkdir(path, { recursive: true, mode: 0o700 });
     if (

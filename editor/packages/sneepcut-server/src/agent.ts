@@ -18,6 +18,7 @@ import { MAX_AUDIO_GAIN } from "../../core/src/audioGain";
 export interface AgentBridgeOptions {
   secret?: string;
   store: ProjectStore;
+  receipts?: ProjectStore;
   api(user: string): Promise<Hono>;
   initialize(project: StoredProject): Promise<void>;
   now?: () => number;
@@ -25,6 +26,13 @@ export interface AgentBridgeOptions {
 
 export function createAgentBridge(options: AgentBridgeOptions) {
   const locks = new Map<string, Promise<void>>();
+  async function receiptFile(user: string, receiptID: string): Promise<string> {
+    if (!options.receipts)
+      return join(await options.store.userHome(user), ".agent-receipts", `${receiptID}.json`);
+    const project = await options.receipts.resolve(user, receiptID);
+    if (!project) throw Object.assign(new Error("Receipt not found"), { code: "ENOENT" });
+    return join(project.dir, "receipt.json");
+  }
   async function apiJSON(api: Hono, path: string, init?: RequestInit): Promise<RecordValue> {
     const response = await api.request(path, init);
     if (!response.ok) {
@@ -87,7 +95,7 @@ export function createAgentBridge(options: AgentBridgeOptions) {
     if (name === "studio.list") {
       fields(input, []);
       return {
-        projects: (await options.store.list(user))
+        projects: (await options.store.catalog(user))
           .slice(0, 100)
           .map((p) => ({ id: p.id, title: p.title })),
       };
@@ -183,12 +191,7 @@ export function createAgentBridge(options: AgentBridgeOptions) {
     if (name === "studio.restore") {
       fields(input, ["id", "expected_version", "receipt_id"]);
       const receiptID = id(input.receipt_id);
-      const prior: unknown = JSON.parse(
-        await readFile(
-          join(await options.store.userHome(user), ".agent-receipts", `${receiptID}.json`),
-          "utf8",
-        ),
-      );
+      const prior: unknown = JSON.parse(await readFile(await receiptFile(user, receiptID), "utf8"));
       if (
         !record(prior) ||
         !record(prior.result) ||
@@ -381,14 +384,11 @@ export function createAgentBridge(options: AgentBridgeOptions) {
         "studio.export",
       ].includes(name);
       let receiptPath = "";
+      let receiptVersion: string | null | undefined;
       const hash = createHash("sha256").update(raw).digest("hex");
       if (!readOnly) {
-        const directory = join(await options.store.userHome(user), ".agent-receipts");
-        await mkdir(directory, { recursive: true, mode: 0o700 });
-        if ((await lstat(directory)).isSymbolicLink())
-          throw new HTTPException(409, { message: "Studio receipt storage is unavailable" });
-        receiptPath = join(directory, `${requestID}.json`);
         try {
+          receiptPath = await receiptFile(user, requestID);
           const prior: unknown = JSON.parse(await readFile(receiptPath, "utf8"));
           if (!record(prior) || prior.hash !== hash || !record(prior.result))
             throw new HTTPException(409, {
@@ -399,17 +399,46 @@ export function createAgentBridge(options: AgentBridgeOptions) {
           if (!(error instanceof Error) || !("code" in error) || error.code !== "ENOENT")
             throw error;
         }
-        await writeFile(receiptPath, JSON.stringify({ hash }), { flag: "wx", mode: 0o600 });
+        if (options.receipts) {
+          let created = false;
+          const project = await options.receipts.ensure(
+            user,
+            requestID,
+            "Studio agent receipt",
+            async (project) => {
+              created = true;
+              await writeFile(join(project.dir, "receipt.json"), JSON.stringify({ hash }), {
+                flag: "wx",
+                mode: 0o600,
+              });
+            },
+          );
+          if (!created)
+            throw new HTTPException(409, {
+              message: "Studio execution already started; inspect the project before retrying",
+            });
+          receiptPath = join(project.dir, "receipt.json");
+          receiptVersion = options.receipts.version(user, requestID);
+        } else {
+          const directory = join(await options.store.userHome(user), ".agent-receipts");
+          await mkdir(directory, { recursive: true, mode: 0o700 });
+          if ((await lstat(directory)).isSymbolicLink())
+            throw new HTTPException(409, { message: "Studio receipt storage is unavailable" });
+          receiptPath = join(directory, `${requestID}.json`);
+          await writeFile(receiptPath, JSON.stringify({ hash }), { flag: "wx", mode: 0o600 });
+        }
       }
       const result = await execute(user, requestID, name, input);
       const previousHTML = result.__previous_html;
       delete result.__previous_html;
-      if (receiptPath)
+      if (receiptPath) {
         await writeFile(
           receiptPath,
           JSON.stringify({ hash, result, previous_html: previousHTML }),
           { mode: 0o600 },
         );
+        await options.receipts?.save(user, requestID, receiptVersion);
+      }
       return Response.json(result);
     } finally {
       release();

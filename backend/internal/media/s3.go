@@ -2,6 +2,7 @@ package media
 
 import (
 	"context"
+	"crypto/rand"
 	"errors"
 	"net/http"
 	"net/url"
@@ -10,6 +11,7 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/aws/retry"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
@@ -60,6 +62,10 @@ func (s *S3Storage) Save(ctx context.Context, source, key, contentType string) e
 	if !validKey(key) {
 		return ErrInvalidKey
 	}
+	// Bound the whole operation, including SDK backoff and reconciliation, rather
+	// than granting each SDK attempt a fresh ten-minute budget.
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Minute)
+	defer cancel()
 	f, e := os.Open(source)
 	if e != nil {
 		return e
@@ -69,8 +75,32 @@ func (s *S3Storage) Save(ctx context.Context, source, key, contentType string) e
 	if e != nil {
 		return e
 	}
-	_, e = s.client.PutObject(ctx, &s3.PutObjectInput{Bucket: aws.String(s.bucket), Key: aws.String(key), Body: f, ContentLength: aws.Int64(info.Size()), ContentType: aws.String(contentType), IfNoneMatch: aws.String("*")})
+	writeID := rand.Text()
+	_, e = s.client.PutObject(ctx, &s3.PutObjectInput{
+		Bucket: aws.String(s.bucket), Key: aws.String(key), Body: f,
+		ContentLength: aws.Int64(info.Size()), ContentType: aws.String(contentType),
+		IfNoneMatch: aws.String("*"), Metadata: map[string]string{"sneepcut-write-id": writeID},
+	})
+	if e == nil || ctx.Err() != nil || !uncertainS3Write(e) {
+		return e
+	}
+	// A conditional SDK retry may receive 412 after an earlier attempt committed.
+	// Existence or matching bytes alone cannot identify our own write: a different
+	// caller must still lose a conditional create, even for identical media.
+	saved, checkErr := s.client.HeadObject(ctx, &s3.HeadObjectInput{Bucket: aws.String(s.bucket), Key: aws.String(key)})
+	if checkErr == nil && saved != nil && saved.Metadata["sneepcut-write-id"] == writeID &&
+		saved.ContentLength != nil && *saved.ContentLength == info.Size() {
+		return nil
+	}
 	return e
+}
+
+func uncertainS3Write(err error) bool {
+	var api smithy.APIError
+	if errors.As(err, &api) && (api.ErrorCode() == "PreconditionFailed" || api.ErrorCode() == "ConditionalRequestConflict") {
+		return true
+	}
+	return retry.NewStandard().IsErrorRetryable(err)
 }
 func (s *S3Storage) Exists(ctx context.Context, key string) (bool, error) {
 	if !validKey(key) {

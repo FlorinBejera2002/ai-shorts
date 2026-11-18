@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { mkdir, lstat, readFile, readdir, rename, writeFile } from "node:fs/promises";
 import { dirname, extname, join } from "node:path";
 import { HTTPException } from "hono/http-exception";
@@ -17,7 +17,12 @@ import {
   type CanonicalCompositionPlan,
   type CanonicalAssetPath,
 } from "./canonical-composition";
-import { downloadImportFile, mediaDownloadURL } from "./import-media";
+import {
+  createMediaFetcher,
+  downloadImportFile,
+  mediaDownloadURL,
+  validateMediaS3Origin,
+} from "./import-media";
 import { startSandboxRender } from "./sandbox";
 import { isUUID, type StoredProject, type ProjectStore } from "./store";
 import {
@@ -39,6 +44,7 @@ interface ServiceOptions {
   mediaOrigin: string;
   mediaFetchOrigin?: string;
   mediaS3Origin?: string;
+  mediaS3InternalOrigin?: string;
   editableStore?: ProjectStore;
   closeOwner?: (owner: string) => Promise<void | (() => void)>;
   workspaceCommitted?: (owner: string, projectID: string) => Promise<void>;
@@ -81,7 +87,12 @@ function fields(value: Record<string, unknown>, allowed: string[]) {
     throw new HTTPException(422, { message: "Unsupported composition fields" });
 }
 const outputName = (preview: boolean) => (preview ? "preview.mp4" : "video.mp4");
-const publicReceipt = ({ hash: _hash, ...receipt }: CompositionReceipt) => receipt;
+const publicReceipt = ({
+  hash: _hash,
+  runner_id: _runner,
+  heartbeat_at: _heartbeat,
+  ...receipt
+}: CompositionReceipt) => receipt;
 class LegacyWorkspaceConflict extends HTTPException {
   constructor() {
     super(409, {
@@ -168,6 +179,11 @@ async function compositionTextFiles(directory: string): Promise<Map<string, stri
 
 /** Internal, owner-bound API for producing the same editable documents Studio renders. */
 export function createCompositionService(options: ServiceOptions) {
+  const runnerID = randomUUID();
+  const runnerAlive = (saved: CompositionReceipt) =>
+    !!saved.runner_id &&
+    typeof saved.heartbeat_at === "number" &&
+    Date.now() - saved.heartbeat_at < 60_000;
   const editable = options.editableStore ?? options.store.workspaces;
   const active = new Map<string, ActiveJob>();
   const locks = new Map<string, Promise<void>>();
@@ -187,22 +203,19 @@ export function createCompositionService(options: ServiceOptions) {
     )
       throw new Error("Invalid internal composition media origin");
   }
-  const s3 = options.mediaS3Origin ? new URL(options.mediaS3Origin) : undefined;
-  if (
-    s3 &&
-    (!["http:", "https:"].includes(s3.protocol) ||
-      s3.username ||
-      s3.password ||
-      s3.pathname !== "/" ||
-      s3.search ||
-      s3.hash)
-  )
-    throw new Error("Invalid S3 composition media origin");
+  validateMediaS3Origin(options.mediaS3Origin);
+  const fetchMedia = createMediaFetcher(
+    options.fetcher ?? fetch,
+    options.mediaS3Origin,
+    options.mediaS3InternalOrigin,
+  );
   function mediaURL(reference: string): URL {
-    const source = new URL(reference, options.mediaOrigin);
-    if (s3 && source.origin === s3.origin && !source.username && !source.password && !source.hash)
-      return source;
-    return mediaDownloadURL(reference, options.mediaOrigin, options.mediaFetchOrigin);
+    return mediaDownloadURL(
+      reference,
+      options.mediaOrigin,
+      options.mediaFetchOrigin,
+      options.mediaS3Origin,
+    );
   }
   async function locked<T>(key: string, operation: () => Promise<T>): Promise<T> {
     const previous = locks.get(key) ?? Promise.resolve();
@@ -234,6 +247,7 @@ export function createCompositionService(options: ServiceOptions) {
     const saved = await options.store.read(owner, id);
     if (!saved) throw new HTTPException(404, { message: "Composition was not found" });
     if (saved.status === "preparing" || saved.status === "rendering") {
+      if (runnerAlive(saved)) return saved;
       saved.status = "failed";
       saved.error =
         "The Studio service restarted before rendering completed. Retry this composition.";
@@ -257,7 +271,7 @@ export function createCompositionService(options: ServiceOptions) {
     await mkdir(join(project.dir, "assets"), { recursive: true });
     let remaining = maxBytes - 16 * 1024 ** 2;
     const fetcher: AuthFetcher = (input, init) =>
-      (options.fetcher ?? fetch)(input, {
+      fetchMedia(input, {
         ...init,
         signal: init?.signal ? AbortSignal.any([signal, init.signal]) : signal,
       });
@@ -393,6 +407,14 @@ export function createCompositionService(options: ServiceOptions) {
     base?: CompositionReceipt,
   ) {
     const key = `${owner}/${job.receipt.artifact_id}`;
+    let heartbeat: Promise<void> = Promise.resolve();
+    const timer = setInterval(() => {
+      heartbeat = heartbeat.then(async () => {
+        job.receipt.heartbeat_at = Date.now();
+        await options.store.write(owner, job.receipt);
+      });
+      void heartbeat.catch(() => job.controller.abort());
+    }, 10_000);
     try {
       const title =
         "plan" in input ? input.plan.title : (input.derive.title ?? "Trimmed composition");
@@ -451,6 +473,7 @@ export function createCompositionService(options: ServiceOptions) {
         if (!staged) throw new Error("Prepared composition unavailable");
         await copyCompositionFiles(join(staged.dir, "candidate"), project.dir);
       });
+      const persistOutput = options.store.snapshots.checkpoint(owner, id);
       const baseline = await options.store.baselines.ensure(owner, id, title, async (project) => {
         if (!staged) throw new Error("Prepared baseline unavailable");
         await copyCompositionFiles(join(staged.dir, "baseline"), project.dir);
@@ -471,6 +494,8 @@ export function createCompositionService(options: ServiceOptions) {
       await options.store.write(owner, job.receipt);
       job.receipt.size = await waitForRender(job, project, false);
       if (job.receipt.preview_available) await waitForRender(job, project, true);
+      await persistOutput();
+      await options.store.assertAvailable(owner, id, job.receipt.scope_id);
       job.receipt.status = "complete";
       job.receipt.progress = 100;
       await options.store.staged.remove(owner, id);
@@ -481,7 +506,11 @@ export function createCompositionService(options: ServiceOptions) {
       job.receipt.error =
         error instanceof Error ? error.message.slice(0, 2000) : "Composition rendering failed";
     } finally {
+      clearInterval(timer);
       try {
+        await heartbeat;
+        delete job.receipt.runner_id;
+        delete job.receipt.heartbeat_at;
         await options.store.write(owner, job.receipt);
       } finally {
         active.delete(key);
@@ -503,7 +532,12 @@ export function createCompositionService(options: ServiceOptions) {
           throw new HTTPException(409, {
             message: "This composition identifier already belongs to a different plan.",
           });
-        if (existing && (active.has(key) || existing.status === "complete"))
+        if (
+          existing &&
+          (active.has(key) ||
+            existing.status === "complete" ||
+            (["preparing", "rendering"].includes(existing.status) && runnerAlive(existing)))
+        )
           return receipt(owner, id);
         if (!input.base_artifact_id && input.source_clip_id) {
           const legacyIDs = [
@@ -538,7 +572,7 @@ export function createCompositionService(options: ServiceOptions) {
           ? await options.store.workspaceID(owner, base.artifact_id, input.project_id)
           : (input.project_id ?? id);
         const plan = "plan" in input ? input.plan : undefined;
-        const initial: CompositionReceipt = existing ?? {
+        let initial: CompositionReceipt = existing ?? {
           artifact_id: id,
           ...((input.scope_id ?? base?.scope_id)
             ? { scope_id: input.scope_id ?? base?.scope_id }
@@ -661,9 +695,12 @@ export function createCompositionService(options: ServiceOptions) {
           });
         const saved = await options.store.reserve(owner, initial);
         if (active.has(key) || saved.status === "complete") return receipt(owner, id);
+        initial = Object.assign(saved, initial);
         const job: ActiveJob = { receipt: initial, controller: new AbortController() };
         initial.status = "preparing";
         initial.progress = 0;
+        initial.runner_id = runnerID;
+        initial.heartbeat_at = Date.now();
         delete initial.error;
         await options.store.write(owner, initial);
         active.set(key, job);
