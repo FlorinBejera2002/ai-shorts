@@ -15,9 +15,10 @@ import (
 
 const defaultModel = "google/gemini-2.5-flash"
 
-// Bound the completion reservation instead of inheriting the model's maximum.
-// Large defaults can reject short requests against an otherwise usable balance.
-const maximumCompletionTokens = 16384
+// Omitting this lets a model reserve its entire output window (up to 65K+
+// tokens), which can reject a small request against the API key's spend limit.
+// Keep responses bounded for both text generation and media review.
+const maxOutputTokens = 16384
 
 type Client struct {
 	Key, Model, Referer string
@@ -44,7 +45,7 @@ func (c *Client) Generate(ctx context.Context, prompt string) (string, error) {
 	}
 	body, err := json.Marshal(map[string]any{
 		"model":      c.Model,
-		"max_tokens": maximumCompletionTokens,
+		"max_tokens": maxOutputTokens,
 		"messages": []any{
 			map[string]any{"role": "user", "content": prompt},
 		},
@@ -71,15 +72,15 @@ func (c *Client) Generate(ctx context.Context, prompt string) (string, error) {
 	client.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
 	response, err := client.Do(request)
 	if err != nil {
-		return "", errors.New("AI provider is temporarily unavailable")
+		if ctx.Err() != nil {
+			return "", ctx.Err()
+		}
+		return "", aiprovider.ErrUnavailable
 	}
 	// Read errors are handled below; closing the body is best-effort cleanup.
 	defer func() { _ = response.Body.Close() }()
 	if response.StatusCode != http.StatusOK {
-		if response.StatusCode == http.StatusPaymentRequired {
-			return "", errors.New("AI provider credit limit reached; contact support before retrying")
-		}
-		return "", errors.New("AI provider rejected the request")
+		return "", aiprovider.HTTPRequestError(response.StatusCode, response.Body)
 	}
 	payload, err := io.ReadAll(io.LimitReader(response.Body, 2*1024*1024+1))
 	if err != nil || len(payload) > 2*1024*1024 {
@@ -87,13 +88,17 @@ func (c *Client) Generate(ctx context.Context, prompt string) (string, error) {
 	}
 	var result struct {
 		Choices []struct {
-			Message struct {
+			FinishReason string `json:"finish_reason"`
+			Message      struct {
 				Content string `json:"content"`
 			} `json:"message"`
 		} `json:"choices"`
 	}
 	if err = json.Unmarshal(payload, &result); err != nil || len(result.Choices) == 0 {
 		return "", errors.New("AI provider returned an invalid response")
+	}
+	if result.Choices[0].FinishReason == "length" {
+		return "", aiprovider.ErrOutputLimit
 	}
 	content := strings.TrimSpace(result.Choices[0].Message.Content)
 	if content == "" {

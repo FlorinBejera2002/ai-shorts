@@ -98,9 +98,16 @@ func (r *Runner) logRunFailure(id string, err error) {
 		return
 	}
 	attrs := []any{"story_id", id}
+	if reason := providerFailureMessage(err); reason != "" {
+		attrs = append(attrs, "ai_provider_failure", reason)
+	}
 	var renderFailure *studiocomposition.RenderFailure
 	if errors.As(err, &renderFailure) {
 		attrs = append(attrs, "studio_artifact_id", renderFailure.ArtifactID, "studio_render_status", renderFailure.Status, "studio_render_cause", renderFailure.DiagnosticCause())
+	}
+	var requestFailure *studiocomposition.RequestFailure
+	if errors.As(err, &requestFailure) {
+		attrs = append(attrs, "studio_artifact_id", requestFailure.ArtifactID, "studio_http_status", requestFailure.StatusCode, "studio_request_cause", requestFailure.DiagnosticCause())
 	}
 	r.Logger.Warn("Story execution did not complete", attrs...)
 }

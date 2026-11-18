@@ -49,6 +49,9 @@ type EditingBrief struct {
 }
 
 type BriefSettings struct {
+	SourceAudio            string `json:"source_audio,omitempty"`
+	MusicSelected          bool   `json:"music_selected,omitempty"`
+	MusicSync              bool   `json:"music_sync,omitempty"`
 	TargetSeconds          int    `json:"target_seconds"`
 	AspectRatio            string `json:"aspect_ratio"`
 	AspectRatioRevised     bool   `json:"aspect_ratio_revised,omitempty"`
@@ -85,6 +88,13 @@ func BuildEditingBrief(req Request) EditingBrief {
 		},
 	}
 	// Paragraph boundaries make multi-part directions usable without guessing at
+	brief.SelectedSettings.MusicSelected = o.Music != nil
+	brief.SelectedSettings.MusicSync = o.Music != nil && o.Music.Sync && o.Music.Volume > 0
+	if UsesMusicOnlyAudio(o) && !o.Narration {
+		brief.SelectedSettings.SourceAudio = "mute"
+	} else {
+		brief.SelectedSettings.SourceAudio = "preserve"
+	}
 	// sentence semantics, dropping negations or splitting decimals/filenames.
 	for _, line := range strings.Split(strings.ReplaceAll(o.Brief, "\r\n", "\n"), "\n") {
 		if line = strings.TrimSpace(line); line != "" {

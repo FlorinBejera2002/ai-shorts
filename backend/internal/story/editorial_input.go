@@ -1,5 +1,7 @@
 package story
 
+import "strings"
+
 const maxEditorialJSONBytes = 700_000
 
 // Semantic review needs both clocks to link findings to the selected blocks.
@@ -25,24 +27,25 @@ func editorialTimeline(timeline []Entry) []editorialEntry {
 // repeating every aligned word's text and timestamps in text-only AI requests.
 // Word alignment stays on Candidate for executable timeline/caption validation.
 type editorialCandidate struct {
-	ID             string   `json:"id"`
-	SourceID       string   `json:"source_id"`
-	SourceOrder    int      `json:"source_order"`
-	SourceInclude  string   `json:"source_include"`
-	SourceWarnings []string `json:"source_warnings,omitempty"`
-	In             float64  `json:"in"`
-	Out            float64  `json:"out"`
-	Text           string   `json:"text"`
-	Language       string   `json:"language"`
-	Speaker        string   `json:"speaker"`
-	Role           string   `json:"role"`
-	Idea           string   `json:"idea,omitempty"`
-	Dependencies   []string `json:"dependencies"`
-	TakeGroup      string   `json:"take_group"`
-	AudioScore     float64  `json:"audio_score"`
-	VisualScore    float64  `json:"visual_score"`
-	Confidence     float64  `json:"confidence"`
-	Reason         string   `json:"reason"`
+	Moment         *VisualMoment `json:"moment,omitempty"`
+	ID             string        `json:"id"`
+	SourceID       string        `json:"source_id"`
+	SourceOrder    int           `json:"source_order"`
+	SourceInclude  string        `json:"source_include"`
+	SourceWarnings []string      `json:"source_warnings,omitempty"`
+	In             float64       `json:"in"`
+	Out            float64       `json:"out"`
+	Text           string        `json:"text"`
+	Language       string        `json:"language"`
+	Speaker        string        `json:"speaker"`
+	Role           string        `json:"role"`
+	Idea           string        `json:"idea,omitempty"`
+	Dependencies   []string      `json:"dependencies"`
+	TakeGroup      string        `json:"take_group"`
+	AudioScore     float64       `json:"audio_score"`
+	VisualScore    float64       `json:"visual_score"`
+	Confidence     float64       `json:"confidence"`
+	Reason         string        `json:"reason"`
 }
 
 func editorialCandidates(assets []Asset, includeExcluded bool) []editorialCandidate {
@@ -59,5 +62,22 @@ func editorialCandidates(assets []Asset, includeExcluded bool) []editorialCandid
 			summaries = append(summaries, editorialCandidate{ID: c.ID, SourceID: c.SourceID, SourceOrder: asset.Order, SourceInclude: asset.Include, SourceWarnings: asset.Warnings, In: c.In, Out: c.Out, Text: c.Text, Language: c.Language, Speaker: c.Speaker, Role: c.Role, Idea: idea, Dependencies: c.Dependencies, TakeGroup: c.TakeGroup, AudioScore: c.AudioScore, VisualScore: c.VisualScore, Confidence: c.Confidence, Reason: c.Reason})
 		}
 	}
+	all := indexCandidates(assets)
+	for i := range summaries {
+		summaries[i].Moment = all[summaries[i].ID].Moment
+	}
 	return summaries
+}
+
+// Music-only visual selection cannot be justified by camera dialogue or an
+// attractive numeric score. Keep known poor views only when explicitly required.
+func musicVisualCandidates(candidates []editorialCandidate) []editorialCandidate {
+	selected := make([]editorialCandidate, 0, len(candidates))
+	for _, candidate := range candidates {
+		if strings.TrimSpace(candidate.Idea) == "" || candidate.Role == "low_quality" && candidate.SourceInclude != "required" {
+			continue
+		}
+		selected = append(selected, candidate)
+	}
+	return selected
 }

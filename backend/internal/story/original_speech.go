@@ -285,6 +285,7 @@ func CompleteOriginalSpeech(plan Plan, assets []Asset, options Options) (Plan, e
 				updated := block
 				updated.CandidateID, updated.Reason = needed.ID, "Complete original speech restored before review."
 				updated.Pace, updated.Visual = nil, nil
+				updated.MusicWindow = nil
 				updated.Alternatives = eligibleAlternatives(needed, assets)
 				if visual, exists := all[updated.BRollID]; updated.BRollID != "" && (!exists || len(overlaps) > 1 || visual.Out-visual.In+.001 < needed.Out-needed.In) {
 					result.Gaps = appendUnique(result.Gaps, fmt.Sprintf("Supporting visual for block %q cannot cover its complete original speech; the original source shot was retained.", block.ID))

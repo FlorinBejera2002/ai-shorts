@@ -18,6 +18,7 @@ const (
 	TaskHighlights         Task = "highlights"
 	TaskTransitions        Task = "transitions"
 	TaskSourceAnalysis     Task = "source_analysis"
+	TaskMusicAnalysis      Task = "music_analysis"
 	TaskSpeechReview       Task = "speech_review"
 	TaskStoryPlanning      Task = "story_planning"
 	TaskStoryReview        Task = "story_review"

@@ -26,6 +26,34 @@ func TestTranscriptInputRejectsForeignDuplicateAndOversizedSlotsWithoutPartialEd
 	}
 }
 
+func TestTranscriptInputManualTimingRequiresExplicitUnambiguousApproval(t *testing.T) {
+	a := story.Asset{ID: "owned", Hash: strings.Repeat("a", 64), Duration: 2, Candidates: []story.Candidate{{ID: "owned-s1", SourceID: "owned", Out: 2}}}
+	p := story.TranscriptProposal{CandidateID: "owned-s1", Out: 2, Words: []story.Word{{Text: "Uncertain", Start: .2, End: 1}, {Text: "overlap", Start: .3, End: 1}}}
+	p.ID = story.TranscriptProposalID(a, p)
+	a.TranscriptProposals = []story.TranscriptProposal{p}
+	good := TranscriptReviewInput{AssetID: a.ID, ProposalID: p.ID, TimedWords: []story.Word{{Text: "Corrected", Start: .3, End: .9}}, TimingConfirmed: true}
+	for _, bad := range []TranscriptReviewInput{
+		{AssetID: a.ID, ProposalID: p.ID, TimedWords: good.TimedWords},
+		{AssetID: a.ID, ProposalID: p.ID, TimingConfirmed: true},
+		{AssetID: a.ID, ProposalID: p.ID, TimedWords: good.TimedWords, TimingConfirmed: true, Words: []string{"ambiguous"}},
+		{AssetID: "foreign", ProposalID: p.ID, TimedWords: good.TimedWords, TimingConfirmed: true},
+	} {
+		if _, err := approveTranscriptInputs([]story.Asset{a}, []TranscriptReviewInput{bad}); err == nil {
+			t.Fatal("invalid manual request accepted")
+		}
+		if _, err := approveTranscriptInputs([]story.Asset{a}, []TranscriptReviewInput{good, bad}); err == nil {
+			t.Fatal("invalid manual batch accepted")
+		}
+		if a.TranscriptProposals[0].TimingVerified || len(a.TranscriptReviews) != 0 || len(a.Candidates[0].Words) != 0 {
+			t.Fatal("failed manual batch partially edited its input")
+		}
+	}
+	got, err := approveTranscriptInputs([]story.Asset{a}, []TranscriptReviewInput{good})
+	if err != nil || !got[0].TranscriptProposals[0].Reviewed || got[0].TranscriptProposals[0].TimingSource != "owner" || got[0].Candidates[0].Text != "Corrected" {
+		t.Fatalf("manual approval failed: %+v %v", got, err)
+	}
+}
+
 func transcriptQueueFixture(t *testing.T) (*Repository, string, string, Generate) {
 	t.Helper()
 	r, user, id, ids := fixture(t, 1)

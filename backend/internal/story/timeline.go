@@ -33,7 +33,7 @@ func BuildTimeline(plan Plan, assets []Asset) ([]Entry, error) {
 		if e.Crop == "" {
 			e.Crop = "fit"
 		}
-		if sources[c.SourceID].HasAudio {
+		if sources[c.SourceID].HasAudio && !b.MuteSourceAudio {
 			e.Audio = &Interval{c.SourceID, interval.In, interval.Out}
 		}
 		if b.BRollID != "" {
@@ -43,8 +43,10 @@ func BuildTimeline(plan Plan, assets []Asset) ([]Entry, error) {
 			}
 			e.Video = Interval{visual.SourceID, visual.In, visual.In + duration}
 		}
-		for _, word := range c.Words {
-			e.Words = append(e.Words, Word{word.Text, clock + word.Start - interval.In, clock + word.End - interval.In})
+		if !b.MuteSourceAudio {
+			for _, word := range c.Words {
+				e.Words = append(e.Words, Word{word.Text, clock + word.Start - interval.In, clock + word.End - interval.In})
+			}
 		}
 		entries = append(entries, e)
 		clock += duration
@@ -92,6 +94,9 @@ func ValidatePlan(plan Plan, assets []Asset, options Options, base *Version) []I
 			}
 		}
 		source := sources[c.SourceID]
+		if b.MuteSourceAudio != (UsesMusicOnlyAudio(options) && !options.Narration) {
+			add("source_audio", "critical", b, "The saved source-audio choice does not match the explicitly selected audio mode.")
+		}
 		if _, err := blockSourceInterval(b, c, source); err != nil {
 			add("source_trim", "critical", b, err.Error())
 		}
@@ -110,7 +115,7 @@ func ValidatePlan(plan Plan, assets []Asset, options Options, base *Version) []I
 			add("order", "critical", b, "The selected order contradicts Preserve source order.")
 		}
 		lastSourceOrder, lastSource, lastIn = source.Order, c.SourceID, c.In
-		if needsContext(c.Text) && len(c.Dependencies) == 0 {
+		if !b.MuteSourceAudio && needsContext(c.Text) && len(c.Dependencies) == 0 {
 			add("context", "major", b, "This phrase refers to preceding context which could not be established from the sources.")
 		}
 		for _, id := range b.Alternatives {

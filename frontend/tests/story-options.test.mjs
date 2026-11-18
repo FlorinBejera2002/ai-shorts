@@ -28,6 +28,13 @@ function load(relative, imports = {}) {
 }
 const types = load('../src/components/story/types.ts')
 let cleanupAvailable = false
+const { StorySoundSource } = load('../src/components/story/story-sound-source.tsx', {
+  react: { useId: () => 'source-sound-test' },
+  'react/jsx-runtime': jsxRuntime,
+  'lucide-react': { ChevronDown: 'svg' },
+  '@/components/ui/button': { Button: 'button' },
+  './use-story-language': { useStoryLanguage: () => (english) => english }
+})
 const { StorySoundOptions } = load(
   '../src/components/story/story-sound-options.tsx',
   {
@@ -43,6 +50,7 @@ const { StorySoundOptions } = load(
     'lucide-react': { ChevronDown: 'svg' },
     '@/components/ui/button': { Button: 'button' },
     './story-help': { StoryHelp: 'aside' },
+    './story-sound-source': { StorySoundSource },
     './use-story-language': { useStoryLanguage: () => (english) => english }
   }
 )
@@ -82,6 +90,24 @@ function nodes(tree) {
   if (Array.isArray(tree)) return tree.flatMap(nodes)
   return [tree, ...nodes(tree.props?.children)]
 }
+
+test('sound mode keeps music preferences through narration and explicitly restores clip sound', () => {
+  const options = { ...types.defaultOptions, music: {
+    track_id: 'incompetech:one', source_audio: 'mute', volume: 0.25, sync: true
+  } }
+  let changed
+  const sound = StorySoundSource({ options, hasNarration: false, onChange: (value) => { changed = value } })
+  const buttons = nodes(sound).filter((node) => node.type === 'button')
+  assert.equal(buttons[0].props['aria-pressed'], false)
+  buttons[1].props.onClick()
+  assert.equal(changed.narration, true)
+  assert.equal(changed.music.source_audio, 'mute')
+  assert.equal(changed.music.track_id, options.music.track_id)
+  buttons[0].props.onClick()
+  assert.equal(changed.narration, false)
+  assert.equal(changed.music.source_audio, 'preserve')
+  assert.equal(changed.music.volume, 0.25)
+})
 
 test('new stories keep source order and do not silently add captions; legacy projects keep their choice', () => {
   assert.equal(types.defaultOptions.caption_mode, 'off')

@@ -1,5 +1,8 @@
 package processing
 
+// Legacy beat detection is retained only as a synthetic audio regression oracle.
+// It is not compiled into the application or used as a hosted-analysis fallback.
+
 import (
 	"encoding/binary"
 	"math"

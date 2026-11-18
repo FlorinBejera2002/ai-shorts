@@ -14,6 +14,34 @@ const context = await browser.newContext({
   permissions: ['clipboard-read', 'clipboard-write']
 })
 const page = await context.newPage()
+await page.addInitScript(() => {
+  window.musicAudioEvents = []
+  for (const type of [
+    'play',
+    'pause',
+    'seeking',
+    'seeked',
+    'loadedmetadata',
+    'emptied',
+    'ended'
+  ]) {
+    document.addEventListener(
+      type,
+      (event) => {
+        if (event.target instanceof HTMLAudioElement) {
+          window.musicAudioEvents.push({
+            type,
+            time: event.target.currentTime,
+            source: event.target.currentSrc,
+            paused: event.target.paused
+          })
+          window.musicAudioEvents = window.musicAudioEvents.slice(-30)
+        }
+      },
+      true
+    )
+  }
+})
 page.setDefaultTimeout(60000)
 const errors = []
 page.on('pageerror', (error) => errors.push(error.message))
@@ -28,6 +56,13 @@ let previewRequests = 0
 let trackRequests = 0
 let slowRequested = false
 let releaseSlow
+let releaseUpload
+let uploadFailure = false
+let uploadedCount = 0
+let generationAttempts = 0
+let uploadGate = Promise.resolve()
+const uploadedReference =
+  'uploads/00000000-0000-4000-8000-000000000071/song.wav'
 const slowGate = new Promise((resolve) => {
   releaseSlow = resolve
 })
@@ -124,12 +159,53 @@ await page.route('**/v1/**', (route) =>
 )
 await page.route('**/fixture-music.wav*', (route) => {
   previewRequests++
-  return route.fulfill({ contentType: 'audio/wav', body: wave })
+  const range = route
+    .request()
+    .headers()
+    .range?.match(/^bytes=(\d+)-(\d*)$/)
+  const start = range ? Number(range[1]) : 0
+  const end = range?.[2]
+    ? Math.min(Number(range[2]), wave.length - 1)
+    : wave.length - 1
+  return route.fulfill({
+    status: range ? 206 : 200,
+    contentType: 'audio/wav',
+    headers: {
+      'Accept-Ranges': 'bytes',
+      'Content-Length': String(end - start + 1),
+      ...(range
+        ? { 'Content-Range': `bytes ${start}-${end}/${wave.length}` }
+        : {})
+    },
+    body: wave.subarray(start, end + 1)
+  })
 })
 await page.route('**/api/**', async (route) => {
   const request = route.request()
   const url = new URL(request.url())
   const path = url.pathname
+  if (path === '/api/upload/music' && request.method() === 'POST') {
+    uploadedCount++
+    await uploadGate
+    if (uploadFailure)
+      return route
+        .fulfill({ status: 422, json: { detail: 'Synthetic invalid audio' } })
+        .catch(() => {})
+    return route
+      .fulfill({
+        json: {
+          file_path: uploadedReference,
+          file_name: 'my-song.wav',
+          file_size: wave.length,
+          url: `${origin}/fixture-music.wav?upload`
+        }
+      })
+      .catch(() => {})
+  }
+  if (path === '/api/upload/music/preview')
+    return route.fulfill({
+      json: { url: `${origin}/fixture-music.wav?upload` }
+    })
   if (path === '/api/music') {
     musicRequests++
     const query = url.searchParams.get('query')
@@ -174,7 +250,14 @@ await page.route('**/api/**', async (route) => {
     return route.fulfill({
       json: { stories: [project], limits: project.limits }
     })
-  if (path === `/api/stories/${project.id}/generate`) {
+  if (path === `/api/stories/${project.id}/generate` || path === `/api/stories/${project.id}/retry`) {
+    generationAttempts++
+    if (generationAttempts < 3) {
+      project.status = 'processing'
+      project.stage = 'music_analysis'
+      project.error = ''
+      return route.fulfill({ json: project })
+    }
     project.status = 'ready'
     project.current_version = 1
     project.versions = [
@@ -287,12 +370,14 @@ try {
   assert.equal(
     await page
       .getByRole('checkbox', {
-        name: 'Match the edit to the music',
+        name: 'Follow the music',
         exact: true
       })
       .isChecked(),
     true
   )
+  assert.equal(await page.getByRole('radio', { name: 'Keep original sound', exact: true }).isChecked(), true)
+  await page.getByRole('radio', { name: 'Music only', exact: true }).check()
   assert.equal(
     await page
       .getByRole('slider', { name: 'Music volume', exact: false })
@@ -356,9 +441,12 @@ try {
     name: 'Music volume',
     exact: false
   })
+  await volume.fill('0')
+  await page.getByText('Music is muted. With Music only, the video will have no sound.', { exact: true }).waitFor()
+  assert.equal(await page.getByRole('radio', { name: 'Music only', exact: true }).isChecked(), true)
   await volume.fill('0.27')
   await page
-    .getByRole('checkbox', { name: 'Match the edit to the music', exact: true })
+    .getByRole('checkbox', { name: 'Follow the music', exact: true })
     .uncheck()
   await page
     .getByRole('button', { name: 'Preview selected music', exact: true })
@@ -378,7 +466,9 @@ try {
   assert.deepEqual(project.options.music, {
     track_id: beta.id,
     volume: 0.27,
-    sync: false
+    sync: false,
+    source_audio: 'mute',
+    loop: true
   })
   assert.ok(
     (await page.getByTestId('music-summary').innerText()).includes(beta.title)
@@ -396,10 +486,11 @@ try {
     'Reload hydrates the saved track identifier from the catalog endpoint'
   )
   assert.equal(await volume.inputValue(), '0.27')
+  assert.equal(await page.getByRole('radio', { name: 'Music only', exact: true }).isChecked(), true)
   assert.equal(
     await page
       .getByRole('checkbox', {
-        name: 'Match the edit to the music',
+        name: 'Follow the music',
         exact: true
       })
       .isChecked(),
@@ -473,6 +564,115 @@ try {
   await page
     .getByRole('group', { name: 'Background music', exact: true })
     .waitFor()
+  const uploadFile = {
+    name: 'my-song.wav',
+    mimeType: 'audio/wav',
+    buffer: wave
+  }
+  const fileInput = page.getByLabel('Choose music file', { exact: true })
+  uploadFailure = true
+  await fileInput.setInputFiles(uploadFile)
+  await page.getByText('Synthetic invalid audio', { exact: true }).waitFor()
+  assert.ok(
+    (await page.getByTestId('selected-music').innerText()).includes(beta.title),
+    'A failed upload preserves previous music'
+  )
+  uploadFailure = false
+  uploadGate = new Promise((resolve) => {
+    releaseUpload = resolve
+  })
+  await fileInput.setInputFiles(uploadFile)
+  await page
+    .getByText('Keep this page open while your music uploads.', { exact: true })
+    .waitFor()
+  assert.equal(
+    await wizard
+      .getByRole('button', { name: 'Continue', exact: true })
+      .isDisabled(),
+    true,
+    'Pending upload blocks generation navigation'
+  )
+  await page.getByRole('button', { name: 'Cancel', exact: true }).click()
+  releaseUpload()
+  await page.getByRole('button', { name: 'From device', exact: true }).waitFor()
+  assert.ok(
+    (await page.getByTestId('selected-music').innerText()).includes(beta.title),
+    'Cancel keeps previous music'
+  )
+  uploadGate = Promise.resolve()
+  await fileInput.setInputFiles(uploadFile)
+  await page
+    .getByTestId('selected-music')
+    .getByText('my-song.wav', { exact: true })
+    .waitFor()
+  await page.getByText('Choose an excerpt', { exact: true }).click()
+  await page.getByLabel('Start (seconds)', { exact: true }).fill('2')
+  await page.getByLabel('End (seconds)', { exact: true }).fill('1')
+  assert.equal(
+    await wizard
+      .getByRole('button', { name: 'Continue', exact: true })
+      .isDisabled(),
+    true,
+    'Invalid excerpt cannot advance'
+  )
+  await page.getByLabel('End (seconds)', { exact: true }).fill('4')
+  await page
+    .getByRole('checkbox', {
+      name: 'Repeat the excerpt if the video is longer',
+      exact: true
+    })
+    .uncheck()
+  await page
+    .getByRole('button', { name: 'Preview selected music', exact: true })
+    .click()
+  await page.waitForFunction(() => {
+    const audio = document.querySelector('[data-testid="music-preview"] audio')
+    return (
+      audio && audio.currentTime >= 2 && audio.currentTime < 4 && !audio.paused
+    )
+  })
+  await page.waitForFunction(() => {
+    const audio = document.querySelector('[data-testid="music-preview"] audio')
+    return audio && audio.currentTime >= 4 && audio.paused
+  })
+  await page.getByLabel('End (seconds)', { exact: true }).fill('1')
+  await page
+    .locator('[data-testid="music-preview"] audio')
+    .evaluate((audio) => audio.play().catch(() => {}))
+  assert.equal(
+    await page
+      .locator('[data-testid="music-preview"] audio')
+      .evaluate((audio) => audio.paused),
+    true,
+    'Invalid excerpt cannot play'
+  )
+  await page.getByLabel('End (seconds)', { exact: true }).fill('4')
+  await go(2)
+  assert.equal(project.options.music.upload_reference, uploadedReference)
+  assert.equal(project.options.music.start_seconds, 2)
+  assert.equal(project.options.music.end_seconds, 4)
+  assert.equal(project.options.music.loop, false)
+  assert.equal(project.options.music.source_audio, 'mute')
+  assert.ok(
+    (await page.getByTestId('music-summary').innerText()).includes(
+      'my-song.wav'
+    )
+  )
+  assert.equal(
+    (await page.getByTestId('music-summary').innerText()).includes(
+      'music credit is included'
+    ),
+    false
+  )
+  await page.reload({ waitUntil: 'domcontentloaded' })
+  await go(1)
+  await page
+    .getByTestId('selected-music')
+    .getByText('my-song.wav', { exact: true })
+    .waitFor()
+  console.log(
+    'Music browser: upload error/cancel/success, excerpt playback, range validation and persistence verified'
+  )
   await page.getByRole('button', { name: 'Remove music', exact: true }).click()
   assert.equal(await page.getByTestId('selected-music').count(), 0)
   await go(2)
@@ -482,6 +682,9 @@ try {
     'Removing music is persisted explicitly'
   )
   await go(1)
+  await page
+    .getByRole('button', { name: 'Browse free music', exact: true })
+    .click()
   await search('bright')
   await page
     .getByRole('button', { name: `Select ${beta.title}`, exact: true })
@@ -490,13 +693,31 @@ try {
   await page
     .getByRole('button', { name: 'Create my clip', exact: true })
     .click()
+  await page.getByRole('heading', { name: 'Listening to your music', exact: true }).waitFor()
+  project.status = 'failed'
+  project.error = 'music analysis is unavailable; retry or disable synchronization'
+  await page.getByTestId('music-recovery').waitFor()
+  await page.getByRole('button', { name: 'Retry music analysis', exact: true }).click()
+  await page.getByRole('heading', { name: 'Listening to your music', exact: true }).waitFor()
+  assert.equal(generationAttempts, 2)
+  project.status = 'failed'
+  project.error = 'music analysis is unavailable; retry or disable synchronization'
+  await page.getByRole('button', { name: 'Review music settings', exact: true }).click()
+  await page.getByTestId('story-step-1').waitFor({ state: 'visible' })
+  assert.ok((await page.getByTestId('selected-music').innerText()).includes(beta.title))
+  await page.getByRole('checkbox', { name: 'Follow the music', exact: true }).uncheck()
+  await go(2)
+  assert.equal(project.options.music.sync, false)
+  assert.equal(project.options.music.track_id, beta.id)
+  await page.getByRole('button', { name: 'Create my clip', exact: true }).click()
   await page.locator('.story-result-credits > summary').click()
   const credits = page.getByRole('region', {
     name: 'Music credits',
     exact: true
   })
   await credits.waitFor()
-  assert.ok((await credits.innerText()).includes('Some cuts follow the beat.'))
+  assert.equal(generationAttempts, 3)
+  assert.ok((await credits.innerText()).includes('The music guided parts of the edit.'))
   assert.ok(
     (await page.getByTestId('music-attribution').innerText()).includes(
       'Adapted: trimmed, faded and mixed'
@@ -524,6 +745,7 @@ try {
         previewRequests,
         trackRequests,
         savedChanges: patches.length,
+        uploadedCount,
         checks: [
           'lazy catalog',
           'real audio playback',
@@ -534,9 +756,16 @@ try {
           'step pause',
           'draft persistence and hydration',
           'volume and sync persistence',
+          'source sound default and explicit mute persist across selection, uploads and reload',
+          'zero-volume music-only warning preserves selection',
+          'hosted analysis progress, retry and deliberate continuation without sync',
           'mobile 320/390px',
           'Fast Refresh preserves DOM and state',
           'remove persists',
+          'upload error, cancellation and success',
+          'upload blocks generation until complete',
+          'excerpt validation and preview timing',
+          'uploaded choice and range survive reload',
           'adaptation credits and clipboard'
         ]
       },
@@ -546,6 +775,9 @@ try {
   )
 } catch (error) {
   console.error(error)
+  console.log(
+    await page.evaluate(() => window.musicAudioEvents).catch(() => [])
+  )
   const screenshotDirectory = new URL(
     '../test-results/story-music/',
     import.meta.url
@@ -569,6 +801,7 @@ try {
   throw error
 } finally {
   releaseSlow()
+  releaseUpload?.()
   if (hotEdited) writeFileSync(sourcePath, originalSource)
   await browser.close()
 }

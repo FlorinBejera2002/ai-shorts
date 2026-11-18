@@ -34,6 +34,16 @@ export function StoryTranscriptReview({
           'Verifică înregistrarea. Confirmarea salvează textul verificat fără să genereze un video sau să consume credite.'
         )}
       </p>
+      <p className="text-xs text-muted-foreground">
+        {text(
+          'Play the full recording or select a word timestamp to listen from that point.',
+          'Redă înregistrarea completă sau alege timpul unui cuvânt pentru a asculta de acolo.'
+        )}
+        {disabled && ' ' + text(
+          'You can listen while processing continues. Editing and confirmation become available when it finishes.',
+          'Poți asculta în timpul procesării. Editarea și confirmarea devin disponibile când aceasta se termină.'
+        )}
+      </p>
       {reviewable.map((asset) => (
         <StoryTranscriptAsset
           key={asset.id}

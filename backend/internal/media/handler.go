@@ -43,6 +43,8 @@ func (h *Handler) Register(router *httprouter.Router) {
 	router.Handler(http.MethodPost, "/api/upload/authorize", h.auth.RequireMember(h.authorize))
 	router.Handler(http.MethodPost, "/api/upload", h.auth.RequireMember(h.uploadMultipart))
 	router.Handler(http.MethodPost, "/api/upload/narration", h.auth.RequireMember(h.uploadNarration))
+	router.Handler(http.MethodPost, "/api/upload/music", h.auth.RequireMember(h.uploadMusic))
+	router.Handler(http.MethodGet, "/api/upload/music/preview", h.auth.Require(h.previewMusic))
 	router.Handler(http.MethodPost, "/api/publishing/media", h.auth.RequireMember(h.uploadPublishingMedia))
 	router.Handler(http.MethodGet, "/api/publishing/media/preview", h.auth.Require(h.previewPublishingMedia))
 	// Direct bodies use purpose-bound single-use upload credentials, not an

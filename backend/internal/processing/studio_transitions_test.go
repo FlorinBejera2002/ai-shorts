@@ -3,11 +3,34 @@ package processing
 import (
 	"context"
 	"encoding/json"
+	"math"
 	"reflect"
 	"testing"
 
 	"sneepcut/backend-go/internal/story"
 )
+
+func TestStudioMusicTransitionDurationsDoNotReintroduceAutomaticBlends(t *testing.T) {
+	for _, test := range []struct {
+		name, treatment string
+		requested, want float64
+	}{
+		{"sharp accent", "cut", .5, 0},
+		{"quiet section", "crossfade", .5, .5},
+		{"short explicit dissolve", "crossfade", .1, .1},
+		{"legacy treatment", "natural", 0, .3},
+		{"invalid duration", "crossfade", math.NaN(), 0},
+		{"excessive duration", "crossfade", 2, 0},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			plan := studioPlan{Scenes: []studioScene{{AssetID: "a", Duration: 2}, {AssetID: "b", Start: 2, Duration: 2}}}
+			studioApplyNativeTransitionsWithDurations(&plan, []string{"", test.treatment}, []float64{0, test.requested})
+			if plan.Scenes[1].TransitionIn != test.want || plan.Scenes[1].Start != 2 || plan.Scenes[1].Duration != 2 {
+				t.Fatalf("unexpected treatment or time shift: %#v", plan.Scenes)
+			}
+		})
+	}
+}
 
 func TestStudioNativeTransitionsPreserveAllNominalClocks(t *testing.T) {
 	plan := studioPlan{

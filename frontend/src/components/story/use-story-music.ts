@@ -18,7 +18,27 @@ export function useStoryMusicTrack(id?: string) {
   })
 }
 
-export function useStoryMusicCatalog(query: string, page: number, enabled: boolean) {
+export function useUploadedMusicPreview(reference?: string) {
+  return useQuery({
+    queryKey: ['uploaded-music-preview', reference],
+    enabled: Boolean(reference),
+    staleTime: 60 * 1000,
+    retry: 1,
+    queryFn: ({ signal }) =>
+      storyRequest<{ url: string }>(
+        `/api/upload/music/preview?${new URLSearchParams({ reference: reference! })}`,
+        'GET',
+        undefined,
+        signal
+      )
+  })
+}
+
+export function useStoryMusicCatalog(
+  query: string,
+  page: number,
+  enabled: boolean
+) {
   return useQuery({
     queryKey: ['music-catalog', query, page],
     enabled,

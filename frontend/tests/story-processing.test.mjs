@@ -76,6 +76,25 @@ const checkpoints = [
   'reviewing'
 ]
 
+test('failed API project message reaches the localized alert without requiring an error field', () => {
+  const message = 'AI provider API-key spending limit was reached. Uploaded clips and saved versions are retained.'
+  const props = model('failed', { message }, false)
+  const rendered = JSON.stringify(props.children)
+  assert.match(rendered, /editing service has reached its usage limit/)
+  assert.doesNotMatch(rendered, /API-key|enough credits to generate/)
+  assert.equal(problemExports.storyFailureReason({ status: 'ready', message }), undefined)
+  assert.equal(problemExports.storyFailureReason({ status: 'ready', operation_status: 'failed', message }), message)
+})
+
+test('planning recovery distinguishes provider funds from app credits and missing music', () => {
+  const text = (en) => en
+  const billing = problemExports.storyProblem('story planning could not finish: AI provider credit or API-key spending limit was reached', text)
+  assert.match(billing, /editing service has reached its usage limit/)
+  assert.doesNotMatch(billing, /enough credits to generate|choose another track/)
+  assert.match(problemExports.storyProblem('story planning could not finish; sources and previous video are preserved', text), /before rendering/)
+  assert.match(problemExports.storyProblem('source analysis could not establish visual content for music-guided editing', text), /Retry analysis/)
+})
+
 test('ordinary Story phases mark only preceding checkpoints complete and never invent percentages', () => {
   for (const [index, phase] of checkpoints.entries()) {
     const props = model(phase)
@@ -164,4 +183,23 @@ test('legacy worker aliases preserve known stage evidence without guessing unkno
     unknown.stages.every((stage) => stage.state === 'waiting'),
     true
   )
+})
+
+test('hosted music analysis reports its actual phase without claiming completed footage analysis', () => {
+  const props = model('processing', { stage: 'music_analysis' })
+  assert.equal(props.stage.key, 'music_analysis')
+  assert.equal(props.stage.label, 'Listening to your music')
+  assert.equal(props.running, true)
+  assert.equal(props.progress.value, undefined)
+  assert.equal(props.stages.find((stage) => stage.key === 'analyzing').state, 'active')
+  assert.equal(props.stages.find((stage) => stage.key === 'building_story').state, 'waiting')
+})
+
+test('music analysis errors offer deliberate recovery instead of falsely reporting missing music', () => {
+  const text = (english) => english
+  const message = problemExports.storyProblem('selected music analysis is unavailable; retry', text)
+  assert.match(message, /turn off Follow the music/)
+  assert.match(message, /same soundtrack/)
+  assert.doesNotMatch(message, /choose another track/)
+  assert.match(problemExports.storyProblem('music-only conflicts with preserving speech', text), /Keep original sound/)
 })

@@ -43,7 +43,7 @@ func (c *Client) ReviewMedia(ctx context.Context, prompt string, media []aiprovi
 		headers["HTTP-Referer"] = c.Referer
 	}
 	data, err := aiprovider.MediaJSON(ctx, c.HTTP, strings.TrimRight(c.BaseURL, "/")+"/chat/completions", headers, map[string]any{
-		"model": c.Model, "temperature": 0, "messages": []any{map[string]any{"role": "user", "content": parts}},
+		"model": c.Model, "max_tokens": maxOutputTokens, "temperature": 0, "messages": []any{map[string]any{"role": "user", "content": parts}},
 		"provider": map[string]any{"data_collection": "deny"},
 	})
 	if err != nil {
@@ -63,19 +63,26 @@ func mediaReviewContent(data []byte) (string, error) {
 			} `json:"message"`
 		} `json:"choices"`
 		Error *struct {
-			Code any `json:"code"`
+			Code json.RawMessage `json:"code"`
 		} `json:"error"`
 	}
 	if json.Unmarshal(data, &result) != nil {
 		return "", errors.New("media reviewer returned an invalid response")
 	}
 	if result.Error != nil {
-		return "", fmt.Errorf("media reviewer returned provider error %v", result.Error.Code)
+		var code int
+		if json.Unmarshal(result.Error.Code, &code) == nil && code >= 100 && code <= 599 {
+			return "", fmt.Errorf("media reviewer returned provider error %d: %w", code, aiprovider.HTTPRequestError(code, nil))
+		}
+		return "", errors.New("media reviewer returned a provider error")
 	}
 	if len(result.Choices) == 0 {
 		return "", errors.New("media reviewer returned no choices")
 	}
 	choice := result.Choices[0]
+	if choice.FinishReason == "length" {
+		return "", fmt.Errorf("media reviewer finish_reason=%q: %w", choice.FinishReason, aiprovider.ErrOutputLimit)
+	}
 	var text string
 	if json.Unmarshal(choice.Message.Content, &text) != nil {
 		var parts []struct {
@@ -93,7 +100,11 @@ func mediaReviewContent(data []byte) (string, error) {
 		}
 	}
 	if strings.TrimSpace(text) == "" {
-		return "", fmt.Errorf("media reviewer returned no content (finish_reason=%q)", choice.FinishReason)
+		switch choice.FinishReason {
+		case "stop", "tool_calls", "content_filter", "error":
+			return "", fmt.Errorf("media reviewer returned no content (finish_reason=%q)", choice.FinishReason)
+		}
+		return "", errors.New("media reviewer returned no content")
 	}
 	return text, nil
 }

@@ -17,7 +17,7 @@ import {
 import { Button } from '@/components/ui/button'
 import type { StoryProject } from './types'
 import { useStoryLanguage } from './use-story-language'
-import { storyProblem } from './story-error'
+import { storyFailureReason, storyProblem } from './story-error'
 import './story-processing.css'
 
 const checkpointKeys = [
@@ -27,7 +27,7 @@ const checkpointKeys = [
   'editing',
   'reviewing'
 ] as const
-const runningPhases = new Set<string>([...checkpointKeys, 'improving'])
+const runningPhases = new Set<string>([...checkpointKeys, 'music_analysis', 'improving'])
 
 interface Props {
   project: StoryProject
@@ -57,6 +57,8 @@ function checkpointState(
   if (phase === 'needs_review') return key === 'reviewing' ? 'attention' : 'done'
   // Repairs can precede the first render. Their position is not a completion count.
   if (phase === 'improving') return index < 2 ? 'done' : 'waiting'
+  if (phase === 'music_analysis')
+    return key === 'pending' ? 'done' : key === 'analyzing' ? 'active' : 'waiting'
   const current = checkpointKeys.findIndex((checkpoint) => checkpoint === phase)
   if (current < 0) return 'waiting'
   return index < current ? 'done' : index === current ? 'active' : 'waiting'
@@ -65,6 +67,7 @@ function checkpointState(
 export function StoryProcessing({ project, active, busy, onCancel }: Props) {
   const text = useStoryLanguage()
   const phase = displayPhase(project)
+  const failureReason = storyFailureReason(project)
   const copy: Record<string, { label: string; detail: string; icon: LucideIcon }> = {
     pending: {
       label: text('Queued', 'În așteptare'),
@@ -79,6 +82,14 @@ export function StoryProcessing({ project, active, busy, onCancel }: Props) {
       detail: text(
         'Checking speech and footage.',
         'Analizăm vorbirea și imaginile din filmări.'
+      ),
+      icon: AudioLines
+    },
+    music_analysis: {
+      label: text('Listening to your music', 'Analizăm muzica'),
+      detail: text(
+        'Understanding the song’s sections and mood to guide pacing and transitions.',
+        'Analizăm secțiunile și atmosfera piesei pentru ritmul montajului și tranziții.'
       ),
       icon: AudioLines
     },
@@ -230,11 +241,11 @@ export function StoryProcessing({ project, active, busy, onCancel }: Props) {
         return { key, label: labels[index], state, stateLabel: states[state] }
       })}
     >
-      {(project.error || active) && (
+      {(failureReason || active) && (
         <div className="job-processing-result story-processing-actions">
-          {project.error && (
+          {failureReason && (
             <p role="alert" className="break-words text-sm text-destructive">
-              {storyProblem(project.error, text)}
+              {storyProblem(failureReason, text)}
             </p>
           )}
           {active && (

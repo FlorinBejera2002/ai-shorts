@@ -20,16 +20,27 @@ const storyMissingVADWarning = "Voice activity detection is unavailable. Automat
 // Analyze persists immutable, source/settings-addressed artifacts. Retrying an
 // editorial operation reuses the transcript and proxy without another ASR run.
 func (p *Processor) Analyze(ctx context.Context, project string, asset story.Asset, options story.Options) (story.Asset, error) {
-	bound, err := p.withNativeModels(ctx)
-	if err != nil {
-		return asset, err
+	musicOnly := story.UsesMusicOnlyAudio(options) && asset.Kind != "narration"
+	if !musicOnly {
+		bound, err := p.withNativeModels(ctx)
+		if err != nil {
+			return asset, err
+		}
+		p = bound
 	}
-	p = bound
 	if asset.Kind == "narration" {
 		return p.analyzeNarration(ctx, project, asset, options)
 	}
 	if !storyNamespace(project) || !storyNamespace(asset.ID) || len(asset.Hash) != 64 || !finite(asset.Duration) || asset.Duration <= 0 {
 		return asset, errors.New("invalid story source")
+	}
+	// Muting playback does not invalidate a previously verified transcript or
+	// source catalog. Keep that evidence for later original-audio edits, without
+	// requiring a speech model to be available for an inaudible soundtrack.
+	if musicOnly && reusableMutedSourceAnalysis(asset) {
+		if exists, err := p.storage.Exists(ctx, asset.ProxyKey); err == nil && exists {
+			return story.ApplyTranscriptReviews(asset), nil
+		}
 	}
 	dir, err := os.MkdirTemp(p.cfg.TempDir, "story-analysis-")
 	if err != nil {
@@ -41,6 +52,11 @@ func (p *Processor) Analyze(ctx context.Context, project string, asset story.Ass
 		model = p.cfg.WhisperModel
 	}
 	digest := storyDigest([]any{story.AlgorithmVersion, asset.Hash, options.Language, storyModelSignature(model), storyModelSignature(p.storyVADModel(model)), options.Narration, "source-analysis-9"})
+	if musicOnly {
+		// A silent edit must never satisfy the speech-analysis cache when the
+		// owner later asks to retain original audio.
+		digest = storyDigest([]any{story.AlgorithmVersion, asset.Hash, "music-visual-analysis-1"})
+	}
 	prefix := "work/" + project + "/analysis/" + asset.ID + "/" + digest
 	cacheKey := prefix + "/analysis.json"
 	cacheFile := filepath.Join(dir, "analysis.json")
@@ -52,9 +68,13 @@ func (p *Processor) Analyze(ctx context.Context, project string, asset story.Ass
 				// User overrides are not analysis inputs and must survive cache reuse.
 				cached.Order, cached.Role, cached.Include, cached.Name = asset.Order, asset.Role, asset.Include, asset.Name
 				cached.TranscriptReviews = asset.TranscriptReviews
-				cached, e = p.prepareStorySpeechCatalog(ctx, dir, cached, options)
-				if e != nil {
-					return asset, e
+				if musicOnly {
+					cached.TranscriptProposals, cached.VoiceIntervals = asset.TranscriptProposals, asset.VoiceIntervals
+				} else {
+					cached, e = p.prepareStorySpeechCatalog(ctx, dir, cached, options)
+					if e != nil {
+						return asset, e
+					}
 				}
 				// Semantic annotations live in the run checkpoint rather than the
 				// immutable local-ASR cache. Retain only their permitted fields when
@@ -76,6 +96,7 @@ func (p *Processor) Analyze(ctx context.Context, project string, asset story.Ass
 							old := previous[c.ID]
 							c.Role, c.Idea, c.Reason = old.Role, old.Idea, old.Reason
 							c.Dependencies = append([]string(nil), old.Dependencies...)
+							c.Moment = cloneStoryVisualMoment(old.Moment)
 						}
 						for _, warning := range asset.Warnings {
 							if !storyAnalysisWarning(warning) {
@@ -112,13 +133,17 @@ func (p *Processor) Analyze(ctx context.Context, project string, asset story.Ass
 		}
 		asset.ThumbnailKey = thumbnailKey
 	}
-	audio, visual, err := p.storyQuality(ctx, dir, proxy, info)
+	qualityInfo := info
+	if musicOnly {
+		qualityInfo.Audio = false // Do not decode unused source audio for scoring.
+	}
+	audio, visual, err := p.storyQuality(ctx, dir, proxy, qualityInfo)
 	if err != nil {
 		return asset, err
 	}
 	var transcript Transcript
 	var preparedAudio storyPreparedAudio
-	if !options.Narration && info.Audio && audio > .01 {
+	if !musicOnly && !options.Narration && info.Audio && audio > .01 {
 		transcript, preparedAudio, err = p.transcribeStoryWithAudio(ctx, proxy, dir, options.Language, asset.Duration, model, asset.ProxyKey)
 		if errors.Is(err, errSpeechDetectionUnavailable) {
 			asset.Warnings = appendStoryWarning(asset.Warnings, storyMissingVADWarning)
@@ -127,7 +152,7 @@ func (p *Processor) Analyze(ctx context.Context, project string, asset story.Ass
 		}
 	}
 	asset.Candidates = storyCandidates(asset, transcript, audio, visual)
-	if options.Narration {
+	if options.Narration || musicOnly {
 		asset.Candidates = narrationVisualWindows(asset, visual)
 	}
 	if stat, e := os.Stat(filepath.Join(dir, "transcript.json")); e == nil && stat.Size() < 8<<20 {
@@ -152,7 +177,22 @@ func (p *Processor) Analyze(ctx context.Context, project string, asset story.Ass
 	if err = p.storySave(ctx, cacheFile, cacheKey, "application/json"); err != nil {
 		return asset, err
 	}
+	if musicOnly {
+		return asset, nil
+	}
 	return p.prepareStorySpeechCatalogWithAudio(ctx, dir, asset, options, preparedAudio)
+}
+
+func reusableMutedSourceAnalysis(asset story.Asset) bool {
+	if asset.AnalysisVersion == "" || asset.ProxyKey == "" || len(asset.Candidates) == 0 {
+		return false
+	}
+	for _, candidate := range asset.Candidates {
+		if candidate.SourceID != asset.ID || candidate.ID == "" || !finite(candidate.In) || !finite(candidate.Out) || candidate.In < 0 || candidate.Out <= candidate.In || candidate.Out > asset.Duration+.001 {
+			return false
+		}
+	}
+	return true
 }
 
 // Scores describe measured signal quality, not a claim of factual or semantic

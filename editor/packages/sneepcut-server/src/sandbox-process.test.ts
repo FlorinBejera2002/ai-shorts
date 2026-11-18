@@ -72,11 +72,14 @@ async function failure(outcome: ReturnType<ReturnType<typeof fixture>["run"]>) {
 describe("sandbox CPU and wall budgets", () => {
   it("keeps wall deadlines while allowing cumulative CPU across available cores", () => {
     for (const capacity of [1, 2, 4, 16]) {
-      for (const kind of ["render", "background"] as const)
-        expect(sandboxProcessLimits(kind, capacity)).toEqual({
-          wallMilliseconds: 600_000,
-          cpuSeconds: 601 * capacity,
-        });
+      expect(sandboxProcessLimits("render", capacity)).toEqual({
+        wallMilliseconds: 600_000,
+        cpuSeconds: 601 * capacity,
+      });
+      expect(sandboxProcessLimits("background", capacity)).toEqual({
+        wallMilliseconds: 600_000,
+        cpuSeconds: 601 * capacity,
+      });
       for (const kind of ["thumbnail", "probe"] as const)
         expect(sandboxProcessLimits(kind, capacity)).toEqual({
           wallMilliseconds: 60_000,
@@ -100,6 +103,29 @@ describe("sandbox CPU and wall budgets", () => {
   it("never creates an infinite or malformed hard limit", () => {
     for (const capacity of [0, -1, 1.5, NaN, Infinity, Number.MAX_SAFE_INTEGER])
       expect(() => sandboxProcessLimits("render", capacity)).toThrow(RangeError);
+  });
+
+  it("applies bounded operator overrides only to full renders", () => {
+    const saved = process.env.SNEEPCUT_RENDER_TIMEOUT_SECONDS;
+    try {
+      for (const seconds of [60, 1200, 3600]) {
+        process.env.SNEEPCUT_RENDER_TIMEOUT_SECONDS = String(seconds);
+        expect(sandboxProcessLimits("render", 2)).toEqual({
+          wallMilliseconds: seconds * 1000,
+          cpuSeconds: (seconds + 1) * 2,
+        });
+        expect(sandboxProcessLimits("background", 2).wallMilliseconds).toBe(600_000);
+        expect(sandboxProcessLimits("thumbnail", 2).wallMilliseconds).toBe(60_000);
+        expect(sandboxProcessLimits("probe", 2).wallMilliseconds).toBe(60_000);
+      }
+      for (const invalid of ["", "0", "59", "3601", "60.5", "NaN", "Infinity", "invalid"]) {
+        process.env.SNEEPCUT_RENDER_TIMEOUT_SECONDS = invalid;
+        expect(() => sandboxProcessLimits("render", 2)).toThrow(RangeError);
+      }
+    } finally {
+      if (saved === undefined) delete process.env.SNEEPCUT_RENDER_TIMEOUT_SECONDS;
+      else process.env.SNEEPCUT_RENDER_TIMEOUT_SECONDS = saved;
+    }
   });
 });
 

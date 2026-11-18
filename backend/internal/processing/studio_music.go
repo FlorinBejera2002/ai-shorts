@@ -53,9 +53,13 @@ func (p *Processor) studioMusic(ctx context.Context, dir string, request story.R
 	if err != nil {
 		return err
 	}
-	envelope := studioDuckEnvelope(levels, plan.Duration, request.Options.Music.Volume)
-	for at, part := 0.0, 0; at < plan.Duration-.000001; part++ {
-		duration := min(trackDuration, plan.Duration-at)
+	musicDuration := plan.Duration
+	if !request.Options.Music.Repeats() {
+		musicDuration = min(musicDuration, trackDuration)
+	}
+	envelope := studioDuckEnvelope(levels, musicDuration, request.Options.Music.Volume)
+	for at, part := 0.0, 0; at < musicDuration-.000001; part++ {
+		duration := min(trackDuration, musicDuration-at)
 		plan.Audio = append(plan.Audio, studioAudio{ID: "music-" + storyDigest(part)[:8], AssetID: assetID, Start: at, Duration: duration, SourceIn: 0, Volume: request.Options.Music.Volume, Envelope: studioEnvelopeWindow(envelope, at, duration)})
 		at += duration
 	}
@@ -159,7 +163,12 @@ func studioSimplifyEnvelope(points []studioPoint, tolerance float64) []studioPoi
 	}
 	left := studioSimplifyEnvelope(points[:index+1], tolerance)
 	right := studioSimplifyEnvelope(points[index:], tolerance)
-	return append(left[:len(left)-1], right...)
+	// Base cases can reference the input's backing array. Joining into that
+	// array corrupts sibling ranges during recursive simplification, which
+	// can reorder later automation points.
+	result := make([]studioPoint, 0, len(left)+len(right)-1)
+	result = append(result, left[:len(left)-1]...)
+	return append(result, right...)
 }
 
 func studioEnvelopeWindow(points []studioPoint, start, duration float64) []studioPoint {
@@ -170,7 +179,14 @@ func studioEnvelopeWindow(points []studioPoint, start, duration float64) []studi
 				if b.Time == a.Time {
 					return b.Value
 				}
-				return a.Value + (b.Value-a.Value)*(t-a.Time)/(b.Time-a.Time)
+				// Preserve exact endpoints and bound interpolation to its two
+				// gains. Subtractive cancellation near a fade to zero can otherwise
+				// produce a tiny negative volume rejected by the Studio contract.
+				if t == b.Time {
+					return b.Value
+				}
+				value := a.Value + (b.Value-a.Value)*(t-a.Time)/(b.Time-a.Time)
+				return max(min(a.Value, b.Value), min(max(a.Value, b.Value), value))
 			}
 		}
 		return points[len(points)-1].Value

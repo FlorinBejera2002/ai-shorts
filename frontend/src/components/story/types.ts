@@ -18,6 +18,12 @@ export interface StoryOptions {
 
 export interface StoryMusicOptions {
   track_id: string
+  upload_reference?: string
+  title?: string
+  start_seconds?: number
+  end_seconds?: number
+  loop?: boolean
+  source_audio?: 'preserve' | 'mute'
   volume: number
   sync: boolean
 }
@@ -47,7 +53,12 @@ export interface StoryMusicOutput {
   attribution: string
   sync_status: 'aligned' | 'partial' | 'unchanged' | 'off'
   adjusted_cuts: number
+  aligned_cuts?: number
   bpm: number
+  strategy?: 'structure' | 'rhythm' | 'accents' | 'content'
+  explanation?: string
+  start_seconds?: number
+  end_seconds?: number
 }
 
 export const defaultOptions: StoryOptions = {
@@ -83,6 +94,13 @@ export function storyOptionsEqual(current: StoryOptions, saved: StoryOptions) {
     current.preserve_order === saved.preserve_order &&
     Boolean(current.narration) === Boolean(saved.narration) &&
     (current.music?.track_id ?? '') === (saved.music?.track_id ?? '') &&
+    (current.music?.upload_reference ?? '') === (saved.music?.upload_reference ?? '') &&
+    (current.music?.title ?? '') === (saved.music?.title ?? '') &&
+    (current.music?.start_seconds ?? 0) === (saved.music?.start_seconds ?? 0) &&
+    (current.music?.end_seconds ?? 0) === (saved.music?.end_seconds ?? 0) &&
+    (current.music?.loop ?? true) === (saved.music?.loop ?? true) &&
+    (current.music?.source_audio ?? 'preserve') ===
+      (saved.music?.source_audio ?? 'preserve') &&
     current.music?.volume === saved.music?.volume &&
     current.music?.sync === saved.music?.sync &&
     storyCaptionMode(current) === storyCaptionMode(saved)
@@ -112,13 +130,16 @@ export interface StoryTranscriptProposal {
   confidence: number
   reason: string
   timing_verified: boolean
+  timing_source?: 'owner'
   reviewed: boolean
 }
 
 export interface StoryTranscriptApproval {
   asset_id: string
   proposal_id: string
-  words: string[]
+  words?: string[]
+  timed_words?: StoryWord[]
+  timing_confirmed?: boolean
 }
 
 export interface StoryCandidate {
@@ -268,6 +289,7 @@ export function storyIsBusy(status?: string) {
     'pending',
     'processing',
     'analyzing',
+    'music_analysis',
     'building_story',
     'editing',
     'reviewing',

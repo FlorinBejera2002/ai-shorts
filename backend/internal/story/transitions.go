@@ -27,9 +27,11 @@ func inheritTransitions(entries []Entry, parent *Version) {
 			}
 			if old.Transition == "cut" {
 				entries[i].Transition = "cut"
+				entries[i].TransitionSeconds = 0
 			}
 			if (old.Transition == "fade" || old.Transition == "crossfade") && i > 0 && j > 0 && entries[i].Video == old.Video && entries[i-1].Video == parent.Timeline[j-1].Video && reflect.DeepEqual(entries[i].Audio, old.Audio) && reflect.DeepEqual(entries[i-1].Audio, parent.Timeline[j-1].Audio) {
 				entries[i].Transition = old.Transition
+				entries[i].TransitionSeconds = old.TransitionSeconds
 			}
 		}
 	}

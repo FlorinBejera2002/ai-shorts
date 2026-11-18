@@ -19,6 +19,7 @@ interface Props {
   workspace?: boolean
   preview?: ReactNode
   narration?: ReactNode
+  onMusicPending?: (pending: boolean) => void
   onChange: (options: StoryOptions) => void
 }
 
@@ -31,6 +32,7 @@ export function StoryOptionsPanel({
   workspace = false,
   preview,
   narration,
+  onMusicPending,
   onChange
 }: Props) {
   const text = useStoryLanguage()
@@ -248,9 +250,11 @@ export function StoryOptionsPanel({
             </fieldset>
             <StoryMusic
               value={options.music}
+              narration={Boolean(options.narration)}
               disabled={disabled}
               active={active}
               onChange={(music) => change({ music })}
+              onPending={onMusicPending}
             />
             {narration}
           </>

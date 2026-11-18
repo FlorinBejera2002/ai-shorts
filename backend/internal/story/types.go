@@ -117,25 +117,28 @@ type Word struct {
 }
 
 type Candidate struct {
-	ID           string   `json:"id"`
-	SourceID     string   `json:"source_id"`
-	In           float64  `json:"in"`
-	Out          float64  `json:"out"`
-	Text         string   `json:"text"`
-	Words        []Word   `json:"words"`
-	Language     string   `json:"language"`
-	Speaker      string   `json:"speaker"`
-	Role         string   `json:"role"`
-	Idea         string   `json:"idea"`
-	Dependencies []string `json:"dependencies"`
-	TakeGroup    string   `json:"take_group"`
-	AudioScore   float64  `json:"audio_score"`
-	VisualScore  float64  `json:"visual_score"`
-	Confidence   float64  `json:"confidence"`
-	Reason       string   `json:"reason"`
+	Moment       *VisualMoment `json:"moment,omitempty"`
+	ID           string        `json:"id"`
+	SourceID     string        `json:"source_id"`
+	In           float64       `json:"in"`
+	Out          float64       `json:"out"`
+	Text         string        `json:"text"`
+	Words        []Word        `json:"words"`
+	Language     string        `json:"language"`
+	Speaker      string        `json:"speaker"`
+	Role         string        `json:"role"`
+	Idea         string        `json:"idea"`
+	Dependencies []string      `json:"dependencies"`
+	TakeGroup    string        `json:"take_group"`
+	AudioScore   float64       `json:"audio_score"`
+	VisualScore  float64       `json:"visual_score"`
+	Confidence   float64       `json:"confidence"`
+	Reason       string        `json:"reason"`
 }
 
 type Block struct {
+	MuteSourceAudio     bool      `json:"mute_source_audio,omitempty"`
+	MusicWindow         *Interval `json:"music_window,omitempty"`
 	Pace                *Interval `json:"pace,omitempty"` // Explicit Faster pace edit; source clock, no time stretching.
 	Narration           *Interval `json:"narration,omitempty"`
 	Visual              *Interval `json:"visual,omitempty"`
@@ -168,15 +171,16 @@ type Interval struct {
 }
 
 type Entry struct {
-	BlockID     string    `json:"block_id"`
-	CandidateID string    `json:"candidate_id"`
-	OutputIn    float64   `json:"output_in"`
-	OutputOut   float64   `json:"output_out"`
-	Video       Interval  `json:"video"`
-	Audio       *Interval `json:"audio,omitempty"`
-	Crop        string    `json:"crop"`
-	Words       []Word    `json:"words"` // Output clock; source words remain in Candidate.
-	Transition  string    `json:"transition"`
+	TransitionSeconds float64   `json:"transition_seconds,omitempty"`
+	BlockID           string    `json:"block_id"`
+	CandidateID       string    `json:"candidate_id"`
+	OutputIn          float64   `json:"output_in"`
+	OutputOut         float64   `json:"output_out"`
+	Video             Interval  `json:"video"`
+	Audio             *Interval `json:"audio,omitempty"`
+	Crop              string    `json:"crop"`
+	Words             []Word    `json:"words"` // Output clock; source words remain in Candidate.
+	Transition        string    `json:"transition"`
 }
 
 type Issue struct {

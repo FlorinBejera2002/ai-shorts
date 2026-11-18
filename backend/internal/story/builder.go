@@ -42,18 +42,24 @@ func (b *Builder) Run(parent context.Context, req Request, checkpoints Checkpoin
 	// Resolve music before paid analysis; never silently omit a selected track.
 	req.Music = nil
 	if req.Options.Music != nil {
-		preparer, ok := b.media.(MusicPreparer)
-		if !ok {
-			return Result{}, errors.New("music processing is unavailable")
+		stage, message := "analyzing", "Preparing the selected soundtrack"
+		if req.Options.Music.Sync && req.Options.Music.Volume > 0 {
+			stage, message = "music_analysis", "Listening to the selected music and planning its pacing"
 		}
-		if err = checkpoints.Progress(ctx, "analyzing", "Preparing the selected soundtrack and detecting its rhythm"); err != nil {
+		if err = checkpoints.Progress(ctx, stage, message); err != nil {
 			return Result{}, err
 		}
-		req.Music, err = preparer.PrepareStoryMusic(ctx, *req.Options.Music)
+		if owned, ok := b.media.(OwnedMusicPreparer); ok {
+			req.Music, err = owned.PrepareStoryMusicForUser(ctx, req.UserID, *req.Options.Music)
+		} else if preparer, ok := b.media.(MusicPreparer); ok && req.Options.Music.UploadReference == "" {
+			req.Music, err = preparer.PrepareStoryMusic(ctx, *req.Options.Music)
+		} else {
+			return Result{}, errors.New("music processing is unavailable")
+		}
 		if err != nil {
 			return Result{}, fmt.Errorf("prepare selected music: %w", err)
 		}
-		if req.Music == nil || req.Music.Key == "" || req.Music.Track.ID != req.Options.Music.TrackID {
+		if !req.Options.Music.Matches(req.Music) {
 			return Result{}, errors.New("selected music could not be prepared")
 		}
 	}
@@ -351,7 +357,7 @@ func (s *runState) version(plan Plan, parent *Version, operation repairOperation
 	if parent != nil {
 		musicRequest.Base = parent
 	}
-	plan, timeline, sync, err := synchronizeMusic(musicRequest, plan)
+	plan, timeline, sync, err := BuildMusicTimeline(musicRequest, plan)
 	if err != nil {
 		return Version{}, err
 	}
@@ -435,6 +441,7 @@ func (s *runState) nextRepair(base Version) (Version, Issue, repairOperation, bo
 			note("Automatic repair is not applicable: " + err.Error())
 			continue
 		}
+		plan = preparePlanSourceAudio(plan, s.req.Options)
 		beforeSafety := Report{Issues: ValidatePlan(base.Plan, s.req.Assets, s.req.Options, s.req.Base)}
 		afterSafety := Report{Issues: ValidatePlan(plan, s.req.Assets, s.req.Options, s.req.Base)}
 		if regressions := blockingRegressions(beforeSafety, afterSafety); len(regressions) > 0 {

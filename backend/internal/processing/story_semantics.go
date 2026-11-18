@@ -9,9 +9,7 @@ import (
 	"log/slog"
 	"math"
 	"os"
-	"path/filepath"
 	"sort"
-	"strconv"
 	"strings"
 
 	"sneepcut/backend-go/internal/aiprovider"
@@ -31,12 +29,13 @@ type storySemanticCandidate struct {
 }
 
 type storySemanticFinding struct {
-	CandidateID  string   `json:"candidate_id"`
-	Role         string   `json:"role"`
-	Idea         string   `json:"idea"`
-	Evidence     string   `json:"evidence"`
-	Confidence   float64  `json:"confidence"`
-	Dependencies []string `json:"dependencies"`
+	Moment       *story.VisualMoment `json:"moment,omitempty"`
+	CandidateID  string              `json:"candidate_id"`
+	Role         string              `json:"role"`
+	Idea         string              `json:"idea"`
+	Evidence     string              `json:"evidence"`
+	Confidence   float64             `json:"confidence"`
+	Dependencies []string            `json:"dependencies"`
 }
 
 // AnalyzeStorySources supplies provisional source meaning before planning. It
@@ -86,7 +85,7 @@ func (p *Processor) AnalyzeStorySources(ctx context.Context, assets []story.Asse
 			return result, err
 		}
 	}
-	return result, nil
+	return p.refineStoryMusicMoments(ctx, assets, result, options)
 }
 
 // The provider answers with one JSON finding per candidate, so response time
@@ -118,22 +117,40 @@ func storySemanticBatches(assets []story.Asset, indexes []int) [][]int {
 
 func (p *Processor) analyzeStorySourceBatch(ctx context.Context, assets []story.Asset, options story.Options) ([]story.Asset, error) {
 	result := cloneStorySemanticAssets(assets)
+	musicMoments := options.Music != nil && options.Music.Sync && options.Music.Volume > 0
 	warn := func(reason string) ([]story.Asset, error) {
 		for i := range result {
 			result[i].Warnings = appendStoryWarning(result[i].Warnings, reason)
+			for j := range result[i].Candidates {
+				result[i].Candidates[j].Moment = nil
+			}
 		}
 		return result, ctx.Err()
+	}
+	providerFailure := func(err error) ([]story.Asset, error) {
+		reason := "Source meaning analysis is unavailable: " + storyProviderFailure(err) + "; visual relevance needs review."
+		annotated, contextErr := warn(reason)
+		if contextErr != nil {
+			return annotated, contextErr
+		}
+		if musicMoments && permanentStoryProviderFailure(err) {
+			return annotated, fmt.Errorf("Source meaning analysis is unavailable: %w", aiprovider.SafeFailure(err))
+		}
+		return annotated, nil
 	}
 	if len(assets) == 0 {
 		return warn("Source meaning analysis could not fit the source-count limit; visual relevance needs review.")
 	}
 	generator, err := aiprovider.ForTask(ctx, p.ai, aiprovider.TaskSourceAnalysis)
 	if err != nil {
-		slog.Warn("Story source analysis has no route", "error", err)
-		return warn("Source meaning analysis is unavailable for the configured model; visual relevance needs review.")
+		slog.Warn("Story source analysis has no route", "reason", storyProviderFailure(err))
+		return providerFailure(err)
 	}
 	reviewer, ok := generator.(aiprovider.MediaReviewer)
 	if !ok {
+		if musicMoments {
+			return result, errors.New("Source meaning analysis is unavailable: the configured provider cannot inspect source frames")
+		}
 		return warn("The configured provider cannot inspect source frames; visual relevance needs review.")
 	}
 	model := fmt.Sprintf("%T", generator)
@@ -155,7 +172,7 @@ func (p *Processor) analyzeStorySourceBatch(ctx context.Context, assets []story.
 	// Sort identity inputs so upload order alone does not spend another AI call.
 	sort.Slice(identities, func(i, j int) bool { return identities[i].ID < identities[j].ID })
 	sort.Slice(candidates, func(i, j int) bool { return candidates[i].ID < candidates[j].ID })
-	digest := storyDigest([]any{"source-semantics-4", model, identities, candidates, options.Language, options.Brief, options.Mode, options.Narration})
+	digest := storyDigest([]any{"source-semantics-9", model, identities, candidates, options.Language, options.Brief, options.Mode, options.Narration, musicMoments, story.UsesMusicOnlyAudio(options)})
 	cached := true
 	for _, asset := range assets {
 		// Narration is immutable context, not an annotation target. Each visual batch
@@ -167,12 +184,19 @@ func (p *Processor) analyzeStorySourceBatch(ctx context.Context, assets []story.
 	if cached {
 		return result, nil
 	}
+	// Action windows are evidence from a particular sampling pass. A failed or
+	// partial refresh must not keep windows from a different model or intent.
+	for ai := range result {
+		for ci := range result[ai].Candidates {
+			result[ai].Candidates[ci].Moment = nil
+		}
+	}
 	contextData := struct {
 		Options           story.Options            `json:"editorial_intent"`
 		Candidates        []storySemanticCandidate `json:"candidates"`
 		AllowedCandidates []string                 `json:"allowed_candidate_ids"`
 		NarrationContext  []storySemanticCandidate `json:"narration_context,omitempty"`
-	}{Options: options}
+	}{Options: story.EditorialOptions(options)}
 	for _, candidate := range candidates {
 		if candidate.Kind == "narration" {
 			contextData.NarrationContext = append(contextData.NarrationContext, candidate)
@@ -191,7 +215,9 @@ func (p *Processor) analyzeStorySourceBatch(ctx context.Context, assets []story.
 		return warn("Source meaning analysis workspace is unavailable; visual relevance needs review.")
 	}
 	defer os.RemoveAll(dir)
-	parts, visible, err := p.storySemanticFrames(ctx, dir, assets)
+	// Establish broad meaning first. Dense action timing is a separate bounded
+	// pass for useful candidates, rather than paying to oversample every upload.
+	parts, visible, samples, err := p.storySemanticFrames(ctx, dir, assets, false)
 	if err != nil {
 		annotated, _ := warn("Source frames could not be prepared within analysis limits; visual relevance needs review.")
 		return annotated, errStorySemanticBatch
@@ -201,16 +227,25 @@ Describe visible subjects, objects, setting and actions only when supported by t
 	if options.Narration {
 		prompt += "\nNARRATION MODE: narration_context is immutable voice context only, not an annotation target or visual evidence. Its IDs are deliberately absent from allowed_candidate_ids. Do not return findings for narration_context. All candidates are MUTED visual windows, even when a person appears to be talking. Their allowed roles are b_roll, reaction, transition, supporting, low_quality; do not label muted interviews a_roll because they cannot supply spoken audio. Describe only what each video window actually shows, relevant to the narration topics. Do not infer that a window depicts the requested subject just because the narration mentions it; ambiguous/absent visual matches must remain unverified."
 	}
+	if story.UsesMusicOnlyAudio(options) {
+		prompt += "\nMUSIC ONLY MODE: Original clip sound is deliberately muted. A person, hike, landscape or other main subject is visual content, not spoken A-roll. Use only b_roll, supporting, reaction, transition or low_quality roles. Describe the observed action and composition without inventing speech or assuming that the source recording was silent. Identify clearly obstructed, accidental or unusable views as low_quality only when the supplied frames establish that defect. Do not discard a useful description because this footage is the main visual subject."
+	}
+	if musicMoments {
+		prompt += storyVisualMomentPrompt
+	}
 	prompt += "\nDATA:\n" + string(encoded)
 	if err := story.ReserveAICall(ctx); err != nil {
+		if musicMoments && ctx.Err() == nil {
+			return result, errors.New("Source meaning analysis reached the AI-call budget; no further provider requests were made")
+		}
 		return warn("Source meaning analysis reached the AI-call budget; visual relevance needs review.")
 	}
 	raw, err := reviewer.ReviewMedia(ctx, prompt, parts)
 	if err != nil {
-		slog.Warn("Story source analysis request failed", "model", model, "frames", len(parts), "error", err)
-		return warn("Source meaning analysis is unavailable for the configured model; visual relevance needs review.")
+		slog.Warn("Story source analysis request failed", "model", model, "frames", len(parts), "reason", storyProviderFailure(err))
+		return providerFailure(err)
 	}
-	findings, err := parseStorySemanticFindings(raw, assets, visible)
+	findings, err := parseStorySemanticFindingsForOptions(raw, assets, visible, options, samples)
 	if err != nil {
 		return warn("Source meaning analysis returned invalid source evidence (" + err.Error() + "); local source analysis was retained.")
 	}
@@ -220,6 +255,7 @@ Describe visible subjects, objects, setting and actions only when supported by t
 		if asset.Kind == "narration" {
 			continue
 		}
+		asset.Warnings = story.WithoutSourceMeaningWarnings(asset.Warnings)
 		incomplete := false
 		for ci := range asset.Candidates {
 			candidate := &asset.Candidates[ci]
@@ -229,6 +265,9 @@ Describe visible subjects, objects, setting and actions only when supported by t
 				continue
 			}
 			candidate.Role, candidate.Idea = finding.Role, finding.Idea
+			if musicMoments {
+				candidate.Moment = cloneStoryVisualMoment(finding.Moment)
+			}
 			candidate.Reason = fmt.Sprintf("Provisional source meaning (confidence %.2f): %s Original ASR minimum-token probability %.3f; actual rendered media review remains required.", finding.Confidence, finding.Evidence, candidate.Confidence)
 			for _, dependency := range finding.Dependencies {
 				candidate.Dependencies = appendStoryWarning(candidate.Dependencies, dependency)
@@ -248,6 +287,7 @@ func cloneStorySemanticAssets(assets []story.Asset) []story.Asset {
 		result[i].Warnings = append([]string(nil), assets[i].Warnings...)
 		for j := range result[i].Candidates {
 			result[i].Candidates[j].Dependencies = append([]string(nil), assets[i].Candidates[j].Dependencies...)
+			result[i].Candidates[j].Moment = cloneStoryVisualMoment(assets[i].Candidates[j].Moment)
 		}
 	}
 	return result
@@ -328,58 +368,11 @@ func storySemanticSampleFrames(asset story.Asset, limit int) []int {
 	return frames
 }
 
-func (p *Processor) storySemanticFrames(ctx context.Context, dir string, assets []story.Asset) ([]aiprovider.MediaPart, map[string]bool, error) {
-	var parts []aiprovider.MediaPart
-	visible := map[string]bool{}
-	total := 0
-	limits := storySemanticFrameLimits(assets)
-	for ai, asset := range assets {
-		if asset.Kind == "narration" {
-			continue
-		}
-		frames := storySemanticSampleFrames(asset, limits[ai])
-		if len(frames) == 0 {
-			continue
-		}
-		file, err := p.storyMaterialize(ctx, dir, asset.ProxyKey)
-		if err != nil {
-			return nil, nil, err
-		}
-		selectFrames := make([]string, len(frames))
-		for i, frame := range frames {
-			selectFrames[i] = "eq(n," + strconv.Itoa(frame) + ")"
-		}
-		pattern := filepath.Join(dir, fmt.Sprintf("source-%02d-%%03d.jpg", ai))
-		filter := "select='" + strings.Join(selectFrames, "+") + "',scale=w='min(480,iw)':h='min(480,ih)':force_original_aspect_ratio=decrease"
-		if err := p.ffmpeg(ctx, dir, "-i", file, "-an", "-vf", filter, "-fps_mode", "vfr", "-frames:v", strconv.Itoa(len(frames)), "-q:v", "5", pattern); err != nil {
-			return nil, nil, err
-		}
-		for i, frame := range frames {
-			file := filepath.Join(dir, fmt.Sprintf("source-%02d-%03d.jpg", ai, i+1))
-			info, err := os.Stat(file)
-			if err != nil || info.Size() > 256<<10 || info.Size() <= 0 || int64(total)+info.Size() > aiprovider.MaxReviewBytes {
-				return nil, nil, errors.New("source frames exceed media limit")
-			}
-			data, err := os.ReadFile(file)
-			if err != nil {
-				return nil, nil, err
-			}
-			at := float64(frame) / 30
-			var ids []string
-			for _, c := range asset.Candidates {
-				if at >= c.In-.034 && at <= c.Out {
-					ids = append(ids, c.ID)
-					visible[c.ID] = true
-				}
-			}
-			parts = append(parts, aiprovider.MediaPart{MIME: "image/jpeg", Data: data, Label: fmt.Sprintf("Actual source %s frame at %.3f source seconds; candidate intervals: %s. Sparse observation, not full-motion evidence.", asset.ID, at, strings.Join(ids, ", "))})
-			total += len(data)
-		}
-	}
-	return parts, visible, aiprovider.ValidateMedia(parts)
+func parseStorySemanticFindings(raw string, assets []story.Asset, visible map[string]bool, observed ...map[string][]float64) (map[string]storySemanticFinding, error) {
+	return parseStorySemanticFindingsForOptions(raw, assets, visible, story.Options{}, observed...)
 }
 
-func parseStorySemanticFindings(raw string, assets []story.Asset, visible map[string]bool) (map[string]storySemanticFinding, error) {
+func parseStorySemanticFindingsForOptions(raw string, assets []story.Asset, visible map[string]bool, options story.Options, observed ...map[string][]float64) (map[string]storySemanticFinding, error) {
 	var response struct {
 		Candidates []storySemanticFinding `json:"candidates"`
 	}
@@ -432,20 +425,28 @@ func parseStorySemanticFindings(raw string, assets []story.Asset, visible map[st
 			}
 			deps[id] = true
 		}
-		if finding.Confidence < .7 || len(strings.TrimSpace(finding.Idea)) < 4 || len(strings.TrimSpace(finding.Evidence)) < 12 || strings.TrimSpace(candidate.Text) == "" && !visible[candidate.ID] {
+		needsVisualEvidence := strings.TrimSpace(candidate.Text) == "" || story.UsesMusicOnlyAudio(options)
+		if finding.Confidence < .7 || len(strings.TrimSpace(finding.Idea)) < 4 || len(strings.TrimSpace(finding.Evidence)) < 12 || needsVisualEvidence && !visible[candidate.ID] {
 			continue
 		}
-		if strings.TrimSpace(candidate.Text) == "" && finding.Role == "a_roll" {
-			if !narration {
-				// Never accept invented speech, but drop only this finding: one
-				// mislabel must not discard every other source description.
+		mutedVisual := story.UsesMusicOnlyAudio(options) && visible[candidate.ID]
+		if finding.Role == "a_roll" && (strings.TrimSpace(candidate.Text) == "" || mutedVisual) {
+			if !narration && !mutedVisual {
+				// Drop only this unsupported finding and retain its siblings.
 				continue
 			}
 			// A visible interview can look like A-roll even when deliberately
-			// muted. In narration mode the role is only a visual label: retain
+			// muted. In narration/music-only mode the role is a visual label: retain
 			// the observed scene as supporting footage, never invent speech.
 			finding.Role = "supporting"
 		}
+		var samples []float64
+		if len(observed) > 0 {
+			samples = observed[0][candidate.ID]
+		}
+		// Bad optional action timing cannot erase an otherwise useful subject
+		// description, but it must never grant permission to trim footage.
+		finding.Moment = validatedStoryVisualMoment(candidate, finding.Moment, samples, finding.Confidence)
 		findings[finding.CandidateID] = finding
 	}
 	state := map[string]int{}

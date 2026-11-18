@@ -8,9 +8,11 @@ import (
 )
 
 type TranscriptReviewInput struct {
-	AssetID    string   `json:"asset_id"`
-	ProposalID string   `json:"proposal_id"`
-	Words      []string `json:"words"`
+	AssetID         string       `json:"asset_id"`
+	ProposalID      string       `json:"proposal_id"`
+	Words           []string     `json:"words"`
+	TimedWords      []story.Word `json:"timed_words,omitempty"`
+	TimingConfirmed bool         `json:"timing_confirmed,omitempty"`
 }
 
 func approveTranscriptInputs(assets []story.Asset, reviews []TranscriptReviewInput) ([]story.Asset, error) {
@@ -19,7 +21,7 @@ func approveTranscriptInputs(assets []story.Asset, reviews []TranscriptReviewInp
 	count := 0
 	for _, review := range reviews {
 		key := review.AssetID + ":" + review.ProposalID
-		count += len(review.Words)
+		count += len(review.Words) + len(review.TimedWords)
 		if seen[key] || count > 10000 {
 			return nil, fmt.Errorf("duplicate or oversized transcript review")
 		}
@@ -30,7 +32,14 @@ func approveTranscriptInputs(assets []story.Asset, reviews []TranscriptReviewInp
 				continue
 			}
 			var err error
-			result[i], err = story.ApproveTranscript(result[i], review.ProposalID, review.Words)
+			if review.TimedWords != nil || review.TimingConfirmed {
+				if len(review.Words) != 0 {
+					return nil, fmt.Errorf("choose either text review or confirmed word timing, not both")
+				}
+				result[i], err = story.ApproveTranscriptTiming(result[i], review.ProposalID, review.TimedWords, review.TimingConfirmed)
+			} else {
+				result[i], err = story.ApproveTranscript(result[i], review.ProposalID, review.Words)
+			}
 			if err != nil {
 				return nil, err
 			}

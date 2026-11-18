@@ -86,6 +86,7 @@ func reuseDuplicateAnalysis(analyzed, original Asset) (Asset, bool) {
 	for i := range reused.Candidates {
 		candidate := &reused.Candidates[i]
 		candidate.ID, candidate.SourceID = ids[candidate.ID], original.ID
+		candidate.Moment = nil
 		for j, dependency := range candidate.Dependencies {
 			if mapped, local := ids[dependency]; local {
 				candidate.Dependencies[j] = mapped
@@ -111,6 +112,7 @@ func reuseDuplicateAnalysis(analyzed, original Asset) (Asset, bool) {
 			old := previous[candidate.ID]
 			candidate.Role, candidate.Idea, candidate.Reason = old.Role, old.Idea, old.Reason
 			candidate.Dependencies = slices.Clone(old.Dependencies)
+			candidate.Moment = cloneVisualMoment(old.Moment)
 		}
 		reused.SemanticAnalysisVersion = original.SemanticAnalysisVersion
 	}
@@ -261,6 +263,7 @@ func (batch semanticSourceBatch) expand(annotated []Asset) ([]Asset, error) {
 			canonical := batch.canonicalIDs[candidate.ID]
 			next := updated[canonical]
 			candidate.Role, candidate.Idea, candidate.Reason = next.Role, next.Idea, next.Reason
+			candidate.Moment = cloneVisualMoment(next.Moment)
 			for _, dependency := range next.Dependencies {
 				// Existing requirements keep their exact source attribution; only
 				// new model findings need expansion from the representative.

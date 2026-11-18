@@ -11,8 +11,8 @@ import (
 	"unicode/utf8"
 )
 
-// A proposal is never executable speech until its timing is measured and its
-// text is explicitly confirmed by the owner. IDs bind the immutable evidence.
+// A proposal is never executable speech until its text is explicitly confirmed
+// and timing is measured or explicitly corrected by the owner. IDs bind evidence.
 type TranscriptProposal struct {
 	ID             string  `json:"id"`
 	CandidateID    string  `json:"candidate_id"`
@@ -22,13 +22,16 @@ type TranscriptProposal struct {
 	Confidence     float64 `json:"confidence"`
 	Reason         string  `json:"reason"`
 	TimingVerified bool    `json:"timing_verified"`
+	TimingSource   string  `json:"timing_source,omitempty"`
 	Reviewed       bool    `json:"reviewed"`
 }
 
 type TranscriptReview struct {
-	ProposalID string `json:"proposal_id"`
-	SourceHash string `json:"source_hash"`
-	Words      []Word `json:"words"`
+	ProposalID     string              `json:"proposal_id"`
+	SourceHash     string              `json:"source_hash"`
+	Words          []Word              `json:"words"`
+	TimingSource   string              `json:"timing_source,omitempty"`
+	TimingEvidence *TranscriptProposal `json:"timing_evidence,omitempty"`
 }
 
 func TranscriptProposalID(asset Asset, proposal TranscriptProposal) string {
@@ -82,6 +85,9 @@ func ApproveTranscript(asset Asset, proposalID string, text []string) (Asset, er
 			}
 			review.Words[i].Text = value
 		}
+		if proposal.TimingSource == ownerTranscriptTiming {
+			return ApproveTranscriptTiming(asset, proposal.ID, review.Words, true)
+		}
 		asset.TranscriptReviews = slices.DeleteFunc(asset.TranscriptReviews, func(old TranscriptReview) bool { return old.ProposalID == proposal.ID })
 		asset.TranscriptReviews = append(asset.TranscriptReviews, review)
 		return ApplyTranscriptReviews(asset), nil
@@ -94,23 +100,42 @@ func ApplyTranscriptReviews(asset Asset) Asset {
 	asset = cloneAssets([]Asset{asset})[0]
 	for i := range asset.TranscriptProposals {
 		proposal := &asset.TranscriptProposals[i]
+		checkpoint := *proposal
 		proposal.Reviewed = false
-		if !validProposalWords(asset, *proposal) {
-			continue
+		if checkpoint.TimingSource == ownerTranscriptTiming {
+			// Persisted candidate words carry owner authority only while its exact
+			// evidence binding still validates. A failed match must revoke them.
+			proposal.TimingVerified = false
+			for j := range asset.Candidates {
+				candidate := &asset.Candidates[j]
+				if candidate.ID == checkpoint.CandidateID || strings.HasPrefix(candidate.ID, checkpoint.CandidateID+"-cut") {
+					candidate.Words, candidate.Text, candidate.Role = nil, "", "b_roll"
+					candidate.Reason = "Owner timing evidence needs review; original audio is unchanged."
+				}
+			}
 		}
 		for _, review := range asset.TranscriptReviews {
-			if review.ProposalID != proposal.ID || review.SourceHash != asset.Hash || len(review.Words) != len(proposal.Words) {
+			if review.SourceHash != asset.Hash {
 				continue
 			}
-			valid := true
-			for j, word := range review.Words {
-				valid = valid && validReviewedText(word.Text) && word.Start == proposal.Words[j].Start && word.End == proposal.Words[j].End
+			valid := false
+			if review.TimingSource == ownerTranscriptTiming {
+				valid = ownerTimingReviewMatches(asset, checkpoint, review)
+			} else if review.TimingSource == "" && proposal.TimingSource == "" && validProposalWords(asset, *proposal) && review.ProposalID == proposal.ID && len(review.Words) == len(proposal.Words) {
+				valid = true
+				for j, word := range review.Words {
+					valid = valid && validReviewedText(word.Text) && word.Start == proposal.Words[j].Start && word.End == proposal.Words[j].End
+				}
 			}
 			if !valid {
 				continue
 			}
 			proposal.Words, proposal.Reviewed = slices.Clone(review.Words), true
 			proposal.Reason = "Text explicitly reviewed by the owner; measured source timing is unchanged."
+			if review.TimingSource == ownerTranscriptTiming {
+				proposal.ID, proposal.TimingVerified, proposal.TimingSource = review.ProposalID, true, ownerTranscriptTiming
+				proposal.Reason = "Text and word timing explicitly corrected and confirmed by the owner against the recording. Timing was not automatically verified."
+			}
 			warningPrefix := fmt.Sprintf("Automatic captions withheld for source interval %.2f–%.2f seconds:", proposal.In, proposal.Out)
 			asset.Warnings = slices.DeleteFunc(asset.Warnings, func(warning string) bool {
 				return strings.HasPrefix(warning, warningPrefix) || strings.HasPrefix(warning, "No confident speech transcript.")
@@ -122,6 +147,10 @@ func ApplyTranscriptReviews(asset Asset) Asset {
 				}
 				candidate.Words = wordsWithin(review.Words, candidate.In, candidate.Out)
 				if len(candidate.Words) == 0 {
+					if review.TimingSource == ownerTranscriptTiming {
+						candidate.Text, candidate.Role = "", "b_roll"
+						candidate.Reason = "No owner-confirmed caption words fall inside this interval; original audio is unchanged."
+					}
 					continue
 				}
 				var text []string
@@ -130,6 +159,9 @@ func ApplyTranscriptReviews(asset Asset) Asset {
 				}
 				candidate.Text, candidate.Role = strings.Join(text, " "), "a_roll"
 				candidate.Reason = "Transcript explicitly reviewed by the owner; source timing is measured and unchanged."
+				if review.TimingSource == ownerTranscriptTiming {
+					candidate.Reason = proposal.Reason
+				}
 			}
 		}
 	}

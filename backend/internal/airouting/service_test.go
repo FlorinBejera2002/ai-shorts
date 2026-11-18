@@ -86,6 +86,9 @@ func TestRejectInvalidOrIncompatibleRouting(t *testing.T) {
 		{"text model for final video", func(r map[aiprovider.Task]Route) {
 			r[aiprovider.TaskVideoReview] = Route{"openrouter", "vendor/text-only"}
 		}},
+		{"text model for music analysis", func(r map[aiprovider.Task]Route) {
+			r[aiprovider.TaskMusicAnalysis] = Route{"openrouter", "vendor/text-only"}
+		}},
 		{"unknown model", func(r map[aiprovider.Task]Route) { r[aiprovider.TaskAssistant] = Route{"openrouter", "not/listed"} }},
 		{"unknown provider", func(r map[aiprovider.Task]Route) { r[aiprovider.TaskAssistant] = Route{"other", "vendor/text-only"} }},
 		{"missing stage", func(r map[aiprovider.Task]Route) { delete(r, aiprovider.TaskScripts) }},

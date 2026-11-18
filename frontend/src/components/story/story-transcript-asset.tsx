@@ -1,9 +1,10 @@
-import { useRef, useState } from 'react'
+import { useState } from 'react'
 import { Button } from '@/components/ui/button'
-import type { StoryAsset, StoryTranscriptApproval } from './types'
+import type { StoryAsset, StoryTranscriptApproval, StoryWord } from './types'
 import { StoryTranscriptPassage } from './story-transcript-passage'
 import { transcriptApprovals } from './story-transcript-model'
 import { useStoryLanguage } from './use-story-language'
+import { useTranscriptPlayer } from './use-transcript-player'
 
 export function StoryTranscriptAsset({
   asset,
@@ -18,48 +19,33 @@ export function StoryTranscriptAsset({
 }) {
   const text = useStoryLanguage()
   const [drafts, setDrafts] = useState<Record<string, string[]>>({})
+  const [timingDrafts, setTimingDrafts] = useState<Record<string, StoryWord[]>>({})
   const [selected, setSelected] = useState<string[]>([])
   const selectedIDs = new Set(selected)
   const [error, setError] = useState('')
-  const player = useRef<HTMLVideoElement>(null)
-  const pendingSeek = useRef<number | null>(null)
-  const source = asset.proxy_url ?? asset.source_url
+  const source = asset.proxy_url || asset.source_url || ''
+  const {
+    player,
+    source: playbackSource,
+    failed,
+    playBlocked,
+    seekAndPlay,
+    loaded,
+    retry,
+    onError
+  } = useTranscriptPlayer(source)
   const proposals = asset.transcript_proposals ?? []
-  function listen(start: number) {
-    const video = player.current
-    if (!video) return
-    pendingSeek.current = start
-    if (video.readyState < 1) {
-      video.load()
-      return
-    }
-    video.currentTime = Math.min(
-      start,
-      Number.isFinite(video.duration) ? video.duration : start
-    )
-    pendingSeek.current = null
-    void video
-      .play()
-      .catch(() =>
-        setError(
-          text(
-            'The recording could not play. Try the playback controls.',
-            'Înregistrarea nu a putut fi redată. Încearcă butoanele de redare.'
-          )
-        )
-      )
-  }
   async function approve() {
     if (disabled || !selected.length) return
     setError('')
     let reviews: StoryTranscriptApproval[]
     try {
-      reviews = transcriptApprovals(asset, selected, drafts)
+      reviews = transcriptApprovals(asset, selected, drafts, timingDrafts)
     } catch {
       setError(
         text(
-          'Fill in every word and select only passages with verified timing.',
-          'Completează fiecare cuvânt și selectează doar pasaje cu timpi verificați.'
+          'Check every word and its timing before confirming the selected passages.',
+          'Verifică fiecare cuvânt și timpii acestuia înainte de confirmarea pasajelor selectate.'
         )
       )
       return
@@ -73,18 +59,51 @@ export function StoryTranscriptAsset({
       </summary>
       <div className="mt-3 space-y-3">
         {source ? (
-          <video
-            ref={player}
-            src={source}
-            controls
-            playsInline
-            preload="none"
-            className="max-h-64 w-full rounded-md bg-black object-contain"
-            aria-label={`${text('Transcript source', 'Sursa transcrierii')}: ${asset.name}`}
-            onLoadedMetadata={() => {
-              if (pendingSeek.current !== null) listen(pendingSeek.current)
-            }}
-          />
+          <div className="space-y-2">
+            <video
+              ref={player}
+              src={playbackSource}
+              controls
+              playsInline
+              preload="none"
+              className="max-h-64 w-full rounded-md bg-black object-contain"
+              aria-label={`${text('Transcript source', 'Sursa transcrierii')}: ${asset.name}`}
+              onLoadedMetadata={loaded}
+              onError={onError}
+            />
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => seekAndPlay(0)}
+            >
+              {text('Play full recording', 'Redă înregistrarea completă')}
+            </Button>
+            {failed && (
+              <div role="alert" className="space-y-2 text-sm">
+                <p>{text(
+                  'The recording could not load. Retry to reconnect to the video.',
+                  'Înregistrarea nu s-a putut încărca. Reîncearcă pentru a reconecta videoul.'
+                )}</p>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={retry}
+                >
+                  {text('Retry playback', 'Reîncearcă redarea')}
+                </Button>
+              </div>
+            )}
+            {playBlocked && !failed && (
+              <p role="status" className="text-sm text-muted-foreground">
+                {text(
+                  'Press Play in the video controls to continue.',
+                  'Apasă Redare în controalele videoului pentru a continua.'
+                )}
+              </p>
+            )}
+          </div>
         ) : (
           <p className="text-sm text-muted-foreground">
             {text(
@@ -97,13 +116,20 @@ export function StoryTranscriptAsset({
           <StoryTranscriptPassage
             key={proposal.id}
             proposal={proposal}
+            duration={asset.duration}
+            timingWords={timingDrafts[proposal.id]}
+            onTiming={(words) => {
+              setTimingDrafts((current) => ({ ...current, [proposal.id]: words }))
+              setSelected((current) => current.filter((id) => id !== proposal.id))
+            }}
             words={
               drafts[proposal.id] ?? proposal.words.map((word) => word.text)
             }
             selected={selectedIDs.has(proposal.id)}
             disabled={disabled}
             canListen={Boolean(source)}
-            onListen={() => listen(proposal.in)}
+            onListen={seekAndPlay}
+            playbackTime={() => player.current?.currentTime ?? 0}
             onSelect={(checked) =>
               setSelected((current) =>
                 checked
