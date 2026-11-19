@@ -91,17 +91,17 @@
   }
 
   .text {
-    gap: 18px;
+    gap: 28px;
   }
 
   .title {
-    padding-bottom: 10px;
+    padding-bottom: 4px;
     font-size: 33px;
-    line-height: 1.08;
+    line-height: 1.22;
   }
 
   .sticker {
-    margin-top: 6px;
+    margin-top: 10px;
   }
 
   .actions {

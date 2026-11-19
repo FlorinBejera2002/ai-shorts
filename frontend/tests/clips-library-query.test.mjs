@@ -97,3 +97,21 @@ test('clip length and age read like the canvas', () => {
   assert.equal(formatClipAge('2026-11-18T12:00:00Z', 'ro', now), 'ieri')
   assert.equal(formatClipAge('2026-11-05T12:00:00Z', 'en', now), '2 weeks ago')
 })
+
+test('favorites scope: starred clips only, counted, and a valid URL scope', () => {
+  const library = lib.buildClipsLibrary({
+    projects: [{ id: 'job', folders: [], clips: [clip('a', { favorite: true }), clip('b'), clip('c', { favorite: true, folderId: P })] }],
+    collections: [{ id: P, name: 'Podcast' }]
+  })
+  assert.equal(library.favorites, 2)
+  assert.equal(library.clips.find((item) => item.id === 'b').favorite, false, 'Missing flag means not starred')
+  const query = lib.parseClipsQuery({ project: 'favorites' })
+  assert.equal(query.project, 'favorites')
+  assert.equal(lib.clipsHref(query), '/dashboard/clips?project=favorites')
+  assert.deepEqual(
+    lib.selectClips(library.clips, query).map((item) => item.id).sort(),
+    ['a', 'c']
+  )
+  assert.equal(lib.isClipsListScope('favorites'), true)
+  assert.equal(lib.isClipsListScope(P), false)
+})

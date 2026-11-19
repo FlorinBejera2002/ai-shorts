@@ -1,0 +1,322 @@
+/* Composer preview pane: canvas Desktop-Composer and M-Composer-Photos cards, with platform tabs and expanded preview. */
+.pane {
+  position: sticky;
+  top: 24px;
+  grid-column: 2;
+  grid-row: 1 / span 6;
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  padding: 24px;
+  border-radius: var(--publish-card-radius);
+  background: var(--publish-surface);
+  box-shadow: var(--publish-preview-shadow);
+}
+
+.paneHeader {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.paneTitle {
+  color: var(--publish-secondary-text);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.tabs.tabs {
+  width: 100%;
+  min-width: 0;
+  gap: 0;
+}
+
+.tabList.tabList {
+  display: flex;
+  width: auto;
+  min-height: 0;
+  gap: 14px;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+}
+
+.tab.tab {
+  display: flex;
+  width: 34px;
+  height: 44px;
+  min-height: 0;
+  flex: 0 0 auto;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+  box-shadow: none;
+  opacity: 0.5;
+}
+
+.tab.tab[data-state='active'] {
+  background: transparent;
+  box-shadow: none;
+  opacity: 1;
+}
+
+.tab.tab:focus-visible {
+  outline: 2px solid var(--publish-text);
+  outline-offset: 2px;
+  border-radius: 999px;
+}
+
+.tabLogo {
+  display: block;
+  width: 34px;
+  height: 34px;
+  flex: none;
+  overflow: hidden;
+  border-radius: 999px;
+}
+
+.tabLogoImage {
+  width: 100%;
+  height: 100%;
+  border-radius: 999px;
+}
+
+.tabIndicator {
+  display: block;
+  width: 0;
+  height: 3px;
+  border-radius: 999px;
+  background: var(--publish-text);
+}
+
+.tab.tab[data-state='active'] .tabIndicator {
+  width: 16px;
+}
+
+.headerTabs {
+  display: flex;
+  justify-content: center;
+}
+
+/* Inline desktop preview: canvas 240px device with 38px platform tabs. */
+.pane .tab.tab {
+  width: 38px;
+  height: 48px;
+}
+
+.pane .tabLogo {
+  width: 38px;
+  height: 38px;
+}
+
+.pane .tabIndicator {
+  height: 3px;
+}
+
+.pane .tab.tab[data-state='active'] .tabIndicator {
+  width: 18px;
+}
+
+.plainMedia {
+  width: min(100%, 240px);
+}
+
+.plainMedia video {
+  aspect-ratio: 9 / 16;
+}
+
+.expandText {
+  display: inline-flex;
+  height: 36px;
+  align-items: center;
+  gap: 6px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--publish-text);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.expandText:hover {
+  background: var(--publish-hover);
+}
+
+.expandIcon {
+  display: inline-flex;
+  width: 34px;
+  height: 34px;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--publish-text);
+  cursor: pointer;
+}
+
+.expandIcon:hover {
+  background: var(--publish-hover);
+}
+
+.emptyPreview {
+  display: flex;
+  width: min(100%, 240px);
+  aspect-ratio: 9 / 16;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 14px;
+  border: 1px dashed var(--publish-border-strong);
+  border-radius: 24px;
+  background: var(--publish-inset);
+  color: var(--publish-muted-text);
+  font-size: 13px;
+}
+
+.changeMedia {
+  display: none;
+}
+
+/* Expanded preview: 460px card on desktop, black full-screen sheet on phones (canvas D-Preview and M-Preview). */
+.expandedDialog.expandedDialog {
+  display: flex;
+  width: min(calc(100% - 32px), 460px);
+  max-width: 460px;
+  max-height: 92dvh;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 20px 24px 24px;
+  border: 0;
+  border-radius: var(--publish-dialog-radius);
+  background: var(--publish-surface);
+  box-shadow: var(--publish-dialog-shadow);
+  color: var(--publish-text);
+  overflow-y: auto;
+}
+
+.expandedHeader {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.expandedTitle {
+  margin: 0;
+  font-family: 'Sora Variable', Sora, sans-serif;
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--publish-text);
+}
+
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.expandedClose {
+  display: inline-flex;
+  width: 40px;
+  height: 40px;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--publish-text);
+  cursor: pointer;
+}
+
+.expandedClose:hover {
+  background: var(--publish-hover);
+}
+
+@media (max-width: 1023px) {
+  .expandedDialog.expandedDialog {
+    inset: 0;
+    width: 100%;
+    max-width: none;
+    height: 100dvh;
+    max-height: none;
+    translate: none;
+    transform: none;
+    gap: 12px;
+    padding: 8px 16px 16px;
+    border-radius: 0;
+    background: #000;
+    color: #fff;
+    box-shadow: none;
+    justify-content: flex-start;
+  }
+
+  .expandedDialog .expandedHeader {
+    display: grid;
+    grid-template-columns: 44px minmax(0, 1fr) 44px;
+    align-items: center;
+  }
+
+  .expandedDialog .expandedClose {
+    grid-column: 1;
+    grid-row: 1;
+    color: #fff;
+  }
+
+  .expandedDialog .headerTabs {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .expandedDialog .tab.tab {
+    color: #fff;
+  }
+
+  .expandedDialog .tabIndicator {
+    background: #fff;
+  }
+
+  .expandedDialog .tab.tab[data-state='active'] .tabIndicator {
+    width: 18px;
+  }
+}
+
+/* Phones: the preview is a card in the single-column composer and the platform tabs stay compact. */
+@media (max-width: 767px) {
+  .pane {
+    position: static;
+    grid-column: auto;
+    grid-row: auto;
+    width: 100%;
+    padding: 16px;
+    gap: 12px;
+    border-radius: 20px;
+    box-shadow: none;
+  }
+
+}

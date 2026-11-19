@@ -1,0 +1,897 @@
+/*
+ * Brand kit editor — canvas pages Br-Main … Br-Error and Br-M-* (desktop + mobile, light + dark).
+ * Built on the scoped Publish tokens and the shared reference UI; the canvas' field outline (--sbd),
+ * selected segment (--sel) and card shadow (--sh) are the only additions.
+ */
+.tokens {
+  composes: tokens from '../../shared/reference-ui.module.css';
+  /* Canvas --sbd (fields, secondary and icon buttons), --sel, --sh and the logo checkerboard. */
+  --brand-field: var(--ref-strong);
+  --brand-selected: #152035;
+  --brand-on-selected: #fff;
+  --brand-shadow: 0 1px 2px rgba(21, 32, 53, 0.04), 0 10px 30px rgba(21, 32, 53, 0.06);
+  --brand-checker: #e9edf3;
+}
+
+:global(.dark) .tokens {
+  --brand-selected: #8e9bb0;
+  --brand-on-selected: #0d1420;
+  --brand-shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 10px 30px rgba(0, 0, 0, 0.25);
+}
+
+.heading {
+  composes: heading from '../../shared/reference-ui.module.css';
+}
+
+.focus {
+  composes: focus from '../../shared/reference-ui.module.css';
+}
+
+.button {
+  composes: button from '../../shared/reference-ui.module.css';
+}
+
+.primary {
+  composes: primary from '../../shared/reference-ui.module.css';
+}
+
+.secondary {
+  composes: secondary from '../../shared/reference-ui.module.css';
+}
+
+.button.secondary {
+  background: transparent;
+  box-shadow: inset 0 0 0 1.5px var(--ref-strong);
+}
+
+.ghost {
+  composes: ghost from '../../shared/reference-ui.module.css';
+}
+
+.muted {
+  color: var(--publish-secondary-text);
+}
+
+.page {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 18px;
+  padding: 20px 24px 16px;
+  color: var(--publish-text);
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.card {
+  min-width: 0;
+  border: 0;
+  border-radius: var(--publish-card-radius);
+  background: var(--publish-surface);
+  box-shadow: var(--brand-shadow);
+}
+
+.layout {
+  display: flex;
+  min-width: 0;
+  align-items: flex-start;
+  gap: 24px;
+}
+
+.controls {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 16px;
+  margin: 0;
+  border: 0;
+  padding: 0;
+}
+
+.side {
+  position: sticky;
+  top: 24px;
+  display: flex;
+  min-width: 0;
+  flex: 0 0 clamp(360px, 34vw, 470px);
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* ---------- form controls ---------- */
+.field {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.label {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.control {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  height: 44px;
+  align-items: center;
+  gap: 10px;
+  border: 0;
+  border-radius: 14px;
+  background: var(--publish-surface);
+  padding: 0 14px;
+  color: var(--publish-text);
+  font: inherit;
+  text-align: left;
+  box-shadow: inset 0 0 0 1px var(--brand-field);
+  cursor: pointer;
+}
+
+.control:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.control[data-invalid] {
+  box-shadow: inset 0 0 0 1.5px var(--publish-danger);
+}
+
+.control > span:not([aria-hidden]) {
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.control > svg,
+.chevron {
+  width: 16px;
+  height: 16px;
+  flex: none;
+  color: var(--publish-secondary-text);
+}
+
+.fieldError {
+  margin: 0;
+  color: var(--publish-danger);
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.segmented {
+  display: flex;
+  height: 44px;
+  align-items: center;
+  gap: 2px;
+  border-radius: 999px;
+  padding: 3px;
+  box-shadow: inset 0 0 0 1px var(--publish-border);
+}
+
+.segmented button {
+  display: flex;
+  min-width: 0;
+  height: 34px;
+  flex: 1 1 0;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  padding: 0 10px;
+  color: var(--publish-secondary-text);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.segmented button svg {
+  width: 16px;
+  height: 16px;
+}
+
+.segmented button[aria-checked='true'] {
+  background: var(--brand-selected);
+  color: var(--brand-on-selected);
+  font-weight: 600;
+}
+
+.segmented button:focus-visible {
+  outline: 2px solid var(--ref-primary);
+  outline-offset: 1px;
+}
+
+.switch {
+  position: relative;
+  width: 42px;
+  height: 26px;
+  flex: none;
+  border: 0;
+  border-radius: 999px;
+  background: var(--publish-handle);
+  padding: 0;
+  cursor: pointer;
+}
+
+.switch[data-state='checked'] {
+  background: var(--ref-primary);
+}
+
+.switch:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+.switchThumb {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  display: block;
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  transition: transform 0.15s ease;
+}
+
+.switchThumb[data-state='checked'] {
+  background: var(--ref-on-primary);
+  transform: translateX(16px);
+}
+
+.toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.range {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.rangeHead {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+}
+
+.rangeHead output {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.slider {
+  position: relative;
+  display: flex;
+  height: 18px;
+  align-items: center;
+  touch-action: none;
+  user-select: none;
+}
+
+.sliderTrack {
+  position: relative;
+  height: 6px;
+  flex: 1 1 auto;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--publish-handle);
+}
+
+.sliderFill {
+  position: absolute;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--publish-text);
+}
+
+.sliderThumb {
+  display: block;
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  background: var(--publish-surface);
+  box-shadow: 0 0 0 2px var(--publish-text), 0 2px 6px rgba(0, 0, 0, 0.18);
+  cursor: grab;
+}
+
+.sliderThumb:focus-visible {
+  outline: 2px solid var(--ref-primary);
+  outline-offset: 3px;
+}
+
+/* ---------- select popups (portals) ---------- */
+.menu {
+  composes: menu from '../../shared/reference-ui.module.css';
+  width: var(--radix-select-trigger-width);
+  min-width: 180px;
+  max-height: min(320px, var(--radix-select-content-available-height));
+  overflow-y: auto;
+}
+
+.option {
+  composes: item from '../../shared/reference-ui.module.css';
+  height: 38px;
+  padding: 0 10px;
+}
+
+.option[data-state='checked'] {
+  background: var(--publish-canvas);
+  font-weight: 600;
+}
+
+.option > svg {
+  margin-left: auto;
+}
+
+/* ---------- logo ---------- */
+.checker {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: 12px;
+  background-color: #fff;
+  background-image:
+    linear-gradient(45deg, var(--brand-checker) 25%, transparent 25%, transparent 75%, var(--brand-checker) 75%),
+    linear-gradient(45deg, var(--brand-checker) 25%, transparent 25%, transparent 75%, var(--brand-checker) 75%);
+  background-position: 0 0, 6px 6px;
+  background-size: 12px 12px;
+  box-shadow: inset 0 0 0 1px var(--publish-border);
+}
+
+.checker img {
+  width: 76%;
+  height: 76%;
+  object-fit: contain;
+}
+
+.logoSummary {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 16px 12px 12px;
+  color: var(--publish-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.logoSummary .checker {
+  width: 48px;
+  height: 48px;
+}
+
+.logoCopy {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.logoCopy b {
+  font-weight: 600;
+}
+
+.logoCopy span {
+  overflow: hidden;
+  font-size: 12px;
+  line-height: 16px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.logoSummary > svg {
+  width: 16px;
+  height: 16px;
+  flex: none;
+  color: var(--publish-secondary-text);
+}
+
+.logoEmpty {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 16px 10px 10px;
+  cursor: pointer;
+}
+
+.logoEmpty[data-drag-active] {
+  box-shadow: 0 0 0 2px var(--publish-text), var(--brand-shadow);
+}
+
+.logoEmpty img {
+  width: 64px;
+  height: 64px;
+  flex: none;
+  object-fit: contain;
+}
+
+.smallButton {
+  height: 38px;
+  gap: 6px;
+  padding: 0 14px;
+  font-size: 13px;
+}
+
+.fileInput {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.logoEmpty,
+.fileButton {
+  position: relative;
+}
+
+.logoEmpty:focus-within,
+.fileButton:focus-within {
+  outline: 2px solid var(--ref-primary);
+  outline-offset: 2px;
+}
+
+.fileButton[data-busy] {
+  cursor: default;
+  opacity: 0.5;
+}
+
+/* ---------- logo screen ---------- */
+.screenHead {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.screenHead h2 {
+  font-size: 20px;
+  line-height: 26px;
+}
+
+.backButton {
+  height: 38px;
+  gap: 4px;
+  padding: 0 14px 0 8px;
+  font-size: 13px;
+}
+
+.backButton svg {
+  width: 18px;
+  height: 18px;
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 20px 22px;
+}
+
+.panelTitle {
+  font-size: 16px;
+  line-height: 22px;
+}
+
+.assetRow {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.assetActions {
+  display: flex;
+  flex: none;
+  gap: 4px;
+}
+
+.assetActions .dangerText {
+  padding: 0 10px;
+  color: var(--publish-danger);
+}
+
+.switchRow {
+  display: flex;
+  min-height: 30px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.hint {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.hint svg {
+  width: 16px;
+  height: 16px;
+  flex: none;
+}
+
+.outroRow {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  border-top: 1px solid var(--publish-border);
+  padding-top: 12px;
+}
+
+.outroCopy {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.outroCopy b {
+  font-weight: 600;
+}
+
+.outroCopy > span {
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.upgrade {
+  display: inline-flex;
+  align-self: flex-start;
+  align-items: center;
+  gap: 4px;
+  color: var(--publish-text);
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.upgrade svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* ---------- save card ---------- */
+.saveCard {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+}
+
+.saveCard[data-brand-save-state='unsaved'],
+.saveCard[data-brand-save-state='saving'] {
+  box-shadow: 0 0 0 2px var(--publish-text), var(--brand-shadow);
+}
+
+.saveStatus {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: 12px;
+}
+
+.saveStatus b {
+  overflow: hidden;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.okIcon {
+  display: flex;
+  width: 34px;
+  height: 34px;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: var(--publish-success-bg);
+  color: var(--publish-success);
+}
+
+.okIcon svg {
+  width: 16px;
+  height: 16px;
+}
+
+.dot {
+  width: 10px;
+  height: 10px;
+  flex: none;
+  border-radius: 999px;
+  background: var(--publish-warning);
+}
+
+.saveActions {
+  display: flex;
+  flex: none;
+  gap: 8px;
+}
+
+.saveActions .button {
+  height: 40px;
+  padding: 0 18px;
+}
+
+.split {
+  display: inline-flex;
+}
+
+.split > .button:first-child[data-split] {
+  border-radius: 999px 0 0 999px;
+  padding-right: 14px;
+}
+
+.split .splitMore {
+  width: 36px;
+  border-radius: 0 999px 999px 0;
+  padding: 0 10px 0 8px;
+  box-shadow: inset 1px 0 0 rgba(255, 255, 255, 0.24);
+}
+
+.saveCard .resetDefaults {
+  display: none;
+}
+
+.saveCard .smallButton {
+  height: 40px;
+}
+
+/* ---------- saved notice ---------- */
+.notice {
+  position: fixed;
+  z-index: 80;
+  bottom: 24px;
+  left: calc(50% + 120px);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  border-radius: var(--publish-card-radius);
+  background: var(--publish-surface);
+  padding: 10px 22px 10px 12px;
+  box-shadow: 0 0 0 1px var(--publish-border), 0 18px 48px rgba(0, 0, 0, 0.18);
+  transform: translateX(-50%);
+}
+
+.notice img {
+  width: 72px;
+  height: 72px;
+  flex: none;
+  object-fit: contain;
+}
+
+.noticeCopy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.noticeCopy b {
+  font-size: 16px;
+  line-height: 22px;
+}
+
+.noticeCopy span {
+  font-size: 13px;
+}
+
+/* ---------- loading and error ---------- */
+.skeletonCard {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 20px 22px;
+}
+
+.bone {
+  display: block;
+  border-radius: 10px;
+  background: var(--publish-handle);
+  opacity: 0.7;
+}
+
+.boneRow {
+  display: flex;
+  gap: 12px;
+}
+
+.state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 80px 22px;
+  text-align: center;
+}
+
+.state img {
+  width: 180px;
+  height: 180px;
+  object-fit: contain;
+}
+
+.state b {
+  font-size: 20px;
+  line-height: 26px;
+}
+
+.state .button {
+  margin-top: 0;
+}
+
+.mobileBack {
+  display: none;
+}
+
+@media (max-width: 1023px) {
+  .page {
+    gap: 16px;
+    padding: 0 0 16px;
+  }
+
+  .layout {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 16px;
+  }
+
+  /* Phones stack preview, notice, editor cards and the save card in one column. */
+  .controls,
+  .side {
+    display: contents;
+  }
+
+  .controls > * {
+    order: 3;
+  }
+
+  .controls > [data-order='first'] {
+    order: 0;
+  }
+
+  .side > [data-brand-preview] {
+    order: 1;
+  }
+
+  .side > .notice {
+    order: 2;
+  }
+
+  .side > .saveCard {
+    order: 4;
+  }
+
+  .notice {
+    position: static;
+    padding: 12px 14px;
+    transform: none;
+  }
+
+  .notice img {
+    width: 76px;
+    height: 76px;
+  }
+
+  .saveCard[data-brand-save-state='unsaved'],
+  .saveCard[data-brand-save-state='saving'] {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 16px;
+  }
+
+  .saveCard[data-brand-save-state='unsaved'] .saveActions,
+  .saveCard[data-brand-save-state='saving'] .saveActions {
+    width: 100%;
+  }
+
+  .saveCard[data-brand-save-state='unsaved'] .saveActions > .button,
+  .saveCard[data-brand-save-state='saving'] .saveActions > .button {
+    height: 48px;
+    flex: 1 1 0;
+  }
+
+  .saveCard[data-brand-save-state='unsaved'] .split,
+  .saveCard[data-brand-save-state='saving'] .split {
+    flex: 1.4 1 0;
+  }
+
+  .split > .button:first-child {
+    height: 48px;
+    flex: 1 1 auto;
+  }
+
+  .split .splitMore {
+    height: 48px;
+  }
+
+  .saveCard .resetDefaults {
+    display: inline-flex;
+    height: 36px;
+    gap: 6px;
+    font-size: 13px;
+  }
+
+  .skeletonCard,
+  .panel {
+    padding: 16px;
+  }
+
+  .screenHead h2 {
+    font-size: 17px;
+    line-height: 22px;
+  }
+
+  .backButton {
+    height: 40px;
+    padding: 0 16px 0 10px;
+    font-size: 14px;
+  }
+
+  .assetRow {
+    flex-wrap: wrap;
+  }
+
+  .assetActions {
+    flex: 1 1 100%;
+  }
+
+  .assetActions > * {
+    height: 40px;
+    flex: 1 1 0;
+  }
+
+  .state {
+    gap: 12px;
+    padding: 40px 16px;
+  }
+
+  .state img {
+    width: 150px;
+    height: 150px;
+  }
+
+  .state b {
+    font-size: 18px;
+    line-height: 24px;
+  }
+
+  .state span {
+    font-size: 13px;
+  }
+
+  .state .button {
+    height: 48px;
+  }
+
+  .mobileBack {
+    display: inline-flex;
+    height: 40px;
+    align-self: flex-start;
+    gap: 6px;
+    padding: 0 16px 0 10px;
+  }
+}

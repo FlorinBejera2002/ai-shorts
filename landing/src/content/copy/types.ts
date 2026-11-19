@@ -44,8 +44,10 @@ export type SiteCopy = {
     themeDark: string
     language: string
     languageCurrent: string
-    openMenu: string
-    closeMenu: string
+    mobileNavigation: string
+    homeTab: string
+    more: string
+    close: string
     skipToContent: string
   }
   footer: {

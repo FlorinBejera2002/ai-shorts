@@ -65,6 +65,20 @@ func TestPostgresBrandKitsLifecycle(t *testing.T) {
 	if copy["primaryColor"] != "#112233" || copy["isDefault"] != false || copy["name"] != "Podcast" {
 		t.Fatalf("copy lost settings: %v", copy)
 	}
+	// A copy keeps the hidden platform badge only while the plan still allows it.
+	if _, err = db.Exec(`UPDATE brand_kits SET hide_platform_badge=true WHERE id=$1`, main); err != nil {
+		t.Fatal(err)
+	}
+	badgeCopy, err := repo.CreateKit(ctx, user, KitCreate{Name: "Badge copy", FromKitID: &main})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if kit, _ := reader.GetKit(ctx, user, badgeCopy); kit["hidePlatformBadge"] != false {
+		t.Fatalf("free plan copied a hidden platform badge: %v", kit["hidePlatformBadge"])
+	}
+	if err = repo.DeleteKit(ctx, user, badgeCopy); err != nil {
+		t.Fatal(err)
+	}
 	blank, err := repo.CreateKit(ctx, user, KitCreate{Name: "Recipes"})
 	if err != nil {
 		t.Fatal(err)

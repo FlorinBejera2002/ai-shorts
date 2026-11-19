@@ -77,6 +77,17 @@ export function ClipsEmptyProject({ mobile, unassigned = false }: { mobile: bool
   )
 }
 
+/** The Favorite scope before any clip is starred. */
+export function ClipsEmptyFavorites({ mobile }: { mobile: boolean }) {
+  const t = useTranslations('clipsLibrary')
+  return (
+    <section className={styles.dropZone} data-clips-state="no-favorites">
+      <img src="/illustrations/clips-emptyproject.webp" alt={t('illustrations.emptyProject')} width={mobile ? 180 : 200} height={mobile ? 180 : 200} />
+      <h2 className={styles.heading}>{t('noFavorites')}</h2>
+    </section>
+  )
+}
+
 export function ClipsLoadingGrid({ mobile }: { mobile: boolean }) {
   const t = useTranslations('clipsLibrary')
   return (

@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation'
 import { isLegalDocumentId, LEGAL_DOCUMENT_IDS } from '@/content/legal/documents'
-import { LegalPage, legalMetadata } from '@/views/legal-page'
+import { legalMetadata } from '@/lib/page-metadata'
+import { LegalPage } from '@/views/legal-page'
 
 type Props = { params: Promise<{ document: string }> }
 

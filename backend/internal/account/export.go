@@ -46,7 +46,7 @@ func (h *Handler) exportData(ctx context.Context, userID string) (map[string]any
 		{"socialPosts", "social_posts", "id,account_id,clip_id,scheduled_post_id,provider,caption,options,status,error,url,created_at,updated_at", "created_at DESC,id DESC"},
 		{"jobs", "jobs", "id,project_name,project_brand,source_type,source_url,source_video_url,status,progress,progress_message,num_clips_requested,aspect_ratio,language,subtitle_style,include_brand,user_instructions,transcript_segments,credits_charged,error_message,started_at,completed_at,created_at,updated_at", "created_at DESC,id DESC"},
 		{"projectFolders", "project_folders", "id,job_id,parent_id,name,created_at,updated_at", "created_at ASC,id ASC"},
-		{"clips", "clips", "id,job_id,folder_id,title,hook_text,viral_score,score_reason,start_time,end_time,duration,segments,file_url,thumbnail_url,file_size,resolution,aspect_ratio,has_subtitles,transcript_text,caption_tiktok,caption_instagram,caption_youtube,suggested_hashtags,published_to,created_at", "created_at DESC,id DESC"},
+		{"clips", "clips", "id,job_id,folder_id,title,hook_text,viral_score,score_reason,start_time,end_time,duration,segments,file_url,thumbnail_url,file_size,resolution,aspect_ratio,has_subtitles,transcript_text,caption_tiktok,caption_instagram,caption_youtube,suggested_hashtags,published_to,favorite,created_at", "created_at DESC,id DESC"},
 		{"scheduledPosts", "scheduled_posts", "id,clip_id,title,caption,notes,platforms,account_ids,tiktok_options,youtube_options,status,publishing_error,scheduled_at,created_at,updated_at", "scheduled_at ASC,id ASC"},
 		{"assistantMessages", "chat_messages", "id,clip_id,context,role,content,actions,created_at", "created_at ASC,id ASC"},
 		{"workspaceAgentRuns", "workspace_agent_runs", "id,message,reply,status,context,action,result,steps,error,cost_credits,revision,resource_ids,missing_resources,approval_preview,history_cleared_at,created_at,updated_at", "created_at ASC,id ASC"},
@@ -101,9 +101,10 @@ func (h *Handler) exportData(ctx context.Context, userID string) (map[string]any
 		}
 		data[collection.name] = items
 	}
-	brand := projection("logo_path,logo_url,primary_color,secondary_color,font_family,apply_brand_colors,apply_brand_font,subtitle_font,subtitle_color,subtitle_bg_color,subtitle_bg_opacity,subtitle_position,caption_style,watermark_enabled,watermark_size,watermark_margin,watermark_x,watermark_y,watermark_position,watermark_opacity,hide_platform_badge,created_at,updated_at")
+	brand := projection("name,is_default,image_path,logo_path,logo_url,primary_color,secondary_color,font_family,apply_brand_colors,apply_brand_font,subtitle_font,subtitle_color,subtitle_bg_color,subtitle_bg_opacity,subtitle_position,caption_style,watermark_enabled,watermark_size,watermark_margin,watermark_x,watermark_y,watermark_position,watermark_opacity,hide_platform_badge,created_at,updated_at")
+	// brandKit keeps the default kit for compatibility; brandKits lists every kit of the account.
 	var brandJSON []byte
-	err = tx.QueryRowContext(ctx, `SELECT row_to_json(row) FROM (SELECT `+brand+` FROM brand_kits WHERE user_id=$1) row`, userID).Scan(&brandJSON)
+	err = tx.QueryRowContext(ctx, `SELECT row_to_json(row) FROM (SELECT `+brand+` FROM brand_kits WHERE user_id=$1 AND is_default) row`, userID).Scan(&brandJSON)
 	if err != nil && err != sql.ErrNoRows {
 		return nil, err
 	}
@@ -112,6 +113,11 @@ func (h *Handler) exportData(ctx context.Context, userID string) (map[string]any
 	} else {
 		data["brandKit"] = json.RawMessage(brandJSON)
 	}
+	var kitsJSON []byte
+	if err = tx.QueryRowContext(ctx, `SELECT COALESCE(json_agg(row ORDER BY row."isDefault" DESC, row."createdAt", row.name),'[]'::json) FROM (SELECT `+brand+` FROM brand_kits WHERE user_id=$1) row`, userID).Scan(&kitsJSON); err != nil {
+		return nil, err
+	}
+	data["brandKits"] = json.RawMessage(kitsJSON)
 	if err = tx.Commit(); err != nil {
 		return nil, err
 	}

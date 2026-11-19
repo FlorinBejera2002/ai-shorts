@@ -12,6 +12,8 @@ const { chromium } = await import(
 const origin = process.env.FRONTEND_ORIGIN || 'http://127.0.0.1:5173'
 assert.ok(['127.0.0.1', 'localhost'].includes(new URL(origin).hostname))
 const output = new URL('../test-results/home-layout/', import.meta.url)
+const messagesEn = JSON.parse(await readFile(new URL('../messages/en.json', import.meta.url), 'utf8'))
+const messagesRo = JSON.parse(await readFile(new URL('../messages/ro.json', import.meta.url), 'utf8'))
 const browser = await chromium.launch({ channel: 'chrome', headless: true })
 const runtimeErrors = [],
   blockedMutations = [],
@@ -247,14 +249,15 @@ async function dock(page, visible) {
   if (!visible) return
   assert.equal(await element.locator('a').count(), 4)
   assert.equal(await element.locator('button').count(), 1)
-  const expected = ['Home', 'Clips', 'New project', 'Publish']
+  const nav = (page.url().includes('/ro/') ? messagesRo : messagesEn).nav
+  const expected = [nav.dockHome, nav.clips, nav.newProject, nav.publish]
   const names = await element
     .locator('a')
     .evaluateAll((elements) =>
       elements.map((el) => el.getAttribute('aria-label'))
     )
-  for (let index = 0; index < names.length; index++)
-    assert.ok(names[index], `Dock item ${index} has an accessible name`)
+  assert.deepEqual(names, expected, 'Dock tab labels')
+  assert.equal(await element.locator('button').getAttribute('aria-label'), nav.menu)
   assert.deepEqual(
     await element
       .locator('a')
@@ -265,7 +268,6 @@ async function dock(page, visible) {
     await element.locator('[aria-current="page"]').getAttribute('href'),
     '/dashboard'
   )
-  assert.ok(expected.length === names.length)
 }
 async function capture(f, name, fullPage = true) {
   await f.page.evaluate(() => window.scrollTo(0, 0))
@@ -689,7 +691,7 @@ async function navigation() {
     await mobile.close()
   }
   console.log(
-    'Desktop page search, all Home action/statistic destinations, mobile Menu close/focus/scroll and persistent dashboard shell passed'
+    'Desktop page search, all Home action and clip destinations, mobile Menu close/focus/scroll and persistent dashboard shell passed'
   )
 }
 // Every link on Home goes where the canvas says, and each destination opens inside the same shell.

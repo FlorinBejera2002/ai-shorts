@@ -374,7 +374,13 @@ try {
   await chooseCreationSource(page, 'upload')
   assert.equal(await youtubeInput.evaluate((node) => node.isConnected), true, 'YouTube workspace stays mounted while hidden')
   assert.equal(await storyHeading.evaluate((node) => node.isConnected), true, 'Story result keeps its mounted state')
-  await page.getByText('0:08 · Vertical · Version 1', { exact: true }).waitFor()
+  const resultMetadata = page.locator('dl.story-result-metadata')
+  await resultMetadata.getByText('0:08', { exact: true }).waitFor()
+  assert.deepEqual(
+    await resultMetadata.locator('dd').allTextContents(),
+    ['0:08', '9:16', '1'],
+    'Result header keeps duration, format and version after switching sources'
+  )
   await chooseCreationSource(page, 'youtube')
   assert.equal(await batchInput.inputValue(), 'draft batch source to preserve')
   assert.equal(await youtubeSlider.getAttribute('aria-valuenow'), selectedClipCount)

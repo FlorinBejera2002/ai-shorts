@@ -4,6 +4,7 @@ import { PlatformBrandIcon } from '@/components/publishing/platform-brand-icon'
 import ui from '@/components/shared/reference-ui.module.css'
 import { Plus } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
+import { formatDate } from './settings-format'
 import { SettingsLoadState } from './settings-load-state'
 import { FieldError, Pill, StatusDot } from './settings-ui'
 import { useMountTime } from './use-mount-time'
@@ -24,7 +25,7 @@ function Expiry({ date, days, expired }: { date: Date | null; days: number | nul
   if (days <= EXPIRY_WARNING_DAYS) return <Pill tone="warning">{t('page.expiresIn', { days: Math.max(days, 1) })}</Pill>
   return (
     <span className={styles.meta}>
-      {t('page.activeUntil', { date: new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'short', year: 'numeric' }).format(date) })}
+      {t('page.activeUntil', { date: formatDate(date, locale) })}
     </span>
   )
 }

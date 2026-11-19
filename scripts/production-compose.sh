@@ -61,7 +61,7 @@ build() {
   case "$component" in
     all) "${compose[@]}" build ;;
     backend) "${compose[@]}" build migrate backend worker studio ;;
-    frontend) "${compose[@]}" build frontend ;;
+    frontend) "${compose[@]}" build frontend landing ;;
     admin) "${compose[@]}" build admin ;;
     studio) "${compose[@]}" build studio frontend ;;
     api) "${compose[@]}" build migrate backend ;;
@@ -126,8 +126,9 @@ start_workers() {
 }
 
 start_frontend() {
-  "${compose[@]}" up -d --no-deps --force-recreate frontend
+  "${compose[@]}" up -d --no-deps --force-recreate frontend landing
   wait_for_health frontend 120
+  wait_for_health landing 120
 }
 
 start_admin() {
@@ -237,10 +238,12 @@ verify_workers() {
 
 verify_frontend() {
   "${compose[@]}" exec -T frontend wget -q --spider http://127.0.0.1:8080/
+  "${compose[@]}" exec -T landing wget -q --spider http://127.0.0.1:8080/
 }
 verify_public_frontend() {
   local url
-  for url in https://sneepcut.com https://www.sneepcut.com; do
+  # The static site serves / and /pricing; the web app serves /login.
+  for url in https://sneepcut.com https://www.sneepcut.com https://sneepcut.com/pricing https://sneepcut.com/login; do
     curl --fail --silent --show-error --location --max-time 30 \
       --output /dev/null "$url"
   done

@@ -7,6 +7,7 @@ import type { YouTubePublishingOptions } from '@/lib/content-calendar'
 import { ChevronDown } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { YouTubeAdvancedSettings } from './youtube-advanced-settings'
+import { OptionsGroup, OptionsRow } from './post-options-ui'
 import styles from './post-platform-options.module.css'
 
 interface YouTubePostSettingsProps {
@@ -28,6 +29,8 @@ export function YouTubePostSettings({
 }: YouTubePostSettingsProps) {
   const t = useTranslations('youtubePublishing')
   const composerT = useTranslations('contentCalendar.composer')
+  const publishingT = useTranslations('publishing')
+
   function update<Key extends keyof YouTubePublishingOptions>(
     key: Key,
     value: YouTubePublishingOptions[Key]
@@ -40,17 +43,26 @@ export function YouTubePostSettings({
   }
 
   return (
-    <fieldset disabled={disabled} className="space-y-5">
+    <fieldset disabled={disabled} className={styles.optionsStack}>
       <legend className="sr-only">{t('heading')}</legend>
       <p className="sr-only">{t('channel', { name: channelNames })}</p>
-      <label className="block space-y-2 text-sm" htmlFor={idPrefix + '-title'}>
-        <span>{t('title')}</span>
-        <Input id={idPrefix + '-title'} value={settings.title} onChange={event => update('title', event.target.value)} />
-      </label>
-      <fieldset>
-        <legend className="mb-2 text-sm">{t('privacy')}</legend>
+
+      <OptionsGroup label={t('title')}>
+        <div className={styles.titleField}>
+          <Input
+            id={idPrefix + '-title'}
+            aria-label={t('title')}
+            value={settings.title}
+            onChange={event => update('title', event.target.value)}
+          />
+          <span className={styles.counter}>{settings.title.length}/100</span>
+        </div>
+      </OptionsGroup>
+
+      <section className={styles.group}>
+        <h3 className={styles.groupLabel}>{t('privacy')}</h3>
         <div className={styles.radioGroup}>
-          {(['private', 'unlisted', 'public'] as const).map(value => (
+          {(['public', 'unlisted', 'private'] as const).map(value => (
             <label key={value}>
               <input
                 type="radio"
@@ -64,11 +76,13 @@ export function YouTubePostSettings({
             </label>
           ))}
         </div>
-      </fieldset>
+      </section>
+
       {!auditApproved && <p className="rounded-md bg-muted p-3 text-xs">{t('auditRestriction')}</p>}
+
       {(['madeForKids', 'containsSyntheticMedia'] as const).map(key => (
-        <fieldset key={key}>
-          <legend className="mb-2 text-sm">{t(key)}</legend>
+        <section key={key} className={styles.group}>
+          <h3 className={styles.groupLabel}>{t(key)}</h3>
           <div className={styles.radioGroup}>
             {[true, false].map(value => (
               <label key={String(value)}>
@@ -83,12 +97,24 @@ export function YouTubePostSettings({
               </label>
             ))}
           </div>
-        </fieldset>
+        </section>
       ))}
-      <label className={styles.settingRow}>
-        <span>{t('notifySubscribers')}</span>
-        <Switch disabled={disabled} checked={settings.notifySubscribers} onCheckedChange={checked => update('notifySubscribers', checked)} />
-      </label>
+
+      <OptionsGroup label={publishingT('optionsGroupDetails')}>
+        <OptionsRow
+          htmlFor={`${idPrefix}-notify`}
+          label={t('notifySubscribers')}
+          control={
+            <Switch
+              id={`${idPrefix}-notify`}
+              disabled={disabled}
+              checked={settings.notifySubscribers}
+              onCheckedChange={checked => update('notifySubscribers', checked)}
+            />
+          }
+        />
+      </OptionsGroup>
+
       <details className={styles.more}>
         <summary>{composerT('moreOptions')}<ChevronDown className="size-4" aria-hidden="true" /></summary>
         <div className={styles.advanced}>
@@ -99,7 +125,8 @@ export function YouTubePostSettings({
           <YouTubeAdvancedSettings settings={settings} onChange={update} idPrefix={idPrefix} disabled={disabled} />
         </div>
       </details>
-      <label className="flex items-start gap-3 text-xs leading-5">
+
+      <label className={styles.consent}>
         <Switch disabled={disabled} checked={settings.termsAccepted} onCheckedChange={checked => update('termsAccepted', checked)} className="mt-0.5 shrink-0" />
         <span>
           {t.rich('reviewConsent', {

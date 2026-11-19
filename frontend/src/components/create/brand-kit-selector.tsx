@@ -15,6 +15,18 @@ const DEFAULT = 'default'
  * Brand kit for a new video. With `onKitChange` every kit can be picked; without it (stories,
  * which always use the default kit) the choice is the default kit or none.
  */
+/**
+ * The select's value: no kit, the default kit (when only the default can be used) or the chosen
+ * kit. A kit that no longer exists (deleted in another tab) shows the default kit; the server
+ * also falls back to the default kit for an unknown id.
+ */
+function selectedValue({ enabled, kits, kitId, pickAny }: { enabled: boolean; kits: { id: string }[]; kitId: string | null; pickAny: boolean }) {
+  const fallback = kits[0]
+  if (!enabled || !fallback) return NONE
+  if (!pickAny) return DEFAULT
+  return kits.find((kit) => kit.id === kitId)?.id ?? fallback.id
+}
+
 export function BrandKitSelector({
   enabled,
   onChange,
@@ -31,7 +43,7 @@ export function BrandKitSelector({
   const ordered = kits ? orderKits(kits) : []
   const fallback = ordered[0] ?? null
   const choices = onKitChange ? ordered : fallback ? [fallback] : []
-  const selected = !enabled || !fallback ? NONE : onKitChange ? (kitId ?? fallback.id) : DEFAULT
+  const selected = selectedValue({ enabled, kits: ordered, kitId, pickAny: Boolean(onKitChange) })
 
   function choose(value: string) {
     onChange(value !== NONE)

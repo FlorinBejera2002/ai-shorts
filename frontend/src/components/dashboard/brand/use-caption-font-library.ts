@@ -61,8 +61,9 @@ export function useCaptionFontLibrary({ value, onChange, onBusyChange }: {
     onBusyChange?.(false)
   }
 
+  /** Uploads the staged font and selects it; resolves true once the font is saved. */
   async function upload() {
-    if (!pendingFile || busy || !confirmed) return
+    if (!pendingFile || busy || !confirmed) return false
     const controller = beginRequest()
     try {
       const form = new FormData()
@@ -72,13 +73,15 @@ export function useCaptionFontLibrary({ value, onChange, onBusyChange }: {
       })
       const data = await response.json() as { font?: CaptionFont; error?: string }
       if (!response.ok || !data.font) throw new Error(data.error || t('fontUploadError'))
-      if (controller.signal.aborted) return
+      if (controller.signal.aborted) return false
       const font = data.font
       setFonts(current => [...current.filter(item => item.id !== font.id), font])
       onChange({ ...latestValue.current, font_id: font.id, weight: font.weights[0] ?? 700 })
       setPendingFile(null)
+      return true
     } catch (cause) {
       if (!controller.signal.aborted) setError(cause instanceof Error ? cause.message : t('fontUploadError'))
+      return false
     } finally { endRequest() }
   }
 

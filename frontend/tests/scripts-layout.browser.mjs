@@ -242,12 +242,23 @@ async function rememberShell(page) {
   })
 }
 async function assertShell(page) {
-  assert.equal(await page.evaluate(() => {
+  const shell = await page.evaluate(() => {
     const p = window.scriptsShellProbe, sidebar = document.querySelector('[data-slot="sidebar"]')
-    return p?.document === document && p.main === document.querySelector('main') &&
-      p.header === document.querySelector('header.studio-topbar') && p.sidebar === sidebar &&
-      p.state === sidebar?.getAttribute('data-state')
-  }), true, 'Dashboard document/main/header/sidebar/state remain mounted')
+    return {
+      document: p?.document === document, main: p?.main === document.querySelector('main'),
+      header: p?.header === document.querySelector('header.studio-topbar'), sidebar: p?.sidebar === sidebar,
+      state: p?.state === sidebar?.getAttribute('data-state'),
+      detail: {
+        recordedState: p?.state, currentState: sidebar?.getAttribute('data-state'),
+        sidebarCount: document.querySelectorAll('[data-slot="sidebar"]').length,
+        mainCount: document.querySelectorAll('main').length, headerCount: document.querySelectorAll('header.studio-topbar').length,
+        width: innerWidth
+      }
+    }
+  })
+  const { detail, ...identity } = shell
+  const changed = Object.keys(identity).filter(key => !identity[key])
+  assert.deepEqual(changed, [], `Dashboard document/main/header/sidebar/state remain mounted ${JSON.stringify(detail)}`)
 }
 async function expectCards(f, count) {
   await f.page.waitForFunction(expected => document.querySelectorAll('[data-script-card]').length === expected, count)
@@ -423,7 +434,7 @@ async function briefAndGeneration() {
     const generating = f.workspace.getByRole('button', { name: /Generating/i })
     await generating.waitFor()
     assert.equal(await generating.isDisabled(), true)
-    await f.editor.locator('[aria-busy="true"]').getByRole('heading', { name: /Generating/i }).waitFor()
+    await f.editor.locator('[aria-busy="true"]').getByRole('heading', { name: /Writing the script/i }).waitFor()
     assert.equal(await field(f, 'topic').inputValue(), 'A calm morning routine for busy creators')
     await capture(f, 'desktop-generating')
     await f.page.setViewportSize({ width: 390, height: 844 })
@@ -445,6 +456,8 @@ async function briefAndGeneration() {
       topic: 'A calm morning routine for busy creators', platform: 'instagram', duration: 45,
       tone: 'educational', target_audience: 'Busy creators', language: 'ro', style: 'tutorial'
     })
+    // Generation finishes asynchronously: wait for the third scene before counting.
+    await f.editor.locator('[data-script-scene]').nth(2).waitFor()
     assert.equal(await f.editor.locator('[data-script-scene]').count(), 3)
     await f.workspace.getByRole('button', { name: 'Regenerate', exact: true }).waitFor()
     await capture(f, 'desktop-document')
@@ -732,7 +745,7 @@ async function responsiveVariants() {
     await romanian.open('ro')
     await expectCards(romanian, 6)
     await romanian.library.getByRole('heading', { level: 1, name: 'Scripturi', exact: true }).waitFor()
-    await romanian.library.getByRole('button', { name: 'Script nou', exact: true }).waitFor()
+    await romanian.library.getByRole('button', { name: 'Scenariu nou', exact: true }).waitFor()
     await romanian.library.getByRole('switch', { name: 'Arhivate', exact: true }).waitFor()
     await capture(romanian, 'desktop-library-ro')
     await openCard(romanian)

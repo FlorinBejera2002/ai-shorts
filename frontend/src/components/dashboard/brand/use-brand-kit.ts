@@ -69,6 +69,8 @@ export function useBrandKit(t: Translate, kitId: string | null = null) {
   const [loadError, setLoadError] = useState(false)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  /** When the last save succeeded; drives the "Kit branding salvat" notice. */
+  const [savedAt, setSavedAt] = useState<number | null>(null)
   const [logoBusy, setLogoBusy] = useState(false)
   const [logoFile, setLogoFile] = useState<File | null>(null)
   const logoPreviewUrl = useLogoPreview(logoFile, kit.logoUrl)
@@ -124,18 +126,23 @@ export function useBrandKit(t: Translate, kitId: string | null = null) {
     [kit, persistedKit]
   )
 
-  function update<K extends keyof BrandKit>(key: K, value: BrandKit[K]) {
+  function markEdited() {
     setSaved(false)
+    setSavedAt(null)
+  }
+
+  function update<K extends keyof BrandKit>(key: K, value: BrandKit[K]) {
+    markEdited()
     setKit((current) => ({ ...current, [key]: value }))
   }
 
   function reset() {
-    setSaved(false)
+    markEdited()
     setKit({ ...BRAND_DEFAULTS, logoUrl: kit.logoUrl })
   }
 
   function discard() {
-    setSaved(false)
+    markEdited()
     setKit(persistedKit)
   }
 
@@ -174,13 +181,20 @@ export function useBrandKit(t: Translate, kitId: string | null = null) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payloadFor(kit))
       })
-      if (!saved.ok) return { error: t('saveFailed') }
-      if (makeDefault)
-        await apiFetch(`/api/brand-kits/${encodeURIComponent(id)}`, {
+      if (!saved.ok) {
+        // Without its settings the copy is not what was asked for: remove it again.
+        await apiFetch(`/api/brand-kits/${encodeURIComponent(id)}`, { method: 'DELETE' }).catch(() => null)
+        return { error: t('saveFailed') }
+      }
+      if (makeDefault) {
+        const promoted = await apiFetch(`/api/brand-kits/${encodeURIComponent(id)}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ isDefault: true })
-        })
+        }).catch(() => null)
+        // The kit is saved; only making it the default failed.
+        if (!promoted?.ok) toast.add('error', t('saveFailed'))
+      }
       setKit(persistedKit)
       return { id }
     } catch {
@@ -212,7 +226,7 @@ export function useBrandKit(t: Translate, kitId: string | null = null) {
       setKit(nextKit)
       setPersistedKit(nextKit)
       setSaved(true)
-      toast.add('success', t('kitSaved'))
+      setSavedAt(Date.now())
     } catch {
       toast.add('error', t('saveFailed'))
     } finally {
@@ -289,9 +303,11 @@ export function useBrandKit(t: Translate, kitId: string | null = null) {
     loadError,
     saving,
     saved,
+    savedAt,
     logoBusy,
     logoPreviewUrl,
     logoName: logoFile?.name,
+    logoType: logoFile?.type,
     dirty,
     hasInvalidColor,
     canWhiteLabel:

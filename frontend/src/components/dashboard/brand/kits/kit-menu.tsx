@@ -1,7 +1,7 @@
 'use client'
 
 import theme from '@/components/calendar/publishing-theme.module.css'
-import { CloseButton, referenceSurface } from '@/components/shared/reference-overlay'
+import { CloseButton, referenceSurface, SheetMenu } from '@/components/shared/reference-overlay'
 import ui from '@/components/shared/reference-ui.module.css'
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet'
 import { Copy, EllipsisVertical, ImageIcon, Pencil, Star, Trash2 } from 'lucide-react'
@@ -77,7 +77,7 @@ export function KitMenu({
               <SheetTitle>{kit.name}</SheetTitle>
               <CloseButton onClick={() => setOpen(false)} />
             </div>
-            <div className={ui.sheetList} role="menu" aria-label={t('options', { name: kit.name })}>
+            <SheetMenu className={ui.sheetList} label={t('options', { name: kit.name })}>
               {items.map((item) => (
                 <button key={item.command} type="button" role="menuitem" className={ui.item} onClick={() => run(item.command)}>
                   {item.icon}
@@ -89,7 +89,7 @@ export function KitMenu({
                 {remove.icon}
                 <span>{remove.label}</span>
               </button>
-            </div>
+            </SheetMenu>
           </SheetContent>
         </Sheet>
       </>

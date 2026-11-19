@@ -142,7 +142,7 @@ export function PostMediaDialog({
             </TabsContent>
           </div>
           <footer className={styles.footer}>
-            {source === 'clips' && (
+            {source === 'clips' && pageCount > 1 && (
               <>
                 <span className="sr-only" role="status">{t('selectedClips', { count: selectedClip ? 1 : 0 })}</span>
                 <div className={styles.pagination}>
@@ -157,7 +157,7 @@ export function PostMediaDialog({
               </>
             )}
             <div className={`${styles.actions} ${source === 'device' ? styles.deviceActions : ''}`}>
-              <Button type="button" variant="outline" onClick={onClose}>{actionsT('cancel')}</Button>
+              <Button type="button" variant="outline" className={styles.cancel} onClick={onClose}>{actionsT('cancel')}</Button>
               <Button type="button" className={styles.confirm} disabled={!canConfirm} onClick={confirmSelection}>
                 {t(source === 'clips' ? 'useClip' : 'useMedia')}
               </Button>

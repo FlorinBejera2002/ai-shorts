@@ -1106,3 +1106,47 @@
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
+
+/* Favourite star (canvas "Cl-Favorites"): top-left of the preview, pops when starred. */
+.preview {
+  position: relative;
+}
+
+.star {
+  position: absolute;
+  left: 8px;
+  top: 8px;
+  z-index: 1;
+  display: flex;
+  width: 32px;
+  height: 32px;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  cursor: pointer;
+}
+
+.star svg {
+  width: 16px;
+  height: 16px;
+}
+
+.star[data-pop] svg {
+  animation: star-pop 2.5s ease-out;
+}
+
+@keyframes star-pop {
+  0% { transform: scale(1); color: #fff; }
+  4%, 12% { transform: scale(1.12); color: #facc15; }
+  16%, 100% { transform: scale(1); color: #fff; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .star[data-pop] svg {
+    animation: none;
+  }
+}

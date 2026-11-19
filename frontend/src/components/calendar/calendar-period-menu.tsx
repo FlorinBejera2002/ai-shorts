@@ -162,7 +162,7 @@ function PresetList({
           {current === kind && <Check aria-hidden="true" />}
         </button>
       ))}
-      <div className={ui.separator} role="separator" />
+      <hr className={`${ui.separator} ${styles.rule}`} />
       <button type="button" role="menuitem" className={ui.item} onClick={onCustom}>
         <span>{t('custom')}</span>
         <ChevronRight aria-hidden="true" />

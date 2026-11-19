@@ -23,8 +23,10 @@ export const ro: SiteCopy = {
     themeDark: 'Temă întunecată',
     language: 'Limba',
     languageCurrent: 'Limba: Română',
-    openMenu: 'Deschide meniul',
-    closeMenu: 'Închide meniul',
+    mobileNavigation: 'Navigare',
+    homeTab: 'Acasă',
+    more: 'Mai mult',
+    close: 'Închide',
     skipToContent: 'Sari la conținut'
   },
   footer: {

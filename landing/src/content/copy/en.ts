@@ -23,8 +23,10 @@ export const en: SiteCopy = {
     themeDark: 'Dark theme',
     language: 'Language',
     languageCurrent: 'Language: English',
-    openMenu: 'Open menu',
-    closeMenu: 'Close menu',
+    mobileNavigation: 'Navigation',
+    homeTab: 'Home',
+    more: 'More',
+    close: 'Close',
     skipToContent: 'Skip to content'
   },
   footer: {

@@ -31,11 +31,11 @@ function useOpenValue<T>(open: boolean, initial: () => T) {
   return [value, setValue] as const
 }
 
-function NameField({ value, label, onChange, children }: { value: string; label: string; onChange: (value: string) => void; children?: ReactNode }) {
+function NameField({ id, value, label, onChange, children }: { id?: string; value: string; label: string; onChange: (value: string) => void; children?: ReactNode }) {
   return (
     <span className={ui.fieldBox} style={{ flex: '1 1 auto', minWidth: 0, height: 48, padding: '0 14px' }}>
       {children}
-      <input aria-label={label} value={value} maxLength={80} autoComplete="off" onChange={(event) => onChange(event.target.value)} data-autofocus="" />
+      <input id={id} aria-label={label} value={value} maxLength={80} autoComplete="off" onChange={(event) => onChange(event.target.value)} data-autofocus="" />
     </span>
   )
 }
@@ -48,19 +48,15 @@ function ErrorText({ error }: { error: string | null }) {
   ) : null
 }
 
-/** Local preview URL for a picked image: made when a file is chosen, revoked when replaced or unmounted. */
-function usePreview() {
-  const current = useRef<string | null>(null)
-  const [url, setUrl] = useState<string | null>(null)
-  useEffect(() => () => {
-    if (current.current) URL.revokeObjectURL(current.current)
-  }, [])
-  function choose(file: File | null) {
-    if (current.current) URL.revokeObjectURL(current.current)
-    current.current = file ? URL.createObjectURL(file) : null
-    setUrl(current.current)
-  }
-  return [url, choose] as const
+/** Shows a picked image file; its object URL lives exactly as long as the file is shown. */
+function LocalImage({ file }: { file: File }) {
+  const image = useRef<HTMLImageElement>(null)
+  useEffect(() => {
+    const url = URL.createObjectURL(file)
+    if (image.current) image.current.src = url
+    return () => URL.revokeObjectURL(url)
+  }, [file])
+  return <img ref={image} alt="" />
 }
 
 /** Kit nou: image + name, then start from an existing kit or from scratch. Mount it only while open. */
@@ -76,7 +72,6 @@ export function KitNewDialog({
 }) {
   const t = useTranslations('brandKits')
   const [form, setForm] = useOpenValue(open, () => ({ name: '', copy: Boolean(source), image: null as File | null }))
-  const [preview, choosePreview] = usePreview()
   const imageId = useId()
   const name = form.name.trim()
   function submit(event: FormEvent) {
@@ -92,8 +87,8 @@ export function KitNewDialog({
         </div>
         <div className={styles.identity}>
           <label className={styles.imagePicker} htmlFor={imageId} aria-label={t('addImage')}>
-            {preview ? <img src={preview} alt="" /> : <Camera aria-hidden="true" />}
-            {!preview && (
+            {form.image ? <LocalImage file={form.image} /> : <Camera aria-hidden="true" />}
+            {!form.image && (
               <span className={styles.imagePlus} aria-hidden="true">
                 <Plus strokeWidth={2.5} />
               </span>
@@ -104,7 +99,6 @@ export function KitNewDialog({
               accept={LOGO_TYPES.join(',')}
               onChange={(event) => {
                 const image = event.target.files?.[0] ?? null
-                choosePreview(image)
                 setForm((current) => ({ ...current, image }))
               }}
             />
@@ -193,6 +187,7 @@ export function KitSaveAsDialog({
   const [form, setForm] = useOpenValue(open, () => ({ name: '', makeDefault: false }))
   const name = form.name.trim()
   const switchLabel = useId()
+  const nameId = useId()
   return (
     <ReferenceOverlay open={open} mobile={common.mobile} busy={common.busy} described={false} onClose={common.onClose}>
       <form
@@ -209,9 +204,9 @@ export function KitSaveAsDialog({
         </div>
         <div className={styles.identity}>
           <KitAvatar kit={{ name: name || '?', imageUrl: null }} size={52} />
-          <label className={ui.field} style={{ flex: '1 1 auto', minWidth: 0 }}>
+          <label className={ui.field} htmlFor={nameId} style={{ flex: '1 1 auto', minWidth: 0 }}>
             <span>{t('name')}</span>
-            <NameField value={form.name} label={t('kitName')} onChange={(value) => setForm((current) => ({ ...current, name: value }))} />
+            <NameField id={nameId} value={form.name} label={t('kitName')} onChange={(value) => setForm((current) => ({ ...current, name: value }))} />
           </label>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', minHeight: 30, fontWeight: 500 }}>

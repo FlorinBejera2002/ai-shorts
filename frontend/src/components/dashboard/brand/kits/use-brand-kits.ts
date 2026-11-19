@@ -13,7 +13,9 @@ type KitsResponse = { kits: BrandKitSummary[]; plan?: string; canWhiteLabel?: bo
 export class KitRequestError extends Error {
   constructor(
     message: string,
-    readonly status: number
+    readonly status: number,
+    /** Why a chosen image was refused before uploading. */
+    readonly image?: 'type' | 'size'
   ) {
     super(message)
   }
@@ -32,7 +34,8 @@ async function send(path: string, method: string, body?: unknown) {
 
 /** Uploads a kit image into the user's brand folder and returns its storage path. */
 async function uploadImage(file: File) {
-  if (!LOGO_TYPES.includes(file.type) || file.size > LOGO_MAX_BYTES) throw new KitRequestError('Unsupported image', 400)
+  if (!LOGO_TYPES.includes(file.type)) throw new KitRequestError('Unsupported image', 400, 'type')
+  if (file.size > LOGO_MAX_BYTES) throw new KitRequestError('Image too large', 400, 'size')
   const form = new FormData()
   form.append('file', file)
   const response = await apiFetch('/api/brand/logo', { method: 'POST', body: form })

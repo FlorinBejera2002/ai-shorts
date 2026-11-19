@@ -35,6 +35,7 @@ func (h *Handler) Register(r *httprouter.Router) {
 	r.Handler(http.MethodDelete, "/api/projects/:id/folders/:folderId", h.auth.RequireMember(h.auth.Limit(h.deleteFolder, "projects-folders", 120, time.Hour)))
 	r.Handler(http.MethodPatch, "/api/projects/:id/clips/:clipId", h.auth.RequireMember(h.auth.Limit(h.moveClip, "projects-clips", 240, time.Hour)))
 	h.registerCollections(r)
+	h.registerFavorites(r)
 }
 
 func respond(w http.ResponseWriter, status int, body any) {

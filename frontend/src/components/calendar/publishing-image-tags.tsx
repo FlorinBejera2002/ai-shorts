@@ -47,12 +47,9 @@ export function PublishingImageTags({
 
   return (
     <div className="space-y-2">
-      <label htmlFor={inputId} className={showLabel ? 'text-xs font-semibold' : 'sr-only'}>
+      <label htmlFor={inputId} className={showLabel ? styles.fieldLabel : 'sr-only'}>
         {t('tags')}
       </label>
-      <p id={`${inputId}-hint`} className="text-[11px] text-muted-foreground">
-        {t('tagsHint')}
-      </p>
       <div className="flex gap-2">
         <Input
           id={inputId}
@@ -60,7 +57,7 @@ export function PublishingImageTags({
           placeholder={t('usernamePlaceholder')}
           disabled={disabled || tags.length >= 20}
           aria-invalid={error}
-          aria-describedby={`${inputId}-hint${error ? ` ${inputId}-error` : ''}`}
+          aria-describedby={error ? `${inputId}-error` : undefined}
           onChange={event => {
             setUsername(event.target.value)
             setError(false)

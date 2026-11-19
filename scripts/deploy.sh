@@ -83,12 +83,12 @@ cd "$repo_root"
 # Ship only runtime/build inputs. This deliberately excludes local agent settings,
 # secrets, caches, and an in-progress alternate frontend tree.
 git ls-files -co --exclude-standard -z -- \
-  backend frontend admin deploy scripts \
+  backend frontend landing admin deploy scripts \
   editor/package.json editor/bun.lock editor/Dockerfile.sneepcut editor/.dockerignore \
   'editor/tsconfig*.json' editor/packages editor/registry editor/scripts editor/LICENSE editor/NOTICE \
   docker-compose.production.yml Makefile .gitattributes \
   ':(exclude)editor/packages/producer/tests' \
-  ':(exclude)admin/test-results' ':(exclude)frontend/test-results' \
+  ':(exclude)admin/test-results' ':(exclude)frontend/test-results' ':(exclude)landing/tests' \
   ':(exclude)admin/dist' ':(exclude)frontend/dist' > "$file_list"
 
 if [[ ! -s "$file_list" ]]; then

@@ -54,14 +54,15 @@
   box-sizing: border-box;
 }
 
-/* Layout: stacked on phones, illustration beside the card from 1024px. */
+/* Layout: stacked on phones (the illustration overlaps the card's top edge by 26px and a
+   16px gap separates the card from the footer); illustration beside the card from 1024px. */
 .main {
   flex: 1 1 auto;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 16px;
-  padding: 16px 16px 0;
+  gap: 0;
+  padding: 16px 16px 16px;
 }
 
 .stage {

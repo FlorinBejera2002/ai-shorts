@@ -13,13 +13,17 @@ import controls from './settings-controls.module.css'
 
 type Props = { panels: SettingsPanelsController; mobile: boolean }
 
-function groupKey(secret: string) {
-  return secret.match(/.{1,4}/g)?.join(' ') ?? secret
+/** The key in groups of four, split into two halves that wrap as whole lines. */
+function keyHalves(secret: string) {
+  const groups = secret.match(/.{1,4}/g) ?? [secret]
+  const middle = Math.ceil(groups.length / 2)
+  return [groups.slice(0, middle).join(' '), groups.slice(middle).join(' ')] as const
 }
 
 function SetupView({ panels, mobile }: Props) {
   const t = useTranslations('settings')
   const secret = panels.setup?.secret ?? ''
+  const [first, second] = keyHalves(secret)
   const submit = (event: FormEvent) => {
     event.preventDefault()
     void panels.enableMFA()
@@ -39,7 +43,15 @@ function SetupView({ panels, mobile }: Props) {
       </div>
       <div className={controls.key}>
         {!mobile && <span>{t('page.manualKey')}</span>}
-        <code data-settings-secret="">{groupKey(secret)}</code>
+        <code data-settings-secret="">
+          <span>{first}</span>
+          {second && (
+            <>
+              {' '}
+              <span>{second}</span>
+            </>
+          )}
+        </code>
         <button
           type="button"
           className={`${ui.button} ${ui.ghost} ${ui.focus}`}

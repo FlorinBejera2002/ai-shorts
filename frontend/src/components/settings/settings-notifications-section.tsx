@@ -1,6 +1,7 @@
 'use client'
 
-import { FolderKanban, Gift, LockKeyhole, Send, Sparkles, type LucideIcon } from 'lucide-react'
+import ui from '@/components/shared/reference-ui.module.css'
+import { FolderKanban, Gift, LockKeyhole, MailX, Send, Sparkles, type LucideIcon } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import type { ReactNode } from 'react'
 import { SettingsLoadState } from './settings-load-state'
@@ -56,6 +57,18 @@ export function SettingsNotificationsSection({ panels, mobile }: Props) {
           <Switch checked locked label={t('securityEmails')} data-settings-notification="emailSecurity" />
         </NotificationRow>
         {EMAIL.map(toggle)}
+        <NotificationRow icon={MailX} label={t('page.allOptionalEmails')}>
+          <button
+            type="button"
+            className={`${ui.button} ${ui.secondary} ${ui.focus} ${styles.unsubscribe}`}
+            disabled={panels.disabled || (!saved.emailProduct && !saved.emailMarketing)}
+            aria-busy={panels.busy === 'unsubscribe' || undefined}
+            onClick={() => void panels.unsubscribeOptional()}
+            data-settings-unsubscribe=""
+          >
+            {t('page.unsubscribe')}
+          </button>
+        </NotificationRow>
       </SettingsCard>
       <SettingsCard list title={t('panelsDesign.inAppGroup')} data-settings-card="app-notifications">
         {IN_APP.map(toggle)}

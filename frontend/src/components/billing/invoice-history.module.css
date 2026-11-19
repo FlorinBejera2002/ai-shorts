@@ -37,9 +37,24 @@
   font-size: 13px;
 }
 
+/* A real table laid out with grid rows, so each row can rearrange per breakpoint. */
+.table,
+.table thead,
+.table tbody {
+  display: block;
+  width: 100%;
+}
+
 .table {
-  display: flex;
-  flex-direction: column;
+  border-collapse: collapse;
+}
+
+/* Zero specificity: the cell classes below set weight and alignment. */
+:where(.table) th,
+:where(.table) td {
+  padding: 0;
+  font-weight: inherit;
+  text-align: left;
 }
 
 .history[data-variant='recent'] .table {
@@ -62,7 +77,7 @@
   line-height: 20px;
 }
 
-.row:last-child {
+tbody .row:last-child {
   border-bottom: 0;
 }
 
@@ -183,6 +198,7 @@
 
 .history .row.header {
   min-height: 0;
+  border-bottom: 1px solid var(--publish-border);
   padding: 0 0 10px;
   color: var(--publish-secondary-text);
   font-size: 12px;
@@ -190,7 +206,7 @@
   line-height: 16px;
 }
 
-.header > :last-child {
+.table .header > :last-child {
   text-align: right;
 }
 

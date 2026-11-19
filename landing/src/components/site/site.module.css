@@ -41,10 +41,13 @@
   text-decoration: none;
 }
 
-.navLink:hover,
+.navLink:hover {
+  color: var(--tx);
+}
+
 .navLink[aria-current='page'] {
   color: var(--tx);
-  background: var(--bg);
+  box-shadow: inset 0 0 0 1px var(--bd);
 }
 
 .desktopActions {
@@ -75,38 +78,26 @@
   gap: 6px;
 }
 
-.mobileActions {
+.mobileSignIn {
   display: none;
-  align-items: center;
-  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
 }
 
-.mobileHeaderCta {
-  height: 40px;
-  padding: 0 14px;
-  font-size: 13px;
-}
-
-.menuButton {
-  width: 40px;
-  height: 40px;
-  padding: 0;
-}
-
+/* Phones and tablets: logo + sign-in row; navigation lives in the floating bottom bar. */
 @media (max-width: 1079px) {
   .header {
-    position: sticky;
-    top: 0;
-    padding: 0;
+    padding: 18px var(--gutter) 0;
   }
 
   .headerBar {
     max-width: none;
-    height: 64px;
-    padding: 0 var(--gutter);
+    height: auto;
+    padding: 0;
     border-radius: 0;
+    background: transparent;
     box-shadow: none;
-    border-bottom: 1px solid var(--bd);
     justify-content: space-between;
   }
 
@@ -115,8 +106,8 @@
     display: none;
   }
 
-  .mobileActions {
-    display: flex;
+  .mobileSignIn {
+    display: block;
   }
 
   .headerLogo img {
@@ -218,63 +209,6 @@
   background: var(--bg);
 }
 
-/* Mobile menu */
-.mobilePanel {
-  position: fixed;
-  left: 0;
-  right: 0;
-  top: 64px;
-  bottom: 0;
-  z-index: 20;
-  overflow-y: auto;
-  padding: 16px var(--gutter);
-  background: var(--sf);
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.mobilePanel[hidden] {
-  display: none;
-}
-
-.mobileLink {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  height: 56px;
-  padding: 0 12px;
-  border-bottom: 1px solid var(--bd);
-  font-size: 17px;
-  font-weight: 600;
-  text-decoration: none;
-}
-
-.mobileRow {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 14px 12px 0;
-  font-size: 14px;
-}
-
-.mobileRowLast {
-  padding-bottom: 14px;
-}
-
-.mobileRow .languageButton {
-  padding: 0 10px;
-}
-
-.mobileCta {
-  height: 52px;
-  margin-top: 6px;
-}
-
-.scrollLocked {
-  overflow: hidden;
-}
-
 /* Footer */
 .footer {
   border-top: 1px solid var(--bd);
@@ -351,6 +285,11 @@
 }
 
 @media (max-width: 1079px) {
+  /* Room for the floating bottom navigation. */
+  .footer {
+    padding-bottom: calc(32px + 100px + env(safe-area-inset-bottom));
+  }
+
   .footerMain {
     flex-direction: column;
     gap: 32px;
@@ -363,7 +302,7 @@
 
 @media (max-width: 767px) {
   .footer {
-    padding: 36px 0 24px;
+    padding: 36px 0 calc(24px + 100px + env(safe-area-inset-bottom));
   }
 
   .footerGrid {

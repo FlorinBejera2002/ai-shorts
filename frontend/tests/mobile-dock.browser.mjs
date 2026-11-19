@@ -77,7 +77,7 @@ try {
         await bar(page).locator('a').evaluateAll((links) => links.map((link) => [link.getAttribute('aria-label'), link.getAttribute('href')])),
         [['Acasă', '/ro/dashboard'], ['Clipuri', '/ro/dashboard/clips'], ['Creează clipuri', '/ro/dashboard/create'], ['Publicare', '/ro/dashboard/publish']]
       )
-      assert.equal(await bar(page).getByRole('link', { name: 'Clipuri' }).getAttribute('aria-current'), 'page')
+      assert.equal(await bar(page).getByRole('link', { name: 'Clipuri', exact: true }).getAttribute('aria-current'), 'page')
       assert.equal(
         await bar(page).getByRole('link', { name: 'Creează clipuri' }).evaluate((element) => getComputedStyle(element).backgroundColor),
         dark ? 'rgb(142, 155, 176)' : 'rgb(11, 11, 12)',
@@ -94,11 +94,11 @@ try {
 
       // The lens follows the active tab after navigation.
       await page.evaluate(() => window.scrollTo(0, 0))
-      await bar(page).getByRole('link', { name: 'Acasă' }).click()
+      await bar(page).getByRole('link', { name: 'Acasă', exact: true }).click()
       await page.waitForURL((url) => url.pathname === '/ro/dashboard')
-      await until(async () => (await bar(page).getByRole('link', { name: 'Acasă' }).getAttribute('aria-current')) === 'page', 'Home becomes current')
+      await until(async () => (await bar(page).getByRole('link', { name: 'Acasă', exact: true }).getAttribute('aria-current')) === 'page', 'Home becomes current')
       for (const [name, path] of [['Publicare', '/ro/dashboard/publish'], ['Creează clipuri', '/ro/dashboard/create'], ['Clipuri', '/ro/dashboard/clips']]) {
-        await bar(page).getByRole('link', { name }).click()
+        await bar(page).getByRole('link', { name, exact: true }).click()
         await page.waitForURL((url) => url.pathname === path)
         await until(() => inView(page), `Bar stays on main page ${path}`)
       }
@@ -120,7 +120,7 @@ try {
       await page.goto(`${origin}/ro/dashboard/clips`, { waitUntil: 'load' })
       await page.locator('[data-clip-card]').first().waitFor()
       await until(() => inView(page), 'Back on a main page')
-      await page.locator('[data-clip-card] button').first().click()
+      await page.locator('[data-clip-card] button[aria-haspopup="menu"]').first().click()
       await until(async () => !(await inView(page)), 'Hidden under the clip sheet')
       await page.keyboard.press('Escape')
       await until(() => inView(page), 'Returns when the sheet closes')

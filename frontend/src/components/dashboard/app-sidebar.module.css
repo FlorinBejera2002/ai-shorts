@@ -150,14 +150,27 @@
   color: color-mix(in srgb, var(--publish-text) 30%, transparent);
 }
 
+/* The connector moves only with transforms (see TreeConnector); the track clips its start. */
+.railTrack {
+  position: absolute;
+  inset: 0;
+}
+
 .railLine,
 .railCorner {
   position: absolute;
   left: 12px;
 }
 
+/* A list-tall line parked just above the list; translateY brings its bottom to the item. */
 .railLine {
+  bottom: 100%;
   width: 1px;
+  height: 100%;
+}
+
+.railCorner {
+  top: 0;
 }
 
 .item {

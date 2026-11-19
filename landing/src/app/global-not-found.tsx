@@ -1,7 +1,8 @@
 import './globals.css'
 import { RootDocument } from '@/components/site/root-document'
 import { siteViewport } from '@/lib/viewport'
-import { NotFoundPage, notFoundMetadata } from '@/views/not-found-page'
+import { notFoundMetadata } from '@/lib/page-metadata'
+import { NotFoundPage } from '@/views/not-found-page'
 
 export const metadata = notFoundMetadata('en')
 export const viewport = siteViewport

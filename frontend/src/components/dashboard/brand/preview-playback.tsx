@@ -1,29 +1,64 @@
-import { Button } from '@/components/ui/button'
-import { Expand, Pause, Play, Volume2, VolumeX } from 'lucide-react'
+import { Maximize, Pause, Play, Volume2, VolumeX } from 'lucide-react'
 import { useTranslations } from 'next-intl'
-import { formatDuration } from '@/lib/utils'
-import styles from './preview-panel.module.css'
+import type { CSSProperties } from 'react'
+import styles from './preview-card.module.css'
 
 export type PreviewPlaybackState = { time: number; duration: number; playing: boolean; muted: boolean; failed: boolean; ready: boolean }
 
-export function PreviewPlayback({ state, compact, onExpand, onTogglePlayback, onSeek, onToggleMute }: {
+/** Player bar inside the clip: play, progress, sound and full screen. */
+export function PreviewPlayback({
+  state,
+  onTogglePlayback,
+  onSeek,
+  onToggleMute,
+  onFullscreen
+}: {
   state: PreviewPlaybackState
-  compact: boolean
-  onExpand: () => void
   onTogglePlayback: () => void
   onSeek: (time: number) => void
   onToggleMute: () => void
+  onFullscreen: () => void
 }) {
   const t = useTranslations('brand.previewDesign')
+  const progress = state.duration ? Math.min(100, (state.time / state.duration) * 100) : 0
   return (
-    <div className={`${styles.playback} ${compact ? styles.compactPlayback : ''}`}>
-      <input type="range" className={styles.seek} min={0} max={state.duration || 1} step="0.01" value={state.time} disabled={!state.ready || !state.duration} aria-label={t('seek')} data-brand-preview-seek="" onChange={event => onSeek(Number(event.target.value))} />
-      <div className={styles.playbackRow}>
-        <Button type="button" variant="ghost" size="icon" disabled={!state.ready || state.failed} onClick={onTogglePlayback} aria-label={t(state.playing ? 'pause' : 'play')} data-brand-preview-play="">{state.playing ? <Pause className="size-4 fill-current" /> : <Play className="size-4 fill-current" />}</Button>
-        <span className={styles.time}>{compact ? formatDuration(state.duration) : `${formatDuration(state.time)} / ${formatDuration(state.duration)}`}</span>
-        <Button type="button" variant="ghost" size="icon" disabled={!state.ready} className={styles.mute} onClick={onToggleMute} aria-label={t(state.muted ? 'unmute' : 'mute')} data-brand-preview-mute="">{state.muted ? <VolumeX className="size-4" /> : <Volume2 className="size-4" />}</Button>
-        <Button type="button" variant="ghost" size="icon" onClick={onExpand} aria-label={t('expand')} data-brand-preview-expand=""><Expand className="size-4" /></Button>
-      </div>
+    <div className={styles.playback} data-brand-playback="">
+      <button
+        type="button"
+        className={styles.playButton}
+        disabled={!state.ready || state.failed}
+        aria-label={t(state.playing ? 'pause' : 'play')}
+        onClick={onTogglePlayback}
+        data-brand-preview-play=""
+      >
+        {state.playing ? <Pause className="fill-current" aria-hidden="true" /> : <Play className="fill-current" aria-hidden="true" />}
+      </button>
+      <input
+        type="range"
+        className={styles.seek}
+        style={{ '--progress': `${progress}%` } as CSSProperties}
+        min={0}
+        max={state.duration || 1}
+        step="0.01"
+        value={state.time}
+        disabled={!state.ready || !state.duration}
+        aria-label={t('seek')}
+        onChange={(event) => onSeek(Number(event.target.value))}
+        data-brand-preview-seek=""
+      />
+      <button
+        type="button"
+        className={styles.playButton}
+        disabled={!state.ready}
+        aria-label={t(state.muted ? 'unmute' : 'mute')}
+        onClick={onToggleMute}
+        data-brand-preview-mute=""
+      >
+        {state.muted ? <VolumeX aria-hidden="true" /> : <Volume2 aria-hidden="true" />}
+      </button>
+      <button type="button" className={styles.playButton} aria-label={t('expand')} onClick={onFullscreen} data-brand-preview-expand="">
+        <Maximize aria-hidden="true" />
+      </button>
     </div>
   )
 }

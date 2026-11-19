@@ -1,5 +1,6 @@
 'use client'
 
+import { useHideMobileDock } from '@/components/dashboard/mobile-dock-visibility'
 import { WorkspaceMobileHeader } from '@/components/dashboard/workspace-mobile-header'
 import { ScriptEditor } from '@/components/script/script-editor'
 import { ScriptLibrary } from '@/components/script/script-library'
@@ -12,6 +13,7 @@ import styles from '@/components/script/scripts-workspace.module.css'
 
 export default function ScriptGeneratorPage() {
   const workspace = useScriptsWorkspace()
+  useHideMobileDock(workspace.view === 'editor')
   return (
     <div
       className={`${scriptSurfaceClass} ${styles.workspace}`}

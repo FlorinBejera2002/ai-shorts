@@ -120,6 +120,8 @@ async function fixture(options = {}) {
     const settings = () => ({ preferences: state.preferences, sessions: state.sessions, mfa: state.mfa, securityEvents: [], exports: state.exports })
     if (method !== 'GET' || path === '/api/user/data') calls.push(`${method} ${path}${body ? ` ${JSON.stringify(body)}` : ''}`)
     let match
+    // Other suites mock every read with `{}`; Settings must stay up and offer a retry.
+    if (options.emptyApi && method === 'GET') return route.fulfill({ json: {} })
     if (method === 'GET' && path === '/api/user/profile') return route.fulfill({ json: { profile: state.profile } })
     if (method === 'PATCH' && path === '/api/user/profile') {
       state.profile = { ...state.profile, name: body.name }
@@ -360,7 +362,7 @@ async function desktop() {
     await f.root.locator('[data-settings-two-factor-open]').click()
     await called(f, /POST \/api\/user\/mfa\/setup/, 'MFA setup')
     const setup = dialog(f)
-    assert.equal(await setup.locator('[data-settings-secret]').innerText(), 'JBSW Y3DP EHPK 3PXP JBSW Y3DP EHPK 3PXP')
+    assert.equal((await setup.locator('[data-settings-secret]').innerText()).replace(/\s+/g, ' '), 'JBSW Y3DP EHPK 3PXP JBSW Y3DP EHPK 3PXP')
     assert.ok(Number(await setup.locator('[data-settings-qr]').getAttribute('data-settings-qr')) >= 1, 'QR rendered')
     await setup.locator('[data-settings-copy-secret]').click()
     await until(async () => (await f.page.evaluate(() => navigator.clipboard.readText())) === 'JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP', 'Secret copied')
@@ -435,9 +437,16 @@ async function desktop() {
     await f.root.locator('[data-settings-nav="notifications"]').click()
     await ready(f, '[data-settings-notification]')
     assert.equal(await f.root.locator('[data-settings-notification="emailSecurity"]').isDisabled(), true)
-    await f.root.locator('[data-settings-notification="emailProduct"]').click()
-    await called(f, /PUT \/api\/user\/preferences .*"emailProduct":false/, 'Product e-mails off')
-    await until(async () => (await f.root.locator('[data-settings-notification="emailProduct"]').getAttribute('aria-checked')) === 'false', 'Switch off')
+    // "Unsubscribe" turns every optional e-mail off at once.
+    const unsubscribe = f.root.locator('[data-settings-unsubscribe]')
+    await unsubscribe.click()
+    await called(f, /PUT \/api\/user\/preferences .*"emailSecurity":true,"emailProduct":false,"emailMarketing":false/, 'Unsubscribe from optional e-mails')
+    await until(async () => (await f.root.locator('[data-settings-notification="emailProduct"]').getAttribute('aria-checked')) === 'false', 'Product switch off')
+    await until(() => unsubscribe.isDisabled(), 'Nothing left to unsubscribe from')
+    await f.page.getByText("You're unsubscribed from optional emails.").waitFor()
+    await f.root.locator('[data-settings-notification="emailMarketing"]').click()
+    await called(f, /PUT \/api\/user\/preferences .*"emailMarketing":true/, 'Tips and offers on')
+    await until(async () => !(await unsubscribe.isDisabled()), 'Unsubscribe available again')
     await f.root.locator('[data-settings-notification="inAppPublishing"]').click()
     await called(f, /PUT \/api\/user\/preferences .*"inAppPublishing":false/, 'Publishing updates off')
 
@@ -606,6 +615,22 @@ async function phone() {
 }
 
 // ---------------------------------------------------------------- Romanian copy
+async function emptyApi() {
+  const f = await fixture({ emptyApi: true })
+  try {
+    for (const viewport of [{ width: 1440, height: 900 }, { width: 390, height: 844 }]) {
+      await f.page.setViewportSize(viewport)
+      await f.open()
+      await f.root.locator('[data-settings-state="error"]').waitFor()
+      assert.equal(await f.page.locator('#dashboard-shell').count(), 1, 'Dashboard layout stays mounted')
+      assert.ok(await f.root.getByRole('button', { name: 'Try again' }).isVisible(), 'Retry offered')
+    }
+  } finally {
+    await f.close()
+  }
+  console.log('Empty API payloads: load error with retry, no crash')
+}
+
 async function romanian() {
   const f = await fixture({ ro: true })
   try {
@@ -637,6 +662,7 @@ try {
   if (runs('destructive')) await destructive()
   if (runs('phone')) await phone()
   if (runs('romanian')) await romanian()
+  if (runs('empty')) await emptyApi()
   assert.deepEqual(runtimeErrors, [])
   assert.deepEqual(unexpected, [])
   await writeFile(

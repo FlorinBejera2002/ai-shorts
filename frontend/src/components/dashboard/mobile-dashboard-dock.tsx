@@ -9,6 +9,7 @@ import { useTranslations } from 'next-intl'
 import { Dialog } from 'radix-ui'
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react'
 import styles from './mobile-dashboard-dock.module.css'
+import { useDockHiddenByView } from './mobile-dock-visibility'
 
 /** Springs from the wib_account tab bar: the lens, press feedback and the bar sliding away. */
 const LENS_SPRING = { type: 'spring', stiffness: 260, damping: 22, mass: 0.8 } as const
@@ -17,6 +18,8 @@ const BAR_SPRING = { type: 'spring', stiffness: 240, damping: 28, mass: 1 } as c
 /** Scroll distance that moves the bar fully out, and how far it travels. */
 const BAR_TRAVEL = 110
 const BAR_OFFSET = 68 + 22 + 16
+/** After a dialog closes, scroll in this window is focus/scroll restoration, not the user. */
+const RESTORE_QUIET_MS = 500
 
 const tabs = [
   { href: '/dashboard', key: 'dockHome', icon: House },
@@ -32,6 +35,8 @@ const menuIcons: Record<string, LucideIcon> = { editor: Scissors, brand: Palette
 /** Main pages show the bar; detail pages and editors (kits, clips, posts, Studio) do not. */
 const mainPages = new Set<string>(['/dashboard/create', ...navItems.map((item) => item.href)])
 mainPages.delete('/dashboard/studio')
+// The calendar URL shows the same page as Publish.
+mainPages.add('/dashboard/calendar')
 
 /** True while a modal dialog or sheet holds the page (Radix locks scrolling on the body). */
 function useModalOpen() {
@@ -50,13 +55,22 @@ function useModalOpen() {
 function useScrollHidden(forceHidden: boolean, resetKey: string) {
   const reduced = useReducedMotion()
   const hidden = useMotionValue(0)
+  const wasForced = useRef(forceHidden)
   useEffect(() => {
+    const returning = wasForced.current && !forceHidden
+    wasForced.current = forceHidden
+    // While a page, view or dialog hides the bar, scrolling must not bring it back.
+    if (forceHidden) return
     let last = window.scrollY
     let settle = 0
+    // A closed dialog or sheet restores focus and scroll; that jump is not the user scrolling,
+    // so for a moment it only moves the reference point.
+    const quietUntil = returning ? performance.now() + RESTORE_QUIET_MS : 0
     const onScroll = () => {
       const y = window.scrollY
       const dy = y - last
       last = y
+      if (performance.now() < quietUntil) return
       if (y < 8) {
         animate(hidden, 0, reduced ? { duration: 0 } : BAR_SPRING)
         return
@@ -75,7 +89,7 @@ function useScrollHidden(forceHidden: boolean, resetKey: string) {
       window.removeEventListener('scroll', onScroll)
       window.clearTimeout(settle)
     }
-  }, [hidden, reduced])
+  }, [forceHidden, resetKey, hidden, reduced])
   // A new page, an opened dialog or a closed one: glide fully in or out.
   useEffect(() => {
     animate(hidden, forceHidden ? 1 : 0, reduced ? { duration: 0 } : BAR_SPRING)
@@ -92,6 +106,18 @@ function useLens(bar: RefObject<HTMLElement | null>, activeKey: string | null) {
   const scaleY = useMotionValue(1)
   const opacity = useMotionValue(0)
   const placed = useRef(false)
+  // The bar is display:none on desktop and changes width on rotation: re-measure without animating.
+  const [size, setSize] = useState(0)
+  useEffect(() => {
+    const element = bar.current
+    if (!element) return
+    const observer = new ResizeObserver(() => {
+      placed.current = false
+      setSize(element.offsetWidth)
+    })
+    observer.observe(element)
+    return () => observer.disconnect()
+  }, [bar])
   useLayoutEffect(() => {
     const target = activeKey ? bar.current?.querySelector<HTMLElement>(`[data-dock-tab="${activeKey}"]`) : null
     if (!target || !bar.current) {
@@ -101,6 +127,10 @@ function useLens(bar: RefObject<HTMLElement | null>, activeKey: string | null) {
     }
     const nextX = target.offsetLeft
     const nextW = target.offsetWidth
+    if (nextW === 0) {
+      placed.current = false
+      return
+    }
     opacity.set(1)
     if (!placed.current || reduced) {
       x.set(nextX)
@@ -113,7 +143,7 @@ function useLens(bar: RefObject<HTMLElement | null>, activeKey: string | null) {
     // Water-drop feel: wider and flatter mid-way, then it settles.
     animate(scaleX, [1, 1.32, 1], { duration: 0.42, ease: 'easeOut' })
     animate(scaleY, [1, 0.88, 1], { duration: 0.42, ease: 'easeOut' })
-  }, [activeKey, bar, reduced, x, width, scaleX, scaleY, opacity])
+  }, [activeKey, bar, size, reduced, x, width, scaleX, scaleY, opacity])
   return { x, width, scaleX, scaleY, opacity }
 }
 
@@ -135,7 +165,8 @@ export function MobileDashboardDock() {
   const [menuOpen, setMenuOpen] = useState(false)
   const modal = useModalOpen()
   const page = pathname.split('?')[0]
-  const hiddenByPage = !mainPages.has(page) || (modal && !menuOpen)
+  const hiddenByView = useDockHiddenByView()
+  const hiddenByPage = !mainPages.has(page) || hiddenByView || (modal && !menuOpen)
   const hidden = useScrollHidden(hiddenByPage, page)
 
   // The panel is phone-only: leaving the phone layout closes it.
@@ -173,7 +204,7 @@ function DockBar({ pathname, hidden, hiddenByPage, menuOpen }: { pathname: strin
     <Tab key={item.href} href={item.href} label={t(item.key)} icon={item.icon} active={activeTab === tabKey(item.href) && !menuOpen} dockKey={tabKey(item.href)} />
   )
   return (
-    <m.div className={styles.dock} data-mobile-dashboard-dock="" data-dock-hidden={hiddenByPage ? '' : undefined} style={{ y: translateY, opacity, scale }}>
+    <m.div className={styles.dock} data-mobile-dashboard-dock="" data-dock-hidden={hiddenByPage ? '' : undefined} inert={hiddenByPage || undefined} aria-hidden={hiddenByPage || undefined} style={{ y: translateY, opacity, scale }}>
       <nav ref={bar} className={styles.bar} aria-label={t('mobileNavigation')}>
         <m.span className={styles.lens} aria-hidden="true" style={{ x: lens.x, width: lens.width, scaleX: lens.scaleX, scaleY: lens.scaleY, opacity: lens.opacity }} />
         {tab(tabs[0])}

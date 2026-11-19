@@ -6,14 +6,14 @@ The user asked to implement every remaining page from the canvas [Sneepcut – R
 | --- | --- |
 | Home | Theme surface; header with "Vezi clipurile" + "Clip nou" pills; 4 stat cards with tinted icons; 9:13 recent clip posters (`home-workspace.module.css`, `recent-clips.module.css`) |
 | Navigation | Sidebar: blue pill create action, icon rows, soft profile card (reference block at the end of `app-sidebar.module.css`). Mobile dock: Home, Clips, + Create, Publish, More (Editor, Scripts, Brand, Billing, Settings in a 3-column sheet). `WorkspaceMobileHeader` has `profile` (logo + avatar, default) and `menu` (approved Publish/Clips/Scripts hamburger header, hides the dock) variants |
-| Billing | One summary card with the credit balance on a gradient panel, card invoice table, tile plan selector, notice tones |
+| Billing | Canvas *Abonament* (`Ab-*`, 2026-11-19): plan card with an outlined usage meter in percentages (never credits; split into two cards on phones), latest-invoices list + billing-details rows, illustrated four-card plan chooser, full invoice table, details page, state banners, skeleton and error illustration. Usage = remaining balance against the plan's monthly grant (one-time grant on Free); the backend has no per-period usage ledger. Covered by `tests/billing-layout.browser.mjs` |
 | Settings | Sticky pill section nav, card panels, soft fields, blue/secondary pill buttons |
 | Brand kit | Card sections on the left, sticky preview card; the mobile save bar hides the dock |
 | Create | Segmented source switch (radiogroup), card panels, blue actions; Story Builder keeps Gooey Nav |
 
 Not changed: the public pages (landing, pricing, auth, legal — user asked to keep them as they were), processing (user asked to keep it, see `design-qa.md`).
 
-Known pre-existing failures (same on the baseline): `publishing-layout.browser.mjs` "Switching to light preserves selectedRow" and `billing.browser.mjs` waiting for the summary-level scheduled-cancellation copy, which never renders because the page shows notices in the banner.
+Known pre-existing failures (same on the baseline): `publishing-layout.browser.mjs` "Switching to light preserves selectedRow". The old `billing.browser.mjs` was retired on 2026-11-19; its checkout/portal policies now run in `billing-layout.browser.mjs`.
 
 UI copy: the upload flow creates clips from one or more uploaded videos; the user asked not to present it as a "story" ("poveste"). Wording uses clip/project instead. Internal names (`story-*` files, `stories.*` API) are unchanged.
 

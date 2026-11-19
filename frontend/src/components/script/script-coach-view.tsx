@@ -56,7 +56,8 @@ export function ScriptCoachView({
     }),
     [t]
   )
-  const languageName = new Intl.DisplayNames([locale], { type: 'language' }).of(w.language) ?? w.language
+  const languageNames = useMemo(() => new Intl.DisplayNames([locale], { type: 'language' }), [locale])
+  const languageName = languageNames.of(w.language) ?? w.language
   const language = languageName.charAt(0).toUpperCase() + languageName.slice(1)
   const platformLabel = scriptPlatform(w.platform)?.label ?? t('platformRequired')
 

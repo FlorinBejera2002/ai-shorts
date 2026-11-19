@@ -30,11 +30,14 @@ async function accountPage(admin) {
     const path = new URL(route.request().url()).pathname
     const fixtures = {
       '/api/user/credits': { credits: 0, creditsUnlimited: admin },
-      '/api/user/brand': { plan: 'free', canWhiteLabel: admin, brandKit: {} },
+      // A logo makes the logo summary card (the entry to the logo screen that holds the white-label switch) render.
+      '/api/user/brand': { plan: 'free', canWhiteLabel: admin, brandKit: { logoUrl: '/illustrations/load-error.webp' } },
       '/api/user/brand/fonts': { fonts: [] },
       '/api/stories': { stories: [] },
       '/api/jobs': { jobs: [] },
-      '/api/dashboard': { metrics: { credits: 0, creditsUnlimited: admin, jobCount: 0, clipCount: 0, durationMinutes: 0, statuses: {}, activity: [] }, recentClips: [] },
+      // A returning account (jobs and clips present) renders the Home overview with the stats strip; a zero-job account shows the first-run view instead.
+      '/api/dashboard': { metrics: { credits: 0, creditsUnlimited: admin, jobCount: 1, clipCount: 1, durationMinutes: 2, statuses: { completed: 1 }, activity: [] }, recentClips: [] },
+      '/api/dashboard/history': { jobs: [] },
       '/api/stripe/billing': { account: { credits: 0, creditsUnlimited: admin, plan: 'free', hasBillingProfile: false }, subscription: null, invoices: [], providerAvailable: true },
       '/api/workspace-agent/runs': { runs: [], has_more: false },
       '/api/workspace-agent/suggestions': { suggestions: [], capabilities: [] }
@@ -69,10 +72,10 @@ try {
       await page.goto(`${origin}/dashboard/create?mode=youtube`, { waitUntil: 'networkidle', timeout: 180000 })
       const url = page.locator('#youtube-url')
       await url.fill('https://www.youtube.com/watch?v=dQw4w9WgXcQ')
-      const generate = page.locator('.creation-generate-action button')
+      const generate = page.locator('.creation-generate-action')
       await generate.waitFor()
       await page.waitForFunction((enabled) => {
-        const button = document.querySelector('.creation-generate-action button')
+        const button = document.querySelector('.creation-generate-action')
         return button && button.disabled !== enabled
       }, admin)
       assert.equal(await generate.isEnabled(), admin)
@@ -104,13 +107,25 @@ try {
       }
 
       await page.goto(`${origin}/dashboard`, { waitUntil: 'networkidle' })
-      assert.equal(await page.getByText('Unlimited credits', { exact: true }).count(), admin ? 1 : 0)
+      await page.locator('[data-home-stats]').waitFor()
+      assert.equal(await page.getByText('Unlimited credits', { exact: true }).count(), 0)
       await page.goto(`${origin}/dashboard/billing`, { waitUntil: 'networkidle' })
       await page.locator('#billing-overview-title').waitFor()
-      assert.equal(await page.locator('[aria-labelledby="billing-plans-title"]').isVisible(), !admin)
+      // Plans are a separate view opened from "Choose plan"; administrators have no plan picker at all.
+      const choosePlan = page.locator('[data-billing-choose-plan]')
+      if (admin) {
+        assert.equal(await choosePlan.count(), 0)
+      } else {
+        await choosePlan.waitFor()
+        await choosePlan.click()
+        await page.locator('[data-billing-plans]').waitFor()
+      }
       assert.equal(await page.getByText('Administrator · unlimited', { exact: true }).count(), admin ? 1 : 0)
-      await page.goto(`${origin}/dashboard/brand`, { waitUntil: 'networkidle' })
-      const badge = page.getByRole('switch', { name: 'sneepcut badge', exact: true })
+      // /dashboard/brand is now the kits list; the white-label control lives in the default kit's editor.
+      await page.goto(`${origin}/dashboard/brand/default`, { waitUntil: 'networkidle' })
+      // White-label control: the Sneep Cut ending switch on the logo screen (replaces the former "sneepcut badge" switch).
+      await page.locator('[data-brand-logo-summary]').click()
+      const badge = page.getByRole('switch', { name: 'Sneep Cut ending', exact: true })
       await badge.waitFor()
       assert.equal(await badge.isEnabled(), admin)
       console.log(`${admin ? 'Admin' : 'Member'} dashboard, billing and white-label screens verified.`)

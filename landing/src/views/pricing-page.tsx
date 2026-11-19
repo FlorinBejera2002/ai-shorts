@@ -1,4 +1,3 @@
-import type { Metadata } from 'next'
 import { PlanCard } from '@/components/pricing/plan-card'
 import { PLAN_ORDER } from '@/components/pricing/plans'
 import styles from '@/components/pricing/pricing.module.css'
@@ -9,15 +8,9 @@ import { getCopy } from '@/content/copy'
 import type { PlanId } from '@/content/copy/types'
 import { appLinks } from '@/lib/app-links'
 import type { Locale } from '@/lib/i18n'
-import { pageMetadata } from '@/lib/metadata'
 import { loadPlanCatalog } from '@/lib/plan-catalog.server'
 import { contactEmail } from '@/lib/site'
 import { breadcrumbJsonLd, faqJsonLd, softwareApplicationJsonLd } from '@/lib/structured-data'
-
-export function pricingMetadata(locale: Locale): Metadata {
-  const { meta } = getCopy(locale)
-  return pageMetadata({ locale, path: '/pricing', title: meta.pricingTitle, description: meta.pricingDescription })
-}
 
 function planCtaHref(plan: PlanId, locale: Locale): string {
   return plan === 'agency' ? `mailto:${contactEmail()}` : appLinks(locale).register

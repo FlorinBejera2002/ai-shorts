@@ -1,0 +1,38 @@
+/* Phone stage shared by the inline and expanded previews. zoom scales the 390px design screen. */
+.device {
+  position: relative;
+  max-width: 100%;
+}
+
+.screen {
+  position: relative;
+  width: 390px;
+  overflow: hidden;
+  background: #000;
+  color: #fff;
+}
+
+/* The real media fills the screen above the platform navigation. */
+.screen > :not([data-platform-overlay]) {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: var(--media-height);
+  border: 0;
+  border-radius: 0;
+  background: #000;
+}
+
+.screen video {
+  width: 100%;
+  height: 100%;
+  aspect-ratio: auto;
+  border-radius: 0;
+  object-fit: contain;
+  background: #000;
+}
+
+.screen > :not([data-platform-overlay]) > [data-publishing-image-preview] {
+  border-radius: 0;
+}

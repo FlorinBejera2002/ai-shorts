@@ -2,7 +2,7 @@ import { Bookmark, Camera, ChevronLeft, Heart, MessageCircle, MoreHorizontal, Mu
 import { PlatformBrandIcon } from '@/components/publishing/platform-brand-icon'
 import { useTranslations } from 'next-intl'
 import type { ContentPlatform } from '@/lib/content-calendar'
-import styles from './preview-panel.module.css'
+import styles from './social-preview-overlay.module.css'
 
 function SocialHeader({ platform }: { platform: ContentPlatform }) {
   const t = useTranslations('brand.previewDesign')

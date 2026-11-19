@@ -8,7 +8,7 @@ import type { PublishingData } from '@/lib/publishing'
 import { formatDuration } from '@/lib/utils'
 import { ChevronLeft, ChevronRight, Film, ImageOff, RefreshCw } from 'lucide-react'
 import { useTranslations } from 'next-intl'
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { PublishingImagePreview } from './publishing-image-preview'
 import styles from './calendar-post-preview.module.css'
 
@@ -196,14 +196,22 @@ function ClipPreview({
   )
 }
 
+/** Stage presentation for a platform overlay: the caller sizes the screen, the media fills it. */
+export type CalendarPostMediaStage = {
+  className?: string
+  style?: CSSProperties
+}
+
 export function CalendarPostMedia({
   post,
   publishingClips,
-  overlay
+  overlay,
+  stage
 }: {
   post: ScheduledPostRecord
   publishingClips: PublishingData['clips']
   overlay?: ReactNode
+  stage?: CalendarPostMediaStage
 }) {
   const t = useTranslations('contentCalendar.publishing')
   const [selectedIndex, setSelectedIndex] = useState(0)
@@ -211,6 +219,7 @@ export function CalendarPostMedia({
   const currentIndex = Math.min(selectedIndex, Math.max(0, media.length - 1))
   const currentMedia = media[currentIndex]
   const clip = publishingClips.find(item => item.id === post.clip?.id)
+  const stageProps = overlay ? { className: stage?.className, style: stage?.style } : {}
 
   if (post.clip) {
     const player = (
@@ -221,7 +230,9 @@ export function CalendarPostMedia({
         poster={post.clip.thumbnailUrl}
       />
     )
-    return overlay ? <div data-publishing-media-stage="" data-media-type="video">{player}{overlay}</div> : player
+    return overlay
+      ? <div data-publishing-media-stage="" data-media-type="video" {...stageProps}>{player}{overlay}</div>
+      : player
   }
   if (!currentMedia) {
     return (
@@ -234,7 +245,7 @@ export function CalendarPostMedia({
 
   return (
     <div className={styles.carousel}>
-      <div data-publishing-media-stage={overlay ? '' : undefined} data-media-type={currentMedia.type}>
+      <div data-publishing-media-stage={overlay ? '' : undefined} data-media-type={currentMedia.type} {...stageProps}>
         <UploadedMediaPreview key={currentMedia.reference} item={currentMedia} socialPreview={Boolean(overlay)} />
         {overlay}
       </div>

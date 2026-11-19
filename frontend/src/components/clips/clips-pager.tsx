@@ -73,6 +73,14 @@ function PageLink({
   wide?: boolean
   children: ReactNode
 }) {
+  const className = `${styles.pageButton} ${styles.focus}`
+  // A disabled step is not a link, so it can never navigate.
+  if (disabled)
+    return (
+      <span aria-label={label} aria-disabled="true" className={className} data-wide={wide ? '' : undefined}>
+        {children}
+      </span>
+    )
   return (
     <Link
       href={href}
@@ -80,9 +88,7 @@ function PageLink({
       preventScrollReset
       aria-label={label}
       aria-current={current ? 'page' : undefined}
-      aria-disabled={disabled || undefined}
-      tabIndex={disabled ? -1 : undefined}
-      className={`${styles.pageButton} ${styles.focus}`}
+      className={className}
       data-wide={wide ? '' : undefined}
     >
       {children}

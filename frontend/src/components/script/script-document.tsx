@@ -48,7 +48,7 @@ export function ScriptDocument({ workspace: w }: { workspace: ScriptsWorkspace }
   if (w.generating) {
     return (
       <article className={styles.document} aria-label={t('workspace.scriptDocument')}>
-        <ScriptStateCard busy role="status" title={t('generating')}>
+        <ScriptStateCard busy role="status" title={t('workspace.writingScenario')}>
           <ScriptStateSkeleton />
         </ScriptStateCard>
       </article>

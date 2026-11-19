@@ -1,6 +1,6 @@
 'use client'
 
-import { FileUp, ImagePlus } from 'lucide-react'
+import { ImagePlus, Plus } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import type { ReactNode } from 'react'
 import { MAX_PUBLISHING_MEDIA, PUBLISHING_FILE_ACCEPT } from './publishing-media-utils'
@@ -52,37 +52,19 @@ function PublishingFileInput({ inputId, disabled, progress, error, ariaLabel, on
   )
 }
 
-function DialogUploadZone({ input, inputId, disabled, progress, onUpload }: {
+/** The dialog's "Add" tile sits in the device grid; dropping files is handled by the picker. */
+function DialogUploadTile({ input, inputId, disabled }: {
   input: ReactNode
   inputId: string
   disabled: boolean
-  progress: UploadProgress | null
-  onUpload: (files: File[]) => Promise<void>
 }) {
   const t = useTranslations('contentCalendar.composer')
   return (
-    <>
-      <label
-        className={dialogStyles.uploadArea}
-        data-disabled={disabled}
-        onDragOver={event => event.preventDefault()}
-        onDrop={event => {
-          event.preventDefault()
-          if (!disabled) void onUpload(Array.from(event.dataTransfer.files))
-        }}
-      >
-        {input}
-        <FileUp className={dialogStyles.uploadIcon} aria-hidden="true" />
-        <span className={dialogStyles.uploadTitle}>{t('photosOrVideo')}</span>
-        <span className={dialogStyles.chooseFiles}>{t('chooseFiles')}</span>
-        <span id={`${inputId}-hint`} className={dialogStyles.uploadFormats}>{t('uploadFormats')}</span>
-      </label>
-      {progress && (
-        <div className={dialogStyles.uploadProgress}>
-          <PublishingUploadProgress {...progress} />
-        </div>
-      )}
-    </>
+    <label className={dialogStyles.addTile} data-disabled={disabled} aria-describedby={`${inputId}-hint`}>
+      {input}
+      <Plus aria-hidden="true" />
+      <span id={`${inputId}-hint`}>{t('addMedia')}</span>
+    </label>
   )
 }
 
@@ -129,6 +111,6 @@ export function PublishingMediaUploadZone({ presentation, inputId, mediaCount, d
   )
 
   return presentation === 'dialog'
-    ? <DialogUploadZone input={input} inputId={inputId} disabled={inputDisabled} progress={progress} onUpload={onUpload} />
+    ? <DialogUploadTile input={input} inputId={inputId} disabled={inputDisabled} />
     : <InlineUploadZone input={input} inputId={inputId} disabled={disabled} progress={progress} mediaCount={mediaCount} />
 }

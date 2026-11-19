@@ -136,7 +136,7 @@ async function fixture(options = {}) {
     },
     fail: (value) => (failList = value),
     async open(path = '/dashboard/brand') {
-      await page.goto(`${origin}${options.ro ? '/ro' : ''}${path}`, { waitUntil: 'networkidle' })
+      await page.goto(`${origin}${options.ro ? '/ro' : ''}${path}`, { waitUntil: 'load' })
     },
     close: () => context.close()
   }
@@ -240,11 +240,14 @@ async function list() {
     assert.equal(await dialog.getByRole('button', { name: 'Create kit' }).isDisabled(), true)
     assert.equal(await dialog.getByRole('radio', { name: /Podcast/ }).isChecked(), true, 'Starts from the default kit')
     await dialog.getByLabel('Kit name').fill('Interviews')
+    // A picked kit image previews in the dialog and is uploaded with the new kit.
+    await dialog.locator('input[type="file"]').setInputFiles({ name: 'kit.png', mimeType: 'image/png', buffer: Buffer.from('89504e470d0a1a0a', 'hex') })
+    await until(async () => /^blob:/.test((await dialog.locator('label img').getAttribute('src').catch(() => null)) ?? ''), 'Picked image previews in the dialog')
     await capture(f, 'desktop-light-kit-new')
     await dialog.getByText('From scratch').click()
     await dialog.getByRole('button', { name: 'Create kit' }).click()
     await f.page.waitForURL(/\/dashboard\/brand\/00000000-0000-4000-8000-0000000049/)
-    assert.ok(f.calls.includes('POST /api/brand-kits {"name":"Interviews","fromKitId":null,"imagePath":null}'))
+    assert.ok(f.calls.includes(`POST /api/brand-kits {"name":"Interviews","fromKitId":null,"imagePath":"brand/${identity.id}/logo-new-kit.png"}`))
   } finally {
     await f.close()
   }
@@ -261,15 +264,14 @@ async function editor() {
     assert.equal(await header.getByText('Default').count(), 0, 'Only the default kit is marked')
     await capture(f, 'desktop-light-editor')
     // Saving writes into this kit only.
-    await f.page.locator('[data-brand-section-trigger="styles"]').first().click()
     await f.page.getByRole('button', { name: 'Karaoke fill', exact: true }).click()
     const bar = f.page.locator('[data-brand-save-bar]')
-    await bar.getByRole('button', { name: 'Save changes' }).click()
+    await bar.getByRole('button', { name: 'Save', exact: true }).click()
     await until(() => f.calls.some((call) => call.startsWith(`PUT /api/brand-kits/${KIT.podcast} `)), 'Save goes to this kit')
     assert.equal(f.calls.some((call) => call.startsWith('PUT /api/user/brand')), false)
 
     // Save as a new kit: copy, write the edits, make it default, then open it.
-    await f.page.getByRole('button', { name: 'Karaoke fill', exact: true }).click()
+    await f.page.getByRole('button', { name: 'Minimal clean', exact: true }).click()
     await bar.getByRole('button', { name: 'More save options' }).click()
     const options = f.page.getByRole('menu')
     assert.deepEqual(await options.getByRole('menuitem').allInnerTexts(), ['Save to Podcast', 'Save as a new kit'])
@@ -342,6 +344,7 @@ async function states() {
           if (state === 'empty') {
             await g.page.getByRole('button', { name: 'New kit' }).first().click()
             const dialog = g.page.getByRole('dialog')
+            await dialog.getByRole('button', { name: 'Create kit' }).waitFor()
             assert.equal(await dialog.getByRole('radiogroup').count(), 0, 'Nothing to copy from yet')
             await g.page.keyboard.press('Escape')
           }
@@ -349,9 +352,9 @@ async function states() {
             g.fail(false)
             await g.page.getByRole('button', { name: 'Try again' }).click()
             await cards(g).first().waitFor()
-            await g.page.goto(`${origin}/dashboard/brand`, { waitUntil: 'networkidle' })
+            await g.page.goto(`${origin}/dashboard/brand`, { waitUntil: 'load' })
             g.fail(true)
-            await g.page.reload({ waitUntil: 'networkidle' })
+            await g.page.reload({ waitUntil: 'load' })
             await g.page.locator('[data-kits-state="error"]').waitFor()
           }
           await capture(g, `${prefix}-${state}`)

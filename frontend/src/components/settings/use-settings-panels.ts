@@ -10,6 +10,8 @@ import { apiFetch, authClient } from '@/lib/auth'
 import type { AccountPreferences, SettingsData } from '@/lib/settings'
 import { useLocale, useTranslations } from 'next-intl'
 import { useEffect, useRef, useState } from 'react'
+import { runExclusive } from './run-exclusive'
+import { checked, isSettingsData } from './settings-data'
 
 type ErrorGroup = 'preferences' | 'notifications' | 'mfa' | 'sessions'
 export type TwoFactorView = 'setup' | 'recovery' | 'manage'
@@ -36,7 +38,9 @@ async function mutation<T>(path: string, init: RequestInit, signal: AbortSignal)
 
 /** Preferences, notifications, two-factor authentication and sessions from `/api/user/settings`. */
 export function useSettingsPanels(options: MutationOptions) {
-  const { data, error, reload } = useApiResource<SettingsData>('/api/user/settings')
+  const resource = useApiResource<SettingsData>('/api/user/settings')
+  const { data, error } = checked(resource, isSettingsData)
+  const reload = resource.reload
   const queryClient = useQueryClient()
   const t = useTranslations('settings')
   const toast = useToast()
@@ -63,21 +67,25 @@ export function useSettingsPanels(options: MutationOptions) {
   }
 
   async function run(key: string, group: ErrorGroup, action: (signal: AbortSignal) => Promise<void>) {
-    if (activeMutation.current || options.disabled || options.acquireMutation?.() === false) return
     const controller = new AbortController()
-    activeMutation.current = controller
-    setBusy(key)
-    setFailure(null)
-    try {
-      await action(controller.signal)
-    } catch (caught) {
-      if (!controller.signal.aborted)
-        setFailure({ group, text: caught instanceof Error ? caught.message : t('settingsSaveFailed') })
-    } finally {
-      activeMutation.current = null
-      options.releaseMutation?.()
-      if (!controller.signal.aborted) setBusy(null)
-    }
+    await runExclusive({
+      claim: () => !activeMutation.current && !options.disabled && options.acquireMutation?.() !== false,
+      onStart: () => {
+        activeMutation.current = controller
+        setBusy(key)
+        setFailure(null)
+      },
+      onError: (caught) => {
+        if (!controller.signal.aborted)
+          setFailure({ group, text: caught instanceof Error ? caught.message : t('settingsSaveFailed') })
+      },
+      onFinish: () => {
+        activeMutation.current = null
+        options.releaseMutation?.()
+        if (!controller.signal.aborted) setBusy(null)
+      },
+      action: () => action(controller.signal)
+    })
   }
 
   function errorFor(group: ErrorGroup) {
@@ -121,12 +129,22 @@ export function useSettingsPanels(options: MutationOptions) {
   }
 
   /** Notifications save on toggle; an unsaved Preferences draft keeps the new value too. */
-  async function saveNotification(key: NotificationKey, value: boolean) {
+  async function saveNotifications(key: string, changes: Partial<Pick<AccountPreferences, NotificationKey>>, success?: string) {
     if (!saved || disabled) return
-    await run(`notification-${key}`, 'notifications', async (signal) => {
-      await putPreferences({ ...saved, [key]: value }, signal)
-      setDraft((current) => (current ? { ...current, [key]: value } : current))
+    await run(key, 'notifications', async (signal) => {
+      await putPreferences({ ...saved, ...changes }, signal)
+      setDraft((current) => (current ? { ...current, ...changes } : current))
+      if (success) toast.add('success', success)
     })
+  }
+
+  function saveNotification(key: NotificationKey, value: boolean) {
+    return saveNotifications(`notification-${key}`, { [key]: value })
+  }
+
+  /** "Dezabonează-te": every optional e-mail off at once; security e-mails stay on. */
+  function unsubscribeOptional() {
+    return saveNotifications('unsubscribe', { emailProduct: false, emailMarketing: false }, t('page.unsubscribed'))
   }
 
   async function openTwoFactor() {
@@ -235,6 +253,7 @@ export function useSettingsPanels(options: MutationOptions) {
     cancelPreferences,
     savePreferences,
     saveNotification,
+    unsubscribeOptional,
     twoFactorView,
     setup,
     mfaCode,

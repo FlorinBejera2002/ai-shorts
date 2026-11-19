@@ -496,6 +496,10 @@
   font-size: 12px;
 }
 
+.unsubscribe.unsubscribe {
+  height: 40px;
+}
+
 /* ---------- phone ---------- */
 .back.back {
   align-self: flex-start;
@@ -763,6 +767,12 @@
 
   .sessions .meta {
     font-size: 12px;
+  }
+
+  .unsubscribe.unsubscribe {
+    height: 38px;
+    padding: 0 14px;
+    font-size: 13px;
   }
 
   .sessions .small.small {

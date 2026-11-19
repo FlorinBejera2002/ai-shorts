@@ -46,11 +46,12 @@ export function PostPlatformOptions({
   return (
     <Dialog open onOpenChange={open => { if (!open) onCancel() }}>
       <DialogContent
-        className={`${theme.surface} ${styles.drawer}`}
+        className={`${theme.surface} ${styles.drawer} ${activePlatform === 'tiktok' ? styles.drawerWide : ''}`}
         overlayClassName={theme.overlay}
         aria-describedby={undefined}
         data-publish-surface=""
         data-platform-options=""
+        data-platform={activePlatform}
       >
         <header className={styles.header}>
           <DialogTitle className={styles.title}>{t('platformOptions')}</DialogTitle>
@@ -72,6 +73,7 @@ export function PostPlatformOptions({
             onValueChange={value => setSelectedPlatform(value as ContentPlatform)}
             className={styles.tabs}
           >
+            <div className={styles.tabBar}>
             <Tabs.List className={styles.tabList} aria-label={t('platformOptions')}>
               {orderedPlatforms.map(platform => (
                 <Tabs.Trigger
@@ -87,12 +89,13 @@ export function PostPlatformOptions({
                 </Tabs.Trigger>
               ))}
             </Tabs.List>
+            {accountNames[activePlatform] && (
+              <span className={styles.accountHandle}>{accountNames[activePlatform]}</span>
+            )}
+            </div>
             <div className={styles.scrollArea}>
               {orderedPlatforms.map(platform => (
                 <Tabs.Content key={platform} value={platform} className={styles.panel}>
-                  {accountNames[platform] && (
-                    <p className={styles.account}>{accountNames[platform]}</p>
-                  )}
                   <div className={styles.settings}>{children[platform]}</div>
                 </Tabs.Content>
               ))}

@@ -104,7 +104,7 @@ func TestBrandReadOmitsPrivateMediaReferences(t *testing.T) {
 	if err != nil || !strings.Contains(string(result.Data), `"configured":false`) {
 		t.Fatalf("missing brand response %+v %v", result, err)
 	}
-	if _, err = db.Exec(`INSERT INTO brand_kits(id,user_id,logo_path,primary_color,secondary_color,font_family,subtitle_font,subtitle_color,subtitle_bg_color,subtitle_bg_opacity,subtitle_position,watermark_position,watermark_opacity) VALUES($1,$2,'brand/private-secret.png','#112233','#000000','Inter','Inter Bold','#FFFFFF','#000000',0.7,'bottom','bottom-right',0.8)`, brandID, user); err != nil {
+	if _, err = db.Exec(`INSERT INTO brand_kits(id,user_id,is_default,logo_path,primary_color,secondary_color,font_family,subtitle_font,subtitle_color,subtitle_bg_color,subtitle_bg_opacity,subtitle_position,watermark_position,watermark_opacity) VALUES($1,$2,true,'brand/private-secret.png','#112233','#000000','Inter','Inter Bold','#FFFFFF','#000000',0.7,'bottom','bottom-right',0.8)`, brandID, user); err != nil {
 		t.Fatal(err)
 	}
 	result, err = e.Execute(ctx, user, "", Action{Name: "brand.read", Input: json.RawMessage(`{}`)})

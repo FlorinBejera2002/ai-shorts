@@ -202,17 +202,61 @@
       "privacy": "Confidențialitate"
     },
     "screens": {
-      "login": { "lead": "Fiecare video", "accent": "are un moment bun.", "alt": "Ana deschide o ușă din telefon, Radu intră cu o cafea" },
-      "register": { "lead": "Fiecare idee", "accent": "merită un clip.", "alt": "Ana și Radu stau pe o claquetă și fac cu mâna" },
-      "mfa": { "lead": "Fiecare cont", "accent": "merită protejat.", "alt": "Ana aduce o cheie mare, Radu ține un lacăt deschis" },
-      "verify": { "lead": "Încă un pas", "accent": "până la primul clip.", "alt": "Ana se uită cu lupa la un plic cu bifă ținut de Radu" },
-      "forgot": { "lead": "Se întâmplă,", "accent": "o refacem împreună.", "alt": "Ana aduce o cheie mare, Radu ține un lacăt deschis" },
-      "forgotSent": { "lead": "Linkul e pe drum,", "accent": "verifică emailul.", "alt": "Ana se uită cu lupa la un plic cu bifă ținut de Radu" },
-      "reset": { "lead": "O parolă nouă,", "accent": "un început nou.", "alt": "Ana aduce o cheie mare, Radu ține un lacăt deschis" },
-      "resetDone": { "lead": "Gata,", "accent": "clipurile te așteaptă.", "alt": "Ana și Radu țin împreună un panou cu o bifă verde" },
-      "resetInvalid": { "lead": "Nicio grijă,", "accent": "cerem un link nou.", "alt": "Radu ține un lanț rupt, Ana îi arată o verigă legată cu fundă" },
-      "activate": { "lead": "Încă un pas", "accent": "până la primul clip.", "alt": "Ana se uită cu lupa la un plic cu bifă ținut de Radu" },
-      "activateDone": { "lead": "Bine ai venit,", "accent": "primul clip te așteaptă.", "alt": "Ana și Radu țin împreună un panou cu o bifă verde" }
+      "login": {
+        "lead": "Fiecare video",
+        "accent": "are un moment bun.",
+        "alt": "Ana deschide o ușă din telefon, Radu intră cu o cafea"
+      },
+      "register": {
+        "lead": "Fiecare idee",
+        "accent": "merită un clip.",
+        "alt": "Ana și Radu stau pe o claquetă și fac cu mâna"
+      },
+      "mfa": {
+        "lead": "Fiecare cont",
+        "accent": "merită protejat.",
+        "alt": "Ana aduce o cheie mare, Radu ține un lacăt deschis"
+      },
+      "verify": {
+        "lead": "Încă un pas",
+        "accent": "până la primul clip.",
+        "alt": "Ana se uită cu lupa la un plic cu bifă ținut de Radu"
+      },
+      "forgot": {
+        "lead": "Se întâmplă,",
+        "accent": "o refacem împreună.",
+        "alt": "Ana aduce o cheie mare, Radu ține un lacăt deschis"
+      },
+      "forgotSent": {
+        "lead": "Linkul e pe drum,",
+        "accent": "verifică emailul.",
+        "alt": "Ana se uită cu lupa la un plic cu bifă ținut de Radu"
+      },
+      "reset": {
+        "lead": "O parolă nouă,",
+        "accent": "un început nou.",
+        "alt": "Ana aduce o cheie mare, Radu ține un lacăt deschis"
+      },
+      "resetDone": {
+        "lead": "Gata,",
+        "accent": "clipurile te așteaptă.",
+        "alt": "Ana și Radu țin împreună un panou cu o bifă verde"
+      },
+      "resetInvalid": {
+        "lead": "Nicio grijă,",
+        "accent": "cerem un link nou.",
+        "alt": "Radu ține un lanț rupt, Ana îi arată o verigă legată cu fundă"
+      },
+      "activate": {
+        "lead": "Încă un pas",
+        "accent": "până la primul clip.",
+        "alt": "Ana se uită cu lupa la un plic cu bifă ținut de Radu"
+      },
+      "activateDone": {
+        "lead": "Bine ai venit,",
+        "accent": "primul clip te așteaptă.",
+        "alt": "Ana și Radu țin împreună un panou cu o bifă verde"
+      }
     },
     "mfa": {
       "title": "Verificare în doi pași",
@@ -967,7 +1011,49 @@
       "layout": "Text și așezare",
       "linesSummary": "{count, plural, one {# rând} few {# rânduri} other {# de rânduri}}"
     },
-    "kitNameTaken": "Există deja un kit cu acest nume."
+    "kitNameTaken": "Există deja un kit cu acest nume.",
+    "editor": {
+      "stylesCount": "{count, plural, one {# stil} few {# stiluri} other {# de stiluri}}",
+      "presetGroup": "Stil subtitrare",
+      "fonts": "Fonturi",
+      "fontTypes": "TTF, OTF",
+      "fontLimit": "TTF, OTF · până la 8 MB",
+      "fontIllustration": "Ana așază litere pe un raft, Radu ține un A mare",
+      "textSize": "Dimensiune text",
+      "lines": "Rânduri",
+      "dragInClip": "Trage în clip",
+      "effect": "Efect",
+      "chooseColor": "Alege {name}",
+      "hexCode": "Cod hex {name}",
+      "logoSummary": "Mărime {size}% · Opacitate {opacity}%",
+      "logoEmptyIllustration": "Ana ține un cadru gol pentru logo lângă un șevalet",
+      "logoMeta": "{format} · {width} × {height}",
+      "size": "Mărime",
+      "dragLogo": "Trage logo-ul în clip ca să-l muți",
+      "outro": "Final Sneep Cut",
+      "outroDesc": "Animație scurtă la sfârșitul clipului",
+      "outroUpgrade": "Elimină cu planul Agency",
+      "showOn": "Afișează pe",
+      "safeZone": "Zonă sigură",
+      "placements": {
+        "instagram": "Instagram Reels",
+        "facebook": "Facebook Reels",
+        "tiktok": "TikTok",
+        "youtube": "YouTube Shorts"
+      },
+      "noClipTitle": "Alege un videoclip sau o fotografie",
+      "noClipText": "Vezi stilul pe propriul tău clip.",
+      "noClipIllustration": "Ana ține o clachetă, Radu filmează cu telefonul",
+      "chooseMedia": "Alege media",
+      "clipLabel": "Clip din bibliotecă folosit ca fundal",
+      "saveCard": "Salvare",
+      "allSaved": "Totul este salvat",
+      "save": "Salvează",
+      "resetDefaults": "Resetează la valorile implicite",
+      "savedText": "Toate modificările sunt salvate.",
+      "errorText": "Nu am putut încărca setările salvate.",
+      "errorIllustration": "Radu ține o cutie goală de brand, Ana ține o săgeată de reîncercare"
+    }
   },
   "billing": {
     "title": "Facturare",
@@ -1177,10 +1263,36 @@
       "accessDescription": "Funcțiile plătite rămân active cât timp abonamentul este plătit. Utilizarea rămasă este păstrată.",
       "changesDescription": "Schimbarea planului, anularea și metoda de plată se gestionează în portalul de facturare.",
       "features": {
-        "free": ["Detectare momente virale cu AI", "Subtitrări automate", "Decupare verticală (9:16)", "Export 720p", "5 clipuri per proiect"],
-        "creator": ["Tot din planul Gratuit", "Export Full HD (1080p)", "Până la 15 clipuri per proiect", "Procesare în lot (5 URL-uri)", "Kit de branding", "Descrieri sociale cu AI"],
-        "pro": ["Tot din planul Creator", "Procesare în lot (20 URL-uri)", "Watermark personalizat", "Calendar de conținut", "Generator de scenarii cu AI", "Tablou de analiză"],
-        "agency": ["Tot din planul Pro", "Exporturi white-label", "Fără branding Sneep Cut", "Suport dedicat", "Export de date GDPR"]
+        "free": [
+          "Detectare momente virale cu AI",
+          "Subtitrări automate",
+          "Decupare verticală (9:16)",
+          "Export 720p",
+          "5 clipuri per proiect"
+        ],
+        "creator": [
+          "Tot din planul Gratuit",
+          "Export Full HD (1080p)",
+          "Până la 15 clipuri per proiect",
+          "Procesare în lot (5 URL-uri)",
+          "Kit de branding",
+          "Descrieri sociale cu AI"
+        ],
+        "pro": [
+          "Tot din planul Creator",
+          "Procesare în lot (20 URL-uri)",
+          "Watermark personalizat",
+          "Calendar de conținut",
+          "Generator de scenarii cu AI",
+          "Tablou de analiză"
+        ],
+        "agency": [
+          "Tot din planul Pro",
+          "Exporturi white-label",
+          "Fără branding Sneep Cut",
+          "Suport dedicat",
+          "Export de date GDPR"
+        ]
       }
     }
   },
@@ -1501,7 +1613,10 @@
       "deleteAccount": "Șterge contul",
       "deleteIrreversible": "Acțiunea nu poate fi anulată.",
       "deleteDescription": "Abonamentul, clipurile, calendarul și kitul de brand se șterg. Acțiunea nu poate fi anulată.",
-      "deleteIllustration": "Ana și Radu lângă un coș de gunoi"
+      "deleteIllustration": "Ana și Radu lângă un coș de gunoi",
+      "allOptionalEmails": "Toate e-mailurile opționale",
+      "unsubscribe": "Dezabonează-te",
+      "unsubscribed": "Te-ai dezabonat de la e-mailurile opționale."
     }
   },
   "publish": {
@@ -1772,6 +1887,8 @@
       "showArchived": "Arată arhivate",
       "new": "Script nou",
       "untitled": "Script fără titlu",
+      "untitledScenario": "Scenariu fără titlu",
+      "writingScenario": "Se scrie scenariul",
       "emptyTitle": "Niciun scenariu încă",
       "emptyDescription": "Creează o schiță sau generează una cu AI. Fiecare versiune va rămâne disponibilă aici.",
       "noBrief": "Fără brief",
@@ -1882,7 +1999,36 @@
     }
   },
   "contentCalendar": {
+    "platformPreview": {
+      "title": "Previzualizare",
+      "expand": "Previzualizare mare",
+      "reels": "Reels",
+      "friends": "Prieteni",
+      "follow": "Urmărește",
+      "subscribe": "Abonează-te",
+      "subscriptions": "Abonamente",
+      "instagramAudio": "Audio original · {account}",
+      "tiktokAudio": "sunet original - {account}",
+      "navigationInstagram": "Navigare Instagram",
+      "navigationFacebook": "Navigare Facebook",
+      "navigationTikTok": "Navigare TikTok",
+      "navigationYouTube": "Navigare YouTube",
+      "forYou": "Pentru tine",
+      "explore": "Explorează",
+      "following": "Urmăriți",
+      "home": "Acasă",
+      "notifications": "Notificări",
+      "menu": "Meniu",
+      "marketplace": "Marketplace",
+      "inbox": "Mesaje",
+      "profile": "Profil",
+      "like": "Îmi place",
+      "dislike": "Nu-mi place",
+      "share": "Distribuie",
+      "you": "Tu"
+    },
     "imageEditor": {
+      "dragToPosition": "Trage pentru a poziționa",
       "formatGeneric": "Formatul fotografiilor",
       "facebookFormatHint": "Alege un format pentru fotografii, apoi ajustează fiecare fotografie mai jos.",
       "facebookOriginalHint": "Opțiunea Original păstrează fiecare fotografie fără decupare.",
@@ -1974,7 +2120,16 @@
       "mediaTitle": "Media",
       "when": "Când",
       "mediaCount": "{count} fișiere",
-      "dateAndTime": "Data și ora"
+      "dateAndTime": "Data și ora",
+      "addMedia": "Adaugă",
+      "clipCount": "{count, plural, one {# videoclip} other {# videoclipuri}}",
+      "dropTitle": "Lasă fișierele aici",
+      "dropHint": "Se adaugă la final, în ordinea în care le-ai tras.",
+      "reorderHint": "Trage pozele ca să schimbi ordinea.",
+      "dateField": "Data",
+      "timeField": "Ora",
+      "timeZoneField": "Fus orar · din Setări",
+      "scheduleSummary": "Se publică automat {date}, la {time} ({zone}), pe {platforms}. Fusul orar vine din Setări; îl poți schimba doar pentru această postare."
     },
     "publishing": {
       "description": "Gestionează și programează postările sociale.",
@@ -2471,6 +2626,15 @@
     "facebookSettingsInvalid": "Verifică locația și setările Reel-ului Facebook înainte de salvare.",
     "instagramOptions": "Preferințe Instagram",
     "instagramComments": "Comentarii",
+    "optionsGroupVisibility": "Cine poate vedea",
+    "optionsGroupInteractions": "Interacțiuni",
+    "optionsGroupDisclosures": "Dezvăluiri",
+    "optionsGroupCover": "Copertă",
+    "optionsGroupDisplay": "Afișare",
+    "optionsGroupReel": "Detalii Reel",
+    "optionsGroupDetails": "Detalii",
+    "instagramLocationPlaceholder": "ID Facebook Place",
+    "instagramAudioPlaceholder": "Audio original",
     "instagramShareToFeed": "Afișare în Feed",
     "instagramCollaborators": "Colaboratori",
     "instagramCollaboratorsHint": "Invită până la 3 utilizatori Instagram, separați prin virgulă. Aceștia trebuie să accepte invitația.",
@@ -2618,7 +2782,14 @@
       "noResults": "Ana caută cu lupa printre clipuri, Radu ridică din umeri cu un filtru în mână",
       "error": "Ana și Radu încearcă să repună în funcțiune un proiector",
       "delete": "Ana ezită să arunce clipul, Radu o oprește"
-    }
+    },
+    "favorites": "Favorite",
+    "favoriteCount": "{count, plural, one {# favorit} other {# favorite}}",
+    "addFavorite": "Adaugă la favorite",
+    "removeFavorite": "Scoate din favorite",
+    "star": "Adaugă la favorite: {title}",
+    "unstar": "Scoate din favorite: {title}",
+    "noFavorites": "Niciun clip favorit"
   },
   "brandKits": {
     "title": "Kiturile mele",

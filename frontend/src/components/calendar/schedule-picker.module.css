@@ -1,8 +1,10 @@
 .root { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, .7fr); gap: 10px; }
+/* The composer lays date, time and time zone out as siblings of one three-column row. */
+.compact { display: contents; }
 .field { min-width: 0; }
-.label { display: block; margin-bottom: 6px; font-size: 12px; font-weight: 600; }
-.trigger { display: flex; width: 100%; height: 48px; align-items: center; gap: 7px; border: 0; border-radius: 14px; background: var(--publish-inset); padding: 0 12px; text-align: left; font-size: 13px; color: var(--publish-secondary-text); }
-.trigger:hover { background: var(--publish-secondary); }
+.label { display: block; margin-bottom: 6px; font-size: 13px; font-weight: 500; color: var(--publish-text); }
+.trigger { display: flex; width: 100%; height: 48px; align-items: center; gap: 10px; border: 0; border-radius: 14px; background: transparent; padding: 0 14px; text-align: left; font-size: 14px; font-weight: 500; color: var(--publish-text); box-shadow: inset 0 0 0 1px var(--publish-border); }
+.trigger:hover { background: var(--publish-inset); }
 .trigger:disabled { opacity: .5; cursor: not-allowed; }
 .trigger span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .trigger svg { width: 16px; height: 16px; flex-shrink: 0; color: var(--publish-muted-text); }
@@ -39,4 +41,8 @@
 .mobileTime select { width: 72px; height: 48px; border: 0; border-radius: 14px; background: var(--publish-inset); padding: 8px 12px; font-size: 17px; color: var(--publish-text); }
 .mobileDialog .monthHeader button { width: 44px; height: 44px; }
 .mobileDialog .day { height: 44px; }
+/* Phones show the values alone, as on the mobile composer reference. */
+@media (max-width: 767px) {
+  .compact .label { display: none; }
+}
 .mobileDialog .done { height: 52px; margin-top: 0; }

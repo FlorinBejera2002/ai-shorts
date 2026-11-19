@@ -9,6 +9,7 @@ import { PUBLISHING_PROVIDER_CATALOG, type PublishingData } from '@/lib/publishi
 import { CreditCard, LogOut, type LucideIcon } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useState, type ReactNode } from 'react'
+import { runExclusive } from './run-exclusive'
 import { Avatar, Chevron } from './settings-ui'
 import { SECTION_META, settingsHref, type Profile, type SettingsSection } from './settings-types'
 import styles from './settings.module.css'
@@ -49,15 +50,14 @@ function SignOutButton() {
   const t = useTranslations('settings.page')
   const toast = useToast()
   const [pending, setPending] = useState(false)
-  async function signOut() {
-    if (pending) return
-    setPending(true)
-    try {
-      await authClient.logout()
-    } catch {
-      toast.add('error', t('signOutFailed'))
-      setPending(false)
-    }
+  function signOut() {
+    void runExclusive({
+      claim: () => !pending,
+      onStart: () => setPending(true),
+      onError: () => toast.add('error', t('signOutFailed')),
+      onFinish: () => setPending(false),
+      action: () => authClient.logout()
+    })
   }
   return (
     <button
@@ -65,7 +65,7 @@ function SignOutButton() {
       className={`${ui.button} ${ui.focus} ${styles.signOut}`}
       disabled={pending}
       aria-busy={pending || undefined}
-      onClick={() => void signOut()}
+      onClick={signOut}
       data-settings-sign-out=""
     >
       <LogOut aria-hidden="true" />

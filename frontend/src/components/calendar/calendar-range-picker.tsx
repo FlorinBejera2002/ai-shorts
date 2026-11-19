@@ -52,9 +52,15 @@ export function CalendarRangePicker({
   const [month, setMonth] = useState(() => startOfLocalMonth(initial.start))
   const cells = useMemo(() => monthCells(month, weekStartsOn), [month, weekStartsOn])
   const weekdays = getWeekdayLabels(locale, weekStartsOn)
-  const monthTitle = new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric' }).format(month)
+  const { monthFormat, dayFormat } = useMemo(
+    () => ({
+      monthFormat: new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric' }),
+      dayFormat: new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'long', year: 'numeric' })
+    }),
+    [locale]
+  )
+  const monthTitle = monthFormat.format(month)
   const complete = picked.first !== null && picked.last !== null
-  const dayFormat = new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'long', year: 'numeric' })
 
   function pickDay(day: Date) {
     if (picked.first === null || picked.last !== null) setPicked({ first: day, last: null })
@@ -97,7 +103,7 @@ export function CalendarRangePicker({
               className={styles.day}
               data-inside={inside || undefined}
               data-endpoint={selectedFirst || selectedLast || undefined}
-              aria-pressed={selectedFirst || selectedLast}
+              aria-selected={selectedFirst || selectedLast}
               aria-label={dayFormat.format(day)}
               onClick={() => pickDay(day)}
             >

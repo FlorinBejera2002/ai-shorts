@@ -369,6 +369,10 @@
   overflow-wrap: anywhere;
 }
 
+.key code > span {
+  display: inline-block;
+}
+
 .key button {
   height: 36px;
   gap: 6px;

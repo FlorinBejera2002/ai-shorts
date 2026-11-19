@@ -107,7 +107,8 @@ func (s *Repository) createTx(ctx context.Context, tx *sql.Tx, userID string, in
 		if err != nil {
 			return nil, err
 		}
-		if _, err = tx.ExecContext(ctx, `UPDATE jobs SET brand_snapshot=COALESCE((SELECT to_jsonb(b) FROM brand_kits b WHERE b.user_id=$2 AND (CASE WHEN $3::text IS NULL THEN b.is_default ELSE b.id::text=$3 END)),'{}'::jsonb) WHERE id=$1`, id, userID, in.BrandKitID); err != nil {
+		// The chosen kit, or the default kit when none was chosen or the chosen one is gone.
+		if _, err = tx.ExecContext(ctx, `UPDATE jobs SET brand_snapshot=COALESCE((SELECT to_jsonb(b) FROM brand_kits b WHERE b.user_id=$2 AND b.id::text=$3::text),(SELECT to_jsonb(b) FROM brand_kits b WHERE b.user_id=$2 AND b.is_default),'{}'::jsonb) WHERE id=$1`, id, userID, in.BrandKitID); err != nil {
 			return nil, err
 		}
 		sourceType := "auto"

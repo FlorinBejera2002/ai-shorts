@@ -91,30 +91,58 @@ await page.route('**/api/**', async route => {
   return route.fulfill({ json: {} })
 })
 
-const imageRow = name => page.locator('li').filter({
-  has: page.getByRole('button', { name: `Edit ${name}`, exact: true })
-})
+// Media lives in the composer's media dialog; each photo opens its own editor dialog.
+// Platform options (Instagram settings) live in the platform options dialog.
+const mediaDialog = () => page.locator('[data-post-media-dialog]')
+const imageEditor = () => page.locator('[data-publishing-image-editor]')
+const platformDialog = () => page.locator('[data-platform-options]')
 
 async function openPost(id) {
-  const title = posts.get(id).title
-  const open = page.getByRole('button', { name: `Open post ${title}`, exact: true })
-  const edit = page.getByRole('button', { name: `Edit ${title}`, exact: true })
+  const postTitle = posts.get(id).title
+  const open = page.getByRole('button', { name: `Open post ${postTitle}`, exact: true })
+  const edit = page.getByRole('button', { name: `Edit ${postTitle}`, exact: true })
+  // The queue opens on Scheduled; drafts live under All. A row click opens the detail, whose Edit opens the composer.
+  const all = page.locator('[data-publishing-workspace]').getByRole('tab', { name: /^All/ })
+  if (await all.count() && (await all.getAttribute('aria-selected')) !== 'true') await all.click()
   await open.or(edit).first().click()
-  await page.getByLabel('Post title', { exact: true }).waitFor()
-  assert.equal(await page.getByLabel('Post title', { exact: true }).inputValue(), title)
+  const editPost = page.getByRole('button', { name: 'Edit post', exact: true })
+  const title = page.getByLabel('Post title', { exact: true })
+  await title.or(editPost).first().waitFor({ state: 'attached' })
+  if (!(await title.count())) await editPost.click()
+  await title.waitFor({ state: 'attached' })
+  assert.equal(await title.inputValue(), posts.get(id).title)
+}
+
+async function openMediaDialog() {
+  await page.getByRole('button', { name: 'Change media', exact: true }).first().click()
+  await mediaDialog().waitFor()
+}
+
+async function confirmMedia() {
+  await mediaDialog().getByRole('button', { name: 'Use media', exact: true }).click()
+  await mediaDialog().waitFor({ state: 'detached' })
 }
 
 async function openImage(name) {
-  const button = page.getByRole('button', { name: `Edit ${name}`, exact: true })
-  if (await button.getAttribute('aria-expanded') !== 'true') await button.click()
-  await imageRow(name).getByLabel('Alternative text', { exact: true }).waitFor()
-  return imageRow(name)
+  await page.getByRole('button', { name: `Edit ${name}`, exact: true }).click()
+  const editor = imageEditor()
+  await editor.getByLabel('Alternative text', { exact: true }).waitFor()
+  return editor
+}
+
+async function closeImage(editor) {
+  await editor.getByRole('button', { name: 'Done', exact: true }).last().click()
+  await editor.waitFor({ state: 'detached' })
 }
 
 async function openPreferences() {
-  const button = page.getByRole('button', { name: /Instagram Preferences/ })
-  if (await button.getAttribute('aria-expanded') !== 'true') await button.click()
-  await page.getByLabel('Collaborators', { exact: true }).waitFor()
+  await page.getByRole('button', { name: 'Platform options', exact: true }).click()
+  await platformDialog().getByLabel('Collaborators', { exact: true }).waitFor()
+}
+
+async function closePreferences() {
+  await platformDialog().getByRole('button', { name: 'Done', exact: true }).click()
+  await platformDialog().waitFor({ state: 'detached' })
 }
 
 async function choose(label, option) {
@@ -133,12 +161,20 @@ async function moveSlider(scope, label, key, count = 1) {
   return Number(await slider.getAttribute('aria-valuenow'))
 }
 
+// The crop position is moved on the crop stage itself (no slider): arrow keys nudge the photo under the frame.
+async function nudgeCropFrame(scope, key, count) {
+  const frame = scope.locator('[data-positionable]')
+  await frame.focus()
+  for (let index = 0; index < count; index++) await frame.press(key)
+}
+
 async function savePost(id) {
   const response = page.waitForResponse(value =>
     value.request().method() === 'PATCH' && new URL(value.url()).pathname === `/api/calendar/${id}`)
-  await page.getByRole('button', { name: 'Save changes', exact: true }).click()
+  // Draft posts submit through the composer's primary "Save draft" action.
+  await page.getByRole('button', { name: 'Save draft', exact: true }).click()
   assert.equal((await response).status(), 200)
-  await page.getByRole('button', { name: 'New post', exact: true }).waitFor()
+  await page.getByRole('button', { name: 'New post', exact: true }).first().waitFor()
   return updates.at(-1).body
 }
 
@@ -175,23 +211,23 @@ async function assertDashboardIdentity() {
   }), true, 'Navigation and component updates preserve dashboard DOM and sidebar state')
 }
 
-async function verifyFastRefresh() {
+async function verifyFastRefresh(editor) {
   if (process.env.RUN_FAST_REFRESH !== '1') {
     console.log('SKIPPED Fast Refresh source mutation; set RUN_FAST_REFRESH=1 after UI edits finish')
     return
   }
   const sourcePath = new URL('../src/components/calendar/publishing-image-editor.tsx', import.meta.url)
-  const anchor = '<div className="mt-2 space-y-4 border-t px-2 pb-2 pt-4">'
+  const anchor = '<div className={styles.controls}>'
   const probe = anchor.replace('<div ', '<div data-instagram-refresh-probe="updated" ')
   const source = await readFile(sourcePath, 'utf8')
   assert.equal(source.split(anchor).length, 2, 'Refresh probe anchor is unique')
-  const unsavedTag = imageRow(imageA.name).getByLabel('Tag people', { exact: true })
+  const unsavedTag = editor.getByLabel('Tag people', { exact: true })
   await unsavedTag.fill('unsaved_tag_state')
   try {
     await writeFile(sourcePath, source.replace(anchor, probe))
     await page.locator('[data-instagram-refresh-probe="updated"]').first().waitFor()
     assert.equal(await unsavedTag.inputValue(), 'unsaved_tag_state', 'Fast Refresh preserves local child input state')
-    assert.equal(await imageRow(imageA.name).getByLabel('Alternative text', { exact: true }).inputValue(), 'A studio camera beside a window.')
+    assert.equal(await editor.getByLabel('Alternative text', { exact: true }).inputValue(), 'A studio camera beside a window.')
     await assertDashboardIdentity()
   } finally {
     const current = await readFile(sourcePath, 'utf8')
@@ -203,53 +239,72 @@ async function verifyFastRefresh() {
 
 try {
   await page.goto(`${origin}/dashboard/publish`, { waitUntil: 'networkidle', timeout: 180000 })
-  await page.getByRole('button', { name: 'New post', exact: true }).waitFor()
+  await page.getByRole('button', { name: 'New post', exact: true }).first().waitFor()
   await page.locator('[data-sidebar="trigger"]').first().click()
   await rememberDashboard()
   await openPost(carouselId)
   await assertDashboardIdentity()
-  await choose('Instagram photo format', 'Portrait (4:5)')
+  await openMediaDialog()
+  // The carousel format is chosen in the first photo's editor and applies to every photo.
   const first = await openImage(imageA.name)
-  await first.getByLabel('Alternative text', { exact: true }).fill('A studio camera beside a window.')
-  const cropX = await moveSlider(first, 'Horizontal position', 'ArrowRight', 7)
-  const cropY = await moveSlider(first, 'Vertical position', 'ArrowLeft', 9)
+  await first.getByRole('radio', { name: '4:5', exact: true }).check()
+  // Zoom first: at zoom 1 a 4:5 crop of a landscape photo has no vertical room to move.
   const cropZoom = await moveSlider(first, 'Zoom', 'ArrowRight', 15)
+  await nudgeCropFrame(first, 'ArrowRight', 7)
+  await nudgeCropFrame(first, 'ArrowUp', 9)
+  await first.getByLabel('Alternative text', { exact: true }).fill('A studio camera beside a window.')
   await first.getByLabel('Tag people', { exact: true }).fill('@sneep_artist')
   await first.getByRole('button', { name: 'Add', exact: true }).click()
   await first.locator('summary').filter({ hasText: '@sneep_artist' }).click()
   const tagX = await moveSlider(first, 'sneep_artist: horizontal position', 'ArrowRight', 4)
   const tagY = await moveSlider(first, 'sneep_artist: vertical position', 'ArrowLeft', 6)
+  await verifyFastRefresh(first)
+  await closeImage(first)
   const second = await openImage(imageB.name)
   await second.getByLabel('Alternative text', { exact: true }).fill('A microphone on a wooden desk.')
+  await closeImage(second)
   await page.getByRole('button', { name: `Drag to reorder ${imageB.name}`, exact: true }).press('ArrowUp')
+  await confirmMedia()
   await openPreferences()
-  await page.getByLabel('Collaborators', { exact: true }).fill('sneep_artist, sneep_editor')
-  await page.getByLabel('Location', { exact: true }).fill('123456789')
-  assert.equal(await page.getByLabel('Original audio name', { exact: true }).count(), 0, 'Photo carousels omit Reel-only controls')
-  assert.equal(await page.getByLabel('Cover frame (seconds)', { exact: true }).count(), 0)
-  await verifyFastRefresh()
+  await platformDialog().getByLabel('Collaborators', { exact: true }).fill('sneep_artist, sneep_editor')
+  await platformDialog().getByLabel('Location', { exact: true }).fill('123456789')
+  assert.equal(await platformDialog().getByLabel('Original audio name', { exact: true }).count(), 0, 'Photo carousels omit Reel-only controls')
+  assert.equal(await platformDialog().getByLabel('Cover frame (seconds)', { exact: true }).count(), 0)
+  await closePreferences()
 
   const saved = await savePost(carouselId)
   assert.deepEqual(saved.media.map(item => item.reference), [imageB.reference, imageA.reference])
   assert.equal(saved.media[0].altText, 'A microphone on a wooden desk.')
   assert.equal(saved.media[1].altText, 'A studio camera beside a window.')
-  assert.deepEqual(saved.media[1].crop, { aspectRatio: '4:5', x: cropX / 100, y: cropY / 100, zoom: cropZoom })
+  // Crop starts centred at (0.5, 0.5). ArrowRight moves the photo right, which lowers crop x; ArrowUp moves it up, which raises crop y.
+  assert.equal(saved.media[1].crop.aspectRatio, '4:5')
+  assert.equal(saved.media[1].crop.zoom, cropZoom)
+  assert.ok(saved.media[1].crop.x < 0.5, 'Arrow right repositions the crop to the right in the payload')
+  assert.ok(saved.media[1].crop.y > 0.5, 'Arrow up repositions the crop upward in the payload')
   assert.deepEqual(saved.media[1].userTags, [{ username: 'sneep_artist', x: tagX / 100, y: tagY / 100 }])
   assert.equal(saved.instagram.locationId, '123456789')
   assert.deepEqual(saved.instagram.collaborators, ['sneep_artist', 'sneep_editor'])
   await assertDashboardIdentity()
   await openPost(carouselId)
+  await openMediaDialog()
   const restored = await openImage(imageA.name)
   assert.equal(await restored.getByLabel('Alternative text', { exact: true }).inputValue(), saved.media[1].altText)
   assert.equal(Number(await restored.getByRole('slider', { name: 'Zoom', exact: true }).getAttribute('aria-valuenow')), cropZoom)
+  await closeImage(restored)
+  await confirmMedia()
   await openPreferences()
-  assert.equal(await page.getByLabel('Location', { exact: true }).inputValue(), '123456789')
+  assert.equal(await platformDialog().getByLabel('Location', { exact: true }).inputValue(), '123456789')
+  await closePreferences()
   console.log('Carousel crop, alt text, positioned tags, order and advanced settings survive save and reopen')
 
   await page.setViewportSize({ width: 390, height: 844 })
-  await restored.getByLabel('Alternative text', { exact: true }).fill('Mobile edit: a camera beside a window.')
+  await openMediaDialog()
+  const mobileEditor = await openImage(imageA.name)
+  await mobileEditor.getByLabel('Alternative text', { exact: true }).fill('Mobile edit: a camera beside a window.')
+  await closeImage(mobileEditor)
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), true, 'Mobile composer does not overflow horizontally')
   await capture('instagram-composer-mobile')
+  await confirmMedia()
   const mobileSaved = await savePost(carouselId)
   assert.equal(mobileSaved.media[1].altText, 'Mobile edit: a camera beside a window.')
   console.log('Mobile composer remains usable and saves per-image edits')
@@ -259,10 +314,11 @@ try {
   await openPost(reelId)
   await openPreferences()
   assert.equal(await page.getByLabel('Alternative text', { exact: true }).count(), 0, 'Reels omit photo alt-text controls')
-  await page.getByLabel('Original audio name', { exact: true }).fill('Synthetic studio audio')
-  await page.getByLabel('Cover frame (seconds)', { exact: true }).fill('1.5')
-  await page.getByRole('switch', { name: 'AI-generated content', exact: true }).click()
+  await platformDialog().getByLabel('Original audio name', { exact: true }).fill('Synthetic studio audio')
+  await platformDialog().getByLabel('Cover frame (seconds)', { exact: true }).fill('1.5')
+  await platformDialog().getByRole('switch', { name: 'AI-generated content', exact: true }).click()
   await choose('Trial Reel', 'Trial — share manually')
+  await closePreferences()
   const reelSaved = await savePost(reelId)
   assert.equal(reelSaved.instagram.audioName, 'Synthetic studio audio')
   assert.equal(reelSaved.instagram.thumbOffset, 1500)
@@ -270,20 +326,22 @@ try {
   assert.equal(reelSaved.instagram.trialReel, 'MANUAL')
   await openPost(reelId)
   await openPreferences()
-  assert.equal(await page.getByLabel('Original audio name', { exact: true }).inputValue(), 'Synthetic studio audio')
-  assert.equal(await page.getByLabel('Cover frame (seconds)', { exact: true }).inputValue(), '1.5')
+  assert.equal(await platformDialog().getByLabel('Original audio name', { exact: true }).inputValue(), 'Synthetic studio audio')
+  assert.equal(await platformDialog().getByLabel('Cover frame (seconds)', { exact: true }).inputValue(), '1.5')
   const coverPreview = page.waitForResponse(value => {
     const url = new URL(value.url())
     return url.pathname === '/api/publishing/media/preview' && url.searchParams.get('reference') === coverReference
   })
-  await page.getByLabel('Reel cover', { exact: true }).setInputFiles({ name: 'reel-cover.png', mimeType: 'image/png', buffer: coverPng })
+  // The compact cover drawer labels its file input with the Cover group copy.
+  await platformDialog().getByLabel('Cover', { exact: true }).setInputFiles({ name: 'reel-cover.png', mimeType: 'image/png', buffer: coverPng })
   await coverPreview
-  await page.getByRole('img', { name: 'Reel cover', exact: true }).waitFor()
+  await platformDialog().getByRole('img', { name: 'Reel cover', exact: true }).waitFor()
   await assertDashboardIdentity()
   await capture('instagram-composer-reel')
   // Full-page screenshots can temporarily resize the layout viewport. Keep
   // navigation checks scoped to the desktop shell after capture completes.
   await rememberDashboard()
+  await closePreferences()
   const coveredReel = await savePost(reelId)
   await assertDashboardIdentity()
   assert.equal(uploads.length, 1)

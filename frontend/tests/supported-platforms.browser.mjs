@@ -88,32 +88,36 @@ async function noRetiredPlatforms() {
 
 try {
   await page.goto(`${origin}/dashboard/publish`, { waitUntil: 'networkidle', timeout: 180000 })
-  const connections = page.locator('aside').filter({ hasText: 'Connected accounts' })
-  await connections.getByText('YouTube', { exact: true }).waitFor()
+  // The publish header renders one avatar per network (aria-label "<Network> – <status>");
+  // each opens a popover that holds the connection actions and the YouTube consent checkbox.
+  const connections = page.locator('div[aria-label="Connected accounts"]')
+  await connections.getByRole('button', { name: /^YouTube/ }).waitFor()
   assert.deepEqual(await connections.locator('[data-platform-mark]').evaluateAll(
     nodes => nodes.map(node => node.dataset.platformMark)
   ), allowed)
   await noRetiredPlatforms()
   console.log('Calendar shows exactly four providers despite stale API data')
 
-  const consent = connections.getByRole('switch')
+  await connections.getByRole('button', { name: /^YouTube/ }).click()
+  const youtubePanel = page.locator('[data-account-panel="youtube"]')
+  const consent = youtubePanel.getByRole('checkbox')
   await consent.click()
-  assert.equal(await consent.getAttribute('aria-checked'), 'true')
+  assert.equal(await consent.isChecked(), true)
   await page.evaluate(() => {
     window.platformRefreshProbe = {
-      connections: [...document.querySelectorAll('aside')].find(node => node.textContent.includes('Connected accounts')),
+      connections: document.querySelector('div[aria-label="Connected accounts"]'),
       main: document.querySelector('main')
     }
   })
-  const sourcePath = new URL('../src/components/calendar/calendar-connections.tsx', import.meta.url)
-  const anchor = 'as="aside"'
-  const probe = `${anchor}\n      data-platform-refresh-probe="updated"`
+  const sourcePath = new URL('../src/components/calendar/calendar-account-avatars.tsx', import.meta.url)
+  const anchor = "<div className={styles.connections} aria-label={t('connections.title')}"
+  const probe = `${anchor}\n        data-platform-refresh-probe="updated"`
   const source = await readFile(sourcePath, 'utf8')
   assert.equal(source.split(anchor).length, 2)
   try {
     await writeFile(sourcePath, source.replace(anchor, probe))
     await page.locator('[data-platform-refresh-probe="updated"]').waitFor()
-    assert.equal(await consent.getAttribute('aria-checked'), 'true', 'Fast Refresh preserves consent state')
+    assert.equal(await consent.isChecked(), true, 'Fast Refresh preserves consent state')
     assert.equal(await page.evaluate(() =>
       window.platformRefreshProbe?.connections === document.querySelector('[data-platform-refresh-probe]') &&
       window.platformRefreshProbe?.main === document.querySelector('main')
@@ -125,36 +129,47 @@ try {
   await page.locator('[data-platform-refresh-probe]').waitFor({ state: 'detached' })
   console.log('Component Fast Refresh preserves state and dashboard DOM')
 
-  await page.goto(`${origin}/dashboard/settings`, { waitUntil: 'networkidle' })
-  const settings = page.locator('section[aria-labelledby="connections-title"]')
+  // Connections is its own Settings section (`?section=connections`); each provider renders one card.
+  await page.goto(`${origin}/dashboard/settings?section=connections`, { waitUntil: 'networkidle' })
+  const settings = page.locator('[data-settings-connections]')
   await settings.getByText('YouTube', { exact: true }).waitFor()
-  assert.equal(await settings.locator('li').count(), 4)
+  assert.deepEqual(await settings.locator('[data-settings-connection]').evaluateAll(
+    nodes => nodes.map(node => node.dataset.settingsConnection)
+  ), allowed)
   await noRetiredPlatforms()
 
   await page.goto(`${origin}/dashboard/script-generator`, { waitUntil: 'networkidle' })
   await page.getByRole('button', { name: /Historical script/ }).click()
+  // The editor toolbar's back control returns to the library; its label is "Scripts" (workspace.backLabel).
+  const backToLibrary = () => page.locator('[data-script-toolbar]')
+    .getByRole('button', { name: 'Scripts', exact: true }).click()
+  // The platform picker is a radiogroup; the chosen network is the one radio with aria-checked="true".
   const platform = page.locator('#script-platform')
+  const checkedPlatform = async () => (await platform
+    .locator('[role="radio"][aria-checked="true"]')
+    .evaluateAll(nodes => nodes.map(node => node.dataset.platform)))[0] ?? ''
   await platform.waitFor()
-  assert.equal(await platform.inputValue(), '', 'A retired platform is not silently reassigned')
-  assert.deepEqual((await platform.locator('option').evaluateAll(
-    options => options.map(option => option.value).filter(Boolean)
+  assert.equal(await checkedPlatform(), '', 'A retired platform is not silently reassigned')
+  assert.deepEqual((await platform.locator('[role="radio"]').evaluateAll(
+    nodes => nodes.map(node => node.dataset.platform).filter(Boolean)
   )).sort(), [...allowed].sort())
   assert.equal(updates.length, 0, 'Opening a legacy script does not mutate its saved platform')
   await noRetiredPlatforms()
-  await page.getByRole('button', { name: 'All scripts', exact: true }).click()
+  await backToLibrary()
   await page.getByRole('button', { name: 'New script', exact: true }).click()
   await platform.waitFor()
-  assert.equal(await platform.inputValue(), 'tiktok')
+  assert.equal(await checkedPlatform(), 'tiktok')
   assert.equal(newDrafts.at(-1).platform, 'tiktok', 'A new draft cannot inherit a retired platform')
   assert.equal(updates.length, 0, 'Creating a new draft preserves the historical script')
-  await page.getByRole('button', { name: 'All scripts', exact: true }).click()
+  await backToLibrary()
   await page.getByRole('button', { name: /Historical script/ }).click()
-  assert.equal(await platform.inputValue(), '')
+  assert.equal(await checkedPlatform(), '')
   const saved = page.waitForResponse(response => response.request().method() === 'PATCH' &&
     new URL(response.url()).pathname === `/api/scripts/items/${script.id}`)
-  await platform.selectOption('facebook')
+  await platform.locator('[role="radio"][data-platform="facebook"]').click()
   await saved
   assert.equal(updates.at(-1).platform, 'facebook')
+  assert.equal(await checkedPlatform(), 'facebook')
   console.log('Legacy scripts require explicit choice from the four supported platforms')
 
   for (const route of ['/', '/ro', '/privacy', '/terms', '/data-deletion']) {
@@ -162,7 +177,7 @@ try {
     await noRetiredPlatforms()
   }
   await page.goto(`${origin}/dashboard/publish`, { waitUntil: 'networkidle' })
-  await page.getByText('Connected accounts', { exact: true }).waitFor()
+  await page.locator('div[aria-label="Connected accounts"]').waitFor()
   const screenshot = new URL('../test-results/supported-platforms.png', import.meta.url)
   await mkdir(new URL('../test-results/', import.meta.url), { recursive: true })
   await page.screenshot({ path: fileURLToPath(screenshot), fullPage: true })

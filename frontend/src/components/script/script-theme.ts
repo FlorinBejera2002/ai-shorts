@@ -3,7 +3,7 @@ import styles from './scripts-workspace.module.css'
 
 /** Scripts reuse the Publish reference theme; portals need the same scope. */
 export const scriptSurfaceClass = `${theme.surface} ${styles.tokens}`
-export const scriptOverlayClass = theme.overlay
+export const scriptOverlayClass = `${theme.overlay} ${styles.tokens}`
 
 /** Spread on the Scripts root and on every portal it opens. */
 export const scriptSurfaceProps = {

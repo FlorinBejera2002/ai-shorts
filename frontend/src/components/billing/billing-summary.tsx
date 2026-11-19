@@ -23,11 +23,18 @@ type MetaItem = { Icon: LucideIcon; text: string }
 
 const PERIOD_KEYS = { renews: 'renewsOn', ends: 'endsOn', period: 'periodEndsOn' } as const
 
+function usePeriodText(period: BillingOverview['period'], locale: BillingLocale) {
+  const t = useTranslations('billing')
+  const date = formatBillingDate(period?.date, locale)
+  if (!period || !date) return null
+  if (period.kind === 'lastConfirmed') return `${t('lastConfirmedPeriod')} ${date}`
+  return t(`canvas.${PERIOD_KEYS[period.kind]}`, { date })
+}
+
 function useMetaItems({ overview, planPrice, locale }: Omit<BillingSummaryProps, 'planName' | 'actions'>) {
   const t = useTranslations('billing')
   const { access, currentPlan, period } = overview
-  const date = formatBillingDate(period?.date, locale)
-  const periodText = period && date ? t(`canvas.${PERIOD_KEYS[period.kind]}`, { date }) : null
+  const periodText = usePeriodText(period, locale)
   if (access === 'admin') return [{ Icon: Sparkles, text: t('adminAccess') }]
   if (!isPaidBillingPlanId(currentPlan))
     return [

@@ -4,11 +4,11 @@ import theme from '@/components/calendar/publishing-theme.module.css'
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet'
 import { Link } from '@/i18n/navigation'
 import type { ClipsLibrary, ClipsQuery, LibraryCollection } from '@/lib/clips-library'
-import { EllipsisVertical, Inbox, LayoutGrid, Pencil, Plus, Trash2 } from 'lucide-react'
+import { EllipsisVertical, Inbox, LayoutGrid, Pencil, Plus, Star, Trash2 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { DropdownMenu as Menu } from 'radix-ui'
 import type { ReactNode } from 'react'
-import { CloseButton } from '@/components/shared/reference-overlay'
+import { CloseButton, SheetMenu } from '@/components/shared/reference-overlay'
 import { ProjectIcon } from './clips-icons'
 import overlay from '@/components/shared/reference-ui.module.css'
 import styles from './clips.module.css'
@@ -44,6 +44,7 @@ export function ClipsRail({ library, scope, href, dropTarget, commands }: Naviga
   return (
     <aside className={`${styles.card} ${styles.rail}`} aria-label={t('projectsHeading')} data-clips-rail="">
       <RailItem href={href({ project: 'all' })} current={scope === 'all'} icon={<LayoutGrid aria-hidden="true" />} name={t('allClips')} count={library.clips.length} />
+      <RailItem href={href({ project: 'favorites' })} current={scope === 'favorites'} icon={<Star aria-hidden="true" />} name={t('favorites')} count={library.favorites} />
       <RailItem href={href({ project: 'none' })} current={scope === 'none'} icon={<Inbox aria-hidden="true" />} name={t('unassigned')} count={library.unassigned} />
       <span className={styles.railHeading}>{t('projectsHeading')}</span>
       {library.collections.map((project) => {
@@ -138,6 +139,7 @@ export function ClipsChips({ library, scope, href, dropTarget, commands }: Navig
   return (
     <nav className={styles.chips} aria-label={t('projectsHeading')} data-clips-chips="">
       <Chip href={href({ project: 'all' })} current={scope === 'all'} icon={<span className={styles.chipIcon}><LayoutGrid aria-hidden="true" /></span>} name={t('allShort')} count={library.clips.length} />
+      <Chip href={href({ project: 'favorites' })} current={scope === 'favorites'} icon={<span className={styles.chipIcon}><Star aria-hidden="true" /></span>} name={t('favorites')} count={library.favorites} />
       <Chip href={href({ project: 'none' })} current={scope === 'none'} icon={<span className={styles.chipIcon}><Inbox aria-hidden="true" /></span>} name={t('unassigned')} count={library.unassigned} />
       {library.collections.map((project) => (
         <Chip
@@ -246,7 +248,7 @@ export function ProjectActionsSheet({
           <SheetTitle>{project?.name}</SheetTitle>
           <CloseButton onClick={onClose} />
         </div>
-        <div className={overlay.sheetList} role="menu" aria-label={project ? t('projectOptions', { name: project.name }) : undefined}>
+        <SheetMenu className={overlay.sheetList} label={project ? t('projectOptions', { name: project.name }) : undefined}>
           <button type="button" role="menuitem" className={overlay.item} onClick={() => run(commands.onRename)}>
             <Pencil aria-hidden="true" />
             <span>{t('rename')}</span>
@@ -256,7 +258,7 @@ export function ProjectActionsSheet({
             <Trash2 aria-hidden="true" />
             <span>{t('deleteProject')}</span>
           </button>
-        </div>
+        </SheetMenu>
       </SheetContent>
     </Sheet>
   )

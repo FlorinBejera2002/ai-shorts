@@ -31,7 +31,25 @@ function fixture() {
   let reloads = 0
 
   const jsx = (type, props) => ({ type, props })
+  // Local modules the component imports are transpiled and run in the same sandbox.
+  const localModules = new Map()
+  function loadLocal(file) {
+    if (localModules.has(file)) return localModules.get(file).exports
+    const code = ts.transpileModule(readFileSync(new URL(`../src/components/calendar/${file}`, import.meta.url), 'utf8'), {
+      compilerOptions: { esModuleInterop: true, jsx: ts.JsxEmit.ReactJSX, module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 }
+    }).outputText
+    const module = { exports: {} }
+    localModules.set(file, module)
+    vm.runInNewContext(code, { exports: module.exports, module, require, URLSearchParams })
+    return module.exports
+  }
   const require = (name) => {
+    if (name === './calendar-account-disconnect') return loadLocal('calendar-account-disconnect.ts')
+    if (name === './calendar-disconnect-confirmation') {
+      // The confirmation is a reference overlay; the test asserts the props it receives.
+      return { DisconnectConfirmation: function DisconnectConfirmation() { return null } }
+    }
+    if (name === '@/hooks/use-mobile') return { useIsMobile: () => false }
     if (name === 'react/jsx-runtime') {
       return { jsx, jsxs: jsx, Fragment: 'Fragment' }
     }
@@ -133,8 +151,9 @@ function fixture() {
 
   function nodes(root, type) {
     if (!root || typeof root !== 'object') return []
+    const matches = root.type === type || root.type?.name === type
     return [
-      ...(root.type === type ? [root] : []),
+      ...(matches ? [root] : []),
       ...[root.props?.children]
         .flat(Number.POSITIVE_INFINITY)
         .flatMap((child) => nodes(child, type))
@@ -167,11 +186,9 @@ test('shows the connected identity and disconnects the selected account', async 
   disconnectTrigger.props.onClick()
 
   tree = view.render()
-  assert.equal(view.nodes(tree, 'Dialog')[0].props.open, true)
-  const confirm = view
-    .nodes(tree, 'Button')
-    .find((node) => node.props.variant === 'destructive')
-  confirm.props.onClick()
+  const confirmation = view.nodes(tree, 'DisconnectConfirmation')[0]
+  assert.equal(confirmation.props.account?.id, 'account-1', 'The disconnect confirmation names the selected account')
+  confirmation.props.onConfirm()
 
   await new Promise((resolve) => setImmediate(resolve))
   assert.equal(view.requests.length, 1)
@@ -181,5 +198,5 @@ test('shows the connected identity and disconnects the selected account', async 
   assert.equal(view.toasts.length, 1)
   assert.equal(view.toasts[0][0], 'success')
   assert.equal(view.toasts[0][1], 'disconnected')
-  assert.equal(view.nodes(view.render(), 'Dialog')[0].props.open, false)
+  assert.equal(view.nodes(view.render(), 'DisconnectConfirmation')[0].props.account, null, 'The confirmation closes after disconnecting')
 })

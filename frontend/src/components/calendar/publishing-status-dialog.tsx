@@ -69,9 +69,9 @@ export function PublishingStatusDialog({
         </p>
       )}
       <ul className={styles.destinations}>
-        {destinations.map((destination, index) => (
+        {destinations.map((destination) => (
           <li
-            key={`${destination.provider}-${destination.accountName}-${index}`}
+            key={`${destination.provider}-${destination.accountName}`}
             className={styles.destination}
           >
             <PlatformBrandIcon

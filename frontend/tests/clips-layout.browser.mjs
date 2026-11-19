@@ -87,6 +87,8 @@ function library({ empty = false } = {}) {
           hookText: null,
           resolution: '1080 × 1920',
           hasSubtitles,
+          // Four starred clips, as on the canvas.
+          favorite: [0, 2, 4, 8].includes(index),
           createdAt: new Date(now - (index + 1) * 3_600_000 * 7).toISOString()
         }))
   }
@@ -179,6 +181,12 @@ async function fixture(options = {}) {
         clip.folderId = body.collectionId
         return route.fulfill({ json: { updated: true } })
       }
+      if (method === 'PUT' && (match = path.match(/^\/api\/clips\/([0-9a-f-]{36})\/favorite$/))) {
+        const clip = state.clips.find((item) => item.id === match[1])
+        if (!clip) return route.fulfill({ status: 404, json: { detail: 'Project item not found' } })
+        clip.favorite = body.favorite
+        return route.fulfill({ json: { favorite: body.favorite } })
+      }
       if (method === 'DELETE' && (match = path.match(/^\/api\/clips\/([0-9a-f-]{36})$/))) {
         state.clips = state.clips.filter((item) => item.id !== match[1])
         return route.fulfill({ json: { deleted: true } })
@@ -204,7 +212,7 @@ async function fixture(options = {}) {
     release: () => releaseRead(),
     fail: (value) => (failRead = value),
     async open(search = '', wait = true) {
-      await page.goto(`${origin}/${options.ro ? 'ro/' : ''}dashboard/clips${search}`, { waitUntil: options.holdRead ? 'domcontentloaded' : 'networkidle' })
+      await page.goto(`${origin}/${options.ro ? 'ro/' : ''}dashboard/clips${search}`, { waitUntil: options.holdRead ? 'domcontentloaded' : 'load' })
       if (wait) await page.locator('[data-clips-workspace]').waitFor()
     },
     close: async () => {
@@ -225,6 +233,14 @@ async function capture(f, name) {
 }
 async function noOverflow(page, name) {
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), true, `${name}: no horizontal overflow`)
+}
+async function until(check, message) {
+  const deadline = Date.now() + 8000
+  while (Date.now() < deadline) {
+    if (await check()) return
+    await new Promise((resolve) => setTimeout(resolve, 100))
+  }
+  assert.fail(message)
 }
 async function counts(f) {
   return f.root.locator('[data-clips-scope]').evaluateAll((links) =>
@@ -257,6 +273,10 @@ async function openClipMenu(f, index = 0, mobile = false) {
   const menu = f.page.getByRole('menu', { name: mobile ? 'Clip actions' : `Actions for ${title}` })
   await menu.waitFor()
   return { menu, title, id: await card.getAttribute('data-clip-card') }
+}
+/** The clip menu item that matches the card's star. */
+async function favoriteAction(card) {
+  return (await card.locator('[data-clip-favorite]').getAttribute('aria-pressed')) === 'true' ? 'Remove from favorites' : 'Add to favorites'
 }
 async function rememberShell(page) {
   await page.evaluate(() => {
@@ -305,7 +325,7 @@ async function references() {
           `${prefix}: primary action is black / muted steel`
         )
         if (!mobile) {
-          assert.deepEqual(await counts(f), { 'All clips': 24, 'No project': 5, Podcast: 8, Recipes: 6, Interviews: 5 })
+          assert.deepEqual(await counts(f), { 'All clips': 24, Favorites: 4, 'No project': 5, Podcast: 8, Recipes: 6, Interviews: 5 })
           const columns = await cards(f).evaluateAll((items) => new Set(items.slice(0, 6).map((item) => Math.round(item.getBoundingClientRect().top))).size)
           assert.equal(columns, 2, 'Desktop grid: five columns over two rows')
           await textMatches(f.root.locator('[data-clips-pager]'), /1–10\s+of 24/)
@@ -359,7 +379,7 @@ async function references() {
           await capture(f, `${prefix}-format`)
           await f.page.keyboard.press('Escape')
         }
-        await f.page.goto(`${origin}/dashboard/clips?aspect=1:1&subtitles=no`, { waitUntil: 'networkidle' })
+        await f.page.goto(`${origin}/dashboard/clips?aspect=1:1&subtitles=no`, { waitUntil: 'load' })
         await f.root.locator('[data-clips-state="no-results"]').waitFor()
         await capture(f, `${prefix}-no-results`)
       } finally {
@@ -400,7 +420,9 @@ async function desktop() {
     await f.root.getByRole('link', { name: 'Next' }).click()
     await f.page.waitForURL(/page=3/)
     await countIs(cards(f), 4)
-    assert.equal(await f.root.getByRole('link', { name: 'Next' }).getAttribute('aria-disabled'), 'true')
+    // The last page's Next is not a link, so it cannot navigate.
+    await countIs(f.root.getByRole('link', { name: 'Next' }), 0)
+    assert.equal(await f.root.locator('[data-clips-pager] span[aria-label="Next"]').getAttribute('aria-disabled'), 'true')
     await f.root.getByRole('link', { name: 'Previous' }).click()
     await f.page.waitForURL(/page=2/)
     await assertShell(f.page)
@@ -435,7 +457,8 @@ async function desktop() {
     assert.equal(await f.root.getByRole('searchbox', { name: 'Search clips' }).inputValue(), '', 'Clearing filters also clears the search field')
 
     // Projects in the rail
-    await f.page.goto(`${origin}/dashboard/clips`, { waitUntil: 'networkidle' })
+    await f.page.goto(`${origin}/dashboard/clips`, { waitUntil: 'load' })
+    await cards(f).first().waitFor()
     await rememberShell(f.page)
     await scopeLink(f, 'Podcast').click()
     await f.page.waitForURL((url) => url.searchParams.get('project') === PROJECT.podcast)
@@ -451,9 +474,35 @@ async function desktop() {
     await textMatches(cards(f).first(), /How I grew to 10k followers/)
     await assertShell(f.page)
 
+    // Favourites: the star, the Favorites scope and the menu item
+    const second = cards(f).nth(1)
+    const secondId = await second.getAttribute('data-clip-card')
+    const star = second.locator('[data-clip-favorite]')
+    assert.equal(await star.getAttribute('aria-pressed'), 'false')
+    assert.equal(await star.getAttribute('aria-label'), 'Add to favorites: The mistake everyone makes first')
+    await star.click()
+    await until(async () => (await star.getAttribute('aria-pressed')) === 'true', 'Star turns on')
+    assert.ok(f.calls.mutations.includes(`PUT /api/clips/${secondId}/favorite {"favorite":true}`))
+    assert.equal(new URL(f.page.url()).pathname, '/dashboard/clips', 'The star does not open the clip')
+    await until(async () => (await counts(f)).Favorites === 5, 'Favorites count follows the star')
+    await scopeLink(f, 'Favorites').click()
+    await f.page.waitForURL((url) => url.searchParams.get('project') === 'favorites')
+    await countIs(cards(f), 5)
+    assert.equal(await scopeLink(f, 'Favorites').getAttribute('aria-current'), 'page')
+    {
+      const { menu: favorites } = await openClipMenu(f, 1)
+      await favorites.getByRole('menuitem', { name: 'Remove from favorites' }).click()
+    }
+    await countIs(cards(f), 4)
+    assert.ok(f.calls.mutations.includes(`PUT /api/clips/${secondId}/favorite {"favorite":false}`))
+    await assertShell(f.page)
+    await scopeLink(f, 'All clips').click()
+    await f.page.waitForURL((url) => !url.searchParams.has('project'))
+    await countIs(cards(f), 10)
+
     // Clip menu destinations
     let { menu, title, id } = await openClipMenu(f, 0)
-    assert.deepEqual(await menu.getByRole('menuitem').allInnerTexts(), ['Open', 'Publish', 'Download', 'Move to project', 'Delete'])
+    assert.deepEqual(await menu.getByRole('menuitem').allInnerTexts(), ['Open', 'Remove from favorites', 'Publish', 'Download', 'Move to project', 'Delete'])
     assert.equal(await menu.getByRole('menuitem', { name: 'Open' }).getAttribute('href'), `/dashboard/clips/${id}`)
     assert.equal(await menu.getByRole('menuitem', { name: 'Publish' }).getAttribute('href'), `/dashboard/publish/new?clip=${id}`)
     const download = menu.getByRole('menuitem', { name: 'Download' })
@@ -579,7 +628,7 @@ async function desktop() {
     assert.equal(await f.root.locator('[data-clips-toolbar]').count(), 0)
 
     // A stale project link falls back to all clips
-    await f.page.goto(`${origin}/dashboard/clips?project=00000000-0000-4000-8000-000000009999`, { waitUntil: 'networkidle' })
+    await f.page.goto(`${origin}/dashboard/clips?project=00000000-0000-4000-8000-000000009999`, { waitUntil: 'load' })
     await cards(f).nth(9).waitFor()
     assert.equal(await scopeLink(f, 'All clips').getAttribute('aria-current'), 'page')
   } finally {
@@ -609,6 +658,16 @@ async function phone() {
     await f.root.getByRole('button', { name: 'Show more' }).click()
     await countIs(cards(f), 12)
     await textMatches(f.root.locator('[data-clips-load-more]'), /12 of 24/)
+
+    // Favorites chip: the starred clips with their own count line
+    await scopeLink(f, 'Favorites').click()
+    await f.page.waitForURL((url) => url.searchParams.get('project') === 'favorites')
+    await countIs(cards(f), 4)
+    await textMatches(f.root.locator('[class*="listHead"]'), /4 favorites/)
+    assert.equal(await cards(f).first().locator('[data-clip-favorite]').getAttribute('aria-pressed'), 'true')
+    await scopeLink(f, 'All').click()
+    await f.page.waitForURL((url) => !url.searchParams.has('project'))
+    await cards(f).first().waitFor()
 
     // Filters sheet: drafted, applied together, counted on the button
     await f.root.getByRole('button', { name: 'Filters' }).click()
@@ -652,7 +711,7 @@ async function phone() {
     const id = await first.getAttribute('data-clip-card')
     await first.getByRole('button', { name: /^Actions for/ }).click()
     sheet = f.page.getByRole('menu', { name: 'Clip actions' })
-    assert.deepEqual(await sheet.getByRole('menuitem').allInnerTexts(), ['Open', 'Publish', 'Download', 'Move to project', 'Delete'])
+    assert.deepEqual(await sheet.getByRole('menuitem').allInnerTexts(), ['Open', await favoriteAction(first), 'Publish', 'Download', 'Move to project', 'Delete'])
     assert.equal(await sheet.getByRole('menuitem', { name: 'Publish' }).getAttribute('href'), `/dashboard/publish/new?clip=${id}`)
     await sheet.getByRole('menuitem', { name: 'Move to project' }).click()
     sheet = f.page.getByRole('dialog', { name: 'Move to project' })
@@ -677,7 +736,8 @@ async function phone() {
     await countIs(cards(f), 6)
     const dragged = cards(f).filter({ hasNotText: 'Podcast ·' }).first()
     const dragId = await dragged.getAttribute('data-clip-card')
-    // Only the visible part of the chip row can be a target.
+    // Only the visible part of the chip row can be a target: bring the chip into view first.
+    await scopeLink(f, 'Podcast').evaluate((element) => element.scrollIntoView({ inline: 'center', block: 'nearest' }))
     const chip = await scopeLink(f, 'Podcast').boundingBox()
     const before = (await counts(f)).Podcast
     await f.page.evaluate(
@@ -718,7 +778,7 @@ async function phone() {
       await g.close()
     }
   }
-  console.log('Phone: list header, show more, filter sheet + badge, sort, chips, project sheet rename, clip sheet with move step, delete sheet, long-press drag, new project; no overflow at 320–1280px passed')
+  console.log('Phone: list header, show more, filter sheet + badge, sort, chips, project sheet rename, clip sheet with move step, delete sheet, long-press drag, new project; no overflow at 320–1920px passed')
 }
 
 // ---------------------------------------------------------------- Romanian copy

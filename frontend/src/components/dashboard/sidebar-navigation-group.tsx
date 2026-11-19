@@ -13,7 +13,7 @@ import {
   type dashboardNavigation,
   isDashboardRouteActive
 } from '@/lib/dashboard-navigation'
-import { motion, useReducedMotion } from 'framer-motion'
+import { LazyMotion, domAnimation, m, useReducedMotion } from 'framer-motion'
 import {
   CreditCard,
   FilePenLine,
@@ -51,8 +51,18 @@ const labelKeys: Partial<Record<NavigationKey, 'billingFull'>> = {
 const RAIL_CORNER = 6
 const DASH_PATTERN =
   'repeating-linear-gradient(to top, transparent 0 2px, currentColor 2px 4px)'
+const RAIL_SPRING = {
+  type: 'spring' as const,
+  stiffness: 420,
+  damping: 34,
+  mass: 0.7
+}
 
-/** Dashed tree connector from the top of the list to the centre of one item. */
+/**
+ * Dashed tree connector from `from` down to the centre of one item. Only transforms and
+ * opacity animate: the list-tall line slides on `y` so its bottom meets the corner, and a
+ * static clip hides the part above `from`.
+ */
 function TreeConnector({
   from = 0,
   y,
@@ -65,12 +75,11 @@ function TreeConnector({
   active?: boolean
 }) {
   const reducedMotion = useReducedMotion()
-  const travel = reducedMotion
-    ? { duration: 0 }
-    : { type: 'spring' as const, stiffness: 420, damping: 34, mass: 0.7 }
+  const travel = reducedMotion ? { duration: 0 } : RAIL_SPRING
+  const end = (y ?? 0) - RAIL_CORNER
 
   return (
-    <motion.li
+    <m.li
       aria-hidden={true}
       initial={false}
       animate={{ opacity: visible && y !== null ? 1 : 0 }}
@@ -78,19 +87,22 @@ function TreeConnector({
       className={`${styles.rail} ${active ? styles.activeRail : styles.hoverRail}`}
       data-sidebar-rail={active ? 'active' : 'hover'}
     >
-      <motion.span
+      <span
+        className={styles.railTrack}
+        style={{ clipPath: `inset(${Math.max(0, from)}px 0 0 0)` }}
+      >
+        <m.span
+          initial={false}
+          animate={{ y: end }}
+          transition={travel}
+          style={{ backgroundImage: DASH_PATTERN }}
+          className={styles.railLine}
+          data-sidebar-rail-line=""
+        />
+      </span>
+      <m.svg
         initial={false}
-        animate={{
-          top: from,
-          height: Math.max(0, (y ?? 0) - RAIL_CORNER - from)
-        }}
-        transition={travel}
-        style={{ backgroundImage: DASH_PATTERN }}
-        className={styles.railLine}
-      />
-      <motion.svg
-        initial={false}
-        animate={{ top: (y ?? 0) - RAIL_CORNER }}
+        animate={{ y: end }}
         transition={travel}
         width="12"
         height="7"
@@ -103,8 +115,8 @@ function TreeConnector({
           stroke="currentColor"
           strokeDasharray="2 2"
         />
-      </motion.svg>
-    </motion.li>
+      </m.svg>
+    </m.li>
   )
 }
 
@@ -168,14 +180,20 @@ export function SidebarNavigationGroup({
           className={styles.list}
           onMouseLeave={() => setPointerInside(false)}
         >
-          <TreeConnector
-            from={hoverFrom}
-            y={hoverY}
-            visible={
-              (pointerInside || focusInside) && hoverIndex !== activeIndex
-            }
-          />
-          <TreeConnector y={activeY} visible={activeY !== null} active={true} />
+          <LazyMotion features={domAnimation} strict={true}>
+            <TreeConnector
+              from={hoverFrom}
+              y={hoverY}
+              visible={
+                (pointerInside || focusInside) && hoverIndex !== activeIndex
+              }
+            />
+            <TreeConnector
+              y={activeY}
+              visible={activeY !== null}
+              active={true}
+            />
+          </LazyMotion>
 
           {group.items.map((item, index) => {
             const Icon = icons[item.key]

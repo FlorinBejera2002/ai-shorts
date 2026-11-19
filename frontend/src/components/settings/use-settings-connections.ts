@@ -13,6 +13,8 @@ import {
 } from '@/lib/publishing'
 import { useTranslations } from 'next-intl'
 import { useRef, useState } from 'react'
+import { runExclusive } from './run-exclusive'
+import { checked, isPublishingData } from './settings-data'
 
 type ProviderInfo = PublishingData['providers'][number]
 export type ConnectionCardData = { provider: ProviderInfo; account: PublishingAccount | null }
@@ -29,8 +31,9 @@ export function connectionCards(data: PublishingData): ConnectionCardData[] {
 export function useSettingsConnections(lock: { acquire: () => boolean; release: () => void }) {
   const t = useTranslations('settings')
   const toast = useToast()
-  const resource = useApiResource<PublishingData>('/api/publishing')
-  const social = useSocialConnection(resource.reload)
+  const raw = useApiResource<PublishingData>('/api/publishing')
+  const resource = { ...checked(raw, isPublishingData), reload: raw.reload }
+  const social = useSocialConnection(raw.reload)
   const [busyAccount, setBusyAccount] = useState<string | null>(null)
   const [starting, setStarting] = useState<PublishingProvider | null>(null)
   const [disconnectTarget, setDisconnectTarget] = useState<PublishingAccount | null>(null)
@@ -40,21 +43,31 @@ export function useSettingsConnections(lock: { acquire: () => boolean; release: 
   const actionLock = useRef(false)
   const busy = busyAccount !== null || starting !== null || social.busyProvider !== null
 
+  function claim() {
+    return !actionLock.current && !social.busyProvider && lock.acquire()
+  }
+
+  function unlock() {
+    actionLock.current = false
+    lock.release()
+  }
+
   async function startConnection(provider: PublishingProvider, consent: boolean) {
-    if (actionLock.current || social.busyProvider || !lock.acquire()) return
-    actionLock.current = true
-    setStarting(provider)
-    setConsentOpen(false)
-    setActionError(null)
-    try {
-      await social.connect(provider, consent)
-    } catch {
-      setActionError({ id: provider, message: t('connectionActionFailed') })
-    } finally {
-      setStarting(null)
-      actionLock.current = false
-      lock.release()
-    }
+    await runExclusive({
+      claim,
+      onStart: () => {
+        actionLock.current = true
+        setStarting(provider)
+        setConsentOpen(false)
+        setActionError(null)
+      },
+      onError: () => setActionError({ id: provider, message: t('connectionActionFailed') }),
+      onFinish: () => {
+        setStarting(null)
+        unlock()
+      },
+      action: () => social.connect(provider, consent)
+    })
   }
 
   /** YouTube asks for consent to its terms first; the other providers open OAuth directly. */
@@ -88,27 +101,34 @@ export function useSettingsConnections(lock: { acquire: () => boolean; release: 
 
   async function disconnect() {
     const account = disconnectTarget
-    if (!account || actionLock.current || social.busyProvider || !lock.acquire()) return
-    actionLock.current = true
-    setBusyAccount(account.id)
-    setActionError(null)
-    try {
-      const response = await apiFetch(`/api/publishing/accounts/${encodeURIComponent(account.id)}`, { method: 'DELETE' })
-      const result: unknown = await response.json().catch(() => null)
-      if (!response.ok) {
-        const body = result && typeof result === 'object' && !Array.isArray(result) ? (result as Record<string, unknown>) : {}
-        throw new Error(extractApiError(body, t('connectionActionFailed')))
-      }
-      setDisconnectTarget(null)
-      resource.reload()
-      toast.add('success', t('connectionDisconnected'))
-    } catch (caught) {
-      setActionError({ id: account.id, message: caught instanceof Error ? caught.message : t('connectionActionFailed') })
-    } finally {
-      setBusyAccount(null)
-      actionLock.current = false
-      lock.release()
+    if (!account) return
+    await runExclusive({
+      claim,
+      onStart: () => {
+        actionLock.current = true
+        setBusyAccount(account.id)
+        setActionError(null)
+      },
+      onError: (caught) =>
+        setActionError({ id: account.id, message: caught instanceof Error ? caught.message : t('connectionActionFailed') }),
+      onFinish: () => {
+        setBusyAccount(null)
+        unlock()
+      },
+      action: () => removeAccount(account.id)
+    })
+  }
+
+  async function removeAccount(id: string) {
+    const response = await apiFetch(`/api/publishing/accounts/${encodeURIComponent(id)}`, { method: 'DELETE' })
+    const result: unknown = await response.json().catch(() => null)
+    if (!response.ok) {
+      const body = result && typeof result === 'object' && !Array.isArray(result) ? (result as Record<string, unknown>) : {}
+      throw new Error(extractApiError(body, t('connectionActionFailed')))
     }
+    setDisconnectTarget(null)
+    resource.reload()
+    toast.add('success', t('connectionDisconnected'))
   }
 
   return {

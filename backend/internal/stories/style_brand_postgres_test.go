@@ -15,7 +15,7 @@ func TestExistingStorySwitchToBrandKitReplacesCustomCaptionStyle(t *testing.T) {
 	kit.Preset = "active-color"
 	kit.Position = captions.Position{X: .4, Y: .3, Anchor: "center"}
 	raw, _ := json.Marshal(kit)
-	if _, err := r.db.Exec(`INSERT INTO brand_kits(id,user_id,primary_color,secondary_color,font_family,subtitle_font,subtitle_color,subtitle_bg_color,subtitle_bg_opacity,subtitle_position,watermark_position,watermark_opacity,caption_style,watermark_enabled) VALUES($1,$2,'#123456','#ffffff','Inter','Inter Bold','#ffffff','#000000',0,'bottom','bottom-right',0.8,$3,false)`, newID(), user, string(raw)); err != nil {
+	if _, err := r.db.Exec(`INSERT INTO brand_kits(id,user_id,is_default,primary_color,secondary_color,font_family,subtitle_font,subtitle_color,subtitle_bg_color,subtitle_bg_opacity,subtitle_position,watermark_position,watermark_opacity,caption_style,watermark_enabled) VALUES($1,$2,true,'#123456','#ffffff','Inter','Inter Bold','#ffffff','#000000',0,'bottom','bottom-right',0.8,$3,false)`, newID(), user, string(raw)); err != nil {
 		t.Fatal(err)
 	}
 	before := story.DefaultOptions()

@@ -1,14 +1,5 @@
 import type { PlatformId } from '@/content/copy/types'
-
-const platformLabels: Record<PlatformId, string> = {
-  instagram: 'Instagram',
-  facebook: 'Facebook',
-  tiktok: 'TikTok',
-  youtube: 'YouTube'
-}
-
-/** Always rendered in the order Instagram, Facebook, TikTok, YouTube. */
-export const PLATFORM_ORDER: PlatformId[] = ['instagram', 'facebook', 'tiktok', 'youtube']
+import { PLATFORM_LABELS } from '@/content/platforms'
 
 type PlatformLogoProps = { platform: PlatformId; size: number; radius: number; decorative?: boolean }
 
@@ -16,7 +7,7 @@ export function PlatformLogo({ platform, size, radius, decorative = false }: Pla
   return (
     <img
       src={`/landing/platforms/${platform}.svg`}
-      alt={decorative ? '' : platformLabels[platform]}
+      alt={decorative ? '' : PLATFORM_LABELS[platform]}
       width={size}
       height={size}
       loading="lazy"

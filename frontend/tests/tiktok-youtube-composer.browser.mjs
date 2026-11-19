@@ -45,6 +45,7 @@ const photos = ['camera.png', 'microphone.png', 'studio.png'].map(name => ({
 }))
 const [imageA, imageB, imageC] = photos
 const video = { type: 'video', reference: `publishing/${user.id}/studio.mp4`, name: 'studio.mp4' }
+const replacement = { type: 'video', reference: `publishing/${user.id}/replacement.mp4`, name: 'replacement.mp4' }
 const postBase = {
   caption: 'Synthetic draft for browser verification', notes: null,
   status: 'draft', publishingDestinations: [], scheduledAt: today.toISOString(),
@@ -91,6 +92,7 @@ await page.route('**/api/**', async route => {
     return route.fulfill({ json: { post } })
   }
   if (path === '/api/publishing/media/preview') return route.fulfill({ json: { url: preview } })
+  if (path === '/api/publishing/media' && request.method() === 'POST') return route.fulfill({ json: replacement })
   if (path === '/api/user/profile') return route.fulfill({ json: { profile: {
     ...user, image: null, provider: 'password', canChangePassword: true,
     recentlyAuthenticated: true, emailVerified: today.toISOString(), createdAt: today.toISOString()
@@ -101,37 +103,93 @@ await page.route('**/api/**', async route => {
   return route.fulfill({ json: {} })
 })
 
-const imageRow = name => page.locator('li').filter({
-  has: page.getByRole('button', { name: `Edit ${name}`, exact: true })
-})
+// Media lives in the composer's media dialog; each photo opens its own editor dialog.
+// Platform options (TikTok, YouTube, Facebook) live in the platform options dialog.
+const mediaDialog = () => page.locator('[data-post-media-dialog]')
+const imageEditor = () => page.locator('[data-publishing-image-editor]')
+const platformDialog = () => page.locator('[data-platform-options]')
+const platformNames = { facebook: 'Facebook', tiktok: 'TikTok', youtube: 'YouTube' }
+// Account tiles are labelled "<platform>: <username>".
 const accountChoice = provider => page.getByRole('button', {
-  name: new RegExp(`@synthetic_${provider} ${ { facebook: 'Facebook', tiktok: 'TikTok', youtube: 'YouTube' }[provider]}`)
+  name: `${platformNames[provider]}: synthetic_${provider}`, exact: true
 })
-const reviewConsent = () => page.getByRole('switch', { name: /I reviewed the channel/ })
+const reviewConsent = () => platformDialog().getByRole('switch', { name: /I reviewed the channel/ })
 
 async function openPost(id) {
-  const title = posts.get(id).title
-  const open = page.getByRole('button', { name: `Open post ${title}`, exact: true })
-  const edit = page.getByRole('button', { name: `Edit ${title}`, exact: true })
+  const postTitle = posts.get(id).title
+  const open = page.getByRole('button', { name: `Open post ${postTitle}`, exact: true })
+  const edit = page.getByRole('button', { name: `Edit ${postTitle}`, exact: true })
+  // The queue opens on Scheduled; drafts live under All. A row click opens the detail, whose Edit opens the composer.
+  const all = page.locator('[data-publishing-workspace]').getByRole('tab', { name: /^All/ })
+  if (await all.count() && (await all.getAttribute('aria-selected')) !== 'true') await all.click()
   await open.or(edit).first().click()
-  await page.getByLabel('Post title', { exact: true }).waitFor()
-  assert.equal(await page.getByLabel('Post title', { exact: true }).inputValue(), title)
+  const editPost = page.getByRole('button', { name: 'Edit post', exact: true })
+  const title = page.getByLabel('Post title', { exact: true })
+  await title.or(editPost).first().waitFor({ state: 'attached' })
+  if (!(await title.count())) await editPost.click()
+  await title.waitFor({ state: 'attached' })
+  assert.equal(await title.inputValue(), posts.get(id).title)
+}
+
+async function openMediaDialog() {
+  await page.getByRole('button', { name: 'Change media', exact: true }).first().click()
+  await mediaDialog().waitFor()
+}
+
+async function confirmMedia() {
+  await mediaDialog().getByRole('button', { name: 'Use media', exact: true }).click()
+  await mediaDialog().waitFor({ state: 'detached' })
+}
+
+async function cancelMedia() {
+  await mediaDialog().getByRole('button', { name: 'Cancel', exact: true }).click()
+  await mediaDialog().waitFor({ state: 'detached' })
 }
 
 async function openImage(name) {
-  const button = page.getByRole('button', { name: `Edit ${name}`, exact: true })
-  if (await button.getAttribute('aria-expanded') !== 'true') await button.click()
-  await imageRow(name).getByRole('slider', { name: 'Zoom', exact: true }).waitFor()
-  return imageRow(name)
+  await page.getByRole('button', { name: `Edit ${name}`, exact: true }).click()
+  const editor = imageEditor()
+  // Phones collapse the optional alternative text panel; it is absent for TikTok-only photos.
+  const altDisclosure = editor.getByRole('button', { name: 'Alternative text', exact: true })
+  if (await altDisclosure.count() && await altDisclosure.getAttribute('aria-expanded') !== 'true') await altDisclosure.click()
+  await editor.getByRole('slider', { name: 'Zoom', exact: true }).waitFor()
+  return editor
+}
+
+async function closeImage(editor) {
+  await editor.getByRole('button', { name: 'Done', exact: true }).last().click()
+  await editor.waitFor({ state: 'detached' })
 }
 
 async function openPreferences(provider) {
-  const button = page.getByRole('button', { name: new RegExp(`${provider} [Pp]references`) })
-  if (await button.getAttribute('aria-expanded') !== 'true') await button.click()
+  if (!(await platformDialog().count()))
+    await page.getByRole('button', { name: 'Platform options', exact: true }).click()
+  await platformDialog().getByRole('tab', { name: platformNames[provider], exact: true }).click()
 }
 
-async function choose(label, option) {
-  const control = page.getByRole('combobox', { name: label, exact: true })
+// Audience questions are yes/no radio groups under their question heading.
+async function answerQuestion(question, answer) {
+  const group = platformDialog().locator('section')
+    .filter({ has: page.getByRole('heading', { name: question, exact: true }) })
+  // The visible pill is the label wrapping the visually hidden radio input.
+  const choice = group.locator('label').filter({ hasText: new RegExp(`^${answer}$`) })
+  await choice.click()
+  assert.equal(await choice.locator('input').isChecked(), true, `${question} records ${answer}`)
+}
+
+// Description, tags, license and embedding sit in the YouTube "More options" disclosure.
+async function openYouTubeAdvanced() {
+  const disclosure = platformDialog().locator('details').filter({ hasText: 'More options' })
+  if (await disclosure.getAttribute('open') === null) await disclosure.locator('summary').click()
+}
+
+async function closePreferences() {
+  await platformDialog().getByRole('button', { name: 'Done', exact: true }).click()
+  await platformDialog().waitFor({ state: 'detached' })
+}
+
+async function choose(scope, label, option) {
+  const control = scope.getByRole('combobox', { name: label, exact: true })
   if (await control.evaluate(element => element.tagName) === 'SELECT')
     await control.selectOption({ label: option })
   else {
@@ -143,9 +201,10 @@ async function choose(label, option) {
 async function savePost(id) {
   const response = page.waitForResponse(value => value.request().method() === 'PATCH' &&
     new URL(value.url()).pathname === `/api/calendar/${id}`)
-  await page.getByRole('button', { name: 'Save changes', exact: true }).click()
+  // Draft posts submit through the composer's primary "Save draft" action.
+  await page.getByRole('button', { name: 'Save draft', exact: true }).click()
   assert.equal((await response).status(), 200)
-  await page.getByRole('button', { name: 'New post', exact: true }).waitFor()
+  await page.getByRole('button', { name: 'New post', exact: true }).first().waitFor()
   return updates.at(-1).body
 }
 
@@ -195,15 +254,15 @@ async function verifyFastRefresh() {
   const source = await readFile(sourcePath, 'utf8')
   assert.equal(source.split(anchor).length, 2, 'YouTube advanced settings refresh anchor is unique')
   const tagsText = 'studio tour, camera, Romanian video, '
-  await page.getByLabel('Tags', { exact: true }).fill(tagsText)
-  await page.getByLabel('Tags', { exact: true }).evaluate(element => {
+  await platformDialog().getByLabel('Tags', { exact: true }).fill(tagsText)
+  await platformDialog().getByLabel('Tags', { exact: true }).evaluate(element => {
     window.youtubeSettingsProbe = element.parentElement.parentElement
   })
   try {
     await writeFile(sourcePath, source.replace(anchor, probe))
     await page.locator('[data-youtube-refresh-probe="updated"]').waitFor()
-    assert.equal(await page.getByLabel('Tags', { exact: true }).inputValue(), tagsText, 'Fast Refresh preserves in-progress local tag input')
-    assert.equal(await page.getByRole('switch', { name: 'Allow embedding', exact: true }).getAttribute('aria-checked'), 'false')
+    assert.equal(await platformDialog().getByLabel('Tags', { exact: true }).inputValue(), tagsText, 'Fast Refresh preserves in-progress local tag input')
+    assert.equal(await platformDialog().getByRole('switch', { name: 'Allow embedding', exact: true }).getAttribute('aria-checked'), 'false')
     assert.equal(await reviewConsent().getAttribute('aria-checked'), 'false')
     assert.equal(await page.evaluate(() => window.youtubeSettingsProbe === document.querySelector('[data-youtube-refresh-probe]')), true, 'Fast Refresh preserves the advanced-settings DOM')
     await assertDashboardIdentity()
@@ -217,25 +276,37 @@ async function verifyFastRefresh() {
 
 try {
   await page.goto(`${origin}/dashboard/publish`, { waitUntil: 'networkidle', timeout: 180000 })
-  await page.getByRole('button', { name: 'New post', exact: true }).waitFor()
+  await page.getByRole('button', { name: 'New post', exact: true }).first().waitFor()
   await page.locator('[data-sidebar="trigger"]').first().click()
   await rememberDashboard()
   await openPost(photoId)
   await accountChoice('tiktok').click()
+  await page.getByRole('button', { name: 'Platform options', exact: true }).waitFor()
+  await openMediaDialog()
   for (const image of photos)
-    assert.equal(await page.getByRole('button', { name: `Edit ${image.name}`, exact: true }).count(), 1, 'Selecting TikTok preserves uploaded photos')
+    assert.equal(await mediaDialog().getByRole('button', { name: `Edit ${image.name}`, exact: true }).count(), 1, 'Selecting TikTok preserves uploaded photos')
+  await cancelMedia()
   await accountChoice('facebook').click()
-  await choose('Photo format', 'Portrait (4:5)')
+  await openMediaDialog()
   const first = await openImage(imageA.name)
+  await first.getByRole('radio', { name: '4:5', exact: true }).check()
   await first.getByRole('slider', { name: 'Zoom', exact: true }).press('ArrowRight')
-  assert.equal(await page.getByLabel('Alternative text', { exact: true }).count(), 0, 'TikTok omits unsupported alternative text')
-  assert.equal(await page.getByLabel('Tag people', { exact: true }).count(), 0, 'TikTok omits Instagram tags')
-  await openPreferences('TikTok')
-  await choose('TikTok cover photo', `2. ${imageB.name}`)
-  await page.getByRole('switch', { name: 'AI-generated content', exact: true }).click()
-  await page.getByRole('switch', { name: 'Add music automatically', exact: true }).click()
+  assert.equal(await first.getByLabel('Alternative text', { exact: true }).count(), 0, 'TikTok omits unsupported alternative text')
+  assert.equal(await first.getByLabel('Tag people', { exact: true }).count(), 0, 'TikTok omits Instagram tags')
+  await closeImage(first)
+  await confirmMedia()
+  await openPreferences('tiktok')
+  await choose(platformDialog(), 'TikTok cover photo', `2. ${imageB.name}`)
+  await platformDialog().getByRole('switch', { name: 'AI-generated content', exact: true }).click()
+  await platformDialog().getByRole('switch', { name: 'Add music automatically', exact: true }).click()
+  await closePreferences()
+  // Reordering happens in the media dialog; the TikTok cover must follow its photo.
+  await openMediaDialog()
   await page.getByRole('button', { name: `Drag to reorder ${imageC.name}`, exact: true }).press('Home')
-  assert.equal(await page.getByRole('combobox', { name: 'TikTok cover photo', exact: true }).innerText(), `3. ${imageB.name}`, 'TikTok cover follows its photo when another photo moves')
+  await confirmMedia()
+  await openPreferences('tiktok')
+  assert.equal(await platformDialog().getByRole('combobox', { name: 'TikTok cover photo', exact: true }).innerText(), `3. ${imageB.name}`, 'TikTok cover follows its photo when another photo moves')
+  await closePreferences()
   const saved = await savePost(photoId)
   assert.deepEqual(saved.platforms, ['tiktok'])
   assert.deepEqual(saved.media.map(item => item.reference), [imageC.reference, imageA.reference, imageB.reference])
@@ -249,19 +320,27 @@ try {
   assert.equal(saved.youtube, undefined)
   await assertDashboardIdentity()
   await openPost(photoId)
-  await openPreferences('TikTok')
-  assert.equal(await page.getByRole('combobox', { name: 'TikTok cover photo', exact: true }).innerText(), `3. ${imageB.name}`)
-  assert.equal(await page.getByRole('switch', { name: 'AI-generated content', exact: true }).getAttribute('aria-checked'), 'true')
-  assert.equal(await page.getByRole('switch', { name: 'Add music automatically', exact: true }).getAttribute('aria-checked'), 'true')
+  await openPreferences('tiktok')
+  assert.equal(await platformDialog().getByRole('combobox', { name: 'TikTok cover photo', exact: true }).innerText(), `3. ${imageB.name}`)
+  assert.equal(await platformDialog().getByRole('switch', { name: 'AI-generated content', exact: true }).getAttribute('aria-checked'), 'true')
+  assert.equal(await platformDialog().getByRole('switch', { name: 'Add music automatically', exact: true }).getAttribute('aria-checked'), 'true')
+  await closePreferences()
+  await openMediaDialog()
   const restored = await openImage(imageA.name)
   assert.equal(await restored.getByRole('slider', { name: 'Zoom', exact: true }).getAttribute('aria-valuenow'), '1.01')
+  await closeImage(restored)
+  await cancelMedia()
   console.log('TikTok selection preserves media; photo crop, cover identity, AI and music survive save/reopen')
 
   await page.setViewportSize({ width: 390, height: 844 })
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), true, 'Mobile TikTok composer does not overflow horizontally')
   await capture('tiktok-composer-mobile')
+  await openMediaDialog()
   await page.getByRole('button', { name: `Remove ${imageB.name}`, exact: true }).click()
-  assert.equal(await page.getByRole('combobox', { name: 'TikTok cover photo', exact: true }).innerText(), `1. ${imageC.name}`, 'Removing the cover falls back to the first photo')
+  await confirmMedia()
+  await openPreferences('tiktok')
+  assert.equal(await platformDialog().getByRole('combobox', { name: 'TikTok cover photo', exact: true }).innerText(), `1. ${imageC.name}`, 'Removing the cover falls back to the first photo')
+  await closePreferences()
   const removed = await savePost(photoId)
   assert.equal(removed.tiktok.photoCoverIndex, 0)
   assert.deepEqual(removed.media.map(item => item.reference), [imageC.reference, imageA.reference])
@@ -273,11 +352,15 @@ try {
   await rememberDashboard()
   await openPost(photoId)
   await accountChoice('facebook').click()
+  await openMediaDialog()
   const mixedPhoto = await openImage(imageA.name)
   await mixedPhoto.getByLabel('Alternative text', { exact: true }).fill('A camera in the studio.')
-  assert.equal(await page.getByLabel('Tag people', { exact: true }).count(), 0)
-  await openPreferences('Facebook')
-  await page.getByLabel('Facebook location', { exact: true }).fill('987654321')
+  assert.equal(await mixedPhoto.getByLabel('Tag people', { exact: true }).count(), 0)
+  await closeImage(mixedPhoto)
+  await confirmMedia()
+  await openPreferences('facebook')
+  await platformDialog().getByLabel('Facebook location', { exact: true }).fill('987654321')
+  await closePreferences()
   const mixedPhotos = await savePost(photoId)
   assert.deepEqual([...mixedPhotos.platforms].sort(), ['facebook', 'tiktok'])
   assert.deepEqual(mixedPhotos.facebook, { placeId: '987654321' })
@@ -289,37 +372,46 @@ try {
   console.log('TikTok/Facebook share crop edits and preserve destination-specific options')
 
   await openPost(videoId)
-  await openPreferences('TikTok')
-  assert.equal(await page.getByRole('button', { name: `Edit ${video.name}`, exact: true }).count(), 0)
-  assert.equal(await page.getByLabel('Alternative text', { exact: true }).count(), 0)
-  assert.equal(await page.getByRole('combobox', { name: 'TikTok cover photo', exact: true }).count(), 0)
-  await page.getByLabel('TikTok cover frame (seconds)', { exact: true }).fill('2.5')
+  await openPreferences('tiktok')
+  assert.equal(await platformDialog().getByLabel('Alternative text', { exact: true }).count(), 0)
+  assert.equal(await platformDialog().getByRole('combobox', { name: 'TikTok cover photo', exact: true }).count(), 0)
+  await platformDialog().getByLabel('TikTok cover frame (seconds)', { exact: true }).fill('2.5')
+  await closePreferences()
   const videoSaved = await savePost(videoId)
   assert.equal(videoSaved.tiktok.videoCoverTimestampMs, 2500)
   assert.equal(videoSaved.tiktok.photoCoverIndex, undefined)
   await assertDashboardIdentity()
   await openPost(videoId)
-  await openPreferences('TikTok')
-  assert.equal(await page.getByLabel('TikTok cover frame (seconds)', { exact: true }).inputValue(), '2.5')
+  await openMediaDialog()
+  assert.equal(await mediaDialog().getByRole('button', { name: `Edit ${video.name}`, exact: true }).count(), 0, 'Videos have no photo editor')
+  await cancelMedia()
+  await openPreferences('tiktok')
+  assert.equal(await platformDialog().getByLabel('TikTok cover frame (seconds)', { exact: true }).inputValue(), '2.5')
+  await closePreferences()
   await accountChoice('youtube').click()
   await assertDashboardIdentity()
-  assert.equal(await page.getByRole('button', { name: `Remove ${video.name}`, exact: true }).count(), 1, 'YouTube selection retains the uploaded video')
-  await page.getByLabel('YouTube video title (up to 100 characters)', { exact: true }).fill('Synthetic studio tour')
-  await page.getByLabel('YouTube description (up to 5,000 UTF-8 bytes)', { exact: true }).fill('A synthetic video used only for browser verification.')
-  await choose('Is this video made for kids?', 'No')
-  await choose('Does this video contain realistic altered or synthetic content?', 'No')
+  await openMediaDialog()
+  assert.equal(await mediaDialog().getByRole('button', { name: `Remove ${video.name}`, exact: true }).count(), 1, 'YouTube selection retains the uploaded video')
+  await cancelMedia()
+  await openPreferences('youtube')
+  await platformDialog().getByLabel('YouTube video title (up to 100 characters)', { exact: true }).fill('Synthetic studio tour')
+  await openYouTubeAdvanced()
+  await platformDialog().getByLabel('YouTube description (up to 5,000 UTF-8 bytes)', { exact: true }).fill('A synthetic video used only for browser verification.')
+  await answerQuestion('Is this video made for kids?', 'No')
+  await answerQuestion('Does this video contain realistic altered or synthetic content?', 'No')
   await reviewConsent().click()
   assert.equal(await reviewConsent().getAttribute('aria-checked'), 'true')
-  await page.getByLabel('Tags', { exact: true }).fill('studio tour, camera, Romanian video')
+  await platformDialog().getByLabel('Tags', { exact: true }).fill('studio tour, camera, Romanian video')
   assert.equal(await reviewConsent().getAttribute('aria-checked'), 'false', 'Tag changes require renewed upload review')
-  await choose('License', 'Creative Commons – Attribution')
+  await choose(platformDialog(), 'License', 'Creative Commons – Attribution')
   await assertDashboardIdentity()
-  const embedding = page.getByRole('switch', { name: 'Allow embedding', exact: true })
+  const embedding = platformDialog().getByRole('switch', { name: 'Allow embedding', exact: true })
   assert.equal(await embedding.getAttribute('aria-checked'), 'true')
   await embedding.click()
   assert.equal(await embedding.getAttribute('aria-checked'), 'false')
   await assertDashboardIdentity()
   await verifyFastRefresh()
+  await closePreferences()
   const youtubeSaved = await savePost(videoId)
   assert.deepEqual([...youtubeSaved.platforms].sort(), ['tiktok', 'youtube'])
   assert.deepEqual(youtubeSaved.youtube.tags, ['studio tour', 'camera', 'Romanian video'])
@@ -331,8 +423,10 @@ try {
   assert.equal(youtubeSaved.instagram, undefined)
   await assertDashboardIdentity()
   await openPost(videoId)
-  assert.equal(await page.getByLabel('Tags', { exact: true }).inputValue(), 'studio tour, camera, Romanian video')
-  assert.equal(await page.getByRole('combobox', { name: 'License', exact: true }).innerText(), 'Creative Commons – Attribution')
+  await openPreferences('youtube')
+  await openYouTubeAdvanced()
+  assert.equal(await platformDialog().getByLabel('Tags', { exact: true }).inputValue(), 'studio tour, camera, Romanian video')
+  assert.equal(await platformDialog().getByRole('combobox', { name: 'License', exact: true }).innerText(), 'Creative Commons – Attribution')
   assert.equal(await embedding.getAttribute('aria-checked'), 'false')
   assert.equal(await reviewConsent().getAttribute('aria-checked'), 'false', 'Reopening a draft requires fresh upload review')
   await reviewConsent().click()
@@ -340,6 +434,7 @@ try {
   assert.equal(await reviewConsent().getAttribute('aria-checked'), 'false', 'Embedding changes require renewed upload review')
   await embedding.click()
   await assertDashboardIdentity()
+  await closePreferences()
   // Capture after route-identity checks: full-page screenshots can resize the
   // browser's layout viewport temporarily and replace responsive UI surfaces.
   await capture('youtube-composer-advanced')
@@ -355,15 +450,26 @@ try {
   await page.locator('[data-slot="sidebar"][data-state]').waitFor()
   await rememberDashboard()
   await openPost(videoId)
+  await openPreferences('youtube')
   await reviewConsent().click()
   assert.equal(await reviewConsent().getAttribute('aria-checked'), 'true')
-  await page.getByRole('button', { name: `Remove ${video.name}`, exact: true }).click()
+  await closePreferences()
+  // A single-video post cannot be emptied, so replace the video with a new upload first.
+  await openMediaDialog()
+  await mediaDialog().locator('input[type="file"]').setInputFiles({ name: replacement.name, mimeType: 'video/mp4', buffer: Buffer.from('synthetic video') })
+  await mediaDialog().getByRole('button', { name: `Remove ${replacement.name}`, exact: true }).waitFor()
+  await mediaDialog().getByRole('button', { name: `Remove ${video.name}`, exact: true }).click()
+  await confirmMedia()
+  await openPreferences('youtube')
   assert.equal(await reviewConsent().getAttribute('aria-checked'), 'false', 'Media changes require renewed YouTube upload review')
+  await closePreferences()
   await page.getByRole('button', { name: 'Cancel', exact: true }).click()
-  await page.getByRole('button', { name: 'New post', exact: true }).waitFor()
+  await page.getByRole('button', { name: 'New post', exact: true }).first().waitFor()
   await openPost(videoId)
   await accountChoice('youtube').click()
-  assert.equal(await page.getByLabel('Tags', { exact: true }).count(), 0)
+  await openPreferences('tiktok')
+  assert.equal(await platformDialog().getByRole('tab', { name: 'YouTube', exact: true }).count(), 0, 'Deselected YouTube options are hidden')
+  await closePreferences()
   const tiktokOnly = await savePost(videoId)
   assert.deepEqual(tiktokOnly.platforms, ['tiktok'])
   assert.equal(tiktokOnly.youtube, undefined, 'Deselected YouTube options are omitted')

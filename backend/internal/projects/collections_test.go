@@ -61,6 +61,28 @@ func TestCollectionsHoldClipsFromAnySource(t *testing.T) {
 	if len(collections) != 1 || collections[0]["id"] != id {
 		t.Fatalf("collections: %v", collections)
 	}
+	// Stars belong to the clip owner and show in the library listing.
+	if err = repo.SetFavorite(ctx, user, clipA, true); err != nil {
+		t.Fatal(err)
+	}
+	if err = repo.SetFavorite(ctx, other, clipB, true); !errors.Is(err, sql.ErrNoRows) {
+		t.Fatalf("foreign favorite: got %v", err)
+	}
+	if listed, err = repo.List(ctx, user); err != nil {
+		t.Fatal(err)
+	}
+	stars := map[any]any{}
+	for _, project := range listed["projects"].([]map[string]any) {
+		for _, clip := range project["clips"].([]map[string]any) {
+			stars[clip["id"]] = clip["favorite"]
+		}
+	}
+	if stars[clipA] != true || stars[clipB] != false {
+		t.Fatalf("favorites: %v", stars)
+	}
+	if err = repo.SetFavorite(ctx, user, clipA, false); err != nil {
+		t.Fatal(err)
+	}
 	if err = repo.RenameCollection(ctx, user, id, CollectionInput{Name: "Interviuri"}); err != nil {
 		t.Fatal(err)
 	}

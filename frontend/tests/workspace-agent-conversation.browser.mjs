@@ -145,8 +145,11 @@ try {
   assert.equal(sends[0].request_id, sends[1].request_id); assert.equal(runs.length, 1)
   assert.equal(await draft.inputValue(), 'New draft survives retry'); assert.equal(controls.length, 0)
   await send('Change the project logo')
+  const logoRegistered = page.waitForResponse(response => response.request().method() === 'POST' && response.url().includes('/api/workspace-agent/resources'))
   await panel.getByLabel('Attach logo or document').setInputFiles({ name: 'logo.png', mimeType: 'image/png', buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=', 'base64') })
-  await panel.getByText('logo.png', { exact: true }).waitFor()
+  await logoRegistered
+  // The registered logo auto-resumes the waiting run; the attachment panel closes once that run completes, so the chip is transient. Wait for the completed run instead.
+  await panel.locator('[data-agent-run]').last().getByText('The change is saved.', { exact: true }).waitFor()
   assert.equal(resources[0].kind, 'logo')
   assert.equal(resources[0].project_id, sourceProjectId, 'Use the verified waiting target rather than an unrelated selected story')
   await menu('Attach files')
@@ -156,7 +159,7 @@ try {
   await panel.getByRole('button', { name: 'Close options' }).click()
   await send('Add recordings')
   await panel.locator('#agent-recordings').setInputFiles({ name: 'invalid.pdf', mimeType: 'application/pdf', buffer: Buffer.from('invalid') })
-  await panel.getByText('Check file format, size and count.').waitFor(); assert.equal(registrations, 0)
+  await panel.getByText('Check file format and size.').waitFor(); assert.equal(registrations, 0)
   await panel.locator('#agent-recordings').setInputFiles({ name: 'recording.mp4', mimeType: 'video/mp4', buffer: Buffer.from('synthetic video') })
   await panel.getByText(/recording.mp4.*Validated/).waitFor(); assert.equal(registrations, 1)
   await send('Trim and export the clip')

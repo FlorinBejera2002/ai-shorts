@@ -17,8 +17,24 @@ sneepcut.com, www.sneepcut.com {
 			header_up Host api.sneepcut.com
 		}
 	}
-	handle {
+	# Public pages are the static Next.js site (landing/); handles are tried in order.
+	@landing_assets path /_next/* /landing/* /robots.txt /sitemap.xml *.html
+	handle @landing_assets {
+		reverse_proxy landing:8080
+	}
+	# The web app (SPA): dashboard, auth, Studio session and its build assets.
+	@web_app path /dashboard* /login* /register* /forgot-password* /reset-password* /activate* /studio-session* /ro/dashboard* /ro/login* /ro/register* /ro/forgot-password* /ro/reset-password* /ro/activate* /assets/*
+	handle @web_app {
 		reverse_proxy frontend:8080
+	}
+	# Root-level files from frontend/public (icons, illustrations, manifest).
+	@web_app_files path_regexp web_app_file \.[A-Za-z0-9]+$
+	handle @web_app_files {
+		reverse_proxy frontend:8080
+	}
+	# Landing, pricing, legal pages and the 404 page for unknown paths.
+	handle {
+		reverse_proxy landing:8080
 	}
 }
 

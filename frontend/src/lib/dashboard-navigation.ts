@@ -24,6 +24,9 @@ export function isDashboardRouteActive(pathname: string, href: string) {
   if (href === '/dashboard') return pathname === href
   if (href === '/dashboard/clips' && pathname.startsWith('/dashboard/jobs/'))
     return true
+  // The calendar URL shows the Publish page.
+  if (href === '/dashboard/publish' && (pathname === '/dashboard/calendar' || pathname.startsWith('/dashboard/calendar/')))
+    return true
   return pathname === href || pathname.startsWith(`${href}/`)
 }
 

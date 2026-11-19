@@ -1,0 +1,124 @@
+/* Thumbnail of the Sneep Cut ending (canvas Br-Outro): the frame splits on a diagonal, the mark appears. */
+.thumb {
+  position: relative;
+  width: 56px;
+  height: 100px;
+  flex: none;
+  overflow: hidden;
+  border-radius: 3px;
+  background: radial-gradient(110% 60% at 50% 50%, #141320 0%, #050507 70%);
+}
+
+.half {
+  position: absolute;
+  inset: 0;
+  animation: top 3s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+  clip-path: polygon(0 0, 100% 0, 100% 36%, 0 64%);
+}
+
+.half + .half {
+  animation-name: bottom;
+  clip-path: polygon(0 64%, 100% 36%, 100% 100%, 0 100%);
+}
+
+.half img,
+.half span {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.half span {
+  background: #2a3242;
+}
+
+.line {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 69px;
+  height: 1px;
+  margin: -0.5px 0 0 -34.5px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, transparent, #fff 20%, #fff 80%, transparent);
+  box-shadow: 0 0 2px 1px #6d5cff;
+  animation: line 3s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+  transform-origin: 0 50%;
+}
+
+.end {
+  position: absolute;
+  inset: 0;
+  animation: end 3s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+}
+
+.halo {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 34px;
+  height: 34px;
+  margin: -17px 0 0 -17px;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(81, 57, 239, 0.55), rgba(81, 57, 239, 0) 65%);
+  animation: halo 3s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+}
+
+.mark {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 14px;
+  height: 14px;
+  margin: -7px 0 0 -7px;
+  animation: mark 3s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+}
+
+@keyframes line {
+  0%, 6% { opacity: 1; transform: rotate(-26.57deg) scaleX(0); }
+  20% { opacity: 1; transform: rotate(-26.57deg) scaleX(1); }
+  32%, 100% { opacity: 0; transform: rotate(-26.57deg) scaleX(1); }
+}
+
+@keyframes top {
+  0%, 22% { opacity: 1; transform: none; }
+  44%, 100% { opacity: 0; transform: translate(-6%, -16%) rotate(-3deg); }
+}
+
+@keyframes bottom {
+  0%, 22% { opacity: 1; transform: none; }
+  44%, 100% { opacity: 0; transform: translate(6%, 16%) rotate(-3deg); }
+}
+
+@keyframes mark {
+  0%, 28% { opacity: 0; transform: scale(0.35) rotate(-24deg); }
+  46% { opacity: 1; transform: scale(1.05) rotate(2deg); }
+  54%, 100% { opacity: 1; transform: none; }
+}
+
+@keyframes halo {
+  0%, 28% { opacity: 0; transform: scale(0.4); }
+  46% { opacity: 0.55; transform: scale(1); }
+  100% { opacity: 0.3; transform: scale(1.15); }
+}
+
+@keyframes end {
+  0%, 84% { opacity: 1; }
+  96%, 100% { opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .half,
+  .line,
+  .end,
+  .halo,
+  .mark {
+    animation: none;
+  }
+
+  .half,
+  .line {
+    opacity: 0;
+  }
+}

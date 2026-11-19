@@ -13,11 +13,26 @@ import theme from './publishing-theme.module.css'
 
 type OpenPanel = 'date' | 'time' | null
 
+const dateLabelFormatters = new Map<string, Intl.DateTimeFormat>()
+
+/** Formatters are cached per locale and weekday choice instead of rebuilt on every render. */
+function dateLabelFormatter(locale: string, withoutWeekday: boolean) {
+  const key = `${locale}|${withoutWeekday}`
+  let formatter = dateLabelFormatters.get(key)
+  if (!formatter) {
+    formatter = new Intl.DateTimeFormat(locale, {
+      ...(withoutWeekday ? {} : { weekday: 'short' as const }), day: 'numeric', month: 'short', year: 'numeric'
+    })
+    dateLabelFormatters.set(key, formatter)
+  }
+  return formatter
+}
+
 function addDays(value: Date, amount: number) {
   return new Date(value.getFullYear(), value.getMonth(), value.getDate() + amount)
 }
 
-export function SchedulePicker({ date, time, onDateChange, onTimeChange, dateError, timeError, compact = false, disabled = false }: {
+export function SchedulePicker({ date, time, onDateChange, onTimeChange, dateError, timeError, compact = false, disabled = false, visibleLabels }: {
   date: string
   time: string
   onDateChange: (value: string) => void
@@ -25,6 +40,8 @@ export function SchedulePicker({ date, time, onDateChange, onTimeChange, dateErr
   dateError?: string
   timeError?: string
   compact?: boolean
+  /** Visible captions for the composer; the trigger keeps its accessible name. */
+  visibleLabels?: { date: string; time: string }
   disabled?: boolean
 }) {
   const locale = useLocale()
@@ -45,9 +62,7 @@ export function SchedulePicker({ date, time, onDateChange, onTimeChange, dateErr
     const first = new Date(2026, 0, weekStartsOn === 1 ? 5 : 4)
     return Array.from({ length: 7 }, (_, index) => new Intl.DateTimeFormat(locale, { weekday: 'narrow' }).format(addDays(first, index)))
   }, [locale, weekStartsOn])
-  const dateLabel = new Intl.DateTimeFormat(locale, {
-    ...(compact ? {} : { weekday: 'short' as const }), day: 'numeric', month: 'short', year: 'numeric'
-  }).format(selectedDate)
+  const dateLabel = dateLabelFormatter(locale, compact && mobile).format(selectedDate)
   const todayKey = localDateKey(new Date())
   const fullDateFormatter = useMemo(() => new Intl.DateTimeFormat(locale, { dateStyle: 'full' }), [locale])
 
@@ -86,13 +101,13 @@ export function SchedulePicker({ date, time, onDateChange, onTimeChange, dateErr
   )
 
   return (
-    <div className={styles.root}>
+    <div className={compact ? styles.compact : styles.root}>
       {(['date', 'time'] as const).map(panel => {
         const error = panel === 'date' ? dateError : timeError
         const label = t(panel === 'date' ? 'form.dateLabel' : 'form.timeLabel')
         const trigger = <button type="button" disabled={disabled} className={styles.trigger} aria-label={label} aria-expanded={openPanel === panel} aria-haspopup="dialog" aria-invalid={Boolean(error)} onClick={mobile ? () => changePanel(panel) : undefined}>{panel === 'date' ? <CalendarDays /> : <Clock3 />}<span>{panel === 'date' ? dateLabel : `${hour}:${minute}`}</span><ChevronDown /></button>
         return <div key={panel} className={styles.field}>
-          {!compact && <span className={styles.label}>{label}</span>}
+          <span className={styles.label}>{visibleLabels?.[panel] ?? label}</span>
           {mobile ? trigger : (
             <Popover.Root open={openPanel === panel} onOpenChange={open => changePanel(open ? panel : null)}>
               <Popover.Trigger asChild>{trigger}</Popover.Trigger>

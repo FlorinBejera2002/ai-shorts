@@ -3,10 +3,23 @@ import { FeatureTabs } from './feature-tabs'
 import { PlatformLogo } from './platform-logo'
 import styles from './features.module.css'
 
-/** Waveform from the canvas; highlighted bars mark the three selected moments. */
-const WAVEFORM = [20, 74, 30, 32, 27, 50, 58, 57, 66, 35, 32, 22, 58, 26, 78, 39, 52, 27, 31, 50, 49, 75, 36, 56, 20, 35, 28, 72, 47, 64, 44, 27, 33, 37, 72, 31, 73, 22, 30, 25, 56, 51, 65, 59, 40, 29, 26, 59, 25, 80, 29, 53, 24, 34, 46, 58]
-const SELECTED_RANGES = [[3, 6], [16, 19], [42, 46]]
-const isSelectedBar = (index: number) => SELECTED_RANGES.some(([from, to]) => index >= from && index <= to)
+/** Waveform bar heights from the canvas; highlighted bars mark the three selected moments. */
+const BAR_HEIGHTS = [20, 74, 30, 32, 27, 50, 58, 57, 66, 35, 32, 22, 58, 26, 78, 39, 52, 27, 31, 50, 49, 75, 36, 56, 20, 35, 28, 72, 47, 64, 44, 27, 33, 37, 72, 31, 73, 22, 30, 25, 56, 51, 65, 59, 40, 29, 26, 59, 25, 80, 29, 53, 24, 34, 46, 58]
+type WaveformLayout = { bars: number; selected: [number, number][] }
+/** The phone layout shows fewer bars, with the selected moments at its own positions. */
+const DESKTOP_WAVEFORM: WaveformLayout = { bars: 56, selected: [[3, 6], [16, 19], [42, 46]] }
+const MOBILE_WAVEFORM: WaveformLayout = { bars: 34, selected: [[2, 3], [10, 11], [26, 28]] }
+
+function Waveform({ layout, className }: { layout: WaveformLayout; className: string }) {
+  const selected = (index: number) => layout.selected.some(([from, to]) => index >= from && index <= to)
+  return (
+    <span aria-hidden="true" className={`${styles.waveform} ${className}`}>
+      {BAR_HEIGHTS.slice(0, layout.bars).map((height, index) => (
+        <span key={index} style={{ height: `${height}%` }} className={selected(index) ? styles.barSelected : undefined} />
+      ))}
+    </span>
+  )
+}
 
 function PhonePreview({ duration, caption }: { duration: string; caption: [string, string] }) {
   return (
@@ -44,11 +57,8 @@ function SourceTimeline({ summary }: { summary: [string, string] }) {
         <span>{summary[0]}</span>
         <span>{summary[1]}</span>
       </span>
-      <span aria-hidden="true" className={styles.waveform}>
-        {WAVEFORM.map((height, index) => (
-          <span key={index} style={{ height: `${height}%` }} className={isSelectedBar(index) ? styles.barSelected : undefined} />
-        ))}
-      </span>
+      <Waveform layout={DESKTOP_WAVEFORM} className={styles.waveformDesktop} />
+      <Waveform layout={MOBILE_WAVEFORM} className={styles.waveformMobile} />
     </div>
   )
 }

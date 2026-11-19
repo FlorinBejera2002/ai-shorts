@@ -27,6 +27,7 @@ export function useKitCommands({
   onDeleted?: (id: string) => void
 }) {
   const t = useTranslations('brandKits')
+  const brand = useTranslations('brand')
   const errors = useToast()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -38,20 +39,33 @@ export function useKitCommands({
   const source = kits.find((kit) => kit.isDefault) ?? kits[0] ?? null
 
   function failure(reason: unknown) {
-    return reason instanceof KitRequestError && reason.status === 409 ? t('nameTaken') : t('failed')
+    if (!(reason instanceof KitRequestError)) return t('failed')
+    if (reason.image === 'type') return brand('useFormats')
+    if (reason.image === 'size') return brand('logoTooLarge')
+    return reason.status === 409 ? t('nameTaken') : t('failed')
   }
 
-  async function attempt(task: () => Promise<void>, inline: boolean) {
+  /**
+   * Runs one request with the busy flag; failures show inline (dialogs) or as a toast (menu
+   * commands). Resolves to `{ ok: true, value }` so callers update their own state afterwards.
+   */
+  async function perform<T>(request: () => Promise<T>, inline: boolean): Promise<{ ok: true; value: T } | { ok: false }> {
     setBusy(true)
     setError(null)
     try {
-      await task()
+      return { ok: true, value: await request() }
     } catch (reason) {
       if (inline) setError(failure(reason))
       else errors.add('error', failure(reason))
+      return { ok: false }
     } finally {
       setBusy(false)
     }
+  }
+
+  async function duplicate(kit: BrandKitSummary) {
+    const result = await perform(() => actions.duplicate(kit, copyName(kit.name, kits.map((item) => item.name))), false)
+    if (result.ok) onOpen(result.value)
   }
 
   function run(command: KitCommand, kit: BrandKitSummary) {
@@ -61,43 +75,36 @@ export function useKitCommands({
     else if (command === 'image') {
       imageTarget.current = kit
       imageInput.current?.click()
-    } else if (command === 'default') void attempt(() => actions.setDefault(kit.id), false)
-    else if (command === 'duplicate')
-      void attempt(async () => {
-        onOpen(await actions.duplicate(kit, copyName(kit.name, kits.map((item) => item.name))))
-      }, false)
+    } else if (command === 'default') void perform(() => actions.setDefault(kit.id), false)
+    else if (command === 'duplicate') void duplicate(kit)
   }
 
-  function submitNew(input: { name: string; fromKitId: string | null; image: File | null }) {
-    void attempt(async () => {
-      const id = await actions.create(input)
-      setCreating(false)
-      onOpen(id)
-    }, true)
+  async function submitNew(input: { name: string; fromKitId: string | null; image: File | null }) {
+    const result = await perform(() => actions.create(input), true)
+    if (!result.ok) return
+    setCreating(false)
+    onOpen(result.value)
   }
 
-  function submitRename(name: string) {
+  async function submitRename(name: string) {
     const kit = renaming
     if (!kit) return
-    void attempt(async () => {
-      await actions.rename(kit.id, name)
-      setRenaming(null)
-    }, true)
+    const result = await perform(() => actions.rename(kit.id, name), true)
+    if (result.ok) setRenaming(null)
   }
 
-  function confirmDelete() {
+  async function confirmDelete() {
     const kit = deleting
     if (!kit) return
-    void attempt(async () => {
-      await actions.remove(kit.id)
-      onDeleted?.(kit.id)
-      setDeleting(null)
-    }, false)
+    const result = await perform(() => actions.remove(kit.id), false)
+    if (!result.ok) return
+    onDeleted?.(kit.id)
+    setDeleting(null)
   }
 
   function changeImage(file: File | undefined) {
     const kit = imageTarget.current
-    if (file && kit) void attempt(() => actions.changeImage(kit.id, file), false)
+    if (file && kit) void perform(() => actions.changeImage(kit.id, file), false)
   }
 
   const overlays = (
@@ -122,7 +129,7 @@ export function useKitCommands({
         busy={busy}
         error={error}
         onClose={() => setCreating(false)}
-        onSubmit={submitNew}
+        onSubmit={(input) => void submitNew(input)}
       />
       )}
       <KitRenameDialog
@@ -131,14 +138,14 @@ export function useKitCommands({
         busy={busy}
         error={error}
         onClose={() => setRenaming(null)}
-        onSubmit={submitRename}
+        onSubmit={(name) => void submitRename(name)}
       />
       <KitDeleteDialog
         kit={deleting}
         mobile={mobile}
         busy={busy}
         onClose={() => setDeleting(null)}
-        onConfirm={confirmDelete}
+        onConfirm={() => void confirmDelete()}
       />
     </>
   )

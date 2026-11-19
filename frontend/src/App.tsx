@@ -37,6 +37,7 @@ import {
   TermsRoute
 } from './pages/public-pages'
 import { QueryProvider } from './query/query-provider'
+import { PublicSiteRoute } from './routing/public-site-route'
 import { RouteEffects } from './routing/route-effects'
 import { AdditionalLegalRoute } from './pages/additional-legal-route'
 import { additionalLegalPaths } from './routing/legal-documents'
@@ -55,13 +56,13 @@ function ApplicationRoutes({ locale }: { locale: AppLocale }) {
     <Routes>
       <Route path="/studio-session" element={<StudioSessionRoute />} />
       {additionalLegalPaths.map((page) => (
-        <Route key={page} path={route(`/${page}`)} element={<AdditionalLegalRoute page={page} />} />
+        <Route key={page} path={route(`/${page}`)} element={<PublicSiteRoute><AdditionalLegalRoute page={page} /></PublicSiteRoute>} />
       ))}
-      <Route path={route('/')} element={<HomeRoute />} />
-      <Route path={route('/pricing')} element={<PricingRoute />} />
-      <Route path={route('/privacy')} element={<PrivacyRoute />} />
-      <Route path={route('/terms')} element={<TermsRoute />} />
-      <Route path={route('/data-deletion')} element={<DataDeletionRoute />} />
+      <Route path={route('/')} element={<PublicSiteRoute><HomeRoute /></PublicSiteRoute>} />
+      <Route path={route('/pricing')} element={<PublicSiteRoute><PricingRoute /></PublicSiteRoute>} />
+      <Route path={route('/privacy')} element={<PublicSiteRoute><PrivacyRoute /></PublicSiteRoute>} />
+      <Route path={route('/terms')} element={<PublicSiteRoute><TermsRoute /></PublicSiteRoute>} />
+      <Route path={route('/data-deletion')} element={<PublicSiteRoute><DataDeletionRoute /></PublicSiteRoute>} />
       <Route path={route('/login')} element={<LoginPage />} />
       <Route path={route('/register')} element={<RegisterPage />} />
       <Route path={route('/forgot-password')} element={<ForgotPasswordPage />} />

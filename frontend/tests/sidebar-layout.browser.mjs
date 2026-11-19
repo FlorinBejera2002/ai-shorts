@@ -57,7 +57,8 @@ async function fixture({ dark = false, locale = 'ro', billing } = {}) {
   })
   const page = await context.newPage()
   page.setDefaultTimeout(15000)
-  page.setDefaultNavigationTimeout(60000)
+  // A cold Vite transforms the whole app on the first visit; later navigations are fast.
+  page.setDefaultNavigationTimeout(180000)
   page.on('pageerror', (error) => pageErrors.push(`${page.url()}: ${error.message}`))
   page.on('console', (message) => {
     if (message.type() === 'error' && !/^Failed to load resource:/.test(message.text()))
@@ -201,12 +202,18 @@ async function assertActive(page, key, label) {
         const rails = [...document.querySelectorAll('[data-sidebar-rail="active"]')].map((rail) => {
           const list = rail.parentElement
           const activeItem = list.querySelector('[data-sidebar-link][aria-current="page"]')?.closest('li')
-          const line = rail.querySelector('span')
+          const line = rail.querySelector('[data-sidebar-rail-line]')
           if (rail.getClientRects().length === 0) return true // collapsed rail hides connectors
           const visible = Number(getComputedStyle(rail).opacity) > 0.99
           if (!activeItem) return !visible || 'rail visible without an active item'
           const target = activeItem.offsetTop + activeItem.offsetHeight / 2 - 6
-          return (visible && Math.abs(line.offsetTop + line.offsetHeight - target) <= 1) || `rail ends at ${line.offsetTop + line.offsetHeight}, expected ${target}`
+          // The line moves by transform, so measure its rendered box against the list.
+          const end = line.getBoundingClientRect().bottom - list.getBoundingClientRect().top
+          const start = getComputedStyle(line.parentElement).clipPath
+          return (
+            (visible && Math.abs(end - target) <= 1 && /^inset\(0(px)?\b/.test(start)) ||
+            `rail ends at ${end} (expected ${target}), track clip ${start}`
+          )
         })
         const railOk = rails.every((value) => value === true)
         return (JSON.stringify(current) === JSON.stringify(expected ? [expected] : []) && boldOk && railOk) || { current, weights, rails }

@@ -11,6 +11,7 @@ import { apiFetch, authClient, googleSignIn, publicApiFetch } from '@/lib/auth'
 import { useQueryClient } from '@tanstack/react-query'
 import { useLocale, useTranslations } from 'next-intl'
 import { type FormEvent, useRef, useState } from 'react'
+import { runExclusive } from './run-exclusive'
 import type { Profile } from './settings-types'
 
 type Action =
@@ -26,6 +27,21 @@ class SettingsRequestError extends Error {
   constructor(message: string, code?: string) {
     super(message)
     this.code = code
+  }
+}
+
+/** Saves the export JSON through a temporary link. */
+function downloadJson(data: unknown) {
+  const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }))
+  const anchor = document.createElement('a')
+  try {
+    anchor.href = url
+    anchor.download = `sneepcut-data-export-${new Date().toISOString().slice(0, 10)}.json`
+    document.body.append(anchor)
+    anchor.click()
+  } finally {
+    anchor.remove()
+    URL.revokeObjectURL(url)
   }
 }
 
@@ -87,33 +103,26 @@ export function useAccountSettings(
     operation: () => Promise<void>,
     keepBusyOnSuccess = false
   ) {
-    if (busyRef.current || externalBusy || !acquireMutation()) return
-    busyRef.current = true
-    setBusy(action)
-    setErrors((current) => ({ ...current, [action]: undefined }))
-    let succeeded = false
-    try {
-      await operation()
-      succeeded = true
-    } catch (error) {
-      if (
-        action === 'delete' &&
-        error instanceof SettingsRequestError &&
-        error.code === 'reauthentication_required'
-      ) {
-        setProfile((current) => ({ ...current, recentlyAuthenticated: false }))
-      }
-      setErrors((current) => ({
-        ...current,
-        [action]: error instanceof Error ? error.message : fallback
-      }))
-    } finally {
-      if (!keepBusyOnSuccess || !succeeded) {
+    await runExclusive({
+      claim: () => !busyRef.current && !externalBusy && acquireMutation(),
+      onStart: () => {
+        busyRef.current = true
+        setBusy(action)
+        setErrors((current) => ({ ...current, [action]: undefined }))
+      },
+      onError: (error) => {
+        if (action === 'delete' && error instanceof SettingsRequestError && error.code === 'reauthentication_required')
+          setProfile((current) => ({ ...current, recentlyAuthenticated: false }))
+        setErrors((current) => ({ ...current, [action]: error instanceof Error ? error.message : fallback }))
+      },
+      onFinish: (succeeded) => {
+        if (keepBusyOnSuccess && succeeded) return
         busyRef.current = false
         releaseMutation()
         setBusy(null)
-      }
-    }
+      },
+      action: operation
+    })
   }
 
   function saveProfile(event: FormEvent) {
@@ -194,20 +203,7 @@ export function useAccountSettings(
         await apiFetch('/api/user/data', { cache: 'no-store' }),
         t('exportFailed')
       )
-      const data = await response.json()
-      const url = URL.createObjectURL(
-        new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
-      )
-      const anchor = document.createElement('a')
-      try {
-        anchor.href = url
-        anchor.download = `sneepcut-data-export-${new Date().toISOString().slice(0, 10)}.json`
-        document.body.append(anchor)
-        anchor.click()
-      } finally {
-        anchor.remove()
-        URL.revokeObjectURL(url)
-      }
+      downloadJson(await response.json())
       setExported(true)
       void queryClient.invalidateQueries({
         queryKey: ['api-resource', '/api/user/settings']

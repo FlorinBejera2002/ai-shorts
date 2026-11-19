@@ -64,3 +64,32 @@ export function publishingImageFormatsMatch(media: PublishingMedia[]) {
   )
   return formats.size <= 1
 }
+
+export type PublishingImageDrag = {
+  /** Pointer movement in rendered pixels since the drag started (or one keyboard step). */
+  dx: number
+  dy: number
+  frameWidth: number
+  frameHeight: number
+  sourceWidth: number
+  sourceHeight: number
+}
+
+/**
+ * Moves the crop position with the pointer. Crop coordinates describe the position within the
+ * overflow, so the rendered image moves by -x * overflow and dragging by dx changes x by -dx / overflow.
+ */
+export function publishingImageDragCrop(crop: PublishingImageCrop, drag: PublishingImageDrag): PublishingImageCrop {
+  const geometry = publishingImageCropGeometry(drag.sourceWidth, drag.sourceHeight, crop)
+  const overflowX = drag.frameWidth * (drag.sourceWidth / geometry.width) - drag.frameWidth
+  const overflowY = drag.frameHeight * (drag.sourceHeight / geometry.height) - drag.frameHeight
+  return {
+    ...crop,
+    x: clampUnit(overflowX > 0 ? crop.x - drag.dx / overflowX : crop.x),
+    y: clampUnit(overflowY > 0 ? crop.y - drag.dy / overflowY : crop.y)
+  }
+}
+
+function clampUnit(value: number) {
+  return Math.min(1, Math.max(0, value))
+}

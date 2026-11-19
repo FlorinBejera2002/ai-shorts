@@ -18,10 +18,7 @@ export function FeatureTabs({ label, tabs, panels, idPrefix }: FeatureTabsProps)
 
   function select(index: number, focus: boolean) {
     setActive(index)
-    const tab = tabRefs.current[index]
-    if (!tab) return
-    if (focus) tab.focus()
-    tab.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+    if (focus) tabRefs.current[index]?.focus()
   }
 
   function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {

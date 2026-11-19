@@ -3,7 +3,7 @@
   flex-direction: column;
   gap: 18px;
   width: calc(100% - 48px);
-  max-width: 880px;
+  max-width: 560px;
   max-height: min(90dvh, 780px);
   overflow: hidden;
   border: 0;
@@ -119,8 +119,8 @@
   border: 0;
   padding: 12px 16px 12px 44px;
   border-radius: var(--publish-pill-radius);
-  background: var(--publish-inset);
-  box-shadow: none;
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--publish-border);
 }
 
 .search input:focus-visible {
@@ -405,14 +405,15 @@
 
 @media (max-width: 767px) {
   .dialog.dialog {
-    inset: 0;
+    /* Phones get a bottom sheet with a rounded top, as on the reference. */
+    inset: auto 0 0;
     width: 100%;
     max-width: none;
-    height: 100dvh;
-    max-height: 100dvh;
+    height: auto;
+    max-height: 92dvh;
     border: 0;
-    border-radius: 0;
-    padding: 16px 0 0;
+    border-radius: 28px 28px 0 0;
+    padding: 12px 0 max(20px, env(safe-area-inset-bottom));
     gap: 16px;
     /* Minification can fold translate:none into transform; reset Tailwind's separate translation too. */
     --tw-translate-x: 0;
@@ -471,4 +472,64 @@
     border: 2px dashed var(--publish-upload-border-mobile);
     padding: 16px;
   }
+}
+
+/* Reference: the device tab is a tile grid with an "Add" tile, and the drop overlay covers the dialog. */
+.addTile {
+  position: relative;
+  display: flex;
+  aspect-ratio: 9 / 14;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 1px dashed var(--publish-border-strong);
+  border-radius: 12px;
+  color: var(--publish-secondary-text);
+  font-size: 13px;
+  cursor: pointer;
+}
+.addTile:focus-within { outline: 2px solid var(--primary); outline-offset: 2px; }
+.addTile[data-disabled="true"] { cursor: not-allowed; opacity: .6; }
+.addTile input { position: absolute; inset: 0; width: 100%; height: 100%; cursor: inherit; opacity: 0; }
+.addTile > svg { width: 22px; height: 22px; }
+.deviceHint { color: var(--publish-muted-text); font-size: 12px; }
+.dropOverlay {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  border: 2px dashed var(--publish-text);
+  border-radius: var(--publish-dialog-radius);
+  background: var(--publish-surface);
+  text-align: center;
+  pointer-events: none;
+}
+.dropIcon { display: grid; width: 56px; height: 56px; place-items: center; border-radius: 50%; background: var(--publish-primary); color: var(--publish-on-primary); }
+.dropTitle { font-family: var(--font-display), 'Sora', sans-serif; font-size: 16px; font-weight: 600; }
+.dropHint { color: var(--publish-muted-text); font-size: 13px; }
+@media (max-width: 767px) {
+  .cancel { display: none; }
+}
+
+.devicePanel { position: relative; display: flex; min-height: 220px; flex-direction: column; gap: 12px; }
+.deviceGrid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; align-items: start; }
+.tile { position: relative; min-width: 0; }
+.tileMedia { position: relative; display: flex; aspect-ratio: 9 / 14; align-items: center; justify-content: center; overflow: hidden; border-radius: 12px; background: var(--publish-inset); cursor: grab; }
+.tileMedia > * { max-width: 100%; max-height: 100%; }
+.tileBadge { position: absolute; left: 6px; top: 6px; z-index: 1; display: grid; width: 24px; height: 24px; place-items: center; border: 0; border-radius: 50%; background: var(--publish-text); color: var(--publish-surface); font-size: 12px; font-weight: 600; cursor: grab; }
+.tileBadge:focus-visible, .tileRemove:focus-visible, .tileCrop:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.tileBadge:disabled { cursor: default; }
+.tileRemove { position: absolute; right: 6px; top: 6px; z-index: 1; display: grid; width: 24px; height: 24px; place-items: center; border: 0; border-radius: 50%; background: rgb(0 0 0 / 45%); color: #fff; }
+.tileRemove > svg { width: 14px; height: 14px; }
+.tileRemove:disabled { opacity: .4; }
+.tileCrop { position: absolute; left: 6px; bottom: 6px; z-index: 1; width: 28px; height: 28px; border-radius: 50%; background: rgb(0 0 0 / 45%); color: #fff; }
+.tileCrop:hover { background: rgb(0 0 0 / 65%); color: #fff; }
+.tile[data-expanded] { grid-column: 1 / -1; }
+@media (max-width: 767px) {
+  .deviceGrid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
 }

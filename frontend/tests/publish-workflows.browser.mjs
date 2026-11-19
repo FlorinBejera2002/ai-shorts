@@ -125,8 +125,11 @@ async function capture(name) {
   }
   if (!dialogOpen && await composer.isVisible()) {
     await expectStyle(page.locator('#dashboard-main'), { backgroundColor: dark ? 'rgb(14, 19, 28)' : 'rgb(245, 247, 251)' }, 'themed canvas')
-    await expectStyle(composer.locator('fieldset').first(), { backgroundColor: dark ? 'rgb(24, 31, 43)' : 'rgb(255, 255, 255)', borderRadius: mobile ? '20px' : '24px' }, 'themed account card')
-    await expectStyle(composer.locator('textarea').first(), { backgroundColor: dark ? 'rgb(17, 24, 36)' : 'rgb(245, 247, 251)', borderRadius: mobile ? '14px' : '16px', borderTopWidth: '0px' }, 'themed inset text field')
+    // Desktop: the accounts fieldset is the card. Phones flatten the fieldsets and wrap the fields in one 20px card (canvas M-Composer).
+    const accountCard = mobile ? composer.locator('[class*="primaryGroup"]') : composer.locator('fieldset').first()
+    await expectStyle(accountCard, { backgroundColor: dark ? 'rgb(24, 31, 43)' : 'rgb(255, 255, 255)', borderRadius: mobile ? '20px' : '24px' }, 'themed account card')
+    // The composer text field follows the canvas: transparent with a hairline ring and a 14px radius.
+    await expectStyle(composer.locator('textarea').first(), { backgroundColor: 'rgba(0, 0, 0, 0)', borderRadius: '14px', borderTopWidth: '0px' }, 'canvas text field')
     await expectStyle(composer.locator('button[type="submit"]'), { backgroundColor: dark ? 'rgb(142, 155, 176)' : 'rgb(11, 11, 12)', borderRadius: '999px' }, 'themed primary action')
     await expectStyle(composer.locator('footer'), { position: 'static', backgroundColor: dark ? 'rgb(24, 31, 43)' : 'rgb(255, 255, 255)', borderRadius: mobile ? '20px' : '24px', backdropFilter: 'none' }, 'actions follow the form in a themed card')
     if (dark) {
@@ -139,14 +142,16 @@ async function capture(name) {
   }
   if (dialogOpen) {
     const dialog = page.getByRole('dialog').last()
-    const fullscreen = mobile && (await dialog.getAttribute('data-post-media-dialog') !== null || await dialog.getAttribute('data-publishing-image-editor') !== null)
-    if (fullscreen) await assertFullscreenDialog(dialog)
+    const isMediaDialog = await dialog.getAttribute('data-post-media-dialog') !== null
+    const isImageEditor = await dialog.getAttribute('data-publishing-image-editor') !== null
+    // Phone media picker and photo editor are both bottom sheets (canvas M-Media, M-Photo).
+    if (mobile && (isMediaDialog || isImageEditor)) await assertBottomSheet(dialog)
     if (mobile) {
       const bounds = await dialog.boundingBox()
       const viewport = page.viewportSize()
       assert.ok(bounds.x >= -1 && bounds.y >= -1 && bounds.x + bounds.width <= viewport.width + 1 && bounds.y + bounds.height <= viewport.height + 1, `${name}: dialog stays inside the phone viewport`)
     }
-    await expectStyle(dialog, { backgroundColor: dark ? 'rgb(24, 31, 43)' : 'rgb(255, 255, 255)', borderTopLeftRadius: fullscreen ? '0px' : '28px', borderTopWidth: '0px' }, 'themed dialog surface')
+    await expectStyle(dialog, { backgroundColor: dark ? 'rgb(24, 31, 43)' : 'rgb(255, 255, 255)', borderTopLeftRadius: '28px', borderTopWidth: '0px' }, 'themed dialog surface')
     const backdrop = await dialog.evaluate(element => {
       const overlay = element.previousElementSibling
       return overlay ? { background: getComputedStyle(overlay).backgroundColor, blur: getComputedStyle(overlay).backdropFilter } : null
@@ -158,12 +163,14 @@ async function capture(name) {
         const style = getComputedStyle(input.nextElementSibling)
         return { radius: style.borderRadius, background: style.backgroundColor, border: style.borderTopWidth, height: input.nextElementSibling.getBoundingClientRect().height }
       })
-      assert.deepEqual(choiceStyle, { radius: '12px', background: dark ? 'rgb(17, 24, 36)' : 'rgb(245, 247, 251)', border: '0px', height: 44 }, 'Platform choices have themed inset surfaces')
+      // Choice pills use the shared pill radius, a hairline border and the card surface (canvas D-Options-YT / M-Options-YT).
+      assert.deepEqual(choiceStyle, { radius: '999px', background: dark ? 'rgb(24, 31, 43)' : 'rgb(255, 255, 255)', border: '1px', height: 44 }, 'Platform choices are pills on the card surface')
       await expectStyle(dialog.getByRole('textbox').first(), { backgroundColor: dark ? 'rgb(17, 24, 36)' : 'rgb(245, 247, 251)', borderRadius: '14px', borderTopWidth: '0px' }, 'themed platform input')
       if (dark) await assertTextContrast(dialog.getByRole('textbox').first(), `${name}: provider input`)
     }
     if (name.startsWith('photo-')) {
-      await expectStyle(dialog.locator('[data-publishing-image-preview]'), { borderRadius: '0px', outlineWidth: '2px', outlineColor: 'rgb(255, 255, 255)' }, 'square photo crop with white outline')
+      // Canvas D-Photo: the crop frame has a 4px radius and a 2px white ring drawn as a box-shadow.
+      await expectStyle(dialog.locator('[data-publishing-image-preview]'), { borderRadius: '4px', boxShadow: 'rgb(255, 255, 255) 0px 0px 0px 2px, rgba(0, 0, 0, 0.45) 0px 20px 50px 0px' }, 'photo crop frame with canvas radius and white ring')
     }
   }
   await page.screenshot({ path: fileURLToPath(new URL(`${name}.png`, output)), fullPage: false })
@@ -176,13 +183,15 @@ async function openEditor(id = uid(840), query = '') {
 async function openMedia() {
   await composer.getByRole('button', { name: messages.composer.changeMedia, exact: true }).click()
   await media().waitFor()
-  if (page.viewportSize().width < 768) await assertFullscreenDialog(media())
+  if (page.viewportSize().width < 768) await assertBottomSheet(media())
 }
-async function assertFullscreenDialog(dialog) {
+async function assertBottomSheet(dialog) {
+  // Canvas M-Media and M-Photo: on phones these dialogs are bottom sheets anchored to the bottom edge, full width, inside the viewport.
   const bounds = await dialog.boundingBox()
   const viewport = page.viewportSize()
-  assert.ok(Math.abs(bounds.x) <= 1 && Math.abs(bounds.y) <= 1, 'Mobile dialog begins at the viewport origin, including in minified production CSS')
-  assert.ok(Math.abs(bounds.width - viewport.width) <= 1 && Math.abs(bounds.height - viewport.height) <= 1, 'Mobile dialog fills the viewport')
+  assert.ok(Math.abs(bounds.x) <= 1 && Math.abs(bounds.width - viewport.width) <= 1, 'Mobile sheet spans the full viewport width')
+  assert.ok(Math.abs(bounds.y + bounds.height - viewport.height) <= 1, 'Mobile sheet is anchored to the bottom edge')
+  assert.ok(bounds.y >= -1 && bounds.y + bounds.height <= viewport.height + 1, 'Mobile sheet stays within the viewport')
 }
 async function assertFormActions(label) {
   const footer = composer.locator('footer')
@@ -237,8 +246,11 @@ try {
   await page.addInitScript(value => localStorage.setItem('theme', value), theme)
   await openEditor()
   await caption().fill('Text retained through all focused views')
-  const mediaRow = composer.getByRole('button', { name: messages.composer.changeMedia, exact: true })
-  assert.equal(await mediaRow.locator('img, video').count(), 0, 'The Media card has no duplicate thumbnail')
+  // The Media card is the full-row chooser inside the Media section; the preview has its own change control.
+  const mediaRow = composer.locator('section')
+    .filter({ has: page.getByRole('heading', { name: messages.form.mediaSectionTitle, exact: true }) })
+    .getByRole('button', { name: messages.composer.changeMedia, exact: true })
+  assert.equal(await mediaRow.locator('img, svg').count(), 1, 'The Media row shows exactly one thumbnail')
   assert.equal(await mediaRow.locator('button').count(), 0, 'The Media row is one accessible control')
   await mediaRow.locator('strong').click()
   await media().waitFor()
@@ -351,7 +363,7 @@ try {
   await selectQueuePost(uid(840))
   await capture('detail-mobile')
   await page.locator('[data-publishing-preview]').getByRole('button', { name: messages.actions.delete, exact: true }).first().click()
-  const deletion = page.getByRole('dialog', { name: messages.dialog.deleteTitle, exact: true })
+  const deletion = page.getByRole('alertdialog', { name: messages.dialog.deleteTitle, exact: true })
   await deletion.waitFor()
   await capture('delete-mobile')
   await deletion.getByRole('button', { name: messages.actions.confirmDelete, exact: true }).last().click()

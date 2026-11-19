@@ -4,6 +4,7 @@ import ui from '@/components/shared/reference-ui.module.css'
 import type { AccountSession } from '@/lib/settings'
 import { Monitor, ShieldCheck, Smartphone } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
+import { formatSince } from './settings-format'
 import { SettingsLoadState } from './settings-load-state'
 import { Chevron, FieldError, IconCircle, Pill, SettingsCard, StatusDot, TextField } from './settings-ui'
 import { useMountTime } from './use-mount-time'
@@ -129,7 +130,6 @@ const DEVICE = /^(.+) on (.+)$/
 function useSessionLabels() {
   const t = useTranslations('settings.page')
   const locale = useLocale()
-  const relative = new Intl.RelativeTimeFormat(locale, { numeric: 'auto' })
   const now = useMountTime()
   return {
     device(session: AccountSession) {
@@ -138,13 +138,7 @@ function useSessionLabels() {
       const platform = match[2] === 'Unknown device' ? t('unknownDevice') : match[2]!
       return t('device', { browser: match[1]!, platform })
     },
-    seen(session: AccountSession) {
-      const seconds = Math.round((new Date(session.lastSeenAt).getTime() - now) / 1000)
-      if (Math.abs(seconds) < 60) return relative.format(0, 'second')
-      if (Math.abs(seconds) < 3600) return relative.format(Math.round(seconds / 60), 'minute')
-      if (Math.abs(seconds) < 86400) return relative.format(Math.round(seconds / 3600), 'hour')
-      return relative.format(Math.round(seconds / 86400), 'day')
-    }
+    seen: (session: AccountSession) => formatSince(session.lastSeenAt, now, locale)
   }
 }
 

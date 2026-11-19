@@ -2,13 +2,10 @@
 
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { useToast } from '@/components/ui/toast'
 import { useApiResource } from '@/hooks/use-api-resource'
 import { useSocialConnection } from '@/hooks/use-social-connection'
 import { useRouter } from '@/i18n/navigation'
 import type {
-  CalendarClipOption,
-  ContentPlatform,
   ScheduledPostRecord
 } from '@/lib/content-calendar'
 import {
@@ -31,38 +28,21 @@ import {
 } from './calendar-period'
 import { CalendarPreviewList } from './calendar-preview-list'
 import {
-  type CalendarResponse,
-  type PostResponse,
-  requestJson
-} from './calendar-request'
-import {
-  CalendarRequestError,
-  type PostFormPayload,
   localDateKey,
-  normalizeScheduledPost,
   safeTimeZone,
   startOfLocalDay,
-  isInRange
 } from './calendar-utils'
 import publishingStyles from './calendar-publishing.module.css'
 import { ConnectionSuccessOverlay } from './connection-success-overlay'
-import { PostDialog } from './post-dialog'
-import { PublishingStatusDialog } from './publishing-status-dialog'
 import theme from './publishing-theme.module.css'
+import { type CalendarLoadError, useCalendarFeed } from './use-calendar-feed'
+import { type CalendarDialogState, CalendarPostDialogs } from './calendar-post-dialogs'
 import {
   readPublishingView,
   rememberPublishingScroll,
   savePublishingView
 } from './calendar-publishing-state'
 
-type LoadErrorKey = 'auth' | 'rateLimit' | 'load'
-type DialogState =
-  | { mode: 'create'; initialTime?: string; initialClipId?: string }
-  | {
-      mode: 'edit' | 'reschedule' | 'status' | 'delete'
-      post: ScheduledPostRecord
-    }
-  | null
 
 function CalendarSkeleton() {
   const t = useTranslations('contentCalendar')
@@ -81,27 +61,27 @@ function CalendarSkeleton() {
 export function ContentCalendar() {
   const t = useTranslations('contentCalendar')
   const locale = useLocale()
-  const toast = useToast()
   const searchParams = useSearchParams()
   const router = useRouter()
   const requestedClipId = searchParams.get('clip')
   const weekStartsOn: 0 | 1 = locale.toLowerCase().startsWith('ro') ? 1 : 0
-  const [ready, setReady] = useState(false)
-  const [period, setPeriod] = useState<PublishingPeriod | null>(null)
+  const [period, setPeriod] = useState<PublishingPeriod>(() => {
+    const saved = readPublishingView().period
+    return saved
+      ? { kind: saved.kind, start: new Date(saved.start), end: new Date(saved.end) }
+      : presetPeriod('month', new Date(), weekStartsOn)
+  })
   const [periodMenuOpen, setPeriodMenuOpen] = useState(false)
-  const [selectedDate, setSelectedDate] = useState(() => new Date(0))
-  const [timeZone, setTimeZone] = useState('UTC')
-  const [posts, setPosts] = useState<ScheduledPostRecord[]>([])
-  const [clips, setClips] = useState<CalendarClipOption[]>([])
-  const [loading, setLoading] = useState(false)
-  const [hasLoaded, setHasLoaded] = useState(false)
-  const [loadError, setLoadError] = useState<LoadErrorKey | null>(null)
-  const [truncatedLimit, setTruncatedLimit] = useState<number | null>(null)
-  const [refreshToken, setRefreshToken] = useState(0)
-  const [dialog, setDialog] = useState<DialogState>(null)
-  const mutationRevisionRef = useRef(0)
+  const [selectedDate, setSelectedDate] = useState(() => {
+    const saved = readPublishingView().selectedDate
+    return startOfLocalDay(saved ? new Date(saved) : new Date())
+  })
+  const [timeZone] = useState(safeTimeZone)
+  const [dialog, setDialog] = useState<CalendarDialogState>(null)
   const openedRequestedClipRef = useRef(false)
   const restoredScrollRef = useRef(false)
+  const feed = useCalendarFeed(period)
+  const { posts, clips, hasLoaded, loading, loadError, truncatedLimit } = feed
   const {
     data: publishingData,
     error: publishingError,
@@ -110,30 +90,6 @@ export function ContentCalendar() {
   const { connect, busyProvider, connectedProvider, finishConfirmation } =
     useSocialConnection(reloadPublishing)
 
-  const rangeStart = period?.start.toISOString() ?? ''
-  const rangeEnd = period?.end.toISOString() ?? ''
-
-  useEffect(() => {
-    const now = new Date()
-    const saved = readPublishingView()
-    setPeriod(
-      saved.period
-        ? {
-            kind: saved.period.kind,
-            start: new Date(saved.period.start),
-            end: new Date(saved.period.end)
-          }
-        : presetPeriod('month', now, weekStartsOn)
-    )
-    setSelectedDate(
-      saved.selectedDate
-        ? startOfLocalDay(new Date(saved.selectedDate))
-        : startOfLocalDay(now)
-    )
-    setTimeZone(safeTimeZone())
-    setReady(true)
-    // The saved view seeds the first render only; later changes go through choosePeriod.
-  }, [])
 
   useEffect(() => {
     if (!hasLoaded || restoredScrollRef.current) return
@@ -146,56 +102,6 @@ export function ContentCalendar() {
     })
     return () => cancelAnimationFrame(frame)
   }, [hasLoaded])
-
-  // biome-ignore lint/correctness/useExhaustiveDependencies: refreshToken intentionally retries the current range.
-  useEffect(() => {
-    if (!ready || !rangeStart || !rangeEnd) return
-    const controller = new AbortController()
-    const mutationRevisionAtStart = mutationRevisionRef.current
-
-    async function loadCalendar() {
-      setLoading(true)
-      setLoadError(null)
-      try {
-        const params = new URLSearchParams({
-          start: rangeStart,
-          end: rangeEnd
-        })
-        const data = await requestJson<CalendarResponse>(
-          `/api/calendar?${params}`,
-          { signal: controller.signal, cache: 'no-store' }
-        )
-        if (!Array.isArray(data.posts) || !Array.isArray(data.clips)) {
-          throw new CalendarRequestError('Invalid calendar response', 500)
-        }
-        setClips(data.clips)
-        if (mutationRevisionAtStart === mutationRevisionRef.current) {
-          setPosts(data.posts.map(normalizeScheduledPost))
-          setTruncatedLimit(
-            data.meta?.truncated ? (data.meta.limit ?? 500) : null
-          )
-          setHasLoaded(true)
-        }
-      } catch (error) {
-        if (controller.signal.aborted) return
-        if (error instanceof CalendarRequestError && error.status === 401) {
-          setLoadError('auth')
-        } else if (
-          error instanceof CalendarRequestError &&
-          error.status === 429
-        ) {
-          setLoadError('rateLimit')
-        } else {
-          setLoadError('load')
-        }
-      } finally {
-        if (!controller.signal.aborted) setLoading(false)
-      }
-    }
-
-    void loadCalendar()
-    return () => controller.abort()
-  }, [rangeEnd, rangeStart, ready, refreshToken])
 
   useEffect(() => {
     if (
@@ -212,29 +118,6 @@ export function ContentCalendar() {
     )
   }, [clips, hasLoaded, requestedClipId, router])
 
-  useEffect(() => {
-    const now = Date.now()
-    const publishing = posts.some((post) => post.status === 'publishing')
-    const nextScheduledAt = posts
-      .filter((post) => post.status === 'scheduled')
-      .map((post) => new Date(post.scheduledAt).getTime())
-      .filter((scheduledAt) => Number.isFinite(scheduledAt))
-      .sort((left, right) => left - right)[0]
-
-    if (!publishing && nextScheduledAt === undefined) return
-    const delay =
-      publishing || nextScheduledAt === undefined
-        ? 5_000
-        : Math.max(
-            1_000,
-            Math.min(2_147_000_000, nextScheduledAt - now + 1_000)
-          )
-    const timer = window.setTimeout(
-      () => setRefreshToken((current) => current + 1),
-      delay
-    )
-    return () => window.clearTimeout(timer)
-  }, [posts])
 
   const publishingAccounts = useMemo(
     () =>
@@ -248,7 +131,6 @@ export function ContentCalendar() {
       ),
     [publishingData]
   )
-  const selectedKey = localDateKey(selectedDate)
 
   function choosePeriod(next: PublishingPeriod) {
     setPeriod(next)
@@ -265,7 +147,7 @@ export function ContentCalendar() {
     const nextDate = startOfLocalDay(date)
     setSelectedDate(nextDate)
     savePublishingView({ selectedDate: nextDate.toISOString() })
-    if (period && !periodContains(period, nextDate)) {
+    if (!periodContains(period, nextDate)) {
       choosePeriod(monthPeriod(nextDate))
     }
   }
@@ -294,78 +176,6 @@ export function ContentCalendar() {
     router.push(`/dashboard/publish/${post.id}/edit?${params}`)
   }
 
-  function mergePost(post: ScheduledPostRecord) {
-    const normalizedPost = normalizeScheduledPost(post)
-    setPosts((current) => {
-      const withoutPost = current.filter(
-        (item) => item.id !== normalizedPost.id
-      )
-      return period && isInRange(normalizedPost.scheduledAt, period)
-        ? [...withoutPost, normalizedPost]
-        : withoutPost
-    })
-  }
-
-  async function saveDialogPost(payload: PostFormPayload) {
-    if (!dialog) return
-    let post: ScheduledPostRecord
-    if (dialog.mode === 'create') {
-      const data = await requestJson<PostResponse>('/api/calendar', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      })
-      post = data.post
-      toast.add(
-        'success',
-        t(
-          payload.status === 'publish' || post.status === 'publishing'
-            ? 'toasts.publishing'
-            : 'toasts.created'
-        )
-      )
-    } else {
-      const data = await requestJson<PostResponse>(
-        `/api/calendar/${dialog.post.id}`,
-        {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        }
-      )
-      post = data.post
-      toast.add(
-        'success',
-        t(
-          payload.status === 'publish' || post.status === 'publishing'
-            ? 'toasts.publishing'
-            : dialog.mode === 'reschedule'
-              ? 'toasts.rescheduled'
-              : 'toasts.updated'
-        )
-      )
-    }
-    mutationRevisionRef.current += 1
-    mergePost(post)
-    setRefreshToken((current) => current + 1)
-    focusDate(new Date(post.scheduledAt))
-  }
-
-  async function deleteDialogPost(platforms: ContentPlatform[]) {
-    if (!dialog || dialog.mode === 'create') return
-    await requestJson<{ deleted: boolean; deletedPlatforms: string[] }>(
-      `/api/calendar/${dialog.post.id}`,
-      {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ platforms })
-      }
-    )
-    mutationRevisionRef.current += 1
-    setPosts((current) => current.filter((post) => post.id !== dialog.post.id))
-    setRefreshToken((current) => current + 1)
-    toast.add('success', t('toasts.deleted'))
-  }
 
   return (
     <div
@@ -391,7 +201,6 @@ export function ContentCalendar() {
           busyProvider={busyProvider}
         />
         <Button
-          disabled={!ready}
           onClick={() => openCreate()}
           className={publishingStyles.newPost}
           aria-label={t('actions.newPost')}
@@ -401,34 +210,11 @@ export function ContentCalendar() {
         </Button>
       </header>
 
-      {!ready || !period || (!hasLoaded && !loadError) ? (
+      {!hasLoaded && !loadError ? (
         <CalendarSkeleton />
       ) : (
         <div>
-          {loadError && (
-            <div role="alert" className={publishingStyles.loadError}>
-              <AlertCircle className="h-4 w-4 shrink-0" />
-              <h2 className="min-w-0 text-sm font-medium">
-                {t(`errors.${loadError}`)}
-              </h2>
-              <button
-                type="button"
-                onClick={() => setRefreshToken((current) => current + 1)}
-                className="inline-flex h-9 items-center gap-2 rounded-md border border-destructive/25 bg-card px-3 text-xs font-semibold text-foreground hover:bg-muted"
-              >
-                <RefreshCw className="h-3.5 w-3.5" />
-                {t('actions.retry')}
-              </button>
-            </div>
-          )}
-          {truncatedLimit && (
-            <div
-              role="status"
-              className="rounded-md border border-warning/25 bg-warning/[0.07] px-4 py-3 text-xs font-medium text-warning"
-            >
-              {t('truncated', { count: truncatedLimit })}
-            </div>
-          )}
+          <CalendarFeedNotices loadError={loadError} truncatedLimit={truncatedLimit} onRetry={feed.retry} />
 
           {hasLoaded && (
             <div>
@@ -486,50 +272,58 @@ export function ContentCalendar() {
         </div>
       )}
 
-      {dialog?.mode === 'status' && (
-        <PublishingStatusDialog
-          post={posts.find((post) => post.id === dialog.post.id) ?? dialog.post}
-          onClose={() => setDialog(null)}
-          onDelete={() => setDialog({ mode: 'delete', post: dialog.post })}
-          onEdit={() => openEdit(dialog.post)}
-        />
-      )}
-
-      {dialog && dialog.mode !== 'status' && (
-        <PostDialog
-          key={`${dialog.mode}-${
-            dialog.mode === 'create'
-              ? `${selectedKey}-${dialog.initialTime ?? ''}-${dialog.initialClipId ?? ''}`
-              : dialog.post.id
-          }`}
-          mode={dialog.mode}
-          selectedDate={selectedDate}
-          initialTime={
-            dialog.mode === 'create' ? dialog.initialTime : undefined
-          }
-          initialClipId={
-            dialog.mode === 'create' ? dialog.initialClipId : undefined
-          }
-          post={dialog.mode === 'create' ? undefined : dialog.post}
-          clips={clips}
-          youtubeAuditApproved={
-            publishingData?.providers.find(
-              (provider) => provider.id === 'youtube'
-            )?.youtubeAuditApproved === true
-          }
-          publishingClips={publishingData?.clips ?? []}
-          publishingAccounts={publishingAccounts}
-          platformConnectionsLoaded={publishingData !== null}
-          timeZone={timeZone}
-          onClose={() => setDialog(null)}
-          onSave={saveDialogPost}
-          onDelete={
-            dialog.mode === 'edit' || dialog.mode === 'delete'
-              ? deleteDialogPost
-              : undefined
-          }
-        />
-      )}
+      <CalendarPostDialogs
+        dialog={dialog}
+        posts={posts}
+        clips={clips}
+        period={period}
+        selectedDate={selectedDate}
+        timeZone={timeZone}
+        publishingData={publishingData}
+        publishingAccounts={publishingAccounts}
+        onDialogChange={setDialog}
+        onEdit={openEdit}
+        onSaved={(post) => focusDate(new Date(post.scheduledAt))}
+        updatePosts={feed.updatePosts}
+      />
     </div>
+  )
+}
+
+function CalendarFeedNotices({
+  loadError,
+  truncatedLimit,
+  onRetry
+}: {
+  loadError: CalendarLoadError | null
+  truncatedLimit: number | null
+  onRetry: () => void
+}) {
+  const t = useTranslations('contentCalendar')
+  return (
+    <>
+      {loadError && (
+        <div role="alert" className={publishingStyles.loadError}>
+          <AlertCircle className="h-4 w-4 shrink-0" />
+          <h2 className="min-w-0 text-sm font-medium">{t(`errors.${loadError}`)}</h2>
+          <button
+            type="button"
+            onClick={onRetry}
+            className="inline-flex h-9 items-center gap-2 rounded-md border border-destructive/25 bg-card px-3 text-xs font-semibold text-foreground hover:bg-muted"
+          >
+            <RefreshCw className="h-3.5 w-3.5" />
+            {t('actions.retry')}
+          </button>
+        </div>
+      )}
+      {truncatedLimit && (
+        <div
+          role="status"
+          className="rounded-md border border-warning/25 bg-warning/[0.07] px-4 py-3 text-xs font-medium text-warning"
+        >
+          {t('truncated', { count: truncatedLimit })}
+        </div>
+      )}
+    </>
   )
 }

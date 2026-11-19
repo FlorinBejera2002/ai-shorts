@@ -1,4 +1,5 @@
-import { HomePage, homeMetadata } from '@/views/home-page'
+import { homeMetadata } from '@/lib/page-metadata'
+import { HomePage } from '@/views/home-page'
 
 export const metadata = homeMetadata('en')
 

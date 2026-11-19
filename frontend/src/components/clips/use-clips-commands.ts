@@ -49,6 +49,14 @@ export function useClipsCommands({
     }
   }
 
+  async function toggleFavorite(clip: LibraryClip) {
+    try {
+      await actions.setFavorite(clip.id, !clip.favorite)
+    } catch {
+      errors.add('error', t('failed'))
+    }
+  }
+
   async function submitName(name: string) {
     if (!naming) return
     setBusy(true)
@@ -104,6 +112,7 @@ export function useClipsCommands({
   const clipCommands: ClipCommands = {
     projects,
     onMove: (clip, projectId) => void move(clip, projectId),
+    onFavorite: (clip) => void toggleFavorite(clip),
     onNewProject: (clip) => openNaming({ project: null, clip }),
     onDelete: setDeletingClip
   }

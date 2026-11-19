@@ -1,5 +1,6 @@
 import type { SiteCopy } from '@/content/copy/types'
-import { PLATFORM_ORDER, PlatformLogo } from './platform-logo'
+import { PLATFORM_ORDER } from '@/content/platforms'
+import { PlatformLogo } from './platform-logo'
 import styles from './sections.module.css'
 
 export function PlatformStrip({ copy }: { copy: SiteCopy['home'] }) {

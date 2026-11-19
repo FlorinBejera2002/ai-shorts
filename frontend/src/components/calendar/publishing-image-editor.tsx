@@ -4,9 +4,8 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import { Slider } from '@/components/ui/slider'
 import { Textarea } from '@/components/ui/textarea'
-import { useIsMobile } from '@/hooks/use-mobile'
-import type { PublishingMedia } from '@/lib/content-calendar'
-import { ChevronDown, RotateCcw, X } from 'lucide-react'
+import type { PublishingImageCrop, PublishingMedia } from '@/lib/content-calendar'
+import { Move, RotateCcw, X } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useId, useState } from 'react'
 import { PublishingImagePreview } from './publishing-image-preview'
@@ -29,6 +28,130 @@ interface PublishingImageEditorProps {
   onClose: () => void
 }
 
+function PhotoCropStage({ draft, previewUrl, disabled, instagramEnabled, onCropChange }: {
+  draft: PublishingMedia
+  previewUrl?: string
+  disabled: boolean
+  instagramEnabled: boolean
+  onCropChange: (crop: PublishingImageCrop) => void
+}) {
+  const t = useTranslations('contentCalendar.imageEditor')
+  const positionable = Boolean(draft.crop) && !disabled
+  return (
+    <div className={styles.stageColumn}>
+      <div className={styles.stage}>
+        {previewUrl && <img src={previewUrl} alt='' aria-hidden='true' className={styles.backdrop} />}
+        {previewUrl ? (
+          <PublishingImagePreview
+            item={draft}
+            src={previewUrl}
+            fullSize
+            showUserTags={instagramEnabled}
+            positionLabel={t('dragToPosition')}
+            onCropChange={positionable ? onCropChange : undefined}
+          />
+        ) : (
+          <p className={styles.unavailable}>{t('previewUnavailable')}</p>
+        )}
+        {positionable && (
+          <span className={styles.positionHint}>
+            <Move className='size-3.5' aria-hidden='true' />
+            {t('dragToPosition')}
+          </span>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function PhotoFormatField({ id, crop, disabled, carousel, onFormat }: {
+  id: string
+  crop?: PublishingImageCrop
+  disabled: boolean
+  carousel: boolean
+  onFormat: (format: PublishingImageFormat) => void
+}) {
+  const t = useTranslations('contentCalendar.imageEditor')
+  return (
+    <fieldset disabled={disabled} className={styles.field}>
+      <legend className={styles.fieldLabel}>{t('formatLabel')}</legend>
+      <div className={styles.ratios}>
+        {formats.map(format => (
+          <label key={format} className={styles.ratio}>
+            <input
+              type='radio'
+              name={id + '-format'}
+              value={format}
+              checked={(crop?.aspectRatio ?? 'original') === format}
+              onChange={() => onFormat(format)}
+            />
+            <span className={styles.ratioShape} aria-hidden='true' data-format={format} />
+            <span>{format === 'original' ? t('original') : format}</span>
+          </label>
+        ))}
+      </div>
+      {carousel && <p className={styles.formatHint}>{t('carouselHint')}</p>}
+    </fieldset>
+  )
+}
+
+function PhotoZoomField({ zoom, hasCrop, disabled, onZoom, onReset }: {
+  zoom: number
+  hasCrop: boolean
+  disabled: boolean
+  onZoom: (zoom: number) => void
+  onReset: () => void
+}) {
+  const t = useTranslations('contentCalendar.imageEditor')
+  return (
+    <div className={styles.field}>
+      <div className={styles.zoomHeader}>
+        <span className={styles.fieldLabel}>{t('zoom')}</span>
+        <span className={styles.zoomValue}>{Math.round(zoom * 100)}%</span>
+      </div>
+      <div className={styles.zoomRow}>
+        <Slider
+          aria-label={t('zoom')}
+          min={1}
+          max={3}
+          step={0.01}
+          value={[zoom]}
+          disabled={disabled || !hasCrop}
+          onValueChange={values => onZoom(values[0] ?? zoom)}
+        />
+      </div>
+      <Button type='button' variant='ghost' size='sm' className={styles.reset} disabled={disabled || !hasCrop} onClick={onReset}>
+        <RotateCcw className='size-3.5' aria-hidden='true' />
+        {t('resetCrop')}
+      </Button>
+    </div>
+  )
+}
+
+function PhotoAltTextField({ id, value, disabled, onChange }: {
+  id: string
+  value: string
+  disabled: boolean
+  onChange: (altText: string) => void
+}) {
+  const t = useTranslations('contentCalendar.imageEditor')
+  return (
+    <div className={styles.field}>
+      <label htmlFor={id} className={styles.fieldLabel}>{t('altText')}</label>
+      <Textarea
+        id={id}
+        aria-label={t('altText')}
+        className={styles.altText}
+        value={value}
+        disabled={disabled}
+        placeholder={t('altPlaceholder')}
+        onChange={event => onChange(Array.from(event.target.value).slice(0, 1000).join(''))}
+      />
+      <p className={styles.helper}>{t('altHint')}</p>
+    </div>
+  )
+}
+
 export function PublishingImageEditor({
   item,
   previewUrl,
@@ -41,11 +164,10 @@ export function PublishingImageEditor({
 }: PublishingImageEditorProps) {
   const t = useTranslations('contentCalendar.imageEditor')
   const id = useId()
-  const isMobile = useIsMobile()
+  // Draft edits stay local until Done, so Cancel discards format, crop, alt text and tags together.
   const [draft, setDraft] = useState(item)
-  const [altExpanded, setAltExpanded] = useState(false)
-  const [tagsExpanded, setTagsExpanded] = useState(false)
   const crop = draft.crop
+  const zoom = crop?.zoom ?? 1
 
   function save() {
     if (disabled) return
@@ -53,124 +175,71 @@ export function PublishingImageEditor({
     onClose()
   }
 
+  function updateCrop(patch: Partial<PublishingImageCrop>) {
+    setDraft(current => (current.crop ? { ...current, crop: { ...current.crop, ...patch } } : current))
+  }
+
   return (
     <Dialog open onOpenChange={open => { if (!open) onClose() }}>
-      <DialogContent className={`${theme.surface} ${styles.dialog}`} overlayClassName={theme.overlay} aria-describedby={undefined} data-publish-surface="" data-publishing-image-editor="">
+      <DialogContent
+        className={`${theme.surface} ${styles.dialog}`}
+        overlayClassName={theme.overlay}
+        aria-describedby={undefined}
+        data-publish-surface=''
+        data-publishing-image-editor=''
+      >
         <header className={styles.header}>
-          <Button type="button" variant="ghost" size="icon" onClick={onClose} aria-label={t('close')} className={styles.close}>
-            <X className="size-4" />
-          </Button>
           <DialogTitle className={styles.title}>{t('title')}</DialogTitle>
-          <Button type="button" onClick={save} disabled={disabled} className={styles.mobileDone}>{t('done')}</Button>
+          <Button type='button' variant='ghost' size='icon' onClick={onClose} aria-label={t('close')} className={styles.close}>
+            <X className='size-5' />
+          </Button>
         </header>
         <div className={styles.body}>
-          <div className={styles.preview}>
-            {previewUrl ? (
-              <PublishingImagePreview item={draft} src={previewUrl} fullSize showUserTags={instagramEnabled} />
-            ) : (
-              <p className="text-sm text-muted-foreground">{t('previewUnavailable')}</p>
-            )}
-          </div>
+          <PhotoCropStage
+            draft={draft}
+            previewUrl={previewUrl}
+            disabled={disabled}
+            instagramEnabled={instagramEnabled}
+            onCropChange={updateCrop}
+          />
           <div className={styles.controls}>
-            <fieldset disabled={disabled} className={styles.format}>
-              <legend>{t('formatLabel')}</legend>
-              <div className={styles.ratios}>
-                {formats.map(format => (
-                  <label key={format}>
-                    <input
-                      type="radio"
-                      name={id + '-format'}
-                      value={format}
-                      checked={(crop?.aspectRatio ?? 'original') === format}
-                      onChange={() => setDraft(applyPublishingImageFormat([draft], format)[0]!)}
-                    />
-                    <span>{format === 'original' ? t('original') : format}</span>
-                  </label>
-                ))}
-              </div>
-              {carousel && <p className={styles.formatHint}>{t('carouselHint')}</p>}
-            </fieldset>
-            <div className={styles.sliders}>
-              {(['zoom', 'x', 'y'] as const).map(coordinate => {
-                const isZoom = coordinate === 'zoom'
-                const label = t(isZoom ? 'zoom' : coordinate === 'x' ? 'horizontal' : 'vertical')
-                const value = crop ? (isZoom ? crop.zoom : crop[coordinate] * 100) : isZoom ? 1 : 50
-                return (
-                  <div key={coordinate}>
-                    <div className={styles.sliderLabel}>
-                      <span>{label}</span>
-                      <span>{isZoom ? value.toFixed(2) + '×' : Math.round(value) + '%'}</span>
-                    </div>
-                    <Slider
-                      aria-label={label}
-                      min={isZoom ? 1 : 0}
-                      max={isZoom ? 3 : 100}
-                      step={isZoom ? 0.01 : 1}
-                      value={[value]}
-                      disabled={disabled || !crop}
-                      onValueChange={values => {
-                        if (!crop) return
-                        setDraft({ ...draft, crop: { ...crop, [coordinate]: (values[0] ?? value) / (isZoom ? 1 : 100) } })
-                      }}
-                    />
-                  </div>
-                )
-              })}
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                disabled={disabled || !crop}
-                onClick={() => crop && setDraft({ ...draft, crop: { ...crop, x: 0.5, y: 0.5, zoom: 1 } })}
-              >
-                <RotateCcw className="size-3.5" />{t('resetCrop')}
-              </Button>
-            </div>
+            <PhotoFormatField
+              id={id}
+              crop={crop}
+              disabled={disabled}
+              carousel={carousel}
+              onFormat={format => setDraft(applyPublishingImageFormat([draft], format)[0]!)}
+            />
+            <PhotoZoomField
+              zoom={zoom}
+              hasCrop={Boolean(crop)}
+              disabled={disabled}
+              onZoom={nextZoom => updateCrop({ zoom: nextZoom })}
+              onReset={() => updateCrop({ x: 0.5, y: 0.5, zoom: 1 })}
+            />
             {(instagramEnabled || facebookEnabled) && (
-              <section className={styles.metadata}>
-                <button
-                  type="button"
-                  className={styles.disclosure}
-                  aria-expanded={!isMobile || altExpanded}
-                  aria-controls={id + '-alt-panel'}
-                  onClick={() => setAltExpanded(value => !value)}
-                >
-                  {t('altText')}<ChevronDown className="size-4" />
-                </button>
-                <div id={id + '-alt-panel'} hidden={isMobile && !altExpanded}>
-                  <Textarea
-                    aria-label={t('altText')}
-                    className="min-h-20 rounded-md text-sm"
-                    value={draft.altText ?? ''}
-                    disabled={disabled}
-                    placeholder={t('altPlaceholder')}
-                    onChange={event => setDraft({ ...draft, altText: Array.from(event.target.value).slice(0, 1000).join('') })}
-                  />
-                  <p className={styles.count}>{Array.from(draft.altText ?? '').length}/1000</p>
-                </div>
-              </section>
+              <PhotoAltTextField
+                id={id + '-alt'}
+                value={draft.altText ?? ''}
+                disabled={disabled}
+                onChange={altText => setDraft(current => ({ ...current, altText }))}
+              />
             )}
             {instagramEnabled && (
-              <section className={styles.metadata}>
-                <button
-                  type="button"
-                  className={styles.disclosure}
-                  aria-expanded={!isMobile || tagsExpanded}
-                  aria-controls={id + '-tags-panel'}
-                  onClick={() => setTagsExpanded(value => !value)}
-                >
-                  <span>{t('tags')}{draft.userTags?.length ? ' · ' + draft.userTags.length : ''}</span><ChevronDown className="size-4" />
-                </button>
-                <div id={id + '-tags-panel'} hidden={isMobile && !tagsExpanded}>
-                  <PublishingImageTags tags={draft.userTags ?? []} disabled={disabled} showLabel={false} onChange={userTags => setDraft({ ...draft, userTags })} />
-                </div>
-              </section>
+              <div className={styles.field}>
+                <PublishingImageTags
+                  tags={draft.userTags ?? []}
+                  disabled={disabled}
+                  showLabel
+                  onChange={userTags => setDraft(current => ({ ...current, userTags }))}
+                />
+              </div>
             )}
           </div>
         </div>
         <footer className={styles.footer}>
-          <Button type="button" variant="ghost" onClick={onClose}>{t('cancel')}</Button>
-          <Button type="button" disabled={disabled} onClick={save}>{t('done')}</Button>
+          <Button type='button' variant='ghost' className={styles.secondaryAction} onClick={onClose}>{t('cancel')}</Button>
+          <Button type='button' disabled={disabled} className={styles.primaryAction} onClick={save}>{t('done')}</Button>
         </footer>
       </DialogContent>
     </Dialog>

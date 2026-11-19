@@ -91,10 +91,15 @@ body {
   overflow-x: clip;
 }
 
-img,
-svg {
+img {
   display: block;
   max-width: 100%;
+}
+
+/* Icons keep their size inside flex rows and buttons. */
+svg {
+  display: block;
+  flex: none;
 }
 
 a {

@@ -266,8 +266,7 @@
     flex: none;
   }
 
-  .infoRow > time,
-  .infoRow > span:first-of-type {
+  .infoRow > time {
     min-width: 0;
     flex: 1 1 auto;
     color: var(--publish-text);
@@ -276,16 +275,26 @@
 
   .zone {
     display: inline;
+    flex: none;
+    margin-left: auto;
     color: var(--publish-muted-text);
     font-size: 12px;
   }
 
   .platforms {
+    flex: none;
     justify-content: flex-start;
   }
 
   .platform {
-    display: none;
+    display: inline-flex;
+    margin-left: -6px;
+    border-radius: 50%;
+    box-shadow: 0 0 0 2px var(--publish-surface);
+  }
+
+  .platform:first-child {
+    margin-left: 0;
   }
 
   .platformNames {
@@ -351,11 +360,7 @@
     color: var(--publish-danger);
   }
 
-  .remove > svg {
-    display: none;
-  }
-
-  .removeLabel {
+  .remove > .removeLabel {
     display: inline;
   }
 }
@@ -460,64 +465,4 @@
   font-size: 12px;
   font-variant-numeric: tabular-nums;
   line-height: 1.4;
-}
-@media (max-width: 1099px) {
-  .preview {
-    gap: 16px;
-    max-width: 580px;
-    margin-inline: auto;
-  }
-  .mobileActions {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 6px;
-  }
-  .mobileDelete {
-    width: 44px;
-    height: 44px;
-    padding: 0;
-    border-radius: 50%;
-    background: var(--publish-surface);
-    color: var(--publish-secondary-text);
-    box-shadow: var(--publish-card-shadow);
-  }
-  .mobileDelete:hover {
-    background: var(--publish-secondary);
-  }
-  .media {
-    width: min(100%, 250px);
-    margin-bottom: 4px;
-  }
-  .video,
-  .imageFrame {
-    border-radius: 24px;
-  }
-  .title {
-    font-size: 20px;
-  }
-  .actions {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    gap: 12px;
-    padding-top: 12px;
-  }
-  .actions > button {
-    min-height: 52px;
-    font-size: 15px;
-  }
-  .actions > .publish {
-    width: auto;
-    height: 52px;
-    border-radius: var(--publish-pill-radius);
-    background: var(--publish-info-bg);
-    color: var(--publish-info-text);
-  }
-  .publishLabel {
-    display: inline;
-  }
-  .publishIcon,
-  .actions > .desktopDelete {
-    display: none;
-  }
 }

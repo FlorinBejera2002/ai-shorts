@@ -49,7 +49,7 @@ await page.route('**/*', async route => {
 })
 async function library(prefix = '') {
   await page.goto(origin + prefix + '/dashboard/clips', { waitUntil: 'domcontentloaded' })
-  await page.getByRole('link', { name: clip.title, exact: true }).waitFor()
+  await page.getByRole('link', { name: 'Open ' + clip.title, exact: true }).waitFor()
   assert.equal(await page.locator('iframe').count(), 0)
 }
 async function mainStudio(projectId) {
@@ -63,12 +63,12 @@ async function unchangedLayout() {
 }
 try {
   await library()
-  assert.equal(await page.getByRole('link', { name: 'Second generated clip', exact: true }).count(), 1)
+  assert.equal(await page.getByRole('link', { name: 'Open Second generated clip', exact: true }).count(), 1)
   await page.getByRole('button', { name: 'Collapse sidebar', exact: true }).click()
   await page.evaluate(() => { window.fixtureLayout = { shell: document.querySelector('#dashboard-shell'), sidebar: document.querySelector('#dashboard-navigation'), header: document.querySelector('header.studio-topbar') }; window.fixtureDocument = crypto.randomUUID() })
   const documentId = await page.evaluate(() => window.fixtureDocument)
   failSession = true
-  await page.getByRole('link', { name: clip.title, exact: true }).click()
+  await page.getByRole('link', { name: 'Open ' + clip.title, exact: true }).click()
   await page.getByRole('alert').filter({ hasText: 'Could not open Studio' }).waitFor()
   await unchangedLayout()
   assert.equal(await page.locator('iframe').count(), 0)
@@ -89,10 +89,10 @@ try {
   await page.locator('[data-studio-refresh-fixture]').waitFor({ state: 'detached' })
 
   await page.getByRole('link', { name: 'Back to clips', exact: true }).click()
-  await page.getByRole('link', { name: clip.title, exact: true }).waitFor()
+  await page.getByRole('link', { name: 'Open ' + clip.title, exact: true }).waitFor()
   await unchangedLayout()
   failSession = false
-  await page.getByRole('link', { name: clip.title, exact: true }).click()
+  await page.getByRole('link', { name: 'Open ' + clip.title, exact: true }).click()
   await mainStudio('clip-project')
   assert.ok(calls.includes('/sneepcut/clips/' + id + '/open'))
 

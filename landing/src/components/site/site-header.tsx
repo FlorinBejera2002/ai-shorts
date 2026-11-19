@@ -5,7 +5,6 @@ import { siteNavigation } from '@/lib/sections'
 import { Icon } from '@/components/ui/icons'
 import { BrandLogo } from './brand-logo'
 import { LanguageMenu } from './language-menu'
-import { MobileMenu } from './mobile-menu'
 import { ThemeToggle } from './theme-toggle'
 import styles from './site.module.css'
 
@@ -46,26 +45,9 @@ export function SiteHeader({ locale, path }: SiteHeaderProps) {
             <Icon name="chevronRight" size={15} />
           </a>
         </div>
-        <div className={styles.mobileActions}>
-          <a href={app.register} className={`btn btn-primary ${styles.mobileHeaderCta}`}>
-            {nav.startFree}
-          </a>
-          <MobileMenu
-            locale={locale}
-            path={path}
-            links={[...sectionLinks.map(({ href, label }) => ({ href, label })), { href: app.login, label: nav.signIn }]}
-            cta={{ href: app.register, label: nav.startFree }}
-            labels={{
-              open: nav.openMenu,
-              close: nav.closeMenu,
-              theme: nav.theme,
-              themeLight: nav.themeLight,
-              themeDark: nav.themeDark,
-              language: nav.language,
-              languageCurrent: nav.languageCurrent
-            }}
-          />
-        </div>
+        <a href={app.login} className={styles.mobileSignIn}>
+          {nav.signIn}
+        </a>
       </div>
     </header>
   )

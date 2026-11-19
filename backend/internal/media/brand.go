@@ -373,10 +373,22 @@ func (h *Handler) deleteLogo(w http.ResponseWriter, r *http.Request) {
 		// Detach supported logos without deleting bytes referenced by saved job
 		// and story snapshots. Account cleanup removes retained owner assets.
 		// Legacy SVG is unsupported for rendering and remains removable.
+		// Copied kits share logo files: keep the bytes while another kit still uses them.
 		if strings.EqualFold(path.Ext(key), ".svg") {
-			if e = h.service.Storage.Delete(r.Context(), key); e != nil {
+			var users int
+			if e = h.service.db.QueryRowContext(r.Context(), `SELECT count(*) FROM brand_kits WHERE user_id=$1 AND logo_path=$2`, userID, reference).Scan(&users); e != nil {
 				mediaError(w, e)
 				return
+			}
+			detaching := 0
+			if browser {
+				detaching = 1
+			}
+			if users <= detaching {
+				if e = h.service.Storage.Delete(r.Context(), key); e != nil {
+					mediaError(w, e)
+					return
+				}
 			}
 		}
 	} else if !browser {

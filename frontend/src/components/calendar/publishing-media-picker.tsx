@@ -3,8 +3,10 @@
 import { apiFetch } from '@/lib/auth'
 import type { PublishingMedia } from '@/lib/content-calendar'
 import { Reorder } from 'framer-motion'
+import { useQueries, useQueryClient } from '@tanstack/react-query'
+import { Download } from 'lucide-react'
 import { useTranslations } from 'next-intl'
-import { useEffect, useId, useRef, useState } from 'react'
+import { useCallback, useEffect, useId, useRef, useState, type DragEvent, type ReactNode } from 'react'
 import { PublishingMediaItem } from './publishing-media-item'
 import { PublishingImageFormatSelector } from './publishing-image-format'
 import { applyPublishingImageFormat } from './publishing-image-utils'
@@ -16,6 +18,251 @@ import {
   uploadPublishingFile
 } from './publishing-media-utils'
 import { PublishingMediaUploadZone } from './publishing-media-upload-zone'
+import { PublishingUploadProgress } from './publishing-upload-progress'
+import dialogStyles from './post-media-dialog.module.css'
+
+type UploadProgress = { current: number; total: number; filename: string }
+
+type PickerProps = {
+  presentation?: 'inline' | 'dialog'
+  media: PublishingMedia[]
+  disabled: boolean
+  instagramEnabled?: boolean
+  facebookEnabled?: boolean
+  tiktokEnabled?: boolean
+  error?: string
+  onChange: (media: PublishingMedia[]) => void
+  onError: (message?: string) => void
+  onUploadingChange: (uploading: boolean) => void
+}
+
+const mediaPreviewKey = (reference: string) => ['publishing-media-preview', reference] as const
+
+/** Server preview URLs live in React Query; fresh uploads register their blob URL in the same cache. */
+function useMediaPreviews(media: PublishingMedia[]) {
+  const queryClient = useQueryClient()
+  const results = useQueries({
+    queries: media.map(item => ({
+      queryKey: mediaPreviewKey(item.reference),
+      queryFn: async ({ signal }: { signal: AbortSignal }) => {
+        const response = await apiFetch(
+          `/api/publishing/media/preview?reference=${encodeURIComponent(item.reference)}`,
+          { signal }
+        )
+        if (!response.ok) throw new Error('preview unavailable')
+        return (await response.json() as { url: string }).url
+      },
+      staleTime: Infinity,
+      retry: false
+    }))
+  })
+  const previews: Record<string, string> = {}
+  results.forEach((result, index) => {
+    if (result.data) previews[media[index]!.reference] = result.data
+  })
+
+  const rememberPreview = (reference: string, url: string) => {
+    queryClient.setQueryData(mediaPreviewKey(reference), url)
+  }
+  const forgetPreview = (reference: string) => {
+    const url = queryClient.getQueryData<string>(mediaPreviewKey(reference))
+    if (url?.startsWith('blob:')) URL.revokeObjectURL(url)
+    queryClient.removeQueries({ queryKey: mediaPreviewKey(reference) })
+  }
+  /** Revokes this picker's blob previews when it closes; later openings fetch fresh server URLs. */
+  const releaseBlobPreviews = useCallback(() => {
+    for (const [, url] of queryClient.getQueriesData<string>({ queryKey: ['publishing-media-preview'] })) {
+      if (url?.startsWith('blob:')) URL.revokeObjectURL(url)
+    }
+    queryClient.removeQueries({ queryKey: ['publishing-media-preview'] })
+  }, [queryClient])
+  return { previews, rememberPreview, forgetPreview, releaseBlobPreviews }
+}
+
+/** Files dragged over the device tab; the overlay shows while files hover the panel. */
+function useFileDrop(disabled: boolean, onFiles: (files: File[]) => void) {
+  const [dragging, setDragging] = useState(false)
+  const handlers = {
+    onDragOver: (event: DragEvent<HTMLDivElement>) => { if (!disabled) event.preventDefault() },
+    onDragEnter: (event: DragEvent<HTMLDivElement>) => {
+      if (disabled || !event.dataTransfer.types.includes('Files')) return
+      event.preventDefault()
+      setDragging(true)
+    },
+    onDragLeave: (event: DragEvent<HTMLDivElement>) => {
+      if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setDragging(false)
+    },
+    onDrop: (event: DragEvent<HTMLDivElement>) => {
+      event.preventDefault()
+      setDragging(false)
+      if (!disabled) onFiles(Array.from(event.dataTransfer.files))
+    }
+  }
+  return { dragging, handlers }
+}
+
+/** Reorder list: a horizontal tile grid in the dialog, a vertical list inline. */
+function MediaReorderList({ media, disabled, presentation, previews, instagramEnabled, facebookEnabled, tiktokEnabled, label, onChange, onRemove }: {
+  media: PublishingMedia[]
+  disabled: boolean
+  presentation: 'inline' | 'dialog'
+  previews: Record<string, string>
+  instagramEnabled: boolean
+  facebookEnabled: boolean
+  tiktokEnabled: boolean
+  label: string
+  onChange: (media: PublishingMedia[]) => void
+  onRemove: (reference: string) => void
+}) {
+  const isDialog = presentation === 'dialog'
+  return (
+    <Reorder.Group
+      axis={isDialog ? 'x' : 'y'}
+      values={media}
+      onReorder={(items) => {
+        if (!disabled) onChange(items)
+      }}
+      className={isDialog ? 'contents' : 'space-y-2'}
+      aria-label={label}
+    >
+      {media.map((item, index) => (
+        <PublishingMediaItem
+          key={item.reference}
+          item={item}
+          index={index}
+          count={media.length}
+          previewUrl={previews[item.reference]}
+          disabled={disabled}
+          instagramEnabled={instagramEnabled}
+          facebookEnabled={facebookEnabled}
+          tiktokEnabled={tiktokEnabled}
+          variant={isDialog ? 'tile' : 'row'}
+          onChange={updated => {
+            if (disabled) return
+            // Instagram uses one format for its whole carousel. Commit
+            // that format only when the focused editor is confirmed.
+            const formatted = instagramEnabled
+              ? applyPublishingImageFormat(media, updated.crop?.aspectRatio ?? 'original')
+              : media
+            onChange(formatted.map(current =>
+              current.reference === updated.reference ? updated : current
+            ))
+          }}
+          onRemove={onRemove}
+          onMove={(reference, target) => {
+            if (!disabled) onChange(movePublishingMedia(media, reference, target))
+          }}
+        />
+      ))}
+    </Reorder.Group>
+  )
+}
+
+/** Dialog device tab: tile grid with the "Add" tile, reorder hint, progress, and a whole-panel drop target. */
+function DeviceDropPanel({ media, disabled, error, inputId, progress, reorderList, onUpload, onFiles }: {
+  media: PublishingMedia[]
+  disabled: boolean
+  error?: string
+  inputId: string
+  progress: UploadProgress | null
+  reorderList: ReactNode
+  onUpload: (files: File[]) => Promise<void>
+  onFiles: (files: File[]) => void
+}) {
+  const t = useTranslations('contentCalendar')
+  const drop = useFileDrop(disabled, onFiles)
+  return (
+    <div className={dialogStyles.devicePanel} data-media-drop-zone="" data-dragging={drop.dragging || undefined} {...drop.handlers}>
+      {drop.dragging && (
+        <div className={dialogStyles.dropOverlay} aria-hidden="true">
+          <span className={dialogStyles.dropIcon}><Download className="size-6" /></span>
+          <span className={dialogStyles.dropTitle}>{t('composer.dropTitle')}</span>
+          <span className={dialogStyles.dropHint}>{t('composer.dropHint')}</span>
+        </div>
+      )}
+      <div className={dialogStyles.deviceGrid}>
+        {reorderList}
+        <PublishingMediaUploadZone
+          presentation="dialog"
+          inputId={inputId}
+          mediaCount={media.length}
+          disabled={disabled}
+          error={error}
+          progress={progress}
+          onUpload={onUpload}
+        />
+      </div>
+      {media.length > 0 && <p className={dialogStyles.deviceHint}>{t('composer.reorderHint')}</p>}
+      {progress && (
+        <div className={dialogStyles.uploadProgress}>
+          <PublishingUploadProgress {...progress} />
+        </div>
+      )}
+      {error && (
+        <p id={`${inputId}-error`} role="alert" className="mt-2 whitespace-pre-line text-xs text-destructive">
+          {error}
+        </p>
+      )}
+    </div>
+  )
+}
+
+/** Inline picker used outside the media dialog: format selector, upload zone and a vertical reorder list. */
+function InlinePicker({ media, disabled, error, inputId, progress, photoEditorEnabled, instagramEnabled, facebookEnabled, tiktokEnabled, reorderList, onChange, onUpload }: {
+  media: PublishingMedia[]
+  disabled: boolean
+  error?: string
+  inputId: string
+  progress: UploadProgress | null
+  photoEditorEnabled: boolean
+  instagramEnabled: boolean
+  facebookEnabled: boolean
+  tiktokEnabled: boolean
+  reorderList: ReactNode
+  onChange: (media: PublishingMedia[]) => void
+  onUpload: (files: File[]) => Promise<void>
+}) {
+  const t = useTranslations('contentCalendar')
+  return (
+    <div className="pt-1">
+      <label htmlFor={inputId} className="text-xs font-semibold text-foreground">
+        {t('form.mediaLabel')}
+      </label>
+      {photoEditorEnabled && (
+        <PublishingImageFormatSelector
+          media={media}
+          disabled={disabled}
+          instagramEnabled={instagramEnabled}
+          facebookEnabled={facebookEnabled}
+          tiktokEnabled={tiktokEnabled}
+          onChange={onChange}
+        />
+      )}
+      <PublishingMediaUploadZone
+        presentation="inline"
+        inputId={inputId}
+        mediaCount={media.length}
+        disabled={disabled}
+        error={error}
+        progress={progress}
+        onUpload={onUpload}
+      />
+      {media.length > 0 && (
+        <div className="mt-3">
+          <p className="mb-2 text-[11px] text-muted-foreground">
+            {t('form.mediaOrderHint')}
+          </p>
+          {reorderList}
+        </div>
+      )}
+      {error && (
+        <p id={`${inputId}-error`} role="alert" className="mt-2 whitespace-pre-line text-xs text-destructive">
+          {error}
+        </p>
+      )}
+    </div>
+  )
+}
 
 export function PublishingMediaPicker({
   presentation = 'inline',
@@ -28,28 +275,11 @@ export function PublishingMediaPicker({
   onChange,
   onError,
   onUploadingChange
-}: {
-  presentation?: 'inline' | 'dialog'
-  media: PublishingMedia[]
-  disabled: boolean
-  instagramEnabled?: boolean
-  facebookEnabled?: boolean
-  tiktokEnabled?: boolean
-  error?: string
-  onChange: (media: PublishingMedia[]) => void
-  onError: (message?: string) => void
-  onUploadingChange: (uploading: boolean) => void
-}) {
+}: PickerProps) {
   const t = useTranslations('contentCalendar')
-  const isDialog = presentation === 'dialog'
   const inputId = useId()
-  const [previews, setPreviews] = useState<Record<string, string>>({})
-  const [progress, setProgress] = useState<{
-    current: number
-    total: number
-    filename: string
-  } | null>(null)
-  const previewUrls = useRef<Record<string, string>>({})
+  const [progress, setProgress] = useState<UploadProgress | null>(null)
+  const { previews, rememberPreview, forgetPreview, releaseBlobPreviews } = useMediaPreviews(media)
   const controller = useRef<AbortController | null>(null)
   const uploadingCallback = useRef(onUploadingChange)
   const photoEditorEnabled = instagramEnabled || facebookEnabled || tiktokEnabled
@@ -64,34 +294,10 @@ export function PublishingMediaPicker({
     () => () => {
       controller.current?.abort()
       uploadingCallback.current(false)
-      for (const url of Object.values(previewUrls.current)) {
-        if (url.startsWith('blob:')) URL.revokeObjectURL(url)
-      }
+      releaseBlobPreviews()
     },
-    []
+    [releaseBlobPreviews]
   )
-
-  useEffect(() => {
-    const request = new AbortController()
-    for (const item of media) {
-      if (previewUrls.current[item.reference]) continue
-      void apiFetch(
-        `/api/publishing/media/preview?reference=${encodeURIComponent(item.reference)}`,
-        { signal: request.signal }
-      )
-        .then(async (response) => {
-          if (!response.ok) return
-          const result = (await response.json()) as { url: string }
-          if (request.signal.aborted) return
-          previewUrls.current[item.reference] = result.url
-          setPreviews({ ...previewUrls.current })
-        })
-        .catch(() => {
-          /* Keep the filename visible when a preview cannot be loaded. */
-        })
-    }
-    return () => request.abort()
-  }, [media])
 
   async function upload(files: File[]) {
     if (!files.length || disabled || controller.current) return
@@ -111,22 +317,15 @@ export function PublishingMediaPicker({
     const uploaded = [...media]
     const failures: string[] = []
     try {
-      // Bound memory and connections on mobile; keep successful files if one fails.
-      for (const [index, file] of files.entries()) {
-        setProgress({
-          current: index + 1,
-          total: files.length,
-          filename: file.name
-        })
+      // Sequential on purpose: parallel uploads would exhaust mobile memory and connections,
+      // and progress reports one file at a time. Successful files are kept if one fails.
+      const uploadOne = async (file: File, index: number) => {
+        if (request.signal.aborted) return
+        setProgress({ current: index + 1, total: files.length, filename: file.name })
         try {
-          const item = await uploadPublishingFile(
-            file,
-            apiFetch,
-            request.signal
-          )
+          const item = await uploadPublishingFile(file, apiFetch, request.signal)
           if (request.signal.aborted) return
-          previewUrls.current[item.reference] = URL.createObjectURL(file)
-          setPreviews({ ...previewUrls.current })
+          rememberPreview(item.reference, URL.createObjectURL(file))
           uploaded.push(
             photoEditorEnabled
               ? applyPublishingImageFormat([item], imageFormat)[0]!
@@ -139,6 +338,11 @@ export function PublishingMediaPicker({
           failures.push(`${file.name}: ${t(`validation.${key}`)}`)
         }
       }
+      await files.reduce<Promise<void>>(
+        (previous, file, index) => previous.then(() => uploadOne(file, index)),
+        Promise.resolve()
+      )
+      if (request.signal.aborted) return
       if (failures.length) onError(failures.join('\n'))
     } finally {
       controller.current = null
@@ -151,96 +355,53 @@ export function PublishingMediaPicker({
 
   function remove(reference: string) {
     if (disabled) return
-    const url = previewUrls.current[reference]
-    if (url?.startsWith('blob:')) URL.revokeObjectURL(url)
-    delete previewUrls.current[reference]
-    setPreviews({ ...previewUrls.current })
+    forgetPreview(reference)
     onChange(media.filter((item) => item.reference !== reference))
   }
 
-  return (
-    <div className={isDialog ? undefined : 'pt-1'}>
-      <label
-        htmlFor={inputId}
-        className={isDialog ? 'sr-only' : 'text-xs font-semibold text-foreground'}
-      >
-        {t('form.mediaLabel')}
-      </label>
-      {photoEditorEnabled && !isDialog && (
-        <PublishingImageFormatSelector
-          media={media}
-          disabled={disabled}
-          instagramEnabled={instagramEnabled}
-          facebookEnabled={facebookEnabled}
-          tiktokEnabled={tiktokEnabled}
-          onChange={onChange}
-        />
-      )}
-      <PublishingMediaUploadZone
-        presentation={presentation}
-        inputId={inputId}
-        mediaCount={media.length}
+  const reorderList = media.length > 0 && (
+    <MediaReorderList
+      media={media}
+      disabled={disabled}
+      presentation={presentation}
+      previews={previews}
+      instagramEnabled={instagramEnabled}
+      facebookEnabled={facebookEnabled}
+      tiktokEnabled={tiktokEnabled}
+      label={t('form.mediaOrder')}
+      onChange={onChange}
+      onRemove={remove}
+    />
+  )
+
+  if (presentation === 'dialog') {
+    return (
+      <DeviceDropPanel
+        media={media}
         disabled={disabled}
         error={error}
+        inputId={inputId}
         progress={progress}
+        reorderList={reorderList}
         onUpload={upload}
+        onFiles={files => { void upload(files) }}
       />
-      {media.length > 0 && (
-        <div className="mt-3">
-          <p className="mb-2 text-[11px] text-muted-foreground">
-            {t('form.mediaOrderHint')}
-          </p>
-          <Reorder.Group
-            axis="y"
-            values={media}
-            onReorder={(items) => {
-              if (!disabled) onChange(items)
-            }}
-            className="space-y-2"
-            aria-label={t('form.mediaOrder')}
-          >
-            {media.map((item, index) => (
-              <PublishingMediaItem
-                key={item.reference}
-                item={item}
-                index={index}
-                count={media.length}
-                previewUrl={previews[item.reference]}
-                disabled={disabled}
-                instagramEnabled={instagramEnabled}
-                facebookEnabled={facebookEnabled}
-                tiktokEnabled={tiktokEnabled}
-                onChange={updated => {
-                  if (!disabled) {
-                    // Instagram uses one format for its whole carousel. Commit
-                    // that format only when the focused editor is confirmed.
-                    const formatted = instagramEnabled
-                      ? applyPublishingImageFormat(media, updated.crop?.aspectRatio ?? 'original')
-                      : media
-                    onChange(formatted.map(current =>
-                      current.reference === updated.reference ? updated : current
-                    ))
-                  }
-                }}
-                onRemove={remove}
-                onMove={(reference, target) => {
-                  if (!disabled)
-                    onChange(movePublishingMedia(media, reference, target))
-                }}
-              />
-            ))}
-          </Reorder.Group>
-        </div>
-      )}
-      {error && (
-        <p
-          id={`${inputId}-error`}
-          role="alert"
-          className="mt-2 whitespace-pre-line text-xs text-destructive"
-        >
-          {error}
-        </p>
-      )}
-    </div>
+    )
+  }
+  return (
+    <InlinePicker
+      media={media}
+      disabled={disabled}
+      error={error}
+      inputId={inputId}
+      progress={progress}
+      photoEditorEnabled={photoEditorEnabled}
+      instagramEnabled={instagramEnabled}
+      facebookEnabled={facebookEnabled}
+      tiktokEnabled={tiktokEnabled}
+      reorderList={reorderList}
+      onChange={onChange}
+      onUpload={upload}
+    />
   )
 }

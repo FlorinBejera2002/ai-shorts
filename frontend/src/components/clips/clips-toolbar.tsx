@@ -36,14 +36,23 @@ function useLabels() {
   }
 }
 
+const normalizeSearch = (value: string) => value.trim().replace(/\s+/g, ' ').slice(0, 80)
+
 function SearchField({ query, onChange }: QueryProps) {
   const { t } = useLabels()
-  // Keep what is typed (spaces included) and follow the URL when filters are cleared elsewhere.
+  // Keep what is typed (spaces included). The URL catches up with typing a little later, so a
+  // search this field sent and still waits for never replaces the text; any other search does
+  // (filters cleared elsewhere, back/forward).
   const [text, setText] = useState(query.search)
   const [synced, setSynced] = useState(query.search)
+  const [sent, setSent] = useState<string[]>([])
   if (synced !== query.search) {
     setSynced(query.search)
-    if (text.trim().replace(/\s+/g, ' ') !== query.search) setText(query.search)
+    const index = sent.indexOf(query.search)
+    if (index === -1) {
+      setSent([])
+      if (normalizeSearch(text) !== query.search) setText(query.search)
+    } else setSent(sent.slice(index + 1))
   }
   return (
     <label className={styles.search}>
@@ -55,6 +64,7 @@ function SearchField({ query, onChange }: QueryProps) {
         value={text}
         onChange={(event) => {
           setText(event.target.value)
+          setSent((values) => [...values, normalizeSearch(event.target.value)])
           onChange({ search: event.target.value })
         }}
         data-clips-search=""

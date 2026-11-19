@@ -14,8 +14,8 @@ function FooterColumn({ title, columns }: { title: string; columns: FooterLink[]
     <div className={styles.footerGroup}>
       <h2 className={styles.footerTitle}>{title}</h2>
       <div className={styles.footerColumns}>
-        {columns.map((links, index) => (
-          <ul key={index} className={styles.footerLinks}>
+        {columns.map((links) => (
+          <ul key={links[0]?.href} className={styles.footerLinks}>
             {links.map((link) => (
               <li key={link.href}>
                 <a href={link.href} className="muted">

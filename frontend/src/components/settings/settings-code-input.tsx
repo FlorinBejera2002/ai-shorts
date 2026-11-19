@@ -5,6 +5,8 @@ import { useId, useRef, type ClipboardEvent, type KeyboardEvent } from 'react'
 import controls from './settings-controls.module.css'
 
 const LENGTH = 6
+const FIRST_HALF = [0, 1, 2]
+const SECOND_HALF = [3, 4, 5]
 
 /** Six single-digit boxes (3 + 3) bound to one code string; typing or pasting fills forward. */
 export function SettingsCodeInput({
@@ -45,23 +47,23 @@ export function SettingsCodeInput({
     write(index, event.clipboardData.getData('text'))
   }
 
-  const box = (index: number) => (
+  const box = (slot: number) => (
     <input
-      key={index}
+      key={`digit-${slot}`}
       ref={(element) => {
-        inputs.current[index] = element
+        inputs.current[slot] = element
       }}
-      aria-label={t('digit', { index: index + 1 })}
+      aria-label={t('digit', { index: slot + 1 })}
       inputMode="numeric"
-      autoComplete={index === 0 ? 'one-time-code' : 'off'}
-      maxLength={index === 0 ? LENGTH : 1}
-      value={digits[index] ?? ''}
-      disabled={disabled || index > digits.length}
-      onChange={(event) => write(index, event.target.value)}
-      onKeyDown={(event) => keyDown(index, event)}
-      onPaste={(event) => paste(index, event)}
+      autoComplete={slot === 0 ? 'one-time-code' : 'off'}
+      maxLength={slot === 0 ? LENGTH : 1}
+      value={digits[slot] ?? ''}
+      disabled={disabled || slot > digits.length}
+      onChange={(event) => write(slot, event.target.value)}
+      onKeyDown={(event) => keyDown(slot, event)}
+      onPaste={(event) => paste(slot, event)}
       onFocus={(event) => event.target.select()}
-      data-settings-digit={index}
+      data-settings-digit={slot}
     />
   )
 
@@ -69,9 +71,9 @@ export function SettingsCodeInput({
     <div className={controls.field}>
       <span id={labelId}>{label}</span>
       <div className={controls.digits} role="group" aria-labelledby={labelId}>
-        {[0, 1, 2].map(box)}
+        {FIRST_HALF.map(box)}
         <span aria-hidden="true" />
-        {[3, 4, 5].map(box)}
+        {SECOND_HALF.map(box)}
       </div>
     </div>
   )

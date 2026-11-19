@@ -34,6 +34,19 @@ type JobStatus = {
   } | null
 }
 
+/** Progress, step and headline for the processing header from the latest job status. */
+function headerState(status: JobStatus | null, t: (key: 'cancelledTitle' | 'failedTitle' | 'doneTitle' | 'waitingWorker') => string) {
+  const progress = status?.celery_meta?.progress ?? status?.job.progress ?? 0
+  const currentStep = status?.job.status ?? 'pending'
+  const titles: Record<string, string> = {
+    cancelled: t('cancelledTitle'),
+    failed: t('failedTitle'),
+    completed: t('doneTitle')
+  }
+  const message = titles[currentStep] ?? status?.celery_meta?.message ?? status?.job.progress_message ?? t('waitingWorker')
+  return { progress, currentStep, message }
+}
+
 export default function JobProgressPage() {
   const params = useParams<{ id: string }>()
   const t = useTranslations('jobProgress')
@@ -113,20 +126,7 @@ export default function JobProgressPage() {
     }
   }, [params.id, retry])
 
-  const progress = status?.celery_meta?.progress ?? status?.job.progress ?? 0
-  const currentStep = status?.job.status ?? 'pending'
-  const isDone = currentStep === 'completed'
-  const isFailed = currentStep === 'failed'
-  const isCancelled = currentStep === 'cancelled'
-  const message = isCancelled
-    ? t('cancelledTitle')
-    : isFailed
-      ? t('failedTitle')
-      : isDone
-        ? t('doneTitle')
-        : (status?.celery_meta?.message ??
-          status?.job.progress_message ??
-          t('waitingWorker'))
+  const { progress, currentStep, message } = headerState(status, t)
 
   return (
     <div className="media-workbench dashboard-workspace job-workspace w-full animate-fade-in">
@@ -135,6 +135,7 @@ export default function JobProgressPage() {
         progress={progress}
         message={message}
         connected={Boolean(status) && !error}
+        unknown={Boolean(error) && !status}
       />
 
       {/* Error banner */}

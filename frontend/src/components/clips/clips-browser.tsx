@@ -4,6 +4,7 @@ import {
   CLIPS_MOBILE_BATCH,
   clipsHref,
   hasClipsRefinement,
+  isClipsListScope,
   paginateClips,
   selectClips,
   type ClipsLibrary,
@@ -16,7 +17,7 @@ import type { ClipCommands } from './clip-actions'
 import { ClipTile } from './clip-tile'
 import { ClipsLoadMore, ClipsPager } from './clips-pager'
 import { ClipsChips, ClipsProjectHead, ClipsRail, type ProjectCommands } from './clips-projects'
-import { ClipsEmptyLibrary, ClipsEmptyProject, ClipsNoResults } from './clips-states'
+import { ClipsEmptyFavorites, ClipsEmptyLibrary, ClipsEmptyProject, ClipsNoResults } from './clips-states'
 import { ClipsActiveFilters, ClipsMobileSort, ClipsMobileToolbar, ClipsToolbar } from './clips-toolbar'
 import styles from './clips.module.css'
 
@@ -38,7 +39,7 @@ export type BrowserProps = {
 
 /** A project id that no longer exists falls back to "all clips". */
 function scopeOf(query: ClipsQuery, library: ClipsLibrary) {
-  if (query.project === 'all' || query.project === 'none') return query.project
+  if (isClipsListScope(query.project)) return query.project
   return library.collections.some((project) => project.id === query.project) ? query.project : 'all'
 }
 
@@ -108,6 +109,7 @@ function ClipsResults({ selection, ...props }: BrowserProps & { selection: Retur
   if (!matching.length) {
     if (hasClipsRefinement(query)) return <ClipsNoResults mobile={mobile} onClear={props.clearFilters} />
     if (scope === 'all') return <ClipsEmptyLibrary mobile={mobile} />
+    if (scope === 'favorites') return <ClipsEmptyFavorites mobile={mobile} />
     return <ClipsEmptyProject mobile={mobile} unassigned={scope === 'none'} />
   }
   const names = new Map(props.library.collections.map((item) => [item.id, item.name]))
@@ -115,7 +117,7 @@ function ClipsResults({ selection, ...props }: BrowserProps & { selection: Retur
     <>
       {mobile && !project && (
         <div className={styles.listHead}>
-          <span className={styles.muted}>{t('clipCount', { count: matching.length })}</span>
+          <span className={styles.muted}>{t(scope === 'favorites' ? 'favoriteCount' : 'clipCount', { count: matching.length })}</span>
           <ClipsMobileSort query={query} onChange={props.update} />
         </div>
       )}

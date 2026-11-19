@@ -24,7 +24,8 @@ function load(relative, imports = {}) {
 
 const billing = load('../src/lib/billing.ts')
 const { billingOverview } = load('../src/components/billing/billing-overview.ts', { '@/lib/billing': billing })
-const plain = (value) => JSON.parse(JSON.stringify(value))
+// Copies objects created in the vm context into this realm for deepEqual.
+const plain = (value) => structuredClone(value)
 const PERIOD_END = '2026-12-18T10:00:00Z'
 const data = ({ plan = 'creator', credits = 870, subscription, ...rest } = {}) => ({
   account: { credits, plan, hasBillingProfile: true },
@@ -88,6 +89,7 @@ test('an unconfirmed paid subscription and a pending checkout block plan changes
   const unconfirmed = plain(billingOverview(data({ plan: 'free' }), false))
   assert.equal(unconfirmed.needsConfirmation, true)
   assert.deepEqual(unconfirmed.status, { key: 'coverageUnconfirmed', tone: 'warning' })
+  assert.deepEqual(unconfirmed.period, { kind: 'lastConfirmed', date: PERIOD_END }, 'Unconfirmed access never claims a renewal')
   const pending = plain(
     billingOverview(data({ plan: 'free', subscription: null, checkoutVerification: { status: 'pending', planId: 'pro' } }), false)
   )

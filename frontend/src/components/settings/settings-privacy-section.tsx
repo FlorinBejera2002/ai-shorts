@@ -5,6 +5,7 @@ import { Link } from '@/i18n/navigation'
 import type { DataExport } from '@/lib/settings'
 import { Download, FileText, Package, Shield, Trash2 } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
+import { formatDate } from './settings-format'
 import { Chevron, FieldError, IconCircle, SettingsCard, StatusDot } from './settings-ui'
 import type { AccountSettingsController } from './use-account-settings'
 import type { SettingsPanelsController } from './use-settings-panels'
@@ -17,7 +18,7 @@ const VISIBLE_EXPORTS = 3
 function ExportRow({ item, timezone }: { item: DataExport; timezone?: string }) {
   const t = useTranslations('settings')
   const locale = useLocale()
-  const date = new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short', timeZone: timezone }).format(new Date(item.requestedAt))
+  const date = formatDate(item.requestedAt, locale, { dateStyle: 'medium', timeStyle: 'short', timeZone: timezone })
   return (
     <div className={styles.row} data-settings-export-row={item.status}>
       <IconCircle>

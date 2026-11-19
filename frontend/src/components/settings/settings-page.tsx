@@ -8,6 +8,7 @@ import { useIsMobile } from '@/hooks/use-mobile'
 import { useSearchParams } from 'next/navigation'
 import { SettingsLoadState } from './settings-load-state'
 import { SettingsWorkspace } from './settings-workspace'
+import { checked, isProfileResponse } from './settings-data'
 import { parseSettingsSection, type Profile } from './settings-types'
 import styles from './settings.module.css'
 
@@ -15,7 +16,9 @@ import styles from './settings.module.css'
 export function SettingsPage() {
   const mobile = useIsMobile()
   const section = parseSettingsSection(useSearchParams().get('section'))
-  const { data, error, reload } = useApiResource<{ profile: Profile }>('/api/user/profile')
+  const resource = useApiResource<{ profile: Profile }>('/api/user/profile')
+  const { data, error } = checked(resource, isProfileResponse)
+  const profile = data?.profile
   return (
     <div
       className={`${theme.surface} ${ui.tokens} ${styles.page}`}
@@ -24,10 +27,10 @@ export function SettingsPage() {
       data-settings-view={mobile && !section ? 'menu' : (section ?? 'account')}
     >
       <WorkspaceMobileHeader />
-      {data ? (
-        <SettingsWorkspace profile={data.profile} section={section} mobile={mobile} />
+      {profile ? (
+        <SettingsWorkspace profile={profile} section={section} mobile={mobile} />
       ) : (
-        <SettingsLoadState error={error} onRetry={reload} />
+        <SettingsLoadState error={error} onRetry={resource.reload} />
       )}
     </div>
   )

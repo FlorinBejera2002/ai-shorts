@@ -7,6 +7,7 @@ import { isBillingPlanId, subscriptionPeriodKind } from '@/lib/billing'
 import type { BillingData } from '@/types/api'
 import { CreditCard } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
+import { formatDate } from './settings-format'
 import { Avatar, FieldError, IconCircle, LockedField, SettingsCard, StatusDot, TextField } from './settings-ui'
 import type { AccountSettingsController } from './use-account-settings'
 import styles from './settings.module.css'
@@ -14,9 +15,6 @@ import controls from './settings-controls.module.css'
 
 type Props = { account: AccountSettingsController; mobile: boolean }
 
-function formatDate(value: string, locale: string) {
-  return new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(value))
-}
 
 function ProfileCard({ account, mobile }: Props) {
   const t = useTranslations('settings')
@@ -122,12 +120,13 @@ function SubscriptionCard() {
   const billing = useTranslations('billing')
   const locale = useLocale()
   const { data } = useApiResource<BillingData>('/api/stripe/billing')
-  const plan = data?.account.creditsUnlimited
+  const account = data?.account
+  const plan = account?.creditsUnlimited
     ? billing('adminPlan')
-    : data && isBillingPlanId(data.account.plan)
-      ? billing(data.account.plan)
+    : account && isBillingPlanId(account.plan)
+      ? billing(account.plan)
       : null
-  const period = data ? subscriptionPeriodKind(data.subscription) : 'none'
+  const period = data?.subscription ? subscriptionPeriodKind(data.subscription) : 'none'
   const end = data?.subscription?.currentPeriodEnd
   return (
     <SettingsCard title={t('page.subscription')} data-settings-card="subscription">

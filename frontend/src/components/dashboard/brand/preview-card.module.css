@@ -1,0 +1,438 @@
+/* Preview card of the brand kit editor (canvas Br-Main, Br-Social, Br-NoClip, Br-Drag*). */
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 18px 20px;
+}
+
+.top {
+  display: flex;
+  min-height: 40px;
+  align-items: center;
+  justify-content: center;
+}
+
+.ratios {
+  width: 170px;
+  height: auto;
+}
+
+.chip {
+  display: inline-flex;
+  height: 24px;
+  align-items: center;
+  border-radius: 999px;
+  padding: 0 10px;
+  color: var(--publish-secondary-text);
+  font-size: 11px;
+  font-weight: 600;
+  box-shadow: inset 0 0 0 1px var(--publish-border);
+}
+
+.targets {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.target {
+  display: flex;
+  width: 44px;
+  height: 44px;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  padding: 0;
+  color: var(--publish-text);
+  cursor: pointer;
+}
+
+.target[aria-checked='true'] {
+  box-shadow: 0 0 0 2px var(--publish-text);
+}
+
+.target:focus-visible {
+  outline: 2px solid var(--ref-primary);
+  outline-offset: 2px;
+}
+
+.target img,
+.canvasIcon {
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+}
+
+.canvasIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: inset 0 0 0 1.5px var(--brand-field);
+}
+
+.canvasIcon svg {
+  width: 16px;
+  height: 16px;
+}
+
+.divider {
+  width: 1px;
+  height: 24px;
+  background: var(--publish-border);
+}
+
+.placement {
+  margin-top: -4px;
+  color: var(--publish-secondary-text);
+  font-size: 12px;
+  text-align: center;
+}
+
+/* ---------- stage ---------- */
+.stageWrap {
+  position: relative;
+  width: 248px;
+  max-width: 100%;
+  flex: none;
+  align-self: center;
+}
+
+.stageWrap[data-ratio='1:1'] {
+  width: 330px;
+}
+
+.stageWrap[data-ratio='16:9'] {
+  width: 100%;
+}
+
+.stage {
+  border-radius: 18px !important;
+  background: #111 !important;
+}
+
+.stageWrap:fullscreen {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  background: #000;
+}
+
+.stageWrap:fullscreen .stage {
+  width: auto;
+  height: 100%;
+  max-width: 100%;
+}
+
+.dim {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.12);
+  pointer-events: none;
+}
+
+.mediaLoading {
+  position: absolute;
+  inset: 0;
+  background: var(--publish-handle);
+  opacity: 0.7;
+}
+
+/* Selection frame while the caption is dragged (the logo draws its own). */
+.stageWrap[data-drag='caption'] :global([data-brand-caption])::after,
+.logoSelection {
+  position: absolute;
+  border-radius: 10px;
+  background:
+    linear-gradient(#fff, #fff) left top / 9px 9px no-repeat,
+    linear-gradient(#fff, #fff) right top / 9px 9px no-repeat,
+    linear-gradient(#fff, #fff) left bottom / 9px 9px no-repeat,
+    linear-gradient(#fff, #fff) right bottom / 9px 9px no-repeat;
+  content: '';
+  outline: 1.5px dashed #fff;
+  outline-offset: -4.5px;
+  pointer-events: none;
+}
+
+.stageWrap[data-drag='caption'] :global([data-brand-caption])::after {
+  inset: -10.5px;
+}
+
+/* ---------- guides ---------- */
+.guides {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.safe {
+  position: absolute;
+  inset: 8%;
+  border: 1px dashed rgba(255, 255, 255, 0.75);
+  border-radius: 8px;
+}
+
+.safe[data-left] {
+  border-left: 1.5px solid #facc15;
+}
+
+.safe[data-right] {
+  border-right: 1.5px solid #facc15;
+}
+
+.safe[data-top] {
+  border-top: 1.5px solid #facc15;
+}
+
+.safe[data-bottom] {
+  border-bottom: 1.5px solid #facc15;
+}
+
+.safeLabel {
+  position: absolute;
+  top: -9px;
+  left: 50%;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.55);
+  padding: 1px 8px;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 16px;
+  white-space: nowrap;
+  transform: translateX(-50%);
+}
+
+.vline,
+.hline {
+  position: absolute;
+}
+
+.vline {
+  top: 0;
+  bottom: 0;
+  border-left: 1px dashed rgba(255, 255, 255, 0.45);
+}
+
+.hline {
+  right: 0;
+  left: 0;
+  border-top: 1px dashed rgba(255, 255, 255, 0.45);
+}
+
+.vline[data-center] {
+  border-left-style: solid;
+}
+
+.hline[data-center] {
+  border-top-style: solid;
+}
+
+.vline[data-active] {
+  border-left: 1.5px solid #facc15;
+  box-shadow: 0 0 6px #facc15;
+}
+
+.hline[data-active] {
+  border-top: 1.5px solid #facc15;
+  box-shadow: 0 0 6px #facc15;
+}
+
+/* ---------- player bar inside the clip ---------- */
+.playback {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 0 0 18px 18px;
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.55));
+  padding: 8px 10px;
+  color: #fff;
+  /* Only the controls take the pointer, so the logo and captions stay draggable around them. */
+  pointer-events: none;
+}
+
+.playback > * {
+  pointer-events: auto;
+}
+
+/* The draggable watermark stays above the player chrome. */
+.stageWrap :global([data-brand-logo-preview]),
+.logoSelection {
+  z-index: 2;
+}
+
+.playButton {
+  display: flex;
+  width: 24px;
+  height: 24px;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  padding: 0;
+  color: inherit;
+  cursor: pointer;
+}
+
+.playButton:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.playButton:focus-visible {
+  outline: 2px solid #fff;
+}
+
+.playButton svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* Beats the global input[type='range'] rules. */
+.playback .seek {
+  height: 14px;
+  min-width: 0;
+  flex: 1 1 auto;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+  appearance: none;
+}
+
+.playback .seek::-webkit-slider-runnable-track {
+  height: 3px;
+  border-radius: 3px;
+  background: linear-gradient(to right, #fff var(--progress), rgba(255, 255, 255, 0.35) var(--progress));
+}
+
+.playback .seek::-moz-range-track {
+  height: 3px;
+  border-radius: 3px;
+  background: linear-gradient(to right, #fff var(--progress), rgba(255, 255, 255, 0.35) var(--progress));
+}
+
+.playback .seek::-webkit-slider-thumb {
+  width: 9px;
+  height: 9px;
+  margin-top: -3px;
+  border: 0;
+  border-radius: 999px;
+  background: #fff;
+  box-shadow: none;
+  opacity: 0;
+  appearance: none;
+}
+
+.playback .seek:hover::-webkit-slider-thumb,
+.playback .seek:focus-visible::-webkit-slider-thumb {
+  opacity: 1;
+}
+
+.playback .seek::-moz-range-thumb {
+  width: 9px;
+  height: 9px;
+  border: 0;
+  border-radius: 999px;
+  background: #fff;
+}
+
+.playback .seek:focus-visible {
+  outline: none;
+}
+
+.alert {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin: 0;
+  color: var(--publish-danger);
+  font-size: 12px;
+}
+
+.alert button {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  color: var(--publish-text);
+  font: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+/* ---------- no clip ---------- */
+.noClip {
+  display: flex;
+  width: 248px;
+  height: 440px;
+  flex: none;
+  flex-direction: column;
+  align-self: center;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  border: 2px dashed var(--publish-handle);
+  border-radius: 18px;
+  padding: 16px;
+  text-align: center;
+}
+
+.noClip img {
+  width: 140px;
+  height: 140px;
+  object-fit: contain;
+}
+
+.noClip b {
+  font-weight: 600;
+}
+
+.noClip small {
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.noClipButton {
+  position: relative;
+  height: 42px;
+  gap: 6px;
+}
+
+@media (max-width: 1023px) {
+  .card {
+    padding: 16px;
+  }
+
+  .stageWrap {
+    width: 214px;
+  }
+
+  .stageWrap[data-ratio='1:1'] {
+    width: 290px;
+  }
+
+  .noClip {
+    width: 214px;
+    height: 380px;
+  }
+
+  .noClip img {
+    width: 120px;
+    height: 120px;
+  }
+}

@@ -205,17 +205,61 @@
       "privacy": "Privacy"
     },
     "screens": {
-      "login": { "lead": "Every video", "accent": "has a good moment.", "alt": "Ana opens a door from a phone while Radu walks in with a coffee" },
-      "register": { "lead": "Every idea", "accent": "deserves a clip.", "alt": "Ana and Radu stand on a clapperboard and wave" },
-      "mfa": { "lead": "Every account", "accent": "deserves protection.", "alt": "Ana brings a big key while Radu holds an open padlock" },
-      "verify": { "lead": "One more step", "accent": "to your first clip.", "alt": "Ana looks through a magnifier at an envelope with a check mark held by Radu" },
-      "forgot": { "lead": "It happens,", "accent": "we will fix it together.", "alt": "Ana brings a big key while Radu holds an open padlock" },
-      "forgotSent": { "lead": "The link is on its way,", "accent": "check your email.", "alt": "Ana looks through a magnifier at an envelope with a check mark held by Radu" },
-      "reset": { "lead": "A new password,", "accent": "a fresh start.", "alt": "Ana brings a big key while Radu holds an open padlock" },
-      "resetDone": { "lead": "All done,", "accent": "your clips are waiting.", "alt": "Ana and Radu hold a board with a green check mark together" },
-      "resetInvalid": { "lead": "No worries,", "accent": "we need a new link.", "alt": "Radu holds a broken chain while Ana shows him a linked ring tied with a bow" },
-      "activate": { "lead": "One more step", "accent": "to your first clip.", "alt": "Ana looks through a magnifier at an envelope with a check mark held by Radu" },
-      "activateDone": { "lead": "Welcome,", "accent": "your first clip awaits.", "alt": "Ana and Radu hold a board with a green check mark together" }
+      "login": {
+        "lead": "Every video",
+        "accent": "has a good moment.",
+        "alt": "Ana opens a door from a phone while Radu walks in with a coffee"
+      },
+      "register": {
+        "lead": "Every idea",
+        "accent": "deserves a clip.",
+        "alt": "Ana and Radu stand on a clapperboard and wave"
+      },
+      "mfa": {
+        "lead": "Every account",
+        "accent": "deserves protection.",
+        "alt": "Ana brings a big key while Radu holds an open padlock"
+      },
+      "verify": {
+        "lead": "One more step",
+        "accent": "to your first clip.",
+        "alt": "Ana looks through a magnifier at an envelope with a check mark held by Radu"
+      },
+      "forgot": {
+        "lead": "It happens,",
+        "accent": "we will fix it together.",
+        "alt": "Ana brings a big key while Radu holds an open padlock"
+      },
+      "forgotSent": {
+        "lead": "The link is on its way,",
+        "accent": "check your email.",
+        "alt": "Ana looks through a magnifier at an envelope with a check mark held by Radu"
+      },
+      "reset": {
+        "lead": "A new password,",
+        "accent": "a fresh start.",
+        "alt": "Ana brings a big key while Radu holds an open padlock"
+      },
+      "resetDone": {
+        "lead": "All done,",
+        "accent": "your clips are waiting.",
+        "alt": "Ana and Radu hold a board with a green check mark together"
+      },
+      "resetInvalid": {
+        "lead": "No worries,",
+        "accent": "we need a new link.",
+        "alt": "Radu holds a broken chain while Ana shows him a linked ring tied with a bow"
+      },
+      "activate": {
+        "lead": "One more step",
+        "accent": "to your first clip.",
+        "alt": "Ana looks through a magnifier at an envelope with a check mark held by Radu"
+      },
+      "activateDone": {
+        "lead": "Welcome,",
+        "accent": "your first clip awaits.",
+        "alt": "Ana and Radu hold a board with a green check mark together"
+      }
     },
     "mfa": {
       "title": "Two-step verification",
@@ -970,7 +1014,49 @@
       "layout": "Text & layout",
       "linesSummary": "{count, plural, one {# line} other {# lines}}"
     },
-    "kitNameTaken": "A kit with this name already exists."
+    "kitNameTaken": "A kit with this name already exists.",
+    "editor": {
+      "stylesCount": "{count, plural, one {# style} other {# styles}}",
+      "presetGroup": "Caption style",
+      "fonts": "Fonts",
+      "fontTypes": "TTF, OTF",
+      "fontLimit": "TTF, OTF · up to 8 MB",
+      "fontIllustration": "Ana places letters on a shelf while Radu holds a big A",
+      "textSize": "Text size",
+      "lines": "Lines",
+      "dragInClip": "Drag in the clip",
+      "effect": "Effect",
+      "chooseColor": "Choose {name}",
+      "hexCode": "{name} hex code",
+      "logoSummary": "Size {size}% · Opacity {opacity}%",
+      "logoEmptyIllustration": "Ana holds an empty logo frame next to an easel",
+      "logoMeta": "{format} · {width} × {height}",
+      "size": "Size",
+      "dragLogo": "Drag the logo in the clip to move it",
+      "outro": "Sneep Cut ending",
+      "outroDesc": "Short animation at the end of the clip",
+      "outroUpgrade": "Remove with the Agency plan",
+      "showOn": "Show on",
+      "safeZone": "Safe zone",
+      "placements": {
+        "instagram": "Instagram Reels",
+        "facebook": "Facebook Reels",
+        "tiktok": "TikTok",
+        "youtube": "YouTube Shorts"
+      },
+      "noClipTitle": "Choose a video or photo",
+      "noClipText": "See the style on your own clip.",
+      "noClipIllustration": "Ana holds a clapperboard while Radu films with a phone",
+      "chooseMedia": "Choose media",
+      "clipLabel": "Library clip used as the background",
+      "saveCard": "Saving",
+      "allSaved": "Everything is saved",
+      "save": "Save",
+      "resetDefaults": "Reset to defaults",
+      "savedText": "All changes are saved.",
+      "errorText": "We couldn't load the saved settings.",
+      "errorIllustration": "Radu holds an empty brand box while Ana holds a retry arrow"
+    }
   },
   "billing": {
     "title": "Billing",
@@ -1180,10 +1266,36 @@
       "accessDescription": "Paid features stay active while your subscription is paid. Your remaining usage is preserved.",
       "changesDescription": "Plan changes, cancellation and your payment method are managed in the billing portal.",
       "features": {
-        "free": ["AI viral moment detection", "Automatic subtitles", "Vertical crop (9:16)", "720p export", "5 clips per project"],
-        "creator": ["Everything in Free", "Full HD export (1080p)", "Up to 15 clips per project", "Batch processing (5 URLs)", "Brand kit", "AI social descriptions"],
-        "pro": ["Everything in Creator", "Batch processing (20 URLs)", "Custom watermark", "Content calendar", "AI script generator", "Analytics dashboard"],
-        "agency": ["Everything in Pro", "White-label exports", "No Sneep Cut branding", "Dedicated support", "GDPR data export"]
+        "free": [
+          "AI viral moment detection",
+          "Automatic subtitles",
+          "Vertical crop (9:16)",
+          "720p export",
+          "5 clips per project"
+        ],
+        "creator": [
+          "Everything in Free",
+          "Full HD export (1080p)",
+          "Up to 15 clips per project",
+          "Batch processing (5 URLs)",
+          "Brand kit",
+          "AI social descriptions"
+        ],
+        "pro": [
+          "Everything in Creator",
+          "Batch processing (20 URLs)",
+          "Custom watermark",
+          "Content calendar",
+          "AI script generator",
+          "Analytics dashboard"
+        ],
+        "agency": [
+          "Everything in Pro",
+          "White-label exports",
+          "No Sneep Cut branding",
+          "Dedicated support",
+          "GDPR data export"
+        ]
       }
     }
   },
@@ -1504,7 +1616,10 @@
       "deleteAccount": "Delete account",
       "deleteIrreversible": "This action cannot be undone.",
       "deleteDescription": "Your subscription, clips, calendar and brand kit will be deleted. This action cannot be undone.",
-      "deleteIllustration": "Ana and Radu next to a trash bin"
+      "deleteIllustration": "Ana and Radu next to a trash bin",
+      "allOptionalEmails": "All optional emails",
+      "unsubscribe": "Unsubscribe",
+      "unsubscribed": "You're unsubscribed from optional emails."
     }
   },
   "publish": {
@@ -1775,6 +1890,8 @@
       "showArchived": "Show archived",
       "new": "New script",
       "untitled": "Untitled script",
+      "untitledScenario": "Untitled script",
+      "writingScenario": "Writing the script",
       "emptyTitle": "No scripts yet",
       "emptyDescription": "Create a draft or generate one with AI. Every revision will stay available here.",
       "noBrief": "No brief yet",
@@ -1885,7 +2002,36 @@
     }
   },
   "contentCalendar": {
+    "platformPreview": {
+      "title": "Preview",
+      "expand": "Larger preview",
+      "reels": "Reels",
+      "friends": "Friends",
+      "follow": "Follow",
+      "subscribe": "Subscribe",
+      "subscriptions": "Subscriptions",
+      "instagramAudio": "Original audio · {account}",
+      "tiktokAudio": "Original sound - {account}",
+      "navigationInstagram": "Instagram navigation",
+      "navigationFacebook": "Facebook navigation",
+      "navigationTikTok": "TikTok navigation",
+      "navigationYouTube": "YouTube navigation",
+      "forYou": "For you",
+      "explore": "Explore",
+      "following": "Following",
+      "home": "Home",
+      "notifications": "Notifications",
+      "menu": "Menu",
+      "marketplace": "Marketplace",
+      "inbox": "Inbox",
+      "profile": "Profile",
+      "like": "Like",
+      "dislike": "Dislike",
+      "share": "Share",
+      "you": "You"
+    },
     "imageEditor": {
+      "dragToPosition": "Drag to position",
       "formatGeneric": "Photo format",
       "facebookFormatHint": "Choose a format for these photos, then adjust each photo below.",
       "facebookOriginalHint": "Original keeps each photo uncropped.",
@@ -1977,7 +2123,16 @@
       "mediaTitle": "Media",
       "when": "When",
       "mediaCount": "{count} files",
-      "dateAndTime": "Date and time"
+      "dateAndTime": "Date and time",
+      "addMedia": "Add",
+      "clipCount": "{count, plural, one {# video clip} other {# video clips}}",
+      "dropTitle": "Drop files here",
+      "dropHint": "Added at the end, in the order you dropped them.",
+      "reorderHint": "Drag photos to change the order.",
+      "dateField": "Date",
+      "timeField": "Time",
+      "timeZoneField": "Time zone · from Settings",
+      "scheduleSummary": "Publishes automatically {date} at {time} ({zone}) on {platforms}. The time zone comes from Settings; you can change it only for this post."
     },
     "publishing": {
       "description": "Manage and schedule your social posts.",
@@ -2474,6 +2629,15 @@
     "facebookSettingsInvalid": "Review the Facebook location and Reel settings before saving.",
     "instagramOptions": "Instagram Preferences",
     "instagramComments": "Comments",
+    "optionsGroupVisibility": "Who can view",
+    "optionsGroupInteractions": "Interactions",
+    "optionsGroupDisclosures": "Disclosures",
+    "optionsGroupCover": "Cover",
+    "optionsGroupDisplay": "Display",
+    "optionsGroupReel": "Reel details",
+    "optionsGroupDetails": "Details",
+    "instagramLocationPlaceholder": "Facebook Place ID",
+    "instagramAudioPlaceholder": "Original audio",
     "instagramShareToFeed": "Share to Feed",
     "instagramCollaborators": "Collaborators",
     "instagramCollaboratorsHint": "Invite up to 3 Instagram usernames, separated by commas. They must accept the invitation.",
@@ -2621,7 +2785,14 @@
       "noResults": "Ana searches the clips with a magnifier while Radu shrugs holding a filter",
       "error": "Ana and Radu trying to get a projector working again",
       "delete": "Ana hesitates to throw the clip away while Radu stops her"
-    }
+    },
+    "favorites": "Favorites",
+    "favoriteCount": "{count, plural, one {# favorite} other {# favorites}}",
+    "addFavorite": "Add to favorites",
+    "removeFavorite": "Remove from favorites",
+    "star": "Add to favorites: {title}",
+    "unstar": "Remove from favorites: {title}",
+    "noFavorites": "No favorites yet"
   },
   "brandKits": {
     "title": "My kits",

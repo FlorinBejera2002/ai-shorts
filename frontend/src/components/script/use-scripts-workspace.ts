@@ -150,7 +150,7 @@ export function useScriptsWorkspace() {
       ? payload.platform
       : 'tiktok'
     try {
-      const draft = emptyScript(t('workspace.untitled'))
+      const draft = emptyScript(t('workspace.untitledScenario'))
       const response = await apiFetch('/api/scripts/items', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },

@@ -55,7 +55,15 @@ const SCENARIOS = {
   },
   unavailable: { account: { credits: 870, plan: 'creator', hasBillingProfile: true }, subscription: subscription(), invoices: [], providerAvailable: false },
   admin: { account: { credits: 0, plan: 'agency', hasBillingProfile: true, creditsUnlimited: true }, subscription: null, invoices: [] },
-  testMode: { mode: 'test', account: { credits: 650, plan: 'free', hasBillingProfile: false }, subscription: null, invoices: [] }
+  testMode: { mode: 'test', account: { credits: 650, plan: 'free', hasBillingProfile: false }, subscription: null, invoices: [] },
+  invalidReturn: {
+    account: { credits: 870, plan: 'creator', hasBillingProfile: true },
+    subscription: subscription(),
+    invoices: [],
+    checkoutVerification: { status: 'invalid', planId: null }
+  },
+  // Stripe still reports an active subscription, but the server no longer grants paid access.
+  unconfirmed: { account: { credits: 1300, plan: 'free', hasBillingProfile: true }, subscription: subscription({ currentPeriodEnd: '2026-10-20T00:00:00Z' }), invoices: [] }
 }
 const billing = (name) => ({ mode: 'live', providerAvailable: true, checkoutVerification: null, ...structuredClone(SCENARIOS[name]) })
 
@@ -151,7 +159,8 @@ async function fixture(options = {}) {
       await page.goto(`${origin}/${options.ro ? 'ro/' : ''}dashboard/billing${search}`, {
         waitUntil: options.holdRead ? 'domcontentloaded' : 'networkidle'
       })
-      if (wait) await page.locator('[data-billing-workspace]').waitFor()
+      // First paint can be slow while the shared machine runs other builds.
+      if (wait) await page.locator('[data-billing-workspace]').waitFor({ timeout: 60000 })
     },
     close: async () => {
       releaseRead()
@@ -524,6 +533,94 @@ async function desktopControls() {
   console.log('Desktop: refresh, invoice PDF/view links, view all, detail rows, change plan cancel/back, portal + checkout continue, unsafe host, retry, pending, admin, notices passed')
 }
 
+// ---------------------------------------------------------------- billing policies (EN)
+async function policies() {
+  // A foreign or invalid Checkout return grants nothing and says so.
+  const invalid = await fixture({ scenario: 'invalidReturn' })
+  try {
+    await invalid.open('?checkout_session_id=cs_test_foreign')
+    await invalid.root.locator('[data-billing-notice="invalid"][role="alert"]').filter({ hasText: "We couldn't verify this checkout" }).waitFor()
+    await textMatches(invalid.root.locator('[data-billing-effective-plan]'), /^Creator$/)
+  } finally {
+    await invalid.close()
+  }
+
+  // Returning from the billing portal reconciles before showing the saved state.
+  const portalReturn = await fixture({ scenario: 'main' })
+  try {
+    await portalReturn.open('?portal_return=true')
+    await portalReturn.root.locator('[data-billing-summary]').waitFor()
+    assert.ok(portalReturn.calls.reconciles >= 1, 'Portal return reconciles with Stripe')
+  } finally {
+    await portalReturn.close()
+  }
+
+  // Hosted destinations: a stale checkout may open the subscription portal; anything else is refused.
+  for (const [response, destination] of [
+    [{ kind: 'portal', url: PORTAL_URL }, PORTAL_URL],
+    [{ kind: 'unknown', url: CHECKOUT_URL }, null],
+    [{ kind: 'portal', url: 'https://checkout.stripe.com/c/pay/cs_test_mismatched' }, null]
+  ]) {
+    const f = await fixture({ scenario: 'free', checkoutResponse: response })
+    try {
+      await f.open()
+      await f.root.getByRole('button', { name: 'Choose plan' }).click()
+      await view(f, 'plans')
+      const continueButton = f.root.getByRole('button', { name: 'Continue in billing' })
+      if (destination) {
+        // A double click starts one hosted session only.
+        await Promise.all([f.page.waitForURL(destination), continueButton.dblclick()])
+      } else {
+        await continueButton.click()
+        await f.root.getByRole('alert').filter({ hasText: 'Could not start checkout.' }).waitFor()
+        assert.equal(new URL(f.page.url()).origin, origin)
+      }
+      assert.equal(f.calls.checkouts.length, 1, `${response.kind}: one checkout request`)
+    } finally {
+      await f.close()
+    }
+  }
+
+  // The portal button refuses a Checkout URL.
+  const portalMismatch = await fixture({ portalResponse: { url: CHECKOUT_URL } })
+  try {
+    await portalMismatch.open()
+    await portalMismatch.root.getByRole('button', { name: 'Manage billing' }).click()
+    await portalMismatch.root.getByRole('alert').filter({ hasText: 'Could not open the billing portal.' }).waitFor()
+    assert.equal(portalMismatch.calls.stripe.length, 0)
+  } finally {
+    await portalMismatch.close()
+  }
+
+  // Unconfirmed paid access shows Free with guidance, never a renewal; refresh restores the plan.
+  const unconfirmed = await fixture({ scenario: 'unconfirmed', reconciled: 'main' })
+  try {
+    await unconfirmed.open()
+    const summary = unconfirmed.root.locator('[data-billing-summary]')
+    await unconfirmed.root.locator('[data-billing-notice="unconfirmed"]').waitFor()
+    await textMatches(summary, /Free[\s\S]*Confirmation needed[\s\S]*Last confirmed period end 20 Oct 2026/)
+    assert.doesNotMatch(await summary.innerText(), /Renews on/)
+    await rememberShell(unconfirmed.page)
+    await unconfirmed.root.getByRole('button', { name: 'Refresh billing status' }).click()
+    await textMatches(summary, /Creator[\s\S]*Active[\s\S]*Renews on 18 Dec 2026/)
+    assert.equal(await unconfirmed.root.locator('[data-billing-notice="unconfirmed"]').count(), 0)
+    await assertShell(unconfirmed.page)
+  } finally {
+    await unconfirmed.close()
+  }
+
+  // Live mode shows no test-payments warning.
+  const live = await fixture({ scenario: 'main' })
+  try {
+    await live.open()
+    await live.root.locator('[data-billing-summary]').waitFor()
+    assert.equal(await live.root.locator('[data-billing-notice="test-mode"]').count(), 0)
+  } finally {
+    await live.close()
+  }
+  console.log('Policies: invalid return, portal-return reconcile, hosted destination kinds, double click, portal mismatch, unconfirmed coverage, live mode passed')
+}
+
 async function mobileControls() {
   const f = await fixture({ viewport: { width: 390, height: 844 } })
   try {
@@ -590,7 +687,7 @@ async function overflow() {
 try {
   await mkdir(output, { recursive: true })
   const only = process.env.BILLING_GROUPS?.split(',')
-  const groups = { references, desktopControls, mobileControls, overflow }
+  const groups = { references, desktopControls, policies, mobileControls, overflow }
   for (const [name, run] of Object.entries(groups)) if (!only || only.includes(name)) await run()
   assert.deepEqual(runtimeErrors, [], 'No runtime or console errors')
   assert.deepEqual(unexpected, [], 'No unexpected requests')

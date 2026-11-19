@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/compone
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/sheet'
 import { X } from 'lucide-react'
 import { useTranslations } from 'next-intl'
-import type { ReactNode } from 'react'
+import type { KeyboardEvent, ReactNode } from 'react'
 import ui from './reference-ui.module.css'
 
 /** Classes every portal of a reference page needs to pick up the scoped tokens. */
@@ -126,5 +126,32 @@ export function CloseButton({ onClick }: { onClick: () => void }) {
     <button type="button" className={`${ui.iconButton} ${ui.focus} ${ui.closeButton}`} aria-label={t('close')} onClick={onClick}>
       <X aria-hidden="true" />
     </button>
+  )
+}
+
+const MENU_ITEMS = '[role^="menuitem"]:not([disabled]):not([aria-disabled="true"])'
+
+/** Moves focus between a sheet menu's items with the arrow keys, Home and End, as a menu promises. */
+function moveMenuFocus(event: KeyboardEvent<HTMLDivElement>) {
+  const items = Array.from(event.currentTarget.querySelectorAll<HTMLElement>(MENU_ITEMS))
+  if (!items.length) return
+  const index = items.indexOf(document.activeElement as HTMLElement)
+  const next = {
+    ArrowDown: (index + 1) % items.length,
+    ArrowUp: (index - 1 + items.length) % items.length,
+    Home: 0,
+    End: items.length - 1
+  }[event.key]
+  if (next === undefined) return
+  event.preventDefault()
+  items[next].focus()
+}
+
+/** The item list of a phone action sheet, exposed as a keyboard-operable menu. */
+export function SheetMenu({ label, className, children }: { label?: string; className: string; children: ReactNode }) {
+  return (
+    <div className={className} role="menu" aria-label={label} onKeyDown={moveMenuFocus}>
+      {children}
+    </div>
   )
 }

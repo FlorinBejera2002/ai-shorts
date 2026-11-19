@@ -15,11 +15,12 @@ import {
   Plus,
   Send,
   SquareArrowOutUpRight,
+  Star,
   Trash2
 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useState } from 'react'
-import { CloseButton } from '@/components/shared/reference-overlay'
+import { CloseButton, SheetMenu } from '@/components/shared/reference-overlay'
 import { clipDownloadName } from './clip-download-utils'
 import { NoProjectIcon, ProjectIcon } from './clips-icons'
 import overlay from '@/components/shared/reference-ui.module.css'
@@ -28,6 +29,7 @@ import styles from './clips.module.css'
 export type ClipCommands = {
   projects: LibraryCollection[]
   onMove: (clip: LibraryClip, projectId: string | null) => void
+  onFavorite: (clip: LibraryClip) => void
   onNewProject: (clip: LibraryClip) => void
   onDelete: (clip: LibraryClip) => void
 }
@@ -42,7 +44,7 @@ function clipLinks(clip: LibraryClip) {
   }
 }
 
-/** Desktop "⋮" menu: open, publish, download, move to project (submenu) and delete. */
+/** Desktop "⋮" menu: open, favourite, publish, download, move to project (submenu) and delete. */
 export function ClipActionsMenu({ clip, commands }: { clip: LibraryClip; commands: ClipCommands }) {
   const t = useTranslations('clipsLibrary')
   const links = clipLinks(clip)
@@ -66,6 +68,10 @@ export function ClipActionsMenu({ clip, commands }: { clip: LibraryClip; command
             <SquareArrowOutUpRight aria-hidden="true" />
             <span>{t('openAction')}</span>
           </Link>
+        </Menu.Item>
+        <Menu.Item className={overlay.item} onSelect={() => commands.onFavorite(clip)}>
+          <Star aria-hidden="true" />
+          <span>{clip.favorite ? t('removeFavorite') : t('addFavorite')}</span>
         </Menu.Item>
         <Menu.Item asChild className={overlay.item}>
           <Link href={links.publish}>
@@ -179,11 +185,15 @@ export function ClipActionsSheet({
               </SheetTitle>
               <CloseButton onClick={close} />
             </div>
-            <div className={overlay.sheetList} role="menu" aria-label={t('clipActions')}>
+            <SheetMenu className={overlay.sheetList} label={t('clipActions')}>
               <Link role="menuitem" href={links.open} className={overlay.item} onClick={close}>
                 <SquareArrowOutUpRight aria-hidden="true" />
                 <span>{t('openAction')}</span>
               </Link>
+              <button type="button" role="menuitem" className={overlay.item} onClick={() => run(() => commands.onFavorite(clip))}>
+                <Star aria-hidden="true" />
+                <span>{clip.favorite ? t('removeFavorite') : t('addFavorite')}</span>
+              </button>
               <Link role="menuitem" href={links.publish} className={overlay.item} onClick={close}>
                 <Send aria-hidden="true" />
                 <span>{t('publish')}</span>
@@ -211,7 +221,7 @@ export function ClipActionsSheet({
                 <Trash2 aria-hidden="true" />
                 <span>{t('delete')}</span>
               </button>
-            </div>
+            </SheetMenu>
           </>
         )}
         {clip && step === 'move' && (
@@ -224,7 +234,7 @@ export function ClipActionsSheet({
               <SheetTitle>{t('moveToProject')}</SheetTitle>
               <CloseButton onClick={close} />
             </div>
-            <div className={overlay.sheetList} role="menu" aria-label={t('moveToProject')}>
+            <SheetMenu className={overlay.sheetList} label={t('moveToProject')}>
               {[{ id: NONE, name: t('unassigned') }, ...commands.projects].map((project) => {
                 const checked = (clip.collectionId ?? NONE) === project.id
                 return (
@@ -247,7 +257,7 @@ export function ClipActionsSheet({
                 <Plus aria-hidden="true" />
                 <span>{t('newProject')}</span>
               </button>
-            </div>
+            </SheetMenu>
           </>
         )}
       </SheetContent>

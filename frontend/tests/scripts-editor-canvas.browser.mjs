@@ -39,7 +39,7 @@ function versionsFor(record) {
 
 async function until(predicate, message, timeout = 15000) {
   const start = Date.now()
-  while (!predicate()) {
+  while (!(await predicate())) {
     assert.ok(Date.now() - start < timeout, message)
     await new Promise(resolve => setTimeout(resolve, 40))
   }
@@ -273,6 +273,10 @@ async function mobileLight() {
     assert.equal(await toolbar.getByRole('button', { name: 'Scenarii', exact: true }).textContent(), 'Scenarii', 'Mobile back button keeps its text')
     await capture(f.page, 'mobile-light-editor')
     checks.push('mobile back text keeps its label')
+    const dock = f.page.locator('[data-mobile-dashboard-dock]')
+    await dock.waitFor({ state: 'attached' })
+    await until(async () => (await dock.getAttribute('data-dock-hidden')) !== null, 'Editor hides the phone dock')
+    checks.push('mobile editor hides the bottom dock')
 
     await f.page.locator('#script-status').click()
     const statusSheet = f.page.getByRole('dialog', { name: 'Stare', exact: true })
@@ -299,6 +303,8 @@ async function mobileLight() {
     await capture(f.page, 'mobile-light-versions-sheet')
     await versions.getByRole('button', { name: 'Restaurează', exact: true }).first().click()
     await until(() => f.calls.restore.length === 1, 'Mobile restore request sent')
+    // Wait for the restored record to be applied; otherwise the response overwrites the title typed below.
+    await f.page.getByText('Versiune restaurată', { exact: true }).waitFor()
     checks.push('mobile versions sheet restores a version')
 
     f.fail('save')
@@ -314,6 +320,11 @@ async function mobileLight() {
       .getByRole('button', { name: 'Arhivează', exact: true }).click()
     await until(() => f.calls.archive.length === 1, 'Mobile archive DELETE sent')
     checks.push('mobile archive action')
+
+    // Archiving returns to the library, where the bottom dock comes back.
+    await f.page.locator('[data-script-library]').waitFor()
+    await until(async () => (await dock.getAttribute('data-dock-hidden')) === null, 'Library shows the phone dock again')
+    checks.push('mobile return to the library restores the bottom dock')
   } finally { await f.close() }
 }
 

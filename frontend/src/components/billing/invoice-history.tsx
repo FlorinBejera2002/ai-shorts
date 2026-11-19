@@ -34,22 +34,16 @@ function InvoiceRow({ invoice, locale }: { invoice: BillingInvoice; locale: Bill
   const pdfUrl = safeHttpsUrl(invoice.pdfUrl)
   const status = statusKey(invoice.status)
   return (
-    <div role="row" className={styles.row} data-billing-invoice={invoice.id}>
-      <span role="cell" className={styles.date}>
-        {formatBillingDate(invoice.createdAt, locale) ?? '—'}
-      </span>
-      <span role="cell" className={`${ui.muted} ${styles.number}`}>
-        {invoice.number}
-      </span>
-      <span role="cell" className={styles.amount}>
-        {formatInvoiceAmount(invoice.amount, invoice.currency, locale)}
-      </span>
-      <span role="cell" className={styles.status}>
+    <tr className={styles.row} data-billing-invoice={invoice.id}>
+      <td className={styles.date}>{formatBillingDate(invoice.createdAt, locale) ?? '—'}</td>
+      <td className={`${ui.muted} ${styles.number}`}>{invoice.number}</td>
+      <td className={styles.amount}>{formatInvoiceAmount(invoice.amount, invoice.currency, locale)}</td>
+      <td className={styles.status}>
         <span className={ui.dotStatus} data-tone={STATUS_TONES[status] ?? 'neutral'}>
           {t(`invoiceStatuses.${status}`)}
         </span>
-      </span>
-      <span role="cell" className={styles.actions}>
+      </td>
+      <td className={styles.actions}>
         {hostedUrl && (
           <a
             href={hostedUrl}
@@ -76,8 +70,8 @@ function InvoiceRow({ invoice, locale }: { invoice: BillingInvoice; locale: Bill
             <span>{t('downloadPdf')}</span>
           </a>
         )}
-      </span>
-    </div>
+      </td>
+    </tr>
   )
 }
 
@@ -155,20 +149,24 @@ export function InvoiceHistory({
         </div>
       )}
       {hasRows ? (
-        <div role="table" className={styles.table} aria-label={t(recent ? 'canvas.recentInvoices' : 'invoicesTitle')}>
+        <table className={styles.table} aria-label={t(recent ? 'canvas.recentInvoices' : 'invoicesTitle')}>
           {!recent && (
-            <div role="row" className={`${styles.row} ${styles.header}`}>
-              <span role="columnheader">{t('invoiceDate')}</span>
-              <span role="columnheader">{t('invoiceNumber')}</span>
-              <span role="columnheader">{t('invoiceAmount')}</span>
-              <span role="columnheader">{t('invoiceStatus')}</span>
-              <span role="columnheader">{t('invoiceActions')}</span>
-            </div>
+            <thead>
+              <tr className={`${styles.row} ${styles.header}`}>
+                <th scope="col">{t('invoiceDate')}</th>
+                <th scope="col">{t('invoiceNumber')}</th>
+                <th scope="col">{t('invoiceAmount')}</th>
+                <th scope="col">{t('invoiceStatus')}</th>
+                <th scope="col">{t('invoiceActions')}</th>
+              </tr>
+            </thead>
           )}
-          {shown.map((invoice) => (
-            <InvoiceRow key={invoice.id} invoice={invoice} locale={locale} />
-          ))}
-        </div>
+          <tbody>
+            {shown.map((invoice) => (
+              <InvoiceRow key={invoice.id} invoice={invoice} locale={locale} />
+            ))}
+          </tbody>
+        </table>
       ) : (
         <InvoiceEmpty providerAvailable={providerAvailable} onRetry={onRetry} retrying={retrying} />
       )}

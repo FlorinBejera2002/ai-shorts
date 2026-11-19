@@ -22,7 +22,8 @@ func cleanupInventory(mock sqlmock.Sqlmock) {
 	// Every kit's media is covered, including a second kit's logo and kit image.
 	mock.ExpectQuery("SELECT logo_path,intro_video_path,outro_video_path,watermark_path,image_path FROM brand_kits").WithArgs(testUserID).WillReturnRows(sqlmock.NewRows([]string{"logo", "intro", "outro", "watermark", "image"}).
 		AddRow("brand/"+testUserID+"/logo.svg", nil, nil, nil, nil).
-		AddRow("brand/"+testUserID+"/logo-second.png", nil, nil, nil, "brand/"+testUserID+"/kit-image.png"))
+		AddRow("brand/"+testUserID+"/logo-second.png", "brand/"+testUserID+"/intro.mp4", "brand/"+testUserID+"/outro.mp4", "brand/"+testUserID+"/watermark.png", "brand/"+testUserID+"/kit-image.png").
+		AddRow(nil, "https://cdn.invalid/intro.mp4", nil, nil, nil))
 }
 func TestCleanupRequiresDeletionBillingAndQuiescentWorkers(t *testing.T) {
 	for _, scenario := range []string{"missing-marker", "billing", "active"} {
@@ -62,12 +63,12 @@ func TestCleanupCoversStableLegacyAndUnlinkedNamespaces(t *testing.T) {
 			t.Fatalf("missing prefix %s", prefix)
 		}
 	}
-	for _, key := range []string{"clips/legacy.mp4", "clips/stable.mp4", "clips/tiktok/clean.mp4", "clips/legacy.jpg", "clips/stable.jpg", "brand/" + testUserID + "/logo.svg", "brand/" + testUserID + "/logo-second.png", "brand/" + testUserID + "/kit-image.png"} {
+	for _, key := range []string{"clips/legacy.mp4", "clips/stable.mp4", "clips/tiktok/clean.mp4", "clips/legacy.jpg", "clips/stable.jpg", "brand/" + testUserID + "/logo.svg", "brand/" + testUserID + "/logo-second.png", "brand/" + testUserID + "/kit-image.png", "brand/" + testUserID + "/intro.mp4", "brand/" + testUserID + "/outro.mp4", "brand/" + testUserID + "/watermark.png"} {
 		if !slices.Contains(storage.deleted, key) {
 			t.Fatalf("missing key %s", key)
 		}
 	}
-	if slices.Contains(storage.deleted, "/tmp/work.mp4") || slices.Contains(storage.deleted, "https://evil.invalid/private") {
+	if slices.Contains(storage.deleted, "/tmp/work.mp4") || slices.Contains(storage.deleted, "https://evil.invalid/private") || slices.Contains(storage.deleted, "https://cdn.invalid/intro.mp4") {
 		t.Fatal("external reference touched")
 	}
 	if e = mock.ExpectationsWereMet(); e != nil {

@@ -13,7 +13,7 @@ export const CLIP_SORTS = ['newest', 'oldest', 'duration'] as const
 export type ClipAspect = (typeof CLIP_ASPECTS)[number]
 export type ClipSubtitles = (typeof CLIP_SUBTITLES)[number]
 export type ClipSort = (typeof CLIP_SORTS)[number]
-/** `all`, `none` (clips outside every project) or a project id. */
+/** `all`, `favorites` (starred clips), `none` (clips outside every project) or a project id. */
 export type ClipsScope = string
 
 export type ClipsQuery = {
@@ -35,6 +35,7 @@ export type ApiLibraryClip = {
   fileUrl?: string | null
   hookText: string | null
   hasSubtitles: boolean
+  favorite?: boolean
   createdAt: string
 }
 
@@ -60,6 +61,7 @@ export type LibraryClip = {
   fileUrl: string | null
   hookText: string | null
   hasSubtitles: boolean
+  favorite: boolean
   createdAt: string
   /** The project (root folder) the clip is filed in, or null. */
   collectionId: string | null
@@ -71,6 +73,7 @@ export type ClipsLibrary = {
   clips: LibraryClip[]
   collections: LibraryCollection[]
   unassigned: number
+  favorites: number
 }
 
 /** Flattens every source video's clips and resolves each clip's project. */
@@ -98,6 +101,7 @@ export function buildClipsLibrary(data: ClipsLibraryResponse): ClipsLibrary {
       fileUrl: clip.fileUrl || null,
       hookText: clip.hookText,
       hasSubtitles: clip.hasSubtitles,
+      favorite: clip.favorite === true,
       createdAt: clip.createdAt,
       collectionId: rootOf(clip.folderId)
     }))
@@ -111,7 +115,8 @@ export function buildClipsLibrary(data: ClipsLibraryResponse): ClipsLibrary {
       name: collection.name,
       count: counts.get(collection.id) ?? 0
     })),
-    unassigned: clips.filter((clip) => !clip.collectionId).length
+    unassigned: clips.filter((clip) => !clip.collectionId).length,
+    favorites: clips.filter((clip) => clip.favorite).length
   }
 }
 
@@ -132,7 +137,7 @@ export function parseClipsQuery(values: Record<string, QueryValue>): ClipsQuery 
   const project = first(values.project)
   return {
     search: (first(values.search) ?? '').trim().replace(/\s+/g, ' ').slice(0, 80),
-    project: project && /^(none|[0-9a-f-]{36})$/i.test(project) ? project : 'all',
+    project: project && /^(none|favorites|[0-9a-f-]{36})$/i.test(project) ? project : 'all',
     aspect: oneOf(values.aspect, CLIP_ASPECTS, 'all'),
     subtitles: oneOf(values.subtitles, CLIP_SUBTITLES, 'all'),
     sort: oneOf(values.sort, CLIP_SORTS, 'newest'),
@@ -160,6 +165,11 @@ export function activeClipFilters(query: ClipsQuery) {
   )
 }
 
+/** Scopes that are lists of the library rather than one project. */
+export function isClipsListScope(scope: ClipsScope) {
+  return scope === 'all' || scope === 'none' || scope === 'favorites'
+}
+
 export function hasClipsRefinement(query: ClipsQuery) {
   return Boolean(query.search) || activeClipFilters(query).length > 0
 }
@@ -170,7 +180,8 @@ export function selectClips(clips: LibraryClip[], query: ClipsQuery, locale = 'e
   return clips
     .filter((clip) => {
       if (query.project === 'none' && clip.collectionId) return false
-      if (query.project !== 'all' && query.project !== 'none' && clip.collectionId !== query.project) return false
+      if (query.project === 'favorites' && !clip.favorite) return false
+      if (!isClipsListScope(query.project) && clip.collectionId !== query.project) return false
       if (search && !`${clip.title} ${clip.hookText ?? ''}`.toLocaleLowerCase(locale).includes(search)) return false
       if (query.aspect !== 'all' && clip.aspectRatio !== query.aspect) return false
       if (query.subtitles === 'yes' && !clip.hasSubtitles) return false

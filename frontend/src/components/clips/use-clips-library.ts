@@ -3,6 +3,7 @@
 import { apiFetch } from '@/lib/auth'
 import {
   buildClipsLibrary,
+  type ApiLibraryClip,
   type ClipsLibrary,
   type ClipsLibraryResponse
 } from '@/lib/clips-library'
@@ -37,6 +38,7 @@ export type ClipsLibraryActions = {
   renameProject: (id: string, name: string) => Promise<void>
   deleteProject: (id: string) => Promise<void>
   moveClip: (clipId: string, projectId: string | null) => Promise<void>
+  setFavorite: (clipId: string, favorite: boolean) => Promise<void>
   deleteClip: (clipId: string) => Promise<void>
 }
 
@@ -55,7 +57,7 @@ export function useClipsLibrary() {
 
   const actions = useMemo<ClipsLibraryActions>(() => {
     // The raw payload keeps folder ids; patch it so the derived library updates at once.
-    function patchClip(clipId: string, change: (folderId: string | null) => string | null | undefined) {
+    function patchClip(clipId: string, change: (clip: ApiLibraryClip) => ApiLibraryClip | undefined) {
       client.setQueryData<ClipsLibraryResponse>(LIBRARY_KEY, (current) =>
         current && {
           ...current,
@@ -63,25 +65,25 @@ export function useClipsLibrary() {
             ...source,
             clips: source.clips.flatMap((clip) => {
               if (clip.id !== clipId) return [clip]
-              const next = change(clip.folderId)
-              return next === undefined ? [] : [{ ...clip, folderId: next }]
+              const next = change(clip)
+              return next ? [next] : []
             })
           }))
         }
       )
     }
+    // A failed request reloads the server state instead of restoring a snapshot, so a later
+    // optimistic change that overlapped this one is not rolled back with it.
     async function optimistic(apply: () => void, request: () => Promise<unknown>) {
-      const previous = client.getQueryData<ClipsLibraryResponse>(LIBRARY_KEY)
       await client.cancelQueries({ queryKey: LIBRARY_KEY })
       apply()
       try {
         await request()
       } catch (error) {
-        client.setQueryData(LIBRARY_KEY, previous)
+        await refresh()
         throw error
-      } finally {
-        void refresh()
       }
+      void refresh()
     }
     return {
       async createProject(name) {
@@ -99,8 +101,13 @@ export function useClipsLibrary() {
       },
       moveClip: (clipId, projectId) =>
         optimistic(
-          () => patchClip(clipId, () => projectId),
+          () => patchClip(clipId, (clip) => ({ ...clip, folderId: projectId })),
           () => send(`/api/clips/${encodeURIComponent(clipId)}/collection`, 'PUT', { collectionId: projectId })
+        ),
+      setFavorite: (clipId, favorite) =>
+        optimistic(
+          () => patchClip(clipId, (clip) => ({ ...clip, favorite })),
+          () => send(`/api/clips/${encodeURIComponent(clipId)}/favorite`, 'PUT', { favorite })
         ),
       deleteClip: (clipId) =>
         optimistic(

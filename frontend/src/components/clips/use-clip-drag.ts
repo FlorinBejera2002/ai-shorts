@@ -104,7 +104,9 @@ export function useClipDrag(onDrop: (clip: LibraryClip, projectId: string) => vo
 
   const start = useCallback(
     (clip: LibraryClip, event: ReactPointerEvent) => {
-      if (event.button !== 0 || (event.target as Element).closest('button')) return
+      const target = event.target as Element
+      // Portaled menus bubble React events through the card; only the card itself starts a drag.
+      if (event.button !== 0 || !event.currentTarget.contains(target) || target.closest('button')) return
       const touch = event.pointerType !== 'mouse'
       pending.current = { clip, x: event.clientX, y: event.clientY, touch }
       if (touch) {

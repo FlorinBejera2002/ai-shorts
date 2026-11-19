@@ -117,8 +117,9 @@ contract and ASS output without changing persisted projects.
 - Isolated `sneepcut_integration_test` coverage checks owner isolation, saved
   positions, brand snapshot behavior, HTTP permission/content validation,
   archival and real Story plus ordinary/TikTok exports.
-- `frontend/tests/brand-captions.browser.mjs` checks both sections, lazy loading,
-  search/custom upload, keyboard/drag persistence, and desktop/mobile overflow.
+- `frontend/tests/brand-kit-layout.browser.mjs` checks the editor's caption and
+  logo controls, lazy font loading, search/custom upload, keyboard/drag/pinch
+  persistence with snapping, and desktop/mobile overflow in light and dark.
 
 References: [Go sfnt](https://pkg.go.dev/golang.org/x/image/font/sfnt),
 [FFmpeg subtitles](https://ffmpeg.org/ffmpeg-filters.html#subtitles-1),

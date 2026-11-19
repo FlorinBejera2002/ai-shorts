@@ -20,7 +20,8 @@ export type BillingOverview = {
   needsConfirmation: boolean
   confirmingCheckout: boolean
   status: { key: string; tone: BillingTone } | null
-  period: { kind: 'renews' | 'ends' | 'period'; date: string } | null
+  /** `lastConfirmed`: paid access is unconfirmed, so nothing may claim a renewal. */
+  period: { kind: 'renews' | 'ends' | 'period' | 'lastConfirmed'; date: string } | null
   usage: (BillingUsage & { resets: boolean }) | null
   canManageBilling: boolean
   canChangePlan: boolean
@@ -59,6 +60,18 @@ function subscriptionStatus(
   return { key, tone: PAYMENT_ISSUES.includes(subscription.status) ? 'warning' : 'neutral' }
 }
 
+function billingPeriod(
+  subscription: BillingData['subscription'],
+  needsConfirmation: boolean
+): BillingOverview['period'] {
+  const kind = subscriptionPeriodKind(subscription)
+  const date = subscription?.currentPeriodEnd
+  if (kind === 'none' || !date) return null
+  if (needsConfirmation) return { kind: 'lastConfirmed', date }
+  // A past-due subscription still renews once Stripe collects the payment (canvas Ab-PastDue).
+  return { kind: kind === 'period' && subscription.status === 'past_due' ? 'renews' : kind, date }
+}
+
 /** Everything the overview shows, derived only from the authenticated billing response. */
 export function billingOverview(data: BillingData, unlimited: boolean): BillingOverview {
   const currentPlan = normalizeBillingPlan(data.account.plan)
@@ -70,9 +83,6 @@ export function billingOverview(data: BillingData, unlimited: boolean): BillingO
     data.account.hasBillingProfile,
     unlimited
   )
-  // A past-due subscription still renews once Stripe collects the payment (canvas Ab-PastDue).
-  const periodKind = subscriptionPeriodKind(subscription)
-  const kind = periodKind === 'period' && subscription?.status === 'past_due' ? 'renews' : periodKind
   const confirmingCheckout =
     data.checkoutVerification?.status === 'pending' ||
     data.checkoutVerification?.status === 'unavailable'
@@ -83,10 +93,7 @@ export function billingOverview(data: BillingData, unlimited: boolean): BillingO
     needsConfirmation,
     confirmingCheckout,
     status: subscriptionStatus(data, access, needsConfirmation),
-    period:
-      kind !== 'none' && subscription?.currentPeriodEnd
-        ? { kind, date: subscription.currentPeriodEnd }
-        : null,
+    period: billingPeriod(subscription, needsConfirmation),
     usage:
       access === 'admin'
         ? null

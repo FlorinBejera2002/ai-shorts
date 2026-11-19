@@ -135,7 +135,11 @@ async function runScenario(browser, label, viewport, colorScheme) {
     await root.waitFor()
   }
   async function openMedia() {
-    await root.getByRole('button', { name: 'Change media', exact: true }).click()
+    // The preview also has a "Change media" control; target the Media section's chooser.
+    await root.locator('section')
+      .filter({ has: page.getByRole('heading', { name: 'Media', exact: true }) })
+      .getByRole('button', { name: 'Change media', exact: true })
+      .click()
     await mediaDialog.waitFor()
   }
   async function openOptions() {
@@ -175,7 +179,7 @@ async function runScenario(browser, label, viewport, colorScheme) {
   try {
     // Entry, back navigation text and account toggles.
     await openComposer()
-    assert.equal(await page.getByLabel('Post title', { exact: true }).isVisible(), false, 'Composer opens with one public text field')
+    assert.equal(await page.getByLabel('Post title', { exact: true }).isVisible(), viewport.width >= 768, 'Desktop opens More options with the title; phones keep it collapsed')
     assert.equal(await back.isVisible(), true, 'Back control is present')
     assert.equal(await back.locator('span').isVisible(), viewport.width < 768, 'Back control shows its text only on phones, as on the reference')
     await assertFits(root, 'Composer')
@@ -199,7 +203,8 @@ async function runScenario(browser, label, viewport, colorScheme) {
     await mediaDialog.getByRole('button', { name: 'Previous clips page', exact: true }).click()
     await clipButton('Street details').click()
     await screenshot('media-clips')
-    await mediaDialog.getByRole('button', { name: 'Cancel', exact: true }).click()
+    // Phones hide the footer Cancel; the header close control dismisses the picker the same way.
+    await mediaDialog.getByRole('button', { name: viewport.width < 768 ? 'Close media picker' : 'Cancel', exact: true }).click()
     await mediaDialog.waitFor({ state: 'hidden' })
     assert.equal(await root.getByText('Street details', { exact: true }).count(), 0, 'Cancel discards the pending clip choice')
     await openMedia()
@@ -229,11 +234,11 @@ async function runScenario(browser, label, viewport, colorScheme) {
 
     // Preview platform tabs and the expanded preview.
     await preview.getByRole('tab', { name: 'TikTok', exact: true }).click()
-    await preview.locator('[data-brand-social-overlay="tiktok"]').waitFor()
+    await preview.locator('[data-platform-overlay="tiktok"]').waitFor()
     await preview.getByRole('tab', { name: 'Instagram', exact: true }).click()
-    await preview.locator('[data-brand-social-overlay="instagram"]').waitFor()
+    await preview.locator('[data-platform-overlay="instagram"]').waitFor()
     await preview.getByRole('button', { name: 'Expand preview', exact: true }).click()
-    const expanded = page.getByRole('dialog', { name: 'Post preview', exact: true })
+    const expanded = page.getByRole('dialog', { name: 'Preview', exact: true })
     await expanded.waitFor()
     await expanded.getByRole('button', { name: 'Close dialog', exact: true }).click()
     await expanded.waitFor({ state: 'hidden' })
@@ -246,6 +251,35 @@ async function runScenario(browser, label, viewport, colorScheme) {
     await optionsDialog.waitFor({ state: 'hidden' })
     await assertFits(root, 'Composer after options')
 
+    // Option controls: Cancel restores the values present when the dialog opened; Done keeps them for the payload.
+    const optionSwitch = name => optionsDialog.getByRole('switch', { name, exact: true })
+    await openOptions()
+    await optionsDialog.getByRole('tab', { name: 'Instagram', exact: true }).click()
+    const shareBefore = await optionSwitch('Share to Feed').getAttribute('aria-checked')
+    await optionSwitch('Share to Feed').click()
+    assert.notEqual(await optionSwitch('Share to Feed').getAttribute('aria-checked'), shareBefore, 'Share to Feed switch flips')
+    await optionsDialog.getByLabel('Location', { exact: true }).fill('999')
+    await optionsDialog.locator('footer').getByRole('button', { name: 'Cancel', exact: true }).click()
+    await optionsDialog.waitFor({ state: 'hidden' })
+    await openOptions()
+    await optionsDialog.getByRole('tab', { name: 'Instagram', exact: true }).click()
+    assert.equal(await optionSwitch('Share to Feed').getAttribute('aria-checked'), shareBefore, 'Cancel restores the Instagram switches')
+    assert.equal(await optionsDialog.getByLabel('Location', { exact: true }).inputValue(), '', 'Cancel restores the location field')
+    await optionSwitch('Share to Feed').click()
+    await optionsDialog.getByLabel('Location', { exact: true }).fill('123456789')
+    await optionsDialog.getByRole('tab', { name: 'TikTok', exact: true }).click()
+    await optionsDialog.getByRole('button', { name: 'Friends', exact: true }).click()
+    assert.equal(await optionsDialog.getByRole('button', { name: 'Friends', exact: true }).getAttribute('aria-pressed'), 'true', 'TikTok visibility shows the chosen level')
+    const tiktokFlipped = {}
+    for (const name of ['Comment', 'Duet', 'AI-generated content']) {
+      const before = await optionSwitch(name).getAttribute('aria-checked')
+      await optionSwitch(name).click()
+      tiktokFlipped[name] = await optionSwitch(name).getAttribute('aria-checked')
+      assert.notEqual(tiktokFlipped[name], before, `${name} switch flips`)
+    }
+    await optionsDialog.getByRole('button', { name: 'Done', exact: true }).click()
+    await optionsDialog.waitFor({ state: 'hidden' })
+
     // Draft save: payload carries the caption, accounts, clip and mode.
     await modeTab('Draft').click()
     await root.getByRole('button', { name: 'Save draft', exact: true }).click()
@@ -256,6 +290,13 @@ async function runScenario(browser, label, viewport, colorScheme) {
     assert.equal(draft.body.caption, 'A reference caption for the canvas composer.')
     assert.deepEqual([...draft.body.accountIds].sort(), [account('instagram').id, account('tiktok').id].sort())
     assert.equal(draft.body.clipId, clipId(0), 'Draft keeps the chosen clip')
+    assert.equal(draft.body.tiktok.privacyLevel, 'MUTUAL_FOLLOW_FRIENDS', 'TikTok visibility reaches the payload')
+    assert.equal(String(!draft.body.tiktok.disableComment), tiktokFlipped.Comment, 'TikTok comment switch reaches the payload')
+    assert.equal(String(!draft.body.tiktok.disableDuet), tiktokFlipped.Duet, 'TikTok duet switch reaches the payload')
+    assert.equal(String(draft.body.tiktok.isAigc), tiktokFlipped['AI-generated content'], 'TikTok AI switch reaches the payload')
+    assert.equal(draft.body.instagram.shareToFeed, false, 'Instagram share switch reaches the payload')
+    assert.equal(draft.body.instagram.isAiGenerated, false, 'Instagram AI switch keeps its value')
+    assert.equal(draft.body.instagram.locationId, '123456789', 'Instagram location reaches the payload')
 
     // Schedule an Instagram-only post, then assert the scheduled payload.
     await openComposer()
@@ -319,9 +360,12 @@ async function runScenario(browser, label, viewport, colorScheme) {
 
 const browser = await chromium.launch({ channel: 'chrome', headless: true })
 try {
+  const only = process.env.CANVAS_SCENARIO
   for (const [name, viewport] of Object.entries(dimensions))
-    for (const scheme of schemes)
+    for (const scheme of schemes) {
+      if (only && only !== `${name}-${scheme}`) continue
       await runScenario(browser, `${name}-${scheme}`, viewport, scheme)
+    }
   console.log(results.join('\n'))
   console.log('Publish composer canvas browser checks passed (mocked APIs only)')
 } finally {

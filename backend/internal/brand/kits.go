@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/julienschmidt/httprouter"
+	"sneepcut/backend-go/internal/entitlements"
 	"sneepcut/backend-go/internal/identity"
 )
 
@@ -72,6 +73,23 @@ func newID() (string, error) {
 	return fmt.Sprintf("%x-%x-%x-%x-%x", b[0:4], b[4:6], b[6:8], b[8:10], b[10:16]), nil
 }
 
+// lockAccount serializes kit changes per account (first kit, default switches, deletes) behind the
+// same user-row lock the single-kit update takes, and reports whether the plan may hide the
+// platform badge.
+func lockAccount(ctx context.Context, tx *sql.Tx, userID string) (badgeAllowed bool, err error) {
+	var locked string
+	if err = tx.QueryRowContext(ctx, `SELECT id::text FROM users WHERE id=$1 FOR UPDATE`, userID).Scan(&locked); errors.Is(err, sql.ErrNoRows) {
+		return false, ErrInactive
+	} else if err != nil {
+		return false, err
+	}
+	var role, plan string
+	if err = tx.QueryRowContext(ctx, `SELECT u.access_role,`+entitlements.EffectivePlanSQL+` FROM users u WHERE u.id=$1`, userID).Scan(&role, &plan); err != nil {
+		return false, err
+	}
+	return plan == "agency" || role == "admin", nil
+}
+
 func uniqueViolation(err error) bool {
 	return err != nil && (strings.Contains(err.Error(), "unique") || strings.Contains(err.Error(), "duplicate"))
 }
@@ -98,14 +116,19 @@ func (r *Repository) CreateKit(ctx context.Context, userID string, in KitCreate)
 		return "", err
 	}
 	defer tx.Rollback()
+	badgeAllowed, err := lockAccount(ctx, tx, userID)
+	if err != nil {
+		return "", err
+	}
 	var first bool
 	if err = tx.QueryRowContext(ctx, `SELECT NOT EXISTS(SELECT 1 FROM brand_kits WHERE user_id=$1)`, userID).Scan(&first); err != nil {
 		return "", err
 	}
 	var result sql.Result
 	if in.FromKitID != nil {
-		// Copy every setting; only identity, name, image and default flag are new.
-		result, err = tx.ExecContext(ctx, `INSERT INTO brand_kits SELECT (jsonb_populate_record(NULL::brand_kits, to_jsonb(b) || jsonb_build_object('id',$3::uuid,'name',$4::text,'is_default',$5::boolean,'image_path',$6::text,'created_at',now(),'updated_at',now()))).* FROM brand_kits b WHERE b.id::text=$1 AND b.user_id=$2`, *in.FromKitID, userID, id, name, first, image)
+		// Copy every setting; identity, name, image and default flag are new, and the platform
+		// badge stays hidden only while the plan still allows it.
+		result, err = tx.ExecContext(ctx, `INSERT INTO brand_kits SELECT (jsonb_populate_record(NULL::brand_kits, to_jsonb(b) || jsonb_build_object('id',$3::uuid,'name',$4::text,'is_default',$5::boolean,'image_path',$6::text,'hide_platform_badge',b.hide_platform_badge AND $7::boolean,'created_at',now(),'updated_at',now()))).* FROM brand_kits b WHERE b.id::text=$1 AND b.user_id=$2`, *in.FromKitID, userID, id, name, first, image, badgeAllowed)
 	} else {
 		result, err = tx.ExecContext(ctx, `INSERT INTO brand_kits(id,user_id,name,is_default,image_path,primary_color,secondary_color,font_family,apply_brand_colors,apply_brand_font,subtitle_font,subtitle_color,subtitle_bg_color,subtitle_bg_opacity,subtitle_position,watermark_position,watermark_opacity,hide_platform_badge,created_at,updated_at)
 		VALUES($1,$2,$3,$4,$5,'#6366f1','#8b5cf6','Inter',false,false,'Inter Bold','#FFFFFF','#000000',0.7,'bottom','bottom-right',0.8,false,now(),now())`, id, userID, name, first, image)
@@ -132,6 +155,9 @@ func (r *Repository) ChangeKit(ctx context.Context, userID, id string, in KitCha
 		return err
 	}
 	defer tx.Rollback()
+	if _, err = lockAccount(ctx, tx, userID); err != nil {
+		return err
+	}
 	var exists bool
 	if err = tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM brand_kits WHERE id=$1 AND user_id=$2)`, id, userID).Scan(&exists); err != nil {
 		return err
@@ -191,6 +217,9 @@ func (r *Repository) DeleteKit(ctx context.Context, userID, id string) error {
 		return err
 	}
 	defer tx.Rollback()
+	if _, err = lockAccount(ctx, tx, userID); err != nil {
+		return err
+	}
 	var wasDefault bool
 	err = tx.QueryRowContext(ctx, `DELETE FROM brand_kits WHERE id=$1 AND user_id=$2 RETURNING is_default`, id, userID).Scan(&wasDefault)
 	if errors.Is(err, sql.ErrNoRows) {

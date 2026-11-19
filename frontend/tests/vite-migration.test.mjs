@@ -6,7 +6,9 @@ const read = path => readFileSync(new URL(path, import.meta.url), 'utf8')
 
 test('Vite keeps dedicated brand, billing and Studio routes', () => {
   const routes = read('../src/App.tsx')
-  assert.match(routes, /path="brand" element=\{<Brand \/>\}/)
+  // Brand kits: the kit list, then one editor per kit.
+  assert.match(routes, /path="brand" element=\{<BrandKitsPage \/>\}/)
+  assert.match(routes, /path="brand\/:kitId" element=\{<BrandEditor \/>\}/)
   assert.match(routes, /path="billing" element=\{<Billing \/>\}/)
   assert.match(routes, /path="studio" element=\{<StudioRoute \/>\}/)
   assert.match(read('../src/pages/studio-route.tsx'), /search\.get\('clip'\)/)
