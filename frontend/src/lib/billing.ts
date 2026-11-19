@@ -21,6 +21,24 @@ export function estimateAvailableClips(credits: number): number {
   return Math.floor(credits / CREDITS_PER_CLIP)
 }
 
+export type BillingUsage = { used: number; remaining: number }
+
+/**
+ * Share of the plan allowance used, as whole percentages. The allowance is the monthly grant
+ * (or the one-time free grant); a balance above it (rollover) counts as nothing used.
+ */
+export function billingUsage(credits: number, plan: BillingPlanId): BillingUsage {
+  const allowance = plan === 'free' ? INITIAL_FREE_CREDITS : PLAN_CREDITS[plan]
+  const ratio = Number.isFinite(credits) ? credits / allowance : 0
+  const remaining = Math.min(100, Math.max(0, Math.round(ratio * 100)))
+  return { used: 100 - remaining, remaining }
+}
+
+/** How many times the Creator allowance a paid plan includes (Creator is the standard tier). */
+export function planUsageMultiple(plan: PaidBillingPlanId): number {
+  return Math.floor(PLAN_CREDITS[plan] / PLAN_CREDITS.creator)
+}
+
 const PLAN_RANK: Record<BillingPlanId, number> = {
   free: 0,
   creator: 1,

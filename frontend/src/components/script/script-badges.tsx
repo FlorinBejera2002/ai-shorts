@@ -1,5 +1,6 @@
 'use client'
 
+import { PublishingPlatformIcon } from '@/components/publishing/publishing-platform-icon'
 import { cn } from '@/lib/utils'
 import { scriptPlatform } from './script-options'
 import styles from './scripts-workspace.module.css'
@@ -27,7 +28,11 @@ export function ScriptPlatformBadge({
       aria-label={decorative ? undefined : (option?.label ?? fallbackLabel)}
       aria-hidden={decorative || undefined}
     >
-      <span aria-hidden="true">{option?.short ?? '?'}</span>
+      {option ? (
+        <PublishingPlatformIcon platform={option.value} className="size-full" />
+      ) : (
+        <span aria-hidden="true">?</span>
+      )}
     </span>
   )
 }

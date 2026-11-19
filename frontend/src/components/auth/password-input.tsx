@@ -1,58 +1,45 @@
 'use client'
 
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-
 import { Eye, EyeOff } from 'lucide-react'
-import { useState } from 'react'
+import { useState, type ComponentProps } from 'react'
+import { CanvasField } from './canvas-field'
+import styles from './auth-canvas.module.css'
 
-interface PasswordInputProps {
-  id: string
-  name: string
-  placeholder?: string
-  autoComplete?: string
+type PasswordInputProps = Omit<
+  ComponentProps<typeof CanvasField>,
+  'type' | 'trailing'
+> & {
   showLabel: string
   hideLabel: string
-  value?: string
-  onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void
 }
 
 export function PasswordInput({
-  id,
-  name,
-  placeholder = '••••••••',
-  autoComplete = 'current-password',
   showLabel,
   hideLabel,
-  value,
-  onChange
+  ...fieldProps
 }: PasswordInputProps) {
   const [visible, setVisible] = useState(false)
+  const toggleLabel = visible ? hideLabel : showLabel
 
   return (
-    <div className="relative">
-      <Input
-        id={id}
-        name={name}
-        type={visible ? 'text' : 'password'}
-        required={true}
-        placeholder={placeholder}
-        autoComplete={autoComplete}
-        value={value}
-        onChange={onChange}
-        className="h-11 rounded-lg bg-background pr-12"
-      />
-      <Button
-        variant="ghost"
-        size="icon"
-        type="button"
-        onClick={() => setVisible((v) => !v)}
-        aria-label={visible ? hideLabel : showLabel}
-        title={visible ? hideLabel : showLabel}
-        className="absolute right-1 top-1/2 -translate-y-1/2 text-muted-foreground"
-      >
-        {visible ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-      </Button>
-    </div>
+    <CanvasField
+      {...fieldProps}
+      type={visible ? 'text' : 'password'}
+      trailing={
+        <button
+          type="button"
+          className={styles.toggle}
+          aria-label={toggleLabel}
+          title={toggleLabel}
+          onClick={() => setVisible((current) => !current)}
+        >
+          {visible ? (
+            <EyeOff aria-hidden="true" width={16} height={16} />
+          ) : (
+            <Eye aria-hidden="true" width={16} height={16} />
+          )}
+        </button>
+      }
+    />
   )
 }

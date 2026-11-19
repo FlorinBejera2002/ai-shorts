@@ -1,0 +1,416 @@
+.section {
+  padding: 104px 0;
+}
+
+.title {
+  max-width: 640px;
+  margin-bottom: 48px;
+  font-size: 44px;
+  line-height: 1.1;
+}
+
+.layout {
+  display: flex;
+  align-items: center;
+  gap: 64px;
+}
+
+.tabsColumn {
+  flex: 0 0 340px;
+  min-width: 0;
+}
+
+.panelColumn {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.tablist {
+  display: flex;
+  flex-direction: column;
+}
+
+.tab {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  height: 64px;
+  padding: 0 0 0 20px;
+  border: 0;
+  border-left: 2px solid var(--bd);
+  background: transparent;
+  color: var(--t2);
+  text-align: left;
+  cursor: pointer;
+}
+
+.tab[aria-selected='true'] {
+  border-left-color: var(--tx);
+  color: var(--tx);
+}
+
+.tabNumber {
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.tabLabel {
+  font-family: var(--font-heading);
+  font-size: 19px;
+  line-height: 1.2;
+  font-weight: 600;
+}
+
+.tab[aria-selected='true'] .tabLabel {
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.tab:hover .tabLabel {
+  color: var(--tx);
+}
+
+/* Showcase card */
+.panel {
+  padding: 28px;
+  display: flex;
+  align-items: stretch;
+  gap: 28px;
+}
+
+.phone {
+  flex: none;
+  position: relative;
+  width: 220px;
+  height: 391px;
+  padding: 0 10px 40px;
+  border-radius: 24px;
+  background: #0b0b0c;
+  box-shadow: 0 0 0 6px #1c1d20, 0 24px 48px rgba(15, 23, 42, 0.22);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+.phone img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  object-fit: cover;
+}
+
+.duration {
+  position: absolute;
+  z-index: 1;
+  top: 14px;
+  left: 14px;
+  height: 24px;
+  padding: 0 9px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+}
+
+.caption {
+  position: relative;
+  color: #fff;
+  font-family: var(--font-heading);
+  font-size: 19px;
+  line-height: 1.2;
+  font-weight: 700;
+  text-align: center;
+  text-shadow: 0 2px 0 #000, 0 0 8px rgba(0, 0, 0, 0.6);
+}
+
+.highlight {
+  color: var(--highlight);
+}
+
+.panelBody {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.panelHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.panelTitle {
+  margin: 0;
+  font-size: 15px;
+  line-height: 20px;
+  font-weight: 700;
+}
+
+.badge {
+  height: 26px;
+  padding: 0 10px;
+  border-radius: 999px;
+  box-shadow: inset 0 0 0 1px var(--bd);
+  display: flex;
+  align-items: center;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.rows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 74px;
+  padding: 12px 0;
+}
+
+.row + .row {
+  border-top: 1px solid var(--bd);
+}
+
+.rowText {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.rowText b {
+  overflow: hidden;
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.thumb {
+  flex: none;
+  width: 28px;
+  height: 50px;
+  border-radius: 7px;
+  background: #0b0b0c url('/landing/illustrations/clip-frame.webp') center / cover;
+}
+
+.thumbSelected {
+  box-shadow: 0 0 0 2px var(--sf), 0 0 0 3.5px var(--tx);
+}
+
+.ratioSlot {
+  flex: none;
+  width: 28px;
+  height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ratio {
+  border-radius: 4px;
+  box-shadow: inset 0 0 0 1.5px var(--tx);
+}
+
+.dot {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  margin: 0 9px;
+  border-radius: 999px;
+  background: var(--tx);
+}
+
+.timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: auto;
+  padding-top: 16px;
+  border-top: 1px solid var(--bd);
+}
+
+.timelineSummary {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.waveform {
+  height: 30px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.waveform span {
+  flex: 1 1 0;
+  border-radius: 2px;
+  background: var(--bd);
+}
+
+.waveform .barSelected {
+  background: var(--tx);
+}
+
+@media (max-width: 1079px) {
+  .layout {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 24px;
+  }
+
+  .tabsColumn {
+    flex: none;
+  }
+
+  .tablist {
+    flex-direction: row;
+    gap: 8px;
+    margin: 0 calc(var(--gutter) * -1);
+    padding: 2px var(--gutter);
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .tablist::-webkit-scrollbar {
+    display: none;
+  }
+
+  .tab {
+    flex: none;
+    height: 40px;
+    padding: 0 16px;
+    border: 0;
+    border-radius: 999px;
+    box-shadow: inset 0 0 0 1px var(--bd);
+    color: var(--tx);
+  }
+
+  .tab[aria-selected='true'] {
+    background: var(--sel);
+    color: var(--onsel);
+    box-shadow: none;
+  }
+
+  .tabNumber {
+    display: none;
+  }
+
+  .tabLabel,
+  .tab[aria-selected='true'] .tabLabel {
+    font-family: var(--font-body);
+    font-size: 14px;
+    font-weight: 600;
+  }
+
+  .tab:hover .tabLabel {
+    color: inherit;
+  }
+}
+
+@media (max-width: 767px) {
+  .section {
+    padding: 48px 0;
+  }
+
+  .title {
+    margin-bottom: 20px;
+    font-size: 30px;
+  }
+
+  .layout {
+    gap: 16px;
+  }
+
+  .panel {
+    padding: 14px;
+    gap: 14px;
+  }
+
+  .phone {
+    width: 128px;
+    height: 228px;
+    padding: 0 10px 22px;
+    border-radius: 16px;
+    box-shadow: 0 0 0 4px #1c1d20, 0 24px 48px rgba(15, 23, 42, 0.22);
+  }
+
+  .duration {
+    top: 10px;
+    left: 10px;
+    height: 18px;
+    padding: 0 7px;
+    font-size: 9px;
+  }
+
+  .caption {
+    font-size: 12px;
+  }
+
+  .panelHeader {
+    margin-bottom: 4px;
+  }
+
+  .panelTitle {
+    font-size: 12px;
+  }
+
+  .badge {
+    height: 20px;
+    padding: 0 8px;
+    font-size: 10px;
+  }
+
+  .row {
+    gap: 8px;
+    min-height: 56px;
+    padding: 9px 0;
+  }
+
+  .rowText {
+    font-size: 10px;
+  }
+
+  .rowText b {
+    font-size: 11px;
+  }
+
+  .thumb,
+  .ratioSlot {
+    width: 22px;
+    height: 38px;
+    border-radius: 5px;
+  }
+
+  .timeline {
+    padding-top: 10px;
+  }
+
+  .timelineSummary {
+    font-size: 10px;
+  }
+
+  .waveform {
+    height: 22px;
+  }
+}

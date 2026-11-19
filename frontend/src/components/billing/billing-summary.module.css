@@ -1,267 +1,256 @@
-/* Reference canvas "Abonament": one card, plan + actions on the left, credits on a gradient panel. */
+/*
+ * "Plan curent" card (canvas Ab-Main / Ab-M-Main). Desktop: one card with the plan row and an
+ * outlined usage box inside. Phone: the plan and the usage meter are two separate cards.
+ */
 .summary {
-  display: grid;
-  grid-template-columns: minmax(0, 1.4fr) minmax(240px, 1fr);
-  grid-template-areas:
-    'plan credits'
-    'actions credits'
-    'notices notices';
-  min-width: 0;
-  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
   border-radius: var(--publish-card-radius);
   background: var(--publish-surface);
+  padding: 22px 24px;
   box-shadow: var(--publish-card-shadow);
 }
+
 .plan {
-  grid-area: plan;
-  min-width: 0;
-  padding: 28px 28px 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 24px;
 }
+
+.planInfo {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 10px;
+}
+
 .label {
-  margin: 0 0 10px;
-  color: var(--publish-muted-text);
+  margin: 0;
+  font-family: inherit;
   font-size: 13px;
   font-weight: 600;
-  line-height: 1.5;
+  line-height: 18px;
 }
+
 .planHeading {
   display: flex;
+  min-width: 0;
   align-items: center;
-  flex-wrap: wrap;
-  gap: 10px 12px;
+  gap: 12px;
 }
+
 .planName {
-  margin: 0;
-  font-family: 'Sora Variable', Sora, sans-serif;
-  font-size: 34px;
-  line-height: 1.15;
-  font-weight: 600;
-  letter-spacing: -0.04em;
+  min-width: 0;
+  font-size: 30px;
+  line-height: 36px;
+  overflow-wrap: anywhere;
 }
-.status {
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 22px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.meta li {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  min-height: 26px;
-  padding: 0 10px;
-  border-radius: 999px;
-  font-size: 12px;
-  line-height: 1.4;
-  font-weight: 600;
-}
-.status::before {
-  content: '';
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: currentColor;
-}
-.activeStatus {
-  color: var(--publish-success);
-  background: var(--publish-success-bg);
-}
-.warningStatus {
-  color: var(--publish-warning);
-  background: var(--publish-warning-bg);
-}
-.neutralStatus {
-  color: var(--publish-secondary-text);
-  background: var(--publish-secondary);
-}
-.financialStatus {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin-top: 10px;
-  font-size: 14px;
-}
-.price {
-  margin: 6px 0 0;
-  font-size: 15px;
-  color: var(--publish-muted-text);
-  line-height: 1.4;
-}
-.price strong {
-  color: var(--publish-secondary-text);
-  font-size: 15px;
-  font-weight: 600;
-}
-.metadata {
-  display: flex;
-  flex-direction: column;
   gap: 8px;
-  margin-top: 16px;
-}
-.metadataItem {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-width: 0;
-  font-size: 14px;
   color: var(--publish-secondary-text);
-  line-height: 1.5;
 }
-.metadataItem svg {
+
+.meta svg {
   width: 18px;
   height: 18px;
-  flex-shrink: 0;
-  color: var(--publish-muted-text);
+  flex: none;
 }
-.metadataItem p {
-  margin: 0;
-}
-.metadataItem strong {
+
+.meta span {
   color: var(--publish-text);
-  font-weight: 600;
+  font-weight: 500;
 }
-.adminAccess {
-  margin-top: 14px;
-  font-size: 14px;
-  color: var(--publish-secondary-text);
-}
+
 .actions {
-  grid-area: actions;
   display: flex;
-  flex-wrap: wrap;
+  flex: none;
   gap: 10px;
-  align-self: end;
-  padding: 22px 28px 28px;
 }
-.actions > div {
-  min-width: 0;
+
+.actions:empty {
+  display: none;
 }
-.actions button.action {
-  min-height: 48px;
-  height: auto;
-  padding: 0 20px;
-  border: 0;
-  border-radius: 999px;
-  background: var(--publish-secondary);
-  color: var(--publish-text);
-  font-size: 15px;
-  font-weight: 600;
-  white-space: nowrap;
-  box-shadow: none;
+
+/* ---------- usage meter ---------- */
+.usage {
+  display: grid;
+  align-items: end;
+  grid-template-areas:
+    'value remaining'
+    'value note'
+    'bar bar';
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: minmax(0, 1fr) auto auto;
+  column-gap: 16px;
+  row-gap: 2px;
+  border-radius: 18px;
+  padding: 18px 20px;
+  box-shadow: inset 0 0 0 1px var(--publish-border);
 }
-.actions button.action:hover {
-  background: var(--publish-hover);
-}
-.actions > button.action:last-child,
-.actions > div:last-child button.action {
-  background: var(--publish-primary);
-  color: var(--publish-on-primary);
-}
-.actions > button.action:last-child:hover,
-.actions > div:last-child button.action:hover {
-  background: var(--publish-primary-hover);
-}
-.actions button.action > svg {
-  order: 1;
-  margin-left: 2px;
-}
-.credits {
-  grid-area: credits;
+
+.usageValue {
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  gap: 4px;
-  min-width: 0;
-  padding: 28px;
-  background: linear-gradient(150deg, #2563eb, #0ea5e9);
-  color: #fff;
+  gap: 2px;
+  grid-area: value;
 }
-:global(.dark) .credits {
-  background: linear-gradient(150deg, #1d4ed8, #0369a1);
-}
-.credits .label,
-.runway,
-.creditRate {
-  margin: 0;
-  color: rgb(255 255 255 / 88%);
-}
-.balance {
-  margin: 0;
-  font-family: 'Sora Variable', Sora, sans-serif;
-  font-size: 54px;
+
+.usageFigure {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
   font-weight: 600;
-  line-height: 1.1;
-  letter-spacing: -0.05em;
+}
+
+.usageFigure b {
+  font-size: 30px;
   font-variant-numeric: tabular-nums;
+  line-height: 36px;
 }
-.runway,
-.creditRate {
-  font-size: 14px;
-  line-height: 1.5;
-}
-.notice,
-.notices {
-  grid-area: notices;
-  margin: 0;
-  padding: 0 28px 22px;
-  color: var(--publish-muted-text);
+
+.usageRemaining {
+  grid-area: remaining;
   font-size: 13px;
-  line-height: 1.6;
+  font-weight: 600;
+  line-height: 18px;
+  text-align: right;
 }
-.notices:empty {
-  display: none;
+
+.usageNote {
+  grid-area: note;
+  font-size: 13px;
+  line-height: 18px;
+  text-align: right;
 }
-.notices p {
-  margin: 0;
+
+.usageBar {
+  display: block;
+  overflow: hidden;
+  height: 10px;
+  margin-top: 10px;
+  border-radius: 999px;
+  background: var(--publish-secondary);
+  grid-area: bar;
 }
-.paymentNotice {
-  color: var(--publish-warning);
+
+.usageBar > span {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--publish-text);
 }
+
 @media (max-width: 1023px) {
   .summary {
-    display: flex;
-    flex-direction: column;
-    gap: 0;
-    border-radius: 24px;
-  }
-  .credits {
-    order: -1;
-    margin: 10px 10px 0;
-    padding: 20px;
-    border-radius: 20px;
-  }
-  .balance {
-    font-size: 44px;
-  }
-  .plan {
-    padding: 18px 18px 0;
-  }
-  .planName {
-    font-size: 26px;
-  }
-  .actions {
-    align-self: stretch;
-    flex-direction: column;
-    margin: 16px 18px 18px;
+    gap: 16px;
+    border-radius: 0;
+    background: none;
     padding: 0;
+    box-shadow: none;
   }
-  .actions > div,
-  .actions button.action {
+
+  .plan,
+  .usage {
+    border-radius: 20px;
+    background: var(--publish-surface);
+    padding: 16px;
+    box-shadow: var(--publish-card-shadow);
+  }
+
+  .plan {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 14px;
+  }
+
+  .planInfo {
+    gap: 14px;
+  }
+
+  .label {
+    font-size: 12px;
+    line-height: 16px;
+  }
+
+  .planHeading {
+    justify-content: space-between;
+    margin-top: -6px;
+  }
+
+  .planName {
+    font-size: 24px;
+    line-height: 30px;
+  }
+
+  .meta {
+    flex-direction: column;
+    gap: 9px;
+  }
+
+  .meta li {
+    gap: 10px;
+  }
+
+  .actions {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .actions > *,
+  .actions button,
+  .actions a {
     width: 100%;
   }
-  .notice,
-  .notices {
-    padding: 0 18px 18px;
+
+  .actions button,
+  .actions a {
+    height: 48px;
   }
-}
-.summary[data-presentation='details'] {
-  display: block;
-  padding: 22px 28px;
-}
-.summary[data-presentation='details'] .plan {
-  padding: 0;
-}
-.summary[data-presentation='details'] .label,
-.summary[data-presentation='details'] .metadata,
-.summary[data-presentation='details'] .adminAccess,
-.summary[data-presentation='details'] .actions,
-.summary[data-presentation='details'] .credits,
-.summary[data-presentation='details'] .notice,
-.summary[data-presentation='details'] .notices {
-  display: none;
+
+  .usage {
+    align-items: center;
+    grid-template-areas:
+      'value remaining'
+      'bar bar'
+      'note note';
+    grid-template-rows: auto;
+    column-gap: 12px;
+    row-gap: 10px;
+  }
+
+  .usageFigure b {
+    font-size: 26px;
+    line-height: 32px;
+  }
+
+  .usageFigure span {
+    font-size: 13px;
+  }
+
+  .usageBar {
+    height: 8px;
+    margin-top: 0;
+  }
+
+  .usageNote {
+    font-size: 12px;
+    line-height: 16px;
+    text-align: left;
+  }
 }

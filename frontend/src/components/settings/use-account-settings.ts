@@ -136,6 +136,11 @@ export function useAccountSettings(
     })
   }
 
+  function resetProfile() {
+    setName(profile.name ?? '')
+    setErrors((current) => ({ ...current, profile: undefined }))
+  }
+
   function changePassword(event: FormEvent) {
     event.preventDefault()
     const payload = { currentPassword, newPassword, confirmPassword }
@@ -229,7 +234,7 @@ export function useAccountSettings(
       'reauthenticate',
       t('reauthenticationFailed'),
       async () => {
-        googleSignIn(`${window.location.pathname}#privacy-title`, locale)
+        googleSignIn(`${window.location.pathname}?section=privacy`, locale)
       },
       true
     )
@@ -272,6 +277,7 @@ export function useAccountSettings(
     blocked,
     errors,
     saveProfile,
+    resetProfile,
     changePassword,
     resendVerification,
     verificationSent,

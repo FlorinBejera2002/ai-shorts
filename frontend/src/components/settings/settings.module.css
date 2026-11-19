@@ -1,0 +1,803 @@
+/*
+ * Setări — canvas pages "Set-Main", "Set-D-*" and "Set-M-*" (desktop + mobile, light + dark).
+ * Built on the scoped Publish tokens and the shared reference UI; the canvas selected colour
+ * (ink in light, muted steel in dark) and card shadow are the only additions.
+ */
+.page {
+  --settings-selected: var(--publish-selected);
+  --settings-on-selected: var(--publish-on-selected);
+  --settings-card-shadow: 0 1px 2px rgba(21, 32, 53, 0.04), 0 10px 30px rgba(21, 32, 53, 0.06);
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 24px;
+  padding: 24px 24px 8px;
+  font-size: 14px;
+  line-height: 20px;
+}
+
+:global(.dark) .page {
+  --settings-selected: var(--ref-primary);
+  --settings-on-selected: var(--ref-on-primary);
+  --settings-card-shadow: var(--publish-card-shadow);
+}
+
+.title {
+  margin: 0;
+  font-size: 32px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 40px;
+}
+
+.layout {
+  display: flex;
+  min-width: 0;
+  align-items: flex-start;
+  gap: 24px;
+}
+
+.content {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.grid {
+  display: grid;
+  gap: 20px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.alert {
+  margin: 0;
+  border-radius: 14px;
+  background: var(--publish-warning-bg);
+  padding: 12px 14px;
+  color: var(--publish-warning);
+  font-weight: 500;
+}
+
+/* ---------- desktop section navigation ---------- */
+.nav {
+  position: sticky;
+  top: 24px;
+  display: flex;
+  flex: 0 0 264px;
+  flex-direction: column;
+  gap: 2px;
+  border-radius: var(--publish-card-radius);
+  background: var(--publish-surface);
+  padding: 10px;
+  box-shadow: var(--settings-card-shadow);
+}
+
+.navItem {
+  display: flex;
+  height: 44px;
+  align-items: center;
+  gap: 12px;
+  border-radius: 14px;
+  padding: 0 14px;
+  color: var(--publish-text);
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.navItem svg {
+  width: 20px;
+  height: 20px;
+  flex: none;
+}
+
+.navItem:hover {
+  background: var(--publish-subtle-bg);
+}
+
+.navItem[aria-current='page'] {
+  background: var(--settings-selected);
+  color: var(--settings-on-selected);
+  font-weight: 600;
+}
+
+/* ---------- cards and rows ---------- */
+.card {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 18px;
+  border-radius: var(--publish-card-radius);
+  background: var(--publish-surface);
+  padding: 22px 24px;
+  box-shadow: var(--settings-card-shadow);
+}
+
+.listCard {
+  gap: 6px;
+  padding-bottom: 10px;
+}
+
+.cardTitle {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 22px;
+}
+
+.listCard > .cardTitle {
+  margin-bottom: 6px;
+}
+
+.cardHead {
+  display: flex;
+  min-height: 36px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.row {
+  display: flex;
+  min-width: 0;
+  min-height: 64px;
+  align-items: center;
+  gap: 14px;
+  color: var(--publish-text);
+  text-decoration: none;
+}
+
+.row + .row {
+  border-top: 1px solid var(--publish-border);
+}
+
+.rowLabel {
+  min-width: 0;
+  flex: 1 1 auto;
+  font-weight: 500;
+}
+
+.rowTrail {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 10px;
+}
+
+.rowButton {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.rowValue {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--publish-secondary-text);
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.rowValue svg {
+  width: 16px;
+  height: 16px;
+}
+
+.iconCircle {
+  display: flex;
+  width: 40px;
+  height: 40px;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  color: currentColor;
+  box-shadow: inset 0 0 0 1px var(--publish-border);
+}
+
+.iconCircle[data-large] {
+  width: 44px;
+  height: 44px;
+}
+
+.iconCircle[data-tone='danger'] {
+  color: var(--publish-danger);
+}
+
+.iconCircle svg {
+  width: 20px;
+  height: 20px;
+}
+
+.chevron {
+  display: flex;
+  flex: none;
+  color: var(--publish-secondary-text);
+}
+
+.chevron svg {
+  width: 18px;
+  height: 18px;
+}
+
+.meta {
+  color: var(--publish-secondary-text);
+  font-size: 13px;
+}
+
+.stack {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.strong {
+  font-weight: 600;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.avatar {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: 999px;
+  color: var(--publish-text);
+  font-weight: 600;
+  box-shadow: inset 0 0 0 1px var(--publish-border);
+}
+
+.avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 50% 25%;
+}
+
+.state {
+  display: flex;
+  min-height: 240px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  color: var(--publish-secondary-text);
+  text-align: center;
+}
+
+.state p {
+  margin: 0;
+}
+
+/* ---------- account ---------- */
+.form {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.details {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  border-radius: 18px;
+  padding: 0 16px;
+  box-shadow: inset 0 0 0 1px var(--publish-border);
+}
+
+.details > div {
+  display: flex;
+  min-height: 52px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.details > div + div {
+  border-top: 1px solid var(--publish-border);
+}
+
+.details dt {
+  color: var(--publish-secondary-text);
+}
+
+.details dd {
+  margin: 0;
+  font-weight: 500;
+  text-align: right;
+}
+
+.unverified {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px 8px;
+}
+
+.small.small {
+  height: 36px;
+  padding: 0 14px;
+  font-size: 13px;
+}
+
+.subscriptionLink {
+  align-self: flex-start;
+}
+
+/* ---------- security ---------- */
+.twoFactorText {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.dangerText {
+  color: var(--publish-danger);
+}
+
+.sessions {
+  display: flex;
+  flex-direction: column;
+}
+
+.sessions > .row {
+  padding: 12px 0;
+}
+
+/* ---------- connections ---------- */
+.connection {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 16px;
+  border-radius: var(--publish-card-radius);
+  background: var(--publish-surface);
+  padding: 22px 24px;
+  box-shadow: var(--settings-card-shadow);
+}
+
+.connectionHead {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 14px;
+}
+
+.connectionLogo {
+  width: 48px;
+  height: 48px;
+  flex: none;
+}
+
+.connectionName {
+  font-family: Sora, Inter, sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 22px;
+}
+
+.ellipsis {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.connectionExpiry {
+  display: flex;
+}
+
+.connectionExpiry:empty {
+  display: none;
+}
+
+.connectionActions {
+  display: flex;
+  margin-top: auto;
+  gap: 10px;
+}
+
+.connectionActions > button {
+  height: 42px;
+  min-width: 0;
+  flex: 1 1 0;
+  padding: 0 12px;
+}
+
+.connectionAdd {
+  display: flex;
+  width: 48px;
+  height: 48px;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  border: 2px dashed var(--publish-handle);
+  border-radius: 999px;
+  color: var(--publish-secondary-text);
+}
+
+.connectionAdd svg {
+  width: 20px;
+  height: 20px;
+}
+
+.connectionTitle {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: 10px;
+}
+
+.connectionMark {
+  width: 22px;
+  height: 22px;
+  flex: none;
+}
+
+/* ---------- privacy ---------- */
+.exportHead {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 20px;
+  padding-bottom: 10px;
+}
+
+.exportHead img {
+  display: block;
+  width: 104px;
+  height: 104px;
+  flex: none;
+}
+
+.exports {
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--publish-border);
+}
+
+.exports > .row {
+  min-height: 60px;
+}
+
+.deleteRow {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 14px;
+}
+
+.deleteButton.deleteButton {
+  height: 40px;
+}
+
+.rowTrail .meta {
+  font-size: 12px;
+}
+
+/* ---------- phone ---------- */
+.back.back {
+  align-self: flex-start;
+  height: 40px;
+  gap: 6px;
+  padding: 0 16px 0 10px;
+}
+
+.back svg {
+  width: 18px;
+  height: 18px;
+}
+
+.menuProfile {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  border-radius: var(--publish-card-radius);
+  background: var(--publish-surface);
+  padding: 16px;
+  color: var(--publish-text);
+  text-decoration: none;
+  box-shadow: var(--settings-card-shadow);
+}
+
+.menuName {
+  overflow: hidden;
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 22px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.menuEmail {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.menuGroup {
+  color: var(--publish-secondary-text);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  line-height: 16px;
+  text-transform: uppercase;
+}
+
+.menuCard {
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--publish-card-radius);
+  background: var(--publish-surface);
+  padding: 4px 16px;
+  box-shadow: var(--settings-card-shadow);
+}
+
+.menuRow {
+  display: flex;
+  min-height: 56px;
+  align-items: center;
+  gap: 14px;
+  color: var(--publish-text);
+  text-decoration: none;
+}
+
+.menuRow + .menuRow {
+  border-top: 1px solid var(--publish-border);
+}
+
+.menuRow > svg {
+  width: 20px;
+  height: 20px;
+  flex: none;
+}
+
+.menuLogos {
+  display: flex;
+}
+
+.menuLogos img {
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  box-shadow: 0 0 0 2px var(--publish-surface);
+}
+
+.menuLogos img + img {
+  margin-left: -5px;
+}
+
+.signOut {
+  height: 44px;
+  background: transparent;
+  color: var(--publish-danger);
+}
+
+.signOut:hover:not(:disabled) {
+  background: var(--publish-danger-bg);
+}
+
+.focus:focus-visible {
+  outline: 2px solid var(--ref-primary);
+  outline-offset: 2px;
+}
+
+@media (max-width: 1279px) and (min-width: 1024px) {
+  .nav {
+    flex-basis: 224px;
+  }
+}
+
+@media (max-width: 1023px) {
+  .page {
+    gap: 16px;
+    padding: 0 0 16px;
+  }
+
+  .content,
+  .grid {
+    gap: 16px;
+  }
+
+  .grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .card {
+    gap: 14px;
+    padding: 16px;
+  }
+
+  .listCard {
+    gap: 2px;
+    padding-bottom: 6px;
+  }
+
+  .listCard > .cardTitle {
+    margin-bottom: 4px;
+  }
+
+  .row {
+    min-height: 60px;
+    gap: 12px;
+  }
+
+  /* Theme and format: the control drops under its label. */
+  .row[data-stack] {
+    flex-wrap: wrap;
+    gap: 10px 12px;
+    padding: 12px 0;
+  }
+
+  .row[data-stack] > :last-child {
+    flex: 1 0 100%;
+  }
+
+  .actions > * {
+    flex: 1 1 auto;
+  }
+
+  .form {
+    gap: 14px;
+  }
+
+  .exportHead {
+    gap: 14px;
+    padding-bottom: 0;
+  }
+
+  .exportHead img {
+    width: 92px;
+    height: 92px;
+  }
+
+  .exportMobileAction {
+    display: flex;
+    flex-direction: column;
+    margin: 10px 0 4px;
+  }
+
+  .exportMobileAction > button {
+    height: 48px;
+  }
+
+  .exports {
+    border-top: 0;
+  }
+
+  .exports > .row {
+    min-height: 58px;
+    gap: 12px;
+  }
+
+  .exports time {
+    font-size: 13px;
+  }
+
+  .deleteRow {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .deleteButton.deleteButton {
+    height: 44px;
+    flex: 1 0 100%;
+  }
+
+  .connection {
+    gap: 12px;
+    padding: 16px;
+  }
+
+  .connectionHead {
+    gap: 12px;
+  }
+
+  .connectionLogo,
+  .connectionAdd {
+    width: 44px;
+    height: 44px;
+  }
+
+  .connectionName {
+    font-family: inherit;
+    font-size: 14px;
+    letter-spacing: 0;
+    line-height: 20px;
+  }
+
+  .connection .meta {
+    font-size: 12px;
+  }
+
+  .connectionActions {
+    gap: 8px;
+  }
+
+  .connectionMark {
+    width: 20px;
+    height: 20px;
+  }
+
+  [data-settings-empty] .connectionActions > button {
+    height: 44px;
+  }
+
+  .twoFactorText {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+
+  .listCard .cardHead {
+    min-height: 0;
+    margin-bottom: 4px;
+  }
+
+  .sessions > .row {
+    min-height: 60px;
+    padding: 0;
+  }
+
+  .sessions .meta {
+    font-size: 12px;
+  }
+
+  .sessions .small.small {
+    height: 34px;
+    padding: 0 12px;
+  }
+
+  .page [data-settings-revoke-others] {
+    height: 44px;
+    margin-top: 10px;
+    font-size: 14px;
+  }
+
+  .form > [data-settings-avatar] {
+    align-self: center;
+  }
+
+  .details {
+    padding: 0 14px;
+  }
+
+  .subscriptionLink {
+    align-self: stretch;
+  }
+
+  /* Phone primary actions span the card, at the canvas heights. */
+  .page [data-settings-profile-save] {
+    height: 50px;
+  }
+
+  .page [data-settings-password-save] {
+    height: 48px;
+  }
+
+  .page [data-settings-preferences-save] {
+    height: 52px;
+  }
+}

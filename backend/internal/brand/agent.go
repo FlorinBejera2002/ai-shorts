@@ -31,7 +31,7 @@ func readAgentState(ctx context.Context, q queryRow, user string, lock bool) (Ag
 	if lock {
 		suffix = " FOR UPDATE"
 	}
-	err := q.QueryRowContext(ctx, `SELECT to_jsonb(b) FROM brand_kits b WHERE user_id=$1`+suffix, user).Scan(&raw)
+	err := q.QueryRowContext(ctx, `SELECT to_jsonb(b) FROM brand_kits b WHERE user_id=$1 AND is_default`+suffix, user).Scan(&raw)
 	out := AgentState{Settings: map[string]any{"primaryColor": "#6366F1", "secondaryColor": "#8B5CF6", "fontFamily": "Inter", "applyBrandColors": false, "applyBrandFont": false, "subtitleFont": "Inter Bold", "subtitleColor": "#FFFFFF", "subtitleBgColor": "#000000", "subtitleBgOpacity": 0.7, "subtitlePosition": "bottom", "watermarkPosition": "bottom-right", "watermarkOpacity": 0.8, "hidePlatformBadge": false}}
 	if errors.Is(err, sql.ErrNoRows) {
 		raw = []byte("absent")
@@ -59,5 +59,5 @@ func (r *Repository) AgentUpdate(ctx context.Context, user string, in AgentUpdat
 	if !data.ValidUUID(in.RequestID) || len(in.ExpectedState) != 64 {
 		return AgentState{}, ErrInvalid
 	}
-	return r.update(ctx, user, in.Settings, &in)
+	return r.update(ctx, user, "", in.Settings, &in)
 }

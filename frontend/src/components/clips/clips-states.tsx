@@ -1,96 +1,103 @@
+'use client'
+
 import { Link } from '@/i18n/navigation'
-import { AlertCircle, Folder, Search, SquarePlay } from 'lucide-react'
+import { Plus, RotateCcw } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 import type { ReactNode } from 'react'
-import { useClipsCopy } from './clips-copy'
-import styles from './clips-states.module.css'
-
-type StateKind = 'library' | 'project' | 'results' | 'error'
-
-const icons = {
-  library: SquarePlay,
-  project: Folder,
-  results: Search,
-  error: AlertCircle
-}
+import styles from './clips.module.css'
 
 function StateCard({
   kind,
+  image,
+  alt,
+  size,
   title,
   children
 }: {
-  kind: StateKind
+  kind: string
+  image: string
+  alt: string
+  size: number
   title: string
-  children?: ReactNode
+  children: ReactNode
 }) {
-  const Icon = icons[kind]
   return (
-    <section
-      className={styles.state}
-      data-kind={kind}
-      role={kind === 'error' ? 'alert' : undefined}
-      aria-label={title}
-    >
-      <span className={styles.icon}>
-        <Icon aria-hidden="true" />
-      </span>
-      <h2>{title}</h2>
+    <section className={`${styles.card} ${styles.state}`} data-clips-state={kind} data-kind={kind} role={kind === 'error' ? 'alert' : undefined}>
+      <img src={image} alt={alt} width={size} height={size} style={{ width: size }} />
+      <h2 className={styles.heading}>{title}</h2>
       {children}
     </section>
   )
 }
 
-export function ClipsEmptyLibrary() {
-  const copy = useClipsCopy()
+export function ClipsEmptyLibrary({ mobile }: { mobile: boolean }) {
+  const t = useTranslations('clipsLibrary')
   return (
-    <StateCard kind="library" title={copy.emptyLibrary}>
-      <Link href="/dashboard/create" className={styles.primary}>
-        {copy.newClip}
+    <StateCard kind="empty" image="/illustrations/library-empty.webp" alt={t('illustrations.empty')} size={mobile ? 230 : 260} title={t('emptyLibrary')}>
+      <Link href="/dashboard/create" className={`${styles.button} ${styles.primary} ${styles.focus}`}>
+        <Plus aria-hidden="true" strokeWidth={2.5} style={{ width: 18, height: 18 }} />
+        {t('newClip')}
       </Link>
     </StateCard>
   )
 }
 
-export function ClipsEmptyProject() {
-  const copy = useClipsCopy()
+export function ClipsNoResults({ mobile, onClear }: { mobile: boolean; onClear: () => void }) {
+  const t = useTranslations('clipsLibrary')
   return (
-    <StateCard kind="project" title={copy.emptyProject}>
-      <p>{copy.emptyProjectHint}</p>
-    </StateCard>
-  )
-}
-
-export function ClipsNoResults({ onClear }: { onClear: () => void }) {
-  const copy = useClipsCopy()
-  return (
-    <StateCard kind="results" title={copy.noResults}>
-      <button type="button" className={styles.selected} onClick={onClear}>
-        {copy.clearFilters}
+    <StateCard kind="no-results" image="/illustrations/clips-noresults.webp" alt={t('illustrations.noResults')} size={mobile ? 240 : 220} title={t('noResults')}>
+      <button type="button" className={`${styles.button} ${styles.secondary} ${styles.focus}`} onClick={onClear}>
+        {t('clearFilters')}
       </button>
     </StateCard>
   )
 }
 
-export function ClipsLoadError({ onRetry }: { onRetry: () => void }) {
-  const copy = useClipsCopy()
+export function ClipsLoadError({ mobile, onRetry }: { mobile: boolean; onRetry: () => void }) {
+  const t = useTranslations('clipsLibrary')
   return (
-    <StateCard kind="error" title={copy.loadError}>
-      <button type="button" className={styles.selected} onClick={onRetry}>
-        {copy.retry}
+    <StateCard kind="error" image="/illustrations/load-error.webp" alt={t('illustrations.error')} size={mobile ? 200 : 220} title={t('loadError')}>
+      <button type="button" className={`${styles.button} ${styles.primary} ${styles.focus}`} onClick={onRetry}>
+        <RotateCcw aria-hidden="true" />
+        {t('retry')}
       </button>
     </StateCard>
   )
 }
 
-export function ClipsGridSkeleton({ count = 8 }: { count?: number }) {
-  const copy = useClipsCopy()
+/** A project (or "Fără proiect") without clips: a dashed drop area. */
+export function ClipsEmptyProject({ mobile, unassigned = false }: { mobile: boolean; unassigned?: boolean }) {
+  const t = useTranslations('clipsLibrary')
   return (
-    <div className={styles.skeleton} aria-busy="true" aria-label={copy.loading}>
-      {Array.from({ length: count }, (_, index) => (
-        <span key={index} className={styles.tile}>
-          <span className={styles.thumb} />
-          <span className={styles.line} />
-        </span>
+    <section className={styles.dropZone} data-clips-state={unassigned ? 'no-unassigned' : 'empty-project'}>
+      <img src="/illustrations/clips-emptyproject.webp" alt={t('illustrations.emptyProject')} width={mobile ? 180 : 200} height={mobile ? 180 : 200} />
+      <h2 className={styles.heading}>{unassigned ? t('noUnassigned') : t('emptyProject')}</h2>
+      {!unassigned && <span className={styles.muted}>{mobile ? t('emptyProjectMenu') : t('emptyProjectDrag')}</span>}
+    </section>
+  )
+}
+
+export function ClipsLoadingGrid({ mobile }: { mobile: boolean }) {
+  const t = useTranslations('clipsLibrary')
+  return (
+    <div className={styles.grid} role="status" aria-label={t('loading')} data-clips-state="loading">
+      {Array.from({ length: mobile ? 4 : 10 }, (_, index) => (
+        <div key={index} className={`${styles.card} ${styles.clip}`}>
+          <span className={styles.skeleton} style={{ height: mobile ? 268 : 230, borderRadius: 16 }} />
+          <span className={styles.skeleton} style={{ width: '80%', height: 14 }} />
+          <span className={styles.skeleton} style={{ width: '50%', height: 12 }} />
+        </div>
       ))}
     </div>
+  )
+}
+
+export function ClipsRailSkeleton() {
+  return (
+    <aside className={`${styles.card} ${styles.rail}`} aria-hidden="true">
+      {[0, 1, 2, 3, 4].map((row) => (
+        <span key={row} className={styles.skeleton} style={{ height: 32, margin: '6px 8px' }} />
+      ))}
+    </aside>
   )
 }

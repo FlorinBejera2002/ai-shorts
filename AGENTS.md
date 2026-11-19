@@ -4,6 +4,8 @@
 
 Before starting every new project task, create a new ticket on the **Sneep Cut > IT** board in Notion, even when a matching or related ticket already exists. Do not reuse or repurpose an existing ticket for a new task. Keep the newly created ticket's status current as work progresses, and when the task is finished and verified, move that ticket to **Done**.
 
+Exception: requests to create, edit, prepare, or publish reels do not require a Notion ticket. Do not create or update Notion tickets for this reel production workflow unless the user explicitly asks for one. This exception does not apply to software changes to Sneep Cut.
+
 ## Working approach
 
 - Treat requests for changes as authorization to implement and verify them. Resolve routine choices from the existing code and task context; ask only when missing information materially changes the outcome. Continue independent, authorized work while awaiting an answer.

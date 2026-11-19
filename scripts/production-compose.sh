@@ -30,10 +30,30 @@ compose=(
 
 config() {
   "${compose[@]}" config --quiet
-  docker run --rm --network none \
+  local caddy_id config_source=""
+  local config_mount=()
+  caddy_id=$("${compose[@]}" ps --all --quiet caddy)
+  if [[ -n "$caddy_id" ]]; then
+    # Private snippets live in Caddy's persistent /config mount, outside the
+    # release archive. Read only that mount; do not inherit TLS data or the
+    # running container's old top-level Caddyfile into the validator.
+    config_source=$(docker inspect --format \
+      '{{range .Mounts}}{{if eq .Destination "/config"}}{{if eq .Type "volume"}}{{.Name}}{{else}}{{.Source}}{{end}}{{end}}{{end}}' \
+      "$caddy_id")
+    if [[ -n "$config_source" ]]; then
+      config_mount=(--volume "$config_source:/config:ro")
+    fi
+  fi
+  if ! docker run --rm --network none \
+    "${config_mount[@]}" \
     --volume "$repo_root/deploy/Caddyfile:/etc/caddy/Caddyfile:ro" \
     caddy:2-alpine \
-    caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+    caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile; then
+    if [[ -z "$config_source" ]] && grep -Eq '^[[:space:]]*import[[:space:]]+/config/' "$repo_root/deploy/Caddyfile"; then
+      echo "Provision private /config imports in Caddy's persistent configuration mount before deploying." >&2
+    fi
+    return 1
+  fi
 }
 
 build() {

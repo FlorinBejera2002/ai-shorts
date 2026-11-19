@@ -1,0 +1,591 @@
+/* Kiturile mele — canvas "Identitate vizuală" (Br-Kits / Br-KitsEmpty), desktop + mobile. */
+.page {
+  display: flex;
+  min-width: 0;
+  min-height: calc(100dvh - 108px);
+  flex-direction: column;
+  gap: 16px;
+  padding: 20px 24px 16px;
+  color: var(--publish-text);
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.head h1 {
+  font-size: 22px;
+  line-height: 28px;
+}
+
+.muted {
+  color: var(--publish-secondary-text);
+}
+
+.grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.card {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 10px;
+  border-radius: var(--publish-card-radius);
+  background: var(--publish-surface);
+  padding: 8px;
+  box-shadow: var(--publish-card-shadow);
+}
+
+.card[data-default] {
+  box-shadow: 0 0 0 2px var(--publish-text);
+}
+
+.open {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  border-radius: inherit;
+}
+
+.open:focus-visible {
+  outline: 2px solid var(--ref-primary);
+  outline-offset: 2px;
+}
+
+.thumb {
+  position: relative;
+  height: 300px;
+  overflow: hidden;
+  border-radius: 16px;
+  background: #111;
+}
+
+.thumb > img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.thumbCaption {
+  position: absolute;
+  right: 8px;
+  left: 8px;
+  line-height: 1.15;
+  text-align: center;
+  text-transform: uppercase;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.active {
+  position: absolute;
+  z-index: 1;
+  top: 8px;
+  left: 8px;
+  display: flex;
+  height: 26px;
+  align-items: center;
+  gap: 4px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.94);
+  padding: 0 10px 0 7px;
+  color: #0b0b0c;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.active svg {
+  width: 13px;
+  height: 13px;
+}
+
+.cardRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 6px 6px;
+}
+
+.cardCopy {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.cardName {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+}
+
+.cardName b {
+  overflow: hidden;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cardCopy > span:last-child {
+  overflow: hidden;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.badge {
+  flex: none;
+  border-radius: 6px;
+  background: var(--publish-handle);
+  padding: 1px 6px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.cardMenu {
+  position: relative;
+  z-index: 2;
+}
+
+.avatar {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--publish-handle);
+  color: var(--publish-text);
+  font-weight: 700;
+  box-shadow: 0 0 0 1.5px rgba(255, 255, 255, 0.7);
+}
+
+.avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.newTile {
+  display: flex;
+  min-height: 360px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  border: 1.5px dashed var(--ref-strong);
+  border-radius: 24px;
+  background: transparent;
+  color: var(--publish-text);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.newTile:hover {
+  background: var(--publish-subtle-bg);
+}
+
+.newTile > span {
+  display: flex;
+  width: 44px;
+  height: 44px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: var(--publish-selected);
+  color: var(--publish-on-selected);
+}
+
+.newTile svg {
+  width: 20px;
+  height: 20px;
+}
+
+.empty {
+  display: flex;
+  min-height: 360px;
+  align-items: center;
+  justify-content: center;
+  gap: 28px;
+  grid-column: span 3;
+  border-radius: var(--publish-card-radius);
+  background: var(--publish-surface);
+  padding: 24px 32px;
+  box-shadow: var(--publish-card-shadow);
+}
+
+.empty h2 {
+  font-size: 24px;
+  line-height: 30px;
+}
+
+.state {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  border-radius: var(--publish-card-radius);
+  background: var(--publish-surface);
+  padding: 48px;
+  text-align: center;
+  box-shadow: var(--publish-card-shadow);
+}
+
+.state h2 {
+  font-size: 24px;
+  line-height: 30px;
+}
+
+.skeleton {
+  display: block;
+  border-radius: 16px;
+  background: var(--publish-handle);
+  opacity: 0.7;
+}
+
+/* Kit nou */
+.identity {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.imagePicker {
+  position: relative;
+  display: flex;
+  width: 56px;
+  height: 56px;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  border: 1.5px dashed var(--ref-strong);
+  border-radius: 999px;
+  color: var(--publish-secondary-text);
+  cursor: pointer;
+}
+
+.imagePicker:focus-within {
+  outline: 2px solid var(--ref-primary);
+  outline-offset: 2px;
+}
+
+.imagePicker > svg {
+  width: 20px;
+  height: 20px;
+}
+
+.imagePicker > img {
+  width: 100%;
+  height: 100%;
+  border-radius: 999px;
+  object-fit: cover;
+}
+
+.imagePicker input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+.imagePlus {
+  position: absolute;
+  right: -3px;
+  bottom: -3px;
+  display: flex;
+  width: 22px;
+  height: 22px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: var(--publish-selected);
+  color: var(--publish-on-selected);
+  box-shadow: 0 0 0 2px var(--publish-surface);
+}
+
+.imagePlus svg {
+  width: 12px;
+  height: 12px;
+}
+
+.sources {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sources > span:first-child {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.sources > div {
+  display: flex;
+  gap: 8px;
+}
+
+.source {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  flex: 1 1 0;
+  align-items: center;
+  gap: 10px;
+  border-radius: 16px;
+  padding: 10px 12px;
+  box-shadow: inset 0 0 0 1px var(--publish-border);
+  cursor: pointer;
+}
+
+.source:has(input:checked) {
+  box-shadow: inset 0 0 0 2px var(--publish-text);
+}
+
+.source:has(input:focus-visible) {
+  outline: 2px solid var(--ref-primary);
+  outline-offset: 2px;
+}
+
+.source input {
+  position: absolute;
+  opacity: 0;
+}
+
+.source b {
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+  font-size: 14px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.source > svg {
+  width: 16px;
+  height: 16px;
+  flex: none;
+}
+
+.blank {
+  display: flex;
+  width: 32px;
+  height: 32px;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  color: var(--publish-secondary-text);
+  font-size: 12px;
+  font-weight: 700;
+  box-shadow: inset 0 0 0 1.5px var(--ref-strong);
+}
+
+.dialogHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+@media (max-width: 1279px) {
+  .page {
+    padding: 12px 8px 16px;
+  }
+
+  .grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .empty {
+    grid-column: span 2;
+  }
+}
+
+@media (max-width: 1023px) {
+  .page {
+    min-height: 0;
+    padding: 0 0 16px;
+  }
+
+  .grid {
+    gap: 12px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .card {
+    gap: 8px;
+    padding: 6px;
+  }
+
+  .thumb {
+    height: 200px;
+  }
+
+  .cardRow {
+    gap: 8px;
+    padding: 0 2px 4px;
+  }
+
+  .newTile {
+    min-height: 254px;
+  }
+
+  .empty {
+    min-height: 600px;
+    flex-direction: column;
+    gap: 18px;
+    grid-column: 1 / -1;
+    padding: 28px 20px 20px;
+    text-align: center;
+  }
+
+  .empty h2 {
+    font-size: 20px;
+    line-height: 26px;
+  }
+
+  .empty .emptyAction {
+    align-self: stretch;
+    height: 52px;
+  }
+
+  .state {
+    min-height: 520px;
+    padding: 28px 20px;
+  }
+}
+
+/* Editor header */
+.kitHeader {
+  position: relative;
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  gap: 14px;
+}
+
+.kitBack {
+  height: 40px;
+  gap: 4px;
+  padding: 0 14px 0 8px;
+  font-size: 14px;
+}
+
+.kitDivider {
+  width: 1px;
+  height: 24px;
+  background: var(--publish-border);
+}
+
+.kitIdentity {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: 10px;
+}
+
+.kitIdentity b {
+  overflow: hidden;
+  font-size: 20px;
+  line-height: 26px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.kitIdentity .badge {
+  padding: 2px 8px;
+  font-size: 12px;
+}
+
+@media (max-width: 1023px) {
+  .kitHeader {
+    gap: 8px;
+  }
+
+  .kitIdentity {
+    justify-content: flex-end;
+    gap: 8px;
+  }
+
+  .kitIdentity b {
+    font-size: 15px;
+    line-height: 20px;
+  }
+}
+
+/* "Kitul … a fost creat" */
+.created {
+  position: fixed;
+  z-index: 90;
+  bottom: 24px;
+  left: calc(50% + 120px);
+  display: flex;
+  width: min(520px, calc(100vw - 32px));
+  align-items: center;
+  gap: 14px;
+  border-radius: var(--publish-card-radius);
+  background: var(--publish-surface);
+  padding: 10px 12px;
+  box-shadow: 0 0 0 1px var(--publish-border), 0 18px 48px rgba(0, 0, 0, 0.18);
+  transform: translateX(-50%);
+}
+
+.createdCopy {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.createdCopy b {
+  font-size: 16px;
+  line-height: 22px;
+}
+
+.createdCopy span {
+  font-size: 13px;
+}
+
+.createdAction {
+  height: 40px;
+  gap: 6px;
+  padding: 0 14px;
+  font-size: 13px;
+}
+
+@media (max-width: 1023px) {
+  .created {
+    position: static;
+    width: auto;
+    flex-wrap: wrap;
+    gap: 12px;
+    transform: none;
+  }
+
+  .created img {
+    width: 64px;
+    height: 64px;
+  }
+
+  .createdAction {
+    height: 44px;
+    flex: 1 1 100%;
+  }
+}

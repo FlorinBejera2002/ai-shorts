@@ -179,31 +179,18 @@
   font-size: 17px;
 }
 
-.detailsNumber {
-  display: flex;
-  width: 32px;
-  height: 32px;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  background: var(--publish-primary);
-  color: var(--publish-on-primary);
-  font-size: 13px;
-  font-weight: 700;
-}
-
 .detailsDuration {
   color: var(--publish-muted-text);
   font-size: 13px;
 }
 
+/* The spoken line is a quote over a divider, not a tinted box. */
 .dialogue {
   margin: 0;
-  padding: 14px;
-  border-radius: 16px;
-  background: var(--publish-selected-row);
+  padding: 0 0 14px;
+  border-bottom: 1px solid var(--publish-border);
   font-size: 15px;
-  font-weight: 600;
+  font-weight: 500;
   line-height: 1.45;
 }
 
@@ -213,33 +200,54 @@
 }
 
 .detailList {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
   margin: 0;
 }
 
 .detail {
+  display: flex;
   min-width: 0;
-  padding: 10px 12px;
-  border-radius: 14px;
-  background: var(--publish-inset);
+  align-items: flex-start;
+  gap: 12px;
 }
 
-.detail[data-wide] {
-  grid-column: span 2;
+.detailIcon {
+  display: flex;
+  flex: none;
+  width: 36px;
+  height: 36px;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  background: var(--publish-secondary);
+  color: var(--publish-text);
+}
+
+.detailIcon svg {
+  width: 16px;
+  height: 16px;
+}
+
+.detailText {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
 }
 
 .detail dt {
   color: var(--publish-muted-text);
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .detail dd {
-  margin: 4px 0 0;
+  margin: 0;
   font-size: 14px;
-  font-weight: 500;
+  font-weight: 600;
   overflow-wrap: anywhere;
 }
 
@@ -272,7 +280,8 @@
   overflow: hidden;
   border: 0;
   border-radius: 14px;
-  background: var(--publish-inset);
+  background: var(--publish-surface);
+  box-shadow: inset 0 0 0 1px var(--publish-border-strong);
   color: var(--publish-text);
   font-size: 13px;
   font-weight: 600;
@@ -281,7 +290,7 @@
 }
 
 .timelineScene:hover {
-  background: var(--publish-hover);
+  background: var(--publish-inset);
 }
 
 .timelineScene[aria-current='step'] {
@@ -430,36 +439,24 @@
     box-shadow: none;
   }
 
-  .detailsNumber {
-    display: none;
-  }
-
   .detailsHeader h2 {
     font-size: 16px;
   }
 
   .dialogue {
-    padding: 12px;
-    border-radius: 14px;
     font-size: 14px;
   }
 
   .detailList {
-    gap: 6px;
+    gap: 12px;
   }
 
-  .detail {
-    padding: 8px 10px;
-    border-radius: 12px;
-  }
-
-  .detail dt {
-    font-size: 11px;
+  .detailIcon {
+    width: 32px;
+    height: 32px;
   }
 
   .detail dd {
-    margin-top: 2px;
     font-size: 13px;
-    font-weight: 400;
   }
 }

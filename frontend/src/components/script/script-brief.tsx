@@ -17,6 +17,9 @@ import type { ScriptsWorkspace } from './use-scripts-workspace'
 import shared from './scripts-workspace.module.css'
 import styles from './script-brief.module.css'
 
+/** Reference language names start with a capital letter ("Română"). */
+const capitalize = (value: string) => value.charAt(0).toUpperCase() + value.slice(1)
+
 export function ScriptBrief({ workspace: w }: { workspace: ScriptsWorkspace }) {
   const t = useTranslations('scriptGenerator')
   const locale = useLocale()
@@ -44,6 +47,7 @@ export function ScriptBrief({ workspace: w }: { workspace: ScriptsWorkspace }) {
       className={styles.brief}
       aria-labelledby="script-brief-heading"
       data-script-brief=""
+      data-collapsible={hasScenes}
       data-expanded={open}
     >
       <h2 id="script-brief-heading" className={styles.heading}>
@@ -115,7 +119,7 @@ export function ScriptBrief({ workspace: w }: { workspace: ScriptsWorkspace }) {
                 : [...SCRIPT_LANGUAGES, w.language]
               ).map((value) => (
                 <option key={value} value={value}>
-                  {languageNames.of(value) ?? value}
+                  {capitalize(languageNames.of(value) ?? value)}
                 </option>
               ))}
             </select>

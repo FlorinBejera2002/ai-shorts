@@ -6,73 +6,94 @@ import ts from 'typescript'
 async function loadTypeScriptModule(relativePath) {
   const source = readFileSync(new URL(relativePath, import.meta.url), 'utf8')
   const transpiled = ts.transpileModule(source, {
-    compilerOptions: {
-      module: ts.ModuleKind.ESNext,
-      target: ts.ScriptTarget.ES2022
-    }
+    compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 }
   })
-  return import(
-    `data:text/javascript;base64,${Buffer.from(transpiled.outputText).toString('base64')}`
-  )
+  return import(`data:text/javascript;base64,${Buffer.from(transpiled.outputText).toString('base64')}`)
 }
 
-const {
-  clipsLibraryHref,
-  hasActiveClipFilters,
-  parseClipsLibraryQuery
-} = await loadTypeScriptModule('../src/lib/clips-library.ts')
+const lib = await loadTypeScriptModule('../src/lib/clips-library.ts')
+const { formatClipAge, formatClipLength } = await loadTypeScriptModule('../src/lib/clip-time.ts')
 
-test('normalizes valid clip-library query state', () => {
-  assert.deepEqual(
-    parseClipsLibraryQuery({
-      search: '  launch   teaser ',
-      score: 'high',
-      aspect: '9:16',
-      subtitles: 'yes',
-      sort: 'score',
-      page: '3'
-    }),
-    {
-      search: 'launch teaser',
-      score: 'high',
-      aspect: '9:16',
-      subtitles: 'yes',
-      sort: 'score',
-      page: 3
-    }
-  )
+const P = '00000000-0000-4000-8000-000000000001'
+const Q = '00000000-0000-4000-8000-000000000002'
+const clip = (id, extra = {}) => ({
+  id,
+  folderId: null,
+  title: `Clip ${id}`,
+  duration: 30,
+  aspectRatio: '9:16',
+  thumbnailUrl: '',
+  fileUrl: null,
+  hookText: null,
+  hasSubtitles: true,
+  createdAt: '2026-11-10T10:00:00Z',
+  ...extra
 })
 
-test('uses safe defaults and caps untrusted values', () => {
-  const query = parseClipsLibraryQuery({
-    search: 'x'.repeat(120),
-    score: 'DROP TABLE clips',
-    aspect: ['invalid', '9:16'],
-    subtitles: 'maybe',
-    sort: 'filePath',
-    page: '-4'
+test('the library flattens every source and resolves a clip to its root project', () => {
+  const library = lib.buildClipsLibrary({
+    projects: [
+      { id: 'job-a', folders: [{ id: 'sub', parentId: P, name: 'Old subfolder' }], clips: [clip('a', { folderId: P }), clip('b', { folderId: 'sub' })] },
+      { id: 'job-b', folders: [], clips: [clip('c', { folderId: Q }), clip('d'), clip('e', { folderId: 'missing' })] }
+    ],
+    collections: [
+      { id: P, name: 'Podcast' },
+      { id: Q, name: 'Recipes' }
+    ]
   })
-  assert.equal(query.search.length, 80)
-  assert.equal(query.score, 'all')
-  assert.equal(query.aspect, 'all')
-  assert.equal(query.subtitles, 'all')
-  assert.equal(query.sort, 'newest')
-  assert.equal(query.page, 1)
+  assert.deepEqual(library.clips.map((item) => [item.id, item.collectionId]), [['a', P], ['b', P], ['c', Q], ['d', null], ['e', null]])
+  assert.deepEqual(library.collections, [{ id: P, name: 'Podcast', count: 2 }, { id: Q, name: 'Recipes', count: 1 }])
+  assert.equal(library.unassigned, 2)
+  assert.equal(library.clips[0].thumbnailUrl, null, 'Empty thumbnails become null so the tile shows its fallback')
 })
 
-test('builds canonical links and detects filters', () => {
-  const query = parseClipsLibraryQuery({
-    search: 'launch teaser',
-    score: 'high',
-    page: '2'
+test('the URL query is normalised and defaults stay out of links', () => {
+  const query = lib.parseClipsQuery({ search: '  launch   teaser ', project: P, aspect: '1:1', subtitles: 'no', sort: 'duration', page: '3' })
+  assert.deepEqual(query, { search: 'launch teaser', project: P, aspect: '1:1', subtitles: 'no', sort: 'duration', page: 3 })
+  assert.deepEqual(lib.parseClipsQuery({ project: 'nope', aspect: '4:5', sort: 'score', page: '-1' }), {
+    search: '', project: 'all', aspect: 'all', subtitles: 'all', sort: 'newest', page: 1
   })
-  assert.equal(hasActiveClipFilters(query), true)
-  assert.equal(
-    clipsLibraryHref(query, { page: 4 }),
-    '/dashboard/clips?search=launch+teaser&score=high&page=4'
-  )
-  assert.equal(
-    clipsLibraryHref(parseClipsLibraryQuery({})),
-    '/dashboard/clips'
-  )
+  assert.equal(lib.parseClipsQuery({ score: 'high' }).score, undefined, 'The viral score filter is gone')
+  assert.equal(lib.clipsHref(query, { page: 2 }), `/dashboard/clips?project=${P}&search=launch+teaser&aspect=1%3A1&subtitles=no&sort=duration&page=2`)
+  assert.equal(lib.clipsHref(query, { aspect: 'all' }), `/dashboard/clips?project=${P}&search=launch+teaser&subtitles=no&sort=duration`, 'Changing a filter resets paging')
+  assert.equal(lib.clipsHref(lib.parseClipsQuery({})), '/dashboard/clips')
+  assert.deepEqual(lib.activeClipFilters(query), ['aspect', 'subtitles'])
+  assert.equal(lib.hasClipsRefinement(lib.parseClipsQuery({ sort: 'oldest' })), false, 'Sorting alone is not a filter')
+})
+
+test('selection filters by scope, search, format and subtitles, then sorts', () => {
+  const clips = [
+    { ...clip('a', { title: 'Bread', duration: 20, createdAt: '2026-11-01T00:00:00Z' }), collectionId: P },
+    { ...clip('b', { title: 'Pasta', duration: 50, aspectRatio: '1:1', hasSubtitles: false, createdAt: '2026-11-03T00:00:00Z' }), collectionId: null },
+    { ...clip('c', { title: 'Soup', hookText: 'warm bread', duration: 35, createdAt: '2026-11-02T00:00:00Z' }), collectionId: Q }
+  ]
+  const ids = (query) => lib.selectClips(clips, lib.parseClipsQuery(query)).map((item) => item.id)
+  assert.deepEqual(ids({}), ['b', 'c', 'a'])
+  assert.deepEqual(ids({ sort: 'oldest' }), ['a', 'c', 'b'])
+  assert.deepEqual(ids({ sort: 'duration' }), ['b', 'c', 'a'])
+  assert.deepEqual(ids({ project: 'none' }), ['b'])
+  assert.deepEqual(ids({ project: Q }), ['c'])
+  assert.deepEqual(ids({ search: 'BREAD' }), ['c', 'a'], 'Search also matches the hook')
+  assert.deepEqual(ids({ aspect: '1:1' }), ['b'])
+  assert.deepEqual(ids({ subtitles: 'yes' }), ['c', 'a'])
+})
+
+test('pages are clamped and the page window collapses long ranges', () => {
+  const items = Array.from({ length: 24 }, (_, index) => index)
+  assert.deepEqual(lib.paginateClips(items, 3), { items: [20, 21, 22, 23], page: 3, pages: 3, from: 21, to: 24 })
+  assert.equal(lib.paginateClips(items, 99).page, 3)
+  assert.deepEqual(lib.paginateClips([], 1), { items: [], page: 1, pages: 1, from: 0, to: 0 })
+  assert.deepEqual(lib.pageWindow(2, 3), [1, 2, 3])
+  assert.deepEqual(lib.pageWindow(1, 12), [1, 2, 'gap', 12])
+  assert.deepEqual(lib.pageWindow(6, 12), [1, 'gap', 5, 6, 7, 'gap', 12])
+  assert.deepEqual(lib.pageWindow(12, 12), [1, 'gap', 11, 12])
+})
+
+test('clip length and age read like the canvas', () => {
+  assert.equal(formatClipLength(38.6), '0:38')
+  assert.equal(formatClipLength(64), '1:04')
+  const now = Date.parse('2026-11-19T12:00:00Z')
+  assert.equal(formatClipAge('2026-11-19T10:00:00Z', 'ro', now), 'acum 2 ore')
+  assert.equal(formatClipAge('2026-11-18T12:00:00Z', 'ro', now), 'ieri')
+  assert.equal(formatClipAge('2026-11-05T12:00:00Z', 'en', now), '2 weeks ago')
 })

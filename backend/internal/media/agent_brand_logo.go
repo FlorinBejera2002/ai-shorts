@@ -27,7 +27,7 @@ type agentLogoReceipt struct {
 func readLogoState(ctx context.Context,tx *sql.Tx,user string)(AgentLogoResult,error){
 	var out AgentLogoResult
 	var raw []byte
-	err:=tx.QueryRowContext(ctx,`SELECT to_jsonb(b) FROM brand_kits b WHERE user_id=$1 FOR UPDATE`,user).Scan(&raw)
+	err:=tx.QueryRowContext(ctx,`SELECT to_jsonb(b) FROM brand_kits b WHERE user_id=$1 AND is_default FOR UPDATE`,user).Scan(&raw)
 	if errors.Is(err,sql.ErrNoRows){raw=[]byte("absent")}else if err!=nil{return out,err}else{
 		var row struct{Logo *string `json:"logo_path"`};if err=json.Unmarshal(raw,&row);err!=nil{return out,err};out.HasLogo=row.Logo!=nil
 	}
@@ -62,7 +62,7 @@ func (s *Service) AgentBrandLogo(ctx context.Context, user, request, action stri
 		return saved.Result, agentaction.ErrConflict
 	}
 	var previous sql.NullString
-	err = tx.QueryRowContext(ctx, `SELECT logo_path FROM brand_kits WHERE user_id=$1`, user).Scan(&previous)
+	err = tx.QueryRowContext(ctx, `SELECT logo_path FROM brand_kits WHERE user_id=$1 AND is_default`, user).Scan(&previous)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return saved.Result, err
 	}
@@ -119,7 +119,7 @@ func (s *Service) AgentBrandLogo(ctx context.Context, user, request, action stri
 	if (key == nil && !previous.Valid) || (key != nil && previous.Valid && *key == previous.String) {
 		return saved.Result, errors.New("The selected logo is already attached")
 	}
-	if err = writeBrandLogo(ctx, tx, user, key); err != nil {
+	if err = writeBrandLogo(ctx, tx, user, "", key); err != nil {
 		return saved.Result, err
 	}
 	state, err = readLogoState(ctx, tx, user)

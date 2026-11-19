@@ -130,7 +130,7 @@ await page.route('**/api/**', async (route) => {
   return route.fulfill({ json: {} })
 })
 try {
-  await page.goto(origin + '/dashboard/brand', {
+  await page.goto(origin + '/dashboard/brand/default', {
     waitUntil: 'domcontentloaded',
     timeout: 180000
   })

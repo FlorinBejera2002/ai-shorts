@@ -1,8 +1,9 @@
 .workspace { min-width: 0; max-width: 1160px; margin-inline: auto; }
 .header { display: flex; align-items: center; gap: 14px; padding: 4px 0 24px; }
 .header h1 { font-size: 30px; font-weight: 600 !important; letter-spacing: -.04em; }
-.back { width: 48px; height: 48px; border-radius: 50%; background: var(--publish-surface); box-shadow: var(--publish-card-shadow); }
+.back { width: 48px; height: 48px; flex-shrink: 0; border-radius: 50%; background: var(--publish-surface); box-shadow: var(--publish-card-shadow); }
 .back:hover { background: var(--publish-secondary); }
+.backLabel { display: none; }
 .form { display: grid; grid-template-columns: minmax(0, 1fr) minmax(280px, 380px); gap: 16px 24px; align-items: start; }
 .accounts, .media, .caption, .options, .scheduling, .moreOptions { min-width: 0; grid-column: 1; border: 0; border-radius: var(--publish-card-radius); background: var(--publish-surface); box-shadow: var(--publish-card-shadow); }
 .accounts, .media, .caption, .scheduling { padding: 20px 24px; }
@@ -104,10 +105,15 @@
 @media (max-width: 767px) {
   .header { gap: 12px; padding: 0 0 20px; }
   .header h1 { font-size: 22px; }
-  .back { width: 44px; height: 44px; }
+  .header { flex-wrap: wrap; }
+  .header h1 { flex-basis: 100%; order: 1; }
+  .back { width: auto; height: 44px; gap: 8px; padding-inline: 16px; border-radius: var(--publish-pill-radius); font-size: 14px; }
+  .backLabel { display: inline; }
+  .changeMedia { display: inline-flex; min-height: 44px; width: fit-content; padding-inline: 20px; border: 0; border-radius: var(--publish-pill-radius); background: var(--publish-secondary); color: var(--publish-secondary-text); box-shadow: none; font-size: 14px; }
   .form { display: flex; flex-direction: column; gap: 14px; }
   .form > * { width: 100%; }
   .accounts, .caption, .options, .scheduling, .moreOptions, .previewPane { border-radius: 20px; box-shadow: none; }
+  .media { display: none; }
   .accounts, .caption, .scheduling, .moreOptions { padding: 16px; }
   .accounts legend, .caption label, .scheduling h2 { margin-bottom: 16px; font-size: 15px; }
   .accountTiles { gap: 20px; padding: 4px 0; }
@@ -117,14 +123,12 @@
   .selectedBadge, .connectBadge { width: 20px; height: 20px; }
   .accountLabel { display: none; }
   .accountNames { font-size: 11px; }
-  .media { display: none; }
   .previewPane { position: static; padding: 16px; gap: 14px; }
   .desktopPreview { max-width: 200px; }
   .previewTabs { margin-bottom: 14px; gap: 4px; }
   .previewTab { width: 36px; height: 36px; padding: 7px; }
   .previewPlayer, .emptyPreview { border-radius: 22px; }
   .previewPlayer > :global([data-brand-social-overlay]) { font-size: 10px; bottom: 32px; }
-  .changeMedia { display: inline-flex; min-height: 44px; width: fit-content; padding-inline: 20px; border: 0; border-radius: var(--publish-pill-radius); background: var(--publish-secondary); color: var(--publish-secondary-text); box-shadow: none; font-size: 14px; }
   .caption textarea { min-height: 110px; padding: 12px 14px; border-radius: 14px; font-size: 15px; }
   .optionsTrigger { min-height: 56px; padding: 16px; border-radius: 20px; font-size: 15px; }
   .modeTabs { width: 100%; }

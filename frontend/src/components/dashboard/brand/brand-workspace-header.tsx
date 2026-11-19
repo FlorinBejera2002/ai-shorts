@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Link } from '@/i18n/navigation'
 import { ArrowLeft, RotateCcw } from 'lucide-react'
 import { useTranslations } from 'next-intl'
+import { KitHeader } from './kits/kit-header'
 import { SaveBar } from './save-bar'
 import type {
   BrandKitController,
@@ -16,13 +17,15 @@ export function BrandWorkspaceHeader({
   section,
   expanded,
   fontBusy,
-  onBack
+  onBack,
+  onSaveAs
 }: {
   brand: BrandKitController
   section: BrandWorkspaceSection
   expanded: boolean
   fontBusy: boolean
   onBack: () => void
+  onSaveAs: () => void
 }) {
   const t = useTranslations('brand')
   const common = useTranslations('common')
@@ -39,6 +42,9 @@ export function BrandWorkspaceHeader({
 
   return (
     <header className={styles.header} data-detail={detail}>
+      {!canGoBack && brand.meta ? (
+        <KitHeader meta={brand.meta} />
+      ) : (
       <div className={styles.titleGroup}>
         {canGoBack ? (
           <button
@@ -65,6 +71,7 @@ export function BrandWorkspaceHeader({
           {expanded ? t('preview') : titles[section]}
         </h1>
       </div>
+      )}
       <Button
         variant="ghost"
         className={styles.mobileReset}
@@ -85,6 +92,8 @@ export function BrandWorkspaceHeader({
         onDiscard={brand.discard}
         onReset={brand.reset}
         onSave={brand.save}
+        kitName={brand.meta?.name}
+        onSaveAs={brand.meta ? onSaveAs : undefined}
       />
     </header>
   )

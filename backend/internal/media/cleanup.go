@@ -103,13 +103,25 @@ func (s *Service) CleanupAccount(ctx context.Context, userID string) (CleanupRes
 	if e != nil {
 		return result, e
 	}
-	var brand [4]sql.NullString
-	e = s.db.QueryRowContext(ctx, `SELECT logo_path,intro_video_path,outro_video_path,watermark_path FROM brand_kits WHERE user_id=$1`, userID).Scan(&brand[0], &brand[1], &brand[2], &brand[3])
-	if e != nil && !errors.Is(e, sql.ErrNoRows) {
+	// Every kit of the account owns media: logo, intro/outro, watermark and kit image.
+	kits, e := s.db.QueryContext(ctx, `SELECT logo_path,intro_video_path,outro_video_path,watermark_path,image_path FROM brand_kits WHERE user_id=$1`, userID)
+	if e != nil {
 		return result, e
 	}
-	for _, v := range brand {
-		add(v)
+	for kits.Next() {
+		var brand [5]sql.NullString
+		if e = kits.Scan(&brand[0], &brand[1], &brand[2], &brand[3], &brand[4]); e != nil {
+			kits.Close()
+			return result, e
+		}
+		for _, v := range brand {
+			add(v)
+		}
+	}
+	e = kits.Err()
+	kits.Close()
+	if e != nil {
+		return result, e
 	}
 	failures := 0
 	ordered := func(set map[string]bool) []string {

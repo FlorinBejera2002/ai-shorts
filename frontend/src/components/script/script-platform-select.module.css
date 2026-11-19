@@ -47,6 +47,7 @@
 .badge {
   --script-badge-size: 44px;
   --script-badge-font: 11px;
+  --script-badge-radius: 50%;
 }
 
 .hint {

@@ -1,25 +1,22 @@
 'use client'
 
-import { Button } from '@/components/ui/button'
 import { LoadingIndicator } from '@/components/ui/loading-indicator'
 import { useFormStatus } from 'react-dom'
+import { CanvasButton } from './canvas-button'
 
 export function SubmitButton({
   label,
   pendingLabel
-}: { label: string; pendingLabel: string }) {
+}: {
+  label: string
+  pendingLabel: string
+}) {
   const { pending } = useFormStatus()
 
   return (
-    <Button type="submit" disabled={pending} className="h-11 w-full">
-      {pending ? (
-        <>
-          <LoadingIndicator className="w-4 h-4" />
-          {pendingLabel}
-        </>
-      ) : (
-        label
-      )}
-    </Button>
+    <CanvasButton type="submit" disabled={pending}>
+      {pending && <LoadingIndicator className="size-4" />}
+      {pending ? pendingLabel : label}
+    </CanvasButton>
   )
 }

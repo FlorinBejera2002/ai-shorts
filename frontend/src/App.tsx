@@ -7,7 +7,8 @@ import DashboardPage from '@/app/[locale]/dashboard/page'
 import ScriptGeneratorPage from '@/app/[locale]/dashboard/script-generator/page'
 import { StudioRoute } from './pages/studio-route'
 import { StudioSessionRoute } from './pages/studio-session-route'
-import Brand from '@/components/dashboard/views/brand'
+import BrandEditor from '@/components/dashboard/views/brand'
+import BrandKitsPage from '@/components/dashboard/brand/kits/brand-kits-page'
 import Billing from '@/components/dashboard/views/billing'
 import ForgotPasswordPage from '@/app/[locale]/forgot-password/page'
 import LoginPage from '@/app/[locale]/login/page'
@@ -89,7 +90,8 @@ function ApplicationRoutes({ locale }: { locale: AppLocale }) {
           path="analytics"
           element={<LegacyDashboardRedirect page="analytics" />}
         />
-        <Route path="brand" element={<Brand />} />
+        <Route path="brand" element={<BrandKitsPage />} />
+        <Route path="brand/:kitId" element={<BrandEditor />} />
         <Route path="billing" element={<Billing />} />
         <Route path="project" element={<LegacyDashboardRedirect page="projectsLegacy" />} />
         <Route path="jobs/:id" element={<JobProgressPage />} />

@@ -127,7 +127,7 @@ async function capture(name) {
     await expectStyle(page.locator('#dashboard-main'), { backgroundColor: dark ? 'rgb(14, 19, 28)' : 'rgb(245, 247, 251)' }, 'themed canvas')
     await expectStyle(composer.locator('fieldset').first(), { backgroundColor: dark ? 'rgb(24, 31, 43)' : 'rgb(255, 255, 255)', borderRadius: mobile ? '20px' : '24px' }, 'themed account card')
     await expectStyle(composer.locator('textarea').first(), { backgroundColor: dark ? 'rgb(17, 24, 36)' : 'rgb(245, 247, 251)', borderRadius: mobile ? '14px' : '16px', borderTopWidth: '0px' }, 'themed inset text field')
-    await expectStyle(composer.locator('button[type="submit"]'), { backgroundColor: dark ? 'rgb(122, 167, 255)' : 'rgb(37, 99, 235)', borderRadius: '999px' }, 'themed primary action')
+    await expectStyle(composer.locator('button[type="submit"]'), { backgroundColor: dark ? 'rgb(142, 155, 176)' : 'rgb(11, 11, 12)', borderRadius: '999px' }, 'themed primary action')
     await expectStyle(composer.locator('footer'), { position: 'static', backgroundColor: dark ? 'rgb(24, 31, 43)' : 'rgb(255, 255, 255)', borderRadius: mobile ? '20px' : '24px', backdropFilter: 'none' }, 'actions follow the form in a themed card')
     if (dark) {
       await assertTextContrast(composer.locator('button[type="submit"]'), `${name}: primary action`)
@@ -135,7 +135,7 @@ async function capture(name) {
       await assertTextContrast(composer.locator('[class*="characterCount"]'), `${name}: character count`)
     }
     assert.ok(await composer.evaluate(element => getComputedStyle(element).fontFamily.includes('Inter Variable')), 'Reference Inter font is applied')
-    if (mobile) assert.equal(await page.locator('[data-workspace-mobile-header] img:visible').getAttribute('src'), dark ? '/sneepcut-logo-white-text.svg' : '/sneepcut-logo.svg', 'Publish wordmark follows the active theme')
+    if (mobile) assert.equal(await page.locator('[data-workspace-mobile-header]').isVisible(), true, 'Phone composer keeps the workspace header')
   }
   if (dialogOpen) {
     const dialog = page.getByRole('dialog').last()
@@ -302,7 +302,7 @@ try {
   const published = posts.get(uid(840))
   posts.set(uid(840), { ...published, status: 'failed', publishingError: 'Synthetic account disconnected', publishingDestinations: [{ provider: 'instagram', accountName: 'Synthetic Instagram', status: 'failed', error: 'Synthetic account disconnected', createdAt: future.toISOString() }] })
   await page.reload({ waitUntil: 'networkidle' })
-  await page.getByRole('button', { name: 'Resolve', exact: true }).click()
+  await page.getByRole('tab', { name: /^Failed/ }).click()
   await page.locator('[data-publishing-preview]').getByRole('button', { name: messages.preview.viewStatus, exact: true }).click()
   await capture('failed-post-desktop')
   await page.getByRole('dialog').getByRole('button', { name: messages.progress.close, exact: true }).last().click()
@@ -327,7 +327,7 @@ try {
   await finishDialog(photo())
   await media().getByRole('button', { name: 'Use media', exact: true }).click()
   await capture('composer-mobile')
-  assert.equal(await page.locator('[data-mobile-dashboard-dock]').isVisible(), false, 'Workspace mobile header replaces the global dock')
+  assert.notEqual(await page.locator('[data-mobile-dashboard-dock]').getAttribute('data-dock-hidden'), null, 'The dock hides on the mobile editor')
   await assertFormActions('composer-mobile-draft')
   await composer.getByRole('tab', { name: messages.composer.modes.scheduled, exact: true }).click()
   await assertFormActions('composer-mobile-scheduled')
@@ -340,11 +340,13 @@ try {
   passed.push('Mobile focused photo and media editors return to the same draft')
 
   await page.goto(`${origin}/dashboard/publish`, { waitUntil: 'networkidle' })
+  // The undated draft lives under All; the saved queue filter may be a different tab.
+  await page.getByRole('tab', { name: 'All', exact: true }).click()
   const mobileQueueRow = page.locator(`[data-publishing-post="${uid(840)}"]`)
   await mobileQueueRow.waitFor({ state: 'attached' })
   if (!await mobileQueueRow.isVisible()) await page.locator('[data-publishing-preview]').getByRole('button', { name: /^Back to / }).click()
-  const queueHeading = await page.getByRole('heading', { name: messages.title, exact: true }).boundingBox()
-  assert.equal(queueHeading.x, 16, 'Publish list uses a single 16px mobile gutter')
+  const queueHeader = await page.locator('[data-publishing-workspace] > header').boundingBox()
+  assert.equal(queueHeader.x, 16, 'Publish header uses a single 16px mobile gutter')
   await capture('queue-mobile')
   await selectQueuePost(uid(840))
   await capture('detail-mobile')

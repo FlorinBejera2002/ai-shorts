@@ -11,7 +11,7 @@ import {
   type ScriptVersion,
   emptyScript
 } from '@/lib/scripts-workspace'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 function responseError(data: unknown, fallback: string) {
@@ -47,7 +47,9 @@ export function useScriptsWorkspace() {
   const [tone, setTone] = useState('entertaining')
   const [style, setStyle] = useState('talking_head')
   const [audience, setAudience] = useState('')
-  const [language, setLanguage] = useState('en')
+  // A new brief starts in the interface language when it is a supported script language.
+  const locale = useLocale()
+  const [language, setLanguage] = useState(() => (locale === 'ro' ? 'ro' : 'en'))
   const [status, setStatus] = useState('draft')
   const [script, setScript] = useState<GeneratedScript>(() => emptyScript())
   const [generating, setGenerating] = useState(false)

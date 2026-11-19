@@ -17,6 +17,28 @@ import { HEX_RE, normalizeHex } from './utils'
 
 type Translate = (key: string) => string
 
+/** Identity of the kit being edited (from the kits API). */
+export type BrandKitMeta = { id: string; name: string; isDefault: boolean; imageUrl: string | null }
+
+function kitEndpoints(kitId: string | null) {
+  const id = kitId ? encodeURIComponent(kitId) : null
+  return {
+    kit: id ? `/api/brand-kits/${id}` : '/api/user/brand',
+    logo: id ? `/api/user/brand/logo?kit=${id}` : '/api/user/brand/logo'
+  }
+}
+
+function readMeta(value: unknown): BrandKitMeta | null {
+  const kit = value as { id?: unknown; name?: unknown; isDefault?: unknown; imageUrl?: unknown } | null
+  if (!kit || typeof kit.id !== 'string') return null
+  return {
+    id: kit.id,
+    name: typeof kit.name === 'string' ? kit.name : '',
+    isDefault: kit.isDefault === true,
+    imageUrl: typeof kit.imageUrl === 'string' ? kit.imageUrl : null
+  }
+}
+
 function errorMessage(data: unknown, fallback: string) {
   if (!data || typeof data !== 'object') return fallback
   const payload = data as {
@@ -33,7 +55,10 @@ function errorMessage(data: unknown, fallback: string) {
   return payload.error || fallback
 }
 
-export function useBrandKit(t: Translate) {
+/** Loads and edits one brand kit; `kitId` null edits the account's default kit. */
+export function useBrandKit(t: Translate, kitId: string | null = null) {
+  const endpoints = useMemo(() => kitEndpoints(kitId), [kitId])
+  const [meta, setMeta] = useState<BrandKitMeta | null>(null)
   const toast = useToast()
   const { user } = useAuth()
   const [kit, setKit] = useState<BrandKit>(BRAND_DEFAULTS)
@@ -52,9 +77,10 @@ export function useBrandKit(t: Translate) {
     setLoading(true)
     setLoadError(false)
     try {
-      const response = await apiFetch('/api/user/brand')
+      const response = await apiFetch(endpoints.kit)
       if (!response.ok) throw new Error('Brand kit unavailable')
       const data = await response.json()
+      setMeta(readMeta(data.brandKit))
       const nextKit = Object.fromEntries(
         Object.entries(BRAND_DEFAULTS).map(([key, fallback]) => [
           key,
@@ -72,7 +98,7 @@ export function useBrandKit(t: Translate) {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [endpoints])
 
   useEffect(() => {
     void load()
@@ -113,6 +139,57 @@ export function useBrandKit(t: Translate) {
     setKit(persistedKit)
   }
 
+  function payloadFor(current: BrandKit) {
+    return {
+      ...Object.fromEntries(Object.keys(BRAND_DEFAULTS).map((key) => [key, current[key as keyof BrandKit]])),
+      logoUrl: undefined,
+      primaryColor: normalizeHex(current.primaryColor),
+      secondaryColor: normalizeHex(current.secondaryColor),
+      subtitleColor: normalizeHex(current.subtitleColor),
+      subtitleBgColor: normalizeHex(current.subtitleBgColor)
+    }
+  }
+
+  /**
+   * "Salvează ca kit nou": creates a kit from the saved one, writes the current edits into it
+   * and leaves this kit unchanged. Returns the new kit's id, or null on failure.
+   */
+  async function saveAsNew(name: string, makeDefault: boolean): Promise<{ id: string } | { error: string } | null> {
+    if (hasInvalidColor) {
+      toast.add('error', t('fixColors'))
+      return null
+    }
+    setSaving(true)
+    try {
+      const created = await apiFetch('/api/brand-kits', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, fromKitId: meta?.id ?? null, imagePath: null })
+      })
+      const data = await created.json().catch(() => null)
+      if (!created.ok) return { error: created.status === 409 ? t('kitNameTaken') : errorMessage(data, t('saveFailed')) }
+      const id = data.brandKit.id as string
+      const saved = await apiFetch(`/api/brand-kits/${encodeURIComponent(id)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payloadFor(kit))
+      })
+      if (!saved.ok) return { error: t('saveFailed') }
+      if (makeDefault)
+        await apiFetch(`/api/brand-kits/${encodeURIComponent(id)}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ isDefault: true })
+        })
+      setKit(persistedKit)
+      return { id }
+    } catch {
+      return { error: t('saveFailed') }
+    } finally {
+      setSaving(false)
+    }
+  }
+
   async function save() {
     if (hasInvalidColor) {
       toast.add('error', t('fixColors'))
@@ -120,20 +197,8 @@ export function useBrandKit(t: Translate) {
     }
     setSaving(true)
     try {
-      const payload = {
-        ...Object.fromEntries(
-          Object.keys(BRAND_DEFAULTS).map((key) => [
-            key,
-            kit[key as keyof BrandKit]
-          ])
-        ),
-        logoUrl: undefined,
-        primaryColor: normalizeHex(kit.primaryColor),
-        secondaryColor: normalizeHex(kit.secondaryColor),
-        subtitleColor: normalizeHex(kit.subtitleColor),
-        subtitleBgColor: normalizeHex(kit.subtitleBgColor)
-      }
-      const response = await apiFetch('/api/user/brand', {
+      const payload = payloadFor(kit)
+      const response = await apiFetch(endpoints.kit, {
         method: 'PUT',
         body: JSON.stringify(payload),
         headers: { 'Content-Type': 'application/json' }
@@ -171,7 +236,7 @@ export function useBrandKit(t: Translate) {
     try {
       const formData = new FormData()
       formData.append('file', file)
-      const response = await apiFetch('/api/user/brand/logo', {
+      const response = await apiFetch(endpoints.logo, {
         method: 'POST',
         body: formData
       })
@@ -197,7 +262,7 @@ export function useBrandKit(t: Translate) {
     if (logoBusy || saving) return
     setLogoBusy(true)
     try {
-      const response = await apiFetch('/api/user/brand/logo', {
+      const response = await apiFetch(endpoints.logo, {
         method: 'DELETE'
       })
       if (!response.ok) {
@@ -216,6 +281,9 @@ export function useBrandKit(t: Translate) {
 
   return {
     kit,
+    meta,
+    setMeta,
+    saveAsNew,
     plan,
     loading,
     loadError,

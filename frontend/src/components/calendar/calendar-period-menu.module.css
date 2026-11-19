@@ -1,0 +1,98 @@
+.trigger {
+  display: inline-flex;
+  height: 48px;
+  min-width: 0;
+  max-width: 100%;
+  align-items: center;
+  gap: 10px;
+  border: 0;
+  border-radius: var(--publish-pill-radius);
+  background: var(--publish-surface);
+  padding: 0 16px 0 18px;
+  color: var(--publish-text);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  box-shadow: inset 0 0 0 1.5px var(--publish-border-strong);
+  cursor: pointer;
+}
+
+.trigger:hover {
+  background: var(--publish-subtle-bg);
+}
+
+.trigger:focus-visible {
+  outline: 3px solid var(--publish-primary);
+  outline-offset: 2px;
+}
+
+.trigger > svg {
+  width: 18px;
+  height: 18px;
+  flex: none;
+  color: var(--publish-secondary-text);
+}
+
+.trigger > svg:last-child {
+  width: 16px;
+  height: 16px;
+}
+
+.label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-transform: capitalize;
+}
+
+.popover {
+  z-index: 60;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  outline: none;
+}
+
+.menu {
+  width: 260px;
+  padding: 8px;
+  border-radius: 20px;
+}
+
+.menu [role='menuitemradio'][aria-checked='true'] {
+  font-weight: 600;
+}
+
+.menu > [role='menuitemradio'] > svg,
+.menu > [role='menuitem'] > svg {
+  color: var(--publish-text);
+}
+
+@media (max-width: 1023px) {
+  .trigger {
+    height: 36px;
+    padding: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    font-size: 15px;
+  }
+
+  .trigger:hover {
+    background: transparent;
+  }
+
+  .menu {
+    width: 100%;
+    padding: 4px 0 0;
+    box-shadow: none;
+    border-radius: 0;
+  }
+
+  .menu > [role='menuitemradio'],
+  .menu > [role='menuitem'] {
+    height: 52px;
+    font-size: 15px;
+  }
+}

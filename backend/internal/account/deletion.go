@@ -102,6 +102,14 @@ func (h *Handler) freeze(ctx context.Context, userID string, snapshot deletionAc
 	if _, err = tx.ExecContext(ctx, `DELETE FROM social_oauth_states WHERE user_id=$1`, userID); err != nil {
 		return err
 	}
+	if _, err = tx.ExecContext(ctx, `DELETE FROM youtube_import_oauth_states WHERE user_id=$1`, userID); err != nil {
+		return err
+	}
+	// Fence in-flight imports and erase Google export credentials immediately.
+	// Imported files are covered by the existing owned-upload cleanup.
+	if _, err = tx.ExecContext(ctx, `UPDATE youtube_imports SET credentials='',status='cancelled',cleanup_pending=false,authorization_in_progress=false,lease_token=NULL,lease_until=NULL,updated_at=now() WHERE user_id=$1`, userID); err != nil {
+		return err
+	}
 	return tx.Commit()
 }
 

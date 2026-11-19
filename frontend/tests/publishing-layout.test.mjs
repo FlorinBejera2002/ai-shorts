@@ -8,7 +8,7 @@ const compiled = ts.transpileModule(source, {
   compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 }
 })
 const { getPublishingPosts, groupPublishingPosts } = await import(`data:text/javascript;base64,${Buffer.from(compiled.outputText).toString('base64')}`)
-const month = new Date(2026, 9, 1)
+const month = { start: new Date(2026, 9, 1), end: new Date(2026, 10, 1) }
 const post = (id, status, day) => ({ id, status, scheduledAt: new Date(2026, 9, day, 12).toISOString() })
 
 test('scheduled tab retains failed and in-flight posts in chronological order', () => {
@@ -42,4 +42,9 @@ test('day groups keep the local calendar day and collect drafts under Undated', 
   assert.equal(groups[0].date.getDate(), 21)
   assert.equal(groups[2].key, 'undated')
   assert.equal(groups[2].date, null)
+})
+
+test('failed tab lists only failed posts inside the requested range', () => {
+  const posts = [post('failed', 'failed', 22), post('scheduled', 'scheduled', 24), post('failed-next-month', 'failed', 32)]
+  assert.deepEqual(getPublishingPosts(posts, 'failed', month).map(item => item.id), ['failed'])
 })

@@ -1,0 +1,165 @@
+/* Desktop popover that hosts a provider panel; phones render the same panel in a sheet. */
+.popover {
+  z-index: 60;
+  width: 340px;
+  max-width: calc(100vw - 24px);
+  border: 0;
+  border-radius: 20px;
+  background: var(--publish-surface);
+  box-shadow: var(--publish-menu-shadow);
+  outline: none;
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  color: var(--publish-text);
+}
+
+.popover .panel {
+  padding: 16px;
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.brand {
+  width: 40px;
+  height: 40px;
+  flex: none;
+  border-radius: 50%;
+}
+
+.head > [data-slot] {
+  margin: 0;
+}
+
+.account {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 4px 12px;
+  padding: 12px;
+  border-radius: 16px;
+  box-shadow: inset 0 0 0 1px var(--publish-border);
+}
+
+.accountInfo {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.accountName {
+  overflow: hidden;
+  font-size: 15px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.handle {
+  overflow: hidden;
+  color: var(--publish-muted-text);
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--publish-success);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.status > span {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.status[data-state='reconnect'] {
+  color: var(--publish-warning);
+}
+
+.actions {
+  display: flex;
+  grid-column: 1 / -1;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.actions > button {
+  flex: 1 1 0;
+  height: 40px;
+  padding: 0 14px;
+  font-size: 14px;
+}
+
+.disconnect {
+  color: var(--publish-danger) !important;
+}
+
+.consent {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  color: var(--publish-secondary-text);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.consent input {
+  width: 18px;
+  height: 18px;
+  flex: none;
+  margin-top: 2px;
+  accent-color: var(--publish-primary);
+}
+
+.consent a {
+  color: var(--publish-text);
+  text-decoration: underline;
+}
+
+.confirmHead {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.confirmText {
+  margin: 0;
+}
+
+@media (max-width: 1023px) {
+  .panel {
+    gap: 16px;
+  }
+
+  .account {
+    padding: 14px;
+  }
+
+  .actions > button {
+    height: 48px;
+  }
+}
+
+.title {
+  margin: 0;
+  font-family: 'Sora Variable', Sora, sans-serif;
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 24px;
+}

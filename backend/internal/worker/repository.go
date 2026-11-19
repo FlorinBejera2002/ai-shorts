@@ -54,7 +54,7 @@ func (r *Repository) Claim(ctx context.Context) (*Job, error) {
 	}
 	var kit []byte
 	var plan, role string
-	err = tx.QueryRowContext(ctx, `SELECT `+entitlements.EffectivePlanSQL+`,u.access_role,coalesce((SELECT brand_snapshot FROM jobs WHERE id=$2),(SELECT to_jsonb(b) FROM brand_kits b WHERE b.user_id=u.id LIMIT 1),'{}'::jsonb) FROM users u WHERE u.id=$1`, j.UserID, j.ID).Scan(&plan, &role, &kit)
+	err = tx.QueryRowContext(ctx, `SELECT `+entitlements.EffectivePlanSQL+`,u.access_role,coalesce((SELECT brand_snapshot FROM jobs WHERE id=$2),(SELECT to_jsonb(b) FROM brand_kits b WHERE b.user_id=u.id AND b.is_default),'{}'::jsonb) FROM users u WHERE u.id=$1`, j.UserID, j.ID).Scan(&plan, &role, &kit)
 	if err != nil {
 		return nil, err
 	}

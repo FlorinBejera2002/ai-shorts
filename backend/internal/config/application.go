@@ -1,6 +1,7 @@
 package config
 
 import (
+	"encoding/base64"
 	"errors"
 	"net"
 	"net/netip"
@@ -16,6 +17,11 @@ type Application struct {
 	YouTubeMediaURLPrefix                                                                                                                                                                                   string
 	YouTubeAuditApproved                                                                                                                                                                                    bool
 	YouTubeImportApproved                                                                                                                                                                                   bool
+	YouTubePortabilityEnabled                                                                                                                                                                               bool
+	YouTubePortabilityTestMode                                                                                                                                                                              bool
+	YouTubePortabilityClientID, YouTubePortabilityClientSecret, YouTubePortabilityRedirectURL, YouTubePortabilityTempDirectory                                                                              string
+	YouTubePortabilityMaxBytes                                                                                                                                                                              int64
+	YouTubePortabilityMaxVideos                                                                                                                                                                             int
 	SocialEncryptionKey, MetaAppID, MetaAppSecret, InstagramAppID, InstagramAppSecret, TikTokClientKey, TikTokClientSecret, YouTubeClientID, YouTubeClientSecret, MetaGraphVersion, TikTokVerifiedURLPrefix string
 	SocialPublishingEnabled                                                                                                                                                                                 bool
 	AppURL, RedisURL, MediaRoot, StorageType, PublicMediaURL, SigningSecret, UploadSecret, StagingDirectory, DirectUploadURL                                                                                string
@@ -160,6 +166,45 @@ func ApplicationFromEnv(getenv func(string) string, environment string) (Applica
 		return a, errors.New("APP_URL must be an origin (HTTPS outside development/test)")
 	}
 	a.AppURL = strings.TrimRight(a.AppURL, "/")
+	a.YouTubePortabilityEnabled, err = parseBool("YOUTUBE_PORTABILITY_ENABLED", false)
+	if err != nil {
+		return a, err
+	}
+	a.YouTubePortabilityTestMode, err = parseBool("YOUTUBE_PORTABILITY_TEST_MODE", false)
+	if err != nil {
+		return a, err
+	}
+	a.YouTubePortabilityClientID = getenv("YOUTUBE_PORTABILITY_CLIENT_ID")
+	a.YouTubePortabilityClientSecret = getenv("YOUTUBE_PORTABILITY_CLIENT_SECRET")
+	a.YouTubePortabilityRedirectURL = value("YOUTUBE_PORTABILITY_REDIRECT_URL", a.AppURL+"/v1/youtube/import/callback")
+	a.YouTubePortabilityTempDirectory = getenv("YOUTUBE_PORTABILITY_TEMP_DIR")
+	importMB, err := parseInt("YOUTUBE_PORTABILITY_MAX_IMPORT_MB", 4096, 64, 32768)
+	if err != nil {
+		return a, err
+	}
+	a.YouTubePortabilityMaxBytes = int64(importMB) * 1024 * 1024
+	a.YouTubePortabilityMaxVideos, err = parseInt("YOUTUBE_PORTABILITY_MAX_VIDEOS", 100, 1, 500)
+	if err != nil {
+		return a, err
+	}
+	if a.YouTubePortabilityEnabled {
+		if a.YouTubePortabilityClientID == "" || a.YouTubePortabilityClientSecret == "" {
+			return a, errors.New("YouTube import requires YOUTUBE_PORTABILITY_CLIENT_ID and YOUTUBE_PORTABILITY_CLIENT_SECRET")
+		}
+		for _, existing := range []string{a.GoogleClientID, a.YouTubeClientID} {
+			if existing != "" && (existing == a.YouTubePortabilityClientID || sameGoogleOAuthProject(existing, a.YouTubePortabilityClientID)) {
+				return a, errors.New("YouTube import must use a dedicated Google Cloud project, separate from sign-in and publishing")
+			}
+		}
+		key, e := base64.StdEncoding.DecodeString(a.SocialEncryptionKey)
+		if e != nil || len(key) != 32 {
+			return a, errors.New("YouTube import requires SOCIAL_TOKEN_ENCRYPTION_KEY encoding 32 random bytes")
+		}
+		u, e := url.Parse(a.YouTubePortabilityRedirectURL)
+		if e != nil || u.Host != app.Host || u.Scheme != app.Scheme || u.User != nil || u.RawQuery != "" || u.Fragment != "" || u.Path != "/v1/youtube/import/callback" {
+			return a, errors.New("YOUTUBE_PORTABILITY_REDIRECT_URL must be the APP_URL origin followed by /v1/youtube/import/callback")
+		}
+	}
 	a.GoogleRedirectURL = value("GOOGLE_REDIRECT_URL", a.AppURL+"/v1/auth/google/callback")
 	if a.GoogleClientID != "" || a.GoogleClientSecret != "" {
 		if a.GoogleClientID == "" || a.GoogleClientSecret == "" {
@@ -214,4 +259,27 @@ func ApplicationFromEnv(getenv func(string) string, environment string) (Applica
 		}
 	}
 	return a, nil
+}
+
+// Google token revocation affects every OAuth client in the same project.
+// Recognize Google's standard project-number-prefixed client IDs so import
+// cleanup cannot inadvertently revoke sign-in or publishing authorization.
+func sameGoogleOAuthProject(a, b string) bool {
+	project := func(id string) string {
+		if !strings.HasSuffix(id, ".apps.googleusercontent.com") {
+			return ""
+		}
+		number, _, ok := strings.Cut(id, "-")
+		if !ok || number == "" {
+			return ""
+		}
+		for _, c := range number {
+			if c < '0' || c > '9' {
+				return ""
+			}
+		}
+		return number
+	}
+	p := project(a)
+	return p != "" && p == project(b)
 }

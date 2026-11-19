@@ -27,8 +27,11 @@ test('Home preserves its original cinematic design without shadcn controls', () 
 
 test('password rules follow both themes', () => {
   for (const page of ['register','reset-password']) {
-    const source=read(`src/app/[locale]/${page}/page.tsx`)
-    assert.doesNotMatch(source,/text-white\/30/)
-    assert.match(source,/text-muted-foreground/)
+    assert.match(read(`src/app/[locale]/${page}/page.tsx`),/<PasswordRules/)
   }
+  const rules=read('src/components/auth/password-rules.tsx')
+  const canvas=read('src/components/auth/auth-canvas.module.css')
+  assert.doesNotMatch(rules,/text-white\/30/)
+  assert.match(canvas,/\.rule \{[^}]*color: var\(--t3\)/)
+  assert.match(canvas,/:global\(\.dark\) \.canvas \{[^}]*--t3:/)
 })

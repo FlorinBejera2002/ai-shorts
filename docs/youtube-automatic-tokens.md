@@ -8,8 +8,12 @@ refreshes playback tokens without exporting a Google account session.
 Set `YOUTUBE_TOKEN_PROVIDER_URL=http://youtube-pot-provider:4416` in the worker.
 Production Compose supplies this default. For a native worker, configure a
 reachable provider explicitly and install the plugin in `/opt/yt-dlp/plugins`.
-The downloader uses the `mweb,tv,web_safari` clients in token mode. Account
-cookie files are not opened or copied in this mode, including expired exports.
+The downloader uses the `mweb,tv,web_safari` clients in token mode. The first
+attempt never opens account cookies. If YouTube answers with its "Sign in to
+confirm you're not a bot" check and a cookie export is provisioned at
+`YOUTUBE_COOKIES_PATH`, the worker retries once with tokens plus that private
+cookie copy, then keeps the refreshed session (see "YouTube download
+authentication" in `production-backend.md`). Without an export, the job error names the cookie/proxy remedy.
 An empty URL preserves the existing optional cookie-based downloader.
 
 Build the updated worker and start the provider before activating the worker.

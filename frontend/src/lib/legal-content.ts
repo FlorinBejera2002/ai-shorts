@@ -36,8 +36,8 @@ export type LegalDocumentCopy = {
 }
 
 const updated = {
-  en: 'Last updated: October 19, 2026',
-  ro: 'Ultima actualizare: 19 octombrie 2026'
+  en: 'Last updated: November 17, 2026',
+  ro: 'Ultima actualizare: 17 noiembrie 2026'
 } as const
 
 export const PRIVACY_COPY: Record<SiteLocale, LegalDocumentCopy> = {
@@ -69,6 +69,20 @@ export const PRIVACY_COPY: Record<SiteLocale, LegalDocumentCopy> = {
             label: 'Google account permissions',
             href: 'https://myaccount.google.com/permissions'
           }
+        ]
+      },
+      {
+        title: 'Importing your own YouTube videos with Google Data Portability',
+        paragraphs: [
+          'Importing is a separate, optional authorization from connecting a YouTube channel for publishing. Only after the import disclosure and your explicit authorization do we request Google Data Portability permissions for the public, unlisted or private videos you choose to include. These permissions let us copy videos you uploaded and their accompanying metadata into your Sneep Cut account. We do not request your Google password or browser cookies for this flow.',
+          'We store imported video files, names, export metadata and import status to provide your media library. When you select an imported video for clip creation, we process its video and audio to transcribe speech, identify highlights, reframe, caption and render the clips you request. Necessary processing providers may receive the media or derived text under the safeguards described below. We do not sell the data, use it for advertising, or use it to train general-purpose AI models. Google user data is used only for the clearly disclosed user-facing features and in accordance with the Google Data Portability User Data and Developer Policy and applicable Limited Use requirements.',
+          'Export preparation is performed by Google and may take minutes or hours. Availability depends on Google account and country eligibility, including Romania where the feature is supported; some managed, protected or under-age accounts may not qualify. You can upload an original video instead when this import is unavailable.',
+          'You can stop an import from Create clips to prevent further copying. You may also revoke access through your Google account connections. Revocation or stopping an import does not delete files already copied to Sneep Cut or videos on YouTube. Remove imported videos from the import library to delete their library entries and unreferenced source files; source files still used by existing projects or processing jobs follow those projects\' retention controls. Account deletion and privacy deletion requests apply to imported media as described in this policy. We retain encrypted import credentials only as long as needed to finish the authorized transfer or complete authorization reset or revocation, including necessary retries, then erase them. Account deletion immediately erases any locally stored import credentials. We do not include tokens or temporary Google download URLs in account exports.'
+        ],
+        links: [
+          { label: 'Google Data Portability policy', href: 'https://developers.google.com/data-portability/policy' },
+          { label: 'Google account connections', href: 'https://myaccount.google.com/connections' },
+          { label: 'Supported accounts and countries', href: 'https://support.google.com/accounts/answer/14452558' }
         ]
       },
       {
@@ -214,6 +228,20 @@ export const PRIVACY_COPY: Record<SiteLocale, LegalDocumentCopy> = {
             label: 'Google account permissions',
             href: 'https://myaccount.google.com/permissions'
           }
+        ]
+      },
+      {
+        title: 'Importul propriilor videoclipuri YouTube prin Google Data Portability',
+        paragraphs: [
+          'Importul presupune o autorizare separată și opțională față de conectarea canalului YouTube pentru publicare. Solicităm permisiuni Google Data Portability numai după informarea privind importul și autorizarea ta explicită, pentru videoclipurile publice, nelistate sau private pe care alegi să le incluzi. Aceste permisiuni ne permit să copiem videoclipurile încărcate de tine și metadatele lor în contul tău Sneep Cut. Nu solicităm parola Google sau cookie-uri din browser pentru acest flux.',
+          'Stocăm fișierele video importate, numele, metadatele exportului și starea importului pentru a furniza biblioteca ta media. Când selectezi un videoclip importat pentru generare, îi prelucrăm imaginea și sunetul pentru transcriere, identificarea momentelor importante, reîncadrare, subtitrare și randarea clipurilor cerute. Furnizorii necesari procesării pot primi fișierele sau textul derivat conform garanțiilor descrise mai jos. Nu vindem datele, nu le folosim pentru publicitate și nu le folosim pentru antrenarea modelelor AI de uz general. Datele Google sunt utilizate numai pentru funcțiile vizibile prezentate explicit și conform Politicii Google Data Portability privind datele utilizatorilor și dezvoltatorii și cerințelor Limited Use aplicabile.',
+          'Google pregătește exportul, iar acesta poate dura minute sau ore. Disponibilitatea depinde de eligibilitatea contului Google și de țară, inclusiv România unde funcția este acceptată; unele conturi administrate, protejate sau ale minorilor pot fi neeligibile. Când importul nu este disponibil, poți încărca videoclipul original.',
+          'Poți opri un import din Creează clipuri pentru a împiedica copierea ulterioară. Poți revoca accesul și din conexiunile contului Google. Revocarea sau oprirea importului nu șterge fișierele deja copiate în Sneep Cut ori videoclipurile din YouTube. Elimină videoclipurile din biblioteca de import pentru a șterge înregistrările lor și fișierele sursă neutilizate; sursele folosite încă de proiecte sau lucrări de procesare urmează regulile de retenție ale acestora. Ștergerea contului și cererile de ștergere se aplică fișierelor importate conform acestei politici. Păstrăm credențialele de import criptate numai atât cât este necesar pentru finalizarea transferului autorizat sau a resetării ori revocării autorizării, inclusiv reîncercările necesare, apoi le ștergem. Ștergerea contului elimină imediat toate credențialele de import stocate local. Nu includem tokenuri ori URL-uri Google temporare de descărcare în exporturile contului.'
+        ],
+        links: [
+          { label: 'Politica Google Data Portability', href: 'https://developers.google.com/data-portability/policy' },
+          { label: 'Conexiunile contului Google', href: 'https://myaccount.google.com/connections' },
+          { label: 'Conturi și țări acceptate', href: 'https://support.google.com/accounts/answer/14452558' }
         ]
       },
       {

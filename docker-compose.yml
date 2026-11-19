@@ -69,6 +69,7 @@ services:
       TRUSTED_PROXY_CIDRS: ${TRUSTED_PROXY_CIDRS:-172.16.0.0/12,192.168.0.0/16}
       STUDIO_AGENT_URL: ${STUDIO_AGENT_URL:-http://studio:5191}
       STUDIO_AGENT_SECRET: ${STUDIO_AGENT_SECRET:-}
+      YOUTUBE_PORTABILITY_TEMP_DIR: /app/youtube-import-tmp
     depends_on:
       postgres:
         condition: service_healthy
@@ -79,6 +80,7 @@ services:
     volumes:
       - ${SNEEPCUT_RUNTIME_ROOT:-../ai-shorts-runtime}/media:/app/media
       - ${SNEEPCUT_RUNTIME_ROOT:-../ai-shorts-runtime}/tmp/backend:/tmp
+      - ${SNEEPCUT_RUNTIME_ROOT:-../ai-shorts-runtime}/tmp/youtube-import:/app/youtube-import-tmp
     expose:
       - "8080"
     read_only: true

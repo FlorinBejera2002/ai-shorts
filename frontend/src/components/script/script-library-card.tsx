@@ -1,7 +1,7 @@
 'use client'
 
 import type { ScriptRecord } from '@/lib/scripts-workspace'
-import { ChevronRight } from 'lucide-react'
+import { ChevronRight, Clock } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
 import { ScriptPlatformBadge, ScriptStatusPill } from './script-badges'
 import { formatUpdated } from './script-format'
@@ -48,12 +48,13 @@ export function ScriptLibraryCard({
         {record.topic || t('workspace.noBrief')}
       </p>
       <p className={styles.cardMeta}>
-        <span>{t('workspace.seconds', { count: record.targetDurationSeconds })}</span>
+        <Clock className={styles.cardClock} aria-hidden="true" />
+        <span>{t('workspace.secondsSpaced', { count: record.targetDurationSeconds })}</span>
         <span aria-hidden="true" className={styles.cardScenes}>
           ·
         </span>
         <span className={styles.cardScenes}>
-          {t('workspace.sceneCount', { count: sceneCount })}
+          {t('workspace.sceneCountOrNone', { count: sceneCount })}
         </span>
         <span aria-hidden="true" className={styles.cardMobileDot}>
           ·

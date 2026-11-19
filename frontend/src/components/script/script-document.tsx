@@ -103,15 +103,14 @@ export function ScriptDocument({ workspace: w }: { workspace: ScriptsWorkspace }
         />
       </section>
 
-      <section className={styles.scenes} aria-labelledby="script-scenes-heading">
+      <section
+        className={`${shared.card} ${styles.scenes}`}
+        aria-labelledby="script-scenes-heading"
+      >
         <div className={styles.scenesHeader}>
           <h2 id="script-scenes-heading">{t('scenesLabel')}</h2>
           <span className={styles.scenesSummary}>
             {t('workspace.sceneCount', { count: scenes.length })} ·{' '}
-            {t('workspace.secondsSpaced', { count: totalSceneSeconds(scenes) })}
-          </span>
-          <span className={styles.scenesSummaryCompact}>
-            {scenes.length} ·{' '}
             {t('workspace.secondsSpaced', { count: totalSceneSeconds(scenes) })}
           </span>
         </div>
@@ -147,20 +146,20 @@ export function ScriptDocument({ workspace: w }: { workspace: ScriptsWorkspace }
       </section>
 
       <section className={`${shared.card} ${styles.footer}`}>
-        <div className={shared.field}>
-          <label htmlFor="script-cta">{t('ctaLabel')}</label>
+        <div className={styles.footerField}>
+          <label htmlFor="script-cta">{t('workspace.callToActionLabel')}</label>
           <input
             id="script-cta"
-            className={shared.control}
+            className={styles.boxControl}
             value={w.script.call_to_action}
             onChange={(event) => updateField('call_to_action', event.target.value)}
           />
         </div>
-        <div className={shared.field}>
+        <div className={styles.footerField}>
           <label htmlFor="script-caption">{t('captionLabel')}</label>
           <textarea
             id="script-caption"
-            className={shared.control}
+            className={styles.boxControl}
             rows={2}
             value={w.script.caption}
             onChange={(event) => updateField('caption', event.target.value)}

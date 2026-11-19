@@ -4,6 +4,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
 import {
@@ -13,7 +14,7 @@ import {
   Copy,
   Download,
   FileJson,
-  MoreHorizontal,
+  MoreVertical,
   X
 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
@@ -54,15 +55,16 @@ export function ScriptEditorToolbar({
 
   return (
     <header className={styles.toolbar} data-script-toolbar="">
-      <button
-        type="button"
-        className={styles.backButton}
-        onClick={w.backToLibrary}
-      >
+      <button type="button" className={styles.backButton} onClick={w.backToLibrary}>
         <ChevronLeft aria-hidden="true" />
-        <span className={styles.backLabel}>{t('workspace.title')}</span>
+        <span>{t('workspace.backLabel')}</span>
       </button>
-      <ScriptStatusSelect value={w.status} onValueChange={w.setStatus} />
+      {!compact && <span className={styles.toolbarDivider} aria-hidden="true" />}
+      <ScriptStatusSelect
+        value={w.status}
+        onValueChange={w.setStatus}
+        compact={compact}
+      />
       <ScriptSaveStatus
         state={w.saveState}
         revision={w.revision}
@@ -80,12 +82,12 @@ export function ScriptEditorToolbar({
             aria-haspopup="dialog"
             onClick={() => setActionsOpen(true)}
           >
-            <MoreHorizontal aria-hidden="true" />
+            <MoreVertical aria-hidden="true" />
           </button>
           <ScriptSheet
             open={actionsOpen}
             onOpenChange={setActionsOpen}
-            title={t('workspace.scriptActions')}
+            title={t('workspace.actionsTitle')}
           >
             <button
               type="button"
@@ -133,7 +135,6 @@ export function ScriptEditorToolbar({
             open={w.showVersions}
             onOpenChange={(open) => void w.openVersions(open)}
             title={t('workspace.versions')}
-            showTitle
             className={styles.versionsSheet}
           >
             {versionList}
@@ -146,7 +147,7 @@ export function ScriptEditorToolbar({
             onOpenChange={(open) => void w.openVersions(open)}
           >
             <Popover.Trigger asChild>
-              <button type="button" className={styles.toolbarButton}>
+              <button type="button" className={styles.versionsButton}>
                 <Clock aria-hidden="true" />
                 {t('workspace.versions')}
               </button>
@@ -163,7 +164,7 @@ export function ScriptEditorToolbar({
                 <div className={styles.versionsHeader}>
                   <h2>{t('workspace.versions')}</h2>
                   <Popover.Close
-                    className={`${shared.iconButton} ${styles.closeButton}`}
+                    className={styles.closeButton}
                     aria-label={t('workspace.close')}
                   >
                     <X aria-hidden="true" />
@@ -198,7 +199,7 @@ export function ScriptEditorToolbar({
                 className={`${shared.iconButton} ${styles.toolbarIcon}`}
                 aria-label={t('workspace.moreActions')}
               >
-                <MoreHorizontal aria-hidden="true" />
+                <MoreVertical aria-hidden="true" />
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent
@@ -211,13 +212,16 @@ export function ScriptEditorToolbar({
                 className={shared.menuItem}
                 onSelect={w.downloadJson}
               >
+                <FileJson aria-hidden="true" />
                 {t('workspace.downloadJson')}
               </DropdownMenuItem>
+              <DropdownMenuSeparator className={styles.menuSeparator} />
               <DropdownMenuItem
                 className={`${shared.menuItem} ${shared.menuDanger}`}
                 disabled={archived}
                 onSelect={() => void w.archiveScript()}
               >
+                <Archive aria-hidden="true" />
                 {t('workspace.archive')}
               </DropdownMenuItem>
             </DropdownMenuContent>

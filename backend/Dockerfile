@@ -98,6 +98,9 @@ RUN apt-get update \
 COPY --from=build /api /api
 COPY --from=build /adminctl /adminctl
 COPY --from=build --chown=10001:10001 /media /app/media
+# Google exports can be several GB. Keep staging on a private disk volume,
+# outside served media and the API's memory-backed /tmp.
+RUN install -d -o 10001 -g 10001 -m 0700 /app/youtube-import-tmp
 # API and worker share the installed model inventory used by admin routing.
 # Worker inherits these layers; model changes never accept arbitrary paths.
 COPY --from=speech-build /whisper/models/ggml-base.bin /models/ggml-base.bin
@@ -126,6 +129,9 @@ ENV YTDLP_PATH=/opt/yt-dlp/yt-dlp XDG_CACHE_HOME=/tmp/.cache DENO_DIR=/tmp/deno
 COPY --from=speech-build /whisper/build/bin/whisper-cli /usr/local/bin/whisper-cli
 COPY --from=speech-build /whisper/build/bin/whisper-vad-speech-segments /usr/local/bin/whisper-vad-speech-segments
 ENV WHISPER_CPP_PATH=/usr/local/bin/whisper-cli
+# Writable home for the refreshed YouTube session; a named volume mounted here
+# inherits this ownership.
+RUN install -d -o 10001 -g 10001 -m 0700 /app/youtube-session
 USER 10001:10001
 ENTRYPOINT ["/worker"]
 

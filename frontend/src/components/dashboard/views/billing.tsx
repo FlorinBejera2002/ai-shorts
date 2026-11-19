@@ -1,12 +1,9 @@
 'use client'
 
 import { useAuth } from '@/components/auth/use-auth'
-import { BillingInitialState } from '@/components/billing/billing-initial-state'
+import { BillingLoadError, BillingLoading } from '@/components/billing/billing-initial-state'
 import { BillingPageHeader } from '@/components/billing/billing-page-header'
-import {
-  BillingWorkspaceViews,
-  type BillingView
-} from '@/components/billing/billing-workspace-views'
+import { BillingWorkspaceViews, type BillingView } from '@/components/billing/billing-workspace-views'
 import { useBillingResource } from '@/components/billing/use-billing-resource'
 import { usePlanCatalog } from '@/components/billing/use-plan-catalog'
 import { WorkspaceMobileHeader } from '@/components/dashboard/workspace-mobile-header'
@@ -14,19 +11,14 @@ import { normalizeBillingLocale } from '@/lib/billing'
 import { useLocale, useTranslations } from 'next-intl'
 import { useSearchParams } from 'next/navigation'
 import { Suspense, useState, type ReactNode } from 'react'
+import ui from '@/components/billing/billing-ui.module.css'
 import styles from '@/components/billing/billing-page.module.css'
 import theme from '@/components/calendar/publishing-theme.module.css'
 
-function BillingFrame({
-  children,
-  view = 'overview'
-}: {
-  children: ReactNode
-  view?: BillingView
-}) {
+function BillingFrame({ children, view = 'overview' }: { children: ReactNode; view?: BillingView }) {
   return (
     <div
-      className={`${theme.surface} ${styles.workspace}`}
+      className={`${theme.surface} ${ui.tokens} ${styles.workspace}`}
       data-reference-surface=""
       data-billing-workspace=""
       data-view={view}
@@ -37,19 +29,19 @@ function BillingFrame({
   )
 }
 
-function BillingLoading() {
+function BillingSuspenseFallback() {
   const t = useTranslations('billing.workspaceDesign')
   return (
     <BillingFrame>
       <BillingPageHeader title={t('title')} onBack={() => {}} />
-      <BillingInitialState />
+      <BillingLoading />
     </BillingFrame>
   )
 }
 
 export default function BillingPage() {
   return (
-    <Suspense fallback={<BillingLoading />}>
+    <Suspense fallback={<BillingSuspenseFallback />}>
       <BillingPageContent />
     </Suspense>
   )
@@ -66,8 +58,7 @@ function BillingPageContent() {
   const planCatalog = usePlanCatalog()
   const [view, setView] = useState<BillingView>('overview')
   const { data, error, reload, recovering } = resource
-  const unlimited =
-    data?.account.creditsUnlimited ?? authenticatedUser?.access_role === 'admin'
+  const unlimited = data?.account.creditsUnlimited ?? authenticatedUser?.access_role === 'admin'
   const currentView = unlimited && view === 'plans' ? 'overview' : view
   const titles = {
     overview: t('workspaceDesign.title'),
@@ -79,11 +70,9 @@ function BillingPageContent() {
   function navigate(next: BillingView) {
     setView(next)
     requestAnimationFrame(() => {
-      const heading = document.querySelector<HTMLElement>(
-        '[data-billing-title]'
-      )
+      const heading = document.querySelector<HTMLElement>('[data-billing-title]')
       heading?.focus({ preventScroll: true })
-      heading?.scrollIntoView({ block: 'start' })
+      window.scrollTo({ top: 0 })
     })
   }
 
@@ -93,9 +82,7 @@ function BillingPageContent() {
         title={titles[currentView]}
         detail={currentView !== 'overview'}
         onBack={() => navigate('overview')}
-        onRefresh={
-          data && currentView === 'overview' ? () => void reload() : undefined
-        }
+        onRefresh={data && currentView === 'overview' ? () => void reload() : undefined}
         refreshing={recovering}
       />
       {data ? (
@@ -109,11 +96,10 @@ function BillingPageContent() {
           canceled={billingSearch.get('canceled') === 'true'}
           onNavigate={navigate}
         />
+      ) : error ? (
+        <BillingLoadError onRetry={() => void reload()} retrying={recovering} />
       ) : (
-        <BillingInitialState
-          error={Boolean(error)}
-          retry={() => void reload()}
-        />
+        <BillingLoading />
       )}
     </BillingFrame>
   )

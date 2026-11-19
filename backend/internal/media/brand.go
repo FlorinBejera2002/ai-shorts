@@ -74,9 +74,16 @@ func camelCase(key string) string {
 	}
 	return strings.Join(parts, "")
 }
+// GetBrand returns the account's default kit.
 func (s *Service) GetBrand(ctx context.Context, userID string) (map[string]any, error) {
+	return s.GetKit(ctx, userID, "")
+}
+
+// GetKit returns one of the account's kits (the default one when kitID is empty), with a
+// signed logo URL. A missing kit is nil, not an error.
+func (s *Service) GetKit(ctx context.Context, userID, kitID string) (map[string]any, error) {
 	var raw []byte
-	e := s.db.QueryRowContext(ctx, `SELECT to_jsonb(b) FROM brand_kits b WHERE user_id=$1`, userID).Scan(&raw)
+	e := s.db.QueryRowContext(ctx, `SELECT to_jsonb(b) FROM brand_kits b WHERE user_id=$1 AND (CASE WHEN $2='' THEN is_default ELSE id::text=$2 END)`, userID, kitID).Scan(&raw)
 	if errors.Is(e, sql.ErrNoRows) {
 		return nil, nil
 	}
@@ -91,22 +98,68 @@ func (s *Service) GetBrand(ctx context.Context, userID string) (map[string]any, 
 	for k, v := range fields {
 		result[camelCase(k)] = v
 	}
-	result["logoUrl"] = nil
-	if reference, ok := result["logoPath"].(string); ok && reference != "" {
-		key, e := s.ownedLogoKey(reference, userID, false)
-		if e == nil {
-			exists, e := s.Storage.Exists(ctx, key)
-			if e == nil && exists {
-				signed, e := s.SignedURL(ctx, key)
-				if e == nil {
-					result["logoUrl"] = signed
-				}
-			}
-		}
-	}
+	result["logoUrl"] = s.signedBrandImage(ctx, userID, result["logoPath"])
+	result["imageUrl"] = s.signedBrandImage(ctx, userID, result["imagePath"])
 	return result, nil
 }
+
+// signedBrandImage signs a logo or kit image stored in the user's brand folder; nil when absent.
+func (s *Service) signedBrandImage(ctx context.Context, userID string, value any) any {
+	reference, ok := value.(string)
+	if !ok || reference == "" {
+		return nil
+	}
+	key, e := s.ownedLogoKey(reference, userID, false)
+	if e != nil {
+		return nil
+	}
+	if exists, e := s.Storage.Exists(ctx, key); e != nil || !exists {
+		return nil
+	}
+	signed, e := s.SignedURL(ctx, key)
+	if e != nil {
+		return nil
+	}
+	return signed
+}
+
+// ListKits returns every kit of the account, default first, then most recently edited.
+func (s *Service) ListKits(ctx context.Context, userID string) ([]map[string]any, error) {
+	rows, e := s.db.QueryContext(ctx, `SELECT id::text FROM brand_kits WHERE user_id=$1 ORDER BY is_default DESC,updated_at DESC,id`, userID)
+	if e != nil {
+		return nil, e
+	}
+	var ids []string
+	for rows.Next() {
+		var id string
+		if e = rows.Scan(&id); e != nil {
+			rows.Close()
+			return nil, e
+		}
+		ids = append(ids, id)
+	}
+	e = rows.Err()
+	rows.Close()
+	if e != nil {
+		return nil, e
+	}
+	kits := make([]map[string]any, 0, len(ids))
+	for _, id := range ids {
+		kit, e := s.GetKit(ctx, userID, id)
+		if e != nil {
+			return nil, e
+		}
+		if kit != nil {
+			kits = append(kits, kit)
+		}
+	}
+	return kits, nil
+}
 func (s *Service) setBrandLogo(ctx context.Context, userID string, key *string) error {
+	return s.setKitLogo(ctx, userID, "", key)
+}
+
+func (s *Service) setKitLogo(ctx context.Context, userID, kitID string, key *string) error {
 	tx, e := s.db.BeginTx(ctx, nil)
 	if e != nil {
 		return e
@@ -115,7 +168,7 @@ func (s *Service) setBrandLogo(ctx context.Context, userID string, key *string) 
 	if e = lockBrandLogoUser(ctx, tx, userID); e != nil {
 		return e
 	}
-	if e = writeBrandLogo(ctx, tx, userID, key); e != nil {
+	if e = writeBrandLogo(ctx, tx, userID, kitID, key); e != nil {
 		return e
 	}
 	return tx.Commit()
@@ -145,24 +198,48 @@ func lockBrandLogoUser(ctx context.Context, tx *sql.Tx, userID string) error {
 	return nil
 }
 
-func writeBrandLogo(ctx context.Context, tx *sql.Tx, userID string, key *string) error {
+// writeBrandLogo sets a kit's logo. The default kit is created on first use; a named kit must exist.
+func writeBrandLogo(ctx context.Context, tx *sql.Tx, userID, kitID string, key *string) error {
+	if kitID != "" {
+		result, e := tx.ExecContext(ctx, `UPDATE brand_kits SET logo_path=$3,logo_url=NULL,updated_at=now() WHERE id::text=$1 AND user_id=$2`, kitID, userID, key)
+		if e != nil {
+			return e
+		}
+		if n, e := result.RowsAffected(); e != nil || n == 0 {
+			return failure(404, "Brand kit not found")
+		}
+		return nil
+	}
 	id, e := randomUUID()
 	if e != nil {
 		return e
 	}
-	_, e = tx.ExecContext(ctx, `INSERT INTO brand_kits(id,user_id,logo_path,logo_url,primary_color,secondary_color,font_family,apply_brand_colors,apply_brand_font,subtitle_font,subtitle_color,subtitle_bg_color,subtitle_bg_opacity,subtitle_position,watermark_position,watermark_opacity,hide_platform_badge,created_at,updated_at)
-	VALUES($1,$2,$3,NULL,'#6366f1','#8b5cf6','Inter',false,false,'Inter Bold','#FFFFFF','#000000',0.7,'bottom','bottom-right',0.8,false,now(),now())
-	ON CONFLICT(user_id) DO UPDATE SET logo_path=excluded.logo_path,logo_url=NULL,updated_at=now()`, id, userID, key)
+	_, e = tx.ExecContext(ctx, `INSERT INTO brand_kits(id,user_id,is_default,logo_path,logo_url,primary_color,secondary_color,font_family,apply_brand_colors,apply_brand_font,subtitle_font,subtitle_color,subtitle_bg_color,subtitle_bg_opacity,subtitle_position,watermark_position,watermark_opacity,hide_platform_badge,created_at,updated_at)
+	VALUES($1,$2,true,$3,NULL,'#6366f1','#8b5cf6','Inter',false,false,'Inter Bold','#FFFFFF','#000000',0.7,'bottom','bottom-right',0.8,false,now(),now())
+	ON CONFLICT(user_id) WHERE is_default DO UPDATE SET logo_path=excluded.logo_path,logo_url=NULL,updated_at=now()`, id, userID, key)
 	if e != nil {
 		return e
 	}
 	return nil
 }
+// kitParam reads the optional ?kit=<id> that targets a named kit instead of the default one.
+func kitParam(r *http.Request) (string, error) {
+	kit := r.URL.Query().Get("kit")
+	if kit != "" && !uuidPattern.MatchString(kit) {
+		return "", failure(400, "Invalid brand kit")
+	}
+	return kit, nil
+}
 func (h *Handler) getLogo(w http.ResponseWriter, r *http.Request) {
 	userID := identity.Current(r).User.ID
 	reference := r.URL.Query().Get("logo_path")
+	kit, e := kitParam(r)
+	if e != nil {
+		mediaError(w, e)
+		return
+	}
 	if r.URL.Path == "/api/user/brand/logo" && reference == "" {
-		brand, e := h.service.GetBrand(r.Context(), userID)
+		brand, e := h.service.GetKit(r.Context(), userID, kit)
 		if e != nil {
 			mediaError(w, e)
 			return
@@ -193,6 +270,11 @@ func (h *Handler) getLogo(w http.ResponseWriter, r *http.Request) {
 }
 func (h *Handler) uploadLogo(w http.ResponseWriter, r *http.Request) {
 	userID := identity.Current(r).User.ID
+	kit, e := kitParam(r)
+	if e != nil {
+		mediaError(w, e)
+		return
+	}
 	if e := h.service.allow(r.Context(), userID, "logo", 10); e != nil {
 		mediaError(w, e)
 		return
@@ -238,7 +320,7 @@ func (h *Handler) uploadLogo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if r.URL.Path == "/api/user/brand/logo" {
-		e = h.service.setBrandLogo(r.Context(), userID, &key)
+		e = h.service.setKitLogo(r.Context(), userID, kit, &key)
 	} else {
 		e = h.service.accountActive(r.Context(), userID, true)
 	}
@@ -250,7 +332,7 @@ func (h *Handler) uploadLogo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if r.URL.Path == "/api/user/brand/logo" {
-		brand, e := h.service.GetBrand(r.Context(), userID)
+		brand, e := h.service.GetKit(r.Context(), userID, kit)
 		if e != nil {
 			mediaError(w, e)
 			return
@@ -262,6 +344,11 @@ func (h *Handler) uploadLogo(w http.ResponseWriter, r *http.Request) {
 }
 func (h *Handler) deleteLogo(w http.ResponseWriter, r *http.Request) {
 	userID := identity.Current(r).User.ID
+	kit, e := kitParam(r)
+	if e != nil {
+		mediaError(w, e)
+		return
+	}
 	if e := h.service.allow(r.Context(), userID, "delete-logo", 30); e != nil {
 		mediaError(w, e)
 		return
@@ -270,7 +357,7 @@ func (h *Handler) deleteLogo(w http.ResponseWriter, r *http.Request) {
 	browser := r.URL.Path == "/api/user/brand/logo"
 	if browser {
 		var stored sql.NullString
-		e := h.service.db.QueryRowContext(r.Context(), `SELECT logo_path FROM brand_kits WHERE user_id=$1`, userID).Scan(&stored)
+		e := h.service.db.QueryRowContext(r.Context(), `SELECT logo_path FROM brand_kits WHERE user_id=$1 AND (CASE WHEN $2='' THEN is_default ELSE id::text=$2 END)`, userID, kit).Scan(&stored)
 		if e != nil && !errors.Is(e, sql.ErrNoRows) {
 			mediaError(w, e)
 			return
@@ -297,11 +384,11 @@ func (h *Handler) deleteLogo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if browser {
-		if e := h.service.setBrandLogo(r.Context(), userID, nil); e != nil {
+		if e := h.service.setKitLogo(r.Context(), userID, kit, nil); e != nil {
 			mediaError(w, e)
 			return
 		}
-		brand, e := h.service.GetBrand(r.Context(), userID)
+		brand, e := h.service.GetKit(r.Context(), userID, kit)
 		if e != nil {
 			mediaError(w, e)
 			return

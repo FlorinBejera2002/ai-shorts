@@ -67,14 +67,14 @@ func (r *Repository) List(ctx context.Context, userID string) (map[string]any, e
 		return nil, err
 	}
 	for folders.Next() {
-		var id, job, name string
-		var parent sql.NullString
+		var id, name string
+		var job, parent sql.NullString
 		var created any
 		if err = folders.Scan(&id, &job, &parent, &name, &created); err != nil {
 			folders.Close()
 			return nil, err
 		}
-		if p := byID[job]; p != nil {
+		if p := byID[job.String]; job.Valid && p != nil {
 			p["folders"] = append(p["folders"].([]map[string]any), map[string]any{"id": id, "parentId": nullable(parent), "name": name, "createdAt": created})
 		}
 	}
@@ -117,7 +117,11 @@ func (r *Repository) List(ctx context.Context, userID string) (map[string]any, e
 	if err = clips.Err(); err != nil {
 		return nil, err
 	}
-	return map[string]any{"projects": projects}, nil
+	collections, err := r.listCollections(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	return map[string]any{"projects": projects, "collections": collections}, nil
 }
 
 func nullable(v sql.NullString) any {

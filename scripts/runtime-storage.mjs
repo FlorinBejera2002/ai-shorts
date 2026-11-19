@@ -9,7 +9,7 @@ const helperImage = 'alpine:3.22@sha256:2e0b81d60597f449baa56dc25d355367869d2dca
 const markerName = '.sneepcut-runtime.json'
 const directories = [
   ['media', 10001], ['studio', 1000], ['seaweedfs', 1000],
-  ['tmp/backend', 10001], ['tmp/worker', 10001], ['tmp/studio', 1000],
+  ['tmp/backend', 10001], ['tmp/youtube-import', 10001], ['tmp/worker', 10001], ['tmp/studio', 1000],
   ['tmp/nginx', 10001], ['tmp/admin', 10001], ['tmp/frontend', 1000], ['tmp/seaweedfs', 1000],
   ['cache/go-build', 10001], ['cache/frontend', 1000], ['cache/admin', 1000]
 ]

@@ -17,9 +17,9 @@
   --publish-dashed-border: #9fb0c8;
   --publish-upload-border: #c9d5e7;
   --publish-upload-border-mobile: #b9c5d6;
-  --publish-primary: #2563eb;
-  --publish-primary-hover: #1d4ed8;
-  --publish-primary-ring: #dbeafe;
+  --publish-primary: #0b0b0c;
+  --publish-primary-hover: #26262a;
+  --publish-primary-ring: #e4e7ec;
   --publish-on-primary: #fff;
   --publish-selected: #152035;
   --publish-selected-hover: #263650;
@@ -71,7 +71,7 @@
   --publish-card-shadow: 0 1px 3px rgba(21, 32, 53, .06);
   --publish-preview-shadow: 0 1px 3px rgba(21, 32, 53, .06), 0 12px 32px rgba(21, 32, 53, .06);
   --publish-dialog-shadow: 0 24px 64px rgba(21, 32, 53, .25);
-  --publish-primary-shadow: 0 6px 16px rgba(37, 99, 235, .25);
+  --publish-primary-shadow: 0 6px 16px rgba(11, 11, 12, .16);
   --publish-account-dialog-shadow: 0 24px 80px rgba(21, 32, 53, .16);
   --publish-menu-shadow: 0 12px 32px rgba(21, 32, 53, .12);
   --publish-picker-shadow: 0 12px 40px rgba(21, 32, 53, .16);
@@ -99,10 +99,10 @@
   --publish-dashed-border: #60728e;
   --publish-upload-border: #536680;
   --publish-upload-border-mobile: #536680;
-  --publish-primary: #7aa7ff;
-  --publish-primary-hover: #a3c2ff;
-  --publish-primary-ring: #304976;
-  --publish-on-primary: #0c1524;
+  --publish-primary: #8e9bb0;
+  --publish-primary-hover: #a6b2c4;
+  --publish-primary-ring: #334158;
+  --publish-on-primary: #0e131c;
   --publish-selected: #e8eef9;
   --publish-selected-hover: #cbd8ee;
   --publish-on-selected: #111722;
@@ -127,7 +127,7 @@
   --publish-card-shadow: 0 1px 3px rgb(0 0 0 / 18%), inset 0 0 0 1px rgb(180 201 234 / 6%);
   --publish-preview-shadow: 0 1px 3px rgb(0 0 0 / 18%), 0 12px 32px rgb(0 0 0 / 22%), inset 0 0 0 1px rgb(180 201 234 / 7%);
   --publish-dialog-shadow: 0 24px 64px rgb(0 0 0 / 55%);
-  --publish-primary-shadow: 0 6px 20px rgb(45 100 207 / 20%);
+  --publish-primary-shadow: 0 6px 20px rgb(0 0 0 / 30%);
   --publish-account-dialog-shadow: 0 24px 80px rgb(0 0 0 / 55%);
   --publish-menu-shadow: 0 12px 32px rgb(0 0 0 / 40%);
   --publish-picker-shadow: 0 12px 40px rgb(0 0 0 / 45%);

@@ -1,5 +1,6 @@
 'use client'
 
+import { ArrowLeftRight, Camera, Image, Lightbulb, User, Video, type LucideIcon } from 'lucide-react'
 import type { CoachScene, ShootingCoachLabels } from './shooting-coach'
 import {
   cleanDialogue,
@@ -9,7 +10,9 @@ import {
 } from './shooting-coach-utils'
 import styles from './shooting-coach.module.css'
 
-/** Scene details aside: number, spoken line and the camera/performance plan. */
+type DetailRow = { label: string; value: string; icon: LucideIcon }
+
+/** Scene details aside: title, spoken line and the camera/performance plan. */
 export function ShootingCoachDetails({
   scene,
   index,
@@ -26,27 +29,22 @@ export function ShootingCoachDetails({
   lighting: string
 }) {
   const dialogue = cleanDialogue(scene.dialogue)
-  const details: [string, string, boolean?][] = [
-    [labels.cameraPosition, cameraReadout],
-    [labels.focalLength, lensReadout],
-    [labels.movement, scene.camera_movement.replace(/_/g, ' ')],
-    [labels.lighting, lighting],
-    [
-      labels.performance,
-      (scene.voice_emotion ?? 'confident') +
-        ' · ' +
-        formatMeasure(scene.voice_pace ?? 1) +
-        '×'
-    ],
-    [labels.creatorAction, scene.subject_action ?? scene.visual_description, true]
+  const rows: DetailRow[] = [
+    { label: labels.cameraPosition, value: cameraReadout, icon: Camera },
+    { label: labels.focalLength, value: lensReadout, icon: Image },
+    { label: labels.movement, value: scene.camera_movement.replace(/_/g, ' '), icon: ArrowLeftRight },
+    { label: labels.lighting, value: lighting, icon: Lightbulb },
+    {
+      label: labels.performance,
+      value: (scene.voice_emotion ?? 'confident') + ' · ' + formatMeasure(scene.voice_pace ?? 1) + '×',
+      icon: Video
+    },
+    { label: labels.creatorAction, value: scene.subject_action ?? scene.visual_description, icon: User }
   ]
 
   return (
     <aside className={styles.details} aria-label={labels.details}>
       <div className={styles.detailsHeader}>
-        <span className={styles.detailsNumber} aria-hidden="true">
-          {index + 1}
-        </span>
         <h2>{formatLabel(labels.timelineScene, { number: index + 1 })}</h2>
         <span className={styles.detailsDuration}>
           {formatLabel(labels.seconds, { count: sceneDuration(scene) })}
@@ -57,10 +55,15 @@ export function ShootingCoachDetails({
         {dialogue ? <q>{dialogue}</q> : labels.noDialogue}
       </p>
       <dl className={styles.detailList}>
-        {details.map(([label, value, wide]) => (
-          <div key={label} className={styles.detail} data-wide={wide || undefined}>
-            <dt>{label}</dt>
-            <dd>{value || '—'}</dd>
+        {rows.map(({ label, value, icon: Icon }) => (
+          <div key={label} className={styles.detail}>
+            <span className={styles.detailIcon} aria-hidden="true">
+              <Icon />
+            </span>
+            <div className={styles.detailText}>
+              <dt>{label}</dt>
+              <dd>{value || '—'}</dd>
+            </div>
           </div>
         ))}
       </dl>

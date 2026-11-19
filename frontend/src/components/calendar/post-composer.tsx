@@ -111,7 +111,7 @@ export function PostComposer({
     <div className={`${theme.surface} ${styles.workspace}`} data-publish-surface="" data-post-composer="" data-publishing-workspace="">
       <CalendarMobileHeader />
       <header className={styles.header}>
-        <Button type="button" variant="ghost" size="icon" className={styles.back} onClick={onClose} disabled={busy} aria-label={t('page.back')}><ArrowLeft /></Button>
+        <Button type="button" variant="ghost" className={styles.back} onClick={onClose} disabled={busy} aria-label={t('page.back')}><ArrowLeft /><span className={styles.backLabel}>{t('page.back')}</span></Button>
         <h1>{title}</h1>
         {onDelete && <Button type="button" variant="ghost" size="icon" className={styles.mobileDelete} disabled={busy} onClick={onDelete} aria-label={t('actions.delete')}><Trash2 className="size-4" /></Button>}
       </header>

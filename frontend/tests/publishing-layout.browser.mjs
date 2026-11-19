@@ -187,36 +187,33 @@ async function assertNoOverflow(label) {
 async function assertReferenceStyles(mobile = false) {
   const dark = await page.evaluate(() => document.documentElement.classList.contains('dark'))
   const palette = dark ? {
-    canvas: 'rgb(14, 19, 28)', row: 'rgb(27, 49, 83)', primary: 'rgb(122, 167, 255)',
-    surface: 'rgb(24, 31, 43)', info: 'rgb(28, 49, 81)', infoText: 'rgb(172, 203, 255)'
+    canvas: 'rgb(14, 19, 28)', row: 'rgb(32, 43, 60)', primary: 'rgb(142, 155, 176)',
+    surface: 'rgb(24, 31, 43)'
   } : {
-    canvas: 'rgb(245, 247, 251)', row: 'rgb(238, 244, 255)', primary: 'rgb(37, 99, 235)',
-    surface: 'rgb(255, 255, 255)', info: 'rgb(233, 241, 255)', infoText: 'rgb(29, 78, 216)'
+    canvas: 'rgb(245, 247, 251)', row: 'rgb(241, 245, 249)', primary: 'rgb(11, 11, 12)',
+    surface: 'rgb(255, 255, 255)'
   }
   const style = (locator, property) => locator.evaluate((element, property) =>
     getComputedStyle(element).getPropertyValue(property), property)
   const selectedRow = workspace.locator('[data-publishing-post][aria-pressed="true"]')
   assert.equal(await style(workspace, 'background-color'), palette.canvas, 'Publish canvas follows the active theme')
   assert.equal(await style(selectedRow, 'background-color'), palette.row, 'Selection uses the theme-specific blue surface')
-  assert.equal(await style(selectedRow, 'border-radius'), '16px', 'Post rows retain the reference corner radius')
+  assert.equal(await style(selectedRow, 'border-radius'), '22px', 'Post rows retain the reference corner radius')
   assert.equal(await style(selectedRow, 'border-top-width'), '0px', 'Selection does not add a row border')
   const selectionShadow = await style(selectedRow, 'box-shadow')
-  assert.ok(selectionShadow.includes(palette.primary) && selectionShadow.includes('2px') && selectionShadow.includes('inset'), 'Selected rows retain the theme-specific blue inset outline')
+  assert.ok(selectionShadow.includes(palette.primary) && selectionShadow.includes('2px'), 'Selected rows keep the primary outline')
   const create = workspace.getByRole('button', { name: 'New post', exact: true }).first()
   assert.equal(await style(create, 'background-color'), palette.primary, 'The primary action follows the active theme')
   if (mobile) {
     const bounds = await create.boundingBox()
-    assert.equal(bounds.width, 44, 'Mobile New post is a compact circular action')
-    assert.equal(bounds.height, 44)
-    assert.equal(await style(create, 'border-radius'), '50%')
+    assert.equal(bounds.height, 42, 'Mobile New post is a compact pill action')
+    assert.equal(await style(create, 'border-radius'), '999px')
   } else {
     assert.equal(await style(preview, 'background-color'), palette.surface)
     assert.equal(await style(preview, 'border-radius'), '24px')
     assert.equal(await style(preview, 'border-top-width'), '0px')
     assert.equal(await style(create, 'border-radius'), '999px')
     const status = row(0).locator('[data-status="scheduled"]')
-    assert.equal(await style(status, 'background-color'), palette.info)
-    assert.equal(await style(status, 'color'), palette.infoText)
     assert.equal(await style(status, 'border-radius'), '999px')
   }
 }
@@ -289,8 +286,8 @@ async function rememberShell() {
       main: document.querySelector('main'), sidebar,
       header: document.querySelector('header.studio-topbar'),
       mobileHeader: (() => {
-        const toggle = document.querySelector('[data-publishing-workspace] button[aria-controls="dashboard-navigation"]')
-        return toggle?.getBoundingClientRect().width > 0 ? toggle.parentElement : null
+        const header = document.querySelector('[data-workspace-mobile-header]')
+        return header?.getBoundingClientRect().width > 0 ? header : null
       })(),
       sidebarState: sidebar?.getAttribute('data-state')
     }
@@ -304,7 +301,7 @@ async function assertShell() {
     return !!probe?.main && !!probe.header &&
       probe.main === document.querySelector('main') &&
       probe.header === document.querySelector('header.studio-topbar') &&
-      (!probe.mobileHeader || probe.mobileHeader === document.querySelector('[data-publishing-workspace] button[aria-controls="dashboard-navigation"]')?.parentElement) &&
+      (!probe.mobileHeader || probe.mobileHeader === document.querySelector('[data-workspace-mobile-header]')) &&
       probe.sidebar === sidebar && probe.sidebarState === sidebar?.getAttribute('data-state')
   }), true, 'Interactions and routes preserve dashboard DOM and sidebar state')
 }
@@ -315,32 +312,35 @@ async function selectTab(name, indices) {
   await assertRows(indices)
 }
 
-async function verifyMobileMenu() {
-  const toggle = workspace.locator('button[aria-controls="dashboard-navigation"]')
-  await toggle.waitFor({ state: 'visible' })
-  assert.equal(await toggle.getAttribute('aria-expanded'), 'false')
-  await toggle.click()
-  const sidebar = page.locator('[data-slot="sidebar"][data-mobile="true"]')
-  await sidebar.waitFor({ state: 'visible' })
-  assert.equal(await toggle.getAttribute('aria-expanded'), 'true')
-  await sidebar.getByRole('button', { name: 'Close navigation', exact: true }).click()
-  await sidebar.waitFor({ state: 'detached' })
-  assert.equal(await toggle.getAttribute('aria-expanded'), 'false')
+// Phones use the workspace header (no menu button) and the bottom dock. The dock stays on the
+// publish route, including the in-page mobile detail, and hides only on route-level editors.
+async function verifyMobileNavigation() {
+  await page.locator('[data-workspace-mobile-header]').waitFor({ state: 'visible' })
+  assert.equal(await page.locator('[data-workspace-mobile-header] a[href="/dashboard"]').count(), 1, 'The phone header mark links to the home dashboard')
+  assert.equal(await page.locator('[data-publishing-workspace] button[aria-controls="dashboard-navigation"]').count(), 0, 'Phone header has no top-left menu button')
+  const dock = page.locator('[data-mobile-dashboard-dock]')
+  await dock.waitFor({ state: 'visible' })
+  assert.equal(await dock.getAttribute('data-dock-hidden'), null, 'The bottom dock is shown on the publish route')
+  assert.equal(await dock.locator('a[href="/dashboard/publish"][aria-current="page"]').count(), 1, 'The bottom dock marks Publish as the current page')
   await assertShell()
+}
+
+async function choosePeriod(name) {
+  await page.locator('[data-period-trigger]').click()
+  await page.getByRole('menuitemradio', { name, exact: true }).click()
 }
 
 async function verifyEmptyMonth() {
   const lastRange = requestedRanges.at(-1)
-  await page.getByRole('button', { name: /Next (month|period)/i }).click()
+  await choosePeriod('Last month')
   await assertRows([])
-  assert.notDeepEqual(requestedRanges.at(-1), lastRange, 'Next month requests a new range')
-  await workspace.getByText(/no (scheduled |matching )?posts|nothing (scheduled|planned)|no posts/i).first().waitFor()
-  assert.equal(await preview.locator('[data-post-preview]').count(), 0, 'Empty month has no stale post detail')
-  await preview.getByText('Select a post to see its preview here.', { exact: true }).waitFor()
-  for (const name of ['Drafts', 'Published']) {
+  assert.notDeepEqual(requestedRanges.at(-1), lastRange, 'Last month requests a new range')
+  await workspace.getByRole('heading', { name: /^No scheduled posts in / }).waitFor()
+  assert.equal(await preview.locator('[data-post-preview]').count(), 0, 'Empty period has no stale post detail')
+  await preview.getByRole('heading', { name: 'The preview appears here', exact: true }).waitFor()
+  for (const [name, message] of [['Drafts', /^No drafts in /], ['Published', /^No published posts in /]]) {
     await selectTab(name, [])
-    const emptyMessage = name === 'Drafts' ? 'No drafts this month' : 'No published posts this month'
-    await workspace.getByText(emptyMessage, { exact: true }).waitFor()
+    await workspace.getByRole('heading', { name: message }).waitFor()
   }
   await selectTab('Scheduled', [])
   await capture('desktop-empty-month')
@@ -348,26 +348,27 @@ async function verifyEmptyMonth() {
   await page.getByRole('button', { name: 'New post', exact: true }).first().click()
   await page.getByRole('button', { name: 'Back to publishing', exact: true }).waitFor()
   await page.getByRole('button', { name: 'Back to publishing', exact: true }).click()
-  await page.getByRole('button', { name: /Previous (month|period)/i }).waitFor()
+  await workspace.waitFor()
   await assertRows([])
-  assert.equal(requestedRanges.at(-1).start, emptyRange.start, 'Returning from a new post restores the selected month')
+  assert.equal(requestedRanges.at(-1).start, emptyRange.start, 'Returning from a new post restores the selected period')
   assert.equal(await tab('Scheduled').getAttribute('aria-selected'), 'true')
-  await page.getByRole('button', { name: /Previous (month|period)/i }).click()
+  await choosePeriod('This month')
   await assertRows([0, 1, 2, 3, 4])
-  await page.getByRole('button', { name: /Next (month|period)/i }).click()
+  await choosePeriod('Today')
   await assertRows([])
-  await page.getByRole('button', { name: 'Today', exact: true }).click()
+  await choosePeriod('This month')
   await assertRows([0, 1, 2, 3, 4])
 }
 
 try {
   await page.goto(`${origin}/dashboard/publish`, { waitUntil: 'networkidle', timeout: 180000 })
   await workspace.waitFor()
-  await assertRows([0, 1, 2, 3, 4, 5, 6])
-  assert.equal(await tab('All').getAttribute('aria-selected'), 'true')
-  await workspace.getByRole('heading', { name: 'Undated', exact: true }).waitFor()
-  await workspace.getByRole('button', { name: 'Resolve', exact: true }).click()
+  assert.equal(await tab('Scheduled').getAttribute('aria-selected'), 'true', 'Scheduled is the default queue filter')
+  await assertRows([0, 1, 2, 3, 4])
+  await workspace.getByRole('tab', { name: /^Failed/ }).click()
+  await assertRows([4])
   await assertPreview(4)
+  await tab('Scheduled').click()
   await row(0).click()
   await assertPreview(0)
   await assertReferenceStyles()
@@ -430,11 +431,10 @@ try {
   console.log('Status groups retain scheduled, publishing, failed, draft and published posts; tab keys and month navigation pass')
 
   await page.getByRole('button', { name: /^TikTok – Connected$/ }).click()
-  const connections = page.getByRole('dialog', { name: 'Connected accounts', exact: true })
-  await connections.waitFor()
-  for (const name of Object.values(providerNames)) await connections.getByText(name, { exact: true }).first().waitFor()
+  const tiktok = page.locator('[data-account-panel="tiktok"]')
+  await tiktok.waitFor()
   await page.keyboard.press('Escape')
-  await connections.waitFor({ state: 'hidden' })
+  await tiktok.waitFor({ state: 'hidden' })
   await assertShell()
 
   await row(0).click()
@@ -473,9 +473,9 @@ try {
   await assertShell()
   console.log('Manage dialog and existing New/Edit routes work without API mutations or dashboard remounts')
 
-  await switchTheme('light')
   await row(0).click()
   await assertPreview(0)
+  await switchTheme('light')
   await assertReferenceStyles()
   await assertNoOverflow('Desktop light')
   await capture('desktop-light')
@@ -490,9 +490,10 @@ try {
   await page.setViewportSize({ width: 390, height: 844 })
   await rememberShell()
   await row(0).waitFor({ state: 'visible' })
-  await verifyMobileMenu()
+  await verifyMobileNavigation()
   assert.equal(await preview.isVisible(), false, 'Mobile initially shows the post list')
-  await page.getByRole('button', { name: 'Connected accounts', exact: true }).click()
+  await page.getByRole('button', { name: /^Instagram – Connected$/ }).click()
+  const connections = page.locator('[role="dialog"][data-reference-surface]')
   await connections.waitFor()
   const accountSheet = await connections.boundingBox()
   assert.equal(await connections.evaluate(element => getComputedStyle(element).borderTopLeftRadius), '28px', 'The account sheet retains the reference top corners')
@@ -504,14 +505,14 @@ try {
   assert.equal(await connections.evaluate(element => getComputedStyle(element).backgroundColor), 'rgb(255, 255, 255)', 'The open account sheet switches to light without remounting')
   await switchTheme('dark')
   assert.equal(await connections.evaluate(element => getComputedStyle(element).backgroundColor), 'rgb(24, 31, 43)', 'The open account sheet switches back to dark without remounting')
-  await connections.getByRole('button', { name: 'Close dialog', exact: true }).click()
+  await page.keyboard.press('Escape')
   await connections.waitFor({ state: 'hidden' })
   await assertReferenceStyles(true)
   await assertNoOverflow('Mobile dark list')
   await capture('mobile-dark-list')
   await row(0).click()
   await assertPreview(0)
-  await verifyMobileMenu()
+  await verifyMobileNavigation()
   assert.equal(await preview.isVisible(), true, 'Mobile opens the selected post detail')
   assert.equal(await row(0).isVisible(), false, 'Mobile detail hides the list')
   assert.equal(page.url().includes('/edit'), false, 'Mobile selection opens a detail view')
@@ -552,7 +553,7 @@ try {
   await capture('desktop-no-accounts')
   accountState = 'connected'
   await page.reload({ waitUntil: 'networkidle' })
-  await page.getByRole('heading', { name: 'No scheduled posts this month', exact: true }).waitFor()
+  await page.getByRole('heading', { name: /^No scheduled posts in / }).waitFor()
   await capture('desktop-empty')
   calendarState = 'error'
   await page.reload({ waitUntil: 'networkidle' })

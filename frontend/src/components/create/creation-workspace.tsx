@@ -71,7 +71,7 @@ export function CreationWorkspace() {
         <StoryBuilder />
       </section>
       <section hidden={source !== 'youtube'} data-testid="creation-youtube-workspace">
-        <YouTubeCreationWorkflow initialBatch={requestedMode === 'batch'} />
+        <YouTubeCreationWorkflow initialBatch={requestedMode === 'batch'} active={source === 'youtube'} />
       </section>
     </div>
   )

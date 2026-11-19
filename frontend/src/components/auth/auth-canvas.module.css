@@ -1,0 +1,531 @@
+/* Auth screens follow the Claude reference canvas (docs/design/auth-canvas). Tokens are scoped to
+   the auth root so the rest of the app keeps its own palette. */
+.canvas {
+  --btn: #0b0b0c;
+  --onbtn: #ffffff;
+  --sbd: #1f2a3d;
+  --bg: #f5f7fb;
+  --sf: #ffffff;
+  --tx: #152035;
+  --t2: #4f5c72;
+  --t3: #647188;
+  --bd: #e3e9f2;
+  --sel: #152035;
+  --onsel: #ffffff;
+  --okbg: #dcfce7;
+  --ok: #15803d;
+  --dbg: #fdecec;
+  --d: #b91c1c;
+  --sh: 0 1px 2px rgba(21, 32, 53, 0.04), 0 10px 30px rgba(21, 32, 53, 0.06);
+
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  background: var(--bg);
+  color: var(--tx);
+  font-family: Inter, system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 20px;
+}
+
+:global(.dark) .canvas {
+  --btn: #8e9bb0;
+  --onbtn: #0d1420;
+  --sbd: #c9d4e4;
+  --bg: #0e131c;
+  --sf: #181f2b;
+  --tx: #edf2fa;
+  --t2: #bdc9dc;
+  --t3: #9eafc7;
+  --bd: #334158;
+  --sel: #8e9bb0;
+  --onsel: #0d1420;
+  --okbg: #153b2c;
+  --ok: #67dca5;
+  --dbg: #431f2b;
+  --d: #ff91a4;
+  --sh: 0 1px 2px rgba(0, 0, 0, 0.3), 0 10px 30px rgba(0, 0, 0, 0.25);
+  color-scheme: dark;
+}
+
+.canvas *,
+.canvas *::before,
+.canvas *::after {
+  box-sizing: border-box;
+}
+
+/* Layout: stacked on phones, illustration beside the card from 1024px. */
+.main {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 16px 0;
+}
+
+.stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+}
+
+.illustration {
+  position: relative;
+  z-index: 1;
+  display: block;
+  flex: none;
+  width: 150px;
+  height: 150px;
+  margin-bottom: -26px;
+  object-fit: contain;
+}
+
+.sticker {
+  display: none;
+  padding: 0.08em 0.4em 0.14em;
+  border-radius: 0.22em;
+  background: #0b0b0c;
+  color: #ffffff;
+  box-shadow: 0 0 0 1px var(--bd);
+  transform: rotate(-1.5deg);
+  font-family: Sora, Inter, sans-serif;
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.stickerAccent {
+  color: #facc15;
+}
+
+.cardColumn {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+
+.card {
+  --card-gap: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--card-gap);
+  width: 100%;
+  padding: 40px 20px 26px;
+  border-radius: 24px;
+  background: var(--sf);
+  box-shadow: var(--sh);
+}
+
+.cardCompact {
+  --card-gap: 14px;
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--card-gap);
+}
+
+.logoLink {
+  align-self: center;
+  display: block;
+}
+
+.logo {
+  display: block;
+  width: auto;
+  height: 24px;
+}
+
+.logoDark {
+  display: none;
+}
+
+:global(.dark) .logoLight {
+  display: none;
+}
+
+:global(.dark) .logoDark {
+  display: block;
+}
+
+.footer {
+  padding: 0 16px 20px;
+  color: var(--t2);
+  font-size: 12px;
+  text-align: center;
+}
+
+.footer a {
+  color: inherit;
+  text-decoration: none;
+}
+
+@media (min-width: 1024px) {
+  .main {
+    flex-direction: row;
+    gap: 48px;
+    padding: 32px 80px 0;
+  }
+
+  .stage {
+    flex: 1 1 0;
+    width: auto;
+    min-width: 0;
+    justify-content: center;
+    gap: 28px;
+  }
+
+  .illustration {
+    width: 400px;
+    height: 400px;
+    margin-bottom: 0;
+  }
+
+  .sticker {
+    display: inline-block;
+  }
+
+  .cardColumn {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
+  .card {
+    --card-gap: 22px;
+    max-width: 460px;
+    padding: 44px 44px 40px;
+  }
+
+  .cardCompact {
+    --card-gap: 16px;
+    padding: 36px 40px 30px;
+  }
+
+  .logoLink {
+    align-self: flex-start;
+  }
+
+  .logo {
+    height: 28px;
+  }
+
+  .footer {
+    padding: 0 48px 24px;
+  }
+}
+
+/* Headings and copy. */
+.headingGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.headingCentered {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  text-align: center;
+}
+
+.heading {
+  margin: 0;
+  color: var(--tx);
+  font-family: Sora, Inter, sans-serif;
+  font-size: 28px;
+  font-weight: 600;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+}
+
+.description {
+  margin: 0;
+  color: var(--t2);
+  font-size: 15px;
+  line-height: 1.55;
+}
+
+/* Tabs. */
+.tabs {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 999px;
+  background: var(--sf);
+  box-shadow: inset 0 0 0 1px var(--bd);
+}
+
+.tab {
+  display: flex;
+  flex: 1 1 0;
+  align-items: center;
+  justify-content: center;
+  height: 40px;
+  border-radius: 999px;
+  color: var(--tx);
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.tabActive {
+  background: var(--sel);
+  color: var(--onsel);
+}
+
+.tab:focus-visible,
+.button:focus-visible,
+.backLink:focus-visible,
+.toggle:focus-visible,
+.footer a:focus-visible {
+  outline: 2px solid var(--tx);
+  outline-offset: 2px;
+}
+
+/* Fields. */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.labelRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.fieldLabel {
+  color: var(--tx);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.labelAction {
+  color: var(--tx);
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.control {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 50px;
+  padding: 0 14px;
+  border-radius: 14px;
+  background: var(--sf);
+  box-shadow: inset 0 0 0 1px var(--sbd);
+}
+
+.control:focus-within {
+  box-shadow: inset 0 0 0 2px var(--tx);
+}
+
+.input {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--tx);
+  font: inherit;
+}
+
+.input::placeholder {
+  color: var(--t3);
+}
+
+.toggle {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--t2);
+  cursor: pointer;
+}
+
+/* Buttons. */
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  padding: 0 20px;
+  border: 0;
+  border-radius: 999px;
+  font: inherit;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.primary {
+  height: 52px;
+  background: var(--btn);
+  color: var(--onbtn);
+}
+
+.secondary {
+  height: 50px;
+  background: transparent;
+  color: var(--tx);
+  box-shadow: inset 0 0 0 1.5px var(--sbd);
+}
+
+.backLink {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  gap: 4px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--tx);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+/* Notices, dividers and account prompts. */
+.notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: 14px;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.45;
+}
+
+.noticeError {
+  background: var(--dbg);
+  color: var(--d);
+}
+
+.noticeSuccess {
+  background: var(--okbg);
+  color: var(--ok);
+}
+
+.noticeIcon {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  margin-top: 2px;
+}
+
+.divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--t3);
+  font-size: 13px;
+}
+
+.divider::before,
+.divider::after {
+  content: "";
+  flex: 1 1 auto;
+  height: 1px;
+  background: var(--bd);
+}
+
+.accountPrompt {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+  margin: 0;
+  padding-top: 20px;
+  border-top: 1px solid var(--bd);
+  color: var(--t2);
+  font-size: 14px;
+  text-align: center;
+}
+
+.accountLink {
+  color: var(--tx);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.legal {
+  margin: 0;
+  color: var(--t2);
+  font-size: 12px;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.legal a {
+  color: var(--tx);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+/* Password rules: a dot per rule, filled once the rule passes. */
+.rules {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  margin: -6px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.rule {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--t3);
+  font-size: 12px;
+}
+
+.rulePassed {
+  color: var(--tx);
+}
+
+.ruleMark {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 15px;
+  height: 15px;
+  border-radius: 999px;
+  box-shadow: inset 0 0 0 1.5px var(--sbd);
+  color: #ffffff;
+}
+
+.rulePassed .ruleMark {
+  background: var(--ok);
+  box-shadow: none;
+}

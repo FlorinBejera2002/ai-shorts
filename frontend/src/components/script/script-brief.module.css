@@ -58,10 +58,10 @@
 .chip {
   height: 36px;
   padding: 0 12px;
-  border: 0;
+  border: 1px solid var(--publish-border-strong);
   border-radius: var(--publish-pill-radius);
-  background: var(--publish-inset);
-  color: var(--publish-secondary-text);
+  background: var(--publish-surface);
+  color: var(--publish-text);
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
@@ -69,12 +69,14 @@
 }
 
 .chip:hover {
-  background: var(--publish-hover);
+  background: var(--publish-inset);
 }
 
 .chip[aria-checked='true'] {
+  border-color: var(--publish-selected);
   background: var(--publish-selected);
   color: var(--publish-on-selected);
+  font-weight: 600;
 }
 
 .generate.generate {
@@ -87,8 +89,15 @@
   .brief {
     gap: 0;
     padding: 0;
-    border-radius: 20px;
+    border-radius: 24px;
     box-shadow: none;
+  }
+
+  /* A brief with no scenes is always open, so its heading stays visible. */
+  .brief[data-collapsible='false'] {
+    gap: 16px;
+    padding: 20px;
+    box-shadow: var(--publish-card-shadow);
   }
 
   .heading.heading {
@@ -97,6 +106,22 @@
     height: 1px;
     overflow: hidden;
     clip-path: inset(50%);
+  }
+
+  .brief[data-collapsible='false'] .heading.heading {
+    position: static;
+    width: auto;
+    height: auto;
+    overflow: visible;
+    clip-path: none;
+  }
+
+  .brief[data-collapsible='false'] .toggle {
+    display: none;
+  }
+
+  .brief[data-collapsible='false'] .fields {
+    padding: 0;
   }
 
   .toggle {

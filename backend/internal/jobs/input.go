@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net"
 	"net/url"
+	"regexp"
 	"sneepcut/backend-go/internal/audiocleanup"
 	"strings"
 	"unicode/utf8"
@@ -17,6 +18,8 @@ type Options struct {
 	Language         *string                `json:"language"`
 	SubtitleStyle    string                 `json:"subtitle_style"`
 	IncludeBrand     bool                   `json:"include_brand"`
+	// BrandKitID picks one of the account's kits; empty means the default kit.
+	BrandKitID       *string                `json:"brand_kit_id,omitempty"`
 	BurnSubtitles    bool                   `json:"burn_subtitles"`
 	SmartCrop        bool                   `json:"smart_crop"`
 	UserInstructions *string                `json:"user_instructions"`
@@ -39,7 +42,12 @@ func DefaultOptions() Options {
 	return Options{NumClips: 5, AspectRatio: "9:16", SubtitleStyle: "default", BurnSubtitles: true, SmartCrop: true}
 }
 
+var kitIDPattern = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`)
+
 func (o Options) Validate() error {
+	if o.BrandKitID != nil && !kitIDPattern.MatchString(*o.BrandKitID) {
+		return errors.New("invalid brand_kit_id")
+	}
 	if o.NumClips < 1 || o.NumClips > 15 {
 		return errors.New("num_clips_requested must be between 1 and 15")
 	}

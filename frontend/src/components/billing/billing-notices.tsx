@@ -1,78 +1,63 @@
 import { LoadingIndicator } from '@/components/ui/loading-indicator'
+import type { BillingLocale } from '@/lib/billing'
 import { subscriptionPeriodKind } from '@/lib/billing'
 import type { BillingData } from '@/types/api'
-import { AlertCircle, CheckCircle2, Info } from 'lucide-react'
+import { CircleCheck, Info, TriangleAlert } from 'lucide-react'
 import { useTranslations } from 'next-intl'
+import { formatBillingDate } from './billing-format'
+import { needsPaymentAttention } from './billing-overview'
 import styles from './billing-page.module.css'
 
+type Tone = 'info' | 'warning' | 'success' | 'error'
 type Props = {
   data: BillingData
-  locale: string
+  locale: BillingLocale
   canceled: boolean
   confirmationDelayed: boolean
   subscriptionNeedsConfirmation: boolean
   recoveryFailed: boolean
 }
 
+const ICONS = { info: Info, success: CircleCheck, warning: TriangleAlert, error: TriangleAlert }
+
 function Notice({
   kind,
   title,
   description,
-  tone = 'neutral',
+  tone = 'info',
   loading = false
 }: {
   kind: string
   title: string
   description?: string
-  tone?: 'neutral' | 'warning' | 'success' | 'error'
+  tone?: Tone
   loading?: boolean
 }) {
-  const Icon =
-    tone === 'success'
-      ? CheckCircle2
-      : tone === 'warning' || tone === 'error'
-        ? AlertCircle
-        : Info
+  const Icon = ICONS[tone]
   return (
     <div
       className={styles.notice}
       data-billing-notice={kind}
       data-tone={tone}
-      role={tone === 'error' || tone === 'warning' ? 'alert' : 'status'}
+      role={tone === 'error' ? 'alert' : 'status'}
     >
-      {loading ? (
-        <LoadingIndicator className={styles.noticeIcon} />
-      ) : (
-        <Icon className={styles.noticeIcon} aria-hidden="true" />
-      )}
-      <div>
-        <p className={styles.noticeTitle}>{title}</p>
-        {description && (
-          <p className={styles.noticeDescription}>{description}</p>
-        )}
-      </div>
+      {loading ? <LoadingIndicator className={styles.noticeIcon} /> : <Icon className={styles.noticeIcon} aria-hidden="true" />}
+      <span className={styles.noticeCopy}>
+        <b>{title}</b>
+        {description && <span>{description}</span>}
+      </span>
     </div>
   )
 }
 
-function CheckoutNotice({
-  data,
-  canceled,
-  confirmationDelayed
-}: Pick<Props, 'data' | 'canceled' | 'confirmationDelayed'>) {
+function CheckoutNotice({ data, canceled, confirmationDelayed }: Pick<Props, 'data' | 'canceled' | 'confirmationDelayed'>) {
   const t = useTranslations('billing')
   switch (data.checkoutVerification?.status) {
     case 'complete':
-      return (
-        <Notice kind="complete" title={t('checkoutSuccess')} tone="success" />
-      )
+      return <Notice kind="complete" title={t('canvas.checkoutSuccess')} tone="success" />
     case 'pending':
       return confirmationDelayed ? (
-        <Notice
-          kind="delayed"
-          title={t('workspaceDesign.delayedTitle')}
-          description={t('checkoutDelayed')}
-        />
+        <Notice kind="delayed" title={t('workspaceDesign.delayedTitle')} description={t('checkoutDelayed')} />
       ) : (
         <Notice
           kind="pending"
@@ -82,115 +67,63 @@ function CheckoutNotice({
         />
       )
     case 'invalid':
-      return (
-        <Notice
-          kind="invalid"
-          title={t('checkoutVerificationFailed')}
-          tone="error"
-        />
-      )
+      return <Notice kind="invalid" title={t('checkoutVerificationFailed')} tone="error" />
     case 'unavailable':
-      return (
-        <Notice
-          kind="unavailable"
-          title={t('checkoutVerificationUnavailable')}
-          tone="warning"
-        />
-      )
+      return <Notice kind="unavailable" title={t('checkoutVerificationUnavailable')} tone="warning" />
     default:
-      return canceled ? (
-        <Notice kind="canceled" title={t('checkoutCanceled')} />
-      ) : null
+      return canceled ? <Notice kind="canceled" title={t('checkoutCanceled')} /> : null
   }
 }
 
-function SubscriptionNotice({
-  data,
-  locale,
-  subscriptionNeedsConfirmation
-}: Pick<Props, 'data' | 'locale' | 'subscriptionNeedsConfirmation'>) {
+function SubscriptionNotice({ data, locale, subscriptionNeedsConfirmation }: Pick<Props, 'data' | 'locale' | 'subscriptionNeedsConfirmation'>) {
   const t = useTranslations('billing')
   const subscription = data.subscription
   if (data.account.creditsUnlimited) return null
   if (subscriptionNeedsConfirmation)
     return (
-      <Notice
-        kind="unconfirmed"
-        title={t('coverageUnconfirmed')}
-        description={t('coverageUnconfirmedHint')}
-        tone="warning"
-      />
+      <Notice kind="unconfirmed" title={t('coverageUnconfirmed')} description={t('coverageUnconfirmedHint')} tone="warning" />
     )
   if (!subscription) return null
-  if (['past_due', 'unpaid', 'incomplete'].includes(subscription.status))
+  if (needsPaymentAttention(data))
     return (
       <Notice
         kind="payment"
         title={t('workspaceDesign.paymentTitle')}
-        description={t('workspaceDesign.paymentDescription')}
+        description={t('canvas.paymentDescription')}
         tone="warning"
       />
     )
   if (subscription.status === 'paused')
-    return (
-      <Notice
-        kind="paused"
-        title={t('statuses.paused')}
-        description={t('subscriptionPaused')}
-      />
-    )
+    return <Notice kind="paused" title={t('statuses.paused')} description={t('subscriptionPaused')} />
   const periodKind = subscriptionPeriodKind(subscription)
-  if (periodKind === 'none')
-    return <Notice kind="ended" title={t('subscriptionEnded')} />
+  if (periodKind === 'none') return <Notice kind="ended" title={t('subscriptionEnded')} />
   if (periodKind !== 'ends') return null
-  const end = subscription.currentPeriodEnd
-    ? new Date(subscription.currentPeriodEnd)
-    : null
-  const date =
-    end && !Number.isNaN(end.getTime())
-      ? new Intl.DateTimeFormat(locale, {
-          day: 'numeric',
-          month: 'short',
-          year: 'numeric'
-        }).format(end)
-      : null
+  const date = formatBillingDate(subscription.currentPeriodEnd, locale)
   return (
     <Notice
       kind="cancellation"
       title={t('workspaceDesign.cancellationTitle')}
-      description={
-        date
-          ? t('workspaceDesign.cancellationDescription', { date })
-          : t('cancellationScheduled')
-      }
+      description={date ? t('workspaceDesign.cancellationDescription', { date }) : undefined}
     />
   )
 }
 
+/** Banners above the plan card: checkout result, subscription state, Stripe availability. */
 export function BillingNotices(props: Props) {
   const t = useTranslations('billing')
   return (
     <div className={styles.notices}>
-      <CheckoutNotice
-        data={props.data}
-        canceled={props.canceled}
-        confirmationDelayed={props.confirmationDelayed}
-      />
+      {props.data.mode === 'test' && (
+        <Notice kind="test-mode" title={t('testModeTitle')} description={t('testModeDescription')} tone="warning" />
+      )}
+      <CheckoutNotice data={props.data} canceled={props.canceled} confirmationDelayed={props.confirmationDelayed} />
       <SubscriptionNotice
         data={props.data}
         locale={props.locale}
         subscriptionNeedsConfirmation={props.subscriptionNeedsConfirmation}
       />
-      {!props.data.providerAvailable && (
-        <Notice kind="stale" title={t('providerStale')} tone="warning" />
-      )}
-      {props.recoveryFailed && (
-        <Notice
-          kind="refresh-error"
-          title={t('refreshBillingError')}
-          tone="warning"
-        />
-      )}
+      {!props.data.providerAvailable && <Notice kind="stale" title={t('providerStale')} tone="warning" />}
+      {props.recoveryFailed && <Notice kind="refresh-error" title={t('refreshBillingError')} tone="warning" />}
     </div>
   )
 }

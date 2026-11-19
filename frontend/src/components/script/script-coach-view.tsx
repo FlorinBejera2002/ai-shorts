@@ -4,6 +4,7 @@ import { ChevronLeft } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
 import { useMemo } from 'react'
 import { ScriptPlatformBadge } from './script-badges'
+import { scriptPlatform } from './script-options'
 import { ShootingCoach, type ShootingCoachLabels } from './shooting-coach'
 import type { ScriptsWorkspace } from './use-scripts-workspace'
 import styles from './script-editor.module.css'
@@ -55,7 +56,9 @@ export function ScriptCoachView({
     }),
     [t]
   )
-  const language = new Intl.DisplayNames([locale], { type: 'language' }).of(w.language)
+  const languageName = new Intl.DisplayNames([locale], { type: 'language' }).of(w.language) ?? w.language
+  const language = languageName.charAt(0).toUpperCase() + languageName.slice(1)
+  const platformLabel = scriptPlatform(w.platform)?.label ?? t('platformRequired')
 
   return (
     <>
@@ -73,7 +76,7 @@ export function ScriptCoachView({
                 className={styles.coachPlatform}
                 fallbackLabel={t('platformRequired')}
               />
-              {t('workspace.secondsSpaced', { count: w.duration })} · {language}
+              {platformLabel} · {t('workspace.secondsSpaced', { count: w.duration })} · {language}
             </p>
           )}
         </div>

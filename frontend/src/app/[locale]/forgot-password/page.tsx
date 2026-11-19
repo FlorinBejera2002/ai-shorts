@@ -1,24 +1,23 @@
 'use client'
 
+import { AuthCanvasLayout } from '@/components/auth/auth-canvas-layout'
+import {
+  AuthAccountPrompt,
+  AuthBackLink,
+  AuthForm,
+  AuthHeading
+} from '@/components/auth/auth-card-parts'
+import { CanvasButton } from '@/components/auth/canvas-button'
+import { CanvasField } from '@/components/auth/canvas-field'
 import { LoadingIndicator } from '@/components/ui/loading-indicator'
-import { publicApiFetch } from '@/lib/auth'
-
-import { Button } from '@/components/ui/button'
-import { Card } from '@/components/ui/card'
-
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-
-import { AuthPanel } from '@/components/auth/auth-panel'
-import { ThemeBrandLogo } from '@/components/shared/brand-logo'
 import { useToast } from '@/components/ui/toast'
-import { Link } from '@/i18n/navigation'
-import { ArrowLeft, Check, Mail } from 'lucide-react'
+import { publicApiFetch } from '@/lib/auth'
 import { useTranslations } from 'next-intl'
 import { useState } from 'react'
 
 export default function ForgotPasswordPage() {
   const t = useTranslations('auth')
+  const tc = useTranslations('authCanvas')
   const toast = useToast()
   const [email, setEmail] = useState('')
   const [busy, setBusy] = useState(false)
@@ -46,96 +45,43 @@ export default function ForgotPasswordPage() {
     }
   }
 
+  if (sent) {
+    return (
+      <AuthCanvasLayout screen="forgotSent">
+        <AuthHeading
+          centered={true}
+          title={tc('forgotSent.title')}
+          description={tc('forgotSent.description')}
+        />
+        <CanvasButton variant="secondary" href="/login">
+          {t('backToLogin')}
+        </CanvasButton>
+        <AuthAccountPrompt kind="noAccount" />
+      </AuthCanvasLayout>
+    )
+  }
+
   return (
-    <main className="flex min-h-dvh bg-background text-foreground">
-      <AuthPanel title={t('heroTitle')} desc={t('heroDesc')} />
-
-      {/* Right — form */}
-      <div className="relative flex flex-1 items-center justify-center overflow-hidden bg-background p-5 sm:p-8">
-        <div className="hidden" />
-        <Card className="relative block w-full max-w-md gap-0 rounded-2xl border bg-card p-6 shadow-sm sm:p-9">
-          {/* Mobile logo */}
-          <Link href="/" className="mb-9 flex items-center gap-2 lg:hidden">
-            <ThemeBrandLogo />
-          </Link>
-
-          <Link
-            href="/login"
-            className="mb-8 inline-flex items-center gap-2  text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
-          >
-            <ArrowLeft className="w-4 h-4" strokeWidth={1.75} />
-            {t('backToLogin')}
-          </Link>
-
-          {sent ? (
-            <div className="animate-slide-up">
-              <div className="flex h-14 w-14 items-center justify-center rounded-xl border border-emerald-300/15 bg-emerald-500/[0.08] mb-6">
-                <Mail className="w-6 h-6 text-emerald-400" strokeWidth={1.75} />
-              </div>
-              <h1 className="text-3xl font-semibold leading-tight tracking-tight text-foreground">
-                {t('checkEmailTitle')}
-              </h1>
-              <p className="mt-3  text-sm leading-6 text-muted-foreground">
-                {t('checkEmailDesc')}
-              </p>
-              <Link
-                href="/login"
-                className="mt-8 inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-primary px-5 py-3 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-              >
-                <Check className="w-4 h-4" strokeWidth={1.75} />
-                {t('backToLogin')}
-              </Link>
-            </div>
-          ) : (
-            <>
-              <h1 className="text-3xl font-semibold leading-tight tracking-tight text-foreground">
-                {t('forgotTitle')}
-              </h1>
-              <p className="mt-3  text-sm leading-6 text-muted-foreground">
-                {t('forgotDesc')}
-              </p>
-
-              <form onSubmit={(e) => void submit(e)} className="mt-7 space-y-4">
-                <div className="space-y-1.5">
-                  <Label
-                    htmlFor="email"
-                    className="text-sm font-medium text-foreground"
-                  >
-                    {t('email')}
-                  </Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required={true}
-                    placeholder="name@example.com"
-                    autoComplete="email"
-                    className="h-11 rounded-lg bg-background"
-                  />
-                </div>
-                <Button
-                  type="submit"
-                  disabled={busy || !email}
-                  className="h-11 w-full"
-                >
-                  {busy ? (
-                    <>
-                      <LoadingIndicator className="w-4 h-4" />
-                      {t('sendingLabel')}
-                    </>
-                  ) : (
-                    <>
-                      <Mail className="w-4 h-4" strokeWidth={1.75} />
-                      {t('sendResetLink')}
-                    </>
-                  )}
-                </Button>
-              </form>
-            </>
-          )}
-        </Card>
-      </div>
-    </main>
+    <AuthCanvasLayout screen="forgot">
+      <AuthBackLink label={t('backToLogin')} href="/login" />
+      <AuthHeading title={t('forgotTitle')} description={tc('forgot.description')} />
+      <AuthForm onSubmit={(e) => void submit(e)}>
+        <CanvasField
+          id="email"
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          required={true}
+          label={t('email')}
+          placeholder="name@example.com"
+          autoComplete="email"
+        />
+        <CanvasButton type="submit" disabled={busy || !email}>
+          {busy && <LoadingIndicator className="size-4" />}
+          {busy ? t('sendingLabel') : tc('forgot.submit')}
+        </CanvasButton>
+      </AuthForm>
+      <AuthAccountPrompt kind="noAccount" />
+    </AuthCanvasLayout>
   )
 }

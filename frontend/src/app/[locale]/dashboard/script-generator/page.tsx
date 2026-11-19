@@ -19,7 +19,7 @@ export default function ScriptGeneratorPage() {
       data-script-view={workspace.view}
       {...scriptSurfaceProps}
     >
-      <WorkspaceMobileHeader variant="menu" />
+      <WorkspaceMobileHeader />
       {workspace.view === 'library' ? (
         <ScriptLibrary
           records={workspace.records}

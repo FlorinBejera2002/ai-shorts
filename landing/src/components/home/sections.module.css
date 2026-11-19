@@ -1,0 +1,441 @@
+/* Shared section scaffolding */
+.band {
+  padding: 96px 0;
+  background: var(--sf);
+  border-top: 1px solid var(--bd);
+  border-bottom: 1px solid var(--bd);
+}
+
+.sectionHeader {
+  max-width: 720px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  text-align: center;
+}
+
+.eyebrow {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.sectionTitle {
+  font-size: 40px;
+  line-height: 1.15;
+}
+
+/* Platforms */
+.platformsSection {
+  padding: 0 0 72px;
+}
+
+.platforms {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 22px 32px;
+}
+
+.platformsTitle {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.platformList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px 36px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.platformList li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+/* How it works */
+.stepGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 24px;
+  margin: 48px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 28px 24px;
+  border-radius: 28px;
+  box-shadow: inset 0 0 0 1px var(--bd);
+  text-align: center;
+}
+
+.step img {
+  width: 200px;
+  height: 200px;
+  object-fit: contain;
+}
+
+.stepNumber {
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  background: var(--sel);
+  color: var(--onsel);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+}
+
+.stepTitle {
+  font-size: 21px;
+  line-height: 1.25;
+}
+
+.stepText {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+/* Publishing */
+.publishGrid {
+  display: flex;
+  align-items: center;
+  gap: 64px;
+}
+
+.publishIntro {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 24px;
+}
+
+.publishIntro img {
+  width: 260px;
+  height: 260px;
+  object-fit: contain;
+}
+
+.publishTitle {
+  max-width: 520px;
+  font-size: 40px;
+  line-height: 1.15;
+}
+
+.publishCardWrap {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.week {
+  padding: 22px 22px 10px;
+}
+
+.weekHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+  font-size: 12px;
+}
+
+.weekTitle {
+  margin: 0;
+  font-size: 15px;
+  line-height: 20px;
+  font-weight: 700;
+}
+
+.weekList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.weekRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 2px;
+  border-top: 1px solid var(--bd);
+}
+
+.weekText {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 12px;
+}
+
+.weekText b {
+  overflow: hidden;
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.status {
+  flex: none;
+  height: 24px;
+  padding: 0 9px;
+  border-radius: 999px;
+  box-shadow: inset 0 0 0 1px var(--bd);
+  display: flex;
+  align-items: center;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+/* Pricing teaser */
+.teaser {
+  padding: 96px 0;
+}
+
+.teaserGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 18px;
+  margin: 40px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.teaserCard {
+  height: 100%;
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  text-align: center;
+  text-decoration: none;
+}
+
+.teaserCard img {
+  width: 110px;
+  height: 110px;
+}
+
+.featured {
+  box-shadow: 0 0 0 2px var(--tx);
+}
+
+.teaserName {
+  font-size: 20px;
+  line-height: 1.25;
+}
+
+.teaserPrice {
+  font-size: 17px;
+  line-height: 1.3;
+}
+
+.teaserTagline {
+  font-size: 13px;
+}
+
+.teaserMore {
+  display: flex;
+  justify-content: center;
+  margin-top: 24px;
+}
+
+.teaserButton {
+  height: 48px;
+  padding: 0 22px;
+}
+
+/* Final call to action */
+.cta {
+  padding: 88px 0 104px;
+}
+
+.ctaInner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.ctaInner > img {
+  position: relative;
+  z-index: 1;
+  width: 250px;
+  height: 250px;
+  margin-bottom: -44px;
+  object-fit: contain;
+}
+
+.ctaCard {
+  align-self: stretch;
+  padding: 76px 48px 48px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 28px;
+  text-align: center;
+}
+
+.ctaTitle {
+  font-size: 48px;
+  line-height: 1.1;
+}
+
+.ctaButton {
+  height: 56px;
+  padding: 0 30px;
+  font-size: 16px;
+}
+
+@media (max-width: 1079px) {
+  .teaserGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .publishGrid {
+    gap: 40px;
+  }
+}
+
+@media (max-width: 899px) {
+  .stepGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .publishGrid {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 24px;
+  }
+
+  .publishIntro {
+    align-items: center;
+    gap: 16px;
+    text-align: center;
+  }
+
+  .publishIntro img {
+    width: 200px;
+    height: 200px;
+  }
+}
+
+@media (max-width: 767px) {
+  .band,
+  .teaser {
+    padding: 48px 0;
+  }
+
+  .sectionTitle,
+  .publishTitle {
+    font-size: 28px;
+  }
+
+  .platformsSection {
+    padding: 0 0 40px;
+  }
+
+  .platforms {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+    padding: 20px;
+  }
+
+  .platformList {
+    gap: 14px;
+  }
+
+  .stepGrid {
+    gap: 14px;
+    margin-top: 28px;
+  }
+
+  .step {
+    padding: 22px 18px;
+  }
+
+  .step img {
+    width: 170px;
+    height: 170px;
+  }
+
+  .stepTitle {
+    font-size: 19px;
+  }
+
+  .week {
+    padding: 16px 16px 6px;
+  }
+
+  .teaserGrid {
+    gap: 10px;
+    margin-top: 24px;
+  }
+
+  .teaserCard {
+    padding: 14px;
+  }
+
+  .teaserCard img {
+    width: 80px;
+    height: 80px;
+  }
+
+  .teaserName {
+    font-size: 17px;
+  }
+
+  .teaserPrice {
+    font-size: 15px;
+  }
+
+  .teaserTagline {
+    display: none;
+  }
+
+  .cta {
+    padding: 48px 0 56px;
+  }
+
+  .ctaInner > img {
+    width: 200px;
+    height: 200px;
+  }
+
+  .ctaCard {
+    padding: 60px 20px 24px;
+    gap: 20px;
+  }
+
+  .ctaTitle {
+    font-size: 30px;
+  }
+
+  .ctaButton {
+    align-self: stretch;
+  }
+}

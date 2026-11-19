@@ -140,7 +140,7 @@ async function pinch(locator, factor, dx = 0, dy = 0) {
   }
 }
 try {
-  await page.goto(origin + '/dashboard/brand', {
+  await page.goto(origin + '/dashboard/brand/default', {
     waitUntil: 'domcontentloaded',
     timeout: 90000
   })

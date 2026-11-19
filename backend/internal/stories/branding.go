@@ -19,7 +19,7 @@ func resolveStoryLogo(ctx context.Context, tx *sql.Tx, req *story.Request) error
 	}
 	if req.Options.UseBrandKit {
 		var raw []byte
-		err := tx.QueryRowContext(ctx, `SELECT COALESCE(s.brand_snapshot,(SELECT to_jsonb(b) FROM brand_kits b WHERE b.user_id=$2),'{}'::jsonb) FROM story_projects s WHERE s.id=$1 AND s.user_id=$2`, req.ID, req.UserID).Scan(&raw)
+		err := tx.QueryRowContext(ctx, `SELECT COALESCE(s.brand_snapshot,(SELECT to_jsonb(b) FROM brand_kits b WHERE b.user_id=$2 AND b.is_default),'{}'::jsonb) FROM story_projects s WHERE s.id=$1 AND s.user_id=$2`, req.ID, req.UserID).Scan(&raw)
 		if err != nil {
 			return err
 		}

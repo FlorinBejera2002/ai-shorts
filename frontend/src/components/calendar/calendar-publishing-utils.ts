@@ -1,28 +1,27 @@
 import type { ScheduledPostRecord } from '@/lib/content-calendar'
 
-export type PublishingTab = 'all' | 'scheduled' | 'drafts' | 'published'
+export type PublishingTab = 'all' | 'scheduled' | 'drafts' | 'published' | 'failed'
+
+/** A half-open local range; `end` is exclusive. */
+export type PublishingRange = { start: Date; end: Date }
+
+const scheduledStatuses = new Set(['scheduled', 'publishing', 'failed'])
 
 export function getPublishingPosts(
   posts: ScheduledPostRecord[],
   tab: PublishingTab,
-  month: Date
+  range: PublishingRange
 ) {
   return posts
     .filter((post) => {
-      const date = new Date(post.scheduledAt)
-      if (
-        date.getFullYear() !== month.getFullYear() ||
-        date.getMonth() !== month.getMonth()
-      )
+      const timestamp = new Date(post.scheduledAt).getTime()
+      if (timestamp < range.start.getTime() || timestamp >= range.end.getTime())
         return false
       if (tab === 'drafts') return post.status === 'draft'
       if (tab === 'published') return post.status === 'published'
+      if (tab === 'failed') return post.status === 'failed'
       if (tab === 'all') return true
-      return (
-        post.status === 'scheduled' ||
-        post.status === 'publishing' ||
-        post.status === 'failed'
-      )
+      return scheduledStatuses.has(post.status)
     })
     .sort((left, right) => {
       if (
@@ -31,7 +30,7 @@ export function getPublishingPosts(
       ) {
         return left.status === 'draft' ? 1 : -1
       }
-      const direction = tab === 'scheduled' || tab === 'all' ? 1 : -1
+      const direction = tab === 'published' || tab === 'drafts' ? -1 : 1
       return (
         direction *
         (new Date(left.scheduledAt).getTime() -

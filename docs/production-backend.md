@@ -101,6 +101,14 @@ credit balances and committed event history. Failed attempts do not enter that
 ledger; inspect application logs and Stripe Workbench for failed delivery. The
 view cannot charge, refund, cancel or alter a customer's subscription.
 
+## Import users' own YouTube videos
+
+The official Data Portability flow uses its own Google Cloud project and OAuth
+consent, independently of publishing and legacy URL downloads. See
+[setup, limits and verification](youtube-own-video-import.md). Keep
+`YOUTUBE_PORTABILITY_ENABLED=false` until dedicated credentials and Google's
+verification are ready. Compose provides private disk-backed archive staging.
+
 ## YouTube download authentication
 
 The worker mounts `/opt/sneepcut-secrets` read-only at `/run/secrets`. When
@@ -135,6 +143,15 @@ Provisioning steps:
 The downloader copies cookies into a private temporary directory for each
 YouTube request because yt-dlp saves its cookie jar when closing. The original
 secret remains read-only; the temporary copy is removed after success or error.
+After each cookie-authenticated request, the worker atomically saves the jar
+yt-dlp wrote back (the session YouTube refreshed) to
+`YOUTUBE_COOKIES_STATE_FILE`, which production keeps in the `youtube_session`
+volume at `/app/youtube-session/cookies.txt`. Later jobs start from that saved
+session, so it keeps rotating instead of expiring from the original export. A
+jar without a signed-in session cookie (`SID`, `__Secure-1PSID`,
+`__Secure-3PSID` or `LOGIN_INFO`) is never saved. An export whose modification
+time is newer than the saved state replaces it on the next job, so copy a new
+export without preserving its old timestamp (plain `scp`, not `scp -p`).
 Direct video URLs do not use the YouTube cookie configuration. Never resolve a
 cookie-save error by making the secrets mount writable.
 

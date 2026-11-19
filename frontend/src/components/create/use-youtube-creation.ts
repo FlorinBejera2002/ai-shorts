@@ -48,12 +48,20 @@ function applyAssistantSettings(
   return next
 }
 
-export function useYoutubeCreation(initialBatch: boolean) {
+type CreationSource =
+  | { type: 'youtube' }
+  | { type: 'upload'; storageKey: string | null }
+
+export function useYoutubeCreation(
+  initialBatch: boolean,
+  source: CreationSource = { type: 'youtube' },
+  initialUrl: string | null = null
+) {
   const router = useRouter()
   const toast = useToast()
   const t = useTranslations('create')
   const [urls, setUrls] = useState<string[]>(() =>
-    initialBatch ? ['', ''] : ['']
+    initialBatch ? ['', ''] : [initialUrl ?? '']
   )
   const [busy, setBusy] = useState(false)
   const [aiInstructions, setAiInstructions] = useState('')
@@ -97,10 +105,12 @@ export function useYoutubeCreation(initialBatch: boolean) {
     return unique
   }, [urls])
 
-  const isBatch = initialBatch || urls.length > 1
+  const isBatch = source.type === 'youtube' && (initialBatch || urls.length > 1)
   const videoCount = isBatch ? validUrls.length : 1
   const creditCost = settings.clips * CREDITS_PER_CLIP * Math.max(videoCount, 1)
-  const canGenerate = validUrls.length > 0
+  const canGenerate = source.type === 'upload'
+    ? Boolean(source.storageKey)
+    : validUrls.length > 0
 
   const jobOptions = useMemo(
     () => ({
@@ -108,6 +118,7 @@ export function useYoutubeCreation(initialBatch: boolean) {
       aspect_ratio: settings.aspectRatio,
       subtitle_style: settings.subtitleStyle,
       include_brand: settings.includeBrand,
+      ...(settings.includeBrand && settings.brandKitId ? { brand_kit_id: settings.brandKitId } : {}),
       burn_subtitles: settings.subtitleStyle !== 'none',
       smart_crop: settings.smartCrop,
       audio_cleanup: { enabled: settings.reduceBackgroundNoise ?? false },
@@ -123,13 +134,15 @@ export function useYoutubeCreation(initialBatch: boolean) {
     if (busy || !canGenerate) return
     setBusy(true)
     try {
-      const source = isBatch
-        ? { source_urls: validUrls }
-        : { source_type: 'youtube', source_url: validUrls[0] }
+      const sourcePayload = source.type === 'upload'
+        ? { source_type: 'upload', source_storage_key: source.storageKey }
+        : isBatch
+          ? { source_urls: validUrls }
+          : { source_type: 'youtube', source_url: validUrls[0] }
       const res = await apiFetch(isBatch ? '/api/jobs/batch' : '/api/jobs', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...source, ...jobOptions })
+        body: JSON.stringify({ ...sourcePayload, ...jobOptions })
       })
       const data = await res.json()
       if (!res.ok) {

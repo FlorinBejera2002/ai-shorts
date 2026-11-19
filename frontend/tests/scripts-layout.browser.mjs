@@ -296,19 +296,19 @@ async function libraryAndShell() {
   try {
     await f.open()
     await expectCards(f, 6)
+    assert.equal(await f.library.locator('[data-script-count]').textContent(), '6 scripts', 'Library count line')
     const archivedSwitch = f.library.getByRole('switch', { name: 'Archived', exact: true })
     const switchSize = await archivedSwitch.boundingBox()
-    assert.deepEqual([Math.round(switchSize.width), Math.round(switchSize.height)], [40, 24], 'Archived switch keeps reference geometry under dashboard input styles')
+    assert.deepEqual([Math.round(switchSize.width), Math.round(switchSize.height)], [42, 26], 'Archived switch keeps reference geometry under dashboard input styles')
     // Reference palette, geometry and typography on the light canvas.
     await expectStyle(f.page.locator('#dashboard-main'), { 'background-color': 'rgb(245, 247, 251)' }, 'Scripts paints the reference canvas')
     await expectStyle(f.library.locator('article').first(), {
-      'background-color': 'rgb(255, 255, 255)', 'border-top-left-radius': '22px'
+      'background-color': 'rgb(255, 255, 255)', 'border-top-left-radius': '24px'
     }, 'Library card')
     await expectStyle(f.library.locator('[data-script-new]'), {
-      'background-color': 'rgb(37, 99, 235)', 'border-top-left-radius': '999px', height: '52px'
+      'background-color': 'rgb(11, 11, 12)', 'border-top-left-radius': '999px', height: '40px'
     }, 'New script pill')
-    await expectStyle(f.library.getByRole('heading', { level: 1 }), { 'font-size': '34px', 'font-weight': '600' }, 'Library heading')
-    assert.match(await f.library.getByRole('heading', { level: 1 }).evaluate(element => getComputedStyle(element).fontFamily), /Sora/)
+    assert.equal(await f.library.getByRole('heading', { level: 1 }).textContent(), 'Scripts', 'Library keeps a visually hidden page heading')
     await capture(f, 'desktop-library')
     await f.page.locator('[data-sidebar="trigger"]').filter({ visible: true }).first().click()
     await rememberShell(f.page)
@@ -473,7 +473,7 @@ async function documentEditing() {
     await expectStyle(f.editor.locator('[data-script-toolbar]'), {
       'background-color': 'rgb(255, 255, 255)', 'border-top-left-radius': '999px'
     }, 'Editor header bar')
-    await expectStyle(scene(f, 1), { 'box-shadow': 'rgb(37, 99, 235) 0px 0px 0px 2px' }, 'Selected scene ring')
+    await expectStyle(scene(f, 1), { 'box-shadow': 'rgb(21, 32, 53) 0px 0px 0px 2px inset' }, 'Selected scene ring')
     await rememberShell(f.page)
     await f.page.locator('#script-status').click()
     for (const status of ['Idea', 'Draft', 'In review', 'Ready', 'In production', 'Published'])

@@ -76,13 +76,27 @@ test('sidebar state is read on the server and sensitive pages are not eagerly pr
     new URL('../src/app/[locale]/dashboard/layout.tsx', import.meta.url),
     'utf8'
   )
-  const sidebar = readFileSync(
-    new URL('../src/components/dashboard/app-sidebar.tsx', import.meta.url),
-    'utf8'
-  )
+  const sidebar = [
+    'app-sidebar.tsx',
+    'sidebar-navigation-group.tsx',
+    'sidebar-usage-card.tsx'
+  ]
+    .map((name) =>
+      readFileSync(
+        new URL(`../src/components/dashboard/${name}`, import.meta.url),
+        'utf8'
+      )
+    )
+    .join('\n')
   assert.match(layout, /await cookies\(\)/)
   assert.match(layout, /sidebar_state/)
-  assert.equal((sidebar.match(/prefetch=\{false\}/g) ?? []).length, 2)
+  // Every sidebar link except the logo opts out of eager prefetching.
+  const links = sidebar.match(/<Link\b[^>]*>/gs) ?? []
+  assert.equal(links.length, 4)
+  assert.equal(
+    links.filter((link) => /prefetch=\{false\}/.test(link)).length,
+    3
+  )
   assert.match(sidebar, /aria-current/)
   const primitive = readFileSync(
     new URL('../src/components/ui/sidebar.tsx', import.meta.url),

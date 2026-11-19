@@ -23,7 +23,10 @@ sneepcut.com, www.sneepcut.com {
 }
 
 api.sneepcut.com {
-	reverse_proxy nginx-gateway:80
+	import /config/agenda-style-bridge.caddy
+	handle {
+		reverse_proxy nginx-gateway:80
+	}
 }
 
 studio.sneepcut.com {
@@ -43,4 +46,22 @@ admin.sneepcut.com {
 	handle {
 		reverse_proxy admin:8080
 	}
+}
+
+barber.florinbejera.com {
+ encode zstd gzip
+ header {
+  X-Content-Type-Options nosniff
+  Referrer-Policy no-referrer
+  Strict-Transport-Security "max-age=31536000"
+  -Server
+ }
+ reverse_proxy 172.30.94.1:8787 {
+  header_up Host barber.florinbejera.com
+  header_up X-Forwarded-For {remote_host}
+  header_up -CF-Connecting-IP
+  header_up -X-Agenda-Platform
+  header_up -X-Agenda-Migration-Key
+  header_up -X-Agenda-Client-IP
+ }
 }

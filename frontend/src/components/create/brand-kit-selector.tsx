@@ -1,85 +1,71 @@
 'use client'
 
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
-} from '@/components/ui/select'
+import { KitAvatar } from '@/components/dashboard/brand/kits/kit-visuals'
+import { orderKits } from '@/components/dashboard/brand/kits/kit-model'
+import { useBrandKits } from '@/components/dashboard/brand/kits/use-brand-kits'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Link } from '@/i18n/navigation'
-import { apiFetch } from '@/lib/auth'
 import { Plus, Settings2 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
-import { useEffect, useState } from 'react'
 
-type BrandKit = { primaryColor: string }
+const NONE = 'none'
+const DEFAULT = 'default'
 
+/**
+ * Brand kit for a new video. With `onKitChange` every kit can be picked; without it (stories,
+ * which always use the default kit) the choice is the default kit or none.
+ */
 export function BrandKitSelector({
   enabled,
-  onChange
-}: { enabled: boolean; onChange: (enabled: boolean) => void }) {
+  onChange,
+  kitId = null,
+  onKitChange
+}: {
+  enabled: boolean
+  onChange: (enabled: boolean) => void
+  kitId?: string | null
+  onKitChange?: (kitId: string | null) => void
+}) {
   const t = useTranslations('create')
-  const [kit, setKit] = useState<BrandKit | null>(null)
-  const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading')
+  const { kits, isPending, isError } = useBrandKits()
+  const ordered = kits ? orderKits(kits) : []
+  const fallback = ordered[0] ?? null
+  const choices = onKitChange ? ordered : fallback ? [fallback] : []
+  const selected = !enabled || !fallback ? NONE : onKitChange ? (kitId ?? fallback.id) : DEFAULT
 
-  useEffect(() => {
-    let cancelled = false
-    apiFetch('/api/user/brand')
-      .then(async (response) => {
-        if (!response.ok) throw new Error('Brand kit unavailable')
-        return response.json()
-      })
-      .then((data) => {
-        if (cancelled) return
-        setKit(data.brandKit ?? null)
-        setStatus('ready')
-      })
-      .catch(() => {
-        if (!cancelled) setStatus('error')
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [])
+  function choose(value: string) {
+    onChange(value !== NONE)
+    if (onKitChange) onKitChange(value === NONE ? null : value)
+  }
 
-  const color =
-    kit?.primaryColor && /^#[0-9a-f]{6}$/i.test(kit.primaryColor)
-      ? kit.primaryColor
-      : '#7856ff'
   return (
     <section className="creation-settings-brand">
       <div className="creation-brand-heading">
         <h2>{t('brandKit')}</h2>
       </div>
       <div className="creation-brand-controls">
-        <Select
-          value={enabled && kit ? 'saved' : 'none'}
-          onValueChange={(value) => onChange(value === 'saved')}
-          disabled={status !== 'ready' || !kit}
-        >
+        <Select value={selected} onValueChange={choose} disabled={isPending || isError || !fallback}>
           <SelectTrigger aria-label={t('brandKit')} className="w-full min-w-0">
             <SelectValue />
           </SelectTrigger>
           <SelectContent position="popper" align="start">
-            <SelectItem value="none">{t('brandNone')}</SelectItem>
-            {kit && (
-              <SelectItem value="saved">
-                <span
-                  className="creation-brand-swatch"
-                  style={{ backgroundColor: color }}
-                />
-                {t('brandSaved')}
+            <SelectItem value={NONE}>{t('brandNone')}</SelectItem>
+            {choices.map((kit) => (
+              <SelectItem key={kit.id} value={onKitChange ? kit.id : DEFAULT} data-brand-kit-option={kit.id}>
+                <span className="creation-brand-kit">
+                  <KitAvatar kit={kit} size={20} />
+                  {kit.name}
+                </span>
               </SelectItem>
-            )}
+            ))}
           </SelectContent>
         </Select>
         <Link href="/dashboard/brand" className="creation-brand-action">
-          {kit ? <Settings2 aria-hidden="true" /> : <Plus aria-hidden="true" />}
-          {t(kit ? 'brandManage' : 'brandAdd')}
+          {fallback ? <Settings2 aria-hidden="true" /> : <Plus aria-hidden="true" />}
+          {t(fallback ? 'brandManage' : 'brandAdd')}
         </Link>
       </div>
-      {status === 'error' && (
+      {isError && (
         <p className="text-xs text-destructive" role="status">
           {t('brandLoadError')}
         </p>

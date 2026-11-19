@@ -80,6 +80,8 @@ func reply(w http.ResponseWriter, status int, body any) {
 func failure(w http.ResponseWriter, err error) {
 	status, message := 503, "Job service is temporarily unavailable"
 	switch {
+	case errors.Is(err, ErrRemovedSource):
+		status, message = 400, err.Error()
 	case errors.Is(err, audiocleanup.ErrUnavailable):
 		status, message = 503, err.Error()
 	case errors.Is(err, sql.ErrNoRows):

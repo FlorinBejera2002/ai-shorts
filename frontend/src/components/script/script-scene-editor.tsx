@@ -1,7 +1,7 @@
 'use client'
 
 import type { ScriptScene } from '@/lib/scripts-workspace'
-import { ArrowDown, ArrowUp, X } from 'lucide-react'
+import { ChevronDown, ChevronUp, X } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useId } from 'react'
 import type { CoachScene } from './shooting-coach'
@@ -85,7 +85,7 @@ export function ScriptSceneEditor({
             disabled={index === 0}
             onClick={() => onMove(-1)}
           >
-            <ArrowUp aria-hidden="true" />
+            <ChevronUp aria-hidden="true" />
           </button>
           <button
             type="button"
@@ -94,11 +94,11 @@ export function ScriptSceneEditor({
             disabled={index === count - 1}
             onClick={() => onMove(1)}
           >
-            <ArrowDown aria-hidden="true" />
+            <ChevronDown aria-hidden="true" />
           </button>
           <button
             type="button"
-            className={`${styles.sceneAction} ${styles.sceneDelete}`}
+            className={styles.sceneAction}
             aria-label={t('workspace.deleteScene')}
             onClick={onDelete}
           >
@@ -119,6 +119,7 @@ export function ScriptSceneEditor({
             {preview}
           </span>
           <span className={styles.sceneDuration}>{duration}</span>
+          <ChevronDown className={styles.sceneChevron} aria-hidden="true" />
         </button>
       )}
       <div id={`${id}-fields`} className={styles.sceneFields} hidden={!expanded}>

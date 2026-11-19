@@ -6,6 +6,7 @@ import {
   type ReactNode
 } from 'react'
 import { Link as ReactRouterLink } from 'react-router-dom'
+import { isPublicSitePath } from '@/routing/public-site'
 import { localizeHref } from './navigation'
 
 type LinkProps = Omit<
@@ -18,7 +19,7 @@ type LinkProps = Omit<
 }
 
 export const Link = forwardRef<HTMLAnchorElement, LinkProps>(function Link(
-  { href, onClick, prefetch: _prefetch, ...props },
+  { href, onClick, prefetch: _prefetch, reloadDocument, ...props },
   ref
 ) {
   const locale = useLocale()
@@ -29,6 +30,13 @@ export const Link = forwardRef<HTMLAnchorElement, LinkProps>(function Link(
   }
 
   return (
-    <ReactRouterLink ref={ref} to={to} onClick={handleClick} {...props} />
+    <ReactRouterLink
+      ref={ref}
+      to={to}
+      onClick={handleClick}
+      // Public pages are served by the static site, not by this SPA.
+      reloadDocument={reloadDocument ?? isPublicSitePath(to)}
+      {...props}
+    />
   )
 })

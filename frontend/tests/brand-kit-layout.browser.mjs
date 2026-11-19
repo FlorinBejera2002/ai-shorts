@@ -467,7 +467,7 @@ async function captureReferenceStates() {
 }
 
 try {
-  await page.goto(`${origin}/dashboard/brand`, { waitUntil: 'networkidle', timeout: 180000 })
+  await page.goto(`${origin}/dashboard/brand/default`, { waitUntil: 'networkidle', timeout: 180000 })
   await root.waitFor()
   await caption.waitFor()
   await page.waitForFunction(() => document.querySelector('[data-brand-preview-video]')?.readyState >= 2)
@@ -750,11 +750,12 @@ try {
   await page.locator('[data-slot="sidebar"] a[href="/dashboard/publish"]').filter({ visible: true }).first().click()
   await page.locator('[data-publishing-workspace]').waitFor()
   await assertShell()
+  // The sidebar opens Kiturile mele inside the same shell; the default kit's editor is one level deeper.
   await page.locator('[data-slot="sidebar"] a[href="/dashboard/brand"]').filter({ visible: true }).first().click()
-  await root.waitFor()
+  await page.locator('[data-brand-kits]').waitFor()
   await assertShell()
   canWhiteLabel = true
-  await page.reload({ waitUntil: 'networkidle' })
+  await page.goto(`${origin}/dashboard/brand/default`, { waitUntil: 'networkidle' })
   await root.waitFor()
   await section('logo')
   assert.equal(await badge.isDisabled(), false, 'Explicit white-label permission enables badge control')

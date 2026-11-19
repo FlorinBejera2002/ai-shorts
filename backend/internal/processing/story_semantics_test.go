@@ -84,6 +84,11 @@ func TestStorySourceMeaningUsesActualFramesAndReusesCheckpoint(t *testing.T) {
 	if err != nil || reviewer.calls != 2 || !strings.Contains(strings.Join(blocked[0].Warnings, " "), "budget") {
 		t.Fatal("source analysis exceeded durable AI budget")
 	}
+	// A later successful analysis must clear the earlier run's failure warning.
+	recovered, err := p.AnalyzeStorySources(ctx, []story.Asset{blocked[0]}, options)
+	if err != nil || reviewer.calls != 3 || strings.Contains(strings.Join(recovered[0].Warnings, " "), "budget") {
+		t.Fatalf("stale source meaning failure survived a successful run: %v %v", recovered[0].Warnings, err)
+	}
 }
 
 func TestStorySourceMeaningRejectsFabricationAndAbstainsOnUnseenVisuals(t *testing.T) {

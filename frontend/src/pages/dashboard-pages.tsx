@@ -1,7 +1,7 @@
 import { AuthGuard } from '@/components/auth/auth-guard'
 import { ContentCalendar } from '@/components/calendar/content-calendar'
 import { DashboardShell } from '@/components/dashboard/dashboard-shell'
-import Library from '@/components/dashboard/views/projects'
+import { ClipsLibraryPage } from '@/components/clips/clips-library'
 import Account from '@/components/dashboard/views/settings'
 import {
   dashboardRedirectHref,
@@ -43,7 +43,7 @@ export function DashboardLayout() {
   )
 }
 
-export function ClipsRoute() { return <Library /> }
+export function ClipsRoute() { return <ClipsLibraryPage /> }
 
 export function SettingsRoute() {
   const locale = useLocale()

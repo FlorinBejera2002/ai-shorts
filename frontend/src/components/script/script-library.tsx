@@ -1,7 +1,7 @@
 'use client'
 
 import type { ScriptRecord } from '@/lib/scripts-workspace'
-import { Archive, CircleAlert, FileText, Plus, Search } from 'lucide-react'
+import { Archive, Plus, Search } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { ScriptLibraryCard } from './script-library-card'
 import { ScriptStateCard } from './script-state-card'
@@ -45,7 +45,7 @@ export function ScriptLibrary({
           role="alert"
           tone="danger"
           title={t('workspace.loadErrorTitle')}
-          icon={<CircleAlert />}
+          illustration={{ src: '/illustrations/load-error.webp', alt: '' }}
           className={styles.state}
         >
           <p className={styles.stateDetail}>{error}</p>
@@ -68,7 +68,10 @@ export function ScriptLibrary({
       return (
         <ScriptStateCard
           title={t(filtered ? 'workspace.noResults' : 'workspace.emptyTitle')}
-          icon={<FileText />}
+          illustration={{
+            src: filtered ? '/illustrations/clips-noresults.webp' : '/illustrations/library-empty.webp',
+            alt: ''
+          }}
           className={styles.state}
         >
           {!filtered && (
@@ -78,7 +81,7 @@ export function ScriptLibrary({
               onClick={onNew}
               disabled={creating}
             >
-              {t('workspace.new')}
+              {t('workspace.newScenario')}
             </button>
           )}
         </ScriptStateCard>
@@ -100,21 +103,9 @@ export function ScriptLibrary({
       aria-busy={busy}
       data-script-library=""
     >
-      <header className={styles.header}>
-        <h1 id="script-library-heading" className={styles.title}>
-          {t('workspace.title')}
-        </h1>
-        <button
-          type="button"
-          className={`${shared.primaryButton} ${styles.newButton}`}
-          onClick={onNew}
-          disabled={creating}
-          data-script-new=""
-        >
-          <Plus aria-hidden="true" />
-          <span className={styles.newLabel}>{t('workspace.new')}</span>
-        </button>
-      </header>
+      <h1 id="script-library-heading" className="sr-only">
+        {t('workspace.title')}
+      </h1>
 
       <div className={styles.filters}>
         <label className={styles.search}>
@@ -124,7 +115,7 @@ export function ScriptLibrary({
             value={query}
             onChange={(event) => onQueryChange(event.target.value)}
             placeholder={t('workspace.searchPlaceholder')}
-            aria-label={t('workspace.search')}
+            aria-label={t('workspace.searchLabel')}
           />
         </label>
         <label className={styles.archivedSwitch}>
@@ -145,7 +136,24 @@ export function ScriptLibrary({
         >
           <Archive aria-hidden="true" />
         </button>
+        <button
+          type="button"
+          className={`${shared.primaryButton} ${styles.newButton}`}
+          onClick={onNew}
+          disabled={creating}
+          data-script-new=""
+        >
+          <Plus aria-hidden="true" />
+          <span className={styles.newLabel}>{t('workspace.newScenario')}</span>
+        </button>
       </div>
+
+      {!error && !busy && records.length > 0 && (
+        <p className={styles.count} data-script-count="">
+          {t('workspace.libraryCount', { count: records.length })}
+          {includeArchived && ` ${t('workspace.archivedInclusive')}`}
+        </p>
+      )}
 
       {content()}
     </section>

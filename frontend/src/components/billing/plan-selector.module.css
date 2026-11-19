@@ -1,234 +1,264 @@
+/* Schimbă planul (canvas Ab-Plans / Ab-M-Plans): four plan cards, then Cancel / Continue. */
 .selector {
-  padding-top: 0.8rem;
-}
-.plans {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-  min-width: 0;
-  border: 0;
-  padding: 0;
-  margin: 0;
-}
-.plans legend {
-  margin-bottom: 1rem;
-  color: var(--muted-foreground);
-  font-size: 0.95rem;
-}
-.plan {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  grid-template-areas: 'desc radio' 'price price';
-  align-items: start;
-  gap: 10px 16px;
-  padding: 18px;
-  border: 2px solid var(--publish-border);
-  border-radius: 18px;
-  background: var(--publish-surface);
-  cursor: pointer;
-}
-.plan > :first-child { grid-area: desc; }
-.plan input[type='radio'] { grid-area: radio; }
-.plan[data-disabled='true'] {
-  cursor: default;
-}
-.plan[data-disabled='true'] {
-  opacity: .55;
-}
-.plan[data-selected='true'] {
-  border-color: var(--publish-primary);
-  background: var(--publish-info-bg);
-}
-.plan:not([data-disabled='true']):hover {
-  border-color: var(--publish-border-strong);
-}
-.plan:has(input:focus-visible) {
-  outline: 2px solid var(--ring);
-  outline-offset: 3px;
-  border-radius: 18px;
-}
-.name {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.85rem;
-  margin-bottom: 0.3rem;
-  font-family: 'Sora Variable', Sora, sans-serif;
-  font-size: 18px;
-  font-weight: 600;
-}
-.name .current {
-  padding: 3px 10px;
-  border-radius: 999px;
-  background: var(--publish-secondary);
-  font-family: 'Inter Variable', Inter, sans-serif;
-  font-size: 0.75rem;
-  font-weight: 500;
-}
-.description p {
-  line-height: 1.5;
-  font-size: 13px;
-  color: var(--publish-secondary-text);
-}
-.description .features {
-  color: var(--publish-muted-text);
-  font-size: 13px;
-}
-.price {
-  grid-area: price;
-  display: flex;
-  align-self: start;
-  align-items: baseline;
-  justify-content: flex-start;
-  font-family: 'Sora Variable', Sora, sans-serif;
-  gap: 0.3rem;
-  padding-top: 0.15rem;
-  white-space: nowrap;
-  font-size: 1.3rem;
-  font-weight: 600;
-}
-.price span {
-  color: var(--muted-foreground);
-  font-size: 0.9rem;
-  font-weight: 400;
-}
-.plan input[type='radio'] {
-  appearance: none;
-  width: 1.5rem;
-  height: 1.5rem;
-  border: 2px solid var(--publish-border-strong);
-  border-radius: 9999px;
-  background: transparent;
-  outline: none;
-}
-.plan input[type='radio']:checked {
-  border-color: var(--publish-primary);
-  background: radial-gradient(circle, var(--publish-primary) 0 40%, transparent 44%);
-}
-.plan input[type='radio']:disabled {
-  opacity: 0.4;
-}
-.footer {
-  margin-top: 18px;
   display: flex;
   flex-direction: column;
+  gap: 20px;
+}
+
+.fieldset {
+  min-width: 0;
+  margin: 0;
+  border: 0;
+  padding: 0;
+}
+
+.fieldset legend {
+  margin-bottom: 14px;
+  padding: 0;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 18px;
+}
+
+.grid {
+  display: grid;
+  align-items: stretch;
+  gap: 16px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.plan {
+  position: relative;
+  display: grid;
+  align-content: start;
+  grid-template-areas:
+    'radio name'
+    'art art'
+    'pricing pricing'
+    'features features';
+  grid-template-columns: 22px minmax(0, 1fr);
+  column-gap: 10px;
+  row-gap: 16px;
+  border-radius: 22px;
+  background: var(--publish-surface);
+  padding: 20px;
+  box-shadow: inset 0 0 0 1px var(--publish-border);
+  cursor: pointer;
+}
+
+.plan[data-selected='true'] {
+  box-shadow: inset 0 0 0 2px var(--publish-text);
+}
+
+.plan:has(.input:disabled) {
+  cursor: default;
+}
+
+.plan[data-disabled='true'] {
+  opacity: 0.55;
+}
+
+.plan:has(.input:focus-visible) {
+  outline: 2px solid var(--ref-primary);
+  outline-offset: 2px;
+}
+
+.input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.radio {
+  width: 22px;
+  height: 22px;
+  align-self: center;
+  border-radius: 999px;
+  background: var(--publish-surface);
+  box-shadow: inset 0 0 0 2px var(--ref-strong);
+  grid-area: radio;
+}
+
+.plan[data-selected='true'] .radio {
+  box-shadow: inset 0 0 0 7px var(--publish-text);
+}
+
+.nameRow {
+  display: flex;
+  min-width: 0;
+  align-items: center;
   gap: 10px;
+  grid-area: name;
 }
-.footer .continue,
-.footer > div > button {
-  width: 100%;
-  min-height: 54px;
-  border: 0;
-  font-size: 16px;
+
+.name {
+  min-width: 0;
+  flex: 1 1 auto;
+  font-size: 18px;
+  line-height: 24px;
+}
+
+.art {
+  display: block;
+  width: 168px;
+  max-width: 100%;
+  height: auto;
+  aspect-ratio: 1;
+  justify-self: center;
+  object-fit: contain;
+  grid-area: art;
+}
+
+.pricing {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  grid-area: pricing;
+}
+
+.price {
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 28px;
+}
+
+.pricing > span {
+  font-size: 13px;
   font-weight: 600;
-  color: var(--publish-on-primary);
-  background: var(--publish-primary);
-  border-radius: 999px;
-  box-shadow: var(--publish-primary-shadow);
+  line-height: 18px;
 }
-.footer .continue:hover,
-.footer > div > button:hover {
-  background: var(--publish-primary-hover);
+
+.features {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  grid-area: features;
 }
-.footer p {
-  text-align: center;
-  font-size: 0.8rem;
-  color: var(--muted-foreground);
-  line-height: 1.5;
+
+.features li {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 13px;
+  line-height: 18px;
 }
-.footer .cancel {
-  min-height: 48px;
-  width: 100%;
-  border: 0;
-  border-radius: 999px;
-  background: var(--publish-secondary);
-  font-weight: 600;
+
+.features svg {
+  width: 16px;
+  height: 16px;
+  flex: none;
+  margin-top: 1px;
+  color: var(--publish-success);
 }
-@media (max-width: 767px) {
+
+.footer {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.note {
+  min-width: 0;
+  flex: 1 1 auto;
+  font-size: 13px;
+  line-height: 18px;
+}
+
+@media (min-width: 1024px) and (max-width: 1199px) {
+  .grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 1023px) {
   .selector {
-    padding-top: 1rem;
+    gap: 16px;
   }
-  .plans legend {
-    margin-bottom: 0.5rem;
-    font-size: 0.95rem;
+
+  .fieldset legend {
+    margin-bottom: 10px;
   }
-  .plans {
+
+  .grid {
+    gap: 10px;
     grid-template-columns: minmax(0, 1fr);
   }
+
   .plan {
-    gap: 6px 12px;
+    grid-template-areas:
+      'radio name art'
+      'radio pricing art'
+      'features features features';
+    grid-template-columns: 22px minmax(0, 1fr) 96px;
+    column-gap: 12px;
+    row-gap: 4px;
+    border-radius: 20px;
     padding: 16px;
   }
+
+  .nameRow {
+    align-self: end;
+    gap: 8px;
+  }
+
   .name {
-    font-size: 1.25rem;
-    gap: 0.4rem;
+    flex: 0 1 auto;
   }
-  .name .current {
-    font-size: 0.65rem;
-    padding: 0.2rem 0.4rem;
+
+  .art {
+    width: 96px;
+    align-self: center;
   }
-  .description p {
-    font-size: 0.9rem;
+
+  .pricing {
+    align-self: start;
   }
-  .description .features {
-    font-size: 0.8rem;
-  }
+
   .price {
-    font-size: 1.15rem;
-    gap: 0.2rem;
+    font-size: 17px;
+    line-height: 22px;
   }
-  .price span {
-    font-size: 0.75rem;
+
+  .pricing > span {
+    font-size: 12px;
+    line-height: 16px;
   }
-  .plan input[type='radio'] {
-    width: 1.25rem;
-    height: 1.25rem;
+
+  .features {
+    margin-top: 10px;
   }
-  .plan[data-selected='true'] {
-    padding-left: 0.65rem;
-    padding-right: 0.65rem;
-  }
+
   .footer {
-    margin-top: 2.5rem;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 16px;
   }
-}
-@media (max-width: 380px) {
-  .plan {
-    column-gap: 0.5rem;
+
+  .note {
+    font-size: 12px;
+    line-height: 16px;
+    text-align: center;
   }
-  .name {
-    font-size: 1.1rem;
+
+  .continue {
+    order: 1;
   }
-  .name .current {
-    font-size: 0.6rem;
+
+  .cancel {
+    order: 2;
   }
-  .description p {
-    font-size: 0.8rem;
+
+  .continue,
+  .continue button,
+  .cancel.cancel {
+    width: 100%;
   }
-  .description .features {
-    font-size: 0.72rem;
-  }
-  .price {
-    font-size: 1rem;
-  }
-  .price span {
-    font-size: 0.7rem;
-  }
-}
-:global(#dashboard-main) .plan input[type='radio'] {
-  appearance: none;
-  box-sizing: border-box;
-  flex-shrink: 0;
-  min-width: 0;
-  min-height: 0;
-  width: 1.5rem;
-  height: 1.5rem;
-  padding: 0;
-  border-radius: 9999px;
-}
-@media (max-width: 767px) {
-  :global(#dashboard-main) .plan input[type='radio'] {
-    width: 1.25rem;
-    height: 1.25rem;
+
+  .continue button,
+  .cancel.cancel {
+    height: 52px;
   }
 }

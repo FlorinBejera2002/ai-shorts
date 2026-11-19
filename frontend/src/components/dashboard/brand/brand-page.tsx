@@ -7,6 +7,11 @@ import { useIsMobile } from '@/hooks/use-mobile'
 import { AlertCircle, ChevronRight } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useState } from 'react'
+import { useParams } from 'react-router-dom'
+import { useRouter } from '@/i18n/navigation'
+import { KitCreatedNotice } from './kits/kit-created-notice'
+import { KitSaveAsDialog } from './kits/kit-dialogs'
+import { kitHref } from './kits/kit-model'
 import { CaptionsSection } from './captions-section'
 import { BrandLogoGroup } from './brand-logo-group'
 import { BrandWorkspaceHeader } from './brand-workspace-header'
@@ -18,13 +23,15 @@ import { PreviewPanel } from './preview-panel'
 import type { PreviewRatio } from './types'
 import { useBrandKit } from './use-brand-kit'
 import styles from './brand-page.module.css'
-import theme from '@/components/calendar/publishing-theme.module.css'
+import { referenceSurface } from '@/components/shared/reference-overlay'
 
 export default function BrandPage() {
   const t = useTranslations('brand')
-  const brand = useBrandKit((key) => t(key as Parameters<typeof t>[0]))
+  const { kitId } = useParams()
+  // `/dashboard/brand/default` edits the default kit through the single-kit endpoint.
+  const brand = useBrandKit((key) => t(key as Parameters<typeof t>[0]), kitId && kitId !== 'default' ? kitId : null)
   return (
-    <div className={`${theme.surface} ${styles.workspace}`} data-reference-surface="">
+    <div className={`${referenceSurface} ${styles.workspace}`} data-reference-surface="">
       {brand.loading ? (
         <>
           <WorkspaceMobileHeader />
@@ -56,6 +63,17 @@ function BrandWorkspace({ brand }: { brand: BrandKitController }) {
   const [previewExpanded, setPreviewExpanded] = useState(false)
   const [ratio, setRatio] = useState<PreviewRatio>('9:16')
   const [fontBusy, setFontBusy] = useState(false)
+  const [savingAs, setSavingAs] = useState(false)
+  const [saveAsError, setSaveAsError] = useState<string | null>(null)
+  const router = useRouter()
+  async function saveAs(name: string, makeDefault: boolean) {
+    setSaveAsError(null)
+    const result = await brand.saveAsNew(name, makeDefault)
+    if (!result) return
+    if ('error' in result) return setSaveAsError(result.error)
+    setSavingAs(false)
+    router.push(`${kitHref(result.id)}?created=1`)
+  }
   function goBack() {
     if (previewExpanded) setPreviewExpanded(false)
     else setSection('overview')
@@ -75,7 +93,12 @@ function BrandWorkspace({ brand }: { brand: BrandKitController }) {
         expanded={previewExpanded}
         fontBusy={fontBusy}
         onBack={goBack}
+        onSaveAs={() => {
+          setSaveAsError(null)
+          setSavingAs(true)
+        }}
       />
+      <KitCreatedNotice name={brand.meta?.name} />
       <div className={styles.layout}>
         <fieldset
           disabled={brand.saving || brand.logoBusy}
@@ -125,6 +148,14 @@ function BrandWorkspace({ brand }: { brand: BrandKitController }) {
           />
         </div>
       </div>
+      <KitSaveAsDialog
+        open={savingAs}
+        mobile={mobile}
+        busy={brand.saving}
+        error={saveAsError}
+        onClose={() => setSavingAs(false)}
+        onSubmit={(name, makeDefault) => void saveAs(name, makeDefault)}
+      />
     </div>
   )
 }

@@ -40,6 +40,8 @@ func (h *Handler) exportData(ctx context.Context, userID string) (map[string]any
 		return nil, err
 	}
 	collections := []struct{ name, table, columns, order string }{
+		{"youtubeImports", "youtube_imports", "id,status,resources,created_at,updated_at", "created_at DESC,id DESC"},
+		{"youtubeImportedVideos", "youtube_import_videos", "id,import_id,title,file_name,file_size,created_at,deleted_at", "created_at DESC,id DESC"},
 		{"socialAccounts", "social_accounts", "id,provider,name,username,status,scopes,youtube_consent_at,youtube_verified_at,created_at,updated_at", "created_at DESC,id DESC"},
 		{"socialPosts", "social_posts", "id,account_id,clip_id,scheduled_post_id,provider,caption,options,status,error,url,created_at,updated_at", "created_at DESC,id DESC"},
 		{"jobs", "jobs", "id,project_name,project_brand,source_type,source_url,source_video_url,status,progress,progress_message,num_clips_requested,aspect_ratio,language,subtitle_style,include_brand,user_instructions,transcript_segments,credits_charged,error_message,started_at,completed_at,created_at,updated_at", "created_at DESC,id DESC"},

@@ -252,7 +252,10 @@ export function isSameLocalDay(left: Date, right: Date): boolean {
   return localDateKey(left) === localDateKey(right)
 }
 
-export function isInRange(value: string, range: CalendarRange): boolean {
+export function isInRange(
+  value: string,
+  range: Pick<CalendarRange, 'start' | 'end'>
+): boolean {
   const timestamp = new Date(value).getTime()
   return timestamp >= range.start.getTime() && timestamp < range.end.getTime()
 }

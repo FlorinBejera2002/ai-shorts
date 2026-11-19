@@ -2,6 +2,7 @@
 
 import { useQueryClient } from '@tanstack/react-query'
 import { useTheme } from '@/components/shared/theme-context'
+import { useToast } from '@/components/ui/toast'
 import { useApiResource } from '@/hooks/use-api-resource'
 import { usePathname, useRouter } from '@/i18n/navigation'
 import { extractApiError } from '@/lib/api-error'
@@ -10,22 +11,19 @@ import type { AccountPreferences, SettingsData } from '@/lib/settings'
 import { useLocale, useTranslations } from 'next-intl'
 import { useEffect, useRef, useState } from 'react'
 
-type FeedbackGroup = 'preferences' | 'mfa' | 'sessions'
-type Feedback = { group: FeedbackGroup; text: string; error: boolean } | null
-export type SecurityView = 'password' | 'setup' | 'recovery' | 'sessions'
+type ErrorGroup = 'preferences' | 'notifications' | 'mfa' | 'sessions'
+export type TwoFactorView = 'setup' | 'recovery' | 'manage'
+export type NotificationKey = 'emailProduct' | 'emailMarketing' | 'inAppProcessing' | 'inAppPublishing'
 
 interface MutationOptions {
   disabled?: boolean
-  onBusyChange?: (busy: boolean) => void
   acquireMutation?: () => boolean
   releaseMutation?: () => void
 }
 
-async function mutation<T>(
-  path: string,
-  init: RequestInit,
-  signal: AbortSignal
-): Promise<T> {
+const SETTINGS_KEY = ['api-resource', '/api/user/settings']
+
+async function mutation<T>(path: string, init: RequestInit, signal: AbortSignal): Promise<T> {
   const response = await apiFetch(path, {
     ...init,
     signal,
@@ -36,135 +34,125 @@ async function mutation<T>(
   return result as T
 }
 
+/** Preferences, notifications, two-factor authentication and sessions from `/api/user/settings`. */
 export function useSettingsPanels(options: MutationOptions) {
-  const { data, error, reload } =
-    useApiResource<SettingsData>('/api/user/settings')
+  const { data, error, reload } = useApiResource<SettingsData>('/api/user/settings')
   const queryClient = useQueryClient()
   const t = useTranslations('settings')
+  const toast = useToast()
   const locale = useLocale()
   const pathname = usePathname()
   const router = useRouter()
   const { setTheme } = useTheme()
   const [draft, setDraft] = useState<AccountPreferences | null>(null)
   const [busy, setBusy] = useState<string | null>(null)
-  const [feedback, setFeedback] = useState<Feedback>(null)
-  const [view, setView] = useState<SecurityView>('password')
+  const [failure, setFailure] = useState<{ group: ErrorGroup; text: string } | null>(null)
+  const [twoFactorView, setTwoFactorView] = useState<TwoFactorView | null>(null)
   const [mfaCode, setMfaCode] = useState('')
-  const [setup, setSetup] = useState<{
-    secret: string
-    provisionerUri: string
-  } | null>(null)
+  const [setup, setSetup] = useState<{ secret: string; provisionerUri: string } | null>(null)
   const [recoveryCodes, setRecoveryCodes] = useState<string[]>([])
   const activeMutation = useRef<AbortController | null>(null)
-  const preferences = draft ?? data?.preferences ?? null
+  const saved = data?.preferences ?? null
+  const preferences = draft ?? saved
   const disabled = Boolean(options.disabled || busy)
 
   useEffect(() => () => activeMutation.current?.abort(), [])
 
   function updateData(update: (previous: SettingsData) => SettingsData) {
-    queryClient.setQueryData<SettingsData>(
-      ['api-resource', '/api/user/settings'],
-      (previous) => (previous ? update(previous) : previous)
-    )
+    queryClient.setQueryData<SettingsData>(SETTINGS_KEY, (previous) => (previous ? update(previous) : previous))
   }
 
-  async function run(
-    key: string,
-    group: FeedbackGroup,
-    action: (signal: AbortSignal) => Promise<void>
-  ) {
-    if (
-      activeMutation.current ||
-      options.disabled ||
-      options.acquireMutation?.() === false
-    )
-      return
+  async function run(key: string, group: ErrorGroup, action: (signal: AbortSignal) => Promise<void>) {
+    if (activeMutation.current || options.disabled || options.acquireMutation?.() === false) return
     const controller = new AbortController()
     activeMutation.current = controller
     setBusy(key)
-    setFeedback(null)
-    options.onBusyChange?.(true)
+    setFailure(null)
     try {
       await action(controller.signal)
     } catch (caught) {
-      if (!controller.signal.aborted) {
-        setFeedback({
-          group,
-          error: true,
-          text:
-            caught instanceof Error ? caught.message : t('settingsSaveFailed')
-        })
-      }
+      if (!controller.signal.aborted)
+        setFailure({ group, text: caught instanceof Error ? caught.message : t('settingsSaveFailed') })
     } finally {
       activeMutation.current = null
       options.releaseMutation?.()
-      options.onBusyChange?.(false)
       if (!controller.signal.aborted) setBusy(null)
     }
   }
 
-  function changePreference<Key extends keyof AccountPreferences>(
-    key: Key,
-    value: AccountPreferences[Key]
-  ) {
+  function errorFor(group: ErrorGroup) {
+    return failure?.group === group ? failure.text : null
+  }
+
+  function changePreference<Key extends keyof AccountPreferences>(key: Key, value: AccountPreferences[Key]) {
     if (disabled || !preferences) return
     setDraft({ ...preferences, [key]: value })
-    if (feedback?.group === 'preferences') setFeedback(null)
+    if (failure?.group === 'preferences') setFailure(null)
+  }
+
+  function cancelPreferences() {
+    if (busy) return
+    setDraft(null)
+    if (failure?.group === 'preferences') setFailure(null)
+  }
+
+  async function putPreferences(snapshot: AccountPreferences, signal: AbortSignal) {
+    const result = await mutation<{ preferences: AccountPreferences }>(
+      '/api/user/preferences',
+      { method: 'PUT', body: JSON.stringify(snapshot) },
+      signal
+    )
+    updateData((previous) => ({ ...previous, preferences: result.preferences }))
+    return result.preferences
   }
 
   async function savePreferences() {
-    if (
-      !preferences ||
-      !Number.isInteger(preferences.defaultClipCount) ||
-      preferences.defaultClipCount < 1 ||
-      preferences.defaultClipCount > 10
-    )
+    const snapshot = draft
+    if (!snapshot || !Number.isInteger(snapshot.defaultClipCount) || snapshot.defaultClipCount < 1 || snapshot.defaultClipCount > 10)
       return
-    const snapshot = preferences
     await run('preferences', 'preferences', async (signal) => {
-      const result = await mutation<{ preferences: AccountPreferences }>(
-        '/api/user/preferences',
-        { method: 'PUT', body: JSON.stringify(snapshot) },
-        signal
-      )
-      updateData((previous) => ({
-        ...previous,
-        preferences: result.preferences
-      }))
+      const next = await putPreferences(snapshot, signal)
       setDraft(null)
-      setTheme(result.preferences.theme)
-      setFeedback({
-        group: 'preferences',
-        error: false,
-        text: t('settingsSaved')
-      })
-      if (result.preferences.locale !== locale) {
-        router.replace(
-          `${pathname}${window.location.search}${window.location.hash}`,
-          { locale: result.preferences.locale }
-        )
-      }
+      setTheme(next.theme)
+      toast.add('success', t('settingsSaved'))
+      if (next.locale !== locale)
+        router.replace(`${pathname}${window.location.search}`, { locale: next.locale })
     })
   }
 
-  async function beginMFA(restart = false) {
+  /** Notifications save on toggle; an unsaved Preferences draft keeps the new value too. */
+  async function saveNotification(key: NotificationKey, value: boolean) {
+    if (!saved || disabled) return
+    await run(`notification-${key}`, 'notifications', async (signal) => {
+      await putPreferences({ ...saved, [key]: value }, signal)
+      setDraft((current) => (current ? { ...current, [key]: value } : current))
+    })
+  }
+
+  async function openTwoFactor() {
     if (activeMutation.current || options.disabled) return
+    setMfaCode('')
     if (data?.mfa.enabled) {
-      setView('recovery')
-      return
-    }
-    if (setup && !restart) {
-      setView('setup')
+      setTwoFactorView('manage')
       return
     }
     await run('mfa-setup', 'mfa', async (signal) => {
-      const result = await mutation<{
-        setup: { secret: string; provisionerUri: string }
-      }>('/api/user/mfa/setup', { method: 'POST' }, signal)
+      const result = await mutation<{ setup: { secret: string; provisionerUri: string } }>(
+        '/api/user/mfa/setup',
+        { method: 'POST' },
+        signal
+      )
       setSetup(result.setup)
-      setMfaCode('')
-      setView('setup')
+      setTwoFactorView('setup')
     })
+  }
+
+  function closeTwoFactor() {
+    if (busy) return
+    setTwoFactorView(null)
+    setMfaCode('')
+    setRecoveryCodes([])
+    if (failure?.group === 'mfa') setFailure(null)
   }
 
   async function enableMFA() {
@@ -179,9 +167,8 @@ export function useSettingsPanels(options: MutationOptions) {
       setRecoveryCodes(result.recoveryCodes)
       setSetup(null)
       setMfaCode('')
-      setView('recovery')
-      setFeedback({ group: 'mfa', error: false, text: t('mfaEnabledSuccess') })
-      reload()
+      setTwoFactorView('recovery')
+      toast.add('success', t('mfaEnabledSuccess'))
     })
   }
 
@@ -194,80 +181,44 @@ export function useSettingsPanels(options: MutationOptions) {
         signal
       )
       setMfaCode('')
-      setRecoveryCodes(result.recoveryCodes ?? [])
       if (action === 'disable') {
         updateData((previous) => ({ ...previous, mfa: { enabled: false } }))
-        setSetup(null)
-        setView('password')
-        setFeedback({
-          group: 'mfa',
-          error: false,
-          text: t('mfaDisabledSuccess')
-        })
+        setTwoFactorView(null)
+        toast.add('success', t('mfaDisabledSuccess'))
+      } else {
+        setRecoveryCodes(result.recoveryCodes ?? [])
+        setTwoFactorView('recovery')
       }
-      reload()
     })
   }
 
   async function revokeSession(id: string, current: boolean) {
     await run(`session-${id}`, 'sessions', async (signal) => {
-      await mutation(
-        `/api/user/sessions/${encodeURIComponent(id)}`,
-        { method: 'DELETE' },
-        signal
-      )
+      await mutation(`/api/user/sessions/${encodeURIComponent(id)}`, { method: 'DELETE' }, signal)
       if (current) {
         authClient.clearSession()
         window.location.assign('/login')
-      } else {
-        updateData((previous) => ({
-          ...previous,
-          sessions: previous.sessions.filter((session) => session.id !== id)
-        }))
-        setFeedback({
-          group: 'sessions',
-          error: false,
-          text: t('sessionRevoked')
-        })
-        reload()
+        return
       }
+      updateData((previous) => ({ ...previous, sessions: previous.sessions.filter((session) => session.id !== id) }))
+      toast.add('success', t('sessionRevoked'))
     })
   }
 
   async function revokeOthers() {
     await run('sessions', 'sessions', async (signal) => {
-      await mutation(
-        '/api/user/sessions/revoke-others',
-        { method: 'POST' },
-        signal
-      )
-      updateData((previous) => ({
-        ...previous,
-        sessions: previous.sessions.filter((session) => session.current)
-      }))
-      setFeedback({
-        group: 'sessions',
-        error: false,
-        text: t('sessionsRevoked')
-      })
-      reload()
+      await mutation('/api/user/sessions/revoke-others', { method: 'POST' }, signal)
+      updateData((previous) => ({ ...previous, sessions: previous.sessions.filter((session) => session.current) }))
+      toast.add('success', t('sessionsRevoked'))
     })
   }
 
   async function copy(value: string) {
     try {
       await navigator.clipboard.writeText(value)
-      setFeedback({
-        group: 'mfa',
-        error: false,
-        text: t('panelsDesign.copied')
-      })
+      toast.add('success', t('panelsDesign.copied'))
     } catch {
-      setFeedback({
-        group: 'mfa',
-        error: true,
-        text: t('panelsDesign.copyFailed')
-      })
+      setFailure({ group: 'mfa', text: t('panelsDesign.copyFailed') })
     }
   }
 
@@ -276,18 +227,21 @@ export function useSettingsPanels(options: MutationOptions) {
     error,
     reload,
     preferences,
+    dirty: draft !== null,
     disabled,
     busy,
-    feedback,
-    view,
-    setView,
+    errorFor,
+    changePreference,
+    cancelPreferences,
+    savePreferences,
+    saveNotification,
+    twoFactorView,
     setup,
     mfaCode,
     setMfaCode,
     recoveryCodes,
-    changePreference,
-    savePreferences,
-    beginMFA,
+    openTwoFactor,
+    closeTwoFactor,
     enableMFA,
     manageMFA,
     revokeSession,

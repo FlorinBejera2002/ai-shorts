@@ -1,324 +1,364 @@
+/*
+ * Istoric facturi (canvas Ab-Main, Ab-Invoices, Ab-M-*). One row markup, three grids:
+ * the overview list, the full desktop table with headers and the stacked phone row.
+ */
 .history {
+  display: flex;
   min-width: 0;
-  padding: 22px;
-  border-radius: var(--publish-card-radius);
-  background: var(--publish-surface);
-  box-shadow: var(--publish-card-shadow);
+  flex-direction: column;
+  gap: 16px;
+  padding: 22px 24px 10px;
 }
-.history h2 {
-  margin: 0 0 14px;
-  font-size: 20px;
-  font-weight: 600;
+
+.history[data-variant='full'] {
+  padding: 22px 24px 12px;
 }
+
+.history[data-empty] {
+  padding: 22px 24px;
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.title {
+  font-size: 16px;
+  line-height: 22px;
+}
+
+.viewAll.viewAll {
+  height: 36px;
+  gap: 4px;
+  padding: 0 12px;
+  font-size: 13px;
+}
+
 .table {
-  width: 100%;
-  border-collapse: collapse;
-  text-align: left;
-  font-size: 0.875rem;
+  display: flex;
+  flex-direction: column;
 }
-.table th,
-.table td {
-  padding: 1rem 0.85rem;
-  border-bottom: 1px solid var(--border);
+
+.history[data-variant='recent'] .table {
+  margin-top: -6px;
 }
-.table thead th {
-  background: var(--publish-secondary);
-  color: var(--publish-muted-text);
-  font-size: 12px;
-  font-weight: 600;
+
+.row {
+  display: grid;
+  align-items: center;
+  min-height: 58px;
+  border-bottom: 1px solid var(--publish-border);
+  grid-template-areas:
+    'date amount status actions'
+    'number amount status actions';
+  grid-template-columns: 1.4fr 1fr 1fr 40px;
+  column-gap: 12px;
+  row-gap: 2px;
+  align-content: center;
+  font-size: 14px;
+  line-height: 20px;
 }
-.table thead th:first-child {
-  border-radius: 14px 0 0 14px;
-}
-.table thead th:last-child {
-  border-radius: 0 14px 14px 0;
-}
-.table thead th {
+
+.row:last-child {
   border-bottom: 0;
 }
-.table tbody th {
-  font-weight: 500;
-}
-.date,
-.amount {
-  white-space: nowrap;
-  font-variant-numeric: tabular-nums;
-}
-.number {
-  color: var(--muted-foreground);
-}
-.status {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  min-height: 26px;
-  padding: 0 10px;
-  border-radius: 999px;
-  font-size: 12px;
+
+.date {
+  align-self: end;
   font-weight: 600;
-  background: var(--publish-secondary);
-  color: var(--foreground);
-  white-space: nowrap;
+  grid-area: date;
 }
-.status > span {
-  width: 0.5rem;
-  height: 0.5rem;
-  border-radius: 9999px;
-  background: var(--muted-foreground);
+
+.number {
+  align-self: start;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  line-height: 16px;
+  grid-area: number;
 }
-.status[data-status='paid'] {
-  color: var(--publish-success);
-  background: var(--publish-success-bg);
+
+.amount {
+  font-weight: 500;
+  grid-area: amount;
 }
-.status[data-status='paid'] > span {
-  background: var(--success);
+
+.status {
+  grid-area: status;
 }
-.status[data-status='open'] {
-  color: var(--publish-warning);
-  background: var(--publish-warning-bg);
-}
-.status[data-status='open'] > span {
-  background: var(--warning);
-}
-.status[data-status='uncollectible'] {
-  color: var(--publish-danger);
-  background: var(--publish-danger-bg);
-}
-.status[data-status='uncollectible'] > span {
-  background: var(--destructive);
-}
+
 .actions {
   display: flex;
-  gap: 0.7rem;
-  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  grid-area: actions;
 }
-.actions a {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.65rem;
-  min-width: 2.5rem;
-  min-height: 36px;
-  padding: 0 14px;
-  border-radius: 999px;
-  background: var(--publish-secondary);
-  color: var(--publish-text);
+
+.textAction.textAction {
+  height: 34px;
+  padding: 0 10px;
   font-size: 13px;
-  font-weight: 600;
-  transition: background 0.15s;
 }
-.actions a:hover {
-  background: var(--publish-hover);
-}
-.actions a:focus-visible,
-.viewAll:focus-visible {
-  outline: 2px solid var(--ring);
-  outline-offset: 3px;
-}
-.actions svg {
-  width: 1.1rem;
-  height: 1.1rem;
-}
-.history[data-compact='true'] .actions a span {
+
+/* The overview and phone rows show only the PDF icon when a PDF exists. */
+.row .viewAction {
   display: none;
 }
-.viewAll {
-  display: flex;
-  justify-content: space-between;
+
+.pdfAction {
+  display: inline-flex;
+  width: 36px;
+  height: 36px;
+  flex: none;
   align-items: center;
-  width: 100%;
-  padding: 14px 4px 0;
-  color: var(--publish-primary);
+  justify-content: center;
+  border-radius: 999px;
+  color: var(--publish-text);
+  box-shadow: inset 0 0 0 1px var(--ref-strong);
+  text-decoration: none;
+}
+
+.pdfAction:hover {
+  background: var(--publish-subtle-bg);
+}
+
+.pdfAction:focus-visible,
+.textAction:focus-visible {
+  outline: 2px solid var(--ref-primary);
+  outline-offset: 2px;
+}
+
+.pdfAction svg {
+  width: 18px;
+  height: 18px;
+}
+
+.pdfAction > span {
+  display: none;
+}
+
+/* ---------- full history table (desktop) ---------- */
+.history[data-variant='full'] .row {
+  min-height: 60px;
+  grid-template-areas: 'date number amount status actions';
+  grid-template-columns: 1.1fr 1.2fr 1fr 1fr 120px;
+  column-gap: 16px;
+}
+
+.history[data-variant='full'] .date {
+  align-self: center;
+  font-weight: 500;
+}
+
+.history[data-variant='full'] .number {
+  align-self: center;
   font-size: 14px;
+  line-height: 20px;
+}
+
+.history[data-variant='full'] .row .viewAction {
+  display: inline-flex;
+}
+
+.history[data-variant='full'] .pdfAction {
+  width: auto;
+  height: 34px;
+  gap: 6px;
+  padding: 0 10px;
+  font-size: 13px;
   font-weight: 600;
-  border-bottom: 0;
-  border-radius: 12px;
-  text-align: left;
+  box-shadow: none;
 }
-.viewAll:hover {
-  color: var(--publish-primary-hover);
+
+.history[data-variant='full'] .pdfAction svg {
+  width: 16px;
+  height: 16px;
 }
-.viewAll svg {
-  width: 1.1rem;
-  height: 1.1rem;
+
+.history[data-variant='full'] .pdfAction > span {
+  display: inline;
 }
+
+.history .row.header {
+  min-height: 0;
+  padding: 0 0 10px;
+  color: var(--publish-secondary-text);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 16px;
+}
+
+.header > :last-child {
+  text-align: right;
+}
+
+/* ---------- empty / unavailable ---------- */
 .empty {
   display: flex;
-  min-height: 15rem;
-  padding: 2.5rem 1rem;
+  flex: 1 1 auto;
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 10px;
+  padding: 18px 0;
   text-align: center;
-  gap: 0.65rem;
 }
-.empty > svg {
-  width: 2.75rem;
-  height: 2.75rem;
-  margin-bottom: 0.6rem;
-  color: var(--muted-foreground);
-  stroke-width: 1.3;
+
+.empty > .emptyIcon {
+  width: 44px;
+  height: 44px;
 }
-.empty h3,
-.unavailable h3 {
-  font-size: 1rem;
+
+.emptyCopy {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.emptyCopy b {
   font-weight: 600;
 }
-.empty p,
-.unavailable p {
-  color: var(--muted-foreground);
-  max-width: 36rem;
-  font-size: 0.9rem;
-  line-height: 1.6;
+
+.emptyCopy span {
+  font-size: 13px;
+  line-height: 18px;
 }
-.unavailable {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  padding: 1rem;
-  margin-bottom: 1rem;
-  border: 0;
-  border-radius: 16px;
-  background: var(--publish-warning-bg);
+
+.retry.retry {
+  height: 40px;
+  margin-top: 4px;
 }
-.empty > svg {
-  padding: 12px;
-  border-radius: 16px;
-  background: var(--publish-secondary);
-}
-@media (max-width: 767px) {
-  .history {
-    padding: 16px 18px;
+
+@media (max-width: 1023px) {
+  .history,
+  .history[data-variant='full'] {
+    gap: 8px;
+    padding: 12px 16px 6px;
   }
-  .history h2 {
-    margin-bottom: 1.2rem;
-    font-size: 1.15rem;
+
+  .history[data-variant='full'] {
+    padding: 4px 16px;
   }
-  .table,
-  .table tbody {
-    display: block;
+
+  .history[data-empty] {
+    gap: 14px;
+    padding: 16px;
   }
-  .table thead {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip-path: inset(50%);
+
+  .viewAll.viewAll {
+    min-height: 44px;
+    gap: 2px;
+    margin-right: -4px;
+    padding: 0 4px;
+    background: none;
+    font-weight: 600;
   }
-  .table tbody tr {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto auto;
-    align-items: center;
-    gap: 0.35rem 0.65rem;
-    padding: 1.25rem 0;
-    border-bottom: 1px solid var(--border);
+
+  .history[data-variant='recent'] .table {
+    margin-top: -8px;
   }
-  .table th,
-  .table td {
-    padding: 0;
-    border: 0;
+
+  .row,
+  .history[data-variant='full'] .row {
+    min-height: 64px;
+    grid-template-areas:
+      'date date status actions'
+      'number amount status actions';
+    grid-template-columns: auto minmax(0, 1fr) auto auto;
+    column-gap: 0;
+    row-gap: 3px;
   }
-  .date {
-    grid-area: 1 / 1;
-    font-size: 0.9rem;
+
+  .date,
+  .history[data-variant='full'] .date {
+    align-self: end;
+    font-weight: 600;
   }
-  .number {
-    grid-area: 2 / 1;
-    font-size: 0.82rem;
-    overflow-wrap: anywhere;
+
+  .number,
+  .history[data-variant='full'] .number {
+    align-self: start;
+    font-size: 12px;
+    line-height: 16px;
   }
+
   .amount {
-    grid-area: 1 / 2;
+    align-self: start;
+    overflow: hidden;
+    color: var(--publish-secondary-text);
+    font-size: 12px;
+    font-weight: 400;
+    line-height: 16px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
-  .statusCell {
-    grid-area: 2 / 2;
+
+  .amount::before {
+    content: '\00a0·\00a0';
   }
-  .actionCell {
-    grid-area: 1 / 3 / 3;
-  }
-  .actions {
-    gap: 0.3rem;
-  }
-  .actions a {
-    flex-direction: column;
-    gap: 0.3rem;
-    font-size: 0.74rem;
-    min-width: 2.5rem;
-  }
-  .actions svg {
-    width: 1.2rem;
-    height: 1.2rem;
-  }
+
   .status {
-    font-size: 0.8rem;
-    padding: 0.3rem 0.5rem;
+    margin-left: 12px;
   }
-  .status > span {
-    width: 0.45rem;
-    height: 0.45rem;
+
+  .actions {
+    margin-left: 12px;
   }
-  .history[data-compact='true'] tbody tr {
-    grid-template-columns: minmax(0, 1fr) auto auto auto;
-    gap: 0.65rem;
-  }
-  .history[data-compact='true'] tbody tr:nth-child(n + 3) {
+
+  .history .row.header {
     display: none;
   }
-  .history[data-compact='true'] .date {
-    grid-area: 1 / 1;
-    font-size: 0.8rem;
-  }
-  .history[data-compact='true'] .number {
+
+  .history[data-variant='full'] .row .viewAction {
     display: none;
   }
-  .history[data-compact='true'] .amount {
-    grid-area: 1 / 2;
-    font-size: 0.8rem;
-  }
-  .history[data-compact='true'] .statusCell {
-    grid-area: 1 / 3;
-  }
-  .history[data-compact='true'] .actionCell {
-    grid-area: 1 / 4;
-  }
-  .history[data-compact='true'] .actions a {
-    min-width: 1.9rem;
-    padding: 0.25rem;
-  }
-  .unavailable {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-}
-@media (max-width: 380px) {
-  .history[data-compact='true'] tbody tr {
-    gap: 0.3rem;
-  }
-  .history[data-compact='true'] .status {
-    font-size: 0.7rem;
-    padding: 0.25rem 0.35rem;
-    gap: 0.3rem;
-  }
-  .history[data-compact='true'] .actions {
+
+  .pdfAction,
+  .history[data-variant='full'] .pdfAction {
+    width: 38px;
+    height: 38px;
     gap: 0;
+    padding: 0;
+    box-shadow: inset 0 0 0 1px var(--ref-strong);
   }
-  .history[data-compact='true'] .actions a {
-    min-width: 1.65rem;
+
+  .history[data-variant='full'] .pdfAction > span {
+    display: none;
   }
-  .table tbody tr {
-    column-gap: 0.4rem;
+
+  .empty {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 12px;
+    padding: 0;
+    text-align: left;
   }
-  .actions a {
-    min-width: 2rem;
+
+  .empty > .emptyIcon {
+    width: 40px;
+    height: 40px;
   }
-}
-.history[data-compact='false'] {
-  border-top: 0;
-  padding-top: 0.75rem;
-}
-@media (max-width: 767px) {
-  .history[data-compact='false'] {
-    padding-top: 0;
+
+  .emptyCopy {
+    min-width: 0;
+    flex: 1 1 180px;
+    gap: 2px;
+  }
+
+  .emptyCopy b {
+    font-size: 14px;
+  }
+
+  .emptyCopy span {
+    font-size: 12px;
+    line-height: 16px;
+  }
+
+  .retry.retry {
+    margin-left: auto;
   }
 }

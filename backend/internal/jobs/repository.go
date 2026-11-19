@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"sneepcut/backend-go/internal/audiocleanup"
 	"sneepcut/backend-go/internal/credits"
@@ -13,6 +14,7 @@ import (
 
 var ErrCredits = credits.ErrInsufficient
 var ErrInactive = credits.ErrInactive
+var ErrRemovedSource = errors.New("This imported video was removed. Select another video")
 
 type Repository struct{ db *sql.DB }
 
@@ -82,6 +84,17 @@ func (s *Repository) createTx(ctx context.Context, tx *sql.Tx, userID string, in
 	for _, p := range inputs {
 		id, taskID := newID(), newID()
 		in := p.Input
+		if !empty(in.SourceStorageKey) {
+			// Reserve holds the owner lock, also used by import-library removal.
+			// A source validated before removal cannot be queued afterwards.
+			var removed bool
+			if err = tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM youtube_import_videos WHERE user_id=$1 AND source_storage_key=$2 AND deleted_at IS NOT NULL)`, userID, *in.SourceStorageKey).Scan(&removed); err != nil {
+				return nil, err
+			}
+			if removed {
+				return nil, ErrRemovedSource
+			}
+		}
 		jobCharge := 0
 		if charged > 0 {
 			jobCharge = in.NumClips * 10
@@ -94,7 +107,7 @@ func (s *Repository) createTx(ctx context.Context, tx *sql.Tx, userID string, in
 		if err != nil {
 			return nil, err
 		}
-		if _, err = tx.ExecContext(ctx, `UPDATE jobs SET brand_snapshot=COALESCE((SELECT to_jsonb(b) FROM brand_kits b WHERE b.user_id=$2),'{}'::jsonb) WHERE id=$1`, id, userID); err != nil {
+		if _, err = tx.ExecContext(ctx, `UPDATE jobs SET brand_snapshot=COALESCE((SELECT to_jsonb(b) FROM brand_kits b WHERE b.user_id=$2 AND (CASE WHEN $3::text IS NULL THEN b.is_default ELSE b.id::text=$3 END)),'{}'::jsonb) WHERE id=$1`, id, userID, in.BrandKitID); err != nil {
 			return nil, err
 		}
 		sourceType := "auto"

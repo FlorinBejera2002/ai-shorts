@@ -160,69 +160,57 @@ test('brand kit unlocks white label for admins and respects current server entit
   }
 })
 
-test('dashboard shows unlimited entitlement without replacing real credit balances', () => {
-  const { StatsBar } = load('../src/components/dashboard/stats-bar.tsx', {
-    'next-intl': translations,
-    'lucide-react': { Clock3: 'svg', Film: 'svg', Layers: 'svg', Coins: 'svg' },
-    '@/components/auth/use-auth': auth('admin'),
-    '@/i18n/navigation': { Link: 'a' }
-  })
-  const metrics = { credits: 0, jobCount: 3, clipCount: 4, durationMinutes: 6 }
-  const admin = StatsBar({ ...metrics, creditsUnlimited: true })
-  assert.match(content(admin), /∞/)
-  assert.match(content(admin), /creditsUnlimited/)
-  const member = StatsBar({ ...metrics, creditsUnlimited: false })
-  assert.doesNotMatch(content(member), /∞|creditsUnlimited/)
-})
-
 const billing = load('../src/lib/billing.ts')
+
+const billingOverviewModule = () =>
+  load('../src/components/billing/billing-overview.ts', { '@/lib/billing': billing })
+const billingAccount = (creditsUnlimited) => ({
+  account: { credits: 0, creditsUnlimited, plan: 'free', hasBillingProfile: true },
+  subscription: null, providerAvailable: true, invoices: [], checkoutVerification: null
+})
 
 function loadBillingSummary(intl = translations) {
   return load('../src/components/billing/billing-summary.tsx', {
     'next-intl': intl,
-    'lucide-react': { CalendarDays: 'svg', Coins: 'svg', FileVideo: 'svg', Package: 'svg' },
-    '@/components/billing/portal-button': { PortalButton: 'button' },
-    '@/components/ui/button': { Button: 'button' },
-    '@/lib/billing': billing
+    'lucide-react': { CalendarDays: 'svg', CreditCard: 'svg', Gauge: 'svg', Sparkles: 'svg' },
+    '@/lib/billing': billing,
+    './billing-format': load('../src/components/billing/billing-format.ts'),
+    './billing-usage-meter': { BillingUsageMeter: 'billing-usage-meter' }
   }).BillingSummary
 }
 
-test('billing summary removes the finite clip allowance for unlimited accounts', () => {
-  const BillingSummary = loadBillingSummary({
-    ...translations,
-    useTranslations: () => (key, values) => key === 'availableClips' ? `${values.count} clips ready` : key
-  })
-  const props = {
-    credits: 0, planName: 'Administrator', locale: 'en', subscription: null,
-    hasBillingData: false, canManageBilling: false, providerAvailable: true,
-    labels: { creditsUnlimited: 'Unlimited credits', adminAccess: 'All features included',
-      clipRunwayValue: ({ count }) => `${count} clips ready` }
-  }
-  const admin = renderComponents(BillingSummary({ ...props, creditsUnlimited: true }))
-  assert.match(content(admin), /Unlimited credits/)
-  assert.match(content(admin), /All features included/)
-  assert.doesNotMatch(content(admin), /0 clips ready/)
-  assert.match(content(renderComponents(BillingSummary({ ...props, creditsUnlimited: false }))), /0 clips ready/)
+test('billing summary replaces the usage meter with full access for unlimited accounts', () => {
+  const BillingSummary = loadBillingSummary()
+  const { billingOverview } = billingOverviewModule()
+  const render = (unlimited) => renderComponents(BillingSummary({
+    overview: billingOverview(billingAccount(unlimited), unlimited),
+    planName: 'Plan', planPrice: undefined, locale: 'en', actions: null
+  }))
+  const admin = render(true)
+  assert.match(content(admin), /adminAccess/)
+  assert.equal(nodes(admin).some((node) => node.type === 'billing-usage-meter'), false)
+  const member = render(false)
+  assert.doesNotMatch(content(member), /adminAccess/)
+  const meter = nodes(member).find((node) => node.type === 'billing-usage-meter')
+  assert.deepEqual({ ...meter.props.usage }, { used: 100, remaining: 0, resets: false })
 })
 
 test('billing keeps account management available while hiding subscription upsells for admins', () => {
   const messages = JSON.parse(readFileSync(new URL('../messages/en.json', import.meta.url), 'utf8')).billing
+  const message = (key) => key.split('.').reduce((value, part) => value?.[part], messages) ?? key
   for (const creditsUnlimited of [true, false]) {
-    const data = {
-      account: { credits: 0, creditsUnlimited, plan: 'free', hasBillingProfile: true },
-      subscription: null, providerAvailable: true, invoices: []
-    }
-    const translated = { ...translations, useTranslations: () => (key) => messages[key] ?? key }
+    const data = billingAccount(creditsUnlimited)
+    const translated = { ...translations, useTranslations: () => message }
     const workspaceViews = load('../src/components/billing/billing-workspace-views.tsx', {
       'next-intl': translated,
-      'lucide-react': { RefreshCw: 'svg' },
-      './billing-guide': { BillingGuide: 'billing-guide' },
+      'lucide-react': { RotateCw: 'svg' },
+      './billing-details': { BillingDetails: 'billing-details', BillingDetailsLinks: 'billing-details-links' },
       './billing-notices': { BillingNotices: 'billing-notices' },
+      './billing-overview': billingOverviewModule(),
       './billing-summary': { BillingSummary: 'billing-summary' },
-      './billing-test-mode-notice': { BillingTestModeNotice: 'billing-test-mode-notice' },
+      './hosted-billing-button': { HostedBillingButton: 'hosted-billing-button' },
       './invoice-history': { InvoiceHistory: 'invoice-history' },
       './plan-selector': { PlanSelector: 'plan-selector' },
-      '@/components/ui/button': { Button: 'button' },
       '@/components/ui/loading-indicator': { LoadingIndicator: 'span' },
       '@/lib/billing': billing
     })
@@ -233,29 +221,26 @@ test('billing keeps account management available while hiding subscription upsel
       'next-intl': translated,
       'next/navigation': { useSearchParams: () => new URLSearchParams() },
       '@/components/auth/use-auth': auth('admin'),
-      '@/components/billing/billing-initial-state': { BillingInitialState: 'billing-initial-state' },
+      '@/components/billing/billing-initial-state': { BillingLoading: 'billing-loading', BillingLoadError: 'billing-load-error' },
       '@/components/billing/billing-page-header': { BillingPageHeader: 'billing-page-header' },
       '@/components/billing/billing-workspace-views': workspaceViews,
-      '@/components/billing/use-billing-resource': { useBillingResource: () => ({ data, reload() {} }) },
+      '@/components/billing/use-billing-resource': { useBillingResource: () => ({ data, reload() {}, recovering: false }) },
       '@/components/billing/use-plan-catalog': { usePlanCatalog: () => ({}) },
       '@/components/dashboard/workspace-mobile-header': { WorkspaceMobileHeader: 'header' },
       '@/lib/billing': billing
     })
     const tree = renderComponents(BillingPage())
-    const plans = nodes(tree).find((node) => node.props?.children?.type === 'plan-selector')
-    assert.equal(plans.props.hidden, creditsUnlimited)
-    const summary = nodes(tree).find((node) => node.type === 'billing-summary')
-    assert.equal(summary.props.canManageBilling, true)
-    assert.equal(summary.props.creditsUnlimited, creditsUnlimited)
-    assert.equal(summary.props.planName, creditsUnlimited ? 'Administrator · unlimited' : 'Free')
-    assert.equal(summary.props.canChangePlan, !creditsUnlimited)
     const workspace = nodes(tree).find((node) => node.props?.['data-billing-workspace'] === '')
     assert.equal(workspace.props['data-view'], creditsUnlimited ? 'overview' : 'plans')
-    const renderedSummary = renderComponents(loadBillingSummary(translated)(summary.props))
-    if (creditsUnlimited)
-      assert.match(content(renderedSummary), /All features included without a subscription/)
-    else
-      assert.doesNotMatch(content(renderedSummary), /All features included without a subscription/)
+    assert.equal(nodes(tree).some((node) => node.type === 'plan-selector'), !creditsUnlimited)
+    if (!creditsUnlimited) continue
+    const summary = nodes(tree).find((node) => node.type === 'billing-summary')
+    assert.equal(summary.props.planName, 'Administrator · unlimited')
+    assert.equal(summary.props.overview.access, 'admin')
+    assert.equal(summary.props.overview.usage, null)
+    const actions = nodes(renderComponents(summary.props.actions))
+    assert.equal(actions.some((node) => node.props?.['data-billing-choose-plan'] === ''), false)
+    assert.equal(actions.filter((node) => node.type === 'hosted-billing-button').length, 1)
     assert.ok(nodes(tree).find((node) => node.type === 'invoice-history'))
   }
 })

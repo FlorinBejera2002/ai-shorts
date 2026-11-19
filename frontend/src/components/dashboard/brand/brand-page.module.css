@@ -257,7 +257,8 @@
   .content[data-section='overview'] .logoSettings {
     display: none;
   }
-  .content[data-preview-expanded='true'] > [data-workspace-mobile-header] {
+  /* The full-screen preview covers the phone header (rendered in <body>). */
+  :global(body:has([data-brand-workspace][data-preview-expanded='true']) [data-workspace-mobile-header]) {
     display: none;
   }
   .content[data-preview-expanded='true'] .preview {
@@ -328,12 +329,13 @@
   font-weight: 600;
   box-shadow: none;
 }
+/* Primary actions follow the app rule: black in light, muted steel in dark (never blue). */
 .workspace [data-slot='button'][data-variant='default'] {
-  background: var(--publish-primary);
-  color: var(--publish-on-primary);
+  background: var(--ref-primary);
+  color: var(--ref-on-primary);
 }
 .workspace [data-slot='button'][data-variant='default']:hover {
-  background: var(--publish-primary-hover);
+  background: var(--ref-primary-hover);
 }
 .workspace [data-slot='button'][data-variant='outline'] {
   border: 0;

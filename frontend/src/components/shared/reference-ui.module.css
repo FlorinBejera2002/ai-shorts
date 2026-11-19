@@ -1,0 +1,501 @@
+/*
+ * Shared Claude-reference UI for dashboard pages (Clips, Brand kit): tokens, buttons, menus,
+ * dialogs and phone sheets. Built on the scoped Publish tokens; the primary action is black in
+ * light and muted steel in dark, never blue.
+ */
+.tokens {
+  --ref-strong: #1f2a3d;
+  --ref-primary: #0b0b0c;
+  --ref-primary-hover: #24262b;
+  --ref-on-primary: #fff;
+  --ref-chip-count: rgba(255, 255, 255, 0.18);
+  color: var(--publish-text);
+}
+
+:global(.dark) .tokens {
+  --ref-strong: #c9d4e4;
+  --ref-primary: #8e9bb0;
+  --ref-primary-hover: #a5b0c2;
+  --ref-on-primary: #0c1524;
+  --ref-chip-count: rgba(17, 23, 34, 0.14);
+}
+
+.heading {
+  margin: 0;
+  font-family: Sora, Inter, sans-serif;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.focus:focus-visible {
+  outline: 2px solid var(--ref-primary);
+  outline-offset: 2px;
+}
+
+/* ---------- buttons ---------- */
+.button {
+  display: inline-flex;
+  height: 44px;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 0;
+  border-radius: 999px;
+  padding: 0 20px;
+  font: inherit;
+  font-weight: 600;
+  white-space: nowrap;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.button svg {
+  width: 16px;
+  height: 16px;
+  flex: none;
+}
+
+.button:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.primary {
+  background: var(--ref-primary);
+  color: var(--ref-on-primary);
+}
+
+.primary:hover:not(:disabled) {
+  background: var(--ref-primary-hover);
+}
+
+.secondary {
+  background: var(--publish-surface);
+  color: var(--publish-text);
+  box-shadow: inset 0 0 0 1px var(--ref-strong);
+}
+
+.secondary:hover:not(:disabled),
+.ghost:hover:not(:disabled) {
+  background: var(--publish-subtle-bg);
+}
+
+.ghost {
+  background: transparent;
+  color: var(--publish-text);
+}
+
+.danger {
+  background: var(--publish-danger);
+  color: #fff;
+}
+
+:global(.dark) .danger {
+  color: #1a0b10;
+}
+
+.iconButton {
+  display: inline-flex;
+  width: 32px;
+  height: 32px;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  padding: 0;
+  color: inherit;
+  cursor: pointer;
+}
+
+.iconButton:hover,
+.iconButton[data-state='open'] {
+  background: var(--publish-canvas);
+}
+
+.iconButton svg {
+  width: 16px;
+  height: 16px;
+}
+
+.menu {
+  z-index: 60;
+  display: flex;
+  width: 236px;
+  flex-direction: column;
+  border: 0;
+  border-radius: 16px;
+  background: var(--publish-surface);
+  padding: 6px;
+  color: var(--publish-text);
+  font-family: Inter, system-ui, sans-serif;
+  box-shadow: 0 0 0 1px var(--publish-border), 0 18px 48px rgba(0, 0, 0, 0.2);
+}
+
+.item {
+  display: flex;
+  height: 40px;
+  align-items: center;
+  gap: 10px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  padding: 0 12px;
+  color: var(--publish-text);
+  font: inherit;
+  font-size: 14px;
+  text-align: left;
+  text-decoration: none;
+  outline: none;
+  cursor: pointer;
+}
+
+.item[data-highlighted],
+.item[data-state='open'],
+.item:hover {
+  background: var(--publish-canvas);
+}
+
+.item[data-disabled] {
+  cursor: default;
+  opacity: 0.45;
+}
+
+.item > svg {
+  width: 16px;
+  height: 16px;
+  flex: none;
+}
+
+.item > span:not([aria-hidden]) {
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.item > .trail {
+  display: flex;
+  flex: none;
+  color: var(--publish-secondary-text);
+}
+
+.item > .trail svg {
+  width: 15px;
+  height: 15px;
+}
+
+.item[data-danger] {
+  color: var(--publish-danger);
+}
+
+.separator {
+  height: 1px;
+  margin: 4px 6px;
+  background: var(--publish-border);
+}
+
+.check {
+  width: 15px;
+  height: 15px;
+  flex: none;
+}
+
+.formatIcon {
+  display: flex;
+  width: 22px;
+  flex: none;
+  justify-content: center;
+}
+
+.formatIcon > span {
+  border-radius: 3px;
+  box-shadow: inset 0 0 0 1.8px currentColor;
+}
+
+.none {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  color: var(--publish-secondary-text);
+  box-shadow: inset 0 0 0 1.5px var(--ref-strong);
+}
+
+.none svg {
+  width: 60%;
+  height: 60%;
+}
+
+/* ---------- dialogs ---------- */
+.dialog {
+  display: flex;
+  width: calc(100% - 32px);
+  max-width: 400px;
+  flex-direction: column;
+  gap: 18px;
+  border: 0;
+  border-radius: var(--publish-dialog-radius);
+  background: var(--publish-surface);
+  padding: 24px;
+  color: var(--publish-text);
+  font-family: Inter, system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 20px;
+  box-shadow: 0 30px 80px rgba(21, 32, 53, 0.3);
+}
+
+.dialog[data-wide] {
+  max-width: 460px;
+}
+
+.dialogHead {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  text-align: center;
+}
+
+.dialogHead[data-compact] {
+  gap: 6px;
+}
+
+.dialogHead img {
+  display: block;
+  height: auto;
+}
+
+.dialogTitle {
+  margin: 0;
+  font-family: Sora, Inter, sans-serif;
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 26px;
+}
+
+.dialogHead[data-compact] .dialogTitle {
+  font-size: 22px;
+  line-height: 28px;
+}
+
+.dialogText {
+  margin: 0;
+  color: var(--publish-secondary-text);
+}
+
+.dialogClose {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  text-align: left;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.field > span:first-child {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.fieldBox {
+  display: flex;
+  height: 52px;
+  align-items: center;
+  gap: 10px;
+  border-radius: 14px;
+  background: var(--publish-surface);
+  padding: 0 14px 0 10px;
+  box-shadow: inset 0 0 0 1px var(--ref-strong);
+}
+
+.fieldBox:focus-within {
+  box-shadow: inset 0 0 0 2px var(--publish-text);
+}
+
+.fieldBox input {
+  min-width: 0;
+  flex: 1 1 auto;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--publish-text);
+  font: inherit;
+  font-weight: 500;
+}
+
+.fieldError {
+  margin: 0;
+  color: var(--publish-danger);
+  font-size: 13px;
+}
+
+.actions {
+  display: flex;
+  width: 100%;
+  gap: 10px;
+}
+
+.actions > * {
+  flex: 1 1 0;
+}
+
+/* ---------- phone sheets ---------- */
+.sheet {
+  display: flex;
+  max-height: 88dvh;
+  flex-direction: column;
+  gap: 16px;
+  overflow-y: auto;
+  border: 0;
+  border-radius: 28px 28px 0 0;
+  background: var(--publish-surface);
+  padding: 12px 20px 26px;
+  color: var(--publish-text);
+  font-family: Inter, system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.grab {
+  display: block;
+  width: 40px;
+  height: 4px;
+  flex: none;
+  margin: 0 auto;
+  border-radius: 999px;
+  background: var(--publish-handle);
+}
+
+.sheet .item {
+  height: 50px;
+}
+
+.sheetList {
+  display: flex;
+  flex-direction: column;
+}
+
+.sheetHead {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.sheetHead b,
+.sheetHead h2 {
+  min-width: 0;
+  flex: 1 1 auto;
+  margin: 0;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.sheetHead h2 {
+  font-family: Sora, Inter, sans-serif;
+  font-size: 18px;
+  letter-spacing: -0.02em;
+}
+
+.sheetHead[data-back] {
+  gap: 8px;
+}
+
+.sheetHead[data-back] h2 {
+  font-size: 17px;
+}
+
+.sheetThumb {
+  width: 44px;
+  height: 64px;
+  flex: none;
+  overflow: hidden;
+  border-radius: 10px;
+  background: #111;
+}
+
+.sheetThumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.backButton {
+  height: 36px;
+  gap: 4px;
+  padding: 0 12px 0 8px;
+  font-size: 13px;
+}
+
+.sheet .actions {
+  flex-direction: column-reverse;
+}
+
+.sheet .actions > * {
+  height: 50px;
+  flex: none;
+}
+
+.segment {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.segment > span:first-child {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.segment > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.segment button {
+  height: 38px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  padding: 0 14px;
+  color: var(--publish-text);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  box-shadow: inset 0 0 0 1px var(--ref-strong);
+  cursor: pointer;
+}
+
+.segment button[aria-pressed='true'] {
+  background: var(--publish-selected);
+  color: var(--publish-on-selected);
+  font-weight: 600;
+  box-shadow: none;
+}
+
+.closeButton {
+  width: 40px;
+  height: 40px;
+}
+
+.closeButton svg {
+  width: 20px;
+  height: 20px;
+}

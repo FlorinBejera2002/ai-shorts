@@ -3,21 +3,29 @@
  * Publish theme (`publishing-theme.module.css`); this module adds the Scripts
  * status colors and the shared controls used by the library, editor and coach.
  */
+/*
+ * Scripts use the neutral app palette: black primary actions and selected
+ * choices in light mode, muted steel in dark mode. The Publish reference keeps
+ * its blue tokens; these overrides only apply inside Scripts and its portals.
+ */
 .tokens {
-  --script-idea-bg: var(--publish-subtle-bg);
-  --script-idea-text: #475569;
-  --script-draft-bg: var(--publish-secondary);
-  --script-draft-text: var(--publish-secondary-text);
-  --script-review-bg: #fef3c7;
-  --script-review-text: #92400e;
-  --script-ready-bg: var(--publish-info-bg);
-  --script-ready-text: var(--publish-info-text);
-  --script-production-bg: #ede9fe;
-  --script-production-text: #5b21b6;
-  --script-published-bg: var(--publish-success-bg);
-  --script-published-text: var(--publish-success-text);
-  --script-archived-bg: var(--publish-subtle-bg);
-  --script-archived-text: var(--publish-muted-text);
+  --publish-primary: #0b0b0c;
+  --publish-primary-hover: #26262a;
+  --publish-primary-ring: rgb(11 11 12 / 18%);
+  --publish-primary-shadow: 0 6px 16px rgb(11 11 12 / 18%);
+  --publish-on-primary: #fff;
+  --publish-selected: #0b0b0c;
+  --publish-selected-hover: #26262a;
+  --publish-on-selected: #fff;
+
+  /* Status dots follow the canvas: green ready, slate review, rust draft. */
+  --script-status-idea: #647188;
+  --script-status-draft: #9a3412;
+  --script-status-review: #4f5c72;
+  --script-status-ready: #15803d;
+  --script-status-production: #4f5c72;
+  --script-status-published: #152035;
+  --script-status-archived: #94a3b8;
   --script-alert-bg: #fdf2f2;
   --script-alert-text: #991b1b;
   --script-copied-icon: #4ade80;
@@ -26,12 +34,23 @@
   --script-stage: #0f172a;
 }
 
-:global(.dark) .tokens {
-  --script-idea-text: #a5b2c7;
-  --script-review-bg: #33270b;
-  --script-review-text: #fbbf24;
-  --script-production-bg: #2a2150;
-  --script-production-text: #c4b5fd;
+:global(.dark) .tokens.tokens {
+  --publish-primary: #8e9bb0;
+  --publish-primary-hover: #a6b2c3;
+  --publish-primary-ring: rgb(142 155 176 / 30%);
+  --publish-primary-shadow: 0 6px 20px rgb(142 155 176 / 16%);
+  --publish-on-primary: #0b0b0c;
+  --publish-selected: #8e9bb0;
+  --publish-selected-hover: #a6b2c3;
+  --publish-on-selected: #0b0b0c;
+
+  --script-status-idea: #9eafc7;
+  --script-status-draft: #f5ba82;
+  --script-status-review: #bdc9dc;
+  --script-status-ready: #67dca5;
+  --script-status-production: #bdc9dc;
+  --script-status-published: #edf2fa;
+  --script-status-archived: #64748b;
   --script-alert-bg: #3a1717;
   --script-alert-text: #fca5a5;
   --script-copied-icon: #15803d;
@@ -164,49 +183,60 @@
   flex: none;
 }
 
-/* Status pills */
+/* Status pills: neutral fill, colored dot carries the state. */
 .statusPill {
   display: inline-flex;
   align-items: center;
   flex: none;
+  gap: 6px;
   height: 28px;
   padding: 0 12px;
   border-radius: var(--publish-pill-radius);
-  background: var(--script-pill-bg, var(--script-draft-bg));
-  color: var(--script-pill-text, var(--script-draft-text));
+  background: var(--publish-secondary);
+  color: var(--publish-text);
   font-size: 12px;
   font-weight: 600;
   white-space: nowrap;
 }
 
-[data-script-status='idea'] { --script-pill-bg: var(--script-idea-bg); --script-pill-text: var(--script-idea-text); --script-dot: #94a3b8; }
-[data-script-status='draft'] { --script-pill-bg: var(--script-draft-bg); --script-pill-text: var(--script-draft-text); --script-dot: #64748b; }
-[data-script-status='review'] { --script-pill-bg: var(--script-review-bg); --script-pill-text: var(--script-review-text); --script-dot: #d97706; }
-[data-script-status='ready'] { --script-pill-bg: var(--script-ready-bg); --script-pill-text: var(--script-ready-text); --script-dot: #2563eb; }
-[data-script-status='in_production'] { --script-pill-bg: var(--script-production-bg); --script-pill-text: var(--script-production-text); --script-dot: #7c3aed; }
-[data-script-status='published'] { --script-pill-bg: var(--script-published-bg); --script-pill-text: var(--script-published-text); --script-dot: #16a34a; }
-[data-script-status='archived'] { --script-pill-bg: var(--script-archived-bg); --script-pill-text: var(--script-archived-text); --script-dot: #cbd5e1; }
+.statusPill::before {
+  content: '';
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--script-dot, var(--script-status-draft));
+}
 
-/* Platform circles keep their brand colors in both themes. */
+[data-script-status='idea'] { --script-dot: var(--script-status-idea); }
+[data-script-status='draft'] { --script-dot: var(--script-status-draft); }
+[data-script-status='review'] { --script-dot: var(--script-status-review); }
+[data-script-status='ready'] { --script-dot: var(--script-status-ready); }
+[data-script-status='in_production'] { --script-dot: var(--script-status-production); }
+[data-script-status='published'] { --script-dot: var(--script-status-published); }
+[data-script-status='archived'] { --script-dot: var(--script-status-archived); }
+
+/* Platform marks use the neutral app palette; the glyph carries the platform. */
 .platformBadge {
   display: inline-flex;
   flex: none;
   align-items: center;
   justify-content: center;
-  width: var(--script-badge-size, 32px);
-  height: var(--script-badge-size, 32px);
-  border-radius: 50%;
-  background: var(--script-platform, var(--publish-secondary));
-  color: #fff;
+  width: var(--script-badge-size, 30px);
+  height: var(--script-badge-size, 30px);
+  border-radius: var(--script-badge-radius, 8px);
+  background: var(--publish-secondary);
+  color: var(--publish-text);
   font-size: var(--script-badge-font, 10px);
   font-weight: 700;
   line-height: 1;
 }
 
-[data-script-platform='tiktok'] { --script-platform: #111; }
-[data-script-platform='youtube'] { --script-platform: #e0002b; }
-[data-script-platform='instagram'] { --script-platform: #b0306f; }
-[data-script-platform='facebook'] { --script-platform: #1764d6; }
+.platformBadge svg {
+  width: 62%;
+  height: 62%;
+}
+
 .platformBadge[data-script-platform='unknown'] { color: var(--publish-muted-text); }
 
 /* Form fields */
@@ -223,7 +253,7 @@
 
 .control {
   --script-control-radius: 12px;
-  --script-control-bg: var(--publish-inset);
+  --script-control-bg: var(--publish-surface);
   width: 100%;
   min-width: 0;
   min-height: 0;
@@ -232,13 +262,13 @@
   padding: 0 12px;
   border: 0;
   border-radius: 12px;
-  background: var(--publish-inset);
+  background: var(--publish-surface);
+  box-shadow: inset 0 0 0 1px var(--publish-border-strong);
   color: var(--publish-text);
   font: inherit;
   font-size: 14px;
   font-weight: 500;
   line-height: 1.45;
-  box-shadow: none;
   outline: 0;
 }
 

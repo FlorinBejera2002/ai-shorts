@@ -9,7 +9,7 @@ function capitalize(value: string) {
   return value.charAt(0).toLocaleUpperCase() + value.slice(1)
 }
 
-/** "2 hours ago", "yesterday" or a short date, like the library reference. */
+/** "2 hours ago", "yesterday", "3 days ago" or a short date, like the library reference. */
 export function formatUpdated(value: string, locale: string, now = new Date()) {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return ''
@@ -23,6 +23,8 @@ export function formatUpdated(value: string, locale: string, now = new Date()) {
     return relative.format(-Math.round(elapsed / HOUR), 'hour')
   }
   if (days === 1) return relative.format(-1, 'day')
+  if (days < 7) return relative.format(-days, 'day')
+  if (days < 30) return relative.format(-Math.round(days / 7), 'week')
   return new Intl.DateTimeFormat(locale, {
     day: 'numeric',
     month: 'short',

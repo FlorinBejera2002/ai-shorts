@@ -73,7 +73,7 @@ func TestYouTubeDownloadReportsYtDlpFailure(t *testing.T) {
 	}
 }
 
-func TestYouTubeAutomaticTokensIgnoreAccountCookies(t *testing.T) {
+func TestYouTubeAutomaticTokensSkipAccountCookiesWhenNotBlocked(t *testing.T) {
 	binary, argsFile := fakeYtDlp(t, `while [ "$1" != "--output" ]; do shift; done; printf video > "$2"`+"\n")
 	// An unreadable cookie path must not block public imports in token mode.
 	p := New(Config{YtDlpPath: binary, YouTubeTokenProviderURL: "http://youtube-pot-provider:4416", YouTubeCookiesFile: t.TempDir(), YouTubeProxy: "http://synthetic-user:synthetic-password@proxy.example:8080"}, nil, nil)
@@ -93,6 +93,161 @@ func TestYouTubeAutomaticTokensIgnoreAccountCookies(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(dir, "youtube-cookies.txt")); !os.IsNotExist(err) {
 		t.Fatal("account cookie export was copied into a public import")
+	}
+}
+
+func TestYouTubeBotCheckInTokenModeRetriesWithCookies(t *testing.T) {
+	// Fails with YouTube's bot check unless the account cookie export is passed.
+	binary, argsFile := fakeYtDlp(t, `case "$*" in *--cookies*) ;; *) echo "ERROR: [youtube] abc: Sign in to confirm you’re not a bot." >&2; exit 1;; esac
+while [ "$1" != "--output" ]; do shift; done; printf video > "$2"`+"\n")
+	cookies := filepath.Join(t.TempDir(), "cookies.txt")
+	if err := os.WriteFile(cookies, []byte("# Netscape HTTP Cookie File\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	p := New(Config{YtDlpPath: binary, YouTubeTokenProviderURL: "http://youtube-pot-provider:4416", YouTubeCookiesFile: cookies}, nil, nil)
+	dir := t.TempDir()
+	if err := p.download(context.Background(), "https://youtu.be/abc123", filepath.Join(dir, "source.mp4")); err != nil {
+		t.Fatal(err)
+	}
+	raw, _ := os.ReadFile(argsFile)
+	if !strings.Contains(string(raw), "--cookies\n"+filepath.Join(dir, "youtube-cookies.txt")) || !strings.Contains(string(raw), "youtubepot-bgutilhttp") {
+		t.Fatalf("retry must keep tokens and add cookies: %q", raw)
+	}
+}
+
+func TestYouTubeBotCheckWithoutCookiesExplainsRemedy(t *testing.T) {
+	binary, _ := fakeYtDlp(t, "echo \"ERROR: [youtube] abc: Sign in to confirm you're not a bot.\" >&2\nexit 1\n")
+	p := New(Config{YtDlpPath: binary, YouTubeTokenProviderURL: "http://youtube-pot-provider:4416"}, nil, nil)
+	err := p.download(context.Background(), "https://youtu.be/abc123", filepath.Join(t.TempDir(), "source.mp4"))
+	if err == nil || !strings.Contains(err.Error(), "YOUTUBE_COOKIES_PATH") {
+		t.Fatalf("expected actionable bot-check error, got %v", err)
+	}
+}
+
+func TestYouTubeBotCheckReportsCookiePreparationFailure(t *testing.T) {
+	binary, _ := fakeYtDlp(t, "echo \"ERROR: [youtube] abc: Sign in to confirm you're not a bot.\" >&2\nexit 1\n")
+	p := New(Config{
+		YtDlpPath:               binary,
+		YouTubeTokenProviderURL: "http://youtube-pot-provider:4416",
+		YouTubeCookiesFile:      t.TempDir(),
+	}, nil, nil)
+	err := p.download(context.Background(), "https://youtu.be/abc123", filepath.Join(t.TempDir(), "source.mp4"))
+	if err == nil || !strings.HasPrefix(err.Error(), "YouTube cookies:") || strings.Contains(err.Error(), "not a bot") {
+		t.Fatalf("cookie preparation failure was hidden behind the public bot check: %v", err)
+	}
+}
+
+func stateRejectingYtDlp(t *testing.T, rejectExport bool) (string, string) {
+	t.Helper()
+	calls := filepath.Join(t.TempDir(), "attempts")
+	reject := `[ "$source" = state ]`
+	if rejectExport {
+		reject = "true"
+	}
+	binary, _ := fakeYtDlp(t, `jar=""; out=""
+while [ $# -gt 0 ]; do case "$1" in --cookies) jar="$2";; --output) out="$2";; esac; shift; done
+if [ -z "$jar" ]; then
+  printf 'public\n' >> `+calls+`
+  echo "Sign in to confirm you're not a bot" >&2; exit 1
+fi
+if grep -q revoked "$jar"; then source=state; else source=export; fi
+printf '%s\n' "$source" >> `+calls+`
+if `+reject+`; then
+  printf '# Netscape HTTP Cookie File\n.youtube.com\tTRUE\t/\tTRUE\t1999999999\tLOGIN_INFO\tleftover\n' > "$jar"
+  echo "Sign in to confirm you're not a bot" >&2; exit 1
+fi
+printf '# Netscape HTTP Cookie File\n.youtube.com\tTRUE\t/\tTRUE\t1999999999\tLOGIN_INFO\trotated\n.youtube.com\tTRUE\t/\tTRUE\t1999999999\tSAPISID\trotated\n' > "$jar"
+printf video > "$out"
+`)
+	return binary, calls
+}
+
+func TestYouTubeRejectedSavedSessionRetriesExportOnce(t *testing.T) {
+	for _, tokenMode := range []bool{false, true} {
+		name := "cookies only"
+		if tokenMode {
+			name = "token fallback"
+		}
+		t.Run(name, func(t *testing.T) {
+			binary, calls := stateRejectingYtDlp(t, false)
+			p, _, _, state := preparedRefreshedCookieSession(t)
+			p.cfg.YtDlpPath = binary
+			if tokenMode {
+				p.cfg.YouTubeTokenProviderURL = "http://youtube-pot-provider:4416"
+			}
+			if err := p.download(context.Background(), "https://youtu.be/abc123", filepath.Join(t.TempDir(), "custom-output.mp4")); err != nil {
+				t.Fatal(err)
+			}
+			want := "state\nexport\n"
+			if tokenMode {
+				want = "public\n" + want
+			}
+			if got, err := os.ReadFile(calls); err != nil || string(got) != want {
+				t.Fatalf("wrong bounded retry sequence: got %q, error %v", got, err)
+			}
+			if got, err := os.ReadFile(state); err != nil || string(got) != cookieJar("rotated") {
+				t.Fatalf("export retry's authenticated rotation was not retained: %v", err)
+			}
+		})
+	}
+}
+
+func TestYouTubeRepeatedBotChecksDoNotLoopOrReuseRejectedState(t *testing.T) {
+	for _, tokenMode := range []bool{false, true} {
+		name := "cookies only"
+		if tokenMode {
+			name = "token fallback"
+		}
+		t.Run(name, func(t *testing.T) {
+			binary, calls := stateRejectingYtDlp(t, true)
+			p, _, _, state := preparedRefreshedCookieSession(t)
+			p.cfg.YtDlpPath = binary
+			if tokenMode {
+				p.cfg.YouTubeTokenProviderURL = "http://youtube-pot-provider:4416"
+			}
+			err := p.download(context.Background(), "https://youtu.be/abc123", filepath.Join(t.TempDir(), "source.mp4"))
+			if err == nil || !isYouTubeBotCheck(err) {
+				t.Fatalf("expected final bot-check error, got %v", err)
+			}
+			want := "state\nexport\n"
+			if tokenMode {
+				want = "public\n" + want
+			}
+			if got, err := os.ReadFile(calls); err != nil || string(got) != want {
+				t.Fatalf("retry did not stop after the export attempt: got %q, error %v", got, err)
+			}
+			if _, err := os.Stat(state); !os.IsNotExist(err) {
+				t.Fatal("rejected state was retained")
+			}
+			err = p.download(context.Background(), "https://youtu.be/abc123", filepath.Join(t.TempDir(), "source.mp4"))
+			if err == nil || !isYouTubeBotCheck(err) {
+				t.Fatalf("expected the export's bot check on the next download, got %v", err)
+			}
+			if tokenMode {
+				want += "public\n"
+			}
+			want += "export\n"
+			if got, err := os.ReadFile(calls); err != nil || string(got) != want {
+				t.Fatalf("next download reused rejected state: got %q, error %v", got, err)
+			}
+		})
+	}
+}
+
+func TestYouTubeNonAuthenticationFailureRetainsValidCookieRotation(t *testing.T) {
+	binary, _ := fakeYtDlp(t, `jar=""
+while [ $# -gt 0 ]; do case "$1" in --cookies) jar="$2";; esac; shift; done
+printf '# Netscape HTTP Cookie File\n.youtube.com\tTRUE\t/\tTRUE\t1999999999\tLOGIN_INFO\trotated\n.youtube.com\tTRUE\t/\tTRUE\t1999999999\tSAPISID\trotated\n' > "$jar"
+echo 'network connection interrupted' >&2; exit 1
+`)
+	p, _, _, state := preparedRefreshedCookieSession(t)
+	p.cfg.YtDlpPath = binary
+	err := p.download(context.Background(), "https://youtu.be/abc123", filepath.Join(t.TempDir(), "source.mp4"))
+	if err == nil || !strings.Contains(err.Error(), "network connection interrupted") {
+		t.Fatalf("expected the network failure, got %v", err)
+	}
+	if got, err := os.ReadFile(state); err != nil || string(got) != cookieJar("rotated") {
+		t.Fatalf("a valid rotation was lost after a non-authentication failure: %v", err)
 	}
 }
 

@@ -1,11 +1,9 @@
 'use client'
 
-import { PlatformBrandIcon } from '@/components/publishing/platform-brand-icon'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { useIsMobile } from '@/hooks/use-mobile'
 import type { CalendarClipOption, PublishingMedia } from '@/lib/content-calendar'
 import { formatDuration } from '@/lib/utils'
 import { Check, ChevronLeft, ChevronRight, Film, Search, X } from 'lucide-react'
@@ -47,7 +45,6 @@ export function PostMediaDialog({
 }: PostMediaDialogProps) {
   const t = useTranslations('contentCalendar.composer')
   const actionsT = useTranslations('contentCalendar.actions')
-  const isMobile = useIsMobile()
   const [source, setSource] = useState(media.length ? 'device' : 'clips')
   const [selectedClipId, setSelectedClipId] = useState(clipId)
   const [selectedMedia, setSelectedMedia] = useState(media)
@@ -55,7 +52,7 @@ export function PostMediaDialog({
   const [page, setPage] = useState(0)
   const [uploading, setUploading] = useState(false)
   const [uploadError, setUploadError] = useState<string>()
-  const pageSize = isMobile ? 4 : 6
+  const pageSize = 4
   const normalizedSearch = search.trim().toLocaleLowerCase()
   const filteredClips = clips.filter(clip =>
     clip.title.toLocaleLowerCase().includes(normalizedSearch)
@@ -116,9 +113,6 @@ export function PostMediaDialog({
                         {clip.thumbnailUrl
                           ? <img src={clip.thumbnailUrl} alt="" loading="lazy" />
                           : <Film className={styles.thumbnailFallback} aria-hidden="true" />}
-                        {clip.tiktokEligible && (
-                          <span className={styles.platform}><PlatformBrandIcon provider="tiktok" className="size-7" /></span>
-                        )}
                         {clip.id === selectedClipId && (
                           <span className={styles.selected}><Check aria-hidden="true" /></span>
                         )}

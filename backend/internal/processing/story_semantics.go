@@ -118,6 +118,11 @@ func storySemanticBatches(assets []story.Asset, indexes []int) [][]int {
 func (p *Processor) analyzeStorySourceBatch(ctx context.Context, assets []story.Asset, options story.Options) ([]story.Asset, error) {
 	result := cloneStorySemanticAssets(assets)
 	musicMoments := options.Music != nil && options.Music.Sync && options.Music.Volume > 0
+	// A fresh analysis replaces earlier semantic findings, so its warnings must
+	// too: a failure from an older run must not outlive a later success.
+	for i := range result {
+		result[i].Warnings = withoutStorySemanticWarnings(result[i].Warnings)
+	}
 	warn := func(reason string) ([]story.Asset, error) {
 		for i := range result {
 			result[i].Warnings = appendStoryWarning(result[i].Warnings, reason)
@@ -182,7 +187,7 @@ func (p *Processor) analyzeStorySourceBatch(ctx context.Context, assets []story.
 		}
 	}
 	if cached {
-		return result, nil
+		return cloneStorySemanticAssets(assets), nil
 	}
 	// Action windows are evidence from a particular sampling pass. A failed or
 	// partial refresh must not keep windows from a different model or intent.
@@ -278,6 +283,23 @@ Describe visible subjects, objects, setting and actions only when supported by t
 		}
 	}
 	return result, nil
+}
+
+// Every source-meaning warning starts with one of these phrases.
+var storySemanticWarningPrefixes = []string{"Source meaning analysis ", "Source frames could not be prepared", "The configured provider cannot inspect source frames", "Some source intervals have no confident sampled"}
+
+func withoutStorySemanticWarnings(warnings []string) []string {
+	kept := warnings[:0:0]
+	for _, warning := range warnings {
+		semantic := false
+		for _, prefix := range storySemanticWarningPrefixes {
+			semantic = semantic || strings.HasPrefix(warning, prefix)
+		}
+		if !semantic {
+			kept = append(kept, warning)
+		}
+	}
+	return kept
 }
 
 func cloneStorySemanticAssets(assets []story.Asset) []story.Asset {

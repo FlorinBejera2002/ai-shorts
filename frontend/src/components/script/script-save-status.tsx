@@ -1,6 +1,6 @@
 'use client'
 
-import { Check } from 'lucide-react'
+import { AlertTriangle, Check } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import shared from './scripts-workspace.module.css'
 import styles from './script-editor.module.css'
@@ -24,8 +24,10 @@ export function ScriptSaveStatus({
   if (state === 'error') {
     return (
       <div className={styles.saveError} role="alert" data-save-state={state}>
-        <span>{t('workspace.saveError')}</span>
-        <button type="button" onClick={onRetry}>
+        <AlertTriangle className={styles.saveErrorIcon} aria-hidden="true" />
+        {/* Phones keep the message for screen readers and show only the icon. */}
+        <span className={compact ? 'sr-only' : undefined}>{t('workspace.saveError')}</span>
+        <button type="button" className={styles.retryButton} onClick={onRetry}>
           {t('workspace.retry')}
         </button>
       </div>

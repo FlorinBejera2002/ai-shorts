@@ -19,30 +19,30 @@ import { AlertCircle, Plus, RefreshCw } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
 import { useSearchParams } from 'next/navigation'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { CalendarAccountSummary } from './calendar-account-summary'
+import { CalendarAccountAvatars } from './calendar-account-avatars'
 import { CalendarConnections } from './calendar-connections'
 import { CalendarMobileHeader } from './calendar-mobile-header'
+import { CalendarPeriodMenu } from './calendar-period-menu'
+import {
+  type PublishingPeriod,
+  monthPeriod,
+  periodContains,
+  presetPeriod
+} from './calendar-period'
 import { CalendarPreviewList } from './calendar-preview-list'
 import {
   type CalendarResponse,
   type PostResponse,
   requestJson
 } from './calendar-request'
-import { CalendarToolbar } from './calendar-toolbar'
 import {
   CalendarRequestError,
-  type CalendarViewMode,
   type PostFormPayload,
-  addLocalDays,
-  addLocalMonths,
-  getCalendarRange,
-  getWeekRange,
-  isInRange,
   localDateKey,
   normalizeScheduledPost,
   safeTimeZone,
   startOfLocalDay,
-  startOfLocalMonth
+  isInRange
 } from './calendar-utils'
 import publishingStyles from './calendar-publishing.module.css'
 import { ConnectionSuccessOverlay } from './connection-success-overlay'
@@ -78,37 +78,6 @@ function CalendarSkeleton() {
   )
 }
 
-function periodTitle(
-  view: CalendarViewMode,
-  month: Date,
-  selected: Date,
-  locale: string,
-  weekStartsOn: 0 | 1
-) {
-  if (view === 'day') {
-    return new Intl.DateTimeFormat(locale, {
-      weekday: 'long',
-      month: 'long',
-      day: 'numeric',
-      year: 'numeric'
-    }).format(selected)
-  }
-  if (view === 'week') {
-    const week = getWeekRange(selected, weekStartsOn)
-    const formatter = new Intl.DateTimeFormat(locale, {
-      month: 'short',
-      day: 'numeric'
-    })
-    return `${formatter.format(week.start)} – ${formatter.format(
-      addLocalDays(week.end, -1)
-    )}`
-  }
-  return new Intl.DateTimeFormat(locale, {
-    month: 'long',
-    year: 'numeric'
-  }).format(month)
-}
-
 export function ContentCalendar() {
   const t = useTranslations('contentCalendar')
   const locale = useLocale()
@@ -116,8 +85,10 @@ export function ContentCalendar() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const requestedClipId = searchParams.get('clip')
+  const weekStartsOn: 0 | 1 = locale.toLowerCase().startsWith('ro') ? 1 : 0
   const [ready, setReady] = useState(false)
-  const [viewDate, setViewDate] = useState(() => new Date(0))
+  const [period, setPeriod] = useState<PublishingPeriod | null>(null)
+  const [periodMenuOpen, setPeriodMenuOpen] = useState(false)
   const [selectedDate, setSelectedDate] = useState(() => new Date(0))
   const [timeZone, setTimeZone] = useState('UTC')
   const [posts, setPosts] = useState<ScheduledPostRecord[]>([])
@@ -139,21 +110,20 @@ export function ContentCalendar() {
   const { connect, busyProvider, connectedProvider, finishConfirmation } =
     useSocialConnection(reloadPublishing)
 
-  const weekStartsOn: 0 | 1 = locale.toLowerCase().startsWith('ro') ? 1 : 0
-  const range = useMemo(
-    () => getCalendarRange(viewDate, weekStartsOn),
-    [viewDate, weekStartsOn]
-  )
-  const rangeStart = range.start.toISOString()
-  const rangeEnd = range.end.toISOString()
+  const rangeStart = period?.start.toISOString() ?? ''
+  const rangeEnd = period?.end.toISOString() ?? ''
 
   useEffect(() => {
     const now = new Date()
     const saved = readPublishingView()
-    setViewDate(
-      saved.month
-        ? startOfLocalMonth(new Date(saved.month))
-        : startOfLocalMonth(now)
+    setPeriod(
+      saved.period
+        ? {
+            kind: saved.period.kind,
+            start: new Date(saved.period.start),
+            end: new Date(saved.period.end)
+          }
+        : presetPeriod('month', now, weekStartsOn)
     )
     setSelectedDate(
       saved.selectedDate
@@ -162,6 +132,7 @@ export function ContentCalendar() {
     )
     setTimeZone(safeTimeZone())
     setReady(true)
+    // The saved view seeds the first render only; later changes go through choosePeriod.
   }, [])
 
   useEffect(() => {
@@ -178,7 +149,7 @@ export function ContentCalendar() {
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: refreshToken intentionally retries the current range.
   useEffect(() => {
-    if (!ready) return
+    if (!ready || !rangeStart || !rangeEnd) return
     const controller = new AbortController()
     const mutationRevisionAtStart = mutationRevisionRef.current
 
@@ -278,28 +249,25 @@ export function ContentCalendar() {
     [publishingData]
   )
   const selectedKey = localDateKey(selectedDate)
-  const title = useMemo(
-    () => periodTitle('month', viewDate, selectedDate, locale, weekStartsOn),
-    [locale, selectedDate, viewDate, weekStartsOn]
-  )
+
+  function choosePeriod(next: PublishingPeriod) {
+    setPeriod(next)
+    savePublishingView({
+      period: {
+        kind: next.kind,
+        start: next.start.toISOString(),
+        end: next.end.toISOString()
+      }
+    })
+  }
 
   function focusDate(date: Date) {
     const nextDate = startOfLocalDay(date)
     setSelectedDate(nextDate)
-    savePublishingView({
-      month: startOfLocalMonth(nextDate).toISOString(),
-      selectedDate: nextDate.toISOString()
-    })
-    if (
-      nextDate.getMonth() !== viewDate.getMonth() ||
-      nextDate.getFullYear() !== viewDate.getFullYear()
-    ) {
-      setViewDate(startOfLocalMonth(nextDate))
+    savePublishingView({ selectedDate: nextDate.toISOString() })
+    if (period && !periodContains(period, nextDate)) {
+      choosePeriod(monthPeriod(nextDate))
     }
-  }
-
-  function navigatePeriod(amount: number) {
-    focusDate(addLocalMonths(viewDate, amount))
   }
 
   function openCreate(date = selectedDate, hour?: number) {
@@ -317,6 +285,8 @@ export function ContentCalendar() {
       return
     }
     rememberPublishingScroll()
+    // Close any open status or delete dialog so returning to the queue does not reopen it.
+    setDialog(null)
     const params = new URLSearchParams({
       date: localDateKey(new Date(post.scheduledAt))
     })
@@ -330,7 +300,7 @@ export function ContentCalendar() {
       const withoutPost = current.filter(
         (item) => item.id !== normalizedPost.id
       )
-      return isInRange(normalizedPost.scheduledAt, range)
+      return period && isInRange(normalizedPost.scheduledAt, period)
         ? [...withoutPost, normalizedPost]
         : withoutPost
     })
@@ -412,10 +382,8 @@ export function ContentCalendar() {
       )}
       <CalendarMobileHeader />
       <header className={publishingStyles.header}>
-        <div className={publishingStyles.headerTitle}>
-          <h1>{t('title')}</h1>
-        </div>
-        <CalendarAccountSummary
+        <h1 className={publishingStyles.headerTitle}>{t('title')}</h1>
+        <CalendarAccountAvatars
           data={publishingData}
           error={publishingError}
           onReload={reloadPublishing}
@@ -433,19 +401,12 @@ export function ContentCalendar() {
         </Button>
       </header>
 
-      {!ready || (!hasLoaded && !loadError) ? (
+      {!ready || !period || (!hasLoaded && !loadError) ? (
         <CalendarSkeleton />
       ) : (
         <div>
           {loadError && (
-            <div
-              role="alert"
-              className={
-                hasLoaded
-                  ? publishingStyles.failureBanner
-                  : publishingStyles.loadError
-              }
-            >
+            <div role="alert" className={publishingStyles.loadError}>
               <AlertCircle className="h-4 w-4 shrink-0" />
               <h2 className="min-w-0 text-sm font-medium">
                 {t(`errors.${loadError}`)}
@@ -499,22 +460,24 @@ export function ContentCalendar() {
                   <CalendarPreviewList
                     posts={posts}
                     publishingClips={publishingData?.clips ?? []}
-                    month={viewDate}
+                    period={period}
                     locale={locale}
+                    periodControl={
+                      <CalendarPeriodMenu
+                        period={period}
+                        locale={locale}
+                        weekStartsOn={weekStartsOn}
+                        open={periodMenuOpen}
+                        onOpenChange={setPeriodMenuOpen}
+                        onSelect={choosePeriod}
+                      />
+                    }
                     onCreatePost={() => openCreate()}
+                    onChooseAnotherPeriod={() => setPeriodMenuOpen(true)}
                     onOpenPost={(post) => openEdit(post)}
                     onPublishPost={(post) => openEdit(post, true)}
                     onDeletePost={(post) => setDialog({ mode: 'delete', post })}
                     onViewStatus={(post) => setDialog({ mode: 'status', post })}
-                    toolbar={
-                      <CalendarToolbar
-                        title={title}
-                        loading={loading && hasLoaded}
-                        onPrevious={() => navigatePeriod(-1)}
-                        onNext={() => navigatePeriod(1)}
-                        onToday={() => focusDate(new Date())}
-                      />
-                    }
                   />
                 </Card>
               )}

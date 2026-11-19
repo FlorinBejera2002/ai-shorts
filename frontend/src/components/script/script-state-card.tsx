@@ -7,7 +7,9 @@ import styles from './script-state-card.module.css'
 type ScriptStateCardProps = {
   title: string
   icon?: ReactNode
-  /** Icon circle color: blue info, red danger or a neutral inset. */
+  /** Reference illustration shown instead of an icon badge. */
+  illustration?: { src: string; alt: string }
+  /** Icon circle color: neutral inset by default, or red danger. */
   tone?: 'info' | 'danger' | 'neutral'
   dashed?: boolean
   busy?: boolean
@@ -20,6 +22,7 @@ type ScriptStateCardProps = {
 export function ScriptStateCard({
   title,
   icon,
+  illustration,
   tone = 'info',
   dashed = false,
   busy = false,
@@ -36,7 +39,16 @@ export function ScriptStateCard({
       aria-busy={busy || undefined}
       aria-label={title}
     >
-      {busy ? (
+      {illustration && (
+        <img
+          className={styles.illustration}
+          src={illustration.src}
+          alt={illustration.alt}
+          width={230}
+          height={230}
+        />
+      )}
+      {!illustration && (busy ? (
         <span className={styles.progress} aria-hidden="true" />
       ) : (
         icon && (
@@ -44,7 +56,7 @@ export function ScriptStateCard({
             {icon}
           </span>
         )
-      )}
+      ))}
       <h2 className={styles.title}>{title}</h2>
       {children}
     </section>

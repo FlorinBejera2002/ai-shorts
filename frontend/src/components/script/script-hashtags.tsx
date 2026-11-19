@@ -65,7 +65,7 @@ export function ScriptHashtags({
           className={styles.tagInput}
           value={draft}
           aria-label={t('workspace.addHashtag')}
-          placeholder="+ hashtag"
+          placeholder={t('workspace.hashtagPlaceholder')}
           onChange={(event) => change(event.target.value)}
           onBlur={commit}
           onKeyDown={(event) => {

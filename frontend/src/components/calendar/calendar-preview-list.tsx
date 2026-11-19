@@ -5,11 +5,12 @@ import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import type { ScheduledPostRecord } from '@/lib/content-calendar'
 import type { PublishingData } from '@/lib/publishing'
-import { AlertCircle, ImageOff, Plus } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useMemo, useRef, useState, type ReactNode } from 'react'
 import { CalendarPostThumbnail } from './calendar-post-media'
+import { CalendarStatusBadge } from './calendar-status-badge'
 import { CalendarPostPreview } from './calendar-post-preview'
+import { type PublishingPeriod, periodLabel } from './calendar-period'
 import {
   readPublishingView,
   savePublishingView
@@ -21,15 +22,22 @@ import {
   type PublishingTab
 } from './calendar-publishing-utils'
 
-const tabs: PublishingTab[] = ['all', 'scheduled', 'drafts', 'published']
+const tabs: PublishingTab[] = [
+  'all',
+  'scheduled',
+  'drafts',
+  'published',
+  'failed'
+]
 
 type CalendarPreviewListProps = {
   posts: ScheduledPostRecord[]
   publishingClips: PublishingData['clips']
-  month: Date
+  period: PublishingPeriod
   locale: string
-  toolbar: ReactNode
+  periodControl: ReactNode
   onCreatePost: () => void
+  onChooseAnotherPeriod: () => void
   onOpenPost: (post: ScheduledPostRecord) => void
   onPublishPost: (post: ScheduledPostRecord) => void
   onDeletePost: (post: ScheduledPostRecord) => void
@@ -39,10 +47,11 @@ type CalendarPreviewListProps = {
 export function CalendarPreviewList({
   posts,
   publishingClips,
-  month,
+  period,
   locale,
-  toolbar,
+  periodControl,
   onCreatePost,
+  onChooseAnotherPeriod,
   onOpenPost,
   onPublishPost,
   onDeletePost,
@@ -50,7 +59,7 @@ export function CalendarPreviewList({
 }: CalendarPreviewListProps) {
   const t = useTranslations('contentCalendar')
   const [saved] = useState(readPublishingView)
-  const [tab, setTab] = useState<PublishingTab>(saved.tab ?? 'all')
+  const [tab, setTab] = useState<PublishingTab>(saved.tab ?? 'scheduled')
   const [selectedId, setSelectedId] = useState<string | null>(
     saved.selectedId ?? null
   )
@@ -59,19 +68,16 @@ export function CalendarPreviewList({
   const detailRef = useRef<HTMLDivElement>(null)
   const listScroll = useRef(saved.listScrollY ?? 0)
   const orderedPosts = useMemo(
-    () => getPublishingPosts(posts, tab, month),
-    [posts, tab, month]
+    () => getPublishingPosts(posts, tab, period),
+    [posts, tab, period]
   )
   const groups = useMemo(
     () => groupPublishingPosts(orderedPosts),
     [orderedPosts]
   )
-  const failedPosts = useMemo(
-    () =>
-      getPublishingPosts(posts, 'all', month).filter(
-        (post) => post.status === 'failed'
-      ),
-    [posts, month]
+  const failedCount = useMemo(
+    () => getPublishingPosts(posts, 'failed', period).length,
+    [posts, period]
   )
   const selectedPost =
     orderedPosts.find((post) => post.id === selectedId) ?? orderedPosts[0]
@@ -84,13 +90,12 @@ export function CalendarPreviewList({
       }),
     [locale]
   )
-  const date = useMemo(
-    () =>
-      new Intl.DateTimeFormat(locale, {
-        weekday: 'long',
-        day: 'numeric',
-        month: 'short'
-      }),
+  const weekday = useMemo(
+    () => new Intl.DateTimeFormat(locale, { weekday: 'long' }),
+    [locale]
+  )
+  const dayMonth = useMemo(
+    () => new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'short' }),
     [locale]
   )
 
@@ -105,7 +110,8 @@ export function CalendarPreviewList({
     if (value.toDateString() === today.toDateString()) return t('actions.today')
     if (value.toDateString() === tomorrow.toDateString())
       return t('publishing.tomorrow')
-    return date.format(value)
+    const weekdayLabel = weekday.format(value)
+    return `${weekdayLabel.charAt(0).toLocaleUpperCase(locale)}${weekdayLabel.slice(1)}, ${dayMonth.format(value)}`
   }
 
   function selectPost(post: ScheduledPostRecord) {
@@ -151,34 +157,12 @@ export function CalendarPreviewList({
   }
 
   return (
-    <div
+    <Tabs
+      value={tab}
+      onValueChange={(value) => changeTab(value as PublishingTab)}
       className={styles.splitView}
       data-mobile-detail={mobileDetail && Boolean(selectedPost)}
     >
-      {failedPosts.length > 0 && (
-        <div className={styles.failureBanner} role="status">
-          <AlertCircle className="size-4" aria-hidden="true" />
-          <span>
-            {t('publishing.failedCount', { count: failedPosts.length })}
-          </span>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={() => {
-              changeTab('all')
-              selectPost(failedPosts[0])
-            }}
-          >
-            {t('publishing.resolve')}
-          </Button>
-        </div>
-      )}
-      <Tabs
-        value={tab}
-        onValueChange={(value) => changeTab(value as PublishingTab)}
-        className={styles.listPane}
-      >
         <div className={styles.listControls}>
           <TabsList
             aria-label={t('publishing.tabsLabel')}
@@ -187,25 +171,37 @@ export function CalendarPreviewList({
             {tabs.map((value) => (
               <TabsTrigger key={value} value={value} className={styles.tab}>
                 {t(`publishing.${value}`)}
+                {value === 'failed' && failedCount > 0 && (
+                  <span
+                    className={styles.failedCount}
+                    aria-label={t('publishing.failedCount', {
+                      count: failedCount
+                    })}
+                  >
+                    {failedCount}
+                  </span>
+                )}
               </TabsTrigger>
             ))}
           </TabsList>
-          {toolbar}
+          <div className={styles.periodRow}>
+            {periodControl}
+            <span className={styles.postCount}>
+              {t('postCount', { count: orderedPosts.length })}
+            </span>
+          </div>
         </div>
+        <div className={styles.listPane}>
         {tabs.map((value) => (
           <TabsContent key={value} value={value} className={styles.tabPanel}>
             {orderedPosts.length === 0 ? (
-              <div className={styles.emptyState}>
-                <ImageOff
-                  aria-hidden="true"
-                  className="size-7 text-muted-foreground"
-                />
-                <h3>{t(`publishing.empty.${tab}`)}</h3>
-                <Button onClick={onCreatePost}>
-                  <Plus />
-                  {t('actions.newPost')}
-                </Button>
-              </div>
+              <EmptyList
+                tab={tab}
+                period={period}
+                locale={locale}
+                onCreatePost={onCreatePost}
+                onChooseAnotherPeriod={onChooseAnotherPeriod}
+              />
             ) : (
               <div className={styles.postList}>
                 {groups.map((group) => (
@@ -246,33 +242,34 @@ export function CalendarPreviewList({
                             <span className={styles.postTitle}>
                               {post.title}
                             </span>
-                            <span className={styles.platforms}>
-                              {post.platforms.map((platform) => (
-                                <span
-                                  key={platform}
-                                  title={t(`platforms.${platform}`)}
-                                >
-                                  <PlatformBrandIcon
-                                    provider={platform}
-                                    className="size-4"
-                                  />
-                                  <span className="sr-only">
-                                    {t(`platforms.${platform}`)}
-                                  </span>
+                            <span className={styles.postMeta}>
+                              {post.status !== 'draft' && (
+                                <span className={styles.metaTime}>
+                                  {time.format(new Date(post.scheduledAt))}
                                 </span>
-                              ))}
+                              )}
+                              <span className={styles.platforms}>
+                                {post.platforms.map((platform) => (
+                                  <span
+                                    key={platform}
+                                    title={t(`platforms.${platform}`)}
+                                  >
+                                    <PlatformBrandIcon
+                                      provider={platform}
+                                      className="size-4"
+                                    />
+                                    <span className="sr-only">
+                                      {t(`platforms.${platform}`)}
+                                    </span>
+                                  </span>
+                                ))}
+                              </span>
                             </span>
                           </span>
-                          <span
+                          <CalendarStatusBadge
+                            status={post.status}
                             className={styles.rowStatus}
-                            data-status={post.status}
-                          >
-                            <span
-                              className={styles.statusDot}
-                              aria-hidden="true"
-                            />
-                            {t(`statuses.${post.status}`)}
-                          </span>
+                          />
                         </button>
                       ))}
                     </div>
@@ -282,7 +279,7 @@ export function CalendarPreviewList({
             )}
           </TabsContent>
         ))}
-      </Tabs>
+        </div>
       <div
         ref={detailRef}
         tabIndex={-1}
@@ -305,10 +302,56 @@ export function CalendarPreviewList({
           />
         ) : (
           <div className={styles.emptyPreview}>
-            <ImageOff aria-hidden="true" className="size-7" />
-            <p>{t('publishing.selectPost')}</p>
+            <h3>{t('publishing.previewEmptyTitle')}</h3>
+            <p>{t('publishing.previewEmptyBody')}</p>
+            <div className={styles.previewPlaceholders} aria-hidden="true">
+              {[0, 1, 2, 3].map((index) => (
+                <span key={index} />
+              ))}
+            </div>
           </div>
         )}
+      </div>
+    </Tabs>
+  )
+}
+
+function EmptyList({
+  tab,
+  period,
+  locale,
+  onCreatePost,
+  onChooseAnotherPeriod
+}: {
+  tab: PublishingTab
+  period: PublishingPeriod
+  locale: string
+  onCreatePost: () => void
+  onChooseAnotherPeriod: () => void
+}) {
+  const t = useTranslations('contentCalendar')
+  return (
+    <div className={styles.emptyState}>
+      <img
+        src="/illustrations/library-empty.webp"
+        alt=""
+        width={220}
+        height={220}
+        className={styles.emptyIllustration}
+      />
+      <h3>
+        {t('publishing.emptyPeriod.' + tab, {
+          period: periodLabel(period, locale)
+        })}
+      </h3>
+      <p>{t('publishing.emptyHint')}</p>
+      <div className={styles.emptyActions}>
+        <Button type="button" variant="outline" onClick={onChooseAnotherPeriod}>
+          {t('publishing.chooseAnotherPeriod')}
+        </Button>
+        <Button type="button" onClick={onCreatePost}>
+          {t('actions.newPost')}
+        </Button>
       </div>
     </div>
   )

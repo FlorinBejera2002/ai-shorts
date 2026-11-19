@@ -1,0 +1,292 @@
+/*
+ * Phone bottom bar (reference canvas "Navigare mobil", motion after the wib_account tab bar):
+ * a floating liquid-glass capsule with a glass lens under the active tab and the round
+ * "Creează clipuri" button in the middle. Hidden on desktop.
+ */
+.dock {
+  display: none;
+}
+
+@media (max-width: 1023px) {
+  .dock {
+    position: fixed;
+    z-index: 50;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    display: block;
+    pointer-events: none;
+  }
+
+  /* Soft fade so content scrolling under the bar stays readable. */
+  .dock::before {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    height: 140px;
+    background: linear-gradient(rgba(245, 247, 251, 0), rgba(245, 247, 251, 0.35));
+    content: '';
+    pointer-events: none;
+  }
+
+  .bar {
+    position: relative;
+    display: flex;
+    height: 68px;
+    align-items: center;
+    gap: 2px;
+    margin: 0 16px max(22px, env(safe-area-inset-bottom));
+    border-radius: 999px;
+    padding: 0 6px;
+    pointer-events: auto;
+    /* Liquid glass: blur what scrolls beneath, a milky tint, a bright top edge and a light rim. */
+    background: rgba(255, 255, 255, 0.58);
+    -webkit-backdrop-filter: blur(22px) saturate(180%);
+    backdrop-filter: blur(22px) saturate(180%);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.95),
+      inset 0 0 0 1px rgba(255, 255, 255, 0.55),
+      0 0 0 1px rgba(15, 23, 42, 0.06),
+      0 12px 32px rgba(15, 23, 42, 0.18);
+  }
+
+  .lens {
+    position: absolute;
+    top: 8px;
+    left: 0;
+    height: 52px;
+    border-radius: 999px;
+    background: rgba(15, 23, 42, 0.07);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85), 0 1px 2px rgba(15, 23, 42, 0.08);
+    pointer-events: none;
+  }
+
+  .slot {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    min-width: 0;
+    flex: 1 1 0;
+    border-radius: 999px;
+  }
+
+  .tab {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    min-width: 0;
+    height: 52px;
+    flex: 1 1 0;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    padding: 0;
+    color: #4f5c72;
+    font: inherit;
+    font-size: 10px;
+    font-weight: 600;
+    line-height: 12px;
+    text-decoration: none;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .tab[aria-current='page'],
+  .tab[data-open] {
+    color: #152035;
+    font-weight: 800;
+  }
+
+  .tab svg {
+    width: 22px;
+    height: 22px;
+  }
+
+  .tab > span {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .tab:focus-visible,
+  .create:focus-visible {
+    outline: 2px solid #0b0b0c;
+    outline-offset: 2px;
+  }
+
+  .center {
+    display: flex;
+    flex: 1 1 0;
+    justify-content: center;
+  }
+
+  .create {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    width: 54px;
+    height: 54px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    background: #0b0b0c;
+    color: #fff;
+    text-decoration: none;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22), 0 8px 18px rgba(0, 0, 0, 0.22);
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .create svg {
+    width: 26px;
+    height: 26px;
+  }
+
+  /* Meniu: the pages that are not in the bar. */
+  .menu {
+    position: fixed;
+    z-index: 50;
+    right: 0;
+    bottom: calc(max(22px, env(safe-area-inset-bottom)) + 80px);
+    left: 0;
+    width: min(358px, calc(100vw - 32px));
+    max-height: calc(100dvh - 180px);
+    margin: 0 auto;
+    overflow-y: auto;
+    border-radius: 28px;
+    background: var(--publish-surface, #fff);
+    padding: 16px;
+    color: var(--publish-text, #152035);
+    box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.06), 0 24px 70px rgba(0, 0, 0, 0.24);
+    outline: none;
+  }
+
+  .menuHead {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 4px 10px;
+  }
+
+  .menuHead h2 {
+    margin: 0;
+    font-family: 'Sora Variable', Sora, Inter, sans-serif;
+    font-size: 17px;
+    font-weight: 600;
+  }
+
+  .menuClose {
+    display: grid;
+    width: 40px;
+    height: 40px;
+    place-items: center;
+    border: 0;
+    border-radius: 12px;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+  }
+
+  .menuClose svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .menuGrid {
+    display: grid;
+    gap: 8px;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .menuItem {
+    display: flex;
+    min-height: 84px;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border-radius: 18px;
+    background: var(--publish-subtle-bg, #edf2f8);
+    padding: 0 6px;
+    color: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 16px;
+    text-align: center;
+    text-decoration: none;
+  }
+
+  .menuItem:hover {
+    background: var(--publish-hover, #e3e9f2);
+  }
+
+  .menuItem[aria-current='page'] {
+    background: var(--publish-selected, #152035);
+    color: var(--publish-on-selected, #fff);
+  }
+
+  .menuItem svg {
+    width: 22px;
+    height: 22px;
+  }
+
+  .menuItem:focus-visible,
+  .menuClose:focus-visible {
+    outline: 2px solid currentColor;
+    outline-offset: 2px;
+  }
+
+  .scrim {
+    position: fixed;
+    z-index: 45;
+    inset: 0;
+    background: rgba(21, 32, 53, 0.45);
+  }
+}
+
+/* Dark: smoked glass, steel primary. */
+:global(.dark) .dock::before {
+  background: linear-gradient(rgba(14, 19, 28, 0), rgba(14, 19, 28, 0.35));
+}
+
+:global(.dark) .bar {
+  background: rgba(24, 31, 43, 0.62);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.08),
+    0 0 0 1px rgba(0, 0, 0, 0.3),
+    0 12px 32px rgba(0, 0, 0, 0.45);
+}
+
+:global(.dark) .lens {
+  background: rgba(255, 255, 255, 0.1);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14), 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+:global(.dark) .tab {
+  color: #bdc9dc;
+}
+
+:global(.dark) .tab[aria-current='page'],
+:global(.dark) .tab[data-open] {
+  color: #edf2fa;
+}
+
+:global(.dark) .create {
+  background: #8e9bb0;
+  color: #0c1524;
+}
+
+:global(.dark) .tab:focus-visible,
+:global(.dark) .create:focus-visible {
+  outline-color: #edf2fa;
+}
+
+:global(.dark) .scrim {
+  background: rgba(0, 0, 0, 0.62);
+}

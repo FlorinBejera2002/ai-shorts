@@ -1,14 +1,7 @@
 import assert from 'node:assert/strict'
-import {
-  mkdir,
-  readFile,
-  readdir,
-  stat,
-  utimes,
-  writeFile
-} from 'node:fs/promises'
-import { spawnSync } from 'node:child_process'
+import { mkdir, readFile, readdir, stat, writeFile } from 'node:fs/promises'
 import { fileURLToPath, pathToFileURL } from 'node:url'
+import { restoreSourceTimes } from './source-probe-helpers.mjs'
 
 // Start Vite separately. Every authenticated read and every mutation is handled
 // by this fixture. No application database, real identity or media is touched.
@@ -80,6 +73,19 @@ function dashboard(overrides = {}) {
     })),
     ...overrides
   }
+}
+const now = Date.now()
+function history(overrides) {
+  return overrides ?? [
+    { id: '00000000-0000-4000-8000-000000001101', status: 'analyzing', progress: 64, sourceUrl: 'https://youtube.com/watch?v=abcdefghijk', sourceFilePath: null, createdAt: new Date(now - 600000).toISOString(), completedAt: null, _count: { clips: 0 } },
+    { id: '00000000-0000-4000-8000-000000001102', status: 'completed', progress: 100, sourceUrl: null, sourceFilePath: 'uploads/autumn-recipes.mp4', createdAt: new Date(now - 86400000).toISOString(), completedAt: new Date(now - 82800000).toISOString(), _count: { clips: 6 } }
+  ]
+}
+function upcomingPosts() {
+  return [
+    { id: '00000000-0000-4000-8000-000000001201', title: 'Morning routine teaser', status: 'scheduled', platforms: ['instagram'], accountIds: [], publishingDestinations: [], scheduledAt: new Date(now + 3600000).toISOString() },
+    { id: '00000000-0000-4000-8000-000000001202', title: 'Studio tour', status: 'scheduled', platforms: ['tiktok'], accountIds: [], publishingDestinations: [], scheduledAt: new Date(now + 90000000).toISOString() }
+  ]
 }
 const settings = {
   preferences: {
@@ -177,7 +183,8 @@ async function fixture(initial = dashboard(), options = {}) {
       '/api/user/settings': settings,
       '/api/projects': { projects: [] },
       '/api/publishing': { providers: [], accounts: [], clips: [], posts: [] },
-      '/api/calendar': { posts: [], clips: [] },
+      '/api/calendar': { posts: options.posts ?? upcomingPosts(), clips: [] },
+      '/api/dashboard/history': { jobs: history(options.history) },
       '/api/user/brand': { brandKit: {} },
       '/api/workspace-agent/runs': { runs: [], has_more: false },
       '/api/workspace-agent/suggestions': { suggestions: [], capabilities: [] },
@@ -312,25 +319,16 @@ async function assertShell(page) {
 }
 async function homeLinks(f) {
   assert.equal(
-    await f.workspace.locator('[data-home-new-clip]').getAttribute('href'),
-    '/dashboard/create'
+    await f.workspace.locator('[data-home-upload]').getAttribute('href'),
+    '/dashboard/create?mode=upload'
   )
   assert.equal(
     await f.workspace.locator('[data-home-open-library]').getAttribute('href'),
     '/dashboard/clips'
   )
-  for (const key of ['clips', 'projects', 'minutes'])
-    assert.equal(
-      await f.workspace
-        .locator(`[data-home-stat="${key}"]`)
-        .getAttribute('href'),
-      '/dashboard/clips'
-    )
   assert.equal(
-    await f.workspace
-      .locator('[data-home-stat="credits"]')
-      .getAttribute('href'),
-    '/dashboard/billing'
+    await f.workspace.locator('[data-home-new-clip]').getAttribute('type'),
+    'submit'
   )
   assert.equal(
     await f.workspace
@@ -343,13 +341,14 @@ async function homeLinks(f) {
     await f.workspace
       .locator('[data-home-clip]')
       .evaluateAll((elements) => elements.map((el) => el.getAttribute('href'))),
-    data.recentClips.slice(0, 4).map((clip) => `/dashboard/clips/${clip.id}`)
+    data.recentClips.slice(0, 6).map((clip) => `/dashboard/clips/${clip.id}`)
   )
   assert.equal(
     await f.workspace.locator('video, [data-home-clip] button').count(),
     0,
     'Home cards contain no inline player or secondary actions'
   )
+  assert.equal(await f.workspace.getByText(/credit/i).count(), 0, 'Home never shows credits')
 }
 async function referenceStates() {
   for (const device of process.env.HOME_DEVICE
@@ -362,8 +361,7 @@ async function referenceStates() {
     for (const state of process.env.HOME_STATES?.split(',') || [
       'overview',
       'empty',
-      'zero-credits',
-      'unlimited',
+      'idle',
       'missing-preview',
       'loading',
       'load-error',
@@ -376,13 +374,12 @@ async function referenceStates() {
         data.metrics.durationMinutes = 0
         data.recentClips = []
       }
-      if (state === 'zero-credits') data.metrics.credits = 0
-      if (state === 'unlimited') data.metrics.creditsUnlimited = true
       if (state === 'missing-preview') data.recentClips[0].thumbnailUrl = null
       const f = await fixture(data, {
         viewport,
         holdInitial: state === 'loading',
-        failRead: state === 'load-error'
+        failRead: state === 'load-error',
+        history: state === 'idle' ? [] : undefined
       })
       try {
         await f.open(!['loading', 'load-error'].includes(state))
@@ -418,33 +415,21 @@ async function referenceStates() {
           await dock(f.page, device === 'mobile')
           if (state === 'empty') {
             await f.workspace.locator('[data-home-empty]').waitFor()
-            assert.equal(
-              await f.workspace.locator('[data-home-clip]').count(),
-              0
-            )
-            assert.match(
-              await f.workspace
-                .locator('[data-home-stat="credits"]')
-                .innerText(),
-              /360/
-            )
+            await f.workspace.locator('[data-home-hero="first-run"]').waitFor()
+            assert.equal(await f.workspace.locator('[data-home-clip], [data-home-stat]').count(), 0)
+            assert.equal(await f.workspace.locator('[data-home-start]').count(), 3)
+            assert.match(await f.workspace.locator('[data-home-first-steps]').innerText(), /of 4/)
           } else {
-            assert.equal(
-              await f.workspace.locator('[data-home-clip]').count(),
-              4
-            )
-            assert.equal(
-              await f.workspace.locator('[data-home-recent-count]').innerText(),
-              '6'
-            )
+            assert.equal(await f.workspace.locator('[data-home-clip]').count(), 6)
           }
+          if (state === 'idle')
+            await f.workspace.getByText('All caught up', { exact: true }).waitFor()
           if (state === 'overview') {
             await homeLinks(f)
             for (const [key, value] of [
               ['clips', '24'],
               ['projects', '6'],
-              ['minutes', '18'],
-              ['credits', '360']
+              ['minutes', '18']
             ])
               assert.match(
                 await f.workspace
@@ -453,47 +438,21 @@ async function referenceStates() {
                 new RegExp(value)
               )
             const cards = f.workspace.locator('[data-home-clip]')
-            for (let i = 0; i < 4; i++) {
+            for (let i = 0; i < 6; i++) {
+              assert.match(await cards.nth(i).innerText(), new RegExp(titles[i]))
               assert.match(
                 await cards.nth(i).innerText(),
-                new RegExp(titles[i])
+                new RegExp(['0:28', '0:42', '0:35', '0:47', '0:12', '0:19'][i])
               )
-              assert.match(
-                await cards.nth(i).innerText(),
-                new RegExp(['00:28', '00:42', '00:35', '00:47'][i])
-              )
-              assert.match(await cards.nth(i).innerText(), /1080 × 1920/)
+              assert.doesNotMatch(await cards.nth(i).innerText(), /Score|\/10/)
             }
-            assert.match(await cards.nth(0).innerText(), /8.7\/10/)
-            assert.doesNotMatch(await cards.nth(3).innerText(), /Score|\/10/)
+            const work = f.workspace.locator('[data-home-work-card]')
+            assert.match(await work.locator('[data-home-work="running"]').innerText(), /64%/)
+            assert.match(await work.locator('[data-home-work="done"]').innerText(), /6 clips ready/)
+            const scheduled = f.workspace.locator('[data-home-scheduled]')
+            assert.match(await scheduled.innerText(), /Morning routine teaser/)
+            assert.match(await scheduled.innerText(), /Studio tour/)
           }
-          if (state === 'zero-credits') {
-            assert.match(
-              await f.workspace
-                .locator('[data-home-stat="credits"]')
-                .innerText(),
-              /\b0\b/
-            )
-            assert.equal(
-              await f.workspace
-                .locator('[data-home-new-clip]')
-                .getAttribute('aria-disabled'),
-              null
-            )
-            assert.equal(
-              await f.workspace
-                .locator('[data-home-new-clip]')
-                .getAttribute('href'),
-              '/dashboard/create'
-            )
-          }
-          if (state === 'unlimited')
-            assert.match(
-              await f.workspace
-                .locator('[data-home-stat="credits"]')
-                .innerText(),
-              /∞/
-            )
           if (state === 'missing-preview')
             await f.workspace
               .locator('[data-home-clip]')
@@ -546,33 +505,10 @@ async function referenceStates() {
     }
   }
   console.log(
-    'Home reference states, metadata, first four of six, links, loading/error retry and dock visibility passed'
+    'Home reference states, work/scheduled cards, six recent clips, links, loading/error retry and dock visibility passed'
   )
 }
 async function dataEdges() {
-  for (const [name, flag, admin, expected] of [
-    ['explicit-unlimited', true, false, '∞'],
-    ['explicit-finite-admin', false, true, '360'],
-    ['admin-fallback', undefined, true, '∞'],
-    ['member-fallback', undefined, false, '360']
-  ]) {
-    const data = dashboard()
-    if (flag === undefined) delete data.metrics.creditsUnlimited
-    else data.metrics.creditsUnlimited = flag
-    const f = await fixture(data, {
-      user: { access_role: admin ? 'admin' : 'member' }
-    })
-    try {
-      await f.open()
-      assert.match(
-        await f.workspace.locator('[data-home-stat="credits"]').innerText(),
-        new RegExp(expected),
-        name
-      )
-    } finally {
-      await f.close()
-    }
-  }
   const data = dashboard()
   data.recentClips[0].thumbnailUrl = `${origin}/__home-fixture__/broken.jpg`
   data.recentClips[1].viralScore = -3
@@ -603,9 +539,9 @@ async function dataEdges() {
     assert.equal(f.calls.reads, 2)
     await f.workspace.waitFor()
     assert.equal(await f.page.locator('[data-home-initial]').count(), 0)
-    assert.equal(await f.workspace.locator('[data-home-clip]').count(), 4)
+    assert.equal(await f.workspace.locator('[data-home-clip]').count(), 6)
     console.log(
-      'Explicit unlimited/admin fallback, broken-image fallback, nonpositive score and stale-data refresh failure passed'
+      'Broken-image fallback, hidden scores and stale-data refresh failure passed'
     )
   } finally {
     await f.close()
@@ -638,21 +574,26 @@ async function navigation() {
       .click()
     await desktop.workspace.waitFor()
     await assertShell(desktop.page)
-    await desktop.workspace.locator('[data-home-stat="credits"]').click()
-    await desktop.page.waitForURL('**/dashboard/billing')
+    const linkField = desktop.workspace.getByRole('textbox', { name: 'YouTube link', exact: true })
+    await linkField.fill('not a link')
+    await desktop.workspace.locator('[data-home-new-clip]').click()
+    await desktop.workspace.getByRole('alert').waitFor()
+    await linkField.fill('https://youtu.be/abcdefghijk')
+    await desktop.workspace.locator('[data-home-new-clip]').click()
+    await desktop.page.waitForURL(
+      (url) =>
+        url.pathname === '/dashboard/create' &&
+        url.searchParams.get('mode') === 'youtube' &&
+        url.searchParams.get('url') === 'https://youtu.be/abcdefghijk'
+    )
     await assertShell(desktop.page)
     await desktop.page.goBack()
     await desktop.workspace.waitFor()
-    for (const selector of [
-      '[data-home-new-clip]',
-      '[data-home-open-library]',
-      '[data-home-stat="clips"]',
-      '[data-home-stat="projects"]',
-      '[data-home-stat="minutes"]'
-    ]) {
-      const target = await desktop.workspace
-        .locator(selector)
-        .getAttribute('href')
+    for (const selector of ['[data-home-upload]', '[data-home-open-library]']) {
+      const target = new URL(
+        await desktop.workspace.locator(selector).getAttribute('href'),
+        origin
+      ).pathname
       await desktop.workspace.locator(selector).click()
       await desktop.page.waitForURL((url) => url.pathname === target)
       await assertShell(desktop.page)
@@ -751,6 +692,59 @@ async function navigation() {
     'Desktop page search, all Home action/statistic destinations, mobile Menu close/focus/scroll and persistent dashboard shell passed'
   )
 }
+// Every link on Home goes where the canvas says, and each destination opens inside the same shell.
+async function destinations() {
+  const expected = {
+    overview: [
+      ['Upload', '/dashboard/create?mode=upload'],
+      ['Write a script', '/dashboard/script-generator'],
+      ['From my YouTube account', '/dashboard/create?mode=youtube&source=library'],
+      ['My clips', '/dashboard/clips'],
+      ['View', '/dashboard/clips'],
+      ['Calendar', '/dashboard/publish'],
+      ['Morning routine teaser', '/dashboard/publish/00000000-0000-4000-8000-000000001201/edit'],
+      ['View all', '/dashboard/clips'],
+      [titles[0], '/dashboard/clips/00000000-0000-4000-8000-000000001040']
+    ],
+    empty: [
+      ['Upload videos', '/dashboard/create?mode=upload'],
+      ['YouTube link', '/dashboard/create?mode=youtube'],
+      ['Write a script', '/dashboard/script-generator'],
+      ['Create your first clip', '/dashboard/create'],
+      ['Set up your brand kit', '/dashboard/brand'],
+      ['Connect your social accounts', '/dashboard/publish'],
+      ['Schedule your first post', '/dashboard/publish/new']
+    ]
+  }
+  for (const [state, links] of Object.entries(expected)) {
+    const data = dashboard()
+    if (state === 'empty') Object.assign(data, { metrics: { ...data.metrics, clipCount: 0, jobCount: 0, durationMinutes: 0 }, recentClips: [] })
+    const f = await fixture(data)
+    try {
+      await f.open()
+      await rememberShell(f.page)
+      for (const [name, href] of links) {
+        const link = f.workspace.getByRole('link', { name: new RegExp(name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')) }).first()
+        assert.equal(await link.getAttribute('href'), href, `${state}: ${name} → ${href}`)
+        await link.click()
+        const target = new URL(href, origin)
+        await f.page.waitForURL((url) => url.pathname === target.pathname && url.search === target.search)
+        await assertShell(f.page)
+        if (href.includes('source=library'))
+          assert.equal(
+            await f.page.getByRole('radio', { name: /My YouTube videos/i }).getAttribute('aria-checked'),
+            'true',
+            'Shortcut opens the YouTube library source'
+          )
+        await f.page.goBack()
+        await f.workspace.locator('[data-home-new-clip]').waitFor()
+      }
+    } finally {
+      await f.close()
+    }
+  }
+  console.log('Every Home link and shortcut opens its destination inside the persistent shell')
+}
 async function responsive() {
   for (const width of process.env.HOME_WIDTHS?.split(',').map(Number) || [
     320, 375, 768, 1024
@@ -778,52 +772,6 @@ async function responsive() {
     }
   }
 }
-async function restoreSourceTimes(path, metadata) {
-  if (process.platform === 'win32') {
-    const epochTicks = 621355968000000000n
-    const accessTicks = epochTicks + metadata.atimeNs / 100n
-    const writeTicks = epochTicks + metadata.mtimeNs / 100n
-    const literal = fileURLToPath(path).replaceAll("'", "''")
-    let restored
-    for (let attempt = 0; attempt < 5; attempt++) {
-      // Restoring mtime can trigger another Vite read. Retry only atime once
-      // mtime matches, so verification never creates a new write-watch event.
-      const result = spawnSync(
-        'powershell.exe',
-        [
-          '-NoProfile',
-          '-NonInteractive',
-          '-Command',
-          `$probePath = '${literal}'; if ([IO.File]::GetLastWriteTimeUtc($probePath).Ticks -ne ${writeTicks}L) { [IO.File]::SetLastWriteTimeUtc($probePath, [DateTime]::new(${writeTicks}L, [DateTimeKind]::Utc)) }; [IO.File]::SetLastAccessTimeUtc($probePath, [DateTime]::new(${accessTicks}L, [DateTimeKind]::Utc))`
-        ],
-        { encoding: 'utf8', windowsHide: true }
-      )
-      assert.equal(result.status, 0, result.stderr)
-      restored = await stat(path, { bigint: true })
-      if (
-        restored.mtimeNs === metadata.mtimeNs &&
-        restored.atimeNs === metadata.atimeNs
-      )
-        break
-      await new Promise((resolve) => setTimeout(resolve, 250))
-    }
-    assert.equal(
-      restored.mtimeNs,
-      metadata.mtimeNs,
-      'Source write timestamp restored exactly'
-    )
-    assert.equal(
-      restored.atimeNs,
-      metadata.atimeNs,
-      'Source access timestamp restored exactly'
-    )
-  } else
-    await utimes(
-      path,
-      Number(metadata.atimeNs) / 1e9,
-      Number(metadata.mtimeNs) / 1e9
-    )
-}
 async function fastRefresh() {
   if (process.env.RUN_FAST_REFRESH !== '1') {
     console.log(
@@ -847,7 +795,7 @@ async function fastRefresh() {
     })
     await dialog.getByRole('textbox').fill('set')
     const sourcePath = new URL(
-      '../src/components/dashboard/studio-hero.tsx',
+      '../src/components/dashboard/home/home-hero.tsx',
       import.meta.url
     )
     const metadata = await stat(sourcePath, { bigint: true }),
@@ -898,6 +846,7 @@ try {
   if (runs('references')) await referenceStates()
   if (runs('data')) await dataEdges()
   if (runs('navigation')) await navigation()
+  if (runs('destinations')) await destinations()
   if (runs('responsive')) await responsive()
   if (runs('refresh')) await fastRefresh()
   assert.deepEqual(runtimeErrors, [])

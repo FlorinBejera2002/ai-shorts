@@ -90,7 +90,13 @@
     "skipContent": "Skip to content",
     "openMenu": "Open navigation",
     "closeMenu": "Close navigation",
-    "mobileNavigation": "Dashboard navigation"
+    "mobileNavigation": "Dashboard navigation",
+    "menu": "Menu",
+    "dockHome": "Home",
+    "billingFull": "Subscription and billing",
+    "monthlyUsage": "Monthly usage",
+    "monthlyUsageLabel": "Monthly usage: {percent}% used",
+    "usageResets": "Resets on {date}"
   },
   "landing": {
     "badge": "Long-form in. Standout moments out.",
@@ -190,6 +196,74 @@
     "productDetail4Desc": "Compare clips by hook, clarity and retention potential before you publish.",
     "stepLabel": "Step {n}",
     "dataDeletion": "Data deletion"
+  },
+  "authCanvas": {
+    "tabsLabel": "Account",
+    "footer": {
+      "copyright": "© {year} Sneep Cut",
+      "terms": "Terms",
+      "privacy": "Privacy"
+    },
+    "screens": {
+      "login": { "lead": "Every video", "accent": "has a good moment.", "alt": "Ana opens a door from a phone while Radu walks in with a coffee" },
+      "register": { "lead": "Every idea", "accent": "deserves a clip.", "alt": "Ana and Radu stand on a clapperboard and wave" },
+      "mfa": { "lead": "Every account", "accent": "deserves protection.", "alt": "Ana brings a big key while Radu holds an open padlock" },
+      "verify": { "lead": "One more step", "accent": "to your first clip.", "alt": "Ana looks through a magnifier at an envelope with a check mark held by Radu" },
+      "forgot": { "lead": "It happens,", "accent": "we will fix it together.", "alt": "Ana brings a big key while Radu holds an open padlock" },
+      "forgotSent": { "lead": "The link is on its way,", "accent": "check your email.", "alt": "Ana looks through a magnifier at an envelope with a check mark held by Radu" },
+      "reset": { "lead": "A new password,", "accent": "a fresh start.", "alt": "Ana brings a big key while Radu holds an open padlock" },
+      "resetDone": { "lead": "All done,", "accent": "your clips are waiting.", "alt": "Ana and Radu hold a board with a green check mark together" },
+      "resetInvalid": { "lead": "No worries,", "accent": "we need a new link.", "alt": "Radu holds a broken chain while Ana shows him a linked ring tied with a bow" },
+      "activate": { "lead": "One more step", "accent": "to your first clip.", "alt": "Ana looks through a magnifier at an envelope with a check mark held by Radu" },
+      "activateDone": { "lead": "Welcome,", "accent": "your first clip awaits.", "alt": "Ana and Radu hold a board with a green check mark together" }
+    },
+    "mfa": {
+      "title": "Two-step verification",
+      "codeLabel": "Code",
+      "submit": "Continue"
+    },
+    "verify": {
+      "title": "Verify your email address",
+      "description": "Open the activation link sent to {email}, then sign in.",
+      "resend": "Resend link"
+    },
+    "forgot": {
+      "description": "Enter your email to receive a reset link.",
+      "submit": "Send reset link"
+    },
+    "forgotSent": {
+      "title": "Check your email",
+      "description": "If an account exists for this email, we have sent a reset link. Check your spam folder too."
+    },
+    "reset": {
+      "newPassword": "New password",
+      "confirmPassword": "Confirm password"
+    },
+    "resetDone": {
+      "title": "Password updated",
+      "description": "You can now sign in with your new password."
+    },
+    "resetInvalid": {
+      "title": "Invalid reset link",
+      "description": "The link has expired or is incomplete. Request a new one.",
+      "submit": "Send a new link"
+    },
+    "activate": {
+      "title": "Activate your account",
+      "description": "Confirm your email address to continue.",
+      "submit": "Confirm email",
+      "invalidLink": "This link is invalid or has expired."
+    },
+    "activateDone": {
+      "title": "Your account is active",
+      "description": "You can sign in now."
+    },
+    "terms": {
+      "prefix": "By creating an account you agree to the",
+      "terms": "Terms",
+      "and": "and",
+      "privacy": "Privacy Policy"
+    }
   },
   "auth": {
     "heroTitle": "Turn any video into viral clips",
@@ -339,9 +413,144 @@
       "loading": "Loading…",
       "loadError": "Unable to load this page.",
       "retry": "Try again"
+    },
+    "home": {
+      "greeting": "Hi, {name}",
+      "greetingFallback": "Hi",
+      "title": "What are we making today?",
+      "firstTitle": "Create your first clip",
+      "linkPlaceholder": "Paste a YouTube link",
+      "linkLabel": "YouTube link",
+      "upload": "Upload",
+      "create": "Create clips",
+      "invalidLink": "That doesn't look like a valid YouTube link",
+      "shortcutsLabel": "Shortcuts",
+      "shortcuts": {
+        "writeScript": "Write a script",
+        "youtubeAccount": "From my YouTube account",
+        "myClips": "My clips"
+      },
+      "firstIllustrationAlt": "Ana with a clapperboard and Radu with a film reel next to a shelf of empty frames",
+      "errorIllustrationAlt": "Ana and Radu trying to get a projector working again",
+      "loading": "Loading your dashboard",
+      "loadError": "Your dashboard couldn't be loaded",
+      "retry": "Try again",
+      "work": {
+        "title": "In progress",
+        "activeCount": "{count, plural, one {# active} other {# active}}",
+        "readyCount": "{count, plural, one {# ready} other {# ready}}",
+        "progress": "Progress for {title}",
+        "clipsReady": "{count, plural, one {# clip ready} other {# clips ready}}",
+        "view": "View",
+        "allDone": "All caught up",
+        "loadError": "Your projects couldn't be loaded.",
+        "youtubeSource": "YouTube video",
+        "uploadSource": "Uploaded video"
+      },
+      "stats": {
+        "label": "Workspace statistics",
+        "clips": "Clips",
+        "projects": "Projects",
+        "video": "Video created",
+        "minutes": "min",
+        "lastSevenDays": "Last 7 days",
+        "weekClips": "{count, plural, one {# clip} other {# clips}}",
+        "chartLabel": "{count, plural, one {# clip created} other {# clips created}} in the last 7 days"
+      },
+      "scheduled": {
+        "title": "Scheduled",
+        "calendar": "Calendar",
+        "today": "Today",
+        "tomorrow": "Tomorrow",
+        "untitled": "Untitled post",
+        "empty": "No scheduled posts.",
+        "loadError": "Scheduled posts couldn't be loaded."
+      },
+      "recent": {
+        "title": "Recent clips",
+        "viewAll": "View all",
+        "noPreview": "No preview",
+        "subtitles": "Subtitles included"
+      },
+      "start": {
+        "title": "How do you want to start?",
+        "upload": {
+          "title": "Upload videos",
+          "description": "From your phone or computer"
+        },
+        "youtube": {
+          "title": "YouTube link",
+          "description": "Clips from a long video"
+        },
+        "script": {
+          "title": "Write a script",
+          "description": "AI shooting plan"
+        }
+      },
+      "steps": {
+        "title": "First steps",
+        "progress": "{done} of {total}",
+        "done": "done",
+        "clip": "Create your first clip",
+        "brand": "Set up your brand kit",
+        "networks": "Connect your social accounts",
+        "schedule": "Schedule your first post"
+      }
     }
   },
   "create": {
+    "youtubeImport": {
+      "sourceLabel": "YouTube source",
+      "linkSource": "YouTube link",
+      "librarySource": "My YouTube videos",
+      "title": "Import your YouTube videos",
+      "description": "Connect your Google account to copy your own uploaded videos into Sneep Cut, then choose a video to turn into clips.",
+      "visibilityLabel": "Which videos do you want to import?",
+      "visibility": {
+        "public": "Public",
+        "unlisted": "Unlisted",
+        "private": "Private"
+      },
+      "disclosure": "Google will export your own uploaded videos in the categories you select. Sneep Cut will store the copied video files and their metadata in your account and process videos you choose with AI to create clips, transcripts and subtitles. You can remove imported videos from this library, stop an import here, or revoke access in your Google account. Imported media is not used to train general-purpose AI models.",
+      "consent": "I authorize this import and the processing described above.",
+      "privacy": "Privacy policy",
+      "googlePermissions": "Manage Google access",
+      "connect": "Connect Google and import",
+      "importMore": "Import more videos",
+      "uploadOriginal": "Upload original video",
+      "connecting": "Connecting…",
+      "connectionFailed": "We couldn't start the Google connection. Try again or upload the original video.",
+      "exportTime": "Google prepares an export first. This can take minutes or several hours.",
+      "eligibility": "Availability depends on your Google account and country. If this import is unavailable, you can upload your original video instead.",
+      "loading": "Loading your YouTube imports…",
+      "loadFailed": "Your imports couldn't be loaded. Try again to see their latest status.",
+      "retry": "Try again",
+      "refresh": "Refresh imports",
+      "unavailable": "Importing from your Google account is currently unavailable. You can still upload an original video or use an imported video below.",
+      "importsLabel": "Import activity",
+      "status": {
+        "authorizing": "Waiting for Google authorization",
+        "queued": "Import queued",
+        "exporting": "Google is preparing your videos",
+        "importing": "Saving videos to your library",
+        "ready": "Import complete",
+        "failed": "Import failed",
+        "cancelled": "Import stopped"
+      },
+      "continuesInBackground": "You can leave this page. Your import continues in the background.",
+      "importFailed": "We couldn't finish this import. Check your Google access and start a new import, or upload the original video.",
+      "importedCount": "{count, plural, one {# video imported} other {# videos imported}}",
+      "stopImport": "Stop import",
+      "disconnectHelp": "Stopping an import prevents further copying. Videos already imported stay in your library. You can also revoke access from your Google account.",
+      "removalFailed": "This item couldn't be removed. Try again.",
+      "libraryLabel": "Imported videos",
+      "empty": "Your imported videos will appear here when Google finishes the export.",
+      "selectVideo": "Select one video, adjust the clip settings, then Generate.",
+      "deleteVideo": "Remove {title} from library",
+      "deleteHelp": "Removing a video from this library does not delete clips or projects already created from it.",
+      "authorized": "Google authorized the import. You can follow its progress here.",
+      "authorizationFailed": "The import wasn't authorized. Connect again to retry, or upload the original video."
+    },
     "brandSelectHint": "Select the identity used for your clips",
     "brandKitCount": "{count, plural, one {# kit} other {# kits}}",
     "brandNone": "No branding",
@@ -760,7 +969,8 @@
       "colors": "Colors & effects",
       "layout": "Text & layout",
       "linesSummary": "{count, plural, one {# line} other {# lines}}"
-    }
+    },
+    "kitNameTaken": "A kit with this name already exists."
   },
   "billing": {
     "title": "Billing",
@@ -940,6 +1150,41 @@
       "paymentDescription": "Paid features are unavailable until billing is resolved. Your credit balance is preserved.",
       "cancellationTitle": "Your subscription will not renew automatically.",
       "cancellationDescription": "Your paid access continues until {date}."
+    },
+    "canvas": {
+      "back": "Back",
+      "monthlyUsage": "Monthly usage",
+      "trialUsage": "Trial usage",
+      "used": "used",
+      "remaining": "{percent}% left",
+      "usageLabel": "Usage {percent}%",
+      "resetsOn": "Resets on {date}",
+      "noReset": "Does not reset",
+      "pricePerMonth": "{price} / month",
+      "priceMonth": "{price}/month",
+      "renewsOn": "Renews on {date}",
+      "endsOn": "Ends on {date}",
+      "periodEndsOn": "Period ends on {date}",
+      "standardUsage": "Standard usage",
+      "usageMultiple": "{count}× more usage",
+      "freeTrialMeta": "Trial usage · does not reset",
+      "noCost": "No cost",
+      "recentInvoices": "Latest invoices",
+      "viewAll": "View all",
+      "downloadPdf": "Download PDF {number}",
+      "viewInvoice": "View invoice {number}",
+      "checkoutSuccess": "Payment confirmed. Your plan and usage limit are updated.",
+      "paymentDescription": "Paid features are unavailable until billing is resolved. Your remaining usage is preserved.",
+      "usageTitle": "Usage",
+      "usageDescription": "Your plan limit resets at every renewal. The percentage shows how much of it you have used.",
+      "accessDescription": "Paid features stay active while your subscription is paid. Your remaining usage is preserved.",
+      "changesDescription": "Plan changes, cancellation and your payment method are managed in the billing portal.",
+      "features": {
+        "free": ["AI viral moment detection", "Automatic subtitles", "Vertical crop (9:16)", "720p export", "5 clips per project"],
+        "creator": ["Everything in Free", "Full HD export (1080p)", "Up to 15 clips per project", "Batch processing (5 URLs)", "Brand kit", "AI social descriptions"],
+        "pro": ["Everything in Creator", "Batch processing (20 URLs)", "Custom watermark", "Content calendar", "AI script generator", "Analytics dashboard"],
+        "agency": ["Everything in Pro", "White-label exports", "No Sneep Cut branding", "Dedicated support", "GDPR data export"]
+      }
     }
   },
   "jobProgress": {
@@ -1208,6 +1453,58 @@
       "loading": "Loading settings…",
       "loadFailed": "Unable to load settings.",
       "restartSetup": "Restart setup"
+    },
+    "page": {
+      "back": "Settings",
+      "groupAccount": "Account",
+      "groupApp": "App",
+      "groupData": "Data",
+      "subscription": "Subscription",
+      "renewsOn": "Renews on {date}",
+      "endsOn": "Ends on {date}",
+      "signIn": "Sign-in",
+      "google": "Google",
+      "signOut": "Sign out",
+      "signOutFailed": "Unable to sign out. Please try again.",
+      "passwordPlaceholder": "At least 12 characters",
+      "configure": "Set up",
+      "manage": "Manage",
+      "revokeOthers": "Revoke other sessions",
+      "currentShort": "Current",
+      "device": "{browser} on {platform}",
+      "unknownDevice": "Unknown device",
+      "scanCode": "Scan the code with your authenticator app",
+      "qrLabel": "Setup QR code with the Sneep Cut logo",
+      "twoFactorIllustration": "Ana shows the verification code, Radu next to a shield with a lock",
+      "manualKey": "Manual key",
+      "copyKey": "Copy key",
+      "digit": "Digit {index}",
+      "activate": "Activate",
+      "done": "Done",
+      "activeUntil": "Active until {date}",
+      "expiresIn": "{days, plural, one {Expires tomorrow} other {Expires in # days}}",
+      "connectProvider": "Connect {provider}",
+      "disconnectWarning": "Scheduled posts will no longer be published.",
+      "emailGroup": "Email",
+      "securityShort": "Security",
+      "alwaysOn": "Always on",
+      "appGroup": "App",
+      "newClips": "New clips",
+      "defaultFormat": "Default format",
+      "clipCount": "Number of clips",
+      "fewer": "Fewer",
+      "more": "More",
+      "exportTitle": "Export data",
+      "exportDescription": "Clips, projects and account data, in one archive.",
+      "exportIllustration": "Ana and Radu put clips into a download box",
+      "exportAction": "Export data",
+      "documents": "Documents",
+      "privacyPolicy": "Privacy policy",
+      "terms": "Terms and conditions",
+      "deleteAccount": "Delete account",
+      "deleteIrreversible": "This action cannot be undone.",
+      "deleteDescription": "Your subscription, clips, calendar and brand kit will be deleted. This action cannot be undone.",
+      "deleteIllustration": "Ana and Radu next to a trash bin"
     }
   },
   "publish": {
@@ -1542,7 +1839,18 @@
       "copyFailed": "Could not copy the script",
       "removeHashtag": "Remove #{tag}",
       "addHashtag": "Add hashtag",
-      "savedShort": "Saved"
+      "savedShort": "Saved",
+      "libraryCount": "{count, plural, one {# script} other {# scripts}}",
+      "archivedInclusive": "· including archived",
+      "newScenario": "New script",
+      "backLabel": "Scripts",
+      "actionsTitle": "Script actions",
+      "statusSheetTitle": "Status",
+      "coachHint": "see where to place the camera",
+      "callToActionLabel": "Call to action",
+      "hashtagPlaceholder": "+ hashtag",
+      "sceneCountOrNone": "{count, plural, =0 {no scenes} one {# scene} other {# scenes}}",
+      "searchLabel": "Search scripts"
     },
     "coach": {
       "title": "3D Shooting Coach",
@@ -1701,16 +2009,44 @@
         "scheduled": "Back to scheduled",
         "drafts": "Back to drafts",
         "published": "Back to published",
+        "failed": "Back to failed",
         "all": "Back to posts"
       },
       "all": "All",
       "tomorrow": "Tomorrow",
       "undated": "Undated",
       "failedCount": "{count, plural, one {# failed post} other {# failed posts}}",
-      "resolve": "Resolve"
+      "resolve": "Resolve",
+      "failed": "Failed",
+      "publishingBadge": "Publishing",
+      "backShort": "Back",
+      "previewEmptyTitle": "The preview appears here",
+      "previewEmptyBody": "Choose a post from the list to see how it looks on each network.",
+      "emptyPeriod": {
+        "all": "No posts in {period}",
+        "scheduled": "No scheduled posts in {period}",
+        "drafts": "No drafts in {period}",
+        "published": "No published posts in {period}",
+        "failed": "No failed posts in {period}"
+      },
+      "emptyHint": "Schedule a clip and it appears here at the day and time you choose.",
+      "chooseAnotherPeriod": "Choose another period"
     },
     "description": "Plan, organize, and track every social post from one focused workspace.",
     "loading": "Loading calendar",
+    "illustrations": {
+      "delete": "Illustration for deleting the post"
+    },
+    "periods": {
+      "menuLabel": "Period shown",
+      "week": "This week",
+      "month": "This month",
+      "lastMonth": "Last month",
+      "last30": "Last 30 days",
+      "custom": "Custom range",
+      "back": "Back to periods",
+      "apply": "Apply"
+    },
     "calendarSectionLabel": "Monthly content plan",
     "calendarGridLabel": "Content calendar month grid",
     "dragHint": "Drag an unpublished post to reschedule it",
@@ -1773,7 +2109,8 @@
       "completeSetup": "Choose a destination before publishing",
       "viewStatus": "View status",
       "edit": "Edit",
-      "openAria": "Open post {title}"
+      "openAria": "Open post {title}",
+      "localTime": "Romania time"
     },
     "density": {
       "compact": "Compact",
@@ -1874,7 +2211,10 @@
       "retry": "Try again",
       "reconnect": "Reconnect",
       "addAccount": "Add account",
-      "noAccounts": "Connect an account"
+      "noAccounts": "Connect an account",
+      "connectTitle": "Connect {provider}",
+      "connectProvider": "Continue to {provider}",
+      "youtubeConsent": "I agree to the <terms>YouTube Terms</terms> and the <privacy>Google Privacy Policy</privacy> for uploading videos."
     },
     "dialog": {
       "eyebrow": "Content planning",
@@ -2192,5 +2532,144 @@
     "standardLicense": "Standard YouTube license",
     "creativeCommonsLicense": "Creative Commons – Attribution",
     "embeddable": "Allow embedding"
+  },
+  "clipsLibrary": {
+    "title": "Clips",
+    "allClips": "All clips",
+    "allShort": "All",
+    "unassigned": "No project",
+    "projectsHeading": "Projects",
+    "newProject": "New project",
+    "newClip": "New clip",
+    "dropHere": "Add here",
+    "moveTo": "Move to {name}",
+    "projectOptions": "{name} project options",
+    "clipCount": "{count, plural, one {# clip} other {# clips}}",
+    "search": "Search",
+    "searchLabel": "Search clips",
+    "format": "Format",
+    "formatLabel": "Aspect ratio",
+    "allFormats": "All formats",
+    "all": "All",
+    "subtitles": "Subtitles",
+    "subtitlesAny": "Any",
+    "subtitlesYes": "With",
+    "subtitlesNo": "Without",
+    "sortLabel": "Sort by",
+    "sortNewest": "Newest",
+    "sortOldest": "Oldest",
+    "sortDuration": "Duration",
+    "filters": "Filters",
+    "filtersActive": "{count, plural, one {Filters, # active} other {Filters, # active}}",
+    "activeFilters": "Active filters:",
+    "removeFilter": "Remove {filter}",
+    "clearFilters": "Clear filters",
+    "apply": "Apply",
+    "filterFormat": "Format: {value}",
+    "filterSubtitles": "Subtitles: {value}",
+    "pages": "Pages",
+    "page": "Page {page}",
+    "previous": "Previous",
+    "next": "Next",
+    "range": "<b>{from}–{to}</b> of {total}",
+    "showMore": "Show more",
+    "shownOf": "{shown} of {total}",
+    "open": "Open {title}",
+    "actions": "Actions for {title}",
+    "clipActions": "Clip actions",
+    "openAction": "Open",
+    "publish": "Publish",
+    "download": "Download",
+    "moveToProject": "Move to project",
+    "delete": "Delete",
+    "rename": "Rename",
+    "deleteProject": "Delete project",
+    "close": "Close",
+    "back": "Back",
+    "subtitlesIncluded": "Subtitles included",
+    "noPreview": "No preview",
+    "deleteClipTitle": "Delete this clip?",
+    "deleteClipBody": "“{title}” can’t be recovered.",
+    "keep": "Keep",
+    "deleteProjectTitle": "Delete “{name}”?",
+    "deleteProjectBody": "Its clips stay in “No project”.",
+    "cancel": "Cancel",
+    "newProjectTitle": "New project",
+    "renameProjectTitle": "Rename project",
+    "name": "Name",
+    "namePlaceholder": "Project name",
+    "createProject": "Create project",
+    "save": "Save",
+    "emptyLibrary": "No clips yet",
+    "emptyProject": "Empty project",
+    "emptyProjectDrag": "Drag clips here",
+    "emptyProjectMenu": "Move clips here from a clip’s menu",
+    "noUnassigned": "Every clip is in a project",
+    "noResults": "No results",
+    "loadError": "Your clips couldn’t be loaded",
+    "retry": "Try again",
+    "loading": "Loading clips",
+    "moved": "Clip moved to {name}.",
+    "movedOut": "Clip moved to “No project”.",
+    "deleted": "Clip deleted.",
+    "projectDeleted": "Project deleted.",
+    "failed": "The change couldn’t be saved.",
+    "nameTaken": "A project with this name already exists.",
+    "illustrations": {
+      "empty": "Ana with a clapperboard and Radu with a film reel next to a shelf of empty frames",
+      "emptyProject": "Ana puts a clip into the empty folder Radu is holding",
+      "noResults": "Ana searches the clips with a magnifier while Radu shrugs holding a filter",
+      "error": "Ana and Radu trying to get a projector working again",
+      "delete": "Ana hesitates to throw the clip away while Radu stops her"
+    }
+  },
+  "brandKits": {
+    "title": "My kits",
+    "count": "{count, plural, one {# kit} other {# kits}}",
+    "newKit": "New kit",
+    "allKits": "My kits",
+    "card": "{name} kit",
+    "cardActive": "{name} kit, active",
+    "open": "Open the {name} kit",
+    "options": "{name} kit options",
+    "active": "Active",
+    "default": "Default",
+    "logo": "Logo",
+    "noLogo": "No logo",
+    "sampleCaption": "Create the story",
+    "rename": "Rename",
+    "changeImage": "Change image",
+    "duplicate": "Duplicate",
+    "setDefault": "Set as default",
+    "delete": "Delete kit",
+    "deleteKit": "Delete kit",
+    "deleteTitle": "Delete the {name} kit?",
+    "deleteBody": "The kit is deleted permanently.",
+    "deleteIllustration": "Ana hesitates to throw the kit away while Radu stops her",
+    "renameKit": "Rename kit",
+    "kitName": "Kit name",
+    "name": "Name",
+    "addImage": "Add kit image",
+    "startFrom": "Start from",
+    "fromScratch": "From scratch",
+    "createKit": "Create kit",
+    "cancel": "Cancel",
+    "save": "Save",
+    "saveKit": "Save kit",
+    "saveAsTitle": "Save as a new kit",
+    "saveInto": "Save to {name}",
+    "saveAsNew": "Save as a new kit",
+    "moreSaveOptions": "More save options",
+    "created": "The {name} kit was created",
+    "seeKits": "See kits",
+    "empty": "You have no kits yet",
+    "emptyIllustration": "Ana and Radu arranging brand kits on an empty shelf",
+    "loadError": "Your kits couldn’t be loaded",
+    "errorIllustration": "Ana and Radu trying to get a projector working again",
+    "retry": "Try again",
+    "loading": "Loading kits",
+    "nameTaken": "A kit with this name already exists.",
+    "failed": "The change couldn’t be saved.",
+    "savedIllustration": "Ana and Radu high-five over the new kit"
   }
 }

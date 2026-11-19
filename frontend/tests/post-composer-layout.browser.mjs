@@ -556,6 +556,7 @@ try {
   assert.deepEqual(errors, [], 'No browser runtime errors')
   console.log('Post composer browser checks passed (mocked APIs only)')
 } catch (error) {
+  console.error('Browser errors before failure:', errors.slice(0, 8))
   await capture('failure').catch(() => {})
   throw error
 } finally {

@@ -19,6 +19,8 @@ export interface CreateSettings {
   aspectRatio: AspectRatio
   subtitleStyle: SubtitleStyle
   includeBrand: boolean
+  /** Kit applied to the video; null uses the default kit. */
+  brandKitId?: string | null
   language: string
   smartCrop: boolean
 }
@@ -117,6 +119,8 @@ export function SettingsPanel({ settings, onChange }: SettingsPanelProps) {
       <BrandKitSelector
         enabled={settings.includeBrand}
         onChange={(includeBrand) => onChange({ ...settings, includeBrand })}
+        kitId={settings.brandKitId ?? null}
+        onKitChange={(brandKitId) => onChange({ ...settings, includeBrand: brandKitId !== null, brandKitId })}
       />
 
       <details className="creation-advanced">

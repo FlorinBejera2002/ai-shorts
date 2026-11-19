@@ -52,9 +52,10 @@ export function ScriptEditor({ workspace: w }: { workspace: ScriptsWorkspace }) 
                   <Video />
                 </span>
                 <span className={styles.coachText}>
-                  <span>{t('coach.title')}</span>
+                  <span className={styles.coachTitle}>{t('coach.title')}</span>
                   <span className={styles.coachCount}>
-                    {t('workspace.sceneCount', { count: sceneCount })}
+                    {t('workspace.sceneCount', { count: sceneCount })} ·{' '}
+                    {t('workspace.coachHint')}
                   </span>
                 </span>
                 <ChevronRight className={styles.coachChevron} aria-hidden="true" />

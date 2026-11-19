@@ -1,0 +1,1007 @@
+/*
+ * Panou principal — canvas "Panou principal" (Version 203).
+ * Uses the scoped Publish tokens; the primary action follows the app rule:
+ * black in light, muted steel in dark (never the Publish blue).
+ */
+.home {
+  --home-primary: #0b0b0c;
+  --home-primary-hover: #24262b;
+  --home-on-primary: #fff;
+  display: flex;
+  min-width: 0;
+  max-width: 1176px;
+  flex-direction: column;
+  gap: 20px;
+  padding: 12px 16px 40px;
+  color: var(--publish-text);
+}
+
+:global(.dark) .home {
+  --home-primary: #8e9bb0;
+  --home-primary-hover: #a5b0c2;
+  --home-on-primary: #0c1524;
+}
+
+.card {
+  min-width: 0;
+  border-radius: var(--publish-card-radius);
+  background: var(--publish-surface);
+  box-shadow: var(--publish-card-shadow);
+}
+
+.row {
+  display: flex;
+  min-width: 0;
+  align-items: stretch;
+  gap: 20px;
+}
+
+.side {
+  flex: 0 0 360px;
+  min-width: 0;
+}
+
+.sectionTitle {
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.3;
+}
+
+.cardHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.muted {
+  color: var(--publish-muted-text);
+  font-size: 13px;
+}
+
+.inlineLink {
+  display: inline-flex;
+  min-height: 36px;
+  align-items: center;
+  gap: 2px;
+  color: var(--publish-text);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.inlineLink svg {
+  width: 15px;
+  height: 15px;
+}
+
+.focusable:focus-visible,
+.inlineLink:focus-visible {
+  outline: 2px solid var(--home-primary);
+  outline-offset: 3px;
+}
+
+/* ---------- buttons ---------- */
+.primaryButton,
+.ghostButton,
+.secondaryButton {
+  display: inline-flex;
+  min-height: 48px;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 20px;
+  border: 0;
+  border-radius: var(--publish-pill-radius);
+  font-size: 15px;
+  font-weight: 600;
+  white-space: nowrap;
+  transition: background 150ms;
+}
+
+.primaryButton {
+  background: var(--home-primary);
+  color: var(--home-on-primary);
+}
+
+.primaryButton:hover {
+  background: var(--home-primary-hover);
+}
+
+.ghostButton {
+  padding: 0 14px;
+  background: transparent;
+  color: var(--publish-text);
+  font-size: 14px;
+}
+
+.ghostButton:hover {
+  background: var(--publish-hover);
+}
+
+.secondaryButton {
+  min-height: 34px;
+  padding: 0 12px;
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--publish-border-strong);
+  color: var(--publish-text);
+  font-size: 13px;
+}
+
+.secondaryButton:hover {
+  background: var(--publish-hover);
+}
+
+.primaryButton svg,
+.ghostButton svg {
+  width: 17px;
+  height: 17px;
+}
+
+.primaryButton:focus-visible,
+.ghostButton:focus-visible,
+.secondaryButton:focus-visible {
+  outline: 2px solid var(--home-primary);
+  outline-offset: 3px;
+}
+
+/* ---------- hero: "Ce creăm azi?" ---------- */
+.hero {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: 28px;
+  padding: 28px 32px;
+}
+
+.heroFirst {
+  padding: 36px 40px;
+}
+
+.heroCopy {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.greeting {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.greeting span {
+  color: var(--publish-muted-text);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.greeting h1 {
+  font-size: 30px;
+  font-weight: 600 !important;
+  letter-spacing: -0.04em;
+  line-height: 1.15;
+}
+
+.heroFirst .greeting h1 {
+  font-size: 36px;
+}
+
+.heroIllustration {
+  width: 250px;
+  height: 250px;
+  flex: none;
+  align-self: flex-end;
+  margin: -20px 0 -30px;
+  object-fit: contain;
+}
+
+.composer {
+  display: flex;
+  max-width: 620px;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 6px 6px 18px;
+  border-radius: var(--publish-pill-radius);
+  background: var(--publish-surface);
+  box-shadow: inset 0 0 0 1.5px var(--publish-text), 0 10px 30px rgb(15 23 42 / 8%);
+}
+
+.composer[data-invalid] {
+  box-shadow: inset 0 0 0 1.5px var(--publish-danger), 0 10px 30px rgb(15 23 42 / 8%);
+}
+
+.composerField {
+  display: flex;
+  min-width: 0;
+  height: 48px;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: 10px;
+  color: var(--publish-muted-text);
+}
+
+.composerField svg {
+  width: 18px;
+  height: 18px;
+  flex: none;
+}
+
+.composerField input {
+  min-width: 0;
+  flex: 1 1 auto;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--publish-text);
+  font: inherit;
+  font-size: 15px;
+}
+
+.composerField input::placeholder {
+  color: var(--publish-placeholder);
+}
+
+.composerActions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.composerDivider {
+  width: 1px;
+  height: 26px;
+  margin-right: 4px;
+  background: var(--publish-border);
+}
+
+.composerError {
+  margin-top: -8px;
+  padding-left: 18px;
+  color: var(--publish-danger);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.shortcuts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.shortcut {
+  display: inline-flex;
+  height: 36px;
+  align-items: center;
+  gap: 7px;
+  padding: 0 14px 0 10px;
+  border-radius: var(--publish-pill-radius);
+  background: var(--publish-inset);
+  color: var(--publish-text);
+  font-size: 13px;
+  font-weight: 600;
+  transition: background 150ms;
+}
+
+.shortcut:hover {
+  background: var(--publish-hover);
+}
+
+.shortcut svg {
+  width: 15px;
+  height: 15px;
+}
+
+/* ---------- work in progress ---------- */
+.work {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 20px;
+}
+
+.workList {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.workItem {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+}
+
+.workItem + .workItem {
+  border-top: 1px solid var(--publish-border);
+}
+
+.workThumb {
+  display: grid;
+  width: 40px;
+  height: 54px;
+  flex: none;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 10px;
+  background: var(--publish-inset);
+  color: var(--publish-muted-text);
+}
+
+.workThumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.workThumb[data-running] img {
+  opacity: 0.55;
+}
+
+.workThumb svg {
+  width: 18px;
+  height: 18px;
+}
+
+.workCopy {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.workTitle {
+  overflow: hidden;
+  font-size: 14px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.progressRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.progressTrack {
+  height: 6px;
+  flex: 1 1 auto;
+  overflow: hidden;
+  border-radius: var(--publish-pill-radius);
+  background: var(--publish-secondary);
+}
+
+.progressFill {
+  display: block;
+  height: 100%;
+  border-radius: var(--publish-pill-radius);
+  background: var(--publish-text);
+}
+
+.progressValue {
+  color: var(--publish-muted-text);
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.ready {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--publish-success);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.ready svg {
+  width: 13px;
+  height: 13px;
+}
+
+.allDone {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 0;
+  text-align: center;
+  font-weight: 600;
+}
+
+.allDoneIcon {
+  display: grid;
+  width: 52px;
+  height: 52px;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--publish-success-bg);
+  color: var(--publish-success);
+}
+
+/* ---------- stats strip ---------- */
+.stats {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: 24px;
+  padding: 20px 24px;
+}
+
+.metric {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 0;
+  flex-direction: column;
+  gap: 6px;
+  color: var(--publish-text);
+}
+
+.metricLabel {
+  overflow: hidden;
+  color: var(--publish-muted-text);
+  font-size: 13px;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.metricValue {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.metricValue strong {
+  font-family: 'Sora Variable', Sora, sans-serif;
+  font-size: 28px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -0.04em;
+  font-variant-numeric: tabular-nums;
+}
+
+.metricValue span {
+  color: var(--publish-muted-text);
+  font-size: 13px;
+}
+
+.statDivider {
+  width: 1px;
+  align-self: stretch;
+  background: var(--publish-border);
+}
+
+.week {
+  display: flex;
+  flex: 1.3 1 0;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.weekCopy {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.weekCopy strong {
+  font-size: 15px;
+}
+
+.bars {
+  display: flex;
+  height: 62px;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+.bar {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.barFill {
+  width: 16px;
+  min-height: 4px;
+  border-radius: 5px;
+  background: var(--publish-secondary);
+}
+
+.bar[data-today] .barFill {
+  background: var(--publish-text);
+}
+
+.barLabel {
+  color: var(--publish-muted-text);
+  font-size: 10px;
+  font-weight: 600;
+}
+
+/* ---------- scheduled posts ---------- */
+.scheduled {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 18px 20px;
+}
+
+.post {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--publish-text);
+}
+
+.postLogo {
+  width: 30px;
+  height: 30px;
+  flex: none;
+}
+
+.postCopy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.postCopy strong {
+  overflow: hidden;
+  font-size: 14px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---------- recent clips ---------- */
+.recent {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.recentHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.recentHead h2 {
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+}
+
+.clips {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.clip {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 8px;
+  padding: 6px;
+  border-radius: var(--publish-card-radius);
+  background: var(--publish-surface);
+  box-shadow: var(--publish-card-shadow);
+  color: var(--publish-text);
+}
+
+.clipPoster {
+  position: relative;
+  display: grid;
+  height: 164px;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 16px;
+  background: #111;
+  color: #9ca3af;
+}
+
+.clipPoster img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.clipPlaceholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.clipPlaceholder svg {
+  width: 34px;
+  height: 34px;
+}
+
+.clipBadge,
+.clipDuration {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  border-radius: 6px;
+  background: rgb(0 0 0 / 60%);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.clipBadge {
+  top: 8px;
+  right: 8px;
+  height: 24px;
+  padding: 0 6px;
+  font-size: 11px;
+}
+
+.clipDuration {
+  right: 8px;
+  bottom: 8px;
+  height: 22px;
+  padding: 0 7px;
+  font-variant-numeric: tabular-nums;
+}
+
+.clipMeta {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 3px;
+  padding: 0 4px 4px;
+}
+
+.clipMeta strong {
+  display: -webkit-box;
+  overflow: hidden;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.3;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+/* ---------- new account ---------- */
+.startList {
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  gap: 14px;
+  padding: 22px;
+}
+
+.startOptions,
+.steps {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.startOption,
+.step {
+  display: flex;
+  min-height: 56px;
+  align-items: center;
+  gap: 12px;
+  padding: 0 8px;
+  border-radius: 14px;
+  color: var(--publish-text);
+  transition: background 150ms;
+}
+
+.startOption:hover,
+.step:hover {
+  background: var(--publish-inset);
+}
+
+.startIcon {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  flex: none;
+  place-items: center;
+  border-radius: 11px;
+  background: var(--publish-secondary);
+}
+
+.startIcon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.optionCopy {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.optionCopy strong {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.chevron {
+  width: 16px;
+  height: 16px;
+  flex: none;
+  color: var(--publish-muted-text);
+}
+
+.firstSteps {
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  gap: 14px;
+  padding: 22px;
+}
+
+.stepsTrack {
+  height: 6px;
+  overflow: hidden;
+  border-radius: var(--publish-pill-radius);
+  background: var(--publish-secondary);
+}
+
+.step {
+  min-height: 48px;
+}
+
+.step[data-current] {
+  background: var(--publish-inset);
+}
+
+.stepNumber {
+  display: grid;
+  width: 24px;
+  height: 24px;
+  flex: none;
+  place-items: center;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1.5px var(--publish-border-strong);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.step[data-done] .stepNumber {
+  background: var(--publish-success-bg);
+  box-shadow: none;
+  color: var(--publish-success);
+}
+
+.stepLabel {
+  flex: 1 1 auto;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.step[data-current] .stepLabel {
+  font-weight: 700;
+}
+
+.step[data-done] .stepLabel {
+  color: var(--publish-muted-text);
+  text-decoration: line-through;
+}
+
+/* ---------- loading / error ---------- */
+.skeleton {
+  display: block;
+  border-radius: 10px;
+  background: var(--publish-secondary);
+  opacity: 0.7;
+}
+
+.state {
+  display: flex;
+  min-height: 520px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 48px 22px;
+  text-align: center;
+}
+
+.state h2 {
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+}
+
+.stateIllustration {
+  width: 220px;
+  height: 220px;
+  object-fit: contain;
+}
+
+/* ---------- phone ---------- */
+@media (max-width: 1023px) {
+  .home {
+    gap: 16px;
+    padding: 4px 0 28px;
+  }
+
+  .row {
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .side {
+    flex: none;
+  }
+
+  .card {
+    border-radius: 20px;
+  }
+
+  .hero,
+  .heroFirst {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 16px;
+    padding: 20px 18px;
+  }
+
+  .greeting h1,
+  .heroFirst .greeting h1 {
+    font-size: 24px;
+  }
+
+  .heroIllustration {
+    width: 210px;
+    height: 210px;
+    align-self: center;
+    margin: -4px 0 -8px;
+  }
+
+  .composer {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    padding: 8px;
+    border-radius: 24px;
+    box-shadow: inset 0 0 0 1px var(--publish-border);
+  }
+
+  .composerField {
+    padding: 0 10px;
+  }
+
+  .composerDivider {
+    display: none;
+  }
+
+  .composerActions > * {
+    flex: 1 1 0;
+  }
+
+  .composerActions > :last-child {
+    flex-grow: 1.4;
+  }
+
+  .composerError {
+    margin-top: -6px;
+    padding-left: 12px;
+  }
+
+  .work,
+  .scheduled,
+  .startList,
+  .firstSteps {
+    padding: 16px;
+  }
+
+  .stats {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 16px;
+    padding: 16px;
+  }
+
+  .metrics {
+    display: flex;
+    gap: 12px;
+  }
+
+  .stats > .statDivider {
+    display: none;
+  }
+
+  .week {
+    padding-top: 14px;
+    border-top: 1px solid var(--publish-border);
+  }
+
+  .barFill {
+    width: 18px;
+  }
+
+  .clips {
+    display: flex;
+    margin: 0 -16px;
+    padding: 2px 16px 4px;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none;
+  }
+
+  .clips::-webkit-scrollbar {
+    display: none;
+  }
+
+  .clip {
+    flex: 0 0 150px;
+    scroll-snap-align: start;
+  }
+
+  .clipPoster {
+    height: 210px;
+  }
+
+  .recentHead h2 {
+    font-size: 18px;
+  }
+
+  .state {
+    min-height: 460px;
+  }
+}
+
+@media (max-width: 1023px) {
+  .composerActions > * {
+    min-width: 0;
+    padding: 0 12px;
+  }
+}
+
+/* Narrow phones: keep both composer buttons inside the bar. */
+@media (max-width: 359px) {
+  .composerActions svg {
+    display: none;
+  }
+}
+
+@media (min-width: 1024px) {
+  .metrics {
+    display: contents;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .primaryButton,
+  .ghostButton,
+  .secondaryButton,
+  .shortcut,
+  .startOption,
+  .step {
+    transition: none;
+  }
+}
