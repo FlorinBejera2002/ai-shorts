@@ -277,6 +277,15 @@
   font-size: 14px;
   line-height: 20px;
   box-shadow: 0 0 0 1px var(--publish-border), 0 18px 48px rgba(0, 0, 0, 0.18);
+  transform-origin: var(--radix-popper-transform-origin, top center);
+}
+
+.fontPopup[data-state='open'] {
+  animation: var(--motion-popover-open);
+}
+
+.fontPopup[data-state='closed'] {
+  animation: var(--motion-popover-close);
 }
 
 .search {

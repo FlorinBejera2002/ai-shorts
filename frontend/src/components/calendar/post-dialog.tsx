@@ -30,7 +30,8 @@ import {
   settingsFromTikTokPublishingOptions,
   validateTikTokDirectPost
 } from '@/lib/tiktok-direct-post'
-import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
+import { AnimatePresence, domAnimation, LazyMotion, m, type Transition, useReducedMotion } from 'framer-motion'
+import { backdropEnter, backdropExit, dialogEnter, dialogExit } from '@/lib/motion'
 import {
   AlertTriangle,
   ArrowLeft,
@@ -50,6 +51,7 @@ import {
 import { useTranslations } from 'next-intl'
 import {
   type FormEvent,
+  useCallback,
   useEffect,
   useId,
   useMemo,
@@ -201,6 +203,18 @@ function FieldError({ id, message }: { id: string; message?: string }) {
   )
 }
 
+const PANEL_SHOWN = { opacity: 1, y: 0, scale: 1 }
+const PANEL_HIDDEN = { opacity: 0, y: 16, scale: 0.97 }
+const instant: Transition = { duration: 0 }
+
+/** Backdrop and panel targets: the shared enter curves while open, the softer exit while closing. */
+function dialogMotion(reduceMotion: boolean, visible: boolean) {
+  return {
+    fade: { animate: { opacity: visible ? 1 : 0 }, transition: reduceMotion ? instant : visible ? backdropEnter : backdropExit },
+    panel: { animate: visible ? PANEL_SHOWN : PANEL_HIDDEN, transition: reduceMotion ? instant : visible ? dialogEnter : dialogExit }
+  }
+}
+
 export function PostDialog({
   presentation = 'dialog',
   mode,
@@ -249,7 +263,19 @@ export function PostDialog({
   const deleteButtonRef = useRef<HTMLButtonElement>(null)
   const confirmDeleteButtonRef = useRef<HTMLButtonElement>(null)
   const wasConfirmingDeleteRef = useRef(false)
-  const onCloseRef = useRef(onClose)
+  // Dialogs play their exit while still mounted; the panel's exit completion asks the parent to unmount.
+  // The page and the delete confirmation have no panel to animate, so they close at once.
+  const [visible, setVisible] = useState(true)
+  const dialogTargets = dialogMotion(Boolean(reduceMotion), visible)
+  // The panel reports its exit end here, and only a finished exit hands back to the parent.
+  const finishExit = () => {
+    if (!visible) onClose()
+  }
+  const requestClose = useCallback(() => {
+    if (isPage || mode === 'delete') onClose()
+    else setVisible(false)
+  }, [isPage, mode, onClose])
+  const requestCloseRef = useRef(requestClose)
   const busyRef = useRef(false)
   const [mounted, setMounted] = useState(false)
   const [form, setForm] = useState<FormState>(() =>
@@ -291,7 +317,8 @@ export function PostDialog({
     facebook: typeof facebookSettings
     youtube: typeof youtubeSettings
   } | null>(null)
-  const busy = saving || deleting || uploading
+  // A closing dialog stays busy so a second submit cannot fire during its exit.
+  const busy = saving || deleting || uploading || !visible
 
   const publishedProviders = useMemo(
     () => [
@@ -363,9 +390,9 @@ export function PostDialog({
   })
 
   useEffect(() => {
-    onCloseRef.current = onClose
+    requestCloseRef.current = requestClose
     busyRef.current = busy
-  }, [onClose, busy])
+  }, [requestClose, busy])
 
   useEffect(() => {
     setMounted(true)
@@ -394,7 +421,7 @@ export function PostDialog({
           return
         }
         event.preventDefault()
-        if (!busyRef.current) onCloseRef.current()
+        if (!busyRef.current) requestCloseRef.current()
         return
       }
 
@@ -808,7 +835,7 @@ export function PostDialog({
     setErrors({})
     try {
       await onSave(validation.payload)
-      onClose()
+      requestClose()
     } catch (error) {
       setErrors(localizeRequestError(error))
     } finally {
@@ -827,7 +854,7 @@ export function PostDialog({
     setErrors({})
     try {
       await onDelete(deletePlatforms)
-      onClose()
+      requestClose()
     } catch (error) {
       if (error instanceof CalendarRequestError && error.status === 401) {
         setErrors({ form: t('errors.auth') })
@@ -869,7 +896,7 @@ export function PostDialog({
     requiresManualInstagramDelete={requiresManualInstagramDelete}
     platforms={deletePlatforms}
     onPlatformsChange={setDeletePlatforms}
-    onCancel={() => mode === 'delete' ? onClose() : setConfirmDelete(false)}
+    onCancel={() => mode === 'delete' ? requestClose() : setConfirmDelete(false)}
     onConfirm={() => void handleDelete()}
   />
 
@@ -915,7 +942,7 @@ export function PostDialog({
           setYouTubeSettings(snapshot.youtube)
         }}
         onSave={submitPost}
-        onClose={onClose}
+        onClose={requestClose}
         onConnectRequest={onConnectRequest}
         onDelete={mode === 'edit' && onDelete ? () => setConfirmDelete(true) : undefined}
         platformOptions={{
@@ -983,7 +1010,7 @@ export function PostDialog({
         {publishingAccounts.map((account) => {
           const selected = selectedAccountIds.has(account.id)
           return (
-            <motion.button
+            <m.button
               key={account.id}
               type="button"
               aria-pressed={selected}
@@ -1006,7 +1033,7 @@ export function PostDialog({
               </span>
               <AnimatePresence>
                 {selected && (
-                  <motion.span
+                  <m.span
                     initial={reduceMotion ? false : { scale: 0, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
                     exit={{ scale: 0, opacity: 0 }}
@@ -1018,10 +1045,10 @@ export function PostDialog({
                     className="flex size-5 items-center justify-center rounded-full bg-foreground/10"
                   >
                     <Check className="size-3" />
-                  </motion.span>
+                  </m.span>
                 )}
               </AnimatePresence>
-            </motion.button>
+            </m.button>
           )
         })}
       </div>
@@ -1030,7 +1057,7 @@ export function PostDialog({
           <span>{t('form.closeToConnect')}</span>
           <button
             type="button"
-            onClick={onClose}
+            onClick={requestClose}
             className="font-semibold text-foreground underline-offset-4 hover:underline"
           >
             {t('form.closeAndConnect')}
@@ -1045,7 +1072,7 @@ export function PostDialog({
   )
 
   const content = (
-    <AnimatePresence>
+    <LazyMotion features={domAnimation} strict>
       <div
         data-publish-surface=""
         className={
@@ -1063,7 +1090,7 @@ export function PostDialog({
                 type="button"
                 variant="outline"
                 className="text-foreground"
-                onClick={onClose}
+                onClick={requestClose}
                 disabled={busy}
               >
                 <ArrowLeft className="size-4" />
@@ -1073,14 +1100,14 @@ export function PostDialog({
           />
         )}
         {!isPage && (
-          <motion.div
+          <m.div
             aria-hidden="true"
             className={`${theme.overlay} fixed inset-0`}
             initial={reduceMotion ? false : { opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.18 }}
+            animate={dialogTargets.fade.animate}
+            transition={dialogTargets.fade.transition}
             onMouseDown={() => {
-              if (!busy) onClose()
+              if (!busy) requestClose()
             }}
           />
         )}
@@ -1091,7 +1118,7 @@ export function PostDialog({
               : 'flex min-h-full items-end justify-center p-0 sm:items-center sm:p-5'
           }
         >
-          <motion.div
+          <m.div
             ref={dialogRef}
             role={isPage ? 'region' : confirmDelete ? 'alertdialog' : 'dialog'}
             aria-modal={isPage ? undefined : true}
@@ -1103,8 +1130,9 @@ export function PostDialog({
                 ? false
                 : { opacity: 0, y: 24, scale: 0.97 }
             }
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+            animate={dialogTargets.panel.animate}
+            transition={dialogTargets.panel.transition}
+            onAnimationComplete={finishExit}
             onMouseDown={(event) => event.stopPropagation()}
             className={
               isPage
@@ -1130,7 +1158,7 @@ export function PostDialog({
                     type="button"
                     aria-label={t('actions.close')}
                     disabled={busy}
-                    onClick={onClose}
+                    onClick={requestClose}
                     className="-mr-2 -mt-1 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-50"
                   >
                     <X className="h-4 w-4" />
@@ -1138,7 +1166,7 @@ export function PostDialog({
                 </div>
               </div>
             )}
-
+    
             {confirmDelete ? (
               <div className="overflow-y-auto px-5 py-6 sm:px-6">
                 <div className="rounded-md border border-destructive/25 bg-destructive/[0.06] p-4">
@@ -1269,7 +1297,7 @@ export function PostDialog({
                 <FieldsContainer
                   className={isPage ? styles.editorContent : 'contents'}
                 >
-                  <motion.div
+                  <m.div
                     layoutScroll={!isPage}
                     variants={isPage && !reduceMotion ? staggerContainer : undefined}
                     initial={isPage && !reduceMotion ? 'hidden' : false}
@@ -1281,19 +1309,19 @@ export function PostDialog({
                     }
                   >
                     {errors.form && (
-                      <motion.div
+                      <m.div
                         role="alert"
                         initial={reduceMotion ? false : { opacity: 0, scale: 0.98 }}
                         animate={{ opacity: 1, scale: 1 }}
                         className="rounded-md border border-destructive/25 bg-destructive/[0.06] px-3 py-2.5 text-xs font-medium text-destructive"
                       >
                         {errors.form}
-                      </motion.div>
+                      </m.div>
                     )}
-
+    
                     {!isReschedule && (
                       <>
-                        <motion.div variants={isPage ? staggerItem : undefined}>
+                        <m.div variants={isPage ? staggerItem : undefined}>
                           <Label
                             htmlFor={`${titleId}-title`}
                             className="text-xs font-semibold text-foreground"
@@ -1327,11 +1355,11 @@ export function PostDialog({
                               {form.title.length}/{isTikTokPhotoPost ? 90 : 120}
                             </span>
                           </div>
-                        </motion.div>
-
+                        </m.div>
+    
                         {!isPage && platformSelection}
-
-                        <motion.div
+    
+                        <m.div
                           variants={isPage ? staggerItem : undefined}
                           className={`space-y-4 ${isPage ? styles.editorWide : ''}`}
                         >
@@ -1369,10 +1397,10 @@ export function PostDialog({
                               {t('form.mediaSourceUpload')}
                             </button>
                           </div>
-
+    
                           <AnimatePresence mode="wait">
                             {mediaSource === 'upload' ? (
-                              <motion.div
+                              <m.div
                                 key="upload"
                                 initial={reduceMotion ? false : { opacity: 0, y: 6 }}
                                 animate={{ opacity: 1, y: 0 }}
@@ -1417,9 +1445,9 @@ export function PostDialog({
                                     {t('form.mediaTikTokHint')}
                                   </p>
                                 )}
-                              </motion.div>
+                              </m.div>
                             ) : (
-                              <motion.div
+                              <m.div
                                 key="clip"
                                 initial={reduceMotion ? false : { opacity: 0, y: 6 }}
                                 animate={{ opacity: 1, y: 0 }}
@@ -1439,7 +1467,7 @@ export function PostDialog({
                                     />
                                   </div>
                                 )}
-
+    
                                 {(() => {
                                   const filtered = selectableClips.filter((c) =>
                                     c.title.toLowerCase().includes(clipSearch.toLowerCase())
@@ -1450,7 +1478,7 @@ export function PostDialog({
                                   const totalPages = Math.ceil(filtered.length / perPage)
                                   const page = Math.min(clipPage, Math.max(0, totalPages - 1))
                                   const paged = filtered.slice(page * perPage, (page + 1) * perPage)
-
+    
                                   return (
                                     <>
                                       <div className={`grid gap-2 ${cols === 3 ? 'grid-cols-3' : 'grid-cols-2'}`}>
@@ -1504,13 +1532,13 @@ export function PostDialog({
                                           </button>
                                         ))}
                                       </div>
-
+    
                                       {filtered.length === 0 && (
                                         <p className="py-4 text-center text-xs text-muted-foreground">
                                           {t('form.noClipsFound')}
                                         </p>
                                       )}
-
+    
                                       {totalPages > 1 && (
                                         <div className="flex items-center justify-center gap-2 pt-1">
                                           <button
@@ -1534,7 +1562,7 @@ export function PostDialog({
                                           </button>
                                         </div>
                                       )}
-
+    
                                       <FieldError
                                         id={`${titleId}-clip-error`}
                                         message={errors.clipId}
@@ -1542,12 +1570,12 @@ export function PostDialog({
                                     </>
                                   )
                                 })()}
-                              </motion.div>
+                              </m.div>
                             )}
                           </AnimatePresence>
-                        </motion.div>
-
-                        <motion.div
+                        </m.div>
+    
+                        <m.div
                           variants={isPage ? staggerItem : undefined}
                           className={isPage ? styles.editorWide : ''}
                         >
@@ -1590,12 +1618,12 @@ export function PostDialog({
                             id={`${titleId}-status-error`}
                             message={errors.status}
                           />
-                        </motion.div>
+                        </m.div>
                       </>
                     )}
-
+    
                     {(isReschedule || form.status === 'scheduled') && (
-                      <motion.div
+                      <m.div
                         variants={isPage ? staggerItem : undefined}
                         className="pt-1"
                       >
@@ -1610,12 +1638,12 @@ export function PostDialog({
                         <p className="mt-2 text-[11px] text-muted-foreground">
                           {t('timezone', { zone: timeZone })}
                         </p>
-                      </motion.div>
+                      </m.div>
                     )}
-
+    
                     {!isReschedule && (
                       <>
-                        <motion.div
+                        <m.div
                           variants={isPage ? staggerItem : undefined}
                           className={isPage ? styles.editorWide : 'pt-1'}
                         >
@@ -1653,9 +1681,9 @@ export function PostDialog({
                               {form.caption.length}/{captionLimit}
                             </span>
                           </div>
-                        </motion.div>
+                        </m.div>
                         {selectedTikTokAccount && (
-                          <motion.div
+                          <m.div
                             variants={isPage ? staggerItem : undefined}
                             className={`space-y-2 pt-1 ${isPage ? styles.editorWide : ''}`}
                           >
@@ -1674,7 +1702,7 @@ export function PostDialog({
                               id={`${titleId}-tiktok-error`}
                               message={errors.tiktok}
                             />
-                          </motion.div>
+                          </m.div>
                         )}
                         {selectedYouTubeAccounts.length > 0 && (
                           <div className={isPage ? styles.editorWide : ''}>
@@ -1683,7 +1711,7 @@ export function PostDialog({
                           </div>
                         )}
                         {selectedInstagramAccount && (
-                          <motion.div
+                          <m.div
                             variants={isPage ? staggerItem : undefined}
                             className={`space-y-2 pt-1 ${isPage ? styles.editorWide : ''}`}
                           >
@@ -1701,7 +1729,7 @@ export function PostDialog({
                               id={`${titleId}-instagram-error`}
                               message={errors.instagram}
                             />
-                          </motion.div>
+                          </m.div>
                         )}
                         {selectedFacebookAccounts.length > 0 && (
                           <div className={`space-y-2 ${isPage ? styles.editorWide : ''}`}>
@@ -1718,7 +1746,7 @@ export function PostDialog({
                             />
                           </div>
                         )}
-                        <motion.div
+                        <m.div
                           variants={isPage ? staggerItem : undefined}
                           className={isPage ? styles.editorWide : 'pt-1'}
                         >
@@ -1749,13 +1777,13 @@ export function PostDialog({
                             id={`${titleId}-notes-error`}
                             message={errors.notes}
                           />
-                        </motion.div>
+                        </m.div>
                       </>
                     )}
-                  </motion.div>
+                  </m.div>
                 </FieldsContainer>
-
-                <motion.div
+    
+                <m.div
                   initial={isPage && !reduceMotion ? { opacity: 0, y: 8 } : false}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.3, duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
@@ -1766,7 +1794,7 @@ export function PostDialog({
                   }
                 >
                   {mode === 'edit' && onDelete && (
-                    <motion.button
+                    <m.button
                       ref={deleteButtonRef}
                       type="button"
                       disabled={busy}
@@ -1777,18 +1805,18 @@ export function PostDialog({
                     >
                       <Trash2 className="h-4 w-4" />
                       {t('actions.delete')}
-                    </motion.button>
+                    </m.button>
                   )}
                   <Button
                     type="button"
                     disabled={busy}
-                    onClick={onClose}
+                    onClick={requestClose}
                     variant="outline"
                     className="transition-all duration-200 hover:shadow-sm"
                   >
                     {t('actions.cancel')}
                   </Button>
-                  <motion.div
+                  <m.div
                     whileHover={reduceMotion ? undefined : { scale: 1.02 }}
                     whileTap={reduceMotion ? undefined : { scale: 0.97 }}
                     transition={{ type: 'spring', stiffness: 400, damping: 25 }}
@@ -1814,14 +1842,14 @@ export function PostDialog({
                             ? t('actions.create')
                             : t('actions.save')}
                     </Button>
-                  </motion.div>
-                </motion.div>
+                  </m.div>
+                </m.div>
               </form>
             )}
-          </motion.div>
+          </m.div>
         </div>
       </div>
-    </AnimatePresence>
+    </LazyMotion>
   )
   return isPage ? content : createPortal(content, document.body)
 }

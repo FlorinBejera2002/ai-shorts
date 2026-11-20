@@ -40,7 +40,7 @@ const routes = [
   ['scripts', '/dashboard/script-generator', '[data-script-library]'],
   ['clips', '/dashboard/clips', '[data-clips-workspace]'],
   ['publish', '/dashboard/publish', '[data-publishing-workspace]'],
-  ['brand', '/dashboard/brand', '[data-brand-workspace]'],
+  ['brand', '/dashboard/brand', '[data-brand-kits]'],
   ['billing', '/dashboard/billing', '[data-billing-workspace]'],
   ['settings', '/dashboard/settings', '[data-settings-workspace]']
 ]
@@ -224,8 +224,10 @@ async function assertShell(page, mobile, stage = 'navigation') {
 async function navigate(f, entry) {
   const [, path, selector] = entry
   if (f.mobile) {
-    if (new URL(f.page.url()).pathname === '/dashboard/brand' && path !== '/dashboard/brand') {
-      await f.page.locator('[data-brand-workspace]').getByRole('link', { name: 'Back', exact: true }).click()
+    // Only the kit editor replaces the dock with its own Back link; the kit list keeps the dock.
+    const editorBack = f.page.locator('[data-brand-workspace]').getByRole('link', { name: 'Back', exact: true })
+    if (new URL(f.page.url()).pathname.startsWith('/dashboard/brand') && path !== '/dashboard/brand' && (await editorBack.count())) {
+      await editorBack.click()
       await f.page.waitForURL(url => url.origin === frontend && url.pathname === '/dashboard')
       await f.page.locator(routes[0][2]).waitFor({ state: 'visible' })
       await assertShell(f.page, true, 'returning from mobile Brand kit')
@@ -282,7 +284,7 @@ async function scriptsFlow(f, prefix) {
   await workspace.getByRole('button', { name: /shooting coach/i }).filter({ visible: true }).first().click()
   const coach = page.locator('[data-shooting-coach]')
   await coach.waitFor({ state: 'visible' })
-  assert.deepEqual(await coach.locator('dl > div > dt').allTextContents(), [
+  assert.deepEqual(await coach.locator('dl dt').allTextContents(), [
     'Camera position', 'Lens and field of view', 'Movement',
     'Lighting', 'Performance', 'Creator action'
   ])

@@ -113,6 +113,7 @@ export function SettingsPreferencesSection({ panels, mobile }: Props) {
           id="timezone"
           icon={Globe2}
           label={t('timezone')}
+          searchLabel={t('searchTimezone')}
           value={preferences.timezone}
           selected={timezoneOption(preferences.timezone, locale)}
           options={() => timezoneOptions(preferences.timezone, locale)}

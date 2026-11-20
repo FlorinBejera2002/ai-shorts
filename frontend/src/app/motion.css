@@ -1,0 +1,185 @@
+/*
+ * Shared overlay motion, tuned to the iOS feel: an unhurried, critically damped
+ * open (no overshoot) and a shorter, soft close. Values follow WWDC23
+ * "Animate with springs" (bounce 0 for UI chrome) approximated as curves.
+ *
+ * Open and close are driven by Radix `data-state`, so Radix keeps the element
+ * mounted until the closing animation ends. CSS Modules reference the
+ * `--motion-*-open/close` shorthands so keyframe names are never localised.
+ */
+:root {
+  --ease-apple-out: cubic-bezier(0.32, 0.72, 0, 1);
+  --ease-apple-in: cubic-bezier(0.3, 0, 0.8, 0.15);
+
+  --motion-backdrop-in-duration: 340ms;
+  --motion-backdrop-out-duration: 260ms;
+  --motion-sheet-in-duration: 500ms;
+  --motion-sheet-out-duration: 320ms;
+  --motion-dialog-in-duration: 400ms;
+  --motion-dialog-out-duration: 240ms;
+  --motion-popover-in-duration: 280ms;
+  --motion-popover-out-duration: 180ms;
+
+  --motion-backdrop-open: motion-fade-in var(--motion-backdrop-in-duration) var(--ease-apple-out) both;
+  --motion-backdrop-close: motion-fade-out var(--motion-backdrop-out-duration) var(--ease-apple-in) both;
+  --motion-dialog-open: motion-dialog-in var(--motion-dialog-in-duration) var(--ease-apple-out) both;
+  --motion-dialog-close: motion-dialog-out var(--motion-dialog-out-duration) var(--ease-apple-in) both;
+  --motion-popover-open: motion-popover-in var(--motion-popover-in-duration) var(--ease-apple-out) both;
+  --motion-popover-close: motion-popover-out var(--motion-popover-out-duration) var(--ease-apple-in) both;
+  --motion-sheet-open: motion-sheet-up-in var(--motion-sheet-in-duration) var(--ease-apple-out) both;
+  --motion-sheet-close: motion-sheet-down-out var(--motion-sheet-out-duration) var(--ease-apple-in) both;
+}
+
+@keyframes motion-fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes motion-fade-out {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes motion-dialog-in {
+  from {
+    opacity: 0;
+    scale: 0.94;
+  }
+}
+
+@keyframes motion-dialog-out {
+  to {
+    opacity: 0;
+    scale: 0.97;
+  }
+}
+
+@keyframes motion-popover-in {
+  from {
+    opacity: 0;
+    scale: 0.96;
+  }
+}
+
+@keyframes motion-popover-out {
+  to {
+    opacity: 0;
+    scale: 0.98;
+  }
+}
+
+@keyframes motion-sheet-up-in {
+  from {
+    transform: translate3d(0, 100%, 0);
+  }
+}
+
+@keyframes motion-sheet-down-out {
+  to {
+    transform: translate3d(0, 100%, 0);
+  }
+}
+
+@keyframes motion-sheet-left-in {
+  from {
+    transform: translate3d(-100%, 0, 0);
+  }
+}
+
+@keyframes motion-sheet-left-out {
+  to {
+    transform: translate3d(-100%, 0, 0);
+  }
+}
+
+@keyframes motion-sheet-right-in {
+  from {
+    transform: translate3d(100%, 0, 0);
+  }
+}
+
+@keyframes motion-sheet-right-out {
+  to {
+    transform: translate3d(100%, 0, 0);
+  }
+}
+
+@keyframes motion-sheet-top-in {
+  from {
+    transform: translate3d(0, -100%, 0);
+  }
+}
+
+@keyframes motion-sheet-top-out {
+  to {
+    transform: translate3d(0, -100%, 0);
+  }
+}
+
+.motion-backdrop[data-state='open'] {
+  animation: var(--motion-backdrop-open);
+}
+.motion-backdrop[data-state='closed'] {
+  animation: var(--motion-backdrop-close);
+}
+
+.motion-dialog[data-state='open'] {
+  animation: var(--motion-dialog-open);
+}
+.motion-dialog[data-state='closed'] {
+  animation: var(--motion-dialog-close);
+}
+
+.motion-popover {
+  transform-origin: var(--radix-popper-transform-origin, top center);
+}
+.motion-popover[data-state='open'],
+.motion-popover[data-state='delayed-open'],
+.motion-popover[data-state='instant-open'] {
+  animation: var(--motion-popover-open);
+}
+.motion-popover[data-state='closed'] {
+  animation: var(--motion-popover-close);
+}
+
+.motion-sheet[data-state='open'] {
+  animation: var(--motion-sheet-open);
+}
+.motion-sheet[data-state='closed'] {
+  animation: var(--motion-sheet-close);
+}
+.motion-sheet[data-motion-side='left'][data-state='open'] {
+  animation-name: motion-sheet-left-in;
+}
+.motion-sheet[data-motion-side='left'][data-state='closed'] {
+  animation-name: motion-sheet-left-out;
+}
+.motion-sheet[data-motion-side='right'][data-state='open'] {
+  animation-name: motion-sheet-right-in;
+}
+.motion-sheet[data-motion-side='right'][data-state='closed'] {
+  animation-name: motion-sheet-right-out;
+}
+.motion-sheet[data-motion-side='top'][data-state='open'] {
+  animation-name: motion-sheet-top-in;
+}
+.motion-sheet[data-motion-side='top'][data-state='closed'] {
+  animation-name: motion-sheet-top-out;
+}
+
+/* Reduced motion: keep a short fade so state changes stay visible, drop movement. */
+@media (prefers-reduced-motion: reduce) {
+  /* Same specificity as the side-specific sheet rules above, so these win. */
+  .motion-dialog.motion-dialog[data-state],
+  .motion-popover.motion-popover[data-state],
+  .motion-sheet[data-motion-side][data-state] {
+    animation-name: motion-fade-in;
+  }
+  .motion-dialog.motion-dialog[data-state='closed'],
+  .motion-popover.motion-popover[data-state='closed'],
+  .motion-sheet[data-motion-side][data-state='closed'] {
+    animation-name: motion-fade-out;
+  }
+}

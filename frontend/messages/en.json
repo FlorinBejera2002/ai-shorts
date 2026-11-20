@@ -1447,6 +1447,8 @@
     "publishingNotificationsDesc": "In-app updates when a social post succeeds or fails.",
     "productPreferencesDesc": "Synchronize your workspace defaults across signed-in devices.",
     "timezone": "Time zone",
+    "searchTimezone": "Search time zones",
+    "noResults": "No results",
     "defaultAspectRatio": "Default aspect ratio",
     "defaultClipCount": "Default number of clips",
     "savePreferences": "Save preferences",

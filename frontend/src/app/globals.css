@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "./motion.css";
 
 :root {
   --radius: 0.875rem;
@@ -216,6 +217,17 @@ h3 {
   color: var(--primary-foreground);
 }
 
+/* iOS Safari zooms the page when a focused field is smaller than 16px.
+   Unlayered and !important so it wins over component-scoped sizes on touch screens only. */
+@media (pointer: coarse) {
+  input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']):not([type='color']),
+  textarea,
+  select,
+  [contenteditable='true'] {
+    font-size: 16px !important;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -390,6 +402,12 @@ input:-webkit-autofill:focus {
     transform: translateX(0) scale(1);
   }
 }
+@keyframes toast-out {
+  to {
+    opacity: 0;
+    transform: translateX(100%) scale(0.95);
+  }
+}
 @keyframes float {
   0%,
   100% {
@@ -479,6 +497,9 @@ input:-webkit-autofill:focus {
 }
 .animate-toast-in {
   animation: toast-in 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.animate-toast-out {
+  animation: toast-out 0.26s var(--ease-apple-in) both;
 }
 .animate-float {
   animation: float 6s ease-in-out infinite;

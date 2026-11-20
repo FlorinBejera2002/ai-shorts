@@ -8,6 +8,8 @@ type Toast = {
   id: string
   type: 'success' | 'error' | 'info' | 'warning'
   message: string
+  /** Set while the exit animation plays, before the toast is removed. */
+  leaving: boolean
 }
 
 type ToastStore = {
@@ -16,16 +18,25 @@ type ToastStore = {
   dismiss: (id: string) => void
 }
 
-export const useToast = create<ToastStore>((set) => ({
+const AUTO_DISMISS_MS = 4000
+/** Matches the `toast-out` animation duration in globals.css. */
+const EXIT_MS = 260
+
+export const useToast = create<ToastStore>((set, get) => ({
   toasts: [],
   add: (type, message) => {
     const id = Math.random().toString(36).slice(2, 9)
-    set((s) => ({ toasts: [...s.toasts, { id, type, message }] }))
+    set((s) => ({ toasts: [...s.toasts, { id, type, message, leaving: false }] }))
+    setTimeout(() => get().dismiss(id), AUTO_DISMISS_MS)
+  },
+  dismiss: (id) => {
+    const toast = get().toasts.find((t) => t.id === id)
+    if (!toast || toast.leaving) return
+    set((s) => ({ toasts: s.toasts.map((t) => (t.id === id ? { ...t, leaving: true } : t)) }))
     setTimeout(() => {
       set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) }))
-    }, 4000)
-  },
-  dismiss: (id) => set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) }))
+    }, EXIT_MS)
+  }
 }))
 
 const iconMap = {
@@ -57,13 +68,13 @@ export function Toaster() {
   if (toasts.length === 0) return null
 
   return (
-    <div className="fixed top-4 right-4 z-[100] flex flex-col gap-2 pointer-events-none">
+    <div className="fixed inset-x-4 top-[calc(env(safe-area-inset-top)+76px)] z-[100] flex flex-col gap-2 pointer-events-none sm:inset-x-auto sm:top-4 sm:right-4">
       {toasts.map((toast) => {
         const Icon = iconMap[toast.type]
         return (
           <div
             key={toast.id}
-            className={`pointer-events-auto animate-toast-in flex items-center gap-2.5 rounded-lg border border-border border-l-2 ${borderMap[toast.type]} bg-card px-3.5 py-2.5 shadow-lg shadow-black/8 min-w-[260px] max-w-[360px]`}
+            className={`pointer-events-auto ${toast.leaving ? 'animate-toast-out' : 'animate-toast-in'} flex items-center gap-2.5 rounded-md border border-border border-l-2 ${borderMap[toast.type]} bg-card px-3.5 py-2.5 shadow-lg shadow-black/8 min-w-[260px] max-w-[360px]`}
           >
             <Icon className={`w-4 h-4 shrink-0 ${colorMap[toast.type]}`} />
             <p className="text-[13px] text-card-foreground flex-1 leading-snug">

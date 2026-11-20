@@ -132,6 +132,15 @@
   color: var(--publish-text);
   font-family: Inter, system-ui, sans-serif;
   box-shadow: 0 0 0 1px var(--publish-border), 0 18px 48px rgba(0, 0, 0, 0.2);
+  transform-origin: var(--radix-dropdown-menu-content-transform-origin, var(--radix-popper-transform-origin));
+}
+
+.menu[data-state='open'] {
+  animation: var(--motion-popover-open);
+}
+
+.menu[data-state='closed'] {
+  animation: var(--motion-popover-close);
 }
 
 .item {

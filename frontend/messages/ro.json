@@ -1444,6 +1444,8 @@
     "publishingNotificationsDesc": "Notificări în aplicație când o postare reușește sau eșuează.",
     "productPreferencesDesc": "Sincronizează valorile implicite pe toate dispozitivele autentificate.",
     "timezone": "Fus orar",
+    "searchTimezone": "Caută fusul orar",
+    "noResults": "Niciun rezultat",
     "defaultAspectRatio": "Raport de aspect implicit",
     "defaultClipCount": "Număr implicit de clipuri",
     "savePreferences": "Salvează preferințele",

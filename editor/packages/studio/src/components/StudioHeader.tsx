@@ -8,6 +8,7 @@ import { trackStudioEvent } from "../utils/studioTelemetry";
 import { Tooltip } from "./ui";
 import { StudioAssistant, type StudioAssistantProps } from "./assistant/StudioAssistant";
 import { CanvasAspectSelect } from "./CanvasAspectSelect";
+import { StudioBackButton } from "./StudioBackButton";
 import { StudioSession } from "./StudioSession";
 
 export interface StudioHeaderProps {
@@ -143,7 +144,10 @@ export function StudioHeader({
         </span>
       </div>
       {/* Center: storyboard / preview toggle */}
-      <ViewModeToggle />
+      <div className="flex min-w-0 items-center gap-1.5">
+        <StudioBackButton />
+        <ViewModeToggle />
+      </div>
       {/* Right: toolbar buttons */}
       <div className="flex min-w-0 flex-wrap items-center gap-1.5">
         {recordEdit && <CanvasAspectSelect recordEdit={recordEdit} />}

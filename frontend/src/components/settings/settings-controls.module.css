@@ -167,6 +167,13 @@
   transform: translateX(16px);
 }
 
+/* Invisible 44px hit area around the 42x26 track. */
+.switch::before {
+  content: '';
+  position: absolute;
+  inset: -9px -1px;
+}
+
 .switch:disabled {
   cursor: default;
 }
@@ -219,6 +226,44 @@
 
 .segmented button:disabled {
   cursor: default;
+}
+
+/* Long phone lists: a search field above the options, and the list scrolls within the sheet. */
+.sheetBody {
+  display: flex;
+  min-height: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.sheetScroll {
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.searchBox {
+  flex: none;
+}
+
+.searchBox svg {
+  width: 18px;
+  height: 18px;
+  flex: none;
+  color: var(--publish-secondary-text);
+}
+
+.searchBox input {
+  font-size: 16px;
+}
+
+.empty {
+  margin: 0;
+  color: var(--publish-secondary-text);
+  font-size: 14px;
+  text-align: center;
 }
 
 .ratio {
@@ -555,6 +600,7 @@
   }
 
   .segmented button {
+    min-height: 44px;
     padding: 0 4px;
   }
 

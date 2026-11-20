@@ -52,6 +52,15 @@
   background: transparent;
   box-shadow: none;
   outline: none;
+  transform-origin: var(--radix-popper-transform-origin, top center);
+}
+
+.popover[data-state='open'] {
+  animation: var(--motion-popover-open);
+}
+
+.popover[data-state='closed'] {
+  animation: var(--motion-popover-close);
 }
 
 .menu {

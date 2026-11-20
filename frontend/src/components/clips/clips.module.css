@@ -1150,3 +1150,23 @@
     animation: none;
   }
 }
+
+/* Touch: 40px hit areas around the small favourite, menu and sort controls; the visible size stays. */
+@media (pointer: coarse) {
+  .iconButton,
+  .sortLink {
+    position: relative;
+  }
+
+  .iconButton::before,
+  .sortLink::before,
+  .star::before {
+    content: '';
+    position: absolute;
+    inset: -4px;
+  }
+
+  .sortLink::before {
+    inset: -3px 0;
+  }
+}

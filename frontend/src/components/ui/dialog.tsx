@@ -17,11 +17,11 @@ export function DialogContent({
 }) {
   return (
     <DialogPrimitive.Portal>
-      <DialogPrimitive.Overlay className={cn('fixed inset-0 z-50 bg-black/55 backdrop-blur-sm', overlayClassName)} />
+      <DialogPrimitive.Overlay className={cn('motion-backdrop fixed inset-0 z-50 bg-black/55 backdrop-blur-sm', overlayClassName)} />
       <DialogPrimitive.Content
         data-slot="dialog-content"
         className={cn(
-          'fixed left-1/2 top-1/2 z-50 grid max-h-[85dvh] w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 gap-6 overflow-y-auto rounded-xl border bg-background p-6 text-foreground shadow-xl outline-none',
+          'motion-dialog fixed left-1/2 top-1/2 z-50 grid max-h-[85dvh] w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 gap-6 overflow-y-auto rounded-xl border bg-background p-6 text-foreground shadow-xl outline-none',
           className
         )}
         {...props}

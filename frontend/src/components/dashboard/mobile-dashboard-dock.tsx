@@ -3,11 +3,12 @@
 import theme from '@/components/calendar/publishing-theme.module.css'
 import { Link, usePathname } from '@/i18n/navigation'
 import { dashboardNavigation, isDashboardRouteActive } from '@/lib/dashboard-navigation'
-import { animate, domAnimation, LazyMotion, m, useMotionValue, useReducedMotion, useTransform, type MotionValue } from 'framer-motion'
+import { AnimatePresence, animate, domAnimation, LazyMotion, m, useMotionValue, useReducedMotion, useTransform, type MotionValue } from 'framer-motion'
 import { CreditCard, Ellipsis, FilePenLine, Film, House, Palette, Plus, Scissors, Share2, SlidersHorizontal, X, type LucideIcon } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { Dialog } from 'radix-ui'
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react'
+import { backdropEnter, backdropExit, sheetEnter, sheetExit } from '@/lib/motion'
 import styles from './mobile-dashboard-dock.module.css'
 import { useDockHiddenByView } from './mobile-dock-visibility'
 
@@ -163,11 +164,23 @@ function Tab({ href, label, icon: Icon, active, dockKey, onNavigate }: { href: s
 export function MobileDashboardDock() {
   const pathname = usePathname()
   const [menuOpen, setMenuOpen] = useState(false)
+  // The panel stays mounted through its exit animation, and Radix holds the page scroll lock until it unmounts.
+  // Until that lock is released, the lock is the panel's own and must not hide the bar.
+  const [menuMounted, setMenuMounted] = useState(false)
   const modal = useModalOpen()
   const page = pathname.split('?')[0]
   const hiddenByView = useDockHiddenByView()
-  const hiddenByPage = !mainPages.has(page) || hiddenByView || (modal && !menuOpen)
+  const hiddenByPage = !mainPages.has(page) || hiddenByView || (modal && !menuMounted)
   const hidden = useScrollHidden(hiddenByPage, page)
+
+  useEffect(() => {
+    if (!menuOpen && !modal) setMenuMounted(false)
+  }, [menuOpen, modal])
+
+  function handleMenuOpenChange(open: boolean) {
+    if (open) setMenuMounted(true)
+    setMenuOpen(open)
+  }
 
   // The panel is phone-only: leaving the phone layout closes it.
   useEffect(() => {
@@ -180,9 +193,9 @@ export function MobileDashboardDock() {
 
   return (
     <LazyMotion features={domAnimation} strict>
-      <Dialog.Root open={menuOpen} onOpenChange={setMenuOpen}>
+      <Dialog.Root open={menuOpen} onOpenChange={handleMenuOpenChange}>
         <DockBar pathname={pathname} hidden={hidden} hiddenByPage={hiddenByPage} menuOpen={menuOpen} />
-        <DockMenu pathname={pathname} onNavigate={() => setMenuOpen(false)} />
+        <DockMenu open={menuOpen} pathname={pathname} onNavigate={() => setMenuOpen(false)} />
       </Dialog.Root>
     </LazyMotion>
   )
@@ -232,41 +245,55 @@ function DockBar({ pathname, hidden, hiddenByPage, menuOpen }: { pathname: strin
   )
 }
 
-/** Meniu: the pages that are not in the bar, as a panel above it. */
-function DockMenu({ pathname, onNavigate }: { pathname: string; onNavigate: () => void }) {
+/**
+ * Meniu: the pages that are not in the bar, as a panel above it.
+ * Radix keeps the portal mounted (forceMount) so AnimatePresence can play the exit before the
+ * overlay and panel unmount. Reduced motion fades only.
+ */
+function DockMenu({ open, pathname, onNavigate }: { open: boolean; pathname: string; onNavigate: () => void }) {
   const t = useTranslations('nav')
   const reduced = Boolean(useReducedMotion())
   return (
-    <Dialog.Portal>
-      <Dialog.Overlay className={styles.scrim} />
-      <Dialog.Content id="mobile-pages-menu" aria-describedby={undefined} className={`${theme.surface} ${styles.menu}`} data-reference-surface="" data-mobile-menu-dialog="" asChild>
-        <m.section
-          initial={reduced ? false : { opacity: 0, y: 28, scale: 0.96 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          transition={reduced ? { duration: 0 } : { type: 'spring', stiffness: 320, damping: 30, mass: 0.9 }}
-        >
-          <div className={styles.menuHead}>
-            <Dialog.Title asChild>
-              <h2>{t('menu')}</h2>
-            </Dialog.Title>
-            <Dialog.Close asChild>
-              <button type="button" className={styles.menuClose} aria-label={t('closeMenu')} data-mobile-menu-close="">
-                <X aria-hidden="true" />
-              </button>
-            </Dialog.Close>
-          </div>
-          <div className={styles.menuGrid}>
-            {menuItems.map((item, index) => (
-              <MenuLink key={item.href} index={index} reduced={reduced}>
-                <Link href={item.href} className={styles.menuItem} aria-current={isDashboardRouteActive(pathname, item.href) ? 'page' : undefined} onClick={onNavigate}>
-                  <MenuIcon name={item.key} />
-                  {t(item.key)}
-                </Link>
-              </MenuLink>
-            ))}
-          </div>
-        </m.section>
-      </Dialog.Content>
+    <Dialog.Portal forceMount>
+      <AnimatePresence>
+        {open && (
+          <Dialog.Overlay key="scrim" asChild forceMount>
+            <m.div className={styles.scrim} initial={{ opacity: 0 }} animate={{ opacity: 1, transition: backdropEnter }} exit={{ opacity: 0, transition: backdropExit }} />
+          </Dialog.Overlay>
+        )}
+      </AnimatePresence>
+      <AnimatePresence>
+        {open && (
+          <Dialog.Content key="menu" id="mobile-pages-menu" aria-describedby={undefined} className={`${theme.surface} ${styles.menu}`} data-reference-surface="" data-mobile-menu-dialog="" forceMount asChild>
+            <m.section
+              initial={reduced ? { opacity: 0 } : { y: '100%' }}
+              animate={reduced ? { opacity: 1, transition: backdropEnter } : { y: 0, transition: sheetEnter }}
+              exit={reduced ? { opacity: 0, transition: backdropExit } : { y: '100%', transition: sheetExit }}
+            >
+              <div className={styles.menuHead}>
+                <Dialog.Title asChild>
+                  <h2>{t('menu')}</h2>
+                </Dialog.Title>
+                <Dialog.Close asChild>
+                  <button type="button" className={styles.menuClose} aria-label={t('closeMenu')} data-mobile-menu-close="">
+                    <X aria-hidden="true" />
+                  </button>
+                </Dialog.Close>
+              </div>
+              <div className={styles.menuGrid}>
+                {menuItems.map((item, index) => (
+                  <MenuLink key={item.href} index={index} reduced={reduced}>
+                    <Link href={item.href} className={styles.menuItem} aria-current={isDashboardRouteActive(pathname, item.href) ? 'page' : undefined} onClick={onNavigate}>
+                      <MenuIcon name={item.key} />
+                      {t(item.key)}
+                    </Link>
+                  </MenuLink>
+                ))}
+              </div>
+            </m.section>
+          </Dialog.Content>
+        )}
+      </AnimatePresence>
     </Dialog.Portal>
   )
 }

@@ -3,7 +3,8 @@
 import theme from '@/components/calendar/publishing-theme.module.css'
 import { CloseButton, OverlayTitle, ReferenceOverlay } from '@/components/shared/reference-overlay'
 import ui from '@/components/shared/reference-ui.module.css'
-import { Check, ChevronDown, ChevronRight, type LucideIcon } from 'lucide-react'
+import { Check, ChevronDown, ChevronRight, Search, type LucideIcon } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 import { DropdownMenu as Menu } from 'radix-ui'
 import { useState } from 'react'
 import { IconCircle } from './settings-ui'
@@ -12,10 +13,15 @@ import controls from './settings-controls.module.css'
 
 export type ChoiceOption = { value: string; label: string; short?: string }
 
+/** Phone sheets with more options than this get a search field above a scrolling list. */
+const SEARCHABLE_OPTION_COUNT = 12
+
 type Props = {
   id: string
   icon: LucideIcon
   label: string
+  /** Placeholder and accessible name of the phone search field; long lists are searchable only when set. */
+  searchLabel?: string
   value: string
   options: () => ChoiceOption[]
   selected: ChoiceOption
@@ -24,8 +30,85 @@ type Props = {
   onChange: (value: string) => void
 }
 
+/** Lower-case text without diacritics, so "Bucuresti" and "București" match alike. */
+function foldSearchText(text: string) {
+  return text.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase()
+}
+
+type SearchEntry = { option: ChoiceOption; text: string }
+
+/** Options paired with their folded labels, built once so typing only compares strings. */
+function buildSearchIndex(options: ChoiceOption[]): SearchEntry[] {
+  return options.map((option) => ({ option, text: foldSearchText(option.label) }))
+}
+
+function filterChoiceOptions(index: SearchEntry[], query: string) {
+  const needle = foldSearchText(query.trim())
+  if (!needle) return index.map((entry) => entry.option)
+  return index.filter((entry) => entry.text.includes(needle)).map((entry) => entry.option)
+}
+
+type SheetBodyProps = Pick<Props, 'id' | 'label' | 'searchLabel' | 'value' | 'options'> & { onPick: (value: string) => void }
+
+/** The phone sheet's option list; long lists get a search field and scroll inside the sheet. */
+function ChoiceSheetBody({ id, label, searchLabel, value, options, onPick }: SheetBodyProps) {
+  const t = useTranslations('settings')
+  const [query, setQuery] = useState('')
+  // Snapshot of the options for this opening (the sheet unmounts on close), indexed once for search.
+  const [index] = useState(() => buildSearchIndex(options()))
+  const searchable = Boolean(searchLabel) && index.length > SEARCHABLE_OPTION_COUNT
+  const visible = filterChoiceOptions(index, searchable ? query : '')
+  const list = (
+    <div
+      role="listbox"
+      aria-label={label}
+      className={`${ui.sheetList} ${searchable ? controls.sheetScroll : ''}`}
+      data-settings-choice-list={id}
+    >
+      {visible.map((option) => (
+        <button
+          key={option.value}
+          type="button"
+          role="option"
+          aria-selected={option.value === value}
+          className={ui.item}
+          onClick={() => onPick(option.value)}
+        >
+          <span>{option.label}</span>
+          {option.value === value && <Check className={ui.check} aria-hidden="true" />}
+        </button>
+      ))}
+    </div>
+  )
+  if (!searchable) return list
+  return (
+    <div className={controls.sheetBody}>
+      <label className={`${controls.fieldBox} ${controls.searchBox}`}>
+        <Search aria-hidden="true" />
+        <input
+          type="search"
+          value={query}
+          placeholder={searchLabel}
+          aria-label={searchLabel}
+          autoComplete="off"
+          autoCorrect="off"
+          spellCheck={false}
+          onChange={(event) => setQuery(event.target.value)}
+          data-settings-choice-search={id}
+        />
+      </label>
+      {list}
+      {visible.length === 0 && (
+        <p className={controls.empty} role="status">
+          {t('noResults')}
+        </p>
+      )}
+    </div>
+  )
+}
+
 /** A settings row with a choice: a select menu on desktop, a row that opens a sheet on phones. */
-export function SettingsChoice({ id, icon: Icon, label, value, options, selected, disabled, mobile, onChange }: Props) {
+export function SettingsChoice({ id, icon: Icon, label, searchLabel, value, options, selected, disabled, mobile, onChange }: Props) {
   const [open, setOpen] = useState(false)
   const pick = (next: string) => {
     onChange(next)
@@ -55,22 +138,7 @@ export function SettingsChoice({ id, icon: Icon, label, value, options, selected
             <OverlayTitle mobile>{label}</OverlayTitle>
             <CloseButton onClick={() => setOpen(false)} />
           </div>
-          <div className={ui.sheetList} role="listbox" aria-label={label} data-settings-choice-list={id}>
-            {open &&
-              options().map((option) => (
-                <button
-                  key={option.value}
-                  type="button"
-                  role="option"
-                  aria-selected={option.value === value}
-                  className={ui.item}
-                  onClick={() => pick(option.value)}
-                >
-                  <span>{option.label}</span>
-                  {option.value === value && <Check className={ui.check} aria-hidden="true" />}
-                </button>
-              ))}
-          </div>
+          <ChoiceSheetBody id={id} label={label} searchLabel={searchLabel} value={value} options={options} onPick={pick} />
         </ReferenceOverlay>
       </>
     )

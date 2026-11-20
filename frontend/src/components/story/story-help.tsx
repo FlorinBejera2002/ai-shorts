@@ -46,7 +46,7 @@ export function StoryHelp({ label, children }: Props) {
       <Popover.Trigger asChild>
         <button
           type="button"
-          className="inline-flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground"
+          className="relative inline-flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors before:absolute before:-inset-1.5 before:content-[''] hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground"
           aria-label={`${text('Help for', 'Ajutor pentru')} ${label}`}
           aria-describedby={open ? descriptionId : undefined}
           aria-controls={open ? descriptionId : undefined}
