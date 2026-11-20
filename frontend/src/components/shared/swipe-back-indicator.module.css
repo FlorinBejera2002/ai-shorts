@@ -1,0 +1,11 @@
+/* The "release to go back" state uses the primary action colours, like the dock's create button. */
+.indicator[data-swipe-back='ready'] {
+  border-color: transparent;
+  background: #0b0b0c;
+  color: #fff;
+}
+
+:global(.dark) .indicator[data-swipe-back='ready'] {
+  background: #8e9bb0;
+  color: #0c1524;
+}
