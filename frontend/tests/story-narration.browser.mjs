@@ -436,7 +436,7 @@ try {
     .getByRole('button', { name: 'Save narration', exact: true })
     .click()
   await page
-    .getByRole('alert')
+    .locator('[data-toast-region="corner"] [data-toast]')
     .filter({ hasText: 'Synthetic upload failure' })
     .waitFor()
   assert.equal(
@@ -486,7 +486,7 @@ try {
     .getByRole('button', { name: 'Save narration', exact: true })
     .click()
   await page
-    .getByRole('alert')
+    .locator('[data-toast-region="corner"] [data-toast]')
     .filter({ hasText: 'Synthetic validation failure' })
     .waitFor()
   assert.equal(

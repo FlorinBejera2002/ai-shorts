@@ -97,7 +97,7 @@ try {
   await page.screenshot({ path: join(output, 'desktop-failure.png'), fullPage: true })
 
   await page.getByRole('button', { name: 'Retry processing', exact: true }).click()
-  await page.getByRole('alert').filter({ hasText: 'Synthetic retry failed' }).waitFor()
+  await page.locator('[data-toast-region="corner"] [data-toast]').filter({ hasText: 'Synthetic retry failed' }).waitFor()
   await page.getByRole('button', { name: 'Retry processing', exact: true }).click()
   await page.getByRole('button', { name: 'Cancel processing', exact: true }).waitFor()
   assert.equal(retries.length, 2)

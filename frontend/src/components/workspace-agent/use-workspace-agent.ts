@@ -5,8 +5,11 @@ import { agentContext, mergeRuns, pollingDelay, resourceIdsForContext, resourceP
 import type { AgentCommand, AgentContext, AgentResource, AgentRun, RunRequest, Suggestion } from './model'
 import type { StoryHelpRequest } from './story-help'
 import { publishAgentActivity } from './activity'
+import { agentMessages } from './messages'
+import { toast } from '@/lib/toast'
 
 const historyKey = ['workspace-agent', 'runs']
+const errorMessage = (cause: unknown) => cause instanceof Error ? cause.message : String(cause)
 type HelpDraft = { context: AgentContext; source: HTMLElement }
 export function useWorkspaceAgent(route: string, navigate: (route: string) => void, projectId?: string, onProject?: (id: string) => void, locale = 'ro', resources: AgentResource[] = []) {
   const client = useQueryClient()
@@ -44,11 +47,11 @@ export function useWorkspaceAgent(route: string, navigate: (route: string) => vo
   const follow = preferences.data?.follow ?? false
   const showSuggestions = preferences.data?.recommendations ?? true
   const [preferencesBusy, setPreferencesBusy] = useState(false)
-  const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const [sending, setSending] = useState(false)
   const [retry, setRetry] = useState<RunRequest | null>(null)
   const lock = useRef(false)
+  const messages = agentMessages[locale === 'ro' ? 'ro' : 'en']
   const seen = useRef(new Map<string, number>())
   const initialized = useRef(false)
   const pageContext = agentContext(route)
@@ -112,7 +115,7 @@ export function useWorkspaceAgent(route: string, navigate: (route: string) => vo
     // Keep any newly edited draft for the user's next message after recovery.
     const body = retry ?? request ?? { request_id: crypto.randomUUID(), message: suggestion?.title ?? draft.trim(), context: sendContext, resource_ids: resourceIds, ...(suggestion ? { suggestion_id: suggestion.id } : {}) }
     if (!body.message) return
-    lock.current = true; setBusy(true); setSending(true); setError('')
+    lock.current = true; setBusy(true); setSending(true)
     try {
       const run = await agentApi.send(body)
       setRetry(null)
@@ -124,17 +127,18 @@ export function useWorkspaceAgent(route: string, navigate: (route: string) => vo
       if (!suggestion) setDraft(previous => previous.trim() === body.message ? '' : previous)
     } catch (cause) {
       // Keep the exact identity on ambiguous delivery; rejected input can be edited.
-      setRetry(cause instanceof AgentApiError && cause.status >= 400 && cause.status < 500 ? null : body)
-      setError(cause instanceof Error ? cause.message : String(cause))
+      const retryable = !(cause instanceof AgentApiError && cause.status >= 400 && cause.status < 500)
+      setRetry(retryable ? body : null)
+      toast.error(errorMessage(cause), retryable ? { action: { label: messages.retry, onClick: () => void send(body) } } : undefined)
     }
     finally { lock.current = false; setBusy(false); setSending(false) }
   }
   async function control(run: AgentRun, command: AgentCommand) {
     if (lock.current) return
-    lock.current = true; setBusy(true); setError('')
+    lock.current = true; setBusy(true)
     try { storeRun(await agentApi.control(run, command, resourceIdsForContext(resources, run.context))) }
     catch (cause) {
-      setError(cause instanceof Error ? cause.message : String(cause))
+      toast.error(errorMessage(cause))
       // Refresh after a stale revision or network ambiguity; never replay approval automatically.
       try { storeRun(await agentApi.run(run.id)) } catch { /* Keep the original actionable error. */ }
     } finally { lock.current = false; setBusy(false) }
@@ -147,18 +151,18 @@ export function useWorkspaceAgent(route: string, navigate: (route: string) => vo
       const page = await agentApi.list(`${first.created_at}|${first.id}`)
       for (const run of page.runs) seen.current.set(run.id, run.revision)
       client.setQueryData(historyKey, { ...page, runs: mergeRuns(runs ?? [], page.runs) })
-    } catch (cause) { setError(String(cause)) }
+    } catch (cause) { toast.error(errorMessage(cause)) }
     finally { lock.current = false; setBusy(false) }
   }
   async function dismiss(id: string) {
     try { await agentApi.dismiss(id); await suggestions.refetch() }
-    catch (cause) { setError(String(cause)) }
+    catch (cause) { toast.error(errorMessage(cause)) }
   }
   async function savePreferences(body: { follow?: boolean; recommendations?: boolean; reset?: boolean }) {
     if (preferencesBusy) return
     setPreferencesBusy(true)
     try { client.setQueryData(['workspace-agent', 'preferences'], await agentApi.savePreferences(body)) }
-    catch (cause) { setError(cause instanceof Error ? cause.message : String(cause)) }
+    catch (cause) { toast.error(errorMessage(cause)) }
     finally { setPreferencesBusy(false) }
   }
   async function clearHistory() {
@@ -171,8 +175,8 @@ export function useWorkspaceAgent(route: string, navigate: (route: string) => vo
       client.setQueryData<{ runs: AgentRun[]; has_more: boolean }>(historyKey, old => ({ runs: (old?.runs ?? []).filter(run => !cleared.has(run.id)), has_more: false }))
       for (const id of cleared) seen.current.delete(id)
       await history.refetch()
-    } catch (cause) { setError(cause instanceof Error ? cause.message : String(cause)) }
+    } catch (cause) { toast.error(errorMessage(cause)) }
     finally { lock.current = false; setBusy(false) }
   }
-  return { draft, setDraft, prepareHelp, helpMode: helpDraft?.context.route === route, clearHelp: () => setHelpDraft(null), follow, showSuggestions, savePreferences, preferencesBusy, clearHistory, error, busy, sending, connectionLost: history.isError, retry, send, control, older, dismiss, history, suggestions, runs: runs ?? [] }
+  return { draft, setDraft, prepareHelp, helpMode: helpDraft?.context.route === route, clearHelp: () => setHelpDraft(null), follow, showSuggestions, savePreferences, preferencesBusy, clearHistory, busy, sending, connectionLost: history.isError, retry, send, control, older, dismiss, history, suggestions, runs: runs ?? [] }
 }

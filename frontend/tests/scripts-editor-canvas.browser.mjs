@@ -203,13 +203,13 @@ async function desktopLight() {
     await f.page.keyboard.press('Escape')
     checks.push('status menu sends every status')
 
-    // Copy writes the script to the clipboard and shows the Copiat pill.
+    // Copy writes the script to the clipboard and shows a Copiat toast.
     await toolbar.getByRole('button', { name: 'Copiază', exact: true }).click()
-    await f.page.getByRole('status').filter({ hasText: 'Copiat' }).waitFor()
+    await f.page.locator('[data-toast-region="corner"] [data-toast]').filter({ hasText: 'Copiat' }).waitFor()
     await capture(f.page, 'desktop-light-copied')
     const clipboard = await f.page.evaluate(() => navigator.clipboard.readText())
     assert.ok(clipboard.includes('Cum am crescut la 10k') && clipboard.includes('#'), 'Clipboard holds the script text')
-    checks.push('copy icon writes clipboard and shows Copiat')
+    checks.push('copy icon writes clipboard and shows Copiat toast')
 
     // Download icon saves the text version.
     const txt = f.page.waitForEvent('download')
@@ -291,7 +291,7 @@ async function mobileLight() {
     await actions.waitFor()
     await capture(f.page, 'mobile-light-actions-sheet')
     await actions.getByRole('button', { name: 'Copiază', exact: true }).click()
-    await f.page.getByRole('status').filter({ hasText: 'Copiat' }).waitFor()
+    await f.page.locator('[data-toast-region="corner"] [data-toast]').filter({ hasText: 'Copiat' }).waitFor()
     await capture(f.page, 'mobile-light-copied')
     checks.push('mobile copy action shows Copiat')
 

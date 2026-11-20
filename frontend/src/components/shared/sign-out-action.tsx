@@ -14,7 +14,7 @@ import { LoadingIndicator } from '@/components/ui/loading-indicator'
 import { useToast } from '@/components/ui/toast'
 import { authClient } from '@/lib/auth'
 import { LogOut, X } from 'lucide-react'
-import { useLocale } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import { useRef, useState } from 'react'
 import { cn } from '@/lib/utils'
 
@@ -28,7 +28,8 @@ export function SignOutAction({
   className?: string
 }) {
   const locale = useLocale()
-  const toast = useToast()
+  const t = useTranslations('common')
+  const addToast = useToast((state) => state.add)
   const [open, setOpen] = useState(false)
   const cancelRef = useRef<HTMLButtonElement>(null)
   const [pending, setPending] = useState(false)
@@ -42,12 +43,7 @@ export function SignOutAction({
       await authClient.logout()
       setOpen(false)
     } catch {
-      toast.add(
-        'error',
-        locale === 'ro'
-          ? 'Deconectarea a e\u0219uat. \u00cencearc\u0103 din nou.'
-          : 'Unable to sign out. Please try again.'
-      )
+      addToast('error', t('signOutFailed'))
     } finally {
       pendingRef.current = false
       setPending(false)

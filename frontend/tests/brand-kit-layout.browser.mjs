@@ -286,8 +286,9 @@ async function captions() {
     assert.equal(payload.captionStyle.animation, 'phrase-pop')
     assert.equal(payload.captionStyle.outline_enabled, false)
     assert.equal(payload.captionStyle.background_enabled, true)
-    const notice = f.page.locator('[data-brand-saved]')
-    assert.match(await notice.innerText(), /Brand kit saved\s+All changes are saved\./)
+    const notice = f.page.locator('[data-toast-illustrated]').filter({ hasText: 'Brand kit saved' })
+    await notice.waitFor()
+    assert.equal((await notice.innerText()).trim(), 'Brand kit saved', 'The saved toast carries only its title')
     await capture(f, 'desktop-light-saved')
 
     // Drag the caption: guides appear, it snaps to the centre line and the upper third; reset puts it back.
@@ -552,8 +553,12 @@ async function phone() {
     const payload = await save(f)
     assert.ok(payload.captionStyle.size > before, `Pinch grows the caption: ${payload.captionStyle.size}`)
     assert.ok(payload.watermarkSize > 0.18, `Pinch grows the logo: ${payload.watermarkSize}`)
-    await f.page.locator('[data-brand-saved]').waitFor()
-    assert.ok(await top('[data-brand-saved]') < await top('[data-brand-captions]'), 'The saved notice sits under the preview')
+    const saved = f.page.locator('[data-toast-illustrated]').filter({ hasText: 'Brand kit saved' })
+    await saved.waitFor()
+    const savedBox = await saved.boundingBox()
+    const viewport = f.page.viewportSize()
+    assert.ok(Math.abs(savedBox.x + savedBox.width / 2 - viewport.width / 2) < 2, 'The saved toast is centred')
+    assert.ok(savedBox.y > viewport.height / 2 && savedBox.y + savedBox.height < viewport.height, 'The saved toast sits at the bottom')
 
     // Font upload opens as a bottom sheet; the logo screen keeps Back first.
     await f.page.locator('[data-brand-captions]').getByRole('button', { name: /^Font\s/ }).click()
@@ -573,7 +578,7 @@ async function phone() {
   } finally {
     await f.close()
   }
-  console.log('Phone: canvas order, pinch caption + logo, saved notice, font sheet, logo screen passed')
+  console.log('Phone: canvas order, pinch caption + logo, saved toast, font sheet, logo screen passed')
 }
 
 // ---------------------------------------------------------------- dark

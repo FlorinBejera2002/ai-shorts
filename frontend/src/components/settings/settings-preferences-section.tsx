@@ -6,7 +6,7 @@ import { Globe, Globe2, Minus, Moon, Plus, RectangleVertical, Rows3 } from 'luci
 import { useLocale, useTranslations } from 'next-intl'
 import { SettingsChoice, type ChoiceOption } from './settings-choice'
 import { SettingsLoadState } from './settings-load-state'
-import { FieldError, IconCircle, Segmented, SettingsCard } from './settings-ui'
+import { IconCircle, Segmented, SettingsCard } from './settings-ui'
 import type { SettingsPanelsController } from './use-settings-panels'
 import styles from './settings.module.css'
 import controls from './settings-controls.module.css'
@@ -153,7 +153,6 @@ export function SettingsPreferencesSection({ panels, mobile }: Props) {
           <Stepper value={preferences.defaultClipCount} disabled={disabled} onChange={(value) => panels.changePreference('defaultClipCount', value)} />
         </div>
       </SettingsCard>
-      <FieldError message={panels.errorFor('preferences')} />
       <div className={styles.actions}>
         {!mobile && (
           <button

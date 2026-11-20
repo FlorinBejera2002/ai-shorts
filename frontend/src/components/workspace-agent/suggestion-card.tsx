@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
+import { toast } from '@/lib/toast'
 import { ActionDetails } from './action-details'
 import { agentApi } from './api'
 import type { AgentMessages } from './messages'
@@ -13,14 +14,13 @@ export function SuggestionCard({ original, messages: m, disabled, onAccept, onDi
   const [editing, setEditing] = useState(false)
   const [instruction, setInstruction] = useState('')
   const [pending, setPending] = useState(false)
-  const [error, setError] = useState('')
   const suggestion = revised ?? original
   const ro = m.send === 'Trimite'
   async function revise() {
     if (pending || !instruction.trim()) return
-    setPending(true); setError('')
+    setPending(true)
     try { setRevised(await agentApi.revise(suggestion.id, instruction.trim())); setEditing(false); setInstruction('') }
-    catch (cause) { setError(cause instanceof Error ? cause.message : m.error) }
+    catch (cause) { toast.error(cause instanceof Error ? cause.message : m.error) }
     finally { setPending(false) }
   }
   return <article className="space-y-3 rounded-md border p-3">
@@ -33,7 +33,6 @@ export function SuggestionCard({ original, messages: m, disabled, onAccept, onDi
       <p className="text-xs text-muted-foreground">{ro ? 'Verifică sugestia revizuită înainte de execuție.' : 'Review the revised suggestion before executing it.'}</p>
       <Button size="sm" variant="outline" disabled={pending || !instruction.trim()} onClick={() => void revise()}>{ro ? 'Revizuiește sugestia' : 'Revise suggestion'}</Button>
     </div>}
-    {error && <p role="alert" className="text-xs text-destructive">{error}</p>}
     <div className="flex flex-wrap gap-2">
       <Button size="sm" disabled={disabled || pending || editing} onClick={() => onAccept(suggestion)}>{m.doIt}</Button>
       <Button size="sm" variant="outline" disabled={pending} aria-expanded={editing} onClick={() => setEditing(!editing)}>{ro ? 'Modifică' : 'Edit'}</Button>

@@ -77,20 +77,9 @@
   color: var(--publish-info-text);
 }
 
-.notice[data-tone='success'] {
-  background: var(--publish-success-bg);
-  color: var(--publish-success);
-}
-
-.notice[data-tone='warning'],
-.notice[data-tone='error'] {
+.notice[data-tone='warning'] {
   background: var(--publish-warning-bg);
   color: var(--publish-warning);
-}
-
-.notice[data-tone='error'] {
-  background: var(--publish-danger-bg);
-  color: var(--publish-danger);
 }
 
 .noticeIcon {

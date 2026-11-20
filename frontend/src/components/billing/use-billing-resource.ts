@@ -1,5 +1,7 @@
 import { useRef, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useToast } from '@/components/ui/toast'
+import { useTranslations } from 'next-intl'
 import { apiFetch, authClient } from '@/lib/auth'
 import { CHECKOUT_CONFIRMATION_INTERVAL_MS, shouldConfirmCheckout } from '@/lib/billing'
 import { extractApiError } from '@/lib/api-error'
@@ -21,8 +23,9 @@ async function reconcileBilling() {
 export function useBillingResource(path: string) {
   const confirmation = useRef({ path, attempts: 0 })
   const refreshing = useRef(false)
+  const t = useTranslations('billing')
+  const toast = useToast()
   const [recovering, setRecovering] = useState(false)
-  const [recoveryFailed, setRecoveryFailed] = useState(false)
   const queryClient = useQueryClient()
   const returnParams = new URL(path, 'https://sneepcut.invalid').searchParams
   const hasCheckoutReturn = returnParams.has('checkout_session_id')
@@ -59,15 +62,14 @@ export function useBillingResource(path: string) {
     if (refreshing.current) return
     refreshing.current = true
     setRecovering(true)
-    setRecoveryFailed(false)
     try {
       let unavailable = false
       await reconcileBilling().catch(() => { unavailable = true })
       await query.refetch({ throwOnError: true })
       await queryClient.invalidateQueries({ queryKey: ['public', 'stripe-plans'] })
-      setRecoveryFailed(unavailable)
+      if (unavailable) toast.add('warning', t('refreshBillingError'))
     } catch {
-      setRecoveryFailed(true)
+      toast.add('error', t('refreshBillingError'))
     } finally {
       refreshing.current = false
       setRecovering(false)
@@ -79,7 +81,6 @@ export function useBillingResource(path: string) {
     error: query.error instanceof Error ? query.error.message : null,
     reload,
     recovering,
-    recoveryFailed,
     confirmationDelayed: Boolean(query.data && hasCheckoutReturn &&
       (query.isError || !shouldConfirmCheckout(query.data.checkoutVerification, query.data.confirmationAttempts)) &&
       (query.data.checkoutVerification?.status === 'pending' || query.data.checkoutVerification?.status === 'unavailable'))

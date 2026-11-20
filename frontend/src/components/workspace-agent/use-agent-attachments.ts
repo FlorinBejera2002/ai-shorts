@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { toast } from '@/lib/toast'
 import { apiFetch } from '@/lib/auth'
 import { extractApiError } from '@/lib/api-error'
 import { LOGO_MAX_BYTES, LOGO_TYPES } from '@/components/dashboard/brand/constants'
@@ -46,7 +47,7 @@ export function useAgentAttachments(projectId?: string) {
         }
       }
       if (!active.signal.aborted) setCompletedBatch(value => value + 1)
-    } catch (cause) { if (!active.signal.aborted) setError(cause instanceof Error ? cause.message : String(cause)) }
+    } catch (cause) { if (!active.signal.aborted) toast.error(cause instanceof Error ? cause.message : String(cause)) }
     finally { controller.current = null; setPending(undefined) }
   }
   function cancel() { controller.current?.abort() }

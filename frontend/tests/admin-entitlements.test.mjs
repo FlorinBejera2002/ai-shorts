@@ -147,7 +147,8 @@ test('brand kit unlocks white label for admins and respects current server entit
     const { useBrandKit } = load('../src/components/dashboard/brand/use-brand-kit.ts', {
       react: runtime.react,
       '@/components/auth/use-auth': auth(role),
-      '@/components/ui/toast': { useToast: () => ({ add() {} }) },
+      '@/components/ui/toast': { useToast: (select = (state) => state) => select({ add() {} }) },
+      'next-intl': { useTranslations: () => (key) => key },
       '@/lib/auth': { apiFetch: async () => ({ ok: true, json: async () => account }) },
       './constants': load('../src/components/dashboard/brand/constants.ts'),
       './utils': load('../src/components/dashboard/brand/utils.ts'),
@@ -207,6 +208,7 @@ test('billing keeps account management available while hiding subscription upsel
       './billing-details': { BillingDetails: 'billing-details', BillingDetailsLinks: 'billing-details-links' },
       './billing-notices': { BillingNotices: 'billing-notices' },
       './billing-overview': billingOverviewModule(),
+      './use-checkout-return-toast': { useCheckoutReturnToast: () => undefined },
       './billing-summary': { BillingSummary: 'billing-summary' },
       './hosted-billing-button': { HostedBillingButton: 'hosted-billing-button' },
       './invoice-history': { InvoiceHistory: 'invoice-history' },

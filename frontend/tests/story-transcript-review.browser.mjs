@@ -275,7 +275,7 @@ try {
   await first.getByRole('checkbox').check()
   await approve.click()
   await page
-    .getByRole('alert')
+    .locator('[data-toast-region="corner"] [data-toast]')
     .filter({ hasText: 'The project changed.' })
     .waitFor()
   assert.equal(await first.getByRole('textbox').first().inputValue(), 'Hello')

@@ -28,7 +28,6 @@
   --script-status-archived: #94a3b8;
   --script-alert-bg: #fdf2f2;
   --script-alert-text: #991b1b;
-  --script-copied-icon: #4ade80;
   --script-menu-shadow: 0 16px 40px rgba(21, 32, 53, .16);
   --script-panel-shadow: 0 12px 32px rgba(21, 32, 53, .08);
   --script-stage: #0f172a;
@@ -53,7 +52,6 @@
   --script-status-archived: #64748b;
   --script-alert-bg: #3a1717;
   --script-alert-text: #fca5a5;
-  --script-copied-icon: #15803d;
   --script-menu-shadow: var(--publish-menu-shadow);
   --script-panel-shadow: var(--publish-menu-shadow);
 }

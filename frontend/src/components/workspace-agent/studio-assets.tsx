@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
+import { toast } from '@/lib/toast'
 import { authClient } from '@/lib/auth'
 import { createStudioClient } from '@/components/studio/studio-client'
 import { configuredStudioOrigin } from '@/components/studio/studio-config'
@@ -20,7 +21,7 @@ export function StudioAssets({ projectId, ro, onBusy, onUploaded }: { projectId:
       setError(ro ? 'Alege maximum 8 imagini, videoclipuri, fișiere audio sau fonturi acceptate, sub 500 MB în total.' : 'Choose up to 8 supported images, videos, audio files or fonts, under 500 MB in total.'); return
     }
     const origin = configuredStudioOrigin(process.env.NEXT_PUBLIC_STUDIO_URL, process.env.NODE_ENV === 'production')
-    if (!origin) { setError(ro ? 'Studio nu este configurat.' : 'Studio is not configured.'); return }
+    if (!origin) { toast.error(ro ? 'Studio nu este configurat.' : 'Studio is not configured.'); return }
     const active = new AbortController(); controller.current = active
     setPending(true); onBusy(true); setError('')
     try {
@@ -31,9 +32,9 @@ export function StudioAssets({ projectId, ro, onBusy, onUploaded }: { projectId:
       if (!response.ok) throw new Error(ro ? 'Încărcarea în Studio a eșuat.' : 'Studio upload failed.')
       const paths = Array.isArray(body.files) ? body.files.filter((path: unknown): path is string => typeof path === 'string') : []
       setUploaded(previous => [...new Set([...previous, ...paths])])
-      if (body.skipped?.length || body.invalid?.length || paths.length !== list.length) setError(ro ? 'Unele fișiere nu au fost acceptate. Sunt afișate numai cele salvate.' : 'Some files were not accepted. Only saved files are shown.')
+      if (body.skipped?.length || body.invalid?.length || paths.length !== list.length) toast.warning(ro ? 'Unele fișiere nu au fost acceptate. Sunt afișate numai cele salvate.' : 'Some files were not accepted. Only saved files are shown.')
       else if (!active.signal.aborted) uploadedCallback.current?.(projectId)
-    } catch (cause) { if (!active.signal.aborted) setError(cause instanceof Error ? cause.message : String(cause)) }
+    } catch (cause) { if (!active.signal.aborted) toast.error(cause instanceof Error ? cause.message : String(cause)) }
     finally { setPending(false); onBusy(false); controller.current = null }
   }
   return <section className="space-y-2 text-xs">

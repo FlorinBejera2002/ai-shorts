@@ -8,10 +8,3 @@
 .button {
   width: 100%;
 }
-
-.error {
-  max-width: 280px;
-  color: var(--publish-danger);
-  font-size: 12px;
-  line-height: 16px;
-}

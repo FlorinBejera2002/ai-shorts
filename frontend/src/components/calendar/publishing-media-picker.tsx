@@ -1,5 +1,6 @@
 'use client'
 
+import { useToast } from '@/components/ui/toast'
 import { apiFetch } from '@/lib/auth'
 import type { PublishingMedia } from '@/lib/content-calendar'
 import { Reorder } from 'framer-motion'
@@ -30,9 +31,9 @@ type PickerProps = {
   instagramEnabled?: boolean
   facebookEnabled?: boolean
   tiktokEnabled?: boolean
+  /** A validation message for the current media selection. Upload failures are shown as toasts. */
   error?: string
   onChange: (media: PublishingMedia[]) => void
-  onError: (message?: string) => void
   onUploadingChange: (uploading: boolean) => void
 }
 
@@ -273,10 +274,10 @@ export function PublishingMediaPicker({
   tiktokEnabled = false,
   error,
   onChange,
-  onError,
   onUploadingChange
 }: PickerProps) {
   const t = useTranslations('contentCalendar')
+  const addToast = useToast((state) => state.add)
   const inputId = useId()
   const [progress, setProgress] = useState<UploadProgress | null>(null)
   const { previews, rememberPreview, forgetPreview, releaseBlobPreviews } = useMediaPreviews(media)
@@ -302,20 +303,18 @@ export function PublishingMediaPicker({
   async function upload(files: File[]) {
     if (!files.length || disabled || controller.current) return
     if (media.length + files.length > MAX_PUBLISHING_MEDIA) {
-      onError(t('validation.mediaInvalid'))
+      addToast('error', t('validation.mediaInvalid'))
       return
     }
     const unsupported = files.find((file) => !publishingFileType(file))
     if (unsupported) {
-      onError(`${unsupported.name}: ${t('validation.mediaUnsupported')}`)
+      addToast('error', `${unsupported.name}: ${t('validation.mediaUnsupported')}`)
       return
     }
     const request = new AbortController()
     controller.current = request
     onUploadingChange(true)
-    onError(undefined)
     const uploaded = [...media]
-    const failures: string[] = []
     try {
       // Sequential on purpose: parallel uploads would exhaust mobile memory and connections,
       // and progress reports one file at a time. Successful files are kept if one fails.
@@ -335,15 +334,13 @@ export function PublishingMediaPicker({
         } catch (cause) {
           if (request.signal.aborted) return
           const key = publishingUploadErrorKey(cause)
-          failures.push(`${file.name}: ${t(`validation.${key}`)}`)
+          addToast('error', `${file.name}: ${t(`validation.${key}`)}`)
         }
       }
       await files.reduce<Promise<void>>(
         (previous, file, index) => previous.then(() => uploadOne(file, index)),
         Promise.resolve()
       )
-      if (request.signal.aborted) return
-      if (failures.length) onError(failures.join('\n'))
     } finally {
       controller.current = null
       if (!request.signal.aborted) {

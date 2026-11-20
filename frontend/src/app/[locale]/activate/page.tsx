@@ -8,6 +8,7 @@ import {
 } from '@/components/auth/auth-card-parts'
 import { CanvasButton } from '@/components/auth/canvas-button'
 import { ApiState } from '@/components/shared/api-state'
+import { useToast } from '@/components/ui/toast'
 import { publicApiFetch } from '@/lib/auth'
 import { useTranslations } from 'next-intl'
 import { useSearchParams } from 'next/navigation'
@@ -24,10 +25,9 @@ export default function ActivatePage() {
 function ActivationContent() {
   const t = useTranslations('auth')
   const tc = useTranslations('authCanvas')
+  const addToast = useToast((state) => state.add)
   const token = useSearchParams().get('token')
-  const [status, setStatus] = useState<'idle' | 'busy' | 'done' | 'error'>(
-    'idle'
-  )
+  const [status, setStatus] = useState<'idle' | 'busy' | 'done'>('idle')
 
   async function activate() {
     setStatus('busy')
@@ -40,7 +40,8 @@ function ActivationContent() {
       if (!response.ok) throw new Error('Activation failed')
       setStatus('done')
     } catch {
-      setStatus('error')
+      setStatus('idle')
+      addToast('error', tc('activate.invalidLink'))
     }
   }
 
@@ -65,9 +66,7 @@ function ActivationContent() {
         title={tc('activate.title')}
         description={tc('activate.description')}
       />
-      {(!token || status === 'error') && (
-        <AuthNotice tone="error">{tc('activate.invalidLink')}</AuthNotice>
-      )}
+      {!token && <AuthNotice>{tc('activate.invalidLink')}</AuthNotice>}
       <CanvasButton
         disabled={!token || status === 'busy'}
         onClick={() => void activate()}

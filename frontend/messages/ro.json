@@ -53,7 +53,9 @@
     "credits": "{count, plural, one {# credit} other {# credite}}",
     "clips": "{count, plural, one {# clip} other {# clipuri}}",
     "jobs": "{count, plural, one {# proiect} other {# proiecte}}",
-    "noVideoAvailable": "Niciun video disponibil"
+    "noVideoAvailable": "Niciun video disponibil",
+    "notifications": "Notificări",
+    "signOutFailed": "Deconectarea a eșuat. Încearcă din nou."
   },
   "nav": {
     "preferences": "Preferințe",
@@ -867,6 +869,7 @@
     "useFormats": "Folosește PNG, JPG sau WEBP",
     "logoTooLarge": "Logo-ul trebuie să fie sub 5MB",
     "logoUploaded": "Logo încărcat",
+    "logoRemoved": "Logo eliminat",
     "uploadFailed": "Încărcare eșuată",
     "saveFailed": "Salvare eșuată",
     "kitSaved": "Kit branding salvat",
@@ -926,6 +929,8 @@
     "fontLoading": "Se încarcă fontul…",
     "fontLoadError": "Fontul nu a putut fi încărcat. Alege alt font sau reîncearcă.",
     "fontUploadError": "Fontul nu a putut fi salvat. Reîncearcă.",
+    "fontUploaded": "Font încărcat",
+    "fontRemoved": "Font eliminat",
     "fontArchived": "Doar pentru proiectele salvate",
     "fontRetention": "Eliminarea unui font îl păstrează pentru proiectele deja salvate.",
     "fontRomanianMissing": "Acest font nu conține toate diacriticele românești. Alege alt font pentru subtitrări în română.",
@@ -1916,6 +1921,7 @@
       "versionsFailed": "Istoricul nu a putut fi încărcat",
       "restoreFailed": "Versiunea nu a putut fi restaurată",
       "archiveFailed": "Scriptul nu a putut fi arhivat",
+      "archived": "Scriptul a fost arhivat",
       "status": {
         "idea": "Idee",
         "draft": "Schiță",
@@ -2832,6 +2838,11 @@
     "moreSaveOptions": "Alte opțiuni de salvare",
     "created": "Kitul {name} a fost creat",
     "seeKits": "Vezi kiturile",
+    "deleted": "Kitul {name} a fost șters",
+    "defaultSet": "{name} este acum kitul implicit",
+    "imageChanged": "Imaginea kitului a fost schimbată",
+    "duplicated": "Kitul {name} a fost duplicat",
+    "renamed": "Kitul a fost redenumit",
     "empty": "Încă nu ai niciun kit",
     "emptyIllustration": "Ana și Radu aranjează kiturile de brand pe un raft gol",
     "loadError": "Kiturile nu s-au putut încărca",

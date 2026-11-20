@@ -16,7 +16,6 @@ import styles from './post-delete-confirmation.module.css'
 export function PostDeleteConfirmation({
   busy,
   deleting,
-  error,
   canDeleteFromFacebook,
   requiresManualInstagramDelete,
   platforms,
@@ -26,7 +25,6 @@ export function PostDeleteConfirmation({
 }: {
   busy: boolean
   deleting: boolean
-  error?: string
   canDeleteFromFacebook: boolean
   requiresManualInstagramDelete: boolean
   platforms: ContentPlatform[]
@@ -61,11 +59,6 @@ export function PostDeleteConfirmation({
       {requiresManualInstagramDelete && (
         <p className={styles.warning}>
           {t('dialog.instagramManualDeleteDescription')}
-        </p>
-      )}
-      {error && (
-        <p role="alert" className={styles.error}>
-          {error}
         </p>
       )}
       <OverlayActions

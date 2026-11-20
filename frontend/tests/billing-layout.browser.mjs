@@ -17,6 +17,11 @@ const runtimeErrors = [],
 const PERIOD_END = '2026-12-18T10:00:00Z'
 const CHECKOUT_URL = 'https://checkout.stripe.com/c/pay/cs_test_synthetic'
 const PORTAL_URL = 'https://billing.stripe.com/p/session/test_synthetic'
+// Shared toast region: result toasts are announced here, not in the page body.
+const TOAST = '[data-toast-region="corner"] [data-toast]'
+const TOAST_ERROR = '[data-toast-region="corner"] [data-toast="error"]'
+const TOAST_SUCCESS = '[data-toast-region="corner"] [data-toast="success"]'
+const TOAST_INFO = '[data-toast-region="corner"] [data-toast="info"]'
 const PLANS = {
   creator: { amount: 1900, currency: 'EUR' },
   pro: { amount: 4900, currency: 'EUR' },
@@ -301,7 +306,7 @@ async function references() {
         ['free', 'free', '', /Acces curent[\s\S]*Gratuit[\s\S]*Niciun abonament activ[\s\S]*Utilizare de probă · nu se resetează[\s\S]*5 clipuri \/ generare · 720p[\s\S]*Alege planul[\s\S]*35%[\s\S]*65% rămas[\s\S]*Nu se resetează/],
         ['past-due', 'pastDue', '', /Plata necesită atenție[\s\S]*Utilizarea rămasă este păstrată[\s\S]*Plată restantă[\s\S]*Se reînnoiește la 18 dec\. 2026/],
         ['cancel-scheduled', 'cancelScheduled', '', /nu se va reînnoi automat[\s\S]*continuă până la 18 dec\. 2026[\s\S]*Anulare programată[\s\S]*Se încheie la 18 dec\. 2026/],
-        ['success', 'success', '?checkout_session_id=cs_test_synthetic', /Plată confirmată\. Planul și limita de utilizare sunt actualizate\.[\s\S]*Pro[\s\S]*Activ[\s\S]*3× mai multă utilizare[\s\S]*4%[\s\S]*96% rămas/]
+        ['success', 'success', '?checkout_session_id=cs_test_synthetic', /Pro[\s\S]*Activ[\s\S]*3× mai multă utilizare[\s\S]*4%[\s\S]*96% rămas/]
       ]) {
         const g = await fixture({ dark, viewport, ro: true, scenario })
         try {
@@ -312,6 +317,7 @@ async function references() {
             await textMatches(g.root.locator('[data-billing-invoices]'), /Nicio factură încă/)
             assert.equal(await g.root.locator('[data-billing-view-all]').count(), 0)
           }
+          if (state === 'success') await g.page.locator('[data-toast-region="corner"] [data-toast="success"]').filter({ hasText: 'Plată confirmată' }).waitFor()
           if (state === 'past-due') {
             assert.equal(await g.root.getByRole('button', { name: 'Schimbă planul' }).count(), 0, 'Past due: billing portal only')
             const manage = g.root.locator('[data-billing-summary-actions] [data-billing-hosted="portal"]')
@@ -461,7 +467,7 @@ async function desktopControls() {
     await unsafe.root.getByRole('button', { name: 'Choose plan' }).click()
     await view(unsafe, 'plans')
     await unsafe.root.getByRole('button', { name: 'Continue in billing' }).click()
-    await unsafe.root.getByRole('alert').filter({ hasText: 'Could not start checkout.' }).waitFor()
+    await unsafe.page.locator(TOAST_ERROR).filter({ hasText: 'Could not start checkout.' }).waitFor()
     assert.match(unsafe.page.url(), /\/dashboard\/billing/)
     assert.equal(unsafe.calls.stripe.length, 0)
   } finally {
@@ -502,7 +508,7 @@ async function desktopControls() {
     pending.setScenario('success')
     await pending.root.locator('[data-billing-confirm-refresh]').click()
     await until(() => pending.calls.reconciles > reconciles, 'Confirmation refresh reconciles with Stripe')
-    await pending.root.locator('[data-billing-notice="complete"]').waitFor()
+    await pending.page.locator(TOAST_SUCCESS).filter({ hasText: 'Payment confirmed.' }).waitFor()
     // The page re-verifies the same checkout session (the sidebar's usage read has no query).
     assert.ok(pending.calls.reads.filter((search) => search.includes('checkout_session_id=cs_test_synthetic')).length >= 2)
   } finally {
@@ -526,7 +532,7 @@ async function desktopControls() {
   try {
     await notices.open('?canceled=true')
     await notices.root.locator('[data-billing-notice="test-mode"]').filter({ hasText: 'Stripe test payments' }).waitFor()
-    await notices.root.locator('[data-billing-notice="canceled"]').filter({ hasText: 'Checkout was canceled' }).waitFor()
+    await notices.page.locator(TOAST_INFO).filter({ hasText: 'Checkout was canceled' }).waitFor()
   } finally {
     await notices.close()
   }
@@ -539,7 +545,7 @@ async function policies() {
   const invalid = await fixture({ scenario: 'invalidReturn' })
   try {
     await invalid.open('?checkout_session_id=cs_test_foreign')
-    await invalid.root.locator('[data-billing-notice="invalid"][role="alert"]').filter({ hasText: "We couldn't verify this checkout" }).waitFor()
+    await invalid.page.locator(TOAST_ERROR).filter({ hasText: "We couldn't verify this checkout" }).waitFor()
     await textMatches(invalid.root.locator('[data-billing-effective-plan]'), /^Creator$/)
   } finally {
     await invalid.close()
@@ -572,7 +578,7 @@ async function policies() {
         await Promise.all([f.page.waitForURL(destination), continueButton.dblclick()])
       } else {
         await continueButton.click()
-        await f.root.getByRole('alert').filter({ hasText: 'Could not start checkout.' }).waitFor()
+        await f.page.locator(TOAST_ERROR).filter({ hasText: 'Could not start checkout.' }).waitFor()
         assert.equal(new URL(f.page.url()).origin, origin)
       }
       assert.equal(f.calls.checkouts.length, 1, `${response.kind}: one checkout request`)
@@ -586,7 +592,7 @@ async function policies() {
   try {
     await portalMismatch.open()
     await portalMismatch.root.getByRole('button', { name: 'Manage billing' }).click()
-    await portalMismatch.root.getByRole('alert').filter({ hasText: 'Could not open the billing portal.' }).waitFor()
+    await portalMismatch.page.locator(TOAST_ERROR).filter({ hasText: 'Could not open the billing portal.' }).waitFor()
     assert.equal(portalMismatch.calls.stripe.length, 0)
   } finally {
     await portalMismatch.close()

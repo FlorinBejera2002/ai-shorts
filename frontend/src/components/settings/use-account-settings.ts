@@ -22,6 +22,13 @@ type Action =
   | 'delete'
   | 'reauthenticate'
 
+/** Failures that stay beside their form (password fields, delete dialog). Every other action reports through a toast. */
+type InlineErrorAction = Extract<Action, 'password' | 'delete' | 'reauthenticate'>
+
+function isInlineErrorAction(action: Action): action is InlineErrorAction {
+  return action === 'password' || action === 'delete' || action === 'reauthenticate'
+}
+
 class SettingsRequestError extends Error {
   readonly code?: string
   constructor(message: string, code?: string) {
@@ -80,9 +87,7 @@ export function useAccountSettings(
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [busy, setBusy] = useState<Action | null>(null)
   const busyRef = useRef(false)
-  const [errors, setErrors] = useState<Partial<Record<Action, string>>>({})
-  const [verificationSent, setVerificationSent] = useState(false)
-  const [exported, setExported] = useState(false)
+  const [errors, setErrors] = useState<Partial<Record<InlineErrorAction, string>>>({})
   const blocked = externalBusy || busy !== null
   const normalizedName = normalizeDisplayName(name)
   const profileValid = normalizedName.length >= 2 && normalizedName.length <= 80
@@ -108,12 +113,14 @@ export function useAccountSettings(
       onStart: () => {
         busyRef.current = true
         setBusy(action)
-        setErrors((current) => ({ ...current, [action]: undefined }))
+        if (isInlineErrorAction(action)) setErrors((current) => ({ ...current, [action]: undefined }))
       },
       onError: (error) => {
         if (action === 'delete' && error instanceof SettingsRequestError && error.code === 'reauthentication_required')
           setProfile((current) => ({ ...current, recentlyAuthenticated: false }))
-        setErrors((current) => ({ ...current, [action]: error instanceof Error ? error.message : fallback }))
+        const message = error instanceof Error ? error.message : fallback
+        if (isInlineErrorAction(action)) setErrors((current) => ({ ...current, [action]: message }))
+        else toast.add('error', message)
       },
       onFinish: (succeeded) => {
         if (keepBusyOnSuccess && succeeded) return
@@ -147,7 +154,6 @@ export function useAccountSettings(
 
   function resetProfile() {
     setName(profile.name ?? '')
-    setErrors((current) => ({ ...current, profile: undefined }))
   }
 
   function changePassword(event: FormEvent) {
@@ -182,7 +188,6 @@ export function useAccountSettings(
 
   function resendVerification() {
     if (profile.emailVerified) return
-    setVerificationSent(false)
     void run('verification', t('verificationSendFailed'), async () => {
       await requireSuccess(
         await publicApiFetch('/v1/auth/resend-activation', {
@@ -192,19 +197,18 @@ export function useAccountSettings(
         }),
         t('verificationSendFailed')
       )
-      setVerificationSent(true)
+      toast.add('success', t('verificationSent'))
     })
   }
 
   function exportData() {
-    setExported(false)
     void run('export', t('exportFailed'), async () => {
       const response = await requireSuccess(
         await apiFetch('/api/user/data', { cache: 'no-store' }),
         t('exportFailed')
       )
       downloadJson(await response.json())
-      setExported(true)
+      toast.add('success', t('exportSuccess'))
       void queryClient.invalidateQueries({
         queryKey: ['api-resource', '/api/user/settings']
       })
@@ -276,9 +280,7 @@ export function useAccountSettings(
     resetProfile,
     changePassword,
     resendVerification,
-    verificationSent,
     exportData,
-    exported,
     deleteOpen,
     onDeleteOpenChange,
     deleteConfirmation,

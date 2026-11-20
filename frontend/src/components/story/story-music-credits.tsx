@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Check, Copy } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { toast } from '@/lib/toast'
 import type { StoryMusicOutput } from './types'
 import { useStoryLanguage } from './use-story-language'
 
@@ -38,15 +39,20 @@ export function StoryMusicCredits({ music }: { music: StoryMusicOutput }) {
   const heading = music.attribution
     ? text('Music credits', 'Credite muzicale')
     : text('Music', 'Muzică')
-  const [copyStatus, setCopyStatus] = useState<'idle' | 'copied' | 'error'>(
-    'idle'
-  )
+  const [copied, setCopied] = useState(false)
   async function copy() {
     try {
       await navigator.clipboard.writeText(music.attribution)
-      setCopyStatus('copied')
+      setCopied(true)
+      toast.success(text('Music credits copied.', 'Creditele muzicale au fost copiate.'))
     } catch {
-      setCopyStatus('error')
+      setCopied(false)
+      toast.error(
+        text(
+          'Copy was unavailable. Select and copy the credits above.',
+          'Copierea nu este disponibilă. Selectează și copiază creditele de mai sus.'
+        )
+      )
     }
   }
 
@@ -61,12 +67,12 @@ export function StoryMusicCredits({ music }: { music: StoryMusicOutput }) {
             size="sm"
             onClick={() => void copy()}
           >
-            {copyStatus === 'copied' ? (
+            {copied ? (
               <Check aria-hidden="true" />
             ) : (
               <Copy aria-hidden="true" />
             )}
-            {copyStatus === 'copied'
+            {copied
               ? text('Credits copied', 'Credite copiate')
               : text('Copy music credits', 'Copiază creditele muzicale')}
           </Button>
@@ -123,19 +129,6 @@ export function StoryMusicCredits({ music }: { music: StoryMusicOutput }) {
             {music.attribution}
           </p>
         </>
-      )}
-      {copyStatus === 'copied' && (
-        <p role="status" className="sr-only">
-          {text('Music credits copied.', 'Creditele muzicale au fost copiate.')}
-        </p>
-      )}
-      {copyStatus === 'error' && (
-        <p role="status" className="text-xs text-muted-foreground">
-          {text(
-            'Copy was unavailable. Select and copy the credits above.',
-            'Copierea nu este disponibilă. Selectează și copiază creditele de mai sus.'
-          )}
-        </p>
       )}
     </section>
   )

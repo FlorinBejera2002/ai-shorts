@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label'
 import { LoadingIndicator } from '@/components/ui/loading-indicator'
 import { PageHeader } from '@/components/ui/page-header'
 import { Textarea } from '@/components/ui/textarea'
+import { useToast } from '@/components/ui/toast'
 import { useTikTokCreatorOptions } from '@/hooks/use-tiktok-creator-options'
 import { PublishingMediaPicker } from './publishing-media-picker'
 import {
@@ -253,6 +254,7 @@ export function PostDialog({
   onDelete?: (platforms: ContentPlatform[]) => Promise<void>
 }) {
   const t = useTranslations('contentCalendar')
+  const addToast = useToast((state) => state.add)
   const isPage = presentation === 'page'
   const FieldsContainer = isPage ? Card : 'div'
   const publishingT = useTranslations('publishing')
@@ -483,8 +485,7 @@ export function PostDialog({
     setForm((current) => ({ ...current, [field]: value }))
     setErrors((current) => ({
       ...current,
-      [field]: undefined,
-      form: undefined
+      [field]: undefined
     }))
   }
 
@@ -535,8 +536,7 @@ export function PostDialog({
       platforms: undefined,
       accountIds: undefined,
       media: undefined,
-      clipId: undefined,
-      form: undefined
+      clipId: undefined
     }))
   }
 
@@ -561,8 +561,7 @@ export function PostDialog({
     }))
     setErrors((current) => ({
       ...current,
-      tiktok: undefined,
-      form: undefined
+      tiktok: undefined
     }))
   }
 
@@ -580,8 +579,7 @@ export function PostDialog({
     }))
     setErrors((current) => ({
       ...current,
-      clipId: undefined,
-      form: undefined
+      clipId: undefined
     }))
   }
 
@@ -770,10 +768,9 @@ export function PostDialog({
     }
   }
 
+  /** Maps a failed save to field errors. Errors without a field are shown as a toast instead. */
   function localizeRequestError(error: unknown): FormErrors {
-    if (!(error instanceof CalendarRequestError)) {
-      return { form: t('errors.save') }
-    }
+    if (!(error instanceof CalendarRequestError)) return {}
 
     const fieldErrors: FormErrors = {}
     for (const issue of error.issues) {
@@ -816,11 +813,17 @@ export function PostDialog({
       }
     }
 
-    if (Object.keys(fieldErrors).length > 0) return fieldErrors
-    if (error.status === 401) return { form: t('errors.auth') }
-    if (error.status === 404) return { form: t('errors.notFound') }
-    if (error.status === 429) return { form: t('errors.rateLimit') }
-    return { form: t('errors.save') }
+    return fieldErrors
+  }
+
+  /** The toast text for a failed request that has no field to attach to. */
+  function requestFailureMessage(error: unknown, fallback: string) {
+    if (error instanceof CalendarRequestError) {
+      if (error.status === 401) return t('errors.auth')
+      if (error.status === 404) return t('errors.notFound')
+      if (error.status === 429) return t('errors.rateLimit')
+    }
+    return fallback
   }
 
   async function submitPost(status: CalendarMutationStatus) {
@@ -837,7 +840,9 @@ export function PostDialog({
       await onSave(validation.payload)
       requestClose()
     } catch (error) {
-      setErrors(localizeRequestError(error))
+      const fieldErrors = localizeRequestError(error)
+      if (Object.keys(fieldErrors).length > 0) setErrors(fieldErrors)
+      else addToast('error', requestFailureMessage(error, t('errors.save')))
     } finally {
       setSaving(false)
     }
@@ -856,21 +861,7 @@ export function PostDialog({
       await onDelete(deletePlatforms)
       requestClose()
     } catch (error) {
-      if (error instanceof CalendarRequestError && error.status === 401) {
-        setErrors({ form: t('errors.auth') })
-      } else if (
-        error instanceof CalendarRequestError &&
-        error.status === 404
-      ) {
-        setErrors({ form: t('errors.notFound') })
-      } else if (
-        error instanceof CalendarRequestError &&
-        error.status === 429
-      ) {
-        setErrors({ form: t('errors.rateLimit') })
-      } else {
-        setErrors({ form: t('errors.delete') })
-      }
+      addToast('error', requestFailureMessage(error, t('errors.delete')))
       if (mode !== 'delete') setConfirmDelete(false)
     } finally {
       setDeleting(false)
@@ -891,7 +882,6 @@ export function PostDialog({
   const deleteConfirmation = confirmDelete && <PostDeleteConfirmation
     busy={busy}
     deleting={deleting}
-    error={errors.form}
     canDeleteFromFacebook={canDeleteFromFacebook}
     requiresManualInstagramDelete={requiresManualInstagramDelete}
     platforms={deletePlatforms}
@@ -928,7 +918,7 @@ export function PostDialog({
           }))
           if (clipId) handleClipChange(clipId)
           else setForm(current => ({ ...current, clipId: '', media }))
-          setErrors(current => ({ ...current, clipId: undefined, media: undefined, form: undefined }))
+          setErrors(current => ({ ...current, clipId: undefined, media: undefined }))
         }}
         onOptionsOpen={() => {
           optionsSnapshot.current = { instagram: instagramSettings, tiktok: tiktokSettings, facebook: facebookSettings, youtube: youtubeSettings }
@@ -1245,14 +1235,6 @@ export function PostDialog({
                     </div>
                   )}
                 </div>
-                {errors.form && (
-                  <div
-                    role="alert"
-                    className="mt-4 rounded-md border border-destructive/25 bg-destructive/[0.06] px-3 py-2.5 text-xs font-medium text-destructive"
-                  >
-                    {errors.form}
-                  </div>
-                )}
                 <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
                   <Button
                     type="button"
@@ -1308,17 +1290,7 @@ export function PostDialog({
                         : 'min-h-0 flex-1 space-y-7 overflow-y-auto px-5 py-5 sm:px-6 sm:py-6'
                     }
                   >
-                    {errors.form && (
-                      <m.div
-                        role="alert"
-                        initial={reduceMotion ? false : { opacity: 0, scale: 0.98 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        className="rounded-md border border-destructive/25 bg-destructive/[0.06] px-3 py-2.5 text-xs font-medium text-destructive"
-                      >
-                        {errors.form}
-                      </m.div>
-                    )}
-    
+
                     {!isReschedule && (
                       <>
                         <m.div variants={isPage ? staggerItem : undefined}>
@@ -1415,12 +1387,6 @@ export function PostDialog({
                                   disabled={busy}
                                   error={errors.media}
                                   onUploadingChange={setUploading}
-                                  onError={(message) =>
-                                    setErrors((current) => ({
-                                      ...current,
-                                      media: message
-                                    }))
-                                  }
                                   onChange={(media) => {
                                     setYouTubeSettings(current => ({ ...current, termsAccepted: false }))
                                     setTikTokSettings(current => ({
@@ -1435,8 +1401,7 @@ export function PostDialog({
                                     setErrors((current) => ({
                                       ...current,
                                       media: undefined,
-                                      clipId: undefined,
-                                      form: undefined
+                                      clipId: undefined
                                     }))
                                   }}
                                 />

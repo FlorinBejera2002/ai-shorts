@@ -225,7 +225,6 @@ export function PostComposer({
 
           <MoreDetails busy={busy} formId={formId} form={form} errors={errors} onFieldChange={onFieldChange} />
         </div>
-        {errors.form && <div className={styles.formError} role="alert">{errors.form}</div>}
         <ComposerFooter busy={busy} saving={saving} status={form.status} primaryLabel={primaryLabel}
           onDelete={onDelete} onClose={onClose} onSaveDraft={() => void onSave('draft')} />
       </form>

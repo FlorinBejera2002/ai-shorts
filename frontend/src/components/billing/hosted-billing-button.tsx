@@ -33,11 +33,7 @@ export function HostedBillingButton({
   className = ''
 }: HostedBillingButtonProps) {
   const kind = planId ? 'checkout' : 'portal'
-  const { start, busy, loading, error, errorId } = useHostedBillingAction(
-    kind,
-    planId ? { locale, planId } : { locale },
-    errorLabel
-  )
+  const { start, busy, loading } = useHostedBillingAction(kind, planId ? { locale, planId } : { locale }, errorLabel)
   const icon = loading ? <LoadingIndicator /> : <ExternalLink aria-hidden="true" />
   return (
     <span className={`${styles.wrap} ${className}`}>
@@ -47,18 +43,12 @@ export function HostedBillingButton({
         onClick={() => void start(disabled)}
         disabled={disabled || busy}
         aria-busy={loading}
-        aria-describedby={error ? errorId : undefined}
         data-billing-hosted={kind}
       >
         {iconPosition === 'start' && icon}
         <span>{loading ? loadingLabel : label}</span>
         {iconPosition === 'end' && icon}
       </button>
-      {error && (
-        <span id={errorId} className={styles.error} role="alert">
-          {error}
-        </span>
-      )}
     </span>
   )
 }

@@ -299,7 +299,7 @@ try {
   )
   await wizard.getByRole('button', { name: 'Continue', exact: true }).click()
   await page
-    .getByRole('alert')
+    .locator('[data-toast-region="corner"] [data-toast]')
     .filter({ hasText: 'caption choice conflicts' })
     .waitFor()
   await chooseStep(1)
@@ -314,12 +314,14 @@ try {
   await inspectLayout('generate')
   await build.click()
   await page
-    .getByRole('alert')
+    .locator('[data-toast-region="corner"] [data-toast]')
     .filter({ hasText: 'The action could not finish' })
     .waitFor()
   await build.click()
+  // The same failure toast is still on screen (identical toasts are reused), so wait for the request itself.
+  for (const deadline = Date.now() + 10000; submissions.length < 2 && Date.now() < deadline; ) await new Promise((resolve) => setTimeout(resolve, 100))
   await page
-    .getByRole('alert')
+    .locator('[data-toast-region="corner"] [data-toast]')
     .filter({ hasText: 'The action could not finish' })
     .waitFor()
   assert.equal(

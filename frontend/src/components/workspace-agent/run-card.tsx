@@ -3,6 +3,7 @@ import { m as motion, useReducedMotion } from 'framer-motion'
 import { Check, Copy, Undo2 } from 'lucide-react'
 import { Link } from '@/i18n/navigation'
 import { Button } from '@/components/ui/button'
+import { toast } from '@/lib/toast'
 import { safeAgentRoute, publishingConsentMissing } from './model'
 import type { AgentCommand, AgentRun } from './model'
 import type { AgentMessages } from './messages'
@@ -18,7 +19,6 @@ export function RunCard({ run, messages: m, busy, control, selectProject, upload
 }) {
   const reducedMotion = useReducedMotion()
   const [copied, setCopied] = useState(false)
-  const [copyError, setCopyError] = useState(false)
   const destination = safeAgentRoute(run.result?.route)
   const ro = m.send === 'Trimite'
   const active = ['planning', 'running', 'waiting_for_resources', 'paused'].includes(run.status)
@@ -27,8 +27,13 @@ export function RunCard({ run, messages: m, busy, control, selectProject, upload
   const response = run.reply || summary
   const completedResult = run.status === 'completed' ? run.result ?? finalStep?.result : undefined
   async function copyResponse() {
-    try { await navigator.clipboard.writeText(response ?? ''); setCopied(true); setCopyError(false) }
-    catch { setCopyError(true) }
+    try {
+      await navigator.clipboard.writeText(response ?? '')
+      setCopied(true)
+      toast.success(ro ? 'Răspuns copiat.' : 'Response copied.')
+    } catch {
+      toast.error(ro ? 'Copierea a eșuat.' : 'Copy failed.')
+    }
   }
 
   return <motion.article initial={reducedMotion ? false : { opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: reducedMotion ? 0 : 0.18 }} className="agent-message space-y-4 py-4" data-agent-run={run.id}>
@@ -61,7 +66,6 @@ export function RunCard({ run, messages: m, busy, control, selectProject, upload
       {Boolean(response || run.result?.undo) && <div className="agent-message-actions flex min-h-8 items-center gap-1" aria-label={ro ? 'Acțiuni mesaj' : 'Message actions'}>
         {response && <Button size="icon" variant="ghost" className="size-8" onClick={() => void copyResponse()} aria-label={copied ? (ro ? 'Copiat' : 'Copied') : (ro ? 'Copiază răspunsul' : 'Copy response')} title={ro ? 'Copiază răspunsul' : 'Copy response'}>{copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}</Button>}
         {run.status === 'completed' && Boolean(run.result?.undo) && <Button size="sm" variant="ghost" disabled={busy} onClick={() => control(run, 'undo')}><Undo2 className="mr-1 size-3.5" />{ro ? 'Anulează modificarea' : 'Undo change'}</Button>}
-        {copyError && <span role="alert" className="text-xs text-destructive">{ro ? 'Copierea a eșuat.' : 'Copy failed.'}</span>}
       </div>}
     </div>
   </motion.article>

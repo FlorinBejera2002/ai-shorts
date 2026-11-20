@@ -392,22 +392,6 @@ input:-webkit-autofill:focus {
     transform: rotate(360deg);
   }
 }
-@keyframes toast-in {
-  from {
-    opacity: 0;
-    transform: translateX(100%) scale(0.95);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0) scale(1);
-  }
-}
-@keyframes toast-out {
-  to {
-    opacity: 0;
-    transform: translateX(100%) scale(0.95);
-  }
-}
 @keyframes float {
   0%,
   100% {
@@ -494,12 +478,6 @@ input:-webkit-autofill:focus {
 }
 .animate-spin {
   animation: spin 1s linear infinite;
-}
-.animate-toast-in {
-  animation: toast-in 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
-}
-.animate-toast-out {
-  animation: toast-out 0.26s var(--ease-apple-in) both;
 }
 .animate-float {
   animation: float 6s ease-in-out infinite;

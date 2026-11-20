@@ -4,6 +4,7 @@ import { RefreshCw } from 'lucide-react'
 import { useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import { toast } from '@/lib/toast'
 import { authClient } from '@/lib/auth'
 import { StoryRequestError, storyRequest } from './api'
 import {
@@ -110,7 +111,6 @@ export function StoryBuilder() {
   const createID = useRef(crypto.randomUUID())
   const createBusy = useRef(false)
   const [retainedFiles, setRetainedFiles] = useState<File[]>([])
-  const requestedStep = useRef<StoryStep>(0)
 
   useEffect(() => {
     rememberProject(storageKey, id)
@@ -171,7 +171,6 @@ export function StoryBuilder() {
       return
     }
     setRetainedFiles(files)
-    requestedStep.current = nextStep
     createBusy.current = true
     setCreating(true)
     setError('')
@@ -186,14 +185,16 @@ export function StoryBuilder() {
         void queryClient.invalidateQueries({ queryKey: ['stories', userID] })
       })
       .catch((cause: unknown) => {
-        setError(
+        const message =
           cause instanceof Error
             ? storyProblem(cause.message, text)
-            : text(
-                'Could not create project.',
-                'Proiectul nu a putut fi creat.'
-              )
-        )
+            : text('Could not create project.', 'Proiectul nu a putut fi creat.')
+        toast.error(message, {
+          action: {
+            label: text('Retry creating project', 'Reîncearcă crearea proiectului'),
+            onClick: () => void createProject(files, nextStep)
+          }
+        })
       })
       .finally(() => {
         createBusy.current = false
@@ -230,23 +231,12 @@ export function StoryBuilder() {
         onSelect={selectProject}
       />
       {error && (
-        <div
+        <p
           role="alert"
-          className="space-y-2 rounded-md border p-3 text-sm text-destructive"
+          className="rounded-md border p-3 text-sm text-destructive"
         >
-          <p>{error}</p>
-          {retainedFiles.length > 0 && (
-            <Button
-              variant="outline"
-              disabled={creating}
-              onClick={() =>
-                void createProject(retainedFiles, requestedStep.current)
-              }
-            >
-              {text('Retry creating project', 'Reîncearcă crearea proiectului')}
-            </Button>
-          )}
-        </div>
+          {error}
+        </p>
       )}
       {!id ? (
         <StoryWizard
@@ -417,7 +407,7 @@ function StoryWorkspace({
       return true
     } catch (cause) {
       if (cause instanceof StoryRequestError && cause.status === 409) {
-        setError(
+        toast.error(
           text(
             'The project changed. Your choices are kept. Review them and apply again.',
             'Proiectul s-a schimbat. Alegerile tale sunt păstrate. Verifică-le și aplică din nou.'
@@ -427,7 +417,7 @@ function StoryWorkspace({
         // A rejected action is never replayed automatically against new media.
         await refresh()
       } else {
-        setError(
+        toast.error(
           cause instanceof Error
             ? storyProblem(cause.message, text)
             : text(

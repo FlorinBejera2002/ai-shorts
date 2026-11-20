@@ -6,7 +6,7 @@ import { Plus } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
 import { formatDate } from './settings-format'
 import { SettingsLoadState } from './settings-load-state'
-import { FieldError, Pill, StatusDot } from './settings-ui'
+import { Pill, StatusDot } from './settings-ui'
 import { useMountTime } from './use-mount-time'
 import { connectionCards, type ConnectionCardData, type SettingsConnectionsController } from './use-settings-connections'
 import styles from './settings.module.css'
@@ -51,7 +51,6 @@ function ConnectedCard({ provider, account, connections }: CardProps & { account
       <span className={styles.connectionExpiry}>
         <Expiry date={date} days={days} expired={expired} />
       </span>
-      <FieldError message={connections.actionError?.id === account.id || connections.actionError?.id === provider.id ? connections.actionError.message : null} />
       <div className={styles.connectionActions}>
         <button
           type="button"
@@ -91,7 +90,6 @@ function EmptyCard({ provider, connections }: CardProps) {
         </span>
         <StatusDot tone="muted">{t('notConnected')}</StatusDot>
       </div>
-      <FieldError message={connections.actionError?.id === provider.id ? connections.actionError.message : null} />
       <div className={styles.connectionActions}>
         <button
           type="button"

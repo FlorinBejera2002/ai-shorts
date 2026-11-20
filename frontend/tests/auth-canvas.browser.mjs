@@ -98,7 +98,7 @@ const STATES = {
       await page.getByLabel('Email', { exact: true }).fill('ana@exemplu.ro')
       await page.getByLabel('Parolă', { exact: true }).fill('gresita-parola')
       await page.getByRole('button', { name: 'Autentificare', exact: true }).click()
-      await page.getByRole('alert').waitFor()
+      await page.locator('[data-toast-region="corner"] [data-toast="error"]').waitFor()
     },
     api: { 'POST /v1/auth/login': () => ({ status: 401, json: { error: 'invalid', code: 'invalid' } }) }
   },
@@ -258,7 +258,7 @@ await scenario('login links point to the right destinations', async () => {
 await scenario('login error shows the alert and password toggle reveals the value', async () => {
   const { context, page } = await openState('loginError')
   try {
-    assert.match(await page.getByRole('alert').innerText(), /Email sau parolă invalidă\./)
+    assert.match(await page.locator('[data-toast-region="corner"] [data-toast="error"]').innerText(), /Email sau parolă invalidă\./)
     const password = page.getByLabel('Parolă', { exact: true })
     assert.equal(await password.getAttribute('type'), 'password')
     await page.getByRole('button', { name: 'Arată parola' }).click()

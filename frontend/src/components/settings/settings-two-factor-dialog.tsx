@@ -64,7 +64,7 @@ function SetupView({ panels, mobile }: Props) {
         </button>
       </div>
       <SettingsCodeInput value={panels.mfaCode} label={t('verificationCode')} disabled={panels.busy !== null} onChange={panels.setMfaCode} />
-      <FieldError message={panels.errorFor('mfa')} />
+      <FieldError message={panels.codeError} />
       <OverlayActions
         cancel={t('cancel')}
         confirm={t('page.activate')}
@@ -88,7 +88,6 @@ function RecoveryView({ panels }: Props) {
           <li key={code}>{code}</li>
         ))}
       </ul>
-      <FieldError message={panels.errorFor('mfa')} />
       <div className={ui.actions}>
         <button type="button" className={`${ui.button} ${ui.secondary} ${ui.focus}`} onClick={() => void panels.copy(panels.recoveryCodes.join('\n'))} data-settings-copy-codes="">
           <Copy aria-hidden="true" />
@@ -116,7 +115,7 @@ function ManageView({ panels }: Props) {
         onChange={(event) => panels.setMfaCode(event.target.value)}
         data-settings-mfa-code=""
       />
-      <FieldError message={panels.errorFor('mfa')} />
+      <FieldError message={panels.codeError} />
       <div className={ui.actions}>
         <button
           type="button"

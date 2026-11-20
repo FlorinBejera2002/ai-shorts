@@ -246,8 +246,11 @@ async function saveDraft(method) {
   assert.equal((await response).status(), 200)
   await page.getByRole('button', { name: 'New post', exact: true }).first().waitFor()
   await assertShell()
-  const dismissToast = page.locator('div.animate-toast-in').getByRole('button', { name: 'Close', exact: true })
-  while (await dismissToast.count()) await dismissToast.last().click()
+  const toasts = page.locator('[data-toast-region="corner"] [data-toast]')
+  for (let count = await toasts.count(); count > 0; count = await toasts.count()) {
+    await toasts.last().getByRole('button', { name: 'Close', exact: true }).click()
+    await toasts.nth(count - 1).waitFor({ state: 'detached' })
+  }
   return writes.at(-1).body
 }
 

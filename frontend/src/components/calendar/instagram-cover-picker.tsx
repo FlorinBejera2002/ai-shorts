@@ -1,6 +1,7 @@
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { useToast } from '@/components/ui/toast'
 import { apiFetch } from '@/lib/auth'
 import { ImageIcon } from 'lucide-react'
 import { useTranslations } from 'next-intl'
@@ -20,8 +21,8 @@ export function InstagramCoverPicker({ reference, disabled, id, onChange, onUplo
   const t = useTranslations('publishing')
   const calendarT = useTranslations('contentCalendar')
   const composerT = useTranslations('contentCalendar.composer')
+  const addToast = useToast((state) => state.add)
   const [preview, setPreview] = useState<{ reference: string; url: string } | null>(null)
-  const [error, setError] = useState('')
   const request = useRef<AbortController | null>(null)
   const fileInput = useRef<HTMLInputElement>(null)
   useEffect(() => () => request.current?.abort(), [])
@@ -40,18 +41,17 @@ export function InstagramCoverPicker({ reference, disabled, id, onChange, onUplo
   async function upload(file: File) {
     if (disabled || request.current) return
     if (publishingFileType(file) !== 'image') {
-      setError(calendarT('validation.mediaUnsupported'))
+      addToast('error', calendarT('validation.mediaUnsupported'))
       return
     }
     const controller = new AbortController()
     request.current = controller
-    setError('')
     onUploadingChange(true)
     try {
       const uploaded = await uploadPublishingFile(file, apiFetch, controller.signal)
       if (!controller.signal.aborted) onChange(uploaded.reference)
     } catch (cause) {
-      if (!controller.signal.aborted) setError(calendarT(`validation.${publishingUploadErrorKey(cause)}`))
+      if (!controller.signal.aborted) addToast('error', calendarT(`validation.${publishingUploadErrorKey(cause)}`))
     } finally {
       request.current = null
       onUploadingChange(false)
@@ -98,7 +98,6 @@ export function InstagramCoverPicker({ reference, disabled, id, onChange, onUplo
             {t('instagramRemoveCover')}
           </Button>
         )}
-        {error && <p role="alert" className="text-xs text-destructive">{error}</p>}
       </div>
     )
   }
@@ -116,7 +115,6 @@ export function InstagramCoverPicker({ reference, disabled, id, onChange, onUplo
           <Button type="button" variant="outline" size="sm" disabled={disabled} onClick={() => onChange('')}>{t('instagramRemoveCover')}</Button>
         </div>
       )}
-      {error && <p role="alert" className="text-xs text-destructive">{error}</p>}
     </div>
   )
 }

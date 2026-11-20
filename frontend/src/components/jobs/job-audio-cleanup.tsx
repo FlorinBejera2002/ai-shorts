@@ -3,6 +3,7 @@ import { useTranslations } from 'next-intl'
 import { Button } from '@/components/ui/button'
 import { apiFetch } from '@/lib/auth'
 import { extractApiError } from '@/lib/api-error'
+import { toast } from '@/lib/toast'
 
 const selectedControl = 'min-h-11 h-auto whitespace-normal bg-foreground text-background hover:bg-foreground/90 focus-visible:ring-2 focus-visible:ring-foreground focus-visible:ring-offset-2'
 const neutralControl = 'min-h-11 h-auto whitespace-normal hover:bg-muted focus-visible:ring-2 focus-visible:ring-foreground focus-visible:ring-offset-2'
@@ -25,7 +26,6 @@ export function JobAudioCleanup({ job, onRetried }: {
 }) {
   const t = useTranslations('audioCleanup')
   const [busy, setBusy] = useState(false)
-  const [error, setError] = useState('')
   const [processed, setProcessed] = useState(false)
   const active = useRef(false)
   const retryRequest = useRef<{ id: string; original: boolean } | null>(null)
@@ -38,7 +38,6 @@ export function JobAudioCleanup({ job, onRetried }: {
     if (active.current || job.processing_active) return
     active.current = true
     setBusy(true)
-    setError('')
     if (!retryRequest.current || retryRequest.current.original !== original) {
       retryRequest.current = { id: crypto.randomUUID(), original }
     }
@@ -56,7 +55,7 @@ export function JobAudioCleanup({ job, onRetried }: {
       retryRequest.current = null
       onRetried()
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : t('retryFailed'))
+      toast.error(cause instanceof Error ? cause.message : t('retryFailed'))
     } finally {
       active.current = false
       setBusy(false)
@@ -67,14 +66,13 @@ export function JobAudioCleanup({ job, onRetried }: {
     if (active.current) return
     active.current = true
     setBusy(true)
-    setError('')
     try {
       const response = await apiFetch(`/api/jobs/${job.id}/cancel`, { method: 'POST' })
       const data = await response.json()
       if (!response.ok) throw new Error(extractApiError(data, t('retryFailed')))
       onRetried()
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : t('retryFailed'))
+      toast.error(cause instanceof Error ? cause.message : t('retryFailed'))
     } finally {
       active.current = false
       setBusy(false)
@@ -95,7 +93,6 @@ export function JobAudioCleanup({ job, onRetried }: {
   return <section className="mt-5 min-w-0 space-y-4 border-t pt-5" aria-label={t('title')} aria-busy={busy}>
     {!stopped && job.status !== 'completed' && <div className="space-y-2">
       <Button className={neutralControl} variant="outline" disabled={busy} onClick={() => void cancel()}>{t('cancel')}</Button>
-      {error && <p className="text-sm text-destructive" role="alert">{error}</p>}
     </div>}
     {stopped && <div className="space-y-3">
       {cleanup?.status === 'failed' && <p className="text-sm" role="alert">{cleanupMessage}</p>}
@@ -104,7 +101,6 @@ export function JobAudioCleanup({ job, onRetried }: {
         {cleanup?.status === 'failed' && <Button className={neutralControl} variant="outline" disabled={busy || job.processing_active} onClick={() => void retry(true)}>{t('useOriginal')}</Button>}
       </div>
       {job.processing_active && <p className="text-sm text-muted-foreground" role="status">{t('stopping')}</p>}
-      {error && <p className="text-sm text-destructive" role="alert">{error}</p>}
     </div>}
     {job.original_audio_url && <details>
       <summary className="min-h-11 cursor-pointer py-3 text-sm font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground">{t('compare')}</summary>

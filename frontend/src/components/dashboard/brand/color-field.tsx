@@ -3,6 +3,7 @@
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Check, Copy, Pipette } from 'lucide-react'
+import { useToast } from '@/components/ui/toast'
 import { useTranslations } from 'next-intl'
 import { useEffect, useRef, useState } from 'react'
 import { CaptionColorPicker } from './caption-color-picker'
@@ -21,8 +22,9 @@ export function ColorField({ id, label, value, onChange, open, onOpenChange }: {
   onOpenChange?: (open: boolean) => void
 }) {
   const t = useTranslations('brand')
+  const common = useTranslations('common')
+  const addToast = useToast((state) => state.add)
   const [copied, setCopied] = useState(false)
-  const [copyError, setCopyError] = useState(false)
   const [touched, setTouched] = useState(false)
   const [localOpen, setLocalOpen] = useState(false)
   const copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -45,11 +47,14 @@ export function ColorField({ id, label, value, onChange, open, onOpenChange }: {
   async function copyHex() {
     try {
       await navigator.clipboard.writeText(value)
-      setCopied(true)
-      setCopyError(false)
-      if (copyTimer.current) clearTimeout(copyTimer.current)
-      copyTimer.current = setTimeout(() => setCopied(false), 1200)
-    } catch { setCopyError(true) }
+    } catch {
+      addToast('error', t('editorDesign.copyFailed'))
+      return
+    }
+    setCopied(true)
+    addToast('success', common('copied'))
+    if (copyTimer.current) clearTimeout(copyTimer.current)
+    copyTimer.current = setTimeout(() => setCopied(false), 1200)
   }
 
   return (
@@ -76,7 +81,6 @@ export function ColorField({ id, label, value, onChange, open, onOpenChange }: {
         </Button>
       </div>
       {touched && !valid && <p role="alert" className={styles.error}>{t('invalidHex')}</p>}
-      {copyError && <p role="alert" className={styles.error}>{t('editorDesign.copyFailed')}</p>}
     </div>
   )
 }

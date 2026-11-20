@@ -431,11 +431,6 @@
   color: var(--d);
 }
 
-.noticeSuccess {
-  background: var(--okbg);
-  color: var(--ok);
-}
-
 .noticeIcon {
   flex: none;
   width: 16px;

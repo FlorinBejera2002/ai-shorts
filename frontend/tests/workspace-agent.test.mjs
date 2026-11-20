@@ -81,6 +81,7 @@ test('waiting attachments use their explicit target instead of a stale selected 
     '@/lib/api-error': { extractApiError: (_, fallback) => fallback },
     '@/components/dashboard/brand/constants': { LOGO_MAX_BYTES: 5242880, LOGO_TYPES: [] },
     '@/components/calendar/publishing-media-utils': {},
+    '@/lib/toast': { toast: { error() {}, success() {} } },
     './api': { agentApi: { resource: async input => { registered.push(input); return { ...input, id: 'resource' } } } }
   }, 'ts', { AbortController })
   const hook = renderAttachmentsHook('stale-story')
@@ -274,6 +275,8 @@ test('ordinary Send recovers the same request after connection loss and preserve
     '@tanstack/react-query': { useQueryClient: () => client, useQuery: () => ({ isError: false }) },
     './model': { agentContext, mergeRuns, pollingDelay, resourceIdsForContext, resourceProjectFromRun, safeAgentRoute },
     './activity': { publishAgentActivity: () => {} },
+    './messages': load('messages'),
+    '@/lib/toast': { toast: { error() {}, success() {} } },
     './studio-selection': { useStudioSelection: () => null },
     './api': { AgentApiError, agentApi: { send: async body => {
       calls.push(body)

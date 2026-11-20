@@ -539,7 +539,7 @@ async function destructive() {
     await ready(h, '[data-settings-resend]')
     await h.root.locator('[data-settings-resend]').click()
     await called(h, /POST \/v1\/auth\/resend-activation \{"email":"ana@example.invalid"\}/, 'Verification resent')
-    await h.root.getByText('Verification email sent').waitFor()
+    await h.page.locator('[data-toast-region="corner"] [data-toast]').filter({ hasText: 'Verification email sent' }).waitFor()
   } finally {
     await h.close()
   }

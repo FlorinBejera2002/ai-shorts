@@ -1,11 +1,10 @@
 'use client'
 
-import { useToast } from '@/components/ui/toast'
+import { toast } from '@/lib/toast'
 import type { ClipsLibrary, LibraryClip, LibraryCollection } from '@/lib/clips-library'
 import { useTranslations } from 'next-intl'
-import { useCallback, useState } from 'react'
+import { useState } from 'react'
 import type { ClipCommands } from './clip-actions'
-import type { ClipsNotice } from './clips-feedback'
 import type { ProjectCommands } from './clips-projects'
 import type { ClipsLibraryActions } from './use-clips-library'
 
@@ -13,8 +12,8 @@ import type { ClipsLibraryActions } from './use-clips-library'
 type Naming = { project: LibraryCollection | null; clip: LibraryClip | null }
 
 /**
- * Wires the page's menus, drag & drop and dialogs to the library mutations, and keeps the
- * confirmation toast and dialog state in one place.
+ * Wires the page's menus, drag & drop and dialogs to the library mutations. Results are
+ * reported with the shared toast; dialog state stays here.
  */
 export function useClipsCommands({
   library,
@@ -26,8 +25,6 @@ export function useClipsCommands({
   onProjectDeleted: (id: string) => void
 }) {
   const t = useTranslations('clipsLibrary')
-  const errors = useToast()
-  const [notice, setNotice] = useState<ClipsNotice | null>(null)
   const [busy, setBusy] = useState(false)
   const [naming, setNaming] = useState<Naming | null>(null)
   const [nameError, setNameError] = useState<string | null>(null)
@@ -35,17 +32,14 @@ export function useClipsCommands({
   const [deletingProject, setDeletingProject] = useState<LibraryCollection | null>(null)
   const projects = library?.collections ?? []
 
-  const notify = useCallback((message: string) => setNotice({ id: Date.now(), message }), [])
-  const dismissNotice = useCallback(() => setNotice(null), [])
-
   async function move(clip: LibraryClip, projectId: string | null, projectName?: string) {
     if (clip.collectionId === projectId) return
     try {
       await actions.moveClip(clip.id, projectId)
       const name = projectName ?? projects.find((project) => project.id === projectId)?.name
-      notify(projectId && name ? t('moved', { name }) : t('movedOut'))
+      toast.success(projectId && name ? t('moved', { name }) : t('movedOut'))
     } catch {
-      errors.add('error', t('failed'))
+      toast.error(t('failed'))
     }
   }
 
@@ -53,7 +47,7 @@ export function useClipsCommands({
     try {
       await actions.setFavorite(clip.id, !clip.favorite)
     } catch {
-      errors.add('error', t('failed'))
+      toast.error(t('failed'))
     }
   }
 
@@ -81,9 +75,9 @@ export function useClipsCommands({
     try {
       await actions.deleteClip(deletingClip.id)
       setDeletingClip(null)
-      notify(t('deleted'))
+      toast.success(t('deleted'))
     } catch {
-      errors.add('error', t('failed'))
+      toast.error(t('failed'))
     } finally {
       setBusy(false)
     }
@@ -96,9 +90,9 @@ export function useClipsCommands({
       await actions.deleteProject(deletingProject.id)
       onProjectDeleted(deletingProject.id)
       setDeletingProject(null)
-      notify(t('projectDeleted'))
+      toast.success(t('projectDeleted'))
     } catch {
-      errors.add('error', t('failed'))
+      toast.error(t('failed'))
     } finally {
       setBusy(false)
     }
@@ -126,8 +120,6 @@ export function useClipsCommands({
     clipCommands,
     projectCommands,
     move,
-    notice,
-    dismissNotice,
     dialogs: {
       busy,
       naming,

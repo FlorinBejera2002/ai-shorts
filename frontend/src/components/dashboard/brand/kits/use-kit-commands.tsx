@@ -28,7 +28,7 @@ export function useKitCommands({
 }) {
   const t = useTranslations('brandKits')
   const brand = useTranslations('brand')
-  const errors = useToast()
+  const addToast = useToast((state) => state.add)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [creating, setCreating] = useState(false)
@@ -46,17 +46,22 @@ export function useKitCommands({
   }
 
   /**
-   * Runs one request with the busy flag; failures show inline (dialogs) or as a toast (menu
-   * commands). Resolves to `{ ok: true, value }` so callers update their own state afterwards.
+   * Runs one request with the busy flag. A taken name stays inline in its dialog; every other
+   * outcome is a toast. Resolves to `{ ok: true, value }` so callers update their own state afterwards.
    */
-  async function perform<T>(request: () => Promise<T>, inline: boolean): Promise<{ ok: true; value: T } | { ok: false }> {
+  async function perform<T>(
+    request: () => Promise<T>,
+    { inline = false, success }: { inline?: boolean; success?: string } = {}
+  ): Promise<{ ok: true; value: T } | { ok: false }> {
     setBusy(true)
     setError(null)
     try {
-      return { ok: true, value: await request() }
+      const value = await request()
+      if (success) addToast('success', success)
+      return { ok: true, value }
     } catch (reason) {
-      if (inline) setError(failure(reason))
-      else errors.add('error', failure(reason))
+      if (inline && reason instanceof KitRequestError && reason.status === 409) setError(failure(reason))
+      else addToast('error', failure(reason))
       return { ok: false }
     } finally {
       setBusy(false)
@@ -64,7 +69,8 @@ export function useKitCommands({
   }
 
   async function duplicate(kit: BrandKitSummary) {
-    const result = await perform(() => actions.duplicate(kit, copyName(kit.name, kits.map((item) => item.name))), false)
+    const name = copyName(kit.name, kits.map((item) => item.name))
+    const result = await perform(() => actions.duplicate(kit, name), { success: t('duplicated', { name }) })
     if (result.ok) onOpen(result.value)
   }
 
@@ -75,12 +81,12 @@ export function useKitCommands({
     else if (command === 'image') {
       imageTarget.current = kit
       imageInput.current?.click()
-    } else if (command === 'default') void perform(() => actions.setDefault(kit.id), false)
+    } else if (command === 'default') void perform(() => actions.setDefault(kit.id), { success: t('defaultSet', { name: kit.name }) })
     else if (command === 'duplicate') void duplicate(kit)
   }
 
   async function submitNew(input: { name: string; fromKitId: string | null; image: File | null }) {
-    const result = await perform(() => actions.create(input), true)
+    const result = await perform(() => actions.create(input), { inline: true, success: t('created', { name: input.name }) })
     if (!result.ok) return
     setCreating(false)
     onOpen(result.value)
@@ -89,14 +95,14 @@ export function useKitCommands({
   async function submitRename(name: string) {
     const kit = renaming
     if (!kit) return
-    const result = await perform(() => actions.rename(kit.id, name), true)
+    const result = await perform(() => actions.rename(kit.id, name), { inline: true, success: t('renamed') })
     if (result.ok) setRenaming(null)
   }
 
   async function confirmDelete() {
     const kit = deleting
     if (!kit) return
-    const result = await perform(() => actions.remove(kit.id), false)
+    const result = await perform(() => actions.remove(kit.id), { success: t('deleted', { name: kit.name }) })
     if (!result.ok) return
     onDeleted?.(kit.id)
     setDeleting(null)
@@ -104,7 +110,7 @@ export function useKitCommands({
 
   function changeImage(file: File | undefined) {
     const kit = imageTarget.current
-    if (file && kit) void perform(() => actions.changeImage(kit.id, file), false)
+    if (file && kit) void perform(() => actions.changeImage(kit.id, file), { success: t('imageChanged') })
   }
 
   const overlays = (

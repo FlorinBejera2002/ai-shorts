@@ -84,7 +84,6 @@
 .moreOptions[open] { display: grid; gap: 0; }
 .moreOptions input, .moreOptions textarea { border: 0; border-radius: 14px; background: transparent; box-shadow: inset 0 0 0 1px var(--publish-border); }
 .fieldError { margin-top: 8px; color: var(--destructive); font-size: 13px; line-height: 1.5; }
-.formError { grid-column: 1 / -1; padding: 12px 16px; border: 1px solid var(--destructive); border-radius: 14px; color: var(--destructive); font-size: 14px; }
 .footer { display: flex; grid-column: 1 / -1; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 12px; margin-top: 8px; padding: 16px 24px; border-radius: var(--publish-card-radius); background: var(--publish-surface); box-shadow: var(--publish-card-shadow); }
 .footer > button { min-height: 48px; padding-inline: 22px; border-radius: var(--publish-pill-radius); font-size: 15px; font-weight: 600; }
 .primary { order: 2; background: var(--publish-primary); color: var(--publish-on-primary); box-shadow: var(--publish-primary-shadow); }

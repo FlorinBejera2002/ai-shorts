@@ -554,7 +554,7 @@ async function documentEditing() {
     await noOverflow(f.page, 'Desktop scene editor after resize')
     await rememberShell(f.page)
     await f.workspace.getByRole('button', { name: 'Copy', exact: true }).click()
-    await f.workspace.getByRole('status').filter({ hasText: 'Copied' }).waitFor()
+    await f.page.locator('[data-toast-region="corner"] [data-toast]').filter({ hasText: 'Copied' }).waitFor()
     await capture(f, 'desktop-copied')
     const clipboard = await f.page.evaluate(() => navigator.clipboard.readText())
     assert.ok(clipboard.includes('A better morning routine') && clipboard.includes('Take one quiet breath.') && clipboard.includes('#calm #creators #morning'))
@@ -587,7 +587,7 @@ async function documentEditing() {
     assert.equal(f.records.find(record => record.id === scriptId(0)).archived, true)
     await expectCards(f, 5)
     await assertShell(f.page)
-    checks.push('Status listbox, autosave failure/retry, single selected scene edit/reorder/add/delete, hashtag chips, clipboard pill, text/JSON downloads and archive')
+    checks.push('Status listbox, autosave failure/retry, single selected scene edit/reorder/add/delete, hashtag chips, clipboard toast, text/JSON downloads and archive')
   } finally { await f.close() }
 }
 

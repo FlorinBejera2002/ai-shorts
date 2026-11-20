@@ -1,6 +1,6 @@
 'use client'
 
-import { Check, ChevronRight, Video } from 'lucide-react'
+import { ChevronRight, Video } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useState } from 'react'
 import { ScriptBrief } from './script-brief'
@@ -75,14 +75,6 @@ export function ScriptEditor({ workspace: w }: { workspace: ScriptsWorkspace }) 
           />
         </div>
       )}
-      <div className={styles.copiedRegion} role="status" aria-live="polite">
-        {w.copied && (
-          <span className={styles.copiedPill}>
-            <Check aria-hidden="true" />
-            {t('workspace.copiedShort')}
-          </span>
-        )}
-      </div>
     </div>
   )
 }

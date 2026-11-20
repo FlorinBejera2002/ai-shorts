@@ -27,3 +27,4 @@ export const WHITE_LABEL_PLAN = 'agency'
 export const LOGO_MAX_BYTES = 5 * 1024 * 1024
 export const LOGO_ACCEPT = 'image/png,image/jpeg,image/webp'
 export const LOGO_TYPES = ['image/png', 'image/jpeg', 'image/webp']
+export const BRAND_SAVED_ILLUSTRATION = '/illustrations/brand-saved.webp'

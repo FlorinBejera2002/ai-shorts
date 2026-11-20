@@ -2,23 +2,21 @@ import { LoadingIndicator } from '@/components/ui/loading-indicator'
 import type { BillingLocale } from '@/lib/billing'
 import { subscriptionPeriodKind } from '@/lib/billing'
 import type { BillingData } from '@/types/api'
-import { CircleCheck, Info, TriangleAlert } from 'lucide-react'
+import { Info, TriangleAlert } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { formatBillingDate } from './billing-format'
 import { needsPaymentAttention } from './billing-overview'
 import styles from './billing-page.module.css'
 
-type Tone = 'info' | 'warning' | 'success' | 'error'
+type Tone = 'info' | 'warning'
 type Props = {
   data: BillingData
   locale: BillingLocale
-  canceled: boolean
   confirmationDelayed: boolean
   subscriptionNeedsConfirmation: boolean
-  recoveryFailed: boolean
 }
 
-const ICONS = { info: Info, success: CircleCheck, warning: TriangleAlert, error: TriangleAlert }
+const ICONS = { info: Info, warning: TriangleAlert }
 
 function Notice({
   kind,
@@ -39,7 +37,7 @@ function Notice({
       className={styles.notice}
       data-billing-notice={kind}
       data-tone={tone}
-      role={tone === 'error' ? 'alert' : 'status'}
+      role="status"
     >
       {loading ? <LoadingIndicator className={styles.noticeIcon} /> : <Icon className={styles.noticeIcon} aria-hidden="true" />}
       <span className={styles.noticeCopy}>
@@ -50,29 +48,15 @@ function Notice({
   )
 }
 
-function CheckoutNotice({ data, canceled, confirmationDelayed }: Pick<Props, 'data' | 'canceled' | 'confirmationDelayed'>) {
+/** Only a checkout still confirming stays on the page; the outcome of a return is announced as a toast. */
+function CheckoutNotice({ data, confirmationDelayed }: Pick<Props, 'data' | 'confirmationDelayed'>) {
   const t = useTranslations('billing')
-  switch (data.checkoutVerification?.status) {
-    case 'complete':
-      return <Notice kind="complete" title={t('canvas.checkoutSuccess')} tone="success" />
-    case 'pending':
-      return confirmationDelayed ? (
-        <Notice kind="delayed" title={t('workspaceDesign.delayedTitle')} description={t('checkoutDelayed')} />
-      ) : (
-        <Notice
-          kind="pending"
-          title={t('workspaceDesign.pendingTitle')}
-          description={t('workspaceDesign.pendingDescription')}
-          loading
-        />
-      )
-    case 'invalid':
-      return <Notice kind="invalid" title={t('checkoutVerificationFailed')} tone="error" />
-    case 'unavailable':
-      return <Notice kind="unavailable" title={t('checkoutVerificationUnavailable')} tone="warning" />
-    default:
-      return canceled ? <Notice kind="canceled" title={t('checkoutCanceled')} /> : null
-  }
+  if (data.checkoutVerification?.status !== 'pending') return null
+  return confirmationDelayed ? (
+    <Notice kind="delayed" title={t('workspaceDesign.delayedTitle')} description={t('checkoutDelayed')} />
+  ) : (
+    <Notice kind="pending" title={t('workspaceDesign.pendingTitle')} description={t('workspaceDesign.pendingDescription')} loading />
+  )
 }
 
 function SubscriptionNotice({ data, locale, subscriptionNeedsConfirmation }: Pick<Props, 'data' | 'locale' | 'subscriptionNeedsConfirmation'>) {
@@ -116,14 +100,13 @@ export function BillingNotices(props: Props) {
       {props.data.mode === 'test' && (
         <Notice kind="test-mode" title={t('testModeTitle')} description={t('testModeDescription')} tone="warning" />
       )}
-      <CheckoutNotice data={props.data} canceled={props.canceled} confirmationDelayed={props.confirmationDelayed} />
+      <CheckoutNotice data={props.data} confirmationDelayed={props.confirmationDelayed} />
       <SubscriptionNotice
         data={props.data}
         locale={props.locale}
         subscriptionNeedsConfirmation={props.subscriptionNeedsConfirmation}
       />
       {!props.data.providerAvailable && <Notice kind="stale" title={t('providerStale')} tone="warning" />}
-      {props.recoveryFailed && <Notice kind="refresh-error" title={t('refreshBillingError')} tone="warning" />}
     </div>
   )
 }

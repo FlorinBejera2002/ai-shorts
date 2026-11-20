@@ -1,10 +1,11 @@
 'use client'
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useLocale } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import { useEffect, useRef, useState } from 'react'
 
 import { useAuth } from '@/components/auth/use-auth'
+import { toast } from '@/lib/toast'
 import { apiFetch } from '@/lib/auth'
 
 export type YouTubeVisibility = 'public' | 'unlisted' | 'private'
@@ -64,6 +65,7 @@ async function readLibrary(signal: AbortSignal): Promise<ImportLibrary> {
 export function useYouTubeImport(active: boolean) {
   const { user } = useAuth()
   const locale = useLocale()
+  const t = useTranslations('create.youtubeImport')
   const queryClient = useQueryClient()
   const queryKey = ['youtube-imports', user?.id] as const
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -113,6 +115,9 @@ export function useYouTubeImport(active: boolean) {
     },
     onSuccess: (url) => {
       if (!activeConnection.current?.signal.aborted) window.location.assign(url)
+    },
+    onError: () => {
+      if (!activeConnection.current?.signal.aborted) toast.error(t('connectionFailed'))
     }
   })
 
@@ -128,6 +133,9 @@ export function useYouTubeImport(active: boolean) {
     onSuccess: async ({ id, type }) => {
       if (type === 'video' && selectedId === id) setSelectedId(null)
       await queryClient.invalidateQueries({ queryKey })
+    },
+    onError: () => {
+      toast.error(t('removalFailed'))
     }
   })
 
@@ -146,10 +154,8 @@ export function useYouTubeImport(active: boolean) {
     refresh: () => library.refetch(),
     connect: (visibilities: YouTubeVisibility[]) => connect.mutate(visibilities),
     connecting: connect.isPending,
-    connectionFailed: connect.isError,
     remove: (id: string, type: 'import' | 'video') => remove.mutate({ id, type }),
-    removing: remove.isPending,
-    removalFailed: remove.isError
+    removing: remove.isPending
   }
 }
 

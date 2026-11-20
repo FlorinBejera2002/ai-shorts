@@ -24,7 +24,7 @@ function responseError(data: unknown, fallback: string) {
 
 export function useScriptsWorkspace() {
   const t = useTranslations('scriptGenerator')
-  const toast = useToast()
+  const addToast = useToast((state) => state.add)
   const [view, setView] = useState<'library' | 'editor'>('library')
   const [records, setRecords] = useState<ScriptRecord[]>([])
   const [query, setQuery] = useState('')
@@ -55,8 +55,6 @@ export function useScriptsWorkspace() {
   const [generating, setGenerating] = useState(false)
   const [updatedAt, setUpdatedAt] = useState('')
   const [creating, setCreating] = useState(false)
-  const [copied, setCopied] = useState(false)
-  const copiedTimer = useRef<number | undefined>(undefined)
 
   const payload = useMemo(
     () => ({
@@ -167,7 +165,7 @@ export function useScriptsWorkspace() {
         throw new Error(responseError(data, t('workspace.createFailed')))
       applyRecord(data.script)
     } catch (error) {
-      toast.add(
+      addToast(
         'error',
         error instanceof Error ? error.message : t('workspace.createFailed')
       )
@@ -207,7 +205,7 @@ export function useScriptsWorkspace() {
         setSaveState('saved')
       } catch (error) {
         setSaveState('error')
-        toast.add(
+        addToast(
           'error',
           error instanceof Error ? error.message : t('workspace.saveFailed')
         )
@@ -215,7 +213,7 @@ export function useScriptsWorkspace() {
         savingRef.current = false
       }
     },
-    [activeId, t, toast]
+    [activeId, t, addToast]
   )
 
   useEffect(() => {
@@ -233,11 +231,11 @@ export function useScriptsWorkspace() {
 
   async function generate() {
     if (!isPublishingProvider(platform)) {
-      toast.add('error', t('platformRequired'))
+      addToast('error', t('platformRequired'))
       return
     }
     if (!topic.trim()) {
-      toast.add('error', t('topicRequired'))
+      addToast('error', t('topicRequired'))
       return
     }
     setGenerating(true)
@@ -274,9 +272,9 @@ export function useScriptsWorkspace() {
         },
         'AI generation'
       )
-      toast.add('success', t('generateSuccess'))
+      addToast('success', t('generateSuccess'))
     } catch (error) {
-      toast.add(
+      addToast(
         'error',
         error instanceof Error ? error.message : t('generateFailed')
       )
@@ -351,7 +349,7 @@ export function useScriptsWorkspace() {
     const response = await apiFetch(`/api/scripts/items/${activeId}/versions`)
     const data = await response.json()
     if (response.ok) setVersions(data.versions ?? [])
-    else toast.add('error', responseError(data, t('workspace.versionsFailed')))
+    else addToast('error', responseError(data, t('workspace.versionsFailed')))
   }
   async function restoreVersion(versionId: string) {
     if (!activeId) return
@@ -365,11 +363,11 @@ export function useScriptsWorkspace() {
     )
     const data = await response.json()
     if (!response.ok) {
-      toast.add('error', responseError(data, t('workspace.restoreFailed')))
+      addToast('error', responseError(data, t('workspace.restoreFailed')))
       return
     }
     applyRecord(data.script)
-    toast.add('success', t('workspace.restored'))
+    addToast('success', t('workspace.restored'))
   }
   async function archiveScript() {
     if (!activeId) return
@@ -377,10 +375,11 @@ export function useScriptsWorkspace() {
       method: 'DELETE'
     })
     if (!response.ok) {
-      toast.add('error', t('workspace.archiveFailed'))
+      addToast('error', t('workspace.archiveFailed'))
       return
     }
     setView('library')
+    addToast('success', t('workspace.archived'))
     await loadLibrary()
   }
 
@@ -402,14 +401,11 @@ export function useScriptsWorkspace() {
     try {
       await navigator.clipboard.writeText(scriptText())
     } catch {
-      toast.add('error', t('workspace.copyFailed'))
+      addToast('error', t('workspace.copyFailed'))
       return
     }
-    window.clearTimeout(copiedTimer.current)
-    setCopied(true)
-    copiedTimer.current = window.setTimeout(() => setCopied(false), 2200)
+    addToast('success', t('workspace.copiedShort'))
   }
-  useEffect(() => () => window.clearTimeout(copiedTimer.current), [])
 
   function download(body: string, type: string, extension: string) {
     const url = URL.createObjectURL(new Blob([body], { type }))
@@ -442,7 +438,6 @@ export function useScriptsWorkspace() {
     libraryError,
     retryLibrary: loadLibrary,
     creating,
-    copied,
     activeId,
     revision,
     saveState,

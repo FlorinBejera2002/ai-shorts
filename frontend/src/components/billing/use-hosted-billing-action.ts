@@ -1,4 +1,5 @@
-import { useEffect, useId, useState, useSyncExternalStore } from 'react'
+import { useEffect, useState, useSyncExternalStore } from 'react'
+import { useToast } from '@/components/ui/toast'
 import { apiFetch } from '@/lib/auth'
 import { hostedBillingDestination } from '@/lib/billing'
 import { createBillingActionLock } from '@/lib/billing-action-lock'
@@ -10,10 +11,9 @@ export function useHostedBillingAction(
   payload: { locale: string; planId?: string },
   errorLabel: string
 ) {
-  const errorId = useId()
   const busy = useSyncExternalStore(actionLock.subscribe, actionLock.getSnapshot, () => false)
+  const toast = useToast()
   const [started, setStarted] = useState(false)
-  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     function restore(event: PageTransitionEvent) {
@@ -29,7 +29,6 @@ export function useHostedBillingAction(
   async function start(disabled = false) {
     if (disabled || !actionLock.acquire()) return
     setStarted(true)
-    setError(null)
     try {
       const response = await apiFetch(`/api/stripe/${kind}`, {
         method: 'POST',
@@ -43,11 +42,11 @@ export function useHostedBillingAction(
       window.location.assign(destination)
       // Hold the lock through navigation. A browser back-cache restore releases it.
     } catch {
-      setError(errorLabel)
+      toast.add('error', errorLabel)
       setStarted(false)
       actionLock.release()
     }
   }
 
-  return { start, busy, loading: busy && started, error, errorId }
+  return { start, busy, loading: busy && started }
 }

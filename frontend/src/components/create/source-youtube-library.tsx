@@ -72,7 +72,6 @@ function ImportConsent({ library }: { library: YouTubeImportLibrary }) {
           </a>
         </div>
       </div>
-      {library.connectionFailed && <p role="alert" className="text-sm text-destructive">{t('connectionFailed')}</p>}
       <div className="flex flex-wrap items-center gap-3">
         <Button
           type="button"
@@ -160,7 +159,6 @@ export function SourceYouTubeLibrary({ library }: { library: YouTubeImportLibrar
           <p className="text-xs leading-relaxed text-muted-foreground">{t('disconnectHelp')}</p>
         </section>
       )}
-      {library.removalFailed && <p role="alert" className="text-sm text-destructive">{t('removalFailed')}</p>}
       <section className="space-y-3" aria-label={t('libraryLabel')}>
         <div className="flex items-center justify-between gap-3">
           <h2 className="text-base font-semibold">{t('libraryLabel')}</h2>

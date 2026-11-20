@@ -661,44 +661,6 @@
   height: 40px;
 }
 
-/* ---------- saved notice ---------- */
-.notice {
-  position: fixed;
-  z-index: 80;
-  bottom: 24px;
-  left: calc(50% + 120px);
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  border-radius: var(--publish-card-radius);
-  background: var(--publish-surface);
-  padding: 10px 22px 10px 12px;
-  box-shadow: 0 0 0 1px var(--publish-border), 0 18px 48px rgba(0, 0, 0, 0.18);
-  transform: translateX(-50%);
-}
-
-.notice img {
-  width: 72px;
-  height: 72px;
-  flex: none;
-  object-fit: contain;
-}
-
-.noticeCopy {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.noticeCopy b {
-  font-size: 16px;
-  line-height: 22px;
-}
-
-.noticeCopy span {
-  font-size: 13px;
-}
-
 /* ---------- loading and error ---------- */
 .skeletonCard {
   display: flex;
@@ -759,7 +721,7 @@
     gap: 16px;
   }
 
-  /* Phones stack preview, notice, editor cards and the save card in one column. */
+  /* Phones stack preview, editor cards and the save card in one column. */
   .controls,
   .side {
     display: contents;
@@ -777,23 +739,8 @@
     order: 1;
   }
 
-  .side > .notice {
-    order: 2;
-  }
-
   .side > .saveCard {
     order: 4;
-  }
-
-  .notice {
-    position: static;
-    padding: 12px 14px;
-    transform: none;
-  }
-
-  .notice img {
-    width: 76px;
-    height: 76px;
   }
 
   .saveCard[data-brand-save-state='unsaved'],

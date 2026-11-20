@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import { Upload } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { toast } from '@/lib/toast'
 import { apiFetch } from '@/lib/auth'
 import { extractApiError } from '@/lib/api-error'
 import { musicUploadAccept, musicUploadProblem } from './story-music-model'
@@ -71,7 +72,7 @@ export function StoryMusicUpload({
         selection.current({ ...data, file_name: data.file_name || file.name })
     } catch (cause) {
       if (!controller.signal.aborted)
-        setError(
+        toast.error(
           cause instanceof Error
             ? cause.message
             : text('Music upload failed.', 'Încărcarea muzicii a eșuat.')

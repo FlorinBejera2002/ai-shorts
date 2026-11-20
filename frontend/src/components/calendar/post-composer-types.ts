@@ -14,6 +14,6 @@ export type PostComposerForm = {
 }
 
 export type PostComposerErrors = Partial<Record<
-  keyof PostComposerForm | 'form' | 'tiktok' | 'instagram' | 'facebook' | 'youtube',
+  keyof PostComposerForm | 'tiktok' | 'instagram' | 'facebook' | 'youtube',
   string
 >>

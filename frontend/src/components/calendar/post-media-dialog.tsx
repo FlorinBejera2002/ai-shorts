@@ -51,7 +51,6 @@ export function PostMediaDialog({
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(0)
   const [uploading, setUploading] = useState(false)
-  const [uploadError, setUploadError] = useState<string>()
   const pageSize = 4
   const normalizedSearch = search.trim().toLocaleLowerCase()
   const filteredClips = clips.filter(clip =>
@@ -134,9 +133,7 @@ export function PostMediaDialog({
                 instagramEnabled={instagramEnabled}
                 facebookEnabled={facebookEnabled}
                 tiktokEnabled={tiktokEnabled}
-                error={uploadError}
                 onChange={setSelectedMedia}
-                onError={setUploadError}
                 onUploadingChange={value => { setUploading(value); onUploadingChange(value) }}
               />
             </TabsContent>

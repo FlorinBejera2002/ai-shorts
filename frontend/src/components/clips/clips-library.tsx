@@ -8,7 +8,7 @@ import { useState } from 'react'
 import { ClipActionsSheet } from './clip-actions'
 import { ClipsBrowser, type BrowserProps } from './clips-browser'
 import { DeleteClipDialog, DeleteProjectDialog, ProjectNameDialog } from './clips-dialogs'
-import { ClipDragGhost, ClipsToast } from './clips-feedback'
+import { ClipDragGhost } from './clips-feedback'
 import { ProjectActionsSheet } from './clips-projects'
 import { ClipsEmptyLibrary, ClipsLoadError, ClipsLoadingGrid, ClipsRailSkeleton } from './clips-states'
 import { ClipsMobileToolbar, ClipsToolbar } from './clips-toolbar'
@@ -52,7 +52,6 @@ export function ClipsLibraryPage() {
     <div className={`${theme.surface} ${styles.tokens} ${styles.page}`} data-reference-surface="" data-clips-workspace="">
       <WorkspaceMobileHeader />
       <ClipsBody library={library} isPending={isPending} isError={isError} reload={reload} browser={browser} />
-      <ClipsToast notice={commands.notice} onDone={commands.dismissNotice} />
       {drag && <ClipDragGhost clip={drag.clip} targetName={targetName} ghostRef={ghostRef} />}
       <ClipActionsSheet clip={mobile ? sheetClip : null} commands={commands.clipCommands} onClose={() => setSheetClip(null)} />
       <ProjectActionsSheet

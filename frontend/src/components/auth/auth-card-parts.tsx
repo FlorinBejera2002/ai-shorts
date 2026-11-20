@@ -35,20 +35,8 @@ export function AuthDivider({ label }: { label: string }) {
   return <div className={styles.divider}>{label}</div>
 }
 
-export function AuthNotice({
-  tone,
-  children
-}: {
-  tone: 'error' | 'success'
-  children: ReactNode
-}) {
-  if (tone === 'success') {
-    return (
-      <p role="status" className={`${styles.notice} ${styles.noticeSuccess}`}>
-        {children}
-      </p>
-    )
-  }
+/** Inline error for a page state or a field that cannot be fixed by a toast; action results use toasts. */
+export function AuthNotice({ children }: { children: ReactNode }) {
   return (
     <div role="alert" className={`${styles.notice} ${styles.noticeError}`}>
       <AlertCircle aria-hidden="true" className={styles.noticeIcon} />

@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
+import { useToast } from '@/components/ui/toast'
 import { apiFetch } from '@/lib/auth'
 import type { CaptionFont, CaptionStyle } from './caption-style'
 
@@ -9,6 +10,7 @@ export function useCaptionFontLibrary({ value, onChange, onBusyChange }: {
   onBusyChange?: (busy: boolean) => void
 }) {
   const t = useTranslations('brand')
+  const addToast = useToast((state) => state.add)
   const [fonts, setFonts] = useState<CaptionFont[]>([])
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
@@ -78,9 +80,10 @@ export function useCaptionFontLibrary({ value, onChange, onBusyChange }: {
       setFonts(current => [...current.filter(item => item.id !== font.id), font])
       onChange({ ...latestValue.current, font_id: font.id, weight: font.weights[0] ?? 700 })
       setPendingFile(null)
+      addToast('success', t('fontUploaded'))
       return true
     } catch (cause) {
-      if (!controller.signal.aborted) setError(cause instanceof Error ? cause.message : t('fontUploadError'))
+      if (!controller.signal.aborted) addToast('error', cause instanceof Error ? cause.message : t('fontUploadError'))
       return false
     } finally { endRequest() }
   }
@@ -96,10 +99,11 @@ export function useCaptionFontLibrary({ value, onChange, onBusyChange }: {
       if (!response.ok) throw new Error(t('fontUploadError'))
       if (controller.signal.aborted) return
       setFonts(current => current.map(font => font.id === selected.id ? { ...font, archived: true } : font))
+      addToast('success', t('fontRemoved'))
       if (latestValue.current.font_id === selected.id)
         onChange({ ...latestValue.current, font_id: 'builtin:inter', weight: 700 })
     } catch {
-      if (!controller.signal.aborted) setError(t('fontUploadError'))
+      if (!controller.signal.aborted) addToast('error', t('fontUploadError'))
     } finally { endRequest() }
   }
 

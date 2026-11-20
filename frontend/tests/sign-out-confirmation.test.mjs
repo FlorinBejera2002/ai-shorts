@@ -12,8 +12,8 @@ function fixture(iconOnly) {
   const require = name => {
     if (name === 'react/jsx-runtime') return { jsx, jsxs: jsx, Fragment: 'Fragment' }
     if (name === 'react') return { useRef: () => ({ current: null }), useState: initial => { const index = cursor++; if (!(index in states)) states[index] = initial; return [states[index], value => { states[index] = value }] } }
-    if (name === 'next-intl') return { useLocale: () => 'en' }
-    if (name.endsWith('/toast')) return { useToast: () => ({ add() {} }) }
+    if (name === 'next-intl') return { useLocale: () => 'en', useTranslations: () => (key) => key }
+    if (name.endsWith('/toast')) return { useToast: (select = (state) => state) => select({ add() {} }) }
     if (name === '@/lib/auth') return { authClient: { logout: async () => { calls++ } } }
     if (name === '@/lib/utils') return { cn: (...values) => values.filter(Boolean).join(' ') }
     return new Proxy({}, { get: (_, key) => key })

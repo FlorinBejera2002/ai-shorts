@@ -6,7 +6,7 @@ import type { DataExport } from '@/lib/settings'
 import { Download, FileText, Package, Shield, Trash2 } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
 import { formatDate } from './settings-format'
-import { Chevron, FieldError, IconCircle, SettingsCard, StatusDot } from './settings-ui'
+import { Chevron, IconCircle, SettingsCard, StatusDot } from './settings-ui'
 import type { AccountSettingsController } from './use-account-settings'
 import type { SettingsPanelsController } from './use-settings-panels'
 import styles from './settings.module.css'
@@ -59,7 +59,6 @@ function ExportCard({ account, panels, mobile }: Props) {
         {!mobile && exportButton}
       </div>
       {mobile && <span className={styles.exportMobileAction}>{exportButton}</span>}
-      <FieldError message={account.errors.export} />
       {exports.length > 0 && (
         <div className={styles.exports} data-settings-export-history="">
           {exports.map((item) => (

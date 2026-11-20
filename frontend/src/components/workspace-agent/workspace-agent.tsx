@@ -134,11 +134,9 @@ export function WorkspaceAgent() {
       {awayFromBottom && <Button size="sm" variant="outline" className="absolute bottom-3 left-1/2 -translate-x-1/2 bg-background shadow-sm" onClick={scrollToLatest}><ArrowDown className="mr-1.5 size-3.5" />{ro ? 'Ultimele mesaje' : 'Latest messages'}</Button>}
     </div>
     <form className="shrink-0 space-y-2 bg-background p-4 pt-2" onSubmit={event => { event.preventDefault(); if (canSend) { scrollToLatest(); void agent.send() } }}>
-      {agent.error && <p role="alert" className="text-xs text-destructive">{agent.error}</p>}
       {agent.retry && <Button type="button" size="sm" variant="outline" disabled={agent.busy} onClick={() => void agent.send(agent.retry!)}>{m.retry}</Button>}
       <AgentHelpComposer locale={locale} helpMode={agent.helpMode} pendingQuestion={pendingHelp?.question} draftLength={agent.draft.length} onRegularMessage={agent.clearHelp} onAddQuestion={addQuestion} />
       {speech.listening && <p role="status" className="text-xs text-muted-foreground">{ro ? 'Se ascultă…' : 'Listening…'}</p>}
-      {speech.failed && <p role="alert" className="text-xs text-destructive">{m.speechError}</p>}
       <div className="rounded-md border bg-background focus-within:ring-2 focus-within:ring-ring">
         <textarea ref={composerRef} aria-label={m.placeholder} placeholder={m.placeholder} value={agent.draft} onChange={event => agent.setDraft(event.target.value)} onKeyDown={event => { if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing && !mobile) { event.preventDefault(); if (canSend) event.currentTarget.form?.requestSubmit() } }} maxLength={4000} rows={2} className="agent-composer-input block max-h-40 min-h-16 w-full resize-none rounded-md bg-transparent p-3 text-sm leading-relaxed outline-none" />
         <div className="flex items-center justify-between px-2 pb-2">

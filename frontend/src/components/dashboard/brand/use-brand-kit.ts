@@ -3,10 +3,12 @@
 import { useToast } from '@/components/ui/toast'
 import { useAuth } from '@/components/auth/use-auth'
 import { apiFetch } from '@/lib/auth'
+import { useTranslations } from 'next-intl'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
 import {
   BRAND_DEFAULTS,
+  BRAND_SAVED_ILLUSTRATION,
   LOGO_MAX_BYTES,
   LOGO_TYPES,
   WHITE_LABEL_PLAN
@@ -59,7 +61,8 @@ function errorMessage(data: unknown, fallback: string) {
 export function useBrandKit(t: Translate, kitId: string | null = null) {
   const endpoints = useMemo(() => kitEndpoints(kitId), [kitId])
   const [meta, setMeta] = useState<BrandKitMeta | null>(null)
-  const toast = useToast()
+  const addToast = useToast((state) => state.add)
+  const kits = useTranslations('brandKits')
   const { user } = useAuth()
   const [kit, setKit] = useState<BrandKit>(BRAND_DEFAULTS)
   const [persistedKit, setPersistedKit] = useState<BrandKit>(BRAND_DEFAULTS)
@@ -68,9 +71,6 @@ export function useBrandKit(t: Translate, kitId: string | null = null) {
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState(false)
   const [saving, setSaving] = useState(false)
-  const [saved, setSaved] = useState(false)
-  /** When the last save succeeded; drives the "Kit branding salvat" notice. */
-  const [savedAt, setSavedAt] = useState<number | null>(null)
   const [logoBusy, setLogoBusy] = useState(false)
   const [logoFile, setLogoFile] = useState<File | null>(null)
   const logoPreviewUrl = useLogoPreview(logoFile, kit.logoUrl)
@@ -126,23 +126,15 @@ export function useBrandKit(t: Translate, kitId: string | null = null) {
     [kit, persistedKit]
   )
 
-  function markEdited() {
-    setSaved(false)
-    setSavedAt(null)
-  }
-
   function update<K extends keyof BrandKit>(key: K, value: BrandKit[K]) {
-    markEdited()
     setKit((current) => ({ ...current, [key]: value }))
   }
 
   function reset() {
-    markEdited()
     setKit({ ...BRAND_DEFAULTS, logoUrl: kit.logoUrl })
   }
 
   function discard() {
-    markEdited()
     setKit(persistedKit)
   }
 
@@ -159,11 +151,12 @@ export function useBrandKit(t: Translate, kitId: string | null = null) {
 
   /**
    * "Salvează ca kit nou": creates a kit from the saved one, writes the current edits into it
-   * and leaves this kit unchanged. Returns the new kit's id, or null on failure.
+   * and leaves this kit unchanged. A taken name is returned for the dialog to show; other
+   * failures are toasted and resolve to null.
    */
-  async function saveAsNew(name: string, makeDefault: boolean): Promise<{ id: string } | { error: string } | null> {
+  async function saveAsNew(name: string, makeDefault: boolean): Promise<{ id: string } | { nameConflict: string } | null> {
     if (hasInvalidColor) {
-      toast.add('error', t('fixColors'))
+      addToast('error', t('fixColors'))
       return null
     }
     setSaving(true)
@@ -174,7 +167,11 @@ export function useBrandKit(t: Translate, kitId: string | null = null) {
         body: JSON.stringify({ name, fromKitId: meta?.id ?? null, imagePath: null })
       })
       const data = await created.json().catch(() => null)
-      if (!created.ok) return { error: created.status === 409 ? t('kitNameTaken') : errorMessage(data, t('saveFailed')) }
+      if (created.status === 409) return { nameConflict: t('kitNameTaken') }
+      if (!created.ok) {
+        addToast('error', errorMessage(data, t('saveFailed')))
+        return null
+      }
       const id = data.brandKit.id as string
       const saved = await apiFetch(`/api/brand-kits/${encodeURIComponent(id)}`, {
         method: 'PUT',
@@ -184,7 +181,8 @@ export function useBrandKit(t: Translate, kitId: string | null = null) {
       if (!saved.ok) {
         // Without its settings the copy is not what was asked for: remove it again.
         await apiFetch(`/api/brand-kits/${encodeURIComponent(id)}`, { method: 'DELETE' }).catch(() => null)
-        return { error: t('saveFailed') }
+        addToast('error', t('saveFailed'))
+        return null
       }
       if (makeDefault) {
         const promoted = await apiFetch(`/api/brand-kits/${encodeURIComponent(id)}`, {
@@ -193,12 +191,13 @@ export function useBrandKit(t: Translate, kitId: string | null = null) {
           body: JSON.stringify({ isDefault: true })
         }).catch(() => null)
         // The kit is saved; only making it the default failed.
-        if (!promoted?.ok) toast.add('error', t('saveFailed'))
+        if (!promoted?.ok) addToast('error', t('saveFailed'))
       }
       setKit(persistedKit)
       return { id }
     } catch {
-      return { error: t('saveFailed') }
+      addToast('error', t('saveFailed'))
+      return null
     } finally {
       setSaving(false)
     }
@@ -206,7 +205,7 @@ export function useBrandKit(t: Translate, kitId: string | null = null) {
 
   async function save() {
     if (hasInvalidColor) {
-      toast.add('error', t('fixColors'))
+      addToast('error', t('fixColors'))
       return
     }
     setSaving(true)
@@ -219,16 +218,15 @@ export function useBrandKit(t: Translate, kitId: string | null = null) {
       })
       const data = await response.json().catch(() => null)
       if (!response.ok) {
-        toast.add('error', errorMessage(data, t('saveFailed')))
+        addToast('error', errorMessage(data, t('saveFailed')))
         return
       }
       const nextKit = { ...kit, ...(data?.brandKit ?? payload) }
       setKit(nextKit)
       setPersistedKit(nextKit)
-      setSaved(true)
-      setSavedAt(Date.now())
+      addToast('success', t('kitSaved'), { illustration: { src: BRAND_SAVED_ILLUSTRATION, alt: kits('savedIllustration') } })
     } catch {
-      toast.add('error', t('saveFailed'))
+      addToast('error', t('saveFailed'))
     } finally {
       setSaving(false)
     }
@@ -237,11 +235,11 @@ export function useBrandKit(t: Translate, kitId: string | null = null) {
   async function uploadLogo(file: File) {
     if (logoBusy || saving) return
     if (!LOGO_TYPES.includes(file.type)) {
-      toast.add('error', t('useFormats'))
+      addToast('error', t('useFormats'))
       return
     }
     if (file.size > LOGO_MAX_BYTES) {
-      toast.add('error', t('logoTooLarge'))
+      addToast('error', t('logoTooLarge'))
       return
     }
     const previousFile = logoFile
@@ -257,16 +255,16 @@ export function useBrandKit(t: Translate, kitId: string | null = null) {
       const data = await response.json().catch(() => null)
       if (!response.ok) {
         setLogoFile(previousFile)
-        toast.add('error', errorMessage(data, t('uploadFailed')))
+        addToast('error', errorMessage(data, t('uploadFailed')))
         return
       }
       const logoUrl = data?.brandKit?.logoUrl ?? null
       setKit((current) => ({ ...current, logoUrl }))
       setPersistedKit((current) => ({ ...current, logoUrl }))
-      toast.add('success', t('logoUploaded'))
+      addToast('success', t('logoUploaded'))
     } catch {
       setLogoFile(previousFile)
-      toast.add('error', t('uploadFailed'))
+      addToast('error', t('uploadFailed'))
     } finally {
       setLogoBusy(false)
     }
@@ -280,14 +278,15 @@ export function useBrandKit(t: Translate, kitId: string | null = null) {
         method: 'DELETE'
       })
       if (!response.ok) {
-        toast.add('error', t('uploadFailed'))
+        addToast('error', t('uploadFailed'))
         return
       }
       setKit((current) => ({ ...current, logoUrl: null }))
       setPersistedKit((current) => ({ ...current, logoUrl: null }))
       setLogoFile(null)
+      addToast('success', t('logoRemoved'))
     } catch {
-      toast.add('error', t('uploadFailed'))
+      addToast('error', t('uploadFailed'))
     } finally {
       setLogoBusy(false)
     }
@@ -302,8 +301,6 @@ export function useBrandKit(t: Translate, kitId: string | null = null) {
     loading,
     loadError,
     saving,
-    saved,
-    savedAt,
     logoBusy,
     logoPreviewUrl,
     logoName: logoFile?.name,

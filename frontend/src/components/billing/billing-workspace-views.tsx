@@ -10,6 +10,7 @@ import { BillingSummary } from './billing-summary'
 import { HostedBillingButton } from './hosted-billing-button'
 import { InvoiceHistory } from './invoice-history'
 import { PlanSelector } from './plan-selector'
+import { useCheckoutReturnToast } from './use-checkout-return-toast'
 import type { useBillingResource } from './use-billing-resource'
 import ui from './billing-ui.module.css'
 import styles from './billing-page.module.css'
@@ -83,6 +84,7 @@ export function BillingWorkspaceViews({
   onNavigate
 }: Props) {
   const t = useTranslations('billing')
+  useCheckoutReturnToast(data.checkoutVerification?.status, canceled)
   const overview = billingOverview(data, unlimited)
   const { currentPlan } = overview
   const invoices = (variant: 'recent' | 'full') => (
@@ -113,10 +115,8 @@ export function BillingWorkspaceViews({
       <BillingNotices
         data={data}
         locale={locale}
-        canceled={canceled}
         confirmationDelayed={resource.confirmationDelayed}
         subscriptionNeedsConfirmation={overview.needsConfirmation}
-        recoveryFailed={resource.recoveryFailed}
       />
       <BillingSummary
         overview={overview}

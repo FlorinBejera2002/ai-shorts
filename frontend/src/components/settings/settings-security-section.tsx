@@ -120,7 +120,6 @@ function TwoFactorCard({ panels, mobile }: Pick<Props, 'panels' | 'mobile'>) {
           </button>
         </div>
       )}
-      {!panels.twoFactorView && <FieldError message={panels.errorFor('mfa')} />}
     </section>
   )
 }
@@ -192,7 +191,6 @@ function SessionsCard({ panels, mobile }: Pick<Props, 'panels' | 'mobile'>) {
         {!sessions.length && <p className={styles.meta}>{t('panelsDesign.noSessions')}</p>}
       </div>
       {mobile && revokeOthers}
-      <FieldError message={panels.errorFor('sessions')} />
     </section>
   )
 }

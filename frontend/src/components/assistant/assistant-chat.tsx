@@ -157,10 +157,9 @@ export function AssistantChat({
       const res = await apiFetch(`/api/assistant/history?${historyQuery}`, {
         method: 'DELETE'
       })
-      if (res.ok) {
-        setMessages([])
-        toast.add('success', t('cleared'))
-      }
+      if (!res.ok) throw new Error('clear_failed')
+      setMessages([])
+      toast.add('success', t('cleared'))
     } catch {
       toast.add('error', t('error'))
     }

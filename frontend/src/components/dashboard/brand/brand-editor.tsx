@@ -1,20 +1,22 @@
 'use client'
 
+import { useToast } from '@/components/ui/toast'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { useRouter } from '@/i18n/navigation'
+import { useTranslations } from 'next-intl'
 import { useState } from 'react'
 import type { BrandKitController } from './brand-workspace-types'
 import { CaptionCard } from './caption-card'
-import { KitCreatedNotice } from './kits/kit-created-notice'
 import { KitSaveAsDialog } from './kits/kit-dialogs'
 import { KitHeader } from './kits/kit-header'
 import { kitHref } from './kits/kit-model'
 import { LogoSummaryCard, LogoUploadCard } from './logo-card'
 import { LogoScreen } from './logo-screen'
 import { PreviewCard } from './preview-card'
-import { SaveCard, SavedNotice } from './save-card'
+import { SaveCard } from './save-card'
 import { useBrandPreviewMedia } from './use-brand-preview-media'
 import { useBrandPreviewPlayer } from './use-brand-preview-player'
+import { BRAND_SAVED_ILLUSTRATION } from './constants'
 import styles from './brand-editor.module.css'
 
 /** "Ana Creator" → "ana.creator", the handle shown in the social simulation. */
@@ -29,18 +31,24 @@ function handleFor(name: string | undefined) {
   return handle || undefined
 }
 
-/** "Salvează ca kit nou": create the kit, then open it with the "created" notice. */
+/** "Salvează ca kit nou": create the kit, confirm it with a toast and open it. */
 function useSaveAs(brand: BrandKitController) {
   const router = useRouter()
+  const addToast = useToast((state) => state.add)
+  const kits = useTranslations('brandKits')
   const [open, setOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
   async function submit(name: string, makeDefault: boolean) {
     setError(null)
     const result = await brand.saveAsNew(name, makeDefault)
     if (!result) return
-    if ('error' in result) return setError(result.error)
+    if ('nameConflict' in result) return setError(result.nameConflict)
     setOpen(false)
-    router.push(`${kitHref(result.id)}?created=1`)
+    addToast('success', kits('created', { name }), {
+      illustration: { src: BRAND_SAVED_ILLUSTRATION, alt: kits('savedIllustration') },
+      action: { label: kits('seeKits'), onClick: () => router.push('/dashboard/brand') }
+    })
+    router.push(kitHref(result.id))
   }
   return {
     open,
@@ -68,7 +76,6 @@ export function BrandEditor({ brand }: { brand: BrandKitController }) {
   return (
     <div className={styles.page} data-brand-workspace="" data-view={view}>
       <KitHeader meta={brand.meta} />
-      <KitCreatedNotice name={brand.meta?.name} />
       <div className={styles.layout}>
         <fieldset className={styles.controls} disabled={busy}>
           {view === 'logo' ? (
@@ -94,7 +101,6 @@ export function BrandEditor({ brand }: { brand: BrandKitController }) {
             source={source}
             player={player}
           />
-          {brand.savedAt !== null && <SavedNotice key={brand.savedAt} />}
           <SaveCard brand={brand} fontBusy={fontBusy} onSaveAs={brand.meta ? saveAs.start : undefined} />
         </div>
       </div>

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Check, Mic, Upload } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { toast } from '@/lib/toast'
 import { formatBytes, formatDuration } from '@/lib/youtube'
 import { storyRequest, uploadNarration } from './api'
 import type { StoryAsset, StoryProject } from './types'
@@ -31,7 +32,7 @@ export function StoryNarration({
   const recorder = useNarrationRecorder(containerRef)
   const input = useRef<HTMLInputElement>(null)
   const [saving, setSaving] = useState<'uploading' | 'validating' | null>(null)
-  const [error, setError] = useState('')
+  const [saveFailed, setSaveFailed] = useState(false)
   const operation = useRef<AbortController | null>(null)
   const uploaded = useRef<{
     file: File
@@ -99,7 +100,7 @@ export function StoryNarration({
     if (uploaded.current?.file !== draft.file)
       uploaded.current = { file: draft.file, id: crypto.randomUUID() }
     const attempt = uploaded.current
-    setError('')
+    setSaveFailed(false)
     setSaving(attempt.reference ? 'validating' : 'uploading')
     try {
       if (!attempt.reference)
@@ -124,8 +125,9 @@ export function StoryNarration({
         uploaded.current = null
       }
     } catch (cause) {
-      if (mounted.current && !controller.signal.aborted)
-        setError(
+      if (mounted.current && !controller.signal.aborted) {
+        setSaveFailed(true)
+        toast.error(
           cause instanceof Error
             ? cause.message
             : text(
@@ -133,6 +135,7 @@ export function StoryNarration({
                 'Narațiunea nu a putut fi salvată. Încearcă din nou.'
               )
         )
+      }
     } finally {
       operation.current = null
       if (mounted.current) setSaving(null)
@@ -142,7 +145,7 @@ export function StoryNarration({
   function discard() {
     recorder.cancel()
     uploaded.current = null
-    setError('')
+    setSaveFailed(false)
   }
 
   return (
@@ -200,7 +203,7 @@ export function StoryNarration({
             <div className="flex flex-wrap gap-2">
               <Button
                 onClick={() => {
-                  setError('')
+                  setSaveFailed(false)
                   void recorder.start()
                 }}
               >
@@ -227,7 +230,7 @@ export function StoryNarration({
               const file = event.target.files?.[0]
               event.target.value = ''
               if (file) {
-                setError('')
+                setSaveFailed(false)
                 uploaded.current = null
                 recorder.choose(file)
               }
@@ -239,7 +242,7 @@ export function StoryNarration({
               draft={recorder.draft}
               replacing={Boolean(asset)}
               saving={saving}
-              failed={Boolean(error)}
+              failed={saveFailed}
               onDuration={recorder.inspectDuration}
               onSave={() => void save()}
               onRecord={() => {
@@ -251,9 +254,9 @@ export function StoryNarration({
           )}
         </>
       )}
-      {(error || recorder.error) && (
+      {recorder.error && (
         <p role="alert" className="text-sm text-destructive">
-          {error || (recorder.error && errors[recorder.error])}
+          {errors[recorder.error]}
         </p>
       )}
     </div>

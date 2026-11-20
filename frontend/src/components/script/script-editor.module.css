@@ -611,37 +611,6 @@
   --script-badge-font: 7px;
 }
 
-/* "Copied" confirmation */
-.copiedRegion {
-  position: fixed;
-  bottom: 24px;
-  left: 50%;
-  z-index: 70;
-  translate: -50% 0;
-  pointer-events: none;
-}
-
-.copiedPill {
-  display: inline-flex;
-  height: 44px;
-  align-items: center;
-  gap: 8px;
-  padding: 0 16px;
-  border-radius: var(--publish-pill-radius);
-  background: var(--publish-selected);
-  color: var(--publish-on-selected);
-  font-size: 13px;
-  font-weight: 600;
-  box-shadow: var(--publish-dialog-shadow);
-}
-
-.copiedPill svg {
-  width: 16px;
-  height: 16px;
-  color: var(--script-copied-icon);
-  stroke-width: 2.4;
-}
-
 @media (max-width: 1023px) {
   .body {
     grid-template-columns: minmax(0, 1fr);
@@ -725,9 +694,5 @@
 
   .coachHeading h1 {
     font-size: 18px;
-  }
-
-  .copiedRegion {
-    bottom: calc(20px + env(safe-area-inset-bottom));
   }
 }

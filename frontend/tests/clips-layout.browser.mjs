@@ -223,7 +223,7 @@ async function fixture(options = {}) {
 }
 
 const cards = (f) => f.root.locator('[data-clip-card]')
-const toast = (f) => f.page.locator('[data-clips-toast]')
+const toast = (f) => f.page.locator('[data-toast-region="corner"] [data-toast]')
 const scopeLink = (f, name) => f.root.locator('[data-clips-scope]').filter({ hasText: name }).first()
 async function capture(f, name) {
   await f.page.evaluate(() => window.scrollTo(0, 0))

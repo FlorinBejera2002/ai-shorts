@@ -13,7 +13,6 @@ import { useEffect, useRef, useState } from 'react'
 import { runExclusive } from './run-exclusive'
 import { checked, isSettingsData } from './settings-data'
 
-type ErrorGroup = 'preferences' | 'notifications' | 'mfa' | 'sessions'
 export type TwoFactorView = 'setup' | 'recovery' | 'manage'
 export type NotificationKey = 'emailProduct' | 'emailMarketing' | 'inAppProcessing' | 'inAppPublishing'
 
@@ -50,9 +49,9 @@ export function useSettingsPanels(options: MutationOptions) {
   const { setTheme } = useTheme()
   const [draft, setDraft] = useState<AccountPreferences | null>(null)
   const [busy, setBusy] = useState<string | null>(null)
-  const [failure, setFailure] = useState<{ group: ErrorGroup; text: string } | null>(null)
   const [twoFactorView, setTwoFactorView] = useState<TwoFactorView | null>(null)
   const [mfaCode, setMfaCode] = useState('')
+  const [codeError, setCodeError] = useState<string | null>(null)
   const [setup, setSetup] = useState<{ secret: string; provisionerUri: string } | null>(null)
   const [recoveryCodes, setRecoveryCodes] = useState<string[]>([])
   const activeMutation = useRef<AbortController | null>(null)
@@ -66,18 +65,20 @@ export function useSettingsPanels(options: MutationOptions) {
     queryClient.setQueryData<SettingsData>(SETTINGS_KEY, (previous) => (previous ? update(previous) : previous))
   }
 
-  async function run(key: string, group: ErrorGroup, action: (signal: AbortSignal) => Promise<void>) {
+  /** Request failures become a toast; `onFailure` keeps a failure beside its input instead (wrong 2FA code). */
+  async function run(key: string, action: (signal: AbortSignal) => Promise<void>, onFailure?: (message: string) => void) {
     const controller = new AbortController()
     await runExclusive({
       claim: () => !activeMutation.current && !options.disabled && options.acquireMutation?.() !== false,
       onStart: () => {
         activeMutation.current = controller
         setBusy(key)
-        setFailure(null)
       },
       onError: (caught) => {
-        if (!controller.signal.aborted)
-          setFailure({ group, text: caught instanceof Error ? caught.message : t('settingsSaveFailed') })
+        if (controller.signal.aborted) return
+        const message = caught instanceof Error ? caught.message : t('settingsSaveFailed')
+        if (onFailure) onFailure(message)
+        else toast.add('error', message)
       },
       onFinish: () => {
         activeMutation.current = null
@@ -88,20 +89,14 @@ export function useSettingsPanels(options: MutationOptions) {
     })
   }
 
-  function errorFor(group: ErrorGroup) {
-    return failure?.group === group ? failure.text : null
-  }
-
   function changePreference<Key extends keyof AccountPreferences>(key: Key, value: AccountPreferences[Key]) {
     if (disabled || !preferences) return
     setDraft({ ...preferences, [key]: value })
-    if (failure?.group === 'preferences') setFailure(null)
   }
 
   function cancelPreferences() {
     if (busy) return
     setDraft(null)
-    if (failure?.group === 'preferences') setFailure(null)
   }
 
   async function putPreferences(snapshot: AccountPreferences, signal: AbortSignal) {
@@ -118,7 +113,7 @@ export function useSettingsPanels(options: MutationOptions) {
     const snapshot = draft
     if (!snapshot || !Number.isInteger(snapshot.defaultClipCount) || snapshot.defaultClipCount < 1 || snapshot.defaultClipCount > 10)
       return
-    await run('preferences', 'preferences', async (signal) => {
+    await run('preferences', async (signal) => {
       const next = await putPreferences(snapshot, signal)
       setDraft(null)
       setTheme(next.theme)
@@ -131,7 +126,7 @@ export function useSettingsPanels(options: MutationOptions) {
   /** Notifications save on toggle; an unsaved Preferences draft keeps the new value too. */
   async function saveNotifications(key: string, changes: Partial<Pick<AccountPreferences, NotificationKey>>, success?: string) {
     if (!saved || disabled) return
-    await run(key, 'notifications', async (signal) => {
+    await run(key, async (signal) => {
       await putPreferences({ ...saved, ...changes }, signal)
       setDraft((current) => (current ? { ...current, ...changes } : current))
       if (success) toast.add('success', success)
@@ -150,11 +145,12 @@ export function useSettingsPanels(options: MutationOptions) {
   async function openTwoFactor() {
     if (activeMutation.current || options.disabled) return
     setMfaCode('')
+    setCodeError(null)
     if (data?.mfa.enabled) {
       setTwoFactorView('manage')
       return
     }
-    await run('mfa-setup', 'mfa', async (signal) => {
+    await run('mfa-setup', async (signal) => {
       const result = await mutation<{ setup: { secret: string; provisionerUri: string } }>(
         '/api/user/mfa/setup',
         { method: 'POST' },
@@ -170,12 +166,13 @@ export function useSettingsPanels(options: MutationOptions) {
     setTwoFactorView(null)
     setMfaCode('')
     setRecoveryCodes([])
-    if (failure?.group === 'mfa') setFailure(null)
+    setCodeError(null)
   }
 
   async function enableMFA() {
     if (!/^\d{6}$/.test(mfaCode.trim())) return
-    await run('mfa-enable', 'mfa', async (signal) => {
+    setCodeError(null)
+    await run('mfa-enable', async (signal) => {
       const result = await mutation<{ recoveryCodes: string[] }>(
         '/api/user/mfa/enable',
         { method: 'POST', body: JSON.stringify({ code: mfaCode.trim() }) },
@@ -187,12 +184,13 @@ export function useSettingsPanels(options: MutationOptions) {
       setMfaCode('')
       setTwoFactorView('recovery')
       toast.add('success', t('mfaEnabledSuccess'))
-    })
+    }, setCodeError)
   }
 
   async function manageMFA(action: 'disable' | 'recovery-codes') {
     if (mfaCode.trim().length < 6) return
-    await run(`mfa-${action}`, 'mfa', async (signal) => {
+    setCodeError(null)
+    await run(`mfa-${action}`, async (signal) => {
       const result = await mutation<{ recoveryCodes?: string[] }>(
         `/api/user/mfa/${action}`,
         { method: 'POST', body: JSON.stringify({ code: mfaCode.trim() }) },
@@ -207,11 +205,11 @@ export function useSettingsPanels(options: MutationOptions) {
         setRecoveryCodes(result.recoveryCodes ?? [])
         setTwoFactorView('recovery')
       }
-    })
+    }, setCodeError)
   }
 
   async function revokeSession(id: string, current: boolean) {
-    await run(`session-${id}`, 'sessions', async (signal) => {
+    await run(`session-${id}`, async (signal) => {
       await mutation(`/api/user/sessions/${encodeURIComponent(id)}`, { method: 'DELETE' }, signal)
       if (current) {
         authClient.clearSession()
@@ -224,7 +222,7 @@ export function useSettingsPanels(options: MutationOptions) {
   }
 
   async function revokeOthers() {
-    await run('sessions', 'sessions', async (signal) => {
+    await run('sessions', async (signal) => {
       await mutation('/api/user/sessions/revoke-others', { method: 'POST' }, signal)
       updateData((previous) => ({ ...previous, sessions: previous.sessions.filter((session) => session.current) }))
       toast.add('success', t('sessionsRevoked'))
@@ -236,7 +234,7 @@ export function useSettingsPanels(options: MutationOptions) {
       await navigator.clipboard.writeText(value)
       toast.add('success', t('panelsDesign.copied'))
     } catch {
-      setFailure({ group: 'mfa', text: t('panelsDesign.copyFailed') })
+      toast.add('error', t('panelsDesign.copyFailed'))
     }
   }
 
@@ -248,7 +246,7 @@ export function useSettingsPanels(options: MutationOptions) {
     dirty: draft !== null,
     disabled,
     busy,
-    errorFor,
+    codeError,
     changePreference,
     cancelPreferences,
     savePreferences,

@@ -5,7 +5,6 @@ import ui from '@/components/shared/reference-ui.module.css'
 import { Check, ChevronDown, Plus, RotateCcw } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { DropdownMenu as Menu } from 'radix-ui'
-import { useEffect, useState } from 'react'
 import type { BrandKitController } from './brand-workspace-types'
 import { brandPortal } from './editor-utils'
 import styles from './brand-editor.module.css'
@@ -93,26 +92,5 @@ export function SaveCard({ brand, fontBusy, onSaveAs }: { brand: BrandKitControl
         {t('editor.resetDefaults')}
       </button>
     </section>
-  )
-}
-
-/** Canvas Br-Saved: "Kit branding salvat" for a few seconds after a save. */
-export function SavedNotice() {
-  const t = useTranslations('brand')
-  const kits = useTranslations('brandKits')
-  const [visible, setVisible] = useState(true)
-  useEffect(() => {
-    const timer = setTimeout(() => setVisible(false), 4000)
-    return () => clearTimeout(timer)
-  }, [])
-  if (!visible) return null
-  return (
-    <div role="status" className={styles.notice} data-brand-saved="">
-      <img src="/illustrations/brand-saved.webp" alt={kits('savedIllustration')} width={72} height={72} />
-      <span className={styles.noticeCopy}>
-        <b className={styles.heading}>{t('kitSaved')}</b>
-        <span className={styles.muted}>{t('editor.savedText')}</span>
-      </span>
-    </div>
   )
 }

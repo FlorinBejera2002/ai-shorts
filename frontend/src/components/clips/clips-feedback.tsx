@@ -1,34 +1,12 @@
 'use client'
 
 import type { LibraryClip } from '@/lib/clips-library'
-import { Check, FolderInput } from 'lucide-react'
+import { FolderInput } from 'lucide-react'
 import { useTranslations } from 'next-intl'
-import { useEffect, type RefObject } from 'react'
+import type { RefObject } from 'react'
 import { createPortal } from 'react-dom'
 import theme from '@/components/calendar/publishing-theme.module.css'
 import styles from './clips.module.css'
-
-export type ClipsNotice = { id: number; message: string }
-
-const NOTICE_MS = 4000
-
-/** Confirmation toast ("Clipul a fost mutat în Rețete."), dismissed after a few seconds. */
-export function ClipsToast({ notice, onDone }: { notice: ClipsNotice | null; onDone: () => void }) {
-  useEffect(() => {
-    if (!notice) return
-    const timer = window.setTimeout(onDone, NOTICE_MS)
-    return () => window.clearTimeout(timer)
-  }, [notice, onDone])
-  if (!notice) return null
-  return (
-    <div key={notice.id} role="status" className={`${styles.card} ${styles.toast}`} data-clips-toast="">
-      <span aria-hidden="true">
-        <Check strokeWidth={2.5} />
-      </span>
-      <b>{notice.message}</b>
-    </div>
-  )
-}
 
 /** The thumbnail that follows the pointer while a clip is dragged onto a project. */
 export function ClipDragGhost({

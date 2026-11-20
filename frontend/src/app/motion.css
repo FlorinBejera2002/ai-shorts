@@ -19,6 +19,8 @@
   --motion-dialog-out-duration: 240ms;
   --motion-popover-in-duration: 280ms;
   --motion-popover-out-duration: 180ms;
+  --motion-toast-in-duration: 420ms;
+  --motion-toast-out-duration: 260ms;
 
   --motion-backdrop-open: motion-fade-in var(--motion-backdrop-in-duration) var(--ease-apple-out) both;
   --motion-backdrop-close: motion-fade-out var(--motion-backdrop-out-duration) var(--ease-apple-in) both;
@@ -167,6 +169,48 @@
 }
 .motion-sheet[data-motion-side='top'][data-state='closed'] {
   animation-name: motion-sheet-top-out;
+}
+
+/* Toasts: corner toasts slide in from the right edge, illustrated ones rise from the bottom. */
+@keyframes motion-toast-corner-in {
+  from {
+    opacity: 0;
+    transform: translate3d(24px, 0, 0) scale(0.98);
+  }
+}
+
+@keyframes motion-toast-corner-out {
+  to {
+    opacity: 0;
+    transform: translate3d(24px, 0, 0) scale(0.98);
+  }
+}
+
+@keyframes motion-toast-rise-in {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 16px, 0) scale(0.97);
+  }
+}
+
+@keyframes motion-toast-rise-out {
+  to {
+    opacity: 0;
+    transform: translate3d(0, 12px, 0) scale(0.98);
+  }
+}
+
+.toast-corner-in {
+  animation: motion-toast-corner-in var(--motion-toast-in-duration) var(--ease-apple-out) both;
+}
+.toast-corner-out {
+  animation: motion-toast-corner-out var(--motion-toast-out-duration) var(--ease-apple-in) both;
+}
+.toast-rise-in {
+  animation: motion-toast-rise-in var(--motion-toast-in-duration) var(--ease-apple-out) both;
+}
+.toast-rise-out {
+  animation: motion-toast-rise-out var(--motion-toast-out-duration) var(--ease-apple-in) both;
 }
 
 /* Reduced motion: keep a short fade so state changes stay visible, drop movement. */

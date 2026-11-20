@@ -8,7 +8,7 @@ import type { BillingData } from '@/types/api'
 import { CreditCard } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
 import { formatDate } from './settings-format'
-import { Avatar, FieldError, IconCircle, LockedField, SettingsCard, StatusDot, TextField } from './settings-ui'
+import { Avatar, IconCircle, LockedField, SettingsCard, StatusDot, TextField } from './settings-ui'
 import type { AccountSettingsController } from './use-account-settings'
 import styles from './settings.module.css'
 import controls from './settings-controls.module.css'
@@ -38,7 +38,6 @@ function ProfileCard({ account, mobile }: Props) {
           />
           <LockedField label={t('emailAddress')} value={profile.email} />
         </div>
-        <FieldError message={account.errors.profile} />
         <div className={styles.actions}>
           {!mobile && (
             <button
@@ -105,12 +104,6 @@ function DetailsCard({ account, mobile }: Props) {
           <dd>{method}</dd>
         </div>
       </dl>
-      <FieldError message={account.errors.verification} />
-      {account.verificationSent && (
-        <p className={styles.meta} role="status">
-          {t('verificationSent')}
-        </p>
-      )}
     </SettingsCard>
   )
 }

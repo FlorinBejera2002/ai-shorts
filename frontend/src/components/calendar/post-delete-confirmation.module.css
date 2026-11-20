@@ -18,17 +18,9 @@
   accent-color: var(--publish-primary);
 }
 
-.warning,
-.error {
+.warning {
   margin: 0;
+  color: var(--publish-warning);
   font-size: 13px;
   line-height: 1.6;
-}
-
-.warning {
-  color: var(--publish-warning);
-}
-
-.error {
-  color: var(--publish-danger);
 }

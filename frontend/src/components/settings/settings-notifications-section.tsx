@@ -5,7 +5,7 @@ import { FolderKanban, Gift, LockKeyhole, MailX, Send, Sparkles, type LucideIcon
 import { useTranslations } from 'next-intl'
 import type { ReactNode } from 'react'
 import { SettingsLoadState } from './settings-load-state'
-import { FieldError, IconCircle, SettingsCard, Switch } from './settings-ui'
+import { IconCircle, SettingsCard, Switch } from './settings-ui'
 import type { NotificationKey, SettingsPanelsController } from './use-settings-panels'
 import styles from './settings.module.css'
 
@@ -73,7 +73,6 @@ export function SettingsNotificationsSection({ panels, mobile }: Props) {
       <SettingsCard list title={t('panelsDesign.inAppGroup')} data-settings-card="app-notifications">
         {IN_APP.map(toggle)}
       </SettingsCard>
-      <FieldError message={panels.errorFor('notifications')} />
     </>
   )
 }

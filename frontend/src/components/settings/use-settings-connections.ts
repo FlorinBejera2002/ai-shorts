@@ -39,7 +39,6 @@ export function useSettingsConnections(lock: { acquire: () => boolean; release: 
   const [disconnectTarget, setDisconnectTarget] = useState<PublishingAccount | null>(null)
   const [consentOpen, setConsentOpen] = useState(false)
   const [youtubeConsent, setYouTubeConsent] = useState(false)
-  const [actionError, setActionError] = useState<{ id: string; message: string } | null>(null)
   const actionLock = useRef(false)
   const busy = busyAccount !== null || starting !== null || social.busyProvider !== null
 
@@ -59,9 +58,8 @@ export function useSettingsConnections(lock: { acquire: () => boolean; release: 
         actionLock.current = true
         setStarting(provider)
         setConsentOpen(false)
-        setActionError(null)
       },
-      onError: () => setActionError({ id: provider, message: t('connectionActionFailed') }),
+      onError: () => toast.add('error', t('connectionActionFailed')),
       onFinish: () => {
         setStarting(null)
         unlock()
@@ -91,7 +89,6 @@ export function useSettingsConnections(lock: { acquire: () => boolean; release: 
 
   function askDisconnect(account: PublishingAccount) {
     if (busy) return
-    setActionError(null)
     setDisconnectTarget(account)
   }
 
@@ -107,10 +104,8 @@ export function useSettingsConnections(lock: { acquire: () => boolean; release: 
       onStart: () => {
         actionLock.current = true
         setBusyAccount(account.id)
-        setActionError(null)
       },
-      onError: (caught) =>
-        setActionError({ id: account.id, message: caught instanceof Error ? caught.message : t('connectionActionFailed') }),
+      onError: (caught) => toast.add('error', caught instanceof Error ? caught.message : t('connectionActionFailed')),
       onFinish: () => {
         setBusyAccount(null)
         unlock()
@@ -135,7 +130,6 @@ export function useSettingsConnections(lock: { acquire: () => boolean; release: 
     ...resource,
     busy,
     busyId: busyAccount ?? starting ?? social.busyProvider,
-    actionError,
     connect,
     consentOpen,
     youtubeConsent,

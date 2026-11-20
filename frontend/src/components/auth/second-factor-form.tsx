@@ -26,7 +26,7 @@ export function SecondFactorForm({
         title={tc('mfa.title')}
         description={t('secondFactorHint')}
       />
-      {errorMessage && <AuthNotice tone="error">{errorMessage}</AuthNotice>}
+      {errorMessage && <AuthNotice>{errorMessage}</AuthNotice>}
       <AuthForm action={onSubmit}>
         <CanvasField
           id="second-factor"

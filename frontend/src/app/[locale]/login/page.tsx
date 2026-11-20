@@ -6,8 +6,7 @@ import {
   AuthAccountPrompt,
   AuthDivider,
   AuthForm,
-  AuthHeading,
-  AuthNotice
+  AuthHeading
 } from '@/components/auth/auth-card-parts'
 import { CanvasButton } from '@/components/auth/canvas-button'
 import { CanvasField } from '@/components/auth/canvas-field'
@@ -17,16 +16,31 @@ import { PasswordInput } from '@/components/auth/password-input'
 import { SecondFactorForm } from '@/components/auth/second-factor-form'
 import { SubmitButton } from '@/components/auth/submit-button'
 import { ApiState } from '@/components/shared/api-state'
-import { Link } from '@/i18n/navigation'
+import { useToast } from '@/components/ui/toast'
+import { Link, usePathname, useRouter } from '@/i18n/navigation'
 import { authClient, googleSignIn, safeReturnPath } from '@/lib/auth'
 import { ApiError } from '@/lib/auth-client'
 import { useLocale, useTranslations } from 'next-intl'
 import { useSearchParams } from 'next/navigation'
-import { Suspense, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 
 interface PendingLogin {
   email: string
   password: string
+}
+
+type LoginErrorKey =
+  | 'errorInvalidCredentials'
+  | 'errorAccountExists'
+  | 'errorDatabase'
+  | 'errorGeneric'
+
+/** Copy key for an error code reported by a sign-in attempt or an OAuth return. */
+function loginErrorKey(code: string): LoginErrorKey {
+  if (code === 'CredentialsSignin') return 'errorInvalidCredentials'
+  if (code === 'account_exists') return 'errorAccountExists'
+  if (code === 'CallbackRouteError') return 'errorDatabase'
+  return 'errorGeneric'
 }
 
 export default function LoginPage() {
@@ -40,39 +54,50 @@ export default function LoginPage() {
 function LoginForm() {
   const locale = useLocale()
   const t = useTranslations('auth')
+  const addToast = useToast((state) => state.add)
   const search = useSearchParams()
-  const [error, setError] = useState(() => search.get('error'))
+  const router = useRouter()
+  const pathname = usePathname()
+  const redirectErrorCode = search.get('error')
   // Set once the password was accepted but the account requires a second factor.
   const [pendingLogin, setPendingLogin] = useState<PendingLogin | null>(null)
+  // A wrong second-factor code stays beside its field so the user can retry.
+  const [codeError, setCodeError] = useState<string | null>(null)
   const prefix = locale === 'en' ? '' : `/${locale}`
   const redirectTo = safeReturnPath(
     search.get('callbackUrl'),
     `${prefix}/dashboard`
   )
-  const errorMessage = error ? describeLoginError(error) : null
 
-  function describeLoginError(code: string) {
-    if (code === 'CredentialsSignin') return t('errorInvalidCredentials')
-    if (code === 'account_exists') return t('errorAccountExists')
-    if (code === 'CallbackRouteError') return t('errorDatabase')
-    return t('errorGeneric')
-  }
+  // A failed OAuth return is announced once; the code then leaves the URL so a reload does not repeat it.
+  useEffect(() => {
+    if (!redirectErrorCode) return
+    addToast('error', t(loginErrorKey(redirectErrorCode)))
+    const params = new URLSearchParams(window.location.search)
+    params.delete('error')
+    const query = params.toString()
+    router.replace(query ? `${pathname}?${query}` : pathname)
+  }, [redirectErrorCode, pathname, router, t, addToast])
 
-  async function attemptLogin(credentials: PendingLogin, secondFactor: string) {
-    setError(null)
+  async function attemptLogin(
+    credentials: PendingLogin,
+    secondFactor: string | null
+  ) {
+    setCodeError(null)
     try {
       await authClient.login(
         credentials.email,
         credentials.password,
-        secondFactor
+        secondFactor ?? ''
       )
       window.location.assign(redirectTo)
     } catch (caught) {
       if (caught instanceof ApiError && caught.code === 'mfa_required') {
         setPendingLogin(credentials)
-        setError(null)
+      } else if (secondFactor === null) {
+        addToast('error', t('errorInvalidCredentials'))
       } else {
-        setError('CredentialsSignin')
+        setCodeError(t('errorInvalidCredentials'))
       }
     }
   }
@@ -83,7 +108,7 @@ function LoginForm() {
         email: String(formData.get('email') ?? ''),
         password: String(formData.get('password') ?? '')
       },
-      ''
+      null
     )
   }
 
@@ -99,11 +124,11 @@ function LoginForm() {
     return (
       <AuthCanvasLayout screen="mfa">
         <SecondFactorForm
-          errorMessage={errorMessage}
+          errorMessage={codeError}
           onSubmit={submitSecondFactor}
           onBack={() => {
             setPendingLogin(null)
-            setError(null)
+            setCodeError(null)
           }}
         />
       </AuthCanvasLayout>
@@ -114,10 +139,6 @@ function LoginForm() {
     <AuthCanvasLayout screen="login">
       <AuthCanvasTabs active="login" />
       <AuthHeading title={t('welcomeBack')} />
-      {search.get('registered') === 'true' && (
-        <AuthNotice tone="success">{t('accountCreated')}</AuthNotice>
-      )}
-      {errorMessage && <AuthNotice tone="error">{errorMessage}</AuthNotice>}
       <form action={() => googleSignIn(redirectTo, locale)}>
         <CanvasButton type="submit" variant="secondary">
           <GoogleMark />
