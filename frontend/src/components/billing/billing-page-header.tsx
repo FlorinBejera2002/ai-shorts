@@ -1,5 +1,7 @@
 import { LoadingIndicator } from '@/components/ui/loading-indicator'
-import { Link } from '@/i18n/navigation'
+import { useIsMobile } from '@/hooks/use-mobile'
+import { useSwipeBack } from '@/hooks/use-swipe-back'
+import { Link, useRouter } from '@/i18n/navigation'
 import { ChevronLeft, RotateCw } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import ui from './billing-ui.module.css'
@@ -22,6 +24,8 @@ type Props = {
 export function BillingPageHeader({ title, detail = false, refreshing = false, onBack, onRefresh }: Props) {
   const t = useTranslations('billing')
   const nav = useTranslations('nav')
+  const router = useRouter()
+  useSwipeBack(() => (detail ? onBack?.() : router.push('/dashboard/settings')), useIsMobile())
   return (
     <div className={styles.header} data-detail={detail || undefined}>
       {detail ? (

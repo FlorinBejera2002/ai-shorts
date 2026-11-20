@@ -2,7 +2,8 @@
 
 import { ConnectionSuccessOverlay } from '@/components/calendar/connection-success-overlay'
 import ui from '@/components/shared/reference-ui.module.css'
-import { Link } from '@/i18n/navigation'
+import { useSwipeBack } from '@/hooks/use-swipe-back'
+import { Link, useRouter } from '@/i18n/navigation'
 import { ChevronLeft } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useMemo, useRef, type ReactNode } from 'react'
@@ -56,6 +57,8 @@ export function SettingsWorkspace({
   const connections = useSettingsConnections(lock)
   const account = useAccountSettings(profile, panels.busy !== null || connections.busy, lock.acquire, lock.release)
   const active = section ?? 'account'
+  const router = useRouter()
+  useSwipeBack(() => router.push(settingsHref(null)), mobile && section !== null)
 
   const sections: Record<SettingsSection, () => ReactNode> = {
     account: () => <SettingsAccountSection account={account} mobile={mobile} />,

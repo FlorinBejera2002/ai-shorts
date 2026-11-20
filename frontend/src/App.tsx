@@ -15,6 +15,7 @@ import LoginPage from '@/app/[locale]/login/page'
 import RegisterPage from '@/app/[locale]/register/page'
 import ResetPasswordPage from '@/app/[locale]/reset-password/page'
 import { ThemeProvider } from '@/components/shared/theme-provider'
+import { SwipeBackIndicator } from '@/components/shared/swipe-back-indicator'
 import { Toaster } from '@/components/ui/toast'
 import { NextIntlClientProvider } from 'next-intl'
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
@@ -115,6 +116,8 @@ function App() {
           <RouteEffects locale={locale} />
           <ApplicationRoutes locale={locale} />
           <Toaster />
+
+          <SwipeBackIndicator />
         </QueryProvider>
       </NextIntlClientProvider>
     </ThemeProvider>

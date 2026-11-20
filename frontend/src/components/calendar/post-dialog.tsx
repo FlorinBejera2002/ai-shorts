@@ -32,6 +32,8 @@ import {
   validateTikTokDirectPost
 } from '@/lib/tiktok-direct-post'
 import { AnimatePresence, domAnimation, LazyMotion, m, type Transition, useReducedMotion } from 'framer-motion'
+import { useIsMobile } from '@/hooks/use-mobile'
+import { useSwipeBack } from '@/hooks/use-swipe-back'
 import { backdropEnter, backdropExit, dialogEnter, dialogExit } from '@/lib/motion'
 import {
   AlertTriangle,
@@ -278,6 +280,8 @@ export function PostDialog({
     else setVisible(false)
   }, [isPage, mode, onClose])
   const requestCloseRef = useRef(requestClose)
+  // The full-page composer goes back with an edge swipe on phones, like its Back button.
+  const swipeBackEnabled = useIsMobile() && isPage
   const busyRef = useRef(false)
   const [mounted, setMounted] = useState(false)
   const [form, setForm] = useState<FormState>(() =>
@@ -321,6 +325,7 @@ export function PostDialog({
   } | null>(null)
   // A closing dialog stays busy so a second submit cannot fire during its exit.
   const busy = saving || deleting || uploading || !visible
+  useSwipeBack(requestClose, swipeBackEnabled && !busy)
 
   const publishedProviders = useMemo(
     () => [

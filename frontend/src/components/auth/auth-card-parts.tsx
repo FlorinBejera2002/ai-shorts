@@ -1,6 +1,8 @@
 'use client'
 
-import { Link } from '@/i18n/navigation'
+import { useIsMobile } from '@/hooks/use-mobile'
+import { useSwipeBack } from '@/hooks/use-swipe-back'
+import { Link, useRouter } from '@/i18n/navigation'
 import { AlertCircle, ArrowLeft } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import type { ComponentProps, ReactNode } from 'react'
@@ -75,6 +77,8 @@ export function AuthBackLink({
   href?: string
   onClick?: () => void
 }) {
+  const router = useRouter()
+  useSwipeBack(() => (href ? router.push(href) : onClick?.()), useIsMobile())
   const content = (
     <>
       <ArrowLeft aria-hidden="true" width={16} height={16} />

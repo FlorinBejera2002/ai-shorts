@@ -1,4 +1,5 @@
 import { ThemeProvider } from '@/components/shared/theme-provider'
+import { SwipeBackIndicator } from '@/components/shared/swipe-back-indicator'
 import { Toaster } from '@/components/ui/toast'
 import { routing } from '@/i18n/navigation'
 import {
@@ -105,6 +106,8 @@ export default async function LocaleLayout({
           <NextIntlClientProvider messages={messages}>
             {children}
             <Toaster />
+
+            <SwipeBackIndicator />
           </NextIntlClientProvider>
         </ThemeProvider>
       </body>

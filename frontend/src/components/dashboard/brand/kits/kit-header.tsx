@@ -2,6 +2,7 @@
 
 import ui from '@/components/shared/reference-ui.module.css'
 import { useIsMobile } from '@/hooks/use-mobile'
+import { useSwipeBack } from '@/hooks/use-swipe-back'
 import { Link, useRouter } from '@/i18n/navigation'
 import { ChevronLeft } from 'lucide-react'
 import { useTranslations } from 'next-intl'
@@ -30,6 +31,7 @@ export function KitHeader({ meta }: { meta: BrandKitMeta | null }) {
     onOpen: (id) => router.push(kitHref(id)),
     onDeleted: () => router.push('/dashboard/brand')
   })
+  useSwipeBack(() => router.push('/dashboard/brand'), mobile)
   return (
     <div className={styles.kitHeader} data-kit-header="">
       <Link href="/dashboard/brand" className={`${ui.button} ${ui.secondary} ${ui.focus} ${styles.kitBack}`}>

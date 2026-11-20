@@ -20,6 +20,8 @@ import {
 import { useTranslations } from 'next-intl'
 import { Popover } from 'radix-ui'
 import { useState } from 'react'
+import { useIsMobile } from '@/hooks/use-mobile'
+import { useSwipeBack } from '@/hooks/use-swipe-back'
 import { ScriptSaveStatus } from './script-save-status'
 import { ScriptSheet } from './script-sheet'
 import { ScriptStatusSelect } from './script-status-select'
@@ -39,6 +41,7 @@ export function ScriptEditorToolbar({
 }) {
   const t = useTranslations('scriptGenerator')
   const [actionsOpen, setActionsOpen] = useState(false)
+  useSwipeBack(w.backToLibrary, useIsMobile())
   const archived = w.status === 'archived'
   const versionList = (
     <ScriptVersionList
