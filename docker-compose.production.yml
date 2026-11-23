@@ -57,6 +57,7 @@ services:
     image: clamav/clamav:stable
     volumes:
       - clamav_data:/var/lib/clamav
+      - ./deploy/clamd.conf:/etc/clamav/clamd.conf:ro
     mem_limit: 4g
     cpus: 2
     pids_limit: 128

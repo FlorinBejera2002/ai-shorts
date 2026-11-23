@@ -44,7 +44,11 @@ type HTTPError struct {
 	Message    string
 }
 
-func (e *HTTPError) Error() string             { return e.Message }
+func (e *HTTPError) Error() string { return e.Message }
+
+// Temporary reports server-side failures (5xx) that may succeed on a later attempt.
+func (e *HTTPError) Temporary() bool { return e.Status >= 500 }
+
 func failure(status int, message string) error { return &HTTPError{Status: status, Message: message} }
 func (s *Service) KeyFromReference(reference string) (string, error) {
 	key, err := keyFromReference(reference, s.cfg.LocalRoot, s.cfg.PublicBaseURL, s.cfg.AppURL)

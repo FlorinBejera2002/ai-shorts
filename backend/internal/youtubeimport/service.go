@@ -286,6 +286,17 @@ func authorizationRejected(err error) bool {
 	return errors.As(err, &api) && (api.StatusCode == 401 || api.StatusCode == 403 || api.Code == "invalid_grant")
 }
 
+// errVideosSkipped reports that the archive was read but at least one video was
+// rejected (malware scan, size, signature or conversion); the others were kept.
+var errVideosSkipped = errors.New("some YouTube videos were skipped")
+
+// temporaryFailure reports an ImportSource error that may pass on a later attempt
+// (scanner or storage unavailable), as opposed to a rejection of the video itself.
+func temporaryFailure(err error) bool {
+	var temporary interface{ Temporary() bool }
+	return errors.As(err, &temporary) && temporary.Temporary()
+}
+
 func (h *Handler) importVideos(ctx context.Context, work importWork, urls []string) error {
 	root := h.cfg.TempRoot
 	if root == "" {
@@ -299,7 +310,8 @@ func (h *Handler) importVideos(ctx context.Context, work importWork, urls []stri
 		return err
 	}
 	defer os.RemoveAll(directory)
-	return h.client.ImportArchives(ctx, urls, directory, h.cfg.Limits, func(ctx context.Context, video ImportedVideo) error {
+	skipped := 0
+	err = h.client.ImportArchives(ctx, urls, directory, h.cfg.Limits, func(ctx context.Context, video ImportedVideo) error {
 		if err := h.renewLease(ctx, work); err != nil {
 			return err
 		}
@@ -309,7 +321,14 @@ func (h *Handler) importVideos(ctx context.Context, work importWork, urls []stri
 		}
 		key, err := h.media.ImportSource(ctx, work.UserID, video)
 		if err != nil {
-			return err
+			if ctx.Err() != nil || temporaryFailure(err) {
+				return err
+			}
+			// One rejected video must not drop the rest of the export. The title stays
+			// out of the log; the size and cause are enough to diagnose limits.
+			skipped++
+			slog.Warn("YouTube import skipped a video", "import_id", work.ID, "bytes", video.Size, "error", err)
+			return nil
 		}
 		if sized, ok := h.media.(interface {
 			ImportSourceSize(context.Context, string) (int64, error)
@@ -344,4 +363,8 @@ func (h *Handler) importVideos(ctx context.Context, work importWork, urls []stri
 		}
 		return err
 	})
+	if err == nil && skipped > 0 {
+		err = errVideosSkipped
+	}
+	return err
 }

@@ -32,6 +32,7 @@ services:
     profiles: ["security"]
     volumes:
       - clamav_data:/var/lib/clamav
+      - ./deploy/clamd.conf:/etc/clamav/clamd.conf:ro
     expose:
       - "3310"
     mem_limit: 4g
