@@ -83,8 +83,14 @@ export function FootageThumbs({ assets, videos }: { assets: StoryAsset[]; videos
   )
 }
 
+/** Status pill of the sound, result and brand rows. Long labels end in an ellipsis so the pill keeps its canvas height. */
 export function Chip({ children }: { children: ReactNode }) {
-  return <span className="creare-review-chip">{children}</span>
+  const label = typeof children === 'string' ? children : undefined
+  return (
+    <span className="creare-review-chip" title={label}>
+      {children}
+    </span>
+  )
 }
 
 /** Brief text with its footage references shown as "Filmarea N" tags. */
@@ -102,8 +108,10 @@ export function BriefText({
       {keyedBriefSegments(brief).map(({ key, segment }) => {
         if (segment.type === 'text') return <span key={key}>{segment.value}</span>
         const number = footageNumber(videos, segment.assetId)
+        const asset = videos.find((video) => video.id === segment.assetId)
         return number ? (
           <span key={key} className="creare-review-tag">
+            {asset?.thumbnail_url ? <img src={asset.thumbnail_url} alt="" /> : null}
             {footageLabel(number)}
           </span>
         ) : null

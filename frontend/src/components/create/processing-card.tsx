@@ -78,6 +78,7 @@ export function ProcessingCard({
       aria-label={title}
       data-testid={testID}
       data-animated={animated || undefined}
+      data-with-source={source ? '' : undefined}
     >
       <div className={`${styles.art} ${animated ? styles.animated : ''}`}>
         <span className={styles.disc} aria-hidden="true" />

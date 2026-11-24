@@ -193,6 +193,7 @@ function LibraryVideoRow({ video, selected, disabled, onToggle }: LibraryVideoRo
         <span className="yt-library-row__title">{video.title}</span>
         <span className="yt-library-row__meta">
           <span>{formatPublishedDate(locale, video.published_at)}</span>
+          <span aria-hidden="true">·</span>
           <span>{formatDuration(video.duration_seconds)}</span>
           <span className={`yt-chip yt-chip--${video.visibility}`}>{t(`visibility.${video.visibility}`)}</span>
         </span>

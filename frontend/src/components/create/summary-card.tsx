@@ -8,6 +8,7 @@ import { useAuth } from '@/components/auth/use-auth'
 import { Button } from '@/components/ui/button'
 import { LoadingIndicator } from '@/components/ui/loading-indicator'
 import { Link } from '@/i18n/navigation'
+import { useMonthlyUsage } from '@/components/dashboard/sidebar-usage'
 import { apiFetch } from '@/lib/auth'
 
 interface SummaryCardProps {
@@ -95,16 +96,34 @@ function ImportConsent({ consented, onChange }: { consented: boolean; onChange: 
 
 /**
  * Canvas limit block, shown instead of Generate when the account is out of credits (checked
- * before submit or rejected by the server). Usage is not shown: there is no live monthly figure.
+ * before submit or rejected by the server). The monthly usage shows when the plan has an allowance.
  */
 function LimitNotice({ message }: { message: string | null }) {
   const t = useTranslations('create.limit')
+  const usage = useMonthlyUsage().data ?? null
   return (
     <div className="yt-limit" role="alert">
       <img src="/illustrations/create-limit.webp" alt="" width={110} height={110} className="yt-limit__art" />
       <h3>{t('title')}</h3>
       {message && <p className="yt-limit__message">{message}</p>}
+      {usage && <UsageMeter label={t('usage')} percent={usage.percent} />}
       <Link href="/dashboard/billing" className="yt-primary-button yt-limit__cta">{t('viewPlans')}</Link>
+    </div>
+  )
+}
+
+/** Canvas usage pill in the limit block: the share of the monthly allowance spent, with a danger bar. */
+function UsageMeter({ label, percent }: { label: string; percent: number }) {
+  const shown = Math.min(100, Math.max(0, Math.round(percent)))
+  return (
+    <div className="yt-limit__usage">
+      <div className="yt-limit__usage-head">
+        <span>{label}</span>
+        <strong>{shown}%</strong>
+      </div>
+      <span className="yt-limit__usage-track" aria-hidden="true">
+        <span style={{ width: `${shown}%` }} />
+      </span>
     </div>
   )
 }

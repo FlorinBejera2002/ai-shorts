@@ -20,7 +20,7 @@ export function SourceLimits({ limits }: Props) {
   ]
   return (
     <aside className={`${styles.limits} ${styles.limitsPanel}`} aria-label={text('Limits', 'Limite')}>
-      <h3 className={styles.limitsTitle}>{text('Limits', 'Limite')}</h3>
+      <p className={styles.limitsTitle}>{text('Limits', 'Limite')}</p>
       {rows.map(([label, value]) => (
         <div key={label} className={styles.limitRow}>
           <span className={styles.limitLabel}>{label}</span>

@@ -6,6 +6,7 @@ import { useSwipeBack } from '@/hooks/use-swipe-back'
 import type { CreationStep } from './create-steps'
 import { useRegisterCreationStepper } from './create-stepper-state'
 import pill from './story-pill-buttons.module.css'
+import './story.css'
 import { useStoryLanguage } from './use-story-language'
 
 export type StoryStep = CreationStep

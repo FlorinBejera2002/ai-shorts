@@ -4,7 +4,7 @@ type Text = (english: string, romanian: string) => string
 export function jobStageLabels(text: Text): Array<{ key: string; label: string }> {
   return [
     { key: 'download', label: text('Download', 'Descărcare') },
-    { key: 'transcribe', label: text('Transcription', 'Transcriere') },
+    { key: 'transcribe', label: text('Transcribe', 'Transcriere') },
     { key: 'analyze', label: text('Analysis', 'Analiză') },
     { key: 'edit', label: text('Editing', 'Montaj') },
     { key: 'done', label: text('Done', 'Gata') }

@@ -42,8 +42,8 @@
 .yt-inspector {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: 22px;
-  padding: 12px 24px 22px;
+  gap: 28px;
+  padding: 24px 24px 22px;
   border-radius: var(--yt-card-radius);
   background: var(--publish-surface);
   box-shadow: var(--publish-card-shadow);
@@ -54,7 +54,7 @@
 
 .yt-inspector-sections {
   display: grid;
-  gap: 22px;
+  gap: 28px;
 }
 
 .yt-card {
@@ -103,15 +103,25 @@
   line-height: 1.25;
 }
 
+/* Count on the header's right edge (canvas "2 din 10"); a single line that never wraps. */
+.yt-card__aside {
+  margin-inline-start: auto;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--publish-muted-text);
+  white-space: nowrap;
+}
+
 .yt-inspector-section {
   display: grid;
-  gap: 10px;
+  gap: 18px;
 }
 
 .yt-inspector-section h3 {
   margin: 0;
   font-size: 14px;
   font-weight: 600;
+  line-height: 20px;
 }
 
 .yt-inspector-section__heading {
@@ -332,15 +342,19 @@ button.yt-ghost-button:hover {
   box-sizing: border-box;
 }
 
-.yt-library__filter button {
+/* Tabs hug their labels, as on the canvas, instead of sharing the group width. */
+.yt-library__filter [role='radio'] {
+  flex: 0 0 auto;
   min-width: 0;
-  padding-inline: 10px;
+  padding-inline: 8px;
 }
 
-@media (min-width: 900px) {
+/* The search and the visibility tabs sit side by side only when the left card has room for both (see the 1199px stack above). */
+@media (min-width: 1280px) {
   .yt-library__controls {
     grid-template-columns: minmax(0, 1fr) auto;
     align-items: center;
+    gap: 14px;
   }
 }
 
@@ -365,8 +379,8 @@ button.yt-ghost-button:hover {
     width: 100%;
   }
 
-  .yt-library__filter button {
-    flex: 1 1 0;
+  .yt-library__filter [role='radio'] {
+    flex: 1 1 auto;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -470,7 +484,7 @@ button.yt-ghost-button:hover {
   padding: 0 8px;
   border-radius: 6px;
   box-shadow: var(--yt-ring);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   color: var(--publish-secondary-text);
 }
@@ -514,11 +528,11 @@ button.yt-ghost-button:hover {
   min-width: 0;
 }
 
+/* The card spans the content column; the list inside keeps the canvas' 640px measure. */
 .yt-import-progress > div {
   box-sizing: border-box;
   width: 100%;
   min-width: 0;
-  max-width: 760px;
 }
 
 .yt-import-list {
@@ -527,8 +541,10 @@ button.yt-ghost-button:hover {
   gap: 8px;
   box-sizing: border-box;
   width: 100%;
+  max-width: 640px;
+  justify-self: center;
   min-width: 0;
-  margin: 24px 0 0;
+  margin: 0;
   padding: 0;
   list-style: none;
 }
@@ -573,22 +589,59 @@ a.yt-import-row:hover {
   object-fit: cover;
 }
 
+/* Long titles wrap to two lines on the phone instead of being cut with an ellipsis. */
 .yt-import-row__title {
+  display: -webkit-box;
   min-width: 0;
   text-align: left;
   flex: 1;
   overflow: hidden;
   font-size: 14px;
   font-weight: 600;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+/* Canvas: a 16px ring spinner for a video that is still importing. */
+.yt-import-spinner {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--publish-border-strong);
+  border-top-color: var(--publish-text);
+  border-radius: 50%;
+  animation: yt-import-spin 0.9s linear infinite;
+}
+
+@keyframes yt-import-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .yt-import-row__state {
+  display: inline-flex;
   flex-shrink: 0;
+  align-items: center;
+  gap: 6px;
   font-size: 12px;
   font-weight: 600;
   color: var(--publish-muted-text);
+}
+
+/* A processing video opens its job: an outlined pill with a chevron, as on the canvas. */
+.yt-import-row__pill {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 5px;
+  min-height: 34px;
+  padding: 0 10px;
+  border-radius: var(--yt-pill);
+  box-shadow: var(--yt-ring-strong);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
 }
 
 .yt-import-row__state[data-state="failed"],
@@ -596,8 +649,24 @@ a.yt-import-row:hover {
   color: var(--publish-danger);
 }
 
+/* Canvas: the settled and partial illustration disc is 220px; the importing disc is 260px. Heading and list follow the canvas positions. */
+.yt-import-progress .yt-import-progress__art {
+  width: 220px;
+  height: 220px;
+}
+
+.yt-import-progress .yt-import-progress__art--large {
+  width: 260px;
+  height: 260px;
+}
+
+/* Canvas: the import heading is 30px with a 1.2 line height, so two-line titles do not collide. */
+.yt-import-progress .yt-import-progress__title {
+  line-height: 1.2 !important;
+}
+
 .yt-import-progress__action {
-  margin-top: 24px;
+  margin-top: 0;
 }
 
 /* Connect gate ----------------------------------------------------------- */
@@ -626,6 +695,11 @@ a.yt-import-row:hover {
   font-size: 28px;
   line-height: 1.2;
   font-weight: 600;
+}
+
+/* Canvas: the connect action label is medium weight, lighter than the list actions. */
+.yt-connect-gate__actions button.yt-primary-button {
+  font-weight: 500;
 }
 
 .yt-connect-gate__actions {
@@ -684,7 +758,7 @@ a.yt-import-row:hover {
 }
 
 .yt-consent__link {
-  font-weight: 600;
+  font-weight: 400;
   text-decoration: underline;
   text-underline-offset: 3px;
   color: var(--publish-text);
@@ -771,8 +845,10 @@ button.yt-account-pill:hover {
   min-width: 0;
 }
 
+/* The four equal segments shrink with the card; the inset keeps "Auto" clear of the pill edge on the 320px phone. */
 .yt-clip-count__presets button {
   min-width: 0;
+  padding-inline: 4px;
 }
 
 .yt-clip-count__manual input {
@@ -877,9 +953,21 @@ button.yt-ratio-tile:hover {
   font-size: 14px;
 }
 
+/* Canvas: the disclosure sits 18px above its usual section gap under the brand select, and the export consent
+   sits 8px under the disclosure, so the primary action lands at the canvas height in the right column. */
+.yt-inspector .yt-advanced {
+  margin-top: -18px;
+}
+
 .yt-generate {
   display: grid;
-  gap: 10px;
+  gap: 14px;
+  margin-top: -16px;
+}
+
+/* The export disclosure wraps to two lines as on the canvas: its text may use the card padding on the right. */
+.yt-generate .yt-consent {
+  margin-right: -8px;
 }
 
 button.yt-primary-button.yt-generate__action {
@@ -919,6 +1007,46 @@ button.yt-primary-button.yt-generate__action {
   color: var(--publish-secondary-text);
 }
 
+.yt-limit__usage {
+  display: grid;
+  gap: 8px;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 14px 16px;
+  border-radius: 16px;
+  box-shadow: inset 0 0 0 1px var(--publish-border);
+  font-size: 13px;
+  text-align: left;
+}
+
+.yt-limit__usage-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--publish-secondary-text);
+}
+
+.yt-limit__usage-head strong {
+  font-weight: 600;
+  color: var(--publish-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.yt-limit__usage-track {
+  display: block;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--publish-border);
+  overflow: hidden;
+}
+
+.yt-limit__usage-track > span {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--publish-danger);
+}
+
 a.yt-limit__cta {
   width: 100%;
   min-height: 48px;
@@ -948,7 +1076,7 @@ a.yt-limit__cta {
 
 /* Mobile ----------------------------------------------------------------- */
 
-@media (max-width: 899px) {
+@media (max-width: 1199px) {
   .yt-path {
     grid-template-columns: minmax(0, 1fr);
     gap: 12px;
@@ -983,5 +1111,43 @@ a.yt-limit__cta {
 
   .yt-ratio-tile {
     height: 64px;
+  }
+}
+
+/* Canvas phone: the import illustration is 220px for both the importing and the partial card. */
+@media (max-width: 640px) {
+  .yt-import-progress .yt-import-progress__art,
+  .yt-import-progress .yt-import-progress__art--large {
+    width: 220px;
+    height: 220px;
+  }
+}
+
+/* Phone: the import rows keep a 72px thumbnail and a compact state pill so the title has room to wrap. */
+@media (max-width: 480px) {
+  .yt-import-row .yt-library-row__thumb {
+    width: 72px;
+  }
+
+  .yt-import-row__pill {
+    min-height: 32px;
+    padding: 0 10px;
+    font-size: 12px;
+  }
+
+  .yt-library__filter [role='radio'] {
+    font-size: 12px;
+    padding-inline: 2px;
+  }
+}
+
+/* Phones 360px and narrower: a long title keeps at least 120px and the state pill wraps to its own line instead of squeezing the title. */
+@media (max-width: 360px) {
+  .yt-import-row {
+    flex-wrap: wrap;
+  }
+
+  .yt-import-row__title {
+    min-width: 120px;
   }
 }

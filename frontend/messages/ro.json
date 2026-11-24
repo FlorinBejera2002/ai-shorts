@@ -608,7 +608,7 @@
     "balance": "Sold: {count} credite",
     "insufficientCredits": "Nu ai suficiente credite pentru acest proiect.",
     "jobFailed": "Proiectul nu a putut fi creat. Încearcă din nou.",
-    "sourceCardTitle": "Videoclipul sursă",
+    "sourceCardTitle": "Alege videoclipurile",
     "youtubeChannelLoading": "Se verifică contul YouTube…",
     "youtubeChannelLoadFailed": "Nu am putut verifica contul YouTube.",
     "youtubeUnavailable": "Conectarea YouTube nu este disponibilă momentan.",
@@ -634,6 +634,7 @@
       "disconnectFailed": "Nu am putut deconecta contul YouTube."
     },
     "youtubeLibrary": {
+      "selectedCount": "{count} din {max}",
       "searchLabel": "Caută în videoclipurile tale",
       "searchPlaceholder": "Caută",
       "visibilityLabel": "Vizibilitate",

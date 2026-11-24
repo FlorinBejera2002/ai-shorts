@@ -279,16 +279,19 @@ function RowStatus({
         </span>
       )
     case 'rejected':
+      // Status and replace link stay together as one unit so they wrap as a pair on narrow rows.
       return (
-        <>
+        <span className={styles.rejectedGroup}>
           <span className={`${styles.status} ${styles.statusError}`}>
             <AlertTriangle size={13} strokeWidth={2.5} aria-hidden="true" />
-            <span>{text('Unsupported format', 'Format neacceptat')}</span>
+            {/* Phones use the short status copy (canvas): "Neacceptat". */}
+            <span className={styles.desktopOnly}>{text('Unsupported format', 'Format neacceptat')}</span>
+            <span className={styles.mobileOnly}>{text('Not accepted', 'Neacceptat')}</span>
           </span>
           <button type="button" className={styles.linkButton} onClick={onReplace}>
             {text('Replace', 'Înlocuiește')}
           </button>
-        </>
+        </span>
       )
     case 'waiting':
       return <span className={styles.statusWaiting}>{text('Waiting', 'În așteptare')}</span>

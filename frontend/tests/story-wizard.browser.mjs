@@ -380,7 +380,7 @@ try {
     .getByRole('radiogroup', { name: 'Shape', exact: true })
     .getByRole('radio', { name: '1:1', exact: true })
     .click()
-  await page.getByRole('radio', { name: 'No captions', exact: true }).click()
+  await page.getByRole('radio', { name: 'None', exact: true }).click()
   await next(2)
   await build.waitFor()
   await page.emulateMedia({ reducedMotion: 'reduce' })
@@ -445,7 +445,7 @@ try {
   )
   assert.equal(
     await page
-      .getByRole('radio', { name: 'No captions', exact: true })
+      .getByRole('radio', { name: 'None', exact: true })
       .isChecked(),
     true
   )

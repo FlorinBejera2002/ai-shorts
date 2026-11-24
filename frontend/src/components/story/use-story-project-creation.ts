@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
+import { useAudioCleanupAvailability } from '@/hooks/use-audio-cleanup-availability'
 import { toast } from '@/lib/toast'
 import { storyRequest } from './api'
 import { storyProblem } from './story-error'
@@ -7,6 +8,7 @@ import type { StoryStep } from './story-wizard'
 import { validateStoryFiles } from './story-file-validation'
 import { defaultOptions, type StoryProject } from './types'
 import { useStoryLanguage } from './use-story-language'
+import { withAvailableCleanup } from './story-audio-cleanup'
 
 /** Footage chosen before the project exists, handed to the workspace that opens it. */
 export interface StoryIncomingProject {
@@ -38,6 +40,7 @@ export function useStoryProjectCreation({
 }: StoryProjectCreationOptions) {
   const text = useStoryLanguage()
   const queryClient = useQueryClient()
+  const cleanup = useAudioCleanupAvailability()
   const [creating, setCreating] = useState(false)
   const createBusy = useRef(false)
 
@@ -54,7 +57,7 @@ export function useStoryProjectCreation({
     setError('')
     void storyRequest<StoryProject>('/api/stories', 'POST', {
       id: createID.current,
-      options: defaultOptions
+      options: withAvailableCleanup(defaultOptions, cleanup.available)
     })
       .then((project) => {
         queryClient.setQueryData(['story', userID, project.id], project)

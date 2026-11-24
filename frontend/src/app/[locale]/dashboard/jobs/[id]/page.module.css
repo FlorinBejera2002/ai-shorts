@@ -1,0 +1,10 @@
+/* Job page frame: the Creare canvas places the source switch 44px below the header on desktop, 48px inside the shell. */
+.workspace {
+  padding: 16px 0 112px;
+}
+
+@media (min-width: 1024px) {
+  .workspace {
+    padding: 21px 24px 96px;
+  }
+}

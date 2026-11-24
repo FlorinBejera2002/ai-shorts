@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { Music2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import pill from './story-pill-buttons.module.css'
 import type { MusicTrack, StoryMusicOptions } from './types'
 import { StoryMusicPicker } from './story-music-picker'
 import { StoryMusicPreview } from './story-music-preview'
@@ -84,7 +85,7 @@ export function StoryMusic({ value, disabled, active, narration = false, onChang
             <Music2 className="size-5" />
           </span>
           <div className={styles.headerText}>
-            <h3 className="text-[15px] font-semibold leading-tight">{text('Background music', 'Muzică de fundal')}</h3>
+            <h3 className={styles.cardTitle}>{text('Background music', 'Muzică de fundal')}</h3>
             <p className={styles.subtle}>{currentName}</p>
           </div>
         </div>
@@ -92,6 +93,7 @@ export function StoryMusic({ value, disabled, active, narration = false, onChang
           type="button"
           variant="outline"
           size="sm"
+          className={`${pill.pill} ${pill.outline} ${styles.pickButton}`}
           disabled={uploading}
           aria-haspopup="dialog"
           aria-expanded={pickerOpen}

@@ -75,7 +75,6 @@
 .story-result-done {
   width: 170px;
   height: auto;
-  margin-bottom: -6px;
 }
 
 .story-result-panel {
@@ -83,6 +82,7 @@
   flex: 1 1 360px;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   gap: 22px;
   padding: 36px 40px 28px;
   text-align: center;
@@ -91,7 +91,7 @@
 .story-result-header {
   display: grid;
   justify-items: center;
-  gap: 18px;
+  gap: 22px;
   width: 100%;
 }
 
@@ -99,8 +99,9 @@
   margin: 0;
   font-family: var(--font-studio, 'Sora', sans-serif);
   font-size: 32px;
-  font-weight: 700;
+  font-weight: 600;
   line-height: 1.15;
+  letter-spacing: -0.02em;
 }
 
 .story-result-stats {
@@ -115,8 +116,9 @@
 
 .story-result-stats > div {
   display: grid;
-  gap: 4px;
+  gap: 2px;
   padding: 14px 16px;
+  text-align: left;
 }
 
 .story-result-stats > div + div {
@@ -132,6 +134,7 @@
   margin: 0;
   font-size: 18px;
   font-weight: 700;
+  line-height: 20px;
   font-variant-numeric: tabular-nums;
 }
 
@@ -198,6 +201,8 @@
 .story-result-actions .story-result-download {
   width: 100%;
   min-height: 52px;
+  font-size: 14px;
+  font-weight: 600;
 }
 
 /* Primary download: black in light mode, muted steel in dark mode (never the navy selected token). */
@@ -217,13 +222,18 @@
 }
 
 .story-result-secondary > * {
+  height: 48px;
   min-height: 48px;
   min-width: 0;
+  font-size: 14px;
+  font-weight: 600;
 }
 
+/* Canvas: a hairline separates the delete action, pinned to the bottom of the card. */
 .story-result-footer {
   display: flex;
   width: 100%;
+  margin-top: auto;
   justify-content: center;
   padding-top: 14px;
   border-top: 1px solid var(--publish-border);
@@ -231,7 +241,9 @@
 
 .story-result-footer [data-slot=button] {
   min-height: 36px;
+  height: 36px;
   font-size: 13px;
+  font-weight: 600;
 }
 
 .story-result-help {
@@ -249,6 +261,12 @@
 @media (max-width: 760px) {
   .story-result-preview {
     width: 100%;
+    padding: 16px;
+  }
+
+  /* Canvas phone poster keeps its 9:16 frame; story-output.css caps video height on phones. */
+  .story-result-video {
+    max-height: none;
   }
 
   .story-result-player {
@@ -261,6 +279,10 @@
 
   .story-result-panel {
     padding: 24px 18px;
+  }
+
+  .story-result-header {
+    gap: 18px;
   }
 
   .story-result-title {

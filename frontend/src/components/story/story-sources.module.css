@@ -34,6 +34,14 @@
   }
 }
 
+/* Between the tablet and the 1200px canvas: a narrower limits aside leaves room for file names. */
+@media (min-width: 768px) and (max-width: 1199px) {
+  .sources {
+    grid-template-columns: minmax(0, 1fr) 240px;
+    gap: 16px;
+  }
+}
+
 /* Dropzone */
 
 /* Canvas dashed token (--sbd): #1f2a3d in light, #c9d4e4 in dark. */
@@ -67,15 +75,23 @@
 .dropzoneTitle {
   margin: 0;
   font-family: 'Sora Variable', Sora, sans-serif;
-  font-size: 22px;
-  font-weight: 700;
+  font-size: 20px;
+  font-weight: 600;
   line-height: 1.2;
+  letter-spacing: -0.02em;
+}
+
+/* The app shell's `#dashboard-shell h2` rule sets -0.035em with a higher specificity,
+   so the canvas tracking is restated with the same shell selector. */
+:global(#dashboard-shell) .dropzoneTitle {
+  letter-spacing: -0.02em;
 }
 
 .dropzoneSubtitle {
   margin: 0;
-  color: var(--publish-muted-text);
+  color: var(--publish-secondary-text);
   font-size: 14px;
+  line-height: 20px;
 }
 
 .chooseButton {
@@ -84,6 +100,8 @@
   height: 50px;
   padding: 0 24px;
   border-radius: 999px;
+  font-size: 14px;
+  font-weight: 600;
   background: var(--publish-primary);
   color: var(--publish-on-primary);
 }
@@ -124,26 +142,31 @@
   align-self: start;
 }
 
-.limitsTitle {
+/* Canvas: the aside title is body text (14px, semibold), not a Sora heading. */
+.limitsPanel .limitsTitle {
   margin: 0;
-  font-size: 15px;
-  font-weight: 700;
+  color: var(--publish-text);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 20px;
 }
 
 .limitRow {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  gap: 12px;
+  gap: 10px;
   font-size: 13px;
+  line-height: 20px;
 }
 
 .limitLabel {
-  color: var(--publish-muted-text);
+  color: var(--publish-secondary-text);
 }
 
 .limitValue {
-  font-weight: 700;
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
   text-align: right;
 }
@@ -173,7 +196,8 @@
   margin: 0;
   font-family: 'Sora Variable', Sora, sans-serif;
   font-size: 18px;
-  font-weight: 700;
+  font-weight: 600;
+  letter-spacing: -0.02em;
 }
 
 .cardTotals {
@@ -231,6 +255,11 @@
 
 /* Lifted over the drop slot (74px stack): it stays in the flow at the card's row width and
    pulls up over the slot, so it never extends past the list. */
+/* Canvas: rows after the first are separated by a hairline inside the card. */
+.row:not([data-first='true']) {
+  border-top: 1px solid var(--publish-border);
+}
+
 .row[data-lifted='true'] {
   position: relative;
   z-index: 2;
@@ -293,7 +322,7 @@
   place-items: center;
   width: 24px;
   height: 24px;
-  border: 1.5px solid var(--publish-border-strong);
+  box-shadow: inset 0 0 0 1.5px var(--create-outline);
   border-radius: 999px;
   font-size: 12px;
   font-weight: 700;
@@ -425,7 +454,7 @@
 .progressTrack {
   flex: 1 1 auto;
   width: 100%;
-  max-width: 260px;
+  max-width: 228px;
   min-width: 80px;
   height: 4px;
   overflow: hidden;
@@ -437,6 +466,16 @@
   height: 100%;
   border-radius: 999px;
   background: var(--publish-text);
+}
+
+/* A refused row's status and replace link wrap together, never splitting "Neacceptat" from "Înlocuiește". */
+.rejectedGroup {
+  display: inline-flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  white-space: nowrap;
 }
 
 .linkButton {
@@ -464,7 +503,7 @@
   height: 34px;
   padding: 0;
   border: 0;
-  border-radius: var(--radius-md);
+  border-radius: 999px;
   background: transparent;
   color: var(--publish-muted-text);
   cursor: pointer;

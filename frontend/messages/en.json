@@ -611,7 +611,7 @@
     "balance": "Balance: {count} credits",
     "insufficientCredits": "Not enough credits for this job.",
     "jobFailed": "Could not create the job. Please try again.",
-    "sourceCardTitle": "Source video",
+    "sourceCardTitle": "Choose videos",
     "youtubeChannelLoading": "Checking your YouTube account…",
     "youtubeChannelLoadFailed": "We couldn't check your YouTube account.",
     "youtubeUnavailable": "YouTube connection is not available right now.",
@@ -637,6 +637,7 @@
       "disconnectFailed": "We couldn't disconnect your YouTube account."
     },
     "youtubeLibrary": {
+      "selectedCount": "{count} of {max}",
       "searchLabel": "Search your videos",
       "searchPlaceholder": "Search",
       "visibilityLabel": "Visibility",

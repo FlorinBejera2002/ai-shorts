@@ -25,24 +25,28 @@
 }
 
 .creare-review-title {
-  margin: 0 0 8px;
+  margin: 0;
+  padding-bottom: 8px;
   font-family: var(--font-studio, 'Sora', sans-serif);
   font-size: 22px;
-  font-weight: 700;
+  font-weight: 600;
+  line-height: 20px;
+  letter-spacing: -0.02em;
 }
 
 .creare-review-row {
   display: grid;
   grid-template-columns: 150px minmax(0, 1fr) auto;
-  align-items: start;
-  gap: 16px;
+  align-items: center;
+  gap: 20px;
   padding: 14px 0;
 }
 
 .creare-review-label {
+  align-self: flex-start;
   padding-top: 6px;
   font-size: 14px;
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .creare-review-value {
@@ -50,7 +54,7 @@
   min-width: 0;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   font-size: 14px;
 }
 
@@ -115,14 +119,17 @@
 
 .creare-review-chip {
   display: inline-flex;
+  max-width: 100%;
   min-height: 30px;
   align-items: center;
   padding: 0 12px;
   border-radius: 999px;
-  box-shadow: inset 0 0 0 1px var(--publish-border-strong);
+  box-shadow: inset 0 0 0 1px var(--publish-border);
   font-size: 13px;
   font-weight: 600;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .creare-review-brief {
@@ -133,15 +140,31 @@
 
 .creare-review-tag {
   display: inline-flex;
-  min-height: 24px;
+  height: 28px;
   align-items: center;
-  margin: 0 4px;
-  padding: 0 8px;
+  gap: 6px;
+  margin: 0 5px;
+  padding: 0 9px 0 3px;
   border-radius: 8px;
-  box-shadow: inset 0 0 0 1px var(--publish-border-strong);
+  vertical-align: middle;
+  box-shadow: inset 0 0 0 1px #1f2a3d;
   background: var(--publish-surface);
+  color: var(--publish-text);
   font-size: 13px;
   font-weight: 600;
+  white-space: nowrap;
+}
+
+.creare-review-tag img {
+  width: 22px;
+  height: 22px;
+  flex: none;
+  border-radius: 6px;
+  object-fit: cover;
+}
+
+.dark .creare-review-tag {
+  box-shadow: inset 0 0 0 1px #c9d4e4;
 }
 
 .creare-review-notice {
@@ -176,19 +199,6 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
-}
-
-.creare-review-phone figcaption {
-  position: absolute;
-  right: 10px;
-  bottom: 10px;
-  padding: 2px 7px;
-  border-radius: 6px;
-  background: rgb(0 0 0 / 65%);
-  color: #fff;
-  font-size: 12px;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
 }
 
 .creare-review-phone-empty {
@@ -253,11 +263,12 @@
   grid-row: 1;
 }
 
-.creare-review-change {
-  height: 38px;
-  min-width: 78px;
-  padding: 0 20px;
-  font-size: 14px;
+/* Scoped up one level so the Creare button floor (44px) does not override the canvas 34px pill. */
+.creare-review .creare-review-change {
+  height: 34px;
+  min-height: 34px;
+  padding: 0 14px;
+  font-size: 13px;
 }
 
 .creare-review-create {
@@ -283,7 +294,16 @@
   text-align: center;
 }
 
-@media (max-width: 900px) {
+/* Narrower desktops: a shorter label column keeps the sound and result pills beside their labels. */
+@media (max-width: 1279px) {
+  .creare-review-row {
+    grid-template-columns: 116px minmax(0, 1fr) auto;
+    gap: 16px;
+  }
+}
+
+/* Tablet widths cannot fit label, pills and Change beside the 340px aside, so the aside moves below the card. */
+@media (max-width: 1180px) {
   .creare-review {
     grid-template-columns: minmax(0, 1fr);
   }

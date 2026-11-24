@@ -1,5 +1,4 @@
 import { FileVideo } from 'lucide-react'
-import { formatDuration } from '@/lib/youtube'
 import type { StoryAsset } from './types'
 import { useStoryLanguage } from './use-story-language'
 
@@ -15,7 +14,6 @@ export function StoryReviewPhone({ asset }: { asset?: StoryAsset }) {
           <FileVideo className="size-8" aria-hidden="true" />
         </span>
       )}
-      {asset && <figcaption>{formatDuration(asset.duration)}</figcaption>}
     </figure>
   )
 }

@@ -55,6 +55,11 @@ export function storyProblem(
       'Open the video in Studio to review its locked clips.',
       'Deschide videoul în Studio pentru a verifica filmările blocate.'
     )
+  if (/noise reduction is unavailable/i.test(message))
+    return text(
+      'Background noise reduction is unavailable. Turn it off to continue with the original sound.',
+      'Reducerea zgomotului de fundal nu este disponibilă. Dezactiveaz-o pentru a continua cu sunetul original.'
+    )
   if (/cleanup|deepfilter|denois/i.test(message))
     return text(
       'Audio cleanup could not finish. Retry, or turn it off to continue with the original sound.',

@@ -259,7 +259,8 @@ try {
     'order number hidden on mobile'
   )
   await input.setInputFiles({ name: 'clip-vechi.avi', mimeType: 'video/x-msvideo', buffer: Buffer.from('old') })
-  await page.getByText('Unsupported format', { exact: true }).waitFor({ state: 'visible' })
+  // Canvas phone copy is the short status "Not accepted" ("Neacceptat"), on one line with Replace.
+  await page.getByText('Not accepted', { exact: true }).waitFor({ state: 'visible' })
   await page.screenshot({ path: join(screenshots, 'mobile-refused.png'), fullPage: true })
   const mobileBox = await page.getByTestId('validated-source').first().boundingBox()
   assert.ok(mobileBox.x + mobileBox.width <= 390 - 16 + 1, 'row keeps the 16px side gutter')

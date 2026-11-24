@@ -104,3 +104,10 @@
     padding-bottom: 6rem;
   }
 }
+
+/* Canvas board: the toolbar starts 44px below the dashboard header (the shell adds 23px). */
+@media (min-width: 768px) {
+  .creation-page.dashboard-workspace {
+    padding-top: 21px;
+  }
+}

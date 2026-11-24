@@ -86,7 +86,7 @@ const translations = {
   useTranslations: () => (key, values) => `${key}${values ? `:${JSON.stringify(values)}` : ''}`
 }
 
-async function summary(role, account, extra = {}) {
+async function summary(role, account, extra = {}, usage = null) {
   const runtime = hooks()
   const { SummaryCard } = load('../src/components/create/summary-card.tsx', {
     react: runtime.react,
@@ -96,6 +96,7 @@ async function summary(role, account, extra = {}) {
     '@/components/ui/loading-indicator': { LoadingIndicator: 'span' },
     '@/components/ui/button': { Button: 'button' },
     '@/components/ui/card': { Card: 'section' },
+    '@/components/dashboard/sidebar-usage': { useMonthlyUsage: () => ({ data: usage }) },
     '@/i18n/navigation': { Link: 'a' },
     '@/lib/auth': { apiFetch: async () => ({ ok: true, json: async () => account }) }
   })
@@ -133,6 +134,14 @@ test('fresh account entitlement overrides an old admin session; legacy API falls
   assert.equal(nodes(demoted).find((node) => node.type === 'button'), undefined, 'A demoted admin sees the limit block')
   const legacy = await summary('admin', { credits: 0 })
   assert.equal(nodes(legacy).find((node) => node.type === 'button').props.disabled, false)
+})
+
+test('the limit block shows the monthly usage when the plan has an allowance', async () => {
+  const limited = await summary('member', { credits: 0, creditsUnlimited: false }, {}, { percent: 100, resetsAt: null })
+  assert.match(content(limited), /\busage\b/)
+  assert.match(content(limited), /100/)
+  const withoutAllowance = await summary('member', { credits: 0, creditsUnlimited: false })
+  assert.doesNotMatch(content(withoutAllowance), /\busage\b/)
 })
 
 test('brand kit unlocks white label for admins and respects current server entitlements', async () => {

@@ -1,4 +1,4 @@
-import { StoryBrandKitField } from './story-brand-kit-field'
+import { StoryBrandKitField, StoryBrandKitManageLink } from './story-brand-kit-field'
 import { StoryClipCount } from './story-clip-count'
 import { StoryFormat } from './story-format'
 import { StoryMoreOptions } from './story-more-options'
@@ -47,13 +47,13 @@ export function StoryOptionsInspector({
           value={storyCaptionMode(options)}
           options={[
             { value: 'all', label: text('All dialogue', 'Tot dialogul') },
-            { value: 'selective', label: text('Only hard-to-hear speech', 'Doar unde e greu') },
-            { value: 'off', label: text('No captions', 'Fără') }
+            { value: 'selective', label: text('Hard to hear', 'Doar unde e greu') },
+            { value: 'off', label: text('None', 'Fără') }
           ]}
           onChange={(mode) => onChange({ ...options, caption_mode: mode, captions: mode !== 'off' })}
         />
       </StoryOptionSection>
-      <StoryOptionSection title={text('Brand kit', 'Kit de brand')}>
+      <StoryOptionSection title={text('Brand kit', 'Kit de brand')} action={<StoryBrandKitManageLink />}>
         <StoryBrandKitField
           enabled={Boolean(options.use_brand_kit)}
           onChange={(enabled) =>
@@ -85,6 +85,7 @@ export function StoryOptionsInspector({
         ) : (
           <StorySegmentedControl
             label={text('Length', 'Durată')}
+            equalWidths
             value={options.target_seconds}
             options={LENGTHS.map((seconds) => ({ value: seconds, label: `${seconds} s` }))}
             onChange={(target_seconds) => onChange({ ...options, target_seconds })}

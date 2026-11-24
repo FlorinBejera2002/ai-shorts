@@ -15,6 +15,7 @@ import { JobSourceBar } from '@/components/jobs/job-source-bar'
 import { jobSourceCard } from '@/components/jobs/job-source-model'
 import { useCreateText } from '@/components/create/create-text'
 import theme from '@/components/calendar/publishing-theme.module.css'
+import pageStyles from './page.module.css'
 
 /** Latest progress and status for the processing card; the worker's live progress wins. */
 function jobState(status: ReturnType<typeof useJobStatus>['status']) {
@@ -79,13 +80,17 @@ export default function JobProgressPage() {
   const job = status?.job ?? {}
   const source = jobSourceCard(job, text)
   const processingActive = Boolean(status?.job.processing_active)
+  const complete = currentStep === 'completed'
 
   return (
     // Canvas page frame: reference surface, with clearance above the phone dock and the floating assistant.
-    <div className={`${theme.surface} media-workbench dashboard-workspace job-workspace w-full animate-fade-in pb-28 lg:px-12 lg:pb-24`} data-reference-surface="">
+    <div
+      className={`${theme.surface} ${pageStyles.workspace} media-workbench dashboard-workspace job-workspace w-full animate-fade-in`}
+      data-reference-surface=""
+    >
       {error && <JobLoadError error={error} onRetry={requestReload} />}
 
-      {(!error || status) && <JobSourceBar job={job} />}
+      {(!error || status) && !complete && <JobSourceBar job={job} />}
 
       {(!error || status) && (
         <JobProcessingPanel

@@ -42,12 +42,14 @@
   font-weight: 700;
 }
 
+/* Canvas: 32px semibold with -0.02em tracking; forced because the dashboard shell's h2 rule outranks this module. */
 .title {
   margin: 0;
   font-family: var(--font-studio, 'Sora', sans-serif);
   font-size: 32px;
-  font-weight: 700;
-  line-height: 1.15;
+  font-weight: 600;
+  line-height: 1.15 !important;
+  letter-spacing: -0.02em !important;
 }
 
 .actions {
@@ -55,6 +57,18 @@
   flex-wrap: wrap;
   gap: 10px;
   margin-top: 4px;
+}
+
+/* Canvas: the done action is a 50px pill; the secondary keeps the standard 46px. */
+.actions > [data-slot='button'] {
+  min-height: 46px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.actions > [data-slot='button']:first-child {
+  min-height: 50px;
 }
 
 @media (max-width: 640px) {

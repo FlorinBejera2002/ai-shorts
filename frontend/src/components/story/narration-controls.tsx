@@ -9,8 +9,8 @@ import styles from './story-options.module.css'
 type Recorder = ReturnType<typeof useNarrationRecorder>
 
 /**
- * The live recording band: status, timer, Pauză and Oprește, with a cancel control in its corner.
- * The canvas has no waveform and no helper text.
+ * The live recording band holds only the status, timer and a cancel control. Pauză and Oprește sit
+ * below the band, as on the canvas. The canvas has no waveform and no helper text.
  */
 export function NarrationRecording({
   recorder,
@@ -29,34 +29,36 @@ export function NarrationRecording({
   }
   const live = ['recording', 'paused'].includes(recorder.phase)
   return (
-    <div className={`${styles.recording} ${styles.recordingLive}`} data-testid="narration-recording">
-      <div className={styles.recordingHead}>
-        <p role="status" className={styles.recordingStatus}>
-          {recorder.phase === 'recording' && (
-            <span className={styles.recordingDot} aria-hidden="true" />
-          )}
-          {statuses[recorder.phase]}
-        </p>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          className={`${pill.pill} ${pill.ghost} ${styles.recordingCancel}`}
-          aria-label={text('Cancel recording', 'Anulează înregistrarea')}
-          title={text('Cancel recording', 'Anulează înregistrarea')}
-          onClick={onDiscard}
-        >
-          <X aria-hidden="true" />
-        </Button>
+    <>
+      <div className={`${styles.recording} ${styles.recordingLive}`} data-testid="narration-recording">
+        <div className={styles.recordingHead}>
+          <p role="status" className={styles.recordingStatus}>
+            {recorder.phase === 'recording' && (
+              <span className={styles.recordingDot} aria-hidden="true" />
+            )}
+            {statuses[recorder.phase]}
+          </p>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className={`${pill.pill} ${pill.ghost} ${styles.recordingCancel}`}
+            aria-label={text('Cancel recording', 'Anulează înregistrarea')}
+            title={text('Cancel recording', 'Anulează înregistrarea')}
+            onClick={onDiscard}
+          >
+            <X aria-hidden="true" />
+          </Button>
+        </div>
+        {recorder.phase !== 'requesting' && (
+          <p
+            className={styles.recordingTime}
+            aria-label={text('Recording time', 'Durata înregistrării')}
+          >
+            {formatDuration(recorder.seconds)}
+          </p>
+        )}
       </div>
-      {recorder.phase !== 'requesting' && (
-        <p
-          className={styles.recordingTime}
-          aria-label={text('Recording time', 'Durata înregistrării')}
-        >
-          {formatDuration(recorder.seconds)}
-        </p>
-      )}
       {live && (
         <div className={styles.actionRow}>
           <Button type="button" className={`${pill.pill} ${pill.outline}`} onClick={recorder.pause}>
@@ -71,7 +73,7 @@ export function NarrationRecording({
           </Button>
         </div>
       )}
-    </div>
+    </>
   )
 }
 

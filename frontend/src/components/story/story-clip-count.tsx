@@ -47,6 +47,7 @@ export function StoryClipCount({
     <div className={styles.clipCountRow}>
       <StorySegmentedControl
         label={text('Number of clips', 'Număr de clipuri')}
+        equalWidths
         value={fieldActive ? undefined : value}
         options={[
           { value: 0, label: 'Auto' },

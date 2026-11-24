@@ -14,6 +14,16 @@ import styles from './story-options.module.css'
 
 const NONE = 'none'
 
+/** The "Gestionează" link, placed on the section title row as on the canvas. */
+export function StoryBrandKitManageLink() {
+  const text = useStoryLanguage()
+  return (
+    <Link href="/dashboard/brand" className={styles.manageLink}>
+      {text('Manage', 'Gestionează')}
+    </Link>
+  )
+}
+
 /**
  * Brand kit for the clip. Stories always use the default kit, so the choice is that kit or none.
  */
@@ -38,7 +48,7 @@ export function StoryBrandKitField({
       >
         <SelectTrigger
           aria-label={text('Brand kit', 'Kit de brand')}
-          className="h-12 w-full min-w-0 rounded-md px-3.5"
+          className={`${styles.kitTrigger} [&>span]:line-clamp-none [&>span]:overflow-visible [&>span]:whitespace-normal`}
         >
           <SelectValue />
         </SelectTrigger>
@@ -54,9 +64,6 @@ export function StoryBrandKitField({
           )}
         </SelectContent>
       </Select>
-      <Link href="/dashboard/brand" className={styles.manageLink}>
-        {text('Manage', 'Gestionează')}
-      </Link>
     </div>
   )
 }

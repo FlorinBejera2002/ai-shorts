@@ -31,7 +31,7 @@ export function StoryDescriptionCard({ brief, footage, disabled, onChange }: Pro
   const previewAsset = footage.find((asset) => asset.id === previewID) ?? null
 
   return (
-    <section className={styles.card} aria-labelledby={titleID}>
+    <section className={`${styles.card} ${styles.briefCard}`} aria-labelledby={titleID}>
       <h2 id={titleID} className={styles.cardTitle}>
         {text('Describe the video you want', 'Descrie videoul dorit')}
       </h2>
@@ -58,7 +58,7 @@ export function StoryDescriptionCard({ brief, footage, disabled, onChange }: Pro
         <Button
           type="button"
           variant="outline"
-          className={`justify-self-start ${pill.pill} ${pill.outline}`}
+          className={`justify-self-start ${pill.pill} ${pill.outline} ${styles.addFootage}`}
           disabled={disabled || footage.length === 0}
         >
           <span aria-hidden="true" className="font-bold">

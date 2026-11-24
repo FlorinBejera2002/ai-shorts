@@ -12,6 +12,8 @@ interface Props<T extends string | number> {
   options: readonly StorySegmentOption<T>[]
   value: T | undefined
   disabled?: boolean
+  /** Short fixed labels (durations, clip counts) share the row equally instead of sizing to text. */
+  equalWidths?: boolean
   onChange: (value: T) => void
 }
 
@@ -21,6 +23,7 @@ export function StorySegmentedControl<T extends string | number>({
   options,
   value,
   disabled = false,
+  equalWidths = false,
   onChange
 }: Props<T>) {
   const buttons = useRef<(HTMLButtonElement | null)[]>([])
@@ -42,7 +45,11 @@ export function StorySegmentedControl<T extends string | number>({
   }
 
   return (
-    <div role="radiogroup" aria-label={label} className={styles.segment}>
+    <div
+      role="radiogroup"
+      aria-label={label}
+      className={equalWidths ? `${styles.segment} ${styles.segmentEqual}` : styles.segment}
+    >
       {options.map((option, index) => {
         const checked = index === checkedIndex
         return (

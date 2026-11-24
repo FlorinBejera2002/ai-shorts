@@ -1,14 +1,17 @@
 /* Creare clip page shell: source switch, step stepper and page rhythm.
    Colours come from the scoped reference theme (publishing-theme.module.css,
    applied through `.surface`). Radii follow the Creare clip exception in AGENTS.md:
-   pills are fully rounded, cards 24px, dialogs 28px. */
+   pills are fully rounded, cards 24px, dialogs 28px.
+   Sizes are px because the canvas board is authored in px (the app root is 15px). */
 
-.creation-workspace {
+.creation-workspace[data-reference-surface] {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 20px;
   min-width: 0;
   font-family: var(--font-body);
+  font-size: 14px;
+  line-height: 20px;
   color: var(--publish-text);
   --primary: var(--publish-primary);
   --primary-foreground: var(--publish-on-primary);
@@ -21,21 +24,24 @@
    */
   --create-selected: #152035;
   --create-on-selected: #ffffff;
+  /* Canvas --sbd: the dark outline of inset controls (upcoming step numbers). */
+  --create-outline: #1f2a3d;
 }
 
 .dark .creation-workspace[data-reference-surface] {
   --create-selected: #8e9bb0;
   --create-on-selected: #0d1420;
+  --create-outline: #c9d4e4;
   --publish-on-primary: #0d1420;
   /* creation-workbench.css sets --primary to the foreground token; restore the steel primary here. */
   --primary: var(--publish-primary);
 }
 
-/* Canvas page frame: 24px extra gutters on desktop and clearance for the floating agent launcher. */
-@media (min-width: 900px) {
-  .creation-workspace {
-    padding-inline: 1.5rem;
-    padding-bottom: 6rem;
+/* Canvas content column: 48px gutters on desktop (288px to 1392px at 1440px), 16px on phones. */
+@media (min-width: 768px) {
+  .creation-workspace[data-reference-surface] {
+    padding-inline: 24px;
+    padding-bottom: 90px;
   }
 }
 
@@ -44,7 +50,7 @@
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 1rem;
+  gap: 16px;
   min-width: 0;
 }
 
@@ -52,7 +58,7 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 1rem;
+  gap: 16px;
   min-width: 0;
 }
 
@@ -61,9 +67,9 @@
 .creation-stepper-list {
   display: inline-flex;
   align-items: center;
-  gap: 0.25rem;
+  gap: 4px;
   margin: 0;
-  padding: 0.25rem;
+  padding: 4px;
   border-radius: var(--publish-pill-radius);
   background: var(--publish-surface);
   box-shadow: inset 0 0 0 1px var(--publish-border);
@@ -74,23 +80,25 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 0.5rem;
+  gap: 8px;
   min-height: 40px;
-  padding: 0 1.125rem;
+  padding: 0 18px;
   border: 0;
   border-radius: var(--publish-pill-radius);
   background: transparent;
   color: var(--publish-text);
   font: inherit;
-  font-size: 0.875rem;
+  font-size: 14px;
   font-weight: 600;
+  line-height: 20px;
   cursor: pointer;
   white-space: nowrap;
 }
 
 .creation-source-switch button svg {
-  width: 1rem;
-  height: 1rem;
+  flex: none;
+  width: 16px;
+  height: 16px;
 }
 
 .creation-source-switch button:hover {
@@ -108,19 +116,25 @@
   outline-offset: 2px;
 }
 
-/* Desktop stepper */
+/* Desktop stepper: 40px pills, 2px between pills, 24px numbers, 14px labels (canvas). */
+.creation-stepper-list {
+  gap: 2px;
+}
+
 .creation-stepper-item {
   display: inline-flex;
   align-items: center;
-  gap: 0.75rem;
-  min-height: 2.5rem;
-  padding: 0 1rem 0 0.5rem;
+  gap: 8px;
+  height: 40px;
+  padding: 0 16px 0 8px;
   border: 0;
   border-radius: var(--publish-pill-radius);
   background: transparent;
-  color: var(--publish-muted-text);
+  color: var(--publish-secondary-text);
   font: inherit;
-  font-size: 0.875rem;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
   white-space: nowrap;
   cursor: pointer;
 }
@@ -146,21 +160,21 @@
 
 .creation-stepper-number {
   display: inline-flex;
-  flex-shrink: 0;
+  flex: none;
   align-items: center;
   justify-content: center;
-  width: 1.5rem;
-  height: 1.5rem;
+  width: 24px;
+  height: 24px;
   border-radius: var(--publish-pill-radius);
-  box-shadow: inset 0 0 0 1.5px var(--publish-border-strong);
-  font-size: 0.75rem;
+  box-shadow: inset 0 0 0 1.5px var(--create-outline);
+  font-size: 12px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
 
 .creation-stepper-number svg {
-  width: 0.75rem;
-  height: 0.75rem;
+  width: 12px;
+  height: 12px;
 }
 
 .creation-stepper-item[data-state='done'] .creation-stepper-number {
@@ -180,20 +194,33 @@
   display: none;
 }
 
+/* Desktop: the switch stays at the left and the stepper (or account pill) right-aligned on the same row (canvas). */
+@media (min-width: 768px) {
+  .creation-toolbar-controls {
+    flex: 1 1 auto;
+    justify-content: space-between;
+  }
+}
+
+/* Between the tablet and the 1200px canvas, 13px step labels keep the stepper on the switch's row. */
+@media (min-width: 768px) and (max-width: 1199px) {
+  .creation-stepper-item {
+    gap: 6px;
+    padding: 0 12px 0 6px;
+    font-size: 13px;
+  }
+}
+
 @media (max-width: 1023px) {
-  .creation-workspace {
-    gap: 1.25rem;
+  .creation-workspace[data-reference-surface] {
+    gap: 20px;
   }
 
   .creation-toolbar,
   .creation-toolbar-controls {
     flex-direction: column;
     align-items: stretch;
-    gap: 0.75rem;
-  }
-
-  .creation-title {
-    font-size: 1.5rem;
+    gap: 12px;
   }
 
   .creation-source-switch {
@@ -204,7 +231,7 @@
   .creation-source-switch button {
     flex: 1 1 0;
     min-height: 44px;
-    padding: 0 0.75rem;
+    padding: 0 12px;
   }
 
   .creation-stepper:not(.creation-stepper-mobile) {
@@ -213,7 +240,7 @@
 
   .creation-stepper-mobile {
     display: grid;
-    gap: 0.625rem;
+    gap: 10px;
     width: 100%;
   }
 
@@ -221,19 +248,22 @@
     display: flex;
     align-items: baseline;
     justify-content: space-between;
-    gap: 0.75rem;
+    gap: 12px;
   }
 
   .creation-stepper-current {
     margin: 0;
-    font-size: 0.8125rem;
-    font-weight: 700;
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 18px;
+    min-width: 0;
   }
 
   .creation-stepper-counter {
     margin: 0;
-    color: var(--publish-muted-text);
-    font-size: 0.8125rem;
+    color: var(--publish-secondary-text);
+    font-size: 13px;
+    line-height: 18px;
     font-variant-numeric: tabular-nums;
     white-space: nowrap;
   }
@@ -241,7 +271,7 @@
   .creation-stepper-segments {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 0.375rem;
+    gap: 6px;
   }
 
   .creation-stepper-segments > span {
@@ -260,14 +290,6 @@
   margin-inline-start: auto;
 }
 
-/* Desktop: the switch stays at the left and the account pill at the right of the toolbar (canvas). */
-@media (min-width: 768px) {
-  .creation-toolbar-controls:has(.creation-account-pill) {
-    flex: 1 1 auto;
-    justify-content: space-between;
-  }
-}
-
 @media (max-width: 767px) {
   .creation-account-pill {
     width: 100%;
@@ -280,7 +302,7 @@
  * the page. Reserve that height plus a 16px gutter so the wizard actions scroll clear of it.
  */
 @media (max-width: 1023px) {
-  .creation-workspace {
+  .creation-workspace[data-reference-surface] {
     padding-bottom: calc(max(22px, env(safe-area-inset-bottom)) + 84px);
   }
 }

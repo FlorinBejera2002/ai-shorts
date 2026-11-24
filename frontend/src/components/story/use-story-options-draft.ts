@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import { useAudioCleanupAvailability } from '@/hooks/use-audio-cleanup-availability'
+import { withAvailableCleanup } from './story-audio-cleanup'
 import type { StoryOptions } from './types'
 
 /**
@@ -7,6 +9,8 @@ import type { StoryOptions } from './types'
  * once edited, the draft stays until it is saved or replaced.
  */
 export function useStoryOptionsDraft(saved: StoryOptions) {
+  const cleanup = useAudioCleanupAvailability()
   const [draft, setDraft] = useState<StoryOptions | null>(null)
-  return [draft ?? saved, setDraft] as const
+  const options = draft ?? saved
+  return [cleanup.loading ? options : withAvailableCleanup(options, cleanup.available), setDraft] as const
 }

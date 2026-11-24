@@ -250,7 +250,7 @@ try {
   await next(1)
   await brief.fill(originalBrief)
   // Selecting no captions creates the brief conflict that the validation step checks later.
-  await page.getByRole('radio', { name: 'No captions', exact: true }).click()
+  await page.getByRole('radio', { name: 'None', exact: true }).click()
   await inspectLayout('brief')
   const textarea = await brief.elementHandle()
   const sidebar = await page.locator('[data-slot="sidebar"]').elementHandle()
@@ -295,7 +295,7 @@ try {
   hotEdited = false
   assert.equal(
     await page
-      .getByRole('radio', { name: 'No captions', exact: true })
+      .getByRole('radio', { name: 'None', exact: true })
       .isChecked(),
     true
   )
@@ -356,8 +356,8 @@ try {
   }
   await inspectLayout('result')
   for (const [mode, label] of [
-    ['selective', 'Only hard-to-hear speech'],
-    ['off', 'No captions']
+    ['selective', 'Hard to hear'],
+    ['off', 'None']
   ]) {
     await page.getByRole('button', { name: 'New project', exact: true }).click()
     await upload()

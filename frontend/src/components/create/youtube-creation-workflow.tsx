@@ -115,7 +115,10 @@ export function YouTubeCreationWorkflow({ active = true }: YouTubeCreationWorkfl
   return (
     <div className="yt-path">
       <div className="yt-path__main">
-        <YouTubeSourceCard title={t('sourceCardTitle')}>
+        <YouTubeSourceCard
+          title={t('sourceCardTitle')}
+          aside={t('youtubeLibrary.selectedCount', { count: selectedIds.length, max: MAX_SELECTED_VIDEOS })}
+        >
           <SourceYouTubeLibrary
             library={library}
             selectedIds={selectedIds}
