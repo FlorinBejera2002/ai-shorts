@@ -16,7 +16,6 @@ type Application struct {
 	StudioAgentURL, StudioAgentSecret                                                                                                                                                                       string
 	YouTubeMediaURLPrefix                                                                                                                                                                                   string
 	YouTubeAuditApproved                                                                                                                                                                                    bool
-	YouTubeImportApproved                                                                                                                                                                                   bool
 	YouTubePortabilityEnabled                                                                                                                                                                               bool
 	YouTubePortabilityTestMode                                                                                                                                                                              bool
 	YouTubePortabilityClientID, YouTubePortabilityClientSecret, YouTubePortabilityRedirectURL, YouTubePortabilityTempDirectory                                                                              string
@@ -24,6 +23,8 @@ type Application struct {
 	YouTubePortabilityMaxVideos                                                                                                                                                                             int
 	SocialEncryptionKey, MetaAppID, MetaAppSecret, InstagramAppID, InstagramAppSecret, TikTokClientKey, TikTokClientSecret, YouTubeClientID, YouTubeClientSecret, MetaGraphVersion, TikTokVerifiedURLPrefix string
 	SocialPublishingEnabled                                                                                                                                                                                 bool
+	YouTubeChannelEnabled                                                                                                                                                                                   bool
+	YouTubeChannelClientID, YouTubeChannelClientSecret, YouTubeChannelRedirectURL                                                                                                                           string
 	AppURL, RedisURL, MediaRoot, StorageType, PublicMediaURL, SigningSecret, UploadSecret, StagingDirectory, DirectUploadURL                                                                                string
 	MaxUploadBytes                                                                                                                                                                                          int64
 	MaxClipDuration                                                                                                                                                                                         float64
@@ -91,10 +92,6 @@ func ApplicationFromEnv(getenv func(string) string, environment string) (Applica
 	a.YouTubeMediaURLPrefix = value("YOUTUBE_MEDIA_URL_PREFIX", a.PublicMediaURL)
 	if a.YouTubeMediaURLPrefix == "" {
 		a.YouTubeMediaURLPrefix = a.AppURL + "/media/"
-	}
-	a.YouTubeImportApproved, err = parseBool("YOUTUBE_IMPORT_APPROVED", false)
-	if err != nil {
-		return a, err
 	}
 	a.YouTubeAuditApproved, err = parseBool("YOUTUBE_AUDIT_APPROVED", false)
 	if err != nil {
@@ -204,6 +201,12 @@ func ApplicationFromEnv(getenv func(string) string, environment string) (Applica
 		if e != nil || u.Host != app.Host || u.Scheme != app.Scheme || u.User != nil || u.RawQuery != "" || u.Fragment != "" || u.Path != "/v1/youtube/import/callback" {
 			return a, errors.New("YOUTUBE_PORTABILITY_REDIRECT_URL must be the APP_URL origin followed by /v1/youtube/import/callback")
 		}
+	}
+	a.YouTubeChannelClientID = getenv("YOUTUBE_CHANNEL_CLIENT_ID")
+	a.YouTubeChannelClientSecret = getenv("YOUTUBE_CHANNEL_CLIENT_SECRET")
+	a.YouTubeChannelRedirectURL = value("YOUTUBE_CHANNEL_REDIRECT_URL", a.AppURL+youtubeChannelCallbackPath)
+	if err := validateYouTubeChannel(&a); err != nil {
+		return a, err
 	}
 	a.GoogleRedirectURL = value("GOOGLE_REDIRECT_URL", a.AppURL+"/v1/auth/google/callback")
 	if a.GoogleClientID != "" || a.GoogleClientSecret != "" {

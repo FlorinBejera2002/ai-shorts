@@ -24,6 +24,8 @@ type importWork struct {
 	Initiated                                                   bool
 	CleanupPending                                              bool
 	CompletionStatus, CompletionError                           string
+	// Selected means only the videos in youtube_import_selections are imported.
+	Selected bool
 }
 
 func lockActiveUser(ctx context.Context, tx *sql.Tx, user string) error {
@@ -49,6 +51,16 @@ func lockActiveUser(ctx context.Context, tx *sql.Tx, user string) error {
 }
 
 func (h *Handler) createAuthorization(ctx context.Context, user string, version int, resources []string, state, browser, verifier, locale string) error {
+	id, err := data.NewUUID()
+	if err != nil {
+		return err
+	}
+	return h.createAuthorizationWith(ctx, user, version, resources, state, browser, verifier, locale, id, nil)
+}
+
+// createAuthorizationWith stores a new authorizing import with the given id. A
+// selection, when present, is stored in the same transaction.
+func (h *Handler) createAuthorizationWith(ctx context.Context, user string, version int, resources []string, state, browser, verifier, locale, id string, selection *selectionRequest) error {
 	tx, err := h.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
@@ -79,16 +91,21 @@ func (h *Handler) createAuthorization(ctx context.Context, user string, version 
 	if recentImports >= 10 || libraryVideos >= 1000 {
 		return errImportBudget
 	}
-	id, err := data.NewUUID()
-	if err != nil {
-		return err
+	var jobOptions sql.NullString
+	if selection != nil {
+		jobOptions = sql.NullString{String: string(selection.options), Valid: true}
 	}
-	_, err = tx.ExecContext(ctx, `INSERT INTO youtube_imports(id,user_id,status,resources,session_version) VALUES($1,$2,'authorizing',$3,$4)`, id, user, pq.Array(resources), version)
+	_, err = tx.ExecContext(ctx, `INSERT INTO youtube_imports(id,user_id,status,resources,session_version,job_options) VALUES($1,$2,'authorizing',$3,$4,$5)`, id, user, pq.Array(resources), version, jobOptions)
 	if uniqueViolation(err) {
 		return errActiveImport
 	}
 	if err != nil {
 		return err
+	}
+	if selection != nil {
+		if err = insertSelection(ctx, tx, id, selection); err != nil {
+			return err
+		}
 	}
 	_, err = tx.ExecContext(ctx, `INSERT INTO youtube_import_oauth_states(state_hash,import_id,user_id,browser_hash,verifier,locale,session_version,expires_at) VALUES($1,$2,$3,$4,$5,$6,$7,now()+interval '10 minutes')`, secretDigest(state), id, user, secretDigest(browser), verifier, locale, version)
 	if err != nil {
@@ -195,19 +212,44 @@ func (h *Handler) loadOverview(ctx context.Context, user string) (Overview, erro
 	if err != nil {
 		return result, err
 	}
-	rows, err = h.db.QueryContext(ctx, `SELECT id,import_id,title,file_name,file_size,source_storage_key,created_at FROM youtube_import_videos WHERE user_id=$1 AND deleted_at IS NULL ORDER BY created_at DESC,id LIMIT 1000`, user)
+	if len(result.Imports) > 0 {
+		if err = h.attachSelections(ctx, user, result.Imports); err != nil {
+			return result, err
+		}
+	}
+	rows, err = h.db.QueryContext(ctx, `SELECT id,import_id,title,file_name,file_size,source_storage_key,COALESCE(thumbnail_storage_key,''),created_at FROM youtube_import_videos WHERE user_id=$1 AND deleted_at IS NULL ORDER BY created_at DESC,id LIMIT 1000`, user)
 	if err != nil {
 		return result, err
 	}
 	defer rows.Close()
 	for rows.Next() {
 		var item Video
-		if err = rows.Scan(&item.ID, &item.ImportID, &item.Title, &item.FileName, &item.FileSize, &item.SourceStorageKey, &item.CreatedAt); err != nil {
+		if err = rows.Scan(&item.ID, &item.ImportID, &item.Title, &item.FileName, &item.FileSize, &item.SourceStorageKey, &item.thumbnailKey, &item.CreatedAt); err != nil {
 			return result, err
 		}
 		result.Videos = append(result.Videos, item)
 	}
-	return result, rows.Err()
+	if err = rows.Err(); err != nil {
+		return result, err
+	}
+	h.signPreviews(ctx, result.Videos)
+	return result, nil
+}
+
+// signPreviews fills thumbnail_url for videos with a stored preview. A signing
+// failure leaves the URL empty instead of hiding the whole library.
+func (h *Handler) signPreviews(ctx context.Context, videos []Video) {
+	if h.previews == nil {
+		return
+	}
+	for i := range videos {
+		if videos[i].thumbnailKey == "" {
+			continue
+		}
+		if url, err := h.previews.PreviewURL(ctx, videos[i].thumbnailKey); err == nil {
+			videos[i].ThumbnailURL = url
+		}
+	}
 }
 
 func (h *Handler) cancelImport(ctx context.Context, user, id string) (string, error) {
@@ -232,21 +274,22 @@ func (h *Handler) cancelImport(ctx context.Context, user, id string) (string, er
 	return encrypted, tx.Commit()
 }
 
-func (h *Handler) tombstoneVideo(ctx context.Context, user, id string) (string, error) {
+// tombstoneVideo hides the video and returns its source and preview keys
+// (the preview is empty when none exists) for removal.
+func (h *Handler) tombstoneVideo(ctx context.Context, user, id string) (sourceKey, previewKey string, err error) {
 	tx, err := h.db.BeginTx(ctx, nil)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 	defer tx.Rollback()
 	if err = lockActiveUser(ctx, tx, user); err != nil {
-		return "", err
+		return "", "", err
 	}
-	var key string
-	err = tx.QueryRowContext(ctx, `UPDATE youtube_import_videos SET deleted_at=COALESCE(deleted_at,now()) WHERE id=$1 AND user_id=$2 RETURNING source_storage_key`, id, user).Scan(&key)
+	err = tx.QueryRowContext(ctx, `UPDATE youtube_import_videos SET deleted_at=COALESCE(deleted_at,now()) WHERE id=$1 AND user_id=$2 RETURNING source_storage_key,COALESCE(thumbnail_storage_key,'')`, id, user).Scan(&sourceKey, &previewKey)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
-	return key, tx.Commit()
+	return sourceKey, previewKey, tx.Commit()
 }
 
 func (h *Handler) claim(ctx context.Context) (importWork, error) {
@@ -263,7 +306,7 @@ func (h *Handler) claim(ctx context.Context) (importWork, error) {
 		AND NOT EXISTS(SELECT 1 FROM account_deletion_requests d WHERE d.user_id=i.user_id)
 		ORDER BY i.next_poll_at,i.id FOR UPDATE OF i SKIP LOCKED LIMIT 1
 	) UPDATE youtube_imports i SET lease_token=$1,lease_until=now()+interval '5 minutes' FROM candidate c WHERE i.id=c.id
-	RETURNING i.id,i.user_id,i.status,i.credentials,i.archive_id,i.access_type,i.resources,i.created_at,i.attempts,i.initiate_started_at IS NOT NULL,i.cleanup_pending,i.completion_status,i.completion_error`, lease).Scan(&work.ID, &work.UserID, &work.Status, &work.Encrypted, &work.ArchiveID, &work.AccessType, pq.Array(&work.Resources), &work.CreatedAt, &work.Attempts, &work.Initiated, &work.CleanupPending, &work.CompletionStatus, &work.CompletionError)
+	RETURNING i.id,i.user_id,i.status,i.credentials,i.archive_id,i.access_type,i.resources,i.created_at,i.attempts,i.initiate_started_at IS NOT NULL,i.cleanup_pending,i.completion_status,i.completion_error,EXISTS(SELECT 1 FROM youtube_import_selections s WHERE s.import_id=i.id)`, lease).Scan(&work.ID, &work.UserID, &work.Status, &work.Encrypted, &work.ArchiveID, &work.AccessType, pq.Array(&work.Resources), &work.CreatedAt, &work.Attempts, &work.Initiated, &work.CleanupPending, &work.CompletionStatus, &work.CompletionError, &work.Selected)
 	work.Lease = lease
 	return work, err
 }
@@ -300,6 +343,11 @@ func (h *Handler) releaseWork(ctx context.Context, work importWork, delay time.D
 }
 
 func (h *Handler) finishWork(ctx context.Context, work importWork, status, message string) error {
+	// Direct failures (authorization problems before any archive read) reach here
+	// without completeImport, so the selected videos are settled on this path too.
+	if err := h.settleEndedSelection(ctx, work, status); err != nil {
+		return err
+	}
 	_, err := h.db.ExecContext(ctx, `UPDATE youtube_imports SET status=$3,error=$4,credentials='',cleanup_pending=false,authorization_in_progress=false,lease_token=NULL,lease_until=NULL,updated_at=now() WHERE id=$1 AND lease_token=$2 AND lease_until>now() AND (status IN ('queued','exporting','importing') OR cleanup_pending)`, work.ID, work.Lease, status, message)
 	return err
 }
@@ -343,7 +391,9 @@ func (h *Handler) videoExists(ctx context.Context, work importWork, relativePath
 	return exists, err
 }
 
-func (h *Handler) recordVideo(ctx context.Context, work importWork, video ImportedVideo, key string) error {
+// recordVideo stores the library row. previewKey is empty when extraction
+// failed; previewAttempts then records that failure for the backfill.
+func (h *Handler) recordVideo(ctx context.Context, work importWork, video ImportedVideo, key, previewKey string, previewAttempts int) error {
 	tx, err := h.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
@@ -364,9 +414,17 @@ func (h *Handler) recordVideo(ctx context.Context, work importWork, video Import
 	if count >= 1000 {
 		return errImportBudget
 	}
-	_, err = tx.ExecContext(ctx, `INSERT INTO youtube_import_videos(import_id,user_id,relative_path,title,file_name,file_size,source_storage_key) VALUES($1,$2,$3,$4,$5,$6,$7)`, work.ID, work.UserID, video.RelativePath, safeTitle(video.Title, video.FileName), video.FileName, video.Size, key)
+	_, err = tx.ExecContext(ctx, `INSERT INTO youtube_import_videos(import_id,user_id,relative_path,title,file_name,file_size,source_storage_key,thumbnail_storage_key,thumbnail_attempts) VALUES($1,$2,$3,$4,$5,$6,$7,NULLIF($8,''),$9)`, work.ID, work.UserID, video.RelativePath, safeTitle(video.Title, video.FileName), video.FileName, video.Size, key, previewKey, previewAttempts)
 	if err != nil {
 		return err
+	}
+	if video.selectedVideoID != "" {
+		// The selection moves to importing in the same transaction as the library
+		// row, so a restart never leaves a stored video still waiting.
+		_, err = tx.ExecContext(ctx, `UPDATE youtube_import_selections SET status='importing',source_storage_key=$3,updated_at=now() WHERE import_id=$1 AND video_id=$2 AND status='waiting'`, work.ID, video.selectedVideoID, key)
+		if err != nil {
+			return err
+		}
 	}
 	return tx.Commit()
 }

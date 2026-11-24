@@ -16,8 +16,8 @@ func TestPostgresCanonicalClipAndRecutKeepPrimaryAndCleanArtifacts(t *testing.T)
 	if _, err := db.Exec(`INSERT INTO users(id,email,provider,credits,plan) VALUES($1,$2,'credentials',100,'free')`, owner, owner+"@example.invalid"); err != nil {
 		t.Fatal(err)
 	}
-	source := "https://example.invalid/fixture"
-	if _, err := jobs.NewRepository(db).Create(ctx, owner, []jobs.Prepared{{Input: jobs.CreateInput{Options: jobs.DefaultOptions(), SourceType: "youtube", SourceURL: &source}, WorkerSource: source}}); err != nil {
+	source := "uploads/" + owner + "/fixture.mp4"
+	if _, err := jobs.NewRepository(db).Create(ctx, owner, []jobs.Prepared{{Input: jobs.CreateInput{Options: jobs.DefaultOptions(), SourceType: "upload", SourceStorageKey: &source}, WorkerSource: source}}); err != nil {
 		t.Fatal(err)
 	}
 	repo := NewRepository(db)

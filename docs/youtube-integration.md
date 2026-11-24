@@ -23,7 +23,6 @@ YOUTUBE_CLIENT_ID=<Google OAuth web client ID>
 YOUTUBE_CLIENT_SECRET=<Google OAuth web client secret>
 YOUTUBE_AUDIT_APPROVED=false
 YOUTUBE_MEDIA_URL_PREFIX=https://your-public-media-origin.example/path/
-YOUTUBE_IMPORT_APPROVED=false
 ```
 
 The media prefix must match the actual signed URLs returned by storage,
@@ -84,28 +83,6 @@ maintenance rather than retained as stale API data indefinitely. User-authored
 calendar drafts and original files are separate data and retain their normal
 deletion controls. YouTube API data is not passed into AI processing or used to
 train models by this integration.
-
-## Audiovisual imports
-
-Public imports can use the automatically refreshed PO token provider described
-in [automatic YouTube tokens](youtube-automatic-tokens.md). Token mode ignores
-account cookies. Token generation and video access are separate checks: the
-document records the failed cookie-free acceptance test on the production IP.
-
-OAuth publishing approval does not authorize downloading YouTube audiovisual
-content. YouTube imports, including previously queued remote processing, are
-disabled by default. Set `YOUTUBE_IMPORT_APPROVED=true` only after obtaining
-YouTube's prior written approval. Original file uploads remain supported. The
-flag is separate from the upload audit and must not be enabled merely because
-the user owns a channel or an OAuth grant exists.
-
-The worker downloads imports with a pinned yt-dlp build plus Deno (its
-JavaScript runtime), both installed in `backend/Dockerfile`. When YouTube
-changes break downloads, bump `YTDLP_VERSION` and its checksums there. If
-YouTube rejects the server IP ("Sign in to confirm you're not a bot"),
-provision the cookie export described in
-[production-backend.md](production-backend.md#youtube-download-authentication)
-and/or set `YOUTUBE_PROXY`.
 
 ## External acceptance
 

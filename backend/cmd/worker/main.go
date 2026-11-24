@@ -89,7 +89,7 @@ func run(logger *slog.Logger) error {
 		logger.Info("Selected Story processing finished", "story_id", options.storyID)
 		return nil
 	}
-	executor := worker.Worker{Repo: worker.NewRepository(db), Pipeline: processor, Storage: storage, Logger: logger, YouTubeImportApproved: app.YouTubeImportApproved, Stories: storyRunner}
+	executor := worker.Worker{Repo: worker.NewRepository(db), Pipeline: processor, Storage: storage, Logger: logger, Stories: storyRunner}
 	return executor.Run(ctx)
 }
 

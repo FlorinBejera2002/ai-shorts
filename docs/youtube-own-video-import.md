@@ -2,9 +2,9 @@
 
 Create clips → YouTube → Own videos imports the connected user's uploaded
 videos using **Google Data Portability API**, then feeds the stored files into
-the existing upload-to-clips pipeline. It does not use browser cookies or the
-legacy YouTube URL downloader. `YOUTUBE_IMPORT_APPROVED` is unrelated to this
-flow and may remain false.
+the existing upload-to-clips pipeline. It does not use browser cookies or any
+video-link downloader. Link imports were removed; users upload the video or
+import it from their channel through this flow.
 
 ## Google setup
 

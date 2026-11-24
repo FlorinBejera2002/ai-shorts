@@ -1,12 +1,17 @@
-import { Pencil } from 'lucide-react'
-import { useAuth } from '@/components/auth/use-auth'
-import { Button } from '@/components/ui/button'
-import { formatDuration } from '@/lib/youtube'
+'use client'
+
+import { useMonthlyUsage } from '@/components/dashboard/sidebar-usage'
+import { orderKits } from '@/components/dashboard/brand/kits/kit-model'
+import { useBrandKits } from '@/components/dashboard/brand/kits/use-brand-kits'
 import { storyCaptionMode, type StoryAsset, type StoryOptions } from './types'
 import type { StoryStep } from './story-wizard'
 import { useStoryLanguage } from './use-story-language'
 import { StoryMusicSummary } from './story-music-summary'
-import { StorySourcePreview } from './story-source-preview'
+import { StoryReviewPhone } from './story-review-phone'
+import { StoryReviewAside } from './story-review-aside'
+import { clipCountOf, noiseReducedFootage } from './story-create-review-model'
+import { BriefText, Chip, FootageThumbs, ReviewBackButton, ReviewRow } from './story-review-rows'
+import './story-create-review.css'
 
 interface Props {
   options: StoryOptions
@@ -19,8 +24,10 @@ interface Props {
 
   onEdit: (step: StoryStep) => void
   onCreate: () => void
+  onBack: () => void
 }
 
+/** Step 3 of the upload flow: a summary of footage, result, description and sound, with the create action. */
 export function StoryCreateReview({
   options,
   videos,
@@ -31,149 +38,196 @@ export function StoryCreateReview({
   pendingCount,
 
   onEdit,
-  onCreate
+  onCreate,
+  onBack
 }: Props) {
   const text = useStoryLanguage()
-  const { user } = useAuth()
-  const captionLabels = {
-    all: text('All dialogue', 'Pe tot dialogul'),
-    selective: text('Only hard-to-hear speech', 'Doar unde se aude greu'),
-    off: text('No captions', 'Fără subtitrări')
-  }
+  const usage = useMonthlyUsage().data ?? null
+  const { kits } = useBrandKits()
+  const brandName = options.use_brand_kit && kits ? orderKits(kits)[0]?.name : undefined
   const included = videos.filter((asset) => asset.include !== 'excluded')
+  const rowProps = { options, videos, busy, onEdit }
+  const createLabel = busy
+    ? text('Submitting…', 'Se trimite…')
+    : text('Create clips', 'Creează clipurile')
 
   return (
-    <div className="story-create-review">
-      <div className="story-create-review-inspector space-y-5">
-        <div className="flex items-center justify-between gap-3 border-b pb-4">
-          <span className="text-sm font-medium">
-            {included.length}{' '}
-            {included.length === 1
-              ? text('clip selected', 'filmare selectată')
-              : text('clips selected', 'filmări selectate')}
-          </span>
-          <Button
-            variant="ghost"
-            size="sm"
-            disabled={busy}
-            onClick={() => onEdit(0)}
-          >
-            <Pencil />
-            {text('Edit clips', 'Schimbă filmările')}
-          </Button>
-        </div>
-        <details>
-          <summary className="cursor-pointer text-sm text-muted-foreground">
-            {text('View selected clips', 'Vezi filmările selectate')}
-          </summary>
-          <ol className="max-h-60 divide-y overflow-y-auto text-sm">
-            {included.map((asset) => (
-              <li
-                key={asset.id}
-                className="flex min-w-0 items-center justify-between gap-4 py-2"
-              >
-                <span className="truncate" title={asset.name}>
-                  {asset.name}
-                </span>
-                <span className="shrink-0 tabular-nums text-muted-foreground">
-                  {formatDuration(asset.duration)}
-                </span>
-              </li>
-            ))}
-          </ol>
-        </details>
-        {(!included.length || pendingCount > 0) && (
-          <p role="status" className="text-sm text-muted-foreground">
-            {pendingCount > 0
-              ? text(
-                  'Finish or retry the remaining uploads to continue.',
-                  'Finalizează sau reîncearcă încărcările rămase pentru a continua.'
-                )
-              : text(
-                  'Include at least one clip to continue.',
-                  'Include cel puțin o filmare pentru a continua.'
-                )}
-          </p>
-        )}
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t pt-4">
-          <p className="text-sm">
-            {captionLabels[storyCaptionMode(options)]} · {options.aspect_ratio}{' '}
-            ·{' '}
-            {options.narration
-              ? text('Full narration', 'Narațiunea completă')
-              : `≈ ${options.target_seconds} s`}
-            {!options.narration &&
-              ` · ${options.preserve_order ? text('Original order', 'Ordinea originală') : text('AI sequence', 'Ordine aleasă de AI')}`}
-          </p>
-          <Button
-            variant="ghost"
-            size="sm"
-            disabled={busy}
-            onClick={() => onEdit(1)}
-          >
-            <Pencil />
-            {text('Edit options', 'Schimbă opțiunile')}
-          </Button>
-        </div>
-        <div className="space-y-4 border-t pt-5">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <span className="text-sm text-muted-foreground">
-              {user?.access_role === 'admin'
-                ? text(
-                    'Unlimited credits · no charge',
-                    'Credite nelimitate · fără cost'
-                  )
-                : text(
-                    '10 credits · charged once',
-                    '10 credite · o singură plată'
-                  )}
-            </span>
-            <Button
-              className="w-full"
-              disabled={!ready || busy}
-              onClick={onCreate}
-            >
-              {busy
-                ? text('Submitting…', 'Se trimite…')
-                : text('Create my clip', 'Creează clipul')}
-            </Button>
-          </div>
-        </div>
-      </div>
-      <div className="story-create-review-workarea space-y-5">
-        <StorySourcePreview assets={included} />
-        <div className="space-y-3 border-t pt-4">
-          <div className="flex items-center justify-between gap-3">
-            <span className="text-sm font-medium">
-              {text('Your direction', 'Indicațiile tale')}
-            </span>
-            <Button
-              variant="ghost"
-              size="sm"
-              disabled={busy}
-              onClick={() => onEdit(1)}
-            >
-              <Pencil />
-              {text('Edit direction', 'Schimbă instrucțiunile')}
-            </Button>
-          </div>
-          <p className="whitespace-pre-wrap break-words text-sm leading-relaxed">
-            {options.brief.trim() ||
-              text(
-                'A natural edit faithful to your recordings.',
-                'Un montaj natural, fidel filmărilor tale.'
-              )}
-          </p>
-          <p className="break-words text-sm text-muted-foreground">
-            {options.narration && narration
-              ? `${narration.name} · ${formatDuration(narration.duration)}`
-              : text('Original audio', 'Sunet original')}
-          </p>
-          {options.music && (
-            <StoryMusicSummary music={options.music} narration={options.narration} />
-          )}
-        </div>
-      </div>
+    <div className="creare-review">
+      <section className="creare-review-card" aria-label={text('Verify and create', 'Verifică și creează')}>
+        <h2 className="creare-review-title">{text('Verify and create', 'Verifică și creează')}</h2>
+        <ReviewFootageRow {...rowProps} />
+        <ReviewResultRow {...rowProps} />
+        <ReviewDescriptionRow {...rowProps} />
+        <ReviewSoundRow
+          {...rowProps}
+          narrationRecorded={Boolean(narration)}
+          brandName={brandName}
+        />
+        <ReviewBlockingNotice includedCount={included.length} pendingCount={pendingCount} />
+        {options.music && <StoryMusicSummary music={options.music} narration={options.narration} />}
+      </section>
+      <StoryReviewAside
+        preview={<StoryReviewPhone asset={included[0]} />}
+        usage={usage}
+        usageLabel={text('Monthly usage', 'Utilizare lunară')}
+        ctaLabel={createLabel}
+        ready={ready}
+        busy={busy}
+        onCreate={onCreate}
+      />
+      <ReviewBackButton label={text('Back', 'Înapoi')} disabled={busy} onClick={onBack} />
     </div>
+  )
+}
+
+/** Shared inputs of every review row. Each row's "Change" action jumps to the step that edits it. */
+export interface ReviewRowProps {
+  options: StoryOptions
+  videos: StoryAsset[]
+  busy: boolean
+  onEdit: (step: 0 | 1) => void
+}
+
+/** Footage row: the included clips numbered by footage order. */
+export function ReviewFootageRow({ videos, busy, onEdit }: ReviewRowProps) {
+  const text = useStoryLanguage()
+  const included = videos.filter((asset) => asset.include !== 'excluded')
+  return (
+    <ReviewRow
+      label={text('Footage', 'Filmări')}
+      changeLabel={text('Change', 'Schimbă')}
+      disabled={busy}
+      onChange={() => onEdit(0)}
+    >
+      <FootageThumbs assets={included} videos={videos} />
+    </ReviewRow>
+  )
+}
+
+/** Result row: caption mode, aspect ratio, and the clip count with its duration. */
+export function ReviewResultRow({ options, busy, onEdit }: ReviewRowProps) {
+  const text = useStoryLanguage()
+  const captionLabels = {
+    all: text('All dialogue', 'Tot dialogul'),
+    selective: text('Only hard-to-hear speech', 'Doar unde e greu'),
+    off: text('No captions', 'Fără subtitrări')
+  }
+  const clipCount = clipCountOf(options)
+  const clipLabel =
+    clipCount === 0 ? text('Auto', 'Auto') : `${clipCount} ${text('clips', 'clipuri')}`
+  const duration = options.narration
+    ? text('Full narration', 'Narațiunea completă')
+    : `≈ ${options.target_seconds} s`
+  return (
+    <ReviewRow
+      label={text('Result', 'Rezultat')}
+      changeLabel={text('Change', 'Schimbă')}
+      disabled={busy}
+      onChange={() => onEdit(1)}
+    >
+      <Chip>{captionLabels[storyCaptionMode(options)]}</Chip>
+      <Chip>{options.aspect_ratio}</Chip>
+      <Chip>{`${clipLabel} · ${duration}`}</Chip>
+    </ReviewRow>
+  )
+}
+
+/** Description row: the brief with footage tags, or the natural-edit fallback. */
+export function ReviewDescriptionRow({ options, videos, busy, onEdit }: ReviewRowProps) {
+  const text = useStoryLanguage()
+  const footageLabel = (number: number) => `${text('Footage', 'Filmarea')} ${number}`
+  return (
+    <ReviewRow
+      label={text('Description', 'Descriere')}
+      changeLabel={text('Change', 'Schimbă')}
+      disabled={busy}
+      onChange={() => onEdit(1)}
+    >
+      {options.brief.trim() ? (
+        <BriefText brief={options.brief} videos={videos} footageLabel={footageLabel} />
+      ) : (
+        <p className="creare-review-brief">{text('Natural edit', 'Montaj natural')}</p>
+      )}
+    </ReviewRow>
+  )
+}
+
+interface SoundRowProps extends ReviewRowProps {
+  /** True when a narration recording is attached to the project. */
+  narrationRecorded: boolean
+  /** Name of the brand kit used by the project, when it is known. */
+  brandName?: string
+}
+
+/** Sound and brand row: voice or original sound, noise reduction, music and brand kit. */
+export function ReviewSoundRow({
+  options,
+  videos,
+  busy,
+  onEdit,
+  narrationRecorded,
+  brandName
+}: SoundRowProps) {
+  const text = useStoryLanguage()
+  const reducedCount = options.audio_cleanup?.enabled
+    ? noiseReducedFootage(options, videos).length
+    : 0
+  return (
+    <ReviewRow
+      label={text('Sound and brand', 'Sunet și brand')}
+      changeLabel={text('Change', 'Schimbă')}
+      disabled={busy}
+      onChange={() => onEdit(1)}
+    >
+      <Chip>
+        {options.narration && narrationRecorded
+          ? text('Your voice', 'Vocea mea')
+          : text('Original sound', 'Sunet original')}
+      </Chip>
+      {reducedCount > 0 && <Chip>{noiseReducedLabel(reducedCount, text)}</Chip>}
+      <Chip>
+        {options.music
+          ? (options.music.title ?? text('Music', 'Muzică'))
+          : text('No music', 'Fără muzică')}
+      </Chip>
+      {options.use_brand_kit && (
+        <Chip>{brandName ?? text('Brand kit', 'Kit de brand')}</Chip>
+      )}
+    </ReviewRow>
+  )
+}
+
+function noiseReducedLabel(
+  count: number,
+  text: ReturnType<typeof useStoryLanguage>
+) {
+  return text(
+    `Noise reduced · ${count} footage`,
+    `Zgomot redus · ${count} ${count === 1 ? 'filmare' : 'filmări'}`
+  )
+}
+
+/** Notice shown while uploads are pending or no clip is included. */
+export function ReviewBlockingNotice({
+  includedCount,
+  pendingCount
+}: {
+  includedCount: number
+  pendingCount: number
+}) {
+  const text = useStoryLanguage()
+  if (pendingCount === 0 && includedCount > 0) return null
+  return (
+    <p role="status" className="creare-review-notice">
+      {pendingCount > 0
+        ? text(
+            'Finish or retry the remaining uploads to continue.',
+            'Finalizează sau reîncearcă încărcările rămase pentru a continua.'
+          )
+        : text(
+            'Include at least one clip to continue.',
+            'Include cel puțin o filmare pentru a continua.'
+          )}
+    </p>
   )
 }

@@ -1,0 +1,27 @@
+/*
+ * Canvas secondary pill (Creare clip): transparent, 1.5px inset outline, 999px radius.
+ * Light outline #1f2a3d, dark outline #c9d4e4 (canvas --sbd / dark secondary). Hover uses the
+ * neutral muted fill, never the primary colour. Unlayered, so it wins over the Button utilities.
+ */
+.creare-outline-pill {
+  min-width: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  box-shadow: inset 0 0 0 1.5px #1f2a3d;
+  color: var(--publish-text);
+  font-weight: 600;
+}
+
+.creare-outline-pill:hover {
+  background: var(--publish-hover);
+}
+
+.dark .creare-outline-pill {
+  box-shadow: inset 0 0 0 1.5px #c9d4e4;
+  color: #edf2fa;
+}
+
+.dark .creare-outline-pill:hover {
+  background: #263246;
+}

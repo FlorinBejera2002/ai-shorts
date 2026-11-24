@@ -35,7 +35,7 @@ function release(session: Session) {
 }
 
 /** Microphone access occurs only inside start(), called by an explicit user action. */
-export function useNarrationRecorder(containerRef: RefObject<HTMLDivElement | null>) {
+export function useNarrationRecorder(containerRef: RefObject<HTMLElement | null>) {
   const [phase, setPhase] = useState<Phase>('idle')
   const [seconds, setSeconds] = useState(0)
   const [draft, setDraft] = useState<Draft | null>(null)

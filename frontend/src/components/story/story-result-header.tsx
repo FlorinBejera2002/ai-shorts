@@ -1,61 +1,37 @@
 import { Download } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { formatDuration } from '@/lib/youtube'
-import type { StoryVersion } from './types'
 import { useStoryLanguage } from './use-story-language'
 
-interface Props {
-  version: StoryVersion
-  duration: number
-  aspectRatio: string
+export interface ResultStat {
+  label: string
+  value: string
 }
 
-export function StoryResultHeader({ version, duration, aspectRatio }: Props) {
-  const text = useStoryLanguage()
-  const ready = version.report.status === 'ready'
-
+/** Heading and the stats strip (duration, format and version or clip count). */
+export function StoryResultHeader({ title, stats }: { title: string; stats: ResultStat[] }) {
   return (
     <div className="story-result-header">
-      <div className="story-result-heading">
-        <h2>
-          {text('Video preview', 'Previzualizare video')}
-        </h2>
-        <span className="story-result-status" role="status">
-          <span aria-hidden="true" />
-          {ready ? text('Ready', 'Gata') : text('Needs review', 'Necesită verificare')}
-        </span>
-      </div>
-      <dl className="story-result-metadata">
-        <div>
-          <dt>{text('Duration', 'Durată')}</dt>
-          <dd>{formatDuration(duration)}</dd>
-        </div>
-        <div>
-          <dt>{text('Format', 'Format')}</dt>
-          <dd>{aspectRatio}</dd>
-        </div>
-        <div>
-          <dt>{text('Version', 'Versiunea')}</dt>
-          <dd>{version.number}</dd>
-        </div>
+      <h2 className="story-result-title">{title}</h2>
+      <dl className="story-result-stats" data-testid="story-result-stats">
+        {stats.map((stat) => (
+          <div key={stat.label}>
+            <dt>{stat.label}</dt>
+            <dd>{stat.value}</dd>
+          </div>
+        ))}
       </dl>
     </div>
   )
 }
 
-export function StoryResultDownload({ version }: { version: StoryVersion }) {
+/** Primary download action; the label depends on whether the version is reviewed. */
+export function StoryResultDownload({ href, ready }: { href: string; ready: boolean }) {
   const text = useStoryLanguage()
-  if (!version.preview_url) return null
   return (
-    <Button asChild className="story-result-download">
-      <a
-        href={version.export_url ?? version.preview_url}
-        download
-        target="_blank"
-        rel="noreferrer"
-      >
+    <Button asChild className="story-result-download rounded-full">
+      <a href={href} download target="_blank" rel="noreferrer">
         <Download className="size-4" aria-hidden="true" />
-        {version.report.status === 'ready'
+        {ready
           ? text('Download video', 'Descarcă video')
           : text('Download draft', 'Descarcă versiunea preliminară')}
       </a>

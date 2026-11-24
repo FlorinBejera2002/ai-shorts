@@ -20,6 +20,14 @@ func EditorialOptions(options Options) Options {
 	return options
 }
 
+// EditorialOptionsFor is EditorialOptions with footage tags resolved, so model
+// payloads show the same brief text as the editing brief.
+func EditorialOptionsFor(req Request) Options {
+	options := EditorialOptions(req.Options)
+	options.Brief, _ = ResolveBriefFootage(options.Brief, req.Assets)
+	return options
+}
+
 // musicEvidenceOnOutput applies the same excerpt/repeat clock as Studio. It
 // never extrapolates timestamps from BPM or invents events in silent regions.
 func musicEvidenceOnOutput(req Request, duration float64) []MusicEvent {

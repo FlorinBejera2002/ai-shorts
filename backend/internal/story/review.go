@@ -71,7 +71,7 @@ func (b *Builder) preReview(ctx context.Context, req Request, version Version, b
 		SourceIDs              []string                      `json:"allowed_source_ids"`
 		CandidateSources       map[string]string             `json:"candidate_source_ids"`
 		OriginalSpeechCoverage *originalSpeechReviewEvidence `json:"original_speech_coverage,omitempty"`
-	}{BuildEditingBrief(req), EditorialOptions(req.Options), version.Plan, editorialCandidates(req.Assets, true), editorialTimeline(version.Timeline), sourceIDs, candidateSources, originalSpeechReviewCoverage(req, version.Timeline)}
+	}{BuildEditingBrief(req), EditorialOptionsFor(req), version.Plan, editorialCandidates(req.Assets, true), editorialTimeline(version.Timeline), sourceIDs, candidateSources, originalSpeechReviewCoverage(req, version.Timeline)}
 	data, _ := json.Marshal(payload)
 	if len(data) > maxEditorialJSONBytes {
 		report.Coverage.Incomplete = append(report.Coverage.Incomplete, "Independent story review input exceeds the supported context budget; no source text was silently truncated.")

@@ -24,12 +24,17 @@ func TestStoryReadResolvesOnlyPublishedClipForStudio(t *testing.T) {
 			mock.ExpectQuery("SELECT asset FROM story_assets").WithArgs(projectID).WillReturnRows(sqlmock.NewRows([]string{"asset"}))
 			// Historical serialized identities must not survive a newer publication or
 			// clip deletion. The live ownership-scoped clip relation is authoritative.
-			mock.ExpectQuery("SELECT v.version,coalesce").WithArgs(projectID, user).WillReturnRows(
-				sqlmock.NewRows([]string{"version", "clip_id"}).
-					AddRow(encoded(story.Version{Number: 1, Accepted: true, ClipID: "stale-clip"}), "").
-					AddRow(encoded(story.Version{Number: 2, Accepted: true, ClipID: "stale-current-clip"}), clipID).
-					AddRow(encoded(story.Version{Number: 3, Accepted: false}), ""),
+			mock.ExpectQuery("SELECT v.version FROM story_versions").WithArgs(projectID).WillReturnRows(
+				sqlmock.NewRows([]string{"version"}).
+					AddRow(encoded(story.Version{Number: 1, Accepted: true, ClipID: "stale-clip"})).
+					AddRow(encoded(story.Version{Number: 2, Accepted: true, ClipID: "stale-current-clip"})).
+					AddRow(encoded(story.Version{Number: 3, Accepted: false})),
 			)
+			clips := sqlmock.NewRows([]string{"story_version", "story_output_index", "id"})
+			if clipID != "" {
+				clips.AddRow(2, 0, clipID)
+			}
+			mock.ExpectQuery("SELECT story_version,story_output_index,id::text FROM clips").WithArgs(projectID, user).WillReturnRows(clips)
 			mock.ExpectQuery("SELECT attempt FROM story_attempts").WithArgs(projectID).WillReturnRows(sqlmock.NewRows([]string{"attempt"}))
 			project, err := NewRepository(db, story.DefaultLimits()).Get(context.Background(), user, projectID)
 			if err != nil {

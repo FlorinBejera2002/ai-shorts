@@ -35,6 +35,13 @@ setup or have a billing administrator link an account before real Data
 Portability API requests. No payment setup or financial commitment has been
 made by this implementation.
 
+Update 2026-11-20: production now runs with `YOUTUBE_PORTABILITY_ENABLED=true`
+and `YOUTUBE_PORTABILITY_TEST_MODE=true` (owner-approved). The backend is
+healthy and the import routes respond. With the owner's approval, the
+`sneepcut.com` billing account (free trial) is linked to
+`sneepcut-youtube-import`, and the Data Portability API shows as enabled. A real
+consent/export test is still pending.
+
 For the controlled real test, use `YOUTUBE_PORTABILITY_ENABLED=true` with
 `YOUTUBE_PORTABILITY_TEST_MODE=true`. New import access is limited to Sneep Cut
 admins, and Google separately requires an explicitly listed test account. Leave

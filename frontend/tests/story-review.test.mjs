@@ -46,7 +46,7 @@ test('accepted drafts with incomplete review show a neutral localized review not
     assert.equal(node.props['data-testid'], 'story-review-notice')
     assert.match(node.props.children, locale === 'ro' ? /imaginea, sunetul și subtitrările/ : /picture, sound and captions/)
     assert.doesNotMatch(node.props.children, /automated|incomplete|Manual Studio/)
-    assert.match(node.props.className, /bg-muted/)
+    assert.equal(node.props.className, 'story-result-review-notice')
   }
 })
 

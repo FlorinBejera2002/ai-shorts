@@ -90,7 +90,8 @@ try {
   await page.goto(`${origin}/dashboard/create?story=${projects[0].id}`, { waitUntil: 'domcontentloaded', timeout: 180000 })
   for (const project of projects) {
     const mode = project.mode
-    if (mode !== modes[0]) await page.getByRole('combobox', { name: 'Open project', exact: true }).selectOption(project.id)
+    // The result page has no project picker (canvas); open the other project by its URL.
+    if (mode !== modes[0]) await page.goto(`${origin}/dashboard/create?story=${project.id}`, { waitUntil: 'domcontentloaded', timeout: 180000 })
     await player.waitFor()
     await page.waitForFunction(() => document.querySelector('video[aria-label="Clip preview"]')?.readyState >= 2)
     const metadata = await player.evaluate((video) => ({ duration: video.duration, width: video.videoWidth, height: video.videoHeight }))

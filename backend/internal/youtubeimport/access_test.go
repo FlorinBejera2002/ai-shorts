@@ -113,7 +113,8 @@ func TestImportOverviewGatesNewConnectionsButRetainsOwnedLibrary(t *testing.T) {
 			}
 			now := time.Now()
 			mock.ExpectQuery("SELECT i.id,i.status,i.resources").WithArgs(accessTestUserID).WillReturnRows(sqlmock.NewRows([]string{"id", "status", "resources", "created_at", "updated_at", "error", "video_count"}).AddRow("owned-import", "ready", pq.Array([]string{PublicVideos}), now, now, "", 1))
-			mock.ExpectQuery("SELECT id,import_id,title,file_name,file_size,source_storage_key,created_at").WithArgs(accessTestUserID).WillReturnRows(sqlmock.NewRows([]string{"id", "import_id", "title", "file_name", "file_size", "source_storage_key", "created_at"}).AddRow("owned-video", "owned-import", "My video", "my-video.mp4", 20, "uploads/owner/my-video.mp4", now))
+			mock.ExpectQuery("SELECT s.import_id,s.video_id").WithArgs(accessTestUserID).WillReturnRows(sqlmock.NewRows([]string{"import_id", "video_id", "title", "thumbnail_url", "status", "job_id", "error"}))
+			mock.ExpectQuery("SELECT id,import_id,title,file_name,file_size,source_storage_key,COALESCE\\(thumbnail_storage_key,''\\),created_at").WithArgs(accessTestUserID).WillReturnRows(sqlmock.NewRows([]string{"id", "import_id", "title", "file_name", "file_size", "source_storage_key", "thumbnail", "created_at"}).AddRow("owned-video", "owned-import", "My video", "my-video.mp4", 20, "uploads/owner/my-video.mp4", "", now))
 			routes, token, _ := authenticatedImportRoutes(t, h, test.role)
 			response := importAccessRequest(routes, token, http.MethodGet, "/api/youtube/imports", "")
 			var overview Overview
@@ -158,7 +159,7 @@ func TestImportConnectChecksCurrentRoleBeforeCreatingOAuthState(t *testing.T) {
 				mock.ExpectExec("UPDATE youtube_imports SET status='cancelled'").WithArgs(accessTestUserID).WillReturnResult(sqlmock.NewResult(0, 0))
 				mock.ExpectQuery("SELECT EXISTS\\(SELECT 1 FROM youtube_imports").WithArgs(accessTestUserID).WillReturnRows(sqlmock.NewRows([]string{"active"}).AddRow(false))
 				mock.ExpectQuery("SELECT \\(SELECT count\\(\\*\\) FROM youtube_imports").WithArgs(accessTestUserID).WillReturnRows(sqlmock.NewRows([]string{"recent", "videos"}).AddRow(0, 0))
-				mock.ExpectExec("INSERT INTO youtube_imports").WithArgs(sqlmock.AnyArg(), accessTestUserID, pq.Array([]string{PublicVideos}), 0).WillReturnResult(sqlmock.NewResult(0, 1))
+				mock.ExpectExec("INSERT INTO youtube_imports").WithArgs(sqlmock.AnyArg(), accessTestUserID, pq.Array([]string{PublicVideos}), 0, nil).WillReturnResult(sqlmock.NewResult(0, 1))
 				mock.ExpectExec("INSERT INTO youtube_import_oauth_states").WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg(), accessTestUserID, sqlmock.AnyArg(), sqlmock.AnyArg(), "en", 0).WillReturnResult(sqlmock.NewResult(0, 1))
 				mock.ExpectCommit()
 			}
@@ -198,7 +199,7 @@ func TestImportTestingModeStillAllowsMemberToDeleteOwnedVideo(t *testing.T) {
 	videoID := "30000000-0000-4000-8000-000000000001"
 	mock.ExpectBegin()
 	expectActiveUser(mock)
-	mock.ExpectQuery("UPDATE youtube_import_videos SET deleted_at").WithArgs(videoID, accessTestUserID).WillReturnRows(sqlmock.NewRows([]string{"source_storage_key"}).AddRow("uploads/owner/my-video.mp4"))
+	mock.ExpectQuery("UPDATE youtube_import_videos SET deleted_at").WithArgs(videoID, accessTestUserID).WillReturnRows(sqlmock.NewRows([]string{"source_storage_key", "thumbnail"}).AddRow("uploads/owner/my-video.mp4", ""))
 	mock.ExpectCommit()
 	response := importAccessRequest(routes, token, http.MethodDelete, "/api/youtube/import-videos/"+videoID, "")
 	if response.Code != http.StatusOK || h.media.(*handlerTestMedia).removed != 1 {

@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"io"
 	"log/slog"
-	"net"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -47,7 +46,7 @@ func authenticatedJobHTTPContracts(t *testing.T, role string) {
 	}
 	auth := identity.NewHandler(service, identity.HTTPConfig{}, slog.New(slog.NewTextHandler(io.Discard, nil)))
 	router := httprouter.New()
-	New(db, auth, testMedia{}, Config{YouTubeImportApproved: true, LookupIP: func(context.Context, string, string) ([]net.IP, error) { return []net.IP{net.ParseIP("8.8.8.8")}, nil }}).Register(router)
+	New(db, auth, acceptingMedia{}).Register(router)
 	call := func(method, path, body string) *httptest.ResponseRecorder {
 		req := httptest.NewRequest(method, path, strings.NewReader(body))
 		req.Header.Set("Authorization", "Bearer "+login.AccessToken)
@@ -56,21 +55,25 @@ func authenticatedJobHTTPContracts(t *testing.T, role string) {
 		router.ServeHTTP(w, req)
 		return w
 	}
-	w := call("POST", "/api/jobs/batch", `{"source_urls":["https://youtube.com/watch?v=fixture"],"burn_subtitles":false,"smart_crop":false,"language":"ro","subtitle_style":"bold","include_brand":true}`)
+	if w := call("POST", "/api/jobs", `{"source_type":"youtube","source_url":"https://youtube.com/watch?v=fixture"}`); w.Code != 400 {
+		t.Fatalf("link create: %d %s", w.Code, w.Body.String())
+	}
+	if w := call("POST", "/api/jobs/batch", `{"source_urls":["https://youtube.com/watch?v=fixture"]}`); w.Code != 404 {
+		t.Fatalf("batch endpoint: %d %s", w.Code, w.Body.String())
+	}
+	key := "uploads/" + user + "/original.mp4"
+	w := call("POST", "/api/jobs", `{"source_type":"upload","source_storage_key":"`+key+`","burn_subtitles":false,"smart_crop":false,"language":"ro","subtitle_style":"bold","include_brand":true}`)
 	if w.Code != 201 {
-		t.Fatalf("batch: %d %s", w.Code, w.Body.String())
+		t.Fatalf("create: %d %s", w.Code, w.Body.String())
 	}
-	var batch struct {
-		Jobs  []map[string]any `json:"jobs"`
-		Total int              `json:"total_credits"`
-	}
-	if err = json.Unmarshal(w.Body.Bytes(), &batch); err != nil {
+	var created map[string]any
+	if err = json.Unmarshal(w.Body.Bytes(), &created); err != nil {
 		t.Fatal(err)
 	}
-	if batch.Total != wantCharge || len(batch.Jobs) != 1 || batch.Jobs[0]["credits_charged"] != float64(wantCharge) || batch.Jobs[0]["progress_message"] != "Queued (batch)" || batch.Jobs[0]["include_brand"] != true || batch.Jobs[0]["language"] != "ro" {
-		t.Fatal(batch)
+	if created["credits_charged"] != float64(wantCharge) || created["progress_message"] != "Queued" || created["include_brand"] != true || created["language"] != "ro" {
+		t.Fatal(created)
 	}
-	id := batch.Jobs[0]["id"].(string)
+	id := created["id"].(string)
 	var payload map[string]any
 	var raw []byte
 	if err = db.QueryRow(`SELECT payload FROM job_deliveries WHERE job_id=$1`, id).Scan(&raw); err != nil {
@@ -92,7 +95,7 @@ func authenticatedJobHTTPContracts(t *testing.T, role string) {
 		t.Fatal(status)
 	}
 	w = call("GET", "/api/dashboard/history", "")
-	if !strings.Contains(w.Body.String(), `"sourceFilePath":null`) || !strings.Contains(w.Body.String(), `"_count":{"clips":0}`) {
+	if !strings.Contains(w.Body.String(), `"_count":{"clips":0}`) {
 		t.Fatal(w.Body.String())
 	}
 	if w = call("POST", "/api/jobs/"+id+"/cancel", ""); w.Code != 200 {

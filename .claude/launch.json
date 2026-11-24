@@ -4,8 +4,27 @@
     {
       "name": "frontend",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["--prefix", "frontend", "run", "dev"],
+      "runtimeArgs": [
+        "--prefix",
+        "frontend",
+        "run",
+        "dev"
+      ],
       "port": 3000
+    },
+    {
+      "name": "frontend-vite-test",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "frontend/node_modules/vite/bin/vite.js",
+        "frontend",
+        "--host",
+        "127.0.0.1",
+        "--port",
+        "5295",
+        "--strictPort"
+      ],
+      "port": 5295
     }
   ]
 }

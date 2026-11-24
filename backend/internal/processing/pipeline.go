@@ -2,6 +2,7 @@ package processing
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -10,6 +11,10 @@ import (
 	"sneepcut/backend-go/internal/studiocomposition"
 	"strings"
 )
+
+// errLinkImportsUnsupported rejects jobs without an uploaded or channel-imported
+// source key; video links are no longer downloaded.
+var errLinkImportsUnsupported = errors.New("link imports are no longer supported")
 
 var namespacePattern = regexp.MustCompile(`^[A-Za-z0-9_-]+(?:/[A-Za-z0-9_-]+)*$`)
 
@@ -40,11 +45,10 @@ func (p *Processor) process(ctx context.Context, in Input, progress Progress) (R
 	}
 	report("downloading", 5, "Preparing source video")
 	source := filepath.Join(dir, "source.mp4")
-	if in.SourceKey != "" {
-		e = p.materialize(ctx, in.SourceKey, source)
-	} else {
-		e = p.download(ctx, in.SourceURL, source)
+	if in.SourceKey == "" {
+		return r, errLinkImportsUnsupported
 	}
+	e = p.materialize(ctx, in.SourceKey, source)
 	if e != nil {
 		return r, e
 	}

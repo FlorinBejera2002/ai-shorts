@@ -1,73 +1,71 @@
-import { useId } from 'react'
-import { useTranslations } from 'next-intl'
+import { Switch } from '@/components/ui/switch'
 import { useAudioCleanupAvailability } from '@/hooks/use-audio-cleanup-availability'
-import { StoryHelp } from './story-help'
 import { StorySoundSource } from './story-sound-source'
-import type { StoryOptions } from './types'
+import { StoryNoiseFootagePicker } from './story-noise-footage-picker'
+import { cleanupFootageIDs, toggleCleanupFootage } from './story-footage'
+import type { StoryAsset, StoryOptions } from './types'
 import { useStoryLanguage } from './use-story-language'
+import styles from './story-options.module.css'
 
 interface Props {
   options: StoryOptions
+  footage: StoryAsset[]
   hasNarration: boolean
   onChange: (options: StoryOptions) => void
 }
 
-export function StorySoundOptions({ options, hasNarration, onChange }: Props) {
+/**
+ * Body of the Sunet section: sound source, the noise switch and the footage it applies to.
+ * When noise reduction cannot run, the switch is disabled without explanatory text.
+ */
+export function StorySoundOptions({ options, footage, hasNarration, onChange }: Props) {
   const text = useStoryLanguage()
-  const id = useId()
   const cleanup = useAudioCleanupAvailability()
-  const audio = useTranslations('audioCleanup')
-  const change = (patch: Partial<StoryOptions>) =>
-    onChange({ ...options, ...patch })
+  const voice = Boolean(options.narration)
+  const enabled = Boolean(options.audio_cleanup?.enabled) && !voice
+  const assetIDs = options.audio_cleanup?.asset_ids ?? []
+  const unavailable = !cleanup.available
+  const locked = voice || (unavailable && !options.audio_cleanup?.enabled)
+  const label = text('Reduce background noise', 'Redu zgomotul de fundal')
+
+  function setCleanup(next: { enabled: boolean; asset_ids?: string[] }) {
+    onChange({
+      ...options,
+      audio_cleanup: { enabled: next.enabled, asset_ids: next.asset_ids ?? assetIDs }
+    })
+  }
+
   return (
-    <div className="space-y-4">
+    <>
       <StorySoundSource options={options} hasNarration={hasNarration} onChange={onChange} />
-      <div className="flex items-start gap-3 text-sm">
-        <label className="flex flex-1 items-start gap-3">
-          <input
-            type="checkbox"
-            aria-label={text(
-              'Reduce background noise',
-              'Redu zgomotul de fundal'
-            )}
-            className="mt-1 size-4 accent-foreground"
-            checked={Boolean(options.audio_cleanup?.enabled)}
-            disabled={!cleanup.available && !options.audio_cleanup?.enabled}
-            aria-describedby={`${id}-noise-availability`}
-            onChange={(event) => {
-              if (!event.target.checked || cleanup.available)
-                change({ audio_cleanup: { enabled: event.target.checked } })
-            }}
-          />
-          <span>
-            <span className="block font-medium">
-              {text('Reduce background noise', 'Redu zgomotul de fundal')}
-            </span>
-            <span
-              id={`${id}-noise-availability`}
-              className="mt-1 block text-xs text-muted-foreground"
-            >
-              {!cleanup.available
-                ? audio(
-                    cleanup.loading
-                      ? 'checkingAvailability'
-                      : options.audio_cleanup?.enabled
-                        ? 'unavailableSelected'
-                        : 'unavailableOption'
-                  )
-                : null}
-            </span>
-          </span>
-        </label>
-        <StoryHelp
-          label={text('About noise reduction', 'Despre reducerea zgomotului')}
-        >
+      {hasNarration && (
+        <p className={styles.note}>
           {text(
-            'For speech recordings. Keep this off for music or atmosphere you want to preserve. Other voices and strong echo may remain.',
-            'Pentru înregistrări vorbite. Lasă opțiunea oprită pentru muzică sau ambianța pe care vrei să o păstrezi. Alte voci și ecoul puternic pot rămâne.'
+            'Remove your voice recording to use the sound from your clips.',
+            'Șterge înregistrarea vocală pentru a folosi sunetul filmărilor.'
           )}
-        </StoryHelp>
+        </p>
+      )}
+      <div className={styles.switchRow}>
+        <span className={styles.switchLabel}>{label}</span>
+        <Switch
+          aria-label={label}
+          checked={enabled}
+          disabled={locked}
+          onCheckedChange={(next) => {
+            if (!next || cleanup.available) setCleanup({ enabled: next })
+          }}
+        />
       </div>
-    </div>
+      {enabled && footage.length > 0 && (
+        <StoryNoiseFootagePicker
+          footage={footage}
+          selectedIDs={cleanupFootageIDs(footage, assetIDs)}
+          onToggle={(assetID) =>
+            setCleanup({ enabled: true, asset_ids: toggleCleanupFootage(footage, assetIDs, assetID) })
+          }
+        />
+      )}
+    </>
   )
 }

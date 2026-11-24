@@ -1,10 +1,10 @@
 import { Button } from '@/components/ui/button'
-import { BrandKitSelector } from '@/components/create/brand-kit-selector'
 import { CaptionPreview } from '@/components/dashboard/brand/caption-preview'
 import { CaptionStyleEditor } from '@/components/dashboard/brand/caption-style-editor'
 import { storyCaptionMode, type StoryOptions } from './types'
 import { useStoryLanguage } from './use-story-language'
 import type { StoryAppearanceState } from './use-story-appearance'
+import styles from './story-options.module.css'
 
 interface Props {
   options: StoryOptions
@@ -13,105 +13,83 @@ interface Props {
   onChange: (options: StoryOptions) => void
 }
 
+/** Caption style editor, shown under "More options" while captions are on. */
 export function StoryAppearance({
   options,
-  disabled,
   appearance,
   onChange
-}: Props) {
+}: Omit<Props, 'disabled'>) {
   const text = useStoryLanguage()
+  if (storyCaptionMode(options) === 'off') return null
   return (
-    <fieldset
-      disabled={disabled}
-      className="story-appearance-controls min-w-0 space-y-4"
+    <details
+      className={styles.moreBody}
+      open={appearance.open}
+      onToggle={(event) => appearance.setOpen(event.currentTarget.open)}
     >
-      <BrandKitSelector
-        enabled={Boolean(options.use_brand_kit)}
-        onChange={(enabled) =>
-          onChange({
-            ...options,
-            use_brand_kit: enabled,
-            caption_style: enabled ? undefined : options.caption_style
-          })
-        }
-      />
-      {storyCaptionMode(options) !== 'off' && (
-        <details
-          className="story-disclosure"
-          open={appearance.open}
-          onToggle={(event) => appearance.setOpen(event.currentTarget.open)}
-        >
-          <summary className="cursor-pointer text-sm font-medium">
-            {text('Caption appearance', 'Aspectul subtitrărilor')}
-          </summary>
-          {appearance.open && (
-            <div className="mt-4 min-w-0">
-              {options.use_brand_kit ? (
-                <p className="text-xs text-muted-foreground">
-                  {text('Using your Brand Kit.', 'Folosim Brand Kit-ul tău.')}
-                </p>
-              ) : (
-                <CaptionStyleEditor
-                  value={appearance.style}
-                  onChange={(caption_style) =>
-                    onChange({ ...options, caption_style })
-                  }
-                />
-              )}
-            </div>
+      <summary className={styles.note}>
+        {text('Caption appearance', 'Aspectul subtitrărilor')}
+      </summary>
+      {appearance.open && (
+        <div>
+          {options.use_brand_kit ? (
+            <p className={styles.note}>
+              {text('Using your Brand Kit.', 'Folosim Brand Kit-ul tău.')}
+            </p>
+          ) : (
+            <CaptionStyleEditor
+              value={appearance.style}
+              onChange={(caption_style) => onChange({ ...options, caption_style })}
+            />
           )}
-        </details>
+        </div>
       )}
-    </fieldset>
+    </details>
   )
 }
 
-export function StoryAppearancePreview({
-  options,
-  disabled,
-  appearance,
-  onChange
-}: Props) {
+/** Live caption preview. Shown in the preview frame while the caption style is being edited. */
+export function StoryAppearancePreview({ options, disabled, appearance, onChange }: Props) {
   const text = useStoryLanguage()
   if (!appearance.visible) return null
-  return (
-    <div className="story-appearance-preview min-w-0">
-      {options.use_brand_kit && appearance.kit.isPending ? (
-        <p role="status" className="text-sm">
-          {text('Loading Brand Kit…', 'Se încarcă Brand Kit…')}
+  if (options.use_brand_kit && appearance.kit.isPending) {
+    return (
+      <p role="status" className={styles.note}>
+        {text('Loading Brand Kit…', 'Se încarcă Brand Kit…')}
+      </p>
+    )
+  }
+  if (
+    options.use_brand_kit &&
+    (appearance.kit.isError || !appearance.kit.data?.brandKit)
+  ) {
+    return (
+      <div className={styles.moreBody}>
+        <p role="alert" className={styles.note}>
+          {text(
+            'Brand Kit preview unavailable. Retry loading it before generating.',
+            'Previzualizarea Brand Kit nu este disponibilă. Reîncearcă încărcarea înainte de generare.'
+          )}
         </p>
-      ) : options.use_brand_kit &&
-        (appearance.kit.isError || !appearance.kit.data?.brandKit) ? (
-        <div className="space-y-3 py-6 text-sm">
-          <p role="alert">
-            {text(
-              'Brand Kit preview unavailable. Retry loading it before generating.',
-              'Previzualizarea Brand Kit nu este disponibilă. Reîncearcă încărcarea înainte de generare.'
-            )}
-          </p>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => void appearance.kit.refetch()}
-          >
-            {text('Retry', 'Reîncearcă')}
-          </Button>
-        </div>
-      ) : (
-        <CaptionPreview
-          style={appearance.style}
-          ratio={appearance.ratio}
-          onPositionChange={
-            options.use_brand_kit || disabled
-              ? undefined
-              : (position) =>
-                  onChange({
-                    ...options,
-                    caption_style: { ...appearance.style, position }
-                  })
-          }
-        />
-      )}
-    </div>
+        <Button size="sm" variant="outline" onClick={() => void appearance.kit.refetch()}>
+          {text('Retry', 'Reîncearcă')}
+        </Button>
+      </div>
+    )
+  }
+  return (
+    <CaptionPreview
+      style={appearance.style}
+      ratio={appearance.ratio}
+      onPositionChange={
+        options.use_brand_kit || disabled
+          ? undefined
+          : (position) =>
+              onChange({
+                ...options,
+                caption_style: { ...appearance.style, position }
+              })
+      }
+    />
   )
 }

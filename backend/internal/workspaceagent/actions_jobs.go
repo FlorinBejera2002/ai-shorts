@@ -16,6 +16,10 @@ func jobInput(a Action) (jobs.AgentInput, error) {
 	if err == nil {
 		err = in.Options.Validate()
 	}
+	// The agent always prices an explicit clip count, so Auto (0) is not accepted here.
+	if err == nil && in.NumClips < 1 {
+		err = errors.New("num_clips_requested must be between 1 and 30")
+	}
 	return in, err
 }
 func (e *PlatformExecutor) EstimateCost(a Action) (int, error) {
@@ -49,7 +53,7 @@ func (e *PlatformExecutor) jobApproval(ctx context.Context, user string, a Actio
 	if unlimited {
 		cost = 0
 	}
-	return actionJSON(map[string]any{"action": a.Name, "source_type": in.SourceType, "source_url": in.SourceURL, "asset_id": in.AssetID, "num_clips": in.NumClips, "cost_credits": cost, "aspect_ratio": in.AspectRatio}), nil
+	return actionJSON(map[string]any{"action": a.Name, "source_type": in.SourceType, "asset_id": in.AssetID, "num_clips": in.NumClips, "cost_credits": cost, "aspect_ratio": in.AspectRatio}), nil
 }
 func (e *PlatformExecutor) executeJob(ctx context.Context, user, request string, a Action) (ActionResult, error) {
 	if e.jobs == nil {

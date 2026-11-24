@@ -104,7 +104,7 @@ func (b *Builder) plan(ctx context.Context, req Request, budget *runBudget) (Pla
 		Options      Options              `json:"options"`
 		Candidates   []editorialCandidate `json:"candidates"`
 		Music        *MusicAnalysis       `json:"music,omitempty"`
-	}{EditingBrief: BuildEditingBrief(req), Options: EditorialOptions(req.Options), Candidates: editorialCandidates(req.Assets, false), Music: musicPlanningContext(req)}
+	}{EditingBrief: BuildEditingBrief(req), Options: EditorialOptionsFor(req), Candidates: editorialCandidates(req.Assets, false), Music: musicPlanningContext(req)}
 	visualOnlySelection := musicDirection && UsesMusicOnlyAudio(req.Options)
 	allowed := make(map[string]bool)
 	if visualOnlySelection {

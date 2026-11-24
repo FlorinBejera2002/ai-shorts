@@ -49,7 +49,7 @@ func (s *runState) reviewNarrationPlan(ctx context.Context, version Version) Rep
 		Candidates   []editorialCandidate `json:"candidates"`
 		Sources      []string             `json:"allowed_source_ids"`
 		Mapping      map[string]string    `json:"candidate_source_ids"`
-	}{BuildEditingBrief(s.req), EditorialOptions(s.req.Options), voice.ID, voice.Duration, words, narrationWordGaps(voice.ID, words, voice.Duration), version.Plan, editorialTimeline(version.Timeline), visuals, sourceIDs, candidateSources}
+	}{BuildEditingBrief(s.req), EditorialOptionsFor(s.req), voice.ID, voice.Duration, words, narrationWordGaps(voice.ID, words, voice.Duration), version.Plan, editorialTimeline(version.Timeline), visuals, sourceIDs, candidateSources}
 	data, _ := json.Marshal(payload)
 	if len(data) > maxEditorialJSONBytes {
 		report.Coverage.Incomplete = []string{"Narration review input exceeds the supported context budget; no words were truncated."}

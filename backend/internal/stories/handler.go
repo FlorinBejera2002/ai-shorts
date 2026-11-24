@@ -114,6 +114,11 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 		failure(w, fmt.Errorf("%w: %s", ErrInvalid, err))
 		return
 	}
+	// A new project has no sources yet, so any footage reference is foreign.
+	if err = story.ValidateOptionsForAssets(options, nil); err != nil {
+		failure(w, fmt.Errorf("%w: %s", ErrInvalid, err))
+		return
+	}
 	user := identity.Current(r).User.ID
 	if err = h.repo.Create(r.Context(), user, in.ID, options); err != nil {
 		failure(w, err)
@@ -219,6 +224,7 @@ func (h *Handler) respondProject(w http.ResponseWriter, r *http.Request, user, i
 				m["thumbnail_url"] = url
 			}
 		}
+		m["outputs"] = h.clipOutputViews(r.Context(), v.Outputs, v.Accepted)
 		if output, ok := m["output"].(map[string]any); ok {
 			delete(output, "key")
 			delete(output, "preview_key")

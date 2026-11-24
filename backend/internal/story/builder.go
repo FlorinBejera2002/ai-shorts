@@ -63,7 +63,9 @@ func (b *Builder) Run(parent context.Context, req Request, checkpoints Checkpoin
 			return Result{}, errors.New("selected music could not be prepared")
 		}
 	}
-	state := runState{builder: b, req: req, checkpoints: checkpoints, budget: &runBudget{max: b.limits.MaxAICalls}, next: max(1, req.VersionStart), tried: make(map[string]bool)}
+	// Each requested clip gets its own review and repair allowance.
+	aiBudget := b.limits.MaxAICalls * ResolvedClipCount(req.Options, req.Assets)
+	state := runState{builder: b, req: req, checkpoints: checkpoints, budget: &runBudget{max: aiBudget}, next: max(1, req.VersionStart), tried: make(map[string]bool)}
 	for _, attempt := range req.PreviousAttempts {
 		operation := repairOperation{attempt.Operation, attempt.BlockID, attempt.CandidateID}
 		if !state.tried[operation.key()] {
@@ -236,6 +238,9 @@ func (b *Builder) Run(parent context.Context, req Request, checkpoints Checkpoin
 		if accepted {
 			state.result.Best = candidate
 		}
+	}
+	if err = state.addClipOutputs(ctx); err != nil {
+		return state.result, err
 	}
 	state.result.AICalls = state.budget.calls
 	if state.repairNotesChanged {

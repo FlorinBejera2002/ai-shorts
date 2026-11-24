@@ -17,10 +17,10 @@ func TestPostgresCompletionAndFailureOwnership(t *testing.T) {
 	if _, err := db.Exec(`INSERT INTO users(id,email,provider,credits,plan) VALUES($1,$2,'credentials',100,'free')`, user, user+"@example.invalid"); err != nil {
 		t.Fatal(err)
 	}
-	source := "https://youtube.com/watch?v=fixture"
+	source := "uploads/" + user + "/fixture.mp4"
 	create := func() *Job {
 		t.Helper()
-		_, err := jobs.NewRepository(db).Create(ctx, user, []jobs.Prepared{{Input: jobs.CreateInput{Options: jobs.DefaultOptions(), SourceType: "youtube", SourceURL: &source}, WorkerSource: source}})
+		_, err := jobs.NewRepository(db).Create(ctx, user, []jobs.Prepared{{Input: jobs.CreateInput{Options: jobs.DefaultOptions(), SourceType: "upload", SourceStorageKey: &source}, WorkerSource: source}})
 		if err != nil {
 			t.Fatal(err)
 		}

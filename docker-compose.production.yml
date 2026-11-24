@@ -118,22 +118,6 @@ services:
       timeout: 5s
       retries: 6
 
-  youtube-pot-provider:
-    image: brainicism/bgutil-ytdlp-pot-provider:2.0.2@sha256:d7d34108b76e52c7d3b575fe9e797e4bf41c1b2a08f80c5292eff6f851ce8472
-    restart: unless-stopped
-    init: true
-    security_opt: ["no-new-privileges:true"]
-    cap_drop: [ALL]
-    mem_limit: 512m
-    cpus: 1
-    pids_limit: 128
-    healthcheck:
-      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4416/ping').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
-      interval: 15s
-      timeout: 5s
-      retries: 4
-      start_period: 15s
-
   worker:
     <<: *app
     networks: [default, studio]
@@ -144,16 +128,7 @@ services:
       <<: *environment
       STUDIO_AGENT_URL: ${STUDIO_AGENT_URL:-http://studio:5191}
       STUDIO_AGENT_SECRET: ${STUDIO_AGENT_SECRET:?Set STUDIO_AGENT_SECRET for Studio rendering}
-      # Token mode uses account cookies only after YouTube's bot check. The
-      # worker keeps the session YouTube refreshes in the writable state file;
-      # a newer manual export replaces it.
-      YOUTUBE_COOKIES_FILE: ${YOUTUBE_COOKIES_PATH:-/run/secrets/youtube-cookies.txt}
-      YOUTUBE_COOKIES_STATE_FILE: /app/youtube-session/cookies.txt
-      YOUTUBE_TOKEN_PROVIDER_URL: ${YOUTUBE_TOKEN_PROVIDER_URL-http://youtube-pot-provider:4416}
-      YOUTUBE_PROXY: ${YOUTUBE_PROXY:-}
     depends_on:
-      youtube-pot-provider:
-        condition: service_healthy
       migrate:
         condition: service_completed_successfully
       studio:
@@ -162,8 +137,6 @@ services:
         condition: service_started
     volumes:
       - media_data:/app/media
-      - ${YOUTUBE_COOKIES_DIR:-/opt/sneepcut-secrets}:/run/secrets:ro
-      - youtube_session:/app/youtube-session
     tmpfs: ['/tmp:uid=10001,gid=10001,mode=1770']
     read_only: true
     user: '10001:10001'
@@ -374,7 +347,6 @@ volumes:
   postgres_data:
   redis_data:
   media_data:
-  youtube_session:
   clamav_data:
   caddy_data:
   caddy_config:

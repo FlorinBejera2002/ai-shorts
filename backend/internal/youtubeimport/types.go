@@ -21,6 +21,7 @@ type Config struct {
 	AppURL        string
 	EncryptionKey string
 	TempRoot      string
+	FFmpegPath    string
 	MaxImportAge  time.Duration
 	PollInterval  time.Duration
 	Limits        ArchiveLimits
@@ -34,16 +35,21 @@ type Import struct {
 	UpdatedAt    time.Time `json:"updated_at"`
 	Error        string    `json:"error"`
 	VideoCount   int       `json:"video_count"`
+	// Selection lists the chosen channel videos of a selected import; null for whole-category imports.
+	Selection *SelectionOverview `json:"selection"`
 }
 
 type Video struct {
-	ID               string    `json:"id"`
-	ImportID         string    `json:"import_id"`
-	Title            string    `json:"title"`
-	FileName         string    `json:"file_name"`
-	FileSize         int64     `json:"file_size"`
-	SourceStorageKey string    `json:"source_storage_key"`
-	CreatedAt        time.Time `json:"created_at"`
+	ID               string `json:"id"`
+	ImportID         string `json:"import_id"`
+	Title            string `json:"title"`
+	FileName         string `json:"file_name"`
+	FileSize         int64  `json:"file_size"`
+	SourceStorageKey string `json:"source_storage_key"`
+	// ThumbnailURL is a short-lived signed URL, empty until a preview exists.
+	ThumbnailURL string    `json:"thumbnail_url"`
+	CreatedAt    time.Time `json:"created_at"`
+	thumbnailKey string
 }
 
 type Overview struct {
@@ -57,7 +63,7 @@ var errActiveImport = errors.New("a YouTube import is already active")
 var errImportBudget = errors.New("YouTube import limit reached")
 
 func requestedResources(visibilities []string) ([]string, error) {
-	if len(visibilities) < 1 || len(visibilities) > 3 {
+	if len(visibilities) < 1 || len(visibilities) > 2 {
 		return nil, errors.New("choose which YouTube videos to import")
 	}
 	seen := make(map[string]bool)
@@ -69,8 +75,6 @@ func requestedResources(visibilities []string) ([]string, error) {
 			resource = PublicVideos
 		case "unlisted":
 			resource = UnlistedVideos
-		case "private":
-			resource = PrivateVideos
 		default:
 			return nil, errors.New("unknown YouTube video visibility")
 		}

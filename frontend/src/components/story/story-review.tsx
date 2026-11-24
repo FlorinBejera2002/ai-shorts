@@ -15,7 +15,7 @@ export function StoryReview({
     return (
       <p
         role="status"
-        className="story-result-review-notice bg-muted"
+        className="story-result-review-notice"
         data-testid="story-review-notice"
       >
         {text(

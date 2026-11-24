@@ -9,11 +9,16 @@ import (
 
 	"sneepcut/backend-go/internal/config"
 	"sneepcut/backend-go/internal/identity"
+	"sneepcut/backend-go/internal/jobs"
 	"sneepcut/backend-go/internal/media"
+	"sneepcut/backend-go/internal/youtubechannel"
 	"sneepcut/backend-go/internal/youtubeimport"
 )
 
-func configuredYouTubeImport(db *sql.DB, auth *identity.Handler, storage *media.Service, app config.Application, secureCookies bool) (*youtubeimport.Handler, error) {
+// configuredYouTubeImport wires the Data Portability import. channel looks up the
+// user's chosen videos; selected imports queue their clip jobs through the same
+// job rules as POST /api/jobs.
+func configuredYouTubeImport(db *sql.DB, auth *identity.Handler, storage *media.Service, app config.Application, secureCookies bool, channel *youtubechannel.Service) (*youtubeimport.Handler, error) {
 	var client *youtubeimport.Client
 	if app.YouTubePortabilityEnabled {
 		var err error
@@ -25,16 +30,21 @@ func configuredYouTubeImport(db *sql.DB, auth *identity.Handler, storage *media.
 			return nil, err
 		}
 	}
-	return youtubeimport.New(db, auth, youtubeImportMedia{service: storage, maxBytes: min(app.MaxUploadBytes, app.YouTubePortabilityMaxBytes)}, client, youtubeimport.Config{
+	handler, err := youtubeimport.New(db, auth, youtubeImportMedia{service: storage, maxBytes: min(app.MaxUploadBytes, app.YouTubePortabilityMaxBytes)}, client, youtubeimport.Config{
 		Enabled: app.YouTubePortabilityEnabled, TestMode: app.YouTubePortabilityTestMode,
 		SecureCookies: secureCookies, AppURL: app.AppURL,
 		EncryptionKey: app.SocialEncryptionKey, TempRoot: app.YouTubePortabilityTempDirectory,
+		FFmpegPath: ffmpegPath(),
 		Limits: youtubeimport.ArchiveLimits{
 			MaxArchiveBytes: app.YouTubePortabilityMaxBytes, MaxDownloadBytes: app.YouTubePortabilityMaxBytes,
 			MaxTotalBytes: app.YouTubePortabilityMaxBytes, MaxVideoBytes: min(app.MaxUploadBytes, app.YouTubePortabilityMaxBytes),
 			MaxVideos: app.YouTubePortabilityMaxVideos,
 		},
 	})
+	if err != nil {
+		return nil, err
+	}
+	return handler.WithSelection(channel, jobs.NewUploadJobs(db, storage)), nil
 }
 
 type youtubeImportMedia struct {
@@ -81,4 +91,26 @@ func (m youtubeImportMedia) RemoveImportSource(ctx context.Context, userID, key 
 
 func (m youtubeImportMedia) ImportSourceSize(ctx context.Context, key string) (int64, error) {
 	return m.service.Storage.Size(ctx, key)
+}
+
+// ImportSourceLocation gives ffmpeg a local path (local storage) or a short-lived
+// signed URL (object storage) for an already stored import source.
+func (m youtubeImportMedia) ImportSourceLocation(ctx context.Context, key string) (string, error) {
+	return m.service.WorkerSource(ctx, key)
+}
+
+func (m youtubeImportMedia) StorePreview(ctx context.Context, userID string, jpeg []byte) (string, error) {
+	return m.service.StoreImportPreview(ctx, userID, jpeg)
+}
+
+func (m youtubeImportMedia) PreviewURL(ctx context.Context, key string) (string, error) {
+	return m.service.SignedURL(ctx, key)
+}
+
+// ffmpegPath matches the processing worker: FFMPEG_PATH when set, else ffmpeg on PATH.
+func ffmpegPath() string {
+	if path := strings.TrimSpace(os.Getenv("FFMPEG_PATH")); path != "" {
+		return path
+	}
+	return "ffmpeg"
 }

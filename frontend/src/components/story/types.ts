@@ -2,8 +2,11 @@ import type { CaptionStyle } from '@/components/dashboard/brand/caption-style'
 export interface StoryOptions {
   caption_style?: CaptionStyle
   use_brand_kit?: boolean
-  audio_cleanup?: { enabled: boolean }
+  /** Empty or absent asset_ids means every footage asset (backend contract). */
+  audio_cleanup?: { enabled: boolean; asset_ids?: string[] }
   brief: string
+  /** 0 = Auto (the planner decides); otherwise 1..MAX_CLIP_COUNT. */
+  clip_count?: number
   target_seconds: number
   aspect_ratio: string
   dynamic_range?: 'sdr' | 'hdr'
@@ -64,12 +67,35 @@ export interface StoryMusicOutput {
 export const defaultOptions: StoryOptions = {
   brief: '',
   target_seconds: 45,
+  clip_count: 0,
   aspect_ratio: '9:16',
   language: 'auto',
   mode: 'smart',
   preserve_order: true,
-  captions: false,
-  caption_mode: 'off'
+  captions: true,
+  caption_mode: 'all',
+  // Canvas default: noise reduction on. An empty asset list applies it to all footage.
+  audio_cleanup: { enabled: true, asset_ids: [] }
+}
+
+export const MAX_CLIP_COUNT = 30
+
+/** Auto (0) for missing, invalid or non-positive values; otherwise an integer capped at MAX_CLIP_COUNT. */
+export function normalizeClipCount(value: unknown): number {
+  const count = Math.trunc(Number(value))
+  if (!Number.isFinite(count) || count < 1) return 0
+  return Math.min(MAX_CLIP_COUNT, count)
+}
+
+/** A manually typed count: an integer from 1 to MAX_CLIP_COUNT. */
+export function clampManualClipCount(value: number) {
+  const count = Math.trunc(value)
+  if (!Number.isFinite(count)) return 1
+  return Math.min(MAX_CLIP_COUNT, Math.max(1, count))
+}
+
+export function storyClipCount(options: StoryOptions) {
+  return normalizeClipCount(options.clip_count)
 }
 
 /** Old projects predate the three caption modes. Preserve their saved choice. */
@@ -85,6 +111,9 @@ export function storyOptionsEqual(current: StoryOptions, saved: StoryOptions) {
     Boolean(current.use_brand_kit) === Boolean(saved.use_brand_kit) &&
     Boolean(current.audio_cleanup?.enabled) ===
       Boolean(saved.audio_cleanup?.enabled) &&
+    (current.audio_cleanup?.asset_ids ?? []).join() ===
+      (saved.audio_cleanup?.asset_ids ?? []).join() &&
+    storyClipCount(current) === storyClipCount(saved) &&
     current.brief === saved.brief &&
     current.target_seconds === saved.target_seconds &&
     current.aspect_ratio === saved.aspect_ratio &&
@@ -201,6 +230,17 @@ export interface StoryIssue {
   resolved: boolean
 }
 
+/** One rendered clip of a result. Multi-clip versions send `outputs`; older versions have one single output. */
+export interface StoryResultOutput {
+  id: string
+  index: number
+  video_url: string
+  poster_url: string | null
+  duration_seconds: number
+  aspect_ratio: string
+  clip_id: string | null
+}
+
 export interface StoryVersion {
   number: number
   clip_id?: string
@@ -216,6 +256,8 @@ export interface StoryVersion {
     music?: StoryMusicOutput
     caption_warnings?: string[]
   }
+  /** Every clip of a multi-clip version in index order; `output` stays the first clip. */
+  outputs?: StoryResultOutput[]
   plan: {
     title: string
     summary: string

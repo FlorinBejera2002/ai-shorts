@@ -1,0 +1,74 @@
+/* Clip cards of a finished job, following the Creare done canvas (white cards, 16px corners). */
+
+.grid {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 16px;
+}
+
+.card {
+  display: grid;
+  min-width: 0;
+  gap: 8px;
+  padding: 6px;
+  border-radius: 16px;
+  background: var(--publish-surface);
+  box-shadow: var(--publish-card-shadow);
+  color: var(--publish-text);
+}
+
+.thumb {
+  position: relative;
+  aspect-ratio: 4 / 5;
+  overflow: hidden;
+  border-radius: 12px;
+  background: #111;
+}
+
+.thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.badge {
+  position: absolute;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: rgb(0 0 0 / 60%);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 18px;
+}
+
+.subtitles {
+  top: 8px;
+  right: 8px;
+}
+
+.duration {
+  right: 8px;
+  bottom: 8px;
+  font-variant-numeric: tabular-nums;
+}
+
+.title {
+  margin: 0 6px;
+  overflow: hidden;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.35;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.meta {
+  margin: 0 6px 4px;
+  color: var(--publish-muted-text);
+  font-size: 12px;
+}

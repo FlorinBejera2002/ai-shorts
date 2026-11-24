@@ -74,7 +74,7 @@ func TestCompleteApplicationRoutesAndOriginPolicy(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer cleanup()
-	for _, path := range []string{"/api/youtube/imports", "/api/jobs", "/api/stories", "/api/clips", "/api/clips/library", "/api/calendar", "/api/user/brand", "/api/user/profile", "/api/user/credits", "/api/user/data", "/api/dashboard", "/api/dashboard/analytics", "/api/dashboard/history", "/api/dashboard/review", "/api/assistant/history?context=create", "/api/stripe/billing"} {
+	for _, path := range []string{"/api/youtube/imports", "/api/youtube/channel", "/api/youtube/channel/videos", "/api/jobs", "/api/stories", "/api/clips", "/api/clips/library", "/api/calendar", "/api/user/brand", "/api/user/profile", "/api/user/credits", "/api/user/data", "/api/dashboard", "/api/dashboard/analytics", "/api/dashboard/history", "/api/dashboard/review", "/api/assistant/history?context=create", "/api/stripe/billing"} {
 		r := httptest.NewRequest("GET", "http://localhost"+path, nil)
 		w := httptest.NewRecorder()
 		h.ServeHTTP(w, r)
@@ -82,7 +82,7 @@ func TestCompleteApplicationRoutesAndOriginPolicy(t *testing.T) {
 			t.Fatalf("route %s returned %d: %s", path, w.Code, w.Body.String())
 		}
 	}
-	for _, path := range []string{"/api/youtube/imports/connect", "/api/stories", "/api/stories/00000000-0000-4000-8000-000000000001/assets", "/api/upload", "/api/upload/narration"} {
+	for _, path := range []string{"/api/youtube/imports/connect", "/api/youtube/channel/connect", "/api/stories", "/api/stories/00000000-0000-4000-8000-000000000001/assets", "/api/upload", "/api/upload/narration"} {
 		r := httptest.NewRequest("POST", "http://localhost"+path, strings.NewReader("{}"))
 		w := httptest.NewRecorder()
 		h.ServeHTTP(w, r)

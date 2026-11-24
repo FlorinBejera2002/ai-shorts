@@ -20,33 +20,6 @@ export function youtubeThumbnailUrl(videoId: string): string {
   return `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`
 }
 
-export interface YouTubeMeta {
-  title: string
-  author: string
-}
-
-/** Best-effort metadata via oEmbed; returns null on any failure (CORS, network, 404). */
-export async function fetchYouTubeMeta(
-  url: string,
-  signal?: AbortSignal
-): Promise<YouTubeMeta | null> {
-  try {
-    const res = await fetch(
-      `https://www.youtube.com/oembed?url=${encodeURIComponent(url)}&format=json`,
-      { signal }
-    )
-    if (!res.ok) return null
-    const data = await res.json()
-    if (typeof data.title !== 'string') return null
-    return {
-      title: data.title,
-      author: typeof data.author_name === 'string' ? data.author_name : ''
-    }
-  } catch {
-    return null
-  }
-}
-
 export function formatBytes(bytes: number): string {
   if (bytes >= 1024 ** 3) return `${(bytes / 1024 ** 3).toFixed(2)} GB`
   if (bytes >= 1024 ** 2) return `${(bytes / 1024 ** 2).toFixed(1)} MB`

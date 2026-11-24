@@ -47,7 +47,7 @@ func expectRecordedVideo(mock sqlmock.Sqlmock, fileName string) {
 	expectActiveUser(mock)
 	mock.ExpectQuery("SELECT lease_token=\\$2 AND lease_until>now\\(\\) AND status='importing'").WithArgs("import", "lease", "owner").WillReturnRows(sqlmock.NewRows([]string{"active"}).AddRow(true))
 	mock.ExpectQuery("SELECT count\\(\\*\\) FROM youtube_import_videos").WithArgs("owner").WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(0))
-	mock.ExpectExec("INSERT INTO youtube_import_videos").WithArgs("import", "owner", sqlmock.AnyArg(), sqlmock.AnyArg(), fileName, sqlmock.AnyArg(), "uploads/owner/"+fileName).WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectExec("INSERT INTO youtube_import_videos").WithArgs("import", "owner", sqlmock.AnyArg(), sqlmock.AnyArg(), fileName, sqlmock.AnyArg(), "uploads/owner/"+fileName, sqlmock.AnyArg(), sqlmock.AnyArg()).WillReturnResult(sqlmock.NewResult(1, 1))
 	mock.ExpectCommit()
 }
 

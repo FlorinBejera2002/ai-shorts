@@ -22,13 +22,13 @@ func TestActionDigestIgnoresObjectKeyOrdering(t *testing.T) {
 }
 func TestGenerationCostUsesValidatedClipCount(t *testing.T) {
 	e := NewExecutor(nil, nil, story.DefaultLimits())
-	for _, count := range []int{1, 5, 15} {
+	for _, count := range []int{1, 5, 16, 30} {
 		cost, err := e.EstimateCost(Action{Name: "jobs.create", Input: actionJSON(map[string]any{"num_clips_requested": count})})
 		if err != nil || cost != count*10 {
 			t.Fatal(cost, err)
 		}
 	}
-	for _, count := range []int{0, -1, 16} {
+	for _, count := range []int{0, -1, 31} {
 		if _, err := e.EstimateCost(Action{Name: "jobs.create", Input: actionJSON(map[string]any{"num_clips_requested": count})}); err == nil {
 			t.Fatal("invalid billable count", count)
 		}

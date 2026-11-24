@@ -8,13 +8,15 @@ import styles from './home.module.css'
 
 const START_OPTIONS = [
   { key: 'upload', href: '/dashboard/create?mode=upload', icon: Upload },
-  { key: 'youtube', href: '/dashboard/create?mode=youtube', icon: Youtube },
+  { key: 'youtube', href: '/dashboard/create?mode=youtube&source=library', icon: Youtube },
   { key: 'script', href: '/dashboard/script-generator', icon: FileText }
 ] as const
 
 /** "Cum vrei să începi?": the three ways to start a first clip. */
 function StartOptions() {
   const t = useTranslations('dashboard.home.start')
+  // The YouTube card opens the channel library; its title is the Home shortcut label.
+  const tHome = useTranslations('dashboard.home')
   return (
     <section className={`${styles.card} ${styles.startList}`} aria-labelledby="home-start-title">
       <h2 id="home-start-title" className={styles.sectionTitle}>{t('title')}</h2>
@@ -24,7 +26,7 @@ function StartOptions() {
             <Link href={href} className={`${styles.startOption} ${styles.focusable}`} data-home-start={key}>
               <span className={styles.startIcon}><Icon aria-hidden="true" /></span>
               <span className={styles.optionCopy}>
-                <strong>{t(`${key}.title`)}</strong>
+                <strong>{key === 'youtube' ? tHome('shortcuts.youtubeAccount') : t(`${key}.title`)}</strong>
                 <span className={styles.muted}>{t(`${key}.description`)}</span>
               </span>
               <ChevronRight className={styles.chevron} aria-hidden="true" />

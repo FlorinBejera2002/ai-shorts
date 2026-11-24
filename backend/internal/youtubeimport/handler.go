@@ -21,16 +21,22 @@ const callbackPath = "/v1/youtube/import/callback"
 const browserCookie = "youtube_import_oauth"
 
 type Handler struct {
-	db     *sql.DB
-	auth   *identity.Handler
-	media  Media
-	client *Client
-	cfg    Config
-	vault  cipher.AEAD
+	db       *sql.DB
+	auth     *identity.Handler
+	media    Media
+	previews Previews
+	client   *Client
+	channel  ChannelVideos
+	queue    SelectionJobs
+	cfg      Config
+	vault    cipher.AEAD
 }
 
 func New(db *sql.DB, auth *identity.Handler, media Media, client *Client, cfg Config) (*Handler, error) {
 	h := &Handler{db: db, auth: auth, media: media, client: client, cfg: cfg}
+	if previews, ok := media.(Previews); ok {
+		h.previews = previews
+	}
 	if cfg.EncryptionKey != "" {
 		var err error
 		h.vault, err = newVault(cfg.EncryptionKey)
@@ -59,6 +65,7 @@ func New(db *sql.DB, auth *identity.Handler, media Media, client *Client, cfg Co
 func (h *Handler) Register(router *httprouter.Router) {
 	router.Handler("GET", "/api/youtube/imports", h.auth.Require(h.overview))
 	router.Handler("POST", "/api/youtube/imports/connect", h.auth.RequireMember(h.auth.Limit(h.connect, "youtube:import", 8, time.Hour)))
+	router.Handler("POST", "/api/youtube/imports/selection", h.auth.RequireMember(h.auth.Limit(h.selectionImport, "youtube:import:selection", 8, time.Hour)))
 	router.HandlerFunc("GET", callbackPath, h.callback)
 	router.Handler("DELETE", "/api/youtube/import-videos/:id", h.auth.RequireMember(h.deleteVideo))
 	router.Handler("DELETE", "/api/youtube/imports/:id", h.auth.RequireMember(h.disconnect))
@@ -249,7 +256,7 @@ func (h *Handler) deleteVideo(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, "Video not found.")
 		return
 	}
-	key, err := h.tombstoneVideo(r.Context(), user, id)
+	sourceKey, previewKey, err := h.tombstoneVideo(r.Context(), user, id)
 	if errors.Is(err, sql.ErrNoRows) {
 		writeError(w, http.StatusNotFound, "Video not found.")
 		return
@@ -259,16 +266,24 @@ func (h *Handler) deleteVideo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if h.media != nil {
-		if err = h.media.RemoveImportSource(r.Context(), user, key); err != nil {
-			if err = h.queueSourceCleanup(r.Context(), user, key); err != nil {
-				writeError(w, http.StatusServiceUnavailable, "The video is hidden. Retry removal to finish clearing its source file.")
-				return
+		for _, key := range storedKeys(sourceKey, previewKey) {
+			if err = h.media.RemoveImportSource(r.Context(), user, key); err != nil {
+				if err = h.queueSourceCleanup(r.Context(), user, key); err != nil {
+					writeError(w, http.StatusServiceUnavailable, "The video is hidden. Retry removal to finish clearing its files.")
+					return
+				}
 			}
-			writeJSON(w, http.StatusOK, map[string]bool{"deleted": true})
-			return
 		}
 	}
 	writeJSON(w, http.StatusOK, map[string]bool{"deleted": true})
+}
+
+// storedKeys lists the non-empty object keys of one imported video.
+func storedKeys(sourceKey, previewKey string) []string {
+	if previewKey == "" {
+		return []string{sourceKey}
+	}
+	return []string{sourceKey, previewKey}
 }
 
 func uniqueViolation(err error) bool {

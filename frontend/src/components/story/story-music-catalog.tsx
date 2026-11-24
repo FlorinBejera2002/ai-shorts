@@ -90,6 +90,14 @@ export function StoryMusicCatalog({
                     {((track.genres?.length ?? 0) > 0 || (track.moods?.length ?? 0) > 0) && (
                       <p className="truncate text-xs text-muted-foreground">{[...(track.genres ?? []), ...(track.moods ?? [])].slice(0, 3).join(' · ')}</p>
                     )}
+                    <a
+                      className="truncate text-xs text-muted-foreground underline underline-offset-2"
+                      href={track.license_url}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      {track.license}
+                    </a>
                   </div>
                   <Button
                     type="button"

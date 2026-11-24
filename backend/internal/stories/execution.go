@@ -76,7 +76,7 @@ func (r *Repository) claim(ctx context.Context, id string) (*execution, error) {
 	if e.Input.Base != nil {
 		e.Input.StudioBaseArtifactID = e.Input.Base.Output.StudioArtifactID
 	}
-	if err = tx.QueryRowContext(ctx, `SELECT coalesce((SELECT id::text FROM clips WHERE story_project_id=$1 AND user_id=$2),'')`, e.ID, e.UserID).Scan(&e.Input.StudioSourceClipID); err != nil {
+	if err = tx.QueryRowContext(ctx, `SELECT coalesce((SELECT id::text FROM clips WHERE story_project_id=$1 AND user_id=$2 AND story_output_index=0),'')`, e.ID, e.UserID).Scan(&e.Input.StudioSourceClipID); err != nil {
 		return nil, err
 	}
 	requestVersionStart := request.Input.VersionStart
@@ -210,7 +210,7 @@ func (e *execution) Progress(ctx context.Context, status, message string) error 
 
 func (e *execution) reserveAI(ctx context.Context) error {
 	return e.mutate(ctx, func(tx *sql.Tx) error {
-		result, err := tx.ExecContext(ctx, `UPDATE story_projects SET ai_calls=ai_calls+1,stage_metrics=stage_metrics || jsonb_build_object('ai_calls_' || status,coalesce((stage_metrics->>('ai_calls_' || status))::integer,0)+1) WHERE id=$1 AND ai_calls<$2`, e.ID, e.repo.limits.MaxAICalls)
+		result, err := tx.ExecContext(ctx, `UPDATE story_projects SET ai_calls=ai_calls+1,stage_metrics=stage_metrics || jsonb_build_object('ai_calls_' || status,coalesce((stage_metrics->>('ai_calls_' || status))::integer,0)+1) WHERE id=$1 AND ai_calls<$2`, e.ID, e.aiCallLimit())
 		if err != nil {
 			return err
 		}
@@ -247,6 +247,11 @@ func (e *execution) SaveVersion(ctx context.Context, v story.Version) error {
 		}
 		if v.Output.Key != "" && !strings.HasPrefix(v.Output.Key, "clips/"+e.ID+"/") {
 			return ErrInvalid
+		}
+		for _, output := range v.Outputs {
+			if !strings.HasPrefix(output.Key, "clips/"+e.ID+"/") {
+				return ErrInvalid
+			}
 		}
 		if _, err := tx.ExecContext(ctx, `INSERT INTO story_versions(project_id,number,version) VALUES($1,$2,$3) ON CONFLICT(project_id,number) DO UPDATE SET version=excluded.version`, e.ID, v.Number, encoded(v)); err != nil {
 			return err
@@ -403,29 +408,6 @@ func (e *execution) finish(ctx context.Context, result story.Result, runErr erro
 
 func trackStage(ctx context.Context, tx *sql.Tx, id, next string) error {
 	_, err := tx.ExecContext(ctx, `UPDATE story_projects SET stage_metrics=stage_metrics || jsonb_build_object(status || '_seconds',coalesce((stage_metrics->>(status || '_seconds'))::double precision,0)+greatest(0,extract(epoch FROM clock_timestamp()-stage_started_at))),stage_started_at=clock_timestamp() WHERE id=$1 AND status<>$2`, id, next)
-	return err
-}
-
-func saveClip(ctx context.Context, tx *sql.Tx, id, user string, v story.Version, options story.Options) error {
-	if !libraryVersion(v) {
-		return ErrInvalid
-	}
-	// Editorial titles are metadata; an overlong model title must not discard a
-	// reviewed render at the library's VARCHAR(255) boundary.
-	title := []rune(strings.TrimSpace(v.Plan.Title))
-	if len(title) > 255 {
-		v.Plan.Title = string(title[:255])
-	}
-	var text strings.Builder
-	for _, entry := range v.Timeline {
-		for _, word := range entry.Words {
-			if text.Len() > 0 {
-				text.WriteByte(' ')
-			}
-			text.WriteString(word.Text)
-		}
-	}
-	_, err := tx.ExecContext(ctx, `INSERT INTO clips(id,job_id,user_id,title,viral_score,start_time,end_time,duration,segments,file_path,file_storage_key,thumbnail_path,thumbnail_storage_key,file_size,resolution,aspect_ratio,has_subtitles,transcript_text,story_project_id,story_version,studio_artifact_id) VALUES($1,$2,$3,$4,0,0,$5,$5,'[]',$6,$6,$7,$7,$8,$9,$10,$11,$12,$2,$13,nullif($14,'')::uuid) ON CONFLICT(story_project_id) WHERE story_project_id IS NOT NULL DO UPDATE SET title=excluded.title,end_time=excluded.end_time,duration=excluded.duration,file_path=excluded.file_path,file_storage_key=excluded.file_storage_key,thumbnail_path=excluded.thumbnail_path,thumbnail_storage_key=excluded.thumbnail_storage_key,file_size=excluded.file_size,resolution=excluded.resolution,aspect_ratio=excluded.aspect_ratio,has_subtitles=excluded.has_subtitles,transcript_text=excluded.transcript_text,story_version=excluded.story_version,studio_artifact_id=excluded.studio_artifact_id`, newID(), id, user, v.Plan.Title, v.Output.Duration, v.Output.Key, v.Output.ThumbnailKey, v.Output.Size, v.Output.Resolution, options.AspectRatio, v.Output.Captions, text.String(), v.Number, v.Output.StudioArtifactID)
 	return err
 }
 

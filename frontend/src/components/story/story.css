@@ -78,11 +78,11 @@
 
 .story-wizard-layout {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 1.25rem;
   align-items: start;
   min-width: 0;
 }
-.story-wizard-content,
 .story-step-panel {
   display: contents;
 }
@@ -90,115 +90,88 @@
 .story-options-preview > [hidden] {
   display: none !important;
 }
+.story-wizard-toolbar {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  min-width: 0;
+}
+.story-wizard-heading {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  min-width: 0;
+  outline: none;
+}
+.story-wizard-help {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  min-width: 0;
+}
 .story-wizard-footer {
+  grid-column: 1 / -1;
   display: grid;
   gap: 0.75rem;
   min-width: 0;
-  padding-top: 1rem;
-  border-top: 1px solid var(--border);
 }
-.story-wizard-footer button {
-  min-height: 2.75rem;
+.story-wizard-hint {
+  margin: 0;
+  color: var(--muted-foreground);
+  font-size: 0.8125rem;
+  line-height: 1.5;
 }
-.story-wizard-heading {
+/* Mobile: Continuă (52px) sits on top at full width, Înapoi (50px) below it. */
+.story-wizard-actions {
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 0.75rem;
   min-width: 0;
 }
-.story-wizard-heading h2:focus {
-  outline: none;
+.story-wizard-actions > button {
+  width: 100%;
+  height: 50px;
+}
+.story-wizard-actions > .story-wizard-continue {
+  height: 52px;
+  background: var(--publish-primary);
+  color: var(--publish-on-primary);
+}
+.story-wizard-actions > .story-wizard-continue:hover {
+  background: var(--publish-primary-hover);
 }
 .story-agent-help {
   padding-inline: 0;
 }
-.story-options-composition,
+/* Phones: keep the last action clear of the floating dashboard dock (68px bar, 22px+ inset, 24px gap). */
+@media (max-width: 1023px) {
+  .creation-workspace[data-reference-surface] {
+    padding-bottom: calc(92px + max(22px, env(safe-area-inset-bottom)));
+  }
+}
+/* Primary wizard action: muted steel in dark mode (brand rule), never white. */
+.dark .story-wizard-continue {
+  background: #8e9bb0;
+  color: #0e131c;
+}
+.dark .story-wizard-continue:hover {
+  background: #a6b2c4;
+}
 .story-create-review {
   display: grid;
   gap: 1.25rem;
   min-width: 0;
 }
-.story-options-workarea {
-  display: contents;
-}
 .story-options-inspector {
   order: 3;
-}
-.story-create-review-workarea {
-  order: 1;
-}
-.story-create-review-inspector {
-  order: 2;
 }
 .story-options-preview {
   min-width: 0;
   order: 1;
-}
-.story-options-workarea > fieldset:not([data-testid]) {
-  order: 2;
-}
-.story-options-workarea > [data-testid='story-music'] {
-  order: 4;
-}
-.story-options-workarea > [data-testid='story-narration'] {
-  order: 5;
-}
-.story-direction-input {
-  min-height: 4.5rem;
-  field-sizing: content;
-}
-.story-disclosure > summary {
-  min-height: 2.75rem;
-  align-content: center;
-}
-.story-appearance-preview {
-  display: grid;
-  justify-items: center;
-  min-height: 16rem;
-  padding: 1rem;
-  border-radius: var(--radius-md);
-  background: var(--muted);
-}
-.story-appearance-preview > * {
-  max-width: 100%;
-}
-.story-appearance-controls
-  [data-caption-section]
-  div:has(> [data-slot='slider']):has(> output) {
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 0.5rem;
-}
-.story-appearance-controls
-  [data-caption-section]
-  div:has(> [data-slot='slider']):has(> output)
-  > :first-child {
-  grid-column: 1;
-  grid-row: 1;
-}
-.story-appearance-controls
-  [data-caption-section]
-  div:has(> [data-slot='slider']):has(> output)
-  > output {
-  grid-column: 2;
-  grid-row: 1;
-}
-.story-appearance-controls
-  [data-caption-section]
-  div:has(> [data-slot='slider']):has(> output)
-  > [data-slot='slider'] {
-  grid-column: 1 / -1;
-  grid-row: 2;
-}
-.story-appearance-controls
-  [data-caption-section]
-  fieldset
-  > div:has(> label):has(> button) {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.75rem;
-}
-.story-appearance-controls
-  [data-caption-section]
-  fieldset
-  > div:has(> label):has(> button)
-  > button {
-  grid-column: 1 / -1;
 }
 .story-source-preview-stage {
   display: grid;
@@ -275,15 +248,6 @@
   font-size: 0.625rem;
   line-height: 1;
 }
-.story-source-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 0.75rem;
-  align-items: start;
-}
-.story-source-grid > li {
-  min-width: 0;
-}
 .story-sources progress {
   appearance: none;
   overflow: hidden;
@@ -300,83 +264,40 @@
 .story-sources progress::-moz-progress-bar {
   background: var(--foreground);
 }
-.story-wizard-navigation button {
-  min-height: 2.75rem;
-  white-space: normal;
-  overflow-wrap: anywhere;
-}
-.story-wizard-navigation[data-orientation='horizontal'] ul {
-  align-items: stretch;
-}
-.story-wizard-navigation[data-orientation='horizontal'] button {
-  height: 100%;
-  flex-direction: column;
-  padding: 0.625rem 0.25rem;
-}
 @media (min-width: 1024px) {
+  /* Desktop: steps 0 and 1 span the page (step 1 lays out its own 400px inspector
+     on the left and the work column on the right); step 2 puts the review card left
+     and the 340px aside right. The stepper itself lives in the page header. */
   .story-wizard-layout {
-    grid-template-columns: minmax(15rem, 0.4fr) minmax(0, 1fr);
-    column-gap: 2rem;
-    row-gap: 1rem;
-    grid-template-rows: auto auto minmax(0, 1fr) auto;
+    column-gap: 1.25rem;
   }
-  .story-wizard-heading {
-    grid-column: 1;
-    grid-row: 1;
-  }
-  .story-wizard-navigation {
-    grid-column: 1;
-    grid-row: 2;
-  }
-  .story-wizard-navigation button {
+  .story-wizard-actions {
     flex-direction: row;
-    align-items: center;
-    gap: 0.75rem;
+    justify-content: flex-end;
   }
-  .story-wizard-footer {
-    grid-column: 1;
-    grid-row: 4;
+  /* Desktop footer: Înapoi 120px and Continuă 160px wide, both 46px tall (canvas wizFoot). */
+  .story-wizard-actions > button {
+    width: auto;
+    height: 46px;
+    min-width: 120px;
   }
-  .story-wizard-layout .story-options-composition-workspace,
+  .story-wizard-actions > .story-wizard-continue {
+    height: 46px;
+    min-width: 160px;
+  }
   .story-wizard-layout .story-create-review {
     display: contents;
   }
-  .story-wizard-layout .story-options-inspector,
-  .story-wizard-layout .story-create-review-inspector {
+  .story-wizard-layout .story-options-inspector {
     grid-column: 1;
-    grid-row: 3;
     order: initial;
   }
-  .story-wizard-layout .story-create-review-workarea {
-    order: initial;
-  }
-  .story-wizard-layout .story-options-workarea,
-  .story-wizard-layout .story-create-review-workarea,
-  .story-wizard-layout .story-sources {
-    display: block;
-    grid-column: 2;
-    grid-row: 1 / 5;
+  .story-wizard-layout [data-testid='story-step-0'] > *,
+  .story-wizard-layout [data-testid='story-step-1'] > * {
+    grid-column: 1 / -1;
     min-width: 0;
-  }
-  .story-wizard-layout .story-sources:has(> ul:empty) .story-upload-area {
-    min-height: 26rem;
-  }
-  .story-options-composition:not(.story-options-composition-workspace) {
-    grid-template-columns: minmax(15rem, 0.4fr) minmax(0, 1fr);
-    gap: 2rem;
-  }
-  .story-options-composition:not(.story-options-composition-workspace)
-    .story-options-inspector {
-    order: initial;
-  }
-  .story-options-composition:not(.story-options-composition-workspace)
-    .story-options-workarea {
-    display: block;
   }
   .story-source-preview-stage {
     max-height: 32rem;
-  }
-  .story-appearance-preview {
-    min-height: 28rem;
   }
 }

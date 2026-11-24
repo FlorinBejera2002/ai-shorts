@@ -63,8 +63,8 @@ export const en: SiteCopy = {
     howTitle: 'Three steps. No editing experience needed.',
     steps: [
       {
-        title: 'Upload or paste a link',
-        text: 'A file from your phone or computer, or any YouTube link.',
+        title: 'Upload or pick from your channel',
+        text: 'A file from your phone or computer, or a video from your YouTube channel.',
         alt: 'Ana puts a video into a laptop while Radu shows her his phone'
       },
       {
@@ -157,7 +157,7 @@ export const en: SiteCopy = {
     faqs: [
       {
         question: 'Which video sources can I use?',
-        answer: 'You can upload MP4, MOV, WebM or MKV files or paste a YouTube link.'
+        answer: 'You can upload MP4, MOV, WebM or MKV files or import videos from your YouTube channel.'
       },
       {
         question: 'How long does processing take?',
@@ -213,7 +213,7 @@ export const en: SiteCopy = {
           'Everything in Free',
           'Full HD 1080p export',
           'Up to 15 clips per project',
-          'Batch processing (5 links)',
+          'Batch processing (5 videos)',
           'Brand kit',
           'More caption styles'
         ]
@@ -224,7 +224,7 @@ export const en: SiteCopy = {
         cta: 'Go Pro',
         features: [
           'Everything in Creator',
-          'Batch processing (20 links)',
+          'Batch processing (20 videos)',
           'Content calendar',
           'AI scripts',
           'Analytics',
@@ -268,7 +268,7 @@ export const en: SiteCopy = {
       },
       {
         question: 'Which video sources are supported?',
-        answer: 'You can upload MP4, MOV, WebM or MKV files or paste a YouTube link.'
+        answer: 'You can upload MP4, MOV, WebM or MKV files or import videos from your YouTube channel.'
       },
       {
         question: 'How long does processing take?',

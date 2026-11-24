@@ -33,17 +33,16 @@ func TestYouTubeApprovalFlagsDefaultDenyAndMediaPrefix(t *testing.T) {
 		return ApplicationFromEnv(func(k string) string { return env[k] }, "test")
 	}
 	a, err := load()
-	if err != nil || a.YouTubeAuditApproved || a.YouTubeImportApproved || a.YouTubeMediaURLPrefix != "https://app.example.com/media/" {
+	if err != nil || a.YouTubeAuditApproved || a.YouTubeMediaURLPrefix != "https://app.example.com/media/" {
 		t.Fatalf("unsafe YouTube defaults: %+v %v", a, err)
 	}
 	env["YOUTUBE_AUDIT_APPROVED"] = "true"
-	env["YOUTUBE_IMPORT_APPROVED"] = "true"
 	env["YOUTUBE_MEDIA_URL_PREFIX"] = "https://media.example.com/bucket/"
 	a, err = load()
-	if err != nil || !a.YouTubeAuditApproved || !a.YouTubeImportApproved || a.YouTubeMediaURLPrefix != env["YOUTUBE_MEDIA_URL_PREFIX"] {
+	if err != nil || !a.YouTubeAuditApproved || a.YouTubeMediaURLPrefix != env["YOUTUBE_MEDIA_URL_PREFIX"] {
 		t.Fatal("YouTube flags not wired", err)
 	}
-	for _, key := range []string{"YOUTUBE_AUDIT_APPROVED", "YOUTUBE_IMPORT_APPROVED"} {
+	for _, key := range []string{"YOUTUBE_AUDIT_APPROVED"} {
 		env[key] = "yes"
 		if _, err = load(); err == nil {
 			t.Fatalf("accepted invalid approval flag %s", key)

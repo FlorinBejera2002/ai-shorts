@@ -113,6 +113,16 @@ async function fixture(options = {}) {
       return json(route, { brandKit: target })
     }
     if (path === '/api/jobs' && method === 'POST') return json(route, { id: '00000000-0000-4000-8000-000000004999', status: 'pending' }, 201)
+    if (path === '/api/youtube/channel' && method === 'GET') {
+      return json(route, { enabled: true, connected: true, account: { channel_id: 'UCsynthetic', title: 'Synthetic channel', avatar_url: null } })
+    }
+    if (path === '/api/youtube/channel/videos' && method === 'GET') {
+      return json(route, { videos: [{ id: 'abcdefghijk', title: 'Synthetic brand clip', duration_seconds: 212, published_at: '2026-11-01T10:00:00Z', visibility: 'public', thumbnail_url: null, url: 'https://www.youtube.com/watch?v=abcdefghijk' }], next_page_token: null })
+    }
+    if (path === '/api/youtube/imports' && method === 'GET') return json(route, { imports: [] })
+    if (path === '/api/youtube/imports/selection' && method === 'POST') {
+      return json(route, { import_id: 'synthetic-import', url: 'https://accounts.google.com/o/oauth2/v2/auth?state=synthetic' })
+    }
     if (method !== 'GET') {
       unexpected.push(`${method} ${path}`)
       return json(route, {}, 405)
@@ -380,18 +390,22 @@ async function states() {
 async function create() {
   const f = await fixture()
   try {
-    await f.open('/dashboard/create?mode=youtube&url=https%3A%2F%2Fyoutu.be%2Fabcdefghijk')
+    await f.open('/dashboard/create?mode=youtube')
+    await f.page.getByRole('checkbox', { name: /Synthetic brand clip/ }).click()
     const trigger = f.page.getByRole('combobox', { name: 'Brand kit' })
     await trigger.click()
     const options = f.page.getByRole('option')
 
     assert.equal(await options.count(), 4, 'No branding plus every kit')
     await f.page.getByRole('option', { name: /Podcast/ }).click()
-    const job = f.page.waitForRequest((request) => request.method() === 'POST' && new URL(request.url()).pathname === '/api/jobs')
-    await f.page.locator('.creation-generate-action').click()
-    const body = JSON.parse((await job).postData())
-    assert.equal(body.include_brand, true)
-    assert.equal(body.brand_kit_id, KIT.podcast, 'The chosen kit is sent with the job')
+    // Generate stays disabled until the Google export disclosure is ticked.
+    await f.page.getByRole('checkbox', { name: /chosen videos are exported/ }).check({ force: true })
+    const selection = f.page.waitForRequest((request) => request.method() === 'POST' && new URL(request.url()).pathname === '/api/youtube/imports/selection')
+    await f.page.getByRole('button', { name: 'Generate clips', exact: true }).click()
+    const body = JSON.parse((await selection).postData())
+    assert.deepEqual(body.video_ids, ['abcdefghijk'])
+    assert.equal(body.job.include_brand, true)
+    assert.equal(body.job.brand_kit_id, KIT.podcast, 'The chosen kit is sent with the job')
   } finally {
     await f.close()
   }

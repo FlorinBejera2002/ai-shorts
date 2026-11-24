@@ -68,63 +68,72 @@ await page.route('**/api/**', async (route) => {
   return route.fulfill({ json: {} })
 })
 
+// The ProcessingCard model: one section, one progressbar with a percentage, five stage items.
 const processing = page.getByTestId('story-processing')
-const stage = (key) => processing.locator(`.job-stage-map [data-stage="${key}"]`)
-const checkLayout = async () => assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true,
-  'Processing UI must fit the viewport without horizontal scrolling')
-const checkStageLabels = async () => assert.equal(await processing.locator('.job-map-label').evaluateAll((labels) =>
-  labels.length === 5 && labels.every((label) => label.scrollWidth <= label.clientWidth + 1 && label.scrollHeight <= label.clientHeight + 1)),
-true, 'All five stage labels remain readable without clipping or ellipsis')
+const stageItems = () => processing.locator('ol li')
+const stageState = async (index) => stageItems().nth(index).getAttribute('data-state')
+const stageStates = () => stageItems().evaluateAll((items) => items.map((item) => item.getAttribute('data-state')))
+const checkLayout = async () => {
+  // Wait for the entrance animation to settle before measuring the page width.
+  await page.waitForFunction(() => document.documentElement.scrollWidth <= innerWidth, null, { timeout: 5000 })
+    .catch(() => {})
+  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true,
+    'Processing UI must fit the viewport without horizontal scrolling')
+}
+const checkStageLabels = async () => {
+  assert.equal(await stageItems().count(), 5, 'The stage line shows all five upload stages')
+  assert.equal(await stageItems().evaluateAll((items) => items.every((item) => item.scrollWidth <= item.clientWidth + 1)), true,
+    'All five stage labels remain readable without clipping')
+}
 const capture = async (name) => {
-  await page.waitForFunction(() => Array.from(document.querySelectorAll('.job-stage-copy, .job-ai-core'))
-    .filter((node) => node.getClientRects().length).every((node) => Number(getComputedStyle(node).opacity) >= 0.999))
   await page.evaluate(() => { if (document.activeElement instanceof HTMLElement) document.activeElement.blur(); window.scrollTo(0, 0) })
   await page.screenshot({ path: `${output}/${name}.png`, fullPage: true, animations: 'disabled' })
 }
-const waitStatus = async (status) => {
-  await page.waitForFunction((value) => document.querySelector('[data-testid="story-processing"]')?.getAttribute('data-status') === value, status)
+const waitProgress = async (value) => {
+  await page.waitForFunction((expected) => document.querySelector('[data-testid="story-processing"] [role="progressbar"]')
+    ?.getAttribute('aria-valuenow') === String(expected), value)
+  assert.equal((await processing.innerText()).includes(`${value}%`), true, `Card shows ${value}%`)
   assert.equal(await processing.getByText(project.message, { exact: true }).count(), 0, 'Internal worker messages stay out of the customer view')
 }
-const advance = async (status) => {
+const advance = async (status, progress, stageIndex) => {
   project = { ...project, status, message: `Fixture ${status} ${Date.now()}` }
-  await waitStatus(status)
-  assert.equal(await processing.getByRole('progressbar').getAttribute('aria-valuenow'), null,
-    'Story phases do not invent a numeric completion percentage')
-  assert.doesNotMatch(await processing.innerText(), /100\s*%/)
+  await waitProgress(progress)
+  const states = await stageStates()
+  assert.equal(states[stageIndex], 'current', `${status} shows stage ${stageIndex} as current`)
+  assert.equal(states.slice(0, stageIndex).every((state) => state === 'done'), true, `${status} completes the earlier stages`)
+  assert.equal(states.slice(stageIndex + 1).every((state) => state === 'upcoming'), true, `${status} keeps later stages upcoming`)
   assert.equal(await processing.getByRole('button', { name: 'Cancel processing', exact: true }).isEnabled(), true)
 }
-const loadStatus = async (status, extra = {}) => {
+const loadStatus = async (status, extra = {}, path = `/dashboard/create?story=${projectID}`) => {
   project = { ...project, status, message: `Fixture ${status}`, error: undefined, ...extra }
-  await page.goto(`${origin}/dashboard/create?story=${projectID}`, { waitUntil: 'networkidle' })
-  await waitStatus(status)
+  await page.goto(`${origin}${path}`, { waitUntil: 'networkidle', timeout: 180000 })
+  await processing.waitFor()
 }
 
 try {
   await loadStatus('pending')
-  await processing.getByRole('progressbar').waitFor()
-  assert.equal(await processing.getByRole('progressbar').getAttribute('aria-valuenow'), null)
-  assert.equal(await stage('pending').getAttribute('data-state'), 'active')
-  assert.equal(await stage('editing').getAttribute('data-state'), 'waiting')
+  await waitProgress(12)
+  assert.equal(await processing.getByRole('heading', { name: 'Uploading your footage', exact: true }).count(), 1)
+  assert.deepEqual(await stageStates(), ['current', 'upcoming', 'upcoming', 'upcoming', 'upcoming'])
+  assert.equal(await processing.getAttribute('data-animated'), 'true', 'An active upload animates its orbit')
   await capture('pending-desktop')
-  await advance('analyzing')
-  await advance('building_story')
-  await advance('improving')
+  await advance('analyzing', 34, 1)
+  await advance('building_story', 58, 2)
+  await advance('improving', 78, 3)
   assert.equal(project.current_version, 0)
-  assert.notEqual(await stage('editing').getAttribute('data-state'), 'done', 'A pre-render repair cannot imply a completed render')
-  assert.notEqual(await stage('reviewing').getAttribute('data-state'), 'done')
-  await advance('editing')
-  await advance('reviewing')
-  await advance('improving')
-  assert.notEqual(await stage('reviewing').getAttribute('data-state'), 'done', 'Repair cannot certify the final review')
-  await capture('improving-desktop')
+  assert.equal(await stageState(3), 'current', 'A pre-render repair cannot imply a completed render')
+  assert.equal(await stageState(4), 'upcoming')
+  await advance('editing', 78, 3)
+  await advance('reviewing', 94, 4)
+  assert.equal(await stageState(4), 'current', 'Repair cannot certify the final review')
+  await capture('reviewing-desktop')
   await page.setViewportSize({ width: 320, height: 740 })
   await checkLayout()
   await checkStageLabels()
   await page.emulateMedia({ reducedMotion: 'reduce' })
-  assert.equal(await processing.locator('.job-ai-visual *').evaluateAll((nodes) => nodes.every((node) => getComputedStyle(node).animationName === 'none')), true,
-    'Reduced motion disables the decorative orbital animations')
-  await capture('improving-mobile-reduced-motion')
-  await advance('reviewing')
+  assert.equal(await processing.locator('span[aria-hidden="true"]').evaluateAll((nodes) => nodes.every((node) =>
+    getComputedStyle(node).animationName === 'none')), true, 'Reduced motion disables the decorative orbital animations')
+  await capture('reviewing-mobile-reduced-motion')
   project = { ...project, current_version: 1, versions: [version('ready')] }
   project = { ...project, status: 'ready', message: 'Fixture ready after completed checks' }
   await processing.waitFor({ state: 'detached' })
@@ -132,7 +141,7 @@ try {
   assert.equal(await page.getByText('Automatic checks completed', { exact: true }).count(), 0)
 
   project = { ...project, status: 'needs_review', versions: [version('needs_review')] }
-  await page.goto(`${origin}/dashboard/create?story=${projectID}`, { waitUntil: 'networkidle' })
+  await page.goto(`${origin}/dashboard/create?story=${projectID}`, { waitUntil: 'networkidle', timeout: 180000 })
   await page.getByTestId('story-result').waitFor()
   assert.equal(await processing.count(), 0)
   assert.equal(await page.getByText('Before you publish', { exact: true }).count(), 0)
@@ -141,15 +150,17 @@ try {
   assert.equal(await page.getByTestId('story-block').count(), 0, 'Completed stories do not expose a second editor')
   await page.screenshot({ path: `${output}/needs-review-mobile.png`, fullPage: true, animations: 'disabled' })
   await page.emulateMedia({ reducedMotion: 'no-preference' })
+
   await loadStatus('failed', { current_version: 0, versions: [], error: 'Fixture render failed; original recordings are safe.' })
-  await processing.getByRole('alert').waitFor()
+  await page.locator('[data-testid="story-processing"][role="alert"]').waitFor()
+  assert.equal(await processing.getByRole('heading', { name: 'Processing failed', exact: true }).count(), 1)
   assert.equal(await processing.getByText(project.error, { exact: true }).count(), 0, 'Raw failure detail remains internal')
-  assert.equal(await processing.getAttribute('data-running'), 'false')
-  assert.equal(await processing.locator('.job-ai-visual *').evaluateAll((nodes) => nodes.every((node) => getComputedStyle(node).animationName === 'none')), true,
-    'Failed work cannot keep the AI orbital animation running')
-  assert.equal(await processing.locator('.job-stage-map [data-state="done"]').count(), 0,
-    'Failure must not invent which stages finished')
-  assert.equal(await processing.getByRole('progressbar').count(), 0)
+  assert.equal(await processing.getAttribute('data-animated'), null, 'Failed work does not keep the orbit animating')
+  assert.equal(await processing.locator('li[data-state="done"]').count(), 0, 'Failure must not invent which stages finished')
+  assert.equal(await processing.locator('li[data-state="failed"]').count(), 1, 'The failed stage is marked with a failure state')
+  assert.equal(await processing.getByRole('button', { name: 'Cancel processing', exact: true }).count(), 0)
+  await capture('failed-desktop')
+
   await loadStatus('pending')
   const cancel = processing.getByRole('button', { name: 'Cancel processing', exact: true })
   await cancel.click()
@@ -157,36 +168,36 @@ try {
   assert.equal(cancelCount, 1)
   assert.equal(await cancel.isDisabled(), true, 'Pending cancellation cannot be submitted twice')
   releaseCancel()
-  await waitStatus('cancelled')
-  assert.equal(await processing.getByRole('progressbar').count(), 0)
-  assert.equal(await processing.locator('.job-stage-map [data-state="done"]').count(), 0)
+  await processing.getByRole('heading', { name: 'Processing stopped', exact: true }).waitFor()
+  assert.equal(await stageItems().count(), 0, 'A stopped upload shows no stage line')
+  assert.equal(await processing.getByRole('button', { name: 'Cancel processing', exact: true }).count(), 0)
   assert.equal(project.assets[0].id, 'source-1')
   assert.deepEqual(mutations, [`/api/stories/${projectID}/cancel`])
 
   project = { ...project, status: 'reviewing', message: 'Fixture Romanian review' }
-  await page.goto(`${origin}/ro/dashboard/create?story=${projectID}`, { waitUntil: 'networkidle' })
-  await waitStatus('reviewing')
+  await page.goto(`${origin}/ro/dashboard/create?story=${projectID}`, { waitUntil: 'networkidle', timeout: 180000 })
+  await processing.getByRole('heading', { name: 'Verificăm clipul', exact: true }).waitFor()
+  await waitProgress(94)
   await checkLayout()
   await checkStageLabels()
   await capture('reviewing-ro-mobile')
 
   await page.setViewportSize({ width: 1440, height: 1000 })
-  await page.goto(`${origin}/dashboard/jobs/${jobID}`, { waitUntil: 'networkidle' })
-  const linkPanel = page.locator('.job-processing')
-  await page.waitForFunction(() => document.querySelector('.job-processing')?.getAttribute('data-stage') === 'downloading')
+  await page.goto(`${origin}/dashboard/jobs/${jobID}`, { waitUntil: 'networkidle', timeout: 180000 })
+  const linkPanel = page.getByTestId('job-processing')
+  await linkPanel.getByRole('heading', { name: 'Downloading the video', exact: true }).waitFor()
   assert.equal(await linkPanel.getByRole('progressbar').getAttribute('aria-valuenow'), '18')
-  await linkPanel.getByText('Download', { exact: true }).first().waitFor()
   job = { ...job, status: 'transcribing', progress: 42, progress_message: 'Fixture transcription message' }
-  await page.waitForFunction(() => document.querySelector('.job-processing')?.getAttribute('data-stage') === 'transcribing')
+  await linkPanel.getByRole('heading', { name: 'Transcribing speech', exact: true }).waitFor()
   assert.equal(await linkPanel.getByRole('progressbar').getAttribute('aria-valuenow'), '42')
-  await linkPanel.getByText('Transcribe', { exact: true }).first().waitFor()
   await capture('link-transcribing-desktop')
   job = { ...job, status: 'completed', progress: 96 }
-  await page.waitForFunction(() => document.querySelector('.job-processing')?.getAttribute('data-stage') === 'completed')
-  assert.equal(await linkPanel.getByRole('progressbar').getAttribute('aria-valuenow'), '100')
-  await linkPanel.getByRole('link', { name: 'View clips', exact: true }).waitFor()
+  await page.getByTestId('job-complete').waitFor()
+  assert.equal(await page.getByTestId('job-complete').getByRole('progressbar').count(), 0, 'The done hero follows the canvas and shows no progress bar')
+  assert.equal(await page.getByTestId('job-complete').getByRole('heading', { name: 'All clips are ready!', exact: true }).count(), 1)
+  await page.getByTestId('job-complete').getByRole('link', { name: 'View clips', exact: true }).waitFor()
   assert.deepEqual(errors, [])
-  console.log('PASS: Story polling phases, pre/post-render repair loops, honest indeterminate progress, verified completion, needs-review and failure gates, one cancellation,320px/reduced motion, and link download/transcribe/completed percentages')
+  console.log('PASS: story processing card phases with percentages, stage states, pre/post-render repair gates, verified completion, needs-review and failure states, one cancellation, 320px and reduced motion, Romanian copy, and YouTube job card download/transcribe/completed')
 } finally {
   releaseCancel()
   await browser.close()

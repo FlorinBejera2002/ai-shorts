@@ -9,6 +9,13 @@ type AudioPreparer interface {
 	PrepareStoryAudio(context.Context, string, Asset) (Asset, error)
 }
 
+// CleanupApplies reports whether noise reduction is applied to asset. Narration
+// recordings are always eligible when enabled; footage is limited to the
+// selected sources, with an empty selection meaning all footage.
+func CleanupApplies(o Options, asset Asset) bool {
+	return asset.Kind == "narration" || audiocleanup.Selects(o.AudioCleanup, asset.ID)
+}
+
 func (s *runState) prepareAudio(ctx context.Context) error {
 	if !audiocleanup.Enabled(s.req.Options.AudioCleanup) {
 		return nil
@@ -26,6 +33,9 @@ func (s *runState) prepareAudio(ctx context.Context) error {
 	s.req.Assets = cloneAssets(s.req.Assets)
 	for i, asset := range s.req.Assets {
 		if s.req.Options.Narration && asset.Kind != "narration" {
+			continue
+		}
+		if !CleanupApplies(s.req.Options, asset) {
 			continue
 		}
 		if err := ctx.Err(); err != nil {

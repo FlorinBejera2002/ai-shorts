@@ -121,7 +121,13 @@ func buildApplication(db *sql.DB, cfg config.Config, a config.Application, logge
 	stopPublishing := publishingHandler.Start(context.Background())
 	previousCleanup := cleanup
 	cleanup = func() { stopPublishing(); previousCleanup() }
-	importHandler, err := configuredYouTubeImport(db, auth, mediaService, a, cfg.Auth.SecureCookies)
+	// The channel handler comes first: selected imports look videos up through its service.
+	youtubeChannelHandler, err := configuredYouTubeChannel(db, auth, a, cfg.Auth.SecureCookies)
+	if err != nil {
+		cleanup()
+		return nil, noop, err
+	}
+	importHandler, err := configuredYouTubeImport(db, auth, mediaService, a, cfg.Auth.SecureCookies, youtubeChannelHandler.Service())
 	if err != nil {
 		cleanup()
 		return nil, noop, err
@@ -165,7 +171,7 @@ func buildApplication(db *sql.DB, cfg config.Config, a config.Application, logge
 		return nil, noop, err
 	}
 	agentExecutor.SetStudio(studioClient)
-	jobHandler := jobs.New(db, auth, mediaService, jobs.Config{YouTubeImportApproved: a.YouTubeImportApproved})
+	jobHandler := jobs.New(db, auth, mediaService)
 	agentExecutor.SetJobs(jobHandler)
 	agentHandler := workspaceagent.New(db, auth, generator, agentExecutor)
 	agentHandler.SetMedia(mediaService)
@@ -206,6 +212,6 @@ func buildApplication(db *sql.DB, cfg config.Config, a config.Application, logge
 			httpx.JSON(w, status, map[string]any{"ready": status == 200, "database": database, "schema": schema, "redis": redisReady})
 		})
 	}
-	handler := httpapi.New(logger, cfg.Environment, version, auth.Register, audiocleanup.Registration(auth), admin.New(db, auth).WithAIRouting(generator).WithBillingConfiguration(billingConfiguration).Register, media.NewHandler(mediaService, auth).Register, music.NewHandler(music.NewCatalog(), auth).Register, jobHandler.Register, storyHandler.Register, projects.New(db, auth, mediaService).Register, clipHandler.Register, brand.New(db, auth, mediaService).Register, calendarHandler.Register, billingService.Register, account.New(db, auth, mediaService, billingService, account.Config{MFA: accounts}).Register, dashboard.New(db, auth, clipHandler).Register, scripts.NewWithDB(db, auth, generator).Register, assistant.New(db, auth, generator).Register, agentHandler.Register, publishingHandler.Register, importHandler.Register, generator.StudioRegistration(a.StudioAgentSecret), readiness)
+	handler := httpapi.New(logger, cfg.Environment, version, auth.Register, audiocleanup.Registration(auth), admin.New(db, auth).WithAIRouting(generator).WithBillingConfiguration(billingConfiguration).Register, media.NewHandler(mediaService, auth).Register, music.NewHandler(music.NewCatalog(), auth).Register, jobHandler.Register, storyHandler.Register, projects.New(db, auth, mediaService).Register, clipHandler.Register, brand.New(db, auth, mediaService).Register, calendarHandler.Register, billingService.Register, account.New(db, auth, mediaService, billingService, account.Config{MFA: accounts}).Register, dashboard.New(db, auth, clipHandler).Register, scripts.NewWithDB(db, auth, generator).Register, assistant.New(db, auth, generator).Register, agentHandler.Register, publishingHandler.Register, importHandler.Register, youtubeChannelHandler.Register, generator.StudioRegistration(a.StudioAgentSecret), readiness)
 	return httpapi.Policy(auth.Policy(handler), httpapi.PolicyConfig{AllowedHosts: a.AllowedHosts}), cleanup, nil
 }

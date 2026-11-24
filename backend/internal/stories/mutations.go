@@ -97,6 +97,13 @@ func (r *Repository) patchTx(ctx context.Context, tx *sql.Tx, user, id string, i
 		if e != nil {
 			return fmt.Errorf("%w: %s", ErrInvalid, e)
 		}
+		projectAssets, e := readDraftAssets(ctx, tx, id)
+		if e != nil {
+			return e
+		}
+		if e = story.ValidateOptionsForAssets(options, projectAssets); e != nil {
+			return fmt.Errorf("%w: %s", ErrInvalid, e)
+		}
 		if !options.Narration {
 			var hasNarration bool
 			if err = tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM story_assets WHERE project_id=$1 AND asset->>'kind'='narration')`, id).Scan(&hasNarration); err != nil {
@@ -291,6 +298,9 @@ func (r *Repository) Queue(ctx context.Context, user, id string, in Generate) er
 	if err = story.ValidateNarrationAssets(req.Assets, req.Options); err != nil {
 		return fmt.Errorf("%w: %s", ErrInvalid, err)
 	}
+	if err = story.ValidateOptionsForAssets(req.Options, req.Assets); err != nil {
+		return fmt.Errorf("%w: %s", ErrInvalid, err)
+	}
 	if in.Action == "review_transcript" {
 		for _, asset := range req.Assets {
 			if _, err = tx.ExecContext(ctx, `UPDATE story_assets SET asset=$3 WHERE project_id=$1 AND id=$2`, id, asset.ID, encoded(asset)); err != nil {
@@ -381,7 +391,8 @@ func (r *Repository) Queue(ctx context.Context, user, id string, in Generate) er
 		return err
 	}
 	if current == 0 && charge == 0 {
-		charge, err = creditledger.Reserve(ctx, tx, user, 10)
+		// Ten credits per clip, matching the YouTube flow; Auto is resolved from the footage.
+		charge, err = creditledger.Reserve(ctx, tx, user, creditsPerStoryClip*story.ResolvedClipCount(req.Options, req.Assets))
 		if errors.Is(err, creditledger.ErrInsufficient) {
 			return ErrCredits
 		}

@@ -270,7 +270,7 @@ try {
     timeout: 180000
   })
   await page
-    .getByRole('heading', { name: 'Video preview', exact: true })
+    .getByRole('heading', { name: 'Your clip is ready', exact: true })
     .waitFor()
   const player = page.getByLabel('Clip preview', { exact: true })
   await page.waitForFunction(
@@ -313,13 +313,13 @@ try {
     const playerNode = await player.elementHandle()
     await player.evaluate((video) => { video.currentTime = 0.6 })
     originalHeader = await readFile(headerFile, 'utf8')
-    await writeSource(headerFile, originalHeader.replace("'Video preview'", "'Video preview refresh check'"))
-    await page.getByRole('heading', { name: 'Video preview refresh check', exact: true }).waitFor()
+    await writeSource(headerFile, originalHeader.replace("'Download video'", "'Download video refresh check'"))
+    await page.getByRole('link', { name: 'Download video refresh check', exact: true }).waitFor()
     assert.equal(await playerNode.evaluate((node) => node.isConnected), true)
     assert.ok(Math.abs(await player.evaluate((video) => video.currentTime) - 0.6) < 0.1)
     await writeSource(headerFile, originalHeader)
     originalHeader = undefined
-    await page.getByRole('heading', { name: 'Video preview', exact: true }).waitFor()
+    await page.getByRole('link', { name: 'Download video', exact: true }).waitFor()
   }
   const sidebar = page.locator('[data-slot="sidebar"]'),
     sidebarNode = await sidebar.elementHandle(),
@@ -377,7 +377,7 @@ try {
   await page.screenshot({ path: `${output}/mobile-ro.png`, fullPage: true })
   assert.equal(await page.getByRole('link', { name: 'Toate clipurile', exact: true }).getAttribute('href'), '/ro/dashboard/clips')
   assert.deepEqual(mutations, [], 'Completed stories never issue local edit mutations')
-  await page.getByTestId('story-result').getByRole('button').click()
+  await page.getByTestId('story-result').getByRole('button', { name: 'Studio' }).click()
   await page.waitForURL('**/#project/story-main-project')
   assert.equal(new URL(page.url()).origin, studioOrigin)
   assert.deepEqual(studioRequests, [

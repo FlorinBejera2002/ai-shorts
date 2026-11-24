@@ -1,24 +1,74 @@
-import { Upload, Youtube } from 'lucide-react'
+import { useState } from 'react'
+import { Upload, Youtube, type LucideIcon } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
 import { useSearchParams } from 'next/navigation'
 import { useRouter } from '@/i18n/navigation'
 import theme from '@/components/calendar/publishing-theme.module.css'
 import { StoryBuilder } from '@/components/story/story-builder'
+import { CreationStepper } from '@/components/story/create-stepper'
+import {
+  CreationStepperContext,
+  type CreationStepperModel
+} from '@/components/story/create-stepper-state'
+import { YouTubeAccountPill } from './youtube-account-pill'
 import { YouTubeCreationWorkflow } from './youtube-creation-workflow'
+import './creation-workspace.css'
 
 type CreationSource = 'upload' | 'youtube'
 
-export function CreationWorkspace() {
+const sourceOptions = [
+  { value: 'upload', Icon: Upload },
+  { value: 'youtube', Icon: Youtube }
+] as const satisfies ReadonlyArray<{ value: CreationSource; Icon: LucideIcon }>
+
+function SourceSwitch({
+  source,
+  onSelect
+}: {
+  source: CreationSource
+  onSelect: (value: CreationSource) => void
+}) {
   const ro = useLocale() === 'ro'
+  const labels: Record<CreationSource, string> = {
+    upload: ro ? 'Încarcă filmări' : 'Upload videos',
+    youtube: 'YouTube'
+  }
+  return (
+    <div
+      id="creation-source"
+      role="radiogroup"
+      aria-label={ro ? 'Sursa filmărilor' : 'Video source'}
+      className="creation-source-switch"
+    >
+      {sourceOptions.map(({ value, Icon }) => (
+        <button
+          key={value}
+          type="button"
+          role="radio"
+          aria-checked={source === value}
+          data-creation-source={value}
+          onClick={() => {
+            if (source !== value) onSelect(value)
+          }}
+        >
+          <Icon aria-hidden="true" />
+          {labels[value]}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+export function CreationWorkspace() {
   const t = useTranslations('create')
   const params = useSearchParams()
   const router = useRouter()
+  const [stepper, setStepper] = useState<CreationStepperModel | null>(null)
   const requestedMode = params.get('mode')
   const requestedStory = params.get('story')
-  const source: CreationSource =
-    !requestedStory && (requestedMode === 'youtube' || requestedMode === 'batch')
-      ? 'youtube'
-      : 'upload'
+  // The Home shortcut "From my YouTube account" (?source=library) opens the YouTube path too.
+  const opensYouTube = requestedMode === 'youtube' || params.get('source') === 'library'
+  const source: CreationSource = !requestedStory && opensYouTube ? 'youtube' : 'upload'
 
   function selectSource(value: CreationSource) {
     const query = new URLSearchParams(params.toString())
@@ -28,51 +78,28 @@ export function CreationWorkspace() {
   }
 
   return (
-    <div
-      className={`${theme.surface} creation-workspace space-y-6`}
-      data-reference-surface=""
-    >
-      <header className="creation-workspace-header">
-        <h1>
-          {t('title')}
-        </h1>
-        <div className="creation-source-switcher">
-          <div
-            id="creation-source"
-            role="radiogroup"
-            aria-label={ro ? 'Sursa filmărilor' : 'Video source'}
-            className="creation-source-segment"
-          >
-            {(
-              [
-                ['upload', Upload, ro ? 'Încarcă filmări' : 'Upload videos'],
-                ['youtube', Youtube, 'YouTube']
-              ] as const
-            ).map(([value, Icon, label]) => (
-              <button
-                key={value}
-                type="button"
-                role="radio"
-                aria-checked={source === value}
-                data-creation-source={value}
-                onClick={() => {
-                  if (source !== value) selectSource(value)
-                }}
-              >
-                <Icon aria-hidden="true" />
-                {label}
-              </button>
-            ))}
+    <CreationStepperContext.Provider value={setStepper}>
+      <div
+        className={`${theme.surface} creation-workspace`}
+        data-reference-surface=""
+      >
+        <header className="creation-toolbar">
+          {/* The page title lives in the dashboard header; keep it for screen readers only. */}
+          <h1 className="sr-only">{t('title')}</h1>
+          <div className="creation-toolbar-controls">
+            <SourceSwitch source={source} onSelect={selectSource} />
+            {source === 'upload' && stepper && <CreationStepper {...stepper} />}
+            {source === 'youtube' && <YouTubeAccountPill className="creation-account-pill" />}
           </div>
-        </div>
-      </header>
+        </header>
 
-      <section hidden={source !== 'upload'} data-testid="creation-upload-workspace">
-        <StoryBuilder />
-      </section>
-      <section hidden={source !== 'youtube'} data-testid="creation-youtube-workspace">
-        <YouTubeCreationWorkflow initialBatch={requestedMode === 'batch'} active={source === 'youtube'} />
-      </section>
-    </div>
+        <section hidden={source !== 'upload'} data-testid="creation-upload-workspace">
+          <StoryBuilder />
+        </section>
+        <section hidden={source !== 'youtube'} data-testid="creation-youtube-workspace">
+          <YouTubeCreationWorkflow active={source === 'youtube'} />
+        </section>
+      </div>
+    </CreationStepperContext.Provider>
   )
 }

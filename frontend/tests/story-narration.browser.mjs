@@ -253,7 +253,7 @@ const tracksStopped = () =>
 const startRecord = async (name = 'Record narration') => {
   await page.getByRole('button', { name, exact: true }).click()
   await page
-    .getByRole('button', { name: 'Stop recording', exact: true })
+    .getByRole('button', { name: 'Stop', exact: true })
     .waitFor()
   await page.waitForFunction(() => {
     const value = document
@@ -268,7 +268,7 @@ const startRecord = async (name = 'Record narration') => {
 }
 const stopRecord = async () => {
   await page
-    .getByRole('button', { name: 'Stop recording', exact: true })
+    .getByRole('button', { name: 'Stop', exact: true })
     .click()
   await page.getByLabel('Narration preview', { exact: true }).waitFor()
   await tracksStopped()
@@ -295,10 +295,17 @@ const showStep = async (target) => {
       .waitFor({ state: 'visible' })
   }
 }
+const waitForProject = async (predicate, message) => {
+  for (let attempt = 0; attempt < 100; attempt++) {
+    if (predicate()) return
+    await new Promise((resolve) => setTimeout(resolve, 100))
+  }
+  throw new Error(message)
+}
 const generationUnavailable = async () => {
   assert.equal(
     await page
-      .getByRole('button', { name: 'Create my clip', exact: true })
+      .getByRole('button', { name: 'Create clips', exact: true })
       .count(),
     0,
     'Only the review step exposes generation'
@@ -326,21 +333,26 @@ try {
     waitUntil: 'domcontentloaded',
     timeout: 180000
   })
+  await page.getByLabel('Upload clips').setInputFiles({
+    name: 'footage.mp4',
+    mimeType: 'video/mp4',
+    buffer: Buffer.from('synthetic source')
+  })
+  await page.locator('[data-testid="validated-source"]').waitFor()
   await showStep(1)
   await page
     .getByTestId('story-step-1')
-    .getByText('Sound: Original audio', { exact: true })
+    .getByRole('radio', { name: 'Sound from my clips', exact: true })
     .click()
   await page
-    .getByRole('button', { name: 'My voice over the images', exact: true })
+    .getByRole('radio', { name: 'My voice', exact: true })
     .click()
   await page
     .getByRole('button', { name: 'Record narration', exact: true })
     .waitFor()
-  assert.equal(
-    project.options.narration,
-    true,
-    'Recording-first creates a narration draft'
+  await waitForProject(
+    () => project?.options?.narration === true,
+    'Recording-first never saved the narration draft'
   )
   assert.equal(
     await page.evaluate(() => window.captureCalls),
@@ -348,26 +360,22 @@ try {
     'Mode selection never opens the microphone'
   )
   assert.equal(
-    await page.getByLabel('Length', { exact: true }).isDisabled(),
-    true
+    await page.getByRole('radiogroup', { name: 'Length', exact: true }).count(),
+    0,
+    'Narration replaces the duration control with the full-narration sentence'
   )
+  await page.getByText('Matches your full narration.', { exact: true }).waitFor()
+  await page.getByRole('button', { name: 'More options', exact: true }).click()
   assert.equal(
     await page.getByLabel('Keep my clip order', { exact: true }).isDisabled(),
-    true
+    true,
+    'Narration locks the clip order'
   )
-  await showStep(0)
-  await page.getByLabel('Upload clips').setInputFiles({
-    name: 'footage.mp4',
-    mimeType: 'video/mp4',
-    buffer: Buffer.from('synthetic source')
-  })
-  await page.locator('[data-testid="validated-source"]').waitFor()
   const videoID = project.assets[0].id
   const build = page.getByRole('button', {
-    name: 'Create my clip',
+    name: 'Create clips',
     exact: true
   })
-  await showStep(1)
   assert.equal(
     await page
       .getByTestId('story-wizard')
@@ -399,7 +407,7 @@ try {
   )
   assert.equal(uploadCount, 0)
   await page
-    .getByRole('button', { name: 'Pause recording', exact: true })
+    .getByRole('button', { name: 'Pause', exact: true })
     .click()
   const paused = await page
     .getByLabel('Recording time', { exact: true })
@@ -451,7 +459,7 @@ try {
   assert.equal(uploadCount, 2)
   assert.equal(
     await page
-      .getByRole('button', { name: 'Sound from my clips', exact: true })
+      .getByRole('radio', { name: 'Sound from my clips', exact: true })
       .isDisabled(),
     true
   )
@@ -530,12 +538,16 @@ try {
   )
   await showStep(2)
   await build.click()
-  await page.getByRole('status').filter({ hasText: 'Queued' }).waitFor()
+  await page.getByTestId('story-processing').waitFor()
   assert.equal(generations.length, 1)
   // A separate draft starts from video uploads, then changes to narration mode.
   project.status = 'draft'
+  // The project header with New project appears only after a result; forget the saved project instead.
+  await page.evaluate(() => {
+    for (const key of Object.keys(window.localStorage))
+      if (key.startsWith('sneepcut:story')) window.localStorage.removeItem(key)
+  })
   await page.reload({ waitUntil: 'domcontentloaded' })
-  await page.getByRole('button', { name: 'New project', exact: true }).click()
   await page.getByLabel('Upload clips').setInputFiles({
     name: 'second-footage.mp4',
     mimeType: 'video/mp4',
@@ -551,10 +563,10 @@ try {
   await showStep(1)
   await page
     .getByTestId('story-step-1')
-    .getByText('Sound: Original audio', { exact: true })
+    .getByRole('radio', { name: 'Sound from my clips', exact: true })
     .click()
   await page
-    .getByRole('button', { name: 'My voice over the images', exact: true })
+    .getByRole('radio', { name: 'My voice', exact: true })
     .click()
   await page
     .getByRole('button', { name: 'Record narration', exact: true })
@@ -644,7 +656,7 @@ try {
   })
   await startRecord()
   await page
-    .getByRole('button', { name: 'Pause recording', exact: true })
+    .getByRole('button', { name: 'Pause', exact: true })
     .click()
   await page.setViewportSize({ width: 390, height: 844 })
   assert.equal(
