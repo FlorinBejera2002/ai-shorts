@@ -38,10 +38,3 @@ export function providerLabel(provider: string) {
   }
   return labels[provider] ?? provider
 }
-
-export function modalityLabel(modality: string) {
-  const labels: Record<string, string> = {
-    image: 'imagini', transcription: 'transcriere', voice_activity: 'detectarea vocii', face_detection: 'detectarea fețelor', segmentation: 'segmentarea imaginii'
-  }
-  return labels[modality] ?? modality
-}

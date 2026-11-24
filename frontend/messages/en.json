@@ -98,7 +98,8 @@
     "billingFull": "Subscription and billing",
     "monthlyUsage": "Monthly usage",
     "monthlyUsageLabel": "Monthly usage: {percent}% used",
-    "usageResets": "Resets on {date}"
+    "usageResets": "Resets on {date}",
+    "feedback": "Feedback"
   },
   "landing": {
     "badge": "Long-form in. Standout moments out.",
@@ -2856,5 +2857,52 @@
     "nameTaken": "A kit with this name already exists.",
     "failed": "The change couldn’t be saved.",
     "savedIllustration": "Ana and Radu high-five over the new kit"
+  },
+  "feedback": {
+    "title": "Feedback",
+    "kindLabel": "Message type",
+    "kindProblem": "Report a problem",
+    "kindIdea": "Suggest an idea",
+    "categoryLabel": "What is it about?",
+    "categories": {
+      "clips": "Clips",
+      "publishing": "Publishing",
+      "billing": "Billing",
+      "account": "Account",
+      "other": "Something else"
+    },
+    "messageLabel": "Message",
+    "problemPlaceholder": "What happened?",
+    "ideaPlaceholder": "What would you like to see?",
+    "send": "Send",
+    "sending": "Sending…",
+    "sentTitle": "Thank you! We got your message.",
+    "sendAnother": "Send another message",
+    "sendFailed": "We could not send it. Try again.",
+    "tooLong": "The message is too long.",
+    "reportsTitle": "Your messages",
+    "reportsEmpty": "No messages yet",
+    "loadFailed": "We could not load your messages.",
+    "retry": "Try again",
+    "status": {
+      "new": "Received",
+      "in_progress": "In progress",
+      "resolved": "Resolved"
+    },
+    "clip": {
+      "title": "How do these clips feel?",
+      "ratings": {
+        "1": "Weak",
+        "2": "Okay",
+        "3": "Great"
+      },
+      "lowPlaceholder": "What went wrong? (optional)",
+      "highPlaceholder": "What did you like? (optional)",
+      "send": "Send",
+      "dismiss": "Not now",
+      "close": "Close",
+      "thanks": "Thank you! This really helps.",
+      "failed": "We could not send your answer."
+    }
   }
 }

@@ -95,7 +95,8 @@
     "billingFull": "Abonament și facturare",
     "monthlyUsage": "Utilizare lunară",
     "monthlyUsageLabel": "Utilizare lunară: {percent}% folosit",
-    "usageResets": "Se resetează pe {date}"
+    "usageResets": "Se resetează pe {date}",
+    "feedback": "Feedback"
   },
   "landing": {
     "badge": "Din conținut lung în impact scurt",
@@ -2853,5 +2854,52 @@
     "nameTaken": "Există deja un kit cu acest nume.",
     "failed": "Modificarea nu a putut fi salvată.",
     "savedIllustration": "Ana și Radu bat palma pentru kitul nou"
+  },
+  "feedback": {
+    "title": "Feedback",
+    "kindLabel": "Tip mesaj",
+    "kindProblem": "Raportează o problemă",
+    "kindIdea": "Propune o idee",
+    "categoryLabel": "Despre ce e vorba?",
+    "categories": {
+      "clips": "Clipuri",
+      "publishing": "Publicare",
+      "billing": "Abonament",
+      "account": "Cont",
+      "other": "Altceva"
+    },
+    "messageLabel": "Mesaj",
+    "problemPlaceholder": "Ce s-a întâmplat?",
+    "ideaPlaceholder": "Ce ți-ar plăcea să vezi?",
+    "send": "Trimite",
+    "sending": "Se trimite…",
+    "sentTitle": "Mulțumim! Am primit mesajul tău.",
+    "sendAnother": "Trimite alt mesaj",
+    "sendFailed": "Nu am putut trimite. Încearcă din nou.",
+    "tooLong": "Mesajul e prea lung.",
+    "reportsTitle": "Mesajele tale",
+    "reportsEmpty": "Niciun mesaj încă",
+    "loadFailed": "Nu am putut încărca mesajele.",
+    "retry": "Reîncearcă",
+    "status": {
+      "new": "Primit",
+      "in_progress": "În lucru",
+      "resolved": "Rezolvat"
+    },
+    "clip": {
+      "title": "Cum ți se par clipurile?",
+      "ratings": {
+        "1": "Slabe",
+        "2": "Ok",
+        "3": "Super"
+      },
+      "lowPlaceholder": "Ce n-a mers? (opțional)",
+      "highPlaceholder": "Ce ți-a plăcut? (opțional)",
+      "send": "Trimite",
+      "dismiss": "Nu acum",
+      "close": "Închide",
+      "thanks": "Mulțumim! Ne ajută mult.",
+      "failed": "Nu am putut trimite răspunsul."
+    }
   }
 }

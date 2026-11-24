@@ -16,6 +16,7 @@ import (
 	"sneepcut/backend-go/internal/airouting"
 	"sneepcut/backend-go/internal/config"
 	"sneepcut/backend-go/internal/data"
+	"sneepcut/backend-go/internal/errorlog"
 	"sneepcut/backend-go/internal/media"
 	"sneepcut/backend-go/internal/processing"
 	"sneepcut/backend-go/internal/stories"
@@ -24,8 +25,10 @@ import (
 )
 
 func main() {
-	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
-	if err := run(logger); err != nil {
+	capture := errorlog.NewCapture(slog.NewTextHandler(os.Stdout, nil), errorlog.SourceWorker)
+	logger := slog.New(capture)
+	slog.SetDefault(logger)
+	if err := run(logger, capture); err != nil {
 		if errors.Is(err, flag.ErrHelp) {
 			return
 		}
@@ -34,7 +37,7 @@ func main() {
 	}
 }
 
-func run(logger *slog.Logger) error {
+func run(logger *slog.Logger, capture *errorlog.Capture) error {
 	options, err := parseOptions(os.Args[1:], os.Stderr)
 	if err != nil {
 		return err
@@ -54,6 +57,8 @@ func run(logger *slog.Logger) error {
 		return err
 	}
 	defer db.Close()
+	_, stopRecorder := capture.Start(ctx, db)
+	defer stopRecorder()
 	var storage media.Storage
 	if app.StorageType == "s3" {
 		storage, err = media.NewS3Storage(media.S3Config{AccessKey: app.S3AccessKey, SecretKey: app.S3SecretKey, SessionToken: app.S3SessionToken, Region: app.S3Region, Bucket: app.S3Bucket, Endpoint: app.S3Endpoint, PathStyle: app.S3PathStyle})

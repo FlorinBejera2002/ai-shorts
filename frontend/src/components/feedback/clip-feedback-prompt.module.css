@@ -1,0 +1,118 @@
+/* Clip rating under the Creare done hero: a quiet 24px card on the reference tokens. */
+.prompt {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 14px;
+  border-radius: var(--publish-card-radius, 24px);
+  background: var(--publish-surface);
+  padding: 16px 16px 16px 24px;
+  box-shadow: var(--publish-card-shadow);
+  color: var(--publish-text);
+  animation: clip-feedback-in 0.35s ease-out both;
+}
+
+.row {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 16px;
+}
+
+.title {
+  flex: 1 1 auto;
+  font-size: 16px;
+  line-height: 24px;
+}
+
+.close {
+  display: inline-grid;
+  width: 36px;
+  height: 36px;
+  flex: none;
+  place-items: center;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--publish-muted-text);
+  cursor: pointer;
+}
+
+.close:hover:not(:disabled) {
+  background: var(--publish-hover);
+  color: var(--publish-text);
+}
+
+.close svg {
+  width: 18px;
+  height: 18px;
+}
+
+.comment {
+  display: flex;
+  gap: 10px;
+}
+
+.input {
+  min-width: 0;
+  height: 44px;
+  flex: 1 1 auto;
+  border: 0;
+  border-radius: 14px;
+  background: var(--publish-surface);
+  padding: 0 14px;
+  color: var(--publish-text);
+  font: inherit;
+  box-shadow: inset 0 0 0 1px var(--ref-strong, var(--publish-border-strong));
+  outline: 0;
+}
+
+.input::placeholder {
+  color: var(--publish-placeholder);
+}
+
+.input:focus {
+  box-shadow: inset 0 0 0 2px var(--publish-text);
+}
+
+.thanks {
+  margin: 0;
+  padding: 4px 8px;
+  color: var(--publish-secondary-text);
+  font-weight: 600;
+  animation: clip-feedback-in 0.35s ease-out both;
+}
+
+@keyframes clip-feedback-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .prompt,
+  .thanks {
+    animation: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .prompt {
+    padding: 16px 12px 16px 20px;
+  }
+
+  .row > [role='group'] {
+    order: 3;
+    width: 100%;
+  }
+
+  .row > [role='group'] > * {
+    flex: 1 1 0;
+  }
+
+  .comment {
+    flex-direction: column;
+  }
+}

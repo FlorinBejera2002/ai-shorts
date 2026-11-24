@@ -8,6 +8,8 @@ import (
 	"os"
 	"strings"
 	"testing"
+
+	"sneepcut/backend-go/internal/errorlog"
 )
 
 func TestWorkerOptionsDefaultAndScoped(t *testing.T) {
@@ -52,7 +54,7 @@ func TestWorkerValidatesScopeBeforeConfigurationOrDatabase(t *testing.T) {
 	os.Args = []string{"worker", "--story-id", "invalid"}
 	t.Setenv("DATABASE_URL", "invalid-database-url")
 	t.Setenv("AI_PROVIDER", "invalid-provider")
-	err := run(slog.New(slog.NewTextHandler(io.Discard, nil)))
+	err := run(slog.New(slog.NewTextHandler(io.Discard, nil)), errorlog.NewCapture(slog.NewTextHandler(io.Discard, nil), errorlog.SourceWorker))
 	if err == nil || !strings.Contains(err.Error(), "story ID must be a UUID") {
 		t.Fatalf("configuration/database reached before UUID validation: %v", err)
 	}

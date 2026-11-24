@@ -69,7 +69,7 @@ func TestCompleteApplicationRoutesAndOriginPolicy(t *testing.T) {
 		t.Fatal(err)
 	}
 	cfg := config.Config{Environment: "test", Auth: config.Auth{JWTSecret: strings.Repeat("fixture", 8), JWTIssuer: "test", JWTAudience: "test", AllowedOrigins: []string{"http://localhost:3000"}}}
-	h, cleanup, err := buildApplication(&sql.DB{}, cfg, a, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	h, cleanup, err := buildApplication(&sql.DB{}, cfg, a, slog.New(slog.NewTextHandler(io.Discard, nil)), nil)
 	if err != nil {
 		t.Fatal(err)
 	}

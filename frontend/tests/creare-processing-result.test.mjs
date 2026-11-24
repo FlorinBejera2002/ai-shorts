@@ -60,6 +60,7 @@ const jobComplete = loadTsModule('src/components/jobs/job-complete-card.tsx', {
   '@/components/create/create-text': { useCreateText: english },
   '@/components/ui/button': { Button },
   '@/i18n/navigation': { Link },
+  '@/components/feedback/clip-feedback-prompt': { ClipFeedbackPrompt: ({ jobId }) => jsxRuntime.jsx('aside', { 'data-clip-feedback-job': jobId }) },
   './job-clips-grid': jobClipsGrid,
   './use-job-clips': jobClipsHook,
   './job-complete-card.module.css': cssModule
@@ -202,6 +203,7 @@ test('job processing maps running, completed and failed states onto the card', (
   assert.match(done, /Interviu cu Mara, episodul 13/)
   assert.doesNotMatch(done, /Cancel processing/)
   assert.doesNotMatch(done, /data-testid="job-clips"/)
+  assert.doesNotMatch(done, /data-clip-feedback-job/)
 
   clipFixture = [
     { id: 'c1', title: 'Primul clip', duration: 38, aspectRatio: '9:16', thumbnailUrl: null, hasSubtitles: true },
@@ -210,6 +212,7 @@ test('job processing maps running, completed and failed states onto the card', (
   const withClips = panel('completed', { progress: 100 })
   clipFixture = []
   assert.match(withClips, /data-testid="job-clips"/)
+  assert.match(withClips, /data-clip-feedback-job=/)
   assert.match(withClips, /2 clips ready/)
   assert.match(withClips, /0:38/)
   assert.match(withClips, />CC</)

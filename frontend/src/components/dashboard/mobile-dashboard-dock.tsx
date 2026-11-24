@@ -4,7 +4,7 @@ import theme from '@/components/calendar/publishing-theme.module.css'
 import { Link, usePathname } from '@/i18n/navigation'
 import { dashboardNavigation, isDashboardRouteActive } from '@/lib/dashboard-navigation'
 import { AnimatePresence, animate, domAnimation, LazyMotion, m, useMotionValue, useReducedMotion, useTransform, type MotionValue } from 'framer-motion'
-import { CreditCard, Ellipsis, FilePenLine, Film, House, Palette, Plus, Scissors, Share2, SlidersHorizontal, X, type LucideIcon } from 'lucide-react'
+import { CreditCard, Ellipsis, FilePenLine, Film, House, MessageSquareHeart, Palette, Plus, Scissors, Share2, SlidersHorizontal, X, type LucideIcon } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { Dialog } from 'radix-ui'
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react'
@@ -32,7 +32,7 @@ const tabKey = (href: string) => (href === '/dashboard' ? 'home' : href.split('/
 type NavItem = { href: string; key: string }
 const navItems: NavItem[] = dashboardNavigation.flatMap((group): readonly NavItem[] => group.items)
 const menuItems = navItems.filter((item) => !tabHrefs.has(item.href))
-const menuIcons: Record<string, LucideIcon> = { editor: Scissors, brand: Palette, scripts: FilePenLine, billing: CreditCard, settings: SlidersHorizontal }
+const menuIcons: Record<string, LucideIcon> = { editor: Scissors, brand: Palette, scripts: FilePenLine, billing: CreditCard, settings: SlidersHorizontal, feedback: MessageSquareHeart }
 /** Main pages show the bar; detail pages and editors (kits, clips, posts, Studio) do not. */
 const mainPages = new Set<string>(['/dashboard/create', ...navItems.map((item) => item.href)])
 mainPages.delete('/dashboard/studio')

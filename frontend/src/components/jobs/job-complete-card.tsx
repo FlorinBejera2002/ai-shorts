@@ -4,6 +4,7 @@ import { ArrowRight, Check, Plus } from 'lucide-react'
 import { ProcessingSourceRow, type ProcessingCardSource } from '@/components/create/processing-card'
 import { useCreateText } from '@/components/create/create-text'
 import { Button } from '@/components/ui/button'
+import { ClipFeedbackPrompt } from '@/components/feedback/clip-feedback-prompt'
 import { Link } from '@/i18n/navigation'
 import { JobClipsGrid } from './job-clips-grid'
 import { useJobClips } from './use-job-clips'
@@ -45,6 +46,7 @@ export function JobCompleteCard({ jobId, source }: JobCompleteCardProps) {
           </div>
         </div>
       </section>
+      {clips.length > 0 && <ClipFeedbackPrompt jobId={jobId} />}
       {clips.length > 0 && <JobClipsGrid clips={clips} />}
     </>
   )

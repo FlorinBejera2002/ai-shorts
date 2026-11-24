@@ -4,6 +4,9 @@ import { createBrowserRouter, RouterProvider } from 'react-router-dom'
 import './index.css'
 import App from './App.tsx'
 import { RouteError } from './routing/route-error'
+import { installErrorReporting } from './lib/error-reporting'
+
+installErrorReporting()
 
 // Nested routes replace only dashboard content, preserving the shared layout.
 const router = createBrowserRouter([{ path: '*', element: <App />, errorElement: <RouteError /> }])

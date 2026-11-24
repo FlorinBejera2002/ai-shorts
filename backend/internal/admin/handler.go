@@ -35,6 +35,8 @@ func New(db *sql.DB, auth *identity.Handler) *Handler { return &Handler{db: db, 
 func (h *Handler) Register(router *httprouter.Router) {
 	h.registerAIRouting(router)
 	h.registerBilling(router)
+	h.registerErrors(router)
+	h.registerFeedback(router)
 	router.Handler(http.MethodGet, "/api/admin/overview", h.auth.RequireAdmin(h.overview))
 	router.Handler(http.MethodGet, "/api/admin/users", h.auth.RequireAdmin(h.users))
 	router.Handler(http.MethodPatch, "/api/admin/users/:id", h.auth.RequireRecentAdmin(h.updateUser))
