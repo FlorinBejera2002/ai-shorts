@@ -343,6 +343,8 @@ func (h *Handler) plan(ctx context.Context, r *Run) error {
 		raw, err = generator.Generate(ctx, prompt)
 	}
 	if err != nil {
+		// Provider errors carry only a status or limit category, never keys or prompt text.
+		slog.Warn("Workspace agent planning failed", "run", r.ID, "error", err.Error())
 		r.Status = "failed"
 		r.Error = "AI planning is unavailable. The next action was not started."
 		return h.save(ctx, r)
