@@ -1,6 +1,7 @@
 import type { ReactElement } from 'react'
 import { Button } from '@/components/ui/button'
 import { ResourceResults, StudioResults } from './resource-results'
+import { countLabel } from './model'
 
 type Fields = Record<string, unknown>
 type ResultProps = { action: string; value: Fields; ro: boolean }
@@ -47,7 +48,7 @@ function RecordList({ items, ro }: { items: unknown[]; ro: boolean }) {
       const thumbnail = safeThumbnail(item.thumbnail_url)
       return <li key={text(item.id) ?? itemKey(item)} className="flex items-center gap-3 border-b border-border pb-2 last:border-0 last:pb-0">
         {thumbnail && <img src={thumbnail} alt="" width={32} height={40} loading="lazy" className="h-10 w-8 shrink-0 rounded-sm object-cover" />}
-        <div className="min-w-0"><p className="font-medium">{text(item.title) ?? text(item.name) ?? `${ro ? 'Rezultat' : 'Result'} ${index + 1}`}</p><p className="text-muted-foreground">{text(item.status)}{typeof item.clips === 'number' ? ` · ${item.clips} ${ro ? 'clipuri' : 'clips'}` : ''}</p></div>
+        <div className="min-w-0"><p className="font-medium">{text(item.title) ?? text(item.name) ?? `${ro ? 'Rezultat' : 'Result'} ${index + 1}`}</p><p className="text-muted-foreground">{text(item.status)}{typeof item.clips === 'number' ? ` · ${countLabel(item.clips, ro, ['clip', 'clipuri'], ['clip', 'clips'])}` : ''}</p></div>
       </li>
     })}
   </ul>
@@ -55,12 +56,12 @@ function RecordList({ items, ro }: { items: unknown[]; ro: boolean }) {
 
 function ClipsListResult({ value, ro }: ResultProps) {
   const clips = Array.isArray(value.clips) ? value.clips.map(record) : []
-  return <section className="space-y-2 rounded-[14px] border border-border bg-card p-3 text-xs"><p>{typeof value.total === 'number' ? value.total : clips.length} {ro ? 'clipuri' : 'clips'} · {ro ? 'Pagina' : 'Page'} {typeof value.current_page === 'number' ? value.current_page : 1}{typeof value.total_pages === 'number' ? ` / ${value.total_pages}` : ''}</p><ul className="max-h-64 space-y-2 overflow-auto">{clips.map(clip => <li key={text(clip.id) ?? itemKey(clip)}><p className="font-medium">{text(clip.title)}</p><p className="text-muted-foreground">{typeof clip.duration === 'number' ? `${clip.duration}s · ` : ''}{text(clip.aspect_ratio)}</p></li>)}</ul></section>
+  return <section className="space-y-2 rounded-[14px] border border-border bg-card p-3 text-xs"><p>{countLabel(typeof value.total === 'number' ? value.total : clips.length, ro, ['clip', 'clipuri'], ['clip', 'clips'])} · {ro ? 'Pagina' : 'Page'} {typeof value.current_page === 'number' ? value.current_page : 1}{typeof value.total_pages === 'number' ? ` / ${value.total_pages}` : ''}</p><ul className="max-h-64 space-y-2 overflow-auto">{clips.map(clip => <li key={text(clip.id) ?? itemKey(clip)}><p className="font-medium">{text(clip.title)}</p><p className="text-muted-foreground">{typeof clip.duration === 'number' ? `${clip.duration}s · ` : ''}{text(clip.aspect_ratio)}</p></li>)}</ul></section>
 }
 
 function ActivityResult({ value, ro }: ResultProps) {
   const days = Array.isArray(value.days) ? value.days.map(record) : []
-  return <section className="space-y-2 rounded-[14px] border border-border bg-card p-3 text-xs"><p>{text(value.start)} – {text(value.end_exclusive)} · UTC ({ro ? 'sfârșit exclusiv' : 'end exclusive'})</p><ul className="max-h-64 space-y-1 overflow-auto">{days.map(day => <li key={text(day.date) ?? itemKey(day)}>{text(day.date)} · {typeof day.projects === 'number' ? day.projects : 0} {ro ? 'proiecte' : 'projects'} · {typeof day.clips === 'number' ? day.clips : 0} {ro ? 'clipuri' : 'clips'} · {typeof day.duration_seconds === 'number' ? day.duration_seconds : 0}s</li>)}</ul></section>
+  return <section className="space-y-2 rounded-[14px] border border-border bg-card p-3 text-xs"><p>{text(value.start)} – {text(value.end_exclusive)} · UTC ({ro ? 'sfârșit exclusiv' : 'end exclusive'})</p><ul className="max-h-64 space-y-1 overflow-auto">{days.map(day => <li key={text(day.date) ?? itemKey(day)}>{text(day.date)} · {countLabel(typeof day.projects === 'number' ? day.projects : 0, ro, ['proiect', 'proiecte'], ['project', 'projects'])} · {countLabel(typeof day.clips === 'number' ? day.clips : 0, ro, ['clip', 'clipuri'], ['clip', 'clips'])} · {typeof day.duration_seconds === 'number' ? day.duration_seconds : 0}s</li>)}</ul></section>
 }
 
 function PreferencesResult({ value, ro }: ResultProps) {
@@ -82,7 +83,7 @@ function ProjectBrandResult({ value, ro }: ResultProps) {
 function LibraryResult({ value, ro }: ResultProps) {
   const folders = Array.isArray(value.folders) ? value.folders.map(record) : []
   const clips = Array.isArray(value.clips) ? value.clips.map(record) : []
-  return <section className="space-y-2 rounded-[14px] border border-border bg-card p-3 text-xs"><h4 className="font-medium">{text(value.name)}</h4><p>{folders.length} {ro ? 'foldere' : 'folders'} · {clips.length} {ro ? 'clipuri' : 'clips'}</p><ul className="max-h-48 space-y-1 overflow-auto">{folders.map(folder => <li key={text(folder.id) ?? itemKey(folder)}>{text(folder.name)} · {clips.filter(clip => clip.folder_id === folder.id).length} {ro ? 'clipuri' : 'clips'}</li>)}</ul></section>
+  return <section className="space-y-2 rounded-[14px] border border-border bg-card p-3 text-xs"><h4 className="font-medium">{text(value.name)}</h4><p>{countLabel(folders.length, ro, ['folder', 'foldere'], ['folder', 'folders'])} · {countLabel(clips.length, ro, ['clip', 'clipuri'], ['clip', 'clips'])}</p><ul className="max-h-48 space-y-1 overflow-auto">{folders.map(folder => <li key={text(folder.id) ?? itemKey(folder)}>{text(folder.name)} · {countLabel(clips.filter(clip => clip.folder_id === folder.id).length, ro, ['clip', 'clipuri'], ['clip', 'clips'])}</li>)}</ul></section>
 }
 
 const CLIP_STATES: Record<string, [string, string]> = {

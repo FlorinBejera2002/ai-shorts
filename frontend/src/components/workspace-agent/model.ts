@@ -55,3 +55,10 @@ export function publishingConsentMissing(preview?: Record<string, unknown>): boo
   const youtube = preview.youtube as { termsAccepted?: boolean } | null
   return destinations.some(destination => destination?.provider === 'tiktok' && tiktok?.musicUsageConfirmed !== true || destination?.provider === 'youtube' && youtube?.termsAccepted !== true)
 }
+/** Count with the right noun form: Romanian uses the singular for 1 and "de" from 20 (unless the last two digits are 01–19). */
+export function countLabel(count: number, ro: boolean, roForms: [string, string], enForms: [string, string]): string {
+  if (!ro) return `${count} ${count === 1 ? enForms[0] : enForms[1]}`
+  if (count === 1) return `1 ${roForms[0]}`
+  const lastTwo = count % 100
+  return `${count} ${count !== 0 && (lastTwo === 0 || lastTwo >= 20) ? 'de ' : ''}${roForms[1]}`
+}

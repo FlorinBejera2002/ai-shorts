@@ -167,7 +167,7 @@ test('agent navigation only permits existing local dashboard destinations', () =
 
 test('result cards show useful read data without exposing hidden fields or executable markup', () => {
   const resources = load('resource-results', { 'react/jsx-runtime': jsxRuntime }, 'tsx')
-  const { ResultDetails } = load('result-details', { 'react/jsx-runtime': jsxRuntime, '@/components/ui/button': { Button: props => jsxRuntime.jsx('button', props) }, './resource-results': resources }, 'tsx')
+  const { ResultDetails } = load('result-details', { 'react/jsx-runtime': jsxRuntime, '@/components/ui/button': { Button: props => jsxRuntime.jsx('button', props) }, './resource-results': resources, './model': load('model') }, 'tsx')
   const totals = renderToStaticMarkup(ResultDetails({ action: 'analytics.read', ro: false, data: { credits: 42, projects: 3, clips: 9, scripts: 2, secret: 'never-render-this' } }))
   assert.match(totals, /Credits/); assert.match(totals, /42/); assert.doesNotMatch(totals, /never-render-this/)
   const projects = renderToStaticMarkup(ResultDetails({ action: 'projects.list', ro: false, data: [{ id: 'id', name: '<script>unsafe</script>', status: 'ready', clips: 4 }] }))
@@ -184,7 +184,7 @@ test('run reconciliation never overwrites a newer revision or duplicates a retri
 })
 
 test('Studio confirmation names the destructive target and effects without exposing internal identifiers', () => {
-  const { ApprovalPreview } = load('approval-preview', { 'react/jsx-runtime': jsxRuntime, './model': { publishingConsentMissing } }, 'tsx')
+  const { ApprovalPreview } = load('approval-preview', { 'react/jsx-runtime': jsxRuntime, './model': load('model') }, 'tsx')
   const html = renderToStaticMarkup(ApprovalPreview({ ro: true, value: {
     action: 'studio.assets.delete', title: 'Campanie de vară', project_id: 'private-project-id', expected_version: 'private-version-hash',
     asset: { asset_id: 'private-asset-id', name: 'poster.webp', expected_asset_version: 'private-asset-hash' },

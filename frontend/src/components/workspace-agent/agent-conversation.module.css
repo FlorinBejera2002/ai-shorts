@@ -38,6 +38,14 @@
   overflow-wrap: anywhere;
 }
 
+.inlineCode {
+  padding: 0 4px;
+  border: 1px solid var(--publish-border-strong);
+  border-radius: 6px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+}
+
 .replyActions {
   display: flex;
   min-height: 32px;

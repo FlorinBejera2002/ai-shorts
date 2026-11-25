@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { publishingConsentMissing } from './model'
+import { countLabel, publishingConsentMissing } from './model'
 
 const PLATFORM_ORDER = ['instagram', 'facebook', 'tiktok', 'youtube']
 const SECTION = 'flex flex-col gap-2.5 rounded-[14px] border border-border bg-card p-3 text-xs'
@@ -74,10 +74,17 @@ function JobsApproval({ value, ro }: ApprovalProps) {
 
 function DisconnectApproval({ value, ro }: ApprovalProps) {
   const account = object(value.account)
+  const name = label(value.title) || label(account.name)
+  const username = label(account.username)
+  // The server's effect text is English only; state the same consequence in the UI language.
+  const effect = ro
+    ? 'Postările programate pe acest cont se anulează. Postările publicate rămân. Pentru reconectare te autentifici din nou.'
+    : label(value.effect)
   return <section className={SECTION} aria-label={ro ? 'Confirmă deconectarea' : 'Confirm disconnect'}>
-    <h4 className="text-sm font-semibold">{label(value.title) || label(account.name)}</h4>
-    <ApprovalRow label={label(account.provider)}>{label(account.username) || '—'}</ApprovalRow>
-    {label(value.effect) && <p>{label(value.effect)}</p>}
+    <h4 className="text-sm font-semibold">{name}</h4>
+    <ApprovalRow label={ro ? 'Platformă' : 'Platform'}>{platformName(label(account.provider))}</ApprovalRow>
+    {username && username !== name && <ApprovalRow label={ro ? 'Cont' : 'Account'}>{username}</ApprovalRow>}
+    {effect && <p>{effect}</p>}
   </section>
 }
 
@@ -93,7 +100,7 @@ function ClipsDeleteApproval({ value, ro }: ApprovalProps) {
 
 function CalendarDeleteApproval({ value, ro }: ApprovalProps) {
   const account = object(value.account)
-  const meta = [label(account.provider), label(account.username)].filter(Boolean).join(' ')
+  const meta = [platformName(label(account.provider)), label(account.username)].filter(Boolean).join(' ')
   return <DeleteApproval ro={ro} label={ro ? 'Confirmă ștergerea ciornei' : 'Confirm draft deletion'} title={label(value.title) || label(account.name)} meta={meta} />
 }
 
@@ -214,7 +221,7 @@ function FolderApproval({ value, ro }: ApprovalProps) {
   const folder = object(value.folder)
   const children = Array.isArray(value.children) ? value.children.map(object) : []
   const clips = Array.isArray(value.clips) ? value.clips.map(object) : []
-  const meta = `${children.length} ${ro ? 'subfoldere' : 'child folders'} · ${clips.length} ${ro ? 'clipuri' : 'clips'}`
+  const meta = `${countLabel(children.length, ro, ['subfolder', 'subfoldere'], ['child folder', 'child folders'])} · ${countLabel(clips.length, ro, ['clip', 'clipuri'], ['clip', 'clips'])}`
   return <DeleteApproval ro={ro} label={ro ? 'Confirmă ștergerea folderului' : 'Confirm folder removal'} title={label(folder.name)} meta={meta}>
     <p className="text-center text-muted-foreground">{ro ? 'Conținutul se mută la nivelul părinte.' : 'Contents move to the parent level.'}</p>
     {(children.length > 0 || clips.length > 0) && <ul className="max-h-40 overflow-auto rounded-[14px] border border-border p-2.5 text-left">

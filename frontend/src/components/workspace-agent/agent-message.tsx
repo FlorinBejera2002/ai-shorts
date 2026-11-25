@@ -16,13 +16,27 @@ export function AgentReply({ text, ro, onUndo, undoBusy = false }: { text: strin
   return <div className={styles.reply}>
     <AgentAvatar size={24} />
     <div className={styles.replyBody}>
-      <p className={styles.replyText}>{text}</p>
+      <p className={styles.replyText}><InlineMarkdown text={text} /></p>
       <div className={styles.replyActions}>
         <CopyButton text={text} ro={ro} />
         {onUndo && <AgentPill variant="ghost" disabled={undoBusy} onClick={onUndo}><Undo2 aria-hidden="true" />{ro ? 'Anulează modificarea' : 'Undo change'}</AgentPill>}
       </div>
     </div>
   </div>
+}
+
+const INLINE_MARK = /(\*\*[^*\n]+\*\*|`[^`\n]+`)/
+
+/** The planner writes light Markdown; show **bold** and `code` as text styles instead of raw marks. */
+function InlineMarkdown({ text }: { text: string }) {
+  let offset = 0
+  return <>{text.split(INLINE_MARK).map(part => {
+    const key = offset
+    offset += part.length
+    if (part.length > 4 && part.startsWith('**') && part.endsWith('**')) return <strong key={key}>{part.slice(2, -2)}</strong>
+    if (part.length > 2 && part.startsWith('`') && part.endsWith('`')) return <code key={key} className={styles.inlineCode}>{part.slice(1, -1)}</code>
+    return part
+  })}</>
 }
 
 function CopyButton({ text, ro }: { text: string; ro: boolean }) {

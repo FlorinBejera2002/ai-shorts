@@ -57,6 +57,17 @@
   color: var(--foreground);
 }
 
+/* Below 1280px a docked column would squeeze pages under their desktop layout, so the panel overlays the page. */
+@media (min-width: 1024px) and (max-width: 1279px) {
+  aside.panel {
+    position: fixed;
+    z-index: 45;
+    top: 0;
+    right: 0;
+    box-shadow: -16px 0 40px rgba(21, 32, 53, 0.16);
+  }
+}
+
 .panelHeader {
   display: flex;
   height: 60px;
