@@ -2,7 +2,7 @@ import type { Faq, SiteCopy } from '@/content/copy/types'
 import { LEGAL_OPERATOR } from '@/content/legal/legal-content'
 import { languageTags, localePath, type Locale } from './i18n'
 import { PAID_PLAN_IDS, priceValue, type PlanCatalog } from './plan-catalog'
-import { absoluteUrl, SITE_NAME } from './site'
+import { absoluteUrl, SITE_ALTERNATE_NAMES, SITE_NAME } from './site'
 
 type JsonLd = Record<string, unknown>
 
@@ -14,6 +14,7 @@ export function organizationJsonLd(): JsonLd {
     '@type': 'Organization',
     '@id': organizationId(),
     name: SITE_NAME,
+    alternateName: SITE_ALTERNATE_NAMES,
     legalName: LEGAL_OPERATOR.legalName,
     url: absoluteUrl('/'),
     logo: absoluteUrl('/landing/brand/logo-512.png'),
@@ -35,6 +36,7 @@ export function websiteJsonLd(locale: Locale): JsonLd {
     '@context': 'https://schema.org',
     '@type': 'WebSite',
     name: SITE_NAME,
+    alternateName: SITE_ALTERNATE_NAMES,
     url: absoluteUrl(localePath(locale, '/')),
     inLanguage: languageTags[locale],
     publisher: { '@id': organizationId() }
@@ -72,6 +74,7 @@ export function softwareApplicationJsonLd(
     '@context': 'https://schema.org',
     '@type': 'SoftwareApplication',
     name: SITE_NAME,
+    alternateName: SITE_ALTERNATE_NAMES,
     applicationCategory: 'MultimediaApplication',
     operatingSystem: 'Web',
     url: absoluteUrl(localePath(locale, '/')),

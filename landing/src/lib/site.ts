@@ -1,6 +1,8 @@
 import { LEGAL_OPERATOR } from '@/content/legal/legal-content'
 
 export const SITE_NAME = 'Sneep Cut'
+/** Spellings people search for; tells Google they are the same brand as SITE_NAME. */
+export const SITE_ALTERNATE_NAMES = ['Sneepcut', 'SneepCut', 'sneepcut.com', 'Snipcut', 'Sneepcat', 'Snipcat']
 const DEFAULT_SITE_URL = 'https://sneepcut.com'
 
 function parseOrigin(value: string | undefined): URL | null {
