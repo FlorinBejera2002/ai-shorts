@@ -6,6 +6,8 @@ import { accountCreditsKey, type AccountCredits } from '@/lib/account-credits'
 import { billingUsage, INITIAL_FREE_CREDITS, normalizeBillingPlan, PLAN_CREDITS } from '@/lib/billing'
 import type { BillingData } from '@/types/api'
 
+export type MonthlyUsage = { percent: number; resetsAt: string | null }
+
 /** Uses the same allowance and rounding as Billing; this is balance, not a spending ledger. */
 export function creditUsage(account: AccountCredits) {
   const plan = normalizeBillingPlan(account.plan)
@@ -66,4 +68,14 @@ export function useCreditUsage() {
     refreshing: balance.isFetching,
     refresh: () => { void balance.refetch(); void billing.refetch() }
   }
+}
+
+/** Creation's existing meters show spent allowance; the circle shows the remaining share. */
+export function useMonthlyUsage(): { data: MonthlyUsage | null } {
+  const { usage, period } = useCreditUsage()
+  if (!usage || usage.unlimited || usage.plan === 'free') return { data: null }
+  return { data: {
+    percent: 100 - usage.remaining,
+    resetsAt: period?.kind === 'renews' ? period.date : null
+  } }
 }

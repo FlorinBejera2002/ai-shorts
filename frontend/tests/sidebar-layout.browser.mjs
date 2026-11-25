@@ -35,11 +35,12 @@ const DESTINATIONS = [
   ['publish', '/dashboard/publish', 0],
   ['brand', '/dashboard/brand', 1],
   ['billing', '/dashboard/billing', 1],
-  ['settings', '/dashboard/settings', 1]
+  ['settings', '/dashboard/settings', 1],
+  ['feedback', '/dashboard/feedback', 1]
 ]
 const LABELS = {
-  ro: ['Panou principal', 'Editor video', 'Scenarii', 'Clipuri', 'Publicare', 'Identitate vizuală', 'Abonament și facturare', 'Setări'],
-  en: ['Home', 'Video editor', 'Scripts', 'Clips', 'Publish', 'Brand kit', 'Subscription and billing', 'Settings']
+  ro: ['Panou principal', 'Editor video', 'Scenarii', 'Clipuri', 'Publicare', 'Identitate vizuală', 'Abonament și facturare', 'Setări', 'Feedback'],
+  en: ['Home', 'Video editor', 'Scripts', 'Clips', 'Publish', 'Brand kit', 'Subscription and billing', 'Settings', 'Feedback']
 }
 const rgb = (hex) => `rgb(${[1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)).join(', ')})`
 const PALETTE = {
@@ -86,6 +87,7 @@ async function fixture({ dark = false, locale = 'ro', billing } = {}) {
     if (path === '/api/stripe/billing') calls.billing += 1
     const responses = {
       '/api/stripe/billing': billingPayload,
+      '/api/feedback': { items: [] },
       '/api/stripe/plans': { creator: { amount: 1900, currency: 'EUR' }, pro: { amount: 4900, currency: 'EUR' }, agency: { amount: 14900, currency: 'EUR' } },
       '/api/publishing': { providers: [], accounts: [], clips: [], posts: [] },
       '/api/calendar': { posts: [], clips: [] },
@@ -147,7 +149,7 @@ async function rememberShell(page) {
       state: sidebar?.getAttribute('data-state')
     }
     const probe = window.sidebarShellProbe
-    if (!probe.shell || !probe.main || !probe.header || !probe.sidebar || !probe.panel || probe.links.length !== 8)
+    if (!probe.shell || !probe.main || !probe.header || !probe.sidebar || !probe.panel || probe.links.length !== 9)
       throw new Error('Missing dashboard shell')
   })
 }
@@ -352,7 +354,7 @@ async function destinations() {
   } finally {
     await f.close()
   }
-  console.log('All 8 destinations, Create, usage card, logo and back navigation kept the mounted shell')
+  console.log('All 9 destinations, Create, usage card, logo and back navigation kept the mounted shell')
 }
 
 // ---------------------------------------------------------------- collapse

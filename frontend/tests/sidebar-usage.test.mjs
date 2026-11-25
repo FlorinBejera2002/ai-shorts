@@ -27,14 +27,15 @@ function load(relative, imports = {}) {
 const billing = load('../src/lib/billing.ts')
 const overview = load('../src/components/billing/billing-overview.ts', { '@/lib/billing': billing })
 const accountCredits = load('../src/lib/account-credits.ts')
-const { creditUsage, creditPeriod } = load('../src/components/dashboard/sidebar-usage.ts', {
+const usageImports = {
   '@tanstack/react-query': { useQuery: () => ({}) },
   '@/components/auth/use-auth': { useAuth: () => ({}) },
   '@/lib/auth': { apiFetch: async () => ({ ok: true, json: async () => ({}) }) },
   '@/lib/account-credits': accountCredits,
   '@/lib/billing': billing,
   '@/components/billing/billing-overview': overview
-})
+}
+const { creditUsage, creditPeriod } = load('../src/components/dashboard/sidebar-usage.ts', usageImports)
 
 const renewing = { status: 'active', cancelAtPeriodEnd: false, currentPeriodEnd: '2026-12-18T10:00:00Z' }
 const data = ({ subscription = renewing, ...account } = {}) => ({
@@ -99,4 +100,17 @@ test('unknown, mismatched and invalid billing periods are omitted', () => {
 test('query keys isolate account balances, including anonymous state', () => {
   assert.notDeepEqual([...accountCredits.accountCreditsKey('first')], [...accountCredits.accountCreditsKey('second')])
   assert.notDeepEqual([...accountCredits.accountCreditsKey('first')], [...accountCredits.accountCreditsKey(undefined)])
+})
+
+test('the creation meter adapter shares the circle balance and omits non-renewing reset dates', () => {
+  const readUsage = payload => load('../src/components/dashboard/sidebar-usage.ts', {
+    ...usageImports,
+    '@/components/auth/use-auth': { useAuth: () => ({ status: 'authenticated', user: { id: 'synthetic-usage' } }) },
+    '@tanstack/react-query': { useQuery: options => ({ data: options.queryKey[0] === 'account-credits' ? payload.account : payload }) }
+  }).useMonthlyUsage().data
+  assert.deepEqual(plain(readUsage(data())), { percent: 42, resetsAt: renewing.currentPeriodEnd })
+  assert.equal(readUsage(data({ plan: 'free' })), null)
+  assert.equal(readUsage(data({ creditsUnlimited: true })), null)
+  const ending = readUsage(data({ subscription: { ...renewing, cancelAtPeriodEnd: true } }))
+  assert.deepEqual(plain(ending), { percent: 42, resetsAt: null })
 })
