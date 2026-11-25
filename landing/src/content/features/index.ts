@@ -1,7 +1,7 @@
 import type { Locale } from '@/lib/i18n'
 import { en } from './en'
 import { ro } from './ro'
-import { FEATURE_PAGE_IDS, TOOL_PAGE_IDS, USE_CASE_PAGE_IDS, type FeaturePageId, type FeaturePagesCopy } from './types'
+import { ALTERNATIVE_PAGE_IDS, FEATURE_PAGE_IDS, TOOL_PAGE_IDS, USE_CASE_PAGE_IDS, type FeaturePageId, type FeaturePagesCopy } from './types'
 
 const dictionaries: Record<Locale, FeaturePagesCopy> = { en, ro }
 
@@ -17,7 +17,10 @@ export const FEATURE_IMAGES: Record<FeaturePageId, FeatureImage> = {
   'for/podcasters': { src: '/landing/illustrations/step-clips.webp', width: 320, height: 320 },
   'for/creators': { src: '/landing/illustrations/hero-600.webp', width: 360, height: 360 },
   'for/agencies': { src: '/landing/illustrations/step-publish.webp', width: 320, height: 320 },
-  'for/churches-and-speakers': { src: '/landing/illustrations/publish.webp', width: 320, height: 320 }
+  'for/churches-and-speakers': { src: '/landing/illustrations/publish.webp', width: 320, height: 320 },
+  'alternatives/opus-clip': { src: '/landing/illustrations/hero-600.webp', width: 360, height: 360 },
+  'alternatives/vizard': { src: '/landing/illustrations/step-clips.webp', width: 320, height: 320 },
+  'alternatives/klap': { src: '/landing/illustrations/step-publish.webp', width: 320, height: 320 }
 }
 
 export function getFeatureCopy(locale: Locale): FeaturePagesCopy {
@@ -28,5 +31,5 @@ export function featurePath(id: FeaturePageId): string {
   return `/${id}`
 }
 
-export { FEATURE_PAGE_IDS, TOOL_PAGE_IDS, USE_CASE_PAGE_IDS }
+export { ALTERNATIVE_PAGE_IDS, FEATURE_PAGE_IDS, TOOL_PAGE_IDS, USE_CASE_PAGE_IDS }
 export type * from './types'

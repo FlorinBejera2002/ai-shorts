@@ -1,9 +1,11 @@
+import { roAlternatives } from './ro-alternatives'
 import { roUseCases } from './ro-use-cases'
 import type { FeaturePagesCopy } from './types'
 
 export const ro: FeaturePagesCopy = {
   footerTitle: 'Unelte',
   useCasesTitle: 'Pentru cine',
+  alternativesTitle: 'Comparații',
   highlightsLabel: 'Pe scurt',
   relatedTitle: 'Mai multe din Sneep Cut',
   faqTitle: 'Întrebări frecvente',
@@ -416,6 +418,7 @@ export const ro: FeaturePagesCopy = {
         }
       ]
     },
-    ...roUseCases
+    ...roUseCases,
+    ...roAlternatives
   }
 }

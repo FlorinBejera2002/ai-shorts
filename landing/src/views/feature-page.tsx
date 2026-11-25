@@ -1,5 +1,6 @@
 import { FinalCta } from '@/components/home/final-cta'
 import { HowItWorks } from '@/components/home/how-it-works'
+import { ComparisonTable } from '@/components/features/comparison-table'
 import { FeatureArticle } from '@/components/features/feature-article'
 import { FeatureHero } from '@/components/features/feature-hero'
 import { FeatureHighlights } from '@/components/features/feature-highlights'
@@ -42,6 +43,7 @@ export async function FeaturePage({ locale, id }: FeaturePageProps) {
         secondary={{ href: siteNavigation(locale).pricing, label: copy.home.allPlans }}
       />
       <FeatureHighlights label={features.highlightsLabel} highlights={page.highlights} />
+      {page.comparison ? <ComparisonTable comparison={page.comparison} /> : null}
       <FeatureArticle sections={page.sections} />
       <HowItWorks copy={copy.home} id={homeSectionIds(locale).howItWorks} />
       <FaqSection title={features.faqTitle} faqs={page.faqs} group={`${id.replace('/', '-')}-faq`} />

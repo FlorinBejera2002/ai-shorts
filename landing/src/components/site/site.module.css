@@ -229,8 +229,13 @@
 .footerGrid {
   flex: 1 1 auto;
   display: grid;
-  grid-template-columns: 0.9fr 1.25fr 1.25fr 0.9fr 2.2fr;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 40px;
+}
+
+/* Legal links get their own full-width row under the product columns. */
+.footerLegal {
+  grid-column: 1 / -1;
 }
 
 .footerGroup {
@@ -308,10 +313,6 @@
   .footerGrid {
     grid-template-columns: 1fr 1fr;
     gap: 28px 16px;
-  }
-
-  .footerLegal {
-    grid-column: 1 / -1;
   }
 
   .footerColumns {

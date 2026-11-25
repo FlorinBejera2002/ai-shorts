@@ -10,7 +10,8 @@ const ORIGIN = 'https://sneepcut.com'
 const LEGAL = ['legal-notice', 'privacy', 'terms', 'cookie-policy', 'acceptable-use', 'refund-policy', 'subprocessors', 'dpa', 'data-deletion']
 const FEATURES = [
   'ai-video-clipper', 'long-video-to-shorts', 'auto-captions', 'youtube-to-shorts', 'schedule-social-posts',
-  'for/podcasters', 'for/creators', 'for/agencies', 'for/churches-and-speakers'
+  'for/podcasters', 'for/creators', 'for/agencies', 'for/churches-and-speakers',
+  'alternatives/opus-clip', 'alternatives/vizard', 'alternatives/klap'
 ]
 const PAGES = ['/', '/pricing', ...FEATURES.map((id) => `/${id}`), ...LEGAL.map((id) => `/${id}`)]
 const localized = (locale, path) => (locale === 'en' ? path : path === '/' ? '/ro' : `/ro${path}`)
@@ -97,7 +98,9 @@ test('feature pages are long-form, linked and carry FAQ and breadcrumb data', ()
       const text = visibleText(html)
       const words = text.split(/\s+/).filter(Boolean).length
       assert.ok(words >= 700, `${file} has ${words} words`)
-      assert.doesNotMatch(text, /\bcredit|viral/i, file)
+      assert.doesNotMatch(text, /viral/i, file)
+      // Comparison pages may name a competitor's credits; our own pages never describe usage in credits.
+      if (!id.startsWith('alternatives/')) assert.doesNotMatch(text, /\bcredit/i, file)
       for (const other of FEATURES.filter((value) => value !== id)) {
         assert.ok(html.includes(`href="${localized(locale, `/${other}`)}"`), `${file} links ${other}`)
       }

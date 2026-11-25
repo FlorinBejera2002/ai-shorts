@@ -185,3 +185,55 @@
     font-size: 16px;
   }
 }
+
+/* Comparison table (alternatives pages) */
+.comparison {
+  padding: 0 0 72px;
+}
+
+.comparisonInner {
+  max-width: 960px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.tableWrap {
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  min-width: 560px;
+  border-collapse: collapse;
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.table th,
+.table td {
+  padding: 14px 18px;
+  text-align: left;
+  vertical-align: top;
+  border-bottom: 1px solid var(--bd);
+}
+
+.table thead th {
+  font-weight: 700;
+}
+
+.table tbody th {
+  width: 26%;
+  font-weight: 600;
+}
+
+.table tbody tr:last-child th,
+.table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.comparisonNote {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+}

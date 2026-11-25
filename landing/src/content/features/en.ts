@@ -1,9 +1,11 @@
+import { enAlternatives } from './en-alternatives'
 import { enUseCases } from './en-use-cases'
 import type { FeaturePagesCopy } from './types'
 
 export const en: FeaturePagesCopy = {
   footerTitle: 'Tools',
   useCasesTitle: 'Use cases',
+  alternativesTitle: 'Compare',
   highlightsLabel: 'Highlights',
   relatedTitle: 'More from Sneep Cut',
   faqTitle: 'Frequently asked questions',
@@ -416,6 +418,7 @@ export const en: FeaturePagesCopy = {
         }
       ]
     },
-    ...enUseCases
+    ...enUseCases,
+    ...enAlternatives
   }
 }
