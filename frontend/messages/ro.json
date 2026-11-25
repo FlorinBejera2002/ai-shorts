@@ -2920,6 +2920,14 @@
       "close": "Închide",
       "thanks": "Mulțumim! Ne ajută mult.",
       "failed": "Nu am putut trimite răspunsul."
-    }
+    },
+    "imagesLabel": "Poze",
+    "addImage": "Adaugă poză",
+    "removeImage": "Șterge {name}",
+    "imageType": "Doar PNG, JPG sau WebP.",
+    "imageSize": "O poză poate avea maximum 5 MB.",
+    "imageLimit": "Poți adăuga maximum 3 poze.",
+    "imageRejected": "Una dintre poze nu a putut fi încărcată.",
+    "imageCount": "{count, plural, one {# poză} few {# poze} other {# de poze}}"
   }
 }

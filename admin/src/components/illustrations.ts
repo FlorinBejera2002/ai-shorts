@@ -9,6 +9,7 @@ export const illustrations = {
   noResults: '/illustrations/clips-noresults.webp',
   usersNoResults: '/illustrations/admin-users-noresults.webp',
   auditEmpty: '/illustrations/admin-audit-empty.webp',
+  activityEmpty: '/illustrations/admin-audit-empty.webp',
   billingEmpty: '/illustrations/admin-billing-empty.webp',
   suspend: '/illustrations/admin-suspend.webp',
   empty: '/illustrations/library-empty.webp',

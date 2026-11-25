@@ -2923,6 +2923,14 @@
       "close": "Close",
       "thanks": "Thank you! This really helps.",
       "failed": "We could not send your answer."
-    }
+    },
+    "imagesLabel": "Images",
+    "addImage": "Add image",
+    "removeImage": "Remove {name}",
+    "imageType": "Only PNG, JPG or WebP.",
+    "imageSize": "An image can be at most 5 MB.",
+    "imageLimit": "You can add up to 3 images.",
+    "imageRejected": "One of the images could not be uploaded.",
+    "imageCount": "{count, plural, one {# image} other {# images}}"
   }
 }

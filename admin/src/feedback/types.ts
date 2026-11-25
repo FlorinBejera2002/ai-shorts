@@ -15,6 +15,8 @@ export type FeedbackItem = {
   jobId: string | null
   page: string
   userAgent: string
+  /** Short-lived signed URLs of the attached screenshots. */
+  images: string[]
   status: FeedbackStatus
   createdAt: string
   updatedAt: string

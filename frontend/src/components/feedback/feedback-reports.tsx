@@ -45,6 +45,7 @@ export function FeedbackReports({
               <div className={styles.reportMeta}>
                 <span>
                   {t(`categories.${item.category}`)} · {date.format(new Date(item.createdAt))}
+                  {item.images > 0 && ` · ${t('imageCount', { count: item.images })}`}
                 </span>
                 <span className={styles.status} data-status={item.status}>
                   {t(`status.${item.status}`)}

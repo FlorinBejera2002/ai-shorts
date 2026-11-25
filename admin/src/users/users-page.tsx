@@ -9,7 +9,7 @@ import { Button } from '../components/ui/button'
 import { Card } from '../components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select'
 import { Table, TableBody, TableCell, TableColumns, TableRow } from '../components/ui/table'
-import { initial, numberFormat } from '../lib/format'
+import { initial, numberFormat, relativeTime } from '../lib/format'
 import { UserDrawer } from './user-drawer'
 
 const pageSize = 20
@@ -73,7 +73,7 @@ function UsersBody({ loading, error, items, onRetry, onOpen }: UsersBodyProps) {
   if (items.length === 0) return <StatePanel compact illustration="usersNoResults" title="Niciun utilizator" />
   return (
     <Table>
-      <TableColumns columns={['Utilizator', 'Plan', 'Credite', '']} />
+      <TableColumns columns={['Utilizator', 'Plan', 'Credite', 'Activ', '']} />
       <TableBody>{items.map((user) => (
         <TableRow key={user.id}>
           <TableCell>
@@ -85,6 +85,7 @@ function UsersBody({ loading, error, items, onRetry, onOpen }: UsersBodyProps) {
           </TableCell>
           <TableCell className="capitalize">{user.plan}</TableCell>
           <TableCell className="tabular-nums">{numberFormat.format(user.credits)}</TableCell>
+          <TableCell className="text-muted-foreground whitespace-nowrap" title={user.lastSeenAt ?? undefined}>{relativeTime(user.lastSeenAt)}</TableCell>
           <TableCell className="text-right"><Button variant="secondary" size="sm" onClick={() => onOpen(user)}>Detalii</Button></TableCell>
         </TableRow>
       ))}</TableBody>

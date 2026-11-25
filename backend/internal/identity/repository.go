@@ -98,7 +98,11 @@ func (p *Postgres) FindSession(ctx context.Context, id string) (Session, error) 
 	err := p.db.QueryRowContext(ctx, `SELECT `+userColumns+`, s.expires FROM sessions s
 		JOIN users u ON u.id = s.user_id WHERE s.session_token = $1`, sessionKey(id)).Scan(dest...)
 	if err == nil {
-		_, _ = p.db.ExecContext(ctx, `UPDATE sessions SET last_seen_at=now() WHERE session_token=$1 AND last_seen_at<now()-interval '1 minute'`, sessionKey(id))
+		// Throttled to once a minute; users.last_active_at outlives the session
+		// so the admin console still knows when a signed-out user last came by.
+		_, _ = p.db.ExecContext(ctx, `WITH touched AS (
+			UPDATE sessions SET last_seen_at=now() WHERE session_token=$1 AND last_seen_at<now()-interval '1 minute' RETURNING user_id
+		) UPDATE users u SET last_active_at=now() FROM touched t WHERE u.id=t.user_id`, sessionKey(id))
 	}
 	if errors.Is(err, sql.ErrNoRows) {
 		err = ErrUnauthenticated
@@ -111,6 +115,8 @@ func (p *Postgres) RecordSessionClient(ctx context.Context, id, userAgent, ipHas
 	defer cancel()
 	_, err := p.db.ExecContext(ctx, `WITH updated AS (
 		UPDATE sessions SET user_agent=$2,ip_hash=$3,last_seen_at=now() WHERE session_token=$1 RETURNING user_id
+	), active AS (
+		UPDATE users u SET last_active_at=now() FROM updated WHERE u.id=updated.user_id
 	) INSERT INTO account_security_events(user_id,event_type,detail)
 		SELECT user_id,'login','New sign-in recorded' FROM updated`, sessionKey(id), userAgent, ipHash)
 	return err

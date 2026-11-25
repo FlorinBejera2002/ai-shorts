@@ -3,12 +3,14 @@ package admin
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/julienschmidt/httprouter"
+	"github.com/lib/pq"
 
 	"sneepcut/backend-go/internal/feedback"
 	"sneepcut/backend-go/internal/httpx"
@@ -17,6 +19,17 @@ import (
 // User feedback stored by internal/feedback: problem reports, ideas and clip ratings.
 
 var feedbackKinds = map[string]bool{feedback.KindProblem: true, feedback.KindIdea: true, feedback.KindClip: true}
+
+// FeedbackImageSigner turns a stored screenshot key into a short-lived URL.
+type FeedbackImageSigner interface {
+	SignedURL(ctx context.Context, key string) (string, error)
+}
+
+// WithFeedbackImages lets the feedback list link the screenshots users attached.
+func (h *Handler) WithFeedbackImages(signer FeedbackImageSigner) *Handler {
+	h.feedbackImages = signer
+	return h
+}
 
 func (h *Handler) registerFeedback(router *httprouter.Router) {
 	router.Handler(http.MethodGet, "/api/admin/feedback", h.auth.RequireAdmin(h.listFeedback))
@@ -35,6 +48,7 @@ type feedbackRow struct {
 	JobID     *string   `json:"jobId"`
 	Page      string    `json:"page"`
 	UserAgent string    `json:"userAgent"`
+	Images    []string  `json:"images"`
 	Status    string    `json:"status"`
 	CreatedAt time.Time `json:"createdAt"`
 	UpdatedAt time.Time `json:"updatedAt"`
@@ -96,7 +110,7 @@ func (h *Handler) listFeedback(w http.ResponseWriter, r *http.Request) {
 
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
-	rows, err := h.db.QueryContext(ctx, fmt.Sprintf(`SELECT f.id,f.user_id,u.email,u.name,f.kind,f.category,f.rating,f.message,f.job_id,f.page,f.user_agent,f.status,f.created_at,f.updated_at,count(*) OVER()
+	rows, err := h.db.QueryContext(ctx, fmt.Sprintf(`SELECT f.id,f.user_id,u.email,u.name,f.kind,f.category,f.rating,f.message,f.job_id,f.page,f.user_agent,f.image_keys,f.status,f.created_at,f.updated_at,count(*) OVER()
 		FROM user_feedback f JOIN users u ON u.id=f.user_id WHERE %s
 		ORDER BY f.created_at DESC, f.id DESC LIMIT $%d OFFSET $%d`, filter, len(args)-1, len(args)), args...)
 	if err != nil {
@@ -108,9 +122,11 @@ func (h *Handler) listFeedback(w http.ResponseWriter, r *http.Request) {
 	var total int64
 	for rows.Next() {
 		var item feedbackRow
-		if err = rows.Scan(&item.ID, &item.UserID, &item.UserEmail, &item.UserName, &item.Kind, &item.Category, &item.Rating, &item.Message, &item.JobID, &item.Page, &item.UserAgent, &item.Status, &item.CreatedAt, &item.UpdatedAt, &total); err != nil {
+		var keys []string
+		if err = rows.Scan(&item.ID, &item.UserID, &item.UserEmail, &item.UserName, &item.Kind, &item.Category, &item.Rating, &item.Message, &item.JobID, &item.Page, &item.UserAgent, pq.Array(&keys), &item.Status, &item.CreatedAt, &item.UpdatedAt, &total); err != nil {
 			break
 		}
+		item.Images = h.signFeedbackImages(ctx, keys)
 		items = append(items, item)
 	}
 	if err == nil {
@@ -167,4 +183,21 @@ func (h *Handler) updateFeedback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// signFeedbackImages returns a URL per screenshot; one that cannot be signed is skipped.
+func (h *Handler) signFeedbackImages(ctx context.Context, keys []string) []string {
+	urls := make([]string, 0, len(keys))
+	if h.feedbackImages == nil {
+		return urls
+	}
+	for _, key := range keys {
+		url, err := h.feedbackImages.SignedURL(ctx, key)
+		if err != nil {
+			slog.Warn("sign feedback image", "error", err)
+			continue
+		}
+		urls = append(urls, url)
+	}
+	return urls
 }
