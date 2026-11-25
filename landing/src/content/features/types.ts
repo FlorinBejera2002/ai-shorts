@@ -1,6 +1,7 @@
 import type { Faq } from '@/content/copy/types'
 
-export const FEATURE_PAGE_IDS = [
+/** Pages about what the product does. */
+export const TOOL_PAGE_IDS = [
   'ai-video-clipper',
   'long-video-to-shorts',
   'auto-captions',
@@ -8,6 +9,18 @@ export const FEATURE_PAGE_IDS = [
   'schedule-social-posts'
 ] as const
 
+/** Pages about who the product is for, served under /for/. */
+export const USE_CASE_PAGE_IDS = [
+  'for/podcasters',
+  'for/creators',
+  'for/agencies',
+  'for/churches-and-speakers'
+] as const
+
+export const FEATURE_PAGE_IDS = [...TOOL_PAGE_IDS, ...USE_CASE_PAGE_IDS] as const
+
+export type ToolPageId = (typeof TOOL_PAGE_IDS)[number]
+export type UseCasePageId = (typeof USE_CASE_PAGE_IDS)[number]
 export type FeaturePageId = (typeof FEATURE_PAGE_IDS)[number]
 
 export type FeatureHighlight = { title: string; text: string }
@@ -30,6 +43,7 @@ export type FeaturePageCopy = {
 
 export type FeaturePagesCopy = {
   footerTitle: string
+  useCasesTitle: string
   highlightsLabel: string
   relatedTitle: string
   faqTitle: string

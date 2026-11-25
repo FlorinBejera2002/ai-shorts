@@ -1,7 +1,9 @@
+import { roUseCases } from './ro-use-cases'
 import type { FeaturePagesCopy } from './types'
 
 export const ro: FeaturePagesCopy = {
   footerTitle: 'Unelte',
+  useCasesTitle: 'Pentru cine',
   highlightsLabel: 'Pe scurt',
   relatedTitle: 'Mai multe din Sneep Cut',
   faqTitle: 'Întrebări frecvente',
@@ -413,6 +415,7 @@ export const ro: FeaturePagesCopy = {
           answer: 'Da. Poți edita, reprograma sau anula o postare înainte să fie publicată.'
         }
       ]
-    }
+    },
+    ...roUseCases
   }
 }

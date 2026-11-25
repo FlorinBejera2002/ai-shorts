@@ -44,7 +44,7 @@ export async function FeaturePage({ locale, id }: FeaturePageProps) {
       <FeatureHighlights label={features.highlightsLabel} highlights={page.highlights} />
       <FeatureArticle sections={page.sections} />
       <HowItWorks copy={copy.home} id={homeSectionIds(locale).howItWorks} />
-      <FaqSection title={features.faqTitle} faqs={page.faqs} group={`${id}-faq`} />
+      <FaqSection title={features.faqTitle} faqs={page.faqs} group={`${id.replace('/', '-')}-faq`} />
       <RelatedFeatures locale={locale} current={id} title={features.relatedTitle} />
       <FinalCta copy={copy.home} registerHref={app.register} />
     </PageShell>

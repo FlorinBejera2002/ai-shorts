@@ -1,5 +1,5 @@
 import { getCopy } from '@/content/copy'
-import { FEATURE_PAGE_IDS, featurePath, getFeatureCopy } from '@/content/features'
+import { featurePath, getFeatureCopy, TOOL_PAGE_IDS, USE_CASE_PAGE_IDS, type FeaturePageId } from '@/content/features'
 import { LEGAL_DOCUMENT_IDS } from '@/content/legal/documents'
 import { appLinks } from '@/lib/app-links'
 import { localePath, type Locale } from '@/lib/i18n'
@@ -38,7 +38,9 @@ export function SiteFooter({ locale, path }: SiteFooterProps) {
   const links = siteNavigation(locale)
   const app = appLinks(locale)
   const features = getFeatureCopy(locale)
-  const tools = FEATURE_PAGE_IDS.map((id) => ({ href: localePath(locale, featurePath(id)), label: features.pages[id].navLabel }))
+  const featureLink = (id: FeaturePageId) => ({ href: localePath(locale, featurePath(id)), label: features.pages[id].navLabel })
+  const tools = TOOL_PAGE_IDS.map(featureLink)
+  const useCases = USE_CASE_PAGE_IDS.map(featureLink)
   const legal = LEGAL_DOCUMENT_IDS.map((id) => ({ href: localePath(locale, `/${id}`), label: footer.legalLinks[id] }))
 
   return (
@@ -58,6 +60,7 @@ export function SiteFooter({ locale, path }: SiteFooterProps) {
               ]]}
             />
             <FooterColumn title={features.footerTitle} columns={[tools]} />
+            <FooterColumn title={features.useCasesTitle} columns={[useCases]} />
             <FooterColumn
               title={footer.account}
               columns={[[

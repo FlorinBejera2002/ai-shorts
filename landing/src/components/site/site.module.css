@@ -229,7 +229,7 @@
 .footerGrid {
   flex: 1 1 auto;
   display: grid;
-  grid-template-columns: 1fr 1.5fr 1fr 2.6fr;
+  grid-template-columns: 0.9fr 1.25fr 1.25fr 0.9fr 2.2fr;
   gap: 40px;
 }
 

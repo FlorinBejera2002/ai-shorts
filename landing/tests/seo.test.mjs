@@ -8,7 +8,10 @@ const read = (path) => readFileSync(new URL(path, out), 'utf8')
 const ORIGIN = 'https://sneepcut.com'
 
 const LEGAL = ['legal-notice', 'privacy', 'terms', 'cookie-policy', 'acceptable-use', 'refund-policy', 'subprocessors', 'dpa', 'data-deletion']
-const FEATURES = ['ai-video-clipper', 'long-video-to-shorts', 'auto-captions', 'youtube-to-shorts', 'schedule-social-posts']
+const FEATURES = [
+  'ai-video-clipper', 'long-video-to-shorts', 'auto-captions', 'youtube-to-shorts', 'schedule-social-posts',
+  'for/podcasters', 'for/creators', 'for/agencies', 'for/churches-and-speakers'
+]
 const PAGES = ['/', '/pricing', ...FEATURES.map((id) => `/${id}`), ...LEGAL.map((id) => `/${id}`)]
 const localized = (locale, path) => (locale === 'en' ? path : path === '/' ? '/ro' : `/ro${path}`)
 const fileFor = (path) => (path === '/' ? 'index.html' : `${path.slice(1)}.html`)
