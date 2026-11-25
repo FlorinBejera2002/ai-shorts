@@ -16,20 +16,15 @@ func (p *importGatePipeline) Render(context.Context, processing.RenderInput) (pr
 	return processing.Clip{}, nil
 }
 
-func TestQueuedYouTubeImportCannotReachDownloaderWithoutApproval(t *testing.T) {
+// Link-only jobs, including ones queued before link imports were removed, must
+// never reach the pipeline.
+func TestJobsWithoutOwnedSourceKeyNeverReachPipeline(t *testing.T) {
 	pipeline := &importGatePipeline{}
 	w := &Worker{Pipeline: pipeline}
-	input := processing.Input{SourceURL: "https://youtube.com/watch?v=queued-before-policy-change"}
-	if _, err := w.processInput(context.Background(), input, nil); err == nil || pipeline.calls != 0 {
-		t.Fatal("unapproved queued import reached processing")
+	if _, err := w.processInput(context.Background(), processing.Input{}, nil); err == nil || pipeline.calls != 0 {
+		t.Fatal("link-only job reached processing")
 	}
-	w.YouTubeImportApproved = true
-	if _, err := w.processInput(context.Background(), input, nil); err != nil || pipeline.calls != 1 {
-		t.Fatal("approved import did not reach processing")
-	}
-	w.YouTubeImportApproved = false
-	input.SourceKey = "uploads/user/original.mp4"
-	if _, err := w.processInput(context.Background(), input, nil); err != nil || pipeline.calls != 2 {
+	if _, err := w.processInput(context.Background(), processing.Input{SourceKey: "uploads/user/original.mp4"}, nil); err != nil || pipeline.calls != 1 {
 		t.Fatal("owned upload was incorrectly blocked")
 	}
 }

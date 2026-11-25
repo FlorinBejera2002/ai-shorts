@@ -16,7 +16,7 @@ import (
 var (
 	ErrConflict  = errors.New("The story changed or is still processing; refresh and try again")
 	ErrOwnership = errors.New("Story execution ownership lost")
-	ErrCredits   = errors.New("Insufficient credits; one story costs 10 credits including automatic repairs")
+	ErrCredits   = errors.New("Insufficient credits; each story clip costs 10 credits including automatic repairs")
 	ErrInactive  = creditledger.ErrInactive
 	ErrInvalid   = errors.New("Invalid story request")
 	idPattern    = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
@@ -115,24 +115,20 @@ func readProject(ctx context.Context, q projectReader, limits story.Limits, user
 	if err != nil {
 		return p, err
 	}
-	rows, err = q.QueryContext(ctx, `SELECT v.version,coalesce(c.id::text,'') FROM story_versions v LEFT JOIN clips c ON c.story_project_id=v.project_id AND c.story_version=v.number AND c.user_id=$2 WHERE v.project_id=$1 ORDER BY v.number`, id, user)
+	rows, err = q.QueryContext(ctx, `SELECT v.version FROM story_versions v WHERE v.project_id=$1 ORDER BY v.number`, id)
 	if err != nil {
 		return p, err
 	}
 	for rows.Next() {
 		var raw []byte
 		var v story.Version
-		var clipID string
-		if err = rows.Scan(&raw, &clipID); err == nil {
+		if err = rows.Scan(&raw); err == nil {
 			err = json.Unmarshal(raw, &v)
 		}
 		if err != nil {
 			rows.Close()
 			return p, err
 		}
-		// Resolve the current published clip instead of retaining stale identities
-		// in historical version JSON. It opens the existing editable Studio project.
-		v.ClipID = clipID
 		p.Versions = append(p.Versions, v)
 	}
 	err = rows.Err()
@@ -140,6 +136,13 @@ func readProject(ctx context.Context, q projectReader, limits story.Limits, user
 	if err != nil {
 		return p, err
 	}
+	// Resolve the current published clips instead of retaining stale identities in
+	// historical version JSON. Each identity opens the existing editable Studio project.
+	clipIDs, err := readClipIDs(ctx, q, id, user)
+	if err != nil {
+		return p, err
+	}
+	attachClipIDs(p.Versions, clipIDs)
 	rows, err = q.QueryContext(ctx, `SELECT attempt FROM story_attempts WHERE project_id=$1 ORDER BY created_at`, id)
 	if err != nil {
 		return p, err

@@ -19,6 +19,7 @@ import {
   FilePenLine,
   Film,
   House,
+  MessageSquareHeart,
   Palette,
   Scissors,
   Share2,
@@ -41,7 +42,8 @@ const icons: Record<NavigationKey, LucideIcon> = {
   publish: Share2,
   brand: Palette,
   billing: CreditCard,
-  settings: SlidersHorizontal
+  settings: SlidersHorizontal,
+  feedback: MessageSquareHeart
 }
 /** The expanded sidebar has room for the full billing title. */
 const labelKeys: Partial<Record<NavigationKey, 'billingFull'>> = {

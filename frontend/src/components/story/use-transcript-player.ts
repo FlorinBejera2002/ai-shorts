@@ -65,14 +65,15 @@ export function useTranscriptPlayer(source: string) {
     } else loaded()
   }
 
-  function retry() {
+  /** Retries after a failure. A renewed signed URL (fetched from the project) replaces the expired one. */
+  function retry(renewedSource: string = source) {
     const video = player.current
     if (!video) return
     pendingSeek.current ??= video.currentTime
     setFailed(false)
     setPlayBlocked(false)
-    if (media.url !== source) {
-      setMedia({ identity, url: source })
+    if (media.url !== renewedSource) {
+      setMedia({ identity: transcriptMediaIdentity(renewedSource), url: renewedSource })
       // Metadata from the renewed URL resumes at pendingSeek.
     } else {
       video.load()

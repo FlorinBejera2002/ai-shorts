@@ -6,7 +6,8 @@ export const audioURL = '/__creation-fixtures/original.wav'
 export const defaultOptions = {
   brief: 'A calm tour of the studio.', target_seconds: 45, aspect_ratio: '9:16',
   dynamic_range: 'sdr', language: 'auto', mode: 'smart', preserve_order: true,
-  captions: false, caption_mode: 'off', audio_cleanup: { enabled: false }
+  captions: false, caption_mode: 'off', clip_count: 0,
+  audio_cleanup: { enabled: false, asset_ids: [] }
 }
 export const limits = {
   max_files: 0, max_file_bytes: 2 * 1024 ** 3, max_total_bytes: 10 * 1024 ** 3,
@@ -49,10 +50,35 @@ export function sourceAssets() {
   }))
 }
 
+// Brief tokens reference footage inline as @[asset:<id>]; the UI renders them as "Filmarea N".
+export function footageToken(assetId) {
+  return `@[asset:${assetId}]`
+}
+
+export function briefWithFootageTokens(assetIDs = sourceAssets().map((asset) => asset.id)) {
+  const [first, second] = assetIDs
+  return `Start with ${footageToken(first)} and keep ${footageToken(second)} for the ending.`
+}
+
+// Multi-clip outputs (story results). Index is 0-based; clip_id is set when saved to the library.
+export function storyOutputs(count = 3) {
+  return Array.from({ length: count }, (_, index) => ({
+    id: creationId(7860 + index), index, video_url: videoURL, poster_url: index % 2 ? null : photoURL,
+    duration_seconds: 30 + index * 5, aspect_ratio: '9:16', clip_id: creationId(7870 + index)
+  }))
+}
+
+// YouTube channel connection status as returned by GET /api/youtube/channel.
+export function youtubeChannelStatus(connected = true) {
+  return connected
+    ? { enabled: true, connected: true, account: { channel_id: 'UCsyntheticchannel', title: 'Synthetic channel', avatar_url: null } }
+    : { enabled: true, connected: false, account: null }
+}
+
 export function resultVersion(needsReview = false) {
   return {
     number: 1, parent: 0, accepted: false, clip_id: creationId(7850),
-    preview_url: videoURL, export_url: videoURL, thumbnail_url: photoURL,
+    preview_url: videoURL, export_url: videoURL, thumbnail_url: photoURL, outputs: storyOutputs(1),
     render_options: structuredClone(defaultOptions), output: { duration: 45, captions: false },
     plan: { title: 'Studio day', summary: 'A calm tour of the studio.', blocks: [] },
     timeline: [{ block_id: creationId(7851), output_in: 0, output_out: 45,

@@ -89,6 +89,12 @@ func ValidateOptions(o Options) error {
 	if err := validateCaptionMode(o); err != nil {
 		return err
 	}
+	if err := validateClipCount(o); err != nil {
+		return err
+	}
+	if err := ValidateCleanupSelectionIDs(cleanupSelection(o)); err != nil {
+		return err
+	}
 	if utf8.RuneCountInString(o.Brief) > 4000 {
 		return fmt.Errorf("brief must contain at most 4000 characters")
 	}
@@ -234,4 +240,31 @@ func LimitsFromEnv(get func(string) string) (Limits, error) {
 		return Limits{}, fmt.Errorf("per-source limits cannot exceed project limits")
 	}
 	return l, nil
+}
+
+func validateClipCount(o Options) error {
+	if o.ClipCount < 0 || o.ClipCount > MaxClipCount {
+		return fmt.Errorf("clip count must be 0 (auto) or between 1 and %d", MaxClipCount)
+	}
+	if o.Narration && o.ClipCount > 1 {
+		return fmt.Errorf("a recorded narration produces one clip; choose one clip or remove the narration")
+	}
+	return nil
+}
+
+func cleanupSelection(o Options) []string {
+	if o.AudioCleanup == nil {
+		return nil
+	}
+	return o.AudioCleanup.AssetIDs
+}
+
+// ValidateOptionsForAssets checks the options that refer to this project's
+// sources: footage tags in the brief and the noise-reduction selection. Pass the
+// project's current assets, even when there are none.
+func ValidateOptionsForAssets(o Options, assets []Asset) error {
+	if err := ValidateBriefFootage(o.Brief, assets); err != nil {
+		return err
+	}
+	return ValidateAudioCleanupSelection(cleanupSelection(o), assets)
 }

@@ -265,6 +265,7 @@ await page.route('**/api/**', async (route) => {
         number: 1,
         parent: 0,
         accepted: true,
+        preview_url: `${origin}/fixture-music.wav?result`,
         plan: { title: 'Music fixture', summary: '', blocks: [] },
         timeline: [],
         output: {
@@ -316,7 +317,7 @@ const next = async (step) => {
   await page.getByTestId(`story-step-${step}`).waitFor({ state: 'visible' })
 }
 const go = async (step) => {
-  await wizard.locator('nav button').nth(step).click()
+  await page.getByRole('button', { name: ['Add footage', 'Choose result', 'Generate'][step], exact: true }).click()
   await page.getByTestId(`story-step-${step}`).waitFor({ state: 'visible' })
 }
 const search = async (value) => {
@@ -341,7 +342,7 @@ try {
   )
   await next(1)
   await page
-    .getByRole('button', { name: 'Browse free music', exact: true })
+    .getByRole('button', { name: 'Choose music', exact: true })
     .click()
   await page
     .getByRole('button', { name: `Select ${alpha.title}`, exact: true })
@@ -384,6 +385,8 @@ try {
       .inputValue(),
     '0.18'
   )
+  // Selecting a track closes the chooser; reopening it shows the catalog again.
+  await page.getByRole('button', { name: 'Choose music', exact: true }).click()
   await page.getByRole('button', { name: 'Next tracks', exact: true }).click()
   await page
     .getByRole('button', { name: `Select ${gamma.title}`, exact: true })
@@ -496,7 +499,7 @@ try {
       .isChecked(),
     false
   )
-  await page.getByRole('button', { name: 'Change music', exact: true }).click()
+  await page.getByRole('button', { name: 'Choose music', exact: true }).click()
   await page.getByRole('button', { name: 'Next tracks', exact: true }).click()
   await page
     .getByRole('button', { name: `Select ${gamma.title}`, exact: true })
@@ -524,6 +527,9 @@ try {
       animations: 'disabled'
     })
   }
+  // The chooser is modal; close it so the music card is reachable for the Fast Refresh check.
+  await page.keyboard.press('Escape')
+  await page.getByRole('dialog').waitFor({ state: 'hidden' })
   await page.setViewportSize({ width: 1280, height: 960 })
   await page.evaluate(() => {
     window.musicPageMarker = 'keep'
@@ -555,15 +561,21 @@ try {
     'Fast Refresh preserves the component DOM boundary'
   )
   assert.equal(await volume.inputValue(), '0.27')
+  await page.getByRole('button', { name: 'Choose music', exact: true }).click()
+  await page.getByRole('button', { name: 'Next tracks', exact: true }).click()
   await page
     .getByRole('button', { name: `Select ${gamma.title}`, exact: true })
     .waitFor()
   writeFileSync(sourcePath, originalSource)
   hotEdited = false
   console.log('Music browser: responsive layout and Fast Refresh verified')
+  await page.keyboard.press('Escape')
+  await page.getByRole('dialog').waitFor({ state: 'hidden' })
   await page
     .getByRole('group', { name: 'Background music', exact: true })
     .waitFor()
+  await page.getByRole('button', { name: 'Choose music', exact: true }).click()
+  await page.getByRole('button', { name: 'From device', exact: true }).waitFor()
   const uploadFile = {
     name: 'my-song.wav',
     mimeType: 'audio/wav',
@@ -587,7 +599,7 @@ try {
     .waitFor()
   assert.equal(
     await wizard
-      .getByRole('button', { name: 'Continue', exact: true })
+      .getByRole('button', { name: 'Continue', exact: true, includeHidden: true })
       .isDisabled(),
     true,
     'Pending upload blocks generation navigation'
@@ -683,7 +695,7 @@ try {
   )
   await go(1)
   await page
-    .getByRole('button', { name: 'Browse free music', exact: true })
+    .getByRole('button', { name: 'Choose music', exact: true })
     .click()
   await search('bright')
   await page
@@ -691,14 +703,20 @@ try {
     .click()
   await go(2)
   await page
-    .getByRole('button', { name: 'Create my clip', exact: true })
+    .getByRole('button', { name: 'Create clips', exact: true })
     .click()
-  await page.getByRole('heading', { name: 'Listening to your music', exact: true }).waitFor()
+  await page
+    .getByTestId('story-processing')
+    .getByRole('heading', { name: 'Analyzing your footage', exact: true })
+    .waitFor()
   project.status = 'failed'
   project.error = 'music analysis is unavailable; retry or disable synchronization'
   await page.getByTestId('music-recovery').waitFor()
   await page.getByRole('button', { name: 'Retry music analysis', exact: true }).click()
-  await page.getByRole('heading', { name: 'Listening to your music', exact: true }).waitFor()
+  await page
+    .getByTestId('story-processing')
+    .getByRole('heading', { name: 'Analyzing your footage', exact: true })
+    .waitFor()
   assert.equal(generationAttempts, 2)
   project.status = 'failed'
   project.error = 'music analysis is unavailable; retry or disable synchronization'
@@ -709,7 +727,7 @@ try {
   await go(2)
   assert.equal(project.options.music.sync, false)
   assert.equal(project.options.music.track_id, beta.id)
-  await page.getByRole('button', { name: 'Create my clip', exact: true }).click()
+  await page.getByRole('button', { name: 'Create clips', exact: true }).click()
   await page.locator('.story-result-credits > summary').click()
   const credits = page.getByRole('region', {
     name: 'Music credits',

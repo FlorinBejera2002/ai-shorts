@@ -39,7 +39,7 @@ func TestPostgresAuthorizationIsBrowserBoundSingleUseAndSessionBound(t *testing.
 	if err := h.db.QueryRow(`SELECT session_version FROM users WHERE id=$1`, owner).Scan(&version); err != nil {
 		t.Fatal(err)
 	}
-	if err := h.createAuthorization(ctx, owner, version, []string{PublicVideos, PrivateVideos}, "state", "browser", testVerifier, "ro"); err != nil {
+	if err := h.createAuthorization(ctx, owner, version, []string{PublicVideos, UnlistedVideos}, "state", "browser", testVerifier, "ro"); err != nil {
 		t.Fatal(err)
 	}
 	if err := h.createAuthorization(ctx, owner, version, []string{PublicVideos}, "second", "browser", testVerifier, "en"); !errors.Is(err, errActiveImport) {
@@ -74,7 +74,7 @@ func TestPostgresLibraryOwnershipTombstonesAndCancellation(t *testing.T) {
 	work := importWork{ID: id, UserID: owner, Lease: "lease"}
 	video := ImportedVideo{RelativePath: "YouTube/videos/sermon.mp4", FileName: "sermon.mp4", Title: "A message", Size: 1234}
 	key := "uploads/" + owner + "/sermon.mp4"
-	if err := h.recordVideo(ctx, work, video, key); err != nil {
+	if err := h.recordVideo(ctx, work, video, key, "", 0); err != nil {
 		t.Fatal(err)
 	}
 	ownLibrary, err := h.loadOverview(ctx, owner)
@@ -85,7 +85,7 @@ func TestPostgresLibraryOwnershipTombstonesAndCancellation(t *testing.T) {
 	if err != nil || len(otherLibrary.Imports) != 0 || len(otherLibrary.Videos) != 0 {
 		t.Fatal("another user could read imported metadata")
 	}
-	if _, err := h.tombstoneVideo(ctx, other, ownLibrary.Videos[0].ID); !errors.Is(err, sql.ErrNoRows) {
+	if _, _, err := h.tombstoneVideo(ctx, other, ownLibrary.Videos[0].ID); !errors.Is(err, sql.ErrNoRows) {
 		t.Fatal("another user could delete imported video")
 	}
 	if _, err := h.cancelImport(ctx, other, id); !errors.Is(err, sql.ErrNoRows) {
@@ -97,10 +97,10 @@ func TestPostgresLibraryOwnershipTombstonesAndCancellation(t *testing.T) {
 	if err := h.renewLease(ctx, work); !errors.Is(err, errLeaseLost) {
 		t.Fatal("cancelled worker renewed its lease")
 	}
-	if err := h.recordVideo(ctx, work, ImportedVideo{RelativePath: "another.mp4", FileName: "another.mp4", Size: 10}, "uploads/"+owner+"/another.mp4"); !errors.Is(err, errLeaseLost) {
+	if err := h.recordVideo(ctx, work, ImportedVideo{RelativePath: "another.mp4", FileName: "another.mp4", Size: 10}, "uploads/"+owner+"/another.mp4", "", 0); !errors.Is(err, errLeaseLost) {
 		t.Fatal("cancelled worker inserted a video")
 	}
-	if _, err := h.tombstoneVideo(ctx, owner, ownLibrary.Videos[0].ID); err != nil {
+	if _, _, err := h.tombstoneVideo(ctx, owner, ownLibrary.Videos[0].ID); err != nil {
 		t.Fatal(err)
 	}
 	if exists, err := h.videoExists(ctx, work, video.RelativePath); err != nil || !exists {

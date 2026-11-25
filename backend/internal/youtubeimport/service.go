@@ -29,6 +29,9 @@ func (h *Handler) Start(parent context.Context) func() {
 						slog.Error("YouTube import source cleanup failed")
 					}
 				}
+				if err := h.backfillPreviews(ctx); err != nil && !isNoWork(err) && ctx.Err() == nil {
+					slog.Error("YouTube import preview backfill failed")
+				}
 				if !h.cfg.Enabled {
 					continue
 				}
@@ -177,8 +180,20 @@ func (h *Handler) retryRead(ctx context.Context, work importWork, message string
 	return h.releaseWork(ctx, work, delay, true)
 }
 
+// settleEndedSelection settles the selected videos of an import that ends without
+// success. A ready import has already settled them when its archive was read.
+func (h *Handler) settleEndedSelection(ctx context.Context, work importWork, status string) error {
+	if !work.Selected || status == "ready" {
+		return nil
+	}
+	return h.settleSelection(ctx, work)
+}
+
 func (h *Handler) completeImport(ctx context.Context, work importWork, token Token, status, message string) error {
 	if err := h.markCleanup(ctx, work, status, message); err != nil {
+		return err
+	}
+	if err := h.settleEndedSelection(ctx, work, status); err != nil {
 		return err
 	}
 	work.CleanupPending = true
@@ -286,6 +301,17 @@ func authorizationRejected(err error) bool {
 	return errors.As(err, &api) && (api.StatusCode == 401 || api.StatusCode == 403 || api.Code == "invalid_grant")
 }
 
+// errVideosSkipped reports that the archive was read but at least one video was
+// rejected (malware scan, size, signature or conversion); the others were kept.
+var errVideosSkipped = errors.New("some YouTube videos were skipped")
+
+// temporaryFailure reports an ImportSource error that may pass on a later attempt
+// (scanner or storage unavailable), as opposed to a rejection of the video itself.
+func temporaryFailure(err error) bool {
+	var temporary interface{ Temporary() bool }
+	return errors.As(err, &temporary) && temporary.Temporary()
+}
+
 func (h *Handler) importVideos(ctx context.Context, work importWork, urls []string) error {
 	root := h.cfg.TempRoot
 	if root == "" {
@@ -299,7 +325,17 @@ func (h *Handler) importVideos(ctx context.Context, work importWork, urls []stri
 		return err
 	}
 	defer os.RemoveAll(directory)
-	return h.client.ImportArchives(ctx, urls, directory, h.cfg.Limits, func(ctx context.Context, video ImportedVideo) error {
+	// A selected import reads only the chosen videos; the rest are never copied.
+	var plan *selectionPlan
+	var selector VideoSelector
+	if work.Selected {
+		if plan, err = h.loadSelectionPlan(ctx, work); err != nil {
+			return err
+		}
+		selector = &selectionSelector{handler: h, work: work, plan: plan}
+	}
+	skipped := 0
+	err = h.client.ImportArchivesSelected(ctx, urls, directory, h.cfg.Limits, selector, func(ctx context.Context, video ImportedVideo) error {
 		if err := h.renewLease(ctx, work); err != nil {
 			return err
 		}
@@ -307,9 +343,28 @@ func (h *Handler) importVideos(ctx context.Context, work importWork, urls []stri
 		if err != nil || exists {
 			return err
 		}
+		var chosen *selectedVideo
+		if plan != nil {
+			// Ambiguous files never reach this point; the selector excluded them.
+			chosen, _ = plan.match(video)
+			if chosen == nil {
+				return nil
+			}
+			video.selectedVideoID = chosen.videoID
+		}
 		key, err := h.media.ImportSource(ctx, work.UserID, video)
 		if err != nil {
-			return err
+			if ctx.Err() != nil || temporaryFailure(err) {
+				return err
+			}
+			// One rejected video must not drop the rest of the export. The title stays
+			// out of the log; the size and cause are enough to diagnose limits.
+			skipped++
+			slog.Warn("YouTube import skipped a video", "import_id", work.ID, "bytes", video.Size, "error", err)
+			if chosen != nil {
+				return h.rejectSelection(ctx, work, chosen, selectionRejected)
+			}
+			return nil
 		}
 		if sized, ok := h.media.(interface {
 			ImportSourceSize(context.Context, string) (int64, error)
@@ -323,19 +378,32 @@ func (h *Handler) importVideos(ctx context.Context, work importWork, urls []stri
 				video.Size = size
 			}
 		}
+		// Only a video that will be recorded gets a preview; a rejected one would
+		// upload a JPEG just to delete it again.
+		var previewKey string
 		if err == nil {
-			err = h.recordVideo(ctx, work, video, key)
+			var previewAttempts int
+			previewKey, previewAttempts = h.storePreview(ctx, work, video)
+			err = h.recordVideo(ctx, work, video, key, previewKey, previewAttempts)
 		}
 		if err == nil {
+			if chosen != nil {
+				// The video is stored; its clip job is queued from here. A job failure
+				// never removes the stored video.
+				chosen.status = selectionImporting
+				return h.startSelectionJobs(ctx, work)
+			}
 			return nil
 		}
 		// An import may be cancelled or the owner may request deletion while a
-		// video is being scanned/stored. Never leave its unrecorded upload behind.
+		// video is being scanned/stored. Never leave its unrecorded files behind.
 		cleanup, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
-		if cleanupErr := h.media.RemoveImportSource(cleanup, work.UserID, key); cleanupErr != nil {
-			if queueErr := h.queueSourceCleanup(cleanup, work.UserID, key); queueErr != nil {
-				slog.Error("YouTube import source cleanup could not be queued", "import_id", work.ID)
+		for _, stored := range storedKeys(key, previewKey) {
+			if cleanupErr := h.media.RemoveImportSource(cleanup, work.UserID, stored); cleanupErr != nil {
+				if queueErr := h.queueSourceCleanup(cleanup, work.UserID, stored); queueErr != nil {
+					slog.Error("YouTube import source cleanup could not be queued", "import_id", work.ID)
+				}
 			}
 		}
 		if uniqueViolation(err) {
@@ -344,4 +412,15 @@ func (h *Handler) importVideos(ctx context.Context, work importWork, urls []stri
 		}
 		return err
 	})
+	if err == nil && skipped > 0 {
+		err = errVideosSkipped
+	}
+	// The archive has been read in full, so every chosen video is now either
+	// queued, rejected, or not in the export.
+	if plan != nil && (err == nil || errors.Is(err, errVideosSkipped)) {
+		if finishErr := h.finishSelection(ctx, work); finishErr != nil {
+			return finishErr
+		}
+	}
+	return err
 }

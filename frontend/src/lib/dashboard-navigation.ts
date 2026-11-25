@@ -14,7 +14,8 @@ export const dashboardNavigation = [
     items: [
       { href: '/dashboard/brand', key: 'brand' },
       { href: '/dashboard/billing', key: 'billing' },
-      { href: '/dashboard/settings', key: 'settings' }
+      { href: '/dashboard/settings', key: 'settings' },
+      { href: '/dashboard/feedback', key: 'feedback' }
     ]
   }
 ] as const

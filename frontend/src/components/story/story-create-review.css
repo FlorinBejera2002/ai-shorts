@@ -1,0 +1,359 @@
+/* Step 3 of the upload flow ("Verifică și creează"). Colours come from the scoped reference theme. */
+@import './story-pill-actions.css';
+
+.creare-review {
+  display: grid;
+  width: 100%;
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  align-items: start;
+  gap: 20px;
+  font-family: var(--font-body);
+  color: var(--publish-text);
+}
+
+.creare-review-card,
+.creare-review-aside {
+  min-width: 0;
+  border-radius: var(--publish-card-radius, 24px);
+  background: var(--publish-surface);
+  box-shadow: var(--publish-card-shadow);
+}
+
+.creare-review-card {
+  padding: 26px 28px 8px;
+}
+
+.creare-review-title {
+  margin: 0;
+  padding-bottom: 8px;
+  font-family: var(--font-studio, 'Sora', sans-serif);
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 20px;
+  letter-spacing: -0.02em;
+}
+
+.creare-review-row {
+  display: grid;
+  grid-template-columns: 150px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 20px;
+  padding: 14px 0;
+}
+
+.creare-review-label {
+  align-self: flex-start;
+  padding-top: 6px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.creare-review-value {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+}
+
+.creare-review-label {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.creare-review-change {
+  grid-column: 3;
+  grid-row: 1;
+  flex: 0 0 auto;
+}
+
+.creare-review-value {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.creare-review-thumbs {
+  display: flex;
+  min-width: 0;
+  max-width: 100%;
+  flex-wrap: wrap;
+  margin: 0;
+  padding: 0;
+  gap: 8px;
+  list-style: none;
+}
+
+.creare-review-thumb {
+  position: relative;
+  flex: 0 0 auto;
+  width: 72px;
+  height: 42px;
+  overflow: hidden;
+  border-radius: 10px;
+  background: #111;
+}
+
+.creare-review-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.creare-review-thumb span {
+  position: absolute;
+  bottom: 4px;
+  left: 4px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 5px;
+  background: rgb(0 0 0 / 65%);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
+}
+
+.creare-review-chip {
+  display: inline-flex;
+  max-width: 100%;
+  min-height: 30px;
+  align-items: center;
+  padding: 0 12px;
+  border-radius: 999px;
+  box-shadow: inset 0 0 0 1px var(--publish-border);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.creare-review-brief {
+  margin: 0;
+  line-height: 2;
+  overflow-wrap: anywhere;
+}
+
+.creare-review-tag {
+  display: inline-flex;
+  height: 28px;
+  align-items: center;
+  gap: 6px;
+  margin: 0 5px;
+  padding: 0 9px 0 3px;
+  border-radius: 8px;
+  vertical-align: middle;
+  box-shadow: inset 0 0 0 1px #1f2a3d;
+  background: var(--publish-surface);
+  color: var(--publish-text);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.creare-review-tag img {
+  width: 22px;
+  height: 22px;
+  flex: none;
+  border-radius: 6px;
+  object-fit: cover;
+}
+
+.dark .creare-review-tag {
+  box-shadow: inset 0 0 0 1px #c9d4e4;
+}
+
+.creare-review-notice {
+  margin: 8px 0 0;
+  color: var(--publish-muted-text);
+  font-size: 13px;
+}
+
+.creare-review-aside {
+  display: grid;
+  gap: 16px;
+  justify-items: stretch;
+  padding: 22px;
+}
+
+.creare-review-preview {
+  display: grid;
+  justify-items: center;
+}
+
+.creare-review-phone {
+  position: relative;
+  width: 220px;
+  height: 391px;
+  margin: 0;
+  overflow: hidden;
+  border-radius: 22px;
+  background: #111;
+}
+
+.creare-review-phone img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.creare-review-phone-empty {
+  display: grid;
+  width: 100%;
+  height: 100%;
+  place-items: center;
+  color: rgb(255 255 255 / 70%);
+}
+
+.creare-review-usage {
+  display: grid;
+  gap: 8px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  box-shadow: inset 0 0 0 1px var(--publish-border);
+}
+
+.creare-review-usage-head {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  color: var(--publish-muted-text);
+}
+
+.creare-review-usage-head strong {
+  color: var(--publish-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.creare-review-usage-track {
+  height: 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--publish-hover);
+}
+
+.creare-review-usage-track span {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--publish-text);
+}
+
+/* Canvas: Înapoi is a 120px outline pill under the left column (desktop), full width on phones. */
+.creare-review-back {
+  grid-column: 1;
+  grid-row: 2;
+  justify-self: start;
+  width: 120px;
+  height: 46px;
+  font-size: 14px;
+}
+
+.creare-review .creare-review-card {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.creare-review .creare-review-aside {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+/* Scoped up one level so the Creare button floor (44px) does not override the canvas 34px pill. */
+.creare-review .creare-review-change {
+  height: 34px;
+  min-height: 34px;
+  padding: 0 14px;
+  font-size: 13px;
+}
+
+.creare-review-create {
+  width: 100%;
+  height: 54px;
+  font-size: 16px;
+  font-weight: 600;
+  /* Canvas primary: near-black in light mode, muted steel with a dark label in dark mode. */
+  background: #0b0b0c;
+  color: #fff;
+}
+
+:root[data-theme='dark'] .creare-review-create,
+.dark .creare-review-create {
+  background: #8e9bb0;
+  color: #0d1420;
+}
+
+.creare-review-credits {
+  margin: 0;
+  color: var(--publish-muted-text);
+  font-size: 13px;
+  text-align: center;
+}
+
+/* Narrower desktops: a shorter label column keeps the sound and result pills beside their labels. */
+@media (max-width: 1279px) {
+  .creare-review-row {
+    grid-template-columns: 116px minmax(0, 1fr) auto;
+    gap: 16px;
+  }
+}
+
+/* Tablet widths cannot fit label, pills and Change beside the 340px aside, so the aside moves below the card. */
+@media (max-width: 1180px) {
+  .creare-review {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  /* Phones stack: review card, usage and create card, then the full-width Înapoi pill. */
+  .creare-review .creare-review-card,
+  .creare-review .creare-review-aside {
+    grid-column: 1;
+  }
+
+  .creare-review .creare-review-aside {
+    grid-row: 2;
+  }
+
+  .creare-review-back {
+    grid-column: 1;
+    grid-row: 3;
+    justify-self: stretch;
+    width: 100%;
+  }
+}
+
+@media (max-width: 640px) {
+  .creare-review-card {
+    padding: 18px 16px 4px;
+  }
+
+  .creare-review-preview {
+    display: none;
+  }
+
+  .creare-review-title {
+    font-size: 20px;
+  }
+
+  .creare-review-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px;
+  }
+
+  .creare-review-label {
+    padding-top: 0;
+  }
+
+  .creare-review-value {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+
+  .creare-review-change {
+    grid-column: 2;
+  }
+}

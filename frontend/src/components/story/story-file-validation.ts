@@ -1,5 +1,15 @@
 import type { StoryProject } from './types'
 
+const supportedFormat = /\.(mp4|mov|webm|mkv)$/i
+
+/** Per-file rule shared by the picker and the source list: format, non-empty and within the per-file limit. */
+export function isAcceptedStoryFile(
+  file: Pick<File, 'name' | 'size'>,
+  limits: StoryProject['limits']
+) {
+  return supportedFormat.test(file.name) && file.size > 0 && file.size <= limits.max_file_bytes
+}
+
 /** Source collections are bounded by byte budgets, not an arbitrary clip count. */
 export function validateStoryFiles(
   files: File[],
@@ -8,12 +18,7 @@ export function validateStoryFiles(
   limits: StoryProject['limits']
 ) {
   if (!files.length) return ''
-  const invalid = files.find(
-    (file) =>
-      !/\.(mp4|mov|webm|mkv)$/i.test(file.name) ||
-      file.size === 0 ||
-      file.size > limits.max_file_bytes
-  )
+  const invalid = files.find((file) => !isAcceptedStoryFile(file, limits))
   if (invalid)
     return `${invalid.name}: unsupported format, empty file, or file size exceeds the limit.`
   const bytes =

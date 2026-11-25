@@ -14,6 +14,7 @@ import (
 
 	"sneepcut/backend-go/internal/config"
 	"sneepcut/backend-go/internal/data"
+	"sneepcut/backend-go/internal/errorlog"
 	"sneepcut/backend-go/internal/httpapi"
 	"sneepcut/backend-go/internal/server"
 )
@@ -21,14 +22,16 @@ import (
 const version = "0.1.0"
 
 func main() {
-	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
-	if err := run(logger); err != nil {
+	capture := errorlog.NewCapture(slog.NewTextHandler(os.Stdout, nil), errorlog.SourceAPI)
+	logger := slog.New(capture)
+	slog.SetDefault(logger)
+	if err := run(logger, capture); err != nil {
 		logger.Error("API stopped", "error", err)
 		os.Exit(1)
 	}
 }
 
-func run(logger *slog.Logger) error {
+func run(logger *slog.Logger, capture *errorlog.Capture) error {
 	cfg, err := config.Load(os.Args[1:], os.Getenv, os.Stderr)
 	if errors.Is(err, flag.ErrHelp) {
 		return nil
@@ -57,7 +60,9 @@ func run(logger *slog.Logger) error {
 			return errors.New("Go authentication could not connect to PostgreSQL")
 		}
 		defer db.Close()
-		applicationHandler, closeDependencies, err := buildApplication(db, cfg, application, logger)
+		recorder, stopRecorder := capture.Start(ctx, db)
+		defer stopRecorder()
+		applicationHandler, closeDependencies, err := buildApplication(db, cfg, application, logger, recorder)
 		if err != nil {
 			return err
 		}

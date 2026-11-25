@@ -188,6 +188,9 @@ async function fixture(initial = dashboard(), options = {}) {
       '/api/calendar': { posts: options.posts ?? upcomingPosts(), clips: [] },
       '/api/dashboard/history': { jobs: history(options.history) },
       '/api/user/brand': { brandKit: {} },
+      // "From my YouTube account" is the connected-account shortcut: the account is connected so the library tab opens.
+      '/api/youtube/channel': { enabled: true, connected: true, account: { channel_id: 'UCsynthetic', title: 'Synthetic channel', avatar_url: null } },
+      '/api/youtube/channel/videos': { videos: [], next_page_token: null },
       '/api/workspace-agent/runs': { runs: [], has_more: false },
       '/api/workspace-agent/suggestions': { suggestions: [], capabilities: [] },
       '/api/stripe/billing': {
@@ -329,8 +332,8 @@ async function homeLinks(f) {
     '/dashboard/clips'
   )
   assert.equal(
-    await f.workspace.locator('[data-home-new-clip]').getAttribute('type'),
-    'submit'
+    await f.workspace.locator('[data-home-new-clip]').getAttribute('href'),
+    '/dashboard/create'
   )
   assert.equal(
     await f.workspace
@@ -576,18 +579,10 @@ async function navigation() {
       .click()
     await desktop.workspace.waitFor()
     await assertShell(desktop.page)
-    const linkField = desktop.workspace.getByRole('textbox', { name: 'YouTube link', exact: true })
-    await linkField.fill('not a link')
+    // The bar has no link field any more: Create clips opens the create flow directly.
+    assert.equal(await desktop.workspace.getByRole('textbox', { name: 'YouTube link', exact: true }).count(), 0)
     await desktop.workspace.locator('[data-home-new-clip]').click()
-    await desktop.workspace.getByRole('alert').waitFor()
-    await linkField.fill('https://youtu.be/abcdefghijk')
-    await desktop.workspace.locator('[data-home-new-clip]').click()
-    await desktop.page.waitForURL(
-      (url) =>
-        url.pathname === '/dashboard/create' &&
-        url.searchParams.get('mode') === 'youtube' &&
-        url.searchParams.get('url') === 'https://youtu.be/abcdefghijk'
-    )
+    await desktop.page.waitForURL((url) => url.pathname === '/dashboard/create')
     await assertShell(desktop.page)
     await desktop.page.goBack()
     await desktop.workspace.waitFor()
@@ -710,7 +705,7 @@ async function destinations() {
     ],
     empty: [
       ['Upload videos', '/dashboard/create?mode=upload'],
-      ['YouTube link', '/dashboard/create?mode=youtube'],
+      ['From my YouTube account', '/dashboard/create?mode=youtube&source=library'],
       ['Write a script', '/dashboard/script-generator'],
       ['Create your first clip', '/dashboard/create'],
       ['Set up your brand kit', '/dashboard/brand'],
@@ -734,9 +729,9 @@ async function destinations() {
         await assertShell(f.page)
         if (href.includes('source=library'))
           assert.equal(
-            await f.page.getByRole('radio', { name: /My YouTube videos/i }).getAttribute('aria-checked'),
+            await f.page.locator('#creation-source').getByRole('radio', { name: 'YouTube', exact: true }).getAttribute('aria-checked'),
             'true',
-            'Shortcut opens the YouTube library source'
+            'Shortcut opens the YouTube channel list source'
           )
         await f.page.goBack()
         await f.workspace.locator('[data-home-new-clip]').waitFor()

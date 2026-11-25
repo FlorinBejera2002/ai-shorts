@@ -11,9 +11,8 @@ import (
 // AgentInput exposes owned asset identifiers, never model-supplied filesystem paths.
 type AgentInput struct {
 	Options
-	SourceType string  `json:"source_type"`
-	SourceURL  *string `json:"source_url,omitempty"`
-	AssetID    string  `json:"asset_id,omitempty"`
+	SourceType string `json:"source_type"`
+	AssetID    string `json:"asset_id,omitempty"`
 }
 type AgentJob struct {
 	ID       string   `json:"id"`
@@ -24,20 +23,15 @@ type AgentJob struct {
 }
 
 func (h *Handler) agentPrepare(ctx context.Context, user string, in AgentInput) (Prepared, error) {
-	p := CreateInput{Options: in.Options, SourceType: in.SourceType, SourceURL: in.SourceURL}
-	if in.SourceType == "upload" {
-		if !data.ValidUUID(in.AssetID) || !empty(in.SourceURL) {
-			return Prepared{}, errors.New("An owned uploaded video asset is required")
-		}
-		var key string
-		err := h.repo.db.QueryRowContext(ctx, `SELECT a.asset->>'key' FROM story_assets a JOIN story_projects p ON p.id=a.project_id WHERE a.id=$1 AND p.user_id=$2 AND coalesce(a.asset->>'kind','video')<>'narration'`, in.AssetID, user).Scan(&key)
-		if err != nil {
-			return Prepared{}, err
-		}
-		p.SourceStorageKey = &key
-	} else if in.AssetID != "" {
-		return Prepared{}, errors.New("Choose exactly one source")
+	if in.SourceType != "upload" || !data.ValidUUID(in.AssetID) {
+		return Prepared{}, errors.New("An owned uploaded video asset is required")
 	}
+	var key string
+	err := h.repo.db.QueryRowContext(ctx, `SELECT a.asset->>'key' FROM story_assets a JOIN story_projects p ON p.id=a.project_id WHERE a.id=$1 AND p.user_id=$2 AND coalesce(a.asset->>'kind','video')<>'narration'`, in.AssetID, user).Scan(&key)
+	if err != nil {
+		return Prepared{}, err
+	}
+	p := CreateInput{Options: in.Options, SourceType: in.SourceType, SourceStorageKey: &key}
 	if err := p.Validate(); err != nil {
 		return Prepared{}, err
 	}

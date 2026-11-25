@@ -1,30 +1,28 @@
 package jobs
 
 import (
-	"context"
 	"errors"
-	"net"
-	"net/url"
 	"regexp"
 	"sneepcut/backend-go/internal/audiocleanup"
-	"strings"
 	"unicode/utf8"
 )
 
 type Options struct {
-	AudioCleanup     *audiocleanup.Settings `json:"audio_cleanup,omitempty"`
-	NumClips         int                    `json:"num_clips_requested"`
-	AspectRatio      string                 `json:"aspect_ratio"`
-	Language         *string                `json:"language"`
-	SubtitleStyle    string                 `json:"subtitle_style"`
-	IncludeBrand     bool                   `json:"include_brand"`
+	AudioCleanup  *audiocleanup.Settings `json:"audio_cleanup,omitempty"`
+	NumClips      int                    `json:"num_clips_requested"`
+	AspectRatio   string                 `json:"aspect_ratio"`
+	Language      *string                `json:"language"`
+	SubtitleStyle string                 `json:"subtitle_style"`
+	IncludeBrand  bool                   `json:"include_brand"`
 	// BrandKitID picks one of the account's kits; empty means the default kit.
-	BrandKitID       *string                `json:"brand_kit_id,omitempty"`
-	BurnSubtitles    bool                   `json:"burn_subtitles"`
-	SmartCrop        bool                   `json:"smart_crop"`
-	UserInstructions *string                `json:"user_instructions"`
+	BrandKitID       *string `json:"brand_kit_id,omitempty"`
+	BurnSubtitles    bool    `json:"burn_subtitles"`
+	SmartCrop        bool    `json:"smart_crop"`
+	UserInstructions *string `json:"user_instructions"`
 }
 
+// CreateInput describes a job source. Only owned uploads are accepted; video
+// links are no longer imported, so source_url is rejected.
 type CreateInput struct {
 	Options
 	SourceType       string  `json:"source_type"`
@@ -33,9 +31,22 @@ type CreateInput struct {
 	SourceStorageKey *string `json:"source_storage_key"`
 }
 
-type BatchInput struct {
-	Options
-	SourceURLs []string `json:"source_urls"`
+// ErrLinkImportsRemoved is returned for any request that names a video link or
+// a url/youtube source type.
+var ErrLinkImportsRemoved = errors.New("Link imports are no longer supported. Upload the video file instead")
+
+// MaxClipCount is the largest clip count a job accepts.
+const MaxClipCount = 30
+
+// AutoClipCount is the clip count used when num_clips_requested is 0 (Auto).
+const AutoClipCount = 5
+
+// ResolvedClipCount returns the clip count a job creates, resolving Auto (0).
+func (o Options) ResolvedClipCount() int {
+	if o.NumClips == 0 {
+		return AutoClipCount
+	}
+	return o.NumClips
 }
 
 func DefaultOptions() Options {
@@ -48,8 +59,8 @@ func (o Options) Validate() error {
 	if o.BrandKitID != nil && !kitIDPattern.MatchString(*o.BrandKitID) {
 		return errors.New("invalid brand_kit_id")
 	}
-	if o.NumClips < 1 || o.NumClips > 15 {
-		return errors.New("num_clips_requested must be between 1 and 15")
+	if o.NumClips < 0 || o.NumClips > MaxClipCount {
+		return errors.New("num_clips_requested must be 0 (auto) or between 1 and 30")
 	}
 	if o.AspectRatio != "9:16" && o.AspectRatio != "1:1" && o.AspectRatio != "16:9" {
 		return errors.New("invalid aspect_ratio")
@@ -64,16 +75,15 @@ func (p CreateInput) Validate() error {
 	if err := p.Options.Validate(); err != nil {
 		return err
 	}
-	if !bounded(p.SourceURL, 2048) || !bounded(p.SourceFilePath, 2048) || !bounded(p.SourceStorageKey, 2048) {
+	if !empty(p.SourceURL) || p.SourceType == "url" || p.SourceType == "youtube" {
+		return ErrLinkImportsRemoved
+	}
+	if !bounded(p.SourceFilePath, 2048) || !bounded(p.SourceStorageKey, 2048) {
 		return errors.New("source exceeds 2048 characters")
 	}
 	switch p.SourceType {
-	case "url", "youtube":
-		if empty(p.SourceURL) || !empty(p.SourceFilePath) || !empty(p.SourceStorageKey) {
-			return errors.New("provide exactly one source_url for URL jobs")
-		}
 	case "upload", "local":
-		if (empty(p.SourceFilePath) && empty(p.SourceStorageKey)) || !empty(p.SourceURL) {
+		if empty(p.SourceFilePath) && empty(p.SourceStorageKey) {
 			return errors.New("provide an uploaded file path or storage key")
 		}
 	default:
@@ -89,57 +99,4 @@ func value(s *string) string {
 		return ""
 	}
 	return *s
-}
-
-type LookupIP func(context.Context, string, string) ([]net.IP, error)
-
-func ValidateSourceURL(ctx context.Context, lookup LookupIP, sourceType, source string) error {
-	u, err := url.Parse(source)
-	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Hostname() == "" || u.User != nil {
-		return errors.New("Invalid source URL")
-	}
-	host := strings.ToLower(u.Hostname())
-	if sourceType == "youtube" {
-		switch host {
-		case "youtube.com", "www.youtube.com", "m.youtube.com", "youtu.be", "www.youtu.be":
-		default:
-			return errors.New("Only YouTube URLs are allowed for YouTube jobs")
-		}
-	}
-	addresses, err := lookup(ctx, "ip", host)
-	if err != nil || len(addresses) == 0 {
-		return errors.New("Source URL host could not be resolved")
-	}
-	for _, ip := range addresses {
-		if !ip.IsGlobalUnicast() || ip.IsPrivate() || ip.IsLoopback() || ip.IsLinkLocalUnicast() || sharedOrReserved(ip) {
-			return errors.New("Private network URLs are not allowed")
-		}
-	}
-	return nil
-}
-
-func sharedOrReserved(ip net.IP) bool {
-	// IsPrivate excludes shared CGNAT and reserved IPv4 ranges.
-	if v := ip.To4(); v != nil {
-		return v[0] == 0 || v[0] == 127 || v[0] >= 224 || (v[0] == 100 && v[1] >= 64 && v[1] <= 127) || (v[0] == 192 && v[1] == 0 && v[2] == 0) || (v[0] == 198 && (v[1] == 18 || v[1] == 19))
-	}
-	return false
-}
-
-// RequiresYouTubeImportApproval also catches YouTube URLs submitted as generic links.
-func RequiresYouTubeImportApproval(sourceType, source string) bool {
-	if sourceType == "youtube" {
-		return true
-	}
-	parsed, err := url.Parse(source)
-	if err != nil {
-		return false
-	}
-	host := strings.TrimSuffix(strings.ToLower(parsed.Hostname()), ".")
-	for _, domain := range []string{"youtube.com", "youtu.be", "youtube-nocookie.com", "googlevideo.com"} {
-		if host == domain || strings.HasSuffix(host, "."+domain) {
-			return true
-		}
-	}
-	return false
 }

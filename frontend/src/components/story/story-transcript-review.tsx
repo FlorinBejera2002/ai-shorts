@@ -6,13 +6,15 @@ import './story-output.css'
 export function StoryTranscriptReview({
   assets,
   disabled,
-  onApprove
+  onApprove,
+  onRenew
 }: {
   assets: StoryAsset[]
   disabled: boolean
   onApprove: (
     reviews: StoryTranscriptApproval[]
   ) => Promise<boolean | undefined>
+  onRenew?: (assetID: string) => Promise<StoryAsset | undefined>
 }) {
   const text = useStoryLanguage()
   const reviewable = assets.filter(
@@ -50,6 +52,7 @@ export function StoryTranscriptReview({
           asset={asset}
           disabled={disabled}
           onApprove={onApprove}
+          onRenew={onRenew}
         />
       ))}
     </section>

@@ -112,7 +112,7 @@ func (s *runState) planNarration(ctx context.Context) (Plan, error) {
 		Slots        []narrationSlot      `json:"narration_slots"`
 		Visuals      []editorialCandidate `json:"visual_candidates"`
 		Music        *MusicAnalysis       `json:"music,omitempty"`
-	}{BuildEditingBrief(s.req), EditorialOptions(s.req.Options), slots, descriptions, musicPlanningContext(s.req)}
+	}{BuildEditingBrief(s.req), EditorialOptionsFor(s.req), slots, descriptions, musicPlanningContext(s.req)}
 	data, _ := json.Marshal(payload)
 	proposal := narrationProposal{Title: "Your narrated story", Summary: "Original recorded voice with source footage."}
 	valid := false

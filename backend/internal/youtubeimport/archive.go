@@ -6,9 +6,7 @@ import (
 	"compress/gzip"
 	"context"
 	"encoding/binary"
-	"encoding/csv"
 	"errors"
-	"fmt"
 	"io"
 	"net"
 	"net/http"
@@ -17,7 +15,6 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"time"
 )
@@ -41,6 +38,11 @@ type ImportedVideo struct {
 	Title        string
 	VideoID      string
 	Size         int64
+	// Ambiguous means several metadata rows share this file's title, so VideoID
+	// is empty and the video must not be matched to any single id.
+	Ambiguous bool
+	// selectedVideoID is set for a video that a selected import has matched to one chosen item.
+	selectedVideoID string
 }
 
 const maxMetadataBytes int64 = 2 << 20
@@ -259,6 +261,21 @@ func openBoundedZIP(archive downloadedArchive, maxEntries int) (*boundedZIP, err
 // even on cancellation, malformed archives or callback failure. Successfully
 // emitted videos are not rolled back when a later archive fails.
 func (c *Client) ImportArchives(ctx context.Context, urls []string, tempRoot string, limits ArchiveLimits, emit func(context.Context, ImportedVideo) error) error {
+	return c.ImportArchivesSelected(ctx, urls, tempRoot, limits, nil, emit)
+}
+
+// VideoSelector narrows an import to the videos the caller chose. Prepare runs
+// once the metadata of the whole export is known and before any video bytes are
+// copied. Wants then decides, per video, whether its bytes are copied.
+type VideoSelector interface {
+	Prepare(ctx context.Context, videos []ImportedVideo) error
+	Wants(video ImportedVideo) bool
+}
+
+// ImportArchivesSelected is ImportArchives limited to the videos selector accepts.
+// The selector sees each video's metadata before its bytes are read, so a
+// rejected video is never copied. A nil selector accepts every video.
+func (c *Client) ImportArchivesSelected(ctx context.Context, urls []string, tempRoot string, limits ArchiveLimits, selector VideoSelector, emit func(context.Context, ImportedVideo) error) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
@@ -292,11 +309,17 @@ func (c *Client) ImportArchives(ctx context.Context, urls []string, tempRoot str
 		downloaded += archive.size
 		archives = append(archives, archive)
 	}
-	ingest := archiveIngest{ctx: ctx, work: work, limits: limits, metadata: make(map[string]videoMetadata), byTitle: make(map[string][]videoMetadata), emit: emit}
+	ingest := archiveIngest{ctx: ctx, work: work, limits: limits, metadata: make(map[string]videoMetadata), byTitle: make(map[string][]videoMetadata), byFile: make(map[string]videoMetadata), selector: selector, emit: emit}
 	// Gather metadata before importing video, including when Google's export is
 	// split across multiple archive objects.
 	for _, archive := range archives {
 		if err := ingest.inspect(archive); err != nil {
+			return err
+		}
+	}
+	if selector != nil {
+		// Every title is known now, so ambiguous chosen items fail before any byte is copied.
+		if err := selector.Prepare(ctx, ingest.describeCandidates()); err != nil {
 			return err
 		}
 	}
@@ -380,16 +403,25 @@ type videoMetadata struct {
 	title string
 }
 
+// archiveCandidate is a video entry seen while inspecting, before its metadata is final.
+type archiveCandidate struct {
+	name string
+	size int64
+}
+
 type archiveIngest struct {
-	ctx      context.Context
-	work     string
-	limits   ArchiveLimits
-	entries  int
-	videos   int
-	total    int64
-	metadata map[string]videoMetadata
-	byTitle  map[string][]videoMetadata
-	emit     func(context.Context, ImportedVideo) error
+	ctx        context.Context
+	work       string
+	limits     ArchiveLimits
+	entries    int
+	videos     int
+	total      int64
+	metadata   map[string]videoMetadata
+	byTitle    map[string][]videoMetadata
+	byFile     map[string]videoMetadata
+	candidates []archiveCandidate
+	selector   VideoSelector
+	emit       func(context.Context, ImportedVideo) error
 }
 
 func safeArchiveName(name string) bool {
@@ -421,6 +453,7 @@ func (i *archiveIngest) accountEntry(name string, size int64, mode os.FileMode, 
 		if size > i.limits.MaxVideoBytes {
 			return errors.New("a YouTube video exceeds the maximum supported import size")
 		}
+		i.candidates = append(i.candidates, archiveCandidate{name: name, size: size})
 	}
 	return nil
 }
@@ -476,11 +509,15 @@ func (i *archiveIngest) importVideos(archive downloadedArchive) error {
 		if !entry.Mode().IsRegular() || !isVideo(entry.Name) {
 			continue
 		}
+		video := i.describe(entry.Name, int64(entry.UncompressedSize64))
+		if !i.wants(video) {
+			continue
+		}
 		data, err := entry.Open()
 		if err != nil {
 			return errors.New("cannot read a video in the Google export")
 		}
-		err = i.copyVideo(entry.Name, int64(entry.UncompressedSize64), data)
+		err = i.copyVideo(video, data)
 		_ = data.Close()
 		if err != nil {
 			return err
@@ -529,8 +566,11 @@ func (i *archiveIngest) walkTar(archive downloadedArchive, inspect bool) error {
 				i.readMetadata(io.LimitReader(reader, maxMetadataBytes+1))
 			}
 		} else if entry.Typeflag != tar.TypeDir && isVideo(entry.Name) {
-			if err := i.copyVideo(entry.Name, entry.Size, reader); err != nil {
-				return err
+			// Unwanted entries are skipped by tar.Reader.Next without copying their bytes.
+			if video := i.describe(entry.Name, entry.Size); i.wants(video) {
+				if err := i.copyVideo(video, reader); err != nil {
+					return err
+				}
 			}
 		}
 	}
@@ -541,94 +581,4 @@ func (i *archiveIngest) walkTar(archive downloadedArchive, inspect bool) error {
 		return errors.New("Google export exceeds the safe archive expansion limit")
 	}
 	return nil
-}
-
-var videoIDPattern = regexp.MustCompile(`(?:^|[\[ (\-])([A-Za-z0-9_-]{11})(?:[\])])?$`)
-
-func (i *archiveIngest) copyVideo(name string, expectedSize int64, input io.Reader) error {
-	if err := i.ctx.Err(); err != nil {
-		return err
-	}
-	file, err := os.CreateTemp(i.work, "video-*"+strings.ToLower(path.Ext(name)))
-	if err != nil {
-		return errors.New("cannot create imported video temporary file")
-	}
-	defer os.Remove(file.Name())
-	written, copyErr := io.Copy(file, io.LimitReader(contextReader{i.ctx, input}, i.limits.MaxVideoBytes+1))
-	closeErr := file.Close()
-	if i.ctx.Err() != nil {
-		return i.ctx.Err()
-	}
-	if copyErr != nil || closeErr != nil || written != expectedSize {
-		return errors.New("a video in the Google export is incomplete or corrupt")
-	}
-	if written > i.limits.MaxVideoBytes {
-		return errors.New("a YouTube video exceeds the maximum supported import size")
-	}
-	fileName := path.Base(name)
-	stem := strings.TrimSuffix(fileName, path.Ext(fileName))
-	metadata := videoMetadata{title: stem}
-	if match := videoIDPattern.FindStringSubmatch(stem); len(match) == 2 {
-		metadata.id = match[1]
-		if found, exists := i.metadata[metadata.id]; exists {
-			metadata = found
-		}
-	} else if found := i.byTitle[stem]; len(found) == 1 {
-		metadata = found[0]
-	}
-	if strings.TrimSpace(metadata.title) == "" {
-		metadata.title = "YouTube video"
-	}
-	video := ImportedVideo{Path: file.Name(), RelativePath: name, FileName: fileName, Title: metadata.title, VideoID: metadata.id, Size: written}
-	if err := i.emit(i.ctx, video); err != nil {
-		return fmt.Errorf("cannot save imported YouTube video: %w", err)
-	}
-	return nil
-}
-
-func normalizeCSVHeader(value string) string {
-	value = strings.TrimPrefix(value, "\ufeff")
-	return strings.ToLower(strings.Join(strings.Fields(strings.NewReplacer("_", " ", "-", " ").Replace(value)), " "))
-}
-
-func (i *archiveIngest) readMetadata(input io.Reader) {
-	reader := csv.NewReader(input)
-	reader.FieldsPerRecord = -1
-	header, err := reader.Read()
-	if err != nil {
-		return
-	}
-	idIndex, titleIndex := -1, -1
-	for index, column := range header {
-		switch normalizeCSVHeader(column) {
-		case "video id":
-			idIndex = index
-		case "video title (original)", "video title", "title":
-			titleIndex = index
-		}
-	}
-	if idIndex < 0 || titleIndex < 0 {
-		return
-	}
-	for count := 0; count < i.limits.MaxEntries; count++ {
-		row, err := reader.Read()
-		if err != nil {
-			return
-		}
-		if idIndex >= len(row) || titleIndex >= len(row) {
-			continue
-		}
-		id, title := strings.TrimSpace(row[idIndex]), strings.TrimSpace(row[titleIndex])
-		if len(id) != 11 || !videoIDPattern.MatchString(id) || title == "" || len(title) > 4096 {
-			continue
-		}
-		metadata := videoMetadata{id: id, title: title}
-		if _, exists := i.metadata[id]; !exists {
-			if len(i.metadata) >= i.limits.MaxEntries {
-				return
-			}
-			i.byTitle[title] = append(i.byTitle[title], metadata)
-		}
-		i.metadata[id] = metadata
-	}
 }

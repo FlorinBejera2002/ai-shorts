@@ -10,6 +10,7 @@ import { StudioSessionRoute } from './pages/studio-session-route'
 import BrandEditor from '@/components/dashboard/views/brand'
 import BrandKitsPage from '@/components/dashboard/brand/kits/brand-kits-page'
 import Billing from '@/components/dashboard/views/billing'
+import { FeedbackPage } from '@/components/feedback/feedback-page'
 import ForgotPasswordPage from '@/app/[locale]/forgot-password/page'
 import LoginPage from '@/app/[locale]/login/page'
 import RegisterPage from '@/app/[locale]/register/page'
@@ -84,6 +85,7 @@ function ApplicationRoutes({ locale }: { locale: AppLocale }) {
         <Route path="script-generator" element={<ScriptGeneratorPage />} />
         <Route path="studio" element={<StudioRoute />} />
         <Route path="settings" element={<SettingsRoute />} />
+        <Route path="feedback" element={<FeedbackPage />} />
         <Route
           path="review"
           element={<LegacyDashboardRedirect page="review" />}

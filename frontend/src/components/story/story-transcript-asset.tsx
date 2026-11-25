@@ -9,13 +9,16 @@ import { useTranscriptPlayer } from './use-transcript-player'
 export function StoryTranscriptAsset({
   asset,
   disabled,
-  onApprove
+  onApprove,
+  onRenew
 }: {
   asset: StoryAsset
   disabled: boolean
   onApprove: (
     reviews: StoryTranscriptApproval[]
   ) => Promise<boolean | undefined>
+  /** Fetches the project again and returns this asset with a renewed playback URL. */
+  onRenew?: (assetID: string) => Promise<StoryAsset | undefined>
 }) {
   const text = useStoryLanguage()
   const [drafts, setDrafts] = useState<Record<string, string[]>>({})
@@ -35,6 +38,11 @@ export function StoryTranscriptAsset({
     onError
   } = useTranscriptPlayer(source)
   const proposals = asset.transcript_proposals ?? []
+  async function retryPlayback() {
+    // Signed playback URLs expire; renew them from the project before reconnecting the player.
+    const renewed = await onRenew?.(asset.id)
+    retry(renewed ? (renewed.proxy_url || renewed.source_url || source) : source)
+  }
   async function approve() {
     if (disabled || !selected.length) return
     setError('')
@@ -89,7 +97,7 @@ export function StoryTranscriptAsset({
                   type="button"
                   size="sm"
                   variant="outline"
-                  onClick={retry}
+                  onClick={() => void retryPlayback()}
                 >
                   {text('Retry playback', 'Reîncearcă redarea')}
                 </Button>

@@ -11,7 +11,7 @@ import (
 func TestAgentCancelsManualJobOnceAndKeepsAccountsIsolated(t *testing.T) {
 	db := testdb.Open(t)
 	user, other := seedUser(t, db), seedUser(t, db)
-	h := New(db, nil, testMedia{}, Config{})
+	h := New(db, nil, testMedia{})
 	ctx := context.Background()
 	created, err := h.repo.Create(ctx, user, []Prepared{preparedJob()})
 	if err != nil {

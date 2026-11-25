@@ -23,6 +23,8 @@ import (
 	"sneepcut/backend-go/internal/config"
 	"sneepcut/backend-go/internal/dashboard"
 	"sneepcut/backend-go/internal/email"
+	"sneepcut/backend-go/internal/errorlog"
+	"sneepcut/backend-go/internal/feedback"
 	"sneepcut/backend-go/internal/httpapi"
 	"sneepcut/backend-go/internal/httpx"
 	"sneepcut/backend-go/internal/identity"
@@ -46,7 +48,7 @@ func configuredGenerator(db *sql.DB, application config.Application) *airouting.
 	return airouting.NewService(store, airouting.Options{Provider: application.AIProvider, GeminiKey: application.GeminiKey, OpenRouterKey: application.OpenRouterKey, AppURL: application.AppURL, StudioConfigured: len(application.StudioAgentSecret) >= 32}, nil)
 }
 
-func buildApplication(db *sql.DB, cfg config.Config, a config.Application, logger *slog.Logger) (http.Handler, func(), error) {
+func buildApplication(db *sql.DB, cfg config.Config, a config.Application, logger *slog.Logger, recorder *errorlog.Recorder) (http.Handler, func(), error) {
 	noop := func() {}
 	tokens, err := identity.NewTokens(identity.TokenConfig{Secret: cfg.Auth.JWTSecret, Issuer: cfg.Auth.JWTIssuer, Audience: cfg.Auth.JWTAudience, AccessLifetime: 15 * time.Minute, RefreshLifetime: 30 * 24 * time.Hour})
 	if err != nil {
@@ -121,7 +123,13 @@ func buildApplication(db *sql.DB, cfg config.Config, a config.Application, logge
 	stopPublishing := publishingHandler.Start(context.Background())
 	previousCleanup := cleanup
 	cleanup = func() { stopPublishing(); previousCleanup() }
-	importHandler, err := configuredYouTubeImport(db, auth, mediaService, a, cfg.Auth.SecureCookies)
+	// The channel handler comes first: selected imports look videos up through its service.
+	youtubeChannelHandler, err := configuredYouTubeChannel(db, auth, a, cfg.Auth.SecureCookies)
+	if err != nil {
+		cleanup()
+		return nil, noop, err
+	}
+	importHandler, err := configuredYouTubeImport(db, auth, mediaService, a, cfg.Auth.SecureCookies, youtubeChannelHandler.Service())
 	if err != nil {
 		cleanup()
 		return nil, noop, err
@@ -165,13 +173,16 @@ func buildApplication(db *sql.DB, cfg config.Config, a config.Application, logge
 		return nil, noop, err
 	}
 	agentExecutor.SetStudio(studioClient)
-	jobHandler := jobs.New(db, auth, mediaService, jobs.Config{YouTubeImportApproved: a.YouTubeImportApproved})
+	jobHandler := jobs.New(db, auth, mediaService)
 	agentExecutor.SetJobs(jobHandler)
 	agentHandler := workspaceagent.New(db, auth, generator, agentExecutor)
 	agentHandler.SetMedia(mediaService)
 	stopAgent := agentHandler.Start(context.Background(), logger)
 	cleanupBeforeAgent := cleanup
 	cleanup = func() { stopAgent(); cleanupBeforeAgent() }
+	clientErrors := func(router *httprouter.Router) {
+		router.HandlerFunc(http.MethodPost, "/api/errors", auth.Limit(recorder.ClientHandler, "client-errors", 30, time.Minute))
+	}
 	readiness := func(router *httprouter.Router) {
 		router.HandlerFunc("GET", "/api/ready", func(w http.ResponseWriter, r *http.Request) {
 			ctx, cancel := context.WithTimeout(r.Context(), 3*time.Second)
@@ -206,6 +217,6 @@ func buildApplication(db *sql.DB, cfg config.Config, a config.Application, logge
 			httpx.JSON(w, status, map[string]any{"ready": status == 200, "database": database, "schema": schema, "redis": redisReady})
 		})
 	}
-	handler := httpapi.New(logger, cfg.Environment, version, auth.Register, audiocleanup.Registration(auth), admin.New(db, auth).WithAIRouting(generator).WithBillingConfiguration(billingConfiguration).Register, media.NewHandler(mediaService, auth).Register, music.NewHandler(music.NewCatalog(), auth).Register, jobHandler.Register, storyHandler.Register, projects.New(db, auth, mediaService).Register, clipHandler.Register, brand.New(db, auth, mediaService).Register, calendarHandler.Register, billingService.Register, account.New(db, auth, mediaService, billingService, account.Config{MFA: accounts}).Register, dashboard.New(db, auth, clipHandler).Register, scripts.NewWithDB(db, auth, generator).Register, assistant.New(db, auth, generator).Register, agentHandler.Register, publishingHandler.Register, importHandler.Register, generator.StudioRegistration(a.StudioAgentSecret), readiness)
-	return httpapi.Policy(auth.Policy(handler), httpapi.PolicyConfig{AllowedHosts: a.AllowedHosts}), cleanup, nil
+	handler := httpapi.New(logger, cfg.Environment, version, auth.Register, audiocleanup.Registration(auth), admin.New(db, auth).WithAIRouting(generator).WithBillingConfiguration(billingConfiguration).Register, media.NewHandler(mediaService, auth).Register, music.NewHandler(music.NewCatalog(), auth).Register, jobHandler.Register, storyHandler.Register, projects.New(db, auth, mediaService).Register, clipHandler.Register, brand.New(db, auth, mediaService).Register, calendarHandler.Register, billingService.Register, account.New(db, auth, mediaService, billingService, account.Config{MFA: accounts}).Register, dashboard.New(db, auth, clipHandler).Register, scripts.NewWithDB(db, auth, generator).Register, assistant.New(db, auth, generator).Register, agentHandler.Register, publishingHandler.Register, importHandler.Register, youtubeChannelHandler.Register, feedback.New(db, auth).Register, generator.StudioRegistration(a.StudioAgentSecret), readiness, clientErrors)
+	return httpapi.Policy(auth.Policy(recorder.Middleware(handler)), httpapi.PolicyConfig{AllowedHosts: a.AllowedHosts}), cleanup, nil
 }

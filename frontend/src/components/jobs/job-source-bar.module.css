@@ -1,0 +1,71 @@
+/* Creare source switch and account pill above a job card (canvas: pill segments, 14px account pill). */
+
+.tokens {
+  composes: tokens from '../create/creare-theme.module.css';
+}
+
+.bar {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.switch {
+  display: inline-flex;
+  max-width: 100%;
+  align-self: flex-start;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 999px;
+  background: var(--publish-surface);
+  box-shadow: inset 0 0 0 1px var(--publish-border);
+}
+
+.segment {
+  display: flex;
+  height: 40px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 18px;
+  border-radius: 999px;
+  color: var(--publish-text);
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  text-decoration: none;
+}
+
+.segment:hover {
+  background: var(--publish-hover);
+}
+
+.segment[aria-current='page'] {
+  background: var(--creare-selected);
+  color: var(--creare-on-selected);
+}
+
+.segment svg {
+  width: 16px;
+  height: 16px;
+}
+
+.account {
+  margin-left: auto;
+}
+
+@media (max-width: 640px) {
+  .bar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .account {
+    width: 100%;
+    margin-left: 0;
+  }
+}

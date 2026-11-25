@@ -2,8 +2,8 @@ package jobs
 
 import (
 	"context"
+	"database/sql"
 	"errors"
-	"net"
 	"sneepcut/backend-go/internal/agentaction"
 	"sneepcut/backend-go/internal/testdb"
 	"sync"
@@ -14,9 +14,8 @@ func TestAgentJobCreationChargesOnceAndFencesCancellation(t *testing.T) {
 	db := testdb.Open(t)
 	user := seedUser(t, db)
 	ctx := context.Background()
-	h := New(db, nil, testMedia{}, Config{LookupIP: func(context.Context, string, string) ([]net.IP, error) { return []net.IP{net.ParseIP("8.8.8.8")}, nil }})
-	url := "https://example.invalid/video.mp4"
-	in := AgentInput{Options: DefaultOptions(), SourceType: "url", SourceURL: &url}
+	h := New(db, nil, acceptingMedia{})
+	in := AgentInput{Options: DefaultOptions(), SourceType: "upload", AssetID: seedUploadAsset(t, db, user)}
 	in.NumClips = 2
 	request := newID()
 	var wg sync.WaitGroup
@@ -75,4 +74,27 @@ func TestAgentJobCreationChargesOnceAndFencesCancellation(t *testing.T) {
 	if _, err := h.AgentGet(ctx, user, id); err == nil {
 		t.Fatal("missing output counted as completed")
 	}
+}
+
+// acceptingMedia treats every reference as an owned upload stored under that key.
+type acceptingMedia struct{}
+
+func (acceptingMedia) ValidateUploadSource(_ context.Context, _, reference string) (string, error) {
+	return reference, nil
+}
+func (acceptingMedia) WorkerSource(_ context.Context, key string) (string, error) {
+	return key, nil
+}
+
+// seedUploadAsset stores an owned story video asset and returns its ID.
+func seedUploadAsset(t *testing.T, db *sql.DB, user string) string {
+	t.Helper()
+	project, asset := newID(), newID()
+	if _, err := db.Exec(`INSERT INTO story_projects(id,user_id,options) VALUES($1,$2,'{}')`, project, user); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(`INSERT INTO story_assets(project_id,id,hash,asset) VALUES($1,$2,'fixture',$3)`, project, asset, `{"id":"`+asset+`","name":"agent.mp4","key":"uploads/`+user+`/agent.mp4"}`); err != nil {
+		t.Fatal(err)
+	}
+	return asset
 }

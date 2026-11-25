@@ -1,470 +1,170 @@
-import { useRef, useState } from 'react'
-import { Check, FileVideo, RefreshCw, Upload, X } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { formatBytes, formatDuration } from '@/lib/youtube'
+import { useMemo, useRef, useState } from 'react'
+import { useToast } from '@/components/ui/toast'
 import type { StoryAsset, StoryProject } from './types'
 import type { PendingUpload } from './use-story-uploads'
 import { useStoryLanguage } from './use-story-language'
-import { StoryHelp } from './story-help'
+import { isAcceptedStoryFile } from './story-file-validation'
+import {
+  type RejectedSource,
+  type SourceRow,
+  buildSourceRows,
+  sourceTotals
+} from './story-source-model'
+import { SourceDropzone } from './story-sources-dropzone'
+import { SourceFilesCard } from './story-sources-files'
+import { SourceLimits } from './story-sources-limits'
+import styles from './story-sources.module.css'
 
 interface Props {
   assets: StoryAsset[]
   uploads: PendingUpload[]
   limits: StoryProject['limits']
   disabled: boolean
-  narration?: boolean
   onAdd: (files: File[]) => void
   onRemove: (id: string) => void
   onRetry: (id?: string) => void
   onDuration: (id: string, seconds: number) => void
   onChange: (id: string, changes: Partial<StoryAsset>) => void
+  /** Refused files live with the parent so they survive creating the project from this step. */
+  refused: RejectedSource[]
+  onRefusedChange: (update: (current: RejectedSource[]) => RejectedSource[]) => void
 }
 
+
+/**
+ * Footage step: the empty dropzone, or the reorderable footage card with the
+ * limits aside on desktop. Files that fail the per-file rules stay in the list
+ * as refused rows and raise a toast; accepted files go to the upload queue.
+ */
 export function StorySources({
   assets,
   uploads,
   limits,
   disabled,
-  narration = false,
   onAdd,
   onRemove,
   onRetry,
   onDuration,
-  onChange
+  onChange,
+  refused,
+  onRefusedChange
 }: Props) {
   const text = useStoryLanguage()
+  const addToast = useToast((state) => state.add)
   const input = useRef<HTMLInputElement>(null)
+  const replacing = useRef<string | undefined>(undefined)
   const [dragging, setDragging] = useState(false)
-  const [page, setPage] = useState(0)
-  const ids = new Set(assets.map((asset) => asset.id))
-  const pending = uploads.filter(
-    (upload) => !ids.has(upload.id) && upload.status !== 'complete'
+
+  const rows = useMemo(
+    () => buildSourceRows(assets, uploads, refused),
+    [assets, uploads, refused]
   )
-  const duplicates = uploads.filter(
-    (upload) => !ids.has(upload.id) && upload.status === 'complete'
-  ).length
-  const total =
-    assets.reduce((sum, asset) => sum + asset.size, 0) +
-    pending.reduce((sum, upload) => sum + upload.file.size, 0)
-  const transferred =
-    assets.reduce((sum, asset) => sum + asset.size, 0) +
-    pending.reduce((sum, upload) => sum + upload.bytes, 0)
-  const hasFailed = pending.some((upload) => upload.status === 'failed')
-  const uploading = pending.some((upload) =>
-    ['queued', 'uploading', 'validating'].includes(upload.status)
+  const assetCount = assets.length
+  const totals = sourceTotals(rows)
+  const hasFailed = rows.some(
+    (row) => row.kind === 'upload' && row.upload.status === 'failed'
   )
-  const pageSize = 24
-  const totalItems = assets.length + pending.length
-  const pages = Math.max(1, Math.ceil(totalItems / pageSize))
-  const visiblePage = Math.min(page, pages - 1)
-  const first = visiblePage * pageSize
-  const visibleAssets = assets.slice(first, first + pageSize)
-  const pendingStart = Math.max(0, first - assets.length)
-  const visiblePending = pending.slice(
-    pendingStart,
-    Math.max(0, first + pageSize - assets.length)
-  )
+
+  function acceptFiles(files: File[]) {
+    if (!files.length) return
+    const accepted = files.filter((file) => isAcceptedStoryFile(file, limits))
+    const replaced = replacing.current
+    replacing.current = undefined
+    const additions = files
+      .filter((file) => !isAcceptedStoryFile(file, limits))
+      .map((file) => ({ id: crypto.randomUUID(), file }))
+    onRefusedChange((current) => [
+      ...current.filter((item) => item.id !== replaced),
+      ...additions
+    ])
+    for (const { file } of additions)
+      addToast(
+        'error',
+        `${file.name} ${text('does not meet the format limits', 'nu respectă limitele de format')}`
+      )
+    if (accepted.length) onAdd(accepted)
+  }
+
+  function chooseFiles() {
+    replacing.current = undefined
+    input.current?.click()
+  }
+
+  function replaceRefused(id: string) {
+    replacing.current = id
+    input.current?.click()
+  }
+
+  function removeRow(row: SourceRow) {
+    if (row.kind === 'rejected')
+      onRefusedChange((current) => current.filter((item) => item.id !== row.id))
+    else onRemove(row.id)
+  }
+
+  /** Moves a saved asset to a new place. The board indexes match the sorted asset order. */
+  function moveAsset(from: number, to: number) {
+    const row = rows[from]
+    // Saved footage always sorts first, so a move while uploads are pending stays inside that range.
+    if (row?.kind === 'asset')
+      onChange(row.id, { order: Math.min(to, assetCount - 1) })
+  }
+
   return (
     <section
-      className="story-sources space-y-4"
+      className={`story-sources ${styles.sources}`}
       role="group"
       aria-label={text('Your recordings', 'Filmările tale')}
+      onDragOver={(event) => {
+        if (disabled) return
+        event.preventDefault()
+        setDragging(true)
+      }}
+      onDragLeave={() => setDragging(false)}
+      onDrop={(event) => {
+        if (disabled) return
+        event.preventDefault()
+        setDragging(false)
+        replacing.current = undefined
+        acceptFiles(Array.from(event.dataTransfer.files))
+      }}
     >
-      <div className="flex items-center justify-between gap-3">
-        <span className="text-xs tabular-nums text-muted-foreground">
-          {assets.length + pending.length} {text('clips', 'filmări')}
-        </span>
-        <StoryHelp label={text('Your recordings', 'Filmările tale')}>
-          {narration
-            ? text(
-                'Choose the footage for your narration. Original video sound will be muted.',
-                'Alege imaginile pentru narațiune. Sunetul original al filmărilor va fi oprit.'
-              )
-            : text(
-                'Upload one or more clips. We turn them into short clips.',
-                'Încarcă una sau mai multe filmări. Le transformăm în clipuri.'
-              )}{' '}
-          {formatBytes(limits.max_file_bytes)} / {text('file', 'fișier')} ·{' '}
-          {formatDuration(limits.max_source_seconds)} / clip ·{' '}
-          {formatBytes(limits.max_total_bytes)} /{' '}
-          {formatDuration(limits.max_total_seconds)} {text('total', 'total')}.{' '}
-          {text(
-            'Original files stay in your project.',
-            'Fișierele originale rămân în proiect.'
-          )}
-        </StoryHelp>
+      <div className={styles.main}>
+        {rows.length === 0 && !disabled && (
+          <SourceDropzone limits={limits} active={dragging} onChoose={chooseFiles} />
+        )}
+        {rows.length > 0 && (
+          <SourceFilesCard
+            rows={rows}
+            assetCount={assetCount}
+            transferred={totals.transferred}
+            total={totals.total}
+            locked={disabled}
+            reorderable={!disabled}
+            hasFailed={hasFailed}
+            onAdd={chooseFiles}
+            onMove={moveAsset}
+            onRemove={removeRow}
+            onRetry={onRetry}
+            onReplace={replaceRefused}
+            onMetadata={onDuration}
+          />
+        )}
       </div>
+      <SourceLimits limits={limits} />
       {!disabled && (
-        <>
-          <button
-            type="button"
-            onClick={() => input.current?.click()}
-            onDragOver={(event) => {
-              event.preventDefault()
-              setDragging(true)
-            }}
-            onDragLeave={() => setDragging(false)}
-            onDrop={(event) => {
-              event.preventDefault()
-              setDragging(false)
-              onAdd(Array.from(event.dataTransfer.files))
-            }}
-            className={`story-upload-area flex w-full flex-col items-center justify-center gap-2 rounded-md border border-dashed p-5 text-center transition-colors hover:bg-muted disabled:opacity-50 ${assets.length ? 'min-h-24' : 'min-h-36'} ${dragging ? 'border-foreground bg-muted' : 'border-border'}`}
-          >
-            <Upload className="size-6" />
-            <span className="text-sm font-medium">
-              {text(
-                'Drop clips or choose from your gallery',
-                'Trage clipuri aici sau alege din galerie'
-              )}
-            </span>
-            <span className="text-xs text-muted-foreground">
-              {text('MP4, MOV, WebM, MKV', 'MP4, MOV, WebM, MKV')}
-            </span>
-            <span className="inline-flex min-h-[44px] items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground">
-              {text('Choose files', 'Alege fișiere')}
-            </span>
-          </button>
-          <input
-            ref={input}
-            type="file"
-            multiple
-            accept="video/mp4,video/quicktime,video/webm,video/x-matroska,.mp4,.mov,.webm,.mkv"
-            className="hidden"
-            aria-label={text(
-              'Upload clips',
-              'Încarcă filmări'
-            )}
-            onChange={(event) => {
-              onAdd(Array.from(event.target.files ?? []))
-              event.target.value = ''
-            }}
-          />
-        </>
-      )}
-      {uploading && (
-        <div
-          aria-live="polite"
-          className="space-y-1.5 text-xs text-muted-foreground"
-        >
-          <div className="flex justify-between gap-2">
-            <span>
-              {text('Transferred', 'Transferat')}: {formatBytes(transferred)} /{' '}
-              {formatBytes(total)}
-            </span>
-            <span>
-              {text('Validated', 'Validate')}: {assets.length}
-            </span>
-          </div>
-          <progress
-            className="h-1.5 w-full accent-foreground"
-            max={Math.max(total, 1)}
-            value={transferred}
-            aria-label={text('Bytes transferred', 'Octeți transferați')}
-          />
-          <p>{text('Checking your clips…', 'Verificăm filmările…')}</p>
-        </div>
-      )}
-      <ul className="story-source-grid">
-        {visibleAssets.map((asset, visibleIndex) => (
-          <li
-            key={asset.id}
-            data-testid="validated-source"
-            className="story-source-row rounded-md border p-3"
-          >
-            <div className="flex items-center gap-3">
-              <SourceThumbnail
-                asset={asset}
-                localPreview={
-                  uploads.find((upload) => upload.id === asset.id)?.preview
-                }
-              />
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium" title={asset.name}>
-                  {asset.name}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {formatDuration(asset.duration)} · {formatBytes(asset.size)}
-                </p>
-              </div>
-              <Check
-                className="size-4 shrink-0"
-                aria-label={text('Validated', 'Validat')}
-              />
-              {!disabled && (
-                <Button
-                  type="button"
-                  size="icon-sm"
-                  variant="ghost"
-                  aria-label={`${text('Remove', 'Elimină')} ${asset.name}`}
-                  onClick={() => onRemove(asset.id)}
-                >
-                  <X />
-                </Button>
-              )}
-            </div>
-            <details className="story-source-preferences mt-3">
-              <summary className="cursor-pointer text-xs text-muted-foreground hover:text-foreground">
-                {text('Clip preferences', 'Preferințe pentru clip')}
-              </summary>
-              <div className="mt-3 grid gap-2 sm:grid-cols-3">
-                <label className="min-w-0 text-xs">
-                  <span className="mb-1 block text-muted-foreground">
-                    {text('Role', 'Rol')}
-                  </span>
-                  <select
-                    aria-label={`${text('Role', 'Rol')} ${asset.name}`}
-                    className="story-select"
-                    disabled={disabled}
-                    value={asset.role || 'auto'}
-                    onChange={(event) =>
-                      onChange(asset.id, { role: event.target.value })
-                    }
-                  >
-                    {[
-                      ['auto', text('Automatic', 'Automat')],
-                      ['a_roll', text('Main footage', 'Filmarea principală')],
-                      [
-                        'b_roll',
-                        text('Illustrative footage', 'Imagini de completare')
-                      ],
-                      [
-                        'alternate_take',
-                        text('Alternate take', 'Dublă alternativă')
-                      ],
-                      ['reaction', text('Reaction', 'Reacție')],
-                      [
-                        'transition',
-                        text('Transition shot', 'Cadru de tranziție')
-                      ],
-                      [
-                        'supporting_visual',
-                        text('Supporting visual', 'Imagine de susținere')
-                      ],
-                      ['low_quality', text('Low quality', 'Calitate redusă')]
-                    ].map(([value, label]) => (
-                      <option key={value} value={value}>
-                        {label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="min-w-0 text-xs">
-                  <span className="mb-1 block text-muted-foreground">
-                    {text('Selection', 'Selecție')}
-                  </span>
-                  <select
-                    aria-label={`${text('Selection', 'Selecție')} ${asset.name}`}
-                    className="story-select"
-                    disabled={disabled}
-                    value={asset.include || 'auto'}
-                    onChange={(event) =>
-                      onChange(asset.id, { include: event.target.value })
-                    }
-                  >
-                    <option value="auto">
-                      {text('Let AI choose', 'Alege AI')}
-                    </option>
-                    <option value="required">
-                      {text('Must include', 'Include obligatoriu')}
-                    </option>
-                    <option value="excluded">
-                      {text('Exclude', 'Exclude')}
-                    </option>
-                  </select>
-                </label>
-                <label className="min-w-0 text-xs">
-                  <span className="mb-1 block text-muted-foreground">
-                    {text('Source order', 'Ordinea surselor')}
-                  </span>
-                  <select
-                    aria-label={`${text('Order', 'Ordine')} ${asset.name}`}
-                    className="story-select"
-                    disabled={disabled || uploading}
-                    value={first + visibleIndex}
-                    onChange={(event) =>
-                      onChange(asset.id, { order: Number(event.target.value) })
-                    }
-                  >
-                    {assets.map((_, index) => (
-                      <option key={index} value={index}>
-                        {index + 1}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              </div>
-            </details>
-            {Boolean(asset.warnings?.length) && (
-              <details className="mt-3 text-xs text-muted-foreground">
-                <summary className="cursor-pointer hover:text-foreground">
-                  {text('Analysis details', 'Detalii analiză')}
-                </summary>
-                {asset.warnings?.map((warning, index) => (
-                  <p
-                    key={`${index}-${warning}`}
-                    className="mt-2 text-xs text-muted-foreground"
-                  >
-                    {warning}
-                  </p>
-                ))}
-              </details>
-            )}
-          </li>
-        ))}
-        {visiblePending.map((upload) => (
-          <li
-            key={upload.id}
-            className="story-source-row rounded-md border p-3"
-            data-testid="pending-source"
-          >
-            <div className="flex items-center gap-3">
-              <video
-                src={upload.preview}
-                preload="none"
-                muted
-                playsInline
-                aria-hidden="true"
-                className="h-14 w-20 shrink-0 rounded-md bg-muted object-cover"
-                onLoadedMetadata={(event) => {
-                  if (Number.isFinite(event.currentTarget.duration))
-                    onDuration(upload.id, event.currentTarget.duration)
-                }}
-              />
-              <div className="min-w-0 flex-1">
-                <p
-                  className="truncate text-sm font-medium"
-                  title={upload.file.name}
-                >
-                  {upload.file.name}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {formatBytes(upload.file.size)}
-                  {upload.duration !== undefined &&
-                    ` · ${formatDuration(upload.duration)}`}
-                </p>
-                <p className="mt-1 text-xs" role="status">
-                  {upload.retryAt
-                    ? `${text('Uploads temporarily paused. Will retry at', 'Încărcări în pauză temporară. Reîncearcă la')} ${new Date(upload.retryAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
-                    : upload.status === 'validating'
-                      ? text('Validating on server…', 'Validare pe server…')
-                      : upload.status === 'failed'
-                        ? text('Upload failed', 'Încărcare eșuată')
-                        : upload.status === 'queued'
-                          ? text('Waiting to upload', 'Așteaptă încărcarea')
-                          : `${text('Uploading', 'Se încarcă')} ${Math.round((upload.bytes / upload.file.size) * 100)}%`}
-                </p>
-              </div>
-              {upload.status === 'failed' && (
-                <Button
-                  type="button"
-                  size="icon-sm"
-                  variant="ghost"
-                  onClick={() => onRetry(upload.id)}
-                  aria-label={`${text('Retry', 'Reîncearcă')} ${upload.file.name}`}
-                >
-                  <RefreshCw />
-                </Button>
-              )}
-              {upload.status !== 'complete' && (
-                <Button
-                  type="button"
-                  size="icon-sm"
-                  variant="ghost"
-                  onClick={() => onRemove(upload.id)}
-                  aria-label={`${text('Cancel upload', 'Anulează încărcarea')} ${upload.file.name}`}
-                >
-                  <X />
-                </Button>
-              )}
-            </div>
-            {upload.error && (
-              <p
-                role="alert"
-                className="mt-2 break-words text-xs text-destructive"
-              >
-                {upload.error}
-              </p>
-            )}
-          </li>
-        ))}
-      </ul>
-      {pages > 1 && (
-        <nav
-          aria-label={text('Clip pages', 'Pagini de filmări')}
-          className="flex items-center justify-between gap-3"
-        >
-          <Button
-            type="button"
-            variant="outline"
-            disabled={visiblePage === 0}
-            onClick={() => setPage(visiblePage - 1)}
-          >
-            {text('Previous', 'Înapoi')}
-          </Button>
-          <span className="text-xs text-muted-foreground">
-            {first + 1}–{Math.min(first + pageSize, totalItems)} / {totalItems}
-          </span>
-          <Button
-            type="button"
-            variant="outline"
-            disabled={visiblePage === pages - 1}
-            onClick={() => setPage(visiblePage + 1)}
-          >
-            {text('Next', 'Înainte')}
-          </Button>
-        </nav>
-      )}
-      {hasFailed && (
-        <Button type="button" variant="outline" onClick={() => onRetry()}>
-          <RefreshCw />
-          {text('Retry failed uploads', 'Reîncearcă încărcările eșuate')}
-        </Button>
-      )}
-      {duplicates > 0 && (
-        <p role="status" className="text-xs text-muted-foreground">
-          {text(
-            'Identical source files were already in this project and were kept once.',
-            'Fișierele sursă identice existau deja în proiect și au fost păstrate o singură dată.'
-          )}
-        </p>
+        <input
+          ref={input}
+          type="file"
+          multiple
+          accept="video/mp4,video/quicktime,video/webm,video/x-matroska,.mp4,.mov,.webm,.mkv"
+          className="hidden"
+          aria-label={text('Upload clips', 'Încarcă filmări')}
+          onChange={(event) => {
+            acceptFiles(Array.from(event.target.files ?? []))
+            event.target.value = ''
+          }}
+        />
       )}
     </section>
-  )
-}
-
-function SourceThumbnail({
-  asset,
-  localPreview
-}: {
-  asset: StoryAsset
-  localPreview?: string
-}) {
-  const source = asset.proxy_url || localPreview || asset.source_url
-  const [failed, setFailed] = useState<string>()
-  if (asset.thumbnail_url)
-    return (
-      <img
-        src={asset.thumbnail_url}
-        alt=""
-        className="h-14 w-20 shrink-0 rounded-md object-cover"
-      />
-    )
-  if (source && failed !== source)
-    return (
-      <video
-        src={source}
-        preload="none"
-        muted
-        playsInline
-        aria-hidden="true"
-        className="h-14 w-20 shrink-0 rounded-md bg-muted object-cover"
-        onError={() => setFailed(source)}
-      />
-    )
-  return (
-    <div className="flex h-14 w-20 shrink-0 items-center justify-center rounded-md bg-muted">
-      <FileVideo className="size-6 text-muted-foreground" />
-    </div>
   )
 }

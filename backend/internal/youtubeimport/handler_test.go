@@ -108,7 +108,7 @@ func TestCallbackPersistsOnlyGrantedVideoCategories(t *testing.T) {
 	mock.ExpectQuery("SELECT user_id FROM youtube_import_oauth_states").WillReturnRows(sqlmock.NewRows([]string{"user"}).AddRow("user-one"))
 	expectActiveUser(mock)
 	mock.ExpectQuery("DELETE FROM youtube_import_oauth_states").WillReturnRows(sqlmock.NewRows([]string{"id", "user", "verifier", "locale", "version"}).AddRow("import-one", "user-one", testVerifier, "ro", 3))
-	mock.ExpectQuery("UPDATE youtube_imports SET authorization_in_progress=true").WillReturnRows(sqlmock.NewRows([]string{"resources"}).AddRow(pq.Array([]string{PublicVideos, PrivateVideos})))
+	mock.ExpectQuery("UPDATE youtube_imports SET authorization_in_progress=true").WillReturnRows(sqlmock.NewRows([]string{"resources"}).AddRow(pq.Array([]string{PublicVideos, UnlistedVideos})))
 	mock.ExpectCommit()
 	mock.ExpectQuery("SELECT u.session_version").WillReturnRows(sqlmock.NewRows([]string{"active"}).AddRow(true))
 	mock.ExpectBegin()
@@ -158,7 +158,7 @@ func TestRecordVideoFencesCancelledLease(t *testing.T) {
 	expectActiveUser(mock)
 	mock.ExpectQuery(regexp.QuoteMeta("SELECT lease_token=$2 AND lease_until>now() AND status='importing'")).WillReturnRows(sqlmock.NewRows([]string{"active"}).AddRow(false))
 	mock.ExpectRollback()
-	err := h.recordVideo(context.Background(), importWork{ID: "import", UserID: "owner", Lease: "old-lease"}, ImportedVideo{RelativePath: "video.mp4", FileName: "video.mp4", Size: 20}, "uploads/owner/video.mp4")
+	err := h.recordVideo(context.Background(), importWork{ID: "import", UserID: "owner", Lease: "old-lease"}, ImportedVideo{RelativePath: "video.mp4", FileName: "video.mp4", Size: 20}, "uploads/owner/video.mp4", "", 0)
 	if !errors.Is(err, errLeaseLost) {
 		t.Fatal("cancelled lease saved a new video")
 	}

@@ -17,8 +17,6 @@ type Config struct {
 	AudioCleanupTimeout                                                    time.Duration
 	FFmpegPath, FFprobePath, WhisperPath, WhisperModel, FaceModel, TempDir string
 	StoryWhisperModel, WhisperVADModel, WhisperVADPath                     string
-	YtDlpPath, YouTubeCookiesFile, YouTubeProxy                            string
-	YouTubeTokenProviderURL, YouTubeCookiesStateFile                       string
 	Timeout                                                                time.Duration
 }
 
@@ -29,11 +27,6 @@ func ConfigFromEnv(get func(string) string) (Config, error) {
 	}
 	if c.FFprobePath == "" {
 		c.FFprobePath = "ffprobe"
-	}
-	c.YtDlpPath, c.YouTubeCookiesFile, c.YouTubeProxy = get("YTDLP_PATH"), get("YOUTUBE_COOKIES_FILE"), get("YOUTUBE_PROXY")
-	c.YouTubeTokenProviderURL, c.YouTubeCookiesStateFile = get("YOUTUBE_TOKEN_PROVIDER_URL"), get("YOUTUBE_COOKIES_STATE_FILE")
-	if c.YtDlpPath == "" {
-		c.YtDlpPath = "yt-dlp"
 	}
 	if c.WhisperPath == "" {
 		c.WhisperPath = "whisper-cli"
@@ -84,12 +77,12 @@ type Transcript struct {
 	Words    []Word              `json:"words"`
 }
 type Input struct {
-	UserID                                                                              string
-	AudioCleanup                                                                        *audiocleanup.Settings
-	SourceKey, SourceURL, Namespace, Language, Instructions, AspectRatio, SubtitleStyle string
-	RequestedClips                                                                      int
-	SmartCrop, BurnSubtitles                                                            bool
-	Brand                                                                               map[string]any
+	UserID                                                                   string
+	AudioCleanup                                                             *audiocleanup.Settings
+	SourceKey, Namespace, Language, Instructions, AspectRatio, SubtitleStyle string
+	RequestedClips                                                           int
+	SmartCrop, BurnSubtitles                                                 bool
+	Brand                                                                    map[string]any
 }
 type RenderInput struct {
 	UserID                                                                 string                   `json:"user_id,omitempty"`

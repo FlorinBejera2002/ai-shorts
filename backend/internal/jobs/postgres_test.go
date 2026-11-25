@@ -20,8 +20,8 @@ func seedUser(t *testing.T, db *sql.DB) string {
 	return id
 }
 func preparedJob() Prepared {
-	source := "https://youtube.com/watch?v=fixture"
-	return Prepared{Input: CreateInput{Options: DefaultOptions(), SourceType: "youtube", SourceURL: &source}, WorkerSource: source}
+	source := "uploads/user/fixture.mp4"
+	return Prepared{Input: CreateInput{Options: DefaultOptions(), SourceType: "upload", SourceStorageKey: &source}, WorkerSource: source}
 }
 func TestPostgresConcurrentCreditCreationCancellationAndPayload(t *testing.T) {
 	db := testdb.Open(t)

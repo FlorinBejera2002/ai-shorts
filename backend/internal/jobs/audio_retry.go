@@ -12,6 +12,9 @@ import (
 
 var errRetryConflict = errors.New("The job is already processing or cannot be retried")
 
+// errLinkJobRetired marks link-import jobs, which have no stored source to retry.
+var errLinkJobRetired = errors.New("This link import can no longer be retried; upload the video instead.")
+
 type audioRetryInput struct {
 	RequestID    string                 `json:"request_id"`
 	AudioCleanup *audiocleanup.Settings `json:"audio_cleanup,omitempty"`
@@ -31,7 +34,7 @@ func (h *Handler) retryAudio(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	err := h.repo.retryAudio(r.Context(), identity.Current(r).User.ID, id, in)
-	if errors.Is(err, errRetryConflict) {
+	if errors.Is(err, errRetryConflict) || errors.Is(err, errLinkJobRetired) {
 		reply(w, 409, map[string]any{"detail": err.Error()})
 		return
 	}
@@ -52,7 +55,8 @@ func (r *Repository) retryAudio(ctx context.Context, user, id string, in audioRe
 	var status, sourceType string
 	var active bool
 	var clips int
-	err = tx.QueryRowContext(ctx, `SELECT status,processing_active,num_clips_requested,source_type FROM jobs WHERE id=$1 AND user_id=$2 FOR UPDATE`, id, user).Scan(&status, &active, &clips, &sourceType)
+	var sourceKey string
+	err = tx.QueryRowContext(ctx, `SELECT status,processing_active,num_clips_requested,source_type,coalesce(source_storage_key,'') FROM jobs WHERE id=$1 AND user_id=$2 FOR UPDATE`, id, user).Scan(&status, &active, &clips, &sourceType, &sourceKey)
 	if err != nil {
 		return err
 	}
@@ -88,6 +92,9 @@ func (r *Repository) retryAudio(ctx context.Context, user, id string, in audioRe
 	}
 	if active || (status != "failed" && status != "cancelled") || sourceType == "story" {
 		return errRetryConflict
+	}
+	if (sourceType == "url" || sourceType == "youtube") && sourceKey == "" {
+		return errLinkJobRetired
 	}
 	if in.AudioCleanup != nil {
 		payload["audio_cleanup"], _ = json.Marshal(in.AudioCleanup)

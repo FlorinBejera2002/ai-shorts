@@ -1,0 +1,1153 @@
+/*
+ * YouTube path of Create (Claude reference canvas, 2026-10-30 Create clip exception).
+ * Colours and surfaces come from the scoped theme tokens (--publish-*) provided by
+ * publishing-theme.module.css on the workspace root; nothing here forks the palette.
+ * Radii: cards 24px, dialogs 28px, pills 999px, inputs and tiles 14px (documented exception).
+ */
+
+.yt-path,
+.yt-connect-gate,
+.yt-account-pill,
+.yt-status,
+.yt-notice {
+  --yt-card-radius: 24px;
+  --yt-field-radius: 14px;
+  --yt-pill: 999px;
+  --yt-ring: inset 0 0 0 1px var(--publish-border-strong);
+  --yt-ring-strong: inset 0 0 0 2px var(--publish-text);
+  --yt-ring-danger: inset 0 0 0 2px var(--publish-danger);
+  color: var(--publish-text);
+  font-family: var(--font-body);
+}
+
+/* Layout ----------------------------------------------------------------- */
+
+.yt-path {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 400px;
+  gap: 20px;
+  align-items: start;
+}
+
+.yt-path--gate {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.yt-path__main {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+
+.yt-inspector {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 28px;
+  padding: 24px 24px 22px;
+  border-radius: var(--yt-card-radius);
+  background: var(--publish-surface);
+  box-shadow: var(--publish-card-shadow);
+  align-self: start;
+  position: sticky;
+  top: 16px;
+}
+
+.yt-inspector-sections {
+  display: grid;
+  gap: 28px;
+}
+
+.yt-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+  padding: 24px;
+  border-radius: var(--yt-card-radius);
+  background: var(--publish-surface);
+  box-shadow: var(--publish-card-shadow);
+  min-width: 0;
+}
+
+/* Grid children may shrink, so long labels and the 320px phone do not push the card wider than its column. */
+.yt-card > * {
+  min-width: 0;
+}
+
+.yt-library {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.yt-library > * {
+  min-width: 0;
+}
+
+.yt-inspector > *,
+.yt-inspector-sections > * {
+  min-width: 0;
+}
+
+.yt-card__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+}
+
+.yt-card__header h2 {
+  margin: 0;
+  font-family: var(--font-studio, var(--font-body));
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+/* Count on the header's right edge (canvas "2 din 10"); a single line that never wraps. */
+.yt-card__aside {
+  margin-inline-start: auto;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--publish-muted-text);
+  white-space: nowrap;
+}
+
+.yt-inspector-section {
+  display: grid;
+  gap: 18px;
+}
+
+.yt-inspector-section h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 20px;
+}
+
+.yt-inspector-section__heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+/* Controls --------------------------------------------------------------- */
+
+.yt-segment {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  border-radius: var(--yt-pill);
+  background: var(--publish-surface);
+  box-shadow: var(--yt-ring);
+}
+
+.yt-segment--fill {
+  display: flex;
+  width: 100%;
+}
+
+.yt-segment button,
+.yt-segment [role='radio'] {
+  display: inline-flex;
+  flex: 1 1 0;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: var(--yt-pill);
+  background: transparent;
+  color: var(--publish-secondary-text);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.yt-segment button:hover:not(:disabled):not([aria-checked='true']) {
+  background: var(--publish-subtle-bg);
+}
+
+.yt-segment button[aria-checked='true'] {
+  background: var(--create-selected, var(--publish-selected));
+  color: var(--create-on-selected, var(--publish-on-selected));
+}
+
+.yt-segment button svg {
+  flex-shrink: 0;
+}
+
+.yt-segment button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.yt-segment button:focus-visible,
+.yt-ratio-tile:focus-visible,
+.yt-library-row:focus-visible {
+  outline: 2px solid var(--publish-primary);
+  outline-offset: 2px;
+}
+
+button.yt-primary-button,
+a.yt-primary-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 52px;
+  padding: 0 24px;
+  border: 0;
+  border-radius: var(--yt-pill);
+  background: var(--publish-primary);
+  color: var(--publish-on-primary);
+  font-size: 15px;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+button.yt-primary-button:hover:not(:disabled) {
+  background: var(--publish-primary-hover);
+}
+
+button.yt-primary-button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+button.yt-secondary-button,
+a.yt-secondary-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: var(--yt-pill);
+  background: var(--publish-surface);
+  color: var(--publish-text);
+  box-shadow: var(--yt-ring);
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+button.yt-secondary-button:hover:not(:disabled) {
+  background: var(--publish-subtle-bg);
+}
+
+button.yt-ghost-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: var(--yt-pill);
+  background: transparent;
+  color: var(--publish-text);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+button.yt-ghost-button:hover {
+  background: var(--publish-subtle-bg);
+}
+
+.yt-text-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--publish-text);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.yt-help {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--publish-muted-text);
+}
+
+.yt-field {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 52px;
+  padding: 0 8px 0 18px;
+  border-radius: var(--yt-pill);
+  background: var(--publish-surface);
+  box-shadow: var(--yt-ring);
+}
+
+.yt-field:focus-within {
+  box-shadow: var(--yt-ring-strong);
+}
+
+.yt-field__icon {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  color: var(--publish-muted-text);
+}
+
+.yt-field__input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: var(--publish-text);
+  font-size: 14px;
+  outline: none;
+}
+
+.yt-field__input::placeholder {
+  color: var(--publish-placeholder);
+}
+
+/* Library ---------------------------------------------------------------- */
+
+.yt-library {
+  display: grid;
+  gap: 14px;
+}
+
+.yt-library__controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 10px;
+}
+
+/* The search field and the filter shrink to the card, so the 320px phone does not overflow. */
+.yt-library__controls > * {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.yt-library__search {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* Tabs hug their labels, as on the canvas, instead of sharing the group width. */
+.yt-library__filter [role='radio'] {
+  flex: 0 0 auto;
+  min-width: 0;
+  padding-inline: 8px;
+}
+
+/* The search and the visibility tabs sit side by side only when the left card has room for both (see the 1199px stack above). */
+@media (min-width: 1280px) {
+  .yt-library__controls {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 14px;
+  }
+}
+
+.yt-library__search {
+  min-height: 46px;
+}
+
+.yt-library__more {
+  justify-self: center;
+}
+
+.yt-library__filter {
+  justify-self: start;
+  max-width: 100%;
+  min-width: 0;
+}
+
+/* Phone widths: the four visibility tabs share the card width instead of pushing past the 320px edge. */
+@media (max-width: 480px) {
+  .yt-library__filter {
+    justify-self: stretch;
+    width: 100%;
+  }
+
+  .yt-library__filter [role='radio'] {
+    flex: 1 1 auto;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 13px;
+    padding-inline: 4px;
+  }
+}
+
+.yt-library__status,
+.yt-library__empty {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 24px 8px;
+  font-size: 14px;
+  color: var(--publish-muted-text);
+  justify-content: center;
+}
+
+.yt-library__notice {
+  display: grid;
+  gap: 10px;
+  justify-items: start;
+  padding: 14px;
+  border-radius: var(--yt-field-radius);
+  box-shadow: var(--yt-ring);
+  font-size: 14px;
+}
+
+.yt-library__list {
+  display: grid;
+  gap: 8px;
+}
+
+.yt-library-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 8px 14px 8px 8px;
+  border: 0;
+  border-radius: 16px;
+  background: var(--publish-surface);
+  color: inherit;
+  text-align: left;
+  box-shadow: var(--yt-ring);
+  cursor: pointer;
+}
+
+.yt-library-row:hover {
+  background: var(--publish-subtle-bg);
+}
+
+.yt-library-row[data-selected] {
+  box-shadow: var(--yt-ring-strong);
+}
+
+.yt-library-row__thumb {
+  position: relative;
+  flex-shrink: 0;
+  width: 128px;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  /* Inset preview image: the shared small radius token, not a hard-coded pixel value. */
+  border-radius: var(--radius-sm);
+  /* No grey fill: a bordered white tile when the video has no thumbnail. */
+  border: 1px solid var(--publish-border);
+  background: var(--publish-surface);
+}
+
+.yt-library-row__body {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  flex: 1;
+}
+
+.yt-library-row__title {
+  display: -webkit-box;
+  overflow: hidden;
+  font-size: 14px;
+  font-weight: 600;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.yt-library-row__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--publish-muted-text);
+}
+
+.yt-chip {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 6px;
+  box-shadow: var(--yt-ring);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--publish-secondary-text);
+}
+
+/* Multi-select mark: a round box that fills with the selected token and carries a check. */
+.yt-check-mark {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  box-shadow: inset 0 0 0 2px var(--publish-border-strong);
+  color: transparent;
+}
+
+.yt-library-row[data-selected] .yt-check-mark {
+  background: var(--create-selected, var(--publish-selected));
+  box-shadow: none;
+  color: var(--create-on-selected);
+}
+
+/* Private videos and rows beyond the selection cap stay visible but cannot be chosen. */
+.yt-library-row:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.yt-library-row:disabled:hover {
+  background: var(--publish-surface);
+}
+
+/* Import progress card: the processing card header, then one row per selected video. */
+.yt-import-progress {
+  display: grid;
+  justify-items: center;
+}
+
+.yt-import-progress {
+  min-width: 0;
+}
+
+/* The card spans the content column; the list inside keeps the canvas' 640px measure. */
+.yt-import-progress > div {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+}
+
+.yt-import-list {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 640px;
+  justify-self: center;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.yt-import-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 8px 14px 8px 8px;
+  border-radius: 16px;
+  background: var(--publish-surface);
+  color: inherit;
+  text-decoration: none;
+  box-shadow: var(--yt-ring);
+}
+
+a.yt-import-row:hover {
+  background: var(--publish-subtle-bg);
+}
+
+.yt-import-list > li {
+  min-width: 0;
+}
+
+.yt-import-row {
+  text-align: left;
+  box-sizing: border-box;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.yt-import-row .yt-library-row__thumb {
+  width: 96px;
+}
+
+.yt-import-row .yt-library-row__thumb img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Long titles wrap to two lines on the phone instead of being cut with an ellipsis. */
+.yt-import-row__title {
+  display: -webkit-box;
+  min-width: 0;
+  text-align: left;
+  flex: 1;
+  overflow: hidden;
+  font-size: 14px;
+  font-weight: 600;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+/* Canvas: a 16px ring spinner for a video that is still importing. */
+.yt-import-spinner {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--publish-border-strong);
+  border-top-color: var(--publish-text);
+  border-radius: 50%;
+  animation: yt-import-spin 0.9s linear infinite;
+}
+
+@keyframes yt-import-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.yt-import-row__state {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--publish-muted-text);
+}
+
+/* A processing video opens its job: an outlined pill with a chevron, as on the canvas. */
+.yt-import-row__pill {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 5px;
+  min-height: 34px;
+  padding: 0 10px;
+  border-radius: var(--yt-pill);
+  box-shadow: var(--yt-ring-strong);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.yt-import-row__state[data-state="failed"],
+.yt-import-row__state[data-state="missing"] {
+  color: var(--publish-danger);
+}
+
+/* Canvas: the settled and partial illustration disc is 220px; the importing disc is 260px. Heading and list follow the canvas positions. */
+.yt-import-progress .yt-import-progress__art {
+  width: 220px;
+  height: 220px;
+}
+
+.yt-import-progress .yt-import-progress__art--large {
+  width: 260px;
+  height: 260px;
+}
+
+/* Canvas: the import heading is 30px with a 1.2 line height, so two-line titles do not collide. */
+.yt-import-progress .yt-import-progress__title {
+  line-height: 1.2 !important;
+}
+
+.yt-import-progress__action {
+  margin-top: 0;
+}
+
+/* Connect gate ----------------------------------------------------------- */
+
+.yt-connect-gate {
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 22px;
+  min-height: 696px;
+  padding: 48px 24px;
+  border-radius: var(--yt-card-radius);
+  background: var(--publish-surface);
+  box-shadow: var(--publish-card-shadow);
+  text-align: center;
+}
+
+.yt-connect-gate__art {
+  width: 240px;
+  height: auto;
+}
+
+.yt-connect-gate__title {
+  margin: 0;
+  font-family: var(--font-studio, var(--font-body));
+  font-size: 28px;
+  line-height: 1.2;
+  font-weight: 600;
+}
+
+/* Canvas: the connect action label is medium weight, lighter than the list actions. */
+.yt-connect-gate__actions button.yt-primary-button {
+  font-weight: 500;
+}
+
+.yt-connect-gate__actions {
+  display: grid;
+  gap: 14px;
+  width: 100%;
+  max-width: 380px;
+}
+
+.yt-consent {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 13px;
+  line-height: 1.45;
+  text-align: left;
+  cursor: pointer;
+}
+
+.yt-consent input {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+}
+
+.yt-consent__box {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  margin-top: 1px;
+  border-radius: 6px;
+  box-shadow: var(--yt-ring-strong);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.yt-consent input:checked + .yt-consent__box {
+  background: var(--publish-primary);
+}
+
+.yt-consent input:checked + .yt-consent__box::after {
+  content: '';
+  width: 6px;
+  height: 11px;
+  border: solid var(--publish-on-primary);
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg) translate(-1px, -1px);
+}
+
+.yt-consent input:focus-visible + .yt-consent__box {
+  outline: 2px solid var(--publish-primary);
+  outline-offset: 2px;
+}
+
+.yt-consent__link {
+  font-weight: 400;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  color: var(--publish-text);
+}
+
+/* Account pill ----------------------------------------------------------- */
+
+button.yt-account-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  height: 48px;
+  padding: 0 14px 0 6px;
+  border: 0;
+  border-radius: var(--yt-pill);
+  background: var(--publish-surface);
+  color: var(--publish-text);
+  box-shadow: var(--yt-ring);
+  text-align: left;
+  cursor: pointer;
+}
+
+button.yt-account-pill:hover {
+  background: var(--publish-subtle-bg);
+}
+
+.yt-account-pill__avatar {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--publish-primary);
+  color: var(--publish-on-primary);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.yt-account-pill__avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.yt-account-pill__text {
+  display: grid;
+  min-width: 0;
+}
+
+.yt-account-pill__name {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.yt-account-pill__status {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--publish-muted-text);
+}
+
+.yt-account-pill__chevron {
+  width: 15px;
+  height: 15px;
+  color: var(--publish-muted-text);
+}
+
+/* Clip count, ratio tiles, switches --------------------------------------- */
+
+.yt-clip-count {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.yt-clip-count__presets {
+  flex: 1;
+  min-width: 0;
+}
+
+/* The four equal segments shrink with the card; the inset keeps "Auto" clear of the pill edge on the 320px phone. */
+.yt-clip-count__presets button {
+  min-width: 0;
+  padding-inline: 4px;
+}
+
+.yt-clip-count__manual input {
+  width: 96px;
+  height: 42px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: var(--yt-pill);
+  background: var(--publish-surface);
+  box-shadow: var(--yt-ring);
+  color: var(--publish-text);
+  font-size: 14px;
+  text-align: center;
+}
+
+.yt-clip-count__manual input::placeholder {
+  color: var(--publish-placeholder);
+}
+
+.yt-ratio-tiles {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+button.yt-ratio-tile {
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 8px;
+  height: 72px;
+  border: 0;
+  border-radius: var(--yt-field-radius);
+  background: var(--publish-surface);
+  color: var(--publish-text);
+  box-shadow: var(--yt-ring);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+button.yt-ratio-tile[aria-checked='true'] {
+  box-shadow: var(--yt-ring-strong);
+}
+
+button.yt-ratio-tile:hover {
+  background: var(--publish-subtle-bg);
+}
+
+.yt-ratio-tile__glyph {
+  display: block;
+  box-sizing: border-box;
+  border: 1.5px solid currentColor;
+  border-radius: 4px;
+}
+
+.yt-switch-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 14px;
+}
+
+.yt-switch-row label {
+  cursor: pointer;
+}
+
+.yt-advanced {
+  border-top: 0;
+}
+
+.yt-advanced > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 52px;
+  padding: 0 4px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  list-style: none;
+}
+
+.yt-advanced > summary::-webkit-details-marker {
+  display: none;
+}
+
+.yt-advanced[open] > summary svg {
+  transform: rotate(180deg);
+}
+
+.yt-advanced__fields {
+  display: grid;
+  gap: 16px;
+  padding: 4px 4px 8px;
+}
+
+.yt-field-group {
+  display: grid;
+  gap: 8px;
+  font-size: 14px;
+}
+
+/* Canvas: the disclosure sits 18px above its usual section gap under the brand select, and the export consent
+   sits 8px under the disclosure, so the primary action lands at the canvas height in the right column. */
+.yt-inspector .yt-advanced {
+  margin-top: -18px;
+}
+
+.yt-generate {
+  display: grid;
+  gap: 14px;
+  margin-top: -16px;
+}
+
+/* The export disclosure wraps to two lines as on the canvas: its text may use the card padding on the right. */
+.yt-generate .yt-consent {
+  margin-right: -8px;
+}
+
+button.yt-primary-button.yt-generate__action {
+  width: 100%;
+  min-height: 54px;
+  font-size: 16px;
+}
+
+/* Limit state ------------------------------------------------------------ */
+
+.yt-limit {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  margin-top: 12px;
+  padding: 18px 14px;
+  border-radius: 20px;
+  text-align: center;
+  background: var(--publish-canvas);
+}
+
+.yt-limit__art {
+  width: 110px;
+  height: 110px;
+}
+
+.yt-limit h3 {
+  margin: 0;
+  font-family: var(--font-studio, var(--font-body));
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.yt-limit__message {
+  margin: 0;
+  font-size: 13px;
+  color: var(--publish-secondary-text);
+}
+
+.yt-limit__usage {
+  display: grid;
+  gap: 8px;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 14px 16px;
+  border-radius: 16px;
+  box-shadow: inset 0 0 0 1px var(--publish-border);
+  font-size: 13px;
+  text-align: left;
+}
+
+.yt-limit__usage-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--publish-secondary-text);
+}
+
+.yt-limit__usage-head strong {
+  font-weight: 600;
+  color: var(--publish-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.yt-limit__usage-track {
+  display: block;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--publish-border);
+  overflow: hidden;
+}
+
+.yt-limit__usage-track > span {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--publish-danger);
+}
+
+a.yt-limit__cta {
+  width: 100%;
+  min-height: 48px;
+}
+
+/* Status and notices ----------------------------------------------------- */
+
+.yt-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 24px;
+  font-size: 14px;
+  color: var(--publish-muted-text);
+}
+
+.yt-notice {
+  display: grid;
+  justify-items: start;
+  gap: 12px;
+  padding: 24px;
+  border-radius: var(--yt-card-radius);
+  background: var(--publish-surface);
+  box-shadow: var(--publish-card-shadow);
+  font-size: 14px;
+}
+
+/* Mobile ----------------------------------------------------------------- */
+
+@media (max-width: 1199px) {
+  .yt-path {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+  }
+
+  .yt-inspector {
+    position: static;
+    padding: 8px 16px 16px;
+  }
+
+  .yt-card {
+    padding: 16px;
+  }
+
+  .yt-connect-gate {
+    min-height: 0;
+    padding: 28px 18px;
+    gap: 18px;
+  }
+
+  .yt-connect-gate__art {
+    width: 200px;
+  }
+
+  .yt-connect-gate__title {
+    font-size: 24px;
+  }
+
+  .yt-library-row__thumb {
+    width: 96px;
+  }
+
+  .yt-ratio-tile {
+    height: 64px;
+  }
+}
+
+/* Canvas phone: the import illustration is 220px for both the importing and the partial card. */
+@media (max-width: 640px) {
+  .yt-import-progress .yt-import-progress__art,
+  .yt-import-progress .yt-import-progress__art--large {
+    width: 220px;
+    height: 220px;
+  }
+}
+
+/* Phone: the import rows keep a 72px thumbnail and a compact state pill so the title has room to wrap. */
+@media (max-width: 480px) {
+  .yt-import-row .yt-library-row__thumb {
+    width: 72px;
+  }
+
+  .yt-import-row__pill {
+    min-height: 32px;
+    padding: 0 10px;
+    font-size: 12px;
+  }
+
+  .yt-library__filter [role='radio'] {
+    font-size: 12px;
+    padding-inline: 2px;
+  }
+}
+
+/* Phones 360px and narrower: a long title keeps at least 120px and the state pill wraps to its own line instead of squeezing the title. */
+@media (max-width: 360px) {
+  .yt-import-row {
+    flex-wrap: wrap;
+  }
+
+  .yt-import-row__title {
+    min-width: 120px;
+  }
+}

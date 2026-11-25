@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"net"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -14,42 +13,31 @@ import (
 	"github.com/julienschmidt/httprouter"
 )
 
-func TestSourceValidationBlocksPrivateAndAmbiguousSources(t *testing.T) {
-	ctx := context.Background()
-	for _, ip := range []string{"127.0.0.1", "10.2.3.4", "169.254.169.254", "::1", "fc00::1", "100.64.0.2", "224.0.0.1"} {
-		t.Run(ip, func(t *testing.T) {
-			lookup := func(context.Context, string, string) ([]net.IP, error) {
-				return []net.IP{net.ParseIP("8.8.8.8"), net.ParseIP(ip)}, nil
-			}
-			if err := ValidateSourceURL(ctx, lookup, "url", "https://example.invalid/video"); err == nil {
-				t.Fatal("private address accepted")
-			}
-		})
-	}
-	lookup := func(context.Context, string, string) ([]net.IP, error) { return []net.IP{net.ParseIP("8.8.8.8")}, nil }
-	for _, source := range []string{"file:///etc/passwd", "https://user:password@youtube.com/watch", "https://youtube.com.evil.invalid/watch"} {
-		if err := ValidateSourceURL(ctx, lookup, "youtube", source); err == nil {
-			t.Fatalf("accepted %s", source)
+func TestLinkImportsAreRejectedBeforeDatabase(t *testing.T) {
+	link := "https://youtube.com/watch?v=test"
+	upload := "uploads/user/test.mp4"
+	for _, in := range []CreateInput{
+		{Options: DefaultOptions(), SourceType: "youtube", SourceURL: &link},
+		{Options: DefaultOptions(), SourceType: "url", SourceURL: &link},
+		{Options: DefaultOptions(), SourceType: "youtube"},
+		{Options: DefaultOptions(), SourceType: "upload", SourceURL: &link, SourceStorageKey: &upload},
+	} {
+		if err := in.Validate(); err == nil {
+			t.Fatalf("link source accepted: %+v", in)
 		}
 	}
-	if err := ValidateSourceURL(ctx, lookup, "youtube", "https://youtube.com/watch?v=test"); err != nil {
-		t.Fatal(err)
-	}
 	in := CreateInput{Options: DefaultOptions(), SourceType: "youtube"}
-	if in.Validate() == nil {
-		t.Fatal("missing source accepted")
-	}
-	u, p := "https://youtube.com/watch?v=test", "uploads/user/test.mp4"
-	in.SourceURL = &u
-	in.SourceFilePath = &p
-	if in.Validate() == nil {
-		t.Fatal("ambiguous sources accepted")
+	if err := in.Validate(); !errors.Is(err, ErrLinkImportsRemoved) {
+		t.Fatalf("youtube source type not reported as removed: %v", err)
 	}
 }
 
 func TestDefaultsAndExplicitRenderingFlags(t *testing.T) {
 	in := CreateInput{Options: DefaultOptions()}
-	if err := json.Unmarshal([]byte(`{"source_type":"youtube","source_url":"https://youtube.com/watch?v=test","burn_subtitles":false,"smart_crop":false}`), &in); err != nil {
+	if err := json.Unmarshal([]byte(`{"source_type":"upload","source_storage_key":"uploads/user/test.mp4","burn_subtitles":false,"smart_crop":false}`), &in); err != nil {
+		t.Fatal(err)
+	}
+	if err := in.Validate(); err != nil {
 		t.Fatal(err)
 	}
 	if in.BurnSubtitles || in.SmartCrop || in.NumClips != 5 || in.AspectRatio != "9:16" {
@@ -83,7 +71,7 @@ func (testMedia) WorkerSource(context.Context, string) (string, error) {
 }
 func TestHTTPRejectsViewerAndInvalidInputBeforeDatabase(t *testing.T) {
 	for _, member := range []bool{false, true} {
-		h := New(nil, testAuth{member}, testMedia{}, Config{})
+		h := New(nil, testAuth{member}, testMedia{})
 		r := httprouter.New()
 		h.Register(r)
 		w := httptest.NewRecorder()
@@ -97,7 +85,7 @@ func TestHTTPRejectsViewerAndInvalidInputBeforeDatabase(t *testing.T) {
 		}
 	}
 	r := httprouter.New()
-	New(nil, testAuth{true}, testMedia{}, Config{}).Register(r)
+	New(nil, testAuth{true}, testMedia{}).Register(r)
 	for _, path := range []string{"/api/jobs/not-a-uuid", "/api/jobs/not-a-uuid/cancel"} {
 		w := httptest.NewRecorder()
 		method := "GET"
@@ -111,40 +99,23 @@ func TestHTTPRejectsViewerAndInvalidInputBeforeDatabase(t *testing.T) {
 	}
 }
 
-func TestYouTubeImportRequiresApprovalBeforeDNSLookup(t *testing.T) {
-	calls := 0
-	lookup := func(context.Context, string, string) ([]net.IP, error) {
-		calls++
-		return []net.IP{net.ParseIP("8.8.8.8")}, nil
+func TestLinkImportEndpointsAreRemoved(t *testing.T) {
+	r := httprouter.New()
+	New(nil, testAuth{true}, testMedia{}).Register(r)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, httptest.NewRequest("POST", "/api/jobs/batch", strings.NewReader(`{"source_urls":["https://youtube.com/watch?v=test"]}`)))
+	if w.Code != 404 {
+		t.Fatalf("batch endpoint answered %d, want 404", w.Code)
 	}
-	h := New(nil, nil, nil, Config{LookupIP: lookup})
-	for _, sourceType := range []string{"youtube", "url"} {
-		for _, source := range []string{"https://youtube.com/watch?v=test", "https://youtu.be/test", "https://WWW.YOUTUBE.COM/watch?v=test"} {
-			if _, err := h.prepare(context.Background(), "user", CreateInput{SourceType: sourceType, SourceURL: &source}); err == nil {
-				t.Fatal("unapproved import accepted")
-			}
-		}
-	}
-	if calls != 0 {
-		t.Fatal("blocked imports must not perform URL lookup")
-	}
-	source := "https://youtube.com/watch?v=test"
-	h.cfg.YouTubeImportApproved = true
-	if _, err := h.prepare(context.Background(), "user", CreateInput{SourceType: "youtube", SourceURL: &source}); err != nil {
-		t.Fatal(err)
-	}
-	if calls != 1 {
-		t.Fatal("approved import must retain DNS validation")
-	}
-	h.cfg.YouTubeImportApproved = false
-	source = "https://media.example.com/original.mp4"
-	if _, err := h.prepare(context.Background(), "user", CreateInput{SourceType: "url", SourceURL: &source}); err != nil {
-		t.Fatalf("non-YouTube validation changed: %v", err)
+	w = httptest.NewRecorder()
+	r.ServeHTTP(w, httptest.NewRequest("POST", "/api/jobs", strings.NewReader(`{"source_type":"youtube","source_url":"https://youtube.com/watch?v=test"}`)))
+	if w.Code != 400 || !strings.Contains(w.Body.String(), "Link imports are no longer supported") {
+		t.Fatalf("link create answered %d: %s", w.Code, w.Body.String())
 	}
 }
 
-func TestYouTubeImportGatePreservesOwnedUploadFlow(t *testing.T) {
-	h := New(nil, nil, testMedia{}, Config{})
+func TestUploadFlowReachesOwnershipValidation(t *testing.T) {
+	h := New(nil, nil, testMedia{})
 	key := "uploads/user/original.mp4"
 	_, err := h.prepare(context.Background(), "user", CreateInput{SourceType: "upload", SourceStorageKey: &key})
 	if err == nil || err.Error() != "invalid owned upload" {

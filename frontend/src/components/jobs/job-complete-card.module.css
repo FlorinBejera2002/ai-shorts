@@ -1,0 +1,95 @@
+/* Done hero for a finished job, following the Creare done canvas. */
+
+.hero {
+  composes: tokens from '../create/creare-theme.module.css';
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 32px;
+  padding: 32px 40px;
+  border-radius: var(--publish-card-radius, 24px);
+  background: var(--publish-surface);
+  box-shadow: var(--publish-card-shadow);
+  color: var(--publish-text);
+}
+
+.art {
+  display: block;
+  width: 220px;
+  height: 220px;
+  flex: 0 0 auto;
+  object-fit: contain;
+}
+
+.copy {
+  display: grid;
+  min-width: 0;
+  flex: 1 1 auto;
+  justify-items: start;
+  gap: 10px;
+}
+
+.count {
+  display: inline-flex;
+  height: 28px;
+  align-items: center;
+  gap: 6px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: var(--creare-success-bg);
+  color: var(--creare-success);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+/* Canvas: 32px semibold with -0.02em tracking; forced because the dashboard shell's h2 rule outranks this module. */
+.title {
+  margin: 0;
+  font-family: var(--font-studio, 'Sora', sans-serif);
+  font-size: 32px;
+  font-weight: 600;
+  line-height: 1.15 !important;
+  letter-spacing: -0.02em !important;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+/* Canvas: the done action is a 50px pill; the secondary keeps the standard 46px. */
+.actions > [data-slot='button'] {
+  min-height: 46px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.actions > [data-slot='button']:first-child {
+  min-height: 50px;
+}
+
+@media (max-width: 640px) {
+  .hero {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 20px;
+    padding: 24px 20px;
+  }
+
+  .art {
+    width: 180px;
+    height: 180px;
+    align-self: center;
+  }
+
+  .title {
+    font-size: 26px;
+  }
+
+  .actions > * {
+    flex: 1 1 100%;
+  }
+}

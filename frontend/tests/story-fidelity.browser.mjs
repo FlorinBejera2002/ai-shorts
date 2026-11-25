@@ -113,7 +113,7 @@ await page.route('**/api/**', async (route) => {
     })
     return route.fulfill({ json: project })
   }
-  if (path.endsWith('/generate')) {
+  if (path.endsWith('/generate') || path.endsWith('/retry')) {
     submissions.push({
       ...body,
       mode: project.options.caption_mode,
@@ -189,16 +189,16 @@ await page.route('**/api/**', async (route) => {
 })
 const wizard = page.getByTestId('story-wizard')
 const brief = page.getByRole('textbox', {
-  name: 'Describe your video (optional)',
+  name: 'Describe the video you want',
   exact: true
 })
-const build = page.getByRole('button', { name: 'Create my clip', exact: true })
+const build = page.getByRole('button', { name: 'Create clips', exact: true })
 const next = async (step) => {
   await wizard.getByRole('button', { name: 'Continue', exact: true }).click()
   await page.getByTestId(`story-step-${step}`).waitFor({ state: 'visible' })
 }
 const chooseStep = async (index) => {
-  await wizard.locator('nav button').nth(index).click()
+  await page.getByRole('button', { name: ['Add footage', 'Choose result', 'Generate'][index], exact: true }).click()
   await page.getByTestId(`story-step-${index}`).waitFor({ state: 'visible' })
 }
 const upload = async () => {
@@ -249,6 +249,8 @@ try {
   await inspectLayout('sources')
   await next(1)
   await brief.fill(originalBrief)
+  // Selecting no captions creates the brief conflict that the validation step checks later.
+  await page.getByRole('radio', { name: 'None', exact: true }).click()
   await inspectLayout('brief')
   const textarea = await brief.elementHandle()
   const sidebar = await page.locator('[data-slot="sidebar"]').elementHandle()
@@ -274,7 +276,7 @@ try {
     'Component edit never reloads the document'
   )
   assert.equal(
-    await brief.inputValue(),
+    await brief.evaluate((element) => element.textContent),
     originalBrief,
     'Fast Refresh preserves the unsaved original request'
   )
@@ -293,7 +295,7 @@ try {
   hotEdited = false
   assert.equal(
     await page
-      .getByRole('radio', { name: 'No captions', exact: true })
+      .getByRole('radio', { name: 'None', exact: true })
       .isChecked(),
     true
   )
@@ -304,7 +306,7 @@ try {
     .waitFor()
   await chooseStep(1)
   assert.equal(
-    await brief.inputValue(),
+    await brief.evaluate((element) => element.textContent),
     originalBrief,
     'Validation preserves the full original request'
   )
@@ -330,21 +332,9 @@ try {
     'An uncertain submission retries with the same request identity'
   )
   assert.equal(uploads, 1)
-  await chooseStep(1)
-  assert.equal(
-    await brief.isEditable(),
-    true,
-    'A failed project can correct its request'
-  )
-  assert.equal(await brief.inputValue(), originalBrief)
-  assert.equal(
-    await page
-      .getByRole('radio', { name: 'All dialogue', exact: true })
-      .isChecked(),
-    true
-  )
-  await next(2)
-  await build.click()
+  // The canvas failed state offers only Try again (and New project), so a failed run retries its own request
+  // instead of reopening the wizard. Correcting the brief from a failed run is not offered on the canvas.
+  await page.getByRole('button', { name: 'Try again', exact: true }).click()
   await page
     .getByRole('link', { name: 'Download video', exact: true })
     .waitFor()
@@ -366,8 +356,8 @@ try {
   }
   await inspectLayout('result')
   for (const [mode, label] of [
-    ['selective', 'Only hard-to-hear speech'],
-    ['off', 'No captions']
+    ['selective', 'Hard to hear'],
+    ['off', 'None']
   ]) {
     await page.getByRole('button', { name: 'New project', exact: true }).click()
     await upload()

@@ -23,12 +23,12 @@ vm.runInNewContext(
 const { dashboardNavigation, isDashboardRouteActive, dashboardRouteLabel } =
   exports
 
-test('the sidebar exposes eight focused destinations, with create as a separate action', () => {
+test('the sidebar exposes nine focused destinations, with create as a separate action', () => {
   const destinations = dashboardNavigation.flatMap((group) =>
     group.items.map((item) => item.href)
   )
-  assert.equal(destinations.length, 8)
-  assert.equal(new Set(destinations).size, 8)
+  assert.equal(destinations.length, 9)
+  assert.equal(new Set(destinations).size, 9)
   for (const route of [
     'studio',
     'clips',
@@ -36,7 +36,8 @@ test('the sidebar exposes eight focused destinations, with create as a separate 
     'script-generator',
     'brand',
     'billing',
-    'settings'
+    'settings',
+    'feedback'
   ])
     assert.ok(destinations.includes(`/dashboard/${route}`))
   assert.ok(destinations.includes('/dashboard'))
@@ -66,7 +67,8 @@ test('nested job and clip routes display the correct navigation context', () => 
   assert.equal(dashboardRouteLabel('/dashboard/publish'), 'publish')
   assert.equal(
     dashboardRouteLabel('/dashboard/settings?tab=billing'),
-    'settings'
+    'settings',
+    'feedback'
   )
   assert.equal(dashboardRouteLabel('/dashboard/script-generator'), 'scripts')
 })

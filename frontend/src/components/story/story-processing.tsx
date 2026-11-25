@@ -1,265 +1,51 @@
-import {
-  AudioLines,
-  Check,
-  CircleAlert,
-  Clock3,
-  Film,
-  ListVideo,
-  Pause,
-  SearchCheck,
-  Sparkles,
-  type LucideIcon
-} from 'lucide-react'
-import {
-  ProcessingPipeline,
-  type ProcessingStage
-} from '@/components/jobs/processing-pipeline'
-import { Button } from '@/components/ui/button'
-import type { StoryProject } from './types'
-import { useStoryLanguage } from './use-story-language'
-import { storyFailureReason, storyProblem } from './story-error'
-import './story-processing.css'
+'use client'
 
-const checkpointKeys = [
-  'pending',
-  'analyzing',
-  'building_story',
-  'editing',
-  'reviewing'
-] as const
-const runningPhases = new Set<string>([...checkpointKeys, 'music_analysis', 'improving'])
+import { useStoryLanguage } from './use-story-language'
+import { storyFailureReason } from './story-error'
+import { uploadProcessingView } from './story-processing-model'
+import { uploadStageLabels } from './story-processing-copy'
+import { StoryRunningCard, StoryStoppedCard } from './story-processing-states'
+import type { StoryProject } from './types'
 
 interface Props {
   project: StoryProject
   active: boolean
   busy: boolean
   onCancel: () => void
+  onRetry?: () => void
 }
 
-function displayPhase(project: StoryProject) {
-  if (project.status === 'queued') return 'pending'
-  if (project.status === 'rendering') return 'editing'
-  if (
-    project.status === 'processing' &&
-    project.stage &&
-    runningPhases.has(project.stage)
-  )
-    return project.stage
-  return project.status
-}
-
-function checkpointState(
-  key: string,
-  index: number,
-  phase: string
-): ProcessingStage['state'] {
-  if (phase === 'ready') return 'done'
-  if (phase === 'needs_review') return key === 'reviewing' ? 'attention' : 'done'
-  // Repairs can precede the first render. Their position is not a completion count.
-  if (phase === 'improving') return index < 2 ? 'done' : 'waiting'
-  if (phase === 'music_analysis')
-    return key === 'pending' ? 'done' : key === 'analyzing' ? 'active' : 'waiting'
-  const current = checkpointKeys.findIndex((checkpoint) => checkpoint === phase)
-  if (current < 0) return 'waiting'
-  return index < current ? 'done' : index === current ? 'active' : 'waiting'
-}
-
-export function StoryProcessing({ project, active, busy, onCancel }: Props) {
+/** Upload processing card: five stages, a progress value and the single cancel action. */
+export function StoryProcessing({ project, active, busy, onCancel, onRetry }: Props) {
   const text = useStoryLanguage()
-  const phase = displayPhase(project)
-  const failureReason = storyFailureReason(project)
-  const copy: Record<string, { label: string; detail: string; icon: LucideIcon }> = {
-    pending: {
-      label: text('Queued', 'În așteptare'),
-      detail: text(
-        'Your files are saved. Processing is waiting to start.',
-        'Fișierele sunt salvate. Procesarea așteaptă să înceapă.'
-      ),
-      icon: Clock3
-    },
-    analyzing: {
-      label: text('Understanding your clips', 'Analizăm filmările'),
-      detail: text(
-        'Checking speech and footage.',
-        'Analizăm vorbirea și imaginile din filmări.'
-      ),
-      icon: AudioLines
-    },
-    music_analysis: {
-      label: text('Listening to your music', 'Analizăm muzica'),
-      detail: text(
-        'Understanding the song’s sections and mood to guide pacing and transitions.',
-        'Analizăm secțiunile și atmosfera piesei pentru ritmul montajului și tranziții.'
-      ),
-      icon: AudioLines
-    },
-    building_story: {
-      label: text('Choosing moments', 'Alegem momentele'),
-      detail: text(
-        'Picking the best moments from your footage.',
-        'Alegem cele mai bune momente din filmări.'
-      ),
-      icon: ListVideo
-    },
-    editing: {
-      label: text('Editing your clip', 'Montăm clipul'),
-      detail: text(
-        'Putting the selected moments together.',
-        'Punem împreună momentele selectate.'
-      ),
-      icon: Film
-    },
-    reviewing: {
-      label: text('Checking your edit', 'Verificăm montajul'),
-      detail: text(
-        'Reviewing the picture, sound and edit.',
-        'Verificăm imaginea, sunetul și montajul.'
-      ),
-      icon: SearchCheck
-    },
-    improving: {
-      label: text('Improving your clip', 'Îmbunătățim clipul'),
-      detail: text(
-        'Refining the edit before another check.',
-        'Ajustăm montajul înaintea unei noi verificări.'
-      ),
-      icon: Sparkles
-    },
-    ready: {
-      label: text('Ready', 'Pregătit'),
-      detail: text(
-        'Your reviewed version is available below.',
-        'Versiunea verificată este disponibilă mai jos.'
-      ),
-      icon: Check
-    },
-    needs_review: {
-      label: text('Needs review', 'Necesită revizie'),
-      detail: text(
-        'Some checks or issues in this draft still need your attention.',
-        'Unele verificări sau probleme ale acestui draft necesită atenția ta.'
-      ),
-      icon: CircleAlert
-    },
-    failed: {
-      label: text('Processing failed', 'Procesarea a eșuat'),
-      detail: text(
-        'Processing stopped. Your source files remain available.',
-        'Procesarea s-a oprit. Fișierele originale rămân disponibile.'
-      ),
-      icon: CircleAlert
-    },
-    cancelled: {
-      label: text('Cancelled', 'Anulat'),
-      detail: text(
-        'Processing stopped. Your source files remain available.',
-        'Procesarea s-a oprit. Fișierele originale rămân disponibile.'
-      ),
-      icon: Pause
-    },
-    cancelling: {
-      label: text('Cancelling', 'Se anulează'),
-      detail: text('Waiting for processing to stop.', 'Așteptăm oprirea procesării.'),
-      icon: Pause
-    },
-    deleting: {
-      label: text('Deleting project', 'Se șterge proiectul'),
-      detail: text(
-        'Removing this project and its files.',
-        'Ștergem proiectul și fișierele sale.'
-      ),
-      icon: Clock3
-    }
-  }
-  const focus = copy[phase] ?? {
-    label: text('Processing', 'Se procesează'),
-    detail: text('Waiting for the next update.', 'Așteptăm următoarea actualizare.'),
-    icon: Clock3
-  }
-  const labels = [
-    text('Queued', 'În așteptare'),
-    text('Analyze', 'Analiză'),
-    text('Moments', 'Momente'),
-    text('Edit', 'Montaj'),
-    text('Review', 'Verificare')
-  ]
-  const current = checkpointKeys.findIndex((key) => key === phase)
-  const running = active && runningPhases.has(phase)
-  const stageLabel =
-    current >= 0 ? `${String(current + 1).padStart(2, '0')} / 05` : undefined
-  const countLabel =
-    current >= 0
-      ? `${text('Step', 'Pasul')} ${current + 1} ${text('of', 'din')} 5`
-      : undefined
-  const tone =
-    phase === 'failed'
-      ? 'error'
-      : phase === 'ready'
-        ? 'success'
-        : running
-          ? 'active'
-          : 'idle'
-  const states = {
-    done: text('Completed', 'Finalizat'),
-    active: text('In progress', 'În lucru'),
-    waiting: text('Not confirmed', 'Neconfirmat'),
-    attention: text('Needs review', 'Necesită revizie')
+  const failed = project.status === 'failed' || project.operation_status === 'failed'
+  const cancelled = !failed && project.status === 'cancelled'
+  const view = uploadProcessingView(uploadStageLabels(text), project, failed)
+
+  if (failed || cancelled) {
+    return (
+      <StoryStoppedCard
+        failed={failed}
+        failureReason={storyFailureReason(project)}
+        progress={view.progress}
+        stages={view.stages}
+        busy={busy}
+        onRetry={onRetry}
+        text={text}
+      />
+    )
   }
 
   return (
-    <ProcessingPipeline
-      className="story-processing"
-      testID="story-processing"
-      status={project.status}
-      title={text('Your clip', 'Clipul tău')}
-      eyebrow={
-        phase === 'pending'
-          ? text('Waiting to start', 'În așteptarea pornirii')
-          : running
-            ? text('Preparing your clip', 'Pregătim clipul')
-            : focus.label
-      }
-      countLabel={countLabel}
-      stage={{ key: phase, ...focus }}
-      stageLabel={stageLabel}
-      message=""
-      running={running}
-      tone={tone}
-      progress={
-        running
-          ? {
-              label:
-                phase === 'pending'
-                  ? text('Waiting to start', 'În așteptarea pornirii')
-                  : text('In progress', 'În lucru'),
-              ariaLabel: text('Clip processing', 'Procesarea clipului')
-            }
-          : undefined
-      }
-      stages={checkpointKeys.map((key, index) => {
-        const state = checkpointState(key, index, phase)
-        return { key, label: labels[index], state, stateLabel: states[state] }
-      })}
-    >
-      {(failureReason || active) && (
-        <div className="job-processing-result story-processing-actions">
-          {failureReason && (
-            <p role="alert" className="break-words text-sm text-destructive">
-              {storyProblem(failureReason, text)}
-            </p>
-          )}
-          {active && (
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={busy || phase === 'cancelling'}
-              onClick={onCancel}
-            >
-              {text('Cancel processing', 'Anulează procesarea')}
-            </Button>
-          )}
-        </div>
-      )}
-    </ProcessingPipeline>
+    <StoryRunningCard
+      stage={view.stage}
+      progress={view.progress}
+      stages={view.stages}
+      illustration={view.illustration}
+      active={active}
+      cancelDisabled={busy || project.status === 'cancelling'}
+      onCancel={onCancel}
+      text={text}
+    />
   )
 }

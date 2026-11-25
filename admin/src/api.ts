@@ -20,7 +20,7 @@ export type SessionUser = {
 }
 
 type AuthResponse = { access_token: string; user: SessionUser }
-const apiOrigin = (import.meta.env.VITE_API_URL ?? '').replace(/\/$/, '')
+export const apiOrigin = (import.meta.env.VITE_API_URL ?? '').replace(/\/$/, '')
 
 class ApiError extends Error {
   constructor(public status: number, message: string) {

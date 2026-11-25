@@ -32,7 +32,7 @@ func TestCredentialsAreBoundToUserAndImport(t *testing.T) {
 }
 
 func TestVisibilityConsentNeverExpandsPermissions(t *testing.T) {
-	for _, input := range [][]string{nil, {}, {"public", "public"}, {"all"}, {"public", "private", "unlisted", "public"}} {
+	for _, input := range [][]string{nil, {}, {"public", "public"}, {"all"}, {"public", "unlisted", "public"}, {"private"}, {"public", "private"}} {
 		if _, err := requestedResources(input); err == nil {
 			t.Fatalf("accepted invalid visibility choice %v", input)
 		}
@@ -41,7 +41,7 @@ func TestVisibilityConsentNeverExpandsPermissions(t *testing.T) {
 	if err != nil || len(resources) != 2 || resources[0] != PublicVideos || resources[1] != UnlistedVideos {
 		t.Fatal("visibility choices changed")
 	}
-	granted := GrantedResources(scopePrefix+PublicVideos+" "+scopePrefix+PrivateVideos, resources)
+	granted := GrantedResources(scopePrefix+PublicVideos+" "+scopePrefix+"youtube.private_videos", resources[:1])
 	if len(granted) != 1 || granted[0] != PublicVideos {
 		t.Fatal("partial consent expanded the requested resource set")
 	}

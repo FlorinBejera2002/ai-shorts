@@ -33,7 +33,7 @@ page.on('console', message => {
 })
 let project = {
   id: projectID,
-  status: 'analyzing',
+  status: 'draft',
   current_version: 0,
   versions: [],
   expected_state: 'a'.repeat(64),
@@ -201,16 +201,16 @@ try {
       details: document.querySelector('[data-testid="transcript-asset"]')
     }
   })
-  const initialPolls = polls
+  // Project polling runs only while a story is busy, and the review disclosure is shown only when it is not,
+  // so playback of a reviewable story does not poll.
   await page.waitForFunction(() => document.querySelector('video[aria-label^="Transcript source"]')?.currentTime > 6, null, { timeout: 12000 })
-  assert.ok(polls >= initialPolls + 2, 'Real project polling occurred during playback')
   assert.equal(await page.evaluate(() => {
     const { video, details } = window.transcriptBefore
     return video === document.querySelector('video[aria-label^="Transcript source"]') &&
       details === document.querySelector('[data-testid="transcript-asset"]') && details.open && !video.paused
   }), true, 'Signed URL renewal preserves the open review and playing media element')
   await player.evaluate(video => video.pause())
-  assert.equal(await first.getByRole('textbox').first().isDisabled(), true, 'Editing remains disabled during analysis')
+  assert.equal(await first.getByRole('textbox').first().isDisabled(), false, 'Editing is available once analysis has finished')
   await first.getByRole('button', { name: 'Play from word 2: world', exact: true }).click()
   await page.waitForFunction(() => {
     const video = document.querySelector('video[aria-label^="Transcript source"]')
@@ -229,11 +229,15 @@ try {
   // Trigger a real fetch of the expired fixture after clearing its media buffer.
   await player.evaluate(video => video.play().catch(() => {}))
   await page.getByRole('button', { name: 'Retry playback', exact: true }).waitFor()
+  const pollsBeforeRetry = polls
   await page.getByRole('button', { name: 'Retry playback', exact: true }).click()
   await page.waitForFunction(expired => {
     const video = document.querySelector('video[aria-label^="Transcript source"]')
     return video && video.currentSrc !== expired && video.readyState >= 2 && !video.paused
   }, expiredSource)
+  // Retry refetches the idle project so the player adopts the renewed signed URL.
+  assert.ok(polls > pollsBeforeRetry, 'Retry playback refetches the project for a renewed signed URL')
+  assert.match(await player.evaluate(video => video.currentSrc), /sig=poll-/, 'Playback resumes from the renewed URL')
   assert.equal(await page.getByTestId('transcript-asset').evaluate(details => details.open), true,
     'Recovering expired media leaves the review open')
   await player.evaluate(video => video.pause())

@@ -16,8 +16,8 @@ func TestPostgresTransitionRecipeAndCompletion(t *testing.T) {
 	if _, err := db.Exec(`INSERT INTO users(id,email,provider,credits,plan) VALUES($1,$2,'credentials',100,'free')`, user, user+"@example.invalid"); err != nil {
 		t.Fatal(err)
 	}
-	source := "https://example.invalid/source"
-	_, err := jobs.NewRepository(db).Create(ctx, user, []jobs.Prepared{{Input: jobs.CreateInput{Options: jobs.DefaultOptions(), SourceType: "youtube", SourceURL: &source}, WorkerSource: source}})
+	source := "uploads/" + user + "/source.mp4"
+	_, err := jobs.NewRepository(db).Create(ctx, user, []jobs.Prepared{{Input: jobs.CreateInput{Options: jobs.DefaultOptions(), SourceType: "upload", SourceStorageKey: &source}, WorkerSource: source}})
 	if err != nil {
 		t.Fatal(err)
 	}

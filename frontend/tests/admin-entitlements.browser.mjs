@@ -39,6 +39,10 @@ async function accountPage(admin) {
       '/api/dashboard': { metrics: { credits: 0, creditsUnlimited: admin, jobCount: 1, clipCount: 1, durationMinutes: 2, statuses: { completed: 1 }, activity: [] }, recentClips: [] },
       '/api/dashboard/history': { jobs: [] },
       '/api/stripe/billing': { account: { credits: 0, creditsUnlimited: admin, plan: 'free', hasBillingProfile: false }, subscription: null, invoices: [], providerAvailable: true },
+      '/api/youtube/channel': { enabled: true, connected: true, account: { channel_id: 'UCsynthetic', title: 'Synthetic channel', avatar_url: null } },
+      // One public video on the connected channel; the list is the only YouTube source.
+      '/api/youtube/channel/videos': { videos: [{ id: 'dQw4w9WgXcQ', title: 'Synthetic clip', duration_seconds: 212, published_at: '2026-11-01T10:00:00Z', visibility: 'public', thumbnail_url: null, url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' }], next_page_token: null },
+      '/api/youtube/imports': { imports: [] },
       '/api/workspace-agent/runs': { runs: [], has_more: false },
       '/api/workspace-agent/suggestions': { suggestions: [], capabilities: [] }
     }
@@ -70,41 +74,28 @@ try {
     const { context, page } = await accountPage(admin)
     try {
       await page.goto(`${origin}/dashboard/create?mode=youtube`, { waitUntil: 'networkidle', timeout: 180000 })
-      const url = page.locator('#youtube-url')
-      await url.fill('https://www.youtube.com/watch?v=dQw4w9WgXcQ')
-      const generate = page.locator('.creation-generate-action')
-      await generate.waitFor()
-      await page.waitForFunction((enabled) => {
-        const button = document.querySelector('.creation-generate-action')
-        return button && button.disabled !== enabled
-      }, admin)
-      assert.equal(await generate.isEnabled(), admin)
-      console.log(`${admin ? 'Admin' : 'Member'} generation gate verified at zero credits.`)
-      const summary = page.locator('.creation-generate')
+      await page.getByRole('checkbox', { name: /Synthetic clip/ }).click()
+      // Generate stays disabled until the Google export disclosure is ticked; the real cause of the stuck button.
+      // A zero-credit member sees the limit block instead of the card, so there is no disclosure to tick.
+      if (admin) await page.getByRole('checkbox', { name: /chosen videos are exported/ }).check({ force: true })
+      const generate = page.getByRole('button', { name: 'Generate clips', exact: true })
+      const viewPlans = page.getByRole('link', { name: 'View plans', exact: true })
+      // Auto is priced at one clip per video, so a zero-credit member gets the canvas limit block
+      // (no Generate action); an administrator keeps Generate enabled and never sees the block.
       if (admin) {
-        assert.match(await summary.innerText(), /Unlimited credits/)
-        assert.doesNotMatch(await summary.innerText(), /Not enough credits/)
-        if (process.env.TEST_FAST_REFRESH === '1') {
-          originalSource = await readFile(sourcePath, 'utf8')
-          await page.evaluate(() => {
-            window.__entitlementDocument = document
-            window.__entitlementInput = document.querySelector('#youtube-url')
-            window.__entitlementSummary = document.querySelector('.creation-generate')
-          })
-          await writeFile(sourcePath, originalSource.replace('creation-generate block', 'creation-generate admin-hmr-check block'))
-          await page.locator('.admin-hmr-check').waitFor({ timeout: 60000 })
-          assert.equal(await url.inputValue(), 'https://www.youtube.com/watch?v=dQw4w9WgXcQ')
-          assert.ok(await page.evaluate(() => window.__entitlementDocument === document &&
-            window.__entitlementInput === document.querySelector('#youtube-url') &&
-            window.__entitlementSummary === document.querySelector('.creation-generate')))
-          await writeFile(sourcePath, originalSource)
-          originalSource = undefined
-          await page.locator('.admin-hmr-check').waitFor({ state: 'detached', timeout: 60000 })
-          console.log('Fast Refresh preserved the document, component DOM and input state.')
-        }
+        await generate.waitFor()
+        await page.waitForFunction(() => {
+          const button = [...document.querySelectorAll('button')].find((node) => node.textContent?.trim() === 'Generate clips')
+          return button && !button.disabled
+        })
+        assert.equal(await generate.isEnabled(), true)
+        assert.equal(await viewPlans.count(), 0, 'Administrators are never shown the limit block')
       } else {
-        assert.match(await summary.innerText(), /Not enough credits/)
+        await viewPlans.waitFor()
+        assert.equal(await generate.count(), 0, 'The limit block replaces Generate for a zero-credit member')
       }
+      assert.equal(await page.getByRole('checkbox', { name: /Synthetic clip/ }).getAttribute('aria-checked'), 'true', 'The chosen video stays selected')
+      console.log(`${admin ? 'Admin' : 'Member'} generation gate verified at zero credits.`)
 
       await page.goto(`${origin}/dashboard`, { waitUntil: 'networkidle' })
       await page.locator('[data-home-stats]').waitFor()

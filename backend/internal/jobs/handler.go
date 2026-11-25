@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
-	"net"
 	"net/http"
 	"regexp"
 	"strings"
@@ -26,35 +25,22 @@ type Media interface {
 	ValidateUploadSource(context.Context, string, string) (string, error)
 	WorkerSource(context.Context, string) (string, error)
 }
-type Config struct {
-	LookupIP              LookupIP
-	YouTubeImportApproved bool
-}
 type Handler struct {
 	repo  *Repository
 	auth  Auth
 	media Media
-	cfg   Config
 }
 
-func New(db *sql.DB, auth Auth, media Media, cfg Config) *Handler {
-	if cfg.LookupIP == nil {
-		cfg.LookupIP = net.DefaultResolver.LookupIP
-	}
-	return &Handler{NewRepository(db), auth, media, cfg}
+func New(db *sql.DB, auth Auth, media Media) *Handler {
+	return &Handler{NewRepository(db), auth, media}
 }
 func (h *Handler) Register(r *httprouter.Router) {
 	r.Handler("GET", "/api/jobs", h.auth.Require(h.list))
 	r.Handler("POST", "/api/jobs", h.auth.RequireMember(h.auth.Limit(h.create, "jobs-create", 30, time.Hour)))
-	// httprouter v1 does not allow static and parameter siblings. Dispatch the
-	// literal batch operation within the same parameter branch as cancellation.
-	r.Handler("POST", "/api/jobs/:id", h.auth.RequireMember(h.auth.Limit(func(w http.ResponseWriter, req *http.Request) {
-		if httprouter.ParamsFromContext(req.Context()).ByName("id") != "batch" {
-			http.NotFound(w, req)
-			return
-		}
-		h.batch(w, req)
-	}, "jobs-batch", 5, time.Hour)))
+	// Batch link imports were removed. The parameter branch stays so that
+	// POST /api/jobs/:id answers 404 (httprouter v1 does not allow static and
+	// parameter siblings).
+	r.Handler("POST", "/api/jobs/:id", http.NotFoundHandler())
 	r.Handler("GET", "/api/jobs/:id", h.auth.Require(h.get))
 	r.Handler("POST", "/api/jobs/:id/cancel", h.auth.RequireMember(h.cancel))
 	r.Handler("POST", "/api/jobs/:id/retry", h.auth.RequireMember(h.retryAudio))
@@ -101,13 +87,6 @@ func decode(w http.ResponseWriter, r *http.Request, dst any) bool {
 	return true
 }
 func (h *Handler) prepare(ctx context.Context, userID string, p CreateInput) (Prepared, error) {
-	if !empty(p.SourceURL) {
-		if !h.cfg.YouTubeImportApproved && RequiresYouTubeImportApproval(p.SourceType, *p.SourceURL) {
-			return Prepared{}, errors.New("Video link imports are unavailable. Upload your original video file instead")
-		}
-		err := ValidateSourceURL(ctx, h.cfg.LookupIP, p.SourceType, *p.SourceURL)
-		return Prepared{Input: p, WorkerSource: *p.SourceURL}, err
-	}
 	reference := value(p.SourceStorageKey)
 	if reference == "" {
 		reference = value(p.SourceFilePath)
@@ -139,7 +118,11 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := in.Validate(); err != nil {
-		reply(w, 422, map[string]any{"detail": err.Error()})
+		status := 422
+		if errors.Is(err, ErrLinkImportsRemoved) {
+			status = 400
+		}
+		reply(w, status, map[string]any{"detail": err.Error()})
 		return
 	}
 	userID := identity.Current(r).User.ID
@@ -154,53 +137,6 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	reply(w, 201, result[0])
-}
-func (h *Handler) batch(w http.ResponseWriter, r *http.Request) {
-	in := BatchInput{Options: DefaultOptions()}
-	if !decode(w, r, &in) {
-		return
-	}
-	if err := in.Validate(); err != nil {
-		reply(w, 422, map[string]any{"detail": err.Error()})
-		return
-	}
-	if len(in.SourceURLs) < 1 || len(in.SourceURLs) > 20 {
-		reply(w, 422, map[string]any{"detail": "Provide between 1 and 20 source URLs"})
-		return
-	}
-	userID := identity.Current(r).User.ID
-	prepared := make([]Prepared, 0, len(in.SourceURLs))
-	for _, source := range in.SourceURLs {
-		p := CreateInput{Options: in.Options, SourceType: "youtube", SourceURL: &source}
-		if err := p.Validate(); err != nil {
-			reply(w, 422, map[string]any{"detail": err.Error()})
-			return
-		}
-		item, err := h.prepare(r.Context(), userID, p)
-		if err != nil {
-			reply(w, 400, map[string]any{"detail": err.Error()})
-			return
-		}
-		item.Batch = true
-		prepared = append(prepared, item)
-	}
-	result, err := h.repo.Create(r.Context(), userID, prepared)
-	if err != nil {
-		failure(w, err)
-		return
-	}
-	totalCredits := 0
-	for _, raw := range result {
-		var job struct {
-			Credits int `json:"credits_charged"`
-		}
-		if err := json.Unmarshal(raw, &job); err != nil {
-			failure(w, err)
-			return
-		}
-		totalCredits += job.Credits
-	}
-	reply(w, 201, map[string]any{"jobs": result, "total_credits": totalCredits})
 }
 func (h *Handler) list(w http.ResponseWriter, r *http.Request)    { h.listWith(w, r, false) }
 func (h *Handler) history(w http.ResponseWriter, r *http.Request) { h.listWith(w, r, true) }

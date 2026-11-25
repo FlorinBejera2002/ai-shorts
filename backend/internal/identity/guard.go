@@ -93,3 +93,9 @@ func (h *Handler) RequireDeletionAuth(next http.HandlerFunc) http.Handler {
 	return h.require(next, false, false, true)
 }
 func (h *Handler) Policy(next http.Handler) http.Handler { return h.originPolicy(next) }
+
+// WithPrincipal returns a context carrying principal as the current user. Feature
+// packages use it in tests that replace the session middleware.
+func WithPrincipal(ctx context.Context, principal AuthResponse) context.Context {
+	return context.WithValue(ctx, principalKey{}, principal)
+}

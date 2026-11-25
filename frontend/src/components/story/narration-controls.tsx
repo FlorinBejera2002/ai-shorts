@@ -1,11 +1,17 @@
-import { Pause, Play, Square } from 'lucide-react'
+import { Pause, Play, Square, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { formatDuration } from '@/lib/youtube'
 import { useStoryLanguage } from './use-story-language'
 import type { useNarrationRecorder } from './use-narration-recorder'
+import pill from './story-pill-buttons.module.css'
+import styles from './story-options.module.css'
 
 type Recorder = ReturnType<typeof useNarrationRecorder>
 
+/**
+ * The live recording band holds only the status, timer and a cancel control. Pauză and Oprește sit
+ * below the band, as on the canvas. The canvas has no waveform and no helper text.
+ */
 export function NarrationRecording({
   recorder,
   onDiscard
@@ -16,48 +22,58 @@ export function NarrationRecording({
   const text = useStoryLanguage()
   const statuses = {
     idle: '',
-    requesting: text(
-      'Waiting for microphone permission…',
-      'Se așteaptă permisiunea pentru microfon…'
-    ),
+    requesting: text('Waiting for microphone permission…', 'Se așteaptă permisiunea pentru microfon…'),
     stopping: text('Preparing your recording…', 'Se pregătește înregistrarea…'),
     paused: text('Recording paused', 'Înregistrare întreruptă'),
     recording: text('Recording', 'Se înregistrează')
   }
+  const live = ['recording', 'paused'].includes(recorder.phase)
   return (
-    <div className="space-y-3 rounded-md bg-muted p-4">
-      <p role="status" className="text-sm font-medium">
-        {statuses[recorder.phase]}
-      </p>
-      {recorder.phase !== 'requesting' && (
-        <p
-          className="font-mono text-2xl tabular-nums"
-          aria-label={text('Recording time', 'Durata înregistrării')}
-        >
-          {formatDuration(recorder.seconds)}{' '}
-          <span className="text-sm text-muted-foreground">/ 3:00</span>
-        </p>
-      )}
-      <div className="flex flex-wrap gap-2">
-        {['recording', 'paused'].includes(recorder.phase) && (
-          <>
-            <Button variant="outline" onClick={recorder.pause}>
-              {recorder.phase === 'paused' ? <Play /> : <Pause />}
-              {recorder.phase === 'paused'
-                ? text('Resume recording', 'Continuă înregistrarea')
-                : text('Pause recording', 'Pauză')}
-            </Button>
-            <Button onClick={recorder.stop}>
-              <Square />
-              {text('Stop recording', 'Oprește înregistrarea')}
-            </Button>
-          </>
+    <>
+      <div className={`${styles.recording} ${styles.recordingLive}`} data-testid="narration-recording">
+        <div className={styles.recordingHead}>
+          <p role="status" className={styles.recordingStatus}>
+            {recorder.phase === 'recording' && (
+              <span className={styles.recordingDot} aria-hidden="true" />
+            )}
+            {statuses[recorder.phase]}
+          </p>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className={`${pill.pill} ${pill.ghost} ${styles.recordingCancel}`}
+            aria-label={text('Cancel recording', 'Anulează înregistrarea')}
+            title={text('Cancel recording', 'Anulează înregistrarea')}
+            onClick={onDiscard}
+          >
+            <X aria-hidden="true" />
+          </Button>
+        </div>
+        {recorder.phase !== 'requesting' && (
+          <p
+            className={styles.recordingTime}
+            aria-label={text('Recording time', 'Durata înregistrării')}
+          >
+            {formatDuration(recorder.seconds)}
+          </p>
         )}
-        <Button variant="ghost" onClick={onDiscard}>
-          {text('Cancel recording', 'Anulează înregistrarea')}
-        </Button>
       </div>
-    </div>
+      {live && (
+        <div className={styles.actionRow}>
+          <Button type="button" className={`${pill.pill} ${pill.outline}`} onClick={recorder.pause}>
+            {recorder.phase === 'paused' ? <Play /> : <Pause />}
+            {recorder.phase === 'paused'
+              ? text('Resume recording', 'Continuă înregistrarea')
+              : text('Pause', 'Pauză')}
+          </Button>
+          <Button type="button" className={`${pill.pill} ${pill.primary}`} onClick={recorder.stop}>
+            <Square />
+            {text('Stop', 'Oprește')}
+          </Button>
+        </div>
+      )}
+    </>
   )
 }
 
@@ -84,7 +100,7 @@ export function NarrationPreview({
 }: PreviewProps) {
   const text = useStoryLanguage()
   return (
-    <div className="space-y-3 rounded-md border p-4" data-testid="narration-draft">
+    <div className={styles.recording} data-testid="narration-draft">
       <p className="break-all text-sm font-medium">{draft.file.name}</p>
       <audio
         controls
@@ -94,7 +110,7 @@ export function NarrationPreview({
         aria-label={text('Narration preview', 'Previzualizare narațiune')}
         onLoadedMetadata={(event) => onDuration(event.currentTarget.duration)}
       />
-      <p className="text-xs text-muted-foreground">
+      <p className={styles.note}>
         {text(
           'Listen before saving. Your audio stays on this device until you save it.',
           'Ascultă înainte de salvare. Sunetul rămâne pe acest dispozitiv până când îl salvezi.'
@@ -109,17 +125,32 @@ export function NarrationPreview({
             : text('Validating narration…', 'Se verifică narațiunea…')}
         </p>
       )}
-      <div className="flex flex-wrap gap-2">
-        <Button disabled={Boolean(saving)} onClick={onSave}>
+      <div className={styles.actionRow}>
+        <Button
+          type="button"
+          className={`${pill.pill} ${pill.primary}`}
+          disabled={Boolean(saving)}
+          onClick={onSave}
+        >
           {text(
             failed ? 'Retry saving narration' : 'Save narration',
             failed ? 'Reîncearcă salvarea' : 'Salvează narațiunea'
           )}
         </Button>
-        <Button variant="outline" disabled={Boolean(saving)} onClick={onRecord}>
+        <Button
+          type="button"
+          className={`${pill.pill} ${pill.outline}`}
+          disabled={Boolean(saving)}
+          onClick={onRecord}
+        >
           {text('Record again', 'Înregistrează din nou')}
         </Button>
-        <Button variant="ghost" disabled={Boolean(saving)} onClick={onDiscard}>
+        <Button
+          type="button"
+          className={`${pill.pill} ${pill.ghost}`}
+          disabled={Boolean(saving)}
+          onClick={onDiscard}
+        >
           {text('Discard audio', 'Renunță la acest audio')}
         </Button>
       </div>

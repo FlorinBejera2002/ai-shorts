@@ -1,8 +1,12 @@
-import { useLocation } from 'react-router-dom'
+import { useEffect } from 'react'
+import { useLocation, useRouteError } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
+import { reportClientError } from '@/lib/error-reporting'
 
 export function RouteError() {
   const { pathname } = useLocation()
+  const error = useRouteError()
+  useEffect(() => { reportClientError(error) }, [error])
   const romanian = pathname === '/ro' || pathname.startsWith('/ro/')
   return (
     <main role="alert" className="mx-auto flex min-h-dvh max-w-lg flex-col justify-center gap-4 px-6">

@@ -6,5 +6,5 @@ export function Avatar({ className, ...props }: React.ComponentProps<typeof Prim
   return <Primitive.Root data-slot="avatar" className={cn('relative flex size-9 shrink-0 overflow-hidden rounded-full', className)} {...props} />
 }
 export function AvatarFallback({ className, ...props }: React.ComponentProps<typeof Primitive.Fallback>) {
-  return <Primitive.Fallback className={cn('flex size-full items-center justify-center rounded-full bg-muted text-sm font-medium', className)} {...props} />
+  return <Primitive.Fallback className={cn('flex size-full items-center justify-center rounded-full bg-secondary text-[13px] font-semibold text-foreground', className)} {...props} />
 }

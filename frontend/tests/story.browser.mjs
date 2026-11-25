@@ -117,6 +117,10 @@ await page.route('**/api/**', async (route) => {
   const request = route.request()
   const path = new URL(request.url()).pathname
   const method = request.method()
+  if (path === '/api/youtube/channel')
+    return route.fulfill({ json: { enabled: true, connected: true, account: { channel_id: 'UCsynthetic', title: 'Synthetic channel', avatar_url: null } } })
+  if (path === '/api/youtube/channel/videos')
+    return route.fulfill({ json: { videos: [{ id: 'abcdefghijk', title: 'Draft source clip', duration_seconds: 212, published_at: '2026-11-01T10:00:00Z', visibility: 'public', thumbnail_url: null, url: 'https://www.youtube.com/watch?v=abcdefghijk' }], next_page_token: null } })
   if (path === '/api/workspace-agent/runs')
     return route.fulfill({ json: { runs: [], has_more: false } })
   if (path === '/api/workspace-agent/suggestions')
@@ -300,7 +304,7 @@ try {
     .getByRole('heading', { name: 'Create clips', exact: true })
     .waitFor({ timeout: 30000 })
   const fileInput = page.getByLabel('Upload clips')
-  assert.equal(await page.locator('#youtube-url').isVisible(), false, 'Only the selected source workspace is visible')
+  assert.equal(await page.getByTestId('creation-youtube-workspace').isVisible(), false, 'Only the selected source workspace is visible')
   await fileInput.setInputFiles(
     Array.from({ length: fileCount }, (_, index) => ({
       name: `clip-${index + 1}.mp4`,
@@ -310,11 +314,11 @@ try {
   )
   await page
     .getByRole('status')
-    .filter({ hasText: 'Validating on server' })
+    .filter({ hasText: 'Validating' })
     .first()
     .waitFor()
   assert.equal(
-    await page.getByRole('button', { name: 'Create my clip', exact: true }).count(),
+    await page.getByRole('button', { name: 'Create clips', exact: true }).count(),
     0,
     'Generation is unavailable on the footage step'
   )
@@ -342,8 +346,8 @@ try {
     await page.getByTestId(`story-step-${step}`).waitFor({ state: 'visible' })
     assert.equal(generations.length, 0, 'Wizard navigation never starts generation')
   }
-  assert.equal(await page.getByRole('button', { name: 'Create my clip', exact: true }).isEnabled(), true, 'Sensible defaults allow generation after uploads complete')
-  await page.getByRole('button', { name: 'Create my clip', exact: true }).click()
+  assert.equal(await page.getByRole('button', { name: 'Create clips', exact: true }).isEnabled(), true, 'Sensible defaults allow generation after uploads complete')
+  await page.getByRole('button', { name: 'Create clips', exact: true }).click()
   await page.getByTestId('story-result').waitFor()
   await page.getByTestId('story-processing').waitFor({ state: 'detached' })
   assert.equal(generations.length, 1, 'Multiple files produce one story job')
@@ -355,26 +359,26 @@ try {
   assert.equal(await page.getByRole('link', { name: 'All clips', exact: true }).getAttribute('href'), '/dashboard/clips')
   await page.reload()
   await page.getByTestId('story-result').waitFor()
+  // The canvas result shows only the finished clip, so reload restores the result rather than the upload list.
   assert.equal(
     await page.locator('[data-testid="validated-source"]').count(),
-    Math.min(fileCount, 24),
-    'Reload restores the first page of successful uploads'
+    0,
+    'Reload restores the result without the upload list'
   )
   const storyHeading = await page.getByTestId('story-result').elementHandle()
   await chooseCreationSource(page, 'youtube')
-  await page.locator('#youtube-url').fill('draft source link to preserve')
-  await page.getByRole('button', { name: 'Add URL', exact: true }).click()
-  const batchInput = page.getByRole('textbox', { name: 'YouTube URL 1', exact: true })
-  await batchInput.fill('draft batch source to preserve')
-  const youtubeInput = await batchInput.elementHandle()
-  const youtubeSlider = page.getByRole('slider', { name: 'Clips per video' })
-  await youtubeSlider.focus()
-  await youtubeSlider.press('ArrowRight')
-  const selectedClipCount = await youtubeSlider.getAttribute('aria-valuenow')
+  // The channel list is the YouTube source: a chosen video is the draft that must survive a source switch.
+  const draftVideo = page.getByRole('checkbox', { name: /Draft source clip/ })
+  await draftVideo.click()
+  const youtubeInput = await page.getByTestId('creation-youtube-workspace').elementHandle()
+  const clipPresets = page.getByRole('radiogroup', { name: 'Number of clips', exact: true })
+  const fiveClips = clipPresets.getByRole('radio', { name: '5', exact: true })
+  await fiveClips.click()
+  assert.equal(await fiveClips.getAttribute('aria-checked'), 'true')
   await chooseCreationSource(page, 'upload')
   assert.equal(await youtubeInput.evaluate((node) => node.isConnected), true, 'YouTube workspace stays mounted while hidden')
   assert.equal(await storyHeading.evaluate((node) => node.isConnected), true, 'Story result keeps its mounted state')
-  const resultMetadata = page.locator('dl.story-result-metadata')
+  const resultMetadata = page.getByTestId('story-result-stats')
   await resultMetadata.getByText('0:08', { exact: true }).waitFor()
   assert.deepEqual(
     await resultMetadata.locator('dd').allTextContents(),
@@ -382,10 +386,8 @@ try {
     'Result header keeps duration, format and version after switching sources'
   )
   await chooseCreationSource(page, 'youtube')
-  assert.equal(await batchInput.inputValue(), 'draft batch source to preserve')
-  assert.equal(await youtubeSlider.getAttribute('aria-valuenow'), selectedClipCount)
-  await page.getByRole('button', { name: 'Remove link', exact: true }).last().click()
-  assert.equal(await page.locator('#youtube-url').inputValue(), 'draft batch source to preserve')
+  assert.equal(await draftVideo.getAttribute('aria-checked'), 'true', 'The chosen video survives switching sources')
+  assert.equal(await fiveClips.getAttribute('aria-checked'), 'true', 'The selected clip count survives switching sources')
   await chooseCreationSource(page, 'upload')
   if (process.env.TEST_SCREENSHOT)
     await page.screenshot({

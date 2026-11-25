@@ -48,6 +48,7 @@ type Options struct {
 	Music                  *MusicSelection        `json:"music,omitempty"`
 	Narration              bool                   `json:"narration,omitempty"`
 	Brief                  string                 `json:"brief"`
+	ClipCount              int                    `json:"clip_count"` // 0 = auto; otherwise 1..MaxClipCount clips from the footage
 	TargetSeconds          int                    `json:"target_seconds"`
 	AspectRatio            string                 `json:"aspect_ratio"`
 	AspectRatioRevised     bool                   `json:"aspect_ratio_revised,omitempty"` // later explicit format choice supersedes original format wording
@@ -245,6 +246,8 @@ type Version struct {
 	Plan          Plan       `json:"plan"`
 	Timeline      []Entry    `json:"timeline"`
 	Output        Output     `json:"output"`
+	// Outputs lists every clip of a multi-clip version; Outputs[0] mirrors Output.
+	Outputs       []ClipOutput `json:"outputs,omitempty"`
 	Report        Report     `json:"report"`
 	Accepted      bool       `json:"accepted"`
 }

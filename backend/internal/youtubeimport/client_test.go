@@ -30,13 +30,13 @@ func testClient(t *testing.T, handler http.HandlerFunc) *Client {
 
 func TestAuthorizationSeparatesPortabilityScopesAndUsesPKCE(t *testing.T) {
 	client := testClient(t, func(http.ResponseWriter, *http.Request) { t.Error("authorization must not call server") })
-	authorization, err := client.AuthorizationURL("saved-state", testVerifier, []string{PublicVideos, PrivateVideos, PublicVideos})
+	authorization, err := client.AuthorizationURL("saved-state", testVerifier, []string{PublicVideos, UnlistedVideos})
 	if err != nil {
 		t.Fatal(err)
 	}
 	u, _ := url.Parse(authorization)
 	query := u.Query()
-	if query.Get("scope") != scopePrefix+PublicVideos+" "+scopePrefix+PrivateVideos || query.Get("include_granted_scopes") != "false" || query.Get("access_type") != "offline" || query.Get("state") != "saved-state" || query.Get("response_type") != "code" || query.Get("prompt") != "consent" {
+	if query.Get("scope") != scopePrefix+PublicVideos+" "+scopePrefix+UnlistedVideos || query.Get("include_granted_scopes") != "false" || query.Get("access_type") != "offline" || query.Get("state") != "saved-state" || query.Get("response_type") != "code" || query.Get("prompt") != "consent" {
 		t.Fatalf("unexpected authorization parameters: %v", query)
 	}
 	challenge := sha256.Sum256([]byte(testVerifier))
@@ -46,10 +46,10 @@ func TestAuthorizationSeparatesPortabilityScopesAndUsesPKCE(t *testing.T) {
 	if _, err := client.AuthorizationURL("state", testVerifier, []string{"userinfo.email"}); err == nil {
 		t.Fatal("mixed identity scope accepted")
 	}
-	if got := GrantedResources(scopePrefix+PrivateVideos, []string{PublicVideos, PrivateVideos}); len(got) != 1 || got[0] != PrivateVideos {
+	if got := GrantedResources(scopePrefix+UnlistedVideos, []string{PublicVideos, UnlistedVideos}); len(got) != 1 || got[0] != UnlistedVideos {
 		t.Fatalf("partial grant expanded: %v", got)
 	}
-	if got := GrantedResources(scopePrefix+PrivateVideos, []string{PublicVideos}); len(got) != 0 {
+	if got := GrantedResources(scopePrefix+UnlistedVideos, []string{PublicVideos}); len(got) != 0 {
 		t.Fatalf("unrequested grant accepted: %v", got)
 	}
 }
@@ -172,6 +172,24 @@ func TestRefreshRejectsUnexpectedPermissions(t *testing.T) {
 	})
 	if _, err := client.Refresh(context.Background(), Token{RefreshToken: "refresh"}); err == nil {
 		t.Fatal("publishing permission accepted by portability client")
+	}
+}
+
+// Private videos are a restricted Google scope that would require an annual
+// security assessment; the app requests only public and unlisted videos.
+func TestPrivateVideoScopeIsNeitherRequestedNorAccepted(t *testing.T) {
+	const privateVideos = "youtube.private_videos"
+	client := testClient(t, func(w http.ResponseWriter, request *http.Request) {
+		fmt.Fprintf(w, `{"access_token":"token","expires_in":3600,"scope":%q}`, scopePrefix+privateVideos)
+	})
+	if _, err := client.AuthorizationURL("state", testVerifier, []string{PublicVideos, privateVideos}); err == nil {
+		t.Fatal("private video scope requested")
+	}
+	if _, err := requestedResources([]string{"private"}); err == nil {
+		t.Fatal("private visibility accepted")
+	}
+	if _, err := client.Exchange(context.Background(), "code", testVerifier); err == nil {
+		t.Fatal("private video grant accepted")
 	}
 }
 

@@ -2,23 +2,14 @@ package processing
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io"
-	"log/slog"
 	"net/http"
-	"net/url"
 	"os"
-	"path/filepath"
-	"strings"
 	"time"
 )
 
 const maximumSourceBytes int64 = 5 << 30
-
-// youtubeFormat prefers H.264/M4A up to 1080p (cheap to decode while
-// rendering) and falls back to any merged or combined stream.
-const youtubeFormat = "bv*[height<=1080][vcodec^=avc1]+ba[ext=m4a]/bv*[height<=1080][ext=mp4]+ba[ext=m4a]/b[height<=1080][ext=mp4]/bv*[height<=1080]+ba/b"
 
 func copyBounded(source io.Reader, dest string) error {
 	f, e := os.OpenFile(dest, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
@@ -67,143 +58,4 @@ func (p *Processor) materialize(ctx context.Context, key, dest string) error {
 		return fmt.Errorf("storage download status %d", response.StatusCode)
 	}
 	return copyBounded(response.Body, dest)
-}
-
-func youtubeURL(raw string) bool {
-	u, e := url.Parse(raw)
-	if e != nil || u.Scheme != "https" || u.User != nil || u.Port() != "" {
-		return false
-	}
-	switch strings.ToLower(u.Hostname()) {
-	case "youtube.com", "www.youtube.com", "m.youtube.com", "youtu.be":
-		return true
-	}
-	return false
-}
-
-// download fetches a YouTube source with yt-dlp, which keeps up with YouTube's
-// player changes; dest's directory is the job's private temp directory.
-func (p *Processor) download(ctx context.Context, address, dest string) error {
-	if !youtubeURL(address) {
-		return fmt.Errorf("only HTTPS YouTube source URLs are supported")
-	}
-	dir := filepath.Dir(dest)
-	args := []string{
-		"--ignore-config", "--no-playlist", "--no-cache-dir", "--no-progress", "--quiet", "--no-warnings",
-		"--max-filesize", "5G", "--format", youtubeFormat, "--merge-output-format", "mp4", "--remux-video", "mp4",
-		"--paths", "temp:" + dir, "--output", dest,
-	}
-	tokenMode := p.cfg.YouTubeTokenProviderURL != ""
-	if tokenMode {
-		provider, err := url.Parse(p.cfg.YouTubeTokenProviderURL)
-		if err != nil || provider.Hostname() == "" || (provider.Scheme != "http" && provider.Scheme != "https") || provider.User != nil || provider.RawQuery != "" || provider.Fragment != "" || strings.ContainsAny(p.cfg.YouTubeTokenProviderURL, ";\r\n") {
-			return fmt.Errorf("invalid YouTube token provider URL")
-		}
-		// Public imports first try automatically generated tokens without
-		// account cookies. The plugin requests fresh tokens per video context.
-		args = append(args, "--plugin-dirs", "/opt/yt-dlp/plugins",
-			"--extractor-args", "youtube:player_client=mweb,tv,web_safari",
-			"--extractor-args", "youtubepot-bgutilhttp:base_url="+provider.String())
-	}
-	if p.cfg.YouTubeProxy != "" {
-		proxy, err := url.Parse(p.cfg.YouTubeProxy)
-		if err != nil || proxy.Hostname() == "" || (proxy.Scheme != "http" && proxy.Scheme != "https") || (proxy.Path != "" && proxy.Path != "/") || proxy.RawQuery != "" || proxy.Fragment != "" {
-			return fmt.Errorf("invalid YouTube proxy URL; use an HTTP or HTTPS proxy endpoint")
-		}
-		args = append(args, "--proxy", p.cfg.YouTubeProxy)
-	}
-	var err error
-	if tokenMode {
-		err = p.runYtDlp(ctx, dir, args, address)
-		// YouTube blocks some server IPs with a sign-in/bot check that tokens
-		// alone cannot pass. Retry once with the account session, if provisioned.
-		if err != nil && isYouTubeBotCheck(err) {
-			cookies, cookieErr := p.privateYouTubeCookies(dir)
-			if cookieErr != nil {
-				return fmt.Errorf("YouTube cookies: %w", cookieErr)
-			}
-			if cookies != nil {
-				_ = os.Remove(dest)
-				err = p.runYtDlpWithCookies(ctx, dir, args, address, dest, cookies)
-			}
-		}
-	} else {
-		cookies, cookieErr := p.privateYouTubeCookies(dir)
-		if cookieErr != nil {
-			return fmt.Errorf("YouTube cookies: %w", cookieErr)
-		}
-		if cookies != nil {
-			err = p.runYtDlpWithCookies(ctx, dir, args, address, dest, cookies)
-		} else {
-			err = p.runYtDlp(ctx, dir, args, address)
-		}
-	}
-	if err != nil {
-		if isYouTubeBotCheck(err) {
-			return fmt.Errorf("YouTube blocked this server with a sign-in check; provision a fresh YouTube cookie export (YOUTUBE_COOKIES_PATH) or an authorized proxy (YOUTUBE_PROXY): %w", err)
-		}
-		return err
-	}
-	info, e := os.Stat(dest)
-	if e != nil {
-		return fmt.Errorf("YouTube download produced no video: %w", e)
-	}
-	if info.Size() > maximumSourceBytes {
-		return fmt.Errorf("source exceeds 5 GiB limit")
-	}
-	return nil
-}
-
-// runYtDlp runs one yt-dlp attempt for address with the given options.
-func (p *Processor) runYtDlp(ctx context.Context, dir string, args []string, address string) error {
-	full := append(append([]string{}, args...), "--", address)
-	if _, e := run(ctx, dir, p.cfg.YtDlpPath, full...); e != nil {
-		// Proxy diagnostics may contain its authenticated URL. Never persist
-		// those credentials in a job error or return them to the browser.
-		if p.cfg.YouTubeProxy != "" && ctx.Err() == nil {
-			if isYouTubeBotCheck(e) {
-				return errYouTubeBotCheckThroughProxy
-			}
-			return fmt.Errorf("YouTube download through configured proxy failed; verify proxy access and YouTube availability")
-		}
-		return fmt.Errorf("YouTube download: %w", e)
-	}
-	return nil
-}
-
-// runYtDlpWithCookies runs yt-dlp with the job's private cookie jar and then
-// keeps the session cookies YouTube refreshed during the request.
-func (p *Processor) runYtDlpWithCookies(ctx context.Context, dir string, args []string, address, dest string, cookies *youtubeCookieSession) error {
-	err := p.runYtDlp(ctx, dir, append(append([]string{}, args...), "--cookies", cookies.path), address)
-	if ctx.Err() == nil {
-		if err != nil && isYouTubeBotCheck(err) {
-			if cookies.fromState {
-				exported, cookieErr := p.privateYouTubeExportAfterRejection(dir, cookies)
-				if cookieErr != nil {
-					return fmt.Errorf("YouTube cookies: %w", cookieErr)
-				}
-				if exported != nil {
-					_ = os.Remove(dest)
-					return p.runYtDlpWithCookies(ctx, dir, args, address, dest, exported)
-				}
-			}
-			return err
-		}
-		if saveErr := p.saveRefreshedYouTubeCookies(cookies); saveErr != nil {
-			slog.Warn("Refreshed YouTube cookies were not saved", "error", saveErr)
-		}
-	}
-	return err
-}
-
-var errYouTubeBotCheckThroughProxy = errors.New("YouTube download through configured proxy failed: Sign in to confirm you're not a bot")
-
-// isYouTubeBotCheck reports whether yt-dlp failed on YouTube's sign-in/bot
-// check, which only an accepted network or account session resolves.
-func isYouTubeBotCheck(err error) bool {
-	if errors.Is(err, errYouTubeBotCheckThroughProxy) {
-		return true
-	}
-	message := strings.ToLower(err.Error())
-	return strings.Contains(message, "confirm you") && strings.Contains(message, "not a bot")
 }

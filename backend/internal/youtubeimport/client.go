@@ -18,7 +18,6 @@ import (
 const (
 	PublicVideos   = "youtube.public_videos"
 	UnlistedVideos = "youtube.unlisted_videos"
-	PrivateVideos  = "youtube.private_videos"
 	scopePrefix    = "https://www.googleapis.com/auth/dataportability."
 	maxResponse    = 1 << 20
 )
@@ -117,14 +116,14 @@ func validEndpoint(raw string) bool {
 
 // NormalizeResources accepts only the three uploaded-video resource groups.
 func NormalizeResources(resources []string) ([]string, error) {
-	if len(resources) == 0 || len(resources) > 3 {
+	if len(resources) == 0 || len(resources) > 2 {
 		return nil, errors.New("select at least one YouTube video visibility")
 	}
 	seen := make(map[string]bool, len(resources))
 	result := make([]string, 0, len(resources))
 	for _, resource := range resources {
 		switch resource {
-		case PublicVideos, UnlistedVideos, PrivateVideos:
+		case PublicVideos, UnlistedVideos:
 		default:
 			return nil, errors.New("invalid YouTube data import resource")
 		}
@@ -239,7 +238,7 @@ func (c *Client) tokenRequest(ctx context.Context, form url.Values, previous Tok
 	}
 	for _, scope := range strings.Fields(response.Scope) {
 		switch scope {
-		case scopePrefix + PublicVideos, scopePrefix + UnlistedVideos, scopePrefix + PrivateVideos:
+		case scopePrefix + PublicVideos, scopePrefix + UnlistedVideos:
 		default:
 			return Token{}, errors.New("Google data import returned unexpected permissions")
 		}

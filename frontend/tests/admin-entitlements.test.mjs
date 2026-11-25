@@ -46,6 +46,7 @@ function hooks() {
       },
       useEffect(effect) { effects.push(effect) },
       useCallback(callback) { return callback },
+      useId() { return 'consent' },
       useMemo(callback) { return callback() }
     },
     render(callback) { index = 0; return callback() },
@@ -85,7 +86,7 @@ const translations = {
   useTranslations: () => (key, values) => `${key}${values ? `:${JSON.stringify(values)}` : ''}`
 }
 
-async function summary(role, account, extra = {}) {
+async function summary(role, account, extra = {}, usage = null) {
   const runtime = hooks()
   const { SummaryCard } = load('../src/components/create/summary-card.tsx', {
     react: runtime.react,
@@ -95,29 +96,29 @@ async function summary(role, account, extra = {}) {
     '@/components/ui/loading-indicator': { LoadingIndicator: 'span' },
     '@/components/ui/button': { Button: 'button' },
     '@/components/ui/card': { Card: 'section' },
+    '@/components/dashboard/sidebar-usage': { useMonthlyUsage: () => ({ data: usage }) },
     '@/i18n/navigation': { Link: 'a' },
     '@/lib/auth': { apiFetch: async () => ({ ok: true, json: async () => account }) }
   })
-  return runtime.mount(() => SummaryCard({
+  return renderComponents(await runtime.mount(() => SummaryCard({
     videoCount: 1, creditCost: 10, canGenerate: true, busy: false,
-    isBatch: false, onGenerate() {}, ...extra
-  }))
+    consented: true, onConsentChange() {}, onGenerate() {}, ...extra
+  })))
 }
 
 test('admins with zero or negative balances can generate without a credit charge', async () => {
   for (const credits of [0, -10]) {
     const tree = await summary('admin', { credits, creditsUnlimited: true })
     assert.equal(nodes(tree).find((node) => node.type === 'button').props.disabled, false)
-    assert.match(content(tree), /0\s+creditsUnit/)
-    assert.match(content(tree), /creditsUnlimited/)
     assert.doesNotMatch(content(tree), /insufficientCredits|balance:/)
   }
 })
 
 test('member credit checks and busy/input checks still block generation', async () => {
+  // Insufficient credits replace Generate with the canvas limit block that explains why.
   for (const credits of [0, 9]) {
     const tree = await summary('member', { credits, creditsUnlimited: false })
-    assert.equal(nodes(tree).find((node) => node.type === 'button').props.disabled, true)
+    assert.equal(nodes(tree).find((node) => node.type === 'button'), undefined, 'Generate is replaced by the limit block')
     assert.match(content(tree), /insufficientCredits/)
   }
   const funded = await summary('member', { credits: 10, creditsUnlimited: false })
@@ -130,9 +131,17 @@ test('member credit checks and busy/input checks still block generation', async 
 
 test('fresh account entitlement overrides an old admin session; legacy API falls back to role', async () => {
   const demoted = await summary('admin', { credits: 0, creditsUnlimited: false })
-  assert.equal(nodes(demoted).find((node) => node.type === 'button').props.disabled, true)
+  assert.equal(nodes(demoted).find((node) => node.type === 'button'), undefined, 'A demoted admin sees the limit block')
   const legacy = await summary('admin', { credits: 0 })
   assert.equal(nodes(legacy).find((node) => node.type === 'button').props.disabled, false)
+})
+
+test('the limit block shows the monthly usage when the plan has an allowance', async () => {
+  const limited = await summary('member', { credits: 0, creditsUnlimited: false }, {}, { percent: 100, resetsAt: null })
+  assert.match(content(limited), /\busage\b/)
+  assert.match(content(limited), /100/)
+  const withoutAllowance = await summary('member', { credits: 0, creditsUnlimited: false })
+  assert.doesNotMatch(content(withoutAllowance), /\busage\b/)
 })
 
 test('brand kit unlocks white label for admins and respects current server entitlements', async () => {
@@ -247,23 +256,37 @@ test('billing keeps account management available while hiding subscription upsel
   }
 })
 
-test('story review explains admin generation has no credit charge', () => {
+test('story review shows no credit cost line for admins or members', () => {
   const types = load('../src/components/story/types.ts')
+  const model = load('../src/components/story/story-create-review-model.ts', { './types': types })
+  const rows = load('../src/components/story/story-review-rows.tsx', {
+    '@/components/ui/button': { Button: 'button' },
+    './story-create-review-model': model,
+    './types': types
+  })
+  const aside = load('../src/components/story/story-review-aside.tsx', {
+    'lucide-react': { Sparkles: 'svg' },
+    '@/components/ui/button': { Button: 'button' }
+  })
   for (const role of ['admin', 'member']) {
     const { StoryCreateReview } = load('../src/components/story/story-create-review.tsx', {
-      'lucide-react': { Pencil: 'svg' },
-      '@/components/auth/use-auth': auth(role),
-      '@/components/ui/button': { Button: 'button' },
+      '@/components/dashboard/sidebar-usage': { useMonthlyUsage: () => ({ data: null }) },
+      '@/components/dashboard/brand/kits/kit-model': { orderKits: (kits) => kits },
+      '@/components/dashboard/brand/kits/use-brand-kits': { useBrandKits: () => ({ kits: undefined }) },
       '@/lib/youtube': { formatDuration: (value) => `${value}s` },
       './types': types,
+      './story-create-review-model': model,
+      './story-review-rows': rows,
+      './story-review-aside': aside,
       './use-story-language': { useStoryLanguage: () => (english) => english },
       './story-music-summary': { StoryMusicSummary: 'div' },
-      './story-source-preview': { StorySourcePreview: 'div' }
+      './story-review-phone': { StoryReviewPhone: 'div' },
+      './story-create-review.css': {}
     })
     const tree = StoryCreateReview({
       options: types.defaultOptions, videos: [], ready: false, busy: false,
       pendingCount: 0, onEdit() {}, onCreate() {}
     })
-    assert.match(content(tree), role === 'admin' ? /Unlimited credits · no charge/ : /10 credits · charged once/)
+    assert.doesNotMatch(content(renderComponents(tree)), /credit|credite/i)
   }
 })

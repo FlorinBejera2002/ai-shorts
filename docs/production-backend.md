@@ -104,77 +104,10 @@ view cannot charge, refund, cancel or alter a customer's subscription.
 ## Import users' own YouTube videos
 
 The official Data Portability flow uses its own Google Cloud project and OAuth
-consent, independently of publishing and legacy URL downloads. See
+consent, independently of publishing. See
 [setup, limits and verification](youtube-own-video-import.md). Keep
 `YOUTUBE_PORTABILITY_ENABLED=false` until dedicated credentials and Google's
 verification are ready. Compose provides private disk-backed archive staging.
-
-## YouTube download authentication
-
-The worker mounts `/opt/sneepcut-secrets` read-only at `/run/secrets`. When
-YouTube requires authentication, provision a Netscape-format cookie export at
-`/opt/sneepcut-secrets/youtube-cookies.txt`, readable by worker UID 10001. Keep
-this file outside Git, source releases, logs and media storage. Follow the
-[yt-dlp cookie export instructions](https://github.com/yt-dlp/yt-dlp/wiki/Extractors#exporting-youtube-cookies)
-and replace the export when its session expires.
-
-`YOUTUBE_COOKIES_DIR` changes the host directory; `YOUTUBE_COOKIES_PATH` is the
-path inside the container. The default path does not provision the cookie file.
-Without that optional file the downloader tries public access, which YouTube
-may reject from the server. The worker picks up a new or replaced export on
-the next job, without a restart.
-
-Provisioning steps:
-
-1. Use a separate Google account, not a personal one: YouTube may restrict
-   accounts used for automated downloads.
-2. In a private browser window, sign in to YouTube with that account, open
-   `https://www.youtube.com/robots.txt` in the same tab, export the
-   youtube.com cookies in Netscape format (for example with a "cookies.txt"
-   browser extension), then close the private window so the exported session
-   is not rotated.
-3. Copy the file to the server and make it readable only by the worker:
-
-   ```bash
-   scp youtube-cookies.txt sc:/opt/sneepcut-secrets/youtube-cookies.txt
-   ssh sc 'chown 10001:10001 /opt/sneepcut-secrets/youtube-cookies.txt && chmod 600 /opt/sneepcut-secrets/youtube-cookies.txt'
-   ```
-
-The downloader copies cookies into a private temporary directory for each
-YouTube request because yt-dlp saves its cookie jar when closing. The original
-secret remains read-only; the temporary copy is removed after success or error.
-After each cookie-authenticated request, the worker atomically saves the jar
-yt-dlp wrote back (the session YouTube refreshed) to
-`YOUTUBE_COOKIES_STATE_FILE`, which production keeps in the `youtube_session`
-volume at `/app/youtube-session/cookies.txt`. Later jobs start from that saved
-session, so it keeps rotating instead of expiring from the original export. A
-jar without a signed-in session cookie (`SID`, `__Secure-1PSID`,
-`__Secure-3PSID` or `LOGIN_INFO`) is never saved. An export whose modification
-time is newer than the saved state replaces it on the next job, so copy a new
-export without preserving its old timestamp (plain `scp`, not `scp -p`).
-Direct video URLs do not use the YouTube cookie configuration. Never resolve a
-cookie-save error by making the secrets mount writable.
-
-Container health, Celery ping and downloader version checks do not prove that a
-YouTube download succeeds. After changing authentication, test a real public
-YouTube link from the worker using the temporary-workspace verifier below. It
-does not create database records or write to customer media:
-
-```sh
-docker compose --env-file .env.production.local -f docker-compose.production.yml \
-  cp backend/scripts/verify_video_processing.py worker:/tmp/verify_video_processing.py
-docker compose --env-file .env.production.local -f docker-compose.production.yml \
-  exec -T worker python /tmp/verify_video_processing.py \
-  --url 'https://www.youtube.com/watch?v=YOUR_TEST_VIDEO_ID'
-```
-
-Add `--process` to verify transcription, highlight selection, portrait rendering
-and subtitles for a short spoken video. For a repeatable synthetic input, copy
-an existing synthetic speech WAV to the worker's temporary directory and use
-`--fixture /tmp/speech.wav`. Processing uses the configured model provider and
-may incur its normal usage charges. The fixture and generated files stay outside
-persistent customer media. This checks the worker pipeline; browser/API job
-creation and persistence are separate integration checks.
 
 ## Automated releases
 

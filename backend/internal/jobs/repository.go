@@ -37,7 +37,6 @@ func newID() string {
 type Prepared struct {
 	Input        CreateInput
 	WorkerSource string
-	Batch        bool
 }
 
 func validateAudioCleanup(inputs []Prepared) error {
@@ -74,7 +73,7 @@ func (s *Repository) createTx(ctx context.Context, tx *sql.Tx, userID string, in
 	}
 	amount := 0
 	for _, p := range inputs {
-		amount += p.Input.NumClips * 10
+		amount += p.Input.ResolvedClipCount() * 10
 	}
 	charged, err := credits.Reserve(ctx, tx, userID, amount)
 	if err != nil {
@@ -97,13 +96,9 @@ func (s *Repository) createTx(ctx context.Context, tx *sql.Tx, userID string, in
 		}
 		jobCharge := 0
 		if charged > 0 {
-			jobCharge = in.NumClips * 10
+			jobCharge = in.ResolvedClipCount() * 10
 		}
-		message := "Queued"
-		if p.Batch {
-			message = "Queued (batch)"
-		}
-		_, err = tx.ExecContext(ctx, `INSERT INTO jobs (id,user_id,source_type,source_url,source_file_path,source_storage_key,status,progress,progress_message,num_clips_requested,aspect_ratio,language,subtitle_style,include_brand,user_instructions,credits_charged,celery_task_id) VALUES ($1,$2,$3,$4,$5,$6,'pending',0,$7,$8,$9,$10,$11,$12,$13,$14,$15)`, id, userID, in.SourceType, in.SourceURL, in.SourceFilePath, in.SourceStorageKey, message, in.NumClips, in.AspectRatio, in.Language, in.SubtitleStyle, in.IncludeBrand, in.UserInstructions, jobCharge, taskID)
+		_, err = tx.ExecContext(ctx, `INSERT INTO jobs (id,user_id,source_type,source_url,source_file_path,source_storage_key,status,progress,progress_message,num_clips_requested,aspect_ratio,language,subtitle_style,include_brand,user_instructions,credits_charged,celery_task_id) VALUES ($1,$2,$3,$4,$5,$6,'pending',0,$7,$8,$9,$10,$11,$12,$13,$14,$15)`, id, userID, in.SourceType, in.SourceURL, in.SourceFilePath, in.SourceStorageKey, "Queued", in.ResolvedClipCount(), in.AspectRatio, in.Language, in.SubtitleStyle, in.IncludeBrand, in.UserInstructions, jobCharge, taskID)
 		if err != nil {
 			return nil, err
 		}
@@ -111,11 +106,7 @@ func (s *Repository) createTx(ctx context.Context, tx *sql.Tx, userID string, in
 		if _, err = tx.ExecContext(ctx, `UPDATE jobs SET brand_snapshot=COALESCE((SELECT to_jsonb(b) FROM brand_kits b WHERE b.user_id=$2 AND b.id::text=$3::text),(SELECT to_jsonb(b) FROM brand_kits b WHERE b.user_id=$2 AND b.is_default),'{}'::jsonb) WHERE id=$1`, id, userID, in.BrandKitID); err != nil {
 			return nil, err
 		}
-		sourceType := "auto"
-		if in.SourceType == "youtube" {
-			sourceType = "youtube"
-		}
-		payload := map[string]any{"job_id": id, "source": p.WorkerSource, "source_type": sourceType, "requested_clips": in.NumClips, "aspect_ratio": in.AspectRatio, "burn_subtitles": in.BurnSubtitles, "smart_crop": in.SmartCrop, "audio_cleanup": in.AudioCleanup, "user_instructions": in.UserInstructions}
+		payload := map[string]any{"job_id": id, "source": p.WorkerSource, "requested_clips": in.ResolvedClipCount(), "aspect_ratio": in.AspectRatio, "burn_subtitles": in.BurnSubtitles, "smart_crop": in.SmartCrop, "audio_cleanup": in.AudioCleanup, "user_instructions": in.UserInstructions}
 		if !empty(in.SourceStorageKey) {
 			payload["source_storage_key"] = *in.SourceStorageKey
 		}

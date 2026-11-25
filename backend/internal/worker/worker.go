@@ -17,12 +17,11 @@ type Pipeline interface {
 	Render(context.Context, processing.RenderInput) (processing.Clip, error)
 }
 type Worker struct {
-	Repo                  *Repository
-	Pipeline              Pipeline
-	Storage               media.Storage
-	Logger                *slog.Logger
-	YouTubeImportApproved bool
-	Stories               interface {
+	Repo     *Repository
+	Pipeline Pipeline
+	Storage  media.Storage
+	Logger   *slog.Logger
+	Stories  interface {
 		Once(context.Context) (bool, error)
 	}
 }
@@ -98,7 +97,6 @@ func (w *Worker) process(parent context.Context, j *Job) error {
 	}()
 	var payload struct {
 		AudioCleanup   *audiocleanup.Settings `json:"audio_cleanup"`
-		Source         string                 `json:"source"`
 		SourceKey      string                 `json:"source_storage_key"`
 		RequestedClips int                    `json:"requested_clips"`
 		BurnSubtitles  *bool                  `json:"burn_subtitles"`
@@ -112,7 +110,7 @@ func (w *Worker) process(parent context.Context, j *Job) error {
 	}
 	var result processing.Result
 	if err == nil {
-		result, err = w.processInput(ctx, processing.Input{UserID: j.UserID, AudioCleanup: payload.AudioCleanup, SourceKey: payload.SourceKey, SourceURL: payload.Source, Namespace: namespace, Language: j.Language, Instructions: payload.Instructions, AspectRatio: j.AspectRatio, SubtitleStyle: j.SubtitleStyle, RequestedClips: payload.RequestedClips, SmartCrop: payload.SmartCrop == nil || *payload.SmartCrop, BurnSubtitles: payload.BurnSubtitles == nil || *payload.BurnSubtitles, Brand: j.Brand}, func(status string, pct int, msg string) {
+		result, err = w.processInput(ctx, processing.Input{UserID: j.UserID, AudioCleanup: payload.AudioCleanup, SourceKey: payload.SourceKey, Namespace: namespace, Language: j.Language, Instructions: payload.Instructions, AspectRatio: j.AspectRatio, SubtitleStyle: j.SubtitleStyle, RequestedClips: payload.RequestedClips, SmartCrop: payload.SmartCrop == nil || *payload.SmartCrop, BurnSubtitles: payload.BurnSubtitles == nil || *payload.BurnSubtitles, Brand: j.Brand}, func(status string, pct int, msg string) {
 			if e := w.Repo.Progress(ctx, j, status, pct, msg); e != nil {
 				cancel()
 			}
@@ -145,11 +143,11 @@ func (w *Worker) process(parent context.Context, j *Job) error {
 	return err
 }
 
-// Gate queued URL jobs too: OAuth access is not permission to download videos.
-// All remote links are gated because redirects could otherwise bypass the check.
+// processInput runs only jobs with an owned source key; link-only jobs, including
+// queued ones from before link imports were removed, fail with a clear message.
 func (w *Worker) processInput(ctx context.Context, input processing.Input, progress processing.Progress) (processing.Result, error) {
-	if input.SourceKey == "" && !w.YouTubeImportApproved {
-		return processing.Result{}, errors.New("Video link imports are unavailable. Upload your original video file instead")
+	if input.SourceKey == "" {
+		return processing.Result{}, errors.New("link imports are no longer supported; upload the video file instead")
 	}
 	return w.Pipeline.Process(ctx, input, progress)
 }

@@ -42,6 +42,7 @@ const sourceFaithfulEditorialPolicy = `Honor editing_brief.original_request and 
 type EditingBrief struct {
 	Version              int                     `json:"version"`
 	OriginalRequest      string                  `json:"original_request"`
+	ReferencedFootage    []BriefFootageRef       `json:"referenced_footage,omitempty"`
 	ExplicitInstructions []string                `json:"explicit_instructions"`
 	SelectedSettings     BriefSettings           `json:"selected_settings"`
 	SourceConstraints    []BriefSourceConstraint `json:"source_constraints"`
@@ -73,8 +74,10 @@ type BriefSourceConstraint struct {
 
 func BuildEditingBrief(req Request) EditingBrief {
 	o := req.Options
+	// Footage tags reach the models as explicit source references, never as raw tokens.
+	resolvedText, referenced := ResolveBriefFootage(o.Brief, req.Assets)
 	brief := EditingBrief{
-		Version: 1, OriginalRequest: o.Brief,
+		Version: 1, OriginalRequest: resolvedText, ReferencedFootage: referenced,
 		ExplicitInstructions: []string{},
 		SelectedSettings:     BriefSettings{TargetSeconds: o.TargetSeconds, AspectRatio: o.AspectRatio, AspectRatioRevised: o.AspectRatioRevised, Language: o.Language, CaptionMode: EffectiveCaptionMode(o), CaptionModeRevised: o.CaptionModeRevised, PreserveOrder: o.PreserveOrder, PreserveOriginalSpeech: PreserveOriginalSpeech(o), Narration: o.Narration},
 		SourceConstraints:    []BriefSourceConstraint{},
@@ -96,7 +99,7 @@ func BuildEditingBrief(req Request) EditingBrief {
 		brief.SelectedSettings.SourceAudio = "preserve"
 	}
 	// sentence semantics, dropping negations or splitting decimals/filenames.
-	for _, line := range strings.Split(strings.ReplaceAll(o.Brief, "\r\n", "\n"), "\n") {
+	for _, line := range strings.Split(strings.ReplaceAll(resolvedText, "\r\n", "\n"), "\n") {
 		if line = strings.TrimSpace(line); line != "" {
 			brief.ExplicitInstructions = append(brief.ExplicitInstructions, line)
 		}

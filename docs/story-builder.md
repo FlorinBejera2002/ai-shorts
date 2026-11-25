@@ -6,7 +6,7 @@ Implementation of the [source specification](https://app.notion.com/p/AI-Multi-C
 
 ## Delivery and review gates
 
-Create opens the multi-file Story Builder. Legacy single-file/link import remains accessible. A confirmed set produces one story, not one job per source. Byte transfer, server media validation, analysis, editing, reviewing and improving are separate states. Failed uploads can be retried without resending validated files. Browser upload concurrency is two; source registration preserves selection order independently of completion order.
+Create opens the multi-file Story Builder. Link imports were removed; uploads and channel imports remain. A confirmed set produces one story, not one job per source. Byte transfer, server media validation, analysis, editing, reviewing and improving are separate states. Failed uploads can be retried without resending validated files. Browser upload concurrency is two; source registration preserves selection order independently of completion order.
 
 Every executable block references a known original candidate and source interval. Source dialogue cannot be supplied by the model. Complete source phrases retain word timestamps, negation, numbers, units, conditions and speaker provenance. Global planning can reorder phrases subject to dependencies and user locks. Unknown-speaker alternate takes require an actual source-media identity comparison, persisted with the block across later edits and restarts. Known different speakers and changed lexical meaning are not equivalent takes.
 

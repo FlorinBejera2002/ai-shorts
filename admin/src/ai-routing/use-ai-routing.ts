@@ -53,9 +53,9 @@ function statusOf(error: unknown) {
 
 function errorMessage(error: unknown) {
   if (statusOf(error) === 403) {
-    return 'Salvarea cere o autentificare administrativă recentă. Reautentifică-te și verifică accesul de administrator. Selecțiile sunt păstrate în această pagină.'
+    return 'Reautentifică-te pentru a salva.'
   }
-  if (statusOf(error) === 401) return 'Sesiunea a expirat. Reautentifică-te pentru a continua.'
+  if (statusOf(error) === 401) return 'Sesiunea a expirat.'
   return error instanceof Error ? error.message : 'Configurația AI nu a putut fi încărcată.'
 }
 
@@ -101,7 +101,7 @@ export function useAiRouting() {
       dispatch({
         type: 'failed', requiresReload: conflict,
         message: conflict
-          ? 'Configurația a fost modificată de alt administrator. Selecțiile tale sunt păstrate. Reîncarcă versiunea curentă înainte de a aplica din nou modificările.'
+          ? 'Configurația a fost modificată de alt administrator.'
           : errorMessage(error)
       })
       return
@@ -112,7 +112,7 @@ export function useAiRouting() {
     } catch {
       dispatch({
         type: 'failed', requiresReload: true,
-        message: 'Modificarea a fost salvată, dar configurația curentă nu a putut fi confirmată. Reîncarcă versiunea de pe server înainte de o nouă modificare.'
+        message: 'Salvat, dar neconfirmat. Reîncarcă pagina.'
       })
     }
   }

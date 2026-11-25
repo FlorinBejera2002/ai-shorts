@@ -1,382 +1,91 @@
-.story-select {
-  width: 100%;
-  min-width: 0;
-  min-height: 2.75rem;
-  border: 1px solid var(--input);
-  border-radius: var(--radius-md);
-  padding: 0.5rem 0.625rem;
-  background: var(--background);
-  color: var(--foreground);
-  font-size: 0.875rem;
-  outline-offset: 2px;
-}
-.story-select:hover {
-  background: var(--muted);
-}
-.story-select:focus-visible {
-  outline: 2px solid var(--foreground);
-}
-.story-select:disabled {
-  opacity: 0.6;
-}
-.story-workspace {
-  --primary: var(--foreground);
-  --primary-foreground: var(--background);
-  --ring: var(--foreground);
-  --accent: var(--muted);
-  --accent-foreground: var(--foreground);
-  min-width: 0;
-}
-.story-workspace input[type='checkbox'] {
-  appearance: auto;
-  width: 1rem;
-  height: 1rem;
-  min-height: 1rem;
-  padding: 0;
-  accent-color: var(--foreground);
-  border-radius: var(--radius-sm);
-}
-.story-workspace input[type='checkbox']::after {
-  display: none;
-}
-.story-workspace video {
-  max-width: 100%;
-}
-.story-project-picker {
-  width: 14rem;
-  max-width: 100%;
-}
-@media (max-width: 359px) {
-  .story-project-actions {
-    width: 100%;
-    flex-wrap: nowrap;
-  }
-  .story-project-actions .story-project-picker {
-    width: auto;
-    min-width: 0;
-    flex: 1;
-  }
-  .story-project-actions > button {
-    width: 44px;
-    min-width: 44px;
-    height: 44px;
-    flex-shrink: 0;
-    padding: 0;
-  }
-  .story-new-project-label {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    padding: 0;
-    margin: -1px;
-    overflow: hidden;
-    clip: rect(0, 0, 0, 0);
-    white-space: nowrap;
-    border: 0;
-  }
-}
+/*
+ * Creare clip wizard layout and footer actions (canvas wizFoot). Imported by story-wizard.tsx.
+ * Sizes are px: the canvas board is authored in px and the app root font size is 15px.
+ */
 
 .story-wizard-layout {
   display: grid;
-  gap: 1.25rem;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 20px;
   align-items: start;
   min-width: 0;
 }
-.story-wizard-content,
+
+/* Step panels are plain wrappers; the step content lays out directly inside the wizard grid. */
 .story-step-panel {
   display: contents;
 }
-.story-step-panel[hidden],
-.story-options-preview > [hidden] {
+
+.story-step-panel[hidden] {
   display: none !important;
 }
+
 .story-wizard-footer {
-  display: grid;
-  gap: 0.75rem;
-  min-width: 0;
-  padding-top: 1rem;
-  border-top: 1px solid var(--border);
-}
-.story-wizard-footer button {
-  min-height: 2.75rem;
-}
-.story-wizard-heading {
-  min-width: 0;
-}
-.story-wizard-heading h2:focus {
-  outline: none;
-}
-.story-agent-help {
-  padding-inline: 0;
-}
-.story-options-composition,
-.story-create-review {
-  display: grid;
-  gap: 1.25rem;
-  min-width: 0;
-}
-.story-options-workarea {
-  display: contents;
-}
-.story-options-inspector {
-  order: 3;
-}
-.story-create-review-workarea {
-  order: 1;
-}
-.story-create-review-inspector {
-  order: 2;
-}
-.story-options-preview {
-  min-width: 0;
-  order: 1;
-}
-.story-options-workarea > fieldset:not([data-testid]) {
-  order: 2;
-}
-.story-options-workarea > [data-testid='story-music'] {
-  order: 4;
-}
-.story-options-workarea > [data-testid='story-narration'] {
-  order: 5;
-}
-.story-direction-input {
-  min-height: 4.5rem;
-  field-sizing: content;
-}
-.story-disclosure > summary {
-  min-height: 2.75rem;
-  align-content: center;
-}
-.story-appearance-preview {
-  display: grid;
-  justify-items: center;
-  min-height: 16rem;
-  padding: 1rem;
-  border-radius: var(--radius-md);
-  background: var(--muted);
-}
-.story-appearance-preview > * {
-  max-width: 100%;
-}
-.story-appearance-controls
-  [data-caption-section]
-  div:has(> [data-slot='slider']):has(> output) {
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 0.5rem;
-}
-.story-appearance-controls
-  [data-caption-section]
-  div:has(> [data-slot='slider']):has(> output)
-  > :first-child {
-  grid-column: 1;
-  grid-row: 1;
-}
-.story-appearance-controls
-  [data-caption-section]
-  div:has(> [data-slot='slider']):has(> output)
-  > output {
-  grid-column: 2;
-  grid-row: 1;
-}
-.story-appearance-controls
-  [data-caption-section]
-  div:has(> [data-slot='slider']):has(> output)
-  > [data-slot='slider'] {
   grid-column: 1 / -1;
-  grid-row: 2;
-}
-.story-appearance-controls
-  [data-caption-section]
-  fieldset
-  > div:has(> label):has(> button) {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.75rem;
-}
-.story-appearance-controls
-  [data-caption-section]
-  fieldset
-  > div:has(> label):has(> button)
-  > button {
-  grid-column: 1 / -1;
-}
-.story-source-preview-stage {
   display: grid;
-  overflow: hidden;
-  aspect-ratio: 16 / 9;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  background: var(--muted);
-}
-.story-source-preview-stage > img,
-.story-source-preview-stage > video {
-  width: 100%;
-  height: 100%;
-  min-height: 0;
-  object-fit: contain;
-}
-.story-source-preview-placeholder {
-  display: flex;
-  width: 100%;
-  height: 100%;
-  min-height: 3rem;
-  align-items: center;
-  justify-content: center;
-  flex-direction: column;
-  gap: 0.5rem;
-  color: var(--muted-foreground);
-  font-size: 0.75rem;
-}
-.story-source-preview-strip {
-  display: flex;
-  gap: 0.5rem;
-  overflow-x: auto;
-  padding: 0.75rem 0.125rem 0.125rem;
-}
-.story-source-preview-choice {
-  position: relative;
-  display: grid;
-  width: 5rem;
-  aspect-ratio: 16 / 10;
-  flex-shrink: 0;
-  overflow: hidden;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  background: var(--muted);
-}
-.story-source-preview-choice[aria-pressed='true'] {
-  outline: 1px solid var(--foreground);
-  outline-offset: 1px;
-}
-.story-source-preview-choice:focus-visible {
-  outline: 2px solid var(--foreground);
-  outline-offset: 2px;
-}
-.story-source-preview-choice:hover {
-  background: var(--muted);
-}
-.story-source-preview-choice img,
-.story-source-preview-choice video {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-.story-source-preview-choice .story-source-preview-placeholder > span {
-  display: none;
-}
-.story-source-preview-choice > span {
-  position: absolute;
-  inset-inline-end: 0.25rem;
-  bottom: 0.25rem;
-  padding: 0.125rem 0.25rem;
-  border-radius: var(--radius-sm);
-  background: rgb(0 0 0 / 75%);
-  color: white;
-  font-size: 0.625rem;
-  line-height: 1;
-}
-.story-source-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 0.75rem;
-  align-items: start;
-}
-.story-source-grid > li {
+  gap: 12px;
   min-width: 0;
 }
-.story-sources progress {
-  appearance: none;
-  overflow: hidden;
-  border: 0;
-  border-radius: 999px;
-  background: var(--muted);
+
+.story-wizard-hint {
+  margin: 0;
+  color: var(--publish-muted-text);
+  font-size: 13px;
+  line-height: 18px;
 }
-.story-sources progress::-webkit-progress-bar {
-  background: var(--muted);
+
+/* Phones: Continuă (52px) sits on top at full width, Înapoi (50px) below it. */
+.story-wizard-actions {
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 12px;
+  min-width: 0;
 }
-.story-sources progress::-webkit-progress-value {
-  background: var(--foreground);
+
+.story-wizard-actions > button {
+  width: 100%;
+  height: 50px;
 }
-.story-sources progress::-moz-progress-bar {
-  background: var(--foreground);
+
+.story-wizard-actions > .story-wizard-continue {
+  height: 52px;
 }
-.story-wizard-navigation button {
-  min-height: 2.75rem;
-  white-space: normal;
-  overflow-wrap: anywhere;
-}
-.story-wizard-navigation[data-orientation='horizontal'] ul {
-  align-items: stretch;
-}
-.story-wizard-navigation[data-orientation='horizontal'] button {
-  height: 100%;
-  flex-direction: column;
-  padding: 0.625rem 0.25rem;
-}
+
+/* Desktop: Înapoi and Continuă sit right-aligned on one row, 46px tall (canvas). */
 @media (min-width: 1024px) {
   .story-wizard-layout {
-    grid-template-columns: minmax(15rem, 0.4fr) minmax(0, 1fr);
-    column-gap: 2rem;
-    row-gap: 1rem;
-    grid-template-rows: auto auto minmax(0, 1fr) auto;
+    column-gap: 20px;
   }
-  .story-wizard-heading {
-    grid-column: 1;
-    grid-row: 1;
-  }
-  .story-wizard-navigation {
-    grid-column: 1;
-    grid-row: 2;
-  }
-  .story-wizard-navigation button {
+
+  .story-wizard-actions {
     flex-direction: row;
-    align-items: center;
-    gap: 0.75rem;
+    justify-content: flex-end;
   }
-  .story-wizard-footer {
-    grid-column: 1;
-    grid-row: 4;
+
+  .story-wizard-actions > button {
+    width: auto;
+    height: 46px;
+    min-width: 120px;
   }
-  .story-wizard-layout .story-options-composition-workspace,
-  .story-wizard-layout .story-create-review {
-    display: contents;
+
+  .story-wizard-actions > .story-wizard-continue {
+    height: 46px;
+    min-width: 160px;
   }
-  .story-wizard-layout .story-options-inspector,
-  .story-wizard-layout .story-create-review-inspector {
-    grid-column: 1;
-    grid-row: 3;
-    order: initial;
-  }
-  .story-wizard-layout .story-create-review-workarea {
-    order: initial;
-  }
-  .story-wizard-layout .story-options-workarea,
-  .story-wizard-layout .story-create-review-workarea,
-  .story-wizard-layout .story-sources {
-    display: block;
-    grid-column: 2;
-    grid-row: 1 / 5;
+
+  .story-wizard-layout [data-testid='story-step-0'] > *,
+  .story-wizard-layout [data-testid='story-step-1'] > * {
+    grid-column: 1 / -1;
     min-width: 0;
   }
-  .story-wizard-layout .story-sources:has(> ul:empty) .story-upload-area {
-    min-height: 26rem;
-  }
-  .story-options-composition:not(.story-options-composition-workspace) {
-    grid-template-columns: minmax(15rem, 0.4fr) minmax(0, 1fr);
-    gap: 2rem;
-  }
-  .story-options-composition:not(.story-options-composition-workspace)
-    .story-options-inspector {
-    order: initial;
-  }
-  .story-options-composition:not(.story-options-composition-workspace)
-    .story-options-workarea {
-    display: block;
-  }
-  .story-source-preview-stage {
-    max-height: 32rem;
-  }
-  .story-appearance-preview {
-    min-height: 28rem;
-  }
+}
+
+/* Primary wizard action: muted steel in dark mode (brand rule), never white. */
+.dark .story-wizard-continue {
+  background: #8e9bb0;
+  color: #0e131c;
+}
+
+.dark .story-wizard-continue:hover {
+  background: #a6b2c4;
 }

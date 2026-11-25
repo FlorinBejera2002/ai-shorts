@@ -7,7 +7,7 @@ import { extractApiError } from '@/lib/api-error'
 import { musicUploadAccept, musicUploadProblem } from './story-music-model'
 import { useStoryLanguage } from './use-story-language'
 
-interface MusicUpload {
+export interface MusicUpload {
   file_path: string
   file_name: string
   url: string
@@ -126,12 +126,6 @@ export function StoryMusicUpload({
           </Button>
         )}
       </div>
-      <p className="text-xs text-muted-foreground">
-        {text(
-          'Use your own audio, up to 128 MiB and 30 minutes.',
-          'Folosește propriul fișier audio, de maximum 128 MiB și 30 de minute.'
-        )}
-      </p>
       {pending && (
         <p role="status" className="text-xs text-muted-foreground">
           {text(

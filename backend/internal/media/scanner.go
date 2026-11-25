@@ -14,7 +14,20 @@ import (
 )
 
 var ErrUnsafeUpload = errors.New("Upload failed safety checks")
-var ErrScannerUnavailable = errors.New("Upload safety scanning is temporarily unavailable")
+
+// ErrScannerUnavailable is temporary: the same file may pass once clamd answers again.
+var ErrScannerUnavailable error = temporaryError("Upload safety scanning is temporarily unavailable")
+
+// temporaryError marks failures unrelated to the file itself, so callers that batch
+// many files (YouTube imports) can stop and retry instead of dropping the file.
+type temporaryError string
+
+func (e temporaryError) Error() string { return string(e) }
+func (temporaryError) Temporary() bool { return true }
+
+// scanBytesPerSecond is a conservative clamd throughput used to extend the scan
+// deadline for large videos beyond the configured base timeout.
+const scanBytesPerSecond = 8 << 20
 
 type Scanner interface {
 	Scan(context.Context, string) error
@@ -31,6 +44,9 @@ type ClamAV struct {
 	dial func(context.Context, string, string) (net.Conn, error)
 }
 
+// clamdMaxStreamBytes matches StreamMaxLength in deploy/clamd.conf (2047M).
+const clamdMaxStreamBytes int64 = 2047 * 1024 * 1024
+
 func NewClamAV(cfg ClamAVConfig) *ClamAV {
 	if cfg.Timeout <= 0 {
 		cfg.Timeout = 2 * time.Minute
@@ -45,13 +61,14 @@ func (s *ClamAV) Scan(ctx context.Context, filename string) error {
 	if err != nil {
 		return ErrScannerUnavailable
 	}
-	// ClamAV cannot scan files above 2 GB even when StreamMaxLength is raised.
-	// Fail explicitly instead of bypassing mandatory malware scanning.
-	maximum := min(s.cfg.MaxBytes, int64(2*1024*1024*1024))
+	// ClamAV cannot scan files of 2 GB or more even when StreamMaxLength is raised;
+	// deploy/clamd.conf allows streams up to clamdMaxStreamBytes. Fail explicitly
+	// instead of bypassing mandatory malware scanning.
+	maximum := min(s.cfg.MaxBytes, clamdMaxStreamBytes)
 	if info.Size() > maximum {
 		return failure(413, "This file exceeds the server's malware scanner capacity. TikTok accepts videos up to 4 GB, but this server cannot safely scan this upload")
 	}
-	ctx, cancel := context.WithTimeout(ctx, s.cfg.Timeout)
+	ctx, cancel := context.WithTimeout(ctx, s.cfg.Timeout+time.Duration(info.Size()/scanBytesPerSecond)*time.Second)
 	defer cancel()
 	connection, e := s.dial(ctx, "tcp", s.cfg.Address)
 	if e != nil {

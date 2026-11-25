@@ -45,10 +45,10 @@ func TestPostgresBrandBadgeEntitlementAndAdminFailureRefund(t *testing.T) {
 					t.Fatal(err)
 				}
 			}
-			source := "https://youtube.com/watch?v=fixture"
+			source := "uploads/" + user + "/fixture.mp4"
 			options := jobs.DefaultOptions()
 			options.IncludeBrand = true
-			created, err := jobs.NewRepository(db).Create(ctx, user, []jobs.Prepared{{Input: jobs.CreateInput{Options: options, SourceType: "youtube", SourceURL: &source}, WorkerSource: source}})
+			created, err := jobs.NewRepository(db).Create(ctx, user, []jobs.Prepared{{Input: jobs.CreateInput{Options: options, SourceType: "upload", SourceStorageKey: &source}, WorkerSource: source}})
 			if err != nil || len(created) != 1 {
 				t.Fatalf("create: %v", err)
 			}

@@ -1,0 +1,614 @@
+/*
+ * Footage source step of Creare clip. Colours come from the scoped reference
+ * theme (publishing-theme.module.css .surface) so light and dark stay in sync.
+ * Radii follow the Creare clip canvas: cards 24px, dropzone 28px, controls on
+ * the shared radius tokens.
+ */
+
+.sources {
+  display: grid;
+  gap: 16px;
+  align-items: start;
+  min-width: 0;
+}
+
+.main {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.limits {
+  display: none;
+}
+
+@media (min-width: 768px) {
+  .sources {
+    grid-template-columns: minmax(0, 1fr) 300px;
+    gap: 20px;
+  }
+
+  .limits {
+    display: flex;
+  }
+}
+
+/* Between the tablet and the 1200px canvas: a narrower limits aside leaves room for file names. */
+@media (min-width: 768px) and (max-width: 1199px) {
+  .sources {
+    grid-template-columns: minmax(0, 1fr) 240px;
+    gap: 16px;
+  }
+}
+
+/* Dropzone */
+
+/* Canvas dashed token (--sbd): #1f2a3d in light, #c9d4e4 in dark. */
+.dropzone {
+  --creare-dashed: #1f2a3d;
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-height: 440px;
+  padding: 28px 20px;
+  border: 2px dashed var(--creare-dashed);
+  border-radius: var(--publish-dialog-radius);
+  background: var(--publish-surface);
+  color: var(--publish-text);
+  text-align: center;
+  transition: border-color 150ms ease;
+}
+
+.dropzoneActive {
+  border-color: var(--publish-text);
+}
+
+.dropzoneIllustration {
+  width: 220px;
+  height: auto;
+}
+
+.dropzoneTitle {
+  margin: 0;
+  font-family: 'Sora Variable', Sora, sans-serif;
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+}
+
+/* The app shell's `#dashboard-shell h2` rule sets -0.035em with a higher specificity,
+   so the canvas tracking is restated with the same shell selector. */
+:global(#dashboard-shell) .dropzoneTitle {
+  letter-spacing: -0.02em;
+}
+
+.dropzoneSubtitle {
+  margin: 0;
+  color: var(--publish-secondary-text);
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.chooseButton {
+  margin-top: 6px;
+  width: 100%;
+  height: 50px;
+  padding: 0 24px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 600;
+  background: var(--publish-primary);
+  color: var(--publish-on-primary);
+}
+
+.chooseButton:hover {
+  background: var(--publish-primary-hover);
+}
+
+@media (min-width: 768px) {
+  .dropzone {
+    min-height: 520px;
+  }
+
+  .dropzoneIllustration {
+    width: 260px;
+  }
+
+  .dropzoneTitle {
+    font-size: 26px;
+  }
+
+  .chooseButton {
+    width: auto;
+    height: 46px;
+  }
+}
+
+/* Limits aside (desktop) */
+
+.limitsPanel {
+  flex-direction: column;
+  gap: 12px;
+  padding: 18px;
+  border: 0;
+  border-radius: var(--publish-card-radius);
+  background: var(--publish-surface);
+  box-shadow: var(--publish-card-shadow);
+  align-self: start;
+}
+
+/* Canvas: the aside title is body text (14px, semibold), not a Sora heading. */
+.limitsPanel .limitsTitle {
+  margin: 0;
+  color: var(--publish-text);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 20px;
+}
+
+.limitRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.limitLabel {
+  color: var(--publish-secondary-text);
+}
+
+.limitValue {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+/* Files card */
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px 16px 14px;
+  border: 1px solid var(--publish-border);
+  border-radius: var(--publish-card-radius);
+  background: var(--publish-surface);
+  box-shadow: var(--publish-card-shadow);
+  min-width: 0;
+}
+
+.cardHeader {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.cardTitle {
+  margin: 0;
+  font-family: 'Sora Variable', Sora, sans-serif;
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.cardTotals {
+  color: var(--publish-muted-text);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.cardProgress {
+  height: 4px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--publish-border);
+}
+
+.cardProgressFill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--publish-text);
+  transition: width 200ms ease;
+}
+
+@media (min-width: 768px) {
+  .card {
+    padding: 22px 24px 18px;
+  }
+}
+
+/* Rows */
+
+.list {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.slotWrap {
+  position: relative;
+}
+
+.row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 4px;
+  min-width: 0;
+  background: transparent;
+}
+
+/* Lifted over the drop slot (74px stack): it stays in the flow at the card's row width and
+   pulls up over the slot, so it never extends past the list. */
+/* Canvas: rows after the first are separated by a hairline inside the card. */
+.row:not([data-first='true']) {
+  border-top: 1px solid var(--publish-border);
+}
+
+.row[data-lifted='true'] {
+  position: relative;
+  z-index: 2;
+  margin-top: -82px;
+  padding: 12px 10px;
+  border: 0;
+  border-radius: 16px;
+  background: var(--publish-surface);
+  box-shadow: 0 0 0 1.5px var(--publish-text), 0 18px 40px rgba(15, 23, 42, 0.2);
+  transform: rotate(-1deg);
+}
+
+.row[data-dimmed='true'] .thumb,
+.row[data-dimmed='true'] .body {
+  opacity: 0.55;
+}
+
+/* Canvas: a refused row keeps full contrast; only its red status and replace link stand out. */
+
+.slot {
+  height: 62px;
+  margin: 6px 0;
+  border: 1.5px dashed var(--publish-dashed-border);
+  border-radius: 16px;
+}
+
+.grip {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 24px;
+  height: 36px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--publish-placeholder);
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.grip:disabled {
+  cursor: default;
+  opacity: 0.4;
+}
+
+.row[data-lifted='true'] .grip {
+  color: var(--publish-text);
+}
+
+.grip:focus-visible {
+  outline: 2px solid var(--publish-text);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+.number {
+  display: none;
+  flex-shrink: 0;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  box-shadow: inset 0 0 0 1.5px var(--create-outline);
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Canvas geometry (Creare clip): thumbnails 10px, lifted row and drop slot 16px. */
+.thumbWrap {
+  position: relative;
+  flex-shrink: 0;
+  width: 64px;
+  height: 40px;
+  overflow: hidden;
+  border-radius: 10px;
+  background: #111;
+}
+
+.thumb {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.thumbFallback {
+  display: grid;
+  width: 100%;
+  height: 100%;
+  place-items: center;
+  color: #fff;
+}
+
+.duration {
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
+  padding: 0 5px;
+  height: 16px;
+  border-radius: 5px;
+  background: rgba(0, 0, 0, 0.65);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 16px;
+  font-variant-numeric: tabular-nums;
+}
+
+.body {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.nameLine {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
+}
+
+.name {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 14px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.size {
+  display: none;
+  flex-shrink: 0;
+  color: var(--publish-muted-text);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* One line per row on phones; when the action does not fit, it wraps inside the row body
+   so it never runs under the remove button. */
+.statusLine {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 10px;
+  min-width: 0;
+  max-width: 100%;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.mobileSize {
+  color: var(--publish-muted-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 600;
+}
+
+.statusUploaded {
+  color: var(--publish-success);
+}
+
+.statusWaiting {
+  color: var(--publish-muted-text);
+  font-weight: 400;
+}
+
+.statusError {
+  color: var(--publish-danger);
+}
+
+.statusProgress {
+  display: inline-flex;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  color: var(--publish-text);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.progressTrack {
+  flex: 1 1 auto;
+  width: 100%;
+  max-width: 228px;
+  min-width: 80px;
+  height: 4px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--publish-border);
+}
+
+.progressFill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--publish-text);
+}
+
+/* A refused row's status and replace link wrap together, never splitting "Neacceptat" from "Înlocuiește". */
+.rejectedGroup {
+  display: inline-flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.linkButton {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--publish-text);
+  font: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.rowError {
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: var(--publish-danger);
+  font-size: 12px;
+}
+
+.iconButton {
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--publish-muted-text);
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+}
+
+.iconButton:hover {
+  background: var(--muted);
+  color: var(--publish-text);
+}
+
+.iconButton:focus-visible {
+  outline: 2px solid var(--publish-text);
+  outline-offset: 2px;
+}
+
+.iconButton:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.desktopOnly {
+  display: none;
+}
+
+.mobileOnly {
+  display: inline;
+}
+
+@media (min-width: 768px) {
+  .row {
+    gap: 14px;
+    padding: 14px 8px;
+  }
+
+  .row[data-lifted='true'] {
+    padding: 14px 12px;
+  }
+
+  .slot {
+    height: 74px;
+  }
+
+  .number {
+    display: grid;
+  }
+
+  .thumbWrap {
+    width: 84px;
+    height: 48px;
+  }
+
+  .size {
+    display: inline;
+  }
+
+  .mobileSize {
+    display: none;
+  }
+
+  .desktopOnly {
+    display: inline;
+  }
+
+  .mobileOnly {
+    display: none;
+  }
+}
+
+/* Add and footer actions */
+
+.addButton {
+  --creare-dashed: #1f2a3d;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  height: 48px;
+  border: 1.5px dashed var(--creare-dashed);
+  border-radius: 14px;
+  background: transparent;
+  color: var(--publish-text);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.addButton:hover {
+  background: var(--muted);
+}
+
+:global(.dark) .dropzone,
+:global(.dark) .addButton {
+  --creare-dashed: #c9d4e4;
+}
+

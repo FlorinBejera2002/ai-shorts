@@ -184,7 +184,8 @@ func (p *Processor) validateCleanAudio(ctx context.Context, file string, duratio
 }
 
 func effectiveStoryAudioKey(project string, a story.Asset, settings *audiocleanup.Settings) (string, error) {
-	if !audiocleanup.Enabled(settings) {
+	// Footage outside the selected sources keeps its original audio.
+	if !audiocleanup.Enabled(settings) || a.Kind != "narration" && !audiocleanup.Selects(settings, a.ID) {
 		return a.Key, nil
 	}
 	d := a.AudioCleanup

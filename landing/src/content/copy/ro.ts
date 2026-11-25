@@ -63,8 +63,8 @@ export const ro: SiteCopy = {
     howTitle: 'Trei pași. Fără experiență de editare.',
     steps: [
       {
-        title: 'Încarcă sau lipește un link',
-        text: 'Un fișier din telefon sau calculator, ori orice link YouTube.',
+        title: 'Încarcă sau alege din canal',
+        text: 'Un fișier din telefon sau calculator, ori un videoclip de pe canalul tău YouTube.',
         alt: 'Ana pune un video în laptop, Radu îi arată telefonul'
       },
       {
@@ -157,7 +157,7 @@ export const ro: SiteCopy = {
     faqs: [
       {
         question: 'Ce surse video pot folosi?',
-        answer: 'Poți încărca fișiere MP4, MOV, WebM sau MKV ori poți lipi un link YouTube.'
+        answer: 'Poți încărca fișiere MP4, MOV, WebM sau MKV ori poți importa videoclipuri de pe canalul tău YouTube.'
       },
       {
         question: 'Cât durează procesarea?',
@@ -213,7 +213,7 @@ export const ro: SiteCopy = {
           'Tot din Gratuit',
           'Export Full HD 1080p',
           'Până la 15 clipuri per proiect',
-          'Procesare în lot (5 linkuri)',
+          'Procesare în lot (5 videoclipuri)',
           'Kit de brand',
           'Mai multe stiluri de subtitrare'
         ]
@@ -224,7 +224,7 @@ export const ro: SiteCopy = {
         cta: 'Treci la Pro',
         features: [
           'Tot din Creator',
-          'Procesare în lot (20 de linkuri)',
+          'Procesare în lot (20 de videoclipuri)',
           'Calendar de conținut',
           'Scenarii cu AI',
           'Statistici',
@@ -268,7 +268,7 @@ export const ro: SiteCopy = {
       },
       {
         question: 'Ce surse video sunt acceptate?',
-        answer: 'Poți încărca fișiere MP4, MOV, WebM sau MKV ori poți lipi un link YouTube.'
+        answer: 'Poți încărca fișiere MP4, MOV, WebM sau MKV ori poți importa videoclipuri de pe canalul tău YouTube.'
       },
       {
         question: 'Cât durează procesarea?',

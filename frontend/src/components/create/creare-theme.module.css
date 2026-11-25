@@ -1,0 +1,31 @@
+/*
+ * Creare clip tokens shared by the processing card and the job page's source bar.
+ * They follow the Creare canvas: the selected state is #152035 in light mode and
+ * muted steel with a dark label in dark mode (never a near-white fill).
+ * Apply `.tokens` to a Creare surface; the Publish palette stays untouched.
+ */
+
+.tokens {
+  --creare-selected: #152035;
+  --creare-on-selected: #fff;
+  --creare-secondary-border: #1f2a3d;
+  --creare-track: #dfe6f0;
+}
+
+:global(.dark) .tokens {
+  --creare-selected: #8e9bb0;
+  --creare-on-selected: #0d1420;
+  --creare-secondary-border: #c9d4e4;
+  --creare-track: #53627a;
+}
+
+/* Success pill of the done hero (canvas --okbg / --ok). */
+.tokens {
+  --creare-success-bg: #dcfce7;
+  --creare-success: #15803d;
+}
+
+:global(.dark) .tokens {
+  --creare-success-bg: #153b2c;
+  --creare-success: #67dca5;
+}

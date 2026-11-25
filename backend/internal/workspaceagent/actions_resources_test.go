@@ -167,7 +167,7 @@ func TestStoryCancelFencesTheInspectedRequest(t *testing.T) {
 	if err != nil || !strings.Contains(string(result.Data), `"status":"cancelled"`) {
 		t.Fatalf("current story cancellation: %s %v", result.Data, err)
 	}
-	e.SetJobs(jobs.New(f.db, nil, nil, jobs.Config{}))
+	e.SetJobs(jobs.New(f.db, nil, nil))
 	if _, err = e.Execute(ctx, f.user, first, Action{Name: "jobs.cancel", Input: actionJSON(map[string]any{"id": project})}); err == nil {
 		t.Fatal("story job bypassed the story cancellation fence")
 	}

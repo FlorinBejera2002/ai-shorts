@@ -98,24 +98,32 @@ function CloseButton({ onClick }: { onClick: () => void }) {
       type="button"
       aria-label={t('close')}
       onClick={onClick}
-      className="-m-1 shrink-0 rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+      className="-m-1 grid size-8 shrink-0 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
     >
-      <X className="size-3.5" />
+      <X className="size-[15px]" aria-hidden="true" />
     </button>
   )
 }
 
-/** A compact notice: icon, message, optional action. */
+/**
+ * A compact notice: a 32px tone ring with its icon, a 14px title, optional action and close.
+ * Geometry follows the Creare clip toast: 380px at the top right, full width minus 12px gutters on phones.
+ */
 function CornerToast({ toast: item, onDismiss }: { toast: Toast; onDismiss: () => void }) {
   const Icon = iconMap[item.type]
   return (
     <div
       role={item.type === 'error' ? 'alert' : 'status'}
       data-toast={item.type}
-      className={`pointer-events-auto flex items-center gap-2.5 rounded-md border border-border bg-card px-3.5 py-2.5 shadow-lg shadow-black/8 ${item.leaving ? 'toast-corner-out' : 'toast-corner-in'}`}
+      className={`pointer-events-auto flex items-center gap-2.5 rounded-[16px] border border-border bg-card py-3 pr-2.5 pl-3.5 shadow-[0_12px_32px_rgba(15,23,42,0.14)] ${item.leaving ? 'toast-corner-out' : 'toast-corner-in'}`}
     >
-      <Icon className={`size-4 shrink-0 ${iconColor[item.type]}`} aria-hidden="true" />
-      <p className="flex-1 text-[13px] leading-snug text-card-foreground">{item.message}</p>
+      <span
+        className={`grid size-8 shrink-0 place-items-center rounded-full shadow-[inset_0_0_0_1.5px_currentColor] ${iconColor[item.type]}`}
+        aria-hidden="true"
+      >
+        <Icon className="size-4" strokeWidth={2.5} />
+      </span>
+      <p className="flex-1 text-[14px] leading-[1.35] font-semibold text-card-foreground">{item.message}</p>
       <ToastAction toast={item} onDone={onDismiss} />
       <CloseButton onClick={onDismiss} />
     </div>
@@ -142,8 +150,8 @@ function IllustratedToast({ toast: item, onDismiss }: { toast: Toast; onDismiss:
 }
 
 /**
- * Two always-mounted live regions: compact toasts at the top right (below the
- * phone header) and illustrated toasts at the bottom centre (above the phone dock).
+ * Two always-mounted live regions: compact toasts below the header (right-aligned on
+ * desktop, full width on phones) and illustrated toasts at the bottom centre (above the phone dock).
  */
 export function Toaster() {
   const t = useTranslations('common')
@@ -157,7 +165,7 @@ export function Toaster() {
       <section
         aria-live="polite"
         aria-label={t('notifications')}
-        className="pointer-events-none fixed top-[calc(env(safe-area-inset-top)+76px)] right-4 z-[100] flex w-[min(360px,calc(100vw-2rem))] flex-col gap-2 sm:top-4"
+        className="pointer-events-none fixed inset-x-[12px] top-[calc(env(safe-area-inset-top)+76px)] z-[100] flex flex-col gap-2 sm:inset-x-auto sm:right-[24px] sm:w-[380px]"
         data-toast-region="corner"
       >
         {corner.map((item) => (

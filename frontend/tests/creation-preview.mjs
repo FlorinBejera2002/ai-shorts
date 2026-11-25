@@ -23,7 +23,7 @@ const photo = await readFile(fileURLToPath(new URL('./fixtures/create-clips/stud
 const wav = silentWav()
 const projects = new Map(storyStates.map(state => [storyId(state), storyProject(state)]))
 const jobs = new Map(jobStates.filter(state => state !== 'load-error').map(state => [jobId(state), youtubeJob(state)]))
-const allowedStates = new Set([...storyStates, ...jobStates.map(state => `job-${state}`), 'youtube', 'batch', 'credits-low', 'unlimited', 'load-error'])
+const allowedStates = new Set([...storyStates, ...jobStates.map(state => `job-${state}`), 'youtube', 'credits-low', 'unlimited', 'load-error'])
 const calls = []
 const assistantHistory = []
 let nextJob = 7950
@@ -154,16 +154,16 @@ async function api(request, response, url) {
     }
   }
   if (path === '/api/jobs' && method === 'GET') return json(response, { jobs: [...jobs.values()], total: jobs.size })
-  if (['/api/jobs', '/api/jobs/batch'].includes(path) && method === 'POST') {
+  if (path === '/api/jobs' && method === 'POST') {
     const data = await payload(request)
     calls.push({ path, method, data })
-    const urls = path.endsWith('/batch') ? data.source_urls : [data.source_url]
-    const created = (urls || []).map(source_url => {
-      const job = { ...youtubeJob('processing', creationId(nextJob++)), source_url }
-      jobs.set(job.id, job)
-      return job
-    })
-    return json(response, path.endsWith('/batch') ? { jobs: created } : { id: created[0]?.id })
+    // Link imports are refused by the backend; only uploaded files create jobs now.
+    if (data.source_url || ['url', 'youtube'].includes(data.source_type)) {
+      return json(response, { error: 'Link imports are no longer supported. Upload the video file instead' }, 400)
+    }
+    const job = youtubeJob('processing', creationId(nextJob++))
+    jobs.set(job.id, job)
+    return json(response, { id: job.id })
   }
   const job = /^\/api\/jobs\/([^/]+)(.*)$/.exec(path)
   if (job) {
@@ -252,7 +252,7 @@ const server = http.createServer((request, response) => {
     response.setHeader('Set-Cookie', `creation-preview-state=${state}; Path=/; SameSite=Strict; HttpOnly`)
     if (state.startsWith('job-')) url.pathname = `/dashboard/jobs/${jobId(state.slice(4))}`
     else if (storyStates.includes(state) || state === 'load-error') url.searchParams.set('story', storyId(state === 'load-error' ? 'draft' : state))
-    else url.searchParams.set('mode', state === 'batch' ? 'batch' : 'youtube')
+    else url.searchParams.set('mode', 'youtube')
     const redirect = url.pathname + url.search
     if (redirect !== request.url) { response.writeHead(302, { Location: redirect }); return response.end() }
   } else if (/^\/(en\/|ro\/)?dashboard\/create$/.test(url.pathname) && !url.searchParams.has('mode') && !url.searchParams.has('story')) {
