@@ -1,0 +1,28 @@
+import type { Locale } from '@/lib/i18n'
+import { en } from './en'
+import { ro } from './ro'
+import { FEATURE_PAGE_IDS, type FeaturePageId, type FeaturePagesCopy } from './types'
+
+const dictionaries: Record<Locale, FeaturePagesCopy> = { en, ro }
+
+type FeatureImage = { src: string; width: number; height: number }
+
+/** Illustration shown next to each page title, at its rendered size. */
+export const FEATURE_IMAGES: Record<FeaturePageId, FeatureImage> = {
+  'ai-video-clipper': { src: '/landing/illustrations/hero-600.webp', width: 360, height: 360 },
+  'long-video-to-shorts': { src: '/landing/illustrations/step-clips.webp', width: 320, height: 320 },
+  'auto-captions': { src: '/landing/illustrations/clip-frame.webp', width: 220, height: 391 },
+  'youtube-to-shorts': { src: '/landing/illustrations/step-upload.webp', width: 320, height: 320 },
+  'schedule-social-posts': { src: '/landing/illustrations/publish.webp', width: 320, height: 320 }
+}
+
+export function getFeatureCopy(locale: Locale): FeaturePagesCopy {
+  return dictionaries[locale]
+}
+
+export function featurePath(id: FeaturePageId): string {
+  return `/${id}`
+}
+
+export { FEATURE_PAGE_IDS }
+export type * from './types'

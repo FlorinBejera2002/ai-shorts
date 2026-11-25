@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { getCopy } from '@/content/copy'
 import type { LegalDocumentId } from '@/content/copy/types'
+import { featurePath, getFeatureCopy, type FeaturePageId } from '@/content/features'
 import { getLegalDocument } from '@/content/legal/documents'
 import type { Locale } from './i18n'
 import { pageMetadata } from './metadata'
@@ -13,6 +14,11 @@ export function homeMetadata(locale: Locale): Metadata {
 export function pricingMetadata(locale: Locale): Metadata {
   const { meta } = getCopy(locale)
   return pageMetadata({ locale, path: '/pricing', title: meta.pricingTitle, description: meta.pricingDescription })
+}
+
+export function featureMetadata(locale: Locale, id: FeaturePageId): Metadata {
+  const page = getFeatureCopy(locale).pages[id]
+  return pageMetadata({ locale, path: featurePath(id), title: page.metaTitle, description: page.metaDescription })
 }
 
 function summarize(text: string, limit = 160): string {

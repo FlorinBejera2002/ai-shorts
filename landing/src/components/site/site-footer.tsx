@@ -1,4 +1,5 @@
 import { getCopy } from '@/content/copy'
+import { FEATURE_PAGE_IDS, featurePath, getFeatureCopy } from '@/content/features'
 import { LEGAL_DOCUMENT_IDS } from '@/content/legal/documents'
 import { appLinks } from '@/lib/app-links'
 import { localePath, type Locale } from '@/lib/i18n'
@@ -36,6 +37,8 @@ export function SiteFooter({ locale, path }: SiteFooterProps) {
   const { nav, footer } = getCopy(locale)
   const links = siteNavigation(locale)
   const app = appLinks(locale)
+  const features = getFeatureCopy(locale)
+  const tools = FEATURE_PAGE_IDS.map((id) => ({ href: localePath(locale, featurePath(id)), label: features.pages[id].navLabel }))
   const legal = LEGAL_DOCUMENT_IDS.map((id) => ({ href: localePath(locale, `/${id}`), label: footer.legalLinks[id] }))
 
   return (
@@ -54,6 +57,7 @@ export function SiteFooter({ locale, path }: SiteFooterProps) {
                 { href: links.pricing, label: nav.pricing }
               ]]}
             />
+            <FooterColumn title={features.footerTitle} columns={[tools]} />
             <FooterColumn
               title={footer.account}
               columns={[[

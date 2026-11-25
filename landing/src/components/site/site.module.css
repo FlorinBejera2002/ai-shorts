@@ -218,18 +218,18 @@
 
 .footerMain {
   display: flex;
-  gap: 80px;
+  gap: 56px;
 }
 
 .footerLogo {
-  flex: 0 0 240px;
+  flex: 0 0 180px;
   align-self: flex-start;
 }
 
 .footerGrid {
   flex: 1 1 auto;
   display: grid;
-  grid-template-columns: 1fr 1fr 2.6fr;
+  grid-template-columns: 1fr 1.5fr 1fr 2.6fr;
   gap: 40px;
 }
 

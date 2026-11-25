@@ -8,7 +8,8 @@ const read = (path) => readFileSync(new URL(path, out), 'utf8')
 const ORIGIN = 'https://sneepcut.com'
 
 const LEGAL = ['legal-notice', 'privacy', 'terms', 'cookie-policy', 'acceptable-use', 'refund-policy', 'subprocessors', 'dpa', 'data-deletion']
-const PAGES = ['/', '/pricing', ...LEGAL.map((id) => `/${id}`)]
+const FEATURES = ['ai-video-clipper', 'long-video-to-shorts', 'auto-captions', 'youtube-to-shorts', 'schedule-social-posts']
+const PAGES = ['/', '/pricing', ...FEATURES.map((id) => `/${id}`), ...LEGAL.map((id) => `/${id}`)]
 const localized = (locale, path) => (locale === 'en' ? path : path === '/' ? '/ro' : `/ro${path}`)
 const fileFor = (path) => (path === '/' ? 'index.html' : `${path.slice(1)}.html`)
 const absolute = (path) => (path === '/' ? ORIGIN : `${ORIGIN}${path}`)
@@ -81,6 +82,26 @@ test('home and pricing publish Organization, SoftwareApplication and FAQPage dat
   const faq = home.find((data) => data['@type'] === 'FAQPage')
   assert.ok(faq.mainEntity.length >= 5)
   for (const question of faq.mainEntity) assert.ok(question.acceptedAnswer.text.length > 20)
+})
+
+test('feature pages are long-form, linked and carry FAQ and breadcrumb data', () => {
+  for (const locale of ['en', 'ro']) {
+    for (const id of FEATURES) {
+      const file = fileFor(localized(locale, `/${id}`))
+      const html = read(file)
+      const types = jsonLd(html).map((data) => data['@type'])
+      for (const type of ['SoftwareApplication', 'FAQPage', 'BreadcrumbList']) assert.ok(types.includes(type), `${file} ${type}`)
+      const text = visibleText(html)
+      const words = text.split(/\s+/).filter(Boolean).length
+      assert.ok(words >= 700, `${file} has ${words} words`)
+      assert.doesNotMatch(text, /\bcredit|viral/i, file)
+      for (const other of FEATURES.filter((value) => value !== id)) {
+        assert.ok(html.includes(`href="${localized(locale, `/${other}`)}"`), `${file} links ${other}`)
+      }
+    }
+  }
+  const titles = FEATURES.map((id) => read(fileFor(`/${id}`)).match(/<title>([^<]+)<\/title>/)[1])
+  assert.equal(new Set(titles).size, FEATURES.length, 'unique titles')
 })
 
 test('paid offers in JSON-LD only carry prices from the plan catalog', () => {
