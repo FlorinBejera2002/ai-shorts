@@ -59,9 +59,9 @@ func version(id string, n int) story.Version {
 }
 
 func TestQueueLargeCollectionsCreatesExactlyOneJobAndCharge(t *testing.T) {
-	for _, n := range []int{5, 10, 80, 125} {
-		t.Run(fmt.Sprint(n), func(t *testing.T) {
-			r, user, id, ids := fixture(t, n)
+	for _, tc := range []struct{ assets, clips int }{{5, 1}, {10, 1}, {80, 2}, {125, 4}} {
+		t.Run(fmt.Sprint(tc.assets), func(t *testing.T) {
+			r, user, id, ids := fixture(t, tc.assets)
 			ctx := context.Background()
 			in := Generate{RequestID: newID(), AssetIDs: ids}
 			var wg sync.WaitGroup
@@ -81,8 +81,15 @@ func TestQueueLargeCollectionsCreatesExactlyOneJobAndCharge(t *testing.T) {
 			if err := r.db.QueryRow(`SELECT count(*) FROM jobs WHERE user_id=$1`, user).Scan(&count); err != nil {
 				t.Fatal(err)
 			}
-			if count != 1 || credits(t, r, user) != 90 {
+			if count != 1 || credits(t, r, user) != 100-10*tc.clips {
 				t.Fatal("duplicate generation or debit", count, credits(t, r, user))
+			}
+			var requested, charged int
+			if err := r.db.QueryRow(`SELECT num_clips_requested,credits_charged FROM jobs WHERE user_id=$1`, user).Scan(&requested, &charged); err != nil {
+				t.Fatal(err)
+			}
+			if requested != tc.clips || charged != 10*tc.clips {
+				t.Fatalf("requested=%d charged=%d; want %d clips charged exactly once", requested, charged, tc.clips)
 			}
 			in.Action = "faster"
 			if err := r.Queue(ctx, user, id, in); !errors.Is(err, ErrConflict) {

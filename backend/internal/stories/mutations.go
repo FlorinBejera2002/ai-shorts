@@ -379,6 +379,7 @@ func (r *Repository) Queue(ctx context.Context, user, id string, in Generate) er
 		return err
 	}
 	// One durable reservation covers the initial story and every automatic repair.
+	clipCount := story.ResolvedClipCount(req.Options, req.Assets)
 	var charge int
 	err = tx.QueryRowContext(ctx, `SELECT credits_charged FROM jobs WHERE id=$1 FOR UPDATE`, id).Scan(&charge)
 	missing := errors.Is(err, sql.ErrNoRows)
@@ -392,7 +393,7 @@ func (r *Repository) Queue(ctx context.Context, user, id string, in Generate) er
 	}
 	if current == 0 && charge == 0 {
 		// Ten credits per clip, matching the YouTube flow; Auto is resolved from the footage.
-		charge, err = creditledger.Reserve(ctx, tx, user, creditsPerStoryClip*story.ResolvedClipCount(req.Options, req.Assets))
+		charge, err = creditledger.Reserve(ctx, tx, user, creditsPerStoryClip*clipCount)
 		if errors.Is(err, creditledger.ErrInsufficient) {
 			return ErrCredits
 		}
@@ -401,9 +402,9 @@ func (r *Repository) Queue(ctx context.Context, user, id string, in Generate) er
 		}
 	}
 	if missing {
-		_, err = tx.ExecContext(ctx, `INSERT INTO jobs(id,user_id,source_type,status,progress,progress_message,num_clips_requested,aspect_ratio,language,subtitle_style,include_brand,credits_charged,project_name) VALUES($1,$2,'story','pending',0,'Building one story from uploaded clips',1,$3,$4,'clean',false,$5,'Multi-clip story')`, id, user, req.Options.AspectRatio, req.Options.Language, charge)
+		_, err = tx.ExecContext(ctx, `INSERT INTO jobs(id,user_id,source_type,status,progress,progress_message,num_clips_requested,aspect_ratio,language,subtitle_style,include_brand,credits_charged,project_name) VALUES($1,$2,'story','pending',0,'Building one story from uploaded clips',$3,$4,$5,'clean',false,$6,'Multi-clip story')`, id, user, clipCount, req.Options.AspectRatio, req.Options.Language, charge)
 	} else {
-		_, err = tx.ExecContext(ctx, `UPDATE jobs SET status='pending',progress=0,progress_message='Story queued',error_message=NULL,credits_charged=$2,completed_at=NULL,updated_at=now() WHERE id=$1`, id, charge)
+		_, err = tx.ExecContext(ctx, `UPDATE jobs SET status='pending',progress=0,progress_message='Story queued',error_message=NULL,credits_charged=$2,num_clips_requested=$3,completed_at=NULL,updated_at=now() WHERE id=$1`, id, charge, clipCount)
 	}
 	if err != nil {
 		return err
