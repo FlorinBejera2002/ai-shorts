@@ -1,6 +1,7 @@
 export const agentMessages = {
   en: {
-    title: 'Workspace Agent', subtitle: 'Your workspace, in conversation', open: 'Open Workspace Agent', close: 'Collapse agent', follow: 'Follow AI navigation',
+    title: 'Ana & Radu', subtitle: 'Your workspace, in conversation', open: 'Open Ana & Radu', close: 'Collapse agent', closePanel: 'Close', follow: 'Follow AI navigation',
+    bubble: 'Hi! How can we help?', dismissBubble: 'Hide message', composerLabel: 'Message to Ana & Radu',
     placeholder: 'What would you like to create or change?', send: 'Send', retry: 'Retry request', older: 'Load earlier messages', suggestions: 'Suggested next steps', doIt: 'Do it', explain: 'Explain', dismiss: 'Dismiss',
     approve: 'Approve action', reject: 'Reject', pause: 'Pause', resume: 'Resume', stop: 'Stop', result: 'View result', upload: 'Add media in Create',
     empty: 'What would you like to work on?', loading: 'Loading conversation…', error: 'Could not connect. Please try again.',
@@ -9,7 +10,8 @@ export const agentMessages = {
     statuses: { planning: 'Planning', running: 'Working', waiting_for_confirmation: 'Needs approval', waiting_for_resources: 'Needs resources', paused: 'Paused', cancel_requested: 'Stopping', cancelled: 'Stopped', completed: 'Completed', failed: 'Failed' }
   },
   ro: {
-    title: 'Workspace Agent', subtitle: 'Spațiul tău de lucru, prin conversație', open: 'Deschide Workspace Agent', close: 'Restrânge agentul', follow: 'Urmărește navigarea AI',
+    title: 'Ana și Radu', subtitle: 'Spațiul tău de lucru, prin conversație', open: 'Deschide Ana și Radu', close: 'Restrânge agentul', closePanel: 'Închide', follow: 'Urmărește navigarea AI',
+    bubble: 'Salut! Cu ce te ajutăm?', dismissBubble: 'Ascunde mesajul', composerLabel: 'Mesaj pentru Ana și Radu',
     placeholder: 'Ce vrei să creezi sau să modifici?', send: 'Trimite', retry: 'Reîncearcă cererea', older: 'Încarcă mesajele anterioare', suggestions: 'Pași recomandați', doIt: 'Fă asta', explain: 'Explică', dismiss: 'Ascunde',
     approve: 'Aprobă acțiunea', reject: 'Respinge', pause: 'Pauză', resume: 'Continuă', stop: 'Oprește', result: 'Vezi rezultatul', upload: 'Adaugă media în Creează',
     empty: 'La ce vrei să lucrăm?', loading: 'Se încarcă conversația…', error: 'Conectarea a eșuat. Încearcă din nou.',

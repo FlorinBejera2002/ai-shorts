@@ -7,6 +7,7 @@ import { LazyMotion, domAnimation, useReducedMotion } from 'framer-motion'
 import { Sheet, SheetContent, SheetTitle, SheetDescription } from '@/components/ui/sheet'
 import { localizeHref, usePathname } from '@/i18n/navigation'
 import { useIsMobile } from '@/hooks/use-mobile'
+import theme from '@/components/calendar/publishing-theme.module.css'
 import { agentMessages } from './messages'
 import { useWorkspaceAgent } from './use-workspace-agent'
 import { useDictation } from './use-dictation'
@@ -18,29 +19,34 @@ import { useConversationScroll } from './use-conversation-scroll'
 import { useAgentProjectSelection } from './use-agent-project-selection'
 import { useAgentContextPanel } from './use-agent-context-panel'
 import { useAgentFocusHandoff } from './use-agent-focus-handoff'
-import { appendDictatedText, canSendDraft, isAgentUploading, isLauncherHiddenOnPhone, panelTitles } from './agent-view-state'
+import { appendDictatedText, canSendDraft, isAgentUploading, panelTitles, isLauncherHiddenOnPhone } from './agent-view-state'
 import { attachmentTarget } from './attachment-target'
 import { AgentTrigger } from './agent-trigger'
 import { AgentHeader } from './agent-header'
+import { useAgentBubble } from './use-agent-bubble'
+import { useAgentSidebarCollapse } from './use-agent-sidebar-collapse'
+import styles from './agent-shell.module.css'
 import { AgentConversation } from './agent-conversation'
 import { AgentTranscript } from './agent-transcript'
 import { AgentContextPanel } from './agent-context-panel'
 import { AgentComposer } from './agent-composer'
 import './workspace-agent.css'
 
-/** Floating workspace assistant: a side panel on desktop and a full-height sheet on phones. */
+/** Ana & Radu, the floating workspace assistant: a docked panel on desktop and a full-height sheet on phones. */
 export function WorkspaceAgent() {
   const locale = useLocale()
   const ro = locale === 'ro'
   const copy = agentMessages[ro ? 'ro' : 'en']
   const route = usePathname()
-  const hiddenOnPhone = isLauncherHiddenOnPhone(route)
   const [search] = useSearchParams()
   const routerNavigate = useNavigate()
   const navigate = useCallback((destination: string) => { void routerNavigate(localizeHref(destination, locale)) }, [routerNavigate, locale])
   const { routeKey, routeStudio, selectedProject, setSelectedProject, projectId, storyId } = useAgentProjectSelection(route, search)
   const [studioUploading, setStudioUploading] = useState(false)
   const [open, setOpen] = useState(false)
+  const mobile = useIsMobile()
+  useAgentSidebarCollapse(open, !mobile)
+  const bubble = useAgentBubble(open)
   const [width, setWidth] = useState(380)
   const resource = useAgentResources(storyId)
   const attachments = useAgentAttachments()
@@ -52,10 +58,9 @@ export function WorkspaceAgent() {
   const agent = useWorkspaceAgent(route, navigate, projectId, selectProject, locale, attachments.resources)
   useResourceResume({ runs: agent.runs, projectId: storyId, items: resource.uploads.items.filter(item => item.projectId === storyId), uploading: resource.uploads.busy, resources: attachments.resources, completedBatch: attachments.completedBatch, pending: Boolean(attachments.pending), busy: agent.busy, resume: run => void agent.control(run, 'resume') })
   const context = useAgentContextPanel({ agent, routeStudio, selectedProject })
-  const openForHelp = useCallback(() => setOpen(true), [])
+  const openForHelp = useCallback(() => { setOpen(true); bubble.hide() }, [bubble.hide])
   const { pending: pendingHelp, addQuestion, composerRef, focusComposer, restoreFocus } = useStoryAgentHelp(locale, agent.prepareHelp, openForHelp)
   const trigger = useRef<HTMLButtonElement>(null)
-  const mobile = useIsMobile()
   const reducedMotion = Boolean(useReducedMotion())
   const focus = useAgentFocusHandoff({ mobile, focusComposer, restoreFocus, trigger })
   const { viewportRef, onScroll, awayFromBottom, scrollToLatest, preserveHistoryPosition } = useConversationScroll()
@@ -65,7 +70,8 @@ export function WorkspaceAgent() {
 
   function changeOpen(value: boolean) {
     setOpen(value)
-    if (!value) { speech.cancel(); focus.onDesktopHide() }
+    if (value) bubble.hide()
+    else { speech.cancel(); focus.onDesktopHide() }
   }
   function openRecordings(id: string) { selectProject(id); context.setPanel('recordings') }
   function loadOlder() { preserveHistoryPosition(); void agent.older() }
@@ -73,7 +79,7 @@ export function WorkspaceAgent() {
 
   const content = (
     <LazyMotion features={domAnimation} strict><div className="flex h-full min-h-0 flex-col">
-      <AgentHeader title={copy.title} closeLabel={copy.close} onClose={() => changeOpen(false)} />
+      <AgentHeader title={copy.title} controlLabel={mobile ? copy.closePanel : copy.close} variant={mobile ? 'sheet' : 'panel'} onClose={() => changeOpen(false)} />
       <AgentConversation viewportRef={viewportRef} onScroll={onScroll} ro={ro} awayFromBottom={awayFromBottom} onScrollToLatest={scrollToLatest}>
         <AgentTranscript agent={agent} copy={copy} ro={ro} uploading={uploading} reducedMotion={reducedMotion} onOpenRecordings={openRecordings} />
         {context.visiblePanel && (
@@ -125,7 +131,16 @@ export function WorkspaceAgent() {
 
   return (
     <>
-      {!open && <AgentTrigger copy={copy} hiddenOnPhone={hiddenOnPhone} triggerRef={trigger} onOpen={() => changeOpen(true)} />}
+      {!open && (
+        <AgentTrigger
+          copy={copy}
+          bubbleVisible={bubble.visible}
+          hiddenOnPhone={isLauncherHiddenOnPhone(route)}
+          triggerRef={trigger}
+          onOpen={() => changeOpen(true)}
+          onDismissBubble={bubble.hide}
+        />
+      )}
       {mobile
         ? (
           <Sheet open={open} onOpenChange={changeOpen}>
@@ -134,7 +149,8 @@ export function WorkspaceAgent() {
               showCloseButton={false}
               onOpenAutoFocus={focus.onOpenAutoFocus}
               onCloseAutoFocus={focus.onCloseAutoFocus}
-              className="h-[100dvh] w-full gap-0 sm:max-w-md"
+              data-reference-surface=""
+              className={`${theme.surface} ${styles.sheet} h-[100dvh] w-full gap-0 sm:max-w-md`}
             >
               <SheetTitle className="sr-only">{copy.title}</SheetTitle>
               <SheetDescription className="sr-only">{copy.subtitle}</SheetDescription>
@@ -142,7 +158,18 @@ export function WorkspaceAgent() {
             </SheetContent>
           </Sheet>
         )
-        : <aside id="workspace-agent-panel" aria-label={copy.title} hidden={!open} style={{ width }} className="sticky top-0 h-screen shrink-0 border-l bg-background">{content}</aside>}
+        : (
+          <aside
+            id="workspace-agent-panel"
+            aria-label={copy.title}
+            hidden={!open}
+            data-reference-surface=""
+            style={{ width }}
+            className={`${theme.surface} ${styles.panel} sticky top-0 h-screen shrink-0`}
+          >
+            {content}
+          </aside>
+        )}
     </>
   )
 }

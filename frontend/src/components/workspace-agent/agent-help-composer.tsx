@@ -1,4 +1,7 @@
-import { Button } from '@/components/ui/button'
+import { Sparkles, X } from 'lucide-react'
+import { AgentPill } from './agent-pill'
+import { AgentIconButton } from './agent-ui'
+import styles from './agent-composer.module.css'
 
 interface Props {
   locale: string
@@ -9,17 +12,27 @@ interface Props {
   onAddQuestion: () => void
 }
 
+/** Help-mode chip and the pending help question, shown above the textarea. */
 export function AgentHelpComposer({ locale, helpMode, pendingQuestion, draftLength, onRegularMessage, onAddQuestion }: Props) {
   const text = (english: string, romanian: string) => locale === 'ro' ? romanian : english
+  const addDisabled = pendingQuestion !== undefined && draftLength + pendingQuestion.length + 2 > 4000
   return <>
-    {helpMode && <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
-      <span>{text('Clip creation help · no actions', 'Ajutor creare clipuri · fără acțiuni')}</span>
-      <Button type="button" size="sm" variant="ghost" onClick={onRegularMessage}>{text('Regular message', 'Mesaj obișnuit')}</Button>
+    {helpMode && <div className={styles.helpRow}>
+      <span className={styles.chip}>
+        <Sparkles aria-hidden="true" />
+        <span className={styles.chipLabel}>{text('Clip help', 'Ajutor la clipuri')}</span>
+        <AgentIconButton label={text('Regular message', 'Mesaj obișnuit')} onClick={onRegularMessage}>
+          <X />
+        </AgentIconButton>
+      </span>
     </div>}
-    {pendingQuestion && <div className="space-y-2 rounded-md bg-muted p-3 text-xs" role="status">
-      <p>{text('Your draft is unchanged. You can add this help question:', 'Mesajul tău a rămas neschimbat. Poți adăuga întrebarea de ajutor:')}</p>
-      <p>{pendingQuestion}</p>
-      <Button type="button" size="sm" variant="outline" disabled={draftLength + pendingQuestion.length + 2 > 4000} onClick={onAddQuestion}>{text('Add question to draft', 'Adaugă întrebarea')}</Button>
+    {pendingQuestion && <div className={styles.question} role="status">
+      <span className={styles.chip} title={pendingQuestion}>
+        <Sparkles aria-hidden="true" />
+        <span className={styles.chipLabel}>{text('Question from the current step', 'Întrebare de la pasul curent')}</span>
+        <span className={styles.chipText}>{pendingQuestion}</span>
+      </span>
+      <AgentPill variant="ghost" disabled={addDisabled} onClick={onAddQuestion}>{text('Add question', 'Adaugă întrebarea')}</AgentPill>
     </div>}
   </>
 }

@@ -1,7 +1,7 @@
 import type { AgentPanel } from './agent-menu'
 import type { AgentMessages } from './messages'
 
-export interface MissingResource {
+interface MissingResource {
   kind: string
 }
 
@@ -26,11 +26,6 @@ export function panelTitles(ro: boolean, copy: AgentMessages): Record<AgentPanel
   }
 }
 
-/** Creare and job pages reserve the phone footer where the launcher lands; the assistant stays reachable from the shell. */
-export function isLauncherHiddenOnPhone(route: string): boolean {
-  return route.startsWith('/dashboard/create') || route.startsWith('/dashboard/jobs/')
-}
-
 /** True while any upload, attachment or Studio file is still in flight. */
 export function isAgentUploading(state: { resourceBusy: boolean; attachmentPending: unknown; studioUploading: boolean }): boolean {
   return state.resourceBusy || Boolean(state.attachmentPending) || state.studioUploading
@@ -43,4 +38,13 @@ export function canSendDraft(state: { busy: boolean; draft: string; retry: unkno
 /** Appends dictated speech to the draft, keeping the composer's character limit. */
 export function appendDictatedText(draft: string, text: string): string {
   return `${draft}${draft ? ' ' : ''}${text}`.slice(0, 4000)
+}
+
+/**
+ * Phone pages with a fixed bottom action bar (Creare, job results, the post composer) keep the
+ * launcher out of the way so it never covers their buttons; the agent stays reachable elsewhere.
+ */
+export function isLauncherHiddenOnPhone(route: string): boolean {
+  return route.startsWith('/dashboard/create') || route.startsWith('/dashboard/jobs/')
+    || /^\/dashboard\/publish\/(?:new|[^/]+\/edit)\/?$/.test(route)
 }

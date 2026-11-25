@@ -1,0 +1,263 @@
+/* Workspace Agent context panels: shell, project choices, preferences and clear-history confirmation. */
+
+.panel {
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
+  padding: 14px;
+  border: 1px solid var(--publish-border-strong);
+  border-radius: 18px;
+  background: var(--card);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 20px;
+  color: var(--foreground);
+}
+
+.body {
+  display: grid;
+  gap: 12px;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--foreground);
+}
+
+.list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.emptyState {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  padding: 8px 0;
+  text-align: center;
+}
+
+.emptyText {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--foreground);
+}
+
+/* ---------- project picker ---------- */
+.projectList {
+  display: grid;
+  gap: 8px;
+  max-height: 256px;
+  margin: 0;
+  padding: 0;
+  overflow: auto;
+  list-style: none;
+}
+
+.projectRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  height: 52px;
+  padding: 0 12px;
+  border: 1px solid var(--publish-border-strong);
+  border-radius: 14px;
+  background: var(--card);
+  color: var(--foreground);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.projectRow:hover:not(:disabled) {
+  background: var(--muted);
+}
+
+.projectRow:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.projectRow:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.projectText {
+  display: grid;
+  min-width: 0;
+  flex: 1;
+}
+
+.projectName {
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 18px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.projectKind {
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--muted-foreground);
+}
+
+.check {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border: 1.5px solid var(--foreground);
+  border-radius: 999px;
+  color: var(--foreground);
+}
+
+.check svg {
+  width: 12px;
+  height: 12px;
+}
+
+.chevron {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  color: var(--muted-foreground);
+}
+
+/* ---------- preferences ---------- */
+.toggleRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 52px;
+  padding: 10px 14px;
+  border: 1px solid var(--publish-border-strong);
+  border-radius: 14px;
+  background: var(--card);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.sliderRow {
+  display: grid;
+  gap: 8px;
+  padding: 12px 14px;
+  border: 1px solid var(--publish-border-strong);
+  border-radius: 14px;
+  background: var(--card);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* Thin track and round thumb; the global range style draws a grey box we don't want here. */
+.sliderRow input.range {
+  width: 100%;
+  height: 20px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  appearance: none;
+  cursor: pointer;
+}
+
+.sliderRow input.range::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--publish-handle, var(--border));
+}
+
+.sliderRow input.range::-moz-range-track {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--publish-handle, var(--border));
+}
+
+.sliderRow input.range::-webkit-slider-thumb {
+  width: 18px;
+  height: 18px;
+  margin-top: -6px;
+  border-radius: 999px;
+  background: var(--card);
+  box-shadow: 0 0 0 2px var(--primary);
+  appearance: none;
+}
+
+.sliderRow input.range::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--card);
+  box-shadow: 0 0 0 2px var(--primary);
+}
+
+.sliderRow input.range:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 4px;
+}
+
+.confirm {
+  display: grid;
+  justify-items: start;
+  gap: 8px;
+  padding: 14px;
+  border: 1px solid var(--publish-border-strong);
+  border-radius: 18px;
+  background: var(--card);
+}
+
+.confirmImage {
+  align-self: center;
+  width: 120px;
+  height: 120px;
+}
+
+.confirmTitle {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--foreground);
+}
+
+.muted {
+  margin: 0;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--muted-foreground);
+}
+
+.danger {
+  margin: 0;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--publish-danger);
+}
+
+@media (max-width: 767px) {
+  .sliderRow {
+    display: none;
+  }
+
+  .toggleRow {
+    min-height: 56px;
+  }
+}

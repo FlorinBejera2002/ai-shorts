@@ -291,12 +291,12 @@ try {
 
   const askAgent = page.getByRole('button', { name: 'Ask agent', exact: true })
   const shellAgent = page.getByRole('button', {
-    name: 'Open Workspace Agent',
+    name: 'Open Ana & Radu',
     exact: true
   })
   const panel = page.locator('#workspace-agent-panel')
   const composer = panel.getByRole('textbox', {
-    name: 'What would you like to create or change?',
+    name: 'Message to Ana & Radu',
     exact: true
   })
   const closeAgent = async () => {

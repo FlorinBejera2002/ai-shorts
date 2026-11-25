@@ -1,16 +1,21 @@
 import { useEffect, useRef, useState } from 'react'
-import { Button } from '@/components/ui/button'
+import { Upload } from 'lucide-react'
 import { toast } from '@/lib/toast'
 import { authClient } from '@/lib/auth'
 import { createStudioClient } from '@/components/studio/studio-client'
 import { configuredStudioOrigin } from '@/components/studio/studio-config'
+import { AgentPill } from './agent-pill'
+import { FileRow, UploadRow } from './agent-ui'
 import { STUDIO_UPLOAD_ACCEPT, validStudioUpload } from './studio-upload'
+import panelStyles from './agent-panels.module.css'
+import uiStyles from './agent-ui.module.css'
 
 export function StudioAssets({ projectId, ro, onBusy, onUploaded }: { projectId: string; ro: boolean; onBusy: (busy: boolean) => void; onUploaded?: (projectId: string) => void }) {
   const [pending, setPending] = useState(false)
   const [error, setError] = useState('')
   const [uploaded, setUploaded] = useState<string[]>([])
   const controller = useRef<AbortController | null>(null)
+  const picker = useRef<HTMLInputElement>(null)
   const uploadedCallback = useRef(onUploaded)
   useEffect(() => { uploadedCallback.current = onUploaded }, [onUploaded])
   useEffect(() => () => { controller.current?.abort(); onBusy(false) }, [onBusy])
@@ -37,12 +42,24 @@ export function StudioAssets({ projectId, ro, onBusy, onUploaded }: { projectId:
     } catch (cause) { if (!active.signal.aborted) toast.error(cause instanceof Error ? cause.message : String(cause)) }
     finally { setPending(false); onBusy(false); controller.current = null }
   }
-  return <section className="space-y-2 text-xs">
-    <p className="text-muted-foreground">{ro ? 'Imagini, video, audio și fonturi · până la 8 fișiere, sub 500 MB în total.' : 'Images, video, audio and fonts · up to 8 files, under 500 MB in total.'}</p>
-    <input type="file" multiple disabled={pending} accept={STUDIO_UPLOAD_ACCEPT} aria-label={ro ? 'Atașează media în Studio' : 'Attach Studio media'} onChange={event => { void upload(event.target.files); event.target.value = '' }} className="w-full text-xs" />
-    {pending && <p role="status">{ro ? 'Se încarcă în proiectul Studio…' : 'Uploading to the Studio project…'} <Button size="sm" variant="ghost" onClick={() => controller.current?.abort()}>{ro ? 'Oprește' : 'Stop'}</Button></p>}
-    {error && <p role="alert" className="text-destructive">{error}</p>}
-    <ul>{uploaded.map(path => <li key={path}>{path.split('/').at(-1)}</li>)}</ul>
-    {uploaded.length > 0 && <p>{ro ? 'Fișiere salvate. Descrie cum dorești să fie folosite; agentul verifică inventarul înainte de editare.' : 'Files saved. Describe how to use them; the agent checks the inventory before editing.'}</p>}
+  return <section className={panelStyles.body}>
+    <p className={uiStyles.hint}>{ro ? 'Imagini, video, audio și fonturi · până la 8 fișiere, sub 500 MB.' : 'Images, video, audio and fonts · up to 8 files, under 500 MB.'}</p>
+    <input ref={picker} type="file" multiple disabled={pending} accept={STUDIO_UPLOAD_ACCEPT} className="hidden" aria-label={ro ? 'Atașează media în Studio' : 'Attach Studio media'} onChange={event => { void upload(event.target.files); event.target.value = '' }} />
+    <div className={uiStyles.stack}>
+      <AgentPill icon={<Upload aria-hidden="true" />} disabled={pending} onClick={() => picker.current?.click()}>{ro ? 'Atașează media' : 'Attach media'}</AgentPill>
+    </div>
+    {pending && <div role="status">
+      <UploadRow
+        name={ro ? 'Încărcare în proiectul Studio' : 'Upload to the Studio project'}
+        status={ro ? 'Se încarcă…' : 'Uploading…'}
+        actions={<AgentPill variant="ghost" onClick={() => controller.current?.abort()}>{ro ? 'Oprește' : 'Stop'}</AgentPill>}
+      />
+    </div>}
+    {error && <p role="alert" className={uiStyles.error}>{error}</p>}
+    {uploaded.length > 0 && <ul className={panelStyles.list}>
+      {uploaded.map(path => <li key={path}>
+        <FileRow name={path.split('/').at(-1) ?? path} status={ro ? 'Salvat' : 'Saved'} tone="success" />
+      </li>)}
+    </ul>}
   </section>
 }

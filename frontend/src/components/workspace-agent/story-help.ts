@@ -6,11 +6,6 @@ export function isStoryHelpStep(value: unknown): value is StoryHelpStep {
   return typeof value === 'string' && ['footage', 'story_audio', 'style', 'review'].includes(value)
 }
 
-export function requestStoryAgentHelp(step: StoryHelpStep, source: HTMLElement) {
-  if (!isStoryHelpStep(step) || !source.isConnected || source.closest('[hidden]')) return
-  window.dispatchEvent(new CustomEvent<StoryHelpRequest>(storyHelpEvent, { detail: { step, source } }))
-}
-
 export function storyHelpQuestion(step: StoryHelpStep, locale: string) {
   const questions = {
     footage: ['Which footage should I add, and how do clip preferences work?', 'Ce filmări să adaug și cum funcționează preferințele pentru clipuri?'],

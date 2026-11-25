@@ -1,0 +1,209 @@
+/* Operation card: title row, state scene, steps, approval, actions and result. */
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: var(--card);
+  color: var(--foreground);
+}
+
+.header {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+}
+
+.title {
+  min-width: 0;
+  flex: 1;
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 20px;
+  overflow-wrap: anywhere;
+}
+
+.buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.buttons > * {
+  flex: 1 1 auto;
+}
+
+
+.credits {
+  display: inline-flex;
+  align-self: flex-start;
+  align-items: center;
+  gap: 5px;
+  height: 24px;
+  padding: 0 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--foreground);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.credits svg {
+  width: 12px;
+  height: 12px;
+  flex: none;
+}
+
+.warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 0;
+  color: var(--publish-danger);
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.warning svg {
+  width: 14px;
+  height: 14px;
+  flex: none;
+  margin-top: 2px;
+}
+
+.missingRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--card);
+  font-size: 13px;
+}
+
+.missingRow svg {
+  width: 16px;
+  height: 16px;
+  flex: none;
+  color: var(--publish-warning);
+}
+
+.missingLabel {
+  min-width: 0;
+  flex: 1;
+  font-weight: 600;
+}
+
+
+/* Steps list */
+.steps {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.step {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.marker {
+  display: inline-flex;
+  width: 20px;
+  height: 20px;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  box-sizing: border-box;
+}
+
+.marker svg {
+  width: 12px;
+  height: 12px;
+}
+
+.marker[data-state='done'] {
+  background: var(--foreground);
+  color: var(--background);
+}
+
+.marker[data-state='current'] {
+  border: 2px solid var(--border);
+  border-top-color: var(--foreground);
+  animation: markerSpin 0.9s linear infinite;
+}
+
+.marker[data-state='todo'] {
+  border: 1.5px solid var(--border);
+}
+
+.marker[data-state='failed'] {
+  background: var(--publish-danger-bg);
+  color: var(--publish-danger);
+}
+
+.marker[data-state='paused'] {
+  border: 1.5px solid var(--foreground);
+  color: var(--foreground);
+}
+
+@keyframes markerSpin {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .marker[data-state='current'] {
+    animation: none;
+  }
+}
+
+.stepText {
+  min-width: 0;
+  flex: 1;
+  overflow-wrap: anywhere;
+}
+
+.detailsToggle {
+  align-self: flex-start;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  color: var(--muted-foreground);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.detailsToggle:focus-visible {
+  outline: 2px solid var(--foreground);
+  outline-offset: 2px;
+}
+
+.details {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--muted-foreground);
+}
+
+/* Result and approval preview surfaces */
+.result {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}

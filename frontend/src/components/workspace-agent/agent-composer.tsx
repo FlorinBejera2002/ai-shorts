@@ -1,13 +1,16 @@
 'use client'
 
 import type { ComponentProps, Ref } from 'react'
-import { ArrowUp, Mic, Square } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { ArrowUp, Mic, RefreshCw, Square } from 'lucide-react'
+import { AgentIllustration } from './agent-persona'
 import { AgentHelpComposer } from './agent-help-composer'
 import { AgentMenu, type AgentPanel } from './agent-menu'
+import { AgentPill } from './agent-pill'
+import { AgentIconButton } from './agent-ui'
 import type { AgentMessages } from './messages'
 import type { useDictation } from './use-dictation'
 import type { useWorkspaceAgent } from './use-workspace-agent'
+import styles from './agent-composer.module.css'
 
 type AgentController = ReturnType<typeof useWorkspaceAgent>
 type Dictation = ReturnType<typeof useDictation>
@@ -31,21 +34,23 @@ interface AgentComposerProps {
   onOlder: () => void
 }
 
-/** Composer form: retry, help mode, dictation, the attachment menu and send. */
+/** Composer form: retry, help mode, listening state, dictation, the options menu and send. */
 export function AgentComposer(props: AgentComposerProps) {
   const { agent, copy, locale, ro, mobile, canSend, speech, studioBusy, studio, hasOlder, composerRef, pendingQuestion, onAddQuestion, onSubmit, onPanel, onOlder } = props
   return (
     <form
-      className="shrink-0 space-y-2 bg-background p-4 pt-2"
+      className={styles.form}
       onSubmit={event => {
         event.preventDefault()
         if (canSend) onSubmit()
       }}
     >
       {agent.retry && (
-        <Button type="button" size="sm" variant="outline" disabled={agent.busy} onClick={() => void agent.send(agent.retry!)}>
-          {copy.retry}
-        </Button>
+        <div>
+          <AgentPill icon={<RefreshCw aria-hidden="true" />} disabled={agent.busy} onClick={() => void agent.send(agent.retry!)}>
+            {copy.retry}
+          </AgentPill>
+        </div>
       )}
       <AgentHelpComposer
         locale={locale}
@@ -55,11 +60,16 @@ export function AgentComposer(props: AgentComposerProps) {
         onRegularMessage={agent.clearHelp}
         onAddQuestion={onAddQuestion}
       />
-      {speech.listening && <p role="status" className="text-xs text-muted-foreground">{ro ? 'Se ascultă…' : 'Listening…'}</p>}
-      <div className="rounded-md border bg-background focus-within:ring-2 focus-within:ring-ring">
+      {speech.listening && (
+        <div role="status" className={`${styles.listening} ${mobile ? styles.listeningCompact : ''}`}>
+          <AgentIllustration scene="listening" size={mobile ? 64 : 140} />
+          <p className={styles.listeningText}>{ro ? 'Te ascult' : 'I am listening'}</p>
+        </div>
+      )}
+      <div className={styles.box}>
         <textarea
           ref={composerRef}
-          aria-label={copy.placeholder}
+          aria-label={copy.composerLabel}
           placeholder={copy.placeholder}
           value={agent.draft}
           onChange={event => agent.setDraft(event.target.value)}
@@ -71,36 +81,36 @@ export function AgentComposer(props: AgentComposerProps) {
           }}
           maxLength={4000}
           rows={2}
-          className="agent-composer-input block max-h-40 min-h-16 w-full resize-none rounded-md bg-transparent p-3 text-sm leading-relaxed outline-none"
+          className={styles.textarea}
         />
-        <div className="flex items-center justify-between px-2 pb-2">
-          <div className="flex items-center gap-1">
-            <Button
-              type="button"
-              size="icon"
-              variant={speech.listening ? 'default' : 'ghost'}
-              className="size-8"
-              aria-label={speech.listening ? copy.endDictation : copy.dictate}
-              aria-pressed={speech.listening}
-              title={speech.supported ? (speech.listening ? copy.endDictation : copy.dictate) : copy.speechUnavailable}
+        <div className={styles.toolbar}>
+          <AgentMenu
+            ro={ro}
+            busy={agent.busy}
+            panelBusy={studioBusy}
+            hasOlder={hasOlder}
+            studio={studio}
+            onPanel={onPanel}
+            onOlder={onOlder}
+          />
+          {speech.listening ? (
+            <AgentPill variant="primary" icon={<Square aria-hidden="true" />} aria-label={copy.endDictation} aria-pressed onClick={speech.toggle}>
+              {ro ? 'Ascult…' : 'Listening…'}
+            </AgentPill>
+          ) : (
+            <AgentIconButton
+              size="composer"
+              label={speech.supported ? copy.dictate : copy.speechUnavailable}
               disabled={!speech.supported}
               onClick={speech.toggle}
             >
-              {speech.listening ? <Square className="size-3.5" /> : <Mic className="size-4" />}
-            </Button>
-            <AgentMenu
-              ro={ro}
-              busy={agent.busy}
-              panelBusy={studioBusy}
-              hasOlder={hasOlder}
-              studio={studio}
-              onPanel={onPanel}
-              onOlder={onOlder}
-            />
-          </div>
-          <Button type="submit" size="icon" className="size-8" aria-label={copy.send} disabled={!canSend}>
-            <ArrowUp className="size-4" />
-          </Button>
+              <Mic />
+            </AgentIconButton>
+          )}
+          <span className={styles.spacer} />
+          <button type="submit" className={styles.send} aria-label={copy.send} disabled={!canSend}>
+            <ArrowUp aria-hidden="true" />
+          </button>
         </div>
       </div>
     </form>

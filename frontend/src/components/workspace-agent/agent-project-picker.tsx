@@ -1,7 +1,9 @@
 import { useQuery } from '@tanstack/react-query'
 import { Check, ChevronRight } from 'lucide-react'
-import { Button } from '@/components/ui/button'
 import { storyRequest } from '@/components/story/api'
+import { AgentPill } from './agent-pill'
+import styles from './agent-panels.module.css'
+import uiStyles from './agent-ui.module.css'
 
 type ProjectChoice = { id: string; name: string; kind: 'project' | 'story' }
 type StorySummary = { id: string; title?: string; options?: { brief?: string } }
@@ -22,10 +24,26 @@ export function AgentProjectPicker({ ro, selectedId, disabled, onSelect, stories
     }
   })
   const choices = projects.data?.filter(project => !storiesOnly || project.kind === 'story')
-  return <div className="space-y-2 text-xs" data-agent-project-picker>
-    {projects.isPending && <p role="status">{ro ? 'Se încarcă proiectele…' : 'Loading projects…'}</p>}
-    {projects.isError && <div><p role="alert">{ro ? 'Proiectele nu au putut fi încărcate.' : 'Could not load projects.'}</p><Button size="sm" variant="outline" onClick={() => void projects.refetch()}>{ro ? 'Reîncearcă' : 'Retry'}</Button></div>}
-    {choices?.length === 0 && <p className="text-muted-foreground">{ro ? 'Nu ai încă proiecte. Cere agentului să creeze clipuri.' : 'No projects yet. Ask the agent to create clips.'}</p>}
-    <ul className="max-h-64 space-y-1 overflow-auto">{choices?.map(project => <li key={`${project.kind}-${project.id}`}><Button variant="ghost" className="h-auto min-h-10 w-full justify-start px-2 py-2 text-left" disabled={disabled} onClick={() => onSelect(project)} aria-pressed={selectedId === project.id}><span className="min-w-0 flex-1"><span className="block truncate text-xs">{project.name}</span><span className="text-[10px] font-normal text-muted-foreground">{project.kind === 'story' ? (ro ? 'Filmări încărcate' : 'Uploaded footage') : (ro ? 'Proiect' : 'Project')}</span></span>{selectedId === project.id ? <Check className="size-3" /> : <ChevronRight className="size-3" />}</Button></li>)}</ul>
+  return <div className={styles.body} data-agent-project-picker>
+    {projects.isPending && <p role="status" className={uiStyles.hint}>{ro ? 'Se încarcă proiectele…' : 'Loading projects…'}</p>}
+    {projects.isError && <div className={uiStyles.stack}>
+      <p role="alert" className={uiStyles.error}>{ro ? 'Proiectele nu au putut fi încărcate.' : 'Could not load projects.'}</p>
+      <AgentPill onClick={() => void projects.refetch()}>{ro ? 'Reîncearcă' : 'Retry'}</AgentPill>
+    </div>}
+    {choices?.length === 0 && <p className={uiStyles.hint}>{ro ? 'Nu ai încă proiecte. Cere agentului să creeze clipuri.' : 'No projects yet. Ask the agent to create clips.'}</p>}
+    <ul className={styles.projectList}>
+      {choices?.map(project => {
+        const selected = selectedId === project.id
+        return <li key={`${project.kind}-${project.id}`}>
+          <button type="button" className={styles.projectRow} disabled={disabled} aria-pressed={selected} onClick={() => onSelect(project)}>
+            <span className={styles.projectText}>
+              <span className={styles.projectName}>{project.name}</span>
+              <span className={styles.projectKind}>{project.kind === 'story' ? (ro ? 'Filmări încărcate' : 'Uploaded footage') : (ro ? 'Proiect' : 'Project')}</span>
+            </span>
+            {selected ? <span className={styles.check}><Check aria-hidden="true" /></span> : <ChevronRight className={styles.chevron} aria-hidden="true" />}
+          </button>
+        </li>
+      })}
+    </ul>
   </div>
 }

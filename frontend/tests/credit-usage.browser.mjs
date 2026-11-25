@@ -286,7 +286,8 @@ async function mobile() {
       await f.percentage(58)
       const ring = await f.trigger.boundingBox(), agent = await f.page.locator('[data-agent-trigger]').boundingBox()
       assert.ok(ring.y >= 0 && ring.y + ring.height <= 64)
-      assert.ok(ring.x + ring.width <= agent.x - 4, 'Circle sits beside Workspace Agent without overlap')
+      const overlaps = ring.x < agent.x + agent.width && agent.x < ring.x + ring.width && ring.y < agent.y + agent.height && agent.y < ring.y + ring.height
+      assert.equal(overlaps, false, 'Circle does not overlap the Ana & Radu launcher')
       await f.inspect()
       assert.match(await f.details.innerText(), /2,900 credits available/)
       const popup = await f.details.boundingBox()
@@ -298,7 +299,7 @@ async function mobile() {
       await f.details.waitFor({ state: 'hidden' })
       await f.page.locator('[data-agent-trigger]').tap()
       await f.page.locator('#workspace-agent-panel').waitFor({ state: 'visible' })
-      checks.push(`${width}px mobile touch, theme, popup bounds and Workspace Agent`)
+      checks.push(`${width}px mobile touch, theme, popup bounds and Ana & Radu`)
     } finally { await f.close() }
   }
 }

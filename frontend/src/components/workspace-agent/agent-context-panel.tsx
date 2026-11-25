@@ -3,7 +3,7 @@
 import type { ComponentProps } from 'react'
 import { m as motion } from 'framer-motion'
 import { X } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { AgentIllustration } from './agent-persona'
 import { AgentAttachments } from './agent-attachments'
 import { AgentPreferences } from './agent-preferences'
 import { AgentProjectPicker } from './agent-project-picker'
@@ -16,6 +16,9 @@ import type { useAgentAttachments } from './use-agent-attachments'
 import type { useAgentResources } from './use-agent-resources'
 import type { useWorkspaceAgent } from './use-workspace-agent'
 import type { attachmentTarget } from './attachment-target'
+import { AgentPill } from './agent-pill'
+import { AgentIconButton } from './agent-ui'
+import styles from './agent-panels.module.css'
 
 type AgentController = ReturnType<typeof useWorkspaceAgent>
 type ProjectChoice = Parameters<ComponentProps<typeof AgentProjectPicker>['onSelect']>[0]
@@ -53,22 +56,15 @@ export function AgentContextPanel(props: AgentContextPanelProps) {
         initial={reducedMotion ? false : { opacity: 0, y: 4 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: reducedMotion ? 0 : 0.16 }}
-        className="mt-3 space-y-3 rounded-md border p-3"
+        className={styles.panel}
         data-agent-context-panel={panel}
         aria-label={title}
       >
-        <div className="flex items-center justify-between gap-2">
-          <h3 className="text-xs font-medium">{title}</h3>
-          <Button
-            size="icon"
-            variant="ghost"
-            className="size-7"
-            aria-label={ro ? 'Închide opțiunile' : 'Close options'}
-            disabled={uploading}
-            onClick={onClose}
-          >
-            <X className="size-3.5" />
-          </Button>
+        <div className={styles.header}>
+          <h3 className={styles.title}>{title}</h3>
+          <AgentIconButton label={ro ? 'Închide opțiunile' : 'Close options'} disabled={uploading} onClick={onClose}>
+            <X />
+          </AgentIconButton>
         </div>
         <AgentPanelBody {...props} />
       </motion.section>
@@ -102,16 +98,24 @@ function AgentPanelBody(props: AgentContextPanelProps) {
 
 function AgentSuggestions({ agent, copy, ro, disabled, onClose }: { agent: AgentController; copy: AgentMessages; ro: boolean; disabled: boolean; onClose: () => void }) {
   const { suggestions } = agent
-  if (suggestions.isPending) return <p role="status" className="text-xs">{copy.loading}</p>
+  if (suggestions.isPending) return <p role="status" className={styles.emptyText}>{copy.loading}</p>
   if (suggestions.isError) {
     return (
-      <div>
-        <p className="text-xs" role="alert">{copy.error}</p>
-        <Button size="sm" variant="outline" onClick={() => void suggestions.refetch()}>{copy.retry}</Button>
+      <div className={styles.emptyState}>
+        <AgentIllustration scene="offline" size={96} />
+        <p className={styles.emptyText} role="alert">{copy.error}</p>
+        <AgentPill onClick={() => void suggestions.refetch()}>{ro ? 'Reîncearcă' : 'Retry'}</AgentPill>
       </div>
     )
   }
-  if (!suggestions.data?.suggestions.length) return <p className="text-xs text-muted-foreground">{ro ? 'Nu sunt recomandări acum.' : 'No suggestions right now.'}</p>
+  if (!suggestions.data?.suggestions.length) {
+    return (
+      <div className={styles.emptyState}>
+        <AgentIllustration scene="noSuggestions" size={140} />
+        <p className={styles.emptyText}>{ro ? 'Nu sunt recomandări acum' : 'No suggestions right now'}</p>
+      </div>
+    )
+  }
   return (
     <div className="space-y-3">
       {suggestions.data.suggestions.map(suggestion => (

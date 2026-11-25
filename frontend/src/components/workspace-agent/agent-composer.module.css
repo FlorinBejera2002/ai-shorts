@@ -1,0 +1,207 @@
+/* Workspace Agent composer: form box, textarea, bottom toolbar, options menu and help chips. */
+
+.form {
+  display: grid;
+  flex-shrink: 0;
+  gap: 8px;
+  padding: 8px 16px 16px;
+  background: var(--background);
+}
+
+.box {
+  display: grid;
+  gap: 4px;
+  padding: 10px;
+  border: 1px solid var(--publish-border-strong);
+  border-radius: 16px;
+  background: var(--card);
+  transition: border-color 120ms ease;
+}
+
+.box:focus-within {
+  border-color: var(--foreground);
+}
+
+.textarea {
+  display: block;
+  width: 100%;
+  min-height: 44px;
+  max-height: 160px;
+  padding: 6px 6px 2px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--foreground);
+  font-size: 14px;
+  line-height: 20px;
+  resize: none;
+  outline: none;
+}
+
+.textarea::placeholder {
+  color: var(--muted-foreground);
+  opacity: 1;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.spacer {
+  flex: 1;
+}
+
+.send {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--primary);
+  color: var(--primary-foreground);
+  cursor: pointer;
+}
+
+.send svg {
+  width: 16px;
+  height: 16px;
+}
+
+.send:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.send:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.listening {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  text-align: center;
+}
+
+.listeningCompact {
+  flex-direction: row;
+  justify-content: flex-start;
+  text-align: left;
+}
+
+.listeningText {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--foreground);
+}
+
+.helpRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.chip {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 4px 4px 10px;
+  border: 1px solid var(--publish-border-strong);
+  border-radius: 999px;
+  background: var(--card);
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.chip > svg {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  color: var(--muted-foreground);
+}
+
+.chipLabel {
+  flex: none;
+  font-weight: 600;
+  color: var(--foreground);
+}
+
+.chipText {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--muted-foreground);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.question {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.menu {
+  width: 260px;
+  padding: 6px;
+  border: 1px solid var(--publish-border-strong);
+  border-radius: 16px;
+  background: var(--card);
+  color: var(--foreground);
+}
+
+.menuItem {
+  min-height: 38px;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  font-size: 13px;
+}
+
+.menuItem svg {
+  width: 16px;
+  height: 16px;
+  color: var(--muted-foreground);
+}
+
+.menuItem[data-highlighted] {
+  background: var(--muted);
+  color: var(--foreground);
+}
+
+.menuItem[data-disabled] {
+  opacity: 0.5;
+}
+
+@media (max-width: 767px) {
+  .box {
+    padding: 12px;
+  }
+
+  .send {
+    width: 44px;
+    height: 44px;
+  }
+
+  .menuItem {
+    min-height: 44px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .box {
+    transition: none;
+  }
+}

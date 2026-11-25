@@ -1,16 +1,18 @@
 import { useState } from 'react'
-import { Button } from '@/components/ui/button'
 import { toast } from '@/lib/toast'
 import { ActionDetails } from './action-details'
 import { agentApi } from './api'
+import { AgentPill } from './agent-pill'
 import type { AgentMessages } from './messages'
 import type { Suggestion } from './model'
+import styles from './suggestion-card.module.css'
 
 export function SuggestionCard({ original, messages: m, disabled, onAccept, onDismiss }: {
   original: Suggestion; messages: AgentMessages; disabled: boolean
   onAccept: (suggestion: Suggestion) => void; onDismiss: (id: string) => void
 }) {
   const [revised, setRevised] = useState<Suggestion>()
+  const [explained, setExplained] = useState(false)
   const [editing, setEditing] = useState(false)
   const [instruction, setInstruction] = useState('')
   const [pending, setPending] = useState(false)
@@ -23,20 +25,26 @@ export function SuggestionCard({ original, messages: m, disabled, onAccept, onDi
     catch (cause) { toast.error(cause instanceof Error ? cause.message : m.error) }
     finally { setPending(false) }
   }
-  return <article className="space-y-3 rounded-md border p-3">
-    <h4 className="text-sm font-medium">{suggestion.title}</h4>
-    <details className="text-xs text-muted-foreground"><summary className="cursor-pointer">{m.explain}</summary><p className="mt-2 leading-relaxed">{suggestion.description}</p><ActionDetails action={suggestion.action} ro={ro} /></details>
-    <p className="text-xs text-muted-foreground">{suggestion.cost_credits} {m.credits}</p>
-    {suggestion.missing_resources.length > 0 && <p className="text-xs">{m.missing}: {suggestion.missing_resources.join(', ')}</p>}
-    {editing && <div className="space-y-2">
-      <label className="block text-xs">{ro ? 'Ce vrei să schimbi?' : 'What would you change?'}<textarea value={instruction} onChange={event => setInstruction(event.target.value)} rows={2} maxLength={2000} className="mt-2 w-full rounded-md border bg-background p-2 text-sm" /></label>
-      <p className="text-xs text-muted-foreground">{ro ? 'Verifică sugestia revizuită înainte de execuție.' : 'Review the revised suggestion before executing it.'}</p>
-      <Button size="sm" variant="outline" disabled={pending || !instruction.trim()} onClick={() => void revise()}>{ro ? 'Revizuiește sugestia' : 'Revise suggestion'}</Button>
+  return <article className={styles.card}>
+    <div className={styles.header}>
+      <h4 className={styles.title}>{suggestion.title}</h4>
+      {suggestion.cost_credits > 0 && <span className={styles.credits}>{suggestion.cost_credits} {m.credits}</span>}
+    </div>
+    {explained && <div className={styles.details}>
+      <p>{suggestion.description}</p>
+      {suggestion.missing_resources.length > 0 && <p>{m.missing}: {suggestion.missing_resources.join(', ')}</p>}
+      <ActionDetails action={suggestion.action} ro={ro} />
     </div>}
-    <div className="flex flex-wrap gap-2">
-      <Button size="sm" disabled={disabled || pending || editing} onClick={() => onAccept(suggestion)}>{m.doIt}</Button>
-      <Button size="sm" variant="outline" disabled={pending} aria-expanded={editing} onClick={() => setEditing(!editing)}>{ro ? 'Modifică' : 'Edit'}</Button>
-      <Button size="sm" variant="ghost" disabled={pending} onClick={() => onDismiss(suggestion.id)}>{m.dismiss}</Button>
+    {editing && <div className={styles.revise}>
+      <label className={styles.label} htmlFor={`${suggestion.id}-revise`}>{ro ? 'Ce vrei să schimbi?' : 'What would you change?'}</label>
+      <textarea id={`${suggestion.id}-revise`} value={instruction} onChange={event => setInstruction(event.target.value)} rows={2} maxLength={2000} className={styles.textarea} />
+      <AgentPill variant="secondary" disabled={pending || !instruction.trim()} onClick={() => void revise()}>{ro ? 'Revizuiește sugestia' : 'Revise suggestion'}</AgentPill>
+    </div>}
+    <div className={styles.actions}>
+      <AgentPill variant="primary" fill disabled={disabled || pending || editing} onClick={() => onAccept(suggestion)}>{m.doIt}</AgentPill>
+      <AgentPill variant="ghost" disabled={pending} aria-expanded={explained} onClick={() => setExplained(value => !value)}>{m.explain}</AgentPill>
+      <AgentPill variant="secondary" disabled={pending} aria-expanded={editing} onClick={() => setEditing(value => !value)}>{ro ? 'Modifică' : 'Edit'}</AgentPill>
+      <AgentPill variant="ghost" disabled={pending} onClick={() => onDismiss(suggestion.id)}>{m.dismiss}</AgentPill>
     </div>
   </article>
 }

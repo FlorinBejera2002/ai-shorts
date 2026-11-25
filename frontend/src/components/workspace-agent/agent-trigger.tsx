@@ -1,33 +1,38 @@
 'use client'
 
 import type { Ref } from 'react'
-import { Bot } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { AgentAvatar } from './agent-persona'
+import { AgentBubble } from './agent-bubble'
 import type { AgentMessages } from './messages'
+import styles from './agent-shell.module.css'
 
 interface AgentTriggerProps {
   copy: AgentMessages
-  /** Creare and job pages reserve the phone footer, so the launcher stays out of the way on phones. */
+  bubbleVisible: boolean
+  /** Hide on phones where a fixed bottom action bar would be covered. */
   hiddenOnPhone: boolean
   triggerRef: Ref<HTMLButtonElement>
   onOpen: () => void
+  onDismissBubble: () => void
 }
 
-/** Floating launcher for the workspace assistant; it sits below dialog and sheet overlays (z-50). */
-export function AgentTrigger({ copy, hiddenOnPhone, triggerRef, onOpen }: AgentTriggerProps) {
-  const phoneClass = hiddenOnPhone ? 'max-lg:hidden' : ''
+/** Floating launcher: only the round Ana & Radu avatar, with the speech bubble rising above it. */
+export function AgentTrigger({ copy, bubbleVisible, hiddenOnPhone, triggerRef, onOpen, onDismissBubble }: AgentTriggerProps) {
   return (
-    <Button
-      data-agent-trigger
-      ref={triggerRef}
-      className={`fixed right-4 bottom-24 z-40 shadow-lg lg:bottom-6 ${phoneClass}`}
-      onClick={onOpen}
-      aria-label={copy.open}
-      aria-expanded={false}
-      aria-controls="workspace-agent-panel"
-    >
-      <Bot className="mr-2 size-4" />
-      {copy.title}
-    </Button>
+    <div className={hiddenOnPhone ? `${styles.launcher} ${styles.hiddenOnPhone}` : styles.launcher}>
+      {bubbleVisible && <AgentBubble copy={copy} onOpen={onOpen} onDismiss={onDismissBubble} />}
+      <button
+        type="button"
+        data-agent-trigger
+        ref={triggerRef}
+        className={styles.launcherButton}
+        onClick={onOpen}
+        aria-label={copy.open}
+        aria-expanded={false}
+        aria-controls="workspace-agent-panel"
+      >
+        <AgentAvatar size={64} />
+      </button>
+    </div>
   )
 }

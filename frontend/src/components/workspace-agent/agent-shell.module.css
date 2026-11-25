@@ -1,0 +1,124 @@
+/* Launcher, desktop docked panel, and phone sheet for Ana & Radu. Colours come from the scoped reference surface. */
+
+/* Launcher: the round avatar floats over every dashboard page. Radius and size are design exceptions (circular avatar). */
+.launcher {
+  position: fixed;
+  z-index: 40;
+  right: 16px;
+  bottom: 96px;
+}
+
+@media (max-width: 1023px) {
+  .hiddenOnPhone { display: none; }
+}
+
+.launcherButton {
+  display: block;
+  width: 60px;
+  height: 60px;
+  overflow: hidden;
+  border-radius: 9999px;
+  background: var(--card);
+  padding: 0;
+  box-shadow: 0 0 0 3px var(--card), 0 10px 30px rgba(21, 32, 53, 0.18);
+  cursor: pointer;
+}
+
+.launcherButton:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 3px;
+}
+
+/* The avatar is rendered at 64px inline, so the 60px phone button has to override its size. */
+.launcherButton img {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover;
+}
+
+@media (min-width: 1024px) {
+  .launcher {
+    right: 24px;
+    bottom: 24px;
+  }
+
+  .launcherButton {
+    width: 64px;
+    height: 64px;
+  }
+}
+
+/* Desktop docked panel: sticky right column, 380px by default, 16px side padding. */
+.panel {
+  background: var(--card);
+  border-left: 1px solid var(--border);
+  padding: 0 16px 16px;
+  color: var(--foreground);
+}
+
+.panelHeader {
+  display: flex;
+  height: 60px;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 8px;
+}
+
+.sheetHeader {
+  display: flex;
+  height: 60px;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 10px;
+  padding: 0 16px;
+}
+
+.headerTitle {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  font-family: 'Sora Variable', Sora, Inter, sans-serif;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.panelHeader .headerTitle { font-size: 16px; }
+.sheetHeader .headerTitle { font-size: 17px; }
+
+.collapse {
+  display: inline-flex;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  color: var(--muted-foreground);
+  cursor: pointer;
+}
+
+.collapse:hover {
+  background: var(--muted);
+  color: var(--foreground);
+}
+
+.closeSheet {
+  display: inline-flex;
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  margin-right: -10px;
+  border-radius: 9999px;
+  color: var(--foreground);
+  cursor: pointer;
+}
+
+/* Phone sheet uses the page background rather than the card surface. */
+.sheet {
+  background: var(--background);
+}
