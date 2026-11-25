@@ -119,6 +119,10 @@ func TestPostgresAuthLifecycle(t *testing.T) {
 	if _, err := service.CurrentUser(context.Background(), response.AccessToken); err != ErrUnauthenticated {
 		t.Fatalf("revoked access: %v", err)
 	}
+	var lastActive sql.NullTime
+	if err := db.QueryRow(`SELECT last_active_at FROM users WHERE id=$1`, user.ID).Scan(&lastActive); err != nil || !lastActive.Valid {
+		t.Fatalf("sign-in must record last activity that outlives the session: %v", err)
+	}
 
 	response, cookie = loginHTTP(t, handler)
 	stale, _ := repository.FindByEmail(context.Background(), user.Email)

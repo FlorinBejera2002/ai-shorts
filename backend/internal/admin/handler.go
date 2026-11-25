@@ -33,6 +33,7 @@ type Handler struct {
 func New(db *sql.DB, auth *identity.Handler) *Handler { return &Handler{db: db, auth: auth} }
 
 func (h *Handler) Register(router *httprouter.Router) {
+	h.registerActivity(router)
 	h.registerAIRouting(router)
 	h.registerBilling(router)
 	h.registerErrors(router)
@@ -132,7 +133,7 @@ func (h *Handler) users(w http.ResponseWriter, r *http.Request) {
 	args = append(args, pageSize, (page-1)*pageSize)
 	limitAt, offsetAt := len(args)-1, len(args)
 	sqlQuery := fmt.Sprintf(`SELECT u.id,u.email,u.name,u.plan,u.credits,u.access_role,u.account_status,u.created_at,
-		(SELECT max(s.last_seen_at) FROM sessions s WHERE s.user_id=u.id),
+		`+lastActiveSQL+`,
 		(SELECT count(*) FROM jobs j WHERE j.user_id=u.id),
 		(SELECT count(*) FROM clips c WHERE c.user_id=u.id),count(*) OVER()
 		FROM users u WHERE %s ORDER BY u.created_at DESC,u.id DESC LIMIT $%d OFFSET $%d`, strings.Join(where, " AND "), limitAt, offsetAt)
