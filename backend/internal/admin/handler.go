@@ -24,10 +24,11 @@ import (
 var userIDPattern = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
 
 type Handler struct {
-	db        *sql.DB
-	auth      *identity.Handler
-	aiRouting aiRoutingService
-	billing   BillingConfiguration
+	db             *sql.DB
+	auth           *identity.Handler
+	aiRouting      aiRoutingService
+	billing        BillingConfiguration
+	feedbackImages FeedbackImageSigner
 }
 
 func New(db *sql.DB, auth *identity.Handler) *Handler { return &Handler{db: db, auth: auth} }

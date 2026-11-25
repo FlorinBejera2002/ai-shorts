@@ -7,6 +7,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"io"
 	"log/slog"
 	"net/http"
 	"net/url"
@@ -16,6 +17,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/julienschmidt/httprouter"
+	"github.com/lib/pq"
 
 	"sneepcut/backend-go/internal/httpx"
 	"sneepcut/backend-go/internal/identity"
@@ -27,6 +29,8 @@ const (
 	KindClip    = "clip"
 
 	MaxMessage = 4000
+	MaxImages  = 3
+	maxPayload = 32 << 10
 	maxPage    = 300
 	maxAgent   = 200
 )
@@ -44,12 +48,21 @@ type Authenticator interface {
 	Limit(http.HandlerFunc, string, int, time.Duration) http.HandlerFunc
 }
 
-type Handler struct {
-	db   *sql.DB
-	auth Authenticator
+// ImageStore keeps the screenshots attached to problem reports and ideas.
+type ImageStore interface {
+	StoreFeedbackImage(ctx context.Context, userID, filename, contentType string, body io.Reader) (string, error)
+	RemoveFeedbackImage(ctx context.Context, userID, key string) error
 }
 
-func New(db *sql.DB, auth Authenticator) *Handler { return &Handler{db: db, auth: auth} }
+type Handler struct {
+	db     *sql.DB
+	auth   Authenticator
+	images ImageStore
+}
+
+func New(db *sql.DB, auth Authenticator, images ImageStore) *Handler {
+	return &Handler{db: db, auth: auth, images: images}
+}
 
 func (h *Handler) Register(router *httprouter.Router) {
 	router.Handler(http.MethodPost, "/api/feedback", h.auth.Require(h.auth.Limit(h.create, "feedback", 20, time.Hour)))
@@ -101,46 +114,70 @@ func (in *Input) Validate() string {
 	return ""
 }
 
+// create accepts JSON, or multipart (a "payload" JSON part followed by up to
+// MaxImages "image" parts) when a problem report or idea carries screenshots.
 func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
-	var input Input
-	if !httpx.Read(w, r, &input, 32<<10) {
-		return
-	}
-	if message := input.Validate(); message != "" {
-		httpx.Error(w, http.StatusBadRequest, message)
-		return
-	}
 	userID := identity.Current(r).User.ID
-	agent := truncate(r.UserAgent(), maxAgent)
-	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
-	defer cancel()
-	var id int64
-	var err error
-	if input.Kind == KindClip {
-		var owned bool
-		if err = h.db.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM jobs WHERE id=$1 AND user_id=$2)`, input.JobID, userID).Scan(&owned); err == nil && !owned {
-			httpx.Error(w, http.StatusNotFound, "Job not found")
+	var input Input
+	var images []string
+	if isMultipart(r) {
+		var ok bool
+		if input, images, ok = h.readWithImages(w, r, userID); !ok {
 			return
 		}
-		if err == nil {
-			err = h.db.QueryRowContext(ctx, `INSERT INTO user_feedback(user_id,kind,rating,message,job_id,page,user_agent)
-				VALUES($1,'clip',$2,$3,$4,$5,$6)
-				ON CONFLICT (user_id, job_id) WHERE kind='clip'
-				DO UPDATE SET rating=EXCLUDED.rating,
-					message=CASE WHEN EXCLUDED.message<>'' THEN EXCLUDED.message ELSE user_feedback.message END,
-					status=CASE WHEN EXCLUDED.message<>'' THEN 'new' ELSE user_feedback.status END,
-					updated_at=now()
-				RETURNING id`, userID, input.Rating, input.Message, input.JobID, input.Page, agent).Scan(&id)
-		}
 	} else {
-		err = h.db.QueryRowContext(ctx, `INSERT INTO user_feedback(user_id,kind,category,message,page,user_agent)
-			VALUES($1,$2,$3,$4,$5,$6) RETURNING id`, userID, input.Kind, input.Category, input.Message, input.Page, agent).Scan(&id)
+		if !httpx.Read(w, r, &input, maxPayload) {
+			return
+		}
+		if message := input.Validate(); message != "" {
+			httpx.Error(w, http.StatusBadRequest, message)
+			return
+		}
+	}
+	id, err := h.save(r.Context(), userID, truncate(r.UserAgent(), maxAgent), input, images)
+	if errors.Is(err, errJobNotFound) {
+		h.discardImages(r.Context(), userID, images)
+		httpx.Error(w, http.StatusNotFound, "Job not found")
+		return
 	}
 	if err != nil {
+		h.discardImages(r.Context(), userID, images)
 		h.fail(w, "save feedback", err)
 		return
 	}
 	httpx.JSON(w, http.StatusCreated, map[string]any{"id": id})
+}
+
+var errJobNotFound = errors.New("job not found")
+
+func (h *Handler) save(parent context.Context, userID, agent string, input Input, images []string) (int64, error) {
+	ctx, cancel := context.WithTimeout(parent, 5*time.Second)
+	defer cancel()
+	var id int64
+	if input.Kind == KindClip {
+		var owned bool
+		if err := h.db.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM jobs WHERE id=$1 AND user_id=$2)`, input.JobID, userID).Scan(&owned); err != nil {
+			return 0, err
+		}
+		if !owned {
+			return 0, errJobNotFound
+		}
+		err := h.db.QueryRowContext(ctx, `INSERT INTO user_feedback(user_id,kind,rating,message,job_id,page,user_agent)
+			VALUES($1,'clip',$2,$3,$4,$5,$6)
+			ON CONFLICT (user_id, job_id) WHERE kind='clip'
+			DO UPDATE SET rating=EXCLUDED.rating,
+				message=CASE WHEN EXCLUDED.message<>'' THEN EXCLUDED.message ELSE user_feedback.message END,
+				status=CASE WHEN EXCLUDED.message<>'' THEN 'new' ELSE user_feedback.status END,
+				updated_at=now()
+			RETURNING id`, userID, input.Rating, input.Message, input.JobID, input.Page, agent).Scan(&id)
+		return id, err
+	}
+	if images == nil {
+		images = []string{}
+	}
+	err := h.db.QueryRowContext(ctx, `INSERT INTO user_feedback(user_id,kind,category,message,page,user_agent,image_keys)
+		VALUES($1,$2,$3,$4,$5,$6,$7) RETURNING id`, userID, input.Kind, input.Category, input.Message, input.Page, agent, pq.Array(images)).Scan(&id)
+	return id, err
 }
 
 // Report is one of the signed-in user's own problem reports or ideas.
@@ -150,13 +187,14 @@ type Report struct {
 	Category  string    `json:"category"`
 	Message   string    `json:"message"`
 	Status    string    `json:"status"`
+	Images    int       `json:"images"`
 	CreatedAt time.Time `json:"createdAt"`
 }
 
 func (h *Handler) list(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
-	rows, err := h.db.QueryContext(ctx, `SELECT id,kind,category,message,status,created_at FROM user_feedback
+	rows, err := h.db.QueryContext(ctx, `SELECT id,kind,category,message,status,cardinality(image_keys),created_at FROM user_feedback
 		WHERE user_id=$1 AND kind<>'clip' ORDER BY created_at DESC, id DESC LIMIT 20`, identity.Current(r).User.ID)
 	if err != nil {
 		h.fail(w, "list feedback", err)
@@ -166,7 +204,7 @@ func (h *Handler) list(w http.ResponseWriter, r *http.Request) {
 	items := []Report{}
 	for rows.Next() {
 		var item Report
-		if err = rows.Scan(&item.ID, &item.Kind, &item.Category, &item.Message, &item.Status, &item.CreatedAt); err != nil {
+		if err = rows.Scan(&item.ID, &item.Kind, &item.Category, &item.Message, &item.Status, &item.Images, &item.CreatedAt); err != nil {
 			break
 		}
 		items = append(items, item)

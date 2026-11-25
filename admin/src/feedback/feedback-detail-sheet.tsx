@@ -36,6 +36,17 @@ export function FeedbackDetailSheet({ item, onClose, onChanged }: Props) {
           <SheetDescription className="break-words">{item.userName ? `${item.userName} · ${item.userEmail}` : item.userEmail}</SheetDescription>
         </SheetHeader>
         {item.message && <blockquote className="feedback-message">{item.message}</blockquote>}
+        {item.images.length > 0 && (
+          <ul className="feedback-images" aria-label="Poze atașate">
+            {item.images.map((url, index) => (
+              <li key={url}>
+                <a href={url} target="_blank" rel="noreferrer noopener" aria-label={`Deschide poza ${index + 1}`}>
+                  <img src={url} alt={`Poza ${index + 1}`} loading="lazy" />
+                </a>
+              </li>
+            ))}
+          </ul>
+        )}
         <dl className="value-list">
           <div><dt>Stare</dt><dd><Badge variant={item.status === 'resolved' ? 'success' : 'outline'}>{statusLabels[item.status]}</Badge></dd></div>
           {item.rating && <div><dt>Evaluare</dt><dd>{ratingLabels[item.rating]}</dd></div>}
