@@ -62,7 +62,8 @@ export function RunCard({ run, messages: m, busy, control, selectProject, upload
   const ro = m.send === 'Trimite'
   const finalStep = run.steps?.at(-1)
   const completedResult = run.status === 'completed' ? run.result ?? finalStep?.result : undefined
-  const hasOperation = Boolean(run.action || run.steps?.length || run.approval_preview)
+  // A failure before any step still gets the card, so it shows the failed scene and Retry.
+  const hasOperation = Boolean(run.action || run.steps?.length || run.approval_preview) || run.status === 'failed'
   const response = run.reply || run.result?.summary
 
   return <motion.div initial={reducedMotion ? false : { opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: reducedMotion ? 0 : 0.18 }} className="flex flex-col gap-4 py-2" data-agent-run={run.id}>
@@ -128,7 +129,9 @@ function RunControls({ run, ro, busy, uploading, control, onRetry, messages: m }
   run: AgentRun; ro: boolean; busy: boolean; uploading: boolean
   control: (run: AgentRun, command: AgentCommand) => void; onRetry: (run: AgentRun) => void; messages: AgentMessages
 }) {
-  const destination = safeAgentRoute(run.result?.route)
+  // An intermediate step's route is not the outcome; link to it only once the run stops working.
+  const working = ['planning', 'running', 'cancel_requested'].includes(run.status)
+  const destination = working ? undefined : safeAgentRoute(run.result?.route)
   const stop = <AgentPill variant="ghost" fill disabled={busy} onClick={() => control(run, 'stop')}>{m.stop}</AgentPill>
   const approvalDisabled = busy || publishingConsentMissing(run.approval_preview) || (uploading && run.action?.name === 'stories.generate')
   const buttons: ReactNode = (() => {

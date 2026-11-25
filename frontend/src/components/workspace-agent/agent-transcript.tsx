@@ -6,6 +6,7 @@ import { AgentPill } from './agent-pill'
 import { RunCard } from './run-card'
 import { SuggestionCard } from './suggestion-card'
 import type { AgentMessages } from './messages'
+import type { AgentRun } from './model'
 import type { useWorkspaceAgent } from './use-workspace-agent'
 import styles from './agent-conversation.module.css'
 
@@ -41,9 +42,15 @@ export function AgentTranscript({ agent, copy, ro, uploading, reducedMotion, onO
           onRetry={item => void agent.send({ request_id: crypto.randomUUID(), message: item.message, context: item.context })}
         />
       ))}
-      {agent.sending && <TypingReply ro={ro} reducedMotion={reducedMotion} />}
+      {(agent.sending || runs.some(isAwaitingFirstReply)) && <TypingReply ro={ro} reducedMotion={reducedMotion} />}
     </>
   )
+}
+
+/** Accepted but still planning: nothing on the card yet, so the typing bubble keeps the wait visible. */
+function isAwaitingFirstReply(run: AgentRun): boolean {
+  return (run.status === 'planning' || run.status === 'running')
+    && !run.action && !run.steps?.length && !run.approval_preview && !run.reply && !run.error
 }
 
 function AgentLoadingState({ copy }: { copy: AgentMessages }) {
