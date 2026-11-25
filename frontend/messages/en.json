@@ -35,6 +35,26 @@
     "backToCreate": "Back to new project",
     "planPost": "Plan a post"
   },
+  "creditUsage": {
+    "title": "Credit usage",
+    "label": "Credit usage: {summary}",
+    "remaining": "{percent}% remaining",
+    "available": "{count} credits available",
+    "allowance": "Plan allowance: {count} credits",
+    "additional": "Your balance includes additional credits.",
+    "noReset": "One-time credits; no scheduled reset.",
+    "renews": "Next renewal: {date}",
+    "ends": "Paid access ends: {date}",
+    "period": "Billing period ends: {date}",
+    "unlimited": "Unlimited credits",
+    "unlimitedDetail": "This admin account has no app credit limit.",
+    "loading": "Loading usage…",
+    "error": "Usage unavailable",
+    "unavailable": "We couldn't load your balance. Please try again.",
+    "stale": "Couldn't refresh usage. Showing the last known balance.",
+    "retry": "Try again",
+    "billing": "View billing"
+  },
   "common": {
     "save": "Save",
     "cancel": "Cancel",

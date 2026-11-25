@@ -1,0 +1,46 @@
+.trigger {
+  display: flex;
+  min-height: 40px;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--foreground);
+  cursor: pointer;
+}
+.trigger:hover, .action:hover { background: var(--muted); }
+.trigger:focus-visible, .action:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+.sidebar { width: 100%; justify-content: flex-start; margin-top: 18px; padding: 6px; text-align: left; }
+.header { width: 40px; height: 40px; flex-shrink: 0; }
+.ring { position: relative; display: block; width: 24px; height: 24px; flex-shrink: 0; }
+.ring svg { display: block; width: 100%; height: 100%; transform: rotate(-90deg); }
+.ring circle { fill: none; stroke-width: 3; }
+.track { stroke: var(--border); }
+.fill { stroke: currentColor; transition: stroke-dasharray 220ms ease; }
+.symbol { position: absolute; inset: 0; display: grid; place-items: center; font-size: 14px; line-height: 1; }
+.trigger[data-usage-state='loading'] .track, .trigger[data-usage-state='error'] .track { stroke-dasharray: 3 3; }
+.caption { display: grid; gap: 2px; min-width: 0; font-size: 12px; line-height: 17px; }
+.caption > :first-child { font-weight: 600; }
+.caption > :last-child, .muted { color: var(--muted-foreground); }
+.details {
+  z-index: 60;
+  width: 272px;
+  max-width: calc(100vw - 24px);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--popover);
+  padding: 16px;
+  color: var(--popover-foreground);
+  box-shadow: var(--publish-menu-shadow);
+  font-size: 13px;
+  line-height: 20px;
+}
+.details h2 { margin: 0 0 8px; font-size: 13px; font-weight: 600; }
+.details p { margin: 4px 0; }
+.details .summary { font-size: 18px; line-height: 26px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.action { display: block; width: 100%; margin-top: 10px; border-radius: var(--radius-md); padding: 7px 8px; color: inherit; font-weight: 600; text-align: left; }
+.action:disabled { opacity: .5; cursor: wait; }
+:global([data-collapsible='icon']) .sidebar { justify-content: center; padding: 0; }
+:global([data-collapsible='icon']) .caption { display: none; }
+@media (prefers-reduced-motion: reduce) { .fill { transition: none; } }

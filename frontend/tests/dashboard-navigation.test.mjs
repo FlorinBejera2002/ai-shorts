@@ -79,7 +79,7 @@ test('sidebar state is read on the server and sensitive pages are not eagerly pr
   const sidebar = [
     'app-sidebar.tsx',
     'sidebar-navigation-group.tsx',
-    'sidebar-usage-card.tsx'
+    'credit-usage-details.tsx'
   ]
     .map((name) =>
       readFileSync(

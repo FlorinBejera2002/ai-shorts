@@ -26,9 +26,13 @@ function load(relative, imports = {}) {
 // The sidebar reuses the Billing page's helpers, loaded here unchanged.
 const billing = load('../src/lib/billing.ts')
 const overview = load('../src/components/billing/billing-overview.ts', { '@/lib/billing': billing })
-const { monthlyUsage } = load('../src/components/dashboard/sidebar-usage.ts', {
+const accountCredits = load('../src/lib/account-credits.ts')
+const { creditUsage, creditPeriod } = load('../src/components/dashboard/sidebar-usage.ts', {
   '@tanstack/react-query': { useQuery: () => ({}) },
+  '@/components/auth/use-auth': { useAuth: () => ({}) },
   '@/lib/auth': { apiFetch: async () => ({ ok: true, json: async () => ({}) }) },
+  '@/lib/account-credits': accountCredits,
+  '@/lib/billing': billing,
   '@/components/billing/billing-overview': overview
 })
 
@@ -42,32 +46,57 @@ const data = ({ subscription = renewing, ...account } = {}) => ({
 })
 const plain = (value) => (value ? { ...value } : value)
 
-test('monthly usage is the spent share of the plan allowance, with the renewal date', () => {
-  // Pro grants 5000 credits a month; 2900 remain, so 42% is used.
-  assert.deepEqual(plain(monthlyUsage(data())), { percent: 42, resetsAt: '2026-12-18T10:00:00Z' })
+test('the ring reports remaining balance while Billing reports the complementary spent share', () => {
+  assert.deepEqual(plain(creditUsage(data().account)), { credits: 2900, unlimited: false, plan: 'pro', allowance: 5000, remaining: 58 })
+  assert.deepEqual(plain(creditPeriod(data().account, data())), { kind: 'renews', date: renewing.currentPeriodEnd })
 })
 
 test('the sidebar shows exactly the Billing page percentage, including its rounding', () => {
   // Near-half values are where rounding "used" instead of "remaining" would drift by 1%.
   for (const credits of [0, 1, 2825, 2875, 2900, 2925, 4999, 5000]) {
     const page = overview.billingOverview(data({ credits }), false).usage
-    assert.equal(monthlyUsage(data({ credits })).percent, page.used, `${credits} credits`)
+    assert.equal(creditUsage(data({ credits }).account).remaining, page.remaining, `${credits} credits`)
+    assert.equal(creditUsage(data({ credits }).account).remaining + page.used, 100)
   }
 })
 
 test('usage is clamped to 0–100% when credits roll over or are overdrawn', () => {
-  assert.equal(monthlyUsage(data({ credits: 7200 })).percent, 0)
-  assert.equal(monthlyUsage(data({ credits: -40 })).percent, 100)
+  assert.equal(creditUsage(data({ credits: 7200 }).account).remaining, 100)
+  assert.equal(creditUsage(data({ credits: 7200 }).account).credits, 7200, 'Exact rollover balance is preserved')
+  assert.equal(creditUsage(data({ credits: -40 }).account).remaining, 0)
+  assert.equal(creditUsage(data({ credits: -40 }).account).credits, 0)
 })
 
-test('scheduled cancellations and past-due payments keep the reset date, as on the canvas', () => {
-  assert.equal(monthlyUsage(data({ subscription: { ...renewing, cancelAtPeriodEnd: true } })).resetsAt, renewing.currentPeriodEnd)
-  assert.equal(monthlyUsage(data({ subscription: { ...renewing, status: 'past_due' } })).resetsAt, renewing.currentPeriodEnd)
+test('scheduled cancellation shows an end date rather than promising a credit reset', () => {
+  const cancelled = data({ subscription: { ...renewing, cancelAtPeriodEnd: true } })
+  assert.equal(creditPeriod(cancelled.account, cancelled).kind, 'ends')
+  assert.equal(creditPeriod(cancelled.account, cancelled).date, renewing.currentPeriodEnd)
 })
 
-test('free, admin and unconfirmed accounts show no usage card', () => {
-  assert.equal(monthlyUsage(data({ plan: 'free', credits: 400, hasBillingProfile: false, subscription: null })), null)
-  assert.equal(monthlyUsage(data({ creditsUnlimited: true })), null)
-  // The effective plan is Free while Stripe still reports an active subscription.
-  assert.equal(monthlyUsage(data({ plan: 'free' })), null)
+test('free and admin balances are represented without invented billing dates', () => {
+  const free = data({ plan: 'free', credits: 400, hasBillingProfile: false, subscription: null })
+  assert.equal(creditUsage(free.account).remaining, 40)
+  assert.equal(creditPeriod(free.account, free), null)
+  assert.equal(creditUsage(data({ creditsUnlimited: true }).account).unlimited, true)
+  assert.equal(creditPeriod(data({ creditsUnlimited: true }).account, data()), null)
+})
+
+test('each paid plan uses its own allowance', () => {
+  for (const [plan, allowance] of Object.entries(billing.PLAN_CREDITS)) {
+    const usage = creditUsage(data({ plan, credits: allowance / 2 }).account)
+    assert.equal(usage.remaining, 50)
+    assert.equal(usage.allowance, allowance)
+  }
+})
+
+test('unknown, mismatched and invalid billing periods are omitted', () => {
+  assert.equal(creditPeriod(data().account, undefined), null)
+  assert.equal(creditPeriod(data({ plan: 'creator' }).account, data()), null)
+  assert.equal(creditPeriod(data().account, data({ subscription: { ...renewing, currentPeriodEnd: 'invalid' } })), null)
+  assert.equal(creditPeriod(data().account, data({ subscription: null })), null)
+})
+
+test('query keys isolate account balances, including anonymous state', () => {
+  assert.notDeepEqual([...accountCredits.accountCreditsKey('first')], [...accountCredits.accountCreditsKey('second')])
+  assert.notDeepEqual([...accountCredits.accountCreditsKey('first')], [...accountCredits.accountCreditsKey(undefined)])
 })

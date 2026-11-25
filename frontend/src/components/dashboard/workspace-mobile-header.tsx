@@ -5,6 +5,8 @@ import { dashboardRouteLabel } from '@/lib/dashboard-navigation'
 import { useTranslations } from 'next-intl'
 import { createPortal } from 'react-dom'
 import styles from './workspace-mobile-header.module.css'
+import theme from '@/components/calendar/publishing-theme.module.css'
+import { CreditUsageIndicator } from './credit-usage-indicator'
 
 /** The Sneep Cut symbol without the wordmark. */
 function SneepCutMark() {
@@ -24,11 +26,12 @@ export function WorkspaceMobileHeader() {
   const t = useTranslations('nav')
   const pathname = usePathname()
   return createPortal(
-    <header className={styles.header} data-workspace-mobile-header="">
+    <header className={`${theme.surface} ${styles.header}`} data-reference-surface="" data-workspace-mobile-header="">
       <Link href="/dashboard" className={styles.mark} aria-label={t('home')}>
         <SneepCutMark />
       </Link>
       <span className={styles.title}>{t(dashboardRouteLabel(pathname))}</span>
+      <div className={styles.actions}><CreditUsageIndicator placement="header" /></div>
     </header>,
     document.body
   )

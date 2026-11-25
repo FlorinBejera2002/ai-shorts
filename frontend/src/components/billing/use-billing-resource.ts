@@ -6,6 +6,7 @@ import { apiFetch, authClient } from '@/lib/auth'
 import { CHECKOUT_CONFIRMATION_INTERVAL_MS, shouldConfirmCheckout } from '@/lib/billing'
 import { extractApiError } from '@/lib/api-error'
 import type { BillingData } from '@/types/api'
+import { accountCreditsKey } from '@/lib/account-credits'
 
 type BillingResourceData = BillingData & { confirmationAttempts: number }
 
@@ -49,6 +50,9 @@ export function useBillingResource(path: string) {
       if (user && (user.plan !== billing.account.plan || user.credits !== billing.account.credits)) {
         // Refresh from the server; never derive entitlements from the redirect or UI selection.
         await authClient.refresh().catch(() => undefined)
+      }
+      if (user && authClient.getSnapshot().user?.id === user.id) {
+        queryClient.setQueryData(accountCreditsKey(user.id), billing.account)
       }
       return { ...billing, confirmationAttempts: current.attempts }
     },

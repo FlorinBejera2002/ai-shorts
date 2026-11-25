@@ -27,7 +27,7 @@ import { useLocale, useTranslations } from 'next-intl'
 import { useEffect } from 'react'
 import styles from './app-sidebar.module.css'
 import { SidebarNavigationGroup } from './sidebar-navigation-group'
-import { SidebarUsageCard } from './sidebar-usage-card'
+import { CreditUsageIndicator } from './credit-usage-indicator'
 
 function SidebarBrand({
   compact,
@@ -157,7 +157,7 @@ export function AppSidebar() {
           </nav>
         </SidebarContent>
         <SidebarFooter className={styles.footer}>
-          <SidebarUsageCard onNavigate={close} />
+          <CreditUsageIndicator placement="sidebar" onNavigate={close} />
           <SidebarAccount />
         </SidebarFooter>
       </div>

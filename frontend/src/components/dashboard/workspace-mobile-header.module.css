@@ -13,7 +13,9 @@
     top: 0;
     right: 0;
     left: 0;
-    display: flex;
+    display: grid;
+    grid-template-columns: 40px minmax(0, 1fr) 88px;
+    gap: 8px;
     height: 64px;
     align-items: center;
     border-radius: 0 0 24px 24px;
@@ -44,10 +46,7 @@
   }
 
   .title {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    max-width: calc(100% - 136px);
+    min-width: 0;
     overflow: hidden;
     font-family: 'Sora Variable', Sora, Inter, sans-serif;
     font-size: 17px;
@@ -55,9 +54,11 @@
     letter-spacing: -0.02em;
     line-height: 22px;
     text-overflow: ellipsis;
-    transform: translate(-50%, -50%);
+    text-align: center;
     white-space: nowrap;
   }
+
+  .actions { display: flex; align-items: center; }
 
   /* Workspace Agent becomes the header's right-hand button. */
   :global(body:has([data-workspace-mobile-header]) [data-agent-trigger]) {

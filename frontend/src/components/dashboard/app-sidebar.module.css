@@ -216,61 +216,6 @@
   padding: 0;
 }
 
-.usage {
-  display: flex;
-  margin-top: 18px;
-  flex-direction: column;
-  gap: 8px;
-  padding: 12px 12px 11px;
-  border-radius: 14px;
-  box-shadow: inset 0 0 0 1px var(--publish-border);
-  color: var(--publish-text);
-  text-decoration: none;
-  transition: box-shadow 150ms;
-}
-
-.usage:hover {
-  box-shadow: inset 0 0 0 1px var(--publish-border-strong);
-}
-
-.usage:focus-visible {
-  outline: 2px solid var(--ref-primary);
-  outline-offset: 2px;
-}
-
-.usageHeading {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.usageValue {
-  font-variant-numeric: tabular-nums;
-}
-
-.usageTrack {
-  display: block;
-  height: 6px;
-  overflow: hidden;
-  border-radius: 999px;
-  background: var(--publish-handle);
-}
-
-.usageFill {
-  display: block;
-  height: 100%;
-  border-radius: 999px;
-  background: var(--publish-text);
-}
-
-.usageReset {
-  color: var(--publish-secondary-text);
-  font-size: 11px;
-}
-
 .account {
   display: flex;
   align-items: center;
@@ -334,7 +279,6 @@
 :global([data-collapsible='icon']) .groupLabel,
 :global([data-collapsible='icon']) .rail,
 :global([data-collapsible='icon']) .itemLabel,
-:global([data-collapsible='icon']) .usage,
 :global([data-collapsible='icon']) .accountName {
   display: none;
 }
@@ -373,8 +317,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .item,
-  .usage {
+  .item {
     transition: none;
   }
 }

@@ -1,6 +1,7 @@
 import { createAuthClient } from '@/lib/auth-client'
 import { publishAuthState } from '../stores/auth-store'
 import { queryClient } from '../query/query-client'
+import { accountCreditsKey } from './account-credits'
 
 // Preserve Fetch semantics for binary downloads, request bodies and long uploads.
 export const authClient = createAuthClient(
@@ -23,7 +24,14 @@ authClient.subscribe(syncAuthStore)
 syncAuthStore()
 
 export async function apiFetch(path: string, init: RequestInit = {}) {
-  return authClient.apiFetch(path, init)
+  const userId = authClient.getSnapshot().user?.id
+  const response = await authClient.apiFetch(path, init)
+  const method = (init.method ?? 'GET').toUpperCase()
+  if (response.ok && userId && authClient.getSnapshot().user?.id === userId && !['GET', 'HEAD', 'OPTIONS'].includes(method)) {
+    // Mutations can charge or refund credits. Background jobs are covered by balance polling.
+    void queryClient.invalidateQueries({ queryKey: accountCreditsKey(userId) })
+  }
+  return response
 }
 export const publicApiFetch = authClient.publicFetch
 

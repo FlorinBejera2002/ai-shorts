@@ -79,7 +79,10 @@ WORKDIR /whisper
 # Correct that parser typo so caption evidence uses the same settings as ASR.
 RUN sed -i '/--vad-min-silence-duration-ms")/s/cli_params.vad_min_speech_duration_ms/cli_params.vad_min_silence_duration_ms/' examples/vad-speech-segments/speech.cpp \
     && cmake -B build -DBUILD_SHARED_LIBS=OFF -DGGML_NATIVE=OFF -DWHISPER_BUILD_TESTS=OFF \
-    && cmake --build build --config Release --target whisper-cli whisper-vad-speech-segments -j2 \
+    && cmake --build build --config Release --target whisper-cli whisper-vad-speech-segments -j2
+# Keep transient model-host failures from invalidating the native compilation.
+# The upstream download scripts invoke curl, which reads this build-only config.
+RUN printf '%s\n' 'fail' 'retry = 5' 'retry-all-errors' 'connect-timeout = 30' > /root/.curlrc \
     && bash models/download-ggml-model.sh base \
     && bash models/download-ggml-model.sh "${STORY_WHISPER_MODEL}" \
     && echo "${STORY_WHISPER_SHA1}  models/ggml-${STORY_WHISPER_MODEL}.bin" | sha1sum -c - \

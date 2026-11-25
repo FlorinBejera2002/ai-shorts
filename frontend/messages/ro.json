@@ -33,6 +33,26 @@
     "backToCreate": "Înapoi la proiect nou",
     "planPost": "Planifică o postare"
   },
+  "creditUsage": {
+    "title": "Utilizare credite",
+    "label": "Utilizare credite: {summary}",
+    "remaining": "{percent}% disponibil",
+    "available": "{count} credite disponibile",
+    "allowance": "Credite incluse în plan: {count}",
+    "additional": "Soldul tău include credite suplimentare.",
+    "noReset": "Credite unice; fără resetare programată.",
+    "renews": "Următoarea reînnoire: {date}",
+    "ends": "Accesul plătit se încheie pe {date}",
+    "period": "Perioada de facturare se încheie pe {date}",
+    "unlimited": "Credite nelimitate",
+    "unlimitedDetail": "Acest cont de administrator nu are limită de credite în aplicație.",
+    "loading": "Se încarcă utilizarea…",
+    "error": "Utilizare indisponibilă",
+    "unavailable": "Nu am putut încărca soldul. Încearcă din nou.",
+    "stale": "Nu am putut actualiza utilizarea. Este afișat ultimul sold cunoscut.",
+    "retry": "Încearcă din nou",
+    "billing": "Vezi facturarea"
+  },
   "common": {
     "save": "Salvează",
     "cancel": "Anulează",

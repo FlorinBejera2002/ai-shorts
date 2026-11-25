@@ -1,43 +1,69 @@
 import { useQuery } from '@tanstack/react-query'
+import { useAuth } from '@/components/auth/use-auth'
 import { billingOverview } from '@/components/billing/billing-overview'
 import { apiFetch } from '@/lib/auth'
+import { accountCreditsKey, type AccountCredits } from '@/lib/account-credits'
+import { billingUsage, INITIAL_FREE_CREDITS, normalizeBillingPlan, PLAN_CREDITS } from '@/lib/billing'
 import type { BillingData } from '@/types/api'
 
-export type MonthlyUsage = {
-  /** Share of the plan allowance already spent, 0–100 — the same number the Billing page shows. */
-  percent: number
-  /** ISO date the allowance resets, or null when no confirmed billing period is known. */
-  resetsAt: string | null
-}
-
-const USAGE_STALE_MS = 5 * 60 * 1000
-
-/**
- * Monthly usage for the sidebar card, derived from the Billing page's own overview.
- * Only paid access has a monthly allowance; Free and admin accounts show no card (canvas Ab-Free).
- */
-export function monthlyUsage(billing: BillingData): MonthlyUsage | null {
-  const { usage, period } = billingOverview(
-    billing,
-    Boolean(billing.account.creditsUnlimited)
-  )
-  if (!usage?.resets) return null
+/** Uses the same allowance and rounding as Billing; this is balance, not a spending ledger. */
+export function creditUsage(account: AccountCredits) {
+  const plan = normalizeBillingPlan(account.plan)
   return {
-    percent: usage.used,
-    resetsAt: period && period.kind !== 'lastConfirmed' ? period.date : null
+    credits: Math.max(0, account.credits),
+    unlimited: Boolean(account.creditsUnlimited),
+    plan,
+    allowance: plan === 'free' ? INITIAL_FREE_CREDITS : PLAN_CREDITS[plan],
+    remaining: billingUsage(account.credits, plan).remaining
   }
 }
 
-/** Reads the authenticated billing overview once per shell and keeps only the usage summary. */
-export function useMonthlyUsage() {
-  return useQuery({
-    queryKey: ['sidebar', 'monthly-usage'],
-    queryFn: async ({ signal }) => {
-      const response = await apiFetch('/api/stripe/billing', { signal })
-      if (!response.ok) throw new Error('Unable to load monthly usage')
-      return monthlyUsage((await response.json()) as BillingData)
+/** Only confirmed billing dates for the same effective plan can accompany a fresh balance. */
+export function creditPeriod(account: AccountCredits, billing: BillingData | undefined) {
+  if (account.creditsUnlimited || account.plan === 'free' || !billing || billing.account.plan !== account.plan) return null
+  const { period } = billingOverview(billing, false)
+  if (!period || period.kind === 'lastConfirmed' || !Number.isFinite(Date.parse(period.date))) return null
+  return period
+}
+
+export function useCreditUsage() {
+  const { user, status } = useAuth()
+  const enabled = status === 'authenticated' && Boolean(user)
+  const balance = useQuery({
+    queryKey: accountCreditsKey(user?.id),
+    enabled,
+    queryFn: async ({ signal }): Promise<AccountCredits> => {
+      const response = await apiFetch('/api/user/credits', { signal })
+      if (!response.ok) throw new Error('Unable to load credits')
+      const account = await response.json() as AccountCredits
+      if (!Number.isFinite(account.credits) || typeof account.plan !== 'string') throw new Error('Invalid credit balance')
+      return account
     },
-    staleTime: USAGE_STALE_MS,
+    staleTime: 15_000,
+    refetchInterval: 30_000,
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: 'always',
+    refetchOnReconnect: 'always',
     retry: false
   })
+  const billing = useQuery({
+    queryKey: ['account-billing-period', user?.id, balance.data?.plan],
+    enabled: enabled && Boolean(balance.data) && !balance.data?.creditsUnlimited && balance.data?.plan !== 'free',
+    queryFn: async ({ signal }): Promise<BillingData> => {
+      const response = await apiFetch('/api/stripe/billing', { signal })
+      if (!response.ok) throw new Error('Unable to load billing period')
+      return response.json()
+    },
+    staleTime: 5 * 60_000,
+    refetchOnWindowFocus: true,
+    retry: false
+  })
+  return {
+    authenticated: enabled,
+    usage: balance.data ? creditUsage(balance.data) : null,
+    period: balance.data ? creditPeriod(balance.data, billing.data) : null,
+    error: balance.isError,
+    refreshing: balance.isFetching,
+    refresh: () => { void balance.refetch(); void billing.refetch() }
+  }
 }

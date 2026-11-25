@@ -62,6 +62,12 @@ For component changes, verify Fast Refresh preserves state. For navigation chang
 
 Keep temporary outputs in `.cache/tmp/` and remove them in `finally`; screenshots/reports go to ignored `frontend/test-results/`. Preserve originals and database/media volumes. Provider calls, publishing and deployments require their own authorization and verification.
 
+### Credit usage indicator
+
+`frontend/tests/credit-usage.browser.mjs` uses synthetic authentication and intercepted APIs only. With `PLAYWRIGHT_MODULE` and `FRONTEND_ORIGIN` set as below, set `$env:RUN_FAST_REFRESH = '1'`, then run `node frontend/tests/credit-usage.browser.mjs`. It covers paid/free/unlimited balances, loading and outage recovery, mutation invalidation, a real 30-second polling cycle, window-return refresh, account switching, desktop hover/keyboard/collapsed navigation, mobile touch at 320/390/768px, theme colors and component Fast Refresh with source restoration.
+
+Set `CREDIT_USAGE_GROUP` to a comma-separated subset of `desktop,accounts,recovery,live,mobile,refresh` for a focused rerun. Screenshots and the report go to ignored `frontend/test-results/credit-usage/`. The ring shows available credits relative to the existing Billing allowance, not a historical spending ledger. The balance poll uses `/api/user/credits`; billing-period metadata is cached separately to avoid polling Stripe-backed details every 30 seconds.
+
 ### Scripts redesign
 
 `frontend/tests/scripts-layout.browser.mjs` requires a running local Vite frontend, installed Google Chrome, and an installed Playwright module. Reuse the current frontend server; when none is running, start it with `npm --prefix frontend run dev -- --host 127.0.0.1 --port 5173 --strictPort`. No database, provider credentials, or real account is needed: authentication and every API request use synthetic fixtures.

@@ -11,7 +11,7 @@ const directories = [
   ['media', 10001], ['studio', 1000], ['seaweedfs', 1000],
   ['tmp/backend', 10001], ['tmp/youtube-import', 10001], ['tmp/worker', 10001], ['tmp/studio', 1000],
   ['tmp/nginx', 10001], ['tmp/admin', 10001], ['tmp/frontend', 1000], ['tmp/seaweedfs', 1000],
-  ['cache/go-build', 10001], ['cache/frontend', 1000], ['cache/admin', 1000]
+  ['cache/go-build', 10001], ['cache/frontend', 1000], ['cache/admin', 10001]
 ]
 const legacyStores = [
   { directory: 'media', suffix: 'media_data' },

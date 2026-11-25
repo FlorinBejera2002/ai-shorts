@@ -1,4 +1,6 @@
 node_modules
+# Keep host-only pnpm build approvals out of the standalone container.
+pnpm-workspace.yaml
 dist
 .git
 .next*

@@ -96,7 +96,7 @@ async function fixture({ dark = false, locale = 'ro', billing } = {}) {
       '/api/workspace-agent/preferences': { follow: false, recommendations: false },
       '/api/user/profile': { profile: { ...identity, image: null, provider: 'credentials', createdAt: '2026-10-01T09:00:00Z' } },
       '/api/user/settings': { preferences: { locale, theme: 'system', timezone: 'Europe/Bucharest' }, sessions: [], mfa: { enabled: false }, securityEvents: [], exports: [] },
-      '/api/user/credits': { credits: 2900, plan: 'pro', creditsUnlimited: false },
+      '/api/user/credits': billingPayload.account,
       '/api/dashboard': { metrics: { clipCount: 0, jobCount: 0, durationMinutes: 0, activity: [], statuses: {} }, recentClips: [] },
       '/api/dashboard/history': { jobs: [] },
       '/api/projects': { projects: [], collections: [] },
@@ -287,14 +287,9 @@ async function canvas(theme) {
     })
     const usage = f.panel.locator('[data-sidebar-usage]')
     await usage.waitFor()
-    assert.equal(await usage.getAttribute('aria-label'), 'Utilizare lunară: 42% folosit')
-    assert.equal((await usage.innerText()).replace(/\s+/g, ' ').trim(), 'Utilizare lunară 42% Se resetează pe 18 dec.')
-    assert.doesNotMatch(await f.panel.innerText(), /credit/i, 'Usage is shown as a percentage, never credits')
-    const fill = await usage.evaluate((card) => {
-      const track = card.querySelector('[aria-hidden="true"]')
-      return Math.round((track.firstElementChild.getBoundingClientRect().width / track.getBoundingClientRect().width) * 100)
-    })
-    assert.equal(fill, 42)
+    await waitFor(() => usage.getAttribute('aria-label').then(label => label === 'Utilizare credite: 58% disponibil'), 'Remaining balance loads')
+    assert.equal((await usage.innerText()).replace(/\s+/g, ' ').trim(), 'Utilizare credite 58% disponibil')
+    assert.equal(await usage.locator('circle[pathLength]').getAttribute('stroke-dasharray'), '58 100')
     // The group of the current page is connected; the other group has no connector.
     await assertActive(f.page, 'publish', `${theme} publish`)
     await f.page.locator('[data-sidebar-link="scripts"]').hover()
@@ -329,6 +324,7 @@ async function destinations() {
     assert.equal(await f.page.locator('[data-sidebar-create]').getAttribute('aria-current'), 'page')
 
     await f.page.locator('[data-sidebar-usage]').click()
+    await f.page.locator('[data-credit-usage-details="sidebar"] a').click()
     await f.page.waitForURL((url) => url.pathname === localized('ro', '/dashboard/billing'))
     await assertShell(f.page, 'usage card')
     await assertActive(f.page, 'billing', 'usage card')
@@ -385,7 +381,7 @@ async function collapse() {
         overflow: panel.scrollWidth <= panel.clientWidth + 1
       }
     })
-    assert.deepEqual(collapsed, { labels: false, names: false, icons: true, usage: false, create: true, rails: false, overflow: true })
+    assert.deepEqual(collapsed, { labels: false, names: false, icons: true, usage: true, create: true, rails: false, overflow: true })
     assert.match(await f.page.evaluate(() => document.cookie), /sidebar_state=false/)
     await capture(f.page, 'desktop-light-collapsed', { x: 0, y: 0, width: 240, height: 900 })
 
@@ -424,9 +420,7 @@ async function variants() {
   })
   try {
     await free.open('/dashboard')
-    await waitFor(() => Promise.resolve(free.calls.billing >= 1), 'Usage was requested')
-    assert.equal(free.calls.billing >= 1, true)
-    assert.equal(await free.panel.locator('[data-sidebar-usage]').count(), 0, 'No monthly allowance, no usage card')
+    await waitFor(() => free.panel.locator('[data-sidebar-usage]').getAttribute('aria-label').then(label => label === 'Utilizare credite: 40% disponibil'), 'Free balance is visible without a monthly allowance')
     await assertActive(free.page, 'home', 'free home')
   } finally {
     await free.close()
@@ -437,12 +431,13 @@ async function variants() {
     assert.deepEqual(await en.panel.locator('[data-sidebar-link]').allInnerTexts(), LABELS.en)
     const usage = en.panel.locator('[data-sidebar-usage]')
     await usage.waitFor()
-    assert.equal((await usage.innerText()).replace(/\s+/g, ' ').trim(), 'Monthly usage 42% Resets on Dec 18')
+    await waitFor(() => usage.getAttribute('aria-label').then(label => label === 'Credit usage: 58% remaining'), 'English balance loads')
+    assert.equal((await usage.innerText()).replace(/\s+/g, ' ').trim(), 'Credit usage 58% remaining')
     await assertActive(en.page, 'brand', 'english brand')
   } finally {
     await en.close()
   }
-  console.log('Free plan hides usage; English copy and active state passed')
+  console.log('Free and paid balances, English copy and active state passed')
 }
 
 // ---------------------------------------------------------------- Fast Refresh

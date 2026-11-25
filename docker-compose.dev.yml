@@ -48,10 +48,12 @@ services:
     stop_grace_period: 30s
 
   postgres:
+    restart: unless-stopped
     ports:
       - "127.0.0.1:${POSTGRES_HOST_PORT:-5433}:5432"
 
   redis:
+    restart: unless-stopped
     ports:
       - "127.0.0.1:${REDIS_HOST_PORT:-6379}:6379"
 
@@ -96,7 +98,8 @@ services:
     healthcheck:
       test: ["CMD", "curl", "--fail", "--silent", "--show-error", "http://127.0.0.1:8080/api/ready"]
       interval: 5s
-      start_period: 60s
+      # A cold Go cache on a Windows bind mount can take several minutes.
+      start_period: 10m
       timeout: 5s
       retries: 5
 
@@ -106,12 +109,14 @@ services:
         condition: service_healthy
 
   studio:
+    restart: unless-stopped
     # Keep server changes testable without rebuilding the bundled Studio UI.
     volumes:
       - ./editor/packages/sneepcut-server/src:/app/packages/sneepcut-server/src:ro
       - ./editor/packages/sneepcut-server/tsconfig.json:/app/packages/sneepcut-server/tsconfig.json:ro
 
   frontend:
+    restart: unless-stopped
     build:
       context: ./frontend
       target: dev
@@ -132,6 +137,7 @@ services:
       - "127.0.0.1:${FRONTEND_HOST_PORT:-3001}:80"
 
   admin:
+    user: "10001:10001"
     build:
       context: ./admin
       target: dev
@@ -148,6 +154,10 @@ services:
     read_only: false
 
   nginx:
+    restart: unless-stopped
+    ports: !override
+      - "127.0.0.1:80:80"
+      - "127.0.0.1:3000:80"
     # Refresh Nginx's upstream DNS after Compose recreates an app container.
     depends_on:
       frontend:
