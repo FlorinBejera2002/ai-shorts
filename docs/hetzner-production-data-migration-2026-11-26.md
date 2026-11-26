@@ -2,6 +2,8 @@
 
 Status: the authorized offline snapshot backfill is complete and verified. Production still uses local storage; application deployment and live S3 activation remain on hold.
 
+Planning refresh, 26 November at 17:07 Europe/Bucharest: read-only checks still show release `b6e587aafaaa9580`, local storage, and healthy API/Studio. No data or settings were changed by this refresh. The current [deployment plan](production-deployment-plan-2026-11-26.md) records the committed application candidate, provider hold and final migration gates. **Do not clean this bucket:** it now contains the verified production snapshot.
+
 ## Accepted storage layout
 
 The user selected the existing `sneepcut-test` bucket in `hel1` for production and the existing Hetzner credentials. Development now uses local SeaweedFS at `http://s3.localhost:8334`, bucket `sneepcut-dev`; Studio uses its internal `http://seaweedfs:8334` endpoint. The production bucket is no longer a dev cleanup target. No new cloud bucket or key was created.
@@ -41,11 +43,13 @@ Detailed non-secret evidence and current status are in `artifacts/storage-migrat
 
 ## Cutover boundary
 
-The live app remains on local storage while the snapshot copy runs. Files or database changes accepted after the snapshot are not part of this point-in-time backfill. A consistent final delta, refreshed verification and a separately authorized live switch are still required. Do not clear this bucket again or switch a single service independently.
+The snapshot copy is complete and the live app remains on local storage. Files or database changes accepted after the snapshot are not part of this backfill. A consistent final delta, refreshed verification and a separately authorized live switch are still required. Do not clear this bucket again or switch a single service independently.
 
 In particular, `studio/v1` now belongs to this snapshot. The existing Studio importer refuses a changed remote head; the final frozen Studio tree must use a fresh recorded cutover prefix and full verified import. For media, new keys and unchanged bytes are resumable; any changed existing key requires an explicit reviewed preservation/replacement procedure. The deployment plan records these constraints.
 
-The deployment plan's previous Nuremberg/new-project suggestion is superseded by the selected existing Helsinki bucket and key. TikTok URL ownership/prefix compatibility still needs resolution before activation; production currently expects `https://sneepcut.com/media/`, whereas newly signed media URLs would use `https://sneepcut-test.hel1.your-objectstorage.com/`.
+The deployment plan's previous Nuremberg/new-project suggestion is superseded by the selected existing Helsinki bucket and key. TikTok URL ownership/prefix compatibility is resolved in commit `5b9cb581f88cb8f4b6ea5adff0585fa18f112958`, retained by the current candidate: TikTok receives a signed URL under the existing `https://sneepcut.com/media/publish/` origin, streamed by the application from private storage. The isolated delivery checks pass; the actual public route must still be verified after an authorized application release. See [the readiness evidence](tiktok-hetzner-readiness-2026-11-26.md).
+
+The newer 10 GB YouTube path introduces multipart saves above 128 MiB. Local S3 verification passes, but the exact candidate's conditional multipart completion, no-overwrite, readback and cleanup must be qualified on Hetzner before activation. The earlier small-object provider soak does not cover that path. Keep the existing Helsinki write-degradation hold; do not increase normal live retry budgets based on offline backfill success.
 
 ## Completed verification and cleanup
 
@@ -66,6 +70,8 @@ A real video workspace recovered successfully into a separate empty temporary ca
 Production API readiness and Studio health both returned 200. Backend, worker and Studio were running and unpaused, still configured for local storage with no live AWS destination. Independent release activity advanced production to `b6e587aafaaa9580`; this task did not activate that release or restore an older one.
 
 Development API readiness and Studio health also returned 200 on local S3. Recreating the dev API initially exposed older image source; the API was synchronized to the merged checkout, and additive dev migrations 060/061 were applied after a private database backup. Dev now reports revision `20261125_feedback_images`. This verification covered storage probes and service readiness; a new browser generation run was not performed during this data-backfill task.
+
+Subsequent feature verification is separate from the backfill: the rebuilt local API/worker, YouTube download, browser flow, multipart local S3 and Studio import/render checks are recorded in the updated deployment plan. They do not change the backfill's point-in-time boundary or constitute production activation.
 
 The disposable server `snapshot/` tree, its hardlinked partitions and import caches were removed after verification, together with the temporary image-holder container. Original live volumes, verified media/Studio archives, database dump, manifests, private destination profile and logs remain in the protected backup directory. The dev database backup and ignored original dev environment backup were retained locally. Task scratch files were removed; the repository storage check passed.
 

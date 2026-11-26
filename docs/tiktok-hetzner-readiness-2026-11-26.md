@@ -2,6 +2,8 @@
 
 The TikTok URL compatibility fix is implemented and verified in the local candidate. No application release, gateway reload, live S3 activation or real social post was performed. Production remains on local storage.
 
+Plan refresh, 26 November: this fix is committed in `5b9cb581f88cb8f4b6ea5adff0585fa18f112958` and retained by the newer YouTube candidate. Read-only production checks at 17:07 Europe/Bucharest still show local storage and healthy API/Studio. The measurements below describe the earlier ordinary-object soak; they do **not** qualify the newer >128 MiB conditional multipart path. That provider rehearsal and the unresolved Helsinki write incident remain activation gates in the [current deployment plan](production-deployment-plan-2026-11-26.md). No further cloud writes were made for this refresh.
+
 ## TikTok delivery
 
 Production uses `APP_URL=https://sneepcut.com` and `TIKTOK_VERIFIED_URL_PREFIX=https://sneepcut.com/media/`. A read-only aggregate check found 44 TikTok posts recorded as published. This is historical evidence, not a new verification of the TikTok console's URL properties.
