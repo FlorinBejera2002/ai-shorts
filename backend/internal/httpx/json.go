@@ -46,3 +46,7 @@ func Read(w http.ResponseWriter, r *http.Request, value any, limit int64) bool {
 	}
 	return true
 }
+
+// StatusClientClosedRequest is nginx's 499: the client closed the connection
+// before the response was ready. It is not a server failure.
+const StatusClientClosedRequest = 499

@@ -336,6 +336,10 @@ func statusFor(err error) (int, string) {
 	if errors.Is(err, ErrScannerUnavailable) {
 		return 503, err.Error()
 	}
+	if errors.Is(err, context.Canceled) {
+		// The client closed the request; logging it as a server outage hides real ones.
+		return 499, "Upload was canceled"
+	}
 	if errors.Is(err, ErrInvalidKey) {
 		return 403, "Cannot access this file"
 	}

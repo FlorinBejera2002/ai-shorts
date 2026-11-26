@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"strings"
 	"time"
@@ -13,6 +14,8 @@ import (
 
 	"github.com/julienschmidt/httprouter"
 	"sneepcut/backend-go/internal/audiocleanup"
+	"sneepcut/backend-go/internal/data"
+	"sneepcut/backend-go/internal/httpx"
 	"sneepcut/backend-go/internal/identity"
 	"sneepcut/backend-go/internal/jsonutil"
 	"sneepcut/backend-go/internal/story"
@@ -67,6 +70,8 @@ func reply(w http.ResponseWriter, status int, v any) {
 func failure(w http.ResponseWriter, err error) {
 	status, msg := 503, "Story service is temporarily unavailable"
 	switch {
+	case data.ClientGone(err):
+		status, msg = httpx.StatusClientClosedRequest, "Request was closed by the client"
 	case errors.Is(err, audiocleanup.ErrUnavailable):
 		status, msg = 503, err.Error()
 	case errors.Is(err, sql.ErrNoRows):
@@ -79,6 +84,9 @@ func failure(w http.ResponseWriter, err error) {
 		status, msg = 402, err.Error()
 	case errors.Is(err, ErrInactive):
 		status, msg = 403, err.Error()
+	default:
+		// Driver error text can include connection data, so only the error class is logged.
+		slog.Error("story storage operation failed", "error", data.ErrorClass(err))
 	}
 	reply(w, status, map[string]string{"detail": msg})
 }

@@ -12,6 +12,8 @@ import (
 
 	"github.com/julienschmidt/httprouter"
 
+	"sneepcut/backend-go/internal/data"
+	"sneepcut/backend-go/internal/httpx"
 	"sneepcut/backend-go/internal/jsonutil"
 )
 
@@ -173,9 +175,14 @@ func (h *Handler) authError(w http.ResponseWriter, err error) {
 		h.writeError(w, http.StatusUnauthorized, "invalid authentication credentials")
 		return
 	}
-	// Driver/provider error strings can include connection data. Log only the
-	// operation until structured redaction is introduced for external failures.
-	h.logger.Error("authentication storage operation failed")
+	if data.ClientGone(err) {
+		// The browser left before the session lookup finished. Nobody is waiting
+		// for the answer, so it is neither logged nor reported as an outage.
+		h.writeError(w, httpx.StatusClientClosedRequest, "request was closed by the client")
+		return
+	}
+	// Driver error text can include connection data, so only the error class is logged.
+	h.logger.Error("authentication storage operation failed", "error", data.ErrorClass(err))
 	h.writeError(w, http.StatusServiceUnavailable, "authentication is temporarily unavailable")
 }
 

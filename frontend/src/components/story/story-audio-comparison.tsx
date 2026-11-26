@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
+import { cleanupSourceAssets } from './story-audio-cleanup'
 import type { StoryAsset } from './types'
 import { useStoryLanguage } from './use-story-language'
 import './story-output.css'
@@ -18,7 +19,7 @@ export function StoryAudioComparison({
   onRetry?: () => void
 }) {
   const text = useStoryLanguage()
-  const sources = assets.filter((asset) => asset.audio_cleanup)
+  const sources = cleanupSourceAssets(assets)
   const [selected, setSelected] = useState('')
   const [processed, setProcessed] = useState(false)
   const player = useRef<HTMLAudioElement>(null)

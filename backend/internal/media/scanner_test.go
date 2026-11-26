@@ -5,11 +5,13 @@ import (
 	"context"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"io"
 	"net"
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 )
@@ -104,4 +106,152 @@ func TestScannerHonorsContextDeadline(t *testing.T) {
 		t.Fatal(e)
 	}
 	<-done
+}
+
+// fakeClamd answers one INSTREAM exchange with response, after reading the whole stream.
+func fakeClamd(response string) net.Conn {
+	client, connection := net.Pipe()
+	go func() {
+		defer connection.Close()
+		reader := bufio.NewReader(connection)
+		if _, e := reader.ReadString(0); e != nil {
+			return
+		}
+		for {
+			var length uint32
+			if e := binary.Read(reader, binary.BigEndian, &length); e != nil || length == 0 {
+				break
+			}
+			if _, e := io.CopyN(io.Discard, reader, int64(length)); e != nil {
+				return
+			}
+		}
+		_, _ = io.WriteString(connection, response)
+	}()
+	return client
+}
+
+func TestClamAVRetriesOnceWhenClamdRefusesConnection(t *testing.T) {
+	filename := filepath.Join(t.TempDir(), "video")
+	_ = os.WriteFile(filename, videoBytes, 0600)
+	attempts := 0
+	scanner := NewClamAV(ClamAVConfig{Enabled: true, Address: "scanner:3310", Timeout: time.Minute, MaxBytes: 1 << 20})
+	scanner.dial = func(context.Context, string, string) (net.Conn, error) {
+		attempts++
+		if attempts == 1 {
+			return nil, syscall.ECONNREFUSED
+		}
+		return fakeClamd("stream: OK\x00"), nil
+	}
+	if e := scanner.Scan(context.Background(), filename); e != nil {
+		t.Fatalf("scan after one refused connection: %v", e)
+	}
+	if attempts != 2 {
+		t.Fatalf("expected one retry, got %d attempts", attempts)
+	}
+}
+
+func TestClamAVReportsUnavailableWhenRetryAlsoFails(t *testing.T) {
+	filename := filepath.Join(t.TempDir(), "video")
+	_ = os.WriteFile(filename, videoBytes, 0600)
+	attempts := 0
+	scanner := NewClamAV(ClamAVConfig{Enabled: true, Address: "scanner:3310", Timeout: time.Minute, MaxBytes: 1 << 20})
+	scanner.dial = func(context.Context, string, string) (net.Conn, error) {
+		attempts++
+		return nil, syscall.ECONNREFUSED
+	}
+	if e := scanner.Scan(context.Background(), filename); !errors.Is(e, ErrScannerUnavailable) {
+		t.Fatalf("got %v want scanner unavailable", e)
+	}
+	if attempts != 2 {
+		t.Fatalf("expected exactly two attempts, got %d", attempts)
+	}
+}
+
+func TestClamAVRetryStaysWithinOneScanBudget(t *testing.T) {
+	filename := filepath.Join(t.TempDir(), "video")
+	_ = os.WriteFile(filename, videoBytes, 0600)
+	const budget = 300 * time.Millisecond
+	attempts := 0
+	scanner := NewClamAV(ClamAVConfig{Enabled: true, Address: "scanner:3310", Timeout: budget, MaxBytes: 1 << 20})
+	scanner.dial = func(context.Context, string, string) (net.Conn, error) {
+		attempts++
+		client, connection := net.Pipe()
+		if attempts == 1 {
+			// clamd drops the connection after the upload has started streaming.
+			go func() {
+				time.Sleep(150 * time.Millisecond)
+				_ = connection.Close()
+			}()
+		} else {
+			// The second attempt hangs, so only the shared budget can end it.
+			go func() { _, _ = io.Copy(io.Discard, connection) }()
+		}
+		return client, nil
+	}
+	started := time.Now()
+	e := scanner.Scan(context.Background(), filename)
+	elapsed := time.Since(started)
+	if !errors.Is(e, ErrScannerUnavailable) {
+		t.Fatalf("got %v want scanner unavailable", e)
+	}
+	if elapsed >= 2*budget-50*time.Millisecond {
+		t.Fatalf("scan took %v; retry must not extend past one budget of %v", elapsed, budget)
+	}
+}
+
+func TestClamAVDoesNotRetryAfterOwnDeadline(t *testing.T) {
+	filename := filepath.Join(t.TempDir(), "video")
+	_ = os.WriteFile(filename, videoBytes, 0600)
+	attempts := 0
+	scanner := NewClamAV(ClamAVConfig{Enabled: true, Address: "scanner:3310", Timeout: 20 * time.Millisecond, MaxBytes: 1 << 20})
+	scanner.dial = func(context.Context, string, string) (net.Conn, error) {
+		attempts++
+		client, connection := net.Pipe()
+		go func() { _, _ = io.Copy(io.Discard, connection) }()
+		return client, nil
+	}
+	if e := scanner.Scan(context.Background(), filename); !errors.Is(e, ErrScannerUnavailable) {
+		t.Fatalf("got %v want scanner unavailable", e)
+	}
+	if attempts != 1 {
+		t.Fatalf("timed-out scan must not be retried, got %d attempts", attempts)
+	}
+}
+
+func TestClamAVCanceledClientIsNotScannerOutage(t *testing.T) {
+	filename := filepath.Join(t.TempDir(), "video")
+	_ = os.WriteFile(filename, videoBytes, 0600)
+	ctx, cancel := context.WithCancel(context.Background())
+	scanner := NewClamAV(ClamAVConfig{Enabled: true, Address: "scanner:3310", Timeout: time.Minute, MaxBytes: 1 << 20})
+	scanner.dial = func(dialCtx context.Context, _, _ string) (net.Conn, error) {
+		cancel()
+		<-dialCtx.Done()
+		return nil, dialCtx.Err()
+	}
+	e := scanner.Scan(ctx, filename)
+	if !errors.Is(e, context.Canceled) || errors.Is(e, ErrScannerUnavailable) {
+		t.Fatalf("got %v want context.Canceled", e)
+	}
+	if status, _ := statusFor(e); status != 499 {
+		t.Fatalf("canceled upload status %d, want 499", status)
+	}
+}
+
+func TestClientCancellationIsNotReportedAsOutage(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		err    error
+		status int
+	}{
+		{"scanner outage", ErrScannerUnavailable, 503},
+		{"canceled storage write", fmt.Errorf("put object: %w", context.Canceled), 499},
+		{"storage failure", errors.New("bucket unreachable"), 503},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if status, _ := statusFor(tc.err); status != tc.status {
+				t.Fatalf("status %d for %v, want %d", status, tc.err, tc.status)
+			}
+		})
+	}
 }

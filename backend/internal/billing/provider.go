@@ -7,11 +7,63 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
+
+	"sneepcut/backend-go/internal/locale"
 )
+
+// Sentinel errors name provider failures without exposing transport, URL or
+// payload text. failureClass turns them into the labels that get logged.
+var (
+	errProviderUnavailable      = errors.New("billing provider is unavailable")
+	errProviderTimeout          = errors.New("billing provider timed out")
+	errProviderCanceled         = errors.New("billing provider request canceled")
+	errInvalidProviderResponse  = errors.New("invalid billing provider response")
+	errBillingPlanNotConfigured = errors.New("billing plan is not configured")
+	errInvalidBillingPrice      = errors.New("invalid billing price")
+)
+
+// failureClass maps a billing error to a fixed, log-safe label. Stripe error
+// codes are a closed vocabulary, so they are kept; keys, URLs and payloads never are.
+func failureClass(err error) string {
+	var provider *providerError
+	switch {
+	case errors.Is(err, errProviderTimeout):
+		return "provider_timeout"
+	case errors.Is(err, errProviderCanceled):
+		return "provider_canceled"
+	case errors.Is(err, errProviderUnavailable):
+		return "provider_unavailable"
+	case errors.Is(err, errInvalidProviderResponse):
+		return "invalid_provider_response"
+	case errors.Is(err, errBillingPlanNotConfigured):
+		return "plan_not_configured"
+	case errors.Is(err, errInvalidBillingPrice):
+		return "invalid_price"
+	case errors.As(err, &provider):
+		if provider.Code != "" {
+			return fmt.Sprintf("provider_status_%d:%s", provider.Status, provider.Code)
+		}
+		return fmt.Sprintf("provider_status_%d", provider.Status)
+	}
+	return "unknown"
+}
+
+// transportFailure classifies a failed HTTP round trip without keeping its text.
+func transportFailure(err error) error {
+	var netErr net.Error
+	switch {
+	case errors.Is(err, context.Canceled):
+		return errProviderCanceled
+	case errors.As(err, &netErr) && netErr.Timeout():
+		return errProviderTimeout
+	}
+	return errProviderUnavailable
+}
 
 // Object accepts Stripe's expandable identifiers and both legacy/current invoice shapes.
 type object map[string]any
@@ -105,16 +157,16 @@ func (s *Service) provider(ctx context.Context, method, path string, form url.Va
 	}
 	response, err := s.client.Do(req)
 	if err != nil {
-		return nil, errors.New("billing provider is unavailable")
+		return nil, transportFailure(err)
 	}
 	defer response.Body.Close()
 	raw, err := io.ReadAll(io.LimitReader(response.Body, 4*1024*1024+1))
 	if err != nil || len(raw) > 4*1024*1024 {
-		return nil, errors.New("invalid billing provider response")
+		return nil, errInvalidProviderResponse
 	}
 	result, err := decodeObject(raw)
 	if err != nil {
-		return nil, errors.New("invalid billing provider response")
+		return nil, errInvalidProviderResponse
 	}
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
 		return nil, &providerError{Status: response.StatusCode, Code: result.child("error").text("code")}
@@ -161,8 +213,8 @@ func (s *Service) expire(ctx context.Context, id string) error {
 	_, err := s.provider(ctx, http.MethodPost, "/checkout/sessions/"+url.PathEscape(id)+"/expire", url.Values{}, "")
 	return err
 }
-func (s *Service) portal(ctx context.Context, customer, locale string) (string, error) {
-	form := url.Values{"customer": {customer}, "return_url": {s.cfg.AppURL + billingPath(locale) + "?portal_return=true"}}
+func (s *Service) portal(ctx context.Context, customer, uiLocale string) (string, error) {
+	form := url.Values{"customer": {customer}, "return_url": {s.cfg.AppURL + billingPath(uiLocale) + "?portal_return=true"}, "locale": {locale.Normalize(uiLocale)}}
 	if s.cfg.PortalConfiguration != "" {
 		form.Set("configuration", s.cfg.PortalConfiguration)
 	}
@@ -180,7 +232,7 @@ func (s *Service) createProviderCheckout(ctx context.Context, c claim) (object, 
 	meta := map[string]string{"userId": c.UserID, "planId": c.PlanID, "priceId": c.PriceID, "locale": c.Locale, "checkoutGeneration": strconv.Itoa(c.Generation)}
 	// Launch with immediate-confirmation card payments only. Delayed bank
 	// methods can make a subscription active before its first payment settles.
-	form := url.Values{"mode": {"subscription"}, "payment_method_types[0]": {"card"}, "line_items[0][price]": {c.PriceID}, "line_items[0][quantity]": {"1"}, "success_url": {c.SuccessURL}, "cancel_url": {c.CancelURL}, "client_reference_id": {c.UserID}, "expires_at": {strconv.FormatInt(c.CheckoutExpiresAt.Unix(), 10)}}
+	form := url.Values{"mode": {"subscription"}, "payment_method_types[0]": {"card"}, "line_items[0][price]": {c.PriceID}, "line_items[0][quantity]": {"1"}, "success_url": {c.SuccessURL}, "cancel_url": {c.CancelURL}, "client_reference_id": {c.UserID}, "expires_at": {strconv.FormatInt(c.CheckoutExpiresAt.Unix(), 10)}, "locale": {locale.Normalize(c.Locale)}}
 	for key, value := range meta {
 		form.Set("metadata["+key+"]", value)
 		form.Set("subscription_data[metadata]["+key+"]", value)
@@ -216,7 +268,7 @@ func (s *Service) findProviderCheckout(ctx context.Context, c claim) (object, er
 func (s *Service) price(ctx context.Context, plan string) (string, object, error) {
 	id := s.cfg.PlanPrices[plan]
 	if id == "" || s.planForPrice(id) != plan {
-		return "", nil, errors.New("billing plan is not configured")
+		return "", nil, errBillingPlanNotConfigured
 	}
 	data, err := s.provider(ctx, http.MethodGet, "/prices/"+url.PathEscape(id), nil, "")
 	if err != nil {
@@ -227,7 +279,7 @@ func (s *Service) price(ctx context.Context, plan string) (string, object, error
 	recurring := data.child("recurring")
 	currency := strings.ToUpper(data.text("currency"))
 	if data.text("id") != id || !s.matchesMode(data) || !data.boolean("active") || data.text("type") != "recurring" || recurring.text("interval") != "month" || recurring.number("interval_count") != 1 || !hasAmount || amountErr != nil || amountValue < 0 || !currencyPattern.MatchString(currency) {
-		return "", nil, fmt.Errorf("invalid billing price")
+		return "", nil, errInvalidBillingPrice
 	}
 	return id, object{"amount": amountValue, "currency": currency}, nil
 }

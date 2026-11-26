@@ -15,7 +15,9 @@ import (
 const capturedBodyLimit = 2048
 
 // Middleware records every 5xx response with its route and error message.
-// The readiness probe's 503 is expected during start-up and is ignored.
+// The readiness probe's 503 is expected during start-up and is ignored, and so
+// is any response to a client that already left: its request context ended
+// mid-flight, so the failure is not a platform outage.
 func (r *Recorder) Middleware(next http.Handler) http.Handler {
 	if r == nil {
 		return next
@@ -24,7 +26,7 @@ func (r *Recorder) Middleware(next http.Handler) http.Handler {
 		started := time.Now()
 		writer := &statusWriter{ResponseWriter: w, status: http.StatusOK}
 		next.ServeHTTP(writer, req)
-		if writer.status < 500 || req.URL.Path == "/api/ready" {
+		if writer.status < 500 || req.URL.Path == "/api/ready" || req.Context().Err() != nil {
 			return
 		}
 		route := NormalizeRoute(req.URL.Path)
