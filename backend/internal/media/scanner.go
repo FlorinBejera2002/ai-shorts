@@ -108,8 +108,9 @@ func (s *ClamAV) Scan(ctx context.Context, filename string) error {
 	}
 	if errors.Is(err, ErrScannerUnavailable) {
 		// The client left mid-scan: that is not a scanner outage and must not
-		// be reported as one.
-		if ctx.Err() != nil {
+		// be reported as one. A request deadline that expires during the scan
+		// still is one: the scanner did not answer in the time allowed.
+		if errors.Is(ctx.Err(), context.Canceled) {
 			return ctx.Err()
 		}
 		var final scanFailure
