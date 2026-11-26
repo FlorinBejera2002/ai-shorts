@@ -14,7 +14,7 @@ import {
 import { trackStudioEvent } from "../utils/studioTelemetry";
 import { applyUndoRestoreToPreview, type UndoRestoreFile } from "../utils/gsapUndoRestore";
 import { usePlayerStore } from "../player";
-import { syncStoredAutomationFromPreview } from "../player/lib/automationStoreSync";
+import { syncStoredElementStateFromPreview } from "../player/lib/elementStateStoreSync";
 
 /** The restore payload the undo/redo preview-sync consumes (from the history store). */
 interface HistoryPreviewRestore {
@@ -214,7 +214,7 @@ export function usePreviewPersistence({
       // player store keeps its own copy and that copy is what the automation lanes
       // draw — so without this an undone envelope edit stayed invisible until a
       // reload. The full path above clears the store and waits for discovery instead.
-      syncStoredAutomationFromPreview(previewIframeRef.current?.contentDocument ?? null);
+      syncStoredElementStateFromPreview(previewIframeRef.current?.contentDocument ?? null);
     },
     [previewIframeRef, activeCompPathRef, reloadPreview],
   );

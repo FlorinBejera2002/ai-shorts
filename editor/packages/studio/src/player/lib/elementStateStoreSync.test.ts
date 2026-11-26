@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { beforeEach, describe, expect, it } from "vitest";
-import { syncStoredAutomationFromPreview } from "./automationStoreSync";
+import { syncStoredElementStateFromPreview } from "./elementStateStoreSync";
 import { usePlayerStore, type TimelineElement } from "../store/playerStore";
 
 const TWO_POINTS = '{"version":1,"lanes":[{"target":"volume","points":[{"t":0,"v":1}]}]}';
@@ -32,27 +32,56 @@ beforeEach(() => {
   usePlayerStore.getState().reset();
 });
 
-describe("syncStoredAutomationFromPreview", () => {
+describe("syncStoredElementStateFromPreview", () => {
   it("reads back an envelope an undo restored on the preview", () => {
     // The bug: a soft undo patches the preview document and re-runs the timeline, but
     // the store keeps its own copy of the attributes and that copy is what a lane
     // draws — so an undone delete stayed invisible until the page was reloaded.
     usePlayerStore.setState({ elements: [el({ automation: TWO_POINTS })] });
-    syncStoredAutomationFromPreview(previewWith({ "data-automation": RESTORED }));
+    syncStoredElementStateFromPreview(previewWith({ "data-automation": RESTORED }));
     expect(usePlayerStore.getState().elements[0]?.automation).toBe(RESTORED);
   });
 
   it("reads back an undone FX chain too, since a lane's targets come from it", () => {
     const chain = '{"version":1,"nodes":[{"type":"lowpass","id":"n1","params":{}}]}';
     usePlayerStore.setState({ elements: [el()] });
-    syncStoredAutomationFromPreview(previewWith({ "data-fx-chain": chain }));
+    syncStoredElementStateFromPreview(previewWith({ "data-fx-chain": chain }));
     expect(usePlayerStore.getState().elements[0]?.fxChain).toBe(chain);
   });
 
   it("clears an attribute the undo removed", () => {
     usePlayerStore.setState({ elements: [el({ automation: TWO_POINTS })] });
-    syncStoredAutomationFromPreview(previewWith({}));
+    syncStoredElementStateFromPreview(previewWith({}));
     expect(usePlayerStore.getState().elements[0]?.automation).toBeUndefined();
+  });
+
+  it("re-reads the eye: an undo that restores data-hidden hides the element again", () => {
+    // The reported bug: hide a track, undo, and the timeline still showed it hidden
+    // because the store's `hidden` was only ever written by the optimistic toggle.
+    usePlayerStore.setState({ elements: [el({ hidden: true })] });
+    syncStoredElementStateFromPreview(previewWith({}));
+    expect(usePlayerStore.getState().elements[0]?.hidden).toBeUndefined();
+
+    usePlayerStore.setState({ elements: [el()] });
+    syncStoredElementStateFromPreview(previewWith({ "data-hidden": "" }));
+    expect(usePlayerStore.getState().elements[0]?.hidden).toBe(true);
+  });
+
+  it("re-reads a group's mute from the group node its members belong to", () => {
+    const doc = document.implementation.createHTMLDocument("preview");
+    const group = doc.createElement("hf-audio-group");
+    group.id = "voiceover";
+    group.setAttribute("data-hidden", "");
+    const audio = doc.createElement("audio");
+    audio.id = "bgm";
+    audio.setAttribute("data-audio-group", "voiceover");
+    doc.body.append(group, audio);
+
+    usePlayerStore.setState({
+      elements: [el({ audioGroup: "voiceover", audioGroupHidden: false })],
+    });
+    syncStoredElementStateFromPreview(doc);
+    expect(usePlayerStore.getState().elements[0]?.audioGroupHidden).toBe(true);
   });
 
   it("finds the node by data-hf-id when the dom id does not match", () => {
@@ -64,22 +93,23 @@ describe("syncStoredAutomationFromPreview", () => {
     audio.setAttribute("data-automation", RESTORED);
     doc.body.append(audio);
     usePlayerStore.setState({ elements: [el({ domId: "bgm-2", hfId: "hf-snao" })] });
-    syncStoredAutomationFromPreview(doc);
+    syncStoredElementStateFromPreview(doc);
     expect(usePlayerStore.getState().elements[0]?.automation).toBe(RESTORED);
   });
 
   it("keeps the same array when nothing changed, so nothing re-renders", () => {
     usePlayerStore.setState({ elements: [el({ automation: RESTORED })] });
     const before = usePlayerStore.getState().elements;
-    syncStoredAutomationFromPreview(previewWith({ "data-automation": RESTORED }));
+    syncStoredElementStateFromPreview(previewWith({ "data-automation": RESTORED }));
     expect(usePlayerStore.getState().elements).toBe(before);
   });
 
   it("does nothing without a preview document", () => {
     usePlayerStore.setState({ elements: [el({ automation: TWO_POINTS })] });
-    syncStoredAutomationFromPreview(null);
+    syncStoredElementStateFromPreview(null);
     expect(usePlayerStore.getState().elements[0]?.automation).toBe(TWO_POINTS);
   });
+
   // The reported symptom: automate a parameter on a GROUP from the FX rack and
   // the group's row shows no automation. The rack is not group-aware — it
   // writes the attribute on the group node through the ordinary element path —
@@ -100,7 +130,7 @@ describe("syncStoredAutomationFromPreview", () => {
     doc.body.append(group, audio);
 
     usePlayerStore.setState({ elements: [el({ audioGroup: "voiceover" })] });
-    syncStoredAutomationFromPreview(doc);
+    syncStoredElementStateFromPreview(doc);
 
     const stored = usePlayerStore.getState().elements[0];
     expect(stored?.audioGroupAutomation).toBe(groupAutomation);

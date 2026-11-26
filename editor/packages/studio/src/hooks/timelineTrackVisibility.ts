@@ -176,8 +176,9 @@ async function setElementsHidden({
       readFile: (path) => readFileContent(projectId, path),
       patchFiles: async (readFile) => {
         const files: Record<string, string> = {};
-        for (const [targetPath, fileElements] of groups) {
-          let patchedContent = await readFile(targetPath);
+        const contents = await Promise.all(groups.map(([targetPath]) => readFile(targetPath)));
+        for (const [index, [targetPath, fileElements]] of groups.entries()) {
+          let patchedContent = contents[index];
           for (const element of fileElements) {
             const patchTarget = buildPatchTarget(element);
             if (!patchTarget) {
