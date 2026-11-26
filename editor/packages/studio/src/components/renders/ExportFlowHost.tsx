@@ -8,6 +8,8 @@ import { useStudioShellContext, useStudioShellContextOptional } from "../../cont
 import { usePlayerStore } from "../../player";
 import { useIsPhone } from "../shell/useIsPhone";
 import { ExportFlowDialogs } from "./ExportFlowDialogs";
+import { ExportSettingsDialog } from "./ExportSettingsDialog";
+import { getPersistedRenderSettings } from "./renderSettings";
 
 /** Renders nothing outside the Studio shell (the session tests mount the header bits alone). */
 export function ExportFlowHost() {
@@ -31,21 +33,28 @@ function ConnectedExportFlow() {
   }, [job?.id, isPhone, setRightCollapsed]);
 
   return (
-    <ExportFlowDialogs
-      compositionDimensions={compositionDimensions}
-      durationSeconds={duration}
-      job={job}
-      projectId={projectId}
-      onDismiss={() => renderQueue.dismissExportFlow?.()}
-      onShowAll={() => {
-        renderQueue.dismissExportFlow?.();
-        setRightPanelTab("renders");
-        setRightCollapsed(false);
-      }}
-      onCancel={renderQueue.cancelRender}
-      onRetry={() => {
-        void waitForPendingDomEditSaves().then(() => renderQueue.startRender(undefined));
-      }}
-    />
+    <>
+      <ExportSettingsDialog />
+      <ExportFlowDialogs
+        compositionDimensions={compositionDimensions}
+        durationSeconds={duration}
+        job={job}
+        projectId={projectId}
+        onDismiss={() => renderQueue.dismissExportFlow?.()}
+        onShowAll={() => {
+          renderQueue.dismissExportFlow?.();
+          setRightPanelTab("renders");
+          setRightCollapsed(false);
+        }}
+        onCancel={renderQueue.cancelRender}
+        onRetry={() => {
+          // Retry with the settings the user last chose in the Export dialog.
+          const settings = getPersistedRenderSettings();
+          void waitForPendingDomEditSaves().then(() =>
+            renderQueue.startRender({ ...settings, showExportFlow: true }),
+          );
+        }}
+      />
+    </>
   );
 }

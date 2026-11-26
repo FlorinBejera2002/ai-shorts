@@ -3,6 +3,7 @@ import { usePanelLayoutContext } from "../../contexts/PanelLayoutContext";
 import { useStudioShellContext } from "../../contexts/StudioContext";
 import { t } from "../../i18n/translate";
 import { trackStudioEvent } from "../../utils/studioTelemetry";
+import { openExportSettings } from "../renders/exportSettingsDialogStore";
 
 /**
  * Does the Inspector button open the panel, or close it?
@@ -19,7 +20,7 @@ export function shouldOpenInspector(
   return effectiveRightCollapsed || !inspectorPanelActive;
 }
 
-export function useShellActions(inspectorPanelActive: boolean, onExport?: () => void) {
+export function useShellActions(inspectorPanelActive: boolean) {
   const { renderQueue } = useStudioShellContext();
   // effectiveRightCollapsed, not the raw intent: in the auto-railed state the
   // intent is still "open" while the panel is hidden, so branching on intent
@@ -44,13 +45,16 @@ export function useShellActions(inspectorPanelActive: boolean, onExport?: () => 
 
   const startExport = () => {
     if (isRendering) return;
-    setRightPanelTab("renders");
-    setRightCollapsed(false);
     // Without an encoder this render cannot finish, so the click delivers the
     // user to the prompt that fixes it instead of queueing a job that exists
     // only to fail.
-    if (ffmpegMissing) return;
-    onExport?.();
+    if (ffmpegMissing) {
+      setRightPanelTab("renders");
+      setRightCollapsed(false);
+      return;
+    }
+    // The settings come first; the dialog's Export starts the render.
+    openExportSettings();
   };
 
   const exportTooltip = ffmpegMissing

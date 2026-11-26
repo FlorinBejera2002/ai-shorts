@@ -2,7 +2,7 @@ import { memo } from "react";
 import { RenderQueue } from "./RenderQueue";
 import type { RenderJob } from "./useRenderQueue";
 import { useStudioShellContext } from "../../contexts/StudioContext";
-import { usePreviewVariablesStore } from "../../hooks/previewVariablesStore";
+import { useStartRenderFromForm } from "./useStartRenderFromForm";
 
 /**
  * The Renders tab, wired to the shell context.
@@ -13,8 +13,8 @@ import { usePreviewVariablesStore } from "../../hooks/previewVariablesStore";
  * shell level, so they survive the tab (and, on phone, its sheet) closing.
  */
 export const RenderQueuePanel = memo(function RenderQueuePanel() {
-  const { projectId, compositionDimensions, waitForPendingDomEditSaves, renderQueue } =
-    useStudioShellContext();
+  const { projectId, compositionDimensions, renderQueue } = useStudioShellContext();
+  const startRender = useStartRenderFromForm();
 
   return (
     <RenderQueue
@@ -34,20 +34,7 @@ export const RenderQueuePanel = memo(function RenderQueuePanel() {
       ffmpeg={renderQueue.ffmpeg}
       ffmpegChecking={renderQueue.ffmpegChecking}
       onRecheckFfmpeg={renderQueue.recheckFfmpeg}
-      onStartRender={async (format, quality, resolution, fps, hdrMode) => {
-        await waitForPendingDomEditSaves();
-        // No `composition`: startRender targets the active one by default.
-        await renderQueue.startRender({
-          fps,
-          quality,
-          format,
-          resolution,
-          hdrMode,
-          // Render what the user is previewing: active variable overrides
-          // from the Variables panel ride along (undefined = defaults).
-          variables: usePreviewVariablesStore.getState().values ?? undefined,
-        });
-      }}
+      onStartRender={startRender}
       compositionDimensions={compositionDimensions}
       isRendering={renderQueue.isRendering}
     />

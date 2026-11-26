@@ -448,11 +448,6 @@ export function StudioApp() {
     handlePreviewIframeRef,
     refreshPreviewDocumentVersion,
   });
-  const handleExport = () => {
-    void previewPersistence
-      .waitForPendingDomEditSaves()
-      .then(() => renderQueue.startRender(undefined));
-  };
   const timelineToolbar = useMemo(
     () => (
       <TimelineToolbar
@@ -485,7 +480,6 @@ export function StudioApp() {
                     inspectorButtonActive={inspectorButtonActive}
                     inspectorPanelActive={inspectorPanelActive}
                     savePaused={Boolean(previewPersistence.domEditSaveQueuePaused)}
-                    onExport={handleExport}
                   />
                   <ExternalFileConflictBanner coordinator={externalFileChanges} />
                   {viewModeValue.viewMode === "storyboard" && (

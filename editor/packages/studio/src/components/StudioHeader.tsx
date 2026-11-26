@@ -30,7 +30,6 @@ export interface StudioHeaderProps {
   inspectorPanelActive: boolean;
   /** The DOM-edit save queue is paused: the save state reads "Salvare eșuată". */
   savePaused?: boolean;
-  onExport?: () => void;
   recordEdit?: AgentRecordEdit;
 }
 
@@ -165,7 +164,7 @@ export function StudioHeader(props: StudioHeaderProps) {
   const { projectId, showToast } = useStudioShellContext();
   const { title, commitTitle } = useProjectTitle(projectId);
   const saveStatus = useSaveStatus(Boolean(props.savePaused));
-  const actions = useShellActions(props.inspectorPanelActive, props.onExport);
+  const actions = useShellActions(props.inspectorPanelActive);
   const titleField = (
     <ProjectTitleField
       title={title}

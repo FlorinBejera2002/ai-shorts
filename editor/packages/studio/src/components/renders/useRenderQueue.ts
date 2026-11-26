@@ -49,6 +49,8 @@ export interface StartRenderOptions {
    * `hyperframes render --variables` uses.
    */
   variables?: Record<string, unknown>;
+  /** Follow this render with the export dialogs (progress, result), as the header's Export does. */
+  showExportFlow?: boolean;
 }
 
 // "Hide" (formerly "Clear") is a view operation, not a delete: hidden ids are
@@ -201,8 +203,9 @@ export function useRenderQueue(
   const startRender = useCallback(
     // fallow-ignore-next-line complexity
     async (requested?: StartRenderOptions) => {
-      // No options means the header's Export: its progress and result show as dialogs.
-      const flow = requested === undefined;
+      // The header's Export (its settings dialog, or no options at all) follows the render with
+      // the progress and result dialogs.
+      const flow = requested === undefined || requested.showExportFlow === true;
       const opts = requested ?? {};
       if (!projectId) return;
       // The server would answer this with a 503 anyway. Refusing here keeps
