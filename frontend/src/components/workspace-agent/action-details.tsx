@@ -1,87 +1,171 @@
-import type { AgentAction } from './model'
+import type { SiteLocale } from '@/lib/site-config'
+import type { AgentAction, Localized } from './model'
 
-const names: Record<string, [string, string]> = {
-  'publishing.options': ['Check current publishing options', 'Verifică opțiunile curente de publicare'],
-  'studio.layer.remove': ['Remove the selected layer', 'Elimină elementul selectat'], 'studio.layer.split': ['Split the selected layer', 'Împarte elementul selectat'],
-  'studio.assets.list': ['Find Studio assets', 'Caută resurse Studio'], 'studio.assets.get': ['Inspect the Studio asset', 'Verifică resursa Studio'], 'studio.assets.duplicate': ['Duplicate the Studio asset', 'Duplică resursa Studio'], 'studio.assets.delete': ['Delete the Studio asset', 'Șterge resursa Studio'], 'studio.assets.rename': ['Rename the Studio asset', 'Redenumește resursa Studio'],
-  'studio.renders.list': ['Find Studio renders', 'Caută exporturi Studio'], 'studio.export': ['Prepare Studio export', 'Pregătește exportul Studio'], 'studio.renders.delete': ['Delete the Studio render', 'Șterge exportul Studio'],
-  'sources.list': ['Find media sources', 'Caută surse media'], 'resources.list': ['Find saved resources', 'Caută resurse salvate'], 'resources.get': ['Read the resource', 'Citește resursa'],
-  'jobs.list': ['Inspect processing jobs', 'Verifică procesările'], 'jobs.get': ['Check processing results', 'Verifică rezultatele procesării'], 'jobs.cancel': ['Stop processing', 'Oprește procesarea'],
-  'stories.cancel': ['Stop clip generation', 'Oprește generarea clipului'], 'stories.restyle': ['Update clip appearance', 'Modifică aspectul clipului'],
-  'stories.rollback': ['Restore a clip version', 'Restaurează o versiune a clipului'], 'stories.remove_asset': ['Remove a project source', 'Elimină o filmare din proiect'],
-  'studio.list': ['Find Studio projects', 'Caută proiecte Studio'], 'studio.get': ['Inspect the composition', 'Verifică compoziția'], 'studio.create': ['Create a composition', 'Creează o compoziție'],
-  'studio.edit': ['Edit the selected layer', 'Editează elementul selectat'], 'studio.revise': ['Revise the composition', 'Revizuiește compoziția'], 'studio.render': ['Render the composition', 'Randează compoziția'], 'studio.restore': ['Restore the composition', 'Restaurează compoziția'],
-  'clips.style': ['Update clip appearance', 'Modifică aspectul clipului'], 'clips.transitions': ['Improve clip transitions', 'Îmbunătățește tranzițiile'], 'clips.export': ['Prepare clip export', 'Pregătește exportul clipului'], 'clips.metadata': ['Update clip details', 'Modifică detaliile clipului'], 'clips.list': ['Find clips', 'Caută clipuri'],
-  'brand.update': ['Update brand settings', 'Modifică setările brandului'], 'brand.restore': ['Restore brand settings', 'Restaurează setările brandului'], 'brand.logo.update': ['Update the logo', 'Modifică logo-ul'], 'brand.logo.restore': ['Restore the logo', 'Restaurează logo-ul'],
-  'calendar.list': ['Read the calendar', 'Verifică calendarul'], 'calendar.get': ['Inspect the post', 'Verifică postarea'], 'calendar.create_draft': ['Create a calendar draft', 'Creează o ciornă în calendar'], 'calendar.update': ['Update the calendar draft', 'Modifică ciorna din calendar'],
-  'publishing.accounts': ['Check connected accounts', 'Verifică conturile conectate'], 'publishing.status': ['Verify publication', 'Verifică publicarea'],
-  'scripts.versions': ['Read script versions', 'Verifică versiunile scenariului'], 'scripts.restore_version': ['Restore a script version', 'Restaurează o versiune a scenariului'], 'scripts.archive': ['Archive the script', 'Arhivează scenariul'],
-  'settings.preferences.read': ['Read preferences', 'Verifică preferințele'], 'settings.preferences.update': ['Update preferences', 'Modifică preferințele'], 'settings.read': ['Read profile settings', 'Verifică setările profilului'], 'settings.update': ['Update profile settings', 'Modifică setările profilului'],
-  'runs.list': ['Check current work', 'Verifică activitățile curente'], 'runs.control': ['Update the operation', 'Actualizează activitatea'], 'analytics.activity': ['Read workspace activity', 'Verifică activitatea spațiului de lucru'],
-  'publishing.disconnect': ['Disconnect publishing account', 'Deconectează contul de publicare'], 'calendar.delete': ['Delete calendar draft', 'Șterge ciorna din calendar'],
-  'calendar.attach_media': ['Attach publishing media', 'Atașează media pentru publicare'], 'scripts.export': ['Export script JSON', 'Exportă scenariul JSON'],
-  'jobs.create': ['Generate clips from a source', 'Generează clipuri dintr-o sursă'],
-  'clips.delete': ['Delete the clip permanently', 'Șterge definitiv clipul'],
-  'stories.delete': ['Delete the story permanently', 'Șterge definitiv proiectul'],
-  'projects.brand.read': ['Read project brand', 'Verifică brandul proiectului'],
-  'projects.brand.update': ['Update project brand', 'Modifică brandul proiectului'],
-  'projects.brand.restore': ['Restore project brand', 'Restaurează brandul proiectului'],
-  'library.get': ['Inspect project folders', 'Verifică folderele proiectului'],
-  'folders.create': ['Create a folder', 'Creează un folder'], 'folders.update': ['Update the folder', 'Modifică folderul'],
-  'folders.delete': ['Remove the folder', 'Șterge folderul'], 'clips.move': ['Move the clip into a folder', 'Mută clipul într-un folder'],
-  'stories.update': ['Update project settings', 'Modifică setările proiectului'],
-  'publishing.create': ['Create a publishing draft', 'Creează o ciornă de publicare'],
-  'publishing.update': ['Update the publishing draft', 'Modifică ciorna de publicare'],
-  'publishing.publish': ['Publish the post', 'Publică postarea'],
-  'publishing.schedule': ['Schedule the post', 'Programează postarea'],
-  'publishing.reschedule': ['Reschedule the post', 'Reprogramează postarea'],
-  'publishing.unschedule': ['Cancel the scheduled post', 'Anulează programarea postării'],
-  'projects.list': ['List projects', 'Listează proiectele'], 'projects.rename': ['Rename the project', 'Redenumește proiectul'],
-  'brand.read': ['Read brand settings', 'Verifică setările brandului'], 'stories.list': ['List projects', 'Listează proiectele'],
-  'scripts.list': ['List scripts', 'Listează scenariile'], 'scripts.get': ['Read the script', 'Citește scenariul'],
-  'scripts.update': ['Update the script', 'Modifică scenariul'], 'scripts.restore': ['Restore the script', 'Restaurează scenariul'],
-  'analytics.read': ['Read workspace totals', 'Verifică totalurile spațiului de lucru'], 'workspace.open': ['Open a workspace page', 'Deschide o pagină'],
-  'clips.trim': ['Trim the clip', 'Scurtează clipul'], 'clips.recut': ['Reassemble clip segments', 'Reasamblează segmentele clipului'],
-  'stories.create': ['Create a clip project', 'Creează un proiect de clipuri'], 'stories.get': ['Read project progress', 'Verifică progresul proiectului'],
-  'stories.generate': ['Generate the story', 'Generează clipul'], 'stories.revise': ['Revise the story', 'Revizuiește clipul'],
-  'clips.update': ['Update the clip', 'Modifică clipul'], 'clips.get': ['Read clip details', 'Verifică detaliile clipului'],
-  'scripts.create': ['Create a script', 'Creează un scenariu'], 'scripts.generate': ['Generate a script', 'Generează un scenariu'],
-  'posts.create': ['Create a post', 'Creează o postare'], 'posts.schedule': ['Schedule a post', 'Programează o postare'],
-  'workspace.get': ['Read workspace details', 'Verifică spațiul de lucru']
+const names: Record<string, Localized> = {
+  'publishing.options': { en: 'Check current publishing options', ro: 'Verifică opțiunile curente de publicare', es: 'Revisa las opciones de publicación actuales' },
+  'studio.layer.remove': { en: 'Remove the selected layer', ro: 'Elimină elementul selectat', es: 'Quita el elemento seleccionado' },
+  'studio.layer.split': { en: 'Split the selected layer', ro: 'Împarte elementul selectat', es: 'Divide el elemento seleccionado' },
+  'studio.assets.list': { en: 'Find Studio assets', ro: 'Caută resurse Studio', es: 'Busca recursos de Studio' },
+  'studio.assets.get': { en: 'Inspect the Studio asset', ro: 'Verifică resursa Studio', es: 'Revisa el recurso de Studio' },
+  'studio.assets.duplicate': { en: 'Duplicate the Studio asset', ro: 'Duplică resursa Studio', es: 'Duplica el recurso de Studio' },
+  'studio.assets.delete': { en: 'Delete the Studio asset', ro: 'Șterge resursa Studio', es: 'Elimina el recurso de Studio' },
+  'studio.assets.rename': { en: 'Rename the Studio asset', ro: 'Redenumește resursa Studio', es: 'Renombra el recurso de Studio' },
+  'studio.renders.list': { en: 'Find Studio renders', ro: 'Caută exporturi Studio', es: 'Busca exportaciones de Studio' },
+  'studio.export': { en: 'Prepare Studio export', ro: 'Pregătește exportul Studio', es: 'Prepara la exportación de Studio' },
+  'studio.renders.delete': { en: 'Delete the Studio render', ro: 'Șterge exportul Studio', es: 'Elimina la exportación de Studio' },
+  'sources.list': { en: 'Find media sources', ro: 'Caută surse media', es: 'Busca fuentes multimedia' },
+  'resources.list': { en: 'Find saved resources', ro: 'Caută resurse salvate', es: 'Busca recursos guardados' },
+  'resources.get': { en: 'Read the resource', ro: 'Citește resursa', es: 'Lee el recurso' },
+  'jobs.list': { en: 'Inspect processing jobs', ro: 'Verifică procesările', es: 'Revisa los procesos' },
+  'jobs.get': { en: 'Check processing results', ro: 'Verifică rezultatele procesării', es: 'Revisa los resultados del procesamiento' },
+  'jobs.cancel': { en: 'Stop processing', ro: 'Oprește procesarea', es: 'Detén el procesamiento' },
+  'stories.cancel': { en: 'Stop clip generation', ro: 'Oprește generarea clipului', es: 'Detén la generación del clip' },
+  'stories.restyle': { en: 'Update clip appearance', ro: 'Modifică aspectul clipului', es: 'Actualiza el aspecto del clip' },
+  'stories.rollback': { en: 'Restore a clip version', ro: 'Restaurează o versiune a clipului', es: 'Restaura una versión del clip' },
+  'stories.remove_asset': { en: 'Remove a project source', ro: 'Elimină o filmare din proiect', es: 'Quita una fuente del proyecto' },
+  'studio.list': { en: 'Find Studio projects', ro: 'Caută proiecte Studio', es: 'Busca proyectos de Studio' },
+  'studio.get': { en: 'Inspect the composition', ro: 'Verifică compoziția', es: 'Revisa la composición' },
+  'studio.create': { en: 'Create a composition', ro: 'Creează o compoziție', es: 'Crea una composición' },
+  'studio.edit': { en: 'Edit the selected layer', ro: 'Editează elementul selectat', es: 'Edita el elemento seleccionado' },
+  'studio.revise': { en: 'Revise the composition', ro: 'Revizuiește compoziția', es: 'Ajusta la composición' },
+  'studio.render': { en: 'Render the composition', ro: 'Randează compoziția', es: 'Renderiza la composición' },
+  'studio.restore': { en: 'Restore the composition', ro: 'Restaurează compoziția', es: 'Restaura la composición' },
+  'clips.style': { en: 'Update clip appearance', ro: 'Modifică aspectul clipului', es: 'Actualiza el aspecto del clip' },
+  'clips.transitions': { en: 'Improve clip transitions', ro: 'Îmbunătățește tranzițiile', es: 'Mejora las transiciones del clip' },
+  'clips.export': { en: 'Prepare clip export', ro: 'Pregătește exportul clipului', es: 'Prepara la exportación del clip' },
+  'clips.metadata': { en: 'Update clip details', ro: 'Modifică detaliile clipului', es: 'Actualiza los detalles del clip' },
+  'clips.list': { en: 'Find clips', ro: 'Caută clipuri', es: 'Busca clips' },
+  'brand.update': { en: 'Update brand settings', ro: 'Modifică setările brandului', es: 'Actualiza la configuración de marca' },
+  'brand.restore': { en: 'Restore brand settings', ro: 'Restaurează setările brandului', es: 'Restaura la configuración de marca' },
+  'brand.logo.update': { en: 'Update the logo', ro: 'Modifică logo-ul', es: 'Actualiza el logotipo' },
+  'brand.logo.restore': { en: 'Restore the logo', ro: 'Restaurează logo-ul', es: 'Restaura el logotipo' },
+  'calendar.list': { en: 'Read the calendar', ro: 'Verifică calendarul', es: 'Lee el calendario' },
+  'calendar.get': { en: 'Inspect the post', ro: 'Verifică postarea', es: 'Revisa la publicación' },
+  'calendar.create_draft': { en: 'Create a calendar draft', ro: 'Creează o ciornă în calendar', es: 'Crea un borrador en el calendario' },
+  'calendar.update': { en: 'Update the calendar draft', ro: 'Modifică ciorna din calendar', es: 'Actualiza el borrador del calendario' },
+  'publishing.accounts': { en: 'Check connected accounts', ro: 'Verifică conturile conectate', es: 'Revisa las cuentas conectadas' },
+  'publishing.status': { en: 'Verify publication', ro: 'Verifică publicarea', es: 'Verifica la publicación' },
+  'scripts.versions': { en: 'Read script versions', ro: 'Verifică versiunile scenariului', es: 'Lee las versiones del guion' },
+  'scripts.restore_version': { en: 'Restore a script version', ro: 'Restaurează o versiune a scenariului', es: 'Restaura una versión del guion' },
+  'scripts.archive': { en: 'Archive the script', ro: 'Arhivează scenariul', es: 'Archiva el guion' },
+  'settings.preferences.read': { en: 'Read preferences', ro: 'Verifică preferințele', es: 'Lee las preferencias' },
+  'settings.preferences.update': { en: 'Update preferences', ro: 'Modifică preferințele', es: 'Actualiza las preferencias' },
+  'settings.read': { en: 'Read profile settings', ro: 'Verifică setările profilului', es: 'Lee la configuración del perfil' },
+  'settings.update': { en: 'Update profile settings', ro: 'Modifică setările profilului', es: 'Actualiza la configuración del perfil' },
+  'runs.list': { en: 'Check current work', ro: 'Verifică activitățile curente', es: 'Revisa el trabajo actual' },
+  'runs.control': { en: 'Update the operation', ro: 'Actualizează activitatea', es: 'Actualiza la operación' },
+  'analytics.activity': { en: 'Read workspace activity', ro: 'Verifică activitatea spațiului de lucru', es: 'Lee la actividad del espacio de trabajo' },
+  'publishing.disconnect': { en: 'Disconnect publishing account', ro: 'Deconectează contul de publicare', es: 'Desconecta la cuenta de publicación' },
+  'calendar.delete': { en: 'Delete calendar draft', ro: 'Șterge ciorna din calendar', es: 'Elimina el borrador del calendario' },
+  'calendar.attach_media': { en: 'Attach publishing media', ro: 'Atașează media pentru publicare', es: 'Adjunta medios para publicar' },
+  'scripts.export': { en: 'Export script JSON', ro: 'Exportă scenariul JSON', es: 'Exporta el guion en JSON' },
+  'jobs.create': { en: 'Generate clips from a source', ro: 'Generează clipuri dintr-o sursă', es: 'Genera clips desde una fuente' },
+  'clips.delete': { en: 'Delete the clip permanently', ro: 'Șterge definitiv clipul', es: 'Elimina el clip de forma permanente' },
+  'stories.delete': { en: 'Delete the story permanently', ro: 'Șterge definitiv proiectul', es: 'Elimina el proyecto de forma permanente' },
+  'projects.brand.read': { en: 'Read project brand', ro: 'Verifică brandul proiectului', es: 'Lee la marca del proyecto' },
+  'projects.brand.update': { en: 'Update project brand', ro: 'Modifică brandul proiectului', es: 'Actualiza la marca del proyecto' },
+  'projects.brand.restore': { en: 'Restore project brand', ro: 'Restaurează brandul proiectului', es: 'Restaura la marca del proyecto' },
+  'library.get': { en: 'Inspect project folders', ro: 'Verifică folderele proiectului', es: 'Revisa las carpetas del proyecto' },
+  'folders.create': { en: 'Create a folder', ro: 'Creează un folder', es: 'Crea una carpeta' },
+  'folders.update': { en: 'Update the folder', ro: 'Modifică folderul', es: 'Actualiza la carpeta' },
+  'folders.delete': { en: 'Remove the folder', ro: 'Șterge folderul', es: 'Elimina la carpeta' },
+  'clips.move': { en: 'Move the clip into a folder', ro: 'Mută clipul într-un folder', es: 'Mueve el clip a una carpeta' },
+  'stories.update': { en: 'Update project settings', ro: 'Modifică setările proiectului', es: 'Actualiza la configuración del proyecto' },
+  'publishing.create': { en: 'Create a publishing draft', ro: 'Creează o ciornă de publicare', es: 'Crea un borrador de publicación' },
+  'publishing.update': { en: 'Update the publishing draft', ro: 'Modifică ciorna de publicare', es: 'Actualiza el borrador de publicación' },
+  'publishing.publish': { en: 'Publish the post', ro: 'Publică postarea', es: 'Publica la publicación' },
+  'publishing.schedule': { en: 'Schedule the post', ro: 'Programează postarea', es: 'Programa la publicación' },
+  'publishing.reschedule': { en: 'Reschedule the post', ro: 'Reprogramează postarea', es: 'Reprograma la publicación' },
+  'publishing.unschedule': { en: 'Cancel the scheduled post', ro: 'Anulează programarea postării', es: 'Cancela la publicación programada' },
+  'projects.list': { en: 'List projects', ro: 'Listează proiectele', es: 'Lista los proyectos' },
+  'projects.rename': { en: 'Rename the project', ro: 'Redenumește proiectul', es: 'Renombra el proyecto' },
+  'brand.read': { en: 'Read brand settings', ro: 'Verifică setările brandului', es: 'Lee la configuración de marca' },
+  'stories.list': { en: 'List projects', ro: 'Listează proiectele', es: 'Lista los proyectos' },
+  'scripts.list': { en: 'List scripts', ro: 'Listează scenariile', es: 'Lista los guiones' },
+  'scripts.get': { en: 'Read the script', ro: 'Citește scenariul', es: 'Lee el guion' },
+  'scripts.update': { en: 'Update the script', ro: 'Modifică scenariul', es: 'Actualiza el guion' },
+  'scripts.restore': { en: 'Restore the script', ro: 'Restaurează scenariul', es: 'Restaura el guion' },
+  'analytics.read': { en: 'Read workspace totals', ro: 'Verifică totalurile spațiului de lucru', es: 'Lee los totales del espacio de trabajo' },
+  'workspace.open': { en: 'Open a workspace page', ro: 'Deschide o pagină', es: 'Abre una página del espacio de trabajo' },
+  'clips.trim': { en: 'Trim the clip', ro: 'Scurtează clipul', es: 'Recorta el clip' },
+  'clips.recut': { en: 'Reassemble clip segments', ro: 'Reasamblează segmentele clipului', es: 'Reensambla los segmentos del clip' },
+  'stories.create': { en: 'Create a clip project', ro: 'Creează un proiect de clipuri', es: 'Crea un proyecto de clips' },
+  'stories.get': { en: 'Read project progress', ro: 'Verifică progresul proiectului', es: 'Lee el progreso del proyecto' },
+  'stories.generate': { en: 'Generate the story', ro: 'Generează clipul', es: 'Genera el clip' },
+  'stories.revise': { en: 'Revise the story', ro: 'Revizuiește clipul', es: 'Revisa el clip' },
+  'clips.update': { en: 'Update the clip', ro: 'Modifică clipul', es: 'Actualiza el clip' },
+  'clips.get': { en: 'Read clip details', ro: 'Verifică detaliile clipului', es: 'Lee los detalles del clip' },
+  'scripts.create': { en: 'Create a script', ro: 'Creează un scenariu', es: 'Crea un guion' },
+  'scripts.generate': { en: 'Generate a script', ro: 'Generează un scenariu', es: 'Genera un guion' },
+  'posts.create': { en: 'Create a post', ro: 'Creează o postare', es: 'Crea una publicación' },
+  'posts.schedule': { en: 'Schedule a post', ro: 'Programează o postare', es: 'Programa una publicación' },
+  'workspace.get': { en: 'Read workspace details', ro: 'Verifică spațiul de lucru', es: 'Lee los detalles del espacio de trabajo' }
 }
-const fields: Record<string, [string, string]> = {
-  source_type: ['Source type', 'Tip sursă'], source_url: ['Source URL', 'Adresa sursei'], num_clips: ['Number of clips', 'Număr de clipuri'], num_clips_requested: ['Number of clips', 'Număr de clipuri'],
-  settings: ['Settings', 'Setări'], primaryColor: ['Primary color', 'Culoare principală'], secondaryColor: ['Secondary color', 'Culoare secundară'],
-  fontFamily: ['Font', 'Font'], subtitleFont: ['Caption font', 'Font subtitrări'], subtitleColor: ['Caption color', 'Culoare subtitrări'],
-  logo_resource_id: ['Attached logo', 'Logo atașat'],
-  start: ['Start (seconds)', 'Început (secunde)'], end: ['End (seconds)', 'Sfârșit (secunde)'],
-  start_time: ['Start (seconds)', 'Început (secunde)'], end_time: ['End (seconds)', 'Sfârșit (secunde)'],
-  order: ['Order', 'Ordine'], segments: ['Segments', 'Segmente'], page: ['Page', 'Pagină'], edit: ['Requested edit', 'Editare cerută'],
-  title: ['Title', 'Titlu'], name: ['Name', 'Nume'], new_name: ['New name', 'Nume nou'], brief: ['Brief', 'Descriere'], text: ['Text', 'Text'],
-  instructions: ['Requested changes', 'Modificări cerute'], prompt: ['Instructions', 'Instrucțiuni'],
-  target_seconds: ['Duration (seconds)', 'Durată (secunde)'], project_id: ['Project', 'Proiect'], story_id: ['Moments', 'Momente'],
-  clip_id: ['Clip', 'Clip'], language: ['Language', 'Limbă'], aspect_ratio: ['Format', 'Format'],
-  captions: ['Captions', 'Subtitrări'], mode: ['Mode', 'Mod'], preserve_order: ['Keep source order', 'Păstrează ordinea'],
-  scheduled_at: ['Scheduled time', 'Ora programată'], platform: ['Platform', 'Platformă'], options: ['Settings', 'Setări'],
-  id: ['Target', 'Țintă'], revision: ['Revision', 'Revizie'], version: ['Version', 'Versiune'], document: ['Document', 'Document']
+
+const fields: Record<string, Localized> = {
+  source_type: { en: 'Source type', ro: 'Tip sursă', es: 'Tipo de fuente' },
+  source_url: { en: 'Source URL', ro: 'Adresa sursei', es: 'URL de la fuente' },
+  num_clips: { en: 'Number of clips', ro: 'Număr de clipuri', es: 'Número de clips' },
+  num_clips_requested: { en: 'Number of clips', ro: 'Număr de clipuri', es: 'Número de clips' },
+  settings: { en: 'Settings', ro: 'Setări', es: 'Configuración' },
+  primaryColor: { en: 'Primary color', ro: 'Culoare principală', es: 'Color principal' },
+  secondaryColor: { en: 'Secondary color', ro: 'Culoare secundară', es: 'Color secundario' },
+  fontFamily: { en: 'Font', ro: 'Font', es: 'Fuente' },
+  subtitleFont: { en: 'Caption font', ro: 'Font subtitrări', es: 'Fuente de subtítulos' },
+  subtitleColor: { en: 'Caption color', ro: 'Culoare subtitrări', es: 'Color de subtítulos' },
+  logo_resource_id: { en: 'Attached logo', ro: 'Logo atașat', es: 'Logotipo adjunto' },
+  start: { en: 'Start (seconds)', ro: 'Început (secunde)', es: 'Inicio (segundos)' },
+  end: { en: 'End (seconds)', ro: 'Sfârșit (secunde)', es: 'Fin (segundos)' },
+  start_time: { en: 'Start (seconds)', ro: 'Început (secunde)', es: 'Inicio (segundos)' },
+  end_time: { en: 'End (seconds)', ro: 'Sfârșit (secunde)', es: 'Fin (segundos)' },
+  order: { en: 'Order', ro: 'Ordine', es: 'Orden' },
+  segments: { en: 'Segments', ro: 'Segmente', es: 'Segmentos' },
+  page: { en: 'Page', ro: 'Pagină', es: 'Página' },
+  edit: { en: 'Requested edit', ro: 'Editare cerută', es: 'Edición solicitada' },
+  title: { en: 'Title', ro: 'Titlu', es: 'Título' },
+  name: { en: 'Name', ro: 'Nume', es: 'Nombre' },
+  new_name: { en: 'New name', ro: 'Nume nou', es: 'Nombre nuevo' },
+  brief: { en: 'Brief', ro: 'Descriere', es: 'Descripción' },
+  text: { en: 'Text', ro: 'Text', es: 'Texto' },
+  instructions: { en: 'Requested changes', ro: 'Modificări cerute', es: 'Cambios solicitados' },
+  prompt: { en: 'Instructions', ro: 'Instrucțiuni', es: 'Instrucciones' },
+  target_seconds: { en: 'Duration (seconds)', ro: 'Durată (secunde)', es: 'Duración (segundos)' },
+  project_id: { en: 'Project', ro: 'Proiect', es: 'Proyecto' },
+  story_id: { en: 'Moments', ro: 'Momente', es: 'Momentos' },
+  clip_id: { en: 'Clip', ro: 'Clip', es: 'Clip' },
+  language: { en: 'Language', ro: 'Limbă', es: 'Idioma' },
+  aspect_ratio: { en: 'Format', ro: 'Format', es: 'Formato' },
+  captions: { en: 'Captions', ro: 'Subtitrări', es: 'Subtítulos' },
+  mode: { en: 'Mode', ro: 'Mod', es: 'Modo' },
+  preserve_order: { en: 'Keep source order', ro: 'Păstrează ordinea', es: 'Mantener el orden original' },
+  scheduled_at: { en: 'Scheduled time', ro: 'Ora programată', es: 'Hora programada' },
+  platform: { en: 'Platform', ro: 'Platformă', es: 'Plataforma' },
+  options: { en: 'Settings', ro: 'Setări', es: 'Configuración' },
+  id: { en: 'Target', ro: 'Țintă', es: 'Destino' },
+  revision: { en: 'Revision', ro: 'Revizie', es: 'Revisión' },
+  version: { en: 'Version', ro: 'Versiune', es: 'Versión' },
+  document: { en: 'Document', ro: 'Document', es: 'Documento' }
 }
-function actionLabel(action: AgentAction, ro: boolean) {
-  return names[action.name]?.[ro ? 1 : 0] ?? (ro ? 'Acțiune în spațiul de lucru' : 'Workspace action')
+
+function actionLabel(action: AgentAction, locale: SiteLocale) {
+  return names[action.name]?.[locale] ?? { en: 'Workspace action', ro: 'Acțiune în spațiul de lucru', es: 'Acción del espacio de trabajo' }[locale]
 }
 function visibleField(key: string) {
   return !['id', 'route', 'revision', 'digest', 'receipt_id', 'reference', 'path'].includes(key) && !/^expected_/.test(key) && !/(?:_(?:ids?|path)|Ids?|ID)$/.test(key)
 }
-function display(value: unknown, ro: boolean): string {
-  if (typeof value === 'boolean') return value ? (ro ? 'Da' : 'Yes') : (ro ? 'Nu' : 'No')
-  if (Array.isArray(value)) return value.map(item => display(item, ro)).join(', ')
-  if (value && typeof value === 'object') return Object.entries(value).filter(([key]) => visibleField(key)).map(([key, item]) => `${fields[key]?.[ro ? 1 : 0] ?? key.replaceAll('_', ' ')}: ${display(item, ro)}`).join('\n')
+function fieldLabel(key: string, locale: SiteLocale) {
+  return fields[key]?.[locale] ?? key.replaceAll('_', ' ')
+}
+function display(value: unknown, locale: SiteLocale): string {
+  if (typeof value === 'boolean') return value ? { en: 'Yes', ro: 'Da', es: 'Sí' }[locale] : { en: 'No', ro: 'Nu', es: 'No' }[locale]
+  if (Array.isArray(value)) return value.map(item => display(item, locale)).join(', ')
+  if (value && typeof value === 'object') return Object.entries(value).filter(([key]) => visibleField(key)).map(([key, item]) => `${fieldLabel(key, locale)}: ${display(item, locale)}`).join('\n')
   return String(value ?? '—')
 }
-export function ActionTitle({ action, ro }: { action: AgentAction; ro: boolean }) { return <>{actionLabel(action, ro)}</> }
-export function ActionDetails({ action, ro }: { action: AgentAction; ro: boolean }) {
+export function ActionTitle({ action, locale }: { action: AgentAction; locale: SiteLocale }) { return <>{actionLabel(action, locale)}</> }
+export function ActionDetails({ action, locale }: { action: AgentAction; locale: SiteLocale }) {
   return <dl className="mt-2 space-y-2 text-xs">{Object.entries(action.input).filter(([key]) => visibleField(key)).map(([key, value]) => <div key={key}>
-    <dt className="font-medium">{fields[key]?.[ro ? 1 : 0] ?? key.replaceAll('_', ' ')}</dt>
-    <dd className="whitespace-pre-wrap break-words text-muted-foreground">{display(value, ro)}</dd>
+    <dt className="font-medium">{fieldLabel(key, locale)}</dt>
+    <dd className="whitespace-pre-wrap break-words text-muted-foreground">{display(value, locale)}</dd>
   </div>)}</dl>
 }
-

@@ -1,14 +1,24 @@
 import { describe, expect, it } from "vitest";
-import { messages, messagesEn, messagesRo } from "./dictionary";
+import { messages, messagesEn, messagesEs, messagesRo } from "./dictionary";
 import { formatMessage, resolveStudioLocale, translate } from "./translate";
 
 describe("Studio dictionaries", () => {
-  it("has identical keys in English and Romanian", () => {
+  it("has identical keys in English, Romanian and Spanish", () => {
     expect(Object.keys(messagesRo).sort()).toEqual(Object.keys(messagesEn).sort());
+    expect(Object.keys(messagesEs).sort()).toEqual(Object.keys(messagesEn).sort());
+  });
+
+  it("keeps every placeholder of the English copy in Romanian and Spanish", () => {
+    const placeholders = (text: string) => [...text.matchAll(/\{\w+\}/g)].map((m) => m[0]).sort();
+    for (const key of Object.keys(messagesEn) as (keyof typeof messagesEn)[]) {
+      const expected = placeholders(messagesEn[key]);
+      expect(placeholders(messagesRo[key]), `ro ${key}`).toEqual(expected);
+      expect(placeholders(messagesEs[key]), `es ${key}`).toEqual(expected);
+    }
   });
 
   it("has no empty translations", () => {
-    for (const locale of ["en", "ro"] as const) {
+    for (const locale of ["en", "ro", "es"] as const) {
       for (const [key, value] of Object.entries(messages[locale])) {
         expect(value.trim(), `${locale} ${key}`).not.toBe("");
       }
@@ -28,7 +38,9 @@ describe("locale resolution", () => {
   it("prefers the lang parameter, then the browser language, then English", () => {
     expect(resolveStudioLocale("?lang=en", "ro-RO")).toBe("en");
     expect(resolveStudioLocale("?lang=ro", "en-US")).toBe("ro");
+    expect(resolveStudioLocale("?lang=es", "en-US")).toBe("es");
     expect(resolveStudioLocale("?lang=fr", "ro-RO")).toBe("ro");
+    expect(resolveStudioLocale("", "es-ES")).toBe("es");
     expect(resolveStudioLocale("", "ro-RO")).toBe("ro");
     expect(resolveStudioLocale("", "de-DE")).toBe("en");
   });

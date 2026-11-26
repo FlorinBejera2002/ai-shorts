@@ -37,7 +37,8 @@ export type LegalDocumentCopy = {
 
 const updated = {
   en: 'Last updated: November 17, 2026',
-  ro: 'Ultima actualizare: 17 noiembrie 2026'
+  ro: 'Ultima actualizare: 17 noiembrie 2026',
+  es: 'Última actualización: 17 de noviembre de 2026'
 } as const
 
 export const PRIVACY_COPY: Record<SiteLocale, LegalDocumentCopy> = {
@@ -358,6 +359,165 @@ export const PRIVACY_COPY: Record<SiteLocale, LegalDocumentCopy> = {
     contactTitle: '12. Contact',
     contactPrompt: `Pentru întrebări sau cereri privind datele, contactează ${LEGAL_OPERATOR.legalName} la`,
     contactFallback: LEGAL_OPERATOR.privacyEmail
+  },
+  es: {
+    title: 'Política de privacidad',
+    updated: updated.es,
+    intro:
+      'Esta política explica cómo Sneep Cut recopila, utiliza, comparte y protege los datos personales cuando visitas el sitio web, creas una cuenta, subes contenido multimedia, usas herramientas asistidas por IA, conectas cuentas sociales, publicas contenido o gestionas un plan.',
+    sections: [
+      {
+        title: 'Servicios de la API de YouTube y datos de usuario de Google',
+        paragraphs: [
+          'Sneep Cut utiliza los Servicios de la API de YouTube. Al usar estas funciones aceptas las Condiciones del Servicio de YouTube. Google trata la información conforme a su Política de privacidad.',
+          'Con tu autorización, accedemos a los identificadores del canal, al nombre, a la miniatura, a los permisos concedidos y al estado de las subidas. Almacenamos los tokens de acceso y de actualización de OAuth cifrados y los usamos únicamente para identificar tu canal, mantener la conexión y subir los videos que selecciones con el título, la descripción, la visibilidad y las opciones de audiencia que apruebes. No descargamos contenido audiovisual de YouTube a través de esta conexión ni utilizamos los datos de la API de YouTube para entrenar IA, para publicidad ni para venderlos.',
+          'Puedes revocar el acceso desde los permisos de tu cuenta de Google o desconectar YouTube en los ajustes de conexión del Calendario. Al desconectar, se eliminan de inmediato las credenciales de YouTube almacenadas localmente, los metadatos del canal y los registros asociados de la API de publicación de YouTube. Los videos ya subidos permanecen en YouTube hasta que los elimines allí. Tus archivos originales subidos y los proyectos creados de forma independiente se rigen por los controles generales de conservación.',
+          'Verificamos a diario la autorización de YouTube y actualizamos la información del canal. Si se revoca el acceso, se eliminan los datos de la API asociados; si no se puede verificar la autorización, esos datos se purgan en un plazo de siete días desde la última verificación. La información del canal almacenada se actualiza o se elimina en un plazo de treinta días. También puedes solicitar la eliminación en admin@sneepcut.com; las solicitudes sobre datos de usuario de la API de YouTube se atienden lo antes posible y en un plazo máximo de siete días naturales.',
+          'El acceso, uso, almacenamiento y puesta en común de los datos de usuario de Google cumplen la Política de datos de usuario de los Servicios de API de Google, incluidos sus requisitos de uso limitado. Los datos solo se comparten con Google para la subida que solicitas y con los proveedores de servicios necesarios, con las garantías descritas en esta política.'
+        ],
+        links: [
+          {
+            label: 'Condiciones del Servicio de YouTube',
+            href: 'https://www.youtube.com/t/terms'
+          },
+          {
+            label: 'Política de privacidad de Google',
+            href: 'https://policies.google.com/privacy'
+          },
+          {
+            label: 'Permisos de la cuenta de Google',
+            href: 'https://myaccount.google.com/permissions'
+          }
+        ]
+      },
+      {
+        title: 'Importar tus propios videos de YouTube con Google Data Portability',
+        paragraphs: [
+          'Importar es una autorización independiente y opcional, distinta de la conexión de un canal de YouTube para publicar. Solo después de la información sobre la importación y de tu autorización explícita solicitamos permisos de Google Data Portability para los videos públicos, no listados o privados que elijas incluir. Estos permisos nos permiten copiar a tu cuenta de Sneep Cut los videos que subiste y sus metadatos asociados. No solicitamos tu contraseña de Google ni cookies del navegador para este flujo.',
+          'Almacenamos los archivos de video importados, sus nombres, los metadatos de la exportación y el estado de la importación para ofrecerte tu biblioteca multimedia. Cuando seleccionas un video importado para crear clips, procesamos su video y audio para transcribir la voz, identificar los momentos destacados, reencuadrar, añadir subtítulos y renderizar los clips que pidas. Los proveedores de procesamiento necesarios pueden recibir el contenido multimedia o el texto derivado con las garantías descritas más abajo. No vendemos los datos, no los usamos para publicidad ni para entrenar modelos de IA de propósito general. Los datos de usuario de Google solo se utilizan para las funciones visibles para el usuario que se describen de forma clara, de acuerdo con la Política de datos de usuario y desarrollador de Google Data Portability y con los requisitos aplicables de uso limitado.',
+          'Google prepara la exportación, lo que puede tardar minutos u horas. La disponibilidad depende de la elegibilidad de la cuenta de Google y del país, incluido Rumanía, donde la función es compatible; algunas cuentas administradas, protegidas o de menores pueden no cumplir los requisitos. Si esta importación no está disponible, puedes subir el video original.',
+          'Puedes detener una importación desde Crear clips para impedir que se siga copiando. También puedes revocar el acceso desde las conexiones de tu cuenta de Google. Revocar el acceso o detener una importación no elimina los archivos ya copiados en Sneep Cut ni los videos de YouTube. Quita los videos importados de la biblioteca de importación para eliminar sus entradas y los archivos de origen no referenciados; los archivos de origen que siguen usando proyectos existentes o trabajos de procesamiento se rigen por los controles de conservación de esos proyectos. La eliminación de la cuenta y las solicitudes de eliminación de datos personales se aplican al contenido multimedia importado tal como se describe en esta política. Solo conservamos las credenciales de importación cifradas el tiempo necesario para completar la transferencia autorizada o el restablecimiento o la revocación de la autorización, incluidos los reintentos necesarios, y después las borramos. Al eliminar la cuenta, se borran de inmediato las credenciales de importación almacenadas localmente. No incluimos tokens ni URL temporales de descarga de Google en las exportaciones de la cuenta.'
+        ],
+        links: [
+          { label: 'Política de Google Data Portability', href: 'https://developers.google.com/data-portability/policy' },
+          { label: 'Conexiones de la cuenta de Google', href: 'https://myaccount.google.com/connections' },
+          { label: 'Cuentas y países admitidos', href: 'https://support.google.com/accounts/answer/14452558' }
+        ]
+      },
+      {
+        title: '1. Responsable, funciones de encargado y alcance',
+        paragraphs: [
+          `${LEGAL_OPERATOR.brand} es operado por ${LEGAL_OPERATOR.legalName}, registrada en Rumanía con CUI ${LEGAL_OPERATOR.taxId} y número de Registro Mercantil ${LEGAL_OPERATOR.tradeRegister}, con domicilio social en ${LEGAL_OPERATOR.address}. Para los datos de cuenta, seguridad, facturación y administración directa del servicio, la empresa normalmente actúa como responsable del tratamiento.`,
+          'Cuando un cliente empresarial sube o conecta datos personales que controla y pide a Sneep Cut que los trate únicamente para prestar el servicio, el cliente es el responsable del tratamiento y Sneep Cut actúa como encargado. Al tratamiento se aplica el Acuerdo de Tratamiento de Datos. Las plataformas sociales pueden actuar como responsables independientes conforme a sus propios avisos.'
+        ]
+      },
+      {
+        title: '2. Datos que recopilamos y sus fuentes',
+        bullets: [
+          'Datos de cuenta e identidad: nombre, dirección de correo electrónico, hash de la contraseña, proveedor de autenticación, idioma preferido, zona horaria, ajustes de seguridad e identificadores de cuenta.',
+          'Datos de contenido y de proyecto: videos, fotografías, audio, logotipos, activos de marca, guiones, prompts, transcripciones, subtítulos, ediciones, clips generados, ajustes de proyecto, estado de los trabajos y archivos subidos desde tu dispositivo.',
+          'Datos de conexiones sociales: plataforma, identificadores de cuenta o de Página, nombre visible, nombre de usuario, URL del avatar, permisos concedidos, tokens de acceso o de actualización cifrados, caducidad del token y estado de la conexión. No recibimos tu contraseña de la plataforma social.',
+          'Datos de publicación: destinos seleccionados, subtítulos, programaciones, orden de los contenidos, opciones de publicación, identificadores y URL de las publicaciones en la plataforma, marcas de tiempo, errores y estado del procesamiento.',
+          'Datos de facturación: plan, créditos e identificadores de transacción, cliente, suscripción y factura recibidos de nuestro proveedor de pagos. Sneep Cut no almacena los datos completos de la tarjeta de pago.',
+          'Datos técnicos y de seguridad: dirección IP o una representación protegida de la misma, información del navegador y del dispositivo, metadatos de sesión, marcas de tiempo de las solicitudes, eventos de seguridad, registros, diagnósticos y errores de la aplicación.',
+          'Comunicaciones y preferencias: mensajes de soporte, solicitudes de privacidad, comentarios, preferencias de notificación y consentimiento de marketing cuando se solicite.'
+        ],
+        paragraphs: [
+          'Recibimos estos datos directamente de ti, de tu dispositivo y navegador, de los proveedores de autenticación, pago y plataformas sociales que decidas conectar, y de nuestros sistemas mientras usas el servicio. Los campos obligatorios se indican en la interfaz. Sin los datos necesarios para una cuenta, un tratamiento solicitado o una conexión con una plataforma, es posible que no podamos prestar esa función.'
+        ]
+      },
+      {
+        title: '3. Por qué utilizamos los datos y nuestras bases jurídicas',
+        bullets: [
+          'Ejecución del contrato: crear y proteger tu cuenta; recibir y procesar contenido multimedia; generar, editar, exportar, programar y publicar contenido; conectar los servicios solicitados; proporcionar créditos, planes, controles de facturación, soporte y herramientas de exportación o eliminación de datos.',
+          'Intereses legítimos: proteger las cuentas y la infraestructura; prevenir el fraude, el spam y los abusos; diagnosticar fallos; mantener la fiabilidad del servicio; conservar registros operativos proporcionados; defender reclamaciones legales; y mejorar la usabilidad. Ponderamos estos intereses frente a tus derechos.',
+          'Obligaciones legales: conservar registros contables y fiscales, responder a solicitudes legales válidas, cumplir obligaciones de sanciones o de prevención del fraude, y cumplir las obligaciones de protección de consumidores y de datos.',
+          'Consentimiento: comunicaciones de marketing opcionales, almacenamiento no esencial en el dispositivo si se introduce, y cualquier otra función que solicite expresamente el consentimiento. Puedes retirar el consentimiento en cualquier momento sin afectar al tratamiento lícito previo.'
+        ],
+        paragraphs: [
+          'No vendemos datos personales. No utilizamos el contenido multimedia subido para publicidad de terceros ni para entrenar nuestros propios modelos de IA de propósito general.'
+        ]
+      },
+      {
+        title: '4. Tratamiento asistido por IA',
+        paragraphs: [
+          'Sneep Cut utiliza herramientas automatizadas para ayudar a transcribir, identificar posibles momentos destacados, reencuadrar, añadir subtítulos y editar contenido. Según la función seleccionada y la configuración vigente, el texto derivado del contenido, los prompts, las instrucciones o un contexto limitado del proyecto pueden enviarse a un proveedor de servicios de IA indicado en nuestra página de Subencargados. También pueden utilizarse componentes de procesamiento locales.',
+          'Las sugerencias pueden ser inexactas o no ser adecuadas. Tú decides qué conservar, editar, exportar o publicar. Sneep Cut no toma decisiones que produzcan efectos jurídicos o efectos igualmente significativos sobre ti basándose únicamente en medios automatizados.'
+        ]
+      },
+      {
+        title: '5. Cuentas conectadas y publicación en redes sociales',
+        paragraphs: [
+          'Cuando conectas Instagram, una Página de Facebook, TikTok, YouTube u otro destino compatible, utilizamos la autorización y los permisos que apruebas para identificar las cuentas elegibles y prestar el flujo de trabajo solicitado. Accedemos solo a los datos y acciones permitidos por los permisos concedidos y por la función actual del producto.',
+          'Cuando eliges Publicar ahora, o programas deliberadamente una publicación, Sneep Cut envía las fotografías, videos, carruseles, subtítulos, la programación y las opciones de plataforma seleccionadas a los destinos que elegiste. Una publicación programada puede enviarse automáticamente en el momento que elegiste. Mostramos el estado de procesamiento y el estado final en la plataforma cuando está disponible.',
+          'Al desconectar se elimina la autorización almacenada localmente y se impiden nuevos envíos a través de esa conexión. Una operación ya entregada a una plataforma puede completarse. Desconectar o eliminar tu cuenta de Sneep Cut no elimina automáticamente el contenido ya publicado en una plataforma de terceros. Cuando la API de la plataforma admite la eliminación y la solicitas explícitamente, Sneep Cut puede enviar esa eliminación; en caso contrario, debes eliminar la publicación en la plataforma.'
+        ]
+      },
+      {
+        title: '6. Destinatarios y proveedores de servicios',
+        paragraphs: [
+          'Solo comunicamos los datos razonablemente necesarios a proveedores de alojamiento y almacenamiento, autenticación, correo electrónico transaccional, tratamiento asistido por IA, procesamiento de pagos, seguridad y soporte técnico. Las categorías y los proveedores actuales se describen en la página de Subencargados.',
+          'Cuando conectas o publicas en una plataforma social, la plataforma correspondiente recibe los datos como servicio independiente conforme a su propia política de privacidad y sus propias condiciones. También podemos comunicar datos a asesores profesionales, autoridades competentes, tribunales o a un sucesor en una operación societaria cuando sea legalmente exigible y esté debidamente protegido.'
+        ]
+      },
+      {
+        title: '7. Transferencias internacionales',
+        paragraphs: [
+          'Nuestro alojamiento principal de producción está en Alemania. Algunos proveedores opcionales o plataformas sociales pueden tratar datos fuera de Rumanía o del Espacio Económico Europeo. Cuando una transferencia requiere una garantía, nos basamos en una decisión de adecuación aplicable, en Cláusulas Contractuales Tipo aprobadas u otro mecanismo de transferencia lícito, junto con medidas complementarias cuando proceda. Puedes contactarnos para obtener información sobre la garantía correspondiente.'
+        ]
+      },
+      {
+        title: '8. Conservación y eliminación',
+        bullets: [
+          'Los datos de cuenta, de proyectos, de contenido multimedia y del historial de publicaciones se conservan, en general, mientras tu cuenta esté activa o hasta que elimines el elemento o la cuenta, salvo que se muestre un plazo de caducidad más corto del producto.',
+          'Los valores de estado de OAuth caducan al cabo de la breve ventana de autorización. Las credenciales sociales se conservan hasta que desconectes, caduquen, se revoque el acceso o se elimine la cuenta.',
+          'Los registros de seguridad y de diagnóstico se conservan solo durante el tiempo razonablemente necesario para investigar incidentes, prevenir abusos y mantener el servicio.',
+          'Las facturas y las pruebas de pagos, contabilidad y transacciones pueden conservarse durante el período que exijan las leyes fiscales, contables, antifraude y de prescripción.',
+          'Los datos de copias de seguridad protegidas, si existen, no se utilizan para operaciones ordinarias y se eliminan o sobrescriben según el ciclo de vida de copias de seguridad aplicable, salvo que la conservación sea legalmente obligatoria.'
+        ],
+        paragraphs: [
+          'La conservación se determina según el tipo de registro, su finalidad operativa, las obligaciones contractuales y legales, su sensibilidad, el riesgo y si hay una disputa o una investigación de seguridad abierta. Consulta Eliminación de datos para conocer los controles disponibles.'
+        ]
+      },
+      {
+        title: '9. Tus derechos en materia de protección de datos',
+        bullets: [
+          'Solicitar acceso a tus datos personales y una copia de los mismos.',
+          'Rectificar los datos personales inexactos o incompletos.',
+          'Solicitar la supresión o la limitación cuando se cumplan las condiciones legales.',
+          'Oponerte al tratamiento basado en intereses legítimos, incluido el marketing directo.',
+          'Recibir los datos que nos proporcionaste en un formato estructurado, de uso común y legible por máquina, cuando sea aplicable la portabilidad.',
+          'Retirar el consentimiento en cualquier momento cuando el tratamiento se base en el consentimiento.',
+          'Presentar una reclamación ante la Autoridad Nacional de Supervisión del Tratamiento de Datos Personales de Rumanía (ANSPDCP) o ante tu autoridad de control local.'
+        ],
+        paragraphs: [
+          'Los controles de exportación y eliminación de la cuenta están disponibles en Panel → Ajustes → Datos y privacidad. También puedes escribirnos por correo electrónico. Podemos solicitar la información proporcionada necesaria para verificar tu identidad y normalmente respondemos en el plazo de un mes, sujeto a las prórrogas legales.'
+        ],
+        links: [
+          {
+            label: 'Autoridad rumana de protección de datos (ANSPDCP)',
+            href: 'https://www.dataprotection.ro/'
+          }
+        ]
+      },
+      {
+        title: '10. Seguridad',
+        paragraphs: [
+          'Aplicamos medidas adecuadas al servicio y al riesgo, incluidos el transporte cifrado, el hash de contraseñas, los controles de acceso, las credenciales sociales cifradas, el acceso firmado a los archivos, la limitación de solicitudes, el análisis antimalware de las subidas, el aislamiento de servicios y el acceso restringido a producción. Ningún sistema puede garantizar una seguridad absoluta. Usa una contraseña fuerte y única, activa los controles de seguridad disponibles y notifícanos sin demora cualquier sospecha de acceso no autorizado.'
+        ]
+      },
+      {
+        title: '11. Menores, cookies y cambios',
+        paragraphs: [
+          'Sneep Cut no está dirigido a menores de 16 años y no recopilamos a sabiendas sus datos. Si consideras que un menor ha proporcionado datos sin una autorización válida, contáctanos para que podamos investigarlo y eliminarlos cuando sea obligatorio.',
+          'Actualmente utilizamos almacenamiento del navegador estrictamente necesario y funcional, descrito en la Política de cookies. Si se introducen tecnologías de análisis o marketing no esenciales, solicitaremos el consentimiento cuando sea necesario.',
+          'Podemos actualizar esta política cuando cambien el servicio, los proveedores o la ley. Publicaremos la nueva fecha y proporcionaremos un aviso adicional para los cambios sustanciales cuando sea obligatorio.'
+        ]
+      }
+    ],
+    contactTitle: '12. Contacto',
+    contactPrompt: `Para consultas o solicitudes sobre privacidad, contacta con ${LEGAL_OPERATOR.legalName} en`,
+    contactFallback: LEGAL_OPERATOR.privacyEmail
   }
 }
 
@@ -631,6 +791,141 @@ export const TERMS_COPY: Record<SiteLocale, LegalDocumentCopy> = {
     contactTitle: '15. Contact',
     contactPrompt: `Întrebări sau reclamații pentru ${LEGAL_OPERATOR.legalName}:`,
     contactFallback: LEGAL_OPERATOR.email
+  },
+  es: {
+    title: 'Condiciones del servicio',
+    updated: updated.es,
+    intro:
+      'Estas Condiciones regulan el acceso a Sneep Cut. Al crear una cuenta o usar el servicio, celebras un acuerdo con GENESIS PROCUREMENT S.R.L. Lee las políticas enlazadas junto con estas Condiciones.',
+    sections: [
+      {
+        title: 'Servicios de la API de YouTube y datos de usuario de Google',
+        paragraphs: [
+          'Sneep Cut utiliza los Servicios de la API de YouTube. Al usar estas funciones aceptas las Condiciones del Servicio de YouTube. Google trata la información conforme a su Política de privacidad.',
+          'Con tu autorización, accedemos a los identificadores del canal, al nombre, a la miniatura, a los permisos concedidos y al estado de las subidas. Almacenamos los tokens de acceso y de actualización de OAuth cifrados y los usamos únicamente para identificar tu canal, mantener la conexión y subir los videos que selecciones con el título, la descripción, la visibilidad y las opciones de audiencia que apruebes. No descargamos contenido audiovisual de YouTube a través de esta conexión ni utilizamos los datos de la API de YouTube para entrenar IA, para publicidad ni para venderlos.',
+          'Puedes revocar el acceso desde los permisos de tu cuenta de Google o desconectar YouTube en los ajustes de conexión del Calendario. Al desconectar, se eliminan de inmediato las credenciales de YouTube almacenadas localmente, los metadatos del canal y los registros asociados de la API de publicación de YouTube. Los videos ya subidos permanecen en YouTube hasta que los elimines allí. Tus archivos originales subidos y los proyectos creados de forma independiente se rigen por los controles generales de conservación.',
+          'Verificamos a diario la autorización de YouTube y actualizamos la información del canal. Si se revoca el acceso, se eliminan los datos de la API asociados; si no se puede verificar la autorización, esos datos se purgan en un plazo de siete días desde la última verificación. La información del canal almacenada se actualiza o se elimina en un plazo de treinta días. También puedes solicitar la eliminación en admin@sneepcut.com; las solicitudes sobre datos de usuario de la API de YouTube se atienden lo antes posible y en un plazo máximo de siete días naturales.',
+          'El acceso, uso, almacenamiento y puesta en común de los datos de usuario de Google cumplen la Política de datos de usuario de los Servicios de API de Google, incluidos sus requisitos de uso limitado. Los datos solo se comparten con Google para la subida que solicitas y con los proveedores de servicios necesarios, con las garantías descritas en esta política.'
+        ],
+        links: [
+          {
+            label: 'Condiciones del Servicio de YouTube',
+            href: 'https://www.youtube.com/t/terms'
+          },
+          {
+            label: 'Política de privacidad de Google',
+            href: 'https://policies.google.com/privacy'
+          },
+          {
+            label: 'Permisos de la cuenta de Google',
+            href: 'https://myaccount.google.com/permissions'
+          }
+        ]
+      },
+      {
+        title: '1. Operador y acuerdo',
+        paragraphs: [
+          `${LEGAL_OPERATOR.brand} es un servicio de ${LEGAL_OPERATOR.legalName}, CUI ${LEGAL_OPERATOR.taxId}, Registro Mercantil ${LEGAL_OPERATOR.tradeRegister}, domicilio social ${LEGAL_OPERATOR.address}. Estas Condiciones, la Política de privacidad, la Política de uso aceptable, la Política de cancelación y reembolso, y la información del pedido que se muestra al pagar constituyen el acuerdo aplicable.`,
+          'Si utilizas Sneep Cut en nombre de una organización, confirmas que tienes autoridad para obligarla. Los derechos de los consumidores que no pueden renunciarse no se ven afectados.'
+        ]
+      },
+      {
+        title: '2. Elegibilidad y seguridad de la cuenta',
+        paragraphs: [
+          'Debes tener al menos 18 años o tener de otro modo capacidad legal para celebrar este acuerdo. Facilita información veraz, mantén tus credenciales en confidencialidad, utiliza los controles de seguridad disponibles y notifícanos sin demora cualquier sospecha de uso no autorizado. Eres responsable de la actividad realizada a través de tu cuenta, salvo que la ley imperativa disponga otra cosa.'
+        ]
+      },
+      {
+        title: '3. Servicio y resultados asistidos por IA',
+        paragraphs: [
+          'Sneep Cut ofrece herramientas para subir o importar contenido multimedia, identificar posibles momentos destacados, generar clips cortos, transcribir, añadir subtítulos, reencuadrar, editar, exportar, programar y publicar contenido en destinos compatibles. Las funciones y los formatos compatibles pueden cambiar a medida que el servicio evoluciona.',
+          'El resultado asistido por IA es una sugerencia, puede ser inexacto o incompleto, o no ser adecuado, y debe revisarse antes de usarse. Tú sigues siendo responsable de las decisiones editoriales, las afirmaciones de hecho, las advertencias, las autorizaciones de derechos y el contenido que exportes o publiques. Sneep Cut no ofrece asesoramiento jurídico, médico, financiero ni profesional.'
+        ]
+      },
+      {
+        title: '4. Tu contenido y permisos',
+        paragraphs: [
+          'Conservas la titularidad de tu contenido. Nos concedes una licencia mundial, no exclusiva y limitada para alojar, copiar, transmitir, dar formato, transformar y tratar de otro modo el contenido únicamente en la medida razonablemente necesaria para operar, proteger, dar soporte y mejorar el servicio para ti. Esta licencia termina cuando se elimina el contenido, sin perjuicio de la conservación legal, las copias de seguridad protegidas y las publicaciones ya completadas.',
+          'Confirmas que tienes todos los derechos, licencias, consentimientos, autorizaciones y bases jurídicas necesarios para el material subido, las personas que aparecen o se escuchan en él, la música, las marcas, los datos personales, los prompts y las publicaciones solicitadas. No subas información confidencial salvo que estés autorizado a usar el servicio para ello.'
+        ]
+      },
+      {
+        title: '5. Plataformas conectadas y publicación',
+        paragraphs: [
+          'Conectar una plataforma no transfiere la titularidad de esa cuenta. Autorizas a Sneep Cut a utilizar los permisos que apruebes únicamente para las funciones que solicites. Debes cumplir las condiciones, las políticas, los límites técnicos y los requisitos de información de la plataforma de destino.',
+          'Tú controlas el contenido multimedia seleccionado, los destinos, el subtítulo, las opciones y la acción de publicar ahora o programar. Las publicaciones programadas pueden enviarse automáticamente en el momento que hayas seleccionado. La revisión, el procesamiento, la disponibilidad, el rechazo, la retirada o los cambios posteriores de política de la plataforma escapan a nuestro control. Verifica siempre la publicación final y evita enviarla dos veces si el resultado es temporalmente desconocido.'
+        ]
+      },
+      {
+        title: '6. Planes, créditos, precios y pago',
+        paragraphs: [
+          'Las pantallas de precios y de pago indican, antes de la compra, el producto seleccionado, la moneda, el periodo de facturación, las funciones o créditos incluidos, las condiciones de renovación y los impuestos aplicables. El pago lo gestiona el proveedor de pagos que se muestra. Las suscripciones de pago se renuevan por el periodo indicado hasta que se cancelen.',
+          'Los créditos son unidades de uso del servicio, no dinero, valores ni bienes transferibles. La interfaz del producto indica el coste actual en créditos antes de una operación con cargo. Los créditos pueden tener reglas de renovación, acumulación o caducidad específicas del plan, que se muestran con la oferta. Un fallo técnico no debería dar lugar al cobro de un servicio no prestado; si el saldo mostrado parece incorrecto, contacta con soporte para su revisión.',
+          'Autorizas los cargos aplicables y debes mantener actualizados tus datos de facturación. Podemos suspender las funciones de pago tras un pago fallido. La cancelación, el desistimiento legal, los reembolsos, los cobros duplicados y los errores de procesamiento se rigen por la Política de cancelación y reembolso y por la ley imperativa.'
+        ]
+      },
+      {
+        title: '7. Uso aceptable',
+        paragraphs: [
+          'Debes cumplir la Política de uso aceptable. En particular, no proceses contenido sin autorización, no vulneres derechos de propiedad intelectual o de privacidad, no engañes ni suplantes ilegalmente a nadie, no explotes a menores, no distribuyas software malicioso, no eludas la seguridad ni las cuotas, no hagas spam en las plataformas, ni utilices Sneep Cut para actividades ilegales o dañinas.'
+        ]
+      },
+      {
+        title: '8. Propiedad intelectual de Sneep Cut y comentarios',
+        paragraphs: [
+          'El servicio, el software, la interfaz, la marca, la documentación, las plantillas y todos los derechos relacionados, distintos de tu contenido, pertenecen a nosotros o a nuestros licenciantes. Te concedemos un derecho limitado, revocable y no transferible a usar el servicio durante el acuerdo. No puedes copiar, vender, realizar ingeniería inversa ni crear un servicio competidor no autorizado, salvo cuando la ley aplicable lo permita expresamente.',
+          'Si nos proporcionas comentarios, nos autorizas a utilizarlos sin restricción ni compensación, pero no te identificaremos públicamente sin tu permiso.'
+        ]
+      },
+      {
+        title: '9. Servicios de terceros',
+        paragraphs: [
+          'La autenticación, los pagos, la IA, el alojamiento, las plataformas sociales y otras integraciones son servicios de terceros regidos por sus propias condiciones. No somos responsables de su contenido independiente, de sus interrupciones, de sus decisiones sobre cuentas ni de la aplicación de sus políticas. La Política de privacidad explica cómo se comparten los datos cuando usas una integración.'
+        ]
+      },
+      {
+        title: '10. Disponibilidad, cambios y funciones beta',
+        paragraphs: [
+          'El tiempo de procesamiento y la disponibilidad dependen del material de origen, de las colas, del mantenimiento y de los proveedores externos. Podemos actualizar, añadir, restringir o descontinuar funciones. Cuando sea razonablemente posible, avisaremos con antelación de una reducción sustancial de un servicio de pago activo. Las funciones de vista previa o beta pueden modificarse o retirarse y pueden ser menos fiables.'
+        ]
+      },
+      {
+        title: '11. Suspensión, terminación y datos',
+        paragraphs: [
+          'Puedes dejar de usar el servicio, cancelar la renovación, desconectar plataformas y solicitar la eliminación de la cuenta mediante los controles disponibles. Podemos restringir o suspender el acceso cuando sea razonablemente necesario por un incumplimiento grave, actividad ilegal, impago, riesgo de seguridad, perjuicio al servicio o a terceros, o cumplimiento de la ley. Daremos aviso y una oportunidad de subsanar cuando proceda.',
+          'La terminación no elimina las obligaciones o derechos que por su naturaleza subsisten, incluidos los pagos pendientes, la titularidad, los límites de responsabilidad y las disposiciones sobre controversias. Tras la terminación, los datos se gestionan como se describe en la Política de privacidad y en las instrucciones de Eliminación de datos.'
+        ]
+      },
+      {
+        title: '12. Garantías y responsabilidad',
+        paragraphs: [
+          'Prestamos el servicio con una diligencia y una pericia razonables. En la máxima medida permitida por la ley, no garantizamos una disponibilidad ininterrumpida, un resultado creativo concreto, la aceptación por parte de las plataformas, ni que cada resultado asistido por IA sea exacto o esté libre de reclamaciones de terceros. Eres responsable de conservar copias del material de origen importante y de revisar los resultados antes de publicarlos.',
+          'Nada de estas Condiciones excluye la responsabilidad que no pueda excluirse legalmente, incluidos los recursos obligatorios de los consumidores. Para los usuarios empresariales, en la medida permitida por la ley, ninguna de las partes responde por pérdidas indirectas o consecuenciales, y nuestra responsabilidad agregada derivada del servicio se limita al importe pagado por el servicio afectado durante los 12 meses anteriores al hecho. Este límite no se aplica al fraude, a la conducta dolosa, a los incumplimientos de confidencialidad, a la responsabilidad en materia de protección de datos que no pueda limitarse, ni a las obligaciones de pago.'
+        ]
+      },
+      {
+        title: '13. Ley aplicable y controversias',
+        paragraphs: [
+          'Este acuerdo se rige por la ley rumana, sin privar a un consumidor del EEE de la protección imperativa disponible en el país de su residencia habitual. Los consumidores pueden presentar demandas ante los tribunales competentes conforme a la legislación aplicable en materia de consumo. En las controversias en las que intervengan únicamente usuarios empresariales, son competentes los tribunales del condado de Timiș (Rumanía), salvo que las partes acuerden otra cosa.',
+          'Contáctanos primero para que podamos intentar resolver una reclamación. Los consumidores rumanos que cumplan los requisitos también pueden utilizar el servicio de resolución alternativa de litigios de la ANPC. La antigua plataforma europea de resolución de litigios en línea se discontinuó en 2025 y no se presenta como canal disponible.'
+        ],
+        links: [
+          {
+            label: 'Resolución alternativa de litigios de la ANPC (SAL)',
+            href: 'https://reclamatiisal.anpc.ro/'
+          }
+        ]
+      },
+      {
+        title: '14. Cambios y notificaciones',
+        paragraphs: [
+          'Podemos actualizar estas Condiciones por cambios legales, de seguridad, de proveedores o de producto. Publicaremos la fecha de revisión y daremos un aviso adicional antes de que entren en vigor los cambios sustanciales, cuando sea necesario. Seguir usando el servicio después de la fecha de entrada en vigor implica aceptación solo en la medida permitida por la ley. Las notificaciones pueden enviarse al correo electrónico de la cuenta o mostrarse en el servicio.'
+        ]
+      }
+    ],
+    contactTitle: '15. Contacto',
+    contactPrompt: `Consultas o reclamaciones para ${LEGAL_OPERATOR.legalName}:`,
+    contactFallback: LEGAL_OPERATOR.email
   }
 }
 
@@ -751,6 +1046,65 @@ export const DATA_DELETION_COPY: Record<SiteLocale, LegalDocumentCopy> = {
     ],
     contactTitle: '8. Ajutor pentru ștergere',
     contactPrompt: 'Trimite cererea de ștergere sau verificare a stării la',
+    contactFallback: LEGAL_OPERATOR.privacyEmail
+  },
+  es: {
+    title: 'Instrucciones para la eliminación de datos',
+    updated: updated.es,
+    intro:
+      'Utiliza estas instrucciones para eliminar contenido individual, desconectar una cuenta social, eliminar publicaciones ya publicadas cuando la plataforma lo permita, o solicitar la eliminación de tu cuenta de Sneep Cut y de tus datos personales.',
+    sections: [
+      {
+        title: '1. Eliminar contenido multimedia o un proyecto',
+        paragraphs: [
+          'Inicia sesión, abre el proyecto, clip o elemento del calendario correspondiente y elige su acción de eliminar. Confirma la solicitud que se muestra en la interfaz. Eliminar un elemento de Sneep Cut borra su registro en la aplicación y el contenido multimedia activo asociado cuando sea compatible. No elimina automáticamente una publicación que ya exista en una plataforma social.'
+        ]
+      },
+      {
+        title: '2. Desconecta Instagram, Facebook, TikTok o YouTube',
+        paragraphs: [
+          'Abre Publicar o Calendario, localiza Cuentas conectadas, elige Desconectar para la cuenta y confirma. Sneep Cut elimina la autorización almacenada localmente e impide nuevos envíos a través de esa conexión. Los trabajos pendientes se cancelan cuando todavía es posible cancelarlos; una solicitud ya enviada a la plataforma puede completarse.',
+          'También puedes revocar Sneep Cut desde los ajustes de aplicaciones conectadas de la plataforma. Que la revocación se refleje en Sneep Cut puede tardar un tiempo. Nunca nos envíes una contraseña de la plataforma, token de acceso, código de recuperación ni código de inicio de sesión de un solo uso.'
+        ]
+      },
+      {
+        title: '3. Eliminar una publicación publicada',
+        paragraphs: [
+          'Al eliminar un elemento del calendario, Sneep Cut muestra opciones específicas de cada plataforma. Si una plataforma conectada permite la eliminación a través de su API, puedes seleccionar explícitamente ese destino y Sneep Cut enviará la solicitud de eliminación. Instagram exige actualmente que elimines una publicación ya publicada directamente en Instagram. Otras plataformas pueden imponer restricciones similares o rechazar una solicitud de eliminación.',
+          'Quitar una publicación de una plataforma no elimina por sí solo el contenido de origen, el proyecto, la cuenta ni el historial de publicaciones en Sneep Cut. Elimínalos por separado si lo deseas.'
+        ]
+      },
+      {
+        title: '4. Elimina tu cuenta de Sneep Cut',
+        paragraphs: [
+          'Abre Panel → Ajustes → Datos y privacidad, elige Eliminar cuenta, completa la confirmación de identidad y confirma la advertencia final. La eliminación cancela, cuando es posible, las autorizaciones de publicación activas y los trabajos pendientes, elimina las credenciales sociales y los estados de OAuth, limpia el contenido multimedia de la cuenta y elimina la cuenta una vez completadas de forma segura la cancelación de la facturación y el procesamiento activo.',
+          'Si una condición temporal del proveedor, de facturación o de procesamiento impide completar la operación de forma segura, la interfaz te pedirá que lo intentes de nuevo. Tu cuenta no se considera eliminada hasta que la operación se complete.'
+        ]
+      },
+      {
+        title: '5. Solicita la eliminación si no puedes iniciar sesión',
+        paragraphs: [
+          `Envía un correo electrónico a ${LEGAL_OPERATOR.privacyEmail} desde la dirección asociada a tu cuenta e indica que solicitas la eliminación de la cuenta y de los datos personales. Incluye solo el correo electrónico de la cuenta y el contexto suficiente para localizarla. Podemos solicitar una verificación de identidad proporcionada. No incluyas contraseñas, tokens ni códigos de inicio de sesión.`,
+          'Confirmamos la recepción de las solicitudes de privacidad y normalmente respondemos sin demoras injustificadas y en el plazo de un mes cuando se aplica el RGPD, sin perjuicio de las prórrogas permitidas para solicitudes complejas.'
+        ]
+      },
+      {
+        title: '6. Qué datos pueden permanecer',
+        paragraphs: [
+          'La eliminación no retira las publicaciones ya entregadas a plataformas de terceros, salvo que las elimines por separado. Podemos conservar facturas limitadas, pruebas de transacciones, registros de seguridad, pruebas de eliminación o datos necesarios para reclamaciones legales durante el período que exija la ley aplicable.',
+          'Las copias residuales en copias de seguridad protegidas, si existen, no vuelven a su uso ordinario y se eliminan o sobrescriben según el ciclo de vida de copias de seguridad aplicable, salvo que la conservación sea legalmente obligatoria. Si se restaura una copia de seguridad, se utilizan los controles y registros de eliminación para impedir que los datos eliminados vuelvan a estar activos.'
+        ]
+      },
+      {
+        title: '7. Datos de Meta y de plataformas conectadas',
+        paragraphs: [
+          'El mismo proceso de eliminación de cuenta abarca los identificadores de cuenta y de Página de Meta, la información de perfil puesta a disposición mediante los permisos aprobados, las credenciales de acceso cifradas, los ámbitos de permisos, los destinos de publicación, los subtítulos, los identificadores de las publicaciones en la plataforma y el historial de estados conservados en tu cuenta de Sneep Cut, sujeto a las excepciones limitadas de conservación indicadas arriba.',
+          'Esta página pública ofrece instrucciones de eliminación para usuarios. No solicita tus credenciales de Facebook o Instagram y no sustituye a los controles propios de la plataforma para eliminar la cuenta.'
+        ]
+      }
+    ],
+    contactTitle: '8. Ayuda con la eliminación',
+    contactPrompt: 'Envía una solicitud de eliminación o de estado a',
     contactFallback: LEGAL_OPERATOR.privacyEmail
   }
 }

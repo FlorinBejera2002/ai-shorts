@@ -10,7 +10,7 @@ import { Link } from '@/i18n/navigation'
 import { durationLimit } from './job-processing-model'
 import { jobStageIllustrationAlt, jobStageTitle } from './job-processing-copy'
 
-type Text = (english: string, romanian: string) => string
+type Text = (english: string, romanian: string, spanish?: string) => string
 
 const FAILED_ILLUSTRATION_ALT = (text: Text) =>
   text('Ana and Radu try to repair a projector', 'Ana și Radu încearcă să repună în funcțiune un proiector')

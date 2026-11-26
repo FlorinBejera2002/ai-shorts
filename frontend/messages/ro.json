@@ -31,7 +31,9 @@
     "billing": "Abonament și facturare",
     "writeScript": "Scrie un scenariu",
     "backToCreate": "Înapoi la proiect nou",
-    "planPost": "Planifică o postare"
+    "planPost": "Planifică o postare",
+    "library": "Bibliotecă",
+    "review": "Revizuire"
   },
   "creditUsage": {
     "title": "Utilizare credite",
@@ -116,7 +118,8 @@
     "monthlyUsage": "Utilizare lunară",
     "monthlyUsageLabel": "Utilizare lunară: {percent}% folosit",
     "usageResets": "Se resetează pe {date}",
-    "feedback": "Feedback"
+    "feedback": "Feedback",
+    "review": "Revizuire"
   },
   "landing": {
     "badge": "Din conținut lung în impact scurt",

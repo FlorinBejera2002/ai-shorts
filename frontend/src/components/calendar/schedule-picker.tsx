@@ -50,7 +50,8 @@ export function SchedulePicker({ date, time, onDateChange, onTimeChange, dateErr
   const selectedDate = parseLocalDateKey(date) ?? new Date()
   const [viewMonth, setViewMonth] = useState(() => new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1))
   const [openPanel, setOpenPanel] = useState<OpenPanel>(null)
-  const weekStartsOn: 0 | 1 = locale.toLowerCase().startsWith('ro') ? 1 : 0
+  // Romania and Spain both start the week on Monday.
+  const weekStartsOn: 0 | 1 = /^(ro|es)\b/i.test(locale) ? 1 : 0
   const [hour = '09', minute = '00'] = time.split(':')
   const hours = Array.from({ length: 24 }, (_, value) => String(value).padStart(2, '0'))
   const minutes = [...new Set([...Array.from({ length: 12 }, (_, value) => String(value * 5).padStart(2, '0')), minute])].sort()

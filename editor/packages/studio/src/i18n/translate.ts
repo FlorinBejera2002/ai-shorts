@@ -1,10 +1,10 @@
-// t() and the active locale. Locale resolution: ?lang= (ro or en), then the browser language
-// (starting with "ro" gives Romanian), then English. <html lang> follows the resolved locale.
+// t() and the active locale. Locale resolution: ?lang= (en, ro or es), then the browser language
+// (starting with "ro" gives Romanian, "es" Spanish), then English. <html lang> follows the resolved locale.
 import { useSyncExternalStore } from "react";
 import { messages, type MessageKey, type StudioLocale } from "./dictionary";
 
 export function parseStudioLocale(value: unknown): StudioLocale | null {
-  return value === "ro" || value === "en" ? value : null;
+  return value === "ro" || value === "en" || value === "es" ? value : null;
 }
 
 export function resolveStudioLocale(search: string, browserLanguage: string): StudioLocale {
@@ -15,7 +15,10 @@ export function resolveStudioLocale(search: string, browserLanguage: string): St
     requested = null;
   }
   if (requested) return requested;
-  return browserLanguage.toLowerCase().startsWith("ro") ? "ro" : "en";
+  const language = browserLanguage.toLowerCase();
+  if (language.startsWith("ro")) return "ro";
+  if (language.startsWith("es")) return "es";
+  return "en";
 }
 
 let activeLocale: StudioLocale = "en";
@@ -68,4 +71,9 @@ export function startStudioLocale(search: string, browserLanguage: string): Stud
   setStudioLocale(locale);
   document.documentElement.lang = locale;
   return locale;
+}
+
+/** Romanian and Spanish write decimals with a comma ("0,4 s"); English uses a point. */
+export function usesDecimalComma(locale: StudioLocale): boolean {
+  return locale !== "en";
 }

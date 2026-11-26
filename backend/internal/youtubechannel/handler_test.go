@@ -240,6 +240,9 @@ func TestReturnURLKeepsLocalePrefixAndResult(t *testing.T) {
 	if got := returnURL("https://sneepcut.example/", "ro", "error"); got != "https://sneepcut.example/ro/dashboard/create?mode=youtube&youtubeChannel=error" {
 		t.Fatalf("ro return URL = %s", got)
 	}
+	if got := returnURL("https://sneepcut.example/", "es", "error"); got != "https://sneepcut.example/es/dashboard/create?mode=youtube&youtubeChannel=error" {
+		t.Fatalf("Spanish return location: %q", got)
+	}
 	if got := returnURL(testAppURL, "en", "success"); got != testAppURL+"/dashboard/create?mode=youtube&youtubeChannel=success" {
 		t.Fatalf("en return URL = %s", got)
 	}

@@ -6,6 +6,7 @@ import (
 	"sneepcut/backend-go/internal/data"
 	"sneepcut/backend-go/internal/httpx"
 	"sneepcut/backend-go/internal/identity"
+	"sneepcut/backend-go/internal/locale"
 	"sneepcut/backend-go/internal/stories"
 	"sneepcut/backend-go/internal/story"
 )
@@ -71,8 +72,8 @@ func (h *Handler) suggestions(w http.ResponseWriter, r *http.Request) {
 				failure(w, err)
 				return
 			}
-			if r.URL.Query().Get("locale") == "en" {
-				localizeSuggestion(&s)
+			if uiLocale := r.URL.Query().Get("locale"); uiLocale == locale.English || uiLocale == locale.Spanish {
+				localizeSuggestion(uiLocale, &s)
 			}
 			out = append(out, s)
 		}
@@ -109,21 +110,41 @@ func (h *Handler) suggestions(w http.ResponseWriter, r *http.Request) {
 	}
 	httpx.JSON(w, 200, map[string]any{"suggestions": out, "capabilities": accountCatalog(h.executor.Catalog(), unlimited)})
 }
-func localizeSuggestion(s *Suggestion) {
-	switch s.Action.Name {
-	case "stories.create":
-		s.Title = "Build a clip from my recordings"
-		s.Description = "Prepare a 30-second clip, wait for your recordings, then continue after upload. Generation requires confirmation of its 10-credit cost."
-		s.MissingResources = []string{"Recordings for the story"}
-	case "projects.list":
-		s.Title = "Show my projects"
-		s.Description = "Read existing projects and their status without changing them."
-	case "stories.get":
-		s.Title = "Show the story status"
-		s.Description = "Read the saved resources, version and review result."
-	case "stories.generate":
-		s.Title = "Build a clip from these recordings"
-		s.Description = "Use the saved options and the existing story engine's bounded review and repair. Confirm the cost before processing starts."
+
+// suggestionText is the card copy for one proposal action in a UI locale.
+type suggestionText struct {
+	Title, Description string
+	// MissingResources replaces the stored list only when set.
+	MissingResources []string
+}
+
+// localizedSuggestionTexts holds card copy for the locales that request it.
+// Stored proposals are written in Romanian and keep their stored copy for ro.
+var localizedSuggestionTexts = map[string]map[string]suggestionText{
+	locale.English: {
+		"stories.create":   {Title: "Build a clip from my recordings", Description: "Prepare a 30-second clip, wait for your recordings, then continue after upload. Generation requires confirmation of its 10-credit cost.", MissingResources: []string{"Recordings for the story"}},
+		"projects.list":    {Title: "Show my projects", Description: "Read existing projects and their status without changing them."},
+		"stories.get":      {Title: "Show the story status", Description: "Read the saved resources, version and review result."},
+		"stories.generate": {Title: "Build a clip from these recordings", Description: "Use the saved options and the existing story engine's bounded review and repair. Confirm the cost before processing starts."},
+	},
+	locale.Spanish: {
+		"stories.create":   {Title: "Crea un clip con mis grabaciones", Description: "Prepara un clip de 30 segundos, espera tus grabaciones y continúa después de subirlas. La generación requiere confirmar su costo de 10 créditos.", MissingResources: []string{"Grabaciones para la historia"}},
+		"projects.list":    {Title: "Muestra mis proyectos", Description: "Consulta los proyectos existentes y su estado sin modificarlos."},
+		"stories.get":      {Title: "Muestra el estado de la historia", Description: "Consulta los recursos guardados, la versión y el resultado de la revisión."},
+		"stories.generate": {Title: "Crea un clip con estas grabaciones", Description: "Usa las opciones guardadas y la revisión y corrección acotadas del motor de historias. Confirma el costo antes de que empiece el procesamiento."},
+	},
+}
+
+// localizeSuggestion replaces stored card copy with the requested locale's text.
+func localizeSuggestion(uiLocale string, s *Suggestion) {
+	text, ok := localizedSuggestionTexts[uiLocale][s.Action.Name]
+	if !ok {
+		return
+	}
+	s.Title = text.Title
+	s.Description = text.Description
+	if text.MissingResources != nil {
+		s.MissingResources = text.MissingResources
 	}
 }
 func (h *Handler) dismiss(w http.ResponseWriter, r *http.Request) {

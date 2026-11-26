@@ -27,13 +27,15 @@ test('uses unprefixed canonical URLs for the default locale', () => {
   process.env.NEXT_PUBLIC_APP_URL = 'https://app.example.test/base'
   assert.equal(site.localePath('en', '/pricing'), '/pricing')
   assert.equal(site.localePath('ro', '/pricing'), '/ro/pricing')
+  assert.equal(site.localePath('es', '/pricing'), '/es/pricing')
   assert.deepEqual(site.localizedUrls('/pricing'), {
     en: 'https://app.example.test/pricing',
     ro: 'https://app.example.test/ro/pricing',
+    es: 'https://app.example.test/es/pricing',
     'x-default': 'https://app.example.test/pricing'
   })
   const entries = site.buildSitemapEntries()
-  assert.equal(entries.length, 22)
+  assert.equal(entries.length, 33)
   for (const route of [
     '/data-deletion',
     '/legal-notice',
@@ -49,6 +51,10 @@ test('uses unprefixed canonical URLs for the default locale', () => {
     )
     assert.equal(
       entries.some((entry) => new URL(entry.url).pathname === `/ro${route}`),
+      true
+    )
+    assert.equal(
+      entries.some((entry) => new URL(entry.url).pathname === `/es${route}`),
       true
     )
   }

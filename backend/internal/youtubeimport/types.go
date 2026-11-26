@@ -5,6 +5,7 @@ package youtubeimport
 import (
 	"context"
 	"errors"
+	"sneepcut/backend-go/internal/locale"
 	"strings"
 	"time"
 )
@@ -95,11 +96,8 @@ func resourceVisibilities(resources []string) []string {
 	return values
 }
 
-func returnURL(appURL, locale, result string) string {
-	prefix := ""
-	if locale == "ro" {
-		prefix = "/ro"
-	}
+func returnURL(appURL, uiLocale, result string) string {
+	prefix := locale.PathPrefix(uiLocale)
 	query := "youtubeImport=success"
 	if result != "success" {
 		query = "youtubeImport=error&youtubeImportError=" + result

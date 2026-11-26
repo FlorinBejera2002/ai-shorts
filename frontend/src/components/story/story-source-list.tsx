@@ -76,7 +76,8 @@ export function SourceList({
     lift && liftedRow
       ? `${sourceRowName(liftedRow)}: ${text(
           `position ${lift.target + 1} of ${assetCount}`,
-          `poziția ${lift.target + 1} din ${assetCount}`
+          `poziția ${lift.target + 1} din ${assetCount}`,
+          `posición ${lift.target + 1} de ${assetCount}`
         )}`
       : ''
 

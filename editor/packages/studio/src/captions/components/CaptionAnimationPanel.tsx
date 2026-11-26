@@ -4,7 +4,7 @@ import type { CaptionAnimation, CaptionAnimationSet, CaptionModel } from "../typ
 import { Section, SelectField, SliderField, type SelectChoice } from "./shared";
 import { EmptyState } from "../../components/ui";
 import { messagesEn, type MessageKey } from "../../i18n/dictionary";
-import { getStudioLocale, t, useLocale } from "../../i18n/translate";
+import { getStudioLocale, t, useLocale, usesDecimalComma } from "../../i18n/translate";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -104,7 +104,7 @@ interface AnimationPhaseProps {
 /** "0,4 s" in Romanian, "0.4 s" in English. */
 const seconds = (value: number) => {
   const text = String(Number(value.toFixed(2)));
-  return `${getStudioLocale() === "ro" ? text.replace(".", ",") : text} s`;
+  return `${usesDecimalComma(getStudioLocale()) ? text.replace(".", ",") : text} s`;
 };
 
 /** St-Inspector-CapIn / CapOut: preset select, Durată | Decalaj, Curbă | Intensitate. */

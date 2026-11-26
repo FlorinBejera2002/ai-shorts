@@ -15,6 +15,7 @@ import (
 	"github.com/lib/pq"
 	"sneepcut/backend-go/internal/data"
 	"sneepcut/backend-go/internal/identity"
+	"sneepcut/backend-go/internal/locale"
 )
 
 const callbackPath = "/v1/youtube/import/callback"
@@ -121,9 +122,7 @@ func (h *Handler) connect(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "Choose the videos to import and accept the import disclosure.")
 		return
 	}
-	if input.Locale != "ro" {
-		input.Locale = "en"
-	}
+	input.Locale = locale.Normalize(input.Locale)
 	state, err := randomSecret()
 	if err != nil {
 		writeError(w, http.StatusServiceUnavailable, "Could not start YouTube import.")
@@ -165,9 +164,9 @@ func (h *Handler) connect(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) callback(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "private, no-store")
 	w.Header().Set("Referrer-Policy", "no-referrer")
-	locale := "en"
+	uiLocale := locale.English
 	redirect := func(result string) {
-		http.Redirect(w, r, returnURL(h.cfg.AppURL, locale, result), http.StatusSeeOther)
+		http.Redirect(w, r, returnURL(h.cfg.AppURL, uiLocale, result), http.StatusSeeOther)
 	}
 	if !h.cfg.Enabled || h.client == nil || h.vault == nil {
 		redirect("unavailable")
@@ -185,7 +184,7 @@ func (h *Handler) callback(w http.ResponseWriter, r *http.Request) {
 		redirect("invalid_state")
 		return
 	}
-	locale = authorization.Locale
+	uiLocale = authorization.Locale
 	if r.URL.Query().Get("error") != "" || code == "" {
 		h.authorizationFailed(r.Context(), authorization.ID, "Authorization was declined. Connect again when you are ready.")
 		redirect("denied")

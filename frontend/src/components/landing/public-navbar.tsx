@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/sheet'
 import { Link } from '@/i18n/navigation'
 import { ArrowUpRight, Menu, X } from 'lucide-react'
+import { pickInlineText } from '@/i18n/inline-text'
 import { useLocale } from 'next-intl'
 import { useEffect, useState } from 'react'
 
@@ -38,7 +39,7 @@ export function PublicNavbar({ labels, forceDark = false }: PublicNavbarProps) {
   useEffect(() => {
     if (locale) setOpen(false)
   }, [locale])
-  const title = locale === 'ro' ? 'Navigare principală' : 'Primary navigation'
+  const title = pickInlineText(locale, 'Primary navigation', 'Navigare principală', 'Navegación principal')
   return (
     <nav
       aria-label={title}
@@ -48,7 +49,7 @@ export function PublicNavbar({ labels, forceDark = false }: PublicNavbarProps) {
         <Link
           href="/"
           aria-label={
-            locale === 'ro' ? 'Pagina principală Sneep Cut' : 'Sneep Cut home'
+            pickInlineText(locale, 'Sneep Cut home', 'Pagina principală Sneep Cut', 'Inicio de Sneep Cut')
           }
           className="rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
@@ -77,7 +78,7 @@ export function PublicNavbar({ labels, forceDark = false }: PublicNavbarProps) {
               variant="outline"
               size="icon"
               className="md:hidden"
-              aria-label={locale === 'ro' ? 'Deschide meniul' : 'Open menu'}
+              aria-label={pickInlineText(locale, 'Open menu', 'Deschide meniul', 'Abrir menú')}
             >
               <Menu className="size-5" />
             </Button>
@@ -85,14 +86,16 @@ export function PublicNavbar({ labels, forceDark = false }: PublicNavbarProps) {
           <SheetContent className="w-[min(22rem,90vw)]" showCloseButton={false}>
             <SheetHeader>
               <SheetTitle>{title}</SheetTitle>
-              <SheetDescription>Sneep Cut studio</SheetDescription>
+              <SheetDescription>
+                {pickInlineText(locale, 'Sneep Cut studio', 'Studioul Sneep Cut', 'Editor de Sneep Cut')}
+              </SheetDescription>
             </SheetHeader>
             <SheetClose asChild={true}>
               <Button
                 variant="ghost"
                 size="icon"
                 className="absolute right-3 top-3"
-                aria-label={locale === 'ro' ? 'Închide meniul' : 'Close menu'}
+                aria-label={pickInlineText(locale, 'Close menu', 'Închide meniul', 'Cerrar menú')}
               >
                 <X className="size-4" />
               </Button>

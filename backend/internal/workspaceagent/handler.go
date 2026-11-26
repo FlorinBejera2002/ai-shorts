@@ -14,6 +14,7 @@ import (
 	"sneepcut/backend-go/internal/data"
 	"sneepcut/backend-go/internal/httpx"
 	"sneepcut/backend-go/internal/identity"
+	"sneepcut/backend-go/internal/locale"
 )
 
 type Handler struct {
@@ -116,7 +117,7 @@ type createRequest struct {
 }
 
 func validScope(s Scope) bool {
-	if s.Locale != "" && s.Locale != "ro" && s.Locale != "en" {
+	if s.Locale != "" && !locale.Supported(s.Locale) {
 		return false
 	}
 	if !validHelpScope(s) {
@@ -321,9 +322,7 @@ func (h *Handler) control(w http.ResponseWriter, r *http.Request) {
 		}
 		if err := h.resourcesReady(r.Context(), &run); err != nil {
 			message := err.Error()
-			if run.Context.Locale == "ro" {
-				message = localizedRuntimeText(message)
-			}
+			message = localizedRuntimeText(run.Context.Locale, message)
 			httpx.Error(w, 409, message)
 			return
 		}

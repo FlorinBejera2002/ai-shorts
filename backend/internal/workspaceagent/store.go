@@ -66,11 +66,9 @@ func (h *Handler) get(ctx context.Context, user, id string) (Run, error) {
 }
 
 func (h *Handler) save(ctx context.Context, r *Run) error {
-	if r.Context.Locale == "ro" {
-		r.Error = localizedRuntimeText(r.Error)
-		if r.Status == "cancelled" {
-			r.Reply = localizedRuntimeText(r.Reply)
-		}
+	r.Error = localizedRuntimeText(r.Context.Locale, r.Error)
+	if r.Status == "cancelled" {
+		r.Reply = localizedRuntimeText(r.Context.Locale, r.Reply)
 	}
 	tx, err := h.db.BeginTx(ctx, nil)
 	if err != nil {

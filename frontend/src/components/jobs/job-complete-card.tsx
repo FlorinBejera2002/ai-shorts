@@ -31,7 +31,7 @@ export function JobCompleteCard({ jobId, source }: JobCompleteCardProps) {
           {clips.length > 0 && (
             <span className={styles.count}>
               <Check size={14} strokeWidth={3} aria-hidden="true" />
-              {text(`${clips.length} clips ready`, `${clips.length} clipuri gata`)}
+              {text(`${clips.length} clips ready`, `${clips.length} clipuri gata`, `${clips.length} clips listos`)}
             </span>
           )}
           <h2 className={styles.title}>{text('All clips are ready!', 'Toate clipurile sunt gata!')}</h2>

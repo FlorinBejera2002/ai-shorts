@@ -1,7 +1,7 @@
 
 export const SITE_NAME = 'Sneep Cut'
 export const DEFAULT_LOCALE = 'en'
-export const SUPPORTED_LOCALES = ['en', 'ro'] as const
+export const SUPPORTED_LOCALES = ['en', 'ro', 'es'] as const
 export const PUBLIC_ROUTES = [
   '',
   '/pricing',
@@ -29,10 +29,23 @@ export const PRIVATE_ROUTES = [
   '/ro/login',
   '/ro/register',
   '/ro/forgot-password',
-  '/ro/reset-password'
+  '/ro/reset-password',
+  '/es/activate',
+  '/es/dashboard',
+  '/es/login',
+  '/es/register',
+  '/es/forgot-password',
+  '/es/reset-password'
 ] as const
 
 export type SiteLocale = (typeof SUPPORTED_LOCALES)[number]
+
+/** Maps an untrusted locale segment (URL or API value) to a supported site locale. */
+export function resolveSiteLocale(value: string | undefined | null): SiteLocale {
+  return (SUPPORTED_LOCALES as readonly string[]).includes(value ?? '')
+    ? (value as SiteLocale)
+    : DEFAULT_LOCALE
+}
 
 const LOCALE_CONFIG = {
   en: {
@@ -48,6 +61,13 @@ const LOCALE_CONFIG = {
     title: 'Sneep Cut — clipuri video cu AI',
     description:
       'Transformă videoclipurile lungi în clipuri scurte gata de publicare, cu selecție asistată de AI, reîncadrare și subtitrări.'
+  },
+  es: {
+    languageTag: 'es-ES',
+    openGraphLocale: 'es_ES',
+    title: 'Sneep Cut — clips de video con IA',
+    description:
+      'Convierte videos largos en clips cortos listos para publicar, con momentos destacados asistidos por IA, reencuadre y subtítulos.'
   }
 } as const
 
@@ -93,6 +113,7 @@ export function localizedUrls(path = '', siteUrl = getSiteUrl()) {
   return {
     en: new URL(localePath('en', path), siteUrl).toString(),
     ro: new URL(localePath('ro', path), siteUrl).toString(),
+    es: new URL(localePath('es', path), siteUrl).toString(),
     'x-default': new URL(localePath('en', path), siteUrl).toString()
   }
 }
@@ -121,7 +142,9 @@ export function buildLocaleMetadata(
   const title = page.title ?? config.title
   const description = page.description ?? config.description
   const image = page.image ?? '/sneepcut-og.png'
-  const alternateLocale = locale === 'ro' ? 'en_US' : 'ro_RO'
+  const alternateLocale = SUPPORTED_LOCALES.filter((candidate) => candidate !== locale).map(
+    (candidate) => LOCALE_CONFIG[candidate].openGraphLocale
+  )
 
   return {
     metadataBase: siteUrl,
@@ -184,6 +207,27 @@ export function buildRobotsPolicy(siteUrl = getSiteUrl()) {
   }
 }
 
+const FEATURE_LIST: Record<SiteLocale, string[]> = {
+  en: [
+    'AI-assisted video highlight selection',
+    'Vertical video reframing',
+    'Caption generation',
+    'Clip review and export workflow'
+  ],
+  ro: [
+    'Selecția momentelor video asistată de AI',
+    'Reîncadrare pentru video vertical',
+    'Generare de subtitrări',
+    'Flux de verificare și export al clipurilor'
+  ],
+  es: [
+    'Selección de momentos destacados de video asistida por IA',
+    'Reencuadre de video vertical',
+    'Generación de subtítulos',
+    'Flujo de revisión y exportación de clips'
+  ]
+}
+
 export function buildSoftwareApplicationJsonLd(locale: SiteLocale) {
   const config = getLocaleConfig(locale)
   return {
@@ -195,19 +239,6 @@ export function buildSoftwareApplicationJsonLd(locale: SiteLocale) {
     url: new URL(localePath(locale), getSiteUrl()).toString(),
     description: config.description,
     inLanguage: config.languageTag,
-    featureList:
-      locale === 'ro'
-        ? [
-            'Selecția momentelor video asistată de AI',
-            'Reîncadrare pentru video vertical',
-            'Generare de subtitrări',
-            'Flux de verificare și export al clipurilor'
-          ]
-        : [
-            'AI-assisted video highlight selection',
-            'Vertical video reframing',
-            'Caption generation',
-            'Clip review and export workflow'
-          ]
+    featureList: FEATURE_LIST[locale]
   }
 }

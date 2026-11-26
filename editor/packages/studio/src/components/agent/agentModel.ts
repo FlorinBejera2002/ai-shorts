@@ -1,3 +1,4 @@
+import type { StudioLocale } from "../../i18n/dictionary";
 // Workspace agent (Ana și Radu) data model, shared with the app's agent API contract.
 // Pure helpers only: no React, no fetch.
 
@@ -26,7 +27,7 @@ export const AGENT_STATUSES: readonly AgentStatus[] = [
 
 export interface AgentContextScope {
   route: string;
-  locale?: "ro" | "en";
+  locale?: StudioLocale;
   project_id?: string;
   studio_selection?: string[];
 }
@@ -91,7 +92,7 @@ export function isUuid(value: string | null | undefined): value is string {
 /** The agent context for this Studio project. Only UUID projects and safe layer ids are sent. */
 export function studioScope(
   projectId: string | null,
-  locale: "ro" | "en",
+  locale: StudioLocale,
   selection: readonly string[] = [],
 ): AgentContextScope {
   const projectScope = isUuid(projectId) ? { project_id: projectId } : {};

@@ -11,12 +11,14 @@ describe("actionTitle", () => {
       expect(actionTitle(action(name), "ro")).not.toBe(name);
     }
     expect(actionTitle(action("projects.list"), "ro")).toBe("Arată proiectele");
+    expect(actionTitle(action("projects.list"), "es")).toBe("Muestra los proyectos");
   });
 
   it("titles every backend catalogue action instead of showing its dotted key", () => {
     for (const name of ["scripts.update", "publishing.disconnect", "settings.preferences.update"]) {
       expect(actionTitle(action(name), "en")).not.toContain(".");
       expect(actionTitle(action(name), "ro")).not.toContain(".");
+      expect(actionTitle(action(name), "es")).not.toContain(".");
     }
     expect(actionTitle(action("scripts.update"), "ro")).toBe("Modifică scriptul");
     expect(actionTitle(action("publishing.disconnect"), "ro")).toBe("Deconectează contul");

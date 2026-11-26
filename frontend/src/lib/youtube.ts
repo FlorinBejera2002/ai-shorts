@@ -20,10 +20,13 @@ export function youtubeThumbnailUrl(videoId: string): string {
   return `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`
 }
 
-export function formatBytes(bytes: number): string {
-  if (bytes >= 1024 ** 3) return `${(bytes / 1024 ** 3).toFixed(2)} GB`
-  if (bytes >= 1024 ** 2) return `${(bytes / 1024 ** 2).toFixed(1)} MB`
-  if (bytes >= 1024) return `${(bytes / 1024).toFixed(0)} KB`
+/** Formats a byte count with the locale's decimal separator (for example "1,50 GB" in es and ro). */
+export function formatBytes(bytes: number, locale = 'en'): string {
+  const format = (value: number, digits: number) =>
+    new Intl.NumberFormat(locale, { minimumFractionDigits: digits, maximumFractionDigits: digits }).format(value)
+  if (bytes >= 1024 ** 3) return `${format(bytes / 1024 ** 3, 2)} GB`
+  if (bytes >= 1024 ** 2) return `${format(bytes / 1024 ** 2, 1)} MB`
+  if (bytes >= 1024) return `${format(bytes / 1024, 0)} KB`
   return `${bytes} B`
 }
 

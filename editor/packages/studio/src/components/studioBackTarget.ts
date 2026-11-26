@@ -11,7 +11,10 @@ export function clipsUrlFromReferrer(referrer: string, ownOrigin: string): strin
   }
 }
 
-/** Clips page of the app in the locale Studio was opened in (the Romanian app lives under /ro). */
+/** App path prefix per locale: English is the default and has none. */
+const LOCALE_PATH_PREFIX: Record<StudioLocale, string> = { en: "", ro: "/ro", es: "/es" };
+
+/** Clips page of the app in the locale Studio was opened in (the Romanian and Spanish apps live under /ro and /es). */
 export function appClipsUrl(appOrigin: string, locale: StudioLocale): string {
-  return `${appOrigin}${locale === "ro" ? "/ro" : ""}/dashboard/clips`;
+  return `${appOrigin}${LOCALE_PATH_PREFIX[locale]}/dashboard/clips`;
 }

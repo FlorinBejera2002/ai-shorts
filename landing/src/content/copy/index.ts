@@ -1,9 +1,10 @@
 import type { Locale } from '@/lib/i18n'
 import { en } from './en'
+import { es } from './es'
 import { ro } from './ro'
 import type { SiteCopy } from './types'
 
-const dictionaries: Record<Locale, SiteCopy> = { en, ro }
+const dictionaries: Record<Locale, SiteCopy> = { en, ro, es }
 
 export function getCopy(locale: Locale): SiteCopy {
   return dictionaries[locale]

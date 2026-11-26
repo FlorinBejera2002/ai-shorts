@@ -4,7 +4,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useTheme } from '@/components/shared/theme-context'
 import { useToast } from '@/components/ui/toast'
 import { useApiResource } from '@/hooks/use-api-resource'
-import { usePathname, useRouter } from '@/i18n/navigation'
+import { localizeHref, usePathname, useRouter } from '@/i18n/navigation'
 import { extractApiError } from '@/lib/api-error'
 import { apiFetch, authClient } from '@/lib/auth'
 import type { AccountPreferences, SettingsData } from '@/lib/settings'
@@ -213,7 +213,7 @@ export function useSettingsPanels(options: MutationOptions) {
       await mutation(`/api/user/sessions/${encodeURIComponent(id)}`, { method: 'DELETE' }, signal)
       if (current) {
         authClient.clearSession()
-        window.location.assign('/login')
+        window.location.assign(localizeHref('/login', locale))
         return
       }
       updateData((previous) => ({ ...previous, sessions: previous.sessions.filter((session) => session.id !== id) }))

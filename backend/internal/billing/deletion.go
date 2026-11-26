@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"net/url"
 	"time"
+
+	"sneepcut/backend-go/internal/locale"
 )
 
 type deletionCheckpoint struct {
@@ -61,7 +63,7 @@ func (s *Service) closePendingCheckout(ctx context.Context, userID string) (*cla
 		c.Token = token
 		c.LeaseExpiresAt = lease
 		if state == "replayable" && c.CheckoutExpiresAt.Sub(s.now()) >= replayMinimum {
-			if !paid(c.PlanID) || (c.Locale != "en" && c.Locale != "ro") {
+			if !paid(c.PlanID) || !locale.Supported(c.Locale) {
 				return nil, nil, conflict("billing_state_invalid")
 			}
 			session, err = s.createProviderCheckout(ctx, c)

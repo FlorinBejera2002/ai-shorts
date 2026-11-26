@@ -1,5 +1,5 @@
 export type AccountPreferences = {
-  locale: 'en' | 'ro'
+  locale: 'en' | 'ro' | 'es'
   theme: 'light' | 'dark' | 'system'
   timezone: string
   defaultAspectRatio: '9:16' | '1:1' | '16:9'

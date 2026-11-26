@@ -3,7 +3,7 @@ import type { StoryMusicOptions } from './types'
 export const musicUploadMaximum = 128 * 1024 * 1024
 export const musicUploadAccept = '.mp3,.wav,.m4a,.mp4,.ogg,.opus,.webm,.flac'
 
-type MusicText = (english: string, romanian: string) => string
+type MusicText = (english: string, romanian: string, spanish?: string) => string
 const englishText: MusicText = (english) => english
 
 export function musicRangeProblem(

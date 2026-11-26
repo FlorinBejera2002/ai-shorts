@@ -1,6 +1,7 @@
 // Connection, conversation and controls for the workspace agent (Ana și Radu) in Studio.
 // Connects on demand, polls only while a run works, and reports finished Studio edits so the
 // host can refresh the preview and offer undo.
+import type { StudioLocale } from "../../i18n/dictionary";
 import { useCallback, useRef, useState } from "react";
 import { useMountEffect } from "../../hooks/useMountEffect";
 import { t } from "../../i18n/translate";
@@ -127,7 +128,7 @@ export function useWorkspaceAgent({ api: given, onStudioChange }: WorkspaceAgent
 
   /** Opens the conversation: history and suggestions. Offline when the service is absent. */
   const connect = useCallback(
-    async (locale: "ro" | "en", projectId?: string) => {
+    async (locale: StudioLocale, projectId?: string) => {
       setConnection("connecting");
       setError(null);
       try {

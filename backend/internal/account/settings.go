@@ -9,6 +9,7 @@ import (
 
 	"github.com/julienschmidt/httprouter"
 	"sneepcut/backend-go/internal/data"
+	"sneepcut/backend-go/internal/locale"
 	"sneepcut/backend-go/internal/identity"
 )
 
@@ -30,7 +31,7 @@ func defaultPreferences() Preferences {
 }
 
 func (p Preferences) valid() bool {
-	if p.Locale != "en" && p.Locale != "ro" || p.Theme != "light" && p.Theme != "dark" && p.Theme != "system" || p.DefaultAspectRatio != "9:16" && p.DefaultAspectRatio != "1:1" && p.DefaultAspectRatio != "16:9" || p.DefaultClipCount < 1 || p.DefaultClipCount > 10 || len(p.Timezone) == 0 || len(p.Timezone) > 64 {
+	if !locale.Supported(p.Locale) || p.Theme != "light" && p.Theme != "dark" && p.Theme != "system" || p.DefaultAspectRatio != "9:16" && p.DefaultAspectRatio != "1:1" && p.DefaultAspectRatio != "16:9" || p.DefaultClipCount < 1 || p.DefaultClipCount > 10 || len(p.Timezone) == 0 || len(p.Timezone) > 64 {
 		return false
 	}
 	_, err := time.LoadLocation(p.Timezone)

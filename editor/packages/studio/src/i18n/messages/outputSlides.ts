@@ -1,6 +1,6 @@
 // Slideshow (St-Output-Slideshow*, St-Inspector-Diapozitive*) strings. Merged into output.ts
 // through outputAdvanced.ts. Storyboard strings live in outputStoryboard.ts.
-import { outputStoryboardEn, outputStoryboardRo } from "./outputStoryboard";
+import { outputStoryboardEn, outputStoryboardEs, outputStoryboardRo } from "./outputStoryboard";
 
 const slidesEn = {
   "slides.title": "Slides",
@@ -98,9 +98,62 @@ const slidesRo: Record<keyof typeof slidesEn, string> = {
   "slides.removeHotspot": "Șterge hotspotul {label}",
 };
 
+const slidesEs: Record<keyof typeof slidesEn, string> = {
+  "slides.title": "Diapositivas",
+  "slides.titleCount": "Diapositivas ({n})",
+  "slides.inspector": "Diapositiva",
+  "slides.branchesCount": "Ramas ({n})",
+  "slides.hotspot": "Hotspot",
+  "slides.unsaved": "Cambios sin guardar",
+  "slides.retry": "Reintentar",
+  "slides.retrying": "Reintentando…",
+  "slides.undo": "Deshacer el último cambio de la presentación (⌘Z)",
+  "slides.undoCount": "Deshacer ({n})",
+  "slides.include": "Incluir {label} como diapositiva de la línea principal",
+  "slides.inShow": "En la presentación",
+  "slides.hidden": "Oculta",
+  "slides.moveUp": "Subir {label}",
+  "slides.moveDown": "Bajar {label}",
+  "slides.noScenes": "No se encontraron diapositivas",
+  "slides.selectScene": "Selecciona una diapositiva de la lista",
+  "slides.notes": "Notas",
+  "slides.notesPlaceholder": "Notas o guion…",
+  "slides.holdPoints": "Puntos de pausa",
+  "slides.markHold": "Marcar {time} como punto de pausa",
+  "slides.removeHold": "Eliminar el punto de pausa en {time}",
+  "slides.noHoldPoints": "No hay puntos de pausa",
+  "slides.newBranch": "Nombre de la nueva rama…",
+  "slides.newBranchAria": "Nombre de la nueva rama",
+  "slides.add": "Añadir",
+  "slides.noBranches": "No hay ramas",
+  "slides.rename": "Cambiar el nombre de {label}",
+  "slides.deleteBranch": "Eliminar la rama {label}",
+  "slides.deleteBranchTitle": "¿Eliminar la rama?",
+  "slides.deleteBranchBody": "Los hotspots que apuntan a ella dejarán de funcionar.",
+  "slides.cancel": "Cancelar",
+  "slides.delete": "Eliminar",
+  "slides.assign": "Asignar {scene} a la rama {branch}",
+  "slides.hotspotLabel": "Texto del botón",
+  "slides.hotspotLabelPlaceholder": "Texto del botón…",
+  "slides.targetBranch": "Rama de destino",
+  "slides.chooseBranch": "— elige una rama —",
+  "slides.selectedElement": "Elemento",
+  "slides.noElement": "Selecciona un elemento en el lienzo",
+  "slides.needBranch": "Crea primero una rama",
+  "slides.chooseBranchFirst": "Elige primero una rama de destino",
+  "slides.makeHotspot": "Crear hotspot",
+  "slides.hotspotsOnSlide": "Hotspots en esta diapositiva",
+  "slides.removeHotspot": "Eliminar el hotspot {label}",
+};
+
 export const outputSlidesEn = { ...slidesEn, ...outputStoryboardEn } as const;
 
 export const outputSlidesRo: Record<keyof typeof outputSlidesEn, string> = {
   ...slidesRo,
   ...outputStoryboardRo,
+};
+
+export const outputSlidesEs: Record<keyof typeof outputSlidesEn, string> = {
+  ...slidesEs,
+  ...outputStoryboardEs,
 };

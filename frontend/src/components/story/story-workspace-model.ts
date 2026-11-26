@@ -2,7 +2,7 @@ import type { StoryStep } from './story-wizard'
 import { canEditStorySources, storyOptionsEqual, type StoryAsset, type StoryOptions, type StoryProject, type StoryVersion } from './types'
 import type { PendingUpload, useStoryUploads } from './use-story-uploads'
 
-export type StoryText = (english: string, romanian: string) => string
+export type StoryText = (english: string, romanian: string, spanish?: string) => string
 export type StoryUploads = ReturnType<typeof useStoryUploads>
 
 const MUSIC_ANALYSIS_FAILURE = /music analysis|music.*analy[sz]/i

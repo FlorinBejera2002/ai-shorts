@@ -7,7 +7,7 @@ import { storyProblem } from './story-error'
 import { analysisReviewing, type AnalysisCount } from './story-processing-model'
 import { uploadStageIllustrationAlt, uploadStageTitle } from './story-processing-copy'
 
-type Text = (english: string, romanian: string) => string
+type Text = (english: string, romanian: string, spanish?: string) => string
 
 interface RunningCardProps {
   stage: number
@@ -28,7 +28,11 @@ function analysisDetail(analysis: AnalysisCount | undefined, text: Text) {
   if (analysisReviewing(analysis)) return text('Reviewing the content', 'Analizăm conținutul')
   if (analysis.total < 2) return undefined
   const current = Math.min(analysis.done + 1, analysis.total)
-  return text(`Clip ${current} of ${analysis.total}`, `Clipul ${current} din ${analysis.total}`)
+  return text(
+    `Clip ${current} of ${analysis.total}`,
+    `Clipul ${current} din ${analysis.total}`,
+    `Clip ${current} de ${analysis.total}`
+  )
 }
 
 /** Upload card while the pipeline runs: one stage title, illustration, progress and the cancel action. */

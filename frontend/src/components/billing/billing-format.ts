@@ -1,7 +1,7 @@
 import type { BillingLocale } from '@/lib/billing'
 import type { BillingPlanPrice } from '@/types/api'
 
-const DATE_LOCALES: Record<BillingLocale, string> = { en: 'en-GB', ro: 'ro-RO' }
+const DATE_LOCALES: Record<BillingLocale, string> = { en: 'en-GB', ro: 'ro-RO', es: 'es-ES' }
 
 /** "18 dec. 2026" / "18 Dec 2026"; null for missing or invalid dates. */
 export function formatBillingDate(value: string | null | undefined, locale: BillingLocale) {

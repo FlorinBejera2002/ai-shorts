@@ -18,6 +18,7 @@ import (
 
 	"github.com/julienschmidt/httprouter"
 	"sneepcut/backend-go/internal/data"
+	"sneepcut/backend-go/internal/locale"
 )
 
 type GoogleConfig struct{ ClientID, ClientSecret, RedirectURL, AppURL string }
@@ -56,10 +57,21 @@ func safeReturnPath(raw string) string {
 	}
 	u.Path = path.Clean(u.Path)
 	u.RawPath = ""
-	if u.Path != "/dashboard" && !strings.HasPrefix(u.Path, "/dashboard/") && u.Path != "/ro/dashboard" && !strings.HasPrefix(u.Path, "/ro/dashboard/") {
+	if !isDashboardPath(u.Path) {
 		return "/dashboard"
 	}
 	return u.RequestURI()
+}
+
+// isDashboardPath reports whether p is the dashboard or one of its pages under any supported locale prefix.
+func isDashboardPath(p string) bool {
+	for _, code := range []string{locale.English, locale.Romanian, locale.Spanish} {
+		base := locale.PathPrefix(code) + "/dashboard"
+		if p == base || strings.HasPrefix(p, base+"/") {
+			return true
+		}
+	}
+	return false
 }
 func safeReturnOrigin(raw, fallback string, allowed []string) string {
 	if raw == "" {
@@ -150,8 +162,8 @@ func (h *Handler) googleStart(w http.ResponseWriter, r *http.Request) {
 	h.stateCookie(w, cookie, 600)
 	challenge := sha256.Sum256([]byte(verifier))
 	values := url.Values{"client_id": {g.config.ClientID}, "redirect_uri": {g.config.RedirectURL}, "response_type": {"code"}, "scope": {"openid email profile"}, "state": {state}, "code_challenge": {base64.RawURLEncoding.EncodeToString(challenge[:])}, "code_challenge_method": {"S256"}, "prompt": {"select_account"}}
-	if r.URL.Query().Get("locale") == "ro" {
-		values.Set("hl", "ro")
+	if code := r.URL.Query().Get("locale"); code == locale.Romanian || code == locale.Spanish {
+		values.Set("hl", code)
 	}
 	http.Redirect(w, r, g.authorizationURL+"?"+values.Encode(), http.StatusSeeOther)
 }

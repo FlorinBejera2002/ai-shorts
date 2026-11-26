@@ -6,7 +6,7 @@ import { PUBLIC_ROUTES } from '@/lib/site-config'
  * document load instead of rendering its own copy client-side.
  */
 const PUBLIC_SITE_PATHS = new Set<string>(
-  PUBLIC_ROUTES.flatMap((route) => [route || '/', `/ro${route}`])
+  PUBLIC_ROUTES.flatMap((route) => [route || '/', `/ro${route}`, `/es${route}`])
 )
 
 export function isPublicSitePath(href: string): boolean {

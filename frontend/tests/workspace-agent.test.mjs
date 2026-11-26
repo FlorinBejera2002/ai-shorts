@@ -95,7 +95,7 @@ test('waiting attachments use their explicit target instead of a stale selected 
 
 test('action details hide backend precondition hashes at every nesting level', () => {
   const { ActionDetails } = load('action-details', { 'react/jsx-runtime': jsxRuntime }, 'tsx')
-  const html = renderToStaticMarkup(ActionDetails({ ro: false, action: { name: 'studio.assets.delete', input: {
+  const html = renderToStaticMarkup(ActionDetails({ locale: 'en', action: { name: 'studio.assets.delete', input: {
     name: 'poster.webp', expected_asset_version: 'private-sha', expected_version: 'private-version',
     settings: { label: 'Intro', expected_receipt: 'private-receipt', asset_id: 'private-id' }
   } } }))
@@ -168,13 +168,13 @@ test('agent navigation only permits existing local dashboard destinations', () =
 test('result cards show useful read data without exposing hidden fields or executable markup', () => {
   const resources = load('resource-results', { 'react/jsx-runtime': jsxRuntime }, 'tsx')
   const { ResultDetails } = load('result-details', { 'react/jsx-runtime': jsxRuntime, '@/components/ui/button': { Button: props => jsxRuntime.jsx('button', props) }, './resource-results': resources, './model': load('model') }, 'tsx')
-  const totals = renderToStaticMarkup(ResultDetails({ action: 'analytics.read', ro: false, data: { credits: 42, projects: 3, clips: 9, scripts: 2, secret: 'never-render-this' } }))
+  const totals = renderToStaticMarkup(ResultDetails({ action: 'analytics.read', locale: 'en', data: { credits: 42, projects: 3, clips: 9, scripts: 2, secret: 'never-render-this' } }))
   assert.match(totals, /Credits/); assert.match(totals, /42/); assert.doesNotMatch(totals, /never-render-this/)
-  const projects = renderToStaticMarkup(ResultDetails({ action: 'projects.list', ro: false, data: [{ id: 'id', name: '<script>unsafe</script>', status: 'ready', clips: 4 }] }))
+  const projects = renderToStaticMarkup(ResultDetails({ action: 'projects.list', locale: 'en', data: [{ id: 'id', name: '<script>unsafe</script>', status: 'ready', clips: 4 }] }))
   assert.match(projects, /4 clips/); assert.doesNotMatch(projects, /<script>/)
-  const script = renderToStaticMarkup(ResultDetails({ action: 'scripts.generate', ro: false, data: { saved: false, snapshot: { title: 'Draft', hook: 'Opening', scenes: [{ dialogue: '<script>speech</script>', visual_description: 'Wide shot', duration_seconds: 12 }], call_to_action: 'Subscribe' } } }))
+  const script = renderToStaticMarkup(ResultDetails({ action: 'scripts.generate', locale: 'en', data: { saved: false, snapshot: { title: 'Draft', hook: 'Opening', scenes: [{ dialogue: '<script>speech</script>', visual_description: 'Wide shot', duration_seconds: 12 }], call_to_action: 'Subscribe' } } }))
   assert.match(script, /Opening/); assert.match(script, /Wide shot/); assert.match(script, /not saved yet/); assert.doesNotMatch(script, /<script>/)
-  const exported = renderToStaticMarkup(ResultDetails({ action: 'scripts.export', ro: false, data: { document: { title: 'Saved' }, filename: 'script.json' } }))
+  const exported = renderToStaticMarkup(ResultDetails({ action: 'scripts.export', locale: 'en', data: { document: { title: 'Saved' }, filename: 'script.json' } }))
   assert.match(exported, /Download JSON/)
 })
 test('run reconciliation never overwrites a newer revision or duplicates a retried run', () => {
@@ -185,7 +185,7 @@ test('run reconciliation never overwrites a newer revision or duplicates a retri
 
 test('Studio confirmation names the destructive target and effects without exposing internal identifiers', () => {
   const { ApprovalPreview } = load('approval-preview', { 'react/jsx-runtime': jsxRuntime, './model': load('model') }, 'tsx')
-  const html = renderToStaticMarkup(ApprovalPreview({ ro: true, value: {
+  const html = renderToStaticMarkup(ApprovalPreview({ locale: 'ro', value: {
     action: 'studio.assets.delete', title: 'Campanie de vară', project_id: 'private-project-id', expected_version: 'private-version-hash',
     asset: { asset_id: 'private-asset-id', name: 'poster.webp', expected_asset_version: 'private-asset-hash' },
     affected_layers: [{ id: 'private-layer-id', tag: 'img' }], irreversible: true
@@ -195,7 +195,7 @@ test('Studio confirmation names the destructive target and effects without expos
   assert.match(html, /referințe în stiluri/)
   assert.match(html, /Ștergerea este definitivă/)
   assert.doesNotMatch(html, /private-|Fără dată programată/)
-  const layer = renderToStaticMarkup(ApprovalPreview({ ro: true, value: { action: 'studio.layer.remove', title: 'Campanie', layer: { id: 'private-layer-id', text: 'Titlul de final', start: 5, duration: 3 } } }))
+  const layer = renderToStaticMarkup(ApprovalPreview({ locale: 'ro', value: { action: 'studio.layer.remove', title: 'Campanie', layer: { id: 'private-layer-id', text: 'Titlul de final', start: 5, duration: 3 } } }))
   assert.match(layer, /Titlul de final/)
   assert.match(layer, /Poți anula această modificare/)
   assert.doesNotMatch(layer, /definitivă|private-/)
@@ -203,11 +203,11 @@ test('Studio confirmation names the destructive target and effects without expos
 
 test('resource and Studio result cards present saved data without revealing storage or receipt fields', () => {
   const { ResourceResults, StudioResults } = load('resource-results', { 'react/jsx-runtime': jsxRuntime }, 'tsx')
-  const resources = renderToStaticMarkup(ResourceResults({ ro: true, data: { items: [{ id: 'private-resource-id', name: 'Identitate.webp', kind: 'logo', reference: '/private/storage/file.webp' }], has_more: true } }))
+  const resources = renderToStaticMarkup(ResourceResults({ locale: 'ro', data: { items: [{ id: 'private-resource-id', name: 'Identitate.webp', kind: 'logo', reference: '/private/storage/file.webp' }], has_more: true } }))
   assert.match(resources, /Identitate.webp/)
   assert.match(resources, /pagina următoare/)
   assert.doesNotMatch(resources, /private|storage/)
-  const exported = renderToStaticMarkup(StudioResults({ ro: true, data: { id: 'private-project-id', job_id: 'private-job-id', verified: true, bytes: 1048576, download_path: '/private/download/export.mp4' } }))
+  const exported = renderToStaticMarkup(StudioResults({ locale: 'ro', data: { id: 'private-project-id', job_id: 'private-job-id', verified: true, bytes: 1048576, download_path: '/private/download/export.mp4' } }))
   assert.match(exported, /Export verificat/)
   assert.match(exported, /1 MB/)
   assert.doesNotMatch(exported, /private|download/)
@@ -261,6 +261,7 @@ test('ordinary Send recovers the same request after connection loss and preserve
     invalidateQueries: async () => {}
   }
   class AgentApiError extends Error {}
+  class UnverifiedAgentResponseError extends Error {}
   const { useWorkspaceAgent: renderAgentHook } = load('use-workspace-agent', {
     react: {
       useState: initial => {
@@ -276,9 +277,11 @@ test('ordinary Send recovers the same request after connection loss and preserve
     './model': { agentContext, mergeRuns, pollingDelay, resourceIdsForContext, resourceProjectFromRun, safeAgentRoute },
     './activity': { publishAgentActivity: () => {} },
     './messages': load('messages'),
+    '@/lib/site-config': { resolveSiteLocale: value => (value === 'ro' || value === 'es' ? value : 'en') },
+    '@/i18n/inline-text': { pickInlineText: (locale, english, romanian, spanish) => (locale === 'ro' ? romanian : locale === 'es' ? spanish ?? english : english) },
     '@/lib/toast': { toast: { error() {}, success() {} } },
     './studio-selection': { useStudioSelection: () => null },
-    './api': { AgentApiError, agentApi: { send: async body => {
+    './api': { AgentApiError, UnverifiedAgentResponseError, agentApi: { send: async body => {
       calls.push(body)
       if (calls.length === 1) throw new Error('Connection interrupted after acceptance')
       return { id: body.request_id, revision: 1, status: 'planning', created_at: '2026-10-13', context: body.context }

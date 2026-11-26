@@ -14,6 +14,7 @@ import { LoadingIndicator } from '@/components/ui/loading-indicator'
 import { useToast } from '@/components/ui/toast'
 import { authClient } from '@/lib/auth'
 import { LogOut, X } from 'lucide-react'
+import { pickInlineText } from '@/i18n/inline-text'
 import { useLocale, useTranslations } from 'next-intl'
 import { useRef, useState } from 'react'
 import { cn } from '@/lib/utils'
@@ -34,7 +35,7 @@ export function SignOutAction({
   const cancelRef = useRef<HTMLButtonElement>(null)
   const [pending, setPending] = useState(false)
   const pendingRef = useRef(false)
-  const label = locale === 'ro' ? 'Deconectare' : 'Sign out'
+  const label = pickInlineText(locale, 'Sign out', 'Deconectare', 'Cerrar sesión')
   async function signOut() {
     if (pendingRef.current || disabled) return
     pendingRef.current = true
@@ -105,18 +106,21 @@ export function SignOutAction({
             size="icon"
             onClick={() => setOpen(false)}
             disabled={pending}
-            aria-label={locale === 'ro' ? 'Închide' : 'Close'}
+            aria-label={pickInlineText(locale, 'Close', 'Închide', 'Cerrar')}
             className="absolute right-3 top-3 text-muted-foreground hover:bg-muted"
           >
             <X aria-hidden="true" />
           </Button>
           <DialogTitle>
-            {locale === 'ro' ? 'Te deconectezi?' : 'Sign out?'}
+            {pickInlineText(locale, 'Sign out?', 'Te deconectezi?', '¿Cerrar sesión?')}
           </DialogTitle>
           <DialogDescription>
-            {locale === 'ro'
-              ? 'Va trebui s\u0103 te autentifici din nou pentru a reveni \u00een cont.'
-              : 'You’ll need to sign in again to access your workspace.'}
+            {pickInlineText(
+              locale,
+              'You’ll need to sign in again to access your workspace.',
+              'Va trebui să te autentifici din nou pentru a reveni în cont.',
+              'Tendrás que volver a iniciar sesión para acceder a tu espacio de trabajo.'
+            )}
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>
@@ -127,7 +131,7 @@ export function SignOutAction({
             disabled={pending}
             onClick={() => setOpen(false)}
           >
-            {locale === 'ro' ? 'Anuleaz\u0103' : 'Cancel'}
+            {pickInlineText(locale, 'Cancel', 'Anulează', 'Cancelar')}
           </Button>
           <Button
             type="button"

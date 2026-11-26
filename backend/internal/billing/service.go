@@ -15,8 +15,10 @@ import (
 
 	"github.com/julienschmidt/httprouter"
 	"sneepcut/backend-go/internal/entitlements"
+	"sneepcut/backend-go/internal/httpx"
 	"sneepcut/backend-go/internal/identity"
 	"sneepcut/backend-go/internal/jsonutil"
+	"sneepcut/backend-go/internal/locale"
 )
 
 type Config struct {
@@ -128,11 +130,8 @@ func normalizePlan(plan string) string {
 	}
 	return "free"
 }
-func billingPath(locale string) string {
-	if locale == "ro" {
-		return "/ro/dashboard/billing"
-	}
-	return "/dashboard/billing"
+func billingPath(uiLocale string) string {
+	return locale.PathPrefix(uiLocale) + "/dashboard/billing"
 }
 func safeURL(raw string) string {
 	parsed, err := url.Parse(raw)
@@ -203,6 +202,10 @@ func (s *Service) plans(w http.ResponseWriter, r *http.Request) {
 	for _, plan := range []string{"creator", "pro", "agency"} {
 		_, price, err := s.price(r.Context(), plan)
 		if err != nil {
+			if errors.Is(err, errProviderCanceled) {
+				failure(w, httpx.StatusClientClosedRequest, "request_canceled")
+				return
+			}
 			failure(w, 503, "billing_provider_unavailable")
 			return
 		}
@@ -217,7 +220,7 @@ func (s *Service) openPortal(w http.ResponseWriter, r *http.Request) {
 	if !readJSON(w, r, &input) {
 		return
 	}
-	if input.Locale != "en" && input.Locale != "ro" {
+	if !locale.Supported(input.Locale) {
 		failure(w, 400, "invalid_locale")
 		return
 	}

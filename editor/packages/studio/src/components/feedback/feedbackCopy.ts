@@ -1,5 +1,5 @@
-// Romanian copy for the feedback questions. The English text stays the value the report records
-// (so answers from every locale land in the same bucket); this map only changes what is shown.
+// Romanian and Spanish copy for the feedback questions. The English text stays the value the report
+// records (so answers from every locale land in the same bucket); these maps only change what is shown.
 import { getStudioLocale } from "../../i18n/translate";
 
 const RO: Record<string, string> = {
@@ -59,7 +59,67 @@ const RO: Record<string, string> = {
   "Could not figure it out": "Nu m-am descurcat",
 };
 
+const ES: Record<string, string> = {
+  // Questions and placeholders
+  "That export failed.": "La exportación falló.",
+  "What were you exporting?": "¿Qué estabas exportando?",
+  "Studio crashed. What were you doing?": "Studio se cerró. ¿Qué estabas haciendo?",
+  "The last thing you touched": "Lo último que tocaste",
+  "What would you cut from Studio?": "¿Qué quitarías de Studio?",
+  "The part you never use": "La parte que nunca usas",
+  "What did you have to do outside Studio?": "¿Qué tuviste que hacer fuera de Studio?",
+  "The step you finished somewhere else": "El paso que terminaste en otro sitio",
+  "What should we fix first?": "¿Qué deberíamos arreglar primero?",
+  "The thing that slowed you down": "Lo que te frenó",
+  "What went wrong?": "¿Qué salió mal?",
+  "The thing that made that a low score": "Lo que hizo que fuera una puntuación baja",
+  // Failure presets
+  "Happens every time": "Pasa siempre",
+  "First time": "La primera vez",
+  "Long composition": "Composición larga",
+  "Big media files": "Archivos multimedia grandes",
+  "Has audio": "Tiene audio",
+  "Embedded video": "Video incrustado",
+  // Crash presets
+  "Editing the timeline": "Editando la línea de tiempo",
+  "Playing the preview": "Reproduciendo la previsualización",
+  "Adding media": "Añadiendo material",
+  "Editing properties": "Editando propiedades",
+  Exporting: "Exportando",
+  "Just opened it": "Acabo de abrirla",
+  // Follow-ups after a score
+  "Layers panel": "Panel de capas",
+  "Variables panel": "Panel de variables",
+  "Blocks browser": "Explorador de bloques",
+  "Storyboard mode": "Modo storyboard",
+  "Caption editing": "Edición de subtítulos",
+  "Render history": "Historial de renders",
+  Nothing: "Nada",
+  "Fix the exported file": "Arreglar el archivo exportado",
+  "Convert source media": "Convertir el material original",
+  "Match loudness": "Igualar el volumen",
+  "Make images or graphics": "Crear imágenes o gráficos",
+  "Record footage": "Grabar material",
+  "Nothing, it was all here": "Nada, todo estaba aquí",
+  "Audio mixing": "Mezcla de audio",
+  "Export encoding": "Codificación del export",
+  "Export matches preview": "El export coincide con la previsualización",
+  "Media and fonts": "Multimedia y tipografías",
+  "Render speed": "Velocidad del render",
+  "Re-rendering everything": "Volver a renderizar todo",
+  "Checks and warnings": "Comprobaciones y avisos",
+  "Export failed": "La exportación falló",
+  "Output looked wrong": "El resultado se veía mal",
+  "Crashed or froze": "Se cerró o se quedó colgado",
+  "Lost my edits": "Perdí mis cambios",
+  "Too slow": "Demasiado lento",
+  "Could not figure it out": "No lo logré entender",
+};
+
+const COPY_BY_LOCALE: Partial<Record<string, Record<string, string>>> = { ro: RO, es: ES };
+
 /** Shows a feedback question or answer in the active locale. */
 export function feedbackText(english: string): string {
-  return getStudioLocale() === "ro" ? (RO[english] ?? english) : english;
+  const copy = COPY_BY_LOCALE[getStudioLocale()];
+  return copy?.[english] ?? english;
 }

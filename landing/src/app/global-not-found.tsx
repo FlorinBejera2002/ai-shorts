@@ -7,7 +7,7 @@ import { NotFoundPage } from '@/views/not-found-page'
 export const metadata = notFoundMetadata('en')
 export const viewport = siteViewport
 
-/** English 404 for unmatched URLs; the web server serves /ro/404 for unknown Romanian paths. */
+/** English 404 for unmatched URLs; the web server serves /ro/404 and /es/404 for unknown paths in those locales. */
 export default function GlobalNotFound() {
   return (
     <RootDocument locale="en">

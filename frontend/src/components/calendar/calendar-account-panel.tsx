@@ -10,6 +10,7 @@ import {
 } from '@/lib/publishing'
 import { useLocale, useTranslations } from 'next-intl'
 import { useState } from 'react'
+import { localizeHref } from '@/i18n/navigation'
 import styles from './calendar-account-panel.module.css'
 
 /** The sheet needs a dialog title for assistive technology; the popover shows a plain heading. */
@@ -51,7 +52,7 @@ export function YouTubeConsent({
           ),
           privacy: (chunks) => (
             <a
-              href={locale === 'ro' ? '/ro/privacy' : '/privacy'}
+              href={localizeHref('/privacy', locale)}
               target="_blank"
               rel="noreferrer"
             >

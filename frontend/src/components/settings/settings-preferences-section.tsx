@@ -15,7 +15,8 @@ type Props = { panels: SettingsPanelsController; mobile: boolean }
 
 const LANGUAGES: ChoiceOption[] = [
   { value: 'ro', label: 'Română' },
-  { value: 'en', label: 'English' }
+  { value: 'en', label: 'English' },
+  { value: 'es', label: 'Español' }
 ]
 
 // The backend and clip jobs accept these formats; the canvas' 4:5 has no backing support yet.

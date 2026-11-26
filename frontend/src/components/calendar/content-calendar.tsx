@@ -64,7 +64,8 @@ export function ContentCalendar() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const requestedClipId = searchParams.get('clip')
-  const weekStartsOn: 0 | 1 = locale.toLowerCase().startsWith('ro') ? 1 : 0
+  // Romania and Spain both start the week on Monday.
+  const weekStartsOn: 0 | 1 = /^(ro|es)\b/i.test(locale) ? 1 : 0
   const [period, setPeriod] = useState<PublishingPeriod>(() => {
     const saved = readPublishingView().period
     return saved

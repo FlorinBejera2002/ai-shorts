@@ -1,3 +1,4 @@
+import { pickInlineText } from '@/i18n/inline-text'
 import { PlanPrice } from '@/components/billing/plan-price'
 import { PublicFooter } from '@/components/landing/public-footer'
 import { PublicNavbar } from '@/components/landing/public-navbar'
@@ -167,9 +168,12 @@ export function PricingPageView({
           <div>
             <h2 className="text-3xl font-semibold">{t('faq')}</h2>
             <p className="mt-4 text-sm leading-7 text-muted-foreground">
-              {locale === 'ro'
-                ? 'Tot ce trebuie să știi înainte să începi.'
-                : 'Everything you need to know before you start.'}
+              {pickInlineText(
+                locale,
+                'Everything you need to know before you start.',
+                'Tot ce trebuie să știi înainte să începi.',
+                'Todo lo que necesitas saber antes de empezar.'
+              )}
             </p>
           </div>
           <Accordion type="single" collapsible={true}>

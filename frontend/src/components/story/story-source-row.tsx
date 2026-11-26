@@ -1,4 +1,5 @@
 import type { KeyboardEvent, PointerEvent, ReactNode } from 'react'
+import { useLocale } from 'next-intl'
 import { AlertTriangle, Check, GripVertical, RefreshCw, X } from 'lucide-react'
 import { formatBytes } from '@/lib/youtube'
 import { useStoryLanguage } from './use-story-language'
@@ -38,11 +39,11 @@ interface Props {
 }
 
 /** Size in GB with a decimal comma in Romanian, or the shared byte formatter below 1 GB. */
-function formatSize(bytes: number, text: (en: string, ro: string) => string) {
-  if (bytes >= 1024 ** 3) return `${formatGigabytes(bytes, text('.', ','))} GB`
+function formatSize(bytes: number, text: (en: string, ro: string, es?: string) => string, locale: string) {
+  if (bytes >= 1024 ** 3) return `${formatGigabytes(bytes, text('.', ',', ','))} GB`
   // Megabytes are whole numbers on the canvas ("980 MB").
   if (bytes >= 1024 ** 2) return `${Math.round(bytes / 1024 ** 2)} MB`
-  return formatBytes(bytes)
+  return formatBytes(bytes, locale)
 }
 
 function rowSize(row: SourceRow) {
@@ -138,7 +139,8 @@ function RowBody({
   onReplace: () => void
 }) {
   const text = useStoryLanguage()
-  const size = formatSize(rowSize(row), text)
+  const locale = useLocale()
+  const size = formatSize(rowSize(row), text, locale)
   return (
     <div className={styles.body}>
       <div className={styles.nameLine}>
@@ -236,6 +238,7 @@ function RowStatus({
   onReplace: () => void
 }) {
   const text = useStoryLanguage()
+  const locale = useLocale()
   switch (state) {
     case 'uploaded':
       return (
@@ -258,7 +261,7 @@ function RowStatus({
     case 'paused': {
       const retryAt = row.kind === 'upload' ? row.upload.retryAt : undefined
       const time = retryAt
-        ? new Date(retryAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        ? new Date(retryAt).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })
         : ''
       return (
         <span role="status" className={styles.statusWaiting}>

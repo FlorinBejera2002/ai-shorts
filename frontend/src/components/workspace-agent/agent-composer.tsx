@@ -2,6 +2,7 @@
 
 import type { ComponentProps, Ref } from 'react'
 import { ArrowUp, Mic, RefreshCw, Square } from 'lucide-react'
+import type { SiteLocale } from '@/lib/site-config'
 import { AgentIllustration } from './agent-persona'
 import { AgentHelpComposer } from './agent-help-composer'
 import { AgentMenu, type AgentPanel } from './agent-menu'
@@ -18,8 +19,7 @@ type Dictation = ReturnType<typeof useDictation>
 interface AgentComposerProps {
   agent: AgentController
   copy: AgentMessages
-  locale: string
-  ro: boolean
+  locale: SiteLocale
   mobile: boolean
   canSend: boolean
   studioBusy: boolean
@@ -36,7 +36,7 @@ interface AgentComposerProps {
 
 /** Composer form: retry, help mode, listening state, dictation, the options menu and send. */
 export function AgentComposer(props: AgentComposerProps) {
-  const { agent, copy, locale, ro, mobile, canSend, speech, studioBusy, studio, hasOlder, composerRef, pendingQuestion, onAddQuestion, onSubmit, onPanel, onOlder } = props
+  const { agent, copy, locale, mobile, canSend, speech, studioBusy, studio, hasOlder, composerRef, pendingQuestion, onAddQuestion, onSubmit, onPanel, onOlder } = props
   return (
     <form
       className={styles.form}
@@ -63,7 +63,7 @@ export function AgentComposer(props: AgentComposerProps) {
       {speech.listening && (
         <div role="status" className={`${styles.listening} ${mobile ? styles.listeningCompact : ''}`}>
           <AgentIllustration scene="listening" size={mobile ? 64 : 140} />
-          <p className={styles.listeningText}>{ro ? 'Te ascult' : 'I am listening'}</p>
+          <p className={styles.listeningText}>{{ en: 'I am listening', ro: 'Te ascult', es: 'Te escucho' }[locale]}</p>
         </div>
       )}
       <div className={styles.box}>
@@ -85,7 +85,7 @@ export function AgentComposer(props: AgentComposerProps) {
         />
         <div className={styles.toolbar}>
           <AgentMenu
-            ro={ro}
+            locale={locale}
             busy={agent.busy}
             panelBusy={studioBusy}
             hasOlder={hasOlder}
@@ -95,7 +95,7 @@ export function AgentComposer(props: AgentComposerProps) {
           />
           {speech.listening ? (
             <AgentPill variant="primary" icon={<Square aria-hidden="true" />} aria-label={copy.endDictation} aria-pressed onClick={speech.toggle}>
-              {ro ? 'Ascult…' : 'Listening…'}
+              {{ en: 'Listening…', ro: 'Ascult…', es: 'Escuchando…' }[locale]}
             </AgentPill>
           ) : (
             <AgentIconButton

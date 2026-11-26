@@ -44,6 +44,7 @@ export async function readCubeFile(file: File): Promise<boolean> {
 const SIZE_NUMBER_FORMATS: Record<StudioLocale, Intl.NumberFormat> = {
   en: new Intl.NumberFormat("en-US", { maximumFractionDigits: 1 }),
   ro: new Intl.NumberFormat("ro-RO", { maximumFractionDigits: 1 }),
+  es: new Intl.NumberFormat("es-ES", { maximumFractionDigits: 1 }),
 };
 
 export function formatFileSize(bytes: number, locale: StudioLocale): string {

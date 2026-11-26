@@ -1,13 +1,14 @@
 'use client'
 import { Button } from '@/components/ui/button'
 import { LoadingIndicator } from '@/components/ui/loading-indicator'
+import { pickInlineText } from '@/i18n/inline-text'
 import { useLocale } from 'next-intl'
 export function ApiState({
   error,
   retry
 }: { error?: string | null; retry?: () => void }) {
-  const ro = useLocale() === 'ro'
-  const loadingLabel = ro ? 'Se încarcă…' : 'Loading…'
+  const locale = useLocale()
+  const loadingLabel = pickInlineText(locale, 'Loading…', 'Se încarcă…', 'Cargando…')
 
   if (!error) {
     return (
@@ -29,11 +30,11 @@ export function ApiState({
       role="alert"
     >
       <p>
-        {ro ? 'Datele nu au putut fi încărcate.' : 'Unable to load this page.'}
+        {pickInlineText(locale, 'Unable to load this page.', 'Datele nu au putut fi încărcate.', 'No se pudo cargar esta página.')}
       </p>
       {retry && (
         <Button onClick={retry} variant="outline">
-          {ro ? 'Încearcă din nou' : 'Try again'}
+          {pickInlineText(locale, 'Try again', 'Încearcă din nou', 'Inténtalo de nuevo')}
         </Button>
       )}
     </div>

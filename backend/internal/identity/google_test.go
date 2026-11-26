@@ -147,6 +147,7 @@ func TestGoogleExchangeDoesNotFollowProviderRedirects(t *testing.T) {
 func TestGoogleSafeReturnPaths(t *testing.T) {
 	for _, tc := range []struct{ input, want string }{
 		{"/dashboard", "/dashboard"}, {"/dashboard/clips/id?tab=edit", "/dashboard/clips/id?tab=edit"}, {"/ro/dashboard/jobs/id", "/ro/dashboard/jobs/id"},
+		{"/es/dashboard/settings?section=privacy", "/es/dashboard/settings?section=privacy"}, {"/es/dashboardish", "/dashboard"}, {"/esdashboard", "/dashboard"},
 		{"https://attacker.invalid/dashboard", "/dashboard"}, {"//attacker.invalid/dashboard", "/dashboard"}, {"/dashboard\\attacker.invalid", "/dashboard"},
 		{"/dashboard/%5cattacker.invalid", "/dashboard"}, {"/dashboard/%0d%0aLocation:evil", "/dashboard"}, {"/dashboard/../../login", "/dashboard"}, {"/dashboard/%2e%2e/login", "/dashboard"},
 		{"/dashboardish", "/dashboard"}, {"/login", "/dashboard"}, {strings.Repeat("x", 2049), "/dashboard"},

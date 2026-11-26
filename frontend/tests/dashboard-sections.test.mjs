@@ -74,7 +74,7 @@ test('legacy billing links preserve checkout results and repeated query values',
 })
 
 test('section labels exist in both supported locales', () => {
-  for (const locale of ['en', 'ro']) {
+  for (const locale of ['en', 'ro', 'es']) {
     const labels = JSON.parse(
       readFileSync(
         new URL(`../messages/${locale}.json`, import.meta.url),

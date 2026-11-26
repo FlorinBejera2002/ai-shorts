@@ -12,6 +12,7 @@ import (
 
 	"github.com/julienschmidt/httprouter"
 	"sneepcut/backend-go/internal/identity"
+	"sneepcut/backend-go/internal/locale"
 )
 
 const (
@@ -90,10 +91,7 @@ func (h *Handler) connect(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "Accept the YouTube access notice to continue.")
 		return
 	}
-	locale := "en"
-	if input.Locale == "ro" {
-		locale = "ro"
-	}
+	uiLocale := locale.Normalize(input.Locale)
 	user := identity.Current(r).User
 	allowed, err := h.service.CanConnect(r.Context(), user.ID, user.SessionVersion)
 	if err != nil {
@@ -104,7 +102,7 @@ func (h *Handler) connect(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusForbidden, "YouTube channel access is not available for this account.")
 		return
 	}
-	target, cookie, err := h.service.BeginAuthorization(user.ID, user.SessionVersion, locale)
+	target, cookie, err := h.service.BeginAuthorization(user.ID, user.SessionVersion, uiLocale)
 	if err != nil {
 		writeError(w, http.StatusServiceUnavailable, "Could not start YouTube access.")
 		return
@@ -127,9 +125,9 @@ func (h *Handler) callback(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Referrer-Policy", "no-referrer")
 	cookie, cookieErr := r.Cookie(authorizationName)
 	h.setAuthorizationCookie(w, "", -1)
-	locale := "en"
+	uiLocale := locale.English
 	finish := func(result string) {
-		http.Redirect(w, r, returnURL(h.cfg.AppURL, locale, result), http.StatusSeeOther)
+		http.Redirect(w, r, returnURL(h.cfg.AppURL, uiLocale, result), http.StatusSeeOther)
 	}
 	if cookieErr != nil || !h.service.Enabled() {
 		finish("error")
@@ -141,7 +139,7 @@ func (h *Handler) callback(w http.ResponseWriter, r *http.Request) {
 		finish("error")
 		return
 	}
-	locale = state.Locale
+	uiLocale = state.Locale
 	code := query.Get("code")
 	if query.Get("error") != "" || code == "" || len(code) > maxCallbackCode {
 		finish("error")
@@ -202,12 +200,9 @@ func parseVideoQuery(values url.Values) (VideoQuery, bool) {
 	return VideoQuery{Search: search, Visibility: visibility, PageToken: token}, true
 }
 
-// returnURL sends the browser back to the Create page with the outcome. The
-// Romanian locale keeps its /ro prefix; English uses the default unprefixed route.
-func returnURL(appURL, locale, result string) string {
-	prefix := ""
-	if locale == "ro" {
-		prefix = "/ro"
-	}
+// returnURL sends the browser back to the Create page with the outcome. Romanian
+// and Spanish keep their locale prefix; English uses the default unprefixed route.
+func returnURL(appURL, uiLocale, result string) string {
+	prefix := locale.PathPrefix(uiLocale)
 	return strings.TrimRight(appURL, "/") + prefix + "/dashboard/create?mode=youtube&youtubeChannel=" + result
 }

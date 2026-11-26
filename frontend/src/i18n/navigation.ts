@@ -4,10 +4,10 @@ import { queryClient } from '../query/query-client'
 
 export { Link } from './navigation-link'
 
-const supportedLocales = ['en', 'ro'] as const
+const supportedLocales = ['en', 'ro', 'es'] as const
 
 function stripLocale(pathname: string) {
-  const match = pathname.match(/^\/(en|ro)(?=\/|$)/)
+  const match = pathname.match(/^\/(en|ro|es)(?=\/|$)/)
   const stripped = match ? pathname.slice(match[0].length) : pathname
   return stripped.startsWith('/') ? stripped || '/' : `/${stripped}`
 }
@@ -16,8 +16,9 @@ export function localizeHref(href: string, locale: string) {
   if (/^(?:[a-z]+:|\/\/|#)/i.test(href)) return href
   const url = new URL(href, 'https://sneepcut.local')
   const pathname = stripLocale(url.pathname)
+  // English is the unprefixed default; every other locale lives under /<locale>.
   const localized =
-    locale === 'ro' ? `/ro${pathname === '/' ? '' : pathname}` : pathname
+    locale === 'en' ? pathname : `/${locale}${pathname === '/' ? '' : pathname}`
   return `${localized}${url.search}${url.hash}`
 }
 

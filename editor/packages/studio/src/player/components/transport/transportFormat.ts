@@ -1,6 +1,7 @@
 // Readouts used by the preview transport (St-Preview boards): "0:08 / 0:45", "0:02.40", "1,5×".
 import { formatFrameTime, stepFrameTime } from "../../lib/time";
 import type { StudioLocale } from "../../../i18n/dictionary";
+import { usesDecimalComma } from "../../../i18n/translate";
 
 /** M:SS (minutes unpadded), the board's transport readout. */
 export function formatTransportTime(time: number): string {
@@ -31,7 +32,7 @@ export function formatTransportReadout(
 /** Playback rate label with the locale's decimal separator ("0,25×" in Romanian). */
 export function formatRate(rate: number, locale: StudioLocale): string {
   const text = String(rate);
-  return `${locale === "ro" ? text.replace(".", ",") : text}×`;
+  return `${usesDecimalComma(locale) ? text.replace(".", ",") : text}×`;
 }
 
 /** Time one frame before or after `time`, clamped to [0, duration]. */

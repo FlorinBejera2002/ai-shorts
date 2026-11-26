@@ -1,4 +1,4 @@
-import { getStudioLocale } from "../../i18n/translate";
+import { getStudioLocale, usesDecimalComma } from "../../i18n/translate";
 
 /** Short M:SS readout used on the timeline boards ("0:08", "1:12"): clip lengths, ruler
  *  labels and the work-area points. Unlike formatTime, minutes are not zero-padded. */
@@ -22,5 +22,5 @@ export function formatDecimalSeconds(time: number): string {
 
 /** A formatted number ("0.27", "-3.5 dB") with the UI language's decimal separator. */
 export function localizeDecimalText(text: string): string {
-  return getStudioLocale() === "ro" ? text.replace(/(\d)\.(\d)/g, "$1,$2") : text;
+  return usesDecimalComma(getStudioLocale()) ? text.replace(/(\d)\.(\d)/g, "$1,$2") : text;
 }

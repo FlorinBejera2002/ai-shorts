@@ -1,7 +1,7 @@
 export const BILLING_PLAN_IDS = ['free', 'creator', 'pro', 'agency'] as const
 
 export const PAID_BILLING_PLAN_IDS = ['creator', 'pro', 'agency'] as const
-export const BILLING_LOCALES = ['en', 'ro'] as const
+export const BILLING_LOCALES = ['en', 'ro', 'es'] as const
 
 export type BillingPlanId = (typeof BILLING_PLAN_IDS)[number]
 export type PaidBillingPlanId = (typeof PAID_BILLING_PLAN_IDS)[number]

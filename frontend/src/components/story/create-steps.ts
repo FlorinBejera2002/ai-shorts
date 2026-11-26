@@ -15,7 +15,7 @@ export interface CreationStepItem {
 
 export const creationStepCount = 3
 
-export type TranslateFn = (english: string, romanian: string) => string
+export type TranslateFn = (english: string, romanian: string, spanish?: string) => string
 
 export function creationStepLabels(text: TranslateFn): readonly [string, string, string] {
   return [
@@ -53,6 +53,7 @@ export function creationStepCounter(step: CreationStep, text: TranslateFn): stri
   const position = step + 1
   return text(
     `Step ${position} of ${creationStepCount}`,
-    `Pasul ${position} din ${creationStepCount}`
+    `Pasul ${position} din ${creationStepCount}`,
+    `Paso ${position} de ${creationStepCount}`
   )
 }

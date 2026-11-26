@@ -4,6 +4,7 @@ import { useCallback, useRef, useState } from 'react'
 import { useLocale } from 'next-intl'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { LazyMotion, domAnimation, useReducedMotion } from 'framer-motion'
+import { resolveSiteLocale } from '@/lib/site-config'
 import { Sheet, SheetContent, SheetTitle, SheetDescription } from '@/components/ui/sheet'
 import { localizeHref, usePathname } from '@/i18n/navigation'
 import { useIsMobile } from '@/hooks/use-mobile'
@@ -34,9 +35,8 @@ import './workspace-agent.css'
 
 /** Ana & Radu, the floating workspace assistant: a docked panel on desktop and a full-height sheet on phones. */
 export function WorkspaceAgent() {
-  const locale = useLocale()
-  const ro = locale === 'ro'
-  const copy = agentMessages[ro ? 'ro' : 'en']
+  const locale = resolveSiteLocale(useLocale())
+  const copy = agentMessages[locale]
   const route = usePathname()
   const [search] = useSearchParams()
   const routerNavigate = useNavigate()
@@ -80,14 +80,14 @@ export function WorkspaceAgent() {
   const content = (
     <LazyMotion features={domAnimation} strict><div className="flex h-full min-h-0 flex-col">
       <AgentHeader title={copy.title} controlLabel={mobile ? copy.closePanel : copy.close} variant={mobile ? 'sheet' : 'panel'} onClose={() => changeOpen(false)} />
-      <AgentConversation viewportRef={viewportRef} onScroll={onScroll} ro={ro} awayFromBottom={awayFromBottom} onScrollToLatest={scrollToLatest}>
-        <AgentTranscript agent={agent} copy={copy} ro={ro} uploading={uploading} reducedMotion={reducedMotion} onOpenRecordings={openRecordings} />
+      <AgentConversation viewportRef={viewportRef} onScroll={onScroll} locale={locale} awayFromBottom={awayFromBottom} onScrollToLatest={scrollToLatest}>
+        <AgentTranscript agent={agent} copy={copy} locale={locale} uploading={uploading} reducedMotion={reducedMotion} onOpenRecordings={openRecordings} />
         {context.visiblePanel && (
           <AgentContextPanel
             panel={context.visiblePanel}
-            title={panelTitles(ro, copy)[context.visiblePanel]}
+            title={panelTitles(locale, copy)[context.visiblePanel]}
             copy={copy}
-            ro={ro}
+            locale={locale}
             agent={agent}
             attachments={attachments}
             resource={resource}
@@ -112,7 +112,6 @@ export function WorkspaceAgent() {
         agent={agent}
         copy={copy}
         locale={locale}
-        ro={ro}
         mobile={mobile}
         canSend={canSend}
         studioBusy={studioUploading}

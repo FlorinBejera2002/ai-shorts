@@ -2,6 +2,7 @@
 
 import { useId, useState } from 'react'
 import { Check, Pause, X } from 'lucide-react'
+import type { SiteLocale } from '@/lib/site-config'
 import type { AgentRun, AgentStatus } from './model'
 import { ActionDetails, ActionTitle } from './action-details'
 import styles from './run-card.module.css'
@@ -16,22 +17,22 @@ const CURRENT_STEP_STATE: Partial<Record<AgentStatus, StepState>> = {
 }
 
 /** Steps list: finished steps from `run.steps`, then the run's current action in its status state. `shimmer` animates the current step's title while the run works. */
-export function RunSteps({ run, ro, shimmer = false }: { run: AgentRun; ro: boolean; shimmer?: boolean }) {
+export function RunSteps({ run, locale, shimmer = false }: { run: AgentRun; locale: SiteLocale; shimmer?: boolean }) {
   const current = run.action ? CURRENT_STEP_STATE[run.status] ?? 'todo' : undefined
   const finished = run.steps ?? []
   if (!finished.length && !run.action) return null
   return <div className="flex flex-col gap-2">
-    <ol className={styles.steps} aria-label={ro ? 'Pași' : 'Steps'}>
+    <ol className={styles.steps} aria-label={{ en: 'Steps', ro: 'Pași', es: 'Pasos' }[locale]}>
       {finished.map(step => <li key={`${step.action.name}-${JSON.stringify(step.action.input)}`} className={styles.step}>
         <StepMarker state="done" />
-        <span className={styles.stepText}><ActionTitle action={step.action} ro={ro} /></span>
+        <span className={styles.stepText}><ActionTitle action={step.action} locale={locale} /></span>
       </li>)}
       {run.action && current && <li className={styles.step} data-agent-operation={run.status}>
         <StepMarker state={current} />
-        <span className={shimmer && current === 'current' ? `${styles.stepText} agent-shimmer` : styles.stepText}><ActionTitle action={run.action} ro={ro} /></span>
+        <span className={shimmer && current === 'current' ? `${styles.stepText} agent-shimmer` : styles.stepText}><ActionTitle action={run.action} locale={locale} /></span>
       </li>}
     </ol>
-    <StepDetails run={run} ro={ro} />
+    <StepDetails run={run} locale={locale} />
   </div>
 }
 
@@ -44,18 +45,21 @@ function StepMarker({ state }: { state: StepState }) {
 }
 
 /** Expandable input details for the run's action and step summaries. */
-function StepDetails({ run, ro }: { run: AgentRun; ro: boolean }) {
+function StepDetails({ run, locale }: { run: AgentRun; locale: SiteLocale }) {
   const [expanded, setExpanded] = useState(false)
   const detailsId = useId()
   const summaries = (run.steps ?? []).filter(step => step.result?.summary)
   if (!run.action && !summaries.length) return null
+  const toggleLabel = expanded
+    ? { en: 'Hide details', ro: 'Ascunde detaliile', es: 'Ocultar detalles' }[locale]
+    : { en: 'Show details', ro: 'Arată detaliile', es: 'Mostrar detalles' }[locale]
   return <div>
     <button type="button" className={styles.detailsToggle} aria-expanded={expanded} aria-controls={detailsId} onClick={() => setExpanded(value => !value)}>
-      {expanded ? (ro ? 'Ascunde detaliile' : 'Hide details') : (ro ? 'Arată detaliile' : 'Show details')}
+      {toggleLabel}
     </button>
     {expanded && <div id={detailsId} className={`${styles.details} mt-2`}>
       {summaries.map(step => <p key={step.result?.summary}>{step.result?.summary}</p>)}
-      {run.action && <ActionDetails action={run.action} ro={ro} />}
+      {run.action && <ActionDetails action={run.action} locale={locale} />}
     </div>}
   </div>
 }

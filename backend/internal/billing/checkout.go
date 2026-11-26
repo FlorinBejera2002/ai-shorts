@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"sneepcut/backend-go/internal/identity"
+	"sneepcut/backend-go/internal/locale"
 )
 
 const claimLease = 2 * time.Minute
@@ -292,7 +293,7 @@ func (s *Service) checkout(w http.ResponseWriter, r *http.Request) {
 	if !readJSON(w, r, &input) {
 		return
 	}
-	if !paid(input.PlanID) || (input.Locale != "en" && input.Locale != "ro") {
+	if !paid(input.PlanID) || !locale.Supported(input.Locale) {
 		failure(w, 400, "invalid_checkout_payload")
 		return
 	}
@@ -303,7 +304,7 @@ func (s *Service) checkout(w http.ResponseWriter, r *http.Request) {
 	}
 	write(w, 200, result)
 }
-func (s *Service) startCheckout(ctx context.Context, userID, plan, locale string) (object, error) {
+func (s *Service) startCheckout(ctx context.Context, userID, plan, uiLocale string) (object, error) {
 	a, err := s.account(ctx, userID)
 	if err != nil {
 		return nil, err
@@ -319,7 +320,7 @@ func (s *Service) startCheckout(ctx context.Context, userID, plan, locale string
 		if a.CustomerID == "" {
 			return nil, conflict("billing_state_invalid")
 		}
-		link, e := s.portal(ctx, a.CustomerID, locale)
+		link, e := s.portal(ctx, a.CustomerID, uiLocale)
 		return object{"url": link, "kind": "portal"}, e
 	}
 	if a.CustomerID != "" {
@@ -329,7 +330,7 @@ func (s *Service) startCheckout(ctx context.Context, userID, plan, locale string
 		}
 		for _, sub := range subscriptions {
 			if !terminal(sub.text("status")) {
-				link, e := s.portal(ctx, a.CustomerID, locale)
+				link, e := s.portal(ctx, a.CustomerID, uiLocale)
 				return object{"url": link, "kind": "portal"}, e
 			}
 		}
@@ -346,7 +347,7 @@ func (s *Service) startCheckout(ctx context.Context, userID, plan, locale string
 	if err != nil {
 		return nil, err
 	}
-	snapshot := claim{UserID: userID, PlanID: plan, PriceID: price, Locale: locale, CustomerID: a.CustomerID, CustomerEmail: a.Email, SuccessURL: s.cfg.AppURL + billingPath(locale) + "?checkout_session_id={CHECKOUT_SESSION_ID}", CancelURL: s.cfg.AppURL + billingPath(locale) + "?canceled=true"}
+	snapshot := claim{UserID: userID, PlanID: plan, PriceID: price, Locale: uiLocale, CustomerID: a.CustomerID, CustomerEmail: a.Email, SuccessURL: s.cfg.AppURL + billingPath(uiLocale) + "?checkout_session_id={CHECKOUT_SESSION_ID}", CancelURL: s.cfg.AppURL + billingPath(uiLocale) + "?canceled=true"}
 	c, owned, err := s.claimOrLoad(ctx, snapshot)
 	if err != nil {
 		return nil, err
@@ -401,7 +402,7 @@ func (s *Service) startCheckout(ctx context.Context, userID, plan, locale string
 		if c.CheckoutExpiresAt.Sub(s.now()) < replayMinimum {
 			return nil, conflict("checkout_in_progress")
 		}
-		if !paid(c.PlanID) || (c.Locale != "en" && c.Locale != "ro") {
+		if !paid(c.PlanID) || !locale.Supported(c.Locale) {
 			return nil, conflict("billing_state_invalid")
 		}
 		session, e := s.createProviderCheckout(ctx, c)

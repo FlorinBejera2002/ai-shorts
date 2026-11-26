@@ -16,6 +16,7 @@ function fixture(iconOnly) {
     if (name.endsWith('/toast')) return { useToast: (select = (state) => state) => select({ add() {} }) }
     if (name === '@/lib/auth') return { authClient: { logout: async () => { calls++ } } }
     if (name === '@/lib/utils') return { cn: (...values) => values.filter(Boolean).join(' ') }
+    if (name === '@/i18n/inline-text') return { pickInlineText: (_locale, english) => english }
     return new Proxy({}, { get: (_, key) => key })
   }
   vm.runInNewContext(source, { exports, require })

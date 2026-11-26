@@ -14,6 +14,7 @@ import (
 	"sneepcut/backend-go/internal/data"
 	"sneepcut/backend-go/internal/identity"
 	"sneepcut/backend-go/internal/jobs"
+	"sneepcut/backend-go/internal/locale"
 	"sneepcut/backend-go/internal/youtubechannel"
 )
 
@@ -320,10 +321,7 @@ func (h *Handler) selectionImport(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusUnprocessableEntity, "Choose public or unlisted videos from your channel.")
 		return
 	}
-	locale := "en"
-	if input.Locale == "ro" {
-		locale = "ro"
-	}
+	uiLocale := locale.Normalize(input.Locale)
 	state, browser, verifier, err := newAuthorizationSecrets()
 	if err != nil {
 		writeError(w, http.StatusServiceUnavailable, "Could not start YouTube import.")
@@ -340,7 +338,7 @@ func (h *Handler) selectionImport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	selection := &selectionRequest{options: encodedOptions, videos: items}
-	err = h.createAuthorizationWith(r.Context(), user.ID, user.SessionVersion, resources, state, browser, verifier, locale, importID, selection)
+	err = h.createAuthorizationWith(r.Context(), user.ID, user.SessionVersion, resources, state, browser, verifier, uiLocale, importID, selection)
 	if errors.Is(err, errActiveImport) {
 		writeError(w, http.StatusConflict, "A YouTube import is already in progress.")
 		return

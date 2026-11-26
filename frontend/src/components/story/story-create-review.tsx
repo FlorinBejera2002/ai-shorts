@@ -203,7 +203,8 @@ function noiseReducedLabel(
 ) {
   return text(
     `Noise reduced · ${count} footage`,
-    `Zgomot redus · ${count} ${count === 1 ? 'filmare' : 'filmări'}`
+    `Zgomot redus · ${count} ${count === 1 ? 'filmare' : 'filmări'}`,
+    `Ruido reducido · ${count} ${count === 1 ? 'grabación' : 'grabaciones'}`
   )
 }
 

@@ -21,6 +21,7 @@ import { Toaster } from '@/components/ui/toast'
 import { NextIntlClientProvider } from 'next-intl'
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import enMessages from '../messages/en.json'
+import esMessages from '../messages/es.json'
 import roMessages from '../messages/ro.json'
 import {
   CalendarRoute,
@@ -39,19 +40,27 @@ import {
   TermsRoute
 } from './pages/public-pages'
 import { QueryProvider } from './query/query-provider'
+import { resolveSiteLocale, type SiteLocale } from '@/lib/site-config'
 import { PublicSiteRoute } from './routing/public-site-route'
 import { RouteEffects } from './routing/route-effects'
 import { AdditionalLegalRoute } from './pages/additional-legal-route'
 import { additionalLegalPaths } from './routing/legal-documents'
 
-type AppLocale = 'en' | 'ro'
+type AppLocale = SiteLocale
 
+function messagesFor(locale: AppLocale) {
+  if (locale === 'ro') return roMessages
+  if (locale === 'es') return esMessages
+  return enMessages
+}
+
+/** The first path segment selects the locale; unprefixed paths are English. */
 function localeFromPathname(pathname: string): AppLocale {
-  return pathname === '/ro' || pathname.startsWith('/ro/') ? 'ro' : 'en'
+  return resolveSiteLocale(pathname.split('/')[1])
 }
 
 function ApplicationRoutes({ locale }: { locale: AppLocale }) {
-  const prefix = locale === 'ro' ? '/ro' : ''
+  const prefix = locale === 'en' ? '' : `/${locale}`
   const route = (pathname: string) => `${prefix}${pathname}` || '/'
 
   return (
@@ -109,7 +118,7 @@ function ApplicationRoutes({ locale }: { locale: AppLocale }) {
 function App() {
   const location = useLocation()
   const locale = localeFromPathname(location.pathname)
-  const messages = locale === 'ro' ? roMessages : enMessages
+  const messages = messagesFor(locale)
 
   return (
     <ThemeProvider>

@@ -1,6 +1,7 @@
 // Studio client of the workspace agent API, through the Studio server's allowlisted proxy
 // (`/sneepcut/agent-api/*` → backend `/api/workspace-agent/*`). The session cookie authenticates;
 // no bearer token is handled in the browser.
+import type { StudioLocale } from "../../i18n/dictionary";
 import {
   isAgentRun,
   type AgentCommand,
@@ -100,7 +101,7 @@ export function createAgentApi(fetcher: AgentFetch = (input, init) => fetch(inpu
         },
         command === "undo" ? undefined : run.id,
       ),
-    suggestions: async (locale: "ro" | "en", projectId?: string, signal?: AbortSignal) => {
+    suggestions: async (locale: StudioLocale, projectId?: string, signal?: AbortSignal) => {
       const query = `?locale=${locale}${projectId ? `&project_id=${encodeURIComponent(projectId)}` : ""}`;
       const data = await request<{ suggestions?: AgentSuggestion[] }>(
         `/suggestions${query}`,

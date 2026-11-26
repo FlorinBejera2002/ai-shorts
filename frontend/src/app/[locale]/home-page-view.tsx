@@ -1,3 +1,4 @@
+import { pickInlineText } from '@/i18n/inline-text'
 import {
   SectionReveal,
   StaggerGrid,
@@ -49,19 +50,26 @@ export function HomePageView({
   t: Awaited<ReturnType<typeof getTranslations>>
 }) {
   const meta =
-    locale === 'ro'
+    locale === 'es'
       ? {
-          sourceLine: 'O sursă. Mai multe clipuri.',
-          signal: 'Semnal',
-          frame: 'Cadru',
-          script: 'Scenariu'
+          sourceLine: 'Una fuente. Más clips.',
+          signal: 'Señal',
+          frame: 'Encuadre',
+          script: 'Guion'
         }
-      : {
-          sourceLine: 'One source. Multiple cuts.',
-          signal: 'Signal',
-          frame: 'Frame',
-          script: 'Script'
-        }
+      : locale === 'ro'
+        ? {
+            sourceLine: 'O sursă. Mai multe clipuri.',
+            signal: 'Semnal',
+            frame: 'Cadru',
+            script: 'Scenariu'
+          }
+        : {
+            sourceLine: 'One source. Multiple cuts.',
+            signal: 'Signal',
+            frame: 'Frame',
+            script: 'Script'
+          }
 
   const steps = [
     {
@@ -533,7 +541,7 @@ export function HomePageView({
           </div>
           <nav
             aria-label={
-              locale === 'ro' ? 'Navigare subsol' : 'Footer navigation'
+              pickInlineText(locale, 'Footer navigation', 'Navigare subsol', 'Navegación del pie de página')
             }
             className="flex flex-wrap gap-6 text-[10px] font-bold uppercase tracking-[0.12em]"
           >

@@ -34,7 +34,8 @@ export function SourceDropzone({ limits, active, onChoose }: Props) {
       <p className={styles.dropzoneSubtitle}>
         {text(
           `MP4, MOV, WebM, MKV · up to ${gigabytes} GB per file`,
-          `MP4, MOV, WebM, MKV · până la ${gigabytes} GB pe fișier`
+          `MP4, MOV, WebM, MKV · până la ${gigabytes} GB pe fișier`,
+          `MP4, MOV, WebM, MKV · hasta ${gigabytes} GB por archivo`
         )}
       </p>
       <Button type="button" className={styles.chooseButton} onClick={onChoose}>

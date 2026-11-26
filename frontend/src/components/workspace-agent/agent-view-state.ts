@@ -1,3 +1,4 @@
+import type { SiteLocale } from '@/lib/site-config'
 import type { AgentPanel } from './agent-menu'
 import type { AgentMessages } from './messages'
 
@@ -15,13 +16,13 @@ export function contextualPanelFor(missing: MissingResource[]): AgentPanel | nul
   return null
 }
 
-export function panelTitles(ro: boolean, copy: AgentMessages): Record<AgentPanel, string> {
+export function panelTitles(locale: SiteLocale, copy: AgentMessages): Record<AgentPanel, string> {
   return {
-    attachments: ro ? 'Fișiere pentru conversație' : 'Conversation files',
-    projects: ro ? 'Alege proiectul' : 'Choose project',
-    recordings: ro ? 'Surse media' : 'Media sources',
-    studio: ro ? 'Media pentru Studio' : 'Studio media',
-    preferences: ro ? 'Preferințe și istoric' : 'Preferences and history',
+    attachments: { en: 'Conversation files', ro: 'Fișiere pentru conversație', es: 'Archivos de la conversación' }[locale],
+    projects: { en: 'Choose project', ro: 'Alege proiectul', es: 'Elige el proyecto' }[locale],
+    recordings: { en: 'Media sources', ro: 'Surse media', es: 'Fuentes de medios' }[locale],
+    studio: { en: 'Studio media', ro: 'Media pentru Studio', es: 'Medios de Studio' }[locale],
+    preferences: { en: 'Preferences and history', ro: 'Preferințe și istoric', es: 'Preferencias e historial' }[locale],
     suggestions: copy.suggestions
   }
 }

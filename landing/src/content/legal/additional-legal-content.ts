@@ -3,7 +3,8 @@ import type { Locale as SiteLocale } from '@/lib/i18n'
 
 const updated = {
   en: 'Last updated: September 16, 2026',
-  ro: 'Ultima actualizare: 16 septembrie 2026'
+  ro: 'Ultima actualizare: 16 septembrie 2026',
+  es: 'Última actualización: 16 de septiembre de 2026'
 } as const
 
 export const LEGAL_NOTICE_COPY: Record<SiteLocale, LegalDocumentCopy> = {
@@ -140,6 +141,73 @@ export const LEGAL_NOTICE_COPY: Record<SiteLocale, LegalDocumentCopy> = {
     contactTitle: '7. Contact direct',
     contactPrompt: `Contactează ${LEGAL_OPERATOR.legalName} la`,
     contactFallback: LEGAL_OPERATOR.email
+  },
+  es: {
+    title: 'Aviso legal',
+    updated: updated.es,
+    intro:
+      'Esta página recoge los datos de la sociedad y la información de contacto del operador de sneepcut.com y del servicio Sneep Cut.',
+    sections: [
+      {
+        title: '1. Proveedor del servicio',
+        bullets: [
+          `Denominación jurídica: ${LEGAL_OPERATOR.legalName}`,
+          `Marca y nombre del servicio: ${LEGAL_OPERATOR.brand}`,
+          `Domicilio social: ${LEGAL_OPERATOR.address}`,
+          `Código de identificación fiscal rumano (CUI): ${LEGAL_OPERATOR.taxId}`,
+          `Número en el Registro de Comercio: ${LEGAL_OPERATOR.tradeRegister}`,
+          `Capital social: ${LEGAL_OPERATOR.shareCapital}`,
+          `Teléfono: ${LEGAL_OPERATOR.phone}`,
+          `Correo electrónico general: ${LEGAL_OPERATOR.email}`,
+          `Correo electrónico de privacidad y asistencia: ${LEGAL_OPERATOR.privacyEmail}`
+        ]
+      },
+      {
+        title: '2. Sitio web y servicio',
+        paragraphs: [
+          `${LEGAL_OPERATOR.legalName} ofrece Sneep Cut en https://sneepcut.com como servicio de software en línea para flujos de trabajo de video asistidos por IA, edición, exportación, planificación y publicación en plataformas conectadas por el usuario. El servicio no ofrece ninguna actividad profesional regulada.`,
+          'Puedes contactar con la sociedad de forma directa y eficaz a través de las direcciones de correo electrónico y el número de teléfono indicados arriba. Para asuntos relacionados con tu cuenta, usa siempre que sea posible la dirección asociada a tu cuenta de Sneep Cut.'
+        ]
+      },
+      {
+        title: '3. Precios, impuestos y entrega',
+        paragraphs: [
+          'Los precios vigentes, la moneda, el periodo de facturación, las funciones o créditos incluidos, la información sobre la renovación y el tratamiento fiscal aplicable a cada pedido se muestran antes del pago y en el registro de pago o en la factura. Sneep Cut se suministra por vía electrónica, por lo que no se aplica ninguna tarifa de entrega física.'
+        ]
+      },
+      {
+        title: '4. Reclamaciones y litigios de consumo',
+        paragraphs: [
+          'Ponte primero en contacto con nosotros indicando el correo electrónico de la cuenta, la referencia de la transacción si procede y una descripción breve del problema. Esto no limita ningún recurso legal ni el derecho a acudir a una autoridad o un tribunal competente.',
+          'Los consumidores rumanos que cumplan los requisitos pueden utilizar la información y los servicios de resolución alternativa de litigios de la Autoridad Nacional para la Protección de los Consumidores (ANPC). La antigua plataforma europea de resolución de litigios en línea se cerró en 2025, por lo que no la presentamos como canal de reclamación disponible.'
+        ],
+        links: [
+          {
+            label: 'Autoridad rumana de protección del consumidor (ANPC)',
+            href: 'https://anpc.ro/'
+          },
+          {
+            label: 'Resolución alternativa de litigios de la ANPC (SAL)',
+            href: 'https://reclamatiisal.anpc.ro/'
+          }
+        ]
+      },
+      {
+        title: '5. Propiedad intelectual',
+        paragraphs: [
+          'Los nombres, logotipos, software, interfaz y materiales originales de Sneep Cut pertenecen al operador o a sus licenciantes. El contenido de los usuarios sigue regido por los Términos de servicio. Nada de lo publicado en este sitio web concede una licencia más allá de los derechos limitados expresamente indicados en dichos Términos.'
+        ]
+      },
+      {
+        title: '6. Documentos legales',
+        paragraphs: [
+          'La Política de privacidad explica el tratamiento de datos personales; la Política de cookies describe el almacenamiento en el navegador; los Términos de servicio y la Política de uso aceptable rigen el uso; la Política de reembolsos y cancelación explica los recursos en materia de pagos; la Eliminación de datos describe los controles de supresión; y las páginas de Subencargados del tratamiento y de Anexo de tratamiento de datos tratan el procesamiento empresarial.'
+        ]
+      }
+    ],
+    contactTitle: '7. Contacto directo',
+    contactPrompt: `Contacta con ${LEGAL_OPERATOR.legalName} en`,
+    contactFallback: LEGAL_OPERATOR.email
   }
 }
 
@@ -267,6 +335,68 @@ export const COOKIE_POLICY_COPY: Record<SiteLocale, LegalDocumentCopy> = {
     contactTitle: '8. Întrebări',
     contactPrompt: 'Întrebări despre cookie-uri sau stocarea în browser:',
     contactFallback: LEGAL_OPERATOR.privacyEmail
+  },
+  es: {
+    title: 'Política de cookies',
+    updated: updated.es,
+    intro:
+      'Esta política explica las cookies y el almacenamiento similar del navegador que utiliza Sneep Cut. Actualmente las usamos solo cuando son necesarias para la seguridad, la autenticación, el idioma, las preferencias de interfaz y las integraciones solicitadas, y no para publicidad de terceros.',
+    sections: [
+      {
+        title: '1. Qué son estas tecnologías',
+        paragraphs: [
+          'Las cookies son pequeños valores que el navegador almacena y envía con las solicitudes pertinentes. El almacenamiento local y el de sesión guardan información limitada en el navegador sin enviarla automáticamente con cada solicitud. Algunos valores son propios del sitio y algunos valores temporales de autorización solo se crean cuando eliges un inicio de sesión de terceros o una conexión social.'
+        ]
+      },
+      {
+        title: '2. Cookies estrictamente necesarias',
+        bullets: [
+          'refreshToken: cookie HTTP-only y Secure en producción, que sirve para mantener y renovar una sesión autenticada. Se limita a la ruta de autenticación y caduca con la sesión o cuando cierras sesión.',
+          'goGoogleState: cookie HTTP-only de estado de autorización de corta duración, que se usa cuando eliges el inicio de sesión con Google. Normalmente caduca a los 10 minutos.',
+          'social_oauth_<provider>: cookie HTTP-only de estado de autorización de corta duración, que se usa cuando eliges conectar una cuenta social compatible. Normalmente caduca a los 10 minutos.',
+          'NEXT_LOCALE: preferencia de idioma que mantiene la versión en inglés o en rumano que hayas seleccionado.',
+          'sidebar_state: preferencia funcional que recuerda el estado de la barra lateral del panel.'
+        ],
+        paragraphs: [
+          'Estos valores respaldan la seguridad o una función que solicitas. Bloquearlos puede impedir el inicio de sesión, la conservación del idioma, la conexión de cuentas o el funcionamiento normal del panel.'
+        ]
+      },
+      {
+        title: '3. Almacenamiento local y de sesión',
+        bullets: [
+          'Preferencia de tema: recuerda el aspecto claro, oscuro o del sistema en el dispositivo.',
+          'Preferencia del último proyecto de Studio: recuerda el último proyecto de Studio del usuario con sesión iniciada en ese navegador.',
+          'Estado de la ventana emergente de conexión social: coordina temporalmente la ventana de autorización con la página que la abrió y se elimina al terminar el flujo.'
+        ]
+      },
+      {
+        title: '4. Analítica y marketing',
+        paragraphs: [
+          'Sneep Cut no establece actualmente cookies publicitarias ni de analítica de terceros que no sean esenciales en el sitio web público. Si esto cambia, actualizaremos esta política y mostraremos opciones de consentimiento antes de establecer tecnologías no esenciales cuando la ley lo exija. Rechazar el almacenamiento opcional no bloqueará el servicio principal.'
+        ]
+      },
+      {
+        title: '5. Tus controles',
+        paragraphs: [
+          'Puedes eliminar o bloquear cookies y datos del sitio desde la configuración del navegador. También puedes borrar el almacenamiento local y de sesión. Hacerlo puede cerrar tu sesión, restablecer las preferencias de idioma o de aspecto, cerrar flujos de autorización o exigirte volver a conectar una plataforma. Cierra sesión antes de usar un dispositivo compartido.'
+        ]
+      },
+      {
+        title: '6. Destinos de terceros',
+        paragraphs: [
+          'Google, Meta, TikTok, YouTube, Stripe u otro servicio puede establecer cookies en su propio dominio cuando visitas su página de autorización, pago o plataforma. Esas cookies las controla el proveedor y se describen en su aviso. Sneep Cut no puede leer cookies de dominios de terceros no relacionados.'
+        ]
+      },
+      {
+        title: '7. Cambios',
+        paragraphs: [
+          'Revisamos este inventario cuando cambian las prácticas de almacenamiento. La fecha de revisión identifica la versión vigente. Las incorporaciones relevantes, en especial las tecnologías de analítica o marketing, recibirán un aviso adicional y controles de consentimiento cuando sea necesario.'
+        ]
+      }
+    ],
+    contactTitle: '8. Preguntas',
+    contactPrompt: 'Preguntas sobre cookies o almacenamiento en el navegador:',
+    contactFallback: LEGAL_OPERATOR.privacyEmail
   }
 }
 
@@ -393,6 +523,68 @@ export const ACCEPTABLE_USE_COPY: Record<SiteLocale, LegalDocumentCopy> = {
     ],
     contactTitle: '8. Raportează un abuz',
     contactPrompt: 'Trimite o sesizare privind politica sau un abuz la',
+    contactFallback: LEGAL_OPERATOR.privacyEmail
+  },
+  es: {
+    title: 'Política de uso aceptable',
+    updated: updated.es,
+    intro:
+      'Esta política protege a los usuarios, a las personas que aparecen en el contenido, a las plataformas conectadas y al servicio Sneep Cut. Forma parte de los Términos de servicio.',
+    sections: [
+      {
+        title: '1. Derechos y uso lícito',
+        bullets: [
+          'Usa solo material, datos personales, música, marcas, cuentas y permisos de plataforma que estés autorizado a utilizar.',
+          'Respeta las leyes de derechos de autor, privacidad, derecho a la propia imagen, contratos, relaciones laborales, publicidad, consumo y protección de datos.',
+          'Obtén el consentimiento necesario de las personas que aparezcan, sean grabadas, perfiladas o destinatarias del contenido.'
+        ]
+      },
+      {
+        title: '2. Contenido dañino e ilegal',
+        bullets: [
+          'No crees, subas, distribuyas ni promociones material de abuso sexual infantil, explotación sexual, contenido íntimo sin consentimiento, trata o captación de menores (grooming).',
+          'No facilites violencia, amenazas creíbles, terrorismo, incitación a la autolesión, bienes ilegales, fraude, extorsión u otras conductas delictivas.',
+          'No publiques odio ilegal, acoso, doxxing ni contenido destinado a causar daños graves.'
+        ]
+      },
+      {
+        title: '3. Engaño y medios sintéticos',
+        bullets: [
+          'No suplantes ilegalmente a una persona u organización, no falsifiques la autoridad ni ocultes un patrocinio o una relación comercial relevante cuando la ley exija revelarlo.',
+          'No uses material editado o generado por IA para estafar, manipular procesos cívicos, fabricar pruebas ni presentar falsamente a una persona real diciendo o haciendo algo dañino.',
+          'Añade las etiquetas o advertencias que exijan la ley y la plataforma de destino para contenido sintético, alterado, patrocinado o de marca.'
+        ]
+      },
+      {
+        title: '4. Seguridad e integridad del servicio',
+        bullets: [
+          'No introduzcas malware, no hagas pruebas sin autorización, no evadas límites de frecuencia ni cuotas, no extraigas datos protegidos, no interfieras con otra cuenta ni intentes obtener credenciales o tokens.',
+          'No hagas ingeniería inversa ni copies el servicio salvo que la ley lo permita expresamente, no uses métodos de pago robados, no revendas accesos no autorizados ni compartas credenciales fuera de las funciones de equipo permitidas.',
+          'No utilices actividad automatizada para sobrecargar Sneep Cut ni una plataforma conectada.'
+        ]
+      },
+      {
+        title: '5. Abuso de plataformas y spam',
+        bullets: [
+          'Sigue las normas de comunidad, de desarrolladores, de música, publicidad, contenido de marca y publicación de cada plataforma de destino.',
+          'No publiques de forma masiva contenido no solicitado o sustancialmente duplicado, no manipules la interacción, no eludas las medidas de aplicación de la plataforma ni vuelvas a conectar una cuenta para saltarte una restricción.'
+        ]
+      },
+      {
+        title: '6. Aplicación de la política',
+        paragraphs: [
+          'Podemos investigar denuncias creíbles, conservar pruebas cuando la ley lo exija, bloquear un archivo u operación, limitar funciones, suspender una cuenta o poner fin al acceso, de forma proporcionada al riesgo y a la infracción. Podemos comunicar a las autoridades competentes el material aparentemente ilegal cuando sea obligatorio. Cuando proceda y sea legal, ofreceremos aviso y la posibilidad de recurrir o subsanar la situación.'
+        ]
+      },
+      {
+        title: '7. Denuncias',
+        paragraphs: [
+          'Notifica los abusos sospechados indicando la URL, la referencia de la cuenta o del proyecto, el motivo por el que el contenido infringe esta política y, cuando sea pertinente, la información que acredite tu autoridad o tus derechos. No incluyas contraseñas, tokens de acceso ni datos sensibles innecesarios.'
+        ]
+      }
+    ],
+    contactTitle: '8. Denunciar un abuso',
+    contactPrompt: 'Envía una denuncia sobre la política o un abuso a',
     contactFallback: LEGAL_OPERATOR.privacyEmail
   }
 }
@@ -535,6 +727,75 @@ export const REFUND_POLICY_COPY: Record<SiteLocale, LegalDocumentCopy> = {
     contactTitle: '9. Cerere de anulare sau rambursare',
     contactPrompt: 'Trimite cererea și referința tranzacției la',
     contactFallback: LEGAL_OPERATOR.email
+  },
+  es: {
+    title: 'Política de reembolsos y cancelación',
+    updated: updated.es,
+    intro:
+      'Esta política explica la cancelación de suscripciones, la compra de paquetes de créditos, los errores de facturación, los reembolsos y los derechos legales de desistimiento. La ley de consumo obligatoria prevalece si te reconoce derechos más amplios.',
+    sections: [
+      {
+        title: '1. Antes de la compra',
+        paragraphs: [
+          'Las pantallas de precios y de pago muestran el producto, el precio, la moneda, el periodo de facturación, la renovación, los créditos o funciones incluidos y los impuestos aplicables antes del pago. Revisa esa información y los Términos antes de confirmar. Los pagos los procesa el proveedor que aparece en el proceso de pago; Sneep Cut no almacena los datos completos de la tarjeta.'
+        ]
+      },
+      {
+        title: '2. Cancelar una suscripción',
+        paragraphs: [
+          'Abre Panel → Facturación y usa el control de gestión de la suscripción, o contacta con nosotros si ese control no está disponible. La cancelación detiene la renovación futura; normalmente no revierte un cargo ya generado. Salvo que se aplique un reembolso o un derecho legal de desistimiento, el acceso de pago continúa hasta el final del periodo de facturación vigente.',
+          'Eliminar una cuenta también inicia la cancelación de una suscripción activa como parte del flujo de eliminación protegido. Si la confirmación del proveedor no está disponible temporalmente, vuelve a intentarlo o contacta con soporte antes de dar por hecho que la cancelación se ha completado.'
+        ]
+      },
+      {
+        title: '3. Paquetes de créditos y créditos de servicio',
+        paragraphs: [
+          'Los créditos son unidades de uso del servicio y no tienen valor en efectivo. Las pantallas de planes y paquetes indican las reglas aplicables de renovación, traspaso o caducidad. Los créditos utilizados no son normalmente reembolsables una vez prestado el procesamiento solicitado, salvo que una ley obligatoria o un fallo confirmado del servicio exija una compensación.',
+          'Si el procesamiento falla técnicamente y, aun así, el producto muestra un cargo de créditos por un servicio completado, contacta con nosotros indicando la referencia del trabajo. Investigaremos el registro y restableceremos los créditos consumidos incorrectamente o ofreceremos otro remedio legalmente adecuado.'
+        ]
+      },
+      {
+        title: '4. Errores de facturación y reembolsos voluntarios',
+        bullets: [
+          'Notifica sin demora injustificada un cargo duplicado, un importe incorrecto, una transacción no autorizada o una función de pago inaccesible.',
+          'Incluye el correo electrónico de la cuenta, la fecha, el importe, la moneda y la referencia de la transacción o de la factura del proveedor; nunca los datos completos de la tarjeta.',
+          'Fuera de los derechos obligatorios, los reembolsos voluntarios se evalúan caso por caso según la prestación del servicio, el uso, los registros del proveedor y el motivo de la solicitud.'
+        ],
+        paragraphs: [
+          'Los reembolsos en efectivo aprobados se devuelven, cuando es posible, por el mismo medio de pago original. Los plazos de tramitación del banco y del proveedor de pagos escapan a nuestro control. Las correcciones de créditos pueden aparecer directamente en tu saldo de Sneep Cut.'
+        ]
+      },
+      {
+        title: '5. Desistimiento de consumidores del EEE',
+        paragraphs: [
+          'Un consumidor del EEE dispone, por lo general, de 14 días desde la celebración de un contrato de servicio a distancia o de contenido digital para comunicar su desistimiento, salvo que se aplique una excepción legal. Puedes usar el modelo de abajo o cualquier declaración clara. Envíala antes del plazo.',
+          'Si solicitas expresamente la prestación del servicio durante el periodo de desistimiento, puedes deber un importe proporcional por el servicio prestado antes del desistimiento. En el caso de contenido digital no suministrado en soporte material, el derecho solo puede perderse si se cumplen las condiciones legales, incluidos el consentimiento previo expreso y la confirmación. No consideramos que el texto de la política, por sí solo, constituya ese consentimiento.',
+          'Un desistimiento válido da lugar al reembolso exigido por la ley, normalmente por el medio de pago original y dentro del plazo legal. Los recursos de conformidad del consumidor por servicios digitales defectuosos siguen siendo independientes.'
+        ]
+      },
+      {
+        title: '6. Modelo de declaración de desistimiento',
+        paragraphs: [
+          `A ${LEGAL_OPERATOR.legalName}, ${LEGAL_OPERATOR.address}, ${LEGAL_OPERATOR.email}: Por la presente comunico que desisto de mi contrato relativo al siguiente servicio de Sneep Cut: [plan o paquete de créditos]. Pedido el: [fecha]. Correo electrónico de la cuenta: [correo electrónico]. Nombre y dirección del consumidor: [datos]. Fecha: [fecha]. Firma solo si se envía en papel.`,
+          'No es obligatorio usar exactamente esta redacción. Basta con un correo electrónico claro que identifique el contrato y la decisión de desistir.'
+        ]
+      },
+      {
+        title: '7. Devoluciones de cargo (contracargos)',
+        paragraphs: [
+          'Cuando sea posible, ponte primero en contacto con nosotros para que podamos investigar con rapidez. Una devolución de cargo no elimina los importes legalmente debidos y puede requerir una restricción temporal de la cuenta mientras el proveedor de pagos investiga. Esto no limita tu derecho a impugnar una transacción no autorizada o incorrecta.'
+        ]
+      },
+      {
+        title: '8. Cambios en la política',
+        paragraphs: [
+          'Los cambios se aplican hacia el futuro y no eliminan derechos ya adquiridos. Los cambios importantes que afecten a una suscripción de pago activa se notificarán cuando la ley lo exija.'
+        ]
+      }
+    ],
+    contactTitle: '9. Solicitud de cancelación o reembolso',
+    contactPrompt: 'Envía la solicitud y la referencia de la transacción a',
+    contactFallback: LEGAL_OPERATOR.email
   }
 }
 
@@ -646,6 +907,60 @@ export const SUBPROCESSORS_COPY: Record<SiteLocale, LegalDocumentCopy> = {
     contactTitle: '7. Întrebări despre subprocesatori',
     contactPrompt:
       'Solicită informații actuale despre furnizori sau transferuri la',
+    contactFallback: LEGAL_OPERATOR.privacyEmail
+  },
+  es: {
+    title: 'Subencargados del tratamiento',
+    updated: updated.es,
+    intro:
+      'Esta página identifica a los proveedores que pueden tratar datos personales de clientes para Sneep Cut. Un proveedor solo se utiliza cuando la función correspondiente está activada o se solicita.',
+    sections: [
+      {
+        title: '1. Infraestructura principal',
+        bullets: [
+          'netcup GmbH — Alemania — alojamiento de producción, cómputo, redes, base de datos, almacenamiento de contenido multimedia y almacenamiento usado para las copias de seguridad gestionadas por el operador.'
+        ]
+      },
+      {
+        title: '2. Autenticación y correo electrónico',
+        bullets: [
+          'Google Ireland Limited / Google LLC — EEE y Estados Unidos — inicio de sesión con Google, solo cuando el usuario selecciona ese método.',
+          'Resend, Inc. — Estados Unidos — correo electrónico transaccional de cuenta y seguridad, solo cuando está configurado el adaptador de envío de Resend.',
+          'Proveedor SMTP configurado — la ubicación depende del operador seleccionado — correo electrónico transaccional cuando se usa SMTP en lugar de Resend. Contacta con nosotros para conocer el proveedor activo en tu cuenta.'
+        ]
+      },
+      {
+        title: '3. Procesamiento asistido por IA',
+        bullets: [
+          'OpenRouter, Inc. — Estados Unidos — envía las solicitudes de IA de texto o multimodales seleccionadas al proveedor del modelo configurado cuando OpenRouter está activado.',
+          'Google LLC / Google Cloud — EEE, Estados Unidos e infraestructura del proveedor — procesamiento con Gemini cuando se configura directamente o se selecciona a través de un enrutador de IA.',
+          'El proveedor del modelo configurado — la ubicación depende del modelo seleccionado — recibe solo el contexto de la solicitud necesario para la función. El proveedor o el modelo puede cambiar según se documenta en esta página o en un pedido empresarial.'
+        ],
+        paragraphs: [
+          'Los componentes locales de procesamiento de contenido multimedia, incluida la transcripción local cuando está configurada, no constituyen subencargados externos.'
+        ]
+      },
+      {
+        title: '4. Pagos',
+        bullets: [
+          'Stripe Payments Europe, Limited y las entidades pertinentes del grupo Stripe — EEE, Estados Unidos e infraestructura global — cobro, suscripciones, facturas, prevención del fraude y soporte de pagos cuando se utiliza un producto de pago.'
+        ]
+      },
+      {
+        title: '5. Las plataformas conectadas son servicios independientes',
+        paragraphs: [
+          'Meta, TikTok, Google/YouTube y cualquier otro destino elegido por un usuario reciben contenido y datos de cuenta por indicación del usuario. Por lo general actúan bajo sus propias condiciones y avisos de privacidad, y no como subencargados generales de Sneep Cut. Su uso es opcional y se inicia al conectar una cuenta o al publicar.'
+        ]
+      },
+      {
+        title: '6. Cambios y objeciones',
+        paragraphs: [
+          'Los clientes empresariales otorgan una autorización general para los subencargados enumerados conforme al Anexo de tratamiento de datos. Actualizaremos esta página antes de que un nuevo subencargado relevante comience a tratar datos, siempre que sea razonablemente posible. Un cliente puede oponerse por motivos razonables de protección de datos contactando con nosotros sin demora; las partes trabajarán de buena fe para encontrar una solución, que puede incluir desactivar la función opcional afectada o ponerle fin en virtud del contrato.'
+        ]
+      }
+    ],
+    contactTitle: '7. Preguntas sobre subencargados',
+    contactPrompt: 'Solicita información actual sobre proveedores o transferencias en',
     contactFallback: LEGAL_OPERATOR.privacyEmail
   }
 }
@@ -845,6 +1160,104 @@ export const DPA_COPY: Record<SiteLocale, LegalDocumentCopy> = {
     ],
     contactTitle: '13. Cereri privind DPA',
     contactPrompt: 'Solicită o copie semnată sau transmite instrucțiuni la',
+    contactFallback: LEGAL_OPERATOR.privacyEmail
+  },
+  es: {
+    title: 'Anexo de tratamiento de datos',
+    updated: updated.es,
+    intro:
+      'Este Anexo de tratamiento de datos (DPA) complementa los Términos u otro contrato de servicio cuando Sneep Cut trata datos personales de Clientes en nombre de un cliente empresarial. Está diseñado para cumplir los requisitos del artículo 28 del RGPD.',
+    sections: [
+      {
+        title: '1. Partes y efectos',
+        paragraphs: [
+          `El cliente que acepta o firma el contrato de servicio es el «Cliente». ${LEGAL_OPERATOR.legalName}, operador de Sneep Cut, es el «Encargado». Este DPA se aplica automáticamente cuando el Cliente es responsable o encargado del tratamiento de datos personales y Sneep Cut trata esos datos siguiendo las instrucciones documentadas del Cliente para prestar el servicio.`,
+          'Si el Cliente actúa como encargado para otro responsable, confirma que puede designar a Sneep Cut como subencargado y que comunicará las instrucciones pertinentes del responsable. Una versión firmada está disponible a petición. Si un DPA firmado y negociado contradice esta página, prevalecerá el DPA firmado.'
+        ]
+      },
+      {
+        title: '2. Detalles del tratamiento',
+        bullets: [
+          'Objeto y finalidad: alojamiento, ingesta, transcripción, análisis, transformación, edición, almacenamiento, exportación, programación, publicación, soporte y protección de los flujos de trabajo con contenido multimedia solicitados por el Cliente.',
+          'Duración: el plazo del servicio más los periodos limitados de eliminación, copia de seguridad, seguridad y conservación legal descritos en el contrato y en la Política de privacidad.',
+          'Interesados: usuarios, personal, contratistas, clientes, miembros de la audiencia, ponentes, personas que aparecen o se escuchan en el contenido multimedia, contactos de cuentas sociales y otras personas cuyos datos envía el Cliente.',
+          'Tipos de datos: identificadores, datos de contacto y de cuenta, imágenes, video, voz, parecido, transcripciones, subtítulos, instrucciones (prompts), metadatos de proyecto, identificadores y tokens sociales, datos de publicación, datos técnicos y cualquier otro dato personal que elija el Cliente.',
+          'Operaciones de tratamiento: recogida a partir del Cliente, organización, almacenamiento, recuperación, consulta, análisis automatizado, modificación, transmisión a destinos seleccionados por el Cliente, limitación, exportación y supresión.'
+        ]
+      },
+      {
+        title: '3. Instrucciones y obligaciones del Cliente',
+        paragraphs: [
+          'El contrato, la configuración de funciones, las acciones del Cliente y las indicaciones escritas de soporte constituyen instrucciones documentadas. El Encargado tratará los Datos personales del Cliente únicamente según dichas instrucciones, salvo que el Derecho de la Unión o de un Estado miembro exija otra cosa; en tal caso, el Encargado informará al Cliente antes del tratamiento, salvo que la ley prohíba esa información.',
+          'El Cliente es responsable de la licitud, lealtad, exactitud, transparencia y minimización de los datos enviados; de las informaciones y los consentimientos necesarios; de la autorización de los usuarios; y de garantizar que las instrucciones cumplen la ley. Si el Encargado considera que una instrucción infringe la normativa aplicable en materia de protección de datos, lo comunicará sin demora al Cliente y podrá suspender la operación afectada.'
+        ]
+      },
+      {
+        title: '4. Confidencialidad y personal',
+        paragraphs: [
+          'El Encargado limita el acceso al personal y a los contratistas que lo necesiten para el servicio y los vincula a obligaciones de confidencialidad que subsisten tras finalizar el acceso. El acceso se revisa y se retira cuando deja de ser necesario.'
+        ]
+      },
+      {
+        title: '5. Medidas de seguridad',
+        bullets: [
+          'Transporte de red cifrado y cookies de autenticación Secure/HTTP-only en producción.',
+          'Hash de contraseñas, controles de acceso por roles y por servicio, acceso restringido a producción y separación de secretos.',
+          'Cifrado de las credenciales sociales almacenadas, estado OAuth de corta duración, acceso firmado a los archivos multimedia, limitación de frecuencia y rutas de almacenamiento limitadas a cada cuenta.',
+          'Validación de cargas y análisis antimalware, aislamiento de servicios y de red, monitorización, registro y procedimientos de recuperación adecuados al entorno.',
+          'Flujos de eliminación que coordinan los trabajos activos, la cancelación de la facturación, las credenciales sociales, los registros de la base de datos y los archivos multimedia de la cuenta antes de la finalización.'
+        ],
+        paragraphs: [
+          'El Encargado puede actualizar las salvaguardas para reflejar el riesgo y la tecnología, siempre que la protección global no se reduzca de forma sustancial. Ningún control elimina todos los riesgos.'
+        ]
+      },
+      {
+        title: '6. Subencargados',
+        paragraphs: [
+          'El Cliente otorga una autorización general para utilizar los proveedores enumerados en la página de Subencargados del tratamiento. El Encargado sigue siendo responsable de imponer obligaciones de protección de datos adecuadas a los servicios prestados. El Encargado publicará las incorporaciones relevantes antes de su uso, siempre que sea razonablemente posible.',
+          'El Cliente puede oponerse sin demora por motivos razonables de protección de datos. Las partes intentarán resolver la preocupación, incluso cambiando la configuración cuando sea comercial y técnicamente viable. Si no existe una solución razonable, cualquiera de las partes puede poner fin a la función o servicio opcional afectado en virtud del contrato.'
+        ]
+      },
+      {
+        title: '7. Transferencias internacionales',
+        paragraphs: [
+          'El Cliente autoriza las transferencias necesarias para los proveedores enumerados y los destinos seleccionados. El Encargado utilizará un mecanismo de transferencia lícito cuando sea exigible, incluida una decisión de adecuación o unas Cláusulas Contractuales Tipo aprobadas con las medidas complementarias adecuadas. Si las Cláusulas Contractuales Tipo deben aplicarse directamente entre el Cliente y el Encargado, las partes completarán y firmarán el módulo correspondiente; el Cliente puede solicitar ese documento utilizando el contacto indicado más abajo.'
+        ]
+      },
+      {
+        title: '8. Solicitudes de los interesados y asistencia en el cumplimiento',
+        paragraphs: [
+          'Teniendo en cuenta la naturaleza del tratamiento, el Encargado ofrece las herramientas de autoservicio disponibles para exportar, corregir, desconectar y eliminar datos, así como asistencia razonable para que el Cliente responda a las solicitudes de derechos. Si el Encargado recibe una solicitud relativa a los Datos personales del Cliente, redirigirá al solicitante hacia el Cliente cuando sea posible y no responderá en cuanto al fondo salvo que esté autorizado o legalmente obligado.',
+          'El Encargado facilitará la información razonable necesaria para las evaluaciones de impacto relativas a la protección de datos, las consultas, las obligaciones de seguridad y las notificaciones de violaciones de seguridad del Cliente, teniendo en cuenta el servicio y la información de que dispone el Encargado.'
+        ]
+      },
+      {
+        title: '9. Incidentes con datos personales',
+        paragraphs: [
+          'El Encargado notificará al Cliente sin demora injustificada tras confirmar una violación de datos personales que afecte a los Datos personales del Cliente. La notificación incluirá la información disponible sobre la naturaleza de la violación, sus consecuencias probables, las categorías afectadas, las medidas adoptadas y el punto de contacto, y podrá facilitarse por fases. La notificación no supone reconocimiento de culpa. El Cliente es responsable de las notificaciones que, como responsable, esté legalmente obligado a realizar.'
+        ]
+      },
+      {
+        title: '10. Devolución y supresión',
+        paragraphs: [
+          'Durante la vigencia del contrato, el Cliente puede utilizar las herramientas de exportación disponibles. Al eliminar la cuenta o al terminar el servicio, el Encargado eliminará o devolverá los Datos personales del Cliente según la elección de este cuando sea técnicamente posible y, después, suprimirá las copias activas restantes, salvo que la ley exija su conservación. Los restos de copias de seguridad protegidas se aíslan del uso ordinario y se eliminan o sobrescriben conforme al ciclo de vida aplicable. Las publicaciones seleccionadas por el Cliente en plataformas de terceros deben gestionarse por separado.'
+        ]
+      },
+      {
+        title: '11. Información y auditorías',
+        paragraphs: [
+          'El Encargado pondrá a disposición la información razonablemente necesaria para demostrar el cumplimiento del artículo 28. El Cliente debe utilizar primero la documentación vigente, los informes independientes si existen y las respuestas por escrito. Si estos resultan insuficientes, el Cliente podrá solicitar una auditoría proporcionada al año, realizada por un auditor independiente, confidencial y no competidor, con preaviso razonable, en horario laboral y sin acceder a los datos de otros clientes ni perturbar la seguridad. El Cliente asume los costes de la auditoría, salvo que se confirme un incumplimiento material del Encargado.'
+        ]
+      },
+      {
+        title: '12. Responsabilidad, prioridad y ley aplicable',
+        paragraphs: [
+          'Los límites de responsabilidad del contrato se aplican a este DPA en la medida permitida por la normativa de protección de datos. Este DPA prevalece sobre las cláusulas incompatibles del contrato relativas al tratamiento de los Datos personales del Cliente; en lo demás, el contrato permanece sin cambios. Se aplica el Derecho rumano, sin desplazar los derechos imperativos del RGPD ni los derechos ante la autoridad de control y los tribunales previstos en el RGPD.'
+        ]
+      }
+    ],
+    contactTitle: '13. Solicitudes sobre el DPA',
+    contactPrompt: 'Solicita una copia firmada o envía instrucciones de privacidad a',
     contactFallback: LEGAL_OPERATOR.privacyEmail
   }
 }

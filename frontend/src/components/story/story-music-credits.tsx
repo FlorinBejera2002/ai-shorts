@@ -7,7 +7,7 @@ import { useStoryLanguage } from './use-story-language'
 
 function musicTimingDescription(
   music: StoryMusicOutput,
-  text: (english: string, romanian: string) => string
+  text: (english: string, romanian: string, spanish?: string) => string
 ) {
   const syncCopy = {
     aligned: text(

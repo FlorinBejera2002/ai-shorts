@@ -1,6 +1,9 @@
+import { resolveSiteLocale, type SiteLocale } from '@/lib/site-config'
 import { useEffect, useRef, useState } from 'react'
 import { toast } from '@/lib/toast'
 import { agentMessages } from './messages'
+
+const DICTATION_LANGUAGES: Record<SiteLocale, string> = { en: 'en-US', ro: 'ro-RO', es: 'es-ES' }
 
 interface Recognition {
   lang: string; interimResults: boolean; continuous: boolean
@@ -14,13 +17,13 @@ export function useDictation(locale: string, append: (text: string) => void) {
   const [listening, setListening] = useState(false)
   const speechWindow = typeof window === 'undefined' ? undefined : window as SpeechWindow
   const Constructor = speechWindow?.SpeechRecognition ?? speechWindow?.webkitSpeechRecognition
-  const messages = agentMessages[locale === 'ro' ? 'ro' : 'en']
+  const messages = agentMessages[resolveSiteLocale(locale)]
   useEffect(() => () => { recognition.current?.abort() }, [])
   function toggle() {
     if (listening) { recognition.current?.stop(); return }
     if (!Constructor) return
     const instance = new Constructor()
-    instance.lang = locale === 'ro' ? 'ro-RO' : 'en-US'
+    instance.lang = DICTATION_LANGUAGES[resolveSiteLocale(locale)]
     instance.interimResults = false; instance.continuous = false
     instance.onresult = event => append(Array.from(event.results).map(result => result[0].transcript).join(' '))
     instance.onerror = () => { setListening(false); toast.error(messages.speechError) }

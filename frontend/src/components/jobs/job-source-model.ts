@@ -1,7 +1,7 @@
 import type { ProcessingCardSource } from '@/components/create/processing-card'
 import type { JobStatus } from './use-job-status'
 
-type Text = (english: string, romanian: string) => string
+type Text = (english: string, romanian: string, spanish?: string) => string
 type JobRecord = JobStatus['job']
 
 /** YouTube and URL jobs come from a link; everything else is uploaded footage. */
@@ -13,7 +13,7 @@ function clipCountLabel(count: number | undefined, text: Text) {
   if (count === undefined) return null
   if (count === 0) return text('Auto', 'Auto')
   if (count === 1) return text('1 clip', '1 clip')
-  return text(`${count} clips`, `${count} clipuri`)
+  return text(`${count} clips`, `${count} clipuri`, `${count} clips`)
 }
 
 function subtitleStyleLabel(style: string | null | undefined, text: Text) {

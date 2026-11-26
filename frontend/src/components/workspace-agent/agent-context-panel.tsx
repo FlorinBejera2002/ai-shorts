@@ -3,6 +3,7 @@
 import type { ComponentProps } from 'react'
 import { m as motion } from 'framer-motion'
 import { X } from 'lucide-react'
+import type { SiteLocale } from '@/lib/site-config'
 import { AgentIllustration } from './agent-persona'
 import { AgentAttachments } from './agent-attachments'
 import { AgentPreferences } from './agent-preferences'
@@ -27,7 +28,7 @@ interface AgentContextPanelProps {
   panel: AgentPanel
   title: string
   copy: AgentMessages
-  ro: boolean
+  locale: SiteLocale
   agent: AgentController
   attachments: ReturnType<typeof useAgentAttachments>
   resource: ReturnType<typeof useAgentResources>
@@ -50,7 +51,7 @@ interface AgentContextPanelProps {
 
 /** Side panel of the assistant (attachments, projects, media, studio, preferences, suggestions). */
 export function AgentContextPanel(props: AgentContextPanelProps) {
-  const { panel, title, ro, uploading, onClose, reducedMotion } = props
+  const { panel, title, locale, uploading, onClose, reducedMotion } = props
   return (
     <motion.section
         initial={reducedMotion ? false : { opacity: 0, y: 4 }}
@@ -62,7 +63,7 @@ export function AgentContextPanel(props: AgentContextPanelProps) {
       >
         <div className={styles.header}>
           <h3 className={styles.title}>{title}</h3>
-          <AgentIconButton label={ro ? 'Închide opțiunile' : 'Close options'} disabled={uploading} onClick={onClose}>
+          <AgentIconButton label={{ en: 'Close options', ro: 'Închide opțiunile', es: 'Cerrar opciones' }[locale]} disabled={uploading} onClick={onClose}>
             <X />
           </AgentIconButton>
         </div>
@@ -72,31 +73,31 @@ export function AgentContextPanel(props: AgentContextPanelProps) {
 }
 
 function AgentPanelBody(props: AgentContextPanelProps) {
-  const { panel, ro, agent, uploading } = props
+  const { panel, locale, agent, uploading } = props
   switch (panel) {
     case 'attachments':
-      return <AgentAttachments attachments={props.attachments} ro={ro} kinds={props.attachmentKinds} target={props.attachmentTarget} />
+      return <AgentAttachments attachments={props.attachments} locale={locale} kinds={props.attachmentKinds} target={props.attachmentTarget} />
     case 'recordings':
       return props.storyId
-        ? <AgentResources resource={props.resource} ro={ro} />
+        ? <AgentResources resource={props.resource} locale={locale} />
         : <>
-            <p className="text-xs text-muted-foreground">{ro ? 'Alege proiectul la care atașezi filmările.' : 'Choose a project for these recordings.'}</p>
-            <AgentProjectPicker ro={ro} storiesOnly disabled={uploading} selectedId={props.projectId} onSelect={props.onRecordingsProject} />
+            <p className="text-xs text-muted-foreground">{{ en: 'Choose a project for these recordings.', ro: 'Alege proiectul la care atașezi filmările.', es: 'Elige el proyecto al que adjuntas las grabaciones.' }[locale]}</p>
+            <AgentProjectPicker locale={locale} storiesOnly disabled={uploading} selectedId={props.projectId} onSelect={props.onRecordingsProject} />
           </>
     case 'studio':
       return props.studioProjectId
-        ? <StudioAssets key={props.studioProjectId} projectId={props.studioProjectId} ro={ro} onBusy={props.onStudioBusy} onUploaded={props.onStudioUploaded} />
-        : <p className="text-xs text-muted-foreground">{ro ? 'Precizează proiectul Studio în conversație înainte de a atașa fișierele.' : 'Identify the Studio project in the conversation before attaching files.'}</p>
+        ? <StudioAssets key={props.studioProjectId} projectId={props.studioProjectId} locale={locale} onBusy={props.onStudioBusy} onUploaded={props.onStudioUploaded} />
+        : <p className="text-xs text-muted-foreground">{{ en: 'Identify the Studio project in the conversation before attaching files.', ro: 'Precizează proiectul Studio în conversație înainte de a atașa fișierele.', es: 'Indica el proyecto de Studio en la conversación antes de adjuntar archivos.' }[locale]}</p>
     case 'projects':
-      return <AgentProjectPicker ro={ro} disabled={uploading} selectedId={props.projectId} onSelect={props.onProject} />
+      return <AgentProjectPicker locale={locale} disabled={uploading} selectedId={props.projectId} onSelect={props.onProject} />
     case 'preferences':
-      return <AgentPreferences agent={agent} messages={props.copy} ro={ro} width={props.width} onWidth={props.onWidth} />
+      return <AgentPreferences agent={agent} messages={props.copy} locale={locale} width={props.width} onWidth={props.onWidth} />
     case 'suggestions':
-      return <AgentSuggestions agent={agent} copy={props.copy} ro={ro} disabled={agent.busy || Boolean(agent.retry) || uploading} onClose={props.onClose} />
+      return <AgentSuggestions agent={agent} copy={props.copy} locale={locale} disabled={agent.busy || Boolean(agent.retry) || uploading} onClose={props.onClose} />
   }
 }
 
-function AgentSuggestions({ agent, copy, ro, disabled, onClose }: { agent: AgentController; copy: AgentMessages; ro: boolean; disabled: boolean; onClose: () => void }) {
+function AgentSuggestions({ agent, copy, locale, disabled, onClose }: { agent: AgentController; copy: AgentMessages; locale: SiteLocale; disabled: boolean; onClose: () => void }) {
   const { suggestions } = agent
   if (suggestions.isPending) return <p role="status" className={styles.emptyText}>{copy.loading}</p>
   if (suggestions.isError) {
@@ -104,7 +105,7 @@ function AgentSuggestions({ agent, copy, ro, disabled, onClose }: { agent: Agent
       <div className={styles.emptyState}>
         <AgentIllustration scene="offline" size={96} />
         <p className={styles.emptyText} role="alert">{copy.error}</p>
-        <AgentPill onClick={() => void suggestions.refetch()}>{ro ? 'Reîncearcă' : 'Retry'}</AgentPill>
+        <AgentPill onClick={() => void suggestions.refetch()}>{{ en: 'Retry', ro: 'Reîncearcă', es: 'Reintentar' }[locale]}</AgentPill>
       </div>
     )
   }
@@ -112,7 +113,7 @@ function AgentSuggestions({ agent, copy, ro, disabled, onClose }: { agent: Agent
     return (
       <div className={styles.emptyState}>
         <AgentIllustration scene="noSuggestions" size={140} />
-        <p className={styles.emptyText}>{ro ? 'Nu sunt recomandări acum' : 'No suggestions right now'}</p>
+        <p className={styles.emptyText}>{{ en: 'No suggestions right now', ro: 'Nu sunt recomandări acum', es: 'No hay sugerencias por ahora' }[locale]}</p>
       </div>
     )
   }
@@ -123,6 +124,7 @@ function AgentSuggestions({ agent, copy, ro, disabled, onClose }: { agent: Agent
           key={suggestion.id}
           original={suggestion}
           messages={copy}
+          locale={locale}
           disabled={disabled}
           onAccept={item => { onClose(); void agent.send(undefined, item) }}
           onDismiss={id => void agent.dismiss(id)}

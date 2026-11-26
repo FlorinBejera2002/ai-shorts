@@ -23,7 +23,7 @@ sneepcut.com, www.sneepcut.com {
 		reverse_proxy landing:8080
 	}
 	# The web app (SPA): dashboard, auth, Studio session and its build assets.
-	@web_app path /dashboard* /login* /register* /forgot-password* /reset-password* /activate* /studio-session* /ro/dashboard* /ro/login* /ro/register* /ro/forgot-password* /ro/reset-password* /ro/activate* /assets/*
+	@web_app path /dashboard* /login* /register* /forgot-password* /reset-password* /activate* /studio-session* /ro/dashboard* /ro/login* /ro/register* /ro/forgot-password* /ro/reset-password* /ro/activate* /es/dashboard* /es/login* /es/register* /es/forgot-password* /es/reset-password* /es/activate* /assets/*
 	handle @web_app {
 		reverse_proxy frontend:8080
 	}

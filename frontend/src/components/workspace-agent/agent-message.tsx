@@ -1,6 +1,7 @@
 'use client'
 
 import { Copy, Undo2 } from 'lucide-react'
+import type { SiteLocale } from '@/lib/site-config'
 import { toast } from '@/lib/toast'
 import { AgentAvatar } from './agent-persona'
 import { AgentPill } from './agent-pill'
@@ -12,14 +13,14 @@ export function UserMessage({ text }: { text: string }) {
 }
 
 /** Agent reply: avatar on the left, text on the right, then copy and undo actions for finished answers. */
-export function AgentReply({ text, ro, onUndo, undoBusy = false }: { text: string; ro: boolean; onUndo?: () => void; undoBusy?: boolean }) {
+export function AgentReply({ text, locale, onUndo, undoBusy = false }: { text: string; locale: SiteLocale; onUndo?: () => void; undoBusy?: boolean }) {
   return <div className={styles.reply}>
     <AgentAvatar size={24} />
     <div className={styles.replyBody}>
       <p className={styles.replyText}><InlineMarkdown text={text} /></p>
       <div className={styles.replyActions}>
-        <CopyButton text={text} ro={ro} />
-        {onUndo && <AgentPill variant="ghost" disabled={undoBusy} onClick={onUndo}><Undo2 aria-hidden="true" />{ro ? 'Anulează modificarea' : 'Undo change'}</AgentPill>}
+        <CopyButton text={text} locale={locale} />
+        {onUndo && <AgentPill variant="ghost" disabled={undoBusy} onClick={onUndo}><Undo2 aria-hidden="true" />{{ en: 'Undo change', ro: 'Anulează modificarea', es: 'Deshacer cambio' }[locale]}</AgentPill>}
       </div>
     </div>
   </div>
@@ -39,16 +40,17 @@ function InlineMarkdown({ text }: { text: string }) {
   })}</>
 }
 
-function CopyButton({ text, ro }: { text: string; ro: boolean }) {
+function CopyButton({ text, locale }: { text: string; locale: SiteLocale }) {
   async function copy() {
     try {
       await navigator.clipboard.writeText(text)
-      toast.success(ro ? 'Răspuns copiat.' : 'Response copied.')
+      toast.success({ en: 'Response copied.', ro: 'Răspuns copiat.', es: 'Respuesta copiada.' }[locale])
     } catch {
-      toast.error(ro ? 'Copierea a eșuat.' : 'Copy failed.')
+      toast.error({ en: 'Copy failed.', ro: 'Copierea a eșuat.', es: 'No se pudo copiar.' }[locale])
     }
   }
-  return <button type="button" className={styles.iconButton} onClick={() => void copy()} aria-label={ro ? 'Copiază răspunsul' : 'Copy response'} title={ro ? 'Copiază răspunsul' : 'Copy response'}>
+  const copyLabel = { en: 'Copy response', ro: 'Copiază răspunsul', es: 'Copiar respuesta' }[locale]
+  return <button type="button" className={styles.iconButton} onClick={() => void copy()} aria-label={copyLabel} title={copyLabel}>
     <Copy aria-hidden="true" />
   </button>
 }

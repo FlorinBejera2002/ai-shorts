@@ -134,7 +134,8 @@ export function NarrationPreview({
         >
           {text(
             failed ? 'Retry saving narration' : 'Save narration',
-            failed ? 'Reîncearcă salvarea' : 'Salvează narațiunea'
+            failed ? 'Reîncearcă salvarea' : 'Salvează narațiunea',
+            failed ? 'Vuelve a intentarlo' : 'Guardar narración'
           )}
         </Button>
         <Button

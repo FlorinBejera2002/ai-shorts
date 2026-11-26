@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useQuery, type UseQueryResult } from '@tanstack/react-query'
+import type { SiteLocale } from '@/lib/site-config'
 import { storyRequest } from '@/components/story/api'
 import type { StoryProject } from '@/components/story/types'
 import type { AgentAction, AgentRun } from './model'
@@ -24,21 +25,25 @@ function previewReceipt(run: AgentRun): Receipt | undefined {
   return [...(run.steps ?? [])].reverse().find(step => previewActions.has(step.action.name))
 }
 
-async function loadStoryPreview(receipt: Receipt | undefined, id: string, ro: boolean, signal: AbortSignal): Promise<Preview> {
+async function loadStoryPreview(receipt: Receipt | undefined, id: string, locale: SiteLocale, signal: AbortSignal): Promise<Preview> {
   const current = await storyRequest<StoryProject>(`/api/stories/${id}`, 'GET', undefined, signal)
   const expected = receipt?.result?.data?.current_version
   const version = current.versions.find(item => item.number === expected && item.accepted)
-  if (current.current_version !== expected || !version?.preview_url) throw new Error(ro ? 'Rezultatul s-a schimbat. Deschide proiectul pentru versiunea curentă.' : 'The result changed. Open the project for its current version.')
+  if (current.current_version !== expected || !version?.preview_url) throw new Error({ en: 'The result changed. Open the project for its current version.', ro: 'Rezultatul s-a schimbat. Deschide proiectul pentru versiunea curentă.', es: 'El resultado cambió. Abre el proyecto para ver su versión actual.' }[locale])
   const url = mediaUrl(version.preview_url)
-  if (!url) throw new Error(ro ? 'Previzualizarea nu este disponibilă.' : 'Preview is unavailable.')
+  if (!url) throw new Error(previewUnavailable(locale))
   return { url, transcript: '' }
 }
 
-async function loadClipPreview(id: string, ro: boolean, signal: AbortSignal): Promise<Preview> {
+async function loadClipPreview(id: string, locale: SiteLocale, signal: AbortSignal): Promise<Preview> {
   const current = await storyRequest<Record<string, unknown>>(`/api/clips/${id}`, 'GET', undefined, signal)
   const url = mediaUrl(current.preview_url ?? current.previewUrl ?? current.file_url ?? current.fileUrl)
-  if (!url) throw new Error(ro ? 'Previzualizarea nu este disponibilă.' : 'Preview is unavailable.')
+  if (!url) throw new Error(previewUnavailable(locale))
   return { url, transcript: typeof current.transcript_text === 'string' ? current.transcript_text : '' }
+}
+
+function previewUnavailable(locale: SiteLocale) {
+  return { en: 'Preview is unavailable.', ro: 'Previzualizarea nu este disponibilă.', es: 'La vista previa no está disponible.' }[locale]
 }
 
 type PreviewTarget = { receipt: Receipt | undefined; story: boolean; id: string }
@@ -54,43 +59,45 @@ function previewTarget(run: AgentRun): PreviewTarget | null {
   return { receipt, story, id }
 }
 
-export function ResultPreview({ run, ro }: { run: AgentRun; ro: boolean }) {
+export function ResultPreview({ run, locale }: { run: AgentRun; locale: SiteLocale }) {
   const target = previewTarget(run)
   if (!target) return null
-  return <PreviewSection run={run} target={target} ro={ro} />
+  return <PreviewSection run={run} target={target} locale={locale} />
 }
 
-function PreviewSection({ run, target, ro }: { run: AgentRun; target: PreviewTarget; ro: boolean }) {
+function PreviewSection({ run, target, locale }: { run: AgentRun; target: PreviewTarget; locale: SiteLocale }) {
   const [opened, setOpened] = useState(false)
   const [playbackFailed, setPlaybackFailed] = useState(false)
   const preview = useQuery({ queryKey: ['workspace-agent', 'preview', run.id, run.revision], enabled: opened,
     staleTime: 0, gcTime: 0, retry: false,
-    queryFn: ({ signal }) => target.story ? loadStoryPreview(target.receipt, target.id, ro, signal) : loadClipPreview(target.id, ro, signal)
+    queryFn: ({ signal }) => target.story ? loadStoryPreview(target.receipt, target.id, locale, signal) : loadClipPreview(target.id, locale, signal)
   })
-  return <section className="space-y-2 rounded-[14px] border border-border bg-card p-3" aria-label={ro ? 'Previzualizare video' : 'Video preview'}>
+  return <section className="space-y-2 rounded-[14px] border border-border bg-card p-3" aria-label={{ en: 'Video preview', ro: 'Previzualizare video', es: 'Vista previa de video' }[locale]}>
     {!opened
-      ? <AgentPill variant="secondary" onClick={() => setOpened(true)}>{ro ? 'Încarcă previzualizarea' : 'Load preview'}</AgentPill>
-      : <PreviewPlayer story={target.story} preview={preview} playbackFailed={playbackFailed} ro={ro} onPlaybackFailed={() => setPlaybackFailed(true)} onRefresh={() => { setPlaybackFailed(false); void preview.refetch() }} />}
+      ? <AgentPill variant="secondary" onClick={() => setOpened(true)}>{{ en: 'Load preview', ro: 'Încarcă previzualizarea', es: 'Cargar vista previa' }[locale]}</AgentPill>
+      : <PreviewPlayer story={target.story} preview={preview} playbackFailed={playbackFailed} locale={locale} onPlaybackFailed={() => setPlaybackFailed(true)} onRefresh={() => { setPlaybackFailed(false); void preview.refetch() }} />}
   </section>
 }
 
-function PreviewPlayer({ story, preview, playbackFailed, ro, onPlaybackFailed, onRefresh }: {
-  story: boolean; preview: UseQueryResult<Preview>; playbackFailed: boolean; ro: boolean
+function PreviewPlayer({ story, preview, playbackFailed, locale, onPlaybackFailed, onRefresh }: {
+  story: boolean; preview: UseQueryResult<Preview>; playbackFailed: boolean; locale: SiteLocale
   onPlaybackFailed: () => void; onRefresh: () => void
 }) {
   const failed = preview.isError || playbackFailed
-  const label = story ? (ro ? 'Versiunea acceptată' : 'Accepted version') : (ro ? 'Clipul salvat acum' : 'Current saved clip')
+  const label = story
+    ? { en: 'Accepted version', ro: 'Versiunea acceptată', es: 'Versión aceptada' }[locale]
+    : { en: 'Current saved clip', ro: 'Clipul salvat acum', es: 'Clip guardado actualmente' }[locale]
   return <>
     <p className="text-xs font-medium">{label}</p>
-    {preview.isPending && <p role="status" className="text-xs">{ro ? 'Se încarcă…' : 'Loading…'}</p>}
-    {preview.data && !failed && <video controls playsInline preload="metadata" src={preview.data.url} aria-label={ro ? 'Previzualizare rezultat' : 'Result preview'} onError={onPlaybackFailed} className="max-h-72 w-full rounded-[14px] bg-black" />}
-    {preview.data?.transcript && <details className="text-xs"><summary>{ro ? 'Transcriere' : 'Transcript'}</summary><p className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap">{preview.data.transcript}</p></details>}
-    {failed && <PreviewError error={preview.error} ro={ro} />}
-    <AgentPill variant="ghost" disabled={preview.isFetching} onClick={onRefresh}>{ro ? 'Reîncarcă previzualizarea' : 'Refresh preview'}</AgentPill>
+    {preview.isPending && <p role="status" className="text-xs">{{ en: 'Loading…', ro: 'Se încarcă…', es: 'Cargando…' }[locale]}</p>}
+    {preview.data && !failed && <video controls playsInline preload="metadata" src={preview.data.url} aria-label={{ en: 'Result preview', ro: 'Previzualizare rezultat', es: 'Vista previa del resultado' }[locale]} onError={onPlaybackFailed} className="max-h-72 w-full rounded-[14px] bg-black" />}
+    {preview.data?.transcript && <details className="text-xs"><summary>{{ en: 'Transcript', ro: 'Transcriere', es: 'Transcripción' }[locale]}</summary><p className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap">{preview.data.transcript}</p></details>}
+    {failed && <PreviewError error={preview.error} locale={locale} />}
+    <AgentPill variant="ghost" disabled={preview.isFetching} onClick={onRefresh}>{{ en: 'Refresh preview', ro: 'Reîncarcă previzualizarea', es: 'Recargar vista previa' }[locale]}</AgentPill>
   </>
 }
 
-function PreviewError({ error, ro }: { error: unknown; ro: boolean }) {
-  const message = error instanceof Error ? error.message : ro ? 'Linkul media a expirat sau redarea a eșuat.' : 'The media link expired or playback failed.'
+function PreviewError({ error, locale }: { error: unknown; locale: SiteLocale }) {
+  const message = error instanceof Error ? error.message : { en: 'The media link expired or playback failed.', ro: 'Linkul media a expirat sau redarea a eșuat.', es: 'El enlace del medio caducó o la reproducción falló.' }[locale]
   return <p role="alert" className="text-xs text-destructive">{message}</p>
 }

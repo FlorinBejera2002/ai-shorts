@@ -14,6 +14,7 @@ import (
 	"sneepcut/backend-go/internal/agentaction"
 	"sneepcut/backend-go/internal/aiprovider"
 	"sneepcut/backend-go/internal/gemini"
+	"sneepcut/backend-go/internal/locale"
 )
 
 // Start uses bounded workers and database session locks, so multiple API replicas
@@ -250,7 +251,7 @@ func publicActionError(err error) string {
 	}
 	// Exact, authored messages have safe localized equivalents. Preserve their
 	// actionable detail without allowing arbitrary provider or database output.
-	if _, known := romanianRuntimeMessages[err.Error()]; known {
+	if knownRuntimeMessage(err.Error()) {
 		return err.Error()
 	}
 	// Known domain failures contain actionable validation, never SQL/provider data.
@@ -364,15 +365,12 @@ func (h *Handler) plan(ctx context.Context, r *Run) error {
 		r.Error = "Help requests only provide explanations. No action was started."
 		return h.save(ctx, r)
 	}
-	if p.Language == "ro" || p.Language == "en" {
+	if locale.Supported(p.Language) {
 		r.Context.Locale = p.Language
 	}
 	r.Reply = clipText(p.Reply, 6000)
 	if p.Intent == "resources" {
-		r.Reply = "Add the requested files to continue this request."
-		if r.Context.Locale == "ro" {
-			r.Reply = "Adaugă fișierele cerute pentru a continua."
-		}
+		r.Reply = localizedResourcesReply(r.Context.Locale)
 		if err := h.waitForResources(ctx, r, p.MissingResources); err != nil {
 			r.Reply = ""
 			r.Status = "failed"
@@ -448,7 +446,7 @@ func clipText(s string, n int) string {
 }
 
 const plannerPrompt = `You are the Sneep Cut workspace agent. Respond in the user's language.
-Return ONLY JSON {"intent":"answer|clarify|execute|resources","language":"ro|en","reply":"short factual response","continue":false,"action":null or {"name":"available action","input":{...}},"missing_resources":[]}.
+Return ONLY JSON {"intent":"answer|clarify|execute|resources","language":"ro|en|es","reply":"short factual response","continue":false,"action":null or {"name":"available action","input":{...}},"missing_resources":[]}.
 Match language to the current user's message; use CURRENT_SCOPE locale when unclear.
 For a requested video result without uploaded assets first create a story draft with continue=true, then return intent resources, action null, missing_resources:[{kind:"videos",label:"Upload the recordings",target_id:"created story ID"}]. This pauses the SAME request until validated uploads arrive. Never say the whole requested video is completed just because a draft exists. After resume inspect uploaded assets and continue to generation with its existing cost approval. Missing logo or brief uses kind logo or document; global logo/brief requests omit target_id and do not create unrelated stories. Publication attachments use kind publishing_media with optional exact calendar draft target_id; use returned opaque resource IDs in calendar.attach_media. Never require videos for questions or for requests that only create an empty draft.
 Use ONLY listed available actions and their exact documented input fields. You cannot run arbitrary code, SQL, browser commands or HTTP requests.

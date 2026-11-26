@@ -6,13 +6,15 @@ import type {
   HfColorGradingWheelKey,
 } from "@hyperframes/core/color-grading";
 import type { MessageKey } from "../../i18n/dictionary";
-import { lookEffectTextRo } from "../../i18n/messages/lookEffects";
+import { lookEffectTextEs, lookEffectTextRo } from "../../i18n/messages/lookEffects";
 import { getStudioLocale, t } from "../../i18n/translate";
 
 /** Translates a catalogue label (effect, control, preset, palette) given in English. */
 export function lookText(english: string): string {
-  if (getStudioLocale() !== "ro") return english;
-  return lookEffectTextRo[english] ?? english;
+  const locale = getStudioLocale();
+  if (locale === "en") return english;
+  const table = locale === "es" ? lookEffectTextEs : lookEffectTextRo;
+  return table[english] ?? english;
 }
 
 export function adjustLabel(key: HfColorGradingAdjustKey): string {

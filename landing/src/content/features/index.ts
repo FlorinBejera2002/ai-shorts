@@ -1,9 +1,10 @@
 import type { Locale } from '@/lib/i18n'
 import { en } from './en'
+import { es } from './es'
 import { ro } from './ro'
 import { ALTERNATIVE_PAGE_IDS, FEATURE_PAGE_IDS, TOOL_PAGE_IDS, USE_CASE_PAGE_IDS, type FeaturePageId, type FeaturePagesCopy } from './types'
 
-const dictionaries: Record<Locale, FeaturePagesCopy> = { en, ro }
+const dictionaries: Record<Locale, FeaturePagesCopy> = { en, ro, es }
 
 type FeatureImage = { src: string; width: number; height: number }
 
@@ -31,5 +32,7 @@ export function featurePath(id: FeaturePageId): string {
   return `/${id}`
 }
 
+export { esAlternatives } from './es-alternatives'
+export { esUseCases } from './es-use-cases'
 export { ALTERNATIVE_PAGE_IDS, FEATURE_PAGE_IDS, TOOL_PAGE_IDS, USE_CASE_PAGE_IDS }
 export type * from './types'

@@ -1,6 +1,6 @@
 // Advanced output tools: Variables (St-Output-Variables*, St-Inspector-Var*). Merged into
 // output.ts. Slideshow and Storyboard strings live in outputSlides.ts.
-import { outputSlidesEn, outputSlidesRo } from "./outputSlides";
+import { outputSlidesEn, outputSlidesEs, outputSlidesRo } from "./outputSlides";
 
 const variablesEn = {
   "vars.title": "Variables",
@@ -150,9 +150,88 @@ const variablesRo: Record<keyof typeof variablesEn, string> = {
   "vars.expand": "Extinde lista",
 };
 
+const variablesEs: Record<keyof typeof variablesEn, string> = {
+  "vars.title": "Variables",
+  "vars.defaults": "Valores predeterminados",
+  "vars.customCount": "{n} valores personalizados",
+  "vars.reset": "Restablecer",
+  "vars.noComposition": "Abre una composición para gestionar sus variables",
+  "vars.empty": "No hay variables declaradas",
+  "vars.add": "Añadir variable",
+  "vars.setDefault": "Establecer como predeterminado",
+  "vars.setDefaultTitle": "Guardar este valor como predeterminado declarado",
+  "vars.edit": "Editar {label}",
+  "vars.remove": "Quitar la declaración de {label}",
+  "vars.removeTitle": "¿Quitar la declaración?",
+  "vars.removeConfirm": "Quitar",
+  "vars.unused": "Sin script",
+  "vars.unusedTitle": "Ningún script lee esta variable",
+  "vars.valueAria": "Valor: {label}",
+  "vars.true": "Verdadero",
+  "vars.false": "Falso",
+  "vars.undeclaredTitle": "Leídas por scripts, no declaradas",
+  "vars.undeclaredRow": "«{id}» no está declarada.",
+  "vars.declare": "Declarar",
+  "vars.scanIncomplete": "Los scripts leen variables de forma dinámica; es posible que esta lista esté incompleta.",
+  "vars.values": "Valores",
+  "vars.copyJson": "Copiar JSON de valores",
+  "vars.copyCommand": "Copiar comando de renderizado",
+  "vars.copiedJson": "El JSON de valores se ha copiado",
+  "vars.copiedCommand": "El comando de renderizado se ha copiado",
+  "vars.copyFailed": "No se pudo copiar al portapapeles",
+  "vars.noChange": "{label}: sin cambios",
+  "vars.formId": "ID",
+  "vars.formLabel": "Etiqueta",
+  "vars.formType": "Tipo",
+  "vars.formDefault": "Predeterminado",
+  "vars.formOptions": "Opciones (valor:Etiqueta, una por línea)",
+  "vars.formDescription": "Descripción (opcional)",
+  "vars.formMin": "Mín.",
+  "vars.formMax": "Máx.",
+  "vars.formStep": "Paso",
+  "vars.cancel": "Cancelar",
+  "vars.save": "Guardar",
+  "vars.typeString": "Texto",
+  "vars.typeNumber": "Número",
+  "vars.typeColor": "Color",
+  "vars.typeBoolean": "Verdadero / falso",
+  "vars.typeEnum": "Lista",
+  "vars.typeFont": "Fuente",
+  "vars.typeImage": "Imagen",
+  "vars.errIdRequired": "El ID de la variable es obligatorio.",
+  "vars.errNumber": "El valor predeterminado debe ser un número.",
+  "vars.errEnumEmpty": "La lista necesita al menos una opción (una por línea, valor:Etiqueta).",
+  "vars.errEnumDefault": "El valor predeterminado debe ser una de las opciones.",
+  "vars.errBound": "{key} debe ser un número.",
+  "vars.issueUndeclared": "«{id}» no está declarada.",
+  "vars.issueType": "«{id}» espera {expected}, pero recibió {actual}.",
+  "vars.issueEnum": "«{id}» debe ser uno de estos: {allowed}.",
+  "vars.bindTitle": "Vincular el elemento seleccionado: {label}",
+  "vars.bindIdLabel": "ID de variable",
+  "vars.bindExists": "«{id}» ya existe. El elemento toma su valor actual.",
+  "vars.bind": "Vincular",
+  "vars.bindAnyway": "Vincular de todos modos",
+  "vars.bindTypeClash": "«{id}» ya es una variable de tipo {existing}. Elige otro ID.",
+  "vars.bindImage": "Origen de la imagen",
+  "vars.bindMedia": "Origen del medio",
+  "vars.bindText": "Texto",
+  "vars.bindColor": "Color del texto",
+  "vars.bindBackground": "Fondo",
+  "vars.bindFont": "Fuente",
+  "vars.otherCompositions": "Otras composiciones",
+  "vars.declaredCount": "{n} variables declaradas",
+  "vars.collapse": "Contraer la lista",
+  "vars.expand": "Desplegar la lista",
+};
+
 export const outputAdvancedEn = { ...variablesEn, ...outputSlidesEn } as const;
 
 export const outputAdvancedRo: Record<keyof typeof outputAdvancedEn, string> = {
   ...variablesRo,
   ...outputSlidesRo,
+};
+
+export const outputAdvancedEs: Record<keyof typeof outputAdvancedEn, string> = {
+  ...variablesEs,
+  ...outputSlidesEs,
 };

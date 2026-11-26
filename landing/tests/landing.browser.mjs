@@ -29,11 +29,25 @@ const PAGES = [
   { path: '/ro', status: 200 },
   { path: '/ro/pricing', status: 200 },
   { path: '/ro/terms', status: 200 },
+  { path: '/es', status: 200 },
+  { path: '/es/pricing', status: 200 },
+  { path: '/es/terms', status: 200 },
   { path: '/missing-page', status: 404 },
-  { path: '/ro/pagina-lipsa', status: 404 }
+  { path: '/ro/pagina-lipsa', status: 404 },
+  { path: '/es/pagina-no-existe', status: 404 }
 ]
 const LEGAL = ['legal-notice', 'privacy', 'terms', 'cookie-policy', 'acceptable-use', 'refund-policy', 'subprocessors', 'dpa', 'data-deletion']
-const APP_ROUTES = new Set(['/login', '/register', '/dashboard/create', '/ro/login', '/ro/register', '/ro/dashboard/create'])
+const APP_ROUTES = new Set([
+  '/login',
+  '/register',
+  '/dashboard/create',
+  '/ro/login',
+  '/ro/register',
+  '/ro/dashboard/create',
+  '/es/login',
+  '/es/register',
+  '/es/dashboard/create'
+])
 
 const results = []
 async function check(name, run) {
@@ -181,13 +195,20 @@ await check('language menu links to the same page in the other language', async 
   await button.click()
   assert.equal(await button.getAttribute('aria-expanded'), 'true')
   const menu = page.locator('header ul:not([hidden])')
-  assert.deepEqual(await menu.locator('a').evaluateAll((links) => links.map((link) => link.getAttribute('href'))), ['/pricing', '/ro/pricing'])
+  assert.deepEqual(
+    await menu.locator('a').evaluateAll((links) => links.map((link) => link.getAttribute('href'))),
+    ['/pricing', '/ro/pricing', '/es/pricing']
+  )
   await page.keyboard.press('Escape')
   assert.equal(await button.getAttribute('aria-expanded'), 'false')
   await button.click()
   await Promise.all([page.waitForURL(`${origin}/ro/pricing`), menu.getByRole('link', { name: 'Română' }).click()])
   assert.equal(await page.evaluate(() => document.documentElement.lang), 'ro')
   assert.equal(await page.locator('h1').textContent(), 'Prețuri simple și transparente')
+  await page.locator('header').getByRole('button', { name: 'Limba: Română' }).click()
+  await Promise.all([page.waitForURL(`${origin}/es/pricing`), page.locator('header ul:not([hidden])').getByRole('link', { name: 'Español' }).click()])
+  assert.equal(await page.evaluate(() => document.documentElement.lang), 'es')
+  assert.equal(await page.locator('h1').textContent(), 'Precios simples y transparentes')
   await context.close()
 })
 
@@ -323,7 +344,7 @@ await check('plan prices come from /api/stripe/plans', async () => {
 
 // 5. Clean URLs and 404 handling (mirrors landing/nginx.conf).
 await check('clean URLs redirect and unknown paths return localized 404 pages', async () => {
-  for (const [from, to] of [['/pricing/', '/pricing'], ['/pricing.html', '/pricing'], ['/index.html', '/'], ['/ro/', '/ro']]) {
+  for (const [from, to] of [['/pricing/', '/pricing'], ['/pricing.html', '/pricing'], ['/index.html', '/'], ['/ro/', '/ro'], ['/es/', '/es']]) {
     const response = await fetch(`${origin}${from}`, { redirect: 'manual' })
     assert.equal(response.status, 301, from)
     assert.equal(response.headers.get('location'), to, from)
@@ -335,6 +356,10 @@ await check('clean URLs redirect and unknown paths return localized 404 pages', 
   assert.equal(romanian.status, 404)
   assert.match(await romanian.text(), /Pagina nu există/)
   assert.equal((await fetch(`${origin}/ro/404`)).status, 404)
+  const spanish = await fetch(`${origin}/es/nu-existe`)
+  assert.equal(spanish.status, 404)
+  assert.match(await spanish.text(), /Página no encontrada/)
+  assert.equal((await fetch(`${origin}/es/404`)).status, 404)
   assert.equal((await fetch(`${origin}/sitemap.xml`)).status, 200)
   assert.equal((await fetch(`${origin}/robots.txt`)).status, 200)
 })
@@ -345,7 +370,7 @@ await check('no horizontal overflow from 320 to 1440 px', async () => {
   const problems = []
   for (const width of [320, 360, 390, 768, 1024, 1280, 1440]) {
     await page.setViewportSize({ width, height: 900 })
-    for (const path of ['/', '/pricing', '/terms', '/ro', '/ro/pricing', '/ro/data-deletion', '/missing-page']) {
+    for (const path of ['/', '/pricing', '/terms', '/ro', '/ro/pricing', '/ro/data-deletion', '/es', '/es/pricing', '/es/data-deletion', '/missing-page']) {
       await page.goto(`${origin}${path}`)
       const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
       if (overflow > 0) problems.push(`${width}px ${path}: ${overflow}px`)

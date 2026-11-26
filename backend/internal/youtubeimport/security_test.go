@@ -54,3 +54,9 @@ func TestReturnLocationDoesNotAcceptAnExternalRedirect(t *testing.T) {
 		}
 	}
 }
+
+func TestReturnLocationKeepsSpanishPrefix(t *testing.T) {
+	if actual := returnURL("https://sneepcut.example.invalid", "es", "success"); actual != "https://sneepcut.example.invalid/es/dashboard/create?mode=youtube&youtubeImport=success" {
+		t.Fatalf("unexpected Spanish callback location %q", actual)
+	}
+}

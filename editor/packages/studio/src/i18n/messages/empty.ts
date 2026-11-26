@@ -10,3 +10,9 @@ export const emptyRo = {
   "empty.noResults": "Niciun rezultat",
   "empty.tryAgain": "Reîncearcă",
 } as const;
+
+export const emptyEs = {
+  "empty.nothingSelected": "Nada seleccionado",
+  "empty.noResults": "Sin resultados",
+  "empty.tryAgain": "Inténtalo de nuevo",
+} as const;

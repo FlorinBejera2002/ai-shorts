@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { localePath, locales, openGraphLocales, otherLocale, type Locale } from './i18n'
+import { alternateLocales, localePath, locales, openGraphLocales, type Locale } from './i18n'
 import { absoluteUrl, isIndexable, SITE_NAME, siteUrl } from './site'
 
 const OG_IMAGE = { url: '/landing/brand/og.png', width: 1200, height: 630 }
@@ -42,7 +42,7 @@ export function pageMetadata({ locale, path, title, description, noindex }: Page
       description,
       url: canonical,
       locale: openGraphLocales[locale],
-      alternateLocale: [openGraphLocales[otherLocale(locale)]],
+      alternateLocale: alternateLocales(locale).map((option) => openGraphLocales[option]),
       images: [{ ...OG_IMAGE, alt: title }]
     },
     twitter: {

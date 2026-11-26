@@ -3,7 +3,8 @@
 // gesture recording timer and stop pill (St-Preview-Gesture) and the armed motion destination
 // (St-Preview-MotionArmed). Positions follow the stage rectangle published by PreviewPane.
 import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
-import { t, useLocale } from "../../../i18n/translate";
+import type { StudioLocale } from "../../../i18n/dictionary";
+import { t, useLocale, usesDecimalComma } from "../../../i18n/translate";
 import { useCaptionStore } from "../../../captions/store";
 import { useIsPhone } from "../../shell/useIsPhone";
 import { usePlayerStore } from "../../../player/store/playerStore";
@@ -32,9 +33,9 @@ function StageLayer({ children }: { children: ReactNode }) {
   );
 }
 
-function formatSeconds(seconds: number, locale: string): string {
+function formatSeconds(seconds: number, locale: StudioLocale): string {
   const text = seconds.toFixed(1);
-  return locale === "ro" ? text.replace(".", ",") : text;
+  return usesDecimalComma(locale) ? text.replace(".", ",") : text;
 }
 
 export function CaptionEditingPill({ onExit }: { onExit: () => void }) {

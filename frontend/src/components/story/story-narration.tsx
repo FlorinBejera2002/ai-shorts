@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef } from 'react'
 import { Check, Mic, Upload } from 'lucide-react'
+import { useLocale } from 'next-intl'
 import { Button } from '@/components/ui/button'
 import { formatBytes, formatDuration } from '@/lib/youtube'
 import type { StoryAsset, StoryProject } from './types'
@@ -79,7 +80,8 @@ export function StoryNarration({ projectID, asset, disabled, onSaved, onPending,
                 <Mic />
                 {text(
                   asset ? 'Record a replacement' : 'Record narration',
-                  asset ? 'Înregistrează din nou' : 'Înregistrează narațiunea'
+                  asset ? 'Înregistrează din nou' : 'Înregistrează narațiunea',
+                  asset ? 'Grabar de nuevo' : 'Grabar narración'
                 )}
               </Button>
             </div>
@@ -151,6 +153,7 @@ function SavedNarration({
   onRemove: (id: string) => void
 }) {
   const text = useStoryLanguage()
+  const locale = useLocale()
   return (
     <div className={styles.recording} data-testid="saved-narration">
       <p className="flex items-start gap-2 break-words text-sm font-medium">
@@ -159,7 +162,7 @@ function SavedNarration({
       </p>
       <p className={styles.subtle}>
         {text('Saved narration', 'Narațiune salvată')} · {formatDuration(asset.duration)} ·{' '}
-        {formatBytes(asset.size)}
+        {formatBytes(asset.size, locale)}
       </p>
       {asset.source_url && (
         <audio

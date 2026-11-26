@@ -2,6 +2,7 @@
 
 import { Link } from '@/i18n/navigation'
 import { ArrowUpRight, Menu } from 'lucide-react'
+import { pickInlineText } from '@/i18n/inline-text'
 import { useLocale } from 'next-intl'
 import { useId, useState } from 'react'
 import { NavLogo } from './animated-hero'
@@ -20,18 +21,11 @@ export function HomeNavbar({ labels }: HomeNavbarProps) {
   const locale = useLocale()
   const menuId = useId()
   const [menuOpen, setMenuOpen] = useState(false)
-  const navigationLabel =
-    locale === 'ro' ? 'Navigare principală' : 'Primary navigation'
-  const homeLabel =
-    locale === 'ro' ? 'Pagina principală Sneep Cut' : 'Sneep Cut home'
-  const menuLabel =
-    locale === 'ro'
-      ? menuOpen
-        ? 'Închide meniul'
-        : 'Deschide meniul'
-      : menuOpen
-        ? 'Close menu'
-        : 'Open menu'
+  const navigationLabel = pickInlineText(locale, 'Primary navigation', 'Navigare principală', 'Navegación principal')
+  const homeLabel = pickInlineText(locale, 'Sneep Cut home', 'Pagina principală Sneep Cut', 'Inicio de Sneep Cut')
+  const menuLabel = menuOpen
+    ? pickInlineText(locale, 'Close menu', 'Închide meniul', 'Cerrar menú')
+    : pickInlineText(locale, 'Open menu', 'Deschide meniul', 'Abrir menú')
 
   return (
     <nav

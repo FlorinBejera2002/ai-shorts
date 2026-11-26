@@ -1,5 +1,6 @@
 'use client'
 
+import { resolveSiteLocale } from '@/lib/site-config'
 import { useToast } from '@/components/ui/toast'
 import type { CoachScene } from './shooting-coach'
 import { apiFetch } from '@/lib/auth'
@@ -49,7 +50,7 @@ export function useScriptsWorkspace() {
   const [audience, setAudience] = useState('')
   // A new brief starts in the interface language when it is a supported script language.
   const locale = useLocale()
-  const [language, setLanguage] = useState(() => (locale === 'ro' ? 'ro' : 'en'))
+  const [language, setLanguage] = useState<string>(() => resolveSiteLocale(locale))
   const [status, setStatus] = useState('draft')
   const [script, setScript] = useState<GeneratedScript>(() => emptyScript())
   const [generating, setGenerating] = useState(false)

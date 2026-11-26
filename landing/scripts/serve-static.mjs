@@ -38,11 +38,14 @@ const TYPES = {
 const WEB_APP_PREFIXES = ['/dashboard', '/login', '/register', '/forgot-password', '/reset-password', '/activate', '/studio-session']
 const LANDING_PREFIXES = ['/_next/', '/landing/']
 const LANDING_FILES = new Set(['/robots.txt', '/sitemap.xml'])
+// Locale prefixes of the localized pages (English has none); each has its own 404 page.
+const LOCALE_PREFIX = /^\/(ro|es)(?=\/)/
+const LOCALIZED_404_PATH = /^\/(ro|es)\/404$/
 
 function isWebAppPath(pathname) {
   if (pathname.startsWith('/api/') || pathname.startsWith('/v1/') || pathname.startsWith('/media/')) return true
   if (LANDING_FILES.has(pathname) || pathname.endsWith('.html') || LANDING_PREFIXES.some((prefix) => pathname.startsWith(prefix))) return false
-  const route = pathname.replace(/^\/ro(?=\/)/, '')
+  const route = pathname.replace(LOCALE_PREFIX, '')
   if (WEB_APP_PREFIXES.some((prefix) => route.startsWith(prefix)) || pathname.startsWith('/assets/')) return true
   if (pathname.startsWith('/@') || pathname.startsWith('/src/') || pathname.startsWith('/node_modules/')) return true
   return /\.[A-Za-z0-9]+$/.test(pathname)
@@ -95,12 +98,12 @@ function serveLanding(pathname, response) {
   if (pathname.startsWith('/_next/static/') || pathname.startsWith('/landing/')) {
     const asset = fileAt(pathname)
     if (asset) return send(response, 200, asset, pathname.startsWith('/_next/') ? 'public, max-age=31536000, immutable' : 'public, max-age=604800')
-  } else if (pathname !== '/ro/404') {
+  } else if (!LOCALIZED_404_PATH.test(pathname)) {
     const page = fileAt(pathname) ?? fileAt(`${pathname === '/' ? '/index' : pathname}.html`) ?? fileAt(`${pathname}/index.html`)
     if (page) return send(response, 200, page, 'no-cache')
   }
-  const romanian = pathname === '/ro' || pathname.startsWith('/ro/')
-  return send(response, 404, join(root, romanian ? 'ro/404.html' : '404.html'), 'no-cache')
+  const localized = pathname.match(/^\/(ro|es)(?=\/|$)/)
+  return send(response, 404, join(root, localized ? `${localized[1]}/404.html` : '404.html'), 'no-cache')
 }
 
 // Dev servers (Vite HMR) need their websocket proxied too.

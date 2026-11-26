@@ -1,7 +1,7 @@
 # Sneep Cut public site
 
 Static Next.js (App Router) export of the public pages from the public-pages design canvas:
-home, pricing, legal documents and the 404 page, in English (`/…`) and Romanian (`/ro/…`).
+home, pricing, legal documents and the 404 page, in English (`/…`), Romanian (`/ro/…`) and Spanish (`/es/…`).
 The web app (dashboard, auth, Studio session) stays in `frontend/`; `deploy/Caddyfile` sends
 those paths to the SPA and everything else to this site.
 

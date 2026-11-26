@@ -109,12 +109,12 @@ func TestLocalizedResourceValidationPreservesSafeDetail(t *testing.T) {
 		if public != original {
 			t.Fatalf("safe validation detail was discarded: %s", public)
 		}
-		if translated := localizedRuntimeText(public); !strings.Contains(translated, expected) {
+		if translated := localizedRuntimeText("ro", public); !strings.Contains(translated, expected) {
 			t.Fatalf("missing precise Romanian resource error for %q: %s", original, translated)
 		}
 	}
 	unknown := "Provider validation needs an unsupported option"
-	if localizedRuntimeText(unknown) != unknown {
+	if localizedRuntimeText("ro", unknown) != unknown {
 		t.Fatal("unrecognized detail was replaced by an invented translation")
 	}
 	private := "Studio returned private provider token: never expose"

@@ -15,6 +15,7 @@ import (
 	"github.com/julienschmidt/httprouter"
 	"github.com/lib/pq"
 	"sneepcut/backend-go/internal/identity"
+	"sneepcut/backend-go/internal/locale"
 )
 
 type Media interface {
@@ -98,11 +99,8 @@ func providerScopes(p string) []string {
 	}
 }
 
-func publishingReturnURL(appURL, locale, key, value string) string {
-	prefix := ""
-	if locale == "ro" {
-		prefix = "/ro"
-	}
+func publishingReturnURL(appURL, uiLocale, key, value string) string {
+	prefix := locale.PathPrefix(uiLocale)
 	return strings.TrimRight(appURL, "/") + prefix + "/dashboard/publish?" + key + "=" + value
 }
 
@@ -148,9 +146,7 @@ func (h *Handler) connect(w http.ResponseWriter, r *http.Request) {
 		fail(w, 400, "Accept the privacy policy and YouTube Terms before connecting.")
 		return
 	}
-	if input.Locale != "ro" {
-		input.Locale = "en"
-	}
+	input.Locale = locale.Normalize(input.Locale)
 	state, browser, verifier := randomToken(), randomToken(), randomToken()
 	user := identity.Current(r).User
 	target, e := h.client.Authorize(p, state, verifier)
@@ -168,9 +164,9 @@ func (h *Handler) connect(w http.ResponseWriter, r *http.Request) {
 }
 func (h *Handler) callback(w http.ResponseWriter, r *http.Request) {
 	p := param(r, "provider")
-	locale := "en"
+	uiLocale := locale.English
 	redirect := func(key, value string) {
-		http.Redirect(w, r, publishingReturnURL(h.cfg.AppURL, locale, key, value), http.StatusSeeOther)
+		http.Redirect(w, r, publishingReturnURL(h.cfg.AppURL, uiLocale, key, value), http.StatusSeeOther)
 	}
 	if !SupportedProvider(p) || !h.configured(p) {
 		redirect("connectionError", "unavailable")
@@ -184,7 +180,7 @@ func (h *Handler) callback(w http.ResponseWriter, r *http.Request) {
 	http.SetCookie(w, &http.Cookie{Name: "social_oauth_" + p, Value: "", Path: "/api/publishing/callback/" + p, HttpOnly: true, Secure: true, SameSite: http.SameSiteLaxMode, MaxAge: -1})
 	var user, verifier string
 	var version int
-	e = h.db.QueryRowContext(r.Context(), `DELETE FROM social_oauth_states WHERE state_hash=$1 AND provider=$2 AND browser_hash=$3 AND expires_at>now() RETURNING user_id,verifier,locale,session_version`, digest(r.URL.Query().Get("state")), p, digest(cookie.Value)).Scan(&user, &verifier, &locale, &version)
+	e = h.db.QueryRowContext(r.Context(), `DELETE FROM social_oauth_states WHERE state_hash=$1 AND provider=$2 AND browser_hash=$3 AND expires_at>now() RETURNING user_id,verifier,locale,session_version`, digest(r.URL.Query().Get("state")), p, digest(cookie.Value)).Scan(&user, &verifier, &uiLocale, &version)
 	if e != nil {
 		redirect("connectionError", "invalid_state")
 		return

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { resolveSiteLocale } from '@/lib/site-config'
 import { isStoryHelpStep, storyHelpEvent, storyHelpQuestion, type StoryHelpRequest } from './story-help'
 
 type PrepareHelp = (question: string, request: StoryHelpRequest, append?: boolean) => boolean
@@ -22,7 +23,7 @@ export function useStoryAgentHelp(locale: string, prepare: PrepareHelp, open: ()
     const receive = (event: Event) => {
       const request = (event as CustomEvent<StoryHelpRequest>).detail
       if (!request || !isStoryHelpStep(request.step) || !(request.source instanceof HTMLElement)) return
-      const question = storyHelpQuestion(request.step, locale)
+      const question = storyHelpQuestion(request.step, resolveSiteLocale(locale))
       setPending(prepare(question, request) ? null : { question, request })
       returnFocus.current = request.source
       focusRequested.current = true

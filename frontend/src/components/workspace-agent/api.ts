@@ -5,6 +5,11 @@ export class AgentApiError extends Error {
   constructor(message: string, public status: number) { super(message) }
 }
 
+/** The server answered, but the run state in the response does not match the contract. */
+export class UnverifiedAgentResponseError extends Error {
+  constructor() { super('The operation response could not be verified. Retry to recover its current state.') }
+}
+
 async function request<T>(path: string, body?: unknown, signal?: AbortSignal): Promise<T> {
   const response = await apiFetch(`/api/workspace-agent${path}`, {
     method: body === undefined ? 'GET' : 'POST', signal,
@@ -18,7 +23,7 @@ async function request<T>(path: string, body?: unknown, signal?: AbortSignal): P
 async function runRequest(path: string, body?: unknown, expectedId?: string): Promise<AgentRun> {
   const run = await request<AgentRun>(path, body)
   if (!run || typeof run.id !== 'string' || (expectedId && run.id !== expectedId) || !Number.isInteger(run.revision) || typeof run.status !== 'string' || !['planning', 'running', 'waiting_for_confirmation', 'waiting_for_resources', 'paused', 'cancel_requested', 'cancelled', 'completed', 'failed'].includes(run.status))
-    throw new Error('The operation response could not be verified. Retry to recover its current state.')
+    throw new UnverifiedAgentResponseError()
   return run
 }
 
@@ -31,7 +36,7 @@ export const agentApi = {
   // An already accepted suggestion can legitimately return its original run ID.
   send: (body: RunRequest) => runRequest('/runs', body, body.suggestion_id ? undefined : body.request_id),
   control: (run: AgentRun, command: AgentCommand, resourceIds?: string[]) => runRequest(`/runs/${encodeURIComponent(run.id)}/control`, { command, revision: run.revision, ...(command === 'resume' && resourceIds?.length ? { resource_ids: resourceIds } : {}) }, command === 'undo' ? undefined : run.id),
-  suggestions: (project?: string, signal?: AbortSignal, locale = 'ro') => request<{ suggestions: Suggestion[]; capabilities: unknown[] }>(`/suggestions?locale=${encodeURIComponent(locale)}${project ? `&project_id=${encodeURIComponent(project)}` : ''}`, undefined, signal),
+  suggestions: (project?: string, signal?: AbortSignal, locale = 'en') => request<{ suggestions: Suggestion[]; capabilities: unknown[] }>(`/suggestions?locale=${encodeURIComponent(locale)}${project ? `&project_id=${encodeURIComponent(project)}` : ''}`, undefined, signal),
   dismiss: (id: string) => request<void>(`/suggestions/${encodeURIComponent(id)}/dismiss`, {}),
   revise: (id: string, instruction: string) => request<Suggestion>(`/suggestions/${encodeURIComponent(id)}/revise`, { instruction }),
   resource: (body: { kind: 'logo' | 'document' | 'publishing_media'; reference?: string; text?: string; name: string; project_id?: string }, signal: AbortSignal) => request<AgentResource>('/resources', body, signal)

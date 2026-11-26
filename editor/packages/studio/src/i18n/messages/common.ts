@@ -23,3 +23,15 @@ export const commonRo = {
   "common.more": "Mai mult",
   "common.loading": "Se încarcă",
 } as const;
+
+export const commonEs = {
+  "common.close": "Cerrar",
+  "common.cancel": "Cancelar",
+  "common.done": "Listo",
+  "common.retry": "Inténtalo de nuevo",
+  "common.delete": "Eliminar",
+  "common.search": "Buscar",
+  "common.clear": "Borrar",
+  "common.more": "Más",
+  "common.loading": "Cargando",
+} as const;

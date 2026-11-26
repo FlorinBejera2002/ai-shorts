@@ -1,6 +1,6 @@
 'use client'
 
-import { locales } from '@/i18n/config'
+import { locales, type Locale } from '@/i18n/config'
 import { usePathname, useRouter } from '@/i18n/navigation'
 import { Check, ChevronDown } from 'lucide-react'
 import { useLocale } from 'next-intl'
@@ -8,10 +8,36 @@ import { useEffect, useId, useRef, useState } from 'react'
 
 const LOCALE_NAMES: Record<string, string> = {
   en: 'English',
-  ro: 'Română'
+  ro: 'Română',
+  es: 'Español'
+}
+
+const MENU_LABELS: Record<string, string> = {
+  en: 'Language',
+  ro: 'Limbă',
+  es: 'Idioma'
+}
+
+const TRIGGER_LABELS: Record<string, string> = {
+  en: 'English language',
+  ro: 'Limbă: Română',
+  es: 'Idioma: Español'
 }
 
 function LocaleFlag({ locale }: { locale: string }) {
+  if (locale === 'es') {
+    return (
+      <svg
+        viewBox="0 0 18 12"
+        aria-hidden="true"
+        className="h-3 w-[18px] rounded-[2px] shadow-sm"
+      >
+        <path fill="#AA151B" d="M0 0h18v12H0z" />
+        <path fill="#F1BF00" d="M0 3h18v6H0z" />
+      </svg>
+    )
+  }
+
   if (locale === 'ro') {
     return (
       <svg
@@ -79,7 +105,7 @@ export function HomeLanguageSwitcher({
 
   useEffect(() => {
     if (!isOpen) return
-    const selectedIndex = Math.max(0, locales.indexOf(locale as 'en' | 'ro'))
+    const selectedIndex = Math.max(0, locales.indexOf(locale as Locale))
     const frame = requestAnimationFrame(() => {
       optionRefs.current[selectedIndex]?.focus()
     })
@@ -89,7 +115,7 @@ export function HomeLanguageSwitcher({
   function switchLocale(newLocale: string) {
     setIsOpen(false)
     const destination = `${pathname}${window.location.search}${window.location.hash}`
-    router.replace(destination, { locale: newLocale as 'en' | 'ro' })
+    router.replace(destination, { locale: newLocale as Locale })
   }
 
   function handleMenuKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
@@ -127,7 +153,7 @@ export function HomeLanguageSwitcher({
         aria-haspopup="menu"
         aria-expanded={isOpen}
         aria-controls={menuId}
-        aria-label={`${LOCALE_NAMES[locale]} language`}
+        aria-label={TRIGGER_LABELS[locale] ?? TRIGGER_LABELS.en}
         onClick={() => setIsOpen((open) => !open)}
         onKeyDown={(event) => {
           if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
@@ -157,7 +183,7 @@ export function HomeLanguageSwitcher({
       <div
         id={menuId}
         role="menu"
-        aria-label={locale === 'ro' ? 'Limbă' : 'Language'}
+        aria-label={MENU_LABELS[locale] ?? MENU_LABELS.en}
         onKeyDown={handleMenuKeyDown}
         className={`absolute right-0 z-[70] overflow-hidden rounded-xl p-1.5 transition-all duration-200 ${variant === 'cinematic' ? 'w-[86px]' : 'left-0 w-full'} ${placement === 'top' ? 'bottom-[calc(100%+8px)] origin-bottom' : 'top-[calc(100%+8px)] origin-top'} ${variant === 'cinematic' ? 'border border-white/10 bg-[#08111f]/95 font-[family-name:var(--font-studio)] shadow-[0_20px_60px_rgba(0,0,0,0.55)] backdrop-blur-2xl' : 'border border-border bg-popover text-popover-foreground shadow-xl'} ${isOpen ? 'visible translate-y-0 scale-100 opacity-100' : `invisible scale-95 opacity-0 ${placement === 'top' ? 'translate-y-1' : '-translate-y-1'}`}`}
       >

@@ -1,10 +1,10 @@
 // Inspector panel chrome: header, tab bar and the inspector fallbacks. Romanian follows the
 // Inspector boards (St-Inspector-Tabs, St-M-Main).
-import { inspectorCutEn, inspectorCutRo } from "./inspectorCut";
-import { inspectorFlatEn, inspectorFlatRo } from "./inspectorFlat";
-import { inspectorCaptionsEn, inspectorCaptionsRo } from "./inspectorCaptions";
-import { inspectorMotionEn, inspectorMotionRo } from "./inspectorMotion";
-import { inspectorLayoutEn, inspectorLayoutRo } from "./inspectorLayout";
+import { inspectorCutEn, inspectorCutRo, inspectorCutEs } from "./inspectorCut";
+import { inspectorFlatEn, inspectorFlatRo, inspectorFlatEs } from "./inspectorFlat";
+import { inspectorCaptionsEn, inspectorCaptionsRo, inspectorCaptionsEs } from "./inspectorCaptions";
+import { inspectorMotionEn, inspectorMotionRo, inspectorMotionEs } from "./inspectorMotion";
+import { inspectorLayoutEn, inspectorLayoutRo, inspectorLayoutEs } from "./inspectorLayout";
 
 export const inspectorEn = {
   ...inspectorCutEn,
@@ -72,4 +72,38 @@ export const inspectorRo = {
   "inspector.captionsTitle": "Subtitrări",
   "inspector.resize": "Redimensionează inspectorul",
   "inspector.resizeSplit": "Redimensionează Straturi și Design",
+} as const;
+
+export const inspectorEs = {
+  ...inspectorCutEs,
+  ...inspectorFlatEs,
+  ...inspectorCaptionsEs,
+  ...inspectorMotionEs,
+  ...inspectorLayoutEs,
+  "inspector.title": "Inspector",
+  "inspector.close": "Cerrar inspector",
+  "inspector.done": "Listo",
+  "inspector.clipSettings": "Ajustes del clip",
+  "inspector.tabDesign": "Diseño",
+  "inspector.tabLayers": "Capas",
+  "inspector.tabRenders": "Renderizados",
+  "inspector.tabRendersCount": "Renderizados ({n})",
+  "inspector.tabSlideshow": "Diapositivas",
+  "inspector.tabVariables": "Variables",
+  "inspector.tabAdvanced": "Avanzado",
+  "inspector.unavailable": "El inspector no está disponible ahora mismo.",
+  "inspector.showRenders": "Mostrar renderizados",
+  "inspector.tooltipDesign": "Estilos y propiedades del elemento",
+  "inspector.tooltipLayers": "Pila de capas de la composición",
+  "inspector.tooltipRenders": "Cola de renderizado y exportaciones",
+  "inspector.tooltipSlideshow": "Editor de ramificaciones de la presentación",
+  "inspector.tooltipVariables": "Variables de plantilla",
+  "inspector.askAgent": "Pedir ayuda",
+  "inspector.tabs": "Pestañas del inspector",
+  "inspector.advancedMenu": "Herramientas para desarrolladores",
+  "inspector.tabBlockParams": "Parámetros del bloque",
+  "inspector.multiTitle": "{n} elementos",
+  "inspector.captionsTitle": "Subtítulos",
+  "inspector.resize": "Cambiar tamaño del inspector",
+  "inspector.resizeSplit": "Cambiar tamaño de Capas y Diseño",
 } as const;

@@ -13,7 +13,7 @@ export function storyFailureReason(project: {
 
 export function storyProblem(
   message: string,
-  text: (en: string, ro: string) => string
+  text: (en: string, ro: string, es?: string) => string
 ) {
   if (/AI provider.*(?:credit|balance|payment|spending limit)/i.test(message))
     return text(

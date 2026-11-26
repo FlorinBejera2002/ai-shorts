@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Upload, Youtube, type LucideIcon } from 'lucide-react'
+import { pickInlineText } from '@/i18n/inline-text'
 import { useLocale, useTranslations } from 'next-intl'
 import { useSearchParams } from 'next/navigation'
 import { useRouter } from '@/i18n/navigation'
@@ -28,16 +29,16 @@ function SourceSwitch({
   source: CreationSource
   onSelect: (value: CreationSource) => void
 }) {
-  const ro = useLocale() === 'ro'
+  const locale = useLocale()
   const labels: Record<CreationSource, string> = {
-    upload: ro ? 'Încarcă filmări' : 'Upload videos',
+    upload: pickInlineText(locale, 'Upload videos', 'Încarcă filmări', 'Subir videos'),
     youtube: 'YouTube'
   }
   return (
     <div
       id="creation-source"
       role="radiogroup"
-      aria-label={ro ? 'Sursa filmărilor' : 'Video source'}
+      aria-label={pickInlineText(locale, 'Video source', 'Sursa filmărilor', 'Fuente del video')}
       className="creation-source-switch"
     >
       {sourceOptions.map(({ value, Icon }) => (

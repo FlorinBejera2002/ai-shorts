@@ -1,4 +1,5 @@
 // Browser dictation for the composer. Nothing reaches the agent until the user presses Send.
+import type { StudioLocale } from "../../i18n/dictionary";
 import { useRef, useState } from "react";
 import { useMountEffect } from "../../hooks/useMountEffect";
 
@@ -14,12 +15,18 @@ interface Recognition {
   abort(): void;
 }
 
+const DICTATION_LANGUAGE: Record<StudioLocale, string> = {
+  en: "en-US",
+  ro: "ro-RO",
+  es: "es-ES",
+};
+
 type SpeechWindow = Window & {
   SpeechRecognition?: new () => Recognition;
   webkitSpeechRecognition?: new () => Recognition;
 };
 
-export function useDictation(locale: "ro" | "en", append: (text: string) => void) {
+export function useDictation(locale: StudioLocale, append: (text: string) => void) {
   const recognition = useRef<Recognition | null>(null);
   const [listening, setListening] = useState(false);
   const [failed, setFailed] = useState(false);
@@ -35,7 +42,7 @@ export function useDictation(locale: "ro" | "en", append: (text: string) => void
     }
     if (!Constructor) return;
     const instance = new Constructor();
-    instance.lang = locale === "ro" ? "ro-RO" : "en-US";
+    instance.lang = DICTATION_LANGUAGE[locale];
     instance.interimResults = false;
     instance.continuous = false;
     instance.onresult = (event) =>

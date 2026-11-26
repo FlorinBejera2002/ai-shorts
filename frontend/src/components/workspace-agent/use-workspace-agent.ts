@@ -1,6 +1,7 @@
+import { resolveSiteLocale } from '@/lib/site-config'
 import { useCallback, useEffect, useRef, useState, type SetStateAction } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { agentApi, AgentApiError } from './api'
+import { agentApi, AgentApiError, UnverifiedAgentResponseError } from './api'
 import { agentContext, mergeRuns, pollingDelay, resourceIdsForContext, resourceProjectFromRun, safeAgentRoute } from './model'
 import type { AgentCommand, AgentContext, AgentResource, AgentRun, RunRequest, Suggestion } from './model'
 import type { StoryHelpRequest } from './story-help'
@@ -11,7 +12,7 @@ import { toast } from '@/lib/toast'
 const historyKey = ['workspace-agent', 'runs']
 const errorMessage = (cause: unknown) => cause instanceof Error ? cause.message : String(cause)
 type HelpDraft = { context: AgentContext; source: HTMLElement }
-export function useWorkspaceAgent(route: string, navigate: (route: string) => void, projectId?: string, onProject?: (id: string) => void, locale = 'ro', resources: AgentResource[] = []) {
+export function useWorkspaceAgent(route: string, navigate: (route: string) => void, projectId?: string, onProject?: (id: string) => void, locale = 'en', resources: AgentResource[] = []) {
   const client = useQueryClient()
   const [draftState, setDraftState] = useState<{ text: string; help: HelpDraft | null }>({ text: '', help: null })
   const { text: draft, help: helpDraft } = draftState
@@ -51,7 +52,7 @@ export function useWorkspaceAgent(route: string, navigate: (route: string) => vo
   const [sending, setSending] = useState(false)
   const [retry, setRetry] = useState<RunRequest | null>(null)
   const lock = useRef(false)
-  const messages = agentMessages[locale === 'ro' ? 'ro' : 'en']
+  const messages = agentMessages[resolveSiteLocale(locale)]
   const seen = useRef(new Map<string, number>())
   const initialized = useRef(false)
   const pageContext = agentContext(route)
@@ -108,7 +109,7 @@ export function useWorkspaceAgent(route: string, navigate: (route: string) => vo
     if (lock.current) return
     const help = helpDraft
     const helpIsVisible = help?.context.route === route && help.source.isConnected && !help.source.closest('[hidden]')
-    const sendContext: AgentContext = { ...(!suggestion && helpIsVisible ? help.context : context), locale: locale === 'ro' ? 'ro' : 'en' }
+    const sendContext: AgentContext = { ...(!suggestion && helpIsVisible ? help.context : context), locale: resolveSiteLocale(locale) }
     const resourceIds = helpIsVisible && !suggestion ? [] : resourceIdsForContext(resources, suggestion?.context ?? sendContext)
     // An ambiguous response may already have committed. Every send path first
     // resolves that same request, even after the draft or selected page changes.
@@ -129,7 +130,8 @@ export function useWorkspaceAgent(route: string, navigate: (route: string) => vo
       // Keep the exact identity on ambiguous delivery; rejected input can be edited.
       const retryable = !(cause instanceof AgentApiError && cause.status >= 400 && cause.status < 500)
       setRetry(retryable ? body : null)
-      toast.error(errorMessage(cause), retryable ? { action: { label: messages.retry, onClick: () => void send(body) } } : undefined)
+      const message = cause instanceof UnverifiedAgentResponseError ? messages.unverifiedResponse : errorMessage(cause)
+      toast.error(message, retryable ? { action: { label: messages.retry, onClick: () => void send(body) } } : undefined)
     }
     finally { lock.current = false; setBusy(false); setSending(false) }
   }

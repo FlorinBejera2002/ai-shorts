@@ -29,6 +29,7 @@ func TestPublishingReturnURLUsesTheFrontendLocaleRoutes(t *testing.T) {
 	}{
 		{locale: "en", want: "https://sneepcut.com/dashboard/publish?connected=tiktok"},
 		{locale: "ro", want: "https://sneepcut.com/ro/dashboard/publish?connected=tiktok"},
+		{locale: "es", want: "https://sneepcut.com/es/dashboard/publish?connected=tiktok"},
 	}
 	for _, test := range tests {
 		if got := publishingReturnURL("https://sneepcut.com/", test.locale, "connected", "tiktok"); got != test.want {

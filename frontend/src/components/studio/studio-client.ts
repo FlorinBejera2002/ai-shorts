@@ -1,7 +1,7 @@
 export type StudioProject = { id: string; title: string }
 
 // Presentation preferences passed to Studio as query parameters (not secrets).
-export type StudioPreferences = { theme?: 'light' | 'dark'; lang?: 'ro' | 'en' }
+export type StudioPreferences = { theme?: 'light' | 'dark'; lang?: 'ro' | 'en' | 'es' }
 
 export function withStudioPreferences(url: string, preferences: StudioPreferences = {}): string {
   const hashIndex = url.indexOf('#')
@@ -29,7 +29,7 @@ export function readStudioPreferences(accountTheme?: string | null): StudioPrefe
   if (theme === 'light' || theme === 'dark') preferences.theme = theme
   // The page sets a full tag such as ro-RO or en-US; Studio takes the base language.
   const lang = document.documentElement.lang.split('-')[0].toLowerCase()
-  if (lang === 'ro' || lang === 'en') preferences.lang = lang
+  if (lang === 'ro' || lang === 'en' || lang === 'es') preferences.lang = lang
   return preferences
 }
 

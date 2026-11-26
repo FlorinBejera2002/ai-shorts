@@ -11,6 +11,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"sneepcut/backend-go/internal/locale"
 	"strconv"
 	"strings"
 	"time"
@@ -158,7 +159,7 @@ func validVerifier(verifier string) bool {
 }
 
 // AuthorizationURL builds a PKCE consent request for read-only, offline access.
-func (c *Client) AuthorizationURL(state, verifier, locale string) (string, error) {
+func (c *Client) AuthorizationURL(state, verifier, uiLocale string) (string, error) {
 	if state == "" || !validVerifier(verifier) {
 		return "", errors.New("invalid YouTube channel authorization state")
 	}
@@ -179,8 +180,8 @@ func (c *Client) AuthorizationURL(state, verifier, locale string) (string, error
 		"prompt":                 {"consent"},
 		"include_granted_scopes": {"false"},
 	}
-	if locale == "ro" {
-		values.Set("hl", "ro")
+	if uiLocale == locale.Romanian || uiLocale == locale.Spanish {
+		values.Set("hl", uiLocale)
 	}
 	u.RawQuery = values.Encode()
 	return u.String(), nil

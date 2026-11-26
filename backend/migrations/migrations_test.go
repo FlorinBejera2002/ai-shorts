@@ -10,7 +10,7 @@ func TestHistory(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(chain) != 61 || chain[0].Revision != "20260629_0001" || chain[len(chain)-1].Revision != "20261125_feedback_images" {
+	if len(chain) != 62 || chain[0].Revision != "20260629_0001" || chain[len(chain)-1].Revision != "20261126_spanish_locale" {
 		t.Fatalf("unexpected history: %d migrations, first %s, last %s", len(chain), chain[0].Revision, chain[len(chain)-1].Revision)
 	}
 }

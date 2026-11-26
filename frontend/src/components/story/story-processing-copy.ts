@@ -1,6 +1,6 @@
 import { UPLOAD_STAGE_KEYS } from './story-processing-model'
 
-type Text = (english: string, romanian: string) => string
+type Text = (english: string, romanian: string, spanish?: string) => string
 
 /** Five upload stage labels, in the order the stage line shows them. */
 export function uploadStageLabels(text: Text) {

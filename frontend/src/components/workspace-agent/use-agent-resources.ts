@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
+import type { SiteLocale } from '@/lib/site-config'
 import { storyRequest } from '@/components/story/api'
 import { useStoryUploads } from '@/components/story/use-story-uploads'
 import { storyIsBusy } from '@/components/story/types'
@@ -17,13 +18,13 @@ export function useAgentResources(projectId?: string) {
     await client.invalidateQueries({ queryKey: ['workspace-agent', 'suggestions'] })
   }, [client, projectId])
   const uploads = useStoryUploads(projectId ?? '', refresh)
-  function add(files: File[], ro: boolean) {
+  function add(files: File[], locale: SiteLocale) {
     const project = query.data
     if (!project || storyIsBusy(project.status)) return
     const pending = uploads.items.filter(item => item.projectId === projectId && item.status !== 'complete')
     const limits = project.limits
     if (validateStoryFiles(files, project.assets, pending.map(item => item.file), limits)) {
-      setError(ro ? 'Verifică formatul și dimensiunea fișierelor.' : 'Check file format and size.'); return
+      setError({ en: 'Check file format and size.', ro: 'Verifică formatul și dimensiunea fișierelor.', es: 'Revisa el formato y el tamaño de los archivos.' }[locale]); return
     }
     setError(''); uploads.add(files, project.assets.reduce((maximum, asset) => Math.max(maximum, asset.order), -1) + 1)
   }

@@ -32,3 +32,11 @@ func TestDeviceLabelDoesNotExposeRawUserAgent(t *testing.T) {
 		}
 	}
 }
+
+func TestSettingsPreferenceAcceptsSpanishLocale(t *testing.T) {
+	spanish := defaultPreferences()
+	spanish.Locale = "es"
+	if !spanish.valid() {
+		t.Fatal("Spanish UI locale must be an accepted preference")
+	}
+}

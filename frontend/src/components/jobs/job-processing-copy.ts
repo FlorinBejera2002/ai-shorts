@@ -1,4 +1,4 @@
-type Text = (english: string, romanian: string) => string
+type Text = (english: string, romanian: string, spanish?: string) => string
 
 /** Stage line labels shared by every job card state. */
 export function jobStageLabels(text: Text): Array<{ key: string; label: string }> {

@@ -1,6 +1,7 @@
+import type { SiteLocale } from '@/lib/site-config'
 import type { StoryHelpStep } from './story-help'
 
-export type AgentContext = { route: string; locale?: 'ro' | 'en'; project_id?: string; clip_id?: string; studio_selection?: string[]; help_topic?: 'story_builder'; story_step?: StoryHelpStep }
+export type AgentContext = { route: string; locale?: SiteLocale;project_id?: string; clip_id?: string; studio_selection?: string[]; help_topic?: 'story_builder'; story_step?: StoryHelpStep }
 export type AgentAction = { name: string; input: Record<string, unknown> }
 export type AgentStatus = 'planning' | 'running' | 'waiting_for_confirmation' | 'waiting_for_resources' | 'paused' | 'cancel_requested' | 'cancelled' | 'completed' | 'failed'
 export type AgentRun = {
@@ -55,10 +56,24 @@ export function publishingConsentMissing(preview?: Record<string, unknown>): boo
   const youtube = preview.youtube as { termsAccepted?: boolean } | null
   return destinations.some(destination => destination?.provider === 'tiktok' && tiktok?.musicUsageConfirmed !== true || destination?.provider === 'youtube' && youtube?.termsAccepted !== true)
 }
-/** Count with the right noun form: Romanian uses the singular for 1 and "de" from 20 (unless the last two digits are 01–19). */
-export function countLabel(count: number, ro: boolean, roForms: [string, string], enForms: [string, string]): string {
-  if (!ro) return `${count} ${count === 1 ? enForms[0] : enForms[1]}`
-  if (count === 1) return `1 ${roForms[0]}`
+/** Copy for each supported locale. */
+export type Localized = Record<SiteLocale, string>
+
+/** Singular and plural nouns for each supported locale. */
+export type CountForms = Record<SiteLocale, [singular: string, plural: string]>
+
+/** Shared noun forms for counts shown in result and approval cards. */
+export const countForms = {
+  clip: { en: ['clip', 'clips'], ro: ['clip', 'clipuri'], es: ['clip', 'clips'] },
+  folder: { en: ['folder', 'folders'], ro: ['folder', 'foldere'], es: ['carpeta', 'carpetas'] },
+  childFolder: { en: ['child folder', 'child folders'], ro: ['subfolder', 'subfoldere'], es: ['subcarpeta', 'subcarpetas'] },
+  project: { en: ['project', 'projects'], ro: ['proiect', 'proiecte'], es: ['proyecto', 'proyectos'] }
+} satisfies Record<string, CountForms>
+
+/** Count with the right noun form. Romanian uses the singular for 1 and "de" from 20 (unless the last two digits are 01–19). */
+export function countLabel(count: number, locale: SiteLocale, forms: CountForms): string {
+  if (locale !== 'ro') return `${count} ${count === 1 ? forms[locale][0] : forms[locale][1]}`
+  if (count === 1) return `1 ${forms.ro[0]}`
   const lastTwo = count % 100
-  return `${count} ${count !== 0 && (lastTwo === 0 || lastTwo >= 20) ? 'de ' : ''}${roForms[1]}`
+  return `${count} ${count !== 0 && (lastTwo === 0 || lastTwo >= 20) ? 'de ' : ''}${forms.ro[1]}`
 }

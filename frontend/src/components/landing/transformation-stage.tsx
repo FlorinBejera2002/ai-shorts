@@ -3,21 +3,13 @@
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { Check, Play, RotateCcw, Sparkles } from 'lucide-react'
 import { useEffect, useState } from 'react'
+import { resolveSiteLocale } from '@/lib/site-config'
+import { TRANSFORMATION_STAGE_COPY } from './transformation-stage-copy'
 
 const clips = [
-  {
-    score: 94,
-    time: '00:42',
-    color: '#5139EF',
-    caption: 'THIS CHANGES EVERYTHING'
-  },
-  {
-    score: 89,
-    time: '01:18',
-    color: '#5139EF',
-    caption: 'THE PART NOBODY TELLS YOU'
-  },
-  { score: 86, time: '02:06', color: '#5139EF', caption: 'SAVE THIS FOR LATER' }
+  { score: 94, time: '00:42', color: '#5139EF' },
+  { score: 89, time: '01:18', color: '#5139EF' },
+  { score: 86, time: '02:06', color: '#5139EF' }
 ]
 
 const waveform = [
@@ -29,52 +21,7 @@ export function TransformationStage({ locale }: { locale: string }) {
   const reduceMotion = useReducedMotion()
   const [run, setRun] = useState(0)
   const [phase, setPhase] = useState(0)
-  const copy =
-    locale === 'ro'
-      ? {
-          editor: 'Editor AI Sneep Cut',
-          videoCaption: 'Momentul în care totul a devenit clar',
-          clipCaptions: [
-            'ASTA SCHIMBĂ TOT',
-            'PARTEA PE CARE NU ȚI-O SPUNE NIMENI',
-            'SALVEAZĂ PENTRU MAI TÂRZIU'
-          ],
-          aria: 'Demonstrație animată a fluxului Sneep Cut',
-          replay: 'Reia',
-          source: 'Sursă',
-          tracked: 'Vorbitor urmărit',
-          transcript: 'Transcriere analizată',
-          selections: 'Selecții AI',
-          found: '3 clipuri găsite',
-          ready: 'Gata',
-          highlight: 'Moment',
-          phases: [
-            'Analizăm contextul video…',
-            'Detectăm cele mai bune momente…',
-            'Adaptăm cadrul și adăugăm subtitrări…',
-            'Clipurile sunt gata de verificat'
-          ]
-        }
-      : {
-          editor: 'Sneep Cut AI editor',
-          videoCaption: 'The moment everything finally clicked',
-          clipCaptions: clips.map((clip) => clip.caption),
-          aria: 'Animated Sneep Cut product workflow',
-          replay: 'Replay',
-          source: 'Source',
-          tracked: 'Speaker tracked',
-          transcript: 'Transcript analyzed',
-          selections: 'AI selections',
-          found: '3 clips found',
-          ready: 'Ready',
-          highlight: 'Highlight',
-          phases: [
-            'Reading video context…',
-            'Detecting strongest moments…',
-            'Reframing and adding captions…',
-            'Clips ready to review'
-          ]
-        }
+  const copy = TRANSFORMATION_STAGE_COPY[resolveSiteLocale(locale)]
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: run is an intentional replay token.
   useEffect(() => {
