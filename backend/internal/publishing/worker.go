@@ -534,7 +534,7 @@ func (h *Handler) process(ctx context.Context, job workItem, action string) erro
 						}
 					}
 				}
-				source, err := h.media.SignedURL(ctx, reference)
+				source, err := h.publishingURL(ctx, a.Provider, reference)
 				if err != nil || !publicHTTPS(source) {
 					return set("failed", "A public HTTPS media URL is required.", "", "")
 				}
@@ -557,7 +557,7 @@ func (h *Handler) process(ctx context.Context, job workItem, action string) erro
 			if err != nil || currentReference != job.Reference {
 				return set("failed", "The selected clip changed or is no longer available. Review it before publishing again.", "", "")
 			}
-			source, err := h.media.SignedURL(ctx, job.Reference)
+			source, err := h.publishingURL(ctx, a.Provider, job.Reference)
 			if err != nil || !publicHTTPS(source) {
 				return set("failed", "A public HTTPS video URL is required.", "", "")
 			}

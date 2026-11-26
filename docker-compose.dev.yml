@@ -113,6 +113,7 @@ services:
     # Keep server changes testable without rebuilding the bundled Studio UI.
     volumes:
       - ./editor/packages/sneepcut-server/src:/app/packages/sneepcut-server/src:ro
+      - ./editor/packages/studio-server/src/routes/preview.ts:/app/packages/studio-server/src/routes/preview.ts:ro
       - ./editor/packages/sneepcut-server/tsconfig.json:/app/packages/sneepcut-server/tsconfig.json:ro
 
   frontend:
@@ -126,6 +127,7 @@ services:
       VITE_DEV_API_TARGET: http://backend:8080
       VITE_DEV_MEDIA_TARGET: http://nginx:80
       VITE_USE_POLLING: "true"
+      CHOKIDAR_INTERVAL: "1000"
       VITE_APP_URL: http://localhost:3000
       VITE_STUDIO_URL: ${VITE_STUDIO_URL:-http://localhost:5191}
     volumes:
@@ -145,9 +147,11 @@ services:
     command: npm run dev -- --host 0.0.0.0 --port 8080
     environment:
       VITE_DEV_API_TARGET: http://backend:8080
+      VITE_USE_POLLING: "true"
     volumes:
       - ./admin/src:/app/src
       - ./admin/index.html:/app/index.html
+      - ./admin/vite.config.ts:/app/vite.config.ts:ro
       - ${SNEEPCUT_RUNTIME_ROOT:-../ai-shorts-runtime}/cache/admin:/app/node_modules/.vite
     ports:
       - "127.0.0.1:${ADMIN_HOST_PORT:-3002}:8080"
@@ -158,6 +162,9 @@ services:
     ports: !override
       - "127.0.0.1:80:80"
       - "127.0.0.1:3000:80"
+    # The media worker needs the API gateway, independent of Vite transforms.
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "--show-error", "http://127.0.0.1/api/ready"]
     # Refresh Nginx's upstream DNS after Compose recreates an app container.
     depends_on:
       frontend:

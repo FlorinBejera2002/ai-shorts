@@ -37,6 +37,7 @@ import {
   workspaceRevision,
 } from "./workspace";
 import { stableProjectId } from "./clip-import";
+import { compositionHasManualChanges } from "./composition-edits";
 
 interface ServiceOptions {
   store: CompositionStore;
@@ -478,8 +479,7 @@ export function createCompositionService(options: ServiceOptions) {
         if (!staged) throw new Error("Prepared baseline unavailable");
         await copyCompositionFiles(join(staged.dir, "baseline"), project.dir);
       });
-      const manuallyEdited =
-        (await workspaceRevision(project.dir)) !== (await workspaceRevision(baseline.dir));
+      const manuallyEdited = await compositionHasManualChanges(baseline.dir, project.dir);
       const effective = readEffectiveComposition(
         await compositionTextFiles(project.dir),
         manuallyEdited,

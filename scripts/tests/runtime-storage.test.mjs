@@ -94,10 +94,11 @@ test('initialization refuses existing data and preserves ready project storage o
   await configureRuntime('init', checkout)
   // The admin dev server drops capabilities and shares the production UID.
   // Exercise writes as that user so a mismatched cache owner cannot go unnoticed.
-  docker(['run', '--rm', '--network', 'none', '--user', '10001:10001',
-    '--cap-drop', 'ALL', '--security-opt', 'no-new-privileges:true',
-    '--mount', `type=bind,source=${runtime},target=/runtime`, image,
-    'sh', '-ec', 'touch /runtime/cache/admin/write-probe /runtime/tmp/admin/write-probe'])
+  docker(['run', '--rm', '--read-only', '--network', 'none',
+    '--user', '10001:10001', '--cap-drop', 'ALL', '--security-opt', 'no-new-privileges:true',
+    '--mount', `type=bind,source=${path.join(runtime, 'cache/admin')},target=/cache`,
+    '--mount', `type=bind,source=${path.join(runtime, 'tmp/admin')},target=/tmp`, image,
+    'sh', '-ec', 'touch /cache/admin-probe /tmp/admin-probe && rm /cache/admin-probe /tmp/admin-probe'])
   const saved = path.join(runtime, 'media/saved.bin')
   await writeFile(saved, 'saved fixture')
   await configureRuntime('init', checkout)

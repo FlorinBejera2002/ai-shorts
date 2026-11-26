@@ -227,6 +227,32 @@ test("staged regeneration preserves saved files and publishes one stable workspa
   expect(await editable.resolve(alice, clipID)).not.toBeNull();
 });
 
+test("opening a preview does not suppress automated review on the next generated clip", async () => {
+  const editable = new ProjectStore(join(root, "editable"));
+  const api = service({ editableStore: editable });
+  await api(request("composition.render", { plan: plan(), project_id: clipID }));
+  await complete(api);
+  expect((await api(request("composition.commit", { artifact_id: artifact }))).status).toBe(200);
+  const workspace = (await editable.resolve(alice, clipID))!;
+  const path = join(workspace.dir, "index.html");
+  const html = (await readFile(path, "utf8"))
+    .replace('id="main"', 'data-hf-id="hf-preview" id="main"')
+    .replace("}#main", "}\n#main");
+  await writeFile(path, html);
+  const next = plan();
+  next.title = "Next automatic clip";
+  expect(
+    (
+      await api(
+        request("composition.render", { plan: next, base_artifact_id: artifact }, alice, derived),
+      )
+    ).status,
+  ).toBe(202);
+  const result = await complete(api, derived);
+  expect(result.manually_edited).toBe(false);
+  expect(result.effective_timeline.manually_edited).toBe(false);
+});
+
 test("concurrent saved edits reject commit and restart retries keep the captured source", async () => {
   const editable = new ProjectStore(join(root, "editable"));
   const api = service({ editableStore: editable });

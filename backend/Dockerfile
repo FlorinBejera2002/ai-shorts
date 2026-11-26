@@ -20,7 +20,8 @@ RUN mkdir -p /media && go test -race ./... && go vet ./... \
     && CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /api ./cmd/api \
     && CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /worker ./cmd/worker \
     && CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /migrate ./cmd/migrate \
-    && CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /adminctl ./cmd/adminctl
+    && CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /adminctl ./cmd/adminctl \
+    && CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /migrate-media-s3 ./cmd/migrate-media-s3
 
 FROM debian:bookworm-slim AS migrate
 RUN apt-get update \
@@ -29,6 +30,10 @@ RUN apt-get update \
 COPY --from=build /migrate /migrate
 USER 10001:10001
 ENTRYPOINT ["/migrate"]
+
+FROM migrate AS storage-migrate
+COPY --from=build /migrate-media-s3 /migrate-media-s3
+ENTRYPOINT ["/migrate-media-s3"]
 
 FROM debian:bookworm-slim AS speech-build
 ARG WHISPER_VERSION=v1.8.3

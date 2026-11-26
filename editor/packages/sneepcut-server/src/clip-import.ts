@@ -68,7 +68,11 @@ export function createClipImporter(options: {
   fetcher?: AuthFetcher;
   probeAudio?: typeof sandboxProbeAudio;
 }) {
-  const fetcher = createMediaFetcher(options.fetcher ?? fetch, options.mediaS3Origin, options.mediaS3InternalOrigin);
+  const fetcher = createMediaFetcher(
+    options.fetcher ?? fetch,
+    options.mediaS3Origin,
+    options.mediaS3InternalOrigin,
+  );
   const mediaOrigin = new URL(options.mediaOrigin).origin;
   validateMediaS3Origin(options.mediaS3Origin);
   const mediaFetchOrigin = options.mediaFetchOrigin ? new URL(options.mediaFetchOrigin) : null;
@@ -128,6 +132,20 @@ export function createClipImporter(options: {
         throw new HTTPException(422, {
           message: "The original Studio composition is unavailable.",
         });
+      if (
+        "story_output_index" in clip &&
+        typeof clip.story_output_index === "number" &&
+        clip.story_output_index > 0 &&
+        "story_project_id" in clip &&
+        typeof clip.story_project_id === "string"
+      ) {
+        const receipt = await options.compositions.read(userId, artifact);
+        if (receipt?.project_id === clip.story_project_id)
+          throw new HTTPException(409, {
+            message:
+              "Regenerate this older clip set before editing its clips separately in Studio.",
+          });
+      }
       return options.compositions.importProject(
         userId,
         artifact,
@@ -136,7 +154,12 @@ export function createClipImporter(options: {
         title,
       );
     }
-    const downloadSource = mediaDownloadURL(clip.file_url, mediaOrigin, options.mediaFetchOrigin, options.mediaS3Origin);
+    const downloadSource = mediaDownloadURL(
+      clip.file_url,
+      mediaOrigin,
+      options.mediaFetchOrigin,
+      options.mediaS3Origin,
+    );
     const aspect =
       "aspect_ratio" in clip && typeof clip.aspect_ratio === "string" ? clip.aspect_ratio : "16:9";
     const duration = clip.duration;

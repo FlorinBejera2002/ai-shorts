@@ -34,6 +34,8 @@ func NewHandler(service *Service, auth Authentication) *Handler {
 	return &Handler{service: service, auth: auth}
 }
 func (h *Handler) Register(router *httprouter.Router) {
+	router.HandlerFunc(http.MethodGet, "/media/publish/*key", h.deliverPublishingMedia)
+	router.HandlerFunc(http.MethodHead, "/media/publish/*key", h.deliverPublishingMedia)
 	router.Handler(http.MethodGet, "/api/user/brand/fonts", h.auth.Require(h.listFonts))
 	router.Handler(http.MethodPost, "/api/user/brand/fonts", h.auth.RequireMember(h.uploadFont))
 	router.Handler(http.MethodDelete, "/api/user/brand/fonts", h.auth.RequireMember(h.archiveFont))

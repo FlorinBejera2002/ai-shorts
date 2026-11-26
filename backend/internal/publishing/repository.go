@@ -376,7 +376,7 @@ func (h *Handler) enqueue(ctx context.Context, user string, in postInput) ([]Pos
 					return nil, errInvalid
 				}
 			}
-			mediaURL, mediaErr := h.media.SignedURL(ctx, tiktokRef)
+			mediaURL, mediaErr := h.publishingURL(ctx, "tiktok", tiktokRef)
 			if mediaErr != nil || !publicHTTPS(mediaURL) {
 				return nil, errInvalid
 			}
@@ -389,7 +389,7 @@ func (h *Handler) enqueue(ctx context.Context, user string, in postInput) ([]Pos
 		if a.Provider == "tiktok" {
 			publishRef = tiktokRef
 		}
-		mediaURL, mediaErr := h.media.SignedURL(ctx, publishRef)
+		mediaURL, mediaErr := h.publishingURL(ctx, a.Provider, publishRef)
 		if mediaErr != nil || !publicHTTPS(mediaURL) {
 			return nil, errInvalid
 		}

@@ -8,11 +8,16 @@ import { command, readConfig, sanitizer, traceSummary, videoFixture } from './he
 const root = fileURLToPath(new URL('../', import.meta.url))
 const target = process.argv[2]
 assert.ok(target && /^[a-zA-Z0-9][a-zA-Z0-9_.@-]*$/.test(target), 'Pass an explicitly authorized SSH host or alias')
-assert.ok(process.argv.slice(3).every(argument => argument === '--skip-bulk'), 'Unknown server smoke argument')
+assert.ok(process.argv.slice(3).every(argument => ['--skip-bulk', '--delivery-only'].includes(argument)), 'Unknown server smoke argument')
 const skipBulk = process.argv.includes('--skip-bulk')
+const deliveryOnly = process.argv.includes('--delivery-only')
+assert.ok(!(deliveryOnly && skipBulk), 'Choose one server smoke mode')
 const contractSelection = skipBulk
   ? '^TestHetznerS3Compatibility$/(local_migration|private_signed|conditional_create)'
   : '^TestHetznerS3Compatibility$'
+const selections = deliveryOnly
+  ? ['^TestHetznerPublishingDelivery$']
+  : ['^TestHetznerS3VideoTransfers$', '^TestHetznerPublishingDelivery$', contractSelection]
 const config = await readConfig(), sanitize = sanitizer(config)
 const ssh = ['-T', '-o', 'BatchMode=yes', '-o', 'StrictHostKeyChecking=yes', '-o', 'UpdateHostKeys=no', '-o', 'ConnectTimeout=8', target]
 const report = path.resolve(process.env.SNEEPCUT_HETZNER_REPORT_DIR || path.join(root, 'artifacts/hetzner-retest', `server-${Date.now()}`))
@@ -40,6 +45,8 @@ try {
   await writeFile(path.join(scratch, 'config.json'), JSON.stringify(config), { mode: 0o600 })
   await writeFile(path.join(scratch, 'run.py'), `import datetime, ipaddress, json, os, pathlib, subprocess, time
 base=pathlib.Path(__file__).resolve().parent
+# Windows-built executables can arrive without their Unix execution bit.
+(base/'media.test').chmod(0o700)
 cfg=json.loads((base/'config.json').read_text())
 env=os.environ.copy()
 env.update({'SNEEPCUT_HETZNER_SMOKE':'1','SNEEPCUT_HETZNER_REGION':cfg['region'],
@@ -48,7 +55,7 @@ env.update({'SNEEPCUT_HETZNER_SMOKE':'1','SNEEPCUT_HETZNER_REGION':cfg['region']
  'AWS_ACCESS_KEY_ID':cfg['access_key'],'AWS_SECRET_ACCESS_KEY':cfg['secret_key'],'AWS_SESSION_TOKEN':'',
  'SNEEPCUT_HETZNER_MANIFEST':'','SNEEPCUT_HETZNER_VIDEO_FIXTURE':str(base/'reference.mp4'),
  'SNEEPCUT_HETZNER_TRACE':str(base/'requests.jsonl'),'TMPDIR':str(base)})
-metadata={'started_utc':datetime.datetime.now(datetime.timezone.utc).isoformat(),'client':'deployment-server','mode':'${skipBulk ? 'ordinary-only' : 'full'}'}
+metadata={'started_utc':datetime.datetime.now(datetime.timezone.utc).isoformat(),'client':'deployment-server','mode':'${deliveryOnly ? 'delivery-only' : skipBulk ? 'ordinary-only' : 'full'}'}
 try:
  result=subprocess.run(['curl','-4','--fail','--silent','--max-time','5','https://ip.hetzner.com'],capture_output=True,text=True,timeout=8,check=True)
  metadata['reported_source_ip']=str(ipaddress.ip_address(result.stdout.strip()))
@@ -60,7 +67,7 @@ time.sleep(60)
 exit_code=0
 # Measure videos before the 1003-object burst so throttling from that burst
 # cannot be mistaken for baseline video performance.
-for selected in ${JSON.stringify(['^TestHetznerS3VideoTransfers$', contractSelection])}:
+for selected in ${JSON.stringify(selections)}:
  result=subprocess.run([str(base/'media.test'),'-test.run='+selected,'-test.v','-test.timeout=8m'],env=env)
  if result.returncode: exit_code=1
 trace=base/'requests.jsonl'
@@ -78,7 +85,7 @@ trap 'rm -rf -- "$verification_root"' EXIT HUP INT TERM
 tar -xf - -C "$verification_root"
 python3 "$verification_root/run.py"`
   const remote = command('ssh', [...ssh, remoteScript], { cwd: root, timeout: 780000,
-    onLine: line => { if (/=== RUN|--- PASS|--- FAIL|VIDEO_TRANSFER|synthetic object prefix|SERVER_METADATA|SETTLE|^SKIP/.test(line)) console.log(sanitize(line)) },
+    onLine: line => { if (/=== RUN|--- PASS|--- FAIL|VIDEO_TRANSFER|PUBLISHING_DELIVERY|synthetic object prefix|SERVER_METADATA|SETTLE|^SKIP/.test(line)) console.log(sanitize(line)) },
   })
   // Keep this stream binary; it must never pass through a text decoder/logger.
   const archive = spawn('tar', ['-cf', '-', '-C', scratch, 'media.test', 'reference.mp4', 'config.json', 'run.py'],

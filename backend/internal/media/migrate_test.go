@@ -8,17 +8,22 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 )
 
 type migrationStorage struct {
 	Storage
-	objects map[string][]byte
-	server  *httptest.Server
-	writes  int
-	corrupt bool
+	objects        map[string][]byte
+	server         *httptest.Server
+	writes         int
+	corrupt        bool
+	failedReads    atomic.Int32
+	readAttempts   atomic.Int32
+	truncatedReads atomic.Int32
 }
 
 func (s *migrationStorage) Exists(_ context.Context, key string) (bool, error) {
@@ -46,6 +51,11 @@ func migrationFixture(t *testing.T) (*LocalStorage, *migrationStorage) {
 	t.Cleanup(func() { local.Close() })
 	remote := &migrationStorage{objects: map[string][]byte{}}
 	remote.server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		remote.readAttempts.Add(1)
+		if remote.failedReads.Add(-1) >= 0 {
+			http.Error(w, "temporary provider failure", http.StatusServiceUnavailable)
+			return
+		}
 		if remote.corrupt {
 			_, _ = w.Write([]byte("corrupt"))
 			return
@@ -55,10 +65,48 @@ func migrationFixture(t *testing.T) (*LocalStorage, *migrationStorage) {
 			http.NotFound(w, r)
 			return
 		}
+		if remote.truncatedReads.Add(-1) >= 0 {
+			w.Header().Set("Content-Length", strconv.Itoa(len(value)))
+			_, _ = w.Write(value[:len(value)/2])
+			return
+		}
 		_, _ = w.Write(value)
 	}))
 	t.Cleanup(remote.server.Close)
 	return local, remote
+}
+
+func TestMigrateLocalRetriesTruncatedReadWithoutAcceptingPartialBytes(t *testing.T) {
+	local, remote := migrationFixture(t)
+	content := []byte("complete immutable media")
+	if err := os.WriteFile(filepath.Join(local.directory, "clip.mp4"), content, 0600); err != nil {
+		t.Fatal(err)
+	}
+	remote.truncatedReads.Store(1)
+	result, err := MigrateLocal(context.Background(), local, remote)
+	if err != nil || result.Bytes != int64(len(content)) || remote.readAttempts.Load() != 2 || remote.writes != 1 {
+		t.Fatalf("partial destination read was not safely retried: %+v %v reads=%d writes=%d", result, err, remote.readAttempts.Load(), remote.writes)
+	}
+}
+
+func TestMigrateLocalRetriesVerificationReadsWithoutReplacingTheUpload(t *testing.T) {
+	local, remote := migrationFixture(t)
+	content := []byte("immutable migration source")
+	filename := filepath.Join(local.directory, "clip.mp4")
+	if err := os.WriteFile(filename, content, 0600); err != nil {
+		t.Fatal(err)
+	}
+	remote.failedReads.Store(2)
+	result, err := MigrateLocal(context.Background(), local, remote)
+	if err != nil || result.Copied != 1 || result.Bytes != int64(len(content)) {
+		t.Fatalf("read retry failed: %+v %v", result, err)
+	}
+	if remote.writes != 1 || remote.readAttempts.Load() != 3 {
+		t.Fatalf("verification rewrote the object or failed to retry: writes=%d reads=%d", remote.writes, remote.readAttempts.Load())
+	}
+	if original, err := os.ReadFile(filename); err != nil || !bytes.Equal(original, content) {
+		t.Fatal("verification retry changed the source")
+	}
 }
 
 func TestMigrateLocalPreservesKeysOriginalsAndVerifiesRetries(t *testing.T) {

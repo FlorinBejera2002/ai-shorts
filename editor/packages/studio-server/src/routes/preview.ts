@@ -595,14 +595,19 @@ export function registerPreviewRoutes(api: Hono, adapter: PreviewApiAdapter): vo
     // other Studio request (SSE, saves, the voice track) waited behind it.
     const textBuffer = isText ? Buffer.from(readFileSync(file, "utf-8"), "utf-8") : null;
     const totalSize = textBuffer ? textBuffer.length : statSync(servedPath).size;
+    // Bun's Node-to-Web stream adapter can enqueue after cancellation and crash
+    // the server when Chrome abandons a range. Its native file body handles this.
+    const nativeFile = (globalThis as { Bun?: { file(path: string): Blob } }).Bun?.file(servedPath);
     const bodyFor = (start: number, end: number): BodyInit =>
       textBuffer
         ? new Uint8Array(textBuffer.subarray(start, end + 1))
-        : // Node's web stream type and the DOM one do not overlap for tsc on
-          // every platform's lib set; the double cast is the documented bridge.
-          (Readable.toWeb(
-            createReadStream(servedPath, { start, end }),
-          ) as unknown as ReadableStream);
+        : nativeFile
+          ? nativeFile.slice(start, end + 1)
+          : // Node's web stream type and the DOM one do not overlap for tsc on
+            // every platform's lib set; the double cast is the documented bridge.
+            (Readable.toWeb(
+              createReadStream(servedPath, { start, end }),
+            ) as unknown as ReadableStream);
 
     // Support byte-range requests so browsers can seek audio/video elements.
     const rangeHeader = c.req.header("Range");

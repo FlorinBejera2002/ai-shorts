@@ -13,6 +13,7 @@ describe("SneepCut isolated editor host", () => {
   let store: ProjectStore;
   let now = 1000;
   let revoked = false;
+  let revokedBearer: string | null = null;
   let role = "member";
   let deleting = false;
   let apiCreations = 0;
@@ -22,6 +23,7 @@ describe("SneepCut isolated editor host", () => {
     store = new ProjectStore(join(root, "projects"));
     now = 1000;
     revoked = false;
+    revokedBearer = null;
     role = "member";
     deleting = false;
     apiCreations = 0;
@@ -42,11 +44,15 @@ describe("SneepCut isolated editor host", () => {
       fetchAuth: async (input, init) => {
         expect(String(input)).toBe("https://api.sneepcut.test/v1/auth/me");
         const authorization = new Headers(init?.headers).get("Authorization");
-        if (revoked || !["Bearer alice", "Bearer bob"].includes(authorization ?? ""))
+        if (
+          revoked ||
+          authorization === revokedBearer ||
+          !["Bearer alice", "Bearer alice-renewed", "Bearer bob"].includes(authorization ?? "")
+        )
           return new Response(null, { status: 401 });
         return Response.json({
           user: {
-            id: authorization === "Bearer alice" ? alice : bob,
+            id: authorization === "Bearer bob" ? bob : alice,
             access_role: role,
             deletion_pending: deleting,
             name: "Test",
@@ -141,6 +147,33 @@ describe("SneepCut isolated editor host", () => {
       headers: { Authorization: "Bearer bob", Origin: memberHeaders.Origin, Cookie: previous },
     });
     expect((await app.request("/sneepcut/me", { headers: { Cookie: previous } })).status).toBe(401);
+  });
+  it("same-account renewal preserves in-flight cookies, refreshes credentials and isolates account changes", async () => {
+    const app = application();
+    const original = await cookie(app);
+    const renewed = await app.request("/sneepcut/session", {
+      method: "POST",
+      headers: { ...memberHeaders, Cookie: original, Authorization: "Bearer alice-renewed" },
+    });
+    expect(renewed.status).toBe(200);
+    expect(renewed.headers.get("set-cookie")?.split(";")[0]).toBe(original);
+    revokedBearer = "Bearer alice";
+    expect((await app.request("/api/projects", { headers: { Cookie: original } })).status).toBe(
+      200,
+    );
+    const switched = await app.request("/sneepcut/session", {
+      method: "POST",
+      headers: { ...memberHeaders, Cookie: original, Authorization: "Bearer bob" },
+    });
+    expect(switched.status).toBe(200);
+    const next = switched.headers.get("set-cookie")?.split(";")[0] ?? "";
+    expect(next).not.toBe(original);
+    expect((await app.request("/sneepcut/me", { headers: { Cookie: original } })).status).toBe(401);
+    expect(
+      (await (await app.request("/sneepcut/me", { headers: { Cookie: next } })).json()).user.id,
+    ).toBe(bob);
+    revoked = true;
+    expect((await app.request("/api/projects", { headers: { Cookie: next } })).status).toBe(401);
   });
   it("binds session renewal to the authenticated owner and exact originating app", async () => {
     const app = application("http://localhost", ["https://www.sneepcut.test"]);
