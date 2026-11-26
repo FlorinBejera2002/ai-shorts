@@ -74,6 +74,7 @@ export function OutputDialog({
   if (isPhone) {
     return createPortal(
       <div
+        role="presentation"
         className="fixed inset-0 z-[150] flex items-end bg-[var(--st-ov)]"
         onMouseDown={(event) => {
           if (event.target === event.currentTarget) requestClose();
@@ -112,6 +113,7 @@ export function OutputDialog({
 
   return createPortal(
     <div
+      role="presentation"
       className="fixed inset-0 z-[150] flex items-center justify-center bg-[var(--st-ov)] p-4"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) requestClose();

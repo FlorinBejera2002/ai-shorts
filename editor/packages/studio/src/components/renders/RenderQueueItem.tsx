@@ -7,6 +7,7 @@ import { OutputDialog, OutputIllustration } from "../output/OutputDialog";
 import { OutputIcon } from "../output/OutputIcon";
 import type { RenderJob } from "./useRenderQueue";
 import { t, useLocale } from "../../i18n/translate";
+import { useIsPhone } from "../shell/useIsPhone";
 
 interface RenderQueueItemProps {
   job: RenderJob;
@@ -195,6 +196,7 @@ export const RenderQueueItem = memo(function RenderQueueItem({
   onCancel,
 }: RenderQueueItemProps) {
   useLocale();
+  const isPhone = useIsPhone();
   const [hovered, setHovered] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
 
@@ -218,6 +220,8 @@ export const RenderQueueItem = memo(function RenderQueueItem({
 
   const isComplete = job.status === "complete";
   const isRendering = job.status === "rendering";
+  // 44px touch targets on phone; the desktop row keeps the compact 32px buttons.
+  const actionSize = isPhone ? 44 : 32;
 
   return (
     <div
@@ -266,11 +270,13 @@ export const RenderQueueItem = memo(function RenderQueueItem({
               <OutputIconButton
                 icon="download"
                 label={t("output.downloadRender", { filename: job.filename })}
+                size={actionSize}
                 onClick={handleDownload}
               />
             ) : null}
             <OutputIconButton
               icon="close"
+              size={actionSize}
               label={t("output.deleteRenderAria", { filename: job.filename })}
               onClick={(e) => {
                 e.stopPropagation();

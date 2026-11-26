@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { t } from "../../i18n/translate";
 import { adjustNumericToken, parseNumericToken } from "./propertyPanelHelpers";
 import { useInspectorGestureTransaction } from "./useInspectorGestureTransaction";
 
@@ -9,6 +10,7 @@ function arrowDirection(key: string): 1 | -1 | null {
 }
 
 export function CommitField({
+  label,
   value,
   disabled,
   liveCommit,
@@ -16,6 +18,8 @@ export function CommitField({
   onPreview,
   onCommit,
 }: {
+  /** Accessible name of the input; the visible label lives beside it in the row. */
+  label?: string;
   value: string;
   disabled?: boolean;
   liveCommit?: boolean;
@@ -212,7 +216,8 @@ export function CommitField({
         }
       }}
       onKeyDown={handleKeyDown}
-      title={parseNumericToken(value) ? "Scroll or use Arrow keys to adjust" : undefined}
+      aria-label={label}
+      title={parseNumericToken(value) ? t("flat.scrollToAdjust") : undefined}
       className={`min-w-0 w-full bg-transparent text-[11px] font-medium text-neutral-100 outline-none disabled:cursor-not-allowed disabled:text-neutral-600 ${
         align === "right" ? "text-right" : "text-left"
       }`}

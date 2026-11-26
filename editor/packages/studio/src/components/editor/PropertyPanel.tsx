@@ -1,4 +1,5 @@
 import { scopedElementKey } from "../../hooks/gsapKeyframeCacheHelpers";
+import { t } from "../../i18n/translate";
 import { memo, useMemo, useRef, useState } from "react";
 import { Move } from "../../icons/SystemIcons";
 import { InspectorHeaderActions } from "./InspectorHeaderActions";
@@ -254,14 +255,12 @@ export const PropertyPanel = memo(function PropertyPanel(props: PropertyPanelPro
     navigator.clipboard
       .writeText(text)
       .then(() => {
-        showToast(`Copied element info for ${element.label} — paste into any AI agent`, "info");
+        showToast(t("flat.copiedToast", { label: element.label }), "info");
         setClipboardCopied(true);
         clearTimeout(clipboardTimerRef.current);
         clipboardTimerRef.current = setTimeout(() => setClipboardCopied(false), 1500);
       })
-      .catch(() => {
-        showToast("Couldn't copy to the clipboard — check browser permissions", "error");
-      });
+      .catch(() => showToast(t("flat.copyDenied"), "error"));
   };
 
   if (STUDIO_FLAT_INSPECTOR_ENABLED) {

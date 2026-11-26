@@ -65,6 +65,7 @@ export function FlatRow({
           }`}
         >
           <CommitField
+            label={flatLabel(label)}
             value={value}
             disabled={disabled}
             liveCommit={liveCommit}

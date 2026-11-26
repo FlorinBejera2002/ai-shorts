@@ -120,7 +120,7 @@ export function ContextMenu({
   actions.push({
     id: "copy",
     icon: "copy",
-    label: t("media.copyPath"),
+    label: t("media.menuCopyPath"),
     run: () => {
       onCopy(asset);
       onClose();

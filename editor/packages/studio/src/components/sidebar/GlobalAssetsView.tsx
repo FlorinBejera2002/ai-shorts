@@ -64,21 +64,29 @@ function SkeletonRow() {
   );
 }
 
+const GLOBAL_ASSETS_TIMEOUT_MS = 8000;
+
 export function GlobalAssetsView({ searchQuery }: { searchQuery: string }) {
   useLocale();
   const [records, setRecords] = useState<GlobalAssetRecord[] | null>(null);
   useEffect(() => {
     let cancelled = false;
-    fetch("/api/assets/global")
+    const controller = new AbortController();
+    // A stalled request must not leave the loading skeleton on screen indefinitely.
+    const timeout = window.setTimeout(() => controller.abort(), GLOBAL_ASSETS_TIMEOUT_MS);
+    fetch("/api/assets/global", { signal: controller.signal })
       .then((r) => (r.ok ? r.json() : { assets: [] }))
       .then((d) => {
         if (!cancelled) setRecords(Array.isArray(d.assets) ? d.assets : []);
       })
       .catch(() => {
         if (!cancelled) setRecords([]);
-      });
+      })
+      .finally(() => window.clearTimeout(timeout));
     return () => {
       cancelled = true;
+      window.clearTimeout(timeout);
+      controller.abort();
     };
   }, []);
 
@@ -96,13 +104,10 @@ export function GlobalAssetsView({ searchQuery }: { searchQuery: string }) {
   }
   if (rows.length === 0) {
     return (
-      <div className="flex flex-col items-center gap-2 text-center">
-        <PanelMessage
-          illustration={illustrationSrc("studio-media-empty")}
-          title={t("media.libraryEmpty")}
-        />
-        <span className="-mt-4 text-xs text-[var(--st-t2)]">{t("media.libraryEmptyHint")}</span>
-      </div>
+      <PanelMessage
+        illustration={illustrationSrc("studio-media-empty")}
+        title={t("media.libraryEmpty")}
+      />
     );
   }
   return (

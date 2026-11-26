@@ -179,7 +179,7 @@ export const KeyframeNavigation = memo(function KeyframeNavigation({
         disabled={!prevKf}
         onClick={() => prevKf && onSeek(prevKf.percentage)}
         title={t("motion.prevKeyframe")}
-        aria-label={`Previous ${property} keyframe`}
+        aria-label={t("flat.kf.prev", { property })}
         className="relative flex h-5 w-3 items-center justify-center disabled:cursor-default before:absolute before:-inset-1.5 before:content-['']"
       >
         <ArrowLeft disabled={!prevKf} />
@@ -190,10 +190,10 @@ export const KeyframeNavigation = memo(function KeyframeNavigation({
         size={9}
         title={
           diamondState === "ghost"
-            ? `Convert ${property} to keyframes`
+            ? t("flat.kf.convert", { property })
             : diamondState === "active"
-              ? `Remove ${property} keyframe`
-              : `Add ${property} keyframe`
+              ? t("flat.kf.remove", { property })
+              : t("flat.kf.add", { property })
         }
       />
       <button
@@ -201,7 +201,7 @@ export const KeyframeNavigation = memo(function KeyframeNavigation({
         disabled={!nextKf}
         onClick={() => nextKf && onSeek(nextKf.percentage)}
         title={t("motion.nextKeyframe")}
-        aria-label={`Next ${property} keyframe`}
+        aria-label={t("flat.kf.next", { property })}
         className="relative flex h-5 w-3 items-center justify-center disabled:cursor-default before:absolute before:-inset-1.5 before:content-['']"
       >
         <ArrowRight disabled={!nextKf} />

@@ -82,3 +82,34 @@ describe("AssetContextMenu delete confirmation", () => {
     expect(onDelete).toHaveBeenCalledWith("assets/clip.mp4");
   });
 });
+
+describe("AssetContextMenu add and copy actions", () => {
+  it("calls onAddAtPlayhead with the asset path when the add item is clicked", () => {
+    const onAddAtPlayhead = vi.fn();
+    const onClose = vi.fn();
+    const host = document.createElement("div");
+    document.body.append(host);
+    root = createRoot(host);
+    act(() => {
+      root?.render(
+        <ContextMenu
+          x={10}
+          y={10}
+          asset="assets/clip.mp4"
+          onClose={onClose}
+          onCopy={vi.fn()}
+          onAddAtPlayhead={onAddAtPlayhead}
+        />,
+      );
+    });
+    act(() => findButton("Add at playhead").click());
+    expect(onAddAtPlayhead).toHaveBeenCalledWith("assets/clip.mp4");
+    expect(onClose).toHaveBeenCalled();
+  });
+
+  it("labels the copy item with the full Romanian copy", () => {
+    setStudioLocale("ro");
+    mountMenu(vi.fn());
+    expect(findButton("Copiază calea")).toBeTruthy();
+  });
+});

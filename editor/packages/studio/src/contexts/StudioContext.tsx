@@ -30,6 +30,11 @@ export interface StudioShellValue {
     jobs: unknown[];
     isRendering: boolean;
     loadError: string | null;
+    /** True until the first history request settles. */
+    historyLoading: boolean;
+    /** Finished renders hidden from the list (files stay on disk). */
+    hiddenCount: number;
+    restoreHiddenRenders: () => void;
     actionError: string | null;
     dismissActionError: () => void;
     reloadRenders: () => void;

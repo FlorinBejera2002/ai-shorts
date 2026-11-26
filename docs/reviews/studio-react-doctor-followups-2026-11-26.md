@@ -47,7 +47,7 @@ These are confirmed React Doctor findings from the Studio redesign that were not
 
 ## 5. Kept by design
 
-- **`ui/Sheet.tsx:32` (`prefer-html-dialog`):** `useDialogBehavior` already provides:
+- **`ui/Sheet.tsx:32` and `output/OutputDialog.tsx:85`, `:123` (`prefer-html-dialog`):** `useDialogBehavior` already provides:
   - a focus trap
   - Escape to close
   - initial focus

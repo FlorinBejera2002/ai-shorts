@@ -165,6 +165,21 @@ export const inspectorFlatEn = {
   "fl.rotation": "Rotation",
   "fl.delay": "Delay",
   "fl.ease": "Ease",
+  "flat.copiedToast": "Copied element info for {label}, paste it into any AI agent",
+  "flat.copyDenied": "Couldn't copy to the clipboard, check browser permissions",
+  "flat.styleSummary": "Style · fill {fill} · {opacity}%",
+  "flat.fill.set": "set",
+  "flat.fill.none": "none",
+  "flat.fill.image": "image/gradient",
+  "flat.scrollToAdjust": "Scroll or use Arrow keys to adjust",
+  "flat.pickColor": "Pick {label} color",
+  "flat.kf.prev": "Previous {property} keyframe",
+  "flat.kf.next": "Next {property} keyframe",
+  "flat.kf.convert": "Convert {property} to keyframes",
+  "flat.kf.remove": "Remove {property} keyframe",
+  "flat.kf.add": "Add {property} keyframe",
+  "flat.cube3d":
+    "3D rotation. Arrow keys rotate X/Y, Shift+arrows roll Z, Alt for fine steps; drag to rotate, scroll to change depth",
 } as const;
 
 export const inspectorFlatRo: Record<keyof typeof inspectorFlatEn, string> = {
@@ -332,4 +347,20 @@ export const inspectorFlatRo: Record<keyof typeof inspectorFlatEn, string> = {
   "fl.rotation": "Rotație",
   "fl.delay": "Întârziere",
   "fl.ease": "Accelerare",
+  "flat.copiedToast":
+    "Informațiile elementului {label} au fost copiate, lipește-le în orice agent AI",
+  "flat.copyDenied": "Nu am putut copia în clipboard, verifică permisiunile browserului",
+  "flat.styleSummary": "Stil · umplere {fill} · {opacity}%",
+  "flat.fill.set": "setată",
+  "flat.fill.none": "nicio",
+  "flat.fill.image": "imagine/gradient",
+  "flat.scrollToAdjust": "Derulează sau folosește tastele săgeată pentru a ajusta",
+  "flat.pickColor": "Alege culoarea {label}",
+  "flat.kf.prev": "Cadrul cheie anterior pentru {property}",
+  "flat.kf.next": "Cadrul cheie următor pentru {property}",
+  "flat.kf.convert": "Convertește {property} în cadre cheie",
+  "flat.kf.remove": "Șterge cadrul cheie pentru {property}",
+  "flat.kf.add": "Adaugă cadru cheie pentru {property}",
+  "flat.cube3d":
+    "Rotație 3D. Tastele săgeată rotesc X/Y, Shift+săgeți rotesc Z, Alt pentru pași fini; trage pentru a roti, derulează pentru adâncime",
 };

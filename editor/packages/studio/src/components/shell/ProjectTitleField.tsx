@@ -1,7 +1,6 @@
 // Editable project title. Enter or blur saves a 1–120 character title; Escape restores it.
 import { useState } from "react";
 import { t, useLocale } from "../../i18n/translate";
-import { PROJECT_TITLE_MAX } from "./useProjectTitle";
 
 export interface ProjectTitleFieldProps {
   title: string;
@@ -31,7 +30,6 @@ export function ProjectTitleField({
       aria-label={t("shell.projectTitle")}
       title={value}
       value={value}
-      maxLength={PROJECT_TITLE_MAX}
       onChange={(event) => setDraft(event.target.value)}
       onBlur={commit}
       onKeyDown={(event) => {

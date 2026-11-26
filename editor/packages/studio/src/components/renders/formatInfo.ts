@@ -5,7 +5,7 @@ export type RenderFormat = "mp4" | "webm" | "mov";
 /** Labels are brand and codec names, so they stay the same in every locale. */
 export const FORMAT_LABEL: Record<RenderFormat, string> = {
   mp4: "MP4",
-  mov: "MOV (ProRes 4444)",
+  mov: "MOV (ProRes)",
   webm: "WebM (VP9)",
 };
 

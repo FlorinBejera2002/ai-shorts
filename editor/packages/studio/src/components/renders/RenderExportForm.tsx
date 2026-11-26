@@ -91,12 +91,14 @@ export function RenderExportForm({
 
   // MOV (ProRes) is a fixed-quality codec — quality selector has no effect.
   const showQuality = format !== "mov";
+  // Only MP4 can carry HDR; other formats always render SDR, whatever the saved choice is.
+  const effectiveHdrMode: RenderHdrMode = format === "mp4" ? hdrMode : "force-sdr";
 
+  // The dynamic range choice is the user's own setting: switching to MOV or WebM only
+  // limits what is sent (see `effectiveHdrMode`), so switching back to MP4 restores it.
   const changeFormat = (next: RenderFormat) => {
-    const nextHdrMode = next === "mp4" ? hdrMode : "force-sdr";
     setFormat(next);
-    setHdrMode(nextHdrMode);
-    persistRenderSettings(next, quality, fps, nextHdrMode);
+    persistRenderSettings(next, quality, fps, hdrMode);
   };
   const changeQuality = (next: Quality) => {
     setQuality(next);
@@ -108,13 +110,7 @@ export function RenderExportForm({
     if (isRendering || missingFfmpeg) return;
     const outputResolution = resolveResolution(resolution, compositionDimensions);
     trackStudioEvent("render_start", { format, quality, resolution: outputResolution, fps });
-    void onStartRender(
-      format,
-      quality,
-      outputResolution,
-      fps,
-      format === "mp4" ? hdrMode : "force-sdr",
-    );
+    void onStartRender(format, quality, outputResolution, fps, effectiveHdrMode);
   };
 
   return (
@@ -203,7 +199,7 @@ export function RenderExportForm({
         <div className="flex flex-col gap-1.5">
           <OutputSelect
             aria-label={t("output.dynamicRangeAria")}
-            value={format === "mp4" ? hdrMode : "force-sdr"}
+            value={effectiveHdrMode}
             onChange={(event) => {
               const next = event.target.value as RenderHdrMode;
               setHdrMode(next);

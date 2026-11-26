@@ -2,6 +2,7 @@ import { scopedElementKey } from "../../hooks/gsapKeyframeCacheHelpers";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { DesignPanelInputProvider } from "../../contexts/DesignPanelInputContext";
+import { t } from "../../i18n/translate";
 import { isTextEditableSelection } from "./domEditing";
 import type { PropertyPanelFlatProps } from "./propertyPanelFlatProps";
 import { formatPxMetricValue } from "./propertyPanelHelpers";
@@ -321,10 +322,16 @@ export function PropertyPanelFlat({
   if (showEditableSections) {
     const opacityValue = parseFloat(styles.opacity ?? "1");
     const opacityPct = Math.round((Number.isFinite(opacityValue) ? opacityValue : 1) * 100);
+    const fillKey =
+      styles["background-image"] && styles["background-image"] !== "none"
+        ? "flat.fill.image"
+        : styles["background-color"]
+          ? "flat.fill.set"
+          : "flat.fill.none";
     groups.push({
       id: "style",
       title: "Style",
-      summary: `fill ${styles["background-image"] && styles["background-image"] !== "none" ? "image/gradient" : styles["background-color"] ? "set" : "none"} · ${opacityPct}%`,
+      summary: t("flat.styleSummary", { fill: t(fillKey), opacity: opacityPct }),
       content: (
         <FlatStyleSection
           projectId={projectId}

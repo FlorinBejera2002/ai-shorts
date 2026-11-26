@@ -68,6 +68,12 @@ function readHiddenIds(projectId: string): Set<string> {
   }
 }
 
+// The server times the encode from its own start and reports it on completion. That is the figure
+// a reload shows, so prefer it: a client-side clock also counts the upload and the SSE hop.
+function completedDurationMs(serverMs: unknown, startedAt: number): number {
+  return typeof serverMs === "number" ? serverMs : Date.now() - startedAt;
+}
+
 function writeHiddenIds(projectId: string, ids: Set<string>): void {
   try {
     // Cap the list so it doesn't grow unbounded across months of renders.
@@ -88,6 +94,8 @@ export function useRenderQueue(
   // History fetch failure — distinguished from "no renders yet" so the panel
   // never shows a false empty state.
   const [loadError, setLoadError] = useState<string | null>(null);
+  // True until the first history request settles, so a slow load is not shown as "no renders".
+  const [historyLoading, setHistoryLoading] = useState(true);
   // Failure of a user action (delete/cancel), surfaced inline in the panel.
   const [actionError, setActionError] = useState<string | null>(null);
   // Owned here rather than in the panel: Studio renders from three places —
@@ -138,10 +146,12 @@ export function useRenderQueue(
       const res = await fetch(buildProjectApiPath(projectId, `/renders`));
       if (!res.ok) {
         setLoadError(t("output.historyServerError", { status: res.status }));
+        setHistoryLoading(false);
         return;
       }
       const data = await res.json();
       setLoadError(null);
+      setHistoryLoading(false);
       if (Array.isArray(data.renders)) {
         const hidden = readHiddenIds(projectId);
         setJobs((prev) => {
@@ -171,6 +181,7 @@ export function useRenderQueue(
     } catch {
       setLoadError(t("output.historyUnreachable"));
     }
+    setHistoryLoading(false);
   }, [projectId]);
 
   useEffect(() => {
@@ -347,7 +358,10 @@ export function useRenderQueue(
                     progress: data.progress ?? j.progress,
                     stage: data.stage ?? data.message ?? j.stage,
                     status: terminal ? (data.status as RenderJob["status"]) : j.status,
-                    durationMs: data.status === "complete" ? Date.now() - startTime : undefined,
+                    durationMs:
+                      data.status === "complete"
+                        ? completedDurationMs(data.durationMs, startTime)
+                        : undefined,
                     error: data.error ?? j.error,
                   }
                 : j,
@@ -495,11 +509,22 @@ export function useRenderQueue(
   }, [projectId]);
 
   const isRendering = jobs.some((j) => j.status === "rendering");
+  // Hidden rows leave the list but stay on disk. Re-read whenever the list changes, so the
+  // count follows Hide, and the panel can offer them back when nothing else is left to show.
+  const hiddenCount = projectId ? readHiddenIds(projectId).size : 0;
+  const restoreHiddenRenders = useCallback(() => {
+    if (projectId) writeHiddenIds(projectId, new Set());
+    void loadRenders();
+  }, [projectId, loadRenders]);
+
   return useMemo(
     () => ({
       jobs,
       isRendering,
       loadError,
+      historyLoading,
+      hiddenCount,
+      restoreHiddenRenders,
       actionError,
       dismissActionError,
       reloadRenders: loadRenders,
@@ -520,6 +545,9 @@ export function useRenderQueue(
       jobs,
       isRendering,
       loadError,
+      historyLoading,
+      hiddenCount,
+      restoreHiddenRenders,
       actionError,
       dismissActionError,
       loadRenders,

@@ -197,7 +197,7 @@ export function Transform3DCube({
         onKeyDown={onKeyDown}
         tabIndex={0}
         role="slider"
-        aria-label="3D rotation. Arrow keys rotate X/Y, Shift+arrows roll Z, Alt for fine steps; drag to rotate, scroll to change depth"
+        aria-label={t("flat.cube3d")}
         aria-valuetext={`X ${Math.round(shown.rotationX)}°, Y ${Math.round(
           shown.rotationY,
         )}°, Z ${Math.round(shown.rotationZ)}°`}

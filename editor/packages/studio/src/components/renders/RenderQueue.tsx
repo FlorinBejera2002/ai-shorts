@@ -23,6 +23,12 @@ interface RenderQueueProps {
   loadError?: string | null;
   /** Retry a failed history load. */
   onRetryLoad?: () => void;
+  /** True until the first history request settles. */
+  historyLoading?: boolean;
+  /** Finished renders hidden from this list (files stay on disk). */
+  hiddenCount?: number;
+  /** Bring the hidden renders back into the list. */
+  onShowHidden?: () => void;
   /** Failure of a delete/cancel action, shown inline until dismissed. */
   actionError?: string | null;
   onDismissActionError?: () => void;
@@ -46,7 +52,13 @@ function RenderCountLabel({ count }: { count: number }) {
 }
 
 /** Empty list (St-Inspector-RendersEmpty): illustration and one title. */
-function RendersEmpty() {
+function RendersEmpty({
+  hiddenCount,
+  onShowHidden,
+}: {
+  hiddenCount: number;
+  onShowHidden?: () => void;
+}) {
   return (
     <div className="flex flex-col items-center justify-center gap-3 py-4 text-center">
       <img
@@ -59,6 +71,30 @@ function RendersEmpty() {
       <b className="font-display text-[15px] font-semibold text-studio-text">
         {t("output.noRenders")}
       </b>
+      {/* Hidden rows still exist on disk, so the list is not really empty: offer them back. */}
+      {hiddenCount > 0 && onShowHidden ? (
+        <span className="flex flex-col items-center gap-2 text-xs font-medium text-[var(--st-t2)]">
+          <span>{t("output.hiddenRendersCount", { count: hiddenCount })}</span>
+          <OutputButton
+            variant="secondary"
+            height={32}
+            padX={12}
+            fontSize={12}
+            onClick={onShowHidden}
+          >
+            {t("output.showHiddenRenders")}
+          </OutputButton>
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
+/** Shown until the first history request settles, so a slow load is not read as "no renders". */
+function RendersLoading() {
+  return (
+    <div role="status" className="flex items-center justify-center py-6">
+      <span className="text-xs font-medium text-[var(--st-t2)]">{t("output.historyLoading")}</span>
     </div>
   );
 }
@@ -98,6 +134,9 @@ export const RenderQueue = memo(function RenderQueue({
   isRendering,
   loadError,
   onRetryLoad,
+  historyLoading = false,
+  hiddenCount = 0,
+  onShowHidden,
   actionError,
   onDismissActionError,
   compositionDimensions,
@@ -165,7 +204,11 @@ export const RenderQueue = memo(function RenderQueue({
         {loadError && jobs.length === 0 ? (
           <RendersLoadError message={loadError} onRetry={onRetryLoad} />
         ) : jobs.length === 0 ? (
-          <RendersEmpty />
+          historyLoading ? (
+            <RendersLoading />
+          ) : (
+            <RendersEmpty hiddenCount={hiddenCount} onShowHidden={onShowHidden} />
+          )
         ) : (
           <div ref={listRef} className="flex min-w-0 flex-col gap-2.5">
             {jobs.map((job) => (

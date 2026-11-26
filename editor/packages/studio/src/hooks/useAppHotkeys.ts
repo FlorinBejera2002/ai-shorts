@@ -15,6 +15,7 @@ import {
 import { shouldIgnoreHistoryShortcut } from "../utils/studioHelpers";
 import { canSplitElement } from "../utils/timelineElementSplit";
 import { trackStudioEvent } from "../utils/studioTelemetry";
+import { t } from "../i18n/translate";
 import { serializeStudioFileMutations } from "../utils/studioFileMutationCoordinator";
 
 function iframeContentWindow(iframe: HTMLIFrameElement | null): Window | null {
@@ -77,7 +78,11 @@ function tryApplyBeatHistory(
   const fileAt = fileStack[fileStack.length - 1]?.createdAt ?? null;
   if (fileAt !== null && (direction === "undo" ? beatAt < fileAt : beatAt > fileAt)) return false;
   const label = direction === "undo" ? ps.undoBeatEdits() : ps.redoBeatEdits();
-  if (label) showToast(`${direction === "undo" ? "Undid" : "Redid"} ${label}`, "info");
+  if (label)
+    showToast(
+      t(direction === "undo" ? "shell.undidToast" : "shell.redidToast", { action: label }),
+      "info",
+    );
   return true;
 }
 
@@ -429,7 +434,12 @@ export function useAppHotkeys({
         const restored = direction === "undo" ? captionState.undo() : captionState.redo();
         if (restored) {
           applyCaptionModelToIframe(restored);
-          showToast(`${direction === "undo" ? "Undid" : "Redid"} caption edit`, "info");
+          showToast(
+            t(direction === "undo" ? "shell.undidToast" : "shell.redidToast", {
+              action: t("shell.captionEdit"),
+            }),
+            "info",
+          );
           return;
         }
         // Empty caption stack: fall through to beat/file history as usual.
@@ -462,7 +472,12 @@ export function useAppHotkeys({
           forceReloadSdkSession?.();
         }
         await syncHistoryPreviewAfterApply({ paths: result.paths, files: result.files });
-        showToast(`${direction === "undo" ? "Undid" : "Redid"} ${result.label}`, "info");
+        showToast(
+          t(direction === "undo" ? "shell.undidToast" : "shell.redidToast", {
+            action: result.label,
+          }),
+          "info",
+        );
       }
     },
     [

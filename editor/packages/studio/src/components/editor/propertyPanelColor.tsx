@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { t } from "../../i18n/translate";
 import { X } from "../../icons/SystemIcons";
 import {
   formatCssColor,
@@ -469,7 +470,7 @@ export function ColorField({
           type="button"
           data-flat-color-trigger="true"
           disabled={disabled}
-          aria-label={`Pick ${label.toLowerCase()} color`}
+          aria-label={t("flat.pickColor", { label: label.toLowerCase() })}
           ref={buttonRef}
           onClick={openPicker}
           className="flex items-center gap-2 disabled:cursor-not-allowed"
@@ -513,7 +514,7 @@ export function ColorField({
       <button
         type="button"
         disabled={disabled}
-        aria-label={`Pick ${label.toLowerCase()} color`}
+        aria-label={t("flat.pickColor", { label: label.toLowerCase() })}
         ref={buttonRef}
         onClick={openPicker}
         className={`${FIELD} flex items-center gap-3 text-left hover:border-neutral-700 disabled:cursor-not-allowed ${open ? "border-neutral-600" : ""}`}

@@ -83,7 +83,13 @@ export function MetricField({
     <div className={FIELD} title={tooltip}>
       <div className="flex min-w-0 items-center gap-3">
         <span {...scrubProps}>{label}</span>
-        <CommitField value={value} disabled={disabled} liveCommit={liveCommit} onCommit={commit} />
+        <CommitField
+          label={label}
+          value={value}
+          disabled={disabled}
+          liveCommit={liveCommit}
+          onCommit={commit}
+        />
         {suffix && <span className="flex-shrink-0 text-[10px] text-neutral-600">{suffix}</span>}
       </div>
     </div>

@@ -75,6 +75,13 @@ export const GENERIC_FONT_FAMILIES = new Set([
 
 export const DEFAULT_FONT_FAMILIES = [
   ...COMMON_LOCAL_FONT_FAMILIES,
+  // Web-safe system fonts: always offered, so a font the user switched away from can be picked again.
+  "Arial",
+  "Helvetica",
+  "Georgia",
+  "Times New Roman",
+  "Courier New",
+  "Verdana",
   "Inter",
   "system-ui",
   "sans-serif",

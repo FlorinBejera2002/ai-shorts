@@ -337,7 +337,7 @@ export const timelineRo: Record<keyof typeof timelineEn, string> = {
   "timeline.zoomIn": "Mărește",
   "timeline.zoom": "Zoom cronologie",
   "timeline.zoomLevel": "Nivel zoom cronologie",
-  "timeline.fitLabel": "Fit",
+  "timeline.fitLabel": "Potrivit",
   "timeline.fit": "Potrivește",
   "timeline.fitTip": "Potrivește cronologia pe lățime",
   "timeline.editingCaptions": "Editezi subtitrările",
