@@ -4,7 +4,7 @@ import { setStudioLocale } from "../../i18n/translate";
 import { clipsUrlFromReferrer } from "../StudioBackButton";
 import { historyTooltip } from "./HistoryButtons";
 import { RAIL_ITEMS, railItem, railItemForTab } from "./railItems";
-import { railForPhoneTool } from "./PhoneLeftTools";
+import { railForPhoneTool } from "./phoneToolRail";
 import { getSaveStatus, resetSaveStatus, trackProjectSave } from "./saveStatus";
 import { normalizeProjectTitle } from "./useProjectTitle";
 

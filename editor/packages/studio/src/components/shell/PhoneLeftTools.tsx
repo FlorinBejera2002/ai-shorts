@@ -9,6 +9,7 @@ import type { SidebarTab } from "../sidebar/LeftSidebar";
 import { PhoneMoreSheet, type PhoneMoreRow } from "./PhoneMoreSheet";
 import { PhoneSheet } from "./PhoneSheet";
 import { PhoneToolBar, type PhoneToolId } from "./PhoneToolBar";
+import { railForPhoneTool } from "./phoneToolRail";
 import { railItem, type RailItemId } from "./railItems";
 import { enterCaptionEditing, type useRailNavigation } from "./useRailNavigation";
 
@@ -21,18 +22,6 @@ export interface PhoneLeftToolsProps {
   onLint: () => void;
   /** Renders the side panel inside the sheet. */
   renderPanel: () => ReactNode;
-}
-
-const TOOL_RAIL: Partial<Record<PhoneToolId, RailItemId>> = {
-  text: "text",
-  audio: "audio",
-  elements: "elements",
-  subtitles: "subtitles",
-};
-
-/** Side panel rail item a phone tool opens as a sheet (edit and more have none). */
-export function railForPhoneTool(id: PhoneToolId): RailItemId | null {
-  return TOOL_RAIL[id] ?? null;
 }
 
 export function PhoneLeftTools({
