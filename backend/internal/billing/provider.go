@@ -13,7 +13,6 @@ import (
 	"strconv"
 	"strings"
 
-	"sneepcut/backend-go/internal/locale"
 )
 
 // Sentinel errors name provider failures without exposing transport, URL or
@@ -213,8 +212,8 @@ func (s *Service) expire(ctx context.Context, id string) error {
 	_, err := s.provider(ctx, http.MethodPost, "/checkout/sessions/"+url.PathEscape(id)+"/expire", url.Values{}, "")
 	return err
 }
-func (s *Service) portal(ctx context.Context, customer, uiLocale string) (string, error) {
-	form := url.Values{"customer": {customer}, "return_url": {s.cfg.AppURL + billingPath(uiLocale) + "?portal_return=true"}, "locale": {locale.Normalize(uiLocale)}}
+func (s *Service) portal(ctx context.Context, customer, locale string) (string, error) {
+	form := url.Values{"customer": {customer}, "return_url": {s.cfg.AppURL + billingPath(locale) + "?portal_return=true"}}
 	if s.cfg.PortalConfiguration != "" {
 		form.Set("configuration", s.cfg.PortalConfiguration)
 	}
@@ -232,7 +231,7 @@ func (s *Service) createProviderCheckout(ctx context.Context, c claim) (object, 
 	meta := map[string]string{"userId": c.UserID, "planId": c.PlanID, "priceId": c.PriceID, "locale": c.Locale, "checkoutGeneration": strconv.Itoa(c.Generation)}
 	// Launch with immediate-confirmation card payments only. Delayed bank
 	// methods can make a subscription active before its first payment settles.
-	form := url.Values{"mode": {"subscription"}, "payment_method_types[0]": {"card"}, "line_items[0][price]": {c.PriceID}, "line_items[0][quantity]": {"1"}, "success_url": {c.SuccessURL}, "cancel_url": {c.CancelURL}, "client_reference_id": {c.UserID}, "expires_at": {strconv.FormatInt(c.CheckoutExpiresAt.Unix(), 10)}, "locale": {locale.Normalize(c.Locale)}}
+	form := url.Values{"mode": {"subscription"}, "payment_method_types[0]": {"card"}, "line_items[0][price]": {c.PriceID}, "line_items[0][quantity]": {"1"}, "success_url": {c.SuccessURL}, "cancel_url": {c.CancelURL}, "client_reference_id": {c.UserID}, "expires_at": {strconv.FormatInt(c.CheckoutExpiresAt.Unix(), 10)}}
 	for key, value := range meta {
 		form.Set("metadata["+key+"]", value)
 		form.Set("subscription_data[metadata]["+key+"]", value)
