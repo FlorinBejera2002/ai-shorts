@@ -9,18 +9,9 @@ import {
   type ReactNode
 } from 'react'
 import { ThemeContext, type ResolvedTheme, type Theme } from './theme-context'
+import { THEME_STORAGE_KEY, readStoredTheme } from './theme-storage'
 
 const SYSTEM_THEME_QUERY = '(prefers-color-scheme: dark)'
-
-function readStoredTheme(): Theme {
-  try {
-    const value = localStorage.getItem('theme')
-    if (value === 'light' || value === 'dark') return value
-  } catch {
-    // Themes still work when browser privacy settings disable local storage.
-  }
-  return 'system'
-}
 
 function readSystemTheme(): ResolvedTheme {
   return window.matchMedia(SYSTEM_THEME_QUERY).matches ? 'dark' : 'light'
@@ -33,7 +24,7 @@ function subscribeToSystemTheme(onChange: () => void) {
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, updateTheme] = useState<Theme>(readStoredTheme)
+  const [theme, updateTheme] = useState<Theme>(() => readStoredTheme())
   const systemTheme = useSyncExternalStore(
     subscribeToSystemTheme,
     readSystemTheme,
@@ -44,7 +35,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const setTheme = useCallback((nextTheme: Theme) => {
     updateTheme(nextTheme)
     try {
-      localStorage.setItem('theme', nextTheme)
+      localStorage.setItem(THEME_STORAGE_KEY, nextTheme)
     } catch {
       // Keep the in-memory selection even if persistence is unavailable.
     }
@@ -52,7 +43,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     function onStorage(event: StorageEvent) {
-      if (event.key === 'theme' || event.key === null) {
+      if (event.key === THEME_STORAGE_KEY || event.key === null) {
         updateTheme(readStoredTheme())
       }
     }

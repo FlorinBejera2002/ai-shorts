@@ -1,4 +1,5 @@
 import { createStudioClient } from './studio-client'
+import { THEME_STORAGE_KEY, readStoredTheme } from '../shared/theme-storage'
 
 type BridgeAuth = {
   refresh(): Promise<string | null>
@@ -51,10 +52,29 @@ export function installStudioSessionBridge(
       if (pending === controller) pending = null
     })
   }
+  // The app theme (light, dark or system) follows Studio live: a change in any app tab
+  // writes local storage, which reaches this frame as a storage event.
+  const storage = () => {
+    try {
+      return host.localStorage
+    } catch {
+      return undefined // Blocked storage: Studio keeps the theme it opened with.
+    }
+  }
+  const sendTheme = () => {
+    const store = storage()
+    if (store) host.parent.postMessage({ type: 'sneepcut:theme', theme: readStoredTheme(store) }, studioOrigin)
+  }
+  const themeChanged = (event: StorageEvent) => {
+    if (event.key === THEME_STORAGE_KEY || event.key === null) sendTheme()
+  }
   host.addEventListener('message', receive)
+  host.addEventListener('storage', themeChanged)
   host.parent.postMessage({ type: 'sneepcut:session-bridge-ready' }, studioOrigin)
+  sendTheme()
   return () => {
     host.removeEventListener('message', receive)
+    host.removeEventListener('storage', themeChanged)
     pending?.abort()
   }
 }

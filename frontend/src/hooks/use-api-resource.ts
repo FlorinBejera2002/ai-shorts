@@ -12,11 +12,16 @@ async function fetchResource<T>(path: string): Promise<T> {
   return data as T
 }
 
-export function useApiResource<T>(path: string) {
-  const query = useQuery({
+/** Shared query options, so code outside a component can read the same cached resource. */
+export function apiResourceQuery<T>(path: string) {
+  return {
     queryKey: ['api-resource', path],
     queryFn: () => fetchResource<T>(path)
-  })
+  }
+}
+
+export function useApiResource<T>(path: string) {
+  const query = useQuery(apiResourceQuery<T>(path))
   const { refetch } = query
   const reload = useCallback(() => {
     void refetch()

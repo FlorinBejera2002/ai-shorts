@@ -8,17 +8,18 @@ import { useTranslations } from 'next-intl'
 import { useEffect, useRef, useState } from 'react'
 import { createStudioClient, prepareStudioClip, readStudioPreferences } from './studio-client'
 import { configuredStudioOrigin } from './studio-config'
+import { useStudioLaunchTheme } from '@/components/shared/account-theme'
 
 const origin = configuredStudioOrigin(
   process.env.NEXT_PUBLIC_STUDIO_URL,
   process.env.NODE_ENV === 'production'
 )
 
-async function openStudioClip(clipId: string, signal?: AbortSignal) {
+async function openStudioClip(clipId: string, theme: string | null, signal?: AbortSignal) {
   if (!origin) return
   const client = createStudioClient(origin, authClient)
   const requestSignal = signal ?? AbortSignal.timeout(150000)
-  const url = await prepareStudioClip(client, clipId, requestSignal, readStudioPreferences())
+  const url = await prepareStudioClip(client, clipId, requestSignal, readStudioPreferences(theme))
   if (!requestSignal.aborted) window.location.assign(url)
 }
 
@@ -33,6 +34,7 @@ export function OpenStudioButton({
   const request = useRef<AbortController | null>(null)
   const [opening, setOpening] = useState(false)
   const [failed, setFailed] = useState(false)
+  const launchTheme = useStudioLaunchTheme()
 
   useEffect(() => () => request.current?.abort(), [])
 
@@ -45,6 +47,7 @@ export function OpenStudioButton({
     try {
       await openStudioClip(
         clipId,
+        await launchTheme(),
         AbortSignal.any([controller.signal, AbortSignal.timeout(150000)])
       )
     } catch {

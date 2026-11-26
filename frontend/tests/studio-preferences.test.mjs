@@ -43,3 +43,18 @@ test('reads only valid saved themes and page languages', () => {
     globalThis.document = previousDocument
   }
 })
+
+test('the theme saved on the account wins over this browser', () => {
+  const previousLocalStorage = globalThis.localStorage
+  const previousDocument = globalThis.document
+  try {
+    globalThis.localStorage = { getItem: () => 'light' }
+    globalThis.document = { documentElement: { lang: 'ro' } }
+    assert.deepEqual(readStudioPreferences('dark'), { theme: 'dark', lang: 'ro' })
+    assert.deepEqual(readStudioPreferences('system'), { lang: 'ro' })
+    assert.deepEqual(readStudioPreferences(null), { theme: 'light', lang: 'ro' })
+  } finally {
+    globalThis.localStorage = previousLocalStorage
+    globalThis.document = previousDocument
+  }
+})

@@ -5,6 +5,7 @@ import {
   type StudioSessionInfo,
 } from "../utils/studioSessionRenewal";
 import { t, useLocale } from "../i18n/translate";
+import { trustStudioThemeOrigin } from "../theme/studioTheme";
 import { OutputButton } from "./output/OutputButton";
 import { OutputAlertCard } from "./output/OutputFields";
 import { useIsPhone } from "./shell/useIsPhone";
@@ -35,7 +36,10 @@ export function StudioSession() {
         if (!response.ok) throw new Error("Session unavailable");
         const session = readStudioSessionInfo(await response.json());
         if (!session) throw new Error("Invalid session configuration");
-        if (!controller.signal.aborted) setInfo(session);
+        if (controller.signal.aborted) return;
+        // The session frame also carries the app theme, so a change there reaches Studio live.
+        trustStudioThemeOrigin(session.appOrigin);
+        setInfo(session);
       })
       .catch(() => {
         if (!controller.signal.aborted) setFailed(true);

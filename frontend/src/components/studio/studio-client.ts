@@ -15,14 +15,18 @@ export function withStudioPreferences(url: string, preferences: StudioPreference
 }
 
 // Saved theme (light or dark; "system" lets Studio follow the OS) and the page language.
-export function readStudioPreferences(): StudioPreferences {
+// `accountTheme` is the theme saved on the account; it wins over this browser's copy.
+export function readStudioPreferences(accountTheme?: string | null): StudioPreferences {
   const preferences: StudioPreferences = {}
-  try {
-    const theme = localStorage.getItem('theme')
-    if (theme === 'light' || theme === 'dark') preferences.theme = theme
-  } catch {
-    /* Blocked storage: Studio follows the system theme. */
+  let theme: string | null | undefined = accountTheme
+  if (!theme) {
+    try {
+      theme = localStorage.getItem('theme')
+    } catch {
+      /* Blocked storage: Studio follows the system theme. */
+    }
   }
+  if (theme === 'light' || theme === 'dark') preferences.theme = theme
   // The page sets a full tag such as ro-RO or en-US; Studio takes the base language.
   const lang = document.documentElement.lang.split('-')[0].toLowerCase()
   if (lang === 'ro' || lang === 'en') preferences.lang = lang

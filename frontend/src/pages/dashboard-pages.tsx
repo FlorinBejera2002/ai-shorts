@@ -1,6 +1,7 @@
 import { AuthGuard } from '@/components/auth/auth-guard'
 import { ContentCalendar } from '@/components/calendar/content-calendar'
 import { DashboardShell } from '@/components/dashboard/dashboard-shell'
+import { useAccountThemeSync } from '@/components/shared/account-theme'
 import { ClipsLibraryPage } from '@/components/clips/clips-library'
 import Account from '@/components/dashboard/views/settings'
 import {
@@ -26,6 +27,12 @@ function searchRecord(search: URLSearchParams): DashboardSearchParams {
   return record
 }
 
+/** Applies the account's saved theme on every signed-in device. */
+function AccountThemeSync() {
+  useAccountThemeSync()
+  return null
+}
+
 export function DashboardLayout() {
   const [defaultOpen] = useState(
     () =>
@@ -36,6 +43,7 @@ export function DashboardLayout() {
   )
   return (
     <AuthGuard>
+      <AccountThemeSync />
       <DashboardShell defaultOpen={defaultOpen}>
         <Outlet />
       </DashboardShell>

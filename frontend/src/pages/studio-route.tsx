@@ -14,6 +14,7 @@ import {
   readStudioPreferences
 } from '@/components/studio/studio-client'
 import { configuredStudioOrigin } from '@/components/studio/studio-config'
+import { useStudioLaunchTheme } from '@/components/shared/account-theme'
 
 const origin = configuredStudioOrigin(
   process.env.NEXT_PUBLIC_STUDIO_URL,
@@ -45,13 +46,17 @@ function StudioLauncher({
   const t = useTranslations('studioEditor')
   const [attempt, setAttempt] = useState(0)
   const [failed, setFailed] = useState(false)
+  const launchTheme = useStudioLaunchTheme()
 
   useEffect(() => {
     if (!origin) return
     const controller = new AbortController()
     const signal = AbortSignal.any([controller.signal, AbortSignal.timeout(150000)])
     const client = createStudioClient(origin, authClient)
-    void prepareStudioWorkspace(client, { clipId, projectId }, signal, readStudioPreferences())
+    void launchTheme()
+      .then((theme) =>
+        prepareStudioWorkspace(client, { clipId, projectId }, signal, readStudioPreferences(theme))
+      )
       .then((url) => {
         if (!signal.aborted) window.location.replace(url)
       })
@@ -59,7 +64,7 @@ function StudioLauncher({
         if (!controller.signal.aborted) setFailed(true)
       })
     return () => controller.abort()
-  }, [clipId, projectId, attempt])
+  }, [clipId, projectId, attempt, launchTheme])
 
   const state = !origin ? 'unavailable' : failed ? 'failed' : 'opening'
   const illustration = {
