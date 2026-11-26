@@ -139,8 +139,9 @@ func (a *Accounts) BeginMFA(ctx context.Context, user User) (MFASetup, error) {
 	if affected, rowsErr := result.RowsAffected(); rowsErr != nil || affected != 1 {
 		return MFASetup{}, invalid("Two-factor authentication is already enabled")
 	}
-	issuer := url.QueryEscape("Sneepcut")
-	label := url.PathEscape("Sneepcut:" + user.Email)
+	// PathEscape keeps the space as %20; authenticator apps do not all decode "+".
+	issuer := url.PathEscape("Sneep Cut")
+	label := url.PathEscape("Sneep Cut:" + user.Email)
 	return MFASetup{Secret: secret, Provisioner: "otpauth://totp/" + label + "?secret=" + secret + "&issuer=" + issuer + "&algorithm=SHA1&digits=6&period=30"}, nil
 }
 

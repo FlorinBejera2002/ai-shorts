@@ -23,7 +23,7 @@ export function HomeNavbar({ labels }: HomeNavbarProps) {
   const navigationLabel =
     locale === 'ro' ? 'Navigare principală' : 'Primary navigation'
   const homeLabel =
-    locale === 'ro' ? 'Pagina principală Sneepcut' : 'Sneepcut home'
+    locale === 'ro' ? 'Pagina principală Sneep Cut' : 'Sneep Cut home'
   const menuLabel =
     locale === 'ro'
       ? menuOpen

@@ -724,7 +724,7 @@
     "title": "Clips",
     "count": "{count, plural, one {# clip} other {# clips}} generated",
     "noClips": "No clips yet",
-    "noClipsDesc": "Create a project and Sneepcut will collect every generated highlight here.",
+    "noClipsDesc": "Create a project and Sneep Cut will collect every generated highlight here.",
     "firstProject": "Create your first project →",
     "createClip": "Create clips",
     "viralScore": "{score}/10",
@@ -2214,7 +2214,6 @@
         "published": "No published posts in {period}",
         "failed": "No failed posts in {period}"
       },
-      "emptyHint": "Schedule a clip and it appears here at the day and time you choose.",
       "chooseAnotherPeriod": "Choose another period"
     },
     "description": "Plan, organize, and track every social post from one focused workspace.",
@@ -2390,7 +2389,7 @@
       "cancel": "Cancel",
       "disconnected": "Account disconnected",
       "disconnectFailed": "The account could not be disconnected",
-      "popupBlocked": "Allow pop-ups for Sneepcut to connect this account",
+      "popupBlocked": "Allow pop-ups for Sneep Cut to connect this account",
       "unavailable": "Unavailable",
       "loadError": "Accounts could not be loaded.",
       "retry": "Try again",

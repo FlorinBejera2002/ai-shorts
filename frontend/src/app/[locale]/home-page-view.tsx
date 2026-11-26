@@ -475,7 +475,7 @@ export function HomePageView({
               <div className="pointer-events-none absolute inset-0 opacity-[0.1] [background-image:linear-gradient(rgba(255,255,255,.35)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.35)_1px,transparent_1px)] [background-size:44px_44px]" />
               <div className="relative">
                 <span className="font-mono text-[9px] font-semibold uppercase tracking-[0.18em] text-white/65">
-                  03 / Sneepcut
+                  03 / Sneep Cut
                 </span>
                 <h2 className="mt-6 max-w-2xl text-[clamp(2.9rem,5vw,5.4rem)] font-semibold leading-[0.92] tracking-[-0.06em] text-white">
                   {t('finalCtaTitle')}

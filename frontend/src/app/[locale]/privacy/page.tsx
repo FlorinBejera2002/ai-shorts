@@ -14,12 +14,12 @@ export async function generateMetadata({
     path: '/privacy',
     title:
       locale === 'ro'
-        ? 'Politica de confidențialitate Sneepcut'
-        : 'Sneepcut Privacy Policy',
+        ? 'Politica de confidențialitate Sneep Cut'
+        : 'Sneep Cut Privacy Policy',
     description:
       locale === 'ro'
-        ? 'Află ce date prelucrează Sneepcut, de ce le folosește și ce opțiuni ai pentru acces, export și ștergere.'
-        : 'Learn what data Sneepcut processes, why it is used, and your options for access, export, and deletion.'
+        ? 'Află ce date prelucrează Sneep Cut, de ce le folosește și ce opțiuni ai pentru acces, export și ștergere.'
+        : 'Learn what data Sneep Cut processes, why it is used, and your options for access, export, and deletion.'
   })
 }
 

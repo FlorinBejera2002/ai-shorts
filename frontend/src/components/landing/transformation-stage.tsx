@@ -32,14 +32,14 @@ export function TransformationStage({ locale }: { locale: string }) {
   const copy =
     locale === 'ro'
       ? {
-          editor: 'Editor AI Sneepcut',
+          editor: 'Editor AI Sneep Cut',
           videoCaption: 'Momentul în care totul a devenit clar',
           clipCaptions: [
             'ASTA SCHIMBĂ TOT',
             'PARTEA PE CARE NU ȚI-O SPUNE NIMENI',
             'SALVEAZĂ PENTRU MAI TÂRZIU'
           ],
-          aria: 'Demonstrație animată a fluxului Sneepcut',
+          aria: 'Demonstrație animată a fluxului Sneep Cut',
           replay: 'Reia',
           source: 'Sursă',
           tracked: 'Vorbitor urmărit',
@@ -56,10 +56,10 @@ export function TransformationStage({ locale }: { locale: string }) {
           ]
         }
       : {
-          editor: 'Sneepcut AI editor',
+          editor: 'Sneep Cut AI editor',
           videoCaption: 'The moment everything finally clicked',
           clipCaptions: clips.map((clip) => clip.caption),
-          aria: 'Animated Sneepcut product workflow',
+          aria: 'Animated Sneep Cut product workflow',
           replay: 'Replay',
           source: 'Source',
           tracked: 'Speaker tracked',

@@ -90,7 +90,7 @@ func (m *fakeMedia) DeletePrefix(_ context.Context, prefix string) error {
 }
 func TestHTTPClipMutationsRejectViewerAndMalformedInput(t *testing.T) {
 	id := newID()
-	for _, route := range []struct{ method, path, body string }{{"PATCH", "/api/clips/" + id, `{"title":"new"}`}, {"DELETE", "/api/clips/" + id, ""}, {"POST", "/api/clips/" + id + "/trim", `{"start_time":0,"end_time":4}`}, {"POST", "/api/clips/" + id + "/recut", `{"segments":[{"start":0,"end":4,"order":0}]}`}} {
+	for _, route := range []struct{ method, path, body string }{{"PATCH", "/api/clips/" + id, `{"title":"new"}`}, {"PUT", "/api/clips/" + id + "/title", `{"title":"new"}`}, {"DELETE", "/api/clips/" + id, ""}, {"POST", "/api/clips/" + id + "/trim", `{"start_time":0,"end_time":4}`}, {"POST", "/api/clips/" + id + "/recut", `{"segments":[{"start":0,"end":4,"order":0}]}`}} {
 		r := httprouter.New()
 		New(nil, fakeAuth{}, &fakeMedia{}, Config{}).Register(r)
 		w := httptest.NewRecorder()
@@ -112,6 +112,21 @@ func TestHTTPClipMutationsRejectViewerAndMalformedInput(t *testing.T) {
 	r.ServeHTTP(w, req)
 	if w.Code != 400 {
 		t.Fatal(w.Code)
+	}
+	for _, body := range []string{`{"title":"   "}`, `{"title":"` + strings.Repeat("x", 121) + `"}`, `{"title":"ok","hookText":"x"}`} {
+		w = httptest.NewRecorder()
+		req = httptest.NewRequest("PUT", "/api/clips/"+id+"/title", strings.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		r.ServeHTTP(w, req)
+		if w.Code != 400 {
+			t.Fatalf("rename %s: %d", body, w.Code)
+		}
+	}
+}
+func TestTitleInputTrimsAndCountsRunes(t *testing.T) {
+	p := TitleInput{Title: "  " + strings.Repeat("ă", 120) + "  "}
+	if err := p.Validate(); err != nil || p.Title != strings.Repeat("ă", 120) {
+		t.Fatal(err, p.Title)
 	}
 }
 func TestReadRenewsStableMediaAndPreservesNulls(t *testing.T) {

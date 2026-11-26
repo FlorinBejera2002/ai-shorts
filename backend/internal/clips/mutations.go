@@ -181,10 +181,25 @@ func (h *Handler) beginEditGuarded(ctx context.Context, userID, id, kind string,
 func (h *Handler) updateMetadata(ctx context.Context, userID, id string, p MetadataInput) error {
 	return updateMetadataWith(ctx, h.db, userID, id, p)
 }
-func updateMetadataWith(ctx context.Context, q interface {
+
+type execer interface {
 	ExecContext(context.Context, string, ...any) (sql.Result, error)
-}, userID, id string, p MetadataInput) error {
-	result, err := q.ExecContext(ctx, `UPDATE clips SET title=$3,hook_text=$4,transcript_text=$5 WHERE id=$1 AND user_id=$2 AND EXISTS(SELECT 1 FROM users WHERE id=$2 AND access_role IN ('member','admin')) AND NOT EXISTS(SELECT 1 FROM account_deletion_requests WHERE user_id=$2)`, id, userID, p.Title, p.Hook, p.Transcript)
+}
+
+// editableClip limits clip edits to the owner while they are a member and not deleting their account.
+const editableClip = `id=$1 AND user_id=$2 AND EXISTS(SELECT 1 FROM users WHERE id=$2 AND access_role IN ('member','admin')) AND NOT EXISTS(SELECT 1 FROM account_deletion_requests WHERE user_id=$2)`
+
+func updateMetadataWith(ctx context.Context, q execer, userID, id string, p MetadataInput) error {
+	result, err := q.ExecContext(ctx, `UPDATE clips SET title=$3,hook_text=$4,transcript_text=$5 WHERE `+editableClip, id, userID, p.Title, p.Hook, p.Transcript)
+	return requireUpdated(result, err)
+}
+
+// updateTitleWith renames a clip and leaves its other metadata unchanged.
+func updateTitleWith(ctx context.Context, q execer, userID, id, title string) error {
+	result, err := q.ExecContext(ctx, `UPDATE clips SET title=$3 WHERE `+editableClip, id, userID, title)
+	return requireUpdated(result, err)
+}
+func requireUpdated(result sql.Result, err error) error {
 	if err != nil {
 		return err
 	}

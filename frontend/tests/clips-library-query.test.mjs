@@ -78,6 +78,14 @@ test('selection filters by scope, search, format and subtitles, then sorts', () 
   assert.deepEqual(ids({ subtitles: 'yes' }), ['c', 'a'])
 })
 
+test('search ignores diacritics on either side', () => {
+  const clips = [clip('a', { title: 'Carețas înscrie!' }), clip('b', { title: 'Caretas again' }), clip('c', { title: 'Other' })]
+  const ids = (search) => lib.selectClips(clips, lib.parseClipsQuery({ search }), 'ro').map((item) => item.id).sort()
+  assert.deepEqual(ids('caretas'), ['a', 'b'])
+  assert.deepEqual(ids('Carețas'), ['a', 'b'])
+  assert.deepEqual(ids('inscrie'), ['a'])
+})
+
 test('pages are clamped and the page window collapses long ranges', () => {
   const items = Array.from({ length: 24 }, (_, index) => index)
   assert.deepEqual(lib.paginateClips(items, 3), { items: [20, 21, 22, 23], page: 3, pages: 3, from: 21, to: 24 })

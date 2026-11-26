@@ -169,7 +169,7 @@ func (h *Handler) export(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Disposition", `attachment; filename="sneepcut-data-export.json"`)
 	_, _ = h.db.ExecContext(r.Context(), `INSERT INTO account_data_exports(user_id,status,completed_at) VALUES($1,'completed',now())`, userID)
-	write(w, 200, map[string]any{"exportedAt": h.now().UTC(), "format": "Sneepcut GDPR data export", "data": data})
+	write(w, 200, map[string]any{"exportedAt": h.now().UTC(), "format": "Sneep Cut GDPR data export", "data": data})
 }
 func (h *Handler) delete(w http.ResponseWriter, r *http.Request) {
 	var input DeletionInput

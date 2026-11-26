@@ -14,11 +14,11 @@ export async function generateMetadata({
   const locale: SiteLocale = requestedLocale === 'ro' ? 'ro' : 'en'
   return buildLocaleMetadata(locale, {
     path: '/pricing',
-    title: locale === 'ro' ? 'Prețuri Sneepcut' : 'Sneepcut pricing',
+    title: locale === 'ro' ? 'Prețuri Sneep Cut' : 'Sneep Cut pricing',
     description:
       locale === 'ro'
-        ? 'Compară planurile Sneepcut și alege volumul de procesare potrivit pentru fluxul tău video.'
-        : 'Compare Sneepcut plans and choose the processing capacity that fits your video workflow.'
+        ? 'Compară planurile Sneep Cut și alege volumul de procesare potrivit pentru fluxul tău video.'
+        : 'Compare Sneep Cut plans and choose the processing capacity that fits your video workflow.'
   })
 }
 

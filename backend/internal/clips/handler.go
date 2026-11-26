@@ -60,6 +60,7 @@ func (h *Handler) Register(r *httprouter.Router) {
 	}))
 	r.Handler("DELETE", "/api/clips/:id", h.auth.RequireMember(h.auth.Limit(h.remove, "clips-delete", 30, time.Hour)))
 	r.Handler("PATCH", "/api/clips/:id", h.auth.RequireMember(h.auth.Limit(h.patch, "clips-update", 60, time.Hour)))
+	r.Handler("PUT", "/api/clips/:id/title", h.auth.RequireMember(h.auth.Limit(h.rename, "clips-update", 60, time.Hour)))
 	r.Handler("POST", "/api/clips/:id/trim", h.auth.RequireMember(h.auth.Limit(h.trim, "clips-trim", 20, time.Hour)))
 	r.Handler("POST", "/api/clips/:id/recut", h.auth.RequireMember(h.auth.Limit(h.recut, "clips-recut", 20, time.Hour)))
 	r.Handler("POST", "/api/clips/:id/transitions", h.auth.RequireMember(h.auth.Limit(h.improveTransitions, "clips-transitions", 20, time.Hour)))
@@ -166,6 +167,31 @@ func (h *Handler) patch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	reply(w, 200, map[string]any{"ok": true})
+}
+func (h *Handler) rename(w http.ResponseWriter, r *http.Request) {
+	id := requestID(w, r)
+	if id == "" {
+		return
+	}
+	if !strings.HasPrefix(strings.ToLower(r.Header.Get("Content-Type")), "application/json") {
+		reply(w, 415, map[string]any{"error": "Content-Type must be application/json"})
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, 2*1024)
+	var input TitleInput
+	if err := jsonutil.Read(w, r, &input); err != nil {
+		reply(w, 400, map[string]any{"error": err.Error()})
+		return
+	}
+	if err := input.Validate(); err != nil {
+		reply(w, 400, map[string]any{"error": err.Error()})
+		return
+	}
+	if err := updateTitleWith(r.Context(), h.db, identity.Current(r).User.ID, id, input.Title); err != nil {
+		failure(w, err)
+		return
+	}
+	reply(w, 200, map[string]any{"ok": true, "title": input.Title})
 }
 func (h *Handler) trim(w http.ResponseWriter, r *http.Request) {
 	id := requestID(w, r)

@@ -174,15 +174,20 @@ export function hasClipsRefinement(query: ClipsQuery) {
   return Boolean(query.search) || activeClipFilters(query).length > 0
 }
 
+/** Lowercases and drops diacritics, so "caretas" matches "Carețas". */
+function searchable(text: string, locale: string) {
+  return text.normalize('NFD').replace(/\p{M}/gu, '').toLocaleLowerCase(locale)
+}
+
 /** Clips in the selected scope that match the search and filters, in the chosen order. */
 export function selectClips(clips: LibraryClip[], query: ClipsQuery, locale = 'en') {
-  const search = query.search.toLocaleLowerCase(locale)
+  const search = searchable(query.search, locale)
   return clips
     .filter((clip) => {
       if (query.project === 'none' && clip.collectionId) return false
       if (query.project === 'favorites' && !clip.favorite) return false
       if (!isClipsListScope(query.project) && clip.collectionId !== query.project) return false
-      if (search && !`${clip.title} ${clip.hookText ?? ''}`.toLocaleLowerCase(locale).includes(search)) return false
+      if (search && !searchable(`${clip.title} ${clip.hookText ?? ''}`, locale).includes(search)) return false
       if (query.aspect !== 'all' && clip.aspectRatio !== query.aspect) return false
       if (query.subtitles === 'yes' && !clip.hasSubtitles) return false
       if (query.subtitles === 'no' && clip.hasSubtitles) return false

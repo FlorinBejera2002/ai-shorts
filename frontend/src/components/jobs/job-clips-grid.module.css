@@ -56,15 +56,32 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* Editable title: reads as plain card text, and shows a field outline only on hover and focus. */
 .title {
-  margin: 0 6px;
-  overflow: hidden;
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+  padding: 2px 6px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
   font-size: 14px;
   font-weight: 600;
   line-height: 1.35;
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
+  text-overflow: ellipsis;
+  outline: none;
+  transition: box-shadow 120ms ease;
+}
+
+.title:hover {
+  box-shadow: inset 0 0 0 1px var(--publish-border);
+}
+
+.title:focus-visible,
+.title:focus {
+  box-shadow: inset 0 0 0 1px var(--publish-border-strong);
 }
 
 .meta {

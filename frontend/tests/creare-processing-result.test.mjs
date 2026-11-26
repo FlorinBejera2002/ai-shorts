@@ -48,11 +48,20 @@ const jobModel = loadTsModule('src/components/jobs/job-processing-model.ts', {
 })
 const jobCopy = loadTsModule('src/components/jobs/job-processing-copy.ts')
 let clipFixture = []
-const jobClipsGrid = loadTsModule('src/components/jobs/job-clips-grid.tsx', {
+const jobClipsHook = { useJobClips: () => clipFixture, useRenameJobClip: () => ({ mutate: () => {} }) }
+const jobClipTitle = loadTsModule('src/components/jobs/job-clip-title.tsx', {
+  react: React,
   'react/jsx-runtime': jsxRuntime,
+  '@/components/create/create-text': { useCreateText: english },
+  '@/lib/toast': { toast: { error: () => {} } },
+  './use-job-clips': jobClipsHook,
   './job-clips-grid.module.css': cssModule
 })
-const jobClipsHook = { useJobClips: () => clipFixture }
+const jobClipsGrid = loadTsModule('src/components/jobs/job-clips-grid.tsx', {
+  'react/jsx-runtime': jsxRuntime,
+  './job-clip-title': jobClipTitle,
+  './job-clips-grid.module.css': cssModule
+})
 const jobComplete = loadTsModule('src/components/jobs/job-complete-card.tsx', {
   'react/jsx-runtime': jsxRuntime,
   'lucide-react': lucide,
@@ -216,6 +225,7 @@ test('job processing maps running, completed and failed states onto the card', (
   assert.match(withClips, /2 clips ready/)
   assert.match(withClips, /0:38/)
   assert.match(withClips, />CC</)
+  assert.match(withClips, /<input[^>]*value="Primul clip"[^>]*aria-label="Clip title"|<input[^>]*aria-label="Clip title"[^>]*value="Primul clip"/, 'Each clip title is editable in place')
 
   const failed = panel('failed', { progress: 36, errorMessage: 'ffmpeg exited 1' })
   assert.match(failed, /Processing failed/)

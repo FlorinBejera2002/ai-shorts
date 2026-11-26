@@ -14,12 +14,12 @@ export async function generateMetadata({
     path: '/terms',
     title:
       locale === 'ro'
-        ? 'Termeni și condiții Sneepcut'
-        : 'Sneepcut Terms of Service',
+        ? 'Termeni și condiții Sneep Cut'
+        : 'Sneep Cut Terms of Service',
     description:
       locale === 'ro'
-        ? 'Condițiile care reglementează conturile, conținutul, planurile și utilizarea acceptabilă a serviciului Sneepcut.'
-        : 'The terms governing accounts, content, plans, and acceptable use of the Sneepcut service.'
+        ? 'Condițiile care reglementează conturile, conținutul, planurile și utilizarea acceptabilă a serviciului Sneep Cut.'
+        : 'The terms governing accounts, content, plans, and acceptable use of the Sneep Cut service.'
   })
 }
 

@@ -48,7 +48,7 @@ export function PublicNavbar({ labels, forceDark = false }: PublicNavbarProps) {
         <Link
           href="/"
           aria-label={
-            locale === 'ro' ? 'Pagina principală Sneepcut' : 'Sneepcut home'
+            locale === 'ro' ? 'Pagina principală Sneep Cut' : 'Sneep Cut home'
           }
           className="rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
@@ -85,7 +85,7 @@ export function PublicNavbar({ labels, forceDark = false }: PublicNavbarProps) {
           <SheetContent className="w-[min(22rem,90vw)]" showCloseButton={false}>
             <SheetHeader>
               <SheetTitle>{title}</SheetTitle>
-              <SheetDescription>Sneepcut studio</SheetDescription>
+              <SheetDescription>Sneep Cut studio</SheetDescription>
             </SheetHeader>
             <SheetClose asChild={true}>
               <Button

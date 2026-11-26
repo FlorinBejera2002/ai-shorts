@@ -47,7 +47,7 @@ export function JobCompleteCard({ jobId, source }: JobCompleteCardProps) {
         </div>
       </section>
       {clips.length > 0 && <ClipFeedbackPrompt jobId={jobId} />}
-      {clips.length > 0 && <JobClipsGrid clips={clips} />}
+      {clips.length > 0 && <JobClipsGrid jobId={jobId} clips={clips} />}
     </>
   )
 }

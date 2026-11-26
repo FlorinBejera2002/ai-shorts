@@ -1,5 +1,6 @@
 'use client'
 
+import { JobClipTitle } from './job-clip-title'
 import type { JobClip } from './use-job-clips'
 import styles from './job-clips-grid.module.css'
 
@@ -10,8 +11,8 @@ function formatDuration(seconds: number) {
   return `${minutes}:${String(whole % 60).padStart(2, '0')}`
 }
 
-/** Grid of the job's finished clips, each with duration and subtitle badges. */
-export function JobClipsGrid({ clips }: { clips: JobClip[] }) {
+/** Grid of the job's finished clips, each with duration and subtitle badges and an editable title. */
+export function JobClipsGrid({ jobId, clips }: { jobId: string; clips: JobClip[] }) {
   return (
     <ol className={styles.grid} data-testid="job-clips">
       {clips.map((clip) => (
@@ -21,7 +22,7 @@ export function JobClipsGrid({ clips }: { clips: JobClip[] }) {
             {clip.hasSubtitles && <span className={`${styles.badge} ${styles.subtitles}`}>CC</span>}
             <span className={`${styles.badge} ${styles.duration}`}>{formatDuration(clip.duration)}</span>
           </div>
-          <p className={styles.title}>{clip.title}</p>
+          <JobClipTitle jobId={jobId} clipId={clip.id} title={clip.title} />
           <p className={styles.meta}>{clip.aspectRatio}</p>
         </li>
       ))}

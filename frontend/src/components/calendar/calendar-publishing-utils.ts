@@ -5,7 +5,8 @@ export type PublishingTab = 'all' | 'scheduled' | 'drafts' | 'published' | 'fail
 /** A half-open local range; `end` is exclusive. */
 export type PublishingRange = { start: Date; end: Date }
 
-const scheduledStatuses = new Set(['scheduled', 'publishing', 'failed'])
+// Failed posts live only in the Failed tab, which carries their count.
+const scheduledStatuses = new Set(['scheduled', 'publishing'])
 
 export function getPublishingPosts(
   posts: ScheduledPostRecord[],

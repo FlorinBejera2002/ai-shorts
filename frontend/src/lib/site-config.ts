@@ -1,5 +1,5 @@
 
-export const SITE_NAME = 'Sneepcut'
+export const SITE_NAME = 'Sneep Cut'
 export const DEFAULT_LOCALE = 'en'
 export const SUPPORTED_LOCALES = ['en', 'ro'] as const
 export const PUBLIC_ROUTES = [
@@ -38,14 +38,14 @@ const LOCALE_CONFIG = {
   en: {
     languageTag: 'en-US',
     openGraphLocale: 'en_US',
-    title: 'Sneepcut — AI video clipping',
+    title: 'Sneep Cut — AI video clipping',
     description:
       'Turn long videos into ready-to-publish short clips with AI-assisted highlights, reframing, and captions.'
   },
   ro: {
     languageTag: 'ro-RO',
     openGraphLocale: 'ro_RO',
-    title: 'Sneepcut — clipuri video cu AI',
+    title: 'Sneep Cut — clipuri video cu AI',
     description:
       'Transformă videoclipurile lungi în clipuri scurte gata de publicare, cu selecție asistată de AI, reîncadrare și subtitrări.'
   }

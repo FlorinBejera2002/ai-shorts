@@ -11,10 +11,10 @@ const { getPublishingPosts, groupPublishingPosts } = await import(`data:text/jav
 const month = { start: new Date(2026, 9, 1), end: new Date(2026, 10, 1) }
 const post = (id, status, day) => ({ id, status, scheduledAt: new Date(2026, 9, day, 12).toISOString() })
 
-test('scheduled tab retains failed and in-flight posts in chronological order', () => {
+test('scheduled tab keeps in-flight posts in chronological order and leaves failed posts to their tab', () => {
   const posts = [post('scheduled', 'scheduled', 24), post('failed', 'failed', 22), post('publishing', 'publishing', 23), post('draft', 'draft', 23)]
   const original = [...posts]
-  assert.deepEqual(getPublishingPosts(posts, 'scheduled', month).map(item => item.id), ['failed', 'publishing', 'scheduled'])
+  assert.deepEqual(getPublishingPosts(posts, 'scheduled', month).map(item => item.id), ['publishing', 'scheduled'])
   assert.deepEqual(posts, original, 'selection must not reorder the API state')
 })
 

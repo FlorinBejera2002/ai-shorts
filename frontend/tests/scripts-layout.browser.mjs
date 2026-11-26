@@ -744,7 +744,7 @@ async function responsiveVariants() {
   try {
     await romanian.open('ro')
     await expectCards(romanian, 6)
-    await romanian.library.getByRole('heading', { level: 1, name: 'Scripturi', exact: true }).waitFor()
+    await romanian.library.getByRole('heading', { level: 1, name: 'Scenarii', exact: true }).waitFor()
     await romanian.library.getByRole('button', { name: 'Scenariu nou', exact: true }).waitFor()
     await romanian.library.getByRole('switch', { name: 'Arhivate', exact: true }).waitFor()
     await capture(romanian, 'desktop-library-ro')

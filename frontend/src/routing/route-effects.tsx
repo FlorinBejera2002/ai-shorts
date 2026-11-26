@@ -31,11 +31,11 @@ function routeMetadata(locale: SiteLocale, pathname: string) {
   if (route === '/pricing') {
     return buildLocaleMetadata(locale, {
       path: '/pricing',
-      title: locale === 'ro' ? 'Prețuri Sneepcut' : 'Sneepcut pricing',
+      title: locale === 'ro' ? 'Prețuri Sneep Cut' : 'Sneep Cut pricing',
       description:
         locale === 'ro'
-          ? 'Compară planurile Sneepcut și alege volumul de procesare potrivit pentru fluxul tău video.'
-          : 'Compare Sneepcut plans and choose the processing capacity that fits your video workflow.'
+          ? 'Compară planurile Sneep Cut și alege volumul de procesare potrivit pentru fluxul tău video.'
+          : 'Compare Sneep Cut plans and choose the processing capacity that fits your video workflow.'
     })
   }
   if (route === '/privacy') {
@@ -43,8 +43,8 @@ function routeMetadata(locale: SiteLocale, pathname: string) {
       path: '/privacy',
       title:
         locale === 'ro'
-          ? 'Politica de confidențialitate Sneepcut'
-          : 'Sneepcut Privacy Policy'
+          ? 'Politica de confidențialitate Sneep Cut'
+          : 'Sneep Cut Privacy Policy'
     })
   }
   if (route === '/terms') {
@@ -52,8 +52,8 @@ function routeMetadata(locale: SiteLocale, pathname: string) {
       path: '/terms',
       title:
         locale === 'ro'
-          ? 'Termeni și condiții Sneepcut'
-          : 'Sneepcut Terms of Service'
+          ? 'Termeni și condiții Sneep Cut'
+          : 'Sneep Cut Terms of Service'
     })
   }
   if (route === '/data-deletion') {

@@ -89,14 +89,30 @@ func (p *MetadataInput) Validate() error {
 	p.Title = strings.TrimSpace(p.Title)
 	p.Hook = trimOptional(p.Hook)
 	p.Transcript = trimOptional(p.Transcript)
-	if utf8.RuneCountInString(p.Title) < 1 || utf8.RuneCountInString(p.Title) > 120 {
-		return errors.New("Title must contain 1 to 120 characters")
+	if err := validateTitle(p.Title); err != nil {
+		return err
 	}
 	if p.Hook != nil && utf8.RuneCountInString(*p.Hook) > 220 {
 		return errors.New("Hook cannot exceed 220 characters")
 	}
 	if p.Transcript != nil && utf8.RuneCountInString(*p.Transcript) > 20000 {
 		return errors.New("Transcript cannot exceed 20,000 characters")
+	}
+	return nil
+}
+
+// TitleInput renames a clip without touching its hook or transcript.
+type TitleInput struct {
+	Title string `json:"title"`
+}
+
+func (p *TitleInput) Validate() error {
+	p.Title = strings.TrimSpace(p.Title)
+	return validateTitle(p.Title)
+}
+func validateTitle(title string) error {
+	if count := utf8.RuneCountInString(title); count < 1 || count > 120 {
+		return errors.New("Title must contain 1 to 120 characters")
 	}
 	return nil
 }

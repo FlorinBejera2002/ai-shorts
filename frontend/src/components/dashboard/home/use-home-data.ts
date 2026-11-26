@@ -73,6 +73,8 @@ export function useUpcomingPosts(limit = 2) {
   })
 }
 
+const FIRST_STEPS_WINDOW_MS = 49 * 24 * 60 * 60 * 1000
+
 /** What a new account has already done, from real data (brand kit, connected networks, scheduled posts). */
 export function useFirstSteps(enabled: boolean) {
   return useQuery({
@@ -82,10 +84,11 @@ export function useFirstSteps(enabled: boolean) {
       const [brand, publishing, posts] = await Promise.allSettled([
         getJson<{ brandKit?: unknown }>('/api/user/brand'),
         getJson<PublishingData>('/api/publishing'),
+        // The calendar API serves at most 100 days, enough to cover a new account's first posts.
         getJson<{ posts: ScheduledPostRecord[] }>(
           `/api/calendar?${new URLSearchParams({
-            start: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString(),
-            end: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString()
+            start: new Date(Date.now() - FIRST_STEPS_WINDOW_MS).toISOString(),
+            end: new Date(Date.now() + FIRST_STEPS_WINDOW_MS).toISOString()
           })}`
         )
       ])

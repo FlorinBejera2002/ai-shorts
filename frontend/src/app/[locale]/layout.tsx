@@ -52,7 +52,7 @@ export async function generateMetadata({
     ...buildLocaleMetadata(locale),
     title: {
       default: config.title,
-      template: '%s · Sneepcut'
+      template: '%s · Sneep Cut'
     },
     keywords: [
       'AI video clipping',

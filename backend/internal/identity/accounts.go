@@ -145,9 +145,9 @@ func (a *Accounts) RequestToken(ctx context.Context, email, kind string) error {
 	}
 	digest := tokenDigest(token)
 	identifier := kind + ":" + email
-	path, subject, duration := "/reset-password", "Reset your Sneepcut password", time.Hour
+	path, subject, duration := "/reset-password", "Reset your Sneep Cut password", time.Hour
 	if kind == "email-activation" {
-		path, subject, duration = "/activate", "Verify your Sneepcut email", 24*time.Hour
+		path, subject, duration = "/activate", "Verify your Sneep Cut email", 24*time.Hour
 	}
 	tx, err := a.db.BeginTx(ctx, nil)
 	if err != nil {

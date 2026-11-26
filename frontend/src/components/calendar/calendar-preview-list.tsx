@@ -344,7 +344,6 @@ function EmptyList({
           period: periodLabel(period, locale)
         })}
       </h3>
-      <p>{t('publishing.emptyHint')}</p>
       <div className={styles.emptyActions}>
         <Button type="button" variant="outline" onClick={onChooseAnotherPeriod}>
           {t('publishing.chooseAnotherPeriod')}

@@ -56,6 +56,15 @@ func TestPostgresAuthenticatedClipHTTPContracts(t *testing.T) {
 	if record["hook_text"] != "New hook" || record["caption_tiktok"] != "Fixture caption" || record["transcript_text"] != nil {
 		t.Fatal(record)
 	}
+	w = call("PUT", "/api/clips/"+clip+"/title", `{"title":"  Renamed clip  "}`)
+	if w.Code != 200 || !strings.Contains(w.Body.String(), `"title":"Renamed clip"`) {
+		t.Fatal(w.Code, w.Body.String())
+	}
+	w = call("GET", "/api/clips/"+clip, "")
+	_ = json.Unmarshal(w.Body.Bytes(), &record)
+	if record["title"] != "Renamed clip" || record["hook_text"] != "New hook" {
+		t.Fatal("rename changed other metadata", record)
+	}
 	w = call("PATCH", "/api/clips/"+clip, `{"title":"`+strings.Repeat("x", 8193)+`"}`)
 	if w.Code != 413 {
 		t.Fatalf("oversized metadata: %d", w.Code)
