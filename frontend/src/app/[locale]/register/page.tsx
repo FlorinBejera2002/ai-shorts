@@ -1,5 +1,6 @@
 'use client'
 
+import { pickInlineText } from '@/i18n/inline-text'
 import { AuthCanvasLayout } from '@/components/auth/auth-canvas-layout'
 import { AuthCanvasTabs } from '@/components/auth/auth-canvas-tabs'
 import {
@@ -86,9 +87,12 @@ export default function RegisterPage() {
       if (!response.ok) throw new Error('Delivery failed')
       toast.add(
         'success',
-        locale === 'ro'
-          ? 'Verifică mesajele primite.'
-          : 'Check your email for an activation link.'
+        pickInlineText(
+          locale,
+          'Check your email for an activation link.',
+          'Verifică mesajele primite.',
+          'Revisa tu correo para ver el enlace de activación.'
+        )
       )
     } catch {
       toast.add('error', t('errorGeneric'))
@@ -127,7 +131,7 @@ export default function RegisterPage() {
           name="name"
           required={true}
           label={t('name')}
-          placeholder="John Doe"
+          placeholder={pickInlineText(locale, 'John Doe', 'Ion Popescu', 'Juan Pérez')}
           autoComplete="name"
         />
         <CanvasField
