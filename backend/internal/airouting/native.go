@@ -125,7 +125,7 @@ func (s *Service) stages() []Stage {
 func nativeStages() []Stage {
 	return []Stage{
 		{aiprovider.TaskTranscription, "Transcriere: clipuri", "Modelul de recunoaștere a vorbirii instalat pe server pentru clipuri.", []string{"audio", "transcription"}},
-		{aiprovider.TaskStoryTranscription, "Transcriere: Story și narațiune", "Modelul instalat pentru transcrierea surselor Story și a narațiunii.", []string{"audio", "transcription"}},
+		{aiprovider.TaskStoryTranscription, "Transcriere: Story și narațiune", "Modelul pentru transcrierea surselor Story și a narațiunii: instalat pe server sau prin OpenRouter, cu Whisper local ca rezervă.", []string{"audio", "transcription"}},
 		{aiprovider.TaskVoiceDetection, "Detectarea vorbirii", "Detectorul instalat care separă vorbirea de muzică și zgomote.", []string{"audio", "voice_activity"}},
 		{aiprovider.TaskFaceTracking, "Încadrarea fețelor", "Modelul instalat pentru încadrarea automată a persoanelor.", []string{"image", "face_detection"}},
 	}
@@ -157,6 +157,12 @@ func (s *Service) NativeModels(ctx context.Context) (map[aiprovider.Task]string,
 			exists = true
 		}
 		if !exists {
+			continue
+		}
+		// Story transcription may be routed to a hosted speech-to-text model;
+		// the processor then binds it through ForTask and keeps its installed
+		// Whisper only as the local fallback.
+		if task == aiprovider.TaskStoryTranscription && hostedTranscriptionProvider(route.Provider) {
 			continue
 		}
 		found := false

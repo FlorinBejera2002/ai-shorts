@@ -122,7 +122,13 @@ func (s *Service) models(ctx context.Context) ([]Model, error) {
 		if err != nil {
 			return models, ErrCatalogUnavailable
 		}
-		models = append(models, remote...)
+		// Only a reachable OpenRouter certifies its speech-to-text choices.
+		models = append(models, transcriptionModels()...)
+		for _, model := range remote {
+			if !slices.ContainsFunc(openRouterTranscriptionModels, func(known Model) bool { return known.ID == model.ID }) {
+				models = append(models, model)
+			}
+		}
 	}
 	return models, nil
 }
@@ -184,6 +190,9 @@ func (s *Service) Update(ctx context.Context, expectedVersion int64, routes map[
 		route, exists := routes[stage.Stage]
 		if !exists || !validModelID(route.Model) || !s.configured(route.Provider) {
 			return Configuration{}, fmt.Errorf("%w: %s has an unavailable provider or model", ErrInvalidConfiguration, stage.Stage)
+		}
+		if nativeRouteRequired(stage.Stage, route.Provider) && !nativeProvider(route.Provider) {
+			return Configuration{}, fmt.Errorf("%w: %s requires an installed engine", ErrInvalidConfiguration, stage.Stage)
 		}
 		index := slices.IndexFunc(models, func(model Model) bool { return model.Provider == route.Provider && model.ID == route.Model })
 		if index < 0 {

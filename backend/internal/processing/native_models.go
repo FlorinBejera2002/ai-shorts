@@ -2,6 +2,7 @@ package processing
 
 import (
 	"context"
+	"fmt"
 
 	"sneepcut/backend-go/internal/aiprovider"
 )
@@ -35,6 +36,17 @@ func (p *Processor) withNativeModels(ctx context.Context) (*Processor, error) {
 			bound.cfg.WhisperVADModel = model
 		case aiprovider.TaskFaceTracking:
 			bound.cfg.FaceModel = model
+		}
+	}
+	// Story transcription may instead be routed to a hosted model. Any other
+	// route (an installed engine, or a missing key) keeps local recognition.
+	if generator, err := aiprovider.ForTask(ctx, p.ai, aiprovider.TaskStoryTranscription); err == nil {
+		if transcriber, ok := generator.(aiprovider.Transcriber); ok {
+			bound.storyTranscriber = transcriber
+			bound.storyTranscriberID = fmt.Sprintf("%T", generator)
+			if identity, ok := generator.(aiprovider.MediaModelIdentity); ok {
+				bound.storyTranscriberID = identity.MediaModelIdentity()
+			}
 		}
 	}
 	return &bound, nil

@@ -39,7 +39,7 @@ func (p *Processor) Analyze(ctx context.Context, project string, asset story.Ass
 	defer func() {
 		timer.log("Story source analysis", "story_id", project, "source_id", asset.ID, "outcome", outcome,
 			"source_seconds", asset.Duration, "width", asset.Width, "height", asset.Height, "video_codec", asset.VideoCodec,
-			"whisper_threads", p.whisperThreads(), "whisper_beam_size", p.whisperBeamSize())
+			"speech_engine", p.storySpeechEngine(), "whisper_threads", p.whisperThreads(), "whisper_beam_size", p.whisperBeamSize())
 	}()
 	// Muting playback does not invalidate a previously verified transcript or
 	// source catalog. Keep that evidence for later original-audio edits, without
@@ -59,7 +59,7 @@ func (p *Processor) Analyze(ctx context.Context, project string, asset story.Ass
 	if model == "" {
 		model = p.cfg.WhisperModel
 	}
-	digest := storyDigest([]any{story.AlgorithmVersion, asset.Hash, options.Language, storyModelSignature(model), storyModelSignature(p.storyVADModel(model)), options.Narration, "source-analysis-9"})
+	digest := storyDigest([]any{story.AlgorithmVersion, asset.Hash, options.Language, p.storySpeechSignature(model), storyModelSignature(p.storyVADModel(model)), options.Narration, "source-analysis-9"})
 	if musicOnly {
 		// A silent edit must never satisfy the speech-analysis cache when the
 		// owner later asks to retain original audio.

@@ -26,7 +26,7 @@ func (p *Processor) analyzeNarration(ctx context.Context, project string, asset 
 	if model == "" {
 		model = p.cfg.WhisperModel
 	}
-	digest := storyDigest([]any{story.AlgorithmVersion, "narration-analysis-2", asset.Hash, options.Language, storyModelSignature(model), storyModelSignature(p.storyVADModel(model))})
+	digest := storyDigest([]any{story.AlgorithmVersion, "narration-analysis-2", asset.Hash, options.Language, p.storySpeechSignature(model), storyModelSignature(p.storyVADModel(model))})
 	prefix := "work/" + project + "/analysis/" + asset.ID + "/" + digest
 	cacheFile := filepath.Join(dir, "analysis.json")
 	if p.materialize(ctx, prefix+"/analysis.json", cacheFile) == nil {

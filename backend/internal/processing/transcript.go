@@ -5,10 +5,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
 	"unicode"
+
+	"sneepcut/backend-go/internal/aiprovider"
 )
 
 var errNoSpeech = errors.New("no speech detected in the video audio")
@@ -44,6 +47,20 @@ func (p *Processor) transcribeStoryWithAudio(ctx context.Context, file, dir, lan
 	vad := p.storyVADModel(model)
 	if info, err := os.Stat(vad); err != nil || !info.Mode().IsRegular() || info.Size() == 0 {
 		return Transcript{}, storyPreparedAudio{}, errSpeechDetectionUnavailable
+	}
+	if p.storyTranscriber != nil {
+		transcript, err := p.transcribeStoryHosted(ctx, file, dir, language, duration)
+		if err == nil || errors.Is(err, errNoSpeech) || ctx.Err() != nil {
+			if ctx.Err() != nil {
+				return transcript, storyPreparedAudio{}, ctx.Err()
+			}
+			// Voice evidence still measures the same audio locally.
+			if ffErr := p.ffmpeg(ctx, dir, "-i", file, "-vn", "-ac", "1", "-ar", "16000", "-c:a", "pcm_s16le", "audio.wav"); ffErr != nil {
+				return transcript, storyPreparedAudio{}, ffErr
+			}
+			return transcript, storyPreparedAudio{proxyKey: proxyKey, file: filepath.Join(dir, "audio.wav")}, err
+		}
+		slog.Warn("Hosted story transcription failed; using local Whisper", "model", p.storyTranscriberID, "reason", aiprovider.SafeFailure(err).Error())
 	}
 	transcript, err := p.transcribeWithVAD(ctx, file, dir, language, duration, model, vad)
 	if err != nil {

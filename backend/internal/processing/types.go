@@ -138,6 +138,10 @@ type Processor struct {
 	ai             aiprovider.Generator
 	musicCatalog   *music.Catalog
 	nativeResolved bool
+
+	// Hosted story transcription bound by withNativeModels; nil = local Whisper.
+	storyTranscriber   aiprovider.Transcriber
+	storyTranscriberID string
 }
 
 func New(c Config, s media.Storage, a aiprovider.Generator) *Processor {
