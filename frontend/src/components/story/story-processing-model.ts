@@ -72,12 +72,27 @@ export function runningSourceShare(elapsedSeconds: number) {
   return 0.9 * (1 - Math.exp(-elapsedSeconds / 120))
 }
 
-/** Analysis covers the span up to the next stage: finished sources plus the running one's share. */
-function analysisProgress({ done, total }: AnalysisCount, elapsedSeconds: number) {
+/** Share of the analysis span spent on individual sources; the rest is the AI review of all of them. */
+const SOURCE_SHARE = 0.75
+
+/** True once every source is analyzed and only the AI review of the collection remains. */
+export function analysisReviewing({ done, total }: AnalysisCount) {
+  return total > 0 && done >= total
+}
+
+/**
+ * Analysis covers the span up to the next stage: finished sources plus the running one's share,
+ * then the AI review of the whole collection, which keeps creeping instead of freezing.
+ */
+function analysisProgress(count: AnalysisCount, elapsedSeconds: number) {
+  const { done, total } = count
+  const span = stageProgress[2] - stageProgress[1]
   if (total <= 0) return stageProgress[1]
-  const finished = Math.min(done, total)
-  const running = finished < total ? runningSourceShare(elapsedSeconds) : 0
-  return stageProgress[1] + ((stageProgress[2] - stageProgress[1]) * (finished + running)) / total
+  if (analysisReviewing(count)) {
+    return stageProgress[1] + span * (SOURCE_SHARE + (1 - SOURCE_SHARE) * runningSourceShare(elapsedSeconds / 2))
+  }
+  const running = runningSourceShare(elapsedSeconds)
+  return stageProgress[1] + (span * SOURCE_SHARE * (done + running)) / total
 }
 
 export interface UploadProcessingView {

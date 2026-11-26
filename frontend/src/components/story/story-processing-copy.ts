@@ -16,7 +16,7 @@ export function uploadStageLabels(text: Text) {
 /** Card title for each upload stage. */
 export function uploadStageTitle(stage: number, text: Text) {
   const titles = [
-    text('Uploading your footage', 'Încărcăm filmările'),
+    text('Preparing your footage', 'Pregătim filmările'),
     text('Analyzing your footage', 'Analizăm filmările'),
     text('Choosing moments', 'Alegem momentele'),
     text('Editing your clip', 'Montăm clipul'),

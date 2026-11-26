@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"path/filepath"
+	"sync"
 	"testing"
 
 	"sneepcut/backend-go/internal/aiprovider"
@@ -11,6 +12,7 @@ import (
 )
 
 type taskProvider struct {
+	mu        sync.Mutex // source-meaning batches resolve their route concurrently
 	providers map[aiprovider.Task]aiprovider.Generator
 	tasks     []aiprovider.Task
 }
@@ -20,6 +22,8 @@ func (p *taskProvider) Generate(context.Context, string) (string, error) {
 }
 
 func (p *taskProvider) ForTask(_ context.Context, task aiprovider.Task) (aiprovider.Generator, error) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
 	p.tasks = append(p.tasks, task)
 	if generator := p.providers[task]; generator != nil {
 		return generator, nil

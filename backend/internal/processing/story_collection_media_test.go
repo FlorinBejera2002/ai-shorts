@@ -9,6 +9,7 @@ import (
 	"sneepcut/backend-go/internal/aiprovider"
 	"sneepcut/backend-go/internal/story"
 	"strings"
+	"sync"
 	"testing"
 )
 
@@ -90,7 +91,8 @@ func TestStorySemanticAnalysisBatchesOneHundredTwentyFiveSources(t *testing.T) {
 	reviewer := &storySemanticMock{storyReviewMock: storyReviewMock{result: "{\"candidates\":[]}"}, model: "collection"}
 	p.ai = &taskProvider{providers: map[aiprovider.Task]aiprovider.Generator{aiprovider.TaskSourceAnalysis: reviewer}}
 	calls := 0
-	ctx = story.WithAIBudget(ctx, func(context.Context) error { calls++; return nil })
+	var budget sync.Mutex
+	ctx = story.WithAIBudget(ctx, func(context.Context) error { budget.Lock(); calls++; budget.Unlock(); return nil })
 	result, err := p.AnalyzeStorySources(ctx, assets, story.DefaultOptions())
 	if err != nil || len(result) != 125 || calls != 7 || reviewer.calls != 7 {
 		t.Fatal("unbounded or missing batches", len(result), calls, reviewer.calls, err)

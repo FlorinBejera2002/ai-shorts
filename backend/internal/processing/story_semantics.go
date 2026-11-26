@@ -11,6 +11,7 @@ import (
 	"os"
 	"sort"
 	"strings"
+	"sync"
 
 	"sneepcut/backend-go/internal/aiprovider"
 	"sneepcut/backend-go/internal/story"
@@ -80,12 +81,61 @@ func (p *Processor) AnalyzeStorySources(ctx context.Context, assets []story.Asse
 		}
 		return nil
 	}
-	for _, batch := range storySemanticBatches(assets, indexes) {
-		if err := analyze(batch); err != nil {
-			return result, err
-		}
+	// Batches touch disjoint sources, so they are reviewed concurrently: one
+	// provider request takes minutes with frames and audio, and a large upload
+	// sent them one after another while the owner watched a still progress bar.
+	// Music sync requires this review: a permanent provider rejection must stop
+	// after one request, so that mode keeps the batches sequential.
+	workers := storySemanticConcurrency
+	if options.Music != nil && options.Music.Sync && options.Music.Volume > 0 {
+		workers = 1
+	}
+	if err := runStorySemanticBatches(ctx, storySemanticBatches(assets, indexes), workers, analyze); err != nil {
+		return result, err
 	}
 	return p.refineStoryMusicMoments(ctx, assets, result, options)
+}
+
+// storySemanticConcurrency bounds simultaneous source-meaning requests.
+const storySemanticConcurrency = 3
+
+// runStorySemanticBatches runs analyze for every batch, at most `workers` at
+// once. The first error cancels nothing already sent but stops new batches.
+func runStorySemanticBatches(ctx context.Context, batches [][]int, workers int, analyze func([]int) error) error {
+	var (
+		wait  sync.WaitGroup
+		mu    sync.Mutex
+		first error
+	)
+	slots := make(chan struct{}, max(1, workers))
+	for _, batch := range batches {
+		// Take the slot first, so a failure of the batch it waited for stops
+		// this one (one worker is strictly sequential).
+		slots <- struct{}{}
+		mu.Lock()
+		failed := first != nil
+		mu.Unlock()
+		if failed || ctx.Err() != nil {
+			<-slots
+			break
+		}
+		wait.Add(1)
+		go func(batch []int) {
+			defer func() { <-slots; wait.Done() }()
+			if err := analyze(batch); err != nil {
+				mu.Lock()
+				if first == nil {
+					first = err
+				}
+				mu.Unlock()
+			}
+		}(batch)
+	}
+	wait.Wait()
+	if first != nil {
+		return first
+	}
+	return ctx.Err()
 }
 
 // The provider answers with one JSON finding per candidate, so response time

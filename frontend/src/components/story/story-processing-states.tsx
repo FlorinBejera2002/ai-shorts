@@ -4,7 +4,7 @@ import { ProcessingCard } from '@/components/create/processing-card'
 import type { ProcessingCardStage } from '@/components/create/processing-stages'
 import { Button } from '@/components/ui/button'
 import { storyProblem } from './story-error'
-import type { AnalysisCount } from './story-processing-model'
+import { analysisReviewing, type AnalysisCount } from './story-processing-model'
 import { uploadStageIllustrationAlt, uploadStageTitle } from './story-processing-copy'
 
 type Text = (english: string, romanian: string) => string
@@ -22,9 +22,11 @@ interface RunningCardProps {
   text: Text
 }
 
-/** "Clip 2 of 5" for the source being analyzed; undefined for a single source. */
+/** "Clip 2 of 5" for the source being analyzed, then the collection review; undefined for a single source. */
 function analysisDetail(analysis: AnalysisCount | undefined, text: Text) {
-  if (!analysis || analysis.total < 2) return undefined
+  if (!analysis) return undefined
+  if (analysisReviewing(analysis)) return text('Reviewing the content', 'Analizăm conținutul')
+  if (analysis.total < 2) return undefined
   const current = Math.min(analysis.done + 1, analysis.total)
   return text(`Clip ${current} of ${analysis.total}`, `Clipul ${current} din ${analysis.total}`)
 }

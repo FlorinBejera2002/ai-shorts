@@ -136,7 +136,7 @@ test('analysis progress advances with each analyzed source and names the running
   assert.equal(first.analysis.done, 0)
   assert.equal(first.analysis.total, 4)
   const half = upload.uploadProcessingView(uploadLabels, { status: 'analyzing', assets: assets(2, 4) }, false)
-  assert.equal(half.progress, 46)
+  assert.equal(half.progress, 43)
   const running = upload.uploadProcessingView(uploadLabels, { status: 'analyzing', assets: assets(0, 1) }, false, 600)
   assert.ok(running.progress > 50 && running.progress < 58, String(running.progress))
   const later = upload.uploadProcessingView(uploadLabels, { status: 'building_story', assets: assets(4, 4) }, false)
@@ -147,4 +147,14 @@ test('analysis progress advances with each analyzed source and names the running
 test('the running source estimate stays below a whole source', () => {
   assert.equal(upload.runningSourceShare(0), 0)
   assert.ok(upload.runningSourceShare(100000) <= 0.9)
+})
+
+test('after the last source the collection review keeps moving below the next stage', () => {
+  const assets = Array.from({ length: 3 }, (_, index) => ({ id: `a${index}`, analysis_version: 'v' }))
+  const start = upload.uploadProcessingView(uploadLabels, { status: 'analyzing', assets }, false, 0)
+  const later = upload.uploadProcessingView(uploadLabels, { status: 'analyzing', assets }, false, 300)
+  assert.equal(start.progress, 52)
+  assert.ok(later.progress > start.progress && later.progress < 58, String(later.progress))
+  assert.equal(upload.analysisReviewing(start.analysis), true)
+  assert.equal(upload.analysisReviewing({ done: 2, total: 3 }), false)
 })

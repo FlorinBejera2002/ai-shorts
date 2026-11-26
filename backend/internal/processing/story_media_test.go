@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 
 	"sneepcut/backend-go/internal/aiprovider"
@@ -56,6 +57,7 @@ func TestStoryCandidatesRetainWholeWordsAndNegation(t *testing.T) {
 }
 
 type storyReviewMock struct {
+	mu     sync.Mutex // source-meaning batches review concurrently
 	calls  int
 	prompt string
 	parts  []aiprovider.MediaPart
@@ -67,6 +69,8 @@ func (m *storyReviewMock) Generate(context.Context, string) (string, error) {
 	return "", errors.New("text generation is not media review")
 }
 func (m *storyReviewMock) ReviewMedia(_ context.Context, prompt string, parts []aiprovider.MediaPart) (string, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	m.calls++
 	m.prompt = prompt
 	m.parts = parts
