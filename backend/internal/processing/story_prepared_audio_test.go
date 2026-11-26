@@ -55,7 +55,8 @@ func recordPreparedAudioProcessing(t *testing.T, p *Processor, dir string) strin
 	t.Setenv("SNEEPCUT_PREPARED_AUDIO_FFMPEG", binary)
 	t.Setenv("SNEEPCUT_PREPARED_AUDIO_LOG", log)
 	t.Setenv("SNEEPCUT_NARRATION_ASR_FIXTURE", "1")
-	p.cfg.FFmpegPath, p.cfg.WhisperPath, p.cfg.WhisperVADPath = executable, executable, executable
+	p.cfg.FFmpegPath, p.cfg.WhisperVADPath = executable, executable
+	p.storyTranscriber, p.storyTranscriberID = fixtureTranscriber{}, "fixture"
 	p.cfg.WhisperVADModel = filepath.Join(dir, "mock-vad.bin")
 	if err := os.WriteFile(p.cfg.WhisperVADModel, []byte("detector fixture"), 0600); err != nil {
 		t.Fatal(err)
@@ -130,7 +131,7 @@ func TestStoryPreparedAudioReusesSamplesAndRefreshesMissingVoiceCache(t *testing
 			if err := os.WriteFile(log, nil, 0600); err != nil {
 				t.Fatal(err)
 			}
-			p.cfg.WhisperPath = filepath.Join(dir, "must-not-run-asr-again")
+			refuseSpeech(p)
 			refreshed, err := p.Analyze(ctx, "prepared-audio-"+kind, first, options)
 			if err != nil || !reflect.DeepEqual(first.Candidates, refreshed.Candidates) || first.AnalysisVersion != refreshed.AnalysisVersion {
 				t.Fatalf("cached ASR voice refresh changed candidates: %v", err)
@@ -186,13 +187,13 @@ func TestStoryPreparedAudioPreservesMissingDetectorAndCancellation(t *testing.T)
 	log := recordPreparedAudioProcessing(t, p, dir)
 	model := p.cfg.WhisperVADModel
 	p.cfg.WhisperVADModel = filepath.Join(dir, "missing-vad.bin")
-	_, audio, err := p.transcribeStoryWithAudio(context.Background(), file, dir, "en", asset.Duration, "mock-asr.bin", asset.Key)
+	_, audio, err := p.transcribeStoryWithAudio(context.Background(), file, dir, "en", asset.Duration, asset.Key)
 	if !errors.Is(err, errSpeechDetectionUnavailable) || audio.file != "" {
 		t.Fatalf("missing detector exposed prepared samples: %#v %v", audio, err)
 	}
 	assertPreparedAudioExtractions(t, log, nil)
 	p.cfg.WhisperVADModel = model
-	_, audio, err = p.transcribeStoryWithAudio(context.Background(), file, dir, "en", asset.Duration, "mock-asr.bin", asset.Key)
+	_, audio, err = p.transcribeStoryWithAudio(context.Background(), file, dir, "en", asset.Duration, asset.Key)
 	if err != nil {
 		t.Fatal(err)
 	}

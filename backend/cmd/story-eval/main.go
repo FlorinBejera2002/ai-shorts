@@ -193,7 +193,7 @@ func runEvaluation(parent context.Context, args []string, getenv func(string) st
 		return errors.New("native processing configuration is invalid")
 	}
 	if routing, ok := ai.(*airouting.Service); ok {
-		routing.WithNativeModels(airouting.NativeOptions{WhisperModel: processingConfig.WhisperModel, StoryWhisperModel: processingConfig.StoryWhisperModel, VADModel: processingConfig.WhisperVADModel, FaceModel: processingConfig.FaceModel})
+		routing.WithNativeModels(airouting.NativeOptions{VADModel: processingConfig.WhisperVADModel, FaceModel: processingConfig.FaceModel})
 	}
 	if cfg.captureResponses && ai != nil {
 		enableHTTPDiagnostics(ai, checkpoints)
@@ -270,7 +270,7 @@ func runEvaluation(parent context.Context, args []string, getenv func(string) st
 		return err
 	}
 	manifest := evaluationProvenance{Created: time.Now().UTC(), Input: input, Provider: provider,
-		SpeechModel: filepath.Base(processingConfig.StoryWhisperModel), Limits: limits, Sources: provenance,
+		SpeechModel: models.SpeechModel, Limits: limits, Sources: provenance,
 		AlgorithmVersion: story.AlgorithmVersion, Models: models}
 	if replay != nil {
 		manifest.Input = replay.provenance.Input

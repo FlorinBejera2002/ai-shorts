@@ -5,13 +5,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
 	"unicode"
-
-	"sneepcut/backend-go/internal/aiprovider"
 )
 
 var errNoSpeech = errors.New("no speech detected in the video audio")
@@ -24,84 +21,49 @@ type storyPreparedAudio struct {
 	file     string
 }
 
-// Clip transcription gates ASR with the installed voice-activity model so
-// music, silence and room noise do not become hallucinated captions. Hosts
-// without the VAD model keep transcribing the full audio.
+// errTranscriptionUnavailable means no hosted speech-to-text model is routed
+// (or its key is missing). There is no local transcription engine.
+var errTranscriptionUnavailable = errors.New("speech transcription is not configured; select a transcription model in AI routing")
+
+// transcribe serves clip processing through the model routed for clip
+// transcription.
 func (p *Processor) transcribe(ctx context.Context, file, dir, language string, duration float64) (Transcript, error) {
-	vad := p.storyVADModel(p.cfg.WhisperModel)
-	if info, err := os.Stat(vad); err != nil || !info.Mode().IsRegular() || info.Size() == 0 {
-		vad = ""
+	if p.clipTranscriber == nil {
+		return Transcript{}, errTranscriptionUnavailable
 	}
-	return p.transcribeWithVAD(ctx, file, dir, language, duration, p.cfg.WhisperModel, vad)
+	return p.transcribeHosted(ctx, p.clipTranscriber, p.clipTranscriberID, file, dir, language, duration)
 }
 
 // Story speech needs independent voice evidence. Audio level alone cannot
-// distinguish a speaker from music, traffic or machinery. Legacy transcription
-// callers retain their existing behavior until they opt into this contract.
-func (p *Processor) transcribeStory(ctx context.Context, file, dir, language string, duration float64, model string) (Transcript, error) {
-	transcript, _, err := p.transcribeStoryWithAudio(ctx, file, dir, language, duration, model, "")
+// distinguish a speaker from music, traffic or machinery, so the local voice
+// detector must be installed even though the words come from the hosted model.
+func (p *Processor) transcribeStory(ctx context.Context, file, dir, language string, duration float64) (Transcript, error) {
+	transcript, _, err := p.transcribeStoryWithAudio(ctx, file, dir, language, duration, "")
 	return transcript, err
 }
 
-func (p *Processor) transcribeStoryWithAudio(ctx context.Context, file, dir, language string, duration float64, model, proxyKey string) (Transcript, storyPreparedAudio, error) {
-	vad := p.storyVADModel(model)
-	if info, err := os.Stat(vad); err != nil || !info.Mode().IsRegular() || info.Size() == 0 {
+func (p *Processor) transcribeStoryWithAudio(ctx context.Context, file, dir, language string, duration float64, proxyKey string) (Transcript, storyPreparedAudio, error) {
+	if info, err := os.Stat(p.storyVADModel()); err != nil || !info.Mode().IsRegular() || info.Size() == 0 {
 		return Transcript{}, storyPreparedAudio{}, errSpeechDetectionUnavailable
 	}
-	if p.storyTranscriber != nil {
-		transcript, err := p.transcribeStoryHosted(ctx, file, dir, language, duration)
-		if err == nil || errors.Is(err, errNoSpeech) || ctx.Err() != nil {
-			if ctx.Err() != nil {
-				return transcript, storyPreparedAudio{}, ctx.Err()
-			}
-			// Voice evidence still measures the same audio locally.
-			if ffErr := p.ffmpeg(ctx, dir, "-i", file, "-vn", "-ac", "1", "-ar", "16000", "-c:a", "pcm_s16le", "audio.wav"); ffErr != nil {
-				return transcript, storyPreparedAudio{}, ffErr
-			}
-			return transcript, storyPreparedAudio{proxyKey: proxyKey, file: filepath.Join(dir, "audio.wav")}, err
-		}
-		slog.Warn("Hosted story transcription failed; using local Whisper", "model", p.storyTranscriberID, "reason", aiprovider.SafeFailure(err).Error())
+	if p.storyTranscriber == nil {
+		return Transcript{}, storyPreparedAudio{}, errTranscriptionUnavailable
 	}
-	transcript, err := p.transcribeWithVAD(ctx, file, dir, language, duration, model, vad)
-	if err != nil {
+	// Decode once: the hosted upload and the voice detector use the same
+	// mono 16 kHz samples.
+	if err := p.ffmpeg(ctx, dir, "-i", file, "-vn", "-ac", "1", "-ar", "16000", "-c:a", "pcm_s16le", "audio.wav"); err != nil {
+		return Transcript{}, storyPreparedAudio{}, err
+	}
+	samples := filepath.Join(dir, "audio.wav")
+	transcript, err := p.transcribeHosted(ctx, p.storyTranscriber, p.storyTranscriberID, samples, dir, language, duration)
+	if err != nil && !errors.Is(err, errNoSpeech) {
 		return transcript, storyPreparedAudio{}, err
 	}
-	return transcript, storyPreparedAudio{proxyKey: proxyKey, file: filepath.Join(dir, "audio.wav")}, nil
+	return transcript, storyPreparedAudio{proxyKey: proxyKey, file: samples}, err
 }
 
-func (p *Processor) storyVADModel(model string) string {
-	if p.cfg.WhisperVADModel != "" {
-		return p.cfg.WhisperVADModel
-	}
-	return filepath.Join(filepath.Dir(model), "ggml-silero-v6.2.0.bin")
-}
+func (p *Processor) storyVADModel() string { return p.cfg.WhisperVADModel }
 
-func (p *Processor) transcribeWithVAD(ctx context.Context, file, dir, language string, duration float64, model, vad string) (Transcript, error) {
-	if language == "" {
-		language = "auto"
-	}
-	if err := p.ffmpeg(ctx, dir, "-i", file, "-vn", "-ac", "1", "-ar", "16000", "-c:a", "pcm_s16le", "audio.wav"); err != nil {
-		return Transcript{}, err
-	}
-	args := []string{"-m", model, "-f", "audio.wav", "-l", language, "-ojf", "-of", "transcript", "-sow", "-ml", "1"}
-	args = append(args, p.whisperDecodingArguments()...)
-	if vad != "" {
-		// Keep short utterances and generous word-edge padding. These settings
-		// gate ASR input; they never cut or modify the rendered source audio.
-		args = append(args, "--vad", "--vad-model", vad)
-		args = append(args, storyVADArguments...)
-		args = append(args, "--no-speech-thold", "0.6", "--max-context", "0")
-	}
-	_, err := run(ctx, dir, p.cfg.WhisperPath, args...)
-	if err != nil {
-		return Transcript{}, err
-	}
-	raw, err := os.ReadFile(filepath.Join(dir, "transcript.json"))
-	if err != nil {
-		return Transcript{}, err
-	}
-	return parseTranscriptClock(raw, duration, vad != "")
-}
 func parseTranscript(raw []byte, duration float64) (Transcript, error) {
 	return parseTranscriptClock(raw, duration, false)
 }

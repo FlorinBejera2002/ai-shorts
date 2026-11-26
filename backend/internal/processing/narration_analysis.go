@@ -22,11 +22,7 @@ func (p *Processor) analyzeNarration(ctx context.Context, project string, asset 
 		return asset, storyWorkError("narration analysis")
 	}
 	defer os.RemoveAll(dir)
-	model := p.cfg.StoryWhisperModel
-	if model == "" {
-		model = p.cfg.WhisperModel
-	}
-	digest := storyDigest([]any{story.AlgorithmVersion, "narration-analysis-2", asset.Hash, options.Language, p.storySpeechSignature(model), storyModelSignature(p.storyVADModel(model))})
+	digest := storyDigest([]any{story.AlgorithmVersion, "narration-analysis-2", asset.Hash, options.Language, p.storySpeechSignature(), storyModelSignature(p.storyVADModel())})
 	prefix := "work/" + project + "/analysis/" + asset.ID + "/" + digest
 	cacheFile := filepath.Join(dir, "analysis.json")
 	if p.materialize(ctx, prefix+"/analysis.json", cacheFile) == nil {
@@ -60,7 +56,7 @@ func (p *Processor) analyzeNarration(ctx context.Context, project string, asset 
 	if signal < .001 {
 		return asset, errors.New("narration is silent; record an audible voice")
 	}
-	transcript, preparedAudio, err := p.transcribeStoryWithAudio(ctx, wav, dir, options.Language, duration, model, prefix+"/narration.wav")
+	transcript, preparedAudio, err := p.transcribeStoryWithAudio(ctx, wav, dir, options.Language, duration, prefix+"/narration.wav")
 	if errors.Is(err, errSpeechDetectionUnavailable) {
 		return asset, errors.New("narration speech cannot be verified; install the voice activity detection model and retry")
 	}

@@ -27,7 +27,7 @@ type clipAnalysis struct {
 // per-attempt namespace that failed attempts delete, and is removed with the
 // owner's account data.
 func (p *Processor) clipAnalysisKey(in Input, jobID, sourceHash string, duration float64) (key, digest string) {
-	digest = storyDigest([]any{clipAnalysisVersion, sourceHash, duration, in.Language, in.RequestedClips, in.Instructions, storyModelSignature(p.cfg.WhisperModel), storyModelSignature(p.storyVADModel(p.cfg.WhisperModel))})
+	digest = storyDigest([]any{clipAnalysisVersion, sourceHash, duration, in.Language, in.RequestedClips, in.Instructions, p.clipSpeechSignature()})
 	return "work/" + jobID + "/clip-analysis/" + digest + ".json", digest
 }
 

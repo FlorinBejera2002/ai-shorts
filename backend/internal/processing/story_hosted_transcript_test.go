@@ -27,7 +27,7 @@ func TestHostedWordsBecomeWhisperWordSegments(t *testing.T) {
 	if err != nil || len(transcript.Words) != 3 {
 		t.Fatalf("parsed %#v %v", transcript.Words, err)
 	}
-	if transcript.Words[1].Text != "știu!" || transcript.Words[0].Start != .2 || transcript.Words[2].Text != "Acum" || transcript.Language != "ron" {
+	if transcript.Words[1].Text != "știu!" || transcript.Words[0].Start != .2 || transcript.Words[2].Text != "Acum" || transcript.Language != "ro" {
 		t.Fatalf("hosted timing or punctuation changed: %#v", transcript.Words)
 	}
 	candidates := []story.Candidate{{In: 0, Out: 1, Words: []story.Word{{Text: "Nu"}, {Text: "știu!"}}}, {In: 2, Out: 3, Words: []story.Word{{Text: "Acum"}}}}
@@ -53,14 +53,17 @@ func (f *fixedTranscriber) Transcribe(context.Context, []byte, string, string) (
 func (f *fixedTranscriber) Generate(context.Context, string) (string, error) { return "", nil }
 func (f *fixedTranscriber) MediaModelIdentity() string                       { return "openrouter:test/stt" }
 
-func TestHostedSpeechEngineChangesOnlyItsOwnCacheIdentity(t *testing.T) {
-	local := &Processor{}
+func TestHostedSpeechEngineIsBoundPerOperationAndIdentified(t *testing.T) {
+	unset := &Processor{}
 	hosted := &Processor{storyTranscriber: &fixedTranscriber{}, storyTranscriberID: "openrouter:test/stt"}
-	if local.storySpeechSignature("/models/missing.bin") != storyModelSignature("/models/missing.bin") {
-		t.Fatal("local analysis cache identity changed")
-	}
-	if hosted.storySpeechSignature("/models/missing.bin") != "hosted:openrouter:test/stt" || hosted.storySpeechEngine() != "openrouter:test/stt" || local.storySpeechEngine() != "local-whisper" {
+	if hosted.storySpeechSignature() != "hosted:openrouter:test/stt" || hosted.storySpeechEngine() != "openrouter:test/stt" {
 		t.Fatal("hosted engine is not identified")
+	}
+	if unset.storySpeechSignature() != "transcription-unavailable" || unset.storySpeechEngine() != "none" || unset.clipSpeechSignature() != "transcription-unavailable" {
+		t.Fatal("missing transcription engine is not identified")
+	}
+	if _, err := unset.transcribe(context.Background(), "audio.mp3", t.TempDir(), "ro", 3); !errors.Is(err, errTranscriptionUnavailable) {
+		t.Fatalf("clip transcription without a routed model: %v", err)
 	}
 	transcriber := &fixedTranscriber{}
 	routed := &Processor{ai: &nativeRouting{taskProvider{providers: map[aiprovider.Task]aiprovider.Generator{aiprovider.TaskStoryTranscription: transcriber}}}}
@@ -70,7 +73,7 @@ func TestHostedSpeechEngineChangesOnlyItsOwnCacheIdentity(t *testing.T) {
 	}
 	unrouted := &Processor{ai: &nativeRouting{taskProvider{providers: map[aiprovider.Task]aiprovider.Generator{}}}}
 	if bound, err = unrouted.withNativeModels(context.Background()); err != nil || bound.storyTranscriber != nil {
-		t.Fatalf("local Whisper route bound a hosted engine: %v", err)
+		t.Fatalf("an unrouted task bound a hosted engine: %v", err)
 	}
 }
 

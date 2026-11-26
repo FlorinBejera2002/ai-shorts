@@ -43,8 +43,7 @@ func TestReviewedTranscriptSurvivesImmutableASRCacheWithoutRetranscription(t *te
 	asset := storySource(t, p, dir, "reviewed", "blue", 440)
 	t.Setenv("SNEEPCUT_NARRATION_ASR_FIXTURE", "1")
 	t.Setenv("SNEEPCUT_NARRATION_ASR_LOW", "1")
-	p.cfg.WhisperPath, _ = os.Executable()
-	p.cfg.WhisperVADPath = p.cfg.WhisperPath
+	useFixtureSpeech(p)
 	p.cfg.WhisperVADModel = filepath.Join(dir, "mock-vad.bin")
 	if err := os.WriteFile(p.cfg.WhisperVADModel, []byte("mock-model"), 0600); err != nil {
 		t.Fatal(err)
@@ -65,7 +64,8 @@ func TestReviewedTranscriptSurvivesImmutableASRCacheWithoutRetranscription(t *te
 	if err != nil {
 		t.Fatal(err)
 	}
-	p.cfg.WhisperPath, p.cfg.FFmpegPath = filepath.Join(dir, "must-not-transcribe"), filepath.Join(dir, "must-not-transcode")
+	refuseSpeech(p)
+	p.cfg.FFmpegPath = filepath.Join(dir, "must-not-transcode")
 	again, err := p.Analyze(context.Background(), "review-cache", approved, story.DefaultOptions())
 	if err != nil || !again.TranscriptProposals[0].Reviewed || !reflect.DeepEqual(again.Candidates[0].Words, approved.Candidates[0].Words) {
 		t.Fatalf("cache dropped owner transcript or retranscribed: %+v %v", again, err)

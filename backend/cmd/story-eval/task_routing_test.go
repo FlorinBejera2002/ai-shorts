@@ -81,7 +81,7 @@ func TestConfiguredEvaluationUsesTaskDefaultsAndRecordsEachModel(t *testing.T) {
 	if err != nil || name != "openrouter" {
 		t.Fatalf("configured evaluation failed: %s %v", name, err)
 	}
-	models, err := evaluationModels(context.Background(), processing.Config{StoryWhisperModel: "local-story-model.bin"}, provider)
+	models, err := evaluationModels(context.Background(), processing.Config{}, provider)
 	if err != nil || len(models.TaskModels) != len(airouting.Stages()) || models.ProviderModel != "" {
 		t.Fatalf("incomplete task provenance: %#v %v", models, err)
 	}

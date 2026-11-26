@@ -43,7 +43,18 @@ func (s *Service) load(ctx context.Context) (Configuration, error) {
 	}
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
-	return s.store.Load(ctx)
+	configuration, err := s.store.Load(ctx)
+	if err != nil {
+		return configuration, err
+	}
+	// Local Whisper was retired; saved routes to it fall back to the hosted
+	// default instead of leaving transcription without an engine.
+	for task, route := range configuration.Routes {
+		if retiredProvider(route.Provider) {
+			delete(configuration.Routes, task)
+		}
+	}
+	return configuration, nil
 }
 
 // ForTask reads committed configuration at each call boundary. The returned
@@ -94,7 +105,7 @@ func (s *Service) configured(provider string) bool {
 		return s.options.OpenRouterKey != ""
 	case "u2net_onnx":
 		return s.options.StudioConfigured
-	case "whisper_cpp", "silero", "pigo":
+	case "silero", "pigo":
 		for _, model := range s.installedModels() {
 			if model.Provider == provider {
 				return true
@@ -142,7 +153,7 @@ func (s *Service) View(ctx context.Context) (View, error) {
 		{ID: "openrouter", Configured: s.configured("openrouter")},
 		{ID: "gemini", Configured: s.configured("gemini")},
 	}}
-	for _, provider := range []string{"whisper_cpp", "silero", "pigo", "u2net_onnx"} {
+	for _, provider := range []string{"silero", "pigo", "u2net_onnx"} {
 		if s.configured(provider) {
 			view.Providers = append(view.Providers, Provider{ID: provider, Configured: true})
 		}
@@ -191,8 +202,8 @@ func (s *Service) Update(ctx context.Context, expectedVersion int64, routes map[
 		if !exists || !validModelID(route.Model) || !s.configured(route.Provider) {
 			return Configuration{}, fmt.Errorf("%w: %s has an unavailable provider or model", ErrInvalidConfiguration, stage.Stage)
 		}
-		if nativeRouteRequired(stage.Stage, route.Provider) && !nativeProvider(route.Provider) {
-			return Configuration{}, fmt.Errorf("%w: %s requires an installed engine", ErrInvalidConfiguration, stage.Stage)
+		if !routeProviderAllowed(stage.Stage, route.Provider) {
+			return Configuration{}, fmt.Errorf("%w: %s cannot run on this provider", ErrInvalidConfiguration, stage.Stage)
 		}
 		index := slices.IndexFunc(models, func(model Model) bool { return model.Provider == route.Provider && model.ID == route.Model })
 		if index < 0 {

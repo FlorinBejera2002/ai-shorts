@@ -3,8 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"os"
-	"path/filepath"
 	"time"
 
 	"sneepcut/backend-go/internal/aiprovider"
@@ -35,14 +33,16 @@ type modelConfiguration struct {
 }
 
 func evaluationModels(ctx context.Context, cfg processing.Config, ai aiprovider.Generator) (modelConfiguration, error) {
-	model := cfg.StoryWhisperModel
-	if model == "" {
-		model = cfg.WhisperModel
-	}
-	models := modelConfiguration{SpeechModel: filepath.Base(model)}
+	// Speech is transcribed by the hosted model routed for story transcription.
+	models := modelConfiguration{SpeechModel: "unavailable"}
 	if ai == nil {
 		models.ProviderModel = "offline"
 	} else {
+		if speech, err := aiprovider.ForTask(ctx, ai, aiprovider.TaskStoryTranscription); err == nil {
+			if identity, ok := speech.(aiprovider.MediaModelIdentity); ok {
+				models.SpeechModel = identity.MediaModelIdentity()
+			}
+		}
 		models.TaskModels = make(map[aiprovider.Task]string)
 		for _, stage := range airouting.Stages() {
 			selected, err := aiprovider.ForTask(ctx, ai, stage.Stage)
@@ -55,9 +55,6 @@ func evaluationModels(ctx context.Context, cfg processing.Config, ai aiprovider.
 			}
 			models.TaskModels[stage.Stage] = identity.MediaModelIdentity()
 		}
-	}
-	if info, err := os.Stat(model); err == nil {
-		models.SpeechModelBytes, models.SpeechModelModified = info.Size(), info.ModTime().UTC()
 	}
 	return models, nil
 }

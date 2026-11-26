@@ -228,8 +228,9 @@ verify_api() {
 verify_workers() {
   wait_for_health studio 120
   "${compose[@]}" exec -T worker ffmpeg -version
-  "${compose[@]}" exec -T worker whisper-cli --help
-  "${compose[@]}" exec -T worker test -s /models/ggml-base.bin
+  # Transcription is hosted; the worker keeps only the local voice detector.
+  "${compose[@]}" exec -T worker test -x /usr/local/bin/whisper-vad-speech-segments
+  "${compose[@]}" exec -T worker test -s /models/ggml-vad.bin
   "${compose[@]}" exec -T worker test -s /models/facefinder
   wait_for_health worker 30
 }

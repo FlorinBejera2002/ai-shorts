@@ -92,8 +92,7 @@ func TestStorySpeechPolicyUsesRawCacheAndPreservesSemanticAnnotations(t *testing
 	asset := storySource(t, p, dir, "weak", "blue", 440)
 	t.Setenv("SNEEPCUT_NARRATION_ASR_FIXTURE", "1")
 	t.Setenv("SNEEPCUT_NARRATION_ASR_LOW", "1")
-	p.cfg.WhisperPath, _ = os.Executable()
-	p.cfg.WhisperVADPath = p.cfg.WhisperPath
+	useFixtureSpeech(p)
 	p.cfg.WhisperVADModel = filepath.Join(dir, "mock-vad.bin")
 	if err := os.WriteFile(p.cfg.WhisperVADModel, []byte("mock-model"), 0600); err != nil {
 		t.Fatal(err)
@@ -117,7 +116,8 @@ func TestStorySpeechPolicyUsesRawCacheAndPreservesSemanticAnnotations(t *testing
 	}
 	first.Candidates[0].Idea, first.Candidates[0].Reason = "A blue scene", "Observed source colors"
 	first.SemanticAnalysisVersion = "same-policy-semantic-cache"
-	p.cfg.WhisperPath, p.cfg.FFmpegPath = filepath.Join(dir, "must-not-transcribe"), filepath.Join(dir, "must-not-transcode")
+	refuseSpeech(p)
+	p.cfg.FFmpegPath = filepath.Join(dir, "must-not-transcode")
 	again, err := p.Analyze(context.Background(), "speech-policy-cache", first, story.DefaultOptions())
 	if err != nil || again.AnalysisVersion != first.AnalysisVersion || again.SemanticAnalysisVersion != first.SemanticAnalysisVersion || again.Candidates[0].Idea != "A blue scene" || len(again.Candidates[0].Words) != 0 {
 		t.Fatalf("post-policy cache reran media or lost allowed semantics: %#v %v", again, err)

@@ -116,7 +116,7 @@ func TestUnavailableCatalogDoesNotCertifyChoices(t *testing.T) {
 	s, store, catalog := routingFixture()
 	catalog.err = errors.New("upstream unavailable")
 	view, err := s.View(context.Background())
-	if err != nil || !view.CatalogUnavailable || len(view.Routes) != len(Stages()) {
+	if err != nil || !view.CatalogUnavailable || len(view.Routes) != len(Stages())+hostedSpeechStages {
 		t.Fatalf("view: %#v, %v", view, err)
 	}
 	if _, err = s.Update(context.Background(), 0, defaultRoutes(s.options), "admin", "Change routing"); !errors.Is(err, ErrCatalogUnavailable) || store.saves != 0 {

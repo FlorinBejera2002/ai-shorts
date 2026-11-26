@@ -4,12 +4,14 @@ import (
 	"context"
 	"encoding/binary"
 	"encoding/json"
+	"errors"
 	"math"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	"sneepcut/backend-go/internal/aiprovider"
 	"sneepcut/backend-go/internal/story"
 )
 
@@ -25,34 +27,50 @@ func TestMain(m *testing.M) {
 		}
 		os.Exit(0)
 	}
-	if os.Getenv("SNEEPCUT_NARRATION_ASR_FIXTURE") == "1" && len(os.Args) > 1 && os.Args[1] == "-m" {
-		vad := false
-		for i, arg := range os.Args {
-			if arg == "--vad-model" && i+1 < len(os.Args) {
-				_, err := os.Stat(os.Args[i+1])
-				vad = err == nil
-			}
-		}
-		if !vad {
-			os.Exit(4)
-		}
-		if _, err := os.Stat("audio.wav"); err != nil {
-			os.Exit(2)
-		}
-		raw := `{"result":{"language":"en"},"transcription":[{"text":"Original","offsets":{"from":400,"to":1000},"tokens":[{"text":"Original","p":0.97,"offsets":{"from":400,"to":1000}}]},{"text":"voice.","offsets":{"from":1100,"to":1400},"tokens":[{"text":"voice.","p":0.98,"offsets":{"from":1100,"to":1400}}]}]}`
-		if os.Getenv("SNEEPCUT_NARRATION_ASR_LOW") == "1" {
-			raw = strings.Replace(raw, `"p":0.97`, `"p":0.113599`, 1)
-		}
-		if os.Getenv("SNEEPCUT_NARRATION_ASR_EMPTY") == "1" {
-			raw = `{"result":{"language":"en"},"transcription":[]}`
-		}
-		if os.WriteFile("transcript.json", []byte(raw), 0600) != nil {
-			os.Exit(3)
-		}
-		os.Exit(0)
-	}
 	os.Exit(m.Run())
 }
+
+// fixtureTranscriber is a deterministic hosted speech-to-text model. Its words
+// follow the same SNEEPCUT_NARRATION_ASR_* switches the voice fixture uses.
+type fixtureTranscriber struct{ calls *int }
+
+func (f fixtureTranscriber) Transcribe(_ context.Context, audio []byte, format, _ string) (aiprovider.Transcript, error) {
+	if f.calls != nil {
+		*f.calls++
+	}
+	if len(audio) == 0 || format != "mp3" {
+		return aiprovider.Transcript{}, errors.New("fixture received no audio")
+	}
+	if os.Getenv("SNEEPCUT_NARRATION_ASR_EMPTY") == "1" {
+		return aiprovider.Transcript{Language: "en"}, nil
+	}
+	first := .97
+	if os.Getenv("SNEEPCUT_NARRATION_ASR_LOW") == "1" {
+		first = .113599
+	}
+	second := .98
+	return aiprovider.Transcript{Language: "en", Words: []aiprovider.TranscriptWord{
+		{Text: "Original", Start: .4, End: 1, Confidence: &first},
+		{Text: "voice.", Start: 1.1, End: 1.4, Confidence: &second},
+	}}, nil
+}
+
+// refusingTranscriber fails any request: a cached analysis must not call it.
+type refusingTranscriber struct{}
+
+func (refusingTranscriber) Transcribe(context.Context, []byte, string, string) (aiprovider.Transcript, error) {
+	return aiprovider.Transcript{}, errors.New("transcription must not run again")
+}
+
+// useFixtureSpeech binds the fixture transcriber and the test binary as the
+// local voice detector, keeping one engine identity across cache checks.
+func useFixtureSpeech(p *Processor) {
+	p.storyTranscriber, p.storyTranscriberID = fixtureTranscriber{}, "fixture"
+	p.cfg.WhisperVADPath, _ = os.Executable()
+}
+
+// refuseSpeech keeps the engine identity but fails any new transcription.
+func refuseSpeech(p *Processor) { p.storyTranscriber = refusingTranscriber{} }
 
 func narrationAudioFixture(t *testing.T, p *Processor, dir, name string, silence bool, codecArgs ...string) story.Asset {
 	t.Helper()
@@ -139,8 +157,7 @@ func TestNarrationAnalysisCachesAlignedVoiceAndMutesVideoAnalysis(t *testing.T) 
 	p, _, dir := storyTestProcessor(t)
 	voice := narrationAudioFixture(t, p, dir, "voice.wav", false, "-c:a", "pcm_s16le")
 	t.Setenv("SNEEPCUT_NARRATION_ASR_FIXTURE", "1")
-	p.cfg.WhisperPath, _ = os.Executable()
-	p.cfg.WhisperVADPath = p.cfg.WhisperPath
+	useFixtureSpeech(p)
 	p.cfg.WhisperVADModel = filepath.Join(dir, "mock-vad.bin")
 	if err := os.WriteFile(p.cfg.WhisperVADModel, []byte("fixture-model"), 0600); err != nil {
 		t.Fatal(err)
@@ -151,7 +168,7 @@ func TestNarrationAnalysisCachesAlignedVoiceAndMutesVideoAnalysis(t *testing.T) 
 	if err != nil || len(analyzed.Candidates) != 1 || analyzed.Candidates[0].Text != "Original voice." || analyzed.Candidates[0].Words[0].Start != .4 || analyzed.Candidates[0].Confidence != .97 || !strings.HasSuffix(analyzed.ProxyKey, ".wav") {
 		t.Fatalf("voice source/timing changed: %#v %v", analyzed, err)
 	}
-	p.cfg.WhisperPath = filepath.Join(dir, "must-not-transcribe-again")
+	refuseSpeech(p)
 	again, err := p.Analyze(context.Background(), "narration-analysis", analyzed, options)
 	if err != nil || again.AnalysisVersion != analyzed.AnalysisVersion || again.Key != voice.Key {
 		t.Fatalf("narration cache failed: %#v %v", again, err)
@@ -169,14 +186,14 @@ func TestNarrationAnalysisCachesAlignedVoiceAndMutesVideoAnalysis(t *testing.T) 
 	if err != nil || info.Audio {
 		t.Fatal("visual proxy retained original video sound", err)
 	}
-	p.cfg.WhisperPath, _ = os.Executable()
+	p.storyTranscriber = fixtureTranscriber{}
 	sourceOptions := options
 	sourceOptions.Narration = false
 	spokenVideo, err := p.Analyze(context.Background(), "narration-analysis", visual, sourceOptions)
 	if err != nil || spokenVideo.AnalysisVersion == visual.AnalysisVersion || len(spokenVideo.Candidates) == 0 || spokenVideo.Candidates[0].Text == "" {
 		t.Fatalf("mode conversion reused a muted visual cache: %#v %v", spokenVideo, err)
 	}
-	p.cfg.WhisperPath = filepath.Join(dir, "must-not-transcribe-visuals")
+	refuseSpeech(p)
 	backToVisual, err := p.Analyze(context.Background(), "narration-analysis", spokenVideo, options)
 	if err != nil || backToVisual.AnalysisVersion != visual.AnalysisVersion || backToVisual.Candidates[0].Text != "" || !backToVisual.HasAudio {
 		t.Fatalf("mode conversion reused speech or lost original audio provenance: %#v %v", backToVisual, err)
@@ -186,7 +203,7 @@ func TestNarrationAnalysisCachesAlignedVoiceAndMutesVideoAnalysis(t *testing.T) 
 	if _, err := p.Analyze(context.Background(), "narration-analysis", silent, options); err == nil || !strings.Contains(err.Error(), "silent") {
 		t.Fatal("silent narration accepted or sent to ASR", err)
 	}
-	p.cfg.WhisperPath, _ = os.Executable()
+	p.storyTranscriber = fixtureTranscriber{}
 	t.Setenv("SNEEPCUT_NARRATION_ASR_EMPTY", "1")
 	if _, err := p.Analyze(context.Background(), "no-spoken-voice", voice, options); err == nil || !strings.Contains(err.Error(), "spoken narration") {
 		t.Fatal("no-speech ASR output accepted", err)

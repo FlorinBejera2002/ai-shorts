@@ -71,7 +71,7 @@ func (p *Processor) process(ctx context.Context, in Input, progress Progress) (R
 		report("analyzing", 50, "Reusing saved transcript and highlights")
 		r.Transcript, highlights = saved.Transcript, saved.Highlights
 	} else {
-		report("transcribing", 20, "Transcribing audio locally")
+		report("transcribing", 20, "Transcribing audio")
 		r.Transcript, e = p.transcribe(ctx, source, dir, in.Language, info.Duration)
 		if e != nil {
 			return r, e

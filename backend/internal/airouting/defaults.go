@@ -42,6 +42,9 @@ func defaultRoutes(options Options) map[aiprovider.Task]Route {
 	if options.StudioConfigured {
 		routes[aiprovider.TaskStudioBackground] = Route{Provider: "u2net_onnx", Model: "u2net_human_seg"}
 	}
+	// Speech transcription is hosted on OpenRouter whatever the text provider.
+	routes[aiprovider.TaskTranscription] = Route{Provider: "openrouter", Model: defaultTranscriptionModel}
+	routes[aiprovider.TaskStoryTranscription] = Route{Provider: "openrouter", Model: defaultTranscriptionModel}
 	return routes
 }
 

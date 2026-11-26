@@ -56,7 +56,7 @@ func TestStudioBackgroundRouteUsesOnlyInstalledAdapterModel(t *testing.T) {
 		t.Fatalf("unexpected background route: %d %s", w.Code, w.Body.String())
 	}
 	view, err := s.View(r.Context())
-	if err != nil || len(view.Routes) != len(Stages())+1 {
+	if err != nil || len(view.Routes) != len(Stages())+hostedSpeechStages+1 {
 		t.Fatalf("missing background stage: %#v %v", view, err)
 	}
 }

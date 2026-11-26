@@ -159,7 +159,7 @@ func buildApplication(db *sql.DB, cfg config.Config, a config.Application, logge
 		cleanup()
 		return nil, noop, err
 	}
-	generator.WithNativeModels(airouting.NativeOptions{WhisperModel: processingConfig.WhisperModel, StoryWhisperModel: processingConfig.StoryWhisperModel, VADModel: processingConfig.WhisperVADModel, FaceModel: processingConfig.FaceModel})
+	generator.WithNativeModels(airouting.NativeOptions{VADModel: processingConfig.WhisperVADModel, FaceModel: processingConfig.FaceModel})
 	storyHandler := stories.New(db, auth, mediaService, processing.New(processingConfig, storage, generator), storyLimits)
 	agentExecutor := workspaceagent.NewExecutor(db, generator, storyLimits)
 	agentExecutor.SetClips(clipHandler)

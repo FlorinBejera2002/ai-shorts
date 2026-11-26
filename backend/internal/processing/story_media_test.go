@@ -158,30 +158,22 @@ func TestStoryAnalysisCacheTracksSpeechModelAndLanguage(t *testing.T) {
 	p, storage, dir := storyTestProcessor(t)
 	asset := storySource(t, p, dir, "model-cache", "green", 0)
 	options := story.DefaultOptions()
-	p.cfg.WhisperModel = filepath.Join(dir, "legacy-base.bin")
-	p.cfg.StoryWhisperModel = "" // Directly constructed configurations retain fallback.
+	p.storyTranscriber, p.storyTranscriberID = fixtureTranscriber{}, "openrouter:vendor/first"
 	first, err := p.Analyze(context.Background(), "story-model-cache", asset, options)
 	if err != nil {
 		t.Fatal(err)
 	}
-	p.cfg.StoryWhisperModel = p.cfg.WhisperModel
 	ffmpeg := p.cfg.FFmpegPath
 	p.cfg.FFmpegPath = filepath.Join(dir, "no-transcoding-on-cache-hit")
 	again, err := p.Analyze(context.Background(), "story-model-cache", first, options)
 	if err != nil || again.AnalysisVersion != first.AnalysisVersion {
-		t.Fatalf("same effective model did not reuse checkpoint: %v", err)
+		t.Fatalf("same speech model did not reuse checkpoint: %v", err)
 	}
 	p.cfg.FFmpegPath = ffmpeg
-	p.cfg.StoryWhisperModel = filepath.Join(dir, "story-turbo.bin")
-	if err := os.WriteFile(p.cfg.StoryWhisperModel, []byte("model revision one"), 0600); err != nil {
-		t.Fatal(err)
-	}
 	previous := first
-	for _, change := range []string{"model", "model content", "language"} {
-		if change == "model content" {
-			if err := os.WriteFile(p.cfg.StoryWhisperModel, []byte("new model with different length"), 0600); err != nil {
-				t.Fatal(err)
-			}
+	for _, change := range []string{"model", "language"} {
+		if change == "model" {
+			p.storyTranscriberID = "openrouter:vendor/second"
 		}
 		if change == "language" {
 			options.Language = "ro"

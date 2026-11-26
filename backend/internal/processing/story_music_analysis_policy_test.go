@@ -16,7 +16,7 @@ func TestMusicOnlySourceAnalysisDoesNotRequireSpeechModels(t *testing.T) {
 	asset := storySource(t, p, dir, "muted-camera", "blue", 440)
 	router := &nativeModelProvider{err: errors.New("speech routing temporarily unavailable")}
 	p.ai = router
-	p.cfg.WhisperPath = filepath.Join(dir, "speech-must-not-run")
+	refuseSpeech(p)
 	options := story.DefaultOptions()
 	options.Music = &story.MusicSelection{TrackID: "incompetech:test", SourceAudio: "mute", Volume: .5}
 	analyzed, err := p.Analyze(context.Background(), "muted-analysis", asset, options)
@@ -46,8 +46,7 @@ func TestMutingPreservesExistingVerifiedSpeechCatalog(t *testing.T) {
 	p, _, dir := storyTestProcessor(t)
 	asset := storySource(t, p, dir, "reviewed-camera", "green", 440)
 	t.Setenv("SNEEPCUT_NARRATION_ASR_FIXTURE", "1")
-	p.cfg.WhisperPath, _ = os.Executable()
-	p.cfg.WhisperVADPath = p.cfg.WhisperPath
+	useFixtureSpeech(p)
 	p.cfg.WhisperVADModel = filepath.Join(dir, "mock-vad.bin")
 	if err := os.WriteFile(p.cfg.WhisperVADModel, []byte("fixture-model"), 0600); err != nil {
 		t.Fatal(err)

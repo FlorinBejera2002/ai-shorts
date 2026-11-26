@@ -7,7 +7,6 @@ import (
 	"reflect"
 	"strings"
 	"testing"
-	"time"
 
 	"sneepcut/backend-go/internal/story"
 )
@@ -69,8 +68,7 @@ func TestVoiceEvidenceRefreshUsesCachedASRAndThenNoNativeWork(t *testing.T) {
 	p, _, dir := storyTestProcessor(t)
 	asset := storySource(t, p, dir, "voice-cache", "green", 440)
 	t.Setenv("SNEEPCUT_NARRATION_ASR_FIXTURE", "1")
-	p.cfg.WhisperPath, _ = os.Executable()
-	p.cfg.WhisperVADPath = p.cfg.WhisperPath
+	useFixtureSpeech(p)
 	p.cfg.WhisperVADModel = filepath.Join(dir, "mock-vad.bin")
 	if err := os.WriteFile(p.cfg.WhisperVADModel, []byte("detector"), 0600); err != nil {
 		t.Fatal(err)
@@ -81,78 +79,11 @@ func TestVoiceEvidenceRefreshUsesCachedASRAndThenNoNativeWork(t *testing.T) {
 	}
 	first.SemanticAnalysisVersion = "kept-semantics"
 	first.Candidates[0].Idea = "A green scene"
-	p.cfg.WhisperPath, p.cfg.FFmpegPath = filepath.Join(dir, "no-asr-again"), filepath.Join(dir, "no-decode-again")
+	refuseSpeech(p)
+	p.cfg.FFmpegPath = filepath.Join(dir, "no-decode-again")
 	again, err := p.Analyze(context.Background(), "voice-evidence-cache", first, story.DefaultOptions())
 	if err != nil || !reflect.DeepEqual(first.Candidates, again.Candidates) || again.AnalysisVersion != first.AnalysisVersion || again.SemanticAnalysisVersion != first.SemanticAnalysisVersion {
 		t.Fatalf("voice evidence or post-policy semantic cache missed: %v", err)
 	}
 }
 
-func TestNativeDistantSpeechBurstsNeverCaptionInterveningSilence(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
-	defer cancel()
-	whisper, model, vad, fixture := os.Getenv("SNEEPCUT_NATIVE_WHISPER_PATH"), os.Getenv("SNEEPCUT_NATIVE_WHISPER_MODEL"), os.Getenv("SNEEPCUT_NATIVE_VAD_MODEL"), os.Getenv("SNEEPCUT_NATIVE_SPEECH_FIXTURE")
-	if whisper == "" || model == "" || vad == "" || fixture == "" {
-		t.Skip("requires explicit local Whisper/Silero and speech fixture")
-	}
-	p, _, dir := storyTestProcessor(t)
-	p.cfg.WhisperPath, p.cfg.WhisperVADModel = whisper, vad
-	file := filepath.Join(dir, "bursts.wav")
-	spokenPCM, err := run(ctx, dir, p.cfg.FFmpegPath, "-v", "error", "-i", fixture, "-t", "9", "-vn", "-ac", "1", "-ar", "16000", "-f", "s16le", "-")
-	if err != nil || len(spokenPCM) == 0 || len(spokenPCM) > 9*32000 {
-		t.Fatal("speech control could not be decoded", err)
-	}
-	secondOffset := 9*32000 + len(spokenPCM)
-	pcm := make([]byte, secondOffset+len(spokenPCM)+2*32000)
-	copy(pcm[3*32000:], spokenPCM)
-	copy(pcm[secondOffset:], spokenPCM)
-	duration := float64(len(pcm)) / 32000
-	silenceMiddle := float64(secondOffset)/32000 - 3
-	pcmFile := filepath.Join(dir, "bursts.pcm")
-	if err := os.WriteFile(pcmFile, pcm, 0600); err != nil {
-		t.Fatal(err)
-	}
-	if err := p.ffmpeg(ctx, dir, "-f", "s16le", "-ar", "16000", "-ac", "1", "-i", pcmFile, "-c:a", "pcm_s16le", file); err != nil {
-		t.Fatal(err)
-	}
-	intervals, err := p.detectStoryVoice(ctx, dir, file, vad, duration)
-	if err != nil || len(intervals) < 2 {
-		t.Fatalf("two actual voice bursts were not detected: %#v %v", intervals, err)
-	}
-	for _, interval := range intervals {
-		if interval.Start < silenceMiddle && interval.End > silenceMiddle {
-			t.Fatal("detector classified the long intervening silence as voice")
-		}
-	}
-	transcript, err := p.transcribeStory(ctx, file, dir, "en", duration, model)
-	if err != nil {
-		t.Fatal(err)
-	}
-	asset := story.Asset{ID: "bursts", HasAudio: true, Duration: duration}
-	asset.Candidates = storyCandidates(asset, transcript, .8, .8)
-	got, err := boundStorySpeechToVoice(asset, intervals, true)
-	if err != nil {
-		t.Fatal(err)
-	}
-	count := 0
-	regions := storyCaptionVoiceRegions(intervals)
-	for _, candidate := range got.Candidates {
-		for _, word := range candidate.Words {
-			count++
-			inside := false
-			for _, interval := range regions {
-				inside = inside || (word.Start >= interval.Start && word.End <= interval.End)
-			}
-			if !inside || (word.Start < silenceMiddle && word.End > silenceMiddle) {
-				t.Fatal("caption extended across unvoiced silence")
-			}
-		}
-	}
-	if count == 0 {
-		t.Logf("measured voice intervals: %+v", intervals)
-		for _, segment := range transcript.Segments {
-			t.Logf("ASR segment clock: %.2f..%.2f", segment.Start, segment.End)
-		}
-		t.Fatal("distant-burst safety erased all reliably alignable speech")
-	}
-}

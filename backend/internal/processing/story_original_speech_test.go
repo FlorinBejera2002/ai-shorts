@@ -27,16 +27,11 @@ func originalSpeechEvidenceFixture(t *testing.T, asset story.Asset, intervals []
 		t.Fatal(err)
 	}
 	cfg.TempDir = dir
-	cfg.WhisperPath = filepath.Join(dir, "unavailable-whisper")
 	cfg.WhisperVADPath = filepath.Join(dir, "unavailable-vad")
 	cfg.WhisperVADModel = filepath.Join(dir, "unavailable-model")
 	p := New(cfg, storage, nil)
 	if intervals != nil {
-		model := p.cfg.StoryWhisperModel
-		if model == "" {
-			model = p.cfg.WhisperModel
-		}
-		version := storyDigest([]any{storyVoiceClockVersion, storyVADArguments, storyModelSignature(p.storyVADModel(model)), storyModelSignature(p.storyVADExecutable())})
+		version := storyDigest([]any{storyVoiceClockVersion, storyVADArguments, storyModelSignature(p.storyVADModel()), storyModelSignature(p.storyVADExecutable())})
 		data, err := json.Marshal(storyVoiceEvidence{Version: version, SourceHash: asset.Hash, Duration: asset.Duration, Intervals: intervals, Padding: configuredStoryVoicePadding(storyVADArguments)})
 		if err != nil {
 			t.Fatal(err)

@@ -3,8 +3,9 @@ package processing
 import (
 	"context"
 	"encoding/json"
-	"errors"
+	"fmt"
 	"log/slog"
+	"math"
 	"os"
 	"path/filepath"
 	"strings"
@@ -14,57 +15,103 @@ import (
 	"sneepcut/backend-go/internal/aiprovider"
 )
 
-// Hosted transcription uploads mono 16 kHz MP3 at 64 kbit/s (8 KB per second):
-// 20 minutes stay well inside the provider upload limit.
+// Hosted transcription uploads mono 16 kHz MP3 at 64 kbit/s (8 KB per second)
+// in pieces of at most ten minutes, so each request stays well inside the
+// provider's upload and processing limits.
 const (
-	storyHostedTranscriptionSeconds = 1200
-	storyHostedTranscriptionTimeout = 3 * time.Minute
+	hostedTranscriptionChunkSeconds = 600
+	hostedTranscriptionTimeout      = 3 * time.Minute
 )
 
-// storySpeechSignature identifies the speech engine in analysis cache keys.
-// Local identities are unchanged, so existing cached analyses stay valid.
-func (p *Processor) storySpeechSignature(model string) string {
-	if p.storyTranscriber != nil {
-		return "hosted:" + p.storyTranscriberID
-	}
-	return storyModelSignature(model)
+// storySpeechSignature identifies the story speech engine in cache keys.
+func (p *Processor) storySpeechSignature() string {
+	return hostedSpeechSignature(p.storyTranscriber, p.storyTranscriberID)
 }
 
-// storySpeechEngine names the bound engine for logs.
+// clipSpeechSignature identifies the clip speech engine in cache keys.
+func (p *Processor) clipSpeechSignature() string {
+	return hostedSpeechSignature(p.clipTranscriber, p.clipTranscriberID)
+}
+
+func hostedSpeechSignature(transcriber aiprovider.Transcriber, id string) string {
+	if transcriber == nil {
+		return "transcription-unavailable"
+	}
+	return "hosted:" + id
+}
+
+// storySpeechEngine names the bound story engine for logs.
 func (p *Processor) storySpeechEngine() string {
-	if p.storyTranscriber != nil {
-		return p.storyTranscriberID
+	if p.storyTranscriber == nil {
+		return "none"
 	}
-	return "local-whisper"
+	return p.storyTranscriberID
 }
 
-// transcribeStoryHosted runs the routed hosted model on the source audio and
-// writes its words as whisper.cpp JSON (one word per segment, as -sow -ml 1
-// produces), so confidence, voice bounds and captions read one format.
-func (p *Processor) transcribeStoryHosted(ctx context.Context, file, dir, language string, duration float64) (Transcript, error) {
-	if duration > storyHostedTranscriptionSeconds {
-		return Transcript{}, errors.New("source is longer than the hosted transcription limit")
+// transcribeHosted runs a hosted model on the file's audio and writes the
+// words as whisper.cpp JSON (one word per segment), so confidence, voice
+// bounds and captions keep reading one format. Long audio is sent in pieces
+// whose word clocks are shifted back onto the source clock.
+func (p *Processor) transcribeHosted(ctx context.Context, transcriber aiprovider.Transcriber, id, file, dir, language string, duration float64) (Transcript, error) {
+	if !finite(duration) || duration <= 0 {
+		return Transcript{}, fmt.Errorf("invalid transcription duration")
 	}
 	started := time.Now()
-	if err := p.ffmpeg(ctx, dir, "-i", file, "-vn", "-ac", "1", "-ar", "16000", "-c:a", "libmp3lame", "-b:a", "64k", "hosted-audio.mp3"); err != nil {
-		return Transcript{}, err
+	combined := aiprovider.Transcript{}
+	chunks := int(math.Ceil(duration / hostedTranscriptionChunkSeconds))
+	for i := range chunks {
+		offset := float64(i * hostedTranscriptionChunkSeconds)
+		name := fmt.Sprintf("hosted-audio-%03d.mp3", i)
+		args := []string{"-i", file, "-vn"}
+		if chunks > 1 {
+			args = []string{"-ss", seconds(offset), "-i", file, "-t", seconds(min(hostedTranscriptionChunkSeconds, duration-offset)), "-vn"}
+		}
+		// Mono 64 kbit/s keeps speech intact at the source's own sample rate.
+		args = append(args, "-ac", "1", "-c:a", "libmp3lame", "-b:a", "64k", name)
+		if err := p.ffmpeg(ctx, dir, args...); err != nil {
+			return Transcript{}, err
+		}
+		data, err := os.ReadFile(filepath.Join(dir, name))
+		_ = os.Remove(filepath.Join(dir, name))
+		if err != nil {
+			return Transcript{}, err
+		}
+		callCtx, cancel := context.WithTimeout(ctx, hostedTranscriptionTimeout)
+		part, err := transcriber.Transcribe(callCtx, data, "mp3", language)
+		cancel()
+		if err != nil {
+			if ctx.Err() != nil {
+				return Transcript{}, ctx.Err()
+			}
+			slog.Warn("Hosted transcription failed", "model", id, "chunk", i, "reason", aiprovider.SafeFailure(err).Error())
+			return Transcript{}, fmt.Errorf("speech transcription failed: %w", aiprovider.SafeFailure(err))
+		}
+		if combined.Language == "" {
+			combined.Language = part.Language
+		}
+		for _, word := range part.Words {
+			word.Start, word.End = word.Start+offset, word.End+offset
+			combined.Words = append(combined.Words, word)
+		}
 	}
-	data, err := os.ReadFile(filepath.Join(dir, "hosted-audio.mp3"))
-	if err != nil {
-		return Transcript{}, err
-	}
-	callCtx, cancel := context.WithTimeout(ctx, storyHostedTranscriptionTimeout)
-	defer cancel()
-	hosted, err := p.storyTranscriber.Transcribe(callCtx, data, "mp3", language)
-	if err != nil {
-		return Transcript{}, err
-	}
-	raw, words, scored := hostedWhisperJSON(hosted)
-	slog.Info("Story hosted transcription", "model", p.storyTranscriberID, "source_seconds", duration, "words", words, "words_with_confidence", scored, "ms", time.Since(started).Milliseconds())
-	if err = os.WriteFile(filepath.Join(dir, "transcript.json"), raw, 0600); err != nil {
+	raw, words, scored := hostedWhisperJSON(combined)
+	slog.Info("Hosted transcription", "model", id, "source_seconds", duration, "requests", chunks, "words", words, "words_with_confidence", scored, "ms", time.Since(started).Milliseconds())
+	if err := os.WriteFile(filepath.Join(dir, "transcript.json"), raw, 0600); err != nil {
 		return Transcript{}, err
 	}
 	return parseTranscriptClock(raw, duration, true)
+}
+
+// Some providers report ISO 639-3 codes ("ron"); the pipeline compares the
+// two-letter codes Whisper used ("ro").
+var hostedLanguageCodes = map[string]string{"ron": "ro", "rum": "ro", "mol": "ro", "eng": "en", "fra": "fr", "fre": "fr", "deu": "de", "ger": "de", "spa": "es", "ita": "it", "hun": "hu", "por": "pt", "rus": "ru", "ukr": "uk", "bul": "bg", "pol": "pl", "nld": "nl", "dut": "nl", "tur": "tr"}
+
+func hostedLanguageCode(code string) string {
+	code = strings.ToLower(strings.TrimSpace(code))
+	if short, ok := hostedLanguageCodes[code]; ok {
+		return short
+	}
+	return code
 }
 
 type whisperJSONOffsets struct {
@@ -121,7 +168,7 @@ func hostedWhisperJSON(hosted aiprovider.Transcript) ([]byte, int, int) {
 		} `json:"result"`
 		Transcription []whisperJSONSegment `json:"transcription"`
 	}{Transcription: segments}
-	doc.Result.Language = hosted.Language
+	doc.Result.Language = hostedLanguageCode(hosted.Language)
 	if doc.Transcription == nil {
 		doc.Transcription = []whisperJSONSegment{}
 	}

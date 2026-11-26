@@ -39,7 +39,7 @@ func (p *Processor) Analyze(ctx context.Context, project string, asset story.Ass
 	defer func() {
 		timer.log("Story source analysis", "story_id", project, "source_id", asset.ID, "outcome", outcome,
 			"source_seconds", asset.Duration, "width", asset.Width, "height", asset.Height, "video_codec", asset.VideoCodec,
-			"speech_engine", p.storySpeechEngine(), "whisper_threads", p.whisperThreads(), "whisper_beam_size", p.whisperBeamSize())
+			"speech_engine", p.storySpeechEngine())
 	}()
 	// Muting playback does not invalidate a previously verified transcript or
 	// source catalog. Keep that evidence for later original-audio edits, without
@@ -55,11 +55,7 @@ func (p *Processor) Analyze(ctx context.Context, project string, asset story.Ass
 		return asset, storyWorkError("analysis")
 	}
 	defer os.RemoveAll(dir)
-	model := p.cfg.StoryWhisperModel
-	if model == "" {
-		model = p.cfg.WhisperModel
-	}
-	digest := storyDigest([]any{story.AlgorithmVersion, asset.Hash, options.Language, p.storySpeechSignature(model), storyModelSignature(p.storyVADModel(model)), options.Narration, "source-analysis-9"})
+	digest := storyDigest([]any{story.AlgorithmVersion, asset.Hash, options.Language, p.storySpeechSignature(), storyModelSignature(p.storyVADModel()), options.Narration, "source-analysis-9"})
 	if musicOnly {
 		// A silent edit must never satisfy the speech-analysis cache when the
 		// owner later asks to retain original audio.
@@ -158,7 +154,7 @@ func (p *Processor) Analyze(ctx context.Context, project string, asset story.Ass
 	var transcript Transcript
 	var preparedAudio storyPreparedAudio
 	if !musicOnly && !options.Narration && info.Audio && audio > .01 {
-		transcript, preparedAudio, err = p.transcribeStoryWithAudio(ctx, proxy, dir, options.Language, asset.Duration, model, asset.ProxyKey)
+		transcript, preparedAudio, err = p.transcribeStoryWithAudio(ctx, proxy, dir, options.Language, asset.Duration, asset.ProxyKey)
 		if errors.Is(err, errSpeechDetectionUnavailable) {
 			asset.Warnings = appendStoryWarning(asset.Warnings, storyMissingVADWarning)
 		} else if err != nil && !errors.Is(err, errNoSpeech) {

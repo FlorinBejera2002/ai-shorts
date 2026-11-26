@@ -73,7 +73,7 @@ func run(logger *slog.Logger, capture *errorlog.Capture) error {
 	if err != nil {
 		return err
 	}
-	ai.WithNativeModels(airouting.NativeOptions{WhisperModel: cfg.WhisperModel, StoryWhisperModel: cfg.StoryWhisperModel, VADModel: cfg.WhisperVADModel, FaceModel: cfg.FaceModel})
+	ai.WithNativeModels(airouting.NativeOptions{VADModel: cfg.WhisperVADModel, FaceModel: cfg.FaceModel})
 	storyLimits, err := story.LimitsFromEnv(os.Getenv)
 	if err != nil {
 		return err

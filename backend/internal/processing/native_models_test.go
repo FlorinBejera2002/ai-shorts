@@ -27,24 +27,23 @@ func (p *nativeModelProvider) NativeModels(context.Context) (map[aiprovider.Task
 }
 
 func TestNativeModelsStayStableDuringOperationAndRefreshForNextOperation(t *testing.T) {
-	original := Config{WhisperModel: "original-asr", StoryWhisperModel: "original-story", WhisperVADModel: "original-vad", FaceModel: "original-face"}
+	original := Config{WhisperVADModel: "original-vad", FaceModel: "original-face"}
 	router := &nativeModelProvider{models: map[aiprovider.Task]string{
-		aiprovider.TaskTranscription: "selected-asr", aiprovider.TaskStoryTranscription: "selected-story",
 		aiprovider.TaskVoiceDetection: "selected-vad", aiprovider.TaskFaceTracking: "selected-face",
 	}}
 	p := New(original, nil, router)
 	before := p.cfg
 	active, err := p.withNativeModels(context.Background())
-	if err != nil || active == p || active.cfg.WhisperModel != "selected-asr" || active.cfg.StoryWhisperModel != "selected-story" || active.cfg.WhisperVADModel != "selected-vad" || active.cfg.FaceModel != "selected-face" {
+	if err != nil || active == p || active.cfg.WhisperVADModel != "selected-vad" || active.cfg.FaceModel != "selected-face" {
 		t.Fatalf("native model binding failed: %#v %v", active, err)
 	}
-	router.models[aiprovider.TaskStoryTranscription] = "next-story"
+	router.models[aiprovider.TaskVoiceDetection] = "next-vad"
 	nested, err := active.withNativeModels(context.Background())
-	if err != nil || nested != active || nested.cfg.StoryWhisperModel != "selected-story" || router.calls != 1 {
+	if err != nil || nested != active || nested.cfg.WhisperVADModel != "selected-vad" || router.calls != 1 {
 		t.Fatal("nested operation reselected native models during execution")
 	}
 	next, err := p.withNativeModels(context.Background())
-	if err != nil || next.cfg.StoryWhisperModel != "next-story" || active.cfg.StoryWhisperModel != "selected-story" || router.calls != 2 || p.cfg != before || p.nativeResolved {
+	if err != nil || next.cfg.WhisperVADModel != "next-vad" || active.cfg.WhisperVADModel != "selected-vad" || router.calls != 2 || p.cfg != before || p.nativeResolved {
 		t.Fatal("model change did not isolate active and subsequent operations")
 	}
 }
@@ -127,16 +126,31 @@ func TestNativeSelectionFailureStopsEveryEngineOperationBeforeMediaIO(t *testing
 	}
 }
 
-func TestStoryAnalysisCacheUsesSelectedNativeModel(t *testing.T) {
+// speechRouter routes story transcription to a hosted fixture model.
+type speechRouter struct {
+	nativeModelProvider
+	model string
+}
+
+func (r *speechRouter) ForTask(_ context.Context, task aiprovider.Task) (aiprovider.Generator, error) {
+	if task != aiprovider.TaskStoryTranscription {
+		return nil, aiprovider.ErrNotConfigured
+	}
+	return routedTranscriber{model: r.model}, nil
+}
+
+type routedTranscriber struct {
+	fixtureTranscriber
+	model string
+}
+
+func (routedTranscriber) Generate(context.Context, string) (string, error) { return "", nil }
+func (r routedTranscriber) MediaModelIdentity() string                      { return "openrouter:" + r.model }
+
+func TestStoryAnalysisCacheUsesSelectedSpeechModel(t *testing.T) {
 	p, _, dir := storyTestProcessor(t)
 	asset := storySource(t, p, dir, "native-cache", "green", 0)
-	firstModel, secondModel := filepath.Join(dir, "first.bin"), filepath.Join(dir, "second.bin")
-	for _, path := range []string{firstModel, secondModel} {
-		if err := os.WriteFile(path, []byte(path), 0600); err != nil {
-			t.Fatal(err)
-		}
-	}
-	router := &nativeModelProvider{models: map[aiprovider.Task]string{aiprovider.TaskStoryTranscription: firstModel}}
+	router := &speechRouter{nativeModelProvider: nativeModelProvider{models: map[aiprovider.Task]string{}}, model: "vendor/first"}
 	p.ai = router
 	first, err := p.Analyze(context.Background(), "native-cache", asset, story.DefaultOptions())
 	if err != nil {
@@ -149,10 +163,10 @@ func TestStoryAnalysisCacheUsesSelectedNativeModel(t *testing.T) {
 		t.Fatalf("selected model did not reuse analysis: %v", err)
 	}
 	p.cfg.FFmpegPath = ffmpeg
-	router.models[aiprovider.TaskStoryTranscription] = secondModel
+	router.model = "vendor/second"
 	updated, err := p.Analyze(context.Background(), "native-cache", first, story.DefaultOptions())
-	if err != nil || updated.AnalysisVersion == first.AnalysisVersion || updated.ProxyKey != first.ProxyKey || router.calls != 3 || p.cfg.StoryWhisperModel == secondModel {
-		t.Fatalf("native model change reused stale analysis or mutated shared configuration: %#v %v", updated, err)
+	if err != nil || updated.AnalysisVersion == first.AnalysisVersion || updated.ProxyKey != first.ProxyKey || router.calls != 3 || p.storyTranscriber != nil {
+		t.Fatalf("speech model change reused stale analysis or mutated shared configuration: %#v %v", updated, err)
 	}
 }
 

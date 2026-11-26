@@ -32,7 +32,7 @@ type storyVoiceEvidence struct {
 func (p *Processor) storyVADExecutable() string {
 	file := p.cfg.WhisperVADPath
 	if file == "" {
-		file = filepath.Join(filepath.Dir(p.cfg.WhisperPath), "whisper-vad-speech-segments"+filepath.Ext(p.cfg.WhisperPath))
+		file = "whisper-vad-speech-segments"
 	}
 	if resolved, err := exec.LookPath(file); err == nil {
 		return resolved
@@ -54,11 +54,7 @@ func (p *Processor) prepareStorySpeechCatalogWithAudio(ctx context.Context, dir 
 	// than trusting an older saved catalog's intervals.
 	asset.VoiceIntervals = nil
 	preserveVoice := story.PreserveOriginalSpeech(options) && asset.HasAudio && asset.Kind != "narration" && asset.Include != "excluded"
-	model := p.cfg.StoryWhisperModel
-	if model == "" {
-		model = p.cfg.WhisperModel
-	}
-	clockVersion := storyDigest([]any{storyVoiceClockVersion, storyVADArguments, storyModelSignature(p.storyVADModel(model)), storyModelSignature(p.storyVADExecutable())})
+	clockVersion := storyDigest([]any{storyVoiceClockVersion, storyVADArguments, storyModelSignature(p.storyVADModel()), storyModelSignature(p.storyVADExecutable())})
 	asset.AnalysisVersion = storyDigest([]any{asset.AnalysisVersion, clockVersion})
 	spoken := false
 	for _, candidate := range asset.Candidates {
@@ -67,7 +63,7 @@ func (p *Processor) prepareStorySpeechCatalogWithAudio(ctx context.Context, dir 
 	if !spoken && len(asset.TranscriptProposals) == 0 && !preserveVoice {
 		return asset, nil
 	}
-	intervals, padding, err := p.storyVoiceIntervals(ctx, dir, raw, clockVersion, p.storyVADModel(model), audio)
+	intervals, padding, err := p.storyVoiceIntervals(ctx, dir, raw, clockVersion, p.storyVADModel(), audio)
 	if ctx.Err() != nil {
 		return asset, ctx.Err()
 	}
@@ -82,10 +78,6 @@ func (p *Processor) prepareStorySpeechCatalogWithAudio(ctx context.Context, dir 
 			asset.VoiceIntervals = append(asset.VoiceIntervals, story.Interval{SourceID: asset.ID, In: interval.Start, Out: interval.End})
 		}
 		asset = prepareStoryTranscriptProposals(asset, intervals, true, padding)
-		asset, err = p.recoverStoryTranscriptTiming(ctx, dir, asset, options, intervals, audio, model)
-		if err != nil {
-			return asset, err
-		}
 		asset, err = boundStorySpeechToVoice(asset, intervals, true)
 	}
 	if err == nil {

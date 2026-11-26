@@ -3,7 +3,6 @@ package processing
 
 import (
 	"context"
-	"path/filepath"
 	"sneepcut/backend-go/internal/aiprovider"
 	"sneepcut/backend-go/internal/audiocleanup"
 	"sneepcut/backend-go/internal/media"
@@ -12,49 +11,37 @@ import (
 )
 
 type Config struct {
-	StudioURL, StudioSecret, MediaOrigin, MediaSigningSecret               string
-	DeepFilterPath, DeepFilterModel                                        string
-	AudioCleanupTimeout                                                    time.Duration
-	FFmpegPath, FFprobePath, WhisperPath, WhisperModel, FaceModel, TempDir string
-	StoryWhisperModel, WhisperVADModel, WhisperVADPath                     string
-	Timeout                                                                time.Duration
+	StudioURL, StudioSecret, MediaOrigin, MediaSigningSecret string
+	DeepFilterPath, DeepFilterModel                          string
+	AudioCleanupTimeout                                      time.Duration
+	FFmpegPath, FFprobePath, FaceModel, TempDir              string
+	Timeout                                                  time.Duration
 
-	// Story transcription speed settings; zero values select the defaults
-	// documented in whisper_settings.go.
-	WhisperThreads, WhisperBeamSize int
+	// Speech is transcribed by the hosted model routed in admin; only the
+	// Silero voice detector (model and its whisper.cpp CLI) runs locally.
+	WhisperVADModel, WhisperVADPath string
 }
 
 func ConfigFromEnv(get func(string) string) (Config, error) {
-	c := Config{FFmpegPath: get("FFMPEG_PATH"), FFprobePath: get("FFPROBE_PATH"), WhisperPath: get("WHISPER_CPP_PATH"), WhisperModel: get("WHISPER_CPP_MODEL"), FaceModel: get("PIGO_FACE_MODEL"), TempDir: get("PROCESSING_TEMP_DIR"), Timeout: 2 * time.Hour}
+	c := Config{FFmpegPath: get("FFMPEG_PATH"), FFprobePath: get("FFPROBE_PATH"), FaceModel: get("PIGO_FACE_MODEL"), TempDir: get("PROCESSING_TEMP_DIR"), Timeout: 2 * time.Hour}
 	if c.FFmpegPath == "" {
 		c.FFmpegPath = "ffmpeg"
 	}
 	if c.FFprobePath == "" {
 		c.FFprobePath = "ffprobe"
 	}
-	if c.WhisperPath == "" {
-		c.WhisperPath = "whisper-cli"
-	}
-	if c.WhisperModel == "" {
-		c.WhisperModel = "/models/ggml-base.bin"
-	}
-	c.StoryWhisperModel = get("STORY_WHISPER_CPP_MODEL")
-	if c.StoryWhisperModel == "" {
-		c.StoryWhisperModel = c.WhisperModel
-	}
-	c.WhisperVADModel = get("WHISPER_CPP_VAD_MODEL")
-	c.WhisperVADPath = get("WHISPER_CPP_VAD_PATH")
+	c.WhisperVADModel, c.WhisperVADPath = get("WHISPER_CPP_VAD_MODEL"), get("WHISPER_CPP_VAD_PATH")
 	if c.WhisperVADModel == "" {
-		c.WhisperVADModel = filepath.Join(filepath.Dir(c.StoryWhisperModel), "ggml-silero-v6.2.0.bin")
+		c.WhisperVADModel = "/models/ggml-vad.bin"
+	}
+	if c.WhisperVADPath == "" {
+		c.WhisperVADPath = "whisper-vad-speech-segments"
 	}
 	if c.FaceModel == "" {
 		c.FaceModel = "/models/facefinder"
 	}
 	c.DeepFilterPath, c.DeepFilterModel = get("DEEPFILTER_PATH"), get("DEEPFILTER_MODEL")
 	c.AudioCleanupTimeout = 10 * time.Minute
-	if err := whisperSettingsFromEnv(get, &c); err != nil {
-		return Config{}, err
-	}
 	c.StudioURL, c.StudioSecret = get("STUDIO_AGENT_URL"), get("STUDIO_AGENT_SECRET")
 	c.MediaOrigin, c.MediaSigningSecret = get("APP_URL"), get("INTERNAL_API_KEY")
 	return c, nil
@@ -139,9 +126,12 @@ type Processor struct {
 	musicCatalog   *music.Catalog
 	nativeResolved bool
 
-	// Hosted story transcription bound by withNativeModels; nil = local Whisper.
+	// Hosted speech-to-text bound per operation by withNativeModels; nil when
+	// the routed model is unavailable (transcription then fails clearly).
 	storyTranscriber   aiprovider.Transcriber
 	storyTranscriberID string
+	clipTranscriber    aiprovider.Transcriber
+	clipTranscriberID  string
 }
 
 func New(c Config, s media.Storage, a aiprovider.Generator) *Processor {

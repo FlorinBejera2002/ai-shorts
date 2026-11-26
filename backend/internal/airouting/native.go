@@ -12,7 +12,9 @@ import (
 	"sneepcut/backend-go/internal/aiprovider"
 )
 
-type NativeOptions struct{ WhisperModel, StoryWhisperModel, VADModel, FaceModel string }
+// NativeOptions lists the installed local engines. Speech transcription is
+// hosted and has no installed model.
+type NativeOptions struct{ VADModel, FaceModel string }
 type nativeModel struct {
 	Model
 	path string
@@ -32,7 +34,6 @@ func nativeID(provider, path string) string {
 func (s *Service) nativeFamilies() []nativeFamily {
 	n := s.native
 	return []nativeFamily{
-		{"whisper_cpp", []string{n.WhisperModel, n.StoryWhisperModel}, regexp.MustCompile(`^ggml-(tiny|base|small|medium|large)([.\-][A-Za-z0-9_-]+)*\.bin$`), []string{"audio", "transcription"}},
 		{"silero", []string{n.VADModel}, regexp.MustCompile(`^ggml-silero-v[0-9A-Za-z._-]+\.bin$`), []string{"audio", "voice_activity"}},
 		{"pigo", []string{n.FaceModel}, regexp.MustCompile(`^facefinder([._-][A-Za-z0-9_-]+)?$`), []string{"image", "face_detection"}},
 	}
@@ -45,10 +46,8 @@ func (s *Service) WithNativeModels(options NativeOptions) *Service {
 	s.native = options
 	available := s.installedModels()
 	paths := map[aiprovider.Task]Route{
-		aiprovider.TaskTranscription:      {"whisper_cpp", options.WhisperModel},
-		aiprovider.TaskStoryTranscription: {"whisper_cpp", options.StoryWhisperModel},
-		aiprovider.TaskVoiceDetection:     {"silero", options.VADModel},
-		aiprovider.TaskFaceTracking:       {"pigo", options.FaceModel},
+		aiprovider.TaskVoiceDetection: {"silero", options.VADModel},
+		aiprovider.TaskFaceTracking:   {"pigo", options.FaceModel},
 	}
 	for task, path := range paths {
 		if path.Model == "" {
@@ -122,10 +121,12 @@ func (s *Service) stages() []Stage {
 	return stages
 }
 
+// nativeStages lists the stages outside the base catalog. Transcription is a
+// hosted OpenRouter model; voice detection and face tracking stay installed.
 func nativeStages() []Stage {
 	return []Stage{
-		{aiprovider.TaskTranscription, "Transcriere: clipuri", "Modelul de recunoaștere a vorbirii instalat pe server pentru clipuri.", []string{"audio", "transcription"}},
-		{aiprovider.TaskStoryTranscription, "Transcriere: Story și narațiune", "Modelul pentru transcrierea surselor Story și a narațiunii: instalat pe server sau prin OpenRouter, cu Whisper local ca rezervă.", []string{"audio", "transcription"}},
+		{aiprovider.TaskTranscription, "Transcriere: clipuri", "Modelul OpenRouter de recunoaștere a vorbirii pentru clipuri.", []string{"audio", "transcription"}},
+		{aiprovider.TaskStoryTranscription, "Transcriere: Story și narațiune", "Modelul OpenRouter pentru transcrierea surselor Story și a narațiunii.", []string{"audio", "transcription"}},
 		{aiprovider.TaskVoiceDetection, "Detectarea vorbirii", "Detectorul instalat care separă vorbirea de muzică și zgomote.", []string{"audio", "voice_activity"}},
 		{aiprovider.TaskFaceTracking, "Încadrarea fețelor", "Modelul instalat pentru încadrarea automată a persoanelor.", []string{"image", "face_detection"}},
 	}
@@ -150,19 +151,13 @@ func (s *Service) NativeModels(ctx context.Context) (map[aiprovider.Task]string,
 		return nil, err
 	}
 	installed := s.installedModels()
-	for _, task := range []aiprovider.Task{aiprovider.TaskTranscription, aiprovider.TaskStoryTranscription, aiprovider.TaskVoiceDetection, aiprovider.TaskFaceTracking} {
+	for _, task := range []aiprovider.Task{aiprovider.TaskVoiceDetection, aiprovider.TaskFaceTracking} {
 		route, exists := s.defaults[task]
 		if override, ok := configuration.Routes[task]; ok {
 			route = override
 			exists = true
 		}
 		if !exists {
-			continue
-		}
-		// Story transcription may be routed to a hosted speech-to-text model;
-		// the processor then binds it through ForTask and keeps its installed
-		// Whisper only as the local fallback.
-		if task == aiprovider.TaskStoryTranscription && hostedTranscriptionProvider(route.Provider) {
 			continue
 		}
 		found := false

@@ -123,11 +123,7 @@ func TestStoryVoicePaddingRefreshesLegacyCacheWithoutASROrLostReview(t *testing.
 	// Simulate the old clock's immutable sidecar without a padding contract.
 	// The new clock must measure VAD again while retaining the raw ASR cache.
 	cached.Padding = nil
-	model := p.cfg.StoryWhisperModel
-	if model == "" {
-		model = p.cfg.WhisperModel
-	}
-	cached.Version = storyDigest([]any{"voice-clock-2", storyVADArguments, storyModelSignature(p.storyVADModel(model)), storyModelSignature(p.storyVADExecutable())})
+	cached.Version = storyDigest([]any{"voice-clock-2", storyVADArguments, storyModelSignature(p.storyVADModel()), storyModelSignature(p.storyVADExecutable())})
 	data, err = json.Marshal(cached)
 	legacyFile := filepath.Join(filepath.Dir(files[0]), "voice-intervals-"+cached.Version+".json")
 	if err != nil || os.WriteFile(legacyFile, data, 0600) != nil || os.WriteFile(log, nil, 0600) != nil {
@@ -136,7 +132,7 @@ func TestStoryVoicePaddingRefreshesLegacyCacheWithoutASROrLostReview(t *testing.
 	if err := storage.Delete(context.Background(), path.Dir(first.ProxyKey)+"/"+filepath.Base(files[0])); err != nil {
 		t.Fatal(err)
 	}
-	p.cfg.WhisperPath = filepath.Join(dir, "must-not-rerun-asr")
+	refuseSpeech(p)
 	refreshed, err := p.Analyze(context.Background(), "padding-cache", approved, story.DefaultOptions())
 	if err != nil || !refreshed.TranscriptProposals[0].Reviewed || refreshed.TranscriptProposals[0].ID != approved.TranscriptProposals[0].ID || !reflect.DeepEqual(refreshed.Candidates, approved.Candidates) {
 		t.Fatalf("voice-only refresh invalidated unchanged reviewed words: %+v %v", refreshed.TranscriptProposals, err)
