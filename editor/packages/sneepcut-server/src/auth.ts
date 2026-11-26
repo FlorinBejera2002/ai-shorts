@@ -8,6 +8,7 @@ export interface EditorUser {
 export type AuthFetcher = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
 export const SESSION_SECONDS = 900;
 export const SESSION_COOKIE = "sneepcut_editor_session";
+export const SESSION_RENEWAL_GRACE_SECONDS = 60;
 export class EditorSessions {
   private readonly sessions = new Map<
     string,
@@ -39,6 +40,19 @@ export class EditorSessions {
   }
   delete(id: string | undefined): void {
     if (id) this.sessions.delete(id);
+  }
+  /**
+   * Ends a session replaced by a renewal for the same user after a short grace period, so
+   * requests already in flight with the old cookie (parallel media range reads) still succeed.
+   */
+  retire(id: string | undefined, userId: string): void {
+    const session = id ? this.sessions.get(id) : undefined;
+    if (!id || !session) return;
+    if (session.user.id !== userId) {
+      this.sessions.delete(id);
+      return;
+    }
+    session.expires = Math.min(session.expires, this.now() + SESSION_RENEWAL_GRACE_SECONDS * 1000);
   }
 }
 export async function verifyBearer(

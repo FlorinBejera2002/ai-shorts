@@ -393,4 +393,43 @@ describe("external file change coordinator", () => {
     expect(reloadPreview).toHaveBeenCalledTimes(2);
     expect(onAcceptedPersistedFileChange).toHaveBeenCalledTimes(2);
   });
+
+  it("subscribes once across re-renders that recreate callbacks", async () => {
+    const on = vi.fn((_event: string, next: HotHandler) => {
+      handler = next;
+    });
+    vi.stubGlobal("__HF_STUDIO_HOT_TEST_ADAPTER__", { on, off: vi.fn() });
+    const drainPendingChanges = vi.fn(async () => ({ status: "clean" as const }));
+    const root = createRoot(document.createElement("div"));
+    roots.push(root);
+    const baseOptions: CoordinatorOptions = {
+      projectId: "project-a",
+      activeCompPath: "index.html",
+      pendingTimelineEditPathRef: { current: new Set() },
+      drainPendingChanges,
+      reloadPreview: vi.fn(),
+      reloadSdkSession: vi.fn(),
+      persistConflictSnapshot: vi.fn(async () => undefined),
+      discardPendingChanges: vi.fn(),
+      overwriteConflict: vi.fn(async () => undefined),
+      readProjectFile: vi.fn(async () => "external"),
+      onAcceptedPersistedFileChange: vi.fn(),
+    };
+    function Probe({ options }: { options: CoordinatorOptions }) {
+      useExternalFileChangeCoordinator(options);
+      return null;
+    }
+    await act(async () => root.render(<Probe options={baseOptions} />));
+    // A fresh inline callback on every render, as the save queue produces in the app.
+    await act(async () =>
+      root.render(<Probe options={{ ...baseOptions, getPendingCandidate: () => null }} />),
+    );
+    await act(async () =>
+      root.render(<Probe options={{ ...baseOptions, getPendingCandidate: () => null }} />),
+    );
+
+    expect(on.mock.calls.filter(([event]) => event === "hf:file-change")).toHaveLength(1);
+    await act(async () => handler?.({ path: "index.html", content: "external", version: "v2" }));
+    expect(drainPendingChanges).toHaveBeenCalledOnce();
+  });
 });

@@ -1,6 +1,8 @@
 // Shortcut groups for the timeline shortcuts sheet (St-Timeline-ShortcutsEdit and
 // St-Timeline-ShortcutsAdvanced). Keys are plain glyphs; words are message keys.
 import type { MessageKey } from "../../i18n/dictionary";
+import { t } from "../../i18n/translate";
+import { COMMAND_KEY, OPTION_KEY, modifierKeyLabel } from "../../utils/commandKey";
 
 /** A key cap: a literal glyph, or a message key for a word ("Drag", "Scroll"). */
 export type ShortcutKey = string | { word: MessageKey };
@@ -8,6 +10,11 @@ export type ShortcutRow = readonly [MessageKey, readonly ShortcutKey[]];
 export interface ShortcutGroup {
   title: MessageKey;
   rows: readonly ShortcutRow[];
+}
+
+/** The text shown on a key cap, with ⌘ and ⌥ named for the current platform (Ctrl and Alt on Windows). */
+export function shortcutKeyLabel(key: ShortcutKey): string {
+  return typeof key === "string" ? modifierKeyLabel(key) : t(key.word);
 }
 
 const drag: ShortcutKey = { word: "timeline.sc.kDrag" };
@@ -32,23 +39,23 @@ export const PLAYBACK: ShortcutGroup = {
 export const PANELS: ShortcutGroup = {
   title: "timeline.sc.panels",
   rows: [
-    ["timeline.sc.tabComps", ["⌘", "1"]],
-    ["timeline.sc.tabAssets", ["⌘", "2"]],
+    ["timeline.sc.tabComps", [COMMAND_KEY, "1"]],
+    ["timeline.sc.tabAssets", [COMMAND_KEY, "2"]],
   ],
 };
 
 export const EDITING: ShortcutGroup = {
   title: "timeline.sc.editing",
   rows: [
-    ["timeline.sc.undo", ["⌘", "Z"]],
-    ["timeline.sc.redo", ["⌘", "⇧", "Z"]],
-    ["timeline.sc.copy", ["⌘", "C"]],
-    ["timeline.sc.paste", ["⌘", "V"]],
-    ["timeline.sc.cut", ["⌘", "X"]],
+    ["timeline.sc.undo", [COMMAND_KEY, "Z"]],
+    ["timeline.sc.redo", [COMMAND_KEY, "⇧", "Z"]],
+    ["timeline.sc.copy", [COMMAND_KEY, "C"]],
+    ["timeline.sc.paste", [COMMAND_KEY, "V"]],
+    ["timeline.sc.cut", [COMMAND_KEY, "X"]],
     ["timeline.sc.split", ["S"]],
     ["timeline.sc.splitAll", ["⇧", click]],
-    ["timeline.sc.group", ["⌘", "G"]],
-    ["timeline.sc.ungroup", ["⌘", "⇧", "G"]],
+    ["timeline.sc.group", [COMMAND_KEY, "G"]],
+    ["timeline.sc.ungroup", [COMMAND_KEY, "⇧", "G"]],
     ["timeline.sc.deleteEl", ["Del"]],
   ],
 };
@@ -108,9 +115,9 @@ export const GESTURES: ShortcutGroup = {
     ["timeline.sc.gPos", [drag]],
     ["timeline.sc.gDepth", [scroll]],
     ["timeline.sc.gRot3d", ["⇧", drag]],
-    ["timeline.sc.gRot", ["⌥", drag]],
-    ["timeline.sc.gOpacity", ["⌘", drag]],
-    ["timeline.sc.gScale", ["⌘", scroll]],
+    ["timeline.sc.gRot", [OPTION_KEY, drag]],
+    ["timeline.sc.gOpacity", [COMMAND_KEY, drag]],
+    ["timeline.sc.gScale", [COMMAND_KEY, scroll]],
   ],
 };
 
@@ -118,7 +125,7 @@ export const CANVAS: ShortcutGroup = {
   title: "timeline.sc.canvas",
   rows: [
     ["timeline.sc.cMove", [drag]],
-    ["timeline.sc.cPath", ["⌥", drag]],
+    ["timeline.sc.cPath", [OPTION_KEY, drag]],
     ["timeline.sc.cUniform", ["⇧", drag]],
   ],
 };

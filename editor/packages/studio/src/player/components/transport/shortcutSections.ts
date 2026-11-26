@@ -2,6 +2,7 @@
 // St-Preview-ShortcutsEdit) and the phone sheets. Keys are split into caps; word keys
 // ("Trage", "Derulare") are message keys so they translate.
 import type { MessageKey } from "../../../i18n/dictionary";
+import { COMMAND_KEY } from "../../../utils/commandKey";
 
 export type ShortcutKey = string | { word: MessageKey };
 
@@ -39,8 +40,8 @@ export const TABS_SECTION: ShortcutSection = {
   id: "tabs",
   title: "preview.sc.tabs",
   hints: [
-    { keys: ["⌘", "1"], label: "preview.sc.compositions" },
-    { keys: ["⌘", "2"], label: "preview.sc.assets" },
+    { keys: [COMMAND_KEY, "1"], label: "preview.sc.compositions" },
+    { keys: [COMMAND_KEY, "2"], label: "preview.sc.assets" },
   ],
 };
 
@@ -73,15 +74,15 @@ export const EDITING_SECTION: ShortcutSection = {
   id: "editing",
   title: "preview.sc.editing",
   hints: [
-    { keys: ["⌘", "Z"], label: "preview.sc.undo" },
-    { keys: ["⌘", "Shift", "Z"], label: "preview.sc.redo" },
-    { keys: ["⌘", "C"], label: "preview.sc.copy" },
-    { keys: ["⌘", "V"], label: "preview.sc.paste" },
-    { keys: ["⌘", "X"], label: "preview.sc.cut" },
+    { keys: [COMMAND_KEY, "Z"], label: "preview.sc.undo" },
+    { keys: [COMMAND_KEY, "Shift", "Z"], label: "preview.sc.redo" },
+    { keys: [COMMAND_KEY, "C"], label: "preview.sc.copy" },
+    { keys: [COMMAND_KEY, "V"], label: "preview.sc.paste" },
+    { keys: [COMMAND_KEY, "X"], label: "preview.sc.cut" },
     { keys: ["S"], label: "preview.sc.split" },
     { keys: ["Shift", { word: "preview.key.click" }], label: "preview.sc.razorAll" },
-    { keys: ["⌘", "G"], label: "preview.sc.group" },
-    { keys: ["⌘", "Shift", "G"], label: "preview.sc.ungroup" },
+    { keys: [COMMAND_KEY, "G"], label: "preview.sc.group" },
+    { keys: [COMMAND_KEY, "Shift", "G"], label: "preview.sc.ungroup" },
     { keys: ["Del"], label: "preview.sc.delete" },
   ],
 };
@@ -94,8 +95,8 @@ export const GESTURES_SECTION: ShortcutSection = {
     { keys: [scroll], label: "preview.sc.depth" },
     { keys: ["Shift", drag], label: "preview.sc.rotateXY" },
     { keys: ["Alt", drag], label: "preview.sc.rotate" },
-    { keys: ["⌘", drag], label: "preview.sc.opacity" },
-    { keys: ["⌘", scroll], label: "preview.sc.scale" },
+    { keys: [COMMAND_KEY, drag], label: "preview.sc.opacity" },
+    { keys: [COMMAND_KEY, scroll], label: "preview.sc.scale" },
   ],
 };
 

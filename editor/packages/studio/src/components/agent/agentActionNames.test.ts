@@ -13,7 +13,17 @@ describe("actionTitle", () => {
     expect(actionTitle(action("projects.list"), "ro")).toBe("Arată proiectele");
   });
 
-  it("falls back to the action name only for unknown actions", () => {
-    expect(actionTitle(action("unknown.thing"), "en")).toBe("unknown.thing");
+  it("titles every backend catalogue action instead of showing its dotted key", () => {
+    for (const name of ["scripts.update", "publishing.disconnect", "settings.preferences.update"]) {
+      expect(actionTitle(action(name), "en")).not.toContain(".");
+      expect(actionTitle(action(name), "ro")).not.toContain(".");
+    }
+    expect(actionTitle(action("scripts.update"), "ro")).toBe("Modifică scriptul");
+    expect(actionTitle(action("publishing.disconnect"), "ro")).toBe("Deconectează contul");
+  });
+
+  it("humanizes unknown actions instead of showing the raw dotted key", () => {
+    expect(actionTitle(action("unknown.thing"), "en")).toBe("Unknown thing");
+    expect(actionTitle(action("future_area.do_it"), "ro")).toBe("Future area do it");
   });
 });

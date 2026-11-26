@@ -26,6 +26,7 @@ export const RenderQueuePanel = memo(function RenderQueuePanel() {
       onRetryLoad={renderQueue.reloadRenders}
       historyLoading={renderQueue.historyLoading}
       hiddenCount={renderQueue.hiddenCount}
+      hideableCount={renderQueue.hideableCount}
       onShowHidden={renderQueue.restoreHiddenRenders}
       actionError={renderQueue.actionError}
       onDismissActionError={renderQueue.dismissActionError}

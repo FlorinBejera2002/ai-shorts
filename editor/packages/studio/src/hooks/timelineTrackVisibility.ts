@@ -9,7 +9,8 @@ import {
   trackDisplayNumber,
   trackDisplaySuffix,
 } from "../player/components/timelineTrackDisplay";
-import { saveProjectFilesWithHistory } from "../utils/studioFileHistory";
+import { patchProjectFilesWithHistory } from "../utils/studioFileHistory";
+import { StudioFileConflictError } from "../utils/studioSaveDiagnostics";
 import { isAudioTimelineElement } from "../utils/timelineInspector";
 import { readTagSnippetByTarget, type PatchOperation } from "../utils/sourcePatcher";
 import {
@@ -84,6 +85,14 @@ export interface UseTimelineElementVisibilityEditingInput extends Omit<
   forceReloadSdkSession?: () => void;
 }
 
+/** A save conflict is shown in the UI language; other failures keep their own message. */
+export function visibilityFailureMessage(error: unknown, fallback: string): string {
+  if (error instanceof StudioFileConflictError) {
+    return t("shell.saveConflict", { file: error.filePath });
+  }
+  return error instanceof Error ? error.message : fallback;
+}
+
 function getTimelineElementTargetPath(
   element: TimelineElement,
   activeCompPath: string | null,
@@ -154,39 +163,35 @@ async function setElementsHidden({
     property: "hidden",
     value: hidden ? "" : null,
   };
-  const originalByPath = new Map<string, string>();
-  const files: Record<string, string> = {};
+  const groups = [...groupElementsByTargetPath(elements, activeCompPath)];
 
   try {
-    for (const [targetPath, fileElements] of groupElementsByTargetPath(elements, activeCompPath)) {
-      let patchedContent = await readFileContent(projectId, targetPath);
-      originalByPath.set(targetPath, patchedContent);
-
-      for (const element of fileElements) {
-        const patchTarget = buildPatchTarget(element);
-        if (!patchTarget) {
-          throw new Error(`Timeline element ${element.id} is missing a patchable target`);
-        }
-        if (readTagSnippetByTarget(patchedContent, patchTarget) === undefined) {
-          throw new Error(`Unable to patch timeline element ${element.id} in ${targetPath}`);
-        }
-        patchedContent = applyPatchByTarget(patchedContent, patchTarget, hiddenOperation);
-      }
-
-      files[targetPath] = patchedContent;
-      pendingTimelineEditPathRef.current.add(targetPath);
-    }
-
+    // The patch is built under the file locks: reading the file before them let an
+    // undo or another save land first, and the write then expected stale bytes (409).
     domEditSaveTimestampRef.current = Date.now();
-    const changedPaths = await saveProjectFilesWithHistory({
-      projectId,
+    const changedPaths = await patchProjectFilesWithHistory({
       label,
       kind: "timeline",
-      files,
-      readFile: async (path) => {
-        const original = originalByPath.get(path);
-        if (original !== undefined) return original;
-        return readFileContent(projectId, path);
+      paths: groups.map(([targetPath]) => targetPath),
+      readFile: (path) => readFileContent(projectId, path),
+      patchFiles: async (readFile) => {
+        const files: Record<string, string> = {};
+        for (const [targetPath, fileElements] of groups) {
+          let patchedContent = await readFile(targetPath);
+          for (const element of fileElements) {
+            const patchTarget = buildPatchTarget(element);
+            if (!patchTarget) {
+              throw new Error(`Timeline element ${element.id} is missing a patchable target`);
+            }
+            if (readTagSnippetByTarget(patchedContent, patchTarget) === undefined) {
+              throw new Error(`Unable to patch timeline element ${element.id} in ${targetPath}`);
+            }
+            patchedContent = applyPatchByTarget(patchedContent, patchTarget, hiddenOperation);
+          }
+          files[targetPath] = patchedContent;
+          pendingTimelineEditPathRef.current.add(targetPath);
+        }
+        return files;
       },
       writeFile: writeProjectFile,
       recordEdit,
@@ -336,9 +341,7 @@ export function useTimelineTrackVisibilityEditing({
         forceReloadSdkSession?.();
       } catch (error) {
         console.error("[Timeline] Failed to toggle track visibility", error);
-        const message =
-          error instanceof Error ? error.message : "Failed to toggle track visibility";
-        showToast(message);
+        showToast(visibilityFailureMessage(error, "Failed to toggle track visibility"));
       }
     },
     [
@@ -405,9 +408,7 @@ export function useTimelineElementVisibilityEditing({
         forceReloadSdkSession?.();
       } catch (error) {
         console.error("[Timeline] Failed to toggle element visibility", error);
-        const message =
-          error instanceof Error ? error.message : "Failed to toggle element visibility";
-        showToast(message);
+        showToast(visibilityFailureMessage(error, "Failed to toggle element visibility"));
       }
     },
     [

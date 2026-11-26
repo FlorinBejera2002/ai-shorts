@@ -6,6 +6,7 @@ import type { StudioApiAdapter, RenderJobState } from "../types.js";
 import { VALID_CANVAS_RESOLUTIONS, type CanvasResolution } from "@hyperframes/parsers";
 import { formatRenderOutputTimestamp, parseFps } from "@hyperframes/core";
 import { resolveWithinProject } from "../helpers/safePath.js";
+import { rangeMediaResponse } from "../helpers/byteRange.js";
 import { isVariablesPayload, VARIABLES_PAYLOAD_ERROR } from "../helpers/variablesPayload.js";
 import { fileContentVersion } from "../helpers/fileVersion.js";
 import { randomUUID } from "node:crypto";
@@ -343,15 +344,9 @@ export function registerRenderRoutes(api: Hono, adapter: StudioApiAdapter): void
     const job = await getJob(renderId);
     if (!job || job.status !== "complete" || !(await verifyRenderOutput(fp)).verified)
       return c.json({ error: "render output is not verified" }, 409);
-    const contentType = renderContentType(fp);
-    const content = readFileSync(fp);
-    return new Response(content, {
-      headers: {
-        "Content-Type": contentType,
-        "Content-Disposition": `inline; filename="${filename}"`,
-        "Accept-Ranges": "bytes",
-        "Content-Length": String(content.length),
-      },
+    return rangeMediaResponse(fp, c.req.header("Range"), {
+      "Content-Type": renderContentType(fp),
+      "Content-Disposition": `inline; filename="${filename}"`,
     });
   });
 

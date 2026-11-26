@@ -152,7 +152,7 @@ export function createApp(options: EditorAppOptions) {
   });
   app.post("/sneepcut/session", async (c) => {
     if (!c.req.header("Authorization")) return c.json({ error: "Bearer required" }, 401);
-    sessions.delete(getCookie(c, SESSION_COOKIE));
+    sessions.retire(getCookie(c, SESSION_COOKIE), c.get("user").id);
     const requester = c.req.header("Origin") ?? "";
     const sessionAppOrigin = appOrigins.has(requester)
       ? requester

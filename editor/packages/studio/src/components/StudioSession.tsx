@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import {
-  readStudioSessionInfo,
+  loadStudioSessionInfo,
   startStudioSessionRenewal,
   type StudioSessionInfo,
 } from "../utils/studioSessionRenewal";
@@ -28,23 +28,20 @@ export function StudioSession() {
   const connection = useConnectionLost();
 
   useEffect(() => {
-    if (!document.querySelector('meta[name="sneepcut-session"][content="enabled"]')) return;
-    const controller = new AbortController();
-    const signal = AbortSignal.any([controller.signal, AbortSignal.timeout(15000)]);
-    void fetch("/sneepcut/session-info", { signal, credentials: "include", cache: "no-store" })
-      .then(async (response) => {
-        if (!response.ok) throw new Error("Session unavailable");
-        const session = readStudioSessionInfo(await response.json());
-        if (!session) throw new Error("Invalid session configuration");
-        if (controller.signal.aborted) return;
+    let active = true;
+    void loadStudioSessionInfo()
+      .then((session) => {
+        if (!active || !session) return;
         // The session frame also carries the app theme, so a change there reaches Studio live.
         trustStudioThemeOrigin(session.appOrigin);
         setInfo(session);
       })
       .catch(() => {
-        if (!controller.signal.aborted) setFailed(true);
+        if (active) setFailed(true);
       });
-    return () => controller.abort();
+    return () => {
+      active = false;
+    };
   }, [attempt]);
 
   useEffect(() => {

@@ -9,6 +9,7 @@ These are confirmed React Doctor findings from the Studio redesign that were not
   - `editor/packages/studio/src/components/shell/useProjectTitle.ts:48`
   - `editor/packages/studio/src/components/sidebar/useMediaLibrary.ts:57`
   - `editor/packages/studio/src/hooks/useBlockCatalog.ts:87`
+  - `editor/packages/studio/src/components/StudioSession.tsx:30` (session info, read once per attempt). Its `no-set-state-after-await-in-effect` finding is a false positive: `setInfo` and `setFailed` run only after checking that the effect's `AbortController` has not been aborted.
 - **Confidence:** high that the pattern is present; low that it causes user-visible bugs today.
 - **Impact:** Each call already aborts on unmount and checks `res.ok`. What is missing:
   - shared caching

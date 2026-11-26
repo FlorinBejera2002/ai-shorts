@@ -58,11 +58,62 @@ const NAMES: Record<string, readonly [en: string, ro: string]> = {
   "brand.restore": ["Restore brand settings", "Restaurează setările brandului"],
   "brand.logo.update": ["Update the brand logo", "Modifică logoul brandului"],
   "brand.logo.restore": ["Restore the brand logo", "Restaurează logoul brandului"],
+  "analytics.activity": ["Check recent activity", "Verifică activitatea recentă"],
+  "analytics.read": ["Read workspace totals", "Verifică totalurile"],
+  "calendar.list": ["Find calendar posts", "Caută postările din calendar"],
+  "calendar.get": ["Inspect the calendar post", "Verifică postarea din calendar"],
+  "calendar.create_draft": ["Create a calendar draft", "Creează o ciornă în calendar"],
+  "calendar.update": ["Update the calendar post", "Modifică postarea din calendar"],
+  "calendar.attach_media": ["Attach media to the post", "Atașează media la postare"],
+  "calendar.delete": ["Delete the calendar post", "Șterge postarea din calendar"],
+  "folders.create": ["Create a folder", "Creează un dosar"],
+  "folders.update": ["Rename or move the folder", "Redenumește sau mută dosarul"],
+  "folders.delete": ["Delete the folder", "Șterge dosarul"],
+  "jobs.list": ["Check processing jobs", "Verifică procesările în curs"],
+  "jobs.get": ["Inspect the processing job", "Verifică procesarea"],
+  "jobs.create": ["Start a processing job", "Pornește o procesare"],
+  "jobs.cancel": ["Cancel the processing job", "Anulează procesarea"],
+  "library.get": ["Read the library item", "Verifică elementul din bibliotecă"],
+  "resources.list": ["Find uploaded files", "Caută fișierele încărcate"],
+  "resources.get": ["Inspect the uploaded file", "Verifică fișierul încărcat"],
+  "publishing.accounts": ["Check connected accounts", "Verifică conturile conectate"],
+  "publishing.options": ["Check publishing options", "Verifică opțiunile de publicare"],
+  "publishing.status": ["Check publishing status", "Verifică starea publicării"],
+  "publishing.publish": ["Publish the post", "Publică postarea"],
+  "publishing.schedule": ["Schedule the post", "Programează postarea"],
+  "publishing.reschedule": ["Reschedule the post", "Reprogramează postarea"],
+  "publishing.unschedule": ["Unschedule the post", "Anulează programarea postării"],
+  "publishing.disconnect": ["Disconnect the account", "Deconectează contul"],
+  "scripts.list": ["Find scripts", "Caută scripturi"],
+  "scripts.get": ["Inspect the script", "Verifică scriptul"],
+  "scripts.create": ["Create a script", "Creează un script"],
+  "scripts.generate": ["Generate the script", "Generează scriptul"],
+  "scripts.update": ["Update the script", "Modifică scriptul"],
+  "scripts.archive": ["Archive the script", "Arhivează scriptul"],
+  "scripts.restore": ["Restore the script", "Restaurează scriptul"],
+  "scripts.versions": ["Check script versions", "Verifică versiunile scriptului"],
+  "scripts.restore_version": ["Restore a script version", "Restaurează o versiune a scriptului"],
+  "scripts.export": ["Export the script", "Exportă scriptul"],
+  "settings.read": ["Read settings", "Verifică setările"],
+  "settings.update": ["Update settings", "Modifică setările"],
+  "settings.restore": ["Restore settings", "Restaurează setările"],
+  "settings.preferences.read": ["Read preferences", "Verifică preferințele"],
+  "settings.preferences.update": ["Update preferences", "Modifică preferințele"],
+  "sources.list": ["Find sources", "Caută sursele"],
 };
 
-/** Title for an action in the active locale; unknown actions show their name. */
+/**
+ * Readable fallback for an action without a translated title: "publishing.disconnect" becomes
+ * "Publishing disconnect". Keeps the backend's name recognisable without showing the raw key.
+ */
+export function humanizeActionName(name: string): string {
+  const words = name.split(/[._]+/).filter(Boolean).join(" ");
+  return words.charAt(0).toUpperCase() + words.slice(1);
+}
+
+/** Title for an action in the active locale; unknown actions get a humanized name. */
 export function actionTitle(action: AgentAction, locale: "ro" | "en"): string {
   const names = NAMES[action.name];
   if (names) return locale === "ro" ? names[1] : names[0];
-  return action.name;
+  return humanizeActionName(action.name);
 }

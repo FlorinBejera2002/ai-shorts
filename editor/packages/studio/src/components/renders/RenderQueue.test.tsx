@@ -5,6 +5,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 import { RenderQueue } from "./RenderQueue";
 import type { FfmpegStatus } from "./useFfmpegStatus";
+import { t } from "../../i18n/translate";
 
 // Encoder availability arrives as a prop (useRenderQueue owns the probe), so
 // each case just states the environment it is about.
@@ -180,5 +181,44 @@ describe("RenderQueue FFmpeg gate", () => {
 
     expect(host.textContent).not.toContain("FFmpeg not found");
     expect(exportButtonIn(host).disabled).toBe(false);
+  });
+});
+
+describe("RenderQueue empty state with hidden renders", () => {
+  function mountEmpty(hiddenCount: number) {
+    const host = document.createElement("div");
+    document.body.append(host);
+    root = createRoot(host);
+    act(() => {
+      root?.render(
+        <RenderQueue
+          jobs={[]}
+          projectId="demo"
+          onDelete={vi.fn()}
+          onClearCompleted={vi.fn()}
+          onStartRender={vi.fn()}
+          isRendering={false}
+          hiddenCount={hiddenCount}
+          onShowHidden={vi.fn()}
+          ffmpeg={ffmpegStatus}
+          ffmpegChecking={false}
+          onRecheckFfmpeg={recheck}
+        />,
+      );
+    });
+    return host;
+  }
+
+  it("says the finished renders are hidden instead of 'No renders yet' when rows are hidden", () => {
+    const host = mountEmpty(2);
+    expect(host.textContent).toContain(t("output.rendersHiddenTitle"));
+    expect(host.textContent).not.toContain(t("output.noRenders"));
+    expect(host.textContent).toContain(t("output.hiddenRendersCount", { count: 2 }));
+  });
+
+  it("keeps 'No renders yet' when nothing is hidden", () => {
+    const host = mountEmpty(0);
+    expect(host.textContent).toContain(t("output.noRenders"));
+    expect(host.textContent).not.toContain(t("output.rendersHiddenTitle"));
   });
 });

@@ -5,6 +5,7 @@ import type { ExternalConflictSnapshot } from "../utils/externalConflictStorage"
 import { isSelfWriteEcho } from "./sdkSelfWriteRegistry";
 import { consumeStudioWriteToken } from "../utils/studioFileVersion";
 import { logReload } from "../utils/reloadDebug";
+import { useLatestRef } from "./useLatestRef";
 
 type ExternalChangeDrainResult =
   | { status: "clean" }
@@ -369,8 +370,12 @@ export function useExternalFileChangeCoordinator({
     [projectId, pendingTimelineEditPathRef, startDrainLoop, onAcceptedPersistedFileChange],
   );
 
+  // The subscription is opened once per mount. processChange changes identity whenever a
+  // save-queue callback is re-created, and re-subscribing would close and reopen /api/events
+  // on every such render; the latest processChange is read through the ref instead.
+  const processChangeRef = useLatestRef(processChange);
   useEffect(() => {
-    const handler = (payload?: unknown) => processChange(payload);
+    const handler = (payload?: unknown) => processChangeRef.current(payload);
     const adapter = testHotAdapter();
     if (adapter) {
       adapter.on("hf:file-change", handler);
@@ -383,7 +388,7 @@ export function useExternalFileChangeCoordinator({
     const eventSource = new EventSource("/api/events");
     eventSource.addEventListener("file-change", handler);
     return () => eventSource.close();
-  }, [processChange]);
+  }, [processChangeRef]);
 
   const retry = useCallback(async () => {
     const current = blockedRef.current;

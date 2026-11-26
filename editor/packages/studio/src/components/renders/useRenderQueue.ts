@@ -83,6 +83,14 @@ function writeHiddenIds(projectId: string, ids: Set<string>): void {
   }
 }
 
+// Only a finished render whose file the server can list again on reload can be
+// hidden and brought back. Cancelled renders and failures started in this tab
+// have no such record, so hiding them would strand them: they stay visible.
+function isHideableRender(job: RenderJob, startedInThisTab: ReadonlyMap<string, unknown>): boolean {
+  if (job.status === "complete") return true;
+  return job.status === "failed" && !startedInThisTab.has(job.id);
+}
+
 export function useRenderQueue(
   projectId: string | null,
   // A ref, not the value: the render target has to be read at click time, and
@@ -454,13 +462,13 @@ export function useRenderQueue(
   // rows don't resurrect from history on reload.
   const clearCompleted = useCallback(() => {
     setJobs((prev) => {
-      const finished = prev.filter((j) => j.status !== "rendering");
-      if (projectId && finished.length > 0) {
+      const hideable = prev.filter((j) => isHideableRender(j, sessionJobs.current));
+      if (projectId && hideable.length > 0) {
         const hidden = readHiddenIds(projectId);
-        for (const j of finished) hidden.add(j.id);
+        for (const j of hideable) hidden.add(j.id);
         writeHiddenIds(projectId, hidden);
       }
-      return prev.filter((j) => j.status === "rendering");
+      return prev.filter((j) => !isHideableRender(j, sessionJobs.current));
     });
   }, [projectId]);
 
@@ -509,6 +517,7 @@ export function useRenderQueue(
   }, [projectId]);
 
   const isRendering = jobs.some((j) => j.status === "rendering");
+  const hideableCount = jobs.filter((j) => isHideableRender(j, sessionJobs.current)).length;
   // Hidden rows leave the list but stay on disk. Re-read whenever the list changes, so the
   // count follows Hide, and the panel can offer them back when nothing else is left to show.
   const hiddenCount = projectId ? readHiddenIds(projectId).size : 0;
@@ -524,6 +533,7 @@ export function useRenderQueue(
       loadError,
       historyLoading,
       hiddenCount,
+      hideableCount,
       restoreHiddenRenders,
       actionError,
       dismissActionError,
@@ -547,6 +557,7 @@ export function useRenderQueue(
       loadError,
       historyLoading,
       hiddenCount,
+      hideableCount,
       restoreHiddenRenders,
       actionError,
       dismissActionError,

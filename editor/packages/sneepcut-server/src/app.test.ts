@@ -119,6 +119,29 @@ describe("SneepCut isolated editor host", () => {
     ).toBe(200);
     expect((await app.request("/sneepcut/me", { headers: { Cookie: third } })).status).toBe(401);
   });
+  it("keeps a renewed session's old cookie valid briefly for in-flight requests", async () => {
+    const app = application();
+    const previous = await cookie(app);
+    const renewed = await app.request("/sneepcut/session", {
+      method: "POST",
+      headers: { ...memberHeaders, Cookie: previous },
+    });
+    const current = renewed.headers.get("set-cookie")?.split(";")[0] ?? "";
+    expect(current).not.toBe(previous);
+    expect((await app.request("/sneepcut/me", { headers: { Cookie: previous } })).status).toBe(200);
+    now += 60001;
+    expect((await app.request("/sneepcut/me", { headers: { Cookie: previous } })).status).toBe(401);
+    expect((await app.request("/sneepcut/me", { headers: { Cookie: current } })).status).toBe(200);
+  });
+  it("ends the previous session at once when another account signs in", async () => {
+    const app = application();
+    const previous = await cookie(app);
+    await app.request("/sneepcut/session", {
+      method: "POST",
+      headers: { Authorization: "Bearer bob", Origin: memberHeaders.Origin, Cookie: previous },
+    });
+    expect((await app.request("/sneepcut/me", { headers: { Cookie: previous } })).status).toBe(401);
+  });
   it("binds session renewal to the authenticated owner and exact originating app", async () => {
     const app = application("http://localhost", ["https://www.sneepcut.test"]);
     expect((await app.request("/sneepcut/session-info")).status).toBe(401);

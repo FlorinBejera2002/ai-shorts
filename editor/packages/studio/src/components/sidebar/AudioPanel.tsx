@@ -70,7 +70,7 @@ export const AudioPanel = memo(function AudioPanel({
         openPicker ? (
           <PanelPill
             icon="plus"
-            className="w-full"
+            className="w-full max-sm:h-11"
             disabled={uploads.importing}
             onClick={openPicker}
           >

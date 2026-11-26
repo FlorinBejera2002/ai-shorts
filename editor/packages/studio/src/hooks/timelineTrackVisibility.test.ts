@@ -5,7 +5,13 @@ import { usePlayerStore, type TimelineElement } from "../player";
 import { resolveAudioGroups } from "@hyperframes/core/audio-groups";
 import { readTagSnippetByTarget } from "../utils/sourcePatcher";
 import { createAudioGroupAndAssignMembers } from "./timelineAudioGroupCreate";
-import { toggleTimelineElementHidden, toggleTimelineTrackHidden } from "./timelineTrackVisibility";
+import {
+  toggleTimelineElementHidden,
+  toggleTimelineTrackHidden,
+  visibilityFailureMessage,
+} from "./timelineTrackVisibility";
+import { StudioFileConflictError } from "../utils/studioSaveDiagnostics";
+import { t } from "../i18n/translate";
 
 afterEach(() => {
   document.body.innerHTML = "";
@@ -652,5 +658,26 @@ describe("createAudioGroupAndAssignMembers", () => {
     expect(
       iframe.contentDocument?.getElementById("interview-guest")?.hasAttribute("data-audio-group"),
     ).toBe(false);
+  });
+});
+
+describe("visibilityFailureMessage", () => {
+  /**
+   * A conflict used to reach the toast as the English `Save conflict: ...` text,
+   * inside a Romanian UI. The toast now goes through the translated message.
+   */
+  it("localizes a save conflict instead of showing the English error text", () => {
+    const conflict = new StudioFileConflictError({
+      filePath: "index.html",
+      currentVersion: null,
+      currentContent: null,
+      attemptedContent: "",
+    });
+
+    expect(visibilityFailureMessage(conflict, "Failed")).toBe(
+      t("shell.saveConflict", { file: "index.html" }),
+    );
+    expect(visibilityFailureMessage(new Error("boom"), "Failed")).toBe("boom");
+    expect(visibilityFailureMessage("nope", "Failed")).toBe("Failed");
   });
 });

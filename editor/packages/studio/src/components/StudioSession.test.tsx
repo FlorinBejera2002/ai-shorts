@@ -3,7 +3,10 @@ import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { StudioSession } from "./StudioSession";
-import { readStudioSessionInfo } from "../utils/studioSessionRenewal";
+import {
+  readStudioSessionInfo,
+  resetStudioSessionInfoRequest,
+} from "../utils/studioSessionRenewal";
 
 const owner = "11111111-1111-4111-8111-111111111111";
 const appOrigin = "https://app.sneepcut.test";
@@ -23,6 +26,7 @@ describe("native Studio session", () => {
   let root: ReturnType<typeof createRoot>;
 
   beforeEach(() => {
+    resetStudioSessionInfoRequest();
     vi.useFakeTimers();
     vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
     // Keep a real frame window without networking; the browser test covers its document.

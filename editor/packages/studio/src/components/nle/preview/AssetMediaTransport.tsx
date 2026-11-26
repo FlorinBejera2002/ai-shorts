@@ -1,7 +1,7 @@
 // Transport for a media file previewed in the asset dialog (St-Preview-AssetOverlay): the same
 // row as the preview card, driving the <video>/<audio> element directly. It never touches the
 // composition playhead.
-import { useEffect, useState, useSyncExternalStore, type RefObject } from "react";
+import { useEffect, useReducer, useState, useSyncExternalStore, type RefObject } from "react";
 import { t, useLocale } from "../../../i18n/translate";
 import { secondsToFrame, STUDIO_PREVIEW_FPS } from "../../../player/lib/time";
 import {
@@ -51,6 +51,8 @@ function useMediaTick(mediaRef: RefObject<Media | null>): number {
 export function AssetMediaTransport({ mediaRef }: { mediaRef: RefObject<Media | null> }) {
   const locale = useLocale();
   useMediaTick(mediaRef);
+  // `loop` has no media event, so the snapshot above does not see a loop toggle; repaint explicitly.
+  const [, repaint] = useReducer((count: number) => count + 1, 0);
   const [mode, setMode] = useState<"time" | "frame">("time");
   const media = mediaRef.current;
   const time = media?.currentTime ?? 0;
@@ -126,7 +128,9 @@ export function AssetMediaTransport({ mediaRef }: { mediaRef: RefObject<Media | 
           tone={loop ? "selected" : "plain"}
           aria-pressed={loop}
           onClick={() => {
-            if (media) media.loop = !media.loop;
+            if (!media) return;
+            media.loop = !media.loop;
+            repaint();
           }}
         >
           <PreviewIcon name="loop" />

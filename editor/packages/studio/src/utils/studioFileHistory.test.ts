@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { saveProjectFilesWithHistory } from "./studioFileHistory";
+import { patchProjectFilesWithHistory, saveProjectFilesWithHistory } from "./studioFileHistory";
 import { serializeStudioFileMutation } from "./studioFileMutationCoordinator";
 
 describe("saveProjectFilesWithHistory", () => {
@@ -240,6 +240,48 @@ describe("saveProjectFilesWithHistory", () => {
     expect(recordEdit).toHaveBeenCalledWith(
       expect.objectContaining({
         files: { "index.html": { before: "sdk-after", after: "editor-after" } },
+      }),
+    );
+  });
+});
+
+describe("patchProjectFilesWithHistory", () => {
+  /**
+   * A timeline visibility toggle read index.html before queuing its write. An undo
+   * that was already queued then replaced the file, and the toggle wrote its stale
+   * patch with the stale bytes as the expectation: the server answered 409.
+   */
+  it("builds the patch from the bytes on disk after the file locks are held", async () => {
+    let disk = "with highlight";
+    const expectations: Record<string, string | undefined> = {};
+    const writer = async (path: string, content: string, expectedContent?: string) => {
+      expectations[path] = expectedContent;
+      disk = content;
+    };
+    const recordEdit = vi.fn();
+
+    // An undo already holds the lock and restores the file before the patch starts.
+    const undo = serializeStudioFileMutation(writer, "index.html", async () => {
+      disk = "undone";
+    });
+    const patch = patchProjectFilesWithHistory({
+      label: "Hide track 1",
+      kind: "timeline",
+      paths: ["index.html"],
+      readFile: async () => disk,
+      patchFiles: async (readFile) => ({
+        "index.html": `${await readFile("index.html")} data-hidden=""`,
+      }),
+      writeFile: writer,
+      recordEdit,
+    });
+    await Promise.all([undo, patch]);
+
+    expect(expectations["index.html"]).toBe("undone");
+    expect(disk).toBe('undone data-hidden=""');
+    expect(recordEdit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        files: { "index.html": { before: "undone", after: 'undone data-hidden=""' } },
       }),
     );
   });

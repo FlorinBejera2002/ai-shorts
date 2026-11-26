@@ -32,6 +32,39 @@ export function readStudioSessionInfo(value: unknown): StudioSessionInfo | null 
   }
 }
 
+const SESSION_INFO_TIMEOUT_MS = 15000;
+let sessionInfoRequest: Promise<StudioSessionInfo | null> | null = null;
+
+async function fetchStudioSessionInfo(): Promise<StudioSessionInfo | null> {
+  if (!document.querySelector('meta[name="sneepcut-session"][content="enabled"]')) return null;
+  const response = await fetch("/sneepcut/session-info", {
+    signal: AbortSignal.timeout(SESSION_INFO_TIMEOUT_MS),
+    credentials: "include",
+    cache: "no-store",
+  });
+  if (!response.ok) throw new Error("Session unavailable");
+  const session = readStudioSessionInfo(await response.json());
+  if (!session) throw new Error("Invalid session configuration");
+  return session;
+}
+
+/**
+ * Session info for this page, null when Studio is not hosted by SneepCut. The request is made once
+ * and shared by every caller; a failed request is cleared so the next call retries it.
+ */
+export function loadStudioSessionInfo(): Promise<StudioSessionInfo | null> {
+  sessionInfoRequest ??= fetchStudioSessionInfo().catch((error: unknown) => {
+    sessionInfoRequest = null;
+    throw error;
+  });
+  return sessionInfoRequest;
+}
+
+/** Forgets the shared session info request so tests can start from a clean page. */
+export function resetStudioSessionInfoRequest() {
+  sessionInfoRequest = null;
+}
+
 /** Reconnects only the cookie session. It never replaces the editor or its pending saves. */
 export function startStudioSessionRenewal(
   info: StudioSessionInfo,

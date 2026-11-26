@@ -196,6 +196,12 @@ h3 {
    */
   height: 100vh;
   height: 100dvh;
+  /*
+   * The editor never scrolls as a page. Clip overlays that extend past the window (the
+   * selection outline of an element wider than the canvas), otherwise phone browsers widen
+   * the layout viewport to fit them and the fixed bottom tool bar runs off-screen.
+   */
+  overflow: clip;
 }
 
 .timeline-clip {

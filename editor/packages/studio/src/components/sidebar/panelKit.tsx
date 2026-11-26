@@ -177,7 +177,10 @@ export function PanelPill({
   );
 }
 
-/** Outlined filter chip; the selected chip fills with the selected token. */
+/**
+ * Outlined filter chip; the selected chip fills with the selected token.
+ * `max-sm:` mirrors PHONE_QUERY (max-width 639px) at the default root font size.
+ */
 export function PanelChip({
   pressed,
   onClick,
@@ -205,7 +208,7 @@ export function PanelChip({
       aria-checked={role ? pressed : undefined}
       aria-pressed={role ? undefined : pressed}
       onClick={onClick}
-      className={`inline-flex h-[30px] flex-none items-center justify-center gap-1.5 whitespace-nowrap rounded-full text-xs font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--st-btn)] ${
+      className={`inline-flex h-[30px] max-sm:h-11 flex-none items-center justify-center gap-1.5 whitespace-nowrap rounded-full text-xs font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--st-btn)] ${
         tone === "soft" ? "px-3" : "px-[11px]"
       } ${pressed ? PILL_VARIANT.selected : idle}`}
     >
@@ -262,7 +265,7 @@ export function PanelSegment<T extends string>({
             role="radio"
             aria-checked={selected}
             onClick={() => onChange(option.value)}
-            className={`h-8 min-w-0 flex-1 truncate rounded-full px-3 text-[13px] transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--st-btn)] ${
+            className={`h-8 max-sm:h-11 min-w-0 flex-1 truncate rounded-full px-3 text-[13px] transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--st-btn)] ${
               selected
                 ? "bg-studio-selected font-semibold text-studio-on-selected"
                 : "font-medium text-[var(--st-t2)] hover:bg-[var(--st-sub)]"

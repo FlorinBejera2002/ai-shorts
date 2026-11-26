@@ -34,6 +34,8 @@ export interface StudioShellValue {
     historyLoading: boolean;
     /** Finished renders hidden from the list (files stay on disk). */
     hiddenCount: number;
+    /** Rows Hide can remove; cancelled and in-tab failed rows stay visible. */
+    hideableCount: number;
     restoreHiddenRenders: () => void;
     actionError: string | null;
     dismissActionError: () => void;

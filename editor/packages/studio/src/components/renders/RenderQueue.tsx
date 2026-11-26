@@ -27,6 +27,8 @@ interface RenderQueueProps {
   historyLoading?: boolean;
   /** Finished renders hidden from this list (files stay on disk). */
   hiddenCount?: number;
+  /** Rows Hide can remove; cancelled and in-tab failed rows stay visible. */
+  hideableCount?: number;
   /** Bring the hidden renders back into the list. */
   onShowHidden?: () => void;
   /** Failure of a delete/cancel action, shown inline until dismissed. */
@@ -68,8 +70,9 @@ function RendersEmpty({
         draggable={false}
         className="h-[120px] w-[120px] object-contain"
       />
+      {/* "No renders yet" is false while finished rows are only hidden. */}
       <b className="font-display text-[15px] font-semibold text-studio-text">
-        {t("output.noRenders")}
+        {hiddenCount > 0 ? t("output.rendersHiddenTitle") : t("output.noRenders")}
       </b>
       {/* Hidden rows still exist on disk, so the list is not really empty: offer them back. */}
       {hiddenCount > 0 && onShowHidden ? (
@@ -136,6 +139,7 @@ export const RenderQueue = memo(function RenderQueue({
   onRetryLoad,
   historyLoading = false,
   hiddenCount = 0,
+  hideableCount = 0,
   onShowHidden,
   actionError,
   onDismissActionError,
@@ -153,7 +157,6 @@ export const RenderQueue = memo(function RenderQueue({
     if (list && jobs.length > 0) list.lastElementChild?.scrollIntoView?.({ block: "nearest" });
   }, [jobs.length]);
 
-  const completedCount = jobs.filter((j) => j.status !== "rendering").length;
   const lastRenderDurationMs = [...jobs]
     .reverse()
     .find((j) => j.status === "complete" && j.durationMs !== undefined)?.durationMs;
@@ -186,7 +189,7 @@ export const RenderQueue = memo(function RenderQueue({
             </span>
             {/* "Hide", not "Clear": files stay on disk (delete is per row and confirmed);
                 hidden rows don't come back on reload. */}
-            {completedCount > 0 ? (
+            {hideableCount > 0 ? (
               <OutputButton
                 variant="ghost"
                 height={32}

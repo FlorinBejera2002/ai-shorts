@@ -41,7 +41,7 @@ function FormatGrid({ recordEdit, onDone }: { recordEdit: AgentRecordEdit; onDon
               onDone();
               void aspect.change(format);
             }}
-            className={`h-10 rounded-full text-[13px] font-semibold ${
+            className={`h-10 max-sm:h-11 rounded-full text-[13px] font-semibold ${
               selected
                 ? "bg-studio-selected text-studio-on-selected"
                 : "text-studio-text shadow-[inset_0_0_0_1.5px_var(--st-sbd)]"

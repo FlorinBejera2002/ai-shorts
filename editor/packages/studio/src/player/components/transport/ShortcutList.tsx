@@ -1,9 +1,10 @@
 import { t } from "../../../i18n/translate";
 import { Kbd } from "../../../components/nle/preview/previewChrome";
+import { modifierKeyLabel } from "../../../utils/commandKey";
 import type { ShortcutKey, ShortcutSection } from "./shortcutSections";
 
 function keyText(key: ShortcutKey): string {
-  return typeof key === "string" ? key : t(key.word);
+  return typeof key === "string" ? modifierKeyLabel(key) : t(key.word);
 }
 
 /** Section title row shared by the shortcuts and tools panels (13px semibold, 24px tall). */

@@ -65,49 +65,84 @@ export async function readProjectFileContent(pid: string, path: string): Promise
 }
 
 export async function saveProjectFilesWithHistory({
-  label,
-  kind,
-  coalesceKey,
-  coalesceMs,
   files,
-  readFile,
-  writeFile,
-  recordEdit,
-  diskContent,
+  ...input
 }: SaveProjectFilesWithHistoryInput): Promise<string[]> {
-  return serializeStudioFileMutations(writeFile, Object.keys(files), async () => {
-    const snapshots: Record<string, { before: string; after: string }> = {};
-    for (const [path, after] of Object.entries(files)) {
-      const before = await readFile(path);
-      if (before !== after) {
-        snapshots[path] = { before, after };
-      }
+  return serializeStudioFileMutations(input.writeFile, Object.keys(files), () =>
+    saveFilesUnderLock(input, files),
+  );
+}
+
+interface PatchProjectFilesWithHistoryInput extends Omit<
+  SaveProjectFilesWithHistoryInput,
+  "files" | "projectId"
+> {
+  /** Every path the patch may touch. Their file locks are held while `patchFiles` runs. */
+  paths: readonly string[];
+  /**
+   * Builds the new content from the bytes on disk. It runs once the file locks are held, so a
+   * writer already queued (an undo, another save) cannot land between the read and the write.
+   * Reading before the lock let an undo replace the file first; the patch then expected the
+   * stale bytes and the server refused it as a 409.
+   */
+  patchFiles: (readFile: (path: string) => Promise<string>) => Promise<Record<string, string>>;
+}
+
+export async function patchProjectFilesWithHistory({
+  paths,
+  patchFiles,
+  ...input
+}: PatchProjectFilesWithHistoryInput): Promise<string[]> {
+  return serializeStudioFileMutations(input.writeFile, paths, async () =>
+    saveFilesUnderLock(input, await patchFiles(input.readFile)),
+  );
+}
+
+/** Writes and records `files`. The caller must already hold the locks for their paths. */
+async function saveFilesUnderLock(
+  {
+    label,
+    kind,
+    coalesceKey,
+    coalesceMs,
+    readFile,
+    writeFile,
+    recordEdit,
+    diskContent,
+  }: Omit<SaveProjectFilesWithHistoryInput, "files" | "projectId">,
+  files: Record<string, string>,
+): Promise<string[]> {
+  const snapshots: Record<string, { before: string; after: string }> = {};
+  for (const [path, after] of Object.entries(files)) {
+    const before = await readFile(path);
+    if (before !== after) {
+      snapshots[path] = { before, after };
+    }
+  }
+
+  const changedPaths = Object.keys(snapshots);
+  if (changedPaths.length === 0) return [];
+
+  const writtenPaths: string[] = [];
+  try {
+    for (const path of changedPaths) {
+      await writeFile(path, snapshots[path].after, diskContent?.[path] ?? snapshots[path].before);
+      writtenPaths.push(path);
     }
 
-    const changedPaths = Object.keys(snapshots);
-    if (changedPaths.length === 0) return [];
-
-    const writtenPaths: string[] = [];
+    await recordEdit({ label, kind, coalesceKey, coalesceMs, files: snapshots });
+  } catch (error) {
     try {
-      for (const path of changedPaths) {
-        await writeFile(path, snapshots[path].after, diskContent?.[path] ?? snapshots[path].before);
-        writtenPaths.push(path);
+      for (const path of writtenPaths.reverse()) {
+        await writeFile(path, snapshots[path].before, snapshots[path].after);
       }
-
-      await recordEdit({ label, kind, coalesceKey, coalesceMs, files: snapshots });
-    } catch (error) {
-      try {
-        for (const path of writtenPaths.reverse()) {
-          await writeFile(path, snapshots[path].before, snapshots[path].after);
-        }
-      } catch (rollbackError) {
-        throw new AggregateError(
-          [error, rollbackError],
-          "Failed to save project files and rollback did not complete",
-        );
-      }
-      throw error;
+    } catch (rollbackError) {
+      throw new AggregateError(
+        [error, rollbackError],
+        "Failed to save project files and rollback did not complete",
+      );
     }
-    return changedPaths;
-  });
+    throw error;
+  }
+  return changedPaths;
 }

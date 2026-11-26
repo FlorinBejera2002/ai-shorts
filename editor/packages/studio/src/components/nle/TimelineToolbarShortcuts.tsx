@@ -20,6 +20,7 @@ import {
   PLAYBACK,
   TOOLS,
   WORK_AREA_KEYS,
+  shortcutKeyLabel,
   type ShortcutGroup,
   type ShortcutKey,
   type ShortcutRow,
@@ -27,19 +28,15 @@ import {
 
 type ShortcutView = "basic" | "advanced";
 
-function keyText(key: ShortcutKey): string {
-  return typeof key === "string" ? key : t(key.word);
-}
-
 function KeyCaps({ keys }: { keys: readonly ShortcutKey[] }) {
   return (
     <span className="inline-flex flex-none gap-1">
       {keys.map((key) => (
         <kbd
-          key={keyText(key)}
+          key={shortcutKeyLabel(key)}
           className="inline-flex h-6 min-w-[26px] items-center justify-center whitespace-nowrap rounded-sm bg-[var(--st-sub)] px-[7px] font-sans text-xs font-semibold tabular-nums text-[var(--st-tx)]"
         >
-          {keyText(key)}
+          {shortcutKeyLabel(key)}
         </kbd>
       ))}
     </span>
@@ -51,7 +48,7 @@ function ShortcutRows({ rows }: { rows: readonly ShortcutRow[] }) {
     <div className="flex flex-col gap-1.5">
       {rows.map(([label, keys]) => (
         <div
-          key={`${label}-${keys.map(keyText).join("")}`}
+          key={`${label}-${keys.map(shortcutKeyLabel).join("")}`}
           className="flex min-h-[30px] items-center justify-between gap-3"
         >
           <span className="text-[13px] font-medium text-[var(--st-tx)]">{t(label)}</span>
