@@ -119,6 +119,12 @@ func (h *Handler) allowed(w http.ResponseWriter, r *http.Request, key string, li
 	return true
 }
 
+// signedInUsageMultiplier keeps signed-in customers' product allowances far
+// above normal use: credits already meter paid work, so these limits only stop
+// runaway automation. Anonymous requests (registration, password reset) and
+// credential proofs (SecurityLimit) keep their base limits.
+const signedInUsageMultiplier = 20
+
 func (h *Handler) Limit(next http.HandlerFunc, key string, limit int, window time.Duration) http.HandlerFunc {
 	return h.limit(next, key, limit, window, true)
 }
@@ -138,11 +144,14 @@ func (h *Handler) limit(next http.HandlerFunc, key string, limit int, window tim
 			next.ServeHTTP(w, r)
 			return
 		}
-		owner := "peer:" + h.clientIP(r)
+		owner, allowance := "peer:"+h.clientIP(r), limit
 		if principal.User.ID != "" {
 			owner = "user:" + principal.User.ID
+			if adminExempt {
+				allowance = limit * signedInUsageMultiplier
+			}
 		}
-		if h.allowed(w, r, key+":"+owner, limit, window) {
+		if h.allowed(w, r, key+":"+owner, allowance, window) {
 			next.ServeHTTP(w, r)
 		}
 	}

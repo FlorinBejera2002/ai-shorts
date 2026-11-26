@@ -100,7 +100,7 @@ func (s *Service) StoreNarration(ctx context.Context, user, name string, body io
 
 func (h *Handler) uploadNarration(w http.ResponseWriter, r *http.Request) {
 	user := identity.Current(r).User.ID
-	if err := h.service.allow(r.Context(), user, "narration-upload", 60); err != nil {
+	if err := h.service.allow(r.Context(), user, "narration-upload", 1200); err != nil {
 		mediaError(w, err)
 		return
 	}

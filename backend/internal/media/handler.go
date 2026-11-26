@@ -23,7 +23,9 @@ type Authentication interface {
 
 // A Story collection supports 200 files. Keep admission bounded while allowing
 // one whole collection and retries without an hour-long pause midway through.
-const videoUploadsPerHour = 600
+// Upload allowances stay far above normal use (20x the original quotas):
+// credits meter paid work, so these only stop runaway automation.
+const videoUploadsPerHour = 12000
 
 type Handler struct {
 	service *Service
@@ -59,7 +61,7 @@ func (h *Handler) Register(router *httprouter.Router) {
 
 func (h *Handler) uploadPublishingMedia(w http.ResponseWriter, r *http.Request) {
 	user := identity.Current(r).User
-	if e := h.service.allow(r.Context(), user.ID, "publishing-upload", 60); e != nil {
+	if e := h.service.allow(r.Context(), user.ID, "publishing-upload", 1200); e != nil {
 		mediaError(w, e)
 		return
 	}

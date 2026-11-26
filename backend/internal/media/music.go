@@ -80,7 +80,7 @@ func (s *Service) StoreMusic(ctx context.Context, user, name string, body io.Rea
 
 func (h *Handler) uploadMusic(w http.ResponseWriter, r *http.Request) {
 	user := identity.Current(r).User.ID
-	if err := h.service.allow(r.Context(), user, "music-upload", 30); err != nil {
+	if err := h.service.allow(r.Context(), user, "music-upload", 600); err != nil {
 		mediaError(w, err)
 		return
 	}

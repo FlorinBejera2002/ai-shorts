@@ -37,10 +37,13 @@ func TestAdminUsageLimitUsesCurrentAuthenticatedRole(t *testing.T) {
 			t.Fatalf("admin was limited: %d", got)
 		}
 	}
-	// The same token immediately observes demotion and the normal allowance.
+	// The same token immediately observes demotion and the normal allowance,
+	// which is generous for signed-in customers.
 	repo.user.AccessRole = "member"
-	if got := request(session.AccessToken); got != http.StatusNoContent {
-		t.Fatalf("first member request: %d", got)
+	for i := range signedInUsageMultiplier {
+		if got := request(session.AccessToken); got != http.StatusNoContent {
+			t.Fatalf("member request %d: %d", i+1, got)
+		}
 	}
 	if got := request(session.AccessToken); got != http.StatusTooManyRequests {
 		t.Fatalf("member allowance bypassed: %d", got)

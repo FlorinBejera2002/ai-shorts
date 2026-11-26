@@ -275,7 +275,7 @@ func (h *Handler) uploadLogo(w http.ResponseWriter, r *http.Request) {
 		mediaError(w, e)
 		return
 	}
-	if e := h.service.allow(r.Context(), userID, "logo", 10); e != nil {
+	if e := h.service.allow(r.Context(), userID, "logo", 200); e != nil {
 		mediaError(w, e)
 		return
 	}
@@ -349,7 +349,7 @@ func (h *Handler) deleteLogo(w http.ResponseWriter, r *http.Request) {
 		mediaError(w, e)
 		return
 	}
-	if e := h.service.allow(r.Context(), userID, "delete-logo", 30); e != nil {
+	if e := h.service.allow(r.Context(), userID, "delete-logo", 600); e != nil {
 		mediaError(w, e)
 		return
 	}

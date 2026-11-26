@@ -88,7 +88,7 @@ func (h *Handler) uploadFont(w http.ResponseWriter, r *http.Request) {
 		mediaError(w, failure(400, "Confirm you have permission to use this font"))
 		return
 	}
-	if e := h.service.allow(r.Context(), user, "font-upload", 30); e != nil {
+	if e := h.service.allow(r.Context(), user, "font-upload", 600); e != nil {
 		mediaError(w, e)
 		return
 	}
