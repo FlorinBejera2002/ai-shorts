@@ -20,10 +20,17 @@ import (
 )
 
 //go:embed prompts/create.txt
-var createPrompt string
+var createPromptFile string
 
 //go:embed prompts/editor.txt
-var editorPrompt string
+var editorPromptFile string
+
+// Embedded text retains the checkout's line endings. Use one prompt contract
+// across Windows development builds and Linux checkouts.
+var (
+	createPrompt = strings.ReplaceAll(createPromptFile, "\r\n", "\n")
+	editorPrompt = strings.ReplaceAll(editorPromptFile, "\r\n", "\n")
+)
 
 type Handler struct {
 	db        *sql.DB

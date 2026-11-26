@@ -9,6 +9,45 @@ import (
 	"testing"
 )
 
+func TestPostgresYouTubeRetryKeepsCanonicalSourceAndRefunds(t *testing.T) {
+	db := testdb.Open(t)
+	repo := NewRepository(db)
+	user := seedUser(t, db)
+	ctx := context.Background()
+	url := "https://www.youtube.com/watch?v=aqz-KE-bpKQ"
+	created, err := repo.Create(ctx, user, []Prepared{{Input: CreateInput{Options: DefaultOptions(), SourceType: "youtube", SourceURL: &url}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var job struct{ ID string }
+	if err = json.Unmarshal(created[0], &job); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = repo.Cancel(ctx, user, job.ID); err != nil {
+		t.Fatal(err)
+	}
+	if err = repo.retryAudio(ctx, user, job.ID, audioRetryInput{RequestID: newID()}); err != nil {
+		t.Fatal(err)
+	}
+	var queued string
+	if err = db.QueryRow(`SELECT payload->>'youtube_url' FROM job_deliveries WHERE job_id=$1`, job.ID).Scan(&queued); err != nil || queued != url {
+		t.Fatalf("source %s %v", queued, err)
+	}
+	if _, err = repo.Cancel(ctx, user, job.ID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = db.Exec(`UPDATE job_deliveries SET payload=jsonb_set(payload,'{youtube_url}','"https://127.0.0.1/private"'::jsonb) WHERE job_id=$1`, job.ID); err != nil {
+		t.Fatal(err)
+	}
+	if err = repo.retryAudio(ctx, user, job.ID, audioRetryInput{RequestID: newID()}); !errors.Is(err, errLinkJobRetired) {
+		t.Fatalf("invalid delivery retried: %v", err)
+	}
+	var balance int
+	if err = db.QueryRow(`SELECT credits FROM users WHERE id=$1`, user).Scan(&balance); err != nil || balance != 100 {
+		t.Fatalf("balance %d %v", balance, err)
+	}
+}
+
 func TestPostgresAudioRetryIsOwnedIdempotentAndPreservesSource(t *testing.T) {
 	t.Setenv("AUDIO_CLEANUP_VERIFIED", "true")
 	t.Setenv("DEEPFILTER_PATH", "/synthetic/runtime")

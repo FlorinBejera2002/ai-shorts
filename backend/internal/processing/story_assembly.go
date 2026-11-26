@@ -54,7 +54,9 @@ func (p *Processor) prepareStoryAssembly(ctx context.Context, dir string, parts 
 			}
 		}
 		if videoCount > 0 {
-			filters = append(filters, fmt.Sprintf("%sconcat=n=%d:v=1:a=0[v]", videoInputs.String(), videoCount))
+			// concat exposes an unspecified frame rate. Rebuild its presentation
+			// clock so the muxer retains the final frame's duration in every batch.
+			filters = append(filters, fmt.Sprintf("%sconcat=n=%d:v=1:a=0,settb=1/30,setpts=N[v]", videoInputs.String(), videoCount))
 		}
 		if !narration {
 			filters = append(filters, fmt.Sprintf("%sconcat=n=%d:v=0:a=1[a]", audioInputs.String(), end-start))
@@ -65,7 +67,7 @@ func (p *Processor) prepareStoryAssembly(ctx context.Context, dir string, parts 
 		args = append(args, "-filter_complex", strings.Join(filters, ";"))
 		if videoCount > 0 {
 			file := fmt.Sprintf("assembly-video-%06d.mp4", start)
-			args = append(args, "-map", "[v]", "-an")
+			args = append(args, "-map", "[v]", "-an", "-r", "30", "-fps_mode", "cfr")
 			if hdr {
 				args = append(args, "-c:v", "libx265", "-preset", "ultrafast", "-pix_fmt", "yuv420p10le", "-color_primaries", "bt2020", "-color_trc", "smpte2084", "-colorspace", "bt2020nc", "-x265-params", "lossless=1:pools=2:frame-threads=1:log-level=error:colorprim=bt2020:transfer=smpte2084:colormatrix=bt2020nc")
 			} else {

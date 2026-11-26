@@ -64,8 +64,6 @@ func (s *S3Storage) Save(ctx context.Context, source, key, contentType string) e
 	}
 	// Bound the whole operation, including SDK backoff and reconciliation, rather
 	// than granting each SDK attempt a fresh ten-minute budget.
-	ctx, cancel := context.WithTimeout(ctx, 10*time.Minute)
-	defer cancel()
 	f, e := os.Open(source)
 	if e != nil {
 		return e
@@ -74,6 +72,15 @@ func (s *S3Storage) Save(ctx context.Context, source, key, contentType string) e
 	info, e := f.Stat()
 	if e != nil {
 		return e
+	}
+	budget := 10 * time.Minute
+	if info.Size() > multipartThreshold {
+		budget = time.Hour
+	}
+	ctx, cancel := context.WithTimeout(ctx, budget)
+	defer cancel()
+	if info.Size() > multipartThreshold {
+		return s.saveMultipart(ctx, f, info.Size(), key, contentType, multipartPartSize)
 	}
 	writeID := rand.Text()
 	_, e = s.client.PutObject(ctx, &s3.PutObjectInput{

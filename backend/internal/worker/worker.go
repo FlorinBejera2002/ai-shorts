@@ -8,6 +8,7 @@ import (
 	"sneepcut/backend-go/internal/audiocleanup"
 	"sneepcut/backend-go/internal/media"
 	"sneepcut/backend-go/internal/processing"
+	"sneepcut/backend-go/internal/youtubedownload"
 	"strings"
 	"time"
 )
@@ -98,6 +99,7 @@ func (w *Worker) process(parent context.Context, j *Job) error {
 	var payload struct {
 		AudioCleanup   *audiocleanup.Settings `json:"audio_cleanup"`
 		SourceKey      string                 `json:"source_storage_key"`
+		YouTubeURL     string                 `json:"youtube_url"`
 		RequestedClips int                    `json:"requested_clips"`
 		BurnSubtitles  *bool                  `json:"burn_subtitles"`
 		SmartCrop      *bool                  `json:"smart_crop"`
@@ -108,9 +110,12 @@ func (w *Worker) process(parent context.Context, j *Job) error {
 	if err == nil && payload.SourceKey != "" && (payload.SourceKey != j.SourceKey || !strings.HasPrefix(payload.SourceKey, "uploads/"+j.UserID+"/") || len(strings.Split(payload.SourceKey, "/")) != 3) {
 		err = errors.New("uploaded source does not belong to job owner")
 	}
+	if err == nil {
+		err = validateYouTubeDelivery(j, payload.YouTubeURL, payload.SourceKey)
+	}
 	var result processing.Result
 	if err == nil {
-		result, err = w.processInput(ctx, processing.Input{UserID: j.UserID, AudioCleanup: payload.AudioCleanup, SourceKey: payload.SourceKey, Namespace: namespace, Language: j.Language, Instructions: payload.Instructions, AspectRatio: j.AspectRatio, SubtitleStyle: j.SubtitleStyle, RequestedClips: payload.RequestedClips, SmartCrop: payload.SmartCrop == nil || *payload.SmartCrop, BurnSubtitles: payload.BurnSubtitles == nil || *payload.BurnSubtitles, Brand: j.Brand}, func(status string, pct int, msg string) {
+		result, err = w.processInput(ctx, processing.Input{UserID: j.UserID, AudioCleanup: payload.AudioCleanup, SourceKey: payload.SourceKey, YouTubeURL: payload.YouTubeURL, Namespace: namespace, Language: j.Language, Instructions: payload.Instructions, AspectRatio: j.AspectRatio, SubtitleStyle: j.SubtitleStyle, RequestedClips: payload.RequestedClips, SmartCrop: payload.SmartCrop == nil || *payload.SmartCrop, BurnSubtitles: payload.BurnSubtitles == nil || *payload.BurnSubtitles, Brand: j.Brand}, func(status string, pct int, msg string) {
 			if e := w.Repo.Progress(ctx, j, status, pct, msg); e != nil {
 				cancel()
 			}
@@ -143,10 +148,20 @@ func (w *Worker) process(parent context.Context, j *Job) error {
 	return err
 }
 
-// processInput runs only jobs with an owned source key; link-only jobs, including
-// queued ones from before link imports were removed, fail with a clear message.
+func validateYouTubeDelivery(j *Job, raw, sourceKey string) error {
+	if j.SourceType != "youtube" && raw == "" {
+		return nil
+	}
+	canonical, err := youtubedownload.CanonicalURL(raw)
+	if err != nil || j.SourceType != "youtube" || canonical != raw || raw != j.SourceURL || sourceKey != "" || j.SourceKey != "" {
+		return errors.New("YouTube delivery does not match its job source")
+	}
+	return nil
+}
+
+// Old generic link deliveries cannot enter the restricted YouTube path.
 func (w *Worker) processInput(ctx context.Context, input processing.Input, progress processing.Progress) (processing.Result, error) {
-	if input.SourceKey == "" {
+	if input.SourceKey == "" && input.YouTubeURL == "" {
 		return processing.Result{}, errors.New("link imports are no longer supported; upload the video file instead")
 	}
 	return w.Pipeline.Process(ctx, input, progress)

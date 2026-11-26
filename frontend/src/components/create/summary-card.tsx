@@ -15,12 +15,13 @@ interface SummaryCardProps {
   videoCount: number
   /** Credits the job needs before it can start (at least one clip per video while the count is Auto). */
   creditCost: number
-  consented: boolean
-  onConsentChange: (consented: boolean) => void
+  consented?: boolean
+  onConsentChange?: (consented: boolean) => void
   canGenerate: boolean
   busy: boolean
   limitReached: boolean
-  onGenerate: () => void
+  onGenerate?: () => void
+  actionType?: 'button' | 'submit'
 }
 
 interface CreditsAccount {
@@ -32,12 +33,13 @@ interface CreditsAccount {
 export function SummaryCard({
   videoCount,
   creditCost,
-  consented,
+  consented = false,
   onConsentChange,
   canGenerate,
   busy,
   limitReached,
-  onGenerate
+  onGenerate,
+  actionType = 'button'
 }: SummaryCardProps) {
   const t = useTranslations('create')
   const { user } = useAuth()
@@ -51,12 +53,12 @@ export function SummaryCard({
 
   return (
     <div className="yt-generate">
-      <ImportConsent consented={consented} onChange={onConsentChange} />
+      {onConsentChange && <ImportConsent consented={consented} onChange={onConsentChange} />}
       <Button
-        type="button"
+        type={actionType}
         size="lg"
         disabled={!canGenerate || busy || insufficient}
-        onClick={onGenerate}
+        onClick={actionType === 'button' ? onGenerate : undefined}
         aria-busy={busy}
         className="yt-primary-button yt-generate__action w-full"
       >

@@ -13,7 +13,7 @@ import (
 	"github.com/julienschmidt/httprouter"
 )
 
-func TestLinkImportsAreRejectedBeforeDatabase(t *testing.T) {
+func TestInvalidAndAmbiguousLinkImportsAreRejectedBeforeDatabase(t *testing.T) {
 	link := "https://youtube.com/watch?v=test"
 	upload := "uploads/user/test.mp4"
 	for _, in := range []CreateInput{
@@ -27,8 +27,22 @@ func TestLinkImportsAreRejectedBeforeDatabase(t *testing.T) {
 		}
 	}
 	in := CreateInput{Options: DefaultOptions(), SourceType: "youtube"}
-	if err := in.Validate(); !errors.Is(err, ErrLinkImportsRemoved) {
-		t.Fatalf("youtube source type not reported as removed: %v", err)
+	if err := in.Validate(); err == nil {
+		t.Fatal("missing YouTube URL was accepted")
+	}
+}
+
+func TestYouTubePreparationCanonicalizesWithoutUploadScanner(t *testing.T) {
+	link := "https://youtu.be/aqz-KE-bpKQ?si=tracking"
+	in := CreateInput{Options: DefaultOptions(), SourceType: "youtube", SourceURL: &link}
+	prepared, err := (&Handler{}).prepare(context.Background(), "owner", in)
+	if err != nil || value(prepared.Input.SourceURL) != "https://www.youtube.com/watch?v=aqz-KE-bpKQ" || prepared.Input.SourceStorageKey != nil || prepared.WorkerSource != "" {
+		t.Fatalf("unexpected YouTube preparation: %+v %v", prepared, err)
+	}
+	key := "uploads/owner/source.mp4"
+	in.SourceStorageKey = &key
+	if in.Validate() == nil {
+		t.Fatal("mixed YouTube/upload source was accepted")
 	}
 }
 
@@ -99,7 +113,7 @@ func TestHTTPRejectsViewerAndInvalidInputBeforeDatabase(t *testing.T) {
 	}
 }
 
-func TestLinkImportEndpointsAreRemoved(t *testing.T) {
+func TestBatchEndpointStaysRemovedAndInvalidYouTubeIsRejected(t *testing.T) {
 	r := httprouter.New()
 	New(nil, testAuth{true}, testMedia{}).Register(r)
 	w := httptest.NewRecorder()
@@ -109,7 +123,7 @@ func TestLinkImportEndpointsAreRemoved(t *testing.T) {
 	}
 	w = httptest.NewRecorder()
 	r.ServeHTTP(w, httptest.NewRequest("POST", "/api/jobs", strings.NewReader(`{"source_type":"youtube","source_url":"https://youtube.com/watch?v=test"}`)))
-	if w.Code != 400 || !strings.Contains(w.Body.String(), "Link imports are no longer supported") {
+	if w.Code != 422 || !strings.Contains(w.Body.String(), "valid YouTube") {
 		t.Fatalf("link create answered %d: %s", w.Code, w.Body.String())
 	}
 }

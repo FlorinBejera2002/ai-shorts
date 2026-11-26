@@ -19,7 +19,10 @@ import (
 )
 
 //go:embed prompts/script.txt
-var promptTemplate string
+var promptTemplateFile string
+
+// Keep the embedded prompt independent of Windows checkout line endings.
+var promptTemplate = strings.ReplaceAll(promptTemplateFile, "\r\n", "\n")
 
 type Handler struct {
 	auth       *identity.Handler

@@ -49,23 +49,37 @@ test('production storage remains local until explicitly configured', async () =>
 test('production S3 configuration reaches storage services without exposing keys to web apps', async () => {
   const settings = {
     STORAGE_TYPE: 's3', AWS_ACCESS_KEY_ID: 'synthetic-access',
-    AWS_SECRET_ACCESS_KEY: 'synthetic-secret', AWS_REGION: 'hel1',
+    AWS_SECRET_ACCESS_KEY: 'synthetic-secret', AWS_SESSION_TOKEN: 'synthetic-session', AWS_REGION: 'hel1',
     AWS_S3_BUCKET: 'synthetic-production', AWS_ENDPOINT_URL: 'https://hel1.your-objectstorage.com',
     AWS_PUBLIC_BASE_URL: 'https://synthetic-production.hel1.your-objectstorage.com',
-    SNEEPCUT_STUDIO_STORAGE: 's3', SNEEPCUT_STUDIO_S3_PREFIX: 'studio/v1'
+    AWS_S3_FORCE_PATH_STYLE: 'false',
+    SNEEPCUT_STUDIO_STORAGE: 's3',
+    SNEEPCUT_STUDIO_S3_ENDPOINT: 'https://hel1.your-objectstorage.com',
+    SNEEPCUT_STUDIO_S3_PREFIX: 'studio/cutover-synthetic-final',
+    SNEEPCUT_MEDIA_S3_ORIGIN: 'https://synthetic-production.hel1.your-objectstorage.com',
+    SNEEPCUT_MEDIA_S3_INTERNAL_ORIGIN: 'https://synthetic-production.hel1.your-objectstorage.com'
   }
   const { services } = await configuration(settings)
   for (const name of ['backend', 'worker', 'studio']) {
-    for (const key of ['AWS_ACCESS_KEY_ID', 'AWS_SECRET_ACCESS_KEY', 'AWS_REGION', 'AWS_S3_BUCKET', 'AWS_ENDPOINT_URL']) {
+    for (const key of ['AWS_ACCESS_KEY_ID', 'AWS_SECRET_ACCESS_KEY', 'AWS_SESSION_TOKEN', 'AWS_REGION', 'AWS_S3_BUCKET', 'AWS_ENDPOINT_URL']) {
       assert.equal(services[name].environment[key], settings[key], `${name}: ${key}`)
     }
   }
   assert.equal(services.backend.environment.STORAGE_TYPE, 's3')
   assert.equal(services.worker.environment.STORAGE_TYPE, 's3')
   assert.equal(services.studio.environment.SNEEPCUT_STUDIO_STORAGE, 's3')
+  for (const key of ['SNEEPCUT_STUDIO_S3_ENDPOINT', 'SNEEPCUT_STUDIO_S3_PREFIX', 'SNEEPCUT_MEDIA_S3_ORIGIN', 'SNEEPCUT_MEDIA_S3_INTERNAL_ORIGIN']) {
+    assert.equal(services.studio.environment[key], settings[key], key)
+  }
+  for (const name of ['backend', 'worker']) {
+    for (const key of ['AWS_PUBLIC_BASE_URL', 'AWS_S3_FORCE_PATH_STYLE']) {
+      assert.equal(services[name].environment[key], settings[key], `${name}: ${key}`)
+    }
+  }
   for (const name of ['frontend', 'landing', 'admin']) {
     for (const key of ['AWS_ACCESS_KEY_ID', 'AWS_SECRET_ACCESS_KEY', 'AWS_SESSION_TOKEN']) {
       assert.equal(services[name].environment?.[key], undefined, `${name} exposes ${key}`)
+      assert.equal(services[name].build?.args?.[key], undefined, `${name} builds with ${key}`)
     }
   }
 })

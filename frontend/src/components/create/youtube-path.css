@@ -5,6 +5,7 @@
  * Radii: cards 24px, dialogs 28px, pills 999px, inputs and tiles 14px (documented exception).
  */
 
+.yt-source-path,
 .yt-path,
 .yt-connect-gate,
 .yt-account-pill,
@@ -21,6 +22,44 @@
 }
 
 /* Layout ----------------------------------------------------------------- */
+
+.yt-source-path { display: grid; gap: 20px; }
+.yt-source-path > [hidden] { display: none; }
+.yt-source-switch {
+  display: inline-flex;
+  justify-self: start;
+  gap: 4px;
+  padding: 4px;
+  border-radius: var(--yt-pill);
+  background: var(--publish-surface);
+  box-shadow: var(--yt-ring);
+}
+.yt-source-switch button {
+  min-height: 44px;
+  padding: 10px 20px;
+  border-radius: var(--yt-pill);
+  color: var(--publish-muted-text);
+  font-size: 14px;
+  font-weight: 600;
+}
+.yt-source-switch button[aria-pressed="true"] { background: var(--publish-text); color: var(--publish-surface); }
+.yt-source-switch button:focus-visible, .yt-link-field input:focus-visible { outline: 2px solid var(--publish-text); outline-offset: 3px; }
+.yt-link-field { display: grid; gap: 10px; padding-block: 8px; }
+.yt-link-field label { font-size: 14px; font-weight: 600; }
+.yt-link-field input {
+  width: 100%;
+  min-width: 0;
+  min-height: 48px;
+  border-radius: var(--yt-field-radius);
+  padding: 12px 14px;
+  background: var(--publish-canvas);
+  color: var(--publish-text);
+  box-shadow: var(--yt-ring);
+  font-size: 16px;
+}
+.yt-link-field input[aria-invalid="true"] { box-shadow: var(--yt-ring-danger); }
+.yt-link-field p { font-size: 13px; line-height: 1.5; color: var(--publish-muted-text); }
+.yt-link-field .yt-link-field__error { min-height: 20px; color: var(--publish-danger); }
 
 .yt-path {
   display: grid;

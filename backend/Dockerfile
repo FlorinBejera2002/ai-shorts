@@ -13,6 +13,10 @@ CMD ["go", "run", "./cmd/api"]
 
 FROM golang:1.26.5 AS build
 WORKDIR /src
+# Native media regressions require FFmpeg and FFprobe in the build environment.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ffmpeg \
+    && rm -rf /var/lib/apt/lists/*
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
@@ -89,10 +93,29 @@ EXPOSE 8080
 ENV LISTEN_ADDR=:8080
 ENTRYPOINT ["/api"]
 
+FROM node:24-bookworm-slim AS youtube-tools
+# Official standalone binaries include yt-dlp-ejs. Pin both architectures and
+# never install plugins or fetch executable components while processing a job.
+ARG YT_DLP_VERSION=2026.11.23
+ARG TARGETARCH
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl ffmpeg \
+    && rm -rf /var/lib/apt/lists/* \
+    && case "${TARGETARCH}" in \
+       amd64) asset=yt-dlp_linux; checksum=249ddb058234276bc449b9cd9492aad9f133bda5923c61a9e39983ae114ef17d ;; \
+       arm64) asset=yt-dlp_linux_aarch64; checksum=fb847a2e4a9ddc8cf5fcfb4bb7f42ba8969ecf72068def0278074f9d300bd13c ;; \
+       *) exit 1 ;; esac \
+    && curl --fail --location --retry 3 "https://github.com/yt-dlp/yt-dlp/releases/download/${YT_DLP_VERSION}/${asset}" -o /usr/local/bin/yt-dlp \
+    && echo "${checksum}  /usr/local/bin/yt-dlp" | sha256sum -c - \
+    && chmod 0755 /usr/local/bin/yt-dlp
+
 FROM api AS worker
 USER root
-RUN apt-get update && apt-get install -y --no-install-recommends libgomp1 libstdc++6 fonts-dejavu-core fonts-liberation \
+RUN apt-get update && apt-get install -y --no-install-recommends libgomp1 libstdc++6 libatomic1 fonts-dejavu-core fonts-liberation \
     && rm -rf /var/lib/apt/lists/*
+RUN install -d -o 10001 -g 10001 -m 0700 /app/processing-tmp
+COPY --from=youtube-tools /usr/local/bin/yt-dlp /usr/local/bin/yt-dlp
+COPY --from=youtube-tools /usr/local/bin/node /usr/local/bin/node
+ENV YT_DLP_PATH=/usr/local/bin/yt-dlp YOUTUBE_NODE_PATH=/usr/local/bin/node PROCESSING_TEMP_DIR=/app/processing-tmp
 COPY --from=build /worker /worker
 # The worker filesystem is read-only; tool caches live in the /tmp tmpfs.
 ENV XDG_CACHE_HOME=/tmp/.cache

@@ -42,7 +42,10 @@ func (p *Processor) render(ctx context.Context, in RenderInput) (Clip, error) {
 	if in.StudioTrim && in.StudioArtifactID != "" {
 		return p.studioTrim(ctx, dir, in, client)
 	}
-	source, err := p.storyMaterialize(ctx, dir, in.SourceKey)
+	source := in.SourcePath
+	if source == "" {
+		source, err = p.storyMaterialize(ctx, dir, in.SourceKey)
+	}
 	if err != nil {
 		return clip, err
 	}
@@ -99,32 +102,39 @@ func (p *Processor) render(ctx context.Context, in RenderInput) (Clip, error) {
 		}
 	}
 	plan := studioPlan{SchemaVersion: 1, Title: "Clip", Width: w, Height: h, Duration: clipDuration(in.Segments, in.Transition, in.TransitionDuration), DynamicRange: "sdr", Assets: []studioAsset{}, Scenes: []studioScene{}, Audio: []studioAudio{}}
-	videoID, err := p.studioAsset(ctx, &plan, in.SourceKey, "video")
+	stat, err := os.Stat(source)
 	if err != nil {
 		return clip, err
 	}
-	plan.Assets[0].Duration, plan.Assets[0].Width, plan.Assets[0].Height, plan.Assets[0].HasAudio = info.Duration, info.Width, info.Height, info.Audio
-	if details, e := p.probeStory(ctx, source); e == nil && studioNeedsPreview(details.VideoCodec, details.AudioCodec, details.ColorTransfer, details.Audio) {
-		previewAsset := story.Asset{ID: "source", Key: in.SourceKey, Hash: storyDigest(in.SourceKey), Duration: info.Duration, Width: info.Width, Height: info.Height, ColorTransfer: details.ColorTransfer}
-		if _, e = p.prepareStoryProxy(ctx, dir, strings.Split(in.Namespace, "/")[0], &previewAsset, story.Options{}); e != nil {
-			return clip, e
-		}
-		plan.Assets[0].PreviewURL, e = p.studioURL(ctx, previewAsset.ProxyKey)
-		if e != nil {
-			return clip, e
-		}
-	}
-	audioID := ""
-	if info.Audio {
-		kind := "audio"
-		if audioKey == in.SourceKey {
-			kind = "video"
-		}
-		audioID, err = p.studioAsset(ctx, &plan, audioKey, kind)
+	windowed := stat.Size() > studioWindowThreshold
+	videoID, audioID := "", ""
+	if !windowed {
+		videoID, err = p.studioAsset(ctx, &plan, in.SourceKey, "video")
 		if err != nil {
 			return clip, err
 		}
-		studioAudioMetadata(&plan, audioID, info.Duration)
+		plan.Assets[0].Duration, plan.Assets[0].Width, plan.Assets[0].Height, plan.Assets[0].HasAudio = info.Duration, info.Width, info.Height, info.Audio
+		if details, e := p.probeStory(ctx, source); e == nil && studioNeedsPreview(details.VideoCodec, details.AudioCodec, details.ColorTransfer, details.Audio) {
+			previewAsset := story.Asset{ID: "source", Key: in.SourceKey, Hash: storyDigest(in.SourceKey), Duration: info.Duration, Width: info.Width, Height: info.Height, ColorTransfer: details.ColorTransfer}
+			if _, e = p.prepareStoryProxy(ctx, dir, strings.Split(in.Namespace, "/")[0], &previewAsset, story.Options{}); e != nil {
+				return clip, e
+			}
+			plan.Assets[0].PreviewURL, e = p.studioURL(ctx, previewAsset.ProxyKey)
+			if e != nil {
+				return clip, e
+			}
+		}
+		if info.Audio {
+			kind := "audio"
+			if audioKey == in.SourceKey {
+				kind = "video"
+			}
+			audioID, err = p.studioAsset(ctx, &plan, audioKey, kind)
+			if err != nil {
+				return clip, err
+			}
+			studioAudioMetadata(&plan, audioID, info.Duration)
+		}
 	}
 	var cropFrames []studioCropFrame
 	if in.SmartCrop && !in.PreserveGeometry && in.AspectRatio == "9:16" {
@@ -144,7 +154,14 @@ func (p *Processor) render(ctx context.Context, in RenderInput) (Clip, error) {
 	elapsed := 0.0
 	for i, s := range in.Segments {
 		duration := s.End - s.Start
-		scene := studioScene{ID: fmt.Sprintf("scene-%d", i+1), AssetID: videoID, Start: studioRound(elapsed), Duration: duration, SourceIn: s.Start, Fit: "cover"}
+		sourceIn := s.Start
+		if windowed {
+			videoID, audioID, sourceIn, err = p.studioSourceWindow(ctx, dir, source, audioKey, in, &plan, info, s, i)
+			if err != nil {
+				return clip, err
+			}
+		}
+		scene := studioScene{ID: fmt.Sprintf("scene-%d", i+1), AssetID: videoID, Start: studioRound(elapsed), Duration: duration, SourceIn: sourceIn, Fit: "cover"}
 		if in.PreserveGeometry {
 			scene.Fit = "contain"
 		}
@@ -156,7 +173,7 @@ func (p *Processor) render(ctx context.Context, in RenderInput) (Clip, error) {
 		}
 		plan.Scenes = append(plan.Scenes, scene)
 		if audioID != "" {
-			audio := studioAudio{ID: fmt.Sprintf("audio-%d", i+1), AssetID: audioID, Start: scene.Start, Duration: duration, SourceIn: s.Start, Volume: 1, SceneID: scene.ID}
+			audio := studioAudio{ID: fmt.Sprintf("audio-%d", i+1), AssetID: audioID, Start: scene.Start, Duration: duration, SourceIn: sourceIn, Volume: 1, SceneID: scene.ID}
 			if i > 0 && overlaps[i-1] > 0 {
 				audio.Envelope = append(audio.Envelope, studioPoint{0, 0}, studioPoint{overlaps[i-1], 1})
 			}

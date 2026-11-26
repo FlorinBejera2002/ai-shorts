@@ -15,6 +15,7 @@ import { useYouTubeGenerate } from './use-youtube-creation'
 import { MAX_SELECTED_VIDEOS, toggleVideoSelection } from './youtube-creation-model'
 import type { SelectionFailure } from './youtube-import-model'
 import { YouTubeSourceCard } from './youtube-source-card'
+import { YouTubeLinkWorkflow } from './youtube-link-workflow'
 import { useYouTubeChannel, useYouTubeChannelReturn, useYouTubeLibrary, type YouTubeChannelVideo } from './use-youtube-channel'
 import './youtube-path.css'
 
@@ -36,12 +37,24 @@ const FAILURE_MESSAGE_KEYS = {
   active: 'active'
 } as const satisfies Record<Exclude<SelectionFailure['kind'], 'limit'>, string>
 
-/**
- * YouTube path of Create (channel list only). Without a connected channel the connect gate is the
- * whole card. Once connected: the channel video list with multi-select, the inspector, and the
- * progress card after the Google export consent returns.
- */
+/** Keep both source forms mounted so switching preserves their input and settings. */
 export function YouTubeCreationWorkflow({ active = true }: YouTubeCreationWorkflowProps) {
+  const t = useTranslations('create.youtubeLink')
+  const [source, setSource] = useState<'channel' | 'link'>('channel')
+  return (
+    <div className="yt-source-path">
+      <div className="yt-source-switch" role="group" aria-label={t('sourceLabel')}>
+        <button type="button" aria-pressed={source === 'channel'} onClick={() => setSource('channel')}>{t('channel')}</button>
+        <button type="button" aria-pressed={source === 'link'} onClick={() => setSource('link')}>{t('pasteLink')}</button>
+      </div>
+      <div hidden={source !== 'channel'}><YouTubeChannelWorkflow active={active && source === 'channel'} /></div>
+      <div hidden={source !== 'link'}><YouTubeLinkWorkflow active={active && source === 'link'} /></div>
+    </div>
+  )
+}
+
+/** Connected-channel library and Google export consent retain their existing flow. */
+function YouTubeChannelWorkflow({ active = true }: YouTubeCreationWorkflowProps) {
   const t = useTranslations('create')
   const tImport = useTranslations('create.youtubeImport')
   const toast = useToast((state) => state.add)

@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"sneepcut/backend-go/internal/audiocleanup"
 	"sneepcut/backend-go/internal/studiocomposition"
+	"sneepcut/backend-go/internal/youtubedownload"
 	"strings"
 )
 
@@ -45,10 +46,17 @@ func (p *Processor) process(ctx context.Context, in Input, progress Progress) (R
 	}
 	report("downloading", 5, "Preparing source video")
 	source := filepath.Join(dir, "source.mp4")
-	if in.SourceKey == "" {
+	if in.YouTubeURL != "" {
+		if in.SourceKey != "" {
+			return r, errors.New("ambiguous processing source")
+		}
+		report("downloading", 5, "Downloading YouTube video (up to 4K)")
+		e = youtubedownload.Download(ctx, youtubedownload.Config{Executable: p.cfg.YouTubeDownloaderPath, FFmpeg: p.cfg.FFmpegPath, Node: p.cfg.YouTubeNodePath}, in.YouTubeURL, source)
+	} else if in.SourceKey == "" {
 		return r, errLinkImportsUnsupported
+	} else {
+		e = p.materialize(ctx, in.SourceKey, source)
 	}
-	e = p.materialize(ctx, in.SourceKey, source)
 	if e != nil {
 		return r, e
 	}
@@ -58,6 +66,9 @@ func (p *Processor) process(ctx context.Context, in Input, progress Progress) (R
 	}
 	if !info.Audio {
 		return r, fmt.Errorf("source video has no audio stream")
+	}
+	if in.YouTubeURL != "" && (info.Height > youtubedownload.MaxHeight || info.Width <= 0 || info.Height <= 0) {
+		return r, errors.New("YouTube video exceeds the 4K resolution limit")
 	}
 	r.Duration = info.Duration
 	jobID := strings.Split(in.Namespace, "/")[0]
@@ -101,7 +112,7 @@ func (p *Processor) process(ctx context.Context, in Input, progress Progress) (R
 	for i, h := range highlights {
 		report("rendering", 60+30*i/len(highlights), fmt.Sprintf("Rendering clip %d/%d", i+1, len(highlights)))
 		project := studiocomposition.Identity(in.UserID, fmt.Sprintf("project/%s/clip-%d", jobID, i+1), nil)
-		clip, err := p.render(ctx, RenderInput{UserID: in.UserID, StudioProjectID: project, AudioCleanup: in.AudioCleanup, PreparedAudio: r.AudioCleanup, SourceKey: r.SourceKey, Namespace: fmt.Sprintf("%s/clip-%d", in.Namespace, i+1), AspectRatio: in.AspectRatio, SubtitleStyle: in.SubtitleStyle, SmartCrop: in.SmartCrop, BurnSubtitles: in.BurnSubtitles, Segments: h.Segments, NaturalTransitions: true, Transcript: r.Transcript, Brand: in.Brand, HookText: h.Hook})
+		clip, err := p.render(ctx, RenderInput{SourcePath: source, UserID: in.UserID, StudioProjectID: project, AudioCleanup: in.AudioCleanup, PreparedAudio: r.AudioCleanup, SourceKey: r.SourceKey, Namespace: fmt.Sprintf("%s/clip-%d", in.Namespace, i+1), AspectRatio: in.AspectRatio, SubtitleStyle: in.SubtitleStyle, SmartCrop: in.SmartCrop, BurnSubtitles: in.BurnSubtitles, Segments: h.Segments, NaturalTransitions: true, Transcript: r.Transcript, Brand: in.Brand, HookText: h.Hook})
 		if err != nil {
 			return r, err
 		}

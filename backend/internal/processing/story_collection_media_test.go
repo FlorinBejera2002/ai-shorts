@@ -2,12 +2,14 @@ package processing
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"math"
 	"os"
 	"path/filepath"
 	"sneepcut/backend-go/internal/aiprovider"
 	"sneepcut/backend-go/internal/story"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -30,6 +32,27 @@ func TestStoryAssemblyOverOneHundredEntriesUsesBoundedInputsAndExactClocks(t *te
 	video, audio, err := p.prepareStoryAssembly(ctx, dir, parts, timeline, false)
 	if err != nil {
 		t.Fatal(err)
+	}
+	for start := 0; start < count; start += storyAssemblyBatchSize {
+		file := filepath.Join(dir, fmt.Sprintf("assembly-video-%06d.mp4", start))
+		probe, err := run(ctx, dir, p.cfg.FFprobePath, "-v", "error", "-show_entries", "stream=nb_frames,duration,r_frame_rate", "-of", "json", file)
+		var batch struct {
+			Streams []struct {
+				Frames   string `json:"nb_frames"`
+				Duration string `json:"duration"`
+				Rate     string `json:"r_frame_rate"`
+			}
+		}
+		if err != nil || json.Unmarshal(probe, &batch) != nil || len(batch.Streams) != 1 {
+			t.Fatalf("batch %d probe: %s %v", start, probe, err)
+		}
+		frames, _ := strconv.Atoi(batch.Streams[0].Frames)
+		duration, _ := strconv.ParseFloat(batch.Streams[0].Duration, 64)
+		end := min(start+storyAssemblyBatchSize, count)
+		want := int(math.Round(timeline[end-1].OutputOut*30) - math.Round(timeline[start].OutputIn*30))
+		if frames != want || batch.Streams[0].Rate != "30/1" || math.Abs(duration-float64(want)/30) > .00001 {
+			t.Fatalf("batch %d lost its final frame duration: %d frames, %.6fs, rate %s; want %d frames", start, frames, duration, batch.Streams[0].Rate, want)
+		}
 	}
 	for _, manifest := range []string{video, audio} {
 		raw, err := os.ReadFile(manifest)

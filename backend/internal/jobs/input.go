@@ -4,6 +4,7 @@ import (
 	"errors"
 	"regexp"
 	"sneepcut/backend-go/internal/audiocleanup"
+	"sneepcut/backend-go/internal/youtubedownload"
 	"unicode/utf8"
 )
 
@@ -21,8 +22,7 @@ type Options struct {
 	UserInstructions *string `json:"user_instructions"`
 }
 
-// CreateInput describes a job source. Only owned uploads are accepted; video
-// links are no longer imported, so source_url is rejected.
+// CreateInput accepts an owned upload or one public YouTube video.
 type CreateInput struct {
 	Options
 	SourceType       string  `json:"source_type"`
@@ -31,9 +31,8 @@ type CreateInput struct {
 	SourceStorageKey *string `json:"source_storage_key"`
 }
 
-// ErrLinkImportsRemoved is returned for any request that names a video link or
-// a url/youtube source type.
-var ErrLinkImportsRemoved = errors.New("Link imports are no longer supported. Upload the video file instead")
+// Generic URL imports remain disabled; YouTube uses its restricted downloader.
+var ErrLinkImportsRemoved = errors.New("Use a YouTube video link or upload the original video file")
 
 // MaxClipCount is the largest clip count a job accepts.
 const MaxClipCount = 30
@@ -75,7 +74,14 @@ func (p CreateInput) Validate() error {
 	if err := p.Options.Validate(); err != nil {
 		return err
 	}
-	if !empty(p.SourceURL) || p.SourceType == "url" || p.SourceType == "youtube" {
+	if p.SourceType == "youtube" {
+		if !empty(p.SourceFilePath) || !empty(p.SourceStorageKey) {
+			return errors.New("YouTube jobs cannot include an uploaded source")
+		}
+		_, err := youtubedownload.CanonicalURL(value(p.SourceURL))
+		return err
+	}
+	if !empty(p.SourceURL) || p.SourceType == "url" {
 		return ErrLinkImportsRemoved
 	}
 	if !bounded(p.SourceFilePath, 2048) || !bounded(p.SourceStorageKey, 2048) {
