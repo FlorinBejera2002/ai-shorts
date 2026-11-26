@@ -8,6 +8,8 @@ export function sessionRecoveryDocument(appOrigin: string): string {
 const destination = new URL(${destination});
 const match = /^#project\\/([a-zA-Z0-9_-]+)(?:\\?|$)/.exec(location.hash);
 if (match) destination.searchParams.set('project', match[1]);
+// Keep the Romanian dashboard when Studio was opened in Romanian; English is the unprefixed default.
+if (new URLSearchParams(location.search).get('lang') === 'ro') destination.pathname = '/ro' + destination.pathname;
 location.replace(destination.href);
 </script></html>`;
 }

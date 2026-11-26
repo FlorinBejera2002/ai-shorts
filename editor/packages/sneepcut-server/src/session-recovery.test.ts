@@ -17,8 +17,10 @@ describe("expired Studio navigation", () => {
       let destination = "";
       runInNewContext(script ?? "", {
         URL,
+        URLSearchParams,
         location: {
           hash,
+          search: "",
           replace: (url: string) => {
             destination = url;
           },
@@ -27,6 +29,29 @@ describe("expired Studio navigation", () => {
       expect(destination).toBe(`https://app.sneepcut.test/dashboard/studio${expected}`);
     }
     expect(html).not.toContain("token");
+  });
+
+  it("returns to the Romanian dashboard when Studio was opened in Romanian", () => {
+    const script = sessionRecoveryDocument("https://app.sneepcut.test").match(
+      /<script>([\s\S]*?)<\/script>/,
+    )?.[1];
+    for (const [search, expected] of [
+      ["?lang=ro", "https://app.sneepcut.test/ro/dashboard/studio?project=owned_123"],
+      ["?lang=en", "https://app.sneepcut.test/dashboard/studio?project=owned_123"],
+      ["?lang=fr", "https://app.sneepcut.test/dashboard/studio?project=owned_123"],
+    ]) {
+      let destination = "";
+      runInNewContext(script ?? "", {
+        URL,
+        URLSearchParams,
+        location: {
+          hash: "#project/owned_123",
+          search,
+          replace: (url: string) => (destination = url),
+        },
+      });
+      expect(destination).toBe(expected);
+    }
   });
 
   it("opts in only the HTML served by the authenticated host", () => {
