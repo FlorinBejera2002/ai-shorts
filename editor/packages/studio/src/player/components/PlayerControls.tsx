@@ -189,7 +189,7 @@ export const PlayerControls = memo(function PlayerControls({
     <span className={`flex items-center ${layout === "phone" ? "gap-1" : "gap-1.5"}`}>
       <PreviewIconButton
         label={t("preview.prevFrame")}
-        size={layout === "phone" ? 40 : 36}
+        size={layout === "phone" ? 44 : 36}
         onClick={() => stepFrame(-1)}
         disabled={controlsDisabled}
       >
@@ -207,7 +207,7 @@ export const PlayerControls = memo(function PlayerControls({
       </button>
       <PreviewIconButton
         label={t("preview.nextFrame")}
-        size={layout === "phone" ? 40 : 36}
+        size={layout === "phone" ? 44 : 36}
         onClick={() => stepFrame(1)}
         disabled={controlsDisabled}
       >
@@ -231,7 +231,7 @@ export const PlayerControls = memo(function PlayerControls({
           setAudioMuted={setAudioMuted}
           setAudioVolume={setAudioVolume}
           onOpenSheet={() => setPreviewPanel("phonePlayback")}
-          size={40}
+          size={44}
         />
       </div>
     );

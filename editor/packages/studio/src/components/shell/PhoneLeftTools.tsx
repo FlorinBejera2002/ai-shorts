@@ -27,7 +27,13 @@ const TOOL_RAIL: Partial<Record<PhoneToolId, RailItemId>> = {
   text: "text",
   audio: "audio",
   elements: "elements",
+  subtitles: "subtitles",
 };
+
+/** Side panel rail item a phone tool opens as a sheet (edit and more have none). */
+export function railForPhoneTool(id: PhoneToolId): RailItemId | null {
+  return TOOL_RAIL[id] ?? null;
+}
 
 export function PhoneLeftTools({
   rail,
@@ -60,17 +66,13 @@ export function PhoneLeftTools({
       return;
     }
     if (id === "more") return;
-    if (id === "subtitles") {
-      // The subtitle editor lives in the inspector; without captions the media sheet opens.
-      if (enterCaptionEditing()) {
-        setRightCollapsed(false);
-        setTool("edit");
-        return;
-      }
-      openPanel("media");
+    if (id === "subtitles" && enterCaptionEditing()) {
+      // With captions in the project, the subtitle editor opens in the inspector.
+      setRightCollapsed(false);
+      setTool("edit");
       return;
     }
-    const railId = TOOL_RAIL[id];
+    const railId = railForPhoneTool(id);
     if (railId) openPanel(railId);
   };
 

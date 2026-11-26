@@ -18,7 +18,7 @@ interface VolumeControlProps {
   setAudioVolume: (volume: number) => void;
   /** Phone: the button opens the "Redare" sheet instead of the popover. */
   onOpenSheet?: () => void;
-  size?: 36 | 40;
+  size?: 36 | 40 | 44;
   /** White glyph for the fullscreen bar over video. */
   inverted?: boolean;
 }

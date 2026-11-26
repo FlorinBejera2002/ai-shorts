@@ -3,7 +3,8 @@ import { messagesEn, messagesRo } from "../../i18n/dictionary";
 import { setStudioLocale } from "../../i18n/translate";
 import { clipsUrlFromReferrer } from "../StudioBackButton";
 import { historyTooltip } from "./HistoryButtons";
-import { RAIL_ITEMS, railItemForTab } from "./railItems";
+import { RAIL_ITEMS, railItem, railItemForTab } from "./railItems";
+import { railForPhoneTool } from "./PhoneLeftTools";
 import { getSaveStatus, resetSaveStatus, trackProjectSave } from "./saveStatus";
 import { normalizeProjectTitle } from "./useProjectTitle";
 
@@ -70,6 +71,13 @@ describe("undo and redo tooltips", () => {
 });
 
 describe("rail", () => {
+  it("opens the subtitles panel from the phone Subtitrări tool, not Media", () => {
+    expect(railForPhoneTool("subtitles")).toBe("subtitles");
+    expect(railItem("subtitles").tab).toBe("subtitles");
+    expect(railForPhoneTool("edit")).toBeNull();
+    expect(railForPhoneTool("more")).toBeNull();
+  });
+
   it("lists the seven board entries, with Avansat last", () => {
     expect(RAIL_ITEMS.map((item) => item.id)).toEqual([
       "media",
