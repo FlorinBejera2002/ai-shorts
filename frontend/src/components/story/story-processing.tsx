@@ -2,7 +2,8 @@
 
 import { useStoryLanguage } from './use-story-language'
 import { storyFailureReason } from './story-error'
-import { uploadProcessingView } from './story-processing-model'
+import { analysisCount, uploadProcessingView } from './story-processing-model'
+import { useSecondsSince } from './use-seconds-since'
 import { uploadStageLabels } from './story-processing-copy'
 import { StoryRunningCard, StoryStoppedCard } from './story-processing-states'
 import type { StoryProject } from './types'
@@ -20,7 +21,10 @@ export function StoryProcessing({ project, active, busy, onCancel, onRetry }: Pr
   const text = useStoryLanguage()
   const failed = project.status === 'failed' || project.operation_status === 'failed'
   const cancelled = !failed && project.status === 'cancelled'
-  const view = uploadProcessingView(uploadStageLabels(text), project, failed)
+  const running = analysisCount(project)
+  // Restart the running-source estimate whenever another source finishes.
+  const elapsed = useSecondsSince(`${project.status}:${running.done}`, active && !failed && !cancelled)
+  const view = uploadProcessingView(uploadStageLabels(text), project, failed, elapsed)
 
   if (failed || cancelled) {
     return (
@@ -42,6 +46,7 @@ export function StoryProcessing({ project, active, busy, onCancel, onRetry }: Pr
       progress={view.progress}
       stages={view.stages}
       illustration={view.illustration}
+      analysis={view.analysis}
       active={active}
       cancelDisabled={busy || project.status === 'cancelling'}
       onCancel={onCancel}

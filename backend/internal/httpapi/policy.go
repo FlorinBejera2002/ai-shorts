@@ -41,8 +41,14 @@ func Policy(next http.Handler, cfg PolicyConfig) http.Handler {
 			duration = 10 * time.Minute
 			readDuration = 10 * time.Minute
 		}
+		if r.URL.Path == "/api/upload" || r.URL.Path == "/api/upload/direct" {
+			// Phone uploads of large originals over mobile data regularly exceed
+			// ten minutes; match the browser's 30-minute transfer allowance.
+			duration = 30 * time.Minute
+			readDuration = 30 * time.Minute
+		}
 		if r.Method == http.MethodPost && strings.HasPrefix(r.URL.Path, "/api/stories/") && strings.HasSuffix(r.URL.Path, "/assets") && strings.Count(r.URL.Path, "/") == 4 {
-			// Registration performs complete native decoding after the upload.
+			// Registration reads every packet and hashes the original after upload.
 			// Its handler cannot extend an earlier middleware deadline; a normal
 			// 20-second API budget rejected valid large/high-resolution videos.
 			// Keep the short read deadline for this small JSON request.

@@ -4,7 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"reflect"
+	"time"
 
 	"sneepcut/backend-go/internal/aiprovider"
 )
@@ -270,74 +272,21 @@ func (s *runState) analyze(ctx context.Context) error {
 	}
 	// Copy source slices so analysis cannot mutate the caller's saved request.
 	s.req.Assets = cloneAssets(s.req.Assets)
-	pinnedSources := acceptedSourceReferences(s.req)
-	duplicateAnalyses := make(map[duplicateSourceKey][]Asset)
-	for _, i := range sourceAnalysisOrder(s.req.Assets) {
-		original := s.req.Assets[i]
-		if err := ctx.Err(); err != nil {
-			return err
-		}
-		var analyzed Asset
-		var reused bool
-		key, eligible := duplicateKey(original)
-		if eligible {
-			for _, previous := range duplicateAnalyses[key] {
-				if analyzed, reused = reuseDuplicateAnalysis(previous, original); reused {
-					break
-				}
-			}
-		}
-		if !reused {
-			// The adapter validates content/model/settings once per distinct
-			// original per run. Exact duplicate uploads reuse that fresh result.
-			var err error
-			analyzed, err = s.builder.media.Analyze(ctx, s.req.ID, cloneAssets([]Asset{original})[0], s.req.Options)
-			if err != nil {
-				return fmt.Errorf("analyze source %s: %w", original.ID, err)
-			}
-		}
-		// A processing adapter may add proxies and evidence, but cannot replace
-		// the owner-approved original file or its user inclusion settings.
-		analyzed.ID, analyzed.Key, analyzed.Hash, analyzed.Size = original.ID, original.Key, original.Hash, original.Size
-		analyzed.Order, analyzed.Role, analyzed.Include = original.Order, original.Role, original.Include
-		analyzed.Kind = original.Kind
-		if eligible && !reused {
-			// Store the fresh adapter result, before any accepted catalog is
-			// pinned. Another upload must not inherit an obsolete model snapshot.
-			duplicateAnalyses[key] = append(duplicateAnalyses[key], cloneAssets([]Asset{analyzed})[0])
-		}
-		if pinnedSources[original.ID] && sourceCatalogChanged(original, analyzed) && !(s.req.Action == "improve_flow" && safeVisualCatalogUpgrade(original, analyzed)) {
-			// Candidate IDs are not immutable across model/segmentation upgrades.
-			// Keep the complete saved catalog so the accepted version's blocks,
-			// captions, alternate choices and identity references retain meaning.
-			proposals, voiceIntervals := analyzed.TranscriptProposals, analyzed.VoiceIntervals
-			analyzed = original
-			// Suggestions are not executable captions, so a pinned legacy catalog
-			// can expose new evidence without rewriting its accepted source cuts.
-			analyzed.TranscriptProposals = proposals
-			analyzed.VoiceIntervals = append([]Interval(nil), voiceIntervals...)
-			analyzed.Warnings = appendUnique(analyzed.Warnings, pinnedSourceWarning)
-		} else if pinnedSources[original.ID] {
-			// Local cache files may precede semantic context enrichment. Preserve
-			// known requirements even when refreshed immutable evidence is equal.
-			previous := indexCandidates([]Asset{original})
-			for j := range analyzed.Candidates {
-				for _, dependency := range previous[analyzed.Candidates[j].ID].Dependencies {
-					analyzed.Candidates[j].Dependencies = appendUnique(analyzed.Candidates[j].Dependencies, dependency)
-				}
-			}
-		}
-		s.req.Assets[i] = analyzed
-		if err := s.checkpoints.SaveAsset(ctx, analyzed); err != nil {
-			return err
-		}
+	started := time.Now()
+	if err := s.analyzeSources(ctx); err != nil {
+		return err
 	}
+	sourcesDone := time.Now()
 	if err := ValidateAssets(s.req.Assets, s.builder.limits); err != nil {
 		return err
 	}
 	if err := s.analyzeSourceMeaning(ctx); err != nil {
 		return err
 	}
+	// Per-source steps are logged by the media adapter; this line splits the
+	// local source work from the provider's whole-collection review.
+	slog.Info("Story analysis stage", "story_id", s.req.ID, "sources", len(s.req.Assets), "analysis_workers", s.builder.limits.AnalysisWorkers,
+		"sources_ms", sourcesDone.Sub(started).Milliseconds(), "source_meaning_ms", time.Since(sourcesDone).Milliseconds())
 	if err := prepareCandidates(s.req.Assets); err != nil {
 		return err
 	}

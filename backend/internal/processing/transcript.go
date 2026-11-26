@@ -67,6 +67,7 @@ func (p *Processor) transcribeWithVAD(ctx context.Context, file, dir, language s
 		return Transcript{}, err
 	}
 	args := []string{"-m", model, "-f", "audio.wav", "-l", language, "-ojf", "-of", "transcript", "-sow", "-ml", "1"}
+	args = append(args, p.whisperDecodingArguments()...)
 	if vad != "" {
 		// Keep short utterances and generous word-edge padding. These settings
 		// gate ASR input; they never cut or modify the rendered source audio.

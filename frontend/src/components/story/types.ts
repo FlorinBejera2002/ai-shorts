@@ -202,6 +202,8 @@ export interface StoryAsset {
   proxy_url?: string
   thumbnail_url?: string
   candidates?: StoryCandidate[]
+  /** Set once the server has saved this source's analysis. */
+  analysis_version?: string
   warnings?: string[]
 }
 

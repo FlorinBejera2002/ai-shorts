@@ -54,25 +54,56 @@ export function uploadFailedStage(project: Pick<StoryProject, 'status' | 'stage'
   return uploadStageIndex(uploadPhase(project)) ?? uploadStageIndex(project.stage ?? '') ?? 0
 }
 
+/** Sources the analysis stage has finished, out of every uploaded source. */
+export interface AnalysisCount {
+  done: number
+  total: number
+}
+
+/** Counts uploaded sources whose analysis the server has saved during this run. */
+export function analysisCount(project: Pick<StoryProject, 'assets'>): AnalysisCount {
+  const assets = project.assets ?? []
+  return { done: assets.filter((asset) => Boolean(asset.analysis_version)).length, total: assets.length }
+}
+
+/** Share of the current source credited while it runs: approaches 90% over a few minutes, never 100%. */
+export function runningSourceShare(elapsedSeconds: number) {
+  if (!Number.isFinite(elapsedSeconds) || elapsedSeconds <= 0) return 0
+  return 0.9 * (1 - Math.exp(-elapsedSeconds / 120))
+}
+
+/** Analysis covers the span up to the next stage: finished sources plus the running one's share. */
+function analysisProgress({ done, total }: AnalysisCount, elapsedSeconds: number) {
+  if (total <= 0) return stageProgress[1]
+  const finished = Math.min(done, total)
+  const running = finished < total ? runningSourceShare(elapsedSeconds) : 0
+  return stageProgress[1] + ((stageProgress[2] - stageProgress[1]) * (finished + running)) / total
+}
+
 export interface UploadProcessingView {
   stage: UploadStageIndex
   progress: number
   illustration: string
   stages: ProcessingCardStage[]
+  /** Present while sources are being analyzed. */
+  analysis?: AnalysisCount
 }
 
 /** Maps a running or failed upload project onto the five-stage card model. */
 export function uploadProcessingView(
   labels: ReadonlyArray<{ key: string; label: string }>,
-  project: Pick<StoryProject, 'status' | 'stage'>,
-  failed: boolean
+  project: Pick<StoryProject, 'status' | 'stage'> & Partial<Pick<StoryProject, 'assets'>>,
+  failed: boolean,
+  elapsedSeconds = 0
 ): UploadProcessingView {
   const phase = uploadPhase(project)
   const stage = failed ? uploadFailedStage(project) : (uploadStageIndex(phase) ?? 0)
+  const analysis = !failed && stage === 1 && project.assets?.length ? analysisCount({ assets: project.assets }) : undefined
   return {
     stage,
-    progress: stageProgress[stage],
+    progress: analysis ? analysisProgress(analysis, elapsedSeconds) : stageProgress[stage],
     illustration: stageIllustration[stage],
-    stages: buildStageStates(labels, stage, failed ? 'failed' : 'running')
+    stages: buildStageStates(labels, stage, failed ? 'failed' : 'running'),
+    analysis
   }
 }

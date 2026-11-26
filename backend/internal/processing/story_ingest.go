@@ -28,19 +28,27 @@ type storyProbe struct {
 	Warnings        []string
 }
 
-// Inspect validates actual container/streams and decodes every packet before an
+// Inspect validates actual container/streams and reads every packet before an
 // upload is accepted. File extensions and browser metadata are never trusted.
-func (p *Processor) Inspect(ctx context.Context, key string) (story.Asset, error) {
+// Bitstream decoding happens once, in analysis (proxy transcode), so the
+// upload is not blocked on a second full decode of large phone footage.
+func (p *Processor) Inspect(ctx context.Context, key string) (_ story.Asset, err error) {
 	dir, err := os.MkdirTemp(p.cfg.TempDir, "story-inspect-")
 	if err != nil {
 		return story.Asset{}, errors.New("could not prepare media validation")
 	}
 	defer os.RemoveAll(dir)
+	timer, size := newStageTimer(), int64(0)
+	defer func() { timer.log("Story upload validation", "key", key, "bytes", size, "valid", err == nil) }()
 	file, err := p.storyMaterialize(ctx, dir, key)
 	if err != nil {
 		return story.Asset{}, errors.New("uploaded source is unavailable")
 	}
+	timer.mark("materialize")
 	stat, err := os.Stat(file)
+	if err == nil {
+		size = stat.Size()
+	}
 	if err != nil || stat.Size() <= 0 || stat.Size() > story.DefaultLimits().MaxFileBytes {
 		return story.Asset{}, errors.New("source file exceeds the supported size limit")
 	}
@@ -48,9 +56,11 @@ func (p *Processor) Inspect(ctx context.Context, key string) (story.Asset, error
 	if err != nil {
 		return story.Asset{}, sourceValidationError(err.Error())
 	}
-	if err = p.decodeStory(ctx, file); err != nil {
+	timer.mark("probe")
+	if err = p.demuxStory(ctx, file); err != nil {
 		return story.Asset{}, sourceValidationError("The video contains damaged or undecodable media. Upload the complete original file.")
 	}
+	timer.mark("packets")
 	input, err := os.Open(file)
 	if err != nil {
 		return story.Asset{}, errors.New("source could not be read")
@@ -61,6 +71,7 @@ func (p *Processor) Inspect(ctx context.Context, key string) (story.Asset, error
 	if err != nil {
 		return story.Asset{}, errors.New("source checksum could not be verified")
 	}
+	timer.mark("checksum")
 	return story.Asset{Key: key, Hash: hex.EncodeToString(hash.Sum(nil)), Size: stat.Size(), Duration: info.Duration, Width: info.Width, Height: info.Height, HasAudio: info.Audio, VideoCodec: info.VideoCodec, AudioCodec: info.AudioCodec, ColorTransfer: info.ColorTransfer,
 		Mapping: story.TimeMap{OriginalStart: info.Start, NormalizedStart: 0, Duration: info.Duration, Rate: 1, Method: "presentation timestamps rebased to zero; CFR frames sampled without changing playback speed"}, Warnings: info.Warnings}, nil
 }
@@ -169,6 +180,12 @@ func parseStoryProbe(data []byte) (storyProbe, error) {
 		return info, errors.New("source must contain one video and at most one audio track")
 	}
 	return info, nil
+}
+
+// demuxStory reads every video/audio packet without decoding it. It rejects
+// truncated or corrupt containers in seconds, unlike a full decode.
+func (p *Processor) demuxStory(ctx context.Context, file string) error {
+	return p.ffmpeg(ctx, "", "-xerror", "-i", file, "-map", "0:v:0", "-map", "0:a:0?", "-c", "copy", "-f", "null", "-")
 }
 
 func (p *Processor) decodeStory(ctx context.Context, file string) error {

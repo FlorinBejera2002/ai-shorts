@@ -9,6 +9,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strconv"
 	"time"
 
 	"sneepcut/backend-go/internal/story"
@@ -106,6 +107,9 @@ func (p *Processor) storyTranscriptAlignment(ctx context.Context, dir string, as
 	output := filepath.Join(work, "aligned")
 	args := []string{"-m", model, "-f", wav, "-l", language, "-of", output}
 	args = append(args, storyTranscriptAlignmentArguments...)
+	// The thread count does not change the aligned result, so it stays out of
+	// the cache identity above; whisper-cli applies the last -t it reads.
+	args = append(args, "-t", strconv.Itoa(p.whisperThreads()))
 	if _, err := run(limited, work, p.cfg.WhisperPath, args...); err != nil {
 		return nil, invalid
 	}

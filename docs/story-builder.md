@@ -31,6 +31,8 @@ Initial generation reserves the existing single-clip price, **10 credits**. Auto
 
 Project derivatives use `work/<project-id>/`, `sources/<project-id>/` and `clips/<project-id>/`. Project deletion is retryable and keeps its database marker if storage cleanup fails. Original uploads belong to the account upload library and remain available for other projects; account deletion removes them along with all project derivatives. Processing and deletion are mutually fenced. No database or uploaded media in a normal development account is a disposable fixture.
 
+The worker analyzes each uploaded source of a draft (edited in the last 12 hours) while its owner is still choosing options, one source at a time, with the draft's current language, narration and soundtrack settings. The results are the same content-addressed analysis cache the run reads, so Generate usually finds them ready; a later settings change only repeats speech analysis. A run claim stops any prewarm of its project before analysis starts, and a prewarm interrupted by deletion removes the artifacts it wrote. This assumes a single worker process.
+
 ## Configurable defaults
 
 | Variable | Default |
@@ -44,6 +46,12 @@ Project derivatives use `work/<project-id>/`, `sources/<project-id>/` and `clips
 | `STORY_MAX_ALTERNATIVES` | 2 per issue |
 | `STORY_MAX_AI_CALLS` | 12 across planning and media review |
 | `STORY_TIMEOUT_SECONDS` | 7200 |
+| `STORY_ANALYSIS_WORKERS` | 2 sources analyzed at once per run (1–8; 1 is strictly sequential) |
+| `STORY_PREWARM` | On; `off` stops analyzing draft uploads before Generate |
+| `STORY_WHISPER_THREADS` | 0 = automatic: half of the worker's CPUs, 2–8 per transcription |
+| `STORY_WHISPER_BEAM_SIZE` | 1 = greedy decoding (fastest); up to 8, whisper-cli's own default is 5 |
+
+The worker logs one `Story source analysis` line per source with the milliseconds of each step (`proxy`, `quality`, `transcription`, `speech_timing`, or `cached_speech_timing` for a cache hit), one `Story analysis stage` line per run with `sources_ms` and the provider's `source_meaning_ms`, and the API logs `Story upload validation` with `probe`, `packets` and `checksum`. Stage totals per status remain in `story_projects.stage_metrics`.
 | `STORY_WHISPER_CPP_MODEL` | `/models/ggml-story.bin` in the worker image; otherwise the configured `WHISPER_CPP_MODEL` |
 
 The default is one Natural story, 9:16, semantic ordering and a 45-second target. Supported target presets are 15/30/45/60/90 seconds. The target is a maximum editorial objective, not a requirement to pad weak material. Strict/source-only mode and preserving source order are available. The existing storage upload size limit still applies.

@@ -18,6 +18,10 @@ type Config struct {
 	FFmpegPath, FFprobePath, WhisperPath, WhisperModel, FaceModel, TempDir string
 	StoryWhisperModel, WhisperVADModel, WhisperVADPath                     string
 	Timeout                                                                time.Duration
+
+	// Story transcription speed settings; zero values select the defaults
+	// documented in whisper_settings.go.
+	WhisperThreads, WhisperBeamSize int
 }
 
 func ConfigFromEnv(get func(string) string) (Config, error) {
@@ -48,6 +52,9 @@ func ConfigFromEnv(get func(string) string) (Config, error) {
 	}
 	c.DeepFilterPath, c.DeepFilterModel = get("DEEPFILTER_PATH"), get("DEEPFILTER_MODEL")
 	c.AudioCleanupTimeout = 10 * time.Minute
+	if err := whisperSettingsFromEnv(get, &c); err != nil {
+		return Config{}, err
+	}
 	c.StudioURL, c.StudioSecret = get("STUDIO_AGENT_URL"), get("STUDIO_AGENT_SECRET")
 	c.MediaOrigin, c.MediaSigningSecret = get("APP_URL"), get("INTERNAL_API_KEY")
 	return c, nil

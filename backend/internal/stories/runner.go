@@ -17,6 +17,9 @@ type Runner struct {
 	Repo    *Repository
 	Builder Builder
 	Logger  *slog.Logger
+	// Prewarm, when set, stops any early analysis of the claimed project
+	// before the run reads or writes the same source artifacts.
+	Prewarm interface{ Yield(project string) }
 }
 
 var ErrStoryNotPending = errors.New("requested Story is not eligible: it must be pending, unclaimed, and not cancelled or being deleted")
@@ -54,6 +57,9 @@ func (r *Runner) Once(ctx context.Context) (bool, error) {
 }
 
 func (r *Runner) execute(ctx context.Context, e *execution) (runErr, finishErr error) {
+	if r.Prewarm != nil {
+		r.Prewarm.Yield(e.ID)
+	}
 	work, cancel := context.WithTimeout(ctx, r.Repo.limits.Timeout)
 	defer cancel()
 	work = story.WithAIBudget(work, e.reserveAI)

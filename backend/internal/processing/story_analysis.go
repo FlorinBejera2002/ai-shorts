@@ -34,11 +34,19 @@ func (p *Processor) Analyze(ctx context.Context, project string, asset story.Ass
 	if !storyNamespace(project) || !storyNamespace(asset.ID) || len(asset.Hash) != 64 || !finite(asset.Duration) || asset.Duration <= 0 {
 		return asset, errors.New("invalid story source")
 	}
+	// One line per source shows where analysis time goes on the live worker.
+	timer, outcome := newStageTimer(), "failed"
+	defer func() {
+		timer.log("Story source analysis", "story_id", project, "source_id", asset.ID, "outcome", outcome,
+			"source_seconds", asset.Duration, "width", asset.Width, "height", asset.Height, "video_codec", asset.VideoCodec,
+			"whisper_threads", p.whisperThreads(), "whisper_beam_size", p.whisperBeamSize())
+	}()
 	// Muting playback does not invalidate a previously verified transcript or
 	// source catalog. Keep that evidence for later original-audio edits, without
 	// requiring a speech model to be available for an inaudible soundtrack.
 	if musicOnly && reusableMutedSourceAnalysis(asset) {
 		if exists, err := p.storage.Exists(ctx, asset.ProxyKey); err == nil && exists {
+			outcome = "reused"
 			return story.ApplyTranscriptReviews(asset), nil
 		}
 	}
@@ -105,14 +113,18 @@ func (p *Processor) Analyze(ctx context.Context, project string, asset story.Ass
 						}
 					}
 				}
+				timer.mark("cached_speech_timing")
+				outcome = "cached"
 				return cached, nil
 			}
 		}
 	}
+	timer.mark("cache_lookup")
 	proxy, err := p.prepareStoryProxy(ctx, dir, project, &asset, options)
 	if err != nil {
 		return asset, err
 	}
+	timer.mark("proxy")
 	info, err := p.probe(ctx, proxy)
 	if err != nil || math.Abs(info.Duration-asset.Duration) > .12 {
 		return asset, errors.New("source timestamps could not be normalized reliably")
@@ -133,6 +145,7 @@ func (p *Processor) Analyze(ctx context.Context, project string, asset story.Ass
 		}
 		asset.ThumbnailKey = thumbnailKey
 	}
+	timer.mark("probe_thumbnail")
 	qualityInfo := info
 	if musicOnly {
 		qualityInfo.Audio = false // Do not decode unused source audio for scoring.
@@ -141,6 +154,7 @@ func (p *Processor) Analyze(ctx context.Context, project string, asset story.Ass
 	if err != nil {
 		return asset, err
 	}
+	timer.mark("quality")
 	var transcript Transcript
 	var preparedAudio storyPreparedAudio
 	if !musicOnly && !options.Narration && info.Audio && audio > .01 {
@@ -151,6 +165,7 @@ func (p *Processor) Analyze(ctx context.Context, project string, asset story.Ass
 			return asset, errors.New("aligned transcription is unavailable; retry after the speech engine is ready")
 		}
 	}
+	timer.mark("transcription")
 	asset.Candidates = storyCandidates(asset, transcript, audio, visual)
 	if options.Narration || musicOnly {
 		asset.Candidates = narrationVisualWindows(asset, visual)
@@ -178,9 +193,15 @@ func (p *Processor) Analyze(ctx context.Context, project string, asset story.Ass
 		return asset, err
 	}
 	if musicOnly {
+		outcome = "analyzed"
 		return asset, nil
 	}
-	return p.prepareStorySpeechCatalogWithAudio(ctx, dir, asset, options, preparedAudio)
+	analyzed, err := p.prepareStorySpeechCatalogWithAudio(ctx, dir, asset, options, preparedAudio)
+	timer.mark("speech_timing")
+	if err == nil {
+		outcome = "analyzed"
+	}
+	return analyzed, err
 }
 
 func reusableMutedSourceAnalysis(asset story.Asset) bool {

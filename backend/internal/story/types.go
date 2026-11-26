@@ -35,10 +35,13 @@ type Limits struct {
 	MaxAlternatives  int           `json:"max_alternatives"`
 	MaxAICalls       int           `json:"max_ai_calls"`
 	Timeout          time.Duration `json:"-"`
+	// Sources analyzed at the same time in one run. One keeps the sequential
+	// order; the worker configures more (see LimitsFromEnv).
+	AnalysisWorkers  int           `json:"-"`
 }
 
 func DefaultLimits() Limits {
-	return Limits{0, 2 << 30, 10 << 30, 900, 3600, 2, 2, 12, 2 * time.Hour}
+	return Limits{0, 2 << 30, 10 << 30, 900, 3600, 2, 2, 12, 2 * time.Hour, 1}
 }
 
 type Options struct {

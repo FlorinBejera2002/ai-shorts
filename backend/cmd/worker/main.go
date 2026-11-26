@@ -94,6 +94,22 @@ func run(logger *slog.Logger, capture *errorlog.Capture) error {
 		logger.Info("Selected Story processing finished", "story_id", options.storyID)
 		return nil
 	}
+	// Uploaded sources are analyzed while their owner is still choosing
+	// options, so generating usually reads finished analyses from the cache.
+	if os.Getenv("STORY_PREWARM") != "off" {
+		prewarmer := &stories.Prewarmer{Repo: storyRepo, Analyzer: processor, Storage: storage, Logger: logger}
+		storyRunner.Prewarm = prewarmer
+		prewarmCtx, stopPrewarm := context.WithCancel(ctx)
+		prewarmDone := make(chan struct{})
+		go func() {
+			defer close(prewarmDone)
+			prewarmer.Run(prewarmCtx)
+		}()
+		defer func() {
+			stopPrewarm()
+			<-prewarmDone
+		}()
+	}
 	executor := worker.Worker{Repo: worker.NewRepository(db), Pipeline: processor, Storage: storage, Logger: logger, Stories: storyRunner}
 	return executor.Run(ctx)
 }

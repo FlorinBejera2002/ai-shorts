@@ -50,6 +50,7 @@ func NormalizeLimits(l Limits) Limits {
 	l.MaxAlternatives = min(l.MaxAlternatives, 10)
 	l.MaxAICalls = min(l.MaxAICalls, 100)
 	l.Timeout = min(l.Timeout, 6*time.Hour)
+	l.AnalysisWorkers = max(1, min(l.AnalysisWorkers, 8))
 	return l
 }
 
@@ -189,12 +190,15 @@ func validRole(role string) bool {
 
 func LimitsFromEnv(get func(string) string) (Limits, error) {
 	l := DefaultLimits()
+	// Two sources at once overlap one clip's video normalization with another
+	// clip's speech recognition on the shared worker.
+	l.AnalysisWorkers = 2
 	integers := []struct {
 		name      string
 		target    *int
 		low, high int
 	}{
-		{"STORY_MAX_REPAIR_CYCLES", &l.MaxRepairCycles, 0, 10}, {"STORY_MAX_ALTERNATIVES", &l.MaxAlternatives, 0, 10}, {"STORY_MAX_AI_CALLS", &l.MaxAICalls, 1, 100},
+		{"STORY_MAX_REPAIR_CYCLES", &l.MaxRepairCycles, 0, 10}, {"STORY_MAX_ALTERNATIVES", &l.MaxAlternatives, 0, 10}, {"STORY_MAX_AI_CALLS", &l.MaxAICalls, 1, 100}, {"STORY_ANALYSIS_WORKERS", &l.AnalysisWorkers, 1, 8},
 	}
 	for _, field := range integers {
 		if raw := get(field.name); raw != "" {
