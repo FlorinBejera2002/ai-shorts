@@ -14,6 +14,7 @@ import (
 	"sneepcut/backend-go/internal/audiocleanup"
 	"sneepcut/backend-go/internal/identity"
 	"sneepcut/backend-go/internal/jsonutil"
+	"sneepcut/backend-go/internal/youtubedownload"
 )
 
 type Auth interface {
@@ -87,6 +88,17 @@ func decode(w http.ResponseWriter, r *http.Request, dst any) bool {
 	return true
 }
 func (h *Handler) prepare(ctx context.Context, userID string, p CreateInput) (Prepared, error) {
+	if p.SourceType == "youtube" {
+		if err := p.Validate(); err != nil {
+			return Prepared{}, err
+		}
+		canonical, err := youtubedownload.CanonicalURL(value(p.SourceURL))
+		if err != nil {
+			return Prepared{}, err
+		}
+		p.SourceURL = &canonical
+		return Prepared{Input: p}, nil
+	}
 	reference := value(p.SourceStorageKey)
 	if reference == "" {
 		reference = value(p.SourceFilePath)

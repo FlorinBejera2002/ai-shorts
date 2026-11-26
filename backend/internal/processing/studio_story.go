@@ -176,10 +176,7 @@ func (p *Processor) RenderStory(ctx context.Context, request story.Request, vers
 		}
 	}
 	id := studioPlanIdentity(request.UserID, fmt.Sprintf("story/%s/operation/%s/base/%s/version/%d", request.ID, request.StudioOperationID, request.StudioBaseArtifactID, version.Number), plan)
-	project := request.ID
-	if !data.ValidUUID(project) {
-		project = studiocomposition.Identity(request.UserID, "story-project/"+request.ID, nil)
-	}
+	project := studioStoryProjectID(request)
 	input := map[string]any{"plan": plan, "scope_id": studiocomposition.Scope(request.UserID, request.ID)}
 	studioLineage(input, request.UserID, request.ID, project, request.StudioBaseArtifactID)
 	if request.StudioSourceClipID != "" {
@@ -205,6 +202,16 @@ func (p *Processor) RenderStory(ctx context.Context, request story.Request, vers
 		credit.Explanation = "Your Studio edits were preserved; automatic music alignment is not asserted for the edited composition."
 	}
 	return story.Output{NativeTransitionVersion: studioNativeTransitionVersion, StudioManualEdits: manual, StudioTimeline: timeline, StudioArtifactID: id, Key: prefix + "/clip.mp4", PreviewKey: preview, ThumbnailKey: thumb, Duration: info.Duration, Size: size, Resolution: fmt.Sprintf("%dx%d", info.Width, info.Height), Captions: len(selection.Groups) > 0, CaptionMode: story.EffectiveCaptionMode(request.Options), CaptionWarnings: selection.Warnings, CaptionedCandidateIDs: selection.IDs, Music: credit}, nil
+}
+
+func studioStoryProjectID(request story.Request) string {
+	if request.StudioOutputIndex > 0 {
+		return studiocomposition.Identity(request.UserID, fmt.Sprintf("story-project/%s/output/%d", request.ID, request.StudioOutputIndex), nil)
+	}
+	if data.ValidUUID(request.ID) {
+		return request.ID
+	}
+	return studiocomposition.Identity(request.UserID, "story-project/"+request.ID, nil)
 }
 
 // Audio may come from a source that never appears as a visual. Its preview must

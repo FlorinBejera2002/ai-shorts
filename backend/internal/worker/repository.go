@@ -28,9 +28,9 @@ func token() string {
 }
 
 type Job struct {
-	ID, UserID, Token, Language, SubtitleStyle, AspectRatio, SourceKey string
-	Payload                                                            json.RawMessage
-	Brand                                                              map[string]any
+	ID, UserID, Token, Language, SubtitleStyle, AspectRatio, SourceKey, SourceURL, SourceType string
+	Payload                                                                                   json.RawMessage
+	Brand                                                                                     map[string]any
 }
 
 func (r *Repository) Claim(ctx context.Context) (*Job, error) {
@@ -41,7 +41,7 @@ func (r *Repository) Claim(ctx context.Context) (*Job, error) {
 	defer tx.Rollback()
 	j := &Job{Token: token()}
 	var include bool
-	err = tx.QueryRowContext(ctx, `SELECT j.id,j.user_id,coalesce(j.language,'auto'),coalesce(j.subtitle_style,'default'),j.aspect_ratio,coalesce(j.source_storage_key,''),j.include_brand FROM jobs j JOIN job_deliveries d ON d.job_id=j.id WHERE j.status='pending' AND NOT j.processing_active AND d.next_dispatch_at<=now() AND NOT EXISTS(SELECT 1 FROM account_deletion_requests a WHERE a.user_id=j.user_id) ORDER BY d.next_dispatch_at FOR UPDATE OF j SKIP LOCKED LIMIT 1`).Scan(&j.ID, &j.UserID, &j.Language, &j.SubtitleStyle, &j.AspectRatio, &j.SourceKey, &include)
+	err = tx.QueryRowContext(ctx, `SELECT j.id,j.user_id,coalesce(j.language,'auto'),coalesce(j.subtitle_style,'default'),j.aspect_ratio,coalesce(j.source_storage_key,''),coalesce(j.source_url,''),j.source_type,j.include_brand FROM jobs j JOIN job_deliveries d ON d.job_id=j.id WHERE j.status='pending' AND NOT j.processing_active AND d.next_dispatch_at<=now() AND NOT EXISTS(SELECT 1 FROM account_deletion_requests a WHERE a.user_id=j.user_id) ORDER BY d.next_dispatch_at FOR UPDATE OF j SKIP LOCKED LIMIT 1`).Scan(&j.ID, &j.UserID, &j.Language, &j.SubtitleStyle, &j.AspectRatio, &j.SourceKey, &j.SourceURL, &j.SourceType, &include)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}

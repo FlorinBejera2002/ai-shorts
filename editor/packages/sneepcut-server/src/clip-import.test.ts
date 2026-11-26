@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createClipImporter, openEmptyWorkspace } from "./clip-import";
 import { ProjectStore } from "./store";
+import type { CompositionStore } from "./composition-store";
 
 const alice = "11111111-1111-4111-8111-111111111111";
 const bob = "22222222-2222-4222-8222-222222222222";
@@ -24,6 +25,36 @@ const clip = () => ({
   duration: 4.5,
   aspect_ratio: "9:16",
   file_url: "https://app.test/media/clips/test.mp4?sig=synthetic",
+});
+
+test("legacy sibling outputs cannot silently open the primary clip workspace", async () => {
+  const story = "44444444-4444-4444-8444-444444444444";
+  let imported = false;
+  const compositions = {
+    read: async () => ({ project_id: story }),
+    importProject: async () => {
+      imported = true;
+      throw new Error("wrong workspace imported");
+    },
+  } as unknown as CompositionStore;
+  const importer = createClipImporter({
+    store,
+    compositions,
+    apiOrigin: "https://api.test",
+    mediaOrigin: "https://app.test",
+    fetcher: async () =>
+      Response.json({
+        ...clip(),
+        studio_artifact_id: id,
+        story_project_id: story,
+        story_output_index: 1,
+      }),
+  });
+  await expect(importer(alice, "Bearer alice", id)).rejects.toThrow(
+    "Regenerate this older clip set",
+  );
+  expect(imported).toBe(false);
+  expect(await store.list(alice)).toHaveLength(0);
 });
 
 test("imports an owned generated clip once and preserves the editable copy", async () => {
@@ -93,8 +124,11 @@ test("imports private S3 clips without rewriting signatures or forwarding API cr
   const signed = "https://bucket.storage.test/private/video.mp4?X-Amz-Signature=synthetic";
   let downloads = 0;
   const importer = createClipImporter({
-    store, apiOrigin: "https://api.test", mediaOrigin: "https://app.test",
-    mediaFetchOrigin: "http://nginx", mediaS3Origin: "https://bucket.storage.test",
+    store,
+    apiOrigin: "https://api.test",
+    mediaOrigin: "https://app.test",
+    mediaFetchOrigin: "http://nginx",
+    mediaS3Origin: "https://bucket.storage.test",
     probeAudio: async () => false,
     fetcher: async (input, init) => {
       if (String(input).includes("/api/clips/")) {

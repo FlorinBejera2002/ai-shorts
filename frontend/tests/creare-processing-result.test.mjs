@@ -37,6 +37,7 @@ const storyProcessingStates = loadTsModule('src/components/story/story-processin
 const storyProcessing = loadTsModule('src/components/story/story-processing.tsx', {
   'react/jsx-runtime': jsxRuntime,
   './use-story-language': { useStoryLanguage: english },
+  './use-seconds-since': { useSecondsSince: () => 0 },
   './story-error': storyErrors,
   './story-processing-model': uploadModel,
   './story-processing-states': storyProcessingStates,

@@ -119,7 +119,7 @@ func (h *Handler) ValidateTikTokSchedule(ctx context.Context, tx *sql.Tx, userID
 			return "clipId", &TikTokMediaError{Message: inspectErr.Error()}
 		}
 	}
-	mediaURL, err := h.media.SignedURL(ctx, reference)
+	mediaURL, err := h.publishingURL(ctx, "tiktok", reference)
 	if err != nil {
 		return "", err
 	}
@@ -195,7 +195,7 @@ func (h *Handler) ValidateTikTokMediaSchedule(ctx context.Context, tx *sql.Tx, u
 				return "media", &TikTokMediaError{Message: err.Error()}
 			}
 		}
-		source, err := h.media.SignedURL(ctx, reference)
+		source, err := h.publishingURL(ctx, "tiktok", reference)
 		if err != nil {
 			return "", err
 		}

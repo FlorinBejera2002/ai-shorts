@@ -73,6 +73,40 @@ the API waits for its initial signature download/readiness. Media volume ownersh
 is initialized by the application image as UID/GID 10001; do not prepopulate it
 with root-owned upload directories.
 
+## Hosted S3 media and Studio state
+
+Production defaults to local storage. Configure `STORAGE_TYPE=s3` and the
+`AWS_*` variables in the private production environment only after importing
+and verifying the existing media. Studio separately needs
+`SNEEPCUT_STUDIO_STORAGE=s3`, the same bucket credentials, and a private
+`SNEEPCUT_STUDIO_S3_PREFIX` (default `studio/v1`). Keep development in a separate
+bucket. Set `SNEEPCUT_MEDIA_S3_ORIGIN` to the exact origin of Go-signed media
+URLs; virtual-hosted addressing uses the bucket's hostname.
+
+The active bucket must be private and must never have enabled versioning:
+Studio's concurrency protocol requires conditional writes. Configure GET/HEAD
+CORS for the actual application and Studio origins when browser fetch/canvas
+access is needed. Keep independent backups and the original local volumes.
+
+Before cutover, verify a provider smoke run and a restorable database/media/
+Studio backup. Stop the API, worker and Studio writers. Build the standalone
+media importer with `docker build --target storage-migrate` from `backend/`.
+Run it with the offline media directory mounted read-only at `LOCAL_MEDIA_ROOT`,
+the intended private provider environment, and both explicit confirmations:
+`SNEEPCUT_S3_MIGRATION_WRITERS_STOPPED=true` and
+`SNEEPCUT_S3_MIGRATION_CONFIRM_BUCKET` equal to `AWS_S3_BUCKET`. It checks bucket
+privacy/versioning, preserves keys, verifies full destination bytes and refuses
+conflicting existing objects. It does not create buckets or alter their settings.
+
+While Studio is stopped, run `bun packages/sneepcut-server/src/migrate-state.ts`
+in the Studio image with the original `/data` volume and destination S3
+environment. The importer verifies conditional writes and retains originals.
+Then activate the storage configuration and recreate only the API, worker and
+Studio services. Verify readiness, signed media ranges, private access, actual
+Studio restoration/rendering and browser playback before accepting the cutover.
+Rollback must account for any new remote writes; do not switch back to a stale
+local snapshot after users have resumed writing.
+
 ## Stripe billing
 
 Use independent live resources and credentials for real payments. Set

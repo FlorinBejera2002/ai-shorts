@@ -250,9 +250,9 @@ type Version struct {
 	Timeline      []Entry    `json:"timeline"`
 	Output        Output     `json:"output"`
 	// Outputs lists every clip of a multi-clip version; Outputs[0] mirrors Output.
-	Outputs       []ClipOutput `json:"outputs,omitempty"`
-	Report        Report     `json:"report"`
-	Accepted      bool       `json:"accepted"`
+	Outputs  []ClipOutput `json:"outputs,omitempty"`
+	Report   Report       `json:"report"`
+	Accepted bool         `json:"accepted"`
 }
 
 type Attempt struct {
@@ -267,6 +267,7 @@ type Attempt struct {
 }
 
 type Request struct {
+	StudioOutputIndex    int            `json:"-"`
 	StudioBaseArtifactID string         `json:"studio_base_artifact_id,omitempty"`
 	StudioOperationID    string         `json:"studio_operation_id,omitempty"`
 	StudioSourceClipID   string         `json:"studio_source_clip_id,omitempty"`

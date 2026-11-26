@@ -8,11 +8,12 @@ import (
 	"sneepcut/backend-go/internal/audiocleanup"
 	"sneepcut/backend-go/internal/credits"
 	"sneepcut/backend-go/internal/identity"
+	"sneepcut/backend-go/internal/youtubedownload"
 )
 
 var errRetryConflict = errors.New("The job is already processing or cannot be retried")
 
-// errLinkJobRetired marks link-import jobs, which have no stored source to retry.
+// errLinkJobRetired marks historical generic link jobs without a validated delivery.
 var errLinkJobRetired = errors.New("This link import can no longer be retried; upload the video instead.")
 
 type audioRetryInput struct {
@@ -55,8 +56,8 @@ func (r *Repository) retryAudio(ctx context.Context, user, id string, in audioRe
 	var status, sourceType string
 	var active bool
 	var clips int
-	var sourceKey string
-	err = tx.QueryRowContext(ctx, `SELECT status,processing_active,num_clips_requested,source_type,coalesce(source_storage_key,'') FROM jobs WHERE id=$1 AND user_id=$2 FOR UPDATE`, id, user).Scan(&status, &active, &clips, &sourceType, &sourceKey)
+	var sourceKey, sourceURL string
+	err = tx.QueryRowContext(ctx, `SELECT status,processing_active,num_clips_requested,source_type,coalesce(source_storage_key,''),coalesce(source_url,'') FROM jobs WHERE id=$1 AND user_id=$2 FOR UPDATE`, id, user).Scan(&status, &active, &clips, &sourceType, &sourceKey, &sourceURL)
 	if err != nil {
 		return err
 	}
@@ -93,8 +94,18 @@ func (r *Repository) retryAudio(ctx context.Context, user, id string, in audioRe
 	if active || (status != "failed" && status != "cancelled") || sourceType == "story" {
 		return errRetryConflict
 	}
-	if (sourceType == "url" || sourceType == "youtube") && sourceKey == "" {
+	if sourceType == "url" {
 		return errLinkJobRetired
+	}
+	if sourceType == "youtube" {
+		var url string
+		if json.Unmarshal(payload["youtube_url"], &url) != nil || url != sourceURL || sourceKey != "" {
+			return errLinkJobRetired
+		}
+		canonical, err := youtubedownload.CanonicalURL(url)
+		if err != nil || canonical != url {
+			return errLinkJobRetired
+		}
 	}
 	if in.AudioCleanup != nil {
 		payload["audio_cleanup"], _ = json.Marshal(in.AudioCleanup)

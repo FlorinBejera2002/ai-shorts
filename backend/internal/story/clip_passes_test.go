@@ -11,11 +11,13 @@ import (
 // planningGenerator answers editorial planning prompts with queued proposals and
 // every other review prompt with a complete, issue-free result.
 type planningGenerator struct {
-	plans []string
+	plans   []string
+	prompts []string
 }
 
 func (g *planningGenerator) Generate(_ context.Context, prompt string) (string, error) {
 	if strings.Contains(prompt, "You are an editorial planner") && len(g.plans) > 0 {
+		g.prompts = append(g.prompts, prompt)
 		next := g.plans[0]
 		g.plans = g.plans[1:]
 		return next, nil
@@ -30,6 +32,16 @@ func clipProposal(candidateIDs ...string) string {
 	}
 	data, _ := json.Marshal(p)
 	return string(data)
+}
+
+type clipLineageMedia struct {
+	fakeMedia
+	requests []Request
+}
+
+func (m *clipLineageMedia) RenderStory(ctx context.Context, req Request, v Version) (Output, error) {
+	m.requests = append(m.requests, req)
+	return m.fakeMedia.RenderStory(ctx, req, v)
 }
 
 // multiClipAsset is footage with two distinct spoken moments named s<i>-c<j>.
@@ -50,17 +62,28 @@ func multiClipAsset(i int) Asset {
 func TestMultiClipStoryRendersDistinctOutputsIntoOneVersion(t *testing.T) {
 	req := fixtureRequest()
 	req.Options.ClipCount = 3
+	req.Options.Brief = "Create three separate clips, each covering one distinct habit."
+	req.StudioBaseArtifactID = "11111111-1111-4111-8111-111111111111"
+	req.StudioSourceClipID = "22222222-2222-4222-8222-222222222222"
 	req.Assets = []Asset{multiClipAsset(0), multiClipAsset(1), multiClipAsset(2)}
 	generator := &planningGenerator{plans: []string{
 		clipProposal("s0-c0", "s1-c0"),
 		clipProposal("s0-c1", "s2-c0"),
 		clipProposal("s1-c1", "s2-c1"),
 	}}
-	media := &fakeMedia{}
+	media := &clipLineageMedia{}
 	checkpoints := &memoryCheckpoints{}
 	result, err := New(media, generator, DefaultLimits()).Run(context.Background(), req, checkpoints)
 	if err != nil {
 		t.Fatal(err)
+	}
+	if len(generator.prompts) != 3 {
+		t.Fatalf("planning calls = %d, want one per output", len(generator.prompts))
+	}
+	for _, prompt := range generator.prompts {
+		if !strings.Contains(prompt, `"clip_count":3`) || !strings.Contains(prompt, "one complete clip per call") || !strings.Contains(prompt, req.Options.Brief) {
+			t.Fatal("planner lost the multi-clip request or its per-output scope")
+		}
 	}
 	outputs := result.Best.Outputs
 	if len(outputs) != 3 {
@@ -76,6 +99,11 @@ func TestMultiClipStoryRendersDistinctOutputsIntoOneVersion(t *testing.T) {
 	}
 	if len(media.renders) != 3 {
 		t.Fatalf("renders = %d, want one per clip", len(media.renders))
+	}
+	for index, rendered := range media.requests {
+		if rendered.StudioOutputIndex != index || (index > 0 && (rendered.StudioBaseArtifactID != "" || rendered.StudioSourceClipID != "")) {
+			t.Fatalf("output %d inherited another clip's Studio lineage: %+v", index, rendered)
+		}
 	}
 	seen := map[string]int{}
 	for i, render := range media.renders {

@@ -687,6 +687,17 @@
       "usage": "Uso mensual",
       "viewPlans": "Ver planes"
     },
+    "youtubeLink": {
+      "sourceLabel": "Fuente de YouTube",
+      "channel": "Mi canal",
+      "pasteLink": "Pegar enlace",
+      "label": "Enlace del video de YouTube",
+      "quality": "Hasta 4K",
+      "hint": "Videos públicos o no listados · La mejor calidad disponible hasta 4K · Máximo 10 GB",
+      "invalid": "Introduce un enlace válido de un video de YouTube.",
+      "failed": "No pudimos iniciar la descarga. Inténtalo de nuevo.",
+      "rateLimited": "Demasiadas solicitudes. Inténtalo de nuevo en breve."
+    },
     "youtubeImport": {
       "checkingTitle": "Comprobando la importación",
       "importingTitle": "Importando tus videos",

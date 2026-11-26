@@ -16,6 +16,7 @@ type Config struct {
 	AudioCleanupTimeout                                      time.Duration
 	FFmpegPath, FFprobePath, FaceModel, TempDir              string
 	Timeout                                                  time.Duration
+	YouTubeDownloaderPath, YouTubeNodePath                   string
 
 	// Speech is transcribed by the hosted model routed in admin; only the
 	// Silero voice detector (model and its whisper.cpp CLI) runs locally.
@@ -24,6 +25,7 @@ type Config struct {
 
 func ConfigFromEnv(get func(string) string) (Config, error) {
 	c := Config{FFmpegPath: get("FFMPEG_PATH"), FFprobePath: get("FFPROBE_PATH"), FaceModel: get("PIGO_FACE_MODEL"), TempDir: get("PROCESSING_TEMP_DIR"), Timeout: 2 * time.Hour}
+	c.YouTubeDownloaderPath, c.YouTubeNodePath = get("YT_DLP_PATH"), get("YOUTUBE_NODE_PATH")
 	if c.FFmpegPath == "" {
 		c.FFmpegPath = "ffmpeg"
 	}
@@ -74,11 +76,14 @@ type Input struct {
 	UserID                                                                   string
 	AudioCleanup                                                             *audiocleanup.Settings
 	SourceKey, Namespace, Language, Instructions, AspectRatio, SubtitleStyle string
+	YouTubeURL                                                               string
 	RequestedClips                                                           int
 	SmartCrop, BurnSubtitles                                                 bool
 	Brand                                                                    map[string]any
 }
 type RenderInput struct {
+	// SourcePath is an in-process scratch file; API JSON can never supply it.
+	SourcePath                                                             string                   `json:"-"`
 	UserID                                                                 string                   `json:"user_id,omitempty"`
 	StudioArtifactID                                                       string                   `json:"studio_artifact_id,omitempty"`
 	StudioProjectID                                                        string                   `json:"-"`

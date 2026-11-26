@@ -687,6 +687,17 @@
       "usage": "Utilizare lunară",
       "viewPlans": "Vezi planurile"
     },
+    "youtubeLink": {
+      "sourceLabel": "Sursa YouTube",
+      "channel": "Canalul meu",
+      "pasteLink": "Lipește un link",
+      "label": "Link video YouTube",
+      "quality": "Până la 4K",
+      "hint": "Videoclipuri publice sau nelistate · Cea mai bună calitate până la 4K · Maximum 10 GB",
+      "invalid": "Introdu un link valid către un videoclip YouTube.",
+      "failed": "Nu am putut porni descărcarea. Încearcă din nou.",
+      "rateLimited": "Prea multe cereri. Încearcă din nou în curând."
+    },
     "youtubeImport": {
       "checkingTitle": "Verificăm importul",
       "importingTitle": "Importăm videoclipurile",

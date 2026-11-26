@@ -65,6 +65,67 @@ func TestS3Compatibility(t *testing.T) {
 	testS3Compatibility(t, localS3ForTest(t), 90*time.Second)
 }
 
+func TestS3MultipartCompatibility(t *testing.T) {
+	storage := localS3ForTest(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+	defer cancel()
+	root := "sneepcut-contract/" + rand.Text() + "/multipart"
+	t.Cleanup(func() {
+		cleanup, stop := context.WithTimeout(context.Background(), 30*time.Second)
+		defer stop()
+		if _, err := storage.DeletePrefix(cleanup, root); err != nil {
+			t.Error(err)
+		}
+	})
+	file, err := os.CreateTemp(t.TempDir(), "large-source-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer file.Close()
+	// Sparse local fixture crosses the production multipart threshold without a
+	// large allocation. The first and last bytes detect missing/reordered parts.
+	size := multipartThreshold + 123
+	if err = file.Truncate(size); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = file.WriteAt([]byte("first"), 0); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = file.WriteAt([]byte("last"), size-4); err != nil {
+		t.Fatal(err)
+	}
+	key := root + "/source.mp4"
+	if err = storage.Save(ctx, file.Name(), key, "video/mp4"); err != nil {
+		t.Fatal(err)
+	}
+	if got, err := storage.Size(ctx, key); err != nil || got != size {
+		t.Fatalf("size %d: %v", got, err)
+	}
+	url, err := storage.SignedURL(ctx, key, time.Minute)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, test := range []struct{ header, want string }{{"bytes=0-4", "first"}, {fmt.Sprintf("bytes=%d-%d", size-4, size-1), "last"}} {
+		req, _ := http.NewRequestWithContext(ctx, "GET", url, nil)
+		req.Header.Set("Range", test.header)
+		response, err := http.DefaultClient.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		data, err := io.ReadAll(io.LimitReader(response.Body, 32))
+		response.Body.Close()
+		if err != nil || response.StatusCode != 206 || string(data) != test.want {
+			t.Fatalf("range %s: %d %q %v", test.header, response.StatusCode, data, err)
+		}
+	}
+	if _, err = file.WriteAt([]byte("other"), 0); err != nil {
+		t.Fatal(err)
+	}
+	if err = storage.Save(ctx, file.Name(), key, "video/mp4"); err == nil {
+		t.Fatal("multipart upload overwrote an existing object")
+	}
+}
+
 func testS3Compatibility(t *testing.T, storage *S3Storage, timeout time.Duration) {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()

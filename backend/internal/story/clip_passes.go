@@ -57,6 +57,11 @@ func (s *runState) renderExtraClip(ctx context.Context, index, number int, used 
 		tried:       make(map[string]bool),
 	}
 	extra.req = s.req
+	// Each sibling has its own editable lineage; the primary clip's saved
+	// workspace and source identity must never redirect a sibling to clip zero.
+	extra.req.StudioOutputIndex = index
+	extra.req.StudioBaseArtifactID = ""
+	extra.req.StudioSourceClipID = ""
 	extra.req.Assets = withoutCandidates(s.req.Assets, used)
 	plan, err := s.builder.plan(ctx, extra.req, extra.budget)
 	if err != nil {

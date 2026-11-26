@@ -6,10 +6,11 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"sneepcut/backend-go/internal/youtubedownload"
 	"time"
 )
 
-const maximumSourceBytes int64 = 5 << 30
+const maximumSourceBytes int64 = youtubedownload.MaxBytes
 
 func copyBounded(source io.Reader, dest string) error {
 	f, e := os.OpenFile(dest, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
@@ -22,7 +23,7 @@ func copyBounded(source io.Reader, dest string) error {
 		return e
 	}
 	if n > maximumSourceBytes {
-		return fmt.Errorf("source exceeds 5 GiB limit")
+		return fmt.Errorf("source exceeds 10 GB limit")
 	}
 	return closeErr
 }

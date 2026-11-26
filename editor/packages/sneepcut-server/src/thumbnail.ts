@@ -5,6 +5,7 @@ import { findSystemChrome } from "./browser";
 import { seekThumbnailPreview } from "../../studio/vite.thumbnail";
 import { createStudioDevRenderBodyScripts } from "../../studio/vite.studioMotion";
 import { bundledGsap } from "./assets";
+import { readFile } from "node:fs/promises";
 
 type Options = Parameters<NonNullable<StudioApiAdapter["generateThumbnail"]>>[0];
 
@@ -16,6 +17,8 @@ export async function captureThumbnail(app: Hono, options: Options): Promise<Buf
   const browser = await puppeteer.default.launch({
     executablePath,
     headless: true,
+    // Keep DevTools on inherited pipes inside the network-isolated capture process.
+    pipe: true,
     timeout: 15000,
     protocolTimeout: 15000,
     args: [
@@ -61,6 +64,18 @@ export async function captureThumbnail(app: Hono, options: Options): Promise<Buf
           await request.abort();
           return;
         }
+        if (url.pathname === "/api/runtime.js") {
+          // Match the authenticated host's built runtime. The CLI's live source
+          // builder is unnecessary inside the read-only capture sandbox.
+          await request.respond({
+            status: 200,
+            contentType: "text/javascript",
+            body: await readFile(
+              new URL("../../core/dist/hyperframe.runtime.iife.js", import.meta.url),
+            ),
+          });
+          return;
+        }
         if (
           !url.pathname.startsWith(`/api/projects/${options.project.id}/preview`) &&
           url.pathname !== "/api/runtime.js"
@@ -82,12 +97,39 @@ export async function captureThumbnail(app: Hono, options: Options): Promise<Buf
     preview.host = "sneepcut-preview.invalid";
     preview.protocol = "http:";
     preview.port = "";
-    await page.goto(preview.href, { waitUntil: "networkidle0", timeout: 30000 });
+    // Video range requests can keep the page busy after the composition is ready.
+    // Wait for the runtime and the requested frame instead of network silence.
+    await page.goto(preview.href, { waitUntil: "domcontentloaded", timeout: 30000 });
+    await page.waitForFunction(
+      () => {
+        const runtime = window as Window & { __renderReady?: boolean; __player?: unknown };
+        // Standalone compositions can use registered timelines without the player runtime.
+        return !runtime.__player || runtime.__renderReady === true;
+      },
+      { timeout: 15000 },
+    );
     for (const script of createStudioDevRenderBodyScripts(options.project.dir, {
       activeCompositionPath: options.compPath,
     }))
       await page.addScriptTag({ content: script });
     await seekThumbnailPreview(page, options.seekTime);
+    await page.evaluate(async () => {
+      await document.fonts.ready;
+    });
+    await page.waitForFunction(
+      () =>
+        [...document.querySelectorAll("video")].every((video) => {
+          if (!video.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true })) return true;
+          return video.readyState >= 2 && !video.seeking;
+        }),
+      { timeout: 15000 },
+    );
+    await page.evaluate(
+      () =>
+        new Promise<void>((resolve) => {
+          requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+        }),
+    );
     const clip = options.selector
       ? await page.evaluate(getElementScreenshotClip, options.selector, options.selectorIndex)
       : undefined;

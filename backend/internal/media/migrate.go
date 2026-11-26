@@ -84,24 +84,8 @@ func MigrateLocal(ctx context.Context, source *LocalStorage, destination Storage
 				return result, fmt.Errorf("copy %q without overwrite: %w", key, err)
 			}
 		}
-		address, err := destination.SignedURL(ctx, key, 10*time.Minute)
-		if err != nil || address == "" {
-			return result, fmt.Errorf("cannot verify destination for %q", key)
-		}
-		request, err := http.NewRequestWithContext(ctx, http.MethodGet, address, nil)
-		if err != nil {
-			return result, fmt.Errorf("cannot verify destination for %q", key)
-		}
-		response, err := client.Do(request)
-		if err != nil {
-			// Do not expose presigned credentials through an HTTP URL error.
-			return result, fmt.Errorf("destination download failed for %q", key)
-		}
-		hash := sha256.New()
-		n, copyErr := io.Copy(hash, io.LimitReader(response.Body, size+1))
-		response.Body.Close()
-		if response.StatusCode != http.StatusOK || copyErr != nil || n != size || hex.EncodeToString(hash.Sum(nil)) != before {
-			return result, fmt.Errorf("destination bytes differ for %q; originals were preserved", key)
+		if err := verifyMigrationObject(ctx, client, destination, key, before, size); err != nil {
+			return result, err
 		}
 		after, afterSize, err := hashLocal(ctx, source, key)
 		if err != nil || before != after || size != afterSize {
@@ -115,6 +99,55 @@ func MigrateLocal(ctx context.Context, source *LocalStorage, destination Storage
 		result.Bytes += size
 	}
 	return result, nil
+}
+
+// Verification reads can fail after a successful upload. Retry with a fresh
+// signature, but accept only a complete download matching every expected byte.
+// Retrying a read never replaces a conflicting object or removes the source.
+func verifyMigrationObject(ctx context.Context, client *http.Client, destination Storage, key, expected string, size int64) error {
+	var status int
+	var received int64
+	var readFailed bool
+	for attempt := 0; attempt < 3; attempt++ {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		address, err := destination.SignedURL(ctx, key, 10*time.Minute)
+		if err != nil || address == "" {
+			return fmt.Errorf("cannot verify destination for %q", key)
+		}
+		request, err := http.NewRequestWithContext(ctx, http.MethodGet, address, nil)
+		if err != nil {
+			return fmt.Errorf("cannot verify destination for %q", key)
+		}
+		response, err := client.Do(request)
+		status, received, readFailed = 0, 0, err != nil
+		if err == nil {
+			status = response.StatusCode
+			hash := sha256.New()
+			var copyErr error
+			received, copyErr = io.Copy(hash, io.LimitReader(response.Body, size+1))
+			response.Body.Close()
+			readFailed = copyErr != nil
+			if status == http.StatusOK && !readFailed && received == size && hex.EncodeToString(hash.Sum(nil)) == expected {
+				return nil
+			}
+			if status >= 400 && status < 500 && status != http.StatusRequestTimeout && status != http.StatusTooManyRequests && status != http.StatusNotFound {
+				return fmt.Errorf("destination verification returned HTTP %d for %q; originals were preserved", status, key)
+			}
+		}
+		if attempt < 2 {
+			timer := time.NewTimer(time.Duration(attempt+1) * 500 * time.Millisecond)
+			select {
+			case <-ctx.Done():
+				timer.Stop()
+				return ctx.Err()
+			case <-timer.C:
+			}
+		}
+	}
+	// Omit signed URLs and HTTP errors that may contain credentials.
+	return fmt.Errorf("destination bytes differ for %q (HTTP %d, bytes %d, read error %t); originals were preserved", key, status, received, readFailed)
 }
 
 func hashLocal(ctx context.Context, source *LocalStorage, key string) (string, int64, error) {

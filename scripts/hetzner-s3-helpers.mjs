@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { spawn } from 'node:child_process'
-import { readFile, stat } from 'node:fs/promises'
+import { copyFile, readFile, stat } from 'node:fs/promises'
 import path from 'node:path'
 
 export function validateConfig(config) {
@@ -51,6 +51,13 @@ export function command(executable, args, options = {}) {
 
 export async function videoFixture(scratch, cwd) {
   const filename = path.join(scratch, 'reference.mp4')
+  if (process.env.SNEEPCUT_HETZNER_VIDEO_FIXTURE) {
+    const source = process.env.SNEEPCUT_HETZNER_VIDEO_FIXTURE
+    const info = await stat(source)
+    assert.ok(info.isFile() && info.size >= 8 * 1024 ** 2 && info.size <= 32 * 1024 ** 2, 'Video fixture must be a regular 8–32 MiB file')
+    await copyFile(source, filename)
+    return { filename, size: info.size }
+  }
   const encode = command('ffmpeg', ['-v', 'error', '-nostdin', '-f', 'lavfi', '-i',
     'testsrc2=size=640x360:rate=24:duration=12', '-an', '-c:v', 'libx264', '-threads', '1',
     '-preset', 'ultrafast', '-b:v', '12M', '-minrate', '12M', '-maxrate', '12M', '-bufsize', '12M',

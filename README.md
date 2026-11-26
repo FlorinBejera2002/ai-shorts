@@ -2,6 +2,8 @@
 
 Sneepcut is a video-to-shorts stack with a React/Vite frontend, Go application API and media worker, Studio composition renderer, PostgreSQL, Redis, and Nginx.
 
+Create clips supports a [YouTube Paste link source](docs/youtube-link-downloads.md), with automatic quality up to 4K and a 10 GB limit.
+
 ## Prerequisites
 
 - Docker Desktop with Docker Compose

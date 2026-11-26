@@ -2,9 +2,9 @@
 
 Verified on 2026-11-09 and repeated on 2026-11-13 against the existing private `sneepcut-test` bucket at
 `https://hel1.your-objectstorage.com`, region `hel1`. No bucket was provisioned,
-no bucket settings changed, and no application was switched to remote storage.
-Development continues to use SeaweedFS. Credentials and signed URLs are excluded
-from this report and Git.
+no bucket settings changed, and no application was switched to remote storage
+during those initial runs. Development activation is recorded separately below.
+Credentials and signed URLs are excluded from this report and Git.
 
 ## Result
 
@@ -335,6 +335,31 @@ database processes. Its temporary directory is private and removed by a trap;
 application configuration and deployed binaries are untouched. The SSH target
 must already have a trusted host key and Python 3. The local runner additionally
 checks native browser playback, the worker and Studio rendering/recovery.
+
+## Development activation, 2026-11-25
+
+The developer's local API, worker and Studio now use the existing private
+`sneepcut-test` bucket in `hel1`. Their active configuration was checked against
+the ignored provider profile; the previous development environment was backed
+up outside the checkout. There were no local media or Studio files to migrate.
+Production remains on its existing storage at the user's request.
+
+Verification passed for a synthetic video upload, signed HTTPS download with
+full SHA-256 comparison, byte ranges, and denial of unsigned access. Native
+Chrome decoded, played and sought the private S3 video directly. An isolated
+Studio fixture imported the video, persisted its project to S3, discarded its
+working cache and recovered the project. Through the existing authenticated
+Studio preview route, Chrome decoded and sought the video, read a canvas frame,
+and received a 1024-byte HTTP 206 response. No application database was modified.
+All synthetic media and project objects were removed after verification.
+
+Bucket CORS updates still return `403 AccessDenied`, including with S3cmd.
+This does not block these current paths: ordinary video playback uses signed
+links, while Studio editing media and custom fonts are served through existing
+application routes. HTTPS already works with Hetzner's certificate. Adding a
+custom certificate is unnecessary. Direct browser JavaScript reads or canvas
+extraction from bucket URLs would require CORS; verify that requirement before
+introducing such a path. No general-purpose media proxy was added.
 
 ## Versioning
 

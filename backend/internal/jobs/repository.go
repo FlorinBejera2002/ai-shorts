@@ -110,6 +110,9 @@ func (s *Repository) createTx(ctx context.Context, tx *sql.Tx, userID string, in
 		if !empty(in.SourceStorageKey) {
 			payload["source_storage_key"] = *in.SourceStorageKey
 		}
+		if in.SourceType == "youtube" {
+			payload["youtube_url"] = value(in.SourceURL)
+		}
 		encoded, err := json.Marshal(payload)
 		if err != nil {
 			return nil, err

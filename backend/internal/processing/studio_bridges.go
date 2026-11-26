@@ -17,6 +17,8 @@ func (p *Processor) studioNaturalBridges(ctx context.Context, dir, source string
 			continue
 		}
 		left, right := plan.Scenes[i], plan.Scenes[i+1]
+		// Frame analysis reads the original, while Studio may use short windows.
+		left.SourceIn, right.SourceIn = in.Segments[i].Start, in.Segments[i+1].Start
 		bridge, err := p.studioBridgeFrames(ctx, dir, source, plan, left, right)
 		if err != nil {
 			if ctx.Err() != nil {
@@ -25,7 +27,7 @@ func (p *Processor) studioNaturalBridges(ctx context.Context, dir, source string
 			d.Reason += "; interpolation rejected, retained cut"
 			continue
 		}
-		key := "work/" + strings.Split(in.Namespace, "/")[0] + "/studio-bridges/" + storyDigest([]any{in.SourceKey, left, right, plan.Width, plan.Height, "motion-bridge-1"}) + ".mp4"
+		key := "work/" + strings.Split(in.Namespace, "/")[0] + "/studio-bridges/" + storyDigest([]any{in.SourceKey, left, right, plan.Width, plan.Height, "motion-bridge-2"}) + ".mp4"
 		if err = p.storySave(ctx, bridge, key, "video/mp4"); err != nil {
 			return err
 		}
@@ -69,9 +71,14 @@ func (p *Processor) studioBridgeFrames(ctx context.Context, dir, source string, 
 			return "", err
 		}
 	}
+	// minterpolate buffers following frames. Supply a final lookahead frame so
+	// the requested .2-.4 second interval contains all six frames at 30 fps.
+	if err = copyFile(filepath.Join(work, "frame-3.png"), filepath.Join(work, "frame-4.png")); err != nil {
+		return "", err
+	}
 	output := filepath.Join(work, "bridge.mp4")
-	filter := "minterpolate=fps=30:mi_mode=mci:mc_mode=aobmc:me_mode=bidir:vsbmc=1:scd=none,trim=start=0.2:end=0.4,setpts=PTS-STARTPTS,format=yuv420p"
-	if err = p.ffmpeg(ctx, work, "-framerate", "5", "-i", filepath.Join(work, "frame-%d.png"), "-vf", filter, "-an", "-c:v", "libx264", "-crf", "18", output); err != nil {
+	filter := "minterpolate=fps=30:mi_mode=mci:mc_mode=aobmc:me_mode=bidir:vsbmc=1:scd=none,trim=start=0.2:end=0.4,settb=1/30,setpts=N,format=yuv420p"
+	if err = p.ffmpeg(ctx, work, "-framerate", "5", "-i", filepath.Join(work, "frame-%d.png"), "-vf", filter, "-an", "-r", "30", "-fps_mode", "cfr", "-c:v", "libx264", "-crf", "18", output); err != nil {
 		return "", err
 	}
 	raw, err := run(ctx, work, p.cfg.FFmpegPath, "-v", "error", "-i", output, "-vf", "scale=64:36", "-an", "-f", "rawvideo", "-pix_fmt", "gray", "pipe:1")

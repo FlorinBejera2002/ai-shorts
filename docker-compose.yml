@@ -108,6 +108,7 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER:-sneepcut}:${DB_PASSWORD:-changeme}@postgres:5432/${POSTGRES_DB:-sneepcut}?sslmode=disable
       REDIS_URL: redis://redis:6379/0
       LOCAL_MEDIA_ROOT: /app/media
+      PROCESSING_TEMP_DIR: /app/processing-tmp
       STUDIO_AGENT_URL: ${STUDIO_AGENT_URL:-http://studio:5191}
       STUDIO_AGENT_SECRET: ${STUDIO_AGENT_SECRET:-}
     depends_on:
@@ -120,6 +121,7 @@ services:
     volumes:
       - ${SNEEPCUT_RUNTIME_ROOT:-../ai-shorts-runtime}/media:/app/media
       - ${SNEEPCUT_RUNTIME_ROOT:-../ai-shorts-runtime}/tmp/worker:/tmp
+      - ${SNEEPCUT_RUNTIME_ROOT:-../ai-shorts-runtime}/tmp/processing:/app/processing-tmp
     read_only: true
     user: '10001:10001'
     security_opt: ['no-new-privileges:true']

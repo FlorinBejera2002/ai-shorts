@@ -55,7 +55,7 @@ func authenticatedJobHTTPContracts(t *testing.T, role string) {
 		router.ServeHTTP(w, req)
 		return w
 	}
-	if w := call("POST", "/api/jobs", `{"source_type":"youtube","source_url":"https://youtube.com/watch?v=fixture"}`); w.Code != 400 {
+	if w := call("POST", "/api/jobs", `{"source_type":"youtube","source_url":"https://youtube.com/watch?v=fixture"}`); w.Code != 422 {
 		t.Fatalf("link create: %d %s", w.Code, w.Body.String())
 	}
 	if w := call("POST", "/api/jobs/batch", `{"source_urls":["https://youtube.com/watch?v=fixture"]}`); w.Code != 404 {
@@ -99,6 +99,20 @@ func authenticatedJobHTTPContracts(t *testing.T, role string) {
 		t.Fatal(w.Body.String())
 	}
 	if w = call("POST", "/api/jobs/"+id+"/cancel", ""); w.Code != 200 {
+		t.Fatal(w.Code, w.Body.String())
+	}
+	w = call("POST", "/api/jobs", `{"source_type":"youtube","source_url":"https://youtu.be/aqz-KE-bpKQ?si=tracking"}`)
+	if w.Code != 201 {
+		t.Fatalf("YouTube create: %d %s", w.Code, w.Body.String())
+	}
+	var linked struct {
+		ID  string `json:"id"`
+		URL string `json:"source_url"`
+	}
+	if err = json.Unmarshal(w.Body.Bytes(), &linked); err != nil || linked.URL != "https://www.youtube.com/watch?v=aqz-KE-bpKQ" {
+		t.Fatalf("YouTube source: %s %v", w.Body.String(), err)
+	}
+	if w = call("POST", "/api/jobs/"+linked.ID+"/cancel", ""); w.Code != 200 {
 		t.Fatal(w.Code, w.Body.String())
 	}
 	if _, err = db.Exec(`UPDATE users SET access_role='viewer' WHERE id=$1`, user); err != nil {
