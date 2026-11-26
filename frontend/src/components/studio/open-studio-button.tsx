@@ -3,10 +3,10 @@
 import { Button } from '@/components/ui/button'
 import { LoadingIndicator } from '@/components/ui/loading-indicator'
 import { authClient } from '@/lib/auth'
-import { ExternalLink } from 'lucide-react'
+import { Pencil } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useEffect, useRef, useState } from 'react'
-import { createStudioClient, prepareStudioClip } from './studio-client'
+import { createStudioClient, prepareStudioClip, readStudioPreferences } from './studio-client'
 import { configuredStudioOrigin } from './studio-config'
 
 const origin = configuredStudioOrigin(
@@ -18,7 +18,7 @@ async function openStudioClip(clipId: string, signal?: AbortSignal) {
   if (!origin) return
   const client = createStudioClient(origin, authClient)
   const requestSignal = signal ?? AbortSignal.timeout(150000)
-  const url = await prepareStudioClip(client, clipId, requestSignal)
+  const url = await prepareStudioClip(client, clipId, requestSignal, readStudioPreferences())
   if (!requestSignal.aborted) window.location.assign(url)
 }
 
@@ -67,7 +67,7 @@ export function OpenStudioButton({
         {opening ? (
           <LoadingIndicator />
         ) : (
-          <ExternalLink aria-hidden="true" />
+          <Pencil aria-hidden="true" />
         )}
         {opening ? t('opening') : t('edit')}
       </Button>

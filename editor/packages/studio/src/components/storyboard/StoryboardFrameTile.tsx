@@ -1,6 +1,12 @@
 import type { StoryboardFrameView } from "../../hooks/useStoryboard";
 import { FramePoster, posterTime } from "./FramePoster";
-import { FRAME_STATUS_META } from "./frameStatus";
+import {
+  FRAME_CHIP_CLASS,
+  FRAME_STATUS_META,
+  frameStatusLabel,
+  frameStatusTip,
+} from "./frameStatus";
+import { t, useLocale } from "../../i18n/translate";
 
 export interface StoryboardFrameTileProps {
   projectId: string;
@@ -26,12 +32,12 @@ function firstLine(text: string): string {
 }
 
 function placeholderMessage(frame: StoryboardFrameView): string {
-  if (frame.status === "outline") return "Not built yet";
-  if (frame.src && !frame.srcExists) return "Frame file not found";
-  return "No preview";
+  if (frame.status === "outline") return t("story.notBuilt");
+  if (frame.src && !frame.srcExists) return t("story.fileNotFound");
+  return t("story.noPreview");
 }
 
-/** A single contact-sheet tile: poster preview + its metadata. Click to focus. */
+/** One frame tile (board covOutFrame): 16:9 poster, "n · title" and status, comment field. */
 // fallow-ignore-next-line complexity
 export function StoryboardFrameTile({
   projectId,
@@ -42,21 +48,23 @@ export function StoryboardFrameTile({
   pendingComment,
   posterVersion,
 }: StoryboardFrameTileProps) {
+  useLocale();
   const meta = FRAME_STATUS_META[frame.status];
   const renderable = frame.srcExists && frame.status !== "outline";
-  const title = frame.title ?? `Frame ${frame.index}`;
+  const title = frame.title ?? t("story.frameN", { n: frame.index });
   const sceneLine = frame.scene ?? firstLine(frame.narrative);
+  const label = frameStatusLabel(frame.status);
 
   return (
-    <article className="min-w-0">
+    <article className="flex min-w-0 flex-col gap-2" data-storyboard-frame={frame.index}>
       <button
         type="button"
         onClick={() => onOpen(frame.index)}
-        className="group relative block aspect-video w-full overflow-hidden rounded-lg border border-neutral-800 bg-neutral-900 text-left transition-colors hover:border-neutral-600"
+        title={sceneLine || undefined}
+        className={`relative block aspect-video w-full overflow-hidden rounded-xl bg-[var(--st-sub)] text-left outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--st-btn)] ${
+          renderable ? "" : "shadow-[inset_0_0_0_1.5px_var(--st-sbd)]"
+        }`}
       >
-        <div className="absolute left-2 top-2 z-10 flex h-6 min-w-6 items-center justify-center rounded-full bg-black/70 px-1.5 text-xs font-semibold text-neutral-100">
-          {frame.number ?? frame.index}
-        </div>
         {renderable && frame.src ? (
           <FramePoster
             projectId={projectId}
@@ -66,52 +74,44 @@ export function StoryboardFrameTile({
             posterVersion={posterVersion}
           />
         ) : (
-          <FrameTilePlaceholder frame={frame} />
+          <span className="absolute inset-0 flex items-center justify-center p-3 text-center text-xs font-semibold text-[var(--st-t2)]">
+            {placeholderMessage(frame)}
+          </span>
         )}
       </button>
-
-      <div className="mt-2 flex items-start justify-between gap-2">
-        <h3 className="truncate text-sm font-medium text-neutral-200">{title}</h3>
+      <span className="flex min-w-0 items-center justify-between gap-1.5">
+        <b className="min-w-0 truncate text-xs font-semibold">
+          {frame.number ?? frame.index} · {title}
+        </b>
         <span
-          title={meta.tooltip}
-          aria-label={`Status: ${meta.label} — ${meta.tooltip}`}
-          className={`shrink-0 cursor-default rounded px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide ${meta.chipClass}`}
+          title={frameStatusTip(frame.status)}
+          aria-label={t("story.statusAria", { label })}
+          className={`${FRAME_CHIP_CLASS} ${meta.chipClass}`}
         >
-          {meta.label}
+          {label}
         </span>
-      </div>
-      {sceneLine && <p className="mt-0.5 line-clamp-2 text-xs text-neutral-400">{sceneLine}</p>}
-      {frame.voiceover && (
-        <p className="mt-1 line-clamp-2 text-xs italic text-neutral-500">
-          <span aria-hidden="true">🎙 </span>“{frame.voiceover}”
-        </p>
-      )}
-      <div className="mt-1 flex gap-3 text-[11px] text-neutral-600">
-        {frame.duration && <span>{frame.duration}</span>}
-        {frame.transitionIn && <span>↘ {frame.transitionIn}</span>}
-      </div>
-      <textarea
+      </span>
+      {frame.duration || frame.transitionIn ? (
+        <span className="flex gap-3 text-[11px] text-[var(--st-t2)]">
+          {frame.duration && <span>{frame.duration}</span>}
+          {frame.transitionIn && <span>↘ {frame.transitionIn}</span>}
+        </span>
+      ) : null}
+      <input
+        type="text"
         value={commentDraft}
         onChange={(e) => onCommentDraftChange(frame.index, e.target.value)}
-        rows={2}
-        placeholder="Comment on this frame…"
-        aria-label={`Comment on ${title}`}
-        className="mt-2 w-full resize-none rounded-md border border-neutral-800 bg-neutral-900/60 px-2 py-1.5 text-xs text-neutral-200 placeholder:text-neutral-600 focus:border-sky-700 focus:outline-none"
+        placeholder={t("story.commentPlaceholder")}
+        aria-label={t("story.commentAria", { title })}
+        className="h-[34px] w-full min-w-0 rounded-xl border-0 bg-studio-surface px-2.5 text-xs text-studio-text shadow-[inset_0_0_0_1px_var(--st-sbd)] outline-none placeholder:text-[var(--st-t3)] focus-visible:shadow-[inset_0_0_0_1.5px_var(--st-btn)]"
       />
       {pendingComment && (
-        <p className="mt-1 text-[11px] text-sky-400/90">
-          <span className="font-medium">Pending:</span> “{pendingComment}”
-        </p>
+        <span className="flex min-w-0 items-center gap-2 text-[11px] font-semibold">
+          <span className="min-w-0 truncate" title={pendingComment}>
+            {t("story.pending", { text: pendingComment })}
+          </span>
+        </span>
       )}
     </article>
-  );
-}
-
-function FrameTilePlaceholder({ frame }: { frame: StoryboardFrameView }) {
-  return (
-    <div className="flex h-full w-full flex-col items-center justify-center gap-1 border border-dashed border-neutral-700 bg-neutral-950 text-center">
-      <span className="text-xs font-medium text-neutral-400">{frame.title ?? "Outline"}</span>
-      <span className="text-[11px] text-neutral-600">{placeholderMessage(frame)}</span>
-    </div>
   );
 }

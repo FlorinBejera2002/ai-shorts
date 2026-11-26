@@ -1,6 +1,7 @@
 import type { StoryboardFrameView } from "../../hooks/useStoryboard";
 import type { FrameCommentEntry } from "./frameComments";
 import { StoryboardFrameTile } from "./StoryboardFrameTile";
+import { t } from "../../i18n/translate";
 
 export interface StoryboardGridProps {
   projectId: string;
@@ -28,14 +29,14 @@ export function StoryboardGrid({
 }: StoryboardGridProps) {
   if (frames.length === 0) {
     return (
-      <div className="mt-8 rounded-lg border border-dashed border-neutral-800 px-6 py-12 text-center text-sm text-neutral-500">
-        This storyboard has no frames yet.
-      </div>
+      <b className="py-12 text-center text-sm font-semibold text-[var(--st-t2)]">
+        {t("story.noFrames")}
+      </b>
     );
   }
 
   return (
-    <div className="mt-8 grid gap-x-6 gap-y-8 [grid-template-columns:repeat(auto-fill,minmax(300px,1fr))]">
+    <div className="grid grid-cols-1 gap-x-3 gap-y-3.5 sm:grid-cols-2 xl:grid-cols-3">
       {frames.map((frame) => (
         <StoryboardFrameTile
           key={frame.index}

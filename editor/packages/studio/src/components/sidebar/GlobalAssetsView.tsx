@@ -1,8 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
+import { t, useLocale } from "../../i18n/translate";
+import { illustrationSrc } from "../ui";
+import type { MessageKey } from "../../i18n/dictionary";
+import { PanelMessage, PanelTag } from "./panelKit";
 
-// Cross-project asset view — the global media-use cache (~/.media), fetched from
-// /api/assets/global. Self-contained (owns its fetch + state) so AssetsTab stays
-// focused on the local view.
+// Cross-project asset view ("Toate"): the global media-use cache (~/.media), fetched from
+// /api/assets/global. Rows follow St-Shell-Library; loading and empty follow
+// St-Shell-LibraryLoading and St-Shell-LibraryEmpty.
 
 export interface GlobalAssetRecord {
   id?: string;
@@ -39,7 +43,29 @@ export function globalAssetRows(records: GlobalAssetRecord[], query = ""): Globa
     }));
 }
 
+function kindKey(type: string): MessageKey {
+  const value = type.toLowerCase();
+  if (/image|img|photo|logo|icon/.test(value)) return "media.kindImage";
+  if (/audio|music|bgm|sfx|voice/.test(value)) return "media.kindAudio";
+  if (/video/.test(value)) return "media.kindVideo";
+  if (/font/.test(value)) return "media.kindFont";
+  return "media.kindAsset";
+}
+
+function SkeletonRow() {
+  return (
+    <div className="flex items-center gap-2.5" aria-hidden="true">
+      <span className="h-10 w-14 flex-none rounded-[10px] bg-[var(--st-sub)]" />
+      <span className="flex flex-1 flex-col gap-1.5">
+        <span className="h-3 w-[70%] rounded-full bg-[var(--st-sub)]" />
+        <span className="h-2.5 w-[40%] rounded-full bg-[var(--st-sub)]" />
+      </span>
+    </div>
+  );
+}
+
 export function GlobalAssetsView({ searchQuery }: { searchQuery: string }) {
+  useLocale();
   const [records, setRecords] = useState<GlobalAssetRecord[] | null>(null);
   useEffect(() => {
     let cancelled = false;
@@ -59,31 +85,49 @@ export function GlobalAssetsView({ searchQuery }: { searchQuery: string }) {
   const rows = useMemo(() => globalAssetRows(records ?? [], searchQuery), [records, searchQuery]);
 
   if (records === null) {
-    return <p className="px-4 py-3 text-[11px] text-panel-text-5">Loading global assets…</p>;
+    return (
+      <div role="status" className="flex flex-col gap-3">
+        <b className="text-[13px] font-semibold text-[var(--st-t2)]">{t("media.libraryLoading")}</b>
+        <SkeletonRow />
+        <SkeletonRow />
+        <SkeletonRow />
+      </div>
+    );
   }
   if (rows.length === 0) {
     return (
-      <p className="px-4 py-3 text-[11px] text-panel-text-5">
-        No assets in the global cache yet. Resolved media is promoted to <code>~/.media</code> and
-        becomes reusable across projects.
-      </p>
+      <div className="flex flex-col items-center gap-2 text-center">
+        <PanelMessage
+          illustration={illustrationSrc("studio-media-empty")}
+          title={t("media.libraryEmpty")}
+        />
+        <span className="-mt-4 text-xs text-[var(--st-t2)]">{t("media.libraryEmptyHint")}</span>
+      </div>
     );
   }
   return (
-    <div>
-      <div className="px-4 py-2 border-t border-panel-border text-[11px] text-panel-text-5">
-        {rows.length} reusable across all projects
-      </div>
+    <div className="flex flex-col gap-2.5">
+      <span className="self-start">
+        <PanelTag tone="neutral" height={24}>
+          {t("media.libraryCount", { n: rows.length })}
+        </PanelTag>
+      </span>
       {rows.map((row) => (
         <div
           key={row.id}
-          className="px-4 py-1.5 flex items-center gap-2.5 border-l-2 border-transparent hover:bg-neutral-800/50"
+          className="flex min-w-0 items-center gap-2.5"
           title={`${row.id} · ${row.type}`}
         >
-          <span className="text-[9px] font-medium text-neutral-600 uppercase w-10 flex-shrink-0">
-            {row.type}
+          <span
+            aria-hidden="true"
+            className="flex h-10 w-14 flex-none items-center justify-center rounded-[10px] bg-[var(--st-sub)] text-[10px] font-semibold uppercase text-[var(--st-t2)]"
+          >
+            {row.type.slice(0, 4)}
           </span>
-          <span className="text-xs text-panel-text-1 truncate">{row.label}</span>
+          <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+            <b className="truncate text-[13px] font-semibold">{row.label}</b>
+            <span className="text-xs text-[var(--st-t2)]">{t(kindKey(row.type))}</span>
+          </span>
         </div>
       ))}
     </div>

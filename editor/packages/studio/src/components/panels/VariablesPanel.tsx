@@ -1,10 +1,5 @@
 import { memo, useCallback, useEffect, useMemo, useState, type MutableRefObject } from "react";
-import type {
-  Composition,
-  CompositionVariable,
-  VariableUsageReport,
-  VariableValidationIssue,
-} from "@hyperframes/sdk";
+import type { Composition, CompositionVariable } from "@hyperframes/sdk";
 import type { EditHistoryKind } from "../../utils/editHistory";
 import type { PublishSdkSession } from "../../utils/sdkCutover";
 import { useStudioPlaybackContext, useStudioShellContext } from "../../contexts/StudioContext";
@@ -13,23 +8,21 @@ import { useFileManagerContext } from "../../contexts/FileManagerContext";
 import { VariablesBindElement, type BindAction, applyBind } from "./VariablesBindElement";
 import { useVariablesPersist } from "../../hooks/useVariablesPersist";
 import { VariablesOtherCompositions } from "./VariablesOtherCompositions";
-import { RowAction } from "./VariablesRowAction";
-import { usePreviewVariablesStore } from "../../hooks/previewVariablesStore";
 import {
-  DeclarationForm,
-  draftFromDeclaration,
-  mergeDeclarationEdit,
-  EMPTY_DRAFT,
-} from "./VariablesDeclarationForm";
-import { PreviewValueControl } from "./VariablesValueControls";
+  HandoffFooter,
+  PreviewModeHeader,
+  RemoveDeclarationDialog,
+  UndeclaredReads,
+  ValidationStrip,
+  VariableRow,
+} from "./VariablesRows";
+import { t, useLocale } from "../../i18n/translate";
+import { OutputButton } from "../output/OutputButton";
+import { OutputIcon } from "../output/OutputIcon";
+import { usePreviewVariablesStore } from "../../hooks/previewVariablesStore";
+import { DeclarationForm, EMPTY_DRAFT } from "./VariablesDeclarationForm";
 import { copyTextToClipboard } from "../../utils/clipboard";
 import { resolveMasterCompositionPath } from "../../utils/studioUrlState";
-import { isScalarVariableValue as isScalar } from "@hyperframes/core/variables";
-
-/** POSIX single-quote escaping so the copied command survives quotes in values. */
-function shellSingleQuote(value: string): string {
-  return `'${value.replace(/'/g, `'\\''`)}'`;
-}
 
 export interface StudioEditPersistenceProps {
   sdkSession: Composition | null;
@@ -45,208 +38,6 @@ export interface StudioEditPersistenceProps {
 
 type VariablesPanelProps = StudioEditPersistenceProps;
 
-function formatIssue(issue: VariableValidationIssue): string {
-  switch (issue.kind) {
-    case "undeclared":
-      return `"${issue.variableId}" is not declared.`;
-    case "type-mismatch":
-      return `"${issue.variableId}" expects ${issue.expected}, got ${issue.actual}.`;
-    case "enum-out-of-range":
-      return `"${issue.variableId}" must be one of: ${issue.allowed.join(", ")}.`;
-  }
-}
-
-function ValidationStrip({ issues }: { issues: VariableValidationIssue[] }) {
-  if (issues.length === 0) return null;
-  return (
-    <div className="space-y-1 rounded-lg border border-red-900/60 bg-red-950/30 p-2">
-      {issues.map((issue) => (
-        <p key={`${issue.kind}:${issue.variableId}`} className="text-[10px] text-red-300">
-          {formatIssue(issue)}
-        </p>
-      ))}
-    </div>
-  );
-}
-
-// fallow-ignore-next-line complexity
-function VariableRow({
-  decl,
-  value,
-  overridden,
-  unused,
-  editing,
-  onCommitPreview,
-  onSetDefault,
-  onToggleEdit,
-  onSaveEdit,
-  onRemove,
-}: {
-  decl: CompositionVariable;
-  value: unknown;
-  overridden: boolean;
-  unused: boolean;
-  editing: boolean;
-  onCommitPreview: (value: unknown) => void;
-  onSetDefault: (value: string | number | boolean) => void;
-  onToggleEdit: () => void;
-  onSaveEdit: (decl: CompositionVariable) => void;
-  onRemove: () => void;
-}) {
-  return (
-    <div className="space-y-1.5 rounded-lg border border-neutral-800/70 p-2">
-      <div className="flex items-center gap-1.5">
-        <span className="truncate text-[10px] font-medium text-neutral-300">{decl.label}</span>
-        <span className="rounded bg-neutral-800 px-1 py-px font-mono text-[8px] text-neutral-500">
-          {decl.type}
-        </span>
-        {unused && (
-          <span
-            className="rounded bg-amber-900/40 px-1 py-px text-[8px] text-amber-400"
-            title="No script reads this variable"
-          >
-            unused
-          </span>
-        )}
-        {overridden && <span className="h-1.5 w-1.5 rounded-full bg-studio-accent" />}
-        <span className="ml-auto flex items-center gap-1">
-          {overridden && isScalar(value) && (
-            <RowAction
-              label="Set default"
-              title="Persist this value as the declared default"
-              onClick={() => onSetDefault(value)}
-            />
-          )}
-          <RowAction label="Edit" title="Edit declaration" onClick={onToggleEdit} />
-          <RowAction label="✕" title="Remove declaration" danger onClick={onRemove} />
-        </span>
-      </div>
-      {decl.description && <p className="text-[9px] text-neutral-500">{decl.description}</p>}
-      {editing ? (
-        <DeclarationForm
-          initial={draftFromDeclaration(decl)}
-          submitLabel="Save"
-          onSubmit={(edited) => onSaveEdit(mergeDeclarationEdit(decl, edited))}
-          onCancel={onToggleEdit}
-        />
-      ) : (
-        <PreviewValueControl decl={decl} value={value} onCommit={onCommitPreview} />
-      )}
-    </div>
-  );
-}
-
-function UndeclaredReads({
-  usage,
-  onDeclare,
-}: {
-  usage: VariableUsageReport | null;
-  onDeclare: (id: string) => void;
-}) {
-  if (!usage || usage.undeclaredReads.length === 0) return null;
-  return (
-    <div className="space-y-1 rounded-lg border border-neutral-800/70 bg-neutral-900/40 p-2">
-      <p className="text-[9px] font-medium uppercase tracking-wider text-neutral-500">
-        Read by scripts, not declared
-      </p>
-      {usage.undeclaredReads.map((id) => (
-        <div key={id} className="flex items-center gap-2">
-          <code className="font-mono text-[10px] text-neutral-400">{id}</code>
-          <RowAction
-            label="Declare"
-            title="Declare as a string variable"
-            onClick={() => onDeclare(id)}
-          />
-        </div>
-      ))}
-    </div>
-  );
-}
-
-/** Preview-state pill + reset, shown in the panel header. */
-function PreviewModeHeader({
-  overrideCount,
-  onReset,
-}: {
-  overrideCount: number;
-  onReset: () => void;
-}) {
-  const hasOverrides = overrideCount > 0;
-  return (
-    <div className="flex items-center justify-between border-b border-neutral-800 px-3 py-2">
-      <div className="flex items-center gap-2">
-        <span className="text-[11px] font-semibold text-neutral-200">Variables</span>
-        <span
-          className={`rounded-full px-2 py-0.5 text-[9px] font-medium ${
-            hasOverrides
-              ? "bg-studio-accent/20 text-studio-accent"
-              : "bg-neutral-800 text-neutral-500"
-          }`}
-        >
-          {hasOverrides ? `Previewing ${overrideCount} custom` : "Previewing defaults"}
-        </span>
-      </div>
-      {hasOverrides && (
-        <button
-          type="button"
-          onClick={onReset}
-          className="h-6 rounded px-2 text-[10px] text-neutral-400 hover:text-neutral-200"
-        >
-          Reset
-        </button>
-      )}
-    </div>
-  );
-}
-
-/**
- * Developer/agent handoff: copy the effective values as JSON or as a
- * ready-to-run render command mirroring exactly what the preview shows.
- */
-function HandoffFooter({
-  effectiveValues,
-  compPath,
-  onCopy,
-}: {
-  effectiveValues: Record<string, unknown>;
-  compPath: string;
-  onCopy: (text: string, what: string) => void;
-}) {
-  const json = JSON.stringify(effectiveValues);
-  const command = `npx hyperframes render ${shellSingleQuote(compPath)} --variables ${shellSingleQuote(json)}`;
-  return (
-    <div className="space-y-1.5 rounded-lg border border-neutral-800/70 bg-neutral-900/40 p-2">
-      <p className="text-[9px] font-medium uppercase tracking-wider text-neutral-500">
-        Use this template
-      </p>
-      <code className="block truncate font-mono text-[9px] text-neutral-500" title={command}>
-        {command}
-      </code>
-      <div className="flex items-center gap-2">
-        <RowAction
-          label="Copy render command"
-          title="CLI command rendering exactly what the preview shows"
-          onClick={() => onCopy(command, "Render command")}
-        />
-        <RowAction
-          label="Copy values JSON"
-          title="Effective values (defaults merged with preview overrides)"
-          onClick={() => onCopy(json, "Values JSON")}
-        />
-      </div>
-    </div>
-  );
-}
-
-const EMPTY_STATE = (
-  <p className="text-[10px] leading-relaxed text-neutral-500">
-    No variables declared. Variables make parts of this composition dynamic — declare them here (or
-    in <code className="font-mono">data-composition-variables</code>), read them with{" "}
-    <code className="font-mono">getVariables()</code>, and pass values at render time with{" "}
-    <code className="font-mono">--variables</code>.
-  </p>
-);
-
 // Panel orchestrator — JSX conditionals per section, same shape as StudioRightPanel.
 // fallow-ignore-next-line complexity
 export const VariablesPanel = memo(function VariablesPanel({
@@ -256,6 +47,7 @@ export const VariablesPanel = memo(function VariablesPanel({
   domEditSaveTimestampRef,
   recordEdit,
 }: VariablesPanelProps) {
+  useLocale();
   const { activeCompPath, showToast } = useStudioShellContext();
   const { refreshKey } = useStudioPlaybackContext();
   const { readProjectFile, writeProjectFile, fileTree } = useFileManagerContext();
@@ -281,6 +73,7 @@ export const VariablesPanel = memo(function VariablesPanel({
   }, [sdkSession]);
   const [addOpen, setAddOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [removingId, setRemovingId] = useState<string | null>(null);
 
   const persistVariables = useVariablesPersist({
     sdkSession,
@@ -315,14 +108,12 @@ export const VariablesPanel = memo(function VariablesPanel({
   );
 
   const copyToClipboard = useCallback(
-    (text: string, what: string) => {
+    (text: string, kind: "json" | "command") => {
       // Shared helper carries the execCommand fallback Safari needs.
-      void copyTextToClipboard(text).then((ok) =>
-        showToast(
-          ok ? `${what} copied` : `Couldn't copy ${what.toLowerCase()}`,
-          ok ? "info" : "error",
-        ),
-      );
+      void copyTextToClipboard(text).then((ok) => {
+        if (!ok) showToast(t("vars.copyFailed"), "error");
+        else showToast(t(kind === "json" ? "vars.copiedJson" : "vars.copiedCommand"), "info");
+      });
     },
     [showToast],
   );
@@ -357,7 +148,7 @@ export const VariablesPanel = memo(function VariablesPanel({
       try {
         const changed = await persistVariables(label, mutate);
         if (changed) setRevision((r) => r + 1);
-        else showToast(`${label}: no change applied`, "info");
+        else showToast(t("vars.noChange", { label }), "info");
         return changed;
       } catch (err) {
         showToast(err instanceof Error ? err.message : String(err), "error");
@@ -446,10 +237,7 @@ export const VariablesPanel = memo(function VariablesPanel({
       const existing = sdkSession.getVariableDeclarations().find((d) => d.id === id);
       const wanted = action.declaration(id).type;
       if (existing && existing.type !== wanted) {
-        showToast(
-          `"${id}" is already a ${existing.type} variable — pick another id for this ${wanted} binding`,
-          "error",
-        );
+        showToast(t("vars.bindTypeClash", { id, existing: existing.type }), "error");
         return;
       }
       const hfId = domEditSelection.hfId;
@@ -468,93 +256,115 @@ export const VariablesPanel = memo(function VariablesPanel({
       : null;
 
   if (!sdkSession) {
+    // St-Output-VariablesNoComposition
     return (
-      <div className="flex h-full items-center justify-center px-6 text-center">
-        <p className="text-xs text-neutral-500">Open a composition to manage its variables.</p>
+      <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center">
+        <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--st-sub)] text-[var(--st-t2)]">
+          <OutputIcon name="film" size={22} />
+        </span>
+        <b className="text-sm font-semibold">{t("vars.noComposition")}</b>
+      </div>
+    );
+  }
+
+  if (addOpen) {
+    // St-Output-VariablesDeclare: the form replaces the list until it is saved or cancelled.
+    return (
+      <div className="flex h-full min-h-0 flex-col gap-4 overflow-y-auto px-4 pt-1 pb-4">
+        <h3 className="font-display text-[17px] font-semibold leading-6">{t("vars.add")}</h3>
+        <DeclarationForm
+          initial={EMPTY_DRAFT}
+          submitLabel={t("vars.declare")}
+          onSubmit={handleAdd}
+          onCancel={() => setAddOpen(false)}
+          variant="panel"
+        />
       </div>
     );
   }
 
   return (
-    <div className="flex h-full flex-col">
+    <div
+      data-studio-variables
+      className="flex h-full min-h-0 flex-col gap-5 overflow-y-auto px-4 pt-1 pb-4"
+    >
       <PreviewModeHeader
         overrideCount={previewValues ? Object.keys(previewValues).length : 0}
         onReset={resetPreview}
       />
-      <div className="flex-1 space-y-3 overflow-y-auto p-3">
-        {bindableSelection && (
-          <VariablesBindElement
-            key={bindableSelection.hfId}
-            selection={bindableSelection}
-            sdkSession={sdkSession}
-            onBind={handleBind}
-          />
-        )}
-        <ValidationStrip issues={issues} />
-        {declarations.length === 0 && !addOpen && EMPTY_STATE}
-        {/* fallow-ignore-next-line complexity */}
-        {declarations.map((decl) => (
-          <VariableRow
-            key={decl.id}
-            decl={decl}
-            value={
-              previewValues && decl.id in previewValues ? previewValues[decl.id] : decl.default
-            }
-            overridden={previewValues !== null && decl.id in previewValues}
-            unused={
-              usage !== null && !usage.scanIncomplete && usage.unusedDeclarations.includes(decl.id)
-            }
-            editing={editingId === decl.id}
-            onCommitPreview={(v) => commitPreviewValue(decl.id, v, decl.default)}
-            onSetDefault={(v) => handleSetDefault(decl.id, v)}
-            onToggleEdit={() => setEditingId(editingId === decl.id ? null : decl.id)}
-            onSaveEdit={handleUpdate}
-            onRemove={() => handleRemove(decl.id)}
-          />
-        ))}
-        <UndeclaredReads
-          usage={usage}
-          onDeclare={(id) => handleAdd({ id, type: "string", label: id, default: "" })}
+      {bindableSelection && (
+        <VariablesBindElement
+          key={bindableSelection.hfId}
+          selection={bindableSelection}
+          sdkSession={sdkSession}
+          onBind={handleBind}
         />
-        {usage?.scanIncomplete && (
-          <p className="text-[9px] text-neutral-600">
-            Scripts access variables dynamically — usage info may be incomplete.
-          </p>
-        )}
-        {declarations.length > 0 && (
+      )}
+      <ValidationStrip issues={issues} />
+      {declarations.length === 0 ? (
+        // St-Output-VariablesEmpty
+        <div className="flex flex-1 flex-col items-center justify-center gap-3.5 py-6">
+          <b className="text-sm font-semibold">{t("vars.empty")}</b>
+          <OutputButton variant="primary" icon="plus" onClick={() => setAddOpen(true)}>
+            {t("vars.add")}
+          </OutputButton>
+        </div>
+      ) : null}
+      {/* fallow-ignore-next-line complexity */}
+      {declarations.map((decl) => (
+        <VariableRow
+          key={decl.id}
+          decl={decl}
+          value={previewValues && decl.id in previewValues ? previewValues[decl.id] : decl.default}
+          overridden={previewValues !== null && decl.id in previewValues}
+          unused={
+            usage !== null && !usage.scanIncomplete && usage.unusedDeclarations.includes(decl.id)
+          }
+          editing={editingId === decl.id}
+          onCommitPreview={(v) => commitPreviewValue(decl.id, v, decl.default)}
+          onSetDefault={(v) => handleSetDefault(decl.id, v)}
+          onToggleEdit={() => setEditingId(editingId === decl.id ? null : decl.id)}
+          onSaveEdit={handleUpdate}
+          onRemove={() => setRemovingId(decl.id)}
+        />
+      ))}
+      <UndeclaredReads
+        usage={usage}
+        onDeclare={(id) => handleAdd({ id, type: "string", label: id, default: "" })}
+      />
+      {usage?.scanIncomplete && (
+        <p className="text-xs text-[var(--st-t2)]">{t("vars.scanIncomplete")}</p>
+      )}
+      {declarations.length > 0 && (
+        <>
+          <OutputButton icon="plus" className="w-full" onClick={() => setAddOpen(true)}>
+            {t("vars.add")}
+          </OutputButton>
           <HandoffFooter
             effectiveValues={effectiveValues}
             compPath={effectiveCompPath ?? "index.html"}
             onCopy={copyToClipboard}
           />
-        )}
-        {addOpen ? (
-          <DeclarationForm
-            initial={EMPTY_DRAFT}
-            submitLabel="Add variable"
-            onSubmit={handleAdd}
-            onCancel={() => setAddOpen(false)}
-          />
-        ) : (
-          <button
-            type="button"
-            onClick={() => setAddOpen(true)}
-            className="h-7 w-full rounded-lg border border-dashed border-neutral-800 text-[10px] font-medium text-neutral-500 transition-colors hover:border-neutral-700 hover:text-neutral-300"
-          >
-            + Add variable
-          </button>
-        )}
-        <VariablesOtherCompositions
-          fileTree={fileTree}
-          excludePath={activeCompPath ?? "index.html"}
-          refreshKey={`${refreshKey}:${revision}`}
-          readProjectFile={readProjectFile}
-          writeProjectFile={writeProjectFile}
-          recordEdit={recordEdit}
-          reloadPreview={reloadPreview}
-          domEditSaveTimestampRef={domEditSaveTimestampRef}
-        />
-      </div>
+        </>
+      )}
+      <VariablesOtherCompositions
+        fileTree={fileTree}
+        excludePath={activeCompPath ?? "index.html"}
+        refreshKey={`${refreshKey}:${revision}`}
+        readProjectFile={readProjectFile}
+        writeProjectFile={writeProjectFile}
+        recordEdit={recordEdit}
+        reloadPreview={reloadPreview}
+        domEditSaveTimestampRef={domEditSaveTimestampRef}
+      />
+      <RemoveDeclarationDialog
+        id={removingId}
+        onCancel={() => setRemovingId(null)}
+        onConfirm={() => {
+          if (removingId) handleRemove(removingId);
+          setRemovingId(null);
+        }}
+      />
     </div>
   );
 });

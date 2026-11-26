@@ -4,6 +4,7 @@ import { RULER_H, getTimelineBeatEntries } from "./timelineLayout";
 import { formatTimelineTickLabel } from "./timelineRulerGeometry";
 import { usePlayerStore } from "../store/playerStore";
 import { secondsToFrame } from "../lib/time";
+import { shortenTickLabel } from "./timelineDisplayTime";
 import type { MusicBeatAnalysis } from "@hyperframes/core/beats";
 import type { TimelineTimeRange } from "../lib/timelineClipIndex";
 
@@ -69,7 +70,9 @@ export const TimelineRuler = memo(function TimelineRuler({
                 y1={0}
                 x2={x}
                 y2={totalH}
-                stroke={`rgba(34, 197, 94, ${opacity.toFixed(3)})`}
+                style={{
+                  stroke: `color-mix(in srgb, var(--st-tx) ${(opacity * 100).toFixed(1)}%, transparent)`,
+                }}
                 strokeWidth="1"
               />
             );
@@ -115,7 +118,7 @@ export const TimelineRuler = memo(function TimelineRuler({
               className="absolute bottom-0"
               style={{ left: t * pps - 0.5 }}
             >
-              <div className="w-px h-2" style={{ background: theme.tickMinor }} />
+              <div className="h-1.5 w-px" style={{ background: theme.tickMinor }} />
             </div>
           ))}
 
@@ -127,19 +130,16 @@ export const TimelineRuler = memo(function TimelineRuler({
               style={{ left: t * pps - 0.5 }}
             >
               <span
-                className="absolute font-mono tabular-nums leading-none whitespace-nowrap"
-                style={{
-                  color: theme.tickText,
-                  left: 5,
-                  top: 5,
-                  fontSize: 10,
-                }}
+                className="absolute whitespace-nowrap font-medium tabular-nums leading-none"
+                style={{ color: "var(--st-t3)", left: 4, top: 4, fontSize: 10 }}
               >
                 {timeDisplayMode === "frame"
                   ? secondsToFrame(t)
-                  : formatTimelineTickLabel(t, effectiveDuration, majorTickInterval)}
+                  : shortenTickLabel(
+                      formatTimelineTickLabel(t, effectiveDuration, majorTickInterval),
+                    )}
               </span>
-              <div className="w-px" style={{ height: RULER_H, background: theme.tickMajor }} />
+              <div className="w-px" style={{ height: RULER_H, background: "var(--st-hd)" }} />
             </div>
           ))}
         </div>

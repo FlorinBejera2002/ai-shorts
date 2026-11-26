@@ -18,14 +18,23 @@ import {
   type HfAudioFxJob,
 } from "@hyperframes/core/audio-fx-jobs";
 import { EFFECT_COPY } from "@hyperframes/core/audio-fx-copy";
+import type { MessageKey } from "../../i18n/dictionary";
+import { t, useLocale } from "../../i18n/translate";
+import { audioText } from "./propertyPanelFxText.js";
 
 const GROUP_ORDER: HfAudioFxGroup[] = ["filter", "dynamics", "nonlinear", "time"];
-const GROUP_LABEL: Record<HfAudioFxGroup, string> = {
-  filter: "Filters",
-  dynamics: "Dynamics",
-  nonlinear: "Non-linear",
-  time: "Time",
+const GROUP_LABEL: Record<HfAudioFxGroup, MessageKey> = {
+  filter: "audio.group.filter",
+  dynamics: "audio.group.dynamics",
+  nonlinear: "audio.group.nonlinear",
+  time: "audio.group.time",
 };
+
+// St-Inspector-AudioAdd: a card with two columns of groups; items are plain text rows.
+const GROUP_LABEL_CLASS =
+  "hf-fx-add-group-label mb-1 block text-[12px] font-medium text-studio-muted";
+const ITEM_CLASS =
+  "-mx-2 rounded-sm px-2 py-1.5 text-left text-[13px] font-medium text-studio-text hover:bg-[var(--st-sub)] focus-visible:bg-[var(--st-sub)] focus-visible:outline-none disabled:opacity-40";
 
 /**
  * The add menu, with the jobs standing in for the effect they are made of.
@@ -81,30 +90,23 @@ export function FxAddMenu({
   withJob,
   withEffect,
 }: FxAddMenuProps) {
+  useLocale();
+  const resetAudition = () => {
+    audition(null);
+    onAuditionLevel?.(false);
+  };
   return (
     <div
-      className="hf-fx-add-menu space-y-1.5 rounded-[4px] border border-panel-border-input p-1.5"
-      // On the shelf, not on each button: moving between two of them passes
-      // through the gap, and a per-button leave would revert on the way.
-      onMouseLeave={() => {
-        audition(null);
-        onAuditionLevel?.(false);
-      }}
-      // The keyboard's version of leaving. Tabbing between two entries fires
-      // this and then the next one's focus, so it reverts and re-auditions.
-      onBlur={() => {
-        audition(null);
-        onAuditionLevel?.(false);
-      }}
+      className="hf-fx-add-menu grid grid-cols-2 gap-x-3 gap-y-4 rounded-card bg-studio-surface p-4 shadow-studio"
+      onMouseLeave={resetAudition}
+      onBlur={resetAudition}
     >
-      <div className="hf-fx-add-group flex flex-wrap items-center gap-1">
-        <span className="hf-fx-add-group-label w-full font-mono text-[9px] uppercase tracking-wide text-panel-text-2">
-          Tone
-        </span>
+      <div className="hf-fx-add-group flex flex-col">
+        <span className={GROUP_LABEL_CLASS}>{t("audio.tone")}</span>
         {onLevel ? (
           <button
             type="button"
-            className="hf-fx-add-composite rounded-[3px] bg-panel-surface px-1.5 py-0.5 text-[10px] text-panel-text-1 hover:text-panel-text-0"
+            className={`hf-fx-add-composite ${ITEM_CLASS}`}
             title="Listen to this track and even out its loud and quiet parts."
             disabled={disabled || analysing}
             onClick={() => {
@@ -112,11 +114,6 @@ export function FxAddMenu({
               else onLevel();
               onClose();
             }}
-            // The one module here that cannot answer instantly: it has to
-            // decode the track and measure it before there is anything to
-            // hear. So it says it is working rather than doing nothing
-            // visible, and whoever handles this must drop a result that
-            // arrives after the pointer has gone.
             onMouseEnter={
               levelled
                 ? undefined
@@ -127,43 +124,30 @@ export function FxAddMenu({
             }
             onFocus={levelled ? undefined : () => onAuditionLevel?.(true)}
           >
-            {levelled ? "Remove levelling" : "Even Out Levels"}
-            {auditioningLevel ? <span className="hf-fx-add-working"> measuring…</span> : null}
+            {levelled ? t("audio.removeLevelling") : t("audio.evenOut")}
+            {auditioningLevel ? (
+              <span className="hf-fx-add-working text-studio-muted">{t("audio.measuring")}</span>
+            ) : null}
           </button>
         ) : null}
         <button
           type="button"
-          // Not hf-fx-add-item: Tone is a composite over several filters, not
-          // an entry in the effect registry, and a count of the registry must
-          // not include it.
-          className="hf-fx-add-composite rounded-[3px] bg-panel-surface px-1.5 py-0.5 text-[10px] text-panel-text-1 hover:text-panel-text-0"
+          className={`hf-fx-add-composite ${ITEM_CLASS}`}
           title="Bass, middle and treble on one set of faders."
-          // No audition of its own: a Tone module arrives with every band at
-          // 0 dB, so there is nothing to hear until a fader moves, and a hover
-          // that changes nothing teaches that hovering does nothing. It still
-          // has to call the neighbours' auditions off.
-          onMouseEnter={() => {
-            audition(null);
-            onAuditionLevel?.(false);
-          }}
+          onMouseEnter={resetAudition}
           onClick={onEq}
         >
-          Tone (EQ)
+          {t("audio.toneEq")}
         </button>
       </div>
       {GROUPED.map(({ group, defs, jobs }) => (
-        <div key={group} className="hf-fx-add-group flex flex-wrap items-center gap-1">
-          <span className="hf-fx-add-group-label w-full font-mono text-[9px] uppercase tracking-wide text-panel-text-2">
-            {GROUP_LABEL[group]}
-          </span>
+        <div key={group} className="hf-fx-add-group flex flex-col">
+          <span className={GROUP_LABEL_CLASS}>{t(GROUP_LABEL[group])}</span>
           {jobs.map((job) => (
             <button
               key={job.id}
               type="button"
-              // Same class as any other entry: a job IS an effect, and one
-              // that looked special would read as a preset rather than as the
-              // thing the author is about to add.
-              className="hf-fx-add-item rounded-[3px] bg-panel-surface px-1.5 py-0.5 text-[10px] text-panel-text-1 hover:text-panel-text-0"
+              className={`hf-fx-add-item ${ITEM_CLASS}`}
               title={job.does}
               onClick={() => onJob(job)}
               onMouseEnter={() => {
@@ -172,34 +156,23 @@ export function FxAddMenu({
               }}
               onFocus={() => audition((base) => withJob(base, job))}
             >
-              {job.label}
+              {audioText(job.label)}
             </button>
           ))}
           {defs.map((d) => (
             <button
               key={d.id}
               type="button"
-              className="hf-fx-add-item rounded-[3px] bg-panel-surface px-1.5 py-0.5 text-[10px] text-panel-text-1 hover:text-panel-text-0"
-              // The menu that adds it has to call it what the rack will call
-              // it, or the author picks "High-pass" and a module named
-              // "Remove Rumble" appears. The registry's own description stays
-              // as the tooltip beside the plain one: the mechanism is taught
-              // here rather than withheld.
+              className={`hf-fx-add-item ${ITEM_CLASS}`}
               title={EFFECT_COPY[d.id] ? `${EFFECT_COPY[d.id]?.does} (${d.label})` : d.description}
               onClick={() => onEffect(d.id)}
-              // Cancels the levelling audition as well as starting its own.
-              // The shelf's leave handler only fires on the way OUT of the
-              // menu, so sliding from Even Out Levels straight to here left a
-              // measurement in flight — and it landed on top of this one, a
-              // levelled version of the chain as it was, written through a
-              // channel the document never sees.
               onMouseEnter={() => {
                 onAuditionLevel?.(false);
                 audition((base) => withEffect(base, d.id));
               }}
               onFocus={() => audition((base) => withEffect(base, d.id))}
             >
-              {EFFECT_COPY[d.id]?.title ?? d.label}
+              {audioText(EFFECT_COPY[d.id]?.title ?? d.label)}
             </button>
           ))}
         </div>

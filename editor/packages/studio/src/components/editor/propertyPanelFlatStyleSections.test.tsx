@@ -94,7 +94,7 @@ describe("FlatStyleSection — Fill", () => {
     const gradientSegment = Array.from(host.querySelectorAll('[data-flat-segment="true"]')).find(
       (el) => el.textContent === "Gradient",
     );
-    expect(gradientSegment?.className).toContain("text-panel-text-0");
+    expect(gradientSegment?.getAttribute("aria-pressed")).toBe("true");
     act(() => root.unmount());
   });
 

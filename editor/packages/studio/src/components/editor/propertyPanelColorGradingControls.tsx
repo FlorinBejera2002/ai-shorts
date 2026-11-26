@@ -217,7 +217,8 @@ async function importFirstLut(
 ): Promise<string | null> {
   if (!files?.length || !onImportAssets) return null;
   const uploaded = await onImportAssets(files, LUT_UPLOAD_DIR);
-  return uploaded.find((asset) => LUT_EXT.test(asset)) ?? null;
+  // A Windows server answers with backslashes; project paths are always forward-slashed.
+  return uploaded.find((asset) => LUT_EXT.test(asset))?.replace(/\\/g, "/") ?? null;
 }
 
 export function createColorGradingActions(

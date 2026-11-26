@@ -1,16 +1,21 @@
-import { useRef, useEffect, memo } from "react";
+import { useRef, useEffect, memo, useCallback } from "react";
 import gsap from "gsap";
 import { MorphSVGPlugin } from "gsap/MorphSVGPlugin";
-import { formatFrameTime, formatTime } from "../lib/time";
 import { liveTime, usePlayerStore } from "../store/playerStore";
 import { trackStudioEvent } from "../../utils/studioTelemetry";
-import { Tooltip } from "../../components/ui";
+import { t, useLocale } from "../../i18n/translate";
+import { useLatestRef } from "../../hooks/useLatestRef";
 import { useMountEffect } from "../../hooks/useMountEffect";
+import { PreviewIcon, PreviewIconButton } from "../../components/nle/preview/previewChrome";
+import { setPreviewPanel } from "../../components/nle/preview/previewUiStore";
 import { ShortcutsPanel } from "./ShortcutsPanel";
-import { SpeedMenu } from "./SpeedMenu";
+import { SPEED_OPTIONS, SpeedMenu } from "./SpeedMenu";
 import { VolumeControl } from "./VolumeControl";
-
-/* ── Icon sub-components ─────────────────────────────────────────── */
+import {
+  formatRate,
+  formatTransportReadout,
+  stepTransportFrame,
+} from "./transport/transportFormat";
 
 gsap.registerPlugin(MorphSVGPlugin);
 
@@ -21,7 +26,7 @@ const PAUSE_BARS_D = "M56 28H67V71H56Z M73 28H84V71H73Z";
 // Morph the play blade <-> pause bars on toggle via GSAP MorphSVG. Both glyphs
 // are one path whose `d` tweens; the initial render matches `playing` with no
 // animation, and prefers-reduced-motion snaps instead of tweening.
-function PlayPauseMorphIcon({ playing }: { playing: boolean }) {
+function PlayPauseMorphIcon({ playing, size = 18 }: { playing: boolean; size?: number }) {
   const pathRef = useRef<SVGPathElement>(null);
   const isFirstRun = useRef(true);
   useEffect(() => {
@@ -42,114 +47,13 @@ function PlayPauseMorphIcon({ playing }: { playing: boolean }) {
     };
   }, [playing]);
   return (
-    <span className="relative inline-flex h-3 w-3 items-center justify-center" aria-hidden="true">
-      <svg width="12" height="12" viewBox="46 21 54 56" fill="#FAFAFA">
-        <path ref={pathRef} d={playing ? PAUSE_BARS_D : PLAY_BLADE_D} />
-      </svg>
-    </span>
+    <svg width={size} height={size} viewBox="46 21 54 56" fill="currentColor" aria-hidden="true">
+      <path ref={pathRef} d={playing ? PAUSE_BARS_D : PLAY_BLADE_D} />
+    </svg>
   );
 }
 
-/* ── Button sub-components ───────────────────────────────────────── */
-
-const LoopButton = memo(function LoopButton({
-  loopEnabled,
-  disabled,
-  setLoopEnabled,
-}: {
-  loopEnabled: boolean;
-  disabled: boolean;
-  setLoopEnabled: (v: boolean) => void;
-}) {
-  return (
-    <Tooltip label="Loop playback">
-      <button
-        type="button"
-        onClick={() => {
-          trackStudioEvent("playback", { action: "loop_toggle", enabled: !loopEnabled });
-          setLoopEnabled(!loopEnabled);
-        }}
-        disabled={disabled}
-        className={`flex h-7 w-7 items-center justify-center rounded-md transition-colors disabled:opacity-30 ${
-          loopEnabled ? "text-studio-accent" : "text-neutral-500 hover:text-neutral-200"
-        }`}
-        aria-label={loopEnabled ? "Disable loop playback" : "Enable loop playback"}
-        aria-pressed={loopEnabled}
-      >
-        <svg
-          width="13"
-          height="13"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          aria-hidden="true"
-        >
-          <path d="M17 2l4 4-4 4" />
-          <path d="M3 11V9a4 4 0 0 1 4-4h14" />
-          <path d="M7 22l-4-4 4-4" />
-          <path d="M21 13v2a4 4 0 0 1-4 4H3" />
-        </svg>
-      </button>
-    </Tooltip>
-  );
-});
-
-const FullscreenButton = memo(function FullscreenButton({
-  isFullscreen,
-  onToggleFullscreen,
-}: {
-  isFullscreen: boolean;
-  onToggleFullscreen: () => void;
-}) {
-  return (
-    <Tooltip label={isFullscreen ? "Exit fullscreen (F)" : "Enter fullscreen (F)"}>
-      <button
-        type="button"
-        onClick={() => {
-          trackStudioEvent("playback", { action: "fullscreen_toggle", active: !isFullscreen });
-          onToggleFullscreen();
-        }}
-        className={`flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md transition-colors ${
-          isFullscreen ? "text-studio-accent" : "text-neutral-500 hover:text-neutral-200"
-        }`}
-        aria-label={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
-      >
-        <svg
-          width="13"
-          height="13"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          aria-hidden="true"
-        >
-          {isFullscreen ? (
-            <>
-              <path d="M8 3v3a2 2 0 0 1-2 2H3" />
-              <path d="M21 8h-3a2 2 0 0 1-2-2V3" />
-              <path d="M3 16h3a2 2 0 0 1 2 2v3" />
-              <path d="M16 21v-3a2 2 0 0 1 2-2h3" />
-            </>
-          ) : (
-            <>
-              <path d="M8 3H5a2 2 0 0 0-2 2v3" />
-              <path d="M21 8V5a2 2 0 0 0-2-2h-3" />
-              <path d="M3 16v3a2 2 0 0 0 2 2h3" />
-              <path d="M16 21h3a2 2 0 0 0 2-2v-3" />
-            </>
-          )}
-        </svg>
-      </button>
-    </Tooltip>
-  );
-});
-
-/* ── Main component ──────────────────────────────────────────────── */
+export type TransportLayout = "desktop" | "phone" | "fullscreen";
 
 interface PlayerControlsProps {
   onTogglePlay: () => void;
@@ -157,6 +61,37 @@ interface PlayerControlsProps {
   disabled?: boolean;
   isFullscreen?: boolean;
   onToggleFullscreen?: () => void;
+  /** desktop: St-Preview transport row; phone: St-M-Main row; fullscreen: the dark bar. */
+  layout?: TransportLayout;
+}
+
+/** Live "0:08 / 0:45" readout, written straight to the DOM on every frame. */
+function useLiveReadout(duration: number, mode: "time" | "frame", layout: TransportLayout) {
+  const readoutRef = useRef<HTMLSpanElement>(null);
+  const currentTimeRef = useRef(0);
+  const stateRef = useLatestRef({ duration, mode });
+
+  const paint = useCallback(() => {
+    const node = readoutRef.current;
+    if (!node) return;
+    const { duration: total, mode: display } = stateRef.current;
+    node.textContent = formatTransportReadout(currentTimeRef.current, total, display);
+  }, [stateRef]);
+
+  // Each layout mounts its own readout node, so repaint whenever the layout changes.
+  useEffect(paint, [duration, mode, layout, paint]);
+
+  useMountEffect(() => {
+    const update = (time: number) => {
+      currentTimeRef.current = time;
+      paint();
+    };
+    const unsubscribe = liveTime.subscribe(update);
+    update(usePlayerStore.getState().currentTime);
+    return unsubscribe;
+  });
+
+  return { readoutRef, currentTimeRef };
 }
 
 export const PlayerControls = memo(function PlayerControls({
@@ -165,7 +100,9 @@ export const PlayerControls = memo(function PlayerControls({
   disabled = false,
   isFullscreen = false,
   onToggleFullscreen,
+  layout = "desktop",
 }: PlayerControlsProps) {
+  const locale = useLocale();
   const isPlaying = usePlayerStore((s) => s.isPlaying);
   const duration = usePlayerStore((s) => s.duration);
   const timelineReady = usePlayerStore((s) => s.timelineReady);
@@ -173,123 +110,187 @@ export const PlayerControls = memo(function PlayerControls({
   const audioMuted = usePlayerStore((s) => s.audioMuted);
   const audioVolume = usePlayerStore((s) => s.audioVolume);
   const loopEnabled = usePlayerStore((s) => s.loopEnabled);
-  const setPlaybackRate = usePlayerStore.getState().setPlaybackRate;
-  const setAudioMuted = usePlayerStore.getState().setAudioMuted;
-  const setAudioVolume = usePlayerStore.getState().setAudioVolume;
-  const setLoopEnabled = usePlayerStore.getState().setLoopEnabled;
   const inPoint = usePlayerStore((s) => s.inPoint);
   const outPoint = usePlayerStore((s) => s.outPoint);
-  const setInPoint = usePlayerStore.getState().setInPoint;
-  const setOutPoint = usePlayerStore.getState().setOutPoint;
   const timeDisplayMode = usePlayerStore((s) => s.timeDisplayMode);
-  const setTimeDisplayMode = usePlayerStore.getState().setTimeDisplayMode;
+  const { setPlaybackRate, setAudioMuted, setAudioVolume, setLoopEnabled } =
+    usePlayerStore.getState();
+  const { setInPoint, setOutPoint, setTimeDisplayMode } = usePlayerStore.getState();
 
-  const timeDisplayRef = useRef<HTMLSpanElement>(null);
-  const currentTimeRef = useRef(0);
-  const timeDisplayModeRef = useRef(timeDisplayMode);
-  timeDisplayModeRef.current = timeDisplayMode;
-
-  const durationRef = useRef(duration);
-  durationRef.current = duration;
+  const { readoutRef, currentTimeRef } = useLiveReadout(duration, timeDisplayMode, layout);
   const controlsDisabled = disabled || !timelineReady;
 
-  useEffect(() => {
-    if (!timeDisplayRef.current) return;
-    const t = currentTimeRef.current;
-    timeDisplayRef.current.textContent =
-      timeDisplayMode === "frame" ? formatFrameTime(t, duration) : formatTime(t);
-  }, [duration, timeDisplayMode]);
+  const stepFrame = (delta: number) => {
+    onSeek(stepTransportFrame(currentTimeRef.current, delta, duration));
+  };
+  const togglePlay = () => {
+    trackStudioEvent("playback", { action: isPlaying ? "pause" : "play" });
+    onTogglePlay();
+  };
+  const playLabel = isPlaying ? t("preview.pause") : t("preview.play");
 
-  useMountEffect(() => {
-    const updateTime = (time: number) => {
-      currentTimeRef.current = time;
-      if (!timeDisplayRef.current) return;
-      const currentDuration = durationRef.current;
-      timeDisplayRef.current.textContent =
-        timeDisplayModeRef.current === "frame"
-          ? formatFrameTime(time, currentDuration)
-          : formatTime(time);
-    };
-    const unsubscribe = liveTime.subscribe(updateTime);
-    updateTime(usePlayerStore.getState().currentTime);
-    return unsubscribe;
-  });
+  if (layout === "fullscreen") {
+    return (
+      <div className="flex h-14 w-full items-center gap-2 rounded-full bg-[color-mix(in_srgb,black_62%,transparent)] px-2 text-white">
+        <button
+          type="button"
+          aria-label={playLabel}
+          onClick={togglePlay}
+          disabled={controlsDisabled}
+          className="flex h-10 w-10 flex-none items-center justify-center rounded-full bg-white text-black disabled:opacity-40"
+        >
+          <PlayPauseMorphIcon playing={isPlaying} size={16} />
+        </button>
+        <span
+          ref={readoutRef}
+          className="whitespace-nowrap text-[13px] font-semibold tabular-nums"
+        />
+        <span className="flex-1" />
+        <VolumeControl
+          audioMuted={audioMuted}
+          audioVolume={audioVolume}
+          disabled={controlsDisabled}
+          setAudioMuted={setAudioMuted}
+          setAudioVolume={setAudioVolume}
+          size={40}
+          inverted
+        />
+        <button
+          type="button"
+          onClick={() => {
+            const index = SPEED_OPTIONS.indexOf(playbackRate as (typeof SPEED_OPTIONS)[number]);
+            setPlaybackRate(SPEED_OPTIONS[(index + 1) % SPEED_OPTIONS.length] ?? 1);
+          }}
+          aria-label={t("preview.speed")}
+          className="flex h-7 flex-none items-center rounded-full bg-[color-mix(in_srgb,white_16%,transparent)] px-2.5 text-xs font-semibold"
+        >
+          {formatRate(playbackRate, locale)}
+        </button>
+      </div>
+    );
+  }
+
+  const readoutButton = (
+    <button
+      type="button"
+      onClick={() => setTimeDisplayMode(timeDisplayMode === "time" ? "frame" : "time")}
+      disabled={disabled}
+      aria-label={timeDisplayMode === "time" ? t("preview.showFrames") : t("preview.showTime")}
+      title={timeDisplayMode === "time" ? t("preview.showFrames") : t("preview.showTime")}
+      className={`h-8 whitespace-nowrap rounded-[10px] text-[13px] font-semibold tabular-nums text-studio-text outline-none hover:bg-[var(--st-sub)] focus-visible:ring-2 focus-visible:ring-[var(--st-btn)] disabled:pointer-events-none ${
+        layout === "phone" ? "-ml-1 px-1 text-left" : "-ml-2 min-w-0 px-2"
+      }`}
+    >
+      <span ref={readoutRef} />
+    </button>
+  );
+
+  const frameStep = (
+    <span className={`flex items-center ${layout === "phone" ? "gap-1" : "gap-1.5"}`}>
+      <PreviewIconButton
+        label={t("preview.prevFrame")}
+        size={layout === "phone" ? 40 : 36}
+        onClick={() => stepFrame(-1)}
+        disabled={controlsDisabled}
+      >
+        <PreviewIcon name="prevFrame" />
+      </PreviewIconButton>
+      <button
+        type="button"
+        aria-label={playLabel}
+        title={playLabel}
+        onClick={togglePlay}
+        disabled={controlsDisabled}
+        className="flex h-11 w-11 flex-none items-center justify-center rounded-full bg-studio-accent text-studio-on-accent outline-none focus-visible:ring-2 focus-visible:ring-[var(--st-btn)] focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-40"
+      >
+        <PlayPauseMorphIcon playing={isPlaying} />
+      </button>
+      <PreviewIconButton
+        label={t("preview.nextFrame")}
+        size={layout === "phone" ? 40 : 36}
+        onClick={() => stepFrame(1)}
+        disabled={controlsDisabled}
+      >
+        <PreviewIcon name="nextFrame" />
+      </PreviewIconButton>
+    </span>
+  );
+
+  if (layout === "phone") {
+    return (
+      <div
+        className="flex h-12 items-center justify-between gap-2 px-2"
+        aria-disabled={disabled || undefined}
+      >
+        {readoutButton}
+        {frameStep}
+        <VolumeControl
+          audioMuted={audioMuted}
+          audioVolume={audioVolume}
+          disabled={controlsDisabled}
+          setAudioMuted={setAudioMuted}
+          setAudioVolume={setAudioVolume}
+          onOpenSheet={() => setPreviewPanel("phonePlayback")}
+          size={40}
+        />
+      </div>
+    );
+  }
 
   return (
-    <div>
-      <div
-        className="grid h-10 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center px-3"
-        aria-disabled={disabled || undefined}
-        style={{
-          paddingBottom: "env(safe-area-inset-bottom)",
-        }}
-      >
-        <Tooltip
-          label={timeDisplayMode === "time" ? "Switch to frame display" : "Switch to time display"}
+    <div
+      className="grid h-11 flex-none grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-1"
+      aria-disabled={disabled || undefined}
+    >
+      {readoutButton}
+      {frameStep}
+      <span className="flex min-w-0 items-center justify-end gap-0.5">
+        <VolumeControl
+          audioMuted={audioMuted}
+          audioVolume={audioVolume}
+          disabled={controlsDisabled}
+          setAudioMuted={setAudioMuted}
+          setAudioVolume={setAudioVolume}
+        />
+        <SpeedMenu
+          playbackRate={playbackRate}
+          setPlaybackRate={setPlaybackRate}
+          disabled={disabled}
+        />
+        <PreviewIconButton
+          label={loopEnabled ? t("preview.loopOff") : t("preview.loopOn")}
+          tone={loopEnabled ? "selected" : "plain"}
+          aria-pressed={loopEnabled}
+          disabled={disabled}
+          onClick={() => {
+            trackStudioEvent("playback", { action: "loop_toggle", enabled: !loopEnabled });
+            setLoopEnabled(!loopEnabled);
+          }}
         >
-          <button
-            type="button"
-            onClick={() => setTimeDisplayMode(timeDisplayMode === "time" ? "frame" : "time")}
-            disabled={disabled}
-            className="min-w-0 justify-self-start whitespace-nowrap font-mono text-[11px] tabular-nums text-neutral-400 transition-colors hover:text-neutral-200 disabled:pointer-events-none"
-          >
-            <span ref={timeDisplayRef}>{formatTime(0)}</span>
-            {timeDisplayMode === "time" ? (
-              <>
-                <span className="mx-0.5 text-neutral-700">/</span>
-                <span className="text-neutral-600">{formatTime(duration)}</span>
-              </>
-            ) : null}
-          </button>
-        </Tooltip>
-
-        <Tooltip label={isPlaying ? "Pause" : "Play"}>
-          <button
-            type="button"
-            aria-label={isPlaying ? "Pause" : "Play"}
+          <PreviewIcon name="loop" />
+        </PreviewIconButton>
+        {onToggleFullscreen && (
+          <PreviewIconButton
+            label={isFullscreen ? t("preview.exitFullscreen") : t("preview.fullscreen")}
+            title={`${isFullscreen ? t("preview.exitFullscreen") : t("preview.fullscreen")} (F)`}
             onClick={() => {
-              trackStudioEvent("playback", { action: isPlaying ? "pause" : "play" });
-              onTogglePlay();
+              trackStudioEvent("playback", { action: "fullscreen_toggle", active: !isFullscreen });
+              onToggleFullscreen();
             }}
-            disabled={controlsDisabled}
-            className="flex h-8 w-8 items-center justify-center justify-self-center rounded-md text-neutral-100 transition-colors hover:text-white disabled:pointer-events-none disabled:opacity-30"
           >
-            <PlayPauseMorphIcon playing={isPlaying} />
-          </button>
-        </Tooltip>
-
-        <div className="flex min-w-0 items-center justify-self-end">
-          <VolumeControl
-            audioMuted={audioMuted}
-            audioVolume={audioVolume}
-            disabled={controlsDisabled}
-            setAudioMuted={setAudioMuted}
-            setAudioVolume={setAudioVolume}
-          />
-          <SpeedMenu
-            playbackRate={playbackRate}
-            setPlaybackRate={setPlaybackRate}
-            disabled={disabled}
-          />
-          <LoopButton
-            loopEnabled={loopEnabled}
-            disabled={disabled}
-            setLoopEnabled={setLoopEnabled}
-          />
-          {onToggleFullscreen && (
-            <FullscreenButton isFullscreen={isFullscreen} onToggleFullscreen={onToggleFullscreen} />
-          )}
-          <ShortcutsPanel
-            disabled={disabled}
-            duration={duration}
-            inPoint={inPoint}
-            outPoint={outPoint}
-            setInPoint={setInPoint}
-            setOutPoint={setOutPoint}
-            onSeek={onSeek}
-          />
-        </div>
-      </div>
+            <PreviewIcon name={isFullscreen ? "exitFullscreen" : "fullscreen"} />
+          </PreviewIconButton>
+        )}
+        <ShortcutsPanel
+          disabled={disabled}
+          duration={duration}
+          inPoint={inPoint}
+          outPoint={outPoint}
+          setInPoint={setInPoint}
+          setOutPoint={setOutPoint}
+          onSeek={onSeek}
+        />
+      </span>
     </div>
   );
 });

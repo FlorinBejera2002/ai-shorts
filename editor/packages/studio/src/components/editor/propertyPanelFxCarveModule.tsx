@@ -17,11 +17,15 @@ import {
 import { DEFAULT_CARVE, type HfCarveSettings } from "@hyperframes/core/audio-carve";
 import { fxAutomationTarget } from "@hyperframes/core/audio-automation";
 import { FxParamRow } from "./propertyPanelFxControls.js";
-import { FX_FAMILY_TYPE, fxFamilyTint } from "./propertyPanelFxFamily.js";
-import { fxTintWash } from "./propertyPanelFxPresetStyle.js";
+import { FX_FAMILY_TYPE } from "./propertyPanelFxFamily.js";
+import { t } from "../../i18n/translate";
+import { audioText } from "./propertyPanelFxText.js";
 // Shared with the timeline's lane labels: a band is named by its frequency in
 // both places, and two formatters would drift.
 import { formatHz } from "../../player/components/automationLaneData";
+
+/** White row with a border (St-Inspector-AudioCarve members), no grey fill. */
+const CARVE_ROW = "rounded-md bg-studio-surface shadow-[inset_0_0_0_1px_var(--st-bd)]";
 
 export interface AudioTrackOption {
   id: string;
@@ -32,7 +36,7 @@ export interface AudioTrackOption {
 function carveMemberName(node: HfAudioFxNode): string {
   const def = getAudioFxDef(node.type);
   const freq = node.params?.["frequency"];
-  const label = def?.label ?? node.type;
+  const label = audioText(def?.label ?? node.type);
   return typeof freq === "number" ? `${label} ${formatHz(freq)}` : label;
 }
 
@@ -81,8 +85,8 @@ function FxCarveMember({
   if (!def) return null;
   const params = node.params ?? defaultAudioFxParams(node.type);
   return (
-    <div className="hf-fx-carve-member flex flex-col gap-0.5 py-1 pl-3 pr-1.5">
-      <span className="hf-fx-carve-member-name truncate font-mono text-[9px] text-panel-text-1">
+    <div className={`hf-fx-carve-member flex flex-col gap-0.5 px-3.5 py-2.5 ${CARVE_ROW}`}>
+      <span className="hf-fx-carve-member-name truncate text-[13px] font-semibold text-studio-text">
         {carveMemberName(node)}
       </span>
       <div className="flex flex-wrap gap-x-3 gap-y-0.5">
@@ -97,13 +101,13 @@ function FxCarveMember({
           return (
             <span
               key={param.key}
-              className="flex items-baseline gap-1 font-mono text-[9px] text-panel-text-2"
+              className="flex items-baseline gap-1 text-[12px] text-studio-muted"
               {...(automated ? { "data-automated": "" } : {})}
               {...(driven ? { "data-automation-live": "" } : {})}
             >
-              <span className="text-panel-text-2">{param.label}</span>
+              <span className="text-studio-muted">{audioText(param.label)}</span>
               <span
-                className="tabular-nums text-panel-text-1"
+                className="tabular-nums text-studio-text"
                 style={{ minWidth: `${paramValueWidthCh(param)}ch` }}
               >
                 {value}
@@ -111,7 +115,7 @@ function FxCarveMember({
               {/* The lane is where an automated value comes from, and where it is
                   edited — saying so is the difference between a stale readout and
                   a pointer to the thing that owns it. */}
-              {automated ? <span className="text-[#3CE6AC]">A</span> : null}
+              {automated ? <span className="text-[var(--st-btn)]">A</span> : null}
             </span>
           );
         })}
@@ -173,37 +177,29 @@ export function FxCarveModule({
   // that LISTENS to another track, and a plain row understates that. It stays
   // in the smart family's monospace — what it shows is a readout, and a
   // display face would promise settings the author chose.
-  const tint = fxFamilyTint({ type: "carve", fromCarve: true });
-  const wash = fxTintWash(tint);
   return (
     <div
-      className={`hf-fx-node hf-fx-carve-module hf-fx-carve rounded-[4px] border border-l-2 border-panel-border-input${
-        on ? "" : " opacity-50"
+      className={`hf-fx-node hf-fx-carve-module hf-fx-carve flex flex-col gap-5 pb-2${
+        on ? "" : " hf-fx-node-bypassed"
       }`}
       data-fx-node="carve"
       data-fx-family="smart"
       // Smart, like the Tone EQ and the leveller: it measures the audio and
       // writes its own settings, and what it shows is a readout of what it
       // decided rather than controls the author set.
-      style={{ borderLeftColor: tint, ...(wash ? { backgroundColor: wash } : {}) }}
       data-carve-enabled={on ? "" : undefined}
     >
-      <div className="hf-fx-node-head flex min-h-7 items-center gap-1 px-1.5">
+      <div className="hf-fx-node-head flex min-h-11 items-center gap-3">
         <button
           type="button"
-          className={`hf-fx-node-name min-w-0 flex-1 truncate text-left text-[13px] uppercase hover:opacity-80 ${FX_FAMILY_TYPE.smart}`}
-          // Tracking goes here rather than in a class: the smart family already
-          // sets `tracking-normal`, and two Tailwind tracking utilities on one
-          // element resolve by stylesheet order, not by the order written.
-          style={{ color: tint, letterSpacing: "0.16em" }}
-          // Truncates in a narrow panel like every other name in the rack.
+          className={`hf-fx-node-name min-w-0 flex-1 truncate text-left text-[13px] text-studio-text ${FX_FAMILY_TYPE.smart}`}
           title="Voiceover carve"
           aria-expanded={open}
           onClick={onToggleOpen}
         >
-          Voiceover carve
+          {audioText("Voiceover carve")}
         </button>
-        <span className="hf-fx-carve-summary shrink-0 font-mono text-[9px] text-panel-text-2">
+        <span className="hf-fx-carve-summary shrink-0 text-[12px] text-studio-muted">
           {summary}
         </span>
         {/* One switch, not a bypass and a delete. Off drops the effects and the
@@ -211,18 +207,28 @@ export function FxCarveModule({
             re-apply the carve the next time this clip was selected. */}
         <button
           type="button"
-          className="hf-fx-bypass hf-fx-carve-toggle rounded-[3px] border border-panel-border-input px-1.5 py-0.5 font-mono text-[9px] text-panel-text-2 hover:text-panel-text-0 disabled:opacity-40"
-          aria-pressed={on}
-          title={on ? "Switch the carve off" : "Switch the carve on"}
+          role="switch"
+          aria-checked={on}
+          aria-label={audioText("Voiceover carve")}
+          className={`hf-fx-bypass hf-fx-carve-toggle relative inline-flex h-7 w-12 flex-none items-center rounded-full transition-colors disabled:opacity-40 ${
+            on ? "bg-studio-accent" : "bg-[var(--st-hd)]"
+          }`}
+          title={audioText(on ? "Switch the carve off" : "Switch the carve on")}
           disabled={disabled}
           onClick={() => onCarveChange({ ...carve, enabled: !on })}
         >
-          {on ? "On" : "Off"}
+          <span
+            aria-hidden="true"
+            className={`h-6 w-6 rounded-full shadow-sm transition-transform ${
+              on ? "translate-x-[22px] bg-studio-on-accent" : "translate-x-0.5 bg-studio-surface"
+            }`}
+          />
+          <span className="sr-only">{t(on ? "audio.on" : "audio.off")}</span>
         </button>
       </div>
       {open && on ? (
-        <div className="hf-fx-carve-body border-t border-panel-border-input">
-          <div className="hf-fx-carve-controls space-y-0.5 px-1.5 py-1.5">
+        <div className="hf-fx-carve-body flex flex-col gap-5">
+          <div className="hf-fx-carve-controls flex flex-col gap-4">
             <CarveSourceRow
               carve={carve}
               sourceOptions={sourceOptions}
@@ -239,7 +245,7 @@ export function FxCarveModule({
               param={{
                 kind: "number",
                 key: "strength",
-                label: "Strength",
+                label: audioText("Strength"),
                 unit: "",
                 min: 0,
                 max: 1,
@@ -306,16 +312,16 @@ function carveSummary(input: {
   analysing?: boolean;
 }): string {
   const { nodes, carve, analysing } = input;
-  if (!carve.enabled) return "off";
-  if (analysing) return "analysing…";
+  if (!carve.enabled) return audioText("off");
+  if (analysing) return audioText("analysing…");
   const bands = nodes.filter((n) => n.type === "peaking").length;
-  if (bands === 0) return carve.sources.length > 0 ? "no analysis yet" : "pick a voice";
+  if (bands === 0) return audioText(carve.sources.length > 0 ? "no analysis yet" : "pick a voice");
   return [
-    `${bands} band${bands === 1 ? "" : "s"}`,
-    ...(nodes.some((n) => n.type === "gain") ? ["level"] : []),
+    t(bands === 1 ? "audio.carve.band" : "audio.carve.bands", { n: bands }),
+    ...(nodes.some((n) => n.type === "gain") ? [audioText("level")] : []),
     // Worth saying when it is more than one: the cuts follow whoever is
     // speaking, and that is not obvious from a band count.
-    ...(carve.sources.length > 1 ? [`${carve.sources.length} voices`] : []),
+    ...(carve.sources.length > 1 ? [t("audio.carve.voices", { n: carve.sources.length })] : []),
   ].join(" + ");
 }
 
@@ -335,15 +341,15 @@ function CarveSourceRow({
   onCarveChange(carve: HfCarveSettings): void;
 }) {
   return (
-    <div className="hf-fx-row flex min-h-6 items-center gap-2">
+    <div className="hf-fx-row flex flex-col gap-2.5">
       {/* Wraps like every other name in this column (see FxParamRow) — one
           truncating row beside wrapping ones reads as a rendering bug. */}
-      <span className="hf-fx-label w-[86px] flex-shrink-0 break-words text-[10px] leading-tight text-panel-text-2">
-        Listen to
+      <span className="hf-fx-label text-[13px] font-semibold text-studio-text">
+        {audioText("Listen to")}
       </span>
       {soleVoice ? (
         <span
-          className="hf-fx-carve-source min-w-0 flex-1 truncate font-mono text-[10px] text-panel-text-1"
+          className={`hf-fx-carve-source flex h-11 min-w-0 items-center px-3.5 text-[13px] font-medium text-studio-text ${CARVE_ROW}`}
           data-carve-source={soleVoice.id}
         >
           {soleVoice.label}
@@ -353,16 +359,16 @@ function CarveSourceRow({
            sequence — a narrator, an answer, a second presenter — and they are
            analysed together, so the cuts follow whoever is speaking. Which
            makes this a set of things to include, not a choice between them. */
-        <div className="hf-fx-carve-sources flex min-w-0 flex-1 flex-wrap gap-x-2.5 gap-y-0.5">
+        <div className="hf-fx-carve-sources flex min-w-0 flex-col gap-2">
           {sourceOptions.map((o) => (
             <label
               key={o.id}
-              className="flex min-w-0 items-center gap-1 font-mono text-[9px] text-panel-text-1"
-              title={`Make room for ${o.label}`}
+              className={`flex h-11 min-w-0 cursor-pointer items-center gap-2.5 px-3.5 text-[13px] font-medium text-studio-text ${CARVE_ROW}`}
+              title={`${audioText("Make room for")} ${o.label}`}
             >
               <input
                 type="checkbox"
-                className="hf-fx-carve-source h-2.5 w-2.5 accent-panel-accent"
+                className="hf-fx-carve-source h-4 w-4 accent-[var(--st-btn)]"
                 data-carve-source={o.id}
                 checked={carve.sources.includes(o.id)}
                 disabled={disabled}
@@ -410,7 +416,7 @@ function CarveAnalysis({
 }) {
   if (analysing) {
     return (
-      <p className="hf-fx-carve-working flex items-center justify-center gap-1.5 border-t border-panel-border-input py-2 text-[10px] text-panel-text-2">
+      <p className="hf-fx-carve-working flex items-center justify-center gap-1.5 py-2 text-[12px] text-studio-muted">
         <svg
           className="hf-fx-carve-spinner h-3 w-3 animate-spin motion-reduce:animate-none"
           viewBox="0 0 24 24"
@@ -431,21 +437,23 @@ function CarveAnalysis({
             d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
           />
         </svg>
-        Analysing…
+        {audioText("Analysing…")}
       </p>
     );
   }
   if (nodes.length === 0) {
     return (
-      <p className="hf-fx-carve-working border-t border-panel-border-input py-1.5 text-center text-[10px] text-panel-text-2">
-        {hasSources ? "Nothing analysed yet." : "Pick the voices this bed should make room for."}
+      <p className="hf-fx-carve-working py-1.5 text-center text-[12px] text-studio-muted">
+        {audioText(
+          hasSources ? "Nothing analysed yet." : "Pick the voices this bed should make room for.",
+        )}
       </p>
     );
   }
   return (
-    <div className="hf-fx-carve-members divide-y divide-panel-border-input/60 border-t border-panel-border-input">
-      <div className="hf-fx-carve-members-label px-1.5 pt-1 font-mono text-[9px] uppercase tracking-wide text-panel-text-2">
-        analysed
+    <div className="hf-fx-carve-members flex flex-col gap-2">
+      <div className="hf-fx-carve-members-label text-[13px] font-semibold text-studio-text">
+        {audioText("analysed")}
       </div>
       {nodes.map((node, i) => (
         <FxCarveMember

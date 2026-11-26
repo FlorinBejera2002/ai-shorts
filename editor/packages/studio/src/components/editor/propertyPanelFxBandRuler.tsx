@@ -17,6 +17,7 @@
  */
 
 import { audioBandAt, BANDS } from "@hyperframes/core/audio-fx-copy";
+import { audioText } from "./propertyPanelFxText.js";
 
 const LOW = BANDS[0]?.from ?? 20;
 const HIGH = BANDS.at(-1)?.to ?? 20000;
@@ -49,13 +50,13 @@ export function FxBandRuler({ band, at }: FxBandRulerProps) {
           return (
             <span
               key={range.name}
-              title={`${range.name} — ${range.says}`}
+              title={`${audioText(range.name)} — ${audioText(range.says)}`}
               className={
                 range.name === here.name
-                  ? "hf-fx-ruler-band bg-panel-accent"
+                  ? "hf-fx-ruler-band bg-studio-accent"
                   : reachable
-                    ? "hf-fx-ruler-band bg-panel-text-4/50"
-                    : "hf-fx-ruler-band bg-panel-text-4/15"
+                    ? "hf-fx-ruler-band bg-[var(--st-hd)]"
+                    : "hf-fx-ruler-band bg-[var(--st-bd)]"
               }
               style={{
                 width: `${(positionOf(range.to) - positionOf(range.from)) * 100}%`,
@@ -64,8 +65,9 @@ export function FxBandRuler({ band, at }: FxBandRulerProps) {
           );
         })}
       </div>
-      <p className="hf-fx-ruler-label truncate pt-0.5 text-[9px] text-panel-text-2">
-        <span className="hf-fx-ruler-name text-panel-text-1">{here.name}</span> — {here.says}
+      <p className="hf-fx-ruler-label truncate pt-0.5 text-[11px] text-studio-muted">
+        <span className="hf-fx-ruler-name text-studio-text">{audioText(here.name)}</span> —{" "}
+        {audioText(here.says)}
       </p>
     </div>
   );

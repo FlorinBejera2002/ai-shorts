@@ -15,6 +15,8 @@ import { useCallback, useRef, useState, type PointerEvent as ReactPointerEvent }
 import type { AutomationRange, HfAutomationLane } from "@hyperframes/core/audio-automation";
 import { curveForDrag, formatValue, GRAB_PX, POINT_MERGE_SEC } from "./automationLaneGeometry";
 import { pointInSelection } from "./automationLaneSelection";
+import { t as translate } from "../../i18n/translate";
+import { formatDecimalSeconds, localizeDecimalText } from "./timelineDisplayTime";
 import { capturePointer } from "./automationLanePointer";
 import { useAutomationEdgeStretch } from "./useAutomationEdgeStretch";
 import { useAutomationRangeDrag } from "./useAutomationRangeDrag";
@@ -422,7 +424,12 @@ export function useAutomationLaneGestures({
       });
       shiftAxis.current = nextAxis;
       const next = lane.points.map((p, i) => (i === dragIndex ? { ...p, t, v } : p));
-      setHint(`${formatValue(range, v)} @ ${t.toFixed(2)}s`);
+      setHint(
+        translate("timeline.autoHintPoint", {
+          value: localizeDecimalText(formatValue(range, v)),
+          time: formatDecimalSeconds(t),
+        }),
+      );
       commitPoints(next, false);
     },
     [dragIndex, duration, lane, pointAt, range, commitPoints, snapTimes, xOf, yOf, moveGroup],

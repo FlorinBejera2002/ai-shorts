@@ -1,0 +1,145 @@
+/*
+ * Studio design tokens — Sneep Cut app reference palette (light + dark).
+ *
+ * Every colour, radius and shadow used by Studio components comes from these
+ * variables. Do not add hex literals elsewhere; add a token here instead.
+ *
+ * Theme selection: `<html data-theme="light|dark">` (set by theme/studioTheme.ts).
+ * Without an explicit attribute the system preference decides.
+ */
+
+:root,
+:root[data-theme="light"] {
+  color-scheme: light;
+
+  /* Actions: black primary in light mode. Never blue. */
+  --st-btn: #0b0b0c;
+  --st-on-btn: #ffffff;
+  --st-sbd: #1f2a3d; /* secondary button border */
+  --st-pr: #0b0b0c;
+  --st-on-pr: #ffffff;
+  --st-sel: #152035; /* selected state */
+  --st-on-sel: #ffffff;
+  --st-sel-row: #ffffff;
+
+  /* Surfaces */
+  --st-bg: #f5f7fb; /* canvas */
+  --st-sf: #ffffff; /* card */
+  --st-in: #f5f7fb; /* recessed input / well */
+  --st-sub: #edf2f8; /* subtle fill used sparingly */
+  --st-hd: #dfe6f0; /* handle / scrollbar thumb */
+  --st-ov: rgba(21, 32, 53, 0.45); /* overlay scrim */
+
+  /* Text */
+  --st-tx: #152035;
+  --st-t2: #4f5c72;
+  --st-t3: #647188;
+
+  /* Borders */
+  --st-bd: #e3e9f2;
+
+  /* Status (only where they mean status) */
+  --st-info-bg: #e9f1ff;
+  --st-info: #1d4ed8;
+  --st-ok-bg: #dcfce7;
+  --st-ok: #15803d;
+  --st-warn-bg: #fff7ed;
+  --st-warn: #9a3412;
+  --st-warn-text: #7c2d12;
+  --st-danger-bg: #fdecec;
+  --st-danger: #b91c1c;
+
+  /* Track type colours (media / generated content), identical in both themes */
+  --st-track-media: #00e3ff;
+  --st-track-container: #f5a623;
+
+  /* Shadow */
+  --st-sh: 0 1px 2px rgba(21, 32, 53, 0.04), 0 10px 30px rgba(21, 32, 53, 0.06);
+  --hf-accent: var(--st-btn); /* caption highlight accent: app primary, never blue */
+
+  /* Radii — shared tokens. Tailwind `rounded-sm` / `rounded-md` read these. */
+  --radius-sm: 8px; /* inset swatches, menu items, small badges */
+  --radius-md: 14px; /* fields, buttons, select triggers, cards in the editor chrome */
+  --radius-card: 24px; /* Studio panel cards (Claude reference) */
+  --radius-sheet: 28px; /* dialogs, sheets */
+  --radius-pill: 999px;
+  --radius-full: 9999px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+
+    --st-btn: #8e9bb0;
+    --st-on-btn: #0d1420;
+    --st-sbd: #c9d4e4;
+    --st-pr: #8e9bb0;
+    --st-on-pr: #0d1420;
+    --st-sel: #8e9bb0;
+    --st-on-sel: #0d1420;
+    --st-sel-row: #181f2b;
+
+    --st-bg: #0e131c;
+    --st-sf: #181f2b;
+    --st-in: #111824;
+    --st-sub: #263246;
+    --st-hd: #53627a;
+    --st-ov: rgba(3, 6, 12, 0.62);
+
+    --st-tx: #edf2fa;
+    --st-t2: #bdc9dc;
+    --st-t3: #9eafc7;
+
+    --st-bd: #334158;
+
+    --st-info-bg: #1c3151;
+    --st-info: #accbff;
+    --st-ok-bg: #153b2c;
+    --st-ok: #67dca5;
+    --st-warn-bg: #3b2a1d;
+    --st-warn: #f5ba82;
+    --st-warn-text: #f7ca9c;
+    --st-danger-bg: #431f2b;
+    --st-danger: #ff91a4;
+
+    --st-sh: 0 1px 2px rgba(0, 0, 0, 0.3), 0 10px 30px rgba(0, 0, 0, 0.25);
+  }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --st-btn: #8e9bb0;
+  --st-on-btn: #0d1420;
+  --st-sbd: #c9d4e4;
+  --st-pr: #8e9bb0;
+  --st-on-pr: #0d1420;
+  --st-sel: #8e9bb0;
+  --st-on-sel: #0d1420;
+  --st-sel-row: #181f2b;
+
+  --st-bg: #0e131c;
+  --st-sf: #181f2b;
+  --st-in: #111824;
+  --st-sub: #263246;
+  --st-hd: #53627a;
+  --st-ov: rgba(3, 6, 12, 0.62);
+
+  --st-tx: #edf2fa;
+  --st-t2: #bdc9dc;
+  --st-t3: #9eafc7;
+
+  --st-bd: #334158;
+
+  --st-info-bg: #1c3151;
+  --st-info: #accbff;
+  --st-ok-bg: #153b2c;
+  --st-ok: #67dca5;
+  --st-warn-bg: #3b2a1d;
+  --st-warn: #f5ba82;
+  --st-warn-text: #f7ca9c;
+  --st-danger-bg: #431f2b;
+  --st-danger: #ff91a4;
+
+  --st-sh: 0 1px 2px rgba(0, 0, 0, 0.3), 0 10px 30px rgba(0, 0, 0, 0.25);
+}

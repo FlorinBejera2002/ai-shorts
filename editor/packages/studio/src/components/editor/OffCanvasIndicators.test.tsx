@@ -25,7 +25,7 @@ it("rotates an off-canvas indicator with its element", () => {
     );
   });
 
-  const indicator = host.querySelector<HTMLElement>('[role="button"]');
+  const indicator = host.querySelector<HTMLElement>("button");
   expect(indicator?.parentElement?.style.transform).toBe("rotate(30deg)");
   expect(indicator?.parentElement?.style.transformOrigin).toBe("center");
 

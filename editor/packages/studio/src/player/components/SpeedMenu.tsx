@@ -1,9 +1,18 @@
 import { useState, useCallback, memo } from "react";
 import { trackStudioEvent } from "../../utils/studioTelemetry";
-import { Tooltip } from "../../components/ui";
+import { t, useLocale } from "../../i18n/translate";
 import { useContextMenuDismiss } from "../../hooks/useContextMenuDismiss";
+import {
+  MENU_ROW,
+  OutlinePill,
+  POPOVER_MENU,
+  PreviewIcon,
+} from "../../components/nle/preview/previewChrome";
+import { formatRate } from "./transport/transportFormat";
+import { SPEED_OPTIONS } from "./speedOptions";
 
-const SPEED_OPTIONS = [0.25, 0.5, 1, 1.5, 2] as const;
+// Re-exported so existing importers keep their path.
+export { SPEED_OPTIONS };
 
 interface SpeedMenuProps {
   playbackRate: number;
@@ -11,11 +20,13 @@ interface SpeedMenuProps {
   disabled: boolean;
 }
 
+/** "1×" pill that opens the 150px speed menu above the transport (St-Preview-Speed). */
 export const SpeedMenu = memo(function SpeedMenu({
   playbackRate,
   setPlaybackRate,
   disabled,
 }: SpeedMenuProps) {
+  const locale = useLocale();
   const [showSpeedMenu, setShowSpeedMenu] = useState(false);
   const closeMenu = useCallback(() => setShowSpeedMenu(false), []);
   // Ref on the container (trigger + menu) so trigger clicks toggle instead of
@@ -24,25 +35,24 @@ export const SpeedMenu = memo(function SpeedMenu({
 
   return (
     <div ref={speedMenuContainerRef} className="relative flex-shrink-0">
-      <Tooltip label="Playback speed">
-        <button
-          type="button"
-          onClick={() => setShowSpeedMenu((v) => !v)}
-          disabled={disabled}
-          aria-haspopup="menu"
-          aria-expanded={showSpeedMenu}
-          aria-label="Playback speed"
-          className="h-7 w-8 rounded-md font-mono text-[10px] tabular-nums text-neutral-500 transition-colors hover:text-neutral-200 disabled:opacity-30"
-        >
-          {playbackRate === 1 ? "1x" : `${playbackRate}x`}
-        </button>
-      </Tooltip>
+      <OutlinePill
+        height={30}
+        selected={showSpeedMenu}
+        onClick={() => setShowSpeedMenu((v) => !v)}
+        disabled={disabled}
+        aria-haspopup="menu"
+        aria-expanded={showSpeedMenu}
+        aria-label={t("preview.speed")}
+        title={t("preview.speed")}
+        className="!px-2.5"
+      >
+        {formatRate(playbackRate, locale)}
+      </OutlinePill>
       {showSpeedMenu && (
         <div
           role="menu"
-          aria-label="Playback speed options"
-          className="absolute bottom-full right-0 mb-1.5 rounded-lg shadow-xl z-50 min-w-[56px] overflow-hidden"
-          style={{ background: "#121A27", border: "1px solid rgba(255,255,255,0.08)" }}
+          aria-label={t("preview.speedOptions")}
+          className={`absolute bottom-full left-[19px] z-50 mb-[4px] w-[150px] ${POPOVER_MENU}`}
         >
           {SPEED_OPTIONS.map((rate) => {
             const isCurrent = rate === playbackRate;
@@ -57,13 +67,12 @@ export const SpeedMenu = memo(function SpeedMenu({
                   setPlaybackRate(rate);
                   setShowSpeedMenu(false);
                 }}
-                className={`block w-full px-3 py-1.5 text-[11px] text-left font-mono tabular-nums transition-colors outline-none focus-visible:bg-white/[0.04] ${
-                  isCurrent
-                    ? "text-neutral-50 bg-white/[0.06]"
-                    : "text-neutral-500 hover:bg-white/[0.04]"
-                }`}
+                className={`${MENU_ROW} ${isCurrent ? "bg-[var(--st-sub)] font-semibold" : ""}`}
               >
-                {rate}x
+                <span className="flex w-3.5 flex-none">
+                  {isCurrent ? <PreviewIcon name="check" size={14} strokeWidth={2.4} /> : null}
+                </span>
+                <span className="flex-1">{formatRate(rate, locale)}</span>
               </button>
             );
           })}

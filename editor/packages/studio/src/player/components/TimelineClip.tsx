@@ -1,9 +1,12 @@
 import { memo, type CSSProperties, type ReactNode } from "react";
+import { t } from "../../i18n/translate";
 import type { TimelineElement } from "../store/playerStore";
 import { defaultTimelineTheme, getClipHandleOpacity, type TimelineTheme } from "./timelineTheme";
 import type { TimelineEditCapabilities } from "./timelineEditing";
 import { isAudioTimelineElement } from "../../utils/timelineInspector";
 import { timelineClipFocusId } from "./timelineNavigationIdentity";
+import { formatDecimalSeconds, formatShortTime } from "./timelineDisplayTime";
+import "./TimelineClip.css";
 
 interface TimelineClipProps {
   el: TimelineElement;
@@ -62,8 +65,10 @@ export const TimelineClip = memo(function TimelineClip({
   const showHandles = handleOpacity > 0.01 && (widthPx >= 32 || isSelected);
   const showLabel = widthPx >= 40 || isSelected;
   const showDefaultText = !hasCustomContent && (widthPx >= 40 || isSelected);
-  const startLabel = el.start.toFixed(1);
-  const endLabel = (el.start + el.duration).toFixed(1);
+  // The board marks each media cut with its length; audio bars and tiny clips skip it.
+  const showDurationChip = hasCustomContent && !isAudioTimelineElement(el) && widthPx >= 44;
+  const startLabel = formatDecimalSeconds(el.start);
+  const endLabel = formatDecimalSeconds(el.start + el.duration);
   const clipClassName = [
     "timeline-clip",
     "absolute",
@@ -73,6 +78,7 @@ export const TimelineClip = memo(function TimelineClip({
     isDragging ? "is-dragging" : "",
     showDefaultText ? "" : "is-micro",
     isAudioTimelineElement(el) ? "is-audio" : "",
+    hasCustomContent ? "has-media" : "",
   ]
     .filter((className) => className.length > 0)
     .join(" ");
@@ -97,6 +103,7 @@ export const TimelineClip = memo(function TimelineClip({
   return (
     <button
       type="button"
+      data-st-clip=""
       data-clip={isGestureActor ? undefined : "true"}
       data-el-id={isGestureActor ? undefined : (el.key ?? el.id)}
       data-timeline-focus-id={isGestureActor ? undefined : timelineClipFocusId(el.key ?? el.id)}
@@ -106,14 +113,18 @@ export const TimelineClip = memo(function TimelineClip({
       data-active={isActive ? "" : undefined}
       aria-hidden={isGestureActor ? "true" : undefined}
       tabIndex={isGestureActor ? undefined : tabIndex}
-      aria-label={`${displayLabel}, ${startLabel} to ${endLabel} seconds`}
+      aria-label={t("timeline.clipAria", { label: displayLabel, start: startLabel, end: endLabel })}
       aria-pressed={isGestureActor ? undefined : isSelected}
       className={clipClassName}
       style={style}
       title={
         isComposition
-          ? `${el.compositionSrc} • Double-click to open`
-          : `${displayLabel} • ${el.start.toFixed(1)}s – ${(el.start + el.duration).toFixed(1)}s`
+          ? t("timeline.clipOpenTitle", { src: el.compositionSrc ?? "" })
+          : t("timeline.clipTitle", {
+              label: displayLabel,
+              start: formatDecimalSeconds(el.start),
+              end: formatDecimalSeconds(el.start + el.duration),
+            })
       }
       onPointerEnter={onHoverStart}
       onPointerLeave={onHoverEnd}
@@ -147,7 +158,7 @@ export const TimelineClip = memo(function TimelineClip({
               bottom: 6,
               width: 2,
               borderRadius: 1,
-              background: "rgba(255, 255, 255, 0.55)",
+              background: "var(--st-sf)",
               opacity: handleOpacity * 0.6,
             }}
           />
@@ -178,17 +189,15 @@ export const TimelineClip = memo(function TimelineClip({
               bottom: 6,
               width: 2,
               borderRadius: 1,
-              background: "rgba(255, 255, 255, 0.55)",
+              background: "var(--st-sf)",
               opacity: handleOpacity * 0.6,
             }}
           />
         </div>
       )}
       {showLabel && <span className="timeline-clip__label">{displayLabel}</span>}
-      {showDefaultText && (
-        <span className="timeline-clip__timecode">
-          {startLabel}-{endLabel}s
-        </span>
+      {showDurationChip && (
+        <span className="timeline-clip__duration">{formatShortTime(el.duration)}</span>
       )}
       {children}
     </button>

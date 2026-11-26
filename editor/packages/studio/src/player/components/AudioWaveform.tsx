@@ -1,3 +1,4 @@
+import { t } from "../../i18n/translate";
 import { memo, useCallback, useMemo, useRef } from "react";
 import { useMountEffect } from "../../hooks/useMountEffect";
 import { useThumbnailLease } from "../../hooks/useThumbnailLease";
@@ -130,6 +131,8 @@ export const AudioWaveform = memo(function AudioWaveform({
     if (!context) return;
     context.scale(scale, scale);
     context.clearRect(0, 0, width, height);
+    // Bars use the app's text colour (navy in light, pale in dark), never an accent.
+    context.fillStyle = getComputedStyle(canvas).getPropertyValue("--st-tx").trim() || "#152035";
     const startFraction = Math.max(0, Math.min(1, trimStartFraction ?? 0));
     const endFraction = Math.max(startFraction, Math.min(1, trimEndFraction ?? 1));
     const start = Math.floor(startFraction * peaks.length);
@@ -140,9 +143,11 @@ export const AudioWaveform = memo(function AudioWaveform({
       const peakIndex = start + Math.min(span - 1, Math.floor((index / barCount) * span));
       const amplitude = peaks[peakIndex] ?? 0;
       const barHeight = Math.max(2, amplitude * height);
-      context.fillStyle = `rgba(75,163,210,${(0.45 + amplitude * 0.4).toFixed(2)})`;
-      context.fillRect(index * BAR_STEP, height - barHeight, BAR_WIDTH, barHeight);
+      context.globalAlpha = 0.35 + amplitude * 0.45;
+      // Centred on the lane like the St-Timeline-TrackHeads waveform.
+      context.fillRect(index * BAR_STEP, (height - barHeight) / 2, BAR_WIDTH, barHeight);
     }
+    context.globalAlpha = 1;
   }, [peaks, trimEndFraction, trimStartFraction]);
 
   const setCanvasRef = useCallback(
@@ -188,11 +193,11 @@ export const AudioWaveform = memo(function AudioWaveform({
               bottom: "20%",
               height: 2,
               background:
-                "repeating-linear-gradient(90deg, rgba(75,163,210,0.35) 0 2px, transparent 2px 5px)",
+                "repeating-linear-gradient(90deg, var(--st-t3) 0 2px, transparent 2px 5px)",
             }}
           />
-          <span className="relative rounded bg-black/50 px-1 text-[8px] text-neutral-500">
-            waveform unavailable
+          <span className="relative rounded-sm bg-studio-surface px-1 text-[8px] text-[var(--st-t2)]">
+            {t("timeline.waveformUnavailable")}
           </span>
         </div>
       )}

@@ -3,11 +3,15 @@ import type { ZoomMode } from "../store/playerStore";
 import type { TimelineTimeRange } from "../lib/timelineClipIndex";
 
 /* ── Layout constants ──────────────────────────────────────────────── */
-export const GUTTER = 32;
-export const LABEL_COL_W = 232;
+// Board geometry (St-Timeline-Tools): a 112px header column, an 8px gap to the lanes,
+// an 18px ruler and 3px between the ruler and the first lane.
+export const GUTTER = 8;
+export const LABEL_COL_W = 112;
+/** Phone header column: the track glyph only. */
+export const PHONE_LABEL_COL_W = 26;
 export const TRACK_H = 48;
 export const LANE_H = 28;
-export const RULER_H = 24;
+export const RULER_H = 18;
 export const CLIP_Y = 3;
 export const CLIP_HANDLE_W = 18;
 export interface TimelineBeatEntry {
@@ -69,7 +73,7 @@ export const INSERT_BOUNDARY_BAND = CLIP_Y / TRACK_H;
  * - TRACKS_BOTTOM_PAD: empty space below the last track (~1.5 track heights),
  *   enough to comfortably drag a clip into the void to create a new bottom lane.
  */
-export const TRACKS_TOP_PAD = 50;
+export const TRACKS_TOP_PAD = 3;
 export const TRACKS_BOTTOM_PAD = Math.round(TRACK_H * 1.5);
 /**
  * Breathing room LEFT of t=0 (CapCut-style), inside the scroll content — the
@@ -282,31 +286,24 @@ export function getTimelineInsertBoundaryBand(rowHeight: number): number {
  */
 export const DRAG_EXTEND_MARGIN_PX = 160;
 /**
- * The rendered timeline always spans at least this many seconds of ruler +
- * track lanes, even when the composition is shorter — the empty space on the
- * right is a real, drag/drop-enabled surface (clips can be moved into it; the
- * composition grows on commit, content-driven). In fit mode the fit pps is
- * derived against this floor, so a 10s comp renders as ~1/6 of the viewport
- * with 60s of ruler after it.
+ * Fit-mode span (St-Timeline-Tools): "fit" maps the duration onto the lanes, so
+ * the composition ends just before their right edge. Very short edits keep a
+ * {@link MIN_FIT_SPAN_S} span so their clips stay large enough to select and trim.
+ * Applied ONLY inside {@link getTimelineFitPps}; manual zoom percentages stay
+ * relative to it.
  */
-export const MIN_TIMELINE_EXTENT_S = 60;
+export const MIN_FIT_SPAN_S = 4;
 /**
- * Fit-mode headroom (CapCut-style): "fit" maps `duration * 1.2` — not the bare
- * duration — onto the viewport, so the composition ends at ~83% of the width
- * and the trailing ~17% stays empty ruler + droppable lane surface (room to
- * drag clips past the current end without first zooming out). Applied ONLY
- * inside {@link getTimelineFitPps}, the single fit-pps source, so the ruler,
- * lanes, playhead, marquee, and drag math all inherit it consistently. Manual
- * zoom percentages stay defined relative to this fit basis (100% == fit).
+ * Empty lane kept after the composition end in Fit, so a clip can still be dropped,
+ * dragged or trimmed past the end without zooming in first. Once a drag or trim runs
+ * past it, the rendered extent grows with the ghost plus {@link DRAG_EXTEND_MARGIN_PX}
+ * and the edge auto-scroll steps the viewport.
  */
-export const FIT_ZOOM_HEADROOM = 1.2;
+export const FIT_TRAILING_TAIL_PX = 40;
 
 /* ── Tick generation ──────────────────────────────────────────────── */
 /* ── Width / duration derivation ──────────────────────────────────── */
-/**
- * Fit content with trailing headroom. Phones keep short edits large enough to
- * trim; wider workspaces retain a minute of empty ruler space for arranging clips.
- */
+/** Pixels per second that fit the whole composition into the lanes. */
 export function getTimelineFitPps(
   viewportWidth: number,
   effectiveDuration: number,
@@ -314,18 +311,18 @@ export function getTimelineFitPps(
 ): number {
   const safeDuration =
     Number.isFinite(effectiveDuration) && effectiveDuration > 0 ? effectiveDuration : 0;
-  // A minute-wide ruler reduced short phone edits to handles only a few pixels wide.
-  const minimumSpan = viewportWidth < 640 ? 4 : MIN_TIMELINE_EXTENT_S;
-  const span = Math.max(safeDuration * FIT_ZOOM_HEADROOM, minimumSpan);
+  const span = Math.max(safeDuration, MIN_FIT_SPAN_S);
   if (!Number.isFinite(viewportWidth) || viewportWidth <= contentOrigin) return 100;
-  return (viewportWidth - contentOrigin - 2) / span;
+  const usable = viewportWidth - contentOrigin - 2;
+  const lanes = usable > FIT_TRAILING_TAIL_PX * 4 ? usable - FIT_TRAILING_TAIL_PX : usable;
+  return lanes / span;
 }
 
 /**
  * The rendered timeline extent in px. Always covers, whichever is largest:
  * the actual clip content, the visible viewport (no dead black after short
  * content — CapCut-style), a live drag or resize ghost plus the auto-scroll
- * margin (drag/trim-to-extend), and the MIN_TIMELINE_EXTENT_S floor. Only the
+ * margin (drag/trim-to-extend). Only the
  * RENDERED extent grows; clip positions/durations are untouched.
  */
 export function getTimelineDisplayContentWidth(input: {
@@ -336,13 +333,11 @@ export function getTimelineDisplayContentWidth(input: {
   dragGhostEndPx?: number;
   resizeGhostEndPx?: number;
 }): number {
-  const safePps = Number.isFinite(input.pps) ? Math.max(input.pps, 0) : 0;
   return Math.max(
     input.trackContentWidth,
     input.viewportWidth - input.contentOrigin - 2,
     input.dragGhostEndPx ?? 0,
     input.resizeGhostEndPx ?? 0,
-    MIN_TIMELINE_EXTENT_S * safePps,
   );
 }
 
@@ -416,7 +411,7 @@ export function getTimelineScrollLeftForZoomAnchor(input: {
  * shifted LEFT by half this width for the line's center to land exactly on
  * `contentOrigin + time * pps` — see {@link getTimelinePlayheadLeft}.
  */
-export const PLAYHEAD_HEAD_W = 9;
+export const PLAYHEAD_HEAD_W = 10;
 
 /**
  * The `left` for the playhead WRAPPER such that the vertical line's CENTER
@@ -512,13 +507,6 @@ export function getTimelineCanvasHeight(rowHeights: readonly number[]): number {
 }
 
 /* ── UI helpers ───────────────────────────────────────────────────── */
-export function shouldShowTimelineShortcutHint(
-  scrollHeight: number,
-  clientHeight: number,
-): boolean {
-  if (!Number.isFinite(scrollHeight) || !Number.isFinite(clientHeight)) return true;
-  return scrollHeight - clientHeight <= 1;
-}
 
 export function shouldHandleTimelineDeleteKey(input: {
   key: string;

@@ -98,7 +98,9 @@ describe("FlatTextSection", () => {
   it("renders the content block and every row from #10a", () => {
     const { host, root } = renderSection();
     expect(host.textContent).toContain("PACKETS / FRAME");
-    expect(host.textContent).toContain("Font");
+    expect(host.querySelector("[data-flat-font-trigger]")?.getAttribute("aria-label")).toContain(
+      "Font",
+    );
     expect(host.textContent).toContain("Weight");
     expect(host.textContent).toContain("Letter spacing");
     expect(host.textContent).toContain("Word spacing");
@@ -180,21 +182,30 @@ describe.each([
     [" normal ", "normal"],
     ["-2", "-2px"],
   ])("persists and rereads %s without changing neighboring styles", (inputValue, expected) => {
-    let source = '<p id="caption" style="word-spacing:1px;letter-spacing:2px;line-height:1.3">First caption</p>';
+    let source =
+      '<p id="caption" style="word-spacing:1px;letter-spacing:2px;line-height:1.3">First caption</p>';
     const persistStyle = vi.fn((_field: string, property: string, value: string) => {
       source = applyPatchByTarget(
         source,
-        { selector: "#caption" },
+        { id: "caption", selector: "#caption" },
         buildDomEditStylePatchOperation(property, normalizeDomEditStyleValue(property, value)),
       );
     });
     const { host, root } = renderSection({}, Component, persistStyle);
-    const label = [...host.querySelectorAll("span")].find((node) => node.textContent === "Word spacing");
+    // The legacy Text section starts collapsed; expand it to reach its rows.
+    const collapsed = host.querySelector<HTMLButtonElement>('button[aria-expanded="false"]');
+    if (collapsed) act(() => collapsed.click());
+    const label = [...host.querySelectorAll("span")].find(
+      (node) => node.textContent === "Word spacing",
+    );
     const input = label?.parentElement?.querySelector<HTMLInputElement>("input");
     expect(input).not.toBeNull();
     if (!input) throw new Error("Word spacing input is missing");
     act(() => {
-      Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value")?.set?.call(input, inputValue);
+      Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value")?.set?.call(
+        input,
+        inputValue,
+      );
       input.dispatchEvent(new Event("input", { bubbles: true }));
     });
     act(() => input.dispatchEvent(new Event("focusout", { bubbles: true })));
@@ -204,8 +215,13 @@ describe.each([
     reloaded.innerHTML = source;
     document.body.append(reloaded);
     const caption = reloaded.querySelector<HTMLElement>("#caption")!;
-    expect(getInlineStyles(caption)["word-spacing"]).toBe(expected);
-    expect(getCuratedComputedStyles(caption)["word-spacing"]).toBeTruthy();
+    // happy-dom drops keyword values such as "normal" from CSSStyleDeclaration,
+    // so read the persisted declaration from the source attribute.
+    expect(caption.getAttribute("style")).toMatch(new RegExp(`word-spacing:\\s*${expected}`));
+    if (expected !== "normal") {
+      expect(getInlineStyles(caption)["word-spacing"]).toBe(expected);
+      expect(getCuratedComputedStyles(caption)["word-spacing"]).toBeTruthy();
+    }
     expect(caption.style.letterSpacing).toBe("2px");
     expect(caption.style.lineHeight).toBe("1.3");
     expect(caption.textContent).toBe("First caption");
@@ -216,11 +232,25 @@ describe.each([
 it("resets flat word spacing to inherited styling", () => {
   const onSetTextFieldStyle = vi.fn();
   const field = makeElement().textFields[0];
-  const { host, root } = renderSection({
-    textFields: [{ ...field, inlineStyles: { "word-spacing": "4px" }, computedStyles: { ...field.computedStyles, "word-spacing": "4px" } }],
-  }, FlatTextSection, onSetTextFieldStyle);
-  const label = [...host.querySelectorAll("span")].find((node) => node.textContent === "Word spacing");
-  const reset = label?.parentElement?.querySelector<HTMLButtonElement>('[data-flat-row-reset="true"]');
+  const { host, root } = renderSection(
+    {
+      textFields: [
+        {
+          ...field,
+          inlineStyles: { "word-spacing": "4px" },
+          computedStyles: { ...field.computedStyles, "word-spacing": "4px" },
+        },
+      ],
+    },
+    FlatTextSection,
+    onSetTextFieldStyle,
+  );
+  const label = [...host.querySelectorAll("span")].find(
+    (node) => node.textContent === "Word spacing",
+  );
+  const reset = label?.parentElement?.querySelector<HTMLButtonElement>(
+    '[data-flat-row-reset="true"]',
+  );
   expect(reset).not.toBeNull();
   act(() => reset?.dispatchEvent(new MouseEvent("click", { bubbles: true })));
   expect(onSetTextFieldStyle).toHaveBeenCalledWith("field-0", "word-spacing", "");

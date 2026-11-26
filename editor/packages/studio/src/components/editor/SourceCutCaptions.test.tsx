@@ -33,7 +33,7 @@ it("applies a typed subtitle size to all without first issuing a current-cut blu
         />,
       ),
     );
-    const input = host.querySelector<HTMLInputElement>('input[type="number"]')!;
+    const input = host.querySelector<HTMLInputElement>('input[type="range"]')!;
     const button = host.querySelector<HTMLButtonElement>(
       '[aria-label="Apply subtitle size to all cuts"]',
     )!;

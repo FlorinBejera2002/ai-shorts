@@ -1,24 +1,21 @@
-import { useRef, type KeyboardEvent as ReactKeyboardEvent } from "react";
+import { useRef, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import {
   getHfColorGradingCapabilities,
   type HfColorGradingWheelKey,
   type NormalizedHfColorGradingWheels,
 } from "@hyperframes/core/color-grading";
-import { RotateCcw } from "../../icons/SystemIcons";
+import { t, useLocale } from "../../i18n/translate";
+import { wheelLabel } from "./propertyPanelColorLabels";
+import { LOOK_ICONS, LookIcon } from "./propertyPanelColorLookUi";
 import { clampNumber } from "../../utils/studioHelpers";
 import { GradingNumberField } from "./propertyPanelGradingNumberField";
 import { useInspectorGestureDraft } from "./useInspectorGestureTransaction";
 
-const WHEELS: ReadonlyArray<{ key: HfColorGradingWheelKey; label: string }> = [
-  { key: "shadows", label: "Shadows" },
-  { key: "midtones", label: "Midtones" },
-  { key: "highlights", label: "Highlights" },
-];
+const WHEELS: readonly HfColorGradingWheelKey[] = ["shadows", "midtones", "highlights"];
 type NormalizedTonalWheel = NormalizedHfColorGradingWheels[HfColorGradingWheelKey];
 
 const WHEEL_CONTROLS = getHfColorGradingCapabilities().wheels.controls;
 const PERCENT_SCALE = 100;
-const HUE_MAX = WHEEL_CONTROLS.hue.maxExclusive - 0.01;
 const RESET_WHEEL: NormalizedTonalWheel = {
   hue: WHEEL_CONTROLS.hue.identity,
   amount: WHEEL_CONTROLS.amount.identity,
@@ -101,6 +98,7 @@ function wheelFromKey(
 }
 
 function TonalWheel({
+  wheelKey,
   label,
   wheel,
   disabled,
@@ -109,7 +107,11 @@ function TonalWheel({
   onSettle,
   onCancel,
   onReset,
+  compact = false,
 }: {
+  /** Wheel only (St-M-Inspector-Wheels); amount and level stay on the wheels view. */
+  compact?: boolean;
+  wheelKey: HfColorGradingWheelKey;
   label: string;
   wheel: NormalizedTonalWheel;
   disabled?: boolean;
@@ -142,160 +144,183 @@ function TonalWheel({
   };
 
   return (
-    <div data-color-wheel={label.toLowerCase()} className="min-w-[88px] flex-1 space-y-1.5">
-      <div className="flex items-center justify-between gap-1">
-        <span className="truncate text-[10px] font-medium text-panel-text-2">{label}</span>
-        <button
-          type="button"
-          aria-label={`Reset ${label}`}
-          title={`Reset ${label}`}
-          disabled={disabled}
-          onClick={onReset}
-          className="text-panel-text-4 hover:text-panel-text-1 disabled:opacity-40"
-        >
-          <RotateCcw size={10} />
-        </button>
-      </div>
-      <div
-        role="slider"
-        tabIndex={disabled ? -1 : 0}
-        aria-label={`${label} color`}
-        aria-valuemin={WHEEL_CONTROLS.amount.min * PERCENT_SCALE}
-        aria-valuemax={WHEEL_CONTROLS.amount.max * PERCENT_SCALE}
-        aria-valuenow={Math.round(wheel.amount * PERCENT_SCALE)}
-        aria-valuetext={`${Math.round(wheel.hue)} degrees, ${Math.round(
-          wheel.amount * PERCENT_SCALE,
-        )} percent`}
-        aria-disabled={disabled}
-        data-color-wheel-surface="true"
-        onDoubleClick={onReset}
-        onPointerDown={(event) => {
-          if (disabled) return;
-          event.preventDefault();
-          onBegin();
-          pointerIdRef.current = event.pointerId;
-          event.currentTarget.setPointerCapture(event.pointerId);
-          previewPointer(event.currentTarget, event.clientX, event.clientY);
-        }}
-        onPointerMove={(event) => {
-          if (disabled || pointerIdRef.current !== event.pointerId) return;
-          previewPointer(event.currentTarget, event.clientX, event.clientY);
-        }}
-        onPointerUp={(event) => {
-          if (pointerIdRef.current !== event.pointerId) return;
-          previewPointer(event.currentTarget, event.clientX, event.clientY);
-          pointerIdRef.current = null;
-          if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-            event.currentTarget.releasePointerCapture(event.pointerId);
-          }
-          onSettle();
-        }}
-        onPointerCancel={(event) => {
-          if (pointerIdRef.current !== event.pointerId) return;
-          pointerIdRef.current = null;
-          onCancel();
-        }}
-        onKeyDown={handleKeyDown}
-        onKeyUp={(event) => {
-          if (
-            ["ArrowLeft", "ArrowRight", "ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)
-          ) {
-            onSettle();
-          }
-        }}
-        onBlur={onSettle}
-        className="relative mx-auto aspect-square w-full max-w-[112px] touch-none rounded-full border border-panel-border-input outline-none focus:ring-1 focus:ring-panel-accent disabled:opacity-40"
-        style={{
-          background:
-            "radial-gradient(circle, rgb(128 128 128) 0%, transparent 72%), conic-gradient(from 90deg, #f33, #f3f, #33f, #3ff, #3f3, #ff3, #f33)",
-        }}
-      >
-        <span
-          data-color-wheel-thumb="true"
-          className="pointer-events-none absolute h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white bg-transparent shadow-[0_0_0_1px_rgba(0,0,0,0.8)]"
-          style={{ left: `${thumbLeft}%`, top: `${thumbTop}%` }}
-        />
-      </div>
-      <input
-        type="range"
-        aria-label={`${label} level`}
-        min={WHEEL_CONTROLS.level.min}
-        max={WHEEL_CONTROLS.level.max}
-        step={0.01}
-        value={wheel.level}
-        disabled={disabled}
-        onPointerDown={onBegin}
-        onChange={(event) => onPreview({ ...wheel, level: Number(event.target.value) })}
-        onPointerUp={onSettle}
-        onPointerCancel={onCancel}
-        onKeyDown={(event) => {
-          if (event.key === "Escape") {
+    <div data-color-wheel={wheelKey} className="group/wheel flex min-w-0 flex-col gap-3">
+      <div className="flex flex-col items-center gap-2">
+        <div className="relative flex w-full items-center justify-center">
+          <span className="truncate text-[12px] font-semibold text-studio-text">{label}</span>
+          <button
+            type="button"
+            aria-label={t("look.wheel.reset", { name: label })}
+            title={t("look.wheel.reset", { name: label })}
+            disabled={disabled}
+            onClick={onReset}
+            className="absolute right-0 flex h-5 w-5 items-center justify-center rounded-full text-studio-muted opacity-0 transition-opacity group-hover/wheel:opacity-100 hover:bg-[var(--st-sub)] hover:text-studio-text focus-visible:opacity-100 disabled:opacity-0"
+          >
+            <LookIcon d={LOOK_ICONS.reset} size={12} />
+          </button>
+        </div>
+        <div
+          role="slider"
+          tabIndex={disabled ? -1 : 0}
+          aria-label={t("look.wheel.color", { name: label })}
+          aria-valuemin={WHEEL_CONTROLS.amount.min * PERCENT_SCALE}
+          aria-valuemax={WHEEL_CONTROLS.amount.max * PERCENT_SCALE}
+          aria-valuenow={Math.round(wheel.amount * PERCENT_SCALE)}
+          aria-valuetext={`${Math.round(wheel.hue)} degrees, ${Math.round(
+            wheel.amount * PERCENT_SCALE,
+          )} percent`}
+          aria-disabled={disabled}
+          data-color-wheel-surface="true"
+          onDoubleClick={onReset}
+          onPointerDown={(event) => {
+            if (disabled) return;
             event.preventDefault();
-            onCancel();
-          } else {
             onBegin();
-          }
-        }}
-        onKeyUp={onSettle}
-        onBlur={onSettle}
-        className="h-3 w-full accent-panel-accent"
-      />
-      <div className="grid grid-cols-3 gap-1">
-        <GradingNumberField
-          label="Hue"
-          value={wheel.hue}
-          min={WHEEL_CONTROLS.hue.min}
-          max={HUE_MAX}
-          disabled={disabled}
-          formatValue={formatIntegerInput}
-          labelTextClassName="block text-[8px] uppercase text-panel-text-5"
-          onBegin={onBegin}
-          onPreview={(hue) => onPreview({ ...wheel, hue: wrapHue(hue) })}
-          onSettle={onSettle}
-          onCancel={onCancel}
-        />
-        <GradingNumberField
-          label="Amount"
-          value={wheel.amount * PERCENT_SCALE}
-          min={WHEEL_CONTROLS.amount.min * PERCENT_SCALE}
-          max={WHEEL_CONTROLS.amount.max * PERCENT_SCALE}
-          disabled={disabled}
-          formatValue={formatIntegerInput}
-          labelTextClassName="block text-[8px] uppercase text-panel-text-5"
-          onBegin={onBegin}
-          onPreview={(amount) => onPreview({ ...wheel, amount: amount / PERCENT_SCALE })}
-          onSettle={onSettle}
-          onCancel={onCancel}
-        />
-        <GradingNumberField
-          label="Level"
-          value={wheel.level * PERCENT_SCALE}
-          min={WHEEL_CONTROLS.level.min * PERCENT_SCALE}
-          max={WHEEL_CONTROLS.level.max * PERCENT_SCALE}
-          disabled={disabled}
-          formatValue={formatIntegerInput}
-          labelTextClassName="block text-[8px] uppercase text-panel-text-5"
-          onBegin={onBegin}
-          onPreview={(level) => onPreview({ ...wheel, level: level / PERCENT_SCALE })}
-          onSettle={onSettle}
-          onCancel={onCancel}
-        />
+            pointerIdRef.current = event.pointerId;
+            event.currentTarget.setPointerCapture(event.pointerId);
+            previewPointer(event.currentTarget, event.clientX, event.clientY);
+          }}
+          onPointerMove={(event) => {
+            if (disabled || pointerIdRef.current !== event.pointerId) return;
+            previewPointer(event.currentTarget, event.clientX, event.clientY);
+          }}
+          onPointerUp={(event) => {
+            if (pointerIdRef.current !== event.pointerId) return;
+            previewPointer(event.currentTarget, event.clientX, event.clientY);
+            pointerIdRef.current = null;
+            if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+              event.currentTarget.releasePointerCapture(event.pointerId);
+            }
+            onSettle();
+          }}
+          onPointerCancel={(event) => {
+            if (pointerIdRef.current !== event.pointerId) return;
+            pointerIdRef.current = null;
+            onCancel();
+          }}
+          onKeyDown={handleKeyDown}
+          onKeyUp={(event) => {
+            if (
+              ["ArrowLeft", "ArrowRight", "ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)
+            ) {
+              onSettle();
+            }
+          }}
+          onBlur={onSettle}
+          className="relative mx-auto aspect-square w-full max-w-[88px] touch-none rounded-full shadow-[inset_0_0_0_1px_var(--st-bd)] outline-none focus-visible:shadow-[0_0_0_2px_var(--st-btn)] aria-disabled:opacity-40"
+          style={{ background: WHEEL_BACKGROUND }}
+        >
+          <span
+            data-color-wheel-thumb="true"
+            className="pointer-events-none absolute h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full bg-studio-surface shadow-[0_0_0_2px_var(--st-tx)]"
+            style={{ left: `${thumbLeft}%`, top: `${thumbTop}%` }}
+          />
+        </div>
       </div>
+      {!compact && (
+        <>
+          <div className="flex flex-col gap-1.5">
+            <GradingNumberField
+              label={t("look.wheel.amount")}
+              value={wheel.amount * PERCENT_SCALE}
+              min={WHEEL_CONTROLS.amount.min * PERCENT_SCALE}
+              max={WHEEL_CONTROLS.amount.max * PERCENT_SCALE}
+              disabled={disabled}
+              formatValue={formatIntegerInput}
+              labelClassName={WHEEL_ROW}
+              labelTextClassName={WHEEL_ROW_LABEL}
+              inputClassName="w-7 flex-none !px-0 text-right"
+              onBegin={onBegin}
+              onPreview={(amount) => onPreview({ ...wheel, amount: amount / PERCENT_SCALE })}
+              onSettle={onSettle}
+              onCancel={onCancel}
+            />
+            <span
+              aria-hidden="true"
+              className="block h-1 overflow-hidden rounded-full bg-[var(--st-hd)]"
+            >
+              <span
+                className="block h-full rounded-full bg-[var(--st-tx)]"
+                style={{ width: `${Math.round(wheel.amount * 100)}%` }}
+              />
+            </span>
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <GradingNumberField
+              label={t("look.wheel.level")}
+              value={wheel.level * PERCENT_SCALE}
+              min={WHEEL_CONTROLS.level.min * PERCENT_SCALE}
+              max={WHEEL_CONTROLS.level.max * PERCENT_SCALE}
+              disabled={disabled}
+              formatValue={formatIntegerInput}
+              labelClassName={WHEEL_ROW}
+              labelTextClassName={WHEEL_ROW_LABEL}
+              inputClassName="w-7 flex-none !px-0 text-right"
+              onBegin={onBegin}
+              onPreview={(level) => onPreview({ ...wheel, level: level / PERCENT_SCALE })}
+              onSettle={onSettle}
+              onCancel={onCancel}
+            />
+            <input
+              type="range"
+              aria-label={t("look.wheel.levelAria", { name: label })}
+              min={WHEEL_CONTROLS.level.min}
+              max={WHEEL_CONTROLS.level.max}
+              step={0.01}
+              value={wheel.level}
+              disabled={disabled}
+              onPointerDown={onBegin}
+              onChange={(event) => onPreview({ ...wheel, level: Number(event.target.value) })}
+              onPointerUp={onSettle}
+              onPointerCancel={onCancel}
+              onKeyDown={(event) => {
+                if (event.key === "Escape") {
+                  event.preventDefault();
+                  onCancel();
+                } else {
+                  onBegin();
+                }
+              }}
+              onKeyUp={onSettle}
+              onBlur={onSettle}
+              data-color-wheel-level="true"
+              style={{ "--look-fill": `${levelFill(wheel.level)}%` } as CSSProperties}
+              className="w-full"
+            />
+          </div>
+        </>
+      )}
     </div>
   );
 }
 
+const WHEEL_ROW = "flex min-w-0 items-center justify-between gap-0.5";
+
+/** Level bar fill (St-Inspector-Wheels): the neutral level sits at the middle of the bar. */
+function levelFill(level: number): number {
+  const { min, max } = WHEEL_CONTROLS.level;
+  return Math.round(((level - min) / Math.max(max - min, 1e-6)) * 100);
+}
+const WHEEL_ROW_LABEL = "min-w-0 flex-1 truncate text-[12px] font-medium text-studio-text";
+// Hue ring (data colours, not decoration) fading into the card surface at the centre.
+const WHEEL_BACKGROUND =
+  "radial-gradient(circle closest-side, var(--st-sf) 0%, var(--st-sf) 28%, transparent 100%), conic-gradient(from 90deg, rgb(255 51 51), rgb(255 51 255), rgb(51 51 255), rgb(51 255 255), rgb(51 255 51), rgb(255 255 51), rgb(255 51 51))";
+
 export function ColorWheels({
   value,
   disabled,
+  compact,
   onPreview,
   onCommit,
 }: {
   value: NormalizedHfColorGradingWheels;
   disabled?: boolean;
+  /** Wheels only, without the amount and level rows (phone, St-M-Inspector-Wheels). */
+  compact?: boolean;
   onPreview: (value: NormalizedHfColorGradingWheels) => void;
   onCommit: (value: NormalizedHfColorGradingWheels) => void;
 }) {
+  useLocale();
   const { draft, setDraft, transaction } = useInspectorGestureDraft({
     sourceValue: value,
     onPreview,
@@ -312,16 +337,15 @@ export function ColorWheels({
   };
 
   return (
-    <div
-      data-color-wheels="true"
-      className="grid grid-cols-[repeat(auto-fit,minmax(88px,1fr))] gap-2"
-    >
-      {WHEELS.map(({ key, label }) => (
+    <div data-color-wheels="true" className="grid grid-cols-3 gap-2.5">
+      {WHEELS.map((key) => (
         <TonalWheel
           key={key}
-          label={label}
+          wheelKey={key}
+          label={wheelLabel(key)}
           wheel={draft[key]}
           disabled={disabled}
+          compact={compact}
           onBegin={transaction.begin}
           onPreview={(wheel) => previewWheel(key, wheel)}
           onSettle={transaction.settle}

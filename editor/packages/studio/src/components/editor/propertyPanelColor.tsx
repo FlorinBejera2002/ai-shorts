@@ -345,7 +345,7 @@ export function ColorField({
                 settleColorGesture();
                 setOpen(false);
               }}
-              className="flex h-7 w-7 items-center justify-center rounded-lg text-neutral-500 transition-colors hover:bg-neutral-900 hover:text-neutral-200"
+              className="flex h-7 w-7 items-center justify-center rounded-md text-neutral-500 transition-colors hover:bg-neutral-900 hover:text-neutral-200"
               aria-label="Close color picker"
             >
               <X size={13} />
@@ -353,7 +353,7 @@ export function ColorField({
           </div>
           <div className="space-y-3 p-3">
             <div
-              className="relative h-36 cursor-crosshair overflow-hidden rounded-xl border border-neutral-700 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.06)]"
+              className="relative h-36 cursor-crosshair overflow-hidden rounded-md border border-neutral-700 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.06)]"
               style={{ backgroundColor: hueColor }}
               onPointerDown={(event) => {
                 beginColorGesture();
@@ -389,7 +389,7 @@ export function ColorField({
 
             <div className="flex min-w-0 items-center gap-3">
               <div
-                className="h-9 w-9 flex-shrink-0 rounded-xl border border-neutral-600 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
+                className="h-9 w-9 flex-shrink-0 rounded-sm border border-neutral-600 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
                 style={{ backgroundColor: currentColor }}
               />
               <div className="min-w-0 flex-1">
@@ -519,7 +519,7 @@ export function ColorField({
         className={`${FIELD} flex items-center gap-3 text-left hover:border-neutral-700 disabled:cursor-not-allowed ${open ? "border-neutral-600" : ""}`}
       >
         <div
-          className="relative h-7 w-7 flex-shrink-0 overflow-hidden rounded-lg border border-neutral-700 bg-neutral-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]"
+          className="relative h-7 w-7 flex-shrink-0 overflow-hidden rounded-md border border-neutral-700 bg-neutral-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]"
           style={{ backgroundColor: value || "transparent" }}
         />
         <span className="min-w-0 flex-1 truncate text-[11px] font-medium text-neutral-100">

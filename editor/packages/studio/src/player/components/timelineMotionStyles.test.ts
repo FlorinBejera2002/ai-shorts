@@ -69,7 +69,7 @@ describe("timeline motion styles", () => {
     expect(clipTransition).not.toMatch(/\b(?:all|left|width|top|bottom|transform)\b/);
   });
 
-  it("layers the active mint bloom through opacity instead of a gradient background swap", () => {
+  it("layers the active selection bloom (app palette, no blue) through opacity instead of a gradient background swap", () => {
     const baseTimelineClipRule = expectRule(studioCss, ".timeline-clip");
     const activeTimelineClipRule = expectRule(studioCss, ".timeline-clip[data-active]");
     const bloomOverlayRule = expectRule(studioCss, ".timeline-clip::before");
@@ -77,9 +77,13 @@ describe("timeline motion styles", () => {
 
     expect(baseTimelineClipRule).toContain("background-color: rgba(255, 255, 255, 0.055)");
     expect(activeTimelineClipRule).not.toContain("background: linear-gradient");
-    expect(activeTimelineClipRule).toContain("border-color: rgba(37, 99, 235, 0.55)");
+    expect(activeTimelineClipRule).toContain(
+      "border-color: color-mix(in srgb, var(--st-sel) 55%, transparent)",
+    );
     expect(activeTimelineClipRule).not.toContain("box-shadow");
-    expect(bloomOverlayRule).toContain("background: rgba(37, 99, 235, 0.2)");
+    expect(bloomOverlayRule).toContain(
+      "background: color-mix(in srgb, var(--st-sel) 20%, transparent)",
+    );
     expect(bloomOverlayRule).not.toContain("linear-gradient");
     expect(bloomOverlayRule).toContain("opacity: 0");
     expect(activeBloomOverlayRule).toContain("opacity: 1");
@@ -95,7 +99,7 @@ describe("timeline motion styles", () => {
 
   it("keeps the playhead polish static, without transition-driven positioning", () => {
     expect(playheadSource).toContain("boxShadow");
-    expect(playheadSource).toContain("rotate(45deg)");
+    expect(playheadSource).toContain("borderRadius: 999");
     expect(playheadSource).not.toContain("transition");
   });
 });

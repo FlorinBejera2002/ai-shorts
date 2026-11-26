@@ -562,6 +562,26 @@ function localPath(value: string): string {
 function timing(start: number, duration: number, track: number) {
   return `class="clip" data-start="${start}" data-duration="${duration}" data-track-index="${track}"`;
 }
+/**
+ * A fitted (uncropped) picture whose shape differs from the frame, e.g. 16:9 in 9:16,
+ * gets a blurred, frame-filling copy of itself behind it instead of black bars.
+ */
+function needsBlurFill(
+  scene: CanonicalScene,
+  asset: CanonicalAsset,
+  plan: Pick<CanonicalCompositionPlan, "width" | "height">,
+) {
+  if ((scene.fit ?? "contain") !== "contain" || scene.crop || scene.crop_keyframes?.length)
+    return false;
+  if (!asset.width || !asset.height) return false;
+  const ratio = asset.width / asset.height / (plan.width / plan.height);
+  return Math.abs(ratio - 1) > 0.02;
+}
+function blurFillStyle(frameWidth: number) {
+  const radius = Math.max(8, Math.round(frameWidth * 0.04));
+  // The scale pushes the soft blur edge outside the frame so no dark rim shows.
+  return `object-fit:cover;filter:blur(${radius}px) brightness(0.8);transform:scale(1.12)`;
+}
 function document(
   title: string,
   root: string,
@@ -705,7 +725,11 @@ export function compileCanonicalComposition(
           `<video id="bridge-${bridge.id}" class="clip canonical-video" data-start="${scene.source_in + bridge.start - scene.start}" data-duration="${bridge.duration}" data-track-index="0" data-media-start="${bridge.source_in}" data-source-duration="${assets.get(bridge.asset_id)!.duration}" data-has-audio="false" ${media(bridge.asset_id)} style="z-index:1;object-fit:contain" muted playsinline preload="metadata"></video>`,
       )
       .join("");
-    const content = `<video id="${videoId}" class="clip canonical-video source-video" data-canonical-scene="${scene.id}" data-canonical-asset="${scene.asset_id}" data-start="0" data-duration="${asset.duration}" data-track-index="0" data-media-start="0" data-source-duration="${asset.duration}" data-has-audio="false" ${media(scene.asset_id)} style="${style}" muted playsinline preload="metadata"></video>${bridges}${cameraAudio}${captions.html}`;
+    const fillId = `${root}-fill`;
+    const fill = needsBlurFill(scene, asset, plan)
+      ? `<video id="${fillId}" class="clip canonical-video canonical-fill" data-label="Background" data-start="0" data-duration="${asset.duration}" data-track-index="0" data-media-start="0" data-source-duration="${asset.duration}" data-has-audio="false" ${media(scene.asset_id)} style="${blurFillStyle(plan.width)}" aria-hidden="true" muted playsinline preload="metadata"></video>`
+      : "";
+    const content = `${fill}<video id="${videoId}" class="clip canonical-video source-video" data-canonical-scene="${scene.id}" data-canonical-asset="${scene.asset_id}" data-start="0" data-duration="${asset.duration}" data-track-index="0" data-media-start="0" data-source-duration="${asset.duration}" data-has-audio="false" ${media(scene.asset_id)} style="${style}" muted playsinline preload="metadata"></video>${bridges}${cameraAudio}${captions.html}`;
     files.set(
       `${root}.html`,
       document(
@@ -723,10 +747,13 @@ export function compileCanonicalComposition(
       `<div id="scene-${scene.id}" class="clip canonical-stage source-video" data-canonical-scene="${scene.id}" data-canonical-asset="${scene.asset_id}" data-label="${escape(asset.name)}" data-source-window data-composition-id="${root}" data-composition-src="${root}.html" data-start="${scene.start}" data-duration="${scene.duration}" data-track-index="0" data-playback-start="${scene.source_in}" data-source-duration="${asset.duration}" data-width="${plan.width}" data-height="${plan.height}"${scene.transition_in ? ` data-transition-in="${scene.transition_in}"` : ""}${scene.fade_in || scene.fade_out || bridges ? " data-transition-blocked" : ""} style="z-index:${index + 1}"></div>`,
     );
     // Fade only the picture group; independent captions and branding retain their clock.
+    const picture = [videoId, `${root}-background`, ...(fill ? [fillId] : [])]
+      .map((id) => `#${id}`)
+      .join(",");
     if (scene.fade_in)
-      rootAnimations += `window.__timelines["main"].fromTo("#${videoId},#${root}-background",{opacity:0},{opacity:1,duration:${scene.fade_in},ease:"none",immediateRender:false},${scene.start});`;
+      rootAnimations += `window.__timelines["main"].fromTo("${picture}",{opacity:0},{opacity:1,duration:${scene.fade_in},ease:"none",immediateRender:false},${scene.start});`;
     if (scene.fade_out)
-      rootAnimations += `window.__timelines["main"].to("#${videoId},#${root}-background",{opacity:0,duration:${scene.fade_out},ease:"none"},${scene.start + scene.duration - scene.fade_out});`;
+      rootAnimations += `window.__timelines["main"].to("${picture}",{opacity:0,duration:${scene.fade_out},ease:"none"},${scene.start + scene.duration - scene.fade_out});`;
   }
   hosts.push(...plan.audio.filter((entry) => !entry.scene_id).map((entry) => audioMarkup(entry)));
   let css = "";

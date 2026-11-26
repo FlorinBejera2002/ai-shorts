@@ -51,24 +51,43 @@ const renderCrashed = () =>
   });
 
 describe("StudioErrorBoundary", () => {
-  it("shows the crash screen with the error message and both recovery paths", () => {
+  it("shows the crash screen with both recovery paths and keeps the message as the tooltip", () => {
     renderCrashed();
     expect(container.textContent).toContain("Something went wrong");
-    expect(container.textContent).toContain("timeline exploded");
+    // Titles only on screen; the raw message stays reachable for support as the tooltip.
+    expect(container.textContent).not.toContain("timeline exploded");
+    expect(container.querySelector('[role="alertdialog"]')?.getAttribute("title")).toContain(
+      "timeline exploded",
+    );
     expect(container.textContent).toContain("Try again");
     expect(container.textContent).toContain("Reload Studio");
   });
 
+  it("offers Back to Clips instead of Try again when the Clips page is known (never three actions)", () => {
+    const referrer = vi
+      .spyOn(document, "referrer", "get")
+      .mockReturnValue("https://app.example.com/dashboard/clips");
+    try {
+      renderCrashed();
+      const actions = [
+        ...(container.querySelector('[role="alertdialog"]')?.querySelectorAll("button") ?? []),
+      ].map((b) => b.textContent?.trim());
+      expect(actions).toEqual(["Back to Clips", "Reload Studio"]);
+    } finally {
+      referrer.mockRestore();
+    }
+  });
+
   it("asks what the user was doing, since the stack trace cannot say", () => {
     renderCrashed();
-    const card = container.querySelector('[aria-label="Send feedback to the SneepCut team"]');
+    const card = container.querySelector('[aria-label="Send feedback to the Sneep Cut team"]');
     expect(card).not.toBeNull();
     expect(card?.textContent).toContain("Studio crashed. What were you doing?");
   });
 
   it("offers one-tap answers instead of a 0-10 score", () => {
     renderCrashed();
-    const card = container.querySelector('[aria-label="Send feedback to the SneepCut team"]');
+    const card = container.querySelector('[aria-label="Send feedback to the Sneep Cut team"]');
     const chips = [...(card?.querySelectorAll("button") ?? [])]
       .map((b) => b.textContent?.trim())
       .filter((t) => t && t !== "Send");
@@ -91,7 +110,7 @@ describe("StudioErrorBoundary", () => {
     // The crash screen itself still works; only the ask is suppressed.
     expect(container.textContent).toContain("Something went wrong");
     expect(
-      container.querySelector('[aria-label="Send feedback to the SneepCut team"]'),
+      container.querySelector('[aria-label="Send feedback to the Sneep Cut team"]'),
     ).toBeNull();
   });
 });

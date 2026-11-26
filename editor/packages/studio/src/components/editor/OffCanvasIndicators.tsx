@@ -1,5 +1,8 @@
 import React from "react";
 import { type DomEditSelection } from "./domEditing";
+import { t } from "../../i18n/translate";
+import { PreviewIcon } from "../nle/preview/previewChrome";
+import { offCanvasSide } from "./offCanvasSide";
 
 export interface OffCanvasRect {
   key: string;
@@ -60,6 +63,83 @@ function clipOutsideCanvas(
   return `polygon(evenodd, 0 0, ${rect.width}px 0, ${rect.width}px ${rect.height}px, 0 ${rect.height}px, 0 0, ${canvas})`;
 }
 
+// Re-exported so existing imports from this module keep resolving.
+export { offCanvasSide } from "./offCanvasSide";
+
+type Box = { left: number; top: number; width: number; height: number };
+
+const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
+
+/** Chip on the frame edge pointing at an element that is entirely outside it (St-Preview-OffCanvas). */
+function OffCanvasChip({
+  rect,
+  comp,
+  label,
+  onSelect,
+}: {
+  rect: Box;
+  comp: Box;
+  label: string;
+  onSelect: () => void;
+}) {
+  const side = offCanvasSide(rect, comp);
+  if (!side) return null;
+  const centerX = clamp(rect.left + rect.width / 2, comp.left + 40, comp.left + comp.width - 40);
+  const centerY = clamp(rect.top + rect.height / 2, comp.top + 24, comp.top + comp.height - 24);
+  const position: React.CSSProperties =
+    side === "top"
+      ? { left: centerX, top: comp.top + 12, transform: "translateX(-50%)" }
+      : side === "bottom"
+        ? { left: centerX, top: comp.top + comp.height - 42, transform: "translateX(-50%)" }
+        : side === "left"
+          ? { left: comp.left + 12, top: centerY, transform: "translateY(-50%)" }
+          : {
+              left: comp.left + comp.width - 12,
+              top: centerY,
+              transform: "translate(-100%, -50%)",
+            };
+  const icon =
+    side === "top"
+      ? "chevronUp"
+      : side === "bottom"
+        ? "chevronDown"
+        : side === "left"
+          ? "back"
+          : "chevronRight";
+  return (
+    <span
+      role="button"
+      tabIndex={0}
+      aria-label={t("preview.offCanvas", { name: label })}
+      title={t("preview.offCanvas", { name: label })}
+      className="pointer-events-auto absolute z-[2] inline-flex h-[30px] max-w-[160px] cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-full bg-studio-surface px-2.5 text-xs font-semibold text-studio-text shadow-studio hover:bg-[var(--st-sub)]"
+      style={position}
+      onClick={(event) => {
+        event.stopPropagation();
+        onSelect();
+      }}
+      onPointerDown={(event) => event.stopPropagation()}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          event.stopPropagation();
+          onSelect();
+        }
+      }}
+    >
+      <PreviewIcon name={icon} size={14} />
+      <span className="truncate">{label}</span>
+    </span>
+  );
+}
+
+function offCanvasLabel(element: HTMLElement | undefined, key: string): string {
+  const fromData = element?.getAttribute("data-label") || element?.id;
+  if (fromData) return fromData;
+  const parts = key.split(":");
+  return parts[1] || key;
+}
+
 /**
  * Dashed teal indicators for elements whose bounds extend past the composition
  * (the "gray zone"). The in-canvas portion is clipped away so only the
@@ -114,30 +194,32 @@ export function OffCanvasIndicators({
             void selectOffCanvas();
           };
           return (
-            <div key={`offcanvas-${r.key}`} className="pointer-events-none absolute" style={pos}>
-              {/* Dashed layer — clipped to exclude canvas area.
+            <React.Fragment key={`offcanvas-${r.key}`}>
+              <OffCanvasChip
+                rect={r}
+                comp={compRect}
+                label={offCanvasLabel(elements.current.get(r.key), r.key)}
+                onSelect={() => void selectOffCanvas()}
+              />
+              <div className="pointer-events-none absolute" style={pos}>
+                {/* Dashed layer — clipped to exclude canvas area.
                   Note: clip-path is visual only — hit-testing still covers the
                   full bounding rect, so clicking the in-canvas portion selects
                   via this handler. That's acceptable: it resolves the same
                   element the normal canvas path would, just with
                   skipSourceProbe (the element is already known here). */}
-              <div
-                role="button"
-                tabIndex={0}
-                aria-label={`Select off-canvas element ${r.key}`}
-                className="pointer-events-auto absolute inset-0 border-2 border-dashed border-studio-accent/10 rounded-md cursor-pointer hover:border-studio-accent hover:bg-studio-accent/10 transition-colors"
-                style={clipOutside ? { clipPath: clipOutside } : undefined}
-                title={`Off-canvas: ${r.key} — click to select`}
-                onClick={handleClick}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    void selectOffCanvas();
-                  }
-                }}
-              />
-            </div>
+                <button
+                  type="button"
+                  aria-label={t("preview.offCanvasSelect", { name: r.key })}
+                  className="pointer-events-auto absolute inset-0 cursor-pointer rounded-sm border-2 border-dashed border-studio-muted transition-colors hover:border-studio-text"
+                  style={clipOutside ? { clipPath: clipOutside } : undefined}
+                  title={t("preview.offCanvas", {
+                    name: offCanvasLabel(elements.current.get(r.key), r.key),
+                  })}
+                  onClick={handleClick}
+                />
+              </div>
+            </React.Fragment>
           );
         })}
     </>

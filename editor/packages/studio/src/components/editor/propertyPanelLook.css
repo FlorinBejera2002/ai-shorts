@@ -1,0 +1,154 @@
+/*
+ * Look sections (Grade, Effects, Overlays, Audio FX) on the St-Inspector boards.
+ *
+ * LookSlider keeps the shared FlatSlider (drag, keyboard, throttled commit, reset) and only
+ * changes its geometry to the board's slider: a 44px block with the label and value on a
+ * 20px line, then a 4px track inset by 9px and an 18px knob with a 2px ring.
+ */
+[data-look-slider] > div {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: 6px;
+  row-gap: 2px;
+  min-height: 44px;
+}
+
+[data-look-slider] > div > span:first-child {
+  flex: 1 1 0;
+  width: auto;
+  min-width: 0;
+  height: 20px;
+  line-height: 20px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--st-tx);
+}
+
+[data-look-slider] [data-flat-slider-value] {
+  width: auto;
+  height: 20px;
+  line-height: 20px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--st-t2);
+}
+
+[data-look-slider] [data-flat-slider-reset-slot] {
+  display: flex;
+  align-items: center;
+  height: 20px;
+}
+
+[data-look-slider] [data-flat-slider-reset-slot]:empty {
+  display: none;
+}
+
+[data-look-slider] [data-flat-slider-track] {
+  order: 99;
+  flex: 0 0 calc(100% - 18px);
+  height: 18px;
+  margin: 0 9px;
+}
+
+[data-look-slider] [data-flat-slider-knob] {
+  width: 18px;
+  height: 18px;
+  box-shadow: 0 0 0 2px var(--st-tx);
+}
+
+[data-look-slider] [data-flat-slider-center-tick] {
+  display: none;
+}
+
+/* Wheel level (St-Inspector-Wheels): a 4px bar filled to the level, no visible thumb. */
+[data-color-wheel-level] {
+  appearance: none;
+  height: 12px;
+  margin: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+[data-color-wheel-level]::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 999px;
+  background:
+    linear-gradient(var(--st-tx), var(--st-tx)) no-repeat 0 0 / var(--look-fill, 50%) 100%,
+    var(--st-hd);
+}
+
+[data-color-wheel-level]::-moz-range-track {
+  height: 4px;
+  border-radius: 999px;
+  background:
+    linear-gradient(var(--st-tx), var(--st-tx)) no-repeat 0 0 / var(--look-fill, 50%) 100%,
+    var(--st-hd);
+}
+
+[data-color-wheel-level]::-webkit-slider-thumb {
+  appearance: none;
+  width: 4px;
+  height: 12px;
+  margin-top: -4px;
+  background: transparent;
+}
+
+[data-color-wheel-level]::-moz-range-thumb {
+  width: 4px;
+  height: 12px;
+  border: 0;
+  background: transparent;
+}
+
+[data-color-wheel-level]:focus-visible {
+  outline: 2px solid var(--st-btn);
+  outline-offset: 2px;
+  border-radius: 999px;
+}
+
+/* A disabled slider (LUT strength with no LUT chosen) reads as unavailable, not as 100%. */
+[data-look-slider]:has([aria-disabled="true"]) {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* A grade sub-view (St-Inspector-GradeSliders, -Wheels, -LUT…) carries its own back row to
+   St-Grade, so the section's back row would be a second one stacked above it. */
+[data-flat-group-open]:has([data-flat-grade-view]:not([data-flat-grade-view="main"]))
+  > div:first-child {
+  display: none;
+}
+
+/* Phone look sheets (St-M-Inspector-Wheels, -CurvesPhone, -GradeActionsPhone, -EffectsList,
+   -AudioRack): the sheet shows the look section alone under its own title and Gata. The inspector
+   tabs, the hide/copy row and the section back row step aside while one is open; Gata closes the
+   sheet. The audio rack drops its breadcrumb and family headings for the compact phone list. */
+@media (max-width: 639px) {
+  [aria-label="Inspector panel"]:has(
+      [data-flat-grade-section],
+      [data-flat-effects-families],
+      .hf-fx-section
+    )
+    [role="tablist"],
+  [aria-label="Inspector panel"]:has(
+      [data-flat-grade-section],
+      [data-flat-effects-families],
+      .hf-fx-section
+    )
+    div:has(> [data-flat-panel-body])
+    > div:first-child:not([data-flat-panel-body]),
+  [data-flat-group-open]:has(
+      [data-flat-grade-view="main"],
+      [data-flat-effects-families],
+      .hf-fx-section
+    )
+    > div:first-child,
+  .hf-fx-chain [data-fx-path],
+  .hf-fx-chain [data-fx-family-group] > h4 {
+    display: none;
+  }
+}

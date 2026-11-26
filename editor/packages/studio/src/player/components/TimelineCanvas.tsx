@@ -1,5 +1,6 @@
 import { memo } from "react";
 import { TimelineRuler } from "./TimelineRuler";
+import { TIMELINE_ACCENT, timelineMix } from "./timelineTheme";
 import { PlayheadIndicator } from "./PlayheadIndicator";
 import type { TimelineRangeSelection } from "./timelineEditing";
 import {
@@ -145,7 +146,7 @@ export const TimelineCanvas = memo(function TimelineCanvas(props: TimelineCanvas
               left: props.contentOrigin + gap.start * props.pps,
               width: Math.max((gap.end - gap.start) * props.pps, 2),
               height: TRACK_H - CLIP_Y * 2,
-              background: loud ? "rgba(60,230,172,0.18)" : "rgba(60,230,172,0.055)",
+              background: loud ? timelineMix("btn", 18) : timelineMix("btn", 6),
               borderRadius: 4,
               zIndex: 25,
             }}
@@ -163,8 +164,8 @@ export const TimelineCanvas = memo(function TimelineCanvas(props: TimelineCanvas
             left: props.contentOrigin + draggedClip.previewStart * props.pps,
             width: Math.max(draggedClip.element.duration * props.pps, 4),
             height: draggedClipHeight,
-            border: "1px solid rgba(60,230,172,0.55)",
-            background: "rgba(60,230,172,0.12)",
+            border: `1px solid ${timelineMix("btn", 55)}`,
+            background: timelineMix("btn", 12),
             borderRadius: 4,
             zIndex: 30,
           }}
@@ -181,8 +182,8 @@ export const TimelineCanvas = memo(function TimelineCanvas(props: TimelineCanvas
             left: props.contentOrigin,
             width: props.trackContentWidth,
             height: 1,
-            background: "#3CE6AC",
-            boxShadow: "0 0 3px rgba(60,230,172,0.5)",
+            background: TIMELINE_ACCENT,
+            boxShadow: `0 0 3px ${timelineMix("btn", 50)}`,
             zIndex: 55,
           }}
         />
@@ -197,11 +198,12 @@ export const TimelineCanvas = memo(function TimelineCanvas(props: TimelineCanvas
             top: RULER_H,
             bottom: 0,
             width: 1,
-            background: draggedClip.snapType === "playhead" ? "#3CE6AC" : "rgba(255,255,255,0.6)",
+            background:
+              draggedClip.snapType === "playhead" ? TIMELINE_ACCENT : timelineMix("tx", 60),
             boxShadow:
               draggedClip.snapType === "playhead"
-                ? "0 0 6px rgba(60,230,172,0.5)"
-                : "0 0 6px rgba(255,255,255,0.4)",
+                ? `0 0 6px ${timelineMix("btn", 50)}`
+                : `0 0 6px ${timelineMix("tx", 40)}`,
             zIndex: 60,
           }}
         />
@@ -231,8 +233,8 @@ export const TimelineCanvas = memo(function TimelineCanvas(props: TimelineCanvas
             top: props.marqueeRect.top,
             width: props.marqueeRect.width,
             height: props.marqueeRect.height,
-            background: "rgba(60,230,172,0.10)",
-            border: "1px dashed rgba(60,230,172,0.7)",
+            background: timelineMix("btn", 10),
+            border: `1px dashed ${timelineMix("btn", 70)}`,
             borderRadius: 2,
             zIndex: 70,
           }}
@@ -242,18 +244,22 @@ export const TimelineCanvas = memo(function TimelineCanvas(props: TimelineCanvas
       {/* Range highlight */}
       {props.rangeSelection && (
         <div
+          data-timeline-range-highlight=""
           className="absolute pointer-events-none"
           style={{
             left:
               props.contentOrigin +
               Math.min(props.rangeSelection.start, props.rangeSelection.end) * props.pps,
             width: Math.abs(props.rangeSelection.end - props.rangeSelection.start) * props.pps,
-            top: RULER_H,
-            bottom: 0,
-            backgroundColor: "rgba(59, 130, 246, 0.12)",
-            borderLeft: "1px solid rgba(59, 130, 246, 0.4)",
-            borderRight: "1px solid rgba(59, 130, 246, 0.4)",
-            zIndex: 50,
+            // St-Timeline-Range: a rounded box over the ruler and the lanes, outlined in the
+            // text colour over a faint wash of it. It closes at the last lane (not the
+            // bottom padding) and sits above the sticky ruler (z 70) so its top edge shows.
+            top: 0,
+            height: getTimelineRowTop(props.rowHeights.length, props.rowHeights),
+            borderRadius: 8,
+            backgroundColor: timelineMix("tx", 6),
+            boxShadow: `inset 0 0 0 1.5px var(--st-tx)`,
+            zIndex: 71,
           }}
         />
       )}

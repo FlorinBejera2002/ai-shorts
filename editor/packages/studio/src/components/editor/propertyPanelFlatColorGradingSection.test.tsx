@@ -59,6 +59,15 @@ function dragSliderTrack(row: Element, clientX: number, trackWidth: number) {
   });
 }
 
+/** Opens one of the grade boards listed under St-Grade (light, wheels, LUT files…). */
+function openGradeView(host: HTMLElement, view: string) {
+  const link = host.querySelector<HTMLButtonElement>(`[data-flat-grade-link="${view}"]`);
+  if (!link) throw new Error(`expected a ${view} link`);
+  act(() => link.dispatchEvent(new MouseEvent("click", { bubbles: true })));
+}
+
+const VALID_CUBE = ["LUT_3D_SIZE 2", ...Array.from({ length: 8 }, () => "0 0 0")].join("\n");
+
 function clickSliderReset(row: Element) {
   const resetButton = row.querySelector<HTMLButtonElement>('[data-flat-slider-reset="true"]');
   expect(resetButton).not.toBeNull();
@@ -66,23 +75,30 @@ function clickSliderReset(row: Element) {
 }
 
 describe("FlatColorGradingAccessory", () => {
-  it("shows a 5px status dot colored by runtime status, with the message as its title", () => {
-    const { host, root } = renderInto(
-      <FlatColorGradingAccessory
-        state={{
-          grading: neutralGrading(),
-          compareEnabled: false,
-          runtimeStatus: { state: "active", message: "Shader active" },
-          commitCompare: vi.fn(),
-          resetGrading: vi.fn(),
-        }}
-      />,
+  it("shows a status dot only when the shader needs attention, with the message as its title", () => {
+    const render = (state: "active" | "unavailable", message: string) =>
+      renderInto(
+        <FlatColorGradingAccessory
+          state={{
+            grading: neutralGrading(),
+            compareEnabled: false,
+            runtimeStatus: { state, message },
+            commitCompare: vi.fn(),
+            resetGrading: vi.fn(),
+          }}
+        />,
+      );
+    const active = render("active", "Shader active");
+    expect(active.host.querySelector('[data-flat-grade-status-dot="true"]')).toBeNull();
+    expect(active.host.querySelector('[data-flat-grade-status-message="true"]')?.textContent).toBe(
+      "Shader active",
     );
-    const dot = host.querySelector('[data-flat-grade-status-dot="true"]');
-    expect(dot).not.toBeNull();
-    expect(dot?.getAttribute("title")).toBe("Shader active");
-    expect(dot?.className).toContain("bg-emerald-400");
-    act(() => root.unmount());
+    act(() => active.root.unmount());
+    const failed = render("unavailable", "Preview unavailable");
+    const dot = failed.host.querySelector('[data-flat-grade-status-dot="true"]');
+    expect(dot?.getAttribute("title")).toBe("Preview unavailable");
+    expect(dot?.className).toContain("--st-danger");
+    act(() => failed.root.unmount());
   });
 
   it("disables the compare hold button when grading is inactive, and fires resetGrading on click", () => {
@@ -287,6 +303,8 @@ describe("FlatColorGradingSection — Preset + LUT", () => {
         onPreviewColorGrading={onPreviewColorGrading}
       />,
     );
+    const toggle = host.querySelector<HTMLButtonElement>('[data-flat-grade-presets-toggle="true"]');
+    act(() => toggle?.dispatchEvent(new MouseEvent("click", { bubbles: true })));
     const brightPop = host.querySelector<HTMLButtonElement>(
       '[data-flat-grade-preset="bright-pop"]',
     );
@@ -322,14 +340,19 @@ describe("FlatColorGradingSection — Preset + LUT", () => {
     act(() => root.unmount());
   });
 
-  it("orders manual controls like the shader pipeline", () => {
+  it("opens on St-Grade and lists the other grade boards in pipeline order", () => {
     const { host, root } = renderInto(<FlatColorGradingSection {...neutralPropsBase()} />);
+    const links = Array.from(host.querySelectorAll<HTMLElement>("[data-flat-grade-link]")).map(
+      (link) => link.dataset.flatGradeLink,
+    );
+    expect(links).toEqual(["light", "wheels", "curves", "secondary", "lut", "scopes", "actions"]);
+    expect(host.querySelectorAll('[data-flat-grade-adjust="true"]')).toHaveLength(4);
     const elements = [
-      host.querySelector('[data-flat-grade-adjust="true"]'),
-      host.querySelector('[data-color-wheels="true"]'),
-      host.querySelector('[data-color-curves="true"]'),
-      host.querySelector('[data-flat-grade-secondary="true"]'),
-      host.querySelector('[data-flat-grade-lut-toggle="true"]'),
+      host.querySelector('[data-flat-grade-main-color="true"]'),
+      host.querySelector('[data-flat-grade-presets="true"]'),
+      host.querySelector('[data-flat-grade-lut="compact"]'),
+      host.querySelector('[data-flat-grade-finish="true"]'),
+      host.querySelector('[data-flat-grade-links="true"]'),
     ];
     expect(elements.every(Boolean)).toBe(true);
     for (let index = 0; index < elements.length - 1; index += 1) {
@@ -384,6 +407,7 @@ describe("FlatColorGradingSection — Preset + LUT", () => {
         captureGradedFrame={captureGradedFrame}
       />,
     );
+    openGradeView(host, "secondary");
 
     await act(async () => {
       const sample = Array.from(host.querySelectorAll<HTMLButtonElement>("button")).find((button) =>
@@ -415,6 +439,8 @@ describe("FlatColorGradingSection — Preset + LUT", () => {
 
   it("keeps effect-bearing saved styles out of Grade", () => {
     const { host, root } = renderInto(<FlatColorGradingSection {...neutralPropsBase()} />);
+    const toggle = host.querySelector<HTMLButtonElement>('[data-flat-grade-presets-toggle="true"]');
+    act(() => toggle?.dispatchEvent(new MouseEvent("click", { bubbles: true })));
     const presets = host.querySelector('[data-flat-grade-preset-group="presets"]');
     expect(presets?.querySelector('[data-flat-grade-preset="bright-pop"]')).not.toBeNull();
     expect(presets?.querySelector('[data-flat-grade-preset="vhs-playback"]')).toBeNull();
@@ -434,6 +460,8 @@ describe("FlatColorGradingSection — Preset + LUT", () => {
       />,
     );
     expect(onRequestPresetPreviews).not.toHaveBeenCalled();
+    const toggle = host.querySelector<HTMLButtonElement>('[data-flat-grade-presets-toggle="true"]');
+    act(() => toggle?.dispatchEvent(new MouseEvent("click", { bubbles: true })));
     expect(
       host.querySelector<HTMLImageElement>('[data-flat-grade-preview="bright-pop"]')?.src,
     ).toContain("data:image/png;base64,bright");
@@ -475,15 +503,13 @@ describe("FlatColorGradingSection — Preset + LUT", () => {
     act(() => root.unmount());
   });
 
-  it("shows the Custom LUT row collapsed by default, expanding to reveal the strength slider when a LUT is set", () => {
+  it("shows the chosen LUT and its strength in the LUT block", () => {
     const grading = { ...neutralGrading(), lut: { src: "assets/luts/warm.cube", intensity: 0.8 } };
     const { host, root } = renderInto(
       <FlatColorGradingSection {...neutralPropsBase()} grading={grading} />,
     );
-    const lutToggle = host.querySelector<HTMLButtonElement>('[data-flat-grade-lut-toggle="true"]');
-    expect(lutToggle).not.toBeNull();
-    act(() => lutToggle?.dispatchEvent(new MouseEvent("click", { bubbles: true })));
     expect(host.textContent).toContain("warm.cube");
+    expect(host.textContent).toContain("80%");
     act(() => root.unmount());
   });
 
@@ -498,15 +524,13 @@ describe("FlatColorGradingSection — Preset + LUT", () => {
         onCommitColorGrading={onCommitColorGrading}
       />,
     );
-    const lutToggle = host.querySelector<HTMLButtonElement>('[data-flat-grade-lut-toggle="true"]');
-    act(() => lutToggle?.dispatchEvent(new MouseEvent("click", { bubbles: true })));
-    const lutSelect = host.querySelector<HTMLSelectElement>('[data-flat-grade-lut-select="true"]');
+    const lutSelect = host.querySelector<HTMLButtonElement>('[data-look-select="lut"]');
     if (!lutSelect) throw new Error("expected a LUT catalog select");
     expect(lutSelect.getAttribute("aria-label")).toBe("Custom LUT");
-    act(() => {
-      lutSelect.value = "assets/luts/cool.cube";
-      lutSelect.dispatchEvent(new Event("change", { bubbles: true }));
-    });
+    act(() => lutSelect.dispatchEvent(new MouseEvent("click", { bubbles: true })));
+    const option = document.querySelector('[data-look-option="assets/luts/cool.cube"]');
+    if (!option) throw new Error("expected the cool.cube option");
+    act(() => option.dispatchEvent(new MouseEvent("click", { bubbles: true })));
     expect(onCommitColorGrading).toHaveBeenCalledTimes(1);
     expect(onCommitColorGrading.mock.calls[0][0].lut).toEqual({
       src: "assets/luts/cool.cube",
@@ -525,16 +549,15 @@ describe("FlatColorGradingSection — Preset + LUT", () => {
         onImportAssets={onImportAssets}
       />,
     );
-    const lutToggle = host.querySelector<HTMLButtonElement>('[data-flat-grade-lut-toggle="true"]');
-    act(() => lutToggle?.dispatchEvent(new MouseEvent("click", { bubbles: true })));
+    openGradeView(host, "lut");
     const fileInput = host.querySelector<HTMLInputElement>('input[type="file"]');
     if (!fileInput) throw new Error("expected a hidden file input");
-    const file = new File(["cube data"], "x.cube");
+    const file = new File([VALID_CUBE], "x.cube");
     Object.defineProperty(fileInput, "files", { value: [file], configurable: true });
     await act(async () => {
       fileInput.dispatchEvent(new Event("change", { bubbles: true }));
-      await Promise.resolve();
-      await Promise.resolve();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      await new Promise((resolve) => setTimeout(resolve, 0));
     });
     expect(onImportAssets).toHaveBeenCalledTimes(1);
     expect(onImportAssets.mock.calls[0][0]).toEqual([file]);
@@ -548,15 +571,46 @@ describe("FlatColorGradingSection — Preset + LUT", () => {
   });
 });
 
+describe("FlatColorGradingSection — LUT error", () => {
+  it("does not apply a .cube it cannot read, and shows the read error (St-Inspector-LUTError)", async () => {
+    const onCommitColorGrading = vi.fn();
+    const onImportAssets = vi.fn().mockResolvedValue(["assets/luts/bad.cube"]);
+    const { host, root } = renderInto(
+      <FlatColorGradingSection
+        {...neutralPropsBase()}
+        onCommitColorGrading={onCommitColorGrading}
+        onImportAssets={onImportAssets}
+      />,
+    );
+    openGradeView(host, "lut");
+    const fileInput = host.querySelector<HTMLInputElement>('input[type="file"]');
+    if (!fileInput) throw new Error("expected a hidden file input");
+    const file = new File(["LUT_3D_SIZE 2\n0 0 0\n"], "bad.cube");
+    Object.defineProperty(fileInput, "files", { value: [file], configurable: true });
+    await act(async () => {
+      fileInput.dispatchEvent(new Event("change", { bubbles: true }));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(onImportAssets).not.toHaveBeenCalled();
+    expect(onCommitColorGrading).not.toHaveBeenCalled();
+    expect(host.querySelector('[role="alert"]')).not.toBeNull();
+    expect(host.querySelector('[data-flat-grade-lut-row="bad.cube"]')).not.toBeNull();
+    act(() => root.unmount());
+  });
+});
+
 describe("FlatColorGradingSection — Adjust sliders", () => {
-  it("renders all 10 adjust rows with a center tick, formatting exposure distinctly from percentage sliders", () => {
+  it("renders all 10 adjust rows with a center tick, formatting neutral values as 0 and saturation as a percentage", () => {
     const { host, root } = renderInto(<FlatColorGradingSection {...neutralPropsBase()} />);
+    openGradeView(host, "light");
     const adjustRows = host.querySelectorAll('[data-flat-grade-adjust="true"]');
     expect(adjustRows).toHaveLength(10);
     for (const row of Array.from(adjustRows)) {
       expect(row.querySelector('[data-flat-slider-center-tick="true"]')).not.toBeNull();
     }
-    expect(host.textContent).toContain("+0.00");
+    expect(host.textContent).toContain("100%");
+    expect(host.textContent).not.toContain("+0.00");
     act(() => root.unmount());
   });
 
@@ -644,6 +698,7 @@ describe("FlatColorGradingSection — Adjust sliders", () => {
         onCommitColorGrading={onCommitColorGrading}
       />,
     );
+    openGradeView(host, "light");
     const strengthRow = findRowByText(host, "div", "Amount", "startsWith");
     // min=0, max=100, step=1, ratio=0.4 -> raw=40 -> commit(40) -> intensity = 40/100 = 0.4
     dragSliderTrack(strengthRow, 40, 100);
@@ -790,6 +845,7 @@ describe("FlatColorGradingSection — HDR banner and Apply scope", () => {
     const { host, root } = renderInto(
       <FlatColorGradingSection {...neutralPropsBase()} onApplyToScope={onApplyToScope} applyBusy />,
     );
+    openGradeView(host, "actions");
     const applyButton = host.querySelector<HTMLButtonElement>('[data-flat-grade-apply="true"]');
     expect(applyButton?.disabled).toBe(true);
     act(() => root.unmount());
@@ -804,6 +860,7 @@ describe("FlatColorGradingSection — HDR banner and Apply scope", () => {
         applyBusy={false}
       />,
     );
+    openGradeView(host, "actions");
     const applyButton = host.querySelector<HTMLButtonElement>('[data-flat-grade-apply="true"]');
     expect(applyButton?.disabled).toBe(false);
     act(() => applyButton?.dispatchEvent(new MouseEvent("click", { bubbles: true })));
@@ -813,6 +870,7 @@ describe("FlatColorGradingSection — HDR banner and Apply scope", () => {
 
   it("gives the Copy-grade-to scope select an accessible name — the visible text sits in a sibling span, not a <label>", () => {
     const { host, root } = renderInto(<FlatColorGradingSection {...neutralPropsBase()} />);
+    openGradeView(host, "actions");
     const scopeSelect = host.querySelector<HTMLSelectElement>('[aria-label="Copy grade to"]');
     expect(scopeSelect).not.toBeNull();
     act(() => root.unmount());

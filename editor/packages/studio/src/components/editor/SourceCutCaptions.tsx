@@ -1,78 +1,120 @@
+// St-Subtitles / St-Inspector-SubAnim: the burned-in subtitles of the selected cut. Size,
+// outline, background, active word and word animation save to this cut; the hover icon on a
+// row copies that setting to every cut and "Aplică la toate" copies all of them at once.
 import { useId, useState } from "react";
-import { CAPTION_ANIMATIONS } from "@hyperframes/core/caption-animations";
+import { CAPTION_ANIMATIONS, type CaptionAnimation } from "@hyperframes/core/caption-animations";
 import {
   patchSourceCaptions,
   readSourceCaptionSettings,
   type SourceCaptionProperty,
   type SourceCaptionSettings,
 } from "../../utils/sourceCutCaptions";
+import { t, useLocale } from "../../i18n/translate";
+import type { MessageKey } from "../../i18n/dictionary";
 import { useSourceCutChanges, type SourceCutControlProps } from "./useSourceCutChanges";
+import { ApplyAllIconButton } from "./CutApplyAllIcon";
+import {
+  ICON_PATHS,
+  InspectorAction,
+  InspectorError,
+  InspectorIcon,
+  InspectorRange,
+  InspectorSection,
+  InspectorSelect,
+} from "./inspectorControls";
+import { Switch } from "../ui";
 
-const LABELS = {
-  none: "Off",
-  "phrase-pop": "Phrase pop",
-  "subtle-fade": "Phrase fade",
-  "word-pop": "Word pop",
-  "word-fade": "Word fade",
+const ANIMATION_LABELS: Record<CaptionAnimation, MessageKey> = {
+  none: "subs.animNone",
+  "phrase-pop": "subs.animPhrasePop",
+  "subtle-fade": "subs.animPhraseFade",
+  "word-pop": "subs.animWordPop",
+  "word-fade": "subs.animWordFade",
 };
-const controlClass =
-  "min-h-10 rounded-md border border-neutral-700 bg-neutral-900 px-2 text-xs text-neutral-100 disabled:opacity-40";
 
-function CaptionSize({
-  size,
-  busy,
-  save,
-}: {
-  size: number;
-  busy: boolean;
-  save: (value: number, all: boolean) => void;
-}) {
+const STYLE_SWITCHES = [
+  ["outline", "subs.outline"],
+  ["background", "subs.background"],
+  ["activeWord", "subs.activeWord"],
+] as const;
+
+const ALL_PROPERTIES: readonly SourceCaptionProperty[] = [
+  "size",
+  "outline",
+  "background",
+  "activeWord",
+  "animation",
+];
+
+type SaveCaption = (
+  property: SourceCaptionProperty,
+  value: SourceCaptionSettings[SourceCaptionProperty],
+  applyToAll?: boolean,
+) => void;
+
+function CaptionSize({ size, busy, save }: { size: number; busy: boolean; save: SaveCaption }) {
   const [draft, setDraft] = useState(Math.round(size));
-  const id = useId();
+  const marker = useId();
+  const label = t("subs.size");
   return (
-    <div className="space-y-1.5">
-      <label htmlFor={id} className="text-xs text-neutral-200">
-        Subtitle size
-      </label>
-      <div className="flex gap-2">
-        <input
-          id={id}
-          className={`${controlClass} min-w-0 flex-1`}
-          type="number"
-          min={8}
-          max={400}
-          step={1}
-          value={draft}
-          disabled={busy}
-          onChange={(event) => setDraft(Number(event.target.value))}
-          onBlur={(event) => {
-            if (
-              event.relatedTarget?.getAttribute("data-caption-apply-all") !== id &&
-              draft !== size
-            )
-              save(draft, false);
-          }}
-          onKeyDown={(event) => {
-            if (event.key === "Enter") event.currentTarget.blur();
-          }}
-        />
-        <button
-          type="button"
-          className={controlClass}
-          disabled={busy}
-          aria-label="Apply subtitle size to all cuts"
-          data-caption-apply-all={id}
-          onPointerDown={(event) => event.preventDefault()}
-          onClick={() => save(draft, true)}
-        >
-          Apply to all
-        </button>
+    <div className="group flex flex-col gap-1.5">
+      <div className="flex items-center justify-between gap-2 text-[13px]">
+        <span className="font-medium text-studio-text">{label}</span>
+        <span className="flex items-center gap-1">
+          <ApplyAllIconButton
+            label={t("subs.applySizeAll")}
+            marker={marker}
+            disabled={busy}
+            onClick={() => save("size", draft, true)}
+          />
+          <output className="font-semibold tabular-nums text-studio-muted">{draft}</output>
+        </span>
       </div>
+      <InspectorRange
+        ariaLabel={label}
+        value={draft}
+        min={8}
+        max={400}
+        disabled={busy}
+        onChange={setDraft}
+        onCommit={(related) => {
+          const toApplyAll =
+            related instanceof Element && related.getAttribute("data-apply-all-marker") === marker;
+          if (!toApplyAll && draft !== Math.round(size)) save("size", draft, false);
+        }}
+      />
+    </div>
+  );
+}
+
+function StyleSwitch({
+  label,
+  checked,
+  busy,
+  onChange,
+  onApplyAll,
+}: {
+  label: string;
+  checked: boolean;
+  busy: boolean;
+  onChange: (checked: boolean) => void;
+  onApplyAll: () => void;
+}) {
+  return (
+    <div className="group flex min-h-10 items-center justify-between gap-2">
+      <span className="flex-1 text-[13px] font-medium text-studio-text">{label}</span>
+      <ApplyAllIconButton
+        label={t("cut.applyNamedAll", { name: label.toLowerCase() })}
+        disabled={busy}
+        onClick={onApplyAll}
+      />
+      <Switch label={label} checked={checked} disabled={busy} onChange={onChange} />
     </div>
   );
 }
 
 export function SourceCutCaptions(props: SourceCutControlProps) {
+  useLocale();
   const { source, parentSource, targets, busy, error, saveSourceCutChanges } =
     useSourceCutChanges(props);
   const selected = targets.filter(
@@ -82,11 +124,7 @@ export function SourceCutCaptions(props: SourceCutControlProps) {
     (source && readSourceCaptionSettings(source)) ||
     (parentSource && readSourceCaptionSettings(parentSource, selected));
   if (!settings) return null;
-  const save = (
-    property: SourceCaptionProperty,
-    value: SourceCaptionSettings[SourceCaptionProperty],
-    applyToAll = false,
-  ) => {
+  const save: SaveCaption = (property, value, applyToAll = false) => {
     void saveSourceCutChanges({
       patch: (html) => patchSourceCaptions(html, property, value),
       patchParent: (html, selectedTargets) =>
@@ -95,80 +133,61 @@ export function SourceCutCaptions(props: SourceCutControlProps) {
       applyToAll,
     }).catch(() => {});
   };
+  const applyEverything = () => {
+    const chain = (html: string, selectedTargets?: Parameters<typeof patchSourceCaptions>[3]) =>
+      ALL_PROPERTIES.reduce(
+        (next, property) =>
+          patchSourceCaptions(next, property, settings[property], selectedTargets),
+        html,
+      );
+    void saveSourceCutChanges({
+      patch: (html) => chain(html),
+      patchParent: (html, selectedTargets) => chain(html, selectedTargets),
+      label: "All cuts: subtitles",
+      applyToAll: true,
+    }).catch(() => {});
+  };
   return (
-    <section aria-label="Cut subtitles" className="space-y-3 border-b border-neutral-800 p-3">
-      <h3 className="text-xs font-medium text-neutral-100">Subtitles</h3>
-      <p className="text-[11px] text-neutral-400">
-        Changes affect this cut. Use Apply to all to copy a setting.
-      </p>
-      <CaptionSize
-        key={settings.size}
-        size={settings.size}
-        busy={busy}
-        save={(value, all) => save("size", value, all)}
-      />
-      {(
-        [
-          ["outline", "Text outline"],
-          ["background", "Text background"],
-          ["activeWord", "Active word"],
-        ] as const
-      ).map(([property, label]) => (
-        <div key={property} className="flex items-center justify-between gap-2">
-          <label className="flex min-h-10 items-center gap-2 text-xs text-neutral-200">
-            <input
-              type="checkbox"
-              checked={settings[property]}
-              disabled={busy}
-              onChange={(event) => save(property, event.target.checked)}
-              className="accent-neutral-200"
-            />
-            {label}
-            <span className="text-neutral-400">{settings[property] ? "On" : "Off"}</span>
-          </label>
-          <button
-            type="button"
-            className={controlClass}
+    <InspectorSection title={t("subs.title")} label="Cut subtitles">
+      <CaptionSize key={settings.size} size={settings.size} busy={busy} save={save} />
+      <div className="flex flex-col">
+        <b className="pt-2 pb-1 text-[13px] font-semibold text-studio-text">{t("subs.style")}</b>
+        {STYLE_SWITCHES.map(([property, label]) => (
+          <StyleSwitch
+            key={property}
+            label={t(label)}
+            checked={settings[property]}
+            busy={busy}
+            onChange={(checked) => save(property, checked)}
+            onApplyAll={() => save(property, settings[property], true)}
+          />
+        ))}
+      </div>
+      <div className="group flex flex-col gap-2.5">
+        <div className="flex min-h-6 items-center justify-between gap-2">
+          <b className="text-[13px] font-semibold text-studio-text">{t("subs.animation")}</b>
+          <ApplyAllIconButton
+            label={t("subs.applyAnimationAll")}
             disabled={busy}
-            aria-label={`Apply ${label.toLowerCase()} to all cuts`}
-            onClick={() => save(property, settings[property], true)}
-          >
-            Apply to all
-          </button>
+            onClick={() => save("animation", settings.animation, true)}
+          />
         </div>
-      ))}
-      <label className="grid gap-1.5 text-xs text-neutral-200">
-        Word entrance animation
-        <select
-          className={controlClass}
-          disabled={busy}
+        <InspectorSelect
+          label={t("subs.animation")}
           value={settings.animation}
-          onChange={(event) => {
-            const animation = CAPTION_ANIMATIONS.find((item) => item === event.target.value);
-            if (animation) save("animation", animation);
-          }}
-        >
-          {CAPTION_ANIMATIONS.map((animation) => (
-            <option key={animation} value={animation}>
-              {LABELS[animation]}
-            </option>
-          ))}
-        </select>
-      </label>
-      <button
-        type="button"
-        className={`${controlClass} w-full hover:bg-neutral-800`}
-        disabled={busy}
-        aria-label="Apply subtitle animation to all cuts"
-        onClick={() => save("animation", settings.animation, true)}
-      >
-        Apply animation to all
-      </button>
-      {error && (
-        <p role="alert" className="text-xs text-red-300">
-          {error}
-        </p>
-      )}
-    </section>
+          disabled={busy}
+          icon={<InspectorIcon d={ICON_PATHS.sparkle} />}
+          options={CAPTION_ANIMATIONS.map((animation) => ({
+            value: animation,
+            label: t(ANIMATION_LABELS[animation]),
+          }))}
+          onChange={(animation) => save("animation", animation)}
+        />
+      </div>
+      <InspectorAction variant="secondary" disabled={busy} onClick={applyEverything}>
+        {t("subs.applyAll")}
+      </InspectorAction>
+      {error && <InspectorError>{error}</InspectorError>}
+    </InspectorSection>
   );
 }

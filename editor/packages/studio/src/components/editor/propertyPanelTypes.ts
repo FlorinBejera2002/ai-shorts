@@ -63,6 +63,14 @@ export interface PropertyPanelProps {
    *  would only interrupt playback, and where the panel still has to see the
    *  value it just wrote to compute the next edit from. */
   onSetAttributeQuiet?: (attr: string, value: string | null) => void | Promise<void>;
+  /** Persists a debounced edit (colour grade, effects) and reports the outcome,
+   *  so the caller can confirm or revert its optimistic state. Unlike
+   *  `onSetAttributeLive`, which only previews while a dial is dragged. */
+  onSetAttributeCommitted?: (
+    attr: string,
+    value: string | null,
+    onSettled?: (ok: boolean) => void,
+  ) => void | Promise<void>;
   onApplyColorGradingScope?: (
     scope: "source-file" | "project",
     value: string | null,

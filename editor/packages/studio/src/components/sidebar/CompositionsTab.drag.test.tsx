@@ -57,7 +57,7 @@ describe("composition card drag", () => {
 
     act(() => thumbnail.dispatchEvent(new Event("error")));
 
-    expect(host.textContent).toContain("Preview unavailable");
+    expect(host.textContent).toContain("Unavailable");
     expect(host.querySelector('img[src*="/thumbnail/"]')).toBeNull();
   });
 
@@ -66,7 +66,7 @@ describe("composition card drag", () => {
     const thumbnail = host.querySelector<HTMLImageElement>('img[src*="/thumbnail/"]');
     if (!thumbnail) throw new Error("composition thumbnail did not render");
     act(() => thumbnail.dispatchEvent(new Event("error")));
-    expect(host.textContent).toContain("Preview unavailable");
+    expect(host.textContent).toContain("Unavailable");
 
     act(() => usePlayerStore.getState().bumpThumbnailContentRevision());
 
@@ -127,9 +127,7 @@ describe("composition card drag", () => {
 
   it("offers pointer and keyboard add-at-playhead actions without opening the card", () => {
     const { host, onSelect, onAddToTimeline } = mount();
-    const add = host.querySelector<HTMLButtonElement>(
-      '[aria-label="Add headline to timeline at playhead"]',
-    );
+    const add = host.querySelector<HTMLButtonElement>('[aria-label="Add at playhead"]');
     if (!add) throw new Error("add action did not render");
     act(() => {
       add.click();

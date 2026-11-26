@@ -10,6 +10,8 @@ import { useSourceCutChanges, type SourceCutControlProps } from "./useSourceCutC
 import type { DomEditSelection } from "./domEditingTypes";
 import { CutSettingsScopeContext, useCutSettingsScope } from "./cutSettingsScopeContext";
 import { patchCutPresentation } from "../../utils/sourceCutPresentation";
+import { t, useLocale } from "../../i18n/translate";
+import { ApplyAllIconButton } from "./CutApplyAllIcon";
 
 function ScopedSettings({
   selection,
@@ -76,31 +78,28 @@ export function CutSettingsScopeProvider({
   );
 }
 
+/**
+ * The layers icon of one setting row (St-Inspector-CutApply). `label` is the stable English
+ * name used in the undo label; `displayLabel` is what the reader sees.
+ */
 export function ApplyCutSettingToAll({
   label,
+  displayLabel,
   settings,
 }: {
   label: string;
+  displayLabel?: string;
   settings: CutMediaSetting[];
 }) {
+  useLocale();
   const scope = useCutSettingsScope();
   if (!scope) return null;
   return (
-    <div className="space-y-1">
-      <button
-        type="button"
-        disabled={scope.busy}
-        aria-label={`Apply ${label.toLowerCase()} to all cuts`}
-        className="min-h-8 rounded-md border border-panel-border px-2 text-[11px] text-panel-text-2 hover:bg-panel-hover disabled:opacity-40"
-        onClick={() => void scope.applyAll(settings, label).catch(() => {})}
-      >
-        Apply to all cuts
-      </button>
-      {scope.error && (
-        <p role="alert" className="text-xs text-red-300">
-          {scope.error}
-        </p>
-      )}
-    </div>
+    <ApplyAllIconButton
+      alwaysVisible
+      label={t("cut.applyNamedAll", { name: (displayLabel ?? label).toLowerCase() })}
+      disabled={scope.busy}
+      onClick={() => void scope.applyAll(settings, label).catch(() => {})}
+    />
   );
 }

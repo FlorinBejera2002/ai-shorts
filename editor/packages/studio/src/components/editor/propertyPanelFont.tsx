@@ -19,6 +19,8 @@ import {
   type LocalFontData,
 } from "./propertyPanelHelpers";
 import { useTrackDesignInput } from "../../contexts/DesignPanelInputContext";
+import { t, useLocale } from "../../i18n/translate";
+import { fontSourceLabel, ImportFontsButton } from "./fontPickerParts";
 
 /* ------------------------------------------------------------------ */
 /*  Font helper functions                                              */
@@ -117,14 +119,12 @@ function loadImportedFontStylesheet(asset: ImportedFontAsset): void {
   document.head.appendChild(style);
 }
 
-/* ------------------------------------------------------------------ */
-/*  FontFamilyField                                                    */
-/* ------------------------------------------------------------------ */
-
+// FontFamilyField: the font trigger and its searchable picker (St-Inspector-Font).
 export function FontFamilyField({
   value,
   disabled,
   flat,
+  detail,
   importedFonts,
   onImportFonts,
   onCommit,
@@ -132,6 +132,8 @@ export function FontFamilyField({
   value: string;
   disabled?: boolean;
   flat?: boolean;
+  /** St-Text: shown after the family in the flat trigger ("Sora · Semibold"). */
+  detail?: string;
   importedFonts: ImportedFontAsset[];
   onImportFonts?: (files: FileList | File[]) => Promise<ImportedFontAsset[]>;
   onCommit: (nextValue: string) => void;
@@ -141,6 +143,7 @@ export function FontFamilyField({
   const containerRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const fontInputRef = useRef<HTMLInputElement | null>(null);
+  useLocale();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [activeIndex, setActiveIndex] = useState(-1);
@@ -384,14 +387,14 @@ export function FontFamilyField({
   };
 
   const dropdown = open && (
-    <div className="absolute left-0 right-0 top-[calc(100%+6px)] z-50 overflow-hidden rounded-xl border border-neutral-700 bg-neutral-950 shadow-2xl">
-      <div className="grid grid-cols-[minmax(0,1fr)_auto_auto] gap-2 border-b border-neutral-800 p-2">
+    <div className="absolute left-0 right-0 top-[calc(100%+6px)] z-50 flex flex-col gap-2 overflow-hidden rounded-card bg-studio-surface p-3 shadow-studio">
+      <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-2">
         <input
           ref={inputRef}
           type="text"
           value={query}
           disabled={disabled}
-          placeholder={loadingGoogleFonts ? "Loading Google Fonts..." : "Search fonts"}
+          placeholder={loadingGoogleFonts ? t("font.loadingGoogle") : t("font.search")}
           onChange={(e) => {
             setQuery(e.target.value);
             setActiveIndex(-1);
@@ -425,32 +428,25 @@ export function FontFamilyField({
           role="combobox"
           aria-expanded={open}
           aria-autocomplete="list"
-          className="min-w-0 rounded-lg border border-neutral-800 bg-neutral-900 px-2.5 py-2 text-[11px] font-medium text-neutral-100 outline-none placeholder:text-neutral-600 focus:border-neutral-600"
+          aria-label={t("font.search")}
+          className="h-10 min-w-0 rounded-md bg-studio-surface px-3.5 text-[13px] font-medium text-studio-text shadow-[inset_0_0_0_1.5px_var(--st-sbd)] outline-none placeholder:text-studio-muted focus:shadow-[inset_0_0_0_2px_var(--st-btn)]"
         />
         {canQueryLocalFonts && (
           <button
             type="button"
             disabled={disabled || loadingLocalFonts}
             onClick={loadBrowserLocalFonts}
-            className="rounded-lg border border-neutral-700 bg-neutral-900 px-2.5 text-[10px] font-medium text-neutral-400 transition-colors hover:border-neutral-600 hover:text-neutral-100 disabled:cursor-not-allowed disabled:text-neutral-700"
+            className="h-10 rounded-full px-3.5 text-xs font-semibold text-studio-text shadow-[inset_0_0_0_1.5px_var(--st-sbd)] hover:bg-[var(--st-sub)] disabled:cursor-not-allowed disabled:opacity-45"
           >
-            {loadingLocalFonts ? "..." : "Local"}
+            {loadingLocalFonts ? "…" : t("font.local")}
           </button>
         )}
-        <button
-          type="button"
-          disabled={disabled || importingFonts || !onImportFonts}
-          onClick={() => fontInputRef.current?.click()}
-          className="rounded-lg border border-neutral-700 bg-neutral-900 px-2.5 text-[10px] font-medium text-neutral-400 transition-colors hover:border-neutral-600 hover:text-neutral-100 disabled:cursor-not-allowed disabled:text-neutral-700"
-        >
-          {importingFonts ? "..." : "Import"}
-        </button>
         <input
           ref={fontInputRef}
           type="file"
           accept=".ttf,.otf,.ttc,.woff,.woff2,.eot,font/*"
           multiple
-          aria-label="Import local font files"
+          aria-label={t("font.importLocal")}
           disabled={disabled || importingFonts || !onImportFonts}
           className="hidden"
           onChange={async (event) => {
@@ -460,13 +456,15 @@ export function FontFamilyField({
         />
       </div>
       {fontNotice && (
-        <div className="border-b border-neutral-800 px-3 py-2 text-[10px] leading-4 text-neutral-500">
+        <div role="status" className="px-1 text-xs font-medium text-studio-muted">
           {fontNotice}
         </div>
       )}
-      <div className="max-h-64 overflow-y-auto p-1">
+      <div className="flex max-h-64 flex-col gap-0.5 overflow-y-auto">
         {filteredOptions.length === 0 ? (
-          <div className="px-2 py-3 text-[11px] text-neutral-500">No fonts found.</div>
+          <div className="px-3 py-3 text-[13px] font-medium text-studio-muted">
+            {t("font.none")}
+          </div>
         ) : (
           filteredOptions.map((option, index) => (
             <button
@@ -474,59 +472,78 @@ export function FontFamilyField({
               type="button"
               data-font-option-index={index}
               onClick={() => commitFamily(option)}
-              className={`flex w-full min-w-0 items-center justify-between gap-3 rounded-lg px-2 py-2 text-left text-[11px] transition-colors ${
-                index === activeIndex
-                  ? "bg-neutral-800 text-neutral-50"
-                  : option.family === currentFamily
-                    ? "bg-studio-accent/15 text-neutral-50"
-                    : "text-neutral-300 hover:bg-neutral-900 hover:text-neutral-100"
+              className={`flex min-h-11 w-full min-w-0 flex-none items-center justify-between gap-3 rounded-md px-3 text-left text-[14px] transition-colors ${
+                option.family === currentFamily
+                  ? "bg-studio-selected text-studio-on-selected"
+                  : index === activeIndex
+                    ? "bg-[var(--st-sub)] text-studio-text"
+                    : "text-studio-text hover:bg-[var(--st-sub)]"
               }`}
             >
               <span className="flex min-w-0 items-center gap-1.5">
-                <span className="truncate font-medium" style={{ fontFamily: `"${option.family}"` }}>
+                <span
+                  className="truncate font-semibold"
+                  style={{ fontFamily: `"${option.family}"` }}
+                >
                   {option.family}
                 </span>
                 {renderAliasFor(option.family) && (
-                  <span className="flex-shrink-0 text-[9px] text-neutral-500">
+                  <span className="flex-shrink-0 text-[11px] opacity-70">
                     → {renderAliasFor(option.family)}
                   </span>
                 )}
               </span>
-              <span className="flex-shrink-0 text-[9px] uppercase tracking-[0.14em] text-neutral-600">
-                {option.source}
+              <span
+                className={`flex-shrink-0 rounded-sm px-1.5 py-0.5 text-[11px] font-medium ${
+                  option.family === currentFamily
+                    ? "bg-studio-surface text-studio-text"
+                    : "text-studio-muted shadow-[inset_0_0_0_1px_var(--st-bd)]"
+                }`}
+              >
+                {fontSourceLabel(option.source)}
               </span>
             </button>
           ))
         )}
       </div>
+      <ImportFontsButton
+        disabled={disabled || importingFonts || !onImportFonts}
+        busy={importingFonts}
+        onClick={() => fontInputRef.current?.click()}
+      />
     </div>
   );
 
   if (flat) {
     return (
-      <div ref={containerRef} className="relative flex min-h-[30px] items-center justify-between">
-        <span className="text-[11px] text-panel-text-2">Font</span>
+      <div ref={containerRef} className="relative flex flex-col gap-2.5">
         <button
           type="button"
           data-flat-font-trigger="true"
           disabled={disabled}
+          aria-expanded={open}
+          aria-haspopup="listbox"
+          aria-label={`${t("text.font")}: ${detail ? `${currentFamily} · ${detail}` : currentFamily}`}
           onClick={() => setOpen((next) => !next)}
-          className="flex items-center gap-1.5 disabled:cursor-not-allowed"
+          className="flex h-11 w-full items-center gap-2 rounded-md bg-studio-surface pr-3 pl-3.5 text-left text-studio-text shadow-[inset_0_0_0_1px_var(--st-sbd)] hover:bg-[var(--st-sub)] disabled:cursor-not-allowed disabled:opacity-45"
         >
-          <span
-            className="max-w-[200px] truncate font-mono text-[11px] text-panel-text-0"
-            style={{ fontFamily: value }}
-          >
-            {currentFamily}
+          <span className="min-w-0 flex-1 truncate text-[13px] font-medium">
+            <span style={{ fontFamily: value }}>{currentFamily}</span>
+            {detail && ` · ${detail}`}
           </span>
           <svg
-            width="10"
-            height="10"
-            viewBox="0 0 10 10"
-            fill="currentColor"
-            className="flex-shrink-0 text-panel-text-5"
+            aria-hidden="true"
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="flex-shrink-0"
           >
-            <path d="M2 3l3 4 3-4z" />
+            <path d="M6 9l6 6 6-6" />
           </svg>
         </button>
         {dropdown}

@@ -1,4 +1,4 @@
-import { useCallback, type CSSProperties } from "react";
+import { useCallback, useState, type CSSProperties } from "react";
 import type { StudioRightPanelProps } from "./StudioRightPanel.types";
 
 export type { StudioRightPanelProps };
@@ -10,7 +10,10 @@ import { BlockParamsPanel } from "./editor/BlockParamsPanel";
 import { RenderQueuePanel } from "./renders/RenderQueuePanel";
 import { SlideshowPanel } from "./panels/SlideshowPanel";
 import { VariablesPanel } from "./panels/VariablesPanel";
-import { PanelTabButton } from "./PanelTabButton";
+import { InspectorHeader, InspectorTabs, type InspectorTab } from "./inspector/InspectorChrome";
+import { inspectorTitle } from "./inspector/inspectorTitle";
+import { InspectorHeaderSlotContext, InspectorTitleContext } from "./inspector/headerSlot";
+import { useIsPhone } from "./shell/useIsPhone";
 import type { RenderJob } from "./renders/useRenderQueue";
 import { STUDIO_FLAT_INSPECTOR_ENABLED } from "./editor/manualEditingAvailability";
 import { useSlideshowPersist } from "../hooks/useSlideshowPersist";
@@ -30,6 +33,8 @@ import { timelineKeysForSelections } from "../utils/studioHelpers";
 import { canHideSelections } from "../utils/timelineInspector";
 import { useInspectorSplitResize } from "../hooks/useInspectorSplitResize";
 import { useRemoveBackground } from "../hooks/useRemoveBackground";
+import { t, useLocale } from "../i18n/translate";
+import { PillButton } from "./ui";
 
 // fallow-ignore-next-line complexity
 export function StudioRightPanel({
@@ -49,6 +54,11 @@ export function StudioRightPanel({
   onAutoGroupCarveSources,
   onAddMediaOverlay,
 }: StudioRightPanelProps) {
+  // Re-render the panel chrome when the locale changes.
+  useLocale();
+  const isPhone = useIsPhone();
+  const [headerSlot, setHeaderSlot] = useState<HTMLElement | null>(null);
+  const [titleOverride, setTitleOverride] = useState<string | null>(null);
   const {
     rightWidth,
     setRightCollapsed,
@@ -248,6 +258,12 @@ export function StudioRightPanel({
       handleDomAttributeLiveCommit(attr, value, undefined, { previewOnly: true }),
     [handleDomAttributeLiveCommit],
   );
+  /** A debounced write that must reach the file and report whether it did. */
+  const setAttributeCommitted = useCallback(
+    (attr: string, value: string | null, onSettled?: (ok: boolean) => void) =>
+      handleDomAttributeLiveCommit(attr, value, onSettled),
+    [handleDomAttributeLiveCommit],
+  );
   const handleHideAllSelected = () => {
     // Audio has no visual to hide, and `data-hidden` on an audio element is what
     // MUTES it — preview silences it and the render drops it from the mix. The
@@ -300,6 +316,7 @@ export function StudioRightPanel({
           onSetAttributes={handleDomAttributesCommit}
           onSetAttributeLive={setAttributeWhileDragging}
           onSetAttributeQuiet={handleDomAttributeQuietCommit}
+          onSetAttributeCommitted={setAttributeCommitted}
           onApplyColorGradingScope={handleApplyColorGradingScope}
           onSetHtmlAttribute={handleDomHtmlAttributeCommit}
           onRemoveBackground={handleRemoveBackground}
@@ -351,16 +368,84 @@ export function StudioRightPanel({
   );
 
   const renderQueuePanel = <RenderQueuePanel />;
+  const advancedActive =
+    rightPanelTab === "variables" ||
+    rightPanelTab === "slideshow" ||
+    rightPanelTab === "block-params";
+  const title = inspectorTitle({
+    captionEditMode,
+    tab: rightPanelTab,
+    inspectorTabActive,
+    multiCount: domEditGroupSelections.length,
+    selection: domEditSelection,
+  });
+  const tabs: InspectorTab[] = [
+    {
+      id: "design",
+      label: t("inspector.tabDesign"),
+      tooltip: t("inspector.tooltipDesign"),
+      active: designPaneOpen,
+      onSelect: () => handleInspectorPaneButtonClick("design"),
+    },
+    {
+      id: "layers",
+      label: t("inspector.tabLayers"),
+      tooltip: t("inspector.tooltipLayers"),
+      active: layersPaneOpen,
+      onSelect: () => handleInspectorPaneButtonClick("layers"),
+    },
+    {
+      id: "renders",
+      label:
+        renderJobs.length > 0
+          ? t("inspector.tabRendersCount", { n: renderJobs.length })
+          : t("inspector.tabRenders"),
+      tooltip: t("inspector.tooltipRenders"),
+      active: rightPanelTab === "renders",
+      onSelect: () => setRightPanelTab("renders"),
+    },
+    {
+      id: "advanced",
+      label: t("inspector.tabAdvanced"),
+      tooltip: t("inspector.advancedMenu"),
+      active: advancedActive,
+      onSelect: () => {},
+    },
+  ];
+  const advancedItems = [
+    ...(isSlideshowComposition
+      ? [
+          {
+            id: "slideshow",
+            label: t("inspector.tabSlideshow"),
+            onSelect: () => setRightPanelTab("slideshow"),
+          },
+        ]
+      : []),
+    {
+      id: "variables",
+      label: t("inspector.tabVariables"),
+      onSelect: () => setRightPanelTab("variables"),
+    },
+    {
+      id: "block-params",
+      label: t("inspector.tabBlockParams"),
+      disabled: !activeBlockParams,
+      onSelect: () => setRightPanelTab("block-params"),
+    },
+  ];
+
+  const cutSelected = Boolean(domEditSelection?.element.hasAttribute("data-source-window"));
 
   return (
     <>
-      {/* Vertical resize divider: 3px visible seam, 13px hit zone via the inner div. */}
+      {/* Vertical resize divider: 3px seam, 13px hit zone via the inner div. */}
       <div
         role="separator"
-        aria-label="Resize inspector panel"
+        aria-label={t("inspector.resize")}
         aria-orientation="vertical"
         tabIndex={0}
-        className="group relative hidden w-[3px] flex-shrink-0 cursor-col-resize outline-none focus-visible:bg-studio-accent/20 sm:block"
+        className="group relative hidden w-[3px] flex-shrink-0 cursor-col-resize outline-none sm:block"
         style={{ touchAction: "none" }}
         onPointerDown={(e) => handlePanelResizeStart("right", e)}
         onPointerMove={handlePanelResizeMove}
@@ -374,141 +459,106 @@ export function StudioRightPanel({
           adjustPanelWidth("right", delta);
         }}
       >
-        {/* Asymmetric hit zone: 8px into the preview's p-2 gutter (the only dead
-            space), the 3px seam, 2px into the card. Stops short of the 24px WCAG
-            2.5.8 target because the next pixel each way is live. */}
         <div className="absolute inset-y-0 -left-[8px] w-[13px]" />
-        {/* Visible hairline */}
-        <div className="absolute top-1/2 left-0 h-[52px] w-[3px] -translate-y-1/2 bg-white/12 transition-colors group-hover:bg-white/18 group-active:bg-white/24" />
+        <div className="absolute top-1/2 left-px h-[52px] w-px -translate-y-1/2 bg-transparent transition-colors group-hover:bg-[var(--st-bd)] group-focus-visible:bg-[var(--st-btn)] group-active:bg-[var(--st-t3)]" />
       </div>
       <div
         aria-label="Inspector panel"
-        className="relative flex h-[38dvh] max-h-[45%] min-h-[140px] min-w-0 shrink-0 flex-col overflow-hidden rounded-md border border-neutral-800 bg-neutral-950 sm:h-auto sm:max-h-none sm:min-h-0 sm:w-[var(--inspector-width)]"
+        className="relative flex h-[38dvh] max-h-[45%] min-h-[140px] min-w-0 shrink-0 flex-col overflow-hidden rounded-card bg-studio-surface shadow-studio sm:h-auto sm:max-h-none sm:min-h-0 sm:w-[var(--inspector-width)]"
         style={{ "--inspector-width": `${rightWidth}px` } as CSSProperties}
       >
-        <div className="flex items-center justify-between border-b border-neutral-800 px-3 py-1 sm:hidden">
-          <span className="text-xs font-medium">Clip settings</span>
-          <button
-            type="button"
-            aria-label="Close inspector"
-            onClick={() => setRightCollapsed(true)}
-            className="min-h-9 rounded-md px-3 text-xs font-medium hover:bg-neutral-800"
-          >
-            Done
-          </button>
+        <div className="flex flex-none flex-col gap-[18px] px-4 pt-4 pb-[18px]">
+          <InspectorHeader
+            title={titleOverride ?? title}
+            phone={isPhone}
+            onClose={() => setRightCollapsed(true)}
+            slotRef={setHeaderSlot}
+          />
+          {!captionEditMode && !(designPaneOpen && cutSelected) && (
+            // St-Main / St-M-ClipSheet: a selected cut shows its settings only. Straturi and
+            // Avansat stay reachable from the rail ("Mai mult" on a phone), Randări from export;
+            // elements (St-Inspector-Element) keep the tabs.
+            <InspectorTabs tabs={tabs} advancedItems={advancedItems} />
+          )}
         </div>
-        {captionEditMode ? (
-          <CaptionPropertyPanel iframeRef={previewIframeRef} />
-        ) : (
-          <>
-            <div className="flex min-w-0 items-center gap-1 overflow-hidden border-b border-neutral-800 px-3 py-2">
-              <PanelTabButton
-                label="Design"
-                tooltip="Element styles and properties"
-                active={designPaneOpen}
-                onClick={() => handleInspectorPaneButtonClick("design")}
-              />
-              <PanelTabButton
-                label="Layers"
-                tooltip="Composition layer stack"
-                active={layersPaneOpen}
-                onClick={() => handleInspectorPaneButtonClick("layers")}
-              />
-              <PanelTabButton
-                label={renderJobs.length > 0 ? `Renders (${renderJobs.length})` : "Renders"}
-                tooltip="Render queue and exports"
-                active={rightPanelTab === "renders"}
-                onClick={() => setRightPanelTab("renders")}
-              />
-              {isSlideshowComposition && (
-                <PanelTabButton
-                  label="Slideshow"
-                  tooltip="Slideshow branching editor"
-                  active={rightPanelTab === "slideshow"}
-                  onClick={() => setRightPanelTab("slideshow")}
-                />
-              )}
-              <PanelTabButton
-                label="Variables"
-                tooltip="Template variables — declare, preview with values"
-                active={rightPanelTab === "variables"}
-                onClick={() => setRightPanelTab("variables")}
-              />
-            </div>
-            <div className="min-h-0 min-w-0 flex-1 overflow-hidden">
-              {rightPanelTab === "block-params" && activeBlockParams ? (
-                <BlockParamsPanel
-                  blockName={activeBlockParams.blockName}
-                  blockTitle={activeBlockParams.blockTitle}
-                  params={activeBlockParams.params}
-                  compositionPath={activeBlockParams.compositionPath}
-                  onClose={onCloseBlockParams ?? (() => {})}
-                />
-              ) : rightPanelTab === "slideshow" && isSlideshowComposition ? (
-                <SlideshowPanel
-                  scenes={slideshowScenes}
-                  onPersist={onPersistSlideshow}
-                  onPersistNotes={onPersistSlideshowNotes}
-                />
-              ) : rightPanelTab === "variables" ? (
-                <VariablesPanel
-                  sdkSession={sdkSession}
-                  publishSdkSession={publishSdkSession}
-                  reloadPreview={reloadPreview}
-                  domEditSaveTimestampRef={domEditSaveTimestampRef}
-                  recordEdit={recordEdit}
-                />
-              ) : layersPaneOpen && designPaneOpen && !STUDIO_FLAT_INSPECTOR_ENABLED ? (
-                <div ref={splitContainerRef} className="flex h-full min-h-0 min-w-0 flex-col">
-                  <div
-                    className="min-h-[120px] overflow-hidden"
-                    style={{ flexBasis: `${layersPanePercent}%`, flexShrink: 0 }}
-                  >
-                    <LayersPanel />
+        <InspectorTitleContext value={setTitleOverride}>
+          <InspectorHeaderSlotContext value={headerSlot}>
+            {captionEditMode ? (
+              <CaptionPropertyPanel iframeRef={previewIframeRef} />
+            ) : (
+              <div className="min-h-0 min-w-0 flex-1 overflow-hidden">
+                {rightPanelTab === "block-params" && activeBlockParams ? (
+                  <BlockParamsPanel
+                    blockName={activeBlockParams.blockName}
+                    blockTitle={activeBlockParams.blockTitle}
+                    params={activeBlockParams.params}
+                    compositionPath={activeBlockParams.compositionPath}
+                    onClose={onCloseBlockParams ?? (() => {})}
+                  />
+                ) : rightPanelTab === "slideshow" && isSlideshowComposition ? (
+                  <SlideshowPanel
+                    scenes={slideshowScenes}
+                    onPersist={onPersistSlideshow}
+                    onPersistNotes={onPersistSlideshowNotes}
+                  />
+                ) : rightPanelTab === "variables" ? (
+                  <VariablesPanel
+                    sdkSession={sdkSession}
+                    publishSdkSession={publishSdkSession}
+                    reloadPreview={reloadPreview}
+                    domEditSaveTimestampRef={domEditSaveTimestampRef}
+                    recordEdit={recordEdit}
+                  />
+                ) : layersPaneOpen && designPaneOpen && !STUDIO_FLAT_INSPECTOR_ENABLED ? (
+                  <div ref={splitContainerRef} className="flex h-full min-h-0 min-w-0 flex-col">
+                    <div
+                      className="min-h-[120px] overflow-hidden"
+                      style={{ flexBasis: `${layersPanePercent}%`, flexShrink: 0 }}
+                    >
+                      <LayersPanel />
+                    </div>
+                    <div
+                      role="separator"
+                      aria-label={t("inspector.resizeSplit")}
+                      aria-orientation="horizontal"
+                      className="group flex h-4 flex-shrink-0 cursor-row-resize items-center justify-center"
+                      style={{ touchAction: "none" }}
+                      onPointerDown={handleInspectorSplitResizeStart}
+                      onPointerMove={handleInspectorSplitResizeMove}
+                      onPointerUp={handleInspectorSplitResizeEnd}
+                      onPointerCancel={handleInspectorSplitResizeEnd}
+                    >
+                      <div className="h-1 w-10 rounded-full bg-[var(--st-hd)] transition-colors group-hover:bg-[var(--st-t3)]" />
+                    </div>
+                    <div className="min-h-0 flex-1 overflow-hidden">{propertyPanel}</div>
                   </div>
-                  <div
-                    role="separator"
-                    aria-label="Resize Layers and Design panes"
-                    aria-orientation="horizontal"
-                    className="group flex h-2 flex-shrink-0 cursor-row-resize items-center justify-center border-y border-neutral-800 bg-neutral-900"
-                    style={{ touchAction: "none" }}
-                    onPointerDown={handleInspectorSplitResizeStart}
-                    onPointerMove={handleInspectorSplitResizeMove}
-                    onPointerUp={handleInspectorSplitResizeEnd}
-                    onPointerCancel={handleInspectorSplitResizeEnd}
-                  >
-                    <div className="h-px w-10 rounded-full bg-white/12 transition-colors group-hover:bg-white/24 group-active:bg-studio-accent/70" />
+                ) : layersPaneOpen ? (
+                  <LayersPanel />
+                ) : designPaneOpen ? (
+                  propertyPanel
+                ) : inspectorTabActive ? (
+                  // Inspector tab selected but no pane can render (panes toggled off, or the
+                  // inspector is inactive during playback or recording): say so instead of
+                  // silently rendering the render queue under a highlighted tab.
+                  <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center">
+                    <p className="text-sm font-medium text-studio-muted">
+                      {t("inspector.unavailable")}
+                    </p>
+                    <PillButton
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => setRightPanelTab("renders")}
+                    >
+                      {t("inspector.showRenders")}
+                    </PillButton>
                   </div>
-                  <div className="min-h-0 flex-1 overflow-hidden">{propertyPanel}</div>
-                </div>
-              ) : layersPaneOpen ? (
-                <LayersPanel />
-              ) : designPaneOpen ? (
-                propertyPanel
-              ) : inspectorTabActive ? (
-                // Inspector tab selected but no pane can render (panes toggled
-                // off, or inspector inactive during playback/recording): show an
-                // explanation instead of silently rendering the render queue
-                // under a highlighted inspector tab.
-                <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center">
-                  <p className="text-xs text-neutral-500">
-                    Inspector is unavailable right now — select the Design or Layers pane above, or
-                    pause playback/recording to inspect elements.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => setRightPanelTab("renders")}
-                    className="h-7 rounded-md border border-neutral-800 px-3 text-[11px] font-medium text-neutral-400 transition-colors hover:border-neutral-700 hover:text-neutral-200 active:scale-[0.98]"
-                  >
-                    Show Renders
-                  </button>
-                </div>
-              ) : (
-                renderQueuePanel
-              )}
-            </div>
-          </>
-        )}
+                ) : (
+                  renderQueuePanel
+                )}
+              </div>
+            )}
+          </InspectorHeaderSlotContext>
+        </InspectorTitleContext>
       </div>
     </>
   );

@@ -103,7 +103,7 @@ describe("FlatMediaSection — cutout", () => {
         />,
       );
     });
-    expect(host.textContent).toContain("transparent WebM");
+    expect(host.querySelector('[data-cutout-format="WebM"]')).not.toBeNull();
     const removeBgButton = host.querySelector<HTMLButtonElement>(
       '[data-flat-media-remove-bg="true"]',
     );
@@ -117,10 +117,10 @@ describe("FlatMediaSection — cutout", () => {
     act(() => root.unmount());
   });
 
-  it("toggles BG plate via FlatToggle", () => {
+  it("toggles the background plate switch", () => {
     const { host, root } = renderSection();
     const plateToggle = host.querySelector<HTMLButtonElement>(
-      '[data-flat-toggle="true"][aria-label="BG plate"]',
+      '[role="switch"][aria-label="Keep the background as a plate"]',
     );
     expect(plateToggle).not.toBeNull();
     expect(plateToggle?.getAttribute("aria-checked")).toBe("false");
@@ -426,15 +426,11 @@ describe("FlatMediaSection — fit/position", () => {
         />,
       );
     });
-    const selects = host.querySelectorAll("select");
-    const positionSelect = Array.from(selects).find((s) => s.value === "center");
-    expect(positionSelect).not.toBeUndefined();
-    act(() => {
-      if (positionSelect) {
-        positionSelect.value = "left top";
-        positionSelect.dispatchEvent(new Event("change", { bubbles: true }));
-      }
-    });
+    const centre = host.querySelector<HTMLButtonElement>('[data-media-position="center"]');
+    expect(centre?.getAttribute("aria-pressed")).toBe("true");
+    const topLeft = host.querySelector<HTMLButtonElement>('[data-media-position="left top"]');
+    expect(topLeft).not.toBeNull();
+    act(() => topLeft?.dispatchEvent(new MouseEvent("click", { bubbles: true })));
     expect(onSetStyle).toHaveBeenCalledWith("object-position", "left top");
     act(() => root.unmount());
   });

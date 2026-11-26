@@ -70,12 +70,12 @@ function resizeWindowTo(width: number) {
 }
 
 describe("usePanelLayout — right inspector panes", () => {
-  it("opens Design with the intended viewport-scaled panel widths", () => {
+  it("opens Design with the board panel widths (312 / 340)", () => {
     const harness = renderPanelLayout();
 
     expect(harness.getState()).toMatchObject({
-      leftWidth: 384,
-      rightWidth: 424,
+      leftWidth: 312,
+      rightWidth: 340,
       rightCollapsed: false,
       rightPanelTab: "design",
     });
@@ -99,8 +99,8 @@ describe("usePanelLayout — right inspector panes", () => {
       state.handlePanelResizeEnd();
     });
 
-    expect(harness.getState().leftWidth).toBe(424);
-    expect(readStudioUiPreferences().leftWidth).toBe(424);
+    expect(harness.getState().leftWidth).toBe(352);
+    expect(readStudioUiPreferences().leftWidth).toBe(352);
     harness.unmount();
   });
 
@@ -113,8 +113,8 @@ describe("usePanelLayout — right inspector panes", () => {
       state.adjustPanelWidth("right", 16);
     });
 
-    expect(harness.getState().rightWidth).toBe(456);
-    expect(readStudioUiPreferences().rightWidth).toBe(456);
+    expect(harness.getState().rightWidth).toBe(372);
+    expect(readStudioUiPreferences().rightWidth).toBe(372);
     harness.unmount();
   });
 

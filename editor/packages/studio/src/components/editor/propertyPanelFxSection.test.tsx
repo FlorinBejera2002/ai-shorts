@@ -11,7 +11,6 @@ import { DEFAULT_CARVE } from "@hyperframes/core/audio-carve";
 import { BANDS, EFFECT_COPY, PRESET_PROBLEM } from "@hyperframes/core/audio-fx-copy";
 import { HF_AUDIO_FX_JOBS, HF_AUDIO_FX_JOB_TYPES } from "@hyperframes/core/audio-fx-jobs";
 import { audioFxProfileStrength } from "@hyperframes/core/audio-fx-profiles";
-import { fxPresetStyle } from "./propertyPanelFxPresetStyle.js";
 import { applyAudioFxPreset, getAudioFxPreset } from "@hyperframes/core/audio-fx-presets";
 
 /**
@@ -102,6 +101,21 @@ function mount(overrides: Partial<Parameters<typeof FxSection>[0]> = {}) {
       trackKind={overrides.trackKind}
     />,
   );
+  // Rows start closed (St-Inspector-AudioRack). These tests read the first effect's controls,
+  // so open it the way an author would: by its name.
+  const firstId = (overrides.chain ?? { nodes: [] }).nodes[0]?.id;
+  const firstNode = (overrides.chain ?? { nodes: [] }).nodes[0];
+  const firstName =
+    firstNode && !firstNode.fromCarve && !firstNode.fromEq
+      ? firstId
+        ? host.querySelector<HTMLButtonElement>(
+            `.hf-fx-node[data-fx-node-id="${firstId}"] .hf-fx-node-head .hf-fx-node-name`,
+          )
+        : host.querySelector<HTMLButtonElement>(
+            ".hf-fx-node[data-fx-node]:not(.hf-fx-carve-module) .hf-fx-node-head .hf-fx-node-name",
+          )
+      : null;
+  if (firstName?.getAttribute("aria-expanded") === "false") act(() => firstName.click());
   return { host, root, onChainChange, onChainPreview, onCarveChange };
 }
 
@@ -115,6 +129,14 @@ const click = (el: Element | null | undefined) => {
  * Open a module's Details, where every control that is not the primary one now
  * lives — a module opens on one knob and the rest is one click away.
  */
+/** Rows start closed (St-Inspector-AudioRack); open the first effect by its name. */
+function openFirstRow(host: HTMLElement): void {
+  const name = host.querySelector<HTMLButtonElement>(
+    ".hf-fx-node[data-fx-node]:not(.hf-fx-carve-module) .hf-fx-node-head .hf-fx-node-name",
+  );
+  if (name?.getAttribute("aria-expanded") === "false") act(() => name.click());
+}
+
 function openDetails(host: HTMLElement, index = 0): void {
   const buttons = Array.from(host.querySelectorAll<HTMLButtonElement>(".hf-fx-node-details"));
   const button = buttons[index];
@@ -361,6 +383,7 @@ describe("FxSection chain", () => {
       });
 
     render(chainOfNodes(a, b));
+    openFirstRow(host);
     // Frequency is behind Details for a peaking node — the module opens on how
     // much, now that picking the module is what picks the range.
     openDetails(host);
@@ -469,10 +492,17 @@ describe("FxSection chain", () => {
     // steps and naming the two ends is what makes "move up" read as the most
     // consequential control in the panel rather than a cosmetic one.
     const { host } = mount({ chain: chainOf("highpass", "limiter") });
-    const terms = Array.from(host.querySelectorAll(".hf-fx-term")).map((e) => e.textContent);
-    expect(terms).toHaveLength(2);
-    expect(terms[0]).toContain("In");
-    expect(terms[1]).toContain("Out");
+    // St-Inspector-AudioRack: one breadcrumb, In › family › … › Out, and a heading per family.
+    const stages = Array.from(host.querySelectorAll("[data-fx-path] li")).map((e) => e.textContent);
+    expect(stages[0]).toBe("In");
+    expect(stages.at(-1)).toBe("Out");
+    expect(stages).toContain("Filters");
+    expect(stages).toContain("Dynamics");
+    expect(
+      Array.from(host.querySelectorAll("[data-fx-family-group]")).map(
+        (e) => (e as HTMLElement).dataset.fxFamilyGroup,
+      ),
+    ).toEqual(["filter", "dynamics"]);
     // Counted over what the rack SHOWS: the carve module leads it, so the first
     // hand-built effect is 02.
     const numbers = Array.from(host.querySelectorAll(".hf-fx-node-index")).map((e) =>
@@ -672,33 +702,27 @@ describe("FxSection chain", () => {
     for (const run of runs) expect(run.querySelectorAll(".hf-fx-node")).toHaveLength(1);
   });
 
-  it("letters each family differently, so the kind reads before the word does", () => {
-    // A rack of eight modules is eight lines of text. Reading it should not mean
-    // reading eight names — the shape of the line carries what KIND of module
-    // this is, and the word only confirms it.
+  it("marks each module with its family, in one type treatment", () => {
     const { host } = mount({ chain: chainOf("lowpass", "compressor", "saturate", "delay") });
     const families = Array.from(host.querySelectorAll("[data-fx-family]")).map((e) =>
       e.getAttribute("data-fx-family"),
     );
     // The carve module leads the rack and is smart; then the four registry ones.
     expect(families).toEqual(["smart", "filter", "dynamics", "nonlinear", "time"]);
-
+    // St-Inspector-AudioRack: names share the panel's sans; no serif or tinted edge.
     const names = Array.from(host.querySelectorAll(".hf-fx-node-name")).map((e) => e.className);
-    // Four families told apart by the sans, and the serif spent on the one that
-    // generates signal rather than measuring or shaping what is there.
-    expect(names.filter((c) => c.includes("font-serif"))).toHaveLength(1);
-    expect(names[3]).toContain("font-serif");
-    expect(new Set(names.map((c) => c.replace(/^.*?(?=font-)/, "")))).toHaveProperty("size", 5);
+    expect(names.some((c) => c.includes("font-serif"))).toBe(false);
+    for (const node of Array.from(host.querySelectorAll<HTMLElement>(".hf-fx-node"))) {
+      expect(node.style.borderLeftColor).toBe("");
+    }
   });
 
-  it("tints two modules of the same family apart without changing family", () => {
+  it("keeps two modules of the same family on the neutral row style", () => {
     const { host } = mount({ chain: chainOf("lowpass", "highpass") });
     const cards = Array.from(host.querySelectorAll<HTMLElement>("[data-fx-family='filter']"));
     expect(cards).toHaveLength(2);
-    // Same hue, different step: two filters, visibly two modules.
-    const tints = cards.map((c) => c.style.borderLeftColor);
-    expect(tints[0]).not.toBe(tints[1]);
-    for (const tint of tints) expect(tint).toContain("205");
+    // St-Inspector-AudioRack: white rows with a neutral border, numbered by position.
+    for (const card of cards) expect(card.style.borderLeftColor).toBe("");
   });
 
   it("says where a filter is working, in the words the rack shares", () => {
@@ -828,17 +852,13 @@ describe("FxSection chain", () => {
       expect(bracket(host)?.querySelector(".hf-fx-preset-run-remove")).toBeTruthy();
     });
 
-    it("gives each preset its own title treatment", () => {
-      // A preset is a character, and the point of Telephone or Megaphone is
-      // that you know what it sounds like before you play it. Type carries that.
+    it("titles a preset in the panel's own type, without decorative colour", () => {
+      // St-Inspector-AudioRack: app palette only, so a preset bracket is a plain title.
       const { host } = mount({ chain: applied() });
       const label = bracket(host)?.querySelector<HTMLElement>(".hf-fx-preset-run-label");
-      const styled = fxPresetStyle("telephone");
-      expect(label?.className).toContain("tracking-[0.3em]");
-      expect(label?.style.color).toBeTruthy();
-      // And it differs from another preset's, or it is not a treatment.
-      expect(styled.type).not.toBe(fxPresetStyle("megaphone").type);
-      expect(styled.color).not.toBe(fxPresetStyle("megaphone").color);
+      expect(label?.className).toContain("text-studio-text");
+      expect(label?.style.color).toBe("");
+      expect(label?.textContent).toContain("Telephone");
     });
   });
 
@@ -917,7 +937,7 @@ describe("FxSection chain", () => {
 
       click(host.querySelector(".hf-fx-add"));
       expect(host.querySelector(".hf-fx-add-menu")).toBeNull();
-      expect(byText(host, "button", "+ effect")).toBeTruthy();
+      expect(byText(host, "button", "Add effect")).toBeTruthy();
     });
 
     it("opens one menu in place of the other", () => {
@@ -1088,7 +1108,7 @@ describe("FxSection chain", () => {
 
     it("auditions an effect the add menu is offering", () => {
       const { host, onChainPreview, onChainChange } = mount({ chain: chainOf("peaking") });
-      click(byText(host, "button", "+ effect"));
+      click(byText(host, "button", "Add effect"));
       enter(byText(host, "button", EFFECT_COPY.reverb?.title ?? ""));
 
       const heard = onChainPreview.mock.calls.at(-1)?.[0] as HfAudioFxChain;
@@ -1105,7 +1125,7 @@ describe("FxSection chain", () => {
         onLevel: vi.fn(),
         onAuditionLevel,
       });
-      click(byText(host, "button", "+ effect"));
+      click(byText(host, "button", "Add effect"));
       enter(byText(host, "button", "Even Out Levels"));
       expect(onAuditionLevel).toHaveBeenLastCalledWith(true);
       leave(host, ".hf-fx-add-menu");
@@ -1354,6 +1374,7 @@ describe("FxSection chain", () => {
       sourceOptions: [{ id: "vo", label: "Voiceover" }],
     };
     const { host, root } = renderInto(<FxSection {...shared} chain={chainOf("peaking")} />);
+    openFirstRow(host);
     openDetails(host);
     const slider = fxCard(host).querySelector<HTMLInputElement>(".hf-fx-slider")!;
     const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
@@ -1537,7 +1558,7 @@ describe("FxSection carve", () => {
     // waiting to be discovered.
     const { host } = mount();
     const module = host.querySelector<HTMLElement>(".hf-fx-carve-module")!;
-    expect(module.querySelector(".hf-fx-carve-toggle")?.getAttribute("aria-pressed")).toBe("true");
+    expect(module.querySelector(".hf-fx-carve-toggle")?.getAttribute("aria-checked")).toBe("true");
     expect(
       Number(module.querySelector<HTMLInputElement>(".hf-fx-carve-controls .hf-fx-number")!.value),
     ).toBe(DEFAULT_CARVE.strength);

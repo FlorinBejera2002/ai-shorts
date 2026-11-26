@@ -1,6 +1,14 @@
-import { memo } from "react";
-import { Tooltip } from "../../components/ui";
+import { memo, useCallback, useRef, useState } from "react";
 import { trackStudioEvent } from "../../utils/studioTelemetry";
+import { t, useLocale } from "../../i18n/translate";
+import { useContextMenuDismiss } from "../../hooks/useContextMenuDismiss";
+import { useMountEffect } from "../../hooks/useMountEffect";
+import {
+  POPOVER_PANEL,
+  PreviewIcon,
+  PreviewIconButton,
+} from "../../components/nle/preview/previewChrome";
+import { volumeIconName } from "./volumeIcon";
 
 interface VolumeControlProps {
   audioMuted: boolean;
@@ -8,97 +16,149 @@ interface VolumeControlProps {
   disabled: boolean;
   setAudioMuted: (muted: boolean) => void;
   setAudioVolume: (volume: number) => void;
+  /** Phone: the button opens the "Redare" sheet instead of the popover. */
+  onOpenSheet?: () => void;
+  size?: 36 | 40;
+  /** White glyph for the fullscreen bar over video. */
+  inverted?: boolean;
 }
 
-function VolumeIcon({ muted, volume }: { muted: boolean; volume: number }) {
-  const silent = muted || volume === 0;
-  return (
-    <svg
-      width="13"
-      height="13"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <path d="M11 5 6 9H3v6h3l5 4V5Z" />
-      {silent ? (
-        <>
-          <path d="m19 9-6 6" />
-          <path d="m13 9 6 6" />
-        </>
-      ) : (
-        <>
-          <path d="M15.5 8.5a5 5 0 0 1 0 7" />
-          {volume >= 0.5 ? <path d="M18.5 5.5a9 9 0 0 1 0 13" /> : null}
-        </>
-      )}
-    </svg>
-  );
-}
+type VolumeSliderProps = Omit<VolumeControlProps, "onOpenSheet" | "size" | "inverted">;
 
-export const VolumeControl = memo(function VolumeControl({
+/** Labelled 0–100 range with the board's 4px track and 18px ring thumb. */
+export function VolumeSlider({
   audioMuted,
   audioVolume,
   disabled,
   setAudioMuted,
   setAudioVolume,
-}: VolumeControlProps) {
+}: VolumeSliderProps) {
+  useLocale();
   const percentage = Math.round(audioVolume * 100);
+  return (
+    <div className="flex flex-col gap-1.5">
+      <div className="flex items-center justify-between text-[13px]">
+        <span className="font-medium text-studio-text">{t("preview.volume")}</span>
+        <span className="font-semibold tabular-nums text-studio-muted">{percentage}%</span>
+      </div>
+      <div className="relative h-4">
+        <span className="absolute inset-x-0 top-1.5 h-1 rounded-full bg-[var(--st-hd)]" />
+        <span
+          className="absolute left-0 top-1.5 h-1 rounded-full bg-studio-text"
+          style={{ width: `${percentage}%` }}
+        />
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute -top-px h-[18px] w-[18px] rounded-full bg-studio-surface shadow-[0_0_0_2px_var(--st-tx)]"
+          style={{ left: `calc(${percentage}% - 9px)` }}
+        />
+        <input
+          type="range"
+          min="0"
+          max="100"
+          step="1"
+          value={percentage}
+          disabled={disabled}
+          aria-label={t("preview.volume")}
+          aria-valuetext={`${percentage}%`}
+          onChange={(event) => {
+            const volume = Number(event.currentTarget.value) / 100;
+            setAudioVolume(volume);
+            if (audioMuted && volume > 0) setAudioMuted(false);
+          }}
+          className="absolute inset-0 h-4 w-full cursor-pointer opacity-0 disabled:pointer-events-none"
+        />
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Non-modal volume popover. `<dialog>` is shown on mount; `show()` keeps it non-modal so the
+ * transport stays usable, and the container's outside-press dismissal still closes it.
+ */
+function VolumePopover(props: VolumeSliderProps) {
+  const dialogRef = useRef<HTMLDialogElement>(null);
+  useMountEffect(() => {
+    dialogRef.current?.show();
+  });
+  // The class list resets the UA dialog box: no margin or border, and no default left inset.
+  return (
+    <dialog
+      ref={dialogRef}
+      aria-label={t("preview.volume")}
+      className={`absolute bottom-full right-[-160px] left-auto z-50 mx-0 mb-[61px] mt-0 w-[250px] border-0 ${POPOVER_PANEL}`}
+    >
+      <VolumeSlider {...props} />
+    </dialog>
+  );
+}
+
+/**
+ * Transport volume button (St-Preview-Volume / St-Preview-Muted). When audible, a click opens the
+ * volume popover; when silent the button unmutes (restoring an audible level from zero) and
+ * opens the popover so the level can be adjusted.
+ */
+export const VolumeControl = memo(function VolumeControl(props: VolumeControlProps) {
+  const {
+    audioMuted,
+    audioVolume,
+    disabled,
+    setAudioMuted,
+    setAudioVolume,
+    onOpenSheet,
+    size = 36,
+    inverted = false,
+  } = props;
+  useLocale();
+  const [open, setOpen] = useState(false);
+  const close = useCallback(() => setOpen(false), []);
+  const containerRef = useContextMenuDismiss(close);
   const silent = audioMuted || audioVolume === 0;
-  const muteLabel = silent ? "Unmute audio" : "Mute audio";
+  const label = silent ? t("preview.unmute") : t("preview.volume");
+
+  const handleClick = () => {
+    if (silent && !onOpenSheet) {
+      trackStudioEvent("playback", { action: "mute_toggle", muted: false });
+      if (audioVolume === 0) setAudioVolume(1);
+      setAudioMuted(false);
+      setOpen(true);
+      return;
+    }
+    if (onOpenSheet) {
+      onOpenSheet();
+      return;
+    }
+    setOpen((value) => !value);
+  };
 
   return (
-    <div className="group flex flex-shrink-0 items-center">
-      <div className="w-0 overflow-hidden opacity-0 transition-[width,opacity] duration-150 ease-out group-hover:w-14 group-hover:opacity-100 group-focus-within:w-14 group-focus-within:opacity-100">
-        <div className="relative mx-1 flex h-6 w-12 items-center">
-          <div className="absolute inset-x-0 h-0.5 overflow-hidden rounded-full bg-neutral-700">
-            <div
-              className="h-full rounded-full bg-neutral-300"
-              style={{ width: `${percentage}%` }}
-            />
-          </div>
-          <input
-            type="range"
-            min="0"
-            max="100"
-            step="1"
-            value={percentage}
-            disabled={disabled}
-            aria-label="Preview volume"
-            aria-valuetext={`${percentage}%`}
-            title={`Preview volume: ${percentage}%`}
-            onChange={(event) => {
-              const volume = Number(event.currentTarget.value) / 100;
-              setAudioVolume(volume);
-              if (audioMuted && volume > 0) setAudioMuted(false);
-            }}
-            className="hf-preview-volume-range absolute inset-0 w-full disabled:pointer-events-none"
-          />
-        </div>
-      </div>
-
-      <Tooltip label={muteLabel}>
-        <button
-          type="button"
-          onClick={() => {
-            trackStudioEvent("playback", { action: "mute_toggle", muted: !silent });
-            if (silent && audioVolume === 0) setAudioVolume(1);
-            setAudioMuted(!silent);
-          }}
+    <div ref={containerRef} className="relative flex-shrink-0">
+      <PreviewIconButton
+        label={label}
+        size={size}
+        tone={open ? "selected" : "plain"}
+        onClick={handleClick}
+        disabled={disabled}
+        aria-expanded={onOpenSheet ? undefined : open}
+        aria-pressed={silent}
+        className={
+          inverted && !open
+            ? "!text-white hover:!bg-[color-mix(in_srgb,white_16%,transparent)]"
+            : undefined
+        }
+      >
+        <PreviewIcon name={volumeIconName(audioMuted, audioVolume)} />
+      </PreviewIconButton>
+      {open && (
+        <VolumePopover
+          audioMuted={audioMuted}
+          audioVolume={audioVolume}
           disabled={disabled}
-          aria-label={muteLabel}
-          aria-pressed={silent}
-          className={`flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md transition-colors disabled:pointer-events-none disabled:opacity-30 ${
-            silent ? "text-studio-accent" : "text-neutral-500 hover:text-neutral-200"
-          }`}
-        >
-          <VolumeIcon muted={audioMuted} volume={audioVolume} />
-        </button>
-      </Tooltip>
+          setAudioMuted={setAudioMuted}
+          setAudioVolume={setAudioVolume}
+        />
+      )}
     </div>
   );
 });

@@ -1,4 +1,7 @@
 import type { StoryboardGlobals } from "@hyperframes/core/storyboard";
+import { t, useLocale } from "../../i18n/translate";
+import type { MessageKey } from "../../i18n/dictionary";
+import { StoryboardStatusLegend } from "./StoryboardStatusLegend";
 
 export interface StoryboardDirectionProps {
   globals: StoryboardGlobals;
@@ -6,40 +9,43 @@ export interface StoryboardDirectionProps {
 }
 
 /**
- * Global direction header: the message/thesis plus arc, audience, and format.
- * This is the storyboard's "north star" pulled from the manifest frontmatter.
+ * "Direcție" (St-Output-Storyboard, left card): the message as the title, then arc, audience,
+ * voice, format and frame count as 38px rows, then the status legend. This is the storyboard's
+ * north star pulled from the manifest frontmatter.
  */
 export function StoryboardDirection({ globals, frameCount }: StoryboardDirectionProps) {
-  const meta = [
-    { label: "Arc", value: globals.arc },
-    { label: "Audience", value: globals.audience },
-    { label: "Voice", value: globals.extra.voice },
-    { label: "Format", value: globals.format },
-    { label: "Frames", value: String(frameCount) },
-  ].filter((item): item is { label: string; value: string } => Boolean(item.value));
+  useLocale();
+  const meta: { key: MessageKey; value: string | undefined }[] = [
+    { key: "story.arc", value: globals.arc },
+    { key: "story.audience", value: globals.audience },
+    { key: "story.voice", value: globals.extra.voice },
+    { key: "story.format", value: globals.format },
+    { key: "story.frames", value: String(frameCount) },
+  ];
 
   return (
-    <header className="border-b border-neutral-800 pb-5">
-      <div className="text-[11px] font-medium uppercase tracking-wider text-neutral-500">
-        Storyboard
-      </div>
-      {globals.message ? (
-        <h1 className="mt-1 text-2xl font-semibold leading-tight text-neutral-100">
-          {globals.message}
-        </h1>
-      ) : (
-        <h1 className="mt-1 text-2xl font-semibold leading-tight text-neutral-400">
-          Untitled storyboard
-        </h1>
-      )}
-      <dl className="mt-4 flex flex-wrap gap-x-8 gap-y-2">
-        {meta.map((item) => (
-          <div key={item.label} className="flex items-baseline gap-2">
-            <dt className="text-[11px] uppercase tracking-wider text-neutral-500">{item.label}</dt>
-            <dd className="text-sm text-neutral-300">{item.value}</dd>
-          </div>
+    <div className="flex min-w-0 flex-col gap-3">
+      <b
+        className={`font-display text-[15px] font-semibold leading-5 ${
+          globals.message ? "" : "text-[var(--st-t2)]"
+        }`}
+      >
+        {globals.message || t("story.untitled")}
+      </b>
+      {meta
+        .filter((item): item is { key: MessageKey; value: string } => Boolean(item.value))
+        .map((item) => (
+          <span
+            key={item.key}
+            className="flex h-[38px] min-w-0 items-center justify-between gap-2 rounded-[14px] bg-studio-surface px-3 text-xs shadow-[inset_0_0_0_1px_var(--st-bd)]"
+          >
+            <b className="font-semibold">{t(item.key)}</b>
+            <span className="min-w-0 truncate text-[var(--st-t2)]" title={item.value}>
+              {item.value}
+            </span>
+          </span>
         ))}
-      </dl>
-    </header>
+      <StoryboardStatusLegend />
+    </div>
   );
 }

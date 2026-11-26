@@ -1,15 +1,28 @@
 import { useEffect, useRef } from "react";
 import { isHfColorGradingActive } from "@hyperframes/core/color-grading";
 import { useTrackDesignInput } from "../../contexts/DesignPanelInputContext";
-import { Compare, RotateCcw } from "../../icons/SystemIcons";
+import { t, useLocale } from "../../i18n/translate";
+import { gradeStatusLabel } from "./propertyPanelColorLabels";
+import { LOOK_ICONS, LookIcon } from "./propertyPanelColorLookUi";
 import type { ColorGradingControllerState } from "./useColorGradingController";
 
+// St-Inspector-GradeActions: "Ține pentru original" (secondary pill, hold to compare) and
+// "Resetează culoarea" (ghost), with the shader status shown as a status dot.
 const STATUS_DOT_CLASS: Record<ColorGradingControllerState["runtimeStatus"]["state"], string> = {
-  active: "bg-emerald-400",
-  pending: "bg-amber-300",
-  unavailable: "bg-red-400",
-  missing: "bg-panel-text-5",
-  inactive: "bg-panel-text-5",
+  active: "bg-[var(--st-ok)]",
+  pending: "bg-[var(--st-warn)]",
+  unavailable: "bg-[var(--st-danger)]",
+  missing: "bg-[var(--st-hd)]",
+  inactive: "bg-[var(--st-hd)]",
+};
+
+// The dot only appears when the shader needs attention; the label stays readable by screen readers.
+const SHOW_STATUS_DOT: Record<ColorGradingControllerState["runtimeStatus"]["state"], boolean> = {
+  active: false,
+  pending: true,
+  unavailable: true,
+  missing: false,
+  inactive: false,
 };
 
 export function FlatColorGradingAccessory({
@@ -20,6 +33,7 @@ export function FlatColorGradingAccessory({
     "grading" | "compareEnabled" | "runtimeStatus" | "commitCompare" | "resetGrading"
   >;
 }) {
+  useLocale();
   const track = useTrackDesignInput();
   const { grading, compareEnabled, runtimeStatus, commitCompare, resetGrading } = state;
   const gradingActive = isHfColorGradingActive(grading);
@@ -31,13 +45,17 @@ export function FlatColorGradingAccessory({
     },
     [],
   );
+  const statusLabel = gradeStatusLabel(runtimeStatus.message);
 
   return (
-    <span className="flex items-center gap-2.5">
+    <span
+      className="flex min-w-0 flex-wrap items-center gap-x-1 gap-y-2"
+      data-flat-grade-actions="true"
+    >
       <button
         type="button"
         aria-pressed={compareEnabled}
-        aria-label="Hold to show original"
+        aria-label={t("look.compare")}
         disabled={!gradingActive}
         onPointerDown={(e) => {
           if (!gradingActive) return;
@@ -73,36 +91,39 @@ export function FlatColorGradingAccessory({
           e.preventDefault();
           commitCompare(false);
         }}
-        title="Hold to show original"
-        className="flex-shrink-0 text-panel-text-3 hover:text-panel-text-1 disabled:cursor-not-allowed disabled:opacity-40"
+        title={t("look.compare")}
+        className={`relative inline-flex h-11 flex-none items-center gap-1.5 rounded-full px-3 text-[13px] font-medium text-studio-text shadow-[inset_0_0_0_1.5px_var(--st-sbd)] transition-colors hover:bg-[var(--st-sub)] focus-visible:outline-2 focus-visible:outline-[var(--st-btn)] disabled:cursor-not-allowed disabled:opacity-45 ${
+          compareEnabled ? "bg-[var(--st-sub)]" : ""
+        }`}
       >
-        <Compare size={12} />
-      </button>
-      <span className="flex min-w-0 items-center gap-1" title={runtimeStatus.message}>
-        <span
-          data-flat-grade-status-dot="true"
-          title={runtimeStatus.message}
-          className={`h-[5px] w-[5px] flex-shrink-0 rounded-full ${STATUS_DOT_CLASS[runtimeStatus.state]}`}
-        />
-        <span
-          data-flat-grade-status-message="true"
-          className="max-w-[84px] truncate text-[9px] text-panel-text-4"
-        >
-          {runtimeStatus.message}
+        <LookIcon d={LOOK_ICONS.eye} />
+        {t("look.compare")}
+        <span className="absolute top-1 right-1.5 flex" title={statusLabel}>
+          {SHOW_STATUS_DOT[runtimeStatus.state] && (
+            <span
+              data-flat-grade-status-dot="true"
+              title={runtimeStatus.message}
+              className={`h-2 w-2 flex-none rounded-full ${STATUS_DOT_CLASS[runtimeStatus.state]}`}
+            />
+          )}
+          <span data-flat-grade-status-message="true" className="sr-only">
+            {statusLabel}
+          </span>
         </span>
-      </span>
+      </button>
       <button
         type="button"
         data-flat-grade-reset="true"
-        title="Reset color grading"
+        title={t("look.reset")}
         onClick={(e) => {
           e.stopPropagation();
           track("button", "Reset color grading");
           resetGrading();
         }}
-        className="flex-shrink-0 text-panel-text-3 hover:text-panel-text-1"
+        className="inline-flex h-11 min-w-0 items-center gap-1.5 rounded-full px-1.5 text-[13px] font-medium text-studio-text transition-colors hover:bg-[var(--st-sub)] focus-visible:outline-2 focus-visible:outline-[var(--st-btn)]"
       >
-        <RotateCcw size={12} />
+        <LookIcon d={LOOK_ICONS.reset} />
+        <span className="whitespace-nowrap">{t("look.resetShort")}</span>
       </button>
     </span>
   );

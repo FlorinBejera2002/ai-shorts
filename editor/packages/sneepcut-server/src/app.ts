@@ -14,6 +14,7 @@ import type { ProjectStore, StoredProject } from "./store";
 import { openEmptyWorkspace } from "./clip-import";
 import { COMPOSITION_REQUEST_MAX_BYTES } from "./composition-limits";
 import { sessionRecoveryDocument } from "./session-recovery";
+import { AGENT_API_MAX_BODY, AGENT_API_PREFIX, proxyAgentApi } from "./agent-api-proxy";
 
 export interface EditorAppOptions {
   appOrigin: string;
@@ -30,6 +31,9 @@ export interface EditorAppOptions {
   now?: () => number;
   agentSecret?: string;
   compositionService?: (request: Request) => Promise<Response>;
+  /** Main backend origin for the Ana și Radu agent API. Defaults to authBaseUrl. */
+  agentApiBaseUrl?: string;
+  fetchAgentApi?: (input: URL, init: RequestInit) => Promise<Response>;
 }
 const publicProject = ({ id, title }: StoredProject) => ({ id, title });
 export function normalizeAppOrigin(value: string): string {
@@ -213,6 +217,13 @@ export function createApp(options: EditorAppOptions) {
     );
     return c.json({ project: publicProject(project) }, 201);
   });
+  // Ana și Radu: allowlisted workspace-agent routes, forwarded with the session bearer.
+  app.all(`${AGENT_API_PREFIX}/*`, bodyLimit({ maxSize: AGENT_API_MAX_BODY }), (c) =>
+    proxyAgentApi(c.req.raw, c.get("bearer"), {
+      baseUrl: options.agentApiBaseUrl ?? options.authBaseUrl,
+      fetch: options.fetchAgentApi,
+    }),
+  );
   app.all("/api/*", async (c) => {
     const user = c.get("user");
     const api = userApi(user);

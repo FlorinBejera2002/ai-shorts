@@ -185,8 +185,8 @@ describe("useTimelineAssetDrop", () => {
     };
 
     act(() => {
-      view.api.handleAssetDragOver(dragEvent(transfer, 400, 100));
-      view.api.handleAssetDrop(dragEvent(transfer, 400, 100));
+      view.api.handleAssetDragOver(dragEvent(transfer, 400, 40));
+      view.api.handleAssetDrop(dragEvent(transfer, 400, 40));
     });
 
     expect(onAssetDrop).not.toHaveBeenCalled();

@@ -3,6 +3,8 @@ import { marked } from "marked";
 import DOMPurify from "dompurify";
 import { SourceEditor } from "../editor/SourceEditor";
 import { useFileManagerContext } from "../../contexts/FileManagerContext";
+import { t, useLocale } from "../../i18n/translate";
+import { OutputButton } from "../output/OutputButton";
 
 export interface SourceFile {
   path: string;
@@ -16,8 +18,6 @@ export interface StoryboardSourceEditorProps {
   /** Surfaces unsaved-edit state so the parent can guard the Board↔Source toggle. */
   onDirtyChange?: (dirty: boolean) => void;
 }
-
-const DISCARD_PROMPT = "Discard unsaved markdown changes?";
 
 interface EditableFile {
   content: string;
@@ -127,7 +127,7 @@ const PREVIEW_PROSE =
   "[&_code]:rounded [&_code]:bg-neutral-800 [&_code]:px-1 [&_code]:text-[0.85em] [&_code]:text-neutral-200 " +
   "[&_pre]:my-3 [&_pre]:overflow-auto [&_pre]:rounded [&_pre]:bg-neutral-900 [&_pre]:p-3 " +
   "[&_pre_code]:bg-transparent [&_pre_code]:p-0 " +
-  "[&_hr]:my-4 [&_hr]:border-neutral-800 [&_a]:text-sky-400 [&_strong]:text-neutral-100 " +
+  "[&_hr]:my-4 [&_hr]:border-neutral-800 [&_a]:text-studio-text [&_a]:underline [&_strong]:text-neutral-100 " +
   "[&_img]:my-2 [&_img]:max-w-full [&_img]:h-auto [&_img]:rounded " +
   "[&_table]:my-3 [&_th]:border [&_th]:border-neutral-800 [&_th]:px-2 [&_th]:py-1 " +
   "[&_td]:border [&_td]:border-neutral-800 [&_td]:px-2 [&_td]:py-1";
@@ -144,6 +144,7 @@ export function StoryboardSourceEditor({
   onSaved,
   onDirtyChange,
 }: StoryboardSourceEditorProps) {
+  useLocale();
   const [selected, setSelected] = useState(files[0]?.path ?? "");
   // Reconcile against the current file list so a removed/renamed file can't strand the tab.
   const activePath = files.some((f) => f.path === selected) ? selected : (files[0]?.path ?? "");
@@ -166,53 +167,66 @@ export function StoryboardSourceEditor({
   // Switching files discards the in-memory buffer; confirm when there are unsaved edits.
   const selectFile = (path: string) => {
     if (path === activePath) return;
-    if (file.dirty && !window.confirm(DISCARD_PROMPT)) return;
+    if (file.dirty && !window.confirm(t("story.discardSource"))) return;
     setSelected(path);
   };
 
   return (
     <div
-      className="flex flex-1 min-h-0 flex-col"
+      className="flex min-h-0 flex-1 flex-col gap-3"
       onKeyDown={(e) => {
         if (!isSaveShortcut(e)) return;
         e.preventDefault();
         if (file.dirty && !file.saving) file.save();
       }}
     >
-      <div className="flex items-center gap-1 border-b border-neutral-800 px-4 py-2">
+      <div className="flex flex-wrap items-center gap-1.5">
         {files.map((f) => (
           <button
             key={f.path}
             type="button"
             onClick={() => selectFile(f.path)}
-            className={`rounded px-2.5 py-1 text-xs font-medium transition-colors ${
+            aria-pressed={activePath === f.path}
+            className={`h-8 rounded-full px-3 text-xs font-semibold outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--st-btn)] ${
               activePath === f.path
-                ? "bg-neutral-800 text-neutral-100"
-                : "text-neutral-400 hover:text-neutral-200"
+                ? "bg-[var(--st-sel)] text-[var(--st-on-sel)]"
+                : "text-[var(--st-t2)] hover:bg-[var(--st-sub)]"
             }`}
           >
             {f.label}
           </button>
         ))}
-        <div className="ml-auto flex items-center gap-3">
-          {file.error && <span className="text-xs text-red-400">{file.error}</span>}
-          <span className="text-xs text-neutral-500">
-            {file.saving ? "Saving…" : file.dirty ? "Unsaved changes" : "Saved"}
+        <div className="ml-auto flex items-center gap-2">
+          <span
+            className={`inline-flex h-6 items-center rounded-lg px-2 text-xs font-semibold ${
+              file.dirty
+                ? "bg-[var(--st-warn-bg)] text-[var(--st-warn)]"
+                : "bg-[var(--st-ok-bg)] text-[var(--st-ok)]"
+            }`}
+          >
+            {file.saving ? t("story.saving") : file.dirty ? t("story.unsaved") : t("story.saved")}
           </span>
-          <button
-            type="button"
+          <OutputButton
+            variant="primary"
+            height={36}
             onClick={file.save}
             disabled={!file.dirty || file.saving}
-            className="rounded bg-emerald-600 px-3 py-1 text-xs font-medium text-white disabled:opacity-40"
           >
-            Save
-          </button>
+            {t("story.save")}
+          </OutputButton>
         </div>
       </div>
-      <div className="flex flex-1 min-h-0">
-        <div className="w-1/2 min-w-0 border-r border-neutral-800">
+      {file.error && (
+        <div role="alert" className="text-xs font-semibold text-[var(--st-danger)]">
+          {file.error}
+        </div>
+      )}
+      <div className="flex min-h-0 flex-1 gap-3">
+        <div className="w-1/2 min-w-0 overflow-hidden rounded-[14px] bg-[var(--st-in)] shadow-[inset_0_0_0_1px_var(--st-bd)]">
           {file.loading ? (
-            <div className="p-4 text-sm text-neutral-500">Loading {activePath}…</div>
+            <div className="p-4 text-sm text-[var(--st-t2)]">
+              {t("story.loadingFile", { path: activePath })}
+            </div>
           ) : (
             <SourceEditor
               content={file.content}
@@ -222,7 +236,7 @@ export function StoryboardSourceEditor({
             />
           )}
         </div>
-        <div className="w-1/2 min-w-0 overflow-auto bg-neutral-950 px-6 py-4">
+        <div className="w-1/2 min-w-0 overflow-auto rounded-[14px] bg-studio-surface px-5 py-4 shadow-[inset_0_0_0_1px_var(--st-bd)]">
           <div className={PREVIEW_PROSE} dangerouslySetInnerHTML={{ __html: previewHtml }} />
         </div>
       </div>

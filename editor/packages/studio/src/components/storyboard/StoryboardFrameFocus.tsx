@@ -1,17 +1,16 @@
-import { useCallback, useEffect, useState } from "react";
-import { setFrameVoiceover } from "@hyperframes/core/storyboard";
-import type { StoryboardFrameView } from "../../hooks/useStoryboard";
-import { useFileManagerContext } from "../../contexts/FileManagerContext";
+import { useLocale, t } from "../../i18n/translate";
 import { useViewMode } from "../../contexts/ViewModeContext";
-import { Button } from "../ui/Button";
+import type { StoryboardFrameView } from "../../hooks/useStoryboard";
+import { OutputButton, OutputIconButton } from "../output/OutputButton";
 import { FramePoster, posterTime } from "./FramePoster";
 import {
   AgentChatMessageButton,
   APPLY_STORYBOARD_FEEDBACK_MESSAGE,
 } from "./AgentChatMessageButton";
-import { FRAME_STATUS_META } from "./frameStatus";
+import { FRAME_CHIP_CLASS, FRAME_STATUS_META, frameStatusLabel } from "./frameStatus";
 import type { CommentsSubmitState } from "./useFrameComments";
-import { isTypingTarget } from "../../utils/typingTarget";
+import { useFrameVoiceoverDraft } from "./useFrameVoiceoverDraft";
+import { useFrameFocusKeys } from "./useFrameFocusKeys";
 
 export interface StoryboardFrameFocusProps {
   projectId: string;
@@ -41,6 +40,9 @@ export interface StoryboardFrameFocusProps {
   /** Project signature the board was loaded with (busts the poster cache). */
   posterVersion?: string;
 }
+
+const TEXTAREA_CLASS =
+  "block h-24 w-full resize-y rounded-[14px] border-0 bg-studio-surface px-3 py-2.5 text-[13px] leading-[18px] text-studio-text shadow-[inset_0_0_0_1px_var(--st-sbd)] outline-none placeholder:text-[var(--st-t3)] focus-visible:shadow-[inset_0_0_0_1.5px_var(--st-btn)]";
 
 /**
  * Full-area focus on a single frame: large poster, editable voiceover guide,
@@ -73,81 +75,29 @@ export function StoryboardFrameFocus({
   onSaveFeedback,
   posterVersion,
 }: StoryboardFrameFocusProps) {
-  const { readProjectFile, writeProjectFile } = useFileManagerContext();
-  const { setViewMode, registerViewModeGuard } = useViewMode();
-  const [draft, setDraft] = useState(frame.voiceover ?? "");
-  const [savedVoiceover, setSavedVoiceover] = useState(frame.voiceover ?? "");
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const applyEdit = useCallback(
-    async (edit: (source: string) => string) => {
-      if (busy) return false; // one read-modify-write at a time; avoids a lost update
-      setBusy(true);
-      setError(null);
-      try {
-        const source = await readProjectFile(storyboardPath);
-        await writeProjectFile(storyboardPath, edit(source));
-        onSaved();
-        return true;
-      } catch (err: unknown) {
-        setError(err instanceof Error ? err.message : "failed to save");
-        return false;
-      } finally {
-        setBusy(false);
-      }
-    },
-    [readProjectFile, writeProjectFile, storyboardPath, onSaved, busy],
-  );
-
-  const title = frame.title ?? `Frame ${frame.index}`;
-  const dirty = draft !== savedVoiceover;
+  useLocale();
+  const { setViewMode } = useViewMode();
+  const title = frame.title ?? t("story.frameN", { n: frame.index });
   const canOpenPreview = frame.status !== "outline" && frame.srcExists && Boolean(frame.src);
 
-  const saveVoiceover = useCallback(async () => {
-    const saved = await applyEdit((src) => setFrameVoiceover(src, frame.index, draft));
-    if (saved) setSavedVoiceover(draft);
-  }, [applyEdit, frame.index, draft]);
-
-  // Closing the tab with a dirty voiceover would lose it silently — same
-  // guard the sibling markdown editor registers for the same class of loss.
-  useEffect(() => {
-    if (!dirty) return;
-    const onBeforeUnload = (e: BeforeUnloadEvent) => {
-      e.preventDefault();
-    };
-    window.addEventListener("beforeunload", onBeforeUnload);
-    return () => window.removeEventListener("beforeunload", onBeforeUnload);
-  }, [dirty]);
-
-  // Leaving the frame drops the in-memory voiceover draft; confirm while it's
-  // dirty. An in-flight save does NOT count as safe: if it fails after unmount
-  // the error lands on an unmounted component and the draft is silently lost,
-  // so keep confirming until the save actually lands (dirty clears on success).
-  const confirmLeave = useCallback(
-    () => !dirty || window.confirm("Discard unsaved voiceover changes?"),
-    [dirty],
-  );
-  useEffect(() => registerViewModeGuard(confirmLeave), [confirmLeave, registerViewModeGuard]);
+  const voiceover = useFrameVoiceoverDraft({
+    storyboardPath,
+    frameIndex: frame.index,
+    initialVoiceover: frame.voiceover ?? "",
+    onSaved,
+  });
 
   const handleBack = () => {
-    if (confirmLeave()) onBack();
+    if (voiceover.confirmLeave()) onBack();
   };
   const handleNavigate = (delta: number) => {
-    if (confirmLeave()) onNavigate(delta);
+    if (voiceover.confirmLeave()) onNavigate(delta);
   };
-
-  // ←/→ navigate frames, Esc returns to the Board — but never while typing in a field.
-  useEffect(() => {
-    // fallow-ignore-next-line complexity
-    const onKey = (e: KeyboardEvent) => {
-      if (isTypingTarget(document.activeElement)) return;
-      if (e.key === "Escape") handleBack();
-      else if (e.key === "ArrowLeft" && frame.index > 1) handleNavigate(-1);
-      else if (e.key === "ArrowRight" && frame.index < frameCount) handleNavigate(1);
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+  useFrameFocusKeys({
+    frameIndex: frame.index,
+    frameCount,
+    onBack: handleBack,
+    onNavigate: handleNavigate,
   });
 
   const openInPreview = () => {
@@ -156,257 +106,270 @@ export function StoryboardFrameFocus({
   };
 
   return (
-    <div className="flex w-full max-w-[100vw] flex-1 min-h-0 min-w-0 flex-col overflow-hidden bg-neutral-950 text-neutral-200">
-      <div className="flex items-center gap-3 border-b border-neutral-800 px-4 py-2">
-        <button
-          type="button"
-          onClick={handleBack}
-          className="rounded px-2 py-1 text-xs font-medium text-neutral-300 hover:bg-neutral-800"
-        >
-          ← Board
-        </button>
-        <span className="min-w-0 flex-1 truncate text-sm font-medium text-neutral-200">
-          Frame {frame.number ?? frame.index} — {title}
-        </span>
-        <div className="flex shrink-0 items-center gap-1">
-          <NavButton
-            label="‹ Prev"
+    <div
+      data-storyboard-focus={frame.index}
+      className="flex min-h-0 w-full min-w-0 max-w-[100vw] flex-1 flex-col gap-3 overflow-auto bg-studio-bg p-3 text-studio-text lg:flex-row lg:overflow-hidden"
+    >
+      <section className="flex min-h-[360px] min-w-0 flex-col gap-3.5 rounded-[24px] bg-studio-surface p-4 shadow-studio lg:min-h-0 lg:flex-1">
+        <div className="flex items-center gap-2">
+          <OutputIconButton
+            icon="back"
+            label={t("story.backToBoard")}
+            size={36}
+            iconSize={18}
+            onClick={handleBack}
+          />
+          <b className="min-w-0 flex-1 truncate text-[15px] font-semibold">
+            {t("story.frameN", { n: frame.number ?? frame.index })} · {title}
+          </b>
+          <OutputIconButton
+            icon="back"
+            label={t("story.prevFrame")}
+            size={36}
+            iconSize={18}
             disabled={frame.index <= 1}
             onClick={() => handleNavigate(-1)}
           />
-          <NavButton
-            label="Next ›"
+          <OutputIconButton
+            icon="chevronRight"
+            label={t("story.nextFrame")}
+            size={36}
+            iconSize={18}
             disabled={frame.index >= frameCount}
             onClick={() => handleNavigate(1)}
           />
         </div>
-      </div>
-
-      {(commentDraftCount > 0 || pendingCommentCount > 0) && (
-        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-neutral-800 bg-neutral-900/80 px-4 py-2">
-          <div>
-            <div className="text-xs font-medium text-neutral-200">
-              {commentDraftCount > 0 ? "Feedback ready to save" : "Feedback saved"}
-            </div>
-            <div className="text-[11px] text-neutral-500">
-              {commentDraftCount > 0
-                ? "Save this batch and copy the message for your agent."
-                : feedbackMessageCopied
-                  ? "Message copied — paste it in your terminal or IDE agent chat."
-                  : "The agent has not been notified yet."}
-            </div>
-          </div>
-          {commentDraftCount > 0 ? (
-            <Button
-              size="sm"
-              variant="primary"
-              onClick={onSaveFeedback}
-              loading={commentsSubmitState === "saving"}
-            >
-              Save &amp; copy message ({commentDraftCount})
-            </Button>
-          ) : (
-            <AgentChatMessageButton
-              message={APPLY_STORYBOARD_FEEDBACK_MESSAGE}
-              label={feedbackMessageCopied ? "Copy again" : "Copy prompt for agent"}
-              onCopied={onFeedbackMessageCopied}
+        <div className="relative min-h-0 flex-1 overflow-hidden rounded-2xl bg-[var(--st-sub)]">
+          {canOpenPreview && frame.src ? (
+            <FramePoster
+              projectId={projectId}
+              src={frame.src}
+              seconds={posterTime(frame)}
+              title={title}
+              surface="hero"
+              posterVersion={posterVersion}
             />
+          ) : (
+            <FramePlan frame={frame} />
           )}
         </div>
-      )}
-
-      <div className="flex flex-1 min-h-0 flex-col overflow-auto lg:flex-row lg:overflow-hidden">
-        <div className="flex w-full shrink-0 items-center justify-center bg-neutral-900/40 p-4 sm:p-8 lg:h-full lg:w-3/5">
-          <div className="aspect-video w-full max-w-[900px] overflow-hidden rounded-lg border border-neutral-800 bg-neutral-900">
-            {canOpenPreview && frame.src ? (
-              <FramePoster
-                projectId={projectId}
-                src={frame.src}
-                seconds={posterTime(frame)}
-                title={title}
-                surface="hero"
-                posterVersion={posterVersion}
-              />
-            ) : (
-              <FramePlan frame={frame} />
-            )}
-          </div>
-        </div>
-
-        <div className="w-full shrink-0 space-y-6 border-t border-neutral-800 px-4 py-5 sm:px-6 lg:h-full lg:w-2/5 lg:overflow-auto lg:border-t-0 lg:border-l">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <ReadOnlyStatus status={frame.status} />
-
-          <div className="flex flex-wrap gap-x-6 gap-y-1 text-[11px] text-neutral-500">
-            {frame.duration && <span>Duration {frame.duration}</span>}
-            {frame.transitionIn && <span>Transition {frame.transitionIn}</span>}
-          </div>
-
-          <section>
-            <div className="mb-1 flex items-center justify-between">
-              <h3
-                className="text-xs font-semibold uppercase tracking-wider text-neutral-400"
-                title="Storyboard voiceover is a guide; SCRIPT.md is the final TTS source."
-              >
-                🎙 Voiceover <span className="font-normal normal-case text-neutral-600">guide</span>
-              </h3>
-              <Button
-                size="sm"
-                variant="primary"
-                onClick={saveVoiceover}
-                disabled={!dirty}
-                loading={busy}
-              >
-                {busy ? "Saving…" : "Save voiceover"}
-              </Button>
-            </div>
-            <textarea
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              rows={3}
-              placeholder="What the narrator says over this frame…"
-              className="w-full resize-y rounded border border-neutral-800 bg-neutral-900 p-2 text-sm text-neutral-200 outline-none focus:border-neutral-600"
-            />
-            <p className="mt-1 text-[11px] text-neutral-600">
-              {dirty
-                ? "Unsaved changes"
-                : scriptExists
-                  ? "Saved. SCRIPT.md drives final TTS."
-                  : "Saved to STORYBOARD.md. This voiceover guides narration for the frame."}
-            </p>
-            {error && <p className="mt-1 text-[11px] text-red-400">{error}</p>}
-          </section>
-
-          <section>
-            <div className="mb-1">
-              <h3 className="text-xs font-semibold uppercase tracking-wider text-neutral-400">
-                Frame feedback
-              </h3>
-            </div>
-            <textarea
-              value={commentDraft}
-              onChange={(e) => onCommentDraftChange(e.target.value)}
-              rows={3}
-              placeholder="Tell your agent what to change in this frame…"
-              aria-label={`Comment on ${title}`}
-              className="w-full resize-y rounded border border-neutral-800 bg-neutral-900 p-2 text-sm text-neutral-200 placeholder:text-neutral-600 outline-none focus:border-sky-700"
-            />
-            {pendingCommentCount > 0 ? (
-              <div className="mt-2 flex flex-wrap items-center justify-between gap-2 rounded-md border border-sky-900/70 bg-sky-950/20 px-2.5 py-2">
-                <p className="text-[11px] text-sky-200">
-                  Paste the agent prompt in your terminal or IDE chat.
-                </p>
-                <AgentChatMessageButton
-                  message={APPLY_STORYBOARD_FEEDBACK_MESSAGE}
-                  onCopied={onFeedbackMessageCopied}
-                />
-              </div>
-            ) : (
-              <p className="mt-1 text-[11px] text-neutral-600">
-                {commentDraftCount > 0
-                  ? "Your change is ready. Save it using the review bar above."
-                  : "Add a change to prepare feedback for the agent."}
-              </p>
-            )}
-            {pendingComment && (
-              <p className="mt-1 text-[11px] text-sky-400/90">
-                <span className="font-medium">Pending:</span> “{pendingComment}”
-              </p>
-            )}
-            {commentsSubmitError && (
-              <p className="mt-1 text-[11px] text-red-400">
-                Couldn’t submit: {commentsSubmitError}
-              </p>
-            )}
-          </section>
-
-          {frame.narrative && (
-            <section>
-              <h3 className="mb-1 text-xs font-semibold uppercase tracking-wider text-neutral-400">
-                Narrative
-              </h3>
-              <p className="whitespace-pre-wrap text-sm text-neutral-300">{frame.narrative}</p>
-            </section>
-          )}
-
           {canOpenPreview ? (
-            <Button size="sm" variant="secondary" onClick={openInPreview}>
-              Open in Preview →
-            </Button>
-          ) : (
-            <div className="rounded-md border border-neutral-800 bg-neutral-900/60 px-3 py-2 text-xs text-neutral-500">
-              Preview becomes available after your agent builds this frame.
-            </div>
-          )}
+            <OutputButton height={36} onClick={openInPreview}>
+              {t("story.openInPreview")}
+            </OutputButton>
+          ) : null}
         </div>
-      </div>
+      </section>
+
+      <aside className="flex min-w-0 flex-col gap-5 rounded-[24px] bg-studio-surface p-4 shadow-studio lg:w-[340px] lg:flex-none lg:overflow-auto">
+        <h2 className="font-display text-[17px] font-semibold leading-6">{t("story.voiceover")}</h2>
+        <VoiceoverEditor
+          draft={voiceover.draft}
+          onDraftChange={voiceover.setDraft}
+          dirty={voiceover.dirty}
+          busy={voiceover.busy}
+          error={voiceover.error}
+          scriptExists={scriptExists}
+          onSave={() => void voiceover.saveVoiceover()}
+        />
+        <FrameFeedbackSection
+          title={title}
+          commentDraft={commentDraft}
+          onCommentDraftChange={onCommentDraftChange}
+          pendingComment={pendingComment}
+          pendingCommentCount={pendingCommentCount}
+          commentDraftCount={commentDraftCount}
+          commentsSubmitState={commentsSubmitState}
+          commentsSubmitError={commentsSubmitError}
+          feedbackMessageCopied={feedbackMessageCopied}
+          onFeedbackMessageCopied={onFeedbackMessageCopied}
+          onSaveFeedback={onSaveFeedback}
+        />
+
+        {frame.narrative && (
+          <section className="flex flex-col gap-2.5">
+            <b className="text-[13px] font-semibold">{t("story.narrative")}</b>
+            <p className="whitespace-pre-wrap text-[13px] leading-5 text-[var(--st-t2)]">
+              {frame.narrative}
+            </p>
+          </section>
+        )}
+        {frame.duration || frame.transitionIn ? (
+          <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-[var(--st-t2)]">
+            {frame.duration && <span>{t("story.duration", { value: frame.duration })}</span>}
+            {frame.transitionIn && (
+              <span>{t("story.transition", { value: frame.transitionIn })}</span>
+            )}
+          </div>
+        ) : null}
+      </aside>
     </div>
   );
 }
 
-function NavButton({
-  label,
-  disabled,
-  onClick,
+function VoiceoverEditor({
+  draft,
+  onDraftChange,
+  dirty,
+  busy,
+  error,
+  scriptExists,
+  onSave,
 }: {
-  label: string;
-  disabled: boolean;
-  onClick: () => void;
+  draft: string;
+  onDraftChange: (text: string) => void;
+  dirty: boolean;
+  busy: boolean;
+  error: string | null;
+  scriptExists: boolean;
+  onSave: () => void;
 }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      className="rounded px-2 py-1 text-xs font-medium text-neutral-300 hover:bg-neutral-800 enabled:active:scale-[0.98] transition-transform disabled:opacity-30"
-    >
-      {label}
-    </button>
+    <section className="flex flex-col gap-2.5">
+      <textarea
+        value={draft}
+        onChange={(e) => onDraftChange(e.target.value)}
+        rows={4}
+        aria-label={t("story.voiceover")}
+        title={scriptExists ? "SCRIPT.md" : undefined}
+        placeholder={t("story.voicePlaceholder")}
+        className={TEXTAREA_CLASS}
+      />
+      <div className="flex items-center justify-between gap-2">
+        <span
+          className={`inline-flex h-6 items-center rounded-lg px-2 text-xs font-semibold ${
+            dirty
+              ? "bg-[var(--st-warn-bg)] text-[var(--st-warn)]"
+              : "bg-[var(--st-ok-bg)] text-[var(--st-ok)]"
+          }`}
+        >
+          {dirty ? t("story.unsaved") : t("story.saved")}
+        </span>
+        <OutputButton
+          variant={dirty ? "primary" : "secondary"}
+          height={36}
+          padX={14}
+          fontSize={12}
+          disabled={!dirty || busy}
+          onClick={onSave}
+        >
+          {busy ? t("story.saving") : t("story.saveVoice")}
+        </OutputButton>
+      </div>
+      {error && (
+        <span role="alert" className="text-xs font-semibold text-[var(--st-danger)]">
+          {error}
+        </span>
+      )}
+    </section>
+  );
+}
+
+function FrameFeedbackSection({
+  title,
+  commentDraft,
+  onCommentDraftChange,
+  pendingComment,
+  pendingCommentCount,
+  commentDraftCount,
+  commentsSubmitState,
+  commentsSubmitError,
+  feedbackMessageCopied,
+  onFeedbackMessageCopied,
+  onSaveFeedback,
+}: {
+  title: string;
+  commentDraft: string;
+  onCommentDraftChange: (text: string) => void;
+  pendingComment: string | null;
+  pendingCommentCount: number;
+  commentDraftCount: number;
+  commentsSubmitState: CommentsSubmitState;
+  commentsSubmitError: string | null;
+  feedbackMessageCopied: boolean;
+  onFeedbackMessageCopied: () => void;
+  onSaveFeedback: () => void;
+}) {
+  return (
+    <section className="flex flex-col gap-2.5">
+      <b className="text-[13px] font-semibold">{t("story.frameFeedback")}</b>
+      <textarea
+        value={commentDraft}
+        onChange={(e) => onCommentDraftChange(e.target.value)}
+        rows={3}
+        placeholder={t("story.frameFeedbackPlaceholder")}
+        aria-label={t("story.commentAria", { title })}
+        className="block h-20 w-full resize-y rounded-[14px] border-0 bg-studio-surface px-3 py-2.5 text-[13px] leading-[18px] text-studio-text shadow-[inset_0_0_0_1px_var(--st-sbd)] outline-none placeholder:text-[var(--st-t3)] focus-visible:shadow-[inset_0_0_0_1.5px_var(--st-btn)]"
+      />
+      {pendingComment && (
+        <span className="text-xs font-semibold [overflow-wrap:anywhere]">
+          {t("story.pending", { text: pendingComment })}
+        </span>
+      )}
+      {commentsSubmitError && (
+        <span role="alert" className="text-xs font-semibold text-[var(--st-danger)]">
+          {t("story.saveFailed", { error: commentsSubmitError })}
+        </span>
+      )}
+      {commentDraftCount > 0 ? (
+        <OutputButton
+          className="w-full"
+          disabled={commentsSubmitState === "saving"}
+          onClick={onSaveFeedback}
+        >
+          {commentsSubmitState === "saving"
+            ? t("story.saving")
+            : `${t("story.saveFeedback")} (${commentDraftCount})`}
+        </OutputButton>
+      ) : null}
+      {pendingCommentCount > 0 ? (
+        <AgentChatMessageButton
+          message={APPLY_STORYBOARD_FEEDBACK_MESSAGE}
+          contextLabel={t("story.frameContext", { n: pendingCommentCount })}
+          onCopied={onFeedbackMessageCopied}
+          stretch
+        />
+      ) : null}
+      {feedbackMessageCopied && pendingCommentCount > 0 ? (
+        <span role="status" className="text-xs font-semibold text-[var(--st-ok)]">
+          {t("story.feedbackSaved")}
+        </span>
+      ) : null}
+    </section>
   );
 }
 
 function ReadOnlyStatus({ status }: { status: StoryboardFrameView["status"] }) {
   const meta = FRAME_STATUS_META[status];
   return (
-    <div className="flex items-center gap-2">
-      <span className="text-xs font-semibold uppercase tracking-wider text-neutral-500">
-        Status
-      </span>
-      <span className={`rounded px-2 py-1 text-xs font-medium ${meta.chipClass}`}>
-        {meta.label}
-      </span>
-      <span className="text-[11px] text-neutral-600">Updated by your agent</span>
-    </div>
+    <span className="flex items-center gap-2">
+      <span className={`${FRAME_CHIP_CLASS} ${meta.chipClass}`}>{frameStatusLabel(status)}</span>
+      <span className="text-xs text-[var(--st-t2)]">{t("story.updatedByAgent")}</span>
+    </span>
   );
 }
 
-// The empty state selects copy from frame status and whichever storyboard fields are available.
+// The empty state picks copy from the frame status and whichever storyboard fields exist.
 // fallow-ignore-next-line complexity
 function FramePlan({ frame }: { frame: StoryboardFrameView }) {
-  const title = frame.title ?? `Frame ${frame.index}`;
+  const title = frame.title ?? t("story.frameN", { n: frame.index });
   const isOutline = frame.status === "outline";
   return (
-    <div className="flex h-full w-full items-center justify-center bg-[radial-gradient(circle_at_center,_rgba(38,38,38,0.8),_rgba(10,10,10,1))] p-10">
-      <div className="max-w-xl text-center">
-        <span className="rounded-full border border-neutral-700 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-neutral-400">
-          {isOutline ? "Planned frame" : "Preview unavailable"}
+    <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 overflow-auto p-8 text-center">
+      <span className="inline-flex h-6 items-center rounded-lg bg-studio-surface px-2 text-xs font-semibold text-[var(--st-t2)]">
+        {isOutline ? t("story.plannedFrame") : t("story.previewUnavailable")}
+      </span>
+      <b className="font-display text-xl font-semibold">{title}</b>
+      {frame.scene && (
+        <p className="max-w-xl text-sm leading-6 text-[var(--st-t2)]">{frame.scene}</p>
+      )}
+      {!isOutline ? (
+        <span className="text-[13px] font-semibold text-[var(--st-t2)]">
+          {frame.src ? `${t("story.fileNotFound")}: ${frame.src}` : t("story.noSource")}
         </span>
-        <h2 className="mt-4 text-2xl font-semibold text-neutral-100">{title}</h2>
-        {frame.scene && (
-          <p className="mt-3 text-base leading-relaxed text-neutral-300">{frame.scene}</p>
-        )}
-        {!frame.scene && frame.narrative && (
-          <p className="mt-3 line-clamp-4 text-sm leading-relaxed text-neutral-400">
-            {frame.narrative}
-          </p>
-        )}
-        <p className="mt-5 text-xs text-neutral-600">
-          {isOutline
-            ? "A visual preview will appear when your agent builds the sketch."
-            : frame.src
-              ? `Frame file not found: ${frame.src}`
-              : "This frame does not link to a source file."}
-        </p>
-      </div>
+      ) : null}
     </div>
   );
 }

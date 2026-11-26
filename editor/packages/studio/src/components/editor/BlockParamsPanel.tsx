@@ -3,6 +3,8 @@ import type { BlockParam } from "@hyperframes/core/registry";
 import { useFileManagerContextOptional } from "../../contexts/FileManagerContext";
 import { useStudioPlaybackContext } from "../../contexts/StudioContext";
 import { trackBlockParamCommit } from "../../telemetry/events";
+import { t, useLocale } from "../../i18n/translate";
+import { InspectorRange } from "./inspectorControls";
 
 interface BlockParamsPanelProps {
   blockName: string;
@@ -21,6 +23,7 @@ export const BlockParamsPanel = memo(function BlockParamsPanel({
   compositionPath,
   onClose,
 }: BlockParamsPanelProps) {
+  useLocale();
   const fileManager = useFileManagerContextOptional();
   const { setRefreshKey } = useStudioPlaybackContext();
   const [values, setValues] = useState<Record<string, string>>(() => {
@@ -133,42 +136,37 @@ export const BlockParamsPanel = memo(function BlockParamsPanel({
   useEffect(() => () => flushRef.current(), []);
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between px-3 py-2 border-b border-neutral-800">
-        <div className="text-[11px] font-semibold text-neutral-200 truncate">{blockTitle}</div>
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label="Close block parameters"
-          className="p-1.5 -m-1 text-neutral-500 hover:text-neutral-300 active:scale-[0.97] transition-colors"
-        >
-          <svg
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M18 6 6 18" />
-            <path d="m6 6 12 12" />
-          </svg>
-        </button>
-      </div>
-
-      <div className="flex-1 overflow-y-auto p-3 space-y-3">
-        <div className="text-[9px] font-medium text-neutral-500 uppercase tracking-wider">
-          Parameters
+    <div className="flex h-full flex-col">
+      <div className="flex flex-1 flex-col gap-4 overflow-y-auto px-4 pb-2">
+        <div className="flex min-h-8 items-center justify-between gap-2">
+          <h3 className="min-w-0 truncate text-[13px] font-semibold text-studio-text">
+            {blockTitle}
+          </h3>
+          {commitState.tone === "saving" && (
+            <span
+              role="status"
+              className="inline-flex h-7 flex-none items-center rounded-full px-2.5 text-xs font-semibold text-studio-text shadow-[inset_0_0_0_1px_var(--st-bd)]"
+            >
+              {t("block.saving")}
+            </span>
+          )}
+          {commitState.tone === "saved" && (
+            <span
+              role="status"
+              title={t("block.savedTo", { path: compositionPath })}
+              className="inline-flex h-7 flex-none items-center rounded-full bg-[var(--st-ok-bg)] px-2.5 text-xs font-semibold text-[var(--st-ok)]"
+            >
+              {t("block.saved")}
+            </span>
+          )}
         </div>
         {params.length === 0 && (
-          <div className="text-[10px] text-neutral-500">This block has no editable parameters.</div>
+          <p className="text-[13px] font-medium text-studio-muted">{t("block.none")}</p>
         )}
         {!fileManager && params.length > 0 && (
-          <div className="text-[10px] text-amber-400/90">
-            Block params can't be edited here — no project file access.
-          </div>
+          <p role="status" className="text-xs font-medium text-[var(--st-warn-text)]">
+            {t("block.readOnly")}
+          </p>
         )}
         {params.map((param) => (
           <ParamControl
@@ -179,25 +177,28 @@ export const BlockParamsPanel = memo(function BlockParamsPanel({
             onChange={(v) => handleChange(param.key, v)}
           />
         ))}
-        {commitState.tone === "saving" && (
-          <div className="text-[10px] text-neutral-500" role="status">
-            Saving…
-          </div>
-        )}
-        {commitState.tone === "saved" && (
-          <div className="text-[10px] text-emerald-500/90" role="status">
-            Saved to {compositionPath}
-          </div>
-        )}
         {commitState.tone === "error" && (
-          <div className="text-[10px] text-red-400" role="alert">
+          <p className="text-xs font-medium text-studio-danger" role="alert">
             {commitState.message}
-          </div>
+          </p>
         )}
+      </div>
+      <div className="flex flex-none justify-center px-4 pt-2 pb-4">
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label={t("block.close")}
+          className="inline-flex h-11 items-center rounded-full px-5 text-[13px] font-semibold text-studio-text hover:bg-[var(--st-sub)]"
+        >
+          {t("block.closeShort")}
+        </button>
       </div>
     </div>
   );
 });
+
+const FIELD_CLASS =
+  "h-11 w-full rounded-md bg-studio-surface px-3.5 text-[13px] font-medium text-studio-text shadow-[inset_0_0_0_1.5px_var(--st-sbd)] outline-none focus:shadow-[inset_0_0_0_2px_var(--st-btn)] disabled:cursor-not-allowed disabled:opacity-45";
 
 function ParamControl({
   param,
@@ -211,8 +212,13 @@ function ParamControl({
   onChange: (value: string) => void;
 }) {
   return (
-    <div className="space-y-1">
-      <label className="text-[10px] font-medium text-neutral-400">{param.label}</label>
+    <div className="flex flex-col gap-1.5">
+      <div className="flex items-center justify-between gap-2 text-[13px]">
+        <label className="font-medium text-studio-text">{param.label}</label>
+        {param.type === "number" && (
+          <span className="font-semibold tabular-nums text-studio-muted">{value}</span>
+        )}
+      </div>
 
       {param.type === "color" && (
         <div className="flex items-center gap-2">
@@ -222,7 +228,7 @@ function ParamControl({
             disabled={disabled}
             aria-label={`${param.label} color`}
             onChange={(e) => onChange(e.target.value)}
-            className="w-7 h-7 rounded border border-neutral-700 bg-transparent cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
+            className="h-11 w-11 flex-none cursor-pointer rounded-md bg-transparent p-1 shadow-[inset_0_0_0_1.5px_var(--st-sbd)] disabled:cursor-not-allowed disabled:opacity-45"
           />
           <input
             type="text"
@@ -230,26 +236,21 @@ function ParamControl({
             disabled={disabled}
             aria-label={`${param.label} value`}
             onChange={(e) => onChange(e.target.value)}
-            className="flex-1 bg-neutral-900 border border-neutral-800 rounded px-2 py-1 text-[10px] text-neutral-200 font-mono focus:outline-none focus:border-neutral-700 disabled:cursor-not-allowed disabled:opacity-50"
+            className={`${FIELD_CLASS} flex-1 tabular-nums`}
           />
         </div>
       )}
 
       {param.type === "number" && (
-        <div className="flex items-center gap-2">
-          <input
-            type="range"
-            min={param.min ?? 0}
-            max={param.max ?? 100}
-            step={param.step ?? 1}
-            value={value}
-            disabled={disabled}
-            aria-label={param.label}
-            onChange={(e) => onChange(e.target.value)}
-            className="flex-1 disabled:cursor-not-allowed disabled:opacity-50"
-          />
-          <span className="text-[10px] text-neutral-400 w-8 text-right tabular-nums">{value}</span>
-        </div>
+        <InspectorRange
+          ariaLabel={param.label}
+          min={param.min ?? 0}
+          max={param.max ?? 100}
+          step={param.step ?? 1}
+          value={Number(value)}
+          disabled={disabled}
+          onChange={(next) => onChange(String(next))}
+        />
       )}
 
       {param.type === "text" && (
@@ -259,7 +260,7 @@ function ParamControl({
           disabled={disabled}
           aria-label={param.label}
           onChange={(e) => onChange(e.target.value)}
-          className="w-full bg-neutral-900 border border-neutral-800 rounded px-2 py-1 text-[10px] text-neutral-200 focus:outline-none focus:border-neutral-700 disabled:cursor-not-allowed disabled:opacity-50"
+          className={FIELD_CLASS}
         />
       )}
 
@@ -269,7 +270,7 @@ function ParamControl({
           disabled={disabled}
           aria-label={param.label}
           onChange={(e) => onChange(e.target.value)}
-          className="w-full bg-neutral-900 border border-neutral-800 rounded px-2 py-1 text-[10px] text-neutral-200 focus:outline-none focus:border-neutral-700 disabled:cursor-not-allowed disabled:opacity-50"
+          className={`${FIELD_CLASS} appearance-none`}
         >
           {param.options.map((opt) => (
             <option key={opt.value} value={opt.value}>

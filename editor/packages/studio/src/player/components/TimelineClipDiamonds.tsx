@@ -1,4 +1,5 @@
 import { memo, useEffect, useRef, useState } from "react";
+import { t } from "../../i18n/translate";
 import { BEAT_BAND_H } from "./BeatStrip";
 import { TimelineDiamondConnectors } from "./TimelineDiamondConnectors";
 import { LANE_H } from "./timelineLayout";
@@ -19,6 +20,18 @@ import {
   type TimelineDiamondKeyframe,
   type TimelineDiamondLaneProps,
 } from "./timelineDiamondTypes";
+
+/** Accessible name of a diamond, by where it sits relative to its clip. */
+const KEYFRAME_ARIA = {
+  inside: "timeline.keyframeAria",
+  before: "timeline.keyframeAriaBefore",
+  after: "timeline.keyframeAriaAfter",
+} as const;
+
+const KEYFRAME_OUTSIDE = {
+  before: "timeline.keyframeBeforeClip",
+  after: "timeline.keyframeAfterClip",
+} as const;
 
 export type { TimelineDiamondKeyframe } from "./timelineDiamondTypes";
 
@@ -225,7 +238,7 @@ export const TimelineDiamondLane = memo(function TimelineDiamondLane({
     isSelected && halfFramePct > 0
       ? nearestKeyframeWithin(sorted, currentPercentage, halfFramePct)
       : null;
-  const baseColor = isSelected ? accentColor : "#a3a3a3";
+  const baseColor = isSelected ? accentColor : "var(--st-t3)";
   const baseOpacity = isSelected ? 0.4 : 0.25;
   const canDrag = isSelected && !!onMoveKeyframe;
 
@@ -280,7 +293,7 @@ export const TimelineDiamondLane = memo(function TimelineDiamondLane({
         const isKfSelected = selectedKeyframes.has(kfKey);
         const atPlayhead = kf === playheadKeyframe;
         const isHighlighted = isKfSelected || atPlayhead;
-        const color = isKfSelected ? accentColor : "#a3a3a3";
+        const color = isKfSelected ? accentColor : "var(--st-t3)";
 
         const onPointerDown = (e: React.PointerEvent<HTMLButtonElement>) => {
           if (e.button !== 0) return;
@@ -343,7 +356,10 @@ export const TimelineDiamondLane = memo(function TimelineDiamondLane({
             aria-current={atPlayhead ? "time" : undefined}
             data-keyframe-outside-clip={boundary ?? undefined}
             tabIndex={focusId === rovingTargetId ? 0 : -1}
-            aria-label={`${kf.propertyGroup ?? "Motion"} keyframe at ${keyframeTimeLabel(clipStart, clipDuration, kf.percentage)}${boundary ? ` (${boundary} clip)` : ""}`}
+            aria-label={t(KEYFRAME_ARIA[boundary ?? "inside"], {
+              group: kf.propertyGroup ?? t("timeline.motionGroup"),
+              time: keyframeTimeLabel(clipStart, clipDuration, kf.percentage),
+            })}
             aria-pressed={isKfSelected}
             style={{
               left: leftPx,
@@ -388,7 +404,7 @@ export const TimelineDiamondLane = memo(function TimelineDiamondLane({
               e.stopPropagation();
               onContextMenuKeyframe?.(e, target);
             }}
-            title={`${roundPct(kf.percentage)}%${boundary ? ` · ${boundary} clip` : ""}`}
+            title={`${roundPct(kf.percentage)}%${boundary ? ` · ${t(KEYFRAME_OUTSIDE[boundary])}` : ""}`}
           >
             <svg
               width={marker.visualSize}

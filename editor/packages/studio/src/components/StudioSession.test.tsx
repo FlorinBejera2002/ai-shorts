@@ -67,8 +67,12 @@ describe("native Studio session", () => {
   }
 
   it("does not contact SneepCut authentication in upstream Studio", async () => {
+    // Hold the stub itself: the connection watcher wraps window.fetch while mounted.
+    const fetchStub = vi.mocked(fetch);
     await act(async () => root.render(<StudioSession />));
-    expect(fetch).not.toHaveBeenCalled();
+    // The offline dialog prefetches its illustration; nothing may reach the session endpoint.
+    const urls = fetchStub.mock.calls.map(([url]) => String(url));
+    expect(urls.filter((url) => url.includes("/sneepcut/"))).toEqual([]);
     expect(container.querySelector("iframe")).toBeNull();
   });
 

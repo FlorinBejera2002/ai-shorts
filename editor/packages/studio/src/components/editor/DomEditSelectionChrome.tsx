@@ -1,4 +1,5 @@
 import type { RefObject } from "react";
+import { GROUP_MEMBER_OUTLINE, RESIZE_HANDLE, SELECTION_OUTLINE } from "./canvasChromeStyles";
 import { type DomEditSelection } from "./domEditing";
 import type { GroupOverlayItem, OverlayRect } from "./domEditOverlayGeometry";
 import type { BlockedMoveState, ResizeHandle } from "./domEditOverlayGestures";
@@ -81,7 +82,7 @@ export function DomEditGroupChrome({
         <div
           key={item.key}
           aria-hidden="true"
-          className="pointer-events-none absolute rounded-xl border border-studio-accent/70"
+          className={`pointer-events-none absolute rounded-[4px] ${GROUP_MEMBER_OUTLINE}`}
           style={{
             left: item.rect.left,
             top: item.rect.top,
@@ -92,7 +93,7 @@ export function DomEditGroupChrome({
       ))}
       <div
         data-dom-edit-selection-box="true"
-        className="pointer-events-auto absolute rounded-xl border border-studio-accent shadow-[0_0_0_1px_rgba(60,230,172,0.3)]"
+        className={`pointer-events-auto absolute rounded-[4px] ${SELECTION_OUTLINE}`}
         style={{
           left: groupBounds.left,
           top: groupBounds.top,
@@ -188,7 +189,7 @@ export function DomEditSelectionChrome({
           key={selectionKey}
           ref={boxRef}
           data-dom-edit-selection-box="true"
-          className={`${editing ? "pointer-events-none" : "pointer-events-auto"} absolute rounded-md ${boxChromeClass}`}
+          className={`${editing ? "pointer-events-none" : "pointer-events-auto"} absolute rounded-[4px] ${boxChromeClass}`}
           style={{
             left: overlayRect.left,
             top: overlayRect.top,
@@ -232,7 +233,7 @@ export function DomEditSelectionChrome({
         >
           {cropOutlineInsetPx && (
             <div
-              className="pointer-events-none absolute rounded-md border border-studio-accent/80 shadow-[0_0_0_1px_rgba(60,230,172,0.25)]"
+              className={`pointer-events-none absolute rounded-[4px] ${SELECTION_OUTLINE}`}
               style={{
                 left: cropOutlineInsetPx.left,
                 top: cropOutlineInsetPx.top,
@@ -265,7 +266,7 @@ export function DomEditSelectionChrome({
                   gestures.startGesture("resize", e, { resizeHandle: def.handle });
                 }}
               >
-                <div className="pointer-events-none h-[12px] w-[12px] rounded-full border-[1.5px] border-studio-accent bg-white shadow-[0_0_3px_rgba(0,0,0,0.45)]" />
+                <div className={`pointer-events-none ${RESIZE_HANDLE}`} />
               </div>
             ),
           )}

@@ -182,15 +182,14 @@ function makeSingleFieldElement(overrides: Partial<DomEditTextField> = {}): DomE
 }
 
 function segmentedRowButtons(host: HTMLElement, label: string): HTMLButtonElement[] {
-  const labelSpan = Array.from(host.querySelectorAll("span")).find(
-    (el) => el.textContent === label,
+  const group = Array.from(host.querySelectorAll('[role="group"]')).find(
+    (el) => el.getAttribute("aria-label") === label,
   );
-  const row = labelSpan?.parentElement;
-  return Array.from(row?.querySelectorAll<HTMLButtonElement>('[data-flat-segment="true"]') ?? []);
+  return Array.from(group?.querySelectorAll<HTMLButtonElement>('[data-flat-segment="true"]') ?? []);
 }
 
 describe("FlatTextFieldEditor controls", () => {
-  it("commits text-transform: capitalize when the new 'Ag' case button is clicked", () => {
+  it("commits text-transform: capitalize when the Title case button is clicked", () => {
     const onSetTextFieldStyle = vi.fn();
     const { host, root } = renderInto(
       <FlatTextSection
@@ -203,8 +202,8 @@ describe("FlatTextFieldEditor controls", () => {
         onRemoveTextField={vi.fn()}
       />,
     );
-    const capitalizeButton = segmentedRowButtons(host, "Case · Style").find(
-      (button) => button.textContent === "Ag",
+    const capitalizeButton = segmentedRowButtons(host, "Case").find(
+      (button) => button.getAttribute("aria-label") === "Title",
     );
     expect(capitalizeButton).not.toBeUndefined();
     act(() => capitalizeButton?.dispatchEvent(new MouseEvent("click", { bubbles: true })));
@@ -226,9 +225,11 @@ describe("FlatTextFieldEditor controls", () => {
       />,
     );
     const alignButtons = segmentedRowButtons(host, "Align");
-    const rightButton = alignButtons.find((button) => button.textContent === "R");
+    const rightButton = alignButtons.find(
+      (button) => button.getAttribute("aria-label") === "Right",
+    );
     expect(rightButton).not.toBeUndefined();
-    expect(rightButton?.className).toContain("border-panel-accent");
+    expect(rightButton?.getAttribute("aria-pressed")).toBe("true");
     // Clicking the option that's already visually active for "end" must NOT
     // rewrite it to the physical "right" — that would destroy the logical
     // semantics and break RTL content, where "end" and "right" differ.
@@ -251,10 +252,57 @@ describe("FlatTextFieldEditor controls", () => {
       />,
     );
     const alignButtons = segmentedRowButtons(host, "Align");
-    const centerButton = alignButtons.find((button) => button.textContent === "C");
+    const centerButton = alignButtons.find(
+      (button) => button.getAttribute("aria-label") === "Centre",
+    );
     expect(centerButton).not.toBeUndefined();
     act(() => centerButton?.dispatchEvent(new MouseEvent("click", { bubbles: true })));
     expect(onSetTextFieldStyle).toHaveBeenCalledWith("a", "text-align", "center");
+    act(() => root.unmount());
+  });
+
+  it("toggles bold and italic from the Normal / Bold / Italic segment", () => {
+    const onSetTextFieldStyle = vi.fn();
+    const { host, root } = renderInto(
+      <FlatTextSection
+        element={makeSingleFieldElement({ computedStyles: { "font-weight": "700" } })}
+        styles={{}}
+        fontAssets={[]}
+        onSetText={vi.fn()}
+        onSetTextFieldStyle={onSetTextFieldStyle}
+        onAddTextField={vi.fn()}
+        onRemoveTextField={vi.fn()}
+      />,
+    );
+    const buttons = segmentedRowButtons(host, "Style");
+    const bold = buttons.find((button) => button.getAttribute("aria-label") === "Bold");
+    expect(bold?.getAttribute("aria-pressed")).toBe("true");
+    act(() => bold?.dispatchEvent(new MouseEvent("click", { bubbles: true })));
+    expect(onSetTextFieldStyle).toHaveBeenCalledWith("a", "font-weight", "400");
+    const italic = buttons.find((button) => button.getAttribute("aria-label") === "Italic");
+    act(() => italic?.dispatchEvent(new MouseEvent("click", { bubbles: true })));
+    expect(onSetTextFieldStyle).toHaveBeenCalledWith("a", "font-style", "italic");
+    act(() => root.unmount());
+  });
+
+  it("applies a colour swatch", () => {
+    const onSetTextFieldStyle = vi.fn();
+    const { host, root } = renderInto(
+      <FlatTextSection
+        element={makeSingleFieldElement({ computedStyles: { color: "rgb(255, 255, 255)" } })}
+        styles={{}}
+        fontAssets={[]}
+        onSetText={vi.fn()}
+        onSetTextFieldStyle={onSetTextFieldStyle}
+        onAddTextField={vi.fn()}
+        onRemoveTextField={vi.fn()}
+      />,
+    );
+    const white = host.querySelector<HTMLButtonElement>('button[aria-label="White"]');
+    expect(white?.getAttribute("aria-pressed")).toBe("true");
+    const black = host.querySelector<HTMLButtonElement>('button[aria-label="Black"]');
+    act(() => black?.dispatchEvent(new MouseEvent("click", { bubbles: true })));
+    expect(onSetTextFieldStyle).toHaveBeenCalledWith("a", "color", "rgb(0, 0, 0)");
     act(() => root.unmount());
   });
 

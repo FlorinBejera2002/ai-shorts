@@ -1,16 +1,17 @@
+// "Efecte" (St-Inspector-EffectsList, St-Inspector-EffectDetail, St-Inspector-Palette): three
+// views in one group. The list shows the active effects and the "Familii" cards; a family shows
+// its preview tiles; an effect shows its controls. "Resetează efectele" clears every effect.
 import { useEffect, useState } from "react";
 import {
   HF_COLOR_GRADING_EFFECT_APPLY_DEFAULTS,
-  HF_COLOR_GRADING_EFFECT_PRESETS,
-  HF_COLOR_GRADING_PALETTES,
   normalizeHfColorGrading,
   type HfColorGradingActiveEffectKey,
   type HfColorGradingEffectKey,
   type NormalizedHfColorGrading,
 } from "@hyperframes/core/color-grading";
-import { Plus, RotateCcw, X } from "../../icons/SystemIcons";
 import { useTrackDesignInput } from "../../contexts/DesignPanelInputContext";
-import { FLAT_PREVIEW_GRID, FlatSlider } from "./propertyPanelFlatPrimitives";
+import { t, useLocale } from "../../i18n/translate";
+import { PillButton } from "../ui/PillButton";
 import type {
   ColorGradingPresetPreviews,
   ColorGradingPreviewOptions,
@@ -19,11 +20,18 @@ import {
   DEFAULT_EFFECTS,
   EFFECT_GROUPS,
   EFFECT_SPECS,
-  type EffectControl,
   type EffectSpec,
 } from "./propertyPanelFlatEffectSpecs";
-import { FlatEffectControl } from "./propertyPanelFlatEffectControl";
-import { presetPreviewHandlers } from "./propertyPanelPresetPreview";
+import { FlatEffectEditor } from "./propertyPanelFlatEffectEditor";
+import { EffectFamilies, EffectFamilyTiles } from "./propertyPanelFlatEffectFamily";
+import { lookText } from "./propertyPanelColorLabels";
+import {
+  LOOK_ICONS,
+  LOOK_ROW,
+  LookBack,
+  LookBlock,
+  LookIconButton,
+} from "./propertyPanelColorLookUi";
 
 export function activeColorGradingEffectCount(grading: NormalizedHfColorGrading): number {
   return EFFECT_SPECS.filter((effect) => grading.effects[effect.key] > 0.0001).length;
@@ -36,24 +44,26 @@ export function FlatEffectsAccessory({
   grading: NormalizedHfColorGrading;
   onCommitColorGrading: (next: NormalizedHfColorGrading) => void;
 }) {
+  useLocale();
   const track = useTrackDesignInput();
   if (!activeColorGradingEffectCount(grading)) return null;
   return (
-    <button
-      type="button"
+    <LookIconButton
+      label={t("look.effects.reset")}
+      icon={LOOK_ICONS.reset}
       data-flat-effects-reset="true"
-      title="Reset effects"
-      onClick={(event) => {
-        event.stopPropagation();
+      onClick={() => {
         track("button", "Reset effects");
         onCommitColorGrading({ ...grading, effects: { ...DEFAULT_EFFECTS }, palette: null });
       }}
-      className="flex-shrink-0 text-panel-text-3 hover:text-panel-text-1"
-    >
-      <RotateCcw size={12} />
-    </button>
+    />
   );
 }
+
+type EffectsView =
+  | { kind: "list" }
+  | { kind: "family"; label: string }
+  | { kind: "effect"; key: HfColorGradingActiveEffectKey };
 
 export function FlatEffectsSection({
   grading,
@@ -75,19 +85,19 @@ export function FlatEffectsSection({
   onRequestEffectPreviews: (effects: readonly HfColorGradingActiveEffectKey[]) => void;
   onRequestPresetPreviews: () => void;
 }) {
+  useLocale();
   const track = useTrackDesignInput();
   const activeEffects = EFFECT_SPECS.filter((effect) => grading.effects[effect.key] > 0.0001);
-  const [catalogOpen, setCatalogOpen] = useState(activeEffects.length === 0);
-  const [catalogGroup, setCatalogGroup] = useState(EFFECT_GROUPS[0].label);
-  const [selectedKey, setSelectedKey] = useState<HfColorGradingActiveEffectKey | null>(
-    activeEffects[0]?.key ?? null,
+  const [view, setView] = useState<EffectsView>(() =>
+    activeEffects[0] ? { kind: "effect", key: activeEffects[0].key } : { kind: "list" },
   );
-  const selectedEffect =
-    activeEffects.find((effect) => effect.key === selectedKey) ?? activeEffects[0] ?? null;
+  const editing =
+    view.kind === "effect" ? activeEffects.find((effect) => effect.key === view.key) : undefined;
+  const familyLabel = view.kind === "family" ? view.label : null;
 
   useEffect(() => {
-    if (!catalogOpen) return;
-    const group = EFFECT_GROUPS.find((candidate) => candidate.label === catalogGroup);
+    if (!familyLabel) return;
+    const group = EFFECT_GROUPS.find((candidate) => candidate.label === familyLabel);
     if (!group) return;
     const effectKeys = group.effects.map((effect) => effect.key);
     if (previews.status !== "loading" && effectKeys.some((effect) => !previews.images[effect])) {
@@ -100,8 +110,7 @@ export function FlatEffectsSection({
       onRequestPresetPreviews();
     }
   }, [
-    catalogGroup,
-    catalogOpen,
+    familyLabel,
     onRequestEffectPreviews,
     onRequestPresetPreviews,
     presetPreviews.images,
@@ -111,392 +120,99 @@ export function FlatEffectsSection({
   ]);
   useEffect(() => () => onPreviewColorGrading(null), [onPreviewColorGrading]);
 
-  const commitEffects = (effects: NormalizedHfColorGrading["effects"]) => {
-    onCommitColorGrading({
-      ...grading,
-      effects,
-    });
-  };
   const commitEffect = (key: HfColorGradingEffectKey, value: number) => {
-    commitEffects({ ...grading.effects, [key]: value });
+    onCommitColorGrading({ ...grading, effects: { ...grading.effects, [key]: value } });
   };
   const resolveEffect = (effect: EffectSpec): NormalizedHfColorGrading => ({
     ...grading,
-    effects: {
-      ...grading.effects,
-      ...HF_COLOR_GRADING_EFFECT_APPLY_DEFAULTS[effect.key],
-    },
+    effects: { ...grading.effects, ...HF_COLOR_GRADING_EFFECT_APPLY_DEFAULTS[effect.key] },
   });
   const applyEffect = (effect: EffectSpec) => {
     track("button", `Add ${effect.label}`);
     onCommitColorGrading(resolveEffect(effect));
-    setSelectedKey(effect.key);
-    setCatalogOpen(false);
+    setView({ kind: "effect", key: effect.key });
+  };
+  const chooseEffect = (effect: EffectSpec) => {
+    if (grading.effects[effect.key] > 0.0001) setView({ kind: "effect", key: effect.key });
+    else applyEffect(effect);
   };
   const resolvePreset = (presetId: string) =>
     normalizeHfColorGrading({ preset: presetId, lut: grading.lut }) ?? grading;
   const removeEffect = (effect: EffectSpec) => {
     track("button", `Remove ${effect.label}`);
     commitEffect(effect.key, 0);
-    setSelectedKey(null);
+    setView({ kind: "list" });
   };
-
-  const renderPalette = (kind: "mono" | "art") => {
-    const fallback = kind === "art" ? ["#1a1a1a", "#f5f5dc"] : ["#000000", "#ffffff"];
-    const palette = grading.palette;
-    return (
-      <div data-flat-effects-palette="true" className="space-y-2 py-1">
-        <div className="grid grid-cols-3 gap-1">
-          {HF_COLOR_GRADING_PALETTES.map((preset) => {
-            const selected =
-              palette?.length === preset.colors.length &&
-              palette.every((color, index) => color === preset.colors[index]);
-            return (
-              <button
-                key={preset.id}
-                type="button"
-                title={`${preset.group}: ${preset.label}`}
-                data-flat-effects-palette-preset={preset.id}
-                aria-pressed={selected}
-                onClick={() => {
-                  track("button", `Use ${preset.label} palette`);
-                  onCommitColorGrading({ ...grading, palette: [...preset.colors] });
-                }}
-                className={`min-w-0 border p-1 text-left ${
-                  selected
-                    ? "border-panel-accent bg-panel-accent/10"
-                    : "border-panel-hairline hover:border-panel-border-input"
-                }`}
-              >
-                <span className="mb-1 flex h-3 overflow-hidden rounded-[2px]">
-                  {preset.colors.map((color) => (
-                    <span key={color} className="flex-1" style={{ backgroundColor: color }} />
-                  ))}
-                </span>
-                <span className="block truncate text-[8px] text-panel-text-3">{preset.label}</span>
-              </button>
-            );
-          })}
-        </div>
-        {!palette ? (
-          <button
-            type="button"
-            data-flat-effects-add-palette="true"
-            onClick={() => {
-              track("button", "Customize effect palette");
-              onCommitColorGrading({ ...grading, palette: fallback });
-            }}
-            className="flex min-h-[28px] items-center gap-1 text-[10px] font-medium text-panel-accent hover:text-panel-accent/80"
-          >
-            <Plus size={11} /> Custom palette
-          </button>
-        ) : (
-          <>
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] text-panel-text-3">Custom palette</span>
-              <button
-                type="button"
-                title="Use default palette"
-                onClick={() => onCommitColorGrading({ ...grading, palette: null })}
-                className="text-panel-text-4 hover:text-panel-text-1"
-              >
-                <RotateCcw size={11} />
-              </button>
-            </div>
-            <div className="flex flex-wrap items-center gap-1.5">
-              {palette.map((color, index) => (
-                <span key={`${index}-${color}`} className="group/swatch relative">
-                  <input
-                    type="color"
-                    aria-label={`Palette color ${index + 1}`}
-                    value={color}
-                    onChange={(event) => {
-                      const nextPalette = [...palette];
-                      nextPalette[index] = event.target.value;
-                      onCommitColorGrading({ ...grading, palette: nextPalette });
-                    }}
-                    className="h-6 w-6 cursor-pointer rounded-sm border border-panel-border-input bg-transparent p-0"
-                  />
-                  {palette.length > 2 && (
-                    <button
-                      type="button"
-                      aria-label={`Remove palette color ${index + 1}`}
-                      onClick={() =>
-                        onCommitColorGrading({
-                          ...grading,
-                          palette: palette.filter((_, colorIndex) => colorIndex !== index),
-                        })
-                      }
-                      className="absolute -right-1 -top-1 hidden h-3.5 w-3.5 items-center justify-center rounded-full bg-panel-bg text-panel-text-2 shadow group-hover/swatch:flex"
-                    >
-                      <X size={8} />
-                    </button>
-                  )}
-                </span>
-              ))}
-              {palette.length < 6 && (
-                <button
-                  type="button"
-                  aria-label="Add palette color"
-                  onClick={() =>
-                    onCommitColorGrading({
-                      ...grading,
-                      palette: [...palette, palette.at(-1) ?? "#ffffff"],
-                    })
-                  }
-                  className="flex h-6 w-6 items-center justify-center rounded-sm border border-panel-border-input text-panel-text-4 hover:text-panel-text-1"
-                >
-                  <Plus size={11} />
-                </button>
-              )}
-            </div>
-          </>
-        )}
-      </div>
-    );
+  const resetAll = () => {
+    track("button", "Reset effects");
+    onCommitColorGrading({ ...grading, effects: { ...DEFAULT_EFFECTS }, palette: null });
+    setView({ kind: "list" });
+  };
+  const toList = () => {
+    onPreviewColorGrading(null);
+    setView({ kind: "list" });
   };
 
   return (
-    <div className="space-y-2" data-flat-effects-section="true">
-      {activeEffects.length > 0 && (
-        <div data-flat-effects-active-list="true" className="space-y-1">
-          {activeEffects.map((effect) => {
-            const selected = selectedEffect?.key === effect.key;
-            return (
-              <button
-                key={effect.key}
-                type="button"
-                data-flat-effect-active={effect.key}
-                aria-pressed={selected}
-                onClick={() => setSelectedKey(effect.key)}
-                className={`flex min-h-[30px] w-full items-center justify-between border px-2 text-left text-[10px] transition-colors ${
-                  selected
-                    ? "border-panel-accent bg-panel-accent/10 text-panel-text-0"
-                    : "border-panel-hairline bg-panel-bg-soft text-panel-text-3 hover:border-panel-border-input hover:text-panel-text-1"
-                }`}
-              >
-                <span>{effect.label}</span>
-                <span className="text-[9px] text-panel-text-5">
-                  {selected ? "Editing" : "Active"}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      )}
-
-      {selectedEffect && (
-        <div
-          data-flat-effect-editor={selectedEffect.key}
-          className="space-y-1 border-l-2 border-panel-border-input pl-2.5"
-        >
-          <div className="flex min-h-[26px] items-center justify-between gap-2">
-            <span className="text-[11px] font-medium text-panel-text-1">
-              {selectedEffect.label}
-            </span>
-            <span className="flex items-center gap-2">
-              <button
-                type="button"
-                title={`Reset ${selectedEffect.label}`}
-                onClick={() => applyEffect(selectedEffect)}
-                className="text-panel-text-4 hover:text-panel-text-1"
-              >
-                <RotateCcw size={11} />
-              </button>
-              <button
-                type="button"
-                title={`Remove ${selectedEffect.label}`}
-                onClick={() => removeEffect(selectedEffect)}
-                className="text-panel-text-4 hover:text-red-300"
-              >
-                <X size={11} />
-              </button>
-            </span>
-          </div>
-          {selectedEffect.showMaster !== false && (
-            <FlatSlider
-              label={selectedEffect.masterLabel ?? "Mix"}
-              value={grading.effects[selectedEffect.key] * 100}
-              min={0}
-              max={selectedEffect.max ?? 100}
-              tier="explicitCustom"
-              displayValue={
-                selectedEffect.masterFormat?.(grading.effects[selectedEffect.key]) ??
-                `${Math.round(grading.effects[selectedEffect.key] * 100)}%`
-              }
-              onCommit={(next) => commitEffect(selectedEffect.key, next / 100)}
-              onReset={() =>
-                commitEffect(
-                  selectedEffect.key,
-                  HF_COLOR_GRADING_EFFECT_APPLY_DEFAULTS[selectedEffect.key][selectedEffect.key] ??
-                    1,
-                )
-              }
-            />
+    <div className="flex flex-col gap-3.5" data-flat-effects-section="true">
+      {(editing || familyLabel) && <LookBack label={t("look.effects.all")} onClick={toList} />}
+      {editing ? (
+        <FlatEffectEditor
+          effect={editing}
+          grading={grading}
+          onCommitEffect={commitEffect}
+          onCommitColorGrading={onCommitColorGrading}
+          onPreviewColorGrading={onPreviewColorGrading}
+          onReset={() => applyEffect(editing)}
+          onRemove={() => removeEffect(editing)}
+        />
+      ) : familyLabel ? (
+        <LookBlock title={lookText(familyLabel)}>
+          <EffectFamilyTiles
+            label={familyLabel}
+            grading={grading}
+            previews={previews}
+            presetPreviews={presetPreviews}
+            resolveEffect={resolveEffect}
+            resolvePreset={resolvePreset}
+            onPreviewColorGrading={onPreviewColorGrading}
+            onCommitColorGrading={onCommitColorGrading}
+            onChooseEffect={chooseEffect}
+            onTrack={(name) => track("button", `Apply ${name}`)}
+          />
+        </LookBlock>
+      ) : (
+        <>
+          {activeEffects.length > 0 && (
+            <LookBlock title={t("look.effects.activeList")} data-flat-effects-active-list="true">
+              {activeEffects.map((effect) => (
+                <button
+                  key={effect.key}
+                  type="button"
+                  data-flat-effect-active={effect.key}
+                  onClick={() => setView({ kind: "effect", key: effect.key })}
+                  className={`flex h-12 w-full items-center justify-between gap-2 px-3.5 text-left text-[13px] font-semibold text-studio-text hover:bg-[var(--st-sub)] ${LOOK_ROW}`}
+                >
+                  <span className="truncate">{lookText(effect.label)}</span>
+                  <span className="text-[12px] font-medium text-studio-muted">
+                    {t("look.effects.active")}
+                  </span>
+                </button>
+              ))}
+            </LookBlock>
           )}
-          {selectedEffect.settings?.map((control: EffectControl) => (
-            <FlatEffectControl
-              key={control.key}
-              control={control}
-              effect={selectedEffect}
-              effects={grading.effects}
-              onCommit={commitEffect}
-            />
-          ))}
-          {selectedEffect.palette && renderPalette(selectedEffect.palette)}
-        </div>
+          <EffectFamilies onOpen={(label) => setView({ kind: "family", label })} />
+        </>
       )}
-
-      <button
-        type="button"
-        data-flat-effects-add-toggle="true"
-        aria-expanded={catalogOpen}
-        onClick={() => setCatalogOpen((open) => !open)}
-        className="flex min-h-[30px] items-center gap-1 text-[10px] font-medium text-panel-accent hover:text-panel-accent/80"
-      >
-        <Plus size={11} /> Add effect
-      </button>
-
-      {catalogOpen && (
-        <div data-flat-effects-catalog="true" className="space-y-2">
-          <div
-            role="tablist"
-            aria-label="Effect families"
-            className="grid grid-cols-4 gap-px overflow-hidden border border-panel-hairline bg-panel-hairline"
-          >
-            {EFFECT_GROUPS.map((group) => (
-              <button
-                key={group.label}
-                type="button"
-                role="tab"
-                aria-selected={catalogGroup === group.label}
-                data-flat-effect-group={group.label}
-                onClick={() => setCatalogGroup(group.label)}
-                className={`min-h-[25px] min-w-0 truncate bg-panel-bg px-2 text-[9px] ${
-                  catalogGroup === group.label
-                    ? "font-medium text-panel-accent"
-                    : "text-panel-text-4 hover:text-panel-text-1"
-                }`}
-              >
-                {group.label}
-              </button>
-            ))}
-          </div>
-          {EFFECT_GROUPS.filter((group) => group.label === catalogGroup).map((group) => (
-            <section key={group.label} className="space-y-1" role="tabpanel">
-              <div className={FLAT_PREVIEW_GRID}>
-                {group.presets?.map((presetId) => {
-                  const preset = HF_COLOR_GRADING_EFFECT_PRESETS.find(
-                    (candidate) => candidate.id === presetId,
-                  );
-                  if (!preset) return null;
-                  const selected = grading.preset === preset.id;
-                  const preview = presetPreviews.images[preset.id];
-                  return (
-                    <button
-                      key={preset.id}
-                      type="button"
-                      data-flat-effect-preset={preset.id}
-                      aria-pressed={selected}
-                      {...presetPreviewHandlers({
-                        id: preset.id,
-                        label: preset.label,
-                        resolve: () => resolvePreset(preset.id),
-                        onPreview: onPreviewColorGrading,
-                        onCommit: onCommitColorGrading,
-                        onTrack: (name) => track("button", `Apply ${name}`),
-                      })}
-                      className={`min-w-0 overflow-hidden border text-left text-[10px] transition-colors ${
-                        selected
-                          ? "border-panel-accent bg-panel-accent/10 text-panel-text-0"
-                          : "border-panel-hairline bg-panel-bg-soft text-panel-text-3 hover:border-panel-border-input hover:text-panel-text-1"
-                      }`}
-                    >
-                      <span
-                        className="flex w-full items-center justify-center overflow-hidden bg-black/20"
-                        style={{
-                          aspectRatio: `${presetPreviews.width} / ${presetPreviews.height}`,
-                        }}
-                      >
-                        {preview ? (
-                          <img
-                            data-flat-effect-preset-preview={preset.id}
-                            src={preview}
-                            alt=""
-                            draggable={false}
-                            className="block h-full w-full object-contain"
-                          />
-                        ) : (
-                          <span
-                            data-flat-effect-preset-placeholder={presetPreviews.status}
-                            className="h-full w-full bg-panel-bg-soft"
-                          />
-                        )}
-                      </span>
-                      <span className="block truncate px-2 py-1.5">{preset.label}</span>
-                    </button>
-                  );
-                })}
-                {group.effects.map((effect) => {
-                  const active = grading.effects[effect.key] > 0.0001;
-                  const preview = previews.images[effect.key];
-                  return (
-                    <button
-                      key={effect.key}
-                      type="button"
-                      data-flat-effect-option={effect.key}
-                      aria-pressed={active}
-                      title={`Preview ${effect.label}`}
-                      onPointerEnter={() =>
-                        onPreviewColorGrading(resolveEffect(effect), {
-                          animatedPreview: { kind: "effects", id: effect.key },
-                        })
-                      }
-                      onPointerLeave={() => onPreviewColorGrading(null)}
-                      onFocus={() => onPreviewColorGrading(resolveEffect(effect))}
-                      onBlur={() => onPreviewColorGrading(null)}
-                      onClick={() => {
-                        if (active) {
-                          setSelectedKey(effect.key);
-                          setCatalogOpen(false);
-                        } else {
-                          applyEffect(effect);
-                        }
-                      }}
-                      className={`min-w-0 overflow-hidden border text-left text-[10px] transition-colors ${
-                        active
-                          ? "border-panel-accent bg-panel-accent/10 text-panel-text-1"
-                          : "border-panel-hairline bg-panel-bg-soft text-panel-text-3 hover:border-panel-border-input hover:text-panel-text-1"
-                      }`}
-                    >
-                      <span
-                        data-flat-effect-preview-frame={effect.key}
-                        className="flex w-full items-center justify-center overflow-hidden bg-black/20"
-                        style={{ aspectRatio: `${previews.width} / ${previews.height}` }}
-                      >
-                        {preview ? (
-                          <img
-                            data-flat-effect-preview={effect.key}
-                            src={preview}
-                            alt=""
-                            draggable={false}
-                            className="block h-full w-full object-contain"
-                          />
-                        ) : (
-                          <span
-                            data-flat-effect-preview-placeholder={previews.status}
-                            className="h-full w-full bg-panel-bg-soft"
-                          />
-                        )}
-                      </span>
-                      <span className="block truncate px-2 py-1.5">{effect.label}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </section>
-          ))}
-        </div>
+      {activeEffects.length > 0 && (
+        <PillButton
+          variant="secondary"
+          className="mt-2 w-full"
+          data-flat-effects-reset-all="true"
+          onClick={resetAll}
+        >
+          {t("look.effects.reset")}
+        </PillButton>
       )}
     </div>
   );

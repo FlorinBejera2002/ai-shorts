@@ -1,8 +1,11 @@
 import { useTrackDesignInput } from "../../contexts/DesignPanelInputContext";
-import { FlatRow, FlatSegmentedRow, FlatSelectRow } from "./propertyPanelFlatPrimitives";
+import { FlatRow } from "./propertyPanelFlatPrimitives";
+import { FlatField, FlatToggleSegment } from "./propertyPanelFlatTextControls";
+import { InspectorSelect, InspectorSlider } from "./inspectorControls";
+import { t } from "../../i18n/translate";
+import type { MessageKey } from "../../i18n/dictionary";
 import { KeyframeNavigation } from "./KeyframeNavigation";
 import { formatPxMetricValue } from "./propertyPanelHelpers";
-import { resolveValueTier } from "./propertyPanelValueTier";
 import { PropertyPanel3dTransform } from "./propertyPanel3dTransform";
 import type { DomEditSelection } from "./domEditingTypes";
 
@@ -132,38 +135,44 @@ export function LayoutGeometryRows({
   };
   return (
     <>
-      <FlatRow
-        label="X"
-        value={formatPxMetricValue(displayX)}
-        tier={displayX === 0 ? "default" : "explicitCustom"}
-        disabled={manualOffsetEditingDisabled}
-        onCommit={(next) => commitManualOffset("x", next)}
-        suffix={<KeyframeGutter property="x" displayValue={displayX} {...gutterProps} />}
-      />
-      <FlatRow
-        label="Y"
-        value={formatPxMetricValue(displayY)}
-        tier={displayY === 0 ? "default" : "explicitCustom"}
-        disabled={manualOffsetEditingDisabled}
-        onCommit={(next) => commitManualOffset("y", next)}
-        suffix={<KeyframeGutter property="y" displayValue={displayY} {...gutterProps} />}
-      />
-      <FlatRow
-        label="W"
-        value={formatPxMetricValue(displayW)}
-        tier="default"
-        disabled={manualSizeEditingDisabled}
-        onCommit={(next) => commitManualSize("width", next)}
-        suffix={<KeyframeGutter property="width" displayValue={displayW} {...gutterProps} />}
-      />
-      <FlatRow
-        label="H"
-        value={formatPxMetricValue(displayH)}
-        tier="default"
-        disabled={manualSizeEditingDisabled}
-        onCommit={(next) => commitManualSize("height", next)}
-        suffix={<KeyframeGutter property="height" displayValue={displayH} {...gutterProps} />}
-      />
+      <div className="grid grid-cols-2 gap-x-3 gap-y-3">
+        <FlatRow
+          stacked
+          label="X"
+          value={formatPxMetricValue(displayX)}
+          tier={displayX === 0 ? "default" : "explicitCustom"}
+          disabled={manualOffsetEditingDisabled}
+          onCommit={(next) => commitManualOffset("x", next)}
+          suffix={<KeyframeGutter property="x" displayValue={displayX} {...gutterProps} />}
+        />
+        <FlatRow
+          stacked
+          label="Y"
+          value={formatPxMetricValue(displayY)}
+          tier={displayY === 0 ? "default" : "explicitCustom"}
+          disabled={manualOffsetEditingDisabled}
+          onCommit={(next) => commitManualOffset("y", next)}
+          suffix={<KeyframeGutter property="y" displayValue={displayY} {...gutterProps} />}
+        />
+        <FlatRow
+          stacked
+          label="W"
+          value={formatPxMetricValue(displayW)}
+          tier="default"
+          disabled={manualSizeEditingDisabled}
+          onCommit={(next) => commitManualSize("width", next)}
+          suffix={<KeyframeGutter property="width" displayValue={displayW} {...gutterProps} />}
+        />
+        <FlatRow
+          stacked
+          label="H"
+          value={formatPxMetricValue(displayH)}
+          tier="default"
+          disabled={manualSizeEditingDisabled}
+          onCommit={(next) => commitManualSize("height", next)}
+          suffix={<KeyframeGutter property="height" displayValue={displayH} {...gutterProps} />}
+        />
+      </div>
       <FlatRow
         label="Angle"
         value={`${displayR}°`}
@@ -206,53 +215,85 @@ export function LayoutFlexBlock({
   const isFlex = styles.display === "flex" || styles.display === "inline-flex";
   if (!isFlex) return null;
   const direction = styles["flex-direction"] || "row";
+  const gap = Number.parseFloat(styles.gap ?? "0") || 0;
+  const justify = styles["justify-content"] || "flex-start";
+  const align = styles["align-items"] || "stretch";
+  const choices = (values: readonly (readonly [string, MessageKey])[], current: string) => {
+    const options = values.map(([value, label]) => ({ value, label: t(label) }));
+    return options.some((option) => option.value === current)
+      ? options
+      : [{ value: current, label: current }, ...options];
+  };
   return (
-    <div className="border-l-2 border-panel-border-input py-0.5 pl-[10px]">
-      <div className="mb-[3px] text-[9px] font-semibold uppercase tracking-[0.12em] text-panel-text-5">
-        Flex
+    <section aria-label={t("flex.title")} className="flex flex-col gap-3">
+      <h3 className="text-[13px] font-semibold text-studio-text">{t("flex.title")}</h3>
+      <FlatField label={t("flex.direction")}>
+        <FlatToggleSegment
+          label={t("flex.direction")}
+          disabled={disabled}
+          options={[
+            { key: "row", node: t("flex.row"), label: t("flex.row"), active: direction === "row" },
+            {
+              key: "column",
+              node: t("flex.column"),
+              label: t("flex.column"),
+              active: direction === "column",
+            },
+          ]}
+          onChange={(next) => {
+            if (next !== direction) void onSetStyle("flex-direction", next);
+          }}
+        />
+      </FlatField>
+      <div className="grid grid-cols-2 gap-3">
+        <FlatField label={t("flex.justify")}>
+          <InspectorSelect
+            label={t("flex.justify")}
+            value={justify}
+            disabled={disabled}
+            options={choices(JUSTIFY_OPTIONS, justify)}
+            onChange={(next) => void onSetStyle("justify-content", next)}
+          />
+        </FlatField>
+        <FlatField label={t("flex.align")}>
+          <InspectorSelect
+            label={t("flex.align")}
+            value={align}
+            disabled={disabled}
+            options={choices(ALIGN_OPTIONS, align)}
+            onChange={(next) => void onSetStyle("align-items", next)}
+          />
+        </FlatField>
       </div>
-      <FlatSegmentedRow
-        label="Direction"
-        options={[
-          { key: "row", node: "→ Row", label: "Row", active: direction === "row" },
-          { key: "column", node: "Column", label: "Column", active: direction === "column" },
-        ]}
+      <InspectorSlider
+        label={t("flex.gap")}
+        value={gap}
+        min={0}
+        max={Math.max(64, gap)}
         disabled={disabled}
-        onChange={(next) => void onSetStyle("flex-direction", next)}
+        format={(value) => String(Math.round(value))}
+        onChange={(value) => void onSetStyle("gap", `${Math.round(value)}px`)}
       />
-      <FlatSelectRow
-        label="Justify"
-        value={styles["justify-content"] || "flex-start"}
-        tier={resolveValueTier(styles["justify-content"], "flex-start")}
-        disabled={disabled}
-        options={[
-          "flex-start",
-          "center",
-          "space-between",
-          "space-around",
-          "space-evenly",
-          "flex-end",
-        ]}
-        onChange={(next) => void onSetStyle("justify-content", next)}
-      />
-      <FlatSelectRow
-        label="Align"
-        value={styles["align-items"] || "stretch"}
-        tier={resolveValueTier(styles["align-items"], "stretch")}
-        disabled={disabled}
-        options={["stretch", "flex-start", "center", "flex-end", "baseline"]}
-        onChange={(next) => void onSetStyle("align-items", next)}
-      />
-      <FlatRow
-        label="Gap"
-        value={styles.gap ?? "0px"}
-        tier={resolveValueTier(styles.gap, "0px")}
-        disabled={disabled}
-        onCommit={(next) => void onSetStyle("gap", next.endsWith("px") ? next : `${next}px`)}
-      />
-    </div>
+    </section>
   );
 }
+
+const JUSTIFY_OPTIONS = [
+  ["flex-start", "flex.start"],
+  ["center", "flex.center"],
+  ["space-between", "flex.between"],
+  ["space-around", "flex.around"],
+  ["space-evenly", "flex.evenly"],
+  ["flex-end", "flex.end"],
+] as const satisfies readonly (readonly [string, MessageKey])[];
+
+const ALIGN_OPTIONS = [
+  ["stretch", "flex.stretch"],
+  ["flex-start", "flex.start"],
+  ["center", "flex.center"],
+  ["flex-end", "flex.end"],
+  ["baseline", "flex.baseline"],
+] as const satisfies readonly (readonly [string, MessageKey])[];
 
 export function LayoutTransform3DBlock({
   gsapRuntimeValues,
@@ -297,10 +338,7 @@ export function LayoutTransform3DBlock({
   onLivePreviewProps?: (element: DomEditSelection, props: Record<string, number>) => void;
 }) {
   return (
-    <div className="border-t border-panel-hairline pt-2.5">
-      <div className="mb-[3px] text-[9px] font-semibold uppercase tracking-[0.12em] text-panel-text-5">
-        3D Transform
-      </div>
+    <div>
       <PropertyPanel3dTransform
         gsapRuntimeValues={gsapRuntimeValues}
         gsapAnimId={gsapAnimId}

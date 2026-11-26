@@ -1,6 +1,7 @@
 import type { TimelineElement } from "../player";
 import type { CompositionDimensions } from "../components/renders/RenderQueue";
 import type { FfmpegStatus } from "../components/renders/useFfmpegStatus";
+import type { RenderJob } from "../components/renders/useRenderQueue";
 import { useContext, useMemo, type ReactNode } from "react";
 import { createStableContext } from "../utils/hmrStableContext";
 
@@ -42,6 +43,9 @@ export interface StudioShellValue {
     ffmpegMissing: boolean;
     ffmpegChecking: boolean;
     recheckFfmpeg: () => void;
+    /** The render the header's Export started, followed by the export dialogs. */
+    exportFlowJob?: RenderJob | null;
+    dismissExportFlow?: () => void;
   };
   compositionDimensions: CompositionDimensions | null;
   waitForPendingDomEditSaves: () => Promise<void>;

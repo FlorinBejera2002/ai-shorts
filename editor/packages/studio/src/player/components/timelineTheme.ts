@@ -35,40 +35,51 @@ export interface TimelineTheme {
   clipRadius: string;
 }
 
+// Colours come from styles/tokens.css so the timeline follows the app theme.
+// Alpha overlays use color-mix() on the token, which keeps them correct in light and dark.
+const mix = (token: string, percent: number) =>
+  `color-mix(in srgb, var(--st-${token}) ${percent}%, transparent)`;
+
+/** Alpha tint of a theme token, for overlays drawn inline. */
+export const timelineMix = mix;
+
+/** Primary interaction colour (black in light, steel in dark) for snap guides, drop
+ *  targets and range highlights. */
+export const TIMELINE_ACCENT = "var(--st-btn)";
+
 const TRACK_STYLE: TimelineTrackStyle = {
-  clip: "rgba(255,255,255,0.055)",
-  clipActive: "rgba(91,140,255,0.18)",
-  accent: "#5B8CFF",
-  label: "rgba(255,255,255,0.5)",
+  clip: mix("tx", 6),
+  clipActive: mix("btn", 18),
+  accent: "var(--st-btn)",
+  label: mix("tx", 50),
 };
 
 export const defaultTimelineTheme: TimelineTheme = {
-  // Reference canvas navy: panel cards (#121A27) on the darker app canvas (#0B111C).
-  shellBackground: "#121A27",
-  shellBorder: "rgba(255,255,255,0.05)",
-  rulerBorder: "rgba(255,255,255,0.16)",
-  // Track lanes are one step lighter than the panel surface so they read distinct.
-  rowBackground: "#151E2D",
-  rowBorder: "rgba(255,255,255,0.06)",
-  gutterBackground: "#121A27",
-  gutterBorder: "rgba(255,255,255,0.10)",
-  textPrimary: "rgba(255,255,255,0.92)",
-  textSecondary: "rgba(255,255,255,0.62)",
-  tickText: "rgba(255,255,255,0.34)",
-  tickMajor: "rgba(255,255,255,0.10)",
-  tickMinor: "rgba(255,255,255,0.06)",
-  clipBackground: "#1C2A44",
-  clipBackgroundActive: "#22355A",
-  clipBorder: "rgba(255,255,255,0.10)",
-  clipBorderHover: "rgba(255,255,255,0.18)",
-  clipBorderActive: "#5B8CFF",
+  shellBackground: "var(--st-sf)",
+  shellBorder: mix("tx", 5),
+  rulerBorder: mix("tx", 16),
+  // Track lanes are recessed below the panel surface.
+  rowBackground: "var(--st-in)",
+  rowBorder: mix("tx", 6),
+  gutterBackground: "var(--st-sf)",
+  gutterBorder: mix("tx", 10),
+  textPrimary: mix("tx", 92),
+  textSecondary: mix("tx", 62),
+  tickText: mix("tx", 34),
+  tickMajor: mix("tx", 10),
+  tickMinor: mix("tx", 6),
+  clipBackground: "var(--st-sub)",
+  clipBackgroundActive: `color-mix(in srgb, var(--st-btn) 18%, var(--st-sub))`,
+  clipBorder: mix("tx", 10),
+  clipBorderHover: mix("tx", 18),
+  clipBorderActive: "var(--st-btn)",
   clipShadow: "none",
-  clipShadowHover: "0 2px 8px rgba(0,0,0,0.2)",
-  clipShadowActive: "0 2px 8px rgba(0,0,0,0.2), 0 0 0 1px rgba(255,255,255,0.04)",
-  clipShadowDragging: "0 8px 24px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.06)",
-  handleColor: "rgba(255,255,255,0.2)",
-  panelResizeSeam: "rgba(255,255,255,0.12)",
-  panelResizeActive: "rgba(255,255,255,0.24)",
+  clipShadowHover: "var(--st-sh)",
+  clipShadowActive: "var(--st-sh)",
+  clipShadowDragging: "var(--st-sh)",
+  handleColor: mix("tx", 20),
+  panelResizeSeam: mix("tx", 12),
+  panelResizeActive: mix("tx", 24),
   clipRadius: "10px",
 };
 

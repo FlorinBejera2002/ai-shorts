@@ -1,4 +1,5 @@
 import { useCallback } from "react";
+import { t } from "../i18n/translate";
 import { usePlayerStore, type TimelineElement } from "../player";
 import { reseekPreviewAtTime } from "../player/hooks/timelineSyncHydration";
 import { useExpandedTimelineElements } from "../player/hooks/useExpandedTimelineElements";
@@ -229,13 +230,17 @@ export async function toggleTimelineTrackHidden({
   );
   const trackElements = timelineElements.filter((element) => element.track === track);
   const isAudioOnlyTrack = trackElements.length > 0 && trackElements.every(isAudioTimelineElement);
-  const label = isAudioOnlyTrack
-    ? hidden
-      ? `Mute track${suffix}`
-      : `Unmute track${suffix}`
-    : hidden
-      ? `Hide track${suffix}`
-      : `Show track${suffix}`;
+  // The undo history shows this label, so it follows the UI language.
+  const label = t(
+    isAudioOnlyTrack
+      ? hidden
+        ? "timeline.muteTrack"
+        : "timeline.unmuteTrack"
+      : hidden
+        ? "timeline.hideTrack"
+        : "timeline.showTrack",
+    { suffix },
+  );
   return setElementsHidden({
     projectId,
     activeCompPath,

@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { flatLabel } from "./flatLabel";
+import { t } from "../../i18n/translate";
 import type { DomEditSelection } from "./domEditingTypes";
 import { MetricField } from "./propertyPanelPrimitives";
 import { KeyframeNavigation } from "./KeyframeNavigation";
@@ -178,9 +180,6 @@ function Cube3dControl({
           onKeyframe={onKeyframe}
           keyframed={keyframed}
         />
-        <p className="mt-1 text-center text-[9px] leading-snug text-neutral-600">
-          Drag to tilt · Shift-drag to roll · Scroll for depth
-        </p>
       </div>
     </div>
   );
@@ -318,14 +317,14 @@ export function PropertyPanel3dTransform({
   };
 
   return (
-    <div className="mt-3 border-t border-neutral-800/40 pt-3">
+    <section aria-label={t("layout.transform3d")} className="flex flex-col">
       <button
         type="button"
         onClick={() => setCollapsed((v) => !v)}
         aria-expanded={!collapsed}
-        className="mb-2 flex w-full items-center justify-between text-[10px] font-medium uppercase tracking-wider text-neutral-600 hover:text-neutral-400 active:scale-[0.99]"
+        className="mb-2 flex min-h-8 w-full items-center justify-between rounded-full text-[13px] font-semibold text-studio-text hover:text-studio-muted active:scale-[0.99]"
       >
-        <span>3D Transform</span>
+        <span>{t("layout.transform3d")}</span>
         <svg
           width="9"
           height="9"
@@ -371,7 +370,7 @@ export function PropertyPanel3dTransform({
             />
             <Transform3dField
               ctx={ctx}
-              label="Scale"
+              label={flatLabel("Scale")}
               prop="scale"
               scrub
               format={(v) => String(v)}
@@ -404,7 +403,7 @@ export function PropertyPanel3dTransform({
             />
             <Transform3dField
               ctx={ctx}
-              label="Perspective"
+              label={flatLabel("Perspective")}
               prop="transformPerspective"
               scrub
               format={formatPxMetricValue}
@@ -414,6 +413,6 @@ export function PropertyPanel3dTransform({
           </div>
         </>
       )}
-    </div>
+    </section>
   );
 }

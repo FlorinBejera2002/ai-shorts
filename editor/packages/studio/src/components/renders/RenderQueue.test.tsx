@@ -104,13 +104,10 @@ describe("RenderQueue dynamic range", () => {
       dynamicRange.value = "force-hdr";
       dynamicRange.dispatchEvent(new Event("change", { bubbles: true }));
     });
-    const format = [...host.querySelectorAll("select")].find((select) =>
-      [...select.options].some((option) => option.value === "mov"),
+    const movOption = [...host.querySelectorAll<HTMLButtonElement>('[role="radio"]')].find(
+      (button) => button.textContent === "MOV (ProRes)",
     )!;
-    act(() => {
-      format.value = "mov";
-      format.dispatchEvent(new Event("change", { bubbles: true }));
-    });
+    act(() => movOption.click());
     expect(dynamicRange.disabled).toBe(true);
     expect(dynamicRange.value).toBe("force-sdr");
     act(() => exportButtonIn(host).click());

@@ -1,102 +1,80 @@
-import { useState } from "react";
-import { useFileManagerContext } from "../contexts/FileManagerContext";
-import { useStudioPlaybackContext, useStudioShellContext } from "../contexts/StudioContext";
-import {
-  changeCompositionAspect,
-  compositionCanvasDimensions,
-  COMPOSITION_ASPECTS,
-  importedScenePaths,
-} from "../utils/compositionAspectRatio";
-import type { StudioAssistantProps } from "./assistant/StudioAssistant";
+import { useCallback, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import { t, useLocale } from "../i18n/translate";
+import { COMPOSITION_ASPECTS } from "../utils/compositionAspectRatio";
+import { canvasFormatLabel, CANVAS_FORMATS, useCanvasAspect } from "./canvasAspect";
+import type { AgentRecordEdit } from "./agent/useAgentRun";
+import { ShellIcon, type ShellIconName } from "./shell/ShellIcon";
+import { useDismissOnOutside } from "./shell/useDismissOnOutside";
 
-export function CanvasAspectSelect({ recordEdit }: StudioAssistantProps) {
-  const {
-    activeCompPath,
-    compositionDimensions,
-    writeBlockedReason,
-    waitForPendingDomEditSaves,
-    showToast,
-  } = useStudioShellContext();
-  const { setRefreshKey } = useStudioPlaybackContext();
-  const files = useFileManagerContext();
-  const [busy, setBusy] = useState(false);
-  const ratio = compositionDimensions
-    ? compositionDimensions.width / compositionDimensions.height
-    : 0;
-  const value =
-    COMPOSITION_ASPECTS.find((item) => Math.abs(item.width / item.height - ratio) < 0.001)?.label ??
-    "";
+export { CANVAS_FORMATS, canvasFormatLabel, useCanvasAspect } from "./canvasAspect";
 
-  async function change(label: string) {
-    if (busy || writeBlockedReason) return;
-    setBusy(true);
-    try {
-      const save = await files.flushPendingSourceSave();
-      if (save.status !== "clean")
-        throw new Error("Save or resolve your source edits before changing the canvas.");
-      await waitForPendingDomEditSaves();
-      const path = activeCompPath ?? "index.html";
-      const before = await files.readProjectFile(path);
-      const after = changeCompositionAspect(before, label);
-      const canvas = compositionCanvasDimensions(after);
-      const changed: Record<string, { before: string; after: string }> = {
-        [path]: { before, after },
-      };
-      for (const scenePath of importedScenePaths(before)) {
-        const sceneBefore = await files.readProjectFile(scenePath);
-        changed[scenePath] = {
-          before: sceneBefore,
-          after: changeCompositionAspect(sceneBefore, label, canvas),
-        };
-      }
-      const written: string[] = [];
-      try {
-        for (const [filePath, edit] of Object.entries(changed)) {
-          await files.writeProjectFile(filePath, edit.after, edit.before);
-          written.push(filePath);
-        }
-      } catch (error) {
-        for (const filePath of written.reverse()) {
-          const edit = changed[filePath];
-          await files.writeProjectFile(filePath, edit.before, edit.after);
-        }
-        throw error;
-      }
-      for (const [filePath, edit] of Object.entries(changed))
-        files.updateEditingFileContent(filePath, edit.after);
-      await recordEdit({
-        label: "Canvas aspect ratio",
-        kind: "source",
-        files: changed,
-      });
-      setRefreshKey((current) => current + 1);
-      showToast("Canvas updated. Review text and overlays before exporting.", "info");
-    } catch (error) {
-      showToast(error instanceof Error ? error.message : "Could not change the canvas.", "error");
-    } finally {
-      setBusy(false);
-    }
-  }
+function formatIcon(format: string): ShellIconName {
+  const preset = COMPOSITION_ASPECTS.find((aspect) => aspect.label === format);
+  if (!preset || preset.width === preset.height) return "square";
+  return preset.width > preset.height ? "landscape" : "phone";
+}
+
+/** Top bar format menu: 124×40 trigger and a six-item menu under it. */
+export function CanvasAspectSelect({ recordEdit }: { recordEdit: AgentRecordEdit }) {
+  useLocale();
+  const aspect = useCanvasAspect(recordEdit);
+  const [open, setOpen] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const close = useCallback(() => setOpen(false), []);
+  useDismissOnOutside(open, [triggerRef, menuRef], close);
+  const current = aspect.value || "Original";
+  const rect = open ? triggerRef.current?.getBoundingClientRect() : undefined;
 
   return (
-    <select
-      aria-label="Video aspect ratio"
-      value={value}
-      disabled={busy || !!writeBlockedReason}
-      onChange={(event) => void change(event.target.value)}
-      className="h-9 max-w-24 rounded-md border border-neutral-700 bg-neutral-900 px-2 text-xs text-neutral-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-studio-accent sm:h-7"
-    >
-      <option value="" disabled>
-        Canvas
-      </option>
-      <option value="Original" title="Restore the composition's initial canvas dimensions">
-        Original
-      </option>
-      {COMPOSITION_ASPECTS.map((aspect) => (
-        <option key={aspect.label} value={aspect.label}>
-          {aspect.label}
-        </option>
-      ))}
-    </select>
+    <>
+      <button
+        ref={triggerRef}
+        type="button"
+        aria-label={t("shell.format")}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        disabled={aspect.disabled}
+        onClick={() => setOpen((value) => !value)}
+        className="flex h-10 w-[124px] flex-none max-lg:w-[96px] max-lg:pl-3 items-center gap-2 rounded-md bg-studio-surface pl-3.5 pr-3 text-[13px] font-semibold text-studio-text shadow-[inset_0_0_0_1px_var(--st-sbd)] hover:bg-[var(--st-sub)] disabled:opacity-60"
+      >
+        <ShellIcon name={formatIcon(current)} size={15} />
+        <span className="flex-1 text-center">{canvasFormatLabel(current)}</span>
+        <ShellIcon name="chevronDown" size={14} />
+      </button>
+      {open &&
+        rect &&
+        createPortal(
+          <div
+            ref={menuRef}
+            role="menu"
+            aria-label={t("shell.format")}
+            style={{ left: Math.max(8, rect.left - 160), top: rect.bottom + 8 }}
+            className="fixed z-[120] flex w-[124px] flex-col gap-0.5 rounded-[16px] bg-studio-surface p-1.5 shadow-studio"
+          >
+            {CANVAS_FORMATS.map((format) => {
+              const selected = format === current;
+              return (
+                <button
+                  key={format}
+                  type="button"
+                  role="menuitemradio"
+                  aria-checked={selected}
+                  onClick={() => {
+                    setOpen(false);
+                    if (!selected) void aspect.change(format);
+                  }}
+                  className={`flex h-9 items-center gap-2.5 whitespace-nowrap rounded-[10px] px-2.5 text-left text-[13px] font-medium text-studio-text hover:bg-[var(--st-sub)] ${selected ? "bg-[var(--st-sub)]" : ""}`}
+                >
+                  {selected && <ShellIcon name="check" size={14} strokeWidth={2.4} />}
+                  <span className="flex-1">{canvasFormatLabel(format)}</span>
+                </button>
+              );
+            })}
+          </div>,
+          document.body,
+        )}
+    </>
   );
 }

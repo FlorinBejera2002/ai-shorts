@@ -135,14 +135,16 @@ describe("getPreviewPlayerKey", () => {
 
 describe("resolvePreviewStageSize", () => {
   it("fits portrait composition dimensions by height in a narrow viewport", () => {
-    expect(resolvePreviewStageSize(512, 402, { width: 1080, height: 1920 }, undefined)).toEqual({
-      width: 217.125,
-      height: 386,
-    });
+    expect(resolvePreviewStageSize(512, 402, { width: 1080, height: 1920 }, undefined, 16)).toEqual(
+      {
+        width: 217.125,
+        height: 386,
+      },
+    );
   });
 
   it("uses composition dimensions ahead of the legacy portrait fallback", () => {
-    expect(resolvePreviewStageSize(512, 402, { width: 1920, height: 1080 }, true)).toEqual({
+    expect(resolvePreviewStageSize(512, 402, { width: 1920, height: 1080 }, true, 16)).toEqual({
       width: 496,
       height: 279,
     });

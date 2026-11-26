@@ -313,7 +313,7 @@ describe("PropertyPanel — STUDIO_FLAT_INSPECTOR_ENABLED on", () => {
       const { host, root } = await renderPanel(true);
       expect(host.querySelector('[data-flat-header-icon="true"]')).not.toBeNull();
       expect(host.querySelector('[data-flat-group-open="true"]')).not.toBeNull();
-      expect(host.textContent).toContain("Ask agent about this element");
+      expect(host.textContent).toContain("Ask for help");
       act(() => root.unmount());
     },
     RENDER_TIMEOUT_MS,
@@ -495,7 +495,7 @@ describe("PropertyPanel — Motion group (Plan 3b)", () => {
       const openGroup = openGroupText(host);
       expect(openGroup).toContain("Motion");
       expect(openGroup).toContain("Duration"); // Timing still shows
-      expect(openGroup).not.toContain("Add effect"); // effects gated off
+      expect(openGroup).not.toContain("New animation"); // effects gated off
       act(() => root.unmount());
     },
     RENDER_TIMEOUT_MS,
@@ -512,7 +512,7 @@ describe("PropertyPanel — Motion group (Plan 3b)", () => {
         onAddGsapAnimation: vi.fn(),
       });
       openFlatGroup(host, "Motion");
-      expect(openGroupText(host)).toContain("Add effect");
+      expect(openGroupText(host)).toContain("New animation");
       act(() => root.unmount());
     },
     RENDER_TIMEOUT_MS,
@@ -534,7 +534,8 @@ describe("PropertyPanel — flat Layout/Motion timing agreement (whole-plan cohe
       openFlatGroup(host, "Motion");
       const motionGroup = host.querySelector('[data-flat-group-open="true"]');
       if (!motionGroup) throw new Error("expected the Motion group to be open");
-      expect(motionGroup.textContent).toContain("Inferred");
+      // The inferred note is the row tooltip (titles only, no helper text).
+      expect(motionGroup.querySelector('[data-timing-inferred="true"]')).not.toBeNull();
       const inputs = motionGroup.querySelectorAll<HTMLInputElement>("input");
       // FlatTimingRow renders Start, End, Duration in that order.
       expect(inputs[0]?.value).toBe("2.00s");
@@ -719,11 +720,11 @@ function audioElement() {
 // All FlatGroup titles currently mounted (open row + every collapsed row).
 function flatGroupTitles(host: HTMLElement): string[] {
   const open = Array.from(
-    host.querySelectorAll('[data-flat-group-open="true"] .text-panel-text-0'),
-  ).map((el) => el.textContent ?? "");
+    host.querySelectorAll('[data-flat-group-open="true"] [data-flat-group-title="true"]'),
+  ).map((el) => el.textContent?.trim() ?? "");
   const collapsed = Array.from(
-    host.querySelectorAll('[data-flat-group-collapsed="true"] .text-panel-text-2'),
-  ).map((el) => el.textContent ?? "");
+    host.querySelectorAll('[data-flat-group-collapsed="true"] [data-flat-group-title="true"]'),
+  ).map((el) => el.textContent?.trim() ?? "");
   return [...open, ...collapsed];
 }
 
@@ -860,7 +861,7 @@ describe("PropertyPanel — Media group (Plan 4)", () => {
 // collapsed headers after it — in exactly that DOM order, nothing sticky.
 describe("PropertyPanel — fixed headers + scrollable open section (Plan 11)", () => {
   it(
-    "renders before-open headers, the open group (header + scrollable body), then after-open headers, in that exact order, with nothing sticky",
+    "renders the open group (header + scrollable body) first, then the other sections in order, with nothing sticky",
     async () => {
       const { host, root } = await renderPanel(true, sixGroupElement());
       // sixGroupElement() opens Text by default; open Motion (index 3) to
@@ -871,20 +872,16 @@ describe("PropertyPanel — fixed headers + scrollable open section (Plan 11)", 
       const body = host.querySelector('[data-flat-panel-body="true"]');
       if (!body) throw new Error("expected the flat panel body container");
 
-      // Titles in DOM order: each child is either a collapsed header button
-      // (before/after the open group) or the open-group wrapper div.
-      const titles = Array.from(body.children).map((child) => {
-        if (child.matches('[data-flat-group-collapsed="true"]')) return child.textContent ?? "";
-        if (child.matches('[data-flat-group-open="true"]')) return child.textContent ?? "";
-        return null;
-      });
-      // Filter to just the group entries (drop any non-group nulls).
-      const groupTitles = titles.filter((t): t is string => t !== null);
+      // St-Inspector-Element: the open section comes first, then the "Secțiuni" grid
+      // lists the other sections in their group order.
+      const groupTitles = Array.from(
+        body.querySelectorAll('[data-flat-group-open="true"], [data-flat-group-collapsed="true"]'),
+      ).map((node) => node.textContent ?? "");
       expect(groupTitles).toHaveLength(7);
-      expect(groupTitles[0]).toContain("Text");
-      expect(groupTitles[1]).toContain("Style");
-      expect(groupTitles[2]).toContain("Layout");
-      expect(groupTitles[3]).toContain("Motion");
+      expect(groupTitles[0]).toContain("Motion");
+      expect(groupTitles[1]).toContain("Text");
+      expect(groupTitles[2]).toContain("Style");
+      expect(groupTitles[3]).toContain("Layout");
       expect(groupTitles[4]).toContain("Grade");
       expect(groupTitles[5]).toContain("Effects");
       expect(groupTitles[6]).toContain("Media");

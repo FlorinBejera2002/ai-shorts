@@ -1,4 +1,5 @@
 import { useRef, useMemo, useCallback, useState, memo } from "react";
+import { t } from "../../i18n/translate";
 import { useAdjustedBeatAnalysis, useMusicBeatAnalysis } from "../../hooks/useMusicBeatAnalysis";
 import { usePlayerStore, type TimelineElement } from "../store/playerStore";
 import { useExpandedTimelineElements } from "../hooks/useExpandedTimelineElements";
@@ -16,7 +17,8 @@ import { useTimelineEditPinning } from "./useTimelineEditPinning";
 import { useTimelineStackingSync } from "./useTimelineStackingSync";
 import { useTimelineGeometry } from "./useTimelineGeometry";
 import { useAutoExpandKeyframedClips } from "./useAutoExpandKeyframedClips";
-import { GUTTER, LABEL_COL_W, TRACKS_LEFT_PAD } from "./timelineLayout";
+import { GUTTER, LABEL_COL_W, PHONE_LABEL_COL_W } from "./timelineLayout";
+import { useIsPhone } from "../../components/shell/useIsPhone";
 import { useTimelineScrollViewport } from "./useTimelineScrollViewport";
 import { useResolvedTimelineEditCallbacks } from "./useResolvedTimelineEditCallbacks";
 import type { TimelineProps } from "./TimelineTypes";
@@ -30,11 +32,7 @@ import { useTrackGapMenu } from "./useTrackGapMenu";
 import { useTimelineGapHighlights } from "./useTimelineGapHighlights";
 import { TimelineRazorGuide, useTimelineRazorInteraction } from "./TimelineRazorInteraction";
 import { useTimelinePerformanceTelemetry } from "./useTimelinePerformanceTelemetry";
-import {
-  getEffectiveTimelineDuration,
-  getTimelinePreviewElement,
-  timelineNeedsLabelColumn,
-} from "./timelineViewModel";
+import { getEffectiveTimelineDuration, getTimelinePreviewElement } from "./timelineViewModel";
 import { useTimelineSelectionLifecycle } from "./useTimelineSelectionLifecycle";
 import { useTimelineShiftModifier } from "./useTimelineShiftModifier";
 import { useTimelineTicks } from "./useTimelineTicks";
@@ -51,7 +49,6 @@ export {
   getTimelinePlaybackFollowScrollLeft,
   getTimelinePlayheadLeft,
   getTimelineCanvasHeight,
-  shouldShowTimelineShortcutHint,
   resolveTimelineAssetDrop,
   shouldHandleTimelineDeleteKey,
   getDefaultDroppedTrack,
@@ -115,13 +112,13 @@ export const Timeline = memo(function Timeline({
   const selectedElementIds = usePlayerStore((s) => s.selectedElementIds);
   const focusedEaseSegment = usePlayerStore((s) => s.focusedEaseSegment);
   const gsapAnimations = usePlayerStore((s) => s.gsapAnimations);
-  const labelMode = useMemo(
-    () => timelineNeedsLabelColumn(gsapAnimations, expandedElements),
-    [gsapAnimations, expandedElements],
-  );
-  // The label column provides pre-t=0 space; otherwise keep TRACKS_LEFT_PAD after the gutter.
-  const contentOrigin = labelMode ? LABEL_COL_W + GUTTER : GUTTER + TRACKS_LEFT_PAD;
-  const contentGutter = labelMode ? GUTTER : 0;
+  // The header column is always shown (St-Timeline-Tools): name, icon and eye per track,
+  // then the gutter, which is also the pre-t=0 room for a 0% keyframe diamond.
+  // A phone keeps only the 26px glyph column (St-M-Timeline-Tools).
+  const phone = useIsPhone();
+  const labelColumnW = phone ? PHONE_LABEL_COL_W : LABEL_COL_W;
+  const contentOrigin = labelColumnW + GUTTER;
+  const contentGutter = GUTTER;
   const setSelectedElementId = usePlayerStore((s) => s.setSelectedElementId);
   const currentTime = usePlayerStore((s) => s.currentTime);
   const { zoomMode, manualZoomPercent, setZoomMode, setManualZoomPercent } = useTimelineZoom();
@@ -257,12 +254,7 @@ export const Timeline = memo(function Timeline({
     totalRowCount: displayLayout.displayTrackOrder.length,
     zoomMode,
   });
-  const { viewport, showShortcutHint, setScrollRef, syncScrollViewport } =
-    useTimelineScrollViewport(scrollRef, [
-      timelineReady,
-      expandedElements.length,
-      displayLayout.totalH,
-    ]);
+  const { viewport, setScrollRef, syncScrollViewport } = useTimelineScrollViewport(scrollRef);
   const { pps, fitPps, displayContentWidth, displayDuration, zoomModeRef, manualZoomPercentRef } =
     useTimelineGeometry({
       viewportWidth: viewport.clientWidth,
@@ -442,22 +434,18 @@ export const Timeline = memo(function Timeline({
   return (
     <div
       ref={setContainerRef}
-      aria-label="Timeline"
+      aria-label={t("timeline.label")}
       data-timeline-element-count={expandedElements.length}
-      className={`relative border-t select-none h-full overflow-hidden ${assetDrop.isDragOver ? "ring-1 ring-inset ring-studio-accent/60" : ""} ${activeTool === "razor" ? "cursor-crosshair" : shiftHeld ? "cursor-crosshair" : "cursor-default"}`}
+      className={`relative min-h-0 flex-1 select-none overflow-hidden rounded-[14px] ${assetDrop.isDragOver ? "outline outline-2 -outline-offset-2 outline-[var(--st-tx)]" : ""} ${activeTool === "razor" || shiftHeld ? "cursor-crosshair" : "cursor-default"}`}
       onMouseMove={updateRazorGuide}
       onMouseLeave={clearRazorGuide}
-      style={{
-        touchAction: "pan-x pan-y",
-        background: theme.shellBackground,
-        borderColor: theme.shellBorder,
-      }}
+      style={{ touchAction: "pan-x pan-y", background: theme.shellBackground }}
     >
       <div
         ref={setScrollRef}
         // Stable owner for gestures that must survive virtual row/clip unmounts.
         data-timeline-scroll-viewport
-        data-timeline-auto-scroll-left-inset={labelMode ? LABEL_COL_W : 0}
+        data-timeline-auto-scroll-left-inset={labelColumnW}
         tabIndex={-1}
         className={`${zoomMode === "fit" ? "overflow-x-hidden" : "overflow-x-auto"} overflow-y-auto h-full outline-none`}
         onScroll={(e) => {
@@ -573,7 +561,6 @@ export const Timeline = memo(function Timeline({
         elements={expandedElements}
         elementsRef={expandedElementsRef}
         theme={theme}
-        showShortcutHint={showShortcutHint}
         showPopover={showPopover}
         rangeSelection={rangeSelection}
         setShowPopover={setShowPopover}

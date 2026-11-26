@@ -4,8 +4,17 @@ import {
   normalizeHfColorGrading,
   type NormalizedHfColorGradingSecondary,
 } from "@hyperframes/core/color-grading";
-import { Eyedropper, Plus, Trash } from "../../icons/SystemIcons";
-import { FlatSlider } from "./propertyPanelFlatPrimitives";
+import type { MessageKey } from "../../i18n/dictionary";
+import { t, useLocale } from "../../i18n/translate";
+import { PillButton } from "../ui/PillButton";
+import {
+  LOOK_ICONS,
+  LOOK_SLIDER_GRID,
+  LookIcon,
+  LookIconButton,
+  LookSlider,
+  LookTitle,
+} from "./propertyPanelColorLookUi";
 import { FlatToggle } from "./propertyPanelFlatToggle";
 import type { ColorGradingCapturedFrame } from "./useColorGradingPreviews";
 import {
@@ -28,12 +37,31 @@ function wrapHueCenter(value: number): number {
 }
 
 const CORRECTION_CONTROLS = [
-  ["hueShift", "Hue shift", 1, "°"],
-  ["saturation", "Saturation", PERCENT_SCALE, "%"],
-  ["luma", "Luma", PERCENT_SCALE, "%"],
-  ["temperature", "Warmth", PERCENT_SCALE, "%"],
-  ["tint", "Tint", PERCENT_SCALE, "%"],
-] as const;
+  ["hueShift", "look.secondary.hueShift", 1, "°"],
+  ["saturation", "look.secondary.saturation", PERCENT_SCALE, "%"],
+  ["luma", "look.secondary.luma", PERCENT_SCALE, "%"],
+  ["temperature", "look.secondary.temperature", PERCENT_SCALE, "%"],
+  ["tint", "look.secondary.tint", PERCENT_SCALE, "%"],
+] as const satisfies ReadonlyArray<readonly [string, MessageKey, number, string]>;
+
+const QUALIFIER_LABEL = {
+  saturation: {
+    min: "look.secondary.saturationMin",
+    max: "look.secondary.saturationMax",
+    softness: "look.secondary.saturationSoftness",
+  },
+  luma: {
+    min: "look.secondary.lumaMin",
+    max: "look.secondary.lumaMax",
+    softness: "look.secondary.lumaSoftness",
+  },
+} as const satisfies Record<string, Record<"min" | "max" | "softness", MessageKey>>;
+
+/** Small swatch of the hue a selection keys on (St-Inspector-Secondary). */
+function keySwatch(secondary: NormalizedHfColorGradingSecondary | undefined): string {
+  if (!secondary) return "var(--st-bd)";
+  return `hsl(${Math.round(secondary.key.hue.center)} 60% 55%)`;
+}
 
 function defaultSecondary(): NormalizedHfColorGradingSecondary {
   const secondary = normalizeHfColorGrading({
@@ -71,6 +99,7 @@ export function PropertyPanelColorSecondary({
   captureFrame: () => Promise<ColorGradingCapturedFrame | null>;
   onCommit: (secondaries: Secondaries) => void;
 }) {
+  useLocale();
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [sampleFrame, setSampleFrame] = useState<ColorGradingCapturedFrame | null>(null);
   const [samplePixels, setSamplePixels] = useState<Uint8ClampedArray | null>(null);
@@ -118,67 +147,57 @@ export function PropertyPanelColorSecondary({
   };
 
   return (
-    <div className="space-y-1.5" data-flat-grade-secondary="true">
-      <div className="flex items-center justify-between gap-2">
-        <span className="flex items-center gap-1">
-          {secondaries.map((_, index) => (
-            <button
-              key={index}
-              type="button"
-              aria-pressed={activeIndex === index}
-              onClick={() => {
-                setSelectedIndex(index);
-                setSampleFrame(null);
-                setSamplePixels(null);
-                setCaptureError(null);
-              }}
-              className={`h-6 min-w-6 border-b-2 px-1 font-mono text-[10px] ${
-                activeIndex === index
-                  ? "border-panel-accent text-panel-text-0"
-                  : "border-transparent text-panel-text-4 hover:text-panel-text-2"
-              }`}
-            >
-              {index + 1}
-            </button>
-          ))}
-        </span>
-        <span className="flex items-center gap-2">
-          <button
-            type="button"
-            aria-label="Add secondary color selection"
-            title="Add secondary color selection"
-            disabled={secondaries.length >= SECONDARY_CAPABILITIES.max}
-            onClick={addSecondary}
-            className="text-panel-text-3 hover:text-panel-text-1 disabled:opacity-35"
-          >
-            <Plus size={12} />
-          </button>
-          <button
-            type="button"
-            aria-label="Remove selected secondary"
-            title="Remove selected secondary"
-            disabled={!selected}
-            onClick={removeSelected}
-            className="text-panel-text-3 hover:text-panel-text-1 disabled:opacity-35"
-          >
-            <Trash size={12} />
-          </button>
-        </span>
-      </div>
+    <section className="flex flex-col gap-2.5" data-flat-grade-secondary="true">
+      <LookTitle
+        action={
+          <span className="flex items-center gap-1">
+            {secondaries.map((secondary, index) => (
+              <button
+                key={index}
+                type="button"
+                aria-pressed={activeIndex === index}
+                aria-label={t("look.secondary.select", { n: index + 1 })}
+                title={t("look.secondary.select", { n: index + 1 })}
+                onClick={() => {
+                  setSelectedIndex(index);
+                  setSampleFrame(null);
+                  setSamplePixels(null);
+                  setCaptureError(null);
+                }}
+                className={`h-8 w-8 rounded-md transition-shadow ${
+                  activeIndex === index
+                    ? "shadow-[0_0_0_2px_var(--st-tx)]"
+                    : "shadow-[inset_0_0_0_1px_var(--st-bd)] hover:shadow-[0_0_0_1.5px_var(--st-sbd)]"
+                }`}
+                style={{ backgroundColor: keySwatch(secondary) }}
+              />
+            ))}
+            <LookIconButton
+              label={t("look.secondary.add")}
+              icon={LOOK_ICONS.plus}
+              disabled={secondaries.length >= SECONDARY_CAPABILITIES.max}
+              onClick={addSecondary}
+            />
+          </span>
+        }
+      >
+        {t("look.secondary.title")}
+      </LookTitle>
 
       {!selected ? (
-        <button
-          type="button"
+        <PillButton
+          variant="secondary"
+          className="w-full"
           title="Add color selection"
           onClick={addSecondary}
-          className="w-full border border-dashed border-panel-border-input px-2 py-2 text-[10px] text-panel-text-4 hover:border-panel-accent/50 hover:text-panel-text-2"
         >
-          Add a color selection
-        </button>
+          <LookIcon d={LOOK_ICONS.plus} />
+          {t("look.secondary.addSelection")}
+        </PillButton>
       ) : (
         <>
           <FlatToggle
-            label="Selection enabled"
+            label={t("look.secondary.enabled")}
             checked={selected.enabled}
             onChange={(enabled) => replaceSelected({ ...selected, enabled })}
           />
@@ -199,40 +218,39 @@ export function PropertyPanelColorSecondary({
               } catch {
                 setSampleFrame(null);
                 setSamplePixels(null);
-                setCaptureError("Preview frame unavailable. Try again after the media loads.");
+                setCaptureError(t("look.secondary.captureError"));
               } finally {
                 setSampling(false);
               }
             }}
-            className="flex min-h-7 items-center gap-1.5 text-[10px] font-medium text-panel-accent hover:text-panel-accent/80 disabled:opacity-50"
+            className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-full text-[13px] font-medium text-studio-text shadow-[inset_0_0_0_1.5px_var(--st-sbd)] hover:bg-[var(--st-sub)] disabled:opacity-50"
           >
-            <Eyedropper size={12} />
-            {sampling ? "Capturing frame" : "Sample color from frame"}
+            <LookIcon d={LOOK_ICONS.dropper} />
+            {sampling ? t("look.secondary.capturing") : t("look.secondary.sample")}
           </button>
           {captureError && (
-            <p role="alert" className="text-[9px] leading-4 text-red-300">
+            <p role="alert" className="text-[12px] font-medium text-studio-danger">
               {captureError}
             </p>
           )}
           {sampleFrame && samplePixels && (
-            <div className="space-y-1">
-              <div className="flex gap-2 text-[9px]">
-                <button
-                  type="button"
-                  aria-pressed={!showMatte}
-                  onClick={() => setShowMatte(false)}
-                  className={!showMatte ? "text-panel-accent" : "text-panel-text-4"}
-                >
-                  Source
-                </button>
-                <button
-                  type="button"
-                  aria-pressed={showMatte}
-                  onClick={() => setShowMatte(true)}
-                  className={showMatte ? "text-panel-accent" : "text-panel-text-4"}
-                >
-                  Selection matte
-                </button>
+            <div className="flex flex-col gap-2">
+              <div className="flex gap-1 self-start rounded-full p-1 shadow-[inset_0_0_0_1px_var(--st-bd)]">
+                {([false, true] as const).map((matte) => (
+                  <button
+                    key={String(matte)}
+                    type="button"
+                    aria-pressed={showMatte === matte}
+                    onClick={() => setShowMatte(matte)}
+                    className={`h-8 rounded-full px-3 text-[12px] font-medium ${
+                      showMatte === matte
+                        ? "bg-studio-selected text-studio-on-selected"
+                        : "text-studio-muted hover:text-studio-text"
+                    }`}
+                  >
+                    {matte ? t("look.secondary.matte") : t("look.secondary.source")}
+                  </button>
+                ))}
               </div>
               {showMatte ? (
                 <canvas
@@ -240,14 +258,14 @@ export function PropertyPanelColorSecondary({
                   width={sampleFrame.width}
                   height={sampleFrame.height}
                   role="img"
-                  aria-label="Selected color matte"
-                  className="block h-auto w-full border border-panel-hairline bg-black"
+                  aria-label={t("look.secondary.matteAria")}
+                  className="block h-auto w-full rounded-md bg-black"
                 />
               ) : (
                 <button
                   type="button"
-                  className="block w-full overflow-hidden border border-panel-hairline bg-black"
-                  title="Click a color to initialize this selection"
+                  className="block w-full overflow-hidden rounded-md bg-black"
+                  title={t("look.secondary.sampleAria")}
                   aria-label="Sample color from captured frame"
                   onClick={(event) => {
                     const pointer: [] | [number, number] =
@@ -274,175 +292,177 @@ export function PropertyPanelColorSecondary({
             </div>
           )}
 
-          <div className="text-[9px] font-semibold uppercase tracking-[0.12em] text-panel-text-5">
-            Qualifier
-          </div>
-          <FlatSlider
-            label="Hue"
-            value={selected.key.hue.center}
-            min={SECONDARY_CAPABILITIES.hue.center.min}
-            max={HUE_CENTER_MAX}
-            step={0.1}
-            tier="explicitCustom"
-            displayValue={`${Math.round(selected.key.hue.center)}°`}
-            onCommit={(center) =>
-              replaceSelected({
-                ...selected,
-                key: {
-                  ...selected.key,
-                  hue: { ...selected.key.hue, center: wrapHueCenter(center) },
-                },
-              })
-            }
-          />
-          <FlatSlider
-            label="Hue range"
-            value={selected.key.hue.range}
-            min={SECONDARY_CAPABILITIES.hue.range.min}
-            max={SECONDARY_CAPABILITIES.hue.range.max}
-            tier="explicitCustom"
-            displayValue={`${Math.round(selected.key.hue.range)}°`}
-            onCommit={(range) =>
-              replaceSelected({
-                ...selected,
-                key: {
-                  ...selected.key,
-                  hue: {
-                    ...selected.key.hue,
-                    range,
-                    softness: Math.min(
-                      selected.key.hue.softness,
-                      SECONDARY_CAPABILITIES.hue.rangePlusSoftnessMax - range,
-                    ),
+          <LookTitle>{t("look.secondary.qualifier")}</LookTitle>
+          <div className={LOOK_SLIDER_GRID}>
+            <LookSlider
+              label={t("look.secondary.hue")}
+              value={selected.key.hue.center}
+              min={SECONDARY_CAPABILITIES.hue.center.min}
+              max={HUE_CENTER_MAX}
+              step={0.1}
+              tier="explicitCustom"
+              displayValue={`${Math.round(selected.key.hue.center)}°`}
+              onCommit={(center) =>
+                replaceSelected({
+                  ...selected,
+                  key: {
+                    ...selected.key,
+                    hue: { ...selected.key.hue, center: wrapHueCenter(center) },
                   },
-                },
-              })
-            }
-          />
-          <FlatSlider
-            label="Hue softness"
-            value={selected.key.hue.softness}
-            min={SECONDARY_CAPABILITIES.hue.softness.min}
-            max={Math.min(
-              SECONDARY_CAPABILITIES.hue.softness.max,
-              SECONDARY_CAPABILITIES.hue.rangePlusSoftnessMax - selected.key.hue.range,
-            )}
-            tier="explicitCustom"
-            displayValue={`${Math.round(selected.key.hue.softness)}°`}
-            onCommit={(softness) =>
-              replaceSelected({
-                ...selected,
-                key: { ...selected.key, hue: { ...selected.key.hue, softness } },
-              })
-            }
-          />
-          {(["saturation", "luma"] as const).flatMap((key) => {
-            const label = key === "saturation" ? "Saturation" : "Luma";
-            const range = selected.key[key];
-            const capability = SECONDARY_CAPABILITIES[key];
-            return [
-              <FlatSlider
-                key={`${key}-min`}
-                label={`${label} min`}
-                value={range.min * PERCENT_SCALE}
-                min={capability.min.min * PERCENT_SCALE}
-                max={capability.min.max * PERCENT_SCALE}
-                tier="explicitCustom"
-                displayValue={percent(range.min)}
-                onCommit={(value) =>
-                  replaceSelected({
-                    ...selected,
-                    key: {
-                      ...selected.key,
-                      [key]: {
-                        ...range,
-                        min: Math.max(
-                          capability.min.min,
-                          Math.min(value / PERCENT_SCALE, range.max - RANGE_GAP),
-                        ),
+                })
+              }
+            />
+            <LookSlider
+              label={t("look.secondary.hueRange")}
+              value={selected.key.hue.range}
+              min={SECONDARY_CAPABILITIES.hue.range.min}
+              max={SECONDARY_CAPABILITIES.hue.range.max}
+              tier="explicitCustom"
+              displayValue={`${Math.round(selected.key.hue.range)}°`}
+              onCommit={(range) =>
+                replaceSelected({
+                  ...selected,
+                  key: {
+                    ...selected.key,
+                    hue: {
+                      ...selected.key.hue,
+                      range,
+                      softness: Math.min(
+                        selected.key.hue.softness,
+                        SECONDARY_CAPABILITIES.hue.rangePlusSoftnessMax - range,
+                      ),
+                    },
+                  },
+                })
+              }
+            />
+            <LookSlider
+              label={t("look.secondary.hueSoftness")}
+              value={selected.key.hue.softness}
+              min={SECONDARY_CAPABILITIES.hue.softness.min}
+              max={Math.min(
+                SECONDARY_CAPABILITIES.hue.softness.max,
+                SECONDARY_CAPABILITIES.hue.rangePlusSoftnessMax - selected.key.hue.range,
+              )}
+              tier="explicitCustom"
+              displayValue={`${Math.round(selected.key.hue.softness)}°`}
+              onCommit={(softness) =>
+                replaceSelected({
+                  ...selected,
+                  key: { ...selected.key, hue: { ...selected.key.hue, softness } },
+                })
+              }
+            />
+            {(["saturation", "luma"] as const).flatMap((key) => {
+              const labels = QUALIFIER_LABEL[key];
+              const range = selected.key[key];
+              const capability = SECONDARY_CAPABILITIES[key];
+              return [
+                <LookSlider
+                  key={`${key}-min`}
+                  label={t(labels.min)}
+                  value={range.min * PERCENT_SCALE}
+                  min={capability.min.min * PERCENT_SCALE}
+                  max={capability.min.max * PERCENT_SCALE}
+                  tier="explicitCustom"
+                  displayValue={percent(range.min)}
+                  onCommit={(value) =>
+                    replaceSelected({
+                      ...selected,
+                      key: {
+                        ...selected.key,
+                        [key]: {
+                          ...range,
+                          min: Math.max(
+                            capability.min.min,
+                            Math.min(value / PERCENT_SCALE, range.max - RANGE_GAP),
+                          ),
+                        },
                       },
-                    },
-                  })
-                }
-              />,
-              <FlatSlider
-                key={`${key}-max`}
-                label={`${label} max`}
-                value={range.max * PERCENT_SCALE}
-                min={capability.max.min * PERCENT_SCALE}
-                max={capability.max.max * PERCENT_SCALE}
-                tier="explicitCustom"
-                displayValue={percent(range.max)}
-                onCommit={(value) =>
-                  replaceSelected({
-                    ...selected,
-                    key: {
-                      ...selected.key,
-                      [key]: {
-                        ...range,
-                        max: Math.min(
-                          capability.max.max,
-                          Math.max(value / PERCENT_SCALE, range.min + RANGE_GAP),
-                        ),
+                    })
+                  }
+                />,
+                <LookSlider
+                  key={`${key}-max`}
+                  label={t(labels.max)}
+                  value={range.max * PERCENT_SCALE}
+                  min={capability.max.min * PERCENT_SCALE}
+                  max={capability.max.max * PERCENT_SCALE}
+                  tier="explicitCustom"
+                  displayValue={percent(range.max)}
+                  onCommit={(value) =>
+                    replaceSelected({
+                      ...selected,
+                      key: {
+                        ...selected.key,
+                        [key]: {
+                          ...range,
+                          max: Math.min(
+                            capability.max.max,
+                            Math.max(value / PERCENT_SCALE, range.min + RANGE_GAP),
+                          ),
+                        },
                       },
-                    },
-                  })
-                }
-              />,
-              <FlatSlider
-                key={`${key}-softness`}
-                label={`${label} softness`}
-                value={range.softness * PERCENT_SCALE}
-                min={capability.softness.min * PERCENT_SCALE}
-                max={capability.softness.max * PERCENT_SCALE}
-                tier="explicitCustom"
-                displayValue={percent(range.softness)}
-                onCommit={(value) =>
-                  replaceSelected({
-                    ...selected,
-                    key: {
-                      ...selected.key,
-                      [key]: { ...range, softness: value / PERCENT_SCALE },
-                    },
-                  })
-                }
-              />,
-            ];
-          })}
-
-          <div className="pt-1 text-[9px] font-semibold uppercase tracking-[0.12em] text-panel-text-5">
-            Correction
+                    })
+                  }
+                />,
+                <LookSlider
+                  key={`${key}-softness`}
+                  label={t(labels.softness)}
+                  value={range.softness * PERCENT_SCALE}
+                  min={capability.softness.min * PERCENT_SCALE}
+                  max={capability.softness.max * PERCENT_SCALE}
+                  tier="explicitCustom"
+                  displayValue={percent(range.softness)}
+                  onCommit={(value) =>
+                    replaceSelected({
+                      ...selected,
+                      key: {
+                        ...selected.key,
+                        [key]: { ...range, softness: value / PERCENT_SCALE },
+                      },
+                    })
+                  }
+                />,
+              ];
+            })}
           </div>
-          {CORRECTION_CONTROLS.map(([key, label, scale, suffix]) => {
-            const limit = SECONDARY_CAPABILITIES.correction[key];
-            const value = selected.correction[key] * scale;
-            return (
-              <FlatSlider
-                key={key}
-                label={label}
-                value={value}
-                min={limit.min * scale}
-                max={limit.max * scale}
-                centerTick
-                tier={Math.abs(value) > 0.0001 ? "explicitCustom" : "default"}
-                displayValue={`${Math.round(value)}${suffix}`}
-                onCommit={(next) =>
-                  replaceSelected({
-                    ...selected,
-                    correction: { ...selected.correction, [key]: next / scale },
-                  })
-                }
-                onReset={() =>
-                  replaceSelected({
-                    ...selected,
-                    correction: { ...selected.correction, [key]: 0 },
-                  })
-                }
-              />
-            );
-          })}
+          <LookTitle>{t("look.secondary.correction")}</LookTitle>
+          <div className={LOOK_SLIDER_GRID}>
+            {CORRECTION_CONTROLS.map(([key, labelKey, scale, suffix]) => {
+              const limit = SECONDARY_CAPABILITIES.correction[key];
+              const value = selected.correction[key] * scale;
+              return (
+                <LookSlider
+                  key={key}
+                  label={t(labelKey)}
+                  value={value}
+                  min={limit.min * scale}
+                  max={limit.max * scale}
+                  centerTick
+                  tier={Math.abs(value) > 0.0001 ? "explicitCustom" : "default"}
+                  displayValue={`${Math.round(value)}${suffix}`}
+                  onCommit={(next) =>
+                    replaceSelected({
+                      ...selected,
+                      correction: { ...selected.correction, [key]: next / scale },
+                    })
+                  }
+                  onReset={() =>
+                    replaceSelected({
+                      ...selected,
+                      correction: { ...selected.correction, [key]: 0 },
+                    })
+                  }
+                />
+              );
+            })}
+          </div>
+          <PillButton variant="danger" className="w-full" onClick={removeSelected}>
+            {t("look.secondary.remove")}
+          </PillButton>
         </>
       )}
-    </div>
+    </section>
   );
 }

@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
+import { t, useLocale } from "../../i18n/translate";
 import { applyInlineStyle } from "./inlineTextStyleRange";
 import { readInlineStyle, readInlineStyleSpread } from "./inlineTextStyleRead";
 import { parseCssColor, toHexColor } from "./colorValue";
 import type { InlineTextEditSession } from "../../hooks/useInlineTextEdit";
+import { swatchBackground } from "./inlineTextSwatch";
 
 /**
  * The controls for styling the characters selected inside an open text edit.
@@ -21,7 +23,7 @@ const READ_PROPERTIES = ["color", "font-weight", "font-style", "text-decoration-
 /** Enough above the text to clear it, without leaving the element behind. */
 const GAP_PX = 10;
 /** h-6 controls + p-1 + the border. Used only to keep an above-toolbar onscreen. */
-const TOOLBAR_HEIGHT_PX = 34;
+const TOOLBAR_HEIGHT_PX = 40;
 const DEFAULT_COLOR = "#ffffff";
 
 interface ToolbarPlacement {
@@ -40,6 +42,7 @@ export function InlineTextToolbar({
   session: InlineTextEditSession | null;
   iframe: HTMLIFrameElement | null;
 }) {
+  useLocale();
   const [placement, setPlacement] = useState<ToolbarPlacement | null>(null);
 
   const refresh = useCallback(() => {
@@ -76,8 +79,8 @@ export function InlineTextToolbar({
     <div
       data-inline-text-toolbar="true"
       role="toolbar"
-      aria-label="Text formatting"
-      className="pointer-events-auto fixed z-[200] flex items-center gap-1 rounded-lg border border-white/10 bg-[#15171c] p-1 shadow-[0_8px_24px_rgba(0,0,0,0.55)]"
+      aria-label={t("preview.textFormatting")}
+      className="pointer-events-auto fixed z-[200] flex items-center gap-0.5 whitespace-nowrap rounded-full bg-studio-surface p-1 shadow-studio"
       style={{
         left: placement.left,
         top: placement.top,
@@ -97,13 +100,39 @@ export function InlineTextToolbar({
       onMouseDown={swallow}
       onClick={(event) => event.stopPropagation()}
     >
+      <ToolbarToggle
+        label={t("preview.bold")}
+        glyph="B"
+        bold
+        on={isBold(styles["font-weight"])}
+        onToggle={(on) => apply({ "font-weight": on ? "700" : null })}
+      />
+      <ToolbarToggle
+        label={t("preview.italic")}
+        glyph="I"
+        italic
+        on={styles["font-style"] === "italic"}
+        onToggle={(on) => apply({ "font-style": on ? "italic" : null })}
+      />
+      <ToolbarToggle
+        label={t("preview.underline")}
+        glyph="U"
+        underline
+        on={styles["text-decoration-line"] === "underline"}
+        onToggle={(on) => apply({ "text-decoration-line": on ? "underline" : null })}
+      />
+      <div
+        role="separator"
+        aria-orientation="vertical"
+        className="mx-1 h-5 w-px bg-studio-border"
+      />
       <label
-        className="group relative flex h-6 w-6 cursor-pointer items-center justify-center rounded-md hover:bg-white/10"
-        title="Text colour"
+        className="group relative flex h-8 w-8 cursor-pointer items-center justify-center rounded-full hover:bg-[var(--st-sub)]"
+        title={t("preview.textColour")}
       >
         <span
           aria-hidden="true"
-          className="h-4 w-4 rounded-full border-2 border-white/25 transition-transform duration-150 group-hover:scale-110 group-active:scale-95"
+          className="h-[18px] w-[18px] rounded-full border border-studio-border transition-transform duration-150 group-hover:scale-110 group-active:scale-95"
           // `background` maps a gradient to the PADDING box and then repeats it
           // to fill the border box, so the 1px border shows the strip either
           // side of the tile: the end colour on the left, the start colour on
@@ -120,58 +149,18 @@ export function InlineTextToolbar({
             bold then opened the colour picker. The size is pinned instead. */}
         <input
           type="color"
-          aria-label="Text colour"
+          aria-label={t("preview.textColour")}
           className="absolute inset-0 h-full w-full min-w-0 cursor-pointer opacity-0"
           value={placement.pickerColour}
           onChange={(event) => apply({ color: event.target.value })}
         />
       </label>
-      <ToolbarToggle
-        label="Bold"
-        glyph="B"
-        bold
-        on={isBold(styles["font-weight"])}
-        onToggle={(on) => apply({ "font-weight": on ? "700" : null })}
-      />
-      <ToolbarToggle
-        label="Italic"
-        glyph="I"
-        italic
-        on={styles["font-style"] === "italic"}
-        onToggle={(on) => apply({ "font-style": on ? "italic" : null })}
-      />
-      <ToolbarToggle
-        label="Underline"
-        glyph="U"
-        underline
-        on={styles["text-decoration-line"] === "underline"}
-        onToggle={(on) => apply({ "text-decoration-line": on ? "underline" : null })}
-      />
     </div>
   );
 }
 
-/**
- * The selection's colours as one swatch: a diagonal sweep through each distinct
- * colour, evenly spaced. A selection with one colour is a plain swatch.
- *
- * Distinct rather than weighted, and evenly spaced rather than proportional,
- * matching the mixed-colour swatch in the design tool this sits alongside. The
- * swatch answers "which colours are in here", and at 16px a colour used by one
- * character has to be as visible as one used by thirty or it may as well not be
- * drawn.
- */
-export function swatchBackground(
-  distinctColours: readonly string[],
-  agreed: string | undefined,
-): string {
-  if (distinctColours.length === 0) return agreed || DEFAULT_COLOR;
-  if (distinctColours.length === 1) return distinctColours[0]!;
-  const stops = distinctColours.map(
-    (colour, index) => `${colour} ${((index / (distinctColours.length - 1)) * 100).toFixed(2)}%`,
-  );
-  return `linear-gradient(135deg, ${stops.join(", ")})`;
-}
+// Re-exported so existing imports from this module keep resolving.
+export { swatchBackground } from "./inlineTextSwatch";
 
 function swallow(event: { preventDefault: () => void; stopPropagation: () => void }): void {
   event.preventDefault();
@@ -201,8 +190,10 @@ function ToolbarToggle({
       title={label}
       aria-label={label}
       aria-pressed={on}
-      className={`flex h-6 w-6 items-center justify-center rounded-md text-xs ${
-        on ? "bg-studio-accent/20 text-studio-accent" : "text-white/70 hover:bg-white/10"
+      className={`flex h-8 w-8 items-center justify-center rounded-full text-sm ${
+        on
+          ? "bg-studio-selected text-studio-on-selected"
+          : "text-studio-text hover:bg-[var(--st-sub)]"
       }`}
       style={{
         fontWeight: bold ? 700 : 400,

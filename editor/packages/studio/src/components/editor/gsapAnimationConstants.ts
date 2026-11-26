@@ -179,10 +179,3 @@ export function clampPropertyValue(prop: string, value: number): number {
 }
 
 export const ADD_METHODS = ["to", "from", "fromTo", "set"] as const;
-
-export const ADD_METHOD_LABELS: Record<string, string> = {
-  to: "Animate",
-  from: "Animate In",
-  fromTo: "From → To",
-  set: "Set Instantly",
-};

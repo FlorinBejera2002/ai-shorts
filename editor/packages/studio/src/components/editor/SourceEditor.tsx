@@ -11,12 +11,44 @@ import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
 import { bracketMatching, foldGutter, indentOnInput } from "@codemirror/language";
 import { closeBrackets, closeBracketsKeymap } from "@codemirror/autocomplete";
 import { highlightSelectionMatches, searchKeymap } from "@codemirror/search";
-import { oneDark } from "@codemirror/theme-one-dark";
 import type { Extension } from "@codemirror/state";
 import { html } from "@codemirror/lang-html";
 import { css } from "@codemirror/lang-css";
 import { javascript } from "@codemirror/lang-javascript";
 import { markdown } from "@codemirror/lang-markdown";
+
+// Monochrome editor in the Studio palette (St-Shell-Code): text in --st-tx, gutter in --st-t3,
+// the recessed well comes from the card around it. Colours follow the light / dark tokens.
+const studioEditorTheme = EditorView.theme({
+  "&": { height: "100%", backgroundColor: "transparent", color: "var(--st-tx)", fontSize: "12px" },
+  ".cm-scroller": {
+    overflow: "auto",
+    fontFamily: "ui-monospace, Menlo, Consolas, monospace",
+    lineHeight: "20px",
+  },
+  ".cm-content": { caretColor: "var(--st-tx)", padding: "12px 0" },
+  ".cm-cursor, .cm-dropCursor": { borderLeftColor: "var(--st-tx)" },
+  "&.cm-focused": { outline: "none" },
+  "&.cm-focused .cm-selectionBackground, .cm-selectionBackground, ::selection": {
+    backgroundColor: "var(--st-sel-row)",
+  },
+  ".cm-activeLine": { backgroundColor: "var(--st-sub)" },
+  ".cm-selectionMatch": { backgroundColor: "var(--st-sub)" },
+  ".cm-matchingBracket, .cm-nonmatchingBracket": {
+    backgroundColor: "var(--st-sub)",
+    outline: "1px solid var(--st-bd)",
+  },
+  ".cm-gutters": { backgroundColor: "transparent", color: "var(--st-t3)", border: "none" },
+  ".cm-lineNumbers .cm-gutterElement": { padding: "0 8px 0 14px", minWidth: "36px" },
+  ".cm-activeLineGutter": { backgroundColor: "transparent", color: "var(--st-tx)" },
+  ".cm-foldPlaceholder": {
+    backgroundColor: "var(--st-sub)",
+    border: "none",
+    color: "var(--st-t2)",
+  },
+  ".cm-panels": { backgroundColor: "var(--st-sf)", color: "var(--st-tx)" },
+  ".cm-tooltip": { backgroundColor: "var(--st-sf)", border: "1px solid var(--st-bd)" },
+});
 
 // Marks a programmatic doc sync (external content push — e.g. a manual-edit
 // commit writing the source) so the update listener doesn't mistake it for a
@@ -114,13 +146,9 @@ export const SourceEditor = memo(function SourceEditor({
           highlightSelectionMatches(),
           keymap.of([...closeBracketsKeymap, ...defaultKeymap, ...searchKeymap, ...historyKeymap]),
           getLanguageExtension(lang),
-          oneDark,
+          studioEditorTheme,
           updateListener,
           EditorState.readOnly.of(readOnly),
-          EditorView.theme({
-            "&": { height: "100%" },
-            ".cm-scroller": { overflow: "auto" },
-          }),
         ],
       });
 

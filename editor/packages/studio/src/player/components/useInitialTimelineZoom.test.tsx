@@ -68,7 +68,7 @@ describe("initial source-scene editing zoom", () => {
       expect(usePlayerStore.getState().zoomMode).toBe("fit");
       act(() => usePlayerStore.setState({ timelineReady: true }));
       expect(usePlayerStore.getState().zoomMode).toBe("manual");
-      expect(usePlayerStore.getState().manualZoomPercent).toBeGreaterThan(600);
+      expect(usePlayerStore.getState().manualZoomPercent).toBeGreaterThan(500);
       expect(scrollRef.current.scrollLeft).toBe(0);
       expect(lastScrollLeftRef.current).toBe(0);
       act(() => usePlayerStore.getState().setZoomMode("fit"));

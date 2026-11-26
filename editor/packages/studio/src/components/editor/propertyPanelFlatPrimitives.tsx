@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { flatLabel } from "./flatLabel";
 import { useTrackDesignInput } from "../../contexts/DesignPanelInputContext";
 import { RotateCcw } from "../../icons/SystemIcons";
 import { CommitField } from "./propertyPanelPrimitives";
@@ -7,6 +8,7 @@ import {
   VALUE_TIER_VALUE_CLASS,
   type PropertyValueTier,
 } from "./propertyPanelValueTier";
+import { t } from "../../i18n/translate";
 
 export const FLAT_PREVIEW_GRID = "grid grid-cols-[repeat(auto-fill,minmax(120px,1fr))] gap-1";
 
@@ -22,6 +24,7 @@ export function FlatRow({
   liveCommit,
   suffix,
   dropdown,
+  stacked = false,
   onPreview,
   onCommit,
   onReset,
@@ -34,28 +37,38 @@ export function FlatRow({
   suffix?: ReactNode;
   /** Renders a trailing 10px caret-down, for select-backed rows. */
   dropdown?: boolean;
+  /** St-Inspector-Layout: the label above a full-width 44px field (two per row). */
+  stacked?: boolean;
   onPreview?: (nextValue: string) => void;
   onCommit: (nextValue: string) => void | Promise<unknown>;
   onReset?: () => void;
 }) {
   const track = useTrackDesignInput();
   return (
-    <div className="group flex min-h-[30px] items-center justify-between gap-3">
-      <span className={`text-[11px] ${VALUE_TIER_LABEL_CLASS[tier]}`}>{label}</span>
-      <span className="flex min-w-0 flex-shrink-0 items-center gap-1.5">
+    <div
+      className={
+        stacked
+          ? "group flex min-w-0 flex-col gap-1.5"
+          : "group flex min-h-10 items-center justify-between gap-3"
+      }
+    >
+      <span className={`text-[13px] font-medium ${VALUE_TIER_LABEL_CLASS[tier]}`}>
+        {flatLabel(label)}
+      </span>
+      <span className={`flex min-w-0 items-center gap-1.5 ${stacked ? "w-full" : "flex-shrink-0"}`}>
         <span
           data-flat-row-value="true"
-          className={`min-w-0 border-b pb-px font-mono text-[11px] ${VALUE_TIER_VALUE_CLASS[tier]} ${
+          className={`min-w-0 bg-studio-surface text-[13px] tabular-nums ${stacked ? "flex h-11 flex-1 items-center rounded-md px-3.5" : "max-w-[150px] rounded-sm px-2.5 py-1.5"} ${VALUE_TIER_VALUE_CLASS[tier]} ${
             tier === "explicitCustom"
-              ? "border-panel-accent/30 group-hover:border-panel-accent/70"
-              : "border-panel-border-input/50 group-hover:border-panel-border-input"
+              ? "shadow-[inset_0_0_0_1.5px_var(--st-tx)]"
+              : "shadow-[inset_0_0_0_1.5px_var(--st-bd)] group-hover:shadow-[inset_0_0_0_1.5px_var(--st-sbd)]"
           }`}
         >
           <CommitField
             value={value}
             disabled={disabled}
             liveCommit={liveCommit}
-            align="right"
+            align={stacked ? "left" : "right"}
             onPreview={onPreview}
             onCommit={(nextValue) => {
               track("metric", label);
@@ -68,14 +81,14 @@ export function FlatRow({
           <button
             type="button"
             data-flat-row-reset="true"
-            title="Remove — fall back to default"
+            title={t("flat.removeOverride")}
             onClick={() => {
               track("button", `Reset ${label}`);
               onReset();
             }}
             className="flex-shrink-0 text-panel-text-3 opacity-0 transition-opacity hover:text-panel-text-1 group-hover:opacity-100"
           >
-            <RotateCcw size={11} />
+            <RotateCcw size={13} />
           </button>
         )}
         {dropdown && (
@@ -125,9 +138,9 @@ export function FlatSegmentedRow({
 }) {
   const track = useTrackDesignInput();
   return (
-    <div className="flex min-h-[32px] items-center justify-between">
-      <span className="text-[11px] text-panel-text-3">{label}</span>
-      <span className="flex items-center gap-0.5">
+    <div className="flex min-h-11 items-center justify-between gap-3">
+      <span className="text-[13px] font-medium text-studio-text">{flatLabel(label)}</span>
+      <span className="flex items-center gap-0.5 rounded-full p-0.5 shadow-[inset_0_0_0_1.5px_var(--st-bd)]">
         {options.map((option, index) => (
           <span key={option.key} className="flex items-center">
             <button
@@ -140,10 +153,10 @@ export function FlatSegmentedRow({
                 if (!option.active) track("segmented", label);
                 onChange(option.key);
               }}
-              className={`px-1.5 py-1 text-[11px] transition-colors disabled:cursor-not-allowed ${
+              className={`inline-flex h-8 min-w-8 items-center justify-center rounded-full px-2.5 text-[13px] transition-colors disabled:cursor-not-allowed ${
                 option.active
-                  ? "border-b-2 border-panel-accent text-panel-text-0"
-                  : "border-b-2 border-transparent text-panel-text-4 hover:text-panel-text-2"
+                  ? "bg-studio-selected font-semibold text-studio-on-selected"
+                  : "text-studio-text hover:bg-[var(--st-sub)]"
               }`}
             >
               {option.node}
@@ -414,8 +427,10 @@ export function FlatSlider({
   };
 
   return (
-    <div className="flex min-h-[28px] items-center gap-2.5">
-      <span className="w-[86px] flex-shrink-0 text-[11px] text-panel-text-3">{label}</span>
+    <div className="flex min-h-10 items-center gap-2.5">
+      <span className="w-[86px] flex-shrink-0 text-[13px] font-medium text-studio-text">
+        {flatLabel(label)}
+      </span>
       <div
         data-flat-slider-track="true"
         role="slider"
@@ -512,17 +527,17 @@ export function FlatSlider({
           cancelDrag(e.currentTarget);
         }}
       >
-        <div className="absolute inset-x-0 top-1/2 h-0.5 -translate-y-1/2 rounded-full bg-panel-hover">
+        <div className="absolute inset-x-0 top-1/2 h-1 -translate-y-1/2 rounded-full bg-[var(--st-hd)]">
           {centerTick && (
             <div
               data-flat-slider-center-tick="true"
-              className="absolute left-1/2 top-[-1px] h-1 w-px -translate-x-1/2 bg-panel-text-5"
+              className="absolute left-1/2 top-[-2px] h-2 w-px -translate-x-1/2 bg-[var(--st-t3)]"
             />
           )}
           {tier === "explicitCustom" && (
             <div
               data-flat-slider-fill="true"
-              className="absolute inset-y-0 left-0 rounded-full bg-panel-text-5"
+              className="absolute inset-y-0 left-0 rounded-full bg-[var(--st-tx)]"
               style={{ width: `${clampedPct}%` }}
             />
           )}
@@ -530,15 +545,17 @@ export function FlatSlider({
         <div
           data-flat-slider-knob="true"
           className={`absolute top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full ${
-            tier === "explicitCustom" ? "h-2 w-2 bg-white" : "h-[7px] w-[7px] bg-panel-text-4"
+            tier === "explicitCustom"
+              ? "h-4 w-4 bg-studio-surface shadow-[0_0_0_2px_var(--st-tx)]"
+              : "h-4 w-4 bg-studio-surface shadow-[0_0_0_2px_var(--st-t3)]"
           }`}
           style={{ left: `${clampedPct}%` }}
         />
       </div>
       <span
         data-flat-slider-value="true"
-        className={`w-11 flex-shrink-0 text-right font-mono text-[10px] ${
-          tier === "explicitCustom" ? "text-panel-text-0" : "text-panel-text-3"
+        className={`w-12 flex-shrink-0 text-right text-[13px] font-semibold tabular-nums ${
+          tier === "explicitCustom" ? "text-studio-text" : "text-studio-muted"
         }`}
       >
         {displayValue}
@@ -549,7 +566,7 @@ export function FlatSlider({
             <button
               type="button"
               data-flat-slider-reset="true"
-              title="Remove — fall back to default"
+              title={t("flat.removeOverride")}
               disabled={disabled}
               onClick={() => {
                 track("button", `Reset ${label}`);
@@ -557,7 +574,7 @@ export function FlatSlider({
               }}
               className="text-panel-text-3 hover:text-panel-text-1 disabled:cursor-not-allowed disabled:opacity-40"
             >
-              <RotateCcw size={11} />
+              <RotateCcw size={13} />
             </button>
           )}
         </span>

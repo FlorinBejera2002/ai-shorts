@@ -19,32 +19,44 @@ export const MIN_PREVIEW_H = 200;
 
 const MIN_LEFT = 200;
 const MIN_RIGHT = 280;
-/**
- * Collapsed sidebar rail, as a layout FOOTPRINT: the `w-10` box (40) plus the
- * `mr-0.5` gap (2) it contributes to the flex row. Measured in the browser at a
- * 760px window: rail box 40, margin-right 2, preview starts at x=43.
- */
-export const RAIL_W = 42;
+/** Collapsed icon rail (St-Shell-Collapsed) and the inspector rail of a narrow window (St-Shell-Narrow). */
+export const RAIL_W = 40;
+/** Expanded rail with labels (St-Main). */
+export const EXPANDED_RAIL_W = 72;
+/** Space between the shell cards, and between the cards and the window edge. */
+export const SHELL_GAP = 12;
 export const MIN_TIMELINE_H = 100;
-
-/** The two 3px resize seams between the three top-row panels. */
-const PANEL_SEAM_W = 6;
 
 /** No single panel may claim more than this share of the window. */
 const PANEL_MAX_RATIO = 0.4;
 
+/** Board widths at 1440: side panel 312, inspector 340. */
+const DEFAULT_LEFT = 312;
+const DEFAULT_RIGHT = 340;
+
+/**
+ * Horizontal space the shell spends outside the three resizable boxes: the two window
+ * gutters, the rail with its gap, the gap before the preview (only when the side panel
+ * is open) and the gap before the inspector or its rail.
+ */
+export function shellChromeWidth(leftRailed: boolean, rightRailed: boolean): number {
+  const left = leftRailed ? RAIL_W + SHELL_GAP : EXPANDED_RAIL_W + SHELL_GAP * 2;
+  const right = SHELL_GAP + (rightRailed ? RAIL_W : 0);
+  return SHELL_GAP * 2 + left + right;
+}
+
 /*
  * Thresholds below are DERIVED from the minimums above, not chosen:
  *
- *   MIN_LEFT 200 + MIN_RIGHT 280 + MIN_PREVIEW_W 360 + PANEL_SEAM_W 6 = 846
- *     -> below ~860 the sidebar can no longer fit at its minimum.
- *   RAIL_W  40 + MIN_RIGHT 280 + MIN_PREVIEW_W 360 + PANEL_SEAM_W 6 = 686
- *     -> below ~700 the inspector can no longer fit either.
+ *   chrome 132 + MIN_LEFT 200 + MIN_PREVIEW_W 360 + MIN_RIGHT 280 = 972
+ *     -> below 972 the side panel can no longer fit at its minimum.
+ *   chrome 128 (railed side panel, inspector rail) + MIN_PREVIEW_W 360 + MIN_RIGHT 280 = 768
+ *     -> below 768 the inspector can no longer fit either.
  *
  * Change a minimum and move the matching threshold with it.
  */
-const RAIL_LEFT_BELOW = 860;
-const RAIL_RIGHT_BELOW = 700;
+const RAIL_LEFT_BELOW = shellChromeWidth(false, false) + MIN_LEFT + MIN_PREVIEW_W + MIN_RIGHT;
+const RAIL_RIGHT_BELOW = shellChromeWidth(true, true) + MIN_PREVIEW_W + MIN_RIGHT;
 
 /**
  * True when the window is narrow enough to force at least one panel to a rail.
@@ -75,15 +87,11 @@ function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
 }
 
-/**
- * The width each panel wants on a given viewport, before reconciliation.
- * Upper bounds (384 / 424) are unchanged from the original implementation, which
- * is what keeps windows at or above 1280px byte-identical to before.
- */
+/** The width each panel wants on a given viewport, before reconciliation (312 / 340 at 1440). */
 export function defaultPanelWidths(viewportWidth: number): PanelWidths {
   return {
-    left: Math.max(MIN_LEFT, Math.min(384, Math.round(viewportWidth * 0.257))),
-    right: Math.max(MIN_RIGHT, Math.min(424, Math.round(viewportWidth * 0.284))),
+    left: clamp(Math.round((viewportWidth * DEFAULT_LEFT) / 1440), MIN_LEFT, DEFAULT_LEFT),
+    right: clamp(Math.round((viewportWidth * DEFAULT_RIGHT) / 1440), MIN_RIGHT, DEFAULT_RIGHT),
   };
 }
 
@@ -91,9 +99,10 @@ export function defaultPanelWidths(viewportWidth: number): PanelWidths {
  * Resolve preferred panel widths against the viewport, reserving the preview.
  *
  * Order of yielding: window-relative cap, then the inspector shrinks toward its
- * minimum, then the sidebar, then rails. A viewport of 0 (element not measured
- * yet) returns the preferences untouched so a pre-measurement frame cannot
- * clobber a real preference.
+ * minimum, then the side panel, then rails. A railed side reports width 0: the rail
+ * itself is part of {@link shellChromeWidth}. A viewport of 0 (element not measured
+ * yet) returns the preferences untouched so a pre-measurement frame cannot clobber
+ * a real preference.
  */
 // fallow-ignore-next-line complexity
 export function fitPanelWidths(
@@ -101,8 +110,7 @@ export function fitPanelWidths(
   preferred: PanelWidths,
   /**
    * Sides the user explicitly reopened while the window was narrow. A side
-   * listed here keeps its real width instead of the rail: without this the
-   * panel would render expanded at 42px and squash its own content.
+   * listed here keeps its real width instead of the rail.
    */
   reopened: { left: boolean; right: boolean } = { left: false, right: false },
 ): FittedPanelWidths {
@@ -115,23 +123,18 @@ export function fitPanelWidths(
   const autoCollapseRight = vw < RAIL_RIGHT_BELOW && !reopened.right;
   const cap = Math.floor(vw * PANEL_MAX_RATIO);
 
-  // A railed panel's floor is its rail width; an open panel's floor is its
-  // minimum usable width. Without this split the squeeze fallback below would
-  // drive an *expanded* sidebar down to 40px and render its content unusable.
-  const leftFloor = autoCollapseLeft ? RAIL_W : MIN_LEFT;
-  const rightFloor = autoCollapseRight ? 0 : MIN_RIGHT;
-
-  let left = autoCollapseLeft ? RAIL_W : clamp(preferred.left, MIN_LEFT, Math.max(MIN_LEFT, cap));
+  let left = autoCollapseLeft ? 0 : clamp(preferred.left, MIN_LEFT, Math.max(MIN_LEFT, cap));
   let right = autoCollapseRight ? 0 : clamp(preferred.right, MIN_RIGHT, Math.max(MIN_RIGHT, cap));
+  const chrome = shellChromeWidth(autoCollapseLeft, autoCollapseRight);
 
-  const budget = vw - MIN_PREVIEW_W - PANEL_SEAM_W;
-  if (left + right > budget) right = Math.max(rightFloor, budget - left);
-  if (left + right > budget) left = Math.max(leftFloor, budget - right);
+  const budget = vw - MIN_PREVIEW_W - chrome;
+  if (left + right > budget) right = autoCollapseRight ? 0 : Math.max(MIN_RIGHT, budget - left);
+  if (left + right > budget) left = autoCollapseLeft ? 0 : Math.max(MIN_LEFT, budget - right);
 
   return {
     left,
     right,
-    preview: Math.max(0, vw - left - right - PANEL_SEAM_W),
+    preview: Math.max(0, vw - left - right - chrome),
     autoCollapseLeft,
     autoCollapseRight,
   };

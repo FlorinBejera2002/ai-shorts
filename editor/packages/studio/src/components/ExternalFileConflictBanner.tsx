@@ -1,9 +1,19 @@
-import { useRef, useState } from "react";
+// External file change (St-Conflict-*): an alert card over the editor while the preview is
+// paused, a review dialog with both versions (or the recovered Studio draft) and a confirmation
+// before the file on disk is overwritten.
+import { useState } from "react";
 import type {
   ExternalFileChangeBlockedState,
   ExternalFileChangeCoordinatorHandle,
 } from "../hooks/useExternalFileChangeCoordinator";
-import { useDialogBehavior } from "./ui/useDialogBehavior";
+import { t, useLocale } from "../i18n/translate";
+import { copyTextToClipboard } from "../utils/clipboard";
+import { OutputButton } from "./output/OutputButton";
+import { OutputDialog } from "./output/OutputDialog";
+import { OutputAlertCard } from "./output/OutputFields";
+import { useIsPhone } from "./shell/useIsPhone";
+
+type ConflictState = Extract<ExternalFileChangeBlockedState, { status: "conflict" }>;
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
@@ -18,147 +28,220 @@ function downloadText(filename: string, content: string): void {
   URL.revokeObjectURL(url);
 }
 
-function ConflictReview({
-  conflict,
-  onClose,
+/** One version of the file: title, copy and download, and the read-only contents. */
+function FileVersion({
+  title,
+  content,
+  filename,
+  compact,
 }: {
-  conflict: Extract<ExternalFileChangeBlockedState, { status: "conflict" }>;
-  onClose: () => void;
+  title: string;
+  content: string;
+  filename: string;
+  compact: boolean;
 }) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  useDialogBehavior({ open: true, onClose, containerRef });
-  const external = conflict.error.currentContent ?? "(The server did not return file contents.)";
-  const studio = conflict.error.attemptedContent;
-
-  return (
-    <div
-      className="fixed inset-0 z-[110] flex items-center justify-center bg-black/70 px-5 backdrop-blur-sm"
-      onClick={onClose}
-    >
-      <div
-        ref={containerRef}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="external-conflict-title"
-        tabIndex={-1}
-        className="max-h-[88vh] w-full max-w-5xl overflow-auto rounded-xl border border-amber-400/30 bg-neutral-950 p-5 text-neutral-100 shadow-2xl outline-none"
-        onClick={(event) => event.stopPropagation()}
+  const actions = (
+    <>
+      <OutputButton
+        height={compact ? 40 : 30}
+        padX={compact ? 14 : 12}
+        fontSize={compact ? 13 : 12}
+        stretch={compact}
+        onClick={() => void copyTextToClipboard(content)}
       >
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <h2 id="external-conflict-title" className="text-base font-semibold">
-              Review both versions of {conflict.error.filePath}
-            </h2>
-            <p className="mt-1 text-xs text-neutral-400">
-              Reviewing or exporting does not change either version.
-            </p>
-          </div>
-          <button type="button" onClick={onClose} className="rounded px-2 py-1 text-neutral-400">
-            Close
-          </button>
-        </div>
-        <div className="mt-4 grid gap-4 md:grid-cols-2">
-          {[
-            { title: "File on disk", content: external, suffix: "external" },
-            { title: "Unsaved Studio version", content: studio, suffix: "studio" },
-          ].map((side) => (
-            <section key={side.suffix} aria-label={side.title}>
-              <div className="mb-2 flex items-center justify-between gap-2">
-                <h3 className="text-sm font-medium">{side.title}</h3>
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    className="rounded border border-neutral-700 px-2 py-1 text-[11px]"
-                    onClick={() => void navigator.clipboard.writeText(side.content)}
-                  >
-                    Copy
-                  </button>
-                  <button
-                    type="button"
-                    className="rounded border border-neutral-700 px-2 py-1 text-[11px]"
-                    onClick={() =>
-                      downloadText(`${conflict.error.filePath}.${side.suffix}.html`, side.content)
-                    }
-                  >
-                    Download
-                  </button>
-                </div>
-              </div>
-              <textarea
-                readOnly
-                value={side.content}
-                className="h-80 w-full resize-y rounded border border-neutral-800 bg-neutral-900 p-3 font-mono text-[11px] leading-relaxed text-neutral-300"
-              />
-            </section>
-          ))}
-        </div>
+        {t("conflict.copy")}
+      </OutputButton>
+      <OutputButton
+        height={compact ? 40 : 30}
+        padX={compact ? 14 : 12}
+        fontSize={compact ? 13 : 12}
+        stretch={compact}
+        onClick={() => downloadText(filename, content)}
+      >
+        {t("conflict.download")}
+      </OutputButton>
+    </>
+  );
+  return (
+    <section aria-label={title} className="flex min-w-0 flex-1 flex-col gap-2.5">
+      <div className="flex items-center justify-between gap-2">
+        <h3 className="text-sm font-semibold leading-5">{title}</h3>
+        {compact ? null : <div className="flex gap-1.5">{actions}</div>}
       </div>
-    </div>
+      {compact ? <div className="flex gap-2">{actions}</div> : null}
+      <textarea
+        readOnly
+        value={content}
+        aria-label={title}
+        className={`w-full resize-y rounded-[14px] border-0 bg-studio-surface font-mono text-[var(--st-t2)] shadow-[inset_0_0_0_1px_var(--st-bd)] outline-none ${
+          compact
+            ? "h-[120px] p-2.5 text-[11px] leading-[1.5]"
+            : "h-[260px] p-3.5 text-xs leading-[1.6]"
+        }`}
+      />
+    </section>
   );
 }
 
-function FailedDraftReview({
-  path,
-  content,
+function ReviewDialog({
+  title,
+  versions,
   onClose,
 }: {
-  path: string;
-  content: string;
+  title: string;
+  versions: { title: string; content: string; filename: string }[];
   onClose: () => void;
 }) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  useDialogBehavior({ open: true, onClose, containerRef });
+  const compact = useIsPhone();
   return (
-    <div
-      className="fixed inset-0 z-[110] flex items-center justify-center bg-black/70 px-5 backdrop-blur-sm"
-      onClick={onClose}
+    <OutputDialog
+      open
+      title={title}
+      onClose={onClose}
+      width={versions.length > 1 ? 880 : 520}
+      footer={
+        compact ? undefined : (
+          <OutputButton variant="primary" padX={20} onClick={onClose}>
+            {t("feedback.close")}
+          </OutputButton>
+        )
+      }
     >
-      <div
-        ref={containerRef}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="failed-draft-title"
-        tabIndex={-1}
-        className="max-h-[88vh] w-full max-w-3xl overflow-auto rounded-xl border border-amber-400/30 bg-neutral-950 p-5 text-neutral-100 shadow-2xl outline-none"
-        onClick={(event) => event.stopPropagation()}
-      >
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <h2 id="failed-draft-title" className="text-base font-semibold">
-              Recover unsaved Studio draft for {path}
-            </h2>
-            <p className="mt-1 text-xs text-neutral-400">
-              Copy or download this draft before choosing to discard it.
-            </p>
-          </div>
-          <button type="button" onClick={onClose} className="rounded px-2 py-1 text-neutral-400">
-            Close
-          </button>
-        </div>
-        <div className="mt-4 flex justify-end gap-2">
-          <button
-            type="button"
-            className="rounded border border-neutral-700 px-2 py-1 text-[11px]"
-            onClick={() => void navigator.clipboard.writeText(content)}
-          >
-            Copy
-          </button>
-          <button
-            type="button"
-            className="rounded border border-neutral-700 px-2 py-1 text-[11px]"
-            onClick={() => downloadText(`${path}.studio.html`, content)}
-          >
-            Download
-          </button>
-        </div>
-        <textarea
-          readOnly
-          value={content}
-          className="mt-2 h-80 w-full resize-y rounded border border-neutral-800 bg-neutral-900 p-3 font-mono text-[11px] leading-relaxed text-neutral-300"
-        />
+      <div className={`flex gap-4 ${compact ? "flex-col" : "items-stretch"}`}>
+        {versions.map((version) => (
+          <FileVersion key={version.filename} {...version} compact={compact} />
+        ))}
       </div>
-    </div>
+    </OutputDialog>
   );
+}
+
+function OverwriteDialog({ onCancel, onConfirm }: { onCancel: () => void; onConfirm: () => void }) {
+  return (
+    <OutputDialog
+      open
+      title={t("conflict.overwriteTitle")}
+      onClose={onCancel}
+      width={440}
+      doneLabel={t("conflict.cancel")}
+      footer={
+        <>
+          <OutputButton padX={20} onClick={onCancel}>
+            {t("conflict.cancel")}
+          </OutputButton>
+          <OutputButton variant="danger" padX={20} onClick={onConfirm}>
+            {t("conflict.overwriteConfirm")}
+          </OutputButton>
+        </>
+      }
+    />
+  );
+}
+
+function conflictVersions(conflict: ConflictState) {
+  const path = conflict.error.filePath;
+  return [
+    {
+      title: t("conflict.fileOnDisk"),
+      content: conflict.error.currentContent ?? t("conflict.noContents"),
+      filename: `${path}.external.html`,
+    },
+    {
+      title: t("conflict.studioVersion"),
+      content: conflict.error.attemptedContent,
+      filename: `${path}.studio.html`,
+    },
+  ];
+}
+
+type FailureState = Extract<ExternalFileChangeBlockedState, { status: "failed" }>;
+
+interface BannerState {
+  conflict: ConflictState | null;
+  failure: FailureState | null;
+  draft: string | null;
+  canOverwrite: boolean;
+}
+
+function describeBlockedState(blocked: ExternalFileChangeBlockedState): BannerState {
+  const conflict = blocked.status === "conflict" ? blocked : null;
+  const failure = blocked.status === "failed" ? blocked : null;
+  const draft = failure?.studioContent ?? null;
+  return {
+    conflict,
+    failure,
+    draft,
+    canOverwrite: conflict !== null || (failure?.recovered === true && draft !== null),
+  };
+}
+
+/** Buttons of the alert card, in the order the user works through a conflict. */
+function ConflictActions({
+  state,
+  coordinator,
+  height,
+  onReview,
+  onOverwrite,
+}: {
+  state: BannerState;
+  coordinator: ExternalFileChangeCoordinatorHandle;
+  height: number;
+  onReview: () => void;
+  onOverwrite: () => void;
+}) {
+  const { conflict, failure, draft, canOverwrite } = state;
+  return (
+    <>
+      {conflict || draft !== null ? (
+        <OutputButton variant="primary" height={height} onClick={onReview}>
+          {conflict ? t("conflict.reviewBoth") : t("conflict.reviewDraft")}
+        </OutputButton>
+      ) : null}
+      {failure && !failure.recovered && draft !== null ? (
+        <OutputButton height={height} onClick={() => void coordinator.retry()}>
+          {t("conflict.retrySave")}
+        </OutputButton>
+      ) : null}
+      <OutputButton height={height} onClick={() => void coordinator.useExternalFile()}>
+        {draft !== null && !conflict ? t("conflict.discardDraft") : t("conflict.discardStudio")}
+      </OutputButton>
+      {canOverwrite ? (
+        <OutputButton variant="danger" height={height} onClick={onOverwrite}>
+          {conflict ? t("conflict.overwrite") : t("conflict.overwriteDraft")}
+        </OutputButton>
+      ) : null}
+    </>
+  );
+}
+
+/** Review dialog for whichever version set the current block offers. */
+function ConflictReviewDialog({ state, onClose }: { state: BannerState; onClose: () => void }) {
+  const { conflict, failure, draft } = state;
+  if (conflict) {
+    return (
+      <ReviewDialog
+        title={t("conflict.reviewBoth")}
+        versions={conflictVersions(conflict)}
+        onClose={onClose}
+      />
+    );
+  }
+  if (failure && draft !== null) {
+    return (
+      <ReviewDialog
+        title={t("conflict.reviewDraft")}
+        versions={[
+          {
+            title: t("conflict.draftTitle"),
+            content: draft,
+            filename: `${failure.path}.studio.html`,
+          },
+        ]}
+        onClose={onClose}
+      />
+    );
+  }
+  return null;
 }
 
 export function ExternalFileConflictBanner({
@@ -166,90 +249,45 @@ export function ExternalFileConflictBanner({
 }: {
   coordinator: ExternalFileChangeCoordinatorHandle;
 }) {
+  useLocale();
+  const isPhone = useIsPhone();
   const [reviewing, setReviewing] = useState(false);
+  const [confirmingOverwrite, setConfirmingOverwrite] = useState(false);
   const blocked = coordinator.blocked;
   if (!blocked) return null;
 
-  const conflict = blocked.status === "conflict" ? blocked : null;
-  const failure = blocked.status === "failed" ? blocked : null;
+  const state = describeBlockedState(blocked);
+  const { conflict, failure } = state;
+
   return (
     <>
       <div
-        role="alert"
-        className="absolute left-1/2 top-14 z-[94] flex max-w-[calc(100vw-32px)] -translate-x-1/2 flex-wrap items-center gap-3 rounded-md border border-amber-400/30 bg-amber-950/95 px-4 py-2 text-[12px] font-medium text-amber-50 shadow-lg"
+        className="fixed top-[68px] right-3 left-3 z-[94] sm:top-[84px] sm:right-auto sm:left-1/2 sm:w-[840px] sm:max-w-[calc(100vw-32px)] sm:-translate-x-1/2"
+        title={failure ? errorMessage(failure.error) : conflict?.error.filePath}
       >
-        <span>
-          {conflict
-            ? `${conflict.error.filePath} changed outside Studio. Preview is paused so neither version is lost.`
-            : `Studio could not safely finish local saves: ${errorMessage(blocked.error)}. Preview is paused.`}
-        </span>
-        {conflict && (
-          <button type="button" onClick={() => setReviewing(true)} className="underline">
-            Review or export both
-          </button>
-        )}
-        {failure?.studioContent != null && (
-          <button type="button" onClick={() => setReviewing(true)} className="underline">
-            Review or export Studio draft
-          </button>
-        )}
-        {failure && !failure.recovered && failure.studioContent != null && (
-          <button type="button" onClick={() => void coordinator.retry()} className="underline">
-            Retry save
-          </button>
-        )}
-        <button
-          type="button"
-          onClick={() => void coordinator.useExternalFile()}
-          className="rounded border border-amber-200/30 px-2 py-1"
-        >
-          Discard Studio edits and reload file
-        </button>
-        {conflict && (
-          <button
-            type="button"
-            onClick={() => {
-              if (
-                window.confirm(
-                  "Overwrite the externally changed file with the Studio version? The server will preserve its normal backup before writing.",
-                )
-              ) {
-                void coordinator.keepStudioFile();
-              }
-            }}
-            className="rounded border border-red-300/40 px-2 py-1 text-red-100"
-          >
-            Overwrite file with Studio version
-          </button>
-        )}
-        {failure?.recovered && failure.studioContent != null && (
-          <button
-            type="button"
-            onClick={() => {
-              if (
-                window.confirm(
-                  "Overwrite the file with the recovered Studio draft? The current file will be preserved by the server's normal backup before writing.",
-                )
-              ) {
-                void coordinator.keepStudioFile();
-              }
-            }}
-            className="rounded border border-red-300/40 px-2 py-1 text-red-100"
-          >
-            Overwrite file with recovered Studio draft
-          </button>
-        )}
+        <OutputAlertCard message={conflict ? t("conflict.changed") : t("conflict.failed")}>
+          <ConflictActions
+            state={state}
+            coordinator={coordinator}
+            height={isPhone ? 44 : 40}
+            onReview={() => setReviewing(true)}
+            onOverwrite={() => setConfirmingOverwrite(true)}
+          />
+        </OutputAlertCard>
       </div>
-      {reviewing && conflict && (
-        <ConflictReview conflict={conflict} onClose={() => setReviewing(false)} />
-      )}
-      {reviewing && failure?.studioContent != null && (
-        <FailedDraftReview
-          path={failure.path}
-          content={failure.studioContent}
-          onClose={() => setReviewing(false)}
+      {reviewing ? (
+        <ConflictReviewDialog state={state} onClose={() => setReviewing(false)} />
+      ) : null}
+      {confirmingOverwrite ? (
+        <OverwriteDialog
+          onCancel={() => setConfirmingOverwrite(false)}
+          onConfirm={() => {
+            setConfirmingOverwrite(false);
+            // The server keeps its normal backup of the current file before writing.
+            void coordinator.keepStudioFile();
+          }}
         />
-      )}
+      ) : null}
     </>
   );
 }

@@ -1,5 +1,6 @@
 // fallow-ignore-file complexity
 import { useCallback, useRef } from "react";
+import { t } from "../i18n/translate";
 import type { TimelineElement } from "../player";
 import { useRazorSplit } from "./useRazorSplit";
 import { useTimelineAssetDropOps } from "./useTimelineAssetDropOps";
@@ -67,7 +68,7 @@ export function useTimelineEditing({
       coalesceKey?: string,
     ): Promise<void> => {
       if (isRecordingRef?.current) {
-        showToast("Cannot edit timeline while recording", "error");
+        showToast(t("timeline.recordingBlocked"), "error");
         return Promise.resolve();
       }
       const pid = projectIdRef.current;
@@ -188,13 +189,13 @@ export function useTimelineEditing({
             projectId: projectIdRef.current,
             targetPath,
             domId: element.domId,
-            label: "Move timeline clip",
+            label: t("timeline.histMove"),
             coalesceKey,
             recordEdit,
             edit: { kind: "shift", delta: updates.start - element.start },
           }).finally(() => invalidateGsapCache?.());
         const moveFallback = () =>
-          enqueueEdit(element, "Move timeline clip", buildMovePatches, coalesceKey).then(
+          enqueueEdit(element, t("timeline.histMove"), buildMovePatches, coalesceKey).then(
             finishMoveGsapSync,
           );
         return reorderDone
@@ -218,7 +219,7 @@ export function useTimelineEditing({
                   readProjectFile: (path) => readFileContent(projectIdRef.current ?? "", path),
                   publishSession: publishSdkSession,
                 },
-                { label: "Move timeline clip", coalesceKey, skipRefresh: true },
+                { label: t("timeline.histMove"), coalesceKey, skipRefresh: true },
               ).then((result) => {
                 if (!cutoverCommittedOrThrow(result)) return moveFallback();
                 return finishMoveGsapSync();
@@ -293,7 +294,7 @@ export function useTimelineEditing({
           projectId: projectIdRef.current,
           targetPath,
           domId: element.domId,
-          label: "Resize timeline clip",
+          label: t("timeline.histResize"),
           coalesceKey,
           recordEdit,
           edit: {
@@ -303,7 +304,7 @@ export function useTimelineEditing({
           },
         }).finally(() => invalidateGsapCache?.());
       const resizeFallback = () =>
-        enqueueEdit(element, "Resize timeline clip", buildResizePatches, coalesceKey).then(
+        enqueueEdit(element, t("timeline.histResize"), buildResizePatches, coalesceKey).then(
           finishResizeGsapSync,
         );
       const persistDone =
@@ -324,7 +325,7 @@ export function useTimelineEditing({
                 readProjectFile: (path) => readFileContent(projectIdRef.current ?? "", path),
                 publishSession: publishSdkSession,
               },
-              { label: "Resize timeline clip", coalesceKey, skipRefresh: true },
+              { label: t("timeline.histResize"), coalesceKey, skipRefresh: true },
             ).then((result) => {
               if (!cutoverCommittedOrThrow(result)) return resizeFallback();
               return finishResizeGsapSync();

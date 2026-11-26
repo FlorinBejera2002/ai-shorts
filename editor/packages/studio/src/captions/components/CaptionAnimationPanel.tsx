@@ -1,6 +1,10 @@
 import { memo, useCallback } from "react";
 import { useCaptionStore } from "../store";
-import type { CaptionAnimation } from "../types";
+import type { CaptionAnimation, CaptionAnimationSet, CaptionModel } from "../types";
+import { Section, SelectField, SliderField, type SelectChoice } from "./shared";
+import { EmptyState } from "../../components/ui";
+import { messagesEn, type MessageKey } from "../../i18n/dictionary";
+import { getStudioLocale, t, useLocale } from "../../i18n/translate";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -61,8 +65,6 @@ const EASE_PRESETS = [
   "bounce.out",
 ];
 
-import { Section, Row, inputCls, NumberField } from "./shared";
-
 // Animation edits currently mutate only the in-memory model: they are not
 // applied to the preview and not serialized by buildOverrides, so tuning them
 // would be editing blind. Controls stay visible (so the capability is
@@ -73,18 +75,43 @@ const ANIMATION_PIPELINE_WIRED = false;
 // Animation phase controls
 // ---------------------------------------------------------------------------
 
+function presetLabel(preset: string, offLabel: MessageKey): string {
+  if (preset === "none") return t(offLabel);
+  const key = `cap.p.${preset}`;
+  return isMessageKey(key) ? t(key) : preset;
+}
+
+function easeLabel(ease: string): string {
+  const key = `cap.e.${ease}`;
+  return isMessageKey(key) ? t(key) : ease;
+}
+
+function isMessageKey(key: string): key is MessageKey {
+  return Object.hasOwn(messagesEn, key);
+}
+
 interface AnimationPhaseProps {
   label: string;
   presets: string[];
+  /** The label of the "none" preset ("Fără", or "Oprit" for the highlight). */
+  offLabel: MessageKey;
   animation: CaptionAnimation | null;
   showIntensity?: boolean;
   disabled?: boolean;
   onChange: (update: Partial<CaptionAnimation>) => void;
 }
 
+/** "0,4 s" in Romanian, "0.4 s" in English. */
+const seconds = (value: number) => {
+  const text = String(Number(value.toFixed(2)));
+  return `${getStudioLocale() === "ro" ? text.replace(".", ",") : text} s`;
+};
+
+/** St-Inspector-CapIn / CapOut: preset select, Durată | Decalaj, Curbă | Intensitate. */
 function AnimationPhase({
   label,
   presets,
+  offLabel,
   animation,
   showIntensity,
   disabled,
@@ -95,90 +122,93 @@ function AnimationPhase({
   const ease = animation?.ease ?? "power2.out";
   const stagger = animation?.stagger ?? 0;
   const intensity = animation?.intensity ?? 1;
+  const mixed = t("cap.mixed");
+  const presetChoices: SelectChoice[] = presets.map((value) => ({
+    value,
+    label: presetLabel(value, offLabel),
+  }));
+  const easeChoices: SelectChoice[] = EASE_PRESETS.map((value) => ({
+    value,
+    label: easeLabel(value),
+  }));
 
   return (
-    <Section label={label}>
-      <Row label="Preset">
-        <select
-          value={preset}
-          disabled={disabled}
-          aria-label={`${label} preset`}
-          onChange={(e) => onChange({ preset: e.target.value })}
-          className={inputCls}
-        >
-          {presets.map((p) => (
-            <option key={p} value={p}>
-              {p}
-            </option>
-          ))}
-        </select>
-      </Row>
-
-      <Row label="Duration">
-        <NumberField
+    <Section label={label} columns={1}>
+      <SelectField
+        label={`${label} ${t("cap.preset")}`}
+        value={preset}
+        options={presetChoices}
+        disabled={disabled}
+        onChange={(next) => onChange({ preset: next })}
+      />
+      <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+        <SliderField
+          label={t("cap.duration")}
           value={duration}
-          step={0.05}
           min={0}
           max={2}
+          step={0.05}
+          mixedLabel={mixed}
           disabled={disabled}
-          ariaLabel={`${label} duration`}
-          onCommit={(v) => onChange({ duration: v })}
+          format={seconds}
+          onChange={(v) => onChange({ duration: v })}
         />
-      </Row>
-
-      <Row label="Ease">
-        <select
-          value={ease}
-          disabled={disabled}
-          aria-label={`${label} ease`}
-          onChange={(e) => onChange({ ease: e.target.value })}
-          className={inputCls}
-        >
-          {EASE_PRESETS.map((e) => (
-            <option key={e} value={e}>
-              {e}
-            </option>
-          ))}
-        </select>
-      </Row>
-
-      <Row label="Stagger">
-        <NumberField
+        <SliderField
+          label={t("cap.stagger")}
           value={stagger}
-          step={0.02}
           min={0}
           max={0.5}
+          step={0.01}
+          mixedLabel={mixed}
           disabled={disabled}
-          ariaLabel={`${label} stagger`}
-          onCommit={(v) => onChange({ stagger: v })}
+          format={seconds}
+          onChange={(v) => onChange({ stagger: v })}
         />
-      </Row>
-
-      {showIntensity && (
-        <Row label="Intensity">
-          <div className="flex items-center gap-2">
-            <input
-              type="range"
-              min={0}
-              max={1}
-              step={0.01}
-              value={intensity}
-              disabled={disabled}
-              aria-label={`${label} intensity`}
-              onChange={(e) => {
-                const v = Number(e.target.value);
-                if (Number.isFinite(v)) onChange({ intensity: v });
-              }}
-              className="flex-1 accent-studio-accent disabled:opacity-40"
-            />
-            <span className="text-2xs text-neutral-400 font-mono w-8 text-right flex-shrink-0">
-              {intensity.toFixed(2)}
-            </span>
-          </div>
-        </Row>
-      )}
+        <div className="flex min-w-0 flex-col gap-1.5">
+          <span className="text-[13px] font-medium text-studio-text">{t("cap.ease")}</span>
+          <SelectField
+            label={`${label} ${t("cap.ease")}`}
+            value={ease}
+            options={easeChoices}
+            disabled={disabled}
+            onChange={(next) => onChange({ ease: next })}
+          />
+        </div>
+        {showIntensity && (
+          <SliderField
+            label={t("cap.intensity")}
+            value={intensity}
+            min={0}
+            max={1}
+            step={0.01}
+            mixedLabel={mixed}
+            disabled={disabled}
+            format={(v) => `${Math.round(v * 100)}%`}
+            onChange={(v) => onChange({ intensity: v })}
+          />
+        )}
+      </div>
     </Section>
   );
+}
+
+// ---------------------------------------------------------------------------
+// Selection resolution
+// ---------------------------------------------------------------------------
+
+/** The group to edit: the explicitly selected group, else the group owning the first selected segment. */
+function resolveAnimationGroupId(
+  model: CaptionModel | null,
+  selectedGroupId: string | null,
+  selectedSegmentIds: Set<string>,
+): string | null {
+  if (selectedGroupId || !model || selectedSegmentIds.size === 0) return selectedGroupId;
+  const firstSegmentId = [...selectedSegmentIds][0];
+  if (!firstSegmentId) return null;
+  for (const [groupId, group] of model.groups) {
+    if (group.segmentIds.includes(firstSegmentId)) return groupId;
+  }
+  return null;
 }
 
 // ---------------------------------------------------------------------------
@@ -186,47 +216,21 @@ function AnimationPhase({
 // ---------------------------------------------------------------------------
 
 export const CaptionAnimationPanel = memo(function CaptionAnimationPanel() {
+  useLocale();
   const model = useCaptionStore((s) => s.model);
   const selectedGroupId = useCaptionStore((s) => s.selectedGroupId);
   const selectedSegmentIds = useCaptionStore((s) => s.selectedSegmentIds);
   const updateGroupAnimation = useCaptionStore((s) => s.updateGroupAnimation);
   const applyAnimationToAll = useCaptionStore((s) => s.applyAnimationToAll);
 
-  // Resolve which group to edit
-  let resolvedGroupId: string | null = selectedGroupId;
-  if (!resolvedGroupId && model && selectedSegmentIds.size > 0) {
-    const firstSegmentId = [...selectedSegmentIds][0];
-    if (firstSegmentId) {
-      for (const [gid, group] of model.groups) {
-        if (group.segmentIds.includes(firstSegmentId)) {
-          resolvedGroupId = gid;
-          break;
-        }
-      }
-    }
-  }
-
+  const resolvedGroupId = resolveAnimationGroupId(model, selectedGroupId, selectedSegmentIds);
   const group = resolvedGroupId ? model?.groups.get(resolvedGroupId) : undefined;
   const animation = group?.animation;
 
   // All hooks must be called before any early return
-  const handleEntranceChange = useCallback(
-    (update: Partial<CaptionAnimation>) => {
-      if (resolvedGroupId) updateGroupAnimation(resolvedGroupId, "entrance", update);
-    },
-    [resolvedGroupId, updateGroupAnimation],
-  );
-
-  const handleHighlightChange = useCallback(
-    (update: Partial<CaptionAnimation>) => {
-      if (resolvedGroupId) updateGroupAnimation(resolvedGroupId, "highlight", update);
-    },
-    [resolvedGroupId, updateGroupAnimation],
-  );
-
-  const handleExitChange = useCallback(
-    (update: Partial<CaptionAnimation>) => {
-      if (resolvedGroupId) updateGroupAnimation(resolvedGroupId, "exit", update);
+  const handlePhaseChange = useCallback(
+    (phase: keyof CaptionAnimationSet, update: Partial<CaptionAnimation>) => {
+      if (resolvedGroupId) updateGroupAnimation(resolvedGroupId, phase, update);
     },
     [resolvedGroupId, updateGroupAnimation],
   );
@@ -238,8 +242,8 @@ export const CaptionAnimationPanel = memo(function CaptionAnimationPanel() {
   // Empty state — after all hooks
   if (!group || !resolvedGroupId || !animation) {
     return (
-      <div className="flex items-center justify-center h-full px-4 text-center">
-        <p className="text-xs text-neutral-500">Select a caption word to edit animations</p>
+      <div className="flex flex-1 items-center justify-center">
+        <EmptyState illustration="studio-nothing-selected" title={t("cap.emptyAnimation")} />
       </div>
     );
   }
@@ -249,52 +253,55 @@ export const CaptionAnimationPanel = memo(function CaptionAnimationPanel() {
   return (
     <div className="flex flex-col h-full min-h-0">
       {gated && (
-        <div className="flex-shrink-0 mx-3 mt-2 px-2 py-1.5 rounded border border-amber-500/30 bg-amber-500/10">
-          <p className="text-2xs text-amber-300/90 leading-snug">
-            Animation editing isn&apos;t applied to playback or saved yet, so these controls are
-            disabled.
-          </p>
-        </div>
+        <p
+          role="status"
+          className="mx-4 mb-3 flex-shrink-0 rounded-sm bg-[var(--st-warn-bg)] px-3 py-2 text-xs font-medium text-[var(--st-warn-text)]"
+        >
+          {t("cap.gated")}
+        </p>
       )}
 
       {/* Scrollable content */}
-      <div className="flex-1 overflow-y-auto px-3 py-2">
+      <div className="flex flex-1 flex-col gap-6 overflow-y-auto px-4 pb-4">
         <AnimationPhase
-          label="Entrance"
+          label={t("cap.entrance")}
           presets={ENTRANCE_PRESETS}
+          offLabel="cap.p.none"
           animation={animation.entrance}
           disabled={gated}
-          onChange={handleEntranceChange}
+          onChange={(update) => handlePhaseChange("entrance", update)}
         />
 
         <AnimationPhase
-          label="Highlight"
+          label={t("cap.highlight")}
           presets={HIGHLIGHT_PRESETS}
+          offLabel="cap.highlightOff"
           animation={animation.highlight}
           showIntensity
           disabled={gated}
-          onChange={handleHighlightChange}
+          onChange={(update) => handlePhaseChange("highlight", update)}
         />
 
         <AnimationPhase
-          label="Exit"
+          label={t("cap.exit")}
           presets={EXIT_PRESETS}
+          offLabel="cap.p.none"
           animation={animation.exit}
           disabled={gated}
-          onChange={handleExitChange}
+          onChange={(update) => handlePhaseChange("exit", update)}
         />
       </div>
 
       {/* Footer */}
-      <div className="flex-shrink-0 px-3 py-2 border-t border-neutral-800">
+      <div className="flex-shrink-0 px-4 pt-2 pb-4">
         <button
           type="button"
           onClick={handleApplyToAll}
           disabled={gated}
-          title={gated ? "Disabled until animation editing is applied to playback" : undefined}
-          className="w-full py-1.5 rounded border border-neutral-700 text-2xs text-neutral-300 hover:border-studio-accent/50 hover:text-studio-accent transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:border-neutral-700 disabled:hover:text-neutral-300"
+          title={gated ? t("cap.gated") : undefined}
+          className="h-11 w-full rounded-full text-[13px] font-semibold text-studio-text shadow-[inset_0_0_0_1.5px_var(--st-sbd)] transition-colors hover:bg-[var(--st-sub)] disabled:cursor-not-allowed disabled:opacity-45"
         >
-          Apply to all groups
+          {t("cap.applyAll")}
         </button>
       </div>
     </div>

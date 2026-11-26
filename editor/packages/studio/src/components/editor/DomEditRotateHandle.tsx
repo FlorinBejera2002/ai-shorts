@@ -1,3 +1,4 @@
+import { t } from "../../i18n/translate";
 import type { PointerEvent as ReactPointerEvent } from "react";
 import type { OverlayRect } from "./domEditOverlayGeometry";
 
@@ -27,25 +28,25 @@ export function DomEditRotateHandle({
       style={{
         left: visibleLeft + visibleWidth / 2,
         top: visibleBottom + 12,
-        width: 22,
-        height: 22,
+        width: 28,
+        height: 28,
         transform: "translateX(-50%)",
         touchAction: "none",
         // Closed-hand grab cursor: this handle is grabbed and dragged to rotate.
         cursor: "grabbing",
       }}
-      title="Rotate"
-      aria-label="Rotate selection"
+      title={t("preview.rotateSelection")}
+      aria-label={t("preview.rotateSelection")}
       onPointerDown={onStartRotate}
     >
-      <span className="pointer-events-none flex h-[18px] w-[18px] items-center justify-center rounded-full border border-studio-accent/70 bg-studio-surface text-studio-accent shadow-[0_0_3px_rgba(0,0,0,0.45)]">
+      <span className="pointer-events-none flex h-7 w-7 items-center justify-center rounded-full bg-studio-surface text-studio-text shadow-studio">
         <svg
-          width="11"
-          height="11"
+          width="14"
+          height="14"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
-          strokeWidth="2.5"
+          strokeWidth="2"
           strokeLinecap="round"
           strokeLinejoin="round"
           aria-hidden="true"

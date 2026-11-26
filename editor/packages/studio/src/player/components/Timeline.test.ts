@@ -15,7 +15,6 @@ import {
   getTimelinePlaybackFollowScrollLeft,
   getTimelineScrollLeftForZoomAnchor,
   getTimelineScrollLeftForZoomTransition,
-  shouldShowTimelineShortcutHint,
   shouldHandleTimelineDeleteKey,
   shouldAutoScrollTimeline,
   getTimelineVisibleTimeRange,
@@ -23,20 +22,23 @@ import {
 } from "./Timeline";
 import {
   CLIP_Y,
-  FIT_ZOOM_HEADROOM,
   GUTTER,
   LABEL_COL_W,
   LANE_H,
-  MIN_TIMELINE_EXTENT_S,
+  MIN_FIT_SPAN_S,
+  FIT_TRAILING_TAIL_PX,
+  DRAG_EXTEND_MARGIN_PX,
   PLAYHEAD_HEAD_W,
   RULER_H,
   TRACK_H,
   TRACKS_LEFT_PAD,
+  TRACKS_TOP_PAD,
   getTimelineDisplayContentWidth,
   getTimelineFitPps,
   getTimelineLaneTop,
   createTimelineRowGeometry,
 } from "./timelineLayout";
+import { applyTimelineAutoScrollStep } from "./timelineEditing";
 import { AUTOMATION_LANE_H } from "./automationLaneHeight";
 import { formatTime } from "../lib/time";
 import { usePlayerStore } from "../store/playerStore";
@@ -102,7 +104,7 @@ function renderTimelineGeometry(clipId: string) {
   act(() => {
     root.render(React.createElement(Timeline));
   });
-  return { host, root, ...getHorizontalGeometry(host, clipId, "00:10") };
+  return { host, root, ...getHorizontalGeometry(host, clipId, "0:10") };
 }
 
 function createSizedTimelineHost(width: number): HTMLDivElement {
@@ -136,7 +138,7 @@ function renderBasicTimeline() {
 }
 
 describe("Timeline provider boundary", () => {
-  it("keeps all-collapsed horizontal positions at the gutter plus the pre-t=0 pad", () => {
+  it("keeps all-collapsed horizontal positions after the header column and gutter", () => {
     usePlayerStore.setState({
       duration: 11,
       timelineReady: true,
@@ -149,13 +151,13 @@ describe("Timeline provider boundary", () => {
     const { root, clip, trackHeader, rulerTick, rulerOrigin, playhead } =
       renderTimelineGeometry("clip-1");
 
-    expect(trackHeader.style.width).toBe(`${GUTTER + TRACKS_LEFT_PAD}px`);
+    expect(trackHeader.style.width).toBe(`${LABEL_COL_W}px`);
     expect(clip.style.left).toBe("1000px");
     expect(clip.style.height).toBe("");
     expect(clip.style.bottom).toBe(`${CLIP_Y}px`);
-    expect(rulerOrigin.style.width).toBe(`${GUTTER + TRACKS_LEFT_PAD}px`);
+    expect(rulerOrigin.style.width).toBe(`${LABEL_COL_W + GUTTER}px`);
     expect(rulerTick.style.left).toBe("999.5px");
-    expect(playhead.style.left).toBe(`${GUTTER + TRACKS_LEFT_PAD + 1000 - PLAYHEAD_HEAD_W / 2}px`);
+    expect(playhead.style.left).toBe(`${LABEL_COL_W + GUTTER + 1000 - PLAYHEAD_HEAD_W / 2}px`);
     expect(playhead.style.width).toBe(`${PLAYHEAD_HEAD_W}px`);
     expect(
       resolveTimelineAssetDrop(
@@ -169,11 +171,13 @@ describe("Timeline provider boundary", () => {
           duration: 60,
           trackOrder: [0],
         },
-        1132,
+        100 + GUTTER + 1000,
         100,
       ).start,
     ).toBe(10);
-    expect(getTimelineFitPps(640, 11, GUTTER)).toBe(10.1);
+    expect(getTimelineFitPps(640, 11, GUTTER)).toBeCloseTo(
+      (640 - GUTTER - 2 - FIT_TRAILING_TAIL_PX) / 11,
+    );
 
     act(() => root.unmount());
   });
@@ -215,7 +219,7 @@ describe("Timeline provider boundary", () => {
 
     const { host, root, clip, trackHeader, rulerTick, rulerOrigin, playhead } =
       renderTimelineGeometry("clip-1");
-    const { trackHeader: collapsedHeader } = getHorizontalGeometry(host, "clip-2", "00:10");
+    const { trackHeader: collapsedHeader } = getHorizontalGeometry(host, "clip-2", "0:10");
     const diamond = host.querySelector<HTMLElement>(
       '[data-keyframe-group="position"][data-keyframe-percentage="50"]',
     );
@@ -271,7 +275,7 @@ describe("Timeline provider boundary", () => {
     expect(rulerX).toBe(LABEL_COL_W + GUTTER + 1000);
     expect(collapsedHeader.textContent).toContain("Outro");
     expect(getTimelineFitPps(640, 20, LABEL_COL_W + GUTTER)).toBeCloseTo(
-      (640 - (LABEL_COL_W + GUTTER) - 2) / MIN_TIMELINE_EXTENT_S,
+      (640 - (LABEL_COL_W + GUTTER) - 2 - FIT_TRAILING_TAIL_PX) / 20,
     );
     expect(
       resolveTimelineAssetDrop(
@@ -936,45 +940,27 @@ describe("shouldAutoScrollTimeline", () => {
   });
 });
 
-describe("getTimelineFitPps (min 60s extent + fit headroom)", () => {
+describe("getTimelineFitPps (fits the duration with a short tail)", () => {
   const viewport = 1000;
+  const usable = viewport - (GUTTER + TRACKS_LEFT_PAD) - 2 - FIT_TRAILING_TAIL_PX;
 
   it("keeps short phone clips wide enough to select and trim", () => {
-    const pps = getTimelineFitPps(390, 4, GUTTER + TRACKS_LEFT_PAD);
-    expect(2 * pps).toBeGreaterThan(100);
-    expect(4 * pps).toBeLessThan(390 - GUTTER - TRACKS_LEFT_PAD);
-  });
-
-  it("computes fit pps against the 60s floor for short compositions", () => {
-    // A 10s comp maps 60s onto the viewport → the comp takes ~1/6 of the width.
-    // (10 * 1.2 = 12s of headroom-padded content is still under the 60s floor.)
-    const pps = getTimelineFitPps(viewport, 10, GUTTER + TRACKS_LEFT_PAD);
-    expect(pps).toBeCloseTo((viewport - (GUTTER + TRACKS_LEFT_PAD) - 2) / MIN_TIMELINE_EXTENT_S);
-    expect(10 * pps).toBeCloseTo((viewport - (GUTTER + TRACKS_LEFT_PAD) - 2) / 6);
-  });
-
-  it("fits duration * FIT_ZOOM_HEADROOM (not the bare duration) for long compositions", () => {
-    expect(getTimelineFitPps(viewport, 60, GUTTER + TRACKS_LEFT_PAD)).toBeCloseTo(
-      (viewport - (GUTTER + TRACKS_LEFT_PAD) - 2) / (60 * FIT_ZOOM_HEADROOM),
-    );
-    expect(getTimelineFitPps(viewport, 120, GUTTER + TRACKS_LEFT_PAD)).toBeCloseTo(
-      (viewport - (GUTTER + TRACKS_LEFT_PAD) - 2) / (120 * FIT_ZOOM_HEADROOM),
+    const pps = getTimelineFitPps(390, 1, GUTTER + TRACKS_LEFT_PAD);
+    expect(pps).toBeCloseTo(
+      (390 - (GUTTER + TRACKS_LEFT_PAD) - 2 - FIT_TRAILING_TAIL_PX) / MIN_FIT_SPAN_S,
     );
   });
 
-  it("subtracts the expanded keyframe label column before fitting headroom", () => {
+  it("ends the composition one tail before the right edge of the lanes", () => {
+    expect(10 * getTimelineFitPps(viewport, 10, GUTTER + TRACKS_LEFT_PAD)).toBeCloseTo(usable);
+    expect(45 * getTimelineFitPps(viewport, 45, GUTTER + TRACKS_LEFT_PAD)).toBeCloseTo(usable);
+    expect(120 * getTimelineFitPps(viewport, 120, GUTTER + TRACKS_LEFT_PAD)).toBeCloseTo(usable);
+  });
+
+  it("subtracts the expanded keyframe label column", () => {
     expect(getTimelineFitPps(viewport, 120, LABEL_COL_W)).toBeCloseTo(
-      (viewport - LABEL_COL_W - 2) / (120 * FIT_ZOOM_HEADROOM),
+      (viewport - LABEL_COL_W - 2 - FIT_TRAILING_TAIL_PX) / 120,
     );
-  });
-
-  it("leaves CapCut-style trailing headroom: the comp ends at 1/1.2 of the usable width", () => {
-    const usable = viewport - (GUTTER + TRACKS_LEFT_PAD) - 2;
-    const pps = getTimelineFitPps(viewport, 120, GUTTER + TRACKS_LEFT_PAD);
-    // Composition content occupies usable/1.2 px; the remaining ~17% is empty
-    // droppable ruler/lane surface past the end.
-    expect(120 * pps).toBeCloseTo(usable / FIT_ZOOM_HEADROOM);
-    expect(120 * pps).toBeLessThan(usable);
   });
 
   it("falls back to 100 pps before the viewport is measured", () => {
@@ -983,30 +969,53 @@ describe("getTimelineFitPps (min 60s extent + fit headroom)", () => {
     expect(getTimelineFitPps(Number.NaN, 10, GUTTER)).toBe(100);
   });
 
-  it("uses the floor for zero/invalid durations", () => {
+  it("uses the minimum span for zero/invalid durations", () => {
     expect(getTimelineFitPps(viewport, 0, GUTTER + TRACKS_LEFT_PAD)).toBeCloseTo(
-      (viewport - (GUTTER + TRACKS_LEFT_PAD) - 2) / MIN_TIMELINE_EXTENT_S,
+      usable / MIN_FIT_SPAN_S,
     );
     expect(getTimelineFitPps(viewport, Number.NaN, GUTTER + TRACKS_LEFT_PAD)).toBeCloseTo(
-      (viewport - (GUTTER + TRACKS_LEFT_PAD) - 2) / MIN_TIMELINE_EXTENT_S,
+      usable / MIN_FIT_SPAN_S,
     );
   });
 });
 
-describe("getTimelineDisplayContentWidth", () => {
-  it("always spans at least MIN_TIMELINE_EXTENT_S seconds of content", () => {
-    // 10s of content at 20 pps = 200px; the floor keeps 60s (1200px) rendered.
-    expect(
-      getTimelineDisplayContentWidth({
-        trackContentWidth: 200,
-        viewportWidth: 400,
-        contentOrigin: GUTTER,
-        pps: 20,
-      }),
-    ).toBe(MIN_TIMELINE_EXTENT_S * 20);
+describe("Fit mode drag past the end", () => {
+  const viewport = 1390;
+  const origin = GUTTER + TRACKS_LEFT_PAD;
+  const duration = 46;
+
+  it("keeps an empty drop lane after the last clip", () => {
+    const pps = getTimelineFitPps(viewport, duration, origin);
+    const lastClipRight = origin + duration * pps;
+    expect(viewport - lastClipRight).toBeGreaterThanOrEqual(FIT_TRAILING_TAIL_PX);
   });
 
-  it("still fills the viewport when that is larger than the 60s floor", () => {
+  it("extends the render under a drag ghost so edge auto-scroll can reveal it", () => {
+    const pps = getTimelineFitPps(viewport, duration, origin);
+    // A 3 s clip dragged to start just after the end of the composition.
+    const ghostEndPx = (duration + 1 + 3) * pps + DRAG_EXTEND_MARGIN_PX;
+    const width = getTimelineDisplayContentWidth({
+      trackContentWidth: duration * pps,
+      viewportWidth: viewport,
+      contentOrigin: origin,
+      pps,
+      dragGhostEndPx: ghostEndPx,
+    });
+    const scroll = document.createElement("div");
+    Object.defineProperty(scroll, "clientWidth", { value: viewport });
+    Object.defineProperty(scroll, "scrollWidth", { value: origin + width });
+    scroll.getBoundingClientRect = () =>
+      ({ left: 0, top: 0, right: viewport, bottom: 260, width: viewport, height: 260 }) as DOMRect;
+    let steps = 0;
+    while (applyTimelineAutoScrollStep(scroll, viewport - 2, 130) && steps < 500) steps += 1;
+    const ghostRightInView = origin + (duration + 1 + 3) * pps - scroll.scrollLeft;
+    expect(steps).toBeGreaterThan(0);
+    expect(ghostRightInView).toBeLessThanOrEqual(viewport);
+  });
+});
+
+describe("getTimelineDisplayContentWidth", () => {
+  it("fills the viewport after short content", () => {
     expect(
       getTimelineDisplayContentWidth({
         trackContentWidth: 200,
@@ -1080,7 +1089,7 @@ describe("getTimelineScrollLeftForZoomAnchor", () => {
         nextPixelsPerSecond: 20,
         duration: 120,
       }),
-    ).toBe(668);
+    ).toBe((200 + 300 - GUTTER) * 2 + GUTTER - 300);
   });
 
   it("clamps negative scroll targets", () => {
@@ -1217,17 +1226,6 @@ describe("getTimelineCanvasHeight", () => {
   });
 });
 
-describe("shouldShowTimelineShortcutHint", () => {
-  it("shows the hint when the timeline does not vertically overflow", () => {
-    expect(shouldShowTimelineShortcutHint(220, 220)).toBe(true);
-    expect(shouldShowTimelineShortcutHint(220.5, 220)).toBe(true);
-  });
-
-  it("hides the hint when timeline tracks need vertical scrolling", () => {
-    expect(shouldShowTimelineShortcutHint(221.5, 220)).toBe(false);
-  });
-});
-
 describe("shouldHandleTimelineDeleteKey", () => {
   it("handles Delete and Backspace when focus is not in an editor", () => {
     expect(shouldHandleTimelineDeleteKey({ key: "Delete" })).toBe(true);
@@ -1273,10 +1271,10 @@ describe("resolveTimelineAssetDrop", () => {
           trackHeight: 72,
           trackOrder: [0, 3, 7],
         },
-        432, // rectLeft(100) + GUTTER(32) + 3s*100pps  (contentOrigin = GUTTER)
-        // clientY: rectTop(200) + RULER_H(24) + TRACKS_TOP_PAD(72) + TRACK_H(48)
-        // + TRACK_H/2(24) = 368 → row 1 → track 3.
-        368,
+        // rectLeft + GUTTER + 3s*100pps  (contentOrigin = GUTTER)
+        100 + GUTTER + 300,
+        // rectTop + ruler + top pad + one row + half a row → row 1 → track 3.
+        200 + RULER_H + TRACKS_TOP_PAD + TRACK_H + TRACK_H / 2,
       ),
     ).toEqual({ start: 3, track: 3 });
   });
@@ -1295,7 +1293,7 @@ describe("resolveTimelineAssetDrop", () => {
           trackHeight: 72,
           trackOrder: [0, 3, 7],
         },
-        250, // rectLeft(100) + GUTTER(32) + 1.18s*100pps  (contentOrigin = GUTTER)
+        100 + GUTTER + 118, // rectLeft + GUTTER + 1.18s*100pps  (contentOrigin = GUTTER)
         600,
       ),
     ).toEqual({ start: 1.18, track: 8 });

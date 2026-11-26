@@ -1,4 +1,6 @@
 import { useEffect, useId, useRef, useState } from "react";
+import { t } from "../../i18n/translate";
+import { easeDisplayName } from "./motionUi";
 import { evaluateSpringEase, parseSpringBounce } from "@hyperframes/core/spring-ease";
 import {
   evaluateWiggleEase,
@@ -8,7 +10,7 @@ import {
 import { easePresetLabel } from "./easePresetLibrary";
 import {
   DEFAULT_CURVE,
-  MODE_LABELS,
+  easeModeLabel,
   EaseModeToggle,
   EasePresetGrid,
   type EaseMode,
@@ -42,7 +44,8 @@ const VMIN = -HR / S; // bottom of visible view (undershoot headroom)
 // of snapping to the view edge; the handle DOT is still clampView'd into view.
 const DRAG_VMAX = 2;
 const DRAG_VMIN = -1;
-const ACCENT = "#3CE6AC";
+// The curve and its handles use the text colour (app palette, no accent).
+const ACCENT = "var(--st-tx)";
 
 // Figma-style ease-type dropdown: the current ease (glyph + name) as a button
 // that opens the preset grid in a popover. This is where a preset is selected —
@@ -130,16 +133,16 @@ function EaseTypeDropdown({
         aria-expanded={open}
         aria-controls={open ? menuId : undefined}
         onClick={() => setOpen((prev) => !prev)}
-        className="flex w-full items-center gap-2 rounded-md border border-white/10 bg-black/20 px-2 py-1.5 text-left transition-colors hover:border-white/20"
+        className="flex w-full items-center gap-2 h-11 rounded-md bg-studio-surface px-3.5 shadow-[inset_0_0_0_1px_var(--st-sbd)] text-left transition-colors hover:bg-[var(--st-sub)]"
       >
         <MiniCurveSvg ease={ease} active size={16} />
-        <span className="text-[11px] text-neutral-200">{label}</span>
+        <span className="text-[13px] font-medium text-studio-text">{label}</span>
         <svg
           width="8"
           height="8"
           viewBox="0 0 10 10"
           fill="currentColor"
-          className={`ml-auto text-neutral-500 transition-transform ${open ? "rotate-180" : ""}`}
+          className={`ml-auto text-studio-muted transition-transform ${open ? "rotate-180" : ""}`}
         >
           <path d="M2 3l3 4 3-4z" />
         </svg>
@@ -149,9 +152,9 @@ function EaseTypeDropdown({
           ref={menuRef}
           id={menuId}
           role="menu"
-          aria-label={`${MODE_LABELS[kind]} ease presets`}
+          aria-label={easeModeLabel(kind)}
           onKeyDown={handleMenuKeyDown}
-          className="absolute inset-x-0 top-full z-20 mt-1 rounded-md border border-white/10 bg-neutral-900 p-2 shadow-xl"
+          className="absolute inset-x-0 top-full z-20 mt-1 rounded-md bg-studio-surface p-2 shadow-studio"
         >
           <EasePresetGrid
             kind={kind}
@@ -177,10 +180,11 @@ function resolveEditableCurve(ease: string, springBounce: number | null): Pts | 
 
 function resolveEditorLabel(ease: string, springBounce: number | null, isWiggle: boolean): string {
   const presetLabel = easePresetLabel(ease);
-  if (presetLabel !== null) return presetLabel;
-  if (springBounce !== null) return "Custom spring";
-  if (isWiggle) return "Custom wiggle";
-  if (ease.startsWith("custom(")) return "Custom bezier";
+  if (presetLabel !== null)
+    return easeDisplayName(ease) === ease ? presetLabel : easeDisplayName(ease);
+  if (springBounce !== null) return t("ease.customSpring");
+  if (isWiggle) return t("ease.customWiggle");
+  if (ease.startsWith("custom(")) return t("ease.customBezier");
   return EASE_LABELS[ease] ?? ease;
 }
 
@@ -393,21 +397,21 @@ export function EaseCurveSection({
   const label = resolveEditorLabel(displayedEase, springBounce, isWiggle);
 
   return (
-    <div className="rounded-lg bg-neutral-900/50 p-2">
+    <div className="rounded-[16px] bg-studio-surface p-3 shadow-[inset_0_0_0_1px_var(--st-bd)]">
       <EaseTypeDropdown kind={mode} ease={displayedEase} label={label} onSelect={commitEase} />
       {collidingAnimationTargets && collidingAnimationTargets.length > 1 && (
-        <p className="mb-1 text-[9px] text-neutral-500">
+        <p className="mb-1 text-xs text-studio-muted">
           Applies to {collidingAnimationTargets.length} animations
         </p>
       )}
       <EaseModeToggle mode={mode} onCommit={commitEase} />
       <span className="sr-only" aria-live="polite">
-        {MODE_LABELS[mode]} ease editor selected
+        {easeModeLabel(mode)}
       </span>
       {showGraph ? (
         <>
           <div
-            className="mx-auto overflow-hidden rounded-md border border-white/5 bg-black/20"
+            className="mx-auto overflow-hidden rounded-md bg-studio-surface shadow-[inset_0_0_0_1px_var(--st-bd)]"
             style={{ aspectRatio: `${SVGW} / ${SVGH}`, width: "100%", maxWidth: 230 }}
           >
             <svg
@@ -429,8 +433,8 @@ export function EaseCurveSection({
                   y1={top}
                   x2={xToSvg(q)}
                   y2={bottom}
-                  stroke="white"
-                  strokeOpacity="0.05"
+                  stroke="var(--st-bd)"
+                  strokeOpacity="1"
                   strokeWidth="1"
                 />
               ))}
@@ -441,8 +445,8 @@ export function EaseCurveSection({
                   y1={yToSvg(q)}
                   x2={right}
                   y2={yToSvg(q)}
-                  stroke="white"
-                  strokeOpacity="0.05"
+                  stroke="var(--st-bd)"
+                  strokeOpacity="1"
                   strokeWidth="1"
                 />
               ))}
@@ -453,8 +457,8 @@ export function EaseCurveSection({
                 width={S}
                 height={bottom - top}
                 fill="none"
-                stroke="white"
-                strokeOpacity="0.1"
+                stroke="var(--st-bd)"
+                strokeOpacity="1"
                 strokeWidth="1"
               />
               {/* Linear reference diagonal */}
@@ -463,8 +467,8 @@ export function EaseCurveSection({
                 y1={a0.y}
                 x2={a1.x}
                 y2={a1.y}
-                stroke="white"
-                strokeOpacity="0.08"
+                stroke="var(--st-t3)"
+                strokeOpacity="0.6"
                 strokeWidth="1"
                 strokeDasharray="3 4"
               />
@@ -518,7 +522,7 @@ export function EaseCurveSection({
                       aria-valuemax={1}
                       aria-valuenow={key === "p1" ? x1 : x2}
                       aria-valuetext={`x ${key === "p1" ? x1 : x2}, y ${key === "p1" ? y1 : y2}`}
-                      className="cursor-grab stroke-transparent outline-none active:cursor-grabbing focus-visible:stroke-white focus-visible:stroke-[2px]"
+                      className="cursor-grab stroke-transparent outline-none active:cursor-grabbing focus-visible:stroke-[var(--st-btn)] focus-visible:stroke-[2px]"
                       onPointerDown={(e) => handlePointerDown(key, e)}
                       onKeyDown={(event) => handleKeyDown(key, event)}
                       onPointerEnter={() => setHover(key)}
@@ -528,7 +532,7 @@ export function EaseCurveSection({
                       cx={pt.x}
                       cy={pt.y}
                       r={hover === key || draggingRef.current === key ? 7 : 5.5}
-                      fill="#0a0a1a"
+                      fill="var(--st-sf)"
                       stroke={ACCENT}
                       strokeWidth="2.5"
                       className="pointer-events-none transition-[r]"
@@ -545,7 +549,7 @@ export function EaseCurveSection({
           />
         </>
       ) : (
-        <p className="px-0.5 py-1.5 text-[10px] leading-relaxed text-neutral-500">
+        <p className="px-0.5 py-1.5 text-xs leading-relaxed text-studio-muted">
           {label} preset: switch to Curve, Spring, or Wiggle above to shape it by hand.
         </p>
       )}

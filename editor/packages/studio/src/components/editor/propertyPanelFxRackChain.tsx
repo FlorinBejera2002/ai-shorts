@@ -10,6 +10,13 @@
  */
 
 import type { HfAudioFxChain, HfAudioFxNode } from "@hyperframes/core/audio-fx";
+import { t, useLocale } from "../../i18n/translate";
+import { withContentKeys } from "../agent/stableKeys";
+import { audioText } from "./propertyPanelFxText.js";
+import { getAudioFxPreset } from "@hyperframes/core/audio-fx-presets";
+import { LOOK_ICONS, LookIcon } from "./propertyPanelColorLookUi";
+import { fxFamilyOf, type FxFamily } from "./propertyPanelFxFamily.js";
+import type { MessageKey } from "../../i18n/dictionary";
 import { readAudioEqBands } from "@hyperframes/core/audio-fx-eq";
 import { DEFAULT_CARVE, type HfCarveSettings } from "@hyperframes/core/audio-carve";
 import { trackEqChanged, trackPresetAmount } from "./audioFxTelemetry.js";
@@ -109,15 +116,31 @@ export function FxRackChain({
   presetRemoveAutomationHandler,
   signalPath,
 }: FxRackChainProps) {
+  useLocale();
+  const segments = splitByFamily(runs);
+  const pathStages = [
+    ...(showCarve && carveNodes.length > 0 ? [audioText("Voiceover carve")] : []),
+    ...eqIds.map(() => t("audio.tone")),
+    ...segments.map(({ run, family }) =>
+      family ? t(FAMILY_TITLE[family]) : audioText(getAudioFxPreset(run.preset ?? "")?.label ?? ""),
+    ),
+  ].filter((stage, index, all) => stage && stage !== all[index - 1]);
   return (
-    <div className="hf-fx-chain space-y-1">
-      {/* The rack IS the signal path, and saying so costs two lines. Without
-          them the order reads as a list, which is the one reading that makes
-          "move up" look cosmetic — it is the most consequential control here. */}
-      <p className="hf-fx-term flex items-baseline gap-1.5 px-1.5 font-mono text-[9px] uppercase tracking-wide text-panel-text-2">
-        <span className="hf-fx-term-cap text-panel-text-1">In</span>
-        <span>{signalPath.inLabel}</span>
-      </p>
+    <div className="hf-fx-chain flex flex-col gap-2">
+      {/* The rack IS the signal path, and saying so is what makes "move up" read as the
+          consequential control it is: the breadcrumb names each stage in order. */}
+      <nav aria-label={t("audio.path")} data-fx-path="true">
+        <ol className="hf-fx-term flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[13px] font-medium text-studio-text">
+          {withContentKeys([t("audio.in"), ...pathStages, t("audio.out")], (stage) => stage).map(
+            ({ key, item: stage }, index) => (
+              <li key={key} className="flex items-center gap-1.5">
+                {index > 0 ? <LookIcon d={LOOK_ICONS.chevronRight} size={14} /> : null}
+                <span className={index === 0 ? "hf-fx-term-cap" : undefined}>{stage}</span>
+              </li>
+            ),
+          )}
+        </ol>
+      </nav>
       {/* Carve leads the rack, which is also where its effects sit in the signal
           path — corrective work before anything the author added. Present
           whenever there is a voice for it to listen to, rather than appearing
@@ -155,19 +178,21 @@ export function FxRackChain({
         />
       ))}
       {handBuiltCount === 0 && eqIds.length === 0 ? (
-        <p className="hf-fx-empty py-1 text-[11px] text-panel-text-2">
-          {showCarve
-            ? `No other effects on this ${signalPath.subject}.`
-            : `No effects on this ${signalPath.subject}.`}
+        <p className="hf-fx-empty py-2 text-[13px] text-studio-muted">
+          {t(showCarve ? "audio.emptyOther" : "audio.empty", {
+            subject: t(
+              signalPath.subject === "group" ? "audio.subject.group" : "audio.subject.track",
+            ),
+          })}
         </p>
       ) : (
-        runs.map((run) => {
+        segments.map(({ run, family }) => {
           // How much of the preset is applied. Any node of the run carries
           // it, and the first is the one the graph reads.
           const rawAmount = run.items[0]?.node.presetAmount;
           const amount = typeof rawAmount === "number" ? rawAmount : 1;
           const runKey = `${run.preset}-${run.items[0]?.i ?? 0}`;
-          return (
+          const runView = (
             <FxPresetRun
               key={`preset-${run.preset}-${run.items[0]?.i}`}
               run={run}
@@ -198,12 +223,54 @@ export function FxRackChain({
               onRemoveAutomation={presetRemoveAutomationHandler(run.preset)}
             />
           );
+          if (!family) return runView;
+          return (
+            <section
+              key={`family-${runKey}`}
+              className="flex flex-col gap-2"
+              data-fx-family-group={family}
+            >
+              <h4 className="pt-1 text-[13px] font-semibold text-studio-text">
+                {t(FAMILY_TITLE[family])}
+              </h4>
+              {runView}
+            </section>
+          );
         })
       )}
-      <p className="hf-fx-term hf-fx-term-out flex items-baseline gap-1.5 px-1.5 font-mono text-[9px] uppercase tracking-wide text-panel-text-2">
-        <span className="hf-fx-term-cap text-panel-text-1">Out</span>
-        <span>{signalPath.outLabel}</span>
-      </p>
     </div>
   );
+}
+
+type ChainRun = FxRackChainProps["runs"][number];
+
+const FAMILY_TITLE: Record<FxFamily, MessageKey> = {
+  filter: "audio.fam.filter",
+  dynamics: "audio.fam.dynamics",
+  nonlinear: "audio.fam.nonlinear",
+  time: "audio.fam.time",
+  smart: "audio.fam.smart",
+};
+
+/**
+ * St-Inspector-AudioRack: hand-built effects sit under a heading for their family (Filtre,
+ * Dinamică). Only consecutive effects of one family share a heading, so the headings read in
+ * signal order and never claim an adjacency the chain does not have. A preset run keeps its own
+ * card and gets no heading.
+ */
+function splitByFamily(runs: readonly ChainRun[]): { run: ChainRun; family: FxFamily | null }[] {
+  const out: { run: ChainRun; family: FxFamily | null }[] = [];
+  for (const run of runs) {
+    if (run.preset) {
+      out.push({ run, family: null });
+      continue;
+    }
+    for (const item of run.items) {
+      const family = fxFamilyOf(item.node);
+      const last = out.at(-1);
+      if (last && !last.run.preset && last.family === family) last.run.items.push(item);
+      else out.push({ run: { items: [item] }, family });
+    }
+  }
+  return out;
 }

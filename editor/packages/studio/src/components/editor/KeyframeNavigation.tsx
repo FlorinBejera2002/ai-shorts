@@ -1,5 +1,6 @@
 import { memo } from "react";
 import { KeyframeDiamond, type DiamondState } from "./KeyframeDiamond";
+import { t } from "../../i18n/translate";
 
 interface KeyframeNavigationProps {
   property: string;
@@ -86,7 +87,7 @@ function ArrowLeft({ disabled }: { disabled: boolean }) {
     >
       <path
         d="M5 1L1 5L5 9"
-        stroke="#a3a3a3"
+        style={{ stroke: "var(--st-t3)" }}
         strokeWidth="1.4"
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -106,7 +107,7 @@ function ArrowRight({ disabled }: { disabled: boolean }) {
     >
       <path
         d="M1 1L5 5L1 9"
-        stroke="#a3a3a3"
+        style={{ stroke: "var(--st-t3)" }}
         strokeWidth="1.4"
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -177,7 +178,7 @@ export const KeyframeNavigation = memo(function KeyframeNavigation({
         type="button"
         disabled={!prevKf}
         onClick={() => prevKf && onSeek(prevKf.percentage)}
-        title="Previous keyframe"
+        title={t("motion.prevKeyframe")}
         aria-label={`Previous ${property} keyframe`}
         className="relative flex h-5 w-3 items-center justify-center disabled:cursor-default before:absolute before:-inset-1.5 before:content-['']"
       >
@@ -199,7 +200,7 @@ export const KeyframeNavigation = memo(function KeyframeNavigation({
         type="button"
         disabled={!nextKf}
         onClick={() => nextKf && onSeek(nextKf.percentage)}
-        title="Next keyframe"
+        title={t("motion.nextKeyframe")}
         aria-label={`Next ${property} keyframe`}
         className="relative flex h-5 w-3 items-center justify-center disabled:cursor-default before:absolute before:-inset-1.5 before:content-['']"
       >

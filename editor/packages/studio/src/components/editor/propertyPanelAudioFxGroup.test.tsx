@@ -98,6 +98,12 @@ function mount(dataAttributes: Record<string, string>, alone = false, voices = 2
       />,
     );
   });
+  // Rack rows start closed (St-Inspector-AudioRack); these tests read the first effect's
+  // controls, so open it by its name the way an author would.
+  const firstName = host.querySelector<HTMLButtonElement>(
+    ".hf-fx-node[data-fx-node]:not(.hf-fx-carve-module) .hf-fx-node-head .hf-fx-node-name",
+  );
+  if (firstName?.getAttribute("aria-expanded") === "false") act(() => firstName.click());
   return { host, onSetAttributeQuiet, onSetAttributeLive };
 }
 
@@ -500,7 +506,7 @@ describe("AudioFxGroup dynamic carve", () => {
     });
     document.getElementById("bed")?.setAttribute("src", "bed.wav");
     act(() => byTextButton(host, "Audio FX")?.click());
-    act(() => byTextButton(host, "+ effect")?.click());
+    act(() => byTextButton(host, "Add effect")?.click());
     await act(async () => {
       byTextButton(host, "Even Out Levels")?.click();
       await new Promise((r) => setTimeout(r, 0));
@@ -626,7 +632,7 @@ describe("AudioFxGroup dynamic carve", () => {
     const { release, decoded } = stubGatedDecode();
     const { host, onSetAttributeLive } = mount({ "fx-chain": CHAIN });
     document.getElementById("bed")?.setAttribute("src", "bed.wav");
-    act(() => byTextButton(host, "+ effect")?.click());
+    act(() => byTextButton(host, "Add effect")?.click());
     const level = byTextButton(host, "Even Out Levels");
     expect(level, "the levelling button was not offered").toBeTruthy();
     act(() => level?.focus());
@@ -656,7 +662,7 @@ describe("AudioFxGroup dynamic carve", () => {
     const { release, decoded } = stubGatedDecode();
     const { host, onSetAttributeLive } = mount({ "fx-chain": CHAIN });
     document.getElementById("bed")?.setAttribute("src", "bed.wav");
-    act(() => byTextButton(host, "+ effect")?.click());
+    act(() => byTextButton(host, "Add effect")?.click());
     act(() => byTextButton(host, "Even Out Levels")?.focus());
     // Straight to a neighbour, without ever leaving the shelf.
     act(() =>

@@ -1,14 +1,12 @@
 import { memo, useEffect, useRef, useState } from "react";
 import { copyTextToClipboard } from "../../utils/clipboard";
+import { t, useLocale } from "../../i18n/translate";
 import type { FfmpegStatus } from "./useFfmpegStatus";
+import { OutputButton } from "../output/OutputButton";
+import { OutputIcon } from "../output/OutputIcon";
 
 const DOWNLOAD_URL = "https://ffmpeg.org/download.html";
 const CUE_MS = 1600;
-
-// Matches the focus treatment every other button in this panel uses. A control
-// the keyboard can reach but not see focus on is unusable without a mouse.
-const FOCUS_RING =
-  "outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-studio-accent";
 
 /**
  * Shown above Export when the dev server reports no usable FFmpeg.
@@ -29,6 +27,7 @@ export const FfmpegRequiredNotice = memo(function FfmpegRequiredNotice({
   checking: boolean;
   onRecheck: () => void;
 }) {
+  useLocale();
   const [copied, setCopied] = useState(false);
   // A recheck that finds nothing changes no other pixel on screen, so without
   // this the button reads as broken at the exact moment the user is most
@@ -59,75 +58,75 @@ export const FfmpegRequiredNotice = memo(function FfmpegRequiredNotice({
     window.setTimeout(() => setCopied(false), CUE_MS);
   };
 
-  // Concentric: outer radius (12) minus padding (10) equals the inner radius
-  // (2). Mismatched nesting here is what makes a card look subtly wrong.
   return (
-    <div
+    <section
       role="alert"
-      className="flex flex-col gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 p-2.5"
+      aria-label={t("output.ffmpegNotFound")}
+      className="flex flex-col gap-3.5 rounded-[20px] bg-studio-surface p-3.5 text-studio-text shadow-[inset_0_0_0_1px_var(--st-bd)]"
     >
-      <div className="flex flex-col gap-0.5">
-        <span className="text-[11px] font-semibold text-amber-300">
-          {status.title ?? "FFmpeg not found"}
-        </span>
-        {/* text-2, not the panel's usual text-4 for secondary copy: the amber
-            wash lifts the background, and text-4 measures 2.2:1 on it against
-            the 4.5:1 minimum. This is the line that explains why Export is
-            off, so it has to be readable. text-2 measures 6.6:1. */}
-        <span className="text-[10px] leading-snug text-pretty text-panel-text-2">
-          {status.detail ?? "FFmpeg is required to encode video."}
-        </span>
-      </div>
-
-      {status.command ? (
-        <div className="flex items-center gap-1.5">
-          <code className="flex-1 overflow-x-auto whitespace-nowrap rounded-sm bg-black/40 px-2 py-1 text-[10px] text-panel-text-2">
-            {status.command}
-          </code>
-          {/* Fixed width so swapping the label to "Copied" cannot shift the
-              command block sideways under the pointer. */}
-          <button
-            type="button"
-            onClick={() => void copy(status.command ?? "")}
-            className={`h-6 w-14 flex-shrink-0 rounded-sm border border-amber-500/30 text-[10px] font-medium text-amber-200 transition-colors hover:bg-amber-500/20 active:scale-[0.98] ${FOCUS_RING}`}
-          >
-            {copied ? "Copied" : "Copy"}
-          </button>
-        </div>
-      ) : (
-        status.hint && (
-          <span className="text-[10px] leading-snug text-pretty text-panel-text-2">
-            {status.hint}
-          </span>
-        )
-      )}
-
-      <div className="flex items-center gap-3">
-        <button
-          type="button"
-          onClick={onRecheck}
-          disabled={checking}
-          className={`rounded-sm py-0.5 text-[10px] font-medium text-amber-200 underline-offset-2 transition-colors hover:underline disabled:opacity-50 ${FOCUS_RING}`}
-        >
-          {checking ? "Checking…" : "Recheck"}
-        </button>
-        <a
-          href={DOWNLOAD_URL}
-          target="_blank"
-          rel="noreferrer"
-          className={`rounded-sm py-0.5 text-[10px] text-panel-text-2 underline-offset-2 transition-colors hover:text-panel-text-0 hover:underline ${FOCUS_RING}`}
-        >
-          Other install options
-        </a>
-        {/* Last in the row and only ever appended, so appearing and vanishing
-            moves nothing that sits before it. */}
+      <div className="flex items-center gap-2.5">
         <span
-          aria-live="polite"
-          className="ml-auto text-[10px] text-panel-text-2 transition-opacity"
+          aria-hidden="true"
+          className="flex h-9 w-9 flex-none items-center justify-center rounded-[10px] text-[var(--st-warn)] shadow-[inset_0_0_0_1px_var(--st-bd)]"
         >
-          {recheckFailed ? "Still not found" : ""}
+          <OutputIcon name="warn" size={18} />
         </span>
+        <b className="text-sm font-semibold">{t("output.ffmpegNotFound")}</b>
       </div>
-    </div>
+      {status.command ? (
+        <code
+          aria-label={t("output.ffmpegCommandAria")}
+          className="block rounded-xl bg-[var(--st-in)] px-3 py-2.5 font-mono text-xs [overflow-wrap:anywhere]"
+        >
+          {status.command}
+        </code>
+      ) : (
+        status.hint && <span className="text-[13px] leading-[18px]">{status.hint}</span>
+      )}
+      {/* Last before the actions and only ever appended, so it moves nothing above it. */}
+      <span
+        aria-live="polite"
+        className="text-[13px] font-semibold text-[var(--st-danger)] empty:hidden"
+      >
+        {recheckFailed ? t("output.stillNotFound") : ""}
+      </span>
+      <div className="flex gap-2">
+        {status.command ? (
+          <OutputButton
+            variant="secondary"
+            height={36}
+            padX={12}
+            fontSize={12}
+            icon={copied ? "check" : "copy"}
+            iconSize={14}
+            stretch
+            onClick={() => void copy(status.command ?? "")}
+          >
+            {copied ? t("output.copied") : t("output.copy")}
+          </OutputButton>
+        ) : null}
+        <OutputButton
+          variant="primary"
+          height={36}
+          padX={12}
+          fontSize={12}
+          icon={checking ? "refresh" : undefined}
+          iconSize={14}
+          stretch
+          disabled={checking}
+          onClick={onRecheck}
+        >
+          {checking ? t("output.checking") : t("output.recheck")}
+        </OutputButton>
+      </div>
+      <a
+        href={DOWNLOAD_URL}
+        target="_blank"
+        rel="noreferrer"
+        className="self-center rounded-sm text-[13px] font-semibold text-studio-text underline underline-offset-[3px] outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--st-btn)]"
+      >
+        {t("output.otherInstallOptions")}
+      </a>
+    </section>
   );
 });

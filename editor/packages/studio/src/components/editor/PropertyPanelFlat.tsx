@@ -2,7 +2,6 @@ import { scopedElementKey } from "../../hooks/gsapKeyframeCacheHelpers";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { DesignPanelInputProvider } from "../../contexts/DesignPanelInputContext";
-import { slugifyDesignInput } from "../../utils/designInputTracking";
 import { isTextEditableSelection } from "./domEditing";
 import type { PropertyPanelFlatProps } from "./propertyPanelFlatProps";
 import { formatPxMetricValue } from "./propertyPanelHelpers";
@@ -10,8 +9,8 @@ import { audioFxSummary } from "./audioFxSummary";
 import { resolveAudioGroups } from "@hyperframes/core/audio-groups";
 import { PropertyPanelFlatHeader } from "./PropertyPanelFlatHeader";
 import { PropertyPanelFlatFooter } from "./PropertyPanelFlatFooter";
-import { closedGroupHeader, isSelectionHidden } from "./propertyPanelFlatClosedGroup";
-import { FlatGroupHeader } from "./propertyPanelFlatPrimitives";
+import { isSelectionHidden } from "./propertyPanelFlatClosedGroup";
+import { PropertyPanelFlatSections } from "./PropertyPanelFlatSections";
 import { FlatTextSection } from "./propertyPanelFlatTextSection";
 import { FlatStyleSection } from "./propertyPanelFlatStyleSections";
 import { FlatLayoutSection } from "./propertyPanelFlatLayoutSection";
@@ -26,19 +25,7 @@ import { formatTextFieldPreview } from "./propertyPanelSections";
 import { useColorGradingController } from "./useColorGradingController";
 import { usePlayerStore } from "../../player";
 import { isFocusedEaseRequestCurrent } from "../../player/store/keyframeSlice";
-import {
-  FlatColorGradingAccessory,
-  FlatColorGradingSection,
-} from "./propertyPanelFlatColorGradingSection";
-import {
-  activeColorGradingEffectCount,
-  FlatEffectsAccessory,
-  FlatEffectsSection,
-} from "./propertyPanelFlatEffectsSection";
-import {
-  deriveMediaOverlayPlacement,
-  FlatOverlaysSection,
-} from "./propertyPanelFlatOverlaysSection";
+import { buildGradeGroups } from "./propertyPanelFlatGradeGroups";
 import {
   EMPTY_GSAP_EFFECT_HANDLERS,
   type FlatGroupDescriptor,
@@ -72,6 +59,7 @@ export function PropertyPanelFlat({
   onSetAttributes,
   onSetAttributeLive,
   onSetAttributeQuiet,
+  onSetAttributeCommitted,
   onApplyColorGradingScope,
   onSetHtmlAttribute,
   onRemoveBackground,
@@ -230,7 +218,8 @@ export function PropertyPanelFlat({
     projectId,
     element,
     previewIframeRef,
-    onSetAttributeLive,
+    // The grade debounces its own writes, so it needs a write that persists.
+    onSetAttributeLive: onSetAttributeCommitted ?? onSetAttributeLive,
     onApplyScope: onApplyColorGradingScope,
   });
 
@@ -417,68 +406,17 @@ export function PropertyPanelFlat({
     });
   }
   if (sections.colorGrading) {
-    groups.push({
-      id: "grade",
-      title: "Grade",
-      accessory: <FlatColorGradingAccessory state={colorGradingController} />,
-      summary: `${colorGradingController.grading.preset ?? "neutral"} · ${Math.round(colorGradingController.grading.intensity * 100)}%`,
-      content: (
-        <FlatColorGradingSection
-          grading={colorGradingController.grading}
-          assets={assets}
-          onImportAssets={onImportAssets}
-          onCommitColorGrading={colorGradingController.commitColorGrading}
-          onPreviewColorGrading={colorGradingController.previewColorGrading}
-          applyScope={colorGradingController.applyScope}
-          applyBusy={colorGradingController.applyBusy}
-          onSetApplyScope={colorGradingController.setApplyScope}
-          onApplyToScope={() => void colorGradingController.applyToScope()}
-          onApplyScopeAvailable={Boolean(onApplyColorGradingScope)}
-          mediaMetadata={colorGradingController.mediaMetadata}
-          presetPreviews={colorGradingController.presetPreviews}
-          onRequestPresetPreviews={colorGradingController.requestPresetPreviews}
-          captureGradedFrame={colorGradingController.captureGradedFrame}
-        />
-      ),
-    });
-    const activeEffects = activeColorGradingEffectCount(colorGradingController.grading);
-    const effectsProps = {
-      grading: colorGradingController.grading,
-      onCommitColorGrading: colorGradingController.commitColorGrading,
-    };
-    groups.push({
-      id: "effects",
-      title: "Effects",
-      accessory: <FlatEffectsAccessory {...effectsProps} />,
-      summary: activeEffects ? `${activeEffects} active` : "none",
-      content: (
-        <FlatEffectsSection
-          {...effectsProps}
-          previews={colorGradingController.effectPreviews}
-          presetPreviews={colorGradingController.presetPreviews}
-          onPreviewColorGrading={colorGradingController.previewColorGrading}
-          onRequestEffectPreviews={colorGradingController.requestEffectPreviews}
-          onRequestPresetPreviews={colorGradingController.requestPresetPreviews}
-        />
-      ),
-    });
-    if (onAddMediaOverlay) {
-      groups.push({
-        id: "overlays",
-        title: "Overlays",
-        summary: "add layer",
-        content: (
-          <FlatOverlaysSection
-            onAddOverlay={(blockName) =>
-              onAddMediaOverlay(
-                blockName,
-                deriveMediaOverlayPlacement(element, { start: elStart, duration: elDuration }),
-              )
-            }
-          />
-        ),
-      });
-    }
+    groups.push(
+      ...buildGradeGroups({
+        controller: colorGradingController,
+        element,
+        assets,
+        onImportAssets,
+        applyScopeAvailable: Boolean(onApplyColorGradingScope),
+        onAddMediaOverlay,
+        timing: { start: elStart, duration: elDuration },
+      }),
+    );
   }
   if (sections.audioFx) {
     groups.push({
@@ -515,16 +453,9 @@ export function PropertyPanelFlat({
     });
   }
 
-  const openIndex = groups.findIndex((g) => g.id === openGroupId);
-  const beforeOpen = openIndex === -1 ? groups : groups.slice(0, openIndex);
-  const openGroup = openIndex === -1 ? null : groups[openIndex];
-  const afterOpen = openIndex === -1 ? [] : groups.slice(openIndex + 1);
-  const renderClosedGroup = (group: FlatGroupDescriptor) =>
-    closedGroupHeader(group, toggleOpen, justToggledIds);
-
   return (
     <DesignPanelInputProvider ui="flat">
-      <div className="flex h-full min-h-0 flex-col overflow-hidden bg-panel-bg text-panel-text-1">
+      <div className="flex h-full min-h-0 flex-col overflow-hidden bg-studio-surface text-studio-text">
         <DesignPanelInputProvider section="header">
           <PropertyPanelFlatHeader
             name={element.label}
@@ -560,40 +491,24 @@ export function PropertyPanelFlat({
             showUngroup={Boolean(onUngroup && element.dataAttributes["hf-group"] != null)}
           />
         </DesignPanelInputProvider>
-        <div
-          ref={panelBodyRef}
-          data-flat-panel-body="true"
-          className="flex min-h-0 flex-1 flex-col overflow-y-auto"
-        >
-          {beforeOpen.map(renderClosedGroup)}
-          {openGroup && (
-            <DesignPanelInputProvider section={slugifyDesignInput(openGroup.title)}>
-              <div data-flat-group-open="true" className="flex min-h-[180px] flex-none flex-col">
-                <FlatGroupHeader
-                  title={openGroup.title}
-                  isOpen
-                  onToggleOpen={() => toggleOpen(openGroup.id)}
-                  accessory={openGroup.accessory}
-                  animateEntrance={justToggledIds.includes(openGroup.id)}
-                />
-                <div
-                  className={`${justToggledIds.includes(openGroup.id) ? "hf-flat-group-enter " : ""}min-h-0 flex-1 overflow-y-auto border-b border-panel-hairline bg-panel-bg-inset px-4 py-3 shadow-[inset_0_2px_4px_-1px_rgba(0,0,0,0.5)]`}
-                >
-                  {openGroup.content}
-                </div>
-              </div>
+        <PropertyPanelFlatSections
+          groups={groups}
+          openGroupId={openGroupId}
+          justToggledIds={justToggledIds}
+          toggleOpen={toggleOpen}
+          bodyRef={panelBodyRef}
+          pinFooter={Boolean(recordingState && recordingState !== "idle")}
+          footer={
+            <DesignPanelInputProvider section="footer">
+              <PropertyPanelFlatFooter
+                onAskAgent={onAskAgent}
+                recordingState={recordingState}
+                recordingDuration={recordingDuration}
+                onToggleRecording={onToggleRecording}
+              />
             </DesignPanelInputProvider>
-          )}
-          {afterOpen.map(renderClosedGroup)}
-        </div>
-        <DesignPanelInputProvider section="footer">
-          <PropertyPanelFlatFooter
-            onAskAgent={onAskAgent}
-            recordingState={recordingState}
-            recordingDuration={recordingDuration}
-            onToggleRecording={onToggleRecording}
-          />
-        </DesignPanelInputProvider>
+          }
+        />
       </div>
     </DesignPanelInputProvider>
   );

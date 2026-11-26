@@ -1,21 +1,32 @@
-import { FRAME_STATUS_META, FRAME_STATUS_ORDER } from "./frameStatus";
+import { t, useLocale } from "../../i18n/translate";
+import {
+  FRAME_CHIP_CLASS,
+  FRAME_STATUS_META,
+  FRAME_STATUS_ORDER,
+  frameStatusLabel,
+  frameStatusTip,
+} from "./frameStatus";
 
 /**
- * Explains the frame lifecycle: a frame advances outline → built → animated.
- * Mirrors the status chips on each tile (shares FRAME_STATUS_META).
+ * "Stare": the frame lifecycle (Schiță → Construit → Animat) as the same chips the tiles use.
+ * The explanation of each status is the chip's tooltip.
  */
 export function StoryboardStatusLegend() {
+  useLocale();
   return (
-    <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 text-[11px] text-neutral-500">
-      <span className="uppercase tracking-wider text-neutral-600">Status</span>
-      {FRAME_STATUS_ORDER.map((status, i) => (
-        <span key={status} className="flex items-center gap-1.5">
-          {i > 0 && <span className="text-neutral-700">→</span>}
-          <span className={`h-2 w-2 rounded-full ${FRAME_STATUS_META[status].dotClass}`} />
-          <span className="font-medium text-neutral-300">{FRAME_STATUS_META[status].label}</span>
-          <span className="text-neutral-500">— {FRAME_STATUS_META[status].description}</span>
-        </span>
-      ))}
-    </div>
+    <section className="flex flex-col gap-2.5">
+      <b className="text-[13px] font-semibold">{t("story.status")}</b>
+      <div className="flex flex-wrap gap-1.5">
+        {FRAME_STATUS_ORDER.map((status) => (
+          <span
+            key={status}
+            title={frameStatusTip(status)}
+            className={`${FRAME_CHIP_CLASS} ${FRAME_STATUS_META[status].chipClass}`}
+          >
+            {frameStatusLabel(status)}
+          </span>
+        ))}
+      </div>
+    </section>
   );
 }

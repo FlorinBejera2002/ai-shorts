@@ -75,19 +75,34 @@ export function BorderRadiusEditor({
         >
           <path
             d={path}
-            fill="rgba(255,255,255,0.06)"
-            stroke="rgba(255,255,255,0.24)"
+            style={{ fill: "color-mix(in srgb, var(--st-tx) 6%, transparent)" }}
+            stroke="color-mix(in srgb, var(--st-tx) 24%, transparent)"
             strokeWidth={1.5}
           />
-          <circle cx={sTL} cy={sTL} r={3} fill={linked ? "#3b82f6" : "#a78bfa"} />
-          <circle cx={PREVIEW_W - sTR} cy={sTR} r={3} fill={linked ? "#3b82f6" : "#a78bfa"} />
+          <circle
+            cx={sTL}
+            cy={sTL}
+            r={3}
+            style={{ fill: linked ? "var(--st-btn)" : "var(--st-t3)" }}
+          />
+          <circle
+            cx={PREVIEW_W - sTR}
+            cy={sTR}
+            r={3}
+            style={{ fill: linked ? "var(--st-btn)" : "var(--st-t3)" }}
+          />
           <circle
             cx={PREVIEW_W - sBR}
             cy={PREVIEW_H - sBR}
             r={3}
-            fill={linked ? "#3b82f6" : "#a78bfa"}
+            style={{ fill: linked ? "var(--st-btn)" : "var(--st-t3)" }}
           />
-          <circle cx={sBL} cy={PREVIEW_H - sBL} r={3} fill={linked ? "#3b82f6" : "#a78bfa"} />
+          <circle
+            cx={sBL}
+            cy={PREVIEW_H - sBL}
+            r={3}
+            style={{ fill: linked ? "var(--st-btn)" : "var(--st-t3)" }}
+          />
         </svg>
 
         <button

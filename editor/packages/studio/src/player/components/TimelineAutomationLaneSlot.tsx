@@ -8,6 +8,7 @@
  */
 
 import { useEffect, useMemo } from "react";
+import { t } from "../../i18n/translate";
 import { resolveAutomationRange, type HfAutomationLane } from "@hyperframes/core/audio-automation";
 import { TimelineAutomationLane } from "./TimelineAutomationLane";
 import { AUTOMATION_LANE_H } from "./automationLaneHeight";
@@ -110,9 +111,9 @@ function ClipAutomationLanes({
             // — because "not editable" without that reads as broken.
             readOnlyNote={
               isCarveLane(lane.target, bound.chain)
-                ? "Owned by the voiceover carve — re-derived on every analysis. Change strength in the FX rack, or turn the carve off to edit these by hand."
+                ? t("timeline.autoCarveNote")
                 : bound.readOnly
-                  ? "Read-only here."
+                  ? t("timeline.autoReadOnlyNote")
                   : undefined
             }
             rangeSelection={

@@ -1,4 +1,5 @@
 import { Fragment, useId, useMemo } from "react";
+import { t } from "../../i18n/translate";
 import { BeatStrip, BeatBackgroundLines } from "./BeatStrip";
 import { TimelineClip } from "./TimelineClip";
 import { TimelineCompactDiamonds } from "./TimelineCompactDiamonds";
@@ -26,7 +27,7 @@ import type { TimelineLanesProps } from "./timelineLaneProps";
 import { isAudioTimelineElement, isMusicTrack } from "../../utils/timelineInspector";
 import { createClipGestureHandlers } from "./timelineClipGestureHandlers";
 import { renderClipChildren, resolveClipRenderContext } from "./timelineClipChildren";
-import { TimelineTrackRow } from "./TimelineTrackRow";
+import { TimelineTrackRow, TimelineLaneWell } from "./TimelineTrackRow";
 import { isTimelineClipActive } from "./useTimelineActiveClips";
 import { queryTimelineClipIndex } from "../lib/timelineClipIndex";
 import { getTimelineElementIdentity } from "../lib/timelineElementHelpers";
@@ -135,7 +136,7 @@ export function TimelineLanes({
   return (
     <div
       role="treegrid"
-      aria-label="Timeline tracks"
+      aria-label={t("timeline.tracksLabel")}
       aria-rowcount={logicalRows.length}
       aria-colcount={2}
       onFocus={keyboard.onFocus}
@@ -196,8 +197,8 @@ export function TimelineLanes({
           const ts = trackStyles.get(trackNum) ?? getTrackStyle("");
           const isPendingTrack =
             draggedClip?.started === true && !trackOrder.includes(trackNum) && els.length === 0;
-          // All lanes use the same uniform color — no alternating stripes.
-          const rowBackground = theme.rowBackground;
+          // Rows are transparent; each lane is a rounded well (St-Timeline-Tools), drawn below.
+          const rowBackground = "transparent";
           // The beat-dot strip occupies the top of this track's lane (active track,
           // or the music track when nothing is selected). When shown, keyframe
           // diamonds shrink + drop to the bottom half so they don't collide with it.
@@ -267,7 +268,7 @@ export function TimelineLanes({
               height={rowHeight}
               virtualized={rowsVirtualized}
               background={rowBackground}
-              borderColor={theme.rowBorder}
+              borderColor="transparent"
               rovingTargetId={keyboard.rovingTargetId}
             >
               <TimelineTrackHeader
@@ -325,6 +326,7 @@ export function TimelineLanes({
                   onContextMenuLane(e, trackNum, time);
                 }}
               >
+                <TimelineLaneWell background={theme.rowBackground} />
                 {/* Faint beat lines in every track's background (behind the clips);
                     the active move-snap target is highlighted. */}
                 <BeatBackgroundLines
@@ -360,7 +362,7 @@ export function TimelineLanes({
                       opacity: 0.5,
                     }}
                   >
-                    New track
+                    {t("timeline.newTrack")}
                   </div>
                 )}
                 {

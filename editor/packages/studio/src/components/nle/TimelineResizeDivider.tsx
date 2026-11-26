@@ -1,4 +1,7 @@
-import { useCallback, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
+import { t, useLocale } from "../../i18n/translate";
+import { readStudioUiPreferences } from "../../utils/studioUiPreferences";
+import { DEFAULT_TIMELINE_H } from "./NLEContext";
 import { MIN_PREVIEW_H, MIN_TIMELINE_H, fitTimelineHeight } from "../../utils/fitPanels";
 
 /**
@@ -19,9 +22,21 @@ export function TimelineResizeDivider({
   containerRef: React.RefObject<HTMLDivElement | null>;
   disabled: boolean;
 }) {
+  useLocale();
   const isDragging = useRef(false);
   const timelineHRef = useRef(timelineH);
   timelineHRef.current = timelineH;
+  // Mounted after the body may already have clamped `timelineH`, so the preference
+  // starts from what the user stored (or the board default), not from the current value.
+  const preferredHRef = useRef(readStudioUiPreferences().timelineHeight ?? DEFAULT_TIMELINE_H);
+  const persistPreferred = useCallback(
+    (height: number) => {
+      preferredHRef.current = height;
+      persistTimelineH(height);
+    },
+    [persistTimelineH],
+  );
+  useRestorePreferredHeight(containerRef, preferredHRef, setTimelineH);
 
   const handlePointerDown = useCallback(
     (e: React.PointerEvent) => {
@@ -45,9 +60,9 @@ export function TimelineResizeDivider({
   );
 
   const handlePointerUp = useCallback(() => {
-    if (isDragging.current) persistTimelineH(timelineHRef.current);
+    if (isDragging.current) persistPreferred(timelineHRef.current);
     isDragging.current = false;
-  }, [persistTimelineH]);
+  }, [persistPreferred]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -58,28 +73,28 @@ export function TimelineResizeDivider({
       const delta = e.key === "ArrowUp" ? 16 : -16;
       setTimelineH((prev) => {
         const next = fitTimelineHeight(containerH, prev + delta);
-        persistTimelineH(next);
+        persistPreferred(next);
         return next;
       });
     },
-    [disabled, containerRef, setTimelineH, persistTimelineH],
+    [disabled, containerRef, setTimelineH, persistPreferred],
   );
 
   return (
-    // Horizontal resize divider: 3px visible seam (h-[3px]), 10px pointer-capture
-    // zone via the absolutely-positioned inner hit area so the layout gap stays
-    // at 3px while draggability is preserved over the full band.
+    // The 12px gap between the preview and the timeline card is the handle (St-Timeline-Resize):
+    // a 3px seam in the layout, with the band, outline and grip drawn over the whole gap.
     <div
       role="separator"
       aria-orientation="horizontal"
-      aria-label="Resize timeline (arrow keys)"
+      aria-label={t("timeline.resize")}
       aria-valuenow={Math.round(timelineH)}
       aria-valuemin={MIN_TIMELINE_H}
       aria-valuemax={Math.round(
         (containerRef.current?.getBoundingClientRect().height ?? 600) - MIN_PREVIEW_H,
       )}
       tabIndex={0}
-      className="group relative h-[3px] flex-shrink-0 cursor-row-resize z-10 outline-none focus-visible:bg-studio-accent/20"
+      data-timeline-resize=""
+      className="group relative z-10 h-[3px] flex-shrink-0 cursor-row-resize outline-none"
       style={{ touchAction: "none" }}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
@@ -87,15 +102,35 @@ export function TimelineResizeDivider({
       onPointerCancel={handlePointerUp}
       onKeyDown={handleKeyDown}
     >
-      {/* Expanded hit zone, deliberately asymmetric: 4px up into the transport
-          row's vertical centring slack, the 3px seam, then 3px down into the
-          timeline card's border + toolbar padding. It stops at 10px rather than
-          the 24px WCAG 2.2 (2.5.8) target because that is all the dead space
-          there is: 28px transport buttons sit above and 28px toolbar buttons
-          below, and silently stealing their clicks is the worse bug. */}
-      <div className="absolute inset-x-0 -top-[4px] h-[10px]" />
-      {/* Visible hairline — invisible at rest, subtle wash on hover/drag/focus */}
-      <div className="h-[3px] w-full bg-transparent transition-colors group-hover:bg-white/12 group-active:bg-white/18 group-focus-visible:bg-studio-accent/60" />
+      <div
+        aria-hidden="true"
+        className="absolute inset-x-0 -top-[9px] flex h-3 items-center justify-center rounded-full outline-offset-[-2px] group-focus-visible:outline group-focus-visible:outline-2 group-focus-visible:outline-[var(--st-tx)] group-active:outline group-active:outline-2 group-active:outline-[var(--st-tx)]"
+      >
+        <span className="h-1 w-10 rounded-full bg-transparent transition-colors group-hover:bg-[var(--st-hd)] group-focus-visible:bg-[var(--st-tx)] group-active:bg-[var(--st-tx)]" />
+      </div>
     </div>
   );
+}
+
+/**
+ * A window (or a loading state) that is briefly too short clamps the timeline, and the
+ * clamp alone never gives the height back. Fit the user's preferred height (the stored or
+ * default one, or the last one they dragged to) whenever the body resizes, so a transient
+ * squeeze on load does not leave the card at 220px instead of the board's 260.
+ */
+function useRestorePreferredHeight(
+  containerRef: React.RefObject<HTMLDivElement | null>,
+  preferredHRef: React.RefObject<number>,
+  setTimelineH: React.Dispatch<React.SetStateAction<number>>,
+) {
+  useEffect(() => {
+    const element = containerRef.current;
+    if (!element || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(() => {
+      const containerH = element.getBoundingClientRect().height;
+      if (containerH) setTimelineH(fitTimelineHeight(containerH, preferredHRef.current));
+    });
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [containerRef, preferredHRef, setTimelineH]);
 }

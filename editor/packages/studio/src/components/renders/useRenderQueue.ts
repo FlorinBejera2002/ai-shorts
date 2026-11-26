@@ -1,4 +1,5 @@
 import { buildProjectApiPath } from "../../utils/projectRouting";
+import { t } from "../../i18n/translate";
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import type { CanvasResolution } from "@hyperframes/parsers";
 import { trackStudioRenderStart } from "../../telemetry/events";
@@ -19,6 +20,9 @@ export interface RenderJob {
   filename: string;
   createdAt: number;
   durationMs?: number;
+  /** Settings this tab started the render with (absent for jobs loaded from history). */
+  fps?: number;
+  resolution?: ResolutionPreset | "auto";
 }
 
 // The CLI consumes this same source through @hyperframes/core's re-export.
@@ -112,8 +116,11 @@ export function useRenderQueue(
    * with" have a single owner. A report about a render is only actionable if
    * it arrives with the settings that produced it.
    */
-  const addSessionJob = useCallback((job: RenderJob, settings: FeedbackContext) => {
+  // The render the header's Export started: the export dialogs follow it until dismissed.
+  const [exportFlowJobId, setExportFlowJobId] = useState<string | null>(null);
+  const addSessionJob = useCallback((job: RenderJob, settings: FeedbackContext, flow = false) => {
     sessionJobs.current.set(job.id, settings);
+    if (flow) setExportFlowJobId(job.id);
     setJobs((prev) => [...prev, job]);
   }, []);
 
@@ -130,7 +137,7 @@ export function useRenderQueue(
     try {
       const res = await fetch(buildProjectApiPath(projectId, `/renders`));
       if (!res.ok) {
-        setLoadError(`Couldn't load render history (server error ${res.status}).`);
+        setLoadError(t("output.historyServerError", { status: res.status }));
         return;
       }
       const data = await res.json();
@@ -162,7 +169,7 @@ export function useRenderQueue(
         });
       }
     } catch {
-      setLoadError("Couldn't load render history. Is the studio server running?");
+      setLoadError(t("output.historyUnreachable"));
     }
   }, [projectId]);
 
@@ -174,7 +181,10 @@ export function useRenderQueue(
   // Pre-existing branchy fetch/poll flow — the variables passthrough added one branch.
   const startRender = useCallback(
     // fallow-ignore-next-line complexity
-    async (opts: StartRenderOptions = {}) => {
+    async (requested?: StartRenderOptions) => {
+      // No options means the header's Export: its progress and result show as dialogs.
+      const flow = requested === undefined;
+      const opts = requested ?? {};
       if (!projectId) return;
       // The server would answer this with a 503 anyway. Refusing here keeps
       // the reason and the fix in the message, and keeps a control that
@@ -186,10 +196,11 @@ export function useRenderQueue(
             status: "failed",
             progress: 0,
             error: ffmpegInstallMessage(ffmpeg),
-            filename: "Export blocked",
+            filename: t("output.exportBlocked"),
             createdAt: Date.now(),
           },
           {},
+          flow,
         );
         return;
       }
@@ -284,11 +295,11 @@ export function useRenderQueue(
           id: generateId(),
           status: "failed",
           progress: 0,
-          error: `Could not reach render server: ${cause}. Use \`hyperframes render\` from the CLI instead.`,
-          filename: "Export failed",
+          error: t("output.serverUnreachable", { cause }),
+          filename: t("output.exportFailedName"),
           createdAt: startTime,
         };
-        addSessionJob(failedJob, settings);
+        addSessionJob(failedJob, settings, flow);
         return;
       }
       if (!res.ok) {
@@ -297,10 +308,10 @@ export function useRenderQueue(
           status: "failed",
           progress: 0,
           error: await readServerError(res),
-          filename: "Export failed",
+          filename: t("output.exportFailedName"),
           createdAt: startTime,
         };
-        addSessionJob(failedJob, settings);
+        addSessionJob(failedJob, settings, flow);
         return;
       }
       const { jobId } = await res.json();
@@ -313,8 +324,10 @@ export function useRenderQueue(
         progress: 0,
         filename: `${jobId}${ext}`,
         createdAt: startTime,
+        fps,
+        resolution: resolution ?? "auto",
       };
-      addSessionJob(job, settings);
+      addSessionJob(job, settings, flow);
       activeJobRef.current = jobId;
 
       // Track progress via SSE
@@ -356,7 +369,7 @@ export function useRenderQueue(
               ? {
                   ...j,
                   status: "failed" as const,
-                  error: "Connection lost. Is the render server running?",
+                  error: t("output.connectionLost"),
                 }
               : j,
           ),
@@ -383,7 +396,7 @@ export function useRenderQueue(
       try {
         const res = await fetch(`/api/render/${jobId}/cancel`, { method: "POST" });
         if (!res.ok && res.status !== 404) {
-          setActionError("Couldn't cancel on the server — the render may still be running.");
+          setActionError(t("output.cancelFailed"));
           return;
         }
         // Reconcile with the status the route reports: if the render actually
@@ -397,7 +410,7 @@ export function useRenderQueue(
           }
         }
       } catch {
-        setActionError("Couldn't reach the server to cancel — the render may still be running.");
+        setActionError(t("output.cancelUnreachable"));
       }
     },
     [closeActiveEventSource, loadRenders],
@@ -410,11 +423,11 @@ export function useRenderQueue(
       try {
         const res = await fetch(`/api/render/${jobId}`, { method: "DELETE" });
         if (!res.ok) {
-          setActionError("Couldn't delete the render — it's still on disk.");
+          setActionError(t("output.deleteFailed"));
           return;
         }
       } catch {
-        setActionError("Couldn't reach the server to delete the render.");
+        setActionError(t("output.deleteUnreachable"));
         return;
       }
       setJobs((prev) => prev.filter((j) => j.id !== jobId));
@@ -438,6 +451,10 @@ export function useRenderQueue(
   }, [projectId]);
 
   const dismissActionError = useCallback(() => setActionError(null), []);
+  const dismissExportFlow = useCallback(() => setExportFlowJobId(null), []);
+  const exportFlowJob = exportFlowJobId
+    ? (jobs.find((j) => j.id === exportFlowJobId) ?? null)
+    : null;
 
   // Ask for feedback the moment a render this tab started reaches its outcome.
   // Watching the list (rather than each of the four places a job can finish)
@@ -489,6 +506,8 @@ export function useRenderQueue(
       deleteRender,
       cancelRender,
       clearCompleted,
+      exportFlowJob,
+      dismissExportFlow,
       startRender: startRender as (options: unknown) => Promise<void>,
       // Every Export control reads these, so no caller has to decide for
       // itself whether this machine can encode.
@@ -507,6 +526,8 @@ export function useRenderQueue(
       deleteRender,
       cancelRender,
       clearCompleted,
+      exportFlowJob,
+      dismissExportFlow,
       startRender,
       ffmpeg,
       ffmpegMissing,

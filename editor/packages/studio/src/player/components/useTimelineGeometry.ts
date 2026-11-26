@@ -44,7 +44,6 @@ export function useTimelineGeometry({
   lastScrollLeftRef,
   contentOrigin,
 }: UseTimelineGeometryInput) {
-  // Phones fit short edits to the available width; desktops keep extra ruler space.
   const fitPps = getTimelineFitPps(viewportWidth, effectiveDuration, contentOrigin);
   useInitialTimelineZoom({
     viewportWidth,
@@ -73,9 +72,8 @@ export function useTimelineGeometry({
   const resizeGhostEndPx = resizingClip?.started
     ? (resizingClip.previewStart + resizingClip.previewDuration) * pps + DRAG_EXTEND_MARGIN_PX
     : 0;
-  // The timeline canvas always fills at least the viewport width AND the
-  // MIN_TIMELINE_EXTENT_S floor: the ruler + empty track lanes keep going into
-  // the space instead of leaving dead black — CapCut-style. Only the RENDERED
+  // The timeline canvas always fills at least the viewport width: the ruler and
+  // empty track lanes keep going instead of leaving dead space. Only the RENDERED
   // extent grows; clip positions/durations are untouched.
   const displayContentWidth = getTimelineDisplayContentWidth({
     trackContentWidth,

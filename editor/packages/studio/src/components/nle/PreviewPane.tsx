@@ -1,11 +1,24 @@
-import { useCallback, useRef, useSyncExternalStore, type ReactNode } from "react";
+import { useCallback, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { PlayerControls } from "../../player";
 import type { TimelineElement } from "../../player";
+import { t, useLocale } from "../../i18n/translate";
 import { NLEPreview } from "./NLEPreview";
 import { CompositionBreadcrumb } from "./CompositionBreadcrumb";
 import { usePreviewBlockDrop } from "./usePreviewBlockDrop";
 import { useNLEContext } from "./NLEContext";
 import { AssetPreviewOverlay } from "./AssetPreviewOverlay";
+import { useIsPhone } from "../shell/useIsPhone";
+import { PreviewHeader } from "./preview/PreviewHeader";
+import { PhonePlaybackSheets } from "./preview/PhonePlaybackSheets";
+import { PreviewIcon, PrimaryPill } from "./preview/previewChrome";
+import {
+  PreviewHeaderSkeleton,
+  PreviewStageSkeleton,
+  PreviewTransportSkeleton,
+} from "./preview/PreviewSkeleton";
+import type { PreviewZoomApi } from "./preview/usePreviewZoom";
+import { ORIGINAL_EXPORT_PATH } from "./preview/OriginalVideoPanel";
+import { usePhoneStageReserve } from "./preview/phoneStageReserve";
 
 function subscribeFullscreen(cb: () => void) {
   document.addEventListener("fullscreenchange", cb);
@@ -35,6 +48,18 @@ function deselectIfPointerOutsideFrame(
   if (outside) onDeselect?.(null);
 }
 
+/** Dashed frame, light scrim and "Plasează la cursor" while a block is dragged over the canvas. */
+function PreviewDropOverlay() {
+  useLocale();
+  return (
+    <div className="pointer-events-none absolute inset-0 z-40 flex items-center justify-center rounded-sm border-2 border-dashed border-[var(--st-sbd)] bg-[color-mix(in_srgb,var(--st-ov)_35%,transparent)]">
+      <PrimaryPill height={40} tabIndex={-1}>
+        {t("preview.dropAtPlayhead")}
+      </PrimaryPill>
+    </div>
+  );
+}
+
 export interface PreviewPaneProps {
   portrait?: boolean;
   /** Slot for overlays rendered on top of the preview (cursors, highlights, etc.) */
@@ -46,6 +71,12 @@ export interface PreviewPaneProps {
   ) => Promise<void> | void;
 }
 
+/**
+ * Preview card (St-Main): header with zoom, optional composition breadcrumb, the canvas with its
+ * overlays, and the transport. On phone the card chrome drops away (St-M-Main) and the extra
+ * playback controls move to bottom sheets. Fullscreen shows the canvas on black with a floating
+ * transport bar (St-Preview-Fullscreen).
+ */
 // fallow-ignore-next-line complexity
 export function PreviewPane({
   portrait,
@@ -53,6 +84,9 @@ export function PreviewPane({
   onSelectTimelineElement,
   onPreviewBlockDrop,
 }: PreviewPaneProps) {
+  useLocale();
+  const isPhone = useIsPhone();
+  const phoneReserve = usePhoneStageReserve();
   const {
     projectId,
     iframeRef,
@@ -66,12 +100,17 @@ export function PreviewPane({
     hasLoadedOnceRef,
     previewCompositionSize,
     setPreviewCompositionSize,
+    compositionLoading,
   } = useNLEContext();
 
   const stageRefForDrop = useRef<HTMLDivElement | null>(null);
   const handleStageRef = useCallback((ref: React.RefObject<HTMLDivElement | null>) => {
     stageRefForDrop.current = ref.current;
   }, []);
+  const zoomApiRef = useRef<PreviewZoomApi | null>(null);
+  const [stageSize, setStageSize] = useState({ width: 0, height: 0 });
+  const [cardElement, setCardElement] = useState<HTMLElement | null>(null);
+  const [previewFailed, setPreviewFailed] = useState(false);
 
   const {
     isDragOver: previewDragOver,
@@ -88,7 +127,11 @@ export function PreviewPane({
 
   // Preview-only fullscreen: fullscreen targets THIS pane's container, so the
   // browser shows only the preview (sidebars + timeline are excluded naturally).
-  const containerRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLElement | null>(null);
+  const setContainer = useCallback((node: HTMLElement | null) => {
+    containerRef.current = node;
+    setCardElement(node);
+  }, []);
   const fullscreenElement = useSyncExternalStore(subscribeFullscreen, getFullscreenElement);
   const isFullscreen = fullscreenElement === containerRef.current && fullscreenElement != null;
 
@@ -103,20 +146,52 @@ export function PreviewPane({
 
   const currentLevel = compositionStack[compositionStack.length - 1];
   const directUrl = compositionStack.length > 1 ? currentLevel.previewUrl : undefined;
+  // The read-only original (St-Original) is not a sub-composition: no breadcrumb.
+  const showBreadcrumb =
+    !isFullscreen && compositionStack.length > 1 && currentLevel.id !== ORIGINAL_EXPORT_PATH;
+  const showCardChrome = !isFullscreen && !isPhone;
+  // First load only (St-Preview-Loading): the card shows skeletons under the loading card.
+  const firstLoad = compositionLoading && !hasLoadedOnceRef.current;
+
+  const frameClass = isFullscreen
+    ? "relative flex min-h-0 flex-1 flex-col bg-black p-[18px]"
+    : isPhone
+      ? "relative flex min-h-0 flex-1 flex-col bg-studio-bg pt-1.5"
+      : "relative flex min-h-0 flex-1 flex-col gap-3 rounded-card bg-studio-surface p-4 text-studio-text shadow-studio";
 
   return (
-    <div
-      ref={containerRef}
-      // Panel chrome (rounded border) is dropped in fullscreen so the preview
-      // fills the screen edge-to-edge.
-      className={`flex-1 min-h-0 flex flex-col overflow-hidden bg-neutral-950 ${
-        isFullscreen ? "" : "rounded-lg border border-neutral-800/50"
-      }`}
+    <section
+      ref={setContainer}
+      aria-label={t("preview.title")}
+      className={frameClass}
       data-studio-fullscreen-target=""
+      data-preview-card=""
     >
+      {showCardChrome &&
+        (firstLoad ? (
+          <PreviewHeaderSkeleton />
+        ) : (
+          <PreviewHeader zoomApiRef={zoomApiRef} disabled={previewFailed} />
+        ))}
+      {showBreadcrumb && (
+        <CompositionBreadcrumb
+          stack={compositionStack}
+          onNavigate={handleNavigateComposition}
+          centered={isPhone}
+        />
+      )}
+      {isPhone && phoneReserve > 0 && (
+        <div aria-hidden="true" className="flex-none" style={{ height: phoneReserve }} />
+      )}
       <div
-        className="flex-1 min-h-0 relative overflow-hidden"
+        className="group/preview relative min-h-0 flex-1"
         data-preview-pan-surface="true"
+        style={
+          {
+            "--preview-stage-w": `${stageSize.width}px`,
+            "--preview-stage-h": `${stageSize.height}px`,
+          } as React.CSSProperties
+        }
         onPointerDown={(e) =>
           deselectIfPointerOutsideFrame(e, iframeRef.current, onSelectTimelineElement)
         }
@@ -125,7 +200,7 @@ export function PreviewPane({
         onDragLeave={handlePreviewDragLeave}
         onDrop={handlePreviewDrop}
       >
-        <div className="absolute inset-0 overflow-hidden">
+        <div className="absolute inset-0">
           <NLEPreview
             projectId={projectId}
             iframeRef={iframeRef}
@@ -136,28 +211,61 @@ export function PreviewPane({
             suppressLoadingOverlay={hasLoadedOnceRef.current}
             onStageRef={handleStageRef}
             onCompositionSizeChange={setPreviewCompositionSize}
+            zoomApiRef={zoomApiRef}
+            onStageSizeChange={setStageSize}
+            statusHost={isFullscreen ? null : cardElement}
+            onPreviewErrorChange={setPreviewFailed}
           />
-          {previewDragOver && (
-            <div className="absolute inset-2 z-40 rounded-lg border-2 border-dashed border-studio-accent/50 bg-studio-accent/[0.04] pointer-events-none" />
-          )}
-          <AssetPreviewOverlay />
+          {firstLoad && <PreviewStageSkeleton />}
+          {previewDragOver && <PreviewDropOverlay />}
         </div>
         {!isFullscreen && previewOverlay}
-      </div>
-      {/* Transport row: no own background or border — the controls sit flat on
-          the preview panel's surface (CapCut-style). */}
-      <div className="flex-shrink-0">
-        {!isFullscreen && compositionStack.length > 1 && (
-          <CompositionBreadcrumb stack={compositionStack} onNavigate={handleNavigateComposition} />
+        {isFullscreen && (
+          <button
+            type="button"
+            aria-label={t("preview.exitFullscreen")}
+            title={`${t("preview.exitFullscreen")} (F)`}
+            onClick={toggleFullscreen}
+            className="absolute right-[-4px] top-[-4px] z-50 flex h-11 w-11 items-center justify-center rounded-full bg-[color-mix(in_srgb,white_16%,transparent)] text-white"
+          >
+            <PreviewIcon name="exitFullscreen" />
+          </button>
         )}
+      </div>
+      {isFullscreen ? (
+        <div
+          className="absolute bottom-[34px] left-1/2 z-50 -translate-x-1/2"
+          style={{ width: `min(500px, ${Math.max(320, stageSize.width + 14)}px, 100% - 36px)` }}
+        >
+          <PlayerControls
+            onTogglePlay={togglePlay}
+            onSeek={seek}
+            disabled={timelineDisabled || previewFailed}
+            isFullscreen
+            onToggleFullscreen={toggleFullscreen}
+            layout="fullscreen"
+          />
+        </div>
+      ) : firstLoad && !isPhone ? (
+        <PreviewTransportSkeleton />
+      ) : (
         <PlayerControls
           onTogglePlay={togglePlay}
           onSeek={seek}
-          disabled={timelineDisabled}
-          isFullscreen={isFullscreen}
+          disabled={timelineDisabled || previewFailed}
+          isFullscreen={false}
+          onToggleFullscreen={toggleFullscreen}
+          layout={isPhone ? "phone" : "desktop"}
+        />
+      )}
+      <AssetPreviewOverlay />
+      {isPhone && (
+        <PhonePlaybackSheets
+          onSeek={seek}
+          disabled={timelineDisabled || previewFailed}
           onToggleFullscreen={toggleFullscreen}
         />
-      </div>
-    </div>
+      )}
+    </section>
   );
 }

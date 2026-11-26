@@ -31,20 +31,12 @@ export type FxFamily = "filter" | "dynamics" | "nonlinear" | "time" | "smart";
  * readout: numbers something else decided.
  */
 export const FX_FAMILY_TYPE: Record<FxFamily, string> = {
-  filter: "font-light uppercase tracking-[0.14em]",
-  dynamics: "font-bold uppercase tracking-tight",
-  nonlinear: "font-serif italic tracking-normal",
-  time: "font-extralight uppercase tracking-[0.24em]",
-  smart: "font-mono font-medium tracking-normal",
-};
-
-/** Hue per family, and a lightness ramp across the modules inside it. */
-const FAMILY_HUE: Record<FxFamily, number> = {
-  filter: 205,
-  dynamics: 25,
-  nonlinear: 310,
-  time: 165,
-  smart: 95,
+  // St-Inspector-AudioRack: one sans treatment for every family (app palette and type only).
+  filter: "font-semibold",
+  dynamics: "font-semibold",
+  nonlinear: "font-semibold",
+  time: "font-semibold",
+  smart: "font-semibold",
 };
 
 /**
@@ -60,24 +52,4 @@ export function fxFamilyOf(
   if (node.fromCarve || node.fromEq || node.fromLeveller) return "smart";
   const group = HF_AUDIO_FX.find((def) => def.id === node.type)?.group;
   return group === "dynamics" || group === "nonlinear" || group === "time" ? group : "filter";
-}
-
-/**
- * The module's own tint: its family's hue, stepped by where it sits among its
- * siblings in the registry.
- *
- * Kept narrow on purpose — 62% to 76% lightness at low saturation. This has to
- * separate two modules at a glance without reading as a status colour, and the
- * panel already spends saturation on "automated" and "bypassed".
- */
-export function fxFamilyTint(
-  node: Pick<HfAudioFxNode, "type" | "fromCarve" | "fromEq" | "fromLeveller">,
-): string {
-  const family = fxFamilyOf(node);
-  const siblings = HF_AUDIO_FX.filter((def) => fxFamilyOf({ type: def.id }) === family);
-  const index = siblings.findIndex((def) => def.id === node.type);
-  const step = siblings.length > 1 ? Math.max(0, index) / (siblings.length - 1) : 0;
-  // Comma syntax rather than the space-separated modern form: it is what every
-  // CSS parser in the chain agrees on, including the one the tests run in.
-  return `hsl(${FAMILY_HUE[family]}, 32%, ${(62 + step * 14).toFixed(1)}%)`;
 }

@@ -339,32 +339,32 @@ describe("AnimationCard ease editing", () => {
   });
 });
 
-describe("AnimationCard flat branch", () => {
-  it("renders a mint border-left and panel-token colors when flat", () => {
+describe("AnimationCard card layout (St-Inspector-AnimCard)", () => {
+  it("renders the board card with token colours when flat", () => {
     const { host, root } = renderCard({ defaultExpanded: false, flat: true });
     const card = host.querySelector('[data-flat-effect-card="true"]');
     expect(card).not.toBeNull();
-    expect(card?.className).toContain("border-panel-accent");
+    expect(card?.className).toContain("rounded-[16px]");
     act(() => root.unmount());
   });
 
-  it("still renders the legacy (non-flat) appearance when flat is omitted", () => {
+  it("keeps the ease token reachable on the header when flat is omitted", () => {
     const { host, root } = renderCard({ defaultExpanded: false });
     expect(host.querySelector('[data-flat-effect-card="true"]')).toBeNull();
-    expect(host.textContent).toContain("power2.out");
+    expect(host.querySelector('[title="power2.out"]')).not.toBeNull();
     act(() => root.unmount());
   });
 
   it("toggles expanded state when the collapsed header button is clicked, in both modes", () => {
     for (const flat of [false, true]) {
       const { host, root } = renderCard({ defaultExpanded: false, flat: flat || undefined });
-      expect(host.textContent).not.toContain("Remove");
+      expect(host.textContent).not.toContain("Length");
       const button = host.querySelector("button");
       expect(button).not.toBeNull();
       act(() => {
         button?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
       });
-      expect(host.textContent).toContain("Remove");
+      expect(host.textContent).toContain("Length");
       act(() => root.unmount());
     }
   });
@@ -372,9 +372,8 @@ describe("AnimationCard flat branch", () => {
   it("invokes onDeleteAnimation with the animation id when Remove is clicked, in flat mode", () => {
     const onDeleteAnimation = vi.fn();
     const { host, root } = renderCard({ flat: true, onDeleteAnimation });
-    const buttons = Array.from(host.querySelectorAll("button"));
-    const removeButton = buttons.find((b) => b.textContent === "Remove");
-    expect(removeButton).not.toBeUndefined();
+    const removeButton = host.querySelector<HTMLButtonElement>('button[aria-label="Remove"]');
+    expect(removeButton).not.toBeNull();
     act(() => {
       removeButton?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     });

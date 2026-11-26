@@ -1,12 +1,39 @@
-import { useId, useRef, useState } from "react";
+// St-Main inspector: the selected cut (thumbnail, name, length and format), its image
+// adjustments and its sound. Each control saves the selected cut on release; "Aplică la toate"
+// copies the whole group to every cut, and the hover icon on a row copies that one setting.
+import { useRef, useState } from "react";
 import {
   patchClipAdjustment,
   readClipAdjustments,
   type ClipAdjustment,
+  type ClipAdjustments as ClipAdjustmentValues,
+  type ImageAdjustment,
 } from "../../utils/clipAdjustments";
+import { t, useLocale } from "../../i18n/translate";
+import type { MessageKey } from "../../i18n/dictionary";
 import { useSourceCutChanges, type SourceCutControlProps } from "./useSourceCutChanges";
+import { useIsPhone } from "../shell/useIsPhone";
+import {
+  InspectorAction,
+  InspectorError,
+  InspectorPill,
+  InspectorRange,
+  InspectorSection,
+  InspectorSwitchRow,
+} from "./inspectorControls";
+import { ApplyAllIconButton } from "./CutApplyAllIcon";
+import { CutIdentity } from "./CutIdentity";
+import { formatAdjustment } from "./cutFormatting";
 
-interface AdjustmentSliderProps {
+const IMAGE_ADJUSTMENTS: readonly { property: ImageAdjustment; label: MessageKey }[] = [
+  { property: "brightness", label: "cut.brightness" },
+  { property: "contrast", label: "cut.contrast" },
+  { property: "saturation", label: "cut.saturation" },
+  { property: "sharpen", label: "cut.sharpen" },
+];
+
+interface AdjustmentRowProps {
+  property: ClipAdjustment;
   label: string;
   value: number;
   max: number;
@@ -14,8 +41,7 @@ interface AdjustmentSliderProps {
   onSave: (value: number, all: boolean) => Promise<void>;
 }
 
-function AdjustmentSlider({ label, value, max, disabled, onSave }: AdjustmentSliderProps) {
-  const id = useId();
+function AdjustmentRow({ property, label, value, max, disabled, onSave }: AdjustmentRowProps) {
   const [draft, setDraft] = useState(value);
   const latest = useRef(value);
   const saving = useRef(false);
@@ -33,123 +59,142 @@ function AdjustmentSlider({ label, value, max, disabled, onSave }: AdjustmentSli
       });
   };
   return (
-    <div className="space-y-1.5">
-      <div className="flex items-center justify-between gap-2 text-xs">
-        <label htmlFor={id} className="text-neutral-200">
-          {label}
-        </label>
-        <output htmlFor={id} className="tabular-nums text-neutral-400">
-          {draft}%
-        </output>
+    <div className="group flex flex-col gap-1.5">
+      <div className="flex items-center justify-between gap-2 text-[13px]">
+        <span className="font-medium text-studio-text">{label}</span>
+        <span className="flex items-center gap-1">
+          <ApplyAllIconButton
+            label={t("cut.applyNamedAll", { name: label.toLowerCase() })}
+            disabled={disabled}
+            onClick={() => commit(true)}
+          />
+          <output className="font-semibold tabular-nums text-studio-muted">
+            {formatAdjustment(property, draft)}
+          </output>
+        </span>
       </div>
-      <div className="flex items-center gap-2">
-        <input
-          id={id}
-          type="range"
-          min={0}
-          max={max}
-          step={1}
-          value={draft}
-          disabled={disabled}
-          className="h-7 min-w-0 flex-1 accent-neutral-200"
-          onChange={(event) => {
-            const next = Number(event.target.value);
-            latest.current = next;
-            setDraft(next);
-          }}
-          onPointerUp={() => commit()}
-          onKeyUp={() => commit()}
-          onBlur={() => commit()}
-        />
-        <button
-          type="button"
-          disabled={disabled}
-          aria-label={`Apply ${label.toLowerCase()} to all cuts`}
-          className="h-7 shrink-0 rounded-md border border-neutral-700 px-2 text-[11px] text-neutral-300 hover:bg-neutral-800 disabled:opacity-40"
-          onClick={() => commit(true)}
-        >
-          Apply to all
-        </button>
-      </div>
+      <InspectorRange
+        ariaLabel={label}
+        value={draft}
+        min={0}
+        max={max}
+        disabled={disabled}
+        onChange={(next) => {
+          latest.current = next;
+          setDraft(next);
+        }}
+        onCommit={() => commit()}
+      />
     </div>
   );
 }
 
+function historyLabel(name: string, applyToAll: boolean): string {
+  return applyToAll ? t("cut.historyAll", { name }) : t("cut.historyClip", { name });
+}
+
 export function ClipAdjustments(props: SourceCutControlProps) {
-  const { source, busy, error, saveSourceCutChanges } = useSourceCutChanges(props);
+  useLocale();
+  const isPhone = useIsPhone();
+  const { source, targets, busy, error, saveSourceCutChanges } = useSourceCutChanges(props);
+  const selectedId = props.selection.id ?? props.selection.element.id;
+  const duration = targets.find((target) => target.id === selectedId)?.duration;
   const settings = source ? readClipAdjustments(source) : null;
   const save = (property: ClipAdjustment, value: number | boolean, applyToAll: boolean) =>
     saveSourceCutChanges({
       patch: (html) => patchClipAdjustment(html, property, value),
-      label: `${applyToAll ? "All cuts" : "Clip"}: ${property}`,
+      label: historyLabel(property, applyToAll),
       applyToAll,
     });
+  const saveGroup = (values: ClipAdjustmentValues, properties: readonly ClipAdjustment[]) =>
+    void saveSourceCutChanges({
+      patch: (html) =>
+        properties.reduce(
+          (next, property) => patchClipAdjustment(next, property, values[property]),
+          html,
+        ),
+      label: historyLabel(t("cut.historyAdjustments"), true),
+      applyToAll: true,
+    }).catch(() => {});
+  const applyImageToAll = () => {
+    if (settings)
+      saveGroup(
+        settings,
+        IMAGE_ADJUSTMENTS.map((item) => item.property),
+      );
+  };
   return (
-    <section
-      aria-label="Clip adjustments"
-      className="shrink-0 space-y-3 border-b border-neutral-800 p-3"
-    >
-      <div>
-        <h3 className="text-xs font-medium text-neutral-100">Clip adjustments</h3>
-        <p className="mt-1 text-[11px] leading-relaxed text-neutral-400">
-          Changes affect the selected cut. Apply each setting to all cuts only when needed.
+    <div className="flex min-w-0 flex-col gap-5" aria-label="Clip adjustments">
+      <CutIdentity selection={props.selection} source={source} duration={duration} />
+      {!settings && !error && (
+        <p role="status" className="text-[13px] font-medium text-studio-muted">
+          {t("cut.loading")}
         </p>
-      </div>
-      {!settings && !error && <p className="text-xs text-neutral-400">Loading clip settings…</p>}
+      )}
       {settings && (
-        <>
-          {(["brightness", "contrast", "saturation", "sharpen"] as const).map((property) => (
-            <AdjustmentSlider
-              key={`${property}:${settings[property]}`}
-              label={property[0].toUpperCase() + property.slice(1)}
-              value={settings[property]}
-              max={property === "sharpen" ? 100 : 200}
-              disabled={busy}
-              onSave={(value, all) => save(property, value, all)}
-            />
-          ))}
-          {settings.hasAudio && (
-            <>
-              <AdjustmentSlider
-                key={`volume:${settings.volume}`}
-                label="Clip volume"
-                value={settings.volume}
-                max={100}
+        <InspectorSection
+          title={t("cut.adjustments")}
+          action={
+            !isPhone && (
+              <InspectorPill disabled={busy} onClick={applyImageToAll}>
+                {t("cut.applyAll")}
+              </InspectorPill>
+            )
+          }
+        >
+          <div className="flex flex-col gap-2.5 max-sm:grid max-sm:grid-cols-2 max-sm:gap-x-4">
+            {IMAGE_ADJUSTMENTS.map(({ property, label }) => (
+              <AdjustmentRow
+                key={`${property}:${settings[property]}`}
+                property={property}
+                label={t(label)}
+                value={settings[property]}
+                max={property === "sharpen" ? 100 : 200}
                 disabled={busy}
-                onSave={(value, all) => save("volume", value, all)}
+                onSave={(value, all) => save(property, value, all)}
               />
-              <div className="flex items-center justify-between gap-2 text-xs">
-                <label className="flex items-center gap-2 text-neutral-200">
-                  <input
-                    type="checkbox"
-                    checked={settings.muted}
-                    disabled={busy}
-                    className="accent-neutral-200"
-                    onChange={(event) =>
-                      void save("muted", event.target.checked, false).catch(() => {})
-                    }
-                  />
-                  Mute clip audio
-                </label>
-                <button
-                  type="button"
-                  disabled={busy}
-                  aria-label="Apply clip mute to all cuts"
-                  className="h-7 rounded-md border border-neutral-700 px-2 text-[11px] text-neutral-300 hover:bg-neutral-800 disabled:opacity-40"
-                  onClick={() => void save("muted", settings.muted, true).catch(() => {})}
-                >
-                  Apply to all
-                </button>
-              </div>
-            </>
+            ))}
+          </div>
+          {isPhone && (
+            // St-M-ClipSheet: the group action is a full-width button under the grid.
+            <InspectorAction variant="secondary" disabled={busy} onClick={applyImageToAll}>
+              {t("cut.applyAll")}
+            </InspectorAction>
           )}
-        </>
+        </InspectorSection>
       )}
-      {error && (
-        <p role="alert" className="text-xs text-red-300">
-          {error}
-        </p>
+      {settings?.hasAudio && (
+        <InspectorSection
+          title={t("cut.sound")}
+          label={t("cut.sound")}
+          action={
+            <InspectorPill
+              disabled={busy}
+              aria-label={t("cut.applyNamedAll", { name: t("cut.sound").toLowerCase() })}
+              onClick={() => saveGroup(settings, ["volume", "muted"])}
+            >
+              {t("cut.applyAll")}
+            </InspectorPill>
+          }
+        >
+          <AdjustmentRow
+            key={`volume:${settings.volume}`}
+            property="volume"
+            label={t("cut.volume")}
+            value={settings.volume}
+            max={100}
+            disabled={busy}
+            onSave={(value, all) => save("volume", value, all)}
+          />
+          <InspectorSwitchRow
+            label={t("cut.mute")}
+            checked={settings.muted}
+            disabled={busy}
+            onChange={(checked) => void save("muted", checked, false).catch(() => {})}
+          />
+        </InspectorSection>
       )}
-    </section>
+      {error && <InspectorError>{error}</InspectorError>}
+    </div>
   );
 }

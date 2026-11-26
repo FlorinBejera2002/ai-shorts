@@ -86,15 +86,15 @@ it("changes framing on the selected cut by default and copies it only from the e
     await act(async () =>
       root.render(<SourceCutMediaSettings selection={selection} recordEdit={vi.fn()} />),
     );
-    const select = host.querySelector<HTMLSelectElement>('[aria-label="Cut fit"]')!;
-    await act(async () => {
-      select.value = "contain";
-      select.dispatchEvent(new Event("change", { bubbles: true }));
-    });
+    const fit = [...host.querySelectorAll<HTMLButtonElement>('[role="group"] button')].find(
+      (button) => button.textContent === "Fit",
+    )!;
+    await act(async () => fit.click());
     expect(mocks.save.mock.calls[0][0].applyToAll).toBe(false);
-    await act(async () =>
-      host.querySelector<HTMLButtonElement>('[aria-label="Apply fit to all cuts"]')!.click(),
-    );
+    const applyAll = [...host.querySelectorAll<HTMLButtonElement>("button")].find(
+      (button) => button.textContent === "Apply to all cuts",
+    )!;
+    await act(async () => applyAll.click());
     expect(mocks.save.mock.calls[1][0].applyToAll).toBe(true);
   } finally {
     await act(async () => root.unmount());

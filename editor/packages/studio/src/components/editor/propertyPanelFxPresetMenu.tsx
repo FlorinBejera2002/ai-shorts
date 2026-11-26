@@ -14,6 +14,9 @@ import {
 } from "@hyperframes/core/audio-fx-presets";
 import { PRESET_PROBLEM } from "@hyperframes/core/audio-fx-copy";
 import { useRef } from "react";
+import type { MessageKey } from "../../i18n/dictionary";
+import { t, useLocale } from "../../i18n/translate";
+import { audioText } from "./propertyPanelFxText.js";
 import type { HfAudioNameKind } from "@hyperframes/core/audio-carve";
 
 /**
@@ -22,11 +25,11 @@ import type { HfAudioNameKind } from "@hyperframes/core/audio-carve";
  * somebody reaching for Telephone is shopping for what they *want*, and
  * Telephone is filters and saturation — nobody looks for it under either.
  */
-const FAMILY_LABEL: Record<HfAudioFxPresetFamily, string> = {
-  voice: "Voice",
-  repair: "Fix",
-  character: "Character",
-  space: "Space",
+const FAMILY_LABEL: Record<HfAudioFxPresetFamily, MessageKey> = {
+  voice: "audio.family.voice",
+  repair: "audio.family.repair",
+  character: "audio.family.character",
+  space: "audio.family.space",
 };
 
 export interface FxPresetMenuProps {
@@ -72,6 +75,7 @@ export function FxPresetMenu({
   onAudition,
   onAuditionTracked,
 }: FxPresetMenuProps) {
+  useLocale();
   // Mounted when the shelf opens and thrown away when it closes, so "once per
   // preset" resets each time the author comes back — a second visit is a second
   // look, not a duplicate of the first.
@@ -91,77 +95,66 @@ export function FxPresetMenu({
       : HF_AUDIO_FX_PRESET_FAMILIES;
   return (
     <div
-      className="hf-fx-preset-menu space-y-1.5 rounded-[4px] border border-panel-border-input p-1.5"
-      // One handler for the shelf rather than one per button: leaving any preset
-      // for the gap between two of them has to revert, and a per-button leave
-      // fires that on the way to the next one.
+      className="hf-fx-preset-menu flex flex-col gap-4"
       onMouseLeave={onAudition ? () => onAudition(null) : undefined}
-      // Focus leaving the shelf is the keyboard's version of the pointer leaving
-      // it. Moving between two buttons inside fires this and then the next
-      // button's focus, so it reverts and re-auditions rather than sticking.
       onBlur={onAudition ? () => onAudition(null) : undefined}
     >
       {families.map((family) => (
-        <div key={family} className="hf-fx-preset-group space-y-0.5">
-          <span className="hf-fx-preset-group-label block font-mono text-[9px] uppercase tracking-wide text-panel-text-2">
-            {FAMILY_LABEL[family]}
+        <div
+          key={family}
+          data-fx-preset-family={family}
+          className="hf-fx-preset-group flex flex-col gap-2"
+        >
+          <span className="hf-fx-preset-group-label block text-[13px] font-semibold text-studio-text">
+            {t(FAMILY_LABEL[family])}
           </span>
-          {audioFxPresetsByFamily(family).map((preset) => (
-            <button
-              key={preset.id}
-              type="button"
-              // `pr-8` so a long complaint does not run under the wave.
-              className="hf-fx-preset-item block w-full rounded-[3px] bg-panel-surface py-1 pl-1.5 pr-8 text-left text-panel-text-1 hover:text-panel-text-0"
-              // The description says what it does; the count is doing real work
-              // — it tells the author a preset IS a chain they can open and
-              // edit, rather than an opaque setting they cannot follow.
-              title={`${preset.description} (${preset.nodes.length} effect${
-                preset.nodes.length === 1 ? "" : "s"
-              })`}
-              onClick={() => onPick(preset.id)}
-              onMouseEnter={() => {
-                reportAudition(preset.id);
-                onAudition?.(preset.id);
-              }}
-              // Keyboard reaches this too: arrowing down the shelf auditions the
-              // same way hovering does, or the whole affordance is mouse-only.
-              onFocus={() => {
-                reportAudition(preset.id);
-                onAudition?.(preset.id);
-              }}
-            >
-              <span className="hf-fx-preset-problem block truncate text-[10px]">
-                {PRESET_PROBLEM[preset.id] ?? preset.description}
-              </span>
-              {/* "Clean Voice · 5 effects" — the count is on the row in the
-                  designs, not hidden in a tooltip. It is doing real work there:
-                  it tells the author a preset IS a chain they can open and edit,
-                  rather than an opaque setting they cannot follow. The count is
-                  its own span so `.hf-fx-preset-name` stays the NAME — several
-                  tests read it as the preset's identity. */}
-              <span className="block truncate font-mono text-[9px] text-panel-text-2">
-                <span className="hf-fx-preset-name">{preset.label}</span>
-                <span className="hf-fx-preset-count">
-                  {" · "}
-                  {preset.nodes.length} effect{preset.nodes.length === 1 ? "" : "s"}
+          <div
+            className={family === "character" ? "grid grid-cols-2 gap-2" : "flex flex-col gap-2"}
+          >
+            {audioFxPresetsByFamily(family).map((preset) => (
+              <button
+                key={preset.id}
+                type="button"
+                className="hf-fx-preset-item block w-full rounded-md bg-studio-surface py-2.5 pr-8 pl-3.5 text-left shadow-[inset_0_0_0_1px_var(--st-bd)] hover:!bg-[var(--st-sub)] focus-visible:!bg-[var(--st-sub)] focus-visible:outline-none"
+                title={`${preset.description} (${preset.nodes.length} effect${
+                  preset.nodes.length === 1 ? "" : "s"
+                })`}
+                onClick={() => onPick(preset.id)}
+                onMouseEnter={() => {
+                  reportAudition(preset.id);
+                  onAudition?.(preset.id);
+                }}
+                onFocus={() => {
+                  reportAudition(preset.id);
+                  onAudition?.(preset.id);
+                }}
+              >
+                {/* The name leads (St-Inspector-AudioPresets); the complaint it answers
+                    sits under it. The effect count stays for screen readers, so the
+                    preset still reads as a chain the author can open. */}
+                <span className="block truncate text-[13px] font-semibold text-studio-text">
+                  <span className="hf-fx-preset-name">{audioText(preset.label)}</span>
+                  <span className="hf-fx-preset-count sr-only">
+                    {" · "}
+                    {preset.nodes.length === 1
+                      ? t("audio.effectCountOne")
+                      : t("audio.effectCount", { n: preset.nodes.length })}
+                  </span>
                 </span>
-              </span>
-              {/* Hovering a preset plays it, and playing is otherwise invisible:
-                  the panel looks identical whether the audition is sounding or
-                  the pointer is just resting there. Only rendered when there IS
-                  an audition channel, so it never claims audio that is not
-                  happening. Four bars because that reads as a level meter at
-                  this size; three reads as an ellipsis. */}
-              {onAudition ? (
-                <span className="hf-fx-preset-wave" aria-hidden="true">
-                  <span />
-                  <span />
-                  <span />
-                  <span />
+                <span className="hf-fx-preset-problem mt-0.5 block text-[12px] leading-4 text-studio-muted">
+                  {audioText(PRESET_PROBLEM[preset.id] ?? preset.description)}
                 </span>
-              ) : null}
-            </button>
-          ))}
+                {onAudition ? (
+                  <span className="hf-fx-preset-wave" aria-hidden="true">
+                    <span />
+                    <span />
+                    <span />
+                    <span />
+                  </span>
+                ) : null}
+              </button>
+            ))}
+          </div>
         </div>
       ))}
     </div>

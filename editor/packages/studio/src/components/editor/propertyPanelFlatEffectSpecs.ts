@@ -98,7 +98,8 @@ const SCREEN_SHAPES = enumOptions("monoScreenShape", [
   "Line",
 ]);
 
-export const EFFECT_GROUPS: readonly EffectGroup[] = [
+// Effect specs in Core family order; EFFECT_GROUPS below arranges them into the board families.
+const CORE_EFFECT_GROUPS: readonly EffectGroup[] = [
   {
     label: "Essentials",
     effects: [
@@ -133,7 +134,6 @@ export const EFFECT_GROUPS: readonly EffectGroup[] = [
   },
   {
     label: "Retro & Glitch",
-    presets: ["creator-camcorder", "vhs-playback", "home-movie-8mm"],
     effects: [
       { key: "chromaBleed", label: "Chroma Softening", masterLabel: "Smear" },
       {
@@ -184,7 +184,6 @@ export const EFFECT_GROUPS: readonly EffectGroup[] = [
   },
   {
     label: "Print",
-    presets: ["editorial-halftone", "two-ink-print"],
     effects: [
       {
         key: "halftone",
@@ -298,6 +297,54 @@ export const EFFECT_GROUPS: readonly EffectGroup[] = [
     ],
   },
 ];
+
+/** The families of St-Inspector-EffectsList, in board order. Every effect sits in exactly one. */
+const BOARD_FAMILIES: ReadonlyArray<{
+  label: string;
+  keys: readonly HfColorGradingActiveEffectKey[];
+  presets?: readonly HfColorGradingPresetId[];
+}> = [
+  { label: "Essentials", keys: ["blur", "pixelate", "bloom", "chromaticAberration"] },
+  {
+    label: "Retro & Glitch",
+    keys: [
+      "chromaBleed",
+      "tapeDamage",
+      "filmArtifacts",
+      "scanlines",
+      "crtCurvature",
+      "digitalGlitch",
+    ],
+    presets: ["creator-camcorder", "vhs-playback", "home-movie-8mm"],
+  },
+  {
+    label: "Print",
+    keys: ["halftone", "twoInkPrint", "dither"],
+    presets: ["editorial-halftone", "two-ink-print"],
+  },
+  { label: "Mono Screen", keys: ["monoScreen"] },
+  { label: "ASCII", keys: ["ascii"] },
+  { label: "Engraving", keys: ["engraving"] },
+  { label: "Crosshatch", keys: ["crosshatch"] },
+  { label: "Kuwahara Paint", keys: ["kuwahara"] },
+];
+
+const SPEC_BY_KEY = new Map(
+  CORE_EFFECT_GROUPS.flatMap((group) => group.effects).map((spec) => [spec.key, spec] as const),
+);
+
+export const EFFECT_GROUPS: readonly EffectGroup[] = BOARD_FAMILIES.map((family) => ({
+  label: family.label,
+  effects: family.keys.map((key) => {
+    const spec = SPEC_BY_KEY.get(key);
+    if (!spec) throw new Error(`Unknown effect in family ${family.label}: ${key}`);
+    return spec;
+  }),
+  ...(family.presets ? { presets: family.presets } : {}),
+}));
+if (EFFECT_GROUPS.reduce((count, group) => count + group.effects.length, 0) !== SPEC_BY_KEY.size) {
+  throw new Error("Every effect must belong to exactly one family");
+}
 
 export const EFFECT_SPECS = EFFECT_GROUPS.flatMap((group) => group.effects);
 const DEFAULT_GRADING = normalizeHfColorGrading("neutral");

@@ -1,4 +1,5 @@
 import type { Rect } from "../../utils/marqueeGeometry";
+import { GROUP_MEMBER_OUTLINE, MARQUEE_RECT } from "./canvasChromeStyles";
 
 interface MarqueeOverlayProps {
   /** Elements the marquee currently intersects — outlined live before mouse-up. */
@@ -19,14 +20,14 @@ export function MarqueeOverlay({ candidateRects, marqueeRect }: MarqueeOverlayPr
         <div
           key={i}
           aria-hidden="true"
-          className="pointer-events-none absolute rounded-sm border border-studio-accent bg-studio-accent/5"
+          className={`pointer-events-none absolute rounded-[4px] ${GROUP_MEMBER_OUTLINE}`}
           style={{ left: r.left, top: r.top, width: r.width, height: r.height }}
         />
       ))}
       {marqueeRect && (
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute border border-dashed border-studio-accent bg-studio-accent/10"
+          className={`pointer-events-none absolute ${MARQUEE_RECT}`}
           style={{
             left: marqueeRect.left,
             top: marqueeRect.top,

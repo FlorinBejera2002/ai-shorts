@@ -72,6 +72,16 @@ async function settleUntil(predicate: () => boolean, tries = 60): Promise<void> 
   }
 }
 
+/** Polls in real time (not frames) until the predicate holds, for timer-driven state. */
+async function waitForCondition(predicate: () => boolean, timeoutMs = 3000): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+  while (!predicate() && Date.now() < deadline) {
+    await act(async () => {
+      await new Promise<void>((resolve) => setTimeout(resolve, 10));
+    });
+  }
+}
+
 async function advanceFrame(): Promise<void> {
   await act(async () => {
     await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
@@ -158,27 +168,31 @@ describe("Timeline row virtualization", { timeout: 30_000 }, () => {
       }),
     );
     try {
-      await act(async () => {
-        await new Promise((resolve) => setTimeout(resolve, 110));
-      });
+      await waitForCondition(() => host.querySelector("[data-rich-content]") !== null);
 
       const scroller = host.querySelector<HTMLElement>("[data-timeline-scroll-viewport]");
       const clip = host.querySelector<HTMLElement>('[data-el-id="clip-0"]');
       expect(scroller).not.toBeNull();
       expect(clip).not.toBeNull();
-      expect(clip?.title).toBe("Clip 0 • 0.0s – 10.0s");
+      expect(clip?.title).toBe("Clip 0 • 0.00s – 10.00s");
       expect(host.querySelector("[data-rich-content]")).not.toBeNull();
 
+      // The scroll-idle debounce runs on faked timers, so a slow machine cannot let it
+      // fire before the "while scrolling" assertion.
+      vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
       if (scroller) await dispatchScroll(scroller);
       expect(host.querySelector('[data-el-id="clip-0"]')).toBe(clip);
       expect(host.querySelector("[data-rich-content]")).toBeNull();
 
       await act(async () => {
-        await new Promise((resolve) => setTimeout(resolve, 110));
+        vi.advanceTimersByTime(100);
       });
+      vi.useRealTimers();
+      await waitForCondition(() => host.querySelector("[data-rich-content]") !== null);
       expect(host.querySelector('[data-el-id="clip-0"]')).toBe(clip);
       expect(host.querySelector("[data-rich-content]")).not.toBeNull();
     } finally {
+      vi.useRealTimers();
       act(() => root.unmount());
       usePlayerStore.getState().reset();
     }

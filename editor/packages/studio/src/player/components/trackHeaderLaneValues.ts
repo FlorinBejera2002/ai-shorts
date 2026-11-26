@@ -10,6 +10,7 @@ import {
   type GsapAnimation,
   type PropertyGroupName,
 } from "@hyperframes/core/gsap-parser";
+import { t } from "../../i18n/translate";
 
 export type LaneValues = Record<string, number | string>;
 
@@ -92,13 +93,25 @@ export function valuesAt(
   return values;
 }
 
+/** Property group names as the keyframe lane headers show them (St-Timeline-Keyframes). */
+const GROUP_LABEL_KEY = {
+  position: "timeline.groupPosition",
+  scale: "timeline.groupScale",
+  size: "timeline.groupSize",
+  rotation: "timeline.groupRotation",
+  visual: "timeline.groupVisual",
+} as const;
+
 export function groupLabel(group: PropertyGroupName, properties: LaneValues): string {
   if (group === "visual" && ("opacity" in properties || "autoAlpha" in properties)) {
-    return "Opacity";
+    return t("timeline.groupOpacity");
   }
-  if (group !== "other") return `${group[0]?.toUpperCase() ?? ""}${group.slice(1)}`;
+  if (group !== "other") return t(GROUP_LABEL_KEY[group]);
+  // A raw property name (borderRadius) has no translation; it reads as authored.
   const property = Object.keys(properties)[0];
-  return property ? `${property[0]?.toUpperCase() ?? ""}${property.slice(1)}` : "Other";
+  return property
+    ? `${property[0]?.toUpperCase() ?? ""}${property.slice(1)}`
+    : t("timeline.groupOther");
 }
 
 function defaultValueReadout(values: LaneValues): string {

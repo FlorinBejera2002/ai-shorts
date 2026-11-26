@@ -101,7 +101,6 @@ function renderKeyframeOverlay(options: {
         elements,
         elementsRef: { current: elements },
         theme: defaultTimelineTheme,
-        showShortcutHint: false,
         showPopover: false,
         rangeSelection: null,
         setShowPopover: vi.fn(),

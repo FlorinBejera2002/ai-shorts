@@ -4,7 +4,7 @@ import { breadcrumbTrail } from "../../telemetry/breadcrumbs";
 export function createFeedbackReport(feedback: Record<string, unknown>): string {
   return JSON.stringify(
     {
-      product: "SneepCut Studio",
+      product: "Sneep Cut Studio",
       createdAt: new Date().toISOString(),
       feedback,
       diagnostics: { trail: breadcrumbTrail() },

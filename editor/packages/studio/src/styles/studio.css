@@ -1,27 +1,16 @@
 @import "./fonts/fonts.css";
+@import "./tokens.css";
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/*
- * Studio is a dark-only UI — pin the user-agent color scheme to dark so that
- * browser-native chrome (scrollbars, form controls, focus rings) picks the
- * matching palette instead of defaulting to light against our #0b111c body.
- */
-:root {
-  color-scheme: dark;
-  --radius-sm: 0.5rem;
-  --radius-md: 0.75rem;
-  --hf-accent: #5b8cff;
-}
-
-/* Sneepcut reference canvas "Editor video": navy surfaces, Inter body, Sora headings. */
+/* Sneep Cut reference canvas: tokens from tokens.css, Inter body, Sora headings. */
 body {
   margin: 0;
   padding: 0;
-  background: #0b111c;
-  color: #eef3fb;
+  background: var(--st-bg);
+  color: var(--st-tx);
   font-family:
     "Inter Variable",
     Inter,
@@ -40,7 +29,7 @@ h3 {
 }
 
 * {
-  scrollbar-color: #34455f transparent;
+  scrollbar-color: var(--st-hd) transparent;
 }
 
 .hf-color-grading-number::-webkit-outer-spin-button,
@@ -81,9 +70,9 @@ h3 {
   border-radius: 999px;
   -webkit-appearance: none;
   appearance: none;
-  background: #ffffff;
+  background: var(--st-tx);
   box-shadow:
-    0 0 0 2px #121a27,
+    0 0 0 2px var(--st-sf),
     0 1px 4px rgba(0, 0, 0, 0.55);
   cursor: default;
 }
@@ -99,9 +88,9 @@ h3 {
   height: 1rem;
   border: 0;
   border-radius: 999px;
-  background: #ffffff;
+  background: var(--st-tx);
   box-shadow:
-    0 0 0 2px #121a27,
+    0 0 0 2px var(--st-sf),
     0 1px 4px rgba(0, 0, 0, 0.55);
   cursor: default;
 }
@@ -112,15 +101,15 @@ h3 {
 
 .hf-color-grading-range:focus-visible::-webkit-slider-thumb {
   box-shadow:
-    0 0 0 2px #121a27,
-    0 0 0 4px rgba(37, 99, 235, 0.22),
+    0 0 0 2px var(--st-sf),
+    0 0 0 4px color-mix(in srgb, var(--st-sel) 22%, transparent),
     0 1px 4px rgba(0, 0, 0, 0.55);
 }
 
 .hf-color-grading-range:focus-visible::-moz-range-thumb {
   box-shadow:
-    0 0 0 2px #121a27,
-    0 0 0 4px rgba(37, 99, 235, 0.22),
+    0 0 0 2px var(--st-sf),
+    0 0 0 4px color-mix(in srgb, var(--st-sel) 22%, transparent),
     0 1px 4px rgba(0, 0, 0, 0.55);
 }
 
@@ -147,9 +136,9 @@ h3 {
   border: 0;
   border-radius: 999px;
   appearance: none;
-  background: #ffffff;
+  background: var(--st-tx);
   box-shadow:
-    0 0 0 2px #0b111c,
+    0 0 0 2px var(--st-bg),
     0 1px 3px rgba(0, 0, 0, 0.5);
   cursor: grab;
 }
@@ -170,9 +159,9 @@ h3 {
   height: 0.5rem;
   border: 0;
   border-radius: 999px;
-  background: #ffffff;
+  background: var(--st-tx);
   box-shadow:
-    0 0 0 2px #0b111c,
+    0 0 0 2px var(--st-bg),
     0 1px 3px rgba(0, 0, 0, 0.5);
   cursor: grab;
 }
@@ -188,8 +177,8 @@ h3 {
 .hf-preview-volume-range:focus-visible::-webkit-slider-thumb,
 .hf-preview-volume-range:focus-visible::-moz-range-thumb {
   box-shadow:
-    0 0 0 2px #0b111c,
-    0 0 0 4px rgba(37, 99, 235, 0.4),
+    0 0 0 2px var(--st-bg),
+    0 0 0 4px color-mix(in srgb, var(--st-sel) 40%, transparent),
     0 1px 3px rgba(0, 0, 0, 0.5);
 }
 
@@ -220,13 +209,13 @@ h3 {
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  background: rgba(37, 99, 235, 0.2);
+  background: color-mix(in srgb, var(--st-sel) 20%, transparent);
   opacity: 0;
   pointer-events: none;
 }
 
 .timeline-clip[data-active] {
-  border-color: rgba(37, 99, 235, 0.55);
+  border-color: color-mix(in srgb, var(--st-sel) 55%, transparent);
 }
 
 .timeline-clip[data-active]::before {
@@ -254,7 +243,7 @@ h3 {
 }
 
 .timeline-clip[data-active].is-hovered {
-  border-color: rgba(37, 99, 235, 0.75);
+  border-color: color-mix(in srgb, var(--st-sel) 75%, transparent);
 }
 
 .timeline-clip.is-selected {
@@ -401,7 +390,7 @@ h3 {
 .hf-loader-mark {
   display: block;
   overflow: visible;
-  filter: drop-shadow(0 0 7px rgba(37, 99, 235, 0.24));
+  filter: drop-shadow(0 0 7px color-mix(in srgb, var(--st-sel) 24%, transparent));
   user-select: none;
   -webkit-user-select: none;
   -webkit-user-drag: none;
@@ -417,7 +406,7 @@ h3 {
   font-size: 1rem;
   font-weight: 600;
   letter-spacing: 0;
-  color: var(--hf-heading, #f4f4f5);
+  color: var(--hf-heading, var(--st-tx));
   max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -475,7 +464,7 @@ h3 {
   transform: scaleX(0);
   transform-origin: left center;
   border-radius: inherit;
-  background: linear-gradient(90deg, #2563eb, #60a5fa);
+  background: var(--st-btn);
   transition: transform 160ms ease;
 }
 
@@ -585,7 +574,7 @@ h3 {
 .hf-fx-preset-item:focus-visible {
   /* The accent at low alpha rather than a grey: the row is lit by the thing that
      is playing, and it should read as the same event as the bars. */
-  background-color: rgba(37, 99, 235, 0.12);
+  background-color: color-mix(in srgb, var(--st-sel) 12%, transparent);
 }
 
 .hf-fx-preset-wave {
@@ -611,7 +600,7 @@ h3 {
   width: 2px;
   height: 100%;
   border-radius: 1px;
-  background: #2563eb;
+  background: var(--st-btn);
   transform: scaleY(0.25);
   transform-origin: center;
 }
@@ -644,10 +633,10 @@ h3 {
 /* Receipt-driven WebMCP Topology Lens. Every animation is one-shot Studio
    chrome; none of these nodes enter the composition iframe or rendered output. */
 .hf-topology-contour {
-  border: 1px solid rgba(37, 99, 235, 0.62);
+  border: 1px solid color-mix(in srgb, var(--st-sel) 62%, transparent);
   box-shadow:
     0 0 0 1px rgba(6, 227, 250, 0.08),
-    inset 0 0 18px rgba(37, 99, 235, 0.035);
+    inset 0 0 18px color-mix(in srgb, var(--st-sel) 3.5%, transparent);
 }
 
 .hf-topology-field::before,
@@ -675,20 +664,20 @@ h3 {
 
 .hf-topology-field {
   z-index: 0;
-  border: 1px solid rgba(37, 99, 235, 0.28);
+  border: 1px solid color-mix(in srgb, var(--st-sel) 28%, transparent);
   background: linear-gradient(
     90deg,
-    rgba(37, 99, 235, 0.025),
-    rgba(37, 99, 235, 0.1) 68%,
+    color-mix(in srgb, var(--st-sel) 2.5%, transparent),
+    color-mix(in srgb, var(--st-sel) 10%, transparent) 68%,
     rgba(6, 227, 250, 0.06)
   );
-  box-shadow: inset 0 0 28px rgba(37, 99, 235, 0.05);
+  box-shadow: inset 0 0 28px color-mix(in srgb, var(--st-sel) 5%, transparent);
 }
 
 .hf-topology-target {
-  border: 1px solid rgba(37, 99, 235, 0.82);
+  border: 1px solid color-mix(in srgb, var(--st-sel) 82%, transparent);
   box-shadow:
-    0 0 0 1px rgba(37, 99, 235, 0.14),
+    0 0 0 1px color-mix(in srgb, var(--st-sel) 14%, transparent),
     0 0 18px rgba(6, 227, 250, 0.09);
 }
 
@@ -696,14 +685,14 @@ h3 {
   background: linear-gradient(
     90deg,
     transparent,
-    rgba(37, 99, 235, 0.16) 55%,
+    color-mix(in srgb, var(--st-sel) 16%, transparent) 55%,
     rgba(230, 255, 247, 0.9)
   );
   clip-path: polygon(0 0, 100% 0, 72% 100%, 0 100%);
 }
 
 .hf-topology-seal {
-  filter: drop-shadow(0 0 6px rgba(37, 99, 235, 0.36));
+  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--st-sel) 36%, transparent));
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -828,4 +817,24 @@ h3 {
   50% {
     transform: scaleY(1);
   }
+}
+
+/* Shell: where the floating Ana și Radu launcher sits. Desktop: inside the timeline card's
+   bottom-right corner (St-Main). Phone: above the 88px tool bar, over the timeline's right
+   edge (St-M-Main), so it never covers "Mai mult". The agent launcher should read these
+   variables; until it does, the rule below positions it by its avatar. */
+:root {
+  --st-launcher-bottom: 28px;
+  --st-launcher-right: 28px;
+}
+@media (max-width: 639px) {
+  :root {
+    --st-launcher-bottom: 124px;
+    --st-launcher-right: 14px;
+  }
+}
+[data-studio-shell] ~ * div.fixed:has(> button > img[src$="/agent-avatar-duo.webp"]),
+[data-studio-shell] div.fixed:has(> button > img[src$="/agent-avatar-duo.webp"]) {
+  bottom: var(--st-launcher-bottom);
+  right: var(--st-launcher-right);
 }

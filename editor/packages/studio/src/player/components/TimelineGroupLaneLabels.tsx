@@ -64,7 +64,7 @@ export function TimelineGroupLaneLabels({
             key={lane.target}
             data-group-lane-label={lane.target}
             aria-label={`Show ${groupLabel} ${parts.name}${parts.param ? ` ${parts.param}` : ""} in the effect rack`}
-            className="absolute left-0 flex items-center gap-1.5 overflow-hidden border-0 px-1.5 text-left text-[10px] text-white/65 hover:text-white focus-visible:outline focus-visible:outline-1 focus-visible:outline-[#3CE6AC]"
+            className="absolute left-0 flex items-center gap-1.5 overflow-hidden border-0 px-1.5 text-left text-[10px] text-[var(--st-t2)] hover:text-[var(--st-tx)] focus-visible:outline focus-visible:outline-1 focus-visible:outline-[var(--st-tx)]"
             style={{
               top: top + index * AUTOMATION_LANE_H,
               width: columnWidth,
@@ -79,16 +79,20 @@ export function TimelineGroupLaneLabels({
               onReveal?.(lane.target);
             }}
           >
-            <span aria-hidden="true" className="shrink-0 text-[11px] text-white/40">
+            <span aria-hidden="true" className="shrink-0 text-[11px] text-[var(--st-t2)]">
               ▤
             </span>
             <span className="flex min-w-0 flex-1 flex-col justify-center leading-tight">
-              <span className="truncate font-mono text-[9px] text-white/70">{parts.name}</span>
+              <span className="truncate font-mono text-[9px] text-[var(--st-t2)]">
+                {parts.name}
+              </span>
               {parts.param ? (
-                <span className="truncate font-mono text-[9px] text-white/40">{parts.param}</span>
+                <span className="truncate font-mono text-[9px] text-[var(--st-t2)]">
+                  {parts.param}
+                </span>
               ) : null}
             </span>
-            <span className="shrink-0 font-mono text-[9px] tabular-nums text-white/55">
+            <span className="shrink-0 font-mono text-[9px] tabular-nums text-[var(--st-t2)]">
               {value.toFixed(2)}
             </span>
           </button>

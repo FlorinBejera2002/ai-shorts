@@ -97,7 +97,7 @@ describe("FlatOverlaysSection", () => {
     expect(
       host.querySelector<HTMLImageElement>('[data-flat-overlay-preview="camcorder-hud"]')?.src,
     ).toBe("https://example.com/camcorder.png");
-    expect(host.querySelector('[data-flat-overlays="true"]')?.className).toContain("auto-fill");
+    expect(host.querySelector('[data-flat-overlays="true"]')?.className).toContain("flex-col");
     act(() => add?.dispatchEvent(new MouseEvent("pointerover", { bubbles: true })));
     expect(host.querySelector<HTMLVideoElement>("video")?.src).toBe(
       "https://example.com/camcorder.mp4",

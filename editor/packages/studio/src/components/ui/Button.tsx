@@ -28,9 +28,9 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 
 const variantStyles: Record<ButtonVariant, string> = {
   primary: [
-    "bg-[#2563eb] text-white font-semibold",
+    "bg-[var(--st-btn)] text-[var(--st-on-btn)] font-semibold",
     "shadow-btn-primary",
-    "enabled:hover:bg-[#1d4ed8]",
+    "enabled:hover:opacity-90",
     "enabled:active:scale-[0.97]",
   ].join(" "),
   secondary: [
@@ -40,8 +40,8 @@ const variantStyles: Record<ButtonVariant, string> = {
     "enabled:active:scale-[0.98]",
   ].join(" "),
   danger: [
-    "bg-accent-red text-white font-medium",
-    "enabled:hover:bg-red-600",
+    "bg-[var(--st-danger)] text-white font-medium",
+    "enabled:hover:opacity-90",
     "enabled:active:scale-[0.97]",
   ].join(" "),
   ghost: [

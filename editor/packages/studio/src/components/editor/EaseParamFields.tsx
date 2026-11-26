@@ -7,6 +7,7 @@ import {
 } from "@hyperframes/core/wiggle-ease";
 import { roundToCenti } from "../../utils/rounding";
 import { MiniCurveSvg } from "./easeCurveSvg";
+import { t, useLocale } from "../../i18n/translate";
 
 type Pts = [number, number, number, number];
 
@@ -93,17 +94,17 @@ export function EaseBezierField({
             }
           }}
           onBlur={(event) => commit(event.currentTarget.value)}
-          className={`w-full rounded border bg-black/20 px-1.5 py-1 font-mono text-[10px] text-neutral-300 outline-none ${
+          className={`w-full rounded-sm border bg-studio-surface px-1.5 py-1 text-xs tabular-nums text-studio-text outline-none ${
             error
               ? "border-red-500/70 focus:border-red-400"
-              : "border-white/10 focus:border-panel-accent/50"
+              : "border-[var(--st-sbd)] focus:border-[var(--st-btn)]"
           }`}
         />
       </div>
       <p
         id={errorId}
         aria-live="polite"
-        className={`mt-1 text-[9px] text-red-400 ${error ? "" : "sr-only"}`}
+        className={`mt-1 text-xs text-studio-danger ${error ? "" : "sr-only"}`}
       >
         {error ?? "Valid bezier values"}
       </p>
@@ -170,11 +171,12 @@ export function SpringBounceField({
   springBounce: number;
   onCommit: (ease: string) => void;
 }) {
+  useLocale();
   return (
-    <div className="mt-1.5 flex items-center gap-2 px-0.5 text-[10px] text-neutral-400">
-      <span aria-hidden="true">Bounce</span>
+    <div className="mt-1.5 flex items-center gap-2 px-0.5 text-xs text-studio-muted">
+      <span aria-hidden="true">{t("ease.bounce")}</span>
       <NumericCommitInput
-        label="Spring bounce"
+        label={t("ease.bounceAria")}
         value={springBounce}
         min={0}
         max={1}
@@ -183,7 +185,7 @@ export function SpringBounceField({
           const bounce = parseSpringBounce(`spring(${value})`);
           if (bounce !== null) onCommit(`spring(${round2(bounce)})`);
         }}
-        className="w-16 rounded border border-white/10 bg-black/20 px-1.5 py-1 font-mono text-[10px] text-neutral-300 outline-none focus:border-panel-accent/50"
+        className="w-16 rounded-sm border border-[var(--st-sbd)] bg-studio-surface px-1.5 py-1 text-xs tabular-nums text-studio-text outline-none focus:border-[var(--st-btn)]"
       />
     </div>
   );
@@ -196,49 +198,50 @@ export function WiggleField({
   config: WiggleEaseConfig;
   onCommit: (ease: string) => void;
 }) {
+  useLocale();
   const amplitude = config.amplitude ?? WIGGLE_DEFAULT_AMPLITUDE[config.type];
   return (
-    <div className="mt-1.5 flex items-center gap-2 px-0.5 text-[10px] text-neutral-400">
+    <div className="mt-1.5 flex items-center gap-2 px-0.5 text-xs text-studio-muted">
       <div className="flex items-center gap-1">
-        <span aria-hidden="true">Count</span>
+        <span aria-hidden="true">{t("ease.count")}</span>
         <NumericCommitInput
-          label="Wiggle count"
+          label={t("ease.countAria")}
           value={config.wiggles}
           min={1}
           step={1}
           onCommit={(value) => commitWiggle(onCommit, value, config.type, amplitude)}
-          className="w-14 rounded border border-white/10 bg-black/20 px-1.5 py-1 font-mono text-[10px] text-neutral-300 outline-none focus:border-panel-accent/50"
+          className="w-14 rounded-sm border border-[var(--st-sbd)] bg-studio-surface px-1.5 py-1 text-xs tabular-nums text-studio-text outline-none focus:border-[var(--st-btn)]"
         />
       </div>
       <div className="flex items-center gap-1">
-        <span aria-hidden="true">Type</span>
+        <span aria-hidden="true">{t("ease.type")}</span>
         <select
-          aria-label="Wiggle type"
+          aria-label={t("ease.typeAria")}
           value={config.type}
           onChange={(event) => {
             if (isWiggleType(event.currentTarget.value)) {
               commitWiggle(onCommit, config.wiggles, event.currentTarget.value, amplitude);
             }
           }}
-          className="rounded border border-white/10 bg-black/20 px-1.5 py-1 text-[10px] text-neutral-300 outline-none focus:border-panel-accent/50"
+          className="rounded-sm border border-[var(--st-sbd)] bg-studio-surface px-1.5 py-1 text-xs text-studio-text outline-none focus:border-[var(--st-btn)]"
         >
           {WIGGLE_TYPES.map((type) => (
             <option key={type} value={type}>
-              {type}
+              {t(`ease.wiggle.${type}`)}
             </option>
           ))}
         </select>
       </div>
       <div className="flex items-center gap-1">
-        <span aria-hidden="true">Amplitude</span>
+        <span aria-hidden="true">{t("ease.amplitude")}</span>
         <NumericCommitInput
-          label="Wiggle amplitude"
+          label={t("ease.amplitudeAria")}
           value={amplitude}
           min={0}
           max={1}
           step={0.01}
           onCommit={(value) => commitWiggle(onCommit, config.wiggles, config.type, value)}
-          className="w-16 rounded border border-white/10 bg-black/20 px-1.5 py-1 font-mono text-[10px] text-neutral-300 outline-none focus:border-panel-accent/50"
+          className="w-16 rounded-sm border border-[var(--st-sbd)] bg-studio-surface px-1.5 py-1 text-xs tabular-nums text-studio-text outline-none focus:border-[var(--st-btn)]"
         />
       </div>
     </div>

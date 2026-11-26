@@ -1,11 +1,37 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useEffectEvent, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { filename } from "./assetHelpers";
+import { DeleteConfirmDialog } from "./PanelDialog";
+import { MENU_ITEM_CLASS, POPOVER_CLASS, RenameForm } from "./RenamePopover";
+import { PanelIcon, type PanelIconName } from "./panelIcons";
+import { t, useLocale } from "../../i18n/translate";
 
-/** Reject names that would escape the asset directory or break paths. */
-function isValidAssetName(name: string): boolean {
-  return name.length > 0 && !/[/\\]/.test(name) && !name.includes("..");
+interface MenuAction {
+  id: string;
+  icon: PanelIconName;
+  label: string;
+  danger?: boolean;
+  run: () => void;
 }
 
+/** Keeps a floating box inside the viewport once it has a size. */
+function useClampedPosition(x: number, y: number, deps: unknown) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState({ x, y });
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const margin = 8;
+    setPos({
+      x: Math.max(margin, Math.min(x, window.innerWidth - rect.width - margin)),
+      y: Math.max(margin, Math.min(y, window.innerHeight - rect.height - margin)),
+    });
+  }, [x, y, deps]);
+  return { ref, pos };
+}
+
+/** Asset actions: add at playhead, copy path, rename (popover) and delete (confirm dialog). */
 // fallow-ignore-next-line complexity
 export function ContextMenu({
   x,
@@ -26,35 +52,21 @@ export function ContextMenu({
   onRename?: (oldPath: string, newPath: string) => void;
   onAddAtPlayhead?: (path: string) => void;
 }) {
-  const menuRef = useRef<HTMLDivElement>(null);
-  const [pos, setPos] = useState({ x, y });
+  useLocale();
   const [mode, setMode] = useState<"menu" | "confirm-delete" | "rename">("menu");
-  const [renameDraft, setRenameDraft] = useState(() => filename(asset));
-  const [renameError, setRenameError] = useState<string | null>(null);
+  const { ref: menuRef, pos } = useClampedPosition(x, y, mode);
+  const name = filename(asset);
 
-  // Clamp the menu inside the viewport once it has a size.
-  useLayoutEffect(() => {
-    const el = menuRef.current;
-    if (!el) return;
-    const rect = el.getBoundingClientRect();
-    const margin = 8;
-    setPos({
-      x: Math.min(x, window.innerWidth - rect.width - margin),
-      y: Math.min(y, window.innerHeight - rect.height - margin),
-    });
-  }, [x, y, mode]);
+  const closeMenu = useEffectEvent(onClose);
 
-  // Keyboard contract: Escape backs out one level (rename/delete-confirm →
-  // menu → closed), arrows move between menu items.
+  // Escape backs out one level (rename -> menu -> closed); arrows move between items.
   useEffect(() => {
+    if (mode === "confirm-delete") return;
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         e.stopPropagation();
-        if (mode !== "menu") {
-          setMode("menu");
-        } else {
-          onClose();
-        }
+        if (mode === "menu") closeMenu();
+        else setMode("menu");
         return;
       }
       if (mode !== "menu" || (e.key !== "ArrowDown" && e.key !== "ArrowUp")) return;
@@ -65,39 +77,74 @@ export function ContextMenu({
       e.preventDefault();
       const idx = items.findIndex((el) => el === document.activeElement);
       const delta = e.key === "ArrowDown" ? 1 : -1;
-      const next = items[(idx + delta + items.length) % items.length];
-      next.focus();
+      items[(idx + delta + items.length) % items.length]?.focus();
     };
     document.addEventListener("keydown", onKeyDown, true);
     return () => document.removeEventListener("keydown", onKeyDown, true);
-  }, [mode, onClose]);
+  }, [mode, menuRef]);
 
-  // Move focus into the menu on open so arrow keys work immediately.
   useEffect(() => {
     if (mode === "menu") {
       menuRef.current?.querySelector<HTMLButtonElement>('[role="menuitem"]')?.focus();
     }
-  }, [mode]);
+  }, [mode, menuRef]);
 
-  const commitRename = useCallback(() => {
-    const trimmed = renameDraft.trim();
-    if (trimmed === filename(asset)) {
+  if (mode === "confirm-delete") {
+    return (
+      <DeleteConfirmDialog
+        title={t("media.deleteTitle", { name })}
+        message={name}
+        phoneTitle={t("code.deleteFile")}
+        phoneMessage={t("code.deleteFileMessage", { name })}
+        onConfirm={() => {
+          onDelete?.(asset);
+          onClose();
+        }}
+        onCancel={onClose}
+      />
+    );
+  }
+
+  const actions: MenuAction[] = [];
+  if (onAddAtPlayhead) {
+    actions.push({
+      id: "add",
+      icon: "addAtPlayhead",
+      label: t("media.addAtPlayhead"),
+      run: () => {
+        onAddAtPlayhead(asset);
+        onClose();
+      },
+    });
+  }
+  actions.push({
+    id: "copy",
+    icon: "copy",
+    label: t("media.copyPath"),
+    run: () => {
+      onCopy(asset);
       onClose();
-      return;
-    }
-    if (!isValidAssetName(trimmed)) {
-      setRenameError("Name can't contain / or ..");
-      return;
-    }
-    const dir = asset.includes("/") ? asset.slice(0, asset.lastIndexOf("/") + 1) : "";
-    onRename?.(asset, `${dir}${trimmed}`);
-    onClose();
-  }, [renameDraft, asset, onRename, onClose]);
+    },
+  });
+  if (onRename) {
+    actions.push({
+      id: "rename",
+      icon: "pencil",
+      label: t("media.rename"),
+      run: () => setMode("rename"),
+    });
+  }
+  if (onDelete) {
+    actions.push({
+      id: "delete",
+      icon: "trash",
+      label: t("common.delete"),
+      danger: true,
+      run: () => setMode("confirm-delete"),
+    });
+  }
 
-  const itemCls =
-    "w-full text-left px-3 py-1.5 text-neutral-300 hover:bg-neutral-800 focus-visible:bg-neutral-800 outline-none active:bg-neutral-700/70 transition-colors";
-
-  return (
+  return createPortal(
     <div
       className="fixed inset-0 z-[200]"
       onClick={onClose}
@@ -108,129 +155,38 @@ export function ContextMenu({
     >
       <div
         ref={menuRef}
-        role="menu"
-        aria-label={`Actions for ${filename(asset)}`}
-        className="absolute bg-neutral-900 border border-neutral-700 rounded-lg shadow-xl py-1 min-w-[160px] text-xs"
+        role={mode === "menu" ? "menu" : "dialog"}
+        aria-label={mode === "menu" ? t("media.menuLabel", { name }) : t("media.rename")}
+        className={`absolute ${POPOVER_CLASS} ${mode === "menu" ? "min-w-[200px] p-1.5" : "w-[290px] p-3"}`}
         style={{ left: pos.x, top: pos.y }}
         onClick={(e) => e.stopPropagation()}
       >
-        {mode === "menu" && (
-          <>
-            {onAddAtPlayhead && (
-              <button
-                role="menuitem"
-                onClick={() => {
-                  onAddAtPlayhead(asset);
-                  onClose();
-                }}
-                className={itemCls}
-              >
-                Add at playhead
-              </button>
-            )}
+        {mode === "menu" ? (
+          actions.map((action) => (
             <button
+              key={action.id}
+              type="button"
               role="menuitem"
-              onClick={() => {
-                onCopy(asset);
-                onClose();
-              }}
-              className={itemCls}
+              onClick={action.run}
+              className={`${MENU_ITEM_CLASS} ${action.danger ? "text-[var(--st-danger)]" : ""}`}
             >
-              Copy path
+              <PanelIcon name={action.icon} />
+              {action.label}
             </button>
-            {onRename && (
-              <button role="menuitem" onClick={() => setMode("rename")} className={itemCls}>
-                Rename
-              </button>
-            )}
-            {onDelete && (
-              <button
-                role="menuitem"
-                onClick={() => setMode("confirm-delete")}
-                className={`${itemCls} text-red-400`}
-              >
-                Delete
-              </button>
-            )}
-          </>
-        )}
-        {mode === "confirm-delete" && (
-          <DeleteConfirm
-            name={filename(asset)}
-            onConfirm={() => {
-              onDelete?.(asset);
+          ))
+        ) : (
+          <RenameForm
+            initial={name}
+            onCancel={() => setMode("menu")}
+            onCommit={(next) => {
+              const dir = asset.includes("/") ? asset.slice(0, asset.lastIndexOf("/") + 1) : "";
+              onRename?.(asset, `${dir}${next}`);
               onClose();
             }}
-            onCancel={() => setMode("menu")}
           />
         )}
-        {mode === "rename" && (
-          <div className="px-2 py-1.5 flex flex-col gap-1">
-            <input
-              autoFocus
-              value={renameDraft}
-              onChange={(e) => {
-                setRenameDraft(e.target.value);
-                setRenameError(null);
-              }}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") commitRename();
-                if (e.key === "Escape") {
-                  e.stopPropagation();
-                  setMode("menu");
-                }
-              }}
-              aria-label={`Rename ${filename(asset)}`}
-              className="w-full bg-neutral-800 border border-neutral-600 rounded px-1.5 py-1 text-[11px] text-white focus:border-studio-accent/60 focus:outline-none"
-            />
-            {renameError && <span className="text-[10px] text-red-400">{renameError}</span>}
-            <div className="flex items-center justify-end gap-1">
-              <button
-                onClick={() => setMode("menu")}
-                className="px-2 py-0.5 text-[10px] rounded text-neutral-400 hover:text-neutral-200 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={commitRename}
-                className="px-2 py-0.5 text-[10px] rounded bg-studio-accent/80 hover:bg-studio-accent text-white transition-colors"
-              >
-                Rename
-              </button>
-            </div>
-          </div>
-        )}
       </div>
-    </div>
-  );
-}
-
-function DeleteConfirm({
-  name,
-  onConfirm,
-  onCancel,
-}: {
-  name: string;
-  onConfirm: () => void;
-  onCancel: () => void;
-}) {
-  return (
-    <div className="px-2 py-1.5 bg-red-950/30 border-l-2 border-red-500 flex items-center justify-between gap-2">
-      <span className="text-[10px] text-red-400 truncate">Delete {name}?</span>
-      <div className="flex items-center gap-1 flex-shrink-0">
-        <button
-          onClick={onConfirm}
-          className="px-2 py-0.5 text-[10px] rounded bg-red-600 text-white hover:bg-red-500 active:bg-red-700 transition-colors"
-        >
-          Delete
-        </button>
-        <button
-          onClick={onCancel}
-          className="px-2 py-0.5 text-[10px] rounded text-neutral-400 hover:text-neutral-200 transition-colors"
-        >
-          Cancel
-        </button>
-      </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

@@ -3,6 +3,7 @@ import type { ArcPathConfig, ArcPathSegment } from "@hyperframes/core/gsap-parse
 import { SliderControl } from "./propertyPanelPrimitives";
 import { LABEL } from "./propertyPanelHelpers";
 import { P } from "./panelTokens";
+import { t } from "../../i18n/translate";
 
 interface ArcPathControlsProps {
   arcPath: ArcPathConfig;
@@ -74,20 +75,16 @@ export const ArcPathControls = memo(function ArcPathControls({
               type="button"
               role="switch"
               aria-checked={Boolean(arcPath.autoRotate)}
-              aria-label="Auto-rotate along path"
+              aria-label={t("motion.autoRotateAria")}
               onClick={handleAutoRotate}
               disabled={disabled}
               className="relative rounded-full transition-colors duration-200"
               style={{
                 width: 28,
                 height: 16,
-                background: arcPath.autoRotate ? P.accent : "#243147",
+                background: arcPath.autoRotate ? P.accent : "var(--st-hd)",
               }}
-              title={
-                arcPath.autoRotate
-                  ? "Disable auto-rotate along path"
-                  : "Rotate element to follow path tangent"
-              }
+              title={arcPath.autoRotate ? t("motion.autoRotateOn") : t("motion.autoRotateOff")}
             >
               <span
                 className="absolute top-[2px] left-0 rounded-full transition-transform duration-200"
@@ -112,7 +109,7 @@ export const ArcPathControls = memo(function ArcPathControls({
                     type="button"
                     onClick={() => onUpdateSegment(i, { cp1: undefined, cp2: undefined })}
                     className="text-[9px] font-medium text-neutral-500 transition-colors hover:text-neutral-300"
-                    title="Reset to auto-generated control points"
+                    title={t("motion.arcResetTip")}
                   >
                     Reset
                   </button>

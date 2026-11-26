@@ -9,7 +9,8 @@ import { usePreviewVariablesStore } from "../../hooks/previewVariablesStore";
  *
  * Split out of StudioRightPanel because every field it needs already lives in
  * that context, so routing them through the panel only made the panel longer
- * without giving anything a second reader.
+ * without giving anything a second reader. The export flow dialogs live in ExportFlowHost, at
+ * shell level, so they survive the tab (and, on phone, its sheet) closing.
  */
 export const RenderQueuePanel = memo(function RenderQueuePanel() {
   const { projectId, compositionDimensions, waitForPendingDomEditSaves, renderQueue } =

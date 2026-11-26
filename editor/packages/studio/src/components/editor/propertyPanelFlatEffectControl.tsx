@@ -4,8 +4,9 @@ import {
   type NormalizedHfColorGrading,
 } from "@hyperframes/core/color-grading";
 import { FlatSelectRow } from "./propertyPanelFlatSelectRow";
-import { FlatSlider } from "./propertyPanelFlatPrimitives";
 import { FlatToggle } from "./propertyPanelFlatToggle";
+import { lookText } from "./propertyPanelColorLabels";
+import { LookSlider } from "./propertyPanelColorLookUi";
 import {
   DEFAULT_EFFECTS,
   type EffectControl,
@@ -37,8 +38,8 @@ function EffectSliderControl({
     ? control.format(value)
     : `${Number.isInteger(sliderValue) ? sliderValue : sliderValue.toFixed(1)}${control.unit ?? "%"}`;
   return (
-    <FlatSlider
-      label={control.label}
+    <LookSlider
+      label={lookText(control.label)}
       value={sliderValue}
       min={control.min ?? 0}
       max={control.max ?? 100}
@@ -67,7 +68,7 @@ export function FlatEffectControl({
   if (control.kind === "toggle") {
     return (
       <FlatToggle
-        label={control.label}
+        label={lookText(control.label)}
         checked={value >= 0.5}
         onChange={(next) => onCommit(control.key, next ? 1 : 0)}
       />
@@ -76,9 +77,9 @@ export function FlatEffectControl({
   if (control.kind === "select") {
     return (
       <FlatSelectRow
-        label={control.label}
+        label={lookText(control.label)}
         value={String(Math.round(value))}
-        options={control.options}
+        options={control.options.map((option) => ({ ...option, label: lookText(option.label) }))}
         tier={value === defaultValue ? "default" : "explicitCustom"}
         onChange={(next) => onCommit(control.key, Number.parseInt(next, 10))}
         onReset={() => onCommit(control.key, defaultValue)}

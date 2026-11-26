@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { projectAxes, projectCubeFaces, wrapDeg } from "./transform3dProjection";
+import { t } from "../../i18n/translate";
 
 export interface CubePose {
   rotationX: number;
@@ -203,8 +204,8 @@ export function Transform3DCube({
       >
         <defs>
           <radialGradient id="cube3d-bg" cx="50%" cy="40%" r="65%">
-            <stop offset="0%" stopColor="#172220" />
-            <stop offset="100%" stopColor="#070a09" />
+            <stop offset="0%" style={{ stopColor: "var(--st-sf)" }} />
+            <stop offset="100%" style={{ stopColor: "var(--st-in)" }} />
           </radialGradient>
           {/* Soft halo so the cube floats; SourceGraphic stays crisp on top. */}
           <filter id="cube3d-glow" x="-40%" y="-40%" width="180%" height="180%">
@@ -292,9 +293,9 @@ export function Transform3DCube({
         <button
           type="button"
           onClick={onRecenter}
-          title="Reset 3D orientation"
-          aria-label="Reset 3D orientation"
-          className="absolute right-1.5 top-1.5 rounded p-0.5 text-neutral-500 hover:bg-neutral-800 hover:text-neutral-200"
+          title={t("motion.reset3d")}
+          aria-label={t("motion.reset3d")}
+          className="absolute right-1.5 top-1.5 rounded-sm p-0.5 text-[var(--st-t3)] hover:bg-[var(--st-sub)] hover:text-[var(--st-tx)]"
         >
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor">
             <circle cx="12" cy="12" r="9" strokeWidth="2" />
@@ -306,15 +307,11 @@ export function Transform3DCube({
         <button
           type="button"
           onClick={onKeyframe}
-          title={
-            keyframed
-              ? "3D transform is keyframed — click a field diamond to add keyframes"
-              : "Keyframe the 3D transform (animate it over time)"
-          }
-          aria-label="Keyframe 3D transform"
+          title={keyframed ? t("motion.keyframe3dOn") : t("motion.keyframe3dOff")}
+          aria-label={t("motion.keyframe3d")}
           aria-pressed={keyframed}
-          className={`absolute left-1.5 top-1.5 rounded p-0.5 hover:bg-neutral-800 ${
-            keyframed ? "text-[#5ff0bf]" : "text-neutral-500 hover:text-neutral-200"
+          className={`absolute left-1.5 top-1.5 rounded-sm p-0.5 hover:bg-[var(--st-sub)] ${
+            keyframed ? "text-[var(--st-tx)]" : "text-[var(--st-t3)] hover:text-[var(--st-tx)]"
           }`}
         >
           <svg

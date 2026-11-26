@@ -2,9 +2,10 @@ import { scopedElementKey } from "../../hooks/gsapKeyframeCacheHelpers";
 import type { GsapAnimation } from "@hyperframes/core/gsap-parser";
 import { useTrackDesignInput } from "../../contexts/DesignPanelInputContext";
 import type { DomEditSelection } from "./domEditing";
-import { formatTimingValue, RESPONSIVE_GRID } from "./propertyPanelHelpers";
+import { formatTimingValue } from "./propertyPanelHelpers";
 import { parseTimingValue } from "./propertyPanelTimingSection";
 import { CommitField } from "./propertyPanelPrimitives";
+import { t, useLocale } from "../../i18n/translate";
 import type { GsapAnimationEditCallbacks } from "./gsapAnimationCallbacks";
 import { deriveElementTiming } from "./propertyPanelFlatTimingDerivation";
 import { GsapAnimationList } from "./GsapAnimationList";
@@ -78,10 +79,11 @@ export function FlatTimingRow({
     void onSetAttribute("duration", (parsed - start).toFixed(2));
   };
 
+  useLocale();
   const cell = (label: string, value: string, onCommit: (next: string) => void) => (
-    <div className="grid gap-px">
-      <span className="text-[9px] text-panel-text-4">{label}</span>
-      <span className="border-b border-panel-border-input/50 font-mono text-[11px] text-panel-text-0 hover:border-panel-border-input">
+    <label className="flex min-w-0 flex-col gap-1.5">
+      <span className="text-[12px] font-medium text-studio-muted">{label}</span>
+      <span className="flex h-11 min-w-0 items-center rounded-md bg-studio-surface px-3 text-[13px] font-medium tabular-nums text-studio-text shadow-[inset_0_0_0_1px_var(--st-sbd)] focus-within:shadow-[inset_0_0_0_2px_var(--st-btn)]">
         <CommitField
           value={value}
           onCommit={(next) => {
@@ -90,19 +92,18 @@ export function FlatTimingRow({
           }}
         />
       </span>
-    </div>
+    </label>
   );
 
   return (
-    <div className={RESPONSIVE_GRID}>
-      {cell("Start", formatTimingValue(start), commitStart)}
-      {cell("End", formatTimingValue(end), commitEnd)}
-      {cell("Duration", formatTimingValue(duration), commitDuration)}
-      {derived && (
-        <p className="col-span-3 mt-1 text-[10px] leading-snug text-panel-text-3">
-          Inferred from this element's animation — edit to pin an explicit clip range.
-        </p>
-      )}
+    <div
+      className="grid grid-cols-3 gap-2.5"
+      title={derived ? t("motion.inferred") : undefined}
+      data-timing-inferred={derived ? "true" : undefined}
+    >
+      {cell(t("motion.start"), formatTimingValue(start), commitStart)}
+      {cell(t("motion.end"), formatTimingValue(end), commitEnd)}
+      {cell(t("motion.duration"), formatTimingValue(duration), commitDuration)}
     </div>
   );
 }
@@ -134,9 +135,10 @@ export function FlatMotionSection({
   // selection resolution), so a shared class-selector animation id can't open
   // the wrong element's editor.
   const renderedElementId = scopedElementKey(element);
+  useLocale();
 
   return (
-    <div className="space-y-3">
+    <div className="flex flex-col gap-3.5">
       {showTiming && (
         <FlatTimingRow
           element={element}
@@ -148,14 +150,19 @@ export function FlatMotionSection({
       {showEffects && (
         <>
           {multipleTimelines && (
-            <p className="rounded-lg bg-amber-500/10 px-3 py-2 text-[11px] leading-relaxed text-amber-400">
-              This file has multiple GSAP timelines. Animation editing is disabled to prevent data
-              loss — consolidate into a single timeline to enable editing.
+            <p
+              role="status"
+              className="rounded-md bg-[var(--st-warn-bg)] px-3 py-2.5 text-[13px] font-medium text-[var(--st-warn-text)]"
+            >
+              {t("motion.multipleTimelines")}
             </p>
           )}
           {unsupportedTimelinePattern && (
-            <p className="rounded-lg bg-amber-500/10 px-3 py-2 text-[11px] leading-relaxed text-amber-400">
-              This timeline uses a computed key the editor can&apos;t resolve statically.
+            <p
+              role="status"
+              className="rounded-md bg-[var(--st-warn-bg)] px-3 py-2.5 text-[13px] font-medium text-[var(--st-warn-text)]"
+            >
+              {t("motion.computedKey")}
             </p>
           )}
           {!multipleTimelines && !unsupportedTimelinePattern && (

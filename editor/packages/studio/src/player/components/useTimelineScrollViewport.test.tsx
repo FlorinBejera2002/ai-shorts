@@ -62,7 +62,7 @@ async function mountHarness(rowVirtualizationEnabled: boolean): Promise<Harness>
 
   let current: ReturnType<typeof useTimelineScrollViewport> | null = null;
   function Probe() {
-    current = useTimelineScrollViewport(useRef<HTMLDivElement>(null), []);
+    current = useTimelineScrollViewport(useRef<HTMLDivElement>(null));
     return null;
   }
 

@@ -75,7 +75,7 @@ describe("FlatTimingRow", () => {
     act(() => root.unmount());
   });
 
-  it("shows the inferred note when duration is derived from animations, not authored", () => {
+  it("marks the timing row as inferred when duration is derived from animations, not authored", () => {
     const onSetAttribute = vi.fn();
     const element = baseElement({ dataAttributes: { start: "0", duration: "0" } });
     const { host, root } = renderInto(
@@ -85,7 +85,8 @@ describe("FlatTimingRow", () => {
         onSetAttribute={onSetAttribute}
       />,
     );
-    expect(host.textContent).toContain("Inferred");
+    // Titles only: the inferred note is the row tooltip.
+    expect(host.querySelector('[data-timing-inferred="true"]')).not.toBeNull();
     act(() => root.unmount());
   });
 
@@ -240,7 +241,7 @@ describe("FlatMotionSection", () => {
     act(() => root.unmount());
   });
 
-  it("opens the add-method menu on '+ Add effect' and calls onAddAnimation with the chosen method", () => {
+  it("opens the add-method menu on New animation and calls onAddAnimation with the chosen method", () => {
     const onAddAnimation = vi.fn();
     const { host, root } = renderInto(
       <FlatMotionSection
@@ -258,8 +259,8 @@ describe("FlatMotionSection", () => {
       />,
     );
     const buttons = () => Array.from(host.querySelectorAll("button"));
-    const addTrigger = buttons().find((b) => b.textContent === "+ Add effect");
-    if (!addTrigger) throw new Error("expected an '+ Add effect' trigger button");
+    const addTrigger = buttons().find((b) => b.textContent === "New animation");
+    if (!addTrigger) throw new Error("expected a New animation trigger button");
     act(() => {
       addTrigger.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     });
@@ -270,7 +271,7 @@ describe("FlatMotionSection", () => {
     });
     expect(onAddAnimation).toHaveBeenCalledWith("to");
     // The menu closes back to the trigger after a selection.
-    expect(buttons().some((b) => b.textContent === "+ Add effect")).toBe(true);
+    expect(buttons().some((b) => b.textContent === "New animation")).toBe(true);
     act(() => root.unmount());
   });
 

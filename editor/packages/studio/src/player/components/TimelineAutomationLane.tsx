@@ -28,6 +28,7 @@ import {
   type HfAutomationPoint,
 } from "@hyperframes/core/audio-automation";
 import { envelopePath, fromUnit, laneFor, PAD_X, toUnit, withLane } from "./automationLaneGeometry";
+import { t } from "../../i18n/translate";
 import { useAutomationLaneGestures } from "./useAutomationLaneGestures";
 import { AutomationValueInput } from "./AutomationValueInput";
 import { AutomationSelectionMenu } from "./AutomationSelectionMenu";
@@ -35,7 +36,7 @@ import { AUTOMATION_LANE_H } from "./automationLaneHeight";
 import { generateShape, type AutomationShapeId } from "./automationShapes";
 import { simplifyPoints } from "./automationSimplify";
 import { pointInSelection, pointsIn, replaceRange } from "./automationLaneSelection";
-import { defaultTimelineTheme } from "./timelineTheme";
+import { defaultTimelineTheme, timelineMix } from "./timelineTheme";
 import { AutomationEnvelopePaths } from "./AutomationEnvelopePaths";
 
 /**
@@ -46,7 +47,7 @@ import { AutomationEnvelopePaths } from "./AutomationEnvelopePaths";
  * made easier to see without also changing what it caught. A touch over half the
  * grab radius reads clearly at lane height without swallowing a dense run.
  */
-const POINT_R = 4.9;
+const POINT_R = 5;
 
 /** Separator between stacked lanes — the same token a track row divides with. Read
  *  off the default theme rather than threaded as a prop: nothing overrides the
@@ -73,10 +74,10 @@ function pointCircleStyle(
 ): { radius: number; stroke: string; strokeWidth: number } {
   return {
     radius: POINT_R * (dragging ? 1.3 : inRange ? 1.15 : 1),
-    // A white ring rather than a different fill: the fill is the parameter's
-    // own colour, and a lane with two envelopes on it is read by colour first.
-    stroke: inRange ? "#fff" : "rgba(0,0,0,0.5)",
-    strokeWidth: inRange ? 1.5 : 1,
+    // St-Timeline-Automation: a surface-filled point ringed in the envelope colour;
+    // a point caught by the selection box fills solid instead.
+    stroke: inRange ? "var(--st-sf)" : "currentColor",
+    strokeWidth: inRange ? 1.5 : 2,
   };
 }
 
@@ -95,9 +96,7 @@ function pointCircleStyle(
  */
 /** The svg's tooltip: what this lane's gestures actually are. */
 function laneTitle(readOnly: boolean | undefined): string {
-  return readOnly
-    ? "Drag a box to select points, which also selects this clip; then double-click to add a point"
-    : "Double-click to add a point, drag to shape, double-click a point to type a value, right-click or Shift+click to remove it. Drag a line segment to move both endpoints. Drag the background to draw a box around points, then Delete to remove them or drag one to move them all. Alt-drag the line to curve it. Shift locks an axis mid-drag; Alt ignores the grid.";
+  return t(readOnly ? "timeline.autoLaneReadOnlyTip" : "timeline.autoLaneTip");
 }
 
 /**
@@ -132,7 +131,7 @@ function ReadOnlyNote({
   return (
     <div
       data-automation-readonly-note=""
-      className="hf-automation-readonly-note pointer-events-none absolute rounded-[3px] bg-black/85 px-1.5 py-0.5 text-[9px] text-white/80"
+      className="hf-automation-readonly-note pointer-events-none absolute inline-flex h-5 items-center truncate rounded-[8px] bg-[var(--st-sf)] px-2 text-[11px] font-semibold text-[var(--st-t2)] shadow-[inset_0_0_0_1px_var(--st-bd)]"
       style={{ left: leftPx + 6, top: 2, zIndex: 3, maxWidth: Math.max(120, widthPx - 12) }}
     >
       {note}
@@ -457,7 +456,7 @@ export function TimelineAutomationLane({
         onDoubleClick={gestures.onDoubleClick}
         onContextMenu={onSvgContextMenu}
         role="group"
-        aria-label={`${range.label} automation`}
+        aria-label={t("timeline.autoLaneAria", { label: range.label })}
       >
         <title>{laneTitle(readOnly)}</title>
         {/* No plate behind the envelope: the lane used to darken its clip's width,
@@ -470,7 +469,7 @@ export function TimelineAutomationLane({
           x2={PAD_X + widthPx}
           y1={pad + inner / 2}
           y2={pad + inner / 2}
-          stroke="rgba(255,255,255,0.08)"
+          stroke={timelineMix("tx", 8)}
           strokeDasharray="3 4"
         />
         {rangeSelection ? (
@@ -515,7 +514,8 @@ export function TimelineAutomationLane({
               cx={xOf(p.t)}
               cy={yOf(p.v)}
               r={radius}
-              fill={accentColor}
+              fill={inRange ? accentColor : "var(--st-sf)"}
+              color={accentColor}
               stroke={stroke}
               strokeWidth={strokeWidth}
               style={{
@@ -541,7 +541,7 @@ export function TimelineAutomationLane({
             cx={xOf(playheadSec)}
             cy={yOf(currentValue)}
             r={2.5}
-            fill="#fff"
+            fill="var(--st-sf)"
             opacity={0.8}
             pointerEvents="none"
           />
@@ -561,8 +561,8 @@ export function TimelineAutomationLane({
 
       {hint ? (
         <div
-          className="hf-automation-hint pointer-events-none absolute rounded-[3px] bg-black/80 px-1 py-0.5 font-mono text-[9px] text-white"
-          style={{ left: leftPx + 6, top: 2, zIndex: 3 }}
+          className="hf-automation-hint pointer-events-none absolute inline-flex h-5 items-center whitespace-nowrap rounded-[8px] bg-[var(--st-sf)] px-2 text-[11px] font-semibold tabular-nums text-[var(--st-tx)] shadow-[inset_0_0_0_1px_var(--st-bd)]"
+          style={{ left: leftPx + 8, top: 4, zIndex: 3 }}
         >
           {hint}
         </div>

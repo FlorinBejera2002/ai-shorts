@@ -9,10 +9,10 @@ import { getTrackStyle } from "./timelineIcons";
 describe("getTimelineTrackStyle", () => {
   it("uses one neutral clip style for every timeline tag", () => {
     const expectedStyle = {
-      clip: "rgba(255,255,255,0.055)",
-      clipActive: "rgba(91,140,255,0.18)",
-      accent: "#5B8CFF",
-      label: "rgba(255,255,255,0.5)",
+      clip: "color-mix(in srgb, var(--st-tx) 6%, transparent)",
+      clipActive: "color-mix(in srgb, var(--st-btn) 18%, transparent)",
+      accent: "var(--st-btn)",
+      label: "color-mix(in srgb, var(--st-tx) 50%, transparent)",
     };
 
     expect(getTimelineTrackStyle("video")).toEqual(expectedStyle);

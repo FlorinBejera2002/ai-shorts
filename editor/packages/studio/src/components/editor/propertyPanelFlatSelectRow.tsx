@@ -1,10 +1,12 @@
 import { RotateCcw } from "../../icons/SystemIcons";
+import { flatLabel, flatOptionLabel } from "./flatLabel";
 import { useTrackDesignInput } from "../../contexts/DesignPanelInputContext";
 import {
   VALUE_TIER_LABEL_CLASS,
   VALUE_TIER_VALUE_CLASS,
   type PropertyValueTier,
 } from "./propertyPanelValueTier";
+import { t } from "../../i18n/translate";
 
 /* ------------------------------------------------------------------ */
 /*  FlatSelectRow — label/value row backed by a native <select>        */
@@ -36,7 +38,7 @@ export function FlatSelectRow({
   const track = useTrackDesignInput();
   const trackName = ariaLabel || label;
   const normalizedOptions = options.map((option) =>
-    typeof option === "string" ? { value: option, label: option } : option,
+    typeof option === "string" ? { value: option, label: flatOptionLabel(option) } : option,
   );
   // A valid authored value outside the preset list (e.g. a `mix-blend-mode`
   // or `object-position` this row doesn't offer as a preset) must not be
@@ -50,14 +52,16 @@ export function FlatSelectRow({
       ? [{ value, label: value }, ...normalizedOptions]
       : normalizedOptions;
   return (
-    <div className="group flex min-h-[30px] items-center justify-between">
-      <span className={`text-[11px] ${VALUE_TIER_LABEL_CLASS[tier]}`}>{label}</span>
+    <div className="group flex min-h-10 items-center justify-between gap-3">
+      <span className={`text-[13px] font-medium ${VALUE_TIER_LABEL_CLASS[tier]}`}>
+        {flatLabel(label)}
+      </span>
       <span className="flex items-center gap-2">
         <label
-          className={`flex items-center gap-1.5 border-b pb-px ${
+          className={`flex h-9 items-center gap-1.5 rounded-sm bg-studio-surface px-2.5 ${
             tier === "explicitCustom"
-              ? "border-panel-accent/30 group-hover:border-panel-accent/70"
-              : "border-panel-border-input/50 group-hover:border-panel-border-input"
+              ? "shadow-[inset_0_0_0_1.5px_var(--st-tx)]"
+              : "shadow-[inset_0_0_0_1.5px_var(--st-bd)] group-hover:shadow-[inset_0_0_0_1.5px_var(--st-sbd)]"
           }`}
         >
           <select
@@ -68,7 +72,7 @@ export function FlatSelectRow({
               track("select", trackName);
               onChange(e.target.value);
             }}
-            className={`appearance-none bg-transparent text-right font-mono text-[11px] outline-none disabled:cursor-not-allowed ${VALUE_TIER_VALUE_CLASS[tier]}`}
+            className={`appearance-none bg-transparent text-right text-[13px] outline-none disabled:cursor-not-allowed ${VALUE_TIER_VALUE_CLASS[tier]}`}
           >
             {renderedOptions.map((option) => (
               <option key={option.value} value={option.value}>
@@ -90,7 +94,7 @@ export function FlatSelectRow({
           <button
             type="button"
             data-flat-select-reset="true"
-            title="Remove — fall back to default"
+            title={t("flat.removeOverride")}
             disabled={disabled}
             onClick={() => {
               track("button", `Reset ${trackName}`);

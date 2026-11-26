@@ -1,6 +1,6 @@
 import { buildProjectApiPath } from "../utils/projectRouting";
-import { useState, useCallback, useEffect } from "react";
-import { openAssistantDraft } from "../components/assistant/assistantDraft";
+import { useState, useCallback } from "react";
+import type { AgentDraft } from "../components/agent/useAgentRun";
 import { readTagSnippetByTarget } from "../utils/sourcePatcher";
 import { toProjectAbsolutePath, type AgentModalAnchorPoint } from "../utils/studioHelpers";
 import { buildElementAgentPrompt, type DomEditSelection } from "../components/editor/domEditing";
@@ -29,7 +29,11 @@ export function useAskAgentModal({
 }: UseAskAgentModalParams) {
   // ── State ──
 
-  const [agentPromptTagSnippet, setAgentPromptTagSnippet] = useState<string | undefined>();
+  // The snippet is stored with the selection it belongs to, so a stale value is never used for a new selection.
+  const [agentPromptTagSnippet, setAgentPromptTagSnippet] = useState<{
+    selection: DomEditSelection;
+    snippet: string;
+  } | null>(null);
   const [agentPromptSelectionContext, setAgentPromptSelectionContext] = useState<
     string | undefined
   >();
@@ -60,7 +64,7 @@ export function useAskAgentModal({
 
         setAgentPromptTagSnippet((current) => {
           if (domEditSelectionRef.current !== selection) return current;
-          return tagSnippet;
+          return tagSnippet === undefined ? null : { selection, snippet: tagSnippet };
         });
       } catch {
         // Runtime outerHTML is still available as a synchronous copy fallback.
@@ -71,19 +75,24 @@ export function useAskAgentModal({
 
   const handleAskAgent = useCallback(() => {
     if (!domEditSelection) return;
-    setAgentPromptTagSnippet(undefined);
+    setAgentPromptTagSnippet(null);
     setAgentPromptSelectionContext(undefined);
     setAgentModalAnchorPoint(null);
     void preloadAgentPromptSnippet(domEditSelection);
     setAgentModalOpen(true);
   }, [domEditSelection, preloadAgentPromptSnippet]);
 
+  // Builds the element prompt for Ana și Radu. The panel stays open so the run and its proposal are visible.
   const handleAgentModalSubmit = useCallback(
-    async (userInstruction: string) => {
-      if (!domEditSelection) return;
+    async (userInstruction: string): Promise<AgentDraft | null> => {
+      if (!domEditSelection) return null;
 
       const targetPath = domEditSelection.sourceFile || activeCompPath || "index.html";
-      const tagSnippet = agentPromptTagSnippet ?? domEditSelection.element.outerHTML;
+      const preloadedSnippet =
+        agentPromptTagSnippet?.selection === domEditSelection
+          ? agentPromptTagSnippet.snippet
+          : undefined;
+      const tagSnippet = preloadedSnippet ?? domEditSelection.element.outerHTML;
       const prompt = buildElementAgentPrompt({
         selection: domEditSelection,
         currentTime: usePlayerStore.getState().currentTime,
@@ -93,11 +102,10 @@ export function useAskAgentModal({
         sourceFilePath: toProjectAbsolutePath(projectDir, targetPath),
       });
 
-      setAgentModalOpen(false);
-      openAssistantDraft({ message: prompt, path: targetPath });
       setAgentPromptSelectionContext(undefined);
       setAgentModalAnchorPoint(null);
       setCopiedAgentPrompt(false);
+      return { message: prompt, path: targetPath };
     },
     [
       activeCompPath,
@@ -107,17 +115,6 @@ export function useAskAgentModal({
       projectDir,
     ],
   );
-
-  // ── Effects ──
-
-  // Clear agent-prompt state when selection changes
-  // eslint-disable-next-line no-restricted-syntax
-  useEffect(() => {
-    setAgentPromptTagSnippet(undefined);
-    setAgentPromptSelectionContext(undefined);
-    setAgentModalAnchorPoint(null);
-    setCopiedAgentPrompt(false);
-  }, [domEditSelection]);
 
   return {
     // State

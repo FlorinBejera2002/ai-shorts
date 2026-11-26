@@ -1,6 +1,5 @@
-import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
+import { useCallback, useRef, useState, type RefObject } from "react";
 import { useMountEffect } from "../../hooks/useMountEffect";
-import { shouldShowTimelineShortcutHint } from "./timelineLayout";
 import { STUDIO_TIMELINE_ROW_VIRTUALIZATION_ENABLED } from "./timelineRowVirtualizationFlag";
 
 export interface TimelineScrollViewportSnapshot {
@@ -43,25 +42,16 @@ function readTimelineScrollViewport(
 
 /**
  * The timeline scroll container's viewport plumbing — extracted verbatim from
- * Timeline.tsx (600-line studio cap): the ResizeObserver-backed viewport width,
- * the rAF-throttled shortcut-hint visibility sync, and the callback ref that
- * wires both to the scroll element. `resyncShortcutHintOn` re-checks the hint
- * whenever any of its values change (timeline readiness / element count /
- * canvas height), matching the original effect.
+ * Timeline.tsx (600-line studio cap): the ResizeObserver-backed viewport width
+ * and the callback ref that wires it to the scroll element.
  */
-export function useTimelineScrollViewport(
-  scrollRef: RefObject<HTMLDivElement | null>,
-  resyncShortcutHintOn: ReadonlyArray<unknown>,
-): {
+export function useTimelineScrollViewport(scrollRef: RefObject<HTMLDivElement | null>): {
   viewport: TimelineScrollViewportSnapshot;
-  showShortcutHint: boolean;
   setScrollRef: (el: HTMLDivElement | null) => void;
   syncScrollViewport: (el: HTMLDivElement, isScrolling?: boolean) => void;
 } {
   const [viewport, setViewport] = useState<TimelineScrollViewportSnapshot>(EMPTY_VIEWPORT);
-  const [showShortcutHint, setShowShortcutHint] = useState(true);
   const roRef = useRef<ResizeObserver | null>(null);
-  const shortcutHintRafRef = useRef(0);
   const viewportRafRef = useRef(0);
   const scrollSettledTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const scrollingRef = useRef(false);
@@ -94,21 +84,6 @@ export function useTimelineScrollViewport(
     }, 100);
   }, []);
 
-  const syncShortcutHintVisibility = useCallback(() => {
-    const scroll = scrollRef.current;
-    setShowShortcutHint(
-      scroll ? shouldShowTimelineShortcutHint(scroll.scrollHeight, scroll.clientHeight) : true,
-    );
-  }, [scrollRef]);
-
-  const scheduleShortcutHintVisibilitySync = useCallback(() => {
-    if (shortcutHintRafRef.current) cancelAnimationFrame(shortcutHintRafRef.current);
-    shortcutHintRafRef.current = requestAnimationFrame(() => {
-      shortcutHintRafRef.current = 0;
-      syncShortcutHintVisibility();
-    });
-  }, [syncShortcutHintVisibility]);
-
   const setScrollRef = useCallback(
     (el: HTMLDivElement | null) => {
       if (roRef.current) {
@@ -125,27 +100,20 @@ export function useTimelineScrollViewport(
 
       const syncResize = () => {
         syncScrollViewport(el, scrollingRef.current);
-        scheduleShortcutHintVisibilitySync();
       };
 
       syncResize();
       roRef.current = new ResizeObserver(syncResize);
       roRef.current.observe(el);
     },
-    [scrollRef, scheduleShortcutHintVisibilitySync, syncScrollViewport],
+    [scrollRef, syncScrollViewport],
   );
 
   useMountEffect(() => () => {
     roRef.current?.disconnect();
-    if (shortcutHintRafRef.current) cancelAnimationFrame(shortcutHintRafRef.current);
     if (viewportRafRef.current) cancelAnimationFrame(viewportRafRef.current);
     if (scrollSettledTimerRef.current) clearTimeout(scrollSettledTimerRef.current);
   });
 
-  useEffect(() => {
-    syncShortcutHintVisibility();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [syncShortcutHintVisibility, ...resyncShortcutHintOn]);
-
-  return { viewport, showShortcutHint, setScrollRef, syncScrollViewport };
+  return { viewport, setScrollRef, syncScrollViewport };
 }

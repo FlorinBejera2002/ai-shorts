@@ -1,5 +1,5 @@
 import { buildProjectApiPath } from "./utils/projectRouting";
-import { useState, useCallback, useRef, useMemo, useLayoutEffect } from "react";
+import { useState, useCallback, useRef, useMemo } from "react";
 import type { LeftSidebarHandle, SidebarTab } from "./components/sidebar/LeftSidebar";
 import { useRenderQueue } from "./components/renders/useRenderQueue";
 import { usePlayerStore } from "./player";
@@ -46,11 +46,12 @@ import {
 } from "./hooks/useStudioContextValue";
 import type { DomEditSelection } from "./components/editor/domEditing";
 import { StudioHeader } from "./components/StudioHeader";
-import { useGestureCommit } from "./hooks/useGestureCommit";
-import { GestureTrailOverlay } from "./components/editor/GestureTrailOverlay";
+import { useGestureLayer } from "./components/shell/useGestureLayer";
 import { StudioLeftSidebar } from "./components/StudioLeftSidebar";
 import { EditorShell } from "./components/EditorShell";
 import { StudioRightPanel } from "./components/StudioRightPanel";
+import { InspectorSlot } from "./components/shell/InspectorSlot";
+import { useTrackedFileManager } from "./components/shell/useTrackedFileManager";
 import { TimelineToolbar } from "./components/TimelineToolbar";
 import { StudioPlaybackProvider, StudioShellProvider } from "./contexts/StudioContext";
 import { PanelLayoutProvider } from "./contexts/PanelLayoutContext";
@@ -61,7 +62,7 @@ import { DomEditProvider } from "./contexts/DomEditContext";
 import { StudioSplash } from "./components/StudioSplash";
 import { useServerConnection } from "./hooks/useServerConnection";
 import { useWorkspaceAgentSelection } from "./hooks/useWorkspaceAgentSelection";
-import { useDashboardSaveBridge } from "./hooks/useDashboardSaveBridge";
+import { useDashboardSaveFlush } from "./components/shell/useDashboardSaveFlush";
 import { useStudioSessionStart } from "./hooks/useStudioSessionStart";
 import { useTimelineAddAtPlayhead } from "./hooks/useTimelineAddAtPlayhead";
 import { readStudioUrlStateFromWindow, resolveMasterCompositionPath } from "./utils/studioUrlState";
@@ -112,13 +113,15 @@ export function StudioApp() {
   const pendingTimelineEditPathRef = useRef(new Set<string>());
   const isGestureRecordingRef = useRef(false);
   const reloadPreview = useCallback(() => setRefreshKey((k) => k + 1), []);
-  const fileManager = useFileManager({
+  const untrackedFileManager = useFileManager({
     projectId,
     showToast,
     recordEdit: editHistory.recordEdit,
     domEditSaveTimestampRef,
     setRefreshKey,
   });
+  // Project writes made through Studio drive the top bar save state.
+  const fileManager = useTrackedFileManager(untrackedFileManager);
   const masterCompPath = useMemo(
     () => resolveMasterCompositionPath(fileManager.fileTree),
     [fileManager.fileTree],
@@ -145,14 +148,9 @@ export function StudioApp() {
     activeCompPathRef,
     reloadPreview: () => setRefreshKey((k) => k + 1),
   });
-  useDashboardSaveBridge(
+  useDashboardSaveFlush(
     projectId,
-    async () => {
-      await previewPersistence.waitForPendingDomEditSaves();
-      const source = await fileManager.flushPendingSourceSave();
-      if (source.status !== "clean") throw source.error;
-      await captionSync.flush();
-    },
+    { ...previewPersistence, ...fileManager, flushCaptions: captionSync.flush },
     showToast,
   );
   const externalFileChanges = useStudioExternalFileChanges({
@@ -366,21 +364,17 @@ export function StudioApp() {
   const handleToggleRecordingRef = useRef<() => void>(() => {});
   const domEditSessionRef = useRef(domEditSession);
   domEditSessionRef.current = domEditSession;
-  const { gestureState, gestureRecording, handleToggleRecording } = useGestureCommit({
-    domEditSessionRef,
-    previewIframeRef,
-    showToast,
-    isGestureRecordingRef,
-  });
+  const { gestureState, gestureRecording, handleToggleRecording, gestureOverlay } = useGestureLayer(
+    {
+      domEditSessionRef,
+      previewIframeRef,
+      showToast,
+      isGestureRecordingRef,
+      previewIframe,
+      compositionSize: compositionDimensions,
+    },
+  );
   handleToggleRecordingRef.current = handleToggleRecording;
-  const canvasRectRef = useRef<DOMRect | null>(null);
-  useLayoutEffect(() => {
-    if (gestureState !== "recording" || !previewIframe) {
-      canvasRectRef.current = null;
-      return;
-    }
-    canvasRectRef.current = previewIframe.getBoundingClientRect();
-  }, [gestureState, previewIframe]);
   const handlePreviewIframeRef = useCallback(
     (iframe: HTMLIFrameElement | null) => {
       previewIframeRef.current = iframe;
@@ -454,6 +448,11 @@ export function StudioApp() {
     handlePreviewIframeRef,
     refreshPreviewDocumentVersion,
   });
+  const handleExport = () => {
+    void previewPersistence
+      .waitForPendingDomEditSaves()
+      .then(() => renderQueue.startRender(undefined));
+  };
   const timelineToolbar = useMemo(
     () => (
       <TimelineToolbar
@@ -473,7 +472,8 @@ export function StudioApp() {
             <FileManagerProvider value={fileManager}>
               <DomEditProvider value={domEditSession}>
                 <div
-                  className="flex flex-col h-full w-full bg-neutral-950 relative"
+                  data-studio-shell=""
+                  className="relative flex h-full w-full flex-col bg-studio-bg"
                   onDragOver={dragOverlay.onDragOver}
                   onDragEnter={dragOverlay.onDragEnter}
                   onDragLeave={dragOverlay.onDragLeave}
@@ -481,26 +481,12 @@ export function StudioApp() {
                 >
                   <StudioHeader
                     recordEdit={editHistory.recordEdit}
-                    captureFrameHref={frameCapture.captureFrameHref}
-                    captureFrameFilename={frameCapture.captureFrameFilename}
-                    handleCaptureFrameClick={frameCapture.handleCaptureFrameClick}
-                    refreshCaptureFrameTime={frameCapture.refreshCaptureFrameTime}
-                    capturing={frameCapture.capturing}
+                    {...frameCapture}
                     inspectorButtonActive={inspectorButtonActive}
                     inspectorPanelActive={inspectorPanelActive}
-                    onExport={() => {
-                      void (async () => {
-                        await previewPersistence.waitForPendingDomEditSaves();
-                        await renderQueue.startRender(undefined);
-                      })();
-                    }}
+                    savePaused={Boolean(previewPersistence.domEditSaveQueuePaused)}
+                    onExport={handleExport}
                   />
-                  {previewPersistence.domEditSaveQueuePaused && !externalFileChanges.blocked && (
-                    <SaveQueuePausedBanner
-                      message={previewPersistence.domEditSaveQueuePaused}
-                      onRetry={previewPersistence.resetDomEditSaveQueueBreaker}
-                    />
-                  )}
                   <ExternalFileConflictBanner coordinator={externalFileChanges} />
                   {viewModeValue.viewMode === "storyboard" && (
                     <StoryboardView
@@ -522,10 +508,11 @@ export function StudioApp() {
                         lintFindingsByFile={findingsByFile}
                         onAddAssetToTimeline={handleAddAssetAtPlayhead}
                         onAddCompositionToTimeline={handleAddCompositionAtPlayhead}
+                        recordEdit={editHistory.recordEdit}
                       />
                     }
                     right={
-                      panelLayout.effectiveRightCollapsed ? null : (
+                      <InspectorSlot>
                         <StudioRightPanel
                           designPanelActive={designPanelActive}
                           activeBlockParams={activeBlockParams}
@@ -546,7 +533,7 @@ export function StudioApp() {
                           onAutoGroupCarveSources={timelineEditing.handleAutoGroupCarveSources}
                           onAddMediaOverlay={handleAddMediaOverlay}
                         />
-                      )
+                      </InspectorSlot>
                     }
                     timelineToolbar={timelineToolbar}
                     renderClipContent={renderClipContent}
@@ -576,21 +563,19 @@ export function StudioApp() {
                     recordingState={gestureState}
                     onToggleRecording={handleToggleRecording}
                     blockPreview={blockPreview}
-                    gestureOverlay={
-                      gestureState === "recording" && previewIframe ? (
-                        <GestureTrailOverlay
-                          samples={gestureRecording.samplesRef.current}
-                          sampleCount={gestureRecording.samplesRef.current.length}
-                          trail={gestureRecording.trailRef.current}
-                          canvasRect={canvasRectRef.current!}
-                          compositionSize={compositionDimensions ?? undefined}
-                          mode="recording"
+                    gestureOverlay={gestureOverlay}
+                    previewNotice={
+                      previewPersistence.domEditSaveQueuePaused && !externalFileChanges.blocked ? (
+                        <SaveQueuePausedBanner
+                          message={previewPersistence.domEditSaveQueuePaused}
+                          onRetry={previewPersistence.resetDomEditSaveQueueBreaker}
                         />
-                      ) : undefined
+                      ) : null
                     }
                   />
                   <StudioOverlays
                     projectId={projectId}
+                    recordEdit={editHistory.recordEdit}
                     projectDir={fileManager.projectDir}
                     lintModal={lintModal}
                     closeLintModal={closeLintModal}

@@ -1,5 +1,6 @@
 // fallow-ignore-file unused-file
 import { memo } from "react";
+import { GRID_LINE } from "./canvasChromeStyles";
 
 interface GridOverlayProps {
   visible: boolean;
@@ -40,8 +41,8 @@ export const GridOverlay = memo(function GridOverlay({
         width: compositionWidth,
         height: compositionHeight,
         backgroundImage: [
-          `repeating-linear-gradient(90deg, rgba(255,255,255,0.12) 0px, rgba(255,255,255,0.12) 1px, transparent 1px, transparent ${overlaySpacingX}px)`,
-          `repeating-linear-gradient(0deg, rgba(255,255,255,0.12) 0px, rgba(255,255,255,0.12) 1px, transparent 1px, transparent ${overlaySpacingY}px)`,
+          `repeating-linear-gradient(90deg, ${GRID_LINE} 0px, ${GRID_LINE} 1px, transparent 1px, transparent ${overlaySpacingX}px)`,
+          `repeating-linear-gradient(0deg, ${GRID_LINE} 0px, ${GRID_LINE} 1px, transparent 1px, transparent ${overlaySpacingY}px)`,
         ].join(", "),
         backgroundSize: `${overlaySpacingX}px ${overlaySpacingY}px`,
       }}

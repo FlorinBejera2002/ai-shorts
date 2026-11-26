@@ -1,0 +1,120 @@
+/* Timeline clip look (St-Timeline-Tools): a 10px neutral tile on the lane well, real
+   thumbnails or a waveform inside, a duration chip, and a 2px outline when selected.
+   Scoped by [data-st-clip] so it wins over the legacy .timeline-clip rules in studio.css,
+   which the foundation owner can now delete. Colours are theme tokens only. */
+.timeline-clip[data-st-clip] {
+  background-color: var(--st-sub);
+  border: 0;
+  border-radius: 10px;
+  box-shadow: none;
+  color: var(--st-tx);
+}
+
+.timeline-clip[data-st-clip]::before {
+  background: color-mix(in srgb, var(--st-tx) 8%, transparent);
+}
+
+.timeline-clip[data-st-clip].is-audio {
+  background-color: var(--st-sub);
+}
+
+.timeline-clip[data-st-clip].is-hovered {
+  background-color: color-mix(in srgb, var(--st-tx) 9%, var(--st-sub));
+}
+
+.timeline-clip[data-st-clip].is-audio.is-hovered,
+.timeline-clip[data-st-clip][data-active].is-hovered {
+  background-color: color-mix(in srgb, var(--st-tx) 9%, var(--st-sub));
+}
+
+.timeline-clip[data-st-clip][data-active] {
+  border-color: transparent;
+}
+
+.timeline-clip[data-st-clip].is-selected,
+.timeline-clip[data-st-clip][data-active].is-selected {
+  box-shadow: 0 0 0 2px var(--st-tx);
+}
+
+.timeline-clip[data-st-clip].is-dragging,
+.timeline-clip[data-st-clip].is-audio.is-dragging {
+  background-color: var(--st-sub);
+  box-shadow: var(--st-sh);
+}
+
+.timeline-clip[data-st-clip].is-selected.is-dragging,
+.timeline-clip[data-st-clip][data-active].is-selected.is-dragging {
+  box-shadow:
+    0 0 0 2px var(--st-tx),
+    var(--st-sh);
+}
+
+/* Name: centred on the left of a plain tile. Over thumbnails or a waveform the picture is
+   the identity, so the name stays in the accessibility tree only. */
+.timeline-clip[data-st-clip] .timeline-clip__label {
+  top: 50%;
+  left: 8px;
+  right: 8px;
+  transform: translateY(-50%);
+  color: var(--st-tx);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 14px;
+  text-shadow: none;
+}
+
+.timeline-clip[data-st-clip][data-active] .timeline-clip__label {
+  color: var(--st-tx);
+}
+
+.timeline-clip[data-st-clip].has-media .timeline-clip__label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.timeline-clip__duration {
+  position: absolute;
+  left: 6px;
+  bottom: 4px;
+  z-index: 6;
+  padding: 0 5px;
+  border-radius: 6px;
+  background: var(--st-sf);
+  color: var(--st-tx);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 16px;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.timeline-clip[data-st-clip] .timeline-clip__handle-bar {
+  background: var(--st-sf) !important;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--st-tx) 35%, transparent);
+}
+
+/* Thumbnails off (St-Timeline-ToolStates): a plain tile shows its name, and a 1px seam of
+   the card surface keeps neighbouring tiles apart on the lane well. */
+.timeline-clip[data-st-clip].has-media:not(.is-audio):not(:has([data-thumbnail-kind]))
+  .timeline-clip__label {
+  top: 5px;
+  transform: none;
+  width: auto;
+  height: auto;
+  overflow: hidden;
+  clip: auto;
+  text-overflow: ellipsis;
+}
+
+.timeline-clip[data-st-clip].has-media:not(.is-audio):not(.is-selected):not(
+    :has([data-thumbnail-kind])
+  ) {
+  box-shadow:
+    inset 1px 0 0 var(--st-sf),
+    inset -1px 0 0 var(--st-sf);
+}

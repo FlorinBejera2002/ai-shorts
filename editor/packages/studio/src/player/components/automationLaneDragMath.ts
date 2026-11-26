@@ -16,6 +16,8 @@ import {
   snapLaneTime,
 } from "./automationLaneGeometry";
 import { pointInSelection } from "./automationLaneSelection";
+import { t } from "../../i18n/translate";
+import { formatDecimalSeconds } from "./timelineDisplayTime";
 
 /** Snap radius in clip seconds, shared with the single-point and group drags. */
 export const SNAP_SEC = 0.04;
@@ -168,7 +170,10 @@ export function computeGroupMove(input: {
       v0: group.selection.v0 + dv,
       v1: group.selection.v1 + dv,
     },
-    hint: `${group.indices.length} points ${dt >= 0 ? "+" : ""}${dt.toFixed(2)}s`,
+    hint: t("timeline.autoHintGroup", {
+      n: group.indices.length,
+      dt: `${dt >= 0 ? "+" : ""}${formatDecimalSeconds(dt)}`,
+    }),
   };
 }
 

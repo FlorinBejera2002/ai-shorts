@@ -1,4 +1,5 @@
 import type { HfAudioFxChain } from "@hyperframes/core/audio-fx";
+import { t } from "../../i18n/translate";
 import { TRACK_H } from "./timelineLayout";
 import type { TimelineTheme } from "./timelineTheme";
 import { TimelineFxButton } from "./TimelineFxButton";
@@ -50,28 +51,28 @@ function GroupNameButton({
     <button
       type="button"
       tabIndex={-1}
-      aria-label={`Open ${label} effects`}
-      title="Open effects"
+      aria-label={t("timeline.openEffectsFor", { label })}
+      title={t("timeline.openEffects")}
       // No `flex-1`: the row's control group owns the slack now (`ml-auto`), so
       // claiming it here would push the controls off the right edge — and the
       // count with them, since it rides inside this button.
-      className="flex h-6 min-w-0 items-center gap-1.5 rounded border-0 bg-transparent p-0 text-left text-[11px] text-white hover:text-[#3CE6AC] focus-visible:outline focus-visible:outline-1 focus-visible:outline-[#3CE6AC]"
+      className="flex h-6 min-w-0 items-center gap-1.5 rounded border-0 bg-transparent p-0 text-left text-[11px] text-[var(--st-tx)] hover:text-[var(--st-tx)] focus-visible:outline focus-visible:outline-1 focus-visible:outline-[var(--st-tx)]"
       onPointerDown={(event) => event.stopPropagation()}
       onClick={(event) => {
         event.stopPropagation();
         onOpenFxRack();
       }}
     >
-      <span aria-hidden="true" className="shrink-0 text-[12px] leading-none text-white/50">
+      <span aria-hidden="true" className="shrink-0 text-[12px] leading-none text-[var(--st-t2)]">
         ▤
       </span>
       {/* Wraps rather than truncating — a name that needs a hover to be read
           is no use in a column you scan. */}
       <span className="min-w-0 break-words text-left font-medium leading-tight">{label}</span>
       <span
-        className="shrink-0 rounded-full bg-white/10 px-1 text-[9px] leading-[14px] tabular-nums text-white/55"
+        className="shrink-0 rounded-full bg-[var(--st-bd)] px-1 text-[9px] leading-[14px] tabular-nums text-[var(--st-t2)]"
         aria-hidden="true"
-        title={`${memberCount} tracks`}
+        title={t("timeline.trackCount", { n: memberCount })}
       >
         {memberCount}
       </span>
@@ -103,7 +104,7 @@ export function TimelineGroupHeader({
       style={{
         width: columnWidth,
         height: TRACK_H,
-        color: "#ffffff",
+        color: "var(--st-tx)",
         background: theme.gutterBackground,
         borderRight: `1px solid ${theme.gutterBorder}`,
       }}
@@ -116,13 +117,13 @@ export function TimelineGroupHeader({
         type="button"
         tabIndex={-1}
         aria-expanded={isExpanded}
-        aria-label={`${isExpanded ? "Hide" : "Show"} ${label} tracks`}
-        title={`${isExpanded ? "Hide" : "Show"} tracks`}
+        aria-label={t(isExpanded ? "timeline.hideTracksFor" : "timeline.showTracksFor", { label })}
+        title={t(isExpanded ? "timeline.hideTracks" : "timeline.showTracks")}
         // 13px mono, matching the property panel's preset-run caret
         // (`hf-fx-preset-run-caret`) — the same disclosure, so the same glyph
         // at the same size rather than a smaller one unique to this row.
-        className={`flex h-6 w-6 shrink-0 items-center justify-center rounded border-0 bg-transparent p-0 font-mono text-[13px] focus-visible:outline focus-visible:outline-1 focus-visible:outline-[#3CE6AC] ${
-          isExpanded ? "text-white" : "text-white/55 hover:text-white"
+        className={`flex h-6 w-6 shrink-0 items-center justify-center rounded border-0 bg-transparent p-0 font-mono text-[13px] focus-visible:outline focus-visible:outline-1 focus-visible:outline-[var(--st-tx)] ${
+          isExpanded ? "text-[var(--st-tx)]" : "text-[var(--st-t2)] hover:text-[var(--st-tx)]"
         }`}
         onPointerDown={(event) => event.stopPropagation()}
         onClick={(event) => {
@@ -156,11 +157,13 @@ export function TimelineGroupHeader({
             type="button"
             tabIndex={-1}
             aria-expanded={isLaneOpen}
-            aria-label={`${isLaneOpen ? "Hide" : "Show"} ${label} lanes`}
-            title={`${isLaneOpen ? "Hide" : "Show"} lanes`}
+            aria-label={t(isLaneOpen ? "timeline.hideLanesFor" : "timeline.showLanesFor", {
+              label,
+            })}
+            title={t(isLaneOpen ? "timeline.hideLanes" : "timeline.showLanes")}
             // Anchored right, matching every other header's lane toggle.
-            className={`ml-auto flex h-6 items-center justify-center gap-0.5 rounded border-0 bg-transparent px-1 text-[11px] leading-none focus-visible:outline focus-visible:outline-1 focus-visible:outline-[#3CE6AC] ${
-              isLaneOpen ? "text-[#3CE6AC]" : "text-white/55 hover:text-white"
+            className={`ml-auto flex h-6 items-center justify-center gap-0.5 rounded border-0 bg-transparent px-1 text-[11px] leading-none focus-visible:outline focus-visible:outline-1 focus-visible:outline-[var(--st-tx)] ${
+              isLaneOpen ? "text-[var(--st-tx)]" : "text-[var(--st-t2)] hover:text-[var(--st-tx)]"
             }`}
             onPointerDown={(event) => event.stopPropagation()}
             onClick={(event) => {
@@ -169,7 +172,7 @@ export function TimelineGroupHeader({
             }}
           >
             <span aria-hidden="true">∿</span>
-            <span className="text-[9px] tabular-nums text-white/55">{laneCount}</span>
+            <span className="text-[9px] tabular-nums text-[var(--st-t2)]">{laneCount}</span>
           </button>
         )}
       </div>

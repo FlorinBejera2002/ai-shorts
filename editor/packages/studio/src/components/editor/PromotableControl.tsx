@@ -10,6 +10,7 @@
  */
 
 import { useEffect } from "react";
+import { t, useLocale } from "../../i18n/translate";
 import {
   useVariablePromoteChannel,
   type PromoteChannel,
@@ -37,6 +38,7 @@ export function PromotableControl({
   enabled?: boolean;
   children: (args: RenderArgs) => React.ReactNode;
 }) {
+  useLocale();
   const promote = useVariablePromoteChannel(channel);
 
   // A binding attribute (`data-var-*` / `var(--id)`) pointing at a declaration
@@ -77,14 +79,16 @@ export function PromotableControl({
   );
 
   return (
-    <div className={`relative ${bound ? "rounded-lg ring-1 ring-studio-accent/40" : ""}`}>
+    <div
+      className={`group/promote relative ${bound ? "rounded-md shadow-[0_0_0_1.5px_var(--st-tx)]" : ""}`}
+    >
       {rendered}
       {bound && (
         <span
           // Sits above the row (not on top of top-0) so it clears a value that
           // renders flush to the row's right edge, e.g. flat Font/Color rows.
-          className="pointer-events-none absolute -top-2 right-1.5 z-10 inline-flex max-w-[60%] items-center gap-1 truncate rounded bg-studio-accent/20 px-1 py-px font-mono text-[8px] font-medium text-studio-accent"
-          title={`Bound to variable "${promote.boundId}"`}
+          className="pointer-events-none absolute -top-2.5 right-2 z-10 inline-flex h-5 max-w-[60%] items-center gap-1 truncate rounded-full bg-studio-selected px-2 text-[10px] font-semibold text-studio-on-selected"
+          title={t("promote.bound", { id: String(promote.boundId) })}
         >
           ◆ {promote.boundId}
         </span>
@@ -92,14 +96,17 @@ export function PromotableControl({
       {canPromote && (
         <button
           type="button"
-          title="Make this a variable"
+          title={t("promote.title")}
+          aria-label={t("promote.title")}
           onClick={(e) => {
             e.stopPropagation();
             promote.promote();
           }}
-          className="absolute -top-2 right-1.5 z-10 inline-flex items-center gap-1 rounded bg-neutral-800/80 px-1 py-px font-mono text-[8px] font-medium text-neutral-400 opacity-70 transition-colors hover:bg-studio-accent/20 hover:text-studio-accent hover:opacity-100"
+          // Developer affordance: shown while the control is hovered or focused, so creators see
+          // only the field.
+          className="absolute -top-2.5 right-2 z-10 inline-flex h-5 items-center gap-1 rounded-full bg-studio-surface px-2 text-[10px] font-semibold text-studio-muted opacity-0 shadow-[inset_0_0_0_1px_var(--st-bd)] transition-opacity group-focus-within/promote:opacity-100 group-hover/promote:opacity-100 hover:text-studio-text focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-[var(--st-btn)]"
         >
-          ◇ var
+          ◇ {t("promote.make")}
         </button>
       )}
     </div>

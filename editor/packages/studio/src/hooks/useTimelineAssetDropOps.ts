@@ -3,6 +3,7 @@
 // Extracted verbatim from useTimelineEditing.ts to keep it under the studio
 // 600-line cap.
 import { useCallback, type MutableRefObject, type RefObject } from "react";
+import { t } from "../i18n/translate";
 import type { TimelineElement } from "../player";
 import {
   buildTimelineAssetId,
@@ -112,7 +113,7 @@ export function useTimelineAssetDropOps({
         domEditSaveTimestampRef.current = Date.now();
         await saveProjectFilesWithHistory({
           projectId: pid,
-          label: "Add timeline asset",
+          label: t("timeline.histAddAsset"),
           kind: "timeline",
           files: { [targetPath]: patchedContent },
           readFile: async () => originalContent,

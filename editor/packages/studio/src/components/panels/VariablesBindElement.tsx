@@ -10,169 +10,31 @@
  */
 
 import { useMemo, useState } from "react";
-import type { Composition, CompositionVariable } from "@hyperframes/sdk";
+import type { Composition } from "@hyperframes/sdk";
 import type { DomEditSelection } from "../editor/domEditingTypes";
-
+import { t, useLocale } from "../../i18n/translate";
+import { OutputButton } from "../output/OutputButton";
+import { OutputIcon } from "../output/OutputIcon";
 import { VARIABLES_INPUT_CLASS } from "./VariablesValueControls";
+import {
+  type BindAction,
+  bindActionLabel,
+  buildBindActions,
+  sanitizeId,
+} from "./variablesBindActions";
 
-// <source> is deliberately excluded: rewriting a <source> child's src after
-// the parent media element ran resource selection is a spec no-op.
-const MEDIA_TAGS = new Set(["img", "video", "audio"]);
-
-export interface BindAction {
-  key: string;
-  label: string;
-  /** Binding channel: data-var-src / data-var-text attribute, or a style prop. */
-  kind: "src" | "text" | "style";
-  styleProp?: string;
-  suggestedId: string;
-  declaration: (id: string) => CompositionVariable;
-}
-
-function sanitizeId(raw: string): string {
-  const cleaned = raw
-    .trim()
-    .replace(/[^a-zA-Z0-9_-]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-  return cleaned || "variable";
-}
+export {
+  type BindAction,
+  applyBind,
+  bindActionLabel,
+  buildBindActions,
+  rgbToHex,
+} from "./variablesBindActions";
 
 /**
- * "rgb(0, 195, 255)" / "rgba(0, 195, 255, 0.4)" → "#00c3ff". Alpha is dropped
- * (color variables are hex) — a fully transparent computed color maps to
- * #000000, which the picker can at least display. Unrecognized formats pass
- * through verbatim.
+ * "Leagă elementul selectat" (St-Output-VariablesBind): one row per bindable property, then the
+ * variable ID with a warning when that ID already exists, and Anulează / Leagă.
  */
-export function rgbToHex(value: string): string {
-  const m = /^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*(?:,\s*[\d.]+\s*)?\)$/.exec(value);
-  if (!m) return value;
-  return `#${m
-    .slice(1, 4)
-    .map((n) => Number(n).toString(16).padStart(2, "0"))
-    .join("")}`;
-}
-
-function firstFontFamily(value: string): string {
-  const first = value.split(",")[0] ?? "";
-  return first.trim().replace(/^["']|["']$/g, "") || "sans-serif";
-}
-
-// fallow-ignore-next-line complexity
-export function buildBindActions(
-  selection: DomEditSelection,
-  sdkSession: Composition,
-): BindAction[] {
-  const hfId = selection.hfId;
-  if (!hfId) return [];
-  // No snapshot = the session can't resolve this element (e.g. a sub-comp
-  // element that missed the source map) — a bind would target the wrong
-  // document or dead-end, so offer nothing.
-  const snapshot = sdkSession.getElement(hfId);
-  if (!snapshot) return [];
-  const base = sanitizeId(snapshot.attributes.id ?? selection.label ?? hfId);
-  const actions: BindAction[] = [];
-
-  const tag = selection.tagName.toLowerCase();
-  if (MEDIA_TAGS.has(tag)) {
-    const currentSrc = snapshot.attributes.src ?? "";
-    actions.push({
-      key: "src",
-      label: tag === "img" ? "Image source" : "Media source",
-      kind: "src",
-      suggestedId: base,
-      declaration: (id) =>
-        tag === "img"
-          ? { id, type: "image", label: `${selection.label} image`, default: currentSrc }
-          : { id, type: "string", label: `${selection.label} source`, default: currentSrc },
-    });
-  }
-
-  // Text binds only on leaf elements: the runtime preserves children, but a
-  // container's "own text" default rarely matches what the user sees, so the
-  // promote-never-changes-the-render guarantee only holds for leaves.
-  const text = (snapshot.text ?? "").trim();
-  if (text && snapshot.children.length === 0 && !selection.isCompositionHost) {
-    actions.push({
-      key: "text",
-      label: "Text",
-      kind: "text",
-      suggestedId: `${base}-text`,
-      declaration: (id) => ({
-        id,
-        type: "string",
-        label: `${selection.label} text`,
-        default: text,
-      }),
-    });
-  }
-
-  if (selection.capabilities.canEditStyles) {
-    const computed = selection.computedStyles;
-    actions.push(
-      {
-        key: "color",
-        label: "Text color",
-        kind: "style",
-        styleProp: "color",
-        suggestedId: `${base}-color`,
-        declaration: (id) => ({
-          id,
-          type: "color",
-          label: `${selection.label} color`,
-          default: rgbToHex(computed["color"] ?? "#000000"),
-        }),
-      },
-      {
-        key: "background",
-        label: "Background",
-        kind: "style",
-        styleProp: "background-color",
-        suggestedId: `${base}-bg`,
-        declaration: (id) => ({
-          id,
-          type: "color",
-          label: `${selection.label} background`,
-          default: rgbToHex(computed["background-color"] ?? "#000000"),
-        }),
-      },
-      {
-        key: "font",
-        label: "Font",
-        kind: "style",
-        styleProp: "font-family",
-        suggestedId: `${base}-font`,
-        declaration: (id) => ({
-          id,
-          type: "font",
-          label: `${selection.label} font`,
-          default: firstFontFamily(computed["font-family"] ?? "sans-serif"),
-        }),
-      },
-    );
-  }
-
-  return actions;
-}
-
-/** One batched schema edit: declare (unless the id already exists) + bind. */
-export function applyBind(
-  session: Composition,
-  hfId: string,
-  action: BindAction,
-  id: string,
-): void {
-  session.batch(() => {
-    if (!session.getVariableDeclarations().some((d) => d.id === id)) {
-      session.declareVariable(action.declaration(id));
-    }
-    if (action.kind === "style" && action.styleProp) {
-      session.setStyle(hfId, { [action.styleProp]: `var(--${id})` });
-    } else {
-      session.setAttribute(hfId, `data-var-${action.kind}`, id);
-    }
-  });
-}
-
 export function VariablesBindElement({
   selection,
   sdkSession,
@@ -182,6 +44,7 @@ export function VariablesBindElement({
   sdkSession: Composition;
   onBind: (action: BindAction, id: string) => void;
 }) {
+  useLocale();
   const [activeKey, setActiveKey] = useState<string | null>(null);
   const [idDraft, setIdDraft] = useState("");
   const actions = useMemo(() => buildBindActions(selection, sdkSession), [selection, sdkSession]);
@@ -190,77 +53,84 @@ export function VariablesBindElement({
 
   const trimmedId = sanitizeId(idDraft);
   const idIsEmpty = idDraft.trim().length === 0;
-  // Binding to an id that already exists wires the element to THAT variable's
-  // existing default (declared from a different element), so the render changes
-  // silently. Surface it before the user commits rather than after.
+  // Binding to an id that already exists wires the element to THAT variable's existing
+  // default (declared from a different element), so the render changes. Say so first.
   const existingDecl = active
     ? sdkSession.getVariableDeclarations().find((d) => d.id === trimmedId)
     : undefined;
 
   return (
-    <div className="space-y-1.5 rounded-lg border border-studio-accent/30 bg-neutral-900/40 p-2">
-      <p className="text-[9px] font-medium uppercase tracking-wider text-neutral-500">
-        Bind selected: <span className="normal-case text-neutral-300">{selection.label}</span>
-      </p>
-      {active ? (
-        <div className="space-y-1.5">
-          <label className="text-[9px] font-medium text-neutral-500">
-            Variable id for {active.label.toLowerCase()}
-          </label>
-          <input
-            type="text"
-            value={idDraft}
-            onChange={(e) => setIdDraft(e.target.value)}
-            onKeyDown={(e) => e.key === "Escape" && setActiveKey(null)}
-            className={`${VARIABLES_INPUT_CLASS} font-mono`}
-          />
-          {existingDecl && (
-            <p className="text-[9px] leading-snug text-amber-400/90">
-              "{trimmedId}" already exists. This element will use its current value
-              {existingDecl.default !== undefined && (
-                <span className="font-mono"> ({String(existingDecl.default)})</span>
-              )}
-              , not the element's own — binding won't change "{trimmedId}".
-            </p>
-          )}
-          <div className="flex items-center justify-end gap-2">
+    <section className="flex flex-col gap-3 rounded-[20px] bg-studio-surface p-4 shadow-[inset_0_0_0_1px_var(--st-bd)]">
+      <b className="text-sm font-semibold leading-5">
+        {t("vars.bindTitle", { label: selection.label })}
+      </b>
+      <div
+        role="radiogroup"
+        aria-label={t("vars.bindTitle", { label: selection.label })}
+        className="flex flex-col gap-1.5"
+      >
+        {actions.map((action) => {
+          const on = action.key === activeKey;
+          return (
             <button
+              key={action.key}
               type="button"
-              onClick={() => setActiveKey(null)}
-              className="h-6 rounded px-2 text-[10px] text-neutral-500 hover:text-neutral-300"
+              role="radio"
+              aria-checked={on}
+              onClick={() => {
+                setActiveKey(action.key);
+                setIdDraft(action.suggestedId);
+              }}
+              className={`flex h-[38px] items-center justify-between rounded-xl px-3 text-[13px] outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--st-btn)] ${
+                on
+                  ? "bg-[var(--st-sel)] font-semibold text-[var(--st-on-sel)]"
+                  : "bg-studio-surface font-medium shadow-[inset_0_0_0_1px_var(--st-bd)] hover:bg-[var(--st-sub)]"
+              }`}
             >
-              Cancel
+              <span>{bindActionLabel(action)}</span>
+              {on ? <OutputIcon name="check" size={14} strokeWidth={2.4} /> : null}
             </button>
-            <button
-              type="button"
+          );
+        })}
+      </div>
+      {active ? (
+        <>
+          <label className="flex flex-col gap-1.5">
+            <span className="text-xs font-semibold text-[var(--st-t2)]">
+              {t("vars.bindIdLabel")}
+            </span>
+            <input
+              type="text"
+              value={idDraft}
+              onChange={(e) => setIdDraft(e.target.value)}
+              onKeyDown={(e) => e.key === "Escape" && setActiveKey(null)}
+              className={`${VARIABLES_INPUT_CLASS} font-mono`}
+            />
+          </label>
+          {existingDecl ? (
+            <span role="status" className="text-xs font-semibold text-[var(--st-warn)]">
+              {t("vars.bindExists", { id: trimmedId })}
+              {existingDecl.default !== undefined ? ` (${String(existingDecl.default)})` : ""}
+            </span>
+          ) : null}
+          <div className="flex justify-end gap-2">
+            <OutputButton variant="ghost" height={36} onClick={() => setActiveKey(null)}>
+              {t("vars.cancel")}
+            </OutputButton>
+            <OutputButton
+              variant={existingDecl ? "secondary" : "primary"}
+              height={36}
               disabled={idIsEmpty}
               onClick={() => {
                 setActiveKey(null);
                 onBind(active, trimmedId);
               }}
-              className="h-6 rounded bg-neutral-800 px-2 text-[10px] font-medium text-neutral-200 hover:bg-neutral-700 disabled:cursor-not-allowed disabled:opacity-40"
             >
-              {existingDecl ? "Bind anyway" : "Bind"}
-            </button>
+              {existingDecl ? t("vars.bindAnyway") : t("vars.bind")}
+            </OutputButton>
           </div>
-        </div>
-      ) : (
-        <div className="flex flex-wrap gap-1.5">
-          {actions.map((action) => (
-            <button
-              key={action.key}
-              type="button"
-              onClick={() => {
-                setActiveKey(action.key);
-                setIdDraft(action.suggestedId);
-              }}
-              className="h-6 rounded-md border border-neutral-800 px-2 text-[10px] font-medium text-neutral-400 transition-colors hover:border-neutral-700 hover:text-neutral-200"
-            >
-              {action.label} →&nbsp;variable
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
+        </>
+      ) : null}
+    </section>
   );
 }

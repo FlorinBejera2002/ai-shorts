@@ -1,300 +1,278 @@
+// "Revizuire" (St-Output-StoryboardReview*, right card): the stage badge and title, frame status
+// counts, the three hand-off steps, the frame comments and the actions that reach Ana și Radu.
 import type { StoryboardFrameView } from "../../hooks/useStoryboard";
+import { t, useLocale } from "../../i18n/translate";
+import type { MessageKey } from "../../i18n/dictionary";
+import { OutputButton } from "../output/OutputButton";
+import { OutputSection } from "../output/OutputFields";
 import {
   AgentChatMessageButton,
   APPLY_STORYBOARD_FEEDBACK_MESSAGE,
 } from "./AgentChatMessageButton";
-import { FRAME_STATUS_META, FRAME_STATUS_ORDER } from "./frameStatus";
+import {
+  FRAME_CHIP_CLASS,
+  FRAME_STATUS_META,
+  FRAME_STATUS_ORDER,
+  frameStatusLabel,
+} from "./frameStatus";
 import {
   deriveStoryboardHandoffStep,
   deriveStoryboardReviewStage,
   type StoryboardHandoffStep,
   type StoryboardReviewStage,
 } from "./storyboardReviewStage";
+import type { CommentsSubmitState } from "./useFrameComments";
 
-const GUIDE_COPY: Record<StoryboardReviewStage, { eyebrow: string; title: string; body: string }> =
-  {
-    empty: {
-      eyebrow: "Waiting for a plan",
-      title: "The storyboard has no frames yet",
-      body: "Ask your agent to draft the story plan. Frames will appear here automatically.",
-    },
-    "plan-review": {
-      eyebrow: "Ready for review",
-      title: "Review the story plan",
-      body: "Check the sequence, scene direction, and voiceover before visual work begins. Leave frame comments, save them, then reply in your terminal or IDE agent chat.",
-    },
-    "sketch-in-progress": {
-      eyebrow: "Build in progress",
-      title: "Visual sketches are in progress",
-      body: "New posters appear automatically as your agent builds them. You can comment now; wait until no frames remain in Outline before approving the layouts.",
-    },
-    "sketch-review": {
-      eyebrow: "Ready for review",
-      title: "Review the visual direction",
-      body: "Check composition, hierarchy, and copy. Save frame comments, then reply in your terminal or IDE agent chat.",
-    },
-    "animation-in-progress": {
-      eyebrow: "Build in progress",
-      title: "Animation is in progress",
-      body: "The board refreshes as frames advance. Review completed frames now; the final review is ready when every frame is Animated.",
-    },
-    "final-review": {
-      eyebrow: "Ready for review",
-      title: "Review motion and timing",
-      body: "Every frame is animated. Open a frame in Preview to review it in the timeline, or leave frame comments for another revision.",
-    },
-  };
-
-const REVIEW_ACTION_COPY: Record<
+const STAGE: Record<
   StoryboardReviewStage,
-  { body: string; approvalMessage?: string }
-> = {
-  empty: { body: "Add comments as previews arrive." },
-  "plan-review": {
-    body: "Add comments where you want changes. If everything looks right, approve this pass in agent chat.",
-    approvalMessage: "Approve this storyboard plan and continue to visual sketches.",
-  },
-  "sketch-in-progress": {
-    body: "Add comments as previews arrive. You’ll be prompted to approve when this pass is ready.",
-  },
-  "sketch-review": {
-    body: "Add comments where you want changes. If everything looks right, approve this pass in agent chat.",
-    approvalMessage: "Approve these storyboard sketches and continue to animation.",
-  },
-  "animation-in-progress": {
-    body: "Add comments as previews arrive. You’ll be prompted to approve when this pass is ready.",
-  },
-  "final-review": {
-    body: "Add comments where you want changes. If everything looks right, approve this pass in agent chat.",
-    approvalMessage: "Approve this final storyboard review and continue to rendering.",
-  },
-};
-
-type ReviewStepOffset = -1 | 0 | 1;
-const REVIEW_STEP_STATES: Record<
-  ReviewStepOffset,
   {
-    textClass: string;
-    numberClass: string;
-    ariaCurrent: "step" | undefined;
-    marker: (number: StoryboardHandoffStep) => StoryboardHandoffStep | string;
+    badge: MessageKey;
+    title: MessageKey;
+    tone: "ok" | "muted";
+    approve?: MessageKey;
+    message?: string;
   }
 > = {
-  [-1]: {
-    textClass: "text-emerald-400",
-    numberClass: "border-emerald-700 bg-emerald-500/10",
-    ariaCurrent: undefined,
-    marker: () => "✓",
+  empty: { badge: "story.stageEmpty", title: "story.noFrames", tone: "muted" },
+  "plan-review": {
+    badge: "story.stageReady",
+    title: "story.titlePlan",
+    tone: "ok",
+    approve: "story.approvePlan",
+    message: "Approve this storyboard plan and continue to visual sketches.",
   },
-  [0]: {
-    textClass: "text-sky-300",
-    numberClass: "border-sky-500 bg-sky-500/15",
-    ariaCurrent: "step",
-    marker: (number) => number,
+  "sketch-in-progress": {
+    badge: "story.stageBuilding",
+    title: "story.titleSketching",
+    tone: "muted",
   },
-  [1]: {
-    textClass: "text-neutral-600",
-    numberClass: "border-neutral-700",
-    ariaCurrent: undefined,
-    marker: (number) => number,
+  "sketch-review": {
+    badge: "story.stageReady",
+    title: "story.titleSketches",
+    tone: "ok",
+    approve: "story.approveSketches",
+    message: "Approve these storyboard sketches and continue to animation.",
+  },
+  "animation-in-progress": {
+    badge: "story.stageBuilding",
+    title: "story.titleAnimating",
+    tone: "muted",
+  },
+  "final-review": {
+    badge: "story.stageReady",
+    title: "story.titleFinal",
+    tone: "ok",
+    approve: "story.approveFinal",
+    message: "Approve this final storyboard review and continue to rendering.",
   },
 };
 
-const REVIEW_STEP_SEPARATOR_CLASS: Record<StoryboardHandoffStep, string> = {
-  1: "invisible",
-  2: "",
-  3: "",
-};
+const STEPS: MessageKey[] = ["story.stepReview", "story.stepSave", "story.stepReply"];
 
 export interface StoryboardReviewGuideProps {
   frames: StoryboardFrameView[];
+  drafts: Record<number, string>;
   draftCount: number;
   pendingCount: number;
+  submitState: CommentsSubmitState;
+  submitError: string | null;
+  onSaveFeedback: () => void;
   onFeedbackMessageCopied: () => void;
 }
 
-/** Stage-aware instructions plus the explicit Studio → agent handoff. */
-export function StoryboardReviewGuide({
-  frames,
-  draftCount,
-  pendingCount,
-  onFeedbackMessageCopied,
-}: StoryboardReviewGuideProps) {
-  const summary = deriveStoryboardReviewStage(frames);
-  const copy = GUIDE_COPY[summary.stage];
-  const handoffStep = deriveStoryboardHandoffStep(draftCount, pendingCount);
-  const progress = progressLabel(summary);
-
-  return (
-    <section className="mt-5 rounded-lg border border-neutral-800 bg-neutral-900/60 px-4 py-3">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="max-w-3xl">
-          <div className="text-[10px] font-semibold uppercase tracking-wider text-sky-400">
-            {copy.eyebrow}
-          </div>
-          <h2 className="mt-0.5 text-sm font-semibold text-neutral-100">{copy.title}</h2>
-          <p className="mt-1 text-xs leading-relaxed text-neutral-400">{copy.body}</p>
-        </div>
-        {summary.frameCount > 0 && (
-          <div className="shrink-0">
-            <div className="mb-1.5 text-right text-[11px] font-medium text-neutral-300">
-              {progress}
-            </div>
-            <div className="flex flex-wrap justify-end gap-1.5" aria-label="Frame status summary">
-              {FRAME_STATUS_ORDER.map((status) => (
-                <span
-                  key={status}
-                  className={`rounded px-2 py-1 text-[10px] font-medium ${FRAME_STATUS_META[status].chipClass}`}
-                >
-                  {summary.counts[status]} {FRAME_STATUS_META[status].label}
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-
-      {summary.frameCount > 0 && (
-        <div className="mt-3 border-t border-neutral-800 pt-3">
-          <ReviewSteps current={handoffStep} />
-          <NextAction
-            stage={summary.stage}
-            step={handoffStep}
-            draftCount={draftCount}
-            onFeedbackMessageCopied={onFeedbackMessageCopied}
-          />
-        </div>
-      )}
-    </section>
-  );
+// The label folds six workflow states into three progress formats.
+// fallow-ignore-next-line complexity
+function progressLabel(summary: ReturnType<typeof deriveStoryboardReviewStage>): string {
+  const total = summary.frameCount;
+  if (summary.stage === "sketch-in-progress" || summary.stage === "sketch-review") {
+    return t("story.progressSketches", { ready: total - summary.counts.outline, total });
+  }
+  if (summary.stage === "animation-in-progress" || summary.stage === "final-review") {
+    return t("story.progressAnimations", { ready: summary.counts.animated, total });
+  }
+  return t("story.progressPlan", { total });
 }
 
 function ReviewSteps({ current }: { current: StoryboardHandoffStep }) {
-  const steps = ["Review frames", "Save feedback", "Reply in agent chat"];
   return (
-    <ol className="hidden items-center gap-2 sm:flex" aria-label="Storyboard review workflow">
-      {steps.map((label, index) => (
-        <ReviewStep
-          key={label}
-          label={label}
-          number={(index + 1) as StoryboardHandoffStep}
-          current={current}
-        />
-      ))}
-    </ol>
+    <OutputSection title={t("story.steps")}>
+      <ol className="flex flex-col gap-2.5" aria-label={t("story.steps")}>
+        {STEPS.map((key, index) => {
+          const number = (index + 1) as StoryboardHandoffStep;
+          const active = number === current;
+          return (
+            <li
+              key={key}
+              aria-current={active ? "step" : undefined}
+              className="flex items-center gap-2.5 text-[13px] font-medium"
+            >
+              <span
+                className={`flex h-6 w-6 flex-none items-center justify-center rounded-full text-xs font-semibold ${
+                  active
+                    ? "bg-[var(--st-sel)] text-[var(--st-on-sel)]"
+                    : "bg-[var(--st-sub)] text-studio-text"
+                }`}
+              >
+                {number < current ? "✓" : number}
+              </span>
+              {t(key)}
+            </li>
+          );
+        })}
+      </ol>
+    </OutputSection>
   );
 }
 
-function ReviewStep({
-  label,
-  number,
-  current,
-}: {
-  label: string;
-  number: StoryboardHandoffStep;
-  current: StoryboardHandoffStep;
-}) {
-  const offset = Math.sign(number - current) as ReviewStepOffset;
-  const state = REVIEW_STEP_STATES[offset];
-
+function CommentList({ drafts }: { drafts: Record<number, string> }) {
+  const entries = Object.entries(drafts).filter(([, text]) => text.trim().length > 0);
   return (
-    <li className="flex items-center gap-2">
-      <span
-        className={`text-neutral-700 ${REVIEW_STEP_SEPARATOR_CLASS[number]}`}
-        aria-hidden="true"
-      >
-        →
-      </span>
-      <span
-        aria-current={state.ariaCurrent}
-        className={`flex items-center gap-1.5 text-[11px] font-medium ${state.textClass}`}
-      >
-        <span
-          className={`flex h-5 w-5 items-center justify-center rounded-full border text-[10px] ${state.numberClass}`}
-        >
-          {state.marker(number)}
-        </span>
-        {label}
-      </span>
-    </li>
+    <OutputSection title={t("story.comments")}>
+      {entries.length === 0 ? (
+        <span className="text-xs font-semibold text-[var(--st-t2)]">{t("story.noComments")}</span>
+      ) : (
+        entries.map(([frame, text]) => (
+          <div
+            key={frame}
+            className="rounded-[14px] bg-studio-surface p-2.5 text-xs font-semibold shadow-[inset_0_0_0_1px_var(--st-bd)] [overflow-wrap:anywhere]"
+          >
+            {t("story.commentLine", { n: frame, text })}
+          </div>
+        ))
+      )}
+    </OutputSection>
   );
 }
 
-function NextAction({
-  stage,
-  step,
+function ReviewHeader({ summary }: { summary: ReturnType<typeof deriveStoryboardReviewStage> }) {
+  const stage = STAGE[summary.stage];
+  return (
+    <div className="flex flex-col items-start gap-2.5">
+      <span
+        className={`${FRAME_CHIP_CLASS} h-6 ${
+          stage.tone === "ok"
+            ? "bg-[var(--st-ok-bg)] text-[var(--st-ok)]"
+            : "bg-[var(--st-sub)] text-[var(--st-t2)]"
+        }`}
+      >
+        {t(stage.badge)}
+      </span>
+      <b className="font-display text-base font-semibold leading-[22px]">{t(stage.title)}</b>
+      {summary.frameCount > 0 ? (
+        <>
+          <span className="text-xs font-medium text-[var(--st-t2)]">{progressLabel(summary)}</span>
+          <div className="flex flex-wrap gap-1.5">
+            {FRAME_STATUS_ORDER.map((status) => (
+              <span
+                key={status}
+                className={`${FRAME_CHIP_CLASS} ${FRAME_STATUS_META[status].chipClass}`}
+              >
+                {summary.counts[status]} {frameStatusLabel(status)}
+              </span>
+            ))}
+          </div>
+        </>
+      ) : null}
+    </div>
+  );
+}
+
+function FeedbackStatusNotice({
   draftCount,
+  pendingCount,
+}: {
+  draftCount: number;
+  pendingCount: number;
+}) {
+  if (draftCount === 0 && pendingCount === 0) return null;
+  const ready = pendingCount > 0 && draftCount === 0;
+  return (
+    <span
+      role="status"
+      className={`text-xs font-semibold ${ready ? "text-[var(--st-ok)]" : "text-[var(--st-t2)]"}`}
+    >
+      {draftCount > 0 ? t("story.feedbackReady") : t("story.feedbackSaved")}
+    </span>
+  );
+}
+
+function ReviewActions({
+  stage,
+  draftCount,
+  pendingCount,
+  submitState,
+  onSaveFeedback,
   onFeedbackMessageCopied,
 }: {
-  stage: StoryboardReviewStage;
-  step: StoryboardHandoffStep;
+  stage: (typeof STAGE)[StoryboardReviewStage];
   draftCount: number;
+  pendingCount: number;
+  submitState: CommentsSubmitState;
+  onSaveFeedback: () => void;
   onFeedbackMessageCopied: () => void;
 }) {
-  if (step === 3) {
-    return <AgentHandoffAction onFeedbackMessageCopied={onFeedbackMessageCopied} />;
-  }
-  if (step === 2) return <SaveFeedbackAction draftCount={draftCount} />;
-  return <ReviewFramesAction stage={stage} />;
+  return (
+    <div className="mt-auto flex flex-col gap-2">
+      {draftCount > 0 ? (
+        <OutputButton
+          className="w-full"
+          disabled={submitState === "saving"}
+          onClick={onSaveFeedback}
+        >
+          {submitState === "saving"
+            ? t("story.saving")
+            : `${t("story.saveFeedback")} (${draftCount})`}
+        </OutputButton>
+      ) : null}
+      {stage.approve && stage.message && draftCount === 0 && pendingCount === 0 ? (
+        <AgentChatMessageButton message={stage.message} label={t(stage.approve)} stretch />
+      ) : null}
+      {pendingCount > 0 ? (
+        <AgentChatMessageButton
+          message={APPLY_STORYBOARD_FEEDBACK_MESSAGE}
+          contextLabel={t("story.frameContext", { n: pendingCount })}
+          onCopied={onFeedbackMessageCopied}
+          stretch
+        />
+      ) : null}
+    </div>
+  );
 }
 
-function AgentHandoffAction({ onFeedbackMessageCopied }: { onFeedbackMessageCopied: () => void }) {
+/** Stage-aware review card plus the explicit Studio → agent hand-off. */
+export function StoryboardReviewGuide({
+  frames,
+  drafts,
+  draftCount,
+  pendingCount,
+  submitState,
+  submitError,
+  onSaveFeedback,
+  onFeedbackMessageCopied,
+}: StoryboardReviewGuideProps) {
+  useLocale();
+  const summary = deriveStoryboardReviewStage(frames);
+  const step = deriveStoryboardHandoffStep(draftCount, pendingCount);
+
   return (
-    <div className="mt-3 flex flex-col gap-3 rounded-md border border-sky-900/70 bg-sky-950/20 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between">
-      <div className="max-w-3xl">
-        <div className="text-xs font-semibold text-sky-200">Next: return to your agent chat</div>
-        <p className="mt-0.5 text-[11px] text-neutral-400">
-          Feedback is saved, but the agent has not been notified. Paste this prompt in your terminal
-          or IDE agent chat.
-        </p>
-      </div>
-      <AgentChatMessageButton
-        message={APPLY_STORYBOARD_FEEDBACK_MESSAGE}
-        onCopied={onFeedbackMessageCopied}
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-5">
+      <ReviewHeader summary={summary} />
+      {summary.frameCount > 0 ? <ReviewSteps current={step} /> : null}
+      <CommentList drafts={drafts} />
+      <FeedbackStatusNotice draftCount={draftCount} pendingCount={pendingCount} />
+      {submitError ? (
+        <span role="alert" className="text-xs font-semibold text-[var(--st-danger)]">
+          {t("story.saveFailed", { error: submitError })}
+        </span>
+      ) : null}
+      <ReviewActions
+        stage={STAGE[summary.stage]}
+        draftCount={draftCount}
+        pendingCount={pendingCount}
+        submitState={submitState}
+        onSaveFeedback={onSaveFeedback}
+        onFeedbackMessageCopied={onFeedbackMessageCopied}
       />
     </div>
   );
-}
-
-function SaveFeedbackAction({ draftCount }: { draftCount: number }) {
-  return (
-    <div className="mt-3 rounded-md border border-neutral-800 bg-neutral-950/40 px-3 py-2.5">
-      <div>
-        <div className="text-xs font-semibold text-neutral-200">Next: save your feedback</div>
-        <p className="mt-0.5 text-[11px] text-neutral-500">
-          {draftCount} frame{draftCount === 1 ? " has" : "s have"} feedback ready. Use Save &amp;
-          copy message above to prepare this batch for your agent.
-        </p>
-      </div>
-    </div>
-  );
-}
-
-function ReviewFramesAction({ stage }: { stage: StoryboardReviewStage }) {
-  const copy = REVIEW_ACTION_COPY[stage];
-
-  return (
-    <div className="mt-3 flex flex-col gap-3 rounded-md border border-neutral-800 bg-neutral-950/40 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between">
-      <div>
-        <div className="text-xs font-semibold text-neutral-200">Next: review the frames</div>
-        <p className="mt-0.5 text-[11px] text-neutral-500">{copy.body}</p>
-      </div>
-      {copy.approvalMessage && (
-        <AgentChatMessageButton message={copy.approvalMessage} label="Copy approval message" />
-      )}
-    </div>
-  );
-}
-
-// The label intentionally folds six workflow states into three user-facing progress formats.
-// fallow-ignore-next-line complexity
-function progressLabel(summary: ReturnType<typeof deriveStoryboardReviewStage>): string {
-  if (summary.stage === "sketch-in-progress" || summary.stage === "sketch-review") {
-    const ready = summary.frameCount - summary.counts.outline;
-    return `${ready} of ${summary.frameCount} visual sketches ready`;
-  }
-  if (summary.stage === "animation-in-progress" || summary.stage === "final-review") {
-    return `${summary.counts.animated} of ${summary.frameCount} animations ready`;
-  }
-  return `${summary.frameCount} plan frame${summary.frameCount === 1 ? "" : "s"} ready`;
 }

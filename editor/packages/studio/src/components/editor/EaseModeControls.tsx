@@ -8,6 +8,9 @@
  * them rather than importing it back from the parent.
  */
 
+import { t } from "../../i18n/translate";
+import type { MessageKey } from "../../i18n/dictionary";
+import { easePresetDisplayLabel } from "./motionUi";
 import { EASE_PRESETS } from "./easePresetLibrary";
 import { MiniCurveSvg } from "./easeCurveSvg";
 import { EASE_CURVES } from "./gsapAnimationConstants";
@@ -18,10 +21,16 @@ export type EaseMode = (typeof EASE_MODES)[number];
 export type Pts = [number, number, number, number];
 export const DEFAULT_CURVE: Pts = EASE_CURVES["power2.out"];
 
-export const MODE_LABELS = { curve: "Curve", spring: "Spring", wiggle: "Wiggle" } satisfies Record<
-  EaseMode,
-  string
->;
+const MODE_KEYS = {
+  curve: "ease.mode.curve",
+  spring: "ease.mode.spring",
+  wiggle: "ease.mode.wiggle",
+} as const satisfies Record<EaseMode, MessageKey>;
+
+/** The localised name of an ease editor mode (Curbă / Arc / Oscilație). */
+export function easeModeLabel(mode: EaseMode): string {
+  return t(MODE_KEYS[mode]);
+}
 
 const DEFAULT_EASE_BY_MODE = {
   curve: `custom(M0,0 C${DEFAULT_CURVE[0]},${DEFAULT_CURVE[1]} ${DEFAULT_CURVE[2]},${DEFAULT_CURVE[3]} 1,1)`,
@@ -52,17 +61,19 @@ export const EasePresetGrid = function EasePresetGrid({
             tabIndex={isActive ? 0 : -1}
             onClick={() => onSelect(preset.ease)}
             className={`flex flex-col items-center gap-0.5 rounded-md p-1 transition-colors ${
-              isActive ? "bg-panel-accent/10 ring-1 ring-panel-accent/30" : "hover:bg-neutral-800"
+              isActive
+                ? "shadow-[inset_0_0_0_2px_var(--st-tx)]"
+                : "shadow-[inset_0_0_0_1px_var(--st-bd)] hover:bg-[var(--st-sub)]"
             }`}
             title={preset.label}
           >
             <MiniCurveSvg ease={preset.ease} active={isActive} />
             <span
-              className={`text-center text-[8px] leading-none ${
-                isActive ? "text-panel-accent" : "text-neutral-500"
+              className={`text-center text-[10px] leading-none ${
+                isActive ? "font-semibold text-studio-text" : "text-studio-muted"
               }`}
             >
-              {preset.label}
+              {easePresetDisplayLabel(preset)}
             </span>
           </button>
         );
@@ -80,7 +91,7 @@ export function EaseModeToggle({
 }) {
   return (
     <div
-      className="mb-2 grid grid-cols-3 rounded-md bg-black/20 p-0.5"
+      className="mb-2 grid grid-cols-3 gap-0.5 rounded-full bg-studio-surface p-1 shadow-[inset_0_0_0_1.5px_var(--st-bd)]"
       role="radiogroup"
       aria-label="Ease editor mode"
     >
@@ -97,11 +108,13 @@ export function EaseModeToggle({
               if (active) return;
               onCommit(DEFAULT_EASE_BY_MODE[candidateMode]);
             }}
-            className={`rounded px-2 py-1 text-[10px] font-medium transition-colors ${
-              active ? "bg-neutral-700 text-neutral-100" : "text-neutral-500 hover:text-neutral-300"
+            className={`h-8 rounded-full px-2 text-xs font-medium transition-colors ${
+              active
+                ? "bg-studio-selected font-semibold text-studio-on-selected"
+                : "text-studio-text hover:bg-[var(--st-sub)]"
             }`}
           >
-            {MODE_LABELS[candidateMode]}
+            {easeModeLabel(candidateMode)}
           </button>
         );
       })}

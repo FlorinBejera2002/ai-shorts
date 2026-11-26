@@ -1,4 +1,5 @@
 import { memo, useRef, type RefObject } from "react";
+import { GUIDE_COLOR } from "./canvasChromeStyles";
 import { useMountEffect } from "../../hooks/useMountEffect";
 import { resolveGuideLineRect, type SnapGuide, type SpacingGuide } from "./snapEngine";
 import { subscribeOverlayFrame } from "./overlayFrameLoop";
@@ -11,9 +12,8 @@ export interface SnapGuidesState {
 const MAX_GUIDES = 6;
 const MAX_SPACING_GUIDES = 4;
 
-const GUIDE_COLOR = "rgba(255, 68, 204, 0.85)";
-const SPACING_COLOR = "rgba(255, 68, 204, 0.6)";
-const SPACING_BG = "rgba(255, 68, 204, 0.15)";
+const SPACING_COLOR = "color-mix(in srgb, white 70%, transparent)";
+const SPACING_BG = "color-mix(in srgb, white 15%, transparent)";
 
 interface SnapGuideOverlayProps {
   snapGuidesRef: RefObject<SnapGuidesState | null>;

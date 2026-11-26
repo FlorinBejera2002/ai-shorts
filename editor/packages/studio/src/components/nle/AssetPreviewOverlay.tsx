@@ -1,22 +1,25 @@
 /**
- * CapCut-style asset preview overlay rendered inside PreviewPane.
+ * Asset preview dialog (St-Preview-AssetOverlay, St-M-Preview-AssetOverlay).
  *
  * Shown when the user clicks an asset card that has NOT yet been added to the
- * timeline. Displays the media (image / video / audio) as a compact floating
- * card over the canvas — the canvas stays visible behind a barely-tinted
- * click-catcher — without modifying the composition (no undo entry, no file
- * mutation).
+ * timeline. Displays the media (image / video / audio) in a 680px dialog over a
+ * scrim without modifying the composition (no undo entry, no file mutation).
+ * Video and audio get the preview's own transport.
  *
- * Dismiss: X button, Escape key, click outside the card, or any playhead
+ * Dismiss: close button, Escape key, click on the scrim, or any playhead
  * activity (starting playback / seeking) — the canvas refocuses.
  * Switching to another not-added asset replaces the current preview.
  */
-import { useEffect, useCallback } from "react";
+import { useEffect, useCallback, useRef } from "react";
+import { createPortal } from "react-dom";
 import { VIDEO_EXT, IMAGE_EXT } from "../../utils/mediaTypes";
 import { useAssetPreviewStore } from "../../utils/assetPreviewStore";
 import { usePlayerStore } from "../../player/store/playerStore";
 import { shouldDismissAssetPreview } from "../../utils/assetPreviewDismiss";
 import { resolveMediaPreviewUrl } from "../../player/components/thumbnailUtils";
+import { t, useLocale } from "../../i18n/translate";
+import { DIALOG_SHADOW, PreviewIcon, PreviewIconButton } from "./preview/previewChrome";
+import { AssetMediaTransport } from "./preview/AssetMediaTransport";
 
 function basename(path: string): string {
   return path.split("/").pop() ?? path;
@@ -30,7 +33,7 @@ function resolveAssetKind(path: string): AssetKind {
   return "audio";
 }
 
-/** The media element for a previewed asset, chosen by kind. */
+/** The media for a previewed asset, chosen by kind, in the 16px-radius black frame. */
 function AssetPreviewMedia({
   kind,
   serveUrl,
@@ -40,44 +43,50 @@ function AssetPreviewMedia({
   serveUrl: string;
   name: string;
 }) {
+  const mediaRef = useRef<HTMLVideoElement | HTMLAudioElement | null>(null);
+  const frame =
+    "relative flex h-[min(360px,45dvh)] items-center justify-center overflow-hidden rounded-[16px] bg-black";
   if (kind === "image") {
     return (
-      <img src={serveUrl} alt={name} className="max-w-full max-h-[40vh] rounded object-contain" />
-    );
-  }
-  if (kind === "video") {
-    return (
-      <video
-        src={serveUrl}
-        controls
-        autoPlay
-        muted
-        playsInline
-        className="max-w-full max-h-[40vh] rounded"
-      />
+      <div className={frame}>
+        <img src={serveUrl} alt={name} className="h-full w-full object-contain" />
+      </div>
     );
   }
   return (
-    <div className="flex flex-col items-center gap-3 px-6 py-4">
-      <svg
-        width="40"
-        height="40"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        className="text-neutral-500"
-      >
-        <path d="M9 18V5l12-2v13" strokeLinecap="round" strokeLinejoin="round" />
-        <circle cx="6" cy="18" r="3" />
-        <circle cx="18" cy="16" r="3" />
-      </svg>
-      <audio src={serveUrl} controls className="w-64" />
-    </div>
+    <>
+      <div className={frame}>
+        {kind === "video" ? (
+          <video
+            ref={(node) => {
+              mediaRef.current = node;
+            }}
+            src={serveUrl}
+            autoPlay
+            muted
+            playsInline
+            className="h-full w-full object-contain"
+          />
+        ) : (
+          <>
+            <PreviewIcon name="music" size={40} strokeWidth={1.5} className="text-white" />
+            <audio
+              ref={(node) => {
+                mediaRef.current = node;
+              }}
+              src={serveUrl}
+              className="hidden"
+            />
+          </>
+        )}
+      </div>
+      <AssetMediaTransport mediaRef={mediaRef} />
+    </>
   );
 }
 
 export function AssetPreviewOverlay() {
+  useLocale();
   const previewAsset = useAssetPreviewStore((s) => s.previewAsset);
   const previewProjectId = useAssetPreviewStore((s) => s.previewProjectId);
   const clearPreviewAsset = useAssetPreviewStore((s) => s.clearPreviewAsset);
@@ -123,49 +132,42 @@ export function AssetPreviewOverlay() {
 
   const serveUrl = resolveMediaPreviewUrl(previewAsset, previewProjectId);
   const name = basename(previewAsset);
+  const title = t("preview.assetPreview", { name });
 
-  return (
+  return createPortal(
     <div
-      className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/20"
+      role="presentation"
+      className="fixed inset-0 z-[150] flex items-end justify-center bg-[var(--st-ov)] sm:items-center sm:p-4"
       onClick={clearPreviewAsset}
-      role="dialog"
-      aria-label={`Preview: ${name}`}
     >
-      {/* Floating preview card — compact, canvas stays visible around it */}
       <div
-        className="relative flex flex-col items-center gap-2 max-w-[58%] rounded-lg border border-neutral-800 bg-neutral-950/95 p-2 pt-8 shadow-2xl"
+        role="dialog"
+        aria-label={title}
+        className={`flex w-full flex-col gap-5 rounded-t-sheet bg-studio-surface p-6 text-studio-text sm:w-[680px] sm:max-w-full sm:rounded-sheet ${DIALOG_SHADOW}`}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Close button */}
-        <button
-          className="absolute top-2 right-2 w-6 h-6 rounded-full bg-neutral-800 hover:bg-neutral-700 text-neutral-300 hover:text-white flex items-center justify-center transition-colors z-10"
-          onClick={(e) => {
-            e.stopPropagation();
-            clearPreviewAsset();
-          }}
-          aria-label="Close preview"
-        >
-          <svg
-            width="12"
-            height="12"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            strokeWidth="2.5"
-            fill="none"
-            strokeLinecap="round"
+        <div className="flex items-center gap-2">
+          <h2 className="min-w-0 flex-1 truncate font-display text-xl font-semibold leading-7">
+            {title}
+          </h2>
+          <PreviewIconButton
+            label={t("preview.closeAssetPreview")}
+            onClick={(e) => {
+              e.stopPropagation();
+              clearPreviewAsset();
+            }}
           >
-            <line x1="18" y1="6" x2="6" y2="18" />
-            <line x1="6" y1="6" x2="18" y2="18" />
-          </svg>
-        </button>
-
-        <AssetPreviewMedia kind={resolveAssetKind(previewAsset)} serveUrl={serveUrl} name={name} />
-
-        {/* Filename label */}
-        <span className="text-[12px] text-neutral-400 truncate max-w-full px-2 text-center">
-          {name}
-        </span>
+            <PreviewIcon name="close" />
+          </PreviewIconButton>
+        </div>
+        <AssetPreviewMedia
+          key={serveUrl}
+          kind={resolveAssetKind(previewAsset)}
+          serveUrl={serveUrl}
+          name={name}
+        />
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

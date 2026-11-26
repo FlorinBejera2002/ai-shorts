@@ -11,9 +11,9 @@ import { readStudioUiPreferences, writeStudioUiPreferences } from "../../utils/s
 import { useAssetPreviewStore } from "../../utils/assetPreviewStore";
 import { createStableContext } from "../../utils/hmrStableContext";
 
-// Timeline gets a generous default height so the preview isn't oversized and the
-// tracks have room to breathe (CapCut-style). Users can still drag the divider.
-const DEFAULT_TIMELINE_H = 360;
+// Default timeline section height: a 260px card (St-Main) plus the section's 1px bottom inset.
+// Users can still drag the divider; a dragged height is kept in the UI preferences.
+export const DEFAULT_TIMELINE_H = 261;
 
 export function shouldDisableTimelineWhileCompositionLoading(compositionLoading: boolean): boolean {
   return compositionLoading;

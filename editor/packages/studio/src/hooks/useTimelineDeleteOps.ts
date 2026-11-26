@@ -1,4 +1,5 @@
 import { buildProjectApiPath } from "../utils/projectRouting";
+import { t } from "../i18n/translate";
 // Timeline clip deletion: the marquee/multi path and the single-clip wrapper
 // the context menu uses. Extracted verbatim from useTimelineEditing.ts to keep
 // it under the studio 600-line cap, following useTimelineAssetDropOps.
@@ -115,7 +116,7 @@ export function useTimelineDeleteOps({
         try {
           await saveProjectFilesWithHistory({
             projectId: pid,
-            label: "Delete timeline clip",
+            label: t("timeline.histDelete"),
             kind: "timeline",
             files: { [targetPath]: patchedContent },
             readFile: async () => originalContent,

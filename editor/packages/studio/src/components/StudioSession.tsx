@@ -4,14 +4,27 @@ import {
   startStudioSessionRenewal,
   type StudioSessionInfo,
 } from "../utils/studioSessionRenewal";
+import { t, useLocale } from "../i18n/translate";
+import { OutputButton } from "./output/OutputButton";
+import { OutputAlertCard } from "./output/OutputFields";
+import { useIsPhone } from "./shell/useIsPhone";
+import { StudioConnectionLost } from "./StudioConnectionLost";
+import { ExportFlowHost } from "./renders/ExportFlowHost";
+import { useConnectionLost } from "./useConnectionLost";
 
-/** Present only on the authenticated SneepCut host, not the upstream local editor. */
+/**
+ * Session-level overlays, mounted once by the top bar: the connection-lost dialog, the export
+ * flow and, on the authenticated SneepCut host only, the session renewal frame.
+ */
 export function StudioSession() {
+  useLocale();
+  const isPhone = useIsPhone();
   const [info, setInfo] = useState<StudioSessionInfo | null>(null);
   const [failed, setFailed] = useState(false);
   const [attempt, setAttempt] = useState(0);
   const [frameAttempt, setFrameAttempt] = useState(0);
   const frame = useRef<HTMLIFrameElement>(null);
+  const connection = useConnectionLost();
 
   useEffect(() => {
     if (!document.querySelector('meta[name="sneepcut-session"][content="enabled"]')) return;
@@ -42,41 +55,44 @@ export function StudioSession() {
 
   return (
     <>
+      <StudioConnectionLost state={connection} loginUrl={info ? `${info.appOrigin}/login` : null} />
+      <ExportFlowHost />
       {info && (
         <iframe
           key={frameAttempt}
           ref={frame}
           src={`${info.appOrigin}/studio-session`}
-          title="Studio sign-in connection"
+          title={t("states.signInFrame")}
           hidden
         />
       )}
       {failed && (
-        <div
-          role="alert"
-          className="absolute left-1/2 top-16 z-[93] flex max-w-[calc(100vw-32px)] -translate-x-1/2 flex-wrap items-center gap-3 rounded-md border border-neutral-600 bg-neutral-900 px-4 py-3 text-xs text-neutral-100 shadow-lg"
-        >
-          <span>Studio could not reconnect. Keep this tab open to retain your edits.</span>
-          <button
-            type="button"
-            className="rounded-md border border-neutral-500 px-3 py-1 hover:bg-neutral-800"
-            onClick={() => {
-              if (info) setFrameAttempt((value) => value + 1);
-              else setAttempt((value) => value + 1);
-            }}
-          >
-            Retry connection
-          </button>
-          {info && (
-            <a
-              className="underline"
-              href={`${info.appOrigin}/login`}
-              target="_blank"
-              rel="noopener noreferrer"
+        // St-Shell-Reconnect: a top-centred alert card over the preview (phone: full width).
+        <div className="fixed top-[68px] right-3 left-3 z-[93] sm:top-[84px] sm:right-auto sm:left-1/2 sm:w-[480px] sm:-translate-x-1/2">
+          <OutputAlertCard message={t("states.reconnectFailed")}>
+            <OutputButton
+              variant="primary"
+              icon="refresh"
+              height={isPhone ? 44 : 40}
+              onClick={() => {
+                if (info) setFrameAttempt((value) => value + 1);
+                else setAttempt((value) => value + 1);
+              }}
             >
-              Sign in to the same account
-            </a>
-          )}
+              {t("states.retryConnection")}
+            </OutputButton>
+            {info && (
+              <a
+                href={`${info.appOrigin}/login`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center justify-center whitespace-nowrap rounded-full px-4 text-[13px] font-semibold text-studio-text shadow-[inset_0_0_0_1.5px_var(--st-sbd)] outline-none hover:bg-[var(--st-sub)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--st-btn)]"
+                style={{ height: isPhone ? 44 : 40 }}
+              >
+                {t("states.signInSameAccount")}
+              </a>
+            )}
+          </OutputAlertCard>
         </div>
       )}
     </>

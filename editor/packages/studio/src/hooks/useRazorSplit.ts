@@ -1,4 +1,6 @@
 import { useCallback, useRef } from "react";
+import { t } from "../i18n/translate";
+import { formatDecimalSeconds } from "../player/components/timelineDisplayTime";
 import type { TimelineElement } from "../player";
 import { usePlayerStore } from "../player";
 import { getTimelineElementLabel } from "../utils/studioHelpers";
@@ -59,8 +61,11 @@ export function useRazorSplit({
       const requestedCount = intents.reduce((count, file) => count + file.targets.length, 0);
       const label =
         mode === "single"
-          ? "Split timeline clip"
-          : `Split ${requestedCount} clips at ${splitTime.toFixed(2)}s`;
+          ? t("timeline.histSplit")
+          : t("timeline.histSplitAll", {
+              n: requestedCount,
+              time: formatDecimalSeconds(splitTime),
+            });
 
       // Server writes arrive through the watcher before React can refresh. Keep
       // the existing short self-write window active for this owned transaction.
@@ -76,14 +81,11 @@ export function useRazorSplit({
       });
       trackStudioRazorSplit({ mode, count: result.splitCount });
       if (result.syncFailed) {
-        showToast(
-          "Cut was saved, but Studio could not refresh it. Reload the preview to resynchronize.",
-          "error",
-        );
+        showToast(t("timeline.splitSyncFailed"), "error");
       }
       if (result.skippedSelectors.length > 0) {
         showToast(
-          `Some animations use non-ID selectors (${result.skippedSelectors.join(", ")}) and were not retargeted`,
+          t("timeline.splitSelectorsSkipped", { selectors: result.skippedSelectors.join(", ") }),
           "info",
         );
       }
@@ -103,7 +105,7 @@ export function useRazorSplit({
   const handleRazorSplit = useCallback(
     async (element: TimelineElement, splitTime: number) => {
       if (isRecordingRef?.current) {
-        showToast("Cannot edit timeline while recording", "error");
+        showToast(t("timeline.recordingBlocked"), "error");
         return;
       }
       if (!canSplitElementAt(element, splitTime)) return;
@@ -111,9 +113,15 @@ export function useRazorSplit({
         const result = await runCut([element], splitTime, "single");
         if (!result) return;
         if (result.syncFailed) return;
-        showToast(`Split ${getTimelineElementLabel(element)} at ${splitTime.toFixed(2)}s`, "info");
+        showToast(
+          t("timeline.toastSplitOne", {
+            label: getTimelineElementLabel(element),
+            time: formatDecimalSeconds(splitTime),
+          }),
+          "info",
+        );
       } catch (error) {
-        const message = error instanceof Error ? error.message : "Failed to split timeline clip";
+        const message = error instanceof Error ? error.message : t("timeline.splitFailed");
         showToast(message, "error");
       }
     },
@@ -123,7 +131,7 @@ export function useRazorSplit({
   const handleRazorSplitAll = useCallback(
     async (splitTime: number) => {
       if (isRecordingRef?.current) {
-        showToast("Cannot edit timeline while recording", "error");
+        showToast(t("timeline.recordingBlocked"), "error");
         return;
       }
       const splittable = selectSplittableElements(usePlayerStore.getState().elements, splitTime);
@@ -132,9 +140,15 @@ export function useRazorSplit({
         const result = await runCut(splittable, splitTime, "all");
         if (!result) return;
         if (result.syncFailed) return;
-        showToast(`Split ${result.splitCount} clips at ${splitTime.toFixed(2)}s`, "info");
+        showToast(
+          t("timeline.toastSplitAll", {
+            n: result.splitCount,
+            time: formatDecimalSeconds(splitTime),
+          }),
+          "info",
+        );
       } catch (error) {
-        const message = error instanceof Error ? error.message : "Failed to split clips";
+        const message = error instanceof Error ? error.message : t("timeline.splitAllFailed");
         showToast(message, "error");
       }
     },

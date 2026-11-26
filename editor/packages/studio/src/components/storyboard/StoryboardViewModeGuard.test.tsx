@@ -140,12 +140,12 @@ describe("dirty storyboard voiceover view-mode guard", () => {
     const { host, root } = renderApp();
     makeVoiceoverDirty(host);
 
-    clickButton(host, "Open in Preview →");
+    clickButton(host, "Open in preview");
     expect(host.querySelector("[data-view-mode]")?.textContent).toBe("storyboard");
     expect(onSelectComposition).not.toHaveBeenCalled();
 
     confirm.mockReturnValue(true);
-    clickButton(host, "Open in Preview →");
+    clickButton(host, "Open in preview");
     expect(host.querySelector("[data-view-mode]")?.textContent).toBe("timeline");
     expect(onSelectComposition).toHaveBeenCalledWith("frames/01-opening.html");
     act(() => root.unmount());

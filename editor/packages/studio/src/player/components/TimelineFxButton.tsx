@@ -23,6 +23,11 @@ import {
   useAuditionTransport,
   type AuditionSpan,
 } from "../../components/editor/useAuditionTransport.js";
+import { t } from "../../i18n/translate";
+
+// Group dialog chrome: Studio surface card, tokens only (St-Timeline-TrackHeads palette).
+const DIALOG_CLASS =
+  "z-[200] w-64 rounded-md border border-[var(--st-bd)] bg-[var(--st-sf)] p-3 text-[12px] leading-snug text-[var(--st-t2)] shadow-[var(--st-sh)]";
 
 /**
  * Naming a group is the moment the whole feature is explained.
@@ -69,7 +74,7 @@ function GroupNameDialog({
   onCancel: () => void;
   onConfirm: (label: string) => void;
 }) {
-  const [label, setLabel] = useState(defaultLabel ?? "Voiceover");
+  const [label, setLabel] = useState(defaultLabel ?? t("timeline.fxGroupDefault"));
   const inputRef = useRef<HTMLInputElement | null>(null);
   // Focused on open so the name can be typed over without a second click —
   // the field is the only thing here that wants input.
@@ -78,8 +83,8 @@ function GroupNameDialog({
     return (
       <div
         role="dialog"
-        aria-label="This track cannot be grouped"
-        className="z-[200] w-64 rounded-md border border-white/10 bg-[#1a2535] p-3 text-[11px] leading-snug text-white/75 shadow-xl"
+        aria-label={t("timeline.fxCannotGroup")}
+        className={DIALOG_CLASS}
         style={{ position: "fixed", ...groupDialogPosition(anchorRect) }}
         onPointerDown={(event) => event.stopPropagation()}
         onKeyDown={(event) => {
@@ -92,12 +97,12 @@ function GroupNameDialog({
       </div>
     );
   }
-  const confirm = () => onConfirm(label.trim() || defaultLabel || "Voiceover");
+  const confirm = () => onConfirm(label.trim() || defaultLabel || t("timeline.fxGroupDefault"));
   return (
     <div
       role="dialog"
-      aria-label="Name this group"
-      className="z-[200] w-64 rounded-md border border-white/10 bg-[#1a2535] p-3 text-[11px] text-white/75 shadow-xl"
+      aria-label={t("timeline.fxNameGroup")}
+      className={DIALOG_CLASS}
       style={{ position: "fixed", ...groupDialogPosition(anchorRect) }}
       onPointerDown={(event) => event.stopPropagation()}
       onKeyDown={(event) => {
@@ -108,34 +113,37 @@ function GroupNameDialog({
         if (event.key === "Enter") confirm();
       }}
     >
-      <p className="mb-1.5 font-medium text-white">Name this group</p>
+      <p className="mb-1.5 text-[13px] font-semibold text-[var(--st-tx)]">
+        {t("timeline.fxNameGroup")}
+      </p>
       <input
         ref={inputRef}
         type="text"
-        aria-label="Group name"
+        aria-label={t("timeline.fxGroupName")}
         value={label}
         onChange={(event) => setLabel(event.currentTarget.value)}
-        className="w-full rounded border border-white/20 bg-black/30 px-1.5 py-1 text-[11px] text-white outline-none focus:border-[#3CE6AC]"
+        className="h-9 w-full rounded-md border border-[var(--st-bd)] bg-[var(--st-sf)] px-2.5 text-[13px] text-[var(--st-tx)] outline-none focus:border-[var(--st-sel)]"
       />
       {/* The sentence. No jargon, and it names both things a bus does. */}
       <p className="mt-2 leading-snug">
-        Effects you add to the group apply to {clipCount === 2 ? "both" : `all ${clipCount}`} clips
-        at once, and they share one volume.
+        {clipCount === 2
+          ? t("timeline.fxGroupBoth")
+          : t("timeline.fxGroupAll", { count: clipCount })}
       </p>
       <div className="mt-2.5 flex justify-end gap-1.5">
         <button
           type="button"
-          className="rounded border border-white/20 px-2 py-1 text-[10px] text-white/75 hover:bg-white/10"
+          className="h-8 rounded-full px-3 text-[12px] font-semibold text-[var(--st-tx)] shadow-[inset_0_0_0_1.5px_var(--st-sbd)] hover:bg-[var(--st-sub)]"
           onClick={onCancel}
         >
-          Cancel
+          {t("timeline.fxCancel")}
         </button>
         <button
           type="button"
-          className="rounded border border-[#3CE6AC] bg-[#3CE6AC]/15 px-2 py-1 text-[10px] font-semibold text-[#3CE6AC] hover:bg-[#3CE6AC]/25"
+          className="h-8 rounded-full bg-[var(--st-btn)] px-3 text-[12px] font-semibold text-[var(--st-on-btn)] hover:opacity-90"
           onClick={confirm}
         >
-          Group
+          {t("timeline.fxGroup")}
         </button>
       </div>
     </div>
@@ -210,9 +218,9 @@ export function TimelineFxButton(props: TimelineFxButtonProps) {
           type="button"
           tabIndex={-1}
           ref={buttonRef}
-          aria-label="Effects — group these clips first"
-          title="Group these clips to add effects to all of them"
-          className="flex h-6 items-center justify-center rounded border-0 bg-transparent px-1 text-[10px] font-semibold text-white/35 hover:text-white/75"
+          aria-label={t("timeline.fxGroupFirst")}
+          title={t("timeline.fxGroupFirstTip")}
+          className="flex h-6 items-center justify-center rounded-sm border-0 bg-transparent px-1 text-[10px] font-semibold text-[var(--st-t3)] hover:text-[var(--st-tx)]"
           onPointerDown={(event) => event.stopPropagation()}
           onClick={(event) => {
             event.stopPropagation();
@@ -250,10 +258,14 @@ export function TimelineFxButton(props: TimelineFxButtonProps) {
         type="button"
         tabIndex={-1}
         ref={buttonRef}
-        aria-label={nodeCount > 0 ? `Effects — ${nodeCount} applied` : "Effects"}
-        title="Effects"
-        className={`flex h-6 items-center justify-center gap-0.5 rounded border-0 bg-transparent px-1 text-[10px] font-semibold transition-colors ${
-          open || nodeCount > 0 ? "text-[#3CE6AC]" : "text-white/35 hover:text-white/75"
+        aria-label={
+          nodeCount > 0 ? t("timeline.fxApplied", { count: nodeCount }) : t("timeline.fxEffects")
+        }
+        title={t("timeline.fxEffects")}
+        className={`flex h-6 items-center justify-center gap-0.5 rounded-sm border-0 bg-transparent px-1 text-[10px] font-semibold transition-colors ${
+          open || nodeCount > 0
+            ? "text-[var(--st-tx)]"
+            : "text-[var(--st-t3)] hover:text-[var(--st-tx)]"
         }`}
         onPointerDown={(event) => event.stopPropagation()}
         onClick={(event) => {

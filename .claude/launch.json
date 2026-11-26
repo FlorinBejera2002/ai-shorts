@@ -25,6 +25,21 @@
         "--strictPort"
       ],
       "port": 5295
+    },
+    {
+      "name": "studio-dev",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "-e",
+        "process.chdir('editor/packages/studio');process.argv.splice(1,0,'vite');import('file:///C:/Users/flori/Documents/projects/sneepcut/editor/node_modules/.bun/vite@6.4.2+59986b0d812a3e3d/node_modules/vite/bin/vite.js')",
+        "--",
+        "--host",
+        "127.0.0.1",
+        "--port",
+        "5191",
+        "--strictPort"
+      ],
+      "port": 5191
     }
   ]
 }

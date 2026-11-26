@@ -77,7 +77,9 @@ describe("ColorWheels", () => {
 
   it("renders a color sequence that follows the same hue direction as the pointer", () => {
     const { root, surface } = renderWheels();
-    expect(surface.style.background).toContain("#f33, #f3f, #33f, #3ff, #3f3, #ff3, #f33");
+    expect(surface.style.background).toContain(
+      "rgb(255 51 51), rgb(255 51 255), rgb(51 51 255), rgb(51 255 255), rgb(51 255 51), rgb(255 255 51), rgb(255 51 51)",
+    );
     act(() => root.unmount());
   });
 

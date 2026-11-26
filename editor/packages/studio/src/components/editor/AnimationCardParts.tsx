@@ -8,6 +8,7 @@ import {
   clampPropertyValue,
 } from "./gsapAnimationConstants";
 import { P } from "./panelTokens";
+import { t } from "../../i18n/translate";
 
 export const BOOLEAN_PROPS = new Set(["visibility"]);
 const STRING_PROPS = new Set(["filter", "clipPath"]);
@@ -46,7 +47,7 @@ function RemoveButton({ onClick, title }: { onClick: () => void; title: string }
     <button
       type="button"
       onClick={onClick}
-      className="relative flex-shrink-0 rounded p-1.5 text-neutral-600 transition-colors hover:bg-neutral-800 hover:text-red-400 active:scale-[0.95]"
+      className="relative inline-flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-studio-muted transition-colors hover:bg-[var(--st-sub)] hover:text-studio-danger active:scale-[0.95]"
       title={title}
       aria-label={title}
     >
@@ -82,8 +83,8 @@ export function PropertyRow({
     const isVisible = val === "visible" || val === 1;
     return (
       <div className="flex items-center gap-1">
-        <div className="min-w-0 flex-1 flex items-center gap-2 px-2 py-1 rounded-lg bg-neutral-900 border border-neutral-800">
-          <span className="flex-1 text-[11px] font-medium text-neutral-500">
+        <div className="min-w-0 flex-1 flex min-h-10 items-center gap-2 rounded-md bg-studio-surface px-3 shadow-[inset_0_0_0_1px_var(--st-sbd)]">
+          <span className="flex-1 text-[13px] font-medium text-studio-muted">
             {PROP_LABELS[prop] ?? prop}
           </span>
           <button
@@ -116,14 +117,14 @@ export function PropertyRow({
     return (
       <div className="flex flex-col gap-1">
         <div className="flex items-center gap-1">
-          <div className="min-w-0 flex-1 flex items-center gap-2 px-2 py-1 rounded-lg bg-neutral-900 border border-neutral-800">
-            <span className="flex-shrink-0 text-[11px] font-medium text-neutral-500">
+          <div className="min-w-0 flex-1 flex min-h-10 items-center gap-2 rounded-md bg-studio-surface px-3 shadow-[inset_0_0_0_1px_var(--st-sbd)]">
+            <span className="flex-shrink-0 text-[13px] font-medium text-studio-muted">
               {PROP_LABELS[prop] ?? prop}
             </span>
             <input
               type="text"
               defaultValue={String(val)}
-              className="flex-1 bg-transparent text-[11px] text-neutral-200 outline-none"
+              className="flex-1 bg-transparent text-[13px] text-studio-text outline-none"
               onBlur={(e) => onCommit(e.currentTarget.value)}
               onKeyDown={(e) => {
                 if (e.key === "Enter") e.currentTarget.blur();
@@ -139,7 +140,7 @@ export function PropertyRow({
                 key={p.value}
                 type="button"
                 onClick={() => onCommit(p.value)}
-                className="px-1.5 py-0.5 rounded text-[9px] font-medium text-neutral-500 bg-neutral-800/50 hover:bg-neutral-800 hover:text-neutral-300 transition-colors"
+                className="rounded-full px-2.5 py-1 text-xs font-medium text-studio-text shadow-[inset_0_0_0_1px_var(--st-bd)] transition-colors hover:bg-[var(--st-sub)]"
               >
                 {p.label}
               </button>
@@ -190,7 +191,7 @@ export function AddPropertyTrigger({
     return (
       <select
         autoFocus
-        className="min-w-0 rounded-lg border border-neutral-700 bg-neutral-900 px-2 py-1 text-[11px] text-neutral-100 outline-none"
+        className="h-9 min-w-0 rounded-md bg-studio-surface px-2.5 text-[13px] text-studio-text shadow-[inset_0_0_0_1px_var(--st-sbd)] outline-none"
         defaultValue=""
         onChange={(e) => {
           if (e.target.value) onAdd(e.target.value);
@@ -199,7 +200,7 @@ export function AddPropertyTrigger({
         onBlur={onClose}
       >
         <option value="" disabled>
-          Choose property…
+          {t("motion.chooseProperty")}
         </option>
         {available.map((p) => (
           <option key={p} value={p}>

@@ -25,6 +25,8 @@ import type {
 } from "@hyperframes/core/audio-automation";
 import { capturePointer } from "./automationLanePointer";
 import { retimeRange } from "./automationLaneSelection";
+import { t } from "../../i18n/translate";
+import { formatDecimalSeconds } from "./timelineDisplayTime";
 
 /** Hit radius for grabbing a selection's edge, in screen px — independent of a
  *  point's own grab radius so the two zones can be reasoned about on their own. */
@@ -205,7 +207,12 @@ export function useAutomationEdgeStretch({
       }
       const newT0 = edge === "t0" ? current : origin.t0;
       const newT1 = edge === "t1" ? current : origin.t1;
-      onHint(`${newT0.toFixed(2)}s → ${newT1.toFixed(2)}s`);
+      onHint(
+        t("timeline.autoHintStretch", {
+          start: formatDecimalSeconds(newT0),
+          end: formatDecimalSeconds(newT1),
+        }),
+      );
       onRangeSelect?.(newT0, newT1, origin.v0, origin.v1);
       commitPoints(
         retimeRange({

@@ -1,4 +1,5 @@
 import { memo, useSyncExternalStore } from "react";
+import { t as translate } from "../../i18n/translate";
 import {
   deleteBeatAtCompositionTime,
   moveBeatCompositionTime,
@@ -330,8 +331,8 @@ export const BeatBackgroundLines = memo(function BeatBackgroundLines({
             style={{
               left: t * pps,
               width: isHighlight ? 2 : 1,
-              background: `rgba(34,197,94,${opacity.toFixed(3)})`,
-              boxShadow: isHighlight ? "0 0 6px rgba(34,197,94,0.9)" : undefined,
+              background: `color-mix(in srgb, var(--st-tx) ${(opacity * 100).toFixed(1)}%, transparent)`,
+              boxShadow: undefined,
               zIndex: isHighlight ? 1 : undefined,
             }}
           />
@@ -343,8 +344,7 @@ export const BeatBackgroundLines = memo(function BeatBackgroundLines({
           style={{
             left: highlightTime * pps,
             width: 2,
-            background: "rgba(34,197,94,1)",
-            boxShadow: "0 0 6px rgba(34,197,94,0.9)",
+            background: "var(--st-tx)",
             zIndex: 1,
           }}
         />
@@ -400,7 +400,12 @@ export const BeatStrip = memo(function BeatStrip({
   return (
     <div
       className="absolute left-0 right-0 pointer-events-none"
-      style={{ top: CLIP_Y, height: BEAT_BAND_H, background: "rgba(0,0,0,0.28)", zIndex: 11 }}
+      style={{
+        top: CLIP_Y,
+        height: BEAT_BAND_H,
+        background: "color-mix(in srgb, var(--st-tx) 8%, transparent)",
+        zIndex: 11,
+      }}
     >
       {beatEntries.map(({ time: t, index: i, strength: beatStrength }) => {
         // Louder beats → larger, brighter dot. Gamma curve widens the contrast.
@@ -413,7 +418,7 @@ export const BeatStrip = memo(function BeatStrip({
           <div
             key={`${t}-${i}`}
             className="absolute select-none"
-            title="Drag to move · ⌥-click to delete"
+            title={translate("timeline.beatHandleTip")}
             draggable={false}
             style={{
               left: x - BEAT_HIT_W / 2,
@@ -451,7 +456,7 @@ export const BeatStrip = memo(function BeatStrip({
                 width: r * 2,
                 height: r * 2,
                 borderRadius: "50%",
-                background: `rgba(34,197,94,${opacity.toFixed(3)})`,
+                background: `color-mix(in srgb, var(--st-tx) ${(opacity * 100).toFixed(1)}%, transparent)`,
                 pointerEvents: "none",
               }}
             />

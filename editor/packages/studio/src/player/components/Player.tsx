@@ -1,9 +1,14 @@
 import { buildProjectApiPath } from "../../utils/projectRouting";
 import { forwardRef, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { isLottieAnimationLoaded } from "@hyperframes/core/runtime/lottie-readiness";
 import { useMountEffect } from "../../hooks/useMountEffect";
 import { applyPreviewVariablesToUrl } from "../../hooks/previewVariablesStore";
-import { HyperframesLoader } from "../../components/ui";
+import {
+  AssetPrepOverlay,
+  CompositionLoadingOverlay,
+  PreviewErrorState,
+} from "../../components/nle/preview/PreviewStatus";
 // NOTE: importing "@hyperframes/player" registers a class extending HTMLElement
 // at module load, which throws under SSR. Defer the import to the mount effect
 // so it only runs in the browser.
@@ -16,6 +21,10 @@ interface PlayerProps {
   portrait?: boolean;
   style?: React.CSSProperties;
   suppressLoadingOverlay?: boolean;
+  /** Element (the preview card) that hosts the loading overlays; defaults to the stage. */
+  statusHost?: HTMLElement | null;
+  /** Reports whether the preview failed to load (the card disables zoom and playback). */
+  onPreviewErrorChange?: (failed: boolean) => void;
 }
 
 interface HyperframesPlayerElement extends HTMLElement {
@@ -124,6 +133,8 @@ export const Player = forwardRef<HTMLIFrameElement, PlayerProps>(
       portrait,
       style,
       suppressLoadingOverlay,
+      statusHost,
+      onPreviewErrorChange,
     },
     ref,
   ) => {
@@ -388,9 +399,21 @@ export const Player = forwardRef<HTMLIFrameElement, PlayerProps>(
     const showAssetOverlay =
       assetOverlayVisible && !shaderTransitionLoading && !showCompositionOverlay && !previewError;
 
+    // Report the raw loading state, not the deferred overlay: reporting "not loading" during the
+    // overlay's 400ms grace period marked the first load as done before it finished, which
+    // suppressed the loading overlay (St-Preview-Loading) on every first open.
+    const reportedLoading = (compositionLoading && !previewError) || showAssetOverlay;
     useEffect(() => {
-      onCompositionLoadingChange?.(showCompositionOverlay || showAssetOverlay);
-    }, [onCompositionLoadingChange, showCompositionOverlay, showAssetOverlay]);
+      onCompositionLoadingChange?.(reportedLoading);
+    }, [onCompositionLoadingChange, reportedLoading]);
+
+    useEffect(() => {
+      onPreviewErrorChange?.(previewError !== null);
+    }, [onPreviewErrorChange, previewError]);
+
+    // Loading overlays cover the whole preview card when it is known (St-Preview-Loading).
+    const hostOverlay = (node: React.ReactNode) =>
+      statusHost ? createPortal(node, statusHost) : node;
 
     return (
       <div
@@ -398,72 +421,17 @@ export const Player = forwardRef<HTMLIFrameElement, PlayerProps>(
         style={style}
       >
         <div ref={containerRef} className="w-full h-full" />
-        {showCompositionOverlay && (
-          <div
-            className="absolute inset-0 bg-black flex items-center justify-center z-30 select-none"
-            data-hyperframes-ignore=""
-            data-testid="composition-loading-overlay"
-            draggable={false}
-            onDragStart={(event) => event.preventDefault()}
-            onMouseDown={(event) => event.preventDefault()}
-            onPointerDown={(event) => event.preventDefault()}
-          >
-            <HyperframesLoader
-              title="Loading composition"
-              detail="Preparing the Studio preview."
-              size={56}
-            />
-          </div>
-        )}
-        {showAssetOverlay && (
-          <div
-            className="absolute inset-0 bg-black flex items-center justify-center z-20 select-none"
-            data-hyperframes-ignore=""
-            draggable={false}
-            style={{
-              opacity: assetOverlayFading ? 0 : 1,
-              pointerEvents: assetOverlayFading ? "none" : "auto",
-              transition: "opacity 180ms ease-in",
-            }}
-            onDragStart={(event) => event.preventDefault()}
-            onMouseDown={(event) => event.preventDefault()}
-          >
-            <div className="flex flex-col items-center gap-3">
-              <HyperframesLoader
-                title="Preparing preview assets"
-                detail="Waiting for media and motion assets before playback starts."
-                size={56}
-              />
-              {assetWaitLong && (
-                <button
-                  type="button"
-                  onClick={handleContinueAnyway}
-                  className="px-3 py-1.5 text-[11px] rounded-md border border-neutral-700 text-neutral-300 hover:border-neutral-500 hover:bg-neutral-800 transition-colors"
-                >
-                  Continue anyway
-                </button>
-              )}
-            </div>
-          </div>
-        )}
+        {showCompositionOverlay && hostOverlay(<CompositionLoadingOverlay />)}
+        {showAssetOverlay &&
+          hostOverlay(
+            <AssetPrepOverlay
+              fading={assetOverlayFading}
+              showContinue={assetWaitLong}
+              onContinue={handleContinueAnyway}
+            />,
+          )}
         {previewError && (
-          <div
-            className="absolute inset-0 z-40 flex items-center justify-center bg-black/90 px-6 text-center"
-            data-hyperframes-ignore=""
-            data-testid="composition-preview-error"
-          >
-            <div className="max-w-sm">
-              <p className="text-sm font-semibold text-white">Preview failed to load</p>
-              <p className="mt-1 text-xs text-neutral-400">{previewError}</p>
-              <button
-                type="button"
-                className="mt-4 rounded-md bg-white px-3 py-1.5 text-xs font-semibold text-black transition-colors hover:bg-neutral-200"
-                onClick={() => retryPreviewRef.current?.()}
-              >
-                Retry preview
-              </button>
-            </div>
-          </div>
+          <PreviewErrorState message={previewError} onRetry={() => retryPreviewRef.current?.()} />
         )}
       </div>
     );

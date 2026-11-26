@@ -22,6 +22,7 @@ import type { EFFECT_COPY } from "@hyperframes/core/audio-fx-copy";
 import { trackProfileCommitted } from "./audioFxTelemetry.js";
 import { FxParamRow } from "./propertyPanelFxControls.js";
 import { FxBandRuler } from "./propertyPanelFxBandRuler.js";
+import { audioText } from "./propertyPanelFxText.js";
 import { FxNodeParams, type FxNodeControlHandlers } from "./propertyPanelFxNodeParams.js";
 
 /**
@@ -57,7 +58,7 @@ function FxNodeDerivedKnob({
   if (!derived) return null;
   return (
     <>
-      <div className="hf-fx-params space-y-0.5 border-t border-panel-border-input px-1.5 py-1.5">
+      <div className="hf-fx-params space-y-0.5 border-t border-[var(--st-bd)] px-1.5 py-1.5">
         <FxParamRow
           param={derived}
           value={audioFxProfileStrength(node.type, params)}
@@ -70,9 +71,9 @@ function FxNodeDerivedKnob({
         />
       </div>
       {profile ? (
-        <p className="hf-fx-node-ends flex justify-between gap-2 px-1.5 pb-1 text-[9px] text-panel-text-2">
-          <span className="truncate">{profile.ends.low}</span>
-          <span className="truncate text-right">{profile.ends.high}</span>
+        <p className="hf-fx-node-ends flex justify-between gap-2 px-1.5 pb-1 text-[11px] text-studio-muted">
+          <span className="truncate">{audioText(profile.ends.low)}</span>
+          <span className="truncate text-right">{audioText(profile.ends.high)}</span>
         </p>
       ) : null}
     </>
@@ -129,9 +130,9 @@ function FxNodePrimaryKnob({
           where the control is; this tells them which way to move it, which is
           the question they actually have. */}
       {copy?.primaryEnds ? (
-        <p className="hf-fx-node-ends flex justify-between gap-2 px-1.5 pb-1 text-[9px] text-panel-text-2">
-          <span className="truncate">{copy.primaryEnds.low}</span>
-          <span className="truncate text-right">{copy.primaryEnds.high}</span>
+        <p className="hf-fx-node-ends flex justify-between gap-2 px-1.5 pb-1 text-[11px] text-studio-muted">
+          <span className="truncate">{audioText(copy.primaryEnds.low)}</span>
+          <span className="truncate text-right">{audioText(copy.primaryEnds.high)}</span>
         </p>
       ) : null}
       {/* Where it is working, in the words the rack shares. Only for a module
@@ -193,12 +194,9 @@ export function FxNodeOpenBody({
 }) {
   return (
     <>
-      {/* What it is for, before what it is made of. */}
-      {copy?.does ? (
-        <p className="hf-fx-node-does border-t border-panel-border-input px-1.5 py-1 text-[10px] text-panel-text-2">
-          {copy.does}
-        </p>
-      ) : null}
+      {/* What it is for, before what it is made of: read by screen readers only, because the
+          panel shows titles without helper text (St-Inspector-AudioRack). */}
+      {copy?.does ? <p className="hf-fx-node-does sr-only">{copy.does}</p> : null}
       {!details ? (
         <FxNodeDerivedKnob
           node={node}
@@ -237,16 +235,16 @@ export function FxNodeOpenBody({
       {oneKnob ? (
         <button
           type="button"
-          className="hf-fx-node-details flex w-full items-center gap-1 border-t border-panel-border-input px-1.5 py-1 text-left font-mono text-[9px] uppercase tracking-wide text-panel-text-2 hover:text-panel-text-0"
+          className="hf-fx-node-details flex w-full items-center gap-1 border-t border-[var(--st-bd)] px-1.5 py-1 text-left text-[11px] uppercase tracking-wide text-studio-muted hover:text-studio-text"
           aria-expanded={details}
           onClick={onToggleDetails}
         >
           <span aria-hidden="true">{details ? "▾" : "▸"}</span>
-          Details — {registryDef.label}
+          {audioText("Details")} — {audioText(registryDef.label)}
         </button>
       ) : (
-        <p className="hf-fx-node-mechanism border-t border-panel-border-input px-1.5 pt-1 font-mono text-[9px] uppercase tracking-wide text-panel-text-2">
-          Details — {registryDef.label}
+        <p className="hf-fx-node-mechanism border-t border-[var(--st-bd)] px-1.5 pt-1 text-[11px] uppercase tracking-wide text-studio-muted">
+          {audioText("Details")} — {audioText(registryDef.label)}
         </p>
       )}
       {details || !oneKnob ? (

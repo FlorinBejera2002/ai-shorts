@@ -1,39 +1,72 @@
-import { useState } from "react";
-import { CaretLeft } from "@phosphor-icons/react";
+import { useState, type MouseEvent } from "react";
 import { useEdgeSwipeBack } from "../hooks/useEdgeSwipeBack";
+import { t, useLocale } from "../i18n/translate";
+import { ShellIcon } from "./shell/ShellIcon";
+import { SHELL_ICON_BUTTON } from "./shell/shellButtons";
+import { clipsUrlFromReferrer } from "./studioBackTarget";
 
-function canReturnToApp(): boolean {
-  if (typeof document === "undefined") return false;
-  const hosted = document.querySelector('meta[name="sneepcut-session"][content="enabled"]');
-  return Boolean(hosted) && window.history.length > 1;
+export { clipsUrlFromReferrer } from "./studioBackTarget";
+
+interface BackTarget {
+  /** The app opened Studio in this tab, so history.back() returns to it. */
+  useHistory: boolean;
+  href: string | null;
 }
 
-/** Below `lg`, where this button replaces the logo. */
-function isSmallScreen(): boolean {
-  return typeof window !== "undefined" && window.matchMedia("(max-width: 1023px)").matches;
+function resolveBackTarget(): BackTarget {
+  if (typeof document === "undefined") return { useHistory: false, href: null };
+  const hosted = document.querySelector('meta[name="sneepcut-session"][content="enabled"]');
+  return {
+    useHistory: Boolean(hosted) && window.history.length > 1,
+    href: clipsUrlFromReferrer(document.referrer, window.location.origin),
+  };
 }
 
 const goBack = () => window.history.back();
 
 /**
- * Small-screen way back to the SneepCut app, which opens Studio in the same tab.
- * Wide layouts show the logo instead, so this renders below `lg` only. An edge swipe
- * from the left does the same, as on iOS.
+ * Way back to the SneepCut clips page. Desktop shows "‹ Clipuri"; the phone top bar shows a
+ * 44px back button, and an edge swipe from the left does the same, as on iOS.
  */
-export function StudioBackButton() {
-  const [visible] = useState(canReturnToApp);
-  const [small] = useState(isSmallScreen);
-  useEdgeSwipeBack(goBack, visible && small);
-  if (!visible) return null;
+export function StudioBackButton({ variant }: { variant: "desktop" | "phone" }) {
+  useLocale();
+  const [target] = useState(resolveBackTarget);
+  const available = target.useHistory || target.href !== null;
+  const swipeBack = () => {
+    if (target.useHistory) goBack();
+    else if (target.href) window.location.assign(target.href);
+  };
+  useEdgeSwipeBack(swipeBack, available && variant === "phone");
+  if (!available) return null;
 
+  const onClick = (event: MouseEvent<HTMLAnchorElement>) => {
+    if (!target.useHistory) return;
+    event.preventDefault();
+    goBack();
+  };
+
+  if (variant === "phone") {
+    return (
+      <a
+        href={target.href ?? "#"}
+        onClick={onClick}
+        aria-label={t("shell.backLabel")}
+        title={t("shell.backLabel")}
+        className={`${SHELL_ICON_BUTTON} h-11 w-11`}
+      >
+        <ShellIcon name="back" size={20} />
+      </a>
+    );
+  }
   return (
-    <button
-      type="button"
-      onClick={goBack}
-      aria-label="Back"
-      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-neutral-300 transition-colors hover:bg-neutral-800 hover:text-neutral-50 active:scale-[0.98] lg:hidden"
+    <a
+      href={target.href ?? "#"}
+      onClick={onClick}
+      aria-label={t("shell.backLabel")}
+      className="inline-flex h-9 flex-none items-center gap-1 rounded-full pl-1 pr-2.5 text-[13px] font-semibold text-[var(--st-t2)] no-underline hover:bg-[var(--st-sub)]"
     >
-      <CaretLeft size={18} weight="bold" aria-hidden="true" />
-    </button>
+      <ShellIcon name="back" size={16} />
+      <span className="max-lg:sr-only">{t("shell.back")}</span>
+    </a>
   );
 }

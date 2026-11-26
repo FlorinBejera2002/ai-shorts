@@ -1,13 +1,22 @@
 /**
- * Context menu for a right-click inside an automation time selection: the four
- * utility shapes, then Simplify. Portal + dismiss handling mirror
- * TrackGapContextMenu; rows never vanish — an inapplicable Simplify dims with
- * a reason instead of leaving a shorter menu.
+ * Context menu for a right-click inside an automation time selection (St-Timeline-AutoMenu):
+ * the four utility shapes, then Simplify. Rows never vanish: an inapplicable Simplify dims
+ * with a reason instead of leaving a shorter menu.
  */
 import { memo } from "react";
-import { createPortal } from "react-dom";
 import { useContextMenuDismiss } from "../../hooks/useContextMenuDismiss";
+import { t, useLocale } from "../../i18n/translate";
+import type { MessageKey } from "../../i18n/dictionary";
 import { AUTOMATION_SHAPES, type AutomationShapeId } from "./automationShapes";
+import { TimelineMenuItem, TimelineMenuSurface } from "./TimelineMenu";
+import type { TimelineIconName } from "./TimelineIcon";
+
+const SHAPE_COPY: Record<AutomationShapeId, { key: MessageKey; icon: TimelineIconName }> = {
+  "ramp-up": { key: "timeline.autoRampUp", icon: "arrow" },
+  "ramp-down": { key: "timeline.autoRampDown", icon: "arrow" },
+  swell: { key: "timeline.autoSwell", icon: "sparkle" },
+  dip: { key: "timeline.autoDip", icon: "arrow" },
+};
 
 interface AutomationSelectionMenuProps {
   x: number;
@@ -27,54 +36,48 @@ export const AutomationSelectionMenu = memo(function AutomationSelectionMenu({
   onSimplify,
   canSimplify,
 }: AutomationSelectionMenuProps) {
+  useLocale();
   const menuRef = useContextMenuDismiss(onClose);
-  const row =
-    "block w-full px-2 py-1 text-left text-[11px] text-panel-text-1 hover:bg-panel-bg-3 disabled:opacity-40";
-  // Same edge-clamping precedent as TrackGapContextMenu: without it a
-  // right-click near the bottom/right of the timeline renders this menu
-  // partially off-screen.
-  const menuWidth = 140;
-  const menuHeight = AUTOMATION_SHAPES.length * 24 + 32;
-  const overflowY = y + menuHeight - window.innerHeight;
-  const adjustedX = x + menuWidth > window.innerWidth ? x - menuWidth : x;
-  const adjustedY = overflowY > 0 ? y - overflowY - 8 : y;
-  return createPortal(
-    <div
+  return (
+    // Portaled at z-200: the ruler's sticky header sits at z-70 in the same root stacking
+    // context, so a lower menu opened near the top of the timeline is painted through.
+    <TimelineMenuSurface
       ref={menuRef}
-      // z-[200] for the same reason the timeline's FX popover uses it: this is
-      // portaled to `document.body`, but the ruler's sticky header sits at z-70
-      // in the SAME root stacking context, so a z-50 menu opened near the top of
-      // the timeline is painted through by the ruler and the playhead.
-      className="hf-automation-menu fixed z-[200] min-w-[140px] rounded border border-panel-border-input bg-panel-bg-2 py-1 shadow-lg"
-      style={{ left: adjustedX, top: adjustedY }}
+      role="group"
+      className="hf-automation-menu"
+      label={t("timeline.autoShapes")}
+      title={t("timeline.autoVolume")}
+      x={x}
+      y={y}
+      width={230}
+      estimatedHeight={(AUTOMATION_SHAPES.length + 1) * 38 + 12}
+      onDismiss={onClose}
     >
       {AUTOMATION_SHAPES.map((shape) => (
-        <button
+        <TimelineMenuItem
           key={shape.id}
-          type="button"
-          className={row}
+          role="button"
+          icon={SHAPE_COPY[shape.id].icon}
           onClick={() => {
             onInsertShape(shape.id);
             onClose();
           }}
         >
-          {shape.label}
-        </button>
+          {t(SHAPE_COPY[shape.id].key)}
+        </TimelineMenuItem>
       ))}
-      <div className="my-1 border-t border-panel-border-input" />
-      <button
-        type="button"
-        className={row}
+      <TimelineMenuItem
+        role="button"
+        icon="sliders"
         disabled={!canSimplify}
-        title={canSimplify ? undefined : "Fewer than three points in the selection"}
+        title={canSimplify ? undefined : t("timeline.autoSimplifyTip")}
         onClick={() => {
           onSimplify();
           onClose();
         }}
       >
-        Simplify
-      </button>
-    </div>,
-    document.body,
+        {t("timeline.autoSimplify")}
+      </TimelineMenuItem>
+    </TimelineMenuSurface>
   );
 });

@@ -36,6 +36,18 @@ function renderInto(node: React.ReactElement) {
   return { host, root };
 }
 
+function click(element: Element | null | undefined) {
+  act(() => element?.dispatchEvent(new MouseEvent("click", { bubbles: true })));
+}
+
+/** Opens a family from the list view, going back to the list first when needed. */
+function openFamily(host: HTMLElement, label: string) {
+  click(host.querySelector('[data-look-back="true"]'));
+  const family = host.querySelector(`[data-flat-effect-group="${label}"]`);
+  expect(family).not.toBeNull();
+  click(family);
+}
+
 function sectionProps(
   grading: ReturnType<typeof neutralGrading>,
   onCommitColorGrading: Mock = vi.fn(),
@@ -84,20 +96,26 @@ describe("FlatEffectsSection", () => {
     act(() => vhs?.dispatchEvent(new MouseEvent("click", { bubbles: true })));
     expect(onCommit.mock.calls[0][0].preset).toBe("vhs-playback");
 
-    const print = host.querySelector<HTMLButtonElement>('[data-flat-effect-group="Print"]');
-    act(() => print?.dispatchEvent(new MouseEvent("click", { bubbles: true })));
+    openFamily(host, "Print");
     expect(host.querySelector('[data-flat-effect-preset="editorial-halftone"]')).not.toBeNull();
     expect(host.querySelector('[data-flat-effect-preset="two-ink-print"]')).not.toBeNull();
     act(() => root.unmount());
   });
 
-  it("offers every shader master once in four intentional families", () => {
+  it("offers every shader master once across the board families", () => {
     const { host, root } = renderInto(<FlatEffectsSection {...sectionProps(neutralGrading())} />);
     const renderedKeys: Array<string | null> = [];
-    for (const label of ["Essentials", "Retro & Glitch", "Print", "Art"]) {
-      const tab = host.querySelector<HTMLButtonElement>(`[data-flat-effect-group="${label}"]`);
-      expect(tab).not.toBeNull();
-      act(() => tab?.dispatchEvent(new MouseEvent("click", { bubbles: true })));
+    for (const label of [
+      "Essentials",
+      "Retro & Glitch",
+      "Print",
+      "Mono Screen",
+      "ASCII",
+      "Engraving",
+      "Crosshatch",
+      "Kuwahara Paint",
+    ]) {
+      openFamily(host, label);
       renderedKeys.push(
         ...Array.from(host.querySelectorAll("[data-flat-effect-option]"), (element) =>
           element.getAttribute("data-flat-effect-option"),
@@ -118,8 +136,15 @@ describe("FlatEffectsSection", () => {
   it("requests exact cards and auditions a chosen default without persisting", () => {
     const props = sectionProps(neutralGrading());
     const { host, root } = renderInto(<FlatEffectsSection {...props} />);
+    expect(props.onRequestEffectPreviews).not.toHaveBeenCalled();
+    openFamily(host, "Essentials");
     expect(props.onRequestEffectPreviews).toHaveBeenCalledTimes(1);
-    expect(props.onRequestEffectPreviews).toHaveBeenCalledWith(["blur", "pixelate", "bloom"]);
+    expect(props.onRequestEffectPreviews).toHaveBeenCalledWith([
+      "blur",
+      "pixelate",
+      "bloom",
+      "chromaticAberration",
+    ]);
     expect(host.querySelector('[data-flat-effect-preview="pixelate"]')).not.toBeNull();
     const pixelate = host.querySelector<HTMLButtonElement>('[data-flat-effect-option="pixelate"]');
     act(() => pixelate?.dispatchEvent(new MouseEvent("pointerover", { bubbles: true })));
@@ -139,9 +164,10 @@ describe("FlatEffectsSection", () => {
     const onCommit = vi.fn();
     const grading = { ...neutralGrading(), intensity: 0 };
     const { host, root } = renderInto(<FlatEffectsSection {...sectionProps(grading, onCommit)} />);
-    const pixelate = host.querySelector<HTMLButtonElement>('[data-flat-effect-option="pixelate"]');
-    act(() => pixelate?.dispatchEvent(new MouseEvent("click", { bubbles: true })));
+    openFamily(host, "Essentials");
+    click(host.querySelector('[data-flat-effect-option="pixelate"]'));
     expect(onCommit).toHaveBeenCalledTimes(1);
+    expect(host.querySelector("[data-flat-effect-editor]")).toBeNull();
     expect(onCommit.mock.calls[0][0].effects.pixelate).toBe(
       HF_COLOR_GRADING_EFFECT_APPLY_DEFAULTS.pixelate.pixelate,
     );
@@ -160,12 +186,7 @@ describe("FlatEffectsSection", () => {
       lut: { src: "assets/luts/custom.cube", intensity: 0.5 },
     };
     const { host, root } = renderInto(<FlatEffectsSection {...sectionProps(grading, onCommit)} />);
-    const toggle = host.querySelector<HTMLButtonElement>('[data-flat-effects-add-toggle="true"]');
-    act(() => toggle?.dispatchEvent(new MouseEvent("click", { bubbles: true })));
-    const retro = host.querySelector<HTMLButtonElement>(
-      '[data-flat-effect-group="Retro & Glitch"]',
-    );
-    act(() => retro?.dispatchEvent(new MouseEvent("click", { bubbles: true })));
+    openFamily(host, "Retro & Glitch");
     const vhs = host.querySelector<HTMLButtonElement>('[data-flat-effect-preset="vhs-playback"]');
     act(() => vhs?.dispatchEvent(new MouseEvent("click", { bubbles: true })));
     const committed = onCommit.mock.calls[0][0];
@@ -273,7 +294,7 @@ describe("FlatEffectsSection", () => {
     act(() => root.unmount());
   });
 
-  it("closes the catalog when an already active effect is selected", () => {
+  it("opens an already active effect instead of applying it again", () => {
     const grading = normalizeHfColorGrading({
       effects: HF_COLOR_GRADING_EFFECT_APPLY_DEFAULTS.blur,
     });
@@ -281,27 +302,62 @@ describe("FlatEffectsSection", () => {
     const props = sectionProps(grading);
     const { host, root } = renderInto(<FlatEffectsSection {...props} />);
     expect(props.onRequestEffectPreviews).not.toHaveBeenCalled();
-    const toggle = host.querySelector<HTMLButtonElement>('[data-flat-effects-add-toggle="true"]');
-    act(() => toggle?.dispatchEvent(new MouseEvent("click", { bubbles: true })));
-    expect(toggle?.getAttribute("aria-expanded")).toBe("true");
-    expect(props.onRequestEffectPreviews).toHaveBeenCalledWith(["blur", "pixelate", "bloom"]);
-    const blur = host.querySelector<HTMLButtonElement>('[data-flat-effect-option="blur"]');
-    act(() => blur?.dispatchEvent(new MouseEvent("click", { bubbles: true })));
-    expect(toggle?.getAttribute("aria-expanded")).toBe("false");
+    expect(host.querySelector('[data-flat-effect-editor="blur"]')).not.toBeNull();
+    openFamily(host, "Essentials");
+    expect(props.onRequestEffectPreviews).toHaveBeenCalledWith([
+      "blur",
+      "pixelate",
+      "bloom",
+      "chromaticAberration",
+    ]);
+    click(host.querySelector('[data-flat-effect-option="blur"]'));
+    expect(props.onCommitColorGrading).not.toHaveBeenCalled();
+    expect(host.querySelector('[data-flat-effect-editor="blur"]')).not.toBeNull();
     act(() => root.unmount());
   });
 
   it("requests only the visible family when the catalog tab changes", () => {
     const props = sectionProps(neutralGrading());
     const { host, root } = renderInto(<FlatEffectsSection {...props} />);
-    const art = host.querySelector<HTMLButtonElement>('[data-flat-effect-group="Art"]');
-    act(() => art?.dispatchEvent(new MouseEvent("click", { bubbles: true })));
+    openFamily(host, "Retro & Glitch");
     expect(props.onRequestEffectPreviews).toHaveBeenLastCalledWith([
-      "ascii",
-      "engraving",
-      "crosshatch",
-      "kuwahara",
+      "chromaBleed",
+      "tapeDamage",
+      "filmArtifacts",
+      "scanlines",
+      "crtCurvature",
+      "digitalGlitch",
     ]);
+    act(() => root.unmount());
+  });
+});
+
+describe("FlatEffectsSection views", () => {
+  it("lists the families with their counts and resets every effect from the list", () => {
+    const onCommit = vi.fn();
+    const base = neutralGrading();
+    const grading = { ...base, effects: { ...base.effects, blur: 0.4 } };
+    const { host, root } = renderInto(<FlatEffectsSection {...sectionProps(grading, onCommit)} />);
+    click(host.querySelector('[data-look-back="true"]'));
+    expect(host.querySelector('[data-flat-effect-active="blur"]')).not.toBeNull();
+    expect(host.querySelector('[data-flat-effect-group="Essentials"]')?.textContent).toBe(
+      "Essentials4",
+    );
+    click(host.querySelector('[data-flat-effects-reset-all="true"]'));
+    expect(onCommit.mock.calls.at(-1)?.[0].effects.blur).toBe(0);
+    act(() => root.unmount());
+  });
+
+  it("previews the frame without the effect while the eye is held", () => {
+    const base = neutralGrading();
+    const grading = { ...base, effects: { ...base.effects, blur: 0.4 } };
+    const props = sectionProps(grading);
+    const { host, root } = renderInto(<FlatEffectsSection {...props} />);
+    const eye = host.querySelector('[data-effect-compare="blur"]');
+    act(() => eye?.dispatchEvent(new MouseEvent("pointerdown", { bubbles: true })));
+    expect(props.onPreviewColorGrading.mock.calls.at(-1)?.[0].effects.blur).toBe(0);
+    act(() => window.dispatchEvent(new MouseEvent("pointerup")));
+    expect(props.onPreviewColorGrading).toHaveBeenLastCalledWith(null);
     act(() => root.unmount());
   });
 });

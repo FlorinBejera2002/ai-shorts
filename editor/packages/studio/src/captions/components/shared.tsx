@@ -1,101 +1,113 @@
 import type React from "react";
-import { useEffect, useRef, useState } from "react";
+import { useId } from "react";
+import { InspectorRange, InspectorSelect } from "../../components/editor/inspectorControls";
 
-export const inputCls =
-  "w-full bg-neutral-900 border border-neutral-800 rounded px-1.5 py-0.5 text-2xs text-neutral-200 font-mono outline-none focus:border-studio-accent disabled:opacity-40 disabled:cursor-not-allowed";
+// St-Captions / St-Inspector-Cap*: titled sections holding half-width sliders (label and value
+// on one line, the track below) and full-width 44px selects. Token colours only.
 
-export function Section({ label, children }: { label: string; children: React.ReactNode }) {
+export function Section({
+  label,
+  children,
+  columns = 2,
+}: {
+  label: string;
+  children: React.ReactNode;
+  /** 2 lays the rows out as a two-column grid (X | Y, Scară | Rotație). */
+  columns?: 1 | 2;
+}) {
   return (
-    <div className="mb-3">
-      <div className="flex items-center gap-1.5 mt-2 mb-1.5">
-        <span className="text-2xs font-medium text-neutral-500 uppercase tracking-wider">
-          {label}
-        </span>
+    <section aria-label={label} className="flex flex-col gap-2.5">
+      <h3 className="text-[13px] font-semibold text-studio-text">{label}</h3>
+      <div className={columns === 2 ? "grid grid-cols-2 gap-x-4 gap-y-3" : "flex flex-col gap-2.5"}>
+        {children}
       </div>
-      <div className="space-y-1">{children}</div>
-    </div>
+    </section>
   );
 }
 
-export function Row({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="flex items-center gap-2">
-      <span className="text-2xs text-neutral-600 w-14 text-right flex-shrink-0">{label}</span>
-      <div className="flex-1 min-w-0">{children}</div>
-    </div>
-  );
-}
-
-interface NumberFieldProps {
-  value: number | undefined;
-  /** True when a multi-selection has differing values — shows "Mixed" until edited. */
-  mixed?: boolean;
+interface SliderFieldProps {
+  label: string;
+  value: number;
+  min: number;
+  max: number;
   step?: number;
-  min?: number;
-  max?: number;
+  /** True when a multi-selection has differing values: the value reads "Mixt". */
+  mixed?: boolean;
+  mixedLabel: string;
   disabled?: boolean;
-  ariaLabel: string;
-  onCommit: (value: number) => void;
+  format: (value: number) => string;
+  onChange: (value: number) => void;
 }
 
-/**
- * Numeric input that only commits finite parses. Typing "-" or clearing the
- * field keeps a local draft instead of committing NaN/0 into live transforms
- * and the persisted overrides file.
- */
-export function NumberField({
+/** A half-width slider: "X     50%" over the track (St-Captions). */
+export function SliderField({
+  label,
   value,
-  mixed,
-  step,
   min,
   max,
+  step = 1,
+  mixed = false,
+  mixedLabel,
   disabled,
-  ariaLabel,
-  onCommit,
-}: NumberFieldProps) {
-  const [draft, setDraft] = useState<string | null>(null);
-  const focusedRef = useRef(false);
-
-  // External value changed while not editing — drop any stale draft.
-  useEffect(() => {
-    if (!focusedRef.current) setDraft(null);
-  }, [value]);
-
-  const display = draft !== null ? draft : mixed ? "" : String(value ?? 0);
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const raw = e.target.value;
-    setDraft(raw);
-    const parsed = Number(raw);
-    if (raw.trim() !== "" && Number.isFinite(parsed)) {
-      // Native min/max only constrain spinner steps — typed values bypass
-      // them, so clamp before committing to the model/overrides.
-      let clamped = parsed;
-      if (min !== undefined) clamped = Math.max(min, clamped);
-      if (max !== undefined) clamped = Math.min(max, clamped);
-      onCommit(clamped);
-    }
-  };
-
+  format,
+  onChange,
+}: SliderFieldProps) {
+  const id = useId();
+  const clamped = Math.min(max, Math.max(min, value));
   return (
-    <input
-      type="number"
-      className={inputCls}
-      value={display}
-      placeholder={mixed ? "Mixed" : undefined}
-      step={step}
-      min={min}
-      max={max}
+    <div className="flex min-w-0 flex-col gap-1.5">
+      <div className="flex items-center justify-between gap-2 text-[13px]">
+        <label htmlFor={id} className="truncate font-medium text-studio-text">
+          {label}
+        </label>
+        <output htmlFor={id} className="flex-none font-semibold tabular-nums text-studio-muted">
+          {mixed ? mixedLabel : format(value)}
+        </output>
+      </div>
+      <InspectorRange
+        id={id}
+        value={clamped}
+        min={min}
+        max={max}
+        step={step}
+        disabled={disabled}
+        onChange={(next) => {
+          if (Number.isFinite(next)) onChange(next);
+        }}
+      />
+    </div>
+  );
+}
+
+export interface SelectChoice {
+  value: string;
+  label: string;
+}
+
+/** Full-width 44px select; a value outside the list is kept as its own option. */
+export function SelectField({
+  label,
+  value,
+  options,
+  disabled,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  options: readonly SelectChoice[];
+  disabled?: boolean;
+  onChange: (value: string) => void;
+}) {
+  const choices = options.some((option) => option.value === value)
+    ? options
+    : [{ value, label: value }, ...options];
+  return (
+    <InspectorSelect
+      label={label}
+      value={value}
+      options={choices}
       disabled={disabled}
-      aria-label={ariaLabel}
-      onChange={handleChange}
-      onFocus={() => {
-        focusedRef.current = true;
-      }}
-      onBlur={() => {
-        focusedRef.current = false;
-        setDraft(null);
-      }}
+      onChange={onChange}
     />
   );
 }

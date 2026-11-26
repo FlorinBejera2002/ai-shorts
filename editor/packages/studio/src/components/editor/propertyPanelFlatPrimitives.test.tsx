@@ -209,8 +209,9 @@ describe("FlatSegmentedRow", () => {
     );
     const options = host.querySelectorAll('[data-flat-segment="true"]');
     expect(options).toHaveLength(2);
-    expect((options[0] as HTMLElement).className).toContain("text-panel-text-4");
-    expect((options[1] as HTMLElement).className).toContain("border-panel-accent");
+    expect((options[0] as HTMLElement).getAttribute("aria-pressed")).toBe("false");
+    expect((options[1] as HTMLElement).getAttribute("aria-pressed")).toBe("true");
+    expect((options[1] as HTMLElement).className).toContain("bg-studio-selected");
     act(() =>
       (options[0] as HTMLElement).dispatchEvent(new MouseEvent("click", { bubbles: true })),
     );
@@ -333,10 +334,10 @@ describe("FlatSlider", () => {
     );
     const knob = host.querySelector<HTMLElement>('[data-flat-slider-knob="true"]');
     expect(knob).not.toBeNull();
-    expect(knob?.className).toContain("bg-panel-text-4");
+    expect(knob?.className).toContain("shadow-[0_0_0_2px_var(--st-t3)]");
     expect(knob?.style.left).toBe("0%");
     const value = host.querySelector('[data-flat-slider-value="true"]');
-    expect(value?.className).toContain("text-panel-text-3");
+    expect(value?.className).toContain("text-studio-muted");
     expect(value?.textContent).toBe("0px");
     act(() => root.unmount());
   });
@@ -356,7 +357,7 @@ describe("FlatSlider", () => {
     const fill = host.querySelector<HTMLElement>('[data-flat-slider-fill="true"]');
     expect(fill?.style.width).toBe("100%");
     const knob = host.querySelector<HTMLElement>('[data-flat-slider-knob="true"]');
-    expect(knob?.className).toContain("bg-white");
+    expect(knob?.className).toContain("shadow-[0_0_0_2px_var(--st-tx)]");
     act(() => root.unmount());
   });
 

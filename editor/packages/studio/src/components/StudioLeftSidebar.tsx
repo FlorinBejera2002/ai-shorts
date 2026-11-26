@@ -6,8 +6,14 @@ import { isMediaFile } from "../utils/mediaTypes";
 import { usePanelLayoutContext } from "../contexts/PanelLayoutContext";
 import { useStudioShellContext } from "../contexts/StudioContext";
 import { useFileManagerContext } from "../contexts/FileManagerContext";
+import { t, useLocale } from "../i18n/translate";
 import { getPersistedRenderSettings } from "./renders/renderSettings";
 import type { BlockPreviewInfo } from "./sidebar/BlocksTab";
+import type { AgentRecordEdit } from "./agent/useAgentRun";
+import { PhoneLeftTools } from "./shell/PhoneLeftTools";
+import { StudioRail } from "./shell/StudioRail";
+import { useIsPhone } from "./shell/useIsPhone";
+import { useRailNavigation } from "./shell/useRailNavigation";
 
 export interface StudioLeftSidebarProps {
   leftSidebarRef: RefObject<LeftSidebarHandle | null>;
@@ -20,11 +26,21 @@ export interface StudioLeftSidebarProps {
   lintFindingsByFile?: Map<string, { count: number; messages: string[] }>;
   onAddAssetToTimeline?: (path: string) => void;
   onAddCompositionToTimeline?: (path: string) => void;
+  /** Records the phone "Mai mult" format change in the undo history. */
+  recordEdit?: AgentRecordEdit;
 }
 
+type SidePanelProps = Omit<StudioLeftSidebarProps, "recordEdit"> & {
+  width?: number;
+  onToggleCollapse?: () => void;
+};
+
+/** The side panel itself (Media, catalog, compositions, code), shared by desktop and phone. */
 // fallow-ignore-next-line complexity
-export function StudioLeftSidebar({
+function SidePanel({
   leftSidebarRef,
+  width,
+  onToggleCollapse,
   onSelectComposition,
   onAddBlock,
   onPreviewBlock,
@@ -34,44 +50,17 @@ export function StudioLeftSidebar({
   lintFindingsByFile,
   onAddAssetToTimeline,
   onAddCompositionToTimeline,
-}: StudioLeftSidebarProps) {
-  const {
-    effectiveLeftCollapsed,
-    leftWidth,
-    adjustPanelWidth,
-    toggleLeftSidebar,
-    handlePanelResizeStart,
-    handlePanelResizeMove,
-    handlePanelResizeEnd,
-    setRightPanelTab,
-    setRightCollapsed,
-  } = usePanelLayoutContext();
+}: SidePanelProps) {
+  const { setRightPanelTab, setRightCollapsed } = usePanelLayoutContext();
   const { projectId, renderQueue, waitForPendingDomEditSaves } = useStudioShellContext();
-  const {
-    compositions,
-    assets,
-    editingFile,
-    fileTree,
-    revealSourceOffset,
-    handleFileSelect,
-    handleCreateFile,
-    handleCreateFolder,
-    handleDeleteFile,
-    handleRenameFile,
-    handleDuplicateFile,
-    handleMoveFile,
-    handleImportFiles,
-    handleContentChange,
-  } = useFileManagerContext();
+  const files = useFileManagerContext();
+  const { editingFile } = files;
 
   const handleRenderComposition = useCallback(
     async (comp: string) => {
       // startRender refuses without an encoder, so nothing unfinishable gets
-      // queued either way. What it cannot do from here is show the reason:
-      // its refusal lands as a row in the Renders panel, which may be
-      // collapsed or on another tab, so the click would look like nothing
-      // happened. Same move the header makes: put the prompt in front of the
-      // user, then stop.
+      // queued either way. What it cannot do from here is show the reason, so
+      // put the install prompt in front of the user, then stop.
       if (renderQueue.ffmpegMissing) {
         setRightPanelTab("renders");
         setRightCollapsed(false);
@@ -84,121 +73,136 @@ export function StudioLeftSidebar({
     [renderQueue, waitForPendingDomEditSaves, setRightPanelTab, setRightCollapsed],
   );
 
-  if (effectiveLeftCollapsed) {
+  return (
+    <LeftSidebar
+      ref={leftSidebarRef}
+      width={width}
+      projectId={projectId}
+      compositions={files.compositions}
+      assets={files.assets}
+      activeComposition={editingFile?.path ?? null}
+      onSelectComposition={onSelectComposition}
+      fileTree={files.fileTree}
+      editingFile={editingFile}
+      onSelectFile={files.handleFileSelect}
+      onCreateFile={files.handleCreateFile}
+      onCreateFolder={files.handleCreateFolder}
+      onDeleteFile={files.handleDeleteFile}
+      onRenameFile={files.handleRenameFile}
+      onDuplicateFile={files.handleDuplicateFile}
+      onMoveFile={files.handleMoveFile}
+      onImportFiles={async (list, dir) => {
+        await files.handleImportFiles(list, dir);
+      }}
+      codeChildren={
+        editingFile ? (
+          isMediaFile(editingFile.path) ? (
+            <MediaPreview projectId={projectId} filePath={editingFile.path} />
+          ) : editingFile.content == null ? (
+            // Never mount the editor on unloaded content: a keystroke would
+            // autosave an empty document over the real file.
+            <div className="flex h-full items-center justify-center text-[11px] text-studio-muted">
+              {editingFile.path}…
+            </div>
+          ) : (
+            <SourceEditor
+              content={editingFile.content}
+              filePath={editingFile.path}
+              onChange={files.handleContentChange}
+              revealOffset={files.revealSourceOffset}
+            />
+          )
+        ) : undefined
+      }
+      onRenderComposition={handleRenderComposition}
+      isRendering={renderQueue.isRendering}
+      onLint={onLint}
+      linting={linting}
+      lintFindingCount={lintFindingCount}
+      lintFindingsByFile={lintFindingsByFile}
+      onToggleCollapse={onToggleCollapse}
+      onAddBlock={onAddBlock}
+      onPreviewBlock={onPreviewBlock}
+      onAddAssetToTimeline={onAddAssetToTimeline}
+      onAddCompositionToTimeline={onAddCompositionToTimeline}
+    />
+  );
+}
+
+/** 12px gap between the side panel and the preview that doubles as the width handle. */
+function SidePanelResizeHandle() {
+  const { adjustPanelWidth, handlePanelResizeStart, handlePanelResizeMove, handlePanelResizeEnd } =
+    usePanelLayoutContext();
+  return (
+    <div
+      role="separator"
+      aria-label={t("shell.resizeSidebar")}
+      title={t("shell.resizeSidebar")}
+      aria-orientation="vertical"
+      tabIndex={0}
+      data-shell-resize="left"
+      className="group relative w-3 flex-none cursor-col-resize outline-none"
+      style={{ touchAction: "none" }}
+      onPointerDown={(e) => handlePanelResizeStart("left", e)}
+      onPointerMove={handlePanelResizeMove}
+      onPointerUp={handlePanelResizeEnd}
+      onPointerCancel={handlePanelResizeEnd}
+      onKeyDown={(e) => {
+        if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+        e.preventDefault();
+        adjustPanelWidth("left", e.key === "ArrowLeft" ? -16 : 16);
+      }}
+    >
+      {/* Visible only while hovered, dragged or focused: a 2px line centred in the gap. */}
+      <div className="absolute inset-y-0 left-[5px] w-0.5 rounded-full bg-transparent transition-colors group-hover:bg-[var(--st-tx)] group-focus-visible:bg-[var(--st-tx)] group-active:bg-[var(--st-tx)]" />
+    </div>
+  );
+}
+
+export function StudioLeftSidebar(props: StudioLeftSidebarProps) {
+  useLocale();
+  const isPhone = useIsPhone();
+  const { effectiveLeftCollapsed, leftWidth, toggleLeftSidebar } = usePanelLayoutContext();
+  const rail = useRailNavigation(props.leftSidebarRef);
+  const { recordEdit, ...panelProps } = props;
+
+  if (isPhone) {
     return (
-      <div className="mr-0.5 flex w-10 flex-shrink-0 flex-col items-center rounded-lg border border-neutral-800/50 bg-neutral-950 pt-1">
-        <button
-          type="button"
-          onClick={toggleLeftSidebar}
-          className="flex h-8 w-8 items-center justify-center rounded-md border border-transparent text-neutral-500 transition-colors hover:border-neutral-800 hover:bg-neutral-900 hover:text-neutral-300"
-          title="Show sidebar"
-          aria-label="Show sidebar"
-        >
-          <svg
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden="true"
-          >
-            <path d="M5 4v16" />
-            <path d="m10 7 5 5-5 5" />
-          </svg>
-        </button>
-      </div>
+      <PhoneLeftTools
+        rail={rail}
+        recordEdit={recordEdit}
+        lintFindingCount={props.lintFindingCount}
+        onLint={props.onLint}
+        renderPanel={() => <SidePanel {...panelProps} />}
+      />
     );
   }
 
   return (
     <>
-      <LeftSidebar
-        ref={leftSidebarRef}
-        width={leftWidth}
-        projectId={projectId}
-        compositions={compositions}
-        assets={assets}
-        activeComposition={editingFile?.path ?? null}
-        onSelectComposition={onSelectComposition}
-        fileTree={fileTree}
-        editingFile={editingFile}
-        onSelectFile={handleFileSelect}
-        onCreateFile={handleCreateFile}
-        onCreateFolder={handleCreateFolder}
-        onDeleteFile={handleDeleteFile}
-        onRenameFile={handleRenameFile}
-        onDuplicateFile={handleDuplicateFile}
-        onMoveFile={handleMoveFile}
-        onImportFiles={async (files, dir) => {
-          await handleImportFiles(files, dir);
+      <StudioRail
+        active={rail.active}
+        collapsed={effectiveLeftCollapsed}
+        onSelect={(id) => {
+          // Pressing the item that is already open hides the side panel (St-Shell-Collapsed);
+          // the collapsed rail's sidebar button brings it back.
+          if (id === rail.active && !effectiveLeftCollapsed) {
+            toggleLeftSidebar();
+            return;
+          }
+          rail.select(id, { expand: true });
         }}
-        codeChildren={
-          editingFile ? (
-            isMediaFile(editingFile.path) ? (
-              <MediaPreview projectId={projectId} filePath={editingFile.path} />
-            ) : editingFile.content == null ? (
-              // Never mount the editor on unloaded content: a keystroke would
-              // autosave an empty document over the real file.
-              <div className="flex h-full items-center justify-center text-[11px] text-neutral-600">
-                Loading {editingFile.path}…
-              </div>
-            ) : (
-              <SourceEditor
-                content={editingFile.content}
-                filePath={editingFile.path}
-                onChange={handleContentChange}
-                revealOffset={revealSourceOffset}
-              />
-            )
-          ) : undefined
-        }
-        onRenderComposition={handleRenderComposition}
-        isRendering={renderQueue.isRendering}
-        onLint={onLint}
-        linting={linting}
-        lintFindingCount={lintFindingCount}
-        lintFindingsByFile={lintFindingsByFile}
-        onToggleCollapse={toggleLeftSidebar}
-        onAddBlock={onAddBlock}
-        onPreviewBlock={onPreviewBlock}
-        onAddAssetToTimeline={onAddAssetToTimeline}
-        onAddCompositionToTimeline={onAddCompositionToTimeline}
+        onExpand={toggleLeftSidebar}
       />
-      {/* Vertical resize divider: 3px visible seam, 13px pointer-capture zone via
-          the absolutely-positioned inner hit area. The outer element is w-[3px] so
-          it contributes only 3px of gap in the flex row; the inner -left-[2px]
-          element widens the hit area without affecting layout. */}
-      <div
-        role="separator"
-        aria-label="Resize sidebar"
-        aria-orientation="vertical"
-        tabIndex={0}
-        className="group relative w-[3px] flex-shrink-0 cursor-col-resize outline-none focus-visible:bg-studio-accent/20"
-        style={{ touchAction: "none" }}
-        onPointerDown={(e) => handlePanelResizeStart("left", e)}
-        onPointerMove={handlePanelResizeMove}
-        onPointerUp={handlePanelResizeEnd}
-        onPointerCancel={handlePanelResizeEnd}
-        onKeyDown={(e) => {
-          if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
-          e.preventDefault();
-          const delta = e.key === "ArrowLeft" ? -16 : 16;
-          adjustPanelWidth("left", delta);
-        }}
-      >
-        {/* Expanded hit zone, deliberately asymmetric: 2px into the sidebar card,
-            the 3px seam, then 8px into the preview pane's p-2 stage gutter — the
-            only dead space adjacent to this seam. It stops at 13px rather than the
-            24px WCAG 2.2 (2.5.8) target because the next pixel on either side is
-            live: the sidebar's scrolling tab content on the left, the preview
-            stage on the right. Silently stealing their clicks is the worse bug. */}
-        <div className="absolute inset-y-0 -left-[2px] w-[13px]" />
-        {/* Visible hairline */}
-        <div className="absolute top-1/2 left-0 h-[52px] w-[3px] -translate-y-1/2 bg-white/12 transition-colors group-hover:bg-white/18 group-active:bg-white/24" />
-      </div>
+      {effectiveLeftCollapsed ? (
+        <div aria-hidden="true" className="w-3 flex-none" />
+      ) : (
+        <>
+          <div aria-hidden="true" className="w-3 flex-none" />
+          <SidePanel {...panelProps} width={leftWidth} onToggleCollapse={toggleLeftSidebar} />
+          <SidePanelResizeHandle />
+        </>
+      )}
     </>
   );
 }

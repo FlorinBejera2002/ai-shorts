@@ -22,7 +22,10 @@ import {
 import { EFFECT_COPY, SUMMARY } from "@hyperframes/core/audio-fx-copy";
 import { trackNodeBypassed } from "./audioFxTelemetry.js";
 import { getAudioFxProfile } from "@hyperframes/core/audio-fx-profiles";
-import { FX_FAMILY_TYPE, fxFamilyOf, fxFamilyTint } from "./propertyPanelFxFamily.js";
+import { getStudioLocale, t, useLocale } from "../../i18n/translate";
+import { FX_FAMILY_TYPE, fxFamilyOf } from "./propertyPanelFxFamily.js";
+import { LOOK_ICONS, LookIcon } from "./propertyPanelColorLookUi";
+import { audioText } from "./propertyPanelFxText.js";
 import { FxNodeOpenBody } from "./propertyPanelFxNodeOpenBody.js";
 
 /**
@@ -87,10 +90,14 @@ function plainDef(def: HfAudioFxDef): HfAudioFxDef {
     ...def,
     params: def.params.map((param) => {
       const plain = copy.params[param.key];
-      if (!plain) return param;
+      if (!plain) return { ...param, label: audioText(param.label) };
       // The registry's hint explains the mechanism, which is still the better
       // tooltip than none — but the plain one wins where it exists.
-      return { ...param, label: plain.label, ...(plain.hint ? { hint: plain.hint } : {}) };
+      return {
+        ...param,
+        label: audioText(plain.label),
+        ...(plain.hint ? { hint: plain.hint } : {}),
+      };
     }),
   };
 }
@@ -132,12 +139,13 @@ function FxMoveButton({
   return (
     <button
       type="button"
-      className="hf-fx-move px-1 font-mono text-[10px] text-panel-text-2 hover:text-panel-text-0 disabled:opacity-25"
+      className="hf-fx-move inline-flex h-8 w-8 flex-none items-center justify-center rounded-full text-studio-text hover:bg-[var(--st-sub)] disabled:opacity-25"
       title={label}
+      aria-label={t(glyph === "up" ? "audio.moveUp" : "audio.moveDown")}
       disabled={disabled}
       onClick={onClick}
     >
-      {glyph}
+      <LookIcon d={glyph === "up" ? LOOK_ICONS.up : LOOK_ICONS.down} />
     </button>
   );
 }
@@ -172,56 +180,66 @@ function FxNodeHeader({
   onRemove(): void;
 }) {
   return (
-    <div className="hf-fx-node-head flex min-h-7 items-center gap-1 px-1.5">
+    <div className="hf-fx-node-head flex min-h-[52px] items-center gap-1 py-1.5 pr-2 pl-3.5">
       {/* Two digits, because a rack reads as a path when its steps are numbered
           and as a list when they are not — and the difference decides whether an
           author thinks the order matters. It does; it is audible. */}
+      {/* St-Inspector-AudioRack rows carry no step number: the breadcrumb and the family
+          headings above say where a row sits in the path. The position stays for screen readers. */}
       {position !== undefined ? (
-        <span className="hf-fx-node-index shrink-0 font-mono text-[9px] tabular-nums text-panel-text-2">
-          {String(position).padStart(2, "0")}
-        </span>
+        <span className="hf-fx-node-index sr-only">{String(position).padStart(2, "0")}</span>
       ) : null}
-      <button
-        type="button"
-        className={`hf-fx-node-name flex-1 truncate text-left text-[11px] text-panel-text-1 hover:text-panel-text-0 ${family}`}
-        // Truncated in the same narrow column as the param labels below, so it
-        // needs the same fallback to the full text on hover.
-        title={label}
-        aria-expanded={open}
-        onClick={onToggleOpen}
-      >
-        {label}
-      </button>
-      <button
-        type="button"
-        className="hf-fx-bypass rounded-[3px] border border-panel-border-input px-1.5 py-0.5 font-mono text-[9px] text-panel-text-2 hover:text-panel-text-0 disabled:opacity-40"
-        aria-pressed={bypassed}
-        title={bypassed ? "Enable" : "Bypass"}
-        disabled={disabled}
-        onClick={onToggleBypass}
-      >
-        {bypassed ? "Off" : "On"}
-      </button>
+      <span className="flex min-w-0 flex-1 flex-col">
+        <button
+          type="button"
+          className={`hf-fx-node-name truncate text-left text-[13px] text-studio-text ${family}`}
+          // Truncated in the same narrow column as the param labels below, so it
+          // needs the same fallback to the full text on hover.
+          title={label}
+          aria-expanded={open}
+          onClick={onToggleOpen}
+        >
+          {audioText(label)}
+        </button>
+        <span className="hf-fx-node-state text-[12px] text-studio-muted">
+          {t(bypassed ? "audio.bypassed" : "audio.active")}
+        </span>
+      </span>
       <FxMoveButton
         label="Move up"
-        glyph="&uarr;"
+        glyph="up"
         disabled={Boolean(disabled) || first}
         onClick={() => onMove(-1)}
       />
       <FxMoveButton
         label="Move down"
-        glyph="&darr;"
+        glyph="down"
         disabled={Boolean(disabled) || last}
         onClick={() => onMove(1)}
       />
       <button
         type="button"
-        className="hf-fx-remove px-1 font-mono text-[11px] text-panel-text-2 hover:text-red-400 disabled:opacity-40"
+        className={`hf-fx-bypass inline-flex h-9 flex-none items-center rounded-full px-3 text-[12px] font-semibold text-studio-text disabled:opacity-40 ${
+          bypassed
+            ? "shadow-[inset_0_0_0_1.5px_var(--st-sbd)] hover:bg-[var(--st-sub)]"
+            : "bg-[var(--st-sub)] hover:shadow-[inset_0_0_0_1.5px_var(--st-sbd)]"
+        }`}
+        aria-pressed={bypassed}
+        title={bypassed ? "Enable" : "Bypass"}
+        disabled={disabled}
+        onClick={onToggleBypass}
+      >
+        {t(bypassed ? "audio.enable" : "audio.bypass")}
+      </button>
+      <button
+        type="button"
+        className="hf-fx-remove inline-flex h-8 w-8 flex-none items-center justify-center rounded-full text-studio-text hover:bg-[var(--st-danger-bg)] hover:text-studio-danger disabled:opacity-40"
         title="Remove"
+        aria-label={t("audio.remove")}
         disabled={disabled}
         onClick={onRemove}
       >
-        &times;
+        <LookIcon d={LOOK_ICONS.trash} />
       </button>
     </div>
   );
@@ -246,8 +264,14 @@ export function FxNodeRow({
   onPreview,
   trackKind,
 }: FxNodeRowProps) {
+  const locale = useLocale();
   const registryDef = getAudioFxDef(node.type);
-  const def = useMemo(() => (registryDef ? plainDef(registryDef) : null), [registryDef]);
+  // The locale is a dependency because plainDef translates the names.
+  const def = useMemo(
+    () => (registryDef ? plainDef(registryDef) : null),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [registryDef, locale],
+  );
   const primary = registryDef ? primaryParamOf(registryDef) : null;
   /**
    * The derived knob, for a module with no real parameter that can be its face.
@@ -277,7 +301,7 @@ export function FxNodeRow({
   const summary = SUMMARY[node.type]?.(params);
   return (
     <div
-      className={`hf-fx-node rounded-[4px] border border-l-2 border-panel-border-input${bypassed ? " opacity-50" : ""}`}
+      className={`hf-fx-node rounded-md bg-studio-surface shadow-[inset_0_0_0_1px_var(--st-bd)]${bypassed ? " hf-fx-node-bypassed" : ""}`}
       data-fx-node={node.type}
       data-fx-family={fxFamilyOf(node)}
       // The scroll anchor a revealed automation lane lands on. Keyed by node id
@@ -287,7 +311,6 @@ export function FxNodeRow({
       // The tint is on the edge rather than the text: the name already carries
       // the family in its lettering, and colouring it too would fight the
       // panel's own tokens for automated and bypassed.
-      style={{ borderLeftColor: fxFamilyTint(node) }}
     >
       <FxNodeHeader
         family={FX_FAMILY_TYPE[fxFamilyOf(node)]}
@@ -310,13 +333,10 @@ export function FxNodeRow({
         onMove={(delta) => onMove(index, delta)}
         onRemove={() => onRemove(index)}
       />
-      {summary ? (
-        <p
-          className="hf-fx-node-summary truncate px-1.5 pb-1 text-[10px] text-panel-text-2"
-          title={summary}
-        >
-          {summary}
-        </p>
+      {/* The sentence of what it does is English copy from Core; rows show a title and a
+          state only (St-Inspector-AudioRack), so it stays available to assistive tech. */}
+      {summary && getStudioLocale() === "en" ? (
+        <p className="hf-fx-node-summary sr-only">{summary}</p>
       ) : null}
       {open ? (
         <FxNodeOpenBody

@@ -1,3 +1,4 @@
+import { t } from "../../i18n/translate";
 import { buildProjectApiPath } from "../../utils/projectRouting";
 
 export interface AssistantProposal {
@@ -23,11 +24,9 @@ export async function requestAssistantProposal(
     signal,
   });
   if (!response.ok) {
-    if (response.status === 503) throw new Error("The AI service is unavailable. Try again later.");
-    if (response.status === 504) throw new Error("The AI request timed out. Try a smaller edit.");
-    throw new Error(
-      `Could not generate the edit (${response.status}). Your composition is unchanged.`,
-    );
+    if (response.status === 503) throw new Error(t("agent.errorUnavailable"));
+    if (response.status === 504) throw new Error(t("agent.errorTimeout"));
+    throw new Error(t("agent.errorRejected", { status: response.status }));
   }
   const result: unknown = await response.json();
   if (
@@ -40,7 +39,7 @@ export async function requestAssistantProposal(
     !result.html.trim() ||
     !result.summary.trim()
   ) {
-    throw new Error("The AI service returned an invalid proposal.");
+    throw new Error(t("agent.errorInvalid"));
   }
   return { html: result.html, summary: result.summary, source, path, projectId };
 }

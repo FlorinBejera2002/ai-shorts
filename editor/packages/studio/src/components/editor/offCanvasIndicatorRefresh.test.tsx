@@ -5,6 +5,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { DomEditOverlay } from "./DomEditOverlay";
 import { RECOMPUTE_INTERVAL_MS } from "./offCanvasIndicatorRefresh";
+import { t } from "../../i18n/translate";
 
 Reflect.set(globalThis, "IS_REACT_ACT_ENVIRONMENT", true);
 
@@ -32,7 +33,8 @@ afterAll(() => {
   globalThis.WeakRef = RealWeakRef;
 });
 
-const INDICATOR = '[aria-label="Select off-canvas element index.html:headline:0"]';
+// The accessible name comes from the preview message file (Romanian and English).
+const INDICATOR = `[aria-label="${t("preview.offCanvasSelect", { name: "index.html:headline:0" })}"]`;
 
 function domRect(left: number, top: number, width: number, height: number): DOMRect {
   return {

@@ -5,14 +5,20 @@ import {
   type ColorGradingScopeMode,
 } from "./colorGradingFrameAnalysis";
 import { useColorGradingScopes } from "./useColorGradingScopes";
-import { RotateCw } from "../../icons/SystemIcons";
+import type { MessageKey } from "../../i18n/dictionary";
+import { t, useLocale } from "../../i18n/translate";
+import { LookMenuSelect } from "./propertyPanelColorLookSelect";
+import { LOOK_ICONS, LookIconButton } from "./propertyPanelColorLookUi";
 
-const MODES: Array<{ id: ColorGradingScopeMode; label: string }> = [
-  { id: "histogram", label: "Histogram" },
-  { id: "waveform", label: "Waveform" },
-  { id: "parade", label: "RGB Parade" },
-  { id: "vectorscope", label: "Vectorscope" },
-];
+// St-Inspector-Scopes: "Scop" select (Histogramă, Formă de undă, RGB Parade, Vectorscop,
+// Oprit) and the refresh button beside the title. The scope itself stays an instrument display.
+const MODES: readonly ColorGradingScopeMode[] = ["histogram", "waveform", "parade", "vectorscope"];
+const MODE_LABEL: Record<ColorGradingScopeMode, MessageKey> = {
+  histogram: "look.scope.histogram",
+  waveform: "look.scope.waveform",
+  parade: "look.scope.parade",
+  vectorscope: "look.scope.vectorscope",
+};
 
 function densityAlpha(value: number, maximum: number): number {
   if (value === 0 || maximum === 0) return 0;
@@ -26,7 +32,7 @@ function maximumDensity(values: Uint32Array): number {
 }
 
 function drawGrid(context: CanvasRenderingContext2D, width: number, height: number) {
-  context.fillStyle = "#090b0e";
+  context.fillStyle = "rgb(9 11 14)";
   context.fillRect(0, 0, width, height);
   context.strokeStyle = "rgba(255,255,255,0.08)";
   context.lineWidth = 1;
@@ -179,6 +185,7 @@ export function PropertyPanelColorScopes({
   captureFrame: () => Promise<ColorGradingCapturedFrame | null>;
   refreshKey: string;
 }) {
+  useLocale();
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<ColorGradingScopeMode>("waveform");
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -197,62 +204,50 @@ export function PropertyPanelColorScopes({
     }
     const context = canvas.getContext("2d");
     if (context) drawGrid(context, canvas.width, canvas.height);
-  }, [analysis, mode]);
+  }, [analysis, mode, open]);
 
+  const modeLabel = t(MODE_LABEL[mode]);
   return (
-    <div data-flat-grade-scopes="true" className="border-b border-panel-hairline pb-1.5">
-      <div className="flex min-h-7 items-center justify-between">
-        <button
-          type="button"
-          onClick={() => setOpen((value) => !value)}
-          className="flex min-h-7 flex-1 items-center justify-between text-left"
-        >
-          <span className="text-[11px] text-panel-text-2">Scopes</span>
-          <span className="text-[9px] text-panel-text-5">{open ? status : "Off"}</span>
-        </button>
-        <span className="flex items-center gap-2">
-          {open && (
-            <button
-              type="button"
-              aria-label="Refresh scopes"
-              title="Refresh scopes"
-              onClick={refresh}
-              className="p-1 text-panel-text-4 hover:text-panel-text-1"
-            >
-              <RotateCw size={10} />
-            </button>
-          )}
-        </span>
+    <section data-flat-grade-scopes="true" className="flex flex-col gap-2.5">
+      <div className="flex min-h-6 items-center justify-between gap-2">
+        <h4 className="text-[13px] font-semibold text-studio-text">{t("look.scope.label")}</h4>
+        {open && (
+          <LookIconButton
+            label={t("look.scope.refresh")}
+            icon={LOOK_ICONS.refresh}
+            onClick={refresh}
+          />
+        )}
+      </div>
+      <div data-flat-grade-scope-mode="true">
+        <LookMenuSelect
+          name="scope"
+          label={t("look.scope.label")}
+          value={open ? mode : "off"}
+          options={[
+            ...MODES.map((candidate) => ({ value: candidate, label: t(MODE_LABEL[candidate]) })),
+            { value: "off" as const, label: t("look.scope.off") },
+          ]}
+          onChange={(next) => {
+            if (next === "off") {
+              setOpen(false);
+              return;
+            }
+            setMode(next);
+            setOpen(true);
+          }}
+        />
       </div>
       {open && (
-        <div className="space-y-1.5">
-          <div className="flex items-center gap-2 overflow-x-auto">
-            {MODES.map((candidate) => (
-              <button
-                key={candidate.id}
-                type="button"
-                aria-pressed={mode === candidate.id}
-                onClick={() => setMode(candidate.id)}
-                className={`whitespace-nowrap border-b-2 py-1 text-[9px] ${
-                  mode === candidate.id
-                    ? "border-panel-accent text-panel-text-1"
-                    : "border-transparent text-panel-text-4 hover:text-panel-text-2"
-                }`}
-              >
-                {candidate.label}
-              </button>
-            ))}
-          </div>
-          <canvas
-            ref={canvasRef}
-            width={320}
-            height={144}
-            role="img"
-            aria-label={`${MODES.find((candidate) => candidate.id === mode)?.label ?? mode} scope, ${status}`}
-            className="block h-auto w-full border border-panel-hairline bg-black"
-          />
-        </div>
+        <canvas
+          ref={canvasRef}
+          width={320}
+          height={144}
+          role="img"
+          aria-label={t("look.scope.aria", { name: modeLabel, status })}
+          className="block h-auto w-full rounded-md"
+        />
       )}
-    </div>
+    </section>
   );
 }

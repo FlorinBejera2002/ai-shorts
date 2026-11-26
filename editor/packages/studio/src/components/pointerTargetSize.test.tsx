@@ -40,12 +40,12 @@ describe("pointer target sizing classes (proxy for WCAG 2.5.8, not a geometry ch
     if (!slider) throw new Error("zoom slider did not render");
 
     expect(slider.className).toContain("h-6");
-    expect(slider.className).toContain("[&::-webkit-slider-runnable-track]:h-[2px]");
-    expect(slider.className).toContain("[&::-webkit-slider-thumb]:h-[10px]");
-    expect(slider.className).toContain("[&::-webkit-slider-thumb]:w-[10px]");
+    expect(slider.className).toContain("[&::-webkit-slider-runnable-track]:h-[4px]");
+    expect(slider.className).toContain("[&::-webkit-slider-thumb]:h-[14px]");
+    expect(slider.className).toContain("[&::-webkit-slider-thumb]:w-[14px]");
   });
 
-  it("gives the composition card's render button a 24x24 box around its 14px glyph", () => {
+  it("gives the composition card's render button a box of at least 24x24 around its glyph", () => {
     const host = mount(
       <CompositionsTab
         projectId="demo"
@@ -58,8 +58,9 @@ describe("pointer target sizing classes (proxy for WCAG 2.5.8, not a geometry ch
     const button = host.querySelector<HTMLButtonElement>('button[aria-label="Render headline"]');
     if (!button) throw new Error("render button did not render");
 
-    expect(button.className).toContain("h-6");
-    expect(button.className).toContain("w-6");
-    expect(button.querySelector("svg")?.getAttribute("width")).toBe("14");
+    // St-Shell-Comps row actions are 30x30, above the 24px minimum.
+    expect(button.className).toContain("h-[30px]");
+    expect(button.className).toContain("w-[30px]");
+    expect(Number(button.querySelector("svg")?.getAttribute("width"))).toBeLessThanOrEqual(16);
   });
 });

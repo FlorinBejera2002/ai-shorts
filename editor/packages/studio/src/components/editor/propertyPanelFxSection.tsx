@@ -39,6 +39,8 @@ import {
   trackPresetRemoved,
 } from "./audioFxTelemetry.js";
 import type { FxSectionProps } from "./propertyPanelFxSectionTypes.js";
+import { t, useLocale } from "../../i18n/translate";
+import { LOOK_ICONS, LookIcon } from "./propertyPanelColorLookUi";
 
 export type { FxSectionProps } from "./propertyPanelFxSectionTypes.js";
 
@@ -109,6 +111,7 @@ export function FxSection({
   revealTarget,
   revealNonce,
 }: FxSectionProps) {
+  useLocale();
   const presetAutomated = automatedPresets ?? new Set<string>();
   // Falls back to the persisting write when no preview handler is supplied, which
   // keeps the control working rather than going dead.
@@ -122,7 +125,8 @@ export function FxSection({
 
   const [adding, setAdding] = useState(false);
   const [picking, setPicking] = useState(false);
-  const [openNode, setOpenNode] = useState<number | null>(0);
+  // Rows start closed (St-Inspector-AudioRack); a row opens its settings on demand.
+  const [openNode, setOpenNode] = useState<number | null>(null);
 
   const mutate = useCallback(
     (nodes: HfAudioFxNode[]) => onChainChange({ ...chain, nodes }),
@@ -462,7 +466,7 @@ export function FxSection({
   return (
     <div
       ref={rootRef}
-      className="hf-fx-section space-y-2"
+      className="hf-fx-section flex flex-col gap-3"
       // Focus lives on the buttons and menu items inside, so the keystroke
       // bubbles to here without the section needing focus of its own.
       onKeyDown={closeMenus}
@@ -555,10 +559,10 @@ export function FxSection({
           opened one and changed their mind had no way back: picking something
           was the only thing that set these false, so the only exits were adding
           an effect they did not want or deselecting the clip. */}
-      <div className="flex flex-col gap-1">
+      <div className="flex flex-col gap-2">
         <button
           type="button"
-          className="hf-fx-preset w-full rounded-[4px] border border-panel-text-0 py-1.5 text-[11px] font-semibold text-panel-text-0 disabled:opacity-40"
+          className="hf-fx-preset inline-flex h-11 w-full items-center justify-center rounded-full text-[13px] font-medium text-studio-text shadow-[inset_0_0_0_1.5px_var(--st-sbd)] hover:bg-[var(--st-sub)] disabled:opacity-40"
           aria-expanded={picking}
           disabled={disabled}
           onClick={() => {
@@ -570,11 +574,11 @@ export function FxSection({
             setAdding(false);
           }}
         >
-          {picking ? "Close" : "Presets"}
+          {picking ? t("audio.close") : t("audio.presets")}
         </button>
         <button
           type="button"
-          className="hf-fx-add self-end px-1 text-[10px] text-panel-text-2 hover:text-panel-text-0 disabled:opacity-40"
+          className="hf-fx-add inline-flex h-11 w-full items-center justify-center gap-2 rounded-full bg-studio-accent text-[13px] font-semibold text-studio-on-accent hover:opacity-90 disabled:opacity-40"
           aria-expanded={adding}
           disabled={disabled}
           onClick={() => {
@@ -586,7 +590,8 @@ export function FxSection({
             setPicking(false);
           }}
         >
-          {adding ? "Close" : "+ effect"}
+          {adding ? null : <LookIcon d={LOOK_ICONS.plus} />}
+          {adding ? t("audio.close") : t("audio.add")}
         </button>
       </div>
     </div>

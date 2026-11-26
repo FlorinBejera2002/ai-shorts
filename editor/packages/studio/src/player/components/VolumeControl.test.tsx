@@ -33,6 +33,11 @@ function renderVolumeControl(overrides: Partial<React.ComponentProps<typeof Volu
     ...overrides,
   };
   act(() => root.render(<VolumeControl {...props} />));
+  // The slider lives in the popover the volume button opens (St-Preview-Volume).
+  const trigger = host.querySelector<HTMLButtonElement>(
+    'button[aria-label="Preview volume"], button[aria-label="Unmute audio"]',
+  );
+  if (trigger) act(() => trigger.click());
   return { host, props };
 }
 

@@ -1,17 +1,18 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { StoryboardResponse } from "../../hooks/useStoryboard";
-import { Button } from "../ui/Button";
+import { useViewMode } from "../../contexts/ViewModeContext";
+import { t, useLocale } from "../../i18n/translate";
+import { OutputButton } from "../output/OutputButton";
+import { OutputDialog, OutputIllustration } from "../output/OutputDialog";
+import { OutputSegment } from "../output/OutputFields";
+import { illustrationSrc } from "../ui/illustrations";
 import { StoryboardDirection } from "./StoryboardDirection";
 import { StoryboardGrid } from "./StoryboardGrid";
 import { StoryboardScriptPanel } from "./StoryboardScriptPanel";
 import { StoryboardSourceEditor, type SourceFile } from "./StoryboardSourceEditor";
 import { StoryboardFrameFocus } from "./StoryboardFrameFocus";
 import { StoryboardReviewGuide } from "./StoryboardReviewGuide";
-import {
-  AgentChatMessageButton,
-  APPLY_STORYBOARD_FEEDBACK_MESSAGE,
-} from "./AgentChatMessageButton";
-import { useFrameComments, type CommentsSubmitState } from "./useFrameComments";
+import { useFrameComments } from "./useFrameComments";
 
 type SubView = "board" | "source";
 
@@ -28,7 +29,40 @@ function clampIndex(index: number, count: number): number {
   return Math.max(1, Math.min(count, index));
 }
 
-/** A storyboard that exists on disk: Board (contact sheet) ↔ Source ↔ frame focus. */
+/** One card of the storyboard stage (24px radius, title row, scrolling body). */
+export function StoryboardCard({
+  title,
+  head,
+  footer,
+  children,
+  className = "",
+}: {
+  title: ReactNode;
+  head?: ReactNode;
+  footer?: ReactNode;
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <section
+      className={`flex min-h-0 min-w-0 flex-col gap-3.5 rounded-[24px] bg-studio-surface p-4 shadow-studio ${className}`}
+    >
+      <div className="flex min-h-8 items-center gap-2.5">
+        <h2 className="min-w-0 flex-1 truncate font-display text-[17px] font-semibold leading-6">
+          {title}
+        </h2>
+        {head}
+      </div>
+      <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-auto">{children}</div>
+      {footer ? <div className="flex flex-col gap-2">{footer}</div> : null}
+    </section>
+  );
+}
+
+/**
+ * A storyboard that exists on disk (St-Output-Storyboard): Direcție on the left, the board or
+ * its source in the middle and the review with feedback on the right; a frame opens in focus.
+ */
 // fallow-ignore-next-line complexity
 export function StoryboardLoaded({
   projectId,
@@ -36,14 +70,18 @@ export function StoryboardLoaded({
   reload,
   onSelectComposition,
 }: StoryboardLoadedProps) {
+  useLocale();
+  const { setViewMode } = useViewMode();
   const [subView, setSubView] = useState<SubView>("board");
-  const [sourceDirty, setSourceDirty] = useState(false);
+  // Read only from the sub-view handler, so a ref avoids re-rendering on every edit.
+  const sourceDirtyRef = useRef(false);
+  const [confirmDiscard, setConfirmDiscard] = useState<SubView | null>(null);
   const [focusedIndex, setFocusedIndex] = useState<number | null>(null);
   const [feedbackMessageCopied, setFeedbackMessageCopied] = useState(false);
   const comments = useFrameComments(data.frames);
   // When the board refreshes off a project change (agent revised frames), the
   // agent has likely consumed the comments file too — re-check so the pending
-  // banner clears the moment revisions land, not on the next window focus.
+  // state clears the moment revisions land, not on the next window focus.
   const { refreshPending } = comments;
   useEffect(() => {
     void refreshPending();
@@ -52,15 +90,9 @@ export function StoryboardLoaded({
     if (comments.draftCount > 0) setFeedbackMessageCopied(false);
   }, [comments.draftCount]);
 
-  const saveFeedbackAndCopyMessage = async () => {
+  const saveFeedback = async () => {
     const saved = await comments.submit();
-    if (!saved) return;
-    try {
-      await navigator.clipboard.writeText(APPLY_STORYBOARD_FEEDBACK_MESSAGE);
-      setFeedbackMessageCopied(true);
-    } catch {
-      setFeedbackMessageCopied(false);
-    }
+    if (saved) setFeedbackMessageCopied(false);
   };
   const sourceFiles = useMemo<SourceFile[]>(() => {
     const files: SourceFile[] = [{ path: data.path, label: data.path }];
@@ -71,14 +103,10 @@ export function StoryboardLoaded({
   }, [data.path, data.script?.path, data.script?.exists]);
 
   // Leaving the source editor drops its in-memory buffer; confirm when it's dirty.
-  // fallow-ignore-next-line complexity
   const changeSubView = (next: SubView) => {
     if (next === subView) return;
-    if (
-      subView === "source" &&
-      sourceDirty &&
-      !window.confirm("Discard unsaved markdown changes?")
-    ) {
+    if (subView === "source" && sourceDirtyRef.current) {
+      setConfirmDiscard(next);
       return;
     }
     setSubView(next);
@@ -113,38 +141,50 @@ export function StoryboardLoaded({
         commentsSubmitError={comments.submitError}
         feedbackMessageCopied={feedbackMessageCopied}
         onFeedbackMessageCopied={() => setFeedbackMessageCopied(true)}
-        onSaveFeedback={() => void saveFeedbackAndCopyMessage()}
+        onSaveFeedback={() => void saveFeedback()}
         posterVersion={data.signature}
       />
     );
   }
 
   return (
-    <div className="flex w-full max-w-[100vw] flex-1 min-h-0 min-w-0 flex-col overflow-hidden bg-neutral-950 text-neutral-200">
-      <div className="flex flex-wrap items-center gap-3 border-b border-neutral-800 px-4 py-2">
-        <SubViewToggle value={subView} onChange={changeSubView} />
-        {subView === "board" && (
-          <CommentsSubmitBar
-            draftCount={comments.draftCount}
-            pendingCount={comments.pending?.length ?? 0}
-            submitState={comments.submitState}
-            submitError={comments.submitError}
-            messageCopied={feedbackMessageCopied}
-            onSave={() => void saveFeedbackAndCopyMessage()}
-            onMessageCopied={() => setFeedbackMessageCopied(true)}
+    <div
+      data-storyboard-loaded
+      className="flex min-h-0 w-full min-w-0 max-w-[100vw] flex-1 flex-col gap-3 overflow-auto bg-studio-bg p-3 text-studio-text lg:flex-row lg:overflow-hidden"
+    >
+      <StoryboardCard
+        title={t("story.direction")}
+        className="lg:w-[312px] lg:flex-none"
+        footer={
+          <OutputButton className="w-full" onClick={() => setViewMode("timeline")}>
+            {t("story.openInPreview")}
+          </OutputButton>
+        }
+      >
+        <StoryboardDirection globals={data.globals} frameCount={data.frames.length} />
+      </StoryboardCard>
+
+      <StoryboardCard
+        title={t("story.title")}
+        className="min-h-[480px] lg:min-h-0 lg:flex-1"
+        head={
+          <OutputSegment
+            label={t("story.viewAria")}
+            options={[
+              { value: "board", label: t("story.board") },
+              { value: "source", label: t("story.source") },
+            ]}
+            value={subView}
+            onChange={changeSubView}
+            height={32}
+            fontSize={12}
+            padX={14}
+            full={false}
           />
-        )}
-      </div>
-      {subView === "board" ? (
-        <div className="flex-1 min-h-0 overflow-auto">
-          <div className="mx-auto max-w-[1400px] px-4 py-5 sm:px-8 sm:py-8">
-            <StoryboardDirection globals={data.globals} frameCount={data.frames.length} />
-            <StoryboardReviewGuide
-              frames={data.frames}
-              draftCount={comments.draftCount}
-              pendingCount={comments.pending?.length ?? 0}
-              onFeedbackMessageCopied={() => setFeedbackMessageCopied(true)}
-            />
+        }
+      >
+        {subView === "board" ? (
+          <>
             <StoryboardWarnings
               warnings={data.warnings}
               onOpenSource={() => changeSubView("source")}
@@ -159,72 +199,56 @@ export function StoryboardLoaded({
               posterVersion={data.signature}
             />
             {data.script && <StoryboardScriptPanel script={data.script} />}
-          </div>
-        </div>
-      ) : (
-        <StoryboardSourceEditor
-          files={sourceFiles}
-          onSaved={reload}
-          onDirtyChange={setSourceDirty}
-        />
-      )}
-    </div>
-  );
-}
-
-/** Batch-submit the per-frame comment drafts to `.hyperframes/frame-comments.json`. */
-function CommentsSubmitBar({
-  draftCount,
-  pendingCount,
-  submitState,
-  submitError,
-  messageCopied,
-  onSave,
-  onMessageCopied,
-}: {
-  draftCount: number;
-  pendingCount: number;
-  submitState: CommentsSubmitState;
-  submitError: string | null;
-  messageCopied: boolean;
-  onSave: () => void;
-  onMessageCopied: () => void;
-}) {
-  return (
-    <div className="ml-auto flex min-w-0 flex-1 flex-wrap items-center justify-end gap-2 sm:flex-none">
-      {pendingCount > 0 && (
-        <>
-          <span className="text-xs text-sky-300">
-            {messageCopied
-              ? "Feedback saved · Message copied — paste it in your terminal or IDE agent chat."
-              : "Feedback saved · Agent not notified."}
-          </span>
-          <AgentChatMessageButton
-            message={APPLY_STORYBOARD_FEEDBACK_MESSAGE}
-            label={messageCopied ? "Copy again" : "Copy prompt for agent"}
-            onCopied={onMessageCopied}
+          </>
+        ) : (
+          <StoryboardSourceEditor
+            files={sourceFiles}
+            onSaved={reload}
+            onDirtyChange={(dirty) => {
+              sourceDirtyRef.current = dirty;
+            }}
           />
-        </>
-      )}
-      {pendingCount === 0 && draftCount === 0 && (
-        <span className="text-xs text-neutral-500">Add frame comments to request changes.</span>
-      )}
-      {submitError && (
-        <span className="max-w-64 truncate text-xs text-red-400" title={submitError}>
-          Couldn’t submit: {submitError}
-        </span>
-      )}
-      {draftCount > 0 && (
-        <Button
-          variant="primary"
-          size="sm"
-          loading={submitState === "saving"}
-          disabled={submitState === "saving"}
-          onClick={onSave}
-        >
-          Save &amp; copy message ({draftCount})
-        </Button>
-      )}
+        )}
+      </StoryboardCard>
+
+      {/* Bottom padding keeps the actions clear of the Ana și Radu launcher. */}
+      <StoryboardCard title={t("story.review")} className="lg:w-[340px] lg:flex-none lg:pb-[84px]">
+        <StoryboardReviewGuide
+          frames={data.frames}
+          drafts={comments.drafts}
+          draftCount={comments.draftCount}
+          pendingCount={comments.pending?.length ?? 0}
+          submitState={comments.submitState}
+          submitError={comments.submitError}
+          onSaveFeedback={() => void saveFeedback()}
+          onFeedbackMessageCopied={() => setFeedbackMessageCopied(true)}
+        />
+      </StoryboardCard>
+
+      {/* St-Output-StoryboardDiscard */}
+      <OutputDialog
+        open={confirmDiscard !== null}
+        title={t("story.discardSource")}
+        onClose={() => setConfirmDiscard(null)}
+        width={420}
+        footer={
+          <>
+            <OutputButton onClick={() => setConfirmDiscard(null)}>{t("story.cancel")}</OutputButton>
+            <OutputButton
+              variant="dangerFill"
+              onClick={() => {
+                if (confirmDiscard) setSubView(confirmDiscard);
+                sourceDirtyRef.current = false;
+                setConfirmDiscard(null);
+              }}
+            >
+              {t("story.discard")}
+            </OutputButton>
+          </>
+        }
+      >
+        <OutputIllustration src={illustrationSrc("delete")} size={132} caption={data.path} />
+      </OutputDialog>
     </div>
   );
 }
@@ -238,70 +262,22 @@ function StoryboardWarnings({
 }) {
   if (warnings.length === 0) return null;
   return (
-    <details className="mt-3 rounded-lg border border-amber-900/60 bg-amber-950/20 px-4 py-2 text-xs text-amber-200">
-      <summary className="cursor-pointer font-medium">
-        {warnings.length} storyboard warning{warnings.length === 1 ? "" : "s"}
+    <details className="rounded-[14px] bg-[var(--st-warn-bg)] px-3 py-2.5 text-xs text-studio-text">
+      <summary className="cursor-pointer font-semibold text-[var(--st-warn)]">
+        {t("story.warnings", { n: warnings.length })}
       </summary>
-      <ul className="mt-2 space-y-1 text-amber-200/80">
+      <ul className="mt-2 flex flex-col gap-1">
         {warnings.map((warning, index) => (
           <li key={`${warning.line ?? "unknown"}-${index}`}>
-            {warning.line ? `Line ${warning.line}: ` : ""}
-            {warning.message}
+            {warning.line
+              ? t("story.warningLine", { line: warning.line, message: warning.message })
+              : warning.message}
           </li>
         ))}
       </ul>
-      <button
-        type="button"
-        onClick={onOpenSource}
-        className="mt-2 rounded text-amber-100 underline underline-offset-2 hover:text-white"
-      >
-        Open source to fix
-      </button>
+      <OutputButton height={32} padX={12} fontSize={12} className="mt-2" onClick={onOpenSource}>
+        {t("story.openSource")}
+      </OutputButton>
     </details>
-  );
-}
-
-const SUB_VIEWS: Array<{ value: SubView; label: string }> = [
-  { value: "board", label: "Board" },
-  { value: "source", label: "Source" },
-];
-
-function SubViewToggle({ value, onChange }: { value: SubView; onChange: (next: SubView) => void }) {
-  // Complete tabs contract: roving tabIndex + arrow-key navigation (the roles
-  // alone promised keyboard behavior the buttons didn't have).
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
-    e.preventDefault();
-    const currentIndex = SUB_VIEWS.findIndex((v) => v.value === value);
-    const delta = e.key === "ArrowRight" ? 1 : -1;
-    const next = SUB_VIEWS[(currentIndex + delta + SUB_VIEWS.length) % SUB_VIEWS.length];
-    if (next) onChange(next.value);
-  };
-
-  return (
-    <div
-      className="flex items-center gap-0.5 rounded-md bg-neutral-900 p-0.5"
-      role="tablist"
-      aria-label="Storyboard view"
-      onKeyDown={handleKeyDown}
-    >
-      {SUB_VIEWS.map((option) => (
-        <button
-          key={option.value}
-          type="button"
-          role="tab"
-          aria-selected={value === option.value}
-          tabIndex={value === option.value ? 0 : -1}
-          onClick={() => onChange(option.value)}
-          className={`rounded px-3 py-1 text-xs font-medium transition-colors active:scale-[0.98] outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-studio-accent ${
-            value === option.value
-              ? "bg-neutral-700 text-neutral-100"
-              : "text-neutral-400 hover:text-neutral-200"
-          }`}
-        >
-          {option.label}
-        </button>
-      ))}
-    </div>
   );
 }

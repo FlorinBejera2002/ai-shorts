@@ -127,27 +127,27 @@ describe("variable timeline row geometry", () => {
 
 describe("collapsed timeline row geometry characterization", () => {
   it.each([
-    [0, 74],
-    [1, 122],
-    [4, 266],
+    [0, 21],
+    [1, 69],
+    [4, 213],
   ])("keeps row %i at content y=%i", (row, expectedTop) => {
     expect(getTimelineRowTop(row)).toBe(expectedTop);
   });
 
   it.each([
-    [74, 0],
-    [86, 0.25],
-    [146, 1.5],
-    [290, 4.5],
+    [21, 0],
+    [33, 0.25],
+    [93, 1.5],
+    [237, 4.5],
   ])("maps content y=%i to fractional row %f", (contentY, expectedRow) => {
     expect(getTimelineRowFromY(contentY)).toBe(expectedRow);
   });
 
   it.each([
-    [0, 146],
-    [1, 194],
-    [3, 290],
-    [5, 386],
+    [0, 93],
+    [1, 141],
+    [3, 237],
+    [5, 333],
   ])("keeps the %i-track canvas height at %i", (trackCount, expectedHeight) => {
     expect(getTimelineCanvasHeight(baseRows(trackCount))).toBe(expectedHeight);
   });

@@ -4,9 +4,11 @@ import {
   MIN_PREVIEW_W,
   MIN_TIMELINE_H,
   RAIL_W,
+  SHELL_GAP,
   defaultPanelWidths,
   fitPanelWidths,
   fitTimelineHeight,
+  shellChromeWidth,
 } from "./fitPanels";
 
 function fitAt(viewportWidth: number) {
@@ -14,20 +16,30 @@ function fitAt(viewportWidth: number) {
 }
 
 describe("defaultPanelWidths", () => {
-  // Frozen literals, deliberately NOT compared against the live hook: the hook
-  // now delegates here, so asserting against it would be circular and would
-  // silently stop guarding the "wide windows are untouched" promise.
+  // Frozen literals from the St-Main board (312 / 340 at 1440), scaled down on smaller windows.
   it.each([
-    [1680, 384, 424],
-    [1512, 384, 424],
-    [1280, 329, 364],
-  ])("keeps %ipx identical to the pre-change defaults", (vw, left, right) => {
+    [1680, 312, 340],
+    [1440, 312, 340],
+    [1280, 277, 302],
+    [900, 200, 280],
+  ])("gives %ipx the board defaults", (vw, left, right) => {
     expect(defaultPanelWidths(vw)).toEqual({ left, right });
   });
 });
 
+describe("shellChromeWidth", () => {
+  it("adds up to the St-Main board at 1440: 312 + 656 + 340 + chrome", () => {
+    expect(shellChromeWidth(false, false)).toBe(1440 - 312 - 656 - 340);
+  });
+
+  it("spends less on a railed side panel and more on an inspector rail", () => {
+    expect(shellChromeWidth(true, false)).toBe(SHELL_GAP * 3 + RAIL_W + SHELL_GAP);
+    expect(shellChromeWidth(true, true)).toBe(SHELL_GAP * 4 + RAIL_W * 2);
+  });
+});
+
 describe("fitPanelWidths", () => {
-  it.each([1680, 1512, 1280])("leaves %ipx untouched by reconciliation", (vw) => {
+  it.each([1680, 1440, 1280])("leaves %ipx untouched by reconciliation", (vw) => {
     const preferred = defaultPanelWidths(vw);
     const fitted = fitPanelWidths(vw, preferred);
     expect(fitted.left).toBe(preferred.left);
@@ -36,70 +48,55 @@ describe("fitPanelWidths", () => {
     expect(fitted.autoCollapseRight).toBe(false);
   });
 
-  it.each([1680, 1512, 1280, 1100, 960, 860, 760, 640, 560, 480])(
+  it.each([1680, 1440, 1280, 1100, 972, 971, 860, 768, 767, 640])(
     "never starves the preview at %ipx",
     (vw) => {
       expect(fitAt(vw).preview).toBeGreaterThanOrEqual(MIN_PREVIEW_W);
     },
   );
 
-  it("matches the projected preview widths from the plan", () => {
-    const projected: Array<[number, number]> = [
-      [1680, 866],
-      [1512, 698],
-      [1280, 581],
-      [1100, 499],
-      [960, 427],
-      [860, 360],
-      [760, 432],
-      [640, 592],
-      [560, 512],
-      [480, 432],
-    ];
-    for (const [vw, preview] of projected) {
-      expect({ vw, preview: fitAt(vw).preview }).toEqual({ vw, preview });
-    }
+  it("matches the board preview width at 1440", () => {
+    expect(fitAt(1440)).toMatchObject({ left: 312, right: 340, preview: 656 });
+    expect(fitAt(1280).preview).toBe(1280 - 277 - 302 - shellChromeWidth(false, false));
   });
 
-  it("fits everything at its minimum at exactly 860, the derived threshold", () => {
-    const fitted = fitAt(860);
-    expect(fitted).toMatchObject({
-      left: 214,
+  it("fits everything at its minimum at exactly 972, the derived threshold", () => {
+    expect(fitAt(972)).toMatchObject({
+      left: 200,
       right: 280,
       preview: MIN_PREVIEW_W,
       autoCollapseLeft: false,
     });
   });
 
-  it("rails the sidebar one pixel below the threshold", () => {
-    expect(fitAt(860).autoCollapseLeft).toBe(false);
-    expect(fitAt(859).autoCollapseLeft).toBe(true);
-    expect(fitAt(859).left).toBe(RAIL_W);
+  it("rails the side panel one pixel below the threshold", () => {
+    expect(fitAt(972).autoCollapseLeft).toBe(false);
+    expect(fitAt(971).autoCollapseLeft).toBe(true);
+    expect(fitAt(971).left).toBe(0);
   });
 
-  it("hides the inspector one pixel below its own threshold", () => {
-    expect(fitAt(700).autoCollapseRight).toBe(false);
-    expect(fitAt(700).right).toBeGreaterThan(0);
-    expect(fitAt(699).autoCollapseRight).toBe(true);
-    expect(fitAt(699).right).toBe(0);
+  it("rails the inspector one pixel below its own threshold", () => {
+    expect(fitAt(768).autoCollapseRight).toBe(false);
+    expect(fitAt(768).right).toBeGreaterThan(0);
+    expect(fitAt(767).autoCollapseRight).toBe(true);
+    expect(fitAt(767).right).toBe(0);
+    expect(fitAt(767).preview).toBe(767 - shellChromeWidth(true, true));
   });
 
-  it("never drives an EXPANDED sidebar below its usable minimum", () => {
-    // Guards the leftFloor/rightFloor split: the squeeze fallback may only reach
-    // the rail width when the panel is actually railed.
-    const fitted = fitPanelWidths(900, { left: 600, right: 600 });
+  it("never drives an EXPANDED side panel below its usable minimum", () => {
+    const fitted = fitPanelWidths(1000, { left: 600, right: 600 });
     expect(fitted.left).toBeGreaterThanOrEqual(200);
     expect(fitted.right).toBeGreaterThanOrEqual(280);
   });
 
   it("caps a single panel at 40% of the window", () => {
-    expect(fitPanelWidths(1600, { left: 900, right: 280 }).left).toBe(640);
+    expect(fitPanelWidths(1800, { left: 900, right: 280 }).left).toBe(720);
   });
 
   it("lets the preview floor win when the cap alone is not enough", () => {
-    // 40% of 1000 is 400, but 400 + 280 + 6 leaves the preview at 314.
-    const fitted = fitPanelWidths(1000, { left: 900, right: 280 });
-    expect(fitted.left).toBe(354);
+    // 40% of 1100 is 440, but 440 + 280 + 132 leaves the preview at 248.
+    const fitted = fitPanelWidths(1100, { left: 900, right: 280 });
+    expect(fitted.left).toBe(1100 - MIN_PREVIEW_W - 280 - shellChromeWidth(false, false));
     expect(fitted.preview).toBe(MIN_PREVIEW_W);
   });
 
@@ -107,7 +104,7 @@ describe("fitPanelWidths", () => {
     const fitted = fitAt(300);
     expect(fitted.preview).toBeGreaterThanOrEqual(0);
     expect(Number.isNaN(fitted.preview)).toBe(false);
-    expect(fitted.left).toBe(RAIL_W);
+    expect(fitted.left).toBe(0);
   });
 
   it("returns preferences untouched before the shell is measured", () => {
@@ -117,7 +114,7 @@ describe("fitPanelWidths", () => {
   });
 
   it("is idempotent, so a resize loop cannot oscillate", () => {
-    for (const vw of [1512, 1100, 860, 760, 560]) {
+    for (const vw of [1512, 1100, 972, 860, 760, 560]) {
       const once = fitPanelWidths(vw, defaultPanelWidths(vw));
       const twice = fitPanelWidths(vw, once);
       expect(twice).toEqual(once);

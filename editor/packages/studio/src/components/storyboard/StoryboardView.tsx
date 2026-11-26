@@ -1,9 +1,12 @@
-import { useState, type ReactNode } from "react";
-import { Copy, Check } from "@phosphor-icons/react";
+import type { ReactNode } from "react";
 import { useStoryboard } from "../../hooks/useStoryboard";
 import { useProjectSignaturePoll } from "../../hooks/useProjectSignaturePoll";
-import { copyTextToClipboard } from "../../utils/clipboard";
-import { Button } from "../ui/Button";
+import { t, useLocale } from "../../i18n/translate";
+import { OutputButton } from "../output/OutputButton";
+import { OutputNotice } from "../output/OutputFields";
+import { OutputIcon } from "../output/OutputIcon";
+import { illustrationSrc } from "../ui/illustrations";
+import { AgentChatMessageButton } from "./AgentChatMessageButton";
 import { StoryboardLoaded } from "./StoryboardLoaded";
 
 export interface StoryboardViewProps {
@@ -19,21 +22,22 @@ export interface StoryboardViewProps {
  */
 // fallow-ignore-next-line complexity
 export function StoryboardView({ projectId, onSelectComposition }: StoryboardViewProps) {
+  useLocale();
   const { data, loading, error, reload } = useStoryboard(projectId);
   // Keep the board current while an agent writes to the project: when the
   // project signature moves past the one `data` was loaded with, refetch. Also
   // upgrades the empty state the moment STORYBOARD.md lands on disk.
   useProjectSignaturePoll(projectId, data?.signature, reload);
 
-  if (loading) return <StoryboardFrame>{<Message>Loading storyboard…</Message>}</StoryboardFrame>;
+  if (loading) return <LoadingState />;
   if (error) {
     return (
       <StoryboardFrame>
-        <Message tone="error">Couldn’t load the storyboard: {error}</Message>
-        <div className="flex justify-center">
-          <Button size="sm" variant="secondary" onClick={reload}>
-            Retry
-          </Button>
+        <div className="mx-auto flex w-full max-w-md flex-col gap-3" title={error}>
+          <OutputNotice>{t("story.loadFailed")}</OutputNotice>
+          <OutputButton variant="primary" icon="refresh" className="w-full" onClick={reload}>
+            {t("story.retry")}
+          </OutputButton>
         </div>
       </StoryboardFrame>
     );
@@ -57,22 +61,31 @@ export function StoryboardView({ projectId, onSelectComposition }: StoryboardVie
   );
 }
 
+/** The storyboard stage: cards on the Studio canvas. */
 function StoryboardFrame({ children }: { children: ReactNode }) {
   return (
-    <div className="flex-1 min-h-0 overflow-auto bg-neutral-950 text-neutral-200">
-      <div className="mx-auto max-w-[1400px] px-8 py-8">{children}</div>
+    <div className="flex min-h-0 flex-1 bg-studio-bg p-3 text-studio-text">
+      <section className="flex min-h-0 flex-1 flex-col items-center justify-center gap-4 overflow-auto rounded-[24px] bg-studio-surface p-6 shadow-studio">
+        {children}
+      </section>
     </div>
   );
 }
 
-function Message({ children, tone = "muted" }: { children: ReactNode; tone?: "muted" | "error" }) {
+/** St-Output-StoryboardLoading: title and six frame skeletons. */
+function LoadingState() {
   return (
-    <div
-      className={`px-6 py-12 text-center text-sm ${
-        tone === "error" ? "text-red-400" : "text-neutral-500"
-      }`}
-    >
-      {children}
+    <div className="flex min-h-0 flex-1 bg-studio-bg p-3 text-studio-text">
+      <section className="flex min-h-0 flex-1 flex-col gap-4 rounded-[24px] bg-studio-surface p-4 shadow-studio">
+        <b role="status" className="text-[13px] font-semibold">
+          {t("story.loading")}
+        </b>
+        <div className="grid grid-cols-2 gap-x-3 gap-y-3.5 lg:grid-cols-3">
+          {Array.from({ length: 6 }, (_, i) => (
+            <span key={i} className="block aspect-video rounded-xl bg-[var(--st-sub)]" />
+          ))}
+        </div>
+      </section>
     </div>
   );
 }
@@ -102,68 +115,27 @@ Add one \`## Frame N\` section per beat. Keep the arc tight.
 Then run the review loop from the hyperframes-core skill (references/review-loop.md): present the plan as a proposal, offer wireframe sketches on this board, and build on the confirmed layouts.`;
 }
 
+/** St-Output-StoryboardEmpty: illustration, one title, "Cere ajutor" with the plan prompt. */
 function EmptyState({ path }: { path: string }) {
-  const [copied, setCopied] = useState(false);
-  const prompt = handoffPrompt(path);
-
-  const onCopy = async () => {
-    if (await copyTextToClipboard(prompt)) {
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 2000);
-    }
-  };
-
   return (
-    <div>
-      <div className="rounded-lg border border-dashed border-neutral-800 px-6 py-10 text-center">
-        <h2 className="text-base font-semibold text-neutral-300">No storyboard yet</h2>
-        <p className="mx-auto mt-2 max-w-md text-sm text-neutral-500">
-          Add a <code className="rounded bg-neutral-900 px-1 py-0.5 text-neutral-400">{path}</code>{" "}
-          at the project root to plan this video frame by frame. Hand this prompt to your coding
-          agent to scaffold it.
-        </p>
-
-        <div className="mx-auto mt-6 max-w-2xl overflow-hidden rounded-lg border border-neutral-800 bg-neutral-900 text-left">
-          <div className="flex items-center justify-between border-b border-neutral-800 px-3 py-2">
-            <span className="font-mono text-xs text-neutral-500">Prompt for your agent</span>
-            <Button
-              size="sm"
-              variant="secondary"
-              onClick={onCopy}
-              icon={copied ? <Check size={14} /> : <Copy size={14} />}
-            >
-              {copied ? "Copied" : "Copy prompt"}
-            </Button>
-          </div>
-          <pre className="max-h-64 overflow-auto px-4 py-3 font-mono text-xs leading-relaxed text-neutral-400 whitespace-pre-wrap">
-            {prompt}
-          </pre>
-        </div>
-      </div>
-
-      <SkeletonPreview />
-    </div>
-  );
-}
-
-/** Faded placeholder of a filled board so landing here isn't a dead end —
- *  it previews the contact-sheet layout {@link StoryboardGrid} renders. */
-function SkeletonPreview() {
-  return (
-    <div aria-hidden="true" className="mt-10 select-none opacity-40">
-      <div className="mb-4 text-center text-xs uppercase tracking-wide text-neutral-600">
-        Preview
-      </div>
-      <div className="grid gap-x-6 gap-y-8 [grid-template-columns:repeat(auto-fill,minmax(300px,1fr))]">
-        {[0, 1, 2].map((i) => (
-          <div key={i} className="rounded-lg border border-neutral-800 bg-neutral-900/40 p-3">
-            <div className="aspect-video w-full rounded bg-neutral-800/60" />
-            <div className="mt-3 h-3 w-2/3 rounded bg-neutral-800/60" />
-            <div className="mt-2 h-2.5 w-full rounded bg-neutral-800/40" />
-            <div className="mt-1.5 h-2.5 w-4/5 rounded bg-neutral-800/40" />
-          </div>
-        ))}
-      </div>
+    <div className="flex flex-col items-center gap-4 text-center">
+      <img
+        src={illustrationSrc("studio-empty-project")}
+        alt=""
+        aria-hidden="true"
+        draggable={false}
+        className="h-[168px] w-[168px] object-contain"
+      />
+      <b className="font-display text-lg font-semibold leading-6">{t("story.emptyTitle")}</b>
+      <AgentChatMessageButton message={handoffPrompt(path)} />
+      {/* The board names the plan "Storyboard"; the file it lives in stays in the tooltip. */}
+      <span
+        title={path}
+        className="inline-flex h-8 items-center gap-1.5 rounded-full bg-studio-surface pr-3 pl-2.5 text-xs font-semibold shadow-[inset_0_0_0_1px_var(--st-bd)]"
+      >
+        <OutputIcon name="film" size={14} />
+        {t("story.title")}
+      </span>
     </div>
   );
 }

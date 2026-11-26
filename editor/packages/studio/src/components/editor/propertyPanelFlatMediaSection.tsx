@@ -10,7 +10,9 @@ import {
   formatTimingValue,
   parseNumericValue,
 } from "./propertyPanelHelpers";
-import { FlatSelectRow, FlatSlider } from "./propertyPanelFlatPrimitives";
+import { FlatSlider } from "./propertyPanelFlatPrimitives";
+import { MediaFitSelect, MediaPositionGrid } from "./propertyPanelFlatMediaPlacement";
+import { t, useLocale } from "../../i18n/translate";
 import { FlatToggle } from "./propertyPanelFlatToggle";
 import { AutomationToggle } from "./propertyPanelFxControls";
 import { CutMediaApplyControls } from "./CutMediaApplyControls";
@@ -55,6 +57,7 @@ export function FlatMediaSection({
     },
   ) => Promise<BackgroundRemovalResult>;
 }) {
+  useLocale();
   const track = useTrackDesignInput();
   const isVideo = element.tagName === "video";
   const isAudio = element.tagName === "audio";
@@ -85,14 +88,14 @@ export function FlatMediaSection({
   const absoluteSrc =
     projectDir && srcAttr && !srcAttr.startsWith("http") ? `${projectDir}/${srcAttr}` : srcAttr;
   return (
-    <div className="space-y-1.5">
+    <div className="flex flex-col gap-3">
       <CutMediaApplyControls />
-      <div className="flex min-h-8 items-center justify-between gap-2">
-        <span className="flex min-w-0 items-center gap-2">
-          <span className="h-5 w-8 flex-shrink-0 rounded-[3px] bg-panel-surface" />
-          <span className="min-w-0 truncate font-mono text-[11px] text-panel-text-0">
-            {srcAttr}
-          </span>
+      <div className="flex min-h-10 items-center justify-between gap-2">
+        <span
+          className="min-w-0 truncate text-[13px] font-semibold text-studio-text"
+          title={srcAttr}
+        >
+          {srcAttr}
         </span>
         <button
           type="button"
@@ -104,12 +107,25 @@ export function FlatMediaSection({
               setTimeout(() => setCopied(false), 1500);
             });
           }}
-          className="flex flex-shrink-0 items-center gap-1 text-[10px] text-panel-text-3 hover:text-panel-text-1"
+          title={t("media.copyPathTitle")}
+          className="inline-flex h-7 flex-shrink-0 items-center gap-1 rounded-full px-3 text-xs font-semibold text-studio-text shadow-[inset_0_0_0_1.5px_var(--st-sbd)] hover:bg-[var(--st-sub)]"
         >
-          {copied ? <Check size={11} /> : <ClipboardList size={11} />}
-          {copied ? "Copied" : "Copy"}
+          {copied ? <Check size={12} /> : <ClipboardList size={12} />}
+          {copied ? t("media.copiedPath") : t("media.copyPath")}
         </button>
       </div>
+      {isVisualMedia && (
+        <>
+          <MediaPositionGrid
+            value={objectPosition}
+            onChange={(next) => void onSetStyle("object-position", next)}
+          />
+          <MediaFitSelect
+            value={objectFit}
+            onChange={(next) => void onSetStyle("object-fit", next)}
+          />
+        </>
+      )}
       {isVisualMedia && (
         <FlatMediaCutout
           key={srcAttr}
@@ -199,34 +215,6 @@ export function FlatMediaSection({
               }}
             />
           )}
-        </>
-      )}
-      {isVisualMedia && (
-        <>
-          <FlatSelectRow
-            label="Fit"
-            value={objectFit}
-            options={["contain", "cover", "fill", "none", "scale-down"]}
-            tier={objectFit === "contain" ? "default" : "explicitCustom"}
-            onChange={(next) => void onSetStyle("object-fit", next)}
-          />
-          <FlatSelectRow
-            label="Position"
-            value={objectPosition}
-            options={[
-              "center",
-              "top",
-              "bottom",
-              "left",
-              "right",
-              "left top",
-              "right top",
-              "left bottom",
-              "right bottom",
-            ]}
-            tier={objectPosition === "center" ? "default" : "explicitCustom"}
-            onChange={(next) => void onSetStyle("object-position", next)}
-          />
         </>
       )}
     </div>

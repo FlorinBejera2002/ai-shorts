@@ -6,6 +6,8 @@ import { usePlayerStore } from "../../player";
 import { isFocusedEaseRequestCurrent } from "../../player/store/keyframeSlice";
 import { AnimationCard } from "./AnimationCard";
 import { GsapAddAnimationControl } from "./GsapAddAnimationControl";
+import { MOTION_HEADING } from "./motionUi";
+import { t, useLocale } from "../../i18n/translate";
 import {
   type GsapAnimationEditCallbacks,
   withTrackedGsapAnimationCallbacks,
@@ -26,6 +28,7 @@ export function GsapAnimationList({
   variant,
   ...callbacks
 }: GsapAnimationListProps) {
+  useLocale();
   const track = useTrackDesignInput();
   const [addMenuOpen, setAddMenuOpen] = useState(false);
   const trackedCallbacks = withTrackedGsapAnimationCallbacks(callbacks, track);
@@ -59,12 +62,17 @@ export function GsapAnimationList({
     }
   }, [focusedHere]);
 
+  const flat = variant === "flat";
   return (
-    <div className="space-y-2">
-      {animations.length === 0 && (
-        <p className="text-[11px] leading-4 text-neutral-500">
-          No animations on this element yet — add an effect below to animate it.
-        </p>
+    <div className={flat ? "flex flex-col gap-2.5" : "space-y-2"}>
+      {flat ? (
+        <h3 className={MOTION_HEADING}>
+          {animations.length === 0 ? t("motion.none") : t("motion.animations")}
+        </h3>
+      ) : (
+        animations.length === 0 && (
+          <p className="text-[11px] leading-4 text-neutral-500">{t("motion.none")}</p>
+        )
       )}
       {animations.map((animation, index) => (
         <AnimationCard
@@ -72,7 +80,7 @@ export function GsapAnimationList({
           key={animation.id}
           animation={animation}
           defaultExpanded={index === 0}
-          flat={variant === "flat"}
+          flat={flat}
           focusedSegment={focusedHere?.animationId === animation.id ? focusedHere : null}
           onFocusSegmentConsumed={consumeFocusedEaseSegment}
         />

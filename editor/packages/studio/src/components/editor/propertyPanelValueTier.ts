@@ -16,9 +16,9 @@ export function resolveValueTier(
 }
 
 export const VALUE_TIER_LABEL_CLASS: Record<PropertyValueTier, string> = {
-  default: "text-panel-text-3",
-  explicitDefault: "text-panel-text-2",
-  explicitCustom: "text-panel-text-0",
+  default: "text-studio-text",
+  explicitDefault: "text-studio-text",
+  explicitCustom: "text-studio-text font-semibold",
 };
 
 export const VALUE_TIER_VALUE_CLASS: Record<PropertyValueTier, string> = {

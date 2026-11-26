@@ -14,6 +14,8 @@ import { clampNumber } from "../../utils/studioHelpers";
 
 const GRAPH_SIZE = 160;
 const GRAPH_PADDING = 8;
+// The graph is drawn 2:1 (St-Inspector-Curves); points compensate so they stay round.
+const GRAPH_ASPECT = 2;
 const SAMPLE_COUNT = 128;
 const INPUT_EPSILON = 0.002;
 
@@ -36,13 +38,15 @@ type HueTab = {
 export type CurveTab = RgbTab | HueTab;
 
 export const TABS: readonly CurveTab[] = [
-  { kind: "rgb", key: "master", label: "Master", color: "#e5e7eb", min: 0, max: 1 },
-  { kind: "rgb", key: "red", label: "R", color: "#fb7185", min: 0, max: 1 },
-  { kind: "rgb", key: "green", label: "G", color: "#4ade80", min: 0, max: 1 },
-  { kind: "rgb", key: "blue", label: "B", color: "#60a5fa", min: 0, max: 1 },
-  { kind: "hue", key: "hueVsHue", label: "Hue/Hue", color: "#f0abfc", min: -180, max: 180 },
-  { kind: "hue", key: "hueVsSaturation", label: "Hue/Sat", color: "#facc15", min: -1, max: 1 },
-  { kind: "hue", key: "hueVsLuma", label: "Hue/Luma", color: "#f8fafc", min: -1, max: 1 },
+  // St-Inspector-Curves: the curve is drawn in the text colour; the R, G and B channels keep
+  // their channel colour because it is data, not decoration.
+  { kind: "rgb", key: "master", label: "Master", color: "var(--st-tx)", min: 0, max: 1 },
+  { kind: "rgb", key: "red", label: "R", color: "rgb(220 38 38)", min: 0, max: 1 },
+  { kind: "rgb", key: "green", label: "G", color: "rgb(22 163 74)", min: 0, max: 1 },
+  { kind: "rgb", key: "blue", label: "B", color: "rgb(37 99 235)", min: 0, max: 1 },
+  { kind: "hue", key: "hueVsHue", label: "Hue/Hue", color: "var(--st-tx)", min: -180, max: 180 },
+  { kind: "hue", key: "hueVsSaturation", label: "Hue/Sat", color: "var(--st-tx)", min: -1, max: 1 },
+  { kind: "hue", key: "hueVsLuma", label: "Hue/Luma", color: "var(--st-tx)", min: -1, max: 1 },
 ];
 
 export const RGB_IDENTITY: readonly HfColorCurvePoint[] = [
@@ -477,21 +481,22 @@ export function CurveGraph({
           onSettle();
         }
       }}
-      className="mx-auto aspect-square w-full max-w-[200px] touch-none rounded border border-panel-border-input bg-black/20 outline-none focus:ring-1 focus:ring-panel-accent"
+      className="block aspect-[2/1] w-full touch-none [&_line]:[vector-effect:non-scaling-stroke] rounded-md bg-studio-surface shadow-[inset_0_0_0_1px_var(--st-bd)] outline-none focus-visible:shadow-[inset_0_0_0_2px_var(--st-btn)]"
+      preserveAspectRatio="none"
     >
       <defs>
         <linearGradient id={`hf-hue-axis-${tab.key}`}>
-          <stop offset="0%" stopColor="#f33" />
-          <stop offset="16.7%" stopColor="#ff3" />
-          <stop offset="33.3%" stopColor="#3f3" />
-          <stop offset="50%" stopColor="#3ff" />
-          <stop offset="66.7%" stopColor="#33f" />
-          <stop offset="83.3%" stopColor="#f3f" />
-          <stop offset="100%" stopColor="#f33" />
+          <stop offset="0%" stopColor="rgb(255 51 51)" />
+          <stop offset="16.7%" stopColor="rgb(255 255 51)" />
+          <stop offset="33.3%" stopColor="rgb(51 255 51)" />
+          <stop offset="50%" stopColor="rgb(51 255 255)" />
+          <stop offset="66.7%" stopColor="rgb(51 51 255)" />
+          <stop offset="83.3%" stopColor="rgb(255 51 255)" />
+          <stop offset="100%" stopColor="rgb(255 51 51)" />
         </linearGradient>
       </defs>
       {[0.25, 0.5, 0.75].map((ratio) => (
-        <g key={ratio} stroke="rgba(255,255,255,0.08)" strokeWidth="0.5">
+        <g key={ratio} stroke="var(--st-bd)" strokeWidth="1">
           <line
             x1={GRAPH_PADDING}
             y1={GRAPH_PADDING + ratio * (GRAPH_SIZE - GRAPH_PADDING * 2)}
@@ -521,20 +526,23 @@ export function CurveGraph({
         d={path}
         fill="none"
         stroke={tab.color}
-        strokeWidth="1.5"
+        strokeWidth="2"
+        vectorEffect="non-scaling-stroke"
       />
       {points.map(([input, output], index) => {
         const point = graphPoint(input, output, tab);
         return (
-          <circle
+          <ellipse
             key={`${input}-${index}`}
             data-color-curve-point={index}
             cx={point.x}
             cy={point.y}
-            r={selectedIndex === index ? 3.5 : 2.5}
-            fill={selectedIndex === index ? "#fff" : tab.color}
-            stroke="#111"
-            strokeWidth="1"
+            rx={(selectedIndex === index ? 5 : 4) / GRAPH_ASPECT}
+            ry={selectedIndex === index ? 5 : 4}
+            vectorEffect="non-scaling-stroke"
+            fill={selectedIndex === index ? tab.color : "var(--st-sf)"}
+            stroke={tab.color}
+            strokeWidth="1.25"
           />
         );
       })}

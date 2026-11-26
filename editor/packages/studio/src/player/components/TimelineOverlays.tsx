@@ -11,7 +11,6 @@ import {
 } from "./KeyframeDiamondContextMenu";
 import { ClipContextMenu } from "./ClipContextMenu";
 import { TrackGapContextMenu } from "./TrackGapContextMenu";
-import { TimelineShortcutHint } from "./TimelineShortcutHint";
 import { copyTextToClipboard } from "../../utils/clipboard";
 import { trackStudioSegmentEaseEdit } from "../../telemetry/events";
 
@@ -36,7 +35,6 @@ interface TimelineOverlaysProps {
   elements: readonly TimelineElement[];
   elementsRef: MutableRefObject<readonly TimelineElement[]>;
   theme: TimelineTheme;
-  showShortcutHint: boolean;
   showPopover: boolean;
   rangeSelection: TimelineRangeSelection | null;
   setShowPopover: (value: boolean) => void;
@@ -97,13 +95,11 @@ function readTimelineContextElement(
 }
 
 // The timeline's floating overlays, rendered as siblings above the scroll area:
-// the shortcut hint, the range-edit popover, the keyframe-diamond context menu,
+// the range-edit popover, the keyframe-diamond context menu,
 // and the clip context menu.
 export function TimelineOverlays({
   elements,
   elementsRef,
-  theme,
-  showShortcutHint,
   showPopover,
   rangeSelection,
   setShowPopover,
@@ -160,10 +156,6 @@ export function TimelineOverlays({
 
   return (
     <>
-      {showShortcutHint && !showPopover && !rangeSelection && (
-        <TimelineShortcutHint theme={theme} />
-      )}
-
       {showPopover && rangeSelection && (
         <EditPopover
           rangeStart={rangeSelection.start}

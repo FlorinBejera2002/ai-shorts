@@ -56,7 +56,7 @@ export function MiniCurveSvg({
       <path
         d={d}
         fill="none"
-        stroke={active ? "#3CE6AC" : "#737373"}
+        stroke={active ? "var(--st-tx)" : "var(--st-t3)"}
         strokeWidth="1.5"
         strokeLinecap="round"
       />

@@ -25,7 +25,7 @@ describe("PropertyPanelFlatFooter", () => {
   it("renders the ask-agent affordance and fires onAskAgent on click", () => {
     const onAskAgent = vi.fn();
     const { host, root } = renderFooter({ onAskAgent });
-    expect(host.textContent).toContain("Ask agent about this element");
+    expect(host.textContent).toContain("Ask for help");
     const askButton = host.querySelector<HTMLButtonElement>('[data-flat-footer-ask="true"]');
     act(() => askButton?.dispatchEvent(new MouseEvent("click", { bubbles: true })));
     expect(onAskAgent).toHaveBeenCalledTimes(1);
@@ -56,10 +56,10 @@ describe("PropertyPanelFlatFooter", () => {
   // Plan 10 (sticky-footer-gap): the root must carry an opaque background —
   // it previously had none at all, letting scrolled panel content show
   // through. Regression coverage for the definite fix from the brief.
-  it("has an opaque bg-panel-bg background on its root element", () => {
+  it("has an opaque surface background on its root element", () => {
     const { host, root } = renderFooter({ onAskAgent: vi.fn() });
     const footerRoot = host.firstElementChild as HTMLElement;
-    expect(footerRoot.className).toContain("bg-panel-bg");
+    expect(footerRoot.className).toContain("bg-studio-surface");
     act(() => root.unmount());
   });
 

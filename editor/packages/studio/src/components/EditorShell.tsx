@@ -1,4 +1,5 @@
 import { useCallback, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { PreviewPane } from "./nle/PreviewPane";
 import { TimelinePane } from "./nle/TimelinePane";
 import { PreviewOverlays } from "./nle/PreviewOverlays";
@@ -17,6 +18,8 @@ import type { GestureRecordingState } from "./editor/GestureRecordControl";
 import { useTimelineSelectionPreviewSync } from "../hooks/useTimelineSelectionPreviewSync";
 import { StudioAgentTools } from "../webmcp/StudioAgentTools";
 import { SourceImportNotice } from "./SourceImportNotice";
+import { t } from "../i18n/translate";
+import { useIsPhone } from "./shell/useIsPhone";
 
 type RenderClipContent = (
   element: TimelineElement,
@@ -65,6 +68,8 @@ export interface EditorShellProps extends TimelineEditCallbackDeps {
   recordingState?: GestureRecordingState;
   onToggleRecording?: () => void;
   gestureOverlay?: ReactNode;
+  /** Notice pinned to the top of the preview card (save paused). Floats while the shell is hidden. */
+  previewNotice?: ReactNode;
 }
 
 // The CapCut-style shell: [left | preview | right] in a top row, with a
@@ -103,6 +108,7 @@ export function EditorShell({
   onToggleRecording,
   blockPreview,
   gestureOverlay,
+  previewNotice,
 }: EditorShellProps) {
   const { projectId, activeCompPath, setActiveCompPath, handlePreviewIframeRef, showToast } =
     useStudioShellContext();
@@ -118,7 +124,7 @@ export function EditorShell({
   const selectedElementId = usePlayerStore((state) => state.selectedElementId);
   const selectedElementIds = usePlayerStore((state) => state.selectedElementIds);
   const reportTimelineSelectionNotFound = useCallback(() => {
-    showToast("The selected clip is not available in the preview yet.", "info");
+    showToast(t("shell.selectionMissing"), "info");
   }, [showToast]);
 
   useTimelineSelectionPreviewSync({
@@ -150,7 +156,16 @@ export function EditorShell({
   });
 
   return (
-    <div className={`flex flex-col flex-1 min-h-0${hidden ? " hidden" : ""}`}>
+    <div className={`flex min-h-0 flex-1 flex-col${hidden ? " hidden" : ""}`}>
+      {/* While the storyboard hides the shell, the notice floats under the top bar. */}
+      {hidden && previewNotice
+        ? createPortal(
+            <div className="fixed left-1/2 top-[76px] z-[92] w-[min(624px,calc(100vw-32px))] -translate-x-1/2">
+              {previewNotice}
+            </div>,
+            document.body,
+          )
+        : null}
       <TimelineEditProvider value={timelineEditCallbacks}>
         <NLEProvider
           projectId={projectId}
@@ -182,6 +197,7 @@ export function EditorShell({
             onBlockDrop={handleTimelineBlockDrop}
             onCompositionDrop={handleTimelineCompositionDrop}
             onDeleteElement={handleTimelineElementDelete}
+            previewNotice={hidden ? null : previewNotice}
             previewOverlay={
               <PreviewOverlays
                 shouldShowMotionPath={shouldShowMotionPath}
@@ -220,6 +236,7 @@ interface EditorShellBodyProps {
     placement: TimelineDropPlacement,
   ) => Promise<void> | void;
   onDeleteElement: (element: TimelineElement) => Promise<void> | void;
+  previewNotice?: ReactNode;
 }
 
 function EditorShellBody({
@@ -236,8 +253,10 @@ function EditorShellBody({
   onBlockDrop,
   onCompositionDrop,
   onDeleteElement,
+  previewNotice,
 }: EditorShellBodyProps) {
   const { compositionStack, updateCompositionStack, containerRef } = useNLEContext();
+  const isPhone = useIsPhone();
 
   // The caption track's blocks are seek targets; CaptionTimeline took an onSeek
   // prop that nothing ever passed, so clicking a block did nothing.
@@ -258,30 +277,47 @@ function EditorShellBody({
   return (
     <div
       ref={containerRef}
-      // Reference canvas: darker navy app canvas behind the panel cards.
-      className="flex flex-col flex-1 min-h-0 bg-[#0B111C]"
+      data-studio-shell-body={isPhone ? "phone" : "desktop"}
+      className={
+        isPhone
+          ? "relative flex min-h-0 flex-1 flex-col bg-studio-bg pb-[88px]"
+          : "relative flex min-h-0 flex-1 flex-col bg-studio-bg px-3 pb-[11px]"
+      }
       onKeyDown={handleKeyDown}
       tabIndex={-1}
     >
       {/* Renders nothing; exposes Studio's state to an agentic browser. Mounted
           here rather than in App because it needs the DomEdit contexts. */}
       <StudioAgentTools />
-      <SourceImportNotice />
-      {/* Top row: [left | preview | right] — outer padding + the 8px resize
-          seams give the panels CapCut-style separation on the dark canvas. */}
-      <div className="relative flex flex-col sm:flex-row flex-1 min-h-0 px-px pt-px">
+      {/* Cards row: rail, side panel, preview and inspector, 12px apart (St-Main). The
+          9px bottom padding plus the 3px timeline height handle make the 12px gap above
+          the timeline card. On phone the rail and inspector live in bars and sheets. */}
+      <div
+        className={
+          isPhone
+            ? "relative flex min-h-0 flex-1 flex-col"
+            : "relative flex min-h-0 flex-1 flex-row pb-[9px] pt-3"
+        }
+      >
         {left}
-        <div className="flex-1 min-h-[160px] sm:min-h-0 min-w-0 flex flex-col relative">
+        <div className="relative flex min-h-[160px] min-w-0 flex-1 flex-col sm:min-h-0">
           <PreviewPane
             previewOverlay={previewOverlay}
             onSelectTimelineElement={onSelectTimelineElement}
             onPreviewBlockDrop={onPreviewBlockDrop}
           />
+          {/* Notices sit over the top of the preview card, under its header row. */}
+          <div className="pointer-events-none absolute inset-x-4 top-[60px] z-20 flex flex-col items-center gap-2 empty:hidden [&>*]:pointer-events-auto">
+            {previewNotice}
+            <div className="max-w-full empty:hidden [&>*]:rounded-md [&>*]:bg-studio-surface [&>*]:shadow-studio">
+              <SourceImportNotice />
+            </div>
+          </div>
         </div>
         {right}
       </div>
 
-      {/* Full-width timeline row */}
+      {/* Full-width timeline card */}
       <TimelinePane
         timelineToolbar={timelineToolbar}
         renderClipContent={renderClipContent}
@@ -293,10 +329,10 @@ function EditorShellBody({
         onSelectTimelineElement={onSelectTimelineElement}
         timelineFooter={
           captionEditMode ? (
-            <div className="border-t border-neutral-800/30 flex-shrink-0" style={{ height: 60 }}>
-              <div className="flex items-center gap-1.5 px-2 py-0.5">
-                <span className="text-[9px] font-medium text-neutral-500 uppercase tracking-wider">
-                  Captions
+            <div className="flex-shrink-0" style={{ height: 60 }}>
+              <div className="flex items-center gap-1.5 px-3 py-0.5">
+                <span className="text-[11px] font-semibold text-studio-muted">
+                  {t("shell.captions")}
                 </span>
               </div>
               <CaptionTimeline pixelsPerSecond={100} onSeek={seekCaptionTime} />

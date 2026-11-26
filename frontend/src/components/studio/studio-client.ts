@@ -1,11 +1,41 @@
 export type StudioProject = { id: string; title: string }
 
+// Presentation preferences passed to Studio as query parameters (not secrets).
+export type StudioPreferences = { theme?: 'light' | 'dark'; lang?: 'ro' | 'en' }
+
+export function withStudioPreferences(url: string, preferences: StudioPreferences = {}): string {
+  const hashIndex = url.indexOf('#')
+  const base = hashIndex === -1 ? url : url.slice(0, hashIndex)
+  const hash = hashIndex === -1 ? '' : url.slice(hashIndex)
+  const params = new URLSearchParams()
+  if (preferences.theme) params.set('theme', preferences.theme)
+  if (preferences.lang) params.set('lang', preferences.lang)
+  const query = params.toString()
+  return base + (query ? '?' + query : '') + hash
+}
+
+// Saved theme (light or dark; "system" lets Studio follow the OS) and the page language.
+export function readStudioPreferences(): StudioPreferences {
+  const preferences: StudioPreferences = {}
+  try {
+    const theme = localStorage.getItem('theme')
+    if (theme === 'light' || theme === 'dark') preferences.theme = theme
+  } catch {
+    /* Blocked storage: Studio follows the system theme. */
+  }
+  // The page sets a full tag such as ro-RO or en-US; Studio takes the base language.
+  const lang = document.documentElement.lang.split('-')[0].toLowerCase()
+  if (lang === 'ro' || lang === 'en') preferences.lang = lang
+  return preferences
+}
+
 export async function prepareStudioWorkspace(
   client: ReturnType<typeof createStudioClient>,
   target: { clipId?: string; projectId?: string } = {},
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  preferences: StudioPreferences = {}
 ): Promise<string> {
-  if (target.clipId) return prepareStudioClip(client, target.clipId, signal)
+  if (target.clipId) return prepareStudioClip(client, target.clipId, signal, preferences)
   await client.connect(signal)
   const projects = await client.projects(signal)
   const requested = target.projectId
@@ -15,17 +45,18 @@ export async function prepareStudioWorkspace(
     throw new Error('The requested Studio project is unavailable for this account.')
   }
   const active = requested ?? (await client.workspace(signal))
-  return `${client.origin}/#project/${encodeURIComponent(active.id)}`
+  return withStudioPreferences(`${client.origin}/#project/${encodeURIComponent(active.id)}`, preferences)
 }
 
 export async function prepareStudioClip(
   client: ReturnType<typeof createStudioClient>,
   clipId: string,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  preferences: StudioPreferences = {}
 ): Promise<string> {
   await client.connect(signal)
   const project = await client.openClip(clipId, signal)
-  return `${client.origin}/#project/${encodeURIComponent(project.id)}`
+  return withStudioPreferences(`${client.origin}/#project/${encodeURIComponent(project.id)}`, preferences)
 }
 
 type StudioAuth = {

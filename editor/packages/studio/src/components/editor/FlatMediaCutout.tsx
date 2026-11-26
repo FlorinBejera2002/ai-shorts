@@ -5,8 +5,12 @@ import {
   type BackgroundRemovalResult,
   stripQueryAndHash,
 } from "./propertyPanelHelpers";
-import { FlatSelectRow } from "./propertyPanelFlatPrimitives";
-import { FlatToggle } from "./propertyPanelFlatToggle";
+import { FlatField, FlatToggleSegment } from "./propertyPanelFlatTextControls";
+import { InspectorAction, InspectorSwitchRow } from "./inspectorControls";
+import { t, useLocale } from "../../i18n/translate";
+import type { MessageKey } from "../../i18n/dictionary";
+
+// St-Inspector-Cutout: quality segment, background plate switch, progress and the action.
 export function FlatMediaCutout({
   srcAttr,
   isVideo,
@@ -27,6 +31,7 @@ export function FlatMediaCutout({
     },
   ) => Promise<BackgroundRemovalResult>;
 }) {
+  useLocale();
   const track = useTrackDesignInput();
   const [removeBusy, setRemoveBusy] = useState(false);
   const [removeProgress, setRemoveProgress] = useState<BackgroundRemovalProgress | null>(null);
@@ -56,7 +61,7 @@ export function FlatMediaCutout({
     if (!onRemoveBackground || !projectSrc || removeBusy) return;
     track("button", "Remove background");
     setRemoveBusy(true);
-    setRemoveProgress({ status: "processing", progress: 0, stage: "Preparing" });
+    setRemoveProgress({ status: "processing", progress: 0, stage: t("cutout.working") });
     try {
       const result = await onRemoveBackground(projectSrc, {
         createBackgroundPlate: isVideo && createPlate,
@@ -64,12 +69,12 @@ export function FlatMediaCutout({
         onProgress: setRemoveProgress,
       });
       await applyCutoutResult(result);
-      setRemoveProgress({ status: "complete", progress: 100, stage: "Applied cutout", ...result });
+      setRemoveProgress({ status: "complete", progress: 100, stage: t("cutout.done"), ...result });
     } catch (error) {
       setRemoveProgress({
         status: "failed",
         progress: 0,
-        stage: "Failed",
+        stage: t("cutout.failed"),
         error: error instanceof Error ? error.message : String(error),
       });
     } finally {
@@ -77,56 +82,84 @@ export function FlatMediaCutout({
     }
   };
 
+  const status = removeProgress?.status;
+  const statusLabel =
+    status === "failed"
+      ? t("cutout.failed")
+      : status === "complete"
+        ? t("cutout.done")
+        : t("cutout.working");
   return (
-    <div className="ml-[1px] border-l-2 border-panel-border-input py-1 pl-[10px]">
-      <div className="flex min-h-6 items-center justify-between">
-        <span className="flex items-baseline gap-[7px]">
-          <span className="text-[11px] font-semibold text-panel-text-1">Cutout</span>
-          <span className="font-mono text-[9px] text-panel-text-4">
-            transparent {isVideo ? "WebM" : "PNG"}
-          </span>
-        </span>
-        <button
-          type="button"
-          data-flat-media-remove-bg="true"
-          disabled={!canRemoveBackground || removeBusy}
-          onClick={() => void runBackgroundRemoval()}
-          className="flex items-center gap-1 text-[10px] font-medium text-panel-accent disabled:cursor-not-allowed disabled:opacity-50"
-          title={
-            canRemoveBackground
-              ? "Remove background and save a transparent asset"
-              : "Select a project-local image or video asset"
-          }
-        >
-          {removeBusy ? "Working" : "Remove BG"}
-        </button>
-      </div>
-      <FlatSelectRow
-        label="Quality"
-        value={quality}
-        options={["fast", "balanced", "best"]}
-        tier="explicitDefault"
-        onChange={(next) => setQuality(next as typeof quality)}
-      />
-      {isVideo && <FlatToggle label="BG plate" checked={createPlate} onChange={setCreatePlate} />}
+    <section
+      aria-label={t("cutout.title")}
+      data-cutout-format={isVideo ? "WebM" : "PNG"}
+      className="flex flex-col gap-3"
+    >
+      <h3 className="text-[13px] font-semibold text-studio-text">{t("cutout.title")}</h3>
+      <FlatField label={t("cutout.quality")}>
+        <FlatToggleSegment
+          label={t("cutout.quality")}
+          disabled={removeBusy}
+          options={QUALITIES.map(([value, label]) => ({
+            key: value,
+            node: t(label),
+            label: t(label),
+            active: quality === value,
+          }))}
+          onChange={(next) => {
+            const match = QUALITIES.find(([value]) => value === next);
+            if (match) setQuality(match[0]);
+          }}
+        />
+      </FlatField>
+      {isVideo && (
+        <InspectorSwitchRow
+          label={t("cutout.plate")}
+          checked={createPlate}
+          disabled={removeBusy}
+          onChange={setCreatePlate}
+        />
+      )}
       {removeProgress && (
-        <div className="mt-1 space-y-1">
-          <div className="flex items-center justify-between text-[10px] text-panel-text-4">
-            <span className="min-w-0 flex-1 truncate">
-              {removeProgress.error ?? removeProgress.stage ?? "Processing"}
+        <div role="status" className="flex flex-col gap-1.5">
+          <div className="flex items-center justify-between gap-2 text-[13px] font-medium">
+            <span
+              className={`min-w-0 flex-1 truncate ${status === "failed" ? "text-studio-danger" : "text-studio-text"}`}
+              title={removeProgress.error ?? statusLabel}
+            >
+              {statusLabel}
             </span>
-            <span>{Math.round(removeProgress.progress)}%</span>
+            {status !== "failed" && (
+              <span className="tabular-nums text-studio-muted">
+                {Math.round(removeProgress.progress)}%
+              </span>
+            )}
           </div>
-          <div className="h-1 overflow-hidden rounded-full bg-panel-hover">
-            <div
-              className={`h-full rounded-full ${
-                removeProgress.status === "failed" ? "bg-red-400" : "bg-panel-accent"
-              }`}
-              style={{ width: `${Math.max(0, Math.min(100, removeProgress.progress))}%` }}
-            />
-          </div>
+          {status !== "failed" && (
+            <div className="h-1.5 overflow-hidden rounded-full bg-[var(--st-hd)]">
+              <div
+                className="h-full rounded-full bg-[var(--st-tx)]"
+                style={{ width: `${Math.max(0, Math.min(100, removeProgress.progress))}%` }}
+              />
+            </div>
+          )}
         </div>
       )}
-    </div>
+      <InspectorAction
+        variant="secondary"
+        data-flat-media-remove-bg="true"
+        disabled={!canRemoveBackground || removeBusy}
+        title={canRemoveBackground ? t("cutout.runTitle") : t("cutout.unavailable")}
+        onClick={() => void runBackgroundRemoval()}
+      >
+        {removeBusy ? t("cutout.working") : t("cutout.run")}
+      </InspectorAction>
+    </section>
   );
 }
+
+const QUALITIES = [
+  ["fast", "cutout.q.fast"],
+  ["balanced", "cutout.q.balanced"],
+  ["best", "cutout.q.best"],
+] as const satisfies readonly (readonly [string, MessageKey])[];

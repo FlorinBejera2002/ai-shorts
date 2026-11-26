@@ -1,6 +1,7 @@
 // fallow-ignore-file code-duplication
 // Move/resize operation families remain parallel until SDK graduation.
 import { useCallback, type MutableRefObject, type RefObject } from "react";
+import { t } from "../i18n/translate";
 import type { Composition } from "@hyperframes/sdk";
 import type { TimelineElement } from "../player";
 import {
@@ -278,21 +279,21 @@ export function useTimelineGroupEditing({
       syncPreviewContentDuration(previewIframeRef.current);
       const coalesceKey = options?.coalesceKey ?? moveCoalesceKey(changes);
       const coalesceMs = options?.coalesceMs;
-      return enqueueGroupOperation("Move timeline clips", async (projectId) => {
+      return enqueueGroupOperation(t("timeline.histMoveMany"), async (projectId) => {
         await options?.beforeTiming;
         const handledBySdk = await trySdkBatchPersist({
           changes,
           sdkChanges: toSdkTimingChanges(changes, (change) => ({ start: change.start })),
           eligible: changes.every((change) => change.track == null),
           needsExtension,
-          label: "Move timeline clips",
+          label: t("timeline.histMoveMany"),
           coalesceKey,
           coalesceMs,
         });
         if (!handledBySdk) {
           await persistServerBatch(
             projectId,
-            "Move timeline clips",
+            t("timeline.histMoveMany"),
             changes.map((change) => ({
               element: change.element,
               buildPatches: (original, target) =>
@@ -321,7 +322,7 @@ export function useTimelineGroupEditing({
             projectId,
             iframe: previewIframeRef.current,
             reloadPreview,
-            label: "Move timeline clips",
+            label: t("timeline.histMoveMany"),
             errorLabel: "Failed to shift GSAP positions",
             coalesceKey,
             recordEdit,
@@ -386,7 +387,7 @@ export function useTimelineGroupEditing({
       syncPreviewContentDuration(previewIframeRef.current);
       const coalesceKey = options?.coalesceKey ?? resizeCoalesceKey(changes);
       const coalesceMs = options?.coalesceMs;
-      return enqueueGroupOperation("Resize timeline clips", async (projectId) => {
+      return enqueueGroupOperation(t("timeline.histResizeMany"), async (projectId) => {
         await options?.beforeTiming;
         const handledBySdk = await trySdkBatchPersist({
           changes,
@@ -396,14 +397,14 @@ export function useTimelineGroupEditing({
           })),
           eligible: changes.every((change) => !resizeHasPlaybackStartAdjustment(change)),
           needsExtension,
-          label: "Resize timeline clips",
+          label: t("timeline.histResizeMany"),
           coalesceKey,
           coalesceMs,
         });
         if (!handledBySdk) {
           await persistServerBatch(
             projectId,
-            "Resize timeline clips",
+            t("timeline.histResizeMany"),
             changes.map((change) => ({
               element: change.element,
               buildPatches: (original, target) =>
@@ -424,7 +425,7 @@ export function useTimelineGroupEditing({
             projectId,
             iframe: previewIframeRef.current,
             reloadPreview,
-            label: "Resize timeline clips",
+            label: t("timeline.histResizeMany"),
             errorLabel: "Failed to scale GSAP positions",
             coalesceKey,
             recordEdit,

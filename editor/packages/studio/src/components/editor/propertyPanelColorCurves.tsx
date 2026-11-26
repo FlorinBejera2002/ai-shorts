@@ -1,6 +1,8 @@
 import { useState } from "react";
 import type { HfColorCurvePoint, HfHueCurvePoint } from "@hyperframes/core/color-grading";
-import { RotateCcw } from "../../icons/SystemIcons";
+import type { MessageKey } from "../../i18n/dictionary";
+import { t, useLocale } from "../../i18n/translate";
+import { LookMenuSelect } from "./propertyPanelColorLookSelect";
 import {
   CurveGraph,
   formatPointValue,
@@ -28,6 +30,7 @@ export function ColorCurves({
   onPreview: (value: ColorCurveValues) => void;
   onCommit: (value: ColorCurveValues) => void;
 }) {
+  useLocale();
   const [activeKey, setActiveKey] = useState<CurveTab["key"]>("master");
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const { draft, setDraft, transaction } = useInspectorGestureDraft({
@@ -86,29 +89,26 @@ export function ColorCurves({
     (selectedIndex === 0 || selectedIndex === points.length - 1);
 
   return (
-    <div data-color-curves="true" className="space-y-2">
-      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 border-b border-panel-hairline">
-        {TABS.map((candidate) => (
-          <button
-            key={candidate.key}
-            type="button"
-            data-color-curve-tab={candidate.key}
-            aria-pressed={candidate.key === tab.key}
-            disabled={disabled}
-            onClick={() => {
-              transaction.cancel();
-              setActiveKey(candidate.key);
-              setSelectedIndex(null);
-            }}
-            className={`border-b-2 px-0.5 py-1 text-[9px] ${
-              candidate.key === tab.key
-                ? "border-panel-accent text-panel-text-1"
-                : "border-transparent text-panel-text-4 hover:text-panel-text-2"
-            }`}
-          >
-            {candidate.label}
-          </button>
-        ))}
+    <div data-color-curves="true" className="flex flex-col gap-2.5">
+      <div className="flex flex-col gap-2" data-color-curve-channel="true">
+        <span className="text-[13px] font-semibold text-studio-text">
+          {t("look.curve.channel")}
+        </span>
+        <LookMenuSelect
+          name="curve-channel"
+          label={t("look.curve.channel")}
+          value={tab.key}
+          disabled={disabled}
+          options={TABS.map((candidate) => ({
+            value: candidate.key,
+            label: t(CHANNEL_LABEL[candidate.key]),
+          }))}
+          onChange={(key) => {
+            transaction.cancel();
+            setActiveKey(key);
+            setSelectedIndex(null);
+          }}
+        />
       </div>
       <CurveGraph
         tab={tab}
@@ -122,64 +122,71 @@ export function ColorCurves({
         onSettle={transaction.settle}
         onCancel={transaction.cancel}
       />
-      <div className="flex min-h-7 items-end gap-2">
-        {selectedPoint ? (
-          <>
-            <GradingNumberField
-              label={tab.kind === "rgb" ? "Input" : "Hue"}
-              ariaLabel={`Curve point ${tab.kind === "rgb" ? "input" : "hue"}`}
-              value={formatPointValue(selectedPoint[0], tab, "input")}
-              min={0}
-              max={tab.kind === "rgb" ? 1 : 359.999}
-              disabled={disabled || endpointSelected}
-              labelClassName="min-w-0 flex-1"
-              labelTextClassName="block text-[8px] uppercase text-panel-text-5"
-              inputClassName="block w-full"
-              onBegin={transaction.begin}
-              onPreview={(next) => updateSelected("input", next)}
-              onSettle={transaction.settle}
-              onCancel={transaction.cancel}
-            />
-            <GradingNumberField
-              label="Output"
-              ariaLabel="Curve point output"
-              value={formatPointValue(selectedPoint[1], tab, "output")}
-              min={tab.min}
-              max={tab.max}
-              disabled={disabled}
-              labelClassName="min-w-0 flex-1"
-              labelTextClassName="block text-[8px] uppercase text-panel-text-5"
-              inputClassName="block w-full"
-              onBegin={transaction.begin}
-              onPreview={(next) => updateSelected("output", next)}
-              onSettle={transaction.settle}
-              onCancel={transaction.cancel}
-            />
-            <button
-              type="button"
-              disabled={disabled || endpointSelected}
-              onClick={deleteSelected}
-              className="pb-0.5 text-[9px] text-panel-text-4 hover:text-panel-text-1 disabled:opacity-30"
-            >
-              Delete
-            </button>
-          </>
-        ) : (
-          <span className="flex-1 text-[9px] text-panel-text-5">
-            Click the graph or press Enter to add a point
-          </span>
-        )}
-        <button
-          type="button"
-          aria-label={`Reset ${tab.label} curve`}
-          title={`Reset ${tab.label} curve`}
-          disabled={disabled}
-          onClick={resetActive}
-          className="pb-0.5 text-panel-text-4 hover:text-panel-text-1 disabled:opacity-40"
-        >
-          <RotateCcw size={11} />
-        </button>
-      </div>
+      {selectedPoint && (
+        <div className="flex items-end gap-3">
+          <GradingNumberField
+            label={tab.kind === "rgb" ? t("look.curve.input") : t("look.curve.hue")}
+            ariaLabel={`Curve point ${tab.kind === "rgb" ? "input" : "hue"}`}
+            value={formatPointValue(selectedPoint[0], tab, "input")}
+            min={0}
+            max={tab.kind === "rgb" ? 1 : 359.999}
+            disabled={disabled || endpointSelected}
+            labelClassName={POINT_FIELD}
+            labelTextClassName={POINT_LABEL}
+            inputClassName="block w-full text-left"
+            onBegin={transaction.begin}
+            onPreview={(next) => updateSelected("input", next)}
+            onSettle={transaction.settle}
+            onCancel={transaction.cancel}
+          />
+          <GradingNumberField
+            label={t("look.curve.output")}
+            ariaLabel="Curve point output"
+            value={formatPointValue(selectedPoint[1], tab, "output")}
+            min={tab.min}
+            max={tab.max}
+            disabled={disabled}
+            labelClassName={POINT_FIELD}
+            labelTextClassName={POINT_LABEL}
+            inputClassName="block w-full text-left"
+            onBegin={transaction.begin}
+            onPreview={(next) => updateSelected("output", next)}
+            onSettle={transaction.settle}
+            onCancel={transaction.cancel}
+          />
+          <button
+            type="button"
+            disabled={disabled || endpointSelected}
+            onClick={deleteSelected}
+            className="h-8 rounded-full px-3 text-[12px] font-medium text-studio-danger hover:bg-[var(--st-danger-bg)] disabled:opacity-30"
+          >
+            {t("look.curve.delete")}
+          </button>
+        </div>
+      )}
+      <button
+        type="button"
+        aria-label={t("look.curve.resetAria", { name: t(CHANNEL_LABEL[tab.key]) })}
+        title={t("look.curve.resetAria", { name: t(CHANNEL_LABEL[tab.key]) })}
+        disabled={disabled}
+        onClick={resetActive}
+        className="mx-auto h-9 rounded-full px-4 text-[13px] font-medium text-studio-text hover:bg-[var(--st-sub)] disabled:opacity-40"
+      >
+        {t("look.curve.reset")}
+      </button>
     </div>
   );
 }
+
+const POINT_FIELD = "flex min-w-0 flex-1 flex-col gap-1";
+const POINT_LABEL = "block text-[12px] font-medium text-studio-muted";
+
+const CHANNEL_LABEL: Record<CurveTab["key"], MessageKey> = {
+  master: "look.curve.master",
+  red: "look.curve.red",
+  green: "look.curve.green",
+  blue: "look.curve.blue",
+  hueVsHue: "look.curve.hueVsHue",
+  hueVsSaturation: "look.curve.hueVsSaturation",
+  hueVsLuma: "look.curve.hueVsLuma",
+};

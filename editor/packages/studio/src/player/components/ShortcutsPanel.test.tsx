@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 
-import React, { act, Profiler } from "react";
+import React, { act, Profiler, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ShortcutsPanel } from "./ShortcutsPanel";
@@ -59,7 +59,7 @@ describe("ShortcutsPanel", () => {
   it.each(["page", "button", "panel"] as const)(
     "closes with Escape from the %s-focused position",
     (focusPosition) => {
-      const { host, trigger } = renderPanel();
+      const { trigger } = renderPanel();
       openPanel(trigger);
 
       let eventTarget: Document | HTMLElement;
@@ -73,7 +73,9 @@ describe("ShortcutsPanel", () => {
         eventTarget = trigger;
         expect(document.activeElement).toBe(trigger);
       } else {
-        const panelInput = host.querySelector<HTMLInputElement>('[aria-label="Jump to frame"]')!;
+        const panelInput = document.body.querySelector<HTMLInputElement>(
+          '[aria-label="Jump to frame"]',
+        )!;
         panelInput.focus();
         eventTarget = panelInput;
         expect(document.activeElement).toBe(panelInput);
@@ -84,14 +86,14 @@ describe("ShortcutsPanel", () => {
       });
 
       expect(trigger.getAttribute("aria-expanded")).toBe("false");
-      expect(host.querySelector('[aria-label="Jump to frame"]')).toBeNull();
+      expect(document.body.querySelector('[aria-label="Jump to frame"]')).toBeNull();
     },
   );
 
   it("closes on capture-phase pointerdown even when its default is prevented", () => {
     const preventDefault = (event: Event) => event.preventDefault();
     document.addEventListener("pointerdown", preventDefault, true);
-    const { host, trigger } = renderPanel();
+    const { trigger } = renderPanel();
     openPanel(trigger);
     const outside = document.createElement("div");
     document.body.append(outside);
@@ -106,18 +108,20 @@ describe("ShortcutsPanel", () => {
     document.removeEventListener("pointerdown", preventDefault, true);
     expect(pointerDown.defaultPrevented).toBe(true);
     expect(trigger.getAttribute("aria-expanded")).toBe("false");
-    expect(host.querySelector('[aria-label="Jump to frame"]')).toBeNull();
+    expect(document.body.querySelector('[aria-label="Jump to frame"]')).toBeNull();
   });
 
   it("does not close on a click inside the panel", () => {
-    const { host, trigger } = renderPanel();
+    const { trigger } = renderPanel();
     openPanel(trigger);
-    const panelInput = host.querySelector<HTMLInputElement>('[aria-label="Jump to frame"]')!;
+    const panelInput = document.body.querySelector<HTMLInputElement>(
+      '[aria-label="Jump to frame"]',
+    )!;
 
     act(() => pressAndClick(panelInput));
 
     expect(trigger.getAttribute("aria-expanded")).toBe("true");
-    expect(host.querySelector('[aria-label="Jump to frame"]')).not.toBeNull();
+    expect(document.body.querySelector('[aria-label="Jump to frame"]')).not.toBeNull();
   });
 
   it("toggles once per trigger click", () => {
@@ -143,16 +147,68 @@ describe("ShortcutsPanel", () => {
   });
 
   it("connects the trigger to the dialog with aria-controls", () => {
-    const { host, trigger } = renderPanel();
+    const { trigger } = renderPanel();
     openPanel(trigger);
     const panelId = trigger.getAttribute("aria-controls");
-    const panel = panelId ? host.querySelector<HTMLElement>(`#${CSS.escape(panelId)}`) : null;
+    const panel = panelId
+      ? document.body.querySelector<HTMLElement>(`#${CSS.escape(panelId)}`)
+      : null;
 
     expect(panelId).not.toBeNull();
-    expect(panel?.getAttribute("role")).toBe("dialog");
-    // Non-modal on purpose: focus is not trapped and the editor behind stays
-    // operable, so aria-modal would lie to assistive tech about inertness.
-    expect(panel?.getAttribute("aria-modal")).toBeNull();
+    expect(panel?.tagName).toBe("DIALOG");
+    // St-Preview-Shortcuts: a modal dialog over a scrim (a press on the scrim closes it).
+    expect(panel?.getAttribute("aria-modal")).toBe("true");
     expect(panel?.id).toBe(panelId);
+  });
+  it("closes with Escape after Clear removes its own button (focus falls to body)", () => {
+    function Stateful() {
+      const [inPoint, setInPoint] = useState<number | null>(2);
+      return (
+        <ShortcutsPanel
+          disabled={false}
+          duration={10}
+          inPoint={inPoint}
+          outPoint={null}
+          setInPoint={setInPoint}
+          setOutPoint={vi.fn()}
+          onSeek={vi.fn()}
+        />
+      );
+    }
+    const host = document.createElement("div");
+    document.body.append(host);
+    const root = createRoot(host);
+    roots.push(root);
+    act(() => root.render(<Stateful />));
+    const trigger = host.querySelector<HTMLButtonElement>(
+      'button[aria-label="Shortcuts and tools"]',
+    )!;
+    openPanel(trigger);
+    const clear = document.body.querySelector<HTMLButtonElement>('[aria-label="Clear in-point"]')!;
+    clear.focus();
+    act(() => pressAndClick(clear));
+
+    expect(document.body.querySelector('[aria-label="Clear in-point"]')).toBeNull();
+    expect([null, document.body]).toContain(document.activeElement);
+    act(() => {
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    });
+    expect(trigger.getAttribute("aria-expanded")).toBe("false");
+  });
+
+  it("leaves the dialog open when Escape comes from another layer's focused control", () => {
+    const { trigger } = renderPanel();
+    openPanel(trigger);
+    const otherLayer = document.createElement("input");
+    otherLayer.setAttribute("aria-label", "Portal menu");
+    document.body.append(otherLayer);
+    otherLayer.focus();
+    expect(document.activeElement).toBe(otherLayer);
+
+    act(() => {
+      otherLayer.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    });
+
+    expect(trigger.getAttribute("aria-expanded")).toBe("true");
   });
 });

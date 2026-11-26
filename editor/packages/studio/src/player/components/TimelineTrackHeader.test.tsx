@@ -247,10 +247,11 @@ describe("TimelineTrackHeader", () => {
   // otherwise invisible from the label column. A single-clip track stays silent.
   it("shows the track's clip count only once the track holds more than one clip", () => {
     const view = renderHeader({ clipCount: 1 });
-    expect(view.host.querySelector('[aria-label="1 clips"]')).toBeNull();
+    expect(view.host.textContent).not.toContain("clips");
 
+    // St-Timeline-TrackHeads: the count is the line under the track name.
     view.rerender({ clipCount: 3 });
-    expect(view.host.querySelector('[aria-label="3 clips"]')?.textContent).toBe("3");
+    expect(view.host.querySelector('[title="3 clips"]')?.textContent).toBe("3 clips");
     act(() => view.root.unmount());
   });
 
@@ -737,9 +738,14 @@ describe("TimelineTrackHeader", () => {
     it("names the header for the track, not for one of the clips on it", () => {
       const view = renderHeader({ ...ROW, keyframeClip: NARRATION_2 });
       expect(view.host.textContent).not.toContain("narration-2");
-      // Asserted on the rendered text, not a `title`: the name wraps now rather
-      // than truncating, so it no longer carries a tooltip to be found by.
-      expect(view.host.textContent).toContain("Track 1");
+      // The row shows the track kind (St-Timeline-Keyframes), and its lane toggle is
+      // named for the track.
+      expect(view.host.textContent).toContain("Text");
+      expect(
+        view.host.querySelector(
+          'button[aria-label="Show Track 1 lanes"], button[aria-label="Hide Track 1 lanes"]',
+        ),
+      ).not.toBeNull();
       // Alone on the track it is still named for itself.
       view.rerender({
         ...ROW,
@@ -771,8 +777,8 @@ describe("TimelineTrackHeader", () => {
 
     // A member row is `aria-level="2"`, and without this it looked identical to
     // every top-level row — the nesting existed for a screen reader and not for
-    // an eye. B2's design called for the accent rail; only the semantics shipped.
-    it("indents a group member's row and gives it the accent rail", () => {
+    // an eye. St-Timeline-Groups nests it with an indent and a neutral rail.
+    it("indents a group member's row and gives it the rail", () => {
       const view = renderHeader({
         keyframeClip: VOICE,
         animations: [],
@@ -782,7 +788,7 @@ describe("TimelineTrackHeader", () => {
       const header = () => view.host.querySelector<HTMLElement>('[role="rowheader"]');
 
       expect(header()?.style.paddingLeft).toBe("");
-      expect(header()?.style.borderLeft).toBe("");
+      expect(header()?.style.borderLeftWidth).toBe("");
       expect(header()?.style.background).not.toContain("linear-gradient");
 
       view.rerender({
@@ -792,12 +798,12 @@ describe("TimelineTrackHeader", () => {
         isAudioTrack: true,
         isGroupMember: true,
       });
-      expect(header()?.style.paddingLeft).toBe("14px");
-      expect(header()?.style.borderLeft).toContain("2px");
-      // And a lighter gutter, so the row reads as sitting INSIDE its group
-      // rather than beside it. Overlaid on the theme's own fill rather than a
-      // hard-coded colour, so it follows whatever the gutter is.
-      expect(header()?.style.background).toContain("linear-gradient");
+      expect(header()?.style.paddingLeft).toBe("12px");
+      expect(header()?.style.borderLeftWidth).toBe("2px");
+      // The rail is a theme token, and the row keeps the card surface: the
+      // redesign forbids tinted (grey) row fills.
+      expect(header()?.style.borderLeftColor).toBe("var(--st-bd)");
+      expect(header()?.style.background).not.toContain("linear-gradient");
       act(() => view.root.unmount());
     });
 
@@ -880,11 +886,10 @@ describe("TimelineTrackHeader", () => {
       act(() => view.root.unmount());
     });
 
-    // The header is ONE line: name, clip count, then every control anchored to
-    // the right edge. It was two — a name line and a control line — which is
-    // what let a stray third child overflow the 48px box; now there is a single
-    // row and the controls share one right-aligned group.
-    it("keeps the name and every control on one line, controls to the right", () => {
+    // St-Timeline-TrackHeads: the name line carries the glyph, the name and every
+    // control anchored to the right edge; the clip count ("5 clipuri") sits on a
+    // second, muted line under the name. Both live inside one TRACK_H box.
+    it("keeps the controls on the name line, right-aligned, with the count below", () => {
       const view = renderHeader({
         keyframeClip: VOICE,
         trackElements: [VOICE, VOICE_2],
@@ -894,20 +899,20 @@ describe("TimelineTrackHeader", () => {
         isAudioTrack: true,
       });
       const header = view.host.querySelector<HTMLElement>('[role="rowheader"]');
-      // One TRACK_H-tall wrapper holding one line.
-      const lines = header?.children[0];
-      expect(lines?.children).toHaveLength(1);
-      // The controls live in a right-anchored group at the end of that line,
-      // after the name and the clip count — `ml-auto` is what holds the edge.
-      const line = lines?.children[0];
-      const controls = line?.lastElementChild as HTMLElement | null;
+      // One TRACK_H-tall wrapper holding one header block of two lines.
+      const box = header?.children[0];
+      expect(box?.children).toHaveLength(1);
+      const [nameLine, countLine] = Array.from(box?.children[0]?.children ?? []);
+      // The controls live in a right-anchored group at the end of the name line;
+      // `ml-auto` is what holds the edge.
+      const controls = nameLine?.lastElementChild as HTMLElement | null;
       expect(controls?.className).toContain("ml-auto");
       expect(
         controls?.querySelector('button[aria-label="Effects — group these clips first"]'),
       ).not.toBeNull();
-      // And the clip count is beside the name, not out with the controls.
+      // The clip count is on its own line under the name, not out with the controls.
       expect(controls?.querySelector('[aria-label="2 clips"]')).toBeNull();
-      expect(line?.querySelector('[aria-label="2 clips"]')).not.toBeNull();
+      expect(countLine?.textContent).toBe("2 clips");
       act(() => view.root.unmount());
     });
   });

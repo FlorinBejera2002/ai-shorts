@@ -1,6 +1,7 @@
 /**
- * SlideshowSubPanels — internal sub-surface components for SlideshowPanel.
- * Not exported from the package index; used only by SlideshowPanel.tsx.
+ * SlideshowSubPanels — internal sub-surface components for SlideshowPanel, drawn as the
+ * St-Output-Slideshow* boards: slide rows with a switch and move buttons, the slide's notes
+ * and hold points, and the hotspot form. Branches live in SlideshowBranches.tsx.
  */
 
 import { useState, useCallback, useId } from "react";
@@ -8,6 +9,18 @@ import type { SlideRef, SlideHotspot, SlideSequence } from "@hyperframes/core/sl
 import type { DomEditSelection } from "../editor/domEditing";
 import type { SceneInfo } from "./slideshowPanelHelpers";
 import { generateId } from "../../utils/generateId";
+import { t, useLocale } from "../../i18n/translate";
+import { OutputButton, OutputIconButton } from "../output/OutputButton";
+import { OutputInput, OutputSection, OutputSelect } from "../output/OutputFields";
+import { OutputIcon } from "../output/OutputIcon";
+
+export { BranchTree, type BranchTreeProps } from "./SlideshowBranches";
+
+const ROW = "rounded-[14px] bg-studio-surface shadow-[inset_0_0_0_1px_var(--st-bd)]";
+
+function formatTime(seconds: number): string {
+  return `${seconds.toFixed(2)}s`;
+}
 
 // ── Section header (accordion toggle) ────────────────────────────────────
 
@@ -23,12 +36,45 @@ export function SectionHeader({
   return (
     <button
       type="button"
-      className="flex w-full items-center justify-between px-3 py-2 text-[11px] font-medium text-neutral-400 hover:text-neutral-200 active:bg-neutral-800/60 border-b border-neutral-800 transition-colors"
+      className="flex min-h-9 w-full items-center justify-between gap-2 rounded-xl text-left font-display text-[15px] font-semibold text-studio-text outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--st-btn)]"
       onClick={onToggle}
       aria-expanded={expanded}
     >
       <span>{children}</span>
-      <span className="text-[10px] text-neutral-600">{expanded ? "▲" : "▼"}</span>
+      <OutputIcon name={expanded ? "chevronUp" : "chevronDown"} size={16} />
+    </button>
+  );
+}
+
+/** 40×24 switch drawn as the board's switchEl. */
+export function SlideSwitch({
+  checked,
+  label,
+  onChange,
+}: {
+  checked: boolean;
+  label: string;
+  onChange: (checked: boolean) => void;
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      aria-label={label}
+      onClick={(e) => {
+        e.stopPropagation();
+        onChange(!checked);
+      }}
+      className={`relative h-6 w-10 flex-none rounded-full outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--st-btn)] ${
+        checked ? "bg-[var(--st-btn)]" : "bg-[var(--st-hd)]"
+      }`}
+    >
+      <span
+        className={`absolute top-[3px] h-[18px] w-[18px] rounded-full ${
+          checked ? "left-[19px] bg-[var(--st-on-btn)]" : "left-[3px] bg-studio-surface"
+        }`}
+      />
     </button>
   );
 }
@@ -52,6 +98,7 @@ export function SlideList({
   onToggle,
   onReorder,
 }: SlideListProps) {
+  useLocale();
   const slideIds = new Set(slides.map((s) => s.sceneId));
   const sceneById = new Map(scenes.map((s) => [s.id, s]));
   const orderedSlideScenes = slides
@@ -59,76 +106,79 @@ export function SlideList({
     .filter((s): s is SceneInfo => s !== undefined);
   const nonSlideScenes = scenes.filter((sc) => !slideIds.has(sc.id));
   const rows = [...orderedSlideScenes, ...nonSlideScenes];
+  if (scenes.length === 0) {
+    return <b className="py-4 text-center text-sm font-semibold">{t("slides.noScenes")}</b>;
+  }
   return (
-    <div className="flex flex-col gap-px">
-      {rows.map((scene) => {
+    <div className="flex flex-col gap-2">
+      {rows.map((scene, index) => {
         const isSlide = slideIds.has(scene.id);
         const isSelected = selectedSceneId === scene.id;
         const slideIndex = slides.findIndex((s) => s.sceneId === scene.id);
+        const label = scene.label || scene.id;
         return (
           <div
             key={scene.id}
             role="button"
             tabIndex={0}
             aria-pressed={isSelected}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded cursor-pointer text-[11px] transition-colors ${
+            className={`flex min-w-0 cursor-pointer items-center gap-2 rounded-[14px] bg-studio-surface p-2 outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--st-btn)] ${
               isSelected
-                ? "bg-studio-accent/20 text-white"
-                : "hover:bg-neutral-800/60 text-neutral-300"
+                ? "shadow-[inset_0_0_0_2px_var(--st-tx)]"
+                : "shadow-[inset_0_0_0_1px_var(--st-bd)] hover:bg-[var(--st-sub)]"
             }`}
             onClick={() => onSelect(scene.id)}
             onKeyDown={(e) => {
+              // Keys pressed on the nested switch or move buttons belong to those controls.
+              if (e.target !== e.currentTarget) return;
               if (e.key === "Enter" || e.key === " ") {
                 e.preventDefault();
                 onSelect(scene.id);
               }
             }}
           >
-            <input
-              type="checkbox"
-              aria-label={`Include ${scene.label} as main-line slide`}
+            <span className="flex min-w-0 flex-1 flex-col">
+              <b className="truncate text-[13px] font-semibold">
+                {index + 1}. {label}
+              </b>
+              <span className="text-[11px] text-[var(--st-t2)]">
+                {isSlide ? t("slides.inShow") : t("slides.hidden")}
+              </span>
+            </span>
+            <SlideSwitch
               checked={isSlide}
+              label={t("slides.include", { label })}
               onChange={() => onToggle(scene.id)}
-              onClick={(e) => e.stopPropagation()}
-              className="accent-studio-accent flex-shrink-0"
             />
-            <span className="flex-1 truncate">{scene.label || scene.id}</span>
             {isSlide && (
-              <span className="flex gap-0.5 flex-shrink-0">
-                <button
-                  type="button"
-                  aria-label="Move slide up"
-                  title="Move up"
+              <>
+                <OutputIconButton
+                  icon="chevronUp"
+                  label={t("slides.moveUp", { label })}
+                  size={28}
+                  iconSize={14}
                   disabled={slideIndex <= 0}
-                  className="px-1 py-0.5 text-[10px] text-neutral-400 enabled:hover:text-white enabled:active:scale-[0.95] disabled:opacity-30 disabled:cursor-not-allowed"
                   onClick={(e) => {
                     e.stopPropagation();
                     onReorder(scene.id, "up");
                   }}
-                >
-                  ▲
-                </button>
-                <button
-                  type="button"
-                  aria-label="Move slide down"
-                  title="Move down"
+                />
+                <OutputIconButton
+                  icon="chevronDown"
+                  label={t("slides.moveDown", { label })}
+                  size={28}
+                  iconSize={14}
                   disabled={slideIndex === slides.length - 1}
-                  className="px-1 py-0.5 text-[10px] text-neutral-400 enabled:hover:text-white enabled:active:scale-[0.95] disabled:opacity-30 disabled:cursor-not-allowed"
                   onClick={(e) => {
                     e.stopPropagation();
                     onReorder(scene.id, "down");
                   }}
-                >
-                  ▼
-                </button>
-              </span>
+                />
+              </>
             )}
           </div>
         );
       })}
-      {scenes.length === 0 && (
-        <p className="px-3 py-2 text-[11px] text-neutral-500 italic">No scenes found</p>
-      )}
     </div>
   );
 }
@@ -144,7 +194,6 @@ export interface SlideInspectorProps {
   onRemoveFragment: (time: number) => void;
 }
 
-// fallow-ignore-next-line complexity
 export function SlideInspector({
   sceneId,
   slide,
@@ -153,281 +202,46 @@ export function SlideInspector({
   onMarkFragment,
   onRemoveFragment,
 }: SlideInspectorProps) {
+  useLocale();
+  const notesId = useId();
   const fragments = slide?.fragments ?? [];
   return (
-    <div className="flex flex-col gap-3 px-3 py-2">
-      <p className="text-[10px] text-neutral-500 font-medium uppercase tracking-wide truncate">
-        Scene: {sceneId}
-      </p>
-      <div className="flex flex-col gap-1">
-        <label className="text-[11px] text-neutral-400">Notes</label>
+    <div className="flex flex-col gap-5" data-slide-scene={sceneId}>
+      <OutputSection title={t("slides.notes")} labelFor={notesId}>
         <textarea
-          className="bg-neutral-800 border border-neutral-700 rounded px-2 py-1.5 text-[11px] text-white resize-none placeholder-neutral-600 focus:border-studio-accent/60 focus:outline-none"
-          rows={3}
-          placeholder="Speaker notes or script..."
+          id={notesId}
+          rows={4}
+          placeholder={t("slides.notesPlaceholder")}
           value={slide?.notes ?? ""}
           onChange={(e) => onSetNotes(e.target.value)}
+          className="block h-24 w-full resize-none rounded-[14px] border-0 bg-studio-surface px-3 py-2.5 text-[13px] leading-[18px] text-studio-text shadow-[inset_0_0_0_1px_var(--st-sbd)] outline-none placeholder:text-[var(--st-t3)] focus-visible:shadow-[inset_0_0_0_1.5px_var(--st-btn)]"
         />
-      </div>
-      <div className="flex flex-col gap-1.5">
-        <div className="flex items-center justify-between">
-          <span className="text-[11px] text-neutral-400">Fragment hold-points</span>
-          <button
-            type="button"
-            className="text-[10px] px-2 py-0.5 rounded bg-neutral-700 hover:bg-neutral-600 text-neutral-200 transition-colors"
-            onClick={onMarkFragment}
-            title={`Mark ${currentTime.toFixed(2)}s as hold-point`}
-          >
-            Mark {currentTime.toFixed(2)}s
-          </button>
-        </div>
+      </OutputSection>
+      <OutputSection title={t("slides.holdPoints")}>
         {fragments.length > 0 ? (
-          <div className="flex flex-wrap gap-1">
-            {fragments.map((t, i) => (
-              <span
-                key={`frag-${i}`}
-                className="inline-flex items-center gap-1 bg-neutral-700 rounded px-1.5 py-0.5 text-[10px] text-neutral-200"
-              >
-                {t.toFixed(2)}s
-                <button
-                  type="button"
-                  aria-label={`Remove fragment at ${t.toFixed(2)}s`}
-                  className="text-neutral-400 hover:text-red-400 transition-colors"
-                  onClick={() => onRemoveFragment(t)}
-                >
-                  ×
-                </button>
-              </span>
-            ))}
-          </div>
-        ) : (
-          <p className="text-[10px] text-neutral-600 italic">No hold-points yet</p>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ── Sub-surface: Branch Tree ──────────────────────────────────────────────
-
-export interface BranchTreeProps {
-  sequences: SlideSequence[];
-  scenes: SceneInfo[];
-  onCreateSequence: (label: string) => void;
-  onRenameSequence: (id: string, label: string) => void;
-  onDeleteSequence: (id: string) => void;
-  onAssign: (sequenceId: string, sceneId: string, assign: boolean) => void;
-  selectedSceneId: string | null;
-  selectedSequenceId: string | null;
-  onSelectBranchSlide: (sequenceId: string, sceneId: string) => void;
-}
-
-export function BranchTree({
-  sequences,
-  scenes,
-  onCreateSequence,
-  onRenameSequence,
-  onDeleteSequence,
-  onAssign,
-  selectedSceneId,
-  selectedSequenceId,
-  onSelectBranchSlide,
-}: BranchTreeProps) {
-  const [newLabel, setNewLabel] = useState("");
-  const inputId = useId();
-
-  const handleCreate = useCallback(() => {
-    const label = newLabel.trim();
-    if (!label) return;
-    onCreateSequence(label);
-    setNewLabel("");
-  }, [newLabel, onCreateSequence]);
-
-  return (
-    <div className="flex flex-col gap-3 px-3 py-2">
-      <div className="flex gap-1.5">
-        <input
-          id={inputId}
-          type="text"
-          className="flex-1 bg-neutral-800 border border-neutral-700 rounded px-2 py-1 text-[11px] text-white placeholder-neutral-600 focus:border-studio-accent/60 focus:outline-none"
-          placeholder="New branch name..."
-          value={newLabel}
-          onChange={(e) => setNewLabel(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") handleCreate();
-          }}
-          aria-label="New branch sequence name"
-        />
-        <button
-          type="button"
-          className="px-2 py-1 rounded bg-neutral-700 hover:bg-neutral-600 text-[11px] text-neutral-200 transition-colors flex-shrink-0"
-          onClick={handleCreate}
-        >
-          Add
-        </button>
-      </div>
-
-      {sequences.length === 0 ? (
-        <p className="text-[10px] text-neutral-600 italic">No branches yet</p>
-      ) : (
-        <div className="flex flex-col gap-3">
-          {sequences.map((seq) => (
-            <BranchItem
-              key={seq.id}
-              seq={seq}
-              scenes={scenes}
-              onRename={onRenameSequence}
-              onDelete={onDeleteSequence}
-              onAssign={onAssign}
-              selectedSceneId={selectedSceneId}
-              selectedSequenceId={selectedSequenceId}
-              onSelectBranchSlide={onSelectBranchSlide}
-            />
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-interface BranchItemProps {
-  seq: SlideSequence;
-  scenes: SceneInfo[];
-  onRename: (id: string, label: string) => void;
-  onDelete: (id: string) => void;
-  onAssign: (sequenceId: string, sceneId: string, assign: boolean) => void;
-  selectedSceneId: string | null;
-  selectedSequenceId: string | null;
-  onSelectBranchSlide: (sequenceId: string, sceneId: string) => void;
-}
-
-function BranchItem({
-  seq,
-  scenes,
-  onRename,
-  onDelete,
-  onAssign,
-  selectedSceneId,
-  selectedSequenceId,
-  onSelectBranchSlide,
-}: BranchItemProps) {
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(seq.label);
-  const [confirmingDelete, setConfirmingDelete] = useState(false);
-
-  const commitRename = useCallback(() => {
-    const label = draft.trim();
-    if (label && label !== seq.label) onRename(seq.id, label);
-    setEditing(false);
-  }, [draft, onRename, seq.id, seq.label]);
-
-  return (
-    <div className="border border-neutral-700/60 rounded p-2 flex flex-col gap-2">
-      <div className="flex items-center gap-1">
-        {editing ? (
-          <input
-            className="flex-1 bg-neutral-800 border border-neutral-600 rounded px-1.5 py-0.5 text-[11px] text-white focus:border-studio-accent/60 focus:outline-none"
-            value={draft}
-            autoFocus
-            onChange={(e) => setDraft(e.target.value)}
-            onBlur={commitRename}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") commitRename();
-              if (e.key === "Escape") setEditing(false);
-            }}
-            aria-label={`Rename branch ${seq.label}`}
-          />
-        ) : (
-          <span
-            role="button"
-            tabIndex={0}
-            className="flex-1 text-[11px] text-white font-medium truncate cursor-pointer hover:text-neutral-300"
-            title="Click to rename"
-            onClick={() => setEditing(true)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") {
-                e.preventDefault();
-                setEditing(true);
-              }
-            }}
-          >
-            {seq.label}
-          </span>
-        )}
-        <button
-          type="button"
-          aria-label={`Delete branch ${seq.label}`}
-          className="text-[10px] text-neutral-500 hover:text-red-400 active:scale-[0.95] transition-colors px-1"
-          onClick={() => setConfirmingDelete(true)}
-        >
-          ✕
-        </button>
-      </div>
-      {confirmingDelete && (
-        <div className="px-2 py-1.5 bg-red-950/30 border-l-2 border-red-500 flex flex-col gap-1 rounded-sm">
-          <span className="text-[10px] text-red-400">
-            Delete branch &ldquo;{seq.label}&rdquo;
-            {seq.slides.length > 0
-              ? ` and its ${seq.slides.length} slide${seq.slides.length === 1 ? "" : "s"}`
-              : ""}
-            ? Hotspots pointing to it will no longer resolve.
-          </span>
-          <div className="flex items-center justify-end gap-1">
-            <button
-              type="button"
-              onClick={() => {
-                setConfirmingDelete(false);
-                onDelete(seq.id);
-              }}
-              className="px-2 py-0.5 text-[10px] rounded bg-red-600 text-white hover:bg-red-500 active:bg-red-700 transition-colors"
-            >
-              Delete
-            </button>
-            <button
-              type="button"
-              onClick={() => setConfirmingDelete(false)}
-              className="px-2 py-0.5 text-[10px] rounded text-neutral-400 hover:text-neutral-200 transition-colors"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      )}
-      <div className="flex flex-col gap-px pl-2">
-        {scenes.map((scene) => {
-          const assigned = seq.slides.some((s) => s.sceneId === scene.id);
-          const isSelected = selectedSequenceId === seq.id && selectedSceneId === scene.id;
-          return (
-            <div
-              key={scene.id}
-              className="flex items-center gap-1.5 py-0.5 text-[11px] text-neutral-400"
-            >
-              <input
-                type="checkbox"
-                aria-label={`Assign ${scene.label || scene.id} to branch ${seq.label}`}
-                checked={assigned}
-                onChange={(e) => onAssign(seq.id, scene.id, e.target.checked)}
-                className="accent-studio-accent flex-shrink-0"
+          fragments.map((time) => (
+            <div key={time} className={`flex items-center gap-2.5 p-2.5 ${ROW}`}>
+              <b className="min-w-0 flex-1 text-[13px] font-semibold tabular-nums">
+                {formatTime(time)}
+              </b>
+              <OutputIconButton
+                icon="close"
+                label={t("slides.removeHold", { time: formatTime(time) })}
+                size={28}
+                iconSize={14}
+                onClick={() => onRemoveFragment(time)}
               />
-              {assigned ? (
-                <button
-                  type="button"
-                  aria-pressed={isSelected}
-                  className={`flex-1 text-left truncate transition-colors hover:text-neutral-200 ${
-                    isSelected ? "text-white" : "text-neutral-400"
-                  }`}
-                  onClick={() => onSelectBranchSlide(seq.id, scene.id)}
-                >
-                  {scene.label || scene.id}
-                </button>
-              ) : (
-                <span className="flex-1 truncate">{scene.label || scene.id}</span>
-              )}
             </div>
-          );
-        })}
-        {scenes.length === 0 && <p className="text-[10px] text-neutral-600 italic">No scenes</p>}
-      </div>
+          ))
+        ) : (
+          <span className="text-[13px] font-medium text-[var(--st-t2)]">
+            {t("slides.noHoldPoints")}
+          </span>
+        )}
+      </OutputSection>
+      <OutputButton className="w-full" onClick={onMarkFragment}>
+        {t("slides.markHold", { time: formatTime(currentTime) })}
+      </OutputButton>
     </div>
   );
 }
@@ -443,6 +257,13 @@ export interface HotspotToolProps {
   onRemoveHotspot: (sceneId: string, hotspotId: string) => void;
 }
 
+function hotspotBlocker(elementKey: string | null, hasBranches: boolean, target: string) {
+  if (!elementKey) return t("slides.noElement");
+  if (!hasBranches) return t("slides.needBranch");
+  if (!target) return t("slides.chooseBranchFirst");
+  return null;
+}
+
 // fallow-ignore-next-line complexity
 export function HotspotTool({
   selectedSceneId,
@@ -452,6 +273,8 @@ export function HotspotTool({
   onAddHotspot,
   onRemoveHotspot,
 }: HotspotToolProps) {
+  useLocale();
+  const uid = useId();
   const [targetSequenceId, setTargetSequenceId] = useState("");
   const [hotspotLabel, setHotspotLabel] = useState("");
   const hotspots = slide?.hotspots ?? [];
@@ -471,92 +294,81 @@ export function HotspotTool({
 
   if (!selectedSceneId) {
     return (
-      <div className="px-3 py-2">
-        <p className="text-[11px] text-neutral-500 italic">Select a scene in the Slides list</p>
-      </div>
+      <span className="text-[13px] font-medium text-[var(--st-t2)]">{t("slides.selectScene")}</span>
     );
   }
 
+  const blocker = hotspotBlocker(elementKey, sequences.length > 0, targetSequenceId);
   return (
-    <div className="flex flex-col gap-3 px-3 py-2">
+    <div className="flex flex-col gap-3.5">
+      <div className={`flex items-center gap-2 px-3 py-2.5 ${ROW}`}>
+        <span className="text-xs font-semibold text-[var(--st-t2)]">
+          {t("slides.selectedElement")}
+        </span>
+        <span className="min-w-0 flex-1 truncate text-right font-mono text-xs">
+          {elementKey ?? "—"}
+        </span>
+      </div>
       <div className="flex flex-col gap-1.5">
-        <p className="text-[11px] text-neutral-400">
-          Selected element:{" "}
-          <span className="text-neutral-200 font-mono">{elementKey ?? "none"}</span>
-        </p>
-        {!elementKey && (
-          <p className="text-[10px] text-neutral-500 italic">
-            Click an element on the canvas to choose the hotspot target.
-          </p>
-        )}
-        {sequences.length === 0 && (
-          <p className="text-[10px] text-neutral-500 italic">
-            Create a branch in the Branches section first — hotspots jump to a branch.
-          </p>
-        )}
-        <label className="text-[11px] text-neutral-400">Hotspot label</label>
-        <input
+        <label htmlFor={`${uid}-label`} className="text-xs font-semibold text-[var(--st-t2)]">
+          {t("slides.hotspotLabel")}
+        </label>
+        <OutputInput
+          id={`${uid}-label`}
           type="text"
-          className="bg-neutral-800 border border-neutral-700 rounded px-2 py-1 text-[11px] text-white placeholder-neutral-600 focus:border-studio-accent/60 focus:outline-none"
-          placeholder="Button label..."
+          placeholder={t("slides.hotspotLabelPlaceholder")}
           value={hotspotLabel}
           onChange={(e) => setHotspotLabel(e.target.value)}
-          aria-label="Hotspot label"
         />
-        <label className="text-[11px] text-neutral-400">Target branch</label>
-        <select
-          className="bg-neutral-800 border border-neutral-700 rounded px-2 py-1 text-[11px] text-white focus:border-studio-accent/60 focus:outline-none"
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <label htmlFor={`${uid}-target`} className="text-xs font-semibold text-[var(--st-t2)]">
+          {t("slides.targetBranch")}
+        </label>
+        <OutputSelect
+          id={`${uid}-target`}
           value={targetSequenceId}
           onChange={(e) => setTargetSequenceId(e.target.value)}
-          aria-label="Target branch sequence"
         >
-          <option value="">— select branch —</option>
+          <option value="">{t("slides.chooseBranch")}</option>
           {sequences.map((seq) => (
             <option key={seq.id} value={seq.id}>
               {seq.label}
             </option>
           ))}
-        </select>
-        <button
-          type="button"
-          disabled={!elementKey || !targetSequenceId}
-          title={
-            !elementKey
-              ? "Select an element on the canvas first"
-              : !targetSequenceId
-                ? "Choose a target branch first"
-                : undefined
-          }
-          className="px-3 py-1.5 rounded bg-studio-accent/80 enabled:hover:bg-studio-accent enabled:active:scale-[0.98] text-white text-[11px] font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-          onClick={handleMakeHotspot}
-        >
-          Make hotspot
-        </button>
+        </OutputSelect>
       </div>
-
+      {blocker ? <span className="text-xs font-medium text-[var(--st-t2)]">{blocker}</span> : null}
       {hotspots.length > 0 && (
-        <div className="flex flex-col gap-1.5">
-          <p className="text-[11px] text-neutral-400 font-medium">Hotspots on this slide</p>
+        <OutputSection title={t("slides.hotspotsOnSlide")}>
           {hotspots.map((h) => {
             const seqLabel = sequences.find((s) => s.id === h.target)?.label ?? h.target;
             return (
-              <div key={h.id} className="flex items-center gap-2 bg-neutral-800 rounded px-2 py-1">
-                <span className="flex-1 text-[11px] text-neutral-200 truncate">
-                  {h.label} → <span className="text-neutral-400">{seqLabel}</span>
+              <div key={h.id} className={`flex items-center gap-2.5 p-2.5 ${ROW}`}>
+                <span className="min-w-0 flex-1 truncate text-[13px] font-semibold">
+                  „{h.label}” → {seqLabel}
                 </span>
-                <button
-                  type="button"
-                  aria-label={`Remove hotspot ${h.label}`}
-                  className="text-[10px] text-neutral-500 hover:text-red-400 transition-colors"
+                <OutputIconButton
+                  icon="close"
+                  label={t("slides.removeHotspot", { label: h.label })}
+                  size={28}
+                  iconSize={14}
                   onClick={() => onRemoveHotspot(selectedSceneId, h.id)}
-                >
-                  ✕
-                </button>
+                />
               </div>
             );
           })}
-        </div>
+        </OutputSection>
       )}
+      <OutputButton
+        variant={blocker ? "secondary" : "primary"}
+        className="w-full"
+        disabled={blocker !== null}
+        title={blocker ?? undefined}
+        onClick={handleMakeHotspot}
+      >
+        {t("slides.makeHotspot")}
+      </OutputButton>
     </div>
   );
 }

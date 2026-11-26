@@ -1,56 +1,65 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+// "Culoare și efecte" (St-Grade and the St-Inspector grade boards). The grade opens on St-Grade:
+// colour, presets, LUT and finish, then one row per other board (light and colour, wheels,
+// curves, secondary colour, LUT files, scopes, original and copy). On a phone the grade keeps the
+// Culoare / Curbe / Scopuri tabs of St-M-Inspector-Wheels. Titles only, no helper text.
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
-  HF_COLOR_GRADING_GRADE_PRESETS,
   normalizeHfColorGrading,
   serializeHfColorGrading,
   type HfColorGradingAdjustKey,
-  type HfColorGradingDetailKey,
   type NormalizedHfColorGrading,
 } from "@hyperframes/core/color-grading";
-import { Plus, Settings } from "../../icons/SystemIcons";
-import { useTrackDesignInput } from "../../contexts/DesignPanelInputContext";
+import { t, useLocale } from "../../i18n/translate";
 import { ApplyCutSettingToAll } from "./CutSettingsScope";
 import { useCutSettingsScope } from "./cutSettingsScopeContext";
-import { LUT_EXT } from "../../utils/mediaTypes";
-import { FLAT_PREVIEW_GRID, FlatSlider } from "./propertyPanelFlatPrimitives";
 import type {
   ColorGradingControllerState,
   ColorGradingPresetPreviews,
   ColorGradingPreviewOptions,
   MediaMetadata,
 } from "./useColorGradingController";
-import { presetPreviewHandlers } from "./propertyPanelPresetPreview";
 import { ColorCurves } from "./propertyPanelColorCurves";
 import {
   COLOR_GRADING_ADJUST_SLIDERS,
-  COLOR_GRADING_DETAIL_SLIDERS,
   colorGradingWithAdjust,
-  colorGradingWithDetail,
   createColorGradingActions,
-  GRAIN_TUNE_SLIDERS,
-  normalizedColorGradingDefault,
-  VIGNETTE_TUNE_SLIDERS,
   visibleColorGradingIntensity,
 } from "./propertyPanelColorGradingControls";
+import { GradeCopyBlock } from "./propertyPanelColorGradeCopy";
+import { GradeFinishBlock } from "./propertyPanelColorGradeFinish";
+import { GradeLutBlock } from "./propertyPanelColorGradeLut";
+import { GradePresets } from "./propertyPanelColorGradePresets";
+import { adjustLabel, COLOR_ADJUST_KEYS, LIGHT_ADJUST_KEYS } from "./propertyPanelColorLabels";
+import { GradeViewBack, GradeViewLinks, type GradeView } from "./propertyPanelColorGradeViews";
+import { LOOK_SLIDER_GRID, LookBlock, LookSlider } from "./propertyPanelColorLookUi";
 import { PropertyPanelColorScopes } from "./propertyPanelColorScopes";
 import { PropertyPanelColorSecondary } from "./propertyPanelColorSecondary";
 import { ColorWheels } from "./propertyPanelColorWheels";
+import { Segment } from "../ui/Segment";
+import { useIsPhone } from "../shell/useIsPhone";
+
+/** Phone tabs over the grade (St-M-Inspector-Wheels, -CurvesPhone): colour, curves, scopes. */
+type GradePhoneTab = "color" | "curves" | "scopes";
+
+/** St-Grade's "Culoare" block: the four everyday adjustments. */
+const MAIN_ADJUST_KEYS: readonly HfColorGradingAdjustKey[] = [
+  "exposure",
+  "contrast",
+  "saturation",
+  "temperature",
+];
 
 export { FlatColorGradingAccessory } from "./propertyPanelFlatColorGradingAccessory";
 
-function formatAdjustValue(key: HfColorGradingAdjustKey, rawPercent: number): string {
-  if (key === "exposure") {
-    const stops = rawPercent / 100;
-    return `${stops >= 0 ? "+" : ""}${stops.toFixed(2)}`;
-  }
-  return `${Math.round(rawPercent)}%`;
+// Board value format (St-Inspector-GradeSliders): signed whole numbers ("0", "+8", "-10"),
+// saturation as a percentage of the source ("108%"), exposure in stops.
+export function formatAdjustValue(key: HfColorGradingAdjustKey, rawPercent: number): string {
+  if (key === "saturation") return `${Math.round(100 + rawPercent)}%`;
+  const value = key === "exposure" ? rawPercent / 100 : Math.round(rawPercent);
+  if (Math.abs(value) < 1e-6) return "0";
+  const text = key === "exposure" ? value.toFixed(2) : String(value);
+  return value > 0 ? `+${text}` : text;
 }
-
-const detailByKey = (key: HfColorGradingDetailKey) => {
-  const spec = COLOR_GRADING_DETAIL_SLIDERS.find((candidate) => candidate.key === key);
-  if (!spec) throw new Error(`Unknown color grading detail key: ${key}`);
-  return spec;
-};
 
 function resolveColorGrading(grading: Parameters<typeof normalizeHfColorGrading>[0]) {
   const resolved = normalizeHfColorGrading(grading);
@@ -72,26 +81,58 @@ function HdrBanner({ metadata }: { metadata: MediaMetadata | null }) {
   return (
     <div
       data-flat-grade-hdr-banner="true"
-      className="rounded-md border border-amber-500/30 bg-amber-500/10 px-2.5 py-1.5 text-[10px] leading-4 text-amber-100"
+      className="flex flex-col gap-1 rounded-md bg-[var(--st-warn-bg)] px-3.5 py-3 text-[12px] text-[var(--st-warn-text)]"
     >
-      <div className="mb-0.5 flex items-center justify-between gap-2">
-        <span className="font-semibold">{metadata.color.label} source</span>
-        <span className="rounded bg-amber-400/20 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-amber-100">
-          SDR preview
+      <div className="flex items-center justify-between gap-2">
+        <span className="font-semibold">
+          {t("look.hdr.source", { label: metadata.color.label })}
         </span>
+        <span className="text-[11px] font-semibold">{t("look.hdr.preview")}</span>
       </div>
-      <p className="text-amber-100/80">
-        These controls use the current SDR shader preview path. Render may stay HDR-tagged, but this
-        is not true HDR color grading yet.
-      </p>
+      <p>{t("look.hdr.body")}</p>
       {details && (
-        <p
-          data-flat-grade-hdr-detail="true"
-          className="mt-0.5 truncate text-[9px] text-amber-100/55"
-        >
+        <p data-flat-grade-hdr-detail="true" className="truncate text-[11px]">
           {details}
         </p>
       )}
+    </div>
+  );
+}
+
+function AdjustSliders({
+  keys,
+  grading,
+  onCommit,
+}: {
+  keys: readonly HfColorGradingAdjustKey[];
+  grading: NormalizedHfColorGrading;
+  onCommit: (next: NormalizedHfColorGrading) => void;
+}) {
+  return (
+    <div className={LOOK_SLIDER_GRID}>
+      {keys.map((key) => {
+        const slider = COLOR_GRADING_ADJUST_SLIDERS.find((candidate) => candidate.key === key);
+        if (!slider) return null;
+        const rawPercent = grading.adjust[key] * slider.scale;
+        return (
+          <div key={key} data-flat-grade-adjust="true" className="min-w-0">
+            <LookSlider
+              label={adjustLabel(key)}
+              value={rawPercent}
+              min={slider.min}
+              max={slider.max}
+              step={slider.step}
+              tier={Math.abs(grading.adjust[key]) > 1e-6 ? "explicitCustom" : "default"}
+              displayValue={formatAdjustValue(key, rawPercent)}
+              centerTick
+              onCommit={(next) =>
+                onCommit(colorGradingWithAdjust(grading, key, next / slider.scale))
+              }
+              onReset={() => onCommit(colorGradingWithAdjust(grading, key, 0))}
+            />
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -112,7 +153,10 @@ export function FlatColorGradingSection({
   presetPreviews,
   onRequestPresetPreviews,
   captureGradedFrame,
+  actionsSlot,
 }: {
+  /** "Ține pentru original" and "Resetează culoarea", shown on the original-and-copy view. */
+  actionsSlot?: ReactNode;
   grading: NormalizedHfColorGrading;
   assets: string[];
   onImportAssets?: (files: FileList, dir?: string) => Promise<string[]>;
@@ -131,17 +175,11 @@ export function FlatColorGradingSection({
   onRequestPresetPreviews: () => void;
   captureGradedFrame: ColorGradingControllerState["captureGradedFrame"];
 }) {
-  const track = useTrackDesignInput();
+  useLocale();
   const cutScope = useCutSettingsScope();
-  const lutInputRef = useRef<HTMLInputElement>(null);
-  const [lutOpen, setLutOpen] = useState(false);
-  const [detailSettingsOpen, setDetailSettingsOpen] = useState<"vignette" | "grain" | null>(null);
-  const lutAssets = useMemo(
-    () => assets.filter((asset) => LUT_EXT.test(asset)).sort((a, b) => a.localeCompare(b)),
-    [assets],
-  );
-  const lut = grading.lut;
-  const selectedLutName = lut?.src ? (lut.src.split("/").pop() ?? lut.src) : null;
+  const isPhone = useIsPhone();
+  const [phoneTab, setPhoneTab] = useState<GradePhoneTab>("color");
+  const [view, setView] = useState<GradeView>("main");
   const resolvedGrading = useMemo(() => resolveColorGrading(grading), [grading]);
   const secondaryInputGrading = useMemo(
     () =>
@@ -163,383 +201,232 @@ export function FlatColorGradingSection({
   );
   const actions = createColorGradingActions(grading, onCommitColorGrading);
   const scopesRefreshKey = useMemo(() => serializeHfColorGrading(grading), [grading]);
+  const visible = (patch: Partial<NormalizedHfColorGrading>): NormalizedHfColorGrading => ({
+    ...grading,
+    intensity: visibleColorGradingIntensity(grading),
+    ...patch,
+  });
 
   useEffect(() => {
     if (presetPreviews.status === "idle") onRequestPresetPreviews();
   }, [onRequestPresetPreviews, presetPreviews.status]);
-
-  const resolvePreset = (presetId: string) => {
-    const resolved = normalizeHfColorGrading({ preset: presetId, lut: grading.lut });
-    return resolved
-      ? {
-          ...resolved,
-          effects: grading.effects,
-          palette: grading.palette,
-        }
-      : grading;
-  };
-
   useEffect(() => () => onPreviewColorGrading(null), [onPreviewColorGrading]);
 
-  const renderDetailSlider = (key: HfColorGradingDetailKey) => {
-    const spec = detailByKey(key);
-    const value = grading.details[key];
-    const defaultValue = normalizedColorGradingDefault(spec);
-    const isSet = Math.abs(value - defaultValue) > 1e-4;
-    return (
-      <FlatSlider
-        key={key}
-        label={spec.label}
-        value={Math.round(value * spec.scale)}
-        min={spec.min}
-        max={spec.max}
-        step={spec.step}
-        tier={isSet ? "explicitCustom" : "default"}
-        displayValue={`${Math.round(value * spec.scale)}${spec.suffix}`}
-        centerTick={key === "vignetteRoundness"}
-        onCommit={(next) =>
-          onCommitColorGrading(colorGradingWithDetail(grading, key, next / spec.scale))
-        }
-        onReset={() => onCommitColorGrading(colorGradingWithDetail(grading, key, defaultValue))}
-      />
-    );
-  };
+  const previewWheels = (wheels: NormalizedHfColorGrading["wheels"]) =>
+    onPreviewColorGrading(visible({ wheels }));
+  const commitWheels = (wheels: NormalizedHfColorGrading["wheels"]) =>
+    onCommitColorGrading(visible({ wheels }));
+  const sliders = (keys: readonly HfColorGradingAdjustKey[]) => (
+    <AdjustSliders keys={keys} grading={grading} onCommit={onCommitColorGrading} />
+  );
 
-  return (
-    <div className="space-y-1.5">
-      <HdrBanner metadata={mediaMetadata} />
+  const blocks: Record<Exclude<GradeView, "main">, () => ReactNode> = {
+    light: () => (
+      <>
+        <LookBlock title={t("look.light")}>{sliders(LIGHT_ADJUST_KEYS)}</LookBlock>
+        <LookBlock title={t("look.color")}>{sliders(COLOR_ADJUST_KEYS)}</LookBlock>
+        <LookSlider
+          label={t("look.amount")}
+          value={Math.round(grading.intensity * 100)}
+          min={0}
+          max={100}
+          tier={grading.intensity === 1 ? "default" : "explicitCustom"}
+          displayValue={`${Math.round(grading.intensity * 100)}%`}
+          onCommit={actions.setIntensityPercent}
+          onReset={() => actions.setIntensityPercent(100)}
+        />
+      </>
+    ),
+    wheels: () => (
+      <LookBlock title={t("look.wheels")} data-flat-grade-wheels="true">
+        <ColorWheels
+          value={resolvedGrading.wheels}
+          onPreview={previewWheels}
+          onCommit={commitWheels}
+        />
+      </LookBlock>
+    ),
+    curves: () => (
+      <LookBlock title={isPhone ? undefined : t("look.curves")}>
+        <ColorCurves
+          value={{ curves: resolvedGrading.curves, hueCurves: resolvedGrading.hueCurves }}
+          onPreview={({ curves, hueCurves }) =>
+            onPreviewColorGrading(visible({ curves, hueCurves }))
+          }
+          onCommit={({ curves, hueCurves }) => onCommitColorGrading(visible({ curves, hueCurves }))}
+        />
+      </LookBlock>
+    ),
+    secondary: () => (
+      <PropertyPanelColorSecondary
+        secondaries={resolvedGrading.secondaries}
+        captureFrame={() => captureGradedFrame({ grading: secondaryInputGrading })}
+        onCommit={(secondaries) => onCommitColorGrading(visible({ secondaries }))}
+      />
+    ),
+    lut: () => (
+      <GradeLutBlock
+        grading={grading}
+        assets={assets}
+        actions={actions}
+        onImportAssets={onImportAssets}
+      />
+    ),
+    scopes: () => (
       <PropertyPanelColorScopes
         captureFrame={() => captureGradedFrame()}
         refreshKey={scopesRefreshKey}
       />
-      <div data-flat-grade-presets="true" className="space-y-1.5">
-        {presetPreviews.status === "unavailable" && (
-          <button
-            type="button"
-            onClick={onRequestPresetPreviews}
-            className="text-[10px] font-medium text-panel-accent hover:text-panel-accent/80"
-          >
-            Retry look previews
-          </button>
-        )}
-        <div data-flat-grade-preset-group="presets" className={FLAT_PREVIEW_GRID}>
-          {HF_COLOR_GRADING_GRADE_PRESETS.map((preset) => {
-            const label = preset.label;
-            const selected = grading.preset === preset.id;
-            const preview = presetPreviews.images[preset.id];
-            return (
-              <button
-                key={preset.id}
-                type="button"
-                data-flat-grade-preset={preset.id}
-                aria-pressed={selected}
-                {...presetPreviewHandlers({
-                  id: preset.id,
-                  label,
-                  resolve: () => resolvePreset(preset.id),
-                  onPreview: onPreviewColorGrading,
-                  onCommit: onCommitColorGrading,
-                  onTrack: (name) => track("button", `Apply ${name}`),
-                })}
-                className={`min-w-0 overflow-hidden border text-left text-[10px] transition-colors ${
-                  selected
-                    ? "border-panel-accent bg-panel-accent/10 text-panel-text-0"
-                    : "border-panel-hairline bg-panel-bg-soft text-panel-text-3 hover:border-panel-border-input hover:text-panel-text-1"
-                }`}
-              >
-                <span
-                  data-flat-grade-preview-frame={preset.id}
-                  className="flex w-full items-center justify-center overflow-hidden bg-black/20"
-                  style={{ aspectRatio: `${presetPreviews.width} / ${presetPreviews.height}` }}
-                >
-                  {preview ? (
-                    <img
-                      data-flat-grade-preview={preset.id}
-                      src={preview}
-                      alt=""
-                      draggable={false}
-                      className="block h-full w-full object-contain"
-                    />
-                  ) : (
-                    <span
-                      data-flat-grade-preview-placeholder={presetPreviews.status}
-                      className="h-full w-full bg-panel-bg-soft"
-                    />
-                  )}
-                </span>
-                <span className="block truncate px-2 py-1.5">{label}</span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-      <FlatSlider
-        label="Amount"
-        value={Math.round(grading.intensity * 100)}
-        min={0}
-        max={100}
-        tier={grading.intensity === 1 ? "default" : "explicitCustom"}
-        displayValue={`${Math.round(grading.intensity * 100)}%`}
-        onCommit={actions.setIntensityPercent}
-        onReset={() => actions.setIntensityPercent(100)}
+    ),
+    actions: () => (
+      <GradeActionsView
+        actionsSlot={actionsSlot}
+        grading={grading}
+        cutScope={Boolean(cutScope)}
+        showCopy={onApplyScopeAvailable && !cutScope}
+        applyScope={applyScope}
+        applyBusy={applyBusy}
+        onSetApplyScope={onSetApplyScope}
+        onApplyToScope={onApplyToScope}
       />
+    ),
+  };
 
-      <div className="space-y-0.5 border-t border-panel-hairline pt-1.5">
-        <div className="mb-1 text-[9px] font-semibold uppercase tracking-[0.12em] text-panel-text-5">
-          Primary
-        </div>
-        {COLOR_GRADING_ADJUST_SLIDERS.map((slider) => {
-          const rawPercent = grading.adjust[slider.key] * slider.scale;
-          const isSet = Math.abs(grading.adjust[slider.key]) > 1e-6;
-          return (
-            <div key={slider.key} data-flat-grade-adjust="true">
-              <FlatSlider
-                label={slider.label}
-                value={rawPercent}
-                min={slider.min}
-                max={slider.max}
-                step={slider.step}
-                tier={isSet ? "explicitCustom" : "default"}
-                displayValue={formatAdjustValue(slider.key, rawPercent)}
-                centerTick
-                onCommit={(next) =>
-                  onCommitColorGrading(
-                    colorGradingWithAdjust(grading, slider.key, next / slider.scale),
-                  )
-                }
-                onReset={() => onCommitColorGrading(colorGradingWithAdjust(grading, slider.key, 0))}
-              />
-            </div>
-          );
-        })}
-      </div>
-
-      <div className="space-y-1.5 border-t border-panel-hairline pt-1.5">
-        <div className="mb-1 text-[9px] font-semibold uppercase tracking-[0.12em] text-panel-text-5">
-          Color wheels
-        </div>
+  // St-M-Inspector-Wheels: on a phone the wheels come first, the everyday sliders under them.
+  const main = (
+    <>
+      {isPhone && (
         <ColorWheels
+          compact
           value={resolvedGrading.wheels}
-          onPreview={(wheels) =>
-            onPreviewColorGrading({
-              ...grading,
-              intensity: visibleColorGradingIntensity(grading),
-              wheels,
-            })
-          }
-          onCommit={(wheels) =>
-            onCommitColorGrading({
-              ...grading,
-              intensity: visibleColorGradingIntensity(grading),
-              wheels,
-            })
-          }
+          onPreview={previewWheels}
+          onCommit={commitWheels}
         />
-      </div>
+      )}
+      {isPhone ? (
+        sliders(MAIN_ADJUST_KEYS)
+      ) : (
+        <LookBlock title={t("look.color")} data-flat-grade-main-color="true">
+          {sliders(MAIN_ADJUST_KEYS)}
+        </LookBlock>
+      )}
+      <GradePresets
+        grading={grading}
+        presetPreviews={presetPreviews}
+        onRequestPresetPreviews={onRequestPresetPreviews}
+        onPreviewColorGrading={onPreviewColorGrading}
+        onCommitColorGrading={onCommitColorGrading}
+      />
+      <GradeLutBlock
+        variant="compact"
+        grading={grading}
+        assets={assets}
+        actions={actions}
+        onImportAssets={onImportAssets}
+      />
+      <GradeFinishBlock grading={grading} onCommitColorGrading={onCommitColorGrading} />
+      <GradeViewLinks views={isPhone ? PHONE_LINKS : DESKTOP_LINKS} onOpen={setView} />
+    </>
+  );
 
-      <div className="space-y-1.5 border-t border-panel-hairline pt-1.5">
-        <div className="mb-1 text-[9px] font-semibold uppercase tracking-[0.12em] text-panel-text-5">
-          Curves
-        </div>
-        <ColorCurves
-          value={{ curves: resolvedGrading.curves, hueCurves: resolvedGrading.hueCurves }}
-          onPreview={({ curves, hueCurves }) =>
-            onPreviewColorGrading({
-              ...grading,
-              intensity: visibleColorGradingIntensity(grading),
-              curves,
-              hueCurves,
-            })
-          }
-          onCommit={({ curves, hueCurves }) =>
-            onCommitColorGrading({
-              ...grading,
-              intensity: visibleColorGradingIntensity(grading),
-              curves,
-              hueCurves,
-            })
-          }
-        />
-      </div>
+  const showPhoneTabs = isPhone && view === "main";
+  let body: ReactNode = main;
+  if (view !== "main") body = blocks[view]();
+  else if (isPhone && phoneTab !== "color") body = blocks[phoneTab]();
 
-      <div className="space-y-1.5 border-t border-panel-hairline pt-1.5">
-        <div className="mb-1 text-[9px] font-semibold uppercase tracking-[0.12em] text-panel-text-5">
-          Secondary color
-        </div>
-        <PropertyPanelColorSecondary
-          secondaries={resolvedGrading.secondaries}
-          captureFrame={() => captureGradedFrame({ grading: secondaryInputGrading })}
-          onCommit={(secondaries) =>
-            onCommitColorGrading({
-              ...grading,
-              intensity: visibleColorGradingIntensity(grading),
-              secondaries,
-            })
-          }
-        />
-      </div>
-
-      <div className="border-t border-panel-hairline pt-1.5">
-        <button
-          type="button"
-          data-flat-grade-lut-toggle="true"
-          onClick={() => setLutOpen((v) => !v)}
-          className="flex min-h-[30px] w-full items-center justify-between text-left"
-        >
-          <span className="text-[11px] text-panel-text-2">Custom LUT</span>
-          <svg
-            width="10"
-            height="10"
-            viewBox="0 0 10 10"
-            fill="currentColor"
-            className={`flex-shrink-0 text-panel-text-5 transition-transform ${lutOpen ? "rotate-90" : ""}`}
-          >
-            <path d="M2 3l3 4 3-4z" />
-          </svg>
-        </button>
-        {lutOpen && (
-          <div className="space-y-1.5 pb-1">
-            <div className="flex items-center justify-between gap-2">
-              <span className="min-w-0 flex-1 truncate font-mono text-[10px] text-panel-text-3">
-                {selectedLutName ?? "None"}
-              </span>
-              <select
-                data-flat-grade-lut-select="true"
-                aria-label="Custom LUT"
-                value={lut?.src ?? ""}
-                onChange={(e) => {
-                  const src = e.target.value;
-                  track("select", "Custom LUT");
-                  actions.applyLut(src || null, src && lut?.src === src ? lut.intensity : 1);
-                }}
-                className="border-b border-panel-border-input/50 bg-transparent font-mono text-[10px] text-panel-text-3 outline-none hover:border-panel-border-input"
-              >
-                <option value="">None</option>
-                {lutAssets.map((asset) => (
-                  <option key={asset} value={asset}>
-                    {asset.split("/").pop() ?? asset}
-                  </option>
-                ))}
-              </select>
-              <button
-                type="button"
-                disabled={!onImportAssets}
-                onClick={() => lutInputRef.current?.click()}
-                title="Import .cube LUT"
-                className="flex-shrink-0 text-panel-text-4 hover:text-panel-text-1 disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                <Plus size={12} />
-              </button>
-              <input
-                ref={lutInputRef}
-                type="file"
-                accept=".cube"
-                className="hidden"
-                onChange={(e) => {
-                  void actions.importLut(e.currentTarget.files, onImportAssets, () =>
-                    track("button", "Import LUT"),
-                  );
-                  e.currentTarget.value = "";
-                }}
-              />
-            </div>
-            {lut && (
-              <FlatSlider
-                label="LUT strength"
-                value={Math.round((lut.intensity ?? 1) * 100)}
-                min={0}
-                max={100}
-                tier={lut.intensity === 1 ? "default" : "explicitCustom"}
-                displayValue={`${Math.round((lut.intensity ?? 1) * 100)}%`}
-                onCommit={(v) => actions.applyLut(lut.src, v / 100)}
-                onReset={() => actions.applyLut(lut.src, 1)}
-              />
-            )}
-          </div>
-        )}
-      </div>
-
-      <div className="space-y-1.5 border-t border-panel-hairline pt-1.5">
-        <div className="mb-1 text-[9px] font-semibold uppercase tracking-[0.12em] text-panel-text-5">
-          Finish
-        </div>
-        <div className="flex items-center gap-1.5">
-          <div className="flex-1">{renderDetailSlider("vignette")}</div>
-          <button
-            type="button"
-            data-flat-grade-settings="vignette"
-            title="Vignette settings"
-            onClick={() => setDetailSettingsOpen((c) => (c === "vignette" ? null : "vignette"))}
-            className="flex-shrink-0 text-panel-text-4 hover:text-panel-text-1"
-          >
-            <Settings size={12} />
-          </button>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <div className="flex-1">{renderDetailSlider("grain")}</div>
-          <button
-            type="button"
-            data-flat-grade-settings="grain"
-            title="Grain settings"
-            onClick={() => setDetailSettingsOpen((c) => (c === "grain" ? null : "grain"))}
-            className="flex-shrink-0 text-panel-text-4 hover:text-panel-text-1"
-          >
-            <Settings size={12} />
-          </button>
-        </div>
-        {detailSettingsOpen && (
-          <div className="space-y-0.5 border-l-2 border-panel-border-input pl-2.5">
-            {(detailSettingsOpen === "vignette" ? VIGNETTE_TUNE_SLIDERS : GRAIN_TUNE_SLIDERS).map(
-              (slider) => renderDetailSlider(slider.key),
-            )}
-          </div>
-        )}
-      </div>
-
-      {cutScope && (
-        <ApplyCutSettingToAll
-          label="color grading"
-          settings={[
-            {
-              type: "attribute",
-              name: "data-color-grading",
-              value: serializeHfColorGrading(grading),
-            },
+  return (
+    <div
+      className="flex min-h-full flex-col gap-5 pb-2"
+      data-flat-grade-section="true"
+      data-flat-grade-view={view}
+    >
+      <HdrBanner metadata={mediaMetadata} />
+      {view !== "main" && <GradeViewBack onBack={() => setView("main")} />}
+      {showPhoneTabs && (
+        <Segment
+          label={t("look.phoneTabs")}
+          className="flex w-full !shadow-[inset_0_0_0_1px_var(--st-bd)] [&>button]:flex-1"
+          value={phoneTab}
+          onChange={setPhoneTab}
+          options={[
+            { value: "color", label: t("look.tab.color") },
+            { value: "curves", label: t("look.tab.curves") },
+            { value: "scopes", label: t("look.tab.scopes") },
           ]}
         />
       )}
-      {onApplyScopeAvailable && !cutScope && (
-        <div className="flex items-center justify-between gap-2 border-t border-panel-hairline pt-1.5">
-          <span className="flex items-center gap-1.5 text-[11px] text-panel-text-2">
-            Copy grade to
-            <select
-              aria-label="Copy grade to"
-              value={applyScope}
-              onChange={(e) => {
-                track("select", "Copy grade scope");
-                onSetApplyScope(e.target.value as "source-file" | "project");
-              }}
-              disabled={applyBusy}
-              className="border-b border-panel-border-input/50 bg-transparent font-mono text-[11px] text-panel-text-0 outline-none hover:border-panel-border-input disabled:opacity-50"
-            >
-              <option value="source-file">Current file media</option>
-              <option value="project">All project media</option>
-            </select>
+      {body}
+    </div>
+  );
+}
+
+const DESKTOP_LINKS = [
+  "light",
+  "wheels",
+  "curves",
+  "secondary",
+  "lut",
+  "scopes",
+  "actions",
+] as const satisfies readonly Exclude<GradeView, "main">[];
+// Curves and scopes are phone tabs already.
+const PHONE_LINKS = [
+  "light",
+  "wheels",
+  "secondary",
+  "lut",
+  "actions",
+] as const satisfies readonly Exclude<GradeView, "main">[];
+
+/** St-Inspector-GradeActions: hold for the original, reset, then copy the grade. */
+function GradeActionsView({
+  actionsSlot,
+  grading,
+  cutScope,
+  showCopy,
+  applyScope,
+  applyBusy,
+  onSetApplyScope,
+  onApplyToScope,
+}: {
+  actionsSlot: ReactNode;
+  grading: NormalizedHfColorGrading;
+  cutScope: boolean;
+  showCopy: boolean;
+  applyScope: "source-file" | "project";
+  applyBusy: boolean;
+  onSetApplyScope: (scope: "source-file" | "project") => void;
+  onApplyToScope: () => void;
+}) {
+  return (
+    <>
+      {actionsSlot}
+      {cutScope && (
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-[13px] font-semibold text-studio-text">
+            {t("look.section.grade")}
           </span>
-          <button
-            type="button"
-            data-flat-grade-apply="true"
-            disabled={applyBusy}
-            onClick={() => {
-              track("button", "Apply grade to scope");
-              onApplyToScope();
-            }}
-            className="text-[11px] font-medium text-panel-accent hover:text-panel-accent/80 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {applyBusy ? "Applying" : "Apply"}
-          </button>
+          <ApplyCutSettingToAll
+            label="color grading"
+            displayLabel={t("look.applyCut")}
+            settings={[
+              {
+                type: "attribute",
+                name: "data-color-grading",
+                value: serializeHfColorGrading(grading),
+              },
+            ]}
+          />
         </div>
       )}
-    </div>
+      {showCopy && (
+        <GradeCopyBlock
+          applyScope={applyScope}
+          applyBusy={applyBusy}
+          onSetApplyScope={onSetApplyScope}
+          onApplyToScope={onApplyToScope}
+        />
+      )}
+    </>
   );
 }

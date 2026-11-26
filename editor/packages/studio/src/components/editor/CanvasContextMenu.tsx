@@ -27,6 +27,16 @@ import { memo } from "react";
 import { createPortal } from "react-dom";
 import type { DomEditSelection } from "./domEditing";
 import { useContextMenuDismiss } from "../../hooks/useContextMenuDismiss";
+import { t, useLocale } from "../../i18n/translate";
+import type { MessageKey } from "../../i18n/dictionary";
+import { useIsPhone } from "../shell/useIsPhone";
+import { PhoneSheet } from "../shell/PhoneSheet";
+import {
+  MENU_ROW,
+  POPOVER_MENU,
+  PreviewIcon,
+  type PreviewIconName,
+} from "../nle/preview/previewChrome";
 import {
   isZOrderActionEnabled,
   resolveCrossedNeighbor,
@@ -84,57 +94,18 @@ type ZAction = "bring-forward" | "send-backward" | "bring-to-front" | "send-to-b
 // caps/joins). Single actions show ONE layer diamond with the arrow stepping
 // one way; front/back show a TWO-diamond stack with the arrow piercing through
 // and beyond it. `paths` are the d attributes, drawn in order.
-const Z_ACTION_ICONS: Record<ZAction, string[]> = {
-  "bring-forward": [
-    "M3 11 L8 8.5 L13 11 L8 13.5 Z", // layer diamond (bottom)
-    "M8 8.5 L8 2", // arrow shaft up
-    "M5.5 4.5 L8 2 L10.5 4.5", // arrow head
-  ],
-  "send-backward": [
-    "M3 5 L8 2.5 L13 5 L8 7.5 Z", // layer diamond (top)
-    "M8 7.5 L8 14", // arrow shaft down
-    "M5.5 11.5 L8 14 L10.5 11.5", // arrow head
-  ],
-  "bring-to-front": [
-    "M3 9.5 L8 7 L13 9.5 L8 12 Z", // upper layer of the stack
-    "M3 12.5 L8 10 L13 12.5 L8 15 Z", // lower layer of the stack
-    "M8 12.5 L8 2", // arrow piercing up through/above the stack
-    "M5.5 4.5 L8 2 L10.5 4.5", // arrow head
-  ],
-  "send-to-back": [
-    "M3 4 L8 1.5 L13 4 L8 6.5 Z", // upper layer of the stack
-    "M3 7 L8 4.5 L13 7 L8 9.5 Z", // lower layer of the stack
-    "M8 3.5 L8 14", // arrow piercing down through/below the stack
-    "M5.5 11.5 L8 14 L10.5 11.5", // arrow head
-  ],
+const Z_ACTION_ICONS: Record<ZAction, PreviewIconName> = {
+  "bring-to-front": "toFront",
+  "bring-forward": "forward",
+  "send-backward": "backward",
+  "send-to-back": "toBack",
 };
 
-function ZActionIcon({ action }: { action: ZAction }) {
-  return (
-    <svg
-      width="16"
-      height="16"
-      viewBox="0 0 16 16"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className="mr-2 shrink-0"
-      aria-hidden="true"
-    >
-      {Z_ACTION_ICONS[action].map((d) => (
-        <path key={d} d={d} />
-      ))}
-    </svg>
-  );
-}
-
-const Z_ACTIONS: Array<{ action: ZAction; label: string }> = [
-  { action: "bring-to-front", label: "Bring to front" },
-  { action: "bring-forward", label: "Bring forward" },
-  { action: "send-backward", label: "Send backward" },
-  { action: "send-to-back", label: "Send to back" },
+const Z_ACTIONS: Array<{ action: ZAction; label: MessageKey }> = [
+  { action: "bring-to-front", label: "preview.bringToFront" },
+  { action: "bring-forward", label: "preview.bringForward" },
+  { action: "send-backward", label: "preview.sendBackward" },
+  { action: "send-to-back", label: "preview.sendToBack" },
 ];
 
 export const CanvasContextMenu = memo(function CanvasContextMenu({
@@ -146,6 +117,8 @@ export const CanvasContextMenu = memo(function CanvasContextMenu({
   onZOrderCrossed,
   onDelete,
 }: CanvasContextMenuProps) {
+  useLocale();
+  const isPhone = useIsPhone();
   const menuRef = useContextMenuDismiss(onClose);
 
   // Gate each item group on the presence of its persist handler. Without the
@@ -155,13 +128,11 @@ export const CanvasContextMenu = memo(function CanvasContextMenu({
   // don't render the menu — an empty menu is itself a dead-end.
   const hasZActions = Boolean(onApplyZIndex);
   const hasDelete = Boolean(onDelete);
-  const hasDivider = hasZActions && hasDelete;
 
   // Overflow correction — match ClipContextMenu approach. Only the rendered
   // groups contribute height (keeps positioning correct when a group is hidden).
-  const menuWidth = 200;
-  const menuHeight =
-    8 + (hasZActions ? Z_ACTIONS.length * 28 : 0) + (hasDivider ? 1 : 0) + (hasDelete ? 28 : 0) + 8; // padding + items + divider + delete + padding
+  const menuWidth = 230;
+  const menuHeight = 12 + (hasZActions ? Z_ACTIONS.length * 38 : 0) + (hasDelete ? 38 : 0);
   const overflowY = y + menuHeight - window.innerHeight;
   const adjustedX = x + menuWidth > window.innerWidth ? x - menuWidth : x;
   const adjustedY = overflowY > 0 ? y - overflowY - 8 : y;
@@ -209,20 +180,8 @@ export const CanvasContextMenu = memo(function CanvasContextMenu({
     e.stopPropagation();
   };
 
-  return createPortal(
-    <div
-      ref={menuRef}
-      className="fixed z-[200] bg-neutral-900 border border-neutral-700 rounded-md shadow-lg py-1 min-w-[180px]"
-      style={{ left: adjustedX, top: adjustedY }}
-      onPointerDown={stopBubble}
-      onMouseDown={stopBubble}
-      onClick={stopBubble}
-      onContextMenu={(e) => {
-        // Keep a right-click on the menu itself from re-opening / bubbling.
-        e.preventDefault();
-        e.stopPropagation();
-      }}
-    >
+  const items = (
+    <>
       {hasZActions &&
         Z_ACTIONS.map(({ action, label }) => {
           const enabled = isZOrderActionEnabled(el, action);
@@ -230,11 +189,8 @@ export const CanvasContextMenu = memo(function CanvasContextMenu({
             <button
               key={action}
               type="button"
-              className={`w-full flex items-center px-3 py-1.5 text-xs text-left ${
-                enabled
-                  ? "text-neutral-300 hover:bg-neutral-800 cursor-pointer"
-                  : "text-neutral-600 cursor-not-allowed"
-              }`}
+              role="menuitem"
+              className={MENU_ROW}
               disabled={!enabled}
               // Act on pointerDown, not click: a pointerDown that reaches the
               // overlay/document would otherwise re-select or dismiss the menu
@@ -247,20 +203,16 @@ export const CanvasContextMenu = memo(function CanvasContextMenu({
                 if (enabled) handleZAction(action);
               }}
             >
-              {/* Icon inherits the item's text color via currentColor, so the
-                  disabled muted tone applies to both icon and label. */}
-              <ZActionIcon action={action} />
-              <span>{label}</span>
+              <PreviewIcon name={Z_ACTION_ICONS[action]} size={16} />
+              <span className="flex-1">{t(label)}</span>
             </button>
           );
         })}
-
-      {hasDivider && <div className="my-1 border-t border-neutral-700/60" />}
-
       {hasDelete && (
         <button
           type="button"
-          className="w-full flex items-center justify-between px-3 py-1.5 text-xs text-red-400 hover:bg-neutral-800 cursor-pointer text-left"
+          role="menuitem"
+          className={`${MENU_ROW} !text-studio-danger`}
           onPointerDown={(e) => {
             if (e.button !== 0) return;
             e.preventDefault();
@@ -268,10 +220,40 @@ export const CanvasContextMenu = memo(function CanvasContextMenu({
             handleDelete();
           }}
         >
-          <span>Delete</span>
-          <span className="text-neutral-500 text-[10px] ml-3">⌫</span>
+          <PreviewIcon name="trash" size={16} />
+          <span className="flex-1">{t("preview.delete")}</span>
+          <span className="text-xs text-studio-muted">⌫</span>
         </button>
       )}
+    </>
+  );
+
+  if (isPhone) {
+    return (
+      <PhoneSheet open onClose={onClose} title={t("preview.orderAndDelete")}>
+        <div ref={menuRef} role="menu" className="flex flex-col gap-0.5 px-2 pb-2">
+          {items}
+        </div>
+      </PhoneSheet>
+    );
+  }
+
+  return createPortal(
+    <div
+      ref={menuRef}
+      role="menu"
+      aria-label={t("preview.orderAndDelete")}
+      className={`fixed z-[200] w-[230px] ${POPOVER_MENU}`}
+      style={{ left: adjustedX, top: adjustedY }}
+      onPointerDown={stopBubble}
+      onMouseDown={stopBubble}
+      onClick={stopBubble}
+      onContextMenu={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+      }}
+    >
+      {items}
     </div>,
     document.body,
   );

@@ -1,4 +1,5 @@
 // fallow-ignore-file code-duplication
+import { flatLabel } from "./flatLabel";
 import { useEffect, useState } from "react";
 import { isTextEditableSelection, type DomEditSelection } from "./domEditing";
 import { buildDefaultGradientModel, serializeGradient } from "./gradientValue";
@@ -104,7 +105,7 @@ function FlatFillFields({
       {preferredFillMode === "Solid" ? (
         <ColorField
           flat
-          label="Color"
+          label={flatLabel("Color")}
           value={styles["background-color"] ?? "transparent"}
           disabled={styleEditingDisabled}
           onPreview={(next) => onPreviewStyle?.("background-color", next)}
@@ -135,7 +136,7 @@ function FlatFillFields({
       {!hasTextControls && (
         <ColorField
           flat
-          label="Text color"
+          label={flatLabel("Text color")}
           value={styles.color ?? "rgb(0, 0, 0)"}
           disabled={styleEditingDisabled}
           onCommit={(next) => onSetStyle("color", next)}
@@ -213,7 +214,7 @@ function FlatStrokeRow({
       />
       <ColorField
         flat
-        label="Stroke color"
+        label={flatLabel("Stroke color")}
         value={borderColorValue}
         disabled={disabled}
         onCommit={(next) => onSetStyle("border-color", next)}

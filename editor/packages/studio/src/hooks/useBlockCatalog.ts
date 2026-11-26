@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import type { RegistryItem } from "@hyperframes/core/registry";
 import {
   BLOCK_CATEGORIES,
@@ -10,30 +10,70 @@ type CatalogItem = RegistryItem & {
   category: BlockCategory;
 };
 
-let catalogCache: CatalogItem[] | null = null;
-let catalogRequest: Promise<CatalogItem[]> | null = null;
+/** One shared catalog request, aborted once no hook instance is still waiting on it. */
+interface CatalogRequest {
+  promise: Promise<CatalogItem[]>;
+  controller: AbortController;
+  consumers: number;
+}
 
-function loadCatalog(): Promise<CatalogItem[]> {
-  catalogRequest ??= fetch("/api/registry/blocks")
+/** A hook instance's claim on the shared request; release() drops that claim once. */
+interface CatalogLease {
+  promise: Promise<CatalogItem[]>;
+  release: () => void;
+}
+
+let catalogCache: CatalogItem[] | null = null;
+let catalogRequest: CatalogRequest | null = null;
+
+function sortByCategory(items: CatalogItem[]): CatalogItem[] {
+  const indexOf = (category: BlockCategory) => {
+    const index = BLOCK_CATEGORIES.findIndex((entry) => entry.id === category);
+    return index === -1 ? 99 : index;
+  };
+  return items.sort((a, b) => indexOf(a.category) - indexOf(b.category));
+}
+
+function startCatalogRequest(): CatalogRequest {
+  const controller = new AbortController();
+  const request: CatalogRequest = { promise: Promise.resolve([]), controller, consumers: 0 };
+  request.promise = fetch("/api/registry/blocks", { signal: controller.signal })
     .then((response) => {
       if (!response.ok) throw new Error("Failed to load catalog");
       return response.json() as Promise<RegistryItem[]>;
     })
     .then((items) => {
-      catalogCache = items
-        .map((item) => ({ ...item, category: resolveBlockCategory(item.tags) }))
-        .sort((a, b) => {
-          const aIndex = BLOCK_CATEGORIES.findIndex((category) => category.id === a.category);
-          const bIndex = BLOCK_CATEGORIES.findIndex((category) => category.id === b.category);
-          return (aIndex === -1 ? 99 : aIndex) - (bIndex === -1 ? 99 : bIndex);
-        });
-      return catalogCache;
+      const loaded = sortByCategory(
+        items.map((item) => ({ ...item, category: resolveBlockCategory(item.tags) })),
+      );
+      catalogCache = loaded;
+      return loaded;
     })
     .catch((error: unknown) => {
-      catalogRequest = null;
+      if (catalogRequest === request) catalogRequest = null;
       throw error;
     });
-  return catalogRequest;
+  return request;
+}
+
+/** Joins the shared catalog request. The request is aborted when its last consumer leaves. */
+function acquireCatalog(): CatalogLease {
+  const request = catalogRequest ?? startCatalogRequest();
+  catalogRequest = request;
+  request.consumers += 1;
+  let released = false;
+  return {
+    promise: request.promise,
+    release() {
+      if (released) return;
+      released = true;
+      request.consumers -= 1;
+      if (request.consumers === 0 && !catalogCache && catalogRequest === request) {
+        catalogRequest = null;
+        request.controller.abort();
+      }
+    },
+  };
 }
 
 export function useBlockCatalog() {
@@ -42,27 +82,36 @@ export function useBlockCatalog() {
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState<BlockCategory | null>(null);
+  const [attempt, setAttempt] = useState(0);
 
-  // fallow-ignore-next-line complexity
   useEffect(() => {
     if (catalogCache) return;
     let cancelled = false;
-    (async () => {
-      try {
-        const items = await loadCatalog();
-        if (cancelled) return;
-        setBlocks(items);
-      } catch (err) {
-        if (cancelled) return;
-        setError(err instanceof Error ? err.message : "Failed to load catalog");
-      } finally {
+    const lease = acquireCatalog();
+    setLoading(true);
+    setError(null);
+    lease.promise
+      .then(
+        (items) => {
+          if (!cancelled) setBlocks(items);
+        },
+        (err: unknown) => {
+          if (!cancelled) {
+            setError(err instanceof Error ? err.message : "Failed to load catalog");
+          }
+        },
+      )
+      .finally(() => {
         if (!cancelled) setLoading(false);
-      }
-    })();
+      });
     return () => {
       cancelled = true;
+      lease.release();
     };
-  }, []);
+  }, [attempt]);
+
+  /** Loads the catalog again after a failure. */
+  const retry = useCallback(() => setAttempt((n) => n + 1), []);
 
   const filteredBlocks = useMemo(() => {
     let result = blocks;
@@ -91,5 +140,6 @@ export function useBlockCatalog() {
     category,
     setCategory,
     filteredBlocks,
+    retry,
   };
 }

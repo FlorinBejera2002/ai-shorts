@@ -1,58 +1,68 @@
-import { Eye, Layers } from "../../icons/SystemIcons";
+// St-Empty: nothing selected (illustration and title only). St-Multi / St-Inspector-Multi:
+// several elements selected, one card each, then "Grupează" and "Ascunde tot". The card title
+// ("3 elemente") and the clear action live in the inspector title row.
+import { Layers, X } from "../../icons/SystemIcons";
 import type { DomEditSelection } from "./domEditingTypes";
 import { canHideSelections } from "../../utils/timelineInspector";
+import { EmptyState } from "../ui";
+import { t, useLocale } from "../../i18n/translate";
+import { HEADER_ICON_BUTTON, InspectorHeaderActions } from "../inspector/headerSlot";
+import { InspectorAction } from "./inspectorControls";
 
 function FlatEmptyState() {
+  useLocale();
   return (
-    <div className="flex h-full flex-col items-center justify-center gap-2.5 px-8 py-10 text-center">
-      <span className="flex h-11 w-11 items-center justify-center rounded-xl border border-panel-border-input bg-panel-input text-panel-text-3">
-        <svg
-          width="20"
-          height="20"
-          viewBox="0 0 20 20"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.4"
-        >
-          <path d="M4 3l6 14 2-6 6-2z" strokeLinejoin="round" />
-        </svg>
-      </span>
-      <div className="text-[13px] font-semibold text-panel-text-0">Nothing selected</div>
-      <div className="max-w-[250px] text-[11px] leading-[1.5] text-panel-text-3">
-        Click any element on the canvas to edit it, or drag to select several.
-      </div>
-      <div className="mt-2 flex w-full flex-col gap-1.5">
-        <span className="flex items-center justify-between rounded-lg border border-panel-border bg-panel-bg px-3 py-2">
-          <span className="flex items-center gap-2 text-[11px] text-panel-text-2">
-            <span className="text-panel-danger">●</span>
-            Record a gesture
-          </span>
-          <span className="rounded border border-panel-border-input px-[5px] py-px font-mono text-[9px] text-panel-text-5">
-            R
-          </span>
-        </span>
-        <span className="flex items-center justify-between rounded-lg border border-panel-border bg-panel-bg px-3 py-2">
-          <span className="flex items-center gap-2 text-[11px] text-panel-text-2">
-            <span className="text-panel-accent">✦</span>
-            Describe a change to the agent
-          </span>
-          <span className="rounded border border-panel-border-input px-[5px] py-px font-mono text-[9px] text-panel-text-5">
-            ⌘K
-          </span>
-        </span>
-      </div>
+    <div className="flex h-full items-center justify-center pb-10">
+      <EmptyState
+        illustration="studio-nothing-selected"
+        title={t("flat.empty")}
+        className="[&>img]:h-44 [&>img]:w-44"
+      />
     </div>
   );
 }
 
-function elementKindGlyph(element: DomEditSelection): { glyph: string; className: string } {
-  if (element.tagName === "video" || element.tagName === "audio" || element.tagName === "img") {
-    return { glyph: "◆", className: "bg-panel-media/10 text-panel-media" };
-  }
-  if (element.textFields?.length > 0) {
-    return { glyph: "T", className: "bg-panel-accent/10 text-panel-accent" };
-  }
-  return { glyph: "▦", className: "bg-panel-container/10 text-panel-container" };
+const KIND_ICONS = {
+  media: "M4 5h16v14H4zM4 15l5-5 5 5 2-2 4 4M15 9h.01",
+  audio: "M12 3v12M8 7v6M16 7v6M4 10v2M20 10v2",
+  text: "M5 6V5h14v1M12 5v14M9 19h6",
+  other: "M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z",
+} as const;
+
+function elementKindIcon(element: DomEditSelection): string {
+  if (element.tagName === "audio") return KIND_ICONS.audio;
+  if (element.tagName === "video" || element.tagName === "img") return KIND_ICONS.media;
+  if (element.textFields?.length > 0) return KIND_ICONS.text;
+  return KIND_ICONS.other;
+}
+
+function SelectedElementCard({ element }: { element: DomEditSelection }) {
+  return (
+    <li className="flex min-h-[60px] items-center gap-3 rounded-md bg-studio-surface px-3 py-2.5 shadow-[inset_0_0_0_1.5px_var(--st-bd)]">
+      <span className="flex h-10 w-10 flex-none items-center justify-center rounded-[10px] text-studio-text shadow-[inset_0_0_0_1.5px_var(--st-bd)]">
+        <svg
+          aria-hidden="true"
+          viewBox="0 0 24 24"
+          width="18"
+          height="18"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d={elementKindIcon(element)} />
+        </svg>
+      </span>
+      <span className="flex min-w-0 flex-1 flex-col">
+        <span className="truncate text-[13px] font-semibold text-studio-text">{element.label}</span>
+        <span className="truncate text-xs text-studio-muted">
+          {element.id ? `#${element.id}` : element.selector}
+          {element.tagName ? ` · ${element.tagName}` : ""}
+        </span>
+      </span>
+    </li>
+  );
 }
 
 function FlatMultiSelectState({
@@ -68,65 +78,44 @@ function FlatMultiSelectState({
   onHideAllSelected?: () => void;
   onClearSelection?: () => void;
 }) {
+  useLocale();
   // One predicate for both actions and for the handler's own refusal, so the
   // button and the refusal cannot disagree about what audio is.
   const hasAudio = !canHideSelections(multiSelectedElements);
+  const clear = (
+    <button
+      type="button"
+      data-flat-multiselect-clear="true"
+      aria-label={t("flat.clear")}
+      title={t("flat.clear")}
+      onClick={onClearSelection}
+      className={HEADER_ICON_BUTTON}
+    >
+      <X size={16} />
+    </button>
+  );
   return (
-    <div className="flex flex-col gap-3 px-4 py-3">
-      <div className="flex items-center gap-3 rounded-xl border border-panel-border bg-panel-surface p-3">
-        <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-panel-accent/10 text-panel-accent">
-          <Layers size={16} />
-        </span>
-        <div className="min-w-0 flex-1">
-          <div className="text-[13px] font-semibold text-panel-text-0">
-            {multiSelectCount} elements selected
-          </div>
-          <div className="mt-px font-mono text-[10px] text-panel-text-3">
-            shift-click to add or remove
-          </div>
-        </div>
-        <button
-          type="button"
-          data-flat-multiselect-clear="true"
-          aria-label="Clear selection"
-          onClick={onClearSelection}
-          className="flex h-[26px] w-[26px] flex-shrink-0 items-center justify-center text-panel-text-3"
-        >
-          <svg
-            width="13"
-            height="13"
-            viewBox="0 0 16 16"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.5"
-          >
-            <path d="M3 3l10 10M13 3L3 13" />
-          </svg>
-        </button>
-      </div>
-      <div className="flex flex-col gap-1">
-        {multiSelectedElements.map((element) => {
-          const { glyph, className } = elementKindGlyph(element);
-          return (
-            <span
-              key={`${element.id ?? element.selector ?? ""}:${element.selectorIndex ?? 0}`}
-              className="flex items-center gap-2 rounded-lg border border-panel-border bg-panel-bg px-2.5 py-[7px]"
-            >
-              <span
-                className={`flex h-[18px] w-[18px] flex-shrink-0 items-center justify-center rounded text-[9px] font-bold ${className}`}
-              >
-                {glyph}
-              </span>
-              <span className="min-w-0 flex-1 truncate text-[11px] text-panel-text-1">
-                {element.label}
-              </span>
-              <span className="flex-shrink-0 font-mono text-[9px] text-panel-text-4">
-                {element.id ? `#${element.id}` : element.selector}
-              </span>
+    <div className="flex h-full min-h-0 flex-col gap-3 px-4 pb-4">
+      <InspectorHeaderActions
+        fallback={
+          <div className="flex items-center gap-2">
+            <span className="flex-1 text-[13px] font-semibold text-studio-text">
+              {t("inspector.multiTitle", { n: multiSelectCount })}
             </span>
-          );
-        })}
-      </div>
+            {clear}
+          </div>
+        }
+      >
+        {clear}
+      </InspectorHeaderActions>
+      <ul className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto">
+        {multiSelectedElements.map((element) => (
+          <SelectedElementCard
+            key={`${element.id ?? element.selector ?? ""}:${element.selectorIndex ?? 0}`}
+            element={element}
+          />
+        ))}
+      </ul>
       {/* Neither action applies to audio, so the row goes rather than showing
           an empty frame. Grouping is the LAYOUT grouper — a positioned wrapper
           around a bounding box, and an <audio> clip has none (grouping two
@@ -137,30 +126,26 @@ function FlatMultiSelectState({
           same write. Both handlers refuse it too — they own keyboard paths no
           hidden button can gate. */}
       {!hasAudio && (
-        <div className="flex gap-2">
-          <button
-            type="button"
+        <div className="flex flex-none gap-2">
+          <InspectorAction
+            variant="secondary"
             data-flat-multiselect-group="true"
             onClick={onGroupSelection}
-            className="flex h-[34px] flex-1 items-center justify-center gap-2 rounded-lg bg-panel-hover text-[11px] font-semibold text-panel-text-0"
+            className="flex-1"
           >
-            <Layers size={13} />
-            Group selection
-          </button>
-          <button
-            type="button"
+            <Layers size={15} />
+            {t("flat.multiGroup")}
+          </InspectorAction>
+          <InspectorAction
+            variant="secondary"
             data-flat-multiselect-hide-all="true"
             onClick={onHideAllSelected}
-            className="flex h-[34px] items-center gap-1.5 rounded-lg border border-panel-border-input bg-panel-input px-3 text-[11px] font-medium text-panel-text-2"
+            className="flex-1"
           >
-            <Eye size={13} />
-            Hide all
-          </button>
+            {t("flat.multiHideAll")}
+          </InspectorAction>
         </div>
       )}
-      <span className="text-center text-[10px] text-panel-text-5">
-        Select a single element to edit its properties
-      </span>
     </div>
   );
 }
@@ -180,6 +165,7 @@ export function PropertyPanelEmptyState({
   onHideAllSelected?: () => void;
   onClearSelection?: () => void;
 }) {
+  useLocale();
   if (flat) {
     return multiSelectCount > 1 ? (
       <FlatMultiSelectState
@@ -195,32 +181,14 @@ export function PropertyPanelEmptyState({
   }
 
   return (
-    <div className="flex h-full flex-col bg-neutral-900">
-      <div className="flex flex-1 flex-col items-center justify-center px-6 text-center">
-        {multiSelectCount > 1 ? (
-          <>
-            <Layers size={18} className="mb-3 text-neutral-600" />
-            <p className="text-sm font-medium text-neutral-200">
-              {multiSelectCount} elements selected
-            </p>
-            <p className="mt-2 max-w-[260px] text-xs leading-5 text-neutral-500">
-              Select a single element to edit its properties. Click an element in the preview or use
-              the timeline layer panel.
-            </p>
-          </>
-        ) : (
-          <>
-            <Eye size={18} className="mb-3 text-neutral-600" />
-            <p className="text-sm font-medium text-neutral-200">
-              Select an element in the preview.
-            </p>
-            <p className="mt-2 max-w-[260px] text-xs leading-5 text-neutral-500">
-              The inspector is tuned for element edits with safer geometry controls, color picking,
-              and cleaner grouped layer controls.
-            </p>
-          </>
-        )}
-      </div>
+    <div className="flex h-full flex-col items-center justify-center bg-studio-surface px-6 text-center">
+      {multiSelectCount > 1 ? (
+        <p className="text-sm font-semibold text-studio-text">
+          {t("inspector.multiTitle", { n: multiSelectCount })}
+        </p>
+      ) : (
+        <FlatEmptyState />
+      )}
     </div>
   );
 }

@@ -63,7 +63,7 @@ function zOrderButtons(): HTMLButtonElement[] {
 }
 
 describe("CanvasContextMenu — handler gating", () => {
-  it("renders all four z-order items, a divider, and Delete when both handlers are present", () => {
+  it("renders all four z-order items and Delete, without a divider, when both handlers are present", () => {
     const el = document.createElement("div");
     el.id = "target";
     document.body.append(el);
@@ -76,8 +76,8 @@ describe("CanvasContextMenu — handler gating", () => {
 
     expect(zOrderButtons()).toHaveLength(4);
     expect(hasDeleteItem()).toBe(true);
-    // The divider only appears between the two groups.
-    expect(document.body.querySelector(".border-t")).not.toBeNull();
+    // St-Preview-ContextMenu: one list, no hairline between the groups.
+    expect(document.body.querySelector(".border-t")).toBeNull();
   });
 
   it("hides every item and does NOT render the menu when no handlers are present", () => {

@@ -1,4 +1,5 @@
 import type { StoryboardScript } from "../../hooks/useStoryboard";
+import { t, useLocale } from "../../i18n/translate";
 
 export interface StoryboardScriptPanelProps {
   script: StoryboardScript;
@@ -11,14 +12,17 @@ export interface StoryboardScriptPanelProps {
  * (Per-frame VO iteration will live in the frame focus view.)
  */
 export function StoryboardScriptPanel({ script }: StoryboardScriptPanelProps) {
+  useLocale();
   if (!script.exists) return null;
   return (
-    <details className="mt-10 rounded-lg border border-neutral-800 bg-neutral-900/50">
-      <summary className="cursor-pointer select-none px-4 py-3 text-sm font-medium text-neutral-300">
-        Narration script
-        <span className="ml-2 font-normal text-neutral-500">{script.path}</span>
+    <details className="rounded-[14px] bg-studio-surface shadow-[inset_0_0_0_1px_var(--st-bd)]">
+      <summary className="cursor-pointer select-none px-3 py-2.5 text-[13px] font-semibold">
+        {t("story.script")}
+        <span className="ml-2 font-mono text-xs font-normal text-[var(--st-t3)]">
+          {script.path}
+        </span>
       </summary>
-      <pre className="max-h-[420px] overflow-auto whitespace-pre-wrap border-t border-neutral-800 px-4 py-3 text-xs leading-relaxed text-neutral-400">
+      <pre className="max-h-[420px] overflow-auto whitespace-pre-wrap px-3 pb-3 text-xs leading-relaxed text-[var(--st-t2)]">
         {script.content}
       </pre>
     </details>

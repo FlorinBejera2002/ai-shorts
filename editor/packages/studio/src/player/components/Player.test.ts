@@ -143,7 +143,7 @@ describe("preview errors", () => {
 
     expect(host.querySelector('[data-testid="composition-preview-error"]')).not.toBeNull();
     const retry = Array.from(host.querySelectorAll("button")).find(
-      (button) => button.textContent === "Retry preview",
+      (button) => button.textContent === "Try again",
     );
     if (!retry) throw new Error("retry action did not render");
 

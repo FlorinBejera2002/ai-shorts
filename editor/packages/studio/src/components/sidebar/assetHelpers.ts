@@ -67,11 +67,11 @@ export function formatDuration(seconds: number): string {
   return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 
-export const CATEGORY_LABELS: Record<MediaCategory, string> = {
-  audio: "Audio",
-  images: "Images",
-  video: "Video",
-  fonts: "Fonts",
-};
-
 export const FILTER_ORDER: MediaCategory[] = ["audio", "images", "video", "fonts"];
+
+/** "1:12" style duration for thumbnails (St-Media). Empty for unknown values. */
+export function formatShortDuration(seconds: number | undefined | null): string {
+  if (seconds == null || !Number.isFinite(seconds) || seconds <= 0) return "";
+  const total = Math.round(seconds);
+  return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, "0")}`;
+}

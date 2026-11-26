@@ -1,5 +1,6 @@
-import { ArrowLeft, CaretRight } from "@phosphor-icons/react";
 import { trackStudioEvent } from "../../utils/studioTelemetry";
+import { t, useLocale } from "../../i18n/translate";
+import { PreviewIcon, PreviewIconButton } from "./preview/previewChrome";
 
 export interface CompositionLevel {
   /** Unique id — "master" or composition file path */
@@ -13,19 +14,24 @@ export interface CompositionLevel {
 interface CompositionBreadcrumbProps {
   stack: CompositionLevel[];
   onNavigate: (index: number) => void;
+  /** Phone (St-M-Preview-Breadcrumb): the row is centred above the stage. */
+  centered?: boolean;
 }
 
-export function CompositionBreadcrumb({ stack, onNavigate }: CompositionBreadcrumbProps) {
+/** Back button and path of the open sub-composition (St-Preview-Breadcrumb). */
+export function CompositionBreadcrumb({ stack, onNavigate, centered }: CompositionBreadcrumbProps) {
+  useLocale();
   if (stack.length <= 1) return null;
 
   return (
     <nav
-      aria-label="Composition navigation"
-      className="flex items-center gap-1 px-2 h-8 border-b border-neutral-800/50 bg-neutral-900/50 flex-shrink-0"
+      aria-label={t("preview.compositionNav")}
+      className={`flex min-h-9 min-w-0 flex-none items-center gap-1.5 ${centered ? "justify-center pb-3 pt-6" : ""}`}
     >
-      {/* Back button — always goes to parent */}
-      <button
-        type="button"
+      <PreviewIconButton
+        label={t("preview.backToParent")}
+        title={`${t("preview.backToParent")} (Esc)`}
+        size={32}
         onClick={() => {
           trackStudioEvent("navigation", {
             action: "back",
@@ -33,21 +39,21 @@ export function CompositionBreadcrumb({ stack, onNavigate }: CompositionBreadcru
           });
           onNavigate(stack.length - 2);
         }}
-        className="flex items-center gap-1 px-1.5 py-0.5 rounded text-xs text-neutral-400 hover:text-white hover:bg-neutral-800 active:scale-[0.98] transition-colors"
-        title="Back (Esc, or double-click empty timeline)"
-        aria-label="Back to parent composition"
       >
-        <ArrowLeft size={12} weight="bold" />
-      </button>
-
-      {/* Breadcrumb path */}
+        <PreviewIcon name="back" size={16} />
+      </PreviewIconButton>
       {stack.map((level, i) => {
         const isLast = i === stack.length - 1;
         return (
-          <span key={level.id} className="flex items-center gap-1">
-            {i > 0 && <CaretRight size={10} className="text-neutral-600 flex-shrink-0" />}
+          <span key={level.id} className="flex min-w-0 items-center gap-1.5">
+            {i > 0 && <PreviewIcon name="chevronRight" size={14} className="text-studio-muted" />}
             {isLast ? (
-              <span className="text-xs text-neutral-200 font-medium">{level.label}</span>
+              <span
+                aria-current="page"
+                className="min-w-0 truncate text-[13px] font-semibold text-studio-text"
+              >
+                {level.label}
+              </span>
             ) : (
               <button
                 type="button"
@@ -55,7 +61,7 @@ export function CompositionBreadcrumb({ stack, onNavigate }: CompositionBreadcru
                   trackStudioEvent("navigation", { action: "breadcrumb", target: level.label });
                   onNavigate(i);
                 }}
-                className="text-xs text-neutral-500 hover:text-neutral-200 transition-colors"
+                className="h-8 flex-none rounded-[10px] px-2 text-[13px] font-semibold text-studio-muted hover:bg-[var(--st-sub)] hover:text-studio-text"
               >
                 {level.label}
               </button>

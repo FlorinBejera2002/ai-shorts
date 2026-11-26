@@ -3,7 +3,12 @@ import { createRoot } from "react-dom/client";
 import { StudioApp } from "./App";
 import { StudioErrorBoundary } from "./components/StudioErrorBoundary";
 import { trackStudioEvent } from "./utils/studioTelemetry";
+import { startStudioThemeFromWindow } from "./theme/studioTheme";
+import { startStudioLocale } from "./i18n/translate";
 import "./styles/studio.css";
+
+startStudioThemeFromWindow();
+startStudioLocale(window.location.search, navigator.language);
 
 trackStudioEvent("session_start");
 

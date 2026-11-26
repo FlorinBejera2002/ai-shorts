@@ -4,6 +4,7 @@ import {
   type HfAudioFxChain,
 } from "@hyperframes/core/audio-fx";
 import type { TimelineTheme } from "./timelineTheme";
+import { t } from "../../i18n/translate";
 import type { TimelineTrackGroupInfo } from "./useTimelineTrackDerivations";
 import type { TimelineLogicalRow } from "./timelineKeyboardNavigation";
 import { TimelineTrackRow } from "./TimelineTrackRow";
@@ -21,7 +22,7 @@ import { usePlayerStore } from "../store/playerStore";
 
 /** Accent rail on a group-owned lane — the same green the member rail uses, so
  *  "this belongs to the group" reads the same in both places (groups doc §5). */
-const GROUP_LANE_ACCENT = "#3CE6AC";
+const GROUP_LANE_ACCENT = "var(--st-tx)";
 
 interface TimelineGroupRowProps {
   index: number;
@@ -97,7 +98,13 @@ export function TimelineGroupRow({
   const writeGroupFxChain = (next: HfAudioFxChain, live: boolean) => {
     const value = next.nodes.length ? serializeAudioFxChain(next) : null;
     if (live) onSetAudioGroupAttributeLive?.(group.id, HF_AUDIO_FX_ATTR, value);
-    else void onSetAudioGroupAttributeQuiet?.(group.id, HF_AUDIO_FX_ATTR, value, "Apply preset");
+    else
+      void onSetAudioGroupAttributeQuiet?.(
+        group.id,
+        HF_AUDIO_FX_ATTR,
+        value,
+        t("timeline.histApplyPreset"),
+      );
   };
   const openGroupFxRack = (automationTarget?: string) => {
     // Use the guarded timeline-selection path even though the bus is synthetic:

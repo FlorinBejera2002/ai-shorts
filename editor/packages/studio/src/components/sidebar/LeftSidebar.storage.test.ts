@@ -24,5 +24,5 @@ it("falls back to the default tab when localStorage is blocked", () => {
     },
   });
 
-  expect(getPersistedTab()).toBe("compositions");
+  expect(getPersistedTab()).toBe("assets");
 });

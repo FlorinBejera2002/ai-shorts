@@ -50,7 +50,7 @@ export function TimelineTrackRow({
         top: virtualized ? top : undefined,
         height,
         background,
-        borderBottom: `1px solid ${borderColor}`,
+        borderBottom: borderColor === "transparent" ? undefined : `1px solid ${borderColor}`,
       }}
     >
       <div
@@ -100,5 +100,18 @@ export function TimelineTrackRow({
         );
       })}
     </div>
+  );
+}
+
+/** The recessed, rounded lane a track's clips sit in. Inset 1.5px top and bottom so adjacent
+ *  rows read as separate wells with a 3px gap, as on the boards. */
+export function TimelineLaneWell({ background }: { background: string }) {
+  return (
+    <div
+      aria-hidden="true"
+      data-timeline-lane-well=""
+      className="pointer-events-none absolute inset-x-0"
+      style={{ top: 1.5, bottom: 1.5, borderRadius: 10, background }}
+    />
   );
 }

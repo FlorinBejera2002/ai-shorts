@@ -1,4 +1,4 @@
-import { useCallback, type ReactNode } from "react";
+import { useCallback, useMemo, useState, type ReactNode } from "react";
 import { Timeline } from "../../player";
 import type { TimelineElement } from "../../player";
 import type { BlockedTimelineEditIntent } from "../../player/components/timelineEditing";
@@ -7,6 +7,11 @@ import { useTimelineEditContext } from "../../contexts/TimelineEditContext";
 import { trackStudioExpandedClipEdit } from "../../telemetry/events";
 import { useNLEContext } from "./NLEContext";
 import type { TimelineMoveOperation } from "../../hooks/timelineMoveAdapter";
+import { t, useLocale } from "../../i18n/translate";
+import { TimelineIcon } from "../../player/components/TimelineIcon";
+import { useIsPhone } from "../shell/useIsPhone";
+import { TimelineShortcutsSheet } from "./TimelineToolbarShortcuts";
+import { TimelineShortcutsContext } from "./TimelineToolbarShortcutsContext";
 
 type TimelineMoveEdit = {
   element: TimelineElement;
@@ -129,6 +134,14 @@ export function TimelinePane({
     timelineDisabled,
     timelineSessionEpoch,
   } = useNLEContext();
+  useLocale();
+  const phone = useIsPhone();
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const closeShortcuts = useCallback(() => setShortcutsOpen(false), []);
+  const shortcutsControl = useMemo(
+    () => ({ open: shortcutsOpen, toggle: () => setShortcutsOpen((open) => !open) }),
+    [shortcutsOpen],
+  );
 
   // Move/resize/split come from the timeline edit context, not props — the
   // wrappers below intercept expanded clips and must call the *real* handlers.
@@ -244,7 +257,7 @@ export function TimelinePane({
   );
 
   return (
-    <>
+    <TimelineShortcutsContext.Provider value={shortcutsControl}>
       <TimelineResizeDivider
         timelineH={timelineH}
         setTimelineH={setTimelineH}
@@ -253,15 +266,17 @@ export function TimelinePane({
         disabled={timelineDisabled}
       />
 
-      {/* Timeline section — inner padding (not margin) keeps the divider's
-          height math exact while giving the panel a gap from the shell edges. */}
+      {/* Timeline card (St-Timeline-Tools): 24px card on the canvas, toolbar row then tracks.
+          The 1px inset keeps the divider's height math exact. */}
       <div
         className="relative flex h-[min(var(--timeline-height),26dvh)] flex-col flex-shrink-0 px-px pb-px sm:h-[var(--timeline-height)]"
         style={{ "--timeline-height": `${timelineH}px` } as React.CSSProperties}
         aria-disabled={timelineDisabled || undefined}
       >
-        <div
-          className="flex flex-col flex-1 min-h-0 overflow-hidden rounded-lg border border-neutral-800/50 bg-neutral-950"
+        <section
+          aria-label={t("timeline.label")}
+          data-timeline-card=""
+          className="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden rounded-card bg-studio-surface px-2.5 py-2 shadow-studio sm:px-3 sm:py-2.5"
           onDoubleClick={(e) => {
             if ((e.target as HTMLElement).closest("[data-clip]")) return;
             if (timelineDisabled) return;
@@ -270,7 +285,9 @@ export function TimelinePane({
             }
           }}
         >
-          <div className="flex-shrink-0">{timelineToolbar}</div>
+          <div className="flex min-h-[34px] flex-shrink-0 items-center sm:min-h-9">
+            {timelineToolbar}
+          </div>
           <Timeline
             sessionEpoch={timelineSessionEpoch}
             onSeek={seek}
@@ -289,23 +306,35 @@ export function TimelinePane({
             onSplitElement={handleSplitElement}
             onSelectElement={onSelectTimelineElement}
           />
-        </div>
+        </section>
         {timelineFooter && <div className="flex-shrink-0">{timelineFooter}</div>}
-        {timelineDisabled && (
-          <div
-            className="absolute inset-0 z-30 cursor-not-allowed bg-black/18 flex items-center justify-center"
-            data-testid="timeline-loading-disabled-overlay"
-            role="status"
-            onPointerDown={(event) => event.preventDefault()}
-            onDragOver={(event) => event.preventDefault()}
-            onDrop={(event) => event.preventDefault()}
-          >
-            <span className="rounded-md bg-neutral-900/90 px-2.5 py-1 text-[11px] text-neutral-400">
-              Loading composition…
-            </span>
-          </div>
-        )}
+        {timelineDisabled && <TimelineLoadingOverlay />}
       </div>
-    </>
+      <TimelineShortcutsSheet
+        open={shortcutsOpen}
+        phone={phone}
+        onClose={closeShortcuts}
+        onSeek={seek}
+      />
+    </TimelineShortcutsContext.Provider>
+  );
+}
+
+/** Blocks edits while a composition loads (St-Timeline-Loading): the lanes dim under a pill. */
+function TimelineLoadingOverlay() {
+  return (
+    <div
+      className="absolute inset-0 z-30 flex cursor-not-allowed items-center justify-center rounded-card bg-[color-mix(in_srgb,var(--st-sf)_45%,transparent)]"
+      data-testid="timeline-loading-disabled-overlay"
+      role="status"
+      onPointerDown={(event) => event.preventDefault()}
+      onDragOver={(event) => event.preventDefault()}
+      onDrop={(event) => event.preventDefault()}
+    >
+      <span className="inline-flex h-11 items-center gap-1.5 rounded-full bg-studio-surface px-4 text-[13px] font-semibold text-studio-text shadow-[inset_0_0_0_1.5px_var(--st-sbd)]">
+        <TimelineIcon name="refresh" size={16} className="animate-spin" />
+        {t("timeline.loading")}
+      </span>
+    </div>
   );
 }

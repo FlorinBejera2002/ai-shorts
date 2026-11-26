@@ -1,3 +1,7 @@
+// St-Sound / St-Inspector-SoundPick / St-Inspector-SoundStates: the sound that plays at the
+// start of the selected cut. Pick Click, Pop or Whoosh (each row can be heard first), set the
+// effect volume, then apply it to this cut or to every cut. The applied effect's row offers
+// "Elimină"; a failed save keeps the choice and offers "Reîncearcă".
 import { useEffect, useRef, useState } from "react";
 import { useFileManagerContext } from "../../contexts/FileManagerContext";
 import type { RecordEditInput } from "../../utils/studioFileHistory";
@@ -10,11 +14,18 @@ import {
   soundEffectFileName,
   type CutSoundEffectId,
 } from "../../utils/cutSoundEffects";
+import { t, useLocale } from "../../i18n/translate";
 import type { DomEditSelection } from "./domEditingTypes";
 import { useSourceCutChanges } from "./useSourceCutChanges";
-
-const BUTTON =
-  "rounded-md border border-neutral-700 px-2 py-1.5 text-xs hover:bg-neutral-800 disabled:opacity-40";
+import {
+  ICON_PATHS,
+  InspectorAction,
+  InspectorError,
+  InspectorIcon,
+  InspectorPill,
+  InspectorSection,
+  InspectorSlider,
+} from "./inspectorControls";
 
 export function CutSoundEffect({
   selection,
@@ -23,16 +34,12 @@ export function CutSoundEffect({
   selection: DomEditSelection;
   recordEdit: (entry: RecordEditInput) => Promise<void>;
 }) {
+  useLocale();
   const { source, busy, error, saveSourceCutChanges } = useSourceCutChanges({
     selection,
     recordEdit,
   });
-  if (source === null)
-    return error ? (
-      <p role="alert" className="px-3 text-xs text-red-400">
-        {error}
-      </p>
-    ) : null;
+  if (source === null) return error ? <InspectorError>{error}</InspectorError> : null;
   return (
     <CutSoundEffectForm
       key={`${selection.id}:${source}`}
@@ -41,6 +48,28 @@ export function CutSoundEffect({
       save={saveSourceCutChanges}
     />
   );
+}
+
+type ApplyRequest = { applyToAll: boolean; remove: boolean };
+
+function useAudition() {
+  const audition = useRef<{ audio: HTMLAudioElement; url: string } | null>(null);
+  const stop = () => {
+    audition.current?.audio.pause();
+    if (audition.current) URL.revokeObjectURL(audition.current.url);
+    audition.current = null;
+  };
+  useEffect(() => stop, []);
+  return async (effect: CutSoundEffectId, volume: number) => {
+    stop();
+    const url = URL.createObjectURL(
+      new Blob([createCutSoundEffectWav(effect)], { type: "audio/wav" }),
+    );
+    const audio = new Audio(url);
+    audio.volume = volume;
+    audition.current = { audio, url };
+    await audio.play();
+  };
 }
 
 function CutSoundEffectForm({
@@ -59,29 +88,16 @@ function CutSoundEffectForm({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
-  const audition = useRef<{ audio: HTMLAudioElement; url: string } | null>(null);
+  const lastRequest = useRef<ApplyRequest | null>(null);
+  const play = useAudition();
   const disabled = busy || saving;
-  useEffect(
-    () => () => {
-      audition.current?.audio.pause();
-      if (audition.current) URL.revokeObjectURL(audition.current.url);
-    },
-    [],
-  );
 
-  async function listen() {
-    audition.current?.audio.pause();
-    if (audition.current) URL.revokeObjectURL(audition.current.url);
-    const url = URL.createObjectURL(
-      new Blob([createCutSoundEffectWav(effect)], { type: "audio/wav" }),
-    );
-    const audio = new Audio(url);
-    audio.volume = volume;
-    audition.current = { audio, url };
+  async function listen(id: CutSoundEffectId) {
+    setEffect(id);
     try {
-      await audio.play();
+      await play(id, volume);
     } catch {
-      setError("The sound preview could not play. Try again.");
+      setError(t("sfx.playFailed"));
     }
   }
 
@@ -106,8 +122,9 @@ function CutSoundEffectForm({
     return result.files[0];
   }
 
-  async function apply(applyToAll: boolean, remove = false) {
+  async function apply({ applyToAll, remove }: ApplyRequest) {
     if (disabled) return;
+    lastRequest.current = { applyToAll, remove };
     setSaving(true);
     setError(null);
     setStatus(null);
@@ -128,9 +145,7 @@ function CutSoundEffectForm({
                 },
           ),
       });
-      setStatus(
-        `${remove ? "Removed from" : "Applied to"} ${applyToAll ? "all cuts" : "selected cut"}.`,
-      );
+      setStatus(remove ? t("sfx.removed") : t("sfx.applied"));
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "The sound effect could not be saved.");
     } finally {
@@ -139,74 +154,135 @@ function CutSoundEffectForm({
   }
 
   return (
-    <section aria-label="Cut sound effect" className="space-y-3 border-t border-neutral-800 p-3">
-      <h3 className="text-xs font-medium text-neutral-200">Cut sound effect</h3>
-      <p className="text-xs text-neutral-500">
-        Plays at the start of this cut, including after trimming or moving it.
-      </p>
-      <div className="flex gap-2">
-        <label className="min-w-0 flex-1 text-xs text-neutral-400">
-          Sound
-          <select
-            aria-label="Cut sound"
-            className="mt-1 w-full rounded-md border border-neutral-700 bg-neutral-900 px-2 py-1.5 text-neutral-200"
+    <InspectorSection title={t("sfx.title")} label="Cut sound effect">
+      <ul aria-label={t("sfx.sound")} className="flex flex-col gap-2">
+        {CUT_SOUND_EFFECTS.map((preset) => (
+          <SoundRow
+            key={preset.id}
+            name={preset.label}
+            selected={preset.id === effect}
+            applied={existing?.effect === preset.id}
             disabled={disabled}
-            value={effect}
-            onChange={(event) => setEffect(event.target.value as CutSoundEffectId)}
-          >
-            {CUT_SOUND_EFFECTS.map((preset) => (
-              <option key={preset.id} value={preset.id}>
-                {preset.label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <button className={`${BUTTON} self-end`} disabled={disabled} onClick={() => void listen()}>
-          Listen
-        </button>
-      </div>
-      <label className="block text-xs text-neutral-400">
-        Effect volume <span className="float-right">{Math.round(volume * 100)}%</span>
-        <input
-          aria-label="Effect volume"
-          type="range"
-          className="mt-2 w-full accent-neutral-200"
-          min="0"
-          max="100"
-          step="1"
-          disabled={disabled}
-          value={Math.round(volume * 100)}
-          onChange={(event) => setVolume(Number(event.target.value) / 100)}
-        />
-      </label>
-      <div className="grid grid-cols-2 gap-2">
-        <button className={BUTTON} disabled={disabled} onClick={() => void apply(false)}>
-          Apply to selected cut
-        </button>
-        <button className={BUTTON} disabled={disabled} onClick={() => void apply(true)}>
-          Apply to all cuts
-        </button>
-        <button
-          className={BUTTON}
-          disabled={disabled || !existing}
-          onClick={() => void apply(false, true)}
-        >
-          Remove from selected cut
-        </button>
-        <button className={BUTTON} disabled={disabled} onClick={() => void apply(true, true)}>
-          Remove from all cuts
-        </button>
-      </div>
+            onSelect={() => setEffect(preset.id)}
+            onListen={() => void listen(preset.id)}
+            onRemove={() => void apply({ applyToAll: false, remove: true })}
+          />
+        ))}
+      </ul>
+      <InspectorSlider
+        label={t("sfx.volume")}
+        value={Math.round(volume * 100)}
+        min={0}
+        max={100}
+        disabled={disabled}
+        format={(value) => `${value}%`}
+        onChange={(value) => setVolume(value / 100)}
+      />
       {error && (
-        <p role="alert" className="text-xs text-red-400">
-          {error}
-        </p>
+        <div className="flex items-center justify-between gap-2">
+          <InspectorError>
+            <span title={error}>{error}</span>
+          </InspectorError>
+          {lastRequest.current && (
+            <InspectorPill
+              disabled={disabled}
+              onClick={() => lastRequest.current && void apply(lastRequest.current)}
+            >
+              {t("sfx.retry")}
+            </InspectorPill>
+          )}
+        </div>
       )}
       {status && (
-        <p role="status" className="text-xs text-neutral-400">
+        <p role="status" className="sr-only">
           {status}
         </p>
       )}
-    </section>
+      <div className="flex flex-col gap-2 pt-2">
+        <InspectorAction
+          variant="primary"
+          disabled={disabled}
+          onClick={() => void apply({ applyToAll: false, remove: false })}
+        >
+          {t("sfx.apply")}
+        </InspectorAction>
+        <InspectorAction
+          variant="secondary"
+          disabled={disabled}
+          onClick={() => void apply({ applyToAll: true, remove: false })}
+        >
+          {t("sfx.applyAll")}
+        </InspectorAction>
+        <InspectorAction
+          variant="danger"
+          size="sm"
+          disabled={disabled}
+          onClick={() => void apply({ applyToAll: true, remove: true })}
+        >
+          {t("sfx.removeAll")}
+        </InspectorAction>
+      </div>
+    </InspectorSection>
+  );
+}
+
+function SoundRow({
+  name,
+  selected,
+  applied,
+  disabled,
+  onSelect,
+  onListen,
+  onRemove,
+}: {
+  name: string;
+  selected: boolean;
+  applied: boolean;
+  disabled: boolean;
+  onSelect: () => void;
+  onListen: () => void;
+  onRemove: () => void;
+}) {
+  return (
+    <li
+      className={[
+        "flex min-h-[52px] items-center gap-2 rounded-md bg-studio-surface pr-2 pl-0",
+        selected
+          ? "shadow-[inset_0_0_0_2px_var(--st-tx)]"
+          : "shadow-[inset_0_0_0_1.5px_var(--st-bd)]",
+      ].join(" ")}
+    >
+      <button
+        type="button"
+        aria-pressed={selected}
+        disabled={disabled}
+        onClick={onSelect}
+        className="flex min-h-[52px] min-w-0 flex-1 items-center rounded-md pl-3.5 text-left text-[13px] font-medium text-studio-text outline-none focus-visible:outline-2 focus-visible:outline-[var(--st-btn)]"
+      >
+        {name}
+      </button>
+      {applied && (
+        <InspectorPill disabled={disabled} onClick={onRemove} className="!text-studio-danger">
+          {t("sfx.remove")}
+        </InspectorPill>
+      )}
+      {selected && (
+        <span className="text-studio-text">
+          <InspectorIcon d={ICON_PATHS.check} />
+        </span>
+      )}
+      <button
+        type="button"
+        aria-label={t("sfx.listenNamed", { name })}
+        title={t("sfx.listen")}
+        disabled={disabled}
+        onClick={onListen}
+        className="inline-flex h-9 w-9 flex-none items-center justify-center rounded-full text-studio-text hover:bg-[var(--st-sub)] disabled:opacity-45"
+      >
+        <svg aria-hidden="true" viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+          <path d={ICON_PATHS.play} />
+        </svg>
+      </button>
+    </li>
   );
 }

@@ -33,13 +33,13 @@ describe("ExternalFileConflictBanner", () => {
 
     await act(async () => root.render(<ExternalFileConflictBanner coordinator={coordinator} />));
     expect(document.querySelector('[role="alert"]')?.textContent).toContain(
-      "Preview is paused so neither version is lost",
+      "The file changed outside Studio. The preview is paused.",
     );
-    expect(document.body.textContent).toContain("Discard Studio edits and reload file");
-    expect(document.body.textContent).toContain("Overwrite file with Studio version");
+    expect(document.body.textContent).toContain("Discard Studio edits");
+    expect(document.body.textContent).toContain("Overwrite the file with the Studio version");
 
     const review = Array.from(document.querySelectorAll("button")).find((button) =>
-      button.textContent?.includes("Review or export both"),
+      button.textContent?.includes("Review both versions"),
     );
     await act(async () => review?.click());
     expect(document.querySelector('[role="dialog"]')).not.toBeNull();
@@ -72,7 +72,7 @@ describe("ExternalFileConflictBanner", () => {
 
     await act(async () => root.render(<ExternalFileConflictBanner coordinator={coordinator} />));
     const review = Array.from(document.querySelectorAll("button")).find((button) =>
-      button.textContent?.includes("Review or export Studio draft"),
+      button.textContent?.includes("Review the Studio draft"),
     );
     await act(async () => review?.click());
     expect(document.querySelector("textarea")?.value).toBe("<html>recover me</html>");
@@ -104,11 +104,14 @@ describe("ExternalFileConflictBanner", () => {
     await act(async () => root.render(<ExternalFileConflictBanner coordinator={coordinator} />));
     expect(document.body.textContent).not.toContain("Retry save");
     const overwrite = Array.from(document.querySelectorAll("button")).find((button) =>
-      button.textContent?.includes("Overwrite file with recovered Studio draft"),
+      button.textContent?.includes("Overwrite the file with the recovered draft"),
     );
     expect(overwrite).toBeTruthy();
-    vi.spyOn(window, "confirm").mockReturnValue(true);
     await act(async () => overwrite?.click());
+    const confirm = Array.from(document.querySelectorAll("button")).find(
+      (button) => button.textContent === "Overwrite",
+    );
+    await act(async () => confirm?.click());
     expect(keepStudioFile).toHaveBeenCalledOnce();
 
     await act(async () => root.unmount());
@@ -135,7 +138,7 @@ describe("ExternalFileConflictBanner", () => {
 
     await act(async () => root.render(<ExternalFileConflictBanner coordinator={coordinator} />));
     expect(document.body.textContent).not.toContain("Retry save");
-    expect(document.body.textContent).toContain("Discard Studio edits and reload file");
+    expect(document.body.textContent).toContain("Discard Studio edits");
 
     await act(async () => root.unmount());
   });

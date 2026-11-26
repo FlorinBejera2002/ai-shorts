@@ -77,6 +77,15 @@ describe("AssetCard click behavior", () => {
   });
 });
 
+/** The audio row is a plain container; its name area is the activation button. */
+function clickAudioName(host: HTMLElement): void {
+  const button = host.querySelector<HTMLButtonElement>(
+    'button[aria-label*=": deschide"], button[aria-label*=": open"]',
+  );
+  if (!button) throw new Error("Expected the row's name button");
+  act(() => button.click());
+}
+
 describe("AudioRow click behavior", () => {
   const rowProps = {
     projectId: "p1",
@@ -91,7 +100,7 @@ describe("AudioRow click behavior", () => {
     useAssetPreviewStore.getState().setPreviewAsset("assets/other.mp3", "p1");
 
     const host = mount(<AudioRow {...rowProps} asset="assets/bgm.mp3" used />);
-    clickCard(host);
+    clickAudioName(host);
 
     expect(useAssetPreviewStore.getState().previewAsset).toBeNull();
     expect(usePlayerStore.getState().selectedElementId).toBe("bgm1");
@@ -99,8 +108,22 @@ describe("AudioRow click behavior", () => {
 
   it("opens the preview overlay for a not-yet-added audio asset", () => {
     const host = mount(<AudioRow {...rowProps} asset="assets/bgm.mp3" used={false} />);
-    clickCard(host);
+    clickAudioName(host);
 
     expect(useAssetPreviewStore.getState().previewAsset).toBe("assets/bgm.mp3");
+  });
+
+  it("keeps play and add as separate controls outside any role=button", () => {
+    const host = mount(
+      <AudioRow
+        {...rowProps}
+        asset="assets/bgm.mp3"
+        used={false}
+        variant="music"
+        onAddAssetToTimeline={vi.fn()}
+      />,
+    );
+    expect(host.querySelector('[role="button"]')).toBeNull();
+    expect(host.querySelectorAll("button").length).toBe(3);
   });
 });

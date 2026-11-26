@@ -1,6 +1,8 @@
 import { memo } from "react";
-import { createPortal } from "react-dom";
 import { useContextMenuDismiss } from "../../hooks/useContextMenuDismiss";
+import { t, useLocale } from "../../i18n/translate";
+import { TimelineMenuItem, TimelineMenuSurface } from "./TimelineMenu";
+import { formatDecimalSeconds } from "./timelineDisplayTime";
 
 interface TrackGapContextMenuProps {
   x: number;
@@ -23,14 +25,11 @@ interface TrackGapContextMenuProps {
 }
 
 /**
- * Context menu for right-clicking EMPTY space on a timeline lane
- * (CapCut/Premiere-style). Offers "Close gap" (collapse the clicked gap by
- * shifting the following clips on that lane left) and "Close all gaps"
- * (compact the whole lane contiguous from 0). Both rows are ALWAYS present —
- * an inapplicable action dims with a tooltip explaining why, rather than
- * vanishing into a one-item menu. Hovering an actionable row highlights the
- * gap strip(s) it would close (via onHoverAction → TimelineCanvas overlay).
- * Styling mirrors ClipContextMenu.
+ * Context menu for right-clicking EMPTY space on a timeline lane (St-Timeline-Gaps).
+ * "Close gap" collapses the clicked gap by shifting the following clips left; "Close all
+ * gaps" compacts the whole lane from 0. Both rows are ALWAYS present: an inapplicable action
+ * dims with a tooltip saying why. Hovering an actionable row highlights the gap strip(s) it
+ * would close (via onHoverAction → TimelineCanvas overlay).
  */
 export const TrackGapContextMenu = memo(function TrackGapContextMenu({
   x,
@@ -44,46 +43,44 @@ export const TrackGapContextMenu = memo(function TrackGapContextMenu({
   onCloseAllGaps,
   onHoverAction,
 }: TrackGapContextMenuProps) {
+  useLocale();
   const menuRef = useContextMenuDismiss(onClose);
-
-  const menuWidth = 200;
-  const menuHeight = 68;
-  const overflowY = y + menuHeight - window.innerHeight;
-  const adjustedX = x + menuWidth > window.innerWidth ? x - menuWidth : x;
-  const adjustedY = overflowY > 0 ? y - overflowY - 8 : y;
-
-  const itemClass = (enabled: boolean) =>
-    `w-full flex items-center justify-between px-3 py-1.5 text-xs text-left ${
-      enabled
-        ? "text-neutral-300 hover:bg-neutral-800 cursor-pointer"
-        : "text-neutral-600 cursor-not-allowed"
-    }`;
 
   // Disabled reasons: no gap under the pointer beats the lock reason — a
   // pointer not on a gap has nothing to close regardless of movability.
   const closeGapTitle = canCloseGap
     ? undefined
     : gapWidth == null
-      ? "No gap here"
-      : "A clip on this track can't be moved";
+      ? t("timeline.noGapHere")
+      : t("timeline.clipLocked");
   const closeAllTitle = canCloseAllGaps
     ? undefined
     : hasAnyGaps
-      ? "A clip on this track can't be moved"
-      : "No gaps on this track";
+      ? t("timeline.clipLocked")
+      : t("timeline.noGaps");
 
-  return createPortal(
-    <div
+  return (
+    <TimelineMenuSurface
       ref={menuRef}
-      className="fixed z-[200] bg-neutral-900 border border-neutral-700 rounded-md shadow-lg py-1 min-w-[180px]"
-      style={{ left: adjustedX, top: adjustedY }}
+      role="group"
+      label={t("timeline.gapActions")}
+      x={x}
+      y={y}
+      width={250}
+      estimatedHeight={88}
+      onDismiss={onClose}
       onPointerLeave={() => onHoverAction(null)}
     >
-      <button
-        type="button"
-        className={itemClass(canCloseGap)}
+      <TimelineMenuItem
+        role="button"
+        icon="arrow"
         disabled={!canCloseGap}
         title={closeGapTitle}
+        hint={
+          gapWidth != null
+            ? t("timeline.seconds", { time: formatDecimalSeconds(gapWidth) })
+            : undefined
+        }
         onPointerEnter={() => onHoverAction(canCloseGap ? "close-gap" : null)}
         onClick={() => {
           if (!canCloseGap) return;
@@ -91,14 +88,11 @@ export const TrackGapContextMenu = memo(function TrackGapContextMenu({
           onClose();
         }}
       >
-        <span>Close gap</span>
-        {gapWidth != null && (
-          <span className="text-neutral-500 text-[10px] ml-3">{gapWidth.toFixed(2)}s</span>
-        )}
-      </button>
-      <button
-        type="button"
-        className={itemClass(canCloseAllGaps)}
+        {t("timeline.closeGap")}
+      </TimelineMenuItem>
+      <TimelineMenuItem
+        role="button"
+        icon="arrow"
         disabled={!canCloseAllGaps}
         title={closeAllTitle}
         onPointerEnter={() => onHoverAction(canCloseAllGaps ? "close-all" : null)}
@@ -108,9 +102,8 @@ export const TrackGapContextMenu = memo(function TrackGapContextMenu({
           onClose();
         }}
       >
-        <span>Close all gaps</span>
-      </button>
-    </div>,
-    document.body,
+        {t("timeline.closeAllGaps")}
+      </TimelineMenuItem>
+    </TimelineMenuSurface>
   );
 });

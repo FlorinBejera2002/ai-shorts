@@ -44,11 +44,14 @@ function renderCurves(value = IDENTITY) {
 }
 
 function activate(host: HTMLElement, key: string) {
-  act(() => {
-    host
-      .querySelector<HTMLButtonElement>(`[data-color-curve-tab="${key}"]`)
-      ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-  });
+  const trigger = host.querySelector<HTMLButtonElement>('[data-look-select="curve-channel"]');
+  if (!trigger) throw new Error("Expected the curve channel select");
+  if (!host.querySelector(`[data-color-curve-graph="${key}"]`)) {
+    act(() => trigger.dispatchEvent(new MouseEvent("click", { bubbles: true })));
+    const option = document.querySelector(`[data-look-option="${key}"]`);
+    if (!option) throw new Error(`Expected the ${key} channel option`);
+    act(() => option.dispatchEvent(new MouseEvent("click", { bubbles: true })));
+  }
   const graph = host.querySelector<SVGSVGElement>(`[data-color-curve-graph="${key}"]`);
   if (!graph) throw new Error(`Expected ${key} graph`);
   Object.defineProperty(graph, "getBoundingClientRect", {
@@ -58,9 +61,11 @@ function activate(host: HTMLElement, key: string) {
 }
 
 describe("ColorCurves", () => {
-  it("renders the four RGB and three hue-selective curve tabs", () => {
+  it("offers the four RGB and three hue-selective curve channels", () => {
     const { host, root } = renderCurves();
-    expect(host.querySelectorAll("[data-color-curve-tab]")).toHaveLength(7);
+    const trigger = host.querySelector('[data-look-select="curve-channel"]');
+    act(() => trigger?.dispatchEvent(new MouseEvent("click", { bubbles: true })));
+    expect(document.querySelectorAll("[data-look-option]")).toHaveLength(7);
     expect(host.querySelector('[data-color-curve-graph="master"]')).not.toBeNull();
     act(() => root.unmount());
   });

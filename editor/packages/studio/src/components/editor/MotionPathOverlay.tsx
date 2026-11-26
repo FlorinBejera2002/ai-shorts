@@ -7,7 +7,8 @@ import { parkPlayheadOnKeyframe } from "../../hooks/gsapDragCommit";
 import { commitWholePropertyOffset } from "../../hooks/gsapWholePropertyOffsetCommit";
 import { nearestPointOnPath, type MotionNodeRef } from "./motionPathGeometry";
 import { editableAnimationId, selectorFor } from "./motionPathSelection";
-import { ACCENT, MotionPathNode } from "./MotionPathNode";
+import { MotionPathNode } from "./MotionPathNode";
+
 import {
   KeyframeDiamondContextMenu,
   type KeyframeDiamondContextMenuState,
@@ -27,6 +28,9 @@ import {
   transformWDivisor,
   useMotionPathData,
 } from "./useMotionPathData";
+
+// Path lines read on any footage (St-Preview-MotionPath): white, like the rest of the canvas chrome.
+const PATH_STROKE = "white";
 
 interface MotionPathOverlayProps {
   iframeRef: RefObject<HTMLIFrameElement | null>;
@@ -175,6 +179,9 @@ export const MotionPathOverlay = memo(function MotionPathOverlay({
     // fallow-ignore-next-line complexity
     const onDown = (e: PointerEvent) => {
       if (e.button !== 0) return; // primary press only
+      // Studio chrome drawn over the canvas (the armed pill that disarms, its hint) is not a
+      // destination: a press there must reach the control, not place a path under it.
+      if (e.target instanceof Element && e.target.closest("[data-canvas-chrome]")) return;
       const frame = iframeRef.current;
       if (!frame || !hasMotionPathPlugin(frame)) return;
       const r = frame.getBoundingClientRect();
@@ -244,7 +251,7 @@ export const MotionPathOverlay = memo(function MotionPathOverlay({
           strokeWidth={1.5}
           strokeDasharray="3 3"
           vectorEffect="non-scaling-stroke"
-          style={{ stroke: ACCENT }}
+          style={{ stroke: PATH_STROKE }}
           opacity={0.85}
         />
       </svg>
@@ -517,7 +524,7 @@ export const MotionPathOverlay = memo(function MotionPathOverlay({
         <polyline
           points={points}
           fill="none"
-          style={{ stroke: ACCENT }}
+          style={{ stroke: PATH_STROKE }}
           strokeWidth={1.5}
           strokeDasharray="5 5"
           strokeLinejoin="round"
@@ -538,7 +545,7 @@ export const MotionPathOverlay = memo(function MotionPathOverlay({
             strokeDasharray="2 2"
             vectorEffect="non-scaling-stroke"
             className="pointer-events-none"
-            style={{ stroke: ACCENT }}
+            style={{ stroke: PATH_STROKE }}
           />
         )}
         {abs.map((p, i) => (

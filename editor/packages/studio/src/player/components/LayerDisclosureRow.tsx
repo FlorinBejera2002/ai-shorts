@@ -1,5 +1,7 @@
-import { TRACK_H } from "./timelineLayout";
+import { LABEL_COL_W, TRACK_H } from "./timelineLayout";
+import { t } from "../../i18n/translate";
 import { TrackClipCount } from "./TrackClipCount";
+import { TimelineIcon, type TimelineIconName } from "./TimelineIcon";
 
 // Layer row (diamond, name, then the ∿ disclosure on the right edge) — the
 // disclosure lives
@@ -33,12 +35,14 @@ export function LaneToggleButton({
       tabIndex={-1}
       aria-expanded={isExpanded}
       aria-controls={lanesId}
-      aria-label={`${isExpanded ? "Hide" : "Show"} ${name} lanes`}
-      title={`${isExpanded ? "Hide" : "Show"} lanes`}
+      aria-label={t(isExpanded ? "timeline.hideLanesFor" : "timeline.showLanesFor", {
+        label: name,
+      })}
+      title={t(isExpanded ? "timeline.hideLanes" : "timeline.showLanes")}
       // h-6 w-6 = the 24x24 WCAG 2.2 minimum target. The glyph stays 11px;
       // only the hit box grows.
-      className={`ml-auto flex h-6 w-6 shrink-0 items-center justify-center rounded border-0 bg-transparent p-0 text-[11px] leading-none focus-visible:outline focus-visible:outline-1 focus-visible:outline-[#3CE6AC] ${
-        isExpanded ? "text-[#3CE6AC]" : "text-white/55 hover:text-white"
+      className={`flex h-6 w-6 shrink-0 items-center justify-center rounded border-0 bg-transparent p-0 text-[11px] leading-none focus-visible:outline focus-visible:outline-1 focus-visible:outline-[var(--st-tx)] ${
+        isExpanded ? "text-[var(--st-tx)]" : "text-[var(--st-t2)] hover:text-[var(--st-tx)]"
       }`}
       onPointerDown={(event) => event.stopPropagation()}
       onClick={(event) => {
@@ -53,6 +57,9 @@ export function LaneToggleButton({
 
 export function LayerDisclosureRow({
   name,
+  label = name,
+  icon,
+  isHighlighted = false,
   clipCount,
   isExpanded,
   gutterBackground,
@@ -65,6 +72,12 @@ export function LayerDisclosureRow({
    *  track; the track itself once it holds several, since naming a shared row
    *  after one of its clips reads as if the rows under it were that clip's. */
   name: string;
+  /** The visible name. Defaults to `name`; a multi-clip track shows its kind (Video, Text). */
+  label?: string;
+  /** The track glyph, as on a plain header. */
+  icon: TimelineIconName;
+  /** The selection lives on this track: the name switches to primary text. */
+  isHighlighted?: boolean;
   clipCount: number;
   isExpanded: boolean;
   gutterBackground: string;
@@ -80,36 +93,63 @@ export function LayerDisclosureRow({
   /** Trailing controls that act on the LAYER (the visibility eye), not on a lane. */
   children?: React.ReactNode;
 }) {
+  if (columnWidth < LABEL_COL_W) {
+    // Phone column (St-M-Timeline-Keyframes): the track glyph alone, which is also the lane
+    // toggle, so the lanes stay reachable without a second control the column cannot fit.
+    return (
+      <div
+        className="absolute left-0 top-0 flex items-center justify-center"
+        style={{ width: columnWidth, height: TRACK_H, background: gutterBackground }}
+      >
+        <button
+          type="button"
+          tabIndex={-1}
+          aria-expanded={isExpanded}
+          aria-controls={lanesId}
+          aria-label={t(isExpanded ? "timeline.hideLanesFor" : "timeline.showLanesFor", {
+            label: name,
+          })}
+          title={label}
+          className="flex h-6 w-6 items-center justify-center rounded-full border-0 bg-transparent p-0"
+          style={{ color: isHighlighted || isExpanded ? "var(--st-tx)" : "var(--st-t2)" }}
+          onPointerDown={(event) => event.stopPropagation()}
+          onClick={(event) => {
+            event.stopPropagation();
+            onToggleClipExpanded();
+          }}
+        >
+          <TimelineIcon name={icon} size={14} />
+        </button>
+      </div>
+    );
+  }
+  // St-Timeline-Keyframes: the same two lines as a plain header (glyph, name, eye, then the
+  // clip count under the name), with the lane toggle holding the right edge. The 112px column
+  // cannot fit a wrapping name beside three controls, so the name truncates with a tooltip.
   return (
     <div
-      className="absolute left-0 top-0 flex items-center gap-1.5 overflow-hidden px-1.5 text-[11px]"
-      style={{
-        width: columnWidth,
-        height: TRACK_H,
-        color: "#ffffff",
-        background: gutterBackground,
-      }}
+      className="absolute left-0 top-0 flex flex-col justify-center gap-px overflow-hidden pr-1"
+      style={{ width: columnWidth, height: TRACK_H, background: gutterBackground }}
     >
-      {/* Decorative: the disclosure button above already names the row's keyframe
-          state, and aria-label on a plain span is not exposed reliably anyway. */}
-      <span aria-hidden="true" className="shrink-0 text-[13px] leading-none text-white/40">
-        ◇
-      </span>
-      {/* Wraps rather than truncating: a truncated name needs a hover to be
-          read, which a scanned column cannot rely on. */}
-      <span className="min-w-0 flex-1 break-words font-medium leading-tight">{name}</span>
-      <TrackClipCount clipCount={clipCount} />
-      {children}
-      {/* Anchored right, on every header that has one: the lane toggle is the
-          row's last word about itself, and a left-hand ∿ put it where the eye
-          looks for identity instead. `ml-auto` rather than a spacer so it holds
-          the edge whatever else the row grows. */}
-      <LaneToggleButton
-        name={name}
-        isExpanded={isExpanded}
-        lanesId={lanesId}
-        onToggle={onToggleClipExpanded}
-      />
+      <div
+        className="flex min-w-0 items-center gap-1.5 text-xs font-semibold"
+        style={{ color: isHighlighted ? "var(--st-tx)" : "var(--st-t2)" }}
+      >
+        <TimelineIcon name={icon} size={14} />
+        <span className="min-w-0 flex-1 truncate leading-tight" title={label}>
+          {label}
+        </span>
+        <div className="ml-auto flex shrink-0 items-center gap-0.5">
+          {children}
+          <LaneToggleButton
+            name={name}
+            isExpanded={isExpanded}
+            lanesId={lanesId}
+            onToggle={onToggleClipExpanded}
+          />
+        </div>
+      </div>
+      <TrackClipCount clipCount={clipCount} variant="line" />
     </div>
   );
 }

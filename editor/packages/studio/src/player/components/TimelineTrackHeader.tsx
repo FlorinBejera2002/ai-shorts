@@ -6,7 +6,14 @@ import {
 } from "@hyperframes/core/audio-fx";
 import { classifyAudioName } from "@hyperframes/core/audio-carve";
 import { usePlayerStore, type TimelineElement } from "../store/playerStore";
-import { VisibilityButton, PlainTrackHeader } from "./TimelineTrackPlainHeader";
+import {
+  VisibilityButton,
+  PlainTrackHeader,
+  trackKindIcon,
+  type TrackKind,
+} from "./TimelineTrackPlainHeader";
+import { t, useLocale } from "../../i18n/translate";
+import type { MessageKey } from "../../i18n/dictionary";
 import type { TimelineEditCallbacks } from "./timelineCallbacks";
 import { useTimelineEditContextOptional } from "../../contexts/TimelineEditContext";
 import { useDomEditActionsContextOptional } from "../../contexts/DomEditContext";
@@ -24,20 +31,35 @@ import { trackDisplaySuffix } from "./timelineTrackDisplay";
 import { AutomationLaneHeaderRow, PropertyGroupHeaderRow } from "./trackHeaderLabelRows";
 import { useMemo } from "react";
 
-/** Accent rail + inset marking a row as a group MEMBER, matching the level-2
- *  nesting its `aria-level` already reports. */
-const GROUP_MEMBER_RAIL = "#3CE6AC59";
-const GROUP_MEMBER_INDENT = 14;
-/** A hair lighter than `gutterBackground`, so a member row reads as sitting
- *  INSIDE its group rather than beside it. Overlaid rather than hard-coded so
- *  it tracks whatever the theme's gutter is. */
-const GROUP_MEMBER_TINT = "rgba(255,255,255,0.035)";
+/** Rail + inset marking a row as a group MEMBER (St-Timeline-Groups), matching the level-2
+ *  nesting its `aria-level` already reports. The rail is a neutral hairline and the fill
+ *  stays the card surface: the boards nest by indentation, never by a tinted row. */
+const GROUP_MEMBER_RAIL = "var(--st-bd)";
+const GROUP_MEMBER_INDENT = 12;
 
-/** The gutter fill for a row, tinted when it belongs to a group. */
-function gutterFill(base: string, isGroupMember: boolean): string {
-  return isGroupMember
-    ? `linear-gradient(${GROUP_MEMBER_TINT}, ${GROUP_MEMBER_TINT}), ${base}`
-    : base;
+/** The gutter fill for a row. Group members keep the same surface (no grey fills). */
+function gutterFill(base: string): string {
+  return base;
+}
+
+/** What a multi-clip track is called on the boards: Video, Audio, Text, Subtitrări. */
+const TRACK_KIND_NAME: Record<TrackKind, MessageKey> = {
+  media: "timeline.kindVideo",
+  audio: "timeline.kindAudio",
+  text: "timeline.kindText",
+  captions: "timeline.kindCaptions",
+};
+
+/** Header glyph for a track, from what its clips are. */
+function resolveTrackKind(elements: readonly TimelineElement[], isAudioTrack: boolean): TrackKind {
+  if (isAudioTrack) return "audio";
+  const first = elements[0];
+  if (!first) return "media";
+  const tag = first.tag.toLowerCase();
+  if (tag === "video" || tag === "img" || first.compositionSrc || first.sourceWindow) {
+    return "media";
+  }
+  return /caption|subtit/i.test(`${first.id} ${first.label ?? ""}`) ? "captions" : "text";
 }
 
 interface TimelineTrackHeaderProps {
@@ -107,6 +129,7 @@ export function TimelineTrackHeader({
   onSeek,
   rovingTargetId = null,
 }: TimelineTrackHeaderProps) {
+  useLocale();
   const clipPercentage = keyframeClip
     ? ((currentTime - keyframeClip.start) / keyframeClip.duration) * 100
     : 0;
@@ -164,6 +187,11 @@ export function TimelineTrackHeader({
     [groupAutomationRaw, groupFxChainRaw, groupOwner],
   );
   const revealAudioFx = usePlayerStore((s) => s.setRevealedAudioFxTarget);
+  const selectedElementId = usePlayerStore((s) => s.selectedElementId);
+  const trackKind = resolveTrackKind(trackElements, isAudioTrack);
+  const isTrackSelected = trackElements.some(
+    (element) => (element.key ?? element.id) === selectedElementId,
+  );
   /**
    * Which element's rack a lane's reveal opens, in the PANEL's id space.
    *
@@ -209,7 +237,7 @@ export function TimelineTrackHeader({
   // slice's. Shared by both layouts so the name cannot change with the layout.
   const laneOwnerName =
     clipCount > 1
-      ? `Track${trackDisplaySuffix(trackDisplayNumber)}`
+      ? t("timeline.track", { suffix: trackDisplaySuffix(trackDisplayNumber) })
       : (keyframeClip?.label ?? keyframeClip?.domId ?? keyframeClip?.id ?? trackLabel);
 
   // C1: the FX entry point. A single audio clip has one chain to point at; a
@@ -230,7 +258,13 @@ export function TimelineTrackHeader({
   const writeClipFxChain = (clip: TimelineElement, next: HfAudioFxChain, live: boolean) => {
     const value = next.nodes.length ? serializeAudioFxChain(next) : null;
     if (live) onSetElementAttributeLive?.(clip, HF_AUDIO_FX_ATTR, value);
-    else void onSetElementAttributeQuiet?.(clip, HF_AUDIO_FX_ATTR, value, "Apply preset");
+    else
+      void onSetElementAttributeQuiet?.(
+        clip,
+        HF_AUDIO_FX_ATTR,
+        value,
+        t("timeline.histApplyPreset"),
+      );
   };
   const openClipFxRack = (clip: TimelineElement) => {
     void domEditActions?.handleTimelineElementSelect(clip);
@@ -262,8 +296,7 @@ export function TimelineTrackHeader({
       className="sticky left-0 z-[12] shrink-0"
       style={{
         width: showTrackLabel ? LABEL_COL_W : contentOrigin,
-        background: gutterFill(theme.gutterBackground, isGroupMember),
-        borderRight: `1px solid ${theme.gutterBorder}`,
+        background: gutterFill(theme.gutterBackground),
         // A group's member rows are `aria-level="2"`, and until this they read
         // as level 2 to a screen reader while looking identical to every
         // top-level row on screen. The rail is the accent-tinted left border
@@ -272,7 +305,9 @@ export function TimelineTrackHeader({
         // gutter's own edge.
         ...(isGroupMember
           ? {
-              borderLeft: `2px solid ${GROUP_MEMBER_RAIL}`,
+              borderLeftWidth: 2,
+              borderLeftStyle: "solid",
+              borderLeftColor: GROUP_MEMBER_RAIL,
               paddingLeft: GROUP_MEMBER_INDENT,
             }
           : {}),
@@ -288,7 +323,7 @@ export function TimelineTrackHeader({
           <div
             className={
               showTrackLabel
-                ? "flex flex-col justify-center gap-0.5 px-1.5 text-white/55"
+                ? "flex flex-col justify-center gap-0.5 pr-1"
                 : "flex flex-col items-center justify-center gap-0.5"
             }
             style={{ height: TRACK_H }}
@@ -296,7 +331,9 @@ export function TimelineTrackHeader({
             <PlainTrackHeader
               trackNumber={trackNumber}
               trackDisplayNumber={trackDisplayNumber}
-              trackLabel={trackLabel}
+              trackLabel={clipCount > 1 ? t(TRACK_KIND_NAME[trackKind]) : trackLabel}
+              trackKind={trackKind}
+              isHighlighted={isTrackSelected}
               clipCount={clipCount}
               showTrackLabel={showTrackLabel}
               isTrackHidden={isTrackHidden}
@@ -337,11 +374,7 @@ export function TimelineTrackHeader({
                         // Groups are audio-only in v1 (§1.4). A video track showing no
                         // button at all is the silent limit §5 forbids, so it gets the
                         // button and a reason instead.
-                        refusal={
-                          isAudioTrack
-                            ? undefined
-                            : "Video audio can't be grouped yet — only audio clips can join a group."
-                        }
+                        refusal={isAudioTrack ? undefined : t("timeline.groupVideoRefusal")}
                         onGroupClips={groupUngroupedClips}
                       />
                     )}
@@ -364,9 +397,12 @@ export function TimelineTrackHeader({
         <>
           <LayerDisclosureRow
             name={laneOwnerName}
+            label={clipCount > 1 ? t(TRACK_KIND_NAME[trackKind]) : laneOwnerName}
+            icon={trackKindIcon(trackKind)}
+            isHighlighted={isTrackSelected}
             clipCount={clipCount}
             isExpanded={isExpanded}
-            gutterBackground={gutterFill(theme.gutterBackground, isGroupMember)}
+            gutterBackground={gutterFill(theme.gutterBackground)}
             columnWidth={showTrackLabel ? LABEL_COL_W : contentOrigin}
             lanesId={lanesId}
             onToggleClipExpanded={onToggleClipExpanded}
@@ -407,7 +443,7 @@ export function TimelineTrackHeader({
             expandedElement={keyframeClip}
             currentTime={currentTime}
             clipPercentage={clipPercentage}
-            gutterBackground={gutterFill(theme.gutterBackground, isGroupMember)}
+            gutterBackground={gutterFill(theme.gutterBackground)}
             columnWidth={showTrackLabel ? LABEL_COL_W : contentOrigin}
             onTogglePropertyGroupKeyframe={onTogglePropertyGroupKeyframe}
             onSeek={onSeek}
@@ -434,7 +470,7 @@ export function TimelineTrackHeader({
               }
               top={getTimelineLaneTop(lanes.length) + index * AUTOMATION_LANE_H}
               isLastLane={index === automationRows.length - 1}
-              gutterBackground={gutterFill(theme.gutterBackground, isGroupMember)}
+              gutterBackground={gutterFill(theme.gutterBackground)}
               columnWidth={showTrackLabel ? LABEL_COL_W : contentOrigin}
               onRemove={onRemoveAutomationLane}
               isCarve={row.isCarve}

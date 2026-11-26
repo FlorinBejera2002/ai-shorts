@@ -1,15 +1,8 @@
+// File tree rows and menus for the Avansat › Cod panel (St-Shell-Code, St-Shell-CodeMenu):
+// 32px rows with a 10px radius, folders in semibold with a chevron, the selected file filled
+// with the selected token, lint counts as warning tags, and a popover menu.
 import { memo, useState, useCallback, useMemo, useRef, useEffect } from "react";
 import {
-  PencilSimple,
-  Copy,
-  Trash,
-  FilePlus,
-  FolderSimplePlus,
-  FolderSimple,
-} from "@phosphor-icons/react";
-import { ChevronDown, ChevronRight } from "../../icons/SystemIcons";
-import {
-  FileIcon,
   buildTree as _buildTree,
   sortChildren,
   isActiveInSubtree,
@@ -17,13 +10,24 @@ import {
   type ContextMenuState,
   type InlineInputState,
 } from "./FileTreeIcons";
+import { t, useLocale } from "../../i18n/translate";
+import { PanelIcon, type PanelIconName } from "../sidebar/panelIcons";
+import { CountBadge } from "../sidebar/panelKit";
+import { MENU_ITEM_CLASS, POPOVER_CLASS, renameError } from "../sidebar/RenamePopover";
 
 export type { ContextMenuState, InlineInputState };
 export { buildTree, sortChildren, isActiveInSubtree } from "./FileTreeIcons";
+void _buildTree;
 
-const SZ_ICON = 14;
+const FILE_PAD = 26;
+const FOLDER_PAD = 8;
+const DEPTH_STEP = 14;
 
-// ── Context Menu Component ──
+function lintLabel(count: number): string {
+  return count === 1 ? t("code.lintCountOne") : t("code.lintCount", { n: count });
+}
+
+// ── Context menu ──
 
 export function ContextMenu({
   state,
@@ -42,19 +46,15 @@ export function ContextMenu({
   onDuplicate: (path: string) => void;
   onDelete: (path: string) => void;
 }) {
+  useLocale();
   const menuRef = useRef<HTMLDivElement>(null);
-  const restoreFocusRef = useRef<HTMLElement | null>(null);
 
   // eslint-disable-next-line no-restricted-syntax
   useEffect(() => {
-    restoreFocusRef.current =
-      document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    const firstItem = menuRef.current?.querySelector("button");
-    if (firstItem instanceof HTMLElement) firstItem.focus();
+    const restore = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    menuRef.current?.querySelector<HTMLButtonElement>("button")?.focus();
     const handleClickOutside = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        onClose();
-      }
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) onClose();
     };
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
@@ -64,129 +64,69 @@ export function ContextMenu({
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
       document.removeEventListener("keydown", handleEscape);
-      restoreFocusRef.current?.focus();
+      restore?.focus();
     };
   }, [onClose]);
 
   const handleMenuKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key !== "ArrowDown" && e.key !== "ArrowUp" && e.key !== "Home" && e.key !== "End") {
-      return;
-    }
-    const menu = menuRef.current;
-    if (!menu) return;
-    e.preventDefault();
-    const items = Array.from(menu.querySelectorAll("button"));
+    if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(e.key)) return;
+    const items = Array.from(menuRef.current?.querySelectorAll("button") ?? []);
     if (items.length === 0) return;
+    e.preventDefault();
     const current = items.indexOf(document.activeElement as HTMLButtonElement);
     let next = 0;
     if (e.key === "ArrowDown") next = current < 0 ? 0 : (current + 1) % items.length;
-    else if (e.key === "ArrowUp") {
-      next = current < 0 ? items.length - 1 : (current - 1 + items.length) % items.length;
-    } else if (e.key === "End") next = items.length - 1;
+    else if (e.key === "ArrowUp") next = current <= 0 ? items.length - 1 : current - 1;
+    else if (e.key === "End") next = items.length - 1;
     items[next]?.focus();
   };
-
-  const adjustedX = Math.min(state.x, window.innerWidth - 180);
-  const adjustedY = Math.min(state.y, window.innerHeight - 200);
 
   const parentPath = state.targetIsFolder
     ? state.targetPath
     : state.targetPath.includes("/")
       ? state.targetPath.slice(0, state.targetPath.lastIndexOf("/"))
       : "";
+  const isRoot = state.targetPath === "";
+  const item = (icon: PanelIconName, label: string, run: () => void, danger = false) => (
+    <button
+      type="button"
+      role="menuitem"
+      className={`${MENU_ITEM_CLASS} ${danger ? "text-[var(--st-danger)]" : ""}`}
+      onClick={() => {
+        run();
+        onClose();
+      }}
+    >
+      <PanelIcon name={icon} />
+      {label}
+    </button>
+  );
 
   return (
     <div
       ref={menuRef}
       role="menu"
       onKeyDown={handleMenuKeyDown}
-      className="fixed z-50 bg-neutral-900 border border-neutral-700 rounded-md shadow-lg py-1 min-w-[160px]"
-      style={{ left: adjustedX, top: adjustedY }}
+      className={`fixed z-[200] flex min-w-[200px] flex-col p-1.5 ${POPOVER_CLASS}`}
+      style={{
+        left: Math.min(state.x, window.innerWidth - 216),
+        top: Math.min(state.y, window.innerHeight - 220),
+      }}
     >
-      {state.targetIsFolder && (
-        <>
-          <button
-            role="menuitem"
-            className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-neutral-300 hover:bg-neutral-800 focus-visible:bg-neutral-800 active:bg-neutral-700 outline-none cursor-pointer text-left"
-            onClick={() => {
-              onNewFile(state.targetPath);
-              onClose();
-            }}
-          >
-            <FilePlus size={12} weight="duotone" className="text-neutral-500" />
-            New File
-          </button>
-          <button
-            role="menuitem"
-            className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-neutral-300 hover:bg-neutral-800 focus-visible:bg-neutral-800 active:bg-neutral-700 outline-none cursor-pointer text-left"
-            onClick={() => {
-              onNewFolder(state.targetPath);
-              onClose();
-            }}
-          >
-            <FolderSimplePlus size={12} weight="duotone" className="text-neutral-500" />
-            New Folder
-          </button>
-          <div className="border-t border-neutral-700 my-1" />
-        </>
-      )}
-      {!state.targetIsFolder && (
-        <>
-          <button
-            role="menuitem"
-            className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-neutral-300 hover:bg-neutral-800 focus-visible:bg-neutral-800 active:bg-neutral-700 outline-none cursor-pointer text-left"
-            onClick={() => {
-              onNewFile(parentPath);
-              onClose();
-            }}
-          >
-            <FilePlus size={12} weight="duotone" className="text-neutral-500" />
-            New File
-          </button>
-          <div className="border-t border-neutral-700 my-1" />
-        </>
-      )}
-      <button
-        role="menuitem"
-        className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-neutral-300 hover:bg-neutral-800 focus-visible:bg-neutral-800 active:bg-neutral-700 outline-none cursor-pointer text-left"
-        onClick={() => {
-          onRename(state.targetPath);
-          onClose();
-        }}
-      >
-        <PencilSimple size={12} weight="duotone" className="text-neutral-500" />
-        Rename
-      </button>
-      {!state.targetIsFolder && (
-        <button
-          role="menuitem"
-          className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-neutral-300 hover:bg-neutral-800 focus-visible:bg-neutral-800 active:bg-neutral-700 outline-none cursor-pointer text-left"
-          onClick={() => {
-            onDuplicate(state.targetPath);
-            onClose();
-          }}
-        >
-          <Copy size={12} weight="duotone" className="text-neutral-500" />
-          Duplicate
-        </button>
-      )}
-      <div className="border-t border-neutral-700 my-1" />
-      <button
-        role="menuitem"
-        className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-red-400 hover:bg-red-900/30 focus-visible:bg-red-900/30 active:bg-red-900/50 outline-none cursor-pointer text-left"
-        onClick={() => {
-          onDelete(state.targetPath);
-          onClose();
-        }}
-      >
-        <Trash size={12} weight="duotone" />
-        Delete
-      </button>
+      {item("fileNew", t("code.newFile"), () => onNewFile(parentPath))}
+      {state.targetIsFolder
+        ? item("folderNew", t("code.newFolder"), () => onNewFolder(parentPath))
+        : null}
+      {!isRoot ? item("pencil", t("code.rename"), () => onRename(state.targetPath)) : null}
+      {!isRoot && !state.targetIsFolder
+        ? item("copy", t("code.duplicate"), () => onDuplicate(state.targetPath))
+        : null}
+      {!isRoot ? item("trash", t("common.delete"), () => onDelete(state.targetPath), true) : null}
     </div>
   );
 }
 
-// ── Inline Input (for new file/folder/rename) ──
+// ── Inline input (new file / new folder) ──
 
 export function InlineInput({
   defaultValue,
@@ -201,28 +141,20 @@ export function InlineInput({
   onCommit: (value: string) => void;
   onCancel: () => void;
 }) {
+  useLocale();
   const inputRef = useRef<HTMLInputElement>(null);
   const committedRef = useRef(false);
   const [value, setValue] = useState(defaultValue);
-  const [error, setError] = useState<string | null>(null);
-
-  const validate = (name: string): string | null => {
-    if (/[/\\]/.test(name)) return "Name can't contain / or \\";
-    if (name.includes("..")) return "Name can't contain ..";
-    return null;
-  };
+  const [error, setError] = useState<ReturnType<typeof renameError>>(null);
 
   // eslint-disable-next-line no-restricted-syntax
   useEffect(() => {
     const el = inputRef.current;
     if (!el) return;
     el.focus();
-    if (defaultValue && defaultValue.includes(".")) {
-      const dotIdx = defaultValue.lastIndexOf(".");
-      el.setSelectionRange(0, dotIdx);
-    } else {
-      el.select();
-    }
+    const dot = defaultValue.lastIndexOf(".");
+    if (dot > 0) el.setSelectionRange(0, dot);
+    else el.select();
   }, [defaultValue]);
 
   const commit = (name: string) => {
@@ -239,7 +171,7 @@ export function InlineInput({
         onCancel();
         return;
       }
-      const invalid = validate(trimmed);
+      const invalid = renameError(trimmed);
       if (invalid) {
         setError(invalid);
         return;
@@ -253,24 +185,23 @@ export function InlineInput({
 
   const handleBlur = () => {
     const trimmed = value.trim();
-    if (trimmed && trimmed !== defaultValue && !validate(trimmed)) commit(trimmed);
+    if (trimmed && trimmed !== defaultValue && !renameError(trimmed)) commit(trimmed);
     else onCancel();
   };
 
   return (
     <div
-      className="flex items-center gap-2 py-0.5 min-h-7"
-      style={{ paddingLeft: `${8 + depth * 12 + (isFolder ? 0 : 14)}px` }}
+      className="flex min-h-8 items-start gap-2 py-0.5 pr-2"
+      style={{ paddingLeft: (isFolder ? FOLDER_PAD : FILE_PAD) + depth * DEPTH_STEP }}
     >
-      {isFolder ? (
-        <FolderSimple size={SZ_ICON} weight="duotone" color="#6B7280" className="flex-shrink-0" />
-      ) : (
-        <FileIcon path={value} />
-      )}
-      <div className="flex-1 min-w-0">
+      <span className="mt-2 flex text-[var(--st-t2)]">
+        <PanelIcon name={isFolder ? "folder" : "file"} />
+      </span>
+      <div className="min-w-0 flex-1">
         <input
           ref={inputRef}
           value={value}
+          aria-label={isFolder ? t("code.newFolder") : t("code.newFile")}
           onChange={(e) => {
             setValue(e.target.value);
             if (error) setError(null);
@@ -278,88 +209,35 @@ export function InlineInput({
           onKeyDown={handleKeyDown}
           onBlur={handleBlur}
           aria-invalid={error ? true : undefined}
-          className={`w-full min-w-0 bg-neutral-800 text-neutral-200 text-xs px-1.5 py-0.5 rounded border outline-none ${
-            error ? "border-red-500/70" : "border-neutral-600 focus:border-[#3CE6AC]"
-          }`}
           spellCheck={false}
+          className={`h-8 w-full min-w-0 rounded-sm bg-studio-surface px-2.5 text-[13px] text-studio-text outline-none ${
+            error
+              ? "shadow-[inset_0_0_0_1.5px_var(--st-danger)]"
+              : "shadow-[inset_0_0_0_1.5px_var(--st-sbd)] focus:shadow-[inset_0_0_0_1.5px_var(--st-tx)]"
+          }`}
         />
-        {error && (
-          <div className="mt-0.5 text-[10px] text-red-400" role="alert">
-            {error}
+        {error ? (
+          <div role="alert" className="mt-1 text-xs font-medium text-[var(--st-danger)]">
+            {t(error)}
           </div>
-        )}
+        ) : null}
       </div>
     </div>
   );
 }
 
-// ── Delete Confirmation ──
+// ── Rows ──
 
-export function DeleteConfirm({
-  name,
-  isFolder,
-  onConfirm,
-  onCancel,
-}: {
-  name: string;
-  isFolder?: boolean;
-  onConfirm: () => void;
-  onCancel: () => void;
-}) {
-  const ref = useRef<HTMLDivElement>(null);
+const ROW_CLASS =
+  "flex h-8 w-full min-w-0 items-center gap-2 rounded-[10px] pr-2 text-left text-[13px] outline-none transition-colors focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--st-btn)]";
 
-  // eslint-disable-next-line no-restricted-syntax
-  useEffect(() => {
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onCancel();
-    };
-    const handleClickOutside = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) onCancel();
-    };
-    document.addEventListener("keydown", handleEscape);
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("keydown", handleEscape);
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [onCancel]);
-
-  return (
-    <div
-      ref={ref}
-      className="mx-1 my-0.5 p-2 bg-neutral-800 border border-neutral-700 rounded-md text-xs"
-    >
-      <p className="text-neutral-300 mb-2">
-        {isFolder ? (
-          <>
-            Delete folder <span className="font-medium text-neutral-100">{name}</span> and
-            everything inside it?
-          </>
-        ) : (
-          <>
-            Delete <span className="font-medium text-neutral-100">{name}</span>?
-          </>
-        )}
-      </p>
-      <div className="flex gap-1.5">
-        <button
-          onClick={onCancel}
-          className="flex-1 px-2 py-1 rounded bg-neutral-700 text-neutral-300 hover:bg-neutral-600 transition-colors"
-        >
-          Cancel
-        </button>
-        <button
-          onClick={onConfirm}
-          className="flex-1 px-2 py-1 rounded bg-red-900/60 text-red-300 hover:bg-red-800/60 transition-colors"
-        >
-          Delete
-        </button>
-      </div>
-    </div>
-  );
+interface RowCallbacks {
+  activeFile: string | null;
+  onSelectFile: (path: string) => void;
+  onContextMenu: (pos: { x: number; y: number }, path: string, isFolder: boolean) => void;
+  inlineInput: InlineInputState | null;
+  onDragStart: (e: React.DragEvent, path: string) => void;
 }
-
-// ── TreeFile ──
 
 export const TreeFile = memo(function TreeFile({
   node,
@@ -367,69 +245,51 @@ export const TreeFile = memo(function TreeFile({
   activeFile,
   onSelectFile,
   onContextMenu,
-  inlineInput,
   onDragStart,
   lintInfo,
-}: {
+}: RowCallbacks & {
   node: TreeNode;
   depth: number;
-  activeFile: string | null;
-  onSelectFile: (path: string) => void;
-  onContextMenu: (e: React.MouseEvent, path: string, isFolder: boolean) => void;
-  inlineInput: InlineInputState | null;
-  onDragStart: (e: React.DragEvent, path: string) => void;
   lintInfo?: { count: number; messages: string[] };
 }) {
   const isActive = node.fullPath === activeFile;
-  const isRenaming = inlineInput?.mode === "rename" && inlineInput.originalPath === node.fullPath;
-
-  if (isRenaming) {
-    return (
-      <InlineInput
-        defaultValue={inlineInput.originalName ?? node.name}
-        depth={depth}
-        isFolder={false}
-        onCommit={(name) => {
-          inlineInput?.onCommit?.(name);
-        }}
-        onCancel={() => {
-          inlineInput?.onCancel?.();
-        }}
-      />
-    );
-  }
-
   return (
     <button
+      type="button"
+      role="treeitem"
+      aria-selected={isActive}
+      data-tree-path={node.fullPath}
       draggable
       onDragStart={(e) => onDragStart(e, node.fullPath)}
       onClick={() => onSelectFile(node.fullPath)}
       onContextMenu={(e) => {
         e.preventDefault();
-        onContextMenu(e, node.fullPath, false);
+        onContextMenu({ x: e.clientX, y: e.clientY }, node.fullPath, false);
       }}
-      className={`w-full flex items-center gap-2 py-1 min-h-7 text-left transition-all text-xs ${
+      onKeyDown={(e) => {
+        if (e.key === "ContextMenu" || (e.key === "F10" && e.shiftKey)) {
+          e.preventDefault();
+          const r = e.currentTarget.getBoundingClientRect();
+          onContextMenu({ x: r.left + 24, y: r.bottom }, node.fullPath, false);
+        }
+      }}
+      className={`${ROW_CLASS} font-medium ${
         isActive
-          ? "bg-neutral-800/60 text-neutral-200"
-          : "text-neutral-500 hover:bg-neutral-800/30 hover:text-neutral-300"
+          ? "bg-studio-selected text-studio-on-selected"
+          : "text-studio-text hover:bg-[var(--st-sub)]"
       }`}
-      style={{ paddingLeft: `${8 + depth * 12 + 14}px` }}
+      style={{ paddingLeft: FILE_PAD + depth * DEPTH_STEP }}
     >
-      <FileIcon path={node.name} />
-      <span className="truncate flex-1">{node.name}</span>
-      {lintInfo && lintInfo.count > 0 && (
-        <span
-          className="flex-shrink-0 min-w-[16px] rounded-full bg-amber-500/20 px-1 text-[8px] font-bold text-amber-400 text-center mr-1"
-          title={lintInfo.messages.join("\n")}
-        >
-          {lintInfo.count}
+      <PanelIcon name="file" />
+      <span className="min-w-0 flex-1 truncate">{node.name}</span>
+      {lintInfo && lintInfo.count > 0 ? (
+        <span title={lintInfo.messages.join("\n")} className="flex">
+          <CountBadge count={lintInfo.count} label={lintLabel(lintInfo.count)} />
         </span>
-      )}
+      ) : null}
     </button>
   );
 });
-
-// ── TreeFolder ──
 
 export const TreeFolder = memo(function TreeFolder({
   node,
@@ -445,53 +305,37 @@ export const TreeFolder = memo(function TreeFolder({
   onDragLeave,
   dragOverFolder,
   lintFindingsByFile,
-}: {
+  menuTarget,
+}: RowCallbacks & {
   node: TreeNode;
   depth: number;
-  activeFile: string | null;
-  onSelectFile: (path: string) => void;
   defaultOpen: boolean;
-  onContextMenu: (e: React.MouseEvent, path: string, isFolder: boolean) => void;
-  inlineInput: InlineInputState | null;
-  onDragStart: (e: React.DragEvent, path: string) => void;
   onDragOver: (e: React.DragEvent, folderPath: string) => void;
   onDrop: (e: React.DragEvent, folderPath: string) => void;
   onDragLeave: () => void;
   dragOverFolder: string | null;
   lintFindingsByFile?: Map<string, { count: number; messages: string[] }>;
+  menuTarget?: string | null;
 }) {
   const [isOpen, setIsOpen] = useState(defaultOpen);
   const toggle = useCallback(() => setIsOpen((v) => !v), []);
   const children = useMemo(() => sortChildren(node.children), [node.children]);
-  const Chevron = isOpen ? ChevronDown : ChevronRight;
-  const isDragOver = dragOverFolder === node.fullPath;
-  const isRenaming = inlineInput?.mode === "rename" && inlineInput.originalPath === node.fullPath;
-
-  if (isRenaming) {
-    return (
-      <InlineInput
-        defaultValue={inlineInput.originalName ?? node.name}
-        depth={depth}
-        isFolder={true}
-        onCommit={(name) => {
-          inlineInput?.onCommit?.(name);
-        }}
-        onCancel={() => {
-          inlineInput?.onCancel?.();
-        }}
-      />
-    );
-  }
+  const highlighted = dragOverFolder === node.fullPath || menuTarget === node.fullPath;
+  const shared = { activeFile, onSelectFile, onContextMenu, inlineInput, onDragStart };
 
   return (
     <>
       <button
+        type="button"
+        role="treeitem"
+        aria-expanded={isOpen}
+        data-tree-path={node.fullPath}
         draggable
         onDragStart={(e) => onDragStart(e, node.fullPath)}
         onClick={toggle}
         onContextMenu={(e) => {
           e.preventDefault();
-          onContextMenu(e, node.fullPath, true);
+          onContextMenu({ x: e.clientX, y: e.clientY }, node.fullPath, true);
         }}
         onDragOver={(e) => {
           e.preventDefault();
@@ -504,16 +348,19 @@ export const TreeFolder = memo(function TreeFolder({
           onDrop(e, node.fullPath);
         }}
         onDragLeave={onDragLeave}
-        className={`w-full flex items-center gap-1.5 px-2.5 py-1 min-h-7 text-left text-xs text-neutral-400 hover:bg-neutral-800/30 hover:text-neutral-300 transition-colors ${
-          isDragOver ? "bg-[#3CE6AC]/10 outline outline-1 outline-[#3CE6AC]/40" : ""
+        className={`${ROW_CLASS} font-semibold ${
+          highlighted
+            ? "bg-studio-selected text-studio-on-selected"
+            : "text-studio-text hover:bg-[var(--st-sub)]"
         }`}
-        style={{ paddingLeft: `${8 + depth * 12}px` }}
+        style={{ paddingLeft: FOLDER_PAD + depth * DEPTH_STEP }}
       >
-        <Chevron size={10} className="flex-shrink-0 text-neutral-600" />
-        <span className="truncate font-medium">{node.name}</span>
+        <PanelIcon name={isOpen ? "chevronDown" : "chevronRight"} size={14} />
+        <PanelIcon name="folder" />
+        <span className="min-w-0 flex-1 truncate">{node.name}</span>
       </button>
       {isOpen && (
-        <>
+        <div role="group" className="flex flex-col gap-0.5">
           {inlineInput &&
             (inlineInput.mode === "new-file" || inlineInput.mode === "new-folder") &&
             inlineInput.parentPath === node.fullPath && (
@@ -521,59 +368,36 @@ export const TreeFolder = memo(function TreeFolder({
                 defaultValue=""
                 depth={depth + 1}
                 isFolder={inlineInput.mode === "new-folder"}
-                onCommit={(name) => {
-                  inlineInput?.onCommit?.(name);
-                }}
-                onCancel={() => {
-                  inlineInput?.onCancel?.();
-                }}
+                onCommit={(name) => inlineInput.onCommit?.(name)}
+                onCancel={() => inlineInput.onCancel?.()}
               />
             )}
           {children.map((child) =>
-            child.isFile && child.children.size === 0 ? (
-              <TreeFile
-                key={child.fullPath}
-                node={child}
-                depth={depth + 1}
-                activeFile={activeFile}
-                onSelectFile={onSelectFile}
-                onContextMenu={onContextMenu}
-                inlineInput={inlineInput}
-                onDragStart={onDragStart}
-                lintInfo={lintFindingsByFile?.get(child.fullPath)}
-              />
-            ) : child.children.size > 0 ? (
+            child.children.size > 0 ? (
               <TreeFolder
                 key={child.fullPath}
                 node={child}
                 depth={depth + 1}
-                activeFile={activeFile}
-                onSelectFile={onSelectFile}
+                {...shared}
                 defaultOpen={isActiveInSubtree(child, activeFile)}
-                onContextMenu={onContextMenu}
-                inlineInput={inlineInput}
-                onDragStart={onDragStart}
                 onDragOver={onDragOver}
                 onDrop={onDrop}
                 onDragLeave={onDragLeave}
                 dragOverFolder={dragOverFolder}
                 lintFindingsByFile={lintFindingsByFile}
+                menuTarget={menuTarget}
               />
             ) : (
               <TreeFile
                 key={child.fullPath}
                 node={child}
                 depth={depth + 1}
-                activeFile={activeFile}
-                onSelectFile={onSelectFile}
-                onContextMenu={onContextMenu}
-                inlineInput={inlineInput}
-                onDragStart={onDragStart}
+                {...shared}
                 lintInfo={lintFindingsByFile?.get(child.fullPath)}
               />
             ),
           )}
-        </>
+        </div>
       )}
     </>
   );

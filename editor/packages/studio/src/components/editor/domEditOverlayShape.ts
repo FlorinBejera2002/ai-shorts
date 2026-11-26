@@ -1,3 +1,4 @@
+import { SELECTION_OUTLINE, SELECTION_OUTLINE_INSET } from "./canvasChromeStyles";
 import type { DomEditSelection } from "./domEditing";
 
 export interface DomEditSelectionShapeStyles {
@@ -34,6 +35,6 @@ export function readDomEditSelectionShapeStyles(
  *  shadow for clip-mirrored shapes, plain border otherwise. */
 export function resolveBoxChromeClass(hasCropOutline: boolean, boxClipPath?: string): string {
   if (hasCropOutline) return "";
-  if (boxClipPath) return "shadow-[inset_0_0_0_2px_rgba(60,230,172,0.6)]";
-  return "border border-studio-accent/80 shadow-[0_0_0_1px_rgba(60,230,172,0.25)]";
+  if (boxClipPath) return SELECTION_OUTLINE_INSET;
+  return SELECTION_OUTLINE;
 }

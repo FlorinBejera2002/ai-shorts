@@ -1,4 +1,7 @@
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { CROP_BAR, CROP_SHADE } from "./canvasChromeStyles";
+import { PreviewIcon } from "../nle/preview/previewChrome";
+import { t } from "../../i18n/translate";
 import type { DomEditSelection } from "./domEditing";
 import type { OverlayRect } from "./domEditOverlayGeometry";
 import {
@@ -288,7 +291,7 @@ export function DomEditCropHandles({
               top: cropRect.top,
               width: cropRect.width,
               height: cropRect.height,
-              boxShadow: "0 0 0 100000px rgba(8, 8, 12, 0.6)",
+              boxShadow: `0 0 0 100000px ${CROP_SHADE}`,
             }}
           />
         </div>
@@ -297,7 +300,7 @@ export function DomEditCropHandles({
           shown while dragging. */}
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute border border-dashed border-studio-accent"
+        className="pointer-events-none absolute rounded-[2px] border-2 border-white"
         style={{
           left: cropRect.left,
           top: cropRect.top,
@@ -307,10 +310,10 @@ export function DomEditCropHandles({
       >
         {dragging && (
           <>
-            <div className="absolute inset-y-0 left-1/3 w-px bg-studio-accent/40" />
-            <div className="absolute inset-y-0 left-2/3 w-px bg-studio-accent/40" />
-            <div className="absolute inset-x-0 top-1/3 h-px bg-studio-accent/40" />
-            <div className="absolute inset-x-0 top-2/3 h-px bg-studio-accent/40" />
+            <div className="absolute inset-y-0 left-1/3 w-px bg-[color-mix(in_srgb,white_45%,transparent)]" />
+            <div className="absolute inset-y-0 left-2/3 w-px bg-[color-mix(in_srgb,white_45%,transparent)]" />
+            <div className="absolute inset-x-0 top-1/3 h-px bg-[color-mix(in_srgb,white_45%,transparent)]" />
+            <div className="absolute inset-x-0 top-2/3 h-px bg-[color-mix(in_srgb,white_45%,transparent)]" />
           </>
         )}
       </div>
@@ -320,15 +323,15 @@ export function DomEditCropHandles({
       {hasCrop && (
         <button
           type="button"
-          aria-label="Reposition crop"
-          title="Reposition crop"
+          aria-label={t("preview.repositionCrop")}
+          title={t("preview.repositionCrop")}
           data-dom-edit-crop-handle="true"
-          className="pointer-events-auto absolute rounded-full border-2 border-studio-accent bg-studio-accent/30 shadow-[0_0_0_1px_rgba(0,0,0,0.4)]"
+          className="pointer-events-auto absolute flex items-center justify-center rounded-full bg-[color-mix(in_srgb,black_45%,transparent)] text-white"
           style={{
             left: cropRect.left + cropRect.width / 2,
             top: cropRect.top + cropRect.height / 2,
-            width: 22,
-            height: 22,
+            width: 32,
+            height: 32,
             transform: "translate(-50%, -50%)",
             cursor: "move",
             touchAction: "none",
@@ -337,7 +340,9 @@ export function DomEditCropHandles({
           onPointerMove={updateCropGesture}
           onPointerUp={finishCropGesture}
           onPointerCancel={cancelCropGesture}
-        />
+        >
+          <PreviewIcon name="crop" size={14} />
+        </button>
       )}
       {/* Edge handles — drag a side to crop it. Positioned just OUTSIDE the crop
           edge (via edgeHandlePlacement) so they never overlap the element body:
@@ -355,7 +360,7 @@ export function DomEditCropHandles({
             key={edge}
             type="button"
             aria-label={`Crop ${edge}`}
-            title="Crop"
+            title={t("preview.crop")}
             data-dom-edit-crop-handle="true"
             className="pointer-events-auto absolute flex items-center justify-center border-0 bg-transparent p-0"
             style={{
@@ -375,7 +380,7 @@ export function DomEditCropHandles({
             onPointerCancel={cancelCropGesture}
           >
             <span
-              className="pointer-events-none rounded-full bg-studio-accent/90 shadow-[0_0_0_1px_rgba(0,0,0,0.4)] transition-opacity duration-100"
+              className={`pointer-events-none transition-opacity duration-100 ${CROP_BAR}`}
               style={{
                 width: m.pillWidth,
                 height: m.pillHeight,

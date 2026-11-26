@@ -1,23 +1,24 @@
+import { t, useLocale } from "../i18n/translate";
+
+/**
+ * Files dragged over the editor (St-Drop): a dashed 24px frame 12px inside the window over a
+ * light scrim, with the "Plasează la cursor" pill (files land at the playhead).
+ */
 export function StudioGlobalDragOverlay() {
+  useLocale();
   return (
-    <div className="hf-backdrop-in absolute inset-0 z-[90] flex items-center justify-center bg-black/50 backdrop-blur-sm pointer-events-none">
-      <div className="flex flex-col items-center gap-3 px-8 py-6 rounded-xl border-2 border-dashed border-studio-accent/60 bg-studio-accent/[0.06]">
-        <svg
-          width="32"
-          height="32"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          className="text-studio-accent"
+    <div className="hf-backdrop-in pointer-events-none absolute inset-0 z-[90]">
+      <div
+        aria-hidden="true"
+        className="absolute inset-3 rounded-card border-2 border-dashed border-[var(--st-sbd)] bg-[color-mix(in_srgb,var(--st-ov)_35%,transparent)]"
+      />
+      <div className="absolute inset-0 flex items-center justify-center">
+        <span
+          role="status"
+          className="inline-flex h-9 items-center whitespace-nowrap rounded-full bg-studio-accent px-3.5 text-[13px] font-semibold text-studio-on-accent shadow-studio"
         >
-          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-          <polyline points="7 10 12 15 17 10" />
-          <line x1="12" y1="15" x2="12" y2="3" />
-        </svg>
-        <span className="text-sm font-medium text-studio-accent">Drop to add at the playhead</span>
+          {t("preview.dropAtPlayhead")}
+        </span>
       </div>
     </div>
   );

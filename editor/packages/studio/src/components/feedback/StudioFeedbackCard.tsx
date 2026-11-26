@@ -11,6 +11,11 @@ import {
 } from "./feedbackTrigger";
 import { projectProvenance } from "./projectProvenance";
 import { createFeedbackReport } from "./feedbackReport";
+import { feedbackText } from "./feedbackCopy";
+import { t, useLocale } from "../../i18n/translate";
+import { OutputButton, OutputIconButton } from "../output/OutputButton";
+import { OutputInput } from "../output/OutputFields";
+import { OutputIcon } from "../output/OutputIcon";
 
 /** A failed render is its own question; nothing is rotated in front of it. */
 const FAILURE_FOLLOW_UP: FollowUpQuestion = {
@@ -65,14 +70,13 @@ type Step = "rating" | "comment" | "thanks";
  */
 // fallow-ignore-next-line complexity
 export const StudioFeedbackCard = memo(function StudioFeedbackCard() {
+  useLocale();
   const [request, setRequest] = useState<FeedbackRequest | null>(null);
   const [step, setStep] = useState<Step>("rating");
   const [rating, setRating] = useState<number | null>(null);
   const [followUp, setFollowUp] = useState<FollowUpQuestion>(FAILURE_FOLLOW_UP);
   const [comment, setComment] = useState("");
   const [report, setReport] = useState("");
-  /** Explanation of the chip under the pointer, shown on the reserved line. */
-  const [hint, setHint] = useState<string | null>(null);
   const [exiting, setExiting] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -121,7 +125,6 @@ export const StudioFeedbackCard = memo(function StudioFeedbackCard() {
         setRequest(next);
         setRating(null);
         setComment("");
-        setHint(null);
         setReport("");
         setFollowUp(next.reason === "crash" ? CRASH_FOLLOW_UP : FAILURE_FOLLOW_UP);
         // A crash or a failed render has nothing to score, so those open
@@ -185,172 +188,135 @@ export const StudioFeedbackCard = memo(function StudioFeedbackCard() {
   if (!request) return null;
 
   const failed = isProblemReason(request.reason);
-  // Deliberately the CLI's question, word for word. Studio and CLI ratings only
-  // sit on one axis if they asked the same thing; what makes them comparable is
-  // `reason`, which records the moment, not a reworded prompt.
-  const title = step === "rating" ? "How likely are you to recommend SneepCut?" : followUp.prompt;
+  // The rating question is the CLI's, word for word: Studio and CLI ratings only sit on one
+  // axis if they ask the same thing. `reason` records the moment, not a reworded prompt.
+  const title =
+    step === "thanks"
+      ? t("feedback.reportReady")
+      : step === "rating"
+        ? t("feedback.ratingTitle")
+        : feedbackText(followUp.prompt);
 
   return (
     <div
       role="dialog"
-      aria-label="Send feedback to the SneepCut team"
+      aria-label={t("feedback.dialogLabel")}
       className={`motion-reduce:animate-none ${exiting ? "hf-toast-exit" : "hf-toast-enter"}`}
       onKeyDown={(e) => {
         if (e.key === "Escape") close("escape");
       }}
     >
-      <div
-        className="flex w-[min(340px,calc(100vw-48px))] flex-col gap-2.5 overflow-hidden rounded-2xl px-3.5 py-3"
-        style={{
-          background: failed
-            ? "linear-gradient(135deg, rgba(127,29,29,0.55), rgba(80,10,10,0.45))"
-            : "linear-gradient(135deg, rgba(38,38,38,0.55), rgba(23,23,23,0.45))",
-          backdropFilter: "blur(16px) saturate(1.6)",
-          WebkitBackdropFilter: "blur(16px) saturate(1.6)",
-          border: `1px solid ${failed ? "rgba(239,68,68,0.18)" : "rgba(255,255,255,0.08)"}`,
-          boxShadow: [
-            "0 8px 32px rgba(0,0,0,0.35)",
-            `inset 0 1px 0 ${failed ? "rgba(239,68,68,0.12)" : "rgba(255,255,255,0.06)"}`,
-            "inset 0 -1px 0 rgba(0,0,0,0.15)",
-          ].join(", "),
-        }}
-      >
-        <div className="flex items-start gap-3">
-          <p
-            className={`min-w-0 flex-1 text-[12px] leading-5 ${failed ? "text-red-100" : "text-neutral-100"}`}
-          >
-            {step === "thanks" ? "Report ready. Download it to share; nothing was sent." : title}
-          </p>
-          {step === "thanks" && (
-            <a
-              href={`data:application/json;charset=utf-8,${encodeURIComponent(report)}`}
-              download="sneepcut-feedback.json"
-              onClick={() => close("sent")}
-              className="h-6 flex-shrink-0 whitespace-nowrap rounded-full border border-white/20 bg-white/[0.08] px-2.5 text-[11px] leading-6 text-neutral-100 transition-[background-color,border-color,transform] duration-150 ease-out hover:border-white/35 hover:bg-white/[0.16] active:scale-[0.97] motion-reduce:transition-none"
-            >
-              Download report
-            </a>
-          )}
-          <button
-            type="button"
+      {/* St-Output-Feedback: a 340px popover card, radius 20, title and a close button. */}
+      <div className="flex w-[min(340px,calc(100vw-32px))] flex-col gap-3 rounded-[20px] bg-studio-surface p-4 text-studio-text shadow-[var(--st-sh),0_16px_40px_rgba(21,32,53,0.16)]">
+        <div className="flex items-start gap-2">
+          <b className="min-w-0 flex-1 text-sm font-semibold leading-5">{title}</b>
+          <OutputIconButton
+            icon="close"
+            label={t("feedback.close")}
+            size={28}
+            iconSize={14}
             onClick={() => close("close")}
-            className="-mr-1 -mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-md text-neutral-500 transition-colors duration-150 hover:bg-white/10 hover:text-neutral-200"
-            aria-label="Dismiss"
-          >
-            <svg
-              width="10"
-              height="10"
-              viewBox="0 0 10 10"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.5"
-            >
-              <path d="M2 2l6 6M8 2l-6 6" />
-            </svg>
-          </button>
+          />
         </div>
 
-        {/* The failure text the user already saw, quoted back so the report
-            carries it without asking them to retype the error. */}
+        {/* The failure the user already saw, quoted back so the report carries it. */}
         {failed && request.detail && step !== "thanks" && (
-          <p className="line-clamp-2 text-[11px] leading-4 text-red-200/70">{request.detail}</p>
+          <p className="line-clamp-2 text-[11px] leading-4 text-[var(--st-danger)]">
+            {request.detail}
+          </p>
         )}
 
-        {step === "rating" && (
-          <>
-            {/* Native radios: free arrow-key navigation, grouping and labels. */}
-            <fieldset className="grid grid-cols-11 gap-[3px]">
-              <legend className="sr-only">Rate this export from 0 to 10</legend>
-              {RATINGS.map((n) => (
-                <label
-                  key={n}
-                  // A resting fill, so the row reads as eleven controls rather
-                  // than as a line of text that happens to be clickable.
-                  className="flex h-7 cursor-pointer items-center justify-center rounded-md bg-white/[0.04] text-[11px] tabular-nums text-neutral-400 transition-[background-color,color,transform] duration-150 ease-out hover:bg-white/[0.14] hover:text-neutral-100 active:scale-[0.97] has-[:checked]:bg-white/90 has-[:checked]:text-neutral-900 has-[:focus-visible]:ring-1 has-[:focus-visible]:ring-white/50 motion-reduce:transition-none"
-                >
-                  <input
-                    type="radio"
-                    name="hf-studio-feedback-rating"
-                    value={n}
-                    checked={rating === n}
-                    onChange={() => pickRating(n)}
-                    className="sr-only"
-                  />
-                  {n}
-                </label>
-              ))}
-            </fieldset>
-            <div className="flex justify-between text-[10px] leading-none text-neutral-500">
-              <span>Not likely</span>
-              <span>Extremely likely</span>
-            </div>
-          </>
-        )}
+        {step === "rating" && <RatingScale rating={rating} onPick={pickRating} />}
 
         {step === "comment" && (
           <>
-            {/* One tap is the whole answer. Sends immediately: making someone
-                tap a chip and then hunt for Send throws away the reason chips
-                exist. The field below stays for anything the chips miss. */}
+            {/* One tap is the whole answer and sends immediately; the field covers the rest. */}
             <div className="flex flex-wrap gap-1.5">
               {followUp.presets.map((preset) => (
                 <button
                   key={preset.label}
                   type="button"
                   onClick={() => submit(preset.label)}
-                  onPointerEnter={() => setHint(preset.hint)}
-                  onPointerLeave={() => setHint(null)}
-                  onFocus={() => setHint(preset.hint)}
-                  onBlur={() => setHint(null)}
-                  // The hint reaches a screen reader through the label, since
-                  // it never gets the hover that reveals it visually.
-                  aria-label={`${preset.label}. ${preset.hint}`}
-                  // Hover has to be unmistakable, not a shade brighter: the
-                  // chip under the pointer is the one the hint line is talking
-                  // about, so if you cannot tell which is hovered, the hint is
-                  // attached to nothing.
-                  className={`h-6 rounded-full border px-2.5 text-[11px] transition-[background-color,border-color,color,transform] duration-150 ease-out active:scale-[0.97] motion-reduce:transition-none ${
-                    failed
-                      ? "border-red-300/20 bg-red-100/[0.06] text-red-100/80 hover:border-red-200/70 hover:bg-red-100/25 hover:text-white"
-                      : "border-white/10 bg-white/[0.04] text-neutral-300 hover:border-white/60 hover:bg-white/25 hover:text-white"
-                  }`}
+                  title={feedbackText(preset.hint)}
+                  aria-label={`${feedbackText(preset.label)}. ${feedbackText(preset.hint)}`}
+                  className="h-8 rounded-[14px] bg-studio-surface px-3 text-xs font-semibold text-studio-text shadow-[inset_0_0_0_1px_var(--st-sbd)] outline-none transition-colors hover:bg-[var(--st-sub)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--st-btn)] active:bg-[var(--st-sel)] active:text-[var(--st-on-sel)]"
                 >
-                  {preset.label}
+                  {feedbackText(preset.label)}
                 </button>
               ))}
             </div>
-            {/* Inline, not a floating tooltip. The card is 340px in a corner,
-                so a bubble above the chips lands on top of the question and a
-                bubble below lands on the input. One reserved line occludes
-                nothing and needs no hover delay to be readable. */}
-            <p className="h-3.5 truncate text-[10.5px] leading-[14px] text-neutral-500">
-              {hint ?? "Tap one, or write your own."}
-            </p>
-            <div className="flex items-center gap-2">
-              <input
-                ref={inputRef}
-                type="text"
-                value={comment}
-                onChange={(e) => setComment(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") submit();
-                }}
-                placeholder={followUp.placeholder}
-                aria-label={followUp.prompt}
-                maxLength={500}
-                className="h-7 min-w-0 flex-1 rounded-md border border-white/10 bg-black/20 px-2 text-[11px] text-neutral-100 outline-none transition-colors duration-150 placeholder:text-neutral-500 focus:border-white/25"
-              />
-              <button
-                type="button"
-                onClick={() => submit()}
-                className="h-7 flex-shrink-0 rounded-md bg-white/10 px-2.5 text-[11px] text-neutral-100 transition-[background-color,transform] duration-150 ease-out hover:bg-white/[0.16] active:scale-[0.97] motion-reduce:transition-none"
-              >
-                Prepare report
-              </button>
-            </div>
+            <OutputInput
+              ref={inputRef}
+              type="text"
+              value={comment}
+              onChange={(e) => setComment(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") submit();
+              }}
+              placeholder={feedbackText(followUp.placeholder)}
+              aria-label={feedbackText(followUp.prompt)}
+              maxLength={500}
+            />
           </>
         )}
+
+        <div className="flex justify-end gap-2">
+          <OutputButton variant="ghost" height={36} onClick={() => close("close")}>
+            {t("feedback.close")}
+          </OutputButton>
+          {step === "thanks" ? (
+            <a
+              href={`data:application/json;charset=utf-8,${encodeURIComponent(report)}`}
+              download="sneepcut-feedback.json"
+              onClick={() => close("sent")}
+              className="inline-flex h-9 items-center gap-1.5 rounded-full bg-[var(--st-btn)] px-4 text-[13px] font-semibold text-[var(--st-on-btn)] outline-none hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--st-btn)]"
+            >
+              <OutputIcon name="download" size={16} />
+              {t("feedback.download")}
+            </a>
+          ) : (
+            <OutputButton
+              variant="primary"
+              height={36}
+              disabled={step === "rating"}
+              onClick={() => submit()}
+            >
+              {t("feedback.send")}
+            </OutputButton>
+          )}
+        </div>
       </div>
     </div>
   );
 });
+
+/** 0 to 10 as native radios (arrow keys, grouping and labels for free), drawn as 32px tiles. */
+function RatingScale({ rating, onPick }: { rating: number | null; onPick: (n: number) => void }) {
+  return (
+    <>
+      <fieldset className="grid grid-cols-11 gap-1">
+        <legend className="sr-only">{t("feedback.ratingLegend")}</legend>
+        {RATINGS.map((n) => (
+          <label
+            key={n}
+            className="flex h-8 cursor-pointer items-center justify-center rounded-[10px] bg-studio-surface text-xs font-semibold tabular-nums text-studio-text shadow-[inset_0_0_0_1px_var(--st-sbd)] transition-colors hover:bg-[var(--st-sub)] has-[:checked]:bg-[var(--st-sel)] has-[:checked]:text-[var(--st-on-sel)] has-[:checked]:shadow-none has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-[var(--st-btn)]"
+          >
+            <input
+              type="radio"
+              name="hf-studio-feedback-rating"
+              value={n}
+              checked={rating === n}
+              onChange={() => onPick(n)}
+              className="sr-only"
+            />
+            {n}
+          </label>
+        ))}
+      </fieldset>
+      <div className="flex justify-between text-[11px] font-medium text-[var(--st-t2)]">
+        <span>{t("feedback.notLikely")}</span>
+        <span>{t("feedback.extremelyLikely")}</span>
+      </div>
+    </>
+  );
+}

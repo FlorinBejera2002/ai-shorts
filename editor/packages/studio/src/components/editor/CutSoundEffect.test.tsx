@@ -70,7 +70,7 @@ async function click(label: string) {
 describe("cut sound controls", () => {
   it("defaults to selected cut and applies to all only through its explicit action", async () => {
     render();
-    await click("Apply to selected cut");
+    await click("Apply to cut");
     expect(mocks.save.mock.calls[0][0].applyToAll).toBe(false);
     const changed = mocks.save.mock.calls[0][0].patch(mocks.source, { path: "scene.html" });
     expect(readCutSoundEffect(changed)).toMatchObject({ effect: "click", volume: 0.65 });
@@ -87,7 +87,7 @@ describe("cut sound controls", () => {
       }),
     );
     render();
-    await click("Apply to selected cut");
+    await click("Apply to cut");
     const [url, request] = mocks.fetch.mock.calls[0];
     expect(url).toBe("/api/projects/synthetic-project/upload?dir=assets");
     expect((request.body as FormData).get("file")).toBeInstanceOf(File);
@@ -102,7 +102,7 @@ describe("cut sound controls", () => {
       new Response(JSON.stringify({ error: "Upload failed" }), { status: 500 }),
     );
     render();
-    await click("Apply to selected cut");
+    await click("Apply to cut");
     expect(mocks.save).not.toHaveBeenCalled();
     expect(host.querySelector('[role="alert"]')?.textContent).toBe("Upload failed");
   });
@@ -115,7 +115,7 @@ describe("cut sound controls", () => {
         assetPath: "assets/click.wav",
       }),
     );
-    await click("Remove from selected cut");
+    await click("Remove");
     const operation = mocks.save.mock.calls[0][0];
     expect(operation.applyToAll).toBe(false);
     const changed = operation.patch(mocks.source, { path: "scene.html" });

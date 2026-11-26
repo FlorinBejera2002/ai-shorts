@@ -142,6 +142,32 @@ const paths = () =>
   );
 
 describe("canonical editable compositions", () => {
+  test("fills a fitted landscape picture in a portrait frame with its own blurred copy", () => {
+    const plan = canonicalFixture();
+    plan.width = 1080;
+    plan.height = 1920;
+    delete plan.scenes[0]!.crop;
+    plan.scenes[0]!.fit = "contain";
+    const output = compileCanonicalComposition(plan, paths());
+    const fitted = output.files.get("source-scene-1.html")!;
+    const fill = parseHTML(fitted).document.getElementById("source-scene-1-fill")!;
+    expect(fill.getAttribute("src")).toBe("assets/camera.mp4");
+    expect(fill.getAttribute("style")).toContain("object-fit:cover;filter:blur(43px)");
+    expect(fitted.indexOf('id="source-scene-1-fill"')).toBeLessThan(
+      fitted.indexOf('id="source-scene-1-video"'),
+    );
+    expect(output.html).toContain(
+      "#source-scene-1-video,#source-scene-1-background,#source-scene-1-fill",
+    );
+    expect(output.files.get("source-scene-2.html")).not.toContain("canonical-fill");
+
+    plan.width = 1920;
+    plan.height = 1080;
+    expect(
+      compileCanonicalComposition(plan, paths()).files.get("source-scene-1.html"),
+    ).not.toContain("canonical-fill");
+  });
+
   test("nests prepared transition pictures below the parent captions without replacing camera audio", () => {
     const plan = canonicalFixture();
     plan.scenes.push({

@@ -28,7 +28,7 @@ describe("FlatToggle", () => {
       <FlatToggle label="Loop" checked={false} onChange={onChange} />,
     );
     const label = host.querySelector('[data-flat-toggle-label="true"]');
-    expect(label?.className).toContain("text-panel-text-3");
+    expect(label?.className).toContain("text-studio-muted");
     const pill = host.querySelector<HTMLButtonElement>('[data-flat-toggle="true"]');
     expect(pill).not.toBeNull();
     act(() => pill?.dispatchEvent(new MouseEvent("click", { bubbles: true })));
@@ -40,9 +40,9 @@ describe("FlatToggle", () => {
     const onChange = vi.fn();
     const { host, root } = renderInto(<FlatToggle label="Loop" checked onChange={onChange} />);
     const label = host.querySelector('[data-flat-toggle-label="true"]');
-    expect(label?.className).toContain("text-panel-text-2");
+    expect(label?.className).toContain("text-studio-text");
     const knob = host.querySelector('[data-flat-toggle-knob="true"]');
-    expect(knob?.className).toContain("bg-panel-accent");
+    expect(knob?.className).toContain("bg-studio-on-accent");
     const pill = host.querySelector<HTMLButtonElement>('[data-flat-toggle="true"]');
     act(() => pill?.dispatchEvent(new MouseEvent("click", { bubbles: true })));
     expect(onChange).toHaveBeenCalledWith(false);
