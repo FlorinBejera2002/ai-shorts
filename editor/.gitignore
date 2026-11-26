@@ -54,6 +54,7 @@ renders/
 # Source dir that the renders/ output rule accidentally shadows (its files are
 # tracked; without this, pre-commit's format re-stage fails on them).
 !packages/studio/src/components/renders/
+!packages/studio/src/components/output/
 
 # Composition source media (large binaries)
 compositions/**/*.mp4
